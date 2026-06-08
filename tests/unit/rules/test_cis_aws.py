@@ -7,10 +7,13 @@ current AWS CIS v6.0.0 requirement numbering used by Cartography.
 
 import pytest
 
+from cartography.rules.data.rules.cis_aws_iam import cis_aws_2_3_root_access_key
+from cartography.rules.data.rules.cis_aws_iam import cis_aws_2_4_root_mfa
 from cartography.rules.data.rules.cis_aws_iam import cis_aws_2_11_unused_credentials
 from cartography.rules.data.rules.cis_aws_iam import cis_aws_2_12_multiple_access_keys
 from cartography.rules.data.rules.cis_aws_iam import cis_aws_2_13_access_key_not_rotated
 from cartography.rules.data.rules.cis_aws_iam import cis_aws_2_14_user_direct_policies
+from cartography.rules.data.rules.cis_aws_iam import cis_aws_2_15_admin_policy
 from cartography.rules.data.rules.cis_aws_iam import cis_aws_2_18_expired_certificates
 from cartography.rules.data.rules.cis_aws_logging import (
     cis_aws_4_1_cloudtrail_multi_region,
@@ -47,10 +50,13 @@ from cartography.rules.spec.model import Maturity
 from cartography.rules.spec.model import Module
 
 ALL_CIS_AWS_RULES = [
+    cis_aws_2_3_root_access_key,
+    cis_aws_2_4_root_mfa,
     cis_aws_2_11_unused_credentials,
     cis_aws_2_12_multiple_access_keys,
     cis_aws_2_13_access_key_not_rotated,
     cis_aws_2_14_user_direct_policies,
+    cis_aws_2_15_admin_policy,
     cis_aws_2_18_expired_certificates,
     cis_aws_3_1_2_s3_mfa_delete,
     cis_aws_3_1_4_s3_block_public_access,
@@ -176,10 +182,13 @@ class TestCisAwsRuleIds:
     """Test that AWS CIS rule ids and framework requirements stay aligned."""
 
     EXPECTED_RULES = {
+        "cis_aws_2_3_root_access_key": "2.3",
+        "cis_aws_2_4_root_mfa": "2.4",
         "cis_aws_2_11_unused_credentials": "2.11",
         "cis_aws_2_12_multiple_access_keys": "2.12",
         "cis_aws_2_13_access_key_not_rotated": "2.13",
         "cis_aws_2_14_user_direct_policies": "2.14",
+        "cis_aws_2_15_admin_policy": "2.15",
         "cis_aws_2_18_expired_certificates": "2.18",
         "cis_aws_3_1_2_s3_mfa_delete": "3.1.2",
         "cis_aws_3_1_4_s3_block_public_access": "3.1.4",
@@ -215,10 +224,13 @@ class TestIso27001AwsMappings:
     """Test that batch 1 AWS rules have expected ISO 27001 Annex A mappings."""
 
     EXPECTED_REQUIREMENTS = {
+        "cis_aws_2_3_root_access_key": {"8.2", "5.17"},
+        "cis_aws_2_4_root_mfa": {"8.5", "8.2"},
         "cis_aws_2_11_unused_credentials": {"5.18"},
         "cis_aws_2_12_multiple_access_keys": {"5.17"},
         "cis_aws_2_13_access_key_not_rotated": {"5.17"},
         "cis_aws_2_14_user_direct_policies": {"5.18"},
+        "cis_aws_2_15_admin_policy": {"8.2", "5.18"},
         "cis_aws_2_18_expired_certificates": {"8.24"},
         "cis_aws_3_1_2_s3_mfa_delete": {"8.10"},
         "cis_aws_3_1_4_s3_block_public_access": {"8.3"},

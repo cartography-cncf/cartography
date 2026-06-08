@@ -277,3 +277,28 @@ def test_sync_subnets(mock_get_subnets, neo4j_session):
         "available",
         251,
     ) in all_subnet_props
+
+
+def test_subnet_ontology_labels(neo4j_session):
+    # Arrange / Act
+    neo4j_session.run("MATCH (n) DETACH DELETE n")
+    data = tests.data.aws.ec2.subnets.DESCRIBE_SUBNETS
+    cartography.intel.aws.ec2.subnets.load_subnets(
+        neo4j_session,
+        data,
+        TEST_REGION,
+        TEST_ACCOUNT_ID,
+        TEST_UPDATE_TAG,
+    )
+
+    # Assert: every EC2Subnet carries the Subnet semantic label with normalized
+    # _ont_* properties populated.
+    assert check_nodes(
+        neo4j_session,
+        "Subnet",
+        ["_ont_name", "_ont_cidr_block", "_ont_region", "_ont_source"],
+    ) == {
+        ("subnet-020b2f3928f190ce8", "10.1.2.0/24", TEST_REGION, "aws"),
+        ("subnet-0773409557644dca4", "10.1.1.0/24", TEST_REGION, "aws"),
+        ("subnet-0fa9c8fa7cb241479", "10.2.1.0/24", TEST_REGION, "aws"),
+    }

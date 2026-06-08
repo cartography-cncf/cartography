@@ -76,6 +76,7 @@ Configured AWS sync accounts are marked `inscope=true`. Accounts discovered only
                                 :RDSInstance,
                                 :RDSSnapshot,
                                 :RDSEventSubscription,
+                                :ECRPullThroughCacheRule,
                                 :SecretsManagerSecret,
                                 :SecurityHub,
                                 :SQSQueue,
@@ -1268,6 +1269,8 @@ Representation of an [AWS Transit Gateway Attachment](https://docs.aws.amazon.co
 Representation of an [AWS CidrBlock used in VPC configuration](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_VpcCidrBlockAssociation.html).
 More information on https://docs.aws.amazon.com/cli/latest/reference/ec2/describe-vpcs.html
 
+> **Ontology Mapping**: This node has the extra label `VirtualNetwork` and normalized `_ont_*` properties to enable cross-platform queries for virtual networks across different systems (e.g., GCPVpc, AzureVirtualNetwork).
+
 | Field | Description |
 |-------|-------------|
 |firstseen| Timestamp of when a sync job discovered this node|
@@ -2436,6 +2439,8 @@ Representation of an AWS EC2 [Security Group](https://docs.aws.amazon.com/AWSEC2
 
 Representation of an AWS EC2 [Subnet](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_Subnet.html).
 
+> **Ontology Mapping**: This node has the extra label `Subnet` and normalized `_ont_*` properties to enable cross-platform queries for network subnets across different systems (e.g., GCPSubnet, AzureSubnet).
+
 | Field | Description |
 |-------|-------------|
 | firstseen| Timestamp of when a sync job first discovered this node  |
@@ -2574,6 +2579,44 @@ Representation of an AWS Elastic Container Registry [Repository](https://docs.aw
 - An ECRRepository contains ECRRepositoryImages:
     ```
     (:ECRRepository)-[:REPO_IMAGE]->(:ECRRepositoryImage)
+    ```
+
+
+### ECRPullThroughCacheRule
+
+Representation of an AWS Elastic Container Registry [pull through cache rule](https://docs.aws.amazon.com/AmazonECR/latest/APIReference/API_PullThroughCacheRule.html).
+
+| Field | Description |
+|--------|-----------|
+| firstseen | Timestamp of when a sync job first discovered this node |
+| lastupdated | Timestamp of the last time the node was updated |
+| **id** | Synthetic ID in the format `registry_id:region:ecr_repository_prefix` |
+| **registry_id** | The AWS registry ID associated with the rule |
+| **ecr_repository_prefix** | The ECR repository prefix used when caching images from the upstream registry |
+| upstream_registry_url | The upstream registry URL associated with the rule |
+| **upstream_registry** | The upstream source registry name associated with the rule |
+| upstream_repository_prefix | The upstream repository prefix associated with the rule |
+| **credential_arn** | The Secrets Manager secret ARN used for upstream registry credentials, when configured |
+| **custom_role_arn** | The IAM role ARN used for pull through cache operations, when configured |
+| created_at | Date and time when the rule was created |
+| updated_at | Date and time when the rule was last updated |
+| region | The region of the rule |
+
+#### Relationships
+
+- ECR pull through cache rules are resources under the AWS Account:
+    ```
+    (:AWSAccount)-[:RESOURCE]->(:ECRPullThroughCacheRule)
+    ```
+
+- ECR pull through cache rules may use a Secrets Manager secret for upstream credentials:
+    ```
+    (:ECRPullThroughCacheRule)-[:USES_SECRET]->(:SecretsManagerSecret)
+    ```
+
+- ECR pull through cache rules may be associated with an IAM role:
+    ```
+    (:ECRPullThroughCacheRule)-[:ASSOCIATED_WITH]->(:AWSRole)
     ```
 
 
@@ -3829,6 +3872,8 @@ Representation of an AWS Relational Database Service [DBInstance](https://docs.a
 
 Representation of an AWS Relational Database Service [DBSnapshot](https://docs.aws.amazon.com/AmazonRDS/latest/APIReference/API_DBSnapshot.html).
 
+> **Ontology Mapping**: This node has the extra label `Snapshot` and normalized `_ont_*` properties to enable cross-platform queries for volume/database snapshots across different systems (e.g., EBSSnapshot, AzureSnapshot, ScalewayVolumeSnapshot).
+
 | Field | Description |
 |-------|-------------|
 | firstseen| Timestamp of when a sync job first discovered this node  |
@@ -4709,6 +4754,8 @@ Representation of an AWS [EBS Volume](https://docs.aws.amazon.com/AWSEC2/latest/
 ### EBSSnapshot
 
 Representation of an AWS [EBS Snapshot](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/EBSSnapshots.html).
+
+> **Ontology Mapping**: This node has the extra label `Snapshot` and normalized `_ont_*` properties to enable cross-platform queries for volume/database snapshots across different systems (e.g., RDSSnapshot, AzureSnapshot, ScalewayVolumeSnapshot).
 
 | Field | Description |
 |-------|-------------|
