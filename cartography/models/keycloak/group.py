@@ -44,6 +44,9 @@ class KeycloakGroupToGroupRelProperties(CartographyRelProperties):
 
 
 @dataclass(frozen=True)
+# DEPRECATED: replaced by the canonical (:UserGroup)-[:MEMBER_OF]->(:UserGroup)
+# edge (KeycloakGroupToGroupMemberOfRel). Kept for backward compatibility, will
+# be removed in v1.0.0.
 # (:KeycloakGroup)-[:SUBGROUP_OF]->(:KeycloakGroup)
 class KeycloakGroupToGroupRel(CartographyRelSchema):
     target_node_label: str = "KeycloakGroup"
@@ -53,6 +56,25 @@ class KeycloakGroupToGroupRel(CartographyRelSchema):
     direction: LinkDirection = LinkDirection.OUTWARD
     rel_label: str = "SUBGROUP_OF"
     properties: KeycloakGroupToGroupRelProperties = KeycloakGroupToGroupRelProperties()
+
+
+@dataclass(frozen=True)
+class KeycloakGroupToGroupMemberOfRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("LASTUPDATED", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+# Canonical ontology edge: (:UserGroup)-[:MEMBER_OF]->(:UserGroup)
+class KeycloakGroupToGroupMemberOfRel(CartographyRelSchema):
+    target_node_label: str = "KeycloakGroup"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"id": PropertyRef("parentId")},
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "MEMBER_OF"
+    properties: KeycloakGroupToGroupMemberOfRelProperties = (
+        KeycloakGroupToGroupMemberOfRelProperties()
+    )
 
 
 @dataclass(frozen=True)
@@ -99,5 +121,10 @@ class KeycloakGroupSchema(CartographyNodeSchema):
     sub_resource_relationship: KeycloakGroupToRealmRel = KeycloakGroupToRealmRel()
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["UserGroup"])
     other_relationships: OtherRelationships = OtherRelationships(
-        [KeycloakGroupToGroupRel(), KeycloakGroupToUserRel(), KeycloakGroupToRoleRel()]
+        [
+            KeycloakGroupToGroupRel(),
+            KeycloakGroupToGroupMemberOfRel(),
+            KeycloakGroupToUserRel(),
+            KeycloakGroupToRoleRel(),
+        ]
     )

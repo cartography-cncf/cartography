@@ -40,8 +40,8 @@ E -- HAS_SECRET --> ES(GitHubActionsSecret)
 E -- HAS_VARIABLE --> EV(GitHubActionsVariable)
 M -- HAS_DEP --> D
 T -- {ROLE} --> R
-T -- MEMBER_OF_TEAM --> T
-U -- MEMBER --> T
+T -- MEMBER_OF --> T
+U -- MEMBER_OF --> T
 U -- MAINTAINER --> T
 I(Image) -- PACKAGED_FROM --> R
 I(Image) -- PACKAGED_BY --> W
@@ -224,13 +224,13 @@ A GitHubTeam [organization object](https://docs.github.com/en/graphql/reference/
 - GitHubTeams may be children of other teams:
 
     ```
-    (GitHubTeam)-[MEMBER_OF_TEAM]->(GitHubTeam)
+    (GitHubTeam)-[MEMBER_OF]->(GitHubTeam)
     ```
 
 - GitHubUsers may be ['immediate'](https://docs.github.com/en/graphql/reference/enums#teammembershiptype) members of a team (as opposed to being members via membership in a child team), with their membership [role](https://docs.github.com/en/graphql/reference/enums#teammemberrole) being MEMBER or MAINTAINER.
 
     ```
-    (GitHubUser)-[MEMBER|MAINTAINER]->(GitHubTeam)
+    (GitHubUser)-[MEMBER_OF|MAINTAINER]->(GitHubTeam)
     ```
 
 
@@ -298,13 +298,13 @@ WRITE, MAINTAIN, TRIAGE, and READ ([Reference](https://docs.github.com/en/graphq
 - GitHubTeams may be children of other teams:
 
     ```
-    (GitHubTeam)-[MEMBER_OF_TEAM]->(GitHubTeam)
+    (GitHubTeam)-[MEMBER_OF]->(GitHubTeam)
     ```
 
 - GitHubUsers may be ['immediate'](https://docs.github.com/en/graphql/reference/enums#teammembershiptype) members of a team (as opposed to being members via membership in a child team), with their membership [role](https://docs.github.com/en/graphql/reference/enums#teammemberrole) being MEMBER or MAINTAINER.
 
     ```
-    (GitHubUser)-[MEMBER|MAINTAINER]->(GitHubTeam)
+    (GitHubUser)-[MEMBER_OF|MAINTAINER]->(GitHubTeam)
     ```
 
 - GitHubUsers who have committed to GitHubRepositories in the last 30 days are tracked with commit activity data.

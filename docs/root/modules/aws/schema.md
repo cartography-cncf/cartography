@@ -278,7 +278,7 @@ Representation of AWS [IAM Groups](https://docs.aws.amazon.com/IAM/latest/APIRef
 - AWSUsers and AWSPrincipals can be members of AWSGroups.
 
     ```cypher
-    (:AWSUser, :AWSPrincipal)-[:MEMBER_AWS_GROUP]->(:AWSGroup)
+    (:AWSUser, :AWSPrincipal)-[:MEMBER_OF]->(:AWSGroup)
     ```
 
 - AWSGroups belong to AWSAccounts.
@@ -902,7 +902,7 @@ Representation of an [AWSPrincipal](https://docs.aws.amazon.com/IAM/latest/APIRe
 - AWS Principals can be members of AWS Groups.
 
     ```cypher
-    (AWSPrincipal)-[MEMBER_AWS_GROUP]->(AWSGroup)
+    (AWSPrincipal)-[MEMBER_OF]->(AWSGroup)
     ```
 
 - This AccountAccessKey is used to authenticate to this AWSPrincipal.
@@ -985,7 +985,7 @@ Representation of an [AWSUser](https://docs.aws.amazon.com/IAM/latest/APIReferen
 - AWS Users can be members of AWS Groups.
 
     ```cypher
-    (AWSUser)-[MEMBER_AWS_GROUP]->(AWSGroup)
+    (AWSUser)-[MEMBER_OF]->(AWSGroup)
     ```
 
 - AWS Users can assume AWS Roles.
@@ -5750,7 +5750,7 @@ Representation of an AWS SSO User.
 
 - An AWSSSOUser can be a member of one or more AWSSSOGroups. In effect, the AWSSSOUser will receive all permission sets that the group is assigned to.
     ```
-    (:AWSSSOUser)-[:MEMBER_OF_SSO_GROUP]->(:AWSSSOGroup)
+    (:AWSSSOUser)-[:MEMBER_OF]->(:AWSSSOGroup)
     ```
 
 - AWSSSOUsers can be assigned to AWSRoles. This happens when the user is assigned to a permission set for a specific account. This includes both direct assignments to the user and assignments inherited through AWSSSOGroup membership. Note: The AWS Identity Center API (`list_account_assignments_for_principal`) automatically resolves group memberships server-side, so users receive `ALLOWED_BY` relationships for roles they can access through groups they belong to.
@@ -5830,7 +5830,7 @@ Representation of an AWS SSO Group.
 
 - AWSSSOUsers can be members of AWSSSOGroups. In effect, the AWSSSOUser will receive all permission sets that the group is assigned to.
     ```
-    (:AWSSSOUser)-[:MEMBER_OF_SSO_GROUP]->(:AWSSSOGroup)
+    (:AWSSSOUser)-[:MEMBER_OF]->(:AWSSSOGroup)
     ```
 
 ### AWSPermissionSet

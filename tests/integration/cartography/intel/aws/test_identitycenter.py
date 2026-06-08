@@ -228,20 +228,37 @@ def test_link_sso_user_membership_to_group(neo4j_session):
         Region="us-west-2",
     )
 
-    assert check_rels(
-        neo4j_session,
-        "AWSSSOUser",
-        "id",
-        "AWSSSOGroup",
-        "id",
-        "MEMBER_OF_SSO_GROUP",
-        True,
-    ) == {
+    expected_sso_group_membership = {
         (
             user["UserId"],
             group["GroupId"],
         )
     }
+    assert (
+        check_rels(
+            neo4j_session,
+            "AWSSSOUser",
+            "id",
+            "AWSSSOGroup",
+            "id",
+            "MEMBER_OF_SSO_GROUP",
+            True,
+        )
+        == expected_sso_group_membership
+    )
+    # Canonical ontology edge: (:UserAccount)-[:MEMBER_OF]->(:UserGroup)
+    assert (
+        check_rels(
+            neo4j_session,
+            "AWSSSOUser",
+            "id",
+            "AWSSSOGroup",
+            "id",
+            "MEMBER_OF",
+            True,
+        )
+        == expected_sso_group_membership
+    )
 
 
 def test_link_sso_user_to_permission_set(neo4j_session):

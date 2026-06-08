@@ -120,6 +120,19 @@ def test_load_keycloak_groups(mock_api, neo4j_session):
         )
         == expected_rels
     )
+    # Canonical ontology edge: (:UserGroup)-[:MEMBER_OF]->(:UserGroup)
+    assert (
+        check_rels(
+            neo4j_session,
+            "KeycloakGroup",
+            "id",
+            "KeycloakGroup",
+            "id",
+            "MEMBER_OF",
+            rel_direction_right=False,
+        )
+        == expected_rels
+    )
 
     # Assert Groups are connected with Roles
     expected_rels = {

@@ -21,7 +21,7 @@ _SUB_RESOURCE_LABEL = "KeycloakRealm"
 
 _INHERITED_MEMBER_OF_QUERY = """
     MATCH (:KeycloakRealm {name: $REALM})-[:RESOURCE]->(u:KeycloakUser)
-          -[:MEMBER_OF]->(:KeycloakGroup)-[:SUBGROUP_OF*1..5]->(pg:KeycloakGroup)
+          -[:MEMBER_OF]->(:KeycloakGroup)-[:MEMBER_OF|SUBGROUP_OF*1..5]->(pg:KeycloakGroup)
     RETURN DISTINCT u.id AS user_id, pg.id AS group_id
 """
 

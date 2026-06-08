@@ -77,6 +77,9 @@ class GSuiteGroupToMemberRelProperties(CartographyRelProperties):
 
 
 @dataclass(frozen=True)
+# DEPRECATED: replaced by the canonical (:UserAccount)-[:MEMBER_OF]->(:UserGroup)
+# edge (GSuiteGroupToMemberMemberOfRel). Kept for backward compatibility, will be
+# removed in v1.0.0.
 class GSuiteGroupToMemberRel(CartographyRelSchema):
     """
     Relationship from GSuite group to its members (users or groups)
@@ -91,6 +94,31 @@ class GSuiteGroupToMemberRel(CartographyRelSchema):
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "MEMBER_GSUITE_GROUP"
     properties: GSuiteGroupToMemberRelProperties = GSuiteGroupToMemberRelProperties()
+
+
+@dataclass(frozen=True)
+class GSuiteGroupToMemberMemberOfRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+# Canonical ontology edge: (:UserAccount)-[:MEMBER_OF]->(:UserGroup)
+class GSuiteGroupToMemberMemberOfRel(CartographyRelSchema):
+    """
+    Canonical membership edge from a GSuite group to its members.
+    """
+
+    target_node_label: str = "GSuiteUser"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {
+            "id": PropertyRef("member_ids", one_to_many=True),
+        }
+    )
+    direction: LinkDirection = LinkDirection.INWARD
+    rel_label: str = "MEMBER_OF"
+    properties: GSuiteGroupToMemberMemberOfRelProperties = (
+        GSuiteGroupToMemberMemberOfRelProperties()
+    )
 
 
 @dataclass(frozen=True)
@@ -132,6 +160,7 @@ class GSuiteGroupSchema(CartographyNodeSchema):
     other_relationships = OtherRelationships(
         [
             GSuiteGroupToMemberRel(),
+            GSuiteGroupToMemberMemberOfRel(),
             GSuiteGroupToOwnerRel(),
         ]
     )
@@ -155,6 +184,9 @@ class GSuiteGroupToGroupMemberRelProperties(CartographyRelProperties):
 
 
 @dataclass(frozen=True)
+# DEPRECATED: replaced by the canonical (:UserGroup)-[:MEMBER_OF]->(:UserGroup)
+# edge (GSuiteGroupToGroupMemberMemberOfRel). Kept for backward compatibility,
+# will be removed in v1.0.0.
 class GSuiteGroupToGroupMemberRel(CartographyRelSchema):
     """
     MatchLink relationship from GSuite parent group to member group
@@ -174,6 +206,33 @@ class GSuiteGroupToGroupMemberRel(CartographyRelSchema):
     )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "MEMBER_GSUITE_GROUP"
+    properties: GSuiteGroupToGroupMemberRelProperties = (
+        GSuiteGroupToGroupMemberRelProperties()
+    )
+
+
+@dataclass(frozen=True)
+# Canonical ontology edge: (:UserGroup)-[:MEMBER_OF]->(:UserGroup)
+class GSuiteGroupToGroupMemberMemberOfRel(CartographyRelSchema):
+    """
+    Canonical MatchLink membership edge from a GSuite parent group to a member
+    group.
+    """
+
+    target_node_label: str = "GSuiteGroup"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {
+            "id": PropertyRef("subgroup_id"),
+        }
+    )
+    source_node_label: str = "GSuiteGroup"
+    source_node_matcher: SourceNodeMatcher = make_source_node_matcher(
+        {
+            "id": PropertyRef("parent_group_id"),
+        }
+    )
+    direction: LinkDirection = LinkDirection.INWARD
+    rel_label: str = "MEMBER_OF"
     properties: GSuiteGroupToGroupMemberRelProperties = (
         GSuiteGroupToGroupMemberRelProperties()
     )

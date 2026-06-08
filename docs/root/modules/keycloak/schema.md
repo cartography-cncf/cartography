@@ -17,7 +17,7 @@ C -- HAS_OPTIONAL_SCOPE --> S
 C -- DEFINES --> ROLE
 C -- HAS_SERVICE_ACCOUNT --> U
 C -- USES --> AF
-G -- SUBGROUP_OF --> G
+G -- MEMBER_OF --> G
 U -- MEMBER_OF --> G
 U ==> INHERITED_MEMBER_OF ==> G
 G -- GRANTS --> ROLE
@@ -240,7 +240,7 @@ Represents a group of users in Keycloak that can be used for organizing users an
     ```
 - `KeycloakGroup` can be a member of another group (hierarchical structure)
     ```
-    (:KeycloakGroup)-[:SUBGROUP_OF]->(:KeycloakGroup)
+    (:KeycloakGroup)-[:MEMBER_OF]->(:KeycloakGroup)
     ```
 - `KeycloakUser` can be a member of groups
     ```

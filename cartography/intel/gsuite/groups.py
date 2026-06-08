@@ -9,6 +9,7 @@ from cartography.client.core.tx import load
 from cartography.client.core.tx import load_matchlinks
 from cartography.graph.job import GraphJob
 from cartography.models.gsuite.group import GSuiteGroupSchema
+from cartography.models.gsuite.group import GSuiteGroupToGroupMemberMemberOfRel
 from cartography.models.gsuite.group import GSuiteGroupToGroupMemberRel
 from cartography.models.gsuite.group import GSuiteGroupToGroupOwnerRel
 from cartography.models.gsuite.tenant import GSuiteTenantSchema
@@ -193,6 +194,15 @@ def load_gsuite_group_to_group_relationships(
             _sub_resource_label="GSuiteTenant",
             _sub_resource_id=customer_id,
         )
+        # Canonical ontology edge: (:UserGroup)-[:MEMBER_OF]->(:UserGroup)
+        load_matchlinks(
+            neo4j_session,
+            GSuiteGroupToGroupMemberMemberOfRel(),
+            group_member_relationships,
+            lastupdated=gsuite_update_tag,
+            _sub_resource_label="GSuiteTenant",
+            _sub_resource_id=customer_id,
+        )
 
     # Load group owner relationships (Group -> Group OWNER)
     if group_owner_relationships:
@@ -226,6 +236,12 @@ def cleanup_gsuite_groups(
     # Cleanup group-to-group member relationships
     GraphJob.from_matchlink(
         GSuiteGroupToGroupMemberRel(),
+        "GSuiteTenant",
+        customer_id,
+        gsuite_update_tag,
+    ).run(neo4j_session)
+    GraphJob.from_matchlink(
+        GSuiteGroupToGroupMemberMemberOfRel(),
         "GSuiteTenant",
         customer_id,
         gsuite_update_tag,

@@ -41,6 +41,9 @@ EK{{EncryptionKey}}
 PR{{PermissionRole}}
 UA -- HAS_ROLE --> PR
 SA -- HAS_ROLE --> PR
+UA -- MEMBER_OF --> UG
+SA -- MEMBER_OF --> UG
+UG -- MEMBER_OF --> UG
 NAC{{NetworkAccessControl}}
 AIM{{AIModel}}
 PIP(PublicIP) -- POINTS_TO --> LB
@@ -196,6 +199,16 @@ Common group concepts across platforms include:
 | _ont_description | Description of the group. |
 | _ont_email | Email address associated with the group (for mail-enabled groups). |
 | _ont_source | Source of the data. |
+
+#### Relationships
+
+- A `UserAccount` or `ServiceAccount` is a member of a `UserGroup` via the canonical `MEMBER_OF` edge. Groups also nest into other groups with the same edge:
+    ```
+    (:UserAccount)-[:MEMBER_OF]->(:UserGroup)
+    (:ServiceAccount)-[:MEMBER_OF]->(:UserGroup)
+    (:UserGroup)-[:MEMBER_OF]->(:UserGroup)
+    ```
+  Group "owner", "maintainer", and "admin" roles are kept as their own provider-specific edges (a distinct, more privileged semantic), as are transitive `INHERITED_MEMBER_OF` edges derived across nested groups.
 
 
 ### Device
