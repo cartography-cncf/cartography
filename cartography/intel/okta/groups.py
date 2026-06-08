@@ -18,15 +18,18 @@ from cartography.intel.okta.sync_state import OktaSyncState
 from cartography.intel.okta.utils import check_rate_limit
 from cartography.intel.okta.utils import create_api_client
 from cartography.intel.okta.utils import is_last_page
+from cartography.intel.okta.utils import is_resource_not_found_error
+from cartography.intel.okta.utils import OKTA_RESOURCE_NOT_FOUND_ERROR_CODE
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
 
 OKTA_GROUP_MEMBER_REQUEST_ATTEMPTS = 3
 OKTA_GROUP_MEMBER_RETRY_DELAY_SECONDS = 1
-# Okta error code returned when a resource (e.g. a group) no longer exists.
-# https://developer.okta.com/docs/reference/error-codes/#E0000007
-OKTA_RESOURCE_NOT_FOUND_ERROR_CODE = "E0000007"
+
+# Re-exported for backwards compatibility; the canonical definition lives in
+# cartography.intel.okta.utils.
+__all__ = ["OKTA_RESOURCE_NOT_FOUND_ERROR_CODE"]
 
 
 @timeit
@@ -331,7 +334,7 @@ def sync_okta_group_membership(
             # A group can be deleted between listing groups and fetching its
             # members, in which case Okta returns a "resource not found" error.
             # Skip the group instead of failing the whole sync.
-            if e.error_code == OKTA_RESOURCE_NOT_FOUND_ERROR_CODE:
+            if is_resource_not_found_error(e):
                 logger.warning(
                     "Okta group %s no longer exists (likely deleted during the "
                     "sync); skipping its membership.",
