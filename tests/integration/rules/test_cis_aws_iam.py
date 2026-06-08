@@ -169,8 +169,8 @@ def test_admin_policy_flags_attached_full_admin_policies(neo4j_session) -> None:
         })
         MERGE (a)-[:RESOURCE]->(admin_user)
         MERGE (a)-[:RESOURCE]->(scoped_user)
-        MERGE (admin_user)<-[:POLICY]-(admin_policy)
-        MERGE (scoped_user)<-[:POLICY]-(scoped_policy)
+        MERGE (admin_user)-[:POLICY]->(admin_policy)
+        MERGE (scoped_user)-[:POLICY]->(scoped_policy)
         MERGE (admin_policy)-[:STATEMENT]->(admin_stmt)
         MERGE (scoped_policy)-[:STATEMENT]->(scoped_stmt)
         """

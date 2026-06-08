@@ -563,7 +563,7 @@ _aws_admin_policy_attached = Fact(
         "privilege and should be replaced with scoped permissions."
     ),
     cypher_query="""
-    MATCH (a:AWSAccount)-[:RESOURCE]->(principal:AWSPrincipal)<-[:POLICY]-(policy:AWSPolicy)-[:STATEMENT]->(stmt:AWSPolicyStatement)
+    MATCH (a:AWSAccount)-[:RESOURCE]->(principal:AWSPrincipal)-[:POLICY]->(policy:AWSPolicy)-[:STATEMENT]->(stmt:AWSPolicyStatement)
     WHERE stmt.effect = 'Allow'
       AND any(action IN stmt.action WHERE action = '*' OR action = '*:*')
       AND any(resource IN stmt.resource WHERE resource = '*')
@@ -576,7 +576,7 @@ _aws_admin_policy_attached = Fact(
         a.name AS account
     """,
     cypher_visual_query="""
-    MATCH p=(a:AWSAccount)-[:RESOURCE]->(principal:AWSPrincipal)<-[:POLICY]-(policy:AWSPolicy)-[:STATEMENT]->(stmt:AWSPolicyStatement)
+    MATCH p=(a:AWSAccount)-[:RESOURCE]->(principal:AWSPrincipal)-[:POLICY]->(policy:AWSPolicy)-[:STATEMENT]->(stmt:AWSPolicyStatement)
     WHERE stmt.effect = 'Allow'
       AND any(action IN stmt.action WHERE action = '*' OR action = '*:*')
       AND any(resource IN stmt.resource WHERE resource = '*')
