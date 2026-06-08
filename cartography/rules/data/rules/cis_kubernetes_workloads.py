@@ -120,9 +120,9 @@ _k8s_secrets_in_env_vars = Fact(
     maturity=Maturity.EXPERIMENTAL,
 )
 
-cis_k8s_5_4_1_secrets_in_env_vars = Rule(
-    id="cis_k8s_5_4_1_secrets_in_env_vars",
-    name="CIS K8s 5.4.1: Secrets Used as Environment Variables",
+kubernetes_secrets_used_as_environment_variables = Rule(
+    id="kubernetes_secrets_used_as_environment_variables",
+    name="Secrets Used as Environment Variables",
     description=(
         "Secrets should be mounted as files rather than exposed as environment variables. "
         "Environment variables are more susceptible to accidental exposure through "
@@ -240,9 +240,9 @@ _k8s_service_account_tokens_mounted = Fact(
     maturity=Maturity.EXPERIMENTAL,
 )
 
-cis_k8s_5_1_6_sa_token_mounts = Rule(
-    id="cis_k8s_5_1_6_sa_token_mounts",
-    name="CIS K8s 5.1.6: Service Account Tokens Mounted in Pods",
+kubernetes_service_account_tokens_mounted_in_pods = Rule(
+    id="kubernetes_service_account_tokens_mounted_in_pods",
+    name="Service Account Tokens Mounted in Pods",
     description=(
         "Service account tokens should only be mounted into pods that explicitly need "
         "to communicate with the Kubernetes API."
@@ -300,9 +300,9 @@ _k8s_host_pid_pods = Fact(
     maturity=Maturity.EXPERIMENTAL,
 )
 
-cis_k8s_5_2_3_host_pid = Rule(
-    id="cis_k8s_5_2_3_host_pid",
-    name="CIS K8s 5.2.3: Pods Sharing Host PID Namespace",
+kubernetes_pods_sharing_host_pid_namespace = Rule(
+    id="kubernetes_pods_sharing_host_pid_namespace",
+    name="Pods Sharing Host PID Namespace",
     description="Pods should not generally share the host PID namespace.",
     output_model=HostPidOutput,
     facts=(_k8s_host_pid_pods,),
@@ -351,9 +351,9 @@ _k8s_host_ipc_pods = Fact(
     maturity=Maturity.EXPERIMENTAL,
 )
 
-cis_k8s_5_2_4_host_ipc = Rule(
-    id="cis_k8s_5_2_4_host_ipc",
-    name="CIS K8s 5.2.4: Pods Sharing Host IPC Namespace",
+kubernetes_pods_sharing_host_ipc_namespace = Rule(
+    id="kubernetes_pods_sharing_host_ipc_namespace",
+    name="Pods Sharing Host IPC Namespace",
     description="Pods should not generally share the host IPC namespace.",
     output_model=HostIpcOutput,
     facts=(_k8s_host_ipc_pods,),
@@ -402,9 +402,9 @@ _k8s_host_network_pods = Fact(
     maturity=Maturity.EXPERIMENTAL,
 )
 
-cis_k8s_5_2_5_host_network = Rule(
-    id="cis_k8s_5_2_5_host_network",
-    name="CIS K8s 5.2.5: Pods Sharing Host Network Namespace",
+kubernetes_pods_sharing_host_network_namespace = Rule(
+    id="kubernetes_pods_sharing_host_network_namespace",
+    name="Pods Sharing Host Network Namespace",
     description="Pods should not generally share the host network namespace.",
     output_model=HostNetworkOutput,
     facts=(_k8s_host_network_pods,),
@@ -459,9 +459,9 @@ _k8s_allow_privilege_escalation = Fact(
     maturity=Maturity.EXPERIMENTAL,
 )
 
-cis_k8s_5_2_6_allow_privilege_escalation = Rule(
-    id="cis_k8s_5_2_6_allow_privilege_escalation",
-    name="CIS K8s 5.2.6: Containers Allowing Privilege Escalation",
+kubernetes_containers_allowing_privilege_escalation = Rule(
+    id="kubernetes_containers_allowing_privilege_escalation",
+    name="Containers Allowing Privilege Escalation",
     description="Containers should not generally allow privilege escalation.",
     output_model=AllowPrivilegeEscalationOutput,
     facts=(_k8s_allow_privilege_escalation,),
@@ -521,9 +521,9 @@ _k8s_host_path_volumes = Fact(
     maturity=Maturity.EXPERIMENTAL,
 )
 
-cis_k8s_5_2_11_host_path_volumes = Rule(
-    id="cis_k8s_5_2_11_host_path_volumes",
-    name="CIS K8s 5.2.11: Pods Using HostPath Volumes",
+kubernetes_pods_using_hostpath_volumes = Rule(
+    id="kubernetes_pods_using_hostpath_volumes",
+    name="Pods Using HostPath Volumes",
     description="Pods should not generally use hostPath volumes because they expose the host filesystem.",
     output_model=HostPathVolumeOutput,
     facts=(_k8s_host_path_volumes,),
@@ -573,9 +573,9 @@ _k8s_host_ports = Fact(
     maturity=Maturity.EXPERIMENTAL,
 )
 
-cis_k8s_5_2_12_host_ports = Rule(
-    id="cis_k8s_5_2_12_host_ports",
-    name="CIS K8s 5.2.12: Containers Using HostPorts",
+kubernetes_containers_using_hostports = Rule(
+    id="kubernetes_containers_using_hostports",
+    name="Containers Using HostPorts",
     description="Containers should not generally use hostPorts because they bypass normal cluster networking controls.",
     output_model=HostPortOutput,
     facts=(_k8s_host_ports,),
@@ -652,9 +652,9 @@ _k8s_missing_runtime_default_seccomp = Fact(
     maturity=Maturity.EXPERIMENTAL,
 )
 
-cis_k8s_5_6_2_runtime_default_seccomp = Rule(
-    id="cis_k8s_5_6_2_runtime_default_seccomp",
-    name="CIS K8s 5.6.2: Pods Missing RuntimeDefault Seccomp",
+kubernetes_pods_missing_runtime_default_seccomp = Rule(
+    id="kubernetes_pods_missing_runtime_default_seccomp",
+    name="Pods Missing RuntimeDefault Seccomp",
     description="Pods should set the RuntimeDefault seccomp profile at the pod or container level.",
     output_model=SeccompRuntimeDefaultOutput,
     facts=(_k8s_missing_runtime_default_seccomp,),
@@ -718,9 +718,9 @@ _k8s_pods_in_default_namespace = Fact(
     maturity=Maturity.EXPERIMENTAL,
 )
 
-cis_k8s_5_6_4_default_namespace = Rule(
-    id="cis_k8s_5_6_4_default_namespace",
-    name="CIS K8s 5.6.4: Pods Running in Default Namespace",
+kubernetes_pods_running_in_default_namespace = Rule(
+    id="kubernetes_pods_running_in_default_namespace",
+    name="Pods Running in Default Namespace",
     description=(
         "Kubernetes resources should not use the default namespace. "
         "Using dedicated namespaces allows for resource quota management, "

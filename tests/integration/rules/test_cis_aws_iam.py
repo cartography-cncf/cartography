@@ -1,6 +1,6 @@
 from cartography.client.core.tx import read_list_of_dicts_tx
-from cartography.rules.data.rules.cis_aws_iam import cis_aws_2_11_unused_credentials
-from cartography.rules.data.rules.cis_aws_iam import cis_aws_2_13_access_key_not_rotated
+from cartography.rules.data.rules.cis_aws_iam import aws_access_keys_not_rotated
+from cartography.rules.data.rules.cis_aws_iam import aws_unused_credentials
 
 
 def _reset_graph(neo4j_session) -> None:
@@ -55,8 +55,8 @@ def test_access_key_rules_parse_iso_datetime_strings_with_z(neo4j_session) -> No
         """
     )
 
-    rotation_fact = _get_fact(cis_aws_2_13_access_key_not_rotated)
-    unused_fact = _get_fact(cis_aws_2_11_unused_credentials)
+    rotation_fact = _get_fact(aws_access_keys_not_rotated)
+    unused_fact = _get_fact(aws_unused_credentials)
 
     # Act
     rotation_findings = neo4j_session.execute_read(
