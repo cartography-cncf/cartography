@@ -35,14 +35,16 @@ def test_parse_aws_auth_map_parses_map_accounts():
             "mapAccounts": """
 - "123456789012"
 - 210987654321
+- 12345678
 """,
         },
     )
 
     result = eks.parse_aws_auth_map(configmap)
 
-    # YAML may parse bare account IDs as ints; they must be normalized to strings.
-    assert result["accounts"] == ["123456789012", "210987654321"]
+    # YAML may parse bare account IDs as ints; they must be normalized to 12-digit
+    # strings so leading zeros are preserved rather than dropped by str(int).
+    assert result["accounts"] == ["123456789012", "210987654321", "000012345678"]
     assert result["roles"] == []
     assert result["users"] == []
 

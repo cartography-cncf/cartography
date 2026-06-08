@@ -70,9 +70,13 @@ def parse_aws_auth_map(configmap: V1ConfigMap) -> dict[str, list[Any]]:
     if "mapAccounts" in configmap.data:
         map_accounts_yaml = configmap.data["mapAccounts"]
         # mapAccounts is a YAML list of AWS account IDs. Account IDs are 12-digit
-        # values that YAML may parse as ints, so normalize everything to strings.
+        # values that YAML may parse as ints; zero-pad those back to 12 digits so we
+        # don't drop leading zeros (which would break principal resolution).
         parsed_accounts = yaml.safe_load(map_accounts_yaml) or []
-        result["accounts"] = [str(account_id) for account_id in parsed_accounts]
+        result["accounts"] = [
+            f"{account_id:012d}" if isinstance(account_id, int) else str(account_id)
+            for account_id in parsed_accounts
+        ]
         logger.info(
             f"Parsed {len(result['accounts'])} account mappings from aws-auth ConfigMap"
         )
