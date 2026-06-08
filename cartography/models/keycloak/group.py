@@ -100,6 +100,9 @@ class KeycloakGroupToRoleRelProperties(CartographyRelProperties):
 
 
 @dataclass(frozen=True)
+# DEPRECATED: replaced by the canonical (:UserGroup)-[:HAS_ROLE]->(:PermissionRole)
+# edge (KeycloakGroupToRoleHasRoleRel). Kept for backward compatibility, will be
+# removed in v1.0.0.
 # (:KeycloakGroup)-[:GRANTS]->(:KeycloakRole)
 class KeycloakGroupToRoleRel(CartographyRelSchema):
     target_node_label: str = "KeycloakRole"
@@ -115,6 +118,28 @@ class KeycloakGroupToRoleRel(CartographyRelSchema):
 
 
 @dataclass(frozen=True)
+class KeycloakGroupToRoleHasRoleRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("LASTUPDATED", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+# Canonical ontology edge: (:UserGroup)-[:HAS_ROLE]->(:PermissionRole)
+class KeycloakGroupToRoleHasRoleRel(CartographyRelSchema):
+    target_node_label: str = "KeycloakRole"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {
+            "name": PropertyRef("_roles", one_to_many=True),
+            "realm": PropertyRef("REALM", set_in_kwargs=True),
+        },
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "HAS_ROLE"
+    properties: KeycloakGroupToRoleHasRoleRelProperties = (
+        KeycloakGroupToRoleHasRoleRelProperties()
+    )
+
+
+@dataclass(frozen=True)
 class KeycloakGroupSchema(CartographyNodeSchema):
     label: str = "KeycloakGroup"
     properties: KeycloakGroupNodeProperties = KeycloakGroupNodeProperties()
@@ -126,5 +151,6 @@ class KeycloakGroupSchema(CartographyNodeSchema):
             KeycloakGroupToGroupMemberOfRel(),
             KeycloakGroupToUserRel(),
             KeycloakGroupToRoleRel(),
+            KeycloakGroupToRoleHasRoleRel(),
         ]
     )

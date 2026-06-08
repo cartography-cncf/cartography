@@ -20,7 +20,7 @@ C -- USES --> AF
 G -- MEMBER_OF --> G
 U -- MEMBER_OF --> G
 U ==> INHERITED_MEMBER_OF ==> G
-G -- GRANTS --> ROLE
+G -- HAS_ROLE --> ROLE
 ROLE -- GRANTS --> S
 ROLE -- INCLUDES --> ROLE
 U -- HAS_IDENTITY --> IDP
@@ -252,7 +252,7 @@ Represents a group of users in Keycloak that can be used for organizing users an
     ```
 - `KeycloakGroup` can grant roles
     ```
-    (:KeycloakGroup)-[:GRANTS]->(:KeycloakRole)
+    (:KeycloakGroup)-[:HAS_ROLE]->(:KeycloakRole)
     ```
 
 
@@ -346,7 +346,7 @@ Represents a role in Keycloak that defines permissions and can be assigned to us
     ```
 - `KeycloakGroup` can grant roles
     ```
-    (:KeycloakGroup)-[:GRANTS]->(:KeycloakRole)
+    (:KeycloakGroup)-[:HAS_ROLE]->(:KeycloakRole)
     ```
 - `KeycloakRole` can grant scopes
     ```

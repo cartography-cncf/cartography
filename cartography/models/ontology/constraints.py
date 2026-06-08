@@ -9,7 +9,13 @@ from cartography.models.aws.ecs.services import ECSServiceToECSTaskRel
 from cartography.models.aws.ecs.tasks import ECSTaskToECSClusterRel
 from cartography.models.aws.iam.group_membership import AWSGroupToAWSUserRel
 from cartography.models.aws.identitycenter.awspermissionset import (
+    AWSRoleToSSOGroupMatchLink,
+)
+from cartography.models.aws.identitycenter.awspermissionset import (
     AWSRoleToSSOUserMatchLink,
+)
+from cartography.models.aws.identitycenter.awssogroup import (
+    AWSSSOGroupToPermissionSetRel,
 )
 from cartography.models.aws.identitycenter.awsssouser import (
     AWSSSOUserToPermissionSetRel,
@@ -45,6 +51,7 @@ from cartography.models.gsuite.group import GSuiteGroupToGroupOwnerRel
 from cartography.models.gsuite.group import GSuiteGroupToMemberRel
 from cartography.models.gsuite.group import GSuiteGroupToOwnerRel
 from cartography.models.keycloak.group import KeycloakGroupToGroupRel
+from cartography.models.keycloak.group import KeycloakGroupToRoleRel
 from cartography.models.keycloak.inheritance import (
     KeycloakUserInheritedMemberOfGroupMatchLink,
 )
@@ -52,6 +59,7 @@ from cartography.models.keycloak.role import KeycloakRoleToUserRel
 from cartography.models.kubernetes.containers import (
     KubernetesContainerToKubernetesPodRel,
 )
+from cartography.models.kubernetes.groups import KubernetesGroupToAWSRoleRel
 from cartography.models.kubernetes.groups import KubernetesGroupToAWSUserRel
 from cartography.models.kubernetes.namespaces import (
     KubernetesNamespaceToKubernetesClusterRel,
@@ -63,6 +71,7 @@ from cartography.models.kubernetes.serviceaccounts import (
 )
 from cartography.models.kubernetes.users import KubernetesUserToAWSRoleRel
 from cartography.models.oci.group import OCIGroupToOCIUserRel
+from cartography.models.oci.policy import OCIPolicyToGroupRefRel
 from cartography.models.sentry.member import SentryUserToTeamAdminOfRel
 from cartography.models.slack.group import SlackGroupToCreatorRel
 from cartography.models.tailscale.group import (
@@ -106,6 +115,8 @@ ONTOLOGY_REL_CONSTRAINTS: tuple[RelConstraint, ...] = (
     # currently wires a direct edge (all go through binding nodes), so this is
     # forward-looking governance for future modules.
     RelConstraint(src="ServiceAccount", dst="PermissionRole", label="HAS_ROLE"),
+    # A group is granted a role; members inherit it.
+    RelConstraint(src="UserGroup", dst="PermissionRole", label="HAS_ROLE"),
     # An identity is a member of a group; groups nest into other groups.
     RelConstraint(src="UserAccount", dst="UserGroup", label="MEMBER_OF"),
     RelConstraint(src="ServiceAccount", dst="UserGroup", label="MEMBER_OF"),
@@ -135,6 +146,8 @@ LEGACY_REL_WHITELIST: frozenset[type] = frozenset(
         # DEPRECATED: replaced by HAS_ROLE, will be removed in v1.0.0.
         AWSSSOUserToPermissionSetRel,
         KeycloakRoleToUserRel,
+        AWSSSOGroupToPermissionSetRel,
+        KeycloakGroupToRoleRel,
         # ALLOWED_BY is a distinct "this role is assumable by that SSO user"
         # semantic (PermissionRole->UserAccount), not a role assignment, so it
         # intentionally runs counter to the HAS_ROLE (UserAccount->PermissionRole)
@@ -150,6 +163,17 @@ LEGACY_REL_WHITELIST: frozenset[type] = frozenset(
         # account assumes an AWS IAM role, IRSA-style). This is the canonical
         # ASSUMES semantic, not a static role grant. Distinct from HAS_ROLE.
         KubernetesServiceAccountToAWSRoleRel,
+        # ALLOWED_BY (PermissionRole->UserGroup) is "this role is assumable by
+        # that SSO group", the reverse of a group role grant. Distinct from the
+        # UserGroup->PermissionRole HAS_ROLE edge.
+        AWSRoleToSSOGroupMatchLink,
+        # MAPS_TO is identity federation (an AWS role maps to a Kubernetes
+        # group), not a group role grant. Distinct from HAS_ROLE.
+        KubernetesGroupToAWSRoleRel,
+        # OCI_POLICY_REFERENCE records that a policy statement textually
+        # references a group, not that the group holds the policy. Distinct
+        # from HAS_ROLE.
+        OCIPolicyToGroupRefRel,
         # DEPRECATED: replaced by MEMBER_OF, will be removed in v1.0.0.
         AWSGroupToAWSUserRel,
         AWSSSOUserToSSOGroupRel,

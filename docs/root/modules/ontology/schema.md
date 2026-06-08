@@ -41,6 +41,7 @@ EK{{EncryptionKey}}
 PR{{PermissionRole}}
 UA -- HAS_ROLE --> PR
 SA -- HAS_ROLE --> PR
+UG -- HAS_ROLE --> PR
 UA -- MEMBER_OF --> UG
 SA -- MEMBER_OF --> UG
 UG -- MEMBER_OF --> UG
@@ -590,10 +591,11 @@ Common role concepts across platforms include:
 | _ont_scope | The scope level of the role (e.g., "global", "account", "org", "project", "namespace", "cluster"). |
 | _ont_source | Source of the data. |
 
-A `UserAccount` or `ServiceAccount` that is granted a permission role is linked via the canonical `HAS_ROLE` edge:
+A `UserAccount`, `ServiceAccount`, or `UserGroup` that is granted a permission role is linked via the canonical `HAS_ROLE` edge. Members inherit the roles granted to their groups:
 ```
 (:UserAccount)-[:HAS_ROLE]->(:PermissionRole)
 (:ServiceAccount)-[:HAS_ROLE]->(:PermissionRole)
+(:UserGroup)-[:HAS_ROLE]->(:PermissionRole)
 ```
 
 
