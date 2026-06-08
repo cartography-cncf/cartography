@@ -5751,10 +5751,10 @@ Representation of an AWS SSO User.
 
 - An AWSSSOUser can be assigned to one or more AWSPermissionSets. This includes both direct assignments and assignments inherited through AWSSSOGroup membership.
     ```
-    (:AWSSSOUser)-[:HAS_PERMISSION_SET]->(:AWSPermissionSet)
+    (:AWSSSOUser)-[:HAS_ROLE]->(:AWSPermissionSet)
     ```
     Notes:
-    - The AWS Identity Center API (`list_account_assignments_for_principal`) automatically resolves group memberships server-side, so users receive `HAS_PERMISSION_SET` relationships for permission sets they have access to through groups they belong to. This means if a user is only in a group that has a permission set assignment, the user will still have a direct `HAS_PERMISSION_SET` relationship to that permission set.
+    - The AWS Identity Center API (`list_account_assignments_for_principal`) automatically resolves group memberships server-side, so users receive `HAS_ROLE` relationships for permission sets they have access to through groups they belong to. This means if a user is only in a group that has a permission set assignment, the user will still have a direct `HAS_ROLE` relationship to that permission set.
     - This is a **summary relationship** that does not indicate which specific accounts the user has access to, only that they have been assigned to the permission set. For a user to have access to an AWS account, they must be assigned to a permission set for that specific account. This is captured by the `ALLOWED_BY` relationship.
 
 - AWSSSOUser can assume AWS roles via SAML (recorded from CloudTrail management events).
@@ -5847,10 +5847,10 @@ Representation of an AWS Identity Center Permission Set.
 
 - An AWSSSOUser can be assigned to one or more AWSPermissionSets. This includes both direct assignments and assignments inherited through AWSSSOGroup membership.
     ```
-    (:AWSSSOUser)-[:HAS_PERMISSION_SET]->(:AWSPermissionSet)
+    (:AWSSSOUser)-[:HAS_ROLE]->(:AWSPermissionSet)
     ```
     Notes:
-    - The AWS Identity Center API (`list_account_assignments_for_principal`) automatically resolves group memberships server-side, so users receive `HAS_PERMISSION_SET` relationships for permission sets they have access to through groups they belong to. This means if a user is only in a group that has a permission set assignment, the user will still have a direct `HAS_PERMISSION_SET` relationship to that permission set.
+    - The AWS Identity Center API (`list_account_assignments_for_principal`) automatically resolves group memberships server-side, so users receive `HAS_ROLE` relationships for permission sets they have access to through groups they belong to. This means if a user is only in a group that has a permission set assignment, the user will still have a direct `HAS_ROLE` relationship to that permission set.
     - This is a **summary relationship** that does not indicate which specific accounts the user has access to, only that they have been assigned to the permission set. For a user to have access to an AWS account, they must be assigned to a permission set _for that specific account_. This is captured by the `ALLOWED_BY` relationship.
 
 - An AWSSSOGroup has assigned permission sets. AWSSSOUsers in the group will receive all permission sets that the group is assigned to.

@@ -136,6 +136,16 @@ def test_load_keycloak_roles(_, __, neo4j_session):
         "ASSUME_ROLE",
         rel_direction_right=False,
     ) == set(expected_rels)
+    # Canonical ontology edge created in parallel with the deprecated one.
+    assert check_rels(
+        neo4j_session,
+        "KeycloakRole",
+        "id",
+        "KeycloakUser",
+        "id",
+        "HAS_ROLE",
+        rel_direction_right=False,
+    ) == set(expected_rels)
 
     # Check roles / scopes mapping
     expected_rels = []
