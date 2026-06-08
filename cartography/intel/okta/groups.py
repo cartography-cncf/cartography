@@ -24,6 +24,9 @@ logger = logging.getLogger(__name__)
 
 OKTA_GROUP_MEMBER_REQUEST_ATTEMPTS = 3
 OKTA_GROUP_MEMBER_RETRY_DELAY_SECONDS = 1
+# Okta error code returned when a resource (e.g. a group) no longer exists.
+# https://developer.okta.com/docs/reference/error-codes/#E0000007
+OKTA_RESOURCE_NOT_FOUND_ERROR_CODE = "E0000007"
 
 
 @timeit
@@ -322,7 +325,20 @@ def sync_okta_group_membership(
 
     for group_info in group_list_info:
         group_id = group_info["id"]
-        members_data: List[Dict] = get_okta_group_members(api_client, group_id)
+        try:
+            members_data: List[Dict] = get_okta_group_members(api_client, group_id)
+        except OktaError as e:
+            # A group can be deleted between listing groups and fetching its
+            # members, in which case Okta returns a "resource not found" error.
+            # Skip the group instead of failing the whole sync.
+            if e.error_code == OKTA_RESOURCE_NOT_FOUND_ERROR_CODE:
+                logger.warning(
+                    "Okta group %s no longer exists (likely deleted during the "
+                    "sync); skipping its membership.",
+                    group_id,
+                )
+                continue
+            raise
         transformed_member_data: List[Dict] = transform_okta_group_member_list(
             members_data,
         )
