@@ -104,6 +104,9 @@ def get_resource_type_from_arn(arn: str) -> str:
 # id_func: [optional] - EC2 instances and S3 buckets in cartography currently use non-ARNs as their primary identifiers
 # so we need to supply a function pointer to translate the ARN returned by the resourcegroupstaggingapi to the form that
 # cartography uses.
+# region_property: [optional] - the node property holding the resource's region. When present, the tag MATCH is scoped to
+# the synced region so that same-named resources in different regions (e.g. load balancers keyed by name) are not
+# cross-tagged.
 # TODO - we should make EC2 and S3 assets query-able by their full ARN so that we don't need this workaround.
 TAG_RESOURCE_TYPE_MAPPINGS: Dict = {
     "autoscaling:autoScalingGroup": {"label": "AutoScalingGroup", "property": "arn"},
@@ -162,20 +165,27 @@ TAG_RESOURCE_TYPE_MAPPINGS: Dict = {
     "ecs:task-definition": {"label": "ECSTaskDefinition", "property": "id"},
     "eks:cluster": {"label": "EKSCluster", "property": "id"},
     "elasticache:cluster": {"label": "ElasticacheCluster", "property": "arn"},
+    # Match on the classic ELB's own label (AWSLoadBalancer), not the shared
+    # "LoadBalancer" ontology label, which is also attached to AWSLoadBalancerV2
+    # nodes. Otherwise a classic ELB tag would bleed onto an ALB/NLB of the same
+    # name in the same region.
     "elasticloadbalancing:loadbalancer": {
-        "label": "LoadBalancer",
+        "label": "AWSLoadBalancer",
         "property": "name",
         "id_func": get_short_id_from_elb_arn,
+        "region_property": "region",
     },
     "elasticloadbalancing:loadbalancer/app": {
         "label": "AWSLoadBalancerV2",
         "property": "name",
         "id_func": get_short_id_from_lb2_arn,
+        "region_property": "region",
     },
     "elasticloadbalancing:loadbalancer/net": {
         "label": "AWSLoadBalancerV2",
         "property": "name",
         "id_func": get_short_id_from_lb2_arn,
+        "region_property": "region",
     },
     "elasticmapreduce:cluster": {"label": "EMRCluster", "property": "arn"},
     "es:domain": {"label": "ESDomain", "property": "arn"},
@@ -221,20 +231,13 @@ def get_tags(
     return resources
 
 
-def _load_tags_tx(
-    tx: neo4j.Transaction,
-    tag_data: Dict,
-    resource_type: str,
-    region: str,
-    current_aws_account_id: str,
-    aws_update_tag: int,
-) -> None:
-    INGEST_TAG_TEMPLATE = Template(
-        """
+INGEST_TAG_TEMPLATE = Template(
+    """
     UNWIND $TagData as tag_mapping
         UNWIND tag_mapping.Tags as input_tag
             MATCH
             (a:AWSAccount{id:$Account})-[res:RESOURCE]->(resource:$resource_label{$property:tag_mapping.resource_id})
+            $region_filter
             MERGE
             (aws_tag:AWSTag:Tag{id:input_tag.Key + ":" + input_tag.Value})
             ON CREATE SET aws_tag.firstseen = timestamp()
@@ -247,14 +250,41 @@ def _load_tags_tx(
             SET r.lastupdated = $UpdateTag,
             r.firstseen = timestamp()
     """,
+)
+
+
+def _build_ingest_tag_query(resource_type: str) -> str:
+    """Build the tag ingestion Cypher for a resource type.
+
+    Region-scoped resource types (those with a ``region_property`` mapping) get a
+    ``WHERE resource.<prop> = $Region`` predicate so that same-named resources in
+    different regions are not cross-tagged. The injected ``$Region`` is not
+    re-scanned by ``safe_substitute`` and is bound as a normal Cypher parameter.
+    """
+    mapping = TAG_RESOURCE_TYPE_MAPPINGS[resource_type]
+    region_property = mapping.get("region_property")
+    region_filter = (
+        f"WHERE resource.{region_property} = $Region" if region_property else ""
     )
+    return INGEST_TAG_TEMPLATE.safe_substitute(
+        resource_label=mapping["label"],
+        property=mapping["property"],
+        region_filter=region_filter,
+    )
+
+
+def _load_tags_tx(
+    tx: neo4j.Transaction,
+    tag_data: Dict,
+    resource_type: str,
+    region: str,
+    current_aws_account_id: str,
+    aws_update_tag: int,
+) -> None:
     if not tag_data:
         return
 
-    query = INGEST_TAG_TEMPLATE.safe_substitute(
-        resource_label=TAG_RESOURCE_TYPE_MAPPINGS[resource_type]["label"],
-        property=TAG_RESOURCE_TYPE_MAPPINGS[resource_type]["property"],
-    )
+    query = _build_ingest_tag_query(resource_type)
     tx.run(
         query,
         TagData=tag_data,
