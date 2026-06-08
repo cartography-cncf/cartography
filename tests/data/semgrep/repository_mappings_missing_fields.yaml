@@ -1,0 +1,7 @@
+repositories:
+  - provider: "github"
+    owner: "simpsoncorp"
+    repo: "sample_repo"
+    url: "https://github.com/simpsoncorp/sample_repo"
+    reports:
+      - "tests/data/semgrep/oss_sast_report.json"

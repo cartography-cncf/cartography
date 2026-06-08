@@ -2,7 +2,9 @@ import hashlib
 import logging
 import time
 from dataclasses import dataclass
+from dataclasses import field
 from enum import Enum
+from threading import BoundedSemaphore
 from threading import Lock
 from typing import Any
 
@@ -22,6 +24,17 @@ from google.protobuf.json_format import MessageToDict
 from cartography.client.core.tx import load
 from cartography.client.core.tx import load_matchlinks
 from cartography.graph.job import GraphJob
+from cartography.graph.statement import GraphStatement
+from cartography.intel.gcp.permission_relationships import (
+    build_principals_from_policy_bindings,
+)
+from cartography.intel.gcp.permission_relationships import GCPPrincipalPermissionContext
+from cartography.models.core.common import PropertyRef
+from cartography.models.core.relationships import LinkDirection
+from cartography.models.core.relationships import make_target_node_matcher
+from cartography.models.core.relationships import MatchLinkSubResource
+from cartography.models.gcp.policy_bindings import GCPFolderPolicyBindingSchema
+from cartography.models.gcp.policy_bindings import GCPOrganizationPolicyBindingSchema
 from cartography.models.gcp.policy_bindings import GCPPolicyBindingAppliesToMatchLink
 from cartography.models.gcp.policy_bindings import GCPPolicyBindingSchema
 from cartography.util import timeit
@@ -44,12 +57,22 @@ class _FullNameMapping:
         * ``"type_prefixed"``  — ``"{marker}/{name}"`` (GCPFolder, GCPOrganization).
         * ``"full_path"``      — the whole path up to and including the name
           (KMS, Secrets, Artifact Registry, Cloud Run, Compute).
+        * ``"bigquery_dataset"`` — ``"{project_id}:{dataset_id}"``.
+        * ``"bigquery_table"`` — ``"{project_id}:{dataset_id}.{table_id}"``.
+    - ``asset_type``: Cloud Asset asset type to request from
+      SearchAllIamPolicies for direct child-resource policies. Resource Manager
+      scopes are fetched through BatchGetEffectiveIamPolicies instead, so they
+      do not need a search asset type here.
+    - ``additional_asset_types``: Extra Cloud Asset asset types that use the
+      same full-name shape and Cartography node label.
     """
 
     service_prefix: str
     marker: str
     label: str
     id_mode: str
+    asset_type: str | None = None
+    additional_asset_types: tuple[str, ...] = ()
 
 
 # Order matters within a given service_prefix: more specific mappings first so
@@ -81,6 +104,22 @@ _FULL_NAME_MAPPINGS: list[_FullNameMapping] = [
         "buckets",
         "GCPBucket",
         "last_segment",
+        "storage.googleapis.com/Bucket",
+    ),
+    # BigQuery — table wins over dataset (nested).
+    _FullNameMapping(
+        "//bigquery.googleapis.com/",
+        "tables",
+        "GCPBigQueryTable",
+        "bigquery_table",
+        "bigquery.googleapis.com/Table",
+    ),
+    _FullNameMapping(
+        "//bigquery.googleapis.com/",
+        "datasets",
+        "GCPBigQueryDataset",
+        "bigquery_dataset",
+        "bigquery.googleapis.com/Dataset",
     ),
     # KMS — cryptoKey wins over keyRing (nested).
     _FullNameMapping(
@@ -88,12 +127,14 @@ _FULL_NAME_MAPPINGS: list[_FullNameMapping] = [
         "cryptoKeys",
         "GCPCryptoKey",
         "full_path",
+        "cloudkms.googleapis.com/CryptoKey",
     ),
     _FullNameMapping(
         "//cloudkms.googleapis.com/",
         "keyRings",
         "GCPKeyRing",
         "full_path",
+        "cloudkms.googleapis.com/KeyRing",
     ),
     # Secret Manager — version wins over secret (nested).
     _FullNameMapping(
@@ -101,12 +142,14 @@ _FULL_NAME_MAPPINGS: list[_FullNameMapping] = [
         "versions",
         "GCPSecretManagerSecretVersion",
         "full_path",
+        "secretmanager.googleapis.com/SecretVersion",
     ),
     _FullNameMapping(
         "//secretmanager.googleapis.com/",
         "secrets",
         "GCPSecretManagerSecret",
         "full_path",
+        "secretmanager.googleapis.com/Secret",
     ),
     # Artifact Registry.
     _FullNameMapping(
@@ -114,6 +157,7 @@ _FULL_NAME_MAPPINGS: list[_FullNameMapping] = [
         "repositories",
         "GCPArtifactRegistryRepository",
         "full_path",
+        "artifactregistry.googleapis.com/Repository",
     ),
     # Cloud Run services.
     _FullNameMapping(
@@ -121,6 +165,24 @@ _FULL_NAME_MAPPINGS: list[_FullNameMapping] = [
         "services",
         "GCPCloudRunService",
         "full_path",
+        "run.googleapis.com/Service",
+    ),
+    # IAM service accounts.
+    _FullNameMapping(
+        "//iam.googleapis.com/",
+        "serviceAccounts",
+        "GCPServiceAccount",
+        "last_segment",
+        "iam.googleapis.com/ServiceAccount",
+    ),
+    # Cloud Functions.
+    _FullNameMapping(
+        "//cloudfunctions.googleapis.com/",
+        "functions",
+        "GCPCloudFunction",
+        "full_path",
+        "cloudfunctions.googleapis.com/Function",
+        ("cloudfunctions.googleapis.com/CloudFunction",),
     ),
     # Compute — node id is the "partial URI" (``projects/.../{kind}/{name}``),
     # which matches the path left after stripping the service prefix.
@@ -129,26 +191,49 @@ _FULL_NAME_MAPPINGS: list[_FullNameMapping] = [
         "instances",
         "GCPInstance",
         "full_path",
+        "compute.googleapis.com/Instance",
     ),
     _FullNameMapping(
         "//compute.googleapis.com/",
         "networks",
         "GCPVpc",
         "full_path",
+        "compute.googleapis.com/Network",
     ),
     _FullNameMapping(
         "//compute.googleapis.com/",
         "subnetworks",
         "GCPSubnet",
         "full_path",
+        "compute.googleapis.com/Subnetwork",
     ),
     _FullNameMapping(
         "//compute.googleapis.com/",
         "firewalls",
         "GCPFirewall",
         "full_path",
+        "compute.googleapis.com/Firewall",
     ),
 ]
+
+
+def _bigquery_resource_id(parts: list[str], table: bool) -> str | None:
+    try:
+        project_id = parts[parts.index("projects") + 1]
+        dataset_id = parts[parts.index("datasets") + 1]
+    except (IndexError, ValueError):
+        return None
+    if not project_id or not dataset_id:
+        return None
+    if not table:
+        return f"{project_id}:{dataset_id}"
+    try:
+        table_id = parts[parts.index("tables") + 1]
+    except (IndexError, ValueError):
+        return None
+    if not table_id:
+        return None
+    return f"{project_id}:{dataset_id}.{table_id}"
 
 
 def _parse_full_resource_name(full_name: str) -> tuple[str | None, str | None]:
@@ -175,6 +260,10 @@ def _parse_full_resource_name(full_name: str) -> tuple[str | None, str | None]:
         name_segment = parts[marker_idx + 1]
         if not name_segment:
             continue
+        if mapping.id_mode == "bigquery_dataset":
+            return mapping.label, _bigquery_resource_id(parts, table=False)
+        if mapping.id_mode == "bigquery_table":
+            return mapping.label, _bigquery_resource_id(parts, table=True)
         if mapping.id_mode == "last_segment":
             return mapping.label, name_segment
         if mapping.id_mode == "type_prefixed":
@@ -187,12 +276,31 @@ def _parse_full_resource_name(full_name: str) -> tuple[str | None, str | None]:
     return None, None
 
 
+def _search_asset_types_from_full_name_mappings() -> list[str]:
+    return [
+        asset_type
+        for mapping in _FULL_NAME_MAPPINGS
+        for asset_type in (
+            ((mapping.asset_type,) if mapping.asset_type is not None else ())
+            + mapping.additional_asset_types
+        )
+    ]
+
+
 class PolicyBindingsSyncStatus(str, Enum):
     SUCCESS = "success"
+    # Retained for compatibility with callers that may handle older results. The
+    # current sync path attempts CAI directly and reports concrete API errors.
     SKIPPED_API_DISABLED = "skipped_api_disabled"
     SKIPPED_PERMISSION_DENIED = "skipped_permission_denied"
     SKIPPED_RATE_LIMIT = "skipped_rate_limit"
     SKIPPED_RETRY_EXHAUSTED = "skipped_retry_exhausted"
+
+
+@dataclass(frozen=True)
+class PolicyBindingsSyncResult:
+    status: PolicyBindingsSyncStatus
+    permission_context: GCPPrincipalPermissionContext
 
 
 CAI_POLICY_BINDINGS_RETRY_INITIAL = 1.0
@@ -208,8 +316,24 @@ CAI_POLICY_BINDINGS_MIN_INTERVAL_SECONDS = {
     "batch_get_effective_iam_policies": 0.75,
     "search_all_iam_policies": 0.20,
 }
+GCP_POLICY_BINDINGS_GRAPH_BATCH_SIZE = 1000
+GCP_POLICY_BINDINGS_CLEANUP_ITERATION_SIZE = 1000
+GCP_POLICY_BINDINGS_GRAPH_CONCURRENCY = 4
+# Without this filter, Cloud Asset can return direct IAM policies for very high
+# cardinality child resources such as Artifact Registry Docker images. Those
+# bindings are not useful to Cartography today and can dominate graph writes.
+GCP_POLICY_BINDINGS_SEARCH_ASSET_TYPES = _search_asset_types_from_full_name_mappings()
 _CAI_POLICY_BINDINGS_THROTTLE_LOCK = Lock()
 _CAI_POLICY_BINDINGS_LAST_CALL_BY_OPERATION: dict[str, float] = {}
+_GCP_POLICY_BINDINGS_GRAPH_SEMAPHORE = BoundedSemaphore(
+    GCP_POLICY_BINDINGS_GRAPH_CONCURRENCY
+)
+
+
+@dataclass
+class InheritedPolicyBindingClaimState:
+    lock: Lock = field(default_factory=Lock)
+    seen: set[tuple[str, str, str]] = field(default_factory=set)
 
 
 def _wait_for_cai_policy_bindings_slot(operation: str) -> None:
@@ -312,7 +436,7 @@ def get_policy_bindings(
     # Fetch direct policy bindings for all child resources using search_all_iam_policies (project scope - no inheritance)
     search_request = SearchAllIamPoliciesRequest(
         scope=f"projects/{project_id}",
-        asset_types=[],
+        asset_types=GCP_POLICY_BINDINGS_SEARCH_ASSET_TYPES,
     )
     search_retry = build_cai_policy_bindings_retry(
         project_id,
@@ -354,6 +478,42 @@ def get_policy_bindings(
     }
 
 
+_WIF_PRINCIPAL_PREFIXES = (
+    "principal://iam.googleapis.com/",
+    "principalSet://iam.googleapis.com/",
+)
+
+
+def _extract_wif_pool_resource(member: str) -> str | None:
+    """
+    Extract the Workload Identity pool resource name from a binding member
+    URI. WIF members look like:
+
+        principal://iam.googleapis.com/projects/{N}/locations/global/workloadIdentityPools/{POOL}/subject/{SUB}
+        principalSet://iam.googleapis.com/projects/{N}/locations/global/workloadIdentityPools/{POOL}/*
+
+    Returns ``projects/{N}/locations/global/workloadIdentityPools/{POOL}`` so
+    the value matches ``GCPWorkloadIdentityPool.id`` (which is set from the
+    pool's API ``name`` field).
+    """
+    for prefix in _WIF_PRINCIPAL_PREFIXES:
+        if not member.startswith(prefix):
+            continue
+        path = member[len(prefix) :]
+        parts = path.split("/")
+        # Expect at least: projects, {N}, locations, global, workloadIdentityPools, {POOL}, ...
+        if (
+            len(parts) >= 6
+            and parts[0] == "projects"
+            and parts[2] == "locations"
+            and parts[3] == "global"
+            and parts[4] == "workloadIdentityPools"
+        ):
+            return "/".join(parts[:6])
+        return None
+    return None
+
+
 def transform_bindings(data: dict[str, Any]) -> list[dict[str, Any]]:
     project_id = data["project_id"]
     bindings: dict[tuple[str, str, str | None], dict[str, Any]] = {}
@@ -385,7 +545,24 @@ def transform_bindings(data: dict[str, Any]) -> list[dict[str, Any]]:
                 # Filter members to only user:, serviceAccount:, and group: types
                 # Extract email part from each member (format: "type:email@example.com")
                 filtered_members = []
+                wif_pools: set[str] = set()
+                is_public = False
                 for member in members:
+                    # GCP encodes the "anyone on the internet" principals as
+                    # plain identifiers without a "type:" prefix. They never
+                    # resolve to a real GCPPrincipal node, but we still want
+                    # to keep the binding so callers can detect public exposure.
+                    if member in ("allUsers", "allAuthenticatedUsers"):
+                        is_public = True
+                        continue
+                    # Workload Identity Federation principals come as URI
+                    # schemes (principal:// or principalSet://) and split on
+                    # ":" the same way "type:identifier" does, so handle them
+                    # first so they don't fall through to the email parser.
+                    wif_pool = _extract_wif_pool_resource(member)
+                    if wif_pool:
+                        wif_pools.add(wif_pool)
+                        continue
                     if ":" not in member:
                         continue
                     member_type, identifier = member.split(":", 1)
@@ -393,8 +570,9 @@ def transform_bindings(data: dict[str, Any]) -> list[dict[str, Any]]:
                         # Store only the email part
                         filtered_members.append(identifier)
 
-                # Don't process if members(principals) are not from the supported types. For example -> allUsers:, allAuthenticatedUsers, etc.
-                if not filtered_members:
+                # Skip bindings that have no resolvable principals AND no public
+                # exposure, e.g. unsupported principal types like domain:.
+                if not filtered_members and not is_public and not wif_pools:
                     continue
 
                 # Extract condition expression for deduplication key
@@ -410,7 +588,13 @@ def transform_bindings(data: dict[str, Any]) -> list[dict[str, Any]]:
                 if key in bindings:
                     existing_members = set(bindings[key]["members"])
                     existing_members.update(filtered_members)
-                    bindings[key]["members"] = list(existing_members)
+                    bindings[key]["members"] = sorted(existing_members)
+                    existing_pools = set(bindings[key].get("wif_pools", []))
+                    existing_pools.update(wif_pools)
+                    bindings[key]["wif_pools"] = sorted(existing_pools)
+                    bindings[key]["is_public"] = (
+                        bindings[key].get("is_public", False) or is_public
+                    )
                 else:
                     # Generate unique ID that includes condition expression hash
                     condition_hash = ""
@@ -431,6 +615,8 @@ def transform_bindings(data: dict[str, Any]) -> list[dict[str, Any]]:
                         "resource": resource,
                         "resource_type": resource_type,
                         "members": sorted(filtered_members),
+                        "wif_pools": sorted(wif_pools),
+                        "is_public": is_public,
                         "has_condition": condition is not None,
                         "condition_title": (
                             condition.get("title") if condition else None
@@ -462,6 +648,69 @@ def _group_applies_to_links(
     return grouped
 
 
+def _get_inherited_binding_scope(
+    binding: dict[str, Any],
+) -> tuple[str, str] | None:
+    if binding.get("resource_type") not in ("organization", "folder"):
+        return None
+
+    label, resource_id = _parse_full_resource_name(binding["resource"])
+    if label not in ("GCPOrganization", "GCPFolder") or resource_id is None:
+        return None
+    return label, resource_id
+
+
+def _split_bindings_by_graph_scope(
+    bindings: list[dict[str, Any]],
+) -> tuple[list[dict[str, Any]], dict[tuple[str, str], list[dict[str, Any]]]]:
+    direct_bindings: list[dict[str, Any]] = []
+    inherited_bindings: dict[tuple[str, str], list[dict[str, Any]]] = {}
+
+    for binding in bindings:
+        inherited_scope = _get_inherited_binding_scope(binding)
+        if inherited_scope is None:
+            direct_bindings.append(binding)
+            continue
+        inherited_bindings.setdefault(inherited_scope, []).append(binding)
+
+    return direct_bindings, inherited_bindings
+
+
+def _claim_inherited_bindings_for_graph(
+    inherited_bindings: dict[tuple[str, str], list[dict[str, Any]]],
+    claim_state: InheritedPolicyBindingClaimState,
+) -> dict[tuple[str, str], list[dict[str, Any]]]:
+    claimed: dict[tuple[str, str], list[dict[str, Any]]] = {}
+    with claim_state.lock:
+        for scope, bindings in inherited_bindings.items():
+            owner_label, owner_id = scope
+            for binding in bindings:
+                seen_key = (owner_label, owner_id, binding["id"])
+                if seen_key in claim_state.seen:
+                    continue
+                claim_state.seen.add(seen_key)
+                claimed.setdefault(scope, []).append(binding)
+
+    return claimed
+
+
+def make_policy_binding_applies_to_matchlink(
+    target_node_label: str,
+    owner_label: str,
+) -> GCPPolicyBindingAppliesToMatchLink:
+    return GCPPolicyBindingAppliesToMatchLink(
+        target_node_label=target_node_label,
+        source_node_sub_resource=MatchLinkSubResource(
+            target_node_label=owner_label,
+            target_node_matcher=make_target_node_matcher(
+                {"id": PropertyRef("_sub_resource_id", set_in_kwargs=True)},
+            ),
+            direction=LinkDirection.INWARD,
+            rel_label="RESOURCE",
+        ),
+    )
+
+
 @timeit
 def load_bindings(
     neo4j_session: neo4j.Session,
@@ -473,6 +722,7 @@ def load_bindings(
         neo4j_session,
         GCPPolicyBindingSchema(),
         bindings,
+        batch_size=GCP_POLICY_BINDINGS_GRAPH_BATCH_SIZE,
         lastupdated=update_tag,
         PROJECT_ID=project_id,
     )
@@ -480,12 +730,126 @@ def load_bindings(
     for target_label, links in _group_applies_to_links(bindings).items():
         load_matchlinks(
             neo4j_session,
-            GCPPolicyBindingAppliesToMatchLink(target_node_label=target_label),
+            make_policy_binding_applies_to_matchlink(target_label, "GCPProject"),
             links,
+            batch_size=GCP_POLICY_BINDINGS_GRAPH_BATCH_SIZE,
             lastupdated=update_tag,
             _sub_resource_label="GCPProject",
             _sub_resource_id=project_id,
         )
+
+
+def _load_organization_bindings(
+    neo4j_session: neo4j.Session,
+    bindings: list[dict[str, Any]],
+    org_resource_name: str,
+    update_tag: int,
+) -> None:
+    load(
+        neo4j_session,
+        GCPOrganizationPolicyBindingSchema(),
+        bindings,
+        batch_size=GCP_POLICY_BINDINGS_GRAPH_BATCH_SIZE,
+        lastupdated=update_tag,
+        ORG_RESOURCE_NAME=org_resource_name,
+    )
+
+    for target_label, links in _group_applies_to_links(bindings).items():
+        load_matchlinks(
+            neo4j_session,
+            make_policy_binding_applies_to_matchlink(target_label, "GCPOrganization"),
+            links,
+            batch_size=GCP_POLICY_BINDINGS_GRAPH_BATCH_SIZE,
+            lastupdated=update_tag,
+            _sub_resource_label="GCPOrganization",
+            _sub_resource_id=org_resource_name,
+        )
+
+
+def _load_folder_bindings(
+    neo4j_session: neo4j.Session,
+    bindings: list[dict[str, Any]],
+    folder_id: str,
+    update_tag: int,
+) -> None:
+    load(
+        neo4j_session,
+        GCPFolderPolicyBindingSchema(),
+        bindings,
+        batch_size=GCP_POLICY_BINDINGS_GRAPH_BATCH_SIZE,
+        lastupdated=update_tag,
+        FOLDER_ID=folder_id,
+    )
+
+    for target_label, links in _group_applies_to_links(bindings).items():
+        load_matchlinks(
+            neo4j_session,
+            make_policy_binding_applies_to_matchlink(target_label, "GCPFolder"),
+            links,
+            batch_size=GCP_POLICY_BINDINGS_GRAPH_BATCH_SIZE,
+            lastupdated=update_tag,
+            _sub_resource_label="GCPFolder",
+            _sub_resource_id=folder_id,
+        )
+
+
+@timeit
+def load_inherited_bindings(
+    neo4j_session: neo4j.Session,
+    inherited_bindings: dict[tuple[str, str], list[dict[str, Any]]],
+    update_tag: int,
+) -> int:
+    loaded_count = 0
+    for (owner_label, owner_id), bindings in inherited_bindings.items():
+        if owner_label == "GCPOrganization":
+            _load_organization_bindings(
+                neo4j_session,
+                bindings,
+                owner_id,
+                update_tag,
+            )
+        elif owner_label == "GCPFolder":
+            _load_folder_bindings(
+                neo4j_session,
+                bindings,
+                owner_id,
+                update_tag,
+            )
+        else:
+            raise ValueError(
+                f"Unsupported inherited GCP policy binding owner label: {owner_label}"
+            )
+        loaded_count += len(bindings)
+    return loaded_count
+
+
+def _cleanup_applies_to_relationships(
+    neo4j_session: neo4j.Session,
+    sub_resource_label: str,
+    sub_resource_id: str,
+    update_tag: int,
+) -> None:
+    # APPLIES_TO can point at several resource labels. Clean up by relationship
+    # scope directly instead of running the same stale-edge cleanup once per
+    # possible target label.
+    GraphStatement(
+        """
+        MATCH (:GCPPolicyBinding)-[r:APPLIES_TO]->()
+        WHERE r.lastupdated <> $UPDATE_TAG
+            AND r._sub_resource_label = $_sub_resource_label
+            AND r._sub_resource_id = $_sub_resource_id
+        WITH r LIMIT $LIMIT_SIZE
+        DELETE r;
+        """,
+        parameters={
+            "UPDATE_TAG": update_tag,
+            "_sub_resource_label": sub_resource_label,
+            "_sub_resource_id": sub_resource_id,
+        },
+        iterative=True,
+        iterationsize=GCP_POLICY_BINDINGS_CLEANUP_ITERATION_SIZE,
+        parent_job_name="APPLIES_TO",
+    ).run(neo4j_session)
 
 
 @timeit
@@ -495,23 +859,63 @@ def cleanup(
 ) -> None:
     logger.debug("Running GCP policy bindings cleanup job")
 
+    # During migration, project cleanup also removes stale project-owned
+    # RESOURCE edges for inherited org/folder bindings that are now owned by
+    # their real scope.
     GraphJob.from_node_schema(
         GCPPolicyBindingSchema(),
         common_job_parameters,
+        iterationsize=GCP_POLICY_BINDINGS_CLEANUP_ITERATION_SIZE,
     ).run(neo4j_session)
 
     project_id = common_job_parameters["PROJECT_ID"]
     update_tag = common_job_parameters["UPDATE_TAG"]
-    # Run a matchlink cleanup for every target label we know how to map. This
-    # clears stale APPLIES_TO edges even if no binding in this sync targeted
-    # that label.
-    for target_label in {mapping.label for mapping in _FULL_NAME_MAPPINGS}:
-        GraphJob.from_matchlink(
-            GCPPolicyBindingAppliesToMatchLink(target_node_label=target_label),
-            "GCPProject",
-            project_id,
-            update_tag,
+    _cleanup_applies_to_relationships(
+        neo4j_session,
+        "GCPProject",
+        project_id,
+        update_tag,
+    )
+
+
+@timeit
+def cleanup_inherited_policy_bindings(
+    neo4j_session: neo4j.Session,
+    common_job_parameters: dict[str, Any],
+    folder_ids: list[str],
+) -> None:
+    logger.debug("Running inherited GCP policy bindings cleanup job")
+    org_resource_name = common_job_parameters["ORG_RESOURCE_NAME"]
+    update_tag = common_job_parameters["UPDATE_TAG"]
+
+    GraphJob.from_node_schema(
+        GCPOrganizationPolicyBindingSchema(),
+        common_job_parameters,
+        iterationsize=GCP_POLICY_BINDINGS_CLEANUP_ITERATION_SIZE,
+    ).run(neo4j_session)
+    _cleanup_applies_to_relationships(
+        neo4j_session,
+        "GCPOrganization",
+        org_resource_name,
+        update_tag,
+    )
+
+    for folder_id in folder_ids:
+        folder_job_parameters = {
+            **common_job_parameters,
+            "FOLDER_ID": folder_id,
+        }
+        GraphJob.from_node_schema(
+            GCPFolderPolicyBindingSchema(),
+            folder_job_parameters,
+            iterationsize=GCP_POLICY_BINDINGS_CLEANUP_ITERATION_SIZE,
         ).run(neo4j_session)
+        _cleanup_applies_to_relationships(
+            neo4j_session,
+            "GCPFolder",
+            folder_id,
+            update_tag,
+        )
 
 
 @timeit
@@ -521,7 +925,9 @@ def sync(
     update_tag: int,
     common_job_parameters: dict[str, Any],
     client: AssetServiceClient,
-) -> PolicyBindingsSyncStatus:
+    role_permissions_by_name: dict[str, list[str]],
+    inherited_binding_claim_state: InheritedPolicyBindingClaimState | None = None,
+) -> PolicyBindingsSyncResult:
     """
     Sync GCP IAM policy bindings for a project.
 
@@ -534,12 +940,18 @@ def sync(
     except PermissionDenied as e:
         logger.warning(
             "Permission denied when fetching policy bindings for project %s. "
-            "Skipping policy bindings sync. To enable this feature, grant "
-            "roles/cloudasset.viewer at the organization level. Error: %s",
+            "Skipping policy bindings sync. To enable this feature, enable "
+            "the Cloud Asset API on the credential/quota project, grant "
+            "roles/cloudasset.viewer at the organization level, and grant "
+            "serviceusage.services.use or roles/serviceusage.serviceUsageConsumer "
+            "as needed. Error: %s",
             project_id,
             e,
         )
-        return PolicyBindingsSyncStatus.SKIPPED_PERMISSION_DENIED
+        return PolicyBindingsSyncResult(
+            PolicyBindingsSyncStatus.SKIPPED_PERMISSION_DENIED,
+            {},
+        )
     except RetryError as e:
         if _is_rate_limit_retry_error(e):
             logger.warning(
@@ -548,14 +960,20 @@ def sync(
                 project_id,
                 e,
             )
-            return PolicyBindingsSyncStatus.SKIPPED_RATE_LIMIT
+            return PolicyBindingsSyncResult(
+                PolicyBindingsSyncStatus.SKIPPED_RATE_LIMIT,
+                {},
+            )
         logger.warning(
             "Cloud Asset policy bindings retries exhausted for project %s after transient gRPC errors. "
             "Preserving existing policy-binding and permission-relationship data. Error: %s",
             project_id,
             e,
         )
-        return PolicyBindingsSyncStatus.SKIPPED_RETRY_EXHAUSTED
+        return PolicyBindingsSyncResult(
+            PolicyBindingsSyncStatus.SKIPPED_RETRY_EXHAUSTED,
+            {},
+        )
     except (DeadlineExceeded, ResourceExhausted, ServiceUnavailable) as e:
         if isinstance(e, ResourceExhausted):
             logger.warning(
@@ -564,17 +982,60 @@ def sync(
                 project_id,
                 e,
             )
-            return PolicyBindingsSyncStatus.SKIPPED_RATE_LIMIT
+            return PolicyBindingsSyncResult(
+                PolicyBindingsSyncStatus.SKIPPED_RATE_LIMIT,
+                {},
+            )
         logger.warning(
             "Cloud Asset policy bindings failed for project %s with a transient gRPC error. "
             "Preserving existing policy-binding and permission-relationship data. Error: %s",
             project_id,
             e,
         )
-        return PolicyBindingsSyncStatus.SKIPPED_RETRY_EXHAUSTED
+        return PolicyBindingsSyncResult(
+            PolicyBindingsSyncStatus.SKIPPED_RETRY_EXHAUSTED,
+            {},
+        )
 
     transformed_bindings_data = transform_bindings(bindings_data)
+    direct_bindings, inherited_bindings = _split_bindings_by_graph_scope(
+        transformed_bindings_data
+    )
+    permission_context = build_principals_from_policy_bindings(
+        transformed_bindings_data,
+        role_permissions_by_name,
+        project_id,
+    )
 
-    load_bindings(neo4j_session, transformed_bindings_data, project_id, update_tag)
-    cleanup(neo4j_session, common_job_parameters)
-    return PolicyBindingsSyncStatus.SUCCESS
+    if inherited_binding_claim_state is None:
+        inherited_binding_claim_state = InheritedPolicyBindingClaimState()
+
+    with _GCP_POLICY_BINDINGS_GRAPH_SEMAPHORE:
+        inherited_bindings_to_load = _claim_inherited_bindings_for_graph(
+            inherited_bindings,
+            inherited_binding_claim_state,
+        )
+        inherited_loaded_count = load_inherited_bindings(
+            neo4j_session,
+            inherited_bindings_to_load,
+            update_tag,
+        )
+        load_bindings(neo4j_session, direct_bindings, project_id, update_tag)
+        cleanup(neo4j_session, common_job_parameters)
+    logger.info(
+        "Synced GCP policy bindings for project '%s': policy_results=%d, "
+        "transformed_bindings=%d, direct_graph_bindings=%d, "
+        "inherited_bindings=%d, newly_loaded_inherited_bindings=%d, "
+        "permission_principals=%d",
+        project_id,
+        len(bindings_data["policy_results"]),
+        len(transformed_bindings_data),
+        len(direct_bindings),
+        sum(len(bindings) for bindings in inherited_bindings.values()),
+        inherited_loaded_count,
+        len(permission_context),
+    )
+    return PolicyBindingsSyncResult(
+        PolicyBindingsSyncStatus.SUCCESS,
+        permission_context,
+    )

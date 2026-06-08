@@ -374,22 +374,20 @@ def _is_common_exception(e: Exception, bucket_name: str) -> Tuple[bool, bool]:
     # "No configuration" errors - valid states where no config exists
     # These return (True, False) - handle but not a failure
     if "NoSuchBucketPolicy" in error_str:
-        logger.warning(f"{error_msg} for {bucket_name} - NoSuchBucketPolicy")
+        logger.debug(f"{error_msg} for {bucket_name} - NoSuchBucketPolicy")
         return (True, False)
     elif "ServerSideEncryptionConfigurationNotFoundError" in error_str:
-        logger.warning(
+        logger.debug(
             f"{error_msg} for {bucket_name} - ServerSideEncryptionConfigurationNotFoundError",
         )
         return (True, False)
     elif "NoSuchPublicAccessBlockConfiguration" in error_str:
-        logger.warning(
+        logger.debug(
             f"{error_msg} for {bucket_name} - NoSuchPublicAccessBlockConfiguration",
         )
         return (True, False)
     elif "OwnershipControlsNotFoundError" in error_str:
-        logger.warning(
-            f"{error_msg} for {bucket_name} - OwnershipControlsNotFoundError"
-        )
+        logger.debug(f"{error_msg} for {bucket_name} - OwnershipControlsNotFoundError")
         return (True, False)
 
     # Fetch failures - skip loading the affected detail group for this sync.

@@ -89,22 +89,38 @@ class AzureFunctionAppToGitLabContainerImageRel(CartographyRelSchema):
 
 
 @dataclass(frozen=True)
-class AzureFunctionAppToGCPArtifactRegistryContainerImageRelProperties(
-    CartographyRelProperties
-):
+class AzureFunctionAppToGCPArtifactRegistryImageRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
-class AzureFunctionAppToGCPArtifactRegistryContainerImageRel(CartographyRelSchema):
-    target_node_label: str = "GCPArtifactRegistryContainerImage"
+class AzureFunctionAppToGCPArtifactRegistryImageRel(CartographyRelSchema):
+    target_node_label: str = "GCPArtifactRegistryImage"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"digest": PropertyRef("image_digest")},
     )
     direction: LinkDirection = LinkDirection.OUTWARD
     rel_label: str = "HAS_IMAGE"
-    properties: AzureFunctionAppToGCPArtifactRegistryContainerImageRelProperties = (
-        AzureFunctionAppToGCPArtifactRegistryContainerImageRelProperties()
+    properties: AzureFunctionAppToGCPArtifactRegistryImageRelProperties = (
+        AzureFunctionAppToGCPArtifactRegistryImageRelProperties()
+    )
+
+
+@dataclass(frozen=True)
+class AzureFunctionAppToGitHubContainerImageRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+class AzureFunctionAppToGitHubContainerImageRel(CartographyRelSchema):
+    target_node_label: str = "GitHubContainerImage"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"digest": PropertyRef("image_digest")},
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "HAS_IMAGE"
+    properties: AzureFunctionAppToGitHubContainerImageRelProperties = (
+        AzureFunctionAppToGitHubContainerImageRelProperties()
     )
 
 
@@ -125,6 +141,7 @@ class AzureFunctionAppSchema(CartographyNodeSchema):
         [
             AzureFunctionAppToECRImageRel(),
             AzureFunctionAppToGitLabContainerImageRel(),
-            AzureFunctionAppToGCPArtifactRegistryContainerImageRel(),
+            AzureFunctionAppToGCPArtifactRegistryImageRel(),
+            AzureFunctionAppToGitHubContainerImageRel(),
         ],
     )

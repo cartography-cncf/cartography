@@ -26,48 +26,17 @@ def test_container_has_image_rels(neo4j_session):
 
     neo4j_session.run(
         """
-        MERGE (img:GCPArtifactRegistryContainerImage {id: $id})
-        SET img.digest = $digest,
-            img.uri = $uri,
+        MERGE (img:GCPArtifactRegistryImage:Image {id: $digest, digest: $digest})
+        SET img.type = 'image',
             img.media_type = $media_type,
-            img.lastupdated = $tag
-        """,
-        id=parent_image["name"],
-        digest=parent_image["name"].split("@", 1)[1],
-        uri=parent_image["uri"],
-        media_type=parent_image["mediaType"],
-        tag=TEST_UPDATE_TAG,
-    )
-    neo4j_session.run(
-        """
-        MERGE (img:GCPArtifactRegistryContainerImage {id: $id})
-        SET img.digest = $digest,
-            img.uri = $uri,
-            img.media_type = $media_type,
-            img.lastupdated = $tag
-        """,
-        id=f"{parent_image['name'].rsplit('@', 1)[0]}@{child_image['digest']}",
-        digest=child_image["digest"],
-        uri=child_container_image_uri,
-        media_type=child_image["media_type"],
-        tag=TEST_UPDATE_TAG,
-    )
-    neo4j_session.run(
-        """
-        MERGE (img:GCPArtifactRegistryPlatformImage {id: $id})
-        SET img.digest = $digest,
             img.architecture = $architecture,
             img.os = $os,
-            img.media_type = $media_type,
-            img.parent_artifact_id = $parent_artifact_id,
             img.lastupdated = $tag
         """,
-        id=child_image["id"],
         digest=child_image["digest"],
+        media_type=child_image["media_type"],
         architecture=child_image["architecture"],
         os=child_image["os"],
-        media_type=child_image["media_type"],
-        parent_artifact_id=child_image["parent_artifact_id"],
         tag=TEST_UPDATE_TAG,
     )
 
@@ -117,19 +86,7 @@ def test_container_has_image_rels(neo4j_session):
         neo4j_session,
         "KubernetesContainer",
         "name",
-        "GCPArtifactRegistryContainerImage",
-        "digest",
-        "HAS_IMAGE",
-    ) == {
-        ("my-pod-container", child_image["digest"]),
-        ("my-service-pod-container", child_image["digest"]),
-    }
-
-    assert check_rels(
-        neo4j_session,
-        "KubernetesContainer",
-        "name",
-        "GCPArtifactRegistryPlatformImage",
+        "GCPArtifactRegistryImage",
         "digest",
         "HAS_IMAGE",
     ) == {

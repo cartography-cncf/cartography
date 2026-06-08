@@ -224,6 +224,62 @@ if __name__ == "__main__":
         cleanup_job.run(neo4j_session)
 ```
 
+## Cartesian Product MatchLinks
+
+Use `load_matchlinks_cartesian_product()` only when every source node should be
+linked to every target node. This is useful for broad permission or inheritance
+expansions where you already have a set of source identifiers and a set of
+target identifiers, and the relationship properties are the same for every
+created relationship.
+
+Do not use it for row-specific mappings or row-specific relationship
+properties. Use `load_matchlinks()` for those cases.
+
+Cartesian product MatchLinks use the same `CartographyRelSchema` shape and the same
+`GraphJob.from_matchlink()` cleanup path as regular MatchLinks, but v1 supports
+only simple endpoint matchers:
+
+- one exact source matcher property;
+- one exact target matcher property;
+- relationship properties set from kwargs, including `_sub_resource_label` and
+  `_sub_resource_id`.
+
+The default `source_batch_size=100` and `target_batch_size=1000` bound each
+transaction to at most 100,000 attempted source-target pairs. Tune these down
+when Neo4j write latency, transaction memory, or lock contention is high; tune
+them up only after profiling the target database with representative data.
+Relationship count accounting assumes matcher values are unique enough that one
+source value matches at most one source node and one target value matches at
+most one target node.
+
+```python
+from cartography.client.core.tx import load_matchlinks_cartesian_product
+from cartography.graph.job import GraphJob
+
+load_matchlinks_cartesian_product(
+    neo4j_session,
+    PrincipalToS3BucketBulkAccessMatchLink(),
+    source_values=[
+        "arn:aws:iam::123456789012:role/Alice",
+        "arn:aws:iam::123456789012:role/Bob",
+    ],
+    target_values=["bucket1", "bucket2", "bucket3"],
+    source_batch_size=100,
+    target_batch_size=1000,
+    progress_description="S3 broad access permissions",
+    UPDATE_TAG=UPDATE_TAG,
+    _sub_resource_label="AWSAccount",
+    _sub_resource_id=ACCOUNT_ID,
+)
+
+GraphJob.from_matchlink(
+    PrincipalToS3BucketBulkAccessMatchLink(),
+    "AWSAccount",
+    ACCOUNT_ID,
+    UPDATE_TAG,
+).run(neo4j_session)
+```
+
 ## Example 2: Adding Extended Properties to Relationships
 
 This example shows how to use MatchLinks to add rich properties to relationships between nodes. We'll use AWS Inspector findings and packages as an example, where the relationship includes important metadata like remediation information, fixed versions, and file paths.

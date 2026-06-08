@@ -2,9 +2,16 @@ import logging
 
 from cartography.models.core.nodes import CartographyNodeSchema
 from cartography.models.ontology.device import DeviceSchema
+from cartography.models.ontology.mapping.data.aimodels import AIMODELS_ONTOLOGY_MAPPING
 from cartography.models.ontology.mapping.data.apikeys import APIKEYS_ONTOLOGY_MAPPING
+from cartography.models.ontology.mapping.data.blockstorage import (
+    BLOCK_STORAGE_ONTOLOGY_MAPPING,
+)
 from cartography.models.ontology.mapping.data.certificates import (
     CERTIFICATES_ONTOLOGY_MAPPING,
+)
+from cartography.models.ontology.mapping.data.cicdpipelines import (
+    CICDPIPELINES_ONTOLOGY_MAPPING,
 )
 from cartography.models.ontology.mapping.data.clusters import CLUSTERS_ONTOLOGY_MAPPING
 from cartography.models.ontology.mapping.data.coderepositories import (
@@ -13,12 +20,22 @@ from cartography.models.ontology.mapping.data.coderepositories import (
 from cartography.models.ontology.mapping.data.computeinstance import (
     COMPUTE_INSTANCE_ONTOLOGY_MAPPING,
 )
+from cartography.models.ontology.mapping.data.computenamespaces import (
+    COMPUTENAMESPACES_ONTOLOGY_MAPPING,
+)
+from cartography.models.ontology.mapping.data.computepods import (
+    COMPUTEPODS_ONTOLOGY_MAPPING,
+)
+from cartography.models.ontology.mapping.data.computeservices import (
+    COMPUTESERVICES_ONTOLOGY_MAPPING,
+)
 from cartography.models.ontology.mapping.data.containerregistries import (
     CONTAINERREGISTRIES_ONTOLOGY_MAPPING,
 )
 from cartography.models.ontology.mapping.data.containers import (
     CONTAINER_ONTOLOGY_MAPPING,
 )
+from cartography.models.ontology.mapping.data.cves import CVES_ONTOLOGY_MAPPING
 from cartography.models.ontology.mapping.data.databases import (
     DATABASES_ONTOLOGY_MAPPING,
 )
@@ -40,6 +57,9 @@ from cartography.models.ontology.mapping.data.functions import (
     FUNCTIONS_ONTOLOGY_MAPPING,
 )
 from cartography.models.ontology.mapping.data.groups import GROUPS_ONTOLOGY_MAPPING
+from cartography.models.ontology.mapping.data.identityproviders import (
+    IDENTITYPROVIDERS_ONTOLOGY_MAPPING,
+)
 from cartography.models.ontology.mapping.data.images import IMAGES_ONTOLOGY_MAPPING
 from cartography.models.ontology.mapping.data.loadbalancers import (
     LOADBALANCERS_ONTOLOGY_MAPPING,
@@ -89,10 +109,16 @@ ONTOLOGY_NODES_MAPPING: dict[str, dict[str, OntologyMapping]] = {
 # They are leveraged directly by the load functions of each module at ingestion time
 SEMANTIC_LABELS_MAPPING: dict[str, dict[str, OntologyMapping]] = {
     "useraccounts": USERACCOUNTS_ONTOLOGY_MAPPING,
+    "aimodels": AIMODELS_ONTOLOGY_MAPPING,
     "apikeys": APIKEYS_ONTOLOGY_MAPPING,
+    "blockstorage": BLOCK_STORAGE_ONTOLOGY_MAPPING,
+    "cicdpipelines": CICDPIPELINES_ONTOLOGY_MAPPING,
     "coderepositories": CODEREPOSITORIES_ONTOLOGY_MAPPING,
     "computeclusters": CLUSTERS_ONTOLOGY_MAPPING,
     "computeinstance": COMPUTE_INSTANCE_ONTOLOGY_MAPPING,
+    "computenamespaces": COMPUTENAMESPACES_ONTOLOGY_MAPPING,
+    "computepods": COMPUTEPODS_ONTOLOGY_MAPPING,
+    "computeservices": COMPUTESERVICES_ONTOLOGY_MAPPING,
     "containers": CONTAINER_ONTOLOGY_MAPPING,
     "containerregistries": CONTAINERREGISTRIES_ONTOLOGY_MAPPING,
     "databases": DATABASES_ONTOLOGY_MAPPING,
@@ -103,6 +129,7 @@ SEMANTIC_LABELS_MAPPING: dict[str, dict[str, OntologyMapping]] = {
     "firewalls": FIREWALLS_ONTOLOGY_MAPPING,
     "functions": FUNCTIONS_ONTOLOGY_MAPPING,
     "groups": GROUPS_ONTOLOGY_MAPPING,
+    "identityproviders": IDENTITYPROVIDERS_ONTOLOGY_MAPPING,
     "images": IMAGES_ONTOLOGY_MAPPING,
     "loadbalancers": LOADBALANCERS_ONTOLOGY_MAPPING,
     "objectstorage": OBJECT_STORAGE_ONTOLOGY_MAPPING,
@@ -113,6 +140,7 @@ SEMANTIC_LABELS_MAPPING: dict[str, dict[str, OntologyMapping]] = {
     "tenants": TENANTS_ONTOLOGY_MAPPING,
     "serviceaccounts": SERVICEACCOUNTS_ONTOLOGY_MAPPING,
     "certificates": CERTIFICATES_ONTOLOGY_MAPPING,
+    "cves": CVES_ONTOLOGY_MAPPING,
 }
 
 ONTOLOGY_MODELS: dict[str, type[CartographyNodeSchema] | None] = {
@@ -146,3 +174,24 @@ def get_semantic_label_mapping_from_node_schema(
                     )
                     return mapping_node
     return None
+
+
+def get_deprecated_ontology_index_properties() -> set[str]:
+    """DEPRECATED: temporary backward-compatibility helper. Remove in v1.0.0.
+
+    Returns the set of `_ont_<field>` property names whose RANGE index was removed by the
+    `indexed=False` opt-out (#2845). Graphs synced before that change still carry these indexes
+    on their semantic labels; this set is used to drop them. Driven entirely by the data model:
+    any field flagged `indexed=False` is picked up automatically.
+    """
+    props: set[str] = set()
+    for module_mappings in (
+        *SEMANTIC_LABELS_MAPPING.values(),
+        *ONTOLOGY_NODES_MAPPING.values(),
+    ):
+        for ontology_mapping in module_mappings.values():
+            for node in ontology_mapping.nodes:
+                for mapping_field in node.fields:
+                    if not mapping_field.indexed:
+                        props.add(f"_ont_{mapping_field.ontology_field}")
+    return props

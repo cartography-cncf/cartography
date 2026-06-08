@@ -1,3 +1,4 @@
+import json
 import logging
 
 import neo4j
@@ -49,6 +50,27 @@ def get_bigquery_datasets(client: Resource, project_id: str) -> list[dict] | Non
         raise
 
 
+@timeit
+def get_bigquery_dataset_detail(
+    client: Resource,
+    project_id: str,
+    dataset_id: str,
+) -> dict | None:
+    try:
+        request = client.datasets().get(projectId=project_id, datasetId=dataset_id)
+        return gcp_api_execute_with_retry(request)
+    except HttpError as e:
+        if is_api_disabled_error(e) or e.resp.status in (403, 404):
+            logger.warning(
+                "Could not retrieve BigQuery dataset detail for %s:%s - %s. Skipping.",
+                project_id,
+                dataset_id,
+                e,
+            )
+            return None
+        raise
+
+
 def transform_datasets(datasets_data: list[dict], project_id: str) -> list[dict]:
     transformed: list[dict] = []
     for dataset in datasets_data:
@@ -66,6 +88,14 @@ def transform_datasets(datasets_data: list[dict], project_id: str) -> list[dict]
                 "default_table_expiration_ms": dataset.get("defaultTableExpirationMs"),
                 "default_partition_expiration_ms": dataset.get(
                     "defaultPartitionExpirationMs"
+                ),
+                "default_kms_key_name": dataset.get(
+                    "defaultEncryptionConfiguration", {}
+                ).get("kmsKeyName"),
+                "access_entries": (
+                    json.dumps(dataset.get("access", []))
+                    if dataset.get("access")
+                    else None
                 ),
                 "project_id": project_id,
             }
@@ -111,6 +141,12 @@ def sync_bigquery_datasets(
     datasets_raw = get_bigquery_datasets(client, project_id)
 
     if datasets_raw is not None:
+        for i, dataset in enumerate(datasets_raw):
+            ref = dataset["datasetReference"]
+            dataset_id = ref["datasetId"]
+            detail = get_bigquery_dataset_detail(client, project_id, dataset_id)
+            if detail is not None:
+                dataset.update(detail)
         datasets = transform_datasets(datasets_raw, project_id)
         load_bigquery_datasets(neo4j_session, datasets, project_id, update_tag)
 

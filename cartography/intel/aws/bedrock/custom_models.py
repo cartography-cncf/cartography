@@ -45,7 +45,7 @@ def get_custom_models(
         )
         return []
 
-    logger.info("Fetching Bedrock custom models in region %s", region)
+    logger.debug("Fetching Bedrock custom models in region %s", region)
     client = create_boto3_client(
         boto3_session,
         "bedrock",
@@ -66,7 +66,7 @@ def get_custom_models(
         response = client.get_custom_model(modelIdentifier=model_arn)
         models.append(response)
 
-    logger.info("Retrieved %d custom models in region %s", len(models), region)
+    logger.debug("Retrieved %d custom models in region %s", len(models), region)
 
     return models
 

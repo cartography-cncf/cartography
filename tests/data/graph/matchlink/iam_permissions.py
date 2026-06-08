@@ -10,6 +10,7 @@ from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_source_node_matcher
 from cartography.models.core.relationships import make_target_node_matcher
+from cartography.models.core.relationships import MatchLinkSubResource
 from cartography.models.core.relationships import SourceNodeMatcher
 from cartography.models.core.relationships import TargetNodeMatcher
 
@@ -20,6 +21,17 @@ class IAMAccessRelProps(CartographyRelProperties):
 
     lastupdated: PropertyRef = PropertyRef("UPDATE_TAG", set_in_kwargs=True)
     permission_action: PropertyRef = PropertyRef("permission_action")
+    _sub_resource_label: PropertyRef = PropertyRef(
+        "_sub_resource_label", set_in_kwargs=True
+    )
+    _sub_resource_id: PropertyRef = PropertyRef("_sub_resource_id", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+class IAMCartesianProductAccessRelProps(CartographyRelProperties):
+    """Relationship properties for MatchLink Cartesian product tests."""
+
+    lastupdated: PropertyRef = PropertyRef("UPDATE_TAG", set_in_kwargs=True)
     _sub_resource_label: PropertyRef = PropertyRef(
         "_sub_resource_label", set_in_kwargs=True
     )
@@ -45,3 +57,121 @@ class PrincipalToS3BucketPermissionRel(CartographyRelSchema):
     direction: LinkDirection = LinkDirection.OUTWARD
     rel_label: str = "CAN_ACCESS"
     properties: IAMAccessRelProps = IAMAccessRelProps()
+
+
+@dataclass(frozen=True)
+class PrincipalToS3BucketCartesianProductPermissionRel(CartographyRelSchema):
+    """Test relationship schema for bulk Cartesian product MatchLinks."""
+
+    source_node_label: str = "AWSPrincipal"
+    source_node_matcher: SourceNodeMatcher = make_source_node_matcher(
+        {
+            "principal_arn": PropertyRef("principal_arn"),
+        }
+    )
+    target_node_label: str = "S3Bucket"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {
+            "name": PropertyRef("BucketName"),
+        }
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "CAN_BULK_ACCESS"
+    properties: IAMCartesianProductAccessRelProps = IAMCartesianProductAccessRelProps()
+
+
+@dataclass(frozen=True)
+class PrincipalToS3BucketCartesianProductInwardPermissionRel(
+    PrincipalToS3BucketCartesianProductPermissionRel
+):
+    """Test relationship schema for inward bulk Cartesian product MatchLinks."""
+
+    direction: LinkDirection = LinkDirection.INWARD
+
+
+@dataclass(frozen=True)
+class PrincipalToS3BucketSourceScopedPermissionRel(PrincipalToS3BucketPermissionRel):
+    """Test relationship schema with source-side sub-resource scoping."""
+
+    source_node_sub_resource: MatchLinkSubResource = MatchLinkSubResource(
+        target_node_label="AWSAccount",
+        target_node_matcher=make_target_node_matcher(
+            {"id": PropertyRef("_sub_resource_id", set_in_kwargs=True)},
+        ),
+        direction=LinkDirection.INWARD,
+        rel_label="RESOURCE",
+    )
+
+
+@dataclass(frozen=True)
+class PrincipalToS3BucketTargetScopedPermissionRel(PrincipalToS3BucketPermissionRel):
+    """Test relationship schema with target-side sub-resource scoping."""
+
+    target_node_sub_resource: MatchLinkSubResource = MatchLinkSubResource(
+        target_node_label="AWSAccount",
+        target_node_matcher=make_target_node_matcher(
+            {"id": PropertyRef("_sub_resource_id", set_in_kwargs=True)},
+        ),
+        direction=LinkDirection.INWARD,
+        rel_label="RESOURCE",
+    )
+
+
+@dataclass(frozen=True)
+class PrincipalToS3BucketScopedPermissionRel(PrincipalToS3BucketPermissionRel):
+    """Test relationship schema with source- and target-side sub-resource scoping."""
+
+    source_node_sub_resource: MatchLinkSubResource = MatchLinkSubResource(
+        target_node_label="AWSAccount",
+        target_node_matcher=make_target_node_matcher(
+            {"id": PropertyRef("_sub_resource_id", set_in_kwargs=True)},
+        ),
+        direction=LinkDirection.INWARD,
+        rel_label="RESOURCE",
+    )
+    target_node_sub_resource: MatchLinkSubResource = MatchLinkSubResource(
+        target_node_label="AWSAccount",
+        target_node_matcher=make_target_node_matcher(
+            {"id": PropertyRef("_sub_resource_id", set_in_kwargs=True)},
+        ),
+        direction=LinkDirection.INWARD,
+        rel_label="RESOURCE",
+    )
+
+
+@dataclass(frozen=True)
+class PrincipalToS3BucketUnequalScopedPermissionRel(PrincipalToS3BucketPermissionRel):
+    """Test relationship schema with distinct source and target sub-resource scoping."""
+
+    source_node_sub_resource: MatchLinkSubResource = MatchLinkSubResource(
+        target_node_label="AWSAccount",
+        target_node_matcher=make_target_node_matcher(
+            {"id": PropertyRef("_sub_resource_id", set_in_kwargs=True)},
+        ),
+        direction=LinkDirection.INWARD,
+        rel_label="RESOURCE",
+    )
+    target_node_sub_resource: MatchLinkSubResource = MatchLinkSubResource(
+        target_node_label="AWSOrganization",
+        target_node_matcher=make_target_node_matcher(
+            {"id": PropertyRef("_sub_resource_id", set_in_kwargs=True)},
+        ),
+        direction=LinkDirection.INWARD,
+        rel_label="RESOURCE",
+    )
+
+
+@dataclass(frozen=True)
+class PrincipalToS3BucketTargetScopedOutwardPermissionRel(
+    PrincipalToS3BucketPermissionRel
+):
+    """Test relationship schema with outward target-side sub-resource scoping."""
+
+    target_node_sub_resource: MatchLinkSubResource = MatchLinkSubResource(
+        target_node_label="AWSAccount",
+        target_node_matcher=make_target_node_matcher(
+            {"id": PropertyRef("_sub_resource_id", set_in_kwargs=True)},
+        ),
+        direction=LinkDirection.OUTWARD,
+        rel_label="RESOURCE",
+    )

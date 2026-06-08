@@ -16,6 +16,7 @@ St -- CONTAINS --> St2(SpaceliftStack)
 WP -- CONTAINS --> W2(SpaceliftWorker)
 
 St -- GENERATES --> R
+St -- ASSUMES --> Role(AWSRole)
 U -- TRIGGERED --> R
 W -- EXECUTES --> R
 C -- COMMITTED --> R
@@ -135,6 +136,8 @@ Representation of a human or machine identity that interacts with Spacelift. Use
 
 Representation of the fundamental building block of Spacelift infrastructure management. A stack combines source code (from VCS), current state (e.g., Terraform state), and configuration (environment variables, mounted files) into an isolated, independent entity.
 
+> **Ontology Mapping**: This node has the extra label `CICDPipeline` to enable cross-platform queries for CI/CD pipeline definitions across different systems (e.g., CodeBuildProject, GitHubWorkflow, GitLabCIConfig).
+
 | Field | Description |
 |-------|-------------|
 | firstseen | Timestamp of when a sync job first created this node |
@@ -149,6 +152,7 @@ Representation of the fundamental building block of Spacelift infrastructure man
 | project_root | Directory in repo containing infrastructure code |
 | space_id | ID of the space this stack belongs to |
 | spacelift_account_id | ID of the Spacelift account this stack belongs to |
+| aws_role_arn | ARN of the AWS IAM role the stack assumes at runtime (from its AWS integration), if any |
 
 #### Relationships
 
@@ -168,6 +172,12 @@ Representation of the fundamental building block of Spacelift infrastructure man
 
     ```
     (SpaceliftStack)-[GENERATED]->(SpaceliftRun)
+    ```
+
+- SpaceliftStacks assume an AWS IAM role at runtime:
+
+    ```
+    (SpaceliftStack)-[ASSUMES]->(AWSRole)
     ```
 
 ### SpaceliftWorkerPool

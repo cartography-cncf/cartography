@@ -118,6 +118,20 @@ def sync_sql_databases(
         if not instance_name or not instance_id:
             continue
 
+        # The Cloud SQL Admin API rejects databases.list with HTTP 400 on instances
+        # that are not running (SUSPENDED, PENDING_CREATE, MAINTENANCE, FAILED, ...,
+        # or RUNNABLE but stopped by owner via activationPolicy=NEVER).
+        state = inst.get("state")
+        activation_policy = inst.get("settings", {}).get("activationPolicy")
+        if state != "RUNNABLE" or activation_policy == "NEVER":
+            logger.info(
+                "Skipping SQL databases sync for instance %s: state=%s activationPolicy=%s.",
+                instance_name,
+                state,
+                activation_policy,
+            )
+            continue
+
         try:
             databases_raw = get_sql_databases(client, project_id, instance_name)
             # Skip this instance if API is not enabled or access denied

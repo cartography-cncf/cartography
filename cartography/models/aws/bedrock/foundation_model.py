@@ -3,6 +3,7 @@ from dataclasses import dataclass
 from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeProperties
 from cartography.models.core.nodes import CartographyNodeSchema
+from cartography.models.core.nodes import ExtraNodeLabels
 from cartography.models.core.relationships import CartographyRelProperties
 from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
@@ -43,7 +44,7 @@ class AWSBedrockFoundationModelToAWSAccountRelProperties(CartographyRelPropertie
 
 
 @dataclass(frozen=True)
-class AWSBedrockFoundationModelToAWSAccount(CartographyRelSchema):
+class AWSBedrockFoundationModelToAWSAccountRel(CartographyRelSchema):
     """
     Defines the relationship from AWSBedrockFoundationModel to AWSAccount.
     """
@@ -66,9 +67,10 @@ class AWSBedrockFoundationModelSchema(CartographyNodeSchema):
     """
 
     label: str = "AWSBedrockFoundationModel"
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["AIModel"])
     properties: AWSBedrockFoundationModelNodeProperties = (
         AWSBedrockFoundationModelNodeProperties()
     )
-    sub_resource_relationship: AWSBedrockFoundationModelToAWSAccount = (
-        AWSBedrockFoundationModelToAWSAccount()
+    sub_resource_relationship: AWSBedrockFoundationModelToAWSAccountRel = (
+        AWSBedrockFoundationModelToAWSAccountRel()
     )

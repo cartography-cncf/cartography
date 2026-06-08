@@ -48,7 +48,7 @@ def filter_regions_to_supported_service_regions(
         )
 
     if not available_regions:
-        logger.warning(
+        logger.debug(
             "Could not determine available %s regions. Continuing with requested regions.",
             service_name,
         )

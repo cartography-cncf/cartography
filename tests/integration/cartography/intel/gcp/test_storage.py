@@ -120,14 +120,22 @@ def test_sync_gcp_buckets(mock_get_buckets, neo4j_session):
     assert check_nodes(
         neo4j_session,
         "GCPBucket",
-        ["id", "project_number", "kind"],
+        ["id", "project_number", "kind", "iam_config_public_access_prevention"],
     ) == {
         (
             "bucket_name",
             123456789012,
             "storage#bucket",
+            "inherited",
         ),
     }
+    # ACL-driven public exposure is captured at sync time as `acl_public` and
+    # later promoted to `_ont_public` by the bucket projection analysis job.
+    assert check_nodes(
+        neo4j_session,
+        "GCPBucket",
+        ["id", "acl_public"],
+    ) == {("bucket_name", True)}
     assert check_nodes(
         neo4j_session,
         "GCPBucketLabel",

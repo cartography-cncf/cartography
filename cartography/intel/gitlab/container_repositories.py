@@ -31,7 +31,7 @@ def get_container_repositories(
     Uses the group-level registry API to get all repositories across all projects
     in the organization.
     """
-    logger.info(f"Fetching container repositories for group ID {group_id}")
+    logger.debug("Fetching container repositories for group ID %s", group_id)
     repositories = get_paginated(
         gitlab_url,
         token,

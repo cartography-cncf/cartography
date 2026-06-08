@@ -27,4 +27,7 @@ poetry.lock
 .python_history
 github_config.json
 .env.local
-.claude/
+.claude/*
+# Track the .claude/skills symlink so Claude Code can autodiscover skills
+# from .agents/skills/ without each contributor having to create it.
+!.claude/skills

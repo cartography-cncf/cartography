@@ -7,7 +7,7 @@ As mapping all permissions is infeasible both to calculate and store, Cartograph
 
 You can specify your own permission mapping file using the `--gcp-permission-relationships-file` command line parameter
 
-Permission relationship syncs depend on GCP policy bindings already being present in the graph. In the normal GCP sync flow, those policy bindings come from the CAI-backed policy bindings sync.
+Permission relationship syncs depend on policy bindings being refreshed in the same GCP sync run. In the normal GCP sync flow, those policy bindings come from the CAI-backed policy bindings sync, which passes the current policy-binding context directly into permission relationship evaluation.
 
 #### Permission Mapping File
 The [permission relationship file](https://github.com/cartography-cncf/cartography/blob/master/cartography/data/gcp_permission_relationships.yaml) is a yaml file that specifies what permission relationships should be created in the graph. It consists of RPR (Resource Permission Relationship) sections that are going to map specific permissions between GCP principals and resources

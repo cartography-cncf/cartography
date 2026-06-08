@@ -8,6 +8,7 @@ from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_source_node_matcher
 from cartography.models.core.relationships import make_target_node_matcher
+from cartography.models.core.relationships import MatchLinkSubResource
 from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import SourceNodeMatcher
 from cartography.models.core.relationships import TargetNodeMatcher
@@ -67,6 +68,22 @@ class IntuneManagedDeviceToDetectedAppMatchLink(CartographyRelSchema):
     rel_label: str = "HAS_APP"
     properties: IntuneManagedDeviceHasAppRelProperties = (
         IntuneManagedDeviceHasAppRelProperties()
+    )
+    source_node_sub_resource: MatchLinkSubResource = MatchLinkSubResource(
+        target_node_label="EntraTenant",
+        target_node_matcher=make_target_node_matcher(
+            {"id": PropertyRef("_sub_resource_id", set_in_kwargs=True)},
+        ),
+        direction=LinkDirection.INWARD,
+        rel_label="RESOURCE",
+    )
+    target_node_sub_resource: MatchLinkSubResource = MatchLinkSubResource(
+        target_node_label="EntraTenant",
+        target_node_matcher=make_target_node_matcher(
+            {"id": PropertyRef("_sub_resource_id", set_in_kwargs=True)},
+        ),
+        direction=LinkDirection.INWARD,
+        rel_label="RESOURCE",
     )
 
 
