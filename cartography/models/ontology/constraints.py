@@ -14,6 +14,9 @@ from cartography.models.aws.identitycenter.awspermissionset import (
 from cartography.models.aws.identitycenter.awspermissionset import (
     AWSRoleToSSOUserMatchLink,
 )
+from cartography.models.aws.identitycenter.awspermissionset import (
+    PermissionSetToAWSRoleRel,
+)
 from cartography.models.aws.identitycenter.awssogroup import (
     AWSSSOGroupToPermissionSetRel,
 )
@@ -117,6 +120,8 @@ ONTOLOGY_REL_CONSTRAINTS: tuple[RelConstraint, ...] = (
     RelConstraint(src="ServiceAccount", dst="PermissionRole", label="HAS_ROLE"),
     # A group is granted a role; members inherit it.
     RelConstraint(src="UserGroup", dst="PermissionRole", label="HAS_ROLE"),
+    # A composite/hierarchical role includes other roles.
+    RelConstraint(src="PermissionRole", dst="PermissionRole", label="INCLUDES"),
     # An identity is a member of a group; groups nest into other groups.
     RelConstraint(src="UserAccount", dst="UserGroup", label="MEMBER_OF"),
     RelConstraint(src="ServiceAccount", dst="UserGroup", label="MEMBER_OF"),
@@ -174,6 +179,10 @@ LEGACY_REL_WHITELIST: frozenset[type] = frozenset(
         # references a group, not that the group holds the policy. Distinct
         # from HAS_ROLE.
         OCIPolicyToGroupRefRel,
+        # ASSIGNED_TO_ROLE provisions an AWS permission set as a concrete IAM
+        # role in a target account (implementation link), not a composite-role
+        # hierarchy. Distinct from the INCLUDES role->role edge.
+        PermissionSetToAWSRoleRel,
         # DEPRECATED: replaced by MEMBER_OF, will be removed in v1.0.0.
         AWSGroupToAWSUserRel,
         AWSSSOUserToSSOGroupRel,

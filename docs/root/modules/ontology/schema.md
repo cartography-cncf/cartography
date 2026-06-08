@@ -42,6 +42,7 @@ PR{{PermissionRole}}
 UA -- HAS_ROLE --> PR
 SA -- HAS_ROLE --> PR
 UG -- HAS_ROLE --> PR
+PR -- INCLUDES --> PR
 UA -- MEMBER_OF --> UG
 SA -- MEMBER_OF --> UG
 UG -- MEMBER_OF --> UG
@@ -596,6 +597,11 @@ A `UserAccount`, `ServiceAccount`, or `UserGroup` that is granted a permission r
 (:UserAccount)-[:HAS_ROLE]->(:PermissionRole)
 (:ServiceAccount)-[:HAS_ROLE]->(:PermissionRole)
 (:UserGroup)-[:HAS_ROLE]->(:PermissionRole)
+```
+
+A composite or hierarchical role includes other roles via the canonical `INCLUDES` edge (e.g. Keycloak composite roles):
+```
+(:PermissionRole)-[:INCLUDES]->(:PermissionRole)
 ```
 
 
