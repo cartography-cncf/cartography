@@ -204,6 +204,9 @@ from cartography.rules.data.rules.device_security_posture_gaps import (
 )
 from cartography.rules.data.rules.eol_software import eol_software
 from cartography.rules.data.rules.guardduty_active_threat import guardduty_active_threat
+from cartography.rules.data.rules.iam_role_external_account_trust import (
+    iam_role_external_account_trust,
+)
 from cartography.rules.data.rules.identity_administration_privileges import (
     identity_administration_privileges,
 )
@@ -298,6 +301,7 @@ RULES = {
     delegation_boundary_modifiable.id: delegation_boundary_modifiable,
     device_security_posture_gaps.id: device_security_posture_gaps,
     eol_software.id: eol_software,
+    iam_role_external_account_trust.id: iam_role_external_account_trust,
     identity_administration_privileges.id: identity_administration_privileges,
     identity_mfa_gaps.id: identity_mfa_gaps,
     inactive_user_active_accounts.id: inactive_user_active_accounts,
