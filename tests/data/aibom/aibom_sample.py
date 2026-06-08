@@ -1,3 +1,6 @@
+import copy
+from typing import Any
+
 import tests.data.aws.ecr
 
 TEST_REPOSITORY_URI = "205930638578.dkr.ecr.us-east-1.amazonaws.com/subimage-backend"
@@ -1003,3 +1006,21 @@ AIBOM_REPORT = {
         "errors": [],
     },
 }
+
+# Code-repository anchors used by the GitHub/GitLab linking tests. AIBOM source
+# keys for repository scans are plain repo URLs with no `@sha256:` digest.
+TEST_GITHUB_REPO_URL = "https://github.com/example-org/example-repo"
+TEST_GITLAB_PROJECT_URL = "https://gitlab.com/example-group/example-project"
+
+
+def build_repo_anchored_report(source_key: str) -> dict[str, Any]:
+    """
+    Return a copy of ``AIBOM_REPORT`` re-anchored on a code-repository source
+    key (a plain repo URL) instead of the digest-qualified image source key.
+    """
+    report: dict[str, Any] = copy.deepcopy(AIBOM_REPORT)
+    sources: dict[str, Any] = report["aibom_analysis"]["sources"]
+    source_data = sources.pop(TEST_SOURCE_KEY)
+    source_data["source_name"] = source_key
+    sources[source_key] = source_data
+    return report
