@@ -188,6 +188,19 @@ def test_transform_dependency_converts_to_expected_format():
     assert react_dep["repo_url"] == repo_url
     assert react_dep["manifest_file"] == "package.json"
 
+    # Assert: An exact-version PURL yields populated ontology fields
+    assert react_dep["version"] == "18.2.0"
+    assert react_dep["type"] == "npm"
+    assert react_dep["purl"] == "pkg:npm/react@18.2.0"
+    assert react_dep["normalized_id"] == "npm|react|18.2.0"
+
+    # Assert: A range-only dep (no PURL) intentionally leaves ontology fields null
+    lodash_dep = next(dep for dep in output_list if dep["original_name"] == "lodash")
+    assert lodash_dep["version"] is None
+    assert lodash_dep["type"] is None
+    assert lodash_dep["purl"] is None
+    assert lodash_dep["normalized_id"] is None
+
 
 def test_transform_python_requirements_skips_flags_and_continuations():
     repo_url = "https://github.com/test-org/test-repo"

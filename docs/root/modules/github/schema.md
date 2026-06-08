@@ -596,6 +596,8 @@ Represents a software dependency from GitHub's dependency graph manifests. This 
 | purl | Package URL (e.g., `"pkg:npm/react@18.2.0"`). `null` if version is not exact. |
 | **normalized_id** | Normalized ID for cross-tool matching (format: `{type}\|{namespace/}{name}\|{version}`). Indexed. `null` if version is not exact. |
 
+> **Ontology Mapping**: This node also carries the extra label `GitHubDependency`. When `normalized_id` is populated (exact version), a canonical `Package` (ontology) node is detected as this dependency, enabling cross-scanner queries alongside Trivy, Syft, SocketDev, and GitLab packages.
+
 #### Relationships
 
 - **GitHubRepository** via **REQUIRES** relationship
@@ -604,6 +606,12 @@ Represents a software dependency from GitHub's dependency graph manifests. This 
 
     ```
     (GitHubRepository)-[:REQUIRES]->(Dependency)
+    ```
+
+- A canonical **Package** (ontology) is detected as a **GitHubDependency**.
+
+    ```
+    (Package)-[:DETECTED_AS]->(Dependency:GitHubDependency)
     ```
 
 ### GitHubDependabotAlert
