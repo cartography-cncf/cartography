@@ -76,6 +76,7 @@ Configured AWS sync accounts are marked `inscope=true`. Accounts discovered only
                                 :RDSInstance,
                                 :RDSSnapshot,
                                 :RDSEventSubscription,
+                                :ECRPullThroughCacheRule,
                                 :SecretsManagerSecret,
                                 :SecurityHub,
                                 :SQSQueue,
@@ -1322,7 +1323,6 @@ Representation of an AWS [Tag](https://docs.aws.amazon.com/resourcegroupstagging
 | **id** | This tag's unique identifier of the format `{TagKey}:{TagValue}`. We fabricated this ID. |
 | key | One part of a key-value pair that makes up a tag.|
 | value | One part of a key-value pair that makes up a tag. |
-| region | The region where this tag was discovered.|
 
 #### Relationships
 -  AWS VPCs, DB Subnet Groups, EC2 Instances, EC2 SecurityGroups, EC2 Subnets, EC2 Network Interfaces, RDS Instances, S3 Buckets, AWS Roles, AWS Users, and AWS Groups can be tagged with AWSTags.
@@ -2579,6 +2579,44 @@ Representation of an AWS Elastic Container Registry [Repository](https://docs.aw
 - An ECRRepository contains ECRRepositoryImages:
     ```
     (:ECRRepository)-[:REPO_IMAGE]->(:ECRRepositoryImage)
+    ```
+
+
+### ECRPullThroughCacheRule
+
+Representation of an AWS Elastic Container Registry [pull through cache rule](https://docs.aws.amazon.com/AmazonECR/latest/APIReference/API_PullThroughCacheRule.html).
+
+| Field | Description |
+|--------|-----------|
+| firstseen | Timestamp of when a sync job first discovered this node |
+| lastupdated | Timestamp of the last time the node was updated |
+| **id** | Synthetic ID in the format `registry_id:region:ecr_repository_prefix` |
+| **registry_id** | The AWS registry ID associated with the rule |
+| **ecr_repository_prefix** | The ECR repository prefix used when caching images from the upstream registry |
+| upstream_registry_url | The upstream registry URL associated with the rule |
+| **upstream_registry** | The upstream source registry name associated with the rule |
+| upstream_repository_prefix | The upstream repository prefix associated with the rule |
+| **credential_arn** | The Secrets Manager secret ARN used for upstream registry credentials, when configured |
+| **custom_role_arn** | The IAM role ARN used for pull through cache operations, when configured |
+| created_at | Date and time when the rule was created |
+| updated_at | Date and time when the rule was last updated |
+| region | The region of the rule |
+
+#### Relationships
+
+- ECR pull through cache rules are resources under the AWS Account:
+    ```
+    (:AWSAccount)-[:RESOURCE]->(:ECRPullThroughCacheRule)
+    ```
+
+- ECR pull through cache rules may use a Secrets Manager secret for upstream credentials:
+    ```
+    (:ECRPullThroughCacheRule)-[:USES_SECRET]->(:SecretsManagerSecret)
+    ```
+
+- ECR pull through cache rules may be associated with an IAM role:
+    ```
+    (:ECRPullThroughCacheRule)-[:ASSOCIATED_WITH]->(:AWSRole)
     ```
 
 

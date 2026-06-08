@@ -11,6 +11,9 @@ from cartography.intel.aibom import sync_aibom_from_report_reader
 from cartography.intel.common.object_store import LocalReportReader
 from cartography.intel.common.object_store import ReportRef
 from tests.data.aibom.aibom_sample import AIBOM_REPORT
+from tests.data.aibom.aibom_sample import build_repo_anchored_report
+from tests.data.aibom.aibom_sample import TEST_GITHUB_REPO_URL
+from tests.data.aibom.aibom_sample import TEST_GITLAB_PROJECT_URL
 from tests.data.aibom.aibom_sample import TEST_SOURCE_KEY
 from tests.integration.cartography.intel.aws.common import create_test_account
 from tests.integration.util import check_nodes
@@ -80,6 +83,31 @@ def _seed_single_platform_graph(neo4j_session) -> None:
             TEST_UPDATE_TAG,
             {"UPDATE_TAG": TEST_UPDATE_TAG, "AWS_ID": TEST_ACCOUNT_ID},
         )
+
+
+def _seed_github_repository(neo4j_session) -> None:
+    neo4j_session.run("MATCH (n) DETACH DELETE n")
+    neo4j_session.run(
+        """
+        MERGE (r:GitHubRepository {id: $url})
+        SET r.url = $url, r.lastupdated = $update_tag
+        """,
+        url=TEST_GITHUB_REPO_URL,
+        update_tag=TEST_UPDATE_TAG,
+    )
+
+
+def _seed_gitlab_project(neo4j_session) -> None:
+    neo4j_session.run("MATCH (n) DETACH DELETE n")
+    neo4j_session.run(
+        """
+        MERGE (p:GitLabProject {id: $id})
+        SET p.web_url = $web_url, p.lastupdated = $update_tag
+        """,
+        id="42",
+        web_url=TEST_GITLAB_PROJECT_URL,
+        update_tag=TEST_UPDATE_TAG,
+    )
 
 
 def _build_report_without_component(
@@ -372,3 +400,139 @@ def test_sync_aibom_skips_ambiguous_type_name_relationship_endpoints(
         )
         == set()
     )
+
+
+@patch(
+    "builtins.open",
+    new_callable=mock_open,
+    read_data=json.dumps(build_repo_anchored_report(TEST_GITHUB_REPO_URL)).encode(
+        "utf-8"
+    ),
+)
+@patch(
+    "cartography.intel.common.object_store.LocalReportReader.list_reports",
+    return_value=[ReportRef(uri="/tmp/aibom.json", name="aibom.json")],
+)
+def test_sync_aibom_links_components_to_github_repository(
+    mock_json_files,
+    mock_file_open,
+    neo4j_session,
+):
+    # Arrange
+    _seed_github_repository(neo4j_session)
+
+    # Act
+    sync_aibom_from_report_reader(
+        neo4j_session,
+        LocalReportReader("/tmp"),
+        TEST_UPDATE_TAG,
+        {"UPDATE_TAG": TEST_UPDATE_TAG},
+    )
+
+    # Assert
+    assert check_nodes(
+        neo4j_session,
+        "AIBOMSource",
+        ["source_key"],
+    ) == {
+        (TEST_GITHUB_REPO_URL,),
+    }
+
+    component_nodes = check_nodes(
+        neo4j_session,
+        "AIBOMComponent",
+        ["name"],
+    )
+    assert component_nodes is not None
+    assert len(component_nodes) > 0
+
+    assert check_rels(
+        neo4j_session,
+        "AIBOMSource",
+        "source_key",
+        "GitHubRepository",
+        "url",
+        "SCANNED_REPOSITORY",
+        rel_direction_right=True,
+    ) == {
+        (TEST_GITHUB_REPO_URL, TEST_GITHUB_REPO_URL),
+    }
+
+    detected_in_rels = check_rels(
+        neo4j_session,
+        "AIBOMComponent",
+        "name",
+        "GitHubRepository",
+        "url",
+        "DETECTED_IN",
+        rel_direction_right=True,
+    )
+    assert len(detected_in_rels) == len(component_nodes)
+
+
+@patch(
+    "builtins.open",
+    new_callable=mock_open,
+    read_data=json.dumps(build_repo_anchored_report(TEST_GITLAB_PROJECT_URL)).encode(
+        "utf-8"
+    ),
+)
+@patch(
+    "cartography.intel.common.object_store.LocalReportReader.list_reports",
+    return_value=[ReportRef(uri="/tmp/aibom.json", name="aibom.json")],
+)
+def test_sync_aibom_links_components_to_gitlab_project(
+    mock_json_files,
+    mock_file_open,
+    neo4j_session,
+):
+    # Arrange
+    _seed_gitlab_project(neo4j_session)
+
+    # Act
+    sync_aibom_from_report_reader(
+        neo4j_session,
+        LocalReportReader("/tmp"),
+        TEST_UPDATE_TAG,
+        {"UPDATE_TAG": TEST_UPDATE_TAG},
+    )
+
+    # Assert
+    assert check_nodes(
+        neo4j_session,
+        "AIBOMSource",
+        ["source_key"],
+    ) == {
+        (TEST_GITLAB_PROJECT_URL,),
+    }
+
+    component_nodes = check_nodes(
+        neo4j_session,
+        "AIBOMComponent",
+        ["name"],
+    )
+    assert component_nodes is not None
+    assert len(component_nodes) > 0
+
+    assert check_rels(
+        neo4j_session,
+        "AIBOMSource",
+        "source_key",
+        "GitLabProject",
+        "web_url",
+        "SCANNED_REPOSITORY",
+        rel_direction_right=True,
+    ) == {
+        (TEST_GITLAB_PROJECT_URL, TEST_GITLAB_PROJECT_URL),
+    }
+
+    detected_in_rels = check_rels(
+        neo4j_session,
+        "AIBOMComponent",
+        "name",
+        "GitLabProject",
+        "web_url",
+        "DETECTED_IN",
+        rel_direction_right=True,
+    )
+    assert len(detected_in_rels) == len(component_nodes)
