@@ -238,6 +238,27 @@ def test_object_level_resource_matches_bucket():
     )
 
 
+def test_object_level_resource_prefix_grant_matches_bucket():
+    # An object-level grant scoped to a key prefix (arn:aws:s3:::my-bucket/logs/*)
+    # should still draw an edge to the bucket node. See issue #1639.
+    statement = [
+        {
+            "action": [
+                "s3:GetObject",
+            ],
+            "resource": [
+                "arn:aws:s3:::my-bucket/logs/*",
+            ],
+            "effect": "Allow",
+        },
+    ]
+    assert (True, False) == permission_relationships.evaluate_policy_for_permissions(
+        statement,
+        ["S3:GetObject"],
+        "arn:aws:s3:::my-bucket",
+    )
+
+
 def test_object_level_resource_does_not_match_other_bucket():
     # The trailing-slash match must not leak across buckets with a shared prefix.
     statement = [
@@ -280,9 +301,10 @@ def test_object_level_match_scoped_to_s3():
     )
 
 
-def test_object_level_notresource_excludes_bucket():
-    # A notresource object-level grant should also apply to the bucket node so
-    # that an object-level exclusion is honored.
+def test_object_level_notresource_does_not_exclude_bucket():
+    # A notresource scoped to objects (arn:aws:s3:::my-bucket/*) excludes the
+    # bucket *objects*, not the bucket ARN itself, so bucket-level permissions
+    # on the bucket node are still allowed by AWS and the edge must remain.
     statements = [
         {
             "action": [
@@ -295,7 +317,7 @@ def test_object_level_notresource_excludes_bucket():
             "effect": "Allow",
         },
     ]
-    assert (False, False) == permission_relationships.evaluate_policy_for_permissions(
+    assert (True, False) == permission_relationships.evaluate_policy_for_permissions(
         statements,
         ["S3:GetObject"],
         "arn:aws:s3:::my-bucket",
