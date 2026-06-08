@@ -270,11 +270,11 @@ ai_third_party_app_sensitive_scopes = Rule(
     frameworks=(
         nist_ai_rmf(
             "MEASURE 2",
-            title="AI system performance and trustworthiness characteristics are measured",
+            title="AI systems are evaluated for trustworthy characteristics",
         ),
         nist_ai_rmf(
             "MANAGE 2",
-            title="Strategies to maximize AI benefits and minimize negative impacts are planned, prepared, implemented, and documented",
+            title="Strategies to maximize AI benefits and minimize negative impacts are planned, prepared, implemented, documented, and informed by input from relevant AI actors",
         ),
         iso27001_annex_a("5.15"),
         iso27001_annex_a("8.3"),
@@ -407,7 +407,7 @@ ai_admin_app_authorizations = Rule(
     frameworks=(
         nist_ai_rmf(
             "GOVERN 5",
-            title="Organizational teams are committed to a culture that considers and communicates AI risk",
+            title="Processes are in place for robust engagement with relevant AI actors",
         ),
         iso27001_annex_a("5.18"),
         iso27001_annex_a("8.2"),
@@ -567,7 +567,7 @@ aibom_agent_inventory = Rule(
         nist_ai_rmf("MAP 1", title="Context is established and understood"),
         nist_ai_rmf(
             "GOVERN 1",
-            title="Policies, processes, procedures, and practices are in place to map, measure, and manage AI risks",
+            title="Policies, processes, procedures, and practices across the organization related to the mapping, measuring, and managing of AI risks are in place, transparent, and implemented effectively",
         ),
         iso27001_annex_a("5.9"),
         iso27001_annex_a("5.21"),
@@ -668,11 +668,11 @@ aibom_coverage_gaps = Rule(
     frameworks=(
         nist_ai_rmf(
             "MEASURE 2",
-            title="AI system performance and trustworthiness characteristics are measured",
+            title="AI systems are evaluated for trustworthy characteristics",
         ),
         nist_ai_rmf(
             "MANAGE 2",
-            title="Strategies to maximize AI benefits and minimize negative impacts are planned, prepared, implemented, and documented",
+            title="Strategies to maximize AI benefits and minimize negative impacts are planned, prepared, implemented, documented, and informed by input from relevant AI actors",
         ),
         iso27001_annex_a("5.9"),
         iso27001_annex_a("5.21"),
@@ -889,11 +889,11 @@ ai_provider_api_key_hygiene = Rule(
     frameworks=(
         nist_ai_rmf(
             "GOVERN 5",
-            title="Organizational teams are committed to a culture that considers and communicates AI risk",
+            title="Processes are in place for robust engagement with relevant AI actors",
         ),
         nist_ai_rmf(
             "MANAGE 2",
-            title="Strategies to maximize AI benefits and minimize negative impacts are planned, prepared, implemented, and documented",
+            title="Strategies to maximize AI benefits and minimize negative impacts are planned, prepared, implemented, documented, and informed by input from relevant AI actors",
         ),
         iso27001_annex_a("5.17"),
         iso27001_annex_a("5.18"),

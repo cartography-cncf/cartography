@@ -63,7 +63,7 @@ def test_framework_mappings_remain_on_renamed_rules():
             None,
             "1.0",
             "govern 5",
-            "Organizational teams are committed to a culture that considers and communicates AI risk",
+            "Processes are in place for robust engagement with relevant AI actors",
         ),
     }
 
