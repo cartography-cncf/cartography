@@ -80,6 +80,44 @@ _aws_rds_snapshot_public = Fact(
 )
 
 
+_aws_ami_public = Fact(
+    id="aws_ami_public",
+    name="Publicly Shared AMIs",
+    description=(
+        "AWS AMIs (machine images) shared publicly. A public AMI can be "
+        "launched by any AWS account, exposing the full contents of every "
+        "disk baked into the image (including any secrets or data left on "
+        "the root volume)."
+    ),
+    cypher_query="""
+    MATCH (a:AWSAccount)-[:RESOURCE]->(i:EC2Image)
+    WHERE i.ispublic = true
+    RETURN
+        i.id AS id,
+        i.imageid AS arn,
+        i.name AS source_identifier,
+        null AS encrypted,
+        i.region AS region,
+        a.id AS account_id,
+        a.name AS account,
+        'EC2Image' AS resource_type
+    """,
+    cypher_visual_query="""
+    MATCH p=(a:AWSAccount)-[:RESOURCE]->(i:EC2Image)
+    WHERE i.ispublic = true
+    RETURN *
+    """,
+    cypher_count_query="""
+    MATCH (i:EC2Image)
+    RETURN COUNT(i) AS count
+    """,
+    asset_id_field="id",
+    identity_fields=("id",),
+    module=Module.AWS,
+    maturity=Maturity.EXPERIMENTAL,
+)
+
+
 # Rule
 class PublicSnapshots(Finding):
     id: str | None = None
@@ -96,14 +134,16 @@ public_snapshots = Rule(
     id="public_snapshots",
     name="Publicly Accessible Snapshots",
     description=(
-        "EBS and RDS snapshots shared publicly, allowing any AWS account to "
-        "copy or restore an entire volume or database. This is a classic "
-        "data-exfiltration path that bypasses bucket and network controls."
+        "EBS snapshots, RDS snapshots, and AMIs shared publicly, allowing any "
+        "AWS account to copy or restore an entire volume, database, or machine "
+        "image. This is a classic data-exfiltration path that bypasses bucket "
+        "and network controls."
     ),
     output_model=PublicSnapshots,
     facts=(
         _aws_ebs_snapshot_public,
         _aws_rds_snapshot_public,
+        _aws_ami_public,
     ),
     tags=(
         "infrastructure",
