@@ -394,6 +394,8 @@ Representation of a Tag defined on a GCP Instance or GCP Firewall.  Tags are def
 
 Representation of a GCP [VPC](https://cloud.google.com/compute/docs/reference/rest/v1/networks/).  In GCP documentation this is also known simply as a "Network" object.
 
+> **Ontology Mapping**: This node has the extra label `VirtualNetwork` and normalized `_ont_*` properties to enable cross-platform queries for virtual networks across different systems (e.g., AWSVpc, AzureVirtualNetwork).
+
 | Field                      | Description |
 | -------------------------- | ----------- |
 | firstseen                  | Timestamp of when a sync job first discovered this node |
@@ -531,6 +533,8 @@ Representation of a GCP [Resource Record Set](https://cloud.google.com/dns/docs/
 ### GCPSubnet
 
 Representation of a GCP [Subnetwork](https://cloud.google.com/compute/docs/reference/rest/v1/subnetworks).
+
+> **Ontology Mapping**: This node has the extra label `Subnet` and normalized `_ont_*` properties to enable cross-platform queries for network subnets across different systems (e.g., EC2Subnet, AzureSubnet).
 
 | Field                    | Description                                                                                                                                                                                        |
 | ------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |

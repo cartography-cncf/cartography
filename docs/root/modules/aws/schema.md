@@ -1269,6 +1269,8 @@ Representation of an [AWS Transit Gateway Attachment](https://docs.aws.amazon.co
 Representation of an [AWS CidrBlock used in VPC configuration](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_VpcCidrBlockAssociation.html).
 More information on https://docs.aws.amazon.com/cli/latest/reference/ec2/describe-vpcs.html
 
+> **Ontology Mapping**: This node has the extra label `VirtualNetwork` and normalized `_ont_*` properties to enable cross-platform queries for virtual networks across different systems (e.g., GCPVpc, AzureVirtualNetwork).
+
 | Field | Description |
 |-------|-------------|
 |firstseen| Timestamp of when a sync job discovered this node|
@@ -2437,6 +2439,8 @@ Representation of an AWS EC2 [Security Group](https://docs.aws.amazon.com/AWSEC2
 ### EC2Subnet
 
 Representation of an AWS EC2 [Subnet](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_Subnet.html).
+
+> **Ontology Mapping**: This node has the extra label `Subnet` and normalized `_ont_*` properties to enable cross-platform queries for network subnets across different systems (e.g., GCPSubnet, AzureSubnet).
 
 | Field | Description |
 |-------|-------------|
@@ -3869,6 +3873,8 @@ Representation of an AWS Relational Database Service [DBInstance](https://docs.a
 
 Representation of an AWS Relational Database Service [DBSnapshot](https://docs.aws.amazon.com/AmazonRDS/latest/APIReference/API_DBSnapshot.html).
 
+> **Ontology Mapping**: This node has the extra label `Snapshot` and normalized `_ont_*` properties to enable cross-platform queries for volume/database snapshots across different systems (e.g., EBSSnapshot, AzureSnapshot, ScalewayVolumeSnapshot).
+
 | Field | Description |
 |-------|-------------|
 | firstseen| Timestamp of when a sync job first discovered this node  |
@@ -4749,6 +4755,8 @@ Representation of an AWS [EBS Volume](https://docs.aws.amazon.com/AWSEC2/latest/
 ### EBSSnapshot
 
 Representation of an AWS [EBS Snapshot](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/EBSSnapshots.html).
+
+> **Ontology Mapping**: This node has the extra label `Snapshot` and normalized `_ont_*` properties to enable cross-platform queries for volume/database snapshots across different systems (e.g., RDSSnapshot, AzureSnapshot, ScalewayVolumeSnapshot).
 
 | Field | Description |
 |-------|-------------|
@@ -6649,3 +6657,44 @@ Represents an [AWS SageMaker Model Package](https://docs.aws.amazon.com/sagemake
     ```
     (AWSSageMakerModelPackage)-[:REFERENCES_ARTIFACTS_IN]->(S3Bucket)
     ```
+
+### CloudFormationStack
+
+Representation of an AWS [CloudFormation Stack](https://docs.aws.amazon.com/AWSCloudFormation/latest/APIReference/API_Stack.html).
+
+| Field | Description |
+|-------|-------------|
+| firstseen | Timestamp of when a sync job first discovered this node |
+| lastupdated | Timestamp of the last time the node was updated |
+| **id** | The unique identifier (ARN) of the CloudFormation Stack |
+| arn | The Amazon Resource Name (ARN) of the CloudFormation Stack |
+| stack_name | The name of the stack |
+| description | A user-defined description associated with the stack |
+| stack_status | Current status of the stack (e.g., CREATE_COMPLETE) |
+| stack_status_reason | Success/failure message associated with the stack status |
+| creation_time | The time at which the stack was created |
+| last_updated_time | The time the stack was last updated |
+| role_arn | The ARN of the IAM role used by CloudFormation |
+| parent_id | For nested stacks, the stack ID of the parent |
+| root_id | For nested stacks, the stack ID of the root stack |
+| disable_rollback | Whether rollback is disabled |
+| tags | A JSON string of tags associated with the stack |
+| region | The AWS region where the stack exists |
+
+#### Relationships
+
+- CloudFormation Stack is a resource under an AWS Account
+    ```
+    (AWSAccount)-[:RESOURCE]->(CloudFormationStack)
+    ```
+
+- CloudFormation Stack uses an IAM Role for execution (if configured)
+    ```
+    (CloudFormationStack)-[:HAS_EXECUTION_ROLE]->(AWSRole)
+    ```
+
+- An AWS Principal can escalate privileges via CloudFormation
+    ```
+    (AWSPrincipal)-[:CAN_EXEC]->(CloudFormationStack)
+    ```
+    **Note:** This edge is created for any principal with `cloudformation:UpdateStack` permission on a stack. However, true privilege escalation only occurs when the target stack has a service role (`role_arn` is set), because stacks without a service role execute with the caller's own permissions. Downstream consumers should filter on `role_arn IS NOT NULL` for high-confidence escalation paths.
