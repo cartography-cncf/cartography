@@ -113,6 +113,10 @@ class KubernetesPodToSecretRelProperties(CartographyRelProperties):
 
 
 @dataclass(frozen=True)
+# DEPRECATED: replaced by the canonical (:ComputePod)-[:USES_SECRET]->(:Secret)
+# edge (KubernetesPodToSecretVolumeUsesSecretRel), which carries the mount
+# method as the `mount_method` property. Kept for backward compatibility, will
+# be removed in v1.0.0.
 # (:KubernetesPod)-[:USES_SECRET_VOLUME]->(:KubernetesSecret)
 class KubernetesPodToSecretVolumeRel(CartographyRelSchema):
     target_node_label: str = "KubernetesSecret"
@@ -129,6 +133,10 @@ class KubernetesPodToSecretVolumeRel(CartographyRelSchema):
 
 
 @dataclass(frozen=True)
+# DEPRECATED: replaced by the canonical (:ComputePod)-[:USES_SECRET]->(:Secret)
+# edge (KubernetesPodToSecretEnvUsesSecretRel), which carries the mount method
+# as the `mount_method` property. Kept for backward compatibility, will be
+# removed in v1.0.0.
 # (:KubernetesPod)-[:USES_SECRET_ENV]->(:KubernetesSecret)
 class KubernetesPodToSecretEnvRel(CartographyRelSchema):
     target_node_label: str = "KubernetesSecret"
@@ -141,6 +149,50 @@ class KubernetesPodToSecretEnvRel(CartographyRelSchema):
     rel_label: str = "USES_SECRET_ENV"
     properties: KubernetesPodToSecretRelProperties = (
         KubernetesPodToSecretRelProperties()
+    )
+
+
+@dataclass(frozen=True)
+class KubernetesPodToSecretVolumeUsesSecretRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    mount_method: PropertyRef = PropertyRef("secret_mount_volume", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+# Canonical ontology edge: (:ComputePod)-[:USES_SECRET]->(:Secret), mount_method="volume"
+class KubernetesPodToSecretVolumeUsesSecretRel(CartographyRelSchema):
+    target_node_label: str = "KubernetesSecret"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {
+            "composite_id": PropertyRef("secret_volume_ids", one_to_many=True),
+        }
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "USES_SECRET"
+    properties: KubernetesPodToSecretVolumeUsesSecretRelProperties = (
+        KubernetesPodToSecretVolumeUsesSecretRelProperties()
+    )
+
+
+@dataclass(frozen=True)
+class KubernetesPodToSecretEnvUsesSecretRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    mount_method: PropertyRef = PropertyRef("secret_mount_env", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+# Canonical ontology edge: (:ComputePod)-[:USES_SECRET]->(:Secret), mount_method="env"
+class KubernetesPodToSecretEnvUsesSecretRel(CartographyRelSchema):
+    target_node_label: str = "KubernetesSecret"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {
+            "composite_id": PropertyRef("secret_env_ids", one_to_many=True),
+        }
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "USES_SECRET"
+    properties: KubernetesPodToSecretEnvUsesSecretRelProperties = (
+        KubernetesPodToSecretEnvUsesSecretRelProperties()
     )
 
 
@@ -200,5 +252,7 @@ class KubernetesPodSchema(CartographyNodeSchema):
             KubernetesPodToServiceAccountRel(),
             KubernetesPodToSecretVolumeRel(),
             KubernetesPodToSecretEnvRel(),
+            KubernetesPodToSecretVolumeUsesSecretRel(),
+            KubernetesPodToSecretEnvUsesSecretRel(),
         ]
     )

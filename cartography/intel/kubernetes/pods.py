@@ -270,6 +270,9 @@ def load_pods(
         lastupdated=update_tag,
         CLUSTER_ID=cluster_id,
         CLUSTER_NAME=cluster_name,
+        # Mount method carried by the canonical USES_SECRET edges.
+        secret_mount_volume="volume",
+        secret_mount_env="env",
     )
 
 

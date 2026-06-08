@@ -97,7 +97,7 @@ _k8s_secrets_in_env_vars = Fact(
     ),
     cypher_query="""
     MATCH (cluster:KubernetesCluster)-[:RESOURCE]->(pod:KubernetesPod)
-          -[:USES_SECRET_ENV]->(secret:KubernetesSecret)
+          -[r:USES_SECRET {mount_method: 'env'}]->(secret:KubernetesSecret)
     RETURN
         pod.id AS pod_id,
         pod.name AS pod_name,
@@ -107,7 +107,7 @@ _k8s_secrets_in_env_vars = Fact(
     """,
     cypher_visual_query="""
     MATCH p=(cluster:KubernetesCluster)-[:RESOURCE]->(pod:KubernetesPod)
-          -[:USES_SECRET_ENV]->(secret:KubernetesSecret)
+          -[r:USES_SECRET {mount_method: 'env'}]->(secret:KubernetesSecret)
     RETURN *
     """,
     cypher_count_query="""

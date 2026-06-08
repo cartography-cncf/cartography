@@ -493,6 +493,35 @@ def test_load_pod_to_secret_relationships(neo4j_session, _create_test_cluster):
         == expected_env_rels
     )
 
+    # Canonical ontology edge: (:ComputePod)-[:USES_SECRET]->(:Secret) covers both
+    # mount methods, with the method captured on the mount_method property.
+    assert (
+        check_rels(
+            neo4j_session,
+            "KubernetesPod",
+            "name",
+            "KubernetesSecret",
+            "name",
+            "USES_SECRET",
+        )
+        == expected_volume_rels | expected_env_rels
+    )
+    mount_methods = {
+        (r["pod"], r["secret"], r["mount_method"])
+        for r in neo4j_session.run(
+            """
+            MATCH (pod:KubernetesPod)-[r:USES_SECRET]->(secret:KubernetesSecret)
+            RETURN pod.name AS pod, secret.name AS secret, r.mount_method AS mount_method
+            """
+        )
+    }
+    assert mount_methods == {
+        ("my-pod", "my-secret-1", "volume"),
+        ("my-pod", "my-secret-2", "volume"),
+        ("my-service-pod", "api-key", "env"),
+        ("my-service-pod", "oauth-token", "env"),
+    }
+
     # Assert: Verify that my-pod does NOT have USES_SECRET_ENV relationships
     result = neo4j_session.run(
         """

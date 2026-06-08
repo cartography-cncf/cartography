@@ -42,6 +42,9 @@ SC -- ENCRYPTED_BY --> EK
 DB -- ENCRYPTED_BY --> EK
 OS -- ENCRYPTED_BY --> EK
 FS -- ENCRYPTED_BY --> EK
+CP -- USES_SECRET --> SC
+FN -- USES_SECRET --> SC
+CI -- USES_SECRET --> SC
 PR{{PermissionRole}}
 UA -- HAS_ROLE --> PR
 SA -- HAS_ROLE --> PR
@@ -294,6 +297,15 @@ They are managed by dedicated services like AWS Secrets Manager, GCP Secret Mana
 | _ont_created_at | Timestamp when the secret was created. |
 | _ont_updated_at | Timestamp when the secret was last updated. |
 | _ont_rotation_enabled | Whether automatic rotation is enabled for the secret. |
+
+#### Relationships
+
+- A `ComputePod`, `Function`, or `ComputeInstance` that consumes a secret is linked via the canonical `USES_SECRET` edge. The injection method is captured on the edge as the `mount_method` property (e.g. `volume`, `env`):
+    ```
+    (:ComputePod)-[:USES_SECRET]->(:Secret)
+    (:Function)-[:USES_SECRET]->(:Secret)
+    (:ComputeInstance)-[:USES_SECRET]->(:Secret)
+    ```
 
 
 ### EncryptionKey

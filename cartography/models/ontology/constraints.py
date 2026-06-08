@@ -69,6 +69,8 @@ from cartography.models.kubernetes.namespaces import (
 )
 from cartography.models.kubernetes.pods import KubernetesPodToKubernetesClusterRel
 from cartography.models.kubernetes.pods import KubernetesPodToKubernetesNamespaceRel
+from cartography.models.kubernetes.pods import KubernetesPodToSecretEnvRel
+from cartography.models.kubernetes.pods import KubernetesPodToSecretVolumeRel
 from cartography.models.kubernetes.serviceaccounts import (
     KubernetesServiceAccountToAWSRoleRel,
 )
@@ -122,6 +124,10 @@ ONTOLOGY_REL_CONSTRAINTS: tuple[RelConstraint, ...] = (
     RelConstraint(src="UserGroup", dst="PermissionRole", label="HAS_ROLE"),
     # A composite/hierarchical role includes other roles.
     RelConstraint(src="PermissionRole", dst="PermissionRole", label="INCLUDES"),
+    # A workload consumes a secret (mount method captured as a rel property).
+    RelConstraint(src="ComputePod", dst="Secret", label="USES_SECRET"),
+    RelConstraint(src="Function", dst="Secret", label="USES_SECRET"),
+    RelConstraint(src="ComputeInstance", dst="Secret", label="USES_SECRET"),
     # A secret or data store is encrypted by an encryption key.
     RelConstraint(src="Secret", dst="EncryptionKey", label="ENCRYPTED_BY"),
     RelConstraint(src="Database", dst="EncryptionKey", label="ENCRYPTED_BY"),
@@ -188,6 +194,10 @@ LEGACY_REL_WHITELIST: frozenset[type] = frozenset(
         # role in a target account (implementation link), not a composite-role
         # hierarchy. Distinct from the INCLUDES role->role edge.
         PermissionSetToAWSRoleRel,
+        # DEPRECATED: replaced by USES_SECRET (mount method captured as the
+        # mount_method property), will be removed in v1.0.0.
+        KubernetesPodToSecretVolumeRel,
+        KubernetesPodToSecretEnvRel,
         # DEPRECATED: replaced by MEMBER_OF, will be removed in v1.0.0.
         AWSGroupToAWSUserRel,
         AWSSSOUserToSSOGroupRel,
