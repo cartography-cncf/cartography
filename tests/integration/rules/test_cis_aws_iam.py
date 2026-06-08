@@ -144,6 +144,10 @@ def test_admin_policy_flags_attached_full_admin_policies(neo4j_session) -> None:
             arn: 'arn:aws:iam::111111111111:user/scoped',
             name: 'scoped'
         })
+        CREATE (inline_role:AWSRole:AWSPrincipal {
+            arn: 'arn:aws:iam::111111111111:role/inline-admin',
+            name: 'inline-admin'
+        })
         CREATE (admin_policy:AWSManagedPolicy:AWSPolicy {
             id: 'arn:aws:iam::aws:policy/AdministratorAccess',
             arn: 'arn:aws:iam::aws:policy/AdministratorAccess',
@@ -153,6 +157,12 @@ def test_admin_policy_flags_attached_full_admin_policies(neo4j_session) -> None:
             id: 'arn:aws:iam::111111111111:policy/ReadOnly',
             arn: 'arn:aws:iam::111111111111:policy/ReadOnly',
             name: 'ReadOnly'
+        })
+        // Inline policies are loaded with arn = null; policy.id is the only stable id.
+        CREATE (inline_policy:AWSInlinePolicy:AWSPolicy {
+            id: 'arn:aws:iam::111111111111:role/inline-admin/inline_policy/AdminInline',
+            arn: null,
+            name: 'AdminInline'
         })
         CREATE (admin_stmt:AWSPolicyStatement {
             id: 'arn:aws:iam::aws:policy/AdministratorAccess/statement/1',
@@ -167,12 +177,22 @@ def test_admin_policy_flags_attached_full_admin_policies(neo4j_session) -> None:
             action: ['s3:GetObject'],
             resource: ['*']
         })
+        CREATE (inline_stmt:AWSPolicyStatement {
+            id: 'arn:aws:iam::111111111111:role/inline-admin/inline_policy/AdminInline/statement/1',
+            effect: 'Allow',
+            action: ['*:*'],
+            resource: ['*'],
+            sid: 'InlineAdmin'
+        })
         MERGE (a)-[:RESOURCE]->(admin_user)
         MERGE (a)-[:RESOURCE]->(scoped_user)
+        MERGE (a)-[:RESOURCE]->(inline_role)
         MERGE (admin_user)-[:POLICY]->(admin_policy)
         MERGE (scoped_user)-[:POLICY]->(scoped_policy)
+        MERGE (inline_role)-[:POLICY]->(inline_policy)
         MERGE (admin_policy)-[:STATEMENT]->(admin_stmt)
         MERGE (scoped_policy)-[:STATEMENT]->(scoped_stmt)
+        MERGE (inline_policy)-[:STATEMENT]->(inline_stmt)
         """
     )
     fact = _get_fact(cis_aws_2_15_admin_policy)
@@ -181,8 +201,15 @@ def test_admin_policy_flags_attached_full_admin_policies(neo4j_session) -> None:
     findings = neo4j_session.execute_read(read_list_of_dicts_tx, fact.cypher_query)
     visual_rows = list(neo4j_session.run(fact.cypher_visual_query))
 
-    # Assert
-    assert {row["policy_arn"] for row in findings} == {
+    # Assert: both the managed and the inline admin policy are flagged, each with
+    # a stable, non-null policy_id (the inline policy has no arn).
+    assert {row["policy_id"] for row in findings} == {
         "arn:aws:iam::aws:policy/AdministratorAccess",
+        "arn:aws:iam::111111111111:role/inline-admin/inline_policy/AdminInline",
     }
-    assert len(visual_rows) == 1
+    assert all(row["policy_id"] is not None for row in findings)
+    inline_finding = next(
+        row for row in findings if row["policy_id"].endswith("AdminInline")
+    )
+    assert inline_finding["policy_arn"] is None
+    assert len(visual_rows) == 2

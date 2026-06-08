@@ -545,6 +545,7 @@ cis_aws_2_4_root_mfa = Rule(
 class AdminPolicyAttachedOutput(Finding):
     """Output model for the full administrative privileges check."""
 
+    policy_id: str | None = None
     policy_arn: str | None = None
     policy_name: str | None = None
     statement_sid: str | None = None
@@ -557,10 +558,11 @@ _aws_admin_policy_attached = Fact(
     id="aws_admin_policy_attached",
     name="AWS IAM policy granting full administrative privileges",
     description=(
-        "Detects IAM policies attached to a user, group, or role that grant full "
-        "'*:*' administrative privileges, i.e. an Allow statement whose action "
-        "includes '*' (or '*:*') on resource '*'. Such policies violate least "
-        "privilege and should be replaced with scoped permissions."
+        "Detects managed or inline IAM policies attached to a user, group, or role "
+        "that grant full '*:*' administrative privileges, i.e. an Allow statement "
+        "whose action includes '*' (or '*:*') on resource '*'. Such policies violate "
+        "least privilege and should be replaced with scoped permissions. Inline "
+        "policies have no ARN, so policy.id is used as the stable identifier."
     ),
     cypher_query="""
     MATCH (a:AWSAccount)-[:RESOURCE]->(principal:AWSPrincipal)-[:POLICY]->(policy:AWSPolicy)-[:STATEMENT]->(stmt:AWSPolicyStatement)
@@ -568,6 +570,7 @@ _aws_admin_policy_attached = Fact(
       AND any(action IN stmt.action WHERE action = '*' OR action = '*:*')
       AND any(resource IN stmt.resource WHERE resource = '*')
     RETURN DISTINCT
+        policy.id AS policy_id,
         policy.arn AS policy_arn,
         policy.name AS policy_name,
         stmt.sid AS statement_sid,
@@ -586,8 +589,8 @@ _aws_admin_policy_attached = Fact(
     MATCH (policy:AWSPolicy)
     RETURN COUNT(policy) AS count
     """,
-    asset_id_field="policy_arn",
-    identity_fields=("policy_arn", "principal_arn"),
+    asset_id_field="policy_id",
+    identity_fields=("policy_id", "principal_arn"),
     module=Module.AWS,
     maturity=Maturity.STABLE,
 )
