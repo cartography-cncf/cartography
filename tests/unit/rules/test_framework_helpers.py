@@ -9,46 +9,43 @@ from cartography.rules.data.frameworks.nist_ai_rmf import nist_ai_rmf
 def test_framework_helpers_preserve_framework_metadata():
     helpers = [
         (
-            cis_aws("4.1", title="CloudTrail is enabled in all regions"),
+            cis_aws("4.1"),
             "cis aws foundations benchmark",
             "cis",
             "aws",
             "6.0.0",
             "4.1",
-            "CloudTrail is enabled in all regions",
+            "Ensure CloudTrail is enabled in all regions",
         ),
         (
-            cis_gcp("3.1", title="Default Network Exists"),
+            cis_gcp("3.1"),
             "cis gcp foundations benchmark",
             "cis",
             "gcp",
             "4.0",
             "3.1",
-            "Default Network Exists",
+            "Ensure That the Default Network Does Not Exist in a Project",
         ),
         (
-            cis_kubernetes("5.1.1", title="Use cluster-admin only where required"),
+            cis_kubernetes("5.1.1"),
             "cis kubernetes benchmark",
             "cis",
             "kubernetes",
             "1.12",
             "5.1.1",
-            "Use cluster-admin only where required",
+            "Ensure that the cluster-admin role is only used where required",
         ),
         (
-            cis_google_workspace(
-                "4.1.1.3",
-                title="Users Without Enforced 2-Step Verification",
-            ),
+            cis_google_workspace("4.1.1.3"),
             "cis google workspace foundations benchmark",
             "cis",
             "googleworkspace",
             "1.3",
             "4.1.1.3",
-            "Users Without Enforced 2-Step Verification",
+            "Ensure 2-Step Verification (Multi-Factor Authentication) is enforced for all users",
         ),
         (
-            iso27001_annex_a("8.15", title="Logging"),
+            iso27001_annex_a("8.15"),
             "iso/iec 27001:2022 annex a",
             "27001",
             None,
@@ -57,7 +54,7 @@ def test_framework_helpers_preserve_framework_metadata():
             "Logging",
         ),
         (
-            nist_ai_rmf("MAP 1", title="Context is established and understood"),
+            nist_ai_rmf("MAP 1"),
             "nist ai risk management framework",
             "nist-ai-rmf",
             None,
@@ -74,3 +71,9 @@ def test_framework_helpers_preserve_framework_metadata():
         assert framework.revision == revision
         assert framework.requirement == requirement
         assert framework.title == title
+
+
+def test_framework_helpers_allow_explicit_title_override():
+    framework = cis_aws("4.1", title="Custom control title")
+
+    assert framework.title == "Custom control title"

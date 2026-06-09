@@ -1,4 +1,5 @@
 import re
+from pathlib import Path
 
 from cartography.rules.data.rules import RULES
 from cartography.rules.formatters import to_serializable
@@ -6,8 +7,17 @@ from cartography.rules.runners import filter_rules_by_framework
 from cartography.rules.spec.result import CounterResult
 from cartography.rules.spec.result import RuleResult
 
+RULE_DATA_DIR = Path(__file__).parents[3] / "cartography" / "rules" / "data" / "rules"
+
 COMPLIANCE_NAME_PREFIX = re.compile(
     r"^(CIS AWS|CIS GCP|CIS Google Workspace|CIS Kubernetes|CIS K8s|NIST AI RMF)\b"
+)
+FRAMEWORK_TITLE_ARG = re.compile(
+    r"\b("
+    r"cis_aws|cis_gcp|cis_google_workspace|cis_kubernetes|"
+    r"iso27001_annex_a|nist_ai_rmf"
+    r")\([^)]*\btitle\s*=",
+    re.DOTALL,
 )
 
 
@@ -19,6 +29,17 @@ def test_rule_ids_do_not_use_compliance_prefixes():
 def test_rule_names_do_not_use_compliance_control_prefixes():
     for rule in RULES.values():
         assert not COMPLIANCE_NAME_PREFIX.match(rule.name), rule.name
+
+
+def test_rule_framework_mappings_have_control_titles():
+    for rule in RULES.values():
+        for framework in rule.frameworks:
+            assert framework.title is not None, (rule.id, framework)
+
+
+def test_rule_definitions_do_not_inline_framework_control_titles():
+    for path in RULE_DATA_DIR.glob("*.py"):
+        assert not FRAMEWORK_TITLE_ARG.search(path.read_text()), str(path)
 
 
 def test_framework_mappings_remain_on_renamed_rules():

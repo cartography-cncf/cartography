@@ -93,9 +93,7 @@ gcp_default_network_exists = Rule(
     version="1.0.0",
     references=CIS_REFERENCES,
     frameworks=(
-        cis_gcp(
-            "3.1", title="Ensure That the Default Network Does Not Exist in a Project"
-        ),
+        cis_gcp("3.1"),
         iso27001_annex_a("8.20"),
         iso27001_annex_a("8.22"),
     ),
@@ -186,7 +184,7 @@ gcp_unrestricted_ssh_access = Rule(
     version="1.0.0",
     references=CIS_REFERENCES,
     frameworks=(
-        cis_gcp("3.6", title="Ensure That SSH Access Is Restricted From the Internet"),
+        cis_gcp("3.6"),
         iso27001_annex_a("8.20"),
     ),
 )
@@ -276,7 +274,7 @@ gcp_unrestricted_rdp_access = Rule(
     version="1.0.0",
     references=CIS_REFERENCES,
     frameworks=(
-        cis_gcp("3.7", title="Ensure That RDP Access Is Restricted From the Internet"),
+        cis_gcp("3.7"),
         iso27001_annex_a("8.20"),
     ),
 )
@@ -351,10 +349,7 @@ gcp_compute_instance_public_ips = Rule(
     version="1.0.0",
     references=CIS_REFERENCES,
     frameworks=(
-        cis_gcp(
-            "4.9",
-            title="Ensure That Compute Instances Do Not Have Public IP Addresses",
-        ),
+        cis_gcp("4.9"),
         iso27001_annex_a("8.20"),
     ),
 )
@@ -441,10 +436,7 @@ gcp_instances_without_confidential_computing_enabled = Rule(
     version="1.0.0",
     references=CIS_REFERENCES,
     frameworks=(
-        cis_gcp(
-            "4.11",
-            title="Ensure That Compute Instances Have Confidential Computing Enabled",
-        ),
+        cis_gcp("4.11"),
         iso27001_annex_a("8.24"),
     ),
 )
@@ -504,7 +496,7 @@ gcp_cloud_dns_dnssec_disabled = Rule(
     version="1.0.0",
     references=CIS_REFERENCES,
     frameworks=(
-        cis_gcp("3.3", title="Ensure That DNSSEC Is Enabled for Cloud DNS"),
+        cis_gcp("3.3"),
         iso27001_annex_a("8.20"),
     ),
 )
@@ -575,10 +567,7 @@ gcp_cloud_dns_dnssec_key_signing_uses_rsasha1 = Rule(
     version="1.0.0",
     references=CIS_REFERENCES,
     frameworks=(
-        cis_gcp(
-            "3.4",
-            title="Ensure That RSASHA1 Is Not Used for the Key-Signing Key in Cloud DNS DNSSEC",
-        ),
+        cis_gcp("3.4"),
         iso27001_annex_a("8.24"),
     ),
 )
@@ -643,10 +632,7 @@ gcp_cloud_dns_dnssec_zone_signing_uses_rsasha1 = Rule(
     version="1.0.0",
     references=CIS_REFERENCES,
     frameworks=(
-        cis_gcp(
-            "3.5",
-            title="Ensure That RSASHA1 Is Not Used for the Zone-Signing Key in Cloud DNS DNSSEC",
-        ),
+        cis_gcp("3.5"),
         iso27001_annex_a("8.24"),
     ),
 )
@@ -738,10 +724,7 @@ gcp_subnets_without_compliant_vpc_flow_logs = Rule(
     version="1.0.0",
     references=CIS_REFERENCES,
     frameworks=(
-        cis_gcp(
-            "3.8",
-            title="Ensure that VPC Flow Logs is Enabled for Every Subnet in a VPC Network",
-        ),
+        cis_gcp("3.8"),
         iso27001_annex_a("8.15"),
         iso27001_annex_a("8.16"),
     ),
@@ -799,10 +782,7 @@ gcp_cloudsql_public_ips = Rule(
     version="1.0.0",
     references=CIS_REFERENCES,
     frameworks=(
-        cis_gcp(
-            "6.6",
-            title="Ensure That Cloud SQL Database Instances Do Not Have Public IPs",
-        ),
+        cis_gcp("6.6"),
         iso27001_annex_a("8.20"),
     ),
 )
@@ -859,10 +839,7 @@ gcp_cloudsql_automated_backups_disabled = Rule(
     version="1.0.0",
     references=CIS_REFERENCES,
     frameworks=(
-        cis_gcp(
-            "6.7",
-            title="Ensure That Cloud SQL Database Instances Are Configured With Automated Backups",
-        ),
+        cis_gcp("6.7"),
         iso27001_annex_a("8.13"),
     ),
 )
@@ -919,10 +896,7 @@ gcp_bigquery_datasets_publicly_accessible = Rule(
     version="1.0.0",
     references=CIS_REFERENCES,
     frameworks=(
-        cis_gcp(
-            "7.1",
-            title="Ensure That BigQuery Datasets Are Not Anonymously or Publicly Accessible",
-        ),
+        cis_gcp("7.1"),
         iso27001_annex_a("8.3"),
     ),
 )
@@ -979,10 +953,7 @@ gcp_bigquery_tables_without_cmek = Rule(
     version="1.0.0",
     references=CIS_REFERENCES,
     frameworks=(
-        cis_gcp(
-            "7.2",
-            title="Ensure That All BigQuery Tables Are Encrypted With Customer-Managed Encryption Key (CMEK)",
-        ),
+        cis_gcp("7.2"),
         iso27001_annex_a("8.24"),
     ),
 )
@@ -1037,10 +1008,7 @@ gcp_bigquery_datasets_without_default_cmek = Rule(
     version="1.0.0",
     references=CIS_REFERENCES,
     frameworks=(
-        cis_gcp(
-            "7.3",
-            title="Ensure That a Default Customer-Managed Encryption Key (CMEK) Is Specified for All BigQuery Data Sets",
-        ),
+        cis_gcp("7.3"),
         iso27001_annex_a("8.24"),
     ),
 )
@@ -1101,10 +1069,7 @@ gcp_cloudsql_ssl_not_enforced = Rule(
     version="1.0.0",
     references=CIS_REFERENCES,
     frameworks=(
-        cis_gcp(
-            "6.4",
-            title="Ensure That the Cloud SQL Database Instance Requires All Incoming Connections To Use SSL",
-        ),
+        cis_gcp("6.4"),
         iso27001_annex_a("8.24"),
     ),
 )
@@ -1161,10 +1126,7 @@ gcp_cloudsql_authorized_networks_open_to_internet = Rule(
     version="1.0.0",
     references=CIS_REFERENCES,
     frameworks=(
-        cis_gcp(
-            "6.5",
-            title="Ensure That Cloud SQL Database Instances Do Not Implicitly Whitelist All Public IP Addresses",
-        ),
+        cis_gcp("6.5"),
         iso27001_annex_a("8.20"),
     ),
 )
@@ -1226,7 +1188,6 @@ def _make_cloudsql_flag_rule(
     description: str,
     requirement: str,
     fact: Fact,
-    title: str | None = None,
 ) -> Rule:
     return Rule(
         id=rule_id,
@@ -1238,7 +1199,7 @@ def _make_cloudsql_flag_rule(
         version="1.0.0",
         references=CIS_REFERENCES,
         frameworks=(
-            cis_gcp(requirement, title=title or name),
+            cis_gcp(requirement),
             iso27001_annex_a("8.9"),
         ),
     )
@@ -1257,7 +1218,6 @@ gcp_cloudsql_mysql_skip_show_database_not_on = _make_cloudsql_flag_rule(
     "Cloud SQL MySQL instances should set skip_show_database to on.",
     "6.1.2",
     _gcp_cloudsql_mysql_skip_show_database,
-    title="Ensure 'Skip_show_database' Database Flag for Cloud SQL MySQL Instance Is Set to 'On'",
 )
 
 _gcp_cloudsql_mysql_local_infile = _make_cloudsql_flag_fact(
@@ -1273,7 +1233,6 @@ gcp_cloudsql_mysql_local_infile_not_off = _make_cloudsql_flag_rule(
     "Cloud SQL MySQL instances should set local_infile to off.",
     "6.1.3",
     _gcp_cloudsql_mysql_local_infile,
-    title="Ensure That the 'Local_infile' Database Flag for a Cloud SQL MySQL Instance Is Set to 'Off'",
 )
 
 _gcp_cloudsql_postgres_log_error_verbosity = _make_cloudsql_flag_fact(
@@ -1289,7 +1248,6 @@ gcp_cloudsql_postgres_log_error_verbosity_too_permissive = _make_cloudsql_flag_r
     "Cloud SQL PostgreSQL instances should set log_error_verbosity to DEFAULT or stricter.",
     "6.2.1",
     _gcp_cloudsql_postgres_log_error_verbosity,
-    title="Ensure 'Log_error_verbosity' Database Flag for Cloud SQL PostgreSQL Instance Is Set to 'DEFAULT' or Stricter",
 )
 
 _gcp_cloudsql_postgres_log_connections = _make_cloudsql_flag_fact(
@@ -1305,7 +1263,6 @@ gcp_cloudsql_postgres_log_connections_not_on = _make_cloudsql_flag_rule(
     "Cloud SQL PostgreSQL instances should set log_connections to on.",
     "6.2.2",
     _gcp_cloudsql_postgres_log_connections,
-    title="Ensure That the 'Log_connections' Database Flag for Cloud SQL PostgreSQL Instance Is Set to 'On'",
 )
 
 _gcp_cloudsql_postgres_log_disconnections = _make_cloudsql_flag_fact(
@@ -1321,7 +1278,6 @@ gcp_cloudsql_postgres_log_disconnections_not_on = _make_cloudsql_flag_rule(
     "Cloud SQL PostgreSQL instances should set log_disconnections to on.",
     "6.2.3",
     _gcp_cloudsql_postgres_log_disconnections,
-    title="Ensure That the 'Log_disconnections' Database Flag for Cloud SQL PostgreSQL Instance Is Set to 'On'",
 )
 
 _gcp_cloudsql_postgres_log_min_messages = _make_cloudsql_flag_fact(
@@ -1337,7 +1293,6 @@ gcp_cloudsql_postgres_log_min_messages_below_warning = _make_cloudsql_flag_rule(
     "Cloud SQL PostgreSQL instances should set log_min_messages to Warning or stricter.",
     "6.2.5",
     _gcp_cloudsql_postgres_log_min_messages,
-    title="Ensure that the 'Log_min_messages' Flag for a Cloud SQL PostgreSQL Instance is set at minimum to 'Warning'",
 )
 
 _gcp_cloudsql_postgres_log_min_error_statement = _make_cloudsql_flag_fact(
@@ -1353,7 +1308,6 @@ gcp_cloudsql_postgres_log_min_error_statement_below_error = _make_cloudsql_flag_
     "Cloud SQL PostgreSQL instances should set log_min_error_statement to Error or stricter.",
     "6.2.6",
     _gcp_cloudsql_postgres_log_min_error_statement,
-    title="Ensure 'Log_min_error_statement' Database Flag for Cloud SQL PostgreSQL Instance Is Set to 'Error' or Stricter",
 )
 
 _gcp_cloudsql_postgres_log_min_duration_statement = _make_cloudsql_flag_fact(
@@ -1363,13 +1317,14 @@ _gcp_cloudsql_postgres_log_min_duration_statement = _make_cloudsql_flag_fact(
     "POSTGRES",
     'coalesce(instance.database_flags, \'\') =~ \'.*\\"name\\": \\"log_min_duration_statement\\", \\"value\\": \\"(?!-1)[^\\"]+\\".*\'',
 )
-gcp_cloudsql_postgres_log_min_duration_statement_not_disabled = _make_cloudsql_flag_rule(
-    "gcp_cloudsql_postgres_log_min_duration_statement_not_disabled",
-    "Cloud SQL PostgreSQL log_min_duration_statement Not Disabled",
-    "Cloud SQL PostgreSQL instances should set log_min_duration_statement to -1.",
-    "6.2.7",
-    _gcp_cloudsql_postgres_log_min_duration_statement,
-    title="Ensure That the 'Log_min_duration_statement' Database Flag for Cloud SQL PostgreSQL Instance Is Set to '-1' (Disabled)",
+gcp_cloudsql_postgres_log_min_duration_statement_not_disabled = (
+    _make_cloudsql_flag_rule(
+        "gcp_cloudsql_postgres_log_min_duration_statement_not_disabled",
+        "Cloud SQL PostgreSQL log_min_duration_statement Not Disabled",
+        "Cloud SQL PostgreSQL instances should set log_min_duration_statement to -1.",
+        "6.2.7",
+        _gcp_cloudsql_postgres_log_min_duration_statement,
+    )
 )
 
 _gcp_cloudsql_postgres_enable_pgaudit = _make_cloudsql_flag_fact(
@@ -1385,7 +1340,6 @@ gcp_cloudsql_postgres_pgaudit_not_enabled = _make_cloudsql_flag_rule(
     "Cloud SQL PostgreSQL instances should set cloudsql.enable_pgaudit to on.",
     "6.2.8",
     _gcp_cloudsql_postgres_enable_pgaudit,
-    title="Ensure That 'cloudsql.enable_pgaudit' Database Flag for each Cloud SQL PostgreSQL Instance Is Set to 'on' For Centralized Logging",
 )
 
 _gcp_cloudsql_sqlserver_external_scripts = _make_cloudsql_flag_fact(
@@ -1401,7 +1355,6 @@ gcp_cloudsql_sqlserver_external_scripts_enabled = _make_cloudsql_flag_rule(
     "Cloud SQL SQL Server instances should set external scripts enabled to off.",
     "6.3.1",
     _gcp_cloudsql_sqlserver_external_scripts,
-    title="Ensure 'external scripts enabled' Database Flag for Cloud SQL SQL Server Instance Is Set to 'off'",
 )
 
 _gcp_cloudsql_sqlserver_cross_db_ownership = _make_cloudsql_flag_fact(
@@ -1417,7 +1370,6 @@ gcp_cloudsql_sqlserver_cross_db_ownership_chaining_enabled = _make_cloudsql_flag
     "Cloud SQL SQL Server instances should not enable cross db ownership chaining.",
     "6.3.2",
     _gcp_cloudsql_sqlserver_cross_db_ownership,
-    title="Ensure 'cross db ownership chaining' Database Flag for Cloud SQL SQL Server Instance Is Set to 'off'",
 )
 
 _gcp_cloudsql_sqlserver_user_connections = _make_cloudsql_flag_fact(
@@ -1433,7 +1385,6 @@ gcp_cloudsql_sqlserver_user_connections_limiting = _make_cloudsql_flag_rule(
     "Cloud SQL SQL Server instances should set user connections to a non-limiting value.",
     "6.3.3",
     _gcp_cloudsql_sqlserver_user_connections,
-    title="Ensure 'user Connections' Database Flag for Cloud SQL SQL Server Instance Is Set to a Non-limiting Value",
 )
 
 _gcp_cloudsql_sqlserver_user_options = _make_cloudsql_flag_fact(
@@ -1449,7 +1400,6 @@ gcp_cloudsql_sqlserver_user_options_configured = _make_cloudsql_flag_rule(
     "Cloud SQL SQL Server instances should not configure the user options flag.",
     "6.3.4",
     _gcp_cloudsql_sqlserver_user_options,
-    title="Ensure 'user options' Database Flag for Cloud SQL SQL Server Instance Is Not Configured",
 )
 
 _gcp_cloudsql_sqlserver_remote_access = _make_cloudsql_flag_fact(
@@ -1465,7 +1415,6 @@ gcp_cloudsql_sqlserver_remote_access_not_off = _make_cloudsql_flag_rule(
     "Cloud SQL SQL Server instances should set remote access to off.",
     "6.3.5",
     _gcp_cloudsql_sqlserver_remote_access,
-    title="Ensure 'remote access' Database Flag for Cloud SQL SQL Server Instance Is Set to 'off'",
 )
 
 _gcp_cloudsql_sqlserver_trace_3625 = _make_cloudsql_flag_fact(
@@ -1481,7 +1430,6 @@ gcp_cloudsql_sqlserver_trace_flag_3625_not_on = _make_cloudsql_flag_rule(
     "Cloud SQL SQL Server instances should set trace flag 3625 to on.",
     "6.3.6",
     _gcp_cloudsql_sqlserver_trace_3625,
-    title="Ensure '3625 (trace flag)' Database Flag for all Cloud SQL SQL Server Instances Is Set to 'on'",
 )
 
 _gcp_cloudsql_sqlserver_contained_auth = _make_cloudsql_flag_fact(
@@ -1497,7 +1445,6 @@ gcp_cloudsql_sqlserver_contained_database_authentication_enabled = _make_cloudsq
     "Cloud SQL SQL Server instances should set contained database authentication to off.",
     "6.3.7",
     _gcp_cloudsql_sqlserver_contained_auth,
-    title="Ensure 'contained database authentication' Database Flag for Cloud SQL SQL Server Instance Is Set to 'off'",
 )
 
 
@@ -1574,10 +1521,7 @@ gcp_bucket_uniform_access_disabled = Rule(
     version="1.0.0",
     references=CIS_REFERENCES,
     frameworks=(
-        cis_gcp(
-            "5.2",
-            title="Ensure That Cloud Storage Buckets Have Uniform Bucket-Level Access Enabled",
-        ),
+        cis_gcp("5.2"),
         iso27001_annex_a("8.3"),
     ),
 )
@@ -1820,10 +1764,7 @@ gcp_instances_using_default_service_account = Rule(
     version="1.0.0",
     references=CIS_REFERENCES,
     frameworks=(
-        cis_gcp(
-            "4.1",
-            title="Ensure That Instances Are Not Configured To Use the Default Service Account",
-        ),
+        cis_gcp("4.1"),
         iso27001_annex_a("5.16"),
     ),
 )
@@ -1890,10 +1831,7 @@ gcp_default_service_account_full_cloud_api_scope = Rule(
     version="1.0.0",
     references=CIS_REFERENCES,
     frameworks=(
-        cis_gcp(
-            "4.2",
-            title="Ensure That Instances Are Not Configured To Use the Default Service Account With Full Access to All Cloud APIs",
-        ),
+        cis_gcp("4.2"),
         iso27001_annex_a("5.18"),
         iso27001_annex_a("8.2"),
     ),
@@ -1975,10 +1913,7 @@ gcp_instances_not_blocking_project_wide_ssh_keys = Rule(
     version="1.0.0",
     references=CIS_REFERENCES,
     frameworks=(
-        cis_gcp(
-            "4.3",
-            title='Ensure "Block Project-Wide SSH Keys" Is Enabled for VM Instances',
-        ),
+        cis_gcp("4.3"),
         iso27001_annex_a("8.5"),
     ),
 )
@@ -2046,7 +1981,7 @@ gcp_projects_without_effective_os_login = Rule(
     version="1.0.0",
     references=CIS_REFERENCES,
     frameworks=(
-        cis_gcp("4.4", title="Ensure Oslogin Is Enabled for a Project"),
+        cis_gcp("4.4"),
         iso27001_annex_a("8.5"),
     ),
 )
@@ -2112,7 +2047,7 @@ gcp_instances_with_ip_forwarding = Rule(
     version="1.0.0",
     references=CIS_REFERENCES,
     frameworks=(
-        cis_gcp("4.6", title="Ensure That IP Forwarding Is Not Enabled on Instances"),
+        cis_gcp("4.6"),
         iso27001_annex_a("8.20"),
     ),
 )
@@ -2188,10 +2123,7 @@ gcp_instances_without_shielded_vm_enabled = Rule(
     version="1.0.0",
     references=CIS_REFERENCES,
     frameworks=(
-        cis_gcp(
-            "4.8",
-            title="Ensure Compute Instances Are Launched With Shielded VM Enabled",
-        ),
+        cis_gcp("4.8"),
         iso27001_annex_a("8.9"),
     ),
 )
@@ -2248,10 +2180,7 @@ gcp_instances_with_serial_port_access = Rule(
     version="1.0.0",
     references=CIS_REFERENCES,
     frameworks=(
-        cis_gcp(
-            "4.5",
-            title="Ensure 'Enable Connecting to Serial Ports' Is Not Enabled for VM Instance",
-        ),
+        cis_gcp("4.5"),
         iso27001_annex_a("8.3"),
     ),
 )

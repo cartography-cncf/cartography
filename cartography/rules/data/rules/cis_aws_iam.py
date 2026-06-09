@@ -105,7 +105,7 @@ aws_access_keys_not_rotated = Rule(
     version="1.0.0",
     references=CIS_REFERENCES,
     frameworks=(
-        cis_aws("2.13", title="Ensure access keys are rotated every 90 days or less"),
+        cis_aws("2.13"),
         iso27001_annex_a("5.17"),
     ),
 )
@@ -181,9 +181,7 @@ aws_unused_credentials = Rule(
     version="1.0.0",
     references=CIS_REFERENCES,
     frameworks=(
-        cis_aws(
-            "2.11", title="Ensure credentials unused for 45 days or more are disabled"
-        ),
+        cis_aws("2.11"),
         iso27001_annex_a("5.18"),
     ),
 )
@@ -249,9 +247,7 @@ aws_users_with_direct_policy_attachments = Rule(
     version="1.0.0",
     references=CIS_REFERENCES,
     frameworks=(
-        cis_aws(
-            "2.14", title="Ensure IAM users receive permissions only through groups"
-        ),
+        cis_aws("2.14"),
         iso27001_annex_a("5.18"),
     ),
 )
@@ -322,10 +318,7 @@ aws_users_with_multiple_active_access_keys = Rule(
     version="1.0.0",
     references=CIS_REFERENCES,
     frameworks=(
-        cis_aws(
-            "2.12",
-            title="Ensure there is only one active access key for any single IAM user",
-        ),
+        cis_aws("2.12"),
         iso27001_annex_a("5.17"),
     ),
 )
@@ -396,10 +389,7 @@ aws_expired_ssl_tls_certificates = Rule(
     version="1.0.0",
     references=CIS_REFERENCES,
     frameworks=(
-        cis_aws(
-            "2.18",
-            title="Ensure that all expired SSL/TLS certificates stored in AWS IAM are removed",
-        ),
+        cis_aws("2.18"),
         iso27001_annex_a("8.24"),
     ),
 )

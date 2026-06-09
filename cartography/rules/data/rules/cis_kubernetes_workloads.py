@@ -134,10 +134,7 @@ kubernetes_secrets_used_as_environment_variables = Rule(
     version="1.0.0",
     references=CIS_REFERENCES,
     frameworks=(
-        cis_kubernetes(
-            "5.4.1",
-            title="Prefer secrets as files over secrets as environment variables",
-        ),
+        cis_kubernetes("5.4.1"),
         iso27001_annex_a("8.12"),
     ),
 )
@@ -256,10 +253,7 @@ kubernetes_service_account_tokens_mounted_in_pods = Rule(
     version="1.0.0",
     references=CIS_REFERENCES,
     frameworks=(
-        cis_kubernetes(
-            "5.1.6",
-            title="Ensure that Service Account Tokens are only mounted where necessary",
-        ),
+        cis_kubernetes("5.1.6"),
         iso27001_annex_a("5.17"),
     ),
 )
@@ -316,10 +310,7 @@ kubernetes_pods_sharing_host_pid_namespace = Rule(
     version="1.0.0",
     references=CIS_REFERENCES,
     frameworks=(
-        cis_kubernetes(
-            "5.2.3",
-            title="Minimize the admission of containers wishing to share the host process ID namespace",
-        ),
+        cis_kubernetes("5.2.3"),
         iso27001_annex_a("8.9"),
     ),
 )
@@ -370,10 +361,7 @@ kubernetes_pods_sharing_host_ipc_namespace = Rule(
     version="1.0.0",
     references=CIS_REFERENCES,
     frameworks=(
-        cis_kubernetes(
-            "5.2.4",
-            title="Minimize the admission of containers wishing to share the host IPC namespace",
-        ),
+        cis_kubernetes("5.2.4"),
         iso27001_annex_a("8.9"),
     ),
 )
@@ -424,10 +412,7 @@ kubernetes_pods_sharing_host_network_namespace = Rule(
     version="1.0.0",
     references=CIS_REFERENCES,
     frameworks=(
-        cis_kubernetes(
-            "5.2.5",
-            title="Minimize the admission of containers wishing to share the host network namespace",
-        ),
+        cis_kubernetes("5.2.5"),
         iso27001_annex_a("8.9"),
         iso27001_annex_a("8.20"),
     ),
@@ -484,10 +469,7 @@ kubernetes_containers_allowing_privilege_escalation = Rule(
     version="1.0.0",
     references=CIS_REFERENCES,
     frameworks=(
-        cis_kubernetes(
-            "5.2.6",
-            title="Minimize the admission of containers with allowPrivilegeEscalation",
-        ),
+        cis_kubernetes("5.2.6"),
         iso27001_annex_a("8.9"),
     ),
 )
@@ -549,10 +531,7 @@ kubernetes_pods_using_hostpath_volumes = Rule(
     version="1.0.0",
     references=CIS_REFERENCES,
     frameworks=(
-        cis_kubernetes(
-            "5.2.11",
-            title="Minimize the admission of HostPath volumes",
-        ),
+        cis_kubernetes("5.2.11"),
         iso27001_annex_a("8.9"),
     ),
 )
@@ -604,10 +583,7 @@ kubernetes_containers_using_hostports = Rule(
     version="1.0.0",
     references=CIS_REFERENCES,
     frameworks=(
-        cis_kubernetes(
-            "5.2.12",
-            title="Minimize the admission of containers which use HostPorts",
-        ),
+        cis_kubernetes("5.2.12"),
         iso27001_annex_a("8.9"),
         iso27001_annex_a("8.20"),
     ),
@@ -686,10 +662,7 @@ kubernetes_pods_missing_runtime_default_seccomp = Rule(
     version="1.0.0",
     references=CIS_REFERENCES,
     frameworks=(
-        cis_kubernetes(
-            "5.6.2",
-            title="Ensure that the seccomp profile is set to docker/default in your pod definitions",
-        ),
+        cis_kubernetes("5.6.2"),
         iso27001_annex_a("8.9"),
     ),
 )
@@ -760,9 +733,7 @@ kubernetes_pods_running_in_default_namespace = Rule(
     tags=("namespaces", "general-policies", "stride:information_disclosure"),
     version="1.0.0",
     references=CIS_REFERENCES,
-    frameworks=(
-        cis_kubernetes("5.6.4", title="The default namespace should not be used"),
-    ),
+    frameworks=(cis_kubernetes("5.6.4"),),
 )
 
 # =============================================================================
