@@ -1,9 +1,18 @@
 from dataclasses import dataclass
 
+from cartography.models.aws.cloudtrail.management_events import (
+    AssumedRoleWithSAMLMatchLink,
+)
 from cartography.models.aws.ecs.containers import ECSContainerToTaskRel
 from cartography.models.aws.ecs.services import ECSServiceToECSClusterRel
 from cartography.models.aws.ecs.services import ECSServiceToECSTaskRel
 from cartography.models.aws.ecs.tasks import ECSTaskToECSClusterRel
+from cartography.models.aws.identitycenter.awspermissionset import (
+    AWSRoleToSSOUserMatchLink,
+)
+from cartography.models.aws.identitycenter.awsssouser import (
+    AWSSSOUserToPermissionSetRel,
+)
 from cartography.models.azure.container_instance import (
     AzureGroupContainerToContainerInstanceRel,
 )
@@ -11,6 +20,7 @@ from cartography.models.gcp.cloudrun.job_container import CloudRunJobToContainer
 from cartography.models.gcp.cloudrun.service_container import (
     CloudRunServiceToContainerRel,
 )
+from cartography.models.keycloak.role import KeycloakRoleToUserRel
 from cartography.models.kubernetes.containers import (
     KubernetesContainerToKubernetesPodRel,
 )
@@ -19,6 +29,10 @@ from cartography.models.kubernetes.namespaces import (
 )
 from cartography.models.kubernetes.pods import KubernetesPodToKubernetesClusterRel
 from cartography.models.kubernetes.pods import KubernetesPodToKubernetesNamespaceRel
+from cartography.models.kubernetes.serviceaccounts import (
+    KubernetesServiceAccountToAWSRoleRel,
+)
+from cartography.models.kubernetes.users import KubernetesUserToAWSRoleRel
 
 
 @dataclass(frozen=True)
@@ -51,6 +65,12 @@ ONTOLOGY_REL_CONSTRAINTS: tuple[RelConstraint, ...] = (
     RelConstraint(
         src="ComputeNamespace", dst="ComputeCluster", label="WORKLOAD_PARENT"
     ),
+    # A user account is granted a role.
+    RelConstraint(src="UserAccount", dst="PermissionRole", label="HAS_ROLE"),
+    # A service account (workload identity) is granted a role. No provider
+    # currently wires a direct edge (all go through binding nodes), so this is
+    # forward-looking governance for future modules.
+    RelConstraint(src="ServiceAccount", dst="PermissionRole", label="HAS_ROLE"),
 )
 
 
@@ -73,5 +93,23 @@ LEGACY_REL_WHITELIST: frozenset[type] = frozenset(
         # tenant scoping and the workload chain are reconciled.
         KubernetesNamespaceToKubernetesClusterRel,
         KubernetesPodToKubernetesClusterRel,
+        # DEPRECATED: replaced by HAS_ROLE, will be removed in v1.0.0.
+        AWSSSOUserToPermissionSetRel,
+        KeycloakRoleToUserRel,
+        # ALLOWED_BY is a distinct "this role is assumable by that SSO user"
+        # semantic (PermissionRole->UserAccount), not a role assignment, so it
+        # intentionally runs counter to the HAS_ROLE (UserAccount->PermissionRole)
+        # direction. Whitelisted so the constraint does not flag it.
+        AWSRoleToSSOUserMatchLink,
+        # MAPS_TO is an identity-federation mapping (a Kubernetes user authenticates
+        # as an AWS role/user), not a role grant. Distinct from HAS_ROLE.
+        KubernetesUserToAWSRoleRel,
+        # ASSUMED_ROLE_WITH_SAML records a CloudTrail-observed runtime assumption
+        # event, not a static role assignment. Distinct from HAS_ROLE.
+        AssumedRoleWithSAMLMatchLink,
+        # ASSUMES_ROLE is workload-identity federation (a Kubernetes service
+        # account assumes an AWS IAM role, IRSA-style). This is the canonical
+        # ASSUMES semantic, not a static role grant. Distinct from HAS_ROLE.
+        KubernetesServiceAccountToAWSRoleRel,
     }
 )

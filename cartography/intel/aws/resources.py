@@ -18,6 +18,7 @@ from . import config
 from . import dynamodb
 from . import ecr
 from . import ecr_image_layers
+from . import ecr_pull_through_cache_rules
 from . import ecs
 from . import efs
 from . import eks
@@ -137,6 +138,7 @@ RESOURCE_FUNCTIONS: OrderedDict[str, Callable[..., None]] = OrderedDict(
         "bedrock": bedrock.sync,
         "cloudfront": cloudfront.sync,
         "secretsmanager": secretsmanager.sync,
+        "ecr:pull_through_cache_rules": ecr_pull_through_cache_rules.sync,
         "securityhub": securityhub.sync,
         "s3accountpublicaccessblock": s3accountpublicaccessblock.sync,
         "sagemaker": sagemaker.sync,

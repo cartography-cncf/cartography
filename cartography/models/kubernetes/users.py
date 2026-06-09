@@ -54,6 +54,11 @@ class KubernetesUserToAWSUserRelProperties(CartographyRelProperties):
 
 
 @dataclass(frozen=True)
+class KubernetesUserToAWSRootPrincipalRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
 class KubernetesUserToOktaUserRel(CartographyRelSchema):
     target_node_label: str = "OktaUser"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
@@ -93,6 +98,19 @@ class KubernetesUserToAWSUserRel(CartographyRelSchema):
 
 
 @dataclass(frozen=True)
+class KubernetesUserToAWSRootPrincipalRel(CartographyRelSchema):
+    target_node_label: str = "AWSRootPrincipal"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"arn": PropertyRef("aws_root_principal_arn")}
+    )
+    direction: LinkDirection = LinkDirection.INWARD
+    rel_label: str = "MAPS_TO"
+    properties: KubernetesUserToAWSRootPrincipalRelProperties = (
+        KubernetesUserToAWSRootPrincipalRelProperties()
+    )
+
+
+@dataclass(frozen=True)
 class KubernetesUserSchema(CartographyNodeSchema):
     label: str = "KubernetesUser"
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["UserAccount"])
@@ -103,5 +121,6 @@ class KubernetesUserSchema(CartographyNodeSchema):
             KubernetesUserToOktaUserRel(),
             KubernetesUserToAWSRoleRel(),
             KubernetesUserToAWSUserRel(),
+            KubernetesUserToAWSRootPrincipalRel(),
         ]
     )

@@ -9,6 +9,11 @@ import pytest
 
 from cartography.rules.data.rules.cis_aws_iam import aws_access_keys_not_rotated
 from cartography.rules.data.rules.cis_aws_iam import aws_expired_ssl_tls_certificates
+from cartography.rules.data.rules.cis_aws_iam import (
+    aws_policies_with_full_administrative_privileges,
+)
+from cartography.rules.data.rules.cis_aws_iam import aws_root_user_access_keys
+from cartography.rules.data.rules.cis_aws_iam import aws_root_user_mfa_disabled
 from cartography.rules.data.rules.cis_aws_iam import aws_unused_credentials
 from cartography.rules.data.rules.cis_aws_iam import (
     aws_users_with_direct_policy_attachments,
@@ -45,10 +50,13 @@ from cartography.rules.spec.model import Maturity
 from cartography.rules.spec.model import Module
 
 ALL_CIS_AWS_RULES = [
+    aws_root_user_access_keys,
+    aws_root_user_mfa_disabled,
     aws_unused_credentials,
     aws_users_with_multiple_active_access_keys,
     aws_access_keys_not_rotated,
     aws_users_with_direct_policy_attachments,
+    aws_policies_with_full_administrative_privileges,
     aws_expired_ssl_tls_certificates,
     aws_s3_bucket_mfa_delete,
     aws_s3_block_public_access,
@@ -178,10 +186,13 @@ class TestCisAwsRuleIds:
     """Test that AWS CIS rule ids and framework requirements stay aligned."""
 
     EXPECTED_RULES = {
+        "aws_root_user_access_keys": "2.3",
+        "aws_root_user_mfa_disabled": "2.4",
         "aws_unused_credentials": "2.11",
         "aws_users_with_multiple_active_access_keys": "2.12",
         "aws_access_keys_not_rotated": "2.13",
         "aws_users_with_direct_policy_attachments": "2.14",
+        "aws_policies_with_full_administrative_privileges": "2.15",
         "aws_expired_ssl_tls_certificates": "2.18",
         "aws_s3_bucket_mfa_delete": "3.1.2",
         "aws_s3_block_public_access": "3.1.4",
@@ -217,10 +228,13 @@ class TestIso27001AwsMappings:
     """Test that batch 1 AWS rules have expected ISO 27001 Annex A mappings."""
 
     EXPECTED_REQUIREMENTS = {
+        "aws_root_user_access_keys": {"8.2", "5.17"},
+        "aws_root_user_mfa_disabled": {"8.5", "8.2"},
         "aws_unused_credentials": {"5.18"},
         "aws_users_with_multiple_active_access_keys": {"5.17"},
         "aws_access_keys_not_rotated": {"5.17"},
         "aws_users_with_direct_policy_attachments": {"5.18"},
+        "aws_policies_with_full_administrative_privileges": {"8.2", "5.18"},
         "aws_expired_ssl_tls_certificates": {"8.24"},
         "aws_s3_bucket_mfa_delete": {"8.10"},
         "aws_s3_block_public_access": {"8.3"},

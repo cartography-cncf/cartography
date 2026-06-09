@@ -41,6 +41,25 @@ def _image_digest_exists(neo4j_session: Session, digest: str) -> bool:
     return result is not None
 
 
+def _code_repository_uri_exists(neo4j_session: Session, uri: str) -> bool:
+    """
+    Return True when the URI matches an existing GitHubRepository.url or
+    GitLabProject.web_url node already present in the graph.
+    """
+    result = neo4j_session.execute_read(
+        read_single_value_tx,
+        """
+        OPTIONAL MATCH (gh:GitHubRepository {url: $uri})
+        WITH gh
+        OPTIONAL MATCH (gl:GitLabProject {web_url: $uri})
+        RETURN (gh IS NOT NULL OR gl IS NOT NULL) AS resolved
+        LIMIT 1
+        """,
+        uri=uri,
+    )
+    return bool(result)
+
+
 def prepare_aibom_report_for_ingestion(
     neo4j_session: Session,
     document: dict[str, Any],
@@ -48,8 +67,11 @@ def prepare_aibom_report_for_ingestion(
 ) -> dict[str, Any]:
     """
     Perform the GET/preparation step for an AIBOM report:
-    validate the raw document at a high level, extract source keys, require
-    digest-qualified anchors, and verify they resolve to concrete :Image nodes.
+    validate the raw document at a high level, extract source keys, and verify
+    that every anchor resolves to an existing target node. Digest-qualified
+    source keys must resolve to concrete :Image nodes; any other source key is
+    treated as a code-repository URI and must resolve to an existing
+    GitHubRepository or GitLabProject.
     """
     sources = document["aibom_analysis"]["sources"]
     source_keys = tuple(sources)
@@ -58,30 +80,28 @@ def prepare_aibom_report_for_ingestion(
             f"AIBOM report at {source} did not contain any sources",
         )
 
-    invalid_source_keys = [
-        source_key
-        for source_key in source_keys
-        if _extract_digest_from_source_key(source_key) is None
-    ]
-    if invalid_source_keys:
-        raise ValueError(
-            "AIBOM report "
-            f"{source} contained non-digest-qualified source keys: "
-            f"{', '.join(sorted(invalid_source_keys))}",
-        )
+    missing_digests: list[str] = []
+    unresolved_repository_uris: list[str] = []
+    for source_key in source_keys:
+        digest = _extract_digest_from_source_key(source_key)
+        if digest is not None:
+            if not _image_digest_exists(neo4j_session, digest):
+                missing_digests.append(digest)
+        elif not _code_repository_uri_exists(neo4j_session, source_key):
+            unresolved_repository_uris.append(source_key)
 
-    image_digests = tuple(source_key.partition("@")[2] for source_key in source_keys)
-
-    missing_digests = [
-        digest
-        for digest in image_digests
-        if not _image_digest_exists(neo4j_session, digest)
-    ]
     if missing_digests:
         raise ValueError(
             "AIBOM report "
             f"{source} did not resolve to concrete :Image nodes for digests: "
             f"{', '.join(sorted(set(missing_digests)))}",
+        )
+    if unresolved_repository_uris:
+        raise ValueError(
+            "AIBOM report "
+            f"{source} did not resolve to existing GitHubRepository or "
+            "GitLabProject nodes for source keys: "
+            f"{', '.join(sorted(set(unresolved_repository_uris)))}",
         )
 
     return document

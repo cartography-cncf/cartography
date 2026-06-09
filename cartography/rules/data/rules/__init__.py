@@ -100,6 +100,11 @@ from cartography.rules.data.rules.cis_4_0_gcp import gcp_unrestricted_rdp_access
 from cartography.rules.data.rules.cis_4_0_gcp import gcp_unrestricted_ssh_access
 from cartography.rules.data.rules.cis_aws_iam import aws_access_keys_not_rotated
 from cartography.rules.data.rules.cis_aws_iam import aws_expired_ssl_tls_certificates
+from cartography.rules.data.rules.cis_aws_iam import (
+    aws_policies_with_full_administrative_privileges,
+)
+from cartography.rules.data.rules.cis_aws_iam import aws_root_user_access_keys
+from cartography.rules.data.rules.cis_aws_iam import aws_root_user_mfa_disabled
 from cartography.rules.data.rules.cis_aws_iam import aws_unused_credentials
 from cartography.rules.data.rules.cis_aws_iam import (
     aws_users_with_direct_policy_attachments,
@@ -228,6 +233,9 @@ from cartography.rules.data.rules.device_security_posture_gaps import (
 )
 from cartography.rules.data.rules.eol_software import eol_software
 from cartography.rules.data.rules.guardduty_active_threat import guardduty_active_threat
+from cartography.rules.data.rules.iam_role_external_account_trust import (
+    iam_role_external_account_trust,
+)
 from cartography.rules.data.rules.identity_administration_privileges import (
     identity_administration_privileges,
 )
@@ -252,6 +260,7 @@ from cartography.rules.data.rules.object_storage_public import object_storage_pu
 from cartography.rules.data.rules.policy_administration_privileges import (
     policy_administration_privileges,
 )
+from cartography.rules.data.rules.public_snapshots import public_snapshots
 from cartography.rules.data.rules.serverless_workload_exposed import (
     serverless_workload_exposed,
 )
@@ -287,10 +296,13 @@ from cartography.rules.data.rules.workload_identity_admin_capabilities import (
 # Rule registry - all available rules
 RULES = {
     # CIS AWS IAM Rules (Section 2)
+    aws_root_user_access_keys.id: aws_root_user_access_keys,
+    aws_root_user_mfa_disabled.id: aws_root_user_mfa_disabled,
     aws_unused_credentials.id: aws_unused_credentials,
     aws_users_with_multiple_active_access_keys.id: aws_users_with_multiple_active_access_keys,
     aws_access_keys_not_rotated.id: aws_access_keys_not_rotated,
     aws_users_with_direct_policy_attachments.id: aws_users_with_direct_policy_attachments,
+    aws_policies_with_full_administrative_privileges.id: aws_policies_with_full_administrative_privileges,
     aws_expired_ssl_tls_certificates.id: aws_expired_ssl_tls_certificates,
     # CIS AWS Storage Rules (Section 3)
     aws_s3_bucket_mfa_delete.id: aws_s3_bucket_mfa_delete,
@@ -320,6 +332,7 @@ RULES = {
     delegation_boundary_modifiable.id: delegation_boundary_modifiable,
     device_security_posture_gaps.id: device_security_posture_gaps,
     eol_software.id: eol_software,
+    iam_role_external_account_trust.id: iam_role_external_account_trust,
     identity_administration_privileges.id: identity_administration_privileges,
     identity_mfa_gaps.id: identity_mfa_gaps,
     inactive_user_active_accounts.id: inactive_user_active_accounts,
@@ -327,6 +340,7 @@ RULES = {
     missing_mfa_rule.id: missing_mfa_rule,
     object_storage_public.id: object_storage_public,
     policy_administration_privileges.id: policy_administration_privileges,
+    public_snapshots.id: public_snapshots,
     tailscale_tailnet_approval_disabled.id: tailscale_tailnet_approval_disabled,
     tailscale_network_flow_logging_disabled.id: tailscale_network_flow_logging_disabled,
     tailscale_device_auto_updates_disabled.id: tailscale_device_auto_updates_disabled,

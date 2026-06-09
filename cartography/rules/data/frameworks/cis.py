@@ -21,10 +21,13 @@ CIS_GOOGLE_WORKSPACE_SCOPE = "googleworkspace"
 CIS_GOOGLE_WORKSPACE_REVISION = "1.3"
 
 CIS_AWS_CONTROL_TITLES = {
+    "2.3": "Ensure no root user account access key exists",
+    "2.4": "Ensure MFA is enabled for the root user account",
     "2.11": "Ensure credentials unused for 45 days or more are disabled",
     "2.12": "Ensure there is only one active access key for any single IAM user",
     "2.13": "Ensure access keys are rotated every 90 days or less",
     "2.14": "Ensure IAM users receive permissions only through groups",
+    "2.15": "Ensure IAM policies that allow full '*:*' administrative privileges are not attached",
     "2.18": "Ensure that all expired SSL/TLS certificates stored in AWS IAM are removed",
     "3.1.2": "Ensure MFA Delete is enabled on S3 buckets",
     "3.1.4": "Ensure that S3 is configured with 'Block Public Access' enabled",
