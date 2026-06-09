@@ -105,3 +105,22 @@ def test_iso27001_mapped_rules_have_expected_requirements():
             if fw.short_name == "27001" and fw.revision == "2022"
         }
         assert actual_requirements == expected_requirements
+
+
+def test_iso27001_mapped_rules_have_control_titles():
+    expected_titles = {
+        "5.18": "Access rights",
+        "8.2": "Privileged access rights",
+        "8.20": "Network security",
+        "8.24": "Use of cryptography",
+    }
+
+    for rule_id in EXPECTED_ISO27001_REQUIREMENTS:
+        rule = RULES[rule_id]
+        for framework in rule.frameworks:
+            if framework.short_name != "27001":
+                continue
+
+            assert framework.title is not None
+            if framework.requirement in expected_titles:
+                assert framework.title == expected_titles[framework.requirement]
