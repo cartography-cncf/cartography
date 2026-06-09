@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeProperties
 from cartography.models.core.nodes import CartographyNodeSchema
+from cartography.models.core.nodes import ExtraNodeLabels
 from cartography.models.core.relationships import CartographyRelProperties
 from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
@@ -91,6 +92,7 @@ class AzureSubnetToSubscriptionRel(CartographyRelSchema):
 class AzureSubnetSchema(CartographyNodeSchema):
     label: str = "AzureSubnet"
     properties: AzureSubnetProperties = AzureSubnetProperties()
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["Subnet"])
     sub_resource_relationship: AzureSubnetToSubscriptionRel = (
         AzureSubnetToSubscriptionRel()
     )

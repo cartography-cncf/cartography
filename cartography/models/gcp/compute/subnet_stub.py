@@ -52,4 +52,9 @@ class GCPSubnetStubSchema(CartographyNodeSchema):
 
     label: str = "GCPSubnet"
     properties: GCPSubnetStubNodeProperties = GCPSubnetStubNodeProperties()
+    # Deliberately no `Subnet` semantic label here: stubs only carry partial_uri
+    # and would surface in cross-cloud `(:Subnet)` queries with a null _ont_name
+    # (the GCP mapping resolves the ontology name from the `name` field, which the
+    # stub lacks). The full GCPSubnetSchema attaches the Subnet label and _ont_*
+    # fields once the real subnet data is synced.
     sub_resource_relationship: GCPSubnetStubToProjectRel = GCPSubnetStubToProjectRel()

@@ -15,6 +15,7 @@ def test_framework_helpers_preserve_framework_metadata():
             "aws",
             "6.0.0",
             "4.1",
+            "Ensure CloudTrail is enabled in all regions",
         ),
         (
             cis_gcp("3.1"),
@@ -23,6 +24,7 @@ def test_framework_helpers_preserve_framework_metadata():
             "gcp",
             "4.0",
             "3.1",
+            "Ensure That the Default Network Does Not Exist in a Project",
         ),
         (
             cis_kubernetes("5.1.1"),
@@ -31,6 +33,7 @@ def test_framework_helpers_preserve_framework_metadata():
             "kubernetes",
             "1.12",
             "5.1.1",
+            "Ensure that the cluster-admin role is only used where required",
         ),
         (
             cis_google_workspace("4.1.1.3"),
@@ -39,14 +42,16 @@ def test_framework_helpers_preserve_framework_metadata():
             "googleworkspace",
             "1.3",
             "4.1.1.3",
+            "Ensure 2-Step Verification (Multi-Factor Authentication) is enforced for all users",
         ),
         (
             iso27001_annex_a("8.15"),
             "iso/iec 27001:2022 annex a",
-            "27001",
+            "iso27001",
             None,
             "2022",
             "8.15",
+            "Logging",
         ),
         (
             nist_ai_rmf("MAP 1"),
@@ -55,12 +60,28 @@ def test_framework_helpers_preserve_framework_metadata():
             None,
             "1.0",
             "map 1",
+            "Context is established and understood",
         ),
     ]
 
-    for framework, name, short_name, scope, revision, requirement in helpers:
+    for (
+        framework,
+        name,
+        short_name,
+        scope,
+        revision,
+        requirement,
+        control_title,
+    ) in helpers:
         assert framework.name == name
         assert framework.short_name == short_name
         assert framework.scope == scope
         assert framework.revision == revision
         assert framework.requirement == requirement
+        assert framework.control_title == control_title
+
+
+def test_framework_helpers_allow_explicit_control_title_override():
+    framework = cis_aws("4.1", control_title="Custom control title")
+
+    assert framework.control_title == "Custom control title"

@@ -76,6 +76,7 @@ Configured AWS sync accounts are marked `inscope=true`. Accounts discovered only
                                 :RDSInstance,
                                 :RDSSnapshot,
                                 :RDSEventSubscription,
+                                :ECRPullThroughCacheRule,
                                 :SecretsManagerSecret,
                                 :SecurityHub,
                                 :SQSQueue,
@@ -1268,6 +1269,8 @@ Representation of an [AWS Transit Gateway Attachment](https://docs.aws.amazon.co
 Representation of an [AWS CidrBlock used in VPC configuration](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_VpcCidrBlockAssociation.html).
 More information on https://docs.aws.amazon.com/cli/latest/reference/ec2/describe-vpcs.html
 
+> **Ontology Mapping**: This node has the extra label `VirtualNetwork` and normalized `_ont_*` properties to enable cross-platform queries for virtual networks across different systems (e.g., GCPVpc, AzureVirtualNetwork).
+
 | Field | Description |
 |-------|-------------|
 |firstseen| Timestamp of when a sync job discovered this node|
@@ -1320,7 +1323,6 @@ Representation of an AWS [Tag](https://docs.aws.amazon.com/resourcegroupstagging
 | **id** | This tag's unique identifier of the format `{TagKey}:{TagValue}`. We fabricated this ID. |
 | key | One part of a key-value pair that makes up a tag.|
 | value | One part of a key-value pair that makes up a tag. |
-| region | The region where this tag was discovered.|
 
 #### Relationships
 -  AWS VPCs, DB Subnet Groups, EC2 Instances, EC2 SecurityGroups, EC2 Subnets, EC2 Network Interfaces, RDS Instances, S3 Buckets, AWS Roles, AWS Users, and AWS Groups can be tagged with AWSTags.
@@ -2437,6 +2439,8 @@ Representation of an AWS EC2 [Security Group](https://docs.aws.amazon.com/AWSEC2
 
 Representation of an AWS EC2 [Subnet](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_Subnet.html).
 
+> **Ontology Mapping**: This node has the extra label `Subnet` and normalized `_ont_*` properties to enable cross-platform queries for network subnets across different systems (e.g., GCPSubnet, AzureSubnet).
+
 | Field | Description |
 |-------|-------------|
 | firstseen| Timestamp of when a sync job first discovered this node  |
@@ -2575,6 +2579,44 @@ Representation of an AWS Elastic Container Registry [Repository](https://docs.aw
 - An ECRRepository contains ECRRepositoryImages:
     ```
     (:ECRRepository)-[:REPO_IMAGE]->(:ECRRepositoryImage)
+    ```
+
+
+### ECRPullThroughCacheRule
+
+Representation of an AWS Elastic Container Registry [pull through cache rule](https://docs.aws.amazon.com/AmazonECR/latest/APIReference/API_PullThroughCacheRule.html).
+
+| Field | Description |
+|--------|-----------|
+| firstseen | Timestamp of when a sync job first discovered this node |
+| lastupdated | Timestamp of the last time the node was updated |
+| **id** | Synthetic ID in the format `registry_id:region:ecr_repository_prefix` |
+| **registry_id** | The AWS registry ID associated with the rule |
+| **ecr_repository_prefix** | The ECR repository prefix used when caching images from the upstream registry |
+| upstream_registry_url | The upstream registry URL associated with the rule |
+| **upstream_registry** | The upstream source registry name associated with the rule |
+| upstream_repository_prefix | The upstream repository prefix associated with the rule |
+| **credential_arn** | The Secrets Manager secret ARN used for upstream registry credentials, when configured |
+| **custom_role_arn** | The IAM role ARN used for pull through cache operations, when configured |
+| created_at | Date and time when the rule was created |
+| updated_at | Date and time when the rule was last updated |
+| region | The region of the rule |
+
+#### Relationships
+
+- ECR pull through cache rules are resources under the AWS Account:
+    ```
+    (:AWSAccount)-[:RESOURCE]->(:ECRPullThroughCacheRule)
+    ```
+
+- ECR pull through cache rules may use a Secrets Manager secret for upstream credentials:
+    ```
+    (:ECRPullThroughCacheRule)-[:USES_SECRET]->(:SecretsManagerSecret)
+    ```
+
+- ECR pull through cache rules may be associated with an IAM role:
+    ```
+    (:ECRPullThroughCacheRule)-[:ASSOCIATED_WITH]->(:AWSRole)
     ```
 
 
@@ -3830,6 +3872,8 @@ Representation of an AWS Relational Database Service [DBInstance](https://docs.a
 
 Representation of an AWS Relational Database Service [DBSnapshot](https://docs.aws.amazon.com/AmazonRDS/latest/APIReference/API_DBSnapshot.html).
 
+> **Ontology Mapping**: This node has the extra label `Snapshot` and normalized `_ont_*` properties to enable cross-platform queries for volume/database snapshots across different systems (e.g., EBSSnapshot, AzureSnapshot, ScalewayVolumeSnapshot).
+
 | Field | Description |
 |-------|-------------|
 | firstseen| Timestamp of when a sync job first discovered this node  |
@@ -4711,6 +4755,8 @@ Representation of an AWS [EBS Volume](https://docs.aws.amazon.com/AWSEC2/latest/
 
 Representation of an AWS [EBS Snapshot](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/EBSSnapshots.html).
 
+> **Ontology Mapping**: This node has the extra label `Snapshot` and normalized `_ont_*` properties to enable cross-platform queries for volume/database snapshots across different systems (e.g., RDSSnapshot, AzureSnapshot, ScalewayVolumeSnapshot).
+
 | Field | Description |
 |-------|-------------|
 | firstseen| Timestamp of when a sync job first discovered this node  |
@@ -5138,16 +5184,6 @@ Representation of an AWS ECS [Service](https://docs.aws.amazon.com/AmazonECS/lat
 
 #### Relationships
 
-- An ECSCluster has ECSService (DEPRECATED: replaced by `WORKLOAD_PARENT`, will be removed in v1.0.0)
-    ```
-    (:ECSCluster)-[:HAS_SERVICE]->(:ECSService)
-    ```
-
-- An ECSService has ECSTasks (DEPRECATED: replaced by `WORKLOAD_PARENT`, will be removed in v1.0.0)
-    ```
-    (:ECSService)-[:HAS_TASK]->(:ECSTask)
-    ```
-
 - An ECSService points at its parent cluster via the unified workload chain.
     ```
     (:ECSService)-[:WORKLOAD_PARENT]->(:ECSCluster)
@@ -5297,11 +5333,6 @@ Representation of an AWS ECS [Task](https://docs.aws.amazon.com/AmazonECS/latest
     (:AWSAccount)-[:RESOURCE]->(:ECSTask)
     ```
 
-- ECSClusters have ECSTasks (DEPRECATED: replaced by `WORKLOAD_PARENT`, will be removed in v1.0.0)
-    ```
-    (:ECSCluster)-[:HAS_TASK]->(:ECSTask)
-    ```
-
 - ECSContainerInstances have ECSTasks
     ```
     (:ECSContainerInstance)-[:HAS_TASK]->(:ECSTask)
@@ -5355,11 +5386,6 @@ Representation of an AWS ECS [Container](https://docs.aws.amazon.com/AmazonECS/l
 | exposed\_internet | Set to `True` if this container is exposed to the internet via an internet-facing load balancer. Set by the `aws_ecs_asset_exposure` [analysis job](https://github.com/cartography-cncf/cartography/blob/master/cartography/data/jobs/analysis/aws_ecs_asset_exposure.json). |
 
 #### Relationships
-
-- ECSTasks have ECSContainers (DEPRECATED: replaced by `WORKLOAD_PARENT`, will be removed in v1.0.0)
-    ```
-    (:ECSTask)-[:HAS_CONTAINER]->(:ECSContainer)
-    ```
 
 - ECSContainers point at their parent ECSTask via the unified workload chain.
     ```
@@ -5743,10 +5769,10 @@ Representation of an AWS SSO User.
 
 - An AWSSSOUser can be assigned to one or more AWSPermissionSets. This includes both direct assignments and assignments inherited through AWSSSOGroup membership.
     ```
-    (:AWSSSOUser)-[:HAS_PERMISSION_SET]->(:AWSPermissionSet)
+    (:AWSSSOUser)-[:HAS_ROLE]->(:AWSPermissionSet)
     ```
     Notes:
-    - The AWS Identity Center API (`list_account_assignments_for_principal`) automatically resolves group memberships server-side, so users receive `HAS_PERMISSION_SET` relationships for permission sets they have access to through groups they belong to. This means if a user is only in a group that has a permission set assignment, the user will still have a direct `HAS_PERMISSION_SET` relationship to that permission set.
+    - The AWS Identity Center API (`list_account_assignments_for_principal`) automatically resolves group memberships server-side, so users receive `HAS_ROLE` relationships for permission sets they have access to through groups they belong to. This means if a user is only in a group that has a permission set assignment, the user will still have a direct `HAS_ROLE` relationship to that permission set.
     - This is a **summary relationship** that does not indicate which specific accounts the user has access to, only that they have been assigned to the permission set. For a user to have access to an AWS account, they must be assigned to a permission set for that specific account. This is captured by the `ALLOWED_BY` relationship.
 
 - AWSSSOUser can assume AWS roles via SAML (recorded from CloudTrail management events).
@@ -5839,10 +5865,10 @@ Representation of an AWS Identity Center Permission Set.
 
 - An AWSSSOUser can be assigned to one or more AWSPermissionSets. This includes both direct assignments and assignments inherited through AWSSSOGroup membership.
     ```
-    (:AWSSSOUser)-[:HAS_PERMISSION_SET]->(:AWSPermissionSet)
+    (:AWSSSOUser)-[:HAS_ROLE]->(:AWSPermissionSet)
     ```
     Notes:
-    - The AWS Identity Center API (`list_account_assignments_for_principal`) automatically resolves group memberships server-side, so users receive `HAS_PERMISSION_SET` relationships for permission sets they have access to through groups they belong to. This means if a user is only in a group that has a permission set assignment, the user will still have a direct `HAS_PERMISSION_SET` relationship to that permission set.
+    - The AWS Identity Center API (`list_account_assignments_for_principal`) automatically resolves group memberships server-side, so users receive `HAS_ROLE` relationships for permission sets they have access to through groups they belong to. This means if a user is only in a group that has a permission set assignment, the user will still have a direct `HAS_ROLE` relationship to that permission set.
     - This is a **summary relationship** that does not indicate which specific accounts the user has access to, only that they have been assigned to the permission set. For a user to have access to an AWS account, they must be assigned to a permission set _for that specific account_. This is captured by the `ALLOWED_BY` relationship.
 
 - An AWSSSOGroup has assigned permission sets. AWSSSOUsers in the group will receive all permission sets that the group is assigned to.
@@ -6610,3 +6636,44 @@ Represents an [AWS SageMaker Model Package](https://docs.aws.amazon.com/sagemake
     ```
     (AWSSageMakerModelPackage)-[:REFERENCES_ARTIFACTS_IN]->(S3Bucket)
     ```
+
+### CloudFormationStack
+
+Representation of an AWS [CloudFormation Stack](https://docs.aws.amazon.com/AWSCloudFormation/latest/APIReference/API_Stack.html).
+
+| Field | Description |
+|-------|-------------|
+| firstseen | Timestamp of when a sync job first discovered this node |
+| lastupdated | Timestamp of the last time the node was updated |
+| **id** | The unique identifier (ARN) of the CloudFormation Stack |
+| arn | The Amazon Resource Name (ARN) of the CloudFormation Stack |
+| stack_name | The name of the stack |
+| description | A user-defined description associated with the stack |
+| stack_status | Current status of the stack (e.g., CREATE_COMPLETE) |
+| stack_status_reason | Success/failure message associated with the stack status |
+| creation_time | The time at which the stack was created |
+| last_updated_time | The time the stack was last updated |
+| role_arn | The ARN of the IAM role used by CloudFormation |
+| parent_id | For nested stacks, the stack ID of the parent |
+| root_id | For nested stacks, the stack ID of the root stack |
+| disable_rollback | Whether rollback is disabled |
+| tags | A JSON string of tags associated with the stack |
+| region | The AWS region where the stack exists |
+
+#### Relationships
+
+- CloudFormation Stack is a resource under an AWS Account
+    ```
+    (AWSAccount)-[:RESOURCE]->(CloudFormationStack)
+    ```
+
+- CloudFormation Stack uses an IAM Role for execution (if configured)
+    ```
+    (CloudFormationStack)-[:HAS_EXECUTION_ROLE]->(AWSRole)
+    ```
+
+- An AWS Principal can escalate privileges via CloudFormation
+    ```
+    (AWSPrincipal)-[:CAN_EXEC]->(CloudFormationStack)
+    ```
+    **Note:** This edge is created for any principal with `cloudformation:UpdateStack` permission on a stack. However, true privilege escalation only occurs when the target stack has a service role (`role_arn` is set), because stacks without a service role execute with the caller's own permissions. Downstream consumers should filter on `role_arn IS NOT NULL` for high-confidence escalation paths.

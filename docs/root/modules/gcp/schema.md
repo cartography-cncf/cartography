@@ -394,6 +394,8 @@ Representation of a Tag defined on a GCP Instance or GCP Firewall.  Tags are def
 
 Representation of a GCP [VPC](https://cloud.google.com/compute/docs/reference/rest/v1/networks/).  In GCP documentation this is also known simply as a "Network" object.
 
+> **Ontology Mapping**: This node has the extra label `VirtualNetwork` and normalized `_ont_*` properties to enable cross-platform queries for virtual networks across different systems (e.g., AWSVpc, AzureVirtualNetwork).
+
 | Field                      | Description |
 | -------------------------- | ----------- |
 | firstseen                  | Timestamp of when a sync job first discovered this node |
@@ -531,6 +533,8 @@ Representation of a GCP [Resource Record Set](https://cloud.google.com/dns/docs/
 ### GCPSubnet
 
 Representation of a GCP [Subnetwork](https://cloud.google.com/compute/docs/reference/rest/v1/subnetworks).
+
+> **Ontology Mapping**: This node has the extra label `Subnet` and normalized `_ont_*` properties to enable cross-platform queries for network subnets across different systems (e.g., EC2Subnet, AzureSubnet).
 
 | Field                    | Description                                                                                                                                                                                        |
 | ------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -2124,10 +2128,6 @@ Cloud Run Service is treated as an orchestrator (analogous to `ECSService`) and 
     ```
     (GCPCloudRunService)-[:USES_SERVICE_ACCOUNT]->(GCPServiceAccount)
     ```
-  - GCPCloudRunServices contain one GCPCloudRunServiceContainer per container declared in the `latestReadyRevision` spec (including sidecars). (DEPRECATED: replaced by `WORKLOAD_PARENT`, will be removed in v1.0.0)
-    ```
-    (GCPCloudRunService)-[:CONTAINS]->(GCPCloudRunServiceContainer)
-    ```
 
 ### GCPCloudRunRevision
 
@@ -2189,10 +2189,6 @@ Representation of a GCP [Cloud Run Job](https://cloud.google.com/run/docs/refere
     ```
     (GCPCloudRunJob)-[:USES_SERVICE_ACCOUNT]->(GCPServiceAccount)
     ```
-  - GCPCloudRunJobs contain one GCPCloudRunJobContainer per container declared in the task template (including sidecars). (DEPRECATED: replaced by `WORKLOAD_PARENT`, will be removed in v1.0.0)
-    ```
-    (GCPCloudRunJob)-[:CONTAINS]->(GCPCloudRunJobContainer)
-    ```
 
 ### GCPCloudRunJobContainer
 
@@ -2219,10 +2215,6 @@ Representation of an individual container spec from a [Cloud Run Job](https://cl
   - GCPCloudRunJobContainers are resources of GCPProjects.
     ```
     (GCPProject)-[:RESOURCE]->(GCPCloudRunJobContainer)
-    ```
-  - GCPCloudRunJobContainers live inside a GCPCloudRunJob. (DEPRECATED: replaced by `WORKLOAD_PARENT`, will be removed in v1.0.0)
-    ```
-    (GCPCloudRunJob)-[:CONTAINS]->(GCPCloudRunJobContainer)
     ```
   - GCPCloudRunJobContainers point at their parent GCPCloudRunJob via the unified workload chain.
     ```
@@ -2265,10 +2257,6 @@ Representation of an individual container spec from a [Cloud Run Service](https:
   - GCPCloudRunServiceContainers are resources of GCPProjects.
     ```
     (GCPProject)-[:RESOURCE]->(GCPCloudRunServiceContainer)
-    ```
-  - GCPCloudRunServiceContainers live inside a GCPCloudRunService (sourced from the `latestReadyRevision` spec). (DEPRECATED: replaced by `WORKLOAD_PARENT`, will be removed in v1.0.0)
-    ```
-    (GCPCloudRunService)-[:CONTAINS]->(GCPCloudRunServiceContainer)
     ```
   - GCPCloudRunServiceContainers point at their parent GCPCloudRunService via the unified workload chain.
     ```

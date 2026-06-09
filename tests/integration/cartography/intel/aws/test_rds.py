@@ -237,6 +237,30 @@ def test_load_rds_snapshots_basic(neo4j_session):
     }
     assert actual_snapshots == expected_snapshots
 
+    # Assert - Snapshot semantic label + normalized _ont_* fields for RDS
+    # snapshots (full set: name, encrypted, public, source_id, region).
+    assert check_nodes(
+        neo4j_session,
+        "Snapshot",
+        [
+            "_ont_name",
+            "_ont_encrypted",
+            "_ont_public",
+            "_ont_source_id",
+            "_ont_region",
+            "_ont_source",
+        ],
+    ) == {
+        (
+            "some-db-snapshot-identifier",
+            True,
+            True,
+            "some-prod-db-iad-0",
+            "us-east1",
+            "aws",
+        ),
+    }
+
     query = """MATCH(rdsInstance:RDSInstance)-[:IS_SNAPSHOT_SOURCE]-(rdsSnapshot:RDSSnapshot)
                RETURN rdsInstance.id, rdsSnapshot.id"""
     results = neo4j_session.run(query)

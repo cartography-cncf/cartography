@@ -7,6 +7,7 @@ Execute security frameworks and present facts about your environment.
 import builtins
 import logging
 import os
+import re
 from enum import Enum
 from typing import Generator
 
@@ -16,6 +17,10 @@ from typing_extensions import Annotated
 from cartography.rules.data.rules import RULES
 from cartography.rules.runners import get_all_frameworks
 from cartography.rules.runners import run_rules
+from cartography.rules.spec.model import Framework
+
+_NATURAL_SORT_RE = re.compile(r"(\d+)")
+_NaturalSortToken = tuple[int, int | str]
 
 app = typer.Typer(
     help="Execute Cartography security frameworks",
@@ -134,6 +139,44 @@ def complete_frameworks(incomplete: str) -> Generator[str, None, None]:
 # ----------------------------
 
 
+def _format_framework_mapping(fw: Framework) -> str:
+    fw_parts = [fw.short_name]
+    if fw.scope:
+        fw_parts.append(fw.scope)
+    if fw.revision:
+        fw_parts.append(fw.revision)
+    fw_str = f"{':'.join(fw_parts)} ({fw.requirement})"
+    if fw.control_title:
+        fw_str = f"{fw_str} {fw.control_title}"
+    return fw_str
+
+
+def _natural_sort_key(value: str | None) -> tuple[_NaturalSortToken, ...]:
+    if value is None:
+        return ()
+    return tuple(
+        (0, int(part)) if part.isdigit() else (1, part.casefold())
+        for part in _NATURAL_SORT_RE.split(value)
+        if part
+    )
+
+
+def _framework_sort_key(
+    fw: Framework,
+) -> tuple[
+    tuple[_NaturalSortToken, ...],
+    tuple[_NaturalSortToken, ...],
+    tuple[_NaturalSortToken, ...],
+    str,
+]:
+    return (
+        _natural_sort_key(fw.scope),
+        _natural_sort_key(fw.revision),
+        _natural_sort_key(fw.requirement),
+        fw.control_title.casefold() if fw.control_title else "",
+    )
+
+
 @app.command(name="frameworks")  # type: ignore[misc]
 def frameworks_cmd() -> None:
     """
@@ -177,6 +220,14 @@ def frameworks_cmd() -> None:
         # Count rules using this framework
         rule_count = sum(1 for rule in RULES.values() if rule.has_framework(short_name))
         typer.echo(f"  Rules: {rule_count}")
+        controls_with_titles = sorted(
+            {fw for fw in fws if fw.control_title},
+            key=_framework_sort_key,
+        )
+        if controls_with_titles:
+            typer.echo("  Controls:")
+            for fw in controls_with_titles:
+                typer.echo(f"    - {_format_framework_mapping(fw)}")
         typer.echo()
 
 
@@ -242,14 +293,7 @@ def list_cmd(
             if rule_obj.frameworks:
                 typer.echo("  Frameworks:")
                 for fw in rule_obj.frameworks:
-                    # Build framework string with optional parts
-                    fw_parts = [fw.short_name]
-                    if fw.scope:
-                        fw_parts.append(fw.scope)
-                    if fw.revision:
-                        fw_parts.append(fw.revision)
-                    fw_str = ":".join(fw_parts)
-                    typer.echo(f"    - {fw_str} ({fw.requirement})")
+                    typer.echo(f"    - {_format_framework_mapping(fw)}")
             if rule_obj.references:
                 typer.echo("  References:")
                 for ref in rule_obj.references:

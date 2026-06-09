@@ -1,24 +1,22 @@
 from cartography.rules.data.rules import RULES
-from cartography.rules.data.rules.nist_ai_rmf import nist_ai_admin_ai_app_authorizations
-from cartography.rules.data.rules.nist_ai_rmf import nist_ai_aibom_agent_inventory
-from cartography.rules.data.rules.nist_ai_rmf import nist_ai_aibom_coverage_gaps
-from cartography.rules.data.rules.nist_ai_rmf import nist_ai_provider_api_key_hygiene
-from cartography.rules.data.rules.nist_ai_rmf import nist_ai_third_party_app_inventory
-from cartography.rules.data.rules.nist_ai_rmf import (
-    nist_ai_third_party_app_sensitive_scopes,
-)
+from cartography.rules.data.rules.nist_ai_rmf import ai_admin_app_authorizations
+from cartography.rules.data.rules.nist_ai_rmf import ai_provider_api_key_hygiene
+from cartography.rules.data.rules.nist_ai_rmf import ai_third_party_app_inventory
+from cartography.rules.data.rules.nist_ai_rmf import ai_third_party_app_sensitive_scopes
+from cartography.rules.data.rules.nist_ai_rmf import aibom_agent_inventory
+from cartography.rules.data.rules.nist_ai_rmf import aibom_coverage_gaps
 from cartography.rules.spec.model import Maturity
 from cartography.rules.spec.model import Module
 
 
 def test_nist_ai_rules_registered_and_metadata():
     expected_rules = {
-        "nist_ai_third_party_app_inventory": nist_ai_third_party_app_inventory,
-        "nist_ai_third_party_app_sensitive_scopes": nist_ai_third_party_app_sensitive_scopes,
-        "nist_ai_admin_ai_app_authorizations": nist_ai_admin_ai_app_authorizations,
-        "nist_ai_aibom_agent_inventory": nist_ai_aibom_agent_inventory,
-        "nist_ai_aibom_coverage_gaps": nist_ai_aibom_coverage_gaps,
-        "nist_ai_provider_api_key_hygiene": nist_ai_provider_api_key_hygiene,
+        "ai_third_party_app_inventory": ai_third_party_app_inventory,
+        "ai_third_party_app_sensitive_scopes": ai_third_party_app_sensitive_scopes,
+        "ai_admin_app_authorizations": ai_admin_app_authorizations,
+        "aibom_agent_inventory": aibom_agent_inventory,
+        "aibom_coverage_gaps": aibom_coverage_gaps,
+        "ai_provider_api_key_hygiene": ai_provider_api_key_hygiene,
     }
 
     for rule_id, rule_obj in expected_rules.items():
@@ -30,22 +28,22 @@ def test_nist_ai_rules_registered_and_metadata():
 
 
 def test_nist_ai_rule_modules():
-    assert nist_ai_third_party_app_inventory.modules == {Module.CROSS_CLOUD}
-    assert nist_ai_third_party_app_sensitive_scopes.modules == {Module.CROSS_CLOUD}
-    assert nist_ai_admin_ai_app_authorizations.modules == {Module.GOOGLEWORKSPACE}
-    assert nist_ai_aibom_agent_inventory.modules == {Module.AIBOM}
-    assert nist_ai_aibom_coverage_gaps.modules == {Module.AIBOM}
-    assert nist_ai_provider_api_key_hygiene.modules == {Module.OPENAI, Module.ANTHROPIC}
+    assert ai_third_party_app_inventory.modules == {Module.CROSS_CLOUD}
+    assert ai_third_party_app_sensitive_scopes.modules == {Module.CROSS_CLOUD}
+    assert ai_admin_app_authorizations.modules == {Module.GOOGLEWORKSPACE}
+    assert aibom_agent_inventory.modules == {Module.AIBOM}
+    assert aibom_coverage_gaps.modules == {Module.AIBOM}
+    assert ai_provider_api_key_hygiene.modules == {Module.OPENAI, Module.ANTHROPIC}
 
 
 def test_nist_ai_fact_structure_and_maturity():
     rules = (
-        nist_ai_third_party_app_inventory,
-        nist_ai_third_party_app_sensitive_scopes,
-        nist_ai_admin_ai_app_authorizations,
-        nist_ai_aibom_agent_inventory,
-        nist_ai_aibom_coverage_gaps,
-        nist_ai_provider_api_key_hygiene,
+        ai_third_party_app_inventory,
+        ai_third_party_app_sensitive_scopes,
+        ai_admin_app_authorizations,
+        aibom_agent_inventory,
+        aibom_coverage_gaps,
+        ai_provider_api_key_hygiene,
     )
 
     for rule in rules:
@@ -56,43 +54,43 @@ def test_nist_ai_fact_structure_and_maturity():
             assert fact.cypher_visual_query.strip().split()[0] in {"MATCH", "WITH"}
             assert "COUNT" in fact.cypher_count_query
 
-    assert len(nist_ai_third_party_app_inventory.facts) == 1
-    assert len(nist_ai_third_party_app_sensitive_scopes.facts) == 1
-    assert len(nist_ai_admin_ai_app_authorizations.facts) == 1
-    assert len(nist_ai_aibom_agent_inventory.facts) == 1
-    assert len(nist_ai_aibom_coverage_gaps.facts) == 1
-    assert len(nist_ai_provider_api_key_hygiene.facts) == 2
+    assert len(ai_third_party_app_inventory.facts) == 1
+    assert len(ai_third_party_app_sensitive_scopes.facts) == 1
+    assert len(ai_admin_app_authorizations.facts) == 1
+    assert len(aibom_agent_inventory.facts) == 1
+    assert len(aibom_coverage_gaps.facts) == 1
+    assert len(ai_provider_api_key_hygiene.facts) == 2
 
 
 def test_nist_ai_framework_requirements():
     inventory_requirements = {
         fw.requirement
-        for fw in nist_ai_third_party_app_inventory.frameworks
+        for fw in ai_third_party_app_inventory.frameworks
         if fw.short_name == "nist-ai-rmf"
     }
     sensitive_requirements = {
         fw.requirement
-        for fw in nist_ai_third_party_app_sensitive_scopes.frameworks
+        for fw in ai_third_party_app_sensitive_scopes.frameworks
         if fw.short_name == "nist-ai-rmf"
     }
     admin_requirements = {
         fw.requirement
-        for fw in nist_ai_admin_ai_app_authorizations.frameworks
+        for fw in ai_admin_app_authorizations.frameworks
         if fw.short_name == "nist-ai-rmf"
     }
     aibom_inventory_requirements = {
         fw.requirement
-        for fw in nist_ai_aibom_agent_inventory.frameworks
+        for fw in aibom_agent_inventory.frameworks
         if fw.short_name == "nist-ai-rmf"
     }
     aibom_gap_requirements = {
         fw.requirement
-        for fw in nist_ai_aibom_coverage_gaps.frameworks
+        for fw in aibom_coverage_gaps.frameworks
         if fw.short_name == "nist-ai-rmf"
     }
     provider_requirements = {
         fw.requirement
-        for fw in nist_ai_provider_api_key_hygiene.frameworks
+        for fw in ai_provider_api_key_hygiene.frameworks
         if fw.short_name == "nist-ai-rmf"
     }
 
@@ -105,7 +103,7 @@ def test_nist_ai_framework_requirements():
 
 
 def test_nist_ai_parse_results_preserves_extra_fields():
-    fact = nist_ai_third_party_app_inventory.get_fact_by_id(
+    fact = ai_third_party_app_inventory.get_fact_by_id(
         "cross_cloud_nist_ai_app_inventory"
     )
     sample_results = [
@@ -120,7 +118,7 @@ def test_nist_ai_parse_results_preserves_extra_fields():
         }
     ]
 
-    findings = nist_ai_third_party_app_inventory.parse_results(fact, sample_results)
+    findings = ai_third_party_app_inventory.parse_results(fact, sample_results)
 
     assert len(findings) == 1
     finding = findings[0]
@@ -133,7 +131,7 @@ def test_nist_ai_parse_results_preserves_extra_fields():
 
 
 def test_nist_ai_aibom_parse_results_preserves_lists_and_extra_fields():
-    fact = nist_ai_aibom_agent_inventory.get_fact_by_id("aibom_nist_ai_agent_inventory")
+    fact = aibom_agent_inventory.get_fact_by_id("aibom_nist_ai_agent_inventory")
     sample_results = [
         {
             "source_id": "source-1",
@@ -147,7 +145,7 @@ def test_nist_ai_aibom_parse_results_preserves_lists_and_extra_fields():
         }
     ]
 
-    findings = nist_ai_aibom_agent_inventory.parse_results(fact, sample_results)
+    findings = aibom_agent_inventory.parse_results(fact, sample_results)
 
     assert len(findings) == 1
     finding = findings[0]
@@ -159,16 +157,16 @@ def test_nist_ai_aibom_parse_results_preserves_lists_and_extra_fields():
     assert finding.extra["traceability_note"] == "captured from AIBOM"
 
 
-def test_nist_ai_admin_ai_app_authorizations_count_query_counts_distinct_apps():
-    fact = nist_ai_admin_ai_app_authorizations.get_fact_by_id(
+def test_ai_admin_app_authorizations_count_query_counts_distinct_apps():
+    fact = ai_admin_app_authorizations.get_fact_by_id(
         "gw_nist_ai_admin_app_authorizations"
     )
 
     assert "RETURN COUNT(DISTINCT app) AS count" in fact.cypher_count_query
 
 
-def test_nist_ai_admin_ai_app_authorizations_include_delegated_admins():
-    fact = nist_ai_admin_ai_app_authorizations.get_fact_by_id(
+def test_ai_admin_app_authorizations_include_delegated_admins():
+    fact = ai_admin_app_authorizations.get_fact_by_id(
         "gw_nist_ai_admin_app_authorizations"
     )
 
@@ -178,7 +176,7 @@ def test_nist_ai_admin_ai_app_authorizations_include_delegated_admins():
 
 
 def test_nist_ai_openai_api_key_query_avoids_invalid_grouping_expression():
-    fact = nist_ai_provider_api_key_hygiene.get_fact_by_id(
+    fact = ai_provider_api_key_hygiene.get_fact_by_id(
         "openai_nist_ai_stale_or_unowned_api_keys"
     )
 
@@ -187,7 +185,7 @@ def test_nist_ai_openai_api_key_query_avoids_invalid_grouping_expression():
 
 
 def test_nist_ai_openai_api_key_query_includes_project_scoped_keys():
-    fact = nist_ai_provider_api_key_hygiene.get_fact_by_id(
+    fact = ai_provider_api_key_hygiene.get_fact_by_id(
         "openai_nist_ai_stale_or_unowned_api_keys"
     )
 
@@ -207,15 +205,15 @@ def test_nist_ai_openai_api_key_query_includes_project_scoped_keys():
 
 
 def test_nist_ai_aibom_coverage_gap_count_query_counts_all_sources():
-    fact = nist_ai_aibom_coverage_gaps.get_fact_by_id("aibom_nist_ai_coverage_gaps")
+    fact = aibom_coverage_gaps.get_fact_by_id("aibom_nist_ai_coverage_gaps")
 
     assert fact.cypher_count_query.strip() == (
         "MATCH (source:AIBOMSource)\n    RETURN COUNT(source) AS count"
     )
 
 
-def test_nist_ai_aibom_agent_inventory_stages_embedding_aggregation():
-    fact = nist_ai_aibom_agent_inventory.get_fact_by_id("aibom_nist_ai_agent_inventory")
+def test_aibom_agent_inventory_stages_embedding_aggregation():
+    fact = aibom_agent_inventory.get_fact_by_id("aibom_nist_ai_agent_inventory")
 
     assert "OPTIONAL MATCH (agent)-[:USES_EMBEDDING]->(embedding:AIEmbedding)" in (
         fact.cypher_query

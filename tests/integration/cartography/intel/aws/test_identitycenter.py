@@ -306,6 +306,21 @@ def test_link_sso_user_to_permission_set(neo4j_session):
             ps["PermissionSetArn"],
         )
     }
+    # Canonical ontology edge created in parallel with the deprecated one.
+    assert check_rels(
+        neo4j_session,
+        "AWSSSOUser",
+        "id",
+        "AWSPermissionSet",
+        "arn",
+        "HAS_ROLE",
+        True,
+    ) == {
+        (
+            user["UserId"],
+            ps["PermissionSetArn"],
+        )
+    }
 
 
 def test_group_allowed_by_role(neo4j_session):

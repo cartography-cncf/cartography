@@ -90,9 +90,9 @@ _k8s_cluster_admin_usage = Fact(
     maturity=Maturity.EXPERIMENTAL,
 )
 
-cis_k8s_5_1_1_cluster_admin_usage = Rule(
-    id="cis_k8s_5_1_1_cluster_admin_usage",
-    name="CIS K8s 5.1.1: Cluster-Admin Role Usage",
+kubernetes_cluster_admin_role_usage = Rule(
+    id="kubernetes_cluster_admin_role_usage",
+    name="Cluster-Admin Role Usage",
     description=(
         "The cluster-admin role provides wide-ranging powers over the environment "
         "and should be used only where and when needed. Review all bindings to "
@@ -199,9 +199,9 @@ _k8s_secret_access_roles = Fact(
     maturity=Maturity.EXPERIMENTAL,
 )
 
-cis_k8s_5_1_2_secret_access = Rule(
-    id="cis_k8s_5_1_2_secret_access",
-    name="CIS K8s 5.1.2: Roles Granting Access to Secrets",
+kubernetes_roles_grant_secret_access = Rule(
+    id="kubernetes_roles_grant_secret_access",
+    name="Roles Granting Access to Secrets",
     description=(
         "Access to secrets stored within the Kubernetes cluster should be restricted "
         "to the smallest possible group of users to reduce the risk of privilege escalation. "
@@ -316,9 +316,9 @@ _k8s_wildcard_roles = Fact(
     maturity=Maturity.EXPERIMENTAL,
 )
 
-cis_k8s_5_1_3_wildcard_roles = Rule(
-    id="cis_k8s_5_1_3_wildcard_roles",
-    name="CIS K8s 5.1.3: Wildcard Use in Roles and ClusterRoles",
+kubernetes_wildcard_roles = Rule(
+    id="kubernetes_wildcard_roles",
+    name="Wildcard Use in Roles and ClusterRoles",
     description=(
         "Kubernetes Roles and ClusterRoles should not use wildcard (*) for resources "
         "or verbs. Wildcards grant broad access that may inadvertently include new "
@@ -422,9 +422,9 @@ _k8s_pod_create_roles = Fact(
     maturity=Maturity.EXPERIMENTAL,
 )
 
-cis_k8s_5_1_4_pod_create_access = Rule(
-    id="cis_k8s_5_1_4_pod_create_access",
-    name="CIS K8s 5.1.4: Roles Granting Pod Creation",
+kubernetes_roles_grant_pod_creation = Rule(
+    id="kubernetes_roles_grant_pod_creation",
+    name="Roles Granting Pod Creation",
     description=(
         "The ability to create pods in a namespace can provide opportunities for "
         "privilege escalation. Access to create new pods should be restricted to "
@@ -612,9 +612,9 @@ _k8s_default_sa_automount_enabled = Fact(
     maturity=Maturity.EXPERIMENTAL,
 )
 
-cis_k8s_5_1_5_default_sa_bindings = Rule(
-    id="cis_k8s_5_1_5_default_sa_bindings",
-    name="CIS K8s 5.1.5: Default Service Account Bindings",
+kubernetes_default_service_account_bindings = Rule(
+    id="kubernetes_default_service_account_bindings",
+    name="Default Service Account Bindings",
     description=(
         "The default service account should not be used to ensure that rights "
         "granted to applications can be more easily audited and reviewed. "
@@ -727,9 +727,9 @@ _k8s_system_masters_role_bindings = Fact(
     maturity=Maturity.EXPERIMENTAL,
 )
 
-cis_k8s_5_1_7_system_masters_group = Rule(
-    id="cis_k8s_5_1_7_system_masters_group",
-    name="CIS K8s 5.1.7: system:masters Group Usage",
+kubernetes_system_masters_group_usage = Rule(
+    id="kubernetes_system_masters_group_usage",
+    name="system:masters Group Usage",
     description=(
         "The system:masters group has unrestricted access to the Kubernetes API "
         "hard-coded into the API server. An authenticated user who is a member of "
@@ -832,9 +832,9 @@ _k8s_escalation_roles = Fact(
     maturity=Maturity.EXPERIMENTAL,
 )
 
-cis_k8s_5_1_8_escalation_permissions = Rule(
-    id="cis_k8s_5_1_8_escalation_permissions",
-    name="CIS K8s 5.1.8: Bind/Impersonate/Escalate Permissions",
+kubernetes_bind_impersonate_escalate_permissions = Rule(
+    id="kubernetes_bind_impersonate_escalate_permissions",
+    name="Bind/Impersonate/Escalate Permissions",
     description=(
         "Roles with impersonate, bind, or escalate permissions allow subjects to "
         "escalate their privileges beyond those explicitly granted. These permissions "
@@ -943,9 +943,9 @@ _k8s_pv_create_roles = Fact(
     maturity=Maturity.EXPERIMENTAL,
 )
 
-cis_k8s_5_1_9_pv_create_access = Rule(
-    id="cis_k8s_5_1_9_pv_create_access",
-    name="CIS K8s 5.1.9: Roles Granting Persistent Volume Creation",
+kubernetes_roles_grant_persistent_volume_creation = Rule(
+    id="kubernetes_roles_grant_persistent_volume_creation",
+    name="Roles Granting Persistent Volume Creation",
     description=(
         "The ability to create persistent volumes can provide privilege escalation "
         "via hostPath volumes, bypassing Pod Security Admission controls."
@@ -1014,9 +1014,9 @@ _k8s_node_proxy_clusterroles = Fact(
     maturity=Maturity.EXPERIMENTAL,
 )
 
-cis_k8s_5_1_10_node_proxy_access = Rule(
-    id="cis_k8s_5_1_10_node_proxy_access",
-    name="CIS K8s 5.1.10: Node Proxy Sub-Resource Access",
+kubernetes_node_proxy_subresource_access = Rule(
+    id="kubernetes_node_proxy_subresource_access",
+    name="Node Proxy Sub-Resource Access",
     description=(
         "Access to the proxy sub-resource of nodes provides direct access to the "
         "kubelet API, bypassing audit logging and admission control. This access "
@@ -1088,9 +1088,9 @@ _k8s_csr_approval_clusterroles = Fact(
     maturity=Maturity.EXPERIMENTAL,
 )
 
-cis_k8s_5_1_11_csr_approval_access = Rule(
-    id="cis_k8s_5_1_11_csr_approval_access",
-    name="CIS K8s 5.1.11: CSR Approval Sub-Resource Access",
+kubernetes_csr_approval_subresource_access = Rule(
+    id="kubernetes_csr_approval_subresource_access",
+    name="CSR Approval Sub-Resource Access",
     description=(
         "Users with access to approve CertificateSigningRequests can create new "
         "client certificates, effectively allowing creation of high-privileged user accounts."
@@ -1174,9 +1174,9 @@ _k8s_webhook_config_clusterroles = Fact(
     maturity=Maturity.EXPERIMENTAL,
 )
 
-cis_k8s_5_1_12_webhook_config_access = Rule(
-    id="cis_k8s_5_1_12_webhook_config_access",
-    name="CIS K8s 5.1.12: Webhook Configuration Access",
+kubernetes_webhook_configuration_access = Rule(
+    id="kubernetes_webhook_configuration_access",
+    name="Webhook Configuration Access",
     description=(
         "Users with rights to create, modify, or delete webhook configurations "
         "can control webhooks that read or mutate any object admitted to the cluster, "
@@ -1248,9 +1248,9 @@ _k8s_sa_token_creation_clusterroles = Fact(
     maturity=Maturity.EXPERIMENTAL,
 )
 
-cis_k8s_5_1_13_sa_token_creation = Rule(
-    id="cis_k8s_5_1_13_sa_token_creation",
-    name="CIS K8s 5.1.13: Service Account Token Creation Access",
+kubernetes_service_account_token_creation_access = Rule(
+    id="kubernetes_service_account_token_creation_access",
+    name="Service Account Token Creation Access",
     description=(
         "Users with rights to create service account tokens can create long-lived "
         "privileged credentials that persist even after the user's account is revoked."
