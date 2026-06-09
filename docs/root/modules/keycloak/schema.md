@@ -26,7 +26,7 @@ ROLE -- INCLUDES --> ROLE
 U -- HAS_IDENTITY --> IDP
 U -- MANAGED_MEMBER_OF --> O
 U -- UNMANAGED_MEMBER_OF --> O
-U == ASSUME_ROLE ==> ROLE
+U == HAS_ROLE ==> ROLE
 U == ASSUME_SCOPE ==> S
 O -- ENFORCES --> IDP
 OD -- BELONGS_TO --> O
@@ -303,9 +303,9 @@ Represents a user in the Keycloak realm with authentication and profile informat
     ```
     (:KeycloakUser)-[:HAS_IDENTITY]->(:KeycloakIdentityProvider)
     ```
-- `KeycloakUser` can assume Role (this can be direct definition or inherited from groups)
+- `KeycloakUser` is granted a Role (direct definition or inherited from groups).
     ```
-    (:KeycloakUser)-[:ASSUME_ROLE]->(:KeycloakRole)
+    (:KeycloakUser)-[:HAS_ROLE]->(:KeycloakRole)
     ```
 - `KeycloakUser` can assume Scope (drawn by analysis job)
     ```
@@ -360,9 +360,9 @@ Represents a role in Keycloak that defines permissions and can be assigned to us
     ```
     (:KeycloakRole)-[:INDIRECT_GRANTS]->(:KeycloakScope)
     ```
-- `KeycloakUser` can assume Role (this can be direct definition or inherited from groups)
+- `KeycloakUser` is granted a Role (direct definition or inherited from groups).
     ```
-    (:KeycloakUser)-[:ASSUME_ROLE]->(:KeycloakRole)
+    (:KeycloakUser)-[:HAS_ROLE]->(:KeycloakRole)
     ```
 
 

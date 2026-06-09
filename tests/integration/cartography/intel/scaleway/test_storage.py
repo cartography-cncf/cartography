@@ -120,6 +120,17 @@ def test_load_scaleway_snapshots(_mock_get, neo4j_session):
         == expected_nodes
     )
 
+    # Assert - Snapshot semantic label + normalized _ont_* fields. Scaleway
+    # exposes name + region (zone) + created_at; encrypted/public/source_id are
+    # intentionally unset (the source volume is linked via the HAS relationship).
+    assert check_nodes(
+        neo4j_session,
+        "Snapshot",
+        ["_ont_name", "_ont_region", "_ont_source"],
+    ) == {
+        ("image-gateway_snap_0", "fr-par-1", "scaleway"),
+    }
+
     # Assert Project exists
     assert check_nodes(neo4j_session, "ScalewayProject", ["id"]) == {(TEST_PROJECT_ID,)}
 

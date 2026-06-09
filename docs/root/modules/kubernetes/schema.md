@@ -108,9 +108,7 @@ Representation of a [Kubernetes Namespace.](https://kubernetes.io/docs/concepts/
 #### Relationships
 - All namespace-scoped resources belong to a `KubernetesNamespace`.
     ```
-    (:KubernetesNamespace)-[:CONTAINS]->(:KubernetesPod,
-                                         :KubernetesContainer,
-                                         :KubernetesService,
+    (:KubernetesNamespace)-[:CONTAINS]->(:KubernetesService,
                                          :KubernetesSecret,
                                          :KubernetesIngress,
                                          :KubernetesServiceAccount,
@@ -158,16 +156,6 @@ Representation of a [Kubernetes Pod.](https://kubernetes.io/docs/concepts/worklo
 - `KubernetesPod` uses a `KubernetesServiceAccount`.
     ```
     (:KubernetesPod)-[:USES_SERVICE_ACCOUNT]->(:KubernetesServiceAccount)
-    ```
-
-- `KubernetesPod` has `KubernetesContainer`. (DEPRECATED: replaced by `WORKLOAD_PARENT`, will be removed in v1.0.0)
-    ```
-    (:KubernetesPod)-[:CONTAINS]->(:KubernetesContainer)
-    ```
-
-- A `KubernetesNamespace` contains a `KubernetesPod`. (DEPRECATED: replaced by `WORKLOAD_PARENT`, will be removed in v1.0.0)
-    ```
-    (:KubernetesNamespace)-[:CONTAINS]->(:KubernetesPod)
     ```
 
 - `KubernetesPod` points at its parent `KubernetesNamespace` via the unified workload chain.
@@ -222,11 +210,6 @@ Representation of a [Kubernetes Container.](https://kubernetes.io/docs/concepts/
 
 
 #### Relationships
-- `KubernetesPod` has `KubernetesContainer`. (DEPRECATED: replaced by `WORKLOAD_PARENT`, will be removed in v1.0.0)
-    ```
-    (:KubernetesPod)-[:CONTAINS]->(:KubernetesContainer)
-    ```
-
 - `KubernetesContainer` points at its parent `KubernetesPod` via the unified workload chain.
     ```
     (:KubernetesContainer)-[:WORKLOAD_PARENT]->(:KubernetesPod)
