@@ -1,3 +1,5 @@
+import json
+
 import pytest
 
 from cartography.intel.aws import permission_relationships
@@ -642,3 +644,133 @@ def test_permissions_list():
         assert False
     except ValueError:
         assert True
+
+
+# --- IAM Condition modeling (issue #2250) ---
+
+
+def test_extract_condition_context_keys_from_json_string():
+    blob = json.dumps(
+        [
+            {"IpAddress": {"aws:SourceIp": "10.0.0.0/8"}},
+            {"Bool": {"aws:MultiFactorAuthPresent": "true"}},
+        ],
+    )
+    assert permission_relationships.extract_condition_context_keys(blob) == [
+        "aws:MultiFactorAuthPresent",
+        "aws:SourceIp",
+    ]
+
+
+def test_extract_condition_context_keys_handles_empty_and_malformed():
+    assert permission_relationships.extract_condition_context_keys(None) == []
+    assert permission_relationships.extract_condition_context_keys("") == []
+    assert permission_relationships.extract_condition_context_keys("not-json") == []
+
+
+def test_collect_edge_conditions_unconditional():
+    policies = {
+        "AllowS3": [
+            {
+                "action": ["s3:GetObject"],
+                "resource": ["*"],
+                "effect": "Allow",
+            },
+        ],
+    }
+    result = permission_relationships.collect_edge_conditions(
+        policies,
+        "arn:aws:s3:::testbucket",
+        ["S3:GetObject"],
+    )
+    assert result == {"has_condition": False, "condition_keys": [], "conditions": None}
+
+
+def test_collect_edge_conditions_conditional():
+    condition = json.dumps([{"IpAddress": {"aws:SourceIp": "10.0.0.0/8"}}])
+    policies = {
+        "AllowS3FromVpn": [
+            {
+                "action": ["s3:GetObject"],
+                "resource": ["*"],
+                "effect": "Allow",
+                "condition": condition,
+            },
+        ],
+    }
+    result = permission_relationships.collect_edge_conditions(
+        policies,
+        "arn:aws:s3:::testbucket",
+        ["S3:GetObject"],
+    )
+    assert result["has_condition"] is True
+    assert result["condition_keys"] == ["aws:SourceIp"]
+    assert json.loads(result["conditions"]) == json.loads(condition)
+
+
+def test_collect_edge_conditions_unconditional_path_wins():
+    # If one matching Allow is conditional but another grants the same access
+    # unconditionally, the edge is effectively unconditional.
+    condition = json.dumps([{"IpAddress": {"aws:SourceIp": "10.0.0.0/8"}}])
+    policies = {
+        "Conditional": [
+            {
+                "action": ["s3:GetObject"],
+                "resource": ["*"],
+                "effect": "Allow",
+                "condition": condition,
+            },
+        ],
+        "Unconditional": [
+            {
+                "action": ["s3:*"],
+                "resource": ["*"],
+                "effect": "Allow",
+            },
+        ],
+    }
+    result = permission_relationships.collect_edge_conditions(
+        policies,
+        "arn:aws:s3:::testbucket",
+        ["S3:GetObject"],
+    )
+    assert result["has_condition"] is False
+
+
+def test_calculate_permission_relationships_flags_conditional_edge():
+    condition = json.dumps([{"Bool": {"aws:MultiFactorAuthPresent": "true"}}])
+    principals = {
+        "arn:aws:iam::000000000000:role/Conditional": {
+            "MFAOnly": [
+                {
+                    "action": ["s3:GetObject"],
+                    "resource": ["*"],
+                    "effect": "Allow",
+                    "condition": condition,
+                },
+            ],
+        },
+        "arn:aws:iam::000000000000:role/Open": {
+            "Open": [
+                {
+                    "action": ["s3:GetObject"],
+                    "resource": ["*"],
+                    "effect": "Allow",
+                },
+            ],
+        },
+    }
+    mappings = permission_relationships.calculate_permission_relationships(
+        principals,
+        ["arn:aws:s3:::testbucket"],
+        ["S3:GetObject"],
+    )
+    by_principal = {m["principal_arn"]: m for m in mappings}
+    assert (
+        by_principal["arn:aws:iam::000000000000:role/Conditional"]["has_condition"]
+        is True
+    )
+    assert by_principal["arn:aws:iam::000000000000:role/Conditional"][
+        "condition_keys"
+    ] == ["aws:MultiFactorAuthPresent"]
+    assert by_principal["arn:aws:iam::000000000000:role/Open"]["has_condition"] is False
