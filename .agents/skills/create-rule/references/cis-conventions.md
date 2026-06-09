@@ -44,9 +44,11 @@ id="cis_aws_1_14_access_key_not_rotated"
 
 Rules are reusable security detections. Compliance controls are one mapping onto a detection, and multiple frameworks may map to the same rule.
 
-Keep the provider in the rule ID when it is part of the detection concept, such as `aws_access_keys_not_rotated` or `gcp_default_network_exists`. Keep the framework, benchmark revision, requirement, and control title in `frameworks=`.
+Keep the provider in the rule ID when it is part of the detection concept, such as `aws_access_keys_not_rotated` or `gcp_default_network_exists`. Keep the framework, benchmark revision, requirement/control id, and external control title in `frameworks=`.
 
-A compliance UI can render a control-specific label from `{framework label} {requirement}: {framework.title}` without changing `Rule.name`.
+A compliance UI can render a control-specific label from `{framework label} {requirement}: {framework.control_title}` without changing `Rule.name`.
+
+Many Cartography rules may map to the same external control. Do not prefix rule IDs or rule names with framework/control labels like `CIS AWS 6.5`.
 
 ## File naming
 
@@ -91,7 +93,7 @@ from cartography.rules.data.frameworks.cis import cis_aws
 frameworks=(cis_aws("1.14"),)
 ```
 
-For a framework without a helper or known lookup title, set `Framework.title` directly:
+For a framework without a helper or known lookup control title, set `Framework.control_title` directly:
 
 ```python
 frameworks=(
@@ -101,7 +103,7 @@ frameworks=(
         scope="aws",
         revision="5.0",
         requirement="1.14",
-        title="Ensure access keys are rotated every 90 days or less",
+        control_title="Ensure access keys are rotated every 90 days or less",
     ),
 )
 ```

@@ -121,6 +121,6 @@ def test_iso27001_mapped_rules_have_control_titles():
             if framework.short_name != "27001":
                 continue
 
-            assert framework.title is not None
+            assert framework.control_title is not None
             if framework.requirement in expected_titles:
-                assert framework.title == expected_titles[framework.requirement]
+                assert framework.control_title == expected_titles[framework.requirement]

@@ -39,7 +39,7 @@ def test_list_command_invalid_rule_exits():
     assert "Unknown rule" in result.stdout or "Unknown rule" in result.stderr
 
 
-def test_list_command_includes_framework_title_when_present():
+def test_list_command_includes_framework_control_title_when_present():
     result = runner.invoke(app, ["list", "--framework", "CIS:kubernetes:1.12"])
 
     assert result.exit_code == 0

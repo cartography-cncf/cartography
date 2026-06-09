@@ -146,8 +146,8 @@ def _format_framework_mapping(fw: Framework) -> str:
     if fw.revision:
         fw_parts.append(fw.revision)
     fw_str = f"{':'.join(fw_parts)} ({fw.requirement})"
-    if fw.title:
-        fw_str = f"{fw_str} {fw.title}"
+    if fw.control_title:
+        fw_str = f"{fw_str} {fw.control_title}"
     return fw_str
 
 
@@ -173,7 +173,7 @@ def _framework_sort_key(
         _natural_sort_key(fw.scope),
         _natural_sort_key(fw.revision),
         _natural_sort_key(fw.requirement),
-        fw.title.casefold() if fw.title else "",
+        fw.control_title.casefold() if fw.control_title else "",
     )
 
 
@@ -220,13 +220,13 @@ def frameworks_cmd() -> None:
         # Count rules using this framework
         rule_count = sum(1 for rule in RULES.values() if rule.has_framework(short_name))
         typer.echo(f"  Rules: {rule_count}")
-        titled_controls = sorted(
-            {fw for fw in fws if fw.title},
+        controls_with_titles = sorted(
+            {fw for fw in fws if fw.control_title},
             key=_framework_sort_key,
         )
-        if titled_controls:
+        if controls_with_titles:
             typer.echo("  Controls:")
-            for fw in titled_controls:
+            for fw in controls_with_titles:
                 typer.echo(f"    - {_format_framework_mapping(fw)}")
         typer.echo()
 

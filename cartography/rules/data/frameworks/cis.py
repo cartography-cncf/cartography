@@ -125,45 +125,51 @@ def _control_title(requirement: str, titles: dict[str, str]) -> str | None:
     return titles.get(requirement.strip().lower())
 
 
-def cis_aws(requirement: str, title: str | None = None) -> Framework:
+def cis_aws(requirement: str, control_title: str | None = None) -> Framework:
     return Framework(
         name=CIS_AWS_FRAMEWORK_NAME,
         short_name=CIS_FRAMEWORK_SHORT_NAME,
         scope=CIS_AWS_SCOPE,
         revision=CIS_AWS_REVISION,
         requirement=requirement,
-        title=title or _control_title(requirement, CIS_AWS_CONTROL_TITLES),
+        control_title=control_title
+        or _control_title(requirement, CIS_AWS_CONTROL_TITLES),
     )
 
 
-def cis_gcp(requirement: str, title: str | None = None) -> Framework:
+def cis_gcp(requirement: str, control_title: str | None = None) -> Framework:
     return Framework(
         name=CIS_GCP_FRAMEWORK_NAME,
         short_name=CIS_FRAMEWORK_SHORT_NAME,
         requirement=requirement,
         scope=CIS_GCP_SCOPE,
         revision=CIS_GCP_REVISION,
-        title=title or _control_title(requirement, CIS_GCP_CONTROL_TITLES),
+        control_title=control_title
+        or _control_title(requirement, CIS_GCP_CONTROL_TITLES),
     )
 
 
-def cis_kubernetes(requirement: str, title: str | None = None) -> Framework:
+def cis_kubernetes(requirement: str, control_title: str | None = None) -> Framework:
     return Framework(
         name=CIS_KUBERNETES_FRAMEWORK_NAME,
         short_name=CIS_FRAMEWORK_SHORT_NAME,
         scope=CIS_KUBERNETES_SCOPE,
         revision=CIS_KUBERNETES_REVISION,
         requirement=requirement,
-        title=title or _control_title(requirement, CIS_KUBERNETES_CONTROL_TITLES),
+        control_title=control_title
+        or _control_title(requirement, CIS_KUBERNETES_CONTROL_TITLES),
     )
 
 
-def cis_google_workspace(requirement: str, title: str | None = None) -> Framework:
+def cis_google_workspace(
+    requirement: str, control_title: str | None = None
+) -> Framework:
     return Framework(
         name=CIS_GOOGLE_WORKSPACE_FRAMEWORK_NAME,
         short_name=CIS_FRAMEWORK_SHORT_NAME,
         scope=CIS_GOOGLE_WORKSPACE_SCOPE,
         revision=CIS_GOOGLE_WORKSPACE_REVISION,
         requirement=requirement,
-        title=title or _control_title(requirement, CIS_GOOGLE_WORKSPACE_CONTROL_TITLES),
+        control_title=control_title
+        or _control_title(requirement, CIS_GOOGLE_WORKSPACE_CONTROL_TITLES),
     )

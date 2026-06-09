@@ -39,12 +39,13 @@ ISO27001_ANNEX_A_TITLES = {
 }
 
 
-def iso27001_annex_a(requirement: str, title: str | None = None) -> Framework:
+def iso27001_annex_a(requirement: str, control_title: str | None = None) -> Framework:
     normalized_requirement = requirement.strip().lower()
     return Framework(
         name=ISO27001_FRAMEWORK_NAME,
         short_name=ISO27001_SHORT_NAME,
         revision=ISO27001_REVISION,
         requirement=requirement,
-        title=title or ISO27001_ANNEX_A_TITLES.get(normalized_requirement),
+        control_title=control_title
+        or ISO27001_ANNEX_A_TITLES.get(normalized_requirement),
     )

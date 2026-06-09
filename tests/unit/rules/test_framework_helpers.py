@@ -64,16 +64,24 @@ def test_framework_helpers_preserve_framework_metadata():
         ),
     ]
 
-    for framework, name, short_name, scope, revision, requirement, title in helpers:
+    for (
+        framework,
+        name,
+        short_name,
+        scope,
+        revision,
+        requirement,
+        control_title,
+    ) in helpers:
         assert framework.name == name
         assert framework.short_name == short_name
         assert framework.scope == scope
         assert framework.revision == revision
         assert framework.requirement == requirement
-        assert framework.title == title
+        assert framework.control_title == control_title
 
 
-def test_framework_helpers_allow_explicit_title_override():
-    framework = cis_aws("4.1", title="Custom control title")
+def test_framework_helpers_allow_explicit_control_title_override():
+    framework = cis_aws("4.1", control_title="Custom control title")
 
-    assert framework.title == "Custom control title"
+    assert framework.control_title == "Custom control title"

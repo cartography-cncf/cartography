@@ -12,13 +12,7 @@ RULE_DATA_DIR = Path(__file__).parents[3] / "cartography" / "rules" / "data" / "
 COMPLIANCE_NAME_PREFIX = re.compile(
     r"^(CIS AWS|CIS GCP|CIS Google Workspace|CIS Kubernetes|CIS K8s|NIST AI RMF)\b"
 )
-FRAMEWORK_TITLE_ARG = re.compile(
-    r"\b("
-    r"cis_aws|cis_gcp|cis_google_workspace|cis_kubernetes|"
-    r"iso27001_annex_a|nist_ai_rmf"
-    r")\([^)]*\btitle\s*=",
-    re.DOTALL,
-)
+INLINE_CONTROL_TITLE_ARG = re.compile(r"\bcontrol_title\s*=")
 
 
 def test_rule_ids_do_not_use_compliance_prefixes():
@@ -34,12 +28,39 @@ def test_rule_names_do_not_use_compliance_control_prefixes():
 def test_rule_framework_mappings_have_control_titles():
     for rule in RULES.values():
         for framework in rule.frameworks:
-            assert framework.title is not None, (rule.id, framework)
+            assert framework.control_title is not None, (rule.id, framework)
 
 
 def test_rule_definitions_do_not_inline_framework_control_titles():
     for path in RULE_DATA_DIR.glob("*.py"):
-        assert not FRAMEWORK_TITLE_ARG.search(path.read_text()), str(path)
+        assert not INLINE_CONTROL_TITLE_ARG.search(path.read_text()), str(path)
+
+
+def test_multiple_rules_can_map_to_same_framework_control():
+    mappings: dict[tuple[str, str | None, str | None, str, str | None], set[str]] = {}
+    for rule in RULES.values():
+        for framework in rule.frameworks:
+            key = (
+                framework.short_name,
+                framework.scope,
+                framework.revision,
+                framework.requirement,
+                framework.control_title,
+            )
+            mappings.setdefault(key, set()).add(rule.id)
+
+    privileged_access_rights = (
+        "27001",
+        None,
+        "2022",
+        "8.2",
+        "Privileged access rights",
+    )
+    assert {
+        "identity_administration_privileges",
+        "policy_administration_privileges",
+        "kubernetes_bind_impersonate_escalate_permissions",
+    }.issubset(mappings[privileged_access_rights])
 
 
 def test_framework_mappings_remain_on_renamed_rules():
@@ -88,19 +109,25 @@ def test_framework_mappings_remain_on_renamed_rules():
         ),
     }
 
-    for rule_id, (short_name, scope, revision, requirement, title) in expected.items():
+    for rule_id, (
+        short_name,
+        scope,
+        revision,
+        requirement,
+        control_title,
+    ) in expected.items():
         rule = RULES[rule_id]
         assert any(
             fw.short_name == short_name
             and fw.scope == scope
             and fw.revision == revision
             and fw.requirement == requirement
-            and fw.title == title
+            and fw.control_title == control_title
             for fw in rule.frameworks
         )
 
 
-def test_rule_name_and_framework_title_can_differ():
+def test_rule_name_and_framework_control_title_can_differ():
     rule = RULES["kubernetes_bind_impersonate_escalate_permissions"]
     fw = next(
         fw
@@ -110,10 +137,10 @@ def test_rule_name_and_framework_title_can_differ():
 
     assert rule.name == "Bind/Impersonate/Escalate Permissions"
     assert (
-        fw.title
+        fw.control_title
         == "Limit use of the Bind, Impersonate and Escalate permissions in the Kubernetes cluster"
     )
-    assert rule.name != fw.title
+    assert rule.name != fw.control_title
 
 
 def test_framework_filtering_returns_renamed_rule_ids():
@@ -136,7 +163,7 @@ def test_framework_filtering_returns_renamed_rule_ids():
     )
 
 
-def test_framework_title_is_serialized_in_rule_results():
+def test_framework_control_title_is_serialized_in_rule_results():
     rule = RULES["kubernetes_bind_impersonate_escalate_permissions"]
     result = RuleResult(
         rule_id=rule.id,
@@ -154,6 +181,7 @@ def test_framework_title_is_serialized_in_rule_results():
     )
 
     assert (
-        cis_framework["title"]
+        cis_framework["control_title"]
         == "Limit use of the Bind, Impersonate and Escalate permissions in the Kubernetes cluster"
     )
+    assert "title" not in cis_framework

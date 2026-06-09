@@ -15,12 +15,13 @@ NIST_AI_RMF_CONTROL_TITLES = {
 }
 
 
-def nist_ai_rmf(requirement: str, title: str | None = None) -> Framework:
+def nist_ai_rmf(requirement: str, control_title: str | None = None) -> Framework:
     normalized_requirement = requirement.strip().lower()
     return Framework(
         name=NIST_AI_RMF_FRAMEWORK_NAME,
         short_name=NIST_AI_RMF_SHORT_NAME,
         requirement=requirement,
         revision=NIST_AI_RMF_REVISION,
-        title=title or NIST_AI_RMF_CONTROL_TITLES.get(normalized_requirement),
+        control_title=control_title
+        or NIST_AI_RMF_CONTROL_TITLES.get(normalized_requirement),
     )

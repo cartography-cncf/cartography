@@ -10,10 +10,10 @@ from cartography.rules.spec.model import Framework
 Framework(
     name="CIS AWS Foundations Benchmark",  # full framework name
     short_name="CIS",                       # abbreviated name for filtering
-    requirement="1.14",                     # specific requirement identifier
+    requirement="1.14",                     # specific requirement/control id
     scope="aws",                            # optional: platform/domain (aws, gcp, googleworkspace)
     revision="5.0",                         # optional: framework version
-    title="Ensure access keys are rotated every 90 days or less",  # optional: control title
+    control_title="Ensure access keys are rotated every 90 days or less",  # optional: external control title
 )
 ```
 
@@ -21,8 +21,8 @@ Behaviour:
 
 - Matching fields are **case-insensitive** and normalised to lowercase internally.
 - `scope` should match the Cartography module identifier (e.g. `aws`, `gcp`, `googleworkspace`).
-- `requirement` is the specific control number from the framework.
-- `title` is user-facing control copy. Preserve display casing and do not use it for matching or filtering.
+- `requirement` is the specific requirement/control id from the framework, such as `5.1.8`, `8.2`, or `govern 5`.
+- `control_title` is user-facing control copy. Preserve display casing and do not use it for matching or filtering.
 
 ## Adding a Framework to a Rule
 
@@ -43,7 +43,9 @@ my_rule = Rule(
 
 Compliance-specific tags like `cis:1.14` and `cis:aws-5.0` must be **removed** from `tags` and replaced with a `Framework`. Keep only category tags (`iam`, `credentials`, `stride:*`) in `tags`.
 
-Rule identity stays framework-neutral. A compliance UI can render framework-specific labels from `{framework label} {requirement}: {framework.title}` without changing `Rule.name`.
+Rule identity stays framework-neutral. A compliance UI can render framework-specific labels from `{framework label} {requirement}: {framework.control_title}` without changing `Rule.name`.
+
+`Rule.name` should describe the security detection in Cartography terms. `Framework.control_title` should describe the external framework control or requirement. Many Cartography rules may map to the same external framework control.
 
 ## CLI filtering
 
