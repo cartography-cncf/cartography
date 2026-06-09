@@ -541,3 +541,52 @@ def test_load_pod_to_secret_relationships(neo4j_session, _create_test_cluster):
         pod_name="my-service-pod",
     )
     assert result.single()["count"] == 0
+
+
+def test_pod_uses_secret_both_mount_methods(neo4j_session, _create_test_cluster):
+    """A secret consumed both as a volume and via env yields a single canonical
+    USES_SECRET edge whose mount_method records both methods (no overwrite)."""
+    from cartography.intel.kubernetes.secrets import load_secrets
+    from tests.data.kubernetes.secrets import KUBERNETES_SECRETS_DATA
+
+    load_secrets(
+        neo4j_session,
+        KUBERNETES_SECRETS_DATA,
+        update_tag=TEST_UPDATE_TAG,
+        cluster_id=KUBERNETES_CLUSTER_IDS[0],
+        cluster_name=KUBERNETES_CLUSTER_NAMES[0],
+    )
+
+    namespace = KUBERNETES_CLUSTER_1_NAMESPACES_DATA[-1]["name"]
+    secret_id = f"{KUBERNETES_CLUSTER_NAMES[0]}/{namespace}/my-secret-1"
+    dual_use_pod = {
+        "uid": "dual-secret-pod-uid",
+        "name": "dual-secret-pod",
+        "status_phase": "Running",
+        "namespace": namespace,
+        # Same secret referenced both ways.
+        "secret_volume_ids": [secret_id],
+        "secret_env_ids": [secret_id],
+    }
+    load_pods(
+        neo4j_session,
+        [dual_use_pod],
+        update_tag=TEST_UPDATE_TAG,
+        cluster_id=KUBERNETES_CLUSTER_IDS[0],
+        cluster_name=KUBERNETES_CLUSTER_NAMES[0],
+    )
+
+    rows = list(
+        neo4j_session.run(
+            """
+            MATCH (pod:KubernetesPod {name: $pod_name})-[r:USES_SECRET]->(secret:KubernetesSecret)
+            RETURN secret.name AS secret, r.mount_method AS mount_method
+            """,
+            pod_name="dual-secret-pod",
+        )
+    )
+    # Exactly one canonical edge, carrying both methods rather than one
+    # overwriting the other.
+    assert [(r["secret"], r["mount_method"]) for r in rows] == [
+        ("my-secret-1", "volume,env"),
+    ]

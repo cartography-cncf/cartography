@@ -108,12 +108,28 @@ class S3BucketToKMSKeyRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 # Canonical ontology edge: (:ObjectStorage)-[:ENCRYPTED_BY]->(:EncryptionKey).
-# Only created when default encryption uses a customer-managed KMS key
-# (encryption_key_id holds the KMS key ARN).
+# Created when default encryption uses a customer-managed KMS key and
+# `KMSMasterKeyID` is reported as the key ARN.
 class S3BucketToKMSKeyRel(CartographyRelSchema):
     target_node_label: str = "KMSKey"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"arn": PropertyRef("encryption_key_id")},
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "ENCRYPTED_BY"
+    properties: S3BucketToKMSKeyRelProperties = S3BucketToKMSKeyRelProperties()
+
+
+@dataclass(frozen=True)
+# Same canonical edge as above, but matching when `KMSMasterKeyID` is reported as
+# a bare key id rather than a full ARN (S3 returns either form depending on how
+# the bucket policy was configured). The two matchers are mutually exclusive, so
+# a bucket gets at most one ENCRYPTED_BY edge. Alias references (alias/<name>)
+# are not resolved here as they point at a KMSAlias node, not a KMSKey.
+class S3BucketToKMSKeyByIdRel(CartographyRelSchema):
+    target_node_label: str = "KMSKey"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"id": PropertyRef("encryption_key_id")},
     )
     direction: LinkDirection = LinkDirection.OUTWARD
     rel_label: str = "ENCRYPTED_BY"
@@ -130,6 +146,7 @@ class S3BucketEncryptionSchema(CartographyNodeSchema):
     other_relationships: OtherRelationships = OtherRelationships(
         [
             S3BucketToKMSKeyRel(),
+            S3BucketToKMSKeyByIdRel(),
         ]
     )
 

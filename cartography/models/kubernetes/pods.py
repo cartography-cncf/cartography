@@ -152,6 +152,11 @@ class KubernetesPodToSecretEnvRel(CartographyRelSchema):
     )
 
 
+# The canonical USES_SECRET edge collapses the volume/env distinction into a
+# single (:ComputePod)-[:USES_SECRET]->(:Secret) edge carrying the injection
+# method on the `mount_method` property. To avoid one method overwriting the
+# other when a pod uses the same secret both ways, the source id lists are
+# disjoint (volume-only, env-only, both), so each edge is written exactly once.
 @dataclass(frozen=True)
 class KubernetesPodToSecretVolumeUsesSecretRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
@@ -164,7 +169,9 @@ class KubernetesPodToSecretVolumeUsesSecretRel(CartographyRelSchema):
     target_node_label: str = "KubernetesSecret"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {
-            "composite_id": PropertyRef("secret_volume_ids", one_to_many=True),
+            "composite_id": PropertyRef(
+                "secret_uses_volume_only_ids", one_to_many=True
+            ),
         }
     )
     direction: LinkDirection = LinkDirection.OUTWARD
@@ -186,13 +193,36 @@ class KubernetesPodToSecretEnvUsesSecretRel(CartographyRelSchema):
     target_node_label: str = "KubernetesSecret"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {
-            "composite_id": PropertyRef("secret_env_ids", one_to_many=True),
+            "composite_id": PropertyRef("secret_uses_env_only_ids", one_to_many=True),
         }
     )
     direction: LinkDirection = LinkDirection.OUTWARD
     rel_label: str = "USES_SECRET"
     properties: KubernetesPodToSecretEnvUsesSecretRelProperties = (
         KubernetesPodToSecretEnvUsesSecretRelProperties()
+    )
+
+
+@dataclass(frozen=True)
+class KubernetesPodToSecretBothUsesSecretRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    mount_method: PropertyRef = PropertyRef("secret_mount_both", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+# Canonical ontology edge: (:ComputePod)-[:USES_SECRET]->(:Secret),
+# mount_method="volume,env" for secrets consumed both as a volume and via env.
+class KubernetesPodToSecretBothUsesSecretRel(CartographyRelSchema):
+    target_node_label: str = "KubernetesSecret"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {
+            "composite_id": PropertyRef("secret_uses_both_ids", one_to_many=True),
+        }
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "USES_SECRET"
+    properties: KubernetesPodToSecretBothUsesSecretRelProperties = (
+        KubernetesPodToSecretBothUsesSecretRelProperties()
     )
 
 
@@ -254,5 +284,6 @@ class KubernetesPodSchema(CartographyNodeSchema):
             KubernetesPodToSecretEnvRel(),
             KubernetesPodToSecretVolumeUsesSecretRel(),
             KubernetesPodToSecretEnvUsesSecretRel(),
+            KubernetesPodToSecretBothUsesSecretRel(),
         ]
     )
