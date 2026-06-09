@@ -32,6 +32,28 @@ It can also be used to absract many different permissions into one. This example
 ```
 If a principal has any of the permission it will be mapped
 
+#### Target preconditions
+
+An RPR may declare a `target_precondition` so the edge is only drawn when the target resource also satisfies a graph condition, in addition to the IAM permission. This is useful when a permission is only meaningful if the resource is in a particular state.
+
+For example, a principal can only open an SSM Session Manager shell on an EC2 instance if it has `ssm:StartSession` **and** the instance is actually managed by SSM (it has an `(:EC2Instance)-[:HAS_INFORMATION]->(:SSMInstanceInformation)` edge). See issue #1643.
+
+```yaml
+- target_label: EC2Instance
+  permissions:
+  - ssm:StartSession
+  relationship_name: CAN_START_SESSION
+  target_precondition:
+    related_label: SSMInstanceInformation
+    relationship: HAS_INFORMATION
+    direction: outgoing
+```
+
+A `target_precondition` accepts:
+- `related_label` (string) - the label of the node the resource must be connected to.
+- `relationship` (string) - the relationship type connecting them.
+- `direction` (string) - `outgoing` (default) for `(resource)-[rel]->(related)`, or `incoming` for `(resource)<-[rel]-(related)`.
+
 ### IAM policy conditions on permission edges
 
 IAM policy statements can carry a `Condition` block (for example, restricting access to a corporate IP range or requiring MFA). AWS evaluates conditions at request time, so Cartography cannot statically decide whether a conditional grant resolves to allow or deny. Instead, every permission edge is annotated so you can reason about conditional access yourself:

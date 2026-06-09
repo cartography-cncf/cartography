@@ -457,20 +457,49 @@ def get_principals_for_account(neo4j_session: neo4j.Session, account_id: str) ->
     return principals
 
 
+def build_target_precondition_clause(precondition: Dict | None) -> str:
+    """Build a Cypher WHERE fragment for an optional target precondition.
+
+    A precondition requires the candidate resource to be connected to a node of a given
+    label via a given relationship. This lets a permission relationship require graph
+    state in addition to IAM permissions (e.g. an EC2 instance must be managed by SSM
+    before a CAN_START_SESSION edge is drawn). See issue #1643.
+
+    The precondition dict accepts:
+    - related_label (str): the label of the node the resource must be connected to
+    - relationship (str): the relationship type connecting them
+    - direction (str): "outgoing" (default) for (resource)-[rel]->(related) or
+      "incoming" for (resource)<-[rel]-(related)
+    """
+    if not precondition:
+        return ""
+    related_label = precondition["related_label"]
+    relationship = precondition["relationship"]
+    direction = precondition.get("direction", "outgoing").lower()
+    if direction == "incoming":
+        pattern = f"(resource)<-[:{relationship}]-(:{related_label})"
+    else:
+        pattern = f"(resource)-[:{relationship}]->(:{related_label})"
+    return f"AND EXISTS {{ MATCH {pattern} }}"
+
+
 def get_resource_arns(
     neo4j_session: neo4j.Session,
     account_id: str,
     node_label: str,
+    target_precondition: Dict | None = None,
 ) -> List[Any]:
     get_resource_query = Template(
         """
     MATCH (acc:AWSAccount{id:$AccountId})-[:RESOURCE]->(resource:$node_label)
     WHERE resource.arn IS NOT NULL
+    $precondition_clause
     return resource.arn as arn
     """,
     )
     get_resource_query_template = get_resource_query.safe_substitute(
         node_label=node_label,
+        precondition_clause=build_target_precondition_clause(target_precondition),
     )
     return neo4j_session.execute_read(
         read_list_of_values_tx,
@@ -570,6 +599,14 @@ def is_valid_rpr(rpr: Dict) -> bool:
         if field not in rpr:
             return False
 
+    precondition = rpr.get("target_precondition")
+    if precondition is not None:
+        if not isinstance(precondition, dict):
+            return False
+        for field in ("related_label", "relationship"):
+            if field not in precondition:
+                return False
+
     return True
 
 
@@ -600,16 +637,19 @@ def sync(
             raise ValueError(
                 """
         Resource permission relationship is missing fields.
-        Required fields: permissions, relationship_name, target_label"
+        Required fields: permissions, relationship_name, target_label.
+        Optional target_precondition requires: related_label, relationship.
         """,
             )
         permissions = rpr["permissions"]
         relationship_name = rpr["relationship_name"]
         target_label = rpr["target_label"]
+        target_precondition = rpr.get("target_precondition")
         resource_arns = get_resource_arns(
             neo4j_session,
             current_aws_account_id,
             target_label,
+            target_precondition,
         )
         logger.info(
             "Syncing relationship '%s' for node label '%s'",

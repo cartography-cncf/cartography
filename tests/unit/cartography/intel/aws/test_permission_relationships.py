@@ -617,6 +617,82 @@ def test_evaluate_clause_with_none_match():
         permission_relationships.evaluate_clause("*", None)
 
 
+# --- Target preconditions on permission relationships (issue #1643) ---
+
+
+def test_build_target_precondition_clause_empty():
+    assert permission_relationships.build_target_precondition_clause(None) == ""
+    assert permission_relationships.build_target_precondition_clause({}) == ""
+
+
+def test_build_target_precondition_clause_outgoing():
+    clause = permission_relationships.build_target_precondition_clause(
+        {
+            "related_label": "SSMInstanceInformation",
+            "relationship": "HAS_INFORMATION",
+            "direction": "outgoing",
+        },
+    )
+    assert (
+        clause
+        == "AND EXISTS { MATCH (resource)-[:HAS_INFORMATION]->(:SSMInstanceInformation) }"
+    )
+
+
+def test_build_target_precondition_clause_defaults_to_outgoing():
+    clause = permission_relationships.build_target_precondition_clause(
+        {
+            "related_label": "SSMInstanceInformation",
+            "relationship": "HAS_INFORMATION",
+        },
+    )
+    assert "(resource)-[:HAS_INFORMATION]->(:SSMInstanceInformation)" in clause
+
+
+def test_build_target_precondition_clause_incoming():
+    clause = permission_relationships.build_target_precondition_clause(
+        {
+            "related_label": "SomeNode",
+            "relationship": "POINTS_TO",
+            "direction": "incoming",
+        },
+    )
+    assert clause == "AND EXISTS { MATCH (resource)<-[:POINTS_TO]-(:SomeNode) }"
+
+
+def test_is_valid_rpr_accepts_valid_precondition():
+    assert permission_relationships.is_valid_rpr(
+        {
+            "permissions": ["ssm:StartSession"],
+            "relationship_name": "CAN_START_SESSION",
+            "target_label": "EC2Instance",
+            "target_precondition": {
+                "related_label": "SSMInstanceInformation",
+                "relationship": "HAS_INFORMATION",
+            },
+        },
+    )
+
+
+def test_is_valid_rpr_rejects_malformed_precondition():
+    assert not permission_relationships.is_valid_rpr(
+        {
+            "permissions": ["ssm:StartSession"],
+            "relationship_name": "CAN_START_SESSION",
+            "target_label": "EC2Instance",
+            "target_precondition": {"related_label": "SSMInstanceInformation"},
+        },
+    )
+    assert not permission_relationships.is_valid_rpr(
+        {
+            "permissions": ["ssm:StartSession"],
+            "relationship_name": "CAN_START_SESSION",
+            "target_label": "EC2Instance",
+            "target_precondition": "not-a-dict",
+        },
+    )
+
+
 def test_permission_file_load():
     mapping = permission_relationships.parse_permission_relationships_file(
         "cartography/data/permission_relationships.yaml",
