@@ -46,7 +46,7 @@ def test_framework_helpers_preserve_framework_metadata():
         ),
         (
             iso27001_annex_a("8.15"),
-            "iso/iec 27001:2022 annex a",
+            "iso 27001",
             "27001",
             None,
             "2022",

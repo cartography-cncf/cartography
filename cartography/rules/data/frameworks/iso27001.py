@@ -1,14 +1,14 @@
-"""ISO/IEC 27001:2022 Annex A framework helpers.
+"""ISO 27001 framework helpers.
 
 Cartography exposes this as framework short name "27001" because users usually
-run compliance reporting against ISO/IEC 27001. The requirement identifiers
-below are Annex A control identifiers from ISO/IEC 27001:2022, which are
-derived from and aligned with ISO/IEC 27002:2022 controls.
+run compliance reporting against ISO 27001. The requirement identifiers below
+are Annex A control identifiers from ISO/IEC 27001:2022, which are derived from
+and aligned with ISO/IEC 27002:2022 controls.
 """
 
 from cartography.rules.spec.model import Framework
 
-ISO27001_FRAMEWORK_NAME = "ISO/IEC 27001:2022 Annex A"
+ISO27001_FRAMEWORK_NAME = "ISO 27001"
 ISO27001_SHORT_NAME = "27001"
 ISO27001_REVISION = "2022"
 

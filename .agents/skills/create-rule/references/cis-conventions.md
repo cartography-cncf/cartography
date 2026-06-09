@@ -93,6 +93,10 @@ from cartography.rules.data.frameworks.cis import cis_aws
 frameworks=(cis_aws("1.14"),)
 ```
 
+Each CIS helper encodes the one active benchmark revision Cartography supports for that benchmark scope today. If multiple CIS revisions need to be active at once, add version-aware helpers or explicit `Framework(...)` mappings instead of overloading one helper.
+
+For helpers with known canonical control-title lookups, prefer the helper default. Only pass `control_title=` to a helper when the central lookup is intentionally not correct for that mapping.
+
 For a framework without a helper or known lookup control title, set `Framework.control_title` directly:
 
 ```python

@@ -12,7 +12,14 @@ RULE_DATA_DIR = Path(__file__).parents[3] / "cartography" / "rules" / "data" / "
 COMPLIANCE_NAME_PREFIX = re.compile(
     r"^(CIS AWS|CIS GCP|CIS Google Workspace|CIS Kubernetes|CIS K8s|NIST AI RMF)\b"
 )
-INLINE_CONTROL_TITLE_ARG = re.compile(r"\bcontrol_title\s*=")
+HELPER_CONTROL_TITLE_ARG = re.compile(
+    r"\b("
+    r"cis_aws|cis_gcp|cis_google_workspace|cis_kubernetes|"
+    r"iso27001_annex_a|nist_ai_rmf"
+    r")\([^)]*\bcontrol_title\s*=",
+    re.DOTALL,
+)
+ALLOWED_HELPER_CONTROL_TITLE_OVERRIDES: dict[str, tuple[str, ...]] = {}
 
 
 def test_rule_ids_do_not_use_compliance_prefixes():
@@ -31,9 +38,14 @@ def test_rule_framework_mappings_have_control_titles():
             assert framework.control_title is not None, (rule.id, framework)
 
 
-def test_rule_definitions_do_not_inline_framework_control_titles():
+def test_rule_definitions_use_framework_helper_default_control_titles():
     for path in RULE_DATA_DIR.glob("*.py"):
-        assert not INLINE_CONTROL_TITLE_ARG.search(path.read_text()), str(path)
+        allowed_helpers = ALLOWED_HELPER_CONTROL_TITLE_OVERRIDES.get(path.name, ())
+        inline_helpers = {
+            match.group(1)
+            for match in HELPER_CONTROL_TITLE_ARG.finditer(path.read_text())
+        }
+        assert inline_helpers - set(allowed_helpers) == set(), str(path)
 
 
 def test_multiple_rules_can_map_to_same_framework_control():

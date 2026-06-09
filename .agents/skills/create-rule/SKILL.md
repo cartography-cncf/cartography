@@ -190,6 +190,8 @@ Compliance-style tags like `cis:1.14`, `cis:aws-5.0` must NOT live in `tags`. CL
 
 For framework helpers with known canonical controls, the helper fills `Framework.control_title`. For custom mappings, set `Framework(control_title="...")` to the external framework control or requirement title. Keep `Rule.name` as reusable Cartography security copy. Many Cartography rules may map to the same framework control.
 
+Framework helpers encode the one active revision Cartography supports for each benchmark scope today. If Cartography needs to report against multiple benchmark revisions later, add version-aware helpers or explicit framework objects instead of mixing revisions in one helper.
+
 For deeper framework guidance, including CIS benchmark conventions (rule names, IDs, file naming, headers, references), see `references/compliance-frameworks.md` and `references/cis-conventions.md`.
 
 ## Cross-provider rules

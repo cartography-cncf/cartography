@@ -24,6 +24,8 @@ Behaviour:
 - `requirement` is the specific requirement/control id from the framework, such as `5.1.8`, `8.2`, or `govern 5`.
 - `control_title` is user-facing control copy. Preserve display casing and do not use it for matching or filtering.
 
+Framework helpers encode the one active revision Cartography supports for each benchmark scope today. If multiple benchmark revisions need to be active at once, add version-aware helpers or explicit `Framework(...)` mappings instead of overloading one helper.
+
 ## Adding a Framework to a Rule
 
 ```python
@@ -46,6 +48,8 @@ Compliance-specific tags like `cis:1.14` and `cis:aws-5.0` must be **removed** f
 Rule identity stays framework-neutral. A compliance UI can render framework-specific labels from `{framework label} {requirement}: {framework.control_title}` without changing `Rule.name`.
 
 `Rule.name` should describe the security detection in Cartography terms. `Framework.control_title` should describe the external framework control or requirement. Many Cartography rules may map to the same external framework control.
+
+For helpers with known canonical control-title lookups, prefer `cis_aws("1.14")` over passing `control_title=` inline. Only override a helper title when the central lookup is intentionally not correct for that mapping.
 
 ## CLI filtering
 
