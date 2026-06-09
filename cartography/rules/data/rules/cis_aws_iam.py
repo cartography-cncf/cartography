@@ -394,15 +394,135 @@ cis_aws_2_18_expired_certificates = Rule(
     ),
 )
 
-# =============================================================================
-# TODO: CIS AWS 2.3: No root user account access key exists
-# Missing datamodel or evidence: root account summary or credential report fields such as AccountAccessKeysPresent
-# =============================================================================
 
 # =============================================================================
-# TODO: CIS AWS 2.4: MFA is enabled for the root user account
-# Missing datamodel or evidence: root account summary fields such as AccountMFAEnabled and AccountPasswordPresent
+# CIS AWS 2.3: No root user account access key exists
+# Main node: AWSAccount
 # =============================================================================
+class RootAccessKeyOutput(Finding):
+    """Output model for the root access key check."""
+
+    account_id: str | None = None
+    account: str | None = None
+    account_access_keys_present: int | None = None
+
+
+_aws_root_access_key_present = Fact(
+    id="aws_root_access_key_present",
+    name="AWS account with a root user access key",
+    description=(
+        "Detects AWS accounts whose root user has an access key. Root access keys "
+        "grant unrestricted access to the account and cannot be scoped down, so they "
+        "should be removed entirely. The signal comes from the IAM account summary "
+        "field AccountAccessKeysPresent."
+    ),
+    cypher_query="""
+    MATCH (a:AWSAccount)
+    WHERE a.account_access_keys_present = 1
+    RETURN
+        a.id AS account_id,
+        a.name AS account,
+        a.account_access_keys_present AS account_access_keys_present
+    """,
+    cypher_visual_query="""
+    MATCH p=(a:AWSAccount)
+    WHERE a.account_access_keys_present = 1
+    RETURN *
+    """,
+    cypher_count_query="""
+    MATCH (a:AWSAccount)
+    WHERE a.account_access_keys_present IS NOT NULL
+    RETURN COUNT(a) AS count
+    """,
+    identity_fields=("account_id",),
+    module=Module.AWS,
+    maturity=Maturity.STABLE,
+)
+
+cis_aws_2_3_root_access_key = Rule(
+    id="cis_aws_2_3_root_access_key",
+    name="CIS AWS 2.3: No Root User Access Key Exists",
+    description=(
+        "The root user should not have any access keys. Root access keys grant "
+        "unrestricted access to the account and cannot be scoped down, so they "
+        "should be removed entirely."
+    ),
+    output_model=RootAccessKeyOutput,
+    facts=(_aws_root_access_key_present,),
+    tags=("iam", "credentials", "root", "stride:elevation_of_privilege"),
+    version="1.0.0",
+    references=CIS_REFERENCES,
+    frameworks=(
+        cis_aws("2.3"),
+        iso27001_annex_a("8.2"),
+        iso27001_annex_a("5.17"),
+    ),
+)
+
+
+# =============================================================================
+# CIS AWS 2.4: MFA is enabled for the root user account
+# Main node: AWSAccount
+# =============================================================================
+class RootMfaDisabledOutput(Finding):
+    """Output model for the root MFA check."""
+
+    account_id: str | None = None
+    account: str | None = None
+    account_mfa_enabled: int | None = None
+
+
+_aws_root_mfa_disabled = Fact(
+    id="aws_root_mfa_disabled",
+    name="AWS account without MFA enabled for the root user",
+    description=(
+        "Detects AWS accounts where multi-factor authentication is not enabled for "
+        "the root user. The root user has unrestricted access, so it should always be "
+        "protected with MFA. The signal comes from the IAM account summary field "
+        "AccountMFAEnabled."
+    ),
+    cypher_query="""
+    MATCH (a:AWSAccount)
+    WHERE a.account_mfa_enabled = 0
+    RETURN
+        a.id AS account_id,
+        a.name AS account,
+        a.account_mfa_enabled AS account_mfa_enabled
+    """,
+    cypher_visual_query="""
+    MATCH p=(a:AWSAccount)
+    WHERE a.account_mfa_enabled = 0
+    RETURN *
+    """,
+    cypher_count_query="""
+    MATCH (a:AWSAccount)
+    WHERE a.account_mfa_enabled IS NOT NULL
+    RETURN COUNT(a) AS count
+    """,
+    identity_fields=("account_id",),
+    module=Module.AWS,
+    maturity=Maturity.STABLE,
+)
+
+cis_aws_2_4_root_mfa = Rule(
+    id="cis_aws_2_4_root_mfa",
+    name="CIS AWS 2.4: MFA Enabled For Root User",
+    description=(
+        "Multi-factor authentication should be enabled for the root user. The root "
+        "user has unrestricted access to the account, so it must always be protected "
+        "with an additional authentication factor."
+    ),
+    output_model=RootMfaDisabledOutput,
+    facts=(_aws_root_mfa_disabled,),
+    tags=("iam", "credentials", "root", "stride:spoofing"),
+    version="1.0.0",
+    references=CIS_REFERENCES,
+    frameworks=(
+        cis_aws("2.4"),
+        iso27001_annex_a("8.5"),
+        iso27001_annex_a("8.2"),
+    ),
+)
 
 # =============================================================================
 # TODO: CIS AWS 2.7: IAM password policy requires minimum length of 14 or greater
@@ -419,10 +539,84 @@ cis_aws_2_18_expired_certificates = Rule(
 # Missing datamodel or evidence: credential report fields for password_enabled and mfa_active on IAM users
 # =============================================================================
 
+
 # =============================================================================
-# TODO: CIS AWS 2.15: IAM policies that allow full *:* administrative privileges are not attached
-# Missing datamodel or evidence: parsed policy documents for managed and inline IAM policies, plus attachments to users, groups, and roles
+# CIS AWS 2.15: IAM policies that allow full *:* administrative privileges
+# Main node: AWSPolicy
 # =============================================================================
+class AdminPolicyAttachedOutput(Finding):
+    """Output model for the full administrative privileges check."""
+
+    policy_id: str | None = None
+    policy_arn: str | None = None
+    policy_name: str | None = None
+    statement_sid: str | None = None
+    principal_arn: str | None = None
+    account_id: str | None = None
+    account: str | None = None
+
+
+_aws_admin_policy_attached = Fact(
+    id="aws_admin_policy_attached",
+    name="AWS IAM policy granting full administrative privileges",
+    description=(
+        "Detects managed or inline IAM policies attached to a user, group, or role "
+        "that grant full '*:*' administrative privileges, i.e. an Allow statement "
+        "whose action includes '*' (or '*:*') on resource '*'. Such policies violate "
+        "least privilege and should be replaced with scoped permissions. Inline "
+        "policies have no ARN, so policy.id is used as the stable identifier."
+    ),
+    cypher_query="""
+    MATCH (a:AWSAccount)-[:RESOURCE]->(principal:AWSPrincipal)-[:POLICY]->(policy:AWSPolicy)-[:STATEMENT]->(stmt:AWSPolicyStatement)
+    WHERE stmt.effect = 'Allow'
+      AND any(action IN stmt.action WHERE action = '*' OR action = '*:*')
+      AND any(resource IN stmt.resource WHERE resource = '*')
+    RETURN DISTINCT
+        policy.id AS policy_id,
+        policy.arn AS policy_arn,
+        policy.name AS policy_name,
+        stmt.sid AS statement_sid,
+        principal.arn AS principal_arn,
+        a.id AS account_id,
+        a.name AS account
+    """,
+    cypher_visual_query="""
+    MATCH p=(a:AWSAccount)-[:RESOURCE]->(principal:AWSPrincipal)-[:POLICY]->(policy:AWSPolicy)-[:STATEMENT]->(stmt:AWSPolicyStatement)
+    WHERE stmt.effect = 'Allow'
+      AND any(action IN stmt.action WHERE action = '*' OR action = '*:*')
+      AND any(resource IN stmt.resource WHERE resource = '*')
+    RETURN *
+    """,
+    cypher_count_query="""
+    MATCH (:AWSPrincipal)-[:POLICY]->(policy:AWSPolicy)
+    RETURN COUNT(DISTINCT policy.id) AS count
+    """,
+    asset_id_field="policy_id",
+    identity_fields=("policy_id", "principal_arn"),
+    module=Module.AWS,
+    maturity=Maturity.STABLE,
+)
+
+cis_aws_2_15_admin_policy = Rule(
+    id="cis_aws_2_15_admin_policy",
+    name="CIS AWS 2.15: No Full Administrative Privilege Policies Attached",
+    description=(
+        "IAM policies that allow full '*:*' administrative privileges should not be "
+        "attached to users, groups, or roles. Granting full administrative access "
+        "violates the principle of least privilege and broadens the blast radius of "
+        "a compromised identity."
+    ),
+    output_model=AdminPolicyAttachedOutput,
+    facts=(_aws_admin_policy_attached,),
+    tags=("iam", "policies", "stride:elevation_of_privilege"),
+    version="1.0.0",
+    references=CIS_REFERENCES,
+    frameworks=(
+        cis_aws("2.15"),
+        iso27001_annex_a("8.2"),
+        iso27001_annex_a("5.18"),
+    ),
+)
 
 # =============================================================================
 # TODO: CIS AWS 2.16: A support role has been created to manage incidents with AWS Support

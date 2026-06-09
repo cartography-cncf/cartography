@@ -1,5 +1,5 @@
-from unittest.mock import MagicMock
 import json
+from unittest.mock import MagicMock
 
 import pytest
 from googleapiclient.errors import HttpError

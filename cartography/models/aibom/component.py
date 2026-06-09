@@ -77,6 +77,32 @@ class AIBOMComponentDetectedInRel(CartographyRelSchema):
 
 
 @dataclass(frozen=True)
+class AIBOMComponentDetectedInGitHubRel(CartographyRelSchema):
+    target_node_label: str = "GitHubRepository"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"url": PropertyRef("github_repo_urls", one_to_many=True)},
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "DETECTED_IN"
+    properties: AIBOMComponentDetectedInRelProperties = (
+        AIBOMComponentDetectedInRelProperties()
+    )
+
+
+@dataclass(frozen=True)
+class AIBOMComponentDetectedInGitLabRel(CartographyRelSchema):
+    target_node_label: str = "GitLabProject"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"web_url": PropertyRef("gitlab_project_urls", one_to_many=True)},
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "DETECTED_IN"
+    properties: AIBOMComponentDetectedInRelProperties = (
+        AIBOMComponentDetectedInRelProperties()
+    )
+
+
+@dataclass(frozen=True)
 class AIBOMComponentToComponentRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
@@ -157,6 +183,8 @@ class AIBOMComponentSchema(CartographyNodeSchema):
     other_relationships: OtherRelationships = OtherRelationships(
         [
             AIBOMComponentDetectedInRel(),
+            AIBOMComponentDetectedInGitHubRel(),
+            AIBOMComponentDetectedInGitLabRel(),
             AIBOMComponentUsesModelRel(),
             AIBOMComponentUsesToolRel(),
             AIBOMComponentExposesToolRel(),

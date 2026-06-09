@@ -8,8 +8,8 @@ including both network-level errors and HTTP 5xx server errors.
 import json
 import logging
 from typing import Any
-from typing import Collection
 from typing import cast
+from typing import Collection
 from typing import Dict
 from typing import List
 
