@@ -1,8 +1,9 @@
 ## AIBOM Schema
 
 The AIBOM module now ingests raw AIBOM `1.0.0rc4` reports directly and loads
-them into a source/component graph model that is anchored to a concrete
-ontology `:Image` node.
+them into a source/component graph model that is anchored either to a concrete
+ontology `:Image` node (for container-image scans) or to a code repository
+(`:GitHubRepository` / `:GitLabProject`) for source-code scans.
 
 - `AIBOMSource` is the primary scanned-target node.
 - `AIBOMComponent` represents one detected component occurrence within that
@@ -78,6 +79,14 @@ scanned artifact.
     (:AIBOMSource)-[:SCANNED_IMAGE]->(:Image)
     ```
 
+- A source built from a code-repository scan points to the repository it
+  scanned. Only the matching repository type present in the graph is linked.
+
+    ```
+    (:AIBOMSource)-[:SCANNED_REPOSITORY]->(:GitHubRepository)
+    (:AIBOMSource)-[:SCANNED_REPOSITORY]->(:GitLabProject)
+    ```
+
 - A source contains component occurrences.
 
     ```
@@ -144,6 +153,16 @@ Representation of one detected AI component occurrence within a source.
     (:AIBOMComponent)-[:DETECTED_IN]->(:Image)
     ```
 
+- For source-code scans, a component occurrence is detected in the code
+  repository resolved for the source. Only the matching repository type present
+  in the graph is linked: the resolved URI is matched against
+  `GitHubRepository.url` and `GitLabProject.web_url`.
+
+    ```
+    (:AIBOMComponent)-[:DETECTED_IN]->(:GitHubRepository)
+    (:AIBOMComponent)-[:DETECTED_IN]->(:GitLabProject)
+    ```
+
 - Report-defined component-to-component relationships are loaded between
   `AIBOMComponent` nodes when both endpoints resolve successfully within the
   same scanned source. During transform, the source component payload owns the
@@ -170,17 +189,20 @@ Representation of one detected AI component occurrence within a source.
 
 ### Linking constraints
 
-- AIBOM ingestion is anchored to a concrete digest-qualified source key such as
-  `repo@sha256:...`.
+- Each AIBOM source key is anchored to an existing target node before the
+  report is ingested:
+    - Digest-qualified source keys such as `repo@sha256:...` must resolve to a
+      concrete `(:Image {_ont_digest: ...})` node.
+    - Any other source key is treated as a code-repository URI and must resolve
+      to an existing `(:GitHubRepository {url: ...})` or
+      `(:GitLabProject {web_url: ...})` node.
 - `aibom_analysis.sources` must be non-empty. Empty source maps are treated as
   malformed input and fail AIBOM sync.
-- Cartography verifies that the digest resolves to an existing concrete
-  `:Image` node before the report is ingested.
 - `:ImageManifestList` and `:ImageTag` are not valid primary anchors for this
   ingestion flow.
-- If any source key is not digest-qualified, or if the exact digest does not
-  already exist as `(:Image {_ont_digest: ...})`, Cartography raises an error
-  and fails the AIBOM sync run rather than partially loading data.
+- If any source key fails to resolve to its expected target node, Cartography
+  raises an error and fails the AIBOM sync run rather than partially loading
+  data.
 
 ### Example queries
 

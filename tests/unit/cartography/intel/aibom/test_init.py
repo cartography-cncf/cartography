@@ -90,26 +90,56 @@ def test_prepare_aibom_report_for_ingestion_raises_when_image_digest_missing() -
             )
 
 
-def test_prepare_aibom_report_for_ingestion_raises_for_mixed_digest_and_non_digest_source_keys() -> (
+def test_prepare_aibom_report_for_ingestion_returns_document_for_code_repository_match() -> (
     None
 ):
     # Arrange
     neo4j_session = MagicMock()
     document: dict[str, Any] = copy.deepcopy(AIBOM_REPORT)
-    document["aibom_analysis"]["sources"]["repo:latest"] = copy.deepcopy(
-        document["aibom_analysis"]["sources"][TEST_SOURCE_KEY],
-    )
+    sources = document["aibom_analysis"]["sources"]
+    sources["https://github.com/example/repo"] = sources.pop(TEST_SOURCE_KEY)
 
-    # Act and assert
-    with pytest.raises(
-        ValueError,
-        match="contained non-digest-qualified source keys: repo:latest",
+    with patch(
+        "cartography.intel.aibom._code_repository_uri_exists",
+        return_value=True,
     ):
-        prepare_aibom_report_for_ingestion(
+        # Act
+        prepared_report = prepare_aibom_report_for_ingestion(
             neo4j_session,
             document,
             "/tmp/aibom.json",
         )
+
+    # Assert
+    assert prepared_report == document
+
+
+def test_prepare_aibom_report_for_ingestion_raises_when_code_repository_missing() -> (
+    None
+):
+    # Arrange
+    neo4j_session = MagicMock()
+    document: dict[str, Any] = copy.deepcopy(AIBOM_REPORT)
+    sources = document["aibom_analysis"]["sources"]
+    sources["https://github.com/example/repo"] = sources.pop(TEST_SOURCE_KEY)
+
+    with patch(
+        "cartography.intel.aibom._code_repository_uri_exists",
+        return_value=False,
+    ):
+        # Act and assert
+        with pytest.raises(
+            ValueError,
+            match=(
+                "did not resolve to existing GitHubRepository or GitLabProject "
+                "nodes for source keys: https://github.com/example/repo"
+            ),
+        ):
+            prepare_aibom_report_for_ingestion(
+                neo4j_session,
+                document,
+                "/tmp/aibom.json",
+            )
 
 
 def test_prepare_aibom_report_for_ingestion_raises_when_sources_are_empty() -> None:

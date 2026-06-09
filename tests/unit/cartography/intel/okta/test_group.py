@@ -4,10 +4,13 @@ from typing import List
 from unittest import mock
 
 import pytest
+from okta.framework.OktaError import OktaError
 
 from cartography.intel.okta.groups import get_okta_group_members
+from cartography.intel.okta.groups import sync_okta_group_membership
 from cartography.intel.okta.groups import transform_okta_group
 from cartography.intel.okta.groups import transform_okta_group_member_list
+from cartography.intel.okta.utils import OKTA_RESOURCE_NOT_FOUND_ERROR_CODE
 from tests.data.okta.groups import create_test_group
 from tests.data.okta.groups import GROUP_MEMBERS_SAMPLE_DATA
 
@@ -152,3 +155,43 @@ def test_get_okta_group_members_raises_on_malformed_next_link() -> None:
 
     api_client.get_path.assert_called_once()
     api_client.get.assert_not_called()
+
+
+@mock.patch("cartography.intel.okta.groups.load_okta_group_members")
+@mock.patch("cartography.intel.okta.groups.get_okta_group_members")
+def test_sync_okta_group_membership_skips_deleted_group(
+    mock_get_members: mock.MagicMock,
+    mock_load_members: mock.MagicMock,
+) -> None:
+    """
+    A group deleted between listing and membership fetch returns a "resource not
+    found" OktaError; that group is skipped and the sync continues.
+    """
+    neo4j_session = mock.MagicMock()
+    api_client = mock.MagicMock()
+    group_list_info = [{"id": "deleted-group"}, {"id": "live-group"}]
+    mock_get_members.side_effect = [
+        OktaError({"errorCode": OKTA_RESOURCE_NOT_FOUND_ERROR_CODE}),
+        GROUP_MEMBERS_SAMPLE_DATA,
+    ]
+
+    sync_okta_group_membership(neo4j_session, api_client, group_list_info, 1)
+
+    # Only the live group is loaded; the deleted one is skipped.
+    mock_load_members.assert_called_once()
+    assert mock_load_members.call_args.args[1] == "live-group"
+
+
+@mock.patch("cartography.intel.okta.groups.get_okta_group_members")
+def test_sync_okta_group_membership_reraises_other_okta_errors(
+    mock_get_members: mock.MagicMock,
+) -> None:
+    """
+    OktaErrors other than "resource not found" must still propagate.
+    """
+    neo4j_session = mock.MagicMock()
+    api_client = mock.MagicMock()
+    mock_get_members.side_effect = OktaError({"errorCode": "E0000011"})
+
+    with pytest.raises(OktaError):
+        sync_okta_group_membership(neo4j_session, api_client, [{"id": "group-001"}], 1)
