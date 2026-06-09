@@ -13,6 +13,7 @@ from cartography.graph.job import GraphJob
 from cartography.intel.gcp.labels import sync_labels
 from cartography.intel.gcp.util import classify_gcp_http_error
 from cartography.intel.gcp.util import gcp_api_execute_with_retry
+from cartography.intel.gcp.util import is_permission_denied_error
 from cartography.intel.gcp.util import summarize_gcp_http_error
 from cartography.models.gcp.secretsmanager.secret import GCPSecretManagerSecretSchema
 from cartography.models.gcp.secretsmanager.secret_version import (
@@ -53,7 +54,7 @@ def get_secrets(secretmanager: Resource, project_id: str) -> List[Dict]:
                 summarize_gcp_http_error(e),
             )
             return []
-        elif category == "forbidden":
+        elif is_permission_denied_error(e):
             logger.warning(
                 "You do not have secretmanager.secrets.list access to the project %s. %s",
                 project_id,
@@ -113,7 +114,7 @@ def get_secret_versions(
                 summarize_gcp_http_error(e),
             )
             return []
-        elif category == "forbidden":
+        elif is_permission_denied_error(e):
             logger.warning(
                 "You do not have secretmanager.versions.list access to the secret %s. %s",
                 secret_name,

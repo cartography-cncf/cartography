@@ -12,6 +12,7 @@ from cartography.graph.job import GraphJob
 from cartography.intel.gcp.labels import sync_labels
 from cartography.intel.gcp.util import classify_gcp_http_error
 from cartography.intel.gcp.util import gcp_api_execute_with_retry
+from cartography.intel.gcp.util import is_permission_denied_error
 from cartography.intel.gcp.util import summarize_gcp_http_error
 from cartography.models.gcp.storage.bucket import GCPBucketLabelSchema
 from cartography.models.gcp.storage.bucket import GCPBucketSchema
@@ -66,7 +67,7 @@ def get_gcp_buckets(storage: Resource, project_id: str) -> Dict:
                 summarize_gcp_http_error(e),
             )
             return {}
-        elif category == "forbidden":
+        elif is_permission_denied_error(e):
             logger.warning(
                 "You do not have storage.bucket.list access to the project %s. %s",
                 project_id,
