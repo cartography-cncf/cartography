@@ -59,18 +59,72 @@ def evaluate_action_for_permission(statement: Dict, permission: str) -> bool:
     return False
 
 
+# Prefix of every S3 bucket ARN. S3 ARNs are region- and account-less, so this
+# uniquely identifies a bucket resource. Object ARNs nest under the bucket as
+# "<bucket-arn>/<key>", which is the only AWS resource family where a "/"-scoped
+# grant in a policy maps back to the parent resource node.
+_S3_BUCKET_ARN_PREFIX = "arn:aws:s3:::"
+
+
+def evaluate_resource_clause(clause: str, resource_arn: str) -> bool:
+    """Evaluate a resource clause against a resource ARN.
+
+    For S3 buckets only, this also matches object-level grants against the
+    bucket node. An S3 object ARN nests under the bucket as
+    "<bucket-arn>/<key>", so a policy granting "s3:GetObject" on any object
+    pattern under the bucket -- "arn:aws:s3:::my-bucket/*",
+    "arn:aws:s3:::my-bucket/logs/*", "arn:aws:s3:::my-bucket/key" -- should
+    still draw an edge to the S3Bucket node "arn:aws:s3:::my-bucket". To do so
+    we compare the *bucket portion* of the clause (everything before the first
+    key separator) against the bucket ARN. This handles arbitrary key prefixes,
+    not just "<bucket>/*". See
+    https://github.com/cartography-cncf/cartography/issues/1639
+
+    This is scoped to S3 ARNs on purpose: for other resource families a "/" in
+    the ARN is part of the resource name itself (e.g. an IAM role
+    "arn:aws:iam::000000000000:role/MyRole"), so a grant on ".../MyRole/*"
+    targets a different resource path, not an object under "MyRole", and must
+    not match the parent node.
+
+    Arguments:
+        clause {str, re.Pattern} -- The resource clause to evaluate against.
+        resource_arn {str} -- The resource ARN to match.
+
+    Returns:
+        [bool] -- True if the clause matches the resource ARN, False otherwise
+    """
+    if evaluate_clause(clause, resource_arn):
+        return True
+    if not resource_arn.startswith(_S3_BUCKET_ARN_PREFIX):
+        return False
+    # The clause may be a precompiled pattern; recover its regex source so we
+    # can isolate the bucket portion. "/" is never a regex metacharacter and
+    # never appears in an S3 bucket name, so the first "/" reliably separates
+    # the bucket pattern from the object-key pattern.
+    clause_regex = compile_regex(clause).pattern
+    bucket_regex = clause_regex.split("/", 1)[0]
+    return re.fullmatch(bucket_regex, resource_arn, flags=re.IGNORECASE) is not None
+
+
 def evaluate_resource_for_permission(statement: Dict, resource_arn: str) -> bool:
     """Return whether the given IAM 'resource' statement applies to the resource_arn"""
     if "resource" not in statement:
         return False
     for clause in statement["resource"]:
-        if evaluate_clause(clause, resource_arn):
+        if evaluate_resource_clause(clause, resource_arn):
             return True
     return False
 
 
 def evaluate_notresource_for_permission(statement: Dict, resource_arn: str) -> bool:
-    """Return whether an IAM 'notresource' clause in the given statement applies to the resource_arn"""
+    """Return whether an IAM 'notresource' clause in the given statement applies to the resource_arn
+
+    Unlike 'resource', this does NOT widen object-level grants to the bucket
+    node. A "NotResource" such as "arn:aws:s3:::my-bucket/*" excludes the bucket
+    *objects*, not the bucket ARN itself, so bucket-level permissions on
+    "arn:aws:s3:::my-bucket" are still allowed by AWS and the corresponding edge
+    must not be dropped.
+    """
     if "notresource" not in statement:
         return False
     for clause in statement["notresource"]:

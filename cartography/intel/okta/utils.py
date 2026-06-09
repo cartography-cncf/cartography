@@ -4,9 +4,24 @@ import time
 
 from okta.framework import PagedResults
 from okta.framework.ApiClient import ApiClient
+from okta.framework.OktaError import OktaError
 from requests import Response
 
 logger = logging.getLogger(__name__)
+
+# Okta error code returned when a resource (e.g. a group or user) no longer
+# exists. A resource can be deleted between the moment we list it and the
+# moment we fetch a follow-up sub-resource for it.
+# https://developer.okta.com/docs/reference/error-codes/#E0000007
+OKTA_RESOURCE_NOT_FOUND_ERROR_CODE = "E0000007"
+
+
+def is_resource_not_found_error(error: OktaError) -> bool:
+    """
+    Return True if the Okta error indicates the requested resource no longer
+    exists (HTTP 404, errorCode E0000007).
+    """
+    return error.error_code == OKTA_RESOURCE_NOT_FOUND_ERROR_CODE
 
 
 def is_last_page(response: PagedResults) -> bool:
