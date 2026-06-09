@@ -33,3 +33,20 @@ It can also be used to abstract many different permissions into one. This exampl
   relationship_name: CAN_MANAGE
 ```
 If a principal has any of the permissions it will be mapped
+
+#### IAM conditions on permission edges
+
+GCP IAM bindings can carry a [condition](https://cloud.google.com/iam/docs/conditions-overview) (a CEL expression, e.g. restricting access to business hours or a resource tag). These bindings used to be dropped, which understated access. They are now retained and the resulting permission edge is annotated so you can reason about conditional access. GCP evaluates conditions at request time, so cartography cannot statically decide whether the condition holds.
+
+- `has_condition` (bool) - `true` when every binding that grants the edge is conditional. If any matching binding grants the access unconditionally, this is `false`.
+- `condition_title` (string) - the title(s) of the matching condition(s).
+- `condition_expression` (string) - the CEL expression(s) of the matching condition(s).
+
+Exclude conditionally-gated access from an analysis:
+```cypher
+MATCH (p:GCPPrincipal)-[r:CAN_READ]->(b:GCPBucket)
+WHERE NOT coalesce(r.has_condition, false)
+RETURN p.email, b.id
+```
+
+> Note: broad project- and dataset-scope grants are bulk-loaded for performance and only carry condition metadata when they are conditional (conditional grants are always evaluated per-resource). Unconditional broad grants may leave `has_condition` unset (null), which `coalesce(r.has_condition, false)` treats as unconditional.
