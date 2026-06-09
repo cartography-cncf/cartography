@@ -18,6 +18,7 @@ from cartography.intel.okta.sync_state import OktaSyncState
 from cartography.intel.okta.utils import check_rate_limit
 from cartography.intel.okta.utils import create_api_client
 from cartography.intel.okta.utils import is_last_page
+from cartography.intel.okta.utils import is_resource_not_found_error
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
@@ -322,7 +323,20 @@ def sync_okta_group_membership(
 
     for group_info in group_list_info:
         group_id = group_info["id"]
-        members_data: List[Dict] = get_okta_group_members(api_client, group_id)
+        try:
+            members_data: List[Dict] = get_okta_group_members(api_client, group_id)
+        except OktaError as e:
+            # A group can be deleted between listing groups and fetching its
+            # members, in which case Okta returns a "resource not found" error.
+            # Skip the group instead of failing the whole sync.
+            if is_resource_not_found_error(e):
+                logger.warning(
+                    "Okta group %s no longer exists (likely deleted during the "
+                    "sync); skipping its membership.",
+                    group_id,
+                )
+                continue
+            raise
         transformed_member_data: List[Dict] = transform_okta_group_member_list(
             members_data,
         )

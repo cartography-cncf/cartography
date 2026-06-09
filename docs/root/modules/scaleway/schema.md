@@ -346,6 +346,8 @@ Volumes are storage space used by your Instances. You can attach several volumes
 
 A snapshot takes a picture of a volume at one specific point in time. For a complete backup of your Instance, you can create an image.
 
+> **Ontology Mapping**: This node has the extra label `Snapshot` and normalized `_ont_*` properties to enable cross-platform queries for volume/database snapshots across different systems (e.g., EBSSnapshot, RDSSnapshot, AzureSnapshot).
+
 | Field           | Description                                  |
 |-----------------|----------------------------------------------|
 | id              | Snapshot ID.                                 |

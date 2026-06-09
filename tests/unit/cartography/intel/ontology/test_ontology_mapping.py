@@ -47,12 +47,31 @@ def _get_models_with_properties_for_label(
     """
     Get all models that can contribute properties to nodes with the given label.
     This includes:
-    1. Models with the exact label
-    2. Models targeting any of the extra_node_labels of the primary models (composite schemas)
+    1. Models with the exact primary label
+    2. Models that carry the label as one of their extra_node_labels (an ontology
+       mapping may target an additive provider label, e.g. GitHubDependency, whose
+       primary label is the generic Dependency)
+    3. Models targeting any of the extra_node_labels of the primary models (composite schemas)
     """
     # First get the primary models for this label
     primary_models = _get_model_by_node_label(node_label)
     all_models = list(primary_models)
+
+    # Include models that declare this label among their extra_node_labels.
+    for _, node_class in MODELS:
+        if not issubclass(node_class, CartographyNodeSchema):
+            continue
+        if node_class in all_models:
+            continue
+        instance = node_class()
+        if not instance.extra_node_labels:
+            continue
+        instance_extra_labels = {
+            label if isinstance(label, str) else label.label
+            for label in instance.extra_node_labels.labels
+        }
+        if node_label in instance_extra_labels:
+            all_models.append(node_class)
 
     # Collect all extra_node_labels from primary models
     # Need to instantiate to get the actual value (property returns None on class if not defined)

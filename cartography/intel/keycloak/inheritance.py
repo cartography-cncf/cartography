@@ -28,9 +28,15 @@ _INHERITED_MEMBER_OF_QUERY = """
 _ASSUME_ROLE_VIA_GROUP_QUERY = """
     MATCH (:KeycloakRealm {name: $REALM})-[:RESOURCE]->(u:KeycloakUser)
           -[:MEMBER_OF|INHERITED_MEMBER_OF]->(:KeycloakGroup)-[:GRANTS]->(r:KeycloakRole)
+    // DEPRECATED: ASSUME_ROLE is kept for backward compatibility alongside the
+    // canonical HAS_ROLE edge; will be removed in v1.0.0.
     MERGE (u)-[rel:ASSUME_ROLE]->(r)
     ON CREATE SET rel.firstseen = timestamp()
     SET rel.lastupdated = $UPDATE_TAG
+    // Canonical ontology edge: (:UserAccount)-[:HAS_ROLE]->(:PermissionRole)
+    MERGE (u)-[hr:HAS_ROLE]->(r)
+    ON CREATE SET hr.firstseen = timestamp()
+    SET hr.lastupdated = $UPDATE_TAG
 """
 
 _INDIRECT_GRANTS_QUERY = """
@@ -41,7 +47,7 @@ _INDIRECT_GRANTS_QUERY = """
 
 _ASSUME_SCOPE_QUERY = """
     MATCH (:KeycloakRealm {name: $REALM})-[:RESOURCE]->(u:KeycloakUser)
-          -[:ASSUME_ROLE]->(:KeycloakRole)-[:GRANTS|INDIRECT_GRANTS]->(s:KeycloakScope)
+          -[:HAS_ROLE]->(:KeycloakRole)-[:GRANTS|INDIRECT_GRANTS]->(s:KeycloakScope)
     RETURN DISTINCT u.id AS user_id, s.id AS scope_id
 """
 

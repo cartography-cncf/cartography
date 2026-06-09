@@ -80,6 +80,28 @@ def test_sync_network(
     expected_subnets = {(s["id"],) for s in MOCK_SUBNETS}
     assert check_nodes(neo4j_session, "AzureSubnet", ["id"]) == expected_subnets
 
+    # Assert - Subnet semantic label + normalized _ont_* fields. Azure subnets
+    # carry name + cidr_block; the region lives on the parent VNet, so
+    # _ont_region is intentionally unset here.
+    assert check_nodes(
+        neo4j_session,
+        "Subnet",
+        ["_ont_name", "_ont_cidr_block", "_ont_source"],
+    ) == {
+        ("subnet-with-nsg", "10.0.1.0/24", "azure"),
+        ("subnet-without-nsg", "10.0.2.0/24", "azure"),
+    }
+
+    # Assert - VirtualNetwork semantic label + normalized _ont_* fields. Azure
+    # stores the address space on subnets, so _ont_cidr is intentionally unset.
+    assert check_nodes(
+        neo4j_session,
+        "VirtualNetwork",
+        ["_ont_name", "_ont_region", "_ont_source"],
+    ) == {
+        ("my-test-vnet", "eastus", "azure"),
+    }
+
     # Assert Relationships
     vnet_id = MOCK_VNETS[0]["id"]
     nsg_id = MOCK_NSGS[0]["id"]
