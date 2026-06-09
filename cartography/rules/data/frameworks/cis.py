@@ -122,6 +122,7 @@ CIS_GOOGLE_WORKSPACE_CONTROL_TITLES = {
 
 
 def _control_title(requirement: str, titles: dict[str, str]) -> str | None:
+    # Match Framework.requirement normalization so helper lookups tolerate caller casing/spacing.
     return titles.get(requirement.strip().lower())
 
 

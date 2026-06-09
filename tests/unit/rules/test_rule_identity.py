@@ -19,7 +19,10 @@ HELPER_CONTROL_TITLE_ARG = re.compile(
     r")\([^)]*\bcontrol_title\s*=",
     re.DOTALL,
 )
-ALLOWED_HELPER_CONTROL_TITLE_OVERRIDES: dict[str, tuple[str, ...]] = {}
+# Rule files should use central helper defaults for known framework control titles.
+# If a helper's default title is intentionally wrong for a specific mapping, add
+# the file name and helper name here before passing control_title= in that rule.
+ALLOWED_HELPER_CONTROL_TITLE_OVERRIDES: dict[str, set[str]] = {}
 
 
 def test_rule_ids_do_not_use_compliance_prefixes():
@@ -40,12 +43,12 @@ def test_rule_framework_mappings_have_control_titles():
 
 def test_rule_definitions_use_framework_helper_default_control_titles():
     for path in RULE_DATA_DIR.glob("*.py"):
-        allowed_helpers = ALLOWED_HELPER_CONTROL_TITLE_OVERRIDES.get(path.name, ())
+        allowed_helpers = ALLOWED_HELPER_CONTROL_TITLE_OVERRIDES.get(path.name, set())
         inline_helpers = {
             match.group(1)
             for match in HELPER_CONTROL_TITLE_ARG.finditer(path.read_text())
         }
-        assert inline_helpers - set(allowed_helpers) == set(), str(path)
+        assert inline_helpers - allowed_helpers == set(), str(path)
 
 
 def test_multiple_rules_can_map_to_same_framework_control():
@@ -62,7 +65,7 @@ def test_multiple_rules_can_map_to_same_framework_control():
             mappings.setdefault(key, set()).add(rule.id)
 
     privileged_access_rights = (
-        "27001",
+        "iso27001",
         None,
         "2022",
         "8.2",

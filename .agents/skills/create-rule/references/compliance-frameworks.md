@@ -49,7 +49,7 @@ Rule identity stays framework-neutral. A compliance UI can render framework-spec
 
 `Rule.name` should describe the security detection in Cartography terms. `Framework.control_title` should describe the external framework control or requirement. Many Cartography rules may map to the same external framework control.
 
-For helpers with known canonical control-title lookups, prefer `cis_aws("1.14")` over passing `control_title=` inline. Only override a helper title when the central lookup is intentionally not correct for that mapping.
+For helpers with known canonical control-title lookups, prefer `cis_aws("1.14")` over passing `control_title=` inline. Only override a helper title when the central lookup is intentionally not correct for that mapping. When overriding a helper title in a rule file, add that file and helper name to `ALLOWED_HELPER_CONTROL_TITLE_OVERRIDES` in `tests/unit/rules/test_rule_identity.py`.
 
 ## CLI filtering
 
