@@ -7,6 +7,7 @@ Execute security frameworks and present facts about your environment.
 import builtins
 import logging
 import os
+import re
 from enum import Enum
 from typing import Generator
 
@@ -17,6 +18,9 @@ from cartography.rules.data.rules import RULES
 from cartography.rules.runners import get_all_frameworks
 from cartography.rules.runners import run_rules
 from cartography.rules.spec.model import Framework
+
+_NATURAL_SORT_RE = re.compile(r"(\d+)")
+_NaturalSortToken = tuple[int, int | str]
 
 app = typer.Typer(
     help="Execute Cartography security frameworks",
@@ -147,6 +151,32 @@ def _format_framework_mapping(fw: Framework) -> str:
     return fw_str
 
 
+def _natural_sort_key(value: str | None) -> tuple[_NaturalSortToken, ...]:
+    if value is None:
+        return ()
+    return tuple(
+        (0, int(part)) if part.isdigit() else (1, part.casefold())
+        for part in _NATURAL_SORT_RE.split(value)
+        if part
+    )
+
+
+def _framework_sort_key(
+    fw: Framework,
+) -> tuple[
+    tuple[_NaturalSortToken, ...],
+    tuple[_NaturalSortToken, ...],
+    tuple[_NaturalSortToken, ...],
+    str,
+]:
+    return (
+        _natural_sort_key(fw.scope),
+        _natural_sort_key(fw.revision),
+        _natural_sort_key(fw.requirement),
+        fw.title.casefold() if fw.title else "",
+    )
+
+
 @app.command(name="frameworks")  # type: ignore[misc]
 def frameworks_cmd() -> None:
     """
@@ -192,12 +222,7 @@ def frameworks_cmd() -> None:
         typer.echo(f"  Rules: {rule_count}")
         titled_controls = sorted(
             {fw for fw in fws if fw.title},
-            key=lambda fw: (
-                fw.scope or "",
-                fw.revision or "",
-                fw.requirement,
-                fw.title or "",
-            ),
+            key=_framework_sort_key,
         )
         if titled_controls:
             typer.echo("  Controls:")

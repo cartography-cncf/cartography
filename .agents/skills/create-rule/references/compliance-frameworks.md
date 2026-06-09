@@ -13,38 +13,37 @@ Framework(
     requirement="1.14",                     # specific requirement identifier
     scope="aws",                            # optional: platform/domain (aws, gcp, googleworkspace)
     revision="5.0",                         # optional: framework version
+    title="Ensure access keys are rotated every 90 days or less",  # optional: control title
 )
 ```
 
 Behaviour:
 
-- All fields are **case-insensitive** and normalised to lowercase internally.
+- Matching fields are **case-insensitive** and normalised to lowercase internally.
 - `scope` should match the Cartography module identifier (e.g. `aws`, `gcp`, `googleworkspace`).
 - `requirement` is the specific control number from the framework.
+- `title` is user-facing control copy. Preserve display casing and do not use it for matching or filtering.
 
 ## Adding a Framework to a Rule
 
 ```python
-from cartography.rules.spec.model import Framework, Rule
+from cartography.rules.data.frameworks.cis import cis_aws
+from cartography.rules.spec.model import Rule
 
 my_rule = Rule(
-    id="cis_aws_1_14_access_key_not_rotated",
-    name="CIS AWS 1.14: Access Keys Not Rotated",
+    id="aws_access_keys_not_rotated",
+    name="Access Keys Not Rotated",
     # ... other fields ...
     tags=("iam", "credentials", "stride:spoofing"),  # category tags only
     frameworks=(
-        Framework(
-            name="CIS AWS Foundations Benchmark",
-            short_name="CIS",
-            scope="aws",
-            revision="5.0",
-            requirement="1.14",
-        ),
+        cis_aws("1.14"),
     ),
 )
 ```
 
 Compliance-specific tags like `cis:1.14` and `cis:aws-5.0` must be **removed** from `tags` and replaced with a `Framework`. Keep only category tags (`iam`, `credentials`, `stride:*`) in `tags`.
+
+Rule identity stays framework-neutral. A compliance UI can render framework-specific labels from `{framework label} {requirement}: {framework.title}` without changing `Rule.name`.
 
 ## CLI filtering
 

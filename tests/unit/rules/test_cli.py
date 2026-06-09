@@ -2,9 +2,11 @@ from unittest.mock import MagicMock
 
 from typer.testing import CliRunner
 
+from cartography.rules.cli import _framework_sort_key
 from cartography.rules.cli import app
 from cartography.rules.cli import complete_facts
 from cartography.rules.cli import complete_rules
+from cartography.rules.spec.model import Framework
 
 runner = CliRunner()
 
@@ -56,6 +58,20 @@ def test_frameworks_command_includes_control_titles_when_present():
         "- cis:kubernetes:1.12 (5.1.8) Limit use of the Bind, Impersonate and Escalate permissions in the Kubernetes cluster"
         in result.stdout
     )
+
+
+def test_framework_control_sort_key_uses_natural_requirement_order():
+    frameworks = [
+        Framework("CIS Kubernetes Benchmark", "cis", "5.1.10", "kubernetes", "1.12"),
+        Framework("CIS Kubernetes Benchmark", "cis", "5.1.2", "kubernetes", "1.12"),
+        Framework("CIS Kubernetes Benchmark", "cis", "5.1.8", "kubernetes", "1.12"),
+    ]
+
+    assert [fw.requirement for fw in sorted(frameworks, key=_framework_sort_key)] == [
+        "5.1.2",
+        "5.1.8",
+        "5.1.10",
+    ]
 
 
 def test_run_command_all_with_filters_fails():
