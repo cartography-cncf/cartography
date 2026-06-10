@@ -80,8 +80,8 @@ reviews:
         Cleanup mandatory:
         Every cleanup() function must call GraphJob.from_node_schema() for each loaded schema, and GraphJob.from_matchlink() for each MatchLink.
 
-        Timestamp storage convention:
-        Timestamps are stored as Unix epoch integers across modules; manual conversion to epoch is the established convention, so do not flag it. When parsing RFC3339 or ISO 8601 strings, prefer dateutil.parser.isoparse over ad-hoc patterns like value.replace("Z", "+00:00"). Treat any change to the stored timestamp format as a coordinated cross-module refactor, not a per-module fix.
+        Store native temporal types, do not convert to epoch:
+        The convention is to store native datetime values in Neo4j, which handles datetime and ISO 8601 natively. For new or changed code, do not convert timestamps to Unix epoch integers; pass datetime or ISO 8601 values directly. When a source returns a non-ISO string, parse it with dateutil.parser.isoparse and pass the resulting datetime rather than reducing it to an epoch int. Some older modules still store epoch integers for backward compatibility; converting an existing module's timestamp format is a deliberate change, not a drive-by.
 
         Use None, not empty strings:
         For missing optional values, use None instead of "" or "N/A".
