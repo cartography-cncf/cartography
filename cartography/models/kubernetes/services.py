@@ -24,6 +24,8 @@ class KubernetesServiceNodeProperties(CartographyNodeProperties):
     cluster_ip: PropertyRef = PropertyRef("cluster_ip")
     load_balancer_ip: PropertyRef = PropertyRef("load_balancer_ip")
     load_balancer_ingress: PropertyRef = PropertyRef("load_balancer_ingress")
+    load_balancer_dns_names: PropertyRef = PropertyRef("load_balancer_dns_names")
+    tailscale_device_dns_names: PropertyRef = PropertyRef("tailscale_device_dns_names")
     cluster_name: PropertyRef = PropertyRef(
         "CLUSTER_NAME", set_in_kwargs=True, extra_index=True
     )
@@ -53,6 +55,30 @@ class KubernetesServiceToLoadBalancerV2Rel(CartographyRelSchema):
     rel_label: str = "USES_LOAD_BALANCER"
     properties: KubernetesServiceToLoadBalancerV2RelProperties = (
         KubernetesServiceToLoadBalancerV2RelProperties()
+    )
+
+
+@dataclass(frozen=True)
+class KubernetesServiceToTailscaleDeviceRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+# (:KubernetesService)-[:USES_TAILSCALE_DEVICE]->(:TailscaleDevice)
+class KubernetesServiceToTailscaleDeviceRel(CartographyRelSchema):
+    """
+    Link Tailscale-operator-backed service DNS names to the corresponding
+    Tailscale device when the Tailscale module is also synced.
+    """
+
+    target_node_label: str = "TailscaleDevice"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"name": PropertyRef("tailscale_device_dns_names", one_to_many=True)}
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "USES_TAILSCALE_DEVICE"
+    properties: KubernetesServiceToTailscaleDeviceRelProperties = (
+        KubernetesServiceToTailscaleDeviceRelProperties()
     )
 
 
@@ -132,5 +158,6 @@ class KubernetesServiceSchema(CartographyNodeSchema):
             KubernetesServiceToKubernetesNamespaceRel(),
             KubernetesServiceToKubernetesPodRel(),
             KubernetesServiceToLoadBalancerV2Rel(),
+            KubernetesServiceToTailscaleDeviceRel(),
         ]
     )

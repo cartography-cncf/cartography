@@ -26,6 +26,7 @@ class KubernetesIngressNodeProperties(CartographyNodeProperties):
     cluster_name: PropertyRef = PropertyRef("CLUSTER_NAME", set_in_kwargs=True)
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
     load_balancer_dns_names: PropertyRef = PropertyRef("load_balancer_dns_names")
+    tailscale_device_dns_names: PropertyRef = PropertyRef("tailscale_device_dns_names")
     # AWS Load Balancer Controller group name
     ingress_group_name: PropertyRef = PropertyRef(
         "ingress_group_name", extra_index=True
@@ -123,6 +124,30 @@ class KubernetesIngressToLoadBalancerV2Rel(CartographyRelSchema):
 
 
 @dataclass(frozen=True)
+class KubernetesIngressToTailscaleDeviceRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+# (:KubernetesIngress)-[:USES_TAILSCALE_DEVICE]->(:TailscaleDevice)
+class KubernetesIngressToTailscaleDeviceRel(CartographyRelSchema):
+    """
+    Link Tailscale-operator-backed ingress DNS names to the corresponding
+    Tailscale device when the Tailscale module is also synced.
+    """
+
+    target_node_label: str = "TailscaleDevice"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"name": PropertyRef("tailscale_device_dns_names", one_to_many=True)}
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "USES_TAILSCALE_DEVICE"
+    properties: KubernetesIngressToTailscaleDeviceRelProperties = (
+        KubernetesIngressToTailscaleDeviceRelProperties()
+    )
+
+
+@dataclass(frozen=True)
 class KubernetesIngressSchema(CartographyNodeSchema):
     label: str = "KubernetesIngress"
     properties: KubernetesIngressNodeProperties = KubernetesIngressNodeProperties()
@@ -134,5 +159,6 @@ class KubernetesIngressSchema(CartographyNodeSchema):
             KubernetesIngressToKubernetesNamespaceRel(),
             KubernetesIngressToKubernetesServiceRel(),
             KubernetesIngressToLoadBalancerV2Rel(),
+            KubernetesIngressToTailscaleDeviceRel(),
         ]
     )

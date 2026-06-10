@@ -147,6 +147,12 @@ Representation of a [Kubernetes Pod.](https://kubernetes.io/docs/concepts/worklo
 | **cluster\_name** | Name of the Kubernetes cluster where this pod is deployed |
 | node | Name of the Kubernetes node where this pod is currently scheduled and running. Fetched from `pod.spec.node_name`. |
 | architecture\_normalized | Canonical CPU architecture derived from the scheduled node when available (e.g. `amd64`, `arm64`). |
+| tailscale\_managed | Whether the pod is managed by the Tailscale Kubernetes operator. Derived from the `tailscale.com/managed` label. |
+| tailscale\_parent\_resource\_type | Parent Kubernetes resource type reported by the Tailscale operator, such as `ingress` or `svc`. Derived from the `tailscale.com/parent-resource-type` label. |
+| tailscale\_parent\_resource\_namespace | Namespace of the parent Kubernetes resource reported by the Tailscale operator. Derived from the `tailscale.com/parent-resource-ns` label. |
+| tailscale\_parent\_resource\_name | Name of the parent Kubernetes resource reported by the Tailscale operator. Derived from the `tailscale.com/parent-resource` label. |
+| tailscale\_parent\_ingress\_name | Parent Ingress name when `tailscale_parent_resource_type` is `ingress`. |
+| tailscale\_parent\_service\_name | Parent Service name when `tailscale_parent_resource_type` is `service` or `svc`. |
 | **exposed\_internet** | Set by analysis job. `true` if this pod is reachable from an internet-facing load balancer. |
 | exposed\_internet\_type | Set by analysis job. List of exposure types (e.g. `['lb']`). |
 | firstseen | Timestamp of when a sync job first discovered this node |
@@ -166,6 +172,12 @@ Representation of a [Kubernetes Pod.](https://kubernetes.io/docs/concepts/worklo
 - `KubernetesPod` runs on a `KubernetesNode`. Not created for unscheduled pods.
     ```
     (:KubernetesPod)-[:RUNS_ON]->(:KubernetesNode)
+    ```
+
+- A Tailscale Kubernetes operator proxy pod points at the Kubernetes resource it proxies.
+    ```
+    (:KubernetesPod)-[:TAILSCALE_PROXY_FOR]->(:KubernetesIngress)
+    (:KubernetesPod)-[:TAILSCALE_PROXY_FOR]->(:KubernetesService)
     ```
 
 - An internet-facing `AWSLoadBalancerV2` exposes a `KubernetesPod`. Created by the `k8s_lb_exposure` analysis job.
@@ -247,6 +259,8 @@ Representation of a [Kubernetes Service.](https://kubernetes.io/docs/concepts/se
 | cluster\_ip | The internal IP address assigned to the Kubernetes service within the cluster |
 | load\_balancer\_ip | IP of the load balancer when service type is `LoadBalancer` |
 | load\_balancer\_ingress | The list of load balancer ingress points, typically containing the hostname and IP. Stored as a JSON-encoded string. |
+| load\_balancer\_dns\_names | List of DNS hostnames from `status.loadBalancer.ingress[].hostname`. Used to match to cloud load balancers. |
+| tailscale\_device\_dns\_names | Normalized `.ts.net` DNS hostnames from `status.loadBalancer.ingress[].hostname`. Used to match Tailscale Kubernetes operator endpoints to `TailscaleDevice.name`. |
 | **cluster\_name** | Name of the Kubernetes cluster where this service is deployed |
 | exposed\_internet | Set by analysis job. `true` if this service is backed by an internet-facing load balancer. |
 | exposed\_internet\_type | Set by analysis job. List of exposure types (e.g. `['lb']`). |
@@ -262,6 +276,11 @@ Representation of a [Kubernetes Service.](https://kubernetes.io/docs/concepts/se
 - `KubernetesService` of type `LoadBalancer` uses an AWS `AWSLoadBalancerV2` (NLB/ALB). The relationship is matched by DNS hostname from the Kubernetes service's `status.loadBalancer.ingress[].hostname` field to the `AWSLoadBalancerV2.dnsname` property. This allows linking EKS services to their backing AWS load balancers.
     ```
     (:KubernetesService)-[:USES_LOAD_BALANCER]->(:AWSLoadBalancerV2)
+    ```
+
+- `KubernetesService` uses a Tailscale device when a `.ts.net` load balancer hostname matches `TailscaleDevice.name`. This represents private overlay exposure and does not mark the service as internet-exposed.
+    ```
+    (:KubernetesService)-[:USES_TAILSCALE_DEVICE]->(:TailscaleDevice)
     ```
 
 ### KubernetesIngress
@@ -283,6 +302,7 @@ An Ingress is an API object that manages external access to services in a cluste
 | cluster\_name | Name of the Kubernetes cluster where this Ingress is deployed |
 | **ingress\_group\_name** | The ingress group name from the `alb.ingress.kubernetes.io/group.name` annotation (AWS Load Balancer Controller). Allows multiple Ingresses to share a single ALB |
 | load\_balancer\_dns\_names | List of DNS hostnames from the Ingress status. Used to match to cloud load balancers (e.g., AWS ALB) |
+| tailscale\_device\_dns\_names | Normalized `.ts.net` DNS hostnames from the Ingress status. Used to match Tailscale Kubernetes operator endpoints to `TailscaleDevice.name`. |
 | firstseen | Timestamp of when a sync job first discovered this node |
 | **lastupdated** | Timestamp of the last time the node was updated |
 
@@ -305,6 +325,11 @@ An Ingress is an API object that manages external access to services in a cluste
 - `KubernetesIngress` uses an `AWSLoadBalancerV2`. Matched by the DNS hostname from the Ingress status to the load balancer's DNS name.
     ```
     (:KubernetesIngress)-[:USES_LOAD_BALANCER]->(:AWSLoadBalancerV2)
+    ```
+
+- `KubernetesIngress` uses a Tailscale device when a `.ts.net` load balancer hostname matches `TailscaleDevice.name`. This represents private overlay exposure and does not mark the ingress targets as internet-exposed.
+    ```
+    (:KubernetesIngress)-[:USES_TAILSCALE_DEVICE]->(:TailscaleDevice)
     ```
 
 ### KubernetesGateway

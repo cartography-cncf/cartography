@@ -99,6 +99,14 @@ def _extract_load_balancer_dns_names(
     return dns_names
 
 
+def _extract_tailscale_device_dns_names(hostnames: list[str]) -> list[str]:
+    return [
+        hostname.lower().rstrip(".")
+        for hostname in hostnames
+        if hostname and hostname.lower().rstrip(".").endswith(".ts.net")
+    ]
+
+
 def transform_ingresses(ingress: list[V1Ingress]) -> list[dict[str, Any]]:
     transformed_ingresses: list[dict[str, Any]] = []
 
@@ -148,6 +156,9 @@ def transform_ingresses(ingress: list[V1Ingress]) -> list[dict[str, Any]]:
                 "target_services": list(backend_services),
                 "ingress_group_name": ingress_group_name,
                 "load_balancer_dns_names": load_balancer_dns_names,
+                "tailscale_device_dns_names": _extract_tailscale_device_dns_names(
+                    load_balancer_dns_names,
+                ),
             }
         )
     return transformed_ingresses
