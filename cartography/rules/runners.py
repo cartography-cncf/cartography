@@ -55,6 +55,7 @@ def parse_framework_filter(
 
     if short_name and not scope:
         normalized_short_name = short_name.lower()
+        # DEPRECATED: Legacy flat framework filters will be removed in v1.0.0.
         if normalized_short_name == "iso27001":
             short_name = "iso"
             scope = "27001"
