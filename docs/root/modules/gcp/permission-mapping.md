@@ -50,3 +50,20 @@ RETURN p.email, b.id
 ```
 
 > Note: broad project- and dataset-scope grants are bulk-loaded for performance and only carry condition metadata when they are conditional (conditional grants are always evaluated per-resource). Unconditional broad grants may leave `has_condition` unset (null), which `coalesce(r.has_condition, false)` treats as unconditional.
+
+#### Supported principal types
+
+Permission edges are created for `user:`, `serviceAccount:` (including GKE Workload Identity service accounts of the form `serviceAccount:{project}.svc.id.goog[...]`), and `group:` members. Other member types are retained for visibility rather than dropped:
+
+- `allUsers` / `allAuthenticatedUsers` set `is_public = true` on the `GCPPolicyBinding` (these never resolve to a real principal node).
+- Workload Identity Federation members (`principal://` / `principalSet://`) are recorded in `GCPPolicyBinding.wif_pools`.
+- `domain:{domain}` members are recorded in `GCPPolicyBinding.domains`.
+
+#### Expanding group permissions to members
+
+A `group:` member resolves to a `GoogleWorkspaceGroup`, which also carries the `GCPPrincipal` label, so the permission edge attaches directly to the group node. Group membership is already in the graph as `(:GoogleWorkspaceUser)-[:MEMBER_OF]->(:GoogleWorkspaceGroup)` (and `INHERITED_MEMBER_OF` for nested groups), so you expand a group's permissions to its effective members by traversing those edges, no separate materialization is needed:
+
+```cypher
+MATCH (u:GoogleWorkspaceUser)-[:MEMBER_OF|INHERITED_MEMBER_OF]->(g:GCPPrincipal)-[r:CAN_READ]->(b:GCPBucket)
+RETURN u.email AS user, g.email AS via_group, b.id AS bucket
+```
