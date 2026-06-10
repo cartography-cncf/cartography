@@ -4,7 +4,7 @@ from cartography.rules.spec.model import Framework
 
 NIST_AI_RMF_FRAMEWORK_NAME = "NIST AI Risk Management Framework"
 NIST_AI_RMF_SHORT_NAME = "NIST"
-NIST_AI_RMF_SCOPE = "AI-RMF"
+NIST_AI_RMF_SCOPE = "ai-rmf"
 NIST_AI_RMF_REVISION = "1.0"
 
 NIST_AI_RMF_CONTROL_TITLES = {

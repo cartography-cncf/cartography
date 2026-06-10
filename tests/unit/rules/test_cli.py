@@ -50,6 +50,13 @@ def test_list_command_includes_framework_control_title_when_present():
     assert "  Name:         Bind/Impersonate/Escalate Permissions" in result.stdout
 
 
+def test_list_command_invalid_framework_exits():
+    result = runner.invoke(app, ["list", "--framework", "missing-framework"])
+
+    assert result.exit_code == 1
+    assert "No rules found matching the filter." in result.stderr
+
+
 def test_frameworks_command_includes_control_titles_when_present():
     result = runner.invoke(app, ["frameworks"])
 

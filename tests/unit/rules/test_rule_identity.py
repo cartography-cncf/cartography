@@ -176,6 +176,22 @@ def test_framework_filtering_returns_renamed_rule_ids():
         rule_ids,
         "NIST:ai-rmf",
     )
+    assert "aws_root_user_access_keys" in filter_rules_by_framework(
+        rule_ids,
+        "iso:27001",
+    )
+    assert "aws_root_user_access_keys" in filter_rules_by_framework(
+        rule_ids,
+        "iso:27001:2022",
+    )
+    assert "aws_root_user_access_keys" in filter_rules_by_framework(
+        rule_ids,
+        "ISO27001",
+    )
+    assert "ai_provider_api_key_hygiene" in filter_rules_by_framework(
+        rule_ids,
+        "NIST-AI-RMF",
+    )
 
 
 def test_framework_control_title_is_serialized_in_rule_results():
