@@ -892,15 +892,19 @@ def load_vnics(
     vnic.region = $REGION,
     vnic.lastupdated = $oci_update_tag
     WITH vnic
-    MATCH (subnet:OCISubnet{ocid: $SUBNET_ID})
-    MERGE (subnet)-[rs:OCI_VNIC]->(vnic)
-    ON CREATE SET rs.firstseen = timestamp()
-    SET rs.lastupdated = $oci_update_tag
+    OPTIONAL MATCH (subnet:OCISubnet{ocid: $SUBNET_ID})
+    FOREACH (_ IN CASE WHEN subnet IS NULL THEN [] ELSE [1] END |
+        MERGE (subnet)-[rs:OCI_VNIC]->(vnic)
+        ON CREATE SET rs.firstseen = timestamp()
+        SET rs.lastupdated = $oci_update_tag
+    )
     WITH vnic
-    MATCH (attachment:OCIVnicAttachment{vnic_id: $OCID})
-    MERGE (attachment)-[ra:OCI_VNIC]->(vnic)
-    ON CREATE SET ra.firstseen = timestamp()
-    SET ra.lastupdated = $oci_update_tag
+    OPTIONAL MATCH (attachment:OCIVnicAttachment{vnic_id: $OCID})
+    FOREACH (_ IN CASE WHEN attachment IS NULL THEN [] ELSE [1] END |
+        MERGE (attachment)-[ra:OCI_VNIC]->(vnic)
+        ON CREATE SET ra.firstseen = timestamp()
+        SET ra.lastupdated = $oci_update_tag
+    )
     """
 
     for vnic in vnics:
@@ -939,13 +943,13 @@ def sync_vnics(
     """
     logger.debug("Syncing OCI VNICs for tenancy '%s', region '%s'.", tenancy_id, region)
     query = (
-        "MATCH (:OCICompartment{ocid: $COMPARTMENT_ID})-[:RESOURCE]->(:OCIInstance)"
+        "MATCH (:OCICompartment{ocid: $COMPARTMENT_ID})-[:RESOURCE]->(inst:OCIInstance)"
         "-[:OCI_VNIC_ATTACHMENT]->(attachment:OCIVnicAttachment) "
-        "WHERE attachment.vnic_id IS NOT NULL "
+        "WHERE attachment.vnic_id IS NOT NULL AND inst.region = $REGION "
         "RETURN DISTINCT attachment.vnic_id as vnic_id"
     )
     for compartment in compartments:
-        attachments = neo4j_session.run(query, COMPARTMENT_ID=compartment["ocid"])
+        attachments = neo4j_session.run(query, COMPARTMENT_ID=compartment["ocid"], REGION=region)
         vnics = []
         for attachment in attachments:
             vnic = get_vnic_data(network_client, attachment["vnic_id"])

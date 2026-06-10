@@ -22,7 +22,7 @@ from cartography.config import Config
 from cartography.intel.oci.util.common import parse_and_validate_oci_requested_syncs
 # from cartography.util import run_analysis_job
 # from cartography.util import run_cleanup_job
-from . import network
+from . import network  # noqa: F401 (imported for side-effect: registers in RESOURCE_FUNCTIONS)
 # from . import compute
 
 logger = logging.getLogger(__name__)
