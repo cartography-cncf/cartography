@@ -1,9 +1,11 @@
 from cartography.client.core.tx import read_list_of_dicts_tx
-from cartography.rules.data.rules.cis_aws_iam import cis_aws_2_3_root_access_key
-from cartography.rules.data.rules.cis_aws_iam import cis_aws_2_4_root_mfa
-from cartography.rules.data.rules.cis_aws_iam import cis_aws_2_11_unused_credentials
-from cartography.rules.data.rules.cis_aws_iam import cis_aws_2_13_access_key_not_rotated
-from cartography.rules.data.rules.cis_aws_iam import cis_aws_2_15_admin_policy
+from cartography.rules.data.rules.cis_aws_iam import aws_access_keys_not_rotated
+from cartography.rules.data.rules.cis_aws_iam import (
+    aws_policies_with_full_administrative_privileges,
+)
+from cartography.rules.data.rules.cis_aws_iam import aws_root_user_access_keys
+from cartography.rules.data.rules.cis_aws_iam import aws_root_user_mfa_disabled
+from cartography.rules.data.rules.cis_aws_iam import aws_unused_credentials
 
 
 def _reset_graph(neo4j_session) -> None:
@@ -58,8 +60,8 @@ def test_access_key_rules_parse_iso_datetime_strings_with_z(neo4j_session) -> No
         """
     )
 
-    rotation_fact = _get_fact(cis_aws_2_13_access_key_not_rotated)
-    unused_fact = _get_fact(cis_aws_2_11_unused_credentials)
+    rotation_fact = _get_fact(aws_access_keys_not_rotated)
+    unused_fact = _get_fact(aws_unused_credentials)
 
     # Act
     rotation_findings = neo4j_session.execute_read(
@@ -98,7 +100,7 @@ def test_root_access_key_flags_accounts_with_root_keys(neo4j_session) -> None:
         CREATE (:AWSAccount {id: '333333333333', name: 'unknown'})
         """
     )
-    fact = _get_fact(cis_aws_2_3_root_access_key)
+    fact = _get_fact(aws_root_user_access_keys)
 
     # Act
     findings = neo4j_session.execute_read(read_list_of_dicts_tx, fact.cypher_query)
@@ -123,7 +125,7 @@ def test_root_mfa_flags_accounts_without_root_mfa(neo4j_session) -> None:
         CREATE (:AWSAccount {id: '333333333333', name: 'unknown'})
         """
     )
-    fact = _get_fact(cis_aws_2_4_root_mfa)
+    fact = _get_fact(aws_root_user_mfa_disabled)
 
     # Act
     findings = neo4j_session.execute_read(read_list_of_dicts_tx, fact.cypher_query)
@@ -218,7 +220,7 @@ def test_admin_policy_flags_attached_full_admin_policies(neo4j_session) -> None:
         MERGE (orphan_policy)-[:STATEMENT]->(orphan_stmt)
         """
     )
-    fact = _get_fact(cis_aws_2_15_admin_policy)
+    fact = _get_fact(aws_policies_with_full_administrative_privileges)
 
     # Act
     findings = neo4j_session.execute_read(read_list_of_dicts_tx, fact.cypher_query)

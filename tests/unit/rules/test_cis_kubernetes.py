@@ -8,92 +8,96 @@ framework metadata is correctly configured.
 import pytest
 
 from cartography.rules.data.rules.cis_kubernetes_rbac import (
-    cis_k8s_5_1_1_cluster_admin_usage,
-)
-from cartography.rules.data.rules.cis_kubernetes_rbac import cis_k8s_5_1_2_secret_access
-from cartography.rules.data.rules.cis_kubernetes_rbac import (
-    cis_k8s_5_1_3_wildcard_roles,
+    kubernetes_bind_impersonate_escalate_permissions,
 )
 from cartography.rules.data.rules.cis_kubernetes_rbac import (
-    cis_k8s_5_1_4_pod_create_access,
+    kubernetes_cluster_admin_role_usage,
 )
 from cartography.rules.data.rules.cis_kubernetes_rbac import (
-    cis_k8s_5_1_5_default_sa_bindings,
+    kubernetes_csr_approval_subresource_access,
 )
 from cartography.rules.data.rules.cis_kubernetes_rbac import (
-    cis_k8s_5_1_7_system_masters_group,
+    kubernetes_default_service_account_bindings,
 )
 from cartography.rules.data.rules.cis_kubernetes_rbac import (
-    cis_k8s_5_1_8_escalation_permissions,
+    kubernetes_node_proxy_subresource_access,
 )
 from cartography.rules.data.rules.cis_kubernetes_rbac import (
-    cis_k8s_5_1_9_pv_create_access,
+    kubernetes_roles_grant_persistent_volume_creation,
 )
 from cartography.rules.data.rules.cis_kubernetes_rbac import (
-    cis_k8s_5_1_10_node_proxy_access,
+    kubernetes_roles_grant_pod_creation,
 )
 from cartography.rules.data.rules.cis_kubernetes_rbac import (
-    cis_k8s_5_1_11_csr_approval_access,
+    kubernetes_roles_grant_secret_access,
 )
 from cartography.rules.data.rules.cis_kubernetes_rbac import (
-    cis_k8s_5_1_12_webhook_config_access,
+    kubernetes_service_account_token_creation_access,
 )
 from cartography.rules.data.rules.cis_kubernetes_rbac import (
-    cis_k8s_5_1_13_sa_token_creation,
+    kubernetes_system_masters_group_usage,
 )
+from cartography.rules.data.rules.cis_kubernetes_rbac import (
+    kubernetes_webhook_configuration_access,
+)
+from cartography.rules.data.rules.cis_kubernetes_rbac import kubernetes_wildcard_roles
 from cartography.rules.data.rules.cis_kubernetes_workloads import _cypher_string_list
 from cartography.rules.data.rules.cis_kubernetes_workloads import (
-    cis_k8s_5_1_6_sa_token_mounts,
-)
-from cartography.rules.data.rules.cis_kubernetes_workloads import cis_k8s_5_2_3_host_pid
-from cartography.rules.data.rules.cis_kubernetes_workloads import cis_k8s_5_2_4_host_ipc
-from cartography.rules.data.rules.cis_kubernetes_workloads import (
-    cis_k8s_5_2_5_host_network,
+    kubernetes_containers_allowing_privilege_escalation,
 )
 from cartography.rules.data.rules.cis_kubernetes_workloads import (
-    cis_k8s_5_2_6_allow_privilege_escalation,
+    kubernetes_containers_using_hostports,
 )
 from cartography.rules.data.rules.cis_kubernetes_workloads import (
-    cis_k8s_5_2_11_host_path_volumes,
+    kubernetes_pods_missing_runtime_default_seccomp,
 )
 from cartography.rules.data.rules.cis_kubernetes_workloads import (
-    cis_k8s_5_2_12_host_ports,
+    kubernetes_pods_running_in_default_namespace,
 )
 from cartography.rules.data.rules.cis_kubernetes_workloads import (
-    cis_k8s_5_4_1_secrets_in_env_vars,
+    kubernetes_pods_sharing_host_ipc_namespace,
 )
 from cartography.rules.data.rules.cis_kubernetes_workloads import (
-    cis_k8s_5_6_2_runtime_default_seccomp,
+    kubernetes_pods_sharing_host_network_namespace,
 )
 from cartography.rules.data.rules.cis_kubernetes_workloads import (
-    cis_k8s_5_6_4_default_namespace,
+    kubernetes_pods_sharing_host_pid_namespace,
+)
+from cartography.rules.data.rules.cis_kubernetes_workloads import (
+    kubernetes_pods_using_hostpath_volumes,
+)
+from cartography.rules.data.rules.cis_kubernetes_workloads import (
+    kubernetes_secrets_used_as_environment_variables,
+)
+from cartography.rules.data.rules.cis_kubernetes_workloads import (
+    kubernetes_service_account_tokens_mounted_in_pods,
 )
 from cartography.rules.spec.model import Maturity
 from cartography.rules.spec.model import Module
 
 ALL_CIS_K8S_RULES = [
-    cis_k8s_5_1_1_cluster_admin_usage,
-    cis_k8s_5_1_2_secret_access,
-    cis_k8s_5_1_3_wildcard_roles,
-    cis_k8s_5_1_4_pod_create_access,
-    cis_k8s_5_1_5_default_sa_bindings,
-    cis_k8s_5_1_7_system_masters_group,
-    cis_k8s_5_1_8_escalation_permissions,
-    cis_k8s_5_1_9_pv_create_access,
-    cis_k8s_5_1_10_node_proxy_access,
-    cis_k8s_5_1_11_csr_approval_access,
-    cis_k8s_5_1_12_webhook_config_access,
-    cis_k8s_5_1_13_sa_token_creation,
-    cis_k8s_5_1_6_sa_token_mounts,
-    cis_k8s_5_2_3_host_pid,
-    cis_k8s_5_2_4_host_ipc,
-    cis_k8s_5_2_5_host_network,
-    cis_k8s_5_2_6_allow_privilege_escalation,
-    cis_k8s_5_2_11_host_path_volumes,
-    cis_k8s_5_2_12_host_ports,
-    cis_k8s_5_4_1_secrets_in_env_vars,
-    cis_k8s_5_6_2_runtime_default_seccomp,
-    cis_k8s_5_6_4_default_namespace,
+    kubernetes_cluster_admin_role_usage,
+    kubernetes_roles_grant_secret_access,
+    kubernetes_wildcard_roles,
+    kubernetes_roles_grant_pod_creation,
+    kubernetes_default_service_account_bindings,
+    kubernetes_system_masters_group_usage,
+    kubernetes_bind_impersonate_escalate_permissions,
+    kubernetes_roles_grant_persistent_volume_creation,
+    kubernetes_node_proxy_subresource_access,
+    kubernetes_csr_approval_subresource_access,
+    kubernetes_webhook_configuration_access,
+    kubernetes_service_account_token_creation_access,
+    kubernetes_service_account_tokens_mounted_in_pods,
+    kubernetes_pods_sharing_host_pid_namespace,
+    kubernetes_pods_sharing_host_ipc_namespace,
+    kubernetes_pods_sharing_host_network_namespace,
+    kubernetes_containers_allowing_privilege_escalation,
+    kubernetes_pods_using_hostpath_volumes,
+    kubernetes_containers_using_hostports,
+    kubernetes_secrets_used_as_environment_variables,
+    kubernetes_pods_missing_runtime_default_seccomp,
+    kubernetes_pods_running_in_default_namespace,
 ]
 
 
@@ -104,7 +108,7 @@ class TestCisKubernetesRuleStructure:
     def test_rule_has_unique_id(self, rule):
         assert rule.id is not None
         assert len(rule.id) > 0
-        assert rule.id.startswith("cis_k8s_")
+        assert rule.id.startswith("kubernetes_")
 
     @pytest.mark.parametrize("rule", ALL_CIS_K8S_RULES, ids=lambda r: r.id)
     def test_rule_has_name_and_description(self, rule):
@@ -206,7 +210,7 @@ class TestCisKubernetesServiceAccountTokenMounts:
     def test_service_account_token_mounts_excludes_infrastructure_namespaces(
         self,
     ):
-        fact = cis_k8s_5_1_6_sa_token_mounts.facts[0]
+        fact = kubernetes_service_account_tokens_mounted_in_pods.facts[0]
 
         assert "service_account_namespace IN" in fact.cypher_query
         assert '"kube-system"' in fact.cypher_query
@@ -220,7 +224,7 @@ class TestCisKubernetesServiceAccountTokenMounts:
     def test_service_account_token_mounts_excludes_infrastructure_service_accounts(
         self,
     ):
-        fact = cis_k8s_5_1_6_sa_token_mounts.facts[0]
+        fact = kubernetes_service_account_tokens_mounted_in_pods.facts[0]
 
         assert "service_account_name IN" in fact.cypher_query
         assert '"aws-load-balancer-controller"' in fact.cypher_query
@@ -230,14 +234,14 @@ class TestCisKubernetesServiceAccountTokenMounts:
         assert '"vertical-pod-autoscaler-recommender"' in fact.cypher_query
 
     def test_service_account_token_mounts_excludes_irsa_mounts(self):
-        fact = cis_k8s_5_1_6_sa_token_mounts.facts[0]
+        fact = kubernetes_service_account_tokens_mounted_in_pods.facts[0]
 
         assert "sa.aws_role_arn IS NOT NULL" in fact.cypher_query
         assert "EXISTS { (sa)-[:ASSUMES_ROLE]->(:AWSRole) }" in fact.cypher_query
         assert "service_account_assumes_aws_role" in fact.cypher_query
 
     def test_service_account_token_mounts_excludes_gke_workload_identity_mounts(self):
-        fact = cis_k8s_5_1_6_sa_token_mounts.facts[0]
+        fact = kubernetes_service_account_tokens_mounted_in_pods.facts[0]
 
         assert "sa.gcp_service_account IS NOT NULL" in fact.cypher_query
         assert (
@@ -247,12 +251,12 @@ class TestCisKubernetesServiceAccountTokenMounts:
         assert "service_account_assumes_gcp_identity" in fact.cypher_query
 
     def test_service_account_token_mounts_excludes_default_sa_mounts(self):
-        fact = cis_k8s_5_1_6_sa_token_mounts.facts[0]
+        fact = kubernetes_service_account_tokens_mounted_in_pods.facts[0]
 
         assert "service_account_name = 'default'" in fact.cypher_query
 
     def test_service_account_token_mounts_uses_ontology_service_account_name(self):
-        fact = cis_k8s_5_1_6_sa_token_mounts.facts[0]
+        fact = kubernetes_service_account_tokens_mounted_in_pods.facts[0]
 
         assert (
             "coalesce(sa._ont_name, sa.name, pod.service_account_name)"
@@ -261,7 +265,7 @@ class TestCisKubernetesServiceAccountTokenMounts:
         assert "service_account_name AS service_account_name" in fact.cypher_query
 
     def test_service_account_token_mounts_visual_query_matches_filter(self):
-        fact = cis_k8s_5_1_6_sa_token_mounts.facts[0]
+        fact = kubernetes_service_account_tokens_mounted_in_pods.facts[0]
 
         assert "service_account_name = 'default'" in fact.cypher_visual_query
         assert "service_account_namespace IN" in fact.cypher_visual_query
@@ -270,7 +274,7 @@ class TestCisKubernetesServiceAccountTokenMounts:
         assert "service_account_assumes_gcp_identity" in fact.cypher_visual_query
 
     def test_service_account_token_mounts_count_query_matches_candidate_filter(self):
-        fact = cis_k8s_5_1_6_sa_token_mounts.facts[0]
+        fact = kubernetes_service_account_tokens_mounted_in_pods.facts[0]
 
         assert "service_account_name = 'default'" in fact.cypher_count_query
         assert "service_account_namespace IN" in fact.cypher_count_query
@@ -301,7 +305,15 @@ class TestCisKubernetesRuleRegistration:
     def test_rule_count(self):
         from cartography.rules.data.rules import RULES
 
-        k8s_rules = {k: v for k, v in RULES.items() if k.startswith("cis_k8s_")}
+        k8s_rules = {
+            k: v
+            for k, v in RULES.items()
+            if v.has_framework(
+                short_name="cis",
+                scope="kubernetes",
+                revision="1.12",
+            )
+        }
         assert len(k8s_rules) == 22
 
 
@@ -309,28 +321,28 @@ class TestCisKubernetesRuleIds:
     """Test that rule IDs follow the expected convention."""
 
     EXPECTED_RULES = {
-        "cis_k8s_5_1_1_cluster_admin_usage": "5.1.1",
-        "cis_k8s_5_1_2_secret_access": "5.1.2",
-        "cis_k8s_5_1_3_wildcard_roles": "5.1.3",
-        "cis_k8s_5_1_4_pod_create_access": "5.1.4",
-        "cis_k8s_5_1_5_default_sa_bindings": "5.1.5",
-        "cis_k8s_5_1_7_system_masters_group": "5.1.7",
-        "cis_k8s_5_1_8_escalation_permissions": "5.1.8",
-        "cis_k8s_5_1_9_pv_create_access": "5.1.9",
-        "cis_k8s_5_1_10_node_proxy_access": "5.1.10",
-        "cis_k8s_5_1_11_csr_approval_access": "5.1.11",
-        "cis_k8s_5_1_12_webhook_config_access": "5.1.12",
-        "cis_k8s_5_1_13_sa_token_creation": "5.1.13",
-        "cis_k8s_5_1_6_sa_token_mounts": "5.1.6",
-        "cis_k8s_5_2_3_host_pid": "5.2.3",
-        "cis_k8s_5_2_4_host_ipc": "5.2.4",
-        "cis_k8s_5_2_5_host_network": "5.2.5",
-        "cis_k8s_5_2_6_allow_privilege_escalation": "5.2.6",
-        "cis_k8s_5_2_11_host_path_volumes": "5.2.11",
-        "cis_k8s_5_2_12_host_ports": "5.2.12",
-        "cis_k8s_5_4_1_secrets_in_env_vars": "5.4.1",
-        "cis_k8s_5_6_2_runtime_default_seccomp": "5.6.2",
-        "cis_k8s_5_6_4_default_namespace": "5.6.4",
+        "kubernetes_cluster_admin_role_usage": "5.1.1",
+        "kubernetes_roles_grant_secret_access": "5.1.2",
+        "kubernetes_wildcard_roles": "5.1.3",
+        "kubernetes_roles_grant_pod_creation": "5.1.4",
+        "kubernetes_default_service_account_bindings": "5.1.5",
+        "kubernetes_system_masters_group_usage": "5.1.7",
+        "kubernetes_bind_impersonate_escalate_permissions": "5.1.8",
+        "kubernetes_roles_grant_persistent_volume_creation": "5.1.9",
+        "kubernetes_node_proxy_subresource_access": "5.1.10",
+        "kubernetes_csr_approval_subresource_access": "5.1.11",
+        "kubernetes_webhook_configuration_access": "5.1.12",
+        "kubernetes_service_account_token_creation_access": "5.1.13",
+        "kubernetes_service_account_tokens_mounted_in_pods": "5.1.6",
+        "kubernetes_pods_sharing_host_pid_namespace": "5.2.3",
+        "kubernetes_pods_sharing_host_ipc_namespace": "5.2.4",
+        "kubernetes_pods_sharing_host_network_namespace": "5.2.5",
+        "kubernetes_containers_allowing_privilege_escalation": "5.2.6",
+        "kubernetes_pods_using_hostpath_volumes": "5.2.11",
+        "kubernetes_containers_using_hostports": "5.2.12",
+        "kubernetes_secrets_used_as_environment_variables": "5.4.1",
+        "kubernetes_pods_missing_runtime_default_seccomp": "5.6.2",
+        "kubernetes_pods_running_in_default_namespace": "5.6.4",
     }
 
     def test_all_expected_rules_exist(self):

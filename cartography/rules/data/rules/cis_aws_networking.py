@@ -30,7 +30,7 @@ CIS_REFERENCES = [
 
 
 # =============================================================================
-# CIS AWS 6.1.1: EBS Volume Encryption
+# EBS Volume Encryption
 # Main node: EBSVolume
 # =============================================================================
 class EbsEncryptionOutput(Finding):
@@ -80,9 +80,9 @@ _aws_ebs_encryption_disabled = Fact(
     maturity=Maturity.STABLE,
 )
 
-cis_aws_6_1_1_ebs_encryption = Rule(
-    id="cis_aws_6_1_1_ebs_encryption",
-    name="CIS AWS 6.1.1: EBS Volume Encryption",
+aws_ebs_volume_encryption = Rule(
+    id="aws_ebs_volume_encryption",
+    name="EBS Volume Encryption",
     description=(
         "EBS volumes should be encrypted to protect data at rest and in transit "
         "between the volume and instance."
@@ -100,7 +100,7 @@ cis_aws_6_1_1_ebs_encryption = Rule(
 
 
 # =============================================================================
-# CIS AWS 6.1.2: CIFS Access Is Restricted to Trusted Networks
+# CIFS Access Is Restricted to Trusted Networks
 # Main node: EC2SecurityGroup
 # =============================================================================
 class CifsInternetAccessOutput(Finding):
@@ -176,9 +176,9 @@ _aws_cifs_internet_access = Fact(
     maturity=Maturity.STABLE,
 )
 
-cis_aws_6_1_2_cifs_restricted = Rule(
-    id="cis_aws_6_1_2_cifs_restricted",
-    name="CIS AWS 6.1.2: CIFS Access Is Restricted to Trusted Networks",
+aws_cifs_access_restricted_to_trusted_networks = Rule(
+    id="aws_cifs_access_restricted_to_trusted_networks",
+    name="CIFS Access Is Restricted to Trusted Networks",
     description=(
         "Security groups should not allow ingress from public internet ranges to "
         "CIFS/SMB port 445."
@@ -281,9 +281,9 @@ _aws_remote_admin_ipv4 = Fact(
     maturity=Maturity.STABLE,
 )
 
-cis_aws_6_3_remote_admin_ipv4 = Rule(
-    id="cis_aws_6_3_remote_admin_ipv4",
-    name="CIS AWS 6.3: IPv4 Remote Administration Ports Open to the Internet",
+aws_ipv4_remote_administration_ports_open_to_internet = Rule(
+    id="aws_ipv4_remote_administration_ports_open_to_internet",
+    name="IPv4 Remote Administration Ports Open to the Internet",
     description=(
         "Security groups should not allow ingress from 0.0.0.0/0 to remote "
         "administration ports such as SSH (22) and RDP (3389)."
@@ -386,9 +386,9 @@ _aws_remote_admin_ipv6 = Fact(
     maturity=Maturity.STABLE,
 )
 
-cis_aws_6_4_remote_admin_ipv6 = Rule(
-    id="cis_aws_6_4_remote_admin_ipv6",
-    name="CIS AWS 6.4: IPv6 Remote Administration Ports Open to the Internet",
+aws_ipv6_remote_administration_ports_open_to_internet = Rule(
+    id="aws_ipv6_remote_administration_ports_open_to_internet",
+    name="IPv6 Remote Administration Ports Open to the Internet",
     description=(
         "Security groups should not allow ingress from ::/0 to remote "
         "administration ports such as SSH (22) and RDP (3389)."
@@ -477,9 +477,9 @@ _aws_default_sg_allows_traffic = Fact(
     maturity=Maturity.STABLE,
 )
 
-cis_aws_6_5_default_sg_traffic = Rule(
-    id="cis_aws_6_5_default_sg_traffic",
-    name="CIS AWS 6.5: Default Security Group Restricts Traffic",
+aws_default_security_group_restricts_traffic = Rule(
+    id="aws_default_security_group_restricts_traffic",
+    name="Default Security Group Restricts Traffic",
     description=(
         "The default security group of every VPC should restrict all traffic to "
         "prevent accidental exposure of resources."
@@ -503,7 +503,7 @@ cis_aws_6_5_default_sg_traffic = Rule(
 
 
 # =============================================================================
-# CIS AWS 6.7: EC2 Instances Should Use IMDSv2
+# EC2 Instances Should Use IMDSv2
 # Main node: EC2Instance
 # =============================================================================
 class Ec2Imdsv2RequiredOutput(Finding):
@@ -551,9 +551,9 @@ _aws_ec2_imdsv2_required = Fact(
     maturity=Maturity.STABLE,
 )
 
-cis_aws_6_7_ec2_imdsv2 = Rule(
-    id="cis_aws_6_7_ec2_imdsv2",
-    name="CIS AWS 6.7: EC2 Instances Should Use IMDSv2",
+aws_ec2_instances_use_imdsv2 = Rule(
+    id="aws_ec2_instances_use_imdsv2",
+    name="EC2 Instances Should Use IMDSv2",
     description=(
         "EC2 instances should require Instance Metadata Service Version 2 (IMDSv2) "
         "so that IMDSv1 is disabled."

@@ -7,70 +7,70 @@ current AWS CIS v6.0.0 requirement numbering used by Cartography.
 
 import pytest
 
-from cartography.rules.data.rules.cis_aws_iam import cis_aws_2_3_root_access_key
-from cartography.rules.data.rules.cis_aws_iam import cis_aws_2_4_root_mfa
-from cartography.rules.data.rules.cis_aws_iam import cis_aws_2_11_unused_credentials
-from cartography.rules.data.rules.cis_aws_iam import cis_aws_2_12_multiple_access_keys
-from cartography.rules.data.rules.cis_aws_iam import cis_aws_2_13_access_key_not_rotated
-from cartography.rules.data.rules.cis_aws_iam import cis_aws_2_14_user_direct_policies
-from cartography.rules.data.rules.cis_aws_iam import cis_aws_2_15_admin_policy
-from cartography.rules.data.rules.cis_aws_iam import cis_aws_2_18_expired_certificates
-from cartography.rules.data.rules.cis_aws_logging import (
-    cis_aws_4_1_cloudtrail_multi_region,
+from cartography.rules.data.rules.cis_aws_iam import aws_access_keys_not_rotated
+from cartography.rules.data.rules.cis_aws_iam import aws_expired_ssl_tls_certificates
+from cartography.rules.data.rules.cis_aws_iam import (
+    aws_policies_with_full_administrative_privileges,
 )
-from cartography.rules.data.rules.cis_aws_logging import (
-    cis_aws_4_2_cloudtrail_log_validation,
+from cartography.rules.data.rules.cis_aws_iam import aws_root_user_access_keys
+from cartography.rules.data.rules.cis_aws_iam import aws_root_user_mfa_disabled
+from cartography.rules.data.rules.cis_aws_iam import aws_unused_credentials
+from cartography.rules.data.rules.cis_aws_iam import (
+    aws_users_with_direct_policy_attachments,
 )
-from cartography.rules.data.rules.cis_aws_logging import (
-    cis_aws_4_4_cloudtrail_bucket_access_logging,
+from cartography.rules.data.rules.cis_aws_iam import (
+    aws_users_with_multiple_active_access_keys,
 )
+from cartography.rules.data.rules.cis_aws_logging import aws_cloudtrail_kms_encryption
 from cartography.rules.data.rules.cis_aws_logging import (
-    cis_aws_4_5_cloudtrail_encryption,
+    aws_cloudtrail_log_file_validation,
 )
-from cartography.rules.data.rules.cis_aws_networking import cis_aws_6_1_1_ebs_encryption
-from cartography.rules.data.rules.cis_aws_networking import (
-    cis_aws_6_1_2_cifs_restricted,
+from cartography.rules.data.rules.cis_aws_logging import aws_cloudtrail_multi_region
+from cartography.rules.data.rules.cis_aws_logging import (
+    aws_cloudtrail_s3_bucket_access_logging,
 )
 from cartography.rules.data.rules.cis_aws_networking import (
-    cis_aws_6_3_remote_admin_ipv4,
+    aws_cifs_access_restricted_to_trusted_networks,
 )
 from cartography.rules.data.rules.cis_aws_networking import (
-    cis_aws_6_4_remote_admin_ipv6,
+    aws_default_security_group_restricts_traffic,
+)
+from cartography.rules.data.rules.cis_aws_networking import aws_ebs_volume_encryption
+from cartography.rules.data.rules.cis_aws_networking import aws_ec2_instances_use_imdsv2
+from cartography.rules.data.rules.cis_aws_networking import (
+    aws_ipv4_remote_administration_ports_open_to_internet,
 )
 from cartography.rules.data.rules.cis_aws_networking import (
-    cis_aws_6_5_default_sg_traffic,
+    aws_ipv6_remote_administration_ports_open_to_internet,
 )
-from cartography.rules.data.rules.cis_aws_networking import cis_aws_6_7_ec2_imdsv2
-from cartography.rules.data.rules.cis_aws_storage import cis_aws_3_1_2_s3_mfa_delete
-from cartography.rules.data.rules.cis_aws_storage import (
-    cis_aws_3_1_4_s3_block_public_access,
-)
-from cartography.rules.data.rules.cis_aws_storage import cis_aws_3_2_1_rds_encryption
+from cartography.rules.data.rules.cis_aws_storage import aws_rds_encryption_at_rest
+from cartography.rules.data.rules.cis_aws_storage import aws_s3_block_public_access
+from cartography.rules.data.rules.cis_aws_storage import aws_s3_bucket_mfa_delete
 from cartography.rules.spec.model import Maturity
 from cartography.rules.spec.model import Module
 
 ALL_CIS_AWS_RULES = [
-    cis_aws_2_3_root_access_key,
-    cis_aws_2_4_root_mfa,
-    cis_aws_2_11_unused_credentials,
-    cis_aws_2_12_multiple_access_keys,
-    cis_aws_2_13_access_key_not_rotated,
-    cis_aws_2_14_user_direct_policies,
-    cis_aws_2_15_admin_policy,
-    cis_aws_2_18_expired_certificates,
-    cis_aws_3_1_2_s3_mfa_delete,
-    cis_aws_3_1_4_s3_block_public_access,
-    cis_aws_3_2_1_rds_encryption,
-    cis_aws_4_1_cloudtrail_multi_region,
-    cis_aws_4_2_cloudtrail_log_validation,
-    cis_aws_4_4_cloudtrail_bucket_access_logging,
-    cis_aws_4_5_cloudtrail_encryption,
-    cis_aws_6_1_1_ebs_encryption,
-    cis_aws_6_1_2_cifs_restricted,
-    cis_aws_6_3_remote_admin_ipv4,
-    cis_aws_6_4_remote_admin_ipv6,
-    cis_aws_6_5_default_sg_traffic,
-    cis_aws_6_7_ec2_imdsv2,
+    aws_root_user_access_keys,
+    aws_root_user_mfa_disabled,
+    aws_unused_credentials,
+    aws_users_with_multiple_active_access_keys,
+    aws_access_keys_not_rotated,
+    aws_users_with_direct_policy_attachments,
+    aws_policies_with_full_administrative_privileges,
+    aws_expired_ssl_tls_certificates,
+    aws_s3_bucket_mfa_delete,
+    aws_s3_block_public_access,
+    aws_rds_encryption_at_rest,
+    aws_cloudtrail_multi_region,
+    aws_cloudtrail_log_file_validation,
+    aws_cloudtrail_s3_bucket_access_logging,
+    aws_cloudtrail_kms_encryption,
+    aws_ebs_volume_encryption,
+    aws_cifs_access_restricted_to_trusted_networks,
+    aws_ipv4_remote_administration_ports_open_to_internet,
+    aws_ipv6_remote_administration_ports_open_to_internet,
+    aws_default_security_group_restricts_traffic,
+    aws_ec2_instances_use_imdsv2,
 ]
 
 
@@ -80,7 +80,7 @@ class TestCisAwsRuleStructure:
     @pytest.mark.parametrize("rule", ALL_CIS_AWS_RULES, ids=lambda r: r.id)
     def test_rule_has_unique_id(self, rule):
         assert rule.id
-        assert rule.id.startswith("cis_aws_")
+        assert rule.id.startswith("aws_")
 
     @pytest.mark.parametrize("rule", ALL_CIS_AWS_RULES, ids=lambda r: r.id)
     def test_rule_has_name_and_description(self, rule):
@@ -142,8 +142,8 @@ class TestCisAwsFactMetadata:
 
     def test_access_key_date_filters_parse_iso_datetime_strings(self):
         access_key_rules = (
-            cis_aws_2_11_unused_credentials,
-            cis_aws_2_13_access_key_not_rotated,
+            aws_unused_credentials,
+            aws_access_keys_not_rotated,
         )
 
         for rule in access_key_rules:
@@ -153,7 +153,7 @@ class TestCisAwsFactMetadata:
             assert "date(key.lastuseddate_dt)" not in query_text
             assert "date(datetime(key.createdate_dt))" in query_text
 
-        unused_credentials_fact = cis_aws_2_11_unused_credentials.facts[0]
+        unused_credentials_fact = aws_unused_credentials.facts[0]
         unused_credentials_query_text = (
             f"{unused_credentials_fact.cypher_query}\n"
             f"{unused_credentials_fact.cypher_visual_query}"
@@ -174,7 +174,11 @@ class TestCisAwsRuleRegistration:
     def test_rule_count(self):
         from cartography.rules.data.rules import RULES
 
-        aws_rules = {k: v for k, v in RULES.items() if k.startswith("cis_aws_")}
+        aws_rules = {
+            k: v
+            for k, v in RULES.items()
+            if v.has_framework(short_name="cis", scope="aws", revision="6.0.0")
+        }
         assert len(aws_rules) == len(ALL_CIS_AWS_RULES)
 
 
@@ -182,27 +186,27 @@ class TestCisAwsRuleIds:
     """Test that AWS CIS rule ids and framework requirements stay aligned."""
 
     EXPECTED_RULES = {
-        "cis_aws_2_3_root_access_key": "2.3",
-        "cis_aws_2_4_root_mfa": "2.4",
-        "cis_aws_2_11_unused_credentials": "2.11",
-        "cis_aws_2_12_multiple_access_keys": "2.12",
-        "cis_aws_2_13_access_key_not_rotated": "2.13",
-        "cis_aws_2_14_user_direct_policies": "2.14",
-        "cis_aws_2_15_admin_policy": "2.15",
-        "cis_aws_2_18_expired_certificates": "2.18",
-        "cis_aws_3_1_2_s3_mfa_delete": "3.1.2",
-        "cis_aws_3_1_4_s3_block_public_access": "3.1.4",
-        "cis_aws_3_2_1_rds_encryption": "3.2.1",
-        "cis_aws_4_1_cloudtrail_multi_region": "4.1",
-        "cis_aws_4_2_cloudtrail_log_validation": "4.2",
-        "cis_aws_4_4_cloudtrail_bucket_access_logging": "4.4",
-        "cis_aws_4_5_cloudtrail_encryption": "4.5",
-        "cis_aws_6_1_1_ebs_encryption": "6.1.1",
-        "cis_aws_6_1_2_cifs_restricted": "6.1.2",
-        "cis_aws_6_3_remote_admin_ipv4": "6.3",
-        "cis_aws_6_4_remote_admin_ipv6": "6.4",
-        "cis_aws_6_5_default_sg_traffic": "6.5",
-        "cis_aws_6_7_ec2_imdsv2": "6.7",
+        "aws_root_user_access_keys": "2.3",
+        "aws_root_user_mfa_disabled": "2.4",
+        "aws_unused_credentials": "2.11",
+        "aws_users_with_multiple_active_access_keys": "2.12",
+        "aws_access_keys_not_rotated": "2.13",
+        "aws_users_with_direct_policy_attachments": "2.14",
+        "aws_policies_with_full_administrative_privileges": "2.15",
+        "aws_expired_ssl_tls_certificates": "2.18",
+        "aws_s3_bucket_mfa_delete": "3.1.2",
+        "aws_s3_block_public_access": "3.1.4",
+        "aws_rds_encryption_at_rest": "3.2.1",
+        "aws_cloudtrail_multi_region": "4.1",
+        "aws_cloudtrail_log_file_validation": "4.2",
+        "aws_cloudtrail_s3_bucket_access_logging": "4.4",
+        "aws_cloudtrail_kms_encryption": "4.5",
+        "aws_ebs_volume_encryption": "6.1.1",
+        "aws_cifs_access_restricted_to_trusted_networks": "6.1.2",
+        "aws_ipv4_remote_administration_ports_open_to_internet": "6.3",
+        "aws_ipv6_remote_administration_ports_open_to_internet": "6.4",
+        "aws_default_security_group_restricts_traffic": "6.5",
+        "aws_ec2_instances_use_imdsv2": "6.7",
     }
 
     def test_all_expected_rules_exist(self):
@@ -224,27 +228,27 @@ class TestIso27001AwsMappings:
     """Test that batch 1 AWS rules have expected ISO 27001 Annex A mappings."""
 
     EXPECTED_REQUIREMENTS = {
-        "cis_aws_2_3_root_access_key": {"8.2", "5.17"},
-        "cis_aws_2_4_root_mfa": {"8.5", "8.2"},
-        "cis_aws_2_11_unused_credentials": {"5.18"},
-        "cis_aws_2_12_multiple_access_keys": {"5.17"},
-        "cis_aws_2_13_access_key_not_rotated": {"5.17"},
-        "cis_aws_2_14_user_direct_policies": {"5.18"},
-        "cis_aws_2_15_admin_policy": {"8.2", "5.18"},
-        "cis_aws_2_18_expired_certificates": {"8.24"},
-        "cis_aws_3_1_2_s3_mfa_delete": {"8.10"},
-        "cis_aws_3_1_4_s3_block_public_access": {"8.3"},
-        "cis_aws_3_2_1_rds_encryption": {"8.24"},
-        "cis_aws_4_1_cloudtrail_multi_region": {"8.15", "8.16"},
-        "cis_aws_4_2_cloudtrail_log_validation": {"8.15"},
-        "cis_aws_4_4_cloudtrail_bucket_access_logging": {"8.15"},
-        "cis_aws_4_5_cloudtrail_encryption": {"8.24"},
-        "cis_aws_6_1_1_ebs_encryption": {"8.24"},
-        "cis_aws_6_1_2_cifs_restricted": {"8.20"},
-        "cis_aws_6_3_remote_admin_ipv4": {"8.20"},
-        "cis_aws_6_4_remote_admin_ipv6": {"8.20"},
-        "cis_aws_6_5_default_sg_traffic": {"8.20", "8.22"},
-        "cis_aws_6_7_ec2_imdsv2": {"8.9"},
+        "aws_root_user_access_keys": {"8.2", "5.17"},
+        "aws_root_user_mfa_disabled": {"8.5", "8.2"},
+        "aws_unused_credentials": {"5.18"},
+        "aws_users_with_multiple_active_access_keys": {"5.17"},
+        "aws_access_keys_not_rotated": {"5.17"},
+        "aws_users_with_direct_policy_attachments": {"5.18"},
+        "aws_policies_with_full_administrative_privileges": {"8.2", "5.18"},
+        "aws_expired_ssl_tls_certificates": {"8.24"},
+        "aws_s3_bucket_mfa_delete": {"8.10"},
+        "aws_s3_block_public_access": {"8.3"},
+        "aws_rds_encryption_at_rest": {"8.24"},
+        "aws_cloudtrail_multi_region": {"8.15", "8.16"},
+        "aws_cloudtrail_log_file_validation": {"8.15"},
+        "aws_cloudtrail_s3_bucket_access_logging": {"8.15"},
+        "aws_cloudtrail_kms_encryption": {"8.24"},
+        "aws_ebs_volume_encryption": {"8.24"},
+        "aws_cifs_access_restricted_to_trusted_networks": {"8.20"},
+        "aws_ipv4_remote_administration_ports_open_to_internet": {"8.20"},
+        "aws_ipv6_remote_administration_ports_open_to_internet": {"8.20"},
+        "aws_default_security_group_restricts_traffic": {"8.20", "8.22"},
+        "aws_ec2_instances_use_imdsv2": {"8.9"},
     }
 
     @pytest.mark.parametrize("rule", ALL_CIS_AWS_RULES, ids=lambda r: r.id)
