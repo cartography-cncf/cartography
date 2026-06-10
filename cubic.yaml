@@ -18,7 +18,6 @@ reviews:
   ignore:
     files:
       - uv.lock
-      - tests/data/**
   custom_rules:
     - name: Avoid Logging Sensitive Information
       description: Ensure code changes do not log personally identifiable information (PII) or sensitive data such as emails, authentication tokens, passwords, or API keys.

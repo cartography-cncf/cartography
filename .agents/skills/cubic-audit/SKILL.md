@@ -21,11 +21,11 @@ Cubic docs (re-check if a limit below seems wrong): https://docs.cubic.dev/confi
 ## Hard constraints (bake these in)
 
 - **Max 5 enabled custom rules per repo.** Order matters; beyond the limit only the first N take effect. To add one you must merge or drop one. `cubic.yaml` is already at the cap (5 `custom_rules`), so every "promote" recommendation must name what it merges into or replaces.
-- **10,000 characters per rule**, and that budget *includes the resolved content of any `file_paths`*. Attaching a large doc (`CLAUDE.md`, a `schema.md`) is counterproductive: it truncates to the least-relevant top and starves the prompt. Prefer self-contained prompts; only link a file if it is small (<2k) and review-focused.
+- **10,000 characters per rule**, and that budget *includes the resolved content of any `file_paths`*. Attaching a large doc (`AGENTS.md`, a `schema.md`) is counterproductive: it truncates to the least-relevant top and starves the prompt. Prefer self-contained prompts; only link a file if it is small (<2k) and review-focused.
 - `cubic.yaml` merges across levels: repo > org > UI > built-in defaults.
 - **No MCP tool deletes or edits a learning.** Learnings cleanup is a **manual action in the cubic UI**. This skill produces the list; a human actions it.
 - **No em-dashes / en-dashes** anywhere in `cubic.yaml` or commits. Run `grep -n '—\|–' cubic.yaml` before declaring done.
-- Honor the repo's worktree/path and git rules in `CLAUDE.md`. Commit/push only when explicitly asked; commits use `--signoff` (DCO is required on this repo); never open a PR without per-PR authorization.
+- Honor the repo's worktree/path and git rules in `AGENTS.md` (`CLAUDE.md` may be a symlink to it; read `AGENTS.md` directly). Commit/push only when explicitly asked; commits use `--signoff` (DCO is required on this repo); never open a PR without per-PR authorization.
 
 ## Workflow
 
