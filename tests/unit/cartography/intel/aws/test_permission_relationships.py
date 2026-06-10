@@ -660,6 +660,17 @@ def test_build_target_precondition_clause_incoming():
     assert clause == "AND EXISTS { MATCH (resource)<-[:POINTS_TO]-(:SomeNode) }"
 
 
+def test_build_target_precondition_clause_rejects_invalid_direction():
+    with pytest.raises(ValueError, match="direction must be"):
+        permission_relationships.build_target_precondition_clause(
+            {
+                "related_label": "SSMInstanceInformation",
+                "relationship": "HAS_INFORMATION",
+                "direction": "sideways",
+            },
+        )
+
+
 def test_is_valid_rpr_accepts_valid_precondition():
     assert permission_relationships.is_valid_rpr(
         {
@@ -782,6 +793,28 @@ def test_collect_edge_conditions_conditional():
     assert result["has_condition"] is True
     assert result["condition_keys"] == ["aws:SourceIp"]
     assert json.loads(result["conditions"]) == json.loads(condition)
+
+
+def test_collect_edge_conditions_malformed_condition_fails_safe():
+    # A statement that carries a Condition but whose blob can't be parsed must NOT be
+    # downgraded to an unconditional grant; the edge stays flagged conditional.
+    policies = {
+        "MalformedCondition": [
+            {
+                "action": ["s3:GetObject"],
+                "resource": ["*"],
+                "effect": "Allow",
+                "condition": "not-valid-json",
+            },
+        ],
+    }
+    result = permission_relationships.collect_edge_conditions(
+        policies,
+        "arn:aws:s3:::testbucket",
+        ["S3:GetObject"],
+    )
+    assert result["has_condition"] is True
+    assert result["conditions"] is not None
 
 
 def test_collect_edge_conditions_unconditional_path_wins():

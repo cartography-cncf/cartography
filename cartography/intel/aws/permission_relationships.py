@@ -320,16 +320,25 @@ def collect_edge_conditions(
             ):
                 continue
             condition = statement.get("condition")
-            parsed = parse_condition_blob(condition)
-            if not parsed:
+            if not condition:
                 # An unconditional Allow path exists; the edge is effectively unconditional.
                 return {
                     "has_condition": False,
                     "condition_keys": [],
                     "conditions": None,
                 }
-            conditional_blobs.extend(parsed)
-            condition_keys.update(extract_condition_context_keys(parsed))
+            # The statement carries a Condition. Fail safe toward "conditional": if the
+            # blob can't be parsed (it should always be valid JSON written by the IAM
+            # module), keep the edge flagged and preserve the raw blob rather than
+            # downgrading it to an unconditional grant.
+            parsed = parse_condition_blob(condition)
+            if parsed:
+                conditional_blobs.extend(parsed)
+                condition_keys.update(extract_condition_context_keys(parsed))
+            else:
+                conditional_blobs.append(
+                    condition if isinstance(condition, str) else str(condition)
+                )
 
     if not conditional_blobs:
         # Defensive: a granted edge with no matching Allow statement shouldn't happen.
@@ -475,8 +484,16 @@ def build_target_precondition_clause(precondition: Dict | None) -> str:
         return ""
     related_label = precondition["related_label"]
     relationship = precondition["relationship"]
-    direction = precondition.get("direction", "outgoing").lower()
-    if direction == "incoming":
+    direction = precondition.get("direction", "outgoing")
+    if not isinstance(direction, str) or direction.lower() not in (
+        "incoming",
+        "outgoing",
+    ):
+        raise ValueError(
+            "target_precondition.direction must be 'incoming' or 'outgoing', "
+            f"got: {direction!r}",
+        )
+    if direction.lower() == "incoming":
         pattern = f"(resource)<-[:{relationship}]-(:{related_label})"
     else:
         pattern = f"(resource)-[:{relationship}]->(:{related_label})"
