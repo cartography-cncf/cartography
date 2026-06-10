@@ -19,8 +19,6 @@ reviews:
     files:
       - uv.lock
       - tests/data/**
-      - tests/unit/cartography/data/**
-      - tests/integration/cartography/data/**
   custom_rules:
     - name: Avoid Logging Sensitive Information
       description: Ensure code changes do not log personally identifiable information (PII) or sensitive data such as emails, authentication tokens, passwords, or API keys.
