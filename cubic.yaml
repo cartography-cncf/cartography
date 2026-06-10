@@ -70,9 +70,9 @@ reviews:
       include:
         - cartography/**
       description: |-
-        Mandatory sync pattern:
-        Every sync() function must follow this order: get() → transform() → load() → cleanup(). Verify that all 4 steps are present and in this order.
-        Cleanup is not needed for tenant-like object (AWSAccountm, AzureSubscription etc ...)
+        Sync pattern:
+        sync() follows get() → transform() → load() → cleanup(), with the steps in this order. transform() is optional: some modules load data straight from get() output, so do not flag a missing transform() step. Require get(), load(), and cleanup(), and require transform() to sit between get() and load() only when it is present.
+        Cleanup is not needed for tenant-like objects (AWSAccount, AzureSubscription, etc.).
 
         @timeit decorator required:
         The sync() and get() functions must be decorated with @timeit for performance monitoring.
@@ -102,8 +102,8 @@ reviews:
         Test outcomes, not implementation:
         Tests should verify data in the graph (via check_nodes, check_rels), not parameters passed to mocks or number of calls.
 
-        Mock only external APIs:
-        Only get() functions that call external APIs should be mocked. Do not mock Cartography's internal functions.
+        Mock only external APIs (end-to-end integration tests):
+        This applies to end-to-end integration tests: mock only get() functions that call external APIs, and do not mock Cartography's internal functions. It does not forbid all internal mocking: as long as at least one end-to-end integration test exercises the real path, additional narrowly-scoped tests that mock internal functions are fine and should not be flagged.
 
         Integration tests via sync:
         Integration tests should call the complete sync() or sync_*() function, not individual load() functions.
