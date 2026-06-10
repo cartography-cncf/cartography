@@ -267,7 +267,7 @@ def start_oci_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
                 "user": oci_config_json["user_ocid"],
                 "fingerprint": oci_config_json["fingerprint"],
                 "key_content": oci_config_json["private_key_content"],
-                "tenancy": tenancy_ocid,
+                "tenancy": oci_config_json["tenancy"],
                 "region": _resolve_region(config.params.get("defaultRegion", "PHX")),
             }
             oci.config.validate_config(credentials)
