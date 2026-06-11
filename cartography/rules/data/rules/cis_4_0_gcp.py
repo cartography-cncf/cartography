@@ -17,13 +17,15 @@ from cartography.rules.spec.model import Module
 from cartography.rules.spec.model import Rule
 from cartography.rules.spec.model import RuleReference
 
-CIS_GCP_BENCHMARK_REFERENCE = RuleReference(
-    text="CIS Google Cloud Platform Foundation Benchmark v4.0.0",
-    url="https://www.cisecurity.org/benchmark/google_cloud_computing_platform",
-)
-
 CIS_REFERENCES = [
-    CIS_GCP_BENCHMARK_REFERENCE,
+    RuleReference(
+        text="CIS Google Cloud Platform Foundation Benchmark v4.0.0",
+        url="https://www.cisecurity.org/benchmark/google_cloud_computing_platform",
+    ),
+    RuleReference(
+        text="GCP VPC Network Security Best Practices",
+        url="https://cloud.google.com/vpc/docs/firewalls",
+    ),
 ]
 
 
@@ -1187,7 +1189,6 @@ def _make_cloudsql_flag_rule(
     requirement: str,
     fact: Fact,
 ) -> Rule:
-    references = CIS_REFERENCES
     return Rule(
         id=rule_id,
         name=name,
@@ -1196,7 +1197,7 @@ def _make_cloudsql_flag_rule(
         facts=(fact,),
         tags=("cloudsql", "database", "configuration"),
         version="1.0.0",
-        references=references,
+        references=CIS_REFERENCES,
         frameworks=(
             cis_gcp(requirement),
             iso27001_annex_a("8.9"),

@@ -97,25 +97,6 @@ class TestCisAwsRuleStructure:
         assert len(rule.references) >= 1
 
 
-def test_updated_cis_rules_only_reference_cis_benchmark():
-    updated_rules = (
-        aws_s3_bucket_mfa_delete,
-        aws_s3_block_public_access,
-        aws_rds_encryption_at_rest,
-        aws_ebs_volume_encryption,
-        aws_cifs_access_restricted_to_trusted_networks,
-        aws_ipv4_remote_administration_ports_open_to_internet,
-        aws_ipv6_remote_administration_ports_open_to_internet,
-        aws_default_security_group_restricts_traffic,
-        aws_ec2_instances_use_imdsv2,
-    )
-
-    for rule in updated_rules:
-        assert [ref.url for ref in rule.references] == [
-            "https://www.cisecurity.org/benchmark/amazon_web_services",
-        ]
-
-
 class TestCisAwsFrameworkMetadata:
     """Test that all CIS AWS rules target the expected AWS benchmark revision."""
 

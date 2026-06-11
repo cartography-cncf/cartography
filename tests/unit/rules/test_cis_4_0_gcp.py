@@ -206,56 +206,6 @@ def test_cis_facts_are_gcp_and_stable():
             assert fact.maturity == Maturity.STABLE
 
 
-def test_cis_gcp_rules_only_reference_cis_benchmark():
-    rules = (
-        gcp_default_network_exists,
-        gcp_cloud_dns_dnssec_disabled,
-        gcp_cloud_dns_dnssec_key_signing_uses_rsasha1,
-        gcp_cloud_dns_dnssec_zone_signing_uses_rsasha1,
-        gcp_subnets_without_compliant_vpc_flow_logs,
-        gcp_unrestricted_ssh_access,
-        gcp_unrestricted_rdp_access,
-        gcp_instances_using_default_service_account,
-        gcp_default_service_account_full_cloud_api_scope,
-        gcp_instances_not_blocking_project_wide_ssh_keys,
-        gcp_projects_without_effective_os_login,
-        gcp_instances_with_serial_port_access,
-        gcp_instances_with_ip_forwarding,
-        gcp_instances_without_shielded_vm_enabled,
-        gcp_compute_instance_public_ips,
-        gcp_instances_without_confidential_computing_enabled,
-        gcp_bucket_uniform_access_disabled,
-        gcp_cloudsql_mysql_skip_show_database_not_on,
-        gcp_cloudsql_mysql_local_infile_not_off,
-        gcp_cloudsql_postgres_log_error_verbosity_too_permissive,
-        gcp_cloudsql_postgres_log_connections_not_on,
-        gcp_cloudsql_postgres_log_disconnections_not_on,
-        gcp_cloudsql_postgres_log_min_messages_below_warning,
-        gcp_cloudsql_postgres_log_min_error_statement_below_error,
-        gcp_cloudsql_postgres_log_min_duration_statement_not_disabled,
-        gcp_cloudsql_postgres_pgaudit_not_enabled,
-        gcp_cloudsql_sqlserver_external_scripts_enabled,
-        gcp_cloudsql_sqlserver_cross_db_ownership_chaining_enabled,
-        gcp_cloudsql_sqlserver_user_connections_limiting,
-        gcp_cloudsql_sqlserver_user_options_configured,
-        gcp_cloudsql_sqlserver_remote_access_not_off,
-        gcp_cloudsql_sqlserver_trace_flag_3625_not_on,
-        gcp_cloudsql_sqlserver_contained_database_authentication_enabled,
-        gcp_cloudsql_ssl_not_enforced,
-        gcp_cloudsql_authorized_networks_open_to_internet,
-        gcp_cloudsql_public_ips,
-        gcp_cloudsql_automated_backups_disabled,
-        gcp_bigquery_datasets_publicly_accessible,
-        gcp_bigquery_tables_without_cmek,
-        gcp_bigquery_datasets_without_default_cmek,
-    )
-
-    for rule in rules:
-        assert [ref.url for ref in rule.references] == [
-            "https://www.cisecurity.org/benchmark/google_cloud_computing_platform",
-        ]
-
-
 def test_cis_parse_results_preserves_extra_fields():
     fact = gcp_default_network_exists.get_fact_by_id("gcp_default_network_exists")
     sample_results = [

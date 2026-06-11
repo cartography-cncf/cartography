@@ -17,13 +17,15 @@ from cartography.rules.spec.model import Module
 from cartography.rules.spec.model import Rule
 from cartography.rules.spec.model import RuleReference
 
-CIS_AWS_BENCHMARK_REFERENCE = RuleReference(
-    text="CIS AWS Foundations Benchmark v6.0.0",
-    url="https://www.cisecurity.org/benchmark/amazon_web_services",
-)
-
 CIS_REFERENCES = [
-    CIS_AWS_BENCHMARK_REFERENCE,
+    RuleReference(
+        text="CIS AWS Foundations Benchmark v6.0.0",
+        url="https://www.cisecurity.org/benchmark/amazon_web_services",
+    ),
+    RuleReference(
+        text="AWS S3 Security Best Practices",
+        url="https://docs.aws.amazon.com/AmazonS3/latest/userguide/security-best-practices.html",
+    ),
 ]
 
 
