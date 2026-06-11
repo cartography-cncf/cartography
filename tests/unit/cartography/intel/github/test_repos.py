@@ -1,3 +1,4 @@
+import logging
 from copy import deepcopy
 from unittest.mock import patch
 
@@ -14,6 +15,8 @@ from cartography.intel.github.repos import _transform_dependency_graph
 from cartography.intel.github.repos import _transform_dependency_manifests
 from cartography.intel.github.repos import _transform_python_requirements
 from cartography.intel.github.repos import _transform_rulesets
+from cartography.intel.github.repos import enrich_dependencies_with_lockfile_versions
+from cartography.intel.github.repos import reconcile_dependency_version_conflicts
 from cartography.intel.github.repos import transform
 from tests.data.github.repos import DEP_MANIFESTS_BY_URL
 from tests.data.github.repos import DEPENDENCY_GRAPH_WITH_MULTIPLE_ECOSYSTEMS
@@ -21,6 +24,40 @@ from tests.data.github.repos import GET_REPOS
 from tests.data.github.rulesets import RULESET_PRODUCTION
 
 TEST_UPDATE_TAG = 123456789
+
+_DEFAULT_REPO_URL = "https://github.com/test-org/test-repo"
+
+
+def _make_dep(
+    dep_id,
+    name,
+    *,
+    ecosystem="npm",
+    repo_url=_DEFAULT_REPO_URL,
+    manifest_path="/package.json",
+    version=None,
+    pkg_type=None,
+    purl=None,
+    normalized_id=None,
+    source="dependency_graph",
+    version_confidence="range",
+):
+    """Build a transformed-dependency dict for the lockfile/reconcile tests."""
+    return {
+        "id": dep_id,
+        "name": name,
+        "original_name": name,
+        "ecosystem": ecosystem,
+        "repo_url": repo_url,
+        "manifest_path": manifest_path,
+        "version": version,
+        "type": pkg_type,
+        "purl": purl,
+        "normalized_id": normalized_id,
+        "source": source,
+        "version_confidence": version_confidence,
+    }
+
 
 REST_RULESET_PRODUCTION = {
     "id": 5351760,
@@ -187,6 +224,379 @@ def test_transform_dependency_converts_to_expected_format():
     assert react_dep["manifest_path"] == "/package.json"
     assert react_dep["repo_url"] == repo_url
     assert react_dep["manifest_file"] == "package.json"
+
+    # Assert: An exact-version PURL yields populated ontology fields
+    assert react_dep["version"] == "18.2.0"
+    assert react_dep["type"] == "npm"
+    assert react_dep["purl"] == "pkg:npm/react@18.2.0"
+    assert react_dep["normalized_id"] == "npm|react|18.2.0"
+    assert react_dep["source"] == "dependency_graph"
+    assert react_dep["version_confidence"] == "exact"
+
+    # Assert: A range-only dep (no PURL) intentionally leaves ontology fields null.
+    # lodash has neither an exact version nor a requirements string -> "unknown".
+    lodash_dep = next(dep for dep in output_list if dep["original_name"] == "lodash")
+    assert lodash_dep["version"] is None
+    assert lodash_dep["type"] is None
+    assert lodash_dep["purl"] is None
+    assert lodash_dep["normalized_id"] is None
+    assert lodash_dep["source"] == "dependency_graph"
+    assert lodash_dep["version_confidence"] == "unknown"
+
+
+def test_transform_dependency_version_confidence_range():
+    """
+    A dependency with a requirements range but no exact-version PURL is tagged
+    with version_confidence="range" and leaves the ontology fields null.
+    """
+    repo_url = "https://github.com/test-org/test-repo"
+    output_list = []
+    dependency_manifests = {
+        "nodes": [
+            {
+                "blobPath": "/package.json",
+                "dependencies": {
+                    "nodes": [
+                        {
+                            "packageName": "lodash",
+                            "packageUrl": "",
+                            "requirements": "^4.17.21",
+                            "packageManager": "NPM",
+                        },
+                    ],
+                },
+            },
+        ],
+    }
+
+    _transform_dependency_graph(dependency_manifests, repo_url, output_list)
+
+    assert len(output_list) == 1
+    lodash_dep = output_list[0]
+    assert lodash_dep["version"] is None
+    assert lodash_dep["normalized_id"] is None
+    assert lodash_dep["source"] == "dependency_graph"
+    assert lodash_dep["version_confidence"] == "range"
+
+
+def test_transform_dependency_graph_logs_coverage_summary(caplog):
+    """
+    The dependency transform logs a structured coverage summary. The mixed batch
+    has 4 deps, 3 with an exact version / normalized_id / purl (react, django,
+    spring-core) and 1 without (lodash), i.e. 75% coverage.
+    """
+    repo_url = "https://github.com/test-org/test-repo"
+    output_list = []
+
+    with caplog.at_level(logging.INFO, logger="cartography.intel.github.repos"):
+        _transform_dependency_graph(
+            DEPENDENCY_GRAPH_WITH_MULTIPLE_ECOSYSTEMS, repo_url, output_list
+        )
+
+    assert "Found 4 dependencies" in caplog.text
+    assert "3 exact (75%)" in caplog.text
+    assert "3 normalized_id (75%)" in caplog.text
+    assert "3 with purl" in caplog.text
+
+
+def test_enrich_dependencies_with_lockfile_versions():
+    """
+    Range-only deps present in the repo lockfile are upgraded to exact versions
+    (with a recovered normalized_id and lockfile provenance), while exact deps and
+    range-only deps absent from the lockfile are left untouched.
+    """
+    dependencies = [
+        # Exact pip dep: must be left untouched.
+        _make_dep(
+            "requests|2.31.0",
+            "requests",
+            ecosystem="pip",
+            manifest_path="/requirements.txt",
+            version="2.31.0",
+            pkg_type="pypi",
+            purl="pkg:pypi/requests@2.31.0",
+            normalized_id="pypi|requests|2.31.0",
+            version_confidence="exact",
+        ),
+        # Range-only pip dep present in uv.lock: must be upgraded.
+        _make_dep(
+            "django|>=4.0", "django", ecosystem="pip", manifest_path="/requirements.txt"
+        ),
+        # Range-only pip dep absent from uv.lock: must stay null.
+        _make_dep(
+            "flask|>=2.0", "flask", ecosystem="pip", manifest_path="/requirements.txt"
+        ),
+        # Range-only npm dep present in package-lock.json: must be upgraded.
+        _make_dep("lodash|^4.0.0", "lodash"),
+    ]
+
+    uv_lock = '[[package]]\nname = "django"\nversion = "4.2.0"\n'
+    npm_lock = '{"packages": {"node_modules/lodash": {"version": "4.17.21"}}}'
+
+    def fake_get_file_content(token, owner, repo, path, base_url):
+        return {"uv.lock": uv_lock, "package-lock.json": npm_lock}.get(path)
+
+    with patch.object(
+        cartography.intel.github.repos,
+        "get_file_content",
+        side_effect=fake_get_file_content,
+    ):
+        enrich_dependencies_with_lockfile_versions(
+            dependencies, "fake-token", "https://api.github.com/graphql"
+        )
+
+    by_name = {dep["name"]: dep for dep in dependencies}
+
+    # Exact dep untouched
+    assert by_name["requests"]["source"] == "dependency_graph"
+    assert by_name["requests"]["normalized_id"] == "pypi|requests|2.31.0"
+
+    # Range dep present in uv.lock upgraded to exact
+    assert by_name["django"]["version"] == "4.2.0"
+    assert by_name["django"]["type"] == "pypi"
+    assert by_name["django"]["normalized_id"] == "pypi|django|4.2.0"
+    assert by_name["django"]["source"] == "lockfile"
+    assert by_name["django"]["version_confidence"] == "exact"
+
+    # Range dep absent from lockfile stays null
+    assert by_name["flask"]["version"] is None
+    assert by_name["flask"]["normalized_id"] is None
+    assert by_name["flask"]["source"] == "dependency_graph"
+
+    # Range npm dep present in package-lock.json upgraded to exact
+    assert by_name["lodash"]["version"] == "4.17.21"
+    assert by_name["lodash"]["normalized_id"] == "npm|lodash|4.17.21"
+    assert by_name["lodash"]["source"] == "lockfile"
+
+
+def test_enrich_dependencies_uses_colocated_lockfile():
+    """
+    In a monorepo each dependency is enriched only from the lockfile co-located
+    with its own manifest. The root lockfile must not leak its version into a
+    dependency declared under a subdirectory manifest.
+    """
+    repo_url = "https://github.com/test-org/monorepo"
+    dependencies = [
+        # Root project: lodash@^4.0.0 locked to 4.17.21 in /package-lock.json.
+        _make_dep("lodash|^4.0.0", "lodash", repo_url=repo_url),
+        # Sub-project: lodash@^3.0.0 (distinct id, distinct node) locked to 3.10.1
+        # in /services/api/package-lock.json.
+        _make_dep(
+            "lodash|^3.0.0",
+            "lodash",
+            repo_url=repo_url,
+            manifest_path="/services/api/package.json",
+        ),
+    ]
+
+    lockfiles = {
+        "package-lock.json": '{"packages": {"node_modules/lodash": {"version": "4.17.21"}}}',
+        "services/api/package-lock.json": '{"packages": {"node_modules/lodash": {"version": "3.10.1"}}}',
+    }
+
+    requested_paths = []
+
+    def fake_get_file_content(token, owner, repo, path, base_url):
+        requested_paths.append(path)
+        return lockfiles.get(path)
+
+    with patch.object(
+        cartography.intel.github.repos,
+        "get_file_content",
+        side_effect=fake_get_file_content,
+    ):
+        enrich_dependencies_with_lockfile_versions(
+            dependencies, "fake-token", "https://api.github.com/graphql"
+        )
+
+    # Each manifest's lockfile was fetched co-located, not just the repo root.
+    assert set(requested_paths) == {
+        "package-lock.json",
+        "services/api/package-lock.json",
+    }
+
+    by_manifest = {dep["manifest_path"]: dep for dep in dependencies}
+    assert by_manifest["/package.json"]["version"] == "4.17.21"
+    assert by_manifest["/package.json"]["normalized_id"] == "npm|lodash|4.17.21"
+    assert by_manifest["/services/api/package.json"]["version"] == "3.10.1"
+    assert (
+        by_manifest["/services/api/package.json"]["normalized_id"]
+        == "npm|lodash|3.10.1"
+    )
+
+
+def test_enrich_declines_conflicting_versions_for_shared_id():
+    """
+    A Dependency node is keyed by name|requirements, so two manifests pinning the
+    same `lodash|^4.0.0` to different exact versions would collide on one node.
+    Enrichment must decline both rather than let one version win.
+    """
+    repo_url = "https://github.com/test-org/monorepo"
+    shared_id = "lodash|^4.0.0"
+    dependencies = [
+        _make_dep(shared_id, "lodash", repo_url=repo_url),
+        _make_dep(
+            shared_id,
+            "lodash",
+            repo_url=repo_url,
+            manifest_path="/services/api/package.json",
+        ),
+    ]
+
+    lockfiles = {
+        "package-lock.json": '{"packages": {"node_modules/lodash": {"version": "4.17.21"}}}',
+        "services/api/package-lock.json": '{"packages": {"node_modules/lodash": {"version": "3.10.1"}}}',
+    }
+
+    def fake_get_file_content(token, owner, repo, path, base_url):
+        return lockfiles.get(path)
+
+    with patch.object(
+        cartography.intel.github.repos,
+        "get_file_content",
+        side_effect=fake_get_file_content,
+    ):
+        enrich_dependencies_with_lockfile_versions(
+            dependencies, "fake-token", "https://api.github.com/graphql"
+        )
+
+    # Both share one node id with conflicting locked versions, so neither is
+    # enriched: the node is left without a (wrong) exact version.
+    for dep in dependencies:
+        assert dep["version"] is None
+        assert dep["normalized_id"] is None
+        assert dep["source"] == "dependency_graph"
+        assert dep["version_confidence"] == "range"
+
+
+def test_enrich_declines_when_lockfile_conflicts_with_existing_exact():
+    """
+    One manifest already resolves `lodash|^4.0.0` to an exact 4.17.21 from the
+    dependency graph; another manifest with the same id resolves to 3.10.1 from
+    its lockfile. They merge into one node, so the lockfile version must not be
+    applied: the exact row already pins the node and the range row stays null.
+    """
+    repo_url = "https://github.com/test-org/monorepo"
+    shared_id = "lodash|^4.0.0"
+    dependencies = [
+        # Already exact from the dependency graph (a different manifest).
+        _make_dep(
+            shared_id,
+            "lodash",
+            repo_url=repo_url,
+            version="4.17.21",
+            pkg_type="npm",
+            purl="pkg:npm/lodash@4.17.21",
+            normalized_id="npm|lodash|4.17.21",
+            version_confidence="exact",
+        ),
+        # Range-only, same id, lockfile would pin a conflicting version.
+        _make_dep(
+            shared_id,
+            "lodash",
+            repo_url=repo_url,
+            manifest_path="/services/api/package.json",
+        ),
+    ]
+
+    npm_lock = '{"packages": {"node_modules/lodash": {"version": "3.10.1"}}}'
+
+    def fake_get_file_content(token, owner, repo, path, base_url):
+        return npm_lock if path == "services/api/package-lock.json" else None
+
+    with patch.object(
+        cartography.intel.github.repos,
+        "get_file_content",
+        side_effect=fake_get_file_content,
+    ):
+        enrich_dependencies_with_lockfile_versions(
+            dependencies, "fake-token", "https://api.github.com/graphql"
+        )
+
+    by_manifest = {dep["manifest_path"]: dep for dep in dependencies}
+    # Exact row untouched.
+    assert by_manifest["/package.json"]["normalized_id"] == "npm|lodash|4.17.21"
+    # Range row declined (would have conflicted with the exact row's version).
+    assert by_manifest["/services/api/package.json"]["version"] is None
+    assert by_manifest["/services/api/package.json"]["normalized_id"] is None
+    assert by_manifest["/services/api/package.json"]["source"] == "dependency_graph"
+
+
+def test_reconcile_dependency_version_conflicts_clears_conflicting_exact_versions():
+    """
+    Two manifests resolve the same `lodash|^4.0.0` to different exact versions
+    straight from the dependency graph (no lockfile). They merge into one node,
+    so both rows are cleared, while an unrelated, non-conflicting dependency is
+    left untouched.
+    """
+    shared_id = "lodash|^4.0.0"
+    dependencies = [
+        _make_dep(
+            shared_id,
+            "lodash",
+            version="4.17.21",
+            pkg_type="npm",
+            purl="pkg:npm/lodash@4.17.21",
+            normalized_id="npm|lodash|4.17.21",
+            version_confidence="exact",
+        ),
+        _make_dep(
+            shared_id,
+            "lodash",
+            manifest_path="/services/api/package.json",
+            version="3.10.1",
+            pkg_type="npm",
+            purl="pkg:npm/lodash@3.10.1",
+            normalized_id="npm|lodash|3.10.1",
+            version_confidence="exact",
+        ),
+        # Unrelated, single-version dep: must be left untouched.
+        _make_dep(
+            "react|18.2.0",
+            "react",
+            version="18.2.0",
+            pkg_type="npm",
+            purl="pkg:npm/react@18.2.0",
+            normalized_id="npm|react|18.2.0",
+            version_confidence="exact",
+        ),
+    ]
+
+    reconcile_dependency_version_conflicts(dependencies)
+
+    # Both conflicting rows are cleared so the shared node carries no version.
+    for dep in dependencies[:2]:
+        assert dep["version"] is None
+        assert dep["type"] is None
+        assert dep["purl"] is None
+        assert dep["normalized_id"] is None
+        assert dep["version_confidence"] == "unknown"
+
+    # The unrelated dependency is preserved.
+    assert dependencies[2]["normalized_id"] == "npm|react|18.2.0"
+    assert dependencies[2]["version"] == "18.2.0"
+
+
+def test_reconcile_dependency_version_conflicts_keeps_consistent_versions():
+    """A shared id with the same exact version across manifests is not cleared."""
+    shared_id = "lodash|^4.0.0"
+    exact_lodash = dict(
+        version="4.17.21",
+        pkg_type="npm",
+        purl="pkg:npm/lodash@4.17.21",
+        normalized_id="npm|lodash|4.17.21",
+        version_confidence="exact",
+    )
+    dependencies = [
+        _make_dep(shared_id, "lodash", **exact_lodash),
+        _make_dep(shared_id, "lodash", **exact_lodash),
+    ]
+
+    reconcile_dependency_version_conflicts(dependencies)
+
+    for dep in dependencies:
+        assert dep["normalized_id"] == "npm|lodash|4.17.21"
+        assert dep["version"] == "4.17.21"
 
 
 def test_transform_python_requirements_skips_flags_and_continuations():

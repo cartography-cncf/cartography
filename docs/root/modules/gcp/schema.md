@@ -2116,10 +2116,6 @@ Cloud Run Service is treated as an orchestrator (analogous to `ECSService`) and 
     ```
     (GCPCloudRunService)-[:USES_SERVICE_ACCOUNT]->(GCPServiceAccount)
     ```
-  - GCPCloudRunServices contain one GCPCloudRunServiceContainer per container declared in the `latestReadyRevision` spec (including sidecars). (DEPRECATED: replaced by `WORKLOAD_PARENT`, will be removed in v1.0.0)
-    ```
-    (GCPCloudRunService)-[:CONTAINS]->(GCPCloudRunServiceContainer)
-    ```
 
 ### GCPCloudRunRevision
 
@@ -2181,10 +2177,6 @@ Representation of a GCP [Cloud Run Job](https://cloud.google.com/run/docs/refere
     ```
     (GCPCloudRunJob)-[:USES_SERVICE_ACCOUNT]->(GCPServiceAccount)
     ```
-  - GCPCloudRunJobs contain one GCPCloudRunJobContainer per container declared in the task template (including sidecars). (DEPRECATED: replaced by `WORKLOAD_PARENT`, will be removed in v1.0.0)
-    ```
-    (GCPCloudRunJob)-[:CONTAINS]->(GCPCloudRunJobContainer)
-    ```
 
 ### GCPCloudRunJobContainer
 
@@ -2211,10 +2203,6 @@ Representation of an individual container spec from a [Cloud Run Job](https://cl
   - GCPCloudRunJobContainers are resources of GCPProjects.
     ```
     (GCPProject)-[:RESOURCE]->(GCPCloudRunJobContainer)
-    ```
-  - GCPCloudRunJobContainers live inside a GCPCloudRunJob. (DEPRECATED: replaced by `WORKLOAD_PARENT`, will be removed in v1.0.0)
-    ```
-    (GCPCloudRunJob)-[:CONTAINS]->(GCPCloudRunJobContainer)
     ```
   - GCPCloudRunJobContainers point at their parent GCPCloudRunJob via the unified workload chain.
     ```
@@ -2257,10 +2245,6 @@ Representation of an individual container spec from a [Cloud Run Service](https:
   - GCPCloudRunServiceContainers are resources of GCPProjects.
     ```
     (GCPProject)-[:RESOURCE]->(GCPCloudRunServiceContainer)
-    ```
-  - GCPCloudRunServiceContainers live inside a GCPCloudRunService (sourced from the `latestReadyRevision` spec). (DEPRECATED: replaced by `WORKLOAD_PARENT`, will be removed in v1.0.0)
-    ```
-    (GCPCloudRunService)-[:CONTAINS]->(GCPCloudRunServiceContainer)
     ```
   - GCPCloudRunServiceContainers point at their parent GCPCloudRunService via the unified workload chain.
     ```

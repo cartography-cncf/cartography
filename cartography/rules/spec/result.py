@@ -91,7 +91,7 @@ class RuleResult:
         counter (CounterResult): Execution counters and aggregate metrics.
         facts (list[FactResult]): Results from each Fact executed within this Rule.
         rule_tags (tuple[str, ...]): Tags associated with the Rule.
-        rule_frameworks (tuple[Framework, ...]): Compliance frameworks this rule maps to.
+        rule_frameworks (tuple[Framework, ...]): Compliance framework requirement/control mappings for this rule.
     """
 
     rule_id: str

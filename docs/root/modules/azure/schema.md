@@ -1980,10 +1980,6 @@ Representation of an [Azure Container Group](https://learn.microsoft.com/en-us/r
     ```cypher
     (AzureGroupContainer)-[:ATTACHED_TO]->(:AzureSubnet)
     ```
-- An Azure Container Group contains one or more AzureContainerInstances. (DEPRECATED: replaced by `WORKLOAD_PARENT`, will be removed in v1.0.0)
-    ```cypher
-    (AzureGroupContainer)-[:CONTAINS]->(:AzureContainerInstance)
-    ```
 
 ### AzureContainerInstance
 
@@ -2014,10 +2010,6 @@ Representation of an individual container within an [Azure Container Group](http
 - An AzureContainerInstance is a resource within an Azure Subscription.
     ```cypher
     (AzureSubscription)-[:RESOURCE]->(:AzureContainerInstance)
-    ```
-- An Azure Container Group contains its AzureContainerInstances. (DEPRECATED: replaced by `WORKLOAD_PARENT`, will be removed in v1.0.0)
-    ```cypher
-    (AzureGroupContainer)-[:CONTAINS]->(:AzureContainerInstance)
     ```
 - An AzureContainerInstance points at its parent AzureGroupContainer via the unified workload chain.
     ```cypher

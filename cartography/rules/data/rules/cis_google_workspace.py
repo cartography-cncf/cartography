@@ -79,9 +79,9 @@ _gw_user_2sv_not_enforced = Fact(
     maturity=Maturity.EXPERIMENTAL,
 )
 
-cis_gw_4_1_1_3_user_2sv_not_enforced = Rule(
-    id="cis_gw_4_1_1_3_user_2sv_not_enforced",
-    name="CIS Google Workspace 4.1.1.3: Users Without Enforced 2-Step Verification",
+googleworkspace_users_without_enforced_2sv = Rule(
+    id="googleworkspace_users_without_enforced_2sv",
+    name="Users Without Enforced 2-Step Verification",
     description=(
         "2-Step Verification should be enforced for all users to prevent unauthorized access. "
         "Enrolled but not enforced users can disable 2SV at any time."
@@ -160,9 +160,9 @@ _gw_admin_2sv_not_enforced = Fact(
     maturity=Maturity.EXPERIMENTAL,
 )
 
-cis_gw_4_1_1_1_admin_2sv_not_enforced = Rule(
-    id="cis_gw_4_1_1_1_admin_2sv_not_enforced",
-    name="CIS Google Workspace 4.1.1.1: Admins Without Enforced 2-Step Verification",
+googleworkspace_admins_without_enforced_2sv = Rule(
+    id="googleworkspace_admins_without_enforced_2sv",
+    name="Admins Without Enforced 2-Step Verification",
     description=(
         "Admin accounts should have 2-Step Verification enforced due to their elevated privileges. "
         "Enrolled but not enforced admins can disable 2SV, creating a significant security risk."
@@ -246,9 +246,9 @@ _gw_super_admin_count_too_low = Fact(
     maturity=Maturity.EXPERIMENTAL,
 )
 
-cis_gw_1_1_1_super_admin_count_too_low = Rule(
-    id="cis_gw_1_1_1_super_admin_count_too_low",
-    name="CIS Google Workspace 1.1.1: More Than One Super Admin Account Exists",
+googleworkspace_too_few_super_admin_accounts = Rule(
+    id="googleworkspace_too_few_super_admin_accounts",
+    name="Too Few Super Admin Accounts",
     description=(
         "Google Workspace tenants should maintain at least two Super Admin accounts "
         "to avoid a single point of failure for privileged administration."
@@ -305,9 +305,9 @@ _gw_super_admin_count_too_high = Fact(
     maturity=Maturity.EXPERIMENTAL,
 )
 
-cis_gw_1_1_2_super_admin_count_too_high = Rule(
-    id="cis_gw_1_1_2_super_admin_count_too_high",
-    name="CIS Google Workspace 1.1.2: No More Than 4 Super Admin Accounts Exist",
+googleworkspace_too_many_super_admin_accounts = Rule(
+    id="googleworkspace_too_many_super_admin_accounts",
+    name="Too Many Super Admin Accounts",
     description=(
         "Google Workspace tenants should limit the number of Super Admin accounts "
         "to reduce the privileged attack surface."
@@ -369,9 +369,9 @@ _gw_super_admin_with_delegated_admin_role = Fact(
     maturity=Maturity.EXPERIMENTAL,
 )
 
-cis_gw_1_1_3_super_admin_used_for_daily_admin = Rule(
-    id="cis_gw_1_1_3_super_admin_used_for_daily_admin",
-    name="CIS Google Workspace 1.1.3: Super Admin Accounts Used Only for Super Admin Activities",
+googleworkspace_super_admin_accounts_used_for_daily_admin = Rule(
+    id="googleworkspace_super_admin_accounts_used_for_daily_admin",
+    name="Super Admin Accounts Used for Daily Admin Activities",
     description=(
         "Super Admin accounts should remain dedicated to top-level administration "
         "and not also be used as delegated admin accounts."

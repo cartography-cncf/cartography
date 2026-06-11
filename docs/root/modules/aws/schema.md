@@ -76,6 +76,7 @@ Configured AWS sync accounts are marked `inscope=true`. Accounts discovered only
                                 :RDSInstance,
                                 :RDSSnapshot,
                                 :RDSEventSubscription,
+                                :ECRPullThroughCacheRule,
                                 :SecretsManagerSecret,
                                 :SecurityHub,
                                 :SQSQueue,
@@ -277,7 +278,7 @@ Representation of AWS [IAM Groups](https://docs.aws.amazon.com/IAM/latest/APIRef
 - AWSUsers and AWSPrincipals can be members of AWSGroups.
 
     ```cypher
-    (:AWSUser, :AWSPrincipal)-[:MEMBER_AWS_GROUP]->(:AWSGroup)
+    (:AWSUser, :AWSPrincipal)-[:MEMBER_OF]->(:AWSGroup)
     ```
 
 - AWSGroups belong to AWSAccounts.
@@ -901,7 +902,7 @@ Representation of an [AWSPrincipal](https://docs.aws.amazon.com/IAM/latest/APIRe
 - AWS Principals can be members of AWS Groups.
 
     ```cypher
-    (AWSPrincipal)-[MEMBER_AWS_GROUP]->(AWSGroup)
+    (AWSPrincipal)-[MEMBER_OF]->(AWSGroup)
     ```
 
 - This AccountAccessKey is used to authenticate to this AWSPrincipal.
@@ -984,7 +985,7 @@ Representation of an [AWSUser](https://docs.aws.amazon.com/IAM/latest/APIReferen
 - AWS Users can be members of AWS Groups.
 
     ```cypher
-    (AWSUser)-[MEMBER_AWS_GROUP]->(AWSGroup)
+    (AWSUser)-[MEMBER_OF]->(AWSGroup)
     ```
 
 - AWS Users can assume AWS Roles.
@@ -1322,7 +1323,6 @@ Representation of an AWS [Tag](https://docs.aws.amazon.com/resourcegroupstagging
 | **id** | This tag's unique identifier of the format `{TagKey}:{TagValue}`. We fabricated this ID. |
 | key | One part of a key-value pair that makes up a tag.|
 | value | One part of a key-value pair that makes up a tag. |
-| region | The region where this tag was discovered.|
 
 #### Relationships
 -  AWS VPCs, DB Subnet Groups, EC2 Instances, EC2 SecurityGroups, EC2 Subnets, EC2 Network Interfaces, RDS Instances, S3 Buckets, AWS Roles, AWS Users, and AWS Groups can be tagged with AWSTags.
@@ -2582,6 +2582,44 @@ Representation of an AWS Elastic Container Registry [Repository](https://docs.aw
     ```
 
 
+### ECRPullThroughCacheRule
+
+Representation of an AWS Elastic Container Registry [pull through cache rule](https://docs.aws.amazon.com/AmazonECR/latest/APIReference/API_PullThroughCacheRule.html).
+
+| Field | Description |
+|--------|-----------|
+| firstseen | Timestamp of when a sync job first discovered this node |
+| lastupdated | Timestamp of the last time the node was updated |
+| **id** | Synthetic ID in the format `registry_id:region:ecr_repository_prefix` |
+| **registry_id** | The AWS registry ID associated with the rule |
+| **ecr_repository_prefix** | The ECR repository prefix used when caching images from the upstream registry |
+| upstream_registry_url | The upstream registry URL associated with the rule |
+| **upstream_registry** | The upstream source registry name associated with the rule |
+| upstream_repository_prefix | The upstream repository prefix associated with the rule |
+| **credential_arn** | The Secrets Manager secret ARN used for upstream registry credentials, when configured |
+| **custom_role_arn** | The IAM role ARN used for pull through cache operations, when configured |
+| created_at | Date and time when the rule was created |
+| updated_at | Date and time when the rule was last updated |
+| region | The region of the rule |
+
+#### Relationships
+
+- ECR pull through cache rules are resources under the AWS Account:
+    ```
+    (:AWSAccount)-[:RESOURCE]->(:ECRPullThroughCacheRule)
+    ```
+
+- ECR pull through cache rules may use a Secrets Manager secret for upstream credentials:
+    ```
+    (:ECRPullThroughCacheRule)-[:USES_SECRET]->(:SecretsManagerSecret)
+    ```
+
+- ECR pull through cache rules may be associated with an IAM role:
+    ```
+    (:ECRPullThroughCacheRule)-[:ASSOCIATED_WITH]->(:AWSRole)
+    ```
+
+
 ### EC2NetworkAcl
 
  Representation of an AWS [EC2 Network ACL](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_NetworkAcl.html)
@@ -3830,6 +3868,11 @@ Representation of an AWS Relational Database Service [DBInstance](https://docs.a
     (RDSInstance)-[TAGGED]->(AWSTag)
     ```
 
+- RDS Instances encrypted with a customer-managed KMS key are linked to it.
+    ```
+    (RDSInstance)-[:ENCRYPTED_BY]->(KMSKey)
+    ```
+
 ### RDSSnapshot
 
 Representation of an AWS Relational Database Service [DBSnapshot](https://docs.aws.amazon.com/AmazonRDS/latest/APIReference/API_DBSnapshot.html).
@@ -4076,6 +4119,11 @@ Representation of an AWS S3 [Bucket](https://docs.aws.amazon.com/AmazonS3/latest
 -  S3 Buckets can be tagged with AWSTags.
     ```
     (S3Bucket)-[TAGGED]->(AWSTag)
+    ```
+
+- S3 Buckets whose default encryption uses a customer-managed KMS key are linked to it.
+    ```
+    (S3Bucket)-[:ENCRYPTED_BY]->(KMSKey)
     ```
 
 - S3 Buckets can send notifications to SNS Topics.
@@ -5146,16 +5194,6 @@ Representation of an AWS ECS [Service](https://docs.aws.amazon.com/AmazonECS/lat
 
 #### Relationships
 
-- An ECSCluster has ECSService (DEPRECATED: replaced by `WORKLOAD_PARENT`, will be removed in v1.0.0)
-    ```
-    (:ECSCluster)-[:HAS_SERVICE]->(:ECSService)
-    ```
-
-- An ECSService has ECSTasks (DEPRECATED: replaced by `WORKLOAD_PARENT`, will be removed in v1.0.0)
-    ```
-    (:ECSService)-[:HAS_TASK]->(:ECSTask)
-    ```
-
 - An ECSService points at its parent cluster via the unified workload chain.
     ```
     (:ECSService)-[:WORKLOAD_PARENT]->(:ECSCluster)
@@ -5305,11 +5343,6 @@ Representation of an AWS ECS [Task](https://docs.aws.amazon.com/AmazonECS/latest
     (:AWSAccount)-[:RESOURCE]->(:ECSTask)
     ```
 
-- ECSClusters have ECSTasks (DEPRECATED: replaced by `WORKLOAD_PARENT`, will be removed in v1.0.0)
-    ```
-    (:ECSCluster)-[:HAS_TASK]->(:ECSTask)
-    ```
-
 - ECSContainerInstances have ECSTasks
     ```
     (:ECSContainerInstance)-[:HAS_TASK]->(:ECSTask)
@@ -5363,11 +5396,6 @@ Representation of an AWS ECS [Container](https://docs.aws.amazon.com/AmazonECS/l
 | exposed\_internet | Set to `True` if this container is exposed to the internet via an internet-facing load balancer. Set by the `aws_ecs_asset_exposure` [analysis job](https://github.com/cartography-cncf/cartography/blob/master/cartography/data/jobs/analysis/aws_ecs_asset_exposure.json). |
 
 #### Relationships
-
-- ECSTasks have ECSContainers (DEPRECATED: replaced by `WORKLOAD_PARENT`, will be removed in v1.0.0)
-    ```
-    (:ECSTask)-[:HAS_CONTAINER]->(:ECSContainer)
-    ```
 
 - ECSContainers point at their parent ECSTask via the unified workload chain.
     ```
@@ -5467,6 +5495,11 @@ Representation of an AWS [EFS Access Point](https://docs.aws.amazon.com/efs/late
 - EFS Access Points are entry points into EFS File Systems.
     ```
     (EfsAccessPoint)-[ACCESS_POINT_OF]->(EfsFileSystem)
+    ```
+
+- EFS File Systems encrypted with a customer-managed KMS key are linked to it.
+    ```
+    (EfsFileSystem)-[:ENCRYPTED_BY]->(KMSKey)
     ```
 
 ### SNSTopic
@@ -5732,7 +5765,7 @@ Representation of an AWS SSO User.
 
 - An AWSSSOUser can be a member of one or more AWSSSOGroups. In effect, the AWSSSOUser will receive all permission sets that the group is assigned to.
     ```
-    (:AWSSSOUser)-[:MEMBER_OF_SSO_GROUP]->(:AWSSSOGroup)
+    (:AWSSSOUser)-[:MEMBER_OF]->(:AWSSSOGroup)
     ```
 
 - AWSSSOUsers can be assigned to AWSRoles. This happens when the user is assigned to a permission set for a specific account. This includes both direct assignments to the user and assignments inherited through AWSSSOGroup membership. Note: The AWS Identity Center API (`list_account_assignments_for_principal`) automatically resolves group memberships server-side, so users receive `ALLOWED_BY` relationships for roles they can access through groups they belong to.
@@ -5751,10 +5784,10 @@ Representation of an AWS SSO User.
 
 - An AWSSSOUser can be assigned to one or more AWSPermissionSets. This includes both direct assignments and assignments inherited through AWSSSOGroup membership.
     ```
-    (:AWSSSOUser)-[:HAS_PERMISSION_SET]->(:AWSPermissionSet)
+    (:AWSSSOUser)-[:HAS_ROLE]->(:AWSPermissionSet)
     ```
     Notes:
-    - The AWS Identity Center API (`list_account_assignments_for_principal`) automatically resolves group memberships server-side, so users receive `HAS_PERMISSION_SET` relationships for permission sets they have access to through groups they belong to. This means if a user is only in a group that has a permission set assignment, the user will still have a direct `HAS_PERMISSION_SET` relationship to that permission set.
+    - The AWS Identity Center API (`list_account_assignments_for_principal`) automatically resolves group memberships server-side, so users receive `HAS_ROLE` relationships for permission sets they have access to through groups they belong to. This means if a user is only in a group that has a permission set assignment, the user will still have a direct `HAS_ROLE` relationship to that permission set.
     - This is a **summary relationship** that does not indicate which specific accounts the user has access to, only that they have been assigned to the permission set. For a user to have access to an AWS account, they must be assigned to a permission set for that specific account. This is captured by the `ALLOWED_BY` relationship.
 
 - AWSSSOUser can assume AWS roles via SAML (recorded from CloudTrail management events).
@@ -5804,7 +5837,7 @@ Representation of an AWS SSO Group.
 
 - An AWSSSOGroup has assigned permission sets. AWSSSOUsers in the group will receive all permission sets that the group is assigned to.
     ```
-    (:AWSSSOGroup)-[:HAS_PERMISSION_SET]->(:AWSPermissionSet)
+    (:AWSSSOGroup)-[:HAS_ROLE]->(:AWSPermissionSet)
     ```
     Notes:
     - This relationship does not indicate which accounts the group has access to, only that it has been assigned to the permission set. For a group to have access to an AWS account, it must be assigned to a permission set for that specific account. This is captured by the `ALLOWED_BY` relationship.
@@ -5812,7 +5845,7 @@ Representation of an AWS SSO Group.
 
 - AWSSSOUsers can be members of AWSSSOGroups. In effect, the AWSSSOUser will receive all permission sets that the group is assigned to.
     ```
-    (:AWSSSOUser)-[:MEMBER_OF_SSO_GROUP]->(:AWSSSOGroup)
+    (:AWSSSOUser)-[:MEMBER_OF]->(:AWSSSOGroup)
     ```
 
 ### AWSPermissionSet
@@ -5847,15 +5880,15 @@ Representation of an AWS Identity Center Permission Set.
 
 - An AWSSSOUser can be assigned to one or more AWSPermissionSets. This includes both direct assignments and assignments inherited through AWSSSOGroup membership.
     ```
-    (:AWSSSOUser)-[:HAS_PERMISSION_SET]->(:AWSPermissionSet)
+    (:AWSSSOUser)-[:HAS_ROLE]->(:AWSPermissionSet)
     ```
     Notes:
-    - The AWS Identity Center API (`list_account_assignments_for_principal`) automatically resolves group memberships server-side, so users receive `HAS_PERMISSION_SET` relationships for permission sets they have access to through groups they belong to. This means if a user is only in a group that has a permission set assignment, the user will still have a direct `HAS_PERMISSION_SET` relationship to that permission set.
+    - The AWS Identity Center API (`list_account_assignments_for_principal`) automatically resolves group memberships server-side, so users receive `HAS_ROLE` relationships for permission sets they have access to through groups they belong to. This means if a user is only in a group that has a permission set assignment, the user will still have a direct `HAS_ROLE` relationship to that permission set.
     - This is a **summary relationship** that does not indicate which specific accounts the user has access to, only that they have been assigned to the permission set. For a user to have access to an AWS account, they must be assigned to a permission set _for that specific account_. This is captured by the `ALLOWED_BY` relationship.
 
 - An AWSSSOGroup has assigned permission sets. AWSSSOUsers in the group will receive all permission sets that the group is assigned to.
     ```
-    (:AWSSSOGroup)-[:HAS_PERMISSION_SET]->(:AWSPermissionSet)
+    (:AWSSSOGroup)-[:HAS_ROLE]->(:AWSPermissionSet)
     ```
     Note: This relationship does not indicate which accounts the group has access to, only that it has been assigned to the permission set. For a group to have access to an AWS account, it must be assigned to a permission set for that specific account. This is captured by the `ALLOWED_BY` relationship.
 

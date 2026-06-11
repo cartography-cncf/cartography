@@ -83,9 +83,9 @@ _aws_s3_mfa_delete_disabled = Fact(
     maturity=Maturity.STABLE,
 )
 
-cis_aws_3_1_2_s3_mfa_delete = Rule(
-    id="cis_aws_3_1_2_s3_mfa_delete",
-    name="CIS AWS 3.1.2: S3 Bucket MFA Delete",
+aws_s3_bucket_mfa_delete = Rule(
+    id="aws_s3_bucket_mfa_delete",
+    name="S3 Bucket MFA Delete",
     description=(
         "S3 buckets should have Versioning and MFA Delete enabled to require MFA "
         "authentication for deleting object versions or changing versioning state."
@@ -103,7 +103,7 @@ cis_aws_3_1_2_s3_mfa_delete = Rule(
 
 
 # =============================================================================
-# CIS AWS 3.1.4: S3 Block Public Access
+# S3 Block Public Access
 # Main node: S3Bucket
 # =============================================================================
 class S3BlockPublicAccessOutput(Finding):
@@ -161,9 +161,9 @@ _aws_s3_block_public_access_disabled = Fact(
     maturity=Maturity.STABLE,
 )
 
-cis_aws_3_1_4_s3_block_public_access = Rule(
-    id="cis_aws_3_1_4_s3_block_public_access",
-    name="CIS AWS 3.1.4: S3 Block Public Access",
+aws_s3_block_public_access = Rule(
+    id="aws_s3_block_public_access",
+    name="S3 Block Public Access",
     description=(
         "S3 buckets should have all Block Public Access settings enabled to prevent "
         "accidental public exposure of data."
@@ -181,7 +181,7 @@ cis_aws_3_1_4_s3_block_public_access = Rule(
 
 
 # =============================================================================
-# CIS AWS 3.2.1: RDS Encryption at Rest
+# RDS Encryption at Rest
 # Main node: RDSInstance
 # =============================================================================
 class RdsEncryptionOutput(Finding):
@@ -234,9 +234,9 @@ _aws_rds_encryption_disabled = Fact(
     maturity=Maturity.STABLE,
 )
 
-cis_aws_3_2_1_rds_encryption = Rule(
-    id="cis_aws_3_2_1_rds_encryption",
-    name="CIS AWS 3.2.1: RDS Encryption at Rest",
+aws_rds_encryption_at_rest = Rule(
+    id="aws_rds_encryption_at_rest",
+    name="RDS Encryption at Rest",
     description=(
         "RDS instances should have storage encryption enabled to protect data at rest "
         "and meet compliance requirements."
