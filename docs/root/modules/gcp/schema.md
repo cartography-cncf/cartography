@@ -2076,9 +2076,9 @@ graph LR
     Service -->|HAS_REVISION| Revision
     Job -->|HAS_EXECUTION| Execution
 
-    Service -->|USES_SERVICE_ACCOUNT| ServiceAccount
+    Service -->|RUNS_AS| ServiceAccount
     Revision -->|USES_SERVICE_ACCOUNT| ServiceAccount
-    Job -->|USES_SERVICE_ACCOUNT| ServiceAccount
+    Job -->|RUNS_AS| ServiceAccount
 ```
 
 ### GCPCloudRunService
@@ -2114,9 +2114,9 @@ Cloud Run Service is treated as an orchestrator (analogous to `ECSService`) and 
     ```
     (GCPCloudRunService)-[:HAS_REVISION]->(GCPCloudRunRevision)
     ```
-  - GCPCloudRunServices use GCPServiceAccounts.
+  - GCPCloudRunServices run as GCPServiceAccounts.
     ```
-    (GCPCloudRunService)-[:USES_SERVICE_ACCOUNT]->(GCPServiceAccount)
+    (GCPCloudRunService)-[:RUNS_AS]->(GCPServiceAccount)
     ```
 
 ### GCPCloudRunRevision
@@ -2175,9 +2175,9 @@ Representation of a GCP [Cloud Run Job](https://cloud.google.com/run/docs/refere
     ```
     (GCPCloudRunJob)-[:HAS_EXECUTION]->(GCPCloudRunExecution)
     ```
-  - GCPCloudRunJobs use GCPServiceAccounts.
+  - GCPCloudRunJobs run as GCPServiceAccounts.
     ```
-    (GCPCloudRunJob)-[:USES_SERVICE_ACCOUNT]->(GCPServiceAccount)
+    (GCPCloudRunJob)-[:RUNS_AS]->(GCPServiceAccount)
     ```
 
 ### GCPCloudRunJobContainer

@@ -55,6 +55,10 @@ SA -- MEMBER_OF --> UG
 UG -- MEMBER_OF --> UG
 AK -- OWNED_BY --> UA
 AK -- OWNED_BY --> SA
+CI -- RUNS_AS --> SA
+CP -- RUNS_AS --> SA
+FN -- RUNS_AS --> SA
+CS -- RUNS_AS --> SA
 NAC{{NetworkAccessControl}}
 AIM{{AIModel}}
 PIP(PublicIP) -- POINTS_TO --> LB
@@ -793,6 +797,16 @@ Common service account concepts across platforms include:
 | _ont_email | Email address associated with the service account. |
 | _ont_active | Whether the service account is active. |
 | _ont_source | Source of the data. |
+
+#### Relationships
+
+- A workload runs as (assumes the identity of) a `ServiceAccount` via the canonical `RUNS_AS` edge:
+    ```
+    (:ComputeInstance)-[:RUNS_AS]->(:ServiceAccount)
+    (:ComputePod)-[:RUNS_AS]->(:ServiceAccount)
+    (:Function)-[:RUNS_AS]->(:ServiceAccount)
+    (:ComputeService)-[:RUNS_AS]->(:ServiceAccount)
+    ```
 
 
 ### Certificate

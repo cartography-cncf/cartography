@@ -30,7 +30,9 @@ from cartography.models.azure.container_instance import (
     AzureGroupContainerToContainerInstanceRel,
 )
 from cartography.models.duo.user import DuoGroupToDuoUserRel
+from cartography.models.gcp.cloudrun.job import CloudRunJobToServiceAccountRel
 from cartography.models.gcp.cloudrun.job_container import CloudRunJobToContainerRel
+from cartography.models.gcp.cloudrun.service import CloudRunServiceToServiceAccountRel
 from cartography.models.gcp.cloudrun.service_container import (
     CloudRunServiceToContainerRel,
 )
@@ -77,6 +79,7 @@ from cartography.models.kubernetes.pods import KubernetesPodToKubernetesClusterR
 from cartography.models.kubernetes.pods import KubernetesPodToKubernetesNamespaceRel
 from cartography.models.kubernetes.pods import KubernetesPodToSecretEnvRel
 from cartography.models.kubernetes.pods import KubernetesPodToSecretVolumeRel
+from cartography.models.kubernetes.pods import KubernetesPodToServiceAccountRel
 from cartography.models.kubernetes.serviceaccounts import (
     KubernetesServiceAccountToAWSRoleRel,
 )
@@ -152,6 +155,11 @@ ONTOLOGY_REL_CONSTRAINTS: tuple[RelConstraint, ...] = (
     # An API key / access credential is owned by the identity it authenticates as.
     RelConstraint(src="APIKey", dst="UserAccount", label="OWNED_BY"),
     RelConstraint(src="APIKey", dst="ServiceAccount", label="OWNED_BY"),
+    # A workload runs as / assumes the identity of a service account.
+    RelConstraint(src="ComputeInstance", dst="ServiceAccount", label="RUNS_AS"),
+    RelConstraint(src="ComputePod", dst="ServiceAccount", label="RUNS_AS"),
+    RelConstraint(src="Function", dst="ServiceAccount", label="RUNS_AS"),
+    RelConstraint(src="ComputeService", dst="ServiceAccount", label="RUNS_AS"),
 )
 
 
@@ -253,6 +261,11 @@ LEGACY_REL_WHITELIST: frozenset[type] = frozenset(
         OpenAIAdminApiKeyToSARel,
         ScalewayApiKeyToUserRel,
         ScalewayApiKeyToApplicationRel,
+        # DEPRECATED: replaced by RUNS_AS (the canonical workload->service
+        # account edge), will be removed in v1.0.0.
+        KubernetesPodToServiceAccountRel,
+        CloudRunServiceToServiceAccountRel,
+        CloudRunJobToServiceAccountRel,
         # INHERITED_MEMBER_OF / INHERITED_OWNER_OF are transitive memberships
         # computed across nested groups, intentionally kept separate from the
         # direct MEMBER_OF edge.
