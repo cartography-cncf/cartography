@@ -22,24 +22,8 @@ CIS_AWS_BENCHMARK_REFERENCE = RuleReference(
     url="https://www.cisecurity.org/benchmark/amazon_web_services",
 )
 
-AWS_S3_SECURITY_REFERENCE = RuleReference(
-    text="AWS S3 Security Best Practices",
-    url="https://docs.aws.amazon.com/AmazonS3/latest/userguide/security-best-practices.html",
-)
-
-AWS_RDS_ENCRYPTION_REFERENCE = RuleReference(
-    text="AWS RDS Encryption at Rest",
-    url="https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/Overview.Encryption.html",
-)
-
-S3_REFERENCES = [
+CIS_REFERENCES = [
     CIS_AWS_BENCHMARK_REFERENCE,
-    AWS_S3_SECURITY_REFERENCE,
-]
-
-RDS_REFERENCES = [
-    CIS_AWS_BENCHMARK_REFERENCE,
-    AWS_RDS_ENCRYPTION_REFERENCE,
 ]
 
 
@@ -108,7 +92,7 @@ aws_s3_bucket_mfa_delete = Rule(
     facts=(_aws_s3_mfa_delete_disabled,),
     tags=("storage", "s3", "stride:tampering"),
     version="1.0.0",
-    references=S3_REFERENCES,
+    references=CIS_REFERENCES,
     frameworks=(
         cis_aws("3.1.2"),
         iso27001_annex_a("8.10"),
@@ -186,7 +170,7 @@ aws_s3_block_public_access = Rule(
     facts=(_aws_s3_block_public_access_disabled,),
     tags=("storage", "s3", "stride:information_disclosure"),
     version="1.0.0",
-    references=S3_REFERENCES,
+    references=CIS_REFERENCES,
     frameworks=(
         cis_aws("3.1.4"),
         iso27001_annex_a("8.3"),
@@ -259,7 +243,7 @@ aws_rds_encryption_at_rest = Rule(
     facts=(_aws_rds_encryption_disabled,),
     tags=("storage", "rds", "encryption", "stride:information_disclosure"),
     version="1.0.0",
-    references=RDS_REFERENCES,
+    references=CIS_REFERENCES,
     frameworks=(
         cis_aws("3.2.1"),
         iso27001_annex_a("8.24"),

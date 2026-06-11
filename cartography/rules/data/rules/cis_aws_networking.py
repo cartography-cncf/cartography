@@ -22,34 +22,8 @@ CIS_AWS_BENCHMARK_REFERENCE = RuleReference(
     url="https://www.cisecurity.org/benchmark/amazon_web_services",
 )
 
-AWS_SECURITY_GROUP_REFERENCE = RuleReference(
-    text="AWS Security Group Best Practices",
-    url="https://docs.aws.amazon.com/vpc/latest/userguide/security-group-rules.html",
-)
-
-AWS_EBS_ENCRYPTION_REFERENCE = RuleReference(
-    text="AWS EBS Encryption",
-    url="https://docs.aws.amazon.com/ebs/latest/userguide/ebs-encryption.html",
-)
-
-AWS_EC2_IMDS_REFERENCE = RuleReference(
-    text="AWS EC2 Instance Metadata Service",
-    url="https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/configuring-instance-metadata-service.html",
-)
-
-EBS_REFERENCES = [
+CIS_REFERENCES = [
     CIS_AWS_BENCHMARK_REFERENCE,
-    AWS_EBS_ENCRYPTION_REFERENCE,
-]
-
-SECURITY_GROUP_REFERENCES = [
-    CIS_AWS_BENCHMARK_REFERENCE,
-    AWS_SECURITY_GROUP_REFERENCE,
-]
-
-EC2_IMDS_REFERENCES = [
-    CIS_AWS_BENCHMARK_REFERENCE,
-    AWS_EC2_IMDS_REFERENCE,
 ]
 
 
@@ -115,7 +89,7 @@ aws_ebs_volume_encryption = Rule(
     facts=(_aws_ebs_encryption_disabled,),
     tags=("networking", "ebs", "encryption", "stride:information_disclosure"),
     version="1.0.0",
-    references=EBS_REFERENCES,
+    references=CIS_REFERENCES,
     frameworks=(
         cis_aws("6.1.1"),
         iso27001_annex_a("8.24"),
@@ -217,7 +191,7 @@ aws_cifs_access_restricted_to_trusted_networks = Rule(
         "stride:elevation_of_privilege",
     ),
     version="1.0.0",
-    references=SECURITY_GROUP_REFERENCES,
+    references=CIS_REFERENCES,
     frameworks=(
         cis_aws("6.1.2"),
         iso27001_annex_a("8.20"),
@@ -322,7 +296,7 @@ aws_ipv4_remote_administration_ports_open_to_internet = Rule(
         "stride:elevation_of_privilege",
     ),
     version="1.0.0",
-    references=SECURITY_GROUP_REFERENCES,
+    references=CIS_REFERENCES,
     frameworks=(
         cis_aws("6.3"),
         iso27001_annex_a("8.20"),
@@ -427,7 +401,7 @@ aws_ipv6_remote_administration_ports_open_to_internet = Rule(
         "stride:elevation_of_privilege",
     ),
     version="1.0.0",
-    references=SECURITY_GROUP_REFERENCES,
+    references=CIS_REFERENCES,
     frameworks=(
         cis_aws("6.4"),
         iso27001_annex_a("8.20"),
@@ -517,7 +491,7 @@ aws_default_security_group_restricts_traffic = Rule(
         "stride:elevation_of_privilege",
     ),
     version="1.0.0",
-    references=SECURITY_GROUP_REFERENCES,
+    references=CIS_REFERENCES,
     frameworks=(
         cis_aws("6.5"),
         iso27001_annex_a("8.20"),
@@ -592,7 +566,7 @@ aws_ec2_instances_use_imdsv2 = Rule(
         "stride:elevation_of_privilege",
     ),
     version="1.0.0",
-    references=EC2_IMDS_REFERENCES,
+    references=CIS_REFERENCES,
     frameworks=(
         cis_aws("6.7"),
         iso27001_annex_a("8.9"),

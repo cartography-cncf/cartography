@@ -97,20 +97,23 @@ class TestCisAwsRuleStructure:
         assert len(rule.references) >= 1
 
 
-def test_domain_specific_rule_references():
-    expected_reference_urls = {
-        aws_s3_bucket_mfa_delete.id: "AmazonS3/latest/userguide/security-best-practices",
-        aws_s3_block_public_access.id: "AmazonS3/latest/userguide/security-best-practices",
-        aws_rds_encryption_at_rest.id: "AmazonRDS/latest/UserGuide/Overview.Encryption",
-        aws_ebs_volume_encryption.id: "ebs/latest/userguide/ebs-encryption",
-        aws_ec2_instances_use_imdsv2.id: "AWSEC2/latest/UserGuide/configuring-instance-metadata-service",
-    }
+def test_updated_cis_rules_only_reference_cis_benchmark():
+    updated_rules = (
+        aws_s3_bucket_mfa_delete,
+        aws_s3_block_public_access,
+        aws_rds_encryption_at_rest,
+        aws_ebs_volume_encryption,
+        aws_cifs_access_restricted_to_trusted_networks,
+        aws_ipv4_remote_administration_ports_open_to_internet,
+        aws_ipv6_remote_administration_ports_open_to_internet,
+        aws_default_security_group_restricts_traffic,
+        aws_ec2_instances_use_imdsv2,
+    )
 
-    for rule in ALL_CIS_AWS_RULES:
-        expected_url_fragment = expected_reference_urls.get(rule.id)
-        if expected_url_fragment is None:
-            continue
-        assert any(expected_url_fragment in ref.url for ref in rule.references)
+    for rule in updated_rules:
+        assert [ref.url for ref in rule.references] == [
+            "https://www.cisecurity.org/benchmark/amazon_web_services",
+        ]
 
 
 class TestCisAwsFrameworkMetadata:
