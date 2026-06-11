@@ -17,15 +17,209 @@ from cartography.rules.spec.model import Module
 from cartography.rules.spec.model import Rule
 from cartography.rules.spec.model import RuleReference
 
+CIS_GCP_BENCHMARK_REFERENCE = RuleReference(
+    text="CIS Google Cloud Platform Foundation Benchmark v4.0.0",
+    url="https://www.cisecurity.org/benchmark/google_cloud_computing_platform",
+)
+
+GCP_VPC_REFERENCE = RuleReference(
+    text="GCP Virtual Private Cloud documentation",
+    url="https://cloud.google.com/vpc/docs/vpc",
+)
+
+GCP_VPC_FIREWALL_REFERENCE = RuleReference(
+    text="GCP VPC Firewall documentation",
+    url="https://cloud.google.com/vpc/docs/firewalls",
+)
+
+GCP_VPC_FLOW_LOGS_REFERENCE = RuleReference(
+    text="GCP VPC Flow Logs documentation",
+    url="https://cloud.google.com/vpc/docs/using-flow-logs",
+)
+
+GCP_COMPUTE_IP_ADDRESSES_REFERENCE = RuleReference(
+    text="GCP Compute Engine IP address documentation",
+    url="https://docs.cloud.google.com/compute/docs/ip-addresses",
+)
+
+GCP_COMPUTE_SERVICE_ACCOUNTS_REFERENCE = RuleReference(
+    text="GCP Compute Engine service accounts documentation",
+    url="https://cloud.google.com/compute/docs/access/service-accounts",
+)
+
+GCP_COMPUTE_OS_LOGIN_REFERENCE = RuleReference(
+    text="GCP Compute Engine OS Login documentation",
+    url="https://docs.cloud.google.com/compute/docs/oslogin",
+)
+
+GCP_COMPUTE_IP_FORWARDING_REFERENCE = RuleReference(
+    text="GCP Compute Engine IP forwarding documentation",
+    url="https://cloud.google.com/compute/docs/instances/create-start-instance#ipforward",
+)
+
+GCP_COMPUTE_SHIELDED_VM_REFERENCE = RuleReference(
+    text="GCP Shielded VM documentation",
+    url="https://cloud.google.com/compute/docs/instances/modifying-shielded-vm",
+)
+
+GCP_COMPUTE_SERIAL_CONSOLE_REFERENCE = RuleReference(
+    text="GCP Compute Engine serial console documentation",
+    url="https://cloud.google.com/compute/docs/troubleshooting/troubleshooting-using-serial-console",
+)
+
+GCP_CONFIDENTIAL_VM_REFERENCE = RuleReference(
+    text="GCP Confidential VM documentation",
+    url="https://cloud.google.com/confidential-computing/confidential-vm/docs/confidential-vm-overview",
+)
+
+GCP_CLOUD_DNS_DNSSEC_REFERENCE = RuleReference(
+    text="GCP Cloud DNS DNSSEC documentation",
+    url="https://cloud.google.com/dns/docs/dnssec",
+)
+
+GCP_CLOUDSQL_MYSQL_FLAGS_REFERENCE = RuleReference(
+    text="GCP Cloud SQL MySQL flags documentation",
+    url="https://cloud.google.com/sql/docs/mysql/flags",
+)
+
+GCP_CLOUDSQL_POSTGRES_FLAGS_REFERENCE = RuleReference(
+    text="GCP Cloud SQL PostgreSQL flags documentation",
+    url="https://cloud.google.com/sql/docs/postgres/flags",
+)
+
+GCP_CLOUDSQL_SQLSERVER_FLAGS_REFERENCE = RuleReference(
+    text="GCP Cloud SQL SQL Server flags documentation",
+    url="https://cloud.google.com/sql/docs/sqlserver/flags",
+)
+
+GCP_CLOUDSQL_BACKUPS_REFERENCE = RuleReference(
+    text="GCP Cloud SQL backups documentation",
+    url="https://cloud.google.com/sql/docs/mysql/backup-recovery/backups",
+)
+
+GCP_CLOUDSQL_SSL_REFERENCE = RuleReference(
+    text="GCP Cloud SQL SSL/TLS documentation",
+    url="https://cloud.google.com/sql/docs/mysql/configure-ssl-instance",
+)
+
+GCP_CLOUDSQL_IP_CONFIGURATION_REFERENCE = RuleReference(
+    text="GCP Cloud SQL IP configuration documentation",
+    url="https://cloud.google.com/sql/docs/mysql/configure-ip",
+)
+
+GCP_BIGQUERY_ACCESS_CONTROL_REFERENCE = RuleReference(
+    text="GCP BigQuery access control documentation",
+    url="https://cloud.google.com/bigquery/docs/control-access-to-resources-iam",
+)
+
+GCP_BIGQUERY_CMEK_REFERENCE = RuleReference(
+    text="GCP BigQuery customer-managed encryption key documentation",
+    url="https://cloud.google.com/bigquery/docs/customer-managed-encryption",
+)
+
+GCP_CLOUD_STORAGE_UNIFORM_ACCESS_REFERENCE = RuleReference(
+    text="GCP Cloud Storage uniform bucket-level access documentation",
+    url="https://cloud.google.com/storage/docs/uniform-bucket-level-access",
+)
+
+GCP_VPC_REFERENCES = [
+    CIS_GCP_BENCHMARK_REFERENCE,
+    GCP_VPC_REFERENCE,
+]
+
 CIS_REFERENCES = [
-    RuleReference(
-        text="CIS Google Cloud Platform Foundation Benchmark v4.0.0",
-        url="https://www.cisecurity.org/benchmark/google_cloud_computing_platform",
-    ),
-    RuleReference(
-        text="GCP VPC Network Security Best Practices",
-        url="https://cloud.google.com/vpc/docs/firewalls",
-    ),
+    CIS_GCP_BENCHMARK_REFERENCE,
+    GCP_VPC_FIREWALL_REFERENCE,
+]
+
+GCP_VPC_FLOW_LOGS_REFERENCES = [
+    CIS_GCP_BENCHMARK_REFERENCE,
+    GCP_VPC_FLOW_LOGS_REFERENCE,
+]
+
+GCP_COMPUTE_IP_ADDRESS_REFERENCES = [
+    CIS_GCP_BENCHMARK_REFERENCE,
+    GCP_COMPUTE_IP_ADDRESSES_REFERENCE,
+]
+
+GCP_COMPUTE_SERVICE_ACCOUNT_REFERENCES = [
+    CIS_GCP_BENCHMARK_REFERENCE,
+    GCP_COMPUTE_SERVICE_ACCOUNTS_REFERENCE,
+]
+
+GCP_COMPUTE_OS_LOGIN_REFERENCES = [
+    CIS_GCP_BENCHMARK_REFERENCE,
+    GCP_COMPUTE_OS_LOGIN_REFERENCE,
+]
+
+GCP_COMPUTE_IP_FORWARDING_REFERENCES = [
+    CIS_GCP_BENCHMARK_REFERENCE,
+    GCP_COMPUTE_IP_FORWARDING_REFERENCE,
+]
+
+GCP_COMPUTE_SHIELDED_VM_REFERENCES = [
+    CIS_GCP_BENCHMARK_REFERENCE,
+    GCP_COMPUTE_SHIELDED_VM_REFERENCE,
+]
+
+GCP_COMPUTE_SERIAL_CONSOLE_REFERENCES = [
+    CIS_GCP_BENCHMARK_REFERENCE,
+    GCP_COMPUTE_SERIAL_CONSOLE_REFERENCE,
+]
+
+GCP_CONFIDENTIAL_VM_REFERENCES = [
+    CIS_GCP_BENCHMARK_REFERENCE,
+    GCP_CONFIDENTIAL_VM_REFERENCE,
+]
+
+GCP_CLOUD_DNS_REFERENCES = [
+    CIS_GCP_BENCHMARK_REFERENCE,
+    GCP_CLOUD_DNS_DNSSEC_REFERENCE,
+]
+
+GCP_CLOUDSQL_MYSQL_FLAG_REFERENCES = [
+    CIS_GCP_BENCHMARK_REFERENCE,
+    GCP_CLOUDSQL_MYSQL_FLAGS_REFERENCE,
+]
+
+GCP_CLOUDSQL_POSTGRES_FLAG_REFERENCES = [
+    CIS_GCP_BENCHMARK_REFERENCE,
+    GCP_CLOUDSQL_POSTGRES_FLAGS_REFERENCE,
+]
+
+GCP_CLOUDSQL_SQLSERVER_FLAG_REFERENCES = [
+    CIS_GCP_BENCHMARK_REFERENCE,
+    GCP_CLOUDSQL_SQLSERVER_FLAGS_REFERENCE,
+]
+
+GCP_CLOUDSQL_BACKUP_REFERENCES = [
+    CIS_GCP_BENCHMARK_REFERENCE,
+    GCP_CLOUDSQL_BACKUPS_REFERENCE,
+]
+
+GCP_CLOUDSQL_SSL_REFERENCES = [
+    CIS_GCP_BENCHMARK_REFERENCE,
+    GCP_CLOUDSQL_SSL_REFERENCE,
+]
+
+GCP_CLOUDSQL_IP_CONFIGURATION_REFERENCES = [
+    CIS_GCP_BENCHMARK_REFERENCE,
+    GCP_CLOUDSQL_IP_CONFIGURATION_REFERENCE,
+]
+
+GCP_BIGQUERY_ACCESS_CONTROL_REFERENCES = [
+    CIS_GCP_BENCHMARK_REFERENCE,
+    GCP_BIGQUERY_ACCESS_CONTROL_REFERENCE,
+]
+
+GCP_BIGQUERY_CMEK_REFERENCES = [
+    CIS_GCP_BENCHMARK_REFERENCE,
+    GCP_BIGQUERY_CMEK_REFERENCE,
+]
+
+GCP_CLOUD_STORAGE_UNIFORM_ACCESS_REFERENCES = [
+    CIS_GCP_BENCHMARK_REFERENCE,
+    GCP_CLOUD_STORAGE_UNIFORM_ACCESS_REFERENCE,
 ]
 
 
@@ -91,7 +285,7 @@ gcp_default_network_exists = Rule(
         "stride:elevation_of_privilege",
     ),
     version="1.0.0",
-    references=CIS_REFERENCES,
+    references=GCP_VPC_REFERENCES,
     frameworks=(
         cis_gcp("3.1"),
         iso27001_annex_a("8.20"),
@@ -347,7 +541,7 @@ gcp_compute_instance_public_ips = Rule(
         "stride:elevation_of_privilege",
     ),
     version="1.0.0",
-    references=CIS_REFERENCES,
+    references=GCP_COMPUTE_IP_ADDRESS_REFERENCES,
     frameworks=(
         cis_gcp("4.9"),
         iso27001_annex_a("8.20"),
@@ -434,7 +628,7 @@ gcp_instances_without_confidential_computing_enabled = Rule(
         "stride:information_disclosure",
     ),
     version="1.0.0",
-    references=CIS_REFERENCES,
+    references=GCP_CONFIDENTIAL_VM_REFERENCES,
     frameworks=(
         cis_gcp("4.11"),
         iso27001_annex_a("8.24"),
@@ -494,7 +688,7 @@ gcp_cloud_dns_dnssec_disabled = Rule(
     facts=(_gcp_dnssec_disabled,),
     tags=("dns", "dnssec", "stride:spoofing"),
     version="1.0.0",
-    references=CIS_REFERENCES,
+    references=GCP_CLOUD_DNS_REFERENCES,
     frameworks=(
         cis_gcp("3.3"),
         iso27001_annex_a("8.20"),
@@ -565,7 +759,7 @@ gcp_cloud_dns_dnssec_key_signing_uses_rsasha1 = Rule(
     facts=(_gcp_dnssec_weak_ksk,),
     tags=("dns", "dnssec", "crypto", "stride:spoofing"),
     version="1.0.0",
-    references=CIS_REFERENCES,
+    references=GCP_CLOUD_DNS_REFERENCES,
     frameworks=(
         cis_gcp("3.4"),
         iso27001_annex_a("8.24"),
@@ -630,7 +824,7 @@ gcp_cloud_dns_dnssec_zone_signing_uses_rsasha1 = Rule(
     facts=(_gcp_dnssec_weak_zsk,),
     tags=("dns", "dnssec", "crypto", "stride:spoofing"),
     version="1.0.0",
-    references=CIS_REFERENCES,
+    references=GCP_CLOUD_DNS_REFERENCES,
     frameworks=(
         cis_gcp("3.5"),
         iso27001_annex_a("8.24"),
@@ -722,7 +916,7 @@ gcp_subnets_without_compliant_vpc_flow_logs = Rule(
     facts=(_gcp_subnet_flow_logs_disabled,),
     tags=("networking", "subnet", "flow-logs", "logging"),
     version="1.0.0",
-    references=CIS_REFERENCES,
+    references=GCP_VPC_FLOW_LOGS_REFERENCES,
     frameworks=(
         cis_gcp("3.8"),
         iso27001_annex_a("8.15"),
@@ -780,7 +974,7 @@ gcp_cloudsql_public_ips = Rule(
     facts=(_gcp_cloudsql_public_ip,),
     tags=("cloudsql", "database", "networking", "stride:information_disclosure"),
     version="1.0.0",
-    references=CIS_REFERENCES,
+    references=GCP_CLOUDSQL_IP_CONFIGURATION_REFERENCES,
     frameworks=(
         cis_gcp("6.6"),
         iso27001_annex_a("8.20"),
@@ -837,7 +1031,7 @@ gcp_cloudsql_automated_backups_disabled = Rule(
     facts=(_gcp_cloudsql_backups_disabled,),
     tags=("cloudsql", "database", "backup", "resilience"),
     version="1.0.0",
-    references=CIS_REFERENCES,
+    references=GCP_CLOUDSQL_BACKUP_REFERENCES,
     frameworks=(
         cis_gcp("6.7"),
         iso27001_annex_a("8.13"),
@@ -894,7 +1088,7 @@ gcp_bigquery_datasets_publicly_accessible = Rule(
     facts=(_gcp_bigquery_dataset_public,),
     tags=("bigquery", "data-warehouse", "iam", "stride:information_disclosure"),
     version="1.0.0",
-    references=CIS_REFERENCES,
+    references=GCP_BIGQUERY_ACCESS_CONTROL_REFERENCES,
     frameworks=(
         cis_gcp("7.1"),
         iso27001_annex_a("8.3"),
@@ -951,7 +1145,7 @@ gcp_bigquery_tables_without_cmek = Rule(
     facts=(_gcp_bigquery_table_cmek_missing,),
     tags=("bigquery", "encryption", "cmek", "stride:information_disclosure"),
     version="1.0.0",
-    references=CIS_REFERENCES,
+    references=GCP_BIGQUERY_CMEK_REFERENCES,
     frameworks=(
         cis_gcp("7.2"),
         iso27001_annex_a("8.24"),
@@ -1006,7 +1200,7 @@ gcp_bigquery_datasets_without_default_cmek = Rule(
     facts=(_gcp_bigquery_dataset_cmek_missing,),
     tags=("bigquery", "encryption", "cmek", "stride:information_disclosure"),
     version="1.0.0",
-    references=CIS_REFERENCES,
+    references=GCP_BIGQUERY_CMEK_REFERENCES,
     frameworks=(
         cis_gcp("7.3"),
         iso27001_annex_a("8.24"),
@@ -1067,7 +1261,7 @@ gcp_cloudsql_ssl_not_enforced = Rule(
     facts=(_gcp_cloudsql_ssl_not_enforced,),
     tags=("cloudsql", "database", "ssl", "stride:information_disclosure"),
     version="1.0.0",
-    references=CIS_REFERENCES,
+    references=GCP_CLOUDSQL_SSL_REFERENCES,
     frameworks=(
         cis_gcp("6.4"),
         iso27001_annex_a("8.24"),
@@ -1124,7 +1318,7 @@ gcp_cloudsql_authorized_networks_open_to_internet = Rule(
     facts=(_gcp_cloudsql_authorized_networks_open,),
     tags=("cloudsql", "database", "networking", "stride:information_disclosure"),
     version="1.0.0",
-    references=CIS_REFERENCES,
+    references=GCP_CLOUDSQL_IP_CONFIGURATION_REFERENCES,
     frameworks=(
         cis_gcp("6.5"),
         iso27001_annex_a("8.20"),
@@ -1189,6 +1383,12 @@ def _make_cloudsql_flag_rule(
     requirement: str,
     fact: Fact,
 ) -> Rule:
+    references = GCP_CLOUDSQL_MYSQL_FLAG_REFERENCES
+    if requirement.startswith("6.2"):
+        references = GCP_CLOUDSQL_POSTGRES_FLAG_REFERENCES
+    elif requirement.startswith("6.3"):
+        references = GCP_CLOUDSQL_SQLSERVER_FLAG_REFERENCES
+
     return Rule(
         id=rule_id,
         name=name,
@@ -1197,7 +1397,7 @@ def _make_cloudsql_flag_rule(
         facts=(fact,),
         tags=("cloudsql", "database", "configuration"),
         version="1.0.0",
-        references=CIS_REFERENCES,
+        references=references,
         frameworks=(
             cis_gcp(requirement),
             iso27001_annex_a("8.9"),
@@ -1519,7 +1719,7 @@ gcp_bucket_uniform_access_disabled = Rule(
         "stride:elevation_of_privilege",
     ),
     version="1.0.0",
-    references=CIS_REFERENCES,
+    references=GCP_CLOUD_STORAGE_UNIFORM_ACCESS_REFERENCES,
     frameworks=(
         cis_gcp("5.2"),
         iso27001_annex_a("8.3"),
@@ -1762,7 +1962,7 @@ gcp_instances_using_default_service_account = Rule(
     facts=(_gcp_instance_default_service_account,),
     tags=("compute", "iam", "service-accounts", "least-privilege"),
     version="1.0.0",
-    references=CIS_REFERENCES,
+    references=GCP_COMPUTE_SERVICE_ACCOUNT_REFERENCES,
     frameworks=(
         cis_gcp("4.1"),
         iso27001_annex_a("5.16"),
@@ -1829,7 +2029,7 @@ gcp_default_service_account_full_cloud_api_scope = Rule(
     facts=(_gcp_instance_default_service_account_full_api,),
     tags=("compute", "iam", "service-accounts", "least-privilege"),
     version="1.0.0",
-    references=CIS_REFERENCES,
+    references=GCP_COMPUTE_SERVICE_ACCOUNT_REFERENCES,
     frameworks=(
         cis_gcp("4.2"),
         iso27001_annex_a("5.18"),
@@ -1911,7 +2111,7 @@ gcp_instances_not_blocking_project_wide_ssh_keys = Rule(
     facts=(_gcp_instance_project_wide_ssh_keys,),
     tags=("compute", "ssh", "oslogin", "remote-access"),
     version="1.0.0",
-    references=CIS_REFERENCES,
+    references=GCP_COMPUTE_OS_LOGIN_REFERENCES,
     frameworks=(
         cis_gcp("4.3"),
         iso27001_annex_a("8.5"),
@@ -1979,7 +2179,7 @@ gcp_projects_without_effective_os_login = Rule(
     facts=(_gcp_project_oslogin_disabled,),
     tags=("compute", "ssh", "oslogin", "iam"),
     version="1.0.0",
-    references=CIS_REFERENCES,
+    references=GCP_COMPUTE_OS_LOGIN_REFERENCES,
     frameworks=(
         cis_gcp("4.4"),
         iso27001_annex_a("8.5"),
@@ -2045,7 +2245,7 @@ gcp_instances_with_ip_forwarding = Rule(
     facts=(_gcp_instance_ip_forwarding,),
     tags=("compute", "networking", "stride:information_disclosure"),
     version="1.0.0",
-    references=CIS_REFERENCES,
+    references=GCP_COMPUTE_IP_FORWARDING_REFERENCES,
     frameworks=(
         cis_gcp("4.6"),
         iso27001_annex_a("8.20"),
@@ -2121,7 +2321,7 @@ gcp_instances_without_shielded_vm_enabled = Rule(
     facts=(_gcp_instance_shielded_vm_disabled,),
     tags=("compute", "shielded-vm", "integrity"),
     version="1.0.0",
-    references=CIS_REFERENCES,
+    references=GCP_COMPUTE_SHIELDED_VM_REFERENCES,
     frameworks=(
         cis_gcp("4.8"),
         iso27001_annex_a("8.9"),
@@ -2178,7 +2378,7 @@ gcp_instances_with_serial_port_access = Rule(
     facts=(_gcp_instance_serial_port_enabled,),
     tags=("compute", "serial-port", "remote-access"),
     version="1.0.0",
-    references=CIS_REFERENCES,
+    references=GCP_COMPUTE_SERIAL_CONSOLE_REFERENCES,
     frameworks=(
         cis_gcp("4.5"),
         iso27001_annex_a("8.3"),

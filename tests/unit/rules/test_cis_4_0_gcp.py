@@ -206,6 +206,74 @@ def test_cis_facts_are_gcp_and_stable():
             assert fact.maturity == Maturity.STABLE
 
 
+def test_domain_specific_rule_references():
+    expected_reference_urls = (
+        (gcp_default_network_exists, "vpc/docs/vpc"),
+        (gcp_unrestricted_ssh_access, "vpc/docs/firewalls"),
+        (gcp_unrestricted_rdp_access, "vpc/docs/firewalls"),
+        (gcp_compute_instance_public_ips, "compute/docs/ip-addresses"),
+        (
+            gcp_instances_without_confidential_computing_enabled,
+            "confidential-vm/docs/confidential-vm-overview",
+        ),
+        (gcp_cloud_dns_dnssec_disabled, "dns/docs/dnssec"),
+        (gcp_cloud_dns_dnssec_key_signing_uses_rsasha1, "dns/docs/dnssec"),
+        (gcp_cloud_dns_dnssec_zone_signing_uses_rsasha1, "dns/docs/dnssec"),
+        (gcp_subnets_without_compliant_vpc_flow_logs, "vpc/docs/using-flow-logs"),
+        (gcp_cloudsql_public_ips, "sql/docs/mysql/configure-ip"),
+        (
+            gcp_cloudsql_automated_backups_disabled,
+            "sql/docs/mysql/backup-recovery/backups",
+        ),
+        (
+            gcp_bigquery_datasets_publicly_accessible,
+            "bigquery/docs/control-access-to-resources-iam",
+        ),
+        (gcp_bigquery_tables_without_cmek, "bigquery/docs/customer-managed-encryption"),
+        (
+            gcp_bigquery_datasets_without_default_cmek,
+            "bigquery/docs/customer-managed-encryption",
+        ),
+        (gcp_cloudsql_ssl_not_enforced, "sql/docs/mysql/configure-ssl-instance"),
+        (
+            gcp_cloudsql_authorized_networks_open_to_internet,
+            "sql/docs/mysql/configure-ip",
+        ),
+        (gcp_cloudsql_mysql_skip_show_database_not_on, "sql/docs/mysql/flags"),
+        (gcp_cloudsql_postgres_log_connections_not_on, "sql/docs/postgres/flags"),
+        (gcp_cloudsql_sqlserver_remote_access_not_off, "sql/docs/sqlserver/flags"),
+        (
+            gcp_bucket_uniform_access_disabled,
+            "storage/docs/uniform-bucket-level-access",
+        ),
+        (
+            gcp_instances_using_default_service_account,
+            "compute/docs/access/service-accounts",
+        ),
+        (
+            gcp_default_service_account_full_cloud_api_scope,
+            "compute/docs/access/service-accounts",
+        ),
+        (gcp_instances_not_blocking_project_wide_ssh_keys, "compute/docs/oslogin"),
+        (gcp_projects_without_effective_os_login, "compute/docs/oslogin"),
+        (
+            gcp_instances_with_ip_forwarding,
+            "compute/docs/instances/create-start-instance",
+        ),
+        (
+            gcp_instances_without_shielded_vm_enabled,
+            "compute/docs/instances/modifying-shielded-vm",
+        ),
+        (
+            gcp_instances_with_serial_port_access,
+            "compute/docs/troubleshooting/troubleshooting-using-serial-console",
+        ),
+    )
+
+    for rule, expected_url_fragment in expected_reference_urls:
+        assert any(expected_url_fragment in ref.url for ref in rule.references), rule.id
+
+
 def test_cis_parse_results_preserves_extra_fields():
     fact = gcp_default_network_exists.get_fact_by_id("gcp_default_network_exists")
     sample_results = [

@@ -97,6 +97,22 @@ class TestCisAwsRuleStructure:
         assert len(rule.references) >= 1
 
 
+def test_domain_specific_rule_references():
+    expected_reference_urls = {
+        aws_s3_bucket_mfa_delete.id: "AmazonS3/latest/userguide/security-best-practices",
+        aws_s3_block_public_access.id: "AmazonS3/latest/userguide/security-best-practices",
+        aws_rds_encryption_at_rest.id: "AmazonRDS/latest/UserGuide/Overview.Encryption",
+        aws_ebs_volume_encryption.id: "ebs/latest/userguide/ebs-encryption",
+        aws_ec2_instances_use_imdsv2.id: "AWSEC2/latest/UserGuide/configuring-instance-metadata-service",
+    }
+
+    for rule in ALL_CIS_AWS_RULES:
+        expected_url_fragment = expected_reference_urls.get(rule.id)
+        if expected_url_fragment is None:
+            continue
+        assert any(expected_url_fragment in ref.url for ref in rule.references)
+
+
 class TestCisAwsFrameworkMetadata:
     """Test that all CIS AWS rules target the expected AWS benchmark revision."""
 

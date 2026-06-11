@@ -158,6 +158,19 @@ def test_rule_name_and_framework_control_title_can_differ():
     assert rule.name != fw.control_title
 
 
+def test_unpinned_github_actions_uses_current_cisa_reference():
+    rule = RULES["unpinned-github-actions"]
+    cisa_urls = [
+        ref.url
+        for ref in rule.references
+        if ref.text.startswith("CISA - Supply Chain Compromise")
+    ]
+
+    assert cisa_urls == [
+        "https://www.cisa.gov/news-events/alerts/2025/03/18/supply-chain-compromise-third-party-tj-actionschanged-files-cve-2025-30066-and-reviewdogaction",
+    ]
+
+
 def test_framework_filtering_returns_renamed_rule_ids():
     rule_ids = list(RULES)
 
