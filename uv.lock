@@ -599,6 +599,20 @@ wheels = [
 ]
 
 [[package]]
+name = "azure-mgmt-managementgroups"
+version = "1.1.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "azure-mgmt-core" },
+    { name = "isodate" },
+    { name = "typing-extensions" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/fd/73/ac5e064ed7343e1b3172f32f09be3efca906087218d3046b5038f2f394ed/azure_mgmt_managementgroups-1.1.0.tar.gz", hash = "sha256:e6199baf118890ba2bda35dda83a88861c0b1bbef126311b20ec12eed9681951", size = 60101, upload-time = "2026-02-13T03:45:45.439Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/92/bc/993158de03cc0a49f2cf8192615ffedbc508c417cb3522e88f6652b714cc/azure_mgmt_managementgroups-1.1.0-py3-none-any.whl", hash = "sha256:140934589559ef6afcac6f1d24f995588a1965aaa89d47851c1cc639fafb1942", size = 83586, upload-time = "2026-02-13T03:45:46.836Z" },
+]
+
+[[package]]
 name = "azure-mgmt-monitor"
 version = "7.0.0"
 source = { registry = "https://pypi.org/simple" }
@@ -896,6 +910,7 @@ dependencies = [
     { name = "azure-mgmt-eventhub" },
     { name = "azure-mgmt-keyvault" },
     { name = "azure-mgmt-logic" },
+    { name = "azure-mgmt-managementgroups" },
     { name = "azure-mgmt-monitor" },
     { name = "azure-mgmt-network" },
     { name = "azure-mgmt-resource" },
@@ -995,6 +1010,7 @@ requires-dist = [
     { name = "azure-mgmt-eventhub", specifier = ">=10.1.0" },
     { name = "azure-mgmt-keyvault", specifier = ">=10.0.0" },
     { name = "azure-mgmt-logic", specifier = ">=10.0.0" },
+    { name = "azure-mgmt-managementgroups", specifier = ">=1.0.0" },
     { name = "azure-mgmt-monitor", specifier = ">=3.0.0" },
     { name = "azure-mgmt-network", specifier = ">=25.0.0" },
     { name = "azure-mgmt-resource", specifier = ">=24.0.0,<25" },
