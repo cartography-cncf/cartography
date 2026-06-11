@@ -694,3 +694,60 @@ Representation of an [OCI Block Volume](https://docs.oracle.com/en-us/iaas/api/#
 	```
 	(OCIBlockVolume)-[ATTACHED_TO]->(OCIInstance)
 	```
+
+## OCIObjectStorageBucket
+
+Representation of an [OCI Object Storage Bucket](https://docs.oracle.com/en-us/iaas/api/#/en/objectstorage/latest/Bucket/).
+
+| Field | Description |
+|-------|-------------|
+| firstseen | Timestamp of when a sync job first discovered this node |
+| lastupdated | Timestamp of the last time the node was updated |
+| name | The name of the bucket (unique within namespace) |
+| namespace | The Object Storage namespace the bucket belongs to |
+| compartment_id | The OCID of the compartment containing the bucket |
+| public_access_type | The type of public access (NoPublicAccess, ObjectRead, ObjectReadWithoutList) |
+| storage_tier | The default storage tier (Standard, Archive, InfrequentAccess) |
+| versioning | The versioning status (Enabled, Suspended, Disabled) |
+| kms_key_id | The OCID of the KMS key used to encrypt the bucket (empty if Oracle-managed) |
+| is_read_only | Whether the bucket is read-only |
+| object_events_enabled | Whether object events are enabled |
+| has_retention_rules | Whether the bucket has retention rules configured |
+| approximate_count | The approximate number of objects in the bucket |
+| approximate_size | The approximate total size of all objects in the bucket |
+| region | The region the bucket resides in |
+| createdate | ISO 8601 date-time when the bucket was created |
+
+### Relationships
+
+- OCI Compartments contain Object Storage Buckets.
+
+	```
+	(OCICompartment)-[RESOURCE]->(OCIObjectStorageBucket)
+	```
+
+## OCIFileSystem
+
+Representation of an [OCI File Storage File System](https://docs.oracle.com/en-us/iaas/api/#/en/filestorage/latest/FileSystem/).
+
+| Field | Description |
+|-------|-------------|
+| firstseen | Timestamp of when a sync job first discovered this node |
+| lastupdated | Timestamp of the last time the node was updated |
+| **ocid** | OCI-unique identifier for this file system |
+| display_name | The user-friendly name of the file system |
+| compartment_id | The OCID of the compartment containing the file system |
+| availability_domain | The availability domain the file system is in |
+| lifecycle_state | The file system's current state |
+| kms_key_id | The OCID of the KMS key used to encrypt the file system (empty if Oracle-managed) |
+| metered_bytes | The number of bytes consumed by the file system |
+| region | The region the file system resides in |
+| createdate | ISO 8601 date-time when the file system was created |
+
+### Relationships
+
+- OCI Compartments contain File Systems.
+
+	```
+	(OCICompartment)-[RESOURCE]->(OCIFileSystem)
+	```
