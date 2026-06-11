@@ -102,8 +102,14 @@ _k8s_secrets_in_env_vars = Fact(
           -[r:USES_SECRET]->(secret:KubernetesSecret)
     WHERE 'env' IN split(r.mount_method, ',')
     WITH cluster.name AS cluster_name, pod.namespace AS namespace,
-         collect(DISTINCT secret.name) AS secret_names,
-         collect(DISTINCT pod.name) AS pod_names
+         collect(DISTINCT secret.name) AS secret_names_raw,
+         collect(DISTINCT pod.name) AS pod_names_raw
+    UNWIND secret_names_raw AS secret_name
+    WITH cluster_name, namespace, pod_names_raw, secret_name ORDER BY secret_name
+    WITH cluster_name, namespace, pod_names_raw, collect(secret_name) AS secret_names
+    UNWIND pod_names_raw AS pod_name
+    WITH cluster_name, namespace, secret_names, pod_name ORDER BY pod_name
+    WITH cluster_name, namespace, secret_names, collect(pod_name) AS pod_names
     RETURN
         cluster_name,
         namespace,
@@ -192,7 +198,13 @@ _k8s_service_account_tokens_mounted = Fact(
         cluster.name AS cluster_name,
         pod.namespace AS namespace,
         service_account_name,
-        collect(DISTINCT pod.name) AS pod_names
+        pod.name AS pod_name
+    ORDER BY pod_name
+    WITH
+        cluster_name,
+        namespace,
+        service_account_name,
+        collect(DISTINCT pod_name) AS pod_names
     RETURN
         cluster_name,
         namespace,
@@ -516,8 +528,14 @@ _k8s_host_path_volumes = Fact(
     WHERE size(coalesce(pod.host_path_volume_paths, [])) > 0
     UNWIND pod.host_path_volume_paths AS host_path
     WITH cluster.name AS cluster_name, pod.namespace AS namespace,
-         collect(DISTINCT pod.name) AS pod_names,
-         collect(DISTINCT host_path) AS host_path_volume_paths
+         collect(DISTINCT pod.name) AS pod_names_raw,
+         collect(DISTINCT host_path) AS host_path_volume_paths_raw
+    UNWIND host_path_volume_paths_raw AS host_path
+    WITH cluster_name, namespace, pod_names_raw, host_path ORDER BY host_path
+    WITH cluster_name, namespace, pod_names_raw, collect(host_path) AS host_path_volume_paths
+    UNWIND pod_names_raw AS pod_name
+    WITH cluster_name, namespace, host_path_volume_paths, pod_name ORDER BY pod_name
+    WITH cluster_name, namespace, host_path_volume_paths, collect(pod_name) AS pod_names
     RETURN
         cluster_name,
         namespace,

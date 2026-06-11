@@ -557,8 +557,9 @@ _k8s_default_sa_used_by_pods = Fact(
     cypher_query="""
     MATCH (cluster:KubernetesCluster)-[:RESOURCE]->(pod:KubernetesPod)-[:USES_SERVICE_ACCOUNT]->(sa:KubernetesServiceAccount)
     WHERE sa.name = 'default'
-    WITH cluster.name AS cluster_name, sa.namespace AS namespace,
-         collect(DISTINCT pod.name) AS pod_names
+    WITH cluster.name AS cluster_name, sa.namespace AS namespace, pod.name AS pod_name
+    ORDER BY pod_name
+    WITH cluster_name, namespace, collect(DISTINCT pod_name) AS pod_names
     RETURN
         cluster_name + '/' + namespace AS binding_id,
         'PodUsesDefaultServiceAccount' AS binding_type,
