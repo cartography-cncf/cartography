@@ -321,6 +321,46 @@ def test_conditional_labels_without_sub_resource(neo4j_session):
     assert [r["id"] for r in result] == ["sha256:def456"]
 
 
+def test_conditional_labels_only_update_loaded_nodes(neo4j_session):
+    """
+    Test that a load only removes and reapplies conditional labels on nodes in
+    the current batch.
+    """
+    load(
+        neo4j_session,
+        ContainerImageSchemaNoSubResource(),
+        CONTAINER_IMAGES[:2],
+        lastupdated=1,
+    )
+
+    load(
+        neo4j_session,
+        ContainerImageSchemaNoSubResource(),
+        [
+            {
+                "id": "sha256:abc123",
+                "digest": "sha256:abc123",
+                "image_type": "IMAGE_ATTESTATION",
+                "repository": "my-app",
+            },
+        ],
+        lastupdated=2,
+    )
+
+    result = neo4j_session.run(
+        """
+        MATCH (n:ContainerImage)
+        RETURN n.id AS id, labels(n) AS labels
+        ORDER BY n.id
+        """
+    )
+    labels_by_id = {record["id"]: set(record["labels"]) for record in result}
+
+    assert "ImageAttestation" in labels_by_id["sha256:abc123"]
+    assert "Image" not in labels_by_id["sha256:abc123"]
+    assert "ImageAttestation" in labels_by_id["sha256:def456"]
+
+
 def test_all_labels_present_on_node(neo4j_session):
     """
     Test that a node has all expected labels: primary, unconditional extra, and conditional.
