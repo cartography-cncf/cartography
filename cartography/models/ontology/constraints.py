@@ -26,6 +26,9 @@ from cartography.models.aws.identitycenter.awsssouser import (
     AWSSSOUserToPermissionSetRel,
 )
 from cartography.models.aws.identitycenter.awsssouser import AWSSSOUserToSSOGroupRel
+from cartography.models.aws.lambda_function.lambda_function import (
+    AWSLambdaToPrincipalRel,
+)
 from cartography.models.azure.container_instance import (
     AzureGroupContainerToContainerInstanceRel,
 )
@@ -205,6 +208,17 @@ LEGACY_REL_WHITELIST: frozenset[type] = frozenset(
         # account assumes an AWS IAM role, IRSA-style). This is the canonical
         # ASSUMES semantic, not a static role grant. Distinct from HAS_ROLE.
         KubernetesServiceAccountToAWSRoleRel,
+        # STS_ASSUMEROLE_ALLOW models the AWS IAM trust-policy graph (which
+        # principals a role permits to assume it) and spans User/Role/Group/
+        # EC2/Lambda principals; it is consumed by the privilege-escalation
+        # rules. The canonical ontology ASSUMES edge (Function/ComputeInstance
+        # -> PermissionRole) now coexists on AWSLambda. This rel declares its
+        # target as the generic AWSPrincipal, but at runtime the matched
+        # execution-role node also carries :PermissionRole, so it is a
+        # deliberate Function->PermissionRole overlap. Whitelisted to make that
+        # intent explicit (the guard resolves AWSPrincipal atomically and would
+        # not otherwise surface it). Distinct from the canonical ASSUMES edge.
+        AWSLambdaToPrincipalRel,
         # ALLOWED_BY (PermissionRole->UserGroup) is "this role is assumable by
         # that SSO group", the reverse of a group role grant. Distinct from the
         # UserGroup->PermissionRole HAS_ROLE edge.
