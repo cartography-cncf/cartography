@@ -160,6 +160,9 @@ ONTOLOGY_REL_CONSTRAINTS: tuple[RelConstraint, ...] = (
     RelConstraint(src="ComputePod", dst="ServiceAccount", label="RUNS_AS"),
     RelConstraint(src="Function", dst="ServiceAccount", label="RUNS_AS"),
     RelConstraint(src="ComputeService", dst="ServiceAccount", label="RUNS_AS"),
+    # A workload assumes a permission role to obtain its privileges.
+    RelConstraint(src="ComputeInstance", dst="PermissionRole", label="ASSUMES"),
+    RelConstraint(src="Function", dst="PermissionRole", label="ASSUMES"),
 )
 
 

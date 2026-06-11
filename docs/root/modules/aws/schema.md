@@ -640,6 +640,11 @@ Representation of an AWS [Lambda Function](https://docs.aws.amazon.com/lambda/la
     (:AWSLambda)-[:STS_ASSUMEROLE_ALLOW]->(:AWSPrincipal)
     ```
 
+- AWSLambda functions run with the permissions of their execution role (canonical ontology edge).
+    ```
+    (:AWSLambda)-[:ASSUMES]->(:AWSRole)
+    ```
+
 - AWSLambda functions may also have aliases.
     ```
     (:AWSLambda)-[:KNOWN_AS]->(:AWSLambdaFunctionAlias)

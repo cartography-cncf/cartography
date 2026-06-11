@@ -59,6 +59,8 @@ CI -- RUNS_AS --> SA
 CP -- RUNS_AS --> SA
 FN -- RUNS_AS --> SA
 CS -- RUNS_AS --> SA
+CI -- ASSUMES --> PR
+FN -- ASSUMES --> PR
 NAC{{NetworkAccessControl}}
 AIM{{AIModel}}
 PIP(PublicIP) -- POINTS_TO --> LB
@@ -640,6 +642,12 @@ A `UserAccount`, `ServiceAccount`, or `UserGroup` that is granted a permission r
 A composite or hierarchical role includes other roles via the canonical `INCLUDES` edge (e.g. Keycloak composite roles):
 ```
 (:PermissionRole)-[:INCLUDES]->(:PermissionRole)
+```
+
+A workload that assumes a permission role to obtain its privileges (e.g. an AWS Lambda execution role, an EC2 instance profile role) is linked via the canonical `ASSUMES` edge:
+```
+(:ComputeInstance)-[:ASSUMES]->(:PermissionRole)
+(:Function)-[:ASSUMES]->(:PermissionRole)
 ```
 
 
