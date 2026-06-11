@@ -1,6 +1,7 @@
 from unittest.mock import MagicMock
 from unittest.mock import patch
 
+import pytest
 from azure.core.exceptions import HttpResponseError
 
 import cartography.intel.azure.management_groups as management_groups
@@ -20,6 +21,39 @@ from tests.integration.util import check_rels
 
 TEST_UPDATE_TAG = 123456789
 TEST_STALE_SUBSCRIPTION_ID = "ffffffff-1111-2222-3333-444444444444"
+
+
+@pytest.fixture(autouse=True)
+def cleanup_test_data(neo4j_session):
+    def cleanup() -> None:
+        neo4j_session.run(
+            """
+            MATCH (n)
+            WHERE (
+                (n:AzureTenant AND n.id = $tenant_id)
+                OR (n:AzureManagementGroup AND n.id IN $management_group_ids)
+                OR (n:AzureSubscription AND n.id IN $subscription_ids)
+                OR (
+                    n:AzureResourceGroup
+                    AND any(subscription_id IN $subscription_ids WHERE n.id CONTAINS subscription_id)
+                )
+            )
+            DETACH DELETE n
+            """,
+            tenant_id=TEST_TENANT_ID,
+            management_group_ids=[
+                TEST_PARENT_MANAGEMENT_GROUP_ID,
+                TEST_CHILD_MANAGEMENT_GROUP_ID,
+            ],
+            subscription_ids=[
+                TEST_SUBSCRIPTION_ID,
+                TEST_STALE_SUBSCRIPTION_ID,
+            ],
+        )
+
+    cleanup()
+    yield
+    cleanup()
 
 
 @patch("cartography.intel.azure.subscription.get_azure_management_group_subscriptions")
@@ -194,6 +228,11 @@ def test_cleanup_stale_management_group_hierarchy_and_subscription_parentage(
         subscriptions,
         second_update_tag,
         second_common_job_parameters,
+    )
+    management_groups.cleanup(
+        neo4j_session,
+        second_common_job_parameters,
+        cascade_delete=True,
     )
 
     # Assert
@@ -453,6 +492,54 @@ def test_sync_subscriptions_continues_when_management_group_enrichment_fails(
         "PARENT",
     )
     assert subscription_parent_rels == set()
+
+
+@patch("cartography.intel.azure.subscription.get_azure_management_group_subscriptions")
+def test_cleanup_stale_subscription_cascade_deletes_subscription_resources(
+    mock_get_management_group_subscriptions,
+    neo4j_session,
+):
+    mock_get_management_group_subscriptions.return_value = ([], set())
+
+    stale_resource_group_id = (
+        f"/subscriptions/{TEST_STALE_SUBSCRIPTION_ID}/resourceGroups/stale-rg"
+    )
+    neo4j_session.run(
+        """
+        MERGE (t:AzureTenant{id: $tenant_id})
+        SET t.lastupdated = $update_tag
+        MERGE (s:AzureSubscription{id: $subscription_id})
+        SET s.lastupdated = $previous_update_tag
+        MERGE (rg:AzureResourceGroup{id: $resource_group_id})
+        SET rg.lastupdated = $previous_update_tag
+        MERGE (t)-[:RESOURCE {lastupdated: $previous_update_tag}]->(s)
+        MERGE (s)-[:RESOURCE {lastupdated: $previous_update_tag}]->(rg)
+        """,
+        tenant_id=TEST_TENANT_ID,
+        subscription_id=TEST_STALE_SUBSCRIPTION_ID,
+        resource_group_id=stale_resource_group_id,
+        update_tag=TEST_UPDATE_TAG,
+        previous_update_tag=TEST_UPDATE_TAG - 1,
+    )
+
+    common_job_parameters = {
+        "UPDATE_TAG": TEST_UPDATE_TAG,
+        "TENANT_ID": TEST_TENANT_ID,
+    }
+
+    subscription.sync(
+        neo4j_session,
+        MagicMock(),
+        TEST_TENANT_ID,
+        [],
+        TEST_UPDATE_TAG,
+        common_job_parameters,
+    )
+
+    subscription_nodes = check_nodes(neo4j_session, "AzureSubscription", ["id"])
+    resource_group_nodes = check_nodes(neo4j_session, "AzureResourceGroup", ["id"])
+    assert (TEST_STALE_SUBSCRIPTION_ID,) not in subscription_nodes
+    assert (stale_resource_group_id,) not in resource_group_nodes
 
 
 @patch("cartography.intel.azure.subscription.get_azure_management_group_subscriptions")
