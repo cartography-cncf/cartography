@@ -26,7 +26,7 @@ Rule (e.g., "database-exposed")
 2. **`cypher_visual_query` returns nodes**, not properties — used for graph viz.
 3. **All `Finding` fields are `| None` with default `None`.** The `source` field is auto-populated.
 4. **Compliance metadata uses `frameworks=`**, not tags. Keep `tags` for categories only (`iam`, `credentials`, `stride:*`).
-5. **CIS rule names and IDs must include the provider** (e.g. `cis_aws_1_14_...`, not `cis_1_14_...`).
+5. **Rule IDs and names describe the Cartography security detection, not the compliance control.** Put framework scope, requirement/control id, and external control title in `frameworks=`.
 
 ## Instructions
 
@@ -67,6 +67,7 @@ _aws_public_databases = Fact(
     MATCH (db:RDSInstance)
     RETURN COUNT(db) AS count
     """,
+    identity_fields=("id",),
     module=Module.AWS,
     maturity=Maturity.STABLE,
 )
@@ -85,6 +86,7 @@ _aws_public_databases = Fact(
 | `module`             | Yes      | `Module.AWS`, `Module.AZURE`, `Module.GCP`, ...            |
 | `maturity`           | Yes      | `Maturity.EXPERIMENTAL` or `Maturity.STABLE`               |
 | `asset_id_field`     | No       | finding field that uniquely identifies an asset (dedupe)   |
+| `identity_fields`    | Yes      | tuple of output-model fields forming the finding's stable logical identity across syncs (for downstream lifecycle tracking); required with no default, distinct from `asset_id_field` |
 
 ### Step 3 — Define the Finding output model
 
@@ -100,6 +102,7 @@ class DatabaseExposedOutput(Finding):
 - Field names must match `cypher_query` aliases **exactly**.
 - All fields are `| None` with default `None`.
 - The `source` field is auto-populated with the module name.
+- Set `identity_fields` on the Fact (required) to the subset of these fields that forms the finding's stable logical identity, excluding volatile context (`*_count`, `days_*`, `last_used*`, `*_date`, posture booleans, aggregate lists) so downstream lifecycle tracking does not treat a changed metric as a new finding. See "Finding identity vs. display fields" in `docs/root/usage/rules.md`.
 
 ### Step 4 — Compose the Rule
 
@@ -167,29 +170,27 @@ cartography-rules run my_security_rule --no-experimental
 
 ## Compliance frameworks
 
-For CIS, NIST, SOC2, etc., attach a `Framework` object instead of polluting tags:
+For CIS, NIST, SOC2, etc., attach a `Framework` object or framework helper instead of polluting tags:
 
 ```python
-from cartography.rules.spec.model import Framework
+from cartography.rules.data.frameworks.cis import cis_aws
 
 my_rule = Rule(
-    id="cis_aws_1_14_access_key_not_rotated",
-    name="CIS AWS 1.14: Access Keys Not Rotated",
+    id="aws_access_keys_not_rotated",
+    name="Access Keys Not Rotated",
     # ...
     tags=("iam", "credentials", "stride:spoofing"),  # category tags only
     frameworks=(
-        Framework(
-            name="CIS AWS Foundations Benchmark",
-            short_name="CIS",
-            scope="aws",
-            revision="5.0",
-            requirement="1.14",
-        ),
+        cis_aws("1.14"),
     ),
 )
 ```
 
 Compliance-style tags like `cis:1.14`, `cis:aws-5.0` must NOT live in `tags`. CLI users filter via `--framework CIS`, `--framework CIS:aws`, `--framework CIS:aws:5.0`.
+
+For framework helpers with known canonical controls, the helper fills `Framework.control_title`. For custom mappings, set `Framework(control_title="...")` to the external framework control or requirement title. Keep `Rule.name` as reusable Cartography security copy. Many Cartography rules may map to the same framework control.
+
+Framework helpers encode the one active revision Cartography supports for each benchmark scope today. If Cartography needs to report against multiple benchmark revisions later, add version-aware helpers or explicit framework objects instead of mixing revisions in one helper.
 
 For deeper framework guidance, including CIS benchmark conventions (rule names, IDs, file naming, headers, references), see `references/compliance-frameworks.md` and `references/cis-conventions.md`.
 

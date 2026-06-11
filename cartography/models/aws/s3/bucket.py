@@ -9,6 +9,7 @@ from cartography.models.core.relationships import CartographyRelProperties
 from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
+from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import TargetNodeMatcher
 
 # ============================================================================
@@ -101,12 +102,53 @@ class S3BucketEncryptionProperties(CartographyNodeProperties):
 
 
 @dataclass(frozen=True)
+class S3BucketToKMSKeyRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+# Canonical ontology edge: (:ObjectStorage)-[:ENCRYPTED_BY]->(:EncryptionKey).
+# Created when default encryption uses a customer-managed KMS key and
+# `KMSMasterKeyID` is reported as the key ARN.
+class S3BucketToKMSKeyRel(CartographyRelSchema):
+    target_node_label: str = "KMSKey"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"arn": PropertyRef("encryption_key_id")},
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "ENCRYPTED_BY"
+    properties: S3BucketToKMSKeyRelProperties = S3BucketToKMSKeyRelProperties()
+
+
+@dataclass(frozen=True)
+# Same canonical edge as above, but matching when `KMSMasterKeyID` is reported as
+# a bare key id rather than a full ARN (S3 returns either form depending on how
+# the bucket policy was configured). The two matchers are mutually exclusive, so
+# a bucket gets at most one ENCRYPTED_BY edge. Alias references (alias/<name>)
+# are not resolved here as they point at a KMSAlias node, not a KMSKey.
+class S3BucketToKMSKeyByIdRel(CartographyRelSchema):
+    target_node_label: str = "KMSKey"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"id": PropertyRef("encryption_key_id")},
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "ENCRYPTED_BY"
+    properties: S3BucketToKMSKeyRelProperties = S3BucketToKMSKeyRelProperties()
+
+
+@dataclass(frozen=True)
 class S3BucketEncryptionSchema(CartographyNodeSchema):
     """Composite schema for S3 bucket encryption properties."""
 
     label: str = "S3Bucket"
     properties: S3BucketEncryptionProperties = S3BucketEncryptionProperties()
     sub_resource_relationship: Optional[CartographyRelSchema] = None
+    other_relationships: OtherRelationships = OtherRelationships(
+        [
+            S3BucketToKMSKeyRel(),
+            S3BucketToKMSKeyByIdRel(),
+        ]
+    )
 
 
 @dataclass(frozen=True)

@@ -1273,6 +1273,32 @@ class CLI:
                     hidden=PANEL_TAILSCALE not in visible_panels,
                 ),
             ] = "https://api.tailscale.com/api/v2",
+            tailscale_oauth_client_id_env_var: Annotated[
+                str | None,
+                typer.Option(
+                    "--tailscale-oauth-client-id-env-var",
+                    help=(
+                        "Environment variable name containing a Tailscale OAuth "
+                        "client ID. Used together with "
+                        "--tailscale-oauth-client-secret-env-var to mint a "
+                        "short-lived bearer token at sync time."
+                    ),
+                    rich_help_panel=PANEL_TAILSCALE,
+                    hidden=PANEL_TAILSCALE not in visible_panels,
+                ),
+            ] = None,
+            tailscale_oauth_client_secret_env_var: Annotated[
+                str | None,
+                typer.Option(
+                    "--tailscale-oauth-client-secret-env-var",
+                    help=(
+                        "Environment variable name containing a Tailscale OAuth "
+                        "client secret."
+                    ),
+                    rich_help_panel=PANEL_TAILSCALE,
+                    hidden=PANEL_TAILSCALE not in visible_panels,
+                ),
+            ] = None,
             # =================================================================
             # OpenAI Options
             # =================================================================
@@ -2262,6 +2288,18 @@ class CLI:
                 )
                 tailscale_token = os.environ.get(tailscale_token_env_var)
 
+            # Read Tailscale OAuth client credentials
+            tailscale_oauth_client_id = None
+            if tailscale_oauth_client_id_env_var:
+                tailscale_oauth_client_id = os.environ.get(
+                    tailscale_oauth_client_id_env_var,
+                )
+            tailscale_oauth_client_secret = None
+            if tailscale_oauth_client_secret_env_var:
+                tailscale_oauth_client_secret = os.environ.get(
+                    tailscale_oauth_client_secret_env_var,
+                )
+
             # Read Vercel token
             vercel_token = None
             if vercel_token_env_var:
@@ -2566,6 +2604,8 @@ class CLI:
                 tailscale_token=tailscale_token,
                 tailscale_org=tailscale_org,
                 tailscale_base_url=tailscale_base_url,
+                tailscale_oauth_client_id=tailscale_oauth_client_id,
+                tailscale_oauth_client_secret=tailscale_oauth_client_secret,
                 vercel_token=vercel_token,
                 vercel_team_id=vercel_team_id,
                 vercel_base_url=vercel_base_url,

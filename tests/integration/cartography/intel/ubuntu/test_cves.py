@@ -56,13 +56,27 @@ def test_sync_ubuntu_cves(mock_api, neo4j_session):
 
     record = neo4j_session.run(
         "MATCH (n:UbuntuCVE {id: 'USV|CVE-2024-1234'}) "
-        "RETURN n.cve_id, n.attack_vector, n.attack_complexity, n.base_score, n.base_severity",
+        "RETURN n.cve_id, n.attack_vector, n.attack_complexity, "
+        "n.base_score, n.base_severity, "
+        "n._ont_cve_id, n._ont_attack_vector, n._ont_attack_complexity, "
+        "n._ont_base_score, n._ont_base_severity, "
+        "n._ont_published_date, n._ont_last_modified_date, n._ont_vuln_status, "
+        "n._ont_source",
     ).single()
     assert record["n.cve_id"] == "CVE-2024-1234"
     assert record["n.attack_vector"] == "NETWORK"
     assert record["n.attack_complexity"] == "LOW"
     assert record["n.base_score"] == 8.1
     assert record["n.base_severity"] == "HIGH"
+    assert record["n._ont_cve_id"] == "CVE-2024-1234"
+    assert record["n._ont_attack_vector"] == "NETWORK"
+    assert record["n._ont_attack_complexity"] == "LOW"
+    assert record["n._ont_base_score"] == 8.1
+    assert record["n._ont_base_severity"] == "HIGH"
+    assert record["n._ont_published_date"] == "2024-01-15T10:30:00"
+    assert record["n._ont_last_modified_date"] == "2024-02-01T14:22:00"
+    assert record["n._ont_vuln_status"] == "active"
+    assert record["n._ont_source"] == "ubuntu"
 
     record = neo4j_session.run(
         "MATCH (n:UbuntuCVE {id: 'USV|CVE-2024-9999'}) RETURN n.attack_vector, n.base_score",

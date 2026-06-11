@@ -146,13 +146,14 @@ _cross_cloud_nist_ai_app_inventory = Fact(
     RETURN COUNT(app) AS count
     """,
     asset_id_field="app_client_id",
+    identity_fields=("app_source", "app_client_id"),
     module=Module.CROSS_CLOUD,
     maturity=Maturity.EXPERIMENTAL,
 )
 
-nist_ai_third_party_app_inventory = Rule(
-    id="nist_ai_third_party_app_inventory",
-    name="NIST AI RMF: AI Third-Party App Inventory",
+ai_third_party_app_inventory = Rule(
+    id="ai_third_party_app_inventory",
+    name="AI Third-Party App Inventory",
     description=(
         "Inventories AI-related third-party applications connected to enterprise "
         "identities, supporting governance and usage visibility."
@@ -249,13 +250,14 @@ _cross_cloud_nist_ai_app_sensitive_scopes = Fact(
     RETURN COUNT(app) AS count
     """,
     asset_id_field="app_client_id",
+    identity_fields=("app_source", "app_client_id"),
     module=Module.CROSS_CLOUD,
     maturity=Maturity.EXPERIMENTAL,
 )
 
-nist_ai_third_party_app_sensitive_scopes = Rule(
-    id="nist_ai_third_party_app_sensitive_scopes",
-    name="NIST AI RMF: AI Third-Party Apps with Sensitive Scopes",
+ai_third_party_app_sensitive_scopes = Rule(
+    id="ai_third_party_app_sensitive_scopes",
+    name="AI Third-Party Apps with Sensitive Scopes",
     description=(
         "Detects AI-related third-party applications that hold sensitive OAuth "
         "grants and therefore increase data exposure risk."
@@ -379,13 +381,14 @@ _gw_nist_ai_admin_app_authorizations = Fact(
     RETURN COUNT(DISTINCT app) AS count
     """,
     asset_id_field="app_client_id",
+    identity_fields=("app_source", "app_client_id"),
     module=Module.GOOGLEWORKSPACE,
     maturity=Maturity.EXPERIMENTAL,
 )
 
-nist_ai_admin_ai_app_authorizations = Rule(
-    id="nist_ai_admin_ai_app_authorizations",
-    name="NIST AI RMF: Admin Authorization of AI Apps",
+ai_admin_app_authorizations = Rule(
+    id="ai_admin_app_authorizations",
+    name="Admin Authorization of AI Apps",
     description=(
         "Identifies privileged Google Workspace identities that have authorized "
         "AI-related third-party applications."
@@ -534,13 +537,14 @@ _aibom_nist_ai_agent_inventory = Fact(
     RETURN COUNT(DISTINCT agent) AS count
     """,
     asset_id_field="agent_component_id",
+    identity_fields=("agent_component_id",),
     module=Module.AIBOM,
     maturity=Maturity.EXPERIMENTAL,
 )
 
-nist_ai_aibom_agent_inventory = Rule(
-    id="nist_ai_aibom_agent_inventory",
-    name="NIST AI RMF: Deployed AI Agent Inventory",
+aibom_agent_inventory = Rule(
+    id="aibom_agent_inventory",
+    name="Deployed AI Agent Inventory",
     description=(
         "Inventories deployed AI agents from AIBOM and their direct agentic "
         "dependencies so teams can map runtime AI system composition."
@@ -632,13 +636,14 @@ _aibom_nist_ai_coverage_gaps = Fact(
     RETURN COUNT(source) AS count
     """,
     asset_id_field="source_id",
+    identity_fields=("source_id",),
     module=Module.AIBOM,
     maturity=Maturity.EXPERIMENTAL,
 )
 
-nist_ai_aibom_coverage_gaps = Rule(
-    id="nist_ai_aibom_coverage_gaps",
-    name="NIST AI RMF: AIBOM Coverage Gaps",
+aibom_coverage_gaps = Rule(
+    id="aibom_coverage_gaps",
+    name="AIBOM Coverage Gaps",
     description=(
         "Detects deployed AI inventory gaps where AIBOM scans are incomplete or "
         "cannot be tied back to the canonical production image."
@@ -781,6 +786,7 @@ _openai_nist_ai_stale_or_unowned_api_keys = Fact(
     RETURN COUNT(k) AS count
     """,
     asset_id_field="api_key_id",
+    identity_fields=("provider", "api_key_id"),
     module=Module.OPENAI,
     maturity=Maturity.EXPERIMENTAL,
 )
@@ -840,13 +846,14 @@ _anthropic_nist_ai_stale_or_unscoped_api_keys = Fact(
     RETURN COUNT(k) AS count
     """,
     asset_id_field="api_key_id",
+    identity_fields=("provider", "api_key_id"),
     module=Module.ANTHROPIC,
     maturity=Maturity.EXPERIMENTAL,
 )
 
-nist_ai_provider_api_key_hygiene = Rule(
-    id="nist_ai_provider_api_key_hygiene",
-    name="NIST AI RMF: AI Provider API Key Hygiene",
+ai_provider_api_key_hygiene = Rule(
+    id="ai_provider_api_key_hygiene",
+    name="AI Provider API Key Hygiene",
     description=(
         "Detects ownership and scope gaps on AI-provider API keys across OpenAI "
         "and Anthropic, and stale/unused keys (90+ days) for OpenAI. Anthropic "

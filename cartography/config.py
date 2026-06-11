@@ -215,6 +215,13 @@ class Config:
     :param tailscale_org: Tailscale organization name. Optional.
     :type tailscale_base_url: str
     :param tailscale_base_url: Tailscale API base URL. Optional.
+    :type tailscale_oauth_client_id: str
+    :param tailscale_oauth_client_id: Tailscale OAuth client ID. When set with
+        ``tailscale_oauth_client_secret``, exchanged for a short-lived bearer
+        token at sync time. Optional.
+    :type tailscale_oauth_client_secret: str
+    :param tailscale_oauth_client_secret: Tailscale OAuth client secret.
+        Optional.
     :type vercel_token: str
     :param vercel_token: Vercel API token. Optional.
     :type vercel_team_id: str
@@ -426,6 +433,8 @@ class Config:
         tailscale_token=None,
         tailscale_org=None,
         tailscale_base_url=None,
+        tailscale_oauth_client_id=None,
+        tailscale_oauth_client_secret=None,
         vercel_token=None,
         vercel_team_id=None,
         vercel_base_url=None,
@@ -593,6 +602,8 @@ class Config:
         self.tailscale_token = tailscale_token
         self.tailscale_org = tailscale_org
         self.tailscale_base_url = tailscale_base_url
+        self.tailscale_oauth_client_id = tailscale_oauth_client_id
+        self.tailscale_oauth_client_secret = tailscale_oauth_client_secret
         self.vercel_token = vercel_token
         self.vercel_team_id = vercel_team_id
         self.vercel_base_url = vercel_base_url

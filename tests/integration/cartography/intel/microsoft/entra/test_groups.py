@@ -3,8 +3,11 @@ from unittest.mock import patch
 
 import pytest
 from kiota_abstractions.api_error import APIError
+from msgraph.generated.models.o_data_errors.main_error import MainError
+from msgraph.generated.models.o_data_errors.o_data_error import ODataError
 
 import cartography.intel.microsoft.entra.groups
+from cartography.intel.microsoft.entra.groups import get_group_members
 from cartography.intel.microsoft.entra.groups import sync_entra_groups
 from cartography.intel.microsoft.entra.users import load_tenant
 from cartography.intel.microsoft.entra.users import load_users
@@ -21,6 +24,75 @@ from tests.integration.util import check_nodes
 from tests.integration.util import check_rels
 
 TEST_UPDATE_TAG = 1234567890
+
+
+class MockPage:
+    def __init__(self, value, odata_next_link=None):
+        self.value = value
+        self.odata_next_link = odata_next_link
+
+
+def _expired_page_token_error() -> ODataError:
+    error = ODataError()
+    error.response_status_code = 400
+    error.error = MainError()
+    error.error.code = "Directory_ExpiredPageToken"
+    error.error.message = (
+        "The specified page token value has expired and can no longer be "
+        "included in your request."
+    )
+    return error
+
+
+class MockGroupMembersRequestBuilder:
+    def __init__(self, first_page, second_page, recover_on_second_attempt=True):
+        self.first_page = first_page
+        self.second_page = second_page
+        self.recover_on_second_attempt = recover_on_second_attempt
+        self.first_page_calls = 0
+        self.next_page_calls = 0
+        self.expired_token_raised = False
+
+    async def get(self):
+        self.first_page_calls += 1
+        return self.first_page
+
+    def with_url(self, next_link):
+        assert next_link == "next-page"
+        return MockGroupMembersNextPageRequestBuilder(self)
+
+
+class MockGroupMembersNextPageRequestBuilder:
+    def __init__(self, parent):
+        self.parent = parent
+
+    async def get(self):
+        self.parent.next_page_calls += 1
+        if (
+            not self.parent.expired_token_raised
+            or not self.parent.recover_on_second_attempt
+        ):
+            self.parent.expired_token_raised = True
+            raise _expired_page_token_error()
+        return self.parent.second_page
+
+
+class MockGroupsRequestBuilder:
+    def __init__(self, members_builder):
+        self.members_builder = members_builder
+
+    def by_group_id(self, group_id):
+        return MockGroupRequestBuilder(self.members_builder)
+
+
+class MockGroupRequestBuilder:
+    def __init__(self, members_builder):
+        self.members = members_builder
+
+
+class MockGraphClient:
+    def __init__(self, members_builder):
+        self.groups = MockGroupsRequestBuilder(members_builder)
 
 
 def mock_get_group_members_side_effect(
@@ -45,6 +117,79 @@ def mock_get_group_owners_side_effect(client, group_id: str) -> list[str]:
         return ["11dca63b-cb03-4e53-bb75-fa8060285550"]
     else:
         return []
+
+
+@pytest.mark.asyncio
+async def test_get_group_members_restarts_after_expired_page_token():
+    first_page = MockPage(
+        [
+            MOCK_GROUP_MEMBERS["11111111-1111-1111-1111-111111111111"][0],
+        ],
+        "next-page",
+    )
+    second_page = MockPage(
+        [
+            MOCK_GROUP_MEMBERS["11111111-1111-1111-1111-111111111111"][1],
+            MOCK_GROUP_MEMBERS["11111111-1111-1111-1111-111111111111"][2],
+        ],
+    )
+    members_builder = MockGroupMembersRequestBuilder(first_page, second_page)
+    client = MockGraphClient(members_builder)
+
+    user_ids, group_ids = await get_group_members(
+        client,
+        "11111111-1111-1111-1111-111111111111",
+    )
+
+    assert user_ids == [
+        "ae4ac864-4433-4ba6-96a6-20f8cffdadcb",
+        "11dca63b-cb03-4e53-bb75-fa8060285550",
+    ]
+    assert group_ids == ["22222222-2222-2222-2222-222222222222"]
+    assert members_builder.first_page_calls == 2
+    assert members_builder.next_page_calls == 2
+
+
+@pytest.mark.asyncio
+async def test_get_group_members_does_not_restart_expired_page_token_forever():
+    first_page = MockPage(
+        [
+            MOCK_GROUP_MEMBERS["11111111-1111-1111-1111-111111111111"][0],
+        ],
+        "next-page",
+    )
+    second_page = MockPage([])
+    members_builder = MockGroupMembersRequestBuilder(
+        first_page,
+        second_page,
+        recover_on_second_attempt=False,
+    )
+    client = MockGraphClient(members_builder)
+
+    with pytest.raises(ODataError):
+        await get_group_members(
+            client,
+            "11111111-1111-1111-1111-111111111111",
+        )
+
+    assert members_builder.first_page_calls == 6
+    assert members_builder.next_page_calls == 6
+
+
+@pytest.mark.asyncio
+async def test_get_group_members_returns_empty_for_missing_first_page():
+    members_builder = MockGroupMembersRequestBuilder(None, MockPage([]))
+    client = MockGraphClient(members_builder)
+
+    user_ids, group_ids = await get_group_members(
+        client,
+        "11111111-1111-1111-1111-111111111111",
+    )
+
+    assert user_ids == []
+    assert group_ids == []
+    assert members_builder.first_page_calls == 1
+    assert members_builder.next_page_calls == 0
 
 
 async def _mock_get_entra_groups(client):

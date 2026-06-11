@@ -1,4 +1,5 @@
 import logging
+from ipaddress import ip_address
 from typing import Any
 
 import neo4j
@@ -11,6 +12,25 @@ from cartography.models.sentinelone.agent import S1AgentSchema
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
+
+
+def _get_local_ips(agent: dict[str, Any]) -> list[str]:
+    local_ips: list[str] = []
+    for network_interface in agent.get("networkInterfaces") or []:
+        inet_values = network_interface.get("inet") or []
+        if isinstance(inet_values, str):
+            inet_values = [inet_values]
+        for ip in inet_values:
+            if not ip:
+                continue
+            try:
+                parsed_ip = ip_address(ip)
+            except ValueError:
+                continue
+            if parsed_ip.is_loopback:
+                continue
+            local_ips.append(ip)
+    return local_ips
 
 
 @timeit
@@ -61,6 +81,8 @@ def transform_agents(agent_list: list[dict[str, Any]]) -> list[dict[str, Any]]:
             # Optional fields - use .get() with None default
             "uuid": agent.get("uuid"),
             "computer_name": agent.get("computerName"),
+            "public_ip": agent.get("externalIp"),
+            "local_ips": _get_local_ips(agent),
             "firewall_enabled": agent.get("firewallEnabled"),
             "os_name": agent.get("osName"),
             "os_revision": agent.get("osRevision"),

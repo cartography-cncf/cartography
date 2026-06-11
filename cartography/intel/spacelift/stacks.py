@@ -25,6 +25,11 @@ query {
         branch
         projectRoot
         space
+        integrations {
+            aws {
+                assumedRoleArn
+            }
+        }
     }
 }
 """
@@ -48,6 +53,12 @@ def transform_stacks(
     result: list[dict[str, Any]] = []
 
     for stack in stacks_data:
+        # The IAM role a stack assumes at runtime comes from its AWS integration.
+        # integrations or integrations.aws may be absent when no AWS integration is set.
+        integrations = stack.get("integrations") or {}
+        aws_integration = integrations.get("aws") or {}
+        aws_role_arn = aws_integration.get("assumedRoleArn")
+
         transformed_stack = {
             "id": stack["id"],
             "name": stack.get("name"),
@@ -59,6 +70,7 @@ def transform_stacks(
             "project_root": stack.get("projectRoot"),
             "space_id": stack.get("space"),
             "spacelift_account_id": account_id,
+            "aws_role_arn": aws_role_arn,
         }
 
         result.append(transformed_stack)

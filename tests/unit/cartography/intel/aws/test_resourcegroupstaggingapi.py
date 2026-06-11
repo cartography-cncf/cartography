@@ -61,6 +61,27 @@ def test_group_tag_data_by_resource_type():
     assert len(grouped["s3"]) == 1
 
 
+def test_build_ingest_tag_query_region_scoped():
+    """
+    Load balancer resource types are keyed by a non-unique `name`, so their
+    ingest query must be scoped to the synced region (#1137).
+    """
+    query = rgta._build_ingest_tag_query("elasticloadbalancing:loadbalancer")
+    assert "WHERE resource.region = $Region" in query
+    # The tag node itself no longer stores region (#1094).
+    assert "aws_tag.region" not in query
+
+
+def test_build_ingest_tag_query_not_region_scoped():
+    """
+    ARN/id-keyed resource types (e.g. s3) keep their matching unchanged: no
+    region predicate, no region property on the tag node.
+    """
+    query = rgta._build_ingest_tag_query("s3")
+    assert "WHERE resource.region" not in query
+    assert "aws_tag.region" not in query
+
+
 def test_transform_tags():
     get_resources_response = copy.deepcopy(test_data.GET_RESOURCES_RESPONSE)
     assert "resource_id" not in get_resources_response[0]
