@@ -14,44 +14,45 @@ When creating CIS (Center for Internet Security) compliance rules, follow these 
 
 ## Rule names
 
-Format: **`CIS <PROVIDER> <CONTROL_NUMBER>: <Description>`**
+Format: framework-neutral security concept. Do **not** prefix `Rule.name` with `CIS <PROVIDER> <CONTROL_NUMBER>`.
 
 ```python
 # Correct
-name="CIS AWS 1.14: Access Keys Not Rotated"
-name="CIS AWS 2.1.1: S3 Bucket Versioning"
-name="CIS GCP 3.9: SSL Policies With Weak Cipher Suites"
+name="Access Keys Not Rotated"
+name="S3 Bucket Versioning"
+name="SSL Policies With Weak Cipher Suites"
 
-# Incorrect — missing provider
-name="CIS 1.14: Access Keys Not Rotated"
+# Incorrect - compliance prefix belongs in frameworks metadata
+name="CIS AWS 1.14: Access Keys Not Rotated"
 ```
 
 ## Rule IDs
 
-Format: **`cis_<provider>_<control_number>_<short_slug>`**
+Format: provider/security concept. Do **not** encode the CIS framework or control number in `Rule.id`.
 
 ```python
 # Correct
-id="cis_aws_1_14_access_key_not_rotated"
-id="cis_gcp_3_1_default_network"
-id="cis_gw_4_1_1_3_user_2sv_not_enforced"
+id="aws_access_keys_not_rotated"
+id="gcp_default_network_exists"
+id="google_workspace_users_without_2sv"
 
 # Incorrect
-id="cis_1_14_access_key_not_rotated"
+id="cis_aws_1_14_access_key_not_rotated"
 ```
 
-### Why include the provider?
+### Why keep framework identity out of the rule?
 
-CIS control numbers don't map 1:1 across providers:
+Rules are reusable security detections. Compliance controls are one mapping onto a detection, and multiple frameworks may map to the same rule.
 
-- CIS AWS 1.18 (Expired SSL/TLS Certificates) has no GCP equivalent.
-- CIS AWS 5.1 vs CIS GCP 3.9 cover different networking concepts despite similar numbers.
+Keep the provider in the rule ID when it is part of the detection concept, such as `aws_access_keys_not_rotated` or `gcp_default_network_exists`. Keep the framework, benchmark revision, requirement/control id, and external control title in `frameworks=`.
 
-Including the provider keeps rule names self-documenting in alerts, dashboards, reports, and SIEM integrations.
+A compliance UI can render a control-specific label from `{framework label} {requirement}: {framework.control_title}` without changing `Rule.name`.
+
+Many Cartography rules may map to the same external control. Do not prefix rule IDs or rule names with framework/control labels like `CIS AWS 6.5`.
 
 ## File naming
 
-Organise by provider and benchmark section:
+Rule files may be grouped by benchmark/provider for maintainability, but individual rule IDs and names stay security-oriented:
 
 ```
 cis_aws_iam.py        # CIS AWS Section 1 (IAM)
@@ -66,7 +67,8 @@ cis_azure_iam.py      # CIS Azure IAM controls
 
 ```python
 # =============================================================================
-# CIS AWS 1.14: Access keys not rotated in 90 days
+# Access keys not rotated in 90 days
+# CIS AWS 1.14
 # Main node: AccountAccessKey
 # =============================================================================
 ```
@@ -75,14 +77,27 @@ For controls that are not covered yet, use the same header style so gaps are eas
 
 ```python
 # =============================================================================
-# TODO: CIS AWS 1.14: Access keys not rotated in 90 days
+# TODO: Access keys not rotated in 90 days
+# CIS AWS 1.14
 # Missing: IAM access key rotation detection
 # =============================================================================
 ```
 
 ## Tags vs frameworks
 
-Use `frameworks` for compliance refs:
+Use `frameworks` for compliance refs. Prefer framework helpers so canonical control titles stay centralized:
+
+```python
+from cartography.rules.data.frameworks.cis import cis_aws
+
+frameworks=(cis_aws("1.14"),)
+```
+
+Each CIS helper encodes the one active benchmark revision Cartography supports for that benchmark scope today. If multiple CIS revisions need to be active at once, add version-aware helpers or explicit `Framework(...)` mappings instead of overloading one helper.
+
+For helpers with known canonical control-title lookups, prefer the helper default. Only pass `control_title=` to a helper when the central lookup is intentionally not correct for that mapping. When overriding a helper title in a rule file, add that file and helper name to `ALLOWED_HELPER_CONTROL_TITLE_OVERRIDES` in `tests/unit/rules/test_rule_identity.py`.
+
+For a framework without a helper or known lookup control title, set `Framework.control_title` directly:
 
 ```python
 frameworks=(
@@ -92,6 +107,7 @@ frameworks=(
         scope="aws",
         revision="5.0",
         requirement="1.14",
+        control_title="Ensure access keys are rotated every 90 days or less",
     ),
 )
 ```
@@ -137,18 +153,20 @@ CIS_REFERENCES = [
 
 ```python
 from cartography.rules.spec.model import (
-    Fact, Finding, Framework, Maturity, Module, Rule, RuleReference,
+    Fact, Finding, Maturity, Module, Rule, RuleReference,
 )
+from cartography.rules.data.frameworks.cis import cis_aws
 
 
 # =============================================================================
-# CIS AWS 1.14: Access keys not rotated in 90 days
+# Access keys not rotated in 90 days
+# CIS AWS 1.14
 # Main node: AccountAccessKey
 # =============================================================================
 
-_cis_aws_1_14_fact = Fact(
-    id="cis-aws-1-14-access-key-not-rotated",
-    name="CIS AWS 1.14: Access Keys Not Rotated",
+_aws_access_keys_not_rotated = Fact(
+    id="aws-access-keys-not-rotated",
+    name="Access Keys Not Rotated",
     description="Identifies IAM access keys that have not been rotated in the past 90 days",
     cypher_query="""
     MATCH (key:AccountAccessKey)
@@ -176,13 +194,13 @@ class CIS114Output(Finding):
     create_date: str | None = None
 
 
-cis_aws_1_14_access_key_not_rotated = Rule(
-    id="cis_aws_1_14_access_key_not_rotated",
-    name="CIS AWS 1.14: Access Keys Not Rotated",
+aws_access_keys_not_rotated = Rule(
+    id="aws_access_keys_not_rotated",
+    name="Access Keys Not Rotated",
     description="IAM access keys should be rotated every 90 days or less",
     output_model=CIS114Output,
     tags=("iam", "credentials", "stride:spoofing"),
-    facts=(_cis_aws_1_14_fact,),
+    facts=(_aws_access_keys_not_rotated,),
     references=[
         RuleReference(
             text="CIS AWS Foundations Benchmark v5.0",
@@ -190,13 +208,7 @@ cis_aws_1_14_access_key_not_rotated = Rule(
         ),
     ],
     frameworks=(
-        Framework(
-            name="CIS AWS Foundations Benchmark",
-            short_name="CIS",
-            scope="aws",
-            revision="5.0",
-            requirement="1.14",
-        ),
+        cis_aws("1.14"),
     ),
     version="1.0.0",
 )

@@ -217,6 +217,113 @@ def test_single_permission_resource_non_match():
     )
 
 
+def test_object_level_resource_matches_bucket():
+    # An object-level grant (arn:aws:s3:::my-bucket/*) should draw an edge to the
+    # bucket node (arn:aws:s3:::my-bucket). See issue #1639.
+    statement = [
+        {
+            "action": [
+                "s3:GetObject",
+            ],
+            "resource": [
+                "arn:aws:s3:::my-bucket/*",
+            ],
+            "effect": "Allow",
+        },
+    ]
+    assert (True, False) == permission_relationships.evaluate_policy_for_permissions(
+        statement,
+        ["S3:GetObject"],
+        "arn:aws:s3:::my-bucket",
+    )
+
+
+def test_object_level_resource_prefix_grant_matches_bucket():
+    # An object-level grant scoped to a key prefix (arn:aws:s3:::my-bucket/logs/*)
+    # should still draw an edge to the bucket node. See issue #1639.
+    statement = [
+        {
+            "action": [
+                "s3:GetObject",
+            ],
+            "resource": [
+                "arn:aws:s3:::my-bucket/logs/*",
+            ],
+            "effect": "Allow",
+        },
+    ]
+    assert (True, False) == permission_relationships.evaluate_policy_for_permissions(
+        statement,
+        ["S3:GetObject"],
+        "arn:aws:s3:::my-bucket",
+    )
+
+
+def test_object_level_resource_does_not_match_other_bucket():
+    # The trailing-slash match must not leak across buckets with a shared prefix.
+    statement = [
+        {
+            "action": [
+                "s3:GetObject",
+            ],
+            "resource": [
+                "arn:aws:s3:::my-bucket/*",
+            ],
+            "effect": "Allow",
+        },
+    ]
+    assert (False, False) == permission_relationships.evaluate_policy_for_permissions(
+        statement,
+        ["S3:GetObject"],
+        "arn:aws:s3:::my-bucket-other",
+    )
+
+
+def test_object_level_match_scoped_to_s3():
+    # The trailing-slash match must not apply to non-S3 resources: a grant on
+    # ".../PassableRole/*" targets a different role path, not an object under
+    # the role, so it must NOT match the parent role node.
+    statement = [
+        {
+            "action": [
+                "iam:PassRole",
+            ],
+            "resource": [
+                "arn:aws:iam::000000000000:role/PassableRole/*",
+            ],
+            "effect": "Allow",
+        },
+    ]
+    assert (False, False) == permission_relationships.evaluate_policy_for_permissions(
+        statement,
+        ["iam:PassRole"],
+        "arn:aws:iam::000000000000:role/PassableRole",
+    )
+
+
+def test_object_level_notresource_does_not_exclude_bucket():
+    # A notresource scoped to objects (arn:aws:s3:::my-bucket/*) excludes the
+    # bucket *objects*, not the bucket ARN itself, so bucket-level permissions
+    # on the bucket node are still allowed by AWS and the edge must remain.
+    statements = [
+        {
+            "action": [
+                "s3:Get*",
+            ],
+            "resource": ["*"],
+            "notresource": [
+                "arn:aws:s3:::my-bucket/*",
+            ],
+            "effect": "Allow",
+        },
+    ]
+    assert (True, False) == permission_relationships.evaluate_policy_for_permissions(
+        statements,
+        ["S3:GetObject"],
+        "arn:aws:s3:::my-bucket",
+    )
+
+
 def test_non_matching_notresource():
     statements = [
         {

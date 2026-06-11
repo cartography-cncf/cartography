@@ -29,6 +29,41 @@ def _eks_client_with_list_access_entries_error(error: ClientError):
     return mock_eks_client
 
 
+def test_parse_aws_auth_map_parses_map_accounts():
+    configmap = V1ConfigMap(
+        data={
+            "mapAccounts": """
+- "123456789012"
+- 210987654321
+- 012345678901
+- 012345670123
+""",
+        },
+    )
+
+    result = eks.parse_aws_auth_map(configmap)
+
+    # Account IDs must be preserved as the literal strings written in the ConfigMap,
+    # including leading zeros. Unquoted all-octal-digit IDs (e.g. 012345670123) must
+    # not be misparsed as base-8 integers.
+    assert result["accounts"] == [
+        "123456789012",
+        "210987654321",
+        "012345678901",
+        "012345670123",
+    ]
+    assert result["roles"] == []
+    assert result["users"] == []
+
+
+def test_parse_aws_auth_map_handles_missing_map_accounts():
+    configmap = V1ConfigMap(data={})
+
+    result = eks.parse_aws_auth_map(configmap)
+
+    assert result["accounts"] == []
+
+
 def test_list_access_entry_principal_arns_skips_config_map_auth_mode(caplog):
     error = _list_access_entries_client_error(
         "InvalidRequestException",

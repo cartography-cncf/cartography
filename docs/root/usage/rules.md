@@ -290,10 +290,10 @@ You can filter rules by compliance framework short name, optional scope, and opt
 
 ```bash
 # List all NIST AI RMF-mapped rules
-cartography-rules list --framework NIST-AI-RMF
+cartography-rules list --framework nist:ai-rmf
 
 # Run all NIST AI RMF-mapped rules
-cartography-rules run all --framework NIST-AI-RMF
+cartography-rules run all --framework nist:ai-rmf
 ```
 
 ### `list`

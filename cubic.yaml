@@ -21,6 +21,8 @@ reviews:
       exclude:
         - tests/**/*
     - name: Data model follows project structure
+      include:
+        - cartography/**
       description: |-
         Mandatory properties on nodes:
         Every CartographyNodeProperties must contain id: PropertyRef = PropertyRef("<something>") and lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True).
@@ -50,8 +52,8 @@ reviews:
         No manufactured default values:
         Never return {} or [] as a fallback on error. Let the exception propagate.
 
-        Python 3.9+ style:
-        Use dict[str, Any], list[dict], str | None instead of Dict, List, Optional from the typing module.
+        Preserve last-known-good state on partial failures:
+        Gate destructive cleanup on full success. When a sync hits transient errors (5xx, timeouts) or permission errors (401/403) for part of the data, skip cleanup for that scope and keep the previously synced data rather than converging it to empty. Signal a skipped fetch with an explicit sentinel (for example FETCH_FAILED), never an empty [] or {} that downstream code cannot tell apart from a genuine empty result. Do not flag returns of [] that are an established convention for a known-empty or tenant-disabled result; only flag destructive cleanup that runs after a partial or failed fetch.
 
         Appropriate log levels:
         Follow this hierarchy: CRITICAL for framework failures causing cascading errors. ERROR for explicit module-level errors. WARNING for transient errors or non-blocking config issues. INFO only for high-level milestones (module start/end, significant statistics). DEBUG for everything else (job details, empty results, raw data). Messages like "Loaded 0 results" or "Graph job executed" should be DEBUG, not INFO.
@@ -63,12 +65,14 @@ reviews:
         Functions should avoid defensive checks for conditions that are unlikely to ever occur in practice, as these create unnecessary code complexity and can mask real design issues. When a parameter is typed as a required type like str but the code defensively checks for None/empty values, it suggests either the type annotation is wrong or the check is unnecessary defensive programming. These "just in case" guards with silent failures often indicate a lack of confidence in the calling code and should be replaced with proper error handling or removed entirely if the condition truly cannot occur.
 
         Only include uv.lock if pyproject.toml was updated:
-        as a general guideline, uv.lock should only be updated in PRs that intentionally change or refresh dependencies, typically alongside pyproject.toml updates — to avoid unnecessary diffs and uv sync issues for others
+        as a general guideline, uv.lock should only be updated in PRs that intentionally change or refresh dependencies, typically alongside pyproject.toml updates, to avoid unnecessary diffs and uv sync issues for others
     - name: Modules follow project requirements
+      include:
+        - cartography/**
       description: |-
-        Mandatory sync pattern:
-        Every sync() function must follow this order: get() → transform() → load() → cleanup(). Verify that all 4 steps are present and in this order.
-        Cleanup is not needed for tenant-like object (AWSAccountm, AzureSubscription etc ...)
+        Sync pattern:
+        sync() follows get() → transform() → load() → cleanup(), with the steps in this order. transform() is optional: some modules load data straight from get() output, so do not flag a missing transform() step. Require get(), load(), and cleanup(), and require transform() to sit between get() and load() only when it is present.
+        Cleanup is not needed for tenant-like objects (AWSAccount, AzureSubscription, etc.).
 
         @timeit decorator required:
         The sync() and get() functions must be decorated with @timeit for performance monitoring.
@@ -76,8 +80,8 @@ reviews:
         Cleanup mandatory:
         Every cleanup() function must call GraphJob.from_node_schema() for each loaded schema, and GraphJob.from_matchlink() for each MatchLink.
 
-        No manual date parsing:
-        Do not use dt_parse.parse() or convert to epoch. Pass dates directly—Neo4j 4+ handles datetime and ISO 8601 natively.
+        Store native temporal types, do not convert to epoch:
+        The convention is to store native datetime values in Neo4j, which handles datetime and ISO 8601 natively. For new or changed code, do not convert timestamps to Unix epoch integers; pass datetime or ISO 8601 values directly. When a source returns a non-ISO string, parse it with dateutil.parser.isoparse and pass the resulting datetime rather than reducing it to an epoch int. Some older modules still store epoch integers for backward compatibility; converting an existing module's timestamp format is a deliberate change, not a drive-by.
 
         Use None, not empty strings:
         For missing optional values, use None instead of "" or "N/A".
@@ -88,14 +92,18 @@ reviews:
         Pattern: Check that all AWS client interaction methods have the @aws_handle_regions decorator applied
         Impact: Missing this decorator means AWS API errors won't be properly caught and handled, potentially causing uncaught exceptions and service disruptions
         Detection: Scan for methods that make AWS API calls (containing 'client.' or similar patterns) and verify they have the @aws_handle_regions decorator
-        Exception can exists for resources not linked to a specific region.
+        Exceptions (do not flag): resources not linked to a specific region; modules outside cartography/intel/aws; methods already using a service-specific decorator such as @sagemaker_handle_regions; and S3 calls that use fully qualified, region-specific endpoints.
     - name: Tests and documentation quality
+      include:
+        - cartography/**
+        - tests/**
+        - docs/**
       description: |-
         Test outcomes, not implementation:
         Tests should verify data in the graph (via check_nodes, check_rels), not parameters passed to mocks or number of calls.
 
-        Mock only external APIs:
-        Only get() functions that call external APIs should be mocked. Do not mock Cartography's internal functions.
+        Mock only external APIs (end-to-end integration tests):
+        This applies to end-to-end integration tests: mock only get() functions that call external APIs, and do not mock Cartography's internal functions. It does not forbid all internal mocking: as long as at least one end-to-end integration test exercises the real path, additional narrowly-scoped tests that mock internal functions are fine and should not be flagged.
 
         Integration tests via sync:
         Integration tests should call the complete sync() or sync_*() function, not individual load() functions.

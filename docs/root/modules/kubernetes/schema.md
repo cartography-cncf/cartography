@@ -484,6 +484,11 @@ Representation of a Kubernetes [User](https://kubernetes.io/docs/reference/acces
     (:AWSUser)-[:MAPS_TO]->(:KubernetesUser)
     ```
 
+- `KubernetesUser` can map to an `AWSRootPrincipal` (via aws-auth `mapAccounts`).
+    ```
+    (:AWSRootPrincipal)-[:MAPS_TO]->(:KubernetesUser)
+    ```
+
 ### KubernetesGroup
 Representation of a Kubernetes [Group](https://kubernetes.io/docs/reference/access-authn-authz/rbac/) in K8s RBAC.
 

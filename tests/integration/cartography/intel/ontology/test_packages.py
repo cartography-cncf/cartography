@@ -60,6 +60,18 @@ def _setup_gitlab_graph(neo4j_session):
     )
 
 
+def _setup_github_graph(neo4j_session):
+    """Create a GitHubDependency node so the Package ontology link can resolve."""
+    neo4j_session.run(
+        """
+        MERGE (d:Dependency:GitHubDependency {id: 'github-dep-1'})
+        SET d.normalized_id = 'pypi|django|4.2.0',
+            d.name = 'django', d.version = '4.2.0',
+            d.type = 'pypi', d.purl = 'pkg:pypi/django@4.2.0'
+        """,
+    )
+
+
 def _setup_syft_graph(neo4j_session):
     """Create SyftPackage nodes with DEPENDS_ON relationships for testing."""
     neo4j_session.run(
@@ -106,6 +118,13 @@ def _setup_syft_graph(neo4j_session):
             "type": "npm",
             "purl": "pkg:npm/body-parser@1.20.2",
         },
+        {
+            "normalized_id": "pypi|django|4.2.0",
+            "name": "django",
+            "version": "4.2.0",
+            "type": "pypi",
+            "purl": "pkg:pypi/django@4.2.0",
+        },
     ],
 )
 def test_load_ontology_packages(_mock_get_source_nodes, neo4j_session):
@@ -115,6 +134,7 @@ def test_load_ontology_packages(_mock_get_source_nodes, neo4j_session):
     _setup_trivy_graph(neo4j_session)
     _setup_syft_graph(neo4j_session)
     _setup_gitlab_graph(neo4j_session)
+    _setup_github_graph(neo4j_session)
 
     # Act
     cartography.intel.ontology.packages.sync(
@@ -128,6 +148,7 @@ def test_load_ontology_packages(_mock_get_source_nodes, neo4j_session):
         ("npm|express|4.18.2", "express", "4.18.2", "npm"),
         ("pypi|requests|2.31.0", "requests", "2.31.0", "pypi"),
         ("npm|body-parser|1.20.2", "body-parser", "1.20.2", "npm"),
+        ("pypi|django|4.2.0", "django", "4.2.0", "pypi"),
     }
     actual_packages = check_nodes(
         neo4j_session,
@@ -140,7 +161,7 @@ def test_load_ontology_packages(_mock_get_source_nodes, neo4j_session):
     ontology_count = neo4j_session.run(
         "MATCH (p:Package:Ontology) RETURN count(p) as count",
     ).single()["count"]
-    assert ontology_count == 3
+    assert ontology_count == 4
 
     # Assert - Check DETECTED_AS relationships to TrivyPackage
     expected_trivy_rels = {
@@ -188,6 +209,21 @@ def test_load_ontology_packages(_mock_get_source_nodes, neo4j_session):
         rel_direction_right=True,
     )
     assert actual_gitlab_rels == expected_gitlab_rels
+
+    # Assert - Check DETECTED_AS relationships to GitHubDependency
+    expected_github_rels = {
+        ("pypi|django|4.2.0", "pypi|django|4.2.0"),
+    }
+    actual_github_rels = check_rels(
+        neo4j_session,
+        "Package",
+        "id",
+        "GitHubDependency",
+        "normalized_id",
+        "DETECTED_AS",
+        rel_direction_right=True,
+    )
+    assert actual_github_rels == expected_github_rels
 
     # Assert - Check DEPLOYED propagated to Package -> ontology Image
     expected_deployed_image = {

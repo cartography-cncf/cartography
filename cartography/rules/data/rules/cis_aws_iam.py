@@ -92,9 +92,9 @@ _aws_access_key_not_rotated = Fact(
     maturity=Maturity.STABLE,
 )
 
-cis_aws_2_13_access_key_not_rotated = Rule(
-    id="cis_aws_2_13_access_key_not_rotated",
-    name="CIS AWS 2.13: Access Keys Not Rotated",
+aws_access_keys_not_rotated = Rule(
+    id="aws_access_keys_not_rotated",
+    name="Access Keys Not Rotated",
     description=(
         "Access keys should be rotated every 90 days or less to reduce the window "
         "of opportunity for compromised keys to be used maliciously."
@@ -168,9 +168,9 @@ _aws_unused_credentials = Fact(
     maturity=Maturity.STABLE,
 )
 
-cis_aws_2_11_unused_credentials = Rule(
-    id="cis_aws_2_11_unused_credentials",
-    name="CIS AWS 2.11: Unused Credentials",
+aws_unused_credentials = Rule(
+    id="aws_unused_credentials",
+    name="Unused Credentials",
     description=(
         "Credentials unused for 45 days or greater should be disabled to reduce "
         "the attack surface and prevent unauthorized access."
@@ -234,9 +234,9 @@ _aws_user_direct_policies = Fact(
     maturity=Maturity.STABLE,
 )
 
-cis_aws_2_14_user_direct_policies = Rule(
-    id="cis_aws_2_14_user_direct_policies",
-    name="CIS AWS 2.14: Users With Direct Policy Attachments",
+aws_users_with_direct_policy_attachments = Rule(
+    id="aws_users_with_direct_policy_attachments",
+    name="Users With Direct Policy Attachments",
     description=(
         "IAM users should receive permissions only through groups. Direct policy "
         "attachments make permission management complex and error-prone."
@@ -305,9 +305,9 @@ _aws_multiple_access_keys = Fact(
     maturity=Maturity.STABLE,
 )
 
-cis_aws_2_12_multiple_access_keys = Rule(
-    id="cis_aws_2_12_multiple_access_keys",
-    name="CIS AWS 2.12: Users With Multiple Active Access Keys",
+aws_users_with_multiple_active_access_keys = Rule(
+    id="aws_users_with_multiple_active_access_keys",
+    name="Users With Multiple Active Access Keys",
     description=(
         "Each IAM user should have only one active access key. Multiple active keys "
         "increase the attack surface and complicate key rotation."
@@ -376,9 +376,9 @@ _aws_expired_certificates = Fact(
     maturity=Maturity.STABLE,
 )
 
-cis_aws_2_18_expired_certificates = Rule(
-    id="cis_aws_2_18_expired_certificates",
-    name="CIS AWS 2.18: Expired SSL/TLS Certificates",
+aws_expired_ssl_tls_certificates = Rule(
+    id="aws_expired_ssl_tls_certificates",
+    name="Expired SSL/TLS Certificates",
     description=(
         "Expired SSL/TLS certificates should be removed from ACM to maintain "
         "security hygiene and avoid confusion with valid certificates."
@@ -439,9 +439,9 @@ _aws_root_access_key_present = Fact(
     maturity=Maturity.STABLE,
 )
 
-cis_aws_2_3_root_access_key = Rule(
-    id="cis_aws_2_3_root_access_key",
-    name="CIS AWS 2.3: No Root User Access Key Exists",
+aws_root_user_access_keys = Rule(
+    id="aws_root_user_access_keys",
+    name="Root User Access Keys",
     description=(
         "The root user should not have any access keys. Root access keys grant "
         "unrestricted access to the account and cannot be scoped down, so they "
@@ -504,9 +504,9 @@ _aws_root_mfa_disabled = Fact(
     maturity=Maturity.STABLE,
 )
 
-cis_aws_2_4_root_mfa = Rule(
-    id="cis_aws_2_4_root_mfa",
-    name="CIS AWS 2.4: MFA Enabled For Root User",
+aws_root_user_mfa_disabled = Rule(
+    id="aws_root_user_mfa_disabled",
+    name="Root User MFA Disabled",
     description=(
         "Multi-factor authentication should be enabled for the root user. The root "
         "user has unrestricted access to the account, so it must always be protected "
@@ -597,9 +597,9 @@ _aws_admin_policy_attached = Fact(
     maturity=Maturity.STABLE,
 )
 
-cis_aws_2_15_admin_policy = Rule(
-    id="cis_aws_2_15_admin_policy",
-    name="CIS AWS 2.15: No Full Administrative Privilege Policies Attached",
+aws_policies_with_full_administrative_privileges = Rule(
+    id="aws_policies_with_full_administrative_privileges",
+    name="Full Administrative Privilege Policies",
     description=(
         "IAM policies that allow full '*:*' administrative privileges should not be "
         "attached to users, groups, or roles. Granting full administrative access "

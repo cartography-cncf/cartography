@@ -5,19 +5,38 @@ from cartography.sync import TOP_LEVEL_MODULES
 
 
 def test_framework_normalizes_to_lowercase():
-    """Test that Framework fields are normalized to lowercase."""
+    """Test that Framework matching fields are normalized to lowercase."""
     fw = Framework(
         name="CIS AWS Foundations Benchmark",
         short_name="CIS",
         requirement="1.14",
         scope="AWS",
         revision="5.0",
+        control_title="Access Keys Not Rotated",
     )
     assert fw.name == "cis aws foundations benchmark"
     assert fw.short_name == "cis"
     assert fw.scope == "aws"
     assert fw.revision == "5.0"
     assert fw.requirement == "1.14"
+    assert fw.control_title == "Access Keys Not Rotated"
+
+
+def test_framework_control_title_preserves_display_casing_and_is_not_filter_key():
+    """Framework control_title is user-facing copy and does not participate in matching."""
+    fw = Framework(
+        name="CIS Kubernetes Benchmark",
+        short_name="CIS",
+        requirement="5.1.8",
+        scope="Kubernetes",
+        revision="1.12",
+        control_title="Limit use of bind, impersonate, and escalate permissions",
+    )
+
+    assert (
+        fw.control_title == "Limit use of bind, impersonate, and escalate permissions"
+    )
+    assert fw.matches("cis", "kubernetes", "1.12")
 
 
 def test_framework_optional_fields():
@@ -30,6 +49,7 @@ def test_framework_optional_fields():
     )
     assert fw_minimal.scope is None
     assert fw_minimal.revision is None
+    assert fw_minimal.control_title is None
     assert fw_minimal.requirement == "ac-1"
 
     # With scope only

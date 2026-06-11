@@ -39,6 +39,33 @@ def get_all_frameworks() -> dict[str, list[Framework]]:
     }
 
 
+def parse_framework_filter(
+    framework_filter: str,
+) -> tuple[str | None, str | None, str | None]:
+    """
+    Parse a framework filter into short name, scope, and revision parts.
+
+    Legacy flat filter names are still accepted as aliases for their scoped
+    replacements.
+    """
+    parts = framework_filter.split(":")
+    short_name = parts[0] if len(parts) >= 1 else None
+    scope = parts[1] if len(parts) >= 2 else None
+    revision = parts[2] if len(parts) >= 3 else None
+
+    if short_name and not scope:
+        normalized_short_name = short_name.lower()
+        # DEPRECATED: Legacy flat framework filters will be removed in v1.0.0.
+        if normalized_short_name == "iso27001":
+            short_name = "iso"
+            scope = "27001"
+        elif normalized_short_name == "nist-ai-rmf":
+            short_name = "nist"
+            scope = "ai-rmf"
+
+    return short_name, scope, revision
+
+
 def _run_fact(
     fact: Fact,
     rule: Rule,
@@ -243,10 +270,7 @@ def filter_rules_by_framework(
     Returns:
         List of rule names that match the framework filter.
     """
-    parts = framework_filter.split(":")
-    short_name = parts[0] if len(parts) >= 1 else None
-    scope = parts[1] if len(parts) >= 2 else None
-    revision = parts[2] if len(parts) >= 3 else None
+    short_name, scope, revision = parse_framework_filter(framework_filter)
 
     filtered = []
     for rule_name in rule_names:
