@@ -33,6 +33,9 @@ class ScalewayApiKeyToUserRelProperties(CartographyRelProperties):
 
 
 @dataclass(frozen=True)
+# DEPRECATED: replaced by the canonical (:APIKey)-[:OWNED_BY]->(:UserAccount)
+# edge (ScalewayApiKeyToUserOwnedByRel). Kept for backward compatibility, will
+# be removed in v1.0.0.
 # (:ScalewayUser)-[:HAS]->(:ScalewayApiKey)
 class ScalewayApiKeyToUserRel(CartographyRelSchema):
     target_node_label: str = "ScalewayUser"
@@ -50,6 +53,9 @@ class ScalewayApiKeyToApplicationRelProperties(CartographyRelProperties):
 
 
 @dataclass(frozen=True)
+# DEPRECATED: replaced by the canonical (:APIKey)-[:OWNED_BY]->(:ServiceAccount)
+# edge (ScalewayApiKeyToApplicationOwnedByRel). Kept for backward compatibility,
+# will be removed in v1.0.0.
 # (:ScalewayApplication)-[:HAS]->(:ScalewayApiKey)
 class ScalewayApiKeyToApplicationRel(CartographyRelSchema):
     target_node_label: str = "ScalewayApplication"
@@ -60,6 +66,44 @@ class ScalewayApiKeyToApplicationRel(CartographyRelSchema):
     rel_label: str = "HAS"
     properties: ScalewayApiKeyToApplicationRelProperties = (
         ScalewayApiKeyToApplicationRelProperties()
+    )
+
+
+@dataclass(frozen=True)
+class ScalewayApiKeyToUserOwnedByRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+# Canonical ontology edge: (:APIKey)-[:OWNED_BY]->(:UserAccount)
+class ScalewayApiKeyToUserOwnedByRel(CartographyRelSchema):
+    target_node_label: str = "ScalewayUser"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"id": PropertyRef("user_id")},
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "OWNED_BY"
+    properties: ScalewayApiKeyToUserOwnedByRelProperties = (
+        ScalewayApiKeyToUserOwnedByRelProperties()
+    )
+
+
+@dataclass(frozen=True)
+class ScalewayApiKeyToApplicationOwnedByRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+# Canonical ontology edge: (:APIKey)-[:OWNED_BY]->(:ServiceAccount)
+class ScalewayApiKeyToApplicationOwnedByRel(CartographyRelSchema):
+    target_node_label: str = "ScalewayApplication"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"id": PropertyRef("application_id")},
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "OWNED_BY"
+    properties: ScalewayApiKeyToApplicationOwnedByRelProperties = (
+        ScalewayApiKeyToApplicationOwnedByRelProperties()
     )
 
 
@@ -96,5 +140,7 @@ class ScalewayApiKeySchema(CartographyNodeSchema):
         [
             ScalewayApiKeyToUserRel(),
             ScalewayApiKeyToApplicationRel(),
+            ScalewayApiKeyToUserOwnedByRel(),
+            ScalewayApiKeyToApplicationOwnedByRel(),
         ]
     )

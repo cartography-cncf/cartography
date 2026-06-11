@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 
+from cartography.models.anthropic.apikey import AnthropicApiKeyToUserRel
 from cartography.models.aws.cloudtrail.management_events import (
     AssumedRoleWithSAMLMatchLink,
 )
@@ -7,6 +8,7 @@ from cartography.models.aws.ecs.containers import ECSContainerToTaskRel
 from cartography.models.aws.ecs.services import ECSServiceToECSClusterRel
 from cartography.models.aws.ecs.services import ECSServiceToECSTaskRel
 from cartography.models.aws.ecs.tasks import ECSTaskToECSClusterRel
+from cartography.models.aws.iam.access_key import AccountAccessKeyToAWSUserRel
 from cartography.models.aws.iam.group_membership import AWSGroupToAWSUserRel
 from cartography.models.aws.identitycenter.awspermissionset import (
     AWSRoleToSSOGroupMatchLink,
@@ -31,6 +33,10 @@ from cartography.models.duo.user import DuoGroupToDuoUserRel
 from cartography.models.gcp.cloudrun.job_container import CloudRunJobToContainerRel
 from cartography.models.gcp.cloudrun.service_container import (
     CloudRunServiceToContainerRel,
+)
+from cartography.models.gcp.iam_keys import GCPServiceAccountKeyToServiceAccountRel
+from cartography.models.github.personal_access_tokens import (
+    GitHubPersonalAccessTokenToOwnerUserRel,
 )
 from cartography.models.github.teams import GitHubTeamChildTeamRel
 from cartography.models.github.teams import GitHubTeamMaintainerUserRel
@@ -77,6 +83,12 @@ from cartography.models.kubernetes.serviceaccounts import (
 from cartography.models.kubernetes.users import KubernetesUserToAWSRoleRel
 from cartography.models.oci.group import OCIGroupToOCIUserRel
 from cartography.models.oci.policy import OCIPolicyToGroupRefRel
+from cartography.models.openai.adminapikey import OpenAIAdminApiKeyToSARel
+from cartography.models.openai.adminapikey import OpenAIAdminApiKeyToUserRel
+from cartography.models.openai.apikey import OpenAIApiKeyToSARel
+from cartography.models.openai.apikey import OpenAIApiKeyToUserRel
+from cartography.models.scaleway.iam.apikey import ScalewayApiKeyToApplicationRel
+from cartography.models.scaleway.iam.apikey import ScalewayApiKeyToUserRel
 from cartography.models.sentry.member import SentryUserToTeamAdminOfRel
 from cartography.models.slack.group import SlackGroupToCreatorRel
 from cartography.models.tailscale.group import (
@@ -137,6 +149,9 @@ ONTOLOGY_REL_CONSTRAINTS: tuple[RelConstraint, ...] = (
     RelConstraint(src="UserAccount", dst="UserGroup", label="MEMBER_OF"),
     RelConstraint(src="ServiceAccount", dst="UserGroup", label="MEMBER_OF"),
     RelConstraint(src="UserGroup", dst="UserGroup", label="MEMBER_OF"),
+    # An API key / access credential is owned by the identity it authenticates as.
+    RelConstraint(src="APIKey", dst="UserAccount", label="OWNED_BY"),
+    RelConstraint(src="APIKey", dst="ServiceAccount", label="OWNED_BY"),
 )
 
 
@@ -224,6 +239,20 @@ LEGACY_REL_WHITELIST: frozenset[type] = frozenset(
         # MAPS_TO is identity federation (a Kubernetes group maps to an AWS
         # user), not group membership. Distinct from MEMBER_OF.
         KubernetesGroupToAWSUserRel,
+        # DEPRECATED: replaced by OWNED_BY (the canonical APIKey->identity
+        # direction), will be removed in v1.0.0. These edges express the same
+        # ownership in the reverse (identity->key) direction under provider
+        # labels (OWNS / HAS / HAS_KEY / AWS_ACCESS_KEY).
+        AccountAccessKeyToAWSUserRel,
+        AnthropicApiKeyToUserRel,
+        GCPServiceAccountKeyToServiceAccountRel,
+        GitHubPersonalAccessTokenToOwnerUserRel,
+        OpenAIApiKeyToUserRel,
+        OpenAIApiKeyToSARel,
+        OpenAIAdminApiKeyToUserRel,
+        OpenAIAdminApiKeyToSARel,
+        ScalewayApiKeyToUserRel,
+        ScalewayApiKeyToApplicationRel,
         # INHERITED_MEMBER_OF / INHERITED_OWNER_OF are transitive memberships
         # computed across nested groups, intentionally kept separate from the
         # direct MEMBER_OF edge.

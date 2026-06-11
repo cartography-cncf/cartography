@@ -53,6 +53,8 @@ PR -- INCLUDES --> PR
 UA -- MEMBER_OF --> UG
 SA -- MEMBER_OF --> UG
 UG -- MEMBER_OF --> UG
+AK -- OWNED_BY --> UA
+AK -- OWNED_BY --> SA
 NAC{{NetworkAccessControl}}
 AIM{{AIModel}}
 PIP(PublicIP) -- POINTS_TO --> LB
@@ -275,7 +277,13 @@ API keys are used across different cloud providers and SaaS platforms for authen
 
 #### Relationships
 
-- `User` can own one or many `APIKey`
+- An `APIKey` is owned by the `UserAccount` or `ServiceAccount` it authenticates as, via the canonical `OWNED_BY` edge:
+    ```
+    (:APIKey)-[:OWNED_BY]->(:UserAccount)
+    (:APIKey)-[:OWNED_BY]->(:ServiceAccount)
+    ```
+
+- At the abstract layer, a `User` owns one or many `APIKey` (derived from the `OWNED_BY` edges above during the ontology linking job):
     ```
     (:User)-[:OWNS]->(:APIKey)
     ```

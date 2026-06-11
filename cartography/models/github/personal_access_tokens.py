@@ -50,6 +50,10 @@ class GitHubPersonalAccessTokenToOrgRel(CartographyRelSchema):
 
 
 @dataclass(frozen=True)
+# DEPRECATED: replaced by the canonical (:APIKey)-[:OWNED_BY]->(:UserAccount)
+# edge (GitHubPersonalAccessTokenToOwnerUserOwnedByRel). Kept for backward
+# compatibility, will be removed in v1.0.0.
+# (:GitHubUser)-[:OWNS]->(:GitHubPersonalAccessToken)
 class GitHubPersonalAccessTokenToOwnerUserRel(CartographyRelSchema):
     target_node_label: str = "GitHubUser"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
@@ -57,6 +61,20 @@ class GitHubPersonalAccessTokenToOwnerUserRel(CartographyRelSchema):
     )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "OWNS"
+    properties: GitHubPersonalAccessTokenRelProperties = (
+        GitHubPersonalAccessTokenRelProperties()
+    )
+
+
+@dataclass(frozen=True)
+# Canonical ontology edge: (:APIKey)-[:OWNED_BY]->(:UserAccount)
+class GitHubPersonalAccessTokenToOwnerUserOwnedByRel(CartographyRelSchema):
+    target_node_label: str = "GitHubUser"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"id": PropertyRef("owner_user_id")},
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "OWNED_BY"
     properties: GitHubPersonalAccessTokenRelProperties = (
         GitHubPersonalAccessTokenRelProperties()
     )
@@ -100,6 +118,7 @@ class GitHubPersonalAccessTokenSchema(CartographyNodeSchema):
     other_relationships: OtherRelationships = OtherRelationships(
         [
             GitHubPersonalAccessTokenToOwnerUserRel(),
+            GitHubPersonalAccessTokenToOwnerUserOwnedByRel(),
             GitHubPersonalAccessTokenToRepositoryRel(),
         ],
     )

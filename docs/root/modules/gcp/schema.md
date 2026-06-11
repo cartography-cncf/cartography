@@ -819,12 +819,14 @@ Representation of a GCP [Service Account](https://cloud.google.com/iam/docs/refe
 - GCPServiceAccounts have user-managed authentication keys (system-managed keys are intentionally not synced).
 
     ```
-    (GCPServiceAccount)-[HAS_KEY]->(GCPServiceAccountKey)
+    (GCPServiceAccountKey)-[OWNED_BY]->(GCPServiceAccount)
     ```
 
 ### GCPServiceAccountKey
 
 Representation of a user-managed GCP [Service Account Key](https://cloud.google.com/iam/docs/reference/rest/v1/projects.serviceAccounts.keys). System-managed keys (rotated automatically by Google) are not ingested.
+
+> **Ontology Mapping**: This node has the extra label `APIKey` to enable cross-platform queries for long-lived API credentials across different systems (e.g., AccountAccessKey, ScalewayApiKey).
 
 | Field                | Description                                                                                            |
 | -------------------- | ------------------------------------------------------------------------------------------------------ |
@@ -847,10 +849,10 @@ Representation of a user-managed GCP [Service Account Key](https://cloud.google.
     (GCPProject)-[RESOURCE]->(GCPServiceAccountKey)
     ```
 
-- GCPServiceAccountKeys hang off their parent GCPServiceAccount.
+- GCPServiceAccountKeys are owned by their parent GCPServiceAccount.
 
     ```
-    (GCPServiceAccount)-[HAS_KEY]->(GCPServiceAccountKey)
+    (GCPServiceAccountKey)-[OWNED_BY]->(GCPServiceAccount)
     ```
 
 ### GCPRole
