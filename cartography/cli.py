@@ -54,6 +54,7 @@ PANEL_ANTHROPIC = "Anthropic Options"
 PANEL_AIRBYTE = "Airbyte Options"
 PANEL_DOCKER_SCOUT = "Docker Scout Options"
 PANEL_TRIVY = "Trivy Options"
+PANEL_TERRAFORM = "Terraform Options"
 PANEL_SYFT = "Syft Options"
 PANEL_AIBOM = "AIBOM Options"
 PANEL_UBUNTU = "Ubuntu Security Options"
@@ -108,6 +109,7 @@ MODULE_PANELS = {
     "airbyte": PANEL_AIRBYTE,
     "docker_scout": PANEL_DOCKER_SCOUT,
     "trivy": PANEL_TRIVY,
+    "terraform": PANEL_TERRAFORM,
     "syft": PANEL_SYFT,
     "aibom": PANEL_AIBOM,
     "ubuntu": PANEL_UBUNTU,
@@ -786,6 +788,35 @@ class CLI:
                     hidden=PANEL_GITLAB not in visible_panels,
                 ),
             ] = 90,
+            gitlab_requested_syncs: Annotated[
+                str | None,
+                typer.Option(
+                    "--gitlab-requested-syncs",
+                    help=(
+                        "Comma-separated list of GitLab resource types to sync. "
+                        "Valid values: organizations, groups, projects, users, runners, "
+                        "ci_variables, environments, ci_config, container_repositories, "
+                        "branches, dependencies, terraform_states. "
+                        "Defaults to all resource types."
+                    ),
+                    rich_help_panel=PANEL_GITLAB,
+                    hidden=PANEL_GITLAB not in visible_panels,
+                ),
+            ] = None,
+            gitlab_group_paths: Annotated[
+                str | None,
+                typer.Option(
+                    "--gitlab-group-paths",
+                    help=(
+                        "Comma-separated list of group full_path values to limit the sync scope. "
+                        "Only groups and projects under these paths are synced. "
+                        'Example: "myorg/platform,myorg/security". '
+                        "Defaults to all groups and projects."
+                    ),
+                    rich_help_panel=PANEL_GITLAB,
+                    hidden=PANEL_GITLAB not in visible_panels,
+                ),
+            ] = None,
             # =================================================================
             # DigitalOcean Options
             # =================================================================
@@ -1513,6 +1544,18 @@ class CLI:
                     help="DEPRECATED: use --trivy-source with a local path. Will be removed in Cartography v1.0.0.",
                     rich_help_panel=PANEL_TRIVY,
                     hidden=True,
+                ),
+            ] = None,
+            # =================================================================
+            # Terraform Options
+            # =================================================================
+            terraform_state_source: Annotated[
+                str | None,
+                typer.Option(
+                    "--terraform-state-source",
+                    help="Terraform state source. Accepts a local file or directory, s3://bucket/prefix, gs://bucket/prefix, or azblob://account/container/prefix.",
+                    rich_help_panel=PANEL_TERRAFORM,
+                    hidden=PANEL_TERRAFORM not in visible_panels,
                 ),
             ] = None,
             # =================================================================
@@ -2595,6 +2638,8 @@ class CLI:
                 gitlab_token=gitlab_token,
                 gitlab_organization_id=gitlab_organization_id,
                 gitlab_commits_since_days=gitlab_commits_since_days,
+                gitlab_requested_syncs=gitlab_requested_syncs,
+                gitlab_group_paths=gitlab_group_paths,
                 semgrep_app_token=semgrep_app_token,
                 semgrep_dependency_ecosystems=semgrep_dependency_ecosystems,
                 semgrep_oss_source=semgrep_oss_source,
@@ -2636,6 +2681,7 @@ class CLI:
                 trivy_results_dir=trivy_results_dir,
                 trivy_s3_bucket=trivy_s3_bucket,
                 trivy_s3_prefix=trivy_s3_prefix,
+                terraform_state_source=terraform_state_source,
                 syft_source=syft_source,
                 syft_results_dir=syft_results_dir,
                 syft_s3_bucket=syft_s3_bucket,

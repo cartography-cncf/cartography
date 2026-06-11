@@ -365,3 +365,54 @@ def test_build_report_reader_for_azure_uses_config_credential(
         credential=fake_credential,
         source_uri="azblob://acct/container/prefix",
     )
+
+
+def test_parse_report_source_https_returns_http_report_source() -> None:
+    from cartography.intel.common.report_source import HttpReportSource
+
+    url = "https://gitlab.com/api/v4/projects/123/terraform/state/prod"
+    result = parse_report_source(url)
+    assert isinstance(result, HttpReportSource)
+    assert result.url == url
+    assert result.uri == url
+
+
+def test_parse_report_source_http_returns_http_report_source() -> None:
+    from cartography.intel.common.report_source import HttpReportSource
+
+    url = "http://localhost:8080/terraform/state/dev"
+    result = parse_report_source(url)
+    assert isinstance(result, HttpReportSource)
+    assert result.url == url
+
+
+@patch("cartography.intel.common.object_store.HttpReportReader")
+def test_build_report_reader_for_http_source_passes_gitlab_token(
+    mock_reader_cls,
+) -> None:
+    from cartography.intel.common.report_source import HttpReportSource
+
+    fake_reader = mock_reader_cls.return_value
+    config = Config(
+        neo4j_uri="bolt://localhost:7687",
+        update_tag=1,
+        gitlab_token="glpat-test-token",
+    )
+
+    url = "https://gitlab.com/api/v4/projects/123/terraform/state/prod"
+    reader = build_report_reader_for_source(HttpReportSource(url=url), config=config)
+
+    assert reader is fake_reader
+    mock_reader_cls.assert_called_once_with(url, token="glpat-test-token")
+
+
+@patch("cartography.intel.common.object_store.HttpReportReader")
+def test_build_report_reader_for_http_source_no_token(mock_reader_cls) -> None:
+    from cartography.intel.common.report_source import HttpReportSource
+
+    fake_reader = mock_reader_cls.return_value
+    url = "https://example.com/state/prod"
+    reader = build_report_reader_for_source(HttpReportSource(url=url))
+
+    assert reader is fake_reader
+    mock_reader_cls.assert_called_once_with(url, token=None)

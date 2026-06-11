@@ -108,6 +108,9 @@ TOP_LEVEL_MODULES: OrderedDict[str, Callable[..., None]] = OrderedDict(
             "cartography.intel.docker_scout", "start_docker_scout_ingestion"
         ),
         "trivy": _LazyStage("cartography.intel.trivy", "start_trivy_ingestion"),
+        "terraform": _LazyStage(
+            "cartography.intel.terraform", "start_terraform_ingestion"
+        ),
         "syft": _LazyStage("cartography.intel.syft", "start_syft_ingestion"),
         "aibom": _LazyStage("cartography.intel.aibom", "start_aibom_ingestion"),
         "ubuntu": _LazyStage("cartography.intel.ubuntu", "start_ubuntu_ingestion"),

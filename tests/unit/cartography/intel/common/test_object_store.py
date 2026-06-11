@@ -293,3 +293,74 @@ def test_read_json_report_reports_source_on_parse_error() -> None:
 
     with pytest.raises(ObjectStoreError, match=ref.uri):
         read_json_report(reader, ref)
+
+
+def test_http_reader_list_reports_returns_single_ref() -> None:
+    from cartography.intel.common.object_store import HttpReportReader
+
+    url = "https://gitlab.com/api/v4/projects/123/terraform/state/prod"
+    reader = HttpReportReader(url, token="tok")
+    refs = reader.list_reports()
+    assert len(refs) == 1
+    assert refs[0].uri == url
+    assert refs[0].name == "prod.tfstate"
+
+
+@patch("requests.get")
+def test_http_reader_sends_bearer_token(mock_get) -> None:
+    from cartography.intel.common.object_store import HttpReportReader
+    from cartography.intel.common.object_store import ReportRef
+
+    mock_get.return_value.status_code = 200
+    mock_get.return_value.content = b'{"version":4}'
+    mock_get.return_value.raise_for_status = lambda: None
+
+    url = "https://gitlab.com/api/v4/projects/123/terraform/state/prod"
+    reader = HttpReportReader(url, token="glpat-secret")
+    ref = ReportRef(uri=url, name="prod")
+    data = reader.read_bytes(ref)
+
+    assert data == b'{"version":4}'
+    mock_get.assert_called_once_with(
+        url,
+        headers={"Authorization": "Bearer glpat-secret"},
+        timeout=30,
+    )
+
+
+@patch("requests.get")
+def test_http_reader_no_token_sends_no_auth_header(mock_get) -> None:
+    from cartography.intel.common.object_store import HttpReportReader
+    from cartography.intel.common.object_store import ReportRef
+
+    mock_get.return_value.content = b'{"version":4}'
+    mock_get.return_value.raise_for_status = lambda: None
+
+    url = "https://example.com/state/dev"
+    reader = HttpReportReader(url)
+    ref = ReportRef(uri=url, name="dev")
+    reader.read_bytes(ref)
+
+    mock_get.assert_called_once_with(url, headers={}, timeout=30)
+
+
+@patch("requests.get")
+def test_http_reader_wraps_http_errors(mock_get) -> None:
+    import requests
+
+    from cartography.intel.common.object_store import HttpReportReader
+    from cartography.intel.common.object_store import ObjectStoreError
+    from cartography.intel.common.object_store import ReportRef
+
+    fake_response = MagicMock()
+    fake_response.status_code = 401
+    mock_get.return_value.raise_for_status.side_effect = requests.HTTPError(
+        response=fake_response
+    )
+
+    url = "https://gitlab.com/api/v4/projects/123/terraform/state/prod"
+    reader = HttpReportReader(url, token="bad-token")
+    ref = ReportRef(uri=url, name="prod")
+
+    with pytest.raises(ObjectStoreError, match=url):
+        reader.read_bytes(ref)
