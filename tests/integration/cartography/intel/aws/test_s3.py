@@ -161,6 +161,17 @@ def test_load_s3_encryption(neo4j_session, *args):
     """
     Ensure that expected bucket gets loaded with their encryption fields.
     """
+    # Seed the KMS key referenced by bucket-1 so the ENCRYPTED_BY edge can match
+    # it at load time.
+    neo4j_session.run(
+        """
+        MERGE (k:KMSKey{id: $key_id})
+        SET k.arn = $key_arn, k.lastupdated = $update_tag
+        """,
+        key_id="9a1ad414-6e3b-47ce-8366-6b8f26ba467d",
+        key_arn="arn:aws:kms:eu-east-1:000000000000:key/9a1ad414-6e3b-47ce-8366-6b8f26ba467d",
+        update_tag=TEST_UPDATE_TAG,
+    )
     data = tests.data.aws.s3.GET_ENCRYPTION
     cartography.intel.aws.s3._load_s3_encryption(neo4j_session, data, TEST_UPDATE_TAG)
 
@@ -192,6 +203,91 @@ def test_load_s3_encryption(neo4j_session, *args):
         for n in nodes
     }
     assert actual_nodes == expected_nodes
+
+    # Canonical ontology edge: (:ObjectStorage)-[:ENCRYPTED_BY]->(:EncryptionKey)
+    assert check_rels(
+        neo4j_session,
+        "S3Bucket",
+        "id",
+        "KMSKey",
+        "arn",
+        "ENCRYPTED_BY",
+        rel_direction_right=True,
+    ) == {
+        (
+            "bucket-1",
+            "arn:aws:kms:eu-east-1:000000000000:key/9a1ad414-6e3b-47ce-8366-6b8f26ba467d",
+        ),
+    }
+
+
+def test_s3_encryption_relationship_cleanup(neo4j_session):
+    """A stale (:S3Bucket)-[:ENCRYPTED_BY]->(:KMSKey) edge is removed when the
+    bucket stops using that KMS key (key rotation or KMS encryption disabled).
+    The edge lives on the S3BucketEncryptionSchema composite (no sub_resource),
+    so it must be cleaned via its own rel-only cleanup."""
+    key_arn = "arn:aws:kms:us-east-1:000000000000:key/cleanup-test-key"
+    neo4j_session.run(
+        "MERGE (k:KMSKey{id: $id}) SET k.arn = $arn, k.lastupdated = $tag",
+        id="cleanup-test-key",
+        arn=key_arn,
+        tag=TEST_UPDATE_TAG,
+    )
+
+    # First sync: the bucket is encrypted with the customer-managed KMS key.
+    cartography.intel.aws.s3._load_s3_encryption(
+        neo4j_session,
+        {
+            "bucket": "bucket-cleanup",
+            "default_encryption": True,
+            "encryption_algorithm": "aws:kms",
+            "encryption_key_id": key_arn,
+            "bucket_key_enabled": False,
+        },
+        TEST_UPDATE_TAG,
+    )
+    assert ("bucket-cleanup", key_arn) in check_rels(
+        neo4j_session,
+        "S3Bucket",
+        "id",
+        "KMSKey",
+        "arn",
+        "ENCRYPTED_BY",
+        rel_direction_right=True,
+    )
+
+    # Second sync at a new update tag: default encryption falls back to SSE-S3
+    # (no KMS key), so no ENCRYPTED_BY edge is re-created.
+    new_tag = TEST_UPDATE_TAG + 1
+    cartography.intel.aws.s3._load_s3_encryption(
+        neo4j_session,
+        {
+            "bucket": "bucket-cleanup",
+            "default_encryption": True,
+            "encryption_algorithm": "AES256",
+            "encryption_key_id": None,
+            "bucket_key_enabled": False,
+        },
+        new_tag,
+    )
+    # Use an account id that matches no other bucket so the scoped S3Bucket node
+    # cleanup leaves this file's shared buckets untouched; the encryption rel
+    # cleanup (no sub_resource) runs globally and removes the stale edge.
+    cartography.intel.aws.s3.cleanup_s3_buckets(
+        neo4j_session,
+        {"UPDATE_TAG": new_tag, "AWS_ID": "999999999999"},
+    )
+
+    # The stale edge to the old key must be gone.
+    assert ("bucket-cleanup", key_arn) not in check_rels(
+        neo4j_session,
+        "S3Bucket",
+        "id",
+        "KMSKey",
+        "arn",
+        "ENCRYPTED_BY",
+        rel_direction_right=True,
+    )
 
 
 def test_load_s3_policies(neo4j_session, *args):

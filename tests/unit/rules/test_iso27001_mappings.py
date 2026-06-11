@@ -102,7 +102,7 @@ def test_iso27001_mapped_rules_have_expected_requirements():
         actual_requirements = {
             fw.requirement
             for fw in rule.frameworks
-            if fw.short_name == "iso27001" and fw.revision == "2022"
+            if fw.short_name == "iso" and fw.scope == "27001" and fw.revision == "2022"
         }
         assert actual_requirements == expected_requirements
 

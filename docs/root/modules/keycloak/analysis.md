@@ -8,7 +8,7 @@ Cartography includes several automatic analyses for Keycloak that help identify 
 
 **Query**:
 ```cypher
-MATCH (u:KeycloakUser)-[:MEMBER_OF|INHERITED_MEMBER_OF]->(g:KeycloakGroup)-[:SUBGROUP_OF]->(pg:KeycloakGroup)
+MATCH (u:KeycloakUser)-[:MEMBER_OF|INHERITED_MEMBER_OF]->(g:KeycloakGroup)-[:MEMBER_OF|SUBGROUP_OF]->(pg:KeycloakGroup)
 MERGE (u)-[r:INHERITED_MEMBER_OF]->(pg)
 ON CREATE SET r.firstseen = $UPDATE_TAG
 SET r.lastupdated = $UPDATE_TAG
@@ -21,7 +21,7 @@ SET r.lastupdated = $UPDATE_TAG
 ```mermaid
 graph LR
     U(KeycloakUser) -- MEMBER_OF --> SG(KeycloakGroup)
-    SG -- SUBGROUP_OF --> PG(KeycloakGroup)
+    SG -- MEMBER_OF --> PG(KeycloakGroup)
     U == INHERITED_MEMBER_OF ==> PG
 ```
 
@@ -31,7 +31,7 @@ graph LR
 
 **Query**:
 ```cypher
-MATCH (u:KeycloakUser)-[:MEMBER_OF|INHERITED_MEMBER_OF]->(g:KeycloakGroup)-[:GRANTS]->(r:KeycloakRole)
+MATCH (u:KeycloakUser)-[:MEMBER_OF|INHERITED_MEMBER_OF]->(g:KeycloakGroup)-[:GRANTS|HAS_ROLE]->(r:KeycloakRole)
 MERGE (u)-[r0:HAS_ROLE]->(r)
 ON CREATE SET r0.firstseen = $UPDATE_TAG
 SET r0.lastupdated = $UPDATE_TAG
@@ -44,7 +44,7 @@ SET r0.lastupdated = $UPDATE_TAG
 ```mermaid
 graph LR
     U(KeycloakUser) -- MEMBER_OF --> G[KeycloakGroup]
-    G -- GRANTS --> R(KeycloakRole)
+    G -- HAS_ROLE --> R(KeycloakRole)
     U == HAS_ROLE ==> R
 ```
 

@@ -60,6 +60,18 @@ def test_sync_gsuite_users_creates_user_group_memberships(
         )
         == expected_user_group_rels
     )
+    # Canonical ontology edge: (:UserAccount)-[:MEMBER_OF]->(:UserGroup)
+    assert (
+        check_rels(
+            neo4j_session,
+            "GSuiteUser",
+            "id",
+            "GSuiteGroup",
+            "id",
+            "MEMBER_OF",
+        )
+        == expected_user_group_rels
+    )
 
 
 @patch.object(
@@ -104,6 +116,18 @@ def test_sync_gsuite_groups_creates_group_hierarchy(
             "GSuiteGroup",
             "id",
             "MEMBER_GSUITE_GROUP",
+        )
+        == expected_group_rels
+    )
+    # Canonical ontology edge: (:UserGroup)-[:MEMBER_OF]->(:UserGroup)
+    assert (
+        check_rels(
+            neo4j_session,
+            "GSuiteGroup",
+            "id",
+            "GSuiteGroup",
+            "id",
+            "MEMBER_OF",
         )
         == expected_group_rels
     )

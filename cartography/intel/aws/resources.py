@@ -78,10 +78,11 @@ RESOURCE_FUNCTIONS: OrderedDict[str, Callable[..., None]] = OrderedDict(
     {
         "iam": iam.sync,
         "iaminstanceprofiles": sync_iam_instance_profiles,
-        "s3": s3.sync,
-        # `kms` must run before `dynamodb` since DynamoDB SSE KMS encryption creates
-        # relationships to existing KMSKey nodes using KMSMasterKeyArn.
+        # `kms` must run before the resources that create canonical ENCRYPTED_BY
+        # edges to existing KMSKey nodes by matching on the key ARN: `s3`, `rds`,
+        # `efs`, `dynamodb`, and the Secrets Manager / SSM secret syncs.
         "kms": kms.sync,
+        "s3": s3.sync,
         "dynamodb": dynamodb.sync,
         "ec2:launch_templates": sync_ec2_launch_templates,
         "ec2:autoscalinggroup": sync_ec2_auto_scaling_groups,
