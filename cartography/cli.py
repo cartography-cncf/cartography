@@ -1760,7 +1760,7 @@ class CLI:
                 typer.Option(
                     "--tenable-findings-lookback-days",
                     help=(
-                        "Number of days to look back on the initial Tenable findings "
+                        "Number of days to look back for Tenable findings exports on each run. "
                         "export (when no prior sync cursor exists). Defaults to 180."
                     ),
                     rich_help_panel=PANEL_TENABLE,
