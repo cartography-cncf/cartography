@@ -644,11 +644,12 @@ A composite or hierarchical role includes other roles via the canonical `INCLUDE
 (:PermissionRole)-[:INCLUDES]->(:PermissionRole)
 ```
 
-A workload that assumes a permission role to obtain its privileges (e.g. an AWS Lambda execution role, an EC2 instance profile role) is linked via the canonical `ASSUMES` edge:
+A workload that assumes a permission role to obtain its privileges is linked via the canonical `ASSUMES` edge:
 ```
 (:ComputeInstance)-[:ASSUMES]->(:PermissionRole)
 (:Function)-[:ASSUMES]->(:PermissionRole)
 ```
+Currently only `Function` is wired: an AWS Lambda is linked to its execution role (`(:AWSLambda)-[:ASSUMES]->(:AWSRole)`). `ComputeInstance` coverage is governed by the constraint but not yet materialized: an EC2 instance still reaches its role only through the instance profile (`EC2Instance-[:INSTANCE_PROFILE]->AWSInstanceProfile-[:ASSOCIATED_WITH]->AWSRole`, plus the analysis-job `STS_ASSUMEROLE_ALLOW` edge), so the direct `ASSUMES` edge for EC2 / GCP / Azure compute is still pending.
 
 
 ### ObjectStorage
