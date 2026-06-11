@@ -1,6 +1,6 @@
 from cartography.client.core.tx import read_list_of_dicts_tx
 from cartography.rules.data.rules.cis_kubernetes_workloads import (
-    cis_k8s_5_4_1_secrets_in_env_vars,
+    kubernetes_secrets_used_as_environment_variables,
 )
 
 
@@ -10,7 +10,9 @@ def _reset_graph(neo4j_session) -> None:
 
 def _get_fact(fact_id: str):
     return next(
-        fact for fact in cis_k8s_5_4_1_secrets_in_env_vars.facts if fact.id == fact_id
+        fact
+        for fact in kubernetes_secrets_used_as_environment_variables.facts
+        if fact.id == fact_id
     )
 
 
