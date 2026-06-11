@@ -3,11 +3,20 @@ import time
 from typing import Any
 
 import requests
+from requests.adapters import HTTPAdapter
+from urllib3.util.retry import Retry
 
 logger = logging.getLogger(__name__)
 
 _EXPORT_POLL_INTERVAL = 30  # seconds between status polls
 _MAX_POLL_ATTEMPTS = 60  # 30 minutes maximum wait
+
+_RETRY_POLICY = Retry(
+    total=5,
+    backoff_factor=1,
+    status_forcelist=[429, 500, 502, 503, 504],
+    allowed_methods=["GET"],
+)
 
 
 def get_tenable_session(access_key: str, secret_key: str) -> requests.Session:
@@ -15,8 +24,12 @@ def get_tenable_session(access_key: str, secret_key: str) -> requests.Session:
     Build an authenticated requests.Session for the Tenable API.
     Authentication uses the X-ApiKeys header as documented at
     https://developer.tenable.com/docs/authorization.
+
+    GET requests are retried up to 5 times with exponential backoff on
+    transient errors (429, 500, 502, 503, 504).
     """
     session = requests.Session()
+    session.mount("https://", HTTPAdapter(max_retries=_RETRY_POLICY))
     session.headers.update(
         {
             "X-ApiKeys": f"accessKey={access_key};secretKey={secret_key}",

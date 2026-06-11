@@ -221,6 +221,7 @@ def test_sync_findings_tenant_resource_rel(neo4j_session, mocker):
     assert {
         (TENABLE_TENANT_ID, FINDING_ID_1),
         (TENABLE_TENANT_ID, FINDING_ID_2),
+        (TENABLE_TENANT_ID, FINDING_ID_3),
     } <= actual_rels
 
 

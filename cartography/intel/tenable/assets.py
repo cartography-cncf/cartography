@@ -21,7 +21,7 @@ logger = logging.getLogger(__name__)
 
 _ASSET_EXPORT_PATH = "assets/v2/export"
 _ASSET_RESULT_BASE = "assets/export"
-_ASSET_EXPORT_PARAMS: dict[str, Any] = { "chunk_size": 1000 }
+_ASSET_EXPORT_PARAMS: dict[str, Any] = {"chunk_size": 1000}
 
 
 @timeit

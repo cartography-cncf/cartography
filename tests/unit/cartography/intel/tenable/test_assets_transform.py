@@ -1,5 +1,3 @@
-import pytest
-
 from cartography.intel.tenable.assets import transform
 from cartography.intel.tenable.assets import transform_aws
 from cartography.intel.tenable.assets import transform_azure
@@ -14,7 +12,6 @@ from tests.data.tenable.assets import AWS_EC2_INSTANCE_ID_1
 from tests.data.tenable.assets import AZURE_VM_ID_2
 from tests.data.tenable.assets import NETWORK_ID
 from tests.data.tenable.assets import TAG_ID_1
-
 
 # ---------------------------------------------------------------------------
 # transform()
@@ -179,8 +176,16 @@ def test_transform_sources_multiple_per_asset():
         {
             "id": "asset-x",
             "sources": [
-                {"name": "SRC_A", "first_seen": "2024-01-01", "last_seen": "2024-06-01"},
-                {"name": "SRC_B", "first_seen": "2024-02-01", "last_seen": "2024-07-01"},
+                {
+                    "name": "SRC_A",
+                    "first_seen": "2024-01-01",
+                    "last_seen": "2024-06-01",
+                },
+                {
+                    "name": "SRC_B",
+                    "first_seen": "2024-02-01",
+                    "last_seen": "2024-07-01",
+                },
             ],
         }
     ]
@@ -218,8 +223,20 @@ def test_transform_tags_multiple_per_asset():
         {
             "id": "asset-x",
             "tags": [
-                {"uuid": "t1", "key": "Env", "value": "Prod", "added_by": None, "added_at": None},
-                {"uuid": "t2", "key": "Team", "value": "Ops", "added_by": None, "added_at": None},
+                {
+                    "uuid": "t1",
+                    "key": "Env",
+                    "value": "Prod",
+                    "added_by": None,
+                    "added_at": None,
+                },
+                {
+                    "uuid": "t2",
+                    "key": "Team",
+                    "value": "Ops",
+                    "added_by": None,
+                    "added_at": None,
+                },
             ],
         }
     ]
@@ -253,9 +270,18 @@ def test_transform_aws_basic():
 
 def test_transform_aws_deduplicates():
     raw = [
-        {"id": "a1", "cloud": {"aws": {"ec2_instance_id": "i-111", "region": "us-east-1"}}},
-        {"id": "a2", "cloud": {"aws": {"ec2_instance_id": "i-111", "region": "us-east-1"}}},
-        {"id": "a3", "cloud": {"aws": {"ec2_instance_id": "i-222", "region": "us-west-2"}}},
+        {
+            "id": "a1",
+            "cloud": {"aws": {"ec2_instance_id": "i-111", "region": "us-east-1"}},
+        },
+        {
+            "id": "a2",
+            "cloud": {"aws": {"ec2_instance_id": "i-111", "region": "us-east-1"}},
+        },
+        {
+            "id": "a3",
+            "cloud": {"aws": {"ec2_instance_id": "i-222", "region": "us-west-2"}},
+        },
     ]
     result = transform_aws(raw)
     assert len(result) == 2
@@ -346,9 +372,24 @@ def test_transform_gcp_basic():
 
 def test_transform_gcp_deduplicates():
     raw = [
-        {"id": "a1", "cloud": {"gcp": {"instance_id": "inst-1", "project_id": "p1", "zone": "z1"}}},
-        {"id": "a2", "cloud": {"gcp": {"instance_id": "inst-1", "project_id": "p1", "zone": "z1"}}},
-        {"id": "a3", "cloud": {"gcp": {"instance_id": "inst-2", "project_id": "p2", "zone": "z2"}}},
+        {
+            "id": "a1",
+            "cloud": {
+                "gcp": {"instance_id": "inst-1", "project_id": "p1", "zone": "z1"}
+            },
+        },
+        {
+            "id": "a2",
+            "cloud": {
+                "gcp": {"instance_id": "inst-1", "project_id": "p1", "zone": "z1"}
+            },
+        },
+        {
+            "id": "a3",
+            "cloud": {
+                "gcp": {"instance_id": "inst-2", "project_id": "p2", "zone": "z2"}
+            },
+        },
     ]
     result = transform_gcp(raw)
     assert len(result) == 2

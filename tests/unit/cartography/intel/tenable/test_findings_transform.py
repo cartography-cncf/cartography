@@ -2,7 +2,6 @@ from cartography.intel.tenable.findings import transform
 from cartography.intel.tenable.findings import transform_plugins
 from cartography.intel.tenable.findings import transform_scans
 from tests.data.tenable.assets import ASSET_ID_1
-from tests.data.tenable.assets import ASSET_ID_2
 from tests.data.tenable.findings import FINDING_ID_1
 from tests.data.tenable.findings import FINDING_ID_2
 from tests.data.tenable.findings import FINDING_ID_3
@@ -12,7 +11,6 @@ from tests.data.tenable.findings import PLUGIN_ID_2
 from tests.data.tenable.findings import PLUGIN_ID_3
 from tests.data.tenable.findings import SCAN_UUID_1
 from tests.data.tenable.findings import SCAN_UUID_2
-
 
 # ---------------------------------------------------------------------------
 # transform()
@@ -37,7 +35,10 @@ def test_transform_maps_all_fields():
     assert f1["last_found"] == "2023-05-04T05:03:13.737Z"
     assert f1["indexed"] == "2023-05-04T05:13:40.809406Z"
     assert f1["source"] == "NESSUS"
-    assert f1["output"] == "Microsoft SharePoint Enterprise Server 2016 - KB5002113 missing."
+    assert (
+        f1["output"]
+        == "Microsoft SharePoint Enterprise Server 2016 - KB5002113 missing."
+    )
     assert f1["resurfaced_date"] == "2024-11-27T11:56:24.384Z"
     assert f1["time_taken_to_fix"] == "3045760"
     # Port flattened
@@ -116,7 +117,10 @@ def test_transform_plugins_basic():
     assert len(result) == 3
 
     p1 = next(r for r in result if r["id"] == PLUGIN_ID_1)
-    assert p1["name"] == "Security Updates for Microsoft SharePoint Server 2016 (January 2022)"
+    assert (
+        p1["name"]
+        == "Security Updates for Microsoft SharePoint Server 2016 (January 2022)"
+    )
     assert p1["family"] == "Windows : Microsoft Bulletins"
     assert p1["risk_factor"] == "high"
     assert p1["cvss3_base_score"] == 8.8
@@ -139,9 +143,21 @@ def test_transform_plugins_empty_cve_list():
 
 def test_transform_plugins_deduplicates():
     raw = [
-        {"finding_id": "f1", "asset": {"uuid": "a"}, "plugin": {"id": 42, "name": "Plugin A"}},
-        {"finding_id": "f2", "asset": {"uuid": "b"}, "plugin": {"id": 42, "name": "Plugin A"}},
-        {"finding_id": "f3", "asset": {"uuid": "c"}, "plugin": {"id": 99, "name": "Plugin B"}},
+        {
+            "finding_id": "f1",
+            "asset": {"uuid": "a"},
+            "plugin": {"id": 42, "name": "Plugin A"},
+        },
+        {
+            "finding_id": "f2",
+            "asset": {"uuid": "b"},
+            "plugin": {"id": 42, "name": "Plugin A"},
+        },
+        {
+            "finding_id": "f3",
+            "asset": {"uuid": "c"},
+            "plugin": {"id": 99, "name": "Plugin B"},
+        },
     ]
     result = transform_plugins(raw)
     assert len(result) == 2
@@ -183,9 +199,18 @@ def test_transform_scans_basic():
 
 def test_transform_scans_deduplicates():
     raw = [
-        {"finding_id": "f1", "scan": {"uuid": "scan-aaa", "last_scan_target": "10.0.0.1"}},
-        {"finding_id": "f2", "scan": {"uuid": "scan-aaa", "last_scan_target": "10.0.0.1"}},
-        {"finding_id": "f3", "scan": {"uuid": "scan-bbb", "last_scan_target": "10.0.0.2"}},
+        {
+            "finding_id": "f1",
+            "scan": {"uuid": "scan-aaa", "last_scan_target": "10.0.0.1"},
+        },
+        {
+            "finding_id": "f2",
+            "scan": {"uuid": "scan-aaa", "last_scan_target": "10.0.0.1"},
+        },
+        {
+            "finding_id": "f3",
+            "scan": {"uuid": "scan-bbb", "last_scan_target": "10.0.0.2"},
+        },
     ]
     result = transform_scans(raw)
     assert len(result) == 2
