@@ -328,7 +328,8 @@ def test_sync_subscriptions_preserves_existing_parent_only_for_failed_groups(
         common_job_parameters,
     )
 
-    # seed graph with existing state from a "previous sync"
+    # Seed graph with existing parentage from a previous sync. This is
+    # prerequisite state for the partial management-group access-loss path.
     neo4j_session.run(
         """
         MATCH (t:AzureTenant{id: $tenant_id})
@@ -401,16 +402,6 @@ def test_sync_subscriptions_preserves_existing_parent_only_for_failed_groups(
         (TEST_TENANT_ID, TEST_SUBSCRIPTION_ID),
         (TEST_TENANT_ID, TEST_STALE_SUBSCRIPTION_ID),
     }
-
-    neo4j_session.run(
-        """
-        MATCH (s:AzureSubscription)
-        WHERE s.id IN [$preserved_subscription_id, $stale_subscription_id]
-        DETACH DELETE s
-        """,
-        preserved_subscription_id=TEST_SUBSCRIPTION_ID,
-        stale_subscription_id=TEST_STALE_SUBSCRIPTION_ID,
-    )
 
 
 @patch("cartography.intel.azure.subscription.get_azure_management_group_subscriptions")
@@ -499,6 +490,7 @@ def test_cleanup_stale_subscription_cascade_deletes_subscription_resources(
     mock_get_management_group_subscriptions,
     neo4j_session,
 ):
+    # Arrange
     mock_get_management_group_subscriptions.return_value = ([], set())
 
     stale_resource_group_id = (
@@ -527,6 +519,7 @@ def test_cleanup_stale_subscription_cascade_deletes_subscription_resources(
         "TENANT_ID": TEST_TENANT_ID,
     }
 
+    # Act
     subscription.sync(
         neo4j_session,
         MagicMock(),
@@ -536,6 +529,7 @@ def test_cleanup_stale_subscription_cascade_deletes_subscription_resources(
         common_job_parameters,
     )
 
+    # Assert
     subscription_nodes = check_nodes(neo4j_session, "AzureSubscription", ["id"])
     resource_group_nodes = check_nodes(neo4j_session, "AzureResourceGroup", ["id"])
     assert (TEST_STALE_SUBSCRIPTION_ID,) not in subscription_nodes
@@ -555,6 +549,8 @@ def test_sync_subscriptions_preserves_existing_parent_when_global_enrichment_fai
         message="management group subscription lookup failed",
     )
 
+    # Seed graph with existing parentage from a previous sync. This is
+    # prerequisite state for the global management-group enrichment failure path.
     neo4j_session.run(
         """
         MERGE (t:AzureTenant{id: $tenant_id})
