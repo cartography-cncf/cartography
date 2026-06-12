@@ -81,7 +81,7 @@ Represents a [group](https://duo.com/docs/adminapi#groups) in Duo.
 - A DuoUser is part of multiple DuoGroups.
 
     ```
-    (DuoUser)-[MEMBER_OF_DUO_GROUP]->(DuoGroup)
+    (DuoUser)-[MEMBER_OF]->(DuoGroup)
     ```
 
 
@@ -129,7 +129,7 @@ Represents a [user](https://duo.com/docs/adminapi#users) in Duo.
 - A DuoUser is part of multiple DuoGroups.
 
     ```
-    (DuoUser)-[MEMBER_OF_DUO_GROUP]->(DuoGroup)
+    (DuoUser)-[MEMBER_OF]->(DuoGroup)
     ```
 
 - A DuoUser has multiple DuoEndpoints

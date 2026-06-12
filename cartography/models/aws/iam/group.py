@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 
+from cartography.models.aws.iam.group_membership import AWSGroupToAWSUserMemberOfRel
 from cartography.models.aws.iam.group_membership import AWSGroupToAWSUserRel
 from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeProperties
@@ -56,6 +57,7 @@ class AWSGroupSchema(CartographyNodeSchema):
     other_relationships: OtherRelationships = OtherRelationships(
         [
             AWSGroupToAWSUserRel(),
+            AWSGroupToAWSUserMemberOfRel(),
         ]
     )
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["AWSPrincipal", "UserGroup"])

@@ -169,16 +169,23 @@ MODULE_TO_CARTOGRAPHY_INTEL = {
 @dataclass(frozen=True)
 class Framework:
     """
-    A reference to a compliance framework requirement.
+    A reference to a compliance framework requirement/control mapping.
 
-    All fields are case-insensitive and normalized to lowercase on creation.
+    A rule can map to many framework controls, and many rules can map to the same
+    framework control. The mapped control title is external framework metadata,
+    not the rule display name.
+
+    Matching fields are case-insensitive and normalized to lowercase on creation.
+    The optional control_title preserves display casing because it is user-facing
+    copy.
 
     Attributes:
         name: Full name of the framework (e.g., "cis aws foundations benchmark").
         short_name: Abbreviated name for filtering (e.g., "cis").
-        requirement: The specific requirement identifier (e.g., "1.14").
+        requirement: The specific requirement/control id (e.g., "5.1.8", "8.2", "govern 5").
         scope: Optional platform or domain the framework applies to (e.g., "aws", "gcp").
         revision: Optional version/revision of the framework (e.g., "5.0").
+        control_title: Optional external control or requirement title for this framework mapping.
     """
 
     name: str
@@ -186,9 +193,11 @@ class Framework:
     requirement: str
     scope: str | None = None
     revision: str | None = None
+    control_title: str | None = None
 
     def __post_init__(self) -> None:
-        # Normalize all fields to lowercase for case-insensitive comparison
+        # Normalize matching fields to lowercase for case-insensitive comparison.
+        # Keep control_title casing intact because it is display copy, not a filter key.
         object.__setattr__(self, "name", self.name.lower())
         object.__setattr__(self, "short_name", self.short_name.lower())
         object.__setattr__(self, "requirement", self.requirement.lower())
@@ -333,7 +342,7 @@ class Rule:
     references: list[RuleReference] = field(default_factory=list)
     """References or links to external resources related to the Rule."""
     frameworks: tuple[Framework, ...] = ()
-    """Compliance frameworks this rule maps to (e.g., CIS benchmarks)."""
+    """Compliance framework requirement/control mappings for this rule."""
 
     @property
     def modules(self) -> set[Module]:

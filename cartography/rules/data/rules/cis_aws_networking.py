@@ -30,12 +30,13 @@ CIS_REFERENCES = [
 
 
 # =============================================================================
-# CIS AWS 6.1.1: EBS Volume Encryption
+# EBS Volume Encryption
 # Main node: EBSVolume
 # =============================================================================
 class EbsEncryptionOutput(Finding):
     """Output model for EBS encryption check."""
 
+    volume_name: str | None = None
     volume_id: str | None = None
     region: str | None = None
     volume_type: str | None = None
@@ -56,7 +57,9 @@ _aws_ebs_encryption_disabled = Fact(
     cypher_query="""
     MATCH (a:AWSAccount)-[:RESOURCE]->(volume:EBSVolume)
     WHERE volume.encrypted = false
+    OPTIONAL MATCH (volume)-[:TAGGED]->(nametag:AWSTag {key: 'Name'})
     RETURN
+        coalesce(nametag.value, volume.id) AS volume_name,
         volume.id AS volume_id,
         volume.region AS region,
         volume.volumetype AS volume_type,
@@ -80,9 +83,9 @@ _aws_ebs_encryption_disabled = Fact(
     maturity=Maturity.STABLE,
 )
 
-cis_aws_6_1_1_ebs_encryption = Rule(
-    id="cis_aws_6_1_1_ebs_encryption",
-    name="CIS AWS 6.1.1: EBS Volume Encryption",
+aws_ebs_volume_encryption = Rule(
+    id="aws_ebs_volume_encryption",
+    name="EBS Volume Encryption",
     description=(
         "EBS volumes should be encrypted to protect data at rest and in transit "
         "between the volume and instance."
@@ -100,7 +103,7 @@ cis_aws_6_1_1_ebs_encryption = Rule(
 
 
 # =============================================================================
-# CIS AWS 6.1.2: CIFS Access Is Restricted to Trusted Networks
+# CIFS Access Is Restricted to Trusted Networks
 # Main node: EC2SecurityGroup
 # =============================================================================
 class CifsInternetAccessOutput(Finding):
@@ -176,9 +179,9 @@ _aws_cifs_internet_access = Fact(
     maturity=Maturity.STABLE,
 )
 
-cis_aws_6_1_2_cifs_restricted = Rule(
-    id="cis_aws_6_1_2_cifs_restricted",
-    name="CIS AWS 6.1.2: CIFS Access Is Restricted to Trusted Networks",
+aws_cifs_access_restricted_to_trusted_networks = Rule(
+    id="aws_cifs_access_restricted_to_trusted_networks",
+    name="CIFS Access Is Restricted to Trusted Networks",
     description=(
         "Security groups should not allow ingress from public internet ranges to "
         "CIFS/SMB port 445."
@@ -208,8 +211,8 @@ cis_aws_6_1_2_cifs_restricted = Rule(
 class RemoteAdminIpv4Output(Finding):
     """Output model for IPv4 remote administration exposure check."""
 
-    security_group_id: str | None = None
     security_group_name: str | None = None
+    security_group_id: str | None = None
     region: str | None = None
     rule_id: str | None = None
     from_port: int | None = None
@@ -281,9 +284,9 @@ _aws_remote_admin_ipv4 = Fact(
     maturity=Maturity.STABLE,
 )
 
-cis_aws_6_3_remote_admin_ipv4 = Rule(
-    id="cis_aws_6_3_remote_admin_ipv4",
-    name="CIS AWS 6.3: IPv4 Remote Administration Ports Open to the Internet",
+aws_ipv4_remote_administration_ports_open_to_internet = Rule(
+    id="aws_ipv4_remote_administration_ports_open_to_internet",
+    name="IPv4 Remote Administration Ports Open to the Internet",
     description=(
         "Security groups should not allow ingress from 0.0.0.0/0 to remote "
         "administration ports such as SSH (22) and RDP (3389)."
@@ -313,8 +316,8 @@ cis_aws_6_3_remote_admin_ipv4 = Rule(
 class RemoteAdminIpv6Output(Finding):
     """Output model for IPv6 remote administration exposure check."""
 
-    security_group_id: str | None = None
     security_group_name: str | None = None
+    security_group_id: str | None = None
     region: str | None = None
     rule_id: str | None = None
     from_port: int | None = None
@@ -386,9 +389,9 @@ _aws_remote_admin_ipv6 = Fact(
     maturity=Maturity.STABLE,
 )
 
-cis_aws_6_4_remote_admin_ipv6 = Rule(
-    id="cis_aws_6_4_remote_admin_ipv6",
-    name="CIS AWS 6.4: IPv6 Remote Administration Ports Open to the Internet",
+aws_ipv6_remote_administration_ports_open_to_internet = Rule(
+    id="aws_ipv6_remote_administration_ports_open_to_internet",
+    name="IPv6 Remote Administration Ports Open to the Internet",
     description=(
         "Security groups should not allow ingress from ::/0 to remote "
         "administration ports such as SSH (22) and RDP (3389)."
@@ -418,8 +421,8 @@ cis_aws_6_4_remote_admin_ipv6 = Rule(
 class DefaultSgAllowsTrafficOutput(Finding):
     """Output model for default security group check."""
 
-    security_group_id: str | None = None
     security_group_name: str | None = None
+    security_group_id: str | None = None
     region: str | None = None
     has_inbound_rules: bool | None = None
     has_egress_rules: bool | None = None
@@ -477,9 +480,9 @@ _aws_default_sg_allows_traffic = Fact(
     maturity=Maturity.STABLE,
 )
 
-cis_aws_6_5_default_sg_traffic = Rule(
-    id="cis_aws_6_5_default_sg_traffic",
-    name="CIS AWS 6.5: Default Security Group Restricts Traffic",
+aws_default_security_group_restricts_traffic = Rule(
+    id="aws_default_security_group_restricts_traffic",
+    name="Default Security Group Restricts Traffic",
     description=(
         "The default security group of every VPC should restrict all traffic to "
         "prevent accidental exposure of resources."
@@ -503,12 +506,13 @@ cis_aws_6_5_default_sg_traffic = Rule(
 
 
 # =============================================================================
-# CIS AWS 6.7: EC2 Instances Should Use IMDSv2
+# EC2 Instances Should Use IMDSv2
 # Main node: EC2Instance
 # =============================================================================
 class Ec2Imdsv2RequiredOutput(Finding):
     """Output model for EC2 IMDSv2 requirement check."""
 
+    instance_name: str | None = None
     instance_id: str | None = None
     region: str | None = None
     metadata_http_tokens: str | None = None
@@ -528,7 +532,9 @@ _aws_ec2_imdsv2_required = Fact(
     cypher_query="""
     MATCH (a:AWSAccount)-[:RESOURCE]->(ec2:EC2Instance)
     WHERE ec2.metadatahttptokens = 'optional'
+    OPTIONAL MATCH (ec2)-[:TAGGED]->(nametag:AWSTag {key: 'Name'})
     RETURN
+        coalesce(nametag.value, ec2.instanceid) AS instance_name,
         ec2.instanceid AS instance_id,
         ec2.region AS region,
         ec2.metadatahttptokens AS metadata_http_tokens,
@@ -551,9 +557,9 @@ _aws_ec2_imdsv2_required = Fact(
     maturity=Maturity.STABLE,
 )
 
-cis_aws_6_7_ec2_imdsv2 = Rule(
-    id="cis_aws_6_7_ec2_imdsv2",
-    name="CIS AWS 6.7: EC2 Instances Should Use IMDSv2",
+aws_ec2_instances_use_imdsv2 = Rule(
+    id="aws_ec2_instances_use_imdsv2",
+    name="EC2 Instances Should Use IMDSv2",
     description=(
         "EC2 instances should require Instance Metadata Service Version 2 (IMDSv2) "
         "so that IMDSv1 is disabled."

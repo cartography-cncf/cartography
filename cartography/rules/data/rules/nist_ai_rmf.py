@@ -151,9 +151,9 @@ _cross_cloud_nist_ai_app_inventory = Fact(
     maturity=Maturity.EXPERIMENTAL,
 )
 
-nist_ai_third_party_app_inventory = Rule(
-    id="nist_ai_third_party_app_inventory",
-    name="NIST AI RMF: AI Third-Party App Inventory",
+ai_third_party_app_inventory = Rule(
+    id="ai_third_party_app_inventory",
+    name="AI Third-Party App Inventory",
     description=(
         "Inventories AI-related third-party applications connected to enterprise "
         "identities, supporting governance and usage visibility."
@@ -255,9 +255,9 @@ _cross_cloud_nist_ai_app_sensitive_scopes = Fact(
     maturity=Maturity.EXPERIMENTAL,
 )
 
-nist_ai_third_party_app_sensitive_scopes = Rule(
-    id="nist_ai_third_party_app_sensitive_scopes",
-    name="NIST AI RMF: AI Third-Party Apps with Sensitive Scopes",
+ai_third_party_app_sensitive_scopes = Rule(
+    id="ai_third_party_app_sensitive_scopes",
+    name="AI Third-Party Apps with Sensitive Scopes",
     description=(
         "Detects AI-related third-party applications that hold sensitive OAuth "
         "grants and therefore increase data exposure risk."
@@ -386,9 +386,9 @@ _gw_nist_ai_admin_app_authorizations = Fact(
     maturity=Maturity.EXPERIMENTAL,
 )
 
-nist_ai_admin_ai_app_authorizations = Rule(
-    id="nist_ai_admin_ai_app_authorizations",
-    name="NIST AI RMF: Admin Authorization of AI Apps",
+ai_admin_app_authorizations = Rule(
+    id="ai_admin_app_authorizations",
+    name="Admin Authorization of AI Apps",
     description=(
         "Identifies privileged Google Workspace identities that have authorized "
         "AI-related third-party applications."
@@ -431,6 +431,7 @@ nist_ai_admin_ai_app_authorizations = Rule(
 # Main node: AIBOMComponent (AIAgent)
 # =============================================================================
 class NistAiAibomAgentInventoryOutput(Finding):
+    agent_name: str | None = None
     source_id: str | None = None
     image_uri: str | None = None
     manifest_digest: str | None = None
@@ -438,7 +439,6 @@ class NistAiAibomAgentInventoryOutput(Finding):
     scanner_version: str | None = None
     agent_component_id: str | None = None
     agent_logical_id: str | None = None
-    agent_name: str | None = None
     agent_framework: str | None = None
     agent_file_path: str | None = None
     agent_line_number: int | None = None
@@ -542,9 +542,9 @@ _aibom_nist_ai_agent_inventory = Fact(
     maturity=Maturity.EXPERIMENTAL,
 )
 
-nist_ai_aibom_agent_inventory = Rule(
-    id="nist_ai_aibom_agent_inventory",
-    name="NIST AI RMF: Deployed AI Agent Inventory",
+aibom_agent_inventory = Rule(
+    id="aibom_agent_inventory",
+    name="Deployed AI Agent Inventory",
     description=(
         "Inventories deployed AI agents from AIBOM and their direct agentic "
         "dependencies so teams can map runtime AI system composition."
@@ -573,11 +573,11 @@ nist_ai_aibom_agent_inventory = Rule(
 # Main node: AIBOMSource
 # =============================================================================
 class NistAiAibomCoverageGapOutput(Finding):
+    scanner_name: str | None = None
     source_id: str | None = None
     image_uri: str | None = None
     manifest_digests: list[str] | None = None
     report_location: str | None = None
-    scanner_name: str | None = None
     scanner_version: str | None = None
     source_status: str | None = None
     analysis_status: str | None = None
@@ -641,9 +641,9 @@ _aibom_nist_ai_coverage_gaps = Fact(
     maturity=Maturity.EXPERIMENTAL,
 )
 
-nist_ai_aibom_coverage_gaps = Rule(
-    id="nist_ai_aibom_coverage_gaps",
-    name="NIST AI RMF: AIBOM Coverage Gaps",
+aibom_coverage_gaps = Rule(
+    id="aibom_coverage_gaps",
+    name="AIBOM Coverage Gaps",
     description=(
         "Detects deployed AI inventory gaps where AIBOM scans are incomplete or "
         "cannot be tied back to the canonical production image."
@@ -702,11 +702,11 @@ nist_ai_aibom_coverage_gaps = Rule(
 # Main node: OpenAIApiKey/OpenAIAdminApiKey/AnthropicApiKey
 # =============================================================================
 class NistAiProviderApiKeyHygieneOutput(Finding):
+    api_key_name: str | None = None
     provider: str | None = None
     organization_id: str | None = None
     project_or_workspace_id: str | None = None
     api_key_id: str | None = None
-    api_key_name: str | None = None
     status: str | None = None
     created_at: str | None = None
     last_used_at: str | None = None
@@ -851,9 +851,9 @@ _anthropic_nist_ai_stale_or_unscoped_api_keys = Fact(
     maturity=Maturity.EXPERIMENTAL,
 )
 
-nist_ai_provider_api_key_hygiene = Rule(
-    id="nist_ai_provider_api_key_hygiene",
-    name="NIST AI RMF: AI Provider API Key Hygiene",
+ai_provider_api_key_hygiene = Rule(
+    id="ai_provider_api_key_hygiene",
+    name="AI Provider API Key Hygiene",
     description=(
         "Detects ownership and scope gaps on AI-provider API keys across OpenAI "
         "and Anthropic, and stale/unused keys (90+ days) for OpenAI. Anthropic "

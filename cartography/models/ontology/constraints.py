@@ -7,32 +7,81 @@ from cartography.models.aws.ecs.containers import ECSContainerToTaskRel
 from cartography.models.aws.ecs.services import ECSServiceToECSClusterRel
 from cartography.models.aws.ecs.services import ECSServiceToECSTaskRel
 from cartography.models.aws.ecs.tasks import ECSTaskToECSClusterRel
+from cartography.models.aws.iam.group_membership import AWSGroupToAWSUserRel
+from cartography.models.aws.identitycenter.awspermissionset import (
+    AWSRoleToSSOGroupMatchLink,
+)
 from cartography.models.aws.identitycenter.awspermissionset import (
     AWSRoleToSSOUserMatchLink,
+)
+from cartography.models.aws.identitycenter.awspermissionset import (
+    PermissionSetToAWSRoleRel,
+)
+from cartography.models.aws.identitycenter.awssogroup import (
+    AWSSSOGroupToPermissionSetRel,
 )
 from cartography.models.aws.identitycenter.awsssouser import (
     AWSSSOUserToPermissionSetRel,
 )
+from cartography.models.aws.identitycenter.awsssouser import AWSSSOUserToSSOGroupRel
 from cartography.models.azure.container_instance import (
     AzureGroupContainerToContainerInstanceRel,
 )
+from cartography.models.duo.user import DuoGroupToDuoUserRel
 from cartography.models.gcp.cloudrun.job_container import CloudRunJobToContainerRel
 from cartography.models.gcp.cloudrun.service_container import (
     CloudRunServiceToContainerRel,
+)
+from cartography.models.github.teams import GitHubTeamChildTeamRel
+from cartography.models.github.teams import GitHubTeamMaintainerUserRel
+from cartography.models.github.teams import GitHubTeamMemberUserRel
+from cartography.models.googleworkspace.group import (
+    GoogleWorkspaceGroupToGroupInheritedMemberRel,
+)
+from cartography.models.googleworkspace.group import (
+    GoogleWorkspaceGroupToGroupInheritedOwnerRel,
+)
+from cartography.models.googleworkspace.group import GoogleWorkspaceGroupToGroupOwnerRel
+from cartography.models.googleworkspace.group import GoogleWorkspaceGroupToOwnerRel
+from cartography.models.googleworkspace.group import (
+    GoogleWorkspaceUserToGroupInheritedMemberRel,
+)
+from cartography.models.googleworkspace.group import (
+    GoogleWorkspaceUserToGroupInheritedOwnerRel,
+)
+from cartography.models.gsuite.group import GSuiteGroupToGroupMemberRel
+from cartography.models.gsuite.group import GSuiteGroupToGroupOwnerRel
+from cartography.models.gsuite.group import GSuiteGroupToMemberRel
+from cartography.models.gsuite.group import GSuiteGroupToOwnerRel
+from cartography.models.keycloak.group import KeycloakGroupToGroupRel
+from cartography.models.keycloak.group import KeycloakGroupToRoleRel
+from cartography.models.keycloak.inheritance import (
+    KeycloakUserInheritedMemberOfGroupMatchLink,
 )
 from cartography.models.keycloak.role import KeycloakRoleToUserRel
 from cartography.models.kubernetes.containers import (
     KubernetesContainerToKubernetesPodRel,
 )
+from cartography.models.kubernetes.groups import KubernetesGroupToAWSRoleRel
+from cartography.models.kubernetes.groups import KubernetesGroupToAWSUserRel
 from cartography.models.kubernetes.namespaces import (
     KubernetesNamespaceToKubernetesClusterRel,
 )
 from cartography.models.kubernetes.pods import KubernetesPodToKubernetesClusterRel
 from cartography.models.kubernetes.pods import KubernetesPodToKubernetesNamespaceRel
+from cartography.models.kubernetes.pods import KubernetesPodToSecretEnvRel
+from cartography.models.kubernetes.pods import KubernetesPodToSecretVolumeRel
 from cartography.models.kubernetes.serviceaccounts import (
     KubernetesServiceAccountToAWSRoleRel,
 )
 from cartography.models.kubernetes.users import KubernetesUserToAWSRoleRel
+from cartography.models.oci.group import OCIGroupToOCIUserRel
+from cartography.models.oci.policy import OCIPolicyToGroupRefRel
+from cartography.models.sentry.member import SentryUserToTeamAdminOfRel
+from cartography.models.slack.group import SlackGroupToCreatorRel
+from cartography.models.tailscale.group import (
+    TailscaleUserToGroupInheritedMemberMatchLink,
+)
 
 
 @dataclass(frozen=True)
@@ -71,6 +120,23 @@ ONTOLOGY_REL_CONSTRAINTS: tuple[RelConstraint, ...] = (
     # currently wires a direct edge (all go through binding nodes), so this is
     # forward-looking governance for future modules.
     RelConstraint(src="ServiceAccount", dst="PermissionRole", label="HAS_ROLE"),
+    # A group is granted a role; members inherit it.
+    RelConstraint(src="UserGroup", dst="PermissionRole", label="HAS_ROLE"),
+    # A composite/hierarchical role includes other roles.
+    RelConstraint(src="PermissionRole", dst="PermissionRole", label="INCLUDES"),
+    # A workload consumes a secret (mount method captured as a rel property).
+    RelConstraint(src="ComputePod", dst="Secret", label="USES_SECRET"),
+    RelConstraint(src="Function", dst="Secret", label="USES_SECRET"),
+    RelConstraint(src="ComputeInstance", dst="Secret", label="USES_SECRET"),
+    # A secret or data store is encrypted by an encryption key.
+    RelConstraint(src="Secret", dst="EncryptionKey", label="ENCRYPTED_BY"),
+    RelConstraint(src="Database", dst="EncryptionKey", label="ENCRYPTED_BY"),
+    RelConstraint(src="ObjectStorage", dst="EncryptionKey", label="ENCRYPTED_BY"),
+    RelConstraint(src="FileStorage", dst="EncryptionKey", label="ENCRYPTED_BY"),
+    # An identity is a member of a group; groups nest into other groups.
+    RelConstraint(src="UserAccount", dst="UserGroup", label="MEMBER_OF"),
+    RelConstraint(src="ServiceAccount", dst="UserGroup", label="MEMBER_OF"),
+    RelConstraint(src="UserGroup", dst="UserGroup", label="MEMBER_OF"),
 )
 
 
@@ -96,6 +162,8 @@ LEGACY_REL_WHITELIST: frozenset[type] = frozenset(
         # DEPRECATED: replaced by HAS_ROLE, will be removed in v1.0.0.
         AWSSSOUserToPermissionSetRel,
         KeycloakRoleToUserRel,
+        AWSSSOGroupToPermissionSetRel,
+        KeycloakGroupToRoleRel,
         # ALLOWED_BY is a distinct "this role is assumable by that SSO user"
         # semantic (PermissionRole->UserAccount), not a role assignment, so it
         # intentionally runs counter to the HAS_ROLE (UserAccount->PermissionRole)
@@ -111,5 +179,59 @@ LEGACY_REL_WHITELIST: frozenset[type] = frozenset(
         # account assumes an AWS IAM role, IRSA-style). This is the canonical
         # ASSUMES semantic, not a static role grant. Distinct from HAS_ROLE.
         KubernetesServiceAccountToAWSRoleRel,
+        # ALLOWED_BY (PermissionRole->UserGroup) is "this role is assumable by
+        # that SSO group", the reverse of a group role grant. Distinct from the
+        # UserGroup->PermissionRole HAS_ROLE edge.
+        AWSRoleToSSOGroupMatchLink,
+        # MAPS_TO is identity federation (an AWS role maps to a Kubernetes
+        # group), not a group role grant. Distinct from HAS_ROLE.
+        KubernetesGroupToAWSRoleRel,
+        # OCI_POLICY_REFERENCE records that a policy statement textually
+        # references a group, not that the group holds the policy. Distinct
+        # from HAS_ROLE.
+        OCIPolicyToGroupRefRel,
+        # ASSIGNED_TO_ROLE provisions an AWS permission set as a concrete IAM
+        # role in a target account (implementation link), not a composite-role
+        # hierarchy. Distinct from the INCLUDES role->role edge.
+        PermissionSetToAWSRoleRel,
+        # DEPRECATED: replaced by USES_SECRET (mount method captured as the
+        # mount_method property), will be removed in v1.0.0.
+        KubernetesPodToSecretVolumeRel,
+        KubernetesPodToSecretEnvRel,
+        # DEPRECATED: replaced by MEMBER_OF, will be removed in v1.0.0.
+        AWSGroupToAWSUserRel,
+        AWSSSOUserToSSOGroupRel,
+        DuoGroupToDuoUserRel,
+        GSuiteGroupToMemberRel,
+        GSuiteGroupToGroupMemberRel,
+        GitHubTeamMemberUserRel,
+        GitHubTeamChildTeamRel,
+        KeycloakGroupToGroupRel,
+        OCIGroupToOCIUserRel,
+        # Group "owner"/"maintainer"/"admin" edges mark a privileged role held
+        # within the group, a distinct semantic from plain membership. The
+        # principals remain reachable through these edges; MEMBER_OF is reserved
+        # for generic membership.
+        GSuiteGroupToOwnerRel,
+        GSuiteGroupToGroupOwnerRel,
+        GoogleWorkspaceGroupToOwnerRel,
+        GoogleWorkspaceGroupToGroupOwnerRel,
+        GitHubTeamMaintainerUserRel,
+        SentryUserToTeamAdminOfRel,
+        # CREATED records who created a Slack usergroup, a historical fact rather
+        # than current membership. Distinct from MEMBER_OF.
+        SlackGroupToCreatorRel,
+        # MAPS_TO is identity federation (a Kubernetes group maps to an AWS
+        # user), not group membership. Distinct from MEMBER_OF.
+        KubernetesGroupToAWSUserRel,
+        # INHERITED_MEMBER_OF / INHERITED_OWNER_OF are transitive memberships
+        # computed across nested groups, intentionally kept separate from the
+        # direct MEMBER_OF edge.
+        GoogleWorkspaceGroupToGroupInheritedMemberRel,
+        GoogleWorkspaceGroupToGroupInheritedOwnerRel,
+        GoogleWorkspaceUserToGroupInheritedMemberRel,
+        GoogleWorkspaceUserToGroupInheritedOwnerRel,
+        KeycloakUserInheritedMemberOfGroupMatchLink,
+        TailscaleUserToGroupInheritedMemberMatchLink,
     }
 )
