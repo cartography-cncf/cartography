@@ -29,6 +29,7 @@ class EKSClusterNodeProperties(CartographyNodeProperties):
     rolearn: PropertyRef = PropertyRef("roleArn")
     version: PropertyRef = PropertyRef("version")
     platform_version: PropertyRef = PropertyRef("platformVersion")
+    authentication_mode: PropertyRef = PropertyRef("AuthenticationMode")
     status: PropertyRef = PropertyRef("status")
     audit_logging: PropertyRef = PropertyRef("ClusterLogging")
     certificate_authority_data_present: PropertyRef = PropertyRef(
