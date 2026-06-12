@@ -1761,8 +1761,9 @@ class CLI:
                     "--tenable-findings-lookback-days",
                     help=(
                         "Number of days to look back for Tenable findings exports on each run. "
-                        "export (when no prior sync cursor exists). Defaults to 180."
+                        "Stale findings outside this window are removed from the graph by the cleanup job. Defaults to 180."
                     ),
+                    min=1,
                     rich_help_panel=PANEL_TENABLE,
                     hidden=PANEL_TENABLE not in visible_panels,
                 ),

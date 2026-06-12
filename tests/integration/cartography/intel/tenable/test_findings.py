@@ -145,10 +145,10 @@ def test_sync_plugins(neo4j_session, mocker):
 
     # Plugin CVE list lives on TenablePlugin, not on TenableFinding
     record = neo4j_session.run(
-        "MATCH (p:TenablePlugin {id: $id}) RETURN p.cve_ids AS cve_ids",
+        "MATCH (p:TenablePlugin {id: $id}) RETURN p.cve_list AS cve_list",
         id=PLUGIN_ID_1,
     ).single()
-    assert set(record["cve_ids"]) == {
+    assert set(record["cve_list"]) == {
         "CVE-2022-21837",
         "CVE-2022-21840",
         "CVE-2022-21842",

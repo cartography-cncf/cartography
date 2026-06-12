@@ -41,7 +41,7 @@ class TenablePluginNodeProperties(CartographyNodeProperties):
     cvss4_base_score: PropertyRef = PropertyRef("cvss4_base_score")
     vpr_score: PropertyRef = PropertyRef("vpr_score")
     epss_score: PropertyRef = PropertyRef("epss_score")
-    cve_ids: PropertyRef = PropertyRef("cve_ids")
+    cve_list: PropertyRef = PropertyRef("cve_list")
     type: PropertyRef = PropertyRef("type")
 
 

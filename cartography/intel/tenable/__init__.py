@@ -31,6 +31,13 @@ def start_tenable_ingestion(neo4j_session: neo4j.Session, config: Config) -> Non
         )
         return
 
+    if config.tenable_findings_lookback_days < 1:
+        logger.warning(
+            "Tenable findings lookback days is less than 1 - skipping this module. "
+            "Set tenable_findings_lookback_days to a value greater than 0 to enable."
+        )
+        return
+
     base_url = config.tenable_url or TENABLE_DEFAULT_URL
     tenant_id = config.tenable_tenant_id or base_url.removeprefix(
         "https://"

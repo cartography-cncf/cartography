@@ -96,6 +96,7 @@ def transform(raw_findings: list[dict[str, Any]]) -> list[dict[str, Any]]:
                 "service": port_info.get("service"),
                 # First CVE for CVEMetadata ontology matching
                 "cve_id": cve_ids[0] if cve_ids else None,
+                "cve_list": cve_ids,
                 "has_cve": "true" if cve_ids else "false",
             }
         )
@@ -142,7 +143,7 @@ def transform_plugins(raw_findings: list[dict[str, Any]]) -> list[dict[str, Any]
                 "cvss4_base_score": plugin.get("cvss4_base_score"),
                 "vpr_score": vpr.get("score"),
                 "epss_score": plugin.get("epss_score"),
-                "cve_ids": plugin.get("cve") or [],
+                "cve_list": plugin.get("cve") or [],
                 "type": plugin.get("type"),
             }
         )

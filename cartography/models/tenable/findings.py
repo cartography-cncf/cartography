@@ -34,6 +34,7 @@ class TenableFindingNodeProperties(CartographyNodeProperties):
     protocol: PropertyRef = PropertyRef("protocol")
     service: PropertyRef = PropertyRef("service")
     cve_id: PropertyRef = PropertyRef("cve_id", extra_index=True)
+    cve_list: PropertyRef = PropertyRef("cve_list", extra_index=True)
     has_cve: PropertyRef = PropertyRef("has_cve")
 
 
