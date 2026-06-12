@@ -136,8 +136,8 @@ _azure_aks_control_plane_exposed = Fact(
 
 # Rule
 class KubernetesControlPlaneExposed(Finding):
-    id: str | None = None
     name: str | None = None
+    id: str | None = None
     region: str | None = None
     version: str | None = None
     cloud: str | None = None
