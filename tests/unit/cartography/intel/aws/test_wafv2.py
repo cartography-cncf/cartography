@@ -1,5 +1,7 @@
 from unittest.mock import MagicMock
 
+import botocore.exceptions
+
 import tests.data.aws.wafv2 as test_data
 from cartography.intel.aws.wafv2 import get_web_acls
 from cartography.intel.aws.wafv2 import transform_web_acls
@@ -28,7 +30,59 @@ def test_get_web_acls_paginates_with_next_marker() -> None:
     assert second_call_kwargs["NextMarker"] == "regional-acl"
     # ALB associations are fetched for each regional web ACL
     assert result[0]["AlbArns"] == [test_data.PROTECTED_ALB_ARN]
-    assert mock_client.list_resources_for_web_acl.call_count == 2
+    resource_calls = mock_client.list_resources_for_web_acl.call_args_list
+    assert [c[1] for c in resource_calls] == [
+        {
+            "WebACLArn": result[0]["ARN"],
+            "ResourceType": "APPLICATION_LOAD_BALANCER",
+        },
+        {
+            "WebACLArn": result[1]["ARN"],
+            "ResourceType": "APPLICATION_LOAD_BALANCER",
+        },
+    ]
+
+
+def test_get_web_acls_stops_on_final_page_with_stale_next_marker() -> None:
+    mock_session = MagicMock()
+    mock_client = MagicMock()
+    mock_session.client.return_value = mock_client
+
+    # WAFv2 can return a NextMarker on the final page; an empty page or a
+    # marker that makes no progress must terminate pagination.
+    mock_client.list_web_acls.side_effect = [
+        test_data.LIST_WEB_ACLS_PAGES[0],
+        {"WebACLs": [], "NextMarker": "regional-acl"},
+    ]
+    mock_client.list_resources_for_web_acl.return_value = (
+        test_data.LIST_RESOURCES_FOR_WEB_ACL
+    )
+
+    result = get_web_acls(mock_session, "us-east-1", "REGIONAL")
+
+    assert len(result) == 1
+    assert mock_client.list_web_acls.call_count == 2
+
+
+def test_get_web_acls_skips_web_acl_deleted_mid_sync() -> None:
+    mock_session = MagicMock()
+    mock_client = MagicMock()
+    mock_session.client.return_value = mock_client
+
+    mock_client.list_web_acls.return_value = {
+        "WebACLs": test_data.LIST_WEB_ACLS_PAGES[0]["WebACLs"],
+    }
+    mock_client.list_resources_for_web_acl.side_effect = (
+        botocore.exceptions.ClientError(
+            error_response={"Error": {"Code": "WAFNonexistentItemException"}},
+            operation_name="ListResourcesForWebACL",
+        )
+    )
+
+    result = get_web_acls(mock_session, "us-east-1", "REGIONAL")
+
+    assert len(result) == 1
+    assert result[0]["AlbArns"] == []
 
 
 def test_get_web_acls_cloudfront_scope_skips_resource_lookup() -> None:

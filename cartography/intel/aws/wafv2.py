@@ -4,6 +4,7 @@ from typing import Dict
 from typing import List
 
 import boto3
+import botocore.exceptions
 import neo4j
 
 from cartography.client.core.tx import load
@@ -36,17 +37,30 @@ def _list_web_acls(client: Any, scope: str) -> List[Dict[str, Any]]:
         page = client.list_web_acls(**params)
         page_acls = page.get("WebACLs", [])
         web_acls.extend(page_acls)
+        previous_marker = next_marker
         next_marker = page.get("NextMarker")
-        if not next_marker or not page_acls:
+        # WAFv2 can return a NextMarker on the final page. Stop on an empty
+        # page or a marker that makes no progress to avoid looping forever.
+        if not next_marker or not page_acls or next_marker == previous_marker:
             break
     return web_acls
 
 
 def _get_alb_arns_for_web_acl(client: Any, web_acl_arn: str) -> List[str]:
-    response = client.list_resources_for_web_acl(
-        WebACLArn=web_acl_arn,
-        ResourceType="APPLICATION_LOAD_BALANCER",
-    )
+    try:
+        response = client.list_resources_for_web_acl(
+            WebACLArn=web_acl_arn,
+            ResourceType="APPLICATION_LOAD_BALANCER",
+        )
+    except botocore.exceptions.ClientError as e:
+        if e.response["Error"]["Code"] == "WAFNonexistentItemException":
+            logger.warning(
+                "Web ACL %s was deleted between listing and fetching its "
+                "associated resources. Skipping.",
+                web_acl_arn,
+            )
+            return []
+        raise
     return response.get("ResourceArns", [])
 
 
@@ -64,7 +78,8 @@ def get_web_acls(
     API Gateway stages and CloudFront distributions are not fetched here:
     their nodes already carry the associated web ACL ARN (webaclarn and
     web_acl_id respectively), so those relationships are resolved at load
-    time by matching on existing node properties.
+    time by matching on existing node properties. Those edges are therefore
+    only as fresh as the last apigateway and cloudfront syncs.
     """
     client = create_boto3_client(
         boto3_session,
@@ -134,6 +149,30 @@ def cleanup(
     cleanup_job.run(neo4j_session)
 
 
+def _sync_scope(
+    neo4j_session: neo4j.Session,
+    boto3_session: boto3.session.Session,
+    region: str,
+    scope: str,
+    current_aws_account_id: str,
+    update_tag: int,
+) -> None:
+    logger.info(
+        "Syncing WAFv2 %s web ACLs for region '%s' in account '%s'.",
+        scope,
+        region,
+        current_aws_account_id,
+    )
+    web_acls = get_web_acls(boto3_session, region, scope)
+    load_web_acls(
+        neo4j_session,
+        transform_web_acls(web_acls, scope),
+        region,
+        current_aws_account_id,
+        update_tag,
+    )
+
+
 @timeit
 def sync(
     neo4j_session: neo4j.Session,
@@ -144,33 +183,20 @@ def sync(
     common_job_parameters: Dict[str, Any],
 ) -> None:
     for region in regions:
-        logger.info(
-            "Syncing WAFv2 regional web ACLs for region '%s' in account '%s'.",
-            region,
-            current_aws_account_id,
-        )
-        regional_acls = get_web_acls(boto3_session, region, "REGIONAL")
-        load_web_acls(
+        _sync_scope(
             neo4j_session,
-            transform_web_acls(regional_acls, "REGIONAL"),
+            boto3_session,
             region,
+            "REGIONAL",
             current_aws_account_id,
             update_tag,
         )
 
-    logger.info(
-        "Syncing WAFv2 CloudFront-scoped web ACLs in account '%s'.",
-        current_aws_account_id,
-    )
-    cloudfront_acls = get_web_acls(
+    _sync_scope(
+        neo4j_session,
         boto3_session,
         CLOUDFRONT_SCOPE_REGION,
         "CLOUDFRONT",
-    )
-    load_web_acls(
-        neo4j_session,
-        transform_web_acls(cloudfront_acls, "CLOUDFRONT"),
-        CLOUDFRONT_SCOPE_REGION,
         current_aws_account_id,
         update_tag,
     )
