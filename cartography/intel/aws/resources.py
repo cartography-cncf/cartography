@@ -47,6 +47,7 @@ from . import ses
 from . import sns
 from . import sqs
 from . import ssm
+from . import wafv2
 from .ec2.auto_scaling_groups import sync_ec2_auto_scaling_groups
 from .ec2.elastic_ip_addresses import sync_elastic_ip_addresses
 from .ec2.images import sync_ec2_images
@@ -160,5 +161,8 @@ RESOURCE_FUNCTIONS: OrderedDict[str, Callable[..., None]] = OrderedDict(
         "cognito": cognito.sync,
         "eventbridge": eventbridge.sync,
         "glue": glue.sync,
+        # `wafv2` must run after `ec2:load_balancer_v2`, `apigateway`, and
+        # `cloudfront` so that web ACL PROTECTS edges can match those nodes.
+        "wafv2": wafv2.sync,
     }
 )
