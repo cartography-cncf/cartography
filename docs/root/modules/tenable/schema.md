@@ -223,6 +223,7 @@ The `id` is the Tenable finding UUID (`finding_id`). Plugin details live in `Ten
 | protocol | Protocol (e.g. `TCP`, `UDP`) |
 | service | Service name (e.g. `www`, `cifs`) |
 | **cve_id** | First CVE ID from the plugin's CVE list; used for CVEMetadata ontology matching (indexed) |
+| cve_list | Full list of CVE IDs associated with this finding |
 | has_cve | `"true"` if the plugin has at least one CVE ID, `"false"` otherwise |
 | lastupdated | Timestamp of the last sync run |
 
@@ -267,7 +268,7 @@ A Tenable plugin that detected one or more findings. Plugins are deduplicated ac
 | cvss4_base_score | CVSS v4 base score |
 | vpr_score | Tenable Vulnerability Priority Rating score |
 | epss_score | EPSS probability score |
-| cve_ids | Full list of CVE IDs associated with this plugin |
+| cve_list | Full list of CVE IDs associated with this plugin |
 | type | Scan type (`local`, `remote`, `combined`) |
 | lastupdated | Timestamp of the last sync run |
 
