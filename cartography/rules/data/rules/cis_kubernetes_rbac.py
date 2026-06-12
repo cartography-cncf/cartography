@@ -363,6 +363,7 @@ _k8s_pod_create_clusterroles = Fact(
     WHERE ('pods' IN cr.resources OR '*' IN cr.resources)
       AND any(v IN cr.verbs WHERE v IN ['create', '*'])
       AND NOT cr.name STARTS WITH 'system:'
+      AND NOT cr.name IN ['cluster-admin', 'admin', 'edit', 'view']
     RETURN
         cr.id AS role_id,
         cr.name AS role_name,
@@ -374,11 +375,13 @@ _k8s_pod_create_clusterroles = Fact(
     WHERE ('pods' IN cr.resources OR '*' IN cr.resources)
       AND any(v IN cr.verbs WHERE v IN ['create', '*'])
       AND NOT cr.name STARTS WITH 'system:'
+      AND NOT cr.name IN ['cluster-admin', 'admin', 'edit', 'view']
     RETURN *
     """,
     cypher_count_query="""
     MATCH (cr:KubernetesClusterRole)
     WHERE NOT cr.name STARTS WITH 'system:'
+      AND NOT cr.name IN ['cluster-admin', 'admin', 'edit', 'view']
     RETURN COUNT(cr) AS count
     """,
     identity_fields=("role_id",),
@@ -461,6 +464,7 @@ class DefaultSaBindingsOutput(Finding):
     namespace: str | None = None
     role_name: str | None = None
     pod_name: str | None = None
+    pod_names: list[str] | None = None
     automount_service_account_token: bool | None = None
     cluster_name: str | None = None
 
@@ -545,20 +549,24 @@ _k8s_default_sa_used_by_pods = Fact(
     id="k8s_default_sa_used_by_pods",
     name="Kubernetes pods using the default service account",
     description=(
-        "Detects pods that are still configured to run under the default service account. "
-        "The benchmark recommends creating explicit service accounts instead."
+        "Detects namespaces whose pods are still configured to run under the default "
+        "service account. The benchmark recommends creating explicit service accounts "
+        "instead. Findings are grouped per namespace so that controller-managed pod "
+        "churn (random pod-name suffixes) does not produce a new finding on every sync."
     ),
     cypher_query="""
     MATCH (cluster:KubernetesCluster)-[:RESOURCE]->(pod:KubernetesPod)-[:USES_SERVICE_ACCOUNT]->(sa:KubernetesServiceAccount)
     WHERE sa.name = 'default'
+    WITH cluster.name AS cluster_name, sa.namespace AS namespace, pod.name AS pod_name
+    ORDER BY pod_name
+    WITH cluster_name, namespace, collect(DISTINCT pod_name) AS pod_names
     RETURN
-        pod.name AS binding_name,
-        pod.id AS binding_id,
+        cluster_name + '/' + namespace AS binding_id,
         'PodUsesDefaultServiceAccount' AS binding_type,
-        sa.name AS service_account_name,
-        sa.namespace AS namespace,
-        pod.name AS pod_name,
-        cluster.name AS cluster_name
+        'default' AS service_account_name,
+        namespace,
+        pod_names,
+        cluster_name
     """,
     cypher_visual_query="""
     MATCH p=(cluster:KubernetesCluster)-[:RESOURCE]->(pod:KubernetesPod)-[:USES_SERVICE_ACCOUNT]->(sa:KubernetesServiceAccount)
@@ -566,12 +574,12 @@ _k8s_default_sa_used_by_pods = Fact(
     RETURN *
     """,
     cypher_count_query="""
-    MATCH (:KubernetesPod)-[:USES_SERVICE_ACCOUNT]->(sa:KubernetesServiceAccount)
+    MATCH (sa:KubernetesServiceAccount)
     WHERE sa.name = 'default'
     RETURN COUNT(sa) AS count
     """,
     asset_id_field="binding_id",
-    identity_fields=("binding_id",),
+    identity_fields=("cluster_name", "namespace"),
     module=Module.KUBERNETES,
     maturity=Maturity.EXPERIMENTAL,
 )
