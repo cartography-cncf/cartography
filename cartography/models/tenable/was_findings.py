@@ -14,116 +14,97 @@ from cartography.models.core.relationships import TargetNodeMatcher
 
 
 @dataclass(frozen=True)
-class TenableFindingNodeProperties(CartographyNodeProperties):
+class TenableWASFindingNodeProperties(CartographyNodeProperties):
     id: PropertyRef = PropertyRef("id")
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
     asset_uuid: PropertyRef = PropertyRef("asset_uuid", extra_index=True)
+    plugin_id: PropertyRef = PropertyRef("plugin_id")
+    scan_uuid: PropertyRef = PropertyRef("scan_uuid")
+    url: PropertyRef = PropertyRef("url")
+    output: PropertyRef = PropertyRef("output")
+    state: PropertyRef = PropertyRef("state")
     severity: PropertyRef = PropertyRef("severity")
     severity_id: PropertyRef = PropertyRef("severity_id")
     severity_default_id: PropertyRef = PropertyRef("severity_default_id")
     severity_modification_type: PropertyRef = PropertyRef("severity_modification_type")
-    state: PropertyRef = PropertyRef("state")
     first_found: PropertyRef = PropertyRef("first_found")
     last_found: PropertyRef = PropertyRef("last_found")
-    indexed: PropertyRef = PropertyRef("indexed")
-    source: PropertyRef = PropertyRef("source")
-    output: PropertyRef = PropertyRef("output")
-    resurfaced_date: PropertyRef = PropertyRef("resurfaced_date")
-    time_taken_to_fix: PropertyRef = PropertyRef("time_taken_to_fix")
-    port: PropertyRef = PropertyRef("port")
-    protocol: PropertyRef = PropertyRef("protocol")
-    service: PropertyRef = PropertyRef("service")
+    indexed_at: PropertyRef = PropertyRef("indexed_at")
     cve_id: PropertyRef = PropertyRef("cve_id", extra_index=True)
     cve_list: PropertyRef = PropertyRef("cve_list")
     has_cve: PropertyRef = PropertyRef("has_cve")
 
 
 @dataclass(frozen=True)
-class TenableFindingToTenantRelProperties(CartographyRelProperties):
+class TenableWASFindingToTenantRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
-# (:TenableTenant)-[:RESOURCE]->(:TenableFinding)
+# (:TenableTenant)-[:RESOURCE]->(:TenableWASFinding)
 @dataclass(frozen=True)
-class TenableFindingToTenantRel(CartographyRelSchema):
+class TenableWASFindingToTenantRel(CartographyRelSchema):
     target_node_label: str = "TenableTenant"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("TENABLE_TENANT_ID", set_in_kwargs=True)},
     )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "RESOURCE"
-    properties: TenableFindingToTenantRelProperties = (
-        TenableFindingToTenantRelProperties()
+    properties: TenableWASFindingToTenantRelProperties = (
+        TenableWASFindingToTenantRelProperties()
     )
 
 
 @dataclass(frozen=True)
-class TenableFindingToAssetRelProperties(CartographyRelProperties):
+class TenableWASFindingToAssetRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
-# (:TenableFinding)-[:AFFECTS]->(:TenableAsset)
+# (:TenableWASFinding)-[:AFFECTS]->(:TenableAsset)
 @dataclass(frozen=True)
-class TenableFindingToAssetRel(CartographyRelSchema):
+class TenableWASFindingToAssetRel(CartographyRelSchema):
     target_node_label: str = "TenableAsset"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("asset_uuid")},
     )
     direction: LinkDirection = LinkDirection.OUTWARD
     rel_label: str = "AFFECTS"
-    properties: TenableFindingToAssetRelProperties = (
-        TenableFindingToAssetRelProperties()
+    properties: TenableWASFindingToAssetRelProperties = (
+        TenableWASFindingToAssetRelProperties()
     )
 
 
 @dataclass(frozen=True)
-class TenableFindingToPluginRelProperties(CartographyRelProperties):
+class TenableWASFindingToPluginRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
-# (:TenableFinding)-[:DETECTED_BY]->(:TenablePlugin)
+# (:TenableWASFinding)-[:DETECTED_BY]->(:TenableWASPlugin)
 @dataclass(frozen=True)
-class TenableFindingToPluginRel(CartographyRelSchema):
-    target_node_label: str = "TenablePlugin"
+class TenableWASFindingToPluginRel(CartographyRelSchema):
+    target_node_label: str = "TenableWASPlugin"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("plugin_id")},
     )
     direction: LinkDirection = LinkDirection.OUTWARD
     rel_label: str = "DETECTED_BY"
-    properties: TenableFindingToPluginRelProperties = (
-        TenableFindingToPluginRelProperties()
+    properties: TenableWASFindingToPluginRelProperties = (
+        TenableWASFindingToPluginRelProperties()
     )
 
 
 @dataclass(frozen=True)
-class TenableFindingToScanRelProperties(CartographyRelProperties):
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
-
-
-# (:TenableFinding)-[:PART_OF_SCAN]->(:TenableScan)
-@dataclass(frozen=True)
-class TenableFindingToScanRel(CartographyRelSchema):
-    target_node_label: str = "TenableScan"
-    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {"id": PropertyRef("scan_uuid")},
-    )
-    direction: LinkDirection = LinkDirection.OUTWARD
-    rel_label: str = "PART_OF_SCAN"
-    properties: TenableFindingToScanRelProperties = TenableFindingToScanRelProperties()
-
-
-@dataclass(frozen=True)
-class TenableFindingSchema(CartographyNodeSchema):
-    label: str = "TenableFinding"
+class TenableWASFindingSchema(CartographyNodeSchema):
+    label: str = "TenableWASFinding"
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
         [ConditionalNodeLabel(label="CVE", conditions={"has_cve": "true"})]
     )
-    properties: TenableFindingNodeProperties = TenableFindingNodeProperties()
-    sub_resource_relationship: TenableFindingToTenantRel = TenableFindingToTenantRel()
+    properties: TenableWASFindingNodeProperties = TenableWASFindingNodeProperties()
+    sub_resource_relationship: TenableWASFindingToTenantRel = (
+        TenableWASFindingToTenantRel()
+    )
     other_relationships: OtherRelationships = OtherRelationships(
         [
-            TenableFindingToAssetRel(),
-            TenableFindingToPluginRel(),
-            TenableFindingToScanRel(),
+            TenableWASFindingToAssetRel(),
+            TenableWASFindingToPluginRel(),
         ]
     )
