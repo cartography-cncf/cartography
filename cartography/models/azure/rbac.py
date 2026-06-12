@@ -33,9 +33,8 @@ class AzureRoleAssignmentProperties(CartographyNodeProperties):
         "delegatedManagedIdentityResourceId"
     )
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
-    subscription_id: PropertyRef = PropertyRef(
-        "AZURE_SUBSCRIPTION_ID", set_in_kwargs=True
-    )
+    subscription_id: PropertyRef = PropertyRef("subscription_id")
+    management_group_id: PropertyRef = PropertyRef("management_group_id")
 
 
 @dataclass(frozen=True)
@@ -47,9 +46,7 @@ class AzureRoleDefinitionProperties(CartographyNodeProperties):
     description: PropertyRef = PropertyRef("description")
     assignable_scopes: PropertyRef = PropertyRef("assignableScopes")
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
-    subscription_id: PropertyRef = PropertyRef(
-        "AZURE_SUBSCRIPTION_ID", set_in_kwargs=True
-    )
+    subscription_id: PropertyRef = PropertyRef("subscription_id")
 
 
 @dataclass(frozen=True)
@@ -60,14 +57,17 @@ class AzurePermissionsProperties(CartographyNodeProperties):
     data_actions: PropertyRef = PropertyRef("data_actions")
     not_data_actions: PropertyRef = PropertyRef("not_data_actions")
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
-    subscription_id: PropertyRef = PropertyRef(
-        "AZURE_SUBSCRIPTION_ID", set_in_kwargs=True
-    )
+    subscription_id: PropertyRef = PropertyRef("subscription_id")
 
 
 # Relationship Properties for standard relationships
 @dataclass(frozen=True)
 class AzureRoleAssignmentToSubscriptionRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+class AzureRoleAssignmentToManagementGroupRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
@@ -119,6 +119,21 @@ class AzureRoleAssignmentToSubscriptionRel(CartographyRelSchema):
     rel_label: str = "RESOURCE"
     properties: AzureRoleAssignmentToSubscriptionRelProperties = (
         AzureRoleAssignmentToSubscriptionRelProperties()
+    )
+
+
+@dataclass(frozen=True)
+class AzureRoleAssignmentToManagementGroupRel(CartographyRelSchema):
+    target_node_label: str = "AzureManagementGroup"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {
+            "id": PropertyRef("AZURE_MANAGEMENT_GROUP_ID", set_in_kwargs=True),
+        }
+    )
+    direction: LinkDirection = LinkDirection.INWARD
+    rel_label: str = "RESOURCE"
+    properties: AzureRoleAssignmentToManagementGroupRelProperties = (
+        AzureRoleAssignmentToManagementGroupRelProperties()
     )
 
 
@@ -235,6 +250,23 @@ class AzureRoleAssignmentSchema(CartographyNodeSchema):
     properties: AzureRoleAssignmentProperties = AzureRoleAssignmentProperties()
     sub_resource_relationship: AzureRoleAssignmentToSubscriptionRel = (
         AzureRoleAssignmentToSubscriptionRel()
+    )
+    other_relationships: OtherRelationships = OtherRelationships(
+        [
+            AzureRoleAssignmentToRoleDefinitionRel(),
+            AzureRoleAssignmentToEntraUserRel(),
+            AzureRoleAssignmentToEntraGroupRel(),
+            AzureRoleAssignmentToEntraServicePrincipalRel(),
+        ]
+    )
+
+
+@dataclass(frozen=True)
+class AzureManagementGroupRoleAssignmentSchema(CartographyNodeSchema):
+    label: str = "AzureRoleAssignment"
+    properties: AzureRoleAssignmentProperties = AzureRoleAssignmentProperties()
+    sub_resource_relationship: AzureRoleAssignmentToManagementGroupRel = (
+        AzureRoleAssignmentToManagementGroupRel()
     )
     other_relationships: OtherRelationships = OtherRelationships(
         [

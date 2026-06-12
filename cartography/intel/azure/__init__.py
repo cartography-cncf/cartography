@@ -407,8 +407,9 @@ def start_azure_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
     # orphan child resources or hierarchy edges. If management-group enumeration
     # fails, skip management-group cleanup for this run to preserve prior data.
     management_groups_synced = False
+    management_group_data: list[dict] = []
     try:
-        _sync_management_groups(
+        management_group_data = _sync_management_groups(
             neo4j_session,
             credentials,
             config.update_tag,
@@ -445,6 +446,14 @@ def start_azure_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
             common_job_parameters,
         )
         if management_groups_synced:
+            rbac.sync_management_group_role_assignments_for_management_groups(
+                neo4j_session,
+                credentials,
+                management_group_data,
+                subscriptions[0]["subscriptionId"],
+                config.update_tag,
+                common_job_parameters,
+            )
             logger.debug("Running deferred Azure management group cleanup")
             management_groups.cleanup(
                 neo4j_session,
