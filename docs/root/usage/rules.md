@@ -484,9 +484,10 @@ from cartography.rules.spec.model import Finding
 class MyRuleOutput(Finding):
     """Output model for my custom rule."""
 
-    # Define the fields that will be populated from cypher_query results
+    # Define the fields that will be populated from cypher_query results.
+    # Declare a human-readable label first: the first non-empty field is used as the finding title.
+    name: str | None = None         # Resource name (used as the finding title)
     id: str | None = None           # Resource identifier
-    name: str | None = None         # Resource name
     email: str | None = None        # User email (if applicable)
     region: str | None = None       # Cloud region
     public_access: bool | None = None  # Access level
@@ -568,6 +569,47 @@ Guidelines:
   (`asset_id_field="user_arn"`) but treats each user/policy attachment as a separate finding
   (`identity_fields=("user_arn", "policy_arn")`).
 
+### Display field order (finding title)
+
+The **order** in which fields are declared on the output model is a de-facto display contract.
+Downstream consumers derive a finding's title by taking the **first non-empty rule-specific field
+of the output model, in class declaration order**. Declaration order is independent of
+`identity_fields` and `asset_id_field` (those stay whatever the identity contract needs) and of the
+`cypher_query` `RETURN` order (the model is keyed by alias name, not position).
+
+The base `Finding` class declares two inherited fields, `source` and `extra`, before any
+rule-specific field, so `model_fields` / `model_dump()` lists them first. They are metadata, not
+display fields: a title-deriving consumer must **skip `source` and `extra`** and start from the
+first field declared on the rule's own subclass. (The text runner's sample output at
+`cartography/rules/runners.py` prints every field for debugging and is not the title consumer.)
+
+Guidelines:
+
+- Declare a **human-readable label first**: a name, `*_name`, `email`, domain, or title. Avoid
+  leading with an opaque id, ARN, URI, digest, region, or a boolean: those make the title an
+  unreadable string instead of the resource a user recognizes.
+- A scope-level name (project/account/org) is only a good title when the finding's resource **is**
+  that scope (e.g. a project-level or account-level check). For a resource inside a scope, lead with
+  the resource's own name, not the project/account name.
+- If the field would be **empty for every finding**, it cannot serve as the title even if declared
+  first. For example a "missing CMEK key" check whose key field is null by definition: the consumer
+  skips it and falls through to the next field.
+- If the node has no natural name, **alias one in the `cypher_query`** and declare it first rather
+  than leading with an id. Common patterns:
+  - `coalesce(n.friendly_name, n.short_id) AS name`
+  - an AWS `Name` tag: `OPTIONAL MATCH (n)-[:TAGGED]->(t:AWSTag {key: 'Name'})` then
+    `coalesce(t.value, n.id) AS name`
+  - a stable user-chosen identifier (e.g. an RDS DB instance identifier) is already human-readable
+    and fine as the first field.
+
+```python
+class DatabaseExposedOutput(Finding):
+    """Output model for publicly exposed databases."""
+    name: str | None = None    # human-readable label first: used as the finding title
+    id: str | None = None
+    region: str | None = None
+```
+
 ### Steps to add a new rule
 
 1. **Create a new rule file** in `cartography/rules/data/rules/`:
@@ -624,8 +666,8 @@ Guidelines:
    # Define output model
    class MyRuleOutput(Finding):
        """Output model for my custom rule."""
+       name: str | None = None    # human-readable label first: used as the finding title
        id: str | None = None
-       name: str | None = None
        region: str | None = None
 
    # Define rule
