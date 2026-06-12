@@ -4710,7 +4710,7 @@ wheels = [
 
 [[package]]
 name = "workos"
-version = "6.2.0"
+version = "7.0.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "cryptography" },
@@ -4718,9 +4718,9 @@ dependencies = [
     { name = "pyjwt" },
     { name = "typing-extensions", marker = "python_full_version < '3.11'" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/be/e1/80b57f1093c8cfc7a2b1ba154c5a1aace6e450fec5af55c76ad0a310f430/workos-6.2.0.tar.gz", hash = "sha256:27ac05a9ca9c22c5853cba279263695b84893bb8a5336919d37d13a45909048b", size = 184541, upload-time = "2026-05-01T17:35:25.729Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/71/ec/12df7e3c81f010241347af19c9f5c20ddc8ac3ca03a77cc0ed156541dfd4/workos-7.0.1.tar.gz", hash = "sha256:ad3aa1951a4c6115271c73da6e78e6a1231e63046728dc7f65860f629b84a832", size = 187562, upload-time = "2026-05-11T16:52:40.336Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/42/84/0e570f23d6f149e2b21af2c8bbabc7774618af3da43de802074de5cbe13b/workos-6.2.0-py3-none-any.whl", hash = "sha256:bb6fcbd4e81eee116a3e2a23e4a77eb82b652f1c6a0865551d5ecb679921e88b", size = 541982, upload-time = "2026-05-01T17:35:23.982Z" },
+    { url = "https://files.pythonhosted.org/packages/47/86/3cb202cf62ca49975ee83e7afbad44c7b69917070f447fb1242080180933/workos-7.0.1-py3-none-any.whl", hash = "sha256:5f6a34d43cc14f365259228fcd7a6fcc808a2f71f94f84b3019cf25e9e299167", size = 545446, upload-time = "2026-05-11T16:52:41.903Z" },
 ]
 
 [[package]]
