@@ -1,7 +1,7 @@
 ## Permissions Mapping
 
 ### How to use Permissions Mapping
-A GCP principal (GCPUser, GCPServiceAccount, or GCPGroup) can be assigned GCP roles which contain permissions that grant access to GCP resources. Cartography can map permission relationships between GCP principals and the resources they have permission to.
+A GCP principal (GCPUser, GCPServiceAccount, GCPGroup, or GCPExternalPrincipal from Workload Identity Federation IAM members) can be assigned GCP roles which contain permissions that grant access to GCP resources. Cartography can map permission relationships between GCP principals and the resources they have permission to.
 
 As mapping all permissions is infeasible both to calculate and store, Cartography will only map the relationships defined in the [permission relationship file](https://github.com/cartography-cncf/cartography/blob/master/cartography/data/gcp_permission_relationships.yaml) which includes some default permission mappings including GCP Bucket read access.
 

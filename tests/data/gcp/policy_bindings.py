@@ -1,4 +1,10 @@
 # flake8: noqa
+MOCK_WIF_AWS_ROLE_PRINCIPAL_SET = (
+    "principalSet://iam.googleapis.com/projects/123456789012/locations/global/"
+    "workloadIdentityPools/test-pool/attribute.aws_role/"
+    "arn:aws:sts::111122223333:assumed-role/example-readonly"
+)
+
 MOCK_IAM_ROLES = [
     {
         "name": "roles/editor",
@@ -263,6 +269,7 @@ MOCK_POLICY_BINDINGS_RESPONSE = {
                                 "role": "roles/storage.objectViewer",
                                 "members": [
                                     "user:alice@example.com",  # GSuite user
+                                    MOCK_WIF_AWS_ROLE_PRINCIPAL_SET,
                                     "allUsers",  # Public exposure
                                 ],
                             },
