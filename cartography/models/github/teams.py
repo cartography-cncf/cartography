@@ -98,6 +98,9 @@ class GitHubTeamMaintainerUserRel(CartographyRelSchema):
 
 
 @dataclass(frozen=True)
+# DEPRECATED: replaced by the canonical (:UserAccount)-[:MEMBER_OF]->(:UserGroup)
+# edge (GitHubTeamMemberUserMemberOfRel). Kept for backward compatibility, will
+# be removed in v1.0.0.
 class GitHubTeamMemberUserRel(CartographyRelSchema):
     target_node_label: str = "GitHubUser"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
@@ -105,6 +108,18 @@ class GitHubTeamMemberUserRel(CartographyRelSchema):
     )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "MEMBER"
+    properties: GitHubTeamToUserRelProperties = GitHubTeamToUserRelProperties()
+
+
+@dataclass(frozen=True)
+# Canonical ontology edge: (:UserAccount)-[:MEMBER_OF]->(:UserGroup)
+class GitHubTeamMemberUserMemberOfRel(CartographyRelSchema):
+    target_node_label: str = "GitHubUser"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"id": PropertyRef("MEMBER")},
+    )
+    direction: LinkDirection = LinkDirection.INWARD
+    rel_label: str = "MEMBER_OF"
     properties: GitHubTeamToUserRelProperties = GitHubTeamToUserRelProperties()
 
 
@@ -132,6 +147,9 @@ class GitHubTeamToChildTeamRelProperties(CartographyRelProperties):
 
 
 @dataclass(frozen=True)
+# DEPRECATED: replaced by the canonical (:UserGroup)-[:MEMBER_OF]->(:UserGroup)
+# edge (GitHubTeamChildTeamMemberOfRel). Kept for backward compatibility, will
+# be removed in v1.0.0.
 class GitHubTeamChildTeamRel(CartographyRelSchema):
     target_node_label: str = "GitHubTeam"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
@@ -139,6 +157,20 @@ class GitHubTeamChildTeamRel(CartographyRelSchema):
     )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "MEMBER_OF_TEAM"
+    properties: GitHubTeamToChildTeamRelProperties = (
+        GitHubTeamToChildTeamRelProperties()
+    )
+
+
+@dataclass(frozen=True)
+# Canonical ontology edge: (:UserGroup)-[:MEMBER_OF]->(:UserGroup)
+class GitHubTeamChildTeamMemberOfRel(CartographyRelSchema):
+    target_node_label: str = "GitHubTeam"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"id": PropertyRef("MEMBER_OF_TEAM")},
+    )
+    direction: LinkDirection = LinkDirection.INWARD
+    rel_label: str = "MEMBER_OF"
     properties: GitHubTeamToChildTeamRelProperties = (
         GitHubTeamToChildTeamRelProperties()
     )
@@ -158,7 +190,9 @@ class GitHubTeamSchema(CartographyNodeSchema):
             GitHubTeamWriteRepoRel(),
             GitHubTeamMaintainerUserRel(),
             GitHubTeamMemberUserRel(),
+            GitHubTeamMemberUserMemberOfRel(),
             GitHubTeamChildTeamRel(),
+            GitHubTeamChildTeamMemberOfRel(),
         ],
     )
     sub_resource_relationship: GitHubTeamToOrganizationRel = (

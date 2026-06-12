@@ -60,7 +60,7 @@ Representation of an [OCI User](https://docs.cloud.oracle.com/iaas/api/#/en/iden
 - OCI Users can be members of OCI Groups:
 
     ```
-    (OCIUser)-[MEMBER_OCID_GROUP]->(OCIGroup)
+    (OCIUser)-[MEMBER_OF]->(OCIGroup)
     ```
 
 ### OCIGroup
@@ -91,7 +91,7 @@ Representation of an [OCI Group](https://docs.cloud.oracle.com/iaas/api/#/en/ide
 - OCI Users can be members of OCI Groups:
 
     ```
-    (OCIUser)-[MEMBER_OCID_GROUP]->(OCIGroup)
+    (OCIUser)-[MEMBER_OF]->(OCIGroup)
     ```
 
 - OCI Policies can reference OCI Groups:

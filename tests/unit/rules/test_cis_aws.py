@@ -116,7 +116,7 @@ class TestCisAwsFrameworkMetadata:
 
     @pytest.mark.parametrize("rule", ALL_CIS_AWS_RULES, ids=lambda r: r.id)
     def test_rule_has_iso27001_framework(self, rule):
-        assert rule.has_framework(short_name="ISO27001", revision="2022")
+        assert rule.has_framework(short_name="ISO", scope="27001", revision="2022")
 
 
 class TestCisAwsFactMetadata:
@@ -256,6 +256,6 @@ class TestIso27001AwsMappings:
         actual = {
             fw.requirement
             for fw in rule.frameworks
-            if fw.short_name == "iso27001" and fw.revision == "2022"
+            if fw.short_name == "iso" and fw.scope == "27001" and fw.revision == "2022"
         }
         assert actual == self.EXPECTED_REQUIREMENTS[rule.id]

@@ -254,12 +254,22 @@ def load_pods(
     normalized_pods = []
     for pod in pods:
         service_account_name = pod.get("service_account_name") or "default"
+        # Partition the secret ids into disjoint sets so the canonical USES_SECRET
+        # edge carries the correct mount_method even when the same secret is used
+        # both as a volume and via env (otherwise one method would overwrite the
+        # other on the single MERGEd edge). Derived here so the data is correct
+        # regardless of how the pod dict was produced.
+        volume_set = set(pod.get("secret_volume_ids") or [])
+        env_set = set(pod.get("secret_env_ids") or [])
         normalized_pods.append(
             {
                 **pod,
                 "service_account_name": service_account_name,
                 "service_account_id": pod.get("service_account_id")
                 or f"{cluster_name}/{pod['namespace']}/{service_account_name}",
+                "secret_uses_volume_only_ids": sorted(volume_set - env_set),
+                "secret_uses_env_only_ids": sorted(env_set - volume_set),
+                "secret_uses_both_ids": sorted(volume_set & env_set),
             },
         )
 
@@ -270,6 +280,12 @@ def load_pods(
         lastupdated=update_tag,
         CLUSTER_ID=cluster_id,
         CLUSTER_NAME=cluster_name,
+        # Mount method carried by the canonical USES_SECRET edges. The three
+        # source id lists are disjoint, so each (pod, secret) edge is written by
+        # exactly one loader and mount_method is never overwritten.
+        secret_mount_volume="volume",
+        secret_mount_env="env",
+        secret_mount_both="volume,env",
     )
 
 

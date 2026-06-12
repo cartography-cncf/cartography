@@ -278,7 +278,7 @@ Representation of AWS [IAM Groups](https://docs.aws.amazon.com/IAM/latest/APIRef
 - AWSUsers and AWSPrincipals can be members of AWSGroups.
 
     ```cypher
-    (:AWSUser, :AWSPrincipal)-[:MEMBER_AWS_GROUP]->(:AWSGroup)
+    (:AWSUser, :AWSPrincipal)-[:MEMBER_OF]->(:AWSGroup)
     ```
 
 - AWSGroups belong to AWSAccounts.
@@ -902,7 +902,7 @@ Representation of an [AWSPrincipal](https://docs.aws.amazon.com/IAM/latest/APIRe
 - AWS Principals can be members of AWS Groups.
 
     ```cypher
-    (AWSPrincipal)-[MEMBER_AWS_GROUP]->(AWSGroup)
+    (AWSPrincipal)-[MEMBER_OF]->(AWSGroup)
     ```
 
 - This AccountAccessKey is used to authenticate to this AWSPrincipal.
@@ -985,7 +985,7 @@ Representation of an [AWSUser](https://docs.aws.amazon.com/IAM/latest/APIReferen
 - AWS Users can be members of AWS Groups.
 
     ```cypher
-    (AWSUser)-[MEMBER_AWS_GROUP]->(AWSGroup)
+    (AWSUser)-[MEMBER_OF]->(AWSGroup)
     ```
 
 - AWS Users can assume AWS Roles.
@@ -3868,6 +3868,11 @@ Representation of an AWS Relational Database Service [DBInstance](https://docs.a
     (RDSInstance)-[TAGGED]->(AWSTag)
     ```
 
+- RDS Instances encrypted with a customer-managed KMS key are linked to it.
+    ```
+    (RDSInstance)-[:ENCRYPTED_BY]->(KMSKey)
+    ```
+
 ### RDSSnapshot
 
 Representation of an AWS Relational Database Service [DBSnapshot](https://docs.aws.amazon.com/AmazonRDS/latest/APIReference/API_DBSnapshot.html).
@@ -4114,6 +4119,11 @@ Representation of an AWS S3 [Bucket](https://docs.aws.amazon.com/AmazonS3/latest
 -  S3 Buckets can be tagged with AWSTags.
     ```
     (S3Bucket)-[TAGGED]->(AWSTag)
+    ```
+
+- S3 Buckets whose default encryption uses a customer-managed KMS key are linked to it.
+    ```
+    (S3Bucket)-[:ENCRYPTED_BY]->(KMSKey)
     ```
 
 - S3 Buckets can send notifications to SNS Topics.
@@ -5487,6 +5497,11 @@ Representation of an AWS [EFS Access Point](https://docs.aws.amazon.com/efs/late
     (EfsAccessPoint)-[ACCESS_POINT_OF]->(EfsFileSystem)
     ```
 
+- EFS File Systems encrypted with a customer-managed KMS key are linked to it.
+    ```
+    (EfsFileSystem)-[:ENCRYPTED_BY]->(KMSKey)
+    ```
+
 ### SNSTopic
 Representation of an AWS [SNS Topic](https://docs.aws.amazon.com/sns/latest/api/API_Topic.html)
 | Field | Description |
@@ -5750,7 +5765,7 @@ Representation of an AWS SSO User.
 
 - An AWSSSOUser can be a member of one or more AWSSSOGroups. In effect, the AWSSSOUser will receive all permission sets that the group is assigned to.
     ```
-    (:AWSSSOUser)-[:MEMBER_OF_SSO_GROUP]->(:AWSSSOGroup)
+    (:AWSSSOUser)-[:MEMBER_OF]->(:AWSSSOGroup)
     ```
 
 - AWSSSOUsers can be assigned to AWSRoles. This happens when the user is assigned to a permission set for a specific account. This includes both direct assignments to the user and assignments inherited through AWSSSOGroup membership. Note: The AWS Identity Center API (`list_account_assignments_for_principal`) automatically resolves group memberships server-side, so users receive `ALLOWED_BY` relationships for roles they can access through groups they belong to.
@@ -5822,7 +5837,7 @@ Representation of an AWS SSO Group.
 
 - An AWSSSOGroup has assigned permission sets. AWSSSOUsers in the group will receive all permission sets that the group is assigned to.
     ```
-    (:AWSSSOGroup)-[:HAS_PERMISSION_SET]->(:AWSPermissionSet)
+    (:AWSSSOGroup)-[:HAS_ROLE]->(:AWSPermissionSet)
     ```
     Notes:
     - This relationship does not indicate which accounts the group has access to, only that it has been assigned to the permission set. For a group to have access to an AWS account, it must be assigned to a permission set for that specific account. This is captured by the `ALLOWED_BY` relationship.
@@ -5830,7 +5845,7 @@ Representation of an AWS SSO Group.
 
 - AWSSSOUsers can be members of AWSSSOGroups. In effect, the AWSSSOUser will receive all permission sets that the group is assigned to.
     ```
-    (:AWSSSOUser)-[:MEMBER_OF_SSO_GROUP]->(:AWSSSOGroup)
+    (:AWSSSOUser)-[:MEMBER_OF]->(:AWSSSOGroup)
     ```
 
 ### AWSPermissionSet
@@ -5873,7 +5888,7 @@ Representation of an AWS Identity Center Permission Set.
 
 - An AWSSSOGroup has assigned permission sets. AWSSSOUsers in the group will receive all permission sets that the group is assigned to.
     ```
-    (:AWSSSOGroup)-[:HAS_PERMISSION_SET]->(:AWSPermissionSet)
+    (:AWSSSOGroup)-[:HAS_ROLE]->(:AWSPermissionSet)
     ```
     Note: This relationship does not indicate which accounts the group has access to, only that it has been assigned to the permission set. For a group to have access to an AWS account, it must be assigned to a permission set for that specific account. This is captured by the `ALLOWED_BY` relationship.
 

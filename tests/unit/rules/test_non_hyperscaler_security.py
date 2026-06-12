@@ -34,7 +34,7 @@ def test_non_hyperscaler_rules_are_registered():
 
 def test_non_hyperscaler_rules_have_iso27001_mappings():
     for rule in NON_HYPERSCALER_RULES:
-        assert rule.has_framework(short_name="ISO27001", revision="2022")
+        assert rule.has_framework(short_name="ISO", scope="27001", revision="2022")
 
 
 def test_identity_mfa_gaps_cover_expected_providers():
