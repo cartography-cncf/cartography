@@ -40,8 +40,8 @@ aws_guard_duty_detector_disabled = Fact(
 
 # Rule
 class CloudSecurityProductDeactivated(Finding):
-    region: str | None = None
     account_name: str | None = None
+    region: str | None = None
     account_id: str | None = None
 
 
