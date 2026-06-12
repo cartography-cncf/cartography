@@ -6703,7 +6703,7 @@ Representation of an AWS WAFv2 [Web ACL](https://docs.aws.amazon.com/waf/latest/
 | lastupdated | Timestamp of the last time the node was updated |
 | **id** | The ARN of the web ACL |
 | arn | The ARN of the web ACL |
-| web\_acl\_id | The unique identifier of the web ACL |
+| web\_acl\_id | The unique identifier (UUID) of the web ACL. Note this differs from `CloudFrontDistribution.web_acl_id`, which holds the web ACL ARN; join on `AWSWebACL.arn` instead |
 | name | The name of the web ACL |
 | description | The description of the web ACL |
 | scope | The scope of the web ACL, either `REGIONAL` or `CLOUDFRONT` |

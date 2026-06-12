@@ -1,3 +1,7 @@
+from typing import Any
+from typing import Dict
+from typing import List
+
 TEST_ACCOUNT_ID = "000000000000"
 TEST_REGION = "us-east-1"
 
@@ -21,6 +25,8 @@ GET_WEB_ACLS_REGIONAL = [
         "Description": "Protects the regional API",
         "LockToken": "lock-token-1",
         "ARN": REGIONAL_WEB_ACL_ARN,
+        # AlbArns is not part of the list_web_acls response; get_web_acls
+        # adds it from list_resources_for_web_acl.
         "AlbArns": [PROTECTED_ALB_ARN],
     },
 ]
@@ -35,7 +41,7 @@ GET_WEB_ACLS_CLOUDFRONT = [
     },
 ]
 
-LIST_WEB_ACLS_PAGES = [
+LIST_WEB_ACLS_PAGES: List[Dict[str, Any]] = [
     {
         "WebACLs": [
             {
