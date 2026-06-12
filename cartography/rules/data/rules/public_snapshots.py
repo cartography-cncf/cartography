@@ -18,6 +18,7 @@ _aws_ebs_snapshot_public = Fact(
     MATCH (a:AWSAccount)-[:RESOURCE]->(s:EBSSnapshot)
     WHERE s.ispublic = true
     RETURN
+        coalesce(s.description, s.id) AS name,
         s.id AS id,
         s.id AS arn,
         s.volumeid AS source_identifier,
@@ -55,6 +56,7 @@ _aws_rds_snapshot_public = Fact(
     MATCH (a:AWSAccount)-[:RESOURCE]->(s:RDSSnapshot)
     WHERE s.ispublic = true
     RETURN
+        s.db_snapshot_identifier AS name,
         s.db_snapshot_identifier AS id,
         s.arn AS arn,
         s.db_instance_identifier AS source_identifier,
@@ -98,6 +100,7 @@ _aws_ami_public = Fact(
     WHERE i.ispublic = true
       AND i.owner = a.id
     RETURN
+        coalesce(i.name, i.id) AS name,
         i.id AS id,
         i.imageid AS arn,
         i.name AS source_identifier,
@@ -127,6 +130,7 @@ _aws_ami_public = Fact(
 
 # Rule
 class PublicSnapshots(Finding):
+    name: str | None = None
     id: str | None = None
     arn: str | None = None
     source_identifier: str | None = None

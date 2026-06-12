@@ -682,8 +682,8 @@ kubernetes_pods_missing_runtime_default_seccomp = Rule(
 class DefaultNamespaceOutput(Finding):
     """Output model for default namespace usage check."""
 
-    pod_id: str | None = None
     pod_name: str | None = None
+    pod_id: str | None = None
     status_phase: str | None = None
     cluster_name: str | None = None
 

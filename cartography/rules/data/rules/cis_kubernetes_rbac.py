@@ -118,8 +118,8 @@ kubernetes_cluster_admin_role_usage = Rule(
 class SecretAccessOutput(Finding):
     """Output model for secret access check."""
 
-    role_id: str | None = None
     role_name: str | None = None
+    role_id: str | None = None
     role_type: str | None = None
     verbs: list[str] | None = None
     cluster_name: str | None = None
@@ -231,8 +231,8 @@ kubernetes_roles_grant_secret_access = Rule(
 class WildcardRoleOutput(Finding):
     """Output model for wildcard role check."""
 
-    role_id: str | None = None
     role_name: str | None = None
+    role_id: str | None = None
     role_type: str | None = None
     wildcard_in: str | None = None
     cluster_name: str | None = None
@@ -344,8 +344,8 @@ kubernetes_wildcard_roles = Rule(
 class PodCreateAccessOutput(Finding):
     """Output model for pod creation access check."""
 
-    role_id: str | None = None
     role_name: str | None = None
+    role_id: str | None = None
     role_type: str | None = None
     cluster_name: str | None = None
 
@@ -552,6 +552,7 @@ _k8s_default_sa_used_by_pods = Fact(
     MATCH (cluster:KubernetesCluster)-[:RESOURCE]->(pod:KubernetesPod)-[:USES_SERVICE_ACCOUNT]->(sa:KubernetesServiceAccount)
     WHERE sa.name = 'default'
     RETURN
+        pod.name AS binding_name,
         pod.id AS binding_id,
         'PodUsesDefaultServiceAccount' AS binding_type,
         sa.name AS service_account_name,
@@ -587,6 +588,7 @@ _k8s_default_sa_automount_enabled = Fact(
     WHERE sa.name = 'default'
       AND coalesce(sa.automount_service_account_token, true) = true
     RETURN
+        sa.namespace + '/' + sa.name AS binding_name,
         sa.id AS binding_id,
         'ServiceAccountAutomount' AS binding_type,
         sa.name AS service_account_name,
@@ -757,8 +759,8 @@ kubernetes_system_masters_group_usage = Rule(
 class EscalationPermissionsOutput(Finding):
     """Output model for escalation permissions check."""
 
-    role_id: str | None = None
     role_name: str | None = None
+    role_id: str | None = None
     role_type: str | None = None
     dangerous_verbs: list[str] | None = None
     cluster_name: str | None = None
@@ -865,8 +867,8 @@ kubernetes_bind_impersonate_escalate_permissions = Rule(
 class PvCreateAccessOutput(Finding):
     """Output model for PV creation access check."""
 
-    role_id: str | None = None
     role_name: str | None = None
+    role_id: str | None = None
     role_type: str | None = None
     cluster_name: str | None = None
 
@@ -974,8 +976,8 @@ kubernetes_roles_grant_persistent_volume_creation = Rule(
 class NodeProxyAccessOutput(Finding):
     """Output model for node proxy access check."""
 
-    role_id: str | None = None
     role_name: str | None = None
+    role_id: str | None = None
     role_type: str | None = None
     cluster_name: str | None = None
 
@@ -1046,8 +1048,8 @@ kubernetes_node_proxy_subresource_access = Rule(
 class CsrApprovalAccessOutput(Finding):
     """Output model for CSR approval access check."""
 
-    role_id: str | None = None
     role_name: str | None = None
+    role_id: str | None = None
     role_type: str | None = None
     cluster_name: str | None = None
 
@@ -1119,8 +1121,8 @@ kubernetes_csr_approval_subresource_access = Rule(
 class WebhookConfigAccessOutput(Finding):
     """Output model for webhook configuration access check."""
 
-    role_id: str | None = None
     role_name: str | None = None
+    role_id: str | None = None
     role_type: str | None = None
     webhook_resources: str | None = None
     cluster_name: str | None = None
@@ -1206,8 +1208,8 @@ kubernetes_webhook_configuration_access = Rule(
 class SaTokenCreationAccessOutput(Finding):
     """Output model for SA token creation access check."""
 
-    role_id: str | None = None
     role_name: str | None = None
+    role_id: str | None = None
     role_type: str | None = None
     cluster_name: str | None = None
 
