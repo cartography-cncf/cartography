@@ -311,9 +311,9 @@ def _sync_management_groups(
     credentials: Credentials,
     update_tag: int,
     common_job_parameters: dict,
-) -> None:
+) -> list[dict]:
     logger.info("Syncing Azure management groups for tenant: %s", credentials.tenant_id)
-    management_groups.sync(
+    return management_groups.sync(
         neo4j_session,
         credentials,
         credentials.tenant_id or "",
@@ -399,6 +399,14 @@ def start_azure_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
         config.update_tag,
         common_job_parameters,
     )
+    # IMPORTANT: Azure hierarchy cleanup is deferred like GCP hierarchy cleanup.
+    # The upper hierarchy is tenant -> management groups -> subscriptions, while
+    # subscription-contained resources are owned by AzureSubscription. Load the
+    # current management groups and subscriptions first, then clean stale
+    # subscriptions before stale management groups so parent cleanup does not
+    # orphan child resources or hierarchy edges. If management-group enumeration
+    # fails, skip management-group cleanup for this run to preserve prior data.
+    management_groups_synced = False
     try:
         _sync_management_groups(
             neo4j_session,
@@ -406,6 +414,7 @@ def start_azure_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
             config.update_tag,
             common_job_parameters,
         )
+        management_groups_synced = True
     except RuntimeError as e:
         logger.warning(
             "Skipping Azure management groups sync. Details: %s",
@@ -435,6 +444,13 @@ def start_azure_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
             config.update_tag,
             common_job_parameters,
         )
+        if management_groups_synced:
+            logger.debug("Running deferred Azure management group cleanup")
+            management_groups.cleanup(
+                neo4j_session,
+                common_job_parameters,
+                cascade_delete=True,
+            )
 
         run_analysis_job(
             "azure_compute_asset_exposure.json",

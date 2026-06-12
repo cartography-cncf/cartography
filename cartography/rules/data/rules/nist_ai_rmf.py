@@ -431,6 +431,7 @@ ai_admin_app_authorizations = Rule(
 # Main node: AIBOMComponent (AIAgent)
 # =============================================================================
 class NistAiAibomAgentInventoryOutput(Finding):
+    agent_name: str | None = None
     source_id: str | None = None
     image_uri: str | None = None
     manifest_digest: str | None = None
@@ -438,7 +439,6 @@ class NistAiAibomAgentInventoryOutput(Finding):
     scanner_version: str | None = None
     agent_component_id: str | None = None
     agent_logical_id: str | None = None
-    agent_name: str | None = None
     agent_framework: str | None = None
     agent_file_path: str | None = None
     agent_line_number: int | None = None
@@ -573,11 +573,11 @@ aibom_agent_inventory = Rule(
 # Main node: AIBOMSource
 # =============================================================================
 class NistAiAibomCoverageGapOutput(Finding):
+    scanner_name: str | None = None
     source_id: str | None = None
     image_uri: str | None = None
     manifest_digests: list[str] | None = None
     report_location: str | None = None
-    scanner_name: str | None = None
     scanner_version: str | None = None
     source_status: str | None = None
     analysis_status: str | None = None
@@ -702,11 +702,11 @@ aibom_coverage_gaps = Rule(
 # Main node: OpenAIApiKey/OpenAIAdminApiKey/AnthropicApiKey
 # =============================================================================
 class NistAiProviderApiKeyHygieneOutput(Finding):
+    api_key_name: str | None = None
     provider: str | None = None
     organization_id: str | None = None
     project_or_workspace_id: str | None = None
     api_key_id: str | None = None
-    api_key_name: str | None = None
     status: str | None = None
     created_at: str | None = None
     last_used_at: str | None = None

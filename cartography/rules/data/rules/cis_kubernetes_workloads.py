@@ -79,32 +79,43 @@ K8S_INFRASTRUCTURE_SERVICE_ACCOUNT_NAMES_CYPHER = _cypher_string_list(
 class SecretsInEnvVarsOutput(Finding):
     """Output model for secrets in environment variables check."""
 
-    pod_name: str | None = None
-    pod_id: str | None = None
+    cluster_name: str | None = None
     namespace: str | None = None
     secret_names: list[str] | None = None
-    cluster_name: str | None = None
+    pod_names: list[str] | None = None
+    pod_count: int | None = None
 
 
 _k8s_secrets_in_env_vars = Fact(
     id="k8s_secrets_in_env_vars",
     name="Kubernetes pods using secrets via environment variables",
     description=(
-        "Detects pods that reference secrets through environment variables. "
+        "Detects namespaces whose pods reference secrets through environment variables. "
         "Secrets as environment variables are more susceptible to accidental exposure "
         "through logging, error messages, or child process inheritance. "
-        "Prefer mounting secrets as files instead."
+        "Prefer mounting secrets as files instead. Findings are grouped per namespace so "
+        "that controller-managed pod churn (random pod-name suffixes) does not produce a "
+        "new finding on every sync."
     ),
     cypher_query="""
     MATCH (cluster:KubernetesCluster)-[:RESOURCE]->(pod:KubernetesPod)
           -[r:USES_SECRET]->(secret:KubernetesSecret)
     WHERE 'env' IN split(r.mount_method, ',')
+    WITH cluster.name AS cluster_name, pod.namespace AS namespace,
+         collect(DISTINCT secret.name) AS secret_names_raw,
+         collect(DISTINCT pod.name) AS pod_names_raw
+    UNWIND secret_names_raw AS secret_name
+    WITH cluster_name, namespace, pod_names_raw, secret_name ORDER BY secret_name
+    WITH cluster_name, namespace, pod_names_raw, collect(secret_name) AS secret_names
+    UNWIND pod_names_raw AS pod_name
+    WITH cluster_name, namespace, secret_names, pod_name ORDER BY pod_name
+    WITH cluster_name, namespace, secret_names, collect(pod_name) AS pod_names
     RETURN
-        pod.id AS pod_id,
-        pod.name AS pod_name,
-        pod.namespace AS namespace,
-        collect(DISTINCT secret.name) AS secret_names,
-        cluster.name AS cluster_name
+        cluster_name,
+        namespace,
+        secret_names,
+        pod_names,
+        size(pod_names) AS pod_count
     """,
     cypher_visual_query="""
     MATCH p=(cluster:KubernetesCluster)-[:RESOURCE]->(pod:KubernetesPod)
@@ -113,11 +124,10 @@ _k8s_secrets_in_env_vars = Fact(
     RETURN *
     """,
     cypher_count_query="""
-    MATCH (pod:KubernetesPod)
-    RETURN COUNT(pod) AS count
+    MATCH (ns:KubernetesNamespace)
+    RETURN COUNT(ns) AS count
     """,
-    asset_id_field="pod_id",
-    identity_fields=("pod_id",),
+    identity_fields=("cluster_name", "namespace"),
     module=Module.KUBERNETES,
     maturity=Maturity.EXPERIMENTAL,
 )
@@ -147,13 +157,11 @@ kubernetes_secrets_used_as_environment_variables = Rule(
 # Main node: KubernetesPod
 # =============================================================================
 class ServiceAccountTokenMountOutput(Finding):
-    pod_name: str | None = None
-    pod_id: str | None = None
+    cluster_name: str | None = None
     namespace: str | None = None
     service_account_name: str | None = None
-    pod_automount_service_account_token: bool | None = None
-    service_account_automount_service_account_token: bool | None = None
-    cluster_name: str | None = None
+    pod_names: list[str] | None = None
+    pod_count: int | None = None
 
 
 _k8s_service_account_tokens_mounted = Fact(
@@ -162,7 +170,9 @@ _k8s_service_account_tokens_mounted = Fact(
     description=(
         "Detects pods where service account tokens are still mounted by default or "
         "explicitly enabled. This is a heuristic for identifying workloads that may "
-        "not need API credentials."
+        "not need API credentials. Findings are grouped per (namespace, service account) "
+        "so that controller-managed pod churn (random pod-name suffixes) does not produce "
+        "a new finding on every sync."
     ),
     cypher_query=f"""
     MATCH (cluster:KubernetesCluster)-[:RESOURCE]->(pod:KubernetesPod)
@@ -184,14 +194,23 @@ _k8s_service_account_tokens_mounted = Fact(
         OR service_account_assumes_aws_role
         OR service_account_assumes_gcp_identity
       )
-    RETURN
-        pod.id AS pod_id,
-        pod.name AS pod_name,
+    WITH
+        cluster.name AS cluster_name,
         pod.namespace AS namespace,
+        service_account_name,
+        pod.name AS pod_name
+    ORDER BY pod_name
+    WITH
+        cluster_name,
+        namespace,
+        service_account_name,
+        collect(DISTINCT pod_name) AS pod_names
+    RETURN
+        cluster_name,
+        namespace,
         service_account_name AS service_account_name,
-        pod.automount_service_account_token AS pod_automount_service_account_token,
-        sa.automount_service_account_token AS service_account_automount_service_account_token,
-        cluster.name AS cluster_name
+        pod_names,
+        size(pod_names) AS pod_count
     """,
     cypher_visual_query=f"""
     MATCH p=(cluster:KubernetesCluster)-[:RESOURCE]->(pod:KubernetesPod)
@@ -218,9 +237,10 @@ _k8s_service_account_tokens_mounted = Fact(
     RETURN *
     """,
     cypher_count_query=f"""
-    MATCH (pod:KubernetesPod)
+    MATCH (cluster:KubernetesCluster)-[:RESOURCE]->(pod:KubernetesPod)
     OPTIONAL MATCH (pod)-[:USES_SERVICE_ACCOUNT]->(sa:KubernetesServiceAccount)
     WITH
+        cluster,
         pod,
         sa,
         coalesce(sa._ont_name, sa.name, pod.service_account_name) AS service_account_name,
@@ -234,10 +254,10 @@ _k8s_service_account_tokens_mounted = Fact(
         OR service_account_assumes_aws_role
         OR service_account_assumes_gcp_identity
       )
-    RETURN COUNT(pod) AS count
+    WITH DISTINCT cluster.name AS cluster_name, pod.namespace AS namespace, service_account_name
+    RETURN COUNT(*) AS count
     """,
-    asset_id_field="pod_id",
-    identity_fields=("pod_id",),
+    identity_fields=("cluster_name", "namespace", "service_account_name"),
     module=Module.KUBERNETES,
     maturity=Maturity.EXPERIMENTAL,
 )
@@ -487,26 +507,41 @@ kubernetes_containers_allowing_privilege_escalation = Rule(
 # Main node: KubernetesPod
 # =============================================================================
 class HostPathVolumeOutput(Finding):
-    pod_name: str | None = None
-    pod_id: str | None = None
+    cluster_name: str | None = None
     namespace: str | None = None
     host_path_volume_paths: list[str] | None = None
-    cluster_name: str | None = None
+    pod_names: list[str] | None = None
+    pod_count: int | None = None
 
 
 _k8s_host_path_volumes = Fact(
     id="k8s_host_path_volumes",
     name="Kubernetes pods using hostPath volumes",
-    description="Detects pods that define one or more hostPath volumes.",
+    description=(
+        "Detects namespaces whose pods define one or more hostPath volumes. "
+        "Findings are grouped per namespace so that controller-managed pod "
+        "churn (random pod-name suffixes) does not produce a new finding on "
+        "every sync."
+    ),
     cypher_query="""
     MATCH (cluster:KubernetesCluster)-[:RESOURCE]->(pod:KubernetesPod)
     WHERE size(coalesce(pod.host_path_volume_paths, [])) > 0
+    UNWIND pod.host_path_volume_paths AS host_path
+    WITH cluster.name AS cluster_name, pod.namespace AS namespace,
+         collect(DISTINCT pod.name) AS pod_names_raw,
+         collect(DISTINCT host_path) AS host_path_volume_paths_raw
+    UNWIND host_path_volume_paths_raw AS host_path
+    WITH cluster_name, namespace, pod_names_raw, host_path ORDER BY host_path
+    WITH cluster_name, namespace, pod_names_raw, collect(host_path) AS host_path_volume_paths
+    UNWIND pod_names_raw AS pod_name
+    WITH cluster_name, namespace, host_path_volume_paths, pod_name ORDER BY pod_name
+    WITH cluster_name, namespace, host_path_volume_paths, collect(pod_name) AS pod_names
     RETURN
-        pod.id AS pod_id,
-        pod.name AS pod_name,
-        pod.namespace AS namespace,
-        pod.host_path_volume_paths AS host_path_volume_paths,
-        cluster.name AS cluster_name
+        cluster_name,
+        namespace,
+        host_path_volume_paths,
+        pod_names,
+        size(pod_names) AS pod_count
     """,
     cypher_visual_query="""
     MATCH p=(cluster:KubernetesCluster)-[:RESOURCE]->(pod:KubernetesPod)
@@ -514,11 +549,10 @@ _k8s_host_path_volumes = Fact(
     RETURN *
     """,
     cypher_count_query="""
-    MATCH (pod:KubernetesPod)
-    RETURN COUNT(pod) AS count
+    MATCH (ns:KubernetesNamespace)
+    RETURN COUNT(ns) AS count
     """,
-    asset_id_field="pod_id",
-    identity_fields=("pod_id",),
+    identity_fields=("cluster_name", "namespace"),
     module=Module.KUBERNETES,
     maturity=Maturity.EXPERIMENTAL,
 )
@@ -682,8 +716,8 @@ kubernetes_pods_missing_runtime_default_seccomp = Rule(
 class DefaultNamespaceOutput(Finding):
     """Output model for default namespace usage check."""
 
-    pod_id: str | None = None
     pod_name: str | None = None
+    pod_id: str | None = None
     status_phase: str | None = None
     cluster_name: str | None = None
 

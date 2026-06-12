@@ -197,16 +197,16 @@ googleworkspace_admins_without_enforced_2sv = Rule(
 class SuperAdminCoverageOutput(Finding):
     """Output model for tenant-level Super Admin coverage findings."""
 
-    tenant_id: str | None = None
     tenant_domain: str | None = None
+    tenant_id: str | None = None
     super_admin_count: int | None = None
 
 
 class SuperAdminExcessOutput(Finding):
     """Output model for tenants with excessive Super Admin coverage."""
 
-    tenant_id: str | None = None
     tenant_domain: str | None = None
+    tenant_id: str | None = None
     super_admin_count: int | None = None
 
 

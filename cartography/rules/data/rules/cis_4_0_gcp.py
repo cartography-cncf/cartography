@@ -447,8 +447,8 @@ gcp_instances_without_confidential_computing_enabled = Rule(
 # Main node: GCPDNSZone
 # =============================================================================
 class DnssecDisabledOutput(Finding):
-    zone_id: str | None = None
     zone_name: str | None = None
+    zone_id: str | None = None
     project_id: str | None = None
     project_name: str | None = None
     dns_name: str | None = None
@@ -513,8 +513,8 @@ gcp_cloud_dns_dnssec_disabled = Rule(
 # Main node: GCPDNSZone
 # =============================================================================
 class DnssecWeakKskOutput(Finding):
-    zone_id: str | None = None
     zone_name: str | None = None
+    zone_id: str | None = None
     project_id: str | None = None
     project_name: str | None = None
     dns_name: str | None = None
@@ -578,8 +578,8 @@ gcp_cloud_dns_dnssec_key_signing_uses_rsasha1 = Rule(
 # Main node: GCPDNSZone
 # =============================================================================
 class DnssecWeakZskOutput(Finding):
-    zone_id: str | None = None
     zone_name: str | None = None
+    zone_id: str | None = None
     project_id: str | None = None
     project_name: str | None = None
     dns_name: str | None = None
@@ -643,8 +643,8 @@ gcp_cloud_dns_dnssec_zone_signing_uses_rsasha1 = Rule(
 # Main node: GCPSubnet
 # =============================================================================
 class SubnetFlowLogsDisabledOutput(Finding):
-    subnet_id: str | None = None
     subnet_name: str | None = None
+    subnet_id: str | None = None
     project_id: str | None = None
     project_name: str | None = None
     region: str | None = None
@@ -736,8 +736,8 @@ gcp_subnets_without_compliant_vpc_flow_logs = Rule(
 # Main node: GCPCloudSQLInstance
 # =============================================================================
 class CloudSqlPublicIpOutput(Finding):
-    instance_id: str | None = None
     instance_name: str | None = None
+    instance_id: str | None = None
     project_id: str | None = None
     project_name: str | None = None
     ip_addresses: str | None = None
@@ -793,8 +793,8 @@ gcp_cloudsql_public_ips = Rule(
 # Main node: GCPCloudSQLInstance
 # =============================================================================
 class CloudSqlBackupsDisabledOutput(Finding):
-    instance_id: str | None = None
     instance_name: str | None = None
+    instance_id: str | None = None
     project_id: str | None = None
     project_name: str | None = None
     database_version: str | None = None
@@ -850,6 +850,7 @@ gcp_cloudsql_automated_backups_disabled = Rule(
 # Main node: GCPBigQueryDataset
 # =============================================================================
 class BigQueryDatasetPublicAccessOutput(Finding):
+    dataset_name: str | None = None
     dataset_id: str | None = None
     project_id: str | None = None
     project_name: str | None = None
@@ -865,6 +866,7 @@ _gcp_bigquery_dataset_public = Fact(
     WHERE coalesce(dataset.access_entries, '') CONTAINS 'allUsers'
        OR coalesce(dataset.access_entries, '') CONTAINS 'allAuthenticatedUsers'
     RETURN
+        coalesce(dataset.friendly_name, dataset.dataset_id) AS dataset_name,
         dataset.id AS dataset_id,
         project.id AS project_id,
         project.displayname AS project_name,
@@ -907,6 +909,7 @@ gcp_bigquery_datasets_publicly_accessible = Rule(
 # Main node: GCPBigQueryTable
 # =============================================================================
 class BigQueryTableCmekMissingOutput(Finding):
+    table_name: str | None = None
     table_id: str | None = None
     dataset_id: str | None = None
     project_id: str | None = None
@@ -922,6 +925,7 @@ _gcp_bigquery_table_cmek_missing = Fact(
     MATCH (project:GCPProject)-[:RESOURCE]->(table:GCPBigQueryTable)
     WHERE table.kms_key_name IS NULL OR table.kms_key_name = ''
     RETURN
+        coalesce(table.friendly_name, table.table_id) AS table_name,
         table.id AS table_id,
         table.dataset_id AS dataset_id,
         project.id AS project_id,
@@ -964,6 +968,7 @@ gcp_bigquery_tables_without_cmek = Rule(
 # Main node: GCPBigQueryDataset
 # =============================================================================
 class BigQueryDatasetCmekMissingOutput(Finding):
+    dataset_name: str | None = None
     dataset_id: str | None = None
     project_id: str | None = None
     project_name: str | None = None
@@ -978,6 +983,7 @@ _gcp_bigquery_dataset_cmek_missing = Fact(
     MATCH (project:GCPProject)-[:RESOURCE]->(dataset:GCPBigQueryDataset)
     WHERE dataset.default_kms_key_name IS NULL OR dataset.default_kms_key_name = ''
     RETURN
+        coalesce(dataset.friendly_name, dataset.dataset_id) AS dataset_name,
         dataset.id AS dataset_id,
         project.id AS project_id,
         project.displayname AS project_name,
@@ -1019,8 +1025,8 @@ gcp_bigquery_datasets_without_default_cmek = Rule(
 # Main node: GCPCloudSQLInstance
 # =============================================================================
 class CloudSqlSslModeOutput(Finding):
-    instance_id: str | None = None
     instance_name: str | None = None
+    instance_id: str | None = None
     project_id: str | None = None
     project_name: str | None = None
     ssl_mode: str | None = None
@@ -1080,8 +1086,8 @@ gcp_cloudsql_ssl_not_enforced = Rule(
 # Main node: GCPCloudSQLInstance
 # =============================================================================
 class CloudSqlAuthorizedNetworksOutput(Finding):
-    instance_id: str | None = None
     instance_name: str | None = None
+    instance_id: str | None = None
     project_id: str | None = None
     project_name: str | None = None
     authorized_networks: str | None = None
@@ -1133,8 +1139,8 @@ gcp_cloudsql_authorized_networks_open_to_internet = Rule(
 
 
 class CloudSqlDatabaseFlagOutput(Finding):
-    instance_id: str | None = None
     instance_name: str | None = None
+    instance_id: str | None = None
     project_id: str | None = None
     project_name: str | None = None
     database_version: str | None = None
@@ -1924,8 +1930,8 @@ gcp_instances_not_blocking_project_wide_ssh_keys = Rule(
 # Main node: GCPProject
 # =============================================================================
 class ProjectOsloginDisabledOutput(Finding):
-    project_id: str | None = None
     project_name: str | None = None
+    project_id: str | None = None
     compute_project_enable_oslogin: str | None = None
     overriding_instance_count: int | None = None
 

@@ -214,10 +214,16 @@ def load_azure_subscriptions(
     )
 
 
-def cleanup(neo4j_session: neo4j.Session, common_job_parameters: Dict) -> None:
-    GraphJob.from_node_schema(AzureSubscriptionSchema(), common_job_parameters).run(
-        neo4j_session,
-    )
+def cleanup(
+    neo4j_session: neo4j.Session,
+    common_job_parameters: Dict,
+    cascade_delete: bool = False,
+) -> None:
+    GraphJob.from_node_schema(
+        AzureSubscriptionSchema(),
+        common_job_parameters,
+        cascade_delete=cascade_delete,
+    ).run(neo4j_session)
 
 
 @timeit
@@ -282,4 +288,4 @@ def sync(
         transformed_subscriptions,
         update_tag,
     )
-    cleanup(neo4j_session, common_job_parameters)
+    cleanup(neo4j_session, common_job_parameters, cascade_delete=True)
