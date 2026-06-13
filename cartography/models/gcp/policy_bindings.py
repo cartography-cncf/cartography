@@ -23,7 +23,7 @@ class GCPPolicyBindingNodeProperties(CartographyNodeProperties):
     members: PropertyRef = PropertyRef("members")
     wif_pools: PropertyRef = PropertyRef("wif_pools")
     is_public: PropertyRef = PropertyRef("is_public", extra_index=True)
-    has_condition: PropertyRef = PropertyRef("has_condition")
+    has_condition: PropertyRef = PropertyRef("has_condition", extra_index=True)
     condition_title: PropertyRef = PropertyRef("condition_title")
     condition_expression: PropertyRef = PropertyRef("condition_expression")
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)

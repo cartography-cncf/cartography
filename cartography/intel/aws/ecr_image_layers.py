@@ -1381,9 +1381,11 @@ def sync(
         )
 
         if not repo_images_list:
-            logger.warning(
-                f"No ECR images found in graph for region {region}. "
-                f"Run 'ecr' sync first to populate basic ECR data."
+            # Most regions legitimately have no ECR repositories, so this is
+            # the expected case rather than a problem worth a warning.
+            logger.debug(
+                f"No ECR images found in graph for region {region}; "
+                f"skipping layer sync for this region."
             )
             continue
 
