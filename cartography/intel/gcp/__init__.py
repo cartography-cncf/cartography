@@ -194,6 +194,9 @@ def _sync_project_resources(
         permission_context: (
             permission_relationships.GCPPrincipalPermissionContext | None
         ) = None
+        wif_permission_context: (
+            permission_relationships.GCPPrincipalPermissionContext | None
+        ) = None
         role_permissions_by_name = dict(org_role_permissions_by_name or {})
         enabled_services = _services_enabled_on_project(
             build_client("serviceusage", "v1", credentials=credentials),
@@ -696,6 +699,7 @@ def _sync_project_resources(
                 )
                 policy_bindings_status = policy_bindings_result.status
                 permission_context = policy_bindings_result.permission_context
+                wif_permission_context = policy_bindings_result.wif_permission_context
                 # Track if we have permission. Once set to False (permission denied),
                 # the outer condition will skip policy_bindings for remaining projects.
                 if (
@@ -740,6 +744,7 @@ def _sync_project_resources(
                     gcp_update_tag,
                     common_job_parameters,
                     permission_context,
+                    wif_permission_context,
                 )
 
         # Clean up project-level IAM resources (service accounts and project roles)
