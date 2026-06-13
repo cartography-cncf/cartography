@@ -27,6 +27,7 @@ from . import group_containers
 from . import key_vaults
 from . import load_balancers
 from . import logic_apps
+from . import management_groups
 from . import monitor
 from . import network
 from . import permission_relationships
@@ -305,6 +306,22 @@ def _sync_tenant(
     )
 
 
+def _sync_management_groups(
+    neo4j_session: neo4j.Session,
+    credentials: Credentials,
+    update_tag: int,
+    common_job_parameters: dict,
+) -> list[dict]:
+    logger.info("Syncing Azure management groups for tenant: %s", credentials.tenant_id)
+    return management_groups.sync(
+        neo4j_session,
+        credentials,
+        credentials.tenant_id or "",
+        update_tag,
+        common_job_parameters,
+    )
+
+
 def _sync_multiple_subscriptions(
     neo4j_session: neo4j.Session,
     credentials: Credentials,
@@ -317,6 +334,7 @@ def _sync_multiple_subscriptions(
 
     subscription.sync(
         neo4j_session,
+        credentials,
         tenant_id,
         subscriptions,
         update_tag,
@@ -381,6 +399,27 @@ def start_azure_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
         config.update_tag,
         common_job_parameters,
     )
+    # IMPORTANT: Azure hierarchy cleanup is deferred like GCP hierarchy cleanup.
+    # The upper hierarchy is tenant -> management groups -> subscriptions, while
+    # subscription-contained resources are owned by AzureSubscription. Load the
+    # current management groups and subscriptions first, then clean stale
+    # subscriptions before stale management groups so parent cleanup does not
+    # orphan child resources or hierarchy edges. If management-group enumeration
+    # fails, skip management-group cleanup for this run to preserve prior data.
+    management_groups_synced = False
+    try:
+        _sync_management_groups(
+            neo4j_session,
+            credentials,
+            config.update_tag,
+            common_job_parameters,
+        )
+        management_groups_synced = True
+    except RuntimeError as e:
+        logger.warning(
+            "Skipping Azure management groups sync. Details: %s",
+            e,
+        )
     if credentials.tenant_id:
         if config.azure_sync_all_subscriptions:
             subscriptions = subscription.get_all_azure_subscriptions(credentials)
@@ -405,6 +444,13 @@ def start_azure_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
             config.update_tag,
             common_job_parameters,
         )
+        if management_groups_synced:
+            logger.debug("Running deferred Azure management group cleanup")
+            management_groups.cleanup(
+                neo4j_session,
+                common_job_parameters,
+                cascade_delete=True,
+            )
 
         run_analysis_job(
             "azure_compute_asset_exposure.json",

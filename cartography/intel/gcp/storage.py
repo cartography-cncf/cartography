@@ -10,8 +10,8 @@ from googleapiclient.discovery import Resource
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
 from cartography.intel.gcp.labels import sync_labels
+from cartography.intel.gcp.util import classify_gcp_http_error
 from cartography.intel.gcp.util import gcp_api_execute_with_retry
-from cartography.intel.gcp.util import get_error_reason
 from cartography.intel.gcp.util import is_permission_denied_error
 from cartography.intel.gcp.util import summarize_gcp_http_error
 from cartography.models.gcp.storage.bucket import GCPBucketLabelSchema
@@ -59,8 +59,8 @@ def get_gcp_buckets(storage: Resource, project_id: str) -> Dict:
         first_response.pop("nextPageToken", None)
         return first_response
     except HttpError as e:
-        reason = get_error_reason(e)
-        if reason == "invalid":
+        category = classify_gcp_http_error(e)
+        if category == "invalid":
             logger.warning(
                 "The project %s is invalid - returned a 400 invalid error. %s",
                 project_id,

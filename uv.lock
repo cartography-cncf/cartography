@@ -599,6 +599,20 @@ wheels = [
 ]
 
 [[package]]
+name = "azure-mgmt-managementgroups"
+version = "1.1.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "azure-mgmt-core" },
+    { name = "isodate" },
+    { name = "typing-extensions" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/fd/73/ac5e064ed7343e1b3172f32f09be3efca906087218d3046b5038f2f394ed/azure_mgmt_managementgroups-1.1.0.tar.gz", hash = "sha256:e6199baf118890ba2bda35dda83a88861c0b1bbef126311b20ec12eed9681951", size = 60101, upload-time = "2026-02-13T03:45:45.439Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/92/bc/993158de03cc0a49f2cf8192615ffedbc508c417cb3522e88f6652b714cc/azure_mgmt_managementgroups-1.1.0-py3-none-any.whl", hash = "sha256:140934589559ef6afcac6f1d24f995588a1965aaa89d47851c1cc639fafb1942", size = 83586, upload-time = "2026-02-13T03:45:46.836Z" },
+]
+
+[[package]]
 name = "azure-mgmt-monitor"
 version = "7.0.0"
 source = { registry = "https://pypi.org/simple" }
@@ -896,6 +910,7 @@ dependencies = [
     { name = "azure-mgmt-eventhub" },
     { name = "azure-mgmt-keyvault" },
     { name = "azure-mgmt-logic" },
+    { name = "azure-mgmt-managementgroups" },
     { name = "azure-mgmt-monitor" },
     { name = "azure-mgmt-network" },
     { name = "azure-mgmt-resource" },
@@ -995,6 +1010,7 @@ requires-dist = [
     { name = "azure-mgmt-eventhub", specifier = ">=10.1.0" },
     { name = "azure-mgmt-keyvault", specifier = ">=10.0.0" },
     { name = "azure-mgmt-logic", specifier = ">=10.0.0" },
+    { name = "azure-mgmt-managementgroups", specifier = ">=1.0.0" },
     { name = "azure-mgmt-monitor", specifier = ">=3.0.0" },
     { name = "azure-mgmt-network", specifier = ">=25.0.0" },
     { name = "azure-mgmt-resource", specifier = ">=24.0.0,<25" },
@@ -4694,7 +4710,7 @@ wheels = [
 
 [[package]]
 name = "workos"
-version = "6.2.0"
+version = "7.0.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "cryptography" },
@@ -4702,9 +4718,9 @@ dependencies = [
     { name = "pyjwt" },
     { name = "typing-extensions", marker = "python_full_version < '3.11'" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/be/e1/80b57f1093c8cfc7a2b1ba154c5a1aace6e450fec5af55c76ad0a310f430/workos-6.2.0.tar.gz", hash = "sha256:27ac05a9ca9c22c5853cba279263695b84893bb8a5336919d37d13a45909048b", size = 184541, upload-time = "2026-05-01T17:35:25.729Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/71/ec/12df7e3c81f010241347af19c9f5c20ddc8ac3ca03a77cc0ed156541dfd4/workos-7.0.1.tar.gz", hash = "sha256:ad3aa1951a4c6115271c73da6e78e6a1231e63046728dc7f65860f629b84a832", size = 187562, upload-time = "2026-05-11T16:52:40.336Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/42/84/0e570f23d6f149e2b21af2c8bbabc7774618af3da43de802074de5cbe13b/workos-6.2.0-py3-none-any.whl", hash = "sha256:bb6fcbd4e81eee116a3e2a23e4a77eb82b652f1c6a0865551d5ecb679921e88b", size = 541982, upload-time = "2026-05-01T17:35:23.982Z" },
+    { url = "https://files.pythonhosted.org/packages/47/86/3cb202cf62ca49975ee83e7afbad44c7b69917070f447fb1242080180933/workos-7.0.1-py3-none-any.whl", hash = "sha256:5f6a34d43cc14f365259228fcd7a6fcc808a2f71f94f84b3019cf25e9e299167", size = 545446, upload-time = "2026-05-11T16:52:41.903Z" },
 ]
 
 [[package]]

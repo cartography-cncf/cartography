@@ -49,4 +49,12 @@ def test_secrets_in_env_fact_matches_env_and_dual_use_mount_methods(
         _get_fact("k8s_secrets_in_env_vars").cypher_query,
     )
 
-    assert sorted(row["pod_id"] for row in findings) == ["pod-both", "pod-env"]
+    # Findings are grouped per (cluster, namespace): all three pods live in the
+    # `default` namespace, so the env and dual-use pods collapse into a single
+    # row, while the volume-only pod is excluded entirely.
+    assert len(findings) == 1
+    row = findings[0]
+    assert row["cluster_name"] == "cluster-1"
+    assert row["namespace"] == "default"
+    assert sorted(row["pod_names"]) == ["pod-both", "pod-env"]
+    assert sorted(row["secret_names"]) == ["s-both", "s-env"]
