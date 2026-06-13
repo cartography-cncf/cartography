@@ -3,8 +3,17 @@ from unittest.mock import MagicMock
 import botocore.exceptions
 
 import tests.data.aws.wafv2 as test_data
+from cartography.intel.aws.resources import RESOURCE_FUNCTIONS
 from cartography.intel.aws.wafv2 import get_web_acls
 from cartography.intel.aws.wafv2 import transform_web_acls
+
+
+def test_wafv2_syncs_after_the_modules_it_links_to() -> None:
+    # PROTECTS edges match on nodes loaded by these modules, so wafv2 must
+    # run after them
+    order = list(RESOURCE_FUNCTIONS)
+    for dependency in ("ec2:load_balancer_v2", "apigateway", "cloudfront"):
+        assert order.index(dependency) < order.index("wafv2")
 
 
 def test_get_web_acls_paginates_with_next_marker() -> None:
