@@ -179,6 +179,78 @@ def test_load_inline_policy_data(neo4j_session):
     )
 
 
+def test_load_users_managed_type(neo4j_session):
+    _create_base_account(neo4j_session)
+    cartography.intel.aws.iam.load_users(
+        neo4j_session, tests.data.aws.iam.LIST_USERS['Users'], TEST_ACCOUNT_ID, TEST_UPDATE_TAG,
+    )
+    managed_types = {mt for (_, mt) in check_nodes(neo4j_session, 'AWSUser', ['arn', 'managed_type'])}
+    # IAM users are always customer-created.
+    assert managed_types == {'custom'}
+
+
+def test_load_groups_managed_type(neo4j_session):
+    cartography.intel.aws.iam.load_groups(
+        neo4j_session, tests.data.aws.iam.LIST_GROUPS['Groups'], TEST_ACCOUNT_ID, TEST_UPDATE_TAG,
+    )
+    managed_types = {mt for (_, mt) in check_nodes(neo4j_session, 'AWSGroup', ['arn', 'managed_type'])}
+    assert managed_types == {'custom'}
+
+
+def test_load_roles_managed_type(neo4j_session):
+    # A service-linked role (predefined) and an ordinary customer role (custom).
+    roles = [
+        {
+            "AssumeRolePolicyDocument": {"Statement": [{"Principal": {"Service": "ec2.amazonaws.com"}}]},
+            "ExternalAccountPrincipals": [],
+            "RoleId": "AROA00000000000000010",
+            "CreateDate": "2019-01-01 00:00:01",
+            "RoleName": "predefined-service-role",
+            "Path": "/aws-service-role/access-analyzer.amazonaws.com/",
+            "Arn": "arn:aws:iam::000000000000:role/aws-service-role/predefined-service-role",
+            "type": "predefined",
+        },
+        {
+            "AssumeRolePolicyDocument": {"Statement": [{"Principal": {"AWS": "arn:aws:iam::000000000000:root"}}]},
+            "ExternalAccountPrincipals": [],
+            "RoleId": "AROA00000000000000011",
+            "CreateDate": "2019-01-01 00:00:01",
+            "RoleName": "custom-role",
+            "Path": "/",
+            "Arn": "arn:aws:iam::000000000000:role/custom-role",
+            "type": "custom",
+        },
+    ]
+    cartography.intel.aws.iam.load_roles(neo4j_session, roles, TEST_ACCOUNT_ID, TEST_UPDATE_TAG)
+    assert check_nodes(neo4j_session, 'AWSRole', ['name', 'managed_type']) >= {
+        ('predefined-service-role', 'predefined'),
+        ('custom-role', 'custom'),
+    }
+
+
+def test_load_policies_managed_type(neo4j_session):
+    # AWS-managed policy ARN vs a customer-managed policy ARN.
+    policies = [
+        {
+            "id": "aws/managed_policy/AdministratorAccess",
+            "PolicyName": "AdministratorAccess",
+            "PolicyId": "ANPA0000000000000001",
+            "Arn": "arn:aws:iam::aws:policy/AdministratorAccess",
+        },
+        {
+            "id": "000000000000/managed_policy/my-policy",
+            "PolicyName": "my-policy",
+            "PolicyId": "ANPA0000000000000002",
+            "Arn": "arn:aws:iam::000000000000:policy/my-policy",
+        },
+    ]
+    cartography.intel.aws.iam.load_policies_for_account(neo4j_session, policies, TEST_ACCOUNT_ID, TEST_UPDATE_TAG)
+    assert check_nodes(neo4j_session, 'AWSPolicy', ['name', 'managed_type']) >= {
+        ('AdministratorAccess', 'predefined'),
+        ('my-policy', 'custom'),
+    }
+
+
 def test_map_permissions(neo4j_session):
     # Insert an s3 bucket to map
     neo4j_session.run(

@@ -239,6 +239,28 @@ def get_user_list_data(boto3_session: boto3.session.Session) -> Dict:
     return {"Users": users}
 
 
+# Standard cross-provider classification of IAM resources by who created them.
+# "predefined" => created/owned by the cloud provider; "custom" => created by a customer principal.
+MANAGED_TYPE_PREDEFINED = "predefined"
+MANAGED_TYPE_CUSTOM = "custom"
+
+# Role paths that AWS reserves for service-linked / service / SSO-reserved roles it manages.
+_AWS_PREDEFINED_ROLE_PATHS = ["/aws-service-role/", "/service-role/", "/aws-reserved/"]
+# Prefix of AWS-managed (vs customer-managed) policy ARNs.
+_AWS_MANAGED_POLICY_ARN_PREFIX = "arn:aws:iam::aws:policy/"
+
+
+def _aws_role_managed_type(path: str) -> str:
+    path = path or ""
+    if any(predefined_path in path for predefined_path in _AWS_PREDEFINED_ROLE_PATHS):
+        return MANAGED_TYPE_PREDEFINED
+    return MANAGED_TYPE_CUSTOM
+
+
+def _aws_policy_managed_type(arn: str) -> str:
+    return MANAGED_TYPE_PREDEFINED if str(arn or "").startswith(_AWS_MANAGED_POLICY_ARN_PREFIX) else MANAGED_TYPE_CUSTOM
+
+
 @timeit
 def get_policies_list_data(boto3_session: boto3.session.Session) -> List[Dict]:
     client = boto3_session.client("iam")
@@ -254,6 +276,7 @@ def get_policies_list_data(boto3_session: boto3.session.Session) -> List[Dict]:
 def transform_policies_data(current_aws_account_id: str, policies: List[Dict]) -> List[Dict]:
     for policy in policies:
         policy["id"] = transform_policy_id(current_aws_account_id, PolicyType.managed.value, policy.get("PolicyName"))
+        policy["managed_type"] = _aws_policy_managed_type(policy.get("Arn", ""))
     return policies
 
 
@@ -459,6 +482,7 @@ def load_users(
     unode.region = $region,
     unode.consoleloginenabled = $CONSOLELOGINENABLED,
     unode.mfaenabled = $MFAENABLED,
+    unode.managed_type = $ManagedType,
     unode.lastupdated = $aws_update_tag
     WITH unode
     MATCH (aa:AWSAccount{id: $AWS_ACCOUNT_ID})
@@ -479,6 +503,7 @@ def load_users(
             CONSOLELOGINENABLED=user.get("consoleLoginEnabled", False),
             MFAENABLED=user.get("MFAEnabled", False),
             PASSWORD_LASTUSED=str(user.get("PasswordLastUsed", "")),
+            ManagedType=MANAGED_TYPE_CUSTOM,
             AWS_ACCOUNT_ID=current_aws_account_id,
             region="global",
             aws_update_tag=aws_update_tag,
@@ -502,6 +527,7 @@ def load_service_accounts(
     sanode.region = $region,
     sanode.consoleloginenabled = $CONSOLELOGINENABLED,
     sanode.mfaenabled = $MFAENABLED,
+    sanode.managed_type = $ManagedType,
     sanode.lastupdated = $aws_update_tag
     WITH sanode
     MATCH (aa:AWSAccount{id: $AWS_ACCOUNT_ID})
@@ -522,6 +548,7 @@ def load_service_accounts(
             CONSOLELOGINENABLED=sa.get("consoleLoginEnabled", False),
             MFAENABLED=sa.get("MFAEnabled", False),
             PASSWORD_LASTUSED=str(sa.get("PasswordLastUsed", "")),
+            ManagedType=MANAGED_TYPE_CUSTOM,
             AWS_ACCOUNT_ID=current_aws_account_id,
             region="global",
             aws_update_tag=aws_update_tag,
@@ -570,6 +597,7 @@ def _load_policies_for_account_tx(
             p.default_version_id = policy.DefaultVersionId,
             p.is_attachable = policy.IsAttachable,
             p.region = $region,
+            p.managed_type = coalesce(policy.managed_type, CASE WHEN policy.Arn STARTS WITH 'arn:aws:iam::aws:policy/' THEN 'predefined' ELSE 'custom' END),
             p.lastupdated = $update_tag
         WITH p
             MATCH (i:AWSAccount{id: $AWS_ACCOUNT_ID})
@@ -611,6 +639,7 @@ def load_groups(
     SET gnode:AWSPrincipal, gnode.name = $GROUP_NAME, gnode.path = $PATH,
     gnode.region = $region,
     gnode.consolelink = $consolelink,
+    gnode.managed_type = $ManagedType,
     gnode.lastupdated = $aws_update_tag
     WITH gnode
     MATCH (aa:AWSAccount{id: $AWS_ACCOUNT_ID})
@@ -628,6 +657,7 @@ def load_groups(
             CREATE_DATE=str(group["CreateDate"]),
             GROUP_NAME=group["GroupName"],
             PATH=group["Path"],
+            ManagedType=MANAGED_TYPE_CUSTOM,
             region="global",
             AWS_ACCOUNT_ID=current_aws_account_id,
             aws_update_tag=aws_update_tag,
@@ -666,7 +696,8 @@ def load_roles(
     rnode.lastuseddate = $LastUsedDate, rnode.lastusedregion = $LastUsedRegion,
     rnode.is_service_role = $IsServiceRole,
     rnode.is_sso_reserved_role = $IsSSOReservedRole,
-    rnode.type = $Type
+    rnode.type = $Type,
+    rnode.managed_type = $ManagedType
     SET rnode.lastupdated = $aws_update_tag
     WITH rnode
     MATCH (aa:AWSAccount{id: $AWS_ACCOUNT_ID})
@@ -713,6 +744,8 @@ def load_roles(
             IsServiceRole=role.get("isServiceRole", False),
             IsSSOReservedRole=role.get("isSSOReservedRole", False),
             Type=role.get("type", None),
+            ManagedType=role.get("type") if role.get("type") in (MANAGED_TYPE_PREDEFINED, MANAGED_TYPE_CUSTOM)
+            else _aws_role_managed_type(role.get("Path", "")),
             region="global",
             LastUsedDate=role["RoleLastUsed"].get("LastUsedDate") if "RoleLastUsed" in role else None,
             LastUsedRegion=role["RoleLastUsed"].get("Region") if "RoleLastUsed" in role else None,
@@ -948,6 +981,7 @@ def _load_policy_tx(
     policy.region = $region,
     policy.name = $PolicyName,
     policy.arn = $PolicyArn,
+    policy.managed_type = $ManagedType,
     policy.consolelink = $consolelink
     SET policy.lastupdated = $aws_update_tag
     WITH policy
@@ -980,6 +1014,7 @@ def _load_policy_tx(
         PrincipalArn=principal_arn,
         consolelink=consolelink,
         PolicyArn=policy_arn,
+        ManagedType=MANAGED_TYPE_CUSTOM,
         region="global",
         aws_update_tag=aws_update_tag,
     )
@@ -992,6 +1027,7 @@ def _load_policy_tx(
     policy.region = $region,
     policy.name = $PolicyName,
     policy.arn = $PolicyArn,
+    policy.managed_type = $ManagedType,
     policy.consolelink = $consolelink
     SET policy.lastupdated = $aws_update_tag
     WITH policy
@@ -1020,6 +1056,7 @@ def _load_policy_tx(
         PrincipalArn=principal_arn,
         consolelink=consolelink,
         PolicyArn=policy_arn,
+        ManagedType=MANAGED_TYPE_CUSTOM,
         region="global",
         aws_update_tag=aws_update_tag,
     )
