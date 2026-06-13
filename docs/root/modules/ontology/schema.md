@@ -53,6 +53,14 @@ PR -- INCLUDES --> PR
 UA -- MEMBER_OF --> UG
 SA -- MEMBER_OF --> UG
 UG -- MEMBER_OF --> UG
+AK -- OWNED_BY --> UA
+AK -- OWNED_BY --> SA
+CI -- RUNS_AS --> SA
+CP -- RUNS_AS --> SA
+FN -- RUNS_AS --> SA
+CS -- RUNS_AS --> SA
+CI -- ASSUMES --> PR
+FN -- ASSUMES --> PR
 NAC{{NetworkAccessControl}}
 AIM{{AIModel}}
 PIP(PublicIP) -- POINTS_TO --> LB
@@ -275,7 +283,13 @@ API keys are used across different cloud providers and SaaS platforms for authen
 
 #### Relationships
 
-- `User` can own one or many `APIKey`
+- An `APIKey` is owned by the `UserAccount` or `ServiceAccount` it authenticates as, via the canonical `OWNED_BY` edge:
+    ```
+    (:APIKey)-[:OWNED_BY]->(:UserAccount)
+    (:APIKey)-[:OWNED_BY]->(:ServiceAccount)
+    ```
+
+- At the abstract layer, a `User` owns one or many `APIKey` (derived from the `OWNED_BY` edges above during the ontology linking job):
     ```
     (:User)-[:OWNS]->(:APIKey)
     ```
@@ -630,6 +644,13 @@ A composite or hierarchical role includes other roles via the canonical `INCLUDE
 (:PermissionRole)-[:INCLUDES]->(:PermissionRole)
 ```
 
+A workload that assumes a permission role to obtain its privileges is linked via the canonical `ASSUMES` edge:
+```
+(:ComputeInstance)-[:ASSUMES]->(:PermissionRole)
+(:Function)-[:ASSUMES]->(:PermissionRole)
+```
+Currently only `Function` is wired: an AWS Lambda is linked to its execution role (`(:AWSLambda)-[:ASSUMES]->(:AWSRole)`). `ComputeInstance` coverage is governed by the constraint but not yet materialized: an EC2 instance still reaches its role only through the instance profile (`EC2Instance-[:INSTANCE_PROFILE]->AWSInstanceProfile-[:ASSOCIATED_WITH]->AWSRole`, plus the analysis-job `STS_ASSUMEROLE_ALLOW` edge), so the direct `ASSUMES` edge for EC2 / GCP / Azure compute is still pending.
+
 
 ### ObjectStorage
 
@@ -785,6 +806,16 @@ Common service account concepts across platforms include:
 | _ont_email | Email address associated with the service account. |
 | _ont_active | Whether the service account is active. |
 | _ont_source | Source of the data. |
+
+#### Relationships
+
+- A workload runs as (assumes the identity of) a `ServiceAccount` via the canonical `RUNS_AS` edge:
+    ```
+    (:ComputeInstance)-[:RUNS_AS]->(:ServiceAccount)
+    (:ComputePod)-[:RUNS_AS]->(:ServiceAccount)
+    (:Function)-[:RUNS_AS]->(:ServiceAccount)
+    (:ComputeService)-[:RUNS_AS]->(:ServiceAccount)
+    ```
 
 
 ### Certificate
