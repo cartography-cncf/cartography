@@ -1,0 +1,3022 @@
+<!DOCTYPE html>
+<html lang="en" data-accent-color="cyan" data-content_root="../../">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Github Schema - cartography documentation</title><link rel="shortcut icon" href="../../_static/logo-vertical.svg"/><link rel="search" title="Search" href="../../search.html" /><link rel="next" title="GitLab" href="../gitlab/index.html" /><link rel="prev" title="GitHub Configuration" href="config.html" /><script>
+    function setColorMode(t){let e=document.documentElement;e.setAttribute("data-color-mode",t);let a=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches,s=t;"auto"===t&&(s=a?"dark":"light"),"light"===s?(e.classList.remove("dark"),e.classList.add("light")):(e.classList.remove("light"),e.classList.add("dark"))}
+    setColorMode(localStorage._theme||"auto");
+  </script><link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=e1a1ceaf" />
+    <link rel="stylesheet" type="text/css" href="../../_static/shibuya.css?v=9454f7d5" />
+    <link rel="stylesheet" type="text/css" href="../../_static/copybutton.css?v=76b2166b" />
+    <link media="print" rel="stylesheet" type="text/css" href="../../_static/print.css?v=20ff2c19" />
+    <link rel="stylesheet" type="text/css" href="../../_static/custom.css?v=1da16d3f" />
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@600;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --sy-f-heading: 'Inter', var(--sy-f-sys), sans-serif;
+}
+</style>
+    
+  <meta property="og:type" content="website"/><meta property="og:title" content="Github Schema"/>
+    <meta name="twitter:card" content="summary"/>
+  </head>
+<body><div class="sy-head">
+  <div class="sy-head-blur"></div>
+  <div class="sy-head-inner sy-container mx-auto">
+    <a class="sy-head-brand" href="../../index.html">
+      <img class="light-logo" src="../../_static/logo-vertical.svg" alt="cartography" height="28" loading="lazy" />
+      <img class="dark-logo" src="../../_static/logo-vertical.svg" alt="cartography" height="28" loading="lazy" />
+      <strong>cartography</strong>
+    </a>
+    <div class="sy-head-nav" id="head-nav">
+      <nav class="sy-head-links"></nav>
+      <div class="sy-head-extra flex items-center print:hidden"><form class="searchbox flex items-center" action="../../search.html" method="get">
+  <input type="text" name="q" placeholder="Search" />
+  <kbd>/</kbd>
+</form><div class="sy-head-socials">
+  <a href="https://github.com/cartography-cncf/cartography" aria-label="GitHub">
+    <iconify-icon icon="simple-icons:github"></iconify-icon>
+  </a>
+  <a href="https://communityinviter.com/apps/cloud-native/cncf" aria-label="Slack">
+    <iconify-icon icon="simple-icons:slack"></iconify-icon>
+  </a></div></div>
+    </div>
+    <div class="sy-head-actions flex items-center shrink-0 print:hidden"><button class="js-theme theme-switch flex items-center"
+data-aria-auto="Switch to light color mode"
+data-aria-light="Switch to dark color mode"
+data-aria-dark="Switch to auto color mode">
+<i class="i-lucide theme-icon"></i>
+</button><button class="md:hidden flex items-center js-menu" aria-label="Menu" type="button" aria-controls="head-nav" aria-expanded="false">
+        <div class="hamburger">
+          <span class="hamburger_1"></span>
+          <span class="hamburger_2"></span>
+          <span class="hamburger_3"></span>
+        </div>
+      </button>
+    </div>
+  </div>
+</div>
+<div class="sy-page sy-container flex mx-auto">
+  <aside id="lside" class="sy-lside md:w-72 md:shrink-0 print:hidden">
+    <div class="sy-lside-inner md:sticky">
+      <div class="sy-scrollbar p-6">
+        <div class="globaltoc" data-expand-depth="0"><p class="caption" role="heading" aria-level="3"><span class="caption-text">Basic Use</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../install.html">Quick start: Install and Run Cartography On Test Machine</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../usage/index.html">Usage</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../usage/cli.html">Command Line Interface</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../usage/rules.html">Cartography Rules</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../usage/tutorial.html">Usage Tutorial</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../usage/drift-detect.html">How to use Drift-Detection</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../usage/applications.html">Building around Cartography</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../usage/samplequeries.html">Sample queries</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../usage/schema.html">Cartography Schema</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../usage/aws-privilege-escalation-queries.html">AWS IAM Privilege Escalation Methods and Mitigation</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../../ops.html">Cartography Production Operations</a></li>
+</ul>
+<p class="caption" role="heading" aria-level="3"><span class="caption-text">Intel Modules</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../aibom/index.html">AIBOM</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../aibom/config.html">AIBOM Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../aibom/schema.html">AIBOM Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../airbyte/index.html">Airbyte</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../airbyte/config.html">Airbyte Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../airbyte/schema.html">Airbyte Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../anthropic/index.html">Anthropic</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../anthropic/config.html">Anthropic Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../anthropic/schema.html">Anthropic Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../aws/index.html">Amazon Web Services (AWS)</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../aws/config.html">AWS Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../aws/permissions-mapping.html">Permissions Mapping</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../aws/schema.html">AWS Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../azure/index.html">Microsoft Azure</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../azure/config.html">Azure Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../azure/schema.html">Azure Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../bigfix/index.html">BigFix</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../bigfix/config.html">BigFix Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../bigfix/schema.html">BigFix Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../cloudflare/index.html">Cloudflare</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../cloudflare/config.html">Cloudflare Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../cloudflare/schema.html">Cloudflare Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../crowdstrike/index.html">Crowdstrike</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../crowdstrike/config.html">Crowdstrike Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../crowdstrike/schema.html">Crowdstrike Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../cve/index.html">CVE</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../cve/config.html">CVE Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../cve/schema.html">CVE Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../cve_metadata/index.html">CVE Metadata</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../cve_metadata/config.html">CVE Metadata Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../cve_metadata/schema.html">CVE Metadata Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../digitalocean/index.html">DigitalOcean</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../digitalocean/config.html">Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../digitalocean/schema.html">DigitalOcean Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../docker_scout/index.html">Docker Scout</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../docker_scout/config.html">Docker Scout Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../docker_scout/schema.html">Docker Scout Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../duo/index.html">Duo</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../duo/config.html">Duo Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../duo/schema.html">Duo Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../entra/index.html">Microsoft Entra (formerly Azure AD)</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../entra/config.html">Entra Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../entra/schema.html">Entra Schema</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../entra/examples.html">Example Queries</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../gcp/index.html">Google Cloud Platform (GCP)</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../gcp/config.html">GCP Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../gcp/schema.html">GCP Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1 current"><a class="reference internal" href="index.html">Github</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="config.html">GitHub Configuration</a></li>
+<li class="toctree-l2 current"><a class="current reference internal" href="#">Github Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../gitlab/index.html">GitLab</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../gitlab/config.html">GitLab Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../gitlab/schema.html">GitLab Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../googleworkspace/index.html">Google Workspace</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../googleworkspace/config.html">Google Workspace Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../googleworkspace/schema.html">Google Workspace Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../gsuite/index.html">Google GSuite</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../gsuite/config.html">GSuite Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../gsuite/config.html#method-2-using-oauth">Method 2: Using OAuth</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../gsuite/schema.html">GSuite Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../jamf/index.html">Jamf</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../jamf/schema.html">Jamf Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../jumpcloud/index.html">JumpCloud</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../jumpcloud/config.html">JumpCloud Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../jumpcloud/schema.html">JumpCloud Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../kandji/index.html">Kandji</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../kandji/config.html">Kandji Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../kandji/schema.html">Kandji Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../keycloak/index.html">Keycloak</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../keycloak/config.html">Keycloak Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../keycloak/schema.html">Keycloak Schema</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../keycloak/analysis.html">Keycloak Built-In Analysis</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../kubernetes/index.html">Kubernetes</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../kubernetes/config.html">Kubernetes Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../kubernetes/schema.html">Kubernetes Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../lastpass/index.html">Lastpass</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../lastpass/config.html">Lastpass Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../lastpass/schema.html">Lastpass Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../microsoft/index.html">Microsoft</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../microsoft/schema.html">Microsoft Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../oci/index.html">Oracle Cloud Infrastructure</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../oci/config.html">OCI Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../oci/schema.html">OCI Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../okta/index.html">Okta</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../okta/config.html">Okta Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../okta/schema.html">Okta Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../ontology/index.html">Ontology in Cartography</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../ontology/config.html">Ontology Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../ontology/schema.html">Ontology Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../openai/index.html">OpenAI</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../openai/config.html">OpenAI Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../openai/schema.html">OpenAI Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../pagerduty/index.html">PagerDuty</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../pagerduty/config.html">Pagerduty Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../pagerduty/schema.html">Pagerduty Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../scaleway/index.html">Scaleway</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../scaleway/config.html">Scaleway Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../scaleway/schema.html">Scaleway Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../semgrep/index.html">Semgrep</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../semgrep/config.html">Semgrep Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../semgrep/config.html#oss-semgrep-configuration">OSS Semgrep Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../semgrep/schema.html">Semgrep Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../sentinelone/index.html">SentinelOne</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../sentinelone/config.html">SentinelOne Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../sentinelone/config.html#mssp-and-site-scoped-deployments">MSSP And Site-Scoped Deployments</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../sentinelone/schema.html">SentinelOne Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../sentry/index.html">Sentry</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../sentry/config.html">Sentry Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../sentry/schema.html">Sentry Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../slack/index.html">Slack</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../slack/config.html">Slack Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../slack/schema.html">Slack Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../snipeit/index.html">SnipeIT</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../snipeit/config.html">SnipeIT Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../snipeit/schema.html">SnipeIT Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../socketdev/index.html">Socket.dev</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../socketdev/config.html">Socket.dev Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../socketdev/schema.html">Socket.dev Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../spacelift/index.html">Spacelift</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../spacelift/config.html">Spacelift Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../spacelift/schema.html">Spacelift Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../subimage/index.html">SubImage</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../subimage/config.html">SubImage Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../subimage/schema.html">SubImage Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../syft/index.html">Syft Module</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../tailscale/index.html">Tailscale</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../tailscale/config.html">Tailscale Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../tailscale/schema.html">Tailscale Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../trivy/index.html">Trivy</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../trivy/config.html">Trivy Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../trivy/config.html#notes-on-running-trivy">Notes on running Trivy</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../trivy/schema.html">Trivy Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../vercel/index.html">Vercel</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../vercel/config.html">Vercel Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../vercel/schema.html">Vercel Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../workday/index.html">Workday</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../workday/config.html">Workday Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../workday/schema.html">Workday Schema</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../workday/examples.html">Sample Cypher Queries</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../workos/index.html">WorkOS</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../workos/config.html">WorkOS Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../workos/schema.html">WorkOS Schema</a></li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading" aria-level="3"><span class="caption-text">Development Docs</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../dev/developer-guide.html">Cartography Developer Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../dev/writing-intel-modules.html">How to write a new intel module</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../dev/writing-analysis-jobs.html">How to extend Cartography with Analysis Jobs</a></li>
+</ul>
+<p class="caption" role="heading" aria-level="3"><span class="caption-text">References</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../references/model.html">Model</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../references/orm.html">ORM</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../references/sync.html">Sync</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../references/aws_client.html">AWS Client</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../references/driftdetect.html">DriftDetect</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../references/rules.html">Rules</a></li>
+</ul>
+<p class="caption" role="heading" aria-level="3"><span class="caption-text">Get In Touch</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../contact.html">Contact</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../contact.html#community-meeting">Community Meeting</a></li>
+</ul>
+
+        </div>
+      </div>
+    </div>
+  </aside>
+  <div class="lside-overlay js-menu" role="button" aria-label="Close left sidebar" aria-controls="lside" aria-expanded="false"></div>
+  <aside id="rside" class="sy-rside pb-3 w-64 shrink-0 order-last">
+    <button class="rside-close js-menu xl:hidden" aria-label="Close Table of Contents" type="button" aria-controls="rside" aria-expanded="false">
+      <i class="i-lucide close"></i>
+    </button>
+    <div class="sy-scrollbar sy-rside-inner px-6 xl:top-16 xl:sticky xl:pl-0 pt-6 pb-4"><div class="localtoc"><h3>On this page</h3><ul>
+<li><a class="reference internal" href="#githubrepository">GitHubRepository</a><ul>
+<li><a class="reference internal" href="#relationships">Relationships</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#githuborganization">GitHubOrganization</a><ul>
+<li><a class="reference internal" href="#id1">Relationships</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#githubteam">GitHubTeam</a><ul>
+<li><a class="reference internal" href="#id2">Relationships</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#githubuser">GitHubUser</a><ul>
+<li><a class="reference internal" href="#id3">Relationships</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#githubpersonalaccesstoken">GitHubPersonalAccessToken</a><ul>
+<li><a class="reference internal" href="#id4">Relationships</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#githubbranch">GitHubBranch</a><ul>
+<li><a class="reference internal" href="#id5">Relationships</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#githubbranchprotectionrule">GitHubBranchProtectionRule</a><ul>
+<li><a class="reference internal" href="#id6">Relationships</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#githubruleset">GitHubRuleset</a><ul>
+<li><a class="reference internal" href="#id7">Relationships</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#githubrulesetrule">GitHubRulesetRule</a><ul>
+<li><a class="reference internal" href="#id8">Relationships</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#programminglanguage">ProgrammingLanguage</a><ul>
+<li><a class="reference internal" href="#id9">Relationships</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#dependencygraphmanifest">DependencyGraphManifest</a><ul>
+<li><a class="reference internal" href="#id10">Relationships</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#dependency">Dependency</a><ul>
+<li><a class="reference internal" href="#id11">Relationships</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#githubdependabotalert">GitHubDependabotAlert</a><ul>
+<li><a class="reference internal" href="#id12">Relationships</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#githubpackage">GitHubPackage</a><ul>
+<li><a class="reference internal" href="#id13">Relationships</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#githubcontainerimage">GitHubContainerImage</a><ul>
+<li><a class="reference internal" href="#id14">Relationships</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#githubcontainerimagetag">GitHubContainerImageTag</a><ul>
+<li><a class="reference internal" href="#id15">Relationships</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#githubcontainerimagelayer">GitHubContainerImageLayer</a><ul>
+<li><a class="reference internal" href="#id16">Relationships</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#githubcontainerimageattestation">GitHubContainerImageAttestation</a><ul>
+<li><a class="reference internal" href="#id17">Relationships</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#image-to-githubrepository-cross-module-relationship">Image to GitHubRepository (Cross-module relationship)</a><ul>
+<li><a class="reference internal" href="#id18">Relationships</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#dependency-pythonlibrary">Dependency::PythonLibrary</a><ul>
+<li><a class="reference internal" href="#id19">Relationships</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#githubworkflow">GitHubWorkflow</a><ul>
+<li><a class="reference internal" href="#id20">Relationships</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#githubaction">GitHubAction</a><ul>
+<li><a class="reference internal" href="#id21">Relationships</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#githubenvironment">GitHubEnvironment</a><ul>
+<li><a class="reference internal" href="#id22">Relationships</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#githubactionssecret">GitHubActionsSecret</a><ul>
+<li><a class="reference internal" href="#id23">Relationships</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#githubactionsvariable">GitHubActionsVariable</a><ul>
+<li><a class="reference internal" href="#id24">Relationships</a></li>
+</ul>
+</li>
+</ul>
+</div><a class="js-repo-stats repo-stats flex items-center" href="https://github.com/cartography-cncf/cartography"
+  data-type="github" data-user="cartography-cncf" data-repo="cartography">
+  <span class="w-8 flex items-center justify-around shrink-0 text-3xl">
+    <iconify-icon icon="simple-icons:github"></iconify-icon>
+  </span>
+  <span class="flex-grow px-2 break-all">
+    
+    
+      <span>cartography</span>
+    
+    <span class="flex text-sm repo-stats-count">
+      <span class="flex items-center pr-3">
+        <iconify-icon icon="lucide:star"></iconify-icon>
+        <strong class="js-repo-stars ml-1">0</strong>
+      </span>
+      <span class="flex items-center">
+        <iconify-icon icon="lucide:git-fork"></iconify-icon>
+        <strong class="js-repo-forks ml-1">0</strong>
+      </span>
+    </span>
+  </span>
+</a><div class="edit-this-page">
+  <a href="https://github.com/cartography-cncf/cartography/blob/master/docs/root/modules/github/schema.md">Edit this page</a>
+</div><div id="ethical-ad-placement" data-ea-publisher="readthedocs"></div></div>
+  </aside>
+  <div class="rside-overlay js-menu" role="button" aria-label="Close Table of Contents" aria-controls="rside" aria-expanded="false"></div>
+  <main class="sy-main w-full max-sm:max-w-full print:pt-6">
+<div class="sy-breadcrumbs" role="navigation">
+  <div class="sy-breadcrumbs-inner flex items-center">
+    <div class="md:hidden mr-3">
+      <button class="js-menu" aria-label="Menu" type="button" aria-controls="lside" aria-expanded="false">
+        <i class="i-lucide menu"></i>
+      </button>
+    </div>
+    <ol class="flex-1" itemscope itemtype="https://schema.org/BreadcrumbList"><li itemprop="itemListElement" itemscope itemtype="https://schema.org/ListItem">
+        <a itemprop="item" href="../../index.html"><span itemprop="name">cartography</span></a>
+        <span>/</span>
+        <meta itemprop="position" content="1" />
+      </li><li itemprop="itemListElement" itemscope itemtype="https://schema.org/ListItem">
+        <a itemprop="item" href="index.html"><span itemprop="name">Github</span></a>
+        <span>/</span>
+        <meta itemprop="position" content="2" />
+      </li><li itemprop="itemListElement" itemscope itemtype="https://schema.org/ListItem">
+        <strong itemprop="name">Github Schema</strong>
+        <meta itemprop="position" content="3" />
+      </li></ol>
+    <div class="xl:hidden ml-1">
+      <button class="js-menu" aria-label="Show table of contents" type="button" aria-controls="rside"
+        aria-expanded="false">
+        <i class="i-lucide outdent"></i>
+      </button>
+    </div>
+  </div>
+</div><div class="flex flex-col break-words justify-between">
+      <div class="relative min-w-0 max-w-6xl px-6 pb-6 pt-8 xl:px-12">
+  <div class="copy-page-wrapper relative pb-4 lg:absolute lg:top-8 lg:right-6 xl:right-12">
+  <div id="copy-page-trigger">
+    <button
+      type="button"
+      class="js-copy px-3 py-1 inline-flex items-center gap-1"
+      data-url="https://raw.githubusercontent.com/cartography-cncf/cartography/refs/heads/master/docs/root/modules/github/schema.md"
+    >
+      <i class="i-lucide" data-icon="copy"></i>
+      <span>Copy page</span>
+    </button>
+    <button class="js-menu px-2 py-1" type="button" aria-label="More actions"
+      aria-haspopup="menu" aria-expanded="false" aria-controls="copy-page-content">
+      <i class="i-lucide chevron-down"></i>
+    </button>
+  </div>
+  <div id="copy-page-content" role="menu" aria-orientation="vertical" aria-hidden="true">
+    <div role="presentation">
+      <div class="flex flex-col" role="group">
+        <button class="js-copy" type="button" role="menuitem"
+          data-url="https://raw.githubusercontent.com/cartography-cncf/cartography/refs/heads/master/docs/root/modules/github/schema.md">
+          <span class="iconify-icon">
+            <i class="i-lucide" data-icon="copy"></i>
+          </span>
+          <span>Copy page</span>
+        </button>
+        <a role="menuitem" href="https://raw.githubusercontent.com/cartography-cncf/cartography/refs/heads/master/docs/root/modules/github/schema.md" target="_blank" rel="nofollow"><iconify-icon icon="bi:markdown"></iconify-icon>
+            <span>View as Markdown</span></a><a role="menuitem" href="https://chatgpt.com/?hints=search&q=Read%20https%3A//raw.githubusercontent.com/cartography-cncf/cartography/refs/heads/master/docs/root/modules/github/schema.md%20so%20I%20can%20ask%20questions%20about%20it." target="_blank" rel="nofollow">
+          <iconify-icon icon="bi:openai"></iconify-icon>
+          <span>Open in ChatGPT</span>
+        </a><a role="menuitem" href="https://claude.ai/new?q=Read%20https%3A//raw.githubusercontent.com/cartography-cncf/cartography/refs/heads/master/docs/root/modules/github/schema.md%20so%20I%20can%20ask%20questions%20about%20it." target="_blank" rel="nofollow">
+          <iconify-icon icon="bi:claude"></iconify-icon>
+          <span>Open in Claude</span>
+        </a></div>
+    </div>
+  </div>
+</div><article class="yue" role="main">
+          <section id="github-schema">
+<h1>Github Schema<a class="headerlink" href="#github-schema" title="Link to this heading">¶</a></h1>
+<pre  class="mermaid">
+        graph LR
+
+O(GitHubOrganization) -- OWNER --&gt; R(GitHubRepository)
+O -- RESOURCE --&gt; B(GitHubBranch)
+O -- RESOURCE --&gt; T(GitHubTeam)
+O -- RESOURCE --&gt; OS(GitHubActionsSecret)
+O -- RESOURCE --&gt; OV(GitHubActionsVariable)
+O -- RESOURCE --&gt; A(GitHubAction)
+O -- RESOURCE --&gt; DA(GitHubDependabotAlert)
+O -- RESOURCE --&gt; PAT(GitHubPersonalAccessToken)
+U(GitHubUser) -- MEMBER_OF --&gt; O
+U -- ADMIN_OF --&gt; O
+U -- UNAFFILIATED --&gt; O
+U -- OWNER --&gt; R
+U -- OWNS --&gt; PAT
+U -- OUTSIDE_COLLAB_{ACTION} --&gt; R
+U -- DIRECT_COLLAB_{ACTION} --&gt; R
+U -- COMMITTED_TO --&gt; R
+R -- LANGUAGE --&gt; L(ProgrammingLanguage)
+R -- BRANCH --&gt; B(GitHubBranch)
+R -- HAS_RULE --&gt; BPR(GitHubBranchProtectionRule)
+R -- HAS_RULESET --&gt; GRS(GitHubRuleset)
+GRS -- CONTAINS_RULE --&gt; RSR(GitHubRulesetRule)
+R -- REQUIRES --&gt; D(Dependency)
+R -- HAS_MANIFEST --&gt; M(DependencyGraphManifest)
+R -- HAS_WORKFLOW --&gt; W(GitHubWorkflow)
+R -- HAS_SECRET --&gt; RS(GitHubActionsSecret)
+R -- HAS_VARIABLE --&gt; RV(GitHubActionsVariable)
+R -- HAS_ENVIRONMENT --&gt; E(GitHubEnvironment)
+DA -- FOUND_IN --&gt; R
+DA -- DISMISSED_BY --&gt; U
+DA -- ASSIGNED_TO --&gt; U
+PAT -- CAN_ACCESS --&gt; R
+W -- USES_ACTION --&gt; A(GitHubAction)
+W -- REFERENCES_SECRET --&gt; RS
+E -- HAS_SECRET --&gt; ES(GitHubActionsSecret)
+E -- HAS_VARIABLE --&gt; EV(GitHubActionsVariable)
+M -- HAS_DEP --&gt; D
+T -- {ROLE} --&gt; R
+T -- MEMBER_OF --&gt; T
+U -- MEMBER_OF --&gt; T
+U -- MAINTAINER --&gt; T
+I(Image) -- PACKAGED_FROM --&gt; R
+I(Image) -- PACKAGED_BY --&gt; W
+    </pre><section id="githubrepository">
+<h2>GitHubRepository<a class="headerlink" href="#githubrepository" title="Link to this heading">¶</a></h2>
+<p>Representation of a single GitHubRepository (repo) <a class="reference external" href="https://developer.github.com/v4/object/repository/">repository object</a>. This node contains all data unique to the repo.</p>
+<blockquote>
+<div><p><strong>Ontology Mapping</strong>: This node has the extra label <code class="docutils literal notranslate"><span class="pre">CodeRepository</span></code> to enable cross-platform queries for source code repositories across different systems (e.g., GitLabProject).</p>
+</div></blockquote>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>firstseen</p></td>
+<td><p>Timestamp of when a sync job first created this node</p></td>
+</tr>
+<tr class="row-odd"><td><p>lastupdated</p></td>
+<td><p>Timestamp of the last time the node was updated</p></td>
+</tr>
+<tr class="row-even"><td><p>id</p></td>
+<td><p>The GitHub repo id. These are not unique across GitHub instances, so are prepended with the API URL the id applies to</p></td>
+</tr>
+<tr class="row-odd"><td><p>createdat</p></td>
+<td><p>GitHub timestamp from when the repo was created</p></td>
+</tr>
+<tr class="row-even"><td><p>name</p></td>
+<td><p>Name of the repo</p></td>
+</tr>
+<tr class="row-odd"><td><p>fullname</p></td>
+<td><p>Name of the organization and repo together</p></td>
+</tr>
+<tr class="row-even"><td><p>description</p></td>
+<td><p>Text describing the repo</p></td>
+</tr>
+<tr class="row-odd"><td><p>primarylanguage</p></td>
+<td><p>The primary language used in the repo</p></td>
+</tr>
+<tr class="row-even"><td><p>homepage</p></td>
+<td><p>The website used as a homepage for project information</p></td>
+</tr>
+<tr class="row-odd"><td><p>defaultbranch</p></td>
+<td><p>The default branch used by the repo, typically master</p></td>
+</tr>
+<tr class="row-even"><td><p>defaultbranchid</p></td>
+<td><p>The unique identifier of the default branch</p></td>
+</tr>
+<tr class="row-odd"><td><p>private</p></td>
+<td><p>True if repo is private</p></td>
+</tr>
+<tr class="row-even"><td><p>disabled</p></td>
+<td><p>True if repo is disabled</p></td>
+</tr>
+<tr class="row-odd"><td><p>archived</p></td>
+<td><p>True if repo is archived</p></td>
+</tr>
+<tr class="row-even"><td><p>locked</p></td>
+<td><p>True if repo is locked</p></td>
+</tr>
+<tr class="row-odd"><td><p>giturl</p></td>
+<td><p>URL used to access the repo from git commandline</p></td>
+</tr>
+<tr class="row-even"><td><p>url</p></td>
+<td><p>Web URL for viewing the repo</p></td>
+</tr>
+<tr class="row-odd"><td><p>sshurl</p></td>
+<td><p>URL for access the repo via SSH</p></td>
+</tr>
+<tr class="row-even"><td><p>updatedat</p></td>
+<td><p>GitHub timestamp for last time repo was modified</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<section id="relationships">
+<h3>Relationships<a class="headerlink" href="#relationships" title="Link to this heading">¶</a></h3>
+<ul>
+<li><p>GitHubUsers or GitHubOrganizations own GitHubRepositories.</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="p">(</span><span class="n">GitHubUser</span><span class="p">)</span><span class="o">-</span><span class="p">[</span><span class="n">OWNER</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(</span><span class="n">GitHubRepository</span><span class="p">)</span>
+</span><span data-line="2"><span class="p">(</span><span class="n">GitHubOrganization</span><span class="p">)</span><span class="o">-</span><span class="p">[</span><span class="n">OWNER</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(</span><span class="n">GitHubRepository</span><span class="p">)</span>
+</span></pre></div>
+</div>
+</li>
+<li><p>GitHubRepositories in an organization can have <a class="reference external" href="https://docs.github.com/en/graphql/reference/enums#collaboratoraffiliation">outside collaborators</a> who may be granted different levels of access, including ADMIN,
+WRITE, MAINTAIN, TRIAGE, and READ (<a class="reference external" href="https://docs.github.com/en/graphql/reference/enums#repositorypermission">Reference</a>).</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="p">(</span><span class="n">GitHubUser</span><span class="p">)</span><span class="o">-</span><span class="p">[:</span><span class="n">OUTSIDE_COLLAB_</span><span class="p">{</span><span class="n">ACTION</span><span class="p">}]</span><span class="o">-&gt;</span><span class="p">(</span><span class="n">GitHubRepository</span><span class="p">)</span>
+</span></pre></div>
+</div>
+</li>
+<li><p>GitHubRepositories in an organization also mark all <a class="reference external" href="https://docs.github.com/en/graphql/reference/enums#collaboratoraffiliation">direct collaborators</a>, folks who are not necessarily ‘outside’ but who are granted access directly to the repository (as opposed to via membership in a team).  They may be granted different levels of access, including ADMIN,
+WRITE, MAINTAIN, TRIAGE, and READ (<a class="reference external" href="https://docs.github.com/en/graphql/reference/enums#repositorypermission">Reference</a>).</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="p">(</span><span class="n">GitHubUser</span><span class="p">)</span><span class="o">-</span><span class="p">[:</span><span class="n">DIRECT_COLLAB_</span><span class="p">{</span><span class="n">ACTION</span><span class="p">}]</span><span class="o">-&gt;</span><span class="p">(</span><span class="n">GitHubRepository</span><span class="p">)</span>
+</span></pre></div>
+</div>
+</li>
+<li><p>GitHubRepositories use ProgrammingLanguages</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="p">(</span><span class="n">GitHubRepository</span><span class="p">)</span><span class="o">-</span><span class="p">[:</span><span class="n">LANGUAGE</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(</span><span class="n">ProgrammingLanguage</span><span class="p">)</span>
+</span></pre></div>
+</div>
+</li>
+<li><p>GitHubRepositories have GitHubBranches</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="p">(</span><span class="n">GitHubRepository</span><span class="p">)</span><span class="o">-</span><span class="p">[:</span><span class="n">BRANCH</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(</span><span class="n">GitHubBranch</span><span class="p">)</span>
+</span></pre></div>
+</div>
+</li>
+<li><p>GitHubRepositories have GitHubBranchProtectionRules.</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="p">(</span><span class="n">GitHubRepository</span><span class="p">)</span><span class="o">-</span><span class="p">[:</span><span class="n">HAS_RULE</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(</span><span class="n">GitHubBranchProtectionRule</span><span class="p">)</span>
+</span></pre></div>
+</div>
+</li>
+<li><p>GitHubRepositories have GitHubRulesets.</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="p">(</span><span class="n">GitHubRepository</span><span class="p">)</span><span class="o">-</span><span class="p">[:</span><span class="n">HAS_RULESET</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(</span><span class="n">GitHubRuleset</span><span class="p">)</span>
+</span></pre></div>
+</div>
+</li>
+<li><p>GitHubTeams can have various levels of <a class="reference external" href="https://docs.github.com/en/graphql/reference/enums#repositorypermission">access</a> to GitHubRepositories.</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="p">(</span><span class="n">GitHubTeam</span><span class="p">)</span><span class="o">-</span><span class="p">[</span><span class="n">ADMIN</span><span class="o">|</span><span class="n">READ</span><span class="o">|</span><span class="n">WRITE</span><span class="o">|</span><span class="n">TRIAGE</span><span class="o">|</span><span class="n">MAINTAIN</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(</span><span class="n">GitHubRepository</span><span class="p">)</span>
+</span></pre></div>
+</div>
+</li>
+<li><p>GitHubUsers who have committed to GitHubRepositories in the last 30 days are tracked with commit activity data.</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="p">(</span><span class="n">GitHubUser</span><span class="p">)</span><span class="o">-</span><span class="p">[:</span><span class="n">COMMITTED_TO</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(</span><span class="n">GitHubRepository</span><span class="p">)</span>
+</span></pre></div>
+</div>
+<p>This relationship includes the following properties:</p>
+<ul class="simple">
+<li><p><strong>commit_count</strong>: Number of commits made by the user to the repository in the last 30 days</p></li>
+<li><p><strong>last_commit_date</strong>: ISO 8601 timestamp of the user’s most recent commit to the repository</p></li>
+<li><p><strong>first_commit_date</strong>: ISO 8601 timestamp of the user’s oldest commit to the repository within the 30-day period</p></li>
+</ul>
+</li>
+<li><p>GitHubRepositories can have Semgrep findings (optional, requires Semgrep integration).</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="p">(</span><span class="n">SemgrepSASTFinding</span><span class="p">)</span><span class="o">-</span><span class="p">[:</span><span class="n">FOUND_IN</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(</span><span class="n">GitHubRepository</span><span class="p">)</span>
+</span><span data-line="2"><span class="p">(</span><span class="n">SemgrepSCAFinding</span><span class="p">)</span><span class="o">-</span><span class="p">[:</span><span class="n">FOUND_IN</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(</span><span class="n">GitHubRepository</span><span class="p">)</span>
+</span><span data-line="3"><span class="p">(</span><span class="n">SemgrepSecretsFinding</span><span class="p">)</span><span class="o">-</span><span class="p">[:</span><span class="n">FOUND_IN</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(</span><span class="n">GitHubRepository</span><span class="p">)</span>
+</span></pre></div>
+</div>
+</li>
+</ul>
+</section>
+</section>
+<section id="githuborganization">
+<h2>GitHubOrganization<a class="headerlink" href="#githuborganization" title="Link to this heading">¶</a></h2>
+<p>Representation of a single GitHubOrganization <a class="reference external" href="https://developer.github.com/v4/object/organization/">organization object</a>. This node contains minimal data for the GitHub Organization.</p>
+<blockquote>
+<div><p><strong>Ontology Mapping</strong>: This node has the extra label <code class="docutils literal notranslate"><span class="pre">Tenant</span></code> to enable cross-platform queries for organizational tenants across different systems (e.g., OktaOrganization, AWSAccount).</p>
+</div></blockquote>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>firstseen</p></td>
+<td><p>Timestamp of when a sync job first created this node</p></td>
+</tr>
+<tr class="row-odd"><td><p>lastupdated</p></td>
+<td><p>Timestamp of the last time the node was updated</p></td>
+</tr>
+<tr class="row-even"><td><p>id</p></td>
+<td><p>The URL of the GitHub organization</p></td>
+</tr>
+<tr class="row-odd"><td><p>username</p></td>
+<td><p>Name of the organization</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<section id="id1">
+<h3>Relationships<a class="headerlink" href="#id1" title="Link to this heading">¶</a></h3>
+<ul>
+<li><p>GitHubOrganizations own GitHubRepositories.</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="p">(</span><span class="n">GitHubOrganization</span><span class="p">)</span><span class="o">-</span><span class="p">[</span><span class="n">OWNER</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(</span><span class="n">GitHubRepository</span><span class="p">)</span>
+</span></pre></div>
+</div>
+</li>
+<li><p>GitHubTeams are resources under GitHubOrganizations</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="p">(</span><span class="n">GitHubOrganization</span><span class="p">)</span><span class="o">-</span><span class="p">[</span><span class="n">RESOURCE</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(</span><span class="n">GitHubTeam</span><span class="p">)</span>
+</span></pre></div>
+</div>
+</li>
+<li><p>GitHubPersonalAccessTokens are resources under GitHubOrganizations.</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="p">(</span><span class="n">GitHubOrganization</span><span class="p">)</span><span class="o">-</span><span class="p">[</span><span class="n">RESOURCE</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(</span><span class="n">GitHubPersonalAccessToken</span><span class="p">)</span>
+</span></pre></div>
+</div>
+</li>
+<li><p>GitHubUsers relate to GitHubOrganizations in a few ways:</p>
+<ul>
+<li><p>Most typically, they are members of an organization.</p></li>
+<li><p>They may also be org admins (aka org owners), with broad permissions over repo and team settings.  In these cases, they will be graphed with two relationships between GitHubUser and GitHubOrganization, both <code class="docutils literal notranslate"><span class="pre">MEMBER_OF</span></code> and <code class="docutils literal notranslate"><span class="pre">ADMIN_OF</span></code>.</p></li>
+<li><p>In some cases there may be a user who is “unaffiliated” with an org, for example if the user is an enterprise owner, but not member of, the org.  <a class="reference external" href="https://docs.github.com/en/enterprise-cloud&#64;latest/admin/managing-accounts-and-repositories/managing-users-in-your-enterprise/roles-in-an-enterprise#enterprise-owners">Enterprise owners</a> have complete control over the enterprise (i.e. they can manage all enterprise settings, members, and policies) yet may not show up on member lists of the GitHub org.</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="c1"># a typical member</span>
+</span><span data-line="2"><span class="p">(</span><span class="n">GitHubUser</span><span class="p">)</span><span class="o">-</span><span class="p">[</span><span class="n">MEMBER_OF</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(</span><span class="n">GitHubOrganization</span><span class="p">)</span>
+</span><span data-line="3">
+</span><span data-line="4"><span class="c1"># an admin member has two relationships to the org</span>
+</span><span data-line="5"><span class="p">(</span><span class="n">GitHubUser</span><span class="p">)</span><span class="o">-</span><span class="p">[</span><span class="n">MEMBER_OF</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(</span><span class="n">GitHubOrganization</span><span class="p">)</span>
+</span><span data-line="6"><span class="p">(</span><span class="n">GitHubUser</span><span class="p">)</span><span class="o">-</span><span class="p">[</span><span class="n">ADMIN_OF</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(</span><span class="n">GitHubOrganization</span><span class="p">)</span>
+</span><span data-line="7">
+</span><span data-line="8"><span class="c1"># an unaffiliated user (e.g. an enterprise owner)</span>
+</span><span data-line="9"><span class="p">(</span><span class="n">GitHubUser</span><span class="p">)</span><span class="o">-</span><span class="p">[</span><span class="n">UNAFFILIATED</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(</span><span class="n">GitHubOrganization</span><span class="p">)</span>
+</span></pre></div>
+</div>
+</li>
+</ul>
+</li>
+</ul>
+</section>
+</section>
+<section id="githubteam">
+<h2>GitHubTeam<a class="headerlink" href="#githubteam" title="Link to this heading">¶</a></h2>
+<p>A GitHubTeam <a class="reference external" href="https://docs.github.com/en/graphql/reference/objects#team">organization object</a>.</p>
+<blockquote>
+<div><p><strong>Ontology Mapping</strong>: This node has the extra label <code class="docutils literal notranslate"><span class="pre">UserGroup</span></code> to enable cross-platform queries for user groups across different systems (e.g., AWSGroup, EntraGroup, GoogleWorkspaceGroup).</p>
+</div></blockquote>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>firstseen</p></td>
+<td><p>Timestamp of when a sync job first created this node</p></td>
+</tr>
+<tr class="row-odd"><td><p>lastupdated</p></td>
+<td><p>Timestamp of the last time the node was updated</p></td>
+</tr>
+<tr class="row-even"><td><p>id</p></td>
+<td><p>The URL of the GitHub Team</p></td>
+</tr>
+<tr class="row-odd"><td><p>name</p></td>
+<td><p>The name (a.k.a URL slug) of the GitHub Team</p></td>
+</tr>
+<tr class="row-even"><td><p>description</p></td>
+<td><p>Description of the GitHub team</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<section id="id2">
+<h3>Relationships<a class="headerlink" href="#id2" title="Link to this heading">¶</a></h3>
+<ul>
+<li><p>GitHubTeams can have various levels of <a class="reference external" href="https://docs.github.com/en/graphql/reference/enums#repositorypermission">access</a> to GitHubRepositories.</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="p">(</span><span class="n">GitHubTeam</span><span class="p">)</span><span class="o">-</span><span class="p">[</span><span class="n">ADMIN</span><span class="o">|</span><span class="n">READ</span><span class="o">|</span><span class="n">WRITE</span><span class="o">|</span><span class="n">TRIAGE</span><span class="o">|</span><span class="n">MAINTAIN</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(</span><span class="n">GitHubRepository</span><span class="p">)</span>
+</span></pre></div>
+</div>
+</li>
+<li><p>GitHubTeams are resources under GitHubOrganizations</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="p">(</span><span class="n">GitHubOrganization</span><span class="p">)</span><span class="o">-</span><span class="p">[</span><span class="n">RESOURCE</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(</span><span class="n">GitHubTeam</span><span class="p">)</span>
+</span></pre></div>
+</div>
+</li>
+<li><p>GitHubTeams may be children of other teams:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="p">(</span><span class="n">GitHubTeam</span><span class="p">)</span><span class="o">-</span><span class="p">[</span><span class="n">MEMBER_OF</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(</span><span class="n">GitHubTeam</span><span class="p">)</span>
+</span></pre></div>
+</div>
+</li>
+<li><p>GitHubUsers may be <a class="reference external" href="https://docs.github.com/en/graphql/reference/enums#teammembershiptype">‘immediate’</a> members of a team (as opposed to being members via membership in a child team), with their membership <a class="reference external" href="https://docs.github.com/en/graphql/reference/enums#teammemberrole">role</a> being MEMBER or MAINTAINER.</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="p">(</span><span class="n">GitHubUser</span><span class="p">)</span><span class="o">-</span><span class="p">[</span><span class="n">MEMBER_OF</span><span class="o">|</span><span class="n">MAINTAINER</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(</span><span class="n">GitHubTeam</span><span class="p">)</span>
+</span></pre></div>
+</div>
+</li>
+</ul>
+</section>
+</section>
+<section id="githubuser">
+<h2>GitHubUser<a class="headerlink" href="#githubuser" title="Link to this heading">¶</a></h2>
+<p>Representation of a single GitHubUser <a class="reference external" href="https://developer.github.com/v4/object/user/">user object</a>. This node contains minimal data for the GitHub User.</p>
+<blockquote>
+<div><p><strong>Ontology Mapping</strong>: This node has the extra label <code class="docutils literal notranslate"><span class="pre">UserAccount</span></code> to enable cross-platform queries for user accounts across different systems (e.g., OktaUser, AWSSSOUser, EntraUser).</p>
+</div></blockquote>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>firstseen</p></td>
+<td><p>Timestamp of when a sync job first created this node</p></td>
+</tr>
+<tr class="row-odd"><td><p>lastupdated</p></td>
+<td><p>Timestamp of the last time the node was updated</p></td>
+</tr>
+<tr class="row-even"><td><p>id</p></td>
+<td><p>The URL of the GitHub user</p></td>
+</tr>
+<tr class="row-odd"><td><p>username</p></td>
+<td><p>Name of the user</p></td>
+</tr>
+<tr class="row-even"><td><p>fullname</p></td>
+<td><p>The full name</p></td>
+</tr>
+<tr class="row-odd"><td><p>has_2fa_enabled</p></td>
+<td><p>Whether the user has 2-factor authentication enabled</p></td>
+</tr>
+<tr class="row-even"><td><p>is_site_admin</p></td>
+<td><p>Whether the user is a site admin</p></td>
+</tr>
+<tr class="row-odd"><td><p>is_enterprise_owner</p></td>
+<td><p>Whether the user is an <a class="reference external" href="https://docs.github.com/en/enterprise-cloud&#64;latest/admin/managing-accounts-and-repositories/managing-users-in-your-enterprise/roles-in-an-enterprise#enterprise-owners">enterprise owner</a></p></td>
+</tr>
+<tr class="row-even"><td><p>permission</p></td>
+<td><p>Only present if the user is an <a class="reference external" href="https://docs.github.com/en/graphql/reference/objects#repositorycollaboratorconnection">outside collaborator</a> of this repo.  <code class="docutils literal notranslate"><span class="pre">permission</span></code> is either ADMIN, MAINTAIN, READ, TRIAGE, or WRITE (<a class="reference external" href="https://docs.github.com/en/graphql/reference/enums#repositorypermission">ref</a>).</p></td>
+</tr>
+<tr class="row-odd"><td><p>email</p></td>
+<td><p>The user’s publicly visible profile email.</p></td>
+</tr>
+<tr class="row-even"><td><p>company</p></td>
+<td><p>The user’s public profile company.</p></td>
+</tr>
+<tr class="row-odd"><td><p>organization_verified_domain_emails</p></td>
+<td><p>List of emails verified by the user’s organization.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<section id="id3">
+<h3>Relationships<a class="headerlink" href="#id3" title="Link to this heading">¶</a></h3>
+<ul>
+<li><p>GitHubUsers own GitHubRepositories.</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="p">(</span><span class="n">GitHubUser</span><span class="p">)</span><span class="o">-</span><span class="p">[</span><span class="n">OWNER</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(</span><span class="n">GitHubRepository</span><span class="p">)</span>
+</span></pre></div>
+</div>
+</li>
+<li><p>GitHubRepositories in an organization can have <a class="reference external" href="https://docs.github.com/en/graphql/reference/enums#collaboratoraffiliation">outside collaborators</a> who may be granted different levels of access, including ADMIN,
+WRITE, MAINTAIN, TRIAGE, and READ (<a class="reference external" href="https://docs.github.com/en/graphql/reference/enums#repositorypermission">Reference</a>).</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="p">(</span><span class="n">GitHubUser</span><span class="p">)</span><span class="o">-</span><span class="p">[:</span><span class="n">OUTSIDE_COLLAB_</span><span class="p">{</span><span class="n">ACTION</span><span class="p">}]</span><span class="o">-&gt;</span><span class="p">(</span><span class="n">GitHubRepository</span><span class="p">)</span>
+</span></pre></div>
+</div>
+</li>
+<li><p>GitHubRepositories in an organization also mark all <a class="reference external" href="https://docs.github.com/en/graphql/reference/enums#collaboratoraffiliation">direct collaborators</a>, folks who are not necessarily ‘outside’ but who are granted access directly to the repository (as opposed to via membership in a team).  They may be granted different levels of access, including ADMIN,
+WRITE, MAINTAIN, TRIAGE, and READ (<a class="reference external" href="https://docs.github.com/en/graphql/reference/enums#repositorypermission">Reference</a>).</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="p">(</span><span class="n">GitHubUser</span><span class="p">)</span><span class="o">-</span><span class="p">[:</span><span class="n">DIRECT_COLLAB_</span><span class="p">{</span><span class="n">ACTION</span><span class="p">}]</span><span class="o">-&gt;</span><span class="p">(</span><span class="n">GitHubRepository</span><span class="p">)</span>
+</span></pre></div>
+</div>
+</li>
+<li><p>GitHubUsers relate to GitHubOrganizations in a few ways:</p>
+<ul>
+<li><p>Most typically, they are members of an organization.</p></li>
+<li><p>They may also be org admins (aka org owners), with broad permissions over repo and team settings.  In these cases, they will be graphed with two relationships between GitHubUser and GitHubOrganization, both <code class="docutils literal notranslate"><span class="pre">MEMBER_OF</span></code> and <code class="docutils literal notranslate"><span class="pre">ADMIN_OF</span></code>.</p></li>
+<li><p>In some cases there may be a user who is “unaffiliated” with an org, for example if the user is an enterprise owner, but not member of, the org.  <a class="reference external" href="https://docs.github.com/en/enterprise-cloud&#64;latest/admin/managing-accounts-and-repositories/managing-users-in-your-enterprise/roles-in-an-enterprise#enterprise-owners">Enterprise owners</a> have complete control over the enterprise (i.e. they can manage all enterprise settings, members, and policies) yet may not show up on member lists of the GitHub org.</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="c1"># a typical member</span>
+</span><span data-line="2"><span class="p">(</span><span class="n">GitHubUser</span><span class="p">)</span><span class="o">-</span><span class="p">[</span><span class="n">MEMBER_OF</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(</span><span class="n">GitHubOrganization</span><span class="p">)</span>
+</span><span data-line="3">
+</span><span data-line="4"><span class="c1"># an admin member has two relationships to the org</span>
+</span><span data-line="5"><span class="p">(</span><span class="n">GitHubUser</span><span class="p">)</span><span class="o">-</span><span class="p">[</span><span class="n">MEMBER_OF</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(</span><span class="n">GitHubOrganization</span><span class="p">)</span>
+</span><span data-line="6"><span class="p">(</span><span class="n">GitHubUser</span><span class="p">)</span><span class="o">-</span><span class="p">[</span><span class="n">ADMIN_OF</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(</span><span class="n">GitHubOrganization</span><span class="p">)</span>
+</span><span data-line="7">
+</span><span data-line="8"><span class="c1"># an unaffiliated user (e.g. an enterprise owner)</span>
+</span><span data-line="9"><span class="p">(</span><span class="n">GitHubUser</span><span class="p">)</span><span class="o">-</span><span class="p">[</span><span class="n">UNAFFILIATED</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(</span><span class="n">GitHubOrganization</span><span class="p">)</span>
+</span></pre></div>
+</div>
+</li>
+</ul>
+</li>
+<li><p>GitHubTeams may be children of other teams:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="p">(</span><span class="n">GitHubTeam</span><span class="p">)</span><span class="o">-</span><span class="p">[</span><span class="n">MEMBER_OF</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(</span><span class="n">GitHubTeam</span><span class="p">)</span>
+</span></pre></div>
+</div>
+</li>
+<li><p>GitHubUsers may be <a class="reference external" href="https://docs.github.com/en/graphql/reference/enums#teammembershiptype">‘immediate’</a> members of a team (as opposed to being members via membership in a child team), with their membership <a class="reference external" href="https://docs.github.com/en/graphql/reference/enums#teammemberrole">role</a> being MEMBER or MAINTAINER.</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="p">(</span><span class="n">GitHubUser</span><span class="p">)</span><span class="o">-</span><span class="p">[</span><span class="n">MEMBER_OF</span><span class="o">|</span><span class="n">MAINTAINER</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(</span><span class="n">GitHubTeam</span><span class="p">)</span>
+</span></pre></div>
+</div>
+</li>
+<li><p>GitHubUsers who have committed to GitHubRepositories in the last 30 days are tracked with commit activity data.</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="p">(</span><span class="n">GitHubUser</span><span class="p">)</span><span class="o">-</span><span class="p">[:</span><span class="n">COMMITTED_TO</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(</span><span class="n">GitHubRepository</span><span class="p">)</span>
+</span></pre></div>
+</div>
+<p>This relationship includes the following properties:</p>
+<ul class="simple">
+<li><p><strong>commit_count</strong>: Number of commits made by the user to the repository in the last 30 days</p></li>
+<li><p><strong>last_commit_date</strong>: ISO 8601 timestamp of the user’s most recent commit to the repository</p></li>
+<li><p><strong>first_commit_date</strong>: ISO 8601 timestamp of the user’s oldest commit to the repository within the 30-day period</p></li>
+</ul>
+</li>
+</ul>
+</section>
+</section>
+<section id="githubpersonalaccesstoken">
+<h2>GitHubPersonalAccessToken<a class="headerlink" href="#githubpersonalaccesstoken" title="Link to this heading">¶</a></h2>
+<p>Representation of GitHub personal access token metadata exposed to organization administrators. Fine-grained PATs are retrieved from the <a class="reference external" href="https://docs.github.com/en/rest/orgs/personal-access-tokens">organization personal access tokens API</a>. Classic PAT metadata is retrieved only when GitHub exposes it through the <a class="reference external" href="https://docs.github.com/en/enterprise-cloud&#64;latest/rest/orgs/orgs#list-saml-sso-authorizations-for-an-organization">SAML SSO credential authorizations API</a>.</p>
+<p>Cartography never stores raw PAT values, token prefixes, or token fragments such as <code class="docutils literal notranslate"><span class="pre">token_last_eight</span></code>.</p>
+<p>Fine-grained and classic PATs also receive kind-specific labels, <code class="docutils literal notranslate"><span class="pre">GitHubFineGrainedPersonalAccessToken</span></code> and <code class="docutils literal notranslate"><span class="pre">GitHubClassicPersonalAccessToken</span></code>, to support queries that target one kind.</p>
+<blockquote>
+<div><p><strong>Ontology Mapping</strong>: This node has the extra label <code class="docutils literal notranslate"><span class="pre">APIKey</span></code> to enable cross-platform queries for long-lived API credentials across different systems.</p>
+</div></blockquote>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>firstseen</p></td>
+<td><p>Timestamp of when a sync job first created this node</p></td>
+</tr>
+<tr class="row-odd"><td><p>lastupdated</p></td>
+<td><p>Timestamp of the last time the node was updated</p></td>
+</tr>
+<tr class="row-even"><td><p>id</p></td>
+<td><p>Stable Cartography ID derived from the GitHub organization URL and the fine-grained PAT access grant ID or SAML credential authorization ID</p></td>
+</tr>
+<tr class="row-odd"><td><p>token_kind</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">fine_grained</span></code> or <code class="docutils literal notranslate"><span class="pre">classic</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>token_id</p></td>
+<td><p>GitHub fine-grained PAT token ID, when returned</p></td>
+</tr>
+<tr class="row-odd"><td><p>token_name</p></td>
+<td><p>Fine-grained PAT name, when returned</p></td>
+</tr>
+<tr class="row-even"><td><p>owner_login</p></td>
+<td><p>Login of the GitHub user who owns the token</p></td>
+</tr>
+<tr class="row-odd"><td><p>repository_selection</p></td>
+<td><p>Fine-grained PAT repository selection, such as <code class="docutils literal notranslate"><span class="pre">all</span></code> or <code class="docutils literal notranslate"><span class="pre">selected</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>permissions</p></td>
+<td><p>Fine-grained PAT permissions as a JSON string</p></td>
+</tr>
+<tr class="row-odd"><td><p>scopes</p></td>
+<td><p>Classic PAT OAuth scopes exposed by SAML credential authorizations</p></td>
+</tr>
+<tr class="row-even"><td><p>access_granted_at</p></td>
+<td><p>Native datetime — when fine-grained PAT access was granted to organization resources</p></td>
+</tr>
+<tr class="row-odd"><td><p>credential_authorized_at</p></td>
+<td><p>Native datetime — when a classic PAT was authorized for SAML SSO organization access</p></td>
+</tr>
+<tr class="row-even"><td><p>credential_accessed_at</p></td>
+<td><p>Native datetime — when the SAML-authorized credential was last accessed (auth events)</p></td>
+</tr>
+<tr class="row-odd"><td><p>expires_at</p></td>
+<td><p>Native datetime — token or credential authorization expiry</p></td>
+</tr>
+<tr class="row-even"><td><p>last_used_at</p></td>
+<td><p>Native datetime — when the fine-grained PAT was last used to call the GitHub API. Unset for classic PATs, whose SAML endpoint reports auth events under <code class="docutils literal notranslate"><span class="pre">credential_accessed_at</span></code> and not API calls</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<section id="id4">
+<h3>Relationships<a class="headerlink" href="#id4" title="Link to this heading">¶</a></h3>
+<ul>
+<li><p>GitHubPersonalAccessTokens are resources under GitHubOrganizations.</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="p">(</span><span class="n">GitHubOrganization</span><span class="p">)</span><span class="o">-</span><span class="p">[:</span><span class="n">RESOURCE</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(</span><span class="n">GitHubPersonalAccessToken</span><span class="p">)</span>
+</span></pre></div>
+</div>
+</li>
+<li><p>GitHubUsers own GitHubPersonalAccessTokens when the owner can be resolved.</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="p">(</span><span class="n">GitHubUser</span><span class="p">)</span><span class="o">-</span><span class="p">[:</span><span class="n">OWNS</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(</span><span class="n">GitHubPersonalAccessToken</span><span class="p">)</span>
+</span></pre></div>
+</div>
+</li>
+<li><p>Fine-grained GitHubPersonalAccessTokens can access GitHubRepositories returned by GitHub’s token repository access endpoint.</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="p">(</span><span class="n">GitHubPersonalAccessToken</span><span class="p">)</span><span class="o">-</span><span class="p">[:</span><span class="n">CAN_ACCESS</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(</span><span class="n">GitHubRepository</span><span class="p">)</span>
+</span></pre></div>
+</div>
+</li>
+</ul>
+</section>
+</section>
+<section id="githubbranch">
+<h2>GitHubBranch<a class="headerlink" href="#githubbranch" title="Link to this heading">¶</a></h2>
+<p>Representation of a single GitHubBranch <a class="reference external" href="https://developer.github.com/v4/object/ref">ref object</a>. This node contains minimal data for a repository branch.</p>
+<p>GitHub branches are modeled as resources scoped to the parent GitHub organization and also linked to their repository via the <code class="docutils literal notranslate"><span class="pre">BRANCH</span></code> relationship.</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>firstseen</p></td>
+<td><p>Timestamp of when a sync job first created this node</p></td>
+</tr>
+<tr class="row-odd"><td><p>lastupdated</p></td>
+<td><p>Timestamp of the last time the node was updated</p></td>
+</tr>
+<tr class="row-even"><td><p>id</p></td>
+<td><p>The GitHub branch id. These are not unique across GitHub instances, so are prepended with the API URL the id applies to</p></td>
+</tr>
+<tr class="row-odd"><td><p>name</p></td>
+<td><p>Name of the branch</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<section id="id5">
+<h3>Relationships<a class="headerlink" href="#id5" title="Link to this heading">¶</a></h3>
+<ul>
+<li><p>GitHubOrganizations scope GitHubBranches as resources.</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="p">(</span><span class="n">GitHubOrganization</span><span class="p">)</span><span class="o">-</span><span class="p">[:</span><span class="n">RESOURCE</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(</span><span class="n">GitHubBranch</span><span class="p">)</span>
+</span></pre></div>
+</div>
+</li>
+<li><p>GitHubRepositories have GitHubBranches.</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="p">(</span><span class="n">GitHubBranch</span><span class="p">)</span><span class="o">&lt;-</span><span class="p">[</span><span class="n">BRANCH</span><span class="p">]</span><span class="o">-</span><span class="p">(</span><span class="n">GitHubRepository</span><span class="p">)</span>
+</span></pre></div>
+</div>
+</li>
+</ul>
+</section>
+</section>
+<section id="githubbranchprotectionrule">
+<h2>GitHubBranchProtectionRule<a class="headerlink" href="#githubbranchprotectionrule" title="Link to this heading">¶</a></h2>
+<p>Representation of a single GitHubBranchProtectionRule <a class="reference external" href="https://docs.github.com/en/graphql/reference/objects#branchprotectionrule">BranchProtectionRule object</a>. This node contains branch protection configuration for repositories.</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>firstseen</p></td>
+<td><p>Timestamp of when a sync job first created this node</p></td>
+</tr>
+<tr class="row-odd"><td><p>lastupdated</p></td>
+<td><p>Timestamp of the last time the node was updated</p></td>
+</tr>
+<tr class="row-even"><td><p>id</p></td>
+<td><p>The GitHub branch protection rule id</p></td>
+</tr>
+<tr class="row-odd"><td><p>pattern</p></td>
+<td><p>The branch name pattern protected by this rule (e.g., “main”, “release/*”)</p></td>
+</tr>
+<tr class="row-even"><td><p>allows_deletions</p></td>
+<td><p>Whether users can delete matching branches</p></td>
+</tr>
+<tr class="row-odd"><td><p>allows_force_pushes</p></td>
+<td><p>Whether force pushes are allowed on matching branches</p></td>
+</tr>
+<tr class="row-even"><td><p>dismisses_stale_reviews</p></td>
+<td><p>Whether reviews are dismissed when new commits are pushed</p></td>
+</tr>
+<tr class="row-odd"><td><p>is_admin_enforced</p></td>
+<td><p>Whether admins must follow this rule</p></td>
+</tr>
+<tr class="row-even"><td><p>requires_approving_reviews</p></td>
+<td><p>Whether pull requests require approval before merging</p></td>
+</tr>
+<tr class="row-odd"><td><p>required_approving_review_count</p></td>
+<td><p>Number of approvals required (if requires_approving_reviews is true)</p></td>
+</tr>
+<tr class="row-even"><td><p>requires_code_owner_reviews</p></td>
+<td><p>Whether code owner review is required</p></td>
+</tr>
+<tr class="row-odd"><td><p>requires_commit_signatures</p></td>
+<td><p>Whether commits must be signed</p></td>
+</tr>
+<tr class="row-even"><td><p>requires_linear_history</p></td>
+<td><p>Whether merge commits are prohibited</p></td>
+</tr>
+<tr class="row-odd"><td><p>requires_status_checks</p></td>
+<td><p>Whether status checks must pass before merging</p></td>
+</tr>
+<tr class="row-even"><td><p>requires_strict_status_checks</p></td>
+<td><p>Whether branches must be up to date before merging</p></td>
+</tr>
+<tr class="row-odd"><td><p>restricts_pushes</p></td>
+<td><p>Whether push access is restricted</p></td>
+</tr>
+<tr class="row-even"><td><p>restricts_review_dismissals</p></td>
+<td><p>Whether review dismissals are restricted</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<section id="id6">
+<h3>Relationships<a class="headerlink" href="#id6" title="Link to this heading">¶</a></h3>
+<ul>
+<li><p>GitHubRepositories have GitHubBranchProtectionRules.</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="p">(</span><span class="n">GitHubRepository</span><span class="p">)</span><span class="o">-</span><span class="p">[:</span><span class="n">HAS_RULE</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(</span><span class="n">GitHubBranchProtectionRule</span><span class="p">)</span>
+</span></pre></div>
+</div>
+</li>
+<li><p>GitHubBranchProtectionRules belong to a GitHubOrganization.</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="p">(</span><span class="n">GitHubOrganization</span><span class="p">)</span><span class="o">-</span><span class="p">[:</span><span class="n">RESOURCE</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(</span><span class="n">GitHubBranchProtectionRule</span><span class="p">)</span>
+</span></pre></div>
+</div>
+</li>
+</ul>
+</section>
+</section>
+<section id="githubruleset">
+<h2>GitHubRuleset<a class="headerlink" href="#githubruleset" title="Link to this heading">¶</a></h2>
+<p>Representation of a single GitHubRuleset from GitHub’s <a class="reference external" href="https://docs.github.com/en/rest/repos/rules#get-a-repository-ruleset">repository ruleset REST response</a>. This node contains GitHub ruleset configuration for repositories.</p>
+<p>Cartography does not ingest ruleset bypass actors. GitHub documents ruleset bypass actors as permission-limited to callers with write access to the ruleset, and Cartography is expected to run with read-only GitHub permissions. Treat bypass actor data as intentionally unavailable in this schema rather than as an empty bypass list. See GitHub’s <a class="reference external" href="https://docs.github.com/en/rest/repos/rules#get-a-repository-ruleset">REST API docs for repository rulesets</a>.</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>firstseen</p></td>
+<td><p>Timestamp of when a sync job first created this node</p></td>
+</tr>
+<tr class="row-odd"><td><p>lastupdated</p></td>
+<td><p>Timestamp of the last time the node was updated</p></td>
+</tr>
+<tr class="row-even"><td><p>id</p></td>
+<td><p>The GitHub ruleset node ID</p></td>
+</tr>
+<tr class="row-odd"><td><p>database_id</p></td>
+<td><p>GitHub database ID for the ruleset</p></td>
+</tr>
+<tr class="row-even"><td><p>name</p></td>
+<td><p>Ruleset name</p></td>
+</tr>
+<tr class="row-odd"><td><p>target</p></td>
+<td><p>Ruleset target, such as BRANCH or TAG</p></td>
+</tr>
+<tr class="row-even"><td><p>enforcement</p></td>
+<td><p>Ruleset enforcement mode</p></td>
+</tr>
+<tr class="row-odd"><td><p>created_at</p></td>
+<td><p>GitHub timestamp from when the ruleset was created</p></td>
+</tr>
+<tr class="row-even"><td><p>updated_at</p></td>
+<td><p>GitHub timestamp for last time the ruleset was modified</p></td>
+</tr>
+<tr class="row-odd"><td><p>conditions_ref_name_include</p></td>
+<td><p>Ref name include conditions</p></td>
+</tr>
+<tr class="row-even"><td><p>conditions_ref_name_exclude</p></td>
+<td><p>Ref name exclude conditions</p></td>
+</tr>
+<tr class="row-odd"><td><p>conditions_repository_name_include</p></td>
+<td><p>Repository name include conditions</p></td>
+</tr>
+<tr class="row-even"><td><p>conditions_repository_name_exclude</p></td>
+<td><p>Repository name exclude conditions</p></td>
+</tr>
+<tr class="row-odd"><td><p>conditions_repository_name_protected</p></td>
+<td><p>Whether repository name conditions target protected repositories</p></td>
+</tr>
+<tr class="row-even"><td><p>conditions_repository_ids</p></td>
+<td><p>Repository IDs matched by repository ID conditions</p></td>
+</tr>
+<tr class="row-odd"><td><p>conditions_repository_property_include</p></td>
+<td><p>JSON-encoded repository property include conditions</p></td>
+</tr>
+<tr class="row-even"><td><p>conditions_repository_property_exclude</p></td>
+<td><p>JSON-encoded repository property exclude conditions</p></td>
+</tr>
+<tr class="row-odd"><td><p>conditions_organization_property_include</p></td>
+<td><p>JSON-encoded organization property include conditions</p></td>
+</tr>
+<tr class="row-even"><td><p>conditions_organization_property_exclude</p></td>
+<td><p>JSON-encoded organization property exclude conditions</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<section id="id7">
+<h3>Relationships<a class="headerlink" href="#id7" title="Link to this heading">¶</a></h3>
+<ul>
+<li><p>GitHubRepositories have GitHubRulesets.</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="p">(</span><span class="n">GitHubRepository</span><span class="p">)</span><span class="o">-</span><span class="p">[:</span><span class="n">HAS_RULESET</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(</span><span class="n">GitHubRuleset</span><span class="p">)</span>
+</span></pre></div>
+</div>
+</li>
+<li><p>GitHubRulesets belong to a GitHubOrganization.</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="p">(</span><span class="n">GitHubOrganization</span><span class="p">)</span><span class="o">-</span><span class="p">[:</span><span class="n">RESOURCE</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(</span><span class="n">GitHubRuleset</span><span class="p">)</span>
+</span></pre></div>
+</div>
+</li>
+<li><p>GitHubRulesets contain GitHubRulesetRules.</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="p">(</span><span class="n">GitHubRuleset</span><span class="p">)</span><span class="o">-</span><span class="p">[:</span><span class="n">CONTAINS_RULE</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(</span><span class="n">GitHubRulesetRule</span><span class="p">)</span>
+</span></pre></div>
+</div>
+</li>
+</ul>
+</section>
+</section>
+<section id="githubrulesetrule">
+<h2>GitHubRulesetRule<a class="headerlink" href="#githubrulesetrule" title="Link to this heading">¶</a></h2>
+<p>Representation of a single rule from GitHub’s <a class="reference external" href="https://docs.github.com/en/rest/repos/rules#get-a-repository-ruleset">repository ruleset REST response</a>. This node contains a single rule from a GitHub repository ruleset.</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>firstseen</p></td>
+<td><p>Timestamp of when a sync job first created this node</p></td>
+</tr>
+<tr class="row-odd"><td><p>lastupdated</p></td>
+<td><p>Timestamp of the last time the node was updated</p></td>
+</tr>
+<tr class="row-even"><td><p>id</p></td>
+<td><p>A deterministic Cartography ID derived from the GitHub ruleset node ID and REST rule payload</p></td>
+</tr>
+<tr class="row-odd"><td><p>type</p></td>
+<td><p>Rule type</p></td>
+</tr>
+<tr class="row-even"><td><p>parameters</p></td>
+<td><p>JSON-encoded rule parameters</p></td>
+</tr>
+<tr class="row-odd"><td><p>parameters_required_approving_review_count</p></td>
+<td><p>Required approving review count for pull request rules</p></td>
+</tr>
+<tr class="row-even"><td><p>parameters_dismiss_stale_reviews_on_push</p></td>
+<td><p>Whether pull request rules dismiss stale reviews on push</p></td>
+</tr>
+<tr class="row-odd"><td><p>parameters_require_code_owner_review</p></td>
+<td><p>Whether pull request rules require code owner review</p></td>
+</tr>
+<tr class="row-even"><td><p>parameters_required_status_checks</p></td>
+<td><p>Required status check contexts for required status check rules</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<section id="id8">
+<h3>Relationships<a class="headerlink" href="#id8" title="Link to this heading">¶</a></h3>
+<ul>
+<li><p>GitHubRulesetRules belong to a GitHubRuleset.</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="p">(</span><span class="n">GitHubRuleset</span><span class="p">)</span><span class="o">-</span><span class="p">[:</span><span class="n">CONTAINS_RULE</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(</span><span class="n">GitHubRulesetRule</span><span class="p">)</span>
+</span></pre></div>
+</div>
+</li>
+<li><p>GitHubRulesetRules belong to a GitHubOrganization.</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="p">(</span><span class="n">GitHubOrganization</span><span class="p">)</span><span class="o">-</span><span class="p">[:</span><span class="n">RESOURCE</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(</span><span class="n">GitHubRulesetRule</span><span class="p">)</span>
+</span></pre></div>
+</div>
+</li>
+</ul>
+</section>
+</section>
+<section id="programminglanguage">
+<h2>ProgrammingLanguage<a class="headerlink" href="#programminglanguage" title="Link to this heading">¶</a></h2>
+<p>Representation of a single Programming Language <a class="reference external" href="https://developer.github.com/v4/object/language">language object</a>. This node contains programming language information.</p>
+<p>ProgrammingLanguage nodes are shared globally across repositories and are linked from each repository with <code class="docutils literal notranslate"><span class="pre">:LANGUAGE</span></code>.</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>firstseen</p></td>
+<td><p>Timestamp of when a sync job first created this node</p></td>
+</tr>
+<tr class="row-odd"><td><p>lastupdated</p></td>
+<td><p>Timestamp of the last time the node was updated</p></td>
+</tr>
+<tr class="row-even"><td><p>id</p></td>
+<td><p>Language ids need not be tracked across instances, so defaults to the name</p></td>
+</tr>
+<tr class="row-odd"><td><p>name</p></td>
+<td><p>Name of the language</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<section id="id9">
+<h3>Relationships<a class="headerlink" href="#id9" title="Link to this heading">¶</a></h3>
+<ul>
+<li><p>GitHubRepositories use ProgrammingLanguages.</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="p">(</span><span class="n">ProgrammingLanguage</span><span class="p">)</span><span class="o">&lt;-</span><span class="p">[</span><span class="n">LANGUAGE</span><span class="p">]</span><span class="o">-</span><span class="p">(</span><span class="n">GitHubRepository</span><span class="p">)</span>
+</span></pre></div>
+</div>
+</li>
+</ul>
+</section>
+</section>
+<section id="dependencygraphmanifest">
+<h2>DependencyGraphManifest<a class="headerlink" href="#dependencygraphmanifest" title="Link to this heading">¶</a></h2>
+<p>Represents a dependency manifest file (e.g., package.json, requirements.txt, pom.xml) from GitHub’s dependency graph API.</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>firstseen</p></td>
+<td><p>Timestamp of when a sync job first discovered this node</p></td>
+</tr>
+<tr class="row-odd"><td><p>lastupdated</p></td>
+<td><p>Timestamp of the last time the node was updated</p></td>
+</tr>
+<tr class="row-even"><td><p><strong>id</strong></p></td>
+<td><p>Unique identifier: <code class="docutils literal notranslate"><span class="pre">{repo_url}#{blob_path}</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p><strong>blob_path</strong></p></td>
+<td><p>Path to the manifest file in the repository (e.g., “/package.json”)</p></td>
+</tr>
+<tr class="row-even"><td><p><strong>filename</strong></p></td>
+<td><p>Name of the manifest file (e.g., “package.json”)</p></td>
+</tr>
+<tr class="row-odd"><td><p><strong>dependencies_count</strong></p></td>
+<td><p>Number of dependencies listed in this manifest</p></td>
+</tr>
+<tr class="row-even"><td><p><strong>repo_url</strong></p></td>
+<td><p>URL of the GitHub repository containing this manifest</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<section id="id10">
+<h3>Relationships<a class="headerlink" href="#id10" title="Link to this heading">¶</a></h3>
+<ul>
+<li><p><strong>GitHubRepository</strong> via <strong>HAS_MANIFEST</strong> relationship</p>
+<ul>
+<li><p>GitHubRepositories can have multiple dependency manifests</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="p">(</span><span class="n">GitHubRepository</span><span class="p">)</span><span class="o">-</span><span class="p">[:</span><span class="n">HAS_MANIFEST</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(</span><span class="n">DependencyGraphManifest</span><span class="p">)</span>
+</span></pre></div>
+</div>
+</li>
+</ul>
+</li>
+<li><p><strong>Dependency</strong> via <strong>HAS_DEP</strong> relationship</p>
+<ul>
+<li><p>Each manifest lists specific dependencies</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="p">(</span><span class="n">DependencyGraphManifest</span><span class="p">)</span><span class="o">-</span><span class="p">[:</span><span class="n">HAS_DEP</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(</span><span class="n">Dependency</span><span class="p">)</span>
+</span></pre></div>
+</div>
+</li>
+</ul>
+</li>
+<li><p><strong>GitHubOrganization</strong> via <strong>RESOURCE</strong> relationship</p>
+<ul>
+<li><p>Manifests are scoped to the owning organization for cleanup</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="p">(</span><span class="n">GitHubOrganization</span><span class="p">)</span><span class="o">-</span><span class="p">[:</span><span class="n">RESOURCE</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(</span><span class="n">DependencyGraphManifest</span><span class="p">)</span>
+</span></pre></div>
+</div>
+</li>
+</ul>
+</li>
+</ul>
+</section>
+</section>
+<section id="dependency">
+<h2>Dependency<a class="headerlink" href="#dependency" title="Link to this heading">¶</a></h2>
+<p><a class="reference external" href="https://docs.github.com/en/graphql/reference/objects#dependencygraphdependency">https://docs.github.com/en/graphql/reference/objects#dependencygraphdependency</a>
+Represents a software dependency from GitHub’s dependency graph manifests. This node contains information about a package dependency within a repository</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>firstseen</p></td>
+<td><p>Timestamp of when a sync job first discovered this node</p></td>
+</tr>
+<tr class="row-odd"><td><p>lastupdated</p></td>
+<td><p>Timestamp of the last time the node was updated</p></td>
+</tr>
+<tr class="row-even"><td><p><strong>id</strong></p></td>
+<td><p>Identifier: `{canonical_name}</p></td>
+</tr>
+<tr class="row-odd"><td><p><strong>name</strong></p></td>
+<td><p>Canonical name of the dependency (ecosystem-specific normalization)</p></td>
+</tr>
+<tr class="row-even"><td><p><strong>original_name</strong></p></td>
+<td><p>Original name as specified in the manifest file</p></td>
+</tr>
+<tr class="row-odd"><td><p><strong>requirements</strong></p></td>
+<td><p>Unparsed requirement string from the manifest (e.g., <code class="docutils literal notranslate"><span class="pre">&quot;18.2.0&quot;</span></code>, <code class="docutils literal notranslate"><span class="pre">&quot;==4.2.0&quot;</span></code>, <code class="docutils literal notranslate"><span class="pre">&quot;^4.17.21&quot;</span></code>, <code class="docutils literal notranslate"><span class="pre">&quot;1.*.*&quot;</span></code>)</p></td>
+</tr>
+<tr class="row-even"><td><p><strong>ecosystem</strong></p></td>
+<td><p>Package ecosystem (npm, pip, maven, etc.)</p></td>
+</tr>
+<tr class="row-odd"><td><p><strong>package_manager</strong></p></td>
+<td><p>Package manager name (NPM, PIP, MAVEN, etc.)</p></td>
+</tr>
+<tr class="row-even"><td><p><strong>manifest_file</strong></p></td>
+<td><p>Manifest filename (package.json, requirements.txt, etc.)</p></td>
+</tr>
+<tr class="row-odd"><td><p>version</p></td>
+<td><p>Exact version if pinned (e.g., <code class="docutils literal notranslate"><span class="pre">&quot;18.2.0&quot;</span></code>). <code class="docutils literal notranslate"><span class="pre">null</span></code> for ranges or unpinned dependencies.</p></td>
+</tr>
+<tr class="row-even"><td><p>type</p></td>
+<td><p>Package URL type (e.g., <code class="docutils literal notranslate"><span class="pre">npm</span></code>, <code class="docutils literal notranslate"><span class="pre">pypi</span></code>, <code class="docutils literal notranslate"><span class="pre">maven</span></code>). <code class="docutils literal notranslate"><span class="pre">null</span></code> if version is not exact.</p></td>
+</tr>
+<tr class="row-odd"><td><p>purl</p></td>
+<td><p>Package URL (e.g., <code class="docutils literal notranslate"><span class="pre">&quot;pkg:npm/react&#64;18.2.0&quot;</span></code>). <code class="docutils literal notranslate"><span class="pre">null</span></code> if version is not exact.</p></td>
+</tr>
+<tr class="row-even"><td><p><strong>normalized_id</strong></p></td>
+<td><p>Normalized ID for cross-tool matching (format: <code class="docutils literal notranslate"><span class="pre">{type}|{namespace/}{name}|{version}</span></code>). Indexed. <code class="docutils literal notranslate"><span class="pre">null</span></code> if version is not exact.</p></td>
+</tr>
+<tr class="row-odd"><td><p>source</p></td>
+<td><p>Provenance of the version: <code class="docutils literal notranslate"><span class="pre">dependency_graph</span></code> from GitHub’s dependency graph, or <code class="docutils literal notranslate"><span class="pre">lockfile</span></code> when an exact version was recovered from a lockfile fallback.</p></td>
+</tr>
+<tr class="row-even"><td><p>version_confidence</p></td>
+<td><p>Confidence in the version: <code class="docutils literal notranslate"><span class="pre">exact</span></code> (an exact version is known), <code class="docutils literal notranslate"><span class="pre">range</span></code> (only a requirement range is known), or <code class="docutils literal notranslate"><span class="pre">unknown</span></code> (no version or requirement).</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<blockquote>
+<div><p><strong>Ontology Mapping</strong>: This node also carries the extra label <code class="docutils literal notranslate"><span class="pre">GitHubDependency</span></code>. When <code class="docutils literal notranslate"><span class="pre">normalized_id</span></code> is populated (exact version), a canonical <code class="docutils literal notranslate"><span class="pre">Package</span></code> (ontology) node is detected as this dependency, enabling cross-scanner queries alongside Trivy, Syft, SocketDev, and GitLab packages.</p>
+</div></blockquote>
+<blockquote>
+<div><p><strong>Lockfile fallback</strong>: GitHub’s dependency graph reports some dependencies with only a version range (no exact version), so they have no <code class="docutils literal notranslate"><span class="pre">normalized_id</span></code> and cannot be projected into the Package ontology. For ecosystems with a parseable lockfile (<code class="docutils literal notranslate"><span class="pre">uv.lock</span></code> for pip, <code class="docutils literal notranslate"><span class="pre">package-lock.json</span></code> for npm), the sync fetches the lockfile co-located with the dependency’s manifest (e.g. a manifest under <code class="docutils literal notranslate"><span class="pre">services/api/package.json</span></code> uses <code class="docutils literal notranslate"><span class="pre">services/api/package-lock.json</span></code>, never the repo-root lockfile) and, where it pins an exact version for a range-only dependency, fills in <code class="docutils literal notranslate"><span class="pre">version</span></code>, <code class="docutils literal notranslate"><span class="pre">type</span></code>, and <code class="docutils literal notranslate"><span class="pre">normalized_id</span></code> and sets <code class="docutils literal notranslate"><span class="pre">source</span></code> to <code class="docutils literal notranslate"><span class="pre">lockfile</span></code> and <code class="docutils literal notranslate"><span class="pre">version_confidence</span></code> to <code class="docutils literal notranslate"><span class="pre">exact</span></code>. Because a <code class="docutils literal notranslate"><span class="pre">Dependency</span></code> node is shared by <code class="docutils literal notranslate"><span class="pre">name|requirements</span></code> (not by version), if two manifests pin the same <code class="docutils literal notranslate"><span class="pre">name|requirements</span></code> to different exact versions the enrichment is declined for that node to avoid representing the wrong version. Lockfiles are fetched only for manifests that have range-only dependencies in a supported ecosystem.</p>
+</div></blockquote>
+<section id="id11">
+<h3>Relationships<a class="headerlink" href="#id11" title="Link to this heading">¶</a></h3>
+<ul>
+<li><p><strong>GitHubRepository</strong> via <strong>REQUIRES</strong> relationship</p>
+<ul>
+<li><p><strong>requirements</strong>: Original requirement string from manifest</p></li>
+<li><p><strong>manifest_path</strong>: Path to manifest file in repository</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="p">(</span><span class="n">GitHubRepository</span><span class="p">)</span><span class="o">-</span><span class="p">[:</span><span class="n">REQUIRES</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(</span><span class="n">Dependency</span><span class="p">)</span>
+</span></pre></div>
+</div>
+</li>
+</ul>
+</li>
+<li><p>A canonical <strong>Package</strong> (ontology) is detected as a <strong>GitHubDependency</strong>.</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="p">(</span><span class="n">Package</span><span class="p">)</span><span class="o">-</span><span class="p">[:</span><span class="n">DETECTED_AS</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(</span><span class="n">Dependency</span><span class="p">:</span><span class="n">GitHubDependency</span><span class="p">)</span>
+</span></pre></div>
+</div>
+</li>
+</ul>
+</section>
+</section>
+<section id="githubdependabotalert">
+<h2>GitHubDependabotAlert<a class="headerlink" href="#githubdependabotalert" title="Link to this heading">¶</a></h2>
+<p>Represents a <a class="reference external" href="https://docs.github.com/en/rest/dependabot/alerts">Dependabot alert</a> for a dependency vulnerability in a GitHub repository. Alerts are scoped to the owning GitHub organization for cleanup and include triage state, advisory metadata, affected package details, and actor metadata.</p>
+<blockquote>
+<div><p><strong>Ontology Mapping</strong>: This node has the extra labels <code class="docutils literal notranslate"><span class="pre">Risk</span></code> and <code class="docutils literal notranslate"><span class="pre">SecurityIssue</span></code> to enable cross-scanner queries for security issues. Alerts with a CVE identifier also receive the <code class="docutils literal notranslate"><span class="pre">CVE</span></code> label and standard <code class="docutils literal notranslate"><span class="pre">cve_id</span></code> property so the <code class="docutils literal notranslate"><span class="pre">cve_metadata</span></code> module can enrich them with NVD and EPSS metadata.</p>
+</div></blockquote>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>firstseen</p></td>
+<td><p>Timestamp of when a sync job first discovered this node</p></td>
+</tr>
+<tr class="row-odd"><td><p>lastupdated</p></td>
+<td><p>Timestamp of the last time the node was updated</p></td>
+</tr>
+<tr class="row-even"><td><p><strong>id</strong></p></td>
+<td><p>Alert URL, preferring the GitHub web URL</p></td>
+</tr>
+<tr class="row-odd"><td><p><strong>number</strong></p></td>
+<td><p>Repository-local Dependabot alert number</p></td>
+</tr>
+<tr class="row-even"><td><p><strong>state</strong></p></td>
+<td><p>Alert state: <code class="docutils literal notranslate"><span class="pre">open</span></code>, <code class="docutils literal notranslate"><span class="pre">fixed</span></code>, <code class="docutils literal notranslate"><span class="pre">dismissed</span></code>, or <code class="docutils literal notranslate"><span class="pre">auto_dismissed</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>html_url</p></td>
+<td><p>GitHub web URL for the alert</p></td>
+</tr>
+<tr class="row-even"><td><p>url</p></td>
+<td><p>GitHub REST API URL for the alert</p></td>
+</tr>
+<tr class="row-odd"><td><p>created_at</p></td>
+<td><p>Timestamp when the alert was created</p></td>
+</tr>
+<tr class="row-even"><td><p>updated_at</p></td>
+<td><p>Timestamp when the alert was last updated</p></td>
+</tr>
+<tr class="row-odd"><td><p>dismissed_at</p></td>
+<td><p>Timestamp when the alert was dismissed, if applicable</p></td>
+</tr>
+<tr class="row-even"><td><p>dismissed_reason</p></td>
+<td><p>GitHub dismissal reason, if applicable</p></td>
+</tr>
+<tr class="row-odd"><td><p>dismissed_comment</p></td>
+<td><p>Dismissal comment, if applicable</p></td>
+</tr>
+<tr class="row-even"><td><p>fixed_at</p></td>
+<td><p>Timestamp when the alert was fixed, if applicable</p></td>
+</tr>
+<tr class="row-odd"><td><p>dependency_package_ecosystem</p></td>
+<td><p>Package ecosystem, such as <code class="docutils literal notranslate"><span class="pre">npm</span></code>, <code class="docutils literal notranslate"><span class="pre">pip</span></code>, or <code class="docutils literal notranslate"><span class="pre">maven</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>dependency_package_name</p></td>
+<td><p>Vulnerable package name</p></td>
+</tr>
+<tr class="row-odd"><td><p>dependency_manifest_path</p></td>
+<td><p>Manifest path where GitHub found the dependency</p></td>
+</tr>
+<tr class="row-even"><td><p>dependency_scope</p></td>
+<td><p>Dependency scope returned by GitHub</p></td>
+</tr>
+<tr class="row-odd"><td><p>vulnerable_version_range</p></td>
+<td><p>Vulnerable version range returned by GitHub</p></td>
+</tr>
+<tr class="row-even"><td><p>first_patched_version</p></td>
+<td><p>First patched package version, if known</p></td>
+</tr>
+<tr class="row-odd"><td><p>severity</p></td>
+<td><p>Vulnerability severity</p></td>
+</tr>
+<tr class="row-even"><td><p>advisory_ghsa_id</p></td>
+<td><p>GitHub Security Advisory ID</p></td>
+</tr>
+<tr class="row-odd"><td><p>advisory_cve_id</p></td>
+<td><p>CVE ID, if GitHub maps the advisory to a CVE</p></td>
+</tr>
+<tr class="row-even"><td><p>cve_id</p></td>
+<td><p>Standard CVE ID field used by <code class="docutils literal notranslate"><span class="pre">cve_metadata</span></code>; mirrors <code class="docutils literal notranslate"><span class="pre">advisory_cve_id</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>has_cve</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">true</span></code> when a CVE ID is present; used to apply the conditional <code class="docutils literal notranslate"><span class="pre">CVE</span></code> label</p></td>
+</tr>
+<tr class="row-even"><td><p>advisory_summary</p></td>
+<td><p>Advisory summary</p></td>
+</tr>
+<tr class="row-odd"><td><p>advisory_description</p></td>
+<td><p>Advisory description</p></td>
+</tr>
+<tr class="row-even"><td><p>cvss_score</p></td>
+<td><p>CVSS score from the advisory</p></td>
+</tr>
+<tr class="row-odd"><td><p>cvss_vector_string</p></td>
+<td><p>CVSS vector from the advisory</p></td>
+</tr>
+<tr class="row-even"><td><p>cvss_v3_score</p></td>
+<td><p>CVSS v3 score, if returned</p></td>
+</tr>
+<tr class="row-odd"><td><p>cvss_v3_vector_string</p></td>
+<td><p>CVSS v3 vector, if returned</p></td>
+</tr>
+<tr class="row-even"><td><p>cvss_v4_score</p></td>
+<td><p>CVSS v4 score, if returned</p></td>
+</tr>
+<tr class="row-odd"><td><p>cvss_v4_vector_string</p></td>
+<td><p>CVSS v4 vector, if returned</p></td>
+</tr>
+<tr class="row-even"><td><p>epss_percentage</p></td>
+<td><p>EPSS probability, if returned</p></td>
+</tr>
+<tr class="row-odd"><td><p>epss_percentile</p></td>
+<td><p>EPSS percentile, if returned</p></td>
+</tr>
+<tr class="row-even"><td><p>cwe_ids</p></td>
+<td><p>List of CWE IDs from the advisory</p></td>
+</tr>
+<tr class="row-odd"><td><p>identifiers</p></td>
+<td><p>List of advisory identifier values, such as GHSA and CVE IDs</p></td>
+</tr>
+<tr class="row-even"><td><p>references</p></td>
+<td><p>List of advisory reference URLs</p></td>
+</tr>
+<tr class="row-odd"><td><p>repository_url</p></td>
+<td><p>GitHub repository URL</p></td>
+</tr>
+<tr class="row-even"><td><p>repository_name</p></td>
+<td><p>GitHub repository name</p></td>
+</tr>
+<tr class="row-odd"><td><p>repository_full_name</p></td>
+<td><p>GitHub owner/name repository string</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<section id="id12">
+<h3>Relationships<a class="headerlink" href="#id12" title="Link to this heading">¶</a></h3>
+<ul>
+<li><p>GitHubDependabotAlerts belong to a GitHubOrganization.</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="p">(</span><span class="n">GitHubOrganization</span><span class="p">)</span><span class="o">-</span><span class="p">[:</span><span class="n">RESOURCE</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(</span><span class="n">GitHubDependabotAlert</span><span class="p">)</span>
+</span></pre></div>
+</div>
+</li>
+<li><p>GitHubDependabotAlerts are found in GitHubRepositories.</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="p">(</span><span class="n">GitHubDependabotAlert</span><span class="p">)</span><span class="o">-</span><span class="p">[:</span><span class="n">FOUND_IN</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(</span><span class="n">GitHubRepository</span><span class="p">)</span>
+</span></pre></div>
+</div>
+</li>
+<li><p>GitHubDependabotAlerts may be dismissed by a GitHubUser.</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="p">(</span><span class="n">GitHubDependabotAlert</span><span class="p">)</span><span class="o">-</span><span class="p">[:</span><span class="n">DISMISSED_BY</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(</span><span class="n">GitHubUser</span><span class="p">)</span>
+</span></pre></div>
+</div>
+</li>
+<li><p>GitHubDependabotAlerts may be assigned to one or more GitHubUsers.</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="p">(</span><span class="n">GitHubDependabotAlert</span><span class="p">)</span><span class="o">-</span><span class="p">[:</span><span class="n">ASSIGNED_TO</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(</span><span class="n">GitHubUser</span><span class="p">)</span>
+</span></pre></div>
+</div>
+</li>
+</ul>
+<p>Dependabot package, GHSA, CWE, and reference identifiers are currently stored as properties. Cartography does not create dependency or CVE relationships from this payload until package/dependency identity can be normalized safely across sources. CVE-backed alerts are labeled <code class="docutils literal notranslate"><span class="pre">CVE</span></code> for compatibility with CVE metadata enrichment.</p>
+<ul>
+<li><p><strong>DependencyGraphManifest</strong> via <strong>HAS_DEP</strong> relationship</p>
+<ul>
+<li><p>Dependencies are linked to their specific manifest files</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="p">(</span><span class="n">DependencyGraphManifest</span><span class="p">)</span><span class="o">-</span><span class="p">[:</span><span class="n">HAS_DEP</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(</span><span class="n">Dependency</span><span class="p">)</span>
+</span></pre></div>
+</div>
+</li>
+</ul>
+</li>
+</ul>
+<p>Dependency nodes are deliberately shared across organizations and repositories
+(the same <code class="docutils literal notranslate"><span class="pre">name|requirements</span></code> id is reused everywhere it appears), so they are
+not anchored to a single tenant via a <code class="docutils literal notranslate"><span class="pre">RESOURCE</span></code> edge. Stale Dependency nodes
+are cleaned up globally once per sync cycle, alongside other shared GitHub
+nodes such as <code class="docutils literal notranslate"><span class="pre">PythonLibrary</span></code>.</p>
+</section>
+</section>
+<section id="githubpackage">
+<h2>GitHubPackage<a class="headerlink" href="#githubpackage" title="Link to this heading">¶</a></h2>
+<p>Representation of a container package hosted on GitHub Container Registry (<code class="docutils literal notranslate"><span class="pre">ghcr.io</span></code>). Each package is the registry-side container for one or more image tags and their underlying image digests.</p>
+<blockquote>
+<div><p><strong>Ontology Mapping</strong>: This node has the extra label <code class="docutils literal notranslate"><span class="pre">ContainerRegistry</span></code> to enable cross-platform queries across registry repositories (e.g., <code class="docutils literal notranslate"><span class="pre">ECRRepository</span></code>, <code class="docutils literal notranslate"><span class="pre">GitLabContainerRepository</span></code>).</p>
+</div></blockquote>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>firstseen</p></td>
+<td><p>Timestamp of when a sync job first created this node</p></td>
+</tr>
+<tr class="row-odd"><td><p>lastupdated</p></td>
+<td><p>Timestamp of the last time the node was updated</p></td>
+</tr>
+<tr class="row-even"><td><p><strong>id</strong></p></td>
+<td><p>The package <code class="docutils literal notranslate"><span class="pre">html_url</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p><strong>name</strong></p></td>
+<td><p>Package name</p></td>
+</tr>
+<tr class="row-even"><td><p><strong>package_type</strong></p></td>
+<td><p>Package type as reported by GitHub (typically <code class="docutils literal notranslate"><span class="pre">container</span></code>)</p></td>
+</tr>
+<tr class="row-odd"><td><p>visibility</p></td>
+<td><p>Visibility of the package (<code class="docutils literal notranslate"><span class="pre">public</span></code> or <code class="docutils literal notranslate"><span class="pre">private</span></code>)</p></td>
+</tr>
+<tr class="row-even"><td><p><strong>uri</strong></p></td>
+<td><p>Pullable package URI (without tag or digest)</p></td>
+</tr>
+<tr class="row-odd"><td><p><strong>html_url</strong></p></td>
+<td><p>Web URL of the package</p></td>
+</tr>
+<tr class="row-even"><td><p>created_at</p></td>
+<td><p>Creation timestamp from GitHub</p></td>
+</tr>
+<tr class="row-odd"><td><p>updated_at</p></td>
+<td><p>Last-update timestamp from GitHub</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<section id="id13">
+<h3>Relationships<a class="headerlink" href="#id13" title="Link to this heading">¶</a></h3>
+<ul>
+<li><p>GitHubPackages belong to GitHubOrganizations.</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="p">(</span><span class="n">GitHubOrganization</span><span class="p">)</span><span class="o">-</span><span class="p">[:</span><span class="n">RESOURCE</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(</span><span class="n">GitHubPackage</span><span class="p">)</span>
+</span></pre></div>
+</div>
+</li>
+<li><p>GitHubRepositories own GitHubPackages (best-effort; only set when the package payload exposes a repository).</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="p">(</span><span class="n">GitHubRepository</span><span class="p">)</span><span class="o">-</span><span class="p">[:</span><span class="n">HAS_PACKAGE</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(</span><span class="n">GitHubPackage</span><span class="p">)</span>
+</span></pre></div>
+</div>
+</li>
+<li><p>GitHubPackages expose container image tags.</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="p">(</span><span class="n">GitHubPackage</span><span class="p">)</span><span class="o">-</span><span class="p">[:</span><span class="n">REPO_IMAGE</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(</span><span class="n">GitHubContainerImageTag</span><span class="p">)</span>
+</span></pre></div>
+</div>
+</li>
+<li><p>GitHubPackages expose container images by digest.</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="p">(</span><span class="n">GitHubPackage</span><span class="p">)</span><span class="o">-</span><span class="p">[:</span><span class="n">HAS_IMAGE</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(</span><span class="n">GitHubContainerImage</span><span class="p">)</span>
+</span></pre></div>
+</div>
+</li>
+</ul>
+</section>
+</section>
+<section id="githubcontainerimage">
+<h2>GitHubContainerImage<a class="headerlink" href="#githubcontainerimage" title="Link to this heading">¶</a></h2>
+<p>Representation of a container image stored in GitHub Container Registry (<code class="docutils literal notranslate"><span class="pre">ghcr.io</span></code>), identified by its digest. Images are content-addressable and can be referenced by multiple tags. Manifest lists (multi-architecture images) contain references to platform-specific child images.</p>
+<blockquote>
+<div><p><strong>Ontology Mapping</strong>: This node has conditional extra labels based on the image type: <code class="docutils literal notranslate"><span class="pre">Image</span></code> for single-platform images (<code class="docutils literal notranslate"><span class="pre">type=&quot;image&quot;</span></code>), or <code class="docutils literal notranslate"><span class="pre">ImageManifestList</span></code> for multi-architecture manifest lists (<code class="docutils literal notranslate"><span class="pre">type=&quot;manifest_list&quot;</span></code>). These labels enable cross-platform queries for container images across different systems (e.g., <code class="docutils literal notranslate"><span class="pre">ECRImage</span></code>, <code class="docutils literal notranslate"><span class="pre">GCPArtifactRegistryImage</span></code>, <code class="docutils literal notranslate"><span class="pre">GitLabContainerImage</span></code>).</p>
+</div></blockquote>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>firstseen</p></td>
+<td><p>Timestamp of when a sync job first created this node</p></td>
+</tr>
+<tr class="row-odd"><td><p>lastupdated</p></td>
+<td><p>Timestamp of the last time the node was updated</p></td>
+</tr>
+<tr class="row-even"><td><p><strong>id</strong></p></td>
+<td><p>The image digest (e.g., <code class="docutils literal notranslate"><span class="pre">sha256:abc123...</span></code>)</p></td>
+</tr>
+<tr class="row-odd"><td><p><strong>digest</strong></p></td>
+<td><p>Same as id, the image digest</p></td>
+</tr>
+<tr class="row-even"><td><p><strong>uri</strong></p></td>
+<td><p>Digest-qualified pullable image reference (e.g., <code class="docutils literal notranslate"><span class="pre">ghcr.io/org/pkg&#64;sha256:abc123...</span></code>)</p></td>
+</tr>
+<tr class="row-odd"><td><p>media_type</p></td>
+<td><p>OCI/Docker media type of the manifest</p></td>
+</tr>
+<tr class="row-even"><td><p>schema_version</p></td>
+<td><p>Manifest schema version</p></td>
+</tr>
+<tr class="row-odd"><td><p><strong>type</strong></p></td>
+<td><p>Either <code class="docutils literal notranslate"><span class="pre">image</span></code> (single platform) or <code class="docutils literal notranslate"><span class="pre">manifest_list</span></code> (multi-arch)</p></td>
+</tr>
+<tr class="row-even"><td><p>architecture</p></td>
+<td><p>CPU architecture (e.g., <code class="docutils literal notranslate"><span class="pre">amd64</span></code>, <code class="docutils literal notranslate"><span class="pre">arm64</span></code>); null for manifest lists</p></td>
+</tr>
+<tr class="row-odd"><td><p>os</p></td>
+<td><p>Operating system (e.g., <code class="docutils literal notranslate"><span class="pre">linux</span></code>); null for manifest lists</p></td>
+</tr>
+<tr class="row-even"><td><p>variant</p></td>
+<td><p>Architecture variant (e.g., <code class="docutils literal notranslate"><span class="pre">v8</span></code>); null for manifest lists</p></td>
+</tr>
+<tr class="row-odd"><td><p><strong>source_uri</strong></p></td>
+<td><p>Normalized VCS URL extracted from the SLSA attestation (when present)</p></td>
+</tr>
+<tr class="row-even"><td><p>source_revision</p></td>
+<td><p>Commit SHA extracted from the SLSA attestation</p></td>
+</tr>
+<tr class="row-odd"><td><p>source_file</p></td>
+<td><p>Source definition file extracted from the attestation (for example <code class="docutils literal notranslate"><span class="pre">Dockerfile</span></code>)</p></td>
+</tr>
+<tr class="row-even"><td><p>parent_image_uri</p></td>
+<td><p>URI of the parent/base image when derivable from attestation or history</p></td>
+</tr>
+<tr class="row-odd"><td><p>parent_image_digest</p></td>
+<td><p>Digest of the parent/base image when derivable from attestation or history</p></td>
+</tr>
+<tr class="row-even"><td><p>child_image_digests</p></td>
+<td><p>List of child image digests (only for manifest lists)</p></td>
+</tr>
+<tr class="row-odd"><td><p>layer_diff_ids</p></td>
+<td><p>List of uncompressed layer diff_ids that compose this image (only for single-platform images)</p></td>
+</tr>
+<tr class="row-even"><td><p>head_layer_diff_id</p></td>
+<td><p>Diff_id of the first (base) layer in this image</p></td>
+</tr>
+<tr class="row-odd"><td><p>tail_layer_diff_id</p></td>
+<td><p>Diff_id of the last (topmost) layer in this image</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<section id="id14">
+<h3>Relationships<a class="headerlink" href="#id14" title="Link to this heading">¶</a></h3>
+<ul>
+<li><p>GitHubContainerImages belong to GitHubOrganizations (for cleanup and cross-package deduplication).</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="p">(</span><span class="n">GitHubOrganization</span><span class="p">)</span><span class="o">-</span><span class="p">[:</span><span class="n">RESOURCE</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(</span><span class="n">GitHubContainerImage</span><span class="p">)</span>
+</span></pre></div>
+</div>
+</li>
+<li><p>GitHubPackages expose GitHubContainerImages by digest.</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="p">(</span><span class="n">GitHubPackage</span><span class="p">)</span><span class="o">-</span><span class="p">[:</span><span class="n">HAS_IMAGE</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(</span><span class="n">GitHubContainerImage</span><span class="p">)</span>
+</span></pre></div>
+</div>
+</li>
+<li><p>GitHubContainerImageTags reference GitHubContainerImages.</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="p">(</span><span class="n">GitHubContainerImageTag</span><span class="p">)</span><span class="o">-</span><span class="p">[:</span><span class="n">IMAGE</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(</span><span class="n">GitHubContainerImage</span><span class="p">)</span>
+</span></pre></div>
+</div>
+</li>
+<li><p>GitHubContainerImages (manifest lists) contain child GitHubContainerImages.</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="p">(</span><span class="n">GitHubContainerImage</span><span class="p">)</span><span class="o">-</span><span class="p">[:</span><span class="n">CONTAINS_IMAGE</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(</span><span class="n">GitHubContainerImage</span><span class="p">)</span>
+</span></pre></div>
+</div>
+</li>
+<li><p>GitHubContainerImages are composed of GitHubContainerImageLayers, with <code class="docutils literal notranslate"><span class="pre">HEAD</span></code>/<code class="docutils literal notranslate"><span class="pre">TAIL</span></code> shortcuts to the base and topmost layers.</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="p">(</span><span class="n">GitHubContainerImage</span><span class="p">)</span><span class="o">-</span><span class="p">[:</span><span class="n">HAS_LAYER</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(</span><span class="n">GitHubContainerImageLayer</span><span class="p">)</span>
+</span><span data-line="2"><span class="p">(</span><span class="n">GitHubContainerImage</span><span class="p">)</span><span class="o">-</span><span class="p">[:</span><span class="n">HEAD</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(</span><span class="n">GitHubContainerImageLayer</span><span class="p">)</span>
+</span><span data-line="3"><span class="p">(</span><span class="n">GitHubContainerImage</span><span class="p">)</span><span class="o">-</span><span class="p">[:</span><span class="n">TAIL</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(</span><span class="n">GitHubContainerImageLayer</span><span class="p">)</span>
+</span></pre></div>
+</div>
+</li>
+<li><p>GitHubContainerImages can point at a parent/base image when SLSA attestation or image history identifies one. The edge carries provenance metadata.</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="p">(</span><span class="n">GitHubContainerImage</span><span class="p">)</span><span class="o">-</span><span class="p">[:</span><span class="n">BUILT_FROM</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(</span><span class="n">GitHubContainerImage</span><span class="p">)</span>
+</span></pre></div>
+</div>
+<p>Relationship properties:</p>
+<ul class="simple">
+<li><p><strong>from_attestation</strong>: <code class="docutils literal notranslate"><span class="pre">true</span></code> when the link was derived from a SLSA attestation, <code class="docutils literal notranslate"><span class="pre">false</span></code> for history-based matching</p></li>
+<li><p><strong>parent_image_uri</strong>: URI of the parent image (when known)</p></li>
+<li><p><strong>confidence</strong>: Confidence score of the match (0.0 to 1.0)</p></li>
+</ul>
+</li>
+<li><p>GitHubContainerImageAttestations attest to GitHubContainerImages.</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="p">(</span><span class="n">GitHubContainerImageAttestation</span><span class="p">)</span><span class="o">-</span><span class="p">[:</span><span class="n">ATTESTS</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(</span><span class="n">GitHubContainerImage</span><span class="p">)</span>
+</span></pre></div>
+</div>
+</li>
+<li><p>Workload containers across providers reference GitHubContainerImages by digest via <code class="docutils literal notranslate"><span class="pre">HAS_IMAGE</span></code>. See the corresponding workload sections for matching semantics.</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="p">(:</span><span class="n">AWSLambda</span><span class="p">)</span><span class="o">-</span><span class="p">[:</span><span class="n">HAS_IMAGE</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(:</span><span class="n">GitHubContainerImage</span><span class="p">)</span>
+</span><span data-line="2"><span class="p">(:</span><span class="n">ECSContainer</span><span class="p">)</span><span class="o">-</span><span class="p">[:</span><span class="n">HAS_IMAGE</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(:</span><span class="n">GitHubContainerImage</span><span class="p">)</span>
+</span><span data-line="3"><span class="p">(:</span><span class="n">KubernetesContainer</span><span class="p">)</span><span class="o">-</span><span class="p">[:</span><span class="n">HAS_IMAGE</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(:</span><span class="n">GitHubContainerImage</span><span class="p">)</span>
+</span><span data-line="4"><span class="p">(:</span><span class="n">GCPCloudRunServiceContainer</span><span class="p">)</span><span class="o">-</span><span class="p">[:</span><span class="n">HAS_IMAGE</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(:</span><span class="n">GitHubContainerImage</span><span class="p">)</span>
+</span><span data-line="5"><span class="p">(:</span><span class="n">GCPCloudRunJobContainer</span><span class="p">)</span><span class="o">-</span><span class="p">[:</span><span class="n">HAS_IMAGE</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(:</span><span class="n">GitHubContainerImage</span><span class="p">)</span>
+</span><span data-line="6"><span class="p">(:</span><span class="n">AzureContainerInstance</span><span class="p">)</span><span class="o">-</span><span class="p">[:</span><span class="n">HAS_IMAGE</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(:</span><span class="n">GitHubContainerImage</span><span class="p">)</span>
+</span><span data-line="7"><span class="p">(:</span><span class="n">AzureFunctionApp</span><span class="p">)</span><span class="o">-</span><span class="p">[:</span><span class="n">HAS_IMAGE</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(:</span><span class="n">GitHubContainerImage</span><span class="p">)</span>
+</span></pre></div>
+</div>
+</li>
+</ul>
+</section>
+</section>
+<section id="githubcontainerimagetag">
+<h2>GitHubContainerImageTag<a class="headerlink" href="#githubcontainerimagetag" title="Link to this heading">¶</a></h2>
+<p>Representation of a tag inside a GitHub container package. Tags are mutable pointers to a specific image digest. Multiple tags can resolve to the same <code class="docutils literal notranslate"><span class="pre">GitHubContainerImage</span></code> (e.g., <code class="docutils literal notranslate"><span class="pre">latest</span></code> and <code class="docutils literal notranslate"><span class="pre">v1.0.0</span></code>).</p>
+<blockquote>
+<div><p><strong>Ontology Mapping</strong>: This node has the extra label <code class="docutils literal notranslate"><span class="pre">ImageTag</span></code> to enable cross-platform queries for container image tags across different registries.</p>
+</div></blockquote>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>firstseen</p></td>
+<td><p>Timestamp of when a sync job first created this node</p></td>
+</tr>
+<tr class="row-odd"><td><p>lastupdated</p></td>
+<td><p>Timestamp of the last time the node was updated</p></td>
+</tr>
+<tr class="row-even"><td><p><strong>id</strong></p></td>
+<td><p>The fully-qualified tag URI (e.g., <code class="docutils literal notranslate"><span class="pre">ghcr.io/org/pkg:v1.0.0</span></code>)</p></td>
+</tr>
+<tr class="row-odd"><td><p><strong>name</strong></p></td>
+<td><p>Tag name (e.g., <code class="docutils literal notranslate"><span class="pre">v1.0.0</span></code>)</p></td>
+</tr>
+<tr class="row-even"><td><p><strong>uri</strong></p></td>
+<td><p>Same as id, the fully-qualified tag URI</p></td>
+</tr>
+<tr class="row-odd"><td><p><strong>digest</strong></p></td>
+<td><p>Digest of the image this tag currently resolves to</p></td>
+</tr>
+<tr class="row-even"><td><p>image_pushed_at</p></td>
+<td><p>Push timestamp reported by GitHub</p></td>
+</tr>
+<tr class="row-odd"><td><p>package_id</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">id</span></code> of the owning <code class="docutils literal notranslate"><span class="pre">GitHubPackage</span></code></p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<section id="id15">
+<h3>Relationships<a class="headerlink" href="#id15" title="Link to this heading">¶</a></h3>
+<ul>
+<li><p>GitHubContainerImageTags belong to GitHubOrganizations (for cleanup).</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="p">(</span><span class="n">GitHubOrganization</span><span class="p">)</span><span class="o">-</span><span class="p">[:</span><span class="n">RESOURCE</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(</span><span class="n">GitHubContainerImageTag</span><span class="p">)</span>
+</span></pre></div>
+</div>
+</li>
+<li><p>GitHubPackages expose GitHubContainerImageTags.</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="p">(</span><span class="n">GitHubPackage</span><span class="p">)</span><span class="o">-</span><span class="p">[:</span><span class="n">REPO_IMAGE</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(</span><span class="n">GitHubContainerImageTag</span><span class="p">)</span>
+</span></pre></div>
+</div>
+</li>
+<li><p>GitHubContainerImageTags resolve to GitHubContainerImages by digest.</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="p">(</span><span class="n">GitHubContainerImageTag</span><span class="p">)</span><span class="o">-</span><span class="p">[:</span><span class="n">IMAGE</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(</span><span class="n">GitHubContainerImage</span><span class="p">)</span>
+</span></pre></div>
+</div>
+</li>
+</ul>
+</section>
+</section>
+<section id="githubcontainerimagelayer">
+<h2>GitHubContainerImageLayer<a class="headerlink" href="#githubcontainerimagelayer" title="Link to this heading">¶</a></h2>
+<p>Representation of a container image layer stored in GitHub Container Registry. Layers are the building blocks of container images, identified by their uncompressed content hash (<code class="docutils literal notranslate"><span class="pre">diff_id</span></code>). Multiple images can share the same layers through Docker’s layer deduplication.</p>
+<blockquote>
+<div><p><strong>Ontology Mapping</strong>: This node has the extra label <code class="docutils literal notranslate"><span class="pre">ImageLayer</span></code> to enable cross-provider queries for container image layers (e.g., <code class="docutils literal notranslate"><span class="pre">ECRImageLayer</span></code>, <code class="docutils literal notranslate"><span class="pre">GCPArtifactRegistryImageLayer</span></code>, <code class="docutils literal notranslate"><span class="pre">GitLabContainerImageLayer</span></code>).</p>
+</div></blockquote>
+<p><strong>Note</strong>: Layers are keyed by <code class="docutils literal notranslate"><span class="pre">diff_id</span></code> (uncompressed layer digest from the image config) rather than <code class="docutils literal notranslate"><span class="pre">digest</span></code> (compressed layer digest from the manifest). This ensures consistent cross-provider layer deduplication: the same layer content may have different compressed digests in different registries but will always share the same <code class="docutils literal notranslate"><span class="pre">diff_id</span></code>.</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>firstseen</p></td>
+<td><p>Timestamp of when a sync job first created this node</p></td>
+</tr>
+<tr class="row-odd"><td><p>lastupdated</p></td>
+<td><p>Timestamp of the last time the node was updated</p></td>
+</tr>
+<tr class="row-even"><td><p><strong>id</strong></p></td>
+<td><p>The uncompressed layer diff_id (e.g., <code class="docutils literal notranslate"><span class="pre">sha256:abc123...</span></code>)</p></td>
+</tr>
+<tr class="row-odd"><td><p>diff_id</p></td>
+<td><p>Same as id</p></td>
+</tr>
+<tr class="row-even"><td><p>digest</p></td>
+<td><p>Compressed layer digest from the manifest (may differ between registries for the same content)</p></td>
+</tr>
+<tr class="row-odd"><td><p>media_type</p></td>
+<td><p>OCI/Docker media type (e.g., <code class="docutils literal notranslate"><span class="pre">application/vnd.docker.image.rootfs.diff.tar.gzip</span></code>)</p></td>
+</tr>
+<tr class="row-even"><td><p>size</p></td>
+<td><p>Size of the layer in bytes (compressed)</p></td>
+</tr>
+<tr class="row-odd"><td><p>is_empty</p></td>
+<td><p>Whether the layer is empty (no on-disk effect)</p></td>
+</tr>
+<tr class="row-even"><td><p>history</p></td>
+<td><p>History entry for this layer extracted from the image config</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<section id="id16">
+<h3>Relationships<a class="headerlink" href="#id16" title="Link to this heading">¶</a></h3>
+<ul>
+<li><p>GitHubContainerImageLayers belong to GitHubOrganizations (for cleanup and cross-image deduplication).</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="p">(</span><span class="n">GitHubOrganization</span><span class="p">)</span><span class="o">-</span><span class="p">[:</span><span class="n">RESOURCE</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(</span><span class="n">GitHubContainerImageLayer</span><span class="p">)</span>
+</span></pre></div>
+</div>
+</li>
+<li><p>GitHubContainerImages are composed of GitHubContainerImageLayers, with <code class="docutils literal notranslate"><span class="pre">HEAD</span></code>/<code class="docutils literal notranslate"><span class="pre">TAIL</span></code> shortcuts to the base and topmost layers.</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="p">(</span><span class="n">GitHubContainerImage</span><span class="p">)</span><span class="o">-</span><span class="p">[:</span><span class="n">HAS_LAYER</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(</span><span class="n">GitHubContainerImageLayer</span><span class="p">)</span>
+</span><span data-line="2"><span class="p">(</span><span class="n">GitHubContainerImage</span><span class="p">)</span><span class="o">-</span><span class="p">[:</span><span class="n">HEAD</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(</span><span class="n">GitHubContainerImageLayer</span><span class="p">)</span>
+</span><span data-line="3"><span class="p">(</span><span class="n">GitHubContainerImage</span><span class="p">)</span><span class="o">-</span><span class="p">[:</span><span class="n">TAIL</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(</span><span class="n">GitHubContainerImageLayer</span><span class="p">)</span>
+</span></pre></div>
+</div>
+</li>
+<li><p>GitHubContainerImageLayers form a linked list using <code class="docutils literal notranslate"><span class="pre">NEXT</span></code> relationships, allowing traversal of the layer stack from base to topmost. A layer may have multiple <code class="docutils literal notranslate"><span class="pre">NEXT</span></code> pointers when different images branch from it.</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="p">(</span><span class="n">GitHubContainerImageLayer</span><span class="p">)</span><span class="o">-</span><span class="p">[:</span><span class="n">NEXT</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(</span><span class="n">GitHubContainerImageLayer</span><span class="p">)</span>
+</span></pre></div>
+</div>
+</li>
+</ul>
+</section>
+</section>
+<section id="githubcontainerimageattestation">
+<h2>GitHubContainerImageAttestation<a class="headerlink" href="#githubcontainerimageattestation" title="Link to this heading">¶</a></h2>
+<p>Representation of a SLSA attestation (build provenance) returned by the GitHub Attestations API for an image pushed to GHCR.</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>firstseen</p></td>
+<td><p>Timestamp of when a sync job first created this node</p></td>
+</tr>
+<tr class="row-odd"><td><p>lastupdated</p></td>
+<td><p>Timestamp of the last time the node was updated</p></td>
+</tr>
+<tr class="row-even"><td><p><strong>id</strong></p></td>
+<td><p>Attestation ID from the GitHub Attestations API</p></td>
+</tr>
+<tr class="row-odd"><td><p>bundle_id</p></td>
+<td><p>Bundle identifier of the attestation</p></td>
+</tr>
+<tr class="row-even"><td><p><strong>predicate_type</strong></p></td>
+<td><p>In-toto predicate type (e.g., <code class="docutils literal notranslate"><span class="pre">https://slsa.dev/provenance/v1</span></code>)</p></td>
+</tr>
+<tr class="row-odd"><td><p><strong>attests_digest</strong></p></td>
+<td><p>Digest of the image this attestation attests to</p></td>
+</tr>
+<tr class="row-even"><td><p>source_uri</p></td>
+<td><p>Normalized VCS URL extracted from the attestation predicate</p></td>
+</tr>
+<tr class="row-odd"><td><p>source_revision</p></td>
+<td><p>Commit SHA extracted from the attestation predicate</p></td>
+</tr>
+<tr class="row-even"><td><p>source_file</p></td>
+<td><p>Source definition file extracted from the attestation predicate (e.g., <code class="docutils literal notranslate"><span class="pre">Dockerfile</span></code>)</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<section id="id17">
+<h3>Relationships<a class="headerlink" href="#id17" title="Link to this heading">¶</a></h3>
+<ul>
+<li><p>GitHubContainerImageAttestations belong to GitHubOrganizations (for cleanup).</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="p">(</span><span class="n">GitHubOrganization</span><span class="p">)</span><span class="o">-</span><span class="p">[:</span><span class="n">RESOURCE</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(</span><span class="n">GitHubContainerImageAttestation</span><span class="p">)</span>
+</span></pre></div>
+</div>
+</li>
+<li><p>GitHubContainerImageAttestations attest to GitHubContainerImages.</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="p">(</span><span class="n">GitHubContainerImageAttestation</span><span class="p">)</span><span class="o">-</span><span class="p">[:</span><span class="n">ATTESTS</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(</span><span class="n">GitHubContainerImage</span><span class="p">)</span>
+</span></pre></div>
+</div>
+</li>
+</ul>
+</section>
+</section>
+<section id="image-to-githubrepository-cross-module-relationship">
+<h2>Image to GitHubRepository (Cross-module relationship)<a class="headerlink" href="#image-to-githubrepository-cross-module-relationship" title="Link to this heading">¶</a></h2>
+<p>Container images (<code class="docutils literal notranslate"><span class="pre">Image</span></code> nodes from any registry: ECR, GitLab, GCP Artifact Registry, etc.) can be linked to the GitHubRepository that contains the Dockerfile used to build them. This relationship is created from provenance metadata or by analyzing Dockerfile content and matching layer commands against image history.</p>
+<section id="id18">
+<h3>Relationships<a class="headerlink" href="#id18" title="Link to this heading">¶</a></h3>
+<ul>
+<li><p>Image nodes may be packaged from a GitHubRepository</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="p">(:</span><span class="n">Image</span><span class="p">)</span><span class="o">-</span><span class="p">[:</span><span class="n">PACKAGED_FROM</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(:</span><span class="n">GitHubRepository</span><span class="p">)</span>
+</span></pre></div>
+</div>
+<p>Relationship properties:</p>
+<ul class="simple">
+<li><p><strong>match_method</strong>: How the match was determined: <code class="docutils literal notranslate"><span class="pre">&quot;provenance&quot;</span></code> (from SLSA attestation) or <code class="docutils literal notranslate"><span class="pre">&quot;dockerfile_analysis&quot;</span></code> (from command matching)</p></li>
+<li><p><strong>dockerfile_path</strong>: Path to the Dockerfile in the repository (only for <code class="docutils literal notranslate"><span class="pre">dockerfile_analysis</span></code> method)</p></li>
+<li><p><strong>confidence</strong>: Confidence score of the match (0.0 to 1.0, only for <code class="docutils literal notranslate"><span class="pre">dockerfile_analysis</span></code> method)</p></li>
+<li><p><strong>matched_commands</strong>: Number of commands that matched between Dockerfile and image history (only for <code class="docutils literal notranslate"><span class="pre">dockerfile_analysis</span></code> method)</p></li>
+<li><p><strong>total_commands</strong>: Total number of commands compared (only for <code class="docutils literal notranslate"><span class="pre">dockerfile_analysis</span></code> method)</p></li>
+<li><p><strong>command_similarity</strong>: Average similarity score of matched commands (only for <code class="docutils literal notranslate"><span class="pre">dockerfile_analysis</span></code> method)</p></li>
+</ul>
+<p>Note: This relationship uses the generic <code class="docutils literal notranslate"><span class="pre">Image</span></code> semantic label, enabling cross-registry querying across image registries. Registry-specific pullable references can be reached from <code class="docutils literal notranslate"><span class="pre">ImageTag</span></code> nodes through <code class="docutils literal notranslate"><span class="pre">(:ImageTag)-[:IMAGE]-&gt;(:Image)</span></code>.</p>
+</li>
+</ul>
+</section>
+</section>
+<section id="dependency-pythonlibrary">
+<h2>Dependency::PythonLibrary<a class="headerlink" href="#dependency-pythonlibrary" title="Link to this heading">¶</a></h2>
+<p>Representation of a Python library as listed in a <a class="reference external" href="https://pip.pypa.io/en/stable/user_guide/#requirements-files">requirements.txt</a>
+or <a class="reference external" href="https://setuptools.pypa.io/en/latest/userguide/declarative_config.html">setup.cfg</a> file.
+Within a setup.cfg file, cartography will load everything from <code class="docutils literal notranslate"><span class="pre">install_requires</span></code>, <code class="docutils literal notranslate"><span class="pre">setup_requires</span></code>, and <code class="docutils literal notranslate"><span class="pre">extras_require</span></code>.</p>
+<p>These nodes are also shared globally across repositories. Repository-specific version constraints stay on the <code class="docutils literal notranslate"><span class="pre">:REQUIRES</span></code> relationship via the <code class="docutils literal notranslate"><span class="pre">specifier</span></code> property.</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><strong>id</strong></p></td>
+<td><p>The <a class="reference external" href="https://packaging.pypa.io/en/latest/utils/#packaging.utils.canonicalize_name">canonicalized</a> name of the library. If the library was pinned in a requirements file using the <code class="docutils literal notranslate"><span class="pre">==</span></code> operator, then <code class="docutils literal notranslate"><span class="pre">id</span></code> has the form <code class="docutils literal notranslate"><span class="pre">{canonical</span> <span class="pre">name}|{pinned_version}</span></code>.</p></td>
+</tr>
+<tr class="row-odd"><td><p>name</p></td>
+<td><p>The <a class="reference external" href="https://packaging.pypa.io/en/latest/utils/#packaging.utils.canonicalize_name">canonicalized</a> name of the library.</p></td>
+</tr>
+<tr class="row-even"><td><p>version</p></td>
+<td><p>The exact version of the library. This field is only present if the library was pinned in a requirements file using the <code class="docutils literal notranslate"><span class="pre">==</span></code> operator.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<section id="id19">
+<h3>Relationships<a class="headerlink" href="#id19" title="Link to this heading">¶</a></h3>
+<ul>
+<li><p>Software on Github repos can import Python libraries by optionally specifying a version number.</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="p">(</span><span class="n">GitHubRepository</span><span class="p">)</span><span class="o">-</span><span class="p">[:</span><span class="n">REQUIRES</span><span class="p">{</span><span class="n">specifier</span><span class="p">}]</span><span class="o">-&gt;</span><span class="p">(</span><span class="n">PythonLibrary</span><span class="p">)</span>
+</span></pre></div>
+</div>
+<ul class="simple">
+<li><p>specifier: A string describing this library’s version e.g. “&lt;4.0,&gt;=3.0” or “==1.0.2”. This field is only present on the <code class="docutils literal notranslate"><span class="pre">:REQUIRES</span></code> edge if the repo’s requirements file provided a version pin.</p></li>
+</ul>
+</li>
+<li><p>A Python Dependency is affected by a SemgrepSCAFinding (optional)</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="p">(:</span><span class="n">SemgrepSCAFinding</span><span class="p">)</span><span class="o">-</span><span class="p">[:</span><span class="n">AFFECTS</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(:</span><span class="n">PythonLibrary</span><span class="p">)</span>
+</span></pre></div>
+</div>
+</li>
+</ul>
+</section>
+</section>
+<section id="githubworkflow">
+<h2>GitHubWorkflow<a class="headerlink" href="#githubworkflow" title="Link to this heading">¶</a></h2>
+<p>Represents a GitHub Actions workflow definition file in a repository.</p>
+<blockquote>
+<div><p><strong>Ontology Mapping</strong>: This node has the extra label <code class="docutils literal notranslate"><span class="pre">CICDPipeline</span></code> to enable cross-platform queries for CI/CD pipeline definitions across different systems (e.g., CodeBuildProject, GitLabCIConfig, SpaceliftStack).</p>
+</div></blockquote>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>firstseen</p></td>
+<td><p>Timestamp of when a sync job first discovered this node</p></td>
+</tr>
+<tr class="row-odd"><td><p>lastupdated</p></td>
+<td><p>Timestamp of the last time the node was updated</p></td>
+</tr>
+<tr class="row-even"><td><p><strong>id</strong></p></td>
+<td><p>The GitHub workflow ID</p></td>
+</tr>
+<tr class="row-odd"><td><p><strong>name</strong></p></td>
+<td><p>Name of the workflow</p></td>
+</tr>
+<tr class="row-even"><td><p><strong>path</strong></p></td>
+<td><p>Path to the workflow file (e.g., <code class="docutils literal notranslate"><span class="pre">.github/workflows/ci.yml</span></code>)</p></td>
+</tr>
+<tr class="row-odd"><td><p><strong>state</strong></p></td>
+<td><p>Workflow state: <code class="docutils literal notranslate"><span class="pre">active</span></code>, <code class="docutils literal notranslate"><span class="pre">disabled_manually</span></code>, <code class="docutils literal notranslate"><span class="pre">disabled_inactivity</span></code>, <code class="docutils literal notranslate"><span class="pre">disabled_fork</span></code>, or <code class="docutils literal notranslate"><span class="pre">deleted</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p><strong>created_at</strong></p></td>
+<td><p>Timestamp when the workflow was created</p></td>
+</tr>
+<tr class="row-odd"><td><p><strong>updated_at</strong></p></td>
+<td><p>Timestamp when the workflow was last updated</p></td>
+</tr>
+<tr class="row-even"><td><p><strong>repo_url</strong></p></td>
+<td><p>URL of the repository containing this workflow (e.g., <code class="docutils literal notranslate"><span class="pre">https://github.com/org/repo</span></code>)</p></td>
+</tr>
+<tr class="row-odd"><td><p><strong>trigger_events</strong></p></td>
+<td><p>List of events that trigger the workflow (e.g., <code class="docutils literal notranslate"><span class="pre">push</span></code>, <code class="docutils literal notranslate"><span class="pre">pull_request</span></code>, <code class="docutils literal notranslate"><span class="pre">schedule</span></code>)</p></td>
+</tr>
+<tr class="row-even"><td><p><strong>permissions_actions</strong></p></td>
+<td><p>Permission level for the <code class="docutils literal notranslate"><span class="pre">actions</span></code> scope</p></td>
+</tr>
+<tr class="row-odd"><td><p><strong>permissions_contents</strong></p></td>
+<td><p>Permission level for the <code class="docutils literal notranslate"><span class="pre">contents</span></code> scope</p></td>
+</tr>
+<tr class="row-even"><td><p><strong>permissions_packages</strong></p></td>
+<td><p>Permission level for the <code class="docutils literal notranslate"><span class="pre">packages</span></code> scope</p></td>
+</tr>
+<tr class="row-odd"><td><p><strong>permissions_pull_requests</strong></p></td>
+<td><p>Permission level for the <code class="docutils literal notranslate"><span class="pre">pull-requests</span></code> scope</p></td>
+</tr>
+<tr class="row-even"><td><p><strong>permissions_issues</strong></p></td>
+<td><p>Permission level for the <code class="docutils literal notranslate"><span class="pre">issues</span></code> scope</p></td>
+</tr>
+<tr class="row-odd"><td><p><strong>permissions_deployments</strong></p></td>
+<td><p>Permission level for the <code class="docutils literal notranslate"><span class="pre">deployments</span></code> scope</p></td>
+</tr>
+<tr class="row-even"><td><p><strong>permissions_statuses</strong></p></td>
+<td><p>Permission level for the <code class="docutils literal notranslate"><span class="pre">statuses</span></code> scope</p></td>
+</tr>
+<tr class="row-odd"><td><p><strong>permissions_checks</strong></p></td>
+<td><p>Permission level for the <code class="docutils literal notranslate"><span class="pre">checks</span></code> scope</p></td>
+</tr>
+<tr class="row-even"><td><p><strong>permissions_id_token</strong></p></td>
+<td><p>Permission level for the <code class="docutils literal notranslate"><span class="pre">id-token</span></code> scope</p></td>
+</tr>
+<tr class="row-odd"><td><p><strong>permissions_security_events</strong></p></td>
+<td><p>Permission level for the <code class="docutils literal notranslate"><span class="pre">security-events</span></code> scope</p></td>
+</tr>
+<tr class="row-even"><td><p><strong>env_vars</strong></p></td>
+<td><p>List of top-level environment variable names defined in the workflow</p></td>
+</tr>
+<tr class="row-odd"><td><p><strong>job_count</strong></p></td>
+<td><p>Number of jobs defined in the workflow</p></td>
+</tr>
+<tr class="row-even"><td><p><strong>has_reusable_workflow_calls</strong></p></td>
+<td><p>Whether the workflow calls reusable workflows</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<section id="id20">
+<h3>Relationships<a class="headerlink" href="#id20" title="Link to this heading">¶</a></h3>
+<ul>
+<li><p>GitHubRepositories have GitHubWorkflows.</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="p">(</span><span class="n">GitHubRepository</span><span class="p">)</span><span class="o">-</span><span class="p">[:</span><span class="n">HAS_WORKFLOW</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(</span><span class="n">GitHubWorkflow</span><span class="p">)</span>
+</span></pre></div>
+</div>
+</li>
+<li><p>GitHubWorkflows use GitHubActions.</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="p">(</span><span class="n">GitHubWorkflow</span><span class="p">)</span><span class="o">-</span><span class="p">[:</span><span class="n">USES_ACTION</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(</span><span class="n">GitHubAction</span><span class="p">)</span>
+</span></pre></div>
+</div>
+</li>
+<li><p>GitHubWorkflows reference GitHubActionsSecrets (detected via <code class="docutils literal notranslate"><span class="pre">${{</span> <span class="pre">secrets.NAME</span> <span class="pre">}}</span></code> patterns in the YAML).</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="p">(</span><span class="n">GitHubWorkflow</span><span class="p">)</span><span class="o">-</span><span class="p">[:</span><span class="n">REFERENCES_SECRET</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(</span><span class="n">GitHubActionsSecret</span><span class="p">)</span>
+</span></pre></div>
+</div>
+</li>
+<li><p>Container images may be packaged by a GitHubWorkflow (derived from SLSA provenance attestations).</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="p">(:</span><span class="n">Image</span><span class="p">)</span><span class="o">-</span><span class="p">[:</span><span class="n">PACKAGED_BY</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(:</span><span class="n">GitHubWorkflow</span><span class="p">)</span>
+</span></pre></div>
+</div>
+<p>Note: This relationship is created when SLSA provenance attestations specify the GitHub Actions workflow that built the container image. The <code class="docutils literal notranslate"><span class="pre">Image</span></code> label is a semantic label applied to container images across registries (ECR, GitLab, etc.).</p>
+</li>
+</ul>
+</section>
+</section>
+<section id="githubaction">
+<h2>GitHubAction<a class="headerlink" href="#githubaction" title="Link to this heading">¶</a></h2>
+<p>Represents a third-party GitHub Action used in workflows, parsed from workflow YAML <code class="docutils literal notranslate"><span class="pre">uses</span></code> references.</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>firstseen</p></td>
+<td><p>Timestamp of when a sync job first discovered this node</p></td>
+</tr>
+<tr class="row-odd"><td><p>lastupdated</p></td>
+<td><p>Timestamp of the last time the node was updated</p></td>
+</tr>
+<tr class="row-even"><td><p><strong>id</strong></p></td>
+<td><p>Unique identifier in the format <code class="docutils literal notranslate"><span class="pre">{org}:{raw_uses}</span></code> (e.g., <code class="docutils literal notranslate"><span class="pre">my-org:actions/checkout&#64;v4</span></code>)</p></td>
+</tr>
+<tr class="row-odd"><td><p><strong>owner</strong></p></td>
+<td><p>Owner of the action repository (e.g., <code class="docutils literal notranslate"><span class="pre">actions</span></code>, <code class="docutils literal notranslate"><span class="pre">docker</span></code>), or <code class="docutils literal notranslate"><span class="pre">None</span></code> for local actions</p></td>
+</tr>
+<tr class="row-even"><td><p><strong>name</strong></p></td>
+<td><p>Name of the action (e.g., <code class="docutils literal notranslate"><span class="pre">checkout</span></code>, <code class="docutils literal notranslate"><span class="pre">setup-node</span></code>, <code class="docutils literal notranslate"><span class="pre">./.github/actions/my-action</span></code>)</p></td>
+</tr>
+<tr class="row-odd"><td><p><strong>version</strong></p></td>
+<td><p>Version reference (tag, branch, or SHA), or <code class="docutils literal notranslate"><span class="pre">None</span></code> for docker/local actions</p></td>
+</tr>
+<tr class="row-even"><td><p><strong>is_pinned</strong></p></td>
+<td><p>Whether the action is pinned to a full 40-character SHA commit hash</p></td>
+</tr>
+<tr class="row-odd"><td><p><strong>is_local</strong></p></td>
+<td><p>Whether the action is a local action (path starting with <code class="docutils literal notranslate"><span class="pre">./</span></code>)</p></td>
+</tr>
+<tr class="row-even"><td><p><strong>full_name</strong></p></td>
+<td><p>Full name of the action (e.g., <code class="docutils literal notranslate"><span class="pre">actions/checkout</span></code>)</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<section id="id21">
+<h3>Relationships<a class="headerlink" href="#id21" title="Link to this heading">¶</a></h3>
+<ul>
+<li><p>GitHubWorkflows use GitHubActions.</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="p">(</span><span class="n">GitHubWorkflow</span><span class="p">)</span><span class="o">-</span><span class="p">[:</span><span class="n">USES_ACTION</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(</span><span class="n">GitHubAction</span><span class="p">)</span>
+</span></pre></div>
+</div>
+</li>
+<li><p>GitHubOrganizations are sub-resources for GitHubActions (for cleanup scoping).</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="p">(</span><span class="n">GitHubOrganization</span><span class="p">)</span><span class="o">-</span><span class="p">[:</span><span class="n">RESOURCE</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(</span><span class="n">GitHubAction</span><span class="p">)</span>
+</span></pre></div>
+</div>
+</li>
+</ul>
+</section>
+</section>
+<section id="githubenvironment">
+<h2>GitHubEnvironment<a class="headerlink" href="#githubenvironment" title="Link to this heading">¶</a></h2>
+<p>Represents a GitHub deployment environment for a repository.</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>firstseen</p></td>
+<td><p>Timestamp of when a sync job first discovered this node</p></td>
+</tr>
+<tr class="row-odd"><td><p>lastupdated</p></td>
+<td><p>Timestamp of the last time the node was updated</p></td>
+</tr>
+<tr class="row-even"><td><p><strong>id</strong></p></td>
+<td><p>The GitHub environment ID</p></td>
+</tr>
+<tr class="row-odd"><td><p><strong>name</strong></p></td>
+<td><p>Name of the environment (e.g., <code class="docutils literal notranslate"><span class="pre">production</span></code>, <code class="docutils literal notranslate"><span class="pre">staging</span></code>)</p></td>
+</tr>
+<tr class="row-even"><td><p><strong>html_url</strong></p></td>
+<td><p>Web URL for viewing the environment settings</p></td>
+</tr>
+<tr class="row-odd"><td><p><strong>created_at</strong></p></td>
+<td><p>Timestamp when the environment was created</p></td>
+</tr>
+<tr class="row-even"><td><p><strong>updated_at</strong></p></td>
+<td><p>Timestamp when the environment was last updated</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<section id="id22">
+<h3>Relationships<a class="headerlink" href="#id22" title="Link to this heading">¶</a></h3>
+<ul>
+<li><p>GitHubRepositories have GitHubEnvironments.</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="p">(</span><span class="n">GitHubRepository</span><span class="p">)</span><span class="o">-</span><span class="p">[:</span><span class="n">HAS_ENVIRONMENT</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(</span><span class="n">GitHubEnvironment</span><span class="p">)</span>
+</span></pre></div>
+</div>
+</li>
+<li><p>GitHubEnvironments can have GitHubActionsSecrets.</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="p">(</span><span class="n">GitHubEnvironment</span><span class="p">)</span><span class="o">-</span><span class="p">[:</span><span class="n">HAS_SECRET</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(</span><span class="n">GitHubActionsSecret</span><span class="p">)</span>
+</span></pre></div>
+</div>
+</li>
+<li><p>GitHubEnvironments can have GitHubActionsVariables.</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="p">(</span><span class="n">GitHubEnvironment</span><span class="p">)</span><span class="o">-</span><span class="p">[:</span><span class="n">HAS_VARIABLE</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(</span><span class="n">GitHubActionsVariable</span><span class="p">)</span>
+</span></pre></div>
+</div>
+</li>
+</ul>
+</section>
+</section>
+<section id="githubactionssecret">
+<h2>GitHubActionsSecret<a class="headerlink" href="#githubactionssecret" title="Link to this heading">¶</a></h2>
+<p>Represents a GitHub Actions secret. Secrets can exist at three levels: organization, repository, or environment.
+Note that secret <strong>values are never exposed</strong> by the GitHub API - only metadata is stored.</p>
+<blockquote>
+<div><p><strong>Ontology Mapping</strong>: This node has the extra label <code class="docutils literal notranslate"><span class="pre">Secret</span></code> and normalized <code class="docutils literal notranslate"><span class="pre">_ont_*</span></code> properties for cross-platform secret queries. See <a class="reference internal" href="#../../ontology/schema.md#secret"><span class="xref myst">Secret</span></a>.</p>
+</div></blockquote>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>firstseen</p></td>
+<td><p>Timestamp of when a sync job first discovered this node</p></td>
+</tr>
+<tr class="row-odd"><td><p>lastupdated</p></td>
+<td><p>Timestamp of the last time the node was updated</p></td>
+</tr>
+<tr class="row-even"><td><p><strong>id</strong></p></td>
+<td><p>Unique identifier (composite URL based on level)</p></td>
+</tr>
+<tr class="row-odd"><td><p><strong>name</strong></p></td>
+<td><p>Name of the secret</p></td>
+</tr>
+<tr class="row-even"><td><p><strong>level</strong></p></td>
+<td><p>Level of the secret: <code class="docutils literal notranslate"><span class="pre">organization</span></code>, <code class="docutils literal notranslate"><span class="pre">repository</span></code>, or <code class="docutils literal notranslate"><span class="pre">environment</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p><strong>visibility</strong></p></td>
+<td><p>Visibility setting (organization-level only): <code class="docutils literal notranslate"><span class="pre">all</span></code>, <code class="docutils literal notranslate"><span class="pre">private</span></code>, or <code class="docutils literal notranslate"><span class="pre">selected</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p><strong>created_at</strong></p></td>
+<td><p>Timestamp when the secret was created</p></td>
+</tr>
+<tr class="row-odd"><td><p><strong>updated_at</strong></p></td>
+<td><p>Timestamp when the secret was last updated</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<section id="id23">
+<h3>Relationships<a class="headerlink" href="#id23" title="Link to this heading">¶</a></h3>
+<ul>
+<li><p>GitHubOrganizations have organization-level GitHubActionsSecrets.</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="p">(</span><span class="n">GitHubOrganization</span><span class="p">)</span><span class="o">-</span><span class="p">[:</span><span class="n">RESOURCE</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(</span><span class="n">GitHubActionsSecret</span> <span class="p">{</span><span class="n">level</span><span class="p">:</span> <span class="s2">&quot;organization&quot;</span><span class="p">})</span>
+</span></pre></div>
+</div>
+</li>
+<li><p>GitHubRepositories have repository-level GitHubActionsSecrets.</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="p">(</span><span class="n">GitHubRepository</span><span class="p">)</span><span class="o">-</span><span class="p">[:</span><span class="n">HAS_SECRET</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(</span><span class="n">GitHubActionsSecret</span> <span class="p">{</span><span class="n">level</span><span class="p">:</span> <span class="s2">&quot;repository&quot;</span><span class="p">})</span>
+</span></pre></div>
+</div>
+</li>
+<li><p>GitHubEnvironments have environment-level GitHubActionsSecrets.</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="p">(</span><span class="n">GitHubEnvironment</span><span class="p">)</span><span class="o">-</span><span class="p">[:</span><span class="n">HAS_SECRET</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(</span><span class="n">GitHubActionsSecret</span> <span class="p">{</span><span class="n">level</span><span class="p">:</span> <span class="s2">&quot;environment&quot;</span><span class="p">})</span>
+</span></pre></div>
+</div>
+</li>
+<li><p>GitHubOrganizations are sub-resources for repository-level and environment-level GitHubActionsSecrets (for cleanup scoping).</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="p">(</span><span class="n">GitHubOrganization</span><span class="p">)</span><span class="o">-</span><span class="p">[:</span><span class="n">RESOURCE</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(</span><span class="n">GitHubActionsSecret</span> <span class="p">{</span><span class="n">level</span><span class="p">:</span> <span class="s2">&quot;repository&quot;</span><span class="p">})</span>
+</span><span data-line="2"><span class="p">(</span><span class="n">GitHubOrganization</span><span class="p">)</span><span class="o">-</span><span class="p">[:</span><span class="n">RESOURCE</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(</span><span class="n">GitHubActionsSecret</span> <span class="p">{</span><span class="n">level</span><span class="p">:</span> <span class="s2">&quot;environment&quot;</span><span class="p">})</span>
+</span></pre></div>
+</div>
+</li>
+</ul>
+</section>
+</section>
+<section id="githubactionsvariable">
+<h2>GitHubActionsVariable<a class="headerlink" href="#githubactionsvariable" title="Link to this heading">¶</a></h2>
+<p>Represents a GitHub Actions variable. Variables can exist at three levels: organization, repository, or environment.
+Unlike secrets, variable <strong>values are stored in plaintext</strong>.</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>firstseen</p></td>
+<td><p>Timestamp of when a sync job first discovered this node</p></td>
+</tr>
+<tr class="row-odd"><td><p>lastupdated</p></td>
+<td><p>Timestamp of the last time the node was updated</p></td>
+</tr>
+<tr class="row-even"><td><p><strong>id</strong></p></td>
+<td><p>Unique identifier (composite URL based on level)</p></td>
+</tr>
+<tr class="row-odd"><td><p><strong>name</strong></p></td>
+<td><p>Name of the variable</p></td>
+</tr>
+<tr class="row-even"><td><p><strong>value</strong></p></td>
+<td><p>Value of the variable (plaintext)</p></td>
+</tr>
+<tr class="row-odd"><td><p><strong>level</strong></p></td>
+<td><p>Level of the variable: <code class="docutils literal notranslate"><span class="pre">organization</span></code>, <code class="docutils literal notranslate"><span class="pre">repository</span></code>, or <code class="docutils literal notranslate"><span class="pre">environment</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p><strong>visibility</strong></p></td>
+<td><p>Visibility setting (organization-level only): <code class="docutils literal notranslate"><span class="pre">all</span></code>, <code class="docutils literal notranslate"><span class="pre">private</span></code>, or <code class="docutils literal notranslate"><span class="pre">selected</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p><strong>created_at</strong></p></td>
+<td><p>Timestamp when the variable was created</p></td>
+</tr>
+<tr class="row-even"><td><p><strong>updated_at</strong></p></td>
+<td><p>Timestamp when the variable was last updated</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<section id="id24">
+<h3>Relationships<a class="headerlink" href="#id24" title="Link to this heading">¶</a></h3>
+<ul>
+<li><p>GitHubOrganizations have organization-level GitHubActionsVariables.</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="p">(</span><span class="n">GitHubOrganization</span><span class="p">)</span><span class="o">-</span><span class="p">[:</span><span class="n">RESOURCE</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(</span><span class="n">GitHubActionsVariable</span> <span class="p">{</span><span class="n">level</span><span class="p">:</span> <span class="s2">&quot;organization&quot;</span><span class="p">})</span>
+</span></pre></div>
+</div>
+</li>
+<li><p>GitHubRepositories have repository-level GitHubActionsVariables.</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="p">(</span><span class="n">GitHubRepository</span><span class="p">)</span><span class="o">-</span><span class="p">[:</span><span class="n">HAS_VARIABLE</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(</span><span class="n">GitHubActionsVariable</span> <span class="p">{</span><span class="n">level</span><span class="p">:</span> <span class="s2">&quot;repository&quot;</span><span class="p">})</span>
+</span></pre></div>
+</div>
+</li>
+<li><p>GitHubEnvironments have environment-level GitHubActionsVariables.</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="p">(</span><span class="n">GitHubEnvironment</span><span class="p">)</span><span class="o">-</span><span class="p">[:</span><span class="n">HAS_VARIABLE</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(</span><span class="n">GitHubActionsVariable</span> <span class="p">{</span><span class="n">level</span><span class="p">:</span> <span class="s2">&quot;environment&quot;</span><span class="p">})</span>
+</span></pre></div>
+</div>
+</li>
+<li><p>GitHubOrganizations are sub-resources for repository-level and environment-level GitHubActionsVariables (for cleanup scoping).</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="p">(</span><span class="n">GitHubOrganization</span><span class="p">)</span><span class="o">-</span><span class="p">[:</span><span class="n">RESOURCE</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(</span><span class="n">GitHubActionsVariable</span> <span class="p">{</span><span class="n">level</span><span class="p">:</span> <span class="s2">&quot;repository&quot;</span><span class="p">})</span>
+</span><span data-line="2"><span class="p">(</span><span class="n">GitHubOrganization</span><span class="p">)</span><span class="o">-</span><span class="p">[:</span><span class="n">RESOURCE</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(</span><span class="n">GitHubActionsVariable</span> <span class="p">{</span><span class="n">level</span><span class="p">:</span> <span class="s2">&quot;environment&quot;</span><span class="p">})</span>
+</span></pre></div>
+</div>
+</li>
+</ul>
+</section>
+</section>
+</section>
+
+        </article><button class="back-to-top" type="button">
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+    <path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8v12z"></path>
+  </svg>
+  <span>Back to top</span>
+</button><div class="navigation flex print:hidden"><div class="navigation-prev">
+    <a href="config.html">
+      <i class="i-lucide chevron-left"></i>
+      <div class="page-info">
+        <span>Previous</span><div class="title">GitHub Configuration</div></div>
+    </a>
+  </div><div class="navigation-next">
+    <a href="../gitlab/index.html">
+      <div class="page-info">
+        <span>Next</span>
+        <div class="title">GitLab</div>
+      </div>
+      <i class="i-lucide chevron-right"></i>
+    </a>
+  </div></div></div>
+    </div>
+  </main>
+</div>
+<footer class="sy-foot">
+  <div class="sy-foot-inner sy-container mx-auto">
+    <div class="sy-foot-reserved md:flex justify-between items-center">
+      <div class="sy-foot-copyright"><p>2021-2026, The Linux Foundation</p>
+  
+  <p>
+    Made with
+    
+    <a href="https://www.sphinx-doc.org/">Sphinx</a> and
+    
+    <a href="https://shibuya.lepture.com">Shibuya theme</a>.
+  </p>
+</div>
+      <div class="sy-foot-socials">
+<a href="https://github.com/cartography-cncf/cartography" aria-label="GitHub">
+  <iconify-icon icon="simple-icons:github"></iconify-icon>
+</a>
+<a href="https://communityinviter.com/apps/cloud-native/cncf" aria-label="Slack">
+  <iconify-icon icon="simple-icons:slack"></iconify-icon>
+</a></div>
+    </div>
+  </div>
+</footer>
+      <script src="../../_static/documentation_options.js?v=9eb32ce0"></script>
+      <script src="../../_static/doctools.js?v=fd6eb6e6"></script>
+      <script src="../../_static/sphinx_highlight.js?v=6ffebe34"></script>
+      <script src="../../_static/clipboard.min.js?v=a7894cd8"></script>
+      <script src="../../_static/copybutton.js?v=f281be69"></script>
+      <script src="../../_static/shibuya.js?v=50760d75"></script>
+      <script src="https://cdn.jsdelivr.net/npm/d3@7.9.0/dist/d3.min.js"></script>
+      <script type="module">import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@11.12.1/dist/mermaid.esm.min.mjs";
+
+
+
+
+
+const initStyles = () => {
+    const defaultStyle = document.createElement('style');
+    defaultStyle.textContent = `pre.mermaid {
+    /* Same as .mermaid-container > pre */
+    display: block;
+    width: 100%;
+}
+
+pre.mermaid > svg {
+    /* Same as .mermaid-container > pre > svg */
+    height: 500px;
+    width: 100%;
+    max-width: 100% !important;
+}`;
+    document.head.appendChild(defaultStyle);
+
+    const fullscreenStyle = document.createElement('style');
+    fullscreenStyle.textContent = `.mermaid-container {
+    display: flex;
+    flex-direction: row;
+    width: 100%;
+}
+
+.mermaid-container > pre {
+    display: block;
+    width: 100%;
+}
+
+.mermaid-container > pre > svg {
+    height: 500px;
+    width: 100%;
+    max-width: 100% !important;
+}
+
+.mermaid-fullscreen-btn {
+    width: 28px;
+    height: 28px;
+    background: rgba(255, 255, 255, 0.95);
+    border: 1px solid rgba(0, 0, 0, 0.3);
+    border-radius: 4px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+    font-size: 14px;
+    line-height: 1;
+    padding: 0;
+    color: #333;
+}
+
+.mermaid-fullscreen-btn:hover {
+    opacity: 100% !important;
+    background: rgba(255, 255, 255, 1);
+    box-shadow: 0 3px 10px rgba(0, 0, 0, 0.3);
+    transform: scale(1.1);
+}
+
+.mermaid-fullscreen-btn.dark-theme {
+    background: rgba(50, 50, 50, 0.95);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    color: #e0e0e0;
+}
+
+.mermaid-fullscreen-btn.dark-theme:hover {
+    background: rgba(60, 60, 60, 1);
+    box-shadow: 0 3px 10px rgba(255, 255, 255, 0.2);
+}
+
+.mermaid-fullscreen-modal {
+    display: none;
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    width: 95vw;
+    height: 100vh;
+    background: rgba(255, 255, 255, 0.98);
+    z-index: 9999;
+    padding: 20px;
+    overflow: auto;
+}
+
+.mermaid-fullscreen-modal.dark-theme {
+    background: rgba(0, 0, 0, 0.98);
+}
+
+.mermaid-fullscreen-modal.active {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.mermaid-container-fullscreen {
+    position: relative;
+    width: 95vw;
+    height: 90vh;
+    max-width: 95vw;
+    max-height: 90vh;
+    background: white;
+    border-radius: 8px;
+    padding: 20px;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+    overflow: auto;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.mermaid-container-fullscreen.dark-theme {
+    background: #1a1a1a;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.8);
+}
+
+.mermaid-container-fullscreen pre.mermaid {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.mermaid-container-fullscreen .mermaid svg {
+    height: 100% !important;
+    width: 100% !important;
+    cursor: grab;
+}
+
+.mermaid-fullscreen-close {
+    position: fixed !important;
+    top: 20px !important;
+    right: 20px !important;
+    width: 40px;
+    height: 40px;
+    background: rgba(255, 255, 255, 0.95);
+    border: 1px solid rgba(0, 0, 0, 0.2);
+    border-radius: 50%;
+    cursor: pointer;
+    z-index: 10000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    transition: all 0.2s;
+    font-size: 24px;
+    line-height: 1;
+    color: #333;
+}
+
+.mermaid-fullscreen-close:hover {
+    background: white;
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.4);
+    transform: scale(1.1);
+}
+
+.mermaid-fullscreen-close.dark-theme {
+    background: rgba(50, 50, 50, 0.95);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    color: #e0e0e0;
+}
+
+.mermaid-fullscreen-close.dark-theme:hover {
+    background: rgba(60, 60, 60, 1);
+    box-shadow: 0 6px 16px rgba(255, 255, 255, 0.2);
+}
+
+.mermaid-fullscreen-modal .mermaid-fullscreen-btn {
+    display: none !important;
+}`;
+    document.head.appendChild(fullscreenStyle);
+}
+
+// Detect if page has dark background
+const isDarkTheme = () => {
+    // We use a set of heuristics:
+    // 1. Check for common dark mode classes or attributes
+    // 2. Check computed background color brightness
+    if (document.documentElement.classList.contains('dark') ||
+        document.documentElement.getAttribute('data-theme') === 'dark' ||
+        document.body.classList.contains('dark') ||
+        document.body.getAttribute('data-theme') === 'dark') {
+        // console.log("Dark theme detected via class/attribute");
+        return true;
+    }
+    if (document.documentElement.classList.contains('light') ||
+        document.documentElement.getAttribute('data-theme') === 'light' ||
+        document.body.classList.contains('light') ||
+        document.body.getAttribute('data-theme') === 'light') {
+        // console.log("Light theme detected via class/attribute");
+        return false;
+    }
+    if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+        // console.log("Dark theme detected via prefers-color-scheme");
+        return true;
+    }
+    const bgColor = window.getComputedStyle(document.body).backgroundColor;
+    const match = bgColor.match(/rgb\((\d+),\s*(\d+),\s*(\d+)/);
+    if (match) {
+        const r = parseInt(match[1]);
+        const g = parseInt(match[2]);
+        const b = parseInt(match[3]);
+        const brightness = (r * 299 + g * 587 + b * 114) / 1000;
+        // console.log("Background color brightness:", brightness);
+        return brightness < 128;
+    }
+    // console.log("No dark or light theme detected, defaulting to light theme");
+    return false;
+};
+
+let darkTheme = isDarkTheme();
+let modal = null;
+let modalContent = null;
+let previousScrollOffset = [window.scrollX, window.scrollY];
+
+const runMermaid = async (rerun) => {
+    console.log("Running mermaid diagrams, rerun =", rerun);
+    // clear all existing mermaid charts
+    let all_mermaids = document.querySelectorAll(".mermaid");
+
+    if (rerun) {
+        all_mermaids.forEach((el) => {
+            if(!el.hasAttribute("data-original-code")) {
+                // store original code
+                // console.log(`Storing original code for first run: `, el.innerHTML);
+                el.setAttribute('data-original-code', el.innerHTML);
+            }
+            if(el.getAttribute("data-processed") === "true") {
+                // remove and restore original
+                el.removeAttribute("data-processed");
+                // console.log(`Restoring original code for re-run: `, el.getAttribute('data-original-code'));
+                el.innerHTML = el.getAttribute('data-original-code');
+            } else {
+                // store original code
+                // console.log(`Storing original code for re-run: `, el.innerHTML);
+                el.setAttribute('data-original-code', el.innerHTML);
+            }
+        });
+        await mermaid.run();
+    }
+
+    all_mermaids = document.querySelectorAll(".mermaid");
+    const mermaids_processed = document.querySelectorAll(".mermaid[data-processed='true']");
+
+    if ("False" === "True") {
+        const mermaids_to_add_zoom = -1 === -1 ? all_mermaids.length : -1;
+        if(mermaids_to_add_zoom > 0) {
+            var svgs = d3.selectAll("");
+            if(all_mermaids.length !== mermaids_processed.length) {
+                setTimeout(() => runMermaid(false), 200);
+                return;
+            } else if(svgs.size() !== mermaids_to_add_zoom) {
+                setTimeout(() => runMermaid(false), 200);
+                return;
+            } else {
+                svgs.each(function() {
+                    var svg = d3.select(this);
+                    svg.html("<g class='wrapper'>" + svg.html() + "</g>");
+                    var inner = svg.select("g");
+                    var zoom = d3.zoom().on("zoom", function(event) {
+                        inner.attr("transform", event.transform);
+                    });
+                    svg.call(zoom);
+                });
+            }
+        }
+    } else if(all_mermaids.length !== mermaids_processed.length) {
+        // Wait for mermaid to process all diagrams
+        setTimeout(() => runMermaid(false), 200);
+        return;
+    }
+
+    // Stop here if not adding fullscreen capability
+    if ("True" !== "True") return;
+
+    if (modal !== null ) {
+        // Destroy existing modal
+        modal.remove();
+        modal = null;
+        modalContent = null;
+    }
+
+    modal = document.createElement('div');
+    modal.className = 'mermaid-fullscreen-modal' + (darkTheme ? ' dark-theme' : '');
+    modal.setAttribute('role', 'dialog');
+    modal.setAttribute('aria-modal', 'true');
+    modal.setAttribute('aria-label', 'Fullscreen diagram viewer');
+    modal.innerHTML = `
+        <button class="mermaid-fullscreen-close${darkTheme ? ' dark-theme' : ''}" aria-label="Close fullscreen">✕</button>
+        <div class="mermaid-container-fullscreen${darkTheme ? ' dark-theme' : ''}"></div>
+    `;
+    document.body.appendChild(modal);
+
+    modalContent = modal.querySelector('.mermaid-container-fullscreen');
+    const closeBtn = modal.querySelector('.mermaid-fullscreen-close');
+
+    const closeModal = () => {
+        modal.classList.remove('active');
+        modalContent.innerHTML = '';
+        document.body.style.overflow = ''
+        window.scrollTo({left: previousScrollOffset[0], top: previousScrollOffset[1], behavior: 'instant'});
+    };
+
+    closeBtn.addEventListener('click', closeModal);
+    modal.addEventListener('click', (e) => {
+        if (e.target === modal) closeModal();
+    });
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && modal.classList.contains('active')) {
+            closeModal();
+        }
+    });
+
+    document.querySelectorAll('.mermaid').forEach((mermaidDiv) => {
+        if (mermaidDiv.parentNode.classList.contains('mermaid-container') ||
+            mermaidDiv.closest('.mermaid-fullscreen-modal')) {
+            // Already processed, adjust button class if needed
+            const existingBtn = mermaidDiv.parentNode.querySelector('.mermaid-fullscreen-btn');
+            if (existingBtn) {
+                existingBtn.className = 'mermaid-fullscreen-btn' + (darkTheme ? ' dark-theme' : '');
+            }
+            return;
+        }
+
+        const container = document.createElement('div');
+        container.className = 'mermaid-container';
+        mermaidDiv.parentNode.insertBefore(container, mermaidDiv);
+        container.appendChild(mermaidDiv);
+
+        const fullscreenBtn = document.createElement('button');
+        fullscreenBtn.className = 'mermaid-fullscreen-btn' + (darkTheme ? ' dark-theme' : '');
+        fullscreenBtn.setAttribute('aria-label', 'View diagram in fullscreen');
+        fullscreenBtn.textContent = '⛶';
+        fullscreenBtn.style.opacity = '50%';
+
+        // Calculate dynamic position based on diagram's margin and padding
+        const diagramStyle = window.getComputedStyle(mermaidDiv);
+        const marginTop = parseFloat(diagramStyle.marginTop) || 0;
+        const marginRight = parseFloat(diagramStyle.marginRight) || 0;
+        const paddingTop = parseFloat(diagramStyle.paddingTop) || 0;
+        const paddingRight = parseFloat(diagramStyle.paddingRight) || 0;
+        fullscreenBtn.style.top = `${marginTop + paddingTop + 4}px`;
+        fullscreenBtn.style.right = `${marginRight + paddingRight + 4}px`;
+
+        fullscreenBtn.addEventListener('click', () => {
+            previousScrollOffset = [window.scroll, window.scrollY];
+            const clone = mermaidDiv.cloneNode(true);
+            modalContent.innerHTML = '';
+            modalContent.appendChild(clone);
+
+            const svg = clone.querySelector('svg');
+            if (svg) {
+                svg.removeAttribute('width');
+                svg.removeAttribute('height');
+                svg.style.width = '100%';
+                svg.style.height = 'auto';
+                svg.style.maxWidth = '100%';
+                svg.style.sdisplay = 'block';
+
+                if ("False" === "True") {
+                    setTimeout(() => {
+                        const g = svg.querySelector('g');
+                        if (g) {
+                            var svgD3 = d3.select(svg);
+                            svgD3.html("<g class='wrapper'>" + svgD3.html() + "</g>");
+                            var inner = svgD3.select("g");
+                            var zoom = d3.zoom().on("zoom", function(event) {
+                                inner.attr("transform", event.transform);
+                            });
+                            svgD3.call(zoom);
+                        }
+                    }, 100);
+                }
+            }
+
+            modal.classList.add('active');
+            document.body.style.overflow = 'hidden';
+        });
+        container.appendChild(fullscreenBtn);
+    });
+};
+
+const load = async () => {
+    initStyles();
+
+    await runMermaid(true);
+
+    const reRunIfThemeChanges = async () => {
+        const newDarkTheme = isDarkTheme();
+        if (newDarkTheme !== darkTheme) {
+            darkTheme = newDarkTheme;
+            console.log("Theme change detected, re-running mermaid with", darkTheme ? "dark" : "default", "theme");
+            await mermaid.initialize(
+                {...JSON.parse(
+                    `{"startOnLoad": false}`
+                ),
+                ...{ darkMode: darkTheme, theme: darkTheme ? 'dark' : 'default' },
+                }
+            );
+            await runMermaid(true);
+        }
+    };
+
+    // Update theme classes when theme changes
+    const themeObserver = new MutationObserver(reRunIfThemeChanges);
+    themeObserver.observe(document.documentElement, {
+        attributes: true,
+        attributeFilter: ['class', 'style', 'data-theme']
+    });
+    themeObserver.observe(document.body, {
+        attributes: true,
+        attributeFilter: ['class', 'style', 'data-theme']
+    });
+};
+
+
+
+
+
+console.log("Initializing mermaid with", darkTheme ? "dark" : "default", "theme");
+mermaid.initialize(
+    {...JSON.parse(
+        `{"startOnLoad": false}`
+    ),
+    ...{ darkMode: darkTheme, theme: darkTheme ? 'dark' : 'default' },
+    }
+);
+
+window.addEventListener("load", load);
+window.runMermaid = runMermaid;</script></body>
+</html>
