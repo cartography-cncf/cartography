@@ -1,4 +1,5 @@
 import logging
+from functools import wraps
 from typing import Any
 from typing import Dict
 from typing import Iterator
@@ -58,8 +59,50 @@ AWS_INSPECTOR_REGIONS = {
 
 BATCH_SIZE = 1000
 
+# Connection-level failures that indicate a regional inspector2 endpoint could not
+# be reached (e.g. an opt-in region listed in AWS_INSPECTOR_REGIONS but not enabled
+# on the account). These are NOT botocore ClientError subclasses.
+_INSPECTOR_TRANSIENT_CONNECTION_ERRORS = (
+    botocore.exceptions.ConnectTimeoutError,
+    botocore.exceptions.EndpointConnectionError,
+    botocore.exceptions.ReadTimeoutError,
+    botocore.exceptions.ConnectionClosedError,
+)
+
+
+class InspectorTransientRegionFailure(Exception):
+    """
+    Raised when a regional inspector2 endpoint fails at the connection level.
+
+    The generic @aws_handle_regions decorator catches most of these connection
+    errors and returns [], which makes a transient failure indistinguishable from
+    a region that legitimately has no data. We re-raise them as this distinct type
+    (which @aws_handle_regions does not catch) so sync() can skip the region and
+    skip cleanup, preserving last-known-good data.
+    """
+
+
+def _reraise_inspector_connection_errors(func: Any) -> Any:
+    """
+    Convert connection-level endpoint failures into InspectorTransientRegionFailure.
+
+    Stacked *inside* @aws_handle_regions so the re-raised exception bubbles past
+    that decorator (it only handles ClientError and the raw connection errors)
+    instead of being swallowed into an empty result.
+    """
+
+    @wraps(func)
+    def inner(*args: Any, **kwargs: Any) -> Any:
+        try:
+            return func(*args, **kwargs)
+        except _INSPECTOR_TRANSIENT_CONNECTION_ERRORS as e:
+            raise InspectorTransientRegionFailure(str(e)) from e
+
+    return inner
+
 
 @aws_handle_regions
+@_reraise_inspector_connection_errors
 def get_member_accounts(
     session: boto3.session.Session,
     region: str,
@@ -359,12 +402,7 @@ def _sync_findings_for_account(
                 current_aws_account_id,
             )
         return True
-    except (
-        botocore.exceptions.ConnectTimeoutError,
-        botocore.exceptions.EndpointConnectionError,
-        botocore.exceptions.ReadTimeoutError,
-        botocore.exceptions.ConnectionClosedError,
-    ):
+    except _INSPECTOR_TRANSIENT_CONNECTION_ERRORS:
         # Connection-level failures are not ClientError subclasses, so the
         # @aws_handle_regions decorator and the ClientError handler below cannot
         # catch them. They occur during iteration of the get_inspector_findings
@@ -437,12 +475,7 @@ def sync(
         )
         try:
             member_accounts = get_member_accounts(boto3_session, region)
-        except (
-            botocore.exceptions.ConnectTimeoutError,
-            botocore.exceptions.EndpointConnectionError,
-            botocore.exceptions.ReadTimeoutError,
-            botocore.exceptions.ConnectionClosedError,
-        ):
+        except InspectorTransientRegionFailure:
             # Reaching the regional inspector2 endpoint failed at the connection
             # level (e.g. an opt-in region listed in AWS_INSPECTOR_REGIONS that is
             # not enabled on this account). Skip the whole region.
