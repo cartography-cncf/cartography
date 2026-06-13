@@ -31,6 +31,27 @@ azure_console_link = AzureLinker()
 
 scopes = ["https://graph.microsoft.com/.default"]
 
+# Standard cross-provider classification of IAM resources by who created them.
+# "predefined" => created/owned by the cloud provider; "custom" => created by a customer principal.
+MANAGED_TYPE_PREDEFINED = "predefined"
+MANAGED_TYPE_CUSTOM = "custom"
+
+# Microsoft's first-party (well-known) tenant id. Service principals owned by this tenant are
+# Microsoft-managed first-party apps rather than customer-created ones.
+AZURE_MICROSOFT_TENANT_ID = "f8cdef31-a31e-4b4a-93e4-5f571e91255a"
+
+
+def _azure_role_managed_type(role: Dict) -> str:
+    if role.get("type") == "Microsoft.Authorization/roleDefinitions" or role.get("role_type") == "BuiltInRole":
+        return MANAGED_TYPE_PREDEFINED
+    return MANAGED_TYPE_CUSTOM
+
+
+def _azure_service_principal_managed_type(app_owner_organization_id: Optional[str]) -> str:
+    if (app_owner_organization_id or "").lower() == AZURE_MICROSOFT_TENANT_ID:
+        return MANAGED_TYPE_PREDEFINED
+    return MANAGED_TYPE_CUSTOM
+
 # A safe batch size for "in" filters with GUIDs to avoid 414 URI Too Long errors.
 # MS Graph URL limit is ~2048 chars. 36-char GUID + quotes/commas = ~39 chars.
 # 2048 / 39 = ~52. A batch size of 25 is safe.
@@ -300,6 +321,7 @@ def _load_tenant_users_tx(
     i.office_location = user.office_location,
     i.preferred_language = user.preferred_language,
     i.department = user.department,
+    i.managed_type = 'custom',
     i.region = $region
     WITH i
     MATCH (owner:AzureTenant{id: $tenant_id})
@@ -454,6 +476,7 @@ def _load_tenant_groups_tx(
     i.on_premises_security_identifier = group.on_premises_security_identifier,
     i.renewed_date_time = group.renewed_date_time,
     i.security_identifier = group.security_identifier,
+    i.managed_type = 'custom',
     i.region = $region
     WITH i
     MATCH (owner:AzureTenant{id: $tenant_id})
@@ -773,6 +796,7 @@ def _load_tenant_applications_tx(
     i.disabled_by_microsoft_status = app.disabled_by_microsoft_status,
     i.is_device_only_auth_supported = app.is_device_only_auth_supported,
     i.is_fallback_public_client = app.is_fallback_public_client,
+    i.managed_type = 'custom',
     i.region = $region
     WITH i
     MATCH (owner:AzureTenant{id: $tenant_id})
@@ -877,6 +901,9 @@ async def get_tenant_service_accounts_list(client: GraphServiceClient, tenant_id
                 app_id=sp_dict.get("app_id"),
                 iam_entity_type="service_principal",
             )
+            sp_dict["managed_type"] = _azure_service_principal_managed_type(
+                sp_dict.get("app_owner_organization_id"),
+            )
 
             tenant_service_accounts_list.append(sp_dict)
 
@@ -922,6 +949,7 @@ def _load_tenant_service_accounts_tx(
     i.service_principal_type = service.service_principal_type,
     i.sign_in_audience = service.sign_in_audience,
     i.token_encryption_key_id = service.token_encryption_key_id,
+    i.managed_type = coalesce(service.managed_type, CASE WHEN toLower(coalesce(service.app_owner_organization_id, '')) = $ms_tenant_id THEN 'predefined' ELSE 'custom' END),
     i.region = $region
     WITH i
     MATCH (owner:AzureTenant{id: $tenant_id})
@@ -935,6 +963,7 @@ def _load_tenant_service_accounts_tx(
         region="global",
         tenant_service_accounts_list=tenant_service_accounts_list,
         tenant_id=tenant_id,
+        ms_tenant_id=AZURE_MICROSOFT_TENANT_ID,
         update_tag=update_tag,
     )
 
@@ -1055,6 +1084,7 @@ def _load_tenant_domains_tx(
     i.state_last_action_date_time = CASE WHEN domain.state IS NOT NULL THEN domain.state.last_action_date_time ELSE null END,
     i.state_operation = CASE WHEN domain.state IS NOT NULL THEN domain.state.operation ELSE null END,
     i.state_status = CASE WHEN domain.state IS NOT NULL THEN domain.state.status ELSE null END,
+    i.managed_type = 'custom',
     i.region = $region
     WITH i
     MATCH (owner:AzureTenant{id: $tenant_id})
@@ -1105,11 +1135,8 @@ def get_roles_list(
             map(lambda x: x.as_dict(), client.role_definitions.list(scope=f"/subscriptions/{subscription_id}")),
         )
         for role in role_definitions_list:
-            if role.get("type") == "Microsoft.Authorization/roleDefinitions" or role.get("role_type") == "BuiltInRole":
-                role["role_owner_type"] = "predefined"
-
-            else:
-                role["role_owner_type"] = "custom"
+            role["role_owner_type"] = _azure_role_managed_type(role)
+            role["managed_type"] = role["role_owner_type"]
 
             role["identity_id"] = role["id"].split("/")[-1]
             role["consolelink"] = azure_console_link.get_console_link(
@@ -1191,6 +1218,7 @@ def _load_roles_tx(
     i.role_type = role.role_type,
     i.identity_id = role.identity_id,
     i.role_owner_type = role.role_owner_type,
+    i.managed_type = coalesce(role.managed_type, role.role_owner_type, CASE WHEN role.role_type = 'BuiltInRole' OR role.type = 'Microsoft.Authorization/roleDefinitions' THEN 'predefined' ELSE 'custom' END),
     i.region = $region
     WITH i,role
     MATCH (t:AzureTenant{id: $tenant_id})
@@ -1254,7 +1282,8 @@ def _load_managed_identities_tx(
     i.type = managed_identity.type,
     i.object_id = managed_identity.principal_id,
     i.principal_id = managed_identity.principal_id,
-    i.client_id = managed_identity.client_id
+    i.client_id = managed_identity.client_id,
+    i.managed_type = 'custom'
     WITH i
     MATCH (t:AzureTenant{id: $tenant_id})
     MERGE (t)-[tr:RESOURCE]->(i)

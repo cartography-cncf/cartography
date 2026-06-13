@@ -5,6 +5,7 @@ from tests.data.azure.iam import DESCRIBE_GROUPS
 from tests.data.azure.iam import DESCRIBE_ROLES
 from tests.data.azure.iam import DESCRIBE_SERVICE_ACCOUNTS
 from tests.data.azure.iam import DESCRIBE_USERS
+from tests.integration.util import check_nodes
 
 TEST_TENANT_ID = '00-00-00-00'
 TEST_UPDATE_TAG = 123456789
@@ -336,6 +337,74 @@ def test_load_roles(neo4j_session):
     actual_nodes = {n['r.id'] for n in nodes}
 
     assert actual_nodes == expected_nodes
+
+
+def test_load_users_managed_type(neo4j_session):
+    iam.load_tenant_users(neo4j_session, TEST_TENANT_ID, DESCRIBE_USERS, TEST_UPDATE_TAG)
+    managed_types = {mt for (_, mt) in check_nodes(neo4j_session, 'AzureUser', ['id', 'managed_type'])}
+    assert managed_types == {'custom'}
+
+
+def test_load_groups_managed_type(neo4j_session):
+    iam.load_tenant_groups(neo4j_session, TEST_TENANT_ID, DESCRIBE_GROUPS, TEST_UPDATE_TAG)
+    managed_types = {mt for (_, mt) in check_nodes(neo4j_session, 'AzureGroup', ['id', 'managed_type'])}
+    assert managed_types == {'custom'}
+
+
+def test_load_applications_managed_type(neo4j_session):
+    iam.load_tenant_applications(neo4j_session, TEST_TENANT_ID, DESCRIBE_APPLICATIONS, TEST_UPDATE_TAG)
+    managed_types = {mt for (_, mt) in check_nodes(neo4j_session, 'AzureApplication', ['id', 'managed_type'])}
+    assert managed_types == {'custom'}
+
+
+def test_load_domains_managed_type(neo4j_session):
+    iam.load_tenant_domains(neo4j_session, TEST_TENANT_ID, DESCRIBE_DOMAINS, TEST_UPDATE_TAG)
+    managed_types = {mt for (_, mt) in check_nodes(neo4j_session, 'AzureDomain', ['id', 'managed_type'])}
+    assert managed_types == {'custom'}
+
+
+def test_load_service_accounts_managed_type(neo4j_session):
+    # A Microsoft first-party service principal (predefined) and an ordinary customer one (custom).
+    service_accounts = [
+        {
+            "id": "tenants/00-00-00-00/ServiceAccounts/ms-first-party",
+            "object_id": "ms-first-party",
+            "display_name": "Microsoft First Party",
+            "app_owner_organization_id": iam.AZURE_MICROSOFT_TENANT_ID,
+        },
+        {
+            "id": "tenants/00-00-00-00/ServiceAccounts/customer-sp",
+            "object_id": "customer-sp",
+            "display_name": "Customer SP",
+            "app_owner_organization_id": "11111111-2222-3333-4444-555555555555",
+        },
+    ]
+    iam.load_tenant_service_accounts(neo4j_session, TEST_TENANT_ID, service_accounts, TEST_UPDATE_TAG)
+    assert check_nodes(neo4j_session, 'AzureServiceAccount', ['object_id', 'managed_type']) >= {
+        ('ms-first-party', 'predefined'),
+        ('customer-sp', 'custom'),
+    }
+
+
+def test_load_roles_managed_type(neo4j_session):
+    roles = [
+        {
+            "id": "predefined-builtin-role",
+            "type": "Microsoft.Authorization/roleDefinitions",
+            "roleName": "Owner",
+        },
+        {
+            "id": "custom-role",
+            "type": "Microsoft.Authorization/roleAssignments",
+            "role_type": "CustomRole",
+            "roleName": "MyRole",
+        },
+    ]
+    iam.load_roles(neo4j_session, TEST_TENANT_ID, roles, TEST_UPDATE_TAG, SUBSCRIPTION_ID=None)
+    assert check_nodes(neo4j_session, 'AzureRole', ['id', 'managed_type']) >= {
+        ('predefined-builtin-role', 'predefined'),
+        ('custom-role', 'custom'),
+    }
 
 
 def test_load_role_relationships(neo4j_session):
