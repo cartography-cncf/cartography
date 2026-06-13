@@ -91,6 +91,16 @@ def start_intune_ingestion(neo4j_session: neo4j.Session, config: Config) -> None
                 )
             else:
                 raise
+        except (TimeoutError, RuntimeError) as e:
+            # Detected apps come from Microsoft Graph's async report export,
+            # which intermittently strands the export job server-side even after
+            # resubmission. It is optional enrichment, so a stalled export must
+            # not fail the whole Microsoft sync; the next run recovers.
+            logger.warning(
+                "Skipping Intune detected app sync: report export did not "
+                "complete: %s",
+                e,
+            )
 
         compliance_policies_synced = False
         try:
