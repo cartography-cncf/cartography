@@ -232,6 +232,107 @@ def test_permission_relationships_can_passrole(neo4j_session):
     ), f"Expected CAN_PASS_ROLE relationship not found. Got: {actual_rels}"
 
 
+def test_permission_relationships_ssm_precondition(neo4j_session):
+    """
+    A principal with ssm:StartSession should only get a CAN_START_SESSION edge to an
+    EC2 instance that is actually managed by SSM (i.e. has a HAS_INFORMATION edge to an
+    SSMInstanceInformation node). See issue #1643.
+    """
+    create_test_account(neo4j_session, TEST_ACCOUNT_ID, TEST_UPDATE_TAG)
+
+    # Two instances with ARNs: one SSM-managed, one not.
+    neo4j_session.run(
+        """
+        MATCH (aws:AWSAccount{id: $AccountId})
+        MERGE (managed:EC2Instance{id: 'i-managed'})<-[:RESOURCE]-(aws)
+        SET managed.arn = 'arn:aws:ec2:us-east-1:000000000000:instance/i-managed',
+            managed.lastupdated = $UpdateTag
+        MERGE (ssm:SSMInstanceInformation{id: 'i-managed'})
+        MERGE (managed)-[:HAS_INFORMATION]->(ssm)
+        MERGE (unmanaged:EC2Instance{id: 'i-unmanaged'})<-[:RESOURCE]-(aws)
+        SET unmanaged.arn = 'arn:aws:ec2:us-east-1:000000000000:instance/i-unmanaged',
+            unmanaged.lastupdated = $UpdateTag
+        """,
+        AccountId=TEST_ACCOUNT_ID,
+        UpdateTag=TEST_UPDATE_TAG,
+    )
+
+    with (
+        patch(
+            "cartography.intel.aws.iam.get_role_list_data",
+            return_value=SIMPLE_ROLE_DATA,
+        ),
+        patch(
+            "cartography.intel.aws.iam.get_role_policy_data",
+            return_value=SSM_ROLE_POLICY_DATA,
+        ),
+        patch(
+            "cartography.intel.aws.iam.get_role_managed_policy_data", return_value={}
+        ),
+        patch(
+            "cartography.intel.aws.permission_relationships.parse_permission_relationships_file",
+            return_value=[
+                {
+                    "target_label": "EC2Instance",
+                    "permissions": ["ssm:StartSession"],
+                    "relationship_name": "CAN_START_SESSION",
+                    "target_precondition": {
+                        "related_label": "SSMInstanceInformation",
+                        "relationship": "HAS_INFORMATION",
+                        "direction": "outgoing",
+                    },
+                },
+            ],
+        ),
+    ):
+        common_job_parameters = {"AWS_ID": TEST_ACCOUNT_ID}
+        cartography.intel.aws.iam.sync_roles(
+            neo4j_session,
+            MagicMock(),
+            TEST_ACCOUNT_ID,
+            TEST_UPDATE_TAG,
+            common_job_parameters,
+        )
+
+        cartography.intel.aws.permission_relationships.sync(
+            neo4j_session,
+            None,
+            [TEST_REGION],
+            TEST_ACCOUNT_ID,
+            TEST_UPDATE_TAG,
+            {
+                "permission_relationships_file": "dummy-path.yaml",
+            },
+        )
+
+    actual_rels = check_rels(
+        neo4j_session,
+        "AWSRole",
+        "arn",
+        "EC2Instance",
+        "id",
+        "CAN_START_SESSION",
+    )
+
+    # Only the SSM-managed instance should get the edge.
+    assert actual_rels == {
+        ("arn:aws:iam::000000000000:role/TestReadRole", "i-managed"),
+    }
+
+    # Clean up the ARN'd instances so we don't pollute other tests in this module
+    # (the neo4j_session fixture only wipes the DB at module teardown).
+    neo4j_session.run(
+        """
+        MATCH (e:EC2Instance) WHERE e.id IN ['i-managed', 'i-unmanaged'] DETACH DELETE e
+        """,
+    )
+    neo4j_session.run(
+        """
+        MATCH (s:SSMInstanceInformation{id: 'i-managed'}) DETACH DELETE s
+        """,
+    )
+
+
 def test_permission_relationships_skips_resources_without_arn(neo4j_session):
     create_test_account(neo4j_session, TEST_ACCOUNT_ID, TEST_UPDATE_TAG)
 
