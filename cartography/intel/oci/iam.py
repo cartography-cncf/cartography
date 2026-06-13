@@ -16,6 +16,38 @@ from cartography.util import run_cleanup_job
 
 logger = logging.getLogger(__name__)
 
+# Standard cross-provider classification of IAM resources by who created them.
+# "predefined" => created/owned by the cloud provider; "custom" => created by a customer principal.
+MANAGED_TYPE_PREDEFINED = "predefined"
+MANAGED_TYPE_CUSTOM = "custom"
+
+# Groups seeded by Oracle when a tenancy is provisioned.
+OCI_PREDEFINED_GROUP_NAMES = {"Administrators"}
+# Policies seeded by Oracle (root tenancy admin policy and PaaS/PSM-managed policies).
+OCI_PREDEFINED_POLICY_NAMES = {"Tenant Admin Policy"}
+# Compartments created by Oracle rather than the customer.
+OCI_PREDEFINED_COMPARTMENT_NAMES = {"ManagedCompartmentForPaaS"}
+
+
+def _oci_compartment_managed_type(compartment: Dict[str, Any], tenancy_id: str) -> str:
+    # The root compartment is the tenancy itself; Oracle also seeds ManagedCompartmentForPaaS.
+    if compartment.get("id") == tenancy_id or compartment.get("compartmentId") == tenancy_id:
+        return MANAGED_TYPE_PREDEFINED
+    if compartment.get("name") in OCI_PREDEFINED_COMPARTMENT_NAMES:
+        return MANAGED_TYPE_PREDEFINED
+    return MANAGED_TYPE_CUSTOM
+
+
+def _oci_group_managed_type(group: Dict[str, Any]) -> str:
+    return MANAGED_TYPE_PREDEFINED if group.get("name") in OCI_PREDEFINED_GROUP_NAMES else MANAGED_TYPE_CUSTOM
+
+
+def _oci_policy_managed_type(policy: Dict[str, Any]) -> str:
+    name = policy.get("name", "") or ""
+    if name in OCI_PREDEFINED_POLICY_NAMES or name.startswith("PSM-"):
+        return MANAGED_TYPE_PREDEFINED
+    return MANAGED_TYPE_CUSTOM
+
 
 def sync_compartments(
     neo4j_session: neo4j.Session,
@@ -66,6 +98,7 @@ def load_compartments(
     ON CREATE SET cnode:OCICompartment, cnode.firstseen = timestamp(),
     cnode.createdate = $CREATE_DATE
     SET cnode.ocid = $OCID, cnode.name = $NAME, cnode.compartmentid = $COMPARTMENT_ID,
+    cnode.managed_type = $MANAGED_TYPE,
     cnode.lastupdated = $oci_update_tag
     WITH cnode
     MATCH (tenancy:OCITenancy{id: $OCI_TENANCY_ID})
@@ -81,6 +114,10 @@ def load_compartments(
             COMPARTMENT_ID=compartment["compartment-id"],
             DESCRIPTION=compartment["description"],
             NAME=compartment["name"],
+            MANAGED_TYPE=_oci_compartment_managed_type(
+                {"id": compartment["id"], "name": compartment["name"], "compartmentId": compartment["compartment-id"]},
+                current_oci_tenancy_id,
+            ),
             CREATE_DATE=compartment["time-created"],
             OCI_TENANCY_ID=current_oci_tenancy_id,
             oci_update_tag=oci_update_tag,
@@ -103,6 +140,7 @@ def load_users(
     unode.can_use_console_password = $CAN_USE_CONSOLE_PASSWORD,
     unode.can_use_customer_secret_keys = $CAN_USE_CUSTOMER_SECRET_KEYS,
     unode.can_use_smtp_credentials = $CAN_USE_SMTP_CREDENTIALS,
+    unode.managed_type = $MANAGED_TYPE,
     unode.lastupdated = $oci_update_tag
     WITH unode
     MATCH (aa:OCITenancy{id: $OCI_TENANCY_ID})
@@ -127,6 +165,7 @@ def load_users(
             CAN_USE_CUSTOMER_SECRET_KEYS=user["capabilities"]["can-use-customer-secret-keys"],
             CAN_USE_SMTP_CREDENTIALS=user["capabilities"]["can-use-smtp-credentials"],
             COMPARTMENT_ID=user["compartment-id"],
+            MANAGED_TYPE=MANAGED_TYPE_CUSTOM,
             OCI_TENANCY_ID=current_oci_tenancy_id,
             oci_update_tag=oci_update_tag,
         )
@@ -173,6 +212,7 @@ def load_groups(
     MERGE (gnode:OCIGroup{id: $OCID})
     ON CREATE SET gnode.firstseen = timestamp(), gnode.createdate = $CREATE_DATE
     SET gnode.ocid = $OCID, gnode.name = $GROUP_NAME, gnode.compartmentid = $COMPARTMENT_ID, gnode.lastupdated = $oci_update_tag,
+    gnode.managed_type = $MANAGED_TYPE,
     gnode.description = $DESCRIPTION
     WITH gnode
     MATCH (aa:OCITenancy{id: $OCI_TENANCY_ID})
@@ -189,6 +229,7 @@ def load_groups(
             GROUP_NAME=group["name"],
             COMPARTMENT_ID=group["compartment-id"],
             DESCRIPTION=group["description"],
+            MANAGED_TYPE=_oci_group_managed_type(group),
             OCI_TENANCY_ID=current_tenancy_id,
             oci_update_tag=oci_update_tag,
         )
@@ -277,6 +318,7 @@ def load_policies(
     ON CREATE SET pnode.firstseen = timestamp(), pnode.createdate = $CREATE_DATE
     SET pnode.ocid = $OCID, pnode.name = $POLICY_NAME, pnode.compartmentid = $COMPARTMENT_ID, pnode.description = $DESCRIPTION,
     pnode.statements = $STATEMENTS,
+    pnode.managed_type = $MANAGED_TYPE,
     pnode.updatedate = $POLICY_UPDATE, pnode.lastupdated = $oci_update_tag
     With pnode
     MATCH (aa:OCITenancy{id: $OCI_TENANCY_ID})
@@ -293,6 +335,7 @@ def load_policies(
             COMPARTMENT_ID=policy["compartment-id"],
             DESCRIPTION=policy["description"],
             STATEMENTS=policy["statements"],
+            MANAGED_TYPE=_oci_policy_managed_type(policy),
             CREATE_DATE=str(policy["time-created"]),
             POLICY_UPDATE=str(policy["version-date"]),
             OCI_TENANCY_ID=current_tenancy_id,
@@ -420,7 +463,8 @@ def load_region_subscriptions(
     query = """
     MERGE (aa:OCIRegion{id: $REGION_KEY})
     ON CREATE SET aa.firstseen = timestamp()
-    SET aa.key = $REGION_KEY, aa.ocid = $REGION_KEY, aa.lastupdated = $oci_update_tag, aa.name = $REGION_NAME
+    SET aa.key = $REGION_KEY, aa.ocid = $REGION_KEY, aa.lastupdated = $oci_update_tag, aa.name = $REGION_NAME,
+    aa.managed_type = $MANAGED_TYPE
     WITH aa
     MATCH (bb:OCITenancy{id: $OCI_TENANCY_ID})
     MERGE (bb)-[r:OCI_REGION_SUBSCRIPTION]->(aa)
@@ -432,6 +476,7 @@ def load_region_subscriptions(
             query,
             REGION_KEY=region["region-key"],
             REGION_NAME=region["region-name"],
+            MANAGED_TYPE=MANAGED_TYPE_PREDEFINED,
             oci_update_tag=oci_update_tag,
             OCI_TENANCY_ID=tenancy_id,
         )

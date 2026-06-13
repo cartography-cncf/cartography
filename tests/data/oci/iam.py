@@ -146,6 +146,49 @@ LIST_COMPARTMENTS = {
     ],
 }
 
+# Oracle-seeded resources used to exercise managed_type == "predefined" classification.
+PREDEFINED_GROUPS = {
+    "Groups": [
+        {
+            "compartment-id": "ocid1.tenancy.oc1..nqilyrb1l5t6gnmlcjgeim8q47vccnklev8k2ud9skn78eapu116oyv9wcr0",
+            "description": "Oracle-seeded administrators group",
+            "id": "ocid1.group.oc1..administrators000000000000000000000000000000000000000000000",
+            "lifecycle-state": "ACTIVE",
+            "name": "Administrators",
+            "time-created": datetime.datetime(2019, 1, 1, 0, 0, 1),
+        },
+    ],
+}
+
+PREDEFINED_POLICIES = {
+    "Policies": [
+        {
+            "compartment-id": "ocid1.tenancy.oc1..nqilyrb1l5t6gnmlcjgeim8q47vccnklev8k2ud9skn78eapu116oyv9wcr0",
+            "description": "Oracle-seeded tenancy admin policy",
+            "id": "ocid1.policy.oc1..tenantadmin0000000000000000000000000000000000000000000000000",
+            "lifecycle-state": "ACTIVE",
+            "name": "Tenant Admin Policy",
+            "statements": ["allow group Administrators to manage all-resources in tenancy"],
+            "time-created": datetime.datetime(2019, 1, 1, 0, 0, 1),
+            "version-date": None,
+        },
+    ],
+}
+
+# Root compartment id matches the tenancy ocid; ManagedCompartmentForPaaS is Oracle-created.
+PREDEFINED_COMPARTMENTS = {
+    "Compartments": [
+        {
+            "compartment-id": "ocid1.tenancy.oc1..nqilyrb1l5t6gnmlcjgeim8q47vccnklev8k2ud9skn78eapu116oyv9wcr0",
+            "description": "PaaS managed compartment",
+            "id": "ocid1.compartment.oc1..paasmanaged000000000000000000000000000000000000000000000000",
+            "lifecycle-state": "ACTIVE",
+            "name": "ManagedCompartmentForPaaS",
+            "time-created": datetime.datetime(2019, 1, 1, 0, 0, 1),
+        },
+    ],
+}
+
 LIST_GROUP_MEMBERSHIPS = {
     'GroupMemberships': [
         {

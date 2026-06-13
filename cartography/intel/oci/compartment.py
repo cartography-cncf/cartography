@@ -8,6 +8,7 @@ import neo4j
 import oci
 
 from . import utils
+from .iam import _oci_compartment_managed_type
 from cartography.util import run_cleanup_job
 from cartography.util import timeit
 
@@ -96,7 +97,8 @@ def load_oci_compartments(
     c.name = $COMPARTMENT_NAME,
     c.description = $DESCRIPTION,
     c.lifecycle_state = $LIFECYCLE_STATE,
-    c.compartmentid = $PARENT_COMPARTMENT_ID
+    c.compartmentid = $PARENT_COMPARTMENT_ID,
+    c.managed_type = $MANAGED_TYPE
     WITH t, c
     MERGE (t)-[r:OWNER]->(c)
     ON CREATE SET r.firstseen = timestamp()
@@ -112,6 +114,7 @@ def load_oci_compartments(
             LIFECYCLE_STATE=comp.get('lifecycleState', ''),
             TIME_CREATED=comp.get('timeCreated', ''),
             PARENT_COMPARTMENT_ID=comp.get('parentCompartmentId', tenancy_id),
+            MANAGED_TYPE=_oci_compartment_managed_type(comp, tenancy_id),
             update_tag=update_tag,
         )
 
