@@ -93,6 +93,22 @@ class RouteToVPCEndpointRel(CartographyRelSchema):
 
 
 @dataclass(frozen=True)
+class RouteToNatGatewayRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+class RouteToNatGatewayRel(CartographyRelSchema):
+    target_node_label: str = "AWSNatGateway"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"id": PropertyRef("nat_gateway_id")},
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "ROUTES_TO_NAT_GATEWAY"
+    properties: RouteToNatGatewayRelProperties = RouteToNatGatewayRelProperties()
+
+
+@dataclass(frozen=True)
 class RouteSchema(CartographyNodeSchema):
     label: str = "EC2Route"
     properties: RouteNodeProperties = RouteNodeProperties()
@@ -101,5 +117,6 @@ class RouteSchema(CartographyNodeSchema):
         [
             RouteToInternetGatewayRel(),
             RouteToVPCEndpointRel(),
+            RouteToNatGatewayRel(),
         ]
     )
