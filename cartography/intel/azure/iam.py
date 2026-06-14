@@ -52,6 +52,7 @@ def _azure_service_principal_managed_type(app_owner_organization_id: Optional[st
         return MANAGED_TYPE_PREDEFINED
     return MANAGED_TYPE_CUSTOM
 
+
 # A safe batch size for "in" filters with GUIDs to avoid 414 URI Too Long errors.
 # MS Graph URL limit is ~2048 chars. 36-char GUID + quotes/commas = ~39 chars.
 # 2048 / 39 = ~52. A batch size of 25 is safe.
@@ -1414,7 +1415,7 @@ async def sync_scoped_users_and_groups(
     scoped_groups = []
     group_id_list = list(scoped_group_ids)
     for i in range(0, len(group_id_list), SAFE_BATCH_SIZE):
-        batch_ids = group_id_list[i : i + SAFE_BATCH_SIZE]
+        batch_ids = group_id_list[i: i + SAFE_BATCH_SIZE]
         id_filter_str = "id in ({})".format(",".join(f"'{id_val['id']}'" for id_val in batch_ids))
         group_batch = await get_tenant_groups_list(client, tenant_id, filter_query=id_filter_str)
         if group_batch:
@@ -1474,7 +1475,7 @@ async def sync_scoped_users_and_groups(
         member_id_list = list(all_member_ids)
         user_fetch_tasks = []
         for i in range(0, len(member_id_list), SAFE_BATCH_SIZE):
-            batch_ids = member_id_list[i : i + SAFE_BATCH_SIZE]
+            batch_ids = member_id_list[i: i + SAFE_BATCH_SIZE]
             id_filter_str = "id in ({})".format(",".join(f"'{id_val}'" for id_val in batch_ids))
             user_fetch_tasks.append(list_tenant_users(client, tenant_id, filter_query=id_filter_str))
 
@@ -1534,8 +1535,8 @@ async def async_sync(
 
     try:
         should_run_tenant_level = not tenant_level_done and (
-            common_job_parameters.get("DEFAULT_SUBSCRIPTION") == credentials.subscription_id
-            or not common_job_parameters.get("DEFAULT_SUBSCRIPTION")
+            common_job_parameters.get("DEFAULT_SUBSCRIPTION") == credentials.subscription_id or
+            not common_job_parameters.get("DEFAULT_SUBSCRIPTION")
         )
 
         if should_run_tenant_level:
