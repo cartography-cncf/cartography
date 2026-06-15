@@ -153,9 +153,9 @@ Representation of a [Kubernetes Pod.](https://kubernetes.io/docs/concepts/worklo
 | **lastupdated** | Timestamp of the last time the node was updated |
 
 #### Relationships
-- `KubernetesPod` uses a `KubernetesServiceAccount`.
+- `KubernetesPod` runs as a `KubernetesServiceAccount`.
     ```
-    (:KubernetesPod)-[:USES_SERVICE_ACCOUNT]->(:KubernetesServiceAccount)
+    (:KubernetesPod)-[:RUNS_AS]->(:KubernetesServiceAccount)
     ```
 
 - `KubernetesPod` points at its parent `KubernetesNamespace` via the unified workload chain.
@@ -425,9 +425,9 @@ Representation of a [Kubernetes ServiceAccount.](https://kubernetes.io/docs/conc
     (:KubernetesNamespace)-[:CONTAINS]->(:KubernetesServiceAccount)
     ```
 
-- `KubernetesServiceAccount` is used by a `KubernetesPod`.
+- `KubernetesServiceAccount` is the identity a `KubernetesPod` runs as.
     ```
-    (:KubernetesPod)-[:USES_SERVICE_ACCOUNT]->(:KubernetesServiceAccount)
+    (:KubernetesPod)-[:RUNS_AS]->(:KubernetesServiceAccount)
     ```
 
 - `KubernetesServiceAccount` can assume an `AWSRole` via IRSA when annotated with `eks.amazonaws.com/role-arn`.

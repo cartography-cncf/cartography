@@ -6,7 +6,7 @@ O(Organization) -- RESOURCE --> W(Workspace)
 O -- RESOURCE --> U(User)
 O -- RESOURCE --> K(ApiKey)
 W -- CONTAINS --> K
-U -- OWNS --> K
+K -- OWNED_BY --> U
 U -- MEMBER_OF --> W
 U -- ADMIN_OF --> W
 ```
@@ -124,7 +124,7 @@ Represents an individual API key in a project.
     ```
 - `APIKey` is owned by a `User`
     ```
-    (:AnthropicUser)-[:OWNS]->(:AnthropicApiKey)
+    (:AnthropicApiKey)-[:OWNED_BY]->(:AnthropicUser)
     ```
 - `Workspace` contains `ApiKey`
     ```

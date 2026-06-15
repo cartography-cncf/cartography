@@ -251,6 +251,9 @@ class KubernetesPodToServiceAccountRelProperties(CartographyRelProperties):
 
 
 @dataclass(frozen=True)
+# DEPRECATED: replaced by the canonical (:ComputePod)-[:RUNS_AS]->(:ServiceAccount)
+# edge (KubernetesPodToServiceAccountRunsAsRel). Kept for backward
+# compatibility, will be removed in v1.0.0.
 # (:KubernetesPod)-[:USES_SERVICE_ACCOUNT]->(:KubernetesServiceAccount)
 class KubernetesPodToServiceAccountRel(CartographyRelSchema):
     target_node_label: str = "KubernetesServiceAccount"
@@ -263,6 +266,27 @@ class KubernetesPodToServiceAccountRel(CartographyRelSchema):
     rel_label: str = "USES_SERVICE_ACCOUNT"
     properties: KubernetesPodToServiceAccountRelProperties = (
         KubernetesPodToServiceAccountRelProperties()
+    )
+
+
+@dataclass(frozen=True)
+class KubernetesPodToServiceAccountRunsAsRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+# Canonical ontology edge: (:ComputePod)-[:RUNS_AS]->(:ServiceAccount)
+class KubernetesPodToServiceAccountRunsAsRel(CartographyRelSchema):
+    target_node_label: str = "KubernetesServiceAccount"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {
+            "id": PropertyRef("service_account_id"),
+        }
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "RUNS_AS"
+    properties: KubernetesPodToServiceAccountRunsAsRelProperties = (
+        KubernetesPodToServiceAccountRunsAsRelProperties()
     )
 
 
@@ -280,6 +304,7 @@ class KubernetesPodSchema(CartographyNodeSchema):
             KubernetesPodToKubernetesNamespaceWorkloadParentRel(),
             KubernetesPodToKubernetesNodeRel(),
             KubernetesPodToServiceAccountRel(),
+            KubernetesPodToServiceAccountRunsAsRel(),
             KubernetesPodToSecretVolumeRel(),
             KubernetesPodToSecretEnvRel(),
             KubernetesPodToSecretVolumeUsesSecretRel(),
