@@ -100,6 +100,19 @@ def test_load_openai_apikeys(mock_api, neo4j_session):
         )
         == expected_rels
     )
+    # Canonical ontology edge: (:APIKey)-[:OWNED_BY]->(:UserAccount)
+    assert (
+        check_rels(
+            neo4j_session,
+            "OpenAIApiKey",
+            "id",
+            "OpenAIUser",
+            "id",
+            "OWNED_BY",
+            rel_direction_right=True,
+        )
+        == expected_rels
+    )
 
     # Assert ProjectApiKeys are connected with ServiceAccount
     expected_rels = {
@@ -117,6 +130,19 @@ def test_load_openai_apikeys(mock_api, neo4j_session):
             "id",
             "OWNS",
             rel_direction_right=False,
+        )
+        == expected_rels
+    )
+    # Canonical ontology edge: (:APIKey)-[:OWNED_BY]->(:ServiceAccount)
+    assert (
+        check_rels(
+            neo4j_session,
+            "OpenAIApiKey",
+            "id",
+            "OpenAIServiceAccount",
+            "id",
+            "OWNED_BY",
+            rel_direction_right=True,
         )
         == expected_rels
     )

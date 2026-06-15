@@ -131,7 +131,7 @@ def test_sync_github_personal_access_tokens(mock_pages, neo4j_session):
         (
             f"{ORG_URL}/credential-authorizations/161195",
             "classic",
-            None,
+            "hjsimpson (classic PAT)",
             "hjsimpson",
         ),
     }
@@ -173,6 +173,20 @@ def test_sync_github_personal_access_tokens(mock_pages, neo4j_session):
         (USER_URL, f"{ORG_URL}/personal-access-tokens/25381"),
         (SECOND_USER_URL, f"{ORG_URL}/personal-access-tokens/25382"),
         (USER_URL, f"{ORG_URL}/credential-authorizations/161195"),
+    }
+    # Canonical ontology edge: (:APIKey)-[:OWNED_BY]->(:UserAccount)
+    assert check_rels(
+        neo4j_session,
+        "GitHubPersonalAccessToken",
+        "id",
+        "GitHubUser",
+        "id",
+        "OWNED_BY",
+        rel_direction_right=True,
+    ) == {
+        (f"{ORG_URL}/personal-access-tokens/25381", USER_URL),
+        (f"{ORG_URL}/personal-access-tokens/25382", SECOND_USER_URL),
+        (f"{ORG_URL}/credential-authorizations/161195", USER_URL),
     }
     assert check_rels(
         neo4j_session,

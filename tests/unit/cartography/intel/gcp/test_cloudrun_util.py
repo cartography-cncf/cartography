@@ -65,7 +65,8 @@ def test_discover_cloud_run_locations_prefers_provided_credentials_and_sorts():
     mock_get_gcp_credentials.assert_not_called()
 
 
-def test_discover_cloud_run_locations_returns_none_on_api_disabled():
+@pytest.mark.parametrize("category", ["api_disabled", "billing_disabled"])
+def test_discover_cloud_run_locations_returns_none_on_non_fatal_403(category):
     mock_v1_client = MagicMock()
     mock_request = MagicMock()
     mock_request.execute.side_effect = _http_error(403)
@@ -79,14 +80,43 @@ def test_discover_cloud_run_locations_returns_none_on_api_disabled():
             return_value=mock_v1_client,
         ),
         patch(
-            "cartography.intel.gcp.cloudrun.util.is_api_disabled_error",
-            return_value=True,
+            "cartography.intel.gcp.cloudrun.util.classify_gcp_http_error",
+            return_value=category,
         ),
     ):
         result = discover_cloud_run_locations(
             client=MagicMock(),
             project_id="test-project",
             credentials=MagicMock(),
+        )
+
+    assert result is None
+
+
+def test_discover_cloud_run_locations_service_fallback_returns_none_on_billing_disabled():
+    mock_client = MagicMock()
+    mock_services_request = MagicMock()
+    mock_services_request.execute.side_effect = _http_error(403)
+    services = (
+        mock_client.projects.return_value.locations.return_value.services.return_value
+    )
+    services.list.return_value = mock_services_request
+
+    with (
+        patch(
+            "cartography.intel.gcp.cloudrun.util.build_client",
+            side_effect=RuntimeError(
+                "GCP credentials are not available; cannot build client."
+            ),
+        ),
+        patch(
+            "cartography.intel.gcp.cloudrun.util.classify_gcp_http_error",
+            return_value="billing_disabled",
+        ),
+    ):
+        result = discover_cloud_run_locations(
+            client=mock_client,
+            project_id="test-project",
         )
 
     assert result is None

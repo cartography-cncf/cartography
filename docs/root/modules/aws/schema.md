@@ -370,6 +370,7 @@ Representation of an AWS [GuardDuty Finding](https://docs.aws.amazon.com/guarddu
 | detectorid | The ID of the detector that generated the finding |
 | resource_type | The type of AWS resource affected (Instance, S3Bucket, AccessKey, etc.) |
 | resource_id | The identifier of the affected resource (instance ID, bucket name, etc.) |
+| eks_cluster_arn | For `EKSCluster` findings, the ARN of the affected EKS cluster reported by GuardDuty |
 | access_key_id | For `AccessKey` findings, the AWS access key ID reported by GuardDuty |
 | principal_user_id | For `AccessKey` findings where `UserType=IAMUser`, the IAM user unique ID reported by GuardDuty |
 | principal_role_id | For `AccessKey` findings where `UserType=AssumedRole`, the IAM role unique ID (the prefix of GuardDuty's `PrincipalId` before `:session-name`) |
@@ -414,6 +415,11 @@ Representation of an AWS [GuardDuty Finding](https://docs.aws.amazon.com/guarddu
 - GuardDuty findings may affect EC2 Instances
     ```cypher
     (:GuardDutyFinding)-[:AFFECTS]->(:EC2Instance)
+    ```
+
+- GuardDuty Kubernetes findings may affect EKS Clusters
+    ```cypher
+    (:GuardDutyFinding)-[:AFFECTS]->(:EKSCluster)
     ```
 
 - GuardDuty findings may affect S3 Buckets
@@ -638,6 +644,11 @@ Representation of an AWS [Lambda Function](https://docs.aws.amazon.com/lambda/la
 - AWSLambda functions may act as AWSPrincipals via role assumption.
     ```
     (:AWSLambda)-[:STS_ASSUMEROLE_ALLOW]->(:AWSPrincipal)
+    ```
+
+- AWSLambda functions run with the permissions of their execution role (canonical ontology edge).
+    ```
+    (:AWSLambda)-[:ASSUMES]->(:AWSRole)
     ```
 
 - AWSLambda functions may also have aliases.
@@ -905,10 +916,10 @@ Representation of an [AWSPrincipal](https://docs.aws.amazon.com/IAM/latest/APIRe
     (AWSPrincipal)-[MEMBER_OF]->(AWSGroup)
     ```
 
-- This AccountAccessKey is used to authenticate to this AWSPrincipal.
+- This AccountAccessKey is owned by the AWSUser it authenticates as.
 
     ```cypher
-    (AWSPrincipal)-[AWS_ACCESS_KEY]->(AccountAccessKey)
+    (AccountAccessKey)-[OWNED_BY]->(AWSUser)
     ```
 
 - AWS Roles can trust AWS Principals.
@@ -994,10 +1005,10 @@ Representation of an [AWSUser](https://docs.aws.amazon.com/IAM/latest/APIReferen
     (AWSUser)-[STS_ASSUMEROLE_ALLOW]->(AWSRole)
     ```
 
-- This AccountAccessKey is used to authenticate to this AWSUser
+- This AccountAccessKey is owned by this AWSUser.
 
     ```cypher
-    (AWSUser)-[AWS_ACCESS_KEY]->(AccountAccessKey)
+    (AccountAccessKey)-[OWNED_BY]->(AWSUser)
     ```
 
 - AWS Accounts contain AWS Users.

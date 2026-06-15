@@ -346,6 +346,18 @@ def test_load_pod_to_service_account_relationships(
         )
         == expected_rels
     )
+    # Canonical ontology edge: (:ComputePod)-[:RUNS_AS]->(:ServiceAccount)
+    assert (
+        check_rels(
+            neo4j_session,
+            "KubernetesPod",
+            "name",
+            "KubernetesServiceAccount",
+            "name",
+            "RUNS_AS",
+        )
+        == expected_rels
+    )
 
     result = neo4j_session.run(
         """

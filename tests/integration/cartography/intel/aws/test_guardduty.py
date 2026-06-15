@@ -98,6 +98,18 @@ def test_sync_guardduty_findings(
         update_tag=TEST_UPDATE_TAG,
     )
 
+    # Create test EKS cluster that matches the Kubernetes finding. EKSCluster.id
+    # is the cluster ARN, which the finding's EksClusterDetails.Arn matches.
+    neo4j_session.run(
+        """
+        MERGE (cluster:EKSCluster {id: $cluster_arn})
+        ON CREATE SET cluster.firstseen = timestamp()
+        SET cluster.arn = $cluster_arn, cluster.lastupdated = $update_tag
+        """,
+        cluster_arn="arn:aws:eks:us-east-1:123456789012:cluster/test-cluster",
+        update_tag=TEST_UPDATE_TAG,
+    )
+
     # Create IAM principals + the long-term IAM user access key that match the
     # GuardDuty AccessKey findings. STS temporary credentials (ASIA*) are NOT
     # ingested as AccountAccessKey nodes (iam.list_access_keys only returns
@@ -152,6 +164,7 @@ def test_sync_guardduty_findings(
         ("74b1234567890abcdef1234567890abcdef",),  # Severity 8.0 (HIGH)
         ("96d3456789012cdef3456789012cdef01",),  # Severity 7.5 (HIGH)
         ("a7e4567890123def4567890123def45670",),  # Severity 7.8 (HIGH)
+        ("b8f5678901234abcdef5678901234abcdef",),  # Severity 8.5 (HIGH)
         # Note: 85c2345678901bcdef2345678901bcdef0 (severity 5.0) should be excluded
     }
 
@@ -172,6 +185,7 @@ def test_sync_guardduty_findings(
         ("74b1234567890abcdef1234567890abcdef", 8.0, "Instance"),
         ("96d3456789012cdef3456789012cdef01", 7.5, "AccessKey"),
         ("a7e4567890123def4567890123def45670", 7.8, "AccessKey"),
+        ("b8f5678901234abcdef5678901234abcdef", 8.5, "EKSCluster"),
         # Note: S3Bucket finding with severity 5.0 excluded by HIGH threshold
     }
 
@@ -218,6 +232,13 @@ def test_sync_guardduty_findings(
             "2023-01-18T11:00:00",
             "2023-01-18T11:15:00",
         ),
+        (
+            "b8f5678901234abcdef5678901234abcdef",
+            "2023-01-19T12:00:00",
+            "2023-01-19T12:15:00",
+            "2023-01-19T12:00:00",
+            "2023-01-19T12:15:00",
+        ),
     }
 
     # Assert - Check that GuardDuty detectors are connected to the AWSAccount
@@ -247,6 +268,7 @@ def test_sync_guardduty_findings(
         (TEST_ACCOUNT_ID, "74b1234567890abcdef1234567890abcdef"),
         (TEST_ACCOUNT_ID, "96d3456789012cdef3456789012cdef01"),
         (TEST_ACCOUNT_ID, "a7e4567890123def4567890123def45670"),
+        (TEST_ACCOUNT_ID, "b8f5678901234abcdef5678901234abcdef"),
         # Note: MEDIUM severity finding excluded
     }
 
@@ -255,6 +277,7 @@ def test_sync_guardduty_findings(
         ("74b1234567890abcdef1234567890abcdef",),
         ("96d3456789012cdef3456789012cdef01",),
         ("a7e4567890123def4567890123def45670",),
+        ("b8f5678901234abcdef5678901234abcdef",),
         # Note: MEDIUM severity finding excluded
     }
 
@@ -270,6 +293,7 @@ def test_sync_guardduty_findings(
         ("74b1234567890abcdef1234567890abcdef", "12abc34d56e78f901234567890abcdef"),
         ("96d3456789012cdef3456789012cdef01", "12abc34d56e78f901234567890abcdef"),
         ("a7e4567890123def4567890123def45670", "12abc34d56e78f901234567890abcdef"),
+        ("b8f5678901234abcdef5678901234abcdef", "12abc34d56e78f901234567890abcdef"),
     }
 
     # Assert - Check that GuardDuty finding is connected to the EC2 instance
@@ -283,6 +307,22 @@ def test_sync_guardduty_findings(
         rel_direction_right=True,
     ) == {
         ("74b1234567890abcdef1234567890abcdef", "i-99999999"),
+    }
+
+    # Assert - Check that the Kubernetes finding is connected to the EKS cluster
+    assert check_rels(
+        neo4j_session,
+        "GuardDutyFinding",
+        "id",
+        "EKSCluster",
+        "id",
+        "AFFECTS",
+        rel_direction_right=True,
+    ) == {
+        (
+            "b8f5678901234abcdef5678901234abcdef",
+            "arn:aws:eks:us-east-1:123456789012:cluster/test-cluster",
+        ),
     }
 
     # Assert - Verify that the MEDIUM severity S3 finding was filtered out
@@ -352,8 +392,8 @@ def test_sync_guardduty_findings(
         f["severity"] >= 7.0 for f in findings
     ), "All findings should be HIGH+ severity (>= 7.0)"
     assert (
-        len(findings) == 3
-    ), f"Expected 3 HIGH+ severity findings, got {len(findings)}"
+        len(findings) == 4
+    ), f"Expected 4 HIGH+ severity findings, got {len(findings)}"
 
 
 @patch.object(
