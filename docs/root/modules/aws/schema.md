@@ -640,6 +640,11 @@ Representation of an AWS [Lambda Function](https://docs.aws.amazon.com/lambda/la
     (:AWSLambda)-[:STS_ASSUMEROLE_ALLOW]->(:AWSPrincipal)
     ```
 
+- AWSLambda functions run with the permissions of their execution role (canonical ontology edge).
+    ```
+    (:AWSLambda)-[:ASSUMES]->(:AWSRole)
+    ```
+
 - AWSLambda functions may also have aliases.
     ```
     (:AWSLambda)-[:KNOWN_AS]->(:AWSLambdaFunctionAlias)
@@ -905,10 +910,10 @@ Representation of an [AWSPrincipal](https://docs.aws.amazon.com/IAM/latest/APIRe
     (AWSPrincipal)-[MEMBER_OF]->(AWSGroup)
     ```
 
-- This AccountAccessKey is used to authenticate to this AWSPrincipal.
+- This AccountAccessKey is owned by the AWSUser it authenticates as.
 
     ```cypher
-    (AWSPrincipal)-[AWS_ACCESS_KEY]->(AccountAccessKey)
+    (AccountAccessKey)-[OWNED_BY]->(AWSUser)
     ```
 
 - AWS Roles can trust AWS Principals.
@@ -994,10 +999,10 @@ Representation of an [AWSUser](https://docs.aws.amazon.com/IAM/latest/APIReferen
     (AWSUser)-[STS_ASSUMEROLE_ALLOW]->(AWSRole)
     ```
 
-- This AccountAccessKey is used to authenticate to this AWSUser
+- This AccountAccessKey is owned by this AWSUser.
 
     ```cypher
-    (AWSUser)-[AWS_ACCESS_KEY]->(AccountAccessKey)
+    (AccountAccessKey)-[OWNED_BY]->(AWSUser)
     ```
 
 - AWS Accounts contain AWS Users.

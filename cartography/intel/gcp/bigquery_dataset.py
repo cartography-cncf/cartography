@@ -8,7 +8,7 @@ from googleapiclient.errors import HttpError
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
 from cartography.intel.gcp.util import gcp_api_execute_with_retry
-from cartography.intel.gcp.util import is_api_disabled_error
+from cartography.intel.gcp.util import is_gcp_http_error_category
 from cartography.models.gcp.bigquery.dataset import GCPBigQueryDatasetSchema
 from cartography.util import timeit
 
@@ -39,7 +39,11 @@ def get_bigquery_datasets(client: Resource, project_id: str) -> list[dict] | Non
             )
         return datasets
     except HttpError as e:
-        if is_api_disabled_error(e) or e.resp.status in (403, 404):
+        if is_gcp_http_error_category(
+            e,
+            ("api_disabled", "billing_disabled", "forbidden", "not_found"),
+            include_transient_403=True,
+        ):
             logger.warning(
                 "Could not retrieve BigQuery datasets on project %s - %s. "
                 "Skipping sync to preserve existing data.",
@@ -60,7 +64,11 @@ def get_bigquery_dataset_detail(
         request = client.datasets().get(projectId=project_id, datasetId=dataset_id)
         return gcp_api_execute_with_retry(request)
     except HttpError as e:
-        if is_api_disabled_error(e) or e.resp.status in (403, 404):
+        if is_gcp_http_error_category(
+            e,
+            ("api_disabled", "billing_disabled", "forbidden", "not_found"),
+            include_transient_403=True,
+        ):
             logger.warning(
                 "Could not retrieve BigQuery dataset detail for %s:%s - %s. Skipping.",
                 project_id,
