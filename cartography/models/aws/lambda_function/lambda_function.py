@@ -84,6 +84,28 @@ class AWSLambdaToPrincipalRel(CartographyRelSchema):
 
 
 @dataclass(frozen=True)
+class AWSLambdaToRoleAssumesRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+# Canonical ontology edge: (:Function)-[:ASSUMES]->(:PermissionRole).
+# The function runs with the permissions of its execution role. The existing
+# STS_ASSUMEROLE_ALLOW edge (to the generic AWSPrincipal) is the IAM
+# trust-policy view and is kept as a distinct semantic.
+class AWSLambdaToRoleAssumesRel(CartographyRelSchema):
+    target_node_label: str = "AWSRole"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"arn": PropertyRef("Role")},
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "ASSUMES"
+    properties: AWSLambdaToRoleAssumesRelProperties = (
+        AWSLambdaToRoleAssumesRelProperties()
+    )
+
+
+@dataclass(frozen=True)
 class AWSLambdaToECRImageRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
@@ -162,6 +184,7 @@ class AWSLambdaSchema(CartographyNodeSchema):
     other_relationships: OtherRelationships = OtherRelationships(
         [
             AWSLambdaToPrincipalRel(),
+            AWSLambdaToRoleAssumesRel(),
             AWSLambdaToECRImageRel(),
             AWSLambdaToGitLabContainerImageRel(),
             AWSLambdaToGCPArtifactRegistryImageRel(),

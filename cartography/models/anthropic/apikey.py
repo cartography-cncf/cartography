@@ -46,6 +46,9 @@ class AnthropicApiKeyToUserRelProperties(CartographyRelProperties):
 
 
 @dataclass(frozen=True)
+# DEPRECATED: replaced by the canonical (:APIKey)-[:OWNED_BY]->(:UserAccount)
+# edge (AnthropicApiKeyToUserOwnedByRel). Kept for backward compatibility, will
+# be removed in v1.0.0.
 # (:AnthropicUser)-[:OWNS]->(:AnthropicApiKey)
 class AnthropicApiKeyToUserRel(CartographyRelSchema):
     target_node_label: str = "AnthropicUser"
@@ -56,6 +59,25 @@ class AnthropicApiKeyToUserRel(CartographyRelSchema):
     rel_label: str = "OWNS"
     properties: AnthropicApiKeyToUserRelProperties = (
         AnthropicApiKeyToUserRelProperties()
+    )
+
+
+@dataclass(frozen=True)
+class AnthropicApiKeyToUserOwnedByRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+# Canonical ontology edge: (:APIKey)-[:OWNED_BY]->(:UserAccount)
+class AnthropicApiKeyToUserOwnedByRel(CartographyRelSchema):
+    target_node_label: str = "AnthropicUser"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"id": PropertyRef("created_by.id")},
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "OWNED_BY"
+    properties: AnthropicApiKeyToUserOwnedByRelProperties = (
+        AnthropicApiKeyToUserOwnedByRelProperties()
     )
 
 
@@ -89,5 +111,9 @@ class AnthropicApiKeySchema(CartographyNodeSchema):
         AnthropicApiKeyToOrganizationRel()
     )
     other_relationships: OtherRelationships = OtherRelationships(
-        [AnthropicApiKeyToUserRel(), AnthropicApiKeyToWorkspaceRel()],
+        [
+            AnthropicApiKeyToUserRel(),
+            AnthropicApiKeyToUserOwnedByRel(),
+            AnthropicApiKeyToWorkspaceRel(),
+        ],
     )

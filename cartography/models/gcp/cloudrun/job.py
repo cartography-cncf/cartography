@@ -44,6 +44,9 @@ class CloudRunJobToServiceAccountRelProperties(CartographyRelProperties):
 
 
 @dataclass(frozen=True)
+# DEPRECATED: replaced by the canonical (:ComputeService)-[:RUNS_AS]->(:ServiceAccount)
+# edge (CloudRunJobToServiceAccountRunsAsRel). Kept for backward compatibility,
+# will be removed in v1.0.0.
 class CloudRunJobToServiceAccountRel(CartographyRelSchema):
     target_node_label: str = "GCPServiceAccount"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
@@ -57,6 +60,25 @@ class CloudRunJobToServiceAccountRel(CartographyRelSchema):
 
 
 @dataclass(frozen=True)
+class CloudRunJobToServiceAccountRunsAsRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+# Canonical ontology edge: (:ComputeService)-[:RUNS_AS]->(:ServiceAccount)
+class CloudRunJobToServiceAccountRunsAsRel(CartographyRelSchema):
+    target_node_label: str = "GCPServiceAccount"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"email": PropertyRef("service_account_email")},
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "RUNS_AS"
+    properties: CloudRunJobToServiceAccountRunsAsRelProperties = (
+        CloudRunJobToServiceAccountRunsAsRelProperties()
+    )
+
+
+@dataclass(frozen=True)
 class GCPCloudRunJobSchema(CartographyNodeSchema):
     label: str = "GCPCloudRunJob"
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["ComputeService"])
@@ -65,5 +87,6 @@ class GCPCloudRunJobSchema(CartographyNodeSchema):
     other_relationships: OtherRelationships = OtherRelationships(
         [
             CloudRunJobToServiceAccountRel(),
+            CloudRunJobToServiceAccountRunsAsRel(),
         ],
     )

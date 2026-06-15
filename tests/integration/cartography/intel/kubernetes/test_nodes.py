@@ -57,6 +57,13 @@ def test_sync_nodes_and_runs_on(neo4j_session, monkeypatch):
     client = SimpleNamespace(name=CLUSTER_NAME)
     common_job_parameters = {"UPDATE_TAG": TEST_UPDATE_TAG, "CLUSTER_ID": CLUSTER_ID}
 
+    # Arrange: the backing EC2 instance must already exist for the IS_INSTANCE
+    # link to be created when the node is loaded.
+    neo4j_session.run(
+        "MERGE (i:EC2Instance {id: 'i-0123456789abcdef0'}) "
+        "SET i.instanceid = 'i-0123456789abcdef0'"
+    )
+
     # Act
     node_arch_map = sync_nodes(
         neo4j_session, client, TEST_UPDATE_TAG, common_job_parameters
@@ -86,6 +93,19 @@ def test_sync_nodes_and_runs_on(neo4j_session, monkeypatch):
     ) == {
         ("arm-node-test-pod", "my-arm-node"),
         ("node-test-pod", "my-node"),
+    }
+
+    # Assert: EKS node is linked to its backing EC2 instance; the non-AWS
+    # node (provider_id None) produces no link.
+    assert check_rels(
+        neo4j_session,
+        "KubernetesNode",
+        "name",
+        "EC2Instance",
+        "id",
+        "IS_INSTANCE",
+    ) == {
+        ("my-node", "i-0123456789abcdef0"),
     }
 
     # Assert: pod and container inherit normalized runtime architecture

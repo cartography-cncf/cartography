@@ -7,7 +7,7 @@ description: Promote provider-specific relationships to a canonical cross-provid
 
 Cartography normalises cross-provider edges between two **ontology-labelled** nodes (semantic labels like `UserAccount`, `PermissionRole`, `ServiceAccount`, `ComputePod`, or abstract nodes like `User`, `Device`) under a single canonical relationship label. The canonical label is declared as a `RelConstraint` and enforced by a CI guard.
 
-This is **NOT** done with analysis/linking jobs. It follows the `WORKLOAD_PARENT` precedent (PRs #2735 / #2738): add a parallel canonical edge, keep the old one deprecated for backward compatibility, and add a constraint.
+There are two cases. **(A) A direct provider edge already exists** between the two ontology-labelled nodes: promote it in place, following the `WORKLOAD_PARENT` precedent (PRs #2735 / #2738): add a parallel canonical edge, keep the old one deprecated for backward compatibility, and add a constraint. This promotion is **NOT** done with analysis/linking jobs. **(B) No direct edge exists yet** (the relationship only lives through a binding node, or in another sync's data, or not at all): you must *create* the canonical edge, choosing the cheapest mechanism that fits (see [When no direct edge exists](#when-no-direct-edge-exists-genuine-gap)). In both cases the canonical label is still declared as a `RelConstraint` and enforced by the guard.
 
 ## Mechanism (the WORKLOAD_PARENT pattern)
 
@@ -19,6 +19,18 @@ For each existing **direct** `CartographyRelSchema` edge that connects two ontol
 4. **Whitelist** any other existing edge that shares the same ontology-label pair but carries a *distinct semantic* (reverse direction, or a different concept).
 
 If a provider already uses the chosen canonical label, that edge is already compliant: leave it untouched (no parallel, no deprecation).
+
+## When no direct edge exists (genuine gap)
+
+Sometimes a constrained pair has **no direct provider edge** to promote: the relationship only exists through a binding node (`AWSInstanceProfile`, `AzureRoleAssignment`), or the two endpoints are created in different syncs, or the data simply is not modelled yet. The constraint still belongs in `constraints.py` (it never requires the edge to exist), but to actually populate the edge you *create* it. Pick the cheapest mechanism that fits, in this strict priority order:
+
+1. **Classic `CartographyRelSchema` (preferred).** Use when the source node's own payload already carries the target's identifier (e.g. an AWS Lambda payload holds its execution-role arn, an API-key payload holds its owner id). Add a normal rel class on the source schema pointing at the target label, with the canonical `rel_label`. This is just Step 4 without a deprecated sibling. Use the `add-relationship` skill for the mechanics.
+
+2. **MatchLink — always prefer this over an analysis job.** Use when the two endpoints are created in **different syncs**, or the relationship is only derivable by resolving a binding node, so neither schema's payload can express it directly (e.g. `EC2Instance -[:ASSUMES]-> AWSRole` resolved through the instance profile in the IAM sync; `AzureVirtualMachine -[:ASSUMES]-> AzureRoleDefinition` joined on the managed-identity `principalId` via `AzureRoleAssignment`). Assemble the `(source_key, target_key)` pairs in the owning sync and load them with `load_matchlinks` / a `MatchLink` schema carrying the canonical `rel_label`. The guard reads a MatchLink's direction + label too, so the canonical name is enforced. Use the `add-relationship` skill for `MatchLink` mechanics.
+
+3. **Analysis job (last resort).** Only when the edge is purely **transitive** and the join genuinely cannot be assembled inside a single sync, so it must be computed post-sync by traversing the whole graph (e.g. deriving `GCPInstance -[:ASSUMES]-> GCPRole` across `RUNS_AS` + `HAS_ROLE`, where the compute sync and the IAM-policy-binding sync each hold only half the path). Add a Cypher analysis job (see the `analysis-jobs` skill) that `MERGE`s the canonical edge. If you reach for this, first re-confirm a MatchLink really cannot assemble the pairs; an analysis job is harder to test and to keep idempotent.
+
+Whichever you pick, the canonical label/direction must match the `RelConstraint`, and the edge gets the same docs + integration-test treatment as a promoted edge. Edges through binding nodes are still **not** "direct" for the purposes of Step 3 — they are gaps, handled here.
 
 ## Critical rules
 

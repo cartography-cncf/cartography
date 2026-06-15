@@ -8,6 +8,9 @@ CLUSTER_NAME = KUBERNETES_CLUSTER_NAMES[0]
 RAW_NODES = [
     SimpleNamespace(
         metadata=SimpleNamespace(name="my-node"),
+        spec=SimpleNamespace(
+            provider_id="aws:///us-east-1a/i-0123456789abcdef0",
+        ),
         status=SimpleNamespace(
             node_info=SimpleNamespace(
                 architecture="amd64",
@@ -21,6 +24,7 @@ RAW_NODES = [
     ),
     SimpleNamespace(
         metadata=SimpleNamespace(name="my-arm-node"),
+        spec=SimpleNamespace(provider_id=None),
         status=SimpleNamespace(
             node_info=SimpleNamespace(
                 architecture="arm64",
@@ -67,6 +71,8 @@ KUBERNETES_NODE_DATA = [
     {
         "id": f"{CLUSTER_NAME}/my-node",
         "name": "my-node",
+        "provider_id": "aws:///us-east-1a/i-0123456789abcdef0",
+        "instance_id": "i-0123456789abcdef0",
         "architecture": "amd64",
         "architecture_normalized": "amd64",
         "os": "linux",
@@ -78,6 +84,8 @@ KUBERNETES_NODE_DATA = [
     {
         "id": f"{CLUSTER_NAME}/my-arm-node",
         "name": "my-arm-node",
+        "provider_id": None,
+        "instance_id": None,
         "architecture": "arm64",
         "architecture_normalized": "arm64",
         "os": "linux",

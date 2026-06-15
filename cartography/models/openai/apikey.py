@@ -47,6 +47,9 @@ class OpenAIApiKeyToUserRelProperties(CartographyRelProperties):
 
 
 @dataclass(frozen=True)
+# DEPRECATED: replaced by the canonical (:APIKey)-[:OWNED_BY]->(:UserAccount)
+# edge (OpenAIApiKeyToUserOwnedByRel). Kept for backward compatibility, will be
+# removed in v1.0.0.
 # (:OpenAIUser)-[:OWNS]->(:OpenAIApiKey)
 class OpenAIApiKeyToUserRel(CartographyRelSchema):
     target_node_label: str = "OpenAIUser"
@@ -64,6 +67,9 @@ class OpenAIApiKeyToSARelProperties(CartographyRelProperties):
 
 
 @dataclass(frozen=True)
+# DEPRECATED: replaced by the canonical (:APIKey)-[:OWNED_BY]->(:ServiceAccount)
+# edge (OpenAIApiKeyToSAOwnedByRel). Kept for backward compatibility, will be
+# removed in v1.0.0.
 # (:OpenAIServiceAccount)-[:OWNS]->(:OpenAIApiKey)
 class OpenAIApiKeyToSARel(CartographyRelSchema):
     target_node_label: str = "OpenAIServiceAccount"
@@ -76,6 +82,44 @@ class OpenAIApiKeyToSARel(CartographyRelSchema):
 
 
 @dataclass(frozen=True)
+class OpenAIApiKeyToUserOwnedByRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+# Canonical ontology edge: (:APIKey)-[:OWNED_BY]->(:UserAccount)
+class OpenAIApiKeyToUserOwnedByRel(CartographyRelSchema):
+    target_node_label: str = "OpenAIUser"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"id": PropertyRef("owner_user_id")},
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "OWNED_BY"
+    properties: OpenAIApiKeyToUserOwnedByRelProperties = (
+        OpenAIApiKeyToUserOwnedByRelProperties()
+    )
+
+
+@dataclass(frozen=True)
+class OpenAIApiKeyToSAOwnedByRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+# Canonical ontology edge: (:APIKey)-[:OWNED_BY]->(:ServiceAccount)
+class OpenAIApiKeyToSAOwnedByRel(CartographyRelSchema):
+    target_node_label: str = "OpenAIServiceAccount"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"id": PropertyRef("owner_sa_id")},
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "OWNED_BY"
+    properties: OpenAIApiKeyToSAOwnedByRelProperties = (
+        OpenAIApiKeyToSAOwnedByRelProperties()
+    )
+
+
+@dataclass(frozen=True)
 class OpenAIApiKeySchema(CartographyNodeSchema):
     label: str = "OpenAIApiKey"
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
@@ -84,5 +128,10 @@ class OpenAIApiKeySchema(CartographyNodeSchema):
     properties: OpenAIApiKeyNodeProperties = OpenAIApiKeyNodeProperties()
     sub_resource_relationship: OpenAIApiKeyToProjectRel = OpenAIApiKeyToProjectRel()
     other_relationships: OtherRelationships = OtherRelationships(
-        [OpenAIApiKeyToUserRel(), OpenAIApiKeyToSARel()],
+        [
+            OpenAIApiKeyToUserRel(),
+            OpenAIApiKeyToSARel(),
+            OpenAIApiKeyToUserOwnedByRel(),
+            OpenAIApiKeyToSAOwnedByRel(),
+        ],
     )

@@ -7,6 +7,7 @@ from cartography.models.core.relationships import CartographyRelProperties
 from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
+from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import TargetNodeMatcher
 
 
@@ -24,6 +25,9 @@ class KubernetesNodeNodeProperties(CartographyNodeProperties):
     kernel_version: PropertyRef = PropertyRef("kernel_version")
     container_runtime_version: PropertyRef = PropertyRef("container_runtime_version")
     kubelet_version: PropertyRef = PropertyRef("kubelet_version")
+    # Cloud provider instance reference (e.g. EKS: aws:///<az>/<instance-id>)
+    provider_id: PropertyRef = PropertyRef("provider_id")
+    instance_id: PropertyRef = PropertyRef("instance_id", extra_index=True)
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
@@ -47,9 +51,34 @@ class KubernetesNodeToKubernetesClusterRel(CartographyRelSchema):
 
 
 @dataclass(frozen=True)
+class KubernetesNodeToEC2InstanceRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+# (:KubernetesNode)-[:IS_INSTANCE]->(:EC2Instance)
+# Only created for EKS nodes whose providerID resolves to an EC2 instance id.
+class KubernetesNodeToEC2InstanceRel(CartographyRelSchema):
+    target_node_label: str = "EC2Instance"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"id": PropertyRef("instance_id")},
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "IS_INSTANCE"
+    properties: KubernetesNodeToEC2InstanceRelProperties = (
+        KubernetesNodeToEC2InstanceRelProperties()
+    )
+
+
+@dataclass(frozen=True)
 class KubernetesNodeSchema(CartographyNodeSchema):
     label: str = "KubernetesNode"
     properties: KubernetesNodeNodeProperties = KubernetesNodeNodeProperties()
     sub_resource_relationship: KubernetesNodeToKubernetesClusterRel = (
         KubernetesNodeToKubernetesClusterRel()
+    )
+    other_relationships: OtherRelationships = OtherRelationships(
+        [
+            KubernetesNodeToEC2InstanceRel(),
+        ]
     )
