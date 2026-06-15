@@ -7,9 +7,9 @@ from cartography.rules.spec.model import Rule
 
 
 class DeviceSecurityPostureGapOutput(Finding):
+    device_name: str | None = None
     provider: str | None = None
     device_id: str | None = None
-    device_name: str | None = None
     user: str | None = None
     platform: str | None = None
     issue: str | None = None

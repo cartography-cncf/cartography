@@ -131,7 +131,7 @@ def test_sync_github_personal_access_tokens(mock_pages, neo4j_session):
         (
             f"{ORG_URL}/credential-authorizations/161195",
             "classic",
-            None,
+            "hjsimpson (classic PAT)",
             "hjsimpson",
         ),
     }

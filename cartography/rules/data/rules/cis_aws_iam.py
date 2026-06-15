@@ -194,8 +194,8 @@ aws_unused_credentials = Rule(
 class UserDirectPoliciesOutput(Finding):
     """Output model for user direct policies check."""
 
-    user_arn: str | None = None
     user_name: str | None = None
+    user_arn: str | None = None
     policy_name: str | None = None
     policy_arn: str | None = None
     account_id: str | None = None
@@ -260,8 +260,8 @@ aws_users_with_direct_policy_attachments = Rule(
 class MultipleAccessKeysOutput(Finding):
     """Output model for multiple access keys check."""
 
-    user_arn: str | None = None
     user_name: str | None = None
+    user_arn: str | None = None
     active_key_count: int | None = None
     access_key_ids: list[str] | None = None
     account_id: str | None = None
@@ -402,8 +402,8 @@ aws_expired_ssl_tls_certificates = Rule(
 class RootAccessKeyOutput(Finding):
     """Output model for the root access key check."""
 
-    account_id: str | None = None
     account: str | None = None
+    account_id: str | None = None
     account_access_keys_present: int | None = None
 
 
@@ -467,8 +467,8 @@ aws_root_user_access_keys = Rule(
 class RootMfaDisabledOutput(Finding):
     """Output model for the root MFA check."""
 
-    account_id: str | None = None
     account: str | None = None
+    account_id: str | None = None
     account_mfa_enabled: int | None = None
 
 
@@ -547,9 +547,9 @@ aws_root_user_mfa_disabled = Rule(
 class AdminPolicyAttachedOutput(Finding):
     """Output model for the full administrative privileges check."""
 
+    policy_name: str | None = None
     policy_id: str | None = None
     policy_arn: str | None = None
-    policy_name: str | None = None
     statement_sid: str | None = None
     principal_arn: str | None = None
     account_id: str | None = None

@@ -52,6 +52,20 @@ class TestGetDnsZonesCurrentStateSemantics:
         ):
             assert get_dns_zones(mock_dns, "test-project") == []
 
+    def test_returns_empty_list_on_billing_disabled(self):
+        mock_dns = MagicMock()
+        with (
+            patch(
+                "cartography.intel.gcp.dns.gcp_api_execute_with_retry",
+                side_effect=_make_http_error(403),
+            ),
+            patch(
+                "cartography.intel.gcp.dns.classify_gcp_http_error",
+                return_value="billing_disabled",
+            ),
+        ):
+            assert get_dns_zones(mock_dns, "test-project") == []
+
     def test_reraises_on_unexpected_error(self):
         mock_dns = MagicMock()
         with (
@@ -102,6 +116,21 @@ class TestGetDnsRrsCurrentStateSemantics:
             patch(
                 "cartography.intel.gcp.dns.classify_gcp_http_error",
                 return_value="api_disabled",
+            ),
+        ):
+            assert get_dns_rrs(mock_dns, zones, "test-project") == []
+
+    def test_returns_empty_list_on_billing_disabled(self):
+        mock_dns = MagicMock()
+        zones = [{"id": "zone-1"}]
+        with (
+            patch(
+                "cartography.intel.gcp.dns.gcp_api_execute_with_retry",
+                side_effect=_make_http_error(403),
+            ),
+            patch(
+                "cartography.intel.gcp.dns.classify_gcp_http_error",
+                return_value="billing_disabled",
             ),
         ):
             assert get_dns_rrs(mock_dns, zones, "test-project") == []
