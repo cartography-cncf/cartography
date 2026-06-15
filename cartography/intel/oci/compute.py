@@ -54,6 +54,7 @@ def load_instances(
     inode.createdate = $TIME_CREATED
     SET inode.display_name = $DISPLAY_NAME,
     inode.compartment_id = $COMPARTMENT_ID,
+    inode.resource_type = 'oci-compute-vm-instance',
     inode.availability_domain = $AVAILABILITY_DOMAIN,
     inode.fault_domain = $FAULT_DOMAIN,
     inode.shape = $SHAPE,
@@ -438,6 +439,7 @@ def load_boot_volumes(
     bv.createdate = $TIME_CREATED
     SET bv.display_name = $DISPLAY_NAME,
     bv.compartment_id = $COMPARTMENT_ID,
+    bv.resource_type = 'oci-storage-blockstorage-bootvolume',
     bv.availability_domain = $AVAILABILITY_DOMAIN,
     bv.lifecycle_state = $LIFECYCLE_STATE,
     bv.size_in_gbs = $SIZE_IN_GBS,
@@ -520,6 +522,7 @@ def load_block_volumes(
     bv.createdate = $TIME_CREATED
     SET bv.display_name = $DISPLAY_NAME,
     bv.compartment_id = $COMPARTMENT_ID,
+    bv.resource_type = 'oci-storage-blockstorage-volume',
     bv.availability_domain = $AVAILABILITY_DOMAIN,
     bv.lifecycle_state = $LIFECYCLE_STATE,
     bv.size_in_gbs = $SIZE_IN_GBS,

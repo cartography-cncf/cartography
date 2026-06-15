@@ -58,6 +58,7 @@ def load_vcns(
     vcn.createdate = $TIME_CREATED
     SET vcn.display_name = $DISPLAY_NAME,
     vcn.compartment_id = $COMPARTMENT_ID,
+    vcn.resource_type = 'oci-vcn',
     vcn.cidr_block = $CIDR_BLOCK,
     vcn.dns_label = $DNS_LABEL,
     vcn.lifecycle_state = $LIFECYCLE_STATE,
@@ -145,6 +146,7 @@ def load_subnets(
     subnet.createdate = $TIME_CREATED
     SET subnet.display_name = $DISPLAY_NAME,
     subnet.compartment_id = $COMPARTMENT_ID,
+    subnet.resource_type = 'oci-subnet',
     subnet.cidr_block = $CIDR_BLOCK,
     subnet.availability_domain = $AVAILABILITY_DOMAIN,
     subnet.dns_label = $DNS_LABEL,
@@ -244,6 +246,7 @@ def load_security_lists(
     sl.createdate = $TIME_CREATED
     SET sl.display_name = $DISPLAY_NAME,
     sl.compartment_id = $COMPARTMENT_ID,
+    sl.resource_type = 'oci-security-list',
     sl.vcn_id = $VCN_ID,
     sl.lifecycle_state = $LIFECYCLE_STATE,
     sl.ingress_security_rules = $INGRESS_RULES,
@@ -337,6 +340,7 @@ def load_network_security_groups(
     nsg.createdate = $TIME_CREATED
     SET nsg.display_name = $DISPLAY_NAME,
     nsg.compartment_id = $COMPARTMENT_ID,
+    nsg.resource_type = 'oci-network-security-group',
     nsg.vcn_id = $VCN_ID,
     nsg.lifecycle_state = $LIFECYCLE_STATE,
     nsg.region = $REGION,
@@ -553,6 +557,7 @@ def load_internet_gateways(
     igw.createdate = $TIME_CREATED
     SET igw.display_name = $DISPLAY_NAME,
     igw.compartment_id = $COMPARTMENT_ID,
+    igw.resource_type = 'oci-internet-gateway',
     igw.vcn_id = $VCN_ID,
     igw.is_enabled = $IS_ENABLED,
     igw.lifecycle_state = $LIFECYCLE_STATE,
@@ -733,6 +738,7 @@ def load_route_tables(
     rt.createdate = $TIME_CREATED
     SET rt.display_name = $DISPLAY_NAME,
     rt.compartment_id = $COMPARTMENT_ID,
+    rt.resource_type = 'oci-route-table',
     rt.vcn_id = $VCN_ID,
     rt.lifecycle_state = $LIFECYCLE_STATE,
     rt.route_rules = $ROUTE_RULES,

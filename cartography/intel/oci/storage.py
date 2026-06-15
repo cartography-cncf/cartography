@@ -128,6 +128,7 @@ def load_buckets(
     SET b.display_name = $NAME,
     b.compartment_id = $COMPARTMENT_ID,
     b.namespace = $NAMESPACE,
+    b.resource_type = 'oci-storage-objectstorage-bucket',
     b.public_access_type = $PUBLIC_ACCESS_TYPE,
     b.storage_tier = $STORAGE_TIER,
     b.versioning = $VERSIONING,
@@ -261,6 +262,7 @@ def load_file_systems(
     fs.createdate = $TIME_CREATED
     SET fs.display_name = $DISPLAY_NAME,
     fs.compartment_id = $COMPARTMENT_ID,
+    fs.resource_type = 'oci-storage-filestorage-filesystem',
     fs.availability_domain = $AVAILABILITY_DOMAIN,
     fs.lifecycle_state = $LIFECYCLE_STATE,
     fs.kms_key_id = $KMS_KEY_ID,
