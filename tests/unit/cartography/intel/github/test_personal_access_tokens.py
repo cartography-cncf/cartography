@@ -59,7 +59,7 @@ def test_transform_classic_pat_drops_token_fragment():
         "id": "https://github.com/simpsoncorp/credential-authorizations/161195",
         "token_kind": "classic",
         "token_id": None,
-        "token_name": None,
+        "token_name": "hjsimpson (classic PAT)",
         "owner_login": "hjsimpson",
         "owner_user_id": "https://github.com/hjsimpson",
         "repository_selection": None,

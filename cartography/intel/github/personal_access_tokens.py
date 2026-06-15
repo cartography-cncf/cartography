@@ -207,7 +207,7 @@ def _transform_saml_credential_authorization(
         "id": f"{org_url}/credential-authorizations/{credential_id}",
         "token_kind": "classic",
         "token_id": None,
-        "token_name": None,
+        "token_name": f"{owner_login} (classic PAT)" if owner_login else None,
         "owner_login": owner_login,
         "owner_user_id": owner_user_id,
         "repository_selection": None,
