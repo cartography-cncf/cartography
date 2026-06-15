@@ -2,6 +2,7 @@ import json
 import logging
 from unittest.mock import MagicMock
 
+import pytest
 from googleapiclient.errors import HttpError
 
 import cartography.intel.gcp.storage
@@ -72,6 +73,27 @@ def test_get_gcp_buckets_permission_denied_logs_concisely(monkeypatch, caplog):
     assert buckets == {}
     assert "HTTP 403 insufficientPermissions" in caplog.text
     assert "googleapiclient.errors.HttpError" not in caplog.text
+
+
+def test_get_gcp_buckets_reraises_generic_403(monkeypatch):
+    storage = MagicMock()
+    request = MagicMock()
+    storage.buckets.return_value.list.return_value = request
+
+    resp = MagicMock()
+    resp.status = 403
+    error = HttpError(
+        resp=resp,
+        content=json.dumps({"error": {"message": "Forbidden"}}).encode("utf-8"),
+    )
+
+    monkeypatch.setattr(
+        "cartography.intel.gcp.storage.gcp_api_execute_with_retry",
+        lambda _request: (_ for _ in ()).throw(error),
+    )
+
+    with pytest.raises(HttpError):
+        cartography.intel.gcp.storage.get_gcp_buckets(storage, "test-project")
 
 
 def test_get_gcp_buckets_paginates_through_next_page_token(monkeypatch):

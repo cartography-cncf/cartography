@@ -40,7 +40,11 @@ def get_gke_clusters(container: Resource, project_id: str) -> Dict:
         res = gcp_api_execute_with_retry(req)
         return res
     except HttpError as e:
-        if classify_gcp_http_error(e) in ("forbidden", "api_disabled"):
+        if classify_gcp_http_error(e) in (
+            "api_disabled",
+            "billing_disabled",
+            "forbidden",
+        ):
             logger.warning(
                 "Could not retrieve GKE clusters on project %s due to permissions issue. %s",
                 project_id,

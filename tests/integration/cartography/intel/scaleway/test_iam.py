@@ -341,6 +341,19 @@ def test_load_scaleway_api_keys(_mock_get, neo4j_session):
         )
         == expected_user_rels
     )
+    # Canonical ontology edge: (:APIKey)-[:OWNED_BY]->(:UserAccount)
+    assert (
+        check_rels(
+            neo4j_session,
+            "ScalewayApiKey",
+            "id",
+            "ScalewayUser",
+            "id",
+            "OWNED_BY",
+            rel_direction_right=True,
+        )
+        == expected_user_rels
+    )
     # Assert API keys are linked to the applications
     expected_application_rels = {
         (
@@ -357,6 +370,19 @@ def test_load_scaleway_api_keys(_mock_get, neo4j_session):
             "id",
             "HAS",
             rel_direction_right=False,
+        )
+        == expected_application_rels
+    )
+    # Canonical ontology edge: (:APIKey)-[:OWNED_BY]->(:ServiceAccount)
+    assert (
+        check_rels(
+            neo4j_session,
+            "ScalewayApiKey",
+            "id",
+            "ScalewayApplication",
+            "id",
+            "OWNED_BY",
+            rel_direction_right=True,
         )
         == expected_application_rels
     )

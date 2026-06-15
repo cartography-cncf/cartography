@@ -62,6 +62,7 @@ class TestGetZonesInProjectHttpErrors:
         [
             _make_http_error(503, reason="backendError", message="Backend error"),
             _make_http_error(400, reason="invalid", message="Invalid request"),
+            _make_http_error(403, message="Forbidden"),
             _make_http_error(418, message="Unexpected response"),
         ],
     )

@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 
+from cartography.models.anthropic.apikey import AnthropicApiKeyToUserRel
 from cartography.models.aws.cloudtrail.management_events import (
     AssumedRoleWithSAMLMatchLink,
 )
@@ -7,6 +8,7 @@ from cartography.models.aws.ecs.containers import ECSContainerToTaskRel
 from cartography.models.aws.ecs.services import ECSServiceToECSClusterRel
 from cartography.models.aws.ecs.services import ECSServiceToECSTaskRel
 from cartography.models.aws.ecs.tasks import ECSTaskToECSClusterRel
+from cartography.models.aws.iam.access_key import AccountAccessKeyToAWSUserRel
 from cartography.models.aws.iam.group_membership import AWSGroupToAWSUserRel
 from cartography.models.aws.identitycenter.awspermissionset import (
     AWSRoleToSSOGroupMatchLink,
@@ -24,13 +26,22 @@ from cartography.models.aws.identitycenter.awsssouser import (
     AWSSSOUserToPermissionSetRel,
 )
 from cartography.models.aws.identitycenter.awsssouser import AWSSSOUserToSSOGroupRel
+from cartography.models.aws.lambda_function.lambda_function import (
+    AWSLambdaToPrincipalRel,
+)
 from cartography.models.azure.container_instance import (
     AzureGroupContainerToContainerInstanceRel,
 )
 from cartography.models.duo.user import DuoGroupToDuoUserRel
+from cartography.models.gcp.cloudrun.job import CloudRunJobToServiceAccountRel
 from cartography.models.gcp.cloudrun.job_container import CloudRunJobToContainerRel
+from cartography.models.gcp.cloudrun.service import CloudRunServiceToServiceAccountRel
 from cartography.models.gcp.cloudrun.service_container import (
     CloudRunServiceToContainerRel,
+)
+from cartography.models.gcp.iam_keys import GCPServiceAccountKeyToServiceAccountRel
+from cartography.models.github.personal_access_tokens import (
+    GitHubPersonalAccessTokenToOwnerUserRel,
 )
 from cartography.models.github.teams import GitHubTeamChildTeamRel
 from cartography.models.github.teams import GitHubTeamMaintainerUserRel
@@ -71,12 +82,19 @@ from cartography.models.kubernetes.pods import KubernetesPodToKubernetesClusterR
 from cartography.models.kubernetes.pods import KubernetesPodToKubernetesNamespaceRel
 from cartography.models.kubernetes.pods import KubernetesPodToSecretEnvRel
 from cartography.models.kubernetes.pods import KubernetesPodToSecretVolumeRel
+from cartography.models.kubernetes.pods import KubernetesPodToServiceAccountRel
 from cartography.models.kubernetes.serviceaccounts import (
     KubernetesServiceAccountToAWSRoleRel,
 )
 from cartography.models.kubernetes.users import KubernetesUserToAWSRoleRel
 from cartography.models.oci.group import OCIGroupToOCIUserRel
 from cartography.models.oci.policy import OCIPolicyToGroupRefRel
+from cartography.models.openai.adminapikey import OpenAIAdminApiKeyToSARel
+from cartography.models.openai.adminapikey import OpenAIAdminApiKeyToUserRel
+from cartography.models.openai.apikey import OpenAIApiKeyToSARel
+from cartography.models.openai.apikey import OpenAIApiKeyToUserRel
+from cartography.models.scaleway.iam.apikey import ScalewayApiKeyToApplicationRel
+from cartography.models.scaleway.iam.apikey import ScalewayApiKeyToUserRel
 from cartography.models.sentry.member import SentryUserToTeamAdminOfRel
 from cartography.models.slack.group import SlackGroupToCreatorRel
 from cartography.models.tailscale.group import (
@@ -137,6 +155,17 @@ ONTOLOGY_REL_CONSTRAINTS: tuple[RelConstraint, ...] = (
     RelConstraint(src="UserAccount", dst="UserGroup", label="MEMBER_OF"),
     RelConstraint(src="ServiceAccount", dst="UserGroup", label="MEMBER_OF"),
     RelConstraint(src="UserGroup", dst="UserGroup", label="MEMBER_OF"),
+    # An API key / access credential is owned by the identity it authenticates as.
+    RelConstraint(src="APIKey", dst="UserAccount", label="OWNED_BY"),
+    RelConstraint(src="APIKey", dst="ServiceAccount", label="OWNED_BY"),
+    # A workload runs as / assumes the identity of a service account.
+    RelConstraint(src="ComputeInstance", dst="ServiceAccount", label="RUNS_AS"),
+    RelConstraint(src="ComputePod", dst="ServiceAccount", label="RUNS_AS"),
+    RelConstraint(src="Function", dst="ServiceAccount", label="RUNS_AS"),
+    RelConstraint(src="ComputeService", dst="ServiceAccount", label="RUNS_AS"),
+    # A workload assumes a permission role to obtain its privileges.
+    RelConstraint(src="ComputeInstance", dst="PermissionRole", label="ASSUMES"),
+    RelConstraint(src="Function", dst="PermissionRole", label="ASSUMES"),
 )
 
 
@@ -179,6 +208,17 @@ LEGACY_REL_WHITELIST: frozenset[type] = frozenset(
         # account assumes an AWS IAM role, IRSA-style). This is the canonical
         # ASSUMES semantic, not a static role grant. Distinct from HAS_ROLE.
         KubernetesServiceAccountToAWSRoleRel,
+        # STS_ASSUMEROLE_ALLOW models the AWS IAM trust-policy graph (which
+        # principals a role permits to assume it) and spans User/Role/Group/
+        # EC2/Lambda principals; it is consumed by the privilege-escalation
+        # rules. The canonical ontology ASSUMES edge (Function/ComputeInstance
+        # -> PermissionRole) now coexists on AWSLambda. This rel declares its
+        # target as the generic AWSPrincipal, but at runtime the matched
+        # execution-role node also carries :PermissionRole, so it is a
+        # deliberate Function->PermissionRole overlap. Whitelisted to make that
+        # intent explicit (the guard resolves AWSPrincipal atomically and would
+        # not otherwise surface it). Distinct from the canonical ASSUMES edge.
+        AWSLambdaToPrincipalRel,
         # ALLOWED_BY (PermissionRole->UserGroup) is "this role is assumable by
         # that SSO group", the reverse of a group role grant. Distinct from the
         # UserGroup->PermissionRole HAS_ROLE edge.
@@ -224,6 +264,25 @@ LEGACY_REL_WHITELIST: frozenset[type] = frozenset(
         # MAPS_TO is identity federation (a Kubernetes group maps to an AWS
         # user), not group membership. Distinct from MEMBER_OF.
         KubernetesGroupToAWSUserRel,
+        # DEPRECATED: replaced by OWNED_BY (the canonical APIKey->identity
+        # direction), will be removed in v1.0.0. These edges express the same
+        # ownership in the reverse (identity->key) direction under provider
+        # labels (OWNS / HAS / HAS_KEY / AWS_ACCESS_KEY).
+        AccountAccessKeyToAWSUserRel,
+        AnthropicApiKeyToUserRel,
+        GCPServiceAccountKeyToServiceAccountRel,
+        GitHubPersonalAccessTokenToOwnerUserRel,
+        OpenAIApiKeyToUserRel,
+        OpenAIApiKeyToSARel,
+        OpenAIAdminApiKeyToUserRel,
+        OpenAIAdminApiKeyToSARel,
+        ScalewayApiKeyToUserRel,
+        ScalewayApiKeyToApplicationRel,
+        # DEPRECATED: replaced by RUNS_AS (the canonical workload->service
+        # account edge), will be removed in v1.0.0.
+        KubernetesPodToServiceAccountRel,
+        CloudRunServiceToServiceAccountRel,
+        CloudRunJobToServiceAccountRel,
         # INHERITED_MEMBER_OF / INHERITED_OWNER_OF are transitive memberships
         # computed across nested groups, intentionally kept separate from the
         # direct MEMBER_OF edge.
