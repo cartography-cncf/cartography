@@ -52,6 +52,16 @@ def test_sync_lambda_functions(
     boto3_session = MagicMock()
     create_test_account(neo4j_session, TEST_ACCOUNT_ID, TEST_UPDATE_TAG)
     common_job_parameters = {"UPDATE_TAG": TEST_UPDATE_TAG, "AWS_ID": TEST_ACCOUNT_ID}
+    # Seed the execution role of sample-function-7 so the canonical
+    # (:Function)-[:ASSUMES]->(:PermissionRole) edge has a target to match.
+    neo4j_session.run(
+        """
+        MERGE (r:AWSRole:AWSPrincipal {arn: $arn})
+        ON CREATE SET r.lastupdated = $update_tag
+        """,
+        arn="arn:aws:iam::000000000000:role/sample-role-2",
+        update_tag=TEST_UPDATE_TAG,
+    )
 
     # Act
     cartography.intel.aws.lambda_function.sync(
@@ -126,6 +136,22 @@ def test_sync_lambda_functions(
     }
 
     # Assert - Check all relationship types were created correctly
+
+    # Canonical ontology edge: (:Function)-[:ASSUMES]->(:PermissionRole)
+    assert check_rels(
+        neo4j_session,
+        "AWSLambda",
+        "id",
+        "AWSRole",
+        "arn",
+        "ASSUMES",
+        rel_direction_right=True,
+    ) == {
+        (
+            "arn:aws:lambda:us-west-2:000000000000:function:sample-function-7",
+            "arn:aws:iam::000000000000:role/sample-role-2",
+        ),
+    }
 
     assert check_rels(
         neo4j_session,

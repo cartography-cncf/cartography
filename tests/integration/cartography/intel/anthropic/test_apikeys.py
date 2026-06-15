@@ -83,6 +83,19 @@ def test_load_anthropic_apikeys(mock_api, neo4j_session):
         )
         == expected_rels
     )
+    # Canonical ontology edge: (:APIKey)-[:OWNED_BY]->(:UserAccount)
+    assert (
+        check_rels(
+            neo4j_session,
+            "AnthropicApiKey",
+            "id",
+            "AnthropicUser",
+            "id",
+            "OWNED_BY",
+            rel_direction_right=True,
+        )
+        == expected_rels
+    )
 
     # Assert apikeys are linked to the correct workspaces
     expected_rels = {

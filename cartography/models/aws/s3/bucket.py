@@ -76,7 +76,7 @@ class S3BucketPolicyProperties(CartographyNodeProperties):
 
     id: PropertyRef = PropertyRef("Name")
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
-    anonymous_access: PropertyRef = PropertyRef("anonymous_access")
+    anonymous_access: PropertyRef = PropertyRef("anonymous_access", extra_index=True)
     anonymous_actions: PropertyRef = PropertyRef("anonymous_actions")
 
 

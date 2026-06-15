@@ -35,7 +35,11 @@ def get_dns_zones(dns: Resource, project_id: str) -> List[Dict]:
             )
         return zones
     except HttpError as e:
-        if classify_gcp_http_error(e) in ("forbidden", "api_disabled"):
+        if classify_gcp_http_error(e) in (
+            "api_disabled",
+            "billing_disabled",
+            "forbidden",
+        ):
             logger.warning(
                 "Could not retrieve DNS zones on project %s due to permissions issues. %s",
                 project_id,
@@ -69,7 +73,11 @@ def get_dns_rrs(dns: Resource, dns_zones: List[Dict], project_id: str) -> List[D
                 )
         return rrs
     except HttpError as e:
-        if classify_gcp_http_error(e) in ("forbidden", "api_disabled"):
+        if classify_gcp_http_error(e) in (
+            "api_disabled",
+            "billing_disabled",
+            "forbidden",
+        ):
             logger.warning(
                 "Could not retrieve DNS RRS on project %s due to permissions issues. %s",
                 project_id,

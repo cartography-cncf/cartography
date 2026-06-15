@@ -262,6 +262,22 @@ def test_sync_gcp_iam_service_account_keys(
         ),
     }
 
+    # Canonical ontology edge: (:APIKey)-[:OWNED_BY]->(:ServiceAccount)
+    assert check_rels(
+        neo4j_session,
+        "GCPServiceAccountKey",
+        "id",
+        "GCPServiceAccount",
+        "email",
+        "OWNED_BY",
+        rel_direction_right=True,
+    ) == {
+        (
+            user_managed_key_id,
+            "service-account-1@project-abc.iam.gserviceaccount.com",
+        ),
+    }
+
 
 @patch.object(
     cartography.intel.gcp.iam,

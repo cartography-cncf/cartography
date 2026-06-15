@@ -18,9 +18,9 @@ INS -- MOUNTS --> VOL
 FIP -- IDENTIFIES --> INS
 VOL -- HAS --> SNAP
 USR -- MEMBER_OF --> GRP(ScalewayGroup)
-USR -- HAS --> APIKEY(ScalewayApiKey)
+APIKEY(ScalewayApiKey) -- OWNED_BY --> USR
 APP -- MEMBER_OF --> GRP(ScalewayGroup)
-APP -- HAS --> APIKEY(ScalewayApiKey)
+APIKEY -- OWNED_BY --> APP
 POL -- APPLIES_TO --> USR
 POL -- APPLIES_TO --> GRP
 POL -- APPLIES_TO --> APP
@@ -122,9 +122,9 @@ Represents a User in Scaleway.
     ```
     (:ScalewayUser)-[:MEMBER_OF]->(:ScalewayGroup)
     ```
-- `User` has `ApiKey`.
+- `User` owns `ApiKey`.
     ```
-    (:ScalewayUser)-[:HAS]->(:ScalewayApiKey)
+    (:ScalewayApiKey)-[:OWNED_BY]->(:ScalewayUser)
     ```
 
 
@@ -188,9 +188,9 @@ Represents an Application (Service Account) in Scaleway
     ```
     (:ScalewayApplication)-[:MEMBER_OF]->(:ScalewayGroup)
     ```
-- `Application` has `ApiKey`
+- `Application` owns `ApiKey`
     ```
-    (:ScalewayApplication)-[:HAS]->(:ScalewayApiKey)
+    (:ScalewayApiKey)-[:OWNED_BY]->(:ScalewayApplication)
     ```
 
 ### ScalewayApiKey
@@ -220,8 +220,8 @@ Represents an ApiKey in Scaleway.
     ```
 - `ApiKey` is owned by a `User` or an `Application`
     ```
-    (:ScalewayUser)-[:HAS]->(:ScalewayApiKey)
-    (:ScalewayApplication)-[:HAS]->(:ScalewayApiKey)
+    (:ScalewayApiKey)-[:OWNED_BY]->(:ScalewayUser)
+    (:ScalewayApiKey)-[:OWNED_BY]->(:ScalewayApplication)
     ```
 
 

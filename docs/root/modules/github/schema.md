@@ -15,7 +15,7 @@ U(GitHubUser) -- MEMBER_OF --> O
 U -- ADMIN_OF --> O
 U -- UNAFFILIATED --> O
 U -- OWNER --> R
-U -- OWNS --> PAT
+PAT -- OWNED_BY --> U
 U -- OUTSIDE_COLLAB_{ACTION} --> R
 U -- DIRECT_COLLAB_{ACTION} --> R
 U -- COMMITTED_TO --> R
@@ -355,10 +355,10 @@ Fine-grained and classic PATs also receive kind-specific labels, `GitHubFineGrai
     (GitHubOrganization)-[:RESOURCE]->(GitHubPersonalAccessToken)
     ```
 
-- GitHubUsers own GitHubPersonalAccessTokens when the owner can be resolved.
+- GitHubPersonalAccessTokens are owned by the GitHubUser they authenticate as, when the owner can be resolved.
 
     ```
-    (GitHubUser)-[:OWNS]->(GitHubPersonalAccessToken)
+    (GitHubPersonalAccessToken)-[:OWNED_BY]->(GitHubUser)
     ```
 
 - Fine-grained GitHubPersonalAccessTokens can access GitHubRepositories returned by GitHub's token repository access endpoint.
