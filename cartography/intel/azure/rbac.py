@@ -53,21 +53,20 @@ def get_role_assignments(
 def get_role_assignments_for_scope(
     credentials: Credentials,
     authorization_subscription_id: str,
-    scope: str,
     management_group_id: str,
 ) -> list[dict]:
     """
-    Fetch role assignments attached directly to a given Azure scope.
+    Fetch role assignments attached directly to a given Azure management group.
     """
     client = get_client(credentials, authorization_subscription_id)
     role_assignments = list(
-        client.role_assignments.list_for_scope(scope, filter="atScope()")
+        client.role_assignments.list_for_scope(management_group_id, filter="atScope()")
     )
 
     result = []
     for assignment in role_assignments:
         assignment_dict = assignment.as_dict()
-        if assignment_dict.get("scope") != scope:
+        if assignment_dict.get("scope") != management_group_id:
             continue
         assignment_dict["management_group_id"] = management_group_id
         result.append(assignment_dict)
@@ -329,6 +328,29 @@ def cleanup_permissions(
     )
 
 
+def load_role_definitions_and_permissions(
+    neo4j_session: neo4j.Session,
+    role_definitions: list[dict],
+    subscription_id: str,
+    update_tag: int,
+) -> None:
+    transformed_permissions = transform_permissions(role_definitions)
+    transformed_definitions = transform_role_definitions(role_definitions)
+
+    load_permissions(
+        neo4j_session,
+        transformed_permissions,
+        subscription_id,
+        update_tag,
+    )
+    load_role_definitions(
+        neo4j_session,
+        transformed_definitions,
+        subscription_id,
+        update_tag,
+    )
+
+
 @timeit
 def sync_management_group_role_assignments(
     neo4j_session: neo4j.Session,
@@ -346,7 +368,6 @@ def sync_management_group_role_assignments(
         credentials,
         authorization_subscription_id,
         management_group_id,
-        management_group_id,
     )
     role_definition_ids = extract_role_definition_ids(role_assignments)
     role_definitions = get_role_definitions_by_ids(
@@ -355,19 +376,11 @@ def sync_management_group_role_assignments(
         role_definition_ids,
     )
 
-    transformed_definitions = transform_role_definitions(role_definitions)
     transformed_assignments = transform_role_assignments(role_assignments)
-    transformed_permissions = transform_permissions(role_definitions)
 
-    load_permissions(
+    load_role_definitions_and_permissions(
         neo4j_session,
-        transformed_permissions,
-        authorization_subscription_id,
-        update_tag,
-    )
-    load_role_definitions(
-        neo4j_session,
-        transformed_definitions,
+        role_definitions,
         authorization_subscription_id,
         update_tag,
     )
@@ -440,16 +453,11 @@ def sync(
     )
 
     # TRANSFORM
-    transformed_definitions = transform_role_definitions(role_definitions)
     transformed_assignments = transform_role_assignments(role_assignments)
-    transformed_permissions = transform_permissions(role_definitions)
 
     # LOAD
-    load_permissions(
-        neo4j_session, transformed_permissions, subscription_id, update_tag
-    )
-    load_role_definitions(
-        neo4j_session, transformed_definitions, subscription_id, update_tag
+    load_role_definitions_and_permissions(
+        neo4j_session, role_definitions, subscription_id, update_tag
     )
     load_role_assignments(
         neo4j_session, transformed_assignments, subscription_id, update_tag

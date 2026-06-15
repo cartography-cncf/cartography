@@ -105,7 +105,6 @@ def test_get_role_assignments_for_scope_filters_to_direct_scope(
         MagicMock(),
         TEST_SUBSCRIPTION_ID,
         TEST_MANAGEMENT_GROUP_ID,
-        TEST_MANAGEMENT_GROUP_ID,
     )
 
     # Assert
