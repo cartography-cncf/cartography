@@ -22,6 +22,7 @@ import cartography.intel.microsoft.entra.groups
 import cartography.intel.microsoft.entra.service_principals
 import cartography.intel.microsoft.entra.users
 from tests.data.azure.rbac import AZURE_MANAGEMENT_GROUP_ROLE_ASSIGNMENTS
+from tests.data.azure.rbac import AZURE_MANAGEMENT_GROUP_ROLE_ASSIGNMENTS_MIXED_SCOPES
 from tests.data.azure.rbac import AZURE_ROLE_ASSIGNMENTS
 from tests.data.azure.rbac import AZURE_ROLE_DEFINITIONS
 from tests.data.azure.rbac import ENTRA_GROUPS
@@ -77,6 +78,42 @@ def _create_test_azure_management_group(neo4j_session) -> None:
         management_group_id=TEST_MANAGEMENT_GROUP_ID,
         update_tag=TEST_UPDATE_TAG,
     )
+
+
+class _FakeAzureRoleAssignment:
+    def __init__(self, data: dict[str, Any]) -> None:
+        self.data = data
+
+    def as_dict(self) -> dict[str, Any]:
+        return self.data
+
+
+@patch.object(cartography.intel.azure.rbac, "get_client")
+def test_get_role_assignments_for_scope_filters_to_direct_scope(
+    mock_get_client,
+):
+    # Arrange
+    mock_client = MagicMock()
+    mock_client.role_assignments.list_for_scope.return_value = [
+        _FakeAzureRoleAssignment(assignment)
+        for assignment in AZURE_MANAGEMENT_GROUP_ROLE_ASSIGNMENTS_MIXED_SCOPES
+    ]
+    mock_get_client.return_value = mock_client
+
+    # Act
+    result = cartography.intel.azure.rbac.get_role_assignments_for_scope(
+        MagicMock(),
+        TEST_SUBSCRIPTION_ID,
+        TEST_MANAGEMENT_GROUP_ID,
+        TEST_MANAGEMENT_GROUP_ID,
+    )
+
+    # Assert
+    mock_client.role_assignments.list_for_scope.assert_called_once_with(
+        TEST_MANAGEMENT_GROUP_ID,
+        filter="atScope()",
+    )
+    assert result == AZURE_MANAGEMENT_GROUP_ROLE_ASSIGNMENTS
 
 
 @patch.object(
@@ -384,7 +421,13 @@ async def test_sync_azure_rbac(
     "get_role_assignments_for_scope",
     return_value=AZURE_MANAGEMENT_GROUP_ROLE_ASSIGNMENTS,
 )
+@patch.object(
+    cartography.intel.azure.rbac,
+    "get_role_definitions_by_ids",
+    return_value=AZURE_ROLE_DEFINITIONS,
+)
 def test_sync_management_group_role_assignments(
+    mock_get_role_definitions,
     mock_get_role_assignments_for_scope,
     neo4j_session,
 ):
@@ -398,21 +441,16 @@ def test_sync_management_group_role_assignments(
         """,
         update_tag=TEST_UPDATE_TAG,
     )
-    cartography.intel.azure.rbac.load_role_definitions(
-        neo4j_session,
-        AZURE_ROLE_DEFINITIONS,
-        TEST_SUBSCRIPTION_ID,
-        TEST_UPDATE_TAG,
-    )
     common_job_parameters = {
         "UPDATE_TAG": TEST_UPDATE_TAG,
         "TENANT_ID": TEST_TENANT_ID,
     }
+    mock_credentials = MagicMock()
 
     # Act
     cartography.intel.azure.rbac.sync_management_group_role_assignments(
         neo4j_session,
-        MagicMock(),
+        mock_credentials,
         TEST_MANAGEMENT_GROUP_ID,
         TEST_SUBSCRIPTION_ID,
         TEST_UPDATE_TAG,
@@ -420,6 +458,11 @@ def test_sync_management_group_role_assignments(
     )
 
     # Assert
+    mock_get_role_definitions.assert_called_once_with(
+        mock_credentials,
+        TEST_SUBSCRIPTION_ID,
+        [AZURE_MANAGEMENT_GROUP_ROLE_ASSIGNMENTS[0]["role_definition_id"]],
+    )
     assert (TEST_MANAGEMENT_GROUP_ROLE_ASSIGNMENT_ID,) in check_nodes(
         neo4j_session,
         "AzureRoleAssignment",
@@ -485,7 +528,13 @@ def test_sync_management_group_role_assignments(
     cartography.intel.azure.rbac,
     "get_role_assignments_for_scope",
 )
+@patch.object(
+    cartography.intel.azure.rbac,
+    "get_role_definitions_by_ids",
+    return_value=AZURE_ROLE_DEFINITIONS,
+)
 def test_cleanup_stale_management_group_role_assignments(
+    mock_get_role_definitions,
     mock_get_role_assignments_for_scope,
     neo4j_session,
 ):
@@ -536,7 +585,13 @@ def test_cleanup_stale_management_group_role_assignments(
     cartography.intel.azure.rbac,
     "get_role_assignments_for_scope",
 )
+@patch.object(
+    cartography.intel.azure.rbac,
+    "get_role_definitions_by_ids",
+    return_value=AZURE_ROLE_DEFINITIONS,
+)
 def test_management_group_role_assignment_access_loss_preserves_existing_assignments(
+    mock_get_role_definitions,
     mock_get_role_assignments_for_scope,
     neo4j_session,
 ):

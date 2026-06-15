@@ -1,6 +1,5 @@
 import json
 import logging
-from typing import Any
 
 import neo4j
 from azure.core.exceptions import HttpResponseError
@@ -28,13 +27,6 @@ def get_client(
     """
     client = AuthorizationManagementClient(credentials.credential, subscription_id)
     return client
-
-
-def _get_value(data: dict[str, Any], *keys: str) -> Any | None:
-    for key in keys:
-        if key in data:
-            return data[key]
-    return None
 
 
 @timeit
@@ -68,11 +60,15 @@ def get_role_assignments_for_scope(
     Fetch role assignments attached directly to a given Azure scope.
     """
     client = get_client(credentials, authorization_subscription_id)
-    role_assignments = list(client.role_assignments.list_for_scope(scope))
+    role_assignments = list(
+        client.role_assignments.list_for_scope(scope, filter="atScope()")
+    )
 
     result = []
     for assignment in role_assignments:
         assignment_dict = assignment.as_dict()
+        if assignment_dict.get("scope") != scope:
+            continue
         assignment_dict["management_group_id"] = management_group_id
         result.append(assignment_dict)
 
@@ -352,7 +348,29 @@ def sync_management_group_role_assignments(
         management_group_id,
         management_group_id,
     )
+    role_definition_ids = extract_role_definition_ids(role_assignments)
+    role_definitions = get_role_definitions_by_ids(
+        credentials,
+        authorization_subscription_id,
+        role_definition_ids,
+    )
+
+    transformed_definitions = transform_role_definitions(role_definitions)
     transformed_assignments = transform_role_assignments(role_assignments)
+    transformed_permissions = transform_permissions(role_definitions)
+
+    load_permissions(
+        neo4j_session,
+        transformed_permissions,
+        authorization_subscription_id,
+        update_tag,
+    )
+    load_role_definitions(
+        neo4j_session,
+        transformed_definitions,
+        authorization_subscription_id,
+        update_tag,
+    )
     load_management_group_role_assignments(
         neo4j_session,
         transformed_assignments,
@@ -376,7 +394,7 @@ def sync_management_group_role_assignments_for_management_groups(
     common_job_parameters: dict,
 ) -> None:
     for management_group in management_group_data:
-        management_group_id = _get_value(management_group, "id")
+        management_group_id = management_group.get("id")
         if not management_group_id:
             continue
 
