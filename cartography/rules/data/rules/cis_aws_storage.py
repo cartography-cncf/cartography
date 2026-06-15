@@ -126,8 +126,9 @@ _aws_s3_block_public_access_disabled = Fact(
     description=(
         "Detects S3 buckets that do not have all Block Public Access settings enabled. "
         "All four Block Public Access settings should be enabled to prevent public access. "
-        "Buckets whose bucket-level settings are missing but whose parent account has "
-        "account-level Block Public Access fully enforced are not flagged, since the "
+        "Buckets that have no bucket-level settings at all (all four fields NULL) and "
+        "therefore purely inherit account-level Block Public Access are not flagged when "
+        "the parent account fully enforces account-level Block Public Access, since the "
         "account-level configuration already blocks public access."
     ),
     cypher_query="""
@@ -138,16 +139,25 @@ _aws_s3_block_public_access_disabled = Fact(
        OR (bucket.block_public_policy IS NULL OR bucket.block_public_policy <> true)
        OR (bucket.restrict_public_buckets IS NULL OR bucket.restrict_public_buckets <> true)
     )
+    // Only exempt buckets that have no bucket-level config at all (all four fields
+    // NULL) and therefore purely inherit account-level BPA. A bucket with any explicit
+    // bucket-level setting is still evaluated on its own merits.
     // Account-level BPA is account-global in AWS but stored one node per region with
     // identical values, so a single region node with all four settings enforced is
     // enough to confirm the account blocks public access for every bucket it owns.
-    AND NOT EXISTS {
-        MATCH (a)-[:RESOURCE]->(pab:S3AccountPublicAccessBlock)
-        WHERE pab.block_public_acls = true
-          AND pab.ignore_public_acls = true
-          AND pab.block_public_policy = true
-          AND pab.restrict_public_buckets = true
-    }
+    AND NOT (
+        bucket.block_public_acls IS NULL
+        AND bucket.ignore_public_acls IS NULL
+        AND bucket.block_public_policy IS NULL
+        AND bucket.restrict_public_buckets IS NULL
+        AND EXISTS {
+            MATCH (a)-[:RESOURCE]->(pab:S3AccountPublicAccessBlock)
+            WHERE pab.block_public_acls = true
+              AND pab.ignore_public_acls = true
+              AND pab.block_public_policy = true
+              AND pab.restrict_public_buckets = true
+        }
+    )
     RETURN
         bucket.name AS bucket_name,
         bucket.id AS bucket_id,
@@ -167,13 +177,19 @@ _aws_s3_block_public_access_disabled = Fact(
        OR (bucket.block_public_policy IS NULL OR bucket.block_public_policy <> true)
        OR (bucket.restrict_public_buckets IS NULL OR bucket.restrict_public_buckets <> true)
     )
-    AND NOT EXISTS {
-        MATCH (a)-[:RESOURCE]->(pab:S3AccountPublicAccessBlock)
-        WHERE pab.block_public_acls = true
-          AND pab.ignore_public_acls = true
-          AND pab.block_public_policy = true
-          AND pab.restrict_public_buckets = true
-    }
+    AND NOT (
+        bucket.block_public_acls IS NULL
+        AND bucket.ignore_public_acls IS NULL
+        AND bucket.block_public_policy IS NULL
+        AND bucket.restrict_public_buckets IS NULL
+        AND EXISTS {
+            MATCH (a)-[:RESOURCE]->(pab:S3AccountPublicAccessBlock)
+            WHERE pab.block_public_acls = true
+              AND pab.ignore_public_acls = true
+              AND pab.block_public_policy = true
+              AND pab.restrict_public_buckets = true
+        }
+    )
     RETURN *
     """,
     cypher_count_query="""

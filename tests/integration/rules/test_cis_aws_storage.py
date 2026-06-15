@@ -35,6 +35,15 @@ def test_block_public_access_respects_account_level_bpa(neo4j_session) -> None:
             block_public_policy: true,
             restrict_public_buckets: true
         })
+        // Explicit partially-disabling bucket-level config under the fully-enforced
+        // account: the bucket does NOT purely inherit account BPA, so it must still
+        // be flagged (account-level enforcement must not mask an explicit override).
+        CREATE (override_bucket:S3Bucket {
+            id: 'override-bucket',
+            name: 'override-bucket',
+            region: 'us-east-1',
+            block_public_acls: false
+        })
 
         // Account-level BPA is account-global but stored one node per region; a
         // region with no config (us-west-2) must not defeat the us-east-1 enforcement.
@@ -57,6 +66,7 @@ def test_block_public_access_respects_account_level_bpa(neo4j_session) -> None:
         MERGE (partial)-[:RESOURCE]->(partial_bucket)
         MERGE (uncovered)-[:RESOURCE]->(uncovered_bucket)
         MERGE (covered)-[:RESOURCE]->(self_blocked_bucket)
+        MERGE (covered)-[:RESOURCE]->(override_bucket)
         MERGE (covered)-[:RESOURCE]->(covered_pab_east)
         MERGE (partial)-[:RESOURCE]->(partial_pab)
         """
@@ -68,11 +78,15 @@ def test_block_public_access_respects_account_level_bpa(neo4j_session) -> None:
     visual_rows = list(neo4j_session.run(fact.cypher_visual_query))
     count_rows = list(neo4j_session.run(fact.cypher_count_query))
 
-    # Assert: only the partial and uncovered accounts' buckets are flagged.
+    # Assert: partial + uncovered buckets are flagged, and so is the override bucket
+    # (explicit bucket-level config means it does not purely inherit account BPA).
+    # The covered bucket (all-NULL under enforced account) and the self-blocked bucket
+    # are not flagged.
     assert {row["bucket_id"] for row in findings} == {
         "partial-bucket",
         "uncovered-bucket",
+        "override-bucket",
     }
-    assert len(visual_rows) == 2
+    assert len(visual_rows) == 3
     # The count (denominator) still covers every evaluated bucket.
-    assert count_rows[0]["count"] == 4
+    assert count_rows[0]["count"] == 5
