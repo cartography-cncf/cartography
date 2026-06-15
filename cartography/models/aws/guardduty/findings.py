@@ -30,6 +30,7 @@ class GuardDutyFindingNodeProperties(CartographyNodeProperties):
     detectorid: PropertyRef = PropertyRef("detectorid")
     resource_type: PropertyRef = PropertyRef("resource_type")
     resource_id: PropertyRef = PropertyRef("resource_id")
+    eks_cluster_arn: PropertyRef = PropertyRef("eks_cluster_arn", extra_index=True)
     access_key_id: PropertyRef = PropertyRef("access_key_id", extra_index=True)
     principal_user_id: PropertyRef = PropertyRef("principal_user_id", extra_index=True)
     principal_role_id: PropertyRef = PropertyRef("principal_role_id", extra_index=True)
@@ -136,6 +137,24 @@ class GuardDutyFindingTriggeredByAWSAccountRel(CartographyRelSchema):
 
 
 @dataclass(frozen=True)
+class GuardDutyFindingToEKSClusterRelRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+class GuardDutyFindingToEKSClusterRel(CartographyRelSchema):
+    target_node_label: str = "EKSCluster"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"id": PropertyRef("eks_cluster_arn")},
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "AFFECTS"
+    properties: GuardDutyFindingToEKSClusterRelRelProperties = (
+        GuardDutyFindingToEKSClusterRelRelProperties()
+    )
+
+
+@dataclass(frozen=True)
 class GuardDutyFindingToS3BucketRelRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
@@ -220,6 +239,7 @@ class GuardDutyFindingSchema(CartographyNodeSchema):
             GuardDutyFindingToGuardDutyDetectorRel(),
             GuardDutyFindingTriggeredByAWSAccountRel(),
             GuardDutyFindingToEC2InstanceRel(),
+            GuardDutyFindingToEKSClusterRel(),
             GuardDutyFindingToS3BucketRel(),
             GuardDutyFindingToAccountAccessKeyRel(),
             GuardDutyFindingToAWSUserRel(),

@@ -260,6 +260,7 @@ def transform_findings(findings: list[dict[str, Any]]) -> list[dict[str, Any]]:
         resource = f.get("Resource", {})
         item["resource_type"] = resource.get("ResourceType")
         item["resource_id"] = None
+        item["eks_cluster_arn"] = None
         item["access_key_id"] = None
         item["principal_user_id"] = None
         item["principal_role_id"] = None
@@ -272,6 +273,11 @@ def transform_findings(findings: list[dict[str, Any]]) -> list[dict[str, Any]]:
             buckets = resource.get("S3BucketDetails") or []
             if buckets:
                 item["resource_id"] = buckets[0].get("Name")
+        elif item["resource_type"] == "EKSCluster":
+            # EKS/Kubernetes findings target a cluster. EKSCluster.id is the
+            # cluster ARN, so match on the Arn from EksClusterDetails.
+            details = resource.get("EksClusterDetails", {})
+            item["eks_cluster_arn"] = details.get("Arn")
         elif item["resource_type"] == "AccessKey":
             details = resource.get("AccessKeyDetails", {})
             item["access_key_id"] = details.get("AccessKeyId")
