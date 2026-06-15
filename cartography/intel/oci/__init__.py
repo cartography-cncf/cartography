@@ -9,6 +9,9 @@ from typing import List
 
 import neo4j
 import oci
+import oci.key_management
+import oci.monitoring
+import oci.object_storage
 from oci.exceptions import ConfigFileNotFound
 from oci.exceptions import InvalidConfig
 from oci.exceptions import ProfileNotFound
@@ -26,7 +29,7 @@ from . import network  # noqa: F401 (imported for side-effect: registers in RESO
 # from . import compute
 
 logger = logging.getLogger(__name__)
-Resources = namedtuple('Resources', 'compute iam network storage')
+Resources = namedtuple('Resources', 'compute encryption iam monitoring network storage')
 
 
 def _sync_one_compartment(
@@ -162,6 +165,26 @@ def _get_storage_resource(credentials: Dict[str, Any]) -> oci.object_storage.Obj
     return oci.object_storage.ObjectStorageClient(credentials)
 
 
+def _get_encryption_resource(credentials: Dict[str, Any]) -> oci.key_management.KmsVaultClient:
+    """
+    Instantiates an OCI KmsVaultClient resource object to call the KMS Vault API.
+    See https://docs.oracle.com/en-us/iaas/Content/KeyManagement/Concepts/keyoverview.htm.
+    :param credentials: OCI Credentials object
+    :return: A KmsVaultClient resource object
+    """
+    return oci.key_management.KmsVaultClient(credentials)
+
+
+def _get_monitoring_resource(credentials: Dict[str, Any]) -> oci.monitoring.MonitoringClient:
+    """
+    Instantiates an OCI MonitoringClient resource object to call the Monitoring API.
+    See https://docs.oracle.com/en-us/iaas/Content/Monitoring/Concepts/monitoringoverview.htm.
+    :param credentials: OCI Credentials object
+    :return: A MonitoringClient resource object
+    """
+    return oci.monitoring.MonitoringClient(credentials)
+
+
 def _initialize_resources(credentials: Dict[str, Any]) -> Resources:
     """
     Create namedtuple of all resource objects necessary for OCI data gathering.
@@ -170,7 +193,9 @@ def _initialize_resources(credentials: Dict[str, Any]) -> Resources:
     """
     return Resources(
         compute=_get_compute_resource(credentials),
+        encryption=_get_encryption_resource(credentials),
         iam=_get_iam_resource(credentials),
+        monitoring=_get_monitoring_resource(credentials),
         network=_get_network_resource(credentials),
         storage=_get_storage_resource(credentials),
     )

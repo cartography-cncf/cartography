@@ -751,3 +751,169 @@ Representation of an [OCI File Storage File System](https://docs.oracle.com/en-u
 	```
 	(OCICompartment)-[RESOURCE]->(OCIFileSystem)
 	```
+
+## OCIKmsVault
+
+Representation of an [OCI KMS Vault](https://docs.oracle.com/en-us/iaas/api/#/en/key/latest/Vault/).
+
+| Field | Description |
+|-------|-------------|
+| firstseen | Timestamp of when a sync job first discovered this node |
+| lastupdated | Timestamp of the last time the node was updated |
+| **ocid** | OCI-unique identifier for this vault |
+| display_name | The user-friendly name of the vault |
+| compartment_id | The OCID of the compartment containing the vault |
+| resource_type | `oci-kms-vault` |
+| vault_type | The type of vault (DEFAULT, VIRTUAL_PRIVATE) |
+| lifecycle_state | The vault's current state |
+| crypto_endpoint | The vault's crypto endpoint URL |
+| management_endpoint | The vault's management endpoint URL |
+| region | The region the vault resides in |
+| createdate | ISO 8601 date-time when the vault was created |
+
+### Relationships
+
+- OCI Compartments contain KMS Vaults.
+
+	```
+	(OCICompartment)-[RESOURCE]->(OCIKmsVault)
+	```
+
+- KMS Vaults contain KMS Keys.
+
+	```
+	(OCIKmsVault)-[OCI_KMS_KEY]->(OCIKmsKey)
+	```
+
+## OCIKmsKey
+
+Representation of an [OCI KMS Key](https://docs.oracle.com/en-us/iaas/api/#/en/key/latest/Key/).
+
+| Field | Description |
+|-------|-------------|
+| firstseen | Timestamp of when a sync job first discovered this node |
+| lastupdated | Timestamp of the last time the node was updated |
+| **ocid** | OCI-unique identifier for this key |
+| display_name | The user-friendly name of the key |
+| compartment_id | The OCID of the compartment containing the key |
+| resource_type | `oci-kms-key` |
+| vault_id | The OCID of the vault the key belongs to |
+| algorithm | The algorithm used by the key (AES, RSA, ECDSA) |
+| protection_mode | The protection mode (HSM, SOFTWARE) |
+| lifecycle_state | The key's current state |
+| current_key_version | The OCID of the current key version |
+| region | The region the key resides in |
+| createdate | ISO 8601 date-time when the key was created |
+
+### Relationships
+
+- KMS Vaults contain KMS Keys.
+
+	```
+	(OCIKmsVault)-[OCI_KMS_KEY]->(OCIKmsKey)
+	```
+
+## OCIMonitoringAlarm
+
+Representation of an [OCI Monitoring Alarm](https://docs.oracle.com/en-us/iaas/api/#/en/monitoring/latest/Alarm/).
+
+| Field | Description |
+|-------|-------------|
+| firstseen | Timestamp of when a sync job first discovered this node |
+| lastupdated | Timestamp of the last time the node was updated |
+| **ocid** | OCI-unique identifier for this alarm |
+| display_name | The user-friendly name of the alarm |
+| compartment_id | The OCID of the compartment containing the alarm |
+| resource_type | `oci-monitoring-alarm` |
+| namespace | The metric namespace the alarm monitors |
+| query | The Monitoring Query Language (MQL) query |
+| severity | The severity level (CRITICAL, ERROR, WARNING, INFO) |
+| is_enabled | Whether the alarm is enabled |
+| lifecycle_state | The alarm's current state |
+| metric_compartment_id | The OCID of the compartment the metric is scoped to |
+| destinations | List of notification topic OCIDs to send alarm messages to |
+| region | The region the alarm resides in |
+
+### Relationships
+
+- OCI Compartments contain Monitoring Alarms.
+
+	```
+	(OCICompartment)-[RESOURCE]->(OCIMonitoringAlarm)
+	```
+
+## OCICloudGuard
+
+Representation of [OCI Cloud Guard Configuration](https://docs.oracle.com/en-us/iaas/api/#/en/cloud-guard/latest/Configuration/).
+
+| Field | Description |
+|-------|-------------|
+| firstseen | Timestamp of when a sync job first discovered this node |
+| lastupdated | Timestamp of the last time the node was updated |
+| compartment_id | The OCID of the compartment (typically tenancy root) |
+| resource_type | `oci-monitoring-cloud-guard` |
+| status | Whether Cloud Guard is ENABLED or DISABLED |
+| reporting_region | The region Cloud Guard reports to |
+| region | The region this configuration was synced from |
+
+### Relationships
+
+- OCI Compartments contain Cloud Guard configuration.
+
+	```
+	(OCICompartment)-[RESOURCE]->(OCICloudGuard)
+	```
+
+## OCIEventRule
+
+Representation of an [OCI Events Rule](https://docs.oracle.com/en-us/iaas/api/#/en/events/latest/Rule/).
+
+| Field | Description |
+|-------|-------------|
+| firstseen | Timestamp of when a sync job first discovered this node |
+| lastupdated | Timestamp of the last time the node was updated |
+| **ocid** | OCI-unique identifier for this event rule |
+| display_name | The user-friendly name of the event rule |
+| compartment_id | The OCID of the compartment containing the rule |
+| resource_type | `oci-monitoring-event-rule` |
+| condition | The event matching condition (JSON) |
+| is_enabled | Whether the rule is enabled |
+| lifecycle_state | The rule's current state |
+| description | The description of the rule |
+| region | The region the rule resides in |
+| createdate | ISO 8601 date-time when the rule was created |
+
+### Relationships
+
+- OCI Compartments contain Event Rules.
+
+	```
+	(OCICompartment)-[RESOURCE]->(OCIEventRule)
+	```
+
+## OCINotificationTopic
+
+Representation of an [OCI Notification Topic (ONS)](https://docs.oracle.com/en-us/iaas/api/#/en/notification/latest/NotificationTopic/).
+
+| Field | Description |
+|-------|-------------|
+| firstseen | Timestamp of when a sync job first discovered this node |
+| lastupdated | Timestamp of the last time the node was updated |
+| **ocid** | OCI-unique identifier (topic_id) for this topic |
+| display_name | The user-friendly name of the topic |
+| compartment_id | The OCID of the compartment containing the topic |
+| resource_type | `oci-monitoring-notification-topic` |
+| topic_id | The OCID of the topic |
+| lifecycle_state | The topic's current state |
+| description | The description of the topic |
+| api_endpoint | The endpoint for publishing to the topic |
+| region | The region the topic resides in |
+| createdate | ISO 8601 date-time when the topic was created |
+
+### Relationships
+
+- OCI Compartments contain Notification Topics.
+
+	```
+	(OCICompartment)-[RESOURCE]->(OCINotificationTopic)
+	```
