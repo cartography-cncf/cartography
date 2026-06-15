@@ -218,13 +218,33 @@ TEST_MANAGEMENT_GROUP_ID = (
     "/providers/Microsoft.Management/managementGroups/test-management-group"
 )
 
+AZURE_MANAGEMENT_GROUP_ROLE_DEFINITIONS = [
+    {
+        "id": f"{TEST_MANAGEMENT_GROUP_ID}/providers/Microsoft.Authorization/roleDefinitions/mg-role-definition-1",
+        "name": "Management Group Reader",
+        "role_name": "Management Group Reader",
+        "description": "View management group resources",
+        "permissions": [
+            {
+                "actions": [
+                    "Microsoft.Management/managementGroups/read",
+                    "Microsoft.Authorization/*/read",
+                ],
+                "not_actions": [],
+                "data_actions": [],
+                "not_data_actions": [],
+            }
+        ],
+    },
+]
+
 AZURE_MANAGEMENT_GROUP_ROLE_ASSIGNMENTS = [
     {
         "id": f"{TEST_MANAGEMENT_GROUP_ID}/providers/Microsoft.Authorization/roleAssignments/mg-assignment-1",
         "name": "mg-assignment-1",
         "principal_id": "user-123",
         "principal_type": "User",
-        "role_definition_id": "/subscriptions/12345678-1234-1234-1234-123456789012/providers/Microsoft.Authorization/roleDefinitions/acdd72a7-3385-48ef-bd42-f606fba81ae7",
+        "role_definition_id": AZURE_MANAGEMENT_GROUP_ROLE_DEFINITIONS[0]["id"],
         "scope": TEST_MANAGEMENT_GROUP_ID,
         "management_group_id": TEST_MANAGEMENT_GROUP_ID,
     },

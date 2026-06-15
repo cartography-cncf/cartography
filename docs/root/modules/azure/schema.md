@@ -249,11 +249,11 @@ Representation of an [Azure Role Definition](https://learn.microsoft.com/en-us/a
 |role_name| The display name of the role (e.g., "Contributor", "Reader")|
 |description| Description of what the role allows|
 |assignable_scopes| List of scopes where this role can be assigned|
-|subscription_id| The Azure subscription ID|
+|subscription_id| The Azure subscription ID when loaded from a subscription-scoped RBAC sync|
 
 #### Relationships
 
-- Azure Subscription contains Role Definitions.
+- Azure Subscription contains subscription-loaded Role Definitions. Management-group-loaded Role Definitions may be unscoped.
     ```cypher
     (AzureSubscription)-[RESOURCE]->(AzureRoleDefinition)
     ```
@@ -281,11 +281,11 @@ Representation of the permissions within an Azure Role Definition. Each permissi
 |not_actions| List of denied control plane actions|
 |data_actions| List of allowed data plane actions (e.g., "Microsoft.Storage/storageAccounts/blobServices/containers/blobs/read")|
 |not_data_actions| List of denied data plane actions|
-|subscription_id| The Azure subscription ID|
+|subscription_id| The Azure subscription ID when loaded from a subscription-scoped RBAC sync|
 
 #### Relationships
 
-- Azure Subscription contains Permissions.
+- Azure Subscription contains subscription-loaded Permissions. Management-group-loaded Permissions may be unscoped.
     ```cypher
     (AzureSubscription)-[RESOURCE]->(AzurePermissions)
     ```

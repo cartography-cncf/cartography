@@ -11,6 +11,8 @@ from cartography.models.azure.rbac import AzureManagementGroupRoleAssignmentSche
 from cartography.models.azure.rbac import AzurePermissionsSchema
 from cartography.models.azure.rbac import AzureRoleAssignmentSchema
 from cartography.models.azure.rbac import AzureRoleDefinitionSchema
+from cartography.models.azure.rbac import AzureUnscopedPermissionsSchema
+from cartography.models.azure.rbac import AzureUnscopedRoleDefinitionSchema
 from cartography.util import timeit
 
 from .util.credentials import Credentials
@@ -79,6 +81,7 @@ def get_role_definitions_by_ids(
     credentials: Credentials,
     subscription_id: str,
     role_definition_ids: list[str],
+    stamp_subscription_id: bool = True,
 ) -> list[dict]:
     """
     Fetch specific role definitions by their IDs (more efficient than fetching all)
@@ -97,7 +100,8 @@ def get_role_definitions_by_ids(
         # Format: /subscriptions/{guid}/providers/Microsoft.Authorization/roleDefinitions/{roleDefinitionId}
         role_definition = client.role_definitions.get_by_id(role_id)
         definition_dict = role_definition.as_dict()
-        definition_dict["subscription_id"] = subscription_id
+        if stamp_subscription_id:
+            definition_dict["subscription_id"] = subscription_id
         result.append(definition_dict)
 
     return result
@@ -283,6 +287,34 @@ def load_permissions(
 
 
 @timeit
+def load_unscoped_role_definitions(
+    neo4j_session: neo4j.Session,
+    data: list[dict],
+    update_tag: int,
+) -> None:
+    load(
+        neo4j_session,
+        AzureUnscopedRoleDefinitionSchema(),
+        data,
+        lastupdated=update_tag,
+    )
+
+
+@timeit
+def load_unscoped_permissions(
+    neo4j_session: neo4j.Session,
+    data: list[dict],
+    update_tag: int,
+) -> None:
+    load(
+        neo4j_session,
+        AzureUnscopedPermissionsSchema(),
+        data,
+        lastupdated=update_tag,
+    )
+
+
+@timeit
 def cleanup_role_definitions(
     neo4j_session: neo4j.Session,
     common_job_parameters: dict,
@@ -351,6 +383,26 @@ def load_role_definitions_and_permissions(
     )
 
 
+def load_unscoped_role_definitions_and_permissions(
+    neo4j_session: neo4j.Session,
+    role_definitions: list[dict],
+    update_tag: int,
+) -> None:
+    transformed_permissions = transform_permissions(role_definitions)
+    transformed_definitions = transform_role_definitions(role_definitions)
+
+    load_unscoped_permissions(
+        neo4j_session,
+        transformed_permissions,
+        update_tag,
+    )
+    load_unscoped_role_definitions(
+        neo4j_session,
+        transformed_definitions,
+        update_tag,
+    )
+
+
 @timeit
 def sync_management_group_role_assignments(
     neo4j_session: neo4j.Session,
@@ -374,14 +426,14 @@ def sync_management_group_role_assignments(
         credentials,
         authorization_subscription_id,
         role_definition_ids,
+        stamp_subscription_id=False,
     )
 
     transformed_assignments = transform_role_assignments(role_assignments)
 
-    load_role_definitions_and_permissions(
+    load_unscoped_role_definitions_and_permissions(
         neo4j_session,
         role_definitions,
-        authorization_subscription_id,
         update_tag,
     )
     load_management_group_role_assignments(

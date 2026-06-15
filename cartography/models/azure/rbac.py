@@ -50,6 +50,17 @@ class AzureRoleDefinitionProperties(CartographyNodeProperties):
 
 
 @dataclass(frozen=True)
+class AzureUnscopedRoleDefinitionProperties(CartographyNodeProperties):
+    id: PropertyRef = PropertyRef("id")
+    name: PropertyRef = PropertyRef("name")
+    type: PropertyRef = PropertyRef("type")
+    role_name: PropertyRef = PropertyRef("roleName")
+    description: PropertyRef = PropertyRef("description")
+    assignable_scopes: PropertyRef = PropertyRef("assignableScopes")
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
 class AzurePermissionsProperties(CartographyNodeProperties):
     id: PropertyRef = PropertyRef("id")
     actions: PropertyRef = PropertyRef("actions")
@@ -58,6 +69,16 @@ class AzurePermissionsProperties(CartographyNodeProperties):
     not_data_actions: PropertyRef = PropertyRef("not_data_actions")
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
     subscription_id: PropertyRef = PropertyRef("subscription_id")
+
+
+@dataclass(frozen=True)
+class AzureUnscopedPermissionsProperties(CartographyNodeProperties):
+    id: PropertyRef = PropertyRef("id")
+    actions: PropertyRef = PropertyRef("actions")
+    not_actions: PropertyRef = PropertyRef("not_actions")
+    data_actions: PropertyRef = PropertyRef("data_actions")
+    not_data_actions: PropertyRef = PropertyRef("not_data_actions")
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 # Relationship Properties for standard relationships
@@ -294,9 +315,31 @@ class AzureRoleDefinitionSchema(CartographyNodeSchema):
 
 
 @dataclass(frozen=True)
+class AzureUnscopedRoleDefinitionSchema(CartographyNodeSchema):
+    label: str = "AzureRoleDefinition"
+    properties: AzureUnscopedRoleDefinitionProperties = (
+        AzureUnscopedRoleDefinitionProperties()
+    )
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["PermissionRole"])
+    other_relationships: OtherRelationships = OtherRelationships(
+        [
+            AzureRoleDefinitionToPermissionsRel(),
+        ]
+    )
+
+
+@dataclass(frozen=True)
 class AzurePermissionsSchema(CartographyNodeSchema):
     label: str = "AzurePermissions"
     properties: AzurePermissionsProperties = AzurePermissionsProperties()
     sub_resource_relationship: AzurePermissionsToSubscriptionRel = (
         AzurePermissionsToSubscriptionRel()
+    )
+
+
+@dataclass(frozen=True)
+class AzureUnscopedPermissionsSchema(CartographyNodeSchema):
+    label: str = "AzurePermissions"
+    properties: AzureUnscopedPermissionsProperties = (
+        AzureUnscopedPermissionsProperties()
     )

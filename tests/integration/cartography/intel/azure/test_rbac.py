@@ -23,6 +23,7 @@ import cartography.intel.microsoft.entra.service_principals
 import cartography.intel.microsoft.entra.users
 from tests.data.azure.rbac import AZURE_MANAGEMENT_GROUP_ROLE_ASSIGNMENTS
 from tests.data.azure.rbac import AZURE_MANAGEMENT_GROUP_ROLE_ASSIGNMENTS_MIXED_SCOPES
+from tests.data.azure.rbac import AZURE_MANAGEMENT_GROUP_ROLE_DEFINITIONS
 from tests.data.azure.rbac import AZURE_ROLE_ASSIGNMENTS
 from tests.data.azure.rbac import AZURE_ROLE_DEFINITIONS
 from tests.data.azure.rbac import ENTRA_GROUPS
@@ -423,7 +424,7 @@ async def test_sync_azure_rbac(
 @patch.object(
     cartography.intel.azure.rbac,
     "get_role_definitions_by_ids",
-    return_value=AZURE_ROLE_DEFINITIONS,
+    return_value=AZURE_MANAGEMENT_GROUP_ROLE_DEFINITIONS,
 )
 def test_sync_management_group_role_assignments(
     mock_get_role_definitions,
@@ -461,6 +462,7 @@ def test_sync_management_group_role_assignments(
         mock_credentials,
         TEST_SUBSCRIPTION_ID,
         [AZURE_MANAGEMENT_GROUP_ROLE_ASSIGNMENTS[0]["role_definition_id"]],
+        stamp_subscription_id=False,
     )
     assert (TEST_MANAGEMENT_GROUP_ROLE_ASSIGNMENT_ID,) in check_nodes(
         neo4j_session,
@@ -506,6 +508,45 @@ def test_sync_management_group_role_assignments(
         "AzureRoleDefinition",
         "id",
         "ROLE_ASSIGNED",
+        rel_direction_right=True,
+    )
+
+    assert (
+        TEST_SUBSCRIPTION_ID,
+        AZURE_MANAGEMENT_GROUP_ROLE_ASSIGNMENTS[0]["role_definition_id"],
+    ) not in check_rels(
+        neo4j_session,
+        "AzureSubscription",
+        "id",
+        "AzureRoleDefinition",
+        "id",
+        "RESOURCE",
+        rel_direction_right=True,
+    )
+
+    assert (
+        AZURE_MANAGEMENT_GROUP_ROLE_ASSIGNMENTS[0]["role_definition_id"],
+        f"{AZURE_MANAGEMENT_GROUP_ROLE_ASSIGNMENTS[0]['role_definition_id']}/permissions/0",
+    ) in check_rels(
+        neo4j_session,
+        "AzureRoleDefinition",
+        "id",
+        "AzurePermissions",
+        "id",
+        "HAS_PERMISSIONS",
+        rel_direction_right=True,
+    )
+
+    assert (
+        TEST_SUBSCRIPTION_ID,
+        f"{AZURE_MANAGEMENT_GROUP_ROLE_ASSIGNMENTS[0]['role_definition_id']}/permissions/0",
+    ) not in check_rels(
+        neo4j_session,
+        "AzureSubscription",
+        "id",
+        "AzurePermissions",
+        "id",
+        "RESOURCE",
         rel_direction_right=True,
     )
 
