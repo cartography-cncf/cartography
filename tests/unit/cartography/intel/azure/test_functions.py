@@ -4,7 +4,9 @@ import cartography.intel.azure.functions as functions
 
 
 def test_transform_function_apps_reads_sdk_11_site_config_shape() -> None:
-    app_id = "/subscriptions/sub-1/resourceGroups/rg-1/providers/Microsoft.Web/sites/fn-1"
+    app_id = (
+        "/subscriptions/sub-1/resourceGroups/rg-1/providers/Microsoft.Web/sites/fn-1"
+    )
     digest = "sha256:" + "a" * 64
     image_uri = f"repo/image@{digest}"
 
