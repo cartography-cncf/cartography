@@ -27,12 +27,22 @@ logger = logging.getLogger(__name__)
 
 DEFAULT_REPORT_POLL_INTERVAL_SECONDS = 5
 DEFAULT_REPORT_TIMEOUT_SECONDS = 300
+DEFAULT_EXPORT_JOB_MAX_ATTEMPTS = 3
 EXPORT_DOWNLOAD_TIMEOUT_SECONDS = 60
 MAX_REPORT_ARCHIVE_BYTES = 64 * 1024 * 1024
 MAX_REPORT_UNCOMPRESSED_BYTES = 256 * 1024 * 1024
 EXPORT_DOWNLOAD_MAX_RETRIES = 3
 EXPORT_DOWNLOAD_RETRY_BACKOFF_SECONDS = 1.0
 EXPORT_DOWNLOAD_RETRY_STATUS_CODES = (429, 500, 502, 503, 504)
+
+
+class IntuneReportExportError(Exception):
+    """Raised when an Intune report export cannot produce rows.
+
+    Scoped to the export-job boundary (job submission, polling, download) so
+    callers can tolerate a failed export without masking unrelated errors from
+    later report-processing phases.
+    """
 
 
 @dataclass(frozen=True)
@@ -53,6 +63,7 @@ async def export_report_rows(
     report_filter: str | None = None,
     poll_interval_seconds: int = DEFAULT_REPORT_POLL_INTERVAL_SECONDS,
     timeout_seconds: int = DEFAULT_REPORT_TIMEOUT_SECONDS,
+    max_attempts: int = DEFAULT_EXPORT_JOB_MAX_ATTEMPTS,
 ) -> ExportedReportRows:
     job_request = DeviceManagementExportJob(
         report_name=report_name,
@@ -60,36 +71,72 @@ async def export_report_rows(
         filter=report_filter,
         format=DeviceManagementReportFileFormat.Csv,
     )
-    logger.info("Starting Intune report export for %s", report_name)
-    created_job = await client.device_management.reports.export_jobs.post(job_request)
-    if not created_job or not created_job.id:
-        raise ValueError(f"Export job creation for {report_name} returned no job id.")
 
-    logger.info(
-        "Created Intune report export job %s for %s",
-        created_job.id,
-        report_name,
-    )
-    completed_job = await wait_for_export_job(
-        client,
-        created_job.id,
-        report_name,
-        poll_interval_seconds=poll_interval_seconds,
-        timeout_seconds=timeout_seconds,
-    )
-    if not completed_job.url:
-        raise ValueError(
-            f"Export job {created_job.id} for {report_name} completed without a URL."
+    last_export_error: TimeoutError | RuntimeError | None = None
+    for attempt in range(1, max_attempts + 1):
+        logger.info(
+            "Starting Intune report export for %s (attempt %d/%d)",
+            report_name,
+            attempt,
+            max_attempts,
         )
+        created_job = await client.device_management.reports.export_jobs.post(
+            job_request,
+        )
+        if not created_job or not created_job.id:
+            raise ValueError(
+                f"Export job creation for {report_name} returned no job id."
+            )
 
-    report_data = download_export_report_rows(completed_job.url, report_name)
-    logger.info(
-        "Downloaded %d rows for Intune report %s from job %s",
-        len(report_data.rows),
-        report_name,
-        created_job.id,
-    )
-    return report_data
+        logger.info(
+            "Created Intune report export job %s for %s",
+            created_job.id,
+            report_name,
+        )
+        try:
+            completed_job = await wait_for_export_job(
+                client,
+                created_job.id,
+                report_name,
+                poll_interval_seconds=poll_interval_seconds,
+                timeout_seconds=timeout_seconds,
+            )
+        except (TimeoutError, RuntimeError) as e:
+            # Microsoft Graph intermittently strands an export job in
+            # `inProgress` (or marks it `failed`) server-side, even for tiny
+            # tenants whose report normally completes in seconds. The stranded
+            # job never recovers, but resubmitting yields a fresh job that
+            # almost always succeeds, so retry instead of failing the sync.
+            last_export_error = e
+            logger.warning(
+                "Intune report export job %s for %s did not complete on "
+                "attempt %d/%d: %s",
+                created_job.id,
+                report_name,
+                attempt,
+                max_attempts,
+                e,
+            )
+            continue
+
+        if not completed_job.url:
+            raise ValueError(
+                f"Export job {created_job.id} for {report_name} completed without a URL."
+            )
+
+        report_data = download_export_report_rows(completed_job.url, report_name)
+        logger.info(
+            "Downloaded %d rows for Intune report %s from job %s",
+            len(report_data.rows),
+            report_name,
+            created_job.id,
+        )
+        return report_data
+
+    raise IntuneReportExportError(
+        f"Intune report export for {report_name} did not complete after "
+        f"{max_attempts} attempt(s)."
+    ) from last_export_error
 
 
 @timeit

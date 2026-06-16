@@ -117,6 +117,7 @@ _cross_cloud_nist_ai_app_inventory = Fact(
         coalesce(app._ont_name, app.display_name, app.display_text, app.name) AS app_name,
         coalesce(app._ont_client_id, app.client_id, app.app_id, app.id) AS app_client_id,
         app._ont_source AS app_source,
+        app._ont_source AS source,
         CASE
             WHEN allowlist_match THEN 'allowlist'
             WHEN heuristic_match THEN 'heuristic'
@@ -218,6 +219,7 @@ _cross_cloud_nist_ai_app_sensitive_scopes = Fact(
         coalesce(app._ont_name, app.display_name, app.display_text, app.name) AS app_name,
         coalesce(app._ont_client_id, app.client_id, app.app_id, app.id) AS app_client_id,
         app._ont_source AS app_source,
+        app._ont_source AS source,
         count(DISTINCT ua) AS authorized_identity_count,
         count(DISTINCT risky_scope) AS risky_scope_count,
         collect(DISTINCT risky_scope) AS risky_scopes

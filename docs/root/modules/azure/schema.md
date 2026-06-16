@@ -189,7 +189,7 @@ Representation of an [Azure Role Assignment](https://learn.microsoft.com/en-us/a
 |principal_id| The principal ID of the assignee (user, group, or service principal)|
 |principal_type| The type of principal (User, Group, ServicePrincipal)|
 |role_definition_id| The ID of the role definition being assigned|
-|scope| The scope at which the role is assigned (subscription, resource group, or resource)|
+|scope| The scope at which the role is assigned (management group, subscription, resource group, or resource)|
 |scope_type| The type of scope|
 |created_on| Timestamp when the role assignment was created|
 |updated_on| Timestamp when the role assignment was last updated|
@@ -199,12 +199,18 @@ Representation of an [Azure Role Assignment](https://learn.microsoft.com/en-us/a
 |description| Description of the role assignment|
 |delegated_managed_identity_resource_id| The delegated managed identity resource ID, if applicable|
 |subscription_id| The Azure subscription ID|
+|management_group_id| The Azure management group ID for management-group-scoped assignments|
 
 #### Relationships
 
 - Azure Subscription contains Role Assignments.
     ```cypher
     (AzureSubscription)-[RESOURCE]->(AzureRoleAssignment)
+    ```
+
+- Azure Management Group contains directly attached Role Assignments.
+    ```cypher
+    (AzureManagementGroup)-[RESOURCE]->(AzureRoleAssignment)
     ```
 
 - Role Assignment references a Role Definition.
@@ -243,11 +249,11 @@ Representation of an [Azure Role Definition](https://learn.microsoft.com/en-us/a
 |role_name| The display name of the role (e.g., "Contributor", "Reader")|
 |description| Description of what the role allows|
 |assignable_scopes| List of scopes where this role can be assigned|
-|subscription_id| The Azure subscription ID|
+|subscription_id| The Azure subscription ID when loaded from a subscription-scoped RBAC sync|
 
 #### Relationships
 
-- Azure Subscription contains Role Definitions.
+- Azure Subscription contains subscription-loaded Role Definitions. Management-group-loaded Role Definitions may be unscoped.
     ```cypher
     (AzureSubscription)-[RESOURCE]->(AzureRoleDefinition)
     ```
@@ -275,11 +281,11 @@ Representation of the permissions within an Azure Role Definition. Each permissi
 |not_actions| List of denied control plane actions|
 |data_actions| List of allowed data plane actions (e.g., "Microsoft.Storage/storageAccounts/blobServices/containers/blobs/read")|
 |not_data_actions| List of denied data plane actions|
-|subscription_id| The Azure subscription ID|
+|subscription_id| The Azure subscription ID when loaded from a subscription-scoped RBAC sync|
 
 #### Relationships
 
-- Azure Subscription contains Permissions.
+- Azure Subscription contains subscription-loaded Permissions. Management-group-loaded Permissions may be unscoped.
     ```cypher
     (AzureSubscription)-[RESOURCE]->(AzurePermissions)
     ```

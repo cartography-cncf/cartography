@@ -22,7 +22,7 @@ from googleapiclient.errors import HttpError
 
 from cartography.intel.gcp.clients import build_client
 from cartography.intel.gcp.clients import get_gcp_credentials
-from cartography.intel.gcp.util import is_api_disabled_error
+from cartography.intel.gcp.util import classify_gcp_http_error
 from cartography.intel.gcp.util import proto_message_to_dict
 from cartography.util import timeit
 
@@ -96,7 +96,11 @@ def _service_discovered_cloud_run_locations(
         try:
             services_response = services_request.execute()
         except HttpError as e:
-            if is_api_disabled_error(e) or e.resp.status == 403:
+            if classify_gcp_http_error(e) in (
+                "api_disabled",
+                "billing_disabled",
+                "forbidden",
+            ):
                 logger.warning(
                     "Could not retrieve Cloud Run locations on project %s due to permissions issues or API not enabled. "
                     "Skipping sync to preserve existing data.",
@@ -169,7 +173,11 @@ def discover_cloud_run_locations(
         try:
             response = request.execute()
         except HttpError as e:
-            if is_api_disabled_error(e) or e.resp.status == 403:
+            if classify_gcp_http_error(e) in (
+                "api_disabled",
+                "billing_disabled",
+                "forbidden",
+            ):
                 logger.warning(
                     "Could not retrieve Cloud Run locations on project %s due to permissions issues or API not enabled. "
                     "Skipping sync to preserve existing data.",

@@ -1235,6 +1235,8 @@ _k8s_sa_token_creation_clusterroles = Fact(
     WHERE any(r IN cr.resources WHERE r IN ['serviceaccounts/token', '*'])
       AND any(v IN cr.verbs WHERE v IN ['create', '*'])
       AND NOT cr.name STARTS WITH 'system:'
+      AND NOT cr.name STARTS WITH 'eks:'
+      AND NOT cr.name IN ['cluster-admin', 'admin', 'edit', 'view']
     RETURN
         cr.id AS role_id,
         cr.name AS role_name,
@@ -1246,11 +1248,15 @@ _k8s_sa_token_creation_clusterroles = Fact(
     WHERE any(r IN cr.resources WHERE r IN ['serviceaccounts/token', '*'])
       AND any(v IN cr.verbs WHERE v IN ['create', '*'])
       AND NOT cr.name STARTS WITH 'system:'
+      AND NOT cr.name STARTS WITH 'eks:'
+      AND NOT cr.name IN ['cluster-admin', 'admin', 'edit', 'view']
     RETURN *
     """,
     cypher_count_query="""
     MATCH (cr:KubernetesClusterRole)
     WHERE NOT cr.name STARTS WITH 'system:'
+      AND NOT cr.name STARTS WITH 'eks:'
+      AND NOT cr.name IN ['cluster-admin', 'admin', 'edit', 'view']
     RETURN COUNT(cr) AS count
     """,
     identity_fields=("role_id",),
