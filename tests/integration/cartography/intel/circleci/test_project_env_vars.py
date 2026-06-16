@@ -43,10 +43,12 @@ def test_load_circleci_project_env_vars(mock_api, neo4j_session):
         TEST_PROJECT_SLUG,
     )
 
-    # Assert env vars exist (names only, no values)
-    assert check_nodes(neo4j_session, "CircleCIProjectEnvVar", ["id", "name"]) == {
-        ("gh/acme/web:DATABASE_URL", "DATABASE_URL"),
-        ("gh/acme/web:SENTRY_DSN", "SENTRY_DSN"),
+    # Assert env vars exist with their masked value (real secret never exposed)
+    assert check_nodes(
+        neo4j_session, "CircleCIProjectEnvVar", ["id", "name", "value"]
+    ) == {
+        ("gh/acme/web:DATABASE_URL", "DATABASE_URL", "xxxx1234"),
+        ("gh/acme/web:SENTRY_DSN", "SENTRY_DSN", "xxxxabcd"),
     }
 
     # Assert (Project)-[:RESOURCE]->(EnvVar)

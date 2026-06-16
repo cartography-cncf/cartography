@@ -6,15 +6,12 @@ Follow these steps to analyze CircleCI objects with Cartography.
     1. Create a [personal API token](https://app.circleci.com/settings/user/tokens) in the CircleCI web app.
     1. Populate an environment variable with the token. Pass the environment variable name via CLI with `--circleci-token-env-var`.
 1. Optionally override the API base URL with `--circleci-base-url` (default: `https://circleci.com/api/v2`).
-1. Optionally sync project-scoped resources by passing a comma-separated list of project slugs via `--circleci-project-slugs` (e.g. `gh/my-org/my-repo,gh/my-org/other-repo`).
+1. Optionally add extra project slugs via `--circleci-project-slugs` (comma-separated, e.g. `gh/my-org/my-repo,gh/my-org/other-repo`).
 
-### A note on discovery
+### A note on project discovery
 
-CircleCI API v2 has no endpoint to list all projects in an organization, so Cartography splits the sync into two tiers:
-
-- **Auto-discovered from the token**: organizations (`/me/collaborations`), the token owner (`/me`), contexts, and context environment variable names.
-- **Project-scoped (requires `--circleci-project-slugs`)**: project details, project environment variables, checkout keys, webhooks, schedules, and pipelines.
+CircleCI API v2 has no endpoint to list all projects in an organization. Cartography discovers projects from each org's pipeline feed (`GET /pipeline?org-slug=...`), which surfaces the recently-built projects the token owner follows (about 250 per org). Projects with no recent pipeline activity will not be auto-discovered: add them explicitly with `--circleci-project-slugs`.
 
 ### A note on secrets
 
-CircleCI never returns secret values through the API. Cartography ingests environment variable **names and metadata only**, never their values.
+CircleCI never returns secret values in clear text through the API. Context environment variables expose no value at all; project environment variables expose only a masked value (`xxxx` plus the last four characters). Cartography stores what the API returns, never the real secret.

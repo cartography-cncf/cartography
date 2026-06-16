@@ -17,7 +17,9 @@ class CircleCIProjectEnvVarNodeProperties(CartographyNodeProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
     name: PropertyRef = PropertyRef("name", extra_index=True)
     project_slug: PropertyRef = PropertyRef("project_slug")
-    # NOTE: value is intentionally omitted - the API only returns a masked value.
+    # The API only ever returns a masked value ("xxxx" + last 4 chars); the real
+    # secret is never exposed, so this is the most we can store.
+    value: PropertyRef = PropertyRef("value")
 
 
 @dataclass(frozen=True)

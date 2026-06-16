@@ -8,10 +8,36 @@ import requests
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
 from cartography.intel.circleci.util import _TIMEOUT
+from cartography.intel.circleci.util import paginated_get
 from cartography.models.circleci.project import CircleCIProjectSchema
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
+
+# The pipeline feed returns the most recently-built projects (≈250) you follow
+# in an org; cap pages so a busy org doesn't page forever during discovery.
+_MAX_DISCOVERY_PAGES = 5
+
+
+@timeit
+def discover_project_slugs(
+    api_session: requests.Session,
+    base_url: str,
+    org_slug: str,
+) -> set[str]:
+    """
+    Enumerate project slugs for an org. API v2 has no list-projects endpoint, so
+    we derive slugs from the pipeline feed (GET /pipeline?org-slug=...), which
+    surfaces project_slug for recently-built projects you follow. Combine with
+    any operator-configured slugs for full coverage.
+    """
+    pipelines = paginated_get(
+        api_session,
+        f"{base_url}/pipeline",
+        params={"org-slug": org_slug},
+        max_pages=_MAX_DISCOVERY_PAGES,
+    )
+    return {p["project_slug"] for p in pipelines if p.get("project_slug")}
 
 
 @timeit

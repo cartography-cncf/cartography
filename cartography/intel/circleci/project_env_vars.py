@@ -47,12 +47,13 @@ def transform(
     raw: list[dict[str, Any]],
     project_slug: str,
 ) -> list[dict[str, Any]]:
-    # The API returns only a masked value; we keep the name + metadata, never the value.
+    # The API returns only a masked value ("xxxx" + last 4 chars), never the real secret.
     return [
         {
             "id": f"{project_slug}:{item['name']}",
             "name": item["name"],
             "project_slug": project_slug,
+            "value": item.get("value"),
         }
         for item in raw
     ]

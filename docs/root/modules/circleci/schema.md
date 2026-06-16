@@ -149,6 +149,7 @@ Represents a project-level environment variable. Only the **name** is stored; Ci
 | lastupdated | Timestamp of the last time the node was updated. |
 | **name** | Environment variable name. |
 | project_slug | Slug of the owning project. |
+| value | Masked value (`xxxx` + last 4 chars); the real secret is never exposed by the API. |
 
 #### Relationships
 - A project environment variable belongs to a project.

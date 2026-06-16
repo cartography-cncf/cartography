@@ -21,11 +21,6 @@ from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
 
-# ponytail: Environments/Components (CircleCI Releases API) and org "Groups" are
-# intentionally not synced - the former lives on a separate, still-evolving API
-# surface and the latter has no public API v2 endpoint. Add them when a concrete
-# need exists rather than guessing at response shapes.
-
 
 @timeit
 def start_circleci_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
@@ -64,6 +59,10 @@ def start_circleci_ingestion(neo4j_session: neo4j.Session, config: Config) -> No
         common_job_parameters,
     )
 
+    # API v2 has no list-projects endpoint, so discover slugs from each org's
+    # pipeline feed and union with any operator-configured slugs.
+    project_slugs: set[str] = set(config.circleci_project_slugs or [])
+
     for org in orgs:
         org_id = org["id"]
         org_job_parameters = {**common_job_parameters, "ORG_ID": org_id}
@@ -93,15 +92,22 @@ def start_circleci_ingestion(neo4j_session: neo4j.Session, config: Config) -> No
             org_job_parameters,
             org_id,
         )
+        if org.get("slug"):
+            project_slugs.update(
+                cartography.intel.circleci.projects.discover_project_slugs(
+                    api_session,
+                    common_job_parameters["BASE_URL"],
+                    org["slug"],
+                )
+            )
 
-    # Project-scoped resources: API v2 cannot enumerate projects, so we only
-    # sync the slugs the operator configured.
-    if config.circleci_project_slugs:
+    # Project-scoped resources.
+    if project_slugs:
         projects = cartography.intel.circleci.projects.sync(
             neo4j_session,
             api_session,
             common_job_parameters,
-            config.circleci_project_slugs,
+            sorted(project_slugs),
         )
         for project in projects:
             project_job_parameters = {
