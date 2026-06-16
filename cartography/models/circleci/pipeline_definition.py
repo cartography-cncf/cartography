@@ -18,10 +18,20 @@ class CircleCIPipelineDefinitionNodeProperties(CartographyNodeProperties):
     description: PropertyRef = PropertyRef("description")
     created_at: PropertyRef = PropertyRef("created_at")
     config_source_provider: PropertyRef = PropertyRef("config_source_provider")
-    config_source_repo: PropertyRef = PropertyRef("config_source_repo")
+    config_source_repo_full_name: PropertyRef = PropertyRef(
+        "config_source_repo_full_name"
+    )
+    config_source_repo_external_id: PropertyRef = PropertyRef(
+        "config_source_repo_external_id"
+    )
     config_source_file_path: PropertyRef = PropertyRef("config_source_file_path")
     checkout_source_provider: PropertyRef = PropertyRef("checkout_source_provider")
-    checkout_source_repo: PropertyRef = PropertyRef("checkout_source_repo")
+    checkout_source_repo_full_name: PropertyRef = PropertyRef(
+        "checkout_source_repo_full_name"
+    )
+    checkout_source_repo_external_id: PropertyRef = PropertyRef(
+        "checkout_source_repo_external_id"
+    )
 
 
 @dataclass(frozen=True)

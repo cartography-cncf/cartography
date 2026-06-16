@@ -53,9 +53,13 @@ def test_load_circleci_pipeline_definitions(mock_api, neo4j_session):
         common_job_parameters,
     )
 
-    # Assert
-    assert check_nodes(neo4j_session, "CircleCIPipelineDefinition", ["id", "name"]) == {
-        ("def-1", "build-and-test"),
+    # Assert (repo is flattened from an object, not stored as a map)
+    assert check_nodes(
+        neo4j_session,
+        "CircleCIPipelineDefinition",
+        ["id", "name", "config_source_repo_full_name"],
+    ) == {
+        ("def-1", "build-and-test", "acme/web"),
     }
     assert check_rels(
         neo4j_session,

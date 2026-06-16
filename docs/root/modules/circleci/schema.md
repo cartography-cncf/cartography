@@ -24,7 +24,7 @@ P -- RESOURCE --> POIDC(ProjectOidcConfig)
 PD -- HAS_TRIGGER --> TR
 ```
 
-Project-scoped nodes (Project and everything below it) are only synced for the project slugs passed via `--circleci-project-slugs`; CircleCI API v2 cannot enumerate an organization's projects.
+Project-scoped nodes (Project and everything below it) are synced for projects discovered from each org's pipeline feed, plus any extra slugs passed via `--circleci-project-slugs` (CircleCI API v2 cannot enumerate an organization's projects directly).
 
 ### CircleCIOrganization
 
@@ -348,10 +348,12 @@ Represents a pipeline definition (the config/source binding, `GET /projects/{pro
 | description | Definition description. |
 | created_at | Creation timestamp. |
 | config_source_provider | Provider of the config source (e.g. `github_app`). |
-| config_source_repo | Repository holding the config. |
+| config_source_repo_full_name | Full name of the repository holding the config. |
+| config_source_repo_external_id | VCS external id of the config repository. |
 | config_source_file_path | Path to the config file. |
 | checkout_source_provider | Provider of the checkout source. |
-| checkout_source_repo | Repository checked out. |
+| checkout_source_repo_full_name | Full name of the repository checked out. |
+| checkout_source_repo_external_id | VCS external id of the checkout repository. |
 
 #### Relationships
 - A pipeline definition belongs to a project.
