@@ -1,7 +1,3 @@
-from unittest.mock import patch
-
-import requests
-
 import cartography.intel.circleci.users
 import tests.data.circleci.users
 from tests.integration.cartography.intel.circleci.test_organizations import (
@@ -15,14 +11,8 @@ TEST_BASE_URL = "https://circleci.fake/api/v2"
 TEST_ORG_ID = "org-1111-aaaa"
 
 
-@patch.object(
-    cartography.intel.circleci.users,
-    "get",
-    return_value=tests.data.circleci.users.CIRCLECI_ME,
-)
-def test_load_circleci_users(mock_api, neo4j_session):
+def test_load_circleci_users(neo4j_session):
     # Arrange
-    api_session = requests.Session()
     common_job_parameters = {
         "UPDATE_TAG": TEST_UPDATE_TAG,
         "BASE_URL": TEST_BASE_URL,
@@ -33,9 +23,9 @@ def test_load_circleci_users(mock_api, neo4j_session):
     # Act
     cartography.intel.circleci.users.sync(
         neo4j_session,
-        api_session,
         common_job_parameters,
         TEST_ORG_ID,
+        tests.data.circleci.users.CIRCLECI_ME,
     )
 
     # Assert the token owner exists

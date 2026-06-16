@@ -69,15 +69,20 @@ def start_circleci_ingestion(neo4j_session: neo4j.Session, config: Config) -> No
     # pipeline feed and union with any operator-configured slugs.
     project_slugs: set[str] = set(config.circleci_project_slugs or [])
 
+    # The token owner (/me) is the same across all orgs; fetch it once.
+    user = cartography.intel.circleci.users.get(
+        api_session, common_job_parameters["BASE_URL"]
+    )
+
     for org in orgs:
         org_id = org["id"]
         org_job_parameters = {**common_job_parameters, "ORG_ID": org_id}
 
         cartography.intel.circleci.users.sync(
             neo4j_session,
-            api_session,
             org_job_parameters,
             org_id,
+            user,
         )
         contexts = cartography.intel.circleci.contexts.sync(
             neo4j_session,
@@ -139,6 +144,11 @@ def start_circleci_ingestion(neo4j_session: neo4j.Session, config: Config) -> No
             common_job_parameters,
             sorted(project_slugs),
         )
+        # Each per-project resource below loads then cleans up within a single
+        # PROJECT_ID scope, so a project's cleanup only ever deletes its own
+        # stale nodes. Any future per-project resource that fans out over
+        # sub-items (as triggers do over definitions) must accumulate across
+        # those items and clean up once, never per-item inside this loop.
         for project in projects:
             project_job_parameters = {
                 **common_job_parameters,

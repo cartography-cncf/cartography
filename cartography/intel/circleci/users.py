@@ -16,11 +16,12 @@ logger = logging.getLogger(__name__)
 @timeit
 def sync(
     neo4j_session: neo4j.Session,
-    api_session: requests.Session,
     common_job_parameters: dict[str, Any],
     org_id: str,
+    user: dict[str, Any],
 ) -> None:
-    user = get(api_session, common_job_parameters["BASE_URL"])
+    # The token owner (/me) is the same across orgs, so it is fetched once by
+    # the caller and passed in; here we just link it to each org.
     load_users(
         neo4j_session,
         [user],
