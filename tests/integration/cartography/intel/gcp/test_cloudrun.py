@@ -267,6 +267,15 @@ def test_sync_cloudrun(
         "email",
         "USES_SERVICE_ACCOUNT",
     ) == {(TEST_SERVICE_ID, TEST_SA_EMAIL_1)}
+    # Canonical ontology edge: (:ComputeService)-[:RUNS_AS]->(:ServiceAccount)
+    assert check_rels(
+        neo4j_session,
+        "GCPCloudRunService",
+        "id",
+        "GCPServiceAccount",
+        "email",
+        "RUNS_AS",
+    ) == {(TEST_SERVICE_ID, TEST_SA_EMAIL_1)}
 
     assert check_rels(
         neo4j_session,
@@ -284,6 +293,15 @@ def test_sync_cloudrun(
         "GCPServiceAccount",
         "email",
         "USES_SERVICE_ACCOUNT",
+    ) == {(TEST_JOB_ID, TEST_SA_EMAIL_2)}
+    # Canonical ontology edge: (:ComputeService)-[:RUNS_AS]->(:ServiceAccount)
+    assert check_rels(
+        neo4j_session,
+        "GCPCloudRunJob",
+        "id",
+        "GCPServiceAccount",
+        "email",
+        "RUNS_AS",
     ) == {(TEST_JOB_ID, TEST_SA_EMAIL_2)}
 
     # Assert: Check GCPLabel nodes from Cloud Run service labels

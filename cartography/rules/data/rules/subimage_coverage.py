@@ -151,7 +151,8 @@ _container_image_not_found_fact = Fact(
       AND NOT coalesce(c.name, '') STARTS WITH 'aws-guardduty-agent'
     OPTIONAL MATCH (c)<-[:HAS_CONTAINER]-(cluster)
     RETURN c.name AS container_name, c.id AS container_id,
-           c.image AS image, cluster.name AS cluster_name
+           c.image AS image, cluster.name AS cluster_name,
+           c._ont_source AS source
     ORDER BY c.name
     """,
     cypher_visual_query="""
@@ -242,8 +243,8 @@ _aws_account_not_synced_fact = Fact(
 
 
 class AWSAccountNotSyncedOutput(Finding):
-    account_id: str | None = None
     account_name: str | None = None
+    account_id: str | None = None
     resource_count: int | None = None
 
 
@@ -310,8 +311,8 @@ _repository_without_slsa_provenance_fact = Fact(
 
 
 class RepositoryWithoutSLSAProvenanceOutput(Finding):
-    repo_id: str | None = None
     repo_name: str | None = None
+    repo_id: str | None = None
     repo_kind: str | None = None
     image_count: int | None = None
     match_methods: list[str] | None = None

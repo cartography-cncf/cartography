@@ -75,6 +75,8 @@ Representation of a [Kubernetes Node.](https://kubernetes.io/docs/concepts/archi
 | kernel\_version | Kernel version of the node (e.g. `5.15.0-1034-aws`) |
 | container\_runtime\_version | Container runtime and version (e.g. `containerd://1.7.0`) |
 | kubelet\_version | Version of the kubelet running on the node (e.g. `v1.27.1`) |
+| provider\_id | Cloud provider instance reference from the node's `spec.providerID` (e.g. EKS: `aws:///us-east-1a/i-0123456789abcdef0`) |
+| instance\_id | EC2 instance id parsed from `provider_id` for EKS nodes (e.g. `i-0123456789abcdef0`); null for non-AWS providers |
 | firstseen | Timestamp of when a sync job first discovered this node |
 | **lastupdated** | Timestamp of the last time the node was updated |
 
@@ -87,6 +89,11 @@ Representation of a [Kubernetes Node.](https://kubernetes.io/docs/concepts/archi
 - `KubernetesPod` runs on a `KubernetesNode`.
     ```
     (:KubernetesPod)-[:RUNS_ON]->(:KubernetesNode)
+    ```
+
+- An EKS `KubernetesNode` is backed by an `EC2Instance`. Only created when the node's `spec.providerID` resolves to an EC2 instance id.
+    ```
+    (:KubernetesNode)-[:IS_INSTANCE]->(:EC2Instance)
     ```
 
 ### KubernetesNamespace
@@ -153,9 +160,9 @@ Representation of a [Kubernetes Pod.](https://kubernetes.io/docs/concepts/worklo
 | **lastupdated** | Timestamp of the last time the node was updated |
 
 #### Relationships
-- `KubernetesPod` uses a `KubernetesServiceAccount`.
+- `KubernetesPod` runs as a `KubernetesServiceAccount`.
     ```
-    (:KubernetesPod)-[:USES_SERVICE_ACCOUNT]->(:KubernetesServiceAccount)
+    (:KubernetesPod)-[:RUNS_AS]->(:KubernetesServiceAccount)
     ```
 
 - `KubernetesPod` points at its parent `KubernetesNamespace` via the unified workload chain.
@@ -425,9 +432,9 @@ Representation of a [Kubernetes ServiceAccount.](https://kubernetes.io/docs/conc
     (:KubernetesNamespace)-[:CONTAINS]->(:KubernetesServiceAccount)
     ```
 
-- `KubernetesServiceAccount` is used by a `KubernetesPod`.
+- `KubernetesServiceAccount` is the identity a `KubernetesPod` runs as.
     ```
-    (:KubernetesPod)-[:USES_SERVICE_ACCOUNT]->(:KubernetesServiceAccount)
+    (:KubernetesPod)-[:RUNS_AS]->(:KubernetesServiceAccount)
     ```
 
 - `KubernetesServiceAccount` can assume an `AWSRole` via IRSA when annotated with `eks.amazonaws.com/role-arn`.

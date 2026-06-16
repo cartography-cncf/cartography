@@ -189,8 +189,8 @@ _aws_access_keys_not_rotated = Fact(
 
 
 class CIS114Output(Finding):
+    user_name: str | None = None    # human-readable label first: used as the finding title
     id: str | None = None
-    user_name: str | None = None
     create_date: str | None = None
 
 

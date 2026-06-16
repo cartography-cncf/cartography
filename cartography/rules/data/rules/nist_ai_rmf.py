@@ -117,6 +117,7 @@ _cross_cloud_nist_ai_app_inventory = Fact(
         coalesce(app._ont_name, app.display_name, app.display_text, app.name) AS app_name,
         coalesce(app._ont_client_id, app.client_id, app.app_id, app.id) AS app_client_id,
         app._ont_source AS app_source,
+        app._ont_source AS source,
         CASE
             WHEN allowlist_match THEN 'allowlist'
             WHEN heuristic_match THEN 'heuristic'
@@ -218,6 +219,7 @@ _cross_cloud_nist_ai_app_sensitive_scopes = Fact(
         coalesce(app._ont_name, app.display_name, app.display_text, app.name) AS app_name,
         coalesce(app._ont_client_id, app.client_id, app.app_id, app.id) AS app_client_id,
         app._ont_source AS app_source,
+        app._ont_source AS source,
         count(DISTINCT ua) AS authorized_identity_count,
         count(DISTINCT risky_scope) AS risky_scope_count,
         collect(DISTINCT risky_scope) AS risky_scopes
@@ -431,6 +433,7 @@ ai_admin_app_authorizations = Rule(
 # Main node: AIBOMComponent (AIAgent)
 # =============================================================================
 class NistAiAibomAgentInventoryOutput(Finding):
+    agent_name: str | None = None
     source_id: str | None = None
     image_uri: str | None = None
     manifest_digest: str | None = None
@@ -438,7 +441,6 @@ class NistAiAibomAgentInventoryOutput(Finding):
     scanner_version: str | None = None
     agent_component_id: str | None = None
     agent_logical_id: str | None = None
-    agent_name: str | None = None
     agent_framework: str | None = None
     agent_file_path: str | None = None
     agent_line_number: int | None = None
@@ -573,11 +575,11 @@ aibom_agent_inventory = Rule(
 # Main node: AIBOMSource
 # =============================================================================
 class NistAiAibomCoverageGapOutput(Finding):
+    scanner_name: str | None = None
     source_id: str | None = None
     image_uri: str | None = None
     manifest_digests: list[str] | None = None
     report_location: str | None = None
-    scanner_name: str | None = None
     scanner_version: str | None = None
     source_status: str | None = None
     analysis_status: str | None = None
@@ -702,11 +704,11 @@ aibom_coverage_gaps = Rule(
 # Main node: OpenAIApiKey/OpenAIAdminApiKey/AnthropicApiKey
 # =============================================================================
 class NistAiProviderApiKeyHygieneOutput(Finding):
+    api_key_name: str | None = None
     provider: str | None = None
     organization_id: str | None = None
     project_or_workspace_id: str | None = None
     api_key_id: str | None = None
-    api_key_name: str | None = None
     status: str | None = None
     created_at: str | None = None
     last_used_at: str | None = None

@@ -37,6 +37,10 @@ class AccountAccessKeyToAWSUserRelProperties(CartographyRelProperties):
 
 
 @dataclass(frozen=True)
+# DEPRECATED: replaced by the canonical (:APIKey)-[:OWNED_BY]->(:UserAccount)
+# edge (AccountAccessKeyToAWSUserOwnedByRel). Kept for backward compatibility,
+# will be removed in v1.0.0.
+# (:AWSUser)-[:AWS_ACCESS_KEY]->(:AccountAccessKey)
 class AccountAccessKeyToAWSUserRel(CartographyRelSchema):
     target_node_label: str = "AWSUser"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
@@ -48,6 +52,27 @@ class AccountAccessKeyToAWSUserRel(CartographyRelSchema):
     rel_label: str = "AWS_ACCESS_KEY"
     properties: AccountAccessKeyToAWSUserRelProperties = (
         AccountAccessKeyToAWSUserRelProperties()
+    )
+
+
+@dataclass(frozen=True)
+class AccountAccessKeyToAWSUserOwnedByRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+# Canonical ontology edge: (:APIKey)-[:OWNED_BY]->(:UserAccount)
+class AccountAccessKeyToAWSUserOwnedByRel(CartographyRelSchema):
+    target_node_label: str = "AWSUser"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {
+            "arn": PropertyRef("user_arn"),
+        }
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "OWNED_BY"
+    properties: AccountAccessKeyToAWSUserOwnedByRelProperties = (
+        AccountAccessKeyToAWSUserOwnedByRelProperties()
     )
 
 
@@ -82,5 +107,6 @@ class AccountAccessKeySchema(CartographyNodeSchema):
     other_relationships: OtherRelationships = OtherRelationships(
         [
             AccountAccessKeyToAWSUserRel(),
+            AccountAccessKeyToAWSUserOwnedByRel(),
         ]
     )

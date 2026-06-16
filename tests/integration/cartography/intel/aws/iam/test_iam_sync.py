@@ -388,3 +388,19 @@ def test_sync_iam(
         ("AKIAJQ5CMEXAMPLE", "arn:aws:iam::1234:user/user2"),
         ("AKIAEXAMPLE123", "arn:aws:iam::1234:user/user3"),
     }
+
+    # Canonical ontology edge: (:APIKey)-[:OWNED_BY]->(:UserAccount)
+    assert check_rels(
+        neo4j_session,
+        "AccountAccessKey",
+        "accesskeyid",
+        "AWSUser",
+        "arn",
+        "OWNED_BY",
+        rel_direction_right=True,
+    ) == {
+        ("AKIAIOSFODNN7EXAMPLE", "arn:aws:iam::1234:user/user1"),
+        ("AKIAI44QH8DHBEXAMPLE", "arn:aws:iam::1234:user/user1"),
+        ("AKIAJQ5CMEXAMPLE", "arn:aws:iam::1234:user/user2"),
+        ("AKIAEXAMPLE123", "arn:aws:iam::1234:user/user3"),
+    }

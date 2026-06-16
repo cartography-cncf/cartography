@@ -155,10 +155,13 @@ def load_azure_management_groups(
 def cleanup(
     neo4j_session: neo4j.Session,
     common_job_parameters: dict[str, Any],
+    cascade_delete: bool = False,
 ) -> None:
-    GraphJob.from_node_schema(AzureManagementGroupSchema(), common_job_parameters).run(
-        neo4j_session,
-    )
+    GraphJob.from_node_schema(
+        AzureManagementGroupSchema(),
+        common_job_parameters,
+        cascade_delete=cascade_delete,
+    ).run(neo4j_session)
 
 
 @timeit
@@ -181,5 +184,4 @@ def sync(
             tenant_id,
             update_tag,
         )
-    cleanup(neo4j_session, common_job_parameters)
     return transformed_management_groups

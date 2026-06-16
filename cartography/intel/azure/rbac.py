@@ -2,13 +2,17 @@ import json
 import logging
 
 import neo4j
+from azure.core.exceptions import HttpResponseError
 from azure.mgmt.authorization import AuthorizationManagementClient
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
+from cartography.models.azure.rbac import AzureManagementGroupRoleAssignmentSchema
 from cartography.models.azure.rbac import AzurePermissionsSchema
 from cartography.models.azure.rbac import AzureRoleAssignmentSchema
 from cartography.models.azure.rbac import AzureRoleDefinitionSchema
+from cartography.models.azure.rbac import AzureUnscopedPermissionsSchema
+from cartography.models.azure.rbac import AzureUnscopedRoleDefinitionSchema
 from cartography.util import timeit
 
 from .util.credentials import Credentials
@@ -48,10 +52,36 @@ def get_role_assignments(
 
 
 @timeit
+def get_role_assignments_for_scope(
+    credentials: Credentials,
+    authorization_subscription_id: str,
+    management_group_id: str,
+) -> list[dict]:
+    """
+    Fetch role assignments attached directly to a given Azure management group.
+    """
+    client = get_client(credentials, authorization_subscription_id)
+    role_assignments = list(
+        client.role_assignments.list_for_scope(management_group_id, filter="atScope()")
+    )
+
+    result = []
+    for assignment in role_assignments:
+        assignment_dict = assignment.as_dict()
+        if assignment_dict.get("scope") != management_group_id:
+            continue
+        assignment_dict["management_group_id"] = management_group_id
+        result.append(assignment_dict)
+
+    return result
+
+
+@timeit
 def get_role_definitions_by_ids(
     credentials: Credentials,
     subscription_id: str,
     role_definition_ids: list[str],
+    stamp_subscription_id: bool = True,
 ) -> list[dict]:
     """
     Fetch specific role definitions by their IDs (more efficient than fetching all)
@@ -70,7 +100,8 @@ def get_role_definitions_by_ids(
         # Format: /subscriptions/{guid}/providers/Microsoft.Authorization/roleDefinitions/{roleDefinitionId}
         role_definition = client.role_definitions.get_by_id(role_id)
         definition_dict = role_definition.as_dict()
-        definition_dict["subscription_id"] = subscription_id
+        if stamp_subscription_id:
+            definition_dict["subscription_id"] = subscription_id
         result.append(definition_dict)
 
     return result
@@ -112,6 +143,7 @@ def transform_role_definitions(
             "description": definition.get("description"),
             "assignableScopes": definition.get("assignable_scopes"),
             "AZURE_SUBSCRIPTION_ID": definition.get("subscription_id"),
+            "subscription_id": definition.get("subscription_id"),
             "permission_ids": permission_ids,
         }
         result.append(transformed)
@@ -143,6 +175,7 @@ def transform_permissions(
                 "data_actions": permission_set.get("data_actions", []),
                 "not_data_actions": permission_set.get("not_data_actions", []),
                 "AZURE_SUBSCRIPTION_ID": definition.get("subscription_id"),
+                "subscription_id": definition.get("subscription_id"),
             }
             result.append(transformed)
 
@@ -181,6 +214,8 @@ def transform_role_assignments(
                 "delegated_managed_identity_resource_id"
             ),
             "AZURE_SUBSCRIPTION_ID": assignment.get("subscription_id"),
+            "subscription_id": assignment.get("subscription_id"),
+            "management_group_id": assignment.get("management_group_id"),
         }
         result.append(transformed)
 
@@ -220,6 +255,22 @@ def load_role_assignments(
 
 
 @timeit
+def load_management_group_role_assignments(
+    neo4j_session: neo4j.Session,
+    data: list[dict],
+    management_group_id: str,
+    update_tag: int,
+) -> None:
+    load(
+        neo4j_session,
+        AzureManagementGroupRoleAssignmentSchema(),
+        data,
+        lastupdated=update_tag,
+        AZURE_MANAGEMENT_GROUP_ID=management_group_id,
+    )
+
+
+@timeit
 def load_permissions(
     neo4j_session: neo4j.Session,
     data: list[dict],
@@ -232,6 +283,34 @@ def load_permissions(
         data,
         lastupdated=update_tag,
         AZURE_SUBSCRIPTION_ID=subscription_id,
+    )
+
+
+@timeit
+def load_unscoped_role_definitions(
+    neo4j_session: neo4j.Session,
+    data: list[dict],
+    update_tag: int,
+) -> None:
+    load(
+        neo4j_session,
+        AzureUnscopedRoleDefinitionSchema(),
+        data,
+        lastupdated=update_tag,
+    )
+
+
+@timeit
+def load_unscoped_permissions(
+    neo4j_session: neo4j.Session,
+    data: list[dict],
+    update_tag: int,
+) -> None:
+    load(
+        neo4j_session,
+        AzureUnscopedPermissionsSchema(),
+        data,
+        lastupdated=update_tag,
     )
 
 
@@ -256,6 +335,22 @@ def cleanup_role_assignments(
 
 
 @timeit
+def cleanup_management_group_role_assignments(
+    neo4j_session: neo4j.Session,
+    common_job_parameters: dict,
+    management_group_id: str,
+) -> None:
+    scoped_job_parameters = {
+        **common_job_parameters,
+        "AZURE_MANAGEMENT_GROUP_ID": management_group_id,
+    }
+    GraphJob.from_node_schema(
+        AzureManagementGroupRoleAssignmentSchema(),
+        scoped_job_parameters,
+    ).run(neo4j_session)
+
+
+@timeit
 def cleanup_permissions(
     neo4j_session: neo4j.Session,
     common_job_parameters: dict,
@@ -263,6 +358,128 @@ def cleanup_permissions(
     GraphJob.from_node_schema(AzurePermissionsSchema(), common_job_parameters).run(
         neo4j_session
     )
+
+
+def load_role_definitions_and_permissions(
+    neo4j_session: neo4j.Session,
+    role_definitions: list[dict],
+    subscription_id: str,
+    update_tag: int,
+) -> None:
+    transformed_permissions = transform_permissions(role_definitions)
+    transformed_definitions = transform_role_definitions(role_definitions)
+
+    load_permissions(
+        neo4j_session,
+        transformed_permissions,
+        subscription_id,
+        update_tag,
+    )
+    load_role_definitions(
+        neo4j_session,
+        transformed_definitions,
+        subscription_id,
+        update_tag,
+    )
+
+
+def load_unscoped_role_definitions_and_permissions(
+    neo4j_session: neo4j.Session,
+    role_definitions: list[dict],
+    update_tag: int,
+) -> None:
+    transformed_permissions = transform_permissions(role_definitions)
+    transformed_definitions = transform_role_definitions(role_definitions)
+
+    load_unscoped_permissions(
+        neo4j_session,
+        transformed_permissions,
+        update_tag,
+    )
+    load_unscoped_role_definitions(
+        neo4j_session,
+        transformed_definitions,
+        update_tag,
+    )
+
+
+@timeit
+def sync_management_group_role_assignments(
+    neo4j_session: neo4j.Session,
+    credentials: Credentials,
+    management_group_id: str,
+    authorization_subscription_id: str,
+    update_tag: int,
+    common_job_parameters: dict,
+) -> None:
+    logger.info(
+        "Syncing Azure RBAC role assignments for management group '%s'.",
+        management_group_id,
+    )
+    role_assignments = get_role_assignments_for_scope(
+        credentials,
+        authorization_subscription_id,
+        management_group_id,
+    )
+    role_definition_ids = extract_role_definition_ids(role_assignments)
+    role_definitions = get_role_definitions_by_ids(
+        credentials,
+        authorization_subscription_id,
+        role_definition_ids,
+        stamp_subscription_id=False,
+    )
+
+    transformed_assignments = transform_role_assignments(role_assignments)
+
+    load_unscoped_role_definitions_and_permissions(
+        neo4j_session,
+        role_definitions,
+        update_tag,
+    )
+    load_management_group_role_assignments(
+        neo4j_session,
+        transformed_assignments,
+        management_group_id,
+        update_tag,
+    )
+    cleanup_management_group_role_assignments(
+        neo4j_session,
+        common_job_parameters,
+        management_group_id,
+    )
+
+
+@timeit
+def sync_management_group_role_assignments_for_management_groups(
+    neo4j_session: neo4j.Session,
+    credentials: Credentials,
+    management_group_data: list[dict],
+    authorization_subscription_id: str,
+    update_tag: int,
+    common_job_parameters: dict,
+) -> None:
+    for management_group in management_group_data:
+        management_group_id = management_group.get("id")
+        if not management_group_id:
+            continue
+
+        try:
+            sync_management_group_role_assignments(
+                neo4j_session,
+                credentials,
+                management_group_id,
+                authorization_subscription_id,
+                update_tag,
+                common_job_parameters,
+            )
+        except HttpResponseError as e:
+            logger.warning(
+                "Skipping Azure management-group role assignments for '%s'. "
+                "Existing assignments for this management group will be preserved. "
+                "Details: %s",
+                management_group_id,
+                e,
+            )
 
 
 @timeit
@@ -288,16 +505,11 @@ def sync(
     )
 
     # TRANSFORM
-    transformed_definitions = transform_role_definitions(role_definitions)
     transformed_assignments = transform_role_assignments(role_assignments)
-    transformed_permissions = transform_permissions(role_definitions)
 
     # LOAD
-    load_permissions(
-        neo4j_session, transformed_permissions, subscription_id, update_tag
-    )
-    load_role_definitions(
-        neo4j_session, transformed_definitions, subscription_id, update_tag
+    load_role_definitions_and_permissions(
+        neo4j_session, role_definitions, subscription_id, update_tag
     )
     load_role_assignments(
         neo4j_session, transformed_assignments, subscription_id, update_tag

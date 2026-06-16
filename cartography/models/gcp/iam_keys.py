@@ -3,6 +3,7 @@ from dataclasses import dataclass
 from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeProperties
 from cartography.models.core.nodes import CartographyNodeSchema
+from cartography.models.core.nodes import ExtraNodeLabels
 from cartography.models.core.relationships import CartographyRelProperties
 from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
@@ -49,6 +50,10 @@ class GCPServiceAccountKeyToServiceAccountRelProperties(CartographyRelProperties
 
 
 @dataclass(frozen=True)
+# DEPRECATED: replaced by the canonical (:APIKey)-[:OWNED_BY]->(:ServiceAccount)
+# edge (GCPServiceAccountKeyToServiceAccountOwnedByRel). Kept for backward
+# compatibility, will be removed in v1.0.0.
+# (:GCPServiceAccount)-[:HAS_KEY]->(:GCPServiceAccountKey)
 class GCPServiceAccountKeyToServiceAccountRel(CartographyRelSchema):
     target_node_label: str = "GCPServiceAccount"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
@@ -62,8 +67,24 @@ class GCPServiceAccountKeyToServiceAccountRel(CartographyRelSchema):
 
 
 @dataclass(frozen=True)
+# Canonical ontology edge: (:APIKey)-[:OWNED_BY]->(:ServiceAccount)
+class GCPServiceAccountKeyToServiceAccountOwnedByRel(CartographyRelSchema):
+    target_node_label: str = "GCPServiceAccount"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"email": PropertyRef("serviceAccountEmail")},
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "OWNED_BY"
+    properties: GCPServiceAccountKeyToServiceAccountRelProperties = (
+        GCPServiceAccountKeyToServiceAccountRelProperties()
+    )
+
+
+@dataclass(frozen=True)
 class GCPServiceAccountKeySchema(CartographyNodeSchema):
     label: str = "GCPServiceAccountKey"
+    # APIKey label is used for ontology mapping
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["APIKey"])
     properties: GCPServiceAccountKeyNodeProperties = (
         GCPServiceAccountKeyNodeProperties()
     )
@@ -73,5 +94,6 @@ class GCPServiceAccountKeySchema(CartographyNodeSchema):
     other_relationships: OtherRelationships = OtherRelationships(
         [
             GCPServiceAccountKeyToServiceAccountRel(),
+            GCPServiceAccountKeyToServiceAccountOwnedByRel(),
         ],
     )

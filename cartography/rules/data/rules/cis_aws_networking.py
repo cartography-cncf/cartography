@@ -36,6 +36,7 @@ CIS_REFERENCES = [
 class EbsEncryptionOutput(Finding):
     """Output model for EBS encryption check."""
 
+    volume_name: str | None = None
     volume_id: str | None = None
     region: str | None = None
     volume_type: str | None = None
@@ -56,7 +57,9 @@ _aws_ebs_encryption_disabled = Fact(
     cypher_query="""
     MATCH (a:AWSAccount)-[:RESOURCE]->(volume:EBSVolume)
     WHERE volume.encrypted = false
+    OPTIONAL MATCH (volume)-[:TAGGED]->(nametag:AWSTag {key: 'Name'})
     RETURN
+        coalesce(nametag.value, volume.id) AS volume_name,
         volume.id AS volume_id,
         volume.region AS region,
         volume.volumetype AS volume_type,
@@ -208,8 +211,8 @@ aws_cifs_access_restricted_to_trusted_networks = Rule(
 class RemoteAdminIpv4Output(Finding):
     """Output model for IPv4 remote administration exposure check."""
 
-    security_group_id: str | None = None
     security_group_name: str | None = None
+    security_group_id: str | None = None
     region: str | None = None
     rule_id: str | None = None
     from_port: int | None = None
@@ -313,8 +316,8 @@ aws_ipv4_remote_administration_ports_open_to_internet = Rule(
 class RemoteAdminIpv6Output(Finding):
     """Output model for IPv6 remote administration exposure check."""
 
-    security_group_id: str | None = None
     security_group_name: str | None = None
+    security_group_id: str | None = None
     region: str | None = None
     rule_id: str | None = None
     from_port: int | None = None
@@ -418,8 +421,8 @@ aws_ipv6_remote_administration_ports_open_to_internet = Rule(
 class DefaultSgAllowsTrafficOutput(Finding):
     """Output model for default security group check."""
 
-    security_group_id: str | None = None
     security_group_name: str | None = None
+    security_group_id: str | None = None
     region: str | None = None
     has_inbound_rules: bool | None = None
     has_egress_rules: bool | None = None
@@ -509,6 +512,7 @@ aws_default_security_group_restricts_traffic = Rule(
 class Ec2Imdsv2RequiredOutput(Finding):
     """Output model for EC2 IMDSv2 requirement check."""
 
+    instance_name: str | None = None
     instance_id: str | None = None
     region: str | None = None
     metadata_http_tokens: str | None = None
@@ -528,7 +532,9 @@ _aws_ec2_imdsv2_required = Fact(
     cypher_query="""
     MATCH (a:AWSAccount)-[:RESOURCE]->(ec2:EC2Instance)
     WHERE ec2.metadatahttptokens = 'optional'
+    OPTIONAL MATCH (ec2)-[:TAGGED]->(nametag:AWSTag {key: 'Name'})
     RETURN
+        coalesce(nametag.value, ec2.instanceid) AS instance_name,
         ec2.instanceid AS instance_id,
         ec2.region AS region,
         ec2.metadatahttptokens AS metadata_http_tokens,

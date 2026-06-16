@@ -1,4 +1,5 @@
 import logging
+from functools import wraps
 from typing import Any
 from typing import Dict
 from typing import Iterator
@@ -58,8 +59,50 @@ AWS_INSPECTOR_REGIONS = {
 
 BATCH_SIZE = 1000
 
+# Connection-level failures that indicate a regional inspector2 endpoint could not
+# be reached (e.g. an opt-in region listed in AWS_INSPECTOR_REGIONS but not enabled
+# on the account). These are NOT botocore ClientError subclasses.
+_INSPECTOR_TRANSIENT_CONNECTION_ERRORS = (
+    botocore.exceptions.ConnectTimeoutError,
+    botocore.exceptions.EndpointConnectionError,
+    botocore.exceptions.ReadTimeoutError,
+    botocore.exceptions.ConnectionClosedError,
+)
+
+
+class InspectorTransientRegionFailure(Exception):
+    """
+    Raised when a regional inspector2 endpoint fails at the connection level.
+
+    The generic @aws_handle_regions decorator catches most of these connection
+    errors and returns [], which makes a transient failure indistinguishable from
+    a region that legitimately has no data. We re-raise them as this distinct type
+    (which @aws_handle_regions does not catch) so sync() can skip the region and
+    skip cleanup, preserving last-known-good data.
+    """
+
+
+def _reraise_inspector_connection_errors(func: Any) -> Any:
+    """
+    Convert connection-level endpoint failures into InspectorTransientRegionFailure.
+
+    Stacked *inside* @aws_handle_regions so the re-raised exception bubbles past
+    that decorator (it only handles ClientError and the raw connection errors)
+    instead of being swallowed into an empty result.
+    """
+
+    @wraps(func)
+    def inner(*args: Any, **kwargs: Any) -> Any:
+        try:
+            return func(*args, **kwargs)
+        except _INSPECTOR_TRANSIENT_CONNECTION_ERRORS as e:
+            raise InspectorTransientRegionFailure(str(e)) from e
+
+    return inner
+
 
 @aws_handle_regions
+@_reraise_inspector_connection_errors
 def get_member_accounts(
     session: boto3.session.Session,
     region: str,
@@ -311,9 +354,16 @@ def _sync_findings_for_account(
     update_tag: int,
     current_aws_account_id: str,
     batch_size: int = BATCH_SIZE,
-) -> None:
+) -> bool:
     """
     Syncs the findings for a given account in a given region.
+
+    Returns True if the sync completed (including the cases where the region was
+    skipped due to a ClientError such as AccessDenied or "Inspector not enabled",
+    which are expected and safe to treat as "no findings"). Returns False if the
+    region was skipped due to a transient connection-level failure to the regional
+    inspector2 endpoint, in which case the caller must not run cleanup for this
+    account so that last-known-good findings are preserved.
     """
     try:
         findings = get_inspector_findings(boto3_session, region, account_id, batch_size)
@@ -321,7 +371,7 @@ def _sync_findings_for_account(
             logger.info(
                 f"No findings to sync for account {account_id} in region {region}"
             )
-            return
+            return True
         for f_batch in findings:
             finding_data, package_data, finding_to_package_map = (
                 transform_inspector_findings(f_batch)
@@ -351,6 +401,21 @@ def _sync_findings_for_account(
                 update_tag,
                 current_aws_account_id,
             )
+        return True
+    except _INSPECTOR_TRANSIENT_CONNECTION_ERRORS:
+        # Connection-level failures are not ClientError subclasses, so the
+        # @aws_handle_regions decorator and the ClientError handler below cannot
+        # catch them. They occur during iteration of the get_inspector_findings
+        # generator (e.g. opt-in regions whose inspector2 endpoint is not routable
+        # connect-time out). Skip just this region and signal the caller to skip
+        # cleanup so last-known-good findings are preserved.
+        logger.warning(
+            "Transient connection failure to Inspector endpoint for account %s "
+            "in region %s. Skipping region.",
+            account_id,
+            region,
+        )
+        return False
     except botocore.exceptions.ClientError as e:
         error_code = e.response.get("Error", {}).get("Code")
         # Handle the same error codes as aws_handle_regions decorator
@@ -369,7 +434,7 @@ def _sync_findings_for_account(
                     account_id,
                     region,
                 )
-            return
+            return True
         elif error_code == "ValidationException":
             logger.warning(
                 "AWS Inspector returned ValidationException for account %s in region %s. "
@@ -377,7 +442,7 @@ def _sync_findings_for_account(
                 account_id,
                 region,
             )
-            return
+            return True
         else:
             raise
 
@@ -399,16 +464,34 @@ def sync(
         region for region in regions if region in AWS_INSPECTOR_REGIONS
     ]
 
+    # If any region is skipped because of a transient connection-level failure to
+    # its inspector2 endpoint, we must not run cleanup: deleting findings for a
+    # region we couldn't reach would wipe out last-known-good data.
+    cleanup_safe = True
+
     for region in inspector_regions:
         logger.info(
             f"Syncing AWS Inspector findings delegated to account {current_aws_account_id} and region {region}",
         )
-        member_accounts = get_member_accounts(boto3_session, region)
+        try:
+            member_accounts = get_member_accounts(boto3_session, region)
+        except InspectorTransientRegionFailure:
+            # Reaching the regional inspector2 endpoint failed at the connection
+            # level (e.g. an opt-in region listed in AWS_INSPECTOR_REGIONS that is
+            # not enabled on this account). Skip the whole region.
+            logger.warning(
+                "Transient connection failure to Inspector endpoint for account %s "
+                "in region %s while listing member accounts. Skipping region.",
+                current_aws_account_id,
+                region,
+            )
+            cleanup_safe = False
+            continue
         # the current host account may not be considered a "member", but we still fetch its findings
         member_accounts.append(current_aws_account_id)
         logger.info(f"Member accounts to be synced: {member_accounts}")
         for account_id in member_accounts:
-            _sync_findings_for_account(
+            synced = _sync_findings_for_account(
                 neo4j_session,
                 boto3_session,
                 region,
@@ -417,6 +500,16 @@ def sync(
                 current_aws_account_id,
                 batch_size,
             )
-    common_job_parameters["ACCOUNT_ID"] = current_aws_account_id
-    common_job_parameters["UPDATE_TAG"] = update_tag
-    cleanup(neo4j_session, common_job_parameters, batch_size)
+            if not synced:
+                cleanup_safe = False
+
+    if cleanup_safe:
+        common_job_parameters["ACCOUNT_ID"] = current_aws_account_id
+        common_job_parameters["UPDATE_TAG"] = update_tag
+        cleanup(neo4j_session, common_job_parameters, batch_size)
+    else:
+        logger.warning(
+            "Skipping AWS Inspector cleanup for account %s because one or more regions "
+            "were transiently skipped. Preserving last-known-good data.",
+            current_aws_account_id,
+        )

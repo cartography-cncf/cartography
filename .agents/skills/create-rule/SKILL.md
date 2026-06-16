@@ -93,8 +93,8 @@ _aws_public_databases = Fact(
 ```python
 class DatabaseExposedOutput(Finding):
     """Output model for publicly exposed databases."""
+    name: str | None = None    # human-readable label first: used as the finding title
     id: str | None = None
-    name: str | None = None
     region: str | None = None
 ```
 
@@ -102,6 +102,7 @@ class DatabaseExposedOutput(Finding):
 - Field names must match `cypher_query` aliases **exactly**.
 - All fields are `| None` with default `None`.
 - The `source` field is auto-populated with the module name.
+- **Declare a human-readable label as the first field.** Downstream consumers derive the finding's title from the first non-empty field in declaration order, so leading with an opaque id, ARN, URI, digest, region, or boolean produces an unreadable title. If the node has no natural name, alias one in the `cypher_query` (e.g. `coalesce(n.friendly_name, n.short_id) AS name`, or an AWS `Name` tag) and declare it first. This is independent of `identity_fields`/`asset_id_field` and of `RETURN` order. See "Display field order (finding title)" in `docs/root/usage/rules.md`.
 - Set `identity_fields` on the Fact (required) to the subset of these fields that forms the finding's stable logical identity, excluding volatile context (`*_count`, `days_*`, `last_used*`, `*_date`, posture booleans, aggregate lists) so downstream lifecycle tracking does not treat a changed metric as a new finding. See "Finding identity vs. display fields" in `docs/root/usage/rules.md`.
 
 ### Step 4 — Compose the Rule

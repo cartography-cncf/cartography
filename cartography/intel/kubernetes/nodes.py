@@ -20,14 +20,29 @@ def get_nodes(client: K8sClient) -> list[V1Node]:
     return k8s_paginate(client.core.list_node)
 
 
+def _ec2_instance_id_from_provider_id(provider_id: str | None) -> str | None:
+    """Extract the EC2 instance id from an EKS node's providerID.
+
+    EKS sets ``spec.providerID`` to ``aws:///<availability-zone>/<instance-id>``.
+    Other providers (GCE, Azure) use different formats and return None.
+    """
+    if not provider_id or not provider_id.startswith("aws://"):
+        return None
+    instance_id = provider_id.rsplit("/", 1)[-1]
+    return instance_id if instance_id.startswith("i-") else None
+
+
 def transform_nodes(nodes: list[V1Node], cluster_name: str) -> list[dict[str, Any]]:
     transformed = []
     for node in nodes:
         ni = node.status.node_info if node.status else None
+        provider_id = getattr(getattr(node, "spec", None), "provider_id", None)
         transformed.append(
             {
                 "id": f"{cluster_name}/{node.metadata.name}",
                 "name": node.metadata.name,
+                "provider_id": provider_id,
+                "instance_id": _ec2_instance_id_from_provider_id(provider_id),
                 "architecture": getattr(ni, "architecture", None),
                 "architecture_normalized": normalize_architecture(
                     getattr(ni, "architecture", None),
