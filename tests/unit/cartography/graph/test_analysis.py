@@ -7,6 +7,7 @@ from cartography.graph.analysis import AnalysisJob
 from cartography.graph.analysis import AnalysisScope
 from cartography.graph.analysis import AnalysisStatement
 from cartography.graph.analysis import PropertyEffect
+from cartography.graph.analysis import RelationshipPropertyEffect
 from cartography.graph.analysis import RelationshipEffect
 from cartography.graph.job import GraphJob
 
@@ -138,6 +139,41 @@ def test_property_effect_requires_properties():
     # Act and assert
     with pytest.raises(ValueError, match="at least one property"):
         PropertyEffect("EC2KeyPair", ())
+
+
+def test_relationship_property_job_prepends_cleanup_statement():
+    # Arrange
+    job = AnalysisJob(
+        name="Supply chain source file",
+        short_name="supply_chain_source_file",
+        effect=RelationshipPropertyEffect(
+            "Image",
+            "PACKAGED_FROM",
+            ("dockerfile_path",),
+        ),
+        statements=(
+            AnalysisStatement(
+                "MATCH (i:Image)-[r:PACKAGED_FROM]->(:GitHubRepository) "
+                "WHERE r.dockerfile_path IS NULL "
+                "SET r.dockerfile_path = i.source_file",
+            ),
+        ),
+    )
+
+    # Act
+    graph_job = job.to_graph_job()
+
+    # Assert
+    assert job.properties_set() == (job.effect,)
+    assert graph_job.statements[0].query == (
+        "MATCH (source:Image)-[r:PACKAGED_FROM]->(target)\n" "REMOVE r.dockerfile_path"
+    )
+
+
+def test_relationship_property_effect_requires_properties():
+    # Act and assert
+    with pytest.raises(ValueError, match="at least one property"):
+        RelationshipPropertyEffect("Image", "PACKAGED_FROM", ())
 
 
 def test_analysis_job_requires_statements():
