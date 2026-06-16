@@ -1,4 +1,6 @@
+import json
 import logging
+import time
 from typing import Any
 from typing import Dict
 from typing import List
@@ -85,7 +87,17 @@ def sync(
     :param common_job_parameters: Common job parameters containing UPDATE_TAG
     :return: Nothing
     """
+    tic = time.perf_counter()
     logger.info("Syncing Gitlab All Dependencies")
     project_dependencies = get_dependencies(hosted_domain, access_token, project_id)
     load_dependencies_data(neo4j_session, project_dependencies, project_id, common_job_parameters)
     cleanup(neo4j_session, common_job_parameters)
+    logger.info(
+        json.dumps({
+            "event": "gitlab_service_timing",
+            "project_id": project_id,
+            "service": "dependencies",
+            "duration_seconds": round(time.perf_counter() - tic, 4),
+            "status": "success",
+        }),
+    )

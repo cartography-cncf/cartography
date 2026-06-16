@@ -2,6 +2,7 @@
 import base64
 import json
 import logging
+import time
 from collections import namedtuple
 from typing import Any
 from typing import Dict
@@ -48,18 +49,42 @@ def _sync_one_compartment(
     If this is the default compartment (compartment_id == tenancy_id), IAM is run first
     to populate regions. For child compartments, IAM is skipped.
     """
+    _comp_tic = time.perf_counter()
+    _service_timings: Dict = {}
+    _failed_services: Dict = {}
     is_default_compartment = (compartment_id == tenancy_id)
 
     # For default compartment, run IAM first to populate regions
     if is_default_compartment and "iam" in requested_syncs:
         logger.info("Syncing OCI IAM for tenancy '%s'.", tenancy_id)
+        _svc_tic = time.perf_counter()
+        _svc_status = "success"
+        _svc_err: Dict = {}
         try:
             iam.sync(
                 neo4j_session, resources.iam, tenancy_id, oci_sync_tag,
                 common_job_parameters, regions,
             )
+            _svc_elapsed = round(time.perf_counter() - _svc_tic, 4)
+            _service_timings["iam"] = _svc_elapsed
         except Exception as e:
+            _svc_status = "error"
+            _svc_elapsed = round(time.perf_counter() - _svc_tic, 4)
+            _svc_err = {"error_type": type(e).__name__, "error_message": str(e)}
+            _failed_services["iam"] = str(e)
             logger.error("Error syncing OCI IAM: %s", e, exc_info=True)
+        finally:
+            _ev: Dict = {
+                "event": "oci_service_timing",
+                "tenancy": tenancy_id,
+                "compartment": compartment_id,
+                "service": "iam",
+                "duration_seconds": _svc_elapsed,
+                "status": _svc_status,
+            }
+            if _svc_err:
+                _ev.update(_svc_err)
+            logger.info(json.dumps(_ev))
 
     # Get regions from neo4j (populated by IAM region subscriptions)
     updated_regions = [r["name"] for r in utils.get_regions_in_tenancy(neo4j_session, tenancy_id)]
@@ -72,19 +97,51 @@ def _sync_one_compartment(
             continue
         if func_name in RESOURCE_FUNCTIONS:
             logger.info("Syncing OCI %s for compartment '%s'.", func_name, compartment_id)
+            _svc_tic = time.perf_counter()
+            _svc_status = "success"
+            _svc_err = {}
             try:
                 RESOURCE_FUNCTIONS[func_name](
                     neo4j_session, getattr(resources, func_name), tenancy_id, oci_sync_tag,
                     common_job_parameters, regions,
                 )
+                _svc_elapsed = round(time.perf_counter() - _svc_tic, 4)
+                _service_timings[func_name] = _svc_elapsed
             except Exception as e:
+                _svc_status = "error"
+                _svc_elapsed = round(time.perf_counter() - _svc_tic, 4)
+                _svc_err = {"error_type": type(e).__name__, "error_message": str(e)}
+                _failed_services[func_name] = str(e)
                 logger.error(
                     "Error syncing OCI %s for compartment '%s': %s", func_name, compartment_id, e, exc_info=True,
                 )
+            finally:
+                _ev = {
+                    "event": "oci_service_timing",
+                    "tenancy": tenancy_id,
+                    "compartment": compartment_id,
+                    "service": func_name,
+                    "duration_seconds": _svc_elapsed,
+                    "status": _svc_status,
+                }
+                if _svc_err:
+                    _ev.update(_svc_err)
+                logger.info(json.dumps(_ev))
         else:
             logger.warning(
                 'OCI sync function "%s" was specified but does not exist. Did you misspell it?', func_name,
             )
+    logger.info(
+        json.dumps({
+            "event": "oci_compartment_timing_summary",
+            "tenancy": tenancy_id,
+            "compartment": compartment_id,
+            "total_duration_seconds": round(time.perf_counter() - _comp_tic, 4),
+            "service_timings": _service_timings,
+            "slowest_service": max(_service_timings, key=_service_timings.get) if _service_timings else None,
+            "failed_services": _failed_services,
+        }),
+    )
 
 
 def _sync_multiple_compartments(
@@ -216,6 +273,7 @@ def start_oci_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
     :param config: A `cartography.config` object
     :return: Nothing
     """
+    _ingestion_tic = time.perf_counter()
     common_job_parameters = {
         "UPDATE_TAG": config.update_tag,
         "WORKSPACE_ID": config.params["workspace"]["id_string"] if hasattr(config, 'params') and config.params else "",
@@ -233,14 +291,14 @@ def start_oci_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
             return
 
         try:
-            tenancy_ocid = config.oci_tenancy_id or oci_config_json.get("tenancy_ocid", "")
-            compartment_ocid = config.oci_compartment_id or oci_config_json.get("compartment_ocid", tenancy_ocid)
+            tenancy_ocid = config.oci_tenancy_id
+            compartment_ocid = config.oci_compartment_id
             credentials = {
-                "user": oci_config_json["user_ocid"],
-                "fingerprint": oci_config_json["fingerprint"],
+                "user": config.params.get("userOcid"),
+                "fingerprint": config.params.get("fingerprint") or oci_config_json["fingerprint"],
                 "key_content": oci_config_json["private_key_content"],
                 "tenancy": tenancy_ocid,
-                "region": config.params.get("defaultRegion", "us-phoenix-1"),
+                "region": _resolve_region(config.params.get("defaultRegion", "PHX")),
             }
             oci.config.validate_config(credentials)
         except (KeyError, InvalidConfig) as e:
@@ -292,6 +350,13 @@ def start_oci_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
         _sync_multiple_compartments(
             neo4j_session, credentials, tenancy_ocid, compartment_list,
             requested_syncs, config.update_tag, common_job_parameters, regions,
+        )
+        logger.info(
+            json.dumps({
+                "event": "oci_tenancy_timing_summary",
+                "tenancy": tenancy_ocid,
+                "total_duration_seconds": round(time.perf_counter() - _ingestion_tic, 4),
+            }),
         )
         return common_job_parameters
     else:
@@ -356,3 +421,51 @@ def start_oci_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
             neo4j_session, list(oci_accounts.values())[0], tenancy_id, compartment_list,
             requested_syncs, config.update_tag, common_job_parameters, regions,
         )
+        logger.info(
+            json.dumps({
+                "event": "oci_tenancy_timing_summary",
+                "tenancy": tenancy_id,
+                "total_duration_seconds": round(time.perf_counter() - _ingestion_tic, 4),
+            }),
+        )
+
+
+def _resolve_region(region_key: str) -> str:
+    """Convert OCI region short key (e.g. PHX) to full region name (e.g. us-phoenix-1)."""
+    region_map = {
+        "AMS": "eu-amsterdam-1",
+        "IAD": "us-ashburn-1",
+        "DXB": "me-dubai-1",
+        "FRA": "eu-frankfurt-1",
+        "JED": "me-jeddah-1",
+        "JNB": "af-johannesburg-1",
+        "LHR": "uk-london-1",
+        "YUL": "ca-montreal-1",
+        "BOM": "ap-mumbai-1",
+        "KIX": "ap-osaka-1",
+        "PHX": "us-phoenix-1",
+        "SJC": "us-sanjose-1",
+        "GRU": "sa-saopaulo-1",
+        "SYD": "ap-sydney-1",
+        "NRT": "ap-tokyo-1",
+        "YYZ": "ca-toronto-1",
+        "ICN": "ap-seoul-1",
+        "HYD": "ap-hyderabad-1",
+        "MEL": "ap-melbourne-1",
+        "SIN": "ap-singapore-1",
+        "CDG": "eu-paris-1",
+        "ARN": "eu-stockholm-1",
+        "ZRH": "eu-zurich-1",
+        "MTZ": "il-jerusalem-1",
+        "LIN": "eu-milan-1",
+        "MRS": "eu-marseille-1",
+        "MAD": "eu-madrid-1",
+        "ORD": "us-chicago-1",
+        "SCL": "sa-santiago-1",
+        "VCP": "sa-vinhedo-1",
+        "QRO": "mx-queretaro-1",
+        "MTY": "mx-monterrey-1",
+        "BOG": "sa-bogota-1",
+        "VAP": "sa-valparaiso-1",
+    }
+    return region_map.get(region_key.upper(), region_key)

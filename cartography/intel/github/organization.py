@@ -1,4 +1,6 @@
+import json
 import logging
+import time
 from typing import Any
 from typing import Dict
 from typing import List
@@ -110,6 +112,7 @@ def sync(
         github_url: str,
         common_job_parameters: Dict[str, Any],
 ) -> None:
+    tic = time.perf_counter()
     logger.info("Syncing GitHub Organization")
 
     org_data = get_organization(github_api_key, github_url, github_org)
@@ -120,3 +123,12 @@ def sync(
         load_organization(neo4j_session, org_data, common_job_parameters)
 
     cleanup(neo4j_session, common_job_parameters)
+    logger.info(
+        json.dumps({
+            "event": "github_service_timing",
+            "org": github_org,
+            "service": "organization",
+            "duration_seconds": round(time.perf_counter() - tic, 4),
+            "status": "success",
+        }),
+    )

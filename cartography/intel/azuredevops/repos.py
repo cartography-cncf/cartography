@@ -309,3 +309,4 @@ def sync(
                     _update_repo_last_activity(neo4j_session, repo["id"], transformed_branches, default_branch)
 
     cleanup(neo4j_session, common_job_parameters)
+    logger.info(f"Processed repos for {len(projects)} projects in org '{organization_name}'")

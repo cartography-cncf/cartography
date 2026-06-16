@@ -30,7 +30,7 @@ def _get_vm_scale_set_vms_part_of_relations(
                     lambda x: x.as_dict(),
                     client.virtual_machine_scale_set_vms.list(
                         resource_group_name=vm_scale_set["resource_group"],
-                        vm_scale_set_name=vm_scale_set["name"],
+                        virtual_machine_scale_set_name=vm_scale_set["name"],
                     ),
                 ),
             )

@@ -10,7 +10,7 @@ marshmallow>=3.0.0rc7
 pyyaml>=5.3.1
 requests>=2.22.0
 statsd~=3.3.0
-packaging~=21.3
+packaging~=26.0
 netaddr~=0.8.0
 maya~=0.6.1
 pytz~=2022.6
@@ -19,8 +19,8 @@ click<8.0,>=7.0
 pyparsing==2.4.7
 markupsafe==2.0.1
 
-cloudconsolelink~=1.0.24
-sentry_sdk~=2.35.0
+cloudconsolelink~=4.0.1
+sentry-sdk~=2.60.0
 clouduniqueid~=1.0.3
 
 # Azure specific packages

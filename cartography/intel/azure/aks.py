@@ -1,4 +1,5 @@
 import logging
+import time
 from typing import Dict
 from typing import List
 
@@ -65,19 +66,22 @@ def load_containers(session: neo4j.Session, data_list: List[Dict], update_tag: i
 
 @timeit
 def get_client(credentials: Credentials, subscription_id: str) -> ContainerServiceClient:
-    client = ContainerServiceClient(credentials, subscription_id)
+    from .util.timing import get_timing_policy
+    client = ContainerServiceClient(credentials, subscription_id, per_call_policies=[get_timing_policy()])
     return client
 
 
 @timeit
 def get_container_registry_Client(credentials: Credentials, subscription_id: str) -> ContainerRegistryManagementClient:
-    client = ContainerRegistryManagementClient(credentials, subscription_id)
+    from .util.timing import get_timing_policy
+    client = ContainerRegistryManagementClient(credentials, subscription_id, per_call_policies=[get_timing_policy()])
     return client
 
 
 @timeit
 def get_container_instance_Client(credentials: Credentials, subscription_id: str) -> ContainerInstanceManagementClient:
-    client = ContainerInstanceManagementClient(credentials, subscription_id)
+    from .util.timing import get_timing_policy
+    client = ContainerInstanceManagementClient(credentials, subscription_id, per_call_policies=[get_timing_policy()])
     return client
 
 
@@ -231,17 +235,27 @@ def sync_aks(
     common_job_parameters: Dict,
     regions: list,
 ) -> None:
+    t0 = time.perf_counter()
     aks_managed_clusters_list = get_aks_managed_clusters_list(
         credentials, subscription_id, regions, common_job_parameters,
     )
-
-    load_aks_managed_clusters(neo4j_session, subscription_id, aks_managed_clusters_list, update_tag)
+    total_agent_pools = 0
     for cluster in aks_managed_clusters_list:
         agent_pools = get_aks_managed_cluster_agentpools_list(
             credentials, subscription_id, cluster["resource_group"], cluster["name"], common_job_parameters,
         )
-        load_aks_managed_cluster_agentpools(neo4j_session, cluster["id"], agent_pools, update_tag)
+        total_agent_pools += len(agent_pools)
+        cluster["_agent_pools"] = agent_pools
+    logger.info(
+        f"aks sub={subscription_id}: fetch done — {len(aks_managed_clusters_list)} clusters, "
+        f"{total_agent_pools} agent pools in {time.perf_counter() - t0:.2f}s",
+    )
+    t0 = time.perf_counter()
+    load_aks_managed_clusters(neo4j_session, subscription_id, aks_managed_clusters_list, update_tag)
+    for cluster in aks_managed_clusters_list:
+        load_aks_managed_cluster_agentpools(neo4j_session, cluster["id"], cluster.pop("_agent_pools"), update_tag)
     cleanup_aks(neo4j_session, common_job_parameters)
+    logger.info(f"aks sub={subscription_id}: Neo4j write done in {time.perf_counter() - t0:.2f}s")
 
 
 @timeit
@@ -249,14 +263,23 @@ def get_container_registries_list(
     client: ContainerRegistryManagementClient, regions: list, common_job_parameters: Dict,
 ) -> List[Dict]:
     try:
-        container_registries_list = list(map(lambda x: x.as_dict(), client.registries.list()))
+        container_registries_list = []
+        for x in client.registries.list():
+            try:
+                container_registries_list.append(x.as_dict())
+            except (KeyError, AttributeError) as e:
+                logger.warning("Skipping container registry due to serialization error: %s", e)
         registry_data = []
         for registry in container_registries_list:
             registry["resource_group"] = get_azure_resource_group_name(registry.get("id"))
-            registry["consolelink"] = azure_console_link.get_console_link(
-                id=registry["id"],
-                primary_ad_domain_name=common_job_parameters["Azure_Primary_AD_Domain_Name"],
-            )
+            try:
+                registry["consolelink"] = azure_console_link.get_console_link(
+                    id=registry["id"],
+                    primary_ad_domain_name=common_job_parameters["Azure_Primary_AD_Domain_Name"],
+                )
+            except (ValueError, KeyError) as e:
+                logger.warning("Could not generate console link for container registry %s: %s", registry.get("id"), e)
+                registry["consolelink"] = ""
             if regions is None:
                 registry_data.append(registry)
             else:
@@ -265,7 +288,7 @@ def get_container_registries_list(
 
         return registry_data
 
-    except HttpResponseError as e:
+    except (HttpResponseError, AttributeError) as e:
         logger.warning(f"Error while retrieving registries - {e}")
         return []
 

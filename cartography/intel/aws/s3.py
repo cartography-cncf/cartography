@@ -1,6 +1,7 @@
 import hashlib
 import json
 import logging
+import time
 from typing import Any
 from typing import Dict
 from typing import Generator
@@ -844,11 +845,16 @@ def sync(
     update_tag: int,
     common_job_parameters: Dict,
 ) -> None:
+    tic = time.perf_counter()
     logger.info("Syncing S3 for account '%s'.", current_aws_account_id)
     bucket_data = get_s3_bucket_list(boto3_session)
+    logger.info(f"s3 account={current_aws_account_id}: bucket list fetch done — {len(bucket_data)} buckets in {time.perf_counter() - tic:0.4f}s")
 
+    t1 = time.perf_counter()
     load_s3_buckets(neo4j_session, bucket_data, current_aws_account_id, update_tag)
+    logger.info(f"s3 account={current_aws_account_id}: bucket load done in {time.perf_counter() - t1:0.4f}s")
 
+    t1 = time.perf_counter()
     acl_and_policy_data_iter = get_s3_bucket_details(boto3_session, bucket_data)
     load_s3_details(
         neo4j_session,
@@ -860,6 +866,9 @@ def sync(
     )
     cleanup_s3_bucket_acl_and_policy(neo4j_session, common_job_parameters)
     cleanup_s3_buckets(neo4j_session, common_job_parameters)
+    toc = time.perf_counter()
+    logger.info(f"s3 account={current_aws_account_id}: details + cleanup done in {toc - t1:0.4f}s")
+    logger.info(f"Time to process AWS S3: {toc - tic:0.4f} seconds")
 
     merge_module_sync_metadata(
         neo4j_session,

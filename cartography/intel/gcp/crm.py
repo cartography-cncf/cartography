@@ -2,6 +2,7 @@
 # https://cloud.google.com/resource-manager/docs/cloud-platform-resource-hierarchy
 import hashlib
 import logging
+import time
 from string import Template
 from typing import Dict
 from typing import List
@@ -175,6 +176,7 @@ def load_gcp_projects(
     """
     query = """
     MERGE (w:GCPOrganization{id: $OrganizationId})
+    ON CREATE SET w.firstseen = timestamp()
     SET w.lastupdated = $gcp_update_tag
     WITH w
     MERGE (project:GCPProject{id: $ProjectId})
@@ -294,6 +296,7 @@ def sync_gcp_organizations(
     :param common_job_parameters: Parameters to carry to the Neo4j jobs
     :return: Nothing
     """
+    tic = time.perf_counter()
     logger.debug("Syncing GCP organizations")
     data = get_gcp_organizations(crm_v1)
     if not data:
@@ -306,6 +309,7 @@ def sync_gcp_organizations(
     common_job_parameters['GCP_ORGANIZATION_ID'] = data[0]['name']
     load_gcp_organizations(neo4j_session, data, gcp_update_tag, common_job_parameters)
     cleanup_gcp_organizations(neo4j_session, common_job_parameters)
+    logger.info(f"Time to process GCP CRM organizations: {time.perf_counter() - tic:0.4f} seconds")
 
 
 @timeit
@@ -322,10 +326,12 @@ def sync_gcp_folders(
     :param common_job_parameters: Parameters to carry to the Neo4j jobs
     :return: Nothing
     """
+    tic = time.perf_counter()
     logger.debug("Syncing GCP folders")
     folders = get_gcp_folders(crm_v2)
     load_gcp_folders(neo4j_session, folders, gcp_update_tag)
     cleanup_gcp_folders(neo4j_session, common_job_parameters)
+    logger.info(f"Time to process GCP CRM folders ({len(folders)} folders): {time.perf_counter() - tic:0.4f} seconds")
 
 
 @timeit
@@ -341,6 +347,8 @@ def sync_gcp_projects(
     :param common_job_parameters: Parameters to carry to the Neo4j jobs
     :return: Nothing
     """
+    tic = time.perf_counter()
     logger.debug("Syncing GCP projects")
     load_gcp_projects(neo4j_session, projects, gcp_update_tag, common_job_parameters, crm_v2)
     cleanup_gcp_projects(neo4j_session, common_job_parameters)
+    logger.info(f"Time to process GCP CRM projects ({len(projects)} projects): {time.perf_counter() - tic:0.4f} seconds")

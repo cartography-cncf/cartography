@@ -1,4 +1,5 @@
 import logging
+import time
 from typing import Any
 from typing import Dict
 from typing import List
@@ -7,6 +8,7 @@ import neo4j
 import oci
 
 from . import utils
+from .iam import _oci_compartment_managed_type
 from cartography.util import run_cleanup_job
 from cartography.util import timeit
 
@@ -83,18 +85,20 @@ def load_oci_compartments(
     Ingest OCI compartments into Neo4j and link to tenancy via OWNER relationship.
     """
     query = """
-    MERGE (t:OCITenancy{ocid: $TENANCY_ID})
+    MERGE (t:OCITenancy{id: $TENANCY_ID})
     ON CREATE SET t.firstseen = timestamp()
-    SET t.lastupdated = $update_tag
+    SET t.ocid = $TENANCY_ID, t.lastupdated = $update_tag
     WITH t
-    MERGE (c:OCICompartment{ocid: $COMPARTMENT_ID})
+    MERGE (c:OCICompartment{id: $COMPARTMENT_ID})
     ON CREATE SET c.firstseen = timestamp(),
     c.createdate = $TIME_CREATED
-    SET c.lastupdated = $update_tag,
+    SET c.ocid = $COMPARTMENT_ID,
+    c.lastupdated = $update_tag,
     c.name = $COMPARTMENT_NAME,
     c.description = $DESCRIPTION,
     c.lifecycle_state = $LIFECYCLE_STATE,
-    c.compartmentid = $PARENT_COMPARTMENT_ID
+    c.compartmentid = $PARENT_COMPARTMENT_ID,
+    c.managed_type = $MANAGED_TYPE
     WITH t, c
     MERGE (t)-[r:OWNER]->(c)
     ON CREATE SET r.firstseen = timestamp()
@@ -110,6 +114,7 @@ def load_oci_compartments(
             LIFECYCLE_STATE=comp.get('lifecycleState', ''),
             TIME_CREATED=comp.get('timeCreated', ''),
             PARENT_COMPARTMENT_ID=comp.get('parentCompartmentId', tenancy_id),
+            MANAGED_TYPE=_oci_compartment_managed_type(comp, tenancy_id),
             update_tag=update_tag,
         )
 
@@ -130,6 +135,8 @@ def sync(
     Sync OCI compartments into Neo4j.
     Similar to Azure's subscription.sync.
     """
+    tic = time.perf_counter()
+    logger.info(f"Syncing OCI compartments for tenancy '{tenancy_id}'")
     load_oci_compartments(neo4j_session, tenancy_id, compartments, update_tag, common_job_parameters)
 
     for comp in compartments:
@@ -140,3 +147,5 @@ def sync(
 
     del common_job_parameters['OCI_COMPARTMENT_ID']
     del common_job_parameters['OCI_TENANCY_ID']
+    toc = time.perf_counter()
+    logger.info(f"Time to process OCI compartments for tenancy '{tenancy_id}' ({len(compartments)} compartments): {toc - tic:0.4f} seconds")

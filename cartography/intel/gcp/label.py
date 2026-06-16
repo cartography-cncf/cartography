@@ -1,5 +1,6 @@
 import logging
 import math
+import time
 from typing import Dict
 from typing import List
 
@@ -89,6 +90,7 @@ def sync_labels(
     neo4j_session: neo4j.Session, data: List[Dict], update_tag: int, common_job_parameters: Dict,
     service_name: str, service_label: str,
 ) -> None:
+    tic = time.perf_counter()
     common_job_parameters['service_labels'].append(service_label)
     if len(data) > 0:
         labels_list = get_labels_list(data)
@@ -96,3 +98,4 @@ def sync_labels(
             logger.info(f"BEGIN Loading {len(labels_list)} Labels for {service_name}")
             load_labels(neo4j_session, labels_list, update_tag, common_job_parameters, service_label)
             logger.info(f"END Loading Labels for {service_name}")
+    logger.info(f"Time to process GCP labels for {service_name}: {time.perf_counter() - tic:0.4f} seconds")

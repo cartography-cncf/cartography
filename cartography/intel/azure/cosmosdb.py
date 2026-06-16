@@ -1,5 +1,6 @@
 import ipaddress
 import logging
+import time
 import uuid
 from typing import Any
 from typing import Dict
@@ -28,7 +29,8 @@ def get_client(credentials: Credentials, subscription_id: str) -> CosmosDBManage
     """
     Getting the CosmosDB client
     """
-    client = CosmosDBManagementClient(credentials, subscription_id)
+    from .util.timing import get_timing_policy
+    client = CosmosDBManagementClient(credentials, subscription_id, per_call_policies=[get_timing_policy()])
     return client
 
 
@@ -1302,12 +1304,20 @@ def sync(
         sync_tag: int, common_job_parameters: Dict, regions: list,
 ) -> None:
     logger.info("Syncing Azure CosmosDB for subscription '%s'.", subscription_id)
+    t0 = time.perf_counter()
     database_account_list = get_database_account_list(credentials, subscription_id, regions, common_job_parameters)
     database_account_list = transform_database_account_data(database_account_list)
+    logger.info(f"cosmosdb sub={subscription_id}: account fetch done — {len(database_account_list)} accounts in {time.perf_counter() - t0:.2f}s")
+    t0 = time.perf_counter()
     load_database_account_data(neo4j_session, subscription_id, database_account_list, sync_tag)
+    logger.info(f"cosmosdb sub={subscription_id}: account load done in {time.perf_counter() - t0:.2f}s")
+    t0 = time.perf_counter()
     sync_database_account_data_resources(neo4j_session, subscription_id, database_account_list, sync_tag, common_job_parameters)
+    logger.info(f"cosmosdb sub={subscription_id}: data resources sync done in {time.perf_counter() - t0:.2f}s")
+    t0 = time.perf_counter()
     sync_database_account_details(
         neo4j_session, credentials, subscription_id, database_account_list, sync_tag,
         common_job_parameters,
     )
     cleanup_azure_database_accounts(neo4j_session, common_job_parameters)
+    logger.info(f"cosmosdb sub={subscription_id}: account details + cleanup done in {time.perf_counter() - t0:.2f}s")

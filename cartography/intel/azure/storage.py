@@ -1,4 +1,6 @@
 import logging
+import time
+from concurrent.futures import ThreadPoolExecutor
 from typing import Any
 from typing import Dict
 from typing import Generator
@@ -13,6 +15,7 @@ from azure.mgmt.storage import StorageManagementClient
 from cloudconsolelink.clouds.azure import AzureLinker
 
 from .util.credentials import Credentials
+from .util.timing import get_timing_policy
 from cartography.util import get_azure_resource_group_name
 from cartography.util import run_cleanup_job
 from cartography.util import timeit
@@ -26,7 +29,7 @@ def get_client(credentials: Credentials, subscription_id: str) -> StorageManagem
     """
     Getting the Azure Storage client
     """
-    client = StorageManagementClient(credentials, subscription_id)
+    client = StorageManagementClient(credentials, subscription_id, per_call_policies=[get_timing_policy()])
     return client
 
 
@@ -149,14 +152,14 @@ def get_storage_account_details(
     Iterates over all Storage Accounts to get the different storage services.
     """
     for storage_account in storage_account_list:
-        queue_services = get_queue_services(credentials, subscription_id, storage_account)
-        table_services = get_table_services(credentials, subscription_id, storage_account)
-        file_services = get_file_services(credentials, subscription_id, storage_account)
-        blob_services = get_blob_services(credentials, subscription_id, storage_account)
-
+        with ThreadPoolExecutor(max_workers=4) as pool:
+            f_queue = pool.submit(get_queue_services, credentials, subscription_id, storage_account)
+            f_table = pool.submit(get_table_services, credentials, subscription_id, storage_account)
+            f_file = pool.submit(get_file_services, credentials, subscription_id, storage_account)
+            f_blob = pool.submit(get_blob_services, credentials, subscription_id, storage_account)
         yield storage_account['id'], storage_account['name'], storage_account[
             'resourceGroup'
-        ], queue_services, table_services, file_services, blob_services
+        ], f_queue.result(), f_table.result(), f_file.result(), f_blob.result()
 
 
 @timeit
@@ -1052,10 +1055,16 @@ def sync(
         sync_tag: int, common_job_parameters: Dict, regions: list,
 ) -> None:
     logger.info("Syncing Azure Storage for subscription '%s'.", subscription_id)
+    t0 = time.perf_counter()
     storage_account_list = get_storage_account_list(credentials, subscription_id, regions, common_job_parameters)
+    logger.info(f"storage sub={subscription_id}: account fetch done — {len(storage_account_list)} accounts in {time.perf_counter() - t0:.2f}s")
+    t0 = time.perf_counter()
     load_storage_account_data(neo4j_session, subscription_id, storage_account_list, sync_tag)
+    logger.info(f"storage sub={subscription_id}: account load done in {time.perf_counter() - t0:.2f}s")
+    t0 = time.perf_counter()
     sync_storage_account_details(
         neo4j_session, credentials, subscription_id,
         storage_account_list, sync_tag, common_job_parameters,
     )
     cleanup_azure_storage_accounts(neo4j_session, common_job_parameters)
+    logger.info(f"storage sub={subscription_id}: details + cleanup done in {time.perf_counter() - t0:.2f}s")

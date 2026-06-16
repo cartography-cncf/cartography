@@ -1,4 +1,5 @@
 import logging
+import time
 from typing import Dict
 from typing import List
 
@@ -24,7 +25,8 @@ def load_monitor_log_profiles(session: neo4j.Session, subscription_id: str, data
 
 @timeit
 def get_monitoring_client(credentials: Credentials, subscription_id: str) -> MonitorManagementClient:
-    client = MonitorManagementClient(credentials, subscription_id)
+    from .util.timing import get_timing_policy
+    client = MonitorManagementClient(credentials, subscription_id, per_call_policies=[get_timing_policy()])
     return client
 
 
@@ -122,12 +124,15 @@ def sync_monitor_log_profiles(
     neo4j_session: neo4j.Session, credentials: Credentials, subscription_id: str, update_tag: int,
     common_job_parameters: Dict, regions: list,
 ) -> None:
+    t0 = time.perf_counter()
     client = get_monitoring_client(credentials, subscription_id)
     log_profiles = get_log_profiles_list(client, regions, common_job_parameters)
     log_profiles_list = transform_log_profiles(log_profiles, regions, common_job_parameters)
-
+    logger.info(f"monitor sub={subscription_id}: log profiles fetch done — {len(log_profiles_list)} profiles in {time.perf_counter() - t0:.2f}s")
+    t0 = time.perf_counter()
     load_monitor_log_profiles(neo4j_session, subscription_id, log_profiles_list, update_tag)
     cleanup_monitor_log_profiles(neo4j_session, common_job_parameters)
+    logger.info(f"monitor sub={subscription_id}: log profiles Neo4j write done in {time.perf_counter() - t0:.2f}s")
 
 
 @timeit
