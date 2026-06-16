@@ -33,6 +33,7 @@ from botocore.exceptions import ReadTimeoutError
 from botocore.parsers import ResponseParserError
 
 from cartography import helpers
+from cartography.graph.analysis import AnalysisJob
 from cartography.graph.job import GraphJob
 from cartography.graph.statement import get_job_shortname
 from cartography.stats import get_stats_client
@@ -74,7 +75,7 @@ def backoff_handler(details: Dict) -> None:
 
 
 def run_analysis_job(
-    filename: str,
+    filename: str | AnalysisJob,
     neo4j_session: neo4j.Session,
     common_job_parameters: Dict,
     package: str = "cartography.data.jobs.analysis",
@@ -119,6 +120,14 @@ def run_analysis_job(
         The job file must be a valid JSON file containing GraphJob-compatible
         query definitions.
     """
+    if isinstance(filename, AnalysisJob):
+        job = filename.to_graph_job()
+        params = dict(common_job_parameters or {})
+        params.setdefault("ANALYSIS_JOB", filename.short_name or filename.name)
+        job.merge_parameters(params)
+        job.run(neo4j_session)
+        return
+
     GraphJob.run_from_json(
         neo4j_session,
         read_text(
