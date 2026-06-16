@@ -213,6 +213,7 @@ def oci_process_request(logger, params):
             "tenancyOCID": params.get("tenancyOcid"),
             "compartmentOCID": params.get("compartmentOcid"),
             "defaultRegion": params.get("homeRegion", "PHX"),
+            "regions": params.get("regions"),
             "userOcid": params.get("userOcid"),
             "fingerprint": params.get("fingerprint"),
         },
