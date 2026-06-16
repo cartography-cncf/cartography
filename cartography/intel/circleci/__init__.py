@@ -10,10 +10,12 @@ import cartography.intel.circleci.context_env_vars
 import cartography.intel.circleci.contexts
 import cartography.intel.circleci.oidc
 import cartography.intel.circleci.organizations
+import cartography.intel.circleci.pipeline_definitions
 import cartography.intel.circleci.pipelines
 import cartography.intel.circleci.project_env_vars
 import cartography.intel.circleci.projects
 import cartography.intel.circleci.schedules
+import cartography.intel.circleci.triggers
 import cartography.intel.circleci.users
 import cartography.intel.circleci.webhooks
 from cartography.config import Config
@@ -130,4 +132,17 @@ def start_circleci_ingestion(neo4j_session: neo4j.Session, config: Config) -> No
             )
             cartography.intel.circleci.pipelines.sync(
                 neo4j_session, api_session, project_job_parameters, slug
+            )
+            definitions = cartography.intel.circleci.pipeline_definitions.sync(
+                neo4j_session, api_session, project_job_parameters
+            )
+            cartography.intel.circleci.triggers.sync(
+                neo4j_session, api_session, project_job_parameters, definitions
+            )
+            cartography.intel.circleci.oidc.sync_project(
+                neo4j_session,
+                api_session,
+                project_job_parameters,
+                project["organization_id"],
+                project["id"],
             )

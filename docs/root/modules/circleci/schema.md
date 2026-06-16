@@ -13,6 +13,10 @@ P -- RESOURCE --> CK(CheckoutKey)
 P -- RESOURCE --> W(Webhook)
 P -- RESOURCE --> S(Schedule)
 P -- RESOURCE --> PL(Pipeline)
+P -- RESOURCE --> PD(PipelineDefinition)
+P -- RESOURCE --> TR(Trigger)
+P -- RESOURCE --> POIDC(ProjectOidcConfig)
+PD -- HAS_TRIGGER --> TR
 ```
 
 Project-scoped nodes (Project and everything below it) are only synced for the project slugs passed via `--circleci-project-slugs`; CircleCI API v2 cannot enumerate an organization's projects.
@@ -240,4 +244,75 @@ Represents a pipeline run (`GET /project/{slug}/pipeline`). Pagination is capped
 - A pipeline belongs to a project.
     ```
     (:CircleCIProject)-[:RESOURCE]->(:CircleCIPipeline)
+    ```
+
+### CircleCIPipelineDefinition
+
+Represents a pipeline definition (the config/source binding, `GET /projects/{project_id}/pipeline-definitions`). Distinct from a pipeline run.
+
+| Field | Description |
+|-------|-------------|
+| **id** | Pipeline definition ID. |
+| firstseen | Timestamp of when a sync job first created this node. |
+| lastupdated | Timestamp of the last time the node was updated. |
+| **name** | Definition name. |
+| description | Definition description. |
+| created_at | Creation timestamp. |
+| config_source_provider | Provider of the config source (e.g. `github_app`). |
+| config_source_repo | Repository holding the config. |
+| config_source_file_path | Path to the config file. |
+| checkout_source_provider | Provider of the checkout source. |
+| checkout_source_repo | Repository checked out. |
+
+#### Relationships
+- A pipeline definition belongs to a project.
+    ```
+    (:CircleCIProject)-[:RESOURCE]->(:CircleCIPipelineDefinition)
+    ```
+
+### CircleCITrigger
+
+Represents a trigger attached to a pipeline definition (`GET /projects/{id}/pipeline-definitions/{def_id}/triggers`).
+
+| Field | Description |
+|-------|-------------|
+| **id** | Trigger ID. |
+| firstseen | Timestamp of when a sync job first created this node. |
+| lastupdated | Timestamp of the last time the node was updated. |
+| **event_name** | Event the trigger fires on (e.g. `push`). |
+| event_preset | Event preset. |
+| event_source_provider | Provider of the event source. |
+| checkout_ref | Ref to check out. |
+| config_ref | Ref to read config from. |
+| disabled | Whether the trigger is disabled. |
+| pipeline_definition_id | ID of the owning pipeline definition. |
+
+#### Relationships
+- A trigger belongs to a project and to a pipeline definition.
+    ```
+    (:CircleCIProject)-[:RESOURCE]->(:CircleCITrigger)
+    (:CircleCIPipelineDefinition)-[:HAS_TRIGGER]->(:CircleCITrigger)
+    ```
+
+### CircleCIProjectOidcConfig
+
+Represents a project's OIDC custom-claims configuration (`GET /org/{orgID}/project/{projectID}/oidc-custom-claims`). Same shape as the org-level config, scoped to a project.
+
+| Field | Description |
+|-------|-------------|
+| **id** | The project ID (one project-level config per project). |
+| firstseen | Timestamp of when a sync job first created this node. |
+| lastupdated | Timestamp of the last time the node was updated. |
+| scope | `project`. |
+| audience | List of trusted OIDC audiences. |
+| audience_updated_at | When the audience was last changed. |
+| ttl | Token time-to-live. |
+| ttl_updated_at | When the TTL was last changed. |
+| org_id | Owning organization ID. |
+| project_id | Owning project ID. |
+
+#### Relationships
+- A project OIDC config belongs to a project.
+    ```
+    (:CircleCIProject)-[:RESOURCE]->(:CircleCIProjectOidcConfig)
     ```
