@@ -444,9 +444,20 @@ CLEANUP_CASES = [
         id="gcp_compute_cloudrun_exposure",
     ),
     pytest.param(
-        RelationshipEffect("GCPFirewall", "FIREWALL_INGRESS", "GCPInstance"),
+        RelationshipEffect(
+            "GCPFirewall",
+            "FIREWALL_INGRESS",
+            "GCPInstance",
+            scoped_to="target",
+        ),
         GCP,
-        _rel_cleanup("GCPFirewall", "FIREWALL_INGRESS", "GCPInstance", scope=GCP),
+        _rel_cleanup(
+            "GCPFirewall",
+            "FIREWALL_INGRESS",
+            "GCPInstance",
+            scope=GCP,
+            scoped_to="target",
+        ),
         id="gcp_compute_firewall_ingress",
     ),
     pytest.param(
