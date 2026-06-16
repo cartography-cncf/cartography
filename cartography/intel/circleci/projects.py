@@ -6,7 +6,6 @@ import neo4j
 import requests
 
 from cartography.client.core.tx import load
-from cartography.graph.job import GraphJob
 from cartography.intel.circleci.util import _TIMEOUT
 from cartography.intel.circleci.util import paginated_get
 from cartography.models.circleci.project import CircleCIProjectSchema
@@ -52,8 +51,15 @@ def sync(
         raw = get(api_session, common_job_parameters["BASE_URL"], slug)
         projects.append(transform(raw))
 
-    # Group by org so cleanup is scoped per-org and one configured project's
-    # cleanup cannot delete a sibling project in the same org.
+    # NOTE: projects are upserted but never cleaned up org-wide. The input set is
+    # a best-effort, partial enumeration (the pipeline feed only surfaces recently
+    # built projects, capped at a few pages, plus operator-configured slugs) - it
+    # is never the complete list of an org's projects, because API v2 has no
+    # list-projects endpoint. An org-scoped cleanup would therefore delete real
+    # projects (and orphan their resources) the moment they drop out of the feed.
+    # Per-project sub-resources are still cleaned within their own PROJECT_ID
+    # scope, which is safe because a synced project IS fully enumerated.
+    # Group by org because the RESOURCE rel matcher needs a single ORG_ID per load.
     by_org: dict[str, list[dict[str, Any]]] = defaultdict(list)
     for project in projects:
         by_org[project["organization_id"]].append(project)
@@ -64,7 +70,6 @@ def sync(
             org_id,
             common_job_parameters["UPDATE_TAG"],
         )
-        cleanup(neo4j_session, {**common_job_parameters, "ORG_ID": org_id})
     return projects
 
 
@@ -107,14 +112,4 @@ def load_projects(
         data,
         lastupdated=update_tag,
         ORG_ID=org_id,
-    )
-
-
-@timeit
-def cleanup(
-    neo4j_session: neo4j.Session,
-    common_job_parameters: dict[str, Any],
-) -> None:
-    GraphJob.from_node_schema(CircleCIProjectSchema(), common_job_parameters).run(
-        neo4j_session,
     )
