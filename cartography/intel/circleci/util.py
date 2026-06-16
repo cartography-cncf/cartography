@@ -3,12 +3,17 @@ from datetime import datetime
 from typing import Any
 
 import requests
+from dateutil.parser import isoparse
 
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
 
 _TIMEOUT = (60, 60)
+
+# Status codes that mean "this feature/resource is not available or not visible
+# to this token" rather than a hard failure - we skip and keep going.
+_SKIPPABLE_STATUS = (403, 404)
 
 
 def flatten_labels(labels: list[dict[str, Any]] | None) -> list[str]:
@@ -21,13 +26,13 @@ def flatten_labels(labels: list[dict[str, Any]] | None) -> list[str]:
 
 def parse_iso(value: str | None) -> datetime | None:
     """
-    Convert a CircleCI ISO 8601 timestamp (e.g. "2021-09-01T12:00:00Z") to a
-    timezone-aware datetime so Neo4j stores a native temporal type. Returns None
-    when the field is absent.
+    Convert a CircleCI ISO 8601 / RFC 3339 timestamp (e.g. "2021-09-01T12:00:00Z")
+    to a timezone-aware datetime so Neo4j stores a native temporal type. Returns
+    None when the field is absent.
     """
     if not value:
         return None
-    return datetime.fromisoformat(value.replace("Z", "+00:00"))
+    return isoparse(value)
 
 
 @timeit
@@ -55,6 +60,15 @@ def paginated_get(
 
     while True:
         resp = api_session.get(url, params=request_params, timeout=_TIMEOUT)
+        # A 403/404 means the feature is plan-gated or the token cannot see this
+        # resource; skip it and return what we have rather than aborting the sync.
+        if resp.status_code in _SKIPPABLE_STATUS:
+            logger.warning(
+                "CircleCI returned %d for %s; skipping (feature unavailable or no access).",
+                resp.status_code,
+                url,
+            )
+            return all_items
         resp.raise_for_status()
         data = resp.json()
 

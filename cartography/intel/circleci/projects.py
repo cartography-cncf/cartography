@@ -48,7 +48,16 @@ def sync(
 ) -> list[dict[str, Any]]:
     projects: list[dict[str, Any]] = []
     for slug in project_slugs:
-        raw = get(api_session, common_job_parameters["BASE_URL"], slug)
+        try:
+            raw = get(api_session, common_job_parameters["BASE_URL"], slug)
+        except requests.exceptions.HTTPError as exc:
+            status = exc.response.status_code if exc.response is not None else None
+            if status in (403, 404):
+                logger.warning(
+                    "CircleCI project %s not accessible (%s); skipping.", slug, status
+                )
+                continue
+            raise
         projects.append(transform(raw))
 
     # NOTE: projects are upserted but never cleaned up org-wide. The input set is

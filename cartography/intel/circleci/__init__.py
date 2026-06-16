@@ -105,34 +105,43 @@ def start_circleci_ingestion(neo4j_session: neo4j.Session, config: Config) -> No
                 "PROJECT_ID": project["id"],
             }
             slug = project["slug"]
-            cartography.intel.circleci.project_env_vars.sync(
-                neo4j_session, api_session, project_job_parameters, slug
-            )
-            cartography.intel.circleci.checkout_keys.sync(
-                neo4j_session, api_session, project_job_parameters, slug
-            )
-            cartography.intel.circleci.webhooks.sync(
-                neo4j_session, api_session, project_job_parameters, slug
-            )
-            cartography.intel.circleci.schedules.sync(
-                neo4j_session, api_session, project_job_parameters, slug
-            )
-            cartography.intel.circleci.pipelines.sync(
-                neo4j_session, api_session, project_job_parameters, slug
-            )
-            definitions = cartography.intel.circleci.pipeline_definitions.sync(
-                neo4j_session, api_session, project_job_parameters
-            )
-            cartography.intel.circleci.triggers.sync(
-                neo4j_session, api_session, project_job_parameters, definitions
-            )
-            cartography.intel.circleci.oidc.sync_project(
-                neo4j_session,
-                api_session,
-                project_job_parameters,
-                project["organization_id"],
-                project["id"],
-            )
+            # Isolate per-project failures so one inaccessible/erroring project
+            # does not abort the remaining projects and org-scoped resources.
+            try:
+                cartography.intel.circleci.project_env_vars.sync(
+                    neo4j_session, api_session, project_job_parameters, slug
+                )
+                cartography.intel.circleci.checkout_keys.sync(
+                    neo4j_session, api_session, project_job_parameters, slug
+                )
+                cartography.intel.circleci.webhooks.sync(
+                    neo4j_session, api_session, project_job_parameters, slug
+                )
+                cartography.intel.circleci.schedules.sync(
+                    neo4j_session, api_session, project_job_parameters, slug
+                )
+                cartography.intel.circleci.pipelines.sync(
+                    neo4j_session, api_session, project_job_parameters, slug
+                )
+                definitions = cartography.intel.circleci.pipeline_definitions.sync(
+                    neo4j_session, api_session, project_job_parameters
+                )
+                cartography.intel.circleci.triggers.sync(
+                    neo4j_session, api_session, project_job_parameters, definitions
+                )
+                cartography.intel.circleci.oidc.sync_project(
+                    neo4j_session,
+                    api_session,
+                    project_job_parameters,
+                    project["organization_id"],
+                    project["id"],
+                )
+            except requests.exceptions.HTTPError as exc:
+                logger.warning(
+                    "Skipping remaining resources for CircleCI project %s due to API error: %s",
+                    slug,
+                    exc,
+                )
 
     # Org-scoped resources. Contexts link to their restricted projects here via
     # the one-to-many RESTRICTED_TO relationship (projects already ingested above).
