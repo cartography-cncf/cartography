@@ -7,6 +7,7 @@ from cartography.intel.kubernetes.namespaces import load_namespaces
 from cartography.intel.kubernetes.pods import load_containers
 from cartography.intel.kubernetes.pods import load_pods
 from cartography.intel.kubernetes.services import load_services
+from cartography.models.aws.analysis import AWS_EC2_ASSET_EXPOSURE_JOBS
 from cartography.util import run_analysis_job
 from cartography.util import run_scoped_analysis_job
 from tests.data.kubernetes.exposure import build_exposure_test_data
@@ -222,9 +223,8 @@ def test_nlb_internet_exposure_propagates_to_kubernetes_compute(neo4j_session):
         "AWS_ID": case["aws_account_id"],
     }
 
-    run_analysis_job(
-        "aws_ec2_asset_exposure.json", neo4j_session, common_job_parameters
-    )
+    for job in AWS_EC2_ASSET_EXPOSURE_JOBS:
+        run_analysis_job(job, neo4j_session, common_job_parameters)
     run_scoped_analysis_job(
         "k8s_compute_asset_exposure.json", neo4j_session, common_job_parameters
     )

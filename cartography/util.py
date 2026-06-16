@@ -138,7 +138,7 @@ def run_analysis_job(
 
 
 def run_analysis_and_ensure_deps(
-    analysis_job_name: str,
+    analysis_job_name: str | AnalysisJob,
     resource_dependencies: Set[str],
     requested_syncs: Set[str],
     common_job_parameters: Dict[str, Any],
