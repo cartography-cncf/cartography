@@ -470,6 +470,11 @@ def load_permission_relationships_cartesian_product(
             f"{matchlink_schema.rel_label} {matchlink_schema.target_node_label} permissions for {scope_description}"
         ),
         lastupdated=update_tag,
+        # The bulk path only handles unconditional grants; set the condition fields
+        # explicitly so a prior conditional edge on the same pair is cleared.
+        has_condition=False,
+        condition_title=None,
+        condition_expression=None,
         _sub_resource_label="GCPProject",
         _sub_resource_id=project_id,
     )

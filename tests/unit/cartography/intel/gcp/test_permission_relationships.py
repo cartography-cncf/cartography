@@ -495,6 +495,9 @@ def test_load_permission_relationships_cartesian_product_uses_core_cartesian_pro
             "CAN_READ GCPBigQueryTable permissions for project project-abc"
         ),
         lastupdated=TEST_UPDATE_TAG,
+        has_condition=False,
+        condition_title=None,
+        condition_expression=None,
         _sub_resource_label="GCPProject",
         _sub_resource_id=TEST_PROJECT_ID,
     )

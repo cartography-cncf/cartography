@@ -22,6 +22,14 @@ class GCPPermissionRelProperties(CartographyRelProperties):
 
     # Required fields for MatchLinks
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    # Constant condition fields (always unconditional on the bulk path). Set so a
+    # conditional -> unconditional transition clears stale metadata left by a prior
+    # sync that wrote the same edge via the row-by-row conditional schema.
+    has_condition: PropertyRef = PropertyRef("has_condition", set_in_kwargs=True)
+    condition_title: PropertyRef = PropertyRef("condition_title", set_in_kwargs=True)
+    condition_expression: PropertyRef = PropertyRef(
+        "condition_expression", set_in_kwargs=True
+    )
     _sub_resource_label: PropertyRef = PropertyRef(
         "_sub_resource_label", set_in_kwargs=True
     )

@@ -714,3 +714,110 @@ def test_sync_gcp_permission_relationships_flags_conditional_edges(
         """,
     ).single()["has_condition"]
     assert open_has_condition is False
+
+
+@patch.object(
+    cartography.intel.gcp.permission_relationships,
+    "parse_permission_relationships_file",
+    return_value=[
+        {
+            "target_label": "GCPBucket",
+            "permissions": ["storage.objects.get"],
+            "relationship_name": "CAN_READ",
+        },
+    ],
+)
+def test_sync_gcp_permission_relationships_clears_stale_condition_on_transition(
+    mock_parse_yaml,
+    neo4j_session,
+):
+    """
+    If an edge was written conditional (row-by-row) and a later sync routes the same
+    now-unconditional grant through the bulk Cartesian path, the stale condition
+    metadata must be cleared, not left behind. Regression for PR #2891 review.
+    """
+    # Arrange
+    neo4j_session.run("MATCH (n) DETACH DELETE n")
+    _create_test_project(neo4j_session)
+    neo4j_session.run(
+        """
+        MATCH (project:GCPProject{id: $project_id})
+        MERGE (b:GCPBucket{id: "bucket-1"})
+        ON CREATE SET b.firstseen = timestamp()
+        SET b.lastupdated = $update_tag
+        MERGE (project)-[r:RESOURCE]->(b)
+        SET r.lastupdated = $update_tag
+        MERGE (p:GCPPrincipal{email: "dev@example.com"})
+        ON CREATE SET p.firstseen = timestamp()
+        SET p.lastupdated = $update_tag
+        """,
+        project_id=TEST_PROJECT_ID,
+        update_tag=TEST_UPDATE_TAG,
+    )
+
+    def _compiled(scope: str):
+        return cartography.intel.gcp.permission_relationships.compile_gcp_regex(scope)
+
+    perms = cartography.intel.gcp.permission_relationships.compile_permissions(
+        {"permissions": ["storage.objects.get"], "denied_permissions": []}
+    )
+
+    # First sync: a conditional, bucket-specific grant -> row-by-row -> has_condition.
+    cartography.intel.gcp.permission_relationships.sync(
+        neo4j_session,
+        TEST_PROJECT_ID,
+        TEST_UPDATE_TAG,
+        COMMON_JOB_PARAMS,
+        {
+            "dev@example.com": {
+                "binding-conditional": {
+                    "permissions": perms,
+                    "scope": _compiled("project/project-abc/resource/buckets/bucket-1"),
+                    "has_condition": True,
+                    "condition_title": "business-hours",
+                    "condition_expression": "request.time.getHours() < 18",
+                },
+            },
+        },
+    )
+    assert (
+        neo4j_session.run(
+            """
+            MATCH (:GCPPrincipal{email: "dev@example.com"})-[r:CAN_READ]->(:GCPBucket{id: "bucket-1"})
+            RETURN r.has_condition AS has_condition
+            """,
+        ).single()["has_condition"]
+        is True
+    )
+
+    # Second sync: same grant is now unconditional and project-wide -> bulk path.
+    cartography.intel.gcp.permission_relationships.sync(
+        neo4j_session,
+        TEST_PROJECT_ID,
+        TEST_UPDATE_TAG + 1,
+        COMMON_JOB_PARAMS,
+        {
+            "dev@example.com": {
+                "binding-open": {
+                    "permissions": perms,
+                    "scope": _compiled("project/project-abc/*"),
+                    "has_condition": False,
+                    "condition_title": None,
+                    "condition_expression": None,
+                },
+            },
+        },
+    )
+
+    # Assert: stale condition metadata is cleared.
+    edge = neo4j_session.run(
+        """
+        MATCH (:GCPPrincipal{email: "dev@example.com"})-[r:CAN_READ]->(:GCPBucket{id: "bucket-1"})
+        RETURN r.has_condition AS has_condition,
+               r.condition_title AS condition_title,
+               r.condition_expression AS condition_expression
+        """,
+    ).single()
+    assert edge["has_condition"] is False
+    assert edge["condition_title"] is None
+    assert edge["condition_expression"] is None

@@ -45,11 +45,11 @@ GCP IAM bindings can carry a [condition](https://cloud.google.com/iam/docs/condi
 Exclude conditionally-gated access from an analysis:
 ```cypher
 MATCH (p:GCPPrincipal)-[r:CAN_READ]->(b:GCPBucket)
-WHERE NOT coalesce(r.has_condition, false)
+WHERE NOT r.has_condition
 RETURN p.email, b.id
 ```
 
-> Note: broad project- and dataset-scope grants are bulk-loaded for performance and only carry condition metadata when they are conditional (conditional grants are always evaluated per-resource). Unconditional broad grants may leave `has_condition` unset (null), which `coalesce(r.has_condition, false)` treats as unconditional.
+> Note: conditional grants are always evaluated per-resource (row-by-row), so they carry their condition metadata; broad unconditional grants are bulk-loaded and set `has_condition = false` explicitly (clearing any stale metadata if the same edge was previously conditional).
 
 #### Supported principal types
 
