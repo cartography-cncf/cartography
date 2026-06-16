@@ -72,3 +72,46 @@ def test_load_circleci_projects(mock_api, neo4j_session):
         ("proj-1", TEST_ORG_ID),
         ("proj-2", TEST_ORG_ID),
     }
+
+
+@patch.object(cartography.intel.circleci.projects, "get", side_effect=_fake_get)
+def test_circleci_project_builds_repo(mock_api, neo4j_session):
+    """A project links to its GitHub/GitLab repo via BUILDS when the repo exists."""
+    # Arrange: pre-create the VCS nodes the CircleCI projects should attach to.
+    neo4j_session.run("MERGE (r:GitHubRepository {url: 'https://github.com/acme/web'})")
+    neo4j_session.run(
+        "MERGE (p:GitLabProject {web_url: 'https://github.com/acme/api'})"
+    )
+    _ensure_local_neo4j_has_test_orgs(neo4j_session)
+    api_session = requests.Session()
+    common_job_parameters = {"UPDATE_TAG": TEST_UPDATE_TAG, "BASE_URL": TEST_BASE_URL}
+
+    # Act
+    cartography.intel.circleci.projects.sync(
+        neo4j_session, api_session, common_job_parameters, TEST_SLUGS
+    )
+
+    # Assert (Project)-[:BUILDS]->(GitHubRepository)
+    assert check_rels(
+        neo4j_session,
+        "CircleCIProject",
+        "id",
+        "GitHubRepository",
+        "url",
+        "BUILDS",
+        rel_direction_right=True,
+    ) == {
+        ("proj-1", "https://github.com/acme/web"),
+    }
+    # (Project)-[:BUILDS]->(GitLabProject)
+    assert check_rels(
+        neo4j_session,
+        "CircleCIProject",
+        "id",
+        "GitLabProject",
+        "web_url",
+        "BUILDS",
+        rel_direction_right=True,
+    ) == {
+        ("proj-2", "https://github.com/acme/api"),
+    }

@@ -22,7 +22,12 @@ P -- RESOURCE --> PD(PipelineDefinition)
 P -- RESOURCE --> TR(Trigger)
 P -- RESOURCE --> POIDC(ProjectOidcConfig)
 PD -- HAS_TRIGGER --> TR
+C -- RESTRICTED_TO --> P
+O -. ASSOCIATED_WITH .-> GHO(GitHubOrganization)
+P -. BUILDS .-> GHR(GitHubRepository / GitLabProject)
 ```
+
+Dotted edges are best-effort cross-module links (created only when the GitHub/GitLab node already exists in the graph).
 
 Project-scoped nodes (Project and everything below it) are synced for projects discovered from each org's pipeline feed, plus any extra slugs passed via `--circleci-project-slugs` (CircleCI API v2 cannot enumerate an organization's projects directly).
 
@@ -31,6 +36,12 @@ Project-scoped nodes (Project and everything below it) are synced for projects d
 Represents a CircleCI organization (a VCS org the token owner collaborates with), from `GET /me/collaborations`.
 
 > **Ontology Mapping**: This node has the extra label `Tenant` to enable cross-platform queries for organizational tenants across different systems (e.g., OktaOrganization, AzureTenant, GCPOrganization).
+
+#### Relationships
+- A GitHub-backed org is associated with its GitHubOrganization (best-effort, joined on login).
+    ```
+    (:CircleCIOrganization)-[:ASSOCIATED_WITH]->(:GitHubOrganization)
+    ```
 
 | Field | Description |
 |-------|-------------|
@@ -229,6 +240,15 @@ Represents a CircleCI project (`GET /project/{project-slug}`). Synced for projec
 - A project belongs to an organization.
     ```
     (:CircleCIOrganization)-[:RESOURCE]->(:CircleCIProject)
+    ```
+- A project builds a VCS repository (best-effort cross-module link, joined on the repo URL).
+    ```
+    (:CircleCIProject)-[:BUILDS]->(:GitHubRepository)
+    (:CircleCIProject)-[:BUILDS]->(:GitLabProject)
+    ```
+- A context can be restricted to specific projects (from context restrictions).
+    ```
+    (:CircleCIContext)-[:RESTRICTED_TO]->(:CircleCIProject)
     ```
 
 ### CircleCIProjectEnvVar

@@ -7,6 +7,7 @@ from cartography.models.core.relationships import CartographyRelProperties
 from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
+from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import TargetNodeMatcher
 
 
@@ -44,9 +45,49 @@ class CircleCIProjectToOrganizationRel(CartographyRelSchema):
 
 
 @dataclass(frozen=True)
+class CircleCIProjectToRepoRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+# (:CircleCIProject)-[:BUILDS]->(:GitHubRepository), joined on the repo URL.
+# Best-effort: only created if the GitHub repo was ingested (OPTIONAL MATCH).
+class CircleCIProjectToGitHubRepoRel(CartographyRelSchema):
+    target_node_label: str = "GitHubRepository"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"url": PropertyRef("vcs_url")},
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "BUILDS"
+    properties: CircleCIProjectToRepoRelProperties = (
+        CircleCIProjectToRepoRelProperties()
+    )
+
+
+@dataclass(frozen=True)
+# (:CircleCIProject)-[:BUILDS]->(:GitLabProject), joined on the repo URL.
+class CircleCIProjectToGitLabProjectRel(CartographyRelSchema):
+    target_node_label: str = "GitLabProject"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"web_url": PropertyRef("vcs_url")},
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "BUILDS"
+    properties: CircleCIProjectToRepoRelProperties = (
+        CircleCIProjectToRepoRelProperties()
+    )
+
+
+@dataclass(frozen=True)
 class CircleCIProjectSchema(CartographyNodeSchema):
     label: str = "CircleCIProject"
     properties: CircleCIProjectNodeProperties = CircleCIProjectNodeProperties()
     sub_resource_relationship: CircleCIProjectToOrganizationRel = (
         CircleCIProjectToOrganizationRel()
+    )
+    other_relationships: OtherRelationships = OtherRelationships(
+        [
+            CircleCIProjectToGitHubRepoRel(),
+            CircleCIProjectToGitLabProjectRel(),
+        ],
     )

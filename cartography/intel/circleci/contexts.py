@@ -21,8 +21,15 @@ def sync(
     common_job_parameters: dict[str, Any],
     org_id: str,
 ) -> list[dict[str, Any]]:
-    raw = get(api_session, common_job_parameters["BASE_URL"], org_id)
+    base_url = common_job_parameters["BASE_URL"]
+    raw = get(api_session, base_url, org_id)
     contexts = transform(raw)
+    # Enrich each context with the projects it is restricted to so the
+    # one-to-many RESTRICTED_TO relationship can attach (best-effort).
+    for context in contexts:
+        context["restricted_project_ids"] = get_restricted_project_ids(
+            api_session, base_url, context["id"]
+        )
     load_contexts(
         neo4j_session,
         contexts,
@@ -46,12 +53,26 @@ def get(
     )
 
 
+@timeit
+def get_restricted_project_ids(
+    api_session: requests.Session,
+    base_url: str,
+    context_id: str,
+) -> list[str]:
+    restrictions = paginated_get(
+        api_session,
+        f"{base_url}/context/{context_id}/restrictions",
+    )
+    return [r["project_id"] for r in restrictions if r.get("project_id")]
+
+
 def transform(raw: list[dict[str, Any]]) -> list[dict[str, Any]]:
     return [
         {
             "id": ctx["id"],
             "name": ctx.get("name"),
             "created_at": parse_iso(ctx.get("created_at")),
+            "restricted_project_ids": [],
         }
         for ctx in raw
     ]

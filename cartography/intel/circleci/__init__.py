@@ -65,15 +65,77 @@ def start_circleci_ingestion(neo4j_session: neo4j.Session, config: Config) -> No
         common_job_parameters,
     )
 
-    # API v2 has no list-projects endpoint, so discover slugs from each org's
-    # pipeline feed and union with any operator-configured slugs.
-    project_slugs: set[str] = set(config.circleci_project_slugs or [])
-
     # The token owner (/me) is the same across all orgs; fetch it once.
     user = cartography.intel.circleci.users.get(
         api_session, common_job_parameters["BASE_URL"]
     )
 
+    # API v2 has no list-projects endpoint, so discover slugs from each org's
+    # pipeline feed and union with any operator-configured slugs.
+    project_slugs: set[str] = set(config.circleci_project_slugs or [])
+    for org in orgs:
+        if org.get("slug"):
+            project_slugs.update(
+                cartography.intel.circleci.projects.discover_project_slugs(
+                    api_session,
+                    common_job_parameters["BASE_URL"],
+                    org["slug"],
+                )
+            )
+
+    # Projects are synced BEFORE org-scoped resources so that context ->
+    # RESTRICTED_TO -> project and component -> project links can attach during
+    # those syncs (the targets must already exist).
+    if project_slugs:
+        projects = cartography.intel.circleci.projects.sync(
+            neo4j_session,
+            api_session,
+            common_job_parameters,
+            sorted(project_slugs),
+        )
+        # Each per-project resource below loads then cleans up within a single
+        # PROJECT_ID scope, so a project's cleanup only ever deletes its own
+        # stale nodes. Any future per-project resource that fans out over
+        # sub-items (as triggers do over definitions) must accumulate across
+        # those items and clean up once, never per-item inside this loop.
+        for project in projects:
+            project_job_parameters = {
+                **common_job_parameters,
+                "ORG_ID": project["organization_id"],
+                "PROJECT_ID": project["id"],
+            }
+            slug = project["slug"]
+            cartography.intel.circleci.project_env_vars.sync(
+                neo4j_session, api_session, project_job_parameters, slug
+            )
+            cartography.intel.circleci.checkout_keys.sync(
+                neo4j_session, api_session, project_job_parameters, slug
+            )
+            cartography.intel.circleci.webhooks.sync(
+                neo4j_session, api_session, project_job_parameters, slug
+            )
+            cartography.intel.circleci.schedules.sync(
+                neo4j_session, api_session, project_job_parameters, slug
+            )
+            cartography.intel.circleci.pipelines.sync(
+                neo4j_session, api_session, project_job_parameters, slug
+            )
+            definitions = cartography.intel.circleci.pipeline_definitions.sync(
+                neo4j_session, api_session, project_job_parameters
+            )
+            cartography.intel.circleci.triggers.sync(
+                neo4j_session, api_session, project_job_parameters, definitions
+            )
+            cartography.intel.circleci.oidc.sync_project(
+                neo4j_session,
+                api_session,
+                project_job_parameters,
+                project["organization_id"],
+                project["id"],
+            )
+
+    # Org-scoped resources. Contexts link to their restricted projects here via
+    # the one-to-many RESTRICTED_TO relationship (projects already ingested above).
     for org in orgs:
         org_id = org["id"]
         org_job_parameters = {**common_job_parameters, "ORG_ID": org_id}
@@ -127,60 +189,3 @@ def start_circleci_ingestion(neo4j_session: neo4j.Session, config: Config) -> No
             org_job_parameters,
             org_id,
         )
-        if org.get("slug"):
-            project_slugs.update(
-                cartography.intel.circleci.projects.discover_project_slugs(
-                    api_session,
-                    common_job_parameters["BASE_URL"],
-                    org["slug"],
-                )
-            )
-
-    # Project-scoped resources.
-    if project_slugs:
-        projects = cartography.intel.circleci.projects.sync(
-            neo4j_session,
-            api_session,
-            common_job_parameters,
-            sorted(project_slugs),
-        )
-        # Each per-project resource below loads then cleans up within a single
-        # PROJECT_ID scope, so a project's cleanup only ever deletes its own
-        # stale nodes. Any future per-project resource that fans out over
-        # sub-items (as triggers do over definitions) must accumulate across
-        # those items and clean up once, never per-item inside this loop.
-        for project in projects:
-            project_job_parameters = {
-                **common_job_parameters,
-                "ORG_ID": project["organization_id"],
-                "PROJECT_ID": project["id"],
-            }
-            slug = project["slug"]
-            cartography.intel.circleci.project_env_vars.sync(
-                neo4j_session, api_session, project_job_parameters, slug
-            )
-            cartography.intel.circleci.checkout_keys.sync(
-                neo4j_session, api_session, project_job_parameters, slug
-            )
-            cartography.intel.circleci.webhooks.sync(
-                neo4j_session, api_session, project_job_parameters, slug
-            )
-            cartography.intel.circleci.schedules.sync(
-                neo4j_session, api_session, project_job_parameters, slug
-            )
-            cartography.intel.circleci.pipelines.sync(
-                neo4j_session, api_session, project_job_parameters, slug
-            )
-            definitions = cartography.intel.circleci.pipeline_definitions.sync(
-                neo4j_session, api_session, project_job_parameters
-            )
-            cartography.intel.circleci.triggers.sync(
-                neo4j_session, api_session, project_job_parameters, definitions
-            )
-            cartography.intel.circleci.oidc.sync_project(
-                neo4j_session,
-                api_session,
-                project_job_parameters,
-                project["organization_id"],
-                project["id"],
-            )
