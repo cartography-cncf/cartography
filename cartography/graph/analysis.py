@@ -46,6 +46,7 @@ class RelationshipEffect:
     source_label: str
     rel_label: str
     target_label: str
+    properties: tuple[str, ...] = ()
     direction: LinkDirection = LinkDirection.OUTWARD
     scoped_to: Literal["source", "target"] = "source"
     marker_property: str | None = "_analysis_job"
@@ -94,7 +95,41 @@ class PropertyEffect:
         return f"{match}\nREMOVE {props}"
 
 
-AnalysisEffect = RelationshipEffect | PropertyEffect
+@dataclass(frozen=True)
+class RelationshipPropertyEffect:
+    source_label: str
+    rel_label: str
+    properties: tuple[str, ...]
+    target_label: str | None = None
+    direction: LinkDirection = LinkDirection.OUTWARD
+
+    def __post_init__(self) -> None:
+        if not self.properties:
+            raise ValueError(
+                "RelationshipPropertyEffect requires at least one property."
+            )
+
+    def cleanup_query(self, scope: AnalysisScope | None) -> str:
+        source = f"(source:{self.source_label})"
+        target = f"(target:{self.target_label})" if self.target_label else "(target)"
+        rel = f"[r:{self.rel_label}]"
+        if self.direction == LinkDirection.INWARD:
+            pattern = f"{source}<-{rel}-{target}"
+        else:
+            pattern = f"{source}-{rel}->{target}"
+
+        match = f"MATCH {pattern}"
+        if scope:
+            match = (
+                f"MATCH {scope.match('scope')}-[:{scope.rel_label}]->(source)\n"
+                f"{match}"
+            )
+
+        props = ", ".join(f"r.{prop}" for prop in self.properties)
+        return f"{match}\nREMOVE {props}"
+
+
+AnalysisEffect = RelationshipEffect | PropertyEffect | RelationshipPropertyEffect
 
 
 @dataclass(frozen=True)
@@ -115,8 +150,8 @@ class AnalysisJob:
             return (self.effect,)
         return ()
 
-    def properties_set(self) -> tuple[PropertyEffect, ...]:
-        if isinstance(self.effect, PropertyEffect):
+    def properties_set(self) -> tuple[PropertyEffect | RelationshipPropertyEffect, ...]:
+        if isinstance(self.effect, (PropertyEffect, RelationshipPropertyEffect)):
             return (self.effect,)
         return ()
 
@@ -124,7 +159,7 @@ class AnalysisJob:
         statements: list[GraphStatement] = []
         parent_name = self.short_name or self.name
 
-        if isinstance(self.effect, PropertyEffect):
+        if isinstance(self.effect, (PropertyEffect, RelationshipPropertyEffect)):
             statements.append(self._cleanup_statement(parent_name, 1))
 
         for offset, statement in enumerate(self.statements, start=len(statements) + 1):
