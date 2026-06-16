@@ -16,7 +16,9 @@ from oci.exceptions import ProfileNotFound
 
 from . import compartment
 from . import iam
+from . import oke
 from . import organizations
+from . import storage
 from . import utils
 from .resources import RESOURCE_FUNCTIONS
 from cartography.config import Config
@@ -27,7 +29,7 @@ from cartography.intel.oci.util.common import parse_and_validate_oci_requested_s
 # from . import compute
 
 logger = logging.getLogger(__name__)
-Resources = namedtuple('Resources', 'compute iam network')
+Resources = namedtuple('Resources', 'compute iam network storage oke')
 
 
 def _sync_one_compartment(
@@ -209,6 +211,32 @@ def _get_compute_resource(credentials: Dict[str, Any]) -> oci.core.compute_clien
     return oci.core.ComputeClient(credentials)
 
 
+def _get_storage_resource(credentials: Dict[str, Any]) -> storage.OCIStorageClients:
+    """
+    Bundle the three OCI SDK clients used by the storage sync (Object Storage,
+    Block Storage, File Storage) under a single attribute on the Resources
+    namedtuple. The orchestrator addresses storage as one logical sync.
+    :param credentials: The OCI Credentials object
+    :return: A bundled OCIStorageClients container
+    """
+    return storage.OCIStorageClients(
+        object_storage=oci.object_storage.ObjectStorageClient(credentials),
+        blockstorage=oci.core.BlockstorageClient(credentials),
+        file_storage=oci.file_storage.FileStorageClient(credentials),
+    )
+
+
+def _get_oke_resource(credentials: Dict[str, Any]) -> oci.container_engine.ContainerEngineClient:
+    """
+    Instantiates a OCI ContainerEngineClient resource object to call the
+    Container Engine for Kubernetes (OKE) API.
+    See https://docs.oracle.com/en-us/iaas/Content/ContEng/Concepts/contengoverview.htm.
+    :param credentials: The OCI Credentials object
+    :return: A ContainerEngineClient resource object
+    """
+    return oci.container_engine.ContainerEngineClient(credentials)
+
+
 def _initialize_resources(credentials: Dict[str, Any]) -> Resources:
     """
     Create namedtuple of all resource objects necessary for OCI data gathering.
@@ -219,6 +247,8 @@ def _initialize_resources(credentials: Dict[str, Any]) -> Resources:
         compute=_get_compute_resource(credentials),
         iam=_get_iam_resource(credentials),
         network=_get_network_resource(credentials),
+        storage=_get_storage_resource(credentials),
+        oke=_get_oke_resource(credentials),
     )
 
 
