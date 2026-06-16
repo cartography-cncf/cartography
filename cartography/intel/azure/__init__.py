@@ -3,6 +3,9 @@ import logging
 import neo4j
 
 from cartography.config import Config
+from cartography.models.azure.analysis import AZURE_COMPUTE_ASSET_EXPOSURE_JOBS
+from cartography.models.azure.analysis import AZURE_FIREWALL_LB_PROTECTION
+from cartography.models.azure.analysis import AZURE_LB_EXPOSURE
 from cartography.util import run_analysis_job
 from cartography.util import run_scoped_analysis_job
 from cartography.util import timeit
@@ -461,11 +464,8 @@ def start_azure_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
                 cascade_delete=True,
             )
 
-        run_analysis_job(
-            "azure_compute_asset_exposure.json",
-            neo4j_session,
-            common_job_parameters,
-        )
+        for job in AZURE_COMPUTE_ASSET_EXPOSURE_JOBS:
+            run_analysis_job(job, neo4j_session, common_job_parameters)
 
         # DEPRECATED: compatibility migration that swaps the AzureContainerInstance
         # and AzureGroupContainer labels so AzureContainerInstance now labels the
@@ -481,12 +481,12 @@ def start_azure_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
             for sub in subscriptions:
                 common_job_parameters["AZURE_SUBSCRIPTION_ID"] = sub["subscriptionId"]
                 run_scoped_analysis_job(
-                    "azure_lb_exposure.json",
+                    AZURE_LB_EXPOSURE,
                     neo4j_session,
                     common_job_parameters,
                 )
                 run_scoped_analysis_job(
-                    "azure_firewall_lb_protection.json",
+                    AZURE_FIREWALL_LB_PROTECTION,
                     neo4j_session,
                     common_job_parameters,
                 )
