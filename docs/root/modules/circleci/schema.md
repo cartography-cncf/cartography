@@ -8,6 +8,7 @@ O -- RESOURCE --> CEV(ContextEnvVar)
 C -- HAS_ENV_VAR --> CEV
 O -- RESOURCE --> OIDC(OidcConfig)
 O -- RESOURCE --> G(Group)
+O -- RESOURCE --> POL(Policy)
 O -- RESOURCE --> P(Project)
 P -- RESOURCE --> PEV(ProjectEnvVar)
 P -- RESOURCE --> CK(CheckoutKey)
@@ -135,6 +136,28 @@ Represents an organization group (`GET /organizations/{org_id}/groups`).
 - A group belongs to an organization.
     ```
     (:CircleCIOrganization)-[:RESOURCE]->(:CircleCIGroup)
+    ```
+
+### CircleCIPolicy
+
+Represents a config policy in the organization's policy bundle (`GET /owner/{orgID}/context/config/policy-bundle`). Only the `config` policy context is queried.
+
+| Field | Description |
+|-------|-------------|
+| **id** | Synthesized id, `{org_id}:{context}:{name}`. |
+| firstseen | Timestamp of when a sync job first created this node. |
+| lastupdated | Timestamp of the last time the node was updated. |
+| **name** | Policy name. |
+| context | Policy context (`config`). |
+| content | Policy source (Rego). |
+| created_at | Policy creation timestamp. |
+| created_by | Who created the policy. |
+| decision_enabled | Whether policy decisions are enabled for this context (from the decision settings). |
+
+#### Relationships
+- A policy belongs to an organization.
+    ```
+    (:CircleCIOrganization)-[:RESOURCE]->(:CircleCIPolicy)
     ```
 
 ### CircleCIProject

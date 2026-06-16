@@ -13,6 +13,7 @@ import cartography.intel.circleci.oidc
 import cartography.intel.circleci.organizations
 import cartography.intel.circleci.pipeline_definitions
 import cartography.intel.circleci.pipelines
+import cartography.intel.circleci.policies
 import cartography.intel.circleci.project_env_vars
 import cartography.intel.circleci.projects
 import cartography.intel.circleci.schedules
@@ -96,6 +97,12 @@ def start_circleci_ingestion(neo4j_session: neo4j.Session, config: Config) -> No
             org_id,
         )
         cartography.intel.circleci.groups.sync(
+            neo4j_session,
+            api_session,
+            org_job_parameters,
+            org_id,
+        )
+        cartography.intel.circleci.policies.sync(
             neo4j_session,
             api_session,
             org_job_parameters,
