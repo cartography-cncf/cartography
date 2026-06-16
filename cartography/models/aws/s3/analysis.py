@@ -34,7 +34,7 @@ AWS_S3ACL_ANALYSIS = AnalysisJob(
         AnalysisStatement(
             "MATCH (acl:S3Acl)-[:APPLIES_TO]->(bucket:S3Bucket)<-[:RESOURCE]-(aws:AWSAccount{id: $AWS_ID})\n"
             "WHERE acl.uri IN ['http://acs.amazonaws.com/groups/global/AllUsers', 'http://acs.amazonaws.com/groups/global/AuthenticatedUsers'] AND acl.permission = 'FULL_CONTROL'\n"
-            "SET bucket.anonymous_access = true, bucket.anonymous_actions = coalesce(bucket.anonymous_actions, []) + ['s3:ListBucket', 's3:ListBucketVersions', 's3:ListBucketMultipartUploads', 's3:PutObject', 's3:DeleteObject', 's3:DeleteObjectVersion', 's3:PutBucketAcl']",
+            "SET bucket.anonymous_access = true, bucket.anonymous_actions = coalesce(bucket.anonymous_actions, []) + ['s3:ListBucket', 's3:ListBucketVersions', 's3:ListBucketMultipartUploads', 's3:PutObject', 's3:DeleteObject', 's3:DeleteObjectVersion', 's3:GetBucketAcl', 's3:PutBucketAcl']",
         ),
     ),
 )

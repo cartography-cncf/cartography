@@ -33,31 +33,31 @@ SEMGREP_SCA_RISK_ANALYSIS = AnalysisJob(
             "MATCH (s:SemgrepSCAFinding{reachability:'UNREACHABLE', lastupdated:$UPDATE_TAG})<-[:RESOURCE]-(:SemgrepDeployment{id:$DEPLOYMENT_ID}) SET s.reachability_risk = 'INFO' return COUNT(*) as TotalCompleted",
         ),
         AnalysisStatement(
-            "MATCH (g:GitHubRepository{archived:false})<-[:FOUND_IN]-(s:SemgrepSCAFinding{reachability:'UNREACHABLE', reachability_check:'NO REACHABILITY ANALYSIS', lastupdated:$UPDATE_TAG})<-[:RESOURCE]-(:SemgrepDeployment{id:$DEPLOYMENT_ID}) WHERE s.severity IN ['LOW', 'MEDIUM', 'HIGH'] SET s.reachability_risk = 'INFO' return COUNT(*) as TotalCompleted",
+            "MATCH (g:GitHubRepository)<-[:FOUND_IN]-(s:SemgrepSCAFinding{reachability:'UNREACHABLE', reachability_check:'NO REACHABILITY ANALYSIS', lastupdated:$UPDATE_TAG})<-[:RESOURCE]-(:SemgrepDeployment{id:$DEPLOYMENT_ID}) WHERE (g.archived = false OR g.archived IS NULL) AND s.severity IN ['LOW', 'MEDIUM', 'HIGH'] SET s.reachability_risk = 'INFO' return COUNT(*) as TotalCompleted",
         ),
         AnalysisStatement(
-            "MATCH (g:GitHubRepository{archived:false})<-[:FOUND_IN]-(s:SemgrepSCAFinding{reachability:'UNREACHABLE', reachability_check:'NO REACHABILITY ANALYSIS', lastupdated:$UPDATE_TAG})<-[:RESOURCE]-(:SemgrepDeployment{id:$DEPLOYMENT_ID}) WHERE s.severity = 'CRITICAL' SET s.reachability_risk = 'LOW' return COUNT(*) as TotalCompleted",
+            "MATCH (g:GitHubRepository)<-[:FOUND_IN]-(s:SemgrepSCAFinding{reachability:'UNREACHABLE', reachability_check:'NO REACHABILITY ANALYSIS', lastupdated:$UPDATE_TAG})<-[:RESOURCE]-(:SemgrepDeployment{id:$DEPLOYMENT_ID}) WHERE (g.archived = false OR g.archived IS NULL) AND s.severity = 'CRITICAL' SET s.reachability_risk = 'LOW' return COUNT(*) as TotalCompleted",
         ),
         AnalysisStatement(
-            "MATCH (g:GitHubRepository{archived:false})<-[:FOUND_IN]-(s:SemgrepSCAFinding{reachability:'REACHABLE', reachability_check:'CONDITIONALLY REACHABLE', lastupdated:$UPDATE_TAG})<-[:RESOURCE]-(:SemgrepDeployment{id:$DEPLOYMENT_ID}) WHERE s.severity IN ['LOW', 'MEDIUM'] SET s.reachability_risk = 'LOW' return COUNT(*) as TotalCompleted",
+            "MATCH (g:GitHubRepository)<-[:FOUND_IN]-(s:SemgrepSCAFinding{reachability:'REACHABLE', reachability_check:'CONDITIONALLY REACHABLE', lastupdated:$UPDATE_TAG})<-[:RESOURCE]-(:SemgrepDeployment{id:$DEPLOYMENT_ID}) WHERE (g.archived = false OR g.archived IS NULL) AND s.severity IN ['LOW', 'MEDIUM'] SET s.reachability_risk = 'LOW' return COUNT(*) as TotalCompleted",
         ),
         AnalysisStatement(
-            "MATCH (g:GitHubRepository{archived:false})<-[:FOUND_IN]-(s:SemgrepSCAFinding{reachability:'REACHABLE', reachability_check:'CONDITIONALLY REACHABLE', lastupdated:$UPDATE_TAG})<-[:RESOURCE]-(:SemgrepDeployment{id:$DEPLOYMENT_ID}) WHERE s.severity = 'HIGH' SET s.reachability_risk = 'MEDIUM' return COUNT(*) as TotalCompleted",
+            "MATCH (g:GitHubRepository)<-[:FOUND_IN]-(s:SemgrepSCAFinding{reachability:'REACHABLE', reachability_check:'CONDITIONALLY REACHABLE', lastupdated:$UPDATE_TAG})<-[:RESOURCE]-(:SemgrepDeployment{id:$DEPLOYMENT_ID}) WHERE (g.archived = false OR g.archived IS NULL) AND s.severity = 'HIGH' SET s.reachability_risk = 'MEDIUM' return COUNT(*) as TotalCompleted",
         ),
         AnalysisStatement(
-            "MATCH (g:GitHubRepository{archived:false})<-[:FOUND_IN]-(s:SemgrepSCAFinding{reachability:'REACHABLE', reachability_check:'CONDITIONALLY REACHABLE', lastupdated:$UPDATE_TAG})<-[:RESOURCE]-(:SemgrepDeployment{id:$DEPLOYMENT_ID}) WHERE s.severity = 'CRITICAL' SET s.reachability_risk = 'HIGH' return COUNT(*) as TotalCompleted",
+            "MATCH (g:GitHubRepository)<-[:FOUND_IN]-(s:SemgrepSCAFinding{reachability:'REACHABLE', reachability_check:'CONDITIONALLY REACHABLE', lastupdated:$UPDATE_TAG})<-[:RESOURCE]-(:SemgrepDeployment{id:$DEPLOYMENT_ID}) WHERE (g.archived = false OR g.archived IS NULL) AND s.severity = 'CRITICAL' SET s.reachability_risk = 'HIGH' return COUNT(*) as TotalCompleted",
         ),
         AnalysisStatement(
-            "MATCH (g:GitHubRepository{archived:false})<-[:FOUND_IN]-(s:SemgrepSCAFinding{reachability:'REACHABLE', reachability_check:'ALWAYS REACHABLE', lastupdated:$UPDATE_TAG})<-[:RESOURCE]-(:SemgrepDeployment{id:$DEPLOYMENT_ID}) WHERE s.severity IN ['LOW','MEDIUM'] SET s.reachability_risk = 'LOW' return COUNT(*) as TotalCompleted",
+            "MATCH (g:GitHubRepository)<-[:FOUND_IN]-(s:SemgrepSCAFinding{reachability:'REACHABLE', reachability_check:'ALWAYS REACHABLE', lastupdated:$UPDATE_TAG})<-[:RESOURCE]-(:SemgrepDeployment{id:$DEPLOYMENT_ID}) WHERE (g.archived = false OR g.archived IS NULL) AND s.severity IN ['LOW','MEDIUM'] SET s.reachability_risk = 'LOW' return COUNT(*) as TotalCompleted",
         ),
         AnalysisStatement(
-            "MATCH (g:GitHubRepository{archived:false})<-[:FOUND_IN]-(s:SemgrepSCAFinding{reachability:'REACHABLE', reachability_check:'ALWAYS REACHABLE', lastupdated:$UPDATE_TAG})<-[:RESOURCE]-(:SemgrepDeployment{id:$DEPLOYMENT_ID}) WHERE s.severity = 'HIGH' SET s.reachability_risk = 'MEDIUM' return COUNT(*) as TotalCompleted",
+            "MATCH (g:GitHubRepository)<-[:FOUND_IN]-(s:SemgrepSCAFinding{reachability:'REACHABLE', reachability_check:'ALWAYS REACHABLE', lastupdated:$UPDATE_TAG})<-[:RESOURCE]-(:SemgrepDeployment{id:$DEPLOYMENT_ID}) WHERE (g.archived = false OR g.archived IS NULL) AND s.severity = 'HIGH' SET s.reachability_risk = 'MEDIUM' return COUNT(*) as TotalCompleted",
         ),
         AnalysisStatement(
-            "MATCH (g:GitHubRepository{archived:false})<-[:FOUND_IN]-(s:SemgrepSCAFinding{reachability:'REACHABLE', reachability_check:'ALWAYS REACHABLE', lastupdated:$UPDATE_TAG})<-[:RESOURCE]-(:SemgrepDeployment{id:$DEPLOYMENT_ID}) WHERE s.severity = 'CRITICAL' SET s.reachability_risk = 'CRITICAL' return COUNT(*) as TotalCompleted",
+            "MATCH (g:GitHubRepository)<-[:FOUND_IN]-(s:SemgrepSCAFinding{reachability:'REACHABLE', reachability_check:'ALWAYS REACHABLE', lastupdated:$UPDATE_TAG})<-[:RESOURCE]-(:SemgrepDeployment{id:$DEPLOYMENT_ID}) WHERE (g.archived = false OR g.archived IS NULL) AND s.severity = 'CRITICAL' SET s.reachability_risk = 'CRITICAL' return COUNT(*) as TotalCompleted",
         ),
         AnalysisStatement(
-            "MATCH (g:GitHubRepository{archived:false})<-[:FOUND_IN]-(s:SemgrepSCAFinding{reachability:'REACHABLE', reachability_check:'REACHABLE', lastupdated:$UPDATE_TAG})<-[:RESOURCE]-(:SemgrepDeployment{id:$DEPLOYMENT_ID}) SET s.reachability_risk = s.severity return COUNT(*) as TotalCompleted",
+            "MATCH (g:GitHubRepository)<-[:FOUND_IN]-(s:SemgrepSCAFinding{reachability:'REACHABLE', reachability_check:'REACHABLE', lastupdated:$UPDATE_TAG})<-[:RESOURCE]-(:SemgrepDeployment{id:$DEPLOYMENT_ID}) WHERE g.archived = false OR g.archived IS NULL SET s.reachability_risk = s.severity return COUNT(*) as TotalCompleted",
         ),
     ),
 )

@@ -7,8 +7,8 @@ from cartography.graph.analysis import AnalysisJob
 from cartography.graph.analysis import AnalysisScope
 from cartography.graph.analysis import AnalysisStatement
 from cartography.graph.analysis import PropertyEffect
-from cartography.graph.analysis import RelationshipPropertyEffect
 from cartography.graph.analysis import RelationshipEffect
+from cartography.graph.analysis import RelationshipPropertyEffect
 from cartography.graph.job import GraphJob
 
 
