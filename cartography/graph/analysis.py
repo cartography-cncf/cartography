@@ -70,7 +70,12 @@ class RelationshipEffect:
             )
 
         filters = ["r.lastupdated <> $UPDATE_TAG"]
-        return f"{match}\nWHERE {' AND '.join(filters)}\nDELETE r"
+        return (
+            f"{match}\n"
+            f"WHERE {' AND '.join(filters)}\n"
+            "WITH r LIMIT $LIMIT_SIZE\n"
+            "DELETE r"
+        )
 
 
 @dataclass(frozen=True)
@@ -88,7 +93,8 @@ class PropertyEffect:
         if scope:
             match = f"MATCH {scope.match('scope')}-[:{scope.rel_label}]->{node}"
         props = ", ".join(f"node.{prop}" for prop in self.properties)
-        return f"{match}\nREMOVE {props}"
+        filters = " OR ".join(f"node.{prop} IS NOT NULL" for prop in self.properties)
+        return f"{match}\nWHERE {filters}\nWITH node LIMIT $LIMIT_SIZE\nREMOVE {props}"
 
 
 @dataclass(frozen=True)
@@ -122,7 +128,8 @@ class RelationshipPropertyEffect:
             )
 
         props = ", ".join(f"r.{prop}" for prop in self.properties)
-        return f"{match}\nREMOVE {props}"
+        filters = " OR ".join(f"r.{prop} IS NOT NULL" for prop in self.properties)
+        return f"{match}\nWHERE {filters}\nWITH r LIMIT $LIMIT_SIZE\nREMOVE {props}"
 
 
 AnalysisEffect = RelationshipEffect | PropertyEffect | RelationshipPropertyEffect

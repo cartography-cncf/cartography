@@ -28,7 +28,12 @@ def _rel_cleanup(
             f"-[:RESOURCE]->({scoped_to})\n"
             f"{match}"
         )
-    return f"{match}\n" "WHERE r.lastupdated <> $UPDATE_TAG\n" "DELETE r"
+    return (
+        f"{match}\n"
+        "WHERE r.lastupdated <> $UPDATE_TAG\n"
+        "WITH r LIMIT $LIMIT_SIZE\n"
+        "DELETE r"
+    )
 
 
 def _prop_cleanup(
@@ -42,7 +47,13 @@ def _prop_cleanup(
         match = (
             f"MATCH (scope:{scope.label} {{id: ${scope.id_param}}})-[:RESOURCE]->{node}"
         )
-    return f"{match}\nREMOVE {', '.join(f'node.{prop}' for prop in props)}"
+    filters = " OR ".join(f"node.{prop} IS NOT NULL" for prop in props)
+    return (
+        f"{match}\n"
+        f"WHERE {filters}\n"
+        "WITH node LIMIT $LIMIT_SIZE\n"
+        f"REMOVE {', '.join(f'node.{prop}' for prop in props)}"
+    )
 
 
 def _rel_prop_cleanup(
@@ -52,8 +63,11 @@ def _rel_prop_cleanup(
     target: str | None = None,
 ) -> str:
     target_pattern = f"(target:{target})" if target else "(target)"
+    filters = " OR ".join(f"r.{prop} IS NOT NULL" for prop in props)
     return (
         f"MATCH (source:{source})-[r:{rel}]->{target_pattern}\n"
+        f"WHERE {filters}\n"
+        "WITH r LIMIT $LIMIT_SIZE\n"
         f"REMOVE {', '.join(f'r.{prop}' for prop in props)}"
     )
 

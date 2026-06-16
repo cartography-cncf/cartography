@@ -214,7 +214,7 @@ def run_analysis_and_ensure_deps(
 
 
 def run_scoped_analysis_job(
-    filename: str,
+    filename: str | AnalysisJob,
     neo4j_session: neo4j.Session,
     common_job_parameters: Dict,
     package: str = "cartography.data.jobs.scoped_analysis",
@@ -228,7 +228,8 @@ def run_scoped_analysis_job(
     organizational unit or account.
 
     Args:
-        filename: Name of the JSON file containing the scoped analysis job queries.
+        filename: AnalysisJob object or name of the JSON file containing the scoped
+                  analysis job queries.
         neo4j_session: Active Neo4j session for executing the analysis queries.
         common_job_parameters: Dictionary containing common parameters including
                               scope-specific identifiers (e.g., AWS account ID).
