@@ -209,7 +209,7 @@ Represents a deploy component (`GET /deploy/components`).
 
 ### CircleCIProject
 
-Represents a CircleCI project (`GET /project/{project-slug}`). Only synced for slugs passed via `--circleci-project-slugs`.
+Represents a CircleCI project (`GET /project/{project-slug}`). Synced for projects discovered from each org's pipeline feed plus any extra slugs passed via `--circleci-project-slugs`. Upserted only, never auto-deleted (see config docs).
 
 | Field | Description |
 |-------|-------------|

@@ -80,21 +80,26 @@ def transform(
     context: str,
     enabled: bool | None,
 ) -> list[dict[str, Any]]:
-    # The bundle is a map of policy-name -> policy document.
+    # The bundle is a map of policy-name -> list of policy documents. Be
+    # defensive about a single-object value too, since the per-policy endpoint
+    # returns a bare object.
     policies = []
-    for name, policy in bundle.items():
-        policy = policy or {}
-        policies.append(
-            {
-                "id": f"{org_id}:{context}:{name}",
-                "name": policy.get("name") or name,
-                "context": context,
-                "content": policy.get("content"),
-                "created_at": parse_iso(policy.get("created_at")),
-                "created_by": policy.get("created_by"),
-                "decision_enabled": enabled,
-            }
-        )
+    for name, value in bundle.items():
+        docs = value if isinstance(value, list) else [value]
+        for doc in docs:
+            doc = doc or {}
+            policy_name = doc.get("name") or name
+            policies.append(
+                {
+                    "id": f"{org_id}:{context}:{policy_name}",
+                    "name": policy_name,
+                    "context": context,
+                    "content": doc.get("content"),
+                    "created_at": parse_iso(doc.get("created_at")),
+                    "created_by": doc.get("created_by"),
+                    "decision_enabled": enabled,
+                }
+            )
     return policies
 
 
