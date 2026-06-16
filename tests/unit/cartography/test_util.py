@@ -12,6 +12,9 @@ from googleapiclient.errors import HttpError
 
 import cartography.util
 from cartography import util
+from cartography.graph.analysis import AnalysisJob
+from cartography.graph.analysis import AnalysisStatement
+from cartography.graph.analysis import PropertyEffect
 from cartography.intel.gcp.util import gcp_api_execute_with_retry
 from cartography.intel.gcp.util import GCP_API_MAX_RETRIES
 from cartography.intel.gcp.util import is_retryable_gcp_http_error
@@ -77,6 +80,30 @@ def test_run_scoped_analysis_job_default_package(mocker):
         "test.json",
     )
     neo4j_session.execute_write.assert_called_once()
+
+
+def test_run_analysis_job_accepts_typed_job(mocker):
+    # Arrange
+    graph_job = mocker.Mock()
+    graph_job.merge_parameters = mocker.Mock()
+    graph_job.run = mocker.Mock()
+    analysis_job = AnalysisJob(
+        name="typed job",
+        short_name="typed_job",
+        effect=PropertyEffect("TestNode", ("computed",)),
+        statements=(AnalysisStatement("MATCH (n:TestNode) SET n.computed = true"),),
+    )
+    mocker.patch.object(AnalysisJob, "to_graph_job", return_value=graph_job)
+    neo4j_session = mocker.Mock()
+
+    # Act
+    util.run_analysis_job(analysis_job, neo4j_session, {"UPDATE_TAG": 1})
+
+    # Assert
+    graph_job.merge_parameters.assert_called_once_with(
+        {"UPDATE_TAG": 1, "ANALYSIS_JOB": "typed_job"},
+    )
+    graph_job.run.assert_called_once_with(neo4j_session)
 
 
 @patch(
