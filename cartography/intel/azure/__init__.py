@@ -32,19 +32,14 @@ AZURE_AUTH_MODE_SERVICE_PRINCIPAL = "service_principal"
 
 
 def concurrent_execution(
-    service: str, service_func: Any, config: Config, credentials: Credentials, common_job_parameters: Dict, update_tag: int, subscription_id: str,
+    service: str, service_func: Any, config: Config, credentials: Credentials, common_job_parameters: Dict,
+    update_tag: int, subscription_id: str, neo4j_driver: neo4j.Driver,
 ) -> Dict:
     run_mode = "parallel"
     tenant_id = credentials.tenant_id
     logger.info(f"BEGIN processing for service: {service}")
 
     regions = config.params.get('regions', None)
-    neo4j_auth = (config.neo4j_user, config.neo4j_password)
-    neo4j_driver = GraphDatabase.driver(
-        config.neo4j_uri,
-        auth=neo4j_auth,
-        max_connection_lifetime=config.neo4j_max_connection_lifetime,
-    )
 
     t0 = time.time()
     status = "success"
@@ -180,38 +175,47 @@ def _sync_one_subscription(
         par_service_timings: Dict[str, float] = {}
         par_failed_services: Dict[str, str] = {}
 
-        with ThreadPoolExecutor(max_workers=len(RESOURCE_FUNCTIONS)) as executor:
-            futures = []
-            for request in requested_syncs:
-                if request in RESOURCE_FUNCTIONS:
-                    try:
-                        futures.append(
-                            executor.submit(
-                                concurrent_execution,
-                                request,
-                                RESOURCE_FUNCTIONS[request],
-                                config,
-                                credentials,
-                                common_job_parameters,
-                                update_tag,
-                                subscription_id,
-                            ),
-                        )
-                    except Exception as e:
-                        logger.warning(f"error to append service {request} in futures - {e}")
-                else:
-                    logger.warning(f'Azure sync function "{request}" was specified but does not exist. Did you misspell it?')
+        shared_driver = GraphDatabase.driver(
+            config.neo4j_uri,
+            auth=(config.neo4j_user, config.neo4j_password),
+            max_connection_lifetime=config.neo4j_max_connection_lifetime,
+        )
+        try:
+            with ThreadPoolExecutor(max_workers=min(8, len(requested_syncs))) as executor:
+                futures = []
+                for request in requested_syncs:
+                    if request in RESOURCE_FUNCTIONS:
+                        try:
+                            futures.append(
+                                executor.submit(
+                                    concurrent_execution,
+                                    request,
+                                    RESOURCE_FUNCTIONS[request],
+                                    config,
+                                    credentials,
+                                    common_job_parameters,
+                                    update_tag,
+                                    subscription_id,
+                                    shared_driver,
+                                ),
+                            )
+                        except Exception as e:
+                            logger.warning(f"error to append service {request} in futures - {e}")
+                    else:
+                        logger.warning(f'Azure sync function "{request}" was specified but does not exist. Did you misspell it?')
 
-            for future in as_completed(futures):
-                try:
-                    result = future.result()
-                    if isinstance(result, dict):
-                        svc = result.get("service", "unknown")
-                        par_service_timings[svc] = result.get("duration_seconds", 0.0)
-                        if result.get("status") == "error":
-                            par_failed_services[svc] = "error"
-                except Exception as e:
-                    logger.warning(f"error retrieving future result - {e}")
+                for future in as_completed(futures):
+                    try:
+                        result = future.result()
+                        if isinstance(result, dict):
+                            svc = result.get("service", "unknown")
+                            par_service_timings[svc] = result.get("duration_seconds", 0.0)
+                            if result.get("status") == "error":
+                                par_failed_services[svc] = "error"
+                    except Exception as e:
+                        logger.warning(f"error retrieving future result - {e}")
+        finally:
+            shared_driver.close()
 
         total_par_elapsed = round(time.time() - par_start, 2)
         logger.info(
@@ -270,9 +274,6 @@ def _sync_multiple_subscriptions(
 
     for sub in subscriptions:
         common_job_parameters['AZURE_SUBSCRIPTION_ID'] = sub['subscriptionId']
-
-        if common_job_parameters['AZURE_SUBSCRIPTION_ID'] != sub['subscriptionId']:
-            continue
 
         logger.info(
             "Syncing Azure Subscription with ID '%s'",

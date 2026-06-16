@@ -1,5 +1,6 @@
 import logging
 import math
+import time
 from concurrent.futures import as_completed
 from concurrent.futures import ThreadPoolExecutor
 from typing import Dict
@@ -12,6 +13,7 @@ from cloudconsolelink.clouds.azure import AzureLinker
 from neo4j import GraphDatabase
 
 from .util.credentials import Credentials
+from .util.timing import get_timing_policy
 from cartography.config import Config
 from cartography.graph.session import Session
 from cartography.util import batch
@@ -34,7 +36,7 @@ def load_tags(session: neo4j.Session, data_list: List[Dict], update_tag: int, co
 
 @timeit
 def get_resource_management_client(credentials: Credentials, subscription_id: str) -> ResourceManagementClient:
-    client = ResourceManagementClient(credentials, subscription_id)
+    client = ResourceManagementClient(credentials, subscription_id, per_call_policies=[get_timing_policy()])
     return client
 
 
@@ -197,11 +199,15 @@ def sync_resource_groups(
     neo4j_session: neo4j.Session, credentials: Credentials, subscription_id: str, update_tag: int,
     common_job_parameters: Dict, config: Config,
 ) -> None:
+    t0 = time.perf_counter()
     client = get_resource_management_client(credentials, subscription_id)
     resource_groups_list = get_resource_groups_list(client, common_job_parameters)
+    logger.info(f"tag sub={subscription_id}: resource group fetch done — {len(resource_groups_list)} groups in {time.perf_counter() - t0:.2f}s")
+    t0 = time.perf_counter()
     load_resource_groups(neo4j_session, subscription_id, resource_groups_list, update_tag)
     cleanup_resource_groups(neo4j_session, common_job_parameters)
     sync_tags(neo4j_session, client, resource_groups_list, update_tag, common_job_parameters, config)
+    logger.info(f"tag sub={subscription_id}: resource groups + tags Neo4j write done in {time.perf_counter() - t0:.2f}s")
 
 
 @timeit

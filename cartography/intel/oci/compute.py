@@ -2,6 +2,7 @@
 # OCI Compute API-centric functions
 # https://docs.cloud.oracle.com/iaas/Content/Compute/Concepts/computeoverview.htm
 import logging
+import time
 from typing import Any
 from typing import Dict
 from typing import List
@@ -49,10 +50,11 @@ def load_instances(
     Ingest OCI Compute Instance data into Neo4j.
     """
     ingest_instance = """
-    MERGE (inode:OCIInstance{ocid: $OCID})
+    MERGE (inode:OCIInstance{id: $OCID})
     ON CREATE SET inode.firstseen = timestamp(),
     inode.createdate = $TIME_CREATED
-    SET inode.display_name = $DISPLAY_NAME,
+    SET inode.ocid = $OCID,
+    inode.display_name = $DISPLAY_NAME,
     inode.compartment_id = $COMPARTMENT_ID,
     inode.resource_type = 'oci-compute-vm-instance',
     inode.availability_domain = $AVAILABILITY_DOMAIN,
@@ -67,7 +69,7 @@ def load_instances(
     inode.is_monitoring_disabled = $IS_MONITORING_DISABLED,
     inode.lastupdated = $oci_update_tag
     WITH inode
-    MATCH (cc:OCICompartment{ocid: $COMPARTMENT_ID})
+    MATCH (cc:OCICompartment{id: $COMPARTMENT_ID})
     MERGE (cc)-[r:RESOURCE]->(inode)
     ON CREATE SET r.firstseen = timestamp()
     SET r.lastupdated = $oci_update_tag
@@ -130,10 +132,11 @@ def load_vnic_attachments(
     Ingest OCI VNIC Attachment data into Neo4j and link to instances.
     """
     ingest_vnic_attachment = """
-    MERGE (vnic:OCIVnicAttachment{ocid: $OCID})
+    MERGE (vnic:OCIVnicAttachment{id: $OCID})
     ON CREATE SET vnic.firstseen = timestamp(),
     vnic.createdate = $TIME_CREATED
-    SET vnic.display_name = $DISPLAY_NAME,
+    SET vnic.ocid = $OCID,
+    vnic.display_name = $DISPLAY_NAME,
     vnic.compartment_id = $COMPARTMENT_ID,
     vnic.availability_domain = $AVAILABILITY_DOMAIN,
     vnic.lifecycle_state = $LIFECYCLE_STATE,
@@ -142,7 +145,7 @@ def load_vnic_attachments(
     vnic.nic_index = $NIC_INDEX,
     vnic.lastupdated = $oci_update_tag
     WITH vnic
-    MATCH (inode:OCIInstance{ocid: $INSTANCE_ID})
+    MATCH (inode:OCIInstance{id: $INSTANCE_ID})
     MERGE (inode)-[r:OCI_VNIC_ATTACHMENT]->(vnic)
     ON CREATE SET r.firstseen = timestamp()
     SET r.lastupdated = $oci_update_tag
@@ -196,10 +199,11 @@ def load_images(
     Ingest OCI Image data into Neo4j.
     """
     ingest_image = """
-    MERGE (img:OCIImage{ocid: $OCID})
+    MERGE (img:OCIImage{id: $OCID})
     ON CREATE SET img.firstseen = timestamp(),
     img.createdate = $TIME_CREATED
-    SET img.display_name = $DISPLAY_NAME,
+    SET img.ocid = $OCID,
+    img.display_name = $DISPLAY_NAME,
     img.compartment_id = $COMPARTMENT_ID,
     img.operating_system = $OPERATING_SYSTEM,
     img.operating_system_version = $OPERATING_SYSTEM_VERSION,
@@ -207,7 +211,7 @@ def load_images(
     img.size_in_mbs = $SIZE_IN_MBS,
     img.lastupdated = $oci_update_tag
     WITH img
-    MATCH (cc:OCICompartment{ocid: $COMPARTMENT_ID})
+    MATCH (cc:OCICompartment{id: $COMPARTMENT_ID})
     MERGE (cc)-[r:RESOURCE]->(img)
     ON CREATE SET r.firstseen = timestamp()
     SET r.lastupdated = $oci_update_tag
@@ -262,17 +266,18 @@ def load_boot_volume_attachments(
     Ingest OCI Boot Volume Attachment data into Neo4j and link to instances.
     """
     ingest_boot_volume_attachment = """
-    MERGE (bva:OCIBootVolumeAttachment{ocid: $OCID})
+    MERGE (bva:OCIBootVolumeAttachment{id: $OCID})
     ON CREATE SET bva.firstseen = timestamp(),
     bva.createdate = $TIME_CREATED
-    SET bva.display_name = $DISPLAY_NAME,
+    SET bva.ocid = $OCID,
+    bva.display_name = $DISPLAY_NAME,
     bva.compartment_id = $COMPARTMENT_ID,
     bva.availability_domain = $AVAILABILITY_DOMAIN,
     bva.lifecycle_state = $LIFECYCLE_STATE,
     bva.boot_volume_id = $BOOT_VOLUME_ID,
     bva.lastupdated = $oci_update_tag
     WITH bva
-    MATCH (inode:OCIInstance{ocid: $INSTANCE_ID})
+    MATCH (inode:OCIInstance{id: $INSTANCE_ID})
     MERGE (inode)-[r:OCI_BOOT_VOLUME_ATTACHMENT]->(bva)
     ON CREATE SET r.firstseen = timestamp()
     SET r.lastupdated = $oci_update_tag
@@ -323,10 +328,11 @@ def load_volume_attachments(
     Ingest OCI Volume Attachment data into Neo4j and link to instances.
     """
     ingest_volume_attachment = """
-    MERGE (va:OCIVolumeAttachment{ocid: $OCID})
+    MERGE (va:OCIVolumeAttachment{id: $OCID})
     ON CREATE SET va.firstseen = timestamp(),
     va.createdate = $TIME_CREATED
-    SET va.display_name = $DISPLAY_NAME,
+    SET va.ocid = $OCID,
+    va.display_name = $DISPLAY_NAME,
     va.compartment_id = $COMPARTMENT_ID,
     va.availability_domain = $AVAILABILITY_DOMAIN,
     va.lifecycle_state = $LIFECYCLE_STATE,
@@ -335,7 +341,7 @@ def load_volume_attachments(
     va.is_read_only = $IS_READ_ONLY,
     va.lastupdated = $oci_update_tag
     WITH va
-    MATCH (inode:OCIInstance{ocid: $INSTANCE_ID})
+    MATCH (inode:OCIInstance{id: $INSTANCE_ID})
     MERGE (inode)-[r:OCI_VOLUME_ATTACHMENT]->(va)
     ON CREATE SET r.firstseen = timestamp()
     SET r.lastupdated = $oci_update_tag
@@ -649,11 +655,15 @@ def sync_instances(
     """
     Sync all compute instances across all compartments in the tenancy.
     """
+    tic = time.perf_counter()
     logger.debug("Syncing OCI compute instances for tenancy '%s', region '%s'.", tenancy_id, region)
+    total = 0
     for compartment in compartments:
         data = get_instance_list_data(compute, compartment["ocid"])
         if data["Instances"]:
+            total += len(data["Instances"])
             load_instances(neo4j_session, data["Instances"], tenancy_id, compartment["ocid"], region, oci_update_tag)
+    logger.info(f"Time to process OCI compute instances for tenancy '{tenancy_id}' region '{region}' ({total} instances): {time.perf_counter() - tic:0.4f} seconds")
 
 
 def sync_vnic_attachments(
@@ -667,11 +677,15 @@ def sync_vnic_attachments(
     """
     Sync all VNIC attachments across all compartments in the tenancy.
     """
+    tic = time.perf_counter()
     logger.debug("Syncing OCI VNIC attachments for tenancy '%s'.", tenancy_id)
+    total = 0
     for compartment in compartments:
         data = get_vnic_attachment_list_data(compute, compartment["ocid"])
         if data["VnicAttachments"]:
+            total += len(data["VnicAttachments"])
             load_vnic_attachments(neo4j_session, data["VnicAttachments"], tenancy_id, oci_update_tag)
+    logger.info(f"Time to process OCI VNIC attachments for tenancy '{tenancy_id}' ({total} attachments): {time.perf_counter() - tic:0.4f} seconds")
 
 
 def sync_images(
@@ -685,11 +699,15 @@ def sync_images(
     """
     Sync all images across all compartments in the tenancy.
     """
+    tic = time.perf_counter()
     logger.debug("Syncing OCI images for tenancy '%s'.", tenancy_id)
+    total = 0
     for compartment in compartments:
         data = get_image_list_data(compute, compartment["ocid"])
         if data["Images"]:
+            total += len(data["Images"])
             load_images(neo4j_session, data["Images"], tenancy_id, compartment["ocid"], oci_update_tag)
+    logger.info(f"Time to process OCI images for tenancy '{tenancy_id}' ({total} images): {time.perf_counter() - tic:0.4f} seconds")
 
 
 def sync_volume_attachments(
@@ -703,11 +721,15 @@ def sync_volume_attachments(
     """
     Sync all volume attachments across all compartments in the tenancy.
     """
+    tic = time.perf_counter()
     logger.debug("Syncing OCI volume attachments for tenancy '%s'.", tenancy_id)
+    total = 0
     for compartment in compartments:
         data = get_volume_attachment_list_data(compute, compartment["ocid"])
         if data["VolumeAttachments"]:
+            total += len(data["VolumeAttachments"])
             load_volume_attachments(neo4j_session, data["VolumeAttachments"], tenancy_id, oci_update_tag)
+    logger.info(f"Time to process OCI volume attachments for tenancy '{tenancy_id}' ({total} attachments): {time.perf_counter() - tic:0.4f} seconds")
 
 
 def sync(
@@ -721,6 +743,7 @@ def sync(
     """
     Sync OCI Compute resources for the compartment specified in common_job_parameters.
     """
+    tic = time.perf_counter()
     compartment_ocid = common_job_parameters.get("OCI_COMPARTMENT_ID", tenancy_id)
     logger.info("Syncing OCI Compute for compartment '%s'.", compartment_ocid)
 
@@ -787,3 +810,5 @@ def sync(
 
     # Cleanup stale nodes
     run_cleanup_job('oci_import_compute_instances_cleanup.json', neo4j_session, common_job_parameters)
+    toc = time.perf_counter()
+    logger.info(f"Time to process OCI Compute for tenancy '{tenancy_id}': {toc - tic:0.4f} seconds")

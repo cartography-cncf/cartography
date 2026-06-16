@@ -1,4 +1,5 @@
 import logging
+import time
 from typing import Dict
 from typing import List
 
@@ -62,9 +63,14 @@ def _extract_aks_tags(tags_dict) -> Dict:
 def get_vm_list(credentials: Credentials, subscription_id: str, regions: list, common_job_parameters: Dict) -> List[Dict]:  # noqa: E501
     try:
         client = get_client(credentials, subscription_id)
-        vm_list = list(map(lambda x: x.as_dict(), client.virtual_machines.list_all()))
+        vm_data_raw = []
+        for x in client.virtual_machines.list_all():
+            try:
+                vm_data_raw.append(x.as_dict())
+            except (KeyError, AttributeError) as e:
+                logger.warning("Skipping VM due to serialization error: %s", e)
         vm_data = []
-        for vm in vm_list:
+        for vm in vm_data_raw:
             vm['resource_group'] = get_azure_resource_group_name(vm.get('id'))
             vm['consolelink'] = azure_console_link.get_console_link(
                 id=vm['id'], primary_ad_domain_name=common_job_parameters['Azure_Primary_AD_Domain_Name'],
@@ -73,21 +79,22 @@ def get_vm_list(credentials: Credentials, subscription_id: str, regions: list, c
             vm['aks_cluster_name'] = aks_tags['aks_cluster_name']
             vm['aks_pool_name'] = aks_tags['aks_pool_name']
             vm['aks_cluster_rg'] = aks_tags['aks_cluster_rg']
+            network_profile = vm.get('network_profile') or {}
             network_interfaces = []
-            for interface in vm.get('network_profile', {}).get('network_interfaces', []):
+            for interface in network_profile.get('network_interfaces', []):
                 network_interfaces.append(interface)
             vm['network_interfaces'] = network_interfaces
-            vm['user_assigned_identities'] = list(vm.get('identity', {}).get('user_assigned_identities', {}).keys())
+            vm['user_assigned_identities'] = list((vm.get('identity') or {}).get('user_assigned_identities', {}).keys())
             network_security_group = []
-            for config in vm.get('network_profile', {}).get('network_interface_configurations', []):
-                network_security_group.append(config.get('network_security_group'), None)
+            for config in network_profile.get('network_interface_configurations', []):
+                network_security_group.append(config.get('network_security_group'))
             vm['network_security_group'] = network_security_group
 
-            os_disk = vm.get("storage_profile", {}).get("os_disk", {})
+            os_disk = (vm.get("storage_profile") or {}).get("os_disk") or {}
             vm['os_type'] = os_disk.get('os_type')
             vm['os_disk_name'] = os_disk.get('name')
             vm['is_spot_instance'] = str(vm.get('priority', '')).lower() == 'spot'
-            image_reference = vm.get("storage_profile", {}).get("image_reference", {})
+            image_reference = (vm.get("storage_profile") or {}).get("image_reference") or {}
             sku = image_reference.get('sku')
             offer = image_reference.get('offer')
             publisher = image_reference.get('publisher', '')
@@ -174,10 +181,11 @@ def load_vms(neo4j_session: neo4j.Session, subscription_id: str, vm_list: List[D
     )
 
     for vm in vm_list:
-        if vm.get('storage_profile', {}).get('os_disk'):
-            load_vm_os_disk(neo4j_session, vm['id'], vm['storage_profile']['os_disk'], update_tag)
-        if vm.get('storage_profile', {}).get('data_disks'):
-            load_vm_data_disks(neo4j_session, vm['id'], vm['storage_profile']['data_disks'], update_tag)
+        storage_profile = vm.get('storage_profile') or {}
+        if storage_profile.get('os_disk'):
+            load_vm_os_disk(neo4j_session, vm['id'], storage_profile['os_disk'], update_tag)
+        if storage_profile.get('data_disks'):
+            load_vm_data_disks(neo4j_session, vm['id'], storage_profile['data_disks'], update_tag)
 
         if vm.get('network_security_group', []) != []:
             load_vm_security_groups_relationship(neo4j_session, vm['id'], vm.get('network_security_group'), update_tag)
@@ -563,9 +571,11 @@ def sync_vm_scale_sets(
     neo4j_session: neo4j.Session, credentials: Credentials, subscription_id: str, update_tag: int,
     common_job_parameters: Dict, regions: list,
 ) -> None:
+    t0 = time.perf_counter()
     client = get_client(credentials, subscription_id)
     vm_scale_sets_list = get_vm_scale_sets_list(credentials, subscription_id, regions, common_job_parameters)
-
+    logger.info(f"compute sub={subscription_id}: VMSS fetch done — {len(vm_scale_sets_list)} scale sets in {time.perf_counter() - t0:.2f}s")
+    t0 = time.perf_counter()
     load_vm_scale_sets(neo4j_session, subscription_id, vm_scale_sets_list, update_tag)
     vmss.sync_vm_scale_sets_vms_part_of_relationships(
         neo4j_session,
@@ -578,6 +588,7 @@ def sync_vm_scale_sets(
     sync_virtual_machine_scale_sets_extensions(
         neo4j_session, client, vm_scale_sets_list, update_tag, common_job_parameters,
     )
+    logger.info(f"compute sub={subscription_id}: VMSS Neo4j write done in {time.perf_counter() - t0:.2f}s")
 
 
 def get_vm_scale_sets_extensions_list(vm_scale_sets_list: List[Dict], client: ComputeManagementClient, common_job_parameters: Dict) -> List[Dict]:  # noqa: E501
@@ -923,41 +934,50 @@ def sync_virtual_machine(
     neo4j_session: neo4j.Session, credentials: Credentials, subscription_id: str, update_tag: int,
     common_job_parameters: Dict, regions: list,
 ) -> None:
+    t0 = time.perf_counter()
     # client = get_client(credentials, subscription_id)
     vm_list = get_vm_list(credentials, subscription_id, regions, common_job_parameters)
-
+    logger.info(f"compute sub={subscription_id}: VM fetch done — {len(vm_list)} VMs in {time.perf_counter() - t0:.2f}s")
+    t0 = time.perf_counter()
     load_vms(neo4j_session, subscription_id, vm_list, update_tag)
     # sync_virtual_machine_extensions(neo4j_session, client, vm_list, update_tag, common_job_parameters)
     # sync_virtual_machine_available_sizes(neo4j_session, client, vm_list, update_tag, common_job_parameters)
 
     cleanup_virtual_machine(neo4j_session, common_job_parameters)
+    logger.info(f"compute sub={subscription_id}: VM Neo4j write done in {time.perf_counter() - t0:.2f}s")
 
 
 def sync_disk(
     neo4j_session: neo4j.Session, credentials: Credentials, subscription_id: str, update_tag: int,
     common_job_parameters: Dict, regions: list,
 ) -> None:
+    t0 = time.perf_counter()
     disk_list = get_disks(credentials, subscription_id, regions, common_job_parameters)
-
+    logger.info(f"compute sub={subscription_id}: disk fetch done — {len(disk_list)} disks in {time.perf_counter() - t0:.2f}s")
+    t0 = time.perf_counter()
     load_disks(neo4j_session, subscription_id, disk_list, update_tag)
     cleanup_disks(neo4j_session, common_job_parameters)
+    logger.info(f"compute sub={subscription_id}: disk Neo4j write done in {time.perf_counter() - t0:.2f}s")
 
 
 def sync_snapshot(
     neo4j_session: neo4j.Session, credentials: Credentials, subscription_id: str, update_tag: int,
     common_job_parameters: Dict, regions: list,
 ) -> None:
+    t0 = time.perf_counter()
     snapshots = get_snapshots_list(credentials, subscription_id, regions, common_job_parameters)
-
+    logger.info(f"compute sub={subscription_id}: snapshot fetch done — {len(snapshots)} snapshots in {time.perf_counter() - t0:.2f}s")
+    t0 = time.perf_counter()
     load_snapshots(neo4j_session, subscription_id, snapshots, update_tag)
     for snapshot in snapshots:
-        if snapshot.get("creation_data").get("create_option", "") == "Copy":
+        if (snapshot.get("creation_data") or {}).get("create_option", "") == "Copy":
             _attach_snapshot_disk(
                 neo4j_session, snapshot["id"],
                 snapshot["creation_data"]["source_resource_id"], update_tag,
             )
 
     cleanup_snapshot(neo4j_session, common_job_parameters)
+    logger.info(f"compute sub={subscription_id}: snapshot Neo4j write done in {time.perf_counter() - t0:.2f}s")
 
 
 @timeit

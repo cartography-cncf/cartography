@@ -2,6 +2,7 @@
 import json
 import logging
 import os
+import signal
 import threading
 import time
 import uuid
@@ -18,20 +19,19 @@ from utils.logger import get_logger
 
 app_init = None
 context = None
+shutdown_event = threading.Event()
+
+
+def handle_sigterm(signum, frame):
+    shutdown_event.set()
 
 
 def current_config(env):
     return "config/production.json" if env == "PRODUCTION" else "config/default.json"
 
 
-def set_assume_role_keys(context):
-    context.assume_role_access_key_key_id = context.assume_role_access_secret_key_id = (
-        os.environ["CDX_APP_ASSUME_ROLE_KMS_KEY_ID"]
-    )
-    context.assume_role_access_key_cipher = os.environ["CDX_APP_ASSUME_ROLE_ACCESS_KEY"]
-    context.assume_role_access_secret_cipher = os.environ[
-        "CDX_APP_ASSUME_ROLE_ACCESS_SECRET"
-    ]
+def set_cross_account_role(context):
+    context.cross_account_role_arn = os.environ.get("CDX_CROSS_ACCOUNT_ROLE_ARN", "")
     context.neo4j_uri = os.environ["CDX_APP_NEO4J_URI"]
     context.neo4j_user = os.environ["CDX_APP_NEO4J_USER"]
     context.neo4j_pwd = os.environ["CDX_APP_NEO4J_PWD"]
@@ -60,7 +60,7 @@ def init_app(ctx):
 
     context.parse(decrypted_value)
 
-    set_assume_role_keys(context)
+    set_cross_account_role(context)
 
     app_init = True
 
@@ -130,7 +130,8 @@ def process_request(context, args, retry=0):
                         "error": str(e),
                     }
                     status = sns_helper.publish(
-                        json.dumps(payload), args["params"]["resultTopic"],
+                        json.dumps(payload),
+                        args["params"]["resultTopic"],
                     )
                     context.logger.debug(
                         f"result published to SNS with status: {status}",
@@ -175,6 +176,7 @@ def process_request(context, args, retry=0):
                 "refreshEntitlements": args.get("refreshEntitlements"),
                 "identityStoreRegion": args.get("identityStoreRegion"),
                 "internalAccounts": args.get("internalAccounts"),
+                "awsExcludedRegions": context.aws_excluded_regions,
             }
 
             resp = cartography.cli.run_aws(body)
@@ -219,7 +221,8 @@ def process_request(context, args, retry=0):
                     "services": args.get("services"),
                     "defaultSubscription": args.get("defaultSubscription"),
                     "authMode": args.get("headers", {}).get(
-                        "x-cloudanix-azure-auth-mode", "user_impersonation",
+                        "x-cloudanix-azure-auth-mode",
+                        "user_impersonation",
                     ),
                 },
                 "services": svcs,
@@ -338,7 +341,8 @@ def publish_response(context, body, resp, args):
         if resp.get("services", None):
             if body.get("params", {}).get("requestTopic"):
                 status = sns_helper.publish(
-                    json.dumps(payload), body["params"]["requestTopic"],
+                    json.dumps(payload),
+                    body["params"]["requestTopic"],
                 )
 
         elif body.get("params", {}).get("resultTopic"):
@@ -347,7 +351,8 @@ def publish_response(context, body, resp, args):
             ):
                 # In case of a partial request processing, result should be pushed to "resultTopic" passed in the request
                 status = sns_helper.publish(
-                    json.dumps(payload), body["params"]["resultTopic"],
+                    json.dumps(payload),
+                    body["params"]["resultTopic"],
                 )
 
             else:
@@ -362,7 +367,8 @@ def publish_response(context, body, resp, args):
         else:
             context.logger.debug("publishing results to CDX_CARTOGRAPHY_RESULT_TOPIC")
             status = sns_helper.publish(
-                json.dumps(payload), context.aws_inventory_sync_response_topic,
+                json.dumps(payload),
+                context.aws_inventory_sync_response_topic,
             )
             if template_type == "AWSINVENTORYVIEWS":
                 publish_request_iam_entitlement(context, args, body)
@@ -401,8 +407,6 @@ def get_auth_creds(context, args):
 
     if context.app_env == "PRODUCTION" or context.app_env == "DEBUG":
         auth_params = {
-            "aws_access_key_id": auth_helper.get_assume_role_access_key(),
-            "aws_secret_access_key": auth_helper.get_assume_role_access_secret(),
             "role_session_name": args.get("sessionString"),
             "role_arn": args.get("externalRoleArn"),
             "external_id": args.get("externalId"),
@@ -430,14 +434,10 @@ def get_auth_creds(context, args):
 
 def get_logging_account_auth_creds(context, args):
     auth_helper = AuthLibrary(context)
-    aws_access_key_id = auth_helper.get_assume_role_access_key()
-    aws_secret_access_key = auth_helper.get_assume_role_access_secret()
     logging_account = args.get("loggingAccount", {})
 
     if context.app_env == "PRODUCTION" or context.app_env == "DEBUG":
         auth_params = {
-            "aws_access_key_id": aws_access_key_id,
-            "aws_secret_access_key": aws_secret_access_key,
             "role_session_name": str(uuid.uuid4()),
             "role_arn": logging_account.get("externalRoleArn"),
             "external_id": logging_account.get("externalId"),
@@ -555,7 +555,8 @@ def extend_visibility_timeout(message, receipt_handle, timeout_duration, stop_ev
             logging.debug(f"Extending visibilityTimeout for message: {receipt_handle}")
 
             status = sqs_library.change_message_visibility(
-                receipt_handle, timeout_duration,
+                receipt_handle,
+                timeout_duration,
             )
             if status:
                 context.logger.debug(
@@ -598,7 +599,8 @@ def process_message(context: AppContext, message: dict):
 
         params = json.loads(message["Body"])
         context.logger.debug(
-            "Received", extra={"message": params, "handle": receipt_handle},
+            "Received",
+            extra={"message": params, "handle": receipt_handle},
         )
 
         process_request(context, params)
@@ -629,31 +631,36 @@ def process_message(context: AppContext, message: dict):
     finally:
         stop_event.set()
 
-        # Delete the message from the queue
-        sqs_library = SQSLibrary(context)
-
-        # After processing, delete the message
-        status = sqs_library.delete_message(message["ReceiptHandle"])
-        if status:
-            context.logger.debug(
-                "Successfully deleted message from queue",
-                extra={
-                    "message": message["Body"],
-                    "handle": receipt_handle,
-                    "status": status,
-                },
-            )
-            is_success = True
+        if is_success:
+            # Delete message if processing completed successfully
+            sqs_library = SQSLibrary(context)
+            status = sqs_library.delete_message(message["ReceiptHandle"])
+            if status:
+                context.logger.debug(
+                    "Successfully deleted message from queue",
+                    extra={
+                        "message": message["Body"],
+                        "handle": receipt_handle,
+                        "status": status,
+                    },
+                )
+            else:
+                context.logger.debug(
+                    "Failed to delete message from queue",
+                    extra={
+                        "message": message["Body"],
+                        "handle": receipt_handle,
+                        "status": status,
+                    },
+                )
         else:
-            context.logger.debug(
-                "Failed to delete message from queue",
+            context.logger.info(
+                "Processing did not complete successfully. Not deleting message so it can be re-processed.",
                 extra={
                     "message": message["Body"],
                     "handle": receipt_handle,
-                    "status": status,
                 },
             )
-            is_success = False
 
         visibility_extension_thread.join()
 
@@ -668,6 +675,10 @@ def poll_messages(context: AppContext):
     # INFO: poll messages from sqs, fetch one message, process it and die
     processed_count: int = 0
     while True:
+        if shutdown_event.is_set():
+            context.logger.info("Shutdown signal received. Exiting poll loop.")
+            break
+
         context.logger.debug("fetching messages")
 
         try:
@@ -676,10 +687,15 @@ def poll_messages(context: AppContext):
             # Pull messages from SQS
             messages = sqs_library.fetch_messages()
             context.logger.debug(
-                "Messages fetched from Queue", extra={"count": len(messages)},
+                "Messages fetched from Queue",
+                extra={"count": len(messages)},
             )
 
             if len(messages) > 0:
+                if shutdown_event.is_set():
+                    context.logger.info("Shutdown signal received after fetching messages. Exiting without processing.")
+                    break
+
                 for message in messages:
                     process_message(context, message)
                     processed_count += 1
@@ -722,13 +738,16 @@ def init_app_context() -> AppContext:
 
     context.parse(decrypted_value)
 
-    set_assume_role_keys(context)
+    set_cross_account_role(context)
 
     return context
 
 
 if __name__ == "__main__":
     print("Service started...")
+
+    signal.signal(signal.SIGTERM, handle_sigterm)
+    signal.signal(signal.SIGINT, handle_sigterm)
 
     if os.environ.get("CDX_RUN_AS") == "EKS":
         context = init_app_context()

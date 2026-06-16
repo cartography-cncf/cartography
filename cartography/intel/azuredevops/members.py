@@ -157,3 +157,4 @@ def sync(
         transformed_users = [transform_user(user_data) for user_data in users]
         load_users(neo4j_session, transformed_users, org_name, common_job_parameters)
         cleanup(neo4j_session, common_job_parameters)
+    logger.info(f"Processed {len(users) if users else 0} users for org '{org_name}'")

@@ -3,6 +3,8 @@ import enum
 import json
 import logging
 import time
+from concurrent.futures import as_completed
+from concurrent.futures import ThreadPoolExecutor
 from typing import Dict
 from typing import List
 
@@ -104,19 +106,25 @@ def get_identity_center_permissions_sets_list(
             f"Could not list permission sets for {instance['InstanceArn']}. skipping. - {e}",
         )
 
-    permission_sets_list: List[Dict] = []
-    for permission_set in permission_sets:
+    def _describe_one(ps_arn: str) -> Dict:
         try:
-            response = client.describe_permission_set(
+            return client.describe_permission_set(
                 InstanceArn=instance["InstanceArn"],
-                PermissionSetArn=permission_set,
-            )
-            permission_sets_list.append(response["PermissionSet"])
-
+                PermissionSetArn=ps_arn,
+            )["PermissionSet"]
         except Exception as e:
             logger.warning(
-                f"Could not get permission set info for {instance['InstanceArn']} - {permission_set}. skipping. - {e}",
+                f"Could not get permission set info for {instance['InstanceArn']} - {ps_arn}. skipping. - {e}",
             )
+            return {}
+
+    permission_sets_list: List[Dict] = []
+    with ThreadPoolExecutor(max_workers=10) as pool:
+        futures = [pool.submit(_describe_one, ps) for ps in permission_sets]
+    for f in futures:
+        result = f.result()
+        if result:
+            permission_sets_list.append(result)
 
     return permission_sets_list
 
@@ -475,46 +483,29 @@ def sync_identity_center_permissions_sets(
     client = get_boto3_client(boto3_session, "sso-admin", region)
     loaded_permissions_sets = []
 
-    for user in users:
-        assignments = get_list_account_assignments_for_principal(
-            client,
-            instance["InstanceArn"],
-            user["UserId"],
-            "USER",
-            region,
-        )
+    with ThreadPoolExecutor(max_workers=10) as pool:
+        user_futures = [
+            (pool.submit(get_list_account_assignments_for_principal, client, instance["InstanceArn"], u["UserId"], "USER", region), u)
+            for u in users
+        ]
+        group_futures = [
+            (pool.submit(get_list_account_assignments_for_principal, client, instance["InstanceArn"], g["GroupId"], "GROUP", region), g)
+            for g in groups
+        ]
+    for future, _user in user_futures:
+        assignments = future.result()
         loaded_permissions_sets.extend(
             load_identity_center_account_assignments(
-                neo4j_session,
-                assignments,
-                permissions_sets,
-                instance["InstanceArn"],
-                managed_policies,
-                inline_policies,
-                current_aws_account_id,
-                aws_update_tag,
-                common_job_parameters,
+                neo4j_session, assignments, permissions_sets, instance["InstanceArn"],
+                managed_policies, inline_policies, current_aws_account_id, aws_update_tag, common_job_parameters,
             ),
         )
-    for group in groups:
-        assignments = get_list_account_assignments_for_principal(
-            client,
-            instance["InstanceArn"],
-            group["GroupId"],
-            "GROUP",
-            region,
-        )
+    for future, _group in group_futures:
+        assignments = future.result()
         loaded_permissions_sets.extend(
             load_identity_center_account_assignments(
-                neo4j_session,
-                assignments,
-                permissions_sets,
-                instance["InstanceArn"],
-                managed_policies,
-                inline_policies,
-                current_aws_account_id,
-                aws_update_tag,
-                common_job_parameters,
+                neo4j_session, assignments, permissions_sets, instance["InstanceArn"],
+                managed_policies, inline_policies, current_aws_account_id, aws_update_tag, common_job_parameters,
             ),
         )
 
@@ -761,9 +752,15 @@ def sync_identity_center_groups(
 ) -> None:
     groups = get_identity_center_groups_list(boto3_session, instance, region)
     load_identity_center_groups(neo4j_session, instance["InstanceArn"], groups, aws_update_tag)
-    for group in groups:
-        group_memberships = get_list_group_memberships(boto3_session, group, instance, region)
-        load_identity_center_group_memberships(neo4j_session, group_memberships, aws_update_tag)
+    all_memberships: List[Dict] = []
+    with ThreadPoolExecutor(max_workers=10) as pool:
+        futures = [pool.submit(get_list_group_memberships, boto3_session, group, instance, region) for group in groups]
+    for f in futures:
+        memberships = f.result()
+        if memberships:
+            all_memberships.extend(memberships)
+    if all_memberships:
+        load_identity_center_group_memberships(neo4j_session, all_memberships, aws_update_tag)
 
 
 @timeit

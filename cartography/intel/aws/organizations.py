@@ -1,4 +1,5 @@
 import logging
+import time
 from typing import Dict
 
 import boto3
@@ -167,4 +168,8 @@ def cleanup(neo4j_session: neo4j.Session, account_id: str, common_job_parameters
 
 @timeit
 def sync(neo4j_session: neo4j.Session, accounts: Dict, organization: Dict, update_tag: int, common_job_parameters: Dict) -> None:
+    tic = time.perf_counter()
+    logger.info("Syncing AWS Organizations")
     load_aws_accounts(neo4j_session, accounts, update_tag, organization, common_job_parameters)
+    toc = time.perf_counter()
+    logger.info(f"Time to process AWS Organizations ({len(accounts)} accounts): {toc - tic:0.4f} seconds")

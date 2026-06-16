@@ -38,7 +38,7 @@ def replace_char_in_dict(in_dict: Dict[str, Any]) -> Dict[str, Any]:
 
 # Grab list of all compartments and sub-compartments in neo4j already populated by iam.
 def get_compartments_in_tenancy(neo4j_session: neo4j.Session, tenancy_id: str) -> neo4j.Result:
-    query = "MATCH (OCITenancy{ocid: $OCI_TENANCY_ID})-[:OWNER]->(compartment:OCICompartment) " \
+    query = "MATCH (OCITenancy{id: $OCI_TENANCY_ID})-[:OWNER]->(compartment:OCICompartment) " \
             "return DISTINCT compartment.name as name, compartment.ocid as ocid, " \
             "compartment.compartmentid as compartmentid;"
     return neo4j_session.run(query, OCI_TENANCY_ID=tenancy_id)
@@ -46,14 +46,14 @@ def get_compartments_in_tenancy(neo4j_session: neo4j.Session, tenancy_id: str) -
 
 # Grab list of all groups in neo4j already populated by iam.
 def get_groups_in_tenancy(neo4j_session: neo4j.Session, tenancy_id: str) -> neo4j.Result:
-    query = "MATCH (OCITenancy{ocid: $OCI_TENANCY_ID})-[*]->(group:OCIGroup)" \
+    query = "MATCH (OCITenancy{id: $OCI_TENANCY_ID})-[*]->(group:OCIGroup)" \
             "return DISTINCT group.name as name, group.ocid as ocid;"
     return neo4j_session.run(query, OCI_TENANCY_ID=tenancy_id)
 
 
 # Grab list of all policies in neo4j already populated by iam.
 def get_policies_in_tenancy(neo4j_session: neo4j.Session, tenancy_id: str) -> neo4j.Result:
-    query = "MATCH (OCITenancy{ocid: $OCI_TENANCY_ID})-[*]->(policy:OCIPolicy)" \
+    query = "MATCH (OCITenancy{id: $OCI_TENANCY_ID})-[*]->(policy:OCIPolicy)" \
             "return DISTINCT policy.name as name, policy.ocid as ocid, policy.statements as statements, " \
             "policy.compartmentid as compartmentid;"
     return neo4j_session.run(query, OCI_TENANCY_ID=tenancy_id)
@@ -61,7 +61,7 @@ def get_policies_in_tenancy(neo4j_session: neo4j.Session, tenancy_id: str) -> ne
 
 # Grab list of all regions in neo4j already populated by iam.
 def get_regions_in_tenancy(neo4j_session: neo4j.Session, tenancy_id: str) -> neo4j.Result:
-    query = "MATCH (OCITenancy{ocid: $OCI_TENANCY_ID})-->(region:OCIRegion)" \
+    query = "MATCH (OCITenancy{id: $OCI_TENANCY_ID})-->(region:OCIRegion)" \
             "return DISTINCT region.name as name, region.key as key;"
     return neo4j_session.run(query, OCI_TENANCY_ID=tenancy_id)
 
@@ -71,7 +71,7 @@ def get_security_groups_in_tenancy(
     neo4j_session: neo4j.Session,
     tenancy_id: str, region: str,
 ) -> neo4j.Result:
-    query = "MATCH (OCITenancy{ocid: $OCI_TENANCY_ID})-[*]->(security_group:OCINetworkSecurityGroup)-[OCI_REGION]->" \
+    query = "MATCH (OCITenancy{id: $OCI_TENANCY_ID})-[*]->(security_group:OCINetworkSecurityGroup)-[OCI_REGION]->" \
             "(region:OCIRegion{name: $OCI_REGION})" \
             "return DISTINCT security_group.name as name, security_group.ocid as ocid, security_group.compartmentid " \
             "as compartmentid;"

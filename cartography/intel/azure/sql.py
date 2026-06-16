@@ -1,5 +1,7 @@
 import ipaddress
 import logging
+import time
+from concurrent.futures import ThreadPoolExecutor
 from typing import Any
 from typing import Dict
 from typing import Generator
@@ -23,6 +25,7 @@ from netaddr import *
 
 from . import network
 from .util.credentials import Credentials
+from .util.timing import get_timing_policy
 from cartography.util import get_azure_resource_group_name
 from cartography.util import run_cleanup_job
 from cartography.util import timeit
@@ -42,7 +45,7 @@ def get_client(credentials: Credentials, subscription_id: str) -> SqlManagementC
     """
     Getting the Azure SQL client
     """
-    client = SqlManagementClient(credentials, subscription_id)
+    client = SqlManagementClient(credentials, subscription_id, per_call_policies=[get_timing_policy()])
     return client
 
 
@@ -95,13 +98,19 @@ def get_server_list(credentials: Credentials, subscription_id: str, regions: lis
     """
     Returning the list of Azure SQL servers, PostgreSQL servers, and MySQL servers.
     """
-    # Gather all server types
+    # Gather all server types in parallel (independent API calls, different ARM endpoints)
+    fetchers = [
+        _get_sql_database_servers,
+        _get_postgresql_flexible_servers,
+        _get_mysql_flexible_servers,
+        _get_postgresql_rdbms_servers,
+        _get_mysql_rdbms_servers,
+    ]
     server_list = []
-    server_list.extend(_get_sql_database_servers(credentials, subscription_id))
-    server_list.extend(_get_postgresql_flexible_servers(credentials, subscription_id))
-    server_list.extend(_get_mysql_flexible_servers(credentials, subscription_id))
-    server_list.extend(_get_postgresql_rdbms_servers(credentials, subscription_id))
-    server_list.extend(_get_mysql_rdbms_servers(credentials, subscription_id))
+    with ThreadPoolExecutor(max_workers=5) as pool:
+        futures = [pool.submit(fn, credentials, subscription_id) for fn in fetchers]
+    for f in futures:
+        server_list.extend(f.result())
 
     # Enrich server data with additional metadata
     server_data = [
@@ -136,7 +145,7 @@ def _get_postgresql_flexible_servers(credentials: Credentials, subscription_id: 
     Get Azure Database for PostgreSQL Flexible Servers.
     """
     try:
-        pg_flex_client = PostgreSQLFlexibleServersManagementClient(credentials, subscription_id)
+        pg_flex_client = PostgreSQLFlexibleServersManagementClient(credentials, subscription_id, per_call_policies=[get_timing_policy()])
         pg_flex_servers = list(map(lambda x: x.as_dict(), pg_flex_client.servers.list()))
         logger.debug(f"Retrieved {len(pg_flex_servers)} PostgreSQL Flexible Servers")
         return pg_flex_servers
@@ -156,7 +165,7 @@ def _get_mysql_flexible_servers(credentials: Credentials, subscription_id: str) 
     Get Azure Database for MySQL Flexible Servers.
     """
     try:
-        mysql_flex_client = MySQLFlexibleServersManagementClient(credentials, subscription_id)
+        mysql_flex_client = MySQLFlexibleServersManagementClient(credentials, subscription_id, per_call_policies=[get_timing_policy()])
         mysql_flex_servers = list(map(lambda x: x.as_dict(), mysql_flex_client.servers.list()))
         logger.debug(f"Retrieved {len(mysql_flex_servers)} MySQL Flexible Servers")
         return mysql_flex_servers
@@ -176,7 +185,7 @@ def _get_postgresql_rdbms_servers(credentials: Credentials, subscription_id: str
     Get Azure Database for PostgreSQL (Regular RDBMS) servers.
     """
     try:
-        pg_rdbms_client = PostgreSQLManagementClient(credentials, subscription_id)
+        pg_rdbms_client = PostgreSQLManagementClient(credentials, subscription_id, per_call_policies=[get_timing_policy()])
         pg_rdbms_servers = list(map(lambda x: x.as_dict(), pg_rdbms_client.servers.list()))
         logger.debug(f"Retrieved {len(pg_rdbms_servers)} PostgreSQL RDBMS Servers")
         return pg_rdbms_servers
@@ -196,7 +205,7 @@ def _get_mysql_rdbms_servers(credentials: Credentials, subscription_id: str) -> 
     Get Azure Database for MySQL (Regular RDBMS) servers.
     """
     try:
-        mysql_rdbms_client = MySQLManagementClient(credentials, subscription_id)
+        mysql_rdbms_client = MySQLManagementClient(credentials, subscription_id, per_call_policies=[get_timing_policy()])
         mysql_rdbms_servers = list(map(lambda x: x.as_dict(), mysql_rdbms_client.servers.list()))
         logger.debug(f"Retrieved {len(mysql_rdbms_servers)} MySQL RDBMS Servers")
         return mysql_rdbms_servers
@@ -664,7 +673,9 @@ def load_server_details(
                 rules['server_name'] = name
                 rules['server_id'] = server_id
                 rules['resource_group_name'] = rg
-                rules['consolelink'] = ''  # TODO: implement for firewall rules
+                rules['consolelink'] = azure_console_link.get_console_link(
+                    id=rules['id'], primary_ad_domain_name=common_job_parameters['Azure_Primary_AD_Domain_Name'],
+                )
                 fw_rules.append(rules)
 
     _load_server_dns_aliases(neo4j_session, dns_aliases, update_tag)
@@ -1612,8 +1623,14 @@ def sync(
         sync_tag: int, common_job_parameters: Dict, regions: list,
 ) -> None:
     logger.info("Syncing Azure SQL for subscription '%s'.", subscription_id)
+    t0 = time.perf_counter()
     server_list = get_server_list(credentials, subscription_id, regions, common_job_parameters)
+    logger.info(f"sql sub={subscription_id}: server fetch done — {len(server_list)} servers in {time.perf_counter() - t0:.2f}s")
+    t0 = time.perf_counter()
     load_server_data(neo4j_session, subscription_id, server_list, sync_tag)
     load_server_private_endpoint_connection(neo4j_session, server_list, sync_tag)
+    logger.info(f"sql sub={subscription_id}: server load done in {time.perf_counter() - t0:.2f}s")
+    t0 = time.perf_counter()
     sync_server_details(neo4j_session, credentials, subscription_id, server_list, sync_tag, common_job_parameters)
     cleanup_azure_sql_servers(neo4j_session, common_job_parameters)
+    logger.info(f"sql sub={subscription_id}: server details + cleanup done in {time.perf_counter() - t0:.2f}s")

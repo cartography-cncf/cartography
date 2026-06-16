@@ -127,3 +127,33 @@ def test_get_region_subscriptions_list_data():
         page_results.assert_called_once()
         assert "RegionSubscriptions" in region_subscribe_list.keys()
         assert region_subscribe_list['RegionSubscriptions'][0]['region-key'] == "PHX"
+
+
+TENANCY_OCID = "ocid1.tenancy.oc1..tenancy123"
+
+
+def test_oci_compartment_managed_type():
+    # The root compartment's id equals the tenancy ocid.
+    assert iam._oci_compartment_managed_type({"id": TENANCY_OCID}, TENANCY_OCID) == "predefined"
+    # A compartment whose parent is the tenancy root is still customer-created.
+    assert iam._oci_compartment_managed_type(
+        {"id": "ocid1.compartment.oc1..abc", "compartmentId": "ocid1.compartment.oc1..parent", "name": "dev"},
+        TENANCY_OCID,
+    ) == "custom"
+    # Oracle seeds the PaaS-managed compartment.
+    assert iam._oci_compartment_managed_type(
+        {"id": "ocid1.compartment.oc1..paas", "name": "ManagedCompartmentForPaaS"}, TENANCY_OCID,
+    ) == "predefined"
+
+
+def test_oci_group_managed_type():
+    assert iam._oci_group_managed_type({"name": "Administrators"}) == "predefined"
+    assert iam._oci_group_managed_type({"name": "dev-team"}) == "custom"
+    assert iam._oci_group_managed_type({}) == "custom"
+
+
+def test_oci_policy_managed_type():
+    assert iam._oci_policy_managed_type({"name": "Tenant Admin Policy"}) == "predefined"
+    assert iam._oci_policy_managed_type({"name": "PSM-root-policy"}) == "predefined"
+    assert iam._oci_policy_managed_type({"name": "dev_storage_use"}) == "custom"
+    assert iam._oci_policy_managed_type({}) == "custom"

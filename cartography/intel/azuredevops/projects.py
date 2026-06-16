@@ -136,4 +136,5 @@ def sync(
             project["last_activity_at_timestamp"] = ts_ms
         load_projects(neo4j_session, projects, organization_name, common_job_parameters)
         cleanup(neo4j_session, common_job_parameters)
+    logger.info(f"Processed {len(projects) if projects else 0} projects for org '{organization_name}'")
     return projects

@@ -2,6 +2,8 @@ import enum
 import json
 import logging
 import time
+from concurrent.futures import as_completed
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
 from datetime import timezone
 from typing import Any
@@ -237,6 +239,28 @@ def get_user_list_data(boto3_session: boto3.session.Session) -> Dict:
     return {"Users": users}
 
 
+# Standard cross-provider classification of IAM resources by who created them.
+# "predefined" => created/owned by the cloud provider; "custom" => created by a customer principal.
+MANAGED_TYPE_PREDEFINED = "predefined"
+MANAGED_TYPE_CUSTOM = "custom"
+
+# Role paths that AWS reserves for service-linked / service / SSO-reserved roles it manages.
+_AWS_PREDEFINED_ROLE_PATHS = ["/aws-service-role/", "/service-role/", "/aws-reserved/"]
+# Prefix of AWS-managed (vs customer-managed) policy ARNs.
+_AWS_MANAGED_POLICY_ARN_PREFIX = "arn:aws:iam::aws:policy/"
+
+
+def _aws_role_managed_type(path: str) -> str:
+    path = path or ""
+    if any(predefined_path in path for predefined_path in _AWS_PREDEFINED_ROLE_PATHS):
+        return MANAGED_TYPE_PREDEFINED
+    return MANAGED_TYPE_CUSTOM
+
+
+def _aws_policy_managed_type(arn: str) -> str:
+    return MANAGED_TYPE_PREDEFINED if str(arn or "").startswith(_AWS_MANAGED_POLICY_ARN_PREFIX) else MANAGED_TYPE_CUSTOM
+
+
 @timeit
 def get_policies_list_data(boto3_session: boto3.session.Session) -> List[Dict]:
     client = boto3_session.client("iam")
@@ -252,30 +276,35 @@ def get_policies_list_data(boto3_session: boto3.session.Session) -> List[Dict]:
 def transform_policies_data(current_aws_account_id: str, policies: List[Dict]) -> List[Dict]:
     for policy in policies:
         policy["id"] = transform_policy_id(current_aws_account_id, PolicyType.managed.value, policy.get("PolicyName"))
+        policy["managed_type"] = _aws_policy_managed_type(policy.get("Arn", ""))
     return policies
+
+
+def _enrich_one_user(client: Any, user: Dict) -> Dict:
+    try:
+        client.get_login_profile(UserName=user["UserName"])
+        user["consoleLoginEnabled"] = True
+    except client.exceptions.NoSuchEntityException:
+        user["consoleLoginEnabled"] = False
+    except Exception:
+        user["consoleLoginEnabled"] = False
+    try:
+        mfa_devices = client.list_mfa_devices(UserName=user["UserName"])
+        user["MFAEnabled"] = len(mfa_devices.get("MFADevices", [])) > 0
+    except client.exceptions.NoSuchEntityException:
+        user["MFAEnabled"] = False
+    except Exception:
+        user["MFAEnabled"] = False
+    return user
 
 
 @timeit
 def transform_users_data(boto3_session: boto3.session.Session, users: List[Dict]) -> Dict:
     client = boto3_session.client("iam")
-    for user in users:
-        try:
-            client.get_login_profile(UserName=user["UserName"])
-            user["consoleLoginEnabled"] = True
-        except client.exceptions.NoSuchEntityException:
-            user["consoleLoginEnabled"] = False
-        except Exception:
-            user["consoleLoginEnabled"] = False
-        try:
-            mfa_devices = client.list_mfa_devices(UserName=user["UserName"])
-            if len(mfa_devices.get("MFADevices", [])) > 0:
-                user["MFAEnabled"] = True
-            else:
-                user["MFAEnabled"] = False
-        except client.exceptions.NoSuchEntityException:
-            user["MFAEnabled"] = False
-        except Exception:
-            user["MFAEnabled"] = False
+    with ThreadPoolExecutor(max_workers=20) as pool:
+        futures = {pool.submit(_enrich_one_user, client, user): user for user in users}
+        for future in as_completed(futures):
+            future.result()
     return {"Users": users}
 
 
@@ -453,6 +482,7 @@ def load_users(
     unode.region = $region,
     unode.consoleloginenabled = $CONSOLELOGINENABLED,
     unode.mfaenabled = $MFAENABLED,
+    unode.managed_type = $ManagedType,
     unode.lastupdated = $aws_update_tag
     WITH unode
     MATCH (aa:AWSAccount{id: $AWS_ACCOUNT_ID})
@@ -473,10 +503,68 @@ def load_users(
             CONSOLELOGINENABLED=user.get("consoleLoginEnabled", False),
             MFAENABLED=user.get("MFAEnabled", False),
             PASSWORD_LASTUSED=str(user.get("PasswordLastUsed", "")),
+            ManagedType=MANAGED_TYPE_CUSTOM,
             AWS_ACCOUNT_ID=current_aws_account_id,
             region="global",
             aws_update_tag=aws_update_tag,
         )
+
+
+@timeit
+def load_service_accounts(
+    neo4j_session: neo4j.Session,
+    service_accounts: List[Dict],
+    current_aws_account_id: str,
+    aws_update_tag: int,
+) -> None:
+    ingest_service_account = """
+    MERGE (sanode:AWSServiceAccount{arn: $ARN})
+    ON CREATE SET sanode:AWSPrincipal, sanode.userid = $USERID, sanode.firstseen = timestamp(),
+    sanode.consolelink = $consolelink,
+    sanode.createdate = $CREATE_DATE
+    SET sanode.name = $USERNAME, sanode.user_name = $USERNAME,
+    sanode.path = $PATH, sanode.passwordlastused = $PASSWORD_LASTUSED,
+    sanode.region = $region,
+    sanode.consoleloginenabled = $CONSOLELOGINENABLED,
+    sanode.mfaenabled = $MFAENABLED,
+    sanode.managed_type = $ManagedType,
+    sanode.lastupdated = $aws_update_tag
+    WITH sanode
+    MATCH (aa:AWSAccount{id: $AWS_ACCOUNT_ID})
+    MERGE (aa)-[r:RESOURCE]->(sanode)
+    ON CREATE SET r.firstseen = timestamp()
+    SET r.lastupdated = $aws_update_tag
+    """
+    logger.info(f"Loading {len(service_accounts)} IAM service accounts.")
+    for sa in service_accounts:
+        neo4j_session.run(
+            ingest_service_account,
+            ARN=sa["Arn"],
+            consolelink=aws_console_link.get_console_link(arn=sa["Arn"]),
+            USERID=sa["UserId"],
+            CREATE_DATE=str(sa["CreateDate"]),
+            USERNAME=sa["UserName"],
+            PATH=sa["Path"],
+            CONSOLELOGINENABLED=sa.get("consoleLoginEnabled", False),
+            MFAENABLED=sa.get("MFAEnabled", False),
+            PASSWORD_LASTUSED=str(sa.get("PasswordLastUsed", "")),
+            ManagedType=MANAGED_TYPE_CUSTOM,
+            AWS_ACCOUNT_ID=current_aws_account_id,
+            region="global",
+            aws_update_tag=aws_update_tag,
+        )
+
+
+def _is_service_account(user: Dict) -> bool:
+    """
+    Determine if an IAM user should be classified as a service account.
+    A service account is an IAM user that has no console login enabled
+    AND has never used a password (PasswordLastUsed is empty or null).
+    """
+    console_login_enabled = user.get("consoleLoginEnabled", False)
+    password_last_used = user.get("PasswordLastUsed")
+    # If no console login and password was never used, treat as service account
+    return not console_login_enabled and (not password_last_used or str(password_last_used) == "")
 
 
 @timeit
@@ -509,6 +597,7 @@ def _load_policies_for_account_tx(
             p.default_version_id = policy.DefaultVersionId,
             p.is_attachable = policy.IsAttachable,
             p.region = $region,
+            p.managed_type = coalesce(policy.managed_type, CASE WHEN policy.Arn STARTS WITH 'arn:aws:iam::aws:policy/' THEN 'predefined' ELSE 'custom' END),
             p.lastupdated = $update_tag
         WITH p
             MATCH (i:AWSAccount{id: $AWS_ACCOUNT_ID})
@@ -550,6 +639,7 @@ def load_groups(
     SET gnode:AWSPrincipal, gnode.name = $GROUP_NAME, gnode.path = $PATH,
     gnode.region = $region,
     gnode.consolelink = $consolelink,
+    gnode.managed_type = $ManagedType,
     gnode.lastupdated = $aws_update_tag
     WITH gnode
     MATCH (aa:AWSAccount{id: $AWS_ACCOUNT_ID})
@@ -567,6 +657,7 @@ def load_groups(
             CREATE_DATE=str(group["CreateDate"]),
             GROUP_NAME=group["GroupName"],
             PATH=group["Path"],
+            ManagedType=MANAGED_TYPE_CUSTOM,
             region="global",
             AWS_ACCOUNT_ID=current_aws_account_id,
             aws_update_tag=aws_update_tag,
@@ -605,7 +696,8 @@ def load_roles(
     rnode.lastuseddate = $LastUsedDate, rnode.lastusedregion = $LastUsedRegion,
     rnode.is_service_role = $IsServiceRole,
     rnode.is_sso_reserved_role = $IsSSOReservedRole,
-    rnode.type = $Type
+    rnode.type = $Type,
+    rnode.managed_type = $ManagedType
     SET rnode.lastupdated = $aws_update_tag
     WITH rnode
     MATCH (aa:AWSAccount{id: $AWS_ACCOUNT_ID})
@@ -652,6 +744,8 @@ def load_roles(
             IsServiceRole=role.get("isServiceRole", False),
             IsSSOReservedRole=role.get("isSSOReservedRole", False),
             Type=role.get("type", None),
+            ManagedType=role.get("type") if role.get("type") in (MANAGED_TYPE_PREDEFINED, MANAGED_TYPE_CUSTOM)
+            else _aws_role_managed_type(role.get("Path", "")),
             region="global",
             LastUsedDate=role["RoleLastUsed"].get("LastUsedDate") if "RoleLastUsed" in role else None,
             LastUsedRegion=role["RoleLastUsed"].get("Region") if "RoleLastUsed" in role else None,
@@ -686,7 +780,8 @@ def load_group_memberships(neo4j_session: neo4j.Session, group_memberships: Dict
     ingest_membership = """
     MATCH (group:AWSGroup{arn: $GroupArn})
     WITH group
-    MATCH (user:AWSUser{arn: $PrincipalArn})
+    MATCH (user:AWSPrincipal{arn: $PrincipalArn})
+    WHERE user:AWSUser OR user:AWSServiceAccount
     MERGE (user)-[r:MEMBER_AWS_GROUP]->(group)
     ON CREATE SET r.firstseen = timestamp()
     SET r.lastupdated = $aws_update_tag
@@ -787,7 +882,8 @@ def load_user_access_keys(
     # To rotate key there is no option in aws. we need to create new and delete existing key that's why rotatedate same as createdate
     # TODO change the node label to reflect that this is a user access key, not an account access key
     ingest_account_key = """
-    MATCH (user:AWSUser{arn: $ARN})
+    MATCH (user:AWSPrincipal{arn: $ARN})
+    WHERE user:AWSUser OR user:AWSServiceAccount
     WITH user
     MERGE (key:AccountAccessKey{accesskeyid: $AccessKeyId})
     ON CREATE SET key.firstseen = timestamp(),
@@ -885,6 +981,7 @@ def _load_policy_tx(
     policy.region = $region,
     policy.name = $PolicyName,
     policy.arn = $PolicyArn,
+    policy.managed_type = $ManagedType,
     policy.consolelink = $consolelink
     SET policy.lastupdated = $aws_update_tag
     WITH policy
@@ -917,6 +1014,7 @@ def _load_policy_tx(
         PrincipalArn=principal_arn,
         consolelink=consolelink,
         PolicyArn=policy_arn,
+        ManagedType=MANAGED_TYPE_CUSTOM,
         region="global",
         aws_update_tag=aws_update_tag,
     )
@@ -929,6 +1027,7 @@ def _load_policy_tx(
     policy.region = $region,
     policy.name = $PolicyName,
     policy.arn = $PolicyArn,
+    policy.managed_type = $ManagedType,
     policy.consolelink = $consolelink
     SET policy.lastupdated = $aws_update_tag
     WITH policy
@@ -957,6 +1056,7 @@ def _load_policy_tx(
         PrincipalArn=principal_arn,
         consolelink=consolelink,
         PolicyArn=policy_arn,
+        ManagedType=MANAGED_TYPE_CUSTOM,
         region="global",
         aws_update_tag=aws_update_tag,
     )
@@ -1063,7 +1163,14 @@ def sync_users(
 
     data = transform_users_data(boto3_session, data["Users"])
 
-    load_users(neo4j_session, data["Users"], current_aws_account_id, aws_update_tag)
+    # Split users into human users and service accounts
+    human_users = [u for u in data["Users"] if not _is_service_account(u)]
+    service_accounts = [u for u in data["Users"] if _is_service_account(u)]
+
+    logger.info(f"Human users: {len(human_users)}, Service accounts: {len(service_accounts)}")
+
+    load_users(neo4j_session, human_users, current_aws_account_id, aws_update_tag)
+    load_service_accounts(neo4j_session, service_accounts, current_aws_account_id, aws_update_tag)
 
     # INFO: This is a temporary solution to skip Loading Policies for Manual runs.
     if common_job_parameters.get("MANUAL_RUN", False) or current_aws_account_id == "934101271236":
@@ -1075,6 +1182,7 @@ def sync_users(
         sync_user_managed_policies(boto3_session, data, neo4j_session, current_aws_account_id, aws_update_tag)
 
     run_cleanup_job("aws_import_users_cleanup.json", neo4j_session, common_job_parameters)
+    run_cleanup_job("aws_import_service_accounts_cleanup.json", neo4j_session, common_job_parameters)
 
 
 @timeit
@@ -1263,7 +1371,7 @@ def sync_user_access_keys(
     common_job_parameters: Dict,
 ) -> None:
     logger.info("Syncing IAM user access keys for account '%s'.", current_aws_account_id)
-    query = "MATCH (user:AWSUser)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ACCOUNT_ID}) return user.name as name"
+    query = "MATCH (user:AWSPrincipal)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ACCOUNT_ID}) WHERE user:AWSUser OR user:AWSServiceAccount return user.name as name"
     result = neo4j_session.run(query, AWS_ACCOUNT_ID=current_aws_account_id)
     usernames = [r["name"] for r in result]
     for name in usernames:
@@ -1308,7 +1416,7 @@ def _set_used_state_tx(
     ingest_entity_used = """
     MATCH (:AWSAccount{id: $AWS_ID})-[:RESOURCE]->(n)
     WHERE ()-[:TRUSTS_AWS_PRINCIPAL]->(n) AND n.lastupdated = $update_tag
-    AND labels(n) IN [['AWSUser'], ['AWSGroup']]
+    AND (n:AWSUser OR n:AWSGroup OR n:AWSServiceAccount)
     SET n.isUsed = $isUsed
     """
 
@@ -1323,7 +1431,7 @@ def _set_used_state_tx(
     ingest_entity_unused = """
     MATCH (:AWSAccount{id: $AWS_ID})-[:RESOURCE]->(n)
     WHERE n.isUsed IS NULL AND n.lastupdated = $update_tag
-    AND labels(n) IN [['AWSUser'], ['AWSGroup'], ['AWSRole']]
+    AND (n:AWSUser OR n:AWSGroup OR n:AWSRole OR n:AWSServiceAccount)
     SET n.isUsed = $isUsed
     """
 

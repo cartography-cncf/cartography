@@ -5,6 +5,8 @@ from . import encryption
 from . import iam
 from . import monitoring
 from . import network
+from . import oke
+from . import storage
 
 
 RESOURCE_FUNCTIONS: Dict = {
@@ -13,4 +15,6 @@ RESOURCE_FUNCTIONS: Dict = {
     "network": network.sync,
     "encryption": encryption.sync,
     "monitoring": monitoring.sync,
+    "storage": storage.sync,
+    "oke": oke.sync,
 }

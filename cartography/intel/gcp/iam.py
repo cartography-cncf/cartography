@@ -18,6 +18,39 @@ from cartography.util import timeit
 logger = logging.getLogger(__name__)
 gcp_console_link = GCPLinker()
 
+# Standard cross-provider classification of IAM resources by who created them.
+# "predefined" => created/owned by the cloud provider; "custom" => created by a customer principal.
+MANAGED_TYPE_PREDEFINED = "predefined"
+MANAGED_TYPE_CUSTOM = "custom"
+
+# Substrings identifying Google-managed service accounts / service agents. Customer-created service
+# accounts always live under "<project-id>.iam.gserviceaccount.com" and do not match these.
+_GCP_GOOGLE_MANAGED_SA_MARKERS = (
+    "@appspot.gserviceaccount.com",            # App Engine default SA
+    "@developer.gserviceaccount.com",          # Compute Engine default SA
+    "@cloudservices.gserviceaccount.com",      # Google APIs service agent
+    "@cloudbuild.gserviceaccount.com",         # Cloud Build service agent
+    "@gcp-sa-",                                # Google-managed service agents (...@gcp-sa-<svc>.iam.gserviceaccount.com)
+    "@compute-system.iam.gserviceaccount.com",
+    "@container-engine-robot.iam.gserviceaccount.com",
+    "@system.gserviceaccount.com",
+)
+
+
+def _gcp_service_account_managed_type(email: str) -> str:
+    email = (email or "").lower()
+    # Google service agents are named "service-<projectnum>@<svc>.iam.gserviceaccount.com".
+    if email.startswith("service-") and ".iam.gserviceaccount.com" in email:
+        return MANAGED_TYPE_PREDEFINED
+    if any(marker in email for marker in _GCP_GOOGLE_MANAGED_SA_MARKERS):
+        return MANAGED_TYPE_PREDEFINED
+    return MANAGED_TYPE_CUSTOM
+
+
+def _gcp_key_managed_type(key_type: str) -> str:
+    # SYSTEM_MANAGED keys are created and rotated by Google; USER_MANAGED keys are customer-created.
+    return MANAGED_TYPE_PREDEFINED if key_type == "SYSTEM_MANAGED" else MANAGED_TYPE_CUSTOM
+
 
 def set_used_state(session: neo4j.Session, project_id: str, common_job_parameters: Dict, update_tag: int) -> None:
     session.execute_write(_set_used_state_tx, project_id, common_job_parameters, update_tag)
@@ -57,6 +90,7 @@ def transform_service_accounts(service_accounts: List[Dict], project_id: str) ->
         account['consolelink'] = gcp_console_link.get_console_link(
             resource_name='service_account', project_id=project_id, service_account_unique_id=account['uniqueId'],
         )
+        account['managed_type'] = _gcp_service_account_managed_type(account.get('email', ''))
     return service_accounts
 
 
@@ -104,6 +138,7 @@ def get_service_account_keys(iam: Resource, project_id: str, service_account: Di
             )
             key['validAfterTime'] = key.get('validAfterTime')
             key['validBeforeTime'] = key.get('validBeforeTime')
+            key['managed_type'] = _gcp_key_managed_type(key.get('keyType'))
 
         service_keys.extend(keys)
 
@@ -205,6 +240,7 @@ def transform_roles(roles_list: List[Dict], project_id: str, type: str, common_j
     for role in roles_list:
         role['id'] = get_role_id(role['name'], project_id, common_job_parameters)
         role['type'] = type
+        role['managed_type'] = type
         role['parent'] = ['project', 'organization']
         role['is_sso'] = True
         if role['name'].startswith('projects/'):
@@ -395,6 +431,7 @@ def transform_api_keys(apikeys: List, project_id: str) -> List[Dict]:
     for key in apikeys:
         key['consolelink'] = gcp_console_link.get_console_link(project_id=project_id, api_key_id=key['uid'], resource_name='api_key')
         key['id'] = key['name']
+        key['managed_type'] = MANAGED_TYPE_CUSTOM
         list_keys.append(key)
 
     return list_keys
@@ -417,7 +454,8 @@ def load_api_keys(
         apikey.consolelink = key.consolelink,
         apikey.region = key.region,
         apikey.updateTime = key.updateTime,
-        apikey.deleteTime = key.deleteTime
+        apikey.deleteTime = key.deleteTime,
+        apikey.managed_type = coalesce(key.managed_type, 'custom')
     WITH apikey
     MATCH (p:GCPProject{id: $project_id})
     MERGE (p)-[r:RESOURCE]->(apikey)
@@ -458,6 +496,7 @@ def load_service_accounts(
     u.parent_id = $parentId,
     u.region = $region,
     u.disabled = sa.disabled, u.serviceaccountid = sa.uniqueId,
+    u.managed_type = coalesce(sa.managed_type, 'custom'),
     u.lastupdated = $gcp_update_tag
     WITH u
     MATCH (p:GCPProject{id: $project_id})
@@ -501,7 +540,8 @@ def load_service_account_keys(
     u.algorithm = sa.keyAlgorithm, u.validbeforetime = sa.validBeforeTime,
 
     u.validaftertime = sa.validAfterTime, u.lastupdated = $gcp_update_tag,
-    u.disabled = sa.disabled
+    u.disabled = sa.disabled,
+    u.managed_type = coalesce(sa.managed_type, CASE WHEN sa.keyType = 'SYSTEM_MANAGED' THEN 'predefined' ELSE 'custom' END)
     WITH u, sa
     MATCH (:GCPProject{id: $project_id})-[:RESOURCE]->(d:GCPServiceAccount{id: $serviceaccount})
     MERGE (d)-[r:HAS_KEY]->(u)
@@ -540,6 +580,7 @@ def load_project_roles(neo4j_session: neo4j.Session, roles: List[Dict], project_
     u.deleted = d.deleted,
     u.consolelink = d.consolelink,
     u.type = d.type,
+    u.managed_type = coalesce(d.managed_type, CASE WHEN d.name STARTS WITH 'roles/' THEN 'predefined' ELSE 'custom' END),
     u.parent = d.parent,
     u.permissions = d.includedPermissions,
     u.roleid = d.id,
@@ -576,6 +617,7 @@ def load_sso_roles(neo4j_session: neo4j.Session, roles: List[Dict], org_id: str,
     u.deleted = d.deleted,
     u.consolelink = d.consolelink,
     u.type = d.type,
+    u.managed_type = coalesce(d.managed_type, CASE WHEN d.name STARTS WITH 'roles/' THEN 'predefined' ELSE 'custom' END),
     u.parent = d.parent,
     u.permissions = d.includedPermissions,
     u.roleid = d.id,
@@ -837,6 +879,7 @@ def attach_project_role_to_user(
     user.create_date = $createDate,
     user.lastupdated = $gcp_update_tag,
     user.isDeleted = $isDeleted,
+    user.managed_type = 'custom',
     user.consolelink = $ConsoleLink
     WITH user
     MATCH (:GCPProject{id: $project_id})-[:RESOURCE]->(role:GCPRole{id: $RoleId})
@@ -884,6 +927,7 @@ def attach_sso_role_to_user(
     user.create_date = $createDate,
     user.lastupdated = $gcp_update_tag,
     user.isDeleted = $isDeleted,
+    user.managed_type = 'custom',
     user.consolelink = $ConsoleLink
     WITH user
     MATCH (:GCPOrganization{id: $organization_id})-[:RESOURCE]->(role:GCPRole{id: $RoleId})
@@ -994,7 +1038,8 @@ def attach_project_role_to_group(
     group.create_date = $createDate,
     group.consolelink = $ConsoleLink,
     group.lastupdated = $gcp_update_tag,
-    group.isDeleted = $isDeleted
+    group.isDeleted = $isDeleted,
+    group.managed_type = 'custom'
     WITH group
     MATCH (:GCPProject{id: $project_id})-[:RESOURCE]->(role:GCPRole{id: $RoleId})
     MERGE (group)-[r:ASSUME_ROLE]->(role)
@@ -1041,7 +1086,8 @@ def attach_sso_role_to_group(
     group.create_date = $createDate,
     group.consolelink = $ConsoleLink,
     group.lastupdated = $gcp_update_tag,
-    group.isDeleted = $isDeleted
+    group.isDeleted = $isDeleted,
+    group.managed_type = 'custom'
     WITH group
     MATCH (:GCPOrganization{id: $organization_id})-[:RESOURCE]->(role:GCPRole{id: $RoleId})
     MATCH (:GCPOrganization{id: $organization_id})-[:OWNER]->(project:GCPProject{id: $project_id})
@@ -1091,7 +1137,8 @@ def attach_project_role_to_domain(
     domain.create_date = $createDate,
     domain.consolelink = $ConsoleLink,
     domain.lastupdated = $gcp_update_tag,
-    domain.isDeleted = $isDeleted
+    domain.isDeleted = $isDeleted,
+    domain.managed_type = 'custom'
     WITH domain
     MATCH (:GCPProject{id: $project_id})-[:RESOURCE]->(role:GCPRole{id: $RoleId})
     MERGE (domain)-[r:ASSUME_ROLE]->(role)
@@ -1137,7 +1184,8 @@ def attach_sso_role_to_domain(
     domain.create_date = $createDate,
     domain.consolelink = $ConsoleLink,
     domain.lastupdated = $gcp_update_tag,
-    domain.isDeleted = $isDeleted
+    domain.isDeleted = $isDeleted,
+    domain.managed_type = 'custom'
     WITH domain
     MATCH (:GCPOrganization{id: $organization_id})-[:RESOURCE]->(role:GCPRole{id: $RoleId})
     MATCH (:GCPOrganization{id: $organization_id})-[:OWNER]->(project:GCPProject{id: $project_id})

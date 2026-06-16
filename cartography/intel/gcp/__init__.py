@@ -506,15 +506,22 @@ def concurrent_execution(
     apikey: Resource,
     compute: Resource,
     regions: list,
+    shared_neo4j_driver=None,
 ):
-    logger.info(f"BEGIN processing for service: {service}")
+    tic = time.perf_counter()
+    _status = "success"
+    _err: Dict = {}
+    _result = None
 
-    neo4j_auth = (config.neo4j_user, config.neo4j_password)
-    neo4j_driver = GraphDatabase.driver(
-        config.neo4j_uri,
-        auth=neo4j_auth,
-        max_connection_lifetime=config.neo4j_max_connection_lifetime,
-    )
+    if shared_neo4j_driver is not None:
+        neo4j_driver = shared_neo4j_driver
+    else:
+        neo4j_auth = (config.neo4j_user, config.neo4j_password)
+        neo4j_driver = GraphDatabase.driver(
+            config.neo4j_uri,
+            auth=neo4j_auth,
+            max_connection_lifetime=config.neo4j_max_connection_lifetime,
+        )
     try:
         if service == "iam":
             service_func(
@@ -538,13 +545,29 @@ def concurrent_execution(
                 common_job_parameters,
                 regions,
             )
+        _result = round(time.perf_counter() - tic, 4)
     except Exception as e:
+        _status = "error"
+        _err = {"error_type": type(e).__name__, "error_message": str(e)}
         logger.error(
-            f"error to process service {service} - {e}",
+            f"error to process service {service} project={project_id} - {e}",
             exc_info=True,
             stack_info=True,
         )
-    logger.info(f"END processing for service: {service}")
+    finally:
+        _elapsed = _result if _result is not None else round(time.perf_counter() - tic, 4)
+        _ev: Dict = {
+            "event": "gcp_service_timing",
+            "project_id": project_id,
+            "service": service,
+            "run_mode": "parallel",
+            "duration_seconds": _elapsed,
+            "status": _status,
+        }
+        if _err:
+            _ev.update(_err)
+        logger.info(json.dumps(_ev))
+    return _result if _result is not None else _elapsed
 
 
 def _sync_single_project(
@@ -567,6 +590,10 @@ def _sync_single_project(
     :return: Nothing
     """
 
+    _project_tic = time.perf_counter()
+    _service_timings: Dict = {}
+    _failed_services: Dict = {}
+    logger.info(f"gcp project={project_id}: starting full sync")
     all_regions = get_all_regions(resources.compute, project_id)
 
     regions = []
@@ -587,6 +614,9 @@ def _sync_single_project(
         for func_name in requested_syncs:
             if func_name in RESOURCE_FUNCTIONS:
                 logger.info(f"Processing {func_name}")
+                _svc_tic = time.perf_counter()
+                _svc_status = "success"
+                _svc_err: Dict = {}
                 try:
                     if func_name == "iam":
                         RESOURCE_FUNCTIONS[func_name](
@@ -611,7 +641,25 @@ def _sync_single_project(
                             regions,
                         )
                 except Exception as e:
+                    _svc_status = "error"
+                    _svc_err = {"error_type": type(e).__name__, "error_message": str(e)}
                     logger.warning(f"error to process service {func_name} - {e}")
+                finally:
+                    _svc_elapsed = round(time.perf_counter() - _svc_tic, 4)
+                    _service_timings[func_name] = _svc_elapsed
+                    if _svc_status == "error":
+                        _failed_services[func_name] = _svc_err.get("error_type", "error")
+                    _sev: Dict = {
+                        "event": "gcp_service_timing",
+                        "project_id": project_id,
+                        "service": func_name,
+                        "run_mode": "sequential",
+                        "duration_seconds": _svc_elapsed,
+                        "status": _svc_status,
+                    }
+                    if _svc_err:
+                        _sev.update(_svc_err)
+                    logger.info(json.dumps(_sev))
             else:
                 logger.warning(
                     f'GCP sync function "{func_name}" was specified but does not exist. Did you misspell it?',
@@ -624,42 +672,55 @@ def _sync_single_project(
 
         # Determine the resources available on the project.
         enabled_services = _services_enabled_on_project(resources.serviceusage, project_id)
-        with ThreadPoolExecutor(max_workers=len(RESOURCE_FUNCTIONS)) as executor:
-            futures = []
-            for request in requested_syncs:
-                if request in RESOURCE_FUNCTIONS:
-                    # if getattr(service_names, request) in enabled_services:
+        parallel_requests = [r for r in requested_syncs if r in RESOURCE_FUNCTIONS]
+        neo4j_auth = (config.neo4j_user, config.neo4j_password)
+        shared_driver = GraphDatabase.driver(
+            config.neo4j_uri,
+            auth=neo4j_auth,
+            max_connection_lifetime=config.neo4j_max_connection_lifetime,
+        )
+        try:
+            with ThreadPoolExecutor(max_workers=min(8, len(parallel_requests))) as executor:
+                futures_map: Dict = {}
+                for request in parallel_requests:
                     try:
-                        futures.append(
-                            executor.submit(
-                                concurrent_execution,
-                                request,
-                                RESOURCE_FUNCTIONS[request],
-                                config,
-                                getattr(
-                                    resources,
-                                    request,
-                                ),
-                                common_job_parameters,
-                                gcp_update_tag,
-                                project_id,
-                                resources.policyanalyzer,
-                                resources.crm_v1,
-                                resources.crm_v2,
-                                resources.apikey,
-                                resources.compute,
-                                regions,
-                            ),
+                        _f = executor.submit(
+                            concurrent_execution,
+                            request,
+                            RESOURCE_FUNCTIONS[request],
+                            config,
+                            getattr(resources, request),
+                            common_job_parameters,
+                            gcp_update_tag,
+                            project_id,
+                            resources.policyanalyzer,
+                            resources.crm_v1,
+                            resources.crm_v2,
+                            resources.apikey,
+                            resources.compute,
+                            regions,
+                            shared_driver,
                         )
+                        futures_map[_f] = request
                     except Exception as e:
                         logger.warning(f"error to append service {request} in futures - {e}")
-                else:
-                    logger.warning(
-                        f'GCP sync function "{request}" was specified but does not exist. Did you misspell it?',
-                    )
 
-            for future in as_completed(futures):
-                logger.info(f"Result from Future - Service Processing: {future.result()}")
+                for request in requested_syncs:
+                    if request not in RESOURCE_FUNCTIONS:
+                        logger.warning(
+                            f'GCP sync function "{request}" was specified but does not exist. Did you misspell it?',
+                        )
+
+                for future in as_completed(futures_map):
+                    _fn = futures_map.get(future)
+                    _elapsed = future.result()
+                    if _fn:
+                        if _elapsed is not None:
+                            _service_timings[_fn] = _elapsed
+                        else:
+                            _failed_services[_fn] = "error"
+        finally:
+            shared_driver.close()
 
         # END - Parallel Run
 
@@ -669,6 +730,17 @@ def _sync_single_project(
         label.cleanup_labels(neo4j_session, common_job_parameters, service_name)
 
         del common_job_parameters["service_label"]
+
+    logger.info(
+        json.dumps({
+            "event": "gcp_project_timing_summary",
+            "project_id": project_id,
+            "total_duration_seconds": round(time.perf_counter() - _project_tic, 4),
+            "service_timings": _service_timings,
+            "slowest_service": max(_service_timings, key=_service_timings.get) if _service_timings else None,
+            "failed_services": _failed_services,
+        }),
+    )
 
 
 def get_all_regions(compute: Resource, project_id: str):

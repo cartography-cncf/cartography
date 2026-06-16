@@ -7,7 +7,7 @@ def get_botocore_config() -> botocore.config.Config:
         read_timeout=360,
         connect_timeout=120,
         retries={
-            'max_attempts': 1,
+            'max_attempts': 5,
             'mode': 'standard',
         },
     )

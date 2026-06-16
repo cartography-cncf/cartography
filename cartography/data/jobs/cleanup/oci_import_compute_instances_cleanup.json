@@ -1,52 +1,52 @@
 {
     "statements": [
         {
-            "query": "MATCH (:CloudanixWorkspace{id: $WORKSPACE_ID})-[:OWNER]->(:OCITenancy{ocid: $OCI_TENANCY_ID})-[:OWNER]->(:OCICompartment{ocid: $OCI_COMPARTMENT_ID})-[:RESOURCE]->(n:OCIInstance) WHERE n.lastupdated <> $UPDATE_TAG WITH n LIMIT $LIMIT_SIZE DETACH DELETE (n)",
+            "query": "MATCH (:CloudanixWorkspace{id: $WORKSPACE_ID})-[:OWNER]->(:OCITenancy{id: $OCI_TENANCY_ID})-[:OWNER]->(:OCICompartment{id: $OCI_COMPARTMENT_ID})-[:RESOURCE]->(n:OCIInstance) WHERE n.lastupdated <> $UPDATE_TAG WITH n LIMIT $LIMIT_SIZE DETACH DELETE (n)",
             "iterative": true,
             "iterationsize": 100
         },
         {
-            "query": "MATCH (:CloudanixWorkspace{id: $WORKSPACE_ID})-[:OWNER]->(:OCITenancy{ocid: $OCI_TENANCY_ID})-[:OWNER]->(:OCICompartment{ocid: $OCI_COMPARTMENT_ID})-[r:RESOURCE]->(:OCIInstance) WHERE r.lastupdated <> $UPDATE_TAG WITH r LIMIT $LIMIT_SIZE DELETE (r)",
+            "query": "MATCH (:CloudanixWorkspace{id: $WORKSPACE_ID})-[:OWNER]->(:OCITenancy{id: $OCI_TENANCY_ID})-[:OWNER]->(:OCICompartment{id: $OCI_COMPARTMENT_ID})-[r:RESOURCE]->(:OCIInstance) WHERE r.lastupdated <> $UPDATE_TAG WITH r LIMIT $LIMIT_SIZE DELETE (r)",
             "iterative": true,
             "iterationsize": 100
         },
         {
-            "query": "MATCH (:CloudanixWorkspace{id: $WORKSPACE_ID})-[:OWNER]->(:OCITenancy{ocid: $OCI_TENANCY_ID})-[:OWNER]->(:OCICompartment{ocid: $OCI_COMPARTMENT_ID})-[:RESOURCE]->(:OCIInstance)-[:OCI_VNIC_ATTACHMENT]->(n:OCIVnicAttachment) WHERE n.lastupdated <> $UPDATE_TAG WITH n LIMIT $LIMIT_SIZE DETACH DELETE (n)",
+            "query": "MATCH (:CloudanixWorkspace{id: $WORKSPACE_ID})-[:OWNER]->(:OCITenancy{id: $OCI_TENANCY_ID})-[:OWNER]->(:OCICompartment{id: $OCI_COMPARTMENT_ID})-[:RESOURCE]->(:OCIInstance)-[:OCI_VNIC_ATTACHMENT]->(n:OCIVnicAttachment) WHERE n.lastupdated <> $UPDATE_TAG WITH n LIMIT $LIMIT_SIZE DETACH DELETE (n)",
             "iterative": true,
             "iterationsize": 100
         },
         {
-            "query": "MATCH (:CloudanixWorkspace{id: $WORKSPACE_ID})-[:OWNER]->(:OCITenancy{ocid: $OCI_TENANCY_ID})-[:OWNER]->(:OCICompartment{ocid: $OCI_COMPARTMENT_ID})-[:RESOURCE]->(:OCIInstance)-[r:OCI_VNIC_ATTACHMENT]->(:OCIVnicAttachment) WHERE r.lastupdated <> $UPDATE_TAG WITH r LIMIT $LIMIT_SIZE DELETE (r)",
+            "query": "MATCH (:CloudanixWorkspace{id: $WORKSPACE_ID})-[:OWNER]->(:OCITenancy{id: $OCI_TENANCY_ID})-[:OWNER]->(:OCICompartment{id: $OCI_COMPARTMENT_ID})-[:RESOURCE]->(:OCIInstance)-[r:OCI_VNIC_ATTACHMENT]->(:OCIVnicAttachment) WHERE r.lastupdated <> $UPDATE_TAG WITH r LIMIT $LIMIT_SIZE DELETE (r)",
             "iterative": true,
             "iterationsize": 100
         },
         {
-            "query": "MATCH (:CloudanixWorkspace{id: $WORKSPACE_ID})-[:OWNER]->(:OCITenancy{ocid: $OCI_TENANCY_ID})-[:OWNER]->(:OCICompartment{ocid: $OCI_COMPARTMENT_ID})-[:RESOURCE]->(n:OCIImage) WHERE n.lastupdated <> $UPDATE_TAG WITH n LIMIT $LIMIT_SIZE DETACH DELETE (n)",
+            "query": "MATCH (:CloudanixWorkspace{id: $WORKSPACE_ID})-[:OWNER]->(:OCITenancy{id: $OCI_TENANCY_ID})-[:OWNER]->(:OCICompartment{id: $OCI_COMPARTMENT_ID})-[:RESOURCE]->(n:OCIImage) WHERE n.lastupdated <> $UPDATE_TAG WITH n LIMIT $LIMIT_SIZE DETACH DELETE (n)",
             "iterative": true,
             "iterationsize": 100
         },
         {
-            "query": "MATCH (:CloudanixWorkspace{id: $WORKSPACE_ID})-[:OWNER]->(:OCITenancy{ocid: $OCI_TENANCY_ID})-[:OWNER]->(:OCICompartment{ocid: $OCI_COMPARTMENT_ID})-[r:RESOURCE]->(:OCIImage) WHERE r.lastupdated <> $UPDATE_TAG WITH r LIMIT $LIMIT_SIZE DELETE (r)",
+            "query": "MATCH (:CloudanixWorkspace{id: $WORKSPACE_ID})-[:OWNER]->(:OCITenancy{id: $OCI_TENANCY_ID})-[:OWNER]->(:OCICompartment{id: $OCI_COMPARTMENT_ID})-[r:RESOURCE]->(:OCIImage) WHERE r.lastupdated <> $UPDATE_TAG WITH r LIMIT $LIMIT_SIZE DELETE (r)",
             "iterative": true,
             "iterationsize": 100
         },
         {
-            "query": "MATCH (:CloudanixWorkspace{id: $WORKSPACE_ID})-[:OWNER]->(:OCITenancy{ocid: $OCI_TENANCY_ID})-[:OWNER]->(:OCICompartment{ocid: $OCI_COMPARTMENT_ID})-[:RESOURCE]->(:OCIInstance)-[:OCI_BOOT_VOLUME_ATTACHMENT]->(n:OCIBootVolumeAttachment) WHERE n.lastupdated <> $UPDATE_TAG WITH n LIMIT $LIMIT_SIZE DETACH DELETE (n)",
+            "query": "MATCH (:CloudanixWorkspace{id: $WORKSPACE_ID})-[:OWNER]->(:OCITenancy{id: $OCI_TENANCY_ID})-[:OWNER]->(:OCICompartment{id: $OCI_COMPARTMENT_ID})-[:RESOURCE]->(:OCIInstance)-[:OCI_BOOT_VOLUME_ATTACHMENT]->(n:OCIBootVolumeAttachment) WHERE n.lastupdated <> $UPDATE_TAG WITH n LIMIT $LIMIT_SIZE DETACH DELETE (n)",
             "iterative": true,
             "iterationsize": 100
         },
         {
-            "query": "MATCH (:CloudanixWorkspace{id: $WORKSPACE_ID})-[:OWNER]->(:OCITenancy{ocid: $OCI_TENANCY_ID})-[:OWNER]->(:OCICompartment{ocid: $OCI_COMPARTMENT_ID})-[:RESOURCE]->(:OCIInstance)-[r:OCI_BOOT_VOLUME_ATTACHMENT]->(:OCIBootVolumeAttachment) WHERE r.lastupdated <> $UPDATE_TAG WITH r LIMIT $LIMIT_SIZE DELETE (r)",
+            "query": "MATCH (:CloudanixWorkspace{id: $WORKSPACE_ID})-[:OWNER]->(:OCITenancy{id: $OCI_TENANCY_ID})-[:OWNER]->(:OCICompartment{id: $OCI_COMPARTMENT_ID})-[:RESOURCE]->(:OCIInstance)-[r:OCI_BOOT_VOLUME_ATTACHMENT]->(:OCIBootVolumeAttachment) WHERE r.lastupdated <> $UPDATE_TAG WITH r LIMIT $LIMIT_SIZE DELETE (r)",
             "iterative": true,
             "iterationsize": 100
         },
         {
-            "query": "MATCH (:CloudanixWorkspace{id: $WORKSPACE_ID})-[:OWNER]->(:OCITenancy{ocid: $OCI_TENANCY_ID})-[:OWNER]->(:OCICompartment{ocid: $OCI_COMPARTMENT_ID})-[:RESOURCE]->(:OCIInstance)-[:OCI_VOLUME_ATTACHMENT]->(n:OCIVolumeAttachment) WHERE n.lastupdated <> $UPDATE_TAG WITH n LIMIT $LIMIT_SIZE DETACH DELETE (n)",
+            "query": "MATCH (:CloudanixWorkspace{id: $WORKSPACE_ID})-[:OWNER]->(:OCITenancy{id: $OCI_TENANCY_ID})-[:OWNER]->(:OCICompartment{id: $OCI_COMPARTMENT_ID})-[:RESOURCE]->(:OCIInstance)-[:OCI_VOLUME_ATTACHMENT]->(n:OCIVolumeAttachment) WHERE n.lastupdated <> $UPDATE_TAG WITH n LIMIT $LIMIT_SIZE DETACH DELETE (n)",
             "iterative": true,
             "iterationsize": 100
         },
         {
-            "query": "MATCH (:CloudanixWorkspace{id: $WORKSPACE_ID})-[:OWNER]->(:OCITenancy{ocid: $OCI_TENANCY_ID})-[:OWNER]->(:OCICompartment{ocid: $OCI_COMPARTMENT_ID})-[:RESOURCE]->(:OCIInstance)-[r:OCI_VOLUME_ATTACHMENT]->(:OCIVolumeAttachment) WHERE r.lastupdated <> $UPDATE_TAG WITH r LIMIT $LIMIT_SIZE DELETE (r)",
+            "query": "MATCH (:CloudanixWorkspace{id: $WORKSPACE_ID})-[:OWNER]->(:OCITenancy{id: $OCI_TENANCY_ID})-[:OWNER]->(:OCICompartment{id: $OCI_COMPARTMENT_ID})-[:RESOURCE]->(:OCIInstance)-[r:OCI_VOLUME_ATTACHMENT]->(:OCIVolumeAttachment) WHERE r.lastupdated <> $UPDATE_TAG WITH r LIMIT $LIMIT_SIZE DELETE (r)",
             "iterative": true,
             "iterationsize": 100
         },

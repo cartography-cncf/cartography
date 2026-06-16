@@ -18,6 +18,8 @@ build/
 generated
 env.dev.json
 env.prod.json
+# root-level orphan config holding real infra IDs; code uses config/*.json instead
+/production.json
 dist/
 
 tmp
@@ -26,11 +28,27 @@ node_modules
 .venv
 */venv_cartography_test/
 
+package/*
+function.zip
+
 build.log
+aws.build.log
 azure.build.log
 git.worker.log
 scripts
 dev.py
 Dockerfile.aws.worker
 Dockerfile.azure.worker
+Dockerfile.git.worker
 config
+
+# scripts/: ignore everything (real env files hold secrets), but track *.example.yml templates.
+# (Negation works because the dir itself is not excluded — only its contents via /*)
+scripts/*
+!scripts/*.example.yml
+# config/: ignore real config (holds infra identifiers), track *.example.json templates.
+config/*
+!config/*.example.json
+
+# Added by code-review-graph
+.code-review-graph/
