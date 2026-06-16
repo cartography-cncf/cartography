@@ -122,9 +122,7 @@ def run_analysis_job(
     """
     if isinstance(filename, AnalysisJob):
         job = filename.to_graph_job()
-        params = dict(common_job_parameters or {})
-        params.setdefault("ANALYSIS_JOB", filename.short_name or filename.name)
-        job.merge_parameters(params)
+        job.merge_parameters(dict(common_job_parameters or {}))
         job.run(neo4j_session)
         return
 

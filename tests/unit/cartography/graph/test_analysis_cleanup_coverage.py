@@ -28,11 +28,7 @@ def _rel_cleanup(
             f"-[:RESOURCE]->({scoped_to})\n"
             f"{match}"
         )
-    return (
-        f"{match}\n"
-        "WHERE r._analysis_job = $ANALYSIS_JOB AND r.lastupdated <> $UPDATE_TAG\n"
-        "DELETE r"
-    )
+    return f"{match}\n" "WHERE r.lastupdated <> $UPDATE_TAG\n" "DELETE r"
 
 
 def _prop_cleanup(
