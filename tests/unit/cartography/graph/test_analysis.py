@@ -38,9 +38,11 @@ def test_relationship_job_appends_cleanup_statement():
     assert graph_job.statements[1].query == (
         "MATCH (source:AWSLambda)-[r:HAS]->(target:ECRImage)\n"
         "WHERE r.lastupdated <> $UPDATE_TAG\n"
+        "WITH r LIMIT $LIMIT_SIZE\n"
         "DELETE r"
     )
     assert graph_job.statements[1].iterative is True
+    assert graph_job.statements[1].parameters["LIMIT_SIZE"] == 10000
 
 
 def test_scoped_relationship_cleanup_targets_source_by_default():
@@ -69,6 +71,7 @@ def test_scoped_relationship_cleanup_targets_source_by_default():
         "MATCH (scope:GCPProject {id: $PROJECT_ID})-[:RESOURCE]->(source)\n"
         "MATCH (source:GCPBackendService)-[r:EXPOSE]->(target:GCPInstance)\n"
         "WHERE r.lastupdated <> $UPDATE_TAG\n"
+        "WITH r LIMIT $LIMIT_SIZE\n"
         "DELETE r"
     )
 
@@ -130,6 +133,8 @@ def test_property_job_prepends_cleanup_statement():
     assert graph_job.statements[0].query == (
         "MATCH (scope:SemgrepDeployment {id: $DEPLOYMENT_ID})"
         "-[:RESOURCE]->(node:SemgrepSASTFinding)\n"
+        "WHERE node.risk_severity IS NOT NULL\n"
+        "WITH node LIMIT $LIMIT_SIZE\n"
         "REMOVE node.risk_severity"
     )
     assert graph_job.statements[1].query.startswith("MATCH (g:GitHubRepository")
@@ -166,7 +171,10 @@ def test_relationship_property_job_prepends_cleanup_statement():
     # Assert
     assert job.properties_set() == (job.effect,)
     assert graph_job.statements[0].query == (
-        "MATCH (source:Image)-[r:PACKAGED_FROM]->(target)\n" "REMOVE r.dockerfile_path"
+        "MATCH (source:Image)-[r:PACKAGED_FROM]->(target)\n"
+        "WHERE r.dockerfile_path IS NOT NULL\n"
+        "WITH r LIMIT $LIMIT_SIZE\n"
+        "REMOVE r.dockerfile_path"
     )
 
 
