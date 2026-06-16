@@ -23,7 +23,7 @@ def test_relationship_job_appends_cleanup_statement():
                 "MATCH (l:AWSLambda), (e:ECRImage) "
                 "WHERE e.digest = 'sha256:' + l.codesha256 "
                 "MERGE (l)-[r:HAS]->(e) "
-                "SET r.lastupdated = $UPDATE_TAG, r._analysis_job = $ANALYSIS_JOB",
+                "SET r.lastupdated = $UPDATE_TAG",
             ),
         ),
     )
@@ -37,7 +37,7 @@ def test_relationship_job_appends_cleanup_statement():
     assert len(graph_job.statements) == 2
     assert graph_job.statements[1].query == (
         "MATCH (source:AWSLambda)-[r:HAS]->(target:ECRImage)\n"
-        "WHERE r._analysis_job = $ANALYSIS_JOB AND r.lastupdated <> $UPDATE_TAG\n"
+        "WHERE r.lastupdated <> $UPDATE_TAG\n"
         "DELETE r"
     )
     assert graph_job.statements[1].iterative is True
@@ -56,7 +56,7 @@ def test_scoped_relationship_cleanup_targets_source_by_default():
                 "(bs:GCPBackendService)-[:ROUTES_TO]->(:GCPInstanceGroup)"
                 "-[:HAS_MEMBER]->(i:GCPInstance) "
                 "MERGE (bs)-[r:EXPOSE]->(i) "
-                "SET r.lastupdated = $UPDATE_TAG, r._analysis_job = $ANALYSIS_JOB",
+                "SET r.lastupdated = $UPDATE_TAG",
             ),
         ),
     )
@@ -68,7 +68,7 @@ def test_scoped_relationship_cleanup_targets_source_by_default():
     assert graph_job.statements[1].query == (
         "MATCH (scope:GCPProject {id: $PROJECT_ID})-[:RESOURCE]->(source)\n"
         "MATCH (source:GCPBackendService)-[r:EXPOSE]->(target:GCPInstance)\n"
-        "WHERE r._analysis_job = $ANALYSIS_JOB AND r.lastupdated <> $UPDATE_TAG\n"
+        "WHERE r.lastupdated <> $UPDATE_TAG\n"
         "DELETE r"
     )
 
@@ -83,13 +83,13 @@ def test_relationship_job_allows_multiple_statements_for_one_effect():
             AnalysisStatement(
                 "MATCH (c:Container)-[:HAS_IMAGE]->(i:Image) "
                 "MERGE (c)-[r:RESOLVED_IMAGE]->(i) "
-                "SET r.lastupdated = $UPDATE_TAG, r._analysis_job = $ANALYSIS_JOB",
+                "SET r.lastupdated = $UPDATE_TAG",
             ),
             AnalysisStatement(
                 "MATCH (c:Container)-[:HAS_IMAGE]->(:ImageManifestList)"
                 "-[:CONTAINS_IMAGE]->(i:Image) "
                 "MERGE (c)-[r:RESOLVED_IMAGE]->(i) "
-                "SET r.lastupdated = $UPDATE_TAG, r._analysis_job = $ANALYSIS_JOB",
+                "SET r.lastupdated = $UPDATE_TAG",
             ),
         ),
     )

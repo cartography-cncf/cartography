@@ -24,7 +24,7 @@ from cartography.util import is_service_control_policy_explicit_deny
 from cartography.util import run_analysis_and_ensure_deps
 from cartography.util import to_datetime
 
-SAMPLE_ANALYSIS_JOB = """
+SAMPLE_GRAPH_JOB = """
 {
   "name": "sample analysis job",
   "statements": [
@@ -40,7 +40,7 @@ SAMPLE_ANALYSIS_JOB = """
 def test_run_analysis_job_default_package(mocker):
     read_text_mock = mocker.patch(
         "cartography.util.read_text",
-        return_value=SAMPLE_ANALYSIS_JOB,
+        return_value=SAMPLE_GRAPH_JOB,
     )
     neo4j_session = mocker.Mock()
 
@@ -56,7 +56,7 @@ def test_run_analysis_job_default_package(mocker):
 def test_run_analysis_job_custom_package(mocker):
     read_text_mock = mocker.patch(
         "cartography.util.read_text",
-        return_value=SAMPLE_ANALYSIS_JOB,
+        return_value=SAMPLE_GRAPH_JOB,
     )
     neo4j_session = mocker.Mock()
 
@@ -69,7 +69,7 @@ def test_run_analysis_job_custom_package(mocker):
 def test_run_scoped_analysis_job_default_package(mocker):
     read_text_mock = mocker.patch(
         "cartography.util.read_text",
-        return_value=SAMPLE_ANALYSIS_JOB,
+        return_value=SAMPLE_GRAPH_JOB,
     )
     neo4j_session = mocker.Mock()
 
@@ -100,9 +100,7 @@ def test_run_analysis_job_accepts_typed_job(mocker):
     util.run_analysis_job(analysis_job, neo4j_session, {"UPDATE_TAG": 1})
 
     # Assert
-    graph_job.merge_parameters.assert_called_once_with(
-        {"UPDATE_TAG": 1, "ANALYSIS_JOB": "typed_job"},
-    )
+    graph_job.merge_parameters.assert_called_once_with({"UPDATE_TAG": 1})
     graph_job.run.assert_called_once_with(neo4j_session)
 
 

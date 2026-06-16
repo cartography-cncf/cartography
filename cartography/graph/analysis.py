@@ -49,7 +49,6 @@ class RelationshipEffect:
     properties: tuple[str, ...] = ()
     direction: LinkDirection = LinkDirection.OUTWARD
     scoped_to: Literal["source", "target"] = "source"
-    marker_property: str | None = "_analysis_job"
 
     def cleanup_query(self, scope: AnalysisScope | None) -> str:
         source = f"(source:{self.source_label})"
@@ -71,9 +70,6 @@ class RelationshipEffect:
             )
 
         filters = ["r.lastupdated <> $UPDATE_TAG"]
-        if self.marker_property:
-            filters.insert(0, f"r.{self.marker_property} = $ANALYSIS_JOB")
-
         return f"{match}\nWHERE {' AND '.join(filters)}\nDELETE r"
 
 
