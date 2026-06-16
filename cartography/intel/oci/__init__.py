@@ -11,7 +11,6 @@ import neo4j
 import oci
 import oci.key_management
 import oci.monitoring
-import oci.object_storage
 from oci.exceptions import ConfigFileNotFound
 from oci.exceptions import InvalidConfig
 from oci.exceptions import ProfileNotFound
@@ -29,7 +28,7 @@ from . import network  # noqa: F401 (imported for side-effect: registers in RESO
 # from . import compute
 
 logger = logging.getLogger(__name__)
-Resources = namedtuple('Resources', 'compute encryption iam monitoring network storage')
+Resources = namedtuple('Resources', 'compute encryption iam monitoring network')
 
 
 def _sync_one_compartment(
@@ -155,16 +154,6 @@ def _get_compute_resource(credentials: Dict[str, Any]) -> oci.core.compute_clien
     return oci.core.ComputeClient(credentials)
 
 
-def _get_storage_resource(credentials: Dict[str, Any]) -> oci.object_storage.ObjectStorageClient:
-    """
-    Instantiates an OCI ObjectStorageClient resource object to call the Object Storage API.
-    See https://docs.oracle.com/en-us/iaas/Content/Object/Concepts/objectstorageoverview.htm.
-    :param credentials: OCI Credentials object
-    :return: An ObjectStorageClient resource object
-    """
-    return oci.object_storage.ObjectStorageClient(credentials)
-
-
 def _get_encryption_resource(credentials: Dict[str, Any]) -> oci.key_management.KmsVaultClient:
     """
     Instantiates an OCI KmsVaultClient resource object to call the KMS Vault API.
@@ -197,7 +186,6 @@ def _initialize_resources(credentials: Dict[str, Any]) -> Resources:
         iam=_get_iam_resource(credentials),
         monitoring=_get_monitoring_resource(credentials),
         network=_get_network_resource(credentials),
-        storage=_get_storage_resource(credentials),
     )
 
 
