@@ -6,7 +6,15 @@ O(Organization) -- RESOURCE --> U(User)
 O -- RESOURCE --> C(Context)
 O -- RESOURCE --> CEV(ContextEnvVar)
 C -- HAS_ENV_VAR --> CEV
+O -- RESOURCE --> P(Project)
+P -- RESOURCE --> PEV(ProjectEnvVar)
+P -- RESOURCE --> CK(CheckoutKey)
+P -- RESOURCE --> W(Webhook)
+P -- RESOURCE --> S(Schedule)
+P -- RESOURCE --> PL(Pipeline)
 ```
+
+Project-scoped nodes (Project and everything below it) are only synced for the project slugs passed via `--circleci-project-slugs`; CircleCI API v2 cannot enumerate an organization's projects.
 
 ### CircleCIOrganization
 
@@ -80,4 +88,131 @@ Represents an environment variable defined within a context. Only the variable *
     ```
     (:CircleCIOrganization)-[:RESOURCE]->(:CircleCIContextEnvVar)
     (:CircleCIContext)-[:HAS_ENV_VAR]->(:CircleCIContextEnvVar)
+    ```
+
+### CircleCIProject
+
+Represents a CircleCI project (`GET /project/{project-slug}`). Only synced for slugs passed via `--circleci-project-slugs`.
+
+| Field | Description |
+|-------|-------------|
+| **id** | Opaque project ID. |
+| firstseen | Timestamp of when a sync job first created this node. |
+| lastupdated | Timestamp of the last time the node was updated. |
+| **slug** | Project slug (e.g. `gh/acme/web`). |
+| name | Project (repository) name. |
+| organization_name | Owning organization name. |
+| organization_slug | Owning organization slug. |
+| organization_id | Owning organization ID. |
+| vcs_url | Repository URL. |
+| vcs_provider | VCS provider (e.g. `GitHub`). |
+| default_branch | Default branch name. |
+
+#### Relationships
+- A project belongs to an organization.
+    ```
+    (:CircleCIOrganization)-[:RESOURCE]->(:CircleCIProject)
+    ```
+
+### CircleCIProjectEnvVar
+
+Represents a project-level environment variable. Only the **name** is stored; CircleCI returns a masked value.
+
+| Field | Description |
+|-------|-------------|
+| **id** | Synthesized id, `{project_slug}:{name}`. |
+| firstseen | Timestamp of when a sync job first created this node. |
+| lastupdated | Timestamp of the last time the node was updated. |
+| **name** | Environment variable name. |
+| project_slug | Slug of the owning project. |
+
+#### Relationships
+- A project environment variable belongs to a project.
+    ```
+    (:CircleCIProject)-[:RESOURCE]->(:CircleCIProjectEnvVar)
+    ```
+
+### CircleCICheckoutKey
+
+Represents a project checkout/deploy key (`GET /project/{slug}/checkout-key`). Only the public key is stored.
+
+| Field | Description |
+|-------|-------------|
+| **id** | Synthesized id, `{project_slug}:{fingerprint}`. |
+| firstseen | Timestamp of when a sync job first created this node. |
+| lastupdated | Timestamp of the last time the node was updated. |
+| **fingerprint** | Key fingerprint. |
+| type | Key type (`deploy-key`, `github-user-key`, ...). |
+| preferred | Whether this is the preferred key. |
+| public_key | The SSH public key. |
+| created_at | Key creation timestamp. |
+| project_slug | Slug of the owning project. |
+
+#### Relationships
+- A checkout key belongs to a project.
+    ```
+    (:CircleCIProject)-[:RESOURCE]->(:CircleCICheckoutKey)
+    ```
+
+### CircleCIWebhook
+
+Represents an outbound webhook scoped to a project (`GET /webhook`).
+
+| Field | Description |
+|-------|-------------|
+| **id** | Webhook ID. |
+| firstseen | Timestamp of when a sync job first created this node. |
+| lastupdated | Timestamp of the last time the node was updated. |
+| **name** | Webhook name. |
+| url | Destination URL. |
+| verify_tls | Whether TLS verification is enabled. |
+| has_signing_secret | Whether a signing secret is configured (the value itself is never stored). |
+| events | List of subscribed event types. |
+
+#### Relationships
+- A webhook belongs to a project.
+    ```
+    (:CircleCIProject)-[:RESOURCE]->(:CircleCIWebhook)
+    ```
+
+### CircleCISchedule
+
+Represents a scheduled pipeline trigger (`GET /project/{slug}/schedule`).
+
+| Field | Description |
+|-------|-------------|
+| **id** | Schedule ID. |
+| firstseen | Timestamp of when a sync job first created this node. |
+| lastupdated | Timestamp of the last time the node was updated. |
+| **name** | Schedule name. |
+| description | Schedule description. |
+| project_slug | Slug of the owning project. |
+| actor_login | Login of the actor the schedule runs as. |
+
+#### Relationships
+- A schedule belongs to a project.
+    ```
+    (:CircleCIProject)-[:RESOURCE]->(:CircleCISchedule)
+    ```
+
+### CircleCIPipeline
+
+Represents a pipeline run (`GET /project/{slug}/pipeline`). Pagination is capped to bound graph size.
+
+| Field | Description |
+|-------|-------------|
+| **id** | Pipeline ID. |
+| firstseen | Timestamp of when a sync job first created this node. |
+| lastupdated | Timestamp of the last time the node was updated. |
+| number | Pipeline number. |
+| state | Pipeline state. |
+| project_slug | Slug of the owning project. |
+| trigger_type | What triggered the pipeline (`webhook`, `schedule`, `api`, ...). |
+| created_at | Pipeline creation timestamp. |
+| updated_at | Pipeline last-update timestamp. |
+
+#### Relationships
+- A pipeline belongs to a project.
+    ```
+    (:CircleCIProject)-[:RESOURCE]->(:CircleCIPipeline)
     ```

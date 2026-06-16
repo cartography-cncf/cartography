@@ -5,10 +5,16 @@ import requests
 from requests.adapters import HTTPAdapter
 from urllib3 import Retry
 
+import cartography.intel.circleci.checkout_keys
 import cartography.intel.circleci.context_env_vars
 import cartography.intel.circleci.contexts
 import cartography.intel.circleci.organizations
+import cartography.intel.circleci.pipelines
+import cartography.intel.circleci.project_env_vars
+import cartography.intel.circleci.projects
+import cartography.intel.circleci.schedules
 import cartography.intel.circleci.users
+import cartography.intel.circleci.webhooks
 from cartography.config import Config
 from cartography.util import timeit
 
@@ -80,3 +86,35 @@ def start_circleci_ingestion(neo4j_session: neo4j.Session, config: Config) -> No
             org_id,
             contexts,
         )
+
+    # Project-scoped resources: API v2 cannot enumerate projects, so we only
+    # sync the slugs the operator configured.
+    if config.circleci_project_slugs:
+        projects = cartography.intel.circleci.projects.sync(
+            neo4j_session,
+            api_session,
+            common_job_parameters,
+            config.circleci_project_slugs,
+        )
+        for project in projects:
+            project_job_parameters = {
+                **common_job_parameters,
+                "ORG_ID": project["organization_id"],
+                "PROJECT_ID": project["id"],
+            }
+            slug = project["slug"]
+            cartography.intel.circleci.project_env_vars.sync(
+                neo4j_session, api_session, project_job_parameters, slug
+            )
+            cartography.intel.circleci.checkout_keys.sync(
+                neo4j_session, api_session, project_job_parameters, slug
+            )
+            cartography.intel.circleci.webhooks.sync(
+                neo4j_session, api_session, project_job_parameters, slug
+            )
+            cartography.intel.circleci.schedules.sync(
+                neo4j_session, api_session, project_job_parameters, slug
+            )
+            cartography.intel.circleci.pipelines.sync(
+                neo4j_session, api_session, project_job_parameters, slug
+            )

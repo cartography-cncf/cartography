@@ -27,6 +27,7 @@ def paginated_get(
     api_session: requests.Session,
     url: str,
     params: dict[str, Any] | None = None,
+    max_pages: int | None = None,
 ) -> list[dict[str, Any]]:
     """
     Fetch all items from a paginated CircleCI API v2 endpoint. These endpoints
@@ -36,10 +37,13 @@ def paginated_get(
     :param api_session: Authenticated requests session (Circle-Token header set).
     :param url: Full URL of the API endpoint.
     :param params: Additional query parameters.
+    :param max_pages: Stop after this many pages (high-volume endpoints like
+        pipelines are effectively unbounded). None means fetch everything.
     :return: Combined list of all items across all pages.
     """
     all_items: list[dict[str, Any]] = []
     request_params: dict[str, Any] = dict(params or {})
+    pages = 0
 
     while True:
         resp = api_session.get(url, params=request_params, timeout=_TIMEOUT)
@@ -47,9 +51,18 @@ def paginated_get(
         data = resp.json()
 
         all_items.extend(data["items"])
+        pages += 1
 
         next_token = data.get("next_page_token")
         if not next_token:
+            break
+        if max_pages is not None and pages >= max_pages:
+            logger.warning(
+                "Reached max_pages=%d for %s; stopping pagination early "
+                "(some items not ingested).",
+                max_pages,
+                url,
+            )
             break
         request_params["page-token"] = next_token
 
