@@ -15,8 +15,8 @@ AWS_EC2_IAM_INSTANCE_PROFILE = AnalysisJob(
         AnalysisStatement(
             "MATCH (aa:AWSAccount{id: $AWS_ID})-[:RESOURCE]->(i:EC2Instance)-[:INSTANCE_PROFILE]->(p:AWSInstanceProfile)-[:ASSOCIATED_WITH]->(r:AWSRole)\n"
             "MERGE (i)-[s:STS_ASSUMEROLE_ALLOW]->(r)\n"
-            "ON CREATE SET s.firstseen = timestamp(), s.lastupdated = $UPDATE_TAG",
-            iterative=True,
+            "ON CREATE SET s.firstseen = timestamp()\n"
+            "SET s.lastupdated = $UPDATE_TAG",
         ),
     ),
 )

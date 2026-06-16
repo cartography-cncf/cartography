@@ -209,9 +209,11 @@ def test_load_function_app_tags(neo4j_session):
         (TEST_FUNCTIONAPP_CONTAINER_ID, f"{TEST_SUBSCRIPTION_ID}|service:function-app"),
     }
 
-    result = neo4j_session.run("""
+    result = neo4j_session.run(
+        """
         MATCH (fa:AzureFunctionApp)-[:TAGGED]->(t:AzureTag)
         RETURN fa.id, t.id
-        """)
+        """
+    )
     actual_rels = {(r["fa.id"], r["t.id"]) for r in result}
     assert actual_rels == expected_rels

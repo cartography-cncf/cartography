@@ -36,7 +36,7 @@ GCP_GKE_BASIC_AUTH = AnalysisJob(
     effect=PropertyEffect("GKECluster", ("basic_auth",)),
     statements=(
         AnalysisStatement(
-            "MATCH (cluster:GKECluster) WHERE (cluster.masterauth_username IS NOT NULL AND NOT cluster.masterauth_username = '') AND (cluster.masterauth_password IS NOT NULL AND NOT cluster.masterauth.password = '') SET cluster.basic_auth = true",
+            "MATCH (cluster:GKECluster) WHERE (cluster.masterauth_username IS NOT NULL AND NOT cluster.masterauth_username = '') AND (cluster.masterauth_password IS NOT NULL AND NOT cluster.masterauth_password = '') SET cluster.basic_auth = true",
         ),
     ),
 )

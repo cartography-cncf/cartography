@@ -37,7 +37,7 @@ AZURE_COMPUTE_ASSET_EXPOSURE_LB = AnalysisJob(
     cleanup_iterationsize=1000,
     statements=(
         AnalysisStatement(
-            "MATCH (lb:AzureLoadBalancer)-[:CONTAINS]->(fip:AzureLoadBalancerFrontendIPConfiguration)-[:ASSOCIATED_WITH]->(pip:AzurePublicIPAddress) WHERE pip.ip_address IS NOT NULL SET lb.exposed_internet = true",
+            "MATCH (lb:AzureLoadBalancer)-[:CONTAINS]->(fip:AzureLoadBalancerFrontendIPConfiguration)-[:ASSOCIATED_WITH]->(pip:AzurePublicIPAddress) WHERE pip.ip_address IS NOT NULL SET lb.exposed_internet = true, lb.exposed_internet_type = ['direct']",
         ),
         AnalysisStatement(
             "MATCH (lb:AzureLoadBalancer) WHERE lb.exposed_internet IS NULL SET lb.exposed_internet = false",

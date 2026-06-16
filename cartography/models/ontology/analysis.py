@@ -270,7 +270,7 @@ USER_AUTHORIZED_THIRD_PARTY_APP = AnalysisJob(
         ),
         AnalysisStatement(
             "MATCH (u:User)-[:HAS_ACCOUNT]->(:OktaUser)-[:MEMBER_OF_OKTA_GROUP]->(:OktaGroup)-[:APPLICATION]->(a:ThirdPartyApp) "
-            "MERGE (u)-[r:AUTHORIZED]->(a) ON CREATE SET r.firstseen = timestamp() SET r.lastupdated = $UPDATE_TAG",
+            "MERGE (u)-[r:AUTHORIZED]->(a) ON CREATE SET r.firstseen = timestamp() SET r.lastupdated = $UPDATE_TAG, r.scopes = []",
         ),
     ),
 )
