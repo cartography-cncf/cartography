@@ -50,7 +50,7 @@ def get_decision_settings(
         f"{base_url}/owner/{org_id}/context/{context}/decision/settings",
         timeout=_TIMEOUT,
     )
-    if req.status_code in (403, 404):
+    if req.status_code == 404:
         return None
     req.raise_for_status()
     return req.json()
@@ -67,8 +67,8 @@ def get_policy_bundle(
         f"{base_url}/owner/{org_id}/context/{context}/policy-bundle",
         timeout=_TIMEOUT,
     )
-    # 404/403 means policies are not enabled or not visible for this owner+context.
-    if req.status_code in (403, 404):
+    # 404 means policies are not enabled / no bundle for this owner+context.
+    if req.status_code == 404:
         return {}
     req.raise_for_status()
     return req.json() or {}

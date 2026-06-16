@@ -25,11 +25,20 @@ def sync(
     raw = get(api_session, base_url, org_id)
     contexts = transform(raw)
     # Enrich each context with the projects it is restricted to so the
-    # one-to-many RESTRICTED_TO relationship can attach (best-effort).
+    # one-to-many RESTRICTED_TO relationship can attach (best-effort). A
+    # restrictions failure must not block ingesting the contexts themselves.
     for context in contexts:
-        context["restricted_project_ids"] = get_restricted_project_ids(
-            api_session, base_url, context["id"]
-        )
+        try:
+            context["restricted_project_ids"] = get_restricted_project_ids(
+                api_session, base_url, context["id"]
+            )
+        except requests.exceptions.HTTPError as exc:
+            logger.warning(
+                "Could not fetch restrictions for CircleCI context %s: %s",
+                context["id"],
+                exc,
+            )
+            context["restricted_project_ids"] = []
     load_contexts(
         neo4j_session,
         contexts,

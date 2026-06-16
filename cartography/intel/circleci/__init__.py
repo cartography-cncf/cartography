@@ -1,4 +1,6 @@
 import logging
+from typing import Any
+from typing import Callable
 
 import neo4j
 import requests
@@ -26,6 +28,21 @@ from cartography.config import Config
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
+
+
+def _run(label: str, fn: Callable[..., Any], *args: Any) -> Any:
+    """
+    Run a resource sync, isolating expected per-resource API failures. On an HTTP
+    error the resource is skipped entirely - because its load/cleanup never runs,
+    previously-ingested data is preserved (no destructive empty-then-cleanup) - and
+    the rest of the module continues. Returns the sync's result, or None if it
+    raised, so callers can distinguish "failed" (None) from "empty" ([]).
+    """
+    try:
+        return fn(*args)
+    except requests.exceptions.HTTPError as exc:
+        logger.warning("Skipping CircleCI %s due to API error: %s", label, exc)
+        return None
 
 
 @timeit
@@ -87,7 +104,9 @@ def start_circleci_ingestion(neo4j_session: neo4j.Session, config: Config) -> No
     # RESTRICTED_TO -> project and component -> project links can attach during
     # those syncs (the targets must already exist).
     if project_slugs:
-        projects = cartography.intel.circleci.projects.sync(
+        projects = _run(
+            "projects",
+            cartography.intel.circleci.projects.sync,
             neo4j_session,
             api_session,
             common_job_parameters,
@@ -98,7 +117,7 @@ def start_circleci_ingestion(neo4j_session: neo4j.Session, config: Config) -> No
         # stale nodes. Any future per-project resource that fans out over
         # sub-items (as triggers do over definitions) must accumulate across
         # those items and clean up once, never per-item inside this loop.
-        for project in projects:
+        for project in projects or []:
             project_job_parameters = {
                 **common_job_parameters,
                 "ORG_ID": project["organization_id"],
@@ -143,56 +162,77 @@ def start_circleci_ingestion(neo4j_session: neo4j.Session, config: Config) -> No
                     exc,
                 )
 
-    # Org-scoped resources. Contexts link to their restricted projects here via
-    # the one-to-many RESTRICTED_TO relationship (projects already ingested above).
+    # Org-scoped resources. Each sync is isolated via _run so a single resource's
+    # API failure neither aborts the module nor (since its load/cleanup is skipped)
+    # deletes previously-ingested data. Contexts link to their restricted projects
+    # here via the one-to-many RESTRICTED_TO relationship (projects ingested above).
     for org in orgs:
         org_id = org["id"]
         org_job_parameters = {**common_job_parameters, "ORG_ID": org_id}
 
-        cartography.intel.circleci.users.sync(
+        _run(
+            f"users (org {org_id})",
+            cartography.intel.circleci.users.sync,
             neo4j_session,
             org_job_parameters,
             org_id,
             user,
         )
-        contexts = cartography.intel.circleci.contexts.sync(
+        contexts = _run(
+            f"contexts (org {org_id})",
+            cartography.intel.circleci.contexts.sync,
             neo4j_session,
             api_session,
             org_job_parameters,
             org_id,
         )
-        cartography.intel.circleci.context_env_vars.sync(
-            neo4j_session,
-            api_session,
-            org_job_parameters,
-            org_id,
-            contexts,
-        )
-        cartography.intel.circleci.oidc.sync(
-            neo4j_session,
-            api_session,
-            org_job_parameters,
-            org_id,
-        )
-        cartography.intel.circleci.groups.sync(
-            neo4j_session,
-            api_session,
-            org_job_parameters,
-            org_id,
-        )
-        cartography.intel.circleci.policies.sync(
+        # Only sync env vars if contexts were fetched: passing [] after a context
+        # failure would let cleanup wipe previously-ingested env vars.
+        if contexts is not None:
+            _run(
+                f"context env vars (org {org_id})",
+                cartography.intel.circleci.context_env_vars.sync,
+                neo4j_session,
+                api_session,
+                org_job_parameters,
+                org_id,
+                contexts,
+            )
+        _run(
+            f"oidc (org {org_id})",
+            cartography.intel.circleci.oidc.sync,
             neo4j_session,
             api_session,
             org_job_parameters,
             org_id,
         )
-        cartography.intel.circleci.environments.sync(
+        _run(
+            f"groups (org {org_id})",
+            cartography.intel.circleci.groups.sync,
             neo4j_session,
             api_session,
             org_job_parameters,
             org_id,
         )
-        cartography.intel.circleci.components.sync(
+        _run(
+            f"policies (org {org_id})",
+            cartography.intel.circleci.policies.sync,
+            neo4j_session,
+            api_session,
+            org_job_parameters,
+            org_id,
+        )
+        _run(
+            f"environments (org {org_id})",
+            cartography.intel.circleci.environments.sync,
+            neo4j_session,
+            api_session,
+            org_job_parameters,
+            org_id,
+        )
+        _run(
+            f"components (org {org_id})",
+            cartography.intel.circleci.components.sync,
             neo4j_session,
             api_session,
             org_job_parameters,

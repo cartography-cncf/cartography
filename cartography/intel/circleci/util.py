@@ -11,10 +11,6 @@ logger = logging.getLogger(__name__)
 
 _TIMEOUT = (60, 60)
 
-# Status codes that mean "this feature/resource is not available or not visible
-# to this token" rather than a hard failure - we skip and keep going.
-_SKIPPABLE_STATUS = (403, 404)
-
 
 def flatten_labels(labels: list[dict[str, Any]] | None) -> list[str]:
     """
@@ -60,15 +56,6 @@ def paginated_get(
 
     while True:
         resp = api_session.get(url, params=request_params, timeout=_TIMEOUT)
-        # A 403/404 means the feature is plan-gated or the token cannot see this
-        # resource; skip it and return what we have rather than aborting the sync.
-        if resp.status_code in _SKIPPABLE_STATUS:
-            logger.warning(
-                "CircleCI returned %d for %s; skipping (feature unavailable or no access).",
-                resp.status_code,
-                url,
-            )
-            return all_items
         resp.raise_for_status()
         data = resp.json()
 

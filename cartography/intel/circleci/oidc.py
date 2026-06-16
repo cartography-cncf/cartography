@@ -57,8 +57,8 @@ def get(
         f"{base_url}/org/{org_id}/oidc-custom-claims",
         timeout=_TIMEOUT,
     )
-    # 404 means no custom claims are configured; 403 means no access - skip both.
-    if req.status_code in (403, 404):
+    # 404 simply means no custom claims are configured for this org.
+    if req.status_code == 404:
         return None
     req.raise_for_status()
     return req.json()
@@ -134,7 +134,7 @@ def get_project(
         f"{base_url}/org/{org_id}/project/{project_id}/oidc-custom-claims",
         timeout=_TIMEOUT,
     )
-    if req.status_code in (403, 404):
+    if req.status_code == 404:
         return None
     req.raise_for_status()
     return req.json()
