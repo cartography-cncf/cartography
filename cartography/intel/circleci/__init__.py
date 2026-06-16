@@ -6,8 +6,10 @@ from requests.adapters import HTTPAdapter
 from urllib3 import Retry
 
 import cartography.intel.circleci.checkout_keys
+import cartography.intel.circleci.components
 import cartography.intel.circleci.context_env_vars
 import cartography.intel.circleci.contexts
+import cartography.intel.circleci.environments
 import cartography.intel.circleci.groups
 import cartography.intel.circleci.oidc
 import cartography.intel.circleci.organizations
@@ -103,6 +105,18 @@ def start_circleci_ingestion(neo4j_session: neo4j.Session, config: Config) -> No
             org_id,
         )
         cartography.intel.circleci.policies.sync(
+            neo4j_session,
+            api_session,
+            org_job_parameters,
+            org_id,
+        )
+        cartography.intel.circleci.environments.sync(
+            neo4j_session,
+            api_session,
+            org_job_parameters,
+            org_id,
+        )
+        cartography.intel.circleci.components.sync(
             neo4j_session,
             api_session,
             org_job_parameters,

@@ -9,7 +9,10 @@ C -- HAS_ENV_VAR --> CEV
 O -- RESOURCE --> OIDC(OidcConfig)
 O -- RESOURCE --> G(Group)
 O -- RESOURCE --> POL(Policy)
+O -- RESOURCE --> ENV(Environment)
+O -- RESOURCE --> CMP(Component)
 O -- RESOURCE --> P(Project)
+P -- HAS_COMPONENT --> CMP
 P -- RESOURCE --> PEV(ProjectEnvVar)
 P -- RESOURCE --> CK(CheckoutKey)
 P -- RESOURCE --> W(Webhook)
@@ -158,6 +161,50 @@ Represents a config policy in the organization's policy bundle (`GET /owner/{org
 - A policy belongs to an organization.
     ```
     (:CircleCIOrganization)-[:RESOURCE]->(:CircleCIPolicy)
+    ```
+
+### CircleCIEnvironment
+
+Represents a deploy environment (`GET /deploy/environments`).
+
+| Field | Description |
+|-------|-------------|
+| **id** | Environment ID. |
+| firstseen | Timestamp of when a sync job first created this node. |
+| lastupdated | Timestamp of the last time the node was updated. |
+| **name** | Environment name. |
+| description | Environment description. |
+| labels | List of labels. |
+| created_at | Creation timestamp. |
+| updated_at | Last-update timestamp. |
+
+#### Relationships
+- An environment belongs to an organization.
+    ```
+    (:CircleCIOrganization)-[:RESOURCE]->(:CircleCIEnvironment)
+    ```
+
+### CircleCIComponent
+
+Represents a deploy component (`GET /deploy/components`).
+
+| Field | Description |
+|-------|-------------|
+| **id** | Component ID. |
+| firstseen | Timestamp of when a sync job first created this node. |
+| lastupdated | Timestamp of the last time the node was updated. |
+| **name** | Component name. |
+| project_id | ID of the associated project. |
+| labels | List of labels. |
+| release_count | Number of releases. |
+| created_at | Creation timestamp. |
+| updated_at | Last-update timestamp. |
+
+#### Relationships
+- A component belongs to an organization and (when known) to a project.
+    ```
+    (:CircleCIOrganization)-[:RESOURCE]->(:CircleCIComponent)
+    (:CircleCIProject)-[:HAS_COMPONENT]->(:CircleCIComponent)
     ```
 
 ### CircleCIProject
