@@ -25,6 +25,7 @@ from cartography.graph.job import GraphJob
 from cartography.intel.aws.util.botocore_config import create_boto3_client
 from cartography.intel.aws.util.botocore_config import get_botocore_config
 from cartography.models.aws.s3.acl import S3AclSchema
+from cartography.models.aws.s3.analysis import AWS_S3ACL_ANALYSIS
 from cartography.models.aws.s3.bucket import S3BucketEncryptionSchema
 from cartography.models.aws.s3.bucket import S3BucketLoggingSchema
 from cartography.models.aws.s3.bucket import S3BucketOwnershipSchema
@@ -437,7 +438,7 @@ def _load_s3_acls(
     # implement the acl permission
     # https://docs.aws.amazon.com/AmazonS3/latest/dev/acl-overview.html#permissions
     run_analysis_job(
-        "aws_s3acl_analysis.json",
+        AWS_S3ACL_ANALYSIS,
         neo4j_session,
         {"AWS_ID": aws_account_id},
         package="cartography.data.jobs.scoped_analysis",
