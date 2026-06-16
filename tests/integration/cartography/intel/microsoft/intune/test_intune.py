@@ -11,6 +11,7 @@ from cartography.intel.microsoft.intune.compliance_policies import (
 from cartography.intel.microsoft.intune.detected_apps import sync_detected_apps
 from cartography.intel.microsoft.intune.managed_devices import sync_managed_devices
 from cartography.intel.microsoft.intune.reports import ExportedReportRows
+from cartography.models.microsoft.intune.analysis import INTUNE_COMPLIANCE_POLICY_DEVICE
 from cartography.util import run_scoped_analysis_job
 from tests.data.microsoft.intune.compliance_policies import MOCK_COMPLIANCE_POLICIES
 from tests.data.microsoft.intune.compliance_policies import TEST_GROUP_ID
@@ -256,7 +257,7 @@ async def test_sync_intune(
     }
 
     run_scoped_analysis_job(
-        "intune_compliance_policy_device.json",
+        INTUNE_COMPLIANCE_POLICY_DEVICE,
         neo4j_session,
         common_job_parameters,
     )

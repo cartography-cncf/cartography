@@ -8,6 +8,8 @@ from cartography.intel.kubernetes.pods import load_containers
 from cartography.intel.kubernetes.pods import load_pods
 from cartography.intel.kubernetes.services import load_services
 from cartography.models.aws.analysis import AWS_EC2_ASSET_EXPOSURE_JOBS
+from cartography.models.kubernetes.analysis import K8S_COMPUTE_ASSET_EXPOSURE_JOBS
+from cartography.models.kubernetes.analysis import K8S_LB_EXPOSURE_JOBS
 from cartography.util import run_analysis_job
 from cartography.util import run_scoped_analysis_job
 from tests.data.kubernetes.exposure import build_exposure_test_data
@@ -91,6 +93,16 @@ def _seed_exposure_graph(
         )
 
 
+def _run_k8s_compute_analysis(neo4j_session, common_job_parameters):
+    for job in K8S_COMPUTE_ASSET_EXPOSURE_JOBS:
+        run_scoped_analysis_job(job, neo4j_session, common_job_parameters)
+
+
+def _run_k8s_lb_analysis(neo4j_session, common_job_parameters):
+    for job in K8S_LB_EXPOSURE_JOBS:
+        run_scoped_analysis_job(job, neo4j_session, common_job_parameters)
+
+
 def test_k8s_lb_expose_via_service(neo4j_session):
     case = build_exposure_test_data()
     _seed_exposure_graph(neo4j_session, case=case)
@@ -100,12 +112,8 @@ def test_k8s_lb_expose_via_service(neo4j_session):
         "CLUSTER_ID": case["cluster_id"],
     }
 
-    run_scoped_analysis_job(
-        "k8s_compute_asset_exposure.json", neo4j_session, common_job_parameters
-    )
-    run_scoped_analysis_job(
-        "k8s_lb_exposure.json", neo4j_session, common_job_parameters
-    )
+    _run_k8s_compute_analysis(neo4j_session, common_job_parameters)
+    _run_k8s_lb_analysis(neo4j_session, common_job_parameters)
 
     result = neo4j_session.run(
         "MATCH (lb:AWSLoadBalancerV2)-[:EXPOSE]->(pod:KubernetesPod) "
@@ -141,9 +149,7 @@ def test_k8s_asset_exposure_properties(neo4j_session):
         "CLUSTER_ID": case["cluster_id"],
     }
 
-    run_scoped_analysis_job(
-        "k8s_compute_asset_exposure.json", neo4j_session, common_job_parameters
-    )
+    _run_k8s_compute_analysis(neo4j_session, common_job_parameters)
 
     result = neo4j_session.run(
         "MATCH (svc:KubernetesService{id: $svc_id}) "
@@ -187,9 +193,7 @@ def test_k8s_asset_exposure_type_deduplicates_on_multiple_paths(neo4j_session):
         "CLUSTER_ID": case["cluster_id"],
     }
 
-    run_scoped_analysis_job(
-        "k8s_compute_asset_exposure.json", neo4j_session, common_job_parameters
-    )
+    _run_k8s_compute_analysis(neo4j_session, common_job_parameters)
 
     result = neo4j_session.run(
         "MATCH (svc:KubernetesService{id: $svc_id}) "
@@ -225,12 +229,8 @@ def test_nlb_internet_exposure_propagates_to_kubernetes_compute(neo4j_session):
 
     for job in AWS_EC2_ASSET_EXPOSURE_JOBS:
         run_analysis_job(job, neo4j_session, common_job_parameters)
-    run_scoped_analysis_job(
-        "k8s_compute_asset_exposure.json", neo4j_session, common_job_parameters
-    )
-    run_scoped_analysis_job(
-        "k8s_lb_exposure.json", neo4j_session, common_job_parameters
-    )
+    _run_k8s_compute_analysis(neo4j_session, common_job_parameters)
+    _run_k8s_lb_analysis(neo4j_session, common_job_parameters)
 
     result = neo4j_session.run(
         "MATCH (lb:AWSLoadBalancerV2{id: $lb_id}) "
@@ -263,12 +263,8 @@ def test_internal_nlb_does_not_propagate_exposure(neo4j_session):
         "CLUSTER_ID": case["cluster_id"],
     }
 
-    run_scoped_analysis_job(
-        "k8s_compute_asset_exposure.json", neo4j_session, common_job_parameters
-    )
-    run_scoped_analysis_job(
-        "k8s_lb_exposure.json", neo4j_session, common_job_parameters
-    )
+    _run_k8s_compute_analysis(neo4j_session, common_job_parameters)
+    _run_k8s_lb_analysis(neo4j_session, common_job_parameters)
 
     result = neo4j_session.run(
         "MATCH (svc:KubernetesService{id: $svc_id}) "

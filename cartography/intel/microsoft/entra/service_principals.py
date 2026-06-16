@@ -11,6 +11,7 @@ from msgraph.generated.models.service_principal import ServicePrincipal
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
 from cartography.intel.microsoft.entra.utils import call_with_retries
+from cartography.models.microsoft.entra.analysis import ENTRA_APPLICATION_PROJECTION
 from cartography.models.microsoft.entra.service_principal import (
     EntraServicePrincipalSchema,
 )
@@ -243,7 +244,7 @@ async def sync_service_principals(
     # ontology stage) so a `--selected-modules microsoft` sync still
     # projects the field.
     run_analysis_job(
-        "ontology_entra_application_projection.json",
+        ENTRA_APPLICATION_PROJECTION,
         neo4j_session,
         common_job_parameters,
     )

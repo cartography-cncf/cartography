@@ -9,6 +9,7 @@ import cartography.intel.microsoft.entra.applications
 import cartography.intel.microsoft.entra.service_principals
 import cartography.util
 import tests.data.aws.identitycenter
+from cartography.models.microsoft.entra.analysis import ENTRA_APPLICATION_PROJECTION
 from cartography.intel.microsoft.entra.app_role_assignments import (
     sync_app_role_assignments,
 )
@@ -412,7 +413,7 @@ async def test_sync_entra_applications(
         """,
     )
     cartography.util.run_analysis_job(
-        "ontology_entra_application_projection.json",
+        ENTRA_APPLICATION_PROJECTION,
         neo4j_session,
         {"UPDATE_TAG": TEST_UPDATE_TAG, "TENANT_ID": TEST_TENANT_ID},
     )
@@ -463,7 +464,7 @@ async def test_sync_entra_applications(
         """,
     )
     cartography.util.run_analysis_job(
-        "ontology_entra_application_projection.json",
+        ENTRA_APPLICATION_PROJECTION,
         neo4j_session,
         {"UPDATE_TAG": TEST_UPDATE_TAG, "TENANT_ID": TEST_TENANT_ID},
     )

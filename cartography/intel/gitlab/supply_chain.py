@@ -22,6 +22,7 @@ from cartography.models.gitlab.packaged_matchlink import (
 from cartography.models.gitlab.packaged_matchlink import (
     GitLabProjectProvenancePackagedFromMatchLink,
 )
+from cartography.models.ontology.analysis import SUPPLY_CHAIN_SOURCE_FILE
 from cartography.util import run_analysis_job
 from cartography.util import timeit
 
@@ -495,7 +496,7 @@ def sync(
 
     # 5. Enrich PACKAGED_FROM with source_file from Image provenance
     run_analysis_job(
-        "supply_chain_source_file.json",
+        SUPPLY_CHAIN_SOURCE_FILE,
         neo4j_session,
         common_job_parameters,
     )
