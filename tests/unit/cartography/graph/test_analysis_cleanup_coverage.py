@@ -80,15 +80,19 @@ CLEANUP_CASES = [
         id="aws_ec2_asset_exposure_instance",
     ),
     pytest.param(
-        PropertyEffect("LoadBalancer", ("exposed_internet", "exposed_internet_type")),
+        PropertyEffect(
+            "AWSLoadBalancer", ("exposed_internet", "exposed_internet_type")
+        ),
         None,
-        _prop_cleanup("LoadBalancer", "exposed_internet", "exposed_internet_type"),
+        _prop_cleanup("AWSLoadBalancer", "exposed_internet", "exposed_internet_type"),
         id="aws_ec2_asset_exposure_elb",
     ),
     pytest.param(
-        PropertyEffect("LoadBalancerV2", ("exposed_internet", "exposed_internet_type")),
+        PropertyEffect(
+            "AWSLoadBalancerV2", ("exposed_internet", "exposed_internet_type")
+        ),
         None,
-        _prop_cleanup("LoadBalancerV2", "exposed_internet", "exposed_internet_type"),
+        _prop_cleanup("AWSLoadBalancerV2", "exposed_internet", "exposed_internet_type"),
         id="aws_ec2_asset_exposure_elbv2",
     ),
     pytest.param(

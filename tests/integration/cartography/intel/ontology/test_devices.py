@@ -8,6 +8,7 @@ import pytest
 
 import cartography.intel.ontology.devices
 import tests.data.snipeit.tenants
+from cartography.models.ontology.analysis import DEVICE_OWNS_LINKING
 from cartography.util import run_analysis_job
 from tests.integration.cartography.intel.snipeit.test_snipeit_assets import (
     _ensure_local_neo4j_has_test_snipeit_assets,
@@ -160,20 +161,16 @@ def test_load_ontology_devices_relationships(neo4j_session):
     _ensure_local_neo4j_has_test_snipeit_assets(neo4j_session)
     _ensure_local_neo4j_has_test_tailscale_devices(neo4j_session)
     # Manually map ussers
-    neo4j_session.run(
-        """
+    neo4j_session.run("""
         MATCH (a:SnipeitUser)
         MERGE (a)<-[:HAS_ACCOUNT]-(u:User {id: a.email})
         SET u.email = a.email
-        """
-    )
-    neo4j_session.run(
-        """
+        """)
+    neo4j_session.run("""
         MATCH (a:TailscaleUser)
         MERGE (a)<-[:HAS_ACCOUNT]-(u:User {id: a.email})
         SET u.email = a.email
-        """
-    )
+        """)
 
     # Act
     cartography.intel.ontology.devices.sync(
@@ -273,20 +270,15 @@ def test_link_ontology_devices_ignores_stale_observed_as_relationships(neo4j_ses
     )
 
     run_analysis_job(
-        "ontology_devices_linking.json",
+        DEVICE_OWNS_LINKING,
         neo4j_session,
         {"UPDATE_TAG": TEST_UPDATE_TAG},
     )
 
-    assert (
-        neo4j_session.run(
-            """
+    assert neo4j_session.run("""
             MATCH (:User {id: 'user-1'})-[r:OWNS]->(:Device {id: 'device-1'})
             RETURN count(r) AS count
-            """
-        ).single()["count"]
-        == 0
-    )
+            """).single()["count"] == 0
 
 
 def test_cleanup_removes_stale_user_owns_device_relationships(neo4j_session):
@@ -324,20 +316,16 @@ def test_cleanup_removes_stale_user_owns_device_relationships(neo4j_session):
         {"UPDATE_TAG": TEST_UPDATE_TAG},
     )
 
-    stale_owns_count = neo4j_session.run(
-        """
+    stale_owns_count = neo4j_session.run("""
         MATCH (:User {id: 'hjsimpson@simpson.corp'})-[r:OWNS]->(:Device {id: 'SIMP-MAC-HOMER-01'})
         RETURN count(r) AS count
-        """
-    ).single()["count"]
+        """).single()["count"]
     assert stale_owns_count == 0
 
-    fresh_observed_as_count = neo4j_session.run(
-        """
+    fresh_observed_as_count = neo4j_session.run("""
         MATCH (:Device {id: 'SIMP-MAC-HOMER-01'})-[r:OBSERVED_AS]->(:SnipeitAsset {id: 'asset-1'})
         RETURN count(r) AS count
-        """
-    ).single()["count"]
+        """).single()["count"]
     assert fresh_observed_as_count == 1
 
 
@@ -942,12 +930,7 @@ def test_link_ontology_devices_from_jamf_email_skips_empty_and_non_matching(
         {"UPDATE_TAG": TEST_UPDATE_TAG},
     )
 
-    assert (
-        neo4j_session.run(
-            """
+    assert neo4j_session.run("""
             MATCH (:User {id: 'lisasimpson@simpson.corp'})-[r:OWNS]->(:Device)
             RETURN count(r) AS count
-            """
-        ).single()["count"]
-        == 0
-    )
+            """).single()["count"] == 0

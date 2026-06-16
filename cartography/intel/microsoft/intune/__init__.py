@@ -13,6 +13,7 @@ from cartography.intel.microsoft.intune.compliance_policies import (
 from cartography.intel.microsoft.intune.detected_apps import sync_detected_apps
 from cartography.intel.microsoft.intune.managed_devices import sync_managed_devices
 from cartography.intel.microsoft.intune.reports import IntuneReportExportError
+from cartography.models.microsoft.intune.analysis import INTUNE_COMPLIANCE_POLICY_DEVICE
 from cartography.util import run_scoped_analysis_job
 from cartography.util import timeit
 
@@ -129,7 +130,7 @@ def start_intune_ingestion(neo4j_session: neo4j.Session, config: Config) -> None
         # those stale nodes, preventing their eventual removal.
         if managed_devices_synced and compliance_policies_synced:
             run_scoped_analysis_job(
-                "intune_compliance_policy_device.json",
+                INTUNE_COMPLIANCE_POLICY_DEVICE,
                 neo4j_session,
                 common_job_parameters,
             )

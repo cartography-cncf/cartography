@@ -3,6 +3,7 @@ from typing import Any
 
 import neo4j
 
+from cartography.models.ontology.analysis import LOADBALANCER_EXPOSE_CONTAINER
 from cartography.util import run_analysis_job
 from cartography.util import timeit
 
@@ -16,7 +17,7 @@ def sync(
     common_job_parameters: dict[str, Any],
 ) -> None:
     run_analysis_job(
-        "ontology_loadbalancers_linking.json",
+        LOADBALANCER_EXPOSE_CONTAINER,
         neo4j_session,
         common_job_parameters,
     )

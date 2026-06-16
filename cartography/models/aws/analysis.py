@@ -78,18 +78,18 @@ AWS_EC2_ASSET_EXPOSURE_LOAD_BALANCER_V2 = AnalysisJob(
     name="AWS LoadBalancerV2 internet exposure",
     short_name="aws_ec2_asset_exposure_load_balancer_v2",
     effect=PropertyEffect(
-        "LoadBalancerV2",
+        "AWSLoadBalancerV2",
         ("exposed_internet", "exposed_internet_type"),
     ),
     cleanup_iterationsize=1000,
     statements=(
         AnalysisStatement(
-            "MATCH (elbv2:LoadBalancerV2{scheme: 'internet-facing', type: 'network'})-->(:ELBV2Listener)\n"
+            "MATCH (elbv2:AWSLoadBalancerV2{scheme: 'internet-facing', type: 'network'})-->(:ELBV2Listener)\n"
             "WITH DISTINCT elbv2\n"
             "SET elbv2.exposed_internet = true",
         ),
         AnalysisStatement(
-            "MATCH (cidr:AWSIpRange{range:'0.0.0.0/0'})-->(perm:AWSIpPermissionInbound)-->(sg:EC2SecurityGroup)<-[:MEMBER_OF_EC2_SECURITY_GROUP]-(elbv2:LoadBalancerV2{scheme: 'internet-facing'})-->(listener:ELBV2Listener)\n"
+            "MATCH (cidr:AWSIpRange{range:'0.0.0.0/0'})-->(perm:AWSIpPermissionInbound)-->(sg:EC2SecurityGroup)<-[:MEMBER_OF_EC2_SECURITY_GROUP]-(elbv2:AWSLoadBalancerV2{scheme: 'internet-facing'})-->(listener:ELBV2Listener)\n"
             "WHERE perm.protocol = '-1' OR (listener.port>=perm.fromport AND listener.port<=perm.toport)\n"
             "SET elbv2.exposed_internet = true",
         ),
@@ -100,13 +100,13 @@ AWS_EC2_ASSET_EXPOSURE_LOAD_BALANCER = AnalysisJob(
     name="AWS LoadBalancer internet exposure",
     short_name="aws_ec2_asset_exposure_load_balancer",
     effect=PropertyEffect(
-        "LoadBalancer",
+        "AWSLoadBalancer",
         ("exposed_internet", "exposed_internet_type"),
     ),
     cleanup_iterationsize=1000,
     statements=(
         AnalysisStatement(
-            "MATCH (cidr:AWSIpRange{range:'0.0.0.0/0'})-->(perm:AWSIpPermissionInbound)-->(sg:EC2SecurityGroup)<-[:SOURCE_SECURITY_GROUP]-(elb:LoadBalancer{scheme: 'internet-facing'})-->(listener:ELBListener)\n"
+            "MATCH (cidr:AWSIpRange{range:'0.0.0.0/0'})-->(perm:AWSIpPermissionInbound)-->(sg:EC2SecurityGroup)<-[:SOURCE_SECURITY_GROUP]-(elb:AWSLoadBalancer{scheme: 'internet-facing'})-->(listener:ELBListener)\n"
             "WHERE perm.protocol = '-1' OR (listener.port>=perm.fromport AND listener.port<=perm.toport)\n"
             "SET elb.exposed_internet = true",
         ),
@@ -128,13 +128,13 @@ AWS_EC2_ASSET_EXPOSURE_INSTANCE = AnalysisJob(
             "SET instance.exposed_internet = true, instance.exposed_internet_type = CASE WHEN instance.exposed_internet_type IS NULL THEN ['direct'] WHEN NOT 'direct' IN instance.exposed_internet_type THEN instance.exposed_internet_type + ['direct'] ELSE instance.exposed_internet_type END;",
         ),
         AnalysisStatement(
-            "MATCH (elb:LoadBalancer{exposed_internet: true})-[:EXPOSE]->(e:EC2Instance)\n"
+            "MATCH (elb:AWSLoadBalancer{exposed_internet: true})-[:EXPOSE]->(e:EC2Instance)\n"
             "WITH e\n"
             "WHERE (e.exposed_internet_type IS NULL) OR (NOT 'elb' IN e.exposed_internet_type)\n"
             "SET e.exposed_internet = true, e.exposed_internet_type = coalesce(e.exposed_internet_type, []) + 'elb'",
         ),
         AnalysisStatement(
-            "MATCH (elbv2:LoadBalancerV2{exposed_internet: true})-[:EXPOSE]->(e:EC2Instance)\n"
+            "MATCH (elbv2:AWSLoadBalancerV2{exposed_internet: true})-[:EXPOSE]->(e:EC2Instance)\n"
             "WITH e\n"
             "WHERE (e.exposed_internet_type IS NULL) OR (NOT 'elbv2' IN e.exposed_internet_type)\n"
             "SET e.exposed_internet = true, e.exposed_internet_type = coalesce(e.exposed_internet_type, []) + 'elbv2'",
