@@ -11,6 +11,14 @@ logger = logging.getLogger(__name__)
 _TIMEOUT = (60, 60)
 
 
+def flatten_labels(labels: list[dict[str, Any]] | None) -> list[str]:
+    """
+    CircleCI deploy labels come back as a list of {key, value} objects. Neo4j
+    properties cannot hold lists of maps, so render each as a "key=value" string.
+    """
+    return [f"{label['key']}={label['value']}" for label in (labels or [])]
+
+
 def parse_iso(value: str | None) -> datetime | None:
     """
     Convert a CircleCI ISO 8601 timestamp (e.g. "2021-09-01T12:00:00Z") to a

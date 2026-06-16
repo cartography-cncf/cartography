@@ -6,6 +6,7 @@ import requests
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
+from cartography.intel.circleci.util import flatten_labels
 from cartography.intel.circleci.util import paginated_get
 from cartography.intel.circleci.util import parse_iso
 from cartography.models.circleci.component import CircleCIComponentSchema
@@ -53,7 +54,7 @@ def transform(raw: list[dict[str, Any]]) -> list[dict[str, Any]]:
             "id": item["id"],
             "name": item.get("name"),
             "project_id": item.get("project_id"),
-            "labels": item.get("labels"),
+            "labels": flatten_labels(item.get("labels")),
             "release_count": item.get("release_count"),
             "created_at": parse_iso(item.get("created_at")),
             "updated_at": parse_iso(item.get("updated_at")),

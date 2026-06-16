@@ -40,6 +40,11 @@ def test_load_circleci_environments(mock_api, neo4j_session):
     assert check_nodes(neo4j_session, "CircleCIEnvironment", ["id", "name"]) == {
         ("env-1", "production"),
     }
+    # labels are flattened from [{key,value}] objects to "key=value" strings
+    labels = neo4j_session.run(
+        "MATCH (e:CircleCIEnvironment {id: 'env-1'}) RETURN e.labels AS labels"
+    ).single()["labels"]
+    assert labels == ["env=prod"]
     assert check_rels(
         neo4j_session,
         "CircleCIEnvironment",
