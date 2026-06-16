@@ -1924,8 +1924,10 @@ class CLI:
                 typer.Option(
                     "--circleci-project-slugs",
                     help=(
-                        "Comma-separated CircleCI project slugs (e.g. gh/org/repo) to sync. "
-                        "Required for project-scoped resources: API v2 cannot enumerate projects."
+                        "Comma-separated CircleCI project slugs (e.g. gh/org/repo) to sync "
+                        "in addition to those auto-discovered from each org's pipeline feed. "
+                        "Use this for projects with no recent pipeline activity, which the "
+                        "feed will not surface."
                     ),
                     rich_help_panel=PANEL_CIRCLECI,
                     hidden=PANEL_CIRCLECI not in visible_panels,
