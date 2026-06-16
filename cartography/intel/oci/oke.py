@@ -139,9 +139,10 @@ def transform_clusters(
         kube_net = options.get("kubernetes-network-config") or {}
         image_policy = merged.get("image-policy-config") or {}
         pod_network_options = merged.get("cluster-pod-network-options") or []
-        cni_types = [p.get("cni-type") for p in pod_network_options if isinstance(p, dict)]
+        cni_types = [p.get("cni-type") for p in pod_network_options if isinstance(p, dict) and p.get("cni-type")]
 
         transformed.append({
+            "id": cluster_id,
             "ocid": cluster_id,
             "name": merged.get("name"),
             "compartment_id": merged.get("compartment-id"),
@@ -156,7 +157,7 @@ def transform_clusters(
             # Endpoint exposure (security-critical)
             "endpoint_subnet_id": endpoint_config.get("subnet-id"),
             "endpoint_is_public_ip_enabled": bool(endpoint_config.get("is-public-ip-enabled", False)),
-            "endpoint_nsg_ids": endpoint_config.get("nsg-ids") or [],
+            "endpoint_nsg_ids": [x for x in (endpoint_config.get("nsg-ids") or []) if x is not None],
             "kubernetes_endpoint": endpoints.get("kubernetes"),
             "public_endpoint": endpoints.get("public-endpoint"),
             "private_endpoint": endpoints.get("private-endpoint"),
@@ -164,7 +165,7 @@ def transform_clusters(
             # Networking config
             "pods_cidr": kube_net.get("pods-cidr"),
             "services_cidr": kube_net.get("services-cidr"),
-            "service_lb_subnet_ids": options.get("service-lb-subnet-ids") or [],
+            "service_lb_subnet_ids": [x for x in (options.get("service-lb-subnet-ids") or []) if x is not None],
             "cni_types": cni_types,
             # Admission / image policy
             "is_pod_security_policy_enabled": bool(admission.get("is-pod-security-policy-enabled", False)),
@@ -173,7 +174,7 @@ def transform_clusters(
                 k.get("kms-key-id") for k in (image_policy.get("key-details") or [])
                 if isinstance(k, dict) and k.get("kms-key-id")
             ],
-            "available_kubernetes_upgrades": merged.get("available-kubernetes-upgrades") or [],
+            "available_kubernetes_upgrades": [x for x in (merged.get("available-kubernetes-upgrades") or []) if x is not None],
             "time_created": str(merged.get("metadata", {}).get("time-created", "")),
             "region": region,
         })
@@ -221,6 +222,7 @@ def transform_node_pools(
             })
 
         transformed.append({
+            "id": pool_id,
             "ocid": pool_id,
             "name": merged.get("name"),
             "compartment_id": merged.get("compartment-id"),
@@ -236,7 +238,7 @@ def transform_node_pools(
             "ssh_public_key": merged.get("ssh-public-key"),
             "has_ssh_key": bool(merged.get("ssh-public-key")),
             "quantity_per_subnet": merged.get("quantity-per-subnet"),
-            "subnet_ids": merged.get("subnet-ids") or [],
+            "subnet_ids": [x for x in (merged.get("subnet-ids") or []) if x is not None],
             "size": node_config.get("size"),
             # Boot-volume encryption posture
             "kms_key_id": node_config.get("kms-key-id"),
@@ -244,7 +246,7 @@ def transform_node_pools(
             "is_pv_encryption_in_transit_enabled": bool(
                 node_config.get("is-pv-encryption-in-transit-enabled", False),
             ),
-            "node_nsg_ids": node_config.get("nsg-ids") or [],
+            "node_nsg_ids": [x for x in (node_config.get("nsg-ids") or []) if x is not None],
             "eviction_grace_duration": eviction.get("eviction-grace-duration"),
             "is_force_delete_after_grace_duration": bool(
                 eviction.get("is-force-delete-after-grace-duration", False),
@@ -272,10 +274,11 @@ def load_clusters(
     """
     ingest_clusters = """
     UNWIND $clusters AS c
-        MERGE (cl:OCIOKECluster{ocid: c.ocid})
+        MERGE (cl:OCIOKECluster{id: c.id})
         ON CREATE SET cl.firstseen = timestamp(),
                       cl.createdate = c.time_created
-        SET cl.name = c.name,
+        SET cl.ocid = c.ocid,
+            cl.name = c.name,
             cl.compartment_id = c.compartment_id,
             cl.kubernetes_version = c.kubernetes_version,
             cl.lifecycle_state = c.lifecycle_state,
@@ -302,7 +305,7 @@ def load_clusters(
             cl.region = c.region,
             cl.lastupdated = $oci_update_tag
         WITH cl
-        MATCH (cc:OCICompartment{ocid: $COMPARTMENT_ID})
+        MATCH (cc:OCICompartment{id: $COMPARTMENT_ID})
         MERGE (cc)-[r:RESOURCE]->(cl)
         ON CREATE SET r.firstseen = timestamp()
         SET r.lastupdated = $oci_update_tag
@@ -333,10 +336,11 @@ def load_node_pools(
     """
     ingest_pools = """
     UNWIND $pools AS p
-        MERGE (np:OCIOKENodePool{ocid: p.ocid})
+        MERGE (np:OCIOKENodePool{id: p.id})
         ON CREATE SET np.firstseen = timestamp(),
                       np.createdate = p.time_created
-        SET np.name = p.name,
+        SET np.ocid = p.ocid,
+            np.name = p.name,
             np.compartment_id = p.compartment_id,
             np.cluster_id = p.cluster_id,
             np.kubernetes_version = p.kubernetes_version,
@@ -361,12 +365,12 @@ def load_node_pools(
             np.region = p.region,
             np.lastupdated = $oci_update_tag
         WITH np, p
-        MATCH (cc:OCICompartment{ocid: $COMPARTMENT_ID})
+        MATCH (cc:OCICompartment{id: $COMPARTMENT_ID})
         MERGE (cc)-[r1:RESOURCE]->(np)
         ON CREATE SET r1.firstseen = timestamp()
         SET r1.lastupdated = $oci_update_tag
         WITH np, p
-        MATCH (cl:OCIOKECluster{ocid: p.cluster_id})
+        MATCH (cl:OCIOKECluster{id: p.cluster_id})
         MERGE (cl)-[r2:HAS_NODE_POOL]->(np)
         ON CREATE SET r2.firstseen = timestamp()
         SET r2.lastupdated = $oci_update_tag
@@ -391,8 +395,8 @@ def load_node_pools(
     if node_links:
         link_compute = """
         UNWIND $links AS link
-            MATCH (np:OCIOKENodePool{ocid: link.pool_ocid})
-            MATCH (i:OCIInstance{ocid: link.node_ocid})
+            MATCH (np:OCIOKENodePool{id: link.pool_ocid})
+            MATCH (i:OCIInstance{id: link.node_ocid})
             MERGE (np)-[r:CONTAINS_NODE]->(i)
             ON CREATE SET r.firstseen = timestamp()
             SET r.lastupdated = $oci_update_tag

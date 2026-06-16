@@ -144,6 +144,7 @@ def transform_buckets(
         details = bucket_details_by_name.get(name, {})
         merged = {**summary, **details}
         transformed.append({
+            "id": merged.get("id") or f"oci.bucket.{namespace}.{name}",
             "ocid": merged.get("id") or f"oci.bucket.{namespace}.{name}",
             "name": name,
             "namespace": namespace,
@@ -179,10 +180,11 @@ def load_buckets(
     """
     ingest_buckets = """
     UNWIND $buckets AS bucket
-        MERGE (b:OCIStorageBucket{ocid: bucket.ocid})
+        MERGE (b:OCIStorageBucket{id: bucket.id})
         ON CREATE SET b.firstseen = timestamp(),
                       b.createdate = bucket.time_created
-        SET b.name = bucket.name,
+        SET b.ocid = bucket.ocid,
+            b.name = bucket.name,
             b.namespace = bucket.namespace,
             b.compartment_id = bucket.compartment_id,
             b.created_by = bucket.created_by,
@@ -203,7 +205,7 @@ def load_buckets(
             b.region = bucket.region,
             b.lastupdated = $oci_update_tag
         WITH b
-        MATCH (cc:OCICompartment{ocid: $COMPARTMENT_ID})
+        MATCH (cc:OCICompartment{id: $COMPARTMENT_ID})
         MERGE (cc)-[r:RESOURCE]->(b)
         ON CREATE SET r.firstseen = timestamp()
         SET r.lastupdated = $oci_update_tag
@@ -292,6 +294,7 @@ def transform_block_volumes(
             continue
         source = v.get("source-details") or {}
         transformed.append({
+            "id": v.get("id"),
             "ocid": v.get("id"),
             "display_name": v.get("display-name"),
             "compartment_id": v.get("compartment-id"),
@@ -326,10 +329,11 @@ def load_block_volumes(
     """
     ingest_volumes = """
     UNWIND $volumes AS v
-        MERGE (vol:OCIBlockVolume{ocid: v.ocid})
+        MERGE (vol:OCIBlockVolume{id: v.id})
         ON CREATE SET vol.firstseen = timestamp(),
                       vol.createdate = v.time_created
-        SET vol.display_name = v.display_name,
+        SET vol.ocid = v.ocid,
+            vol.display_name = v.display_name,
             vol.compartment_id = v.compartment_id,
             vol.availability_domain = v.availability_domain,
             vol.lifecycle_state = v.lifecycle_state,
@@ -347,7 +351,7 @@ def load_block_volumes(
             vol.region = v.region,
             vol.lastupdated = $oci_update_tag
         WITH vol
-        MATCH (cc:OCICompartment{ocid: $COMPARTMENT_ID})
+        MATCH (cc:OCICompartment{id: $COMPARTMENT_ID})
         MERGE (cc)-[r:RESOURCE]->(vol)
         ON CREATE SET r.firstseen = timestamp()
         SET r.lastupdated = $oci_update_tag
@@ -455,6 +459,7 @@ def transform_boot_volumes(
             continue
         source = v.get("source-details") or {}
         transformed.append({
+            "id": v.get("id"),
             "ocid": v.get("id"),
             "display_name": v.get("display-name"),
             "compartment_id": v.get("compartment-id"),
@@ -483,10 +488,11 @@ def load_boot_volumes(
 ) -> None:
     ingest_boot_volumes = """
     UNWIND $boot_volumes AS v
-        MERGE (bv:OCIBootVolume{ocid: v.ocid})
+        MERGE (bv:OCIBootVolume{id: v.id})
         ON CREATE SET bv.firstseen = timestamp(),
                       bv.createdate = v.time_created
-        SET bv.display_name = v.display_name,
+        SET bv.ocid = v.ocid,
+            bv.display_name = v.display_name,
             bv.compartment_id = v.compartment_id,
             bv.availability_domain = v.availability_domain,
             bv.lifecycle_state = v.lifecycle_state,
@@ -503,7 +509,7 @@ def load_boot_volumes(
             bv.region = v.region,
             bv.lastupdated = $oci_update_tag
         WITH bv
-        MATCH (cc:OCICompartment{ocid: $COMPARTMENT_ID})
+        MATCH (cc:OCICompartment{id: $COMPARTMENT_ID})
         MERGE (cc)-[r:RESOURCE]->(bv)
         ON CREATE SET r.firstseen = timestamp()
         SET r.lastupdated = $oci_update_tag
@@ -613,6 +619,7 @@ def transform_volume_backups(
         if not b.get("id"):
             continue
         out.append({
+            "id": b.get("id"),
             "ocid": b.get("id"),
             "display_name": b.get("display-name"),
             "compartment_id": b.get("compartment-id"),
@@ -635,6 +642,7 @@ def transform_volume_backups(
         if not b.get("id"):
             continue
         out.append({
+            "id": b.get("id"),
             "ocid": b.get("id"),
             "display_name": b.get("display-name"),
             "compartment_id": b.get("compartment-id"),
@@ -668,10 +676,11 @@ def load_volume_backups(
     """
     ingest_backups = """
     UNWIND $backups AS bk
-        MERGE (b:OCIVolumeBackup{ocid: bk.ocid})
+        MERGE (b:OCIVolumeBackup{id: bk.id})
         ON CREATE SET b.firstseen = timestamp(),
                       b.createdate = bk.time_created
-        SET b.display_name = bk.display_name,
+        SET b.ocid = bk.ocid,
+            b.display_name = bk.display_name,
             b.compartment_id = bk.compartment_id,
             b.lifecycle_state = bk.lifecycle_state,
             b.type = bk.type,
@@ -694,8 +703,8 @@ def load_volume_backups(
     link_block = """
     UNWIND $backups AS bk
         WITH bk WHERE bk.source_kind = 'BLOCK' AND bk.parent_volume_id IS NOT NULL
-        MATCH (parent:OCIBlockVolume{ocid: bk.parent_volume_id})
-        MATCH (b:OCIVolumeBackup{ocid: bk.ocid})
+        MATCH (parent:OCIBlockVolume{id: bk.parent_volume_id})
+        MATCH (b:OCIVolumeBackup{id: bk.id})
         MERGE (parent)-[r:OCI_VOLUME_BACKUP]->(b)
         ON CREATE SET r.firstseen = timestamp()
         SET r.lastupdated = $oci_update_tag
@@ -705,8 +714,8 @@ def load_volume_backups(
     link_boot = """
     UNWIND $backups AS bk
         WITH bk WHERE bk.source_kind = 'BOOT' AND bk.parent_volume_id IS NOT NULL
-        MATCH (parent:OCIBootVolume{ocid: bk.parent_volume_id})
-        MATCH (b:OCIVolumeBackup{ocid: bk.ocid})
+        MATCH (parent:OCIBootVolume{id: bk.parent_volume_id})
+        MATCH (b:OCIVolumeBackup{id: bk.id})
         MERGE (parent)-[r:OCI_VOLUME_BACKUP]->(b)
         ON CREATE SET r.firstseen = timestamp()
         SET r.lastupdated = $oci_update_tag
@@ -820,6 +829,7 @@ def transform_file_systems(
         if not fs.get("id"):
             continue
         transformed.append({
+            "id": fs.get("id"),
             "ocid": fs.get("id"),
             "display_name": fs.get("display-name"),
             "compartment_id": fs.get("compartment-id"),
@@ -846,6 +856,7 @@ def transform_mount_targets(
         if not mt.get("id"):
             continue
         transformed.append({
+            "id": mt.get("id"),
             "ocid": mt.get("id"),
             "display_name": mt.get("display-name"),
             "compartment_id": mt.get("compartment-id"),
@@ -869,6 +880,7 @@ def transform_exports(
         if not ex.get("id"):
             continue
         transformed.append({
+            "id": ex.get("id"),
             "ocid": ex.get("id"),
             "path": ex.get("path"),
             "lifecycle_state": ex.get("lifecycle-state"),
@@ -887,10 +899,11 @@ def load_file_systems(
 ) -> None:
     ingest_fs = """
     UNWIND $file_systems AS fs
-        MERGE (f:OCIFileSystem{ocid: fs.ocid})
+        MERGE (f:OCIFileSystem{id: fs.id})
         ON CREATE SET f.firstseen = timestamp(),
                       f.createdate = fs.time_created
-        SET f.display_name = fs.display_name,
+        SET f.ocid = fs.ocid,
+            f.display_name = fs.display_name,
             f.compartment_id = fs.compartment_id,
             f.availability_domain = fs.availability_domain,
             f.lifecycle_state = fs.lifecycle_state,
@@ -904,7 +917,7 @@ def load_file_systems(
             f.region = fs.region,
             f.lastupdated = $oci_update_tag
         WITH f
-        MATCH (cc:OCICompartment{ocid: $COMPARTMENT_ID})
+        MATCH (cc:OCICompartment{id: $COMPARTMENT_ID})
         MERGE (cc)-[r:RESOURCE]->(f)
         ON CREATE SET r.firstseen = timestamp()
         SET r.lastupdated = $oci_update_tag
@@ -925,10 +938,11 @@ def load_mount_targets(
 ) -> None:
     ingest_mt = """
     UNWIND $mount_targets AS mt
-        MERGE (m:OCIMountTarget{ocid: mt.ocid})
+        MERGE (m:OCIMountTarget{id: mt.id})
         ON CREATE SET m.firstseen = timestamp(),
                       m.createdate = mt.time_created
-        SET m.display_name = mt.display_name,
+        SET m.ocid = mt.ocid,
+            m.display_name = mt.display_name,
             m.compartment_id = mt.compartment_id,
             m.availability_domain = mt.availability_domain,
             m.lifecycle_state = mt.lifecycle_state,
@@ -939,7 +953,7 @@ def load_mount_targets(
             m.region = mt.region,
             m.lastupdated = $oci_update_tag
         WITH m
-        MATCH (cc:OCICompartment{ocid: $COMPARTMENT_ID})
+        MATCH (cc:OCICompartment{id: $COMPARTMENT_ID})
         MERGE (cc)-[r:RESOURCE]->(m)
         ON CREATE SET r.firstseen = timestamp()
         SET r.lastupdated = $oci_update_tag
@@ -967,7 +981,7 @@ def load_exports(
     UNWIND $exports AS ex
         WITH ex WHERE ex.export_set_id IS NOT NULL AND ex.file_system_id IS NOT NULL
         MATCH (mt:OCIMountTarget{export_set_id: ex.export_set_id})
-        MATCH (fs:OCIFileSystem{ocid: ex.file_system_id})
+        MATCH (fs:OCIFileSystem{id: ex.file_system_id})
         MERGE (mt)-[r:OCI_EXPORT{ocid: ex.ocid}]->(fs)
         ON CREATE SET r.firstseen = timestamp()
         SET r.path = ex.path,
