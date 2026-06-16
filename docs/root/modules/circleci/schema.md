@@ -7,6 +7,7 @@ O -- RESOURCE --> C(Context)
 O -- RESOURCE --> CEV(ContextEnvVar)
 C -- HAS_ENV_VAR --> CEV
 O -- RESOURCE --> OIDC(OidcConfig)
+O -- RESOURCE --> G(Group)
 O -- RESOURCE --> P(Project)
 P -- RESOURCE --> PEV(ProjectEnvVar)
 P -- RESOURCE --> CK(CheckoutKey)
@@ -116,6 +117,24 @@ Represents an organization's OIDC custom-claims configuration (`GET /org/{orgID}
 - An OIDC config belongs to an organization.
     ```
     (:CircleCIOrganization)-[:RESOURCE]->(:CircleCIOidcConfig)
+    ```
+
+### CircleCIGroup
+
+Represents an organization group (`GET /organizations/{org_id}/groups`).
+
+| Field | Description |
+|-------|-------------|
+| **id** | Group ID. |
+| firstseen | Timestamp of when a sync job first created this node. |
+| lastupdated | Timestamp of the last time the node was updated. |
+| **name** | Group name. |
+| description | Group description. |
+
+#### Relationships
+- A group belongs to an organization.
+    ```
+    (:CircleCIOrganization)-[:RESOURCE]->(:CircleCIGroup)
     ```
 
 ### CircleCIProject
