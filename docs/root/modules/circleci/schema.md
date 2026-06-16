@@ -6,6 +6,7 @@ O(Organization) -- RESOURCE --> U(User)
 O -- RESOURCE --> C(Context)
 O -- RESOURCE --> CEV(ContextEnvVar)
 C -- HAS_ENV_VAR --> CEV
+O -- RESOURCE --> OIDC(OidcConfig)
 O -- RESOURCE --> P(Project)
 P -- RESOURCE --> PEV(ProjectEnvVar)
 P -- RESOURCE --> CK(CheckoutKey)
@@ -88,6 +89,29 @@ Represents an environment variable defined within a context. Only the variable *
     ```
     (:CircleCIOrganization)-[:RESOURCE]->(:CircleCIContextEnvVar)
     (:CircleCIContext)-[:HAS_ENV_VAR]->(:CircleCIContextEnvVar)
+    ```
+
+### CircleCIOidcConfig
+
+Represents an organization's OIDC custom-claims configuration (`GET /org/{orgID}/oidc-custom-claims`). The `audience` list shows which cloud audiences trust CircleCI's OIDC tokens.
+
+| Field | Description |
+|-------|-------------|
+| **id** | The organization ID (one org-level config per org). |
+| firstseen | Timestamp of when a sync job first created this node. |
+| lastupdated | Timestamp of the last time the node was updated. |
+| scope | `organization` (project-level claims are not yet synced). |
+| audience | List of trusted OIDC audiences. |
+| audience_updated_at | When the audience was last changed. |
+| ttl | Token time-to-live. |
+| ttl_updated_at | When the TTL was last changed. |
+| org_id | Owning organization ID. |
+| project_id | Owning project ID (null for org-level). |
+
+#### Relationships
+- An OIDC config belongs to an organization.
+    ```
+    (:CircleCIOrganization)-[:RESOURCE]->(:CircleCIOidcConfig)
     ```
 
 ### CircleCIProject

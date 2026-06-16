@@ -8,6 +8,7 @@ from urllib3 import Retry
 import cartography.intel.circleci.checkout_keys
 import cartography.intel.circleci.context_env_vars
 import cartography.intel.circleci.contexts
+import cartography.intel.circleci.oidc
 import cartography.intel.circleci.organizations
 import cartography.intel.circleci.pipelines
 import cartography.intel.circleci.project_env_vars
@@ -85,6 +86,12 @@ def start_circleci_ingestion(neo4j_session: neo4j.Session, config: Config) -> No
             org_job_parameters,
             org_id,
             contexts,
+        )
+        cartography.intel.circleci.oidc.sync(
+            neo4j_session,
+            api_session,
+            org_job_parameters,
+            org_id,
         )
 
     # Project-scoped resources: API v2 cannot enumerate projects, so we only
