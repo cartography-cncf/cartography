@@ -4,14 +4,15 @@ from pathlib import Path
 import pytest
 
 from cartography.graph.analysis import AddRelationship
+from cartography.graph.analysis import AddToSet
 from cartography.graph.analysis import AnalysisJob
-from cartography.graph.analysis import AnalysisScope
 from cartography.graph.analysis import AnalysisStatement
-from cartography.graph.analysis import Include
 from cartography.graph.analysis import PropertyEffect
 from cartography.graph.analysis import RelationshipEffect
 from cartography.graph.analysis import RelationshipPropertyEffect
+from cartography.graph.analysis import ScopedTo
 from cartography.graph.analysis import SetProperty
+from cartography.graph.analysis import SetRelationshipProperty
 from cartography.graph.job import GraphJob
 
 
@@ -20,13 +21,21 @@ def test_relationship_job_appends_cleanup_statement():
     job = AnalysisJob(
         name="Lambda functions with ECR images",
         short_name="aws_lambda_ecr",
-        effect=RelationshipEffect("AWSLambda", "HAS", "ECRImage"),
         statements=(
             AnalysisStatement(
-                "MATCH (l:AWSLambda), (e:ECRImage) "
-                "WHERE e.digest = 'sha256:' + l.codesha256 "
-                "MERGE (l)-[r:HAS]->(e) "
-                "SET r.lastupdated = $UPDATE_TAG",
+                match=(
+                    "MATCH (l:AWSLambda), (e:ECRImage) "
+                    "WHERE e.digest = 'sha256:' + l.codesha256"
+                ),
+                effects=(
+                    AddRelationship(
+                        "l",
+                        "HAS",
+                        "e",
+                        source_label="AWSLambda",
+                        target_label="ECRImage",
+                    ),
+                ),
             ),
         ),
     )
@@ -35,7 +44,9 @@ def test_relationship_job_appends_cleanup_statement():
     graph_job = job.to_graph_job()
 
     # Assert
-    assert job.relationships_added() == (job.effect,)
+    assert job.relationships_added() == (
+        RelationshipEffect("AWSLambda", "HAS", "ECRImage"),
+    )
     assert job.properties_set() == ()
     assert len(graph_job.statements) == 2
     assert graph_job.statements[1].query == (
@@ -56,7 +67,15 @@ def test_statement_compiles_add_relationship_effect():
             "MATCH (e:ECRImage)\n"
             "WHERE e.digest = 'sha256:' + l.codesha256"
         ),
-        effects=(AddRelationship("l", "HAS", "e"),),
+        effects=(
+            AddRelationship(
+                "l",
+                "HAS",
+                "e",
+                source_label="AWSLambda",
+                target_label="ECRImage",
+            ),
+        ),
     )
 
     # Act and assert
@@ -75,8 +94,13 @@ def test_statement_compiles_property_effects():
     statement = AnalysisStatement(
         match="MATCH (instance:EC2Instance) WHERE instance.publicipaddress IS NOT NULL",
         effects=(
-            Include("instance", "exposed_internet_type", "direct"),
-            SetProperty("instance", "exposed_internet", True),
+            AddToSet(
+                "instance",
+                "exposed_internet_type",
+                "direct",
+                label="EC2Instance",
+            ),
+            SetProperty("instance", "exposed_internet", True, label="EC2Instance"),
         ),
     )
 
@@ -107,15 +131,21 @@ def test_scoped_relationship_cleanup_targets_source_by_default():
     job = AnalysisJob(
         name="GCP LB exposure",
         short_name="gcp_lb_exposure",
-        scope=AnalysisScope("GCPProject", "PROJECT_ID"),
-        effect=RelationshipEffect("GCPBackendService", "EXPOSE", "GCPInstance"),
+        scope=ScopedTo("GCPProject", "PROJECT_ID"),
         statements=(
             AnalysisStatement(
-                "MATCH (p:GCPProject{id: $PROJECT_ID})-[:RESOURCE]->"
+                match="MATCH (p:GCPProject{id: $PROJECT_ID})-[:RESOURCE]->"
                 "(bs:GCPBackendService)-[:ROUTES_TO]->(:GCPInstanceGroup)"
-                "-[:HAS_MEMBER]->(i:GCPInstance) "
-                "MERGE (bs)-[r:EXPOSE]->(i) "
-                "SET r.lastupdated = $UPDATE_TAG",
+                "-[:HAS_MEMBER]->(i:GCPInstance)",
+                effects=(
+                    AddRelationship(
+                        "bs",
+                        "EXPOSE",
+                        "i",
+                        source_label="GCPBackendService",
+                        target_label="GCPInstance",
+                    ),
+                ),
             ),
         ),
     )
@@ -138,18 +168,31 @@ def test_relationship_job_allows_multiple_statements_for_one_effect():
     job = AnalysisJob(
         name="Resolved image analysis",
         short_name="resolved_image_analysis",
-        effect=RelationshipEffect("Container", "RESOLVED_IMAGE", "Image"),
         statements=(
             AnalysisStatement(
-                "MATCH (c:Container)-[:HAS_IMAGE]->(i:Image) "
-                "MERGE (c)-[r:RESOLVED_IMAGE]->(i) "
-                "SET r.lastupdated = $UPDATE_TAG",
+                match="MATCH (c:Container)-[:HAS_IMAGE]->(i:Image)",
+                effects=(
+                    AddRelationship(
+                        "c",
+                        "RESOLVED_IMAGE",
+                        "i",
+                        source_label="Container",
+                        target_label="Image",
+                    ),
+                ),
             ),
             AnalysisStatement(
-                "MATCH (c:Container)-[:HAS_IMAGE]->(:ImageManifestList)"
-                "-[:CONTAINS_IMAGE]->(i:Image) "
-                "MERGE (c)-[r:RESOLVED_IMAGE]->(i) "
-                "SET r.lastupdated = $UPDATE_TAG",
+                match="MATCH (c:Container)-[:HAS_IMAGE]->(:ImageManifestList)"
+                "-[:CONTAINS_IMAGE]->(i:Image)",
+                effects=(
+                    AddRelationship(
+                        "c",
+                        "RESOLVED_IMAGE",
+                        "i",
+                        source_label="Container",
+                        target_label="Image",
+                    ),
+                ),
             ),
         ),
     )
@@ -169,14 +212,20 @@ def test_property_job_prepends_cleanup_statement():
     job = AnalysisJob(
         name="Semgrep SAST risk analysis",
         short_name="semgrep_sast_risk_analysis",
-        scope=AnalysisScope("SemgrepDeployment", "DEPLOYMENT_ID"),
-        effect=PropertyEffect("SemgrepSASTFinding", ("risk_severity",)),
+        scope=ScopedTo("SemgrepDeployment", "DEPLOYMENT_ID"),
         statements=(
             AnalysisStatement(
-                "MATCH (g:GitHubRepository{archived:true})"
+                match="MATCH (g:GitHubRepository{archived:true})"
                 "<-[:FOUND_IN]-(s:SemgrepSASTFinding)"
-                "<-[:RESOURCE]-(:SemgrepDeployment{id:$DEPLOYMENT_ID}) "
-                "SET s.risk_severity = 'INFO'",
+                "<-[:RESOURCE]-(:SemgrepDeployment{id:$DEPLOYMENT_ID})",
+                effects=(
+                    SetProperty(
+                        "s",
+                        "risk_severity",
+                        "INFO",
+                        label="SemgrepSASTFinding",
+                    ),
+                ),
             ),
         ),
     )
@@ -186,7 +235,9 @@ def test_property_job_prepends_cleanup_statement():
 
     # Assert
     assert job.relationships_added() == ()
-    assert job.properties_set() == (job.effect,)
+    assert job.properties_set() == (
+        PropertyEffect("SemgrepSASTFinding", ("risk_severity",)),
+    )
     assert graph_job.statements[0].query == (
         "MATCH (scope:SemgrepDeployment {id: $DEPLOYMENT_ID})"
         "-[:RESOURCE]->(node:SemgrepSASTFinding)\n"
@@ -208,16 +259,19 @@ def test_relationship_property_job_prepends_cleanup_statement():
     job = AnalysisJob(
         name="Supply chain source file",
         short_name="supply_chain_source_file",
-        effect=RelationshipPropertyEffect(
-            "Image",
-            "PACKAGED_FROM",
-            ("dockerfile_path",),
-        ),
         statements=(
             AnalysisStatement(
-                "MATCH (i:Image)-[r:PACKAGED_FROM]->(:GitHubRepository) "
-                "WHERE r.dockerfile_path IS NULL "
-                "SET r.dockerfile_path = i.source_file",
+                match="MATCH (i:Image)-[r:PACKAGED_FROM]->(:GitHubRepository) "
+                "WHERE r.dockerfile_path IS NULL",
+                effects=(
+                    SetRelationshipProperty(
+                        "r",
+                        "dockerfile_path",
+                        "i.source_file",
+                        source_label="Image",
+                        rel_label="PACKAGED_FROM",
+                    ),
+                ),
             ),
         ),
     )
@@ -226,7 +280,9 @@ def test_relationship_property_job_prepends_cleanup_statement():
     graph_job = job.to_graph_job()
 
     # Assert
-    assert job.properties_set() == (job.effect,)
+    assert job.properties_set() == (
+        RelationshipPropertyEffect("Image", "PACKAGED_FROM", ("dockerfile_path",)),
+    )
     assert graph_job.statements[0].query == (
         "MATCH (source:Image)-[r:PACKAGED_FROM]->(target)\n"
         "WHERE r.dockerfile_path IS NOT NULL\n"
@@ -246,7 +302,6 @@ def test_analysis_job_requires_statements():
     with pytest.raises(ValueError, match="at least one statement"):
         AnalysisJob(
             name="empty",
-            effect=PropertyEffect("EC2KeyPair", ("user_uploaded",)),
             statements=(),
         )
 
