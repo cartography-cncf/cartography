@@ -3,12 +3,15 @@ from pathlib import Path
 
 import pytest
 
+from cartography.graph.analysis import AddRelationship
 from cartography.graph.analysis import AnalysisJob
 from cartography.graph.analysis import AnalysisScope
 from cartography.graph.analysis import AnalysisStatement
+from cartography.graph.analysis import Include
 from cartography.graph.analysis import PropertyEffect
 from cartography.graph.analysis import RelationshipEffect
 from cartography.graph.analysis import RelationshipPropertyEffect
+from cartography.graph.analysis import SetProperty
 from cartography.graph.job import GraphJob
 
 
@@ -43,6 +46,60 @@ def test_relationship_job_appends_cleanup_statement():
     )
     assert graph_job.statements[1].iterative is True
     assert graph_job.statements[1].parameters["LIMIT_SIZE"] == 10000
+
+
+def test_statement_compiles_add_relationship_effect():
+    # Arrange
+    statement = AnalysisStatement(
+        match=(
+            "MATCH (l:AWSLambda)\n"
+            "MATCH (e:ECRImage)\n"
+            "WHERE e.digest = 'sha256:' + l.codesha256"
+        ),
+        effects=(AddRelationship("l", "HAS", "e"),),
+    )
+
+    # Act and assert
+    assert statement.compile_query() == (
+        "MATCH (l:AWSLambda)\n"
+        "MATCH (e:ECRImage)\n"
+        "WHERE e.digest = 'sha256:' + l.codesha256\n"
+        "MERGE (l)-[r:HAS]->(e)\n"
+        "ON CREATE SET r.firstseen = timestamp()\n"
+        "SET r.lastupdated = $UPDATE_TAG"
+    )
+
+
+def test_statement_compiles_property_effects():
+    # Arrange
+    statement = AnalysisStatement(
+        match="MATCH (instance:EC2Instance) WHERE instance.publicipaddress IS NOT NULL",
+        effects=(
+            Include("instance", "exposed_internet_type", "direct"),
+            SetProperty("instance", "exposed_internet", True),
+        ),
+    )
+
+    # Act and assert
+    assert statement.compile_query() == (
+        "MATCH (instance:EC2Instance) WHERE instance.publicipaddress IS NOT NULL\n"
+        "SET instance.exposed_internet_type = "
+        "CASE WHEN instance.exposed_internet_type IS NULL THEN ['direct'] "
+        "WHEN NOT 'direct' IN instance.exposed_internet_type "
+        "THEN instance.exposed_internet_type + ['direct'] "
+        "ELSE instance.exposed_internet_type END\n"
+        "SET instance.exposed_internet = true"
+    )
+
+
+def test_statement_rejects_mixed_raw_and_compiled_query():
+    # Act and assert
+    with pytest.raises(ValueError, match="query or match/effects"):
+        AnalysisStatement(
+            "MATCH (n) RETURN n",
+            match="MATCH (n)",
+            effects=(SetProperty("n", "flag", True),),
+        )
 
 
 def test_scoped_relationship_cleanup_targets_source_by_default():
