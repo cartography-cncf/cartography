@@ -53,6 +53,10 @@ def get_cve_ids_from_graph(neo4j_session: neo4j.Session) -> list[str]:
       AND NOT (
         labels(c) = ['CVE']
         AND c._module_name = 'cartography:cve'
+        AND NOT EXISTS {
+          MATCH (c)-[r]-()
+          WHERE NOT type(r) IN ['RESOURCE', 'ENRICHES']
+        }
       )
     RETURN DISTINCT c.cve_id
     """

@@ -53,12 +53,20 @@ def test_get_cve_ids_from_graph(neo4j_session):
             cve_id: 'CVE-2024-0002',
             _module_name: 'cartography:cve'
         })
+        CREATE (preserved:CVE {
+            id: 'CVE-2024-0003',
+            cve_id: 'CVE-2024-0003',
+            _module_name: 'cartography:cve'
+        })
+        CREATE (finding:Finding {id: 'finding'})
+        CREATE (finding)-[:AFFECTS]->(preserved)
         """,
     )
     cve_ids = get_cve_ids_from_graph(neo4j_session)
     assert set(cve_ids) == {
         "CVE-2023-41782",
         "CVE-2024-0002",
+        "CVE-2024-0003",
         "CVE-2024-22075",
     }
 
