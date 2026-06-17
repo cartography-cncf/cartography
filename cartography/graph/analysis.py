@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import Any
 from typing import Literal
 from typing import Sequence
 
@@ -22,10 +23,28 @@ class AnalysisScope:
 
 @dataclass(frozen=True)
 class AnalysisStatement:
-    query: str
+    query: str | None = None
     comment: str = ""
+    match: str | None = None
+    effects: Sequence[StatementEffect] = ()
     iterative: bool = False
     iterationsize: int = 0
+
+    def __post_init__(self) -> None:
+        if self.query and (self.match or self.effects):
+            raise ValueError(
+                "AnalysisStatement accepts query or match/effects, not both."
+            )
+        if not self.query and (not self.match or not self.effects):
+            raise ValueError("AnalysisStatement requires query or match/effects.")
+
+    def compile_query(self) -> str:
+        if self.query:
+            return self.query
+        assert self.match
+        return "\n".join(
+            (self.match.strip(), *(_compile_effect(e) for e in self.effects))
+        )
 
     def to_graph_statement(
         self,
@@ -33,12 +52,69 @@ class AnalysisStatement:
         sequence_num: int,
     ) -> GraphStatement:
         return GraphStatement(
-            self.query,
+            self.compile_query(),
             iterative=self.iterative,
             iterationsize=self.iterationsize,
             parent_job_name=parent_job_name,
             parent_job_sequence_num=sequence_num,
         )
+
+
+@dataclass(frozen=True)
+class SetProperty:
+    node: str
+    property: str
+    value: Any
+
+
+@dataclass(frozen=True)
+class Include:
+    node: str
+    property: str
+    value: Any
+
+
+@dataclass(frozen=True)
+class AddRelationship:
+    source: str
+    rel: str
+    target: str
+
+
+StatementEffect = SetProperty | Include | AddRelationship
+
+
+def _compile_effect(effect: StatementEffect) -> str:
+    if isinstance(effect, SetProperty):
+        return f"SET {effect.node}.{effect.property} = {_cypher_literal(effect.value)}"
+    if isinstance(effect, Include):
+        value = _cypher_literal(effect.value)
+        return (
+            f"SET {effect.node}.{effect.property} = "
+            f"CASE WHEN {effect.node}.{effect.property} IS NULL THEN [{value}] "
+            f"WHEN NOT {value} IN {effect.node}.{effect.property} "
+            f"THEN {effect.node}.{effect.property} + [{value}] "
+            f"ELSE {effect.node}.{effect.property} END"
+        )
+    return (
+        f"MERGE ({effect.source})-[r:{effect.rel}]->({effect.target})\n"
+        "ON CREATE SET r.firstseen = timestamp()\n"
+        "SET r.lastupdated = $UPDATE_TAG"
+    )
+
+
+def _cypher_literal(value: Any) -> str:
+    if isinstance(value, bool):
+        return str(value).lower()
+    if isinstance(value, str):
+        return "'" + value.replace("\\", "\\\\").replace("'", "\\'") + "'"
+    if value is None:
+        return "NULL"
+    if isinstance(value, (int, float)):
+        return str(value)
+    if isinstance(value, (list, tuple)):
+        return "[" + ", ".join(_cypher_literal(v) for v in value) + "]"
+    raise TypeError(f"Unsupported Cypher literal: {value!r}")
 
 
 @dataclass(frozen=True)

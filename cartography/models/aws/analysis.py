@@ -1,8 +1,11 @@
+from cartography.graph.analysis import AddRelationship
 from cartography.graph.analysis import AnalysisJob
 from cartography.graph.analysis import AnalysisScope
 from cartography.graph.analysis import AnalysisStatement
+from cartography.graph.analysis import Include
 from cartography.graph.analysis import PropertyEffect
 from cartography.graph.analysis import RelationshipEffect
+from cartography.graph.analysis import SetProperty
 
 AWS_SCOPE = AnalysisScope("AWSAccount", "AWS_ID")
 
@@ -27,13 +30,12 @@ AWS_LAMBDA_ECR = AnalysisJob(
     effect=RelationshipEffect("AWSLambda", "HAS", "ECRImage"),
     statements=(
         AnalysisStatement(
-            "MATCH (l:AWSLambda) \n"
-            " WITH COLLECT(l) as lmbda_list \n"
-            " UNWIND lmbda_list as lmbda \n"
-            " MATCH (e:ECRImage) \n"
-            " WHERE e.digest = 'sha256:' + lmbda.codesha256 \n"
-            " MERGE (lmbda)-[r:HAS]->(e) \n"
-            " SET r.lastupdated = $UPDATE_TAG",
+            match=(
+                "MATCH (lmbda:AWSLambda)\n"
+                "MATCH (e:ECRImage)\n"
+                "WHERE e.digest = 'sha256:' + lmbda.codesha256"
+            ),
+            effects=(AddRelationship("lmbda", "HAS", "e"),),
         ),
     ),
 )
@@ -123,21 +125,31 @@ AWS_EC2_ASSET_EXPOSURE_INSTANCE = AnalysisJob(
     cleanup_iterationsize=1000,
     statements=(
         AnalysisStatement(
-            "MATCH (:AWSIpRange{id: '0.0.0.0/0'})-[:MEMBER_OF_IP_RULE]->(:AWSIpPermissionInbound)-[:MEMBER_OF_EC2_SECURITY_GROUP]->(group:EC2SecurityGroup)<-[:MEMBER_OF_EC2_SECURITY_GROUP|NETWORK_INTERFACE*..2]-(instance:EC2Instance) "
-            "WITH instance WHERE (instance.publicipaddress IS NOT NULL) AND (instance.exposed_internet_type IS NULL OR NOT 'direct' IN instance.exposed_internet_type) "
-            "SET instance.exposed_internet = true, instance.exposed_internet_type = CASE WHEN instance.exposed_internet_type IS NULL THEN ['direct'] WHEN NOT 'direct' IN instance.exposed_internet_type THEN instance.exposed_internet_type + ['direct'] ELSE instance.exposed_internet_type END;",
+            match=(
+                "MATCH (:AWSIpRange{id: '0.0.0.0/0'})-[:MEMBER_OF_IP_RULE]->"
+                "(:AWSIpPermissionInbound)-[:MEMBER_OF_EC2_SECURITY_GROUP]->"
+                "(:EC2SecurityGroup)<-[:MEMBER_OF_EC2_SECURITY_GROUP|NETWORK_INTERFACE*..2]"
+                "-(instance:EC2Instance)\n"
+                "WHERE instance.publicipaddress IS NOT NULL"
+            ),
+            effects=(
+                SetProperty("instance", "exposed_internet", True),
+                Include("instance", "exposed_internet_type", "direct"),
+            ),
         ),
         AnalysisStatement(
-            "MATCH (elb:AWSLoadBalancer{exposed_internet: true})-[:EXPOSE]->(e:EC2Instance)\n"
-            "WITH e\n"
-            "WHERE (e.exposed_internet_type IS NULL) OR (NOT 'elb' IN e.exposed_internet_type)\n"
-            "SET e.exposed_internet = true, e.exposed_internet_type = coalesce(e.exposed_internet_type, []) + 'elb'",
+            match="MATCH (:AWSLoadBalancer{exposed_internet: true})-[:EXPOSE]->(e:EC2Instance)",
+            effects=(
+                SetProperty("e", "exposed_internet", True),
+                Include("e", "exposed_internet_type", "elb"),
+            ),
         ),
         AnalysisStatement(
-            "MATCH (elbv2:AWSLoadBalancerV2{exposed_internet: true})-[:EXPOSE]->(e:EC2Instance)\n"
-            "WITH e\n"
-            "WHERE (e.exposed_internet_type IS NULL) OR (NOT 'elbv2' IN e.exposed_internet_type)\n"
-            "SET e.exposed_internet = true, e.exposed_internet_type = coalesce(e.exposed_internet_type, []) + 'elbv2'",
+            match="MATCH (:AWSLoadBalancerV2{exposed_internet: true})-[:EXPOSE]->(e:EC2Instance)",
+            effects=(
+                SetProperty("e", "exposed_internet", True),
+                Include("e", "exposed_internet_type", "elbv2"),
+            ),
         ),
     ),
 )
