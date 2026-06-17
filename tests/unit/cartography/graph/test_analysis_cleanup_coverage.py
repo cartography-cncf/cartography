@@ -1,16 +1,16 @@
 import pytest
 
-from cartography.graph.analysis import AnalysisScope
 from cartography.graph.analysis import PropertyEffect
 from cartography.graph.analysis import RelationshipEffect
 from cartography.graph.analysis import RelationshipPropertyEffect
+from cartography.graph.analysis import ScopedTo
 
-AWS = AnalysisScope("AWSAccount", "AWS_ID")
-AZURE = AnalysisScope("AzureSubscription", "AZURE_SUBSCRIPTION_ID")
-ENTRA = AnalysisScope("EntraTenant", "TENANT_ID")
-GCP = AnalysisScope("GCPProject", "PROJECT_ID")
-K8S = AnalysisScope("KubernetesCluster", "CLUSTER_ID")
-SEMGREP = AnalysisScope("SemgrepDeployment", "DEPLOYMENT_ID")
+AWS = ScopedTo("AWSAccount", "AWS_ID")
+AZURE = ScopedTo("AzureSubscription", "AZURE_SUBSCRIPTION_ID")
+ENTRA = ScopedTo("EntraTenant", "TENANT_ID")
+GCP = ScopedTo("GCPProject", "PROJECT_ID")
+K8S = ScopedTo("KubernetesCluster", "CLUSTER_ID")
+SEMGREP = ScopedTo("SemgrepDeployment", "DEPLOYMENT_ID")
 
 
 def _rel_cleanup(
@@ -18,7 +18,7 @@ def _rel_cleanup(
     rel: str,
     target: str,
     *,
-    scope: AnalysisScope | None = None,
+    scope: ScopedTo | None = None,
     scoped_to: str = "source",
 ) -> str:
     match = f"MATCH (source:{source})-[r:{rel}]->(target:{target})"
@@ -39,7 +39,7 @@ def _rel_cleanup(
 def _prop_cleanup(
     label: str,
     *props: str,
-    scope: AnalysisScope | None = None,
+    scope: ScopedTo | None = None,
 ) -> str:
     node = f"(node:{label})"
     match = f"MATCH {node}"

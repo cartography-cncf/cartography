@@ -14,7 +14,7 @@ import cartography.util
 from cartography import util
 from cartography.graph.analysis import AnalysisJob
 from cartography.graph.analysis import AnalysisStatement
-from cartography.graph.analysis import PropertyEffect
+from cartography.graph.analysis import SetProperty
 from cartography.intel.gcp.util import gcp_api_execute_with_retry
 from cartography.intel.gcp.util import GCP_API_MAX_RETRIES
 from cartography.intel.gcp.util import is_retryable_gcp_http_error
@@ -90,8 +90,12 @@ def test_run_analysis_job_accepts_typed_job(mocker):
     analysis_job = AnalysisJob(
         name="typed job",
         short_name="typed_job",
-        effect=PropertyEffect("TestNode", ("computed",)),
-        statements=(AnalysisStatement("MATCH (n:TestNode) SET n.computed = true"),),
+        statements=(
+            AnalysisStatement(
+                match="MATCH (n:TestNode)",
+                effects=(SetProperty("n", "computed", True, label="TestNode"),),
+            ),
+        ),
     )
     mocker.patch.object(AnalysisJob, "to_graph_job", return_value=graph_job)
     neo4j_session = mocker.Mock()
