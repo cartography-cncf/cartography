@@ -43,6 +43,26 @@ Ensure the machine running Cartography can authenticate to this identity:
 - **Method 1 (Credentials file)**: Set the `GOOGLE_APPLICATION_CREDENTIALS` environment variable to point to a JSON credentials file. Ensure only the Cartography user has read access to this file.
 - **Method 2 (Default service account)**: If running on GCE or another GCP service, use the default service account credentials. See the [official docs](https://cloud.google.com/docs/authentication/production) on Application Default Credentials.
 
+### Syncing specific projects (without an organization)
+
+By default Cartography discovers GCP Organizations the identity can access and syncs every project beneath them. If you only want to sync one or more specific projects — for testing, or because the project does not belong to a GCP Organization, or because you only have project-scoped credentials — pass `--gcp-project-ids` with a comma-separated list of project IDs:
+
+```bash
+cartography --gcp-project-ids my-project-1,my-project-2
+```
+
+When `--gcp-project-ids` is set, Cartography:
+
+- Fetches exactly those projects directly (no organization or folder discovery).
+- Syncs each project's resources (Compute, IAM, Storage, etc.), honouring `--gcp-requested-syncs` if also provided.
+- Creates a `(:GCPProject)-[:PARENT]->(:GCPOrganization|:GCPFolder)` edge only if the parent node already exists in the graph (for example from a prior full org-based sync).
+
+Notes and limitations of this mode:
+
+- All requested project IDs must be accessible to the identity; an inaccessible or non-existent project ID will fail the sync loudly.
+- Organization-level data is **not** synced: GCP Organizations, Folders, organization-level IAM roles, and inherited (org/folder) policy bindings are skipped. Project-level resources and bindings are synced normally.
+- The `GCPProject` node is not cleaned up by this mode (there is no organization to scope a cleanup against). Resources within each synced project are still cleaned up normally, scoped to the project.
+
 ### API Enablement Requirements
 
 Cartography makes API calls that are billed against your service account's **host project** (the project where the service account was created). For Cartography to sync resources, the corresponding APIs must be enabled on this host project.
