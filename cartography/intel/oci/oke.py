@@ -16,6 +16,14 @@ from cartography.util import run_cleanup_job
 logger = logging.getLogger(__name__)
 
 
+# Lifecycle states we treat as "live" infrastructure worth ingesting.
+# Excludes CREATING (control plane not yet reachable), FAILED (broken
+# resource that should not be presented as operational), and DELETING /
+# DELETED (tombstones in the API). UPDATING is included because in-place
+# upgrades are still real, running infrastructure.
+ACTIVE_LIFECYCLE_STATES: List[str] = ["ACTIVE", "UPDATING"]
+
+
 # ---------------------------------------------------------------------------
 # Fetch
 # ---------------------------------------------------------------------------
@@ -25,12 +33,15 @@ def get_cluster_list_data(
     compartment_id: str,
 ) -> Dict[str, List[Dict[str, Any]]]:
     """
-    List OKE clusters in a compartment.
+    List OKE clusters in a compartment, server-side filtered to the
+    lifecycle states we consider live (see ACTIVE_LIFECYCLE_STATES).
     See https://docs.oracle.com/en-us/iaas/api/#/en/containerengine/latest/Cluster/ListClusters
     """
     try:
         response = oci.pagination.list_call_get_all_results(
-            container_engine.list_clusters, compartment_id=compartment_id,
+            container_engine.list_clusters,
+            compartment_id=compartment_id,
+            lifecycle_state=ACTIVE_LIFECYCLE_STATES,
         )
         return {'Clusters': utils.oci_object_to_json(response.data)}
     except oci.exceptions.ServiceError as e:
@@ -68,8 +79,9 @@ def get_node_pool_list_data(
     cluster_id: str,
 ) -> Dict[str, List[Dict[str, Any]]]:
     """
-    List node pools belonging to a single OKE cluster. Filtering server-side
-    by ``cluster_id`` keeps each call narrow and avoids cross-cluster mixing
+    List node pools belonging to a single OKE cluster, server-side filtered
+    to live lifecycle states (see ACTIVE_LIFECYCLE_STATES). Filtering by
+    ``cluster_id`` keeps each call narrow and avoids cross-cluster mixing
     when a compartment hosts multiple clusters.
     See https://docs.oracle.com/en-us/iaas/api/#/en/containerengine/latest/NodePool/ListNodePools
     """
@@ -78,6 +90,7 @@ def get_node_pool_list_data(
             container_engine.list_node_pools,
             compartment_id=compartment_id,
             cluster_id=cluster_id,
+            lifecycle_state=ACTIVE_LIFECYCLE_STATES,
         )
         return {'NodePools': utils.oci_object_to_json(response.data)}
     except oci.exceptions.ServiceError as e:
@@ -131,6 +144,16 @@ def transform_clusters(
             continue
         details = cluster_details_by_id.get(cluster_id, {})
         merged = {**summary, **details}
+
+        # Defensive guard: even though we filter server-side, drop anything
+        # that slips through (e.g. older API versions ignoring the param).
+        lifecycle_state = merged.get("lifecycle-state")
+        if lifecycle_state not in ACTIVE_LIFECYCLE_STATES:
+            logger.debug(
+                "Skipping OKE cluster '%s' in lifecycle_state '%s'.",
+                cluster_id, lifecycle_state,
+            )
+            continue
 
         endpoint_config = merged.get("endpoint-config") or {}
         endpoints = merged.get("endpoints") or {}
@@ -198,6 +221,15 @@ def transform_node_pools(
             continue
         details = pool_details_by_id.get(pool_id, {})
         merged = {**summary, **details}
+
+        # Defensive guard mirrors the cluster-side check.
+        lifecycle_state = merged.get("lifecycle-state")
+        if lifecycle_state not in ACTIVE_LIFECYCLE_STATES:
+            logger.debug(
+                "Skipping OKE node pool '%s' in lifecycle_state '%s'.",
+                pool_id, lifecycle_state,
+            )
+            continue
 
         shape_config = merged.get("node-shape-config") or {}
         node_source = merged.get("node-source-details") or merged.get("node-source") or {}
