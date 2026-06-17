@@ -11,6 +11,7 @@ from typing import List
 import neo4j
 import oci
 import oci.key_management
+import oci.logging
 import oci.monitoring
 from oci.exceptions import ConfigFileNotFound
 from oci.exceptions import InvalidConfig
@@ -18,6 +19,7 @@ from oci.exceptions import ProfileNotFound
 
 from . import compartment
 from . import iam
+from . import logging as ocilogging
 from . import oke
 from . import organizations
 from . import storage
@@ -31,7 +33,7 @@ from . import network  # noqa: F401 (imported for side-effect: registers in RESO
 # from . import compute
 
 logger = logging.getLogger(__name__)
-Resources = namedtuple('Resources', 'compute iam network storage oke monitoring encryption')
+Resources = namedtuple('Resources', 'compute iam network storage oke monitoring encryption logging')
 
 
 def _sync_one_compartment(
@@ -231,6 +233,18 @@ def _get_monitoring_resource(credentials: Dict[str, Any]) -> oci.monitoring.Moni
     :return: A MonitoringClient resource object
     """
     return oci.monitoring.MonitoringClient(credentials)
+
+
+def _get_logging_resource(credentials: Dict[str, Any]) -> oci.logging.LoggingManagementClient:
+    """
+    Instantiates an OCI LoggingManagementClient resource object to call the Logging API.
+    Additional clients (Audit, Object Storage) are created internally by the sync
+    function using this client's config/signer — same pattern as monitoring.py.
+    See https://docs.oracle.com/en-us/iaas/Content/Logging/Concepts/loggingoverview.htm.
+    :param credentials: OCI Credentials object
+    :return: A LoggingManagementClient resource object
+    """
+    return oci.logging.LoggingManagementClient(credentials)
 def _get_storage_resource(credentials: Dict[str, Any]) -> storage.OCIStorageClients:
     """
     Bundle the three OCI SDK clients used by the storage sync (Object Storage,
@@ -267,6 +281,7 @@ def _initialize_resources(credentials: Dict[str, Any]) -> Resources:
         compute=_get_compute_resource(credentials),
         encryption=_get_encryption_resource(credentials),
         iam=_get_iam_resource(credentials),
+        logging=_get_logging_resource(credentials),
         monitoring=_get_monitoring_resource(credentials),
         network=_get_network_resource(credentials),
         storage=_get_storage_resource(credentials),
