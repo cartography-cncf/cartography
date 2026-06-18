@@ -322,6 +322,20 @@ class Config:
     :param workos_api_key: WorkOS API key. Optional.
     :type workos_client_id: str
     :param workos_client_id: WorkOS client ID. Optional.
+    :type salesforce_instance_url: str
+    :param salesforce_instance_url: Salesforce My Domain login URL, e.g.
+        "https://mydomain.my.salesforce.com". Optional.
+    :type salesforce_client_id: str
+    :param salesforce_client_id: Salesforce connected app consumer key. Optional.
+    :type salesforce_client_secret: str
+    :param salesforce_client_secret: Salesforce connected app consumer secret. Selects
+        the OAuth Client Credentials flow when provided. Optional.
+    :type salesforce_username: str
+    :param salesforce_username: Salesforce username to authenticate as for the OAuth
+        JWT Bearer flow. Optional.
+    :type salesforce_private_key: str
+    :param salesforce_private_key: PEM-encoded private key used to sign the JWT for the
+        OAuth JWT Bearer flow. Optional.
     :type sentry_token: str
     :param sentry_token: Sentry internal integration auth token. Optional.
     :type sentry_org: str
@@ -491,6 +505,11 @@ class Config:
         syft_s3_prefix=None,
         workos_api_key=None,
         workos_client_id=None,
+        salesforce_instance_url=None,
+        salesforce_client_id=None,
+        salesforce_client_secret=None,
+        salesforce_username=None,
+        salesforce_private_key=None,
         sentry_token=None,
         sentry_org=None,
         sentry_host="https://sentry.io",
@@ -687,6 +706,11 @@ class Config:
         self.syft_s3_prefix = syft_s3_prefix
         self.workos_api_key = workos_api_key
         self.workos_client_id = workos_client_id
+        self.salesforce_instance_url = salesforce_instance_url
+        self.salesforce_client_id = salesforce_client_id
+        self.salesforce_client_secret = salesforce_client_secret
+        self.salesforce_username = salesforce_username
+        self.salesforce_private_key = salesforce_private_key
         self.sentry_token = sentry_token
         self.sentry_org = sentry_org
         self.sentry_host = sentry_host
