@@ -380,8 +380,8 @@ def start_oci_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
             compartment_list = [{"compartmentId": compartment_ocid, "name": compartment_ocid}]
         compartment.sync(neo4j_session, tenancy_ocid, compartment_list, config.update_tag, common_job_parameters)
 
-        # Get regions from config
-        regions = [oci_config_json.get("region", "")]
+        # Get regions from payload
+        regions = config.params.get("regions")
 
         # Sync resources for the requested compartment
         _sync_multiple_compartments(
