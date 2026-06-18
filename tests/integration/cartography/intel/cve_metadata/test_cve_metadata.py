@@ -1,6 +1,8 @@
 import copy
 from unittest.mock import patch
 
+import pytest
+
 import cartography.intel.cve_metadata
 from cartography.config import Config
 from cartography.intel.cve_metadata import CVE_METADATA_FEED_ID
@@ -14,6 +16,11 @@ from tests.integration.util import check_rels
 
 TEST_UPDATE_TAG = 123456789
 TEST_UPDATE_TAG_2 = 987654321
+
+
+@pytest.fixture(autouse=True)
+def _clear_graph(neo4j_session):
+    neo4j_session.run("MATCH (n) DETACH DELETE n")
 
 
 def _create_cve_nodes(neo4j_session, cve_ids=None):
