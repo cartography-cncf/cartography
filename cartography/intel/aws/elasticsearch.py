@@ -62,7 +62,10 @@ def _transform_es_domains(domain_list: List[Dict]) -> List[Dict]:
         domain_id = domain["DomainId"]
 
         # Flatten nested structures
-        cluster_config = domain.get("ElasticsearchClusterConfig", {})
+        # Handle both es client (ElasticsearchClusterConfig) and opensearch client (ClusterConfig)
+        cluster_config = domain.get("ClusterConfig") or domain.get(
+            "ElasticsearchClusterConfig", {}
+        )
         ebs_options = domain.get("EBSOptions", {})
         encryption_options = domain.get("EncryptionAtRestOptions", {})
         log_options = domain.get("LogPublishingOptions", {})
@@ -70,13 +73,14 @@ def _transform_es_domains(domain_list: List[Dict]) -> List[Dict]:
 
         # AWS rebranded Elasticsearch Service to OpenSearch Service. The same
         # ESDomain node can therefore represent either engine; AWS encodes the
-        # distinction in `ElasticsearchVersion` (e.g. "OpenSearch_2.5" vs
-        # "7.10"). Derive the engine here so downstream consumers (notably the
-        # databases ontology mapping) can label the node correctly without
+        # distinction in `EngineVersion` (opensearch client) or `ElasticsearchVersion` (es client)
+        # (e.g. "OpenSearch_2.5" vs "7.10"). Derive the engine here so downstream consumers
+        # (notably the databases ontology mapping) can label the node correctly without
         # parsing the version string themselves. Leave engine unset when the
         # version is missing rather than guessing — a missing version is rare
         # but a wrong label downstream is harder to debug.
-        es_version = domain.get("ElasticsearchVersion")
+        # Handle both es client (ElasticsearchVersion) and opensearch client (EngineVersion)
+        es_version = domain.get("EngineVersion") or domain.get("ElasticsearchVersion")
         if not es_version:
             engine = None
         elif es_version.startswith("OpenSearch"):
@@ -92,7 +96,7 @@ def _transform_es_domains(domain_list: List[Dict]) -> List[Dict]:
             "Deleted": domain.get("Deleted"),
             "Created": domain.get("Created"),
             "Endpoint": domain.get("Endpoint"),
-            "ElasticsearchVersion": domain.get("ElasticsearchVersion"),
+            "ElasticsearchVersion": es_version,
             "Engine": engine,
             # Cluster config
             "ElasticsearchClusterConfigInstanceType": cluster_config.get(

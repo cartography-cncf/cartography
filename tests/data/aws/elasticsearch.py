@@ -6,8 +6,8 @@ GET_ES_DOMAINS = [
         "Created": True,
         "Deleted": False,
         "Endpoint": "search-test-es-domain-1.us-east-1.es.amazonaws.com",
-        "ElasticsearchVersion": "OpenSearch_2.5",
-        "ElasticsearchClusterConfig": {
+        "EngineVersion": "OpenSearch_2.5",
+        "ClusterConfig": {
             "InstanceType": "t3.small.search",
             "InstanceCount": 1,
             "DedicatedMasterEnabled": False,
@@ -48,8 +48,8 @@ GET_ES_DOMAINS = [
         "Created": True,
         "Deleted": False,
         "Endpoint": "search-test-es-domain-2.us-east-1.es.amazonaws.com",
-        "ElasticsearchVersion": "7.10",
-        "ElasticsearchClusterConfig": {
+        "EngineVersion": "7.10",
+        "ClusterConfig": {
             "InstanceType": "m5.large.search",
             "InstanceCount": 2,
             "DedicatedMasterEnabled": True,
