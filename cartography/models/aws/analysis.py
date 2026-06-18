@@ -95,6 +95,9 @@ AWS_EC2_ASSET_EXPOSURE_LOAD_BALANCER_V2 = AnalysisJob(
                 SetProperty(
                     "elbv2", "exposed_internet", True, label="AWSLoadBalancerV2"
                 ),
+                SetProperty(
+                    "elbv2", "exposed_internet_type", None, label="AWSLoadBalancerV2"
+                ),
             ),
         ),
         AnalysisStatement(
@@ -102,6 +105,9 @@ AWS_EC2_ASSET_EXPOSURE_LOAD_BALANCER_V2 = AnalysisJob(
             effects=(
                 SetProperty(
                     "elbv2", "exposed_internet", True, label="AWSLoadBalancerV2"
+                ),
+                SetProperty(
+                    "elbv2", "exposed_internet_type", None, label="AWSLoadBalancerV2"
                 ),
             ),
         ),
@@ -116,6 +122,9 @@ AWS_EC2_ASSET_EXPOSURE_LOAD_BALANCER = AnalysisJob(
             match="MATCH (cidr:AWSIpRange{range:'0.0.0.0/0'})-->(perm:AWSIpPermissionInbound)-->(sg:EC2SecurityGroup)<-[:SOURCE_SECURITY_GROUP]-(elb:AWSLoadBalancer{scheme: 'internet-facing'})-->(listener:ELBListener)\nWHERE perm.protocol = '-1' OR (listener.port>=perm.fromport AND listener.port<=perm.toport)",
             effects=(
                 SetProperty("elb", "exposed_internet", True, label="AWSLoadBalancer"),
+                SetProperty(
+                    "elb", "exposed_internet_type", None, label="AWSLoadBalancer"
+                ),
             ),
         ),
     ),
