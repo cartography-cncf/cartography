@@ -440,10 +440,11 @@ def load_boot_volumes(
     owning instance via its boot volume attachment.
     """
     ingest_boot_volume = """
-    MERGE (bv:OCIBootVolume{ocid: $OCID})
+    MERGE (bv:OCIBootVolume{id: $OCID})
     ON CREATE SET bv.firstseen = timestamp(),
     bv.createdate = $TIME_CREATED
-    SET bv.display_name = $DISPLAY_NAME,
+    SET bv.ocid = $OCID,
+    bv.display_name = $DISPLAY_NAME,
     bv.compartment_id = $COMPARTMENT_ID,
     bv.resource_type = 'oci-storage-blockstorage-bootvolume',
     bv.availability_domain = $AVAILABILITY_DOMAIN,
@@ -457,7 +458,7 @@ def load_boot_volumes(
     bv.region = $REGION,
     bv.lastupdated = $oci_update_tag
     WITH bv
-    MATCH (cc:OCICompartment{ocid: $COMPARTMENT_ID})
+    MATCH (cc:OCICompartment{id: $COMPARTMENT_ID})
     MERGE (cc)-[r:RESOURCE]->(bv)
     ON CREATE SET r.firstseen = timestamp()
     SET r.lastupdated = $oci_update_tag
@@ -523,10 +524,11 @@ def load_block_volumes(
     ATTACHED_TO relationship to the instance via its volume attachment.
     """
     ingest_block_volume = """
-    MERGE (bv:OCIBlockVolume{ocid: $OCID})
+    MERGE (bv:OCIBlockVolume{id: $OCID})
     ON CREATE SET bv.firstseen = timestamp(),
     bv.createdate = $TIME_CREATED
-    SET bv.display_name = $DISPLAY_NAME,
+    SET bv.ocid = $OCID,
+    bv.display_name = $DISPLAY_NAME,
     bv.compartment_id = $COMPARTMENT_ID,
     bv.resource_type = 'oci-storage-blockstorage-volume',
     bv.availability_domain = $AVAILABILITY_DOMAIN,
@@ -539,7 +541,7 @@ def load_block_volumes(
     bv.region = $REGION,
     bv.lastupdated = $oci_update_tag
     WITH bv
-    MATCH (cc:OCICompartment{ocid: $COMPARTMENT_ID})
+    MATCH (cc:OCICompartment{id: $COMPARTMENT_ID})
     MERGE (cc)-[r:RESOURCE]->(bv)
     ON CREATE SET r.firstseen = timestamp()
     SET r.lastupdated = $oci_update_tag

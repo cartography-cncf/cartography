@@ -10,17 +10,12 @@ from typing import List
 
 import neo4j
 import oci
-import oci.key_management
-import oci.logging
-import oci.monitoring
 from oci.exceptions import ConfigFileNotFound
 from oci.exceptions import InvalidConfig
 from oci.exceptions import ProfileNotFound
 
 from . import compartment
 from . import iam
-from . import logging as ocilogging
-from . import oke
 from . import organizations
 from . import storage
 from . import utils
@@ -29,8 +24,6 @@ from cartography.config import Config
 from cartography.intel.oci.util.common import parse_and_validate_oci_requested_syncs
 # from cartography.util import run_analysis_job
 # from cartography.util import run_cleanup_job
-from . import network  # noqa: F401 (imported for side-effect: registers in RESOURCE_FUNCTIONS)
-# from . import compute
 
 logger = logging.getLogger(__name__)
 Resources = namedtuple('Resources', 'compute iam network storage oke monitoring encryption logging')
@@ -245,6 +238,8 @@ def _get_logging_resource(credentials: Dict[str, Any]) -> oci.logging.LoggingMan
     :return: A LoggingManagementClient resource object
     """
     return oci.logging.LoggingManagementClient(credentials)
+
+
 def _get_storage_resource(credentials: Dict[str, Any]) -> storage.OCIStorageClients:
     """
     Bundle the three OCI SDK clients used by the storage sync (Object Storage,

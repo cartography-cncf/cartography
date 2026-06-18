@@ -3,11 +3,11 @@ from typing import Dict
 from . import compute
 from . import encryption
 from . import iam
-from . import logging as ocilogging
 from . import monitoring
 from . import network
 from . import oke
 from . import storage
+from . import audit_logging
 
 
 RESOURCE_FUNCTIONS: Dict = {
@@ -18,5 +18,5 @@ RESOURCE_FUNCTIONS: Dict = {
     "monitoring": monitoring.sync,
     "storage": storage.sync,
     "oke": oke.sync,
-    "logging": ocilogging.sync,
+    "logging": audit_logging.sync,
 }

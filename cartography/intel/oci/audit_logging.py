@@ -68,16 +68,17 @@ def load_audit_configuration(
     Ingest OCI Audit Configuration node into Neo4j.
     """
     ingest_audit_config = """
-    MERGE (ac:OCIAuditConfiguration{tenancy_id: $TENANCY_ID})
+    MERGE (ac:OCIAuditConfiguration{id: $CONFIG_ID})
     ON CREATE SET ac.firstseen = timestamp()
-    SET ac.resource_type = 'oci-audit-configuration',
+    SET ac.ocid = $CONFIG_ID,
+        ac.resource_type = 'oci-audit-configuration',
         ac.tenancy_id = $TENANCY_ID,
         ac.compartment_id = $COMPARTMENT_ID,
         ac.retention_period_days = $RETENTION_PERIOD_DAYS,
         ac.region = $REGION,
         ac.lastupdated = $oci_update_tag
     WITH ac
-    MATCH (cc:OCICompartment{ocid: $COMPARTMENT_ID})
+    MATCH (cc:OCICompartment{id: $COMPARTMENT_ID})
     MERGE (cc)-[r:RESOURCE]->(ac)
     ON CREATE SET r.firstseen = timestamp()
     SET r.lastupdated = $oci_update_tag
@@ -85,6 +86,7 @@ def load_audit_configuration(
     retention = config_data.get("retention-period-days", 0)
     neo4j_session.run(
         ingest_audit_config,
+        CONFIG_ID=f"oci.audit.config.{tenancy_id}.{region}",
         TENANCY_ID=tenancy_id,
         COMPARTMENT_ID=compartment_id,
         RETENTION_PERIOD_DAYS=retention,
@@ -169,10 +171,11 @@ def load_log_groups(
     Ingest OCI Log Group nodes into Neo4j.
     """
     ingest_log_group = """
-    MERGE (lg:OCILogGroup{ocid: $OCID})
+    MERGE (lg:OCILogGroup{id: $OCID})
     ON CREATE SET lg.firstseen = timestamp(),
                   lg.createdate = $TIME_CREATED
-    SET lg.resource_type = 'oci-logging-log-group',
+    SET lg.ocid = $OCID,
+        lg.resource_type = 'oci-logging-log-group',
         lg.display_name = $DISPLAY_NAME,
         lg.compartment_id = $COMPARTMENT_ID,
         lg.description = $DESCRIPTION,
@@ -180,7 +183,7 @@ def load_log_groups(
         lg.region = $REGION,
         lg.lastupdated = $oci_update_tag
     WITH lg
-    MATCH (cc:OCICompartment{ocid: $COMPARTMENT_ID})
+    MATCH (cc:OCICompartment{id: $COMPARTMENT_ID})
     MERGE (cc)-[r:RESOURCE]->(lg)
     ON CREATE SET r.firstseen = timestamp()
     SET r.lastupdated = $oci_update_tag
@@ -211,10 +214,11 @@ def load_logs(
     Ingest individual OCI Log nodes within a log group.
     """
     ingest_log = """
-    MERGE (l:OCILog{ocid: $OCID})
+    MERGE (l:OCILog{id: $OCID})
     ON CREATE SET l.firstseen = timestamp(),
                   l.createdate = $TIME_CREATED
-    SET l.resource_type = 'oci-logging-log',
+    SET l.ocid = $OCID,
+        l.resource_type = 'oci-logging-log',
         l.display_name = $DISPLAY_NAME,
         l.log_group_id = $LOG_GROUP_ID,
         l.log_type = $LOG_TYPE,
@@ -228,7 +232,7 @@ def load_logs(
         l.region = $REGION,
         l.lastupdated = $oci_update_tag
     WITH l
-    MATCH (lg:OCILogGroup{ocid: $LOG_GROUP_ID})
+    MATCH (lg:OCILogGroup{id: $LOG_GROUP_ID})
     MERGE (lg)-[r:OCI_LOG]->(l)
     ON CREATE SET r.firstseen = timestamp()
     SET r.lastupdated = $oci_update_tag
@@ -333,7 +337,7 @@ def load_logging_services(
         ls.region = $REGION,
         ls.lastupdated = $oci_update_tag
     WITH ls
-    MATCH (cc:OCICompartment{ocid: $COMPARTMENT_ID})
+    MATCH (cc:OCICompartment{id: $COMPARTMENT_ID})
     MERGE (cc)-[r:RESOURCE]->(ls)
     ON CREATE SET r.firstseen = timestamp()
     SET r.lastupdated = $oci_update_tag
@@ -441,7 +445,7 @@ def load_logging_configuration(
         lc.has_enabled_logs = $HAS_ENABLED_LOGS,
         lc.lastupdated = $oci_update_tag
     WITH lc
-    MATCH (cc:OCICompartment{ocid: $COMPARTMENT_ID})
+    MATCH (cc:OCICompartment{id: $COMPARTMENT_ID})
     MERGE (cc)-[r:RESOURCE]->(lc)
     ON CREATE SET r.firstseen = timestamp()
     SET r.lastupdated = $oci_update_tag

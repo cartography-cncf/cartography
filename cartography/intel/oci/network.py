@@ -53,10 +53,11 @@ def load_vcns(
     Ingest OCI VCN data into Neo4j.
     """
     ingest_vcn = """
-    MERGE (vcn:OCIVcn{ocid: $OCID})
+    MERGE (vcn:OCIVcn{id: $OCID})
     ON CREATE SET vcn.firstseen = timestamp(),
     vcn.createdate = $TIME_CREATED
-    SET vcn.display_name = $DISPLAY_NAME,
+    SET vcn.ocid = $OCID,
+    vcn.display_name = $DISPLAY_NAME,
     vcn.compartment_id = $COMPARTMENT_ID,
     vcn.resource_type = 'oci-vcn',
     vcn.cidr_block = $CIDR_BLOCK,
@@ -65,7 +66,7 @@ def load_vcns(
     vcn.region = $REGION,
     vcn.lastupdated = $oci_update_tag
     WITH vcn
-    MATCH (cc:OCICompartment{ocid: $COMPARTMENT_ID})
+    MATCH (cc:OCICompartment{id: $COMPARTMENT_ID})
     MERGE (cc)-[r:RESOURCE]->(vcn)
     ON CREATE SET r.firstseen = timestamp()
     SET r.lastupdated = $oci_update_tag
@@ -141,10 +142,11 @@ def load_subnets(
     Ingest OCI Subnet data into Neo4j and link to VCN.
     """
     ingest_subnet = """
-    MERGE (subnet:OCISubnet{ocid: $OCID})
+    MERGE (subnet:OCISubnet{id: $OCID})
     ON CREATE SET subnet.firstseen = timestamp(),
     subnet.createdate = $TIME_CREATED
-    SET subnet.display_name = $DISPLAY_NAME,
+    SET subnet.ocid = $OCID,
+    subnet.display_name = $DISPLAY_NAME,
     subnet.compartment_id = $COMPARTMENT_ID,
     subnet.resource_type = 'oci-subnet',
     subnet.cidr_block = $CIDR_BLOCK,
@@ -159,7 +161,7 @@ def load_subnets(
     subnet.region = $REGION,
     subnet.lastupdated = $oci_update_tag
     WITH subnet
-    MATCH (vcn:OCIVcn{ocid: $VCN_ID})
+    MATCH (vcn:OCIVcn{id: $VCN_ID})
     MERGE (vcn)-[r:OCI_SUBNET]->(subnet)
     ON CREATE SET r.firstseen = timestamp()
     SET r.lastupdated = $oci_update_tag
@@ -241,10 +243,11 @@ def load_security_lists(
     Ingest OCI Security List data into Neo4j and link to VCN.
     """
     ingest_security_list = """
-    MERGE (sl:OCISecurityList{ocid: $OCID})
+    MERGE (sl:OCISecurityList{id: $OCID})
     ON CREATE SET sl.firstseen = timestamp(),
     sl.createdate = $TIME_CREATED
-    SET sl.display_name = $DISPLAY_NAME,
+    SET sl.ocid = $OCID,
+    sl.display_name = $DISPLAY_NAME,
     sl.compartment_id = $COMPARTMENT_ID,
     sl.resource_type = 'oci-security-list',
     sl.vcn_id = $VCN_ID,
@@ -254,7 +257,7 @@ def load_security_lists(
     sl.region = $REGION,
     sl.lastupdated = $oci_update_tag
     WITH sl
-    MATCH (vcn:OCIVcn{ocid: $VCN_ID})
+    MATCH (vcn:OCIVcn{id: $VCN_ID})
     MERGE (vcn)-[r:OCI_SECURITY_LIST]->(sl)
     ON CREATE SET r.firstseen = timestamp()
     SET r.lastupdated = $oci_update_tag
@@ -335,10 +338,11 @@ def load_network_security_groups(
     Ingest OCI Network Security Group data into Neo4j and link to VCN.
     """
     ingest_nsg = """
-    MERGE (nsg:OCINetworkSecurityGroup{ocid: $OCID})
+    MERGE (nsg:OCINetworkSecurityGroup{id: $OCID})
     ON CREATE SET nsg.firstseen = timestamp(),
     nsg.createdate = $TIME_CREATED
-    SET nsg.display_name = $DISPLAY_NAME,
+    SET nsg.ocid = $OCID,
+    nsg.display_name = $DISPLAY_NAME,
     nsg.compartment_id = $COMPARTMENT_ID,
     nsg.resource_type = 'oci-network-security-group',
     nsg.vcn_id = $VCN_ID,
@@ -346,7 +350,7 @@ def load_network_security_groups(
     nsg.region = $REGION,
     nsg.lastupdated = $oci_update_tag
     WITH nsg
-    MATCH (vcn:OCIVcn{ocid: $VCN_ID})
+    MATCH (vcn:OCIVcn{id: $VCN_ID})
     MERGE (vcn)-[r:OCI_NETWORK_SECURITY_GROUP]->(nsg)
     ON CREATE SET r.firstseen = timestamp()
     SET r.lastupdated = $oci_update_tag
@@ -423,9 +427,10 @@ def load_nsg_security_rules(
     Ingest OCI NSG Security Rule data into Neo4j and link to NSG.
     """
     ingest_rule = """
-    MERGE (rule:OCINsgSecurityRule{ocid: $OCID})
+    MERGE (rule:OCINsgSecurityRule{id: $OCID})
     ON CREATE SET rule.firstseen = timestamp()
-    SET rule.direction = $DIRECTION,
+    SET rule.ocid = $OCID,
+    rule.direction = $DIRECTION,
     rule.protocol = $PROTOCOL,
     rule.description = $DESCRIPTION,
     rule.source = $SOURCE,
@@ -444,7 +449,7 @@ def load_nsg_security_rules(
     rule.icmp_code = $ICMP_CODE,
     rule.lastupdated = $oci_update_tag
     WITH rule
-    MATCH (nsg:OCINetworkSecurityGroup{ocid: $NSG_ID})
+    MATCH (nsg:OCINetworkSecurityGroup{id: $NSG_ID})
     MERGE (nsg)-[r:OCI_NSG_RULE]->(rule)
     ON CREATE SET r.firstseen = timestamp()
     SET r.lastupdated = $oci_update_tag
@@ -504,7 +509,7 @@ def sync_nsg_security_rules(
     logger.debug("Syncing OCI NSG security rules for tenancy '%s', region '%s'.", tenancy_id, region)
     compartment_ocid = common_job_parameters.get("OCI_COMPARTMENT_ID", tenancy_id)
     query = (
-        "MATCH (:OCICompartment{ocid: $COMPARTMENT_ID})-[:RESOURCE]->(:OCIVcn)"
+        "MATCH (:OCICompartment{id: $COMPARTMENT_ID})-[:RESOURCE]->(:OCIVcn)"
         "-[:OCI_NETWORK_SECURITY_GROUP]->(nsg:OCINetworkSecurityGroup) "
         "WHERE nsg.region = $REGION "
         "RETURN nsg.ocid as ocid"
@@ -552,10 +557,11 @@ def load_internet_gateways(
     Ingest OCI Internet Gateway data into Neo4j and link to VCN.
     """
     ingest_igw = """
-    MERGE (igw:OCIInternetGateway{ocid: $OCID})
+    MERGE (igw:OCIInternetGateway{id: $OCID})
     ON CREATE SET igw.firstseen = timestamp(),
     igw.createdate = $TIME_CREATED
-    SET igw.display_name = $DISPLAY_NAME,
+    SET igw.ocid = $OCID,
+    igw.display_name = $DISPLAY_NAME,
     igw.compartment_id = $COMPARTMENT_ID,
     igw.resource_type = 'oci-internet-gateway',
     igw.vcn_id = $VCN_ID,
@@ -564,7 +570,7 @@ def load_internet_gateways(
     igw.region = $REGION,
     igw.lastupdated = $oci_update_tag
     WITH igw
-    MATCH (vcn:OCIVcn{ocid: $VCN_ID})
+    MATCH (vcn:OCIVcn{id: $VCN_ID})
     MERGE (vcn)-[r:OCI_INTERNET_GATEWAY]->(igw)
     ON CREATE SET r.firstseen = timestamp()
     SET r.lastupdated = $oci_update_tag
@@ -642,10 +648,11 @@ def load_nat_gateways(
     Ingest OCI NAT Gateway data into Neo4j and link to VCN.
     """
     ingest_nat = """
-    MERGE (nat:OCINatGateway{ocid: $OCID})
+    MERGE (nat:OCINatGateway{id: $OCID})
     ON CREATE SET nat.firstseen = timestamp(),
     nat.createdate = $TIME_CREATED
-    SET nat.display_name = $DISPLAY_NAME,
+    SET nat.ocid = $OCID,
+    nat.display_name = $DISPLAY_NAME,
     nat.compartment_id = $COMPARTMENT_ID,
     nat.vcn_id = $VCN_ID,
     nat.nat_ip = $NAT_IP,
@@ -654,7 +661,7 @@ def load_nat_gateways(
     nat.region = $REGION,
     nat.lastupdated = $oci_update_tag
     WITH nat
-    MATCH (vcn:OCIVcn{ocid: $VCN_ID})
+    MATCH (vcn:OCIVcn{id: $VCN_ID})
     MERGE (vcn)-[r:OCI_NAT_GATEWAY]->(nat)
     ON CREATE SET r.firstseen = timestamp()
     SET r.lastupdated = $oci_update_tag
@@ -733,10 +740,11 @@ def load_route_tables(
     Ingest OCI Route Table data into Neo4j and link to VCN.
     """
     ingest_rt = """
-    MERGE (rt:OCIRouteTable{ocid: $OCID})
+    MERGE (rt:OCIRouteTable{id: $OCID})
     ON CREATE SET rt.firstseen = timestamp(),
     rt.createdate = $TIME_CREATED
-    SET rt.display_name = $DISPLAY_NAME,
+    SET rt.ocid = $OCID,
+    rt.display_name = $DISPLAY_NAME,
     rt.compartment_id = $COMPARTMENT_ID,
     rt.resource_type = 'oci-route-table',
     rt.vcn_id = $VCN_ID,
@@ -745,7 +753,7 @@ def load_route_tables(
     rt.region = $REGION,
     rt.lastupdated = $oci_update_tag
     WITH rt
-    MATCH (vcn:OCIVcn{ocid: $VCN_ID})
+    MATCH (vcn:OCIVcn{id: $VCN_ID})
     MERGE (vcn)-[r:OCI_ROUTE_TABLE]->(rt)
     ON CREATE SET r.firstseen = timestamp()
     SET r.lastupdated = $oci_update_tag
@@ -807,22 +815,22 @@ def sync_subnet_associations(
     """
     logger.debug("Syncing OCI subnet associations for tenancy '%s', region '%s'.", tenancy_id, region)
     link_subnet_route_table = """
-    MATCH (subnet:OCISubnet{ocid: $SUBNET_ID})
-    MATCH (rt:OCIRouteTable{ocid: $ROUTE_TABLE_ID})
+    MATCH (subnet:OCISubnet{id: $SUBNET_ID})
+    MATCH (rt:OCIRouteTable{id: $ROUTE_TABLE_ID})
     MERGE (subnet)-[r:OCI_ROUTE_TABLE]->(rt)
     ON CREATE SET r.firstseen = timestamp()
     SET r.lastupdated = $oci_update_tag
     """
     link_subnet_security_list = """
-    MATCH (subnet:OCISubnet{ocid: $SUBNET_ID})
-    MATCH (sl:OCISecurityList{ocid: $SECURITY_LIST_ID})
+    MATCH (subnet:OCISubnet{id: $SUBNET_ID})
+    MATCH (sl:OCISecurityList{id: $SECURITY_LIST_ID})
     MERGE (subnet)-[r:OCI_SECURITY_LIST]->(sl)
     ON CREATE SET r.firstseen = timestamp()
     SET r.lastupdated = $oci_update_tag
     """
 
     query = (
-        "MATCH (:OCICompartment{ocid: $COMPARTMENT_ID})-[:RESOURCE]->(:OCIVcn)"
+        "MATCH (:OCICompartment{id: $COMPARTMENT_ID})-[:RESOURCE]->(:OCIVcn)"
         "-[:OCI_SUBNET]->(subnet:OCISubnet) "
         "WHERE subnet.region = $REGION "
         "RETURN subnet.ocid as ocid, subnet.route_table_id as route_table_id, "
@@ -881,10 +889,11 @@ def load_vnics(
     via its VNIC attachment.
     """
     ingest_vnic = """
-    MERGE (vnic:OCIVnic{ocid: $OCID})
+    MERGE (vnic:OCIVnic{id: $OCID})
     ON CREATE SET vnic.firstseen = timestamp(),
     vnic.createdate = $TIME_CREATED
-    SET vnic.display_name = $DISPLAY_NAME,
+    SET vnic.ocid = $OCID,
+    vnic.display_name = $DISPLAY_NAME,
     vnic.compartment_id = $COMPARTMENT_ID,
     vnic.availability_domain = $AVAILABILITY_DOMAIN,
     vnic.lifecycle_state = $LIFECYCLE_STATE,
@@ -898,7 +907,7 @@ def load_vnics(
     vnic.region = $REGION,
     vnic.lastupdated = $oci_update_tag
     WITH vnic
-    OPTIONAL MATCH (subnet:OCISubnet{ocid: $SUBNET_ID})
+    OPTIONAL MATCH (subnet:OCISubnet{id: $SUBNET_ID})
     FOREACH (_ IN CASE WHEN subnet IS NULL THEN [] ELSE [1] END |
         MERGE (subnet)-[rs:OCI_VNIC]->(vnic)
         ON CREATE SET rs.firstseen = timestamp()
@@ -949,7 +958,7 @@ def sync_vnics(
     """
     logger.debug("Syncing OCI VNICs for tenancy '%s', region '%s'.", tenancy_id, region)
     query = (
-        "MATCH (:OCICompartment{ocid: $COMPARTMENT_ID})-[:RESOURCE]->(inst:OCIInstance)"
+        "MATCH (:OCICompartment{id: $COMPARTMENT_ID})-[:RESOURCE]->(inst:OCIInstance)"
         "-[:OCI_VNIC_ATTACHMENT]->(attachment:OCIVnicAttachment) "
         "WHERE attachment.vnic_id IS NOT NULL AND inst.region = $REGION "
         "RETURN DISTINCT attachment.vnic_id as vnic_id"
@@ -1022,10 +1031,11 @@ def load_flow_logs(
     are configured for.
     """
     ingest_flow_log = """
-    MERGE (fl:OCIFlowLog:OCILog{ocid: $OCID})
+    MERGE (fl:OCIFlowLog:OCILog{id: $OCID})
     ON CREATE SET fl.firstseen = timestamp(),
     fl.createdate = $TIME_CREATED
-    SET fl.display_name = $DISPLAY_NAME,
+    SET fl.ocid = $OCID,
+    fl.display_name = $DISPLAY_NAME,
     fl.compartment_id = $COMPARTMENT_ID,
     fl.log_group_id = $LOG_GROUP_ID,
     fl.log_type = $LOG_TYPE,
@@ -1037,14 +1047,14 @@ def load_flow_logs(
     fl.region = $REGION,
     fl.lastupdated = $oci_update_tag
     WITH fl, $SOURCE_RESOURCE as source_resource
-    OPTIONAL MATCH (subnet:OCISubnet{ocid: source_resource})
+    OPTIONAL MATCH (subnet:OCISubnet{id: source_resource})
     FOREACH (_ IN CASE WHEN subnet IS NULL THEN [] ELSE [1] END |
         MERGE (subnet)-[rs:OCI_FLOW_LOG]->(fl)
         ON CREATE SET rs.firstseen = timestamp()
         SET rs.lastupdated = $oci_update_tag
     )
     WITH fl, source_resource
-    OPTIONAL MATCH (vcn:OCIVcn{ocid: source_resource})
+    OPTIONAL MATCH (vcn:OCIVcn{id: source_resource})
     FOREACH (_ IN CASE WHEN vcn IS NULL THEN [] ELSE [1] END |
         MERGE (vcn)-[rv:OCI_FLOW_LOG]->(fl)
         ON CREATE SET rv.firstseen = timestamp()
