@@ -466,6 +466,11 @@ class Config:
         sentinelone_api_token=None,
         sentinelone_account_ids=None,
         sentinelone_site_ids=None,
+        tenable_url=None,
+        tenable_tenant_id=None,
+        tenable_access_key=None,
+        tenable_secret_key=None,
+        tenable_findings_lookback_days=180,
         spacelift_api_endpoint=None,
         spacelift_api_token=None,
         spacelift_api_key_id=None,
@@ -650,6 +655,11 @@ class Config:
         self.sentinelone_api_token = sentinelone_api_token
         self.sentinelone_account_ids = sentinelone_account_ids
         self.sentinelone_site_ids = sentinelone_site_ids
+        self.tenable_url = tenable_url
+        self.tenable_tenant_id = tenable_tenant_id
+        self.tenable_access_key = tenable_access_key
+        self.tenable_secret_key = tenable_secret_key
+        self.tenable_findings_lookback_days = tenable_findings_lookback_days
         self.spacelift_api_endpoint = spacelift_api_endpoint
         self.spacelift_api_token = spacelift_api_token
         self.spacelift_api_key_id = spacelift_api_key_id
