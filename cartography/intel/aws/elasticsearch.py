@@ -25,29 +25,30 @@ logger = logging.getLogger(__name__)
 @aws_handle_regions
 def _get_es_domains(client: botocore.client.BaseClient) -> List[Dict]:
     """
-    Get ES domains.
+    Get OpenSearch/Elasticsearch domains.
 
-    :param client: ES boto client
-    :return: list of ES domains
+    :param client: OpenSearch boto client (opensearch service)
+    :return: list of domains
     """
     data = client.list_domain_names()
     domain_names = [d["DomainName"] for d in data.get("DomainNames", [])]
-    # NOTE describe_elasticsearch_domains takes at most 5 domain names
+    # NOTE describe_domains takes at most 5 domain names
     domain_name_chunks = [
         domain_names[i : i + 5] for i in range(0, len(domain_names), 5)
     ]
     domains: List[Dict] = []
     for domain_name_chunk in domain_name_chunks:
-        chunk_data = client.describe_elasticsearch_domains(
+        chunk_data = client.describe_domains(
             DomainNames=domain_name_chunk,
         )
         domains.extend(chunk_data["DomainStatusList"])
     return domains
 
 
+@timeit
 def _transform_es_domains(domain_list: List[Dict]) -> List[Dict]:
     """
-    Transform Elasticsearch domains data, flattening nested properties.
+    Transform OpenSearch/Elasticsearch domains data, flattening nested properties.
 
     Returns a list of flattened domain data ready for loading.
     """
@@ -165,7 +166,7 @@ def _load_es_domains(
     aws_update_tag: int,
 ) -> None:
     """
-    Ingest Elastic Search domains
+    Ingest OpenSearch/Elasticsearch domains
 
     :param neo4j_session: Neo4j session object
     :param domain_list: Transformed domain list to ingest
@@ -197,11 +198,11 @@ def _link_es_domains_to_dns(
     aws_update_tag: int,
 ) -> None:
     """
-    Link the ES domain to its DNS FQDN endpoint and create associated nodes in the graph
+    Link the OpenSearch/Elasticsearch domain to its DNS FQDN endpoint and create associated nodes in the graph
     if needed
 
     :param neo4j_session: Neo4j session object
-    :param domain_id: ES domain id
+    :param domain_id: OpenSearch/Elasticsearch domain id
     :param domain_data: domain data
     """
     # TODO add support for endpoints to this method
@@ -286,13 +287,13 @@ def sync(
 ) -> None:
     for region in regions:
         logger.info(
-            "Syncing Elasticsearch Service for region '%s' in account '%s'.",
+            "Syncing OpenSearch Service for region '%s' in account '%s'.",
             region,
             current_aws_account_id,
         )
         client = create_boto3_client(
             boto3_session,
-            "es",
+            "opensearch",
             region_name=region,
             config=get_botocore_config(),
         )

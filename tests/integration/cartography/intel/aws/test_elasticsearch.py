@@ -44,9 +44,9 @@ def _create_test_subnets_and_security_groups(neo4j_session):
     "_get_es_domains",
     return_value=GET_ES_DOMAINS,
 )
-def test_sync_elasticsearch(mock_get_es_domains, mock_dns_ingest, neo4j_session):
+def test_sync_opensearch(mock_get_es_domains, mock_dns_ingest, neo4j_session):
     """
-    Ensure that Elasticsearch domains are synced correctly with their nodes and relationships.
+    Ensure that OpenSearch domains are synced correctly with their nodes and relationships.
     """
     # Arrange
     boto3_session = MagicMock()
@@ -69,8 +69,8 @@ def test_sync_elasticsearch(mock_get_es_domains, mock_dns_ingest, neo4j_session)
         "ESDomain",
         ["id", "elasticsearch_version"],
     ) == {
-        ("000000000000/test-es-domain-1", "7.10"),
-        ("000000000000/test-es-domain-2", "6.8"),
+        ("000000000000/test-es-domain-1", "OpenSearch_2.5"),
+        ("000000000000/test-es-domain-2", "7.10"),
     }
 
     # Assert - Relationships (AWSAccount)-[RESOURCE]->(ESDomain)
