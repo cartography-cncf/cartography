@@ -201,3 +201,719 @@ Representation of an [OCI Policy](https://docs.cloud.oracle.com/iaas/api/#/en/id
                               OCIGroup,
                               OCICompartment)
 	```
+
+## OCIVcn
+
+Representation of an [OCI Virtual Cloud Network (VCN)](https://docs.oracle.com/en-us/iaas/api/#/en/iaas/latest/Vcn/).
+
+| Field | Description |
+|-------|-------------|
+| firstseen | Timestamp of when a sync job first discovered this node |
+| lastupdated | Timestamp of the last time the node was updated |
+| **ocid** | OCI-unique identifier for this VCN |
+| display_name | The user-friendly name of the VCN |
+| compartment_id | The OCID of the compartment containing the VCN |
+| cidr_block | The first CIDR block associated with the VCN |
+| dns_label | The DNS label for the VCN |
+| lifecycle_state | The VCN's current state |
+| region | The region the VCN resides in |
+| createdate | ISO 8601 date-time when the VCN was created |
+
+### Relationships
+
+- OCI Compartments contain VCNs.
+
+	```
+	(OCICompartment)-[RESOURCE]->(OCIVcn)
+	```
+
+- VCNs contain Subnets.
+
+	```
+	(OCIVcn)-[OCI_SUBNET]->(OCISubnet)
+	```
+
+- VCNs contain Security Lists.
+
+	```
+	(OCIVcn)-[OCI_SECURITY_LIST]->(OCISecurityList)
+	```
+
+- VCNs contain Network Security Groups.
+
+	```
+	(OCIVcn)-[OCI_NETWORK_SECURITY_GROUP]->(OCINetworkSecurityGroup)
+	```
+
+- VCNs contain Internet Gateways.
+
+	```
+	(OCIVcn)-[OCI_INTERNET_GATEWAY]->(OCIInternetGateway)
+	```
+
+- VCNs contain NAT Gateways.
+
+	```
+	(OCIVcn)-[OCI_NAT_GATEWAY]->(OCINatGateway)
+	```
+
+- VCNs contain Route Tables.
+
+	```
+	(OCIVcn)-[OCI_ROUTE_TABLE]->(OCIRouteTable)
+	```
+
+## OCISubnet
+
+Representation of an [OCI Subnet](https://docs.oracle.com/en-us/iaas/api/#/en/iaas/latest/Subnet/).
+
+| Field | Description |
+|-------|-------------|
+| firstseen | Timestamp of when a sync job first discovered this node |
+| lastupdated | Timestamp of the last time the node was updated |
+| **ocid** | OCI-unique identifier for this subnet |
+| display_name | The user-friendly name of the subnet |
+| compartment_id | The OCID of the compartment containing the subnet |
+| cidr_block | The CIDR block of the subnet |
+| availability_domain | The availability domain of the subnet |
+| dns_label | The DNS label for the subnet |
+| lifecycle_state | The subnet's current state |
+| vcn_id | The OCID of the VCN the subnet belongs to |
+| route_table_id | The OCID of the route table associated with the subnet |
+| security_list_ids | List of OCIDs of the security lists associated with the subnet |
+| subnet_domain_name | The subnet's domain name |
+| prohibit_public_ip_on_vnic | Whether VNICs in this subnet can have public IPs |
+| region | The region the subnet resides in |
+| createdate | ISO 8601 date-time when the subnet was created |
+
+### Relationships
+
+- VCNs contain Subnets.
+
+	```
+	(OCIVcn)-[OCI_SUBNET]->(OCISubnet)
+	```
+
+- Subnets are associated with a Route Table.
+
+	```
+	(OCISubnet)-[OCI_ROUTE_TABLE]->(OCIRouteTable)
+	```
+
+- Subnets are associated with one or more Security Lists.
+
+	```
+	(OCISubnet)-[OCI_SECURITY_LIST]->(OCISecurityList)
+	```
+
+- Subnets contain VNICs.
+
+	```
+	(OCISubnet)-[OCI_VNIC]->(OCIVnic)
+	```
+
+- Subnets can have a Flow Log.
+
+	```
+	(OCISubnet)-[OCI_FLOW_LOG]->(OCIFlowLog)
+	```
+
+## OCISecurityList
+
+Representation of an [OCI Security List](https://docs.oracle.com/en-us/iaas/api/#/en/iaas/latest/SecurityList/).
+
+| Field | Description |
+|-------|-------------|
+| firstseen | Timestamp of when a sync job first discovered this node |
+| lastupdated | Timestamp of the last time the node was updated |
+| **ocid** | OCI-unique identifier for this security list |
+| display_name | The user-friendly name of the security list |
+| compartment_id | The OCID of the compartment containing the security list |
+| vcn_id | The OCID of the VCN the security list belongs to |
+| lifecycle_state | The security list's current state |
+| ingress_security_rules | JSON string of ingress rules |
+| egress_security_rules | JSON string of egress rules |
+| region | The region the security list resides in |
+| createdate | ISO 8601 date-time when the security list was created |
+
+### Relationships
+
+- VCNs contain Security Lists.
+
+	```
+	(OCIVcn)-[OCI_SECURITY_LIST]->(OCISecurityList)
+	```
+
+## OCINetworkSecurityGroup
+
+Representation of an [OCI Network Security Group](https://docs.oracle.com/en-us/iaas/api/#/en/iaas/latest/NetworkSecurityGroup/).
+
+| Field | Description |
+|-------|-------------|
+| firstseen | Timestamp of when a sync job first discovered this node |
+| lastupdated | Timestamp of the last time the node was updated |
+| **ocid** | OCI-unique identifier for this NSG |
+| display_name | The user-friendly name of the NSG |
+| compartment_id | The OCID of the compartment containing the NSG |
+| vcn_id | The OCID of the VCN the NSG belongs to |
+| lifecycle_state | The NSG's current state |
+| region | The region the NSG resides in |
+| createdate | ISO 8601 date-time when the NSG was created |
+
+### Relationships
+
+- VCNs contain Network Security Groups.
+
+	```
+	(OCIVcn)-[OCI_NETWORK_SECURITY_GROUP]->(OCINetworkSecurityGroup)
+	```
+
+- NSGs contain Security Rules.
+
+	```
+	(OCINetworkSecurityGroup)-[OCI_NSG_RULE]->(OCINsgSecurityRule)
+	```
+
+## OCINsgSecurityRule
+
+Representation of an OCI NSG Security Rule.
+
+| Field | Description |
+|-------|-------------|
+| firstseen | Timestamp of when a sync job first discovered this node |
+| lastupdated | Timestamp of the last time the node was updated |
+| **ocid** | OCI-unique identifier for this rule |
+| direction | INGRESS or EGRESS |
+| protocol | The transport protocol (e.g., 6 for TCP, 17 for UDP) |
+| description | Description of the rule |
+| source | Source CIDR or NSG OCID for ingress rules |
+| source_type | Type of source (CIDR_BLOCK, NSG, etc.) |
+| destination | Destination CIDR or NSG OCID for egress rules |
+| destination_type | Type of destination |
+| is_stateless | Whether the rule is stateless |
+| is_valid | Whether the rule is valid |
+| tcp_dest_port_min | Minimum TCP destination port |
+| tcp_dest_port_max | Maximum TCP destination port |
+| tcp_src_port_min | Minimum TCP source port |
+| tcp_src_port_max | Maximum TCP source port |
+| udp_dest_port_min | Minimum UDP destination port |
+| udp_dest_port_max | Maximum UDP destination port |
+| icmp_type | ICMP type |
+| icmp_code | ICMP code |
+
+### Relationships
+
+- NSGs contain Security Rules.
+
+	```
+	(OCINetworkSecurityGroup)-[OCI_NSG_RULE]->(OCINsgSecurityRule)
+	```
+
+## OCIInternetGateway
+
+Representation of an [OCI Internet Gateway](https://docs.oracle.com/en-us/iaas/api/#/en/iaas/latest/InternetGateway/).
+
+| Field | Description |
+|-------|-------------|
+| firstseen | Timestamp of when a sync job first discovered this node |
+| lastupdated | Timestamp of the last time the node was updated |
+| **ocid** | OCI-unique identifier for this internet gateway |
+| display_name | The user-friendly name of the internet gateway |
+| compartment_id | The OCID of the compartment containing the gateway |
+| vcn_id | The OCID of the VCN the gateway belongs to |
+| is_enabled | Whether the gateway is enabled |
+| lifecycle_state | The gateway's current state |
+| region | The region the gateway resides in |
+| createdate | ISO 8601 date-time when the gateway was created |
+
+### Relationships
+
+- VCNs contain Internet Gateways.
+
+	```
+	(OCIVcn)-[OCI_INTERNET_GATEWAY]->(OCIInternetGateway)
+	```
+
+## OCINatGateway
+
+Representation of an [OCI NAT Gateway](https://docs.oracle.com/en-us/iaas/api/#/en/iaas/latest/NatGateway/).
+
+| Field | Description |
+|-------|-------------|
+| firstseen | Timestamp of when a sync job first discovered this node |
+| lastupdated | Timestamp of the last time the node was updated |
+| **ocid** | OCI-unique identifier for this NAT gateway |
+| display_name | The user-friendly name of the NAT gateway |
+| compartment_id | The OCID of the compartment containing the gateway |
+| vcn_id | The OCID of the VCN the gateway belongs to |
+| nat_ip | The IP address associated with the NAT gateway |
+| block_traffic | Whether traffic is blocked through the gateway |
+| lifecycle_state | The gateway's current state |
+| region | The region the gateway resides in |
+| createdate | ISO 8601 date-time when the gateway was created |
+
+### Relationships
+
+- VCNs contain NAT Gateways.
+
+	```
+	(OCIVcn)-[OCI_NAT_GATEWAY]->(OCINatGateway)
+	```
+
+## OCIRouteTable
+
+Representation of an [OCI Route Table](https://docs.oracle.com/en-us/iaas/api/#/en/iaas/latest/RouteTable/).
+
+| Field | Description |
+|-------|-------------|
+| firstseen | Timestamp of when a sync job first discovered this node |
+| lastupdated | Timestamp of the last time the node was updated |
+| **ocid** | OCI-unique identifier for this route table |
+| display_name | The user-friendly name of the route table |
+| compartment_id | The OCID of the compartment containing the route table |
+| vcn_id | The OCID of the VCN the route table belongs to |
+| lifecycle_state | The route table's current state |
+| route_rules | JSON string of route rules |
+| region | The region the route table resides in |
+| createdate | ISO 8601 date-time when the route table was created |
+
+### Relationships
+
+- VCNs contain Route Tables.
+
+	```
+	(OCIVcn)-[OCI_ROUTE_TABLE]->(OCIRouteTable)
+	```
+
+- Subnets are associated with a Route Table.
+
+	```
+	(OCISubnet)-[OCI_ROUTE_TABLE]->(OCIRouteTable)
+	```
+
+## OCIVnic
+
+Representation of an [OCI VNIC](https://docs.oracle.com/en-us/iaas/api/#/en/iaas/latest/Vnic/). A VNIC connects a compute instance to a subnet and can carry a public IP.
+
+| Field | Description |
+|-------|-------------|
+| firstseen | Timestamp of when a sync job first discovered this node |
+| lastupdated | Timestamp of the last time the node was updated |
+| **ocid** | OCI-unique identifier for this VNIC |
+| display_name | The user-friendly name of the VNIC |
+| compartment_id | The OCID of the compartment containing the VNIC |
+| availability_domain | The availability domain the VNIC resides in |
+| lifecycle_state | The VNIC's current state |
+| private_ip | The private IP address of the VNIC |
+| public_ip | The public IP address of the VNIC (if any) |
+| is_primary | Whether the VNIC is the primary VNIC of the instance |
+| hostname_label | The hostname for the VNIC's primary private IP |
+| mac_address | The MAC address of the VNIC |
+| skip_source_dest_check | Whether source/destination check is skipped |
+| subnet_id | The OCID of the subnet the VNIC is in |
+| region | The region the VNIC resides in |
+| createdate | ISO 8601 date-time when the VNIC was created |
+
+### Relationships
+
+- Subnets contain VNICs.
+
+	```
+	(OCISubnet)-[OCI_VNIC]->(OCIVnic)
+	```
+
+- VNIC Attachments reference VNICs (linking an instance to its VNIC).
+
+	```
+	(OCIVnicAttachment)-[OCI_VNIC]->(OCIVnic)
+	```
+
+## OCIFlowLog
+
+Representation of an [OCI VCN Flow Log](https://docs.oracle.com/en-us/iaas/Content/Logging/Concepts/flowlogoverview.htm). Flow logs are OCI service logs (`OCILog`) whose source service is `flowlogs`. The node carries both the `OCIFlowLog` and `OCILog` labels.
+
+| Field | Description |
+|-------|-------------|
+| firstseen | Timestamp of when a sync job first discovered this node |
+| lastupdated | Timestamp of the last time the node was updated |
+| **ocid** | OCI-unique identifier for this log |
+| display_name | The user-friendly name of the log |
+| compartment_id | The OCID of the compartment containing the log |
+| log_group_id | The OCID of the log group the log belongs to |
+| log_type | The type of log (CUSTOM or SERVICE) |
+| is_enabled | Whether the log is enabled |
+| lifecycle_state | The log's current state |
+| source_service | The service that created the log (e.g., flowlogs) |
+| source_category | The log category (e.g., all) |
+| source_resource | The OCID of the resource the log is configured for (subnet or VCN) |
+| region | The region the log resides in |
+| createdate | ISO 8601 date-time when the log was created |
+
+### Relationships
+
+- Subnets can have a Flow Log.
+
+	```
+	(OCISubnet)-[OCI_FLOW_LOG]->(OCIFlowLog)
+	```
+
+- VCNs can have a Flow Log.
+
+	```
+	(OCIVcn)-[OCI_FLOW_LOG]->(OCIFlowLog)
+	```
+
+## OCIInstance
+
+Representation of an [OCI Compute Instance](https://docs.oracle.com/en-us/iaas/api/#/en/iaas/latest/Instance/).
+
+| Field | Description |
+|-------|-------------|
+| firstseen | Timestamp of when a sync job first discovered this node |
+| lastupdated | Timestamp of the last time the node was updated |
+| **ocid** | OCI-unique identifier for this instance |
+| display_name | The user-friendly name of the instance |
+| compartment_id | The OCID of the compartment containing the instance |
+| availability_domain | The availability domain the instance is in |
+| fault_domain | The fault domain the instance is in |
+| shape | The shape of the instance |
+| lifecycle_state | The instance's current state |
+| region | The region the instance resides in |
+| image_id | The OCID of the image used to boot the instance |
+| are_legacy_imds_endpoints_disabled | Whether legacy (v1) instance metadata service endpoints are disabled |
+| is_secure_boot_enabled | Whether Secure Boot is enabled (shielded instance) |
+| is_pv_encryption_in_transit_enabled | Whether paravirtualized in-transit encryption is enabled |
+| is_monitoring_disabled | Whether the monitoring plugin (agent) is disabled |
+| createdate | ISO 8601 date-time when the instance was created |
+
+### Relationships
+
+- OCI Compartments contain Instances.
+
+	```
+	(OCICompartment)-[RESOURCE]->(OCIInstance)
+	```
+
+- Instances have VNIC Attachments.
+
+	```
+	(OCIInstance)-[OCI_VNIC_ATTACHMENT]->(OCIVnicAttachment)
+	```
+
+- Instances have Boot Volume Attachments.
+
+	```
+	(OCIInstance)-[OCI_BOOT_VOLUME_ATTACHMENT]->(OCIBootVolumeAttachment)
+	```
+
+- Instances have Volume Attachments.
+
+	```
+	(OCIInstance)-[OCI_VOLUME_ATTACHMENT]->(OCIVolumeAttachment)
+	```
+
+- Instances are attached to Boot Volumes.
+
+	```
+	(OCIInstance)-[OCI_BOOT_VOLUME]->(OCIBootVolume)
+	```
+
+- Block Volumes are attached to Instances.
+
+	```
+	(OCIBlockVolume)-[ATTACHED_TO]->(OCIInstance)
+	```
+
+## OCIBootVolume
+
+Representation of an [OCI Boot Volume](https://docs.oracle.com/en-us/iaas/api/#/en/iaas/latest/BootVolume/).
+
+| Field | Description |
+|-------|-------------|
+| firstseen | Timestamp of when a sync job first discovered this node |
+| lastupdated | Timestamp of the last time the node was updated |
+| **ocid** | OCI-unique identifier for this boot volume |
+| display_name | The user-friendly name of the boot volume |
+| compartment_id | The OCID of the compartment containing the boot volume |
+| availability_domain | The availability domain the boot volume is in |
+| lifecycle_state | The boot volume's current state |
+| size_in_gbs | The size of the boot volume in GBs |
+| kms_key_id | The OCID of the KMS key used to encrypt the boot volume (if any) |
+| is_hydrated | Whether the boot volume's data has finished copying from the source |
+| vpus_per_gb | The number of volume performance units per GB |
+| image_id | The OCID of the image the boot volume was created from |
+| has_backup_policy | Whether a volume backup policy is assigned to the boot volume |
+| region | The region the boot volume resides in |
+| createdate | ISO 8601 date-time when the boot volume was created |
+
+### Relationships
+
+- OCI Compartments contain Boot Volumes.
+
+	```
+	(OCICompartment)-[RESOURCE]->(OCIBootVolume)
+	```
+
+- Instances are attached to Boot Volumes.
+
+	```
+	(OCIInstance)-[OCI_BOOT_VOLUME]->(OCIBootVolume)
+	```
+
+## OCIBlockVolume
+
+Representation of an [OCI Block Volume](https://docs.oracle.com/en-us/iaas/api/#/en/iaas/latest/Volume/).
+
+| Field | Description |
+|-------|-------------|
+| firstseen | Timestamp of when a sync job first discovered this node |
+| lastupdated | Timestamp of the last time the node was updated |
+| **ocid** | OCI-unique identifier for this block volume |
+| display_name | The user-friendly name of the block volume |
+| compartment_id | The OCID of the compartment containing the block volume |
+| availability_domain | The availability domain the block volume is in |
+| lifecycle_state | The block volume's current state |
+| size_in_gbs | The size of the block volume in GBs |
+| kms_key_id | The OCID of the KMS key used to encrypt the block volume (if any) |
+| is_hydrated | Whether the block volume's data has finished copying from the source |
+| vpus_per_gb | The number of volume performance units per GB |
+| has_backup_policy | Whether a volume backup policy is assigned to the block volume |
+| region | The region the block volume resides in |
+| createdate | ISO 8601 date-time when the block volume was created |
+
+### Relationships
+
+- OCI Compartments contain Block Volumes.
+
+	```
+	(OCICompartment)-[RESOURCE]->(OCIBlockVolume)
+	```
+
+- Block Volumes are attached to Instances.
+
+	```
+	(OCIBlockVolume)-[ATTACHED_TO]->(OCIInstance)
+	```
+
+## OCIObjectStorageBucket
+
+Representation of an [OCI Object Storage Bucket](https://docs.oracle.com/en-us/iaas/api/#/en/objectstorage/latest/Bucket/).
+
+| Field | Description |
+|-------|-------------|
+| firstseen | Timestamp of when a sync job first discovered this node |
+| lastupdated | Timestamp of the last time the node was updated |
+| name | The name of the bucket (unique within namespace) |
+| namespace | The Object Storage namespace the bucket belongs to |
+| compartment_id | The OCID of the compartment containing the bucket |
+| public_access_type | The type of public access (NoPublicAccess, ObjectRead, ObjectReadWithoutList) |
+| storage_tier | The default storage tier (Standard, Archive, InfrequentAccess) |
+| versioning | The versioning status (Enabled, Suspended, Disabled) |
+| kms_key_id | The OCID of the KMS key used to encrypt the bucket (empty if Oracle-managed) |
+| is_read_only | Whether the bucket is read-only |
+| object_events_enabled | Whether object events are enabled |
+| has_retention_rules | Whether the bucket has retention rules configured |
+| approximate_count | The approximate number of objects in the bucket |
+| approximate_size | The approximate total size of all objects in the bucket |
+| region | The region the bucket resides in |
+| createdate | ISO 8601 date-time when the bucket was created |
+
+### Relationships
+
+- OCI Compartments contain Object Storage Buckets.
+
+	```
+	(OCICompartment)-[RESOURCE]->(OCIObjectStorageBucket)
+	```
+
+## OCIFileSystem
+
+Representation of an [OCI File Storage File System](https://docs.oracle.com/en-us/iaas/api/#/en/filestorage/latest/FileSystem/).
+
+| Field | Description |
+|-------|-------------|
+| firstseen | Timestamp of when a sync job first discovered this node |
+| lastupdated | Timestamp of the last time the node was updated |
+| **ocid** | OCI-unique identifier for this file system |
+| display_name | The user-friendly name of the file system |
+| compartment_id | The OCID of the compartment containing the file system |
+| availability_domain | The availability domain the file system is in |
+| lifecycle_state | The file system's current state |
+| kms_key_id | The OCID of the KMS key used to encrypt the file system (empty if Oracle-managed) |
+| metered_bytes | The number of bytes consumed by the file system |
+| region | The region the file system resides in |
+| createdate | ISO 8601 date-time when the file system was created |
+
+### Relationships
+
+- OCI Compartments contain File Systems.
+
+	```
+	(OCICompartment)-[RESOURCE]->(OCIFileSystem)
+	```
+
+## OCIKmsVault
+
+Representation of an [OCI KMS Vault](https://docs.oracle.com/en-us/iaas/api/#/en/key/latest/Vault/).
+
+| Field | Description |
+|-------|-------------|
+| firstseen | Timestamp of when a sync job first discovered this node |
+| lastupdated | Timestamp of the last time the node was updated |
+| **ocid** | OCI-unique identifier for this vault |
+| display_name | The user-friendly name of the vault |
+| compartment_id | The OCID of the compartment containing the vault |
+| resource_type | `oci-kms-vault` |
+| vault_type | The type of vault (DEFAULT, VIRTUAL_PRIVATE) |
+| lifecycle_state | The vault's current state |
+| crypto_endpoint | The vault's crypto endpoint URL |
+| management_endpoint | The vault's management endpoint URL |
+| region | The region the vault resides in |
+| createdate | ISO 8601 date-time when the vault was created |
+
+### Relationships
+
+- OCI Compartments contain KMS Vaults.
+
+	```
+	(OCICompartment)-[RESOURCE]->(OCIKmsVault)
+	```
+
+- KMS Vaults contain KMS Keys.
+
+	```
+	(OCIKmsVault)-[OCI_KMS_KEY]->(OCIKmsKey)
+	```
+
+## OCIKmsKey
+
+Representation of an [OCI KMS Key](https://docs.oracle.com/en-us/iaas/api/#/en/key/latest/Key/).
+
+| Field | Description |
+|-------|-------------|
+| firstseen | Timestamp of when a sync job first discovered this node |
+| lastupdated | Timestamp of the last time the node was updated |
+| **ocid** | OCI-unique identifier for this key |
+| display_name | The user-friendly name of the key |
+| compartment_id | The OCID of the compartment containing the key |
+| resource_type | `oci-kms-key` |
+| vault_id | The OCID of the vault the key belongs to |
+| algorithm | The algorithm used by the key (AES, RSA, ECDSA) |
+| protection_mode | The protection mode (HSM, SOFTWARE) |
+| lifecycle_state | The key's current state |
+| current_key_version | The OCID of the current key version |
+| region | The region the key resides in |
+| createdate | ISO 8601 date-time when the key was created |
+
+### Relationships
+
+- KMS Vaults contain KMS Keys.
+
+	```
+	(OCIKmsVault)-[OCI_KMS_KEY]->(OCIKmsKey)
+	```
+
+## OCIMonitoringAlarm
+
+Representation of an [OCI Monitoring Alarm](https://docs.oracle.com/en-us/iaas/api/#/en/monitoring/latest/Alarm/).
+
+| Field | Description |
+|-------|-------------|
+| firstseen | Timestamp of when a sync job first discovered this node |
+| lastupdated | Timestamp of the last time the node was updated |
+| **ocid** | OCI-unique identifier for this alarm |
+| display_name | The user-friendly name of the alarm |
+| compartment_id | The OCID of the compartment containing the alarm |
+| resource_type | `oci-monitoring-alarm` |
+| namespace | The metric namespace the alarm monitors |
+| query | The Monitoring Query Language (MQL) query |
+| severity | The severity level (CRITICAL, ERROR, WARNING, INFO) |
+| is_enabled | Whether the alarm is enabled |
+| lifecycle_state | The alarm's current state |
+| metric_compartment_id | The OCID of the compartment the metric is scoped to |
+| destinations | List of notification topic OCIDs to send alarm messages to |
+| region | The region the alarm resides in |
+
+### Relationships
+
+- OCI Compartments contain Monitoring Alarms.
+
+	```
+	(OCICompartment)-[RESOURCE]->(OCIMonitoringAlarm)
+	```
+
+## OCICloudGuard
+
+Representation of [OCI Cloud Guard Configuration](https://docs.oracle.com/en-us/iaas/api/#/en/cloud-guard/latest/Configuration/).
+
+| Field | Description |
+|-------|-------------|
+| firstseen | Timestamp of when a sync job first discovered this node |
+| lastupdated | Timestamp of the last time the node was updated |
+| compartment_id | The OCID of the compartment (typically tenancy root) |
+| resource_type | `oci-monitoring-cloud-guard` |
+| status | Whether Cloud Guard is ENABLED or DISABLED |
+| reporting_region | The region Cloud Guard reports to |
+| region | The region this configuration was synced from |
+
+### Relationships
+
+- OCI Compartments contain Cloud Guard configuration.
+
+	```
+	(OCICompartment)-[RESOURCE]->(OCICloudGuard)
+	```
+
+## OCIEventRule
+
+Representation of an [OCI Events Rule](https://docs.oracle.com/en-us/iaas/api/#/en/events/latest/Rule/).
+
+| Field | Description |
+|-------|-------------|
+| firstseen | Timestamp of when a sync job first discovered this node |
+| lastupdated | Timestamp of the last time the node was updated |
+| **ocid** | OCI-unique identifier for this event rule |
+| display_name | The user-friendly name of the event rule |
+| compartment_id | The OCID of the compartment containing the rule |
+| resource_type | `oci-monitoring-event-rule` |
+| condition | The event matching condition (JSON) |
+| is_enabled | Whether the rule is enabled |
+| lifecycle_state | The rule's current state |
+| description | The description of the rule |
+| region | The region the rule resides in |
+| createdate | ISO 8601 date-time when the rule was created |
+
+### Relationships
+
+- OCI Compartments contain Event Rules.
+
+	```
+	(OCICompartment)-[RESOURCE]->(OCIEventRule)
+	```
+
+## OCINotificationTopic
+
+Representation of an [OCI Notification Topic (ONS)](https://docs.oracle.com/en-us/iaas/api/#/en/notification/latest/NotificationTopic/).
+
+| Field | Description |
+|-------|-------------|
+| firstseen | Timestamp of when a sync job first discovered this node |
+| lastupdated | Timestamp of the last time the node was updated |
+| **ocid** | OCI-unique identifier (topic_id) for this topic |
+| display_name | The user-friendly name of the topic |
+| compartment_id | The OCID of the compartment containing the topic |
+| resource_type | `oci-monitoring-notification-topic` |
+| topic_id | The OCID of the topic |
+| lifecycle_state | The topic's current state |
+| description | The description of the topic |
+| api_endpoint | The endpoint for publishing to the topic |
+| region | The region the topic resides in |
+| createdate | ISO 8601 date-time when the topic was created |
+
+### Relationships
+
+- OCI Compartments contain Notification Topics.
+
+	```
+	(OCICompartment)-[RESOURCE]->(OCINotificationTopic)
+	```

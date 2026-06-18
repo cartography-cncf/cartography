@@ -16,12 +16,22 @@ def oci_object_to_json(in_obj: Any) -> List[Dict[str, Any]]:
     return out_list
 
 
+# Turn a single OCI python object (not a list) into a json dict like the REST API would return.
+def oci_single_object_to_json(in_obj: Any) -> Dict[str, Any]:
+    return replace_char_in_dict(json.loads(str(in_obj)))
+
+
 # Have to replace _ with - in dictionary keys, since _ is substituted for - in OCI object variables.
 def replace_char_in_dict(in_dict: Dict[str, Any]) -> Dict[str, Any]:
     out_dict = {}
     for dict_key, dict_val in in_dict.items():
         if isinstance(dict_val, dict):
             dict_val = replace_char_in_dict(dict_val)
+        elif isinstance(dict_val, list):
+            dict_val = [
+                replace_char_in_dict(item) if isinstance(item, dict) else item
+                for item in dict_val
+            ]
         out_dict[dict_key.replace('_', '-')] = dict_val
     return out_dict
 
