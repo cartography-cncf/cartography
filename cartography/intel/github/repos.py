@@ -377,6 +377,15 @@ def _get_repo_dep_manifests(
             continue
 
         manifest = manifest_nodes[0]
+        if manifest is None:
+            logger.warning(
+                "GitHub returned inaccessible/null dependency manifest node for "
+                "repo %s at manifest cursor %s; skipping manifest page.",
+                repo,
+                prev_manifest_cursor,
+            )
+            continue
+
         blob_path = manifest.get("blobPath", "?")
 
         # Paginate dependencies within this manifest
@@ -426,7 +435,19 @@ def _get_repo_dep_manifests(
             if not dep_nodes_list:
                 break
 
-            inner_deps = dep_nodes_list[0].get("dependencies") or {}
+            dep_manifest = dep_nodes_list[0]
+            if dep_manifest is None:
+                logger.warning(
+                    "GitHub returned inaccessible/null dependency manifest node "
+                    "on dependency page for %s in repo %s; keeping %d deps "
+                    "already fetched for this manifest.",
+                    blob_path,
+                    repo,
+                    len(all_dep_nodes),
+                )
+                break
+
+            inner_deps = dep_manifest.get("dependencies") or {}
             all_dep_nodes.extend(inner_deps.get("nodes") or [])
             deps_page_info = inner_deps.get("pageInfo", {})
 

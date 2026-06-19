@@ -7,6 +7,7 @@ import pytest
 import cartography.intel.github.repos
 from cartography.intel.github.repos import _build_branch_data
 from cartography.intel.github.repos import _create_git_url_from_ssh_url
+from cartography.intel.github.repos import _get_repo_dep_manifests
 from cartography.intel.github.repos import _get_repo_rulesets_by_url
 from cartography.intel.github.repos import _merge_repos_with_privileged_details
 from cartography.intel.github.repos import _normalize_rest_ruleset
@@ -297,6 +298,84 @@ def test_transform_dependency_graph_logs_coverage_summary(caplog):
     assert "3 exact (75%)" in caplog.text
     assert "3 normalized_id (75%)" in caplog.text
     assert "3 with purl" in caplog.text
+
+
+def test_get_repo_dep_manifests_keeps_existing_deps_when_dep_page_node_is_null(
+    caplog,
+):
+    # Arrange
+    dependency = {
+        "packageName": "react",
+        "packageUrl": "pkg:npm/react@18.2.0",
+        "requirements": "18.2.0",
+        "packageManager": "NPM",
+    }
+    manifest_page = {
+        "data": {
+            "organization": {
+                "repository": {
+                    "dependencyGraphManifests": {
+                        "pageInfo": {
+                            "endCursor": "manifest-cursor-1",
+                            "hasNextPage": False,
+                        },
+                        "nodes": [
+                            {
+                                "blobPath": "/package.json",
+                                "dependencies": {
+                                    "pageInfo": {
+                                        "endCursor": "dep-cursor-1",
+                                        "hasNextPage": True,
+                                    },
+                                    "nodes": [dependency],
+                                },
+                            },
+                        ],
+                    },
+                },
+            },
+        },
+    }
+    null_dep_node_page = {
+        "data": {
+            "organization": {
+                "repository": {
+                    "dependencyGraphManifests": {
+                        "pageInfo": {
+                            "endCursor": "manifest-cursor-1",
+                            "hasNextPage": False,
+                        },
+                        "nodes": [None],
+                    },
+                },
+            },
+        },
+    }
+
+    with patch.object(
+        cartography.intel.github.repos,
+        "_fetch_manifest_page",
+        side_effect=[manifest_page, null_dep_node_page],
+    ) as mock_fetch_manifest_page:
+        # Act
+        with caplog.at_level(logging.WARNING, logger="cartography.intel.github.repos"):
+            result = _get_repo_dep_manifests(
+                "token",
+                "https://api.github.com/graphql",
+                "test-org",
+                "test-repo",
+            )
+
+    # Assert
+    assert result == [
+        {
+            "blobPath": "/package.json",
+            "dependencies": {"nodes": [dependency]},
+        },
+    ]
+    assert mock_fetch_manifest_page.call_count == 2
+    assert "null dependency manifest node on dependency page" in caplog.text
+    assert "keeping 1 deps already fetched" in caplog.text
 
 
 def test_enrich_dependencies_with_lockfile_versions():
