@@ -1,6 +1,7 @@
 from typing import Dict
 
 from . import compute
+from . import containerregistry
 from . import encryption
 from . import iam
 from . import logging as ocilogging
@@ -19,4 +20,5 @@ RESOURCE_FUNCTIONS: Dict = {
     "storage": storage.sync,
     "oke": oke.sync,
     "logging": ocilogging.sync,
+    "containerregistry": containerregistry.sync,
 }

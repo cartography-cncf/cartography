@@ -10,6 +10,7 @@ from typing import List
 
 import neo4j
 import oci
+import oci.artifacts
 import oci.key_management
 import oci.logging
 import oci.monitoring
@@ -33,7 +34,7 @@ from . import network  # noqa: F401 (imported for side-effect: registers in RESO
 # from . import compute
 
 logger = logging.getLogger(__name__)
-Resources = namedtuple('Resources', 'compute iam network storage oke monitoring encryption logging')
+Resources = namedtuple('Resources', 'compute iam network storage oke monitoring encryption logging containerregistry')
 
 
 def _sync_one_compartment(
@@ -245,6 +246,18 @@ def _get_logging_resource(credentials: Dict[str, Any]) -> oci.logging.LoggingMan
     :return: A LoggingManagementClient resource object
     """
     return oci.logging.LoggingManagementClient(credentials)
+
+
+def _get_containerregistry_resource(credentials: Dict[str, Any]) -> oci.artifacts.ArtifactsClient:
+    """
+    Instantiates an OCI ArtifactsClient resource object to call the Container Registry API.
+    See https://docs.oracle.com/en-us/iaas/Content/Registry/Concepts/registryoverview.htm.
+    :param credentials: OCI Credentials object
+    :return: An ArtifactsClient resource object
+    """
+    return oci.artifacts.ArtifactsClient(credentials)
+
+
 def _get_storage_resource(credentials: Dict[str, Any]) -> storage.OCIStorageClients:
     """
     Bundle the three OCI SDK clients used by the storage sync (Object Storage,
@@ -279,6 +292,7 @@ def _initialize_resources(credentials: Dict[str, Any]) -> Resources:
     """
     return Resources(
         compute=_get_compute_resource(credentials),
+        containerregistry=_get_containerregistry_resource(credentials),
         encryption=_get_encryption_resource(credentials),
         iam=_get_iam_resource(credentials),
         logging=_get_logging_resource(credentials),
