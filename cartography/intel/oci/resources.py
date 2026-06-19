@@ -4,11 +4,11 @@ from . import compute
 from . import containerregistry
 from . import encryption
 from . import iam
-from . import logging as ocilogging
 from . import monitoring
 from . import network
 from . import oke
 from . import storage
+from . import audit_logging
 
 
 RESOURCE_FUNCTIONS: Dict = {
@@ -21,4 +21,5 @@ RESOURCE_FUNCTIONS: Dict = {
     "oke": oke.sync,
     "logging": ocilogging.sync,
     "containerregistry": containerregistry.sync,
+    "logging": audit_logging.sync,
 }

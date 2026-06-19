@@ -54,9 +54,10 @@ def load_alarms(
     Ingest OCI Monitoring Alarm data into Neo4j.
     """
     ingest_alarm = """
-    MERGE (a:OCIMonitoringAlarm{ocid: $OCID})
+    MERGE (a:OCIMonitoringAlarm{id: $OCID})
     ON CREATE SET a.firstseen = timestamp()
-    SET a.display_name = $DISPLAY_NAME,
+    SET a.ocid = $OCID,
+    a.display_name = $DISPLAY_NAME,
     a.compartment_id = $COMPARTMENT_ID,
     a.resource_type = 'oci-monitoring-alarm',
     a.namespace = $NAMESPACE,
@@ -69,7 +70,7 @@ def load_alarms(
     a.region = $REGION,
     a.lastupdated = $oci_update_tag
     WITH a
-    MATCH (cc:OCICompartment{ocid: $COMPARTMENT_ID})
+    MATCH (cc:OCICompartment{id: $COMPARTMENT_ID})
     MERGE (cc)-[r:RESOURCE]->(a)
     ON CREATE SET r.firstseen = timestamp()
     SET r.lastupdated = $oci_update_tag
@@ -146,16 +147,17 @@ def load_cloud_guard(
     Ingest OCI Cloud Guard configuration into Neo4j.
     """
     ingest_cg = """
-    MERGE (cg:OCICloudGuard{compartment_id: $COMPARTMENT_ID})
+    MERGE (cg:OCICloudGuard{id: $CONFIG_ID})
     ON CREATE SET cg.firstseen = timestamp()
-    SET cg.resource_type = 'oci-monitoring-cloud-guard',
+    SET cg.ocid = $CONFIG_ID,
+    cg.resource_type = 'oci-monitoring-cloud-guard',
     cg.compartment_id = $COMPARTMENT_ID,
     cg.status = $STATUS,
     cg.reporting_region = $REPORTING_REGION,
     cg.region = $REGION,
     cg.lastupdated = $oci_update_tag
     WITH cg
-    MATCH (cc:OCICompartment{ocid: $COMPARTMENT_ID})
+    MATCH (cc:OCICompartment{id: $COMPARTMENT_ID})
     MERGE (cc)-[r:RESOURCE]->(cg)
     ON CREATE SET r.firstseen = timestamp()
     SET r.lastupdated = $oci_update_tag
@@ -163,6 +165,7 @@ def load_cloud_guard(
 
     neo4j_session.run(
         ingest_cg,
+        CONFIG_ID=f"oci.cloudguard.{compartment_id}.{region}",
         COMPARTMENT_ID=compartment_id,
         STATUS=config_data.get("status", "DISABLED"),
         REPORTING_REGION=config_data.get("reporting-region", ""),
@@ -226,10 +229,11 @@ def load_event_rules(
     Ingest OCI Events Rule data into Neo4j.
     """
     ingest_rule = """
-    MERGE (er:OCIEventRule{ocid: $OCID})
+    MERGE (er:OCIEventRule{id: $OCID})
     ON CREATE SET er.firstseen = timestamp(),
     er.createdate = $TIME_CREATED
-    SET er.display_name = $DISPLAY_NAME,
+    SET er.ocid = $OCID,
+    er.display_name = $DISPLAY_NAME,
     er.compartment_id = $COMPARTMENT_ID,
     er.resource_type = 'oci-monitoring-event-rule',
     er.condition = $CONDITION,
@@ -239,7 +243,7 @@ def load_event_rules(
     er.region = $REGION,
     er.lastupdated = $oci_update_tag
     WITH er
-    MATCH (cc:OCICompartment{ocid: $COMPARTMENT_ID})
+    MATCH (cc:OCICompartment{id: $COMPARTMENT_ID})
     MERGE (cc)-[r:RESOURCE]->(er)
     ON CREATE SET r.firstseen = timestamp()
     SET r.lastupdated = $oci_update_tag
@@ -316,10 +320,11 @@ def load_notification_topics(
     Ingest OCI Notification Topic data into Neo4j.
     """
     ingest_topic = """
-    MERGE (t:OCINotificationTopic{ocid: $OCID})
+    MERGE (t:OCINotificationTopic{id: $OCID})
     ON CREATE SET t.firstseen = timestamp(),
     t.createdate = $TIME_CREATED
-    SET t.display_name = $NAME,
+    SET t.ocid = $OCID,
+    t.display_name = $NAME,
     t.compartment_id = $COMPARTMENT_ID,
     t.resource_type = 'oci-monitoring-notification-topic',
     t.topic_id = $TOPIC_ID,
@@ -329,7 +334,7 @@ def load_notification_topics(
     t.region = $REGION,
     t.lastupdated = $oci_update_tag
     WITH t
-    MATCH (cc:OCICompartment{ocid: $COMPARTMENT_ID})
+    MATCH (cc:OCICompartment{id: $COMPARTMENT_ID})
     MERGE (cc)-[r:RESOURCE]->(t)
     ON CREATE SET r.firstseen = timestamp()
     SET r.lastupdated = $oci_update_tag

@@ -52,10 +52,11 @@ def load_vaults(
     Ingest OCI KMS Vault data into Neo4j.
     """
     ingest_vault = """
-    MERGE (v:OCIKmsVault{ocid: $OCID})
+    MERGE (v:OCIKmsVault{id: $OCID})
     ON CREATE SET v.firstseen = timestamp(),
     v.createdate = $TIME_CREATED
-    SET v.display_name = $DISPLAY_NAME,
+    SET v.ocid = $OCID,
+    v.display_name = $DISPLAY_NAME,
     v.compartment_id = $COMPARTMENT_ID,
     v.resource_type = 'oci-kms-vault',
     v.vault_type = $VAULT_TYPE,
@@ -65,7 +66,7 @@ def load_vaults(
     v.region = $REGION,
     v.lastupdated = $oci_update_tag
     WITH v
-    MATCH (cc:OCICompartment{ocid: $COMPARTMENT_ID})
+    MATCH (cc:OCICompartment{id: $COMPARTMENT_ID})
     MERGE (cc)-[r:RESOURCE]->(v)
     ON CREATE SET r.firstseen = timestamp()
     SET r.lastupdated = $oci_update_tag
@@ -172,10 +173,11 @@ def load_keys(
     Ingest OCI KMS Key data into Neo4j and link to vault.
     """
     ingest_key = """
-    MERGE (k:OCIKmsKey{ocid: $OCID})
+    MERGE (k:OCIKmsKey{id: $OCID})
     ON CREATE SET k.firstseen = timestamp(),
     k.createdate = $TIME_CREATED
-    SET k.display_name = $DISPLAY_NAME,
+    SET k.ocid = $OCID,
+    k.display_name = $DISPLAY_NAME,
     k.compartment_id = $COMPARTMENT_ID,
     k.resource_type = 'oci-kms-key',
     k.vault_id = $VAULT_ID,
@@ -186,7 +188,7 @@ def load_keys(
     k.region = $REGION,
     k.lastupdated = $oci_update_tag
     WITH k
-    MATCH (v:OCIKmsVault{ocid: $VAULT_ID})
+    MATCH (v:OCIKmsVault{id: $VAULT_ID})
     MERGE (v)-[r:OCI_KMS_KEY]->(k)
     ON CREATE SET r.firstseen = timestamp()
     SET r.lastupdated = $oci_update_tag
@@ -227,7 +229,7 @@ def sync_keys(
 
     for compartment in compartments:
         query = (
-            "MATCH (:OCICompartment{ocid: $COMPARTMENT_ID})"
+            "MATCH (:OCICompartment{id: $COMPARTMENT_ID})"
             "-[:RESOURCE]->(v:OCIKmsVault) "
             "WHERE v.region = $REGION AND v.lifecycle_state = 'ACTIVE' "
             "RETURN v.ocid as ocid, v.management_endpoint as endpoint"
