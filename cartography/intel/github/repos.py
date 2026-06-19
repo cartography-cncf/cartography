@@ -317,7 +317,7 @@ def _get_repo_dep_manifests(
     api_url: str,
     organization: str,
     repo: str,
-) -> list[dict[str, Any]]:
+) -> tuple[list[dict[str, Any]], bool]:
     """
     Retrieve dependency graph manifests for a single repository.
     Fetches one manifest at a time, and paginates dependencies within each manifest.
@@ -327,11 +327,13 @@ def _get_repo_dep_manifests(
     :param api_url: The Github v4 API endpoint as string.
     :param organization: The name of the target Github organization as string.
     :param repo: The name of the target Github repository as string.
-    :return: A list of manifest node dicts with all their dependencies collected.
+    :return: A tuple of manifest node dicts with all their dependencies collected
+        and whether manifest cleanup is safe.
     """
     manifest_cursor: str | None = None
     has_next_manifest = True
     manifests: list[dict[str, Any]] = []
+    cleanup_safe = True
 
     while has_next_manifest:
         # Save cursor before this manifest so we can re-query the same position
@@ -352,7 +354,7 @@ def _get_repo_dep_manifests(
                 repo,
                 len(manifests),
             )
-            return manifests
+            return manifests, cleanup_safe
 
         repository = resp["data"]["organization"].get("repository")
         dep_manifests = (
@@ -366,7 +368,7 @@ def _get_repo_dep_manifests(
                 repo,
                 len(manifests),
             )
-            return manifests
+            return manifests, cleanup_safe
 
         manifest_page_info = dep_manifests.get("pageInfo", {})
         manifest_cursor = manifest_page_info.get("endCursor")
@@ -378,6 +380,7 @@ def _get_repo_dep_manifests(
 
         manifest = manifest_nodes[0]
         if manifest is None:
+            cleanup_safe = False
             logger.warning(
                 "GitHub returned inaccessible/null dependency manifest node for "
                 "repo %s at manifest cursor %s; skipping manifest page.",
@@ -437,6 +440,7 @@ def _get_repo_dep_manifests(
 
             dep_manifest = dep_nodes_list[0]
             if dep_manifest is None:
+                cleanup_safe = False
                 logger.warning(
                     "GitHub returned inaccessible/null dependency manifest node "
                     "on dependency page for %s in repo %s; keeping %d deps "
@@ -461,7 +465,7 @@ def _get_repo_dep_manifests(
             len(all_dep_nodes),
         )
 
-    return manifests
+    return manifests, cleanup_safe
 
 
 def _get_dep_manifests_for_repos(
@@ -469,7 +473,7 @@ def _get_dep_manifests_for_repos(
     org: str,
     api_url: str,
     token: str,
-) -> dict[str, dict[str, Any]]:
+) -> tuple[dict[str, dict[str, Any]], bool]:
     """
     For every repo in the given list, retrieve its dependency graph manifests individually.
     Fetches one manifest at a time so that a timeout on a single heavy manifest (e.g.
@@ -478,7 +482,8 @@ def _get_dep_manifests_for_repos(
     :param org: The name of the target Github organization as string.
     :param api_url: The Github v4 API endpoint as string.
     :param token: The Github API token as string.
-    :return: A dict mapping repo URL to its dependencyGraphManifests structure.
+    :return: A tuple of repo URL to dependencyGraphManifests structure and
+        whether manifest cleanup is safe.
     """
     logger.info(
         "Fetching dependency graph manifests for %d repos in org %s.",
@@ -487,6 +492,7 @@ def _get_dep_manifests_for_repos(
     )
     result: dict[str, dict[str, Any]] = {}
     failed_count = 0
+    cleanup_safe = True
 
     for repo in repo_raw_data:
         if repo is None:
@@ -497,7 +503,13 @@ def _get_dep_manifests_for_repos(
             continue
 
         try:
-            manifests = _get_repo_dep_manifests(token, api_url, org, repo_name)
+            manifests, repo_cleanup_safe = _get_repo_dep_manifests(
+                token,
+                api_url,
+                org,
+                repo_name,
+            )
+            cleanup_safe = cleanup_safe and repo_cleanup_safe
             if manifests:
                 result[repo_url] = {"nodes": manifests}
                 logger.debug(
@@ -521,7 +533,7 @@ def _get_dep_manifests_for_repos(
             org,
         )
     logger.debug("Fetched dependency manifests for %d repos.", len(result))
-    return result
+    return result, cleanup_safe
 
 
 def _get_repo_collaborators_inner_func(
@@ -2567,7 +2579,7 @@ def sync(
         )
 
     # Fetch dependency graph manifests per-repo to avoid 502s from heavy inline queries
-    dep_manifests_by_url = _get_dep_manifests_for_repos(
+    dep_manifests_by_url, dep_manifests_cleanup_safe = _get_dep_manifests_for_repos(
         repos_json,
         organization,
         github_url,
@@ -2610,7 +2622,14 @@ def sync(
         neo4j_session,
         migration_params,
     )
-    cleanup_github_manifests(neo4j_session, common_job_parameters, owner_org_id)
+    if dep_manifests_cleanup_safe:
+        cleanup_github_manifests(neo4j_session, common_job_parameters, owner_org_id)
+    else:
+        logger.warning(
+            "Skipping GitHub dependency manifest cleanup for org %s because "
+            "GitHub returned inaccessible dependency manifest data.",
+            organization,
+        )
     cleanup_branch_protection_rules(neo4j_session, common_job_parameters, owner_org_id)
     if rulesets_cleanup_safe:
         cleanup_rulesets(neo4j_session, common_job_parameters, owner_org_id)

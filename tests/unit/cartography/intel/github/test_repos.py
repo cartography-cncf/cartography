@@ -325,7 +325,7 @@ def test_get_repo_dep_manifests_skips_first_page_null_manifest_node(caplog):
     ) as mock_fetch_manifest_page:
         # Act
         with caplog.at_level(logging.WARNING, logger="cartography.intel.github.repos"):
-            result = _get_repo_dep_manifests(
+            result, cleanup_safe = _get_repo_dep_manifests(
                 "token",
                 "https://api.github.com/graphql",
                 "test-org",
@@ -334,6 +334,7 @@ def test_get_repo_dep_manifests_skips_first_page_null_manifest_node(caplog):
 
     # Assert
     assert result == []
+    assert cleanup_safe is False
     mock_fetch_manifest_page.assert_called_once_with(
         "token",
         "https://api.github.com/graphql",
@@ -404,7 +405,7 @@ def test_get_repo_dep_manifests_keeps_existing_deps_when_dep_page_node_is_null(
     ) as mock_fetch_manifest_page:
         # Act
         with caplog.at_level(logging.WARNING, logger="cartography.intel.github.repos"):
-            result = _get_repo_dep_manifests(
+            result, cleanup_safe = _get_repo_dep_manifests(
                 "token",
                 "https://api.github.com/graphql",
                 "test-org",
@@ -418,6 +419,7 @@ def test_get_repo_dep_manifests_keeps_existing_deps_when_dep_page_node_is_null(
             "dependencies": {"nodes": [dependency]},
         },
     ]
+    assert cleanup_safe is False
     assert mock_fetch_manifest_page.call_count == 2
     assert "null dependency manifest node on dependency page" in caplog.text
     assert "keeping 1 deps already fetched" in caplog.text
@@ -1126,7 +1128,7 @@ def test_build_branch_data_includes_owner_org_id():
 @patch.object(
     cartography.intel.github.repos,
     "_get_dep_manifests_for_repos",
-    return_value={},
+    return_value=({}, True),
 )
 @patch.object(cartography.intel.github.repos, "get", return_value=[])
 def test_sync_cleans_up_branches_when_org_has_no_repos(
@@ -1184,6 +1186,48 @@ def test_sync_cleans_up_branches_when_org_has_no_repos(
     )
 
 
+@patch.object(cartography.intel.github.repos, "run_analysis_job")
+@patch.object(cartography.intel.github.repos, "cleanup_rulesets")
+@patch.object(cartography.intel.github.repos, "cleanup_branch_protection_rules")
+@patch.object(cartography.intel.github.repos, "cleanup_github_manifests")
+@patch.object(cartography.intel.github.repos, "cleanup_github_branches")
+@patch.object(cartography.intel.github.repos, "load")
+@patch.object(
+    cartography.intel.github.repos,
+    "_get_repo_collaborators_for_multiple_repos",
+    return_value={},
+)
+@patch.object(
+    cartography.intel.github.repos,
+    "_get_dep_manifests_for_repos",
+    return_value=({}, False),
+)
+@patch.object(cartography.intel.github.repos, "get", return_value=[])
+def test_sync_skips_manifest_cleanup_when_dependency_manifest_fetch_is_incomplete(
+    mock_get,
+    mock_get_dep_manifests,
+    mock_get_repo_collaborators,
+    mock_load,
+    mock_cleanup_github_branches,
+    mock_cleanup_github_manifests,
+    mock_cleanup_branch_protection_rules,
+    mock_cleanup_rulesets,
+    mock_run_analysis_job,
+):
+    cartography.intel.github.repos.sync(
+        None,
+        {"UPDATE_TAG": TEST_UPDATE_TAG},
+        "token",
+        "https://api.github.com/graphql",
+        "example-org",
+    )
+
+    mock_cleanup_github_branches.assert_called_once()
+    mock_cleanup_github_manifests.assert_not_called()
+    mock_cleanup_branch_protection_rules.assert_called_once()
+    mock_cleanup_rulesets.assert_called_once()
+
+
 @patch.object(
     cartography.intel.github.repos,
     "get_repo_privileged_details_by_url",
@@ -1209,7 +1253,7 @@ def test_sync_cleans_up_branches_when_org_has_no_repos(
 @patch.object(
     cartography.intel.github.repos,
     "_get_dep_manifests_for_repos",
-    return_value={},
+    return_value=({}, True),
 )
 @patch.object(cartography.intel.github.repos, "get")
 def test_sync_continues_when_privileged_fetch_fails(
