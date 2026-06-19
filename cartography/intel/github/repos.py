@@ -354,7 +354,7 @@ def _get_repo_dep_manifests(
                 repo,
                 len(manifests),
             )
-            return manifests, cleanup_safe
+            return manifests, False
 
         repository = resp["data"]["organization"].get("repository")
         dep_manifests = (
@@ -368,7 +368,7 @@ def _get_repo_dep_manifests(
                 repo,
                 len(manifests),
             )
-            return manifests, cleanup_safe
+            return manifests, False
 
         manifest_page_info = dep_manifests.get("pageInfo", {})
         manifest_cursor = manifest_page_info.get("endCursor")
@@ -409,6 +409,7 @@ def _get_repo_dep_manifests(
             )
 
             if dep_resp is None or "data" not in dep_resp:
+                cleanup_safe = False
                 logger.warning(
                     "Failed to fetch dependency page for %s in repo %s; "
                     "keeping %d deps already fetched for this manifest.",
@@ -425,6 +426,7 @@ def _get_repo_dep_manifests(
                 else None
             )
             if dep_dep_manifests is None:
+                cleanup_safe = False
                 logger.warning(
                     "GitHub API timeout on dependency page for %s in repo %s; "
                     "keeping %d deps already fetched for this manifest.",
@@ -519,6 +521,7 @@ def _get_dep_manifests_for_repos(
                 )
         except requests.exceptions.RequestException:
             failed_count += 1
+            cleanup_safe = False
             logger.warning(
                 "Failed to fetch dependency manifests for repo %s; skipping.",
                 repo_name,
@@ -2627,7 +2630,7 @@ def sync(
     else:
         logger.warning(
             "Skipping GitHub dependency manifest cleanup for org %s because "
-            "GitHub returned inaccessible dependency manifest data.",
+            "GitHub returned incomplete dependency manifest data.",
             organization,
         )
     cleanup_branch_protection_rules(neo4j_session, common_job_parameters, owner_org_id)

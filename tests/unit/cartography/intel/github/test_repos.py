@@ -300,6 +300,63 @@ def test_transform_dependency_graph_logs_coverage_summary(caplog):
     assert "3 with purl" in caplog.text
 
 
+def test_get_repo_dep_manifests_marks_manifest_fetch_failure_unsafe_for_cleanup(
+    caplog,
+):
+    # Arrange
+    manifest_page = {
+        "data": {
+            "organization": {
+                "repository": {
+                    "dependencyGraphManifests": {
+                        "pageInfo": {
+                            "endCursor": "manifest-cursor-1",
+                            "hasNextPage": True,
+                        },
+                        "nodes": [
+                            {
+                                "blobPath": "/package.json",
+                                "dependencies": {
+                                    "pageInfo": {
+                                        "endCursor": None,
+                                        "hasNextPage": False,
+                                    },
+                                    "nodes": [],
+                                },
+                            },
+                        ],
+                    },
+                },
+            },
+        },
+    }
+
+    with patch.object(
+        cartography.intel.github.repos,
+        "_fetch_manifest_page",
+        side_effect=[manifest_page, None],
+    ) as mock_fetch_manifest_page:
+        # Act
+        with caplog.at_level(logging.WARNING, logger="cartography.intel.github.repos"):
+            result, cleanup_safe = _get_repo_dep_manifests(
+                "token",
+                "https://api.github.com/graphql",
+                "test-org",
+                "test-repo",
+            )
+
+    # Assert
+    assert result == [
+        {
+            "blobPath": "/package.json",
+            "dependencies": {"nodes": []},
+        },
+    ]
+    assert cleanup_safe is False
+    assert mock_fetch_manifest_page.call_count == 2
+    assert "No data fetching manifest for repo test-repo" in caplog.text
+
+
 def test_get_repo_dep_manifests_skips_first_page_null_manifest_node(caplog):
     # Arrange
     null_manifest_page = {
@@ -344,6 +401,70 @@ def test_get_repo_dep_manifests_skips_first_page_null_manifest_node(caplog):
     )
     assert "inaccessible/null dependency manifest node" in caplog.text
     assert "skipping manifest page" in caplog.text
+
+
+def test_get_repo_dep_manifests_marks_dependency_fetch_failure_unsafe_for_cleanup(
+    caplog,
+):
+    # Arrange
+    dependency = {
+        "packageName": "react",
+        "packageUrl": "pkg:npm/react@18.2.0",
+        "requirements": "18.2.0",
+        "packageManager": "NPM",
+    }
+    manifest_page = {
+        "data": {
+            "organization": {
+                "repository": {
+                    "dependencyGraphManifests": {
+                        "pageInfo": {
+                            "endCursor": "manifest-cursor-1",
+                            "hasNextPage": False,
+                        },
+                        "nodes": [
+                            {
+                                "blobPath": "/package.json",
+                                "dependencies": {
+                                    "pageInfo": {
+                                        "endCursor": "dep-cursor-1",
+                                        "hasNextPage": True,
+                                    },
+                                    "nodes": [dependency],
+                                },
+                            },
+                        ],
+                    },
+                },
+            },
+        },
+    }
+
+    with patch.object(
+        cartography.intel.github.repos,
+        "_fetch_manifest_page",
+        side_effect=[manifest_page, None],
+    ) as mock_fetch_manifest_page:
+        # Act
+        with caplog.at_level(logging.WARNING, logger="cartography.intel.github.repos"):
+            result, cleanup_safe = _get_repo_dep_manifests(
+                "token",
+                "https://api.github.com/graphql",
+                "test-org",
+                "test-repo",
+            )
+
+    # Assert
+    assert result == [
+        {
+            "blobPath": "/package.json",
+            "dependencies": {"nodes": [dependency]},
+        },
+    ]
+    assert cleanup_safe is False
+    assert mock_fetch_manifest_page.call_count == 2
+    assert "Failed to fetch dependency page" in caplog.text
+    assert "keeping 1 deps already fetched" in caplog.text
 
 
 def test_get_repo_dep_manifests_keeps_existing_deps_when_dep_page_node_is_null(
@@ -423,6 +544,39 @@ def test_get_repo_dep_manifests_keeps_existing_deps_when_dep_page_node_is_null(
     assert mock_fetch_manifest_page.call_count == 2
     assert "null dependency manifest node on dependency page" in caplog.text
     assert "keeping 1 deps already fetched" in caplog.text
+
+
+def test_get_dep_manifests_for_repos_marks_request_exception_unsafe_for_cleanup(
+    caplog,
+):
+    # Arrange
+    repos = [{"name": "test-repo", "url": "https://github.com/test-org/test-repo"}]
+    with patch.object(
+        cartography.intel.github.repos,
+        "_get_repo_dep_manifests",
+        side_effect=cartography.intel.github.repos.requests.exceptions.ConnectionError,
+    ) as mock_get_repo_dep_manifests:
+        # Act
+        with caplog.at_level(logging.WARNING, logger="cartography.intel.github.repos"):
+            result, cleanup_safe = (
+                cartography.intel.github.repos._get_dep_manifests_for_repos(
+                    repos,
+                    "test-org",
+                    "https://api.github.com/graphql",
+                    "token",
+                )
+            )
+
+    # Assert
+    assert result == {}
+    assert cleanup_safe is False
+    mock_get_repo_dep_manifests.assert_called_once_with(
+        "token",
+        "https://api.github.com/graphql",
+        "test-org",
+        "test-repo",
+    )
+    assert "Skipped dependency manifests for 1 of 1 repos" in caplog.text
 
 
 def test_enrich_dependencies_with_lockfile_versions():
