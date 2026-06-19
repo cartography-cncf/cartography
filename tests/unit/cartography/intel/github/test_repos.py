@@ -300,6 +300,51 @@ def test_transform_dependency_graph_logs_coverage_summary(caplog):
     assert "3 with purl" in caplog.text
 
 
+def test_get_repo_dep_manifests_skips_first_page_null_manifest_node(caplog):
+    # Arrange
+    null_manifest_page = {
+        "data": {
+            "organization": {
+                "repository": {
+                    "dependencyGraphManifests": {
+                        "pageInfo": {
+                            "endCursor": "manifest-cursor-1",
+                            "hasNextPage": False,
+                        },
+                        "nodes": [None],
+                    },
+                },
+            },
+        },
+    }
+
+    with patch.object(
+        cartography.intel.github.repos,
+        "_fetch_manifest_page",
+        return_value=null_manifest_page,
+    ) as mock_fetch_manifest_page:
+        # Act
+        with caplog.at_level(logging.WARNING, logger="cartography.intel.github.repos"):
+            result = _get_repo_dep_manifests(
+                "token",
+                "https://api.github.com/graphql",
+                "test-org",
+                "test-repo",
+            )
+
+    # Assert
+    assert result == []
+    mock_fetch_manifest_page.assert_called_once_with(
+        "token",
+        "https://api.github.com/graphql",
+        "test-org",
+        "test-repo",
+        None,
+    )
+    assert "inaccessible/null dependency manifest node" in caplog.text
+    assert "skipping manifest page" in caplog.text
+
+
 def test_get_repo_dep_manifests_keeps_existing_deps_when_dep_page_node_is_null(
     caplog,
 ):
