@@ -3387,12 +3387,9 @@ Represents an IP address range (CIDR block) associated with an EC2 Security Grou
 | **id** | Unique identifier for the IP range (typically the CIDR block) |
 | range | The IP address range in CIDR notation (e.g., 0.0.0.0/0, 10.0.0.0/16) |
 
-#### Relationships
+> **Note**: An AWSIpRange is a *reference* to a CIDR used by a security group rule, not a resource an account owns, so it intentionally has no `(:AWSAccount)-[:RESOURCE]->(:AWSIpRange)` ownership edge. The same CIDR can be referenced by rules in multiple accounts. Genuine CIDR ownership is expressed transitively through VPC membership: `(AWSAccount)-[:RESOURCE]->(AWSVpc)-[:BLOCK_ASSOCIATION]->(AWSCidrBlock)`.
 
-- AWSIpRanges belong to AWS Accounts.
-    ```
-    (AWSAccount)-[RESOURCE]->(AWSIpRange)
-    ```
+#### Relationships
 
 - AWSIpRanges are members of AWSIpRules.
     ```
