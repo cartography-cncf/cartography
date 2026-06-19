@@ -74,3 +74,12 @@
   permissions:
   - cloudformation:UpdateStack
   relationship_name: CAN_EXEC
+# Map principals that can execute code by deploying or updating App Runner services.
+- target_label: AppRunnerService
+  permissions:
+  - apprunner:CreateService
+  relationship_name: CAN_EXEC
+- target_label: AppRunnerService
+  permissions:
+  - apprunner:UpdateService
+  relationship_name: CAN_EXEC
