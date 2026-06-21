@@ -30,6 +30,9 @@ To set up the Entra client,
     - `GroupMember.Read.All`
         - Read all group memberships
         - Type: Application
+    - `RoleManagement.Read.Directory`
+        - Read Entra directory role definitions and role assignments
+        - Type: Application
     - `User.Read.All`
         - Read all users' full profiles
         - Type: Application
