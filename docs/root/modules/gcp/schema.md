@@ -159,7 +159,7 @@ Representation of a GCP [Storage Bucket](https://cloud.google.com/storage/docs/j
     (GCPProject)-[RESOURCE]->(GCPBucket)
     ```
 
-- GCPBuckets can be labelled with GCPBucketLabels.
+- GCPBuckets can be labeled with GCPBucketLabels.
 
     ```
     (GCPBucket)-[LABELED]->(GCPBucketLabel)
