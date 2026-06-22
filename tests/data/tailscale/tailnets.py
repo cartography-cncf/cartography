@@ -1,10 +1,10 @@
 TAILSCALE_TAILNET = {
-    "devicesApprovalOn": "False",
-    "devicesAutoUpdatesOn": "False",
+    "devicesApprovalOn": False,
+    "devicesAutoUpdatesOn": False,
     "devicesKeyDurationDays": "180",
-    "usersApprovalOn": "True",
+    "usersApprovalOn": True,
     "usersRoleAllowedToJoinExternalTailnets": "admin",
-    "networkFlowLoggingOn": "False",
+    "networkFlowLoggingOn": False,
     "regionalRoutingOn": "False",
     "postureIdentityCollectionOn": "False",
 }
