@@ -7,6 +7,7 @@ from typing import cast
 import neo4j
 
 import cartography.intel.github.actions
+import cartography.intel.github.codeowners
 import cartography.intel.github.commits
 import cartography.intel.github.container_image_attestations
 import cartography.intel.github.container_image_tags
@@ -142,6 +143,13 @@ def start_github_ingestion(
             org_name,
         )
         cartography.intel.github.teams.sync_github_teams(
+            neo4j_session,
+            common_job_parameters,
+            token,
+            api_url,
+            org_name,
+        )
+        cartography.intel.github.codeowners.sync(
             neo4j_session,
             common_job_parameters,
             token,

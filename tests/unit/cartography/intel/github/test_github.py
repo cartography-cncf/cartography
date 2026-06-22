@@ -46,6 +46,7 @@ from tests.data.github.rate_limit import RATE_LIMIT_RESPONSE_JSON
 @patch("cartography.intel.github.commits.sync_github_commits")
 @patch("cartography.intel.github._get_repos_from_graph", return_value=[])
 @patch("cartography.intel.github.actions.sync", return_value=[])
+@patch("cartography.intel.github.codeowners.sync")
 @patch("cartography.intel.github.teams.sync_github_teams")
 @patch("cartography.intel.github.dependabot_alerts.sync")
 @patch("cartography.intel.github.personal_access_tokens.sync")
@@ -59,6 +60,7 @@ def test_start_github_ingestion_defers_global_cleanup_until_after_all_orgs(
     mock_personal_access_tokens_sync: Mock,
     mock_dependabot_alerts_sync: Mock,
     mock_teams_sync: Mock,
+    mock_codeowners_sync: Mock,
     mock_actions_sync: Mock,
     mock_get_repos_from_graph: Mock,
     mock_sync_github_commits: Mock,
@@ -93,6 +95,7 @@ def test_start_github_ingestion_defers_global_cleanup_until_after_all_orgs(
     assert mock_repos_sync.call_count == 2
     assert mock_personal_access_tokens_sync.call_count == 2
     assert mock_dependabot_alerts_sync.call_count == 2
+    assert mock_codeowners_sync.call_count == 2
     mock_users_cleanup.assert_called_once_with(neo4j_session, {"UPDATE_TAG": 123})
     mock_cleanup_global_resources.assert_called_once_with(
         neo4j_session,
@@ -126,6 +129,7 @@ def test_start_github_ingestion_defers_global_cleanup_until_after_all_orgs(
 @patch("cartography.intel.github.commits.sync_github_commits")
 @patch("cartography.intel.github._get_repos_from_graph", return_value=[])
 @patch("cartography.intel.github.actions.sync", return_value=[])
+@patch("cartography.intel.github.codeowners.sync")
 @patch("cartography.intel.github.teams.sync_github_teams")
 @patch("cartography.intel.github.dependabot_alerts.sync")
 @patch("cartography.intel.github.personal_access_tokens.sync")
@@ -139,6 +143,7 @@ def test_start_github_ingestion_can_skip_unscoped_cleanup(
     mock_personal_access_tokens_sync: Mock,
     mock_dependabot_alerts_sync: Mock,
     mock_teams_sync: Mock,
+    mock_codeowners_sync: Mock,
     mock_actions_sync: Mock,
     mock_get_repos_from_graph: Mock,
     mock_sync_github_commits: Mock,
@@ -171,6 +176,7 @@ def test_start_github_ingestion_can_skip_unscoped_cleanup(
     mock_repos_sync.assert_called_once()
     mock_personal_access_tokens_sync.assert_called_once()
     mock_dependabot_alerts_sync.assert_called_once()
+    mock_codeowners_sync.assert_called_once()
     mock_cleanup_unscoped_github_resources.assert_not_called()
     assert mock_supply_chain_sync.call_count == 0
 

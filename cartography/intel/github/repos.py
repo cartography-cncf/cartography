@@ -23,6 +23,7 @@ from packaging.utils import canonicalize_name
 from cartography.client.core.tx import load as load_data
 from cartography.graph.job import GraphJob
 from cartography.helpers import backoff_handler
+from cartography.intel.github.codeowners import normalize_repo_relative_path
 from cartography.intel.github.lockfiles import parse_npm_lock
 from cartography.intel.github.lockfiles import parse_uv_lock
 from cartography.intel.github.util import call_github_rest_api
@@ -1339,6 +1340,7 @@ def _transform_dependency_manifests(
             {
                 "id": manifest_id,
                 "blob_path": blob_path,
+                "repo_relative_path": normalize_repo_relative_path(blob_path, repo_url),
                 "filename": filename,
                 "dependencies_count": dependencies_count,
                 "repo_url": repo_url,
@@ -2478,11 +2480,6 @@ def load(
         ),
         None,
     )
-    load_github_dependencies(
-        neo4j_session,
-        common_job_parameters["UPDATE_TAG"],
-        repo_data["dependencies"],
-    )
     if owner_org_id is not None:
         load_github_dependency_manifests(
             neo4j_session,
@@ -2490,6 +2487,12 @@ def load(
             repo_data["manifests"],
             owner_org_id,
         )
+    load_github_dependencies(
+        neo4j_session,
+        common_job_parameters["UPDATE_TAG"],
+        repo_data["dependencies"],
+    )
+    if owner_org_id is not None:
         load_branch_protection_rules(
             neo4j_session,
             common_job_parameters["UPDATE_TAG"],
