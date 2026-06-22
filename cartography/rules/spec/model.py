@@ -46,8 +46,8 @@ class Module(str, Enum):
     DUO = "Duo"
     """Duo authentication"""
 
-    ENTRA = "Entra"
-    """Entra identity and access management"""
+    MICROSOFT = "microsoft"
+    """Microsoft Entra identity and access management"""
 
     GCP = "GCP"
     """Google Cloud Platform"""
@@ -58,7 +58,7 @@ class Module(str, Enum):
     GITLAB = "GitLab"
     """GitLab source code management"""
 
-    GOOGLEWORKSPACE = "GoogleWorkspace"
+    GOOGLEWORKSPACE = "googleworkspace"
     """Google Workspace identity and access management"""
 
     JAMF = "Jamf"
@@ -100,7 +100,7 @@ class Module(str, Enum):
     SENTINELONE = "SentinelOne"
     """SentinelOne endpoint security"""
 
-    SNIPEIT = "Snipe-IT"
+    SNIPEIT = "snipeit"
     """Snipe-IT asset management"""
 
     SPACELIFT = "SpaceLift"
@@ -140,7 +140,7 @@ MODULE_TO_CARTOGRAPHY_INTEL = {
     Module.CROWDSTRIKE: "crowdstrike",
     Module.DIGITALOCEAN: "digitalocean",
     Module.DUO: "duo",
-    Module.ENTRA: "microsoft",
+    Module.MICROSOFT: "microsoft",
     Module.GCP: "gcp",
     Module.GITHUB: "github",
     Module.GITLAB: "gitlab",
