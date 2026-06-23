@@ -17,8 +17,6 @@ from google.cloud.artifactregistry_v1 import ArtifactRegistryClient
 from cartography.client.core.tx import ensure_indexes
 from cartography.client.core.tx import ensure_indexes_for_matchlinks
 from cartography.client.core.tx import load_graph_data
-from cartography.client.core.tx import run_write_query
-from cartography.graph.querybuilder import build_conditional_label_queries
 from cartography.graph.querybuilder import build_ingestion_query
 from cartography.graph.querybuilder import build_matchlink_query
 from cartography.helpers import batch
@@ -84,15 +82,6 @@ def _load_with_progress(
         )
 
 
-def apply_conditional_labels(
-    neo4j_session: neo4j.Session,
-    node_schema: CartographyNodeSchema,
-    **kwargs: Any,
-) -> None:
-    for query in build_conditional_label_queries(node_schema):
-        run_write_query(neo4j_session, query, **kwargs)
-
-
 def load_nodes_without_relationships(
     neo4j_session: neo4j.Session,
     node_schema: CartographyNodeSchema,
@@ -107,7 +96,11 @@ def load_nodes_without_relationships(
         return
 
     ensure_indexes(neo4j_session, node_schema)
-    query = build_ingestion_query(node_schema, selected_relationships=set())
+    query = build_ingestion_query(
+        node_schema,
+        selected_relationships=set(),
+        apply_conditional_labels=apply_labels,
+    )
     _load_with_progress(
         neo4j_session,
         query,
@@ -116,8 +109,6 @@ def load_nodes_without_relationships(
         progress_description=progress_description,
         **kwargs,
     )
-    if apply_labels:
-        apply_conditional_labels(neo4j_session, node_schema, **kwargs)
 
     node_count = len(data)
     stat_handler.incr(f"node.{node_schema.label.lower()}.loaded", node_count)

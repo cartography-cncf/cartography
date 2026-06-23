@@ -187,7 +187,9 @@ def test_load_nodes_without_relationships_logs_batch_progress(caplog):
 
     ensure_indexes.assert_called_once_with(neo4j_session, node_schema)
     build_ingestion_query.assert_called_once_with(
-        node_schema, selected_relationships=set()
+        node_schema,
+        selected_relationships=set(),
+        apply_conditional_labels=False,
     )
     assert load_graph_data.call_count == 2
     assert "Loaded test GAR nodes batch 1/2" in caplog.text
