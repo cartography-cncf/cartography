@@ -6,6 +6,7 @@ import time
 from collections import defaultdict
 from collections import namedtuple
 from collections.abc import Callable
+from dataclasses import dataclass
 from typing import Any
 from typing import cast
 from typing import Dict
@@ -69,6 +70,13 @@ UserAffiliationAndRepoPermission = namedtuple(
         "affiliation",  # 'OUTSIDE', 'DIRECT'
     ],
 )
+
+
+@dataclass(frozen=True)
+class GitHubRepoSyncResult:
+    repos: list[dict[str, Any]]
+    manifests: list[dict[str, Any]]
+    manifests_cleanup_safe: bool
 
 
 GITHUB_ORG_REPOS_PAGINATED_GRAPHQL = """
@@ -2514,7 +2522,7 @@ def sync(
     github_api_key: str,
     github_url: str,
     organization: str,
-) -> None:
+) -> GitHubRepoSyncResult:
     """
     Performs the sequential tasks to collect, transform, and sync github data
     :param neo4j_session: Neo4J session for database interface
@@ -2522,7 +2530,7 @@ def sync(
     :param github_api_key: The API key to access the GitHub v4 API
     :param github_url: The URL for the GitHub v4 endpoint to use
     :param organization: The organization to query GitHub for
-    :return: Nothing
+    :return: Repository and dependency manifest data fetched for this org.
     """
     logger.info("Syncing GitHub repos")
     repos_json = get(github_api_key, github_url, organization)
@@ -2644,3 +2652,9 @@ def sync(
             "Skipping GitHub ruleset cleanup for org %s because ruleset fetch failed.",
             organization,
         )
+
+    return GitHubRepoSyncResult(
+        repos=repo_data["repos"],
+        manifests=repo_data["manifests"],
+        manifests_cleanup_safe=dep_manifests_cleanup_safe,
+    )

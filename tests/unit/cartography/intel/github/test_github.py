@@ -14,6 +14,7 @@ from requests.exceptions import ConnectionError as RequestsConnectionError
 from requests.exceptions import HTTPError
 
 import cartography.intel.github.packages
+from cartography.intel.github.repos import GitHubRepoSyncResult
 from cartography.intel.github.util import _GRAPHQL_RATE_LIMIT_REMAINING_THRESHOLD
 from cartography.intel.github.util import fetch_all
 from cartography.intel.github.util import fetch_all_rest_api_pages
@@ -85,6 +86,19 @@ def test_start_github_ingestion_defers_global_cleanup_until_after_all_orgs(
         update_tag=123,
         github_commit_lookback_days=7,
     )
+    repo_sync_results = [
+        GitHubRepoSyncResult(
+            repos=[{"id": "https://github.com/org-1/repo"}],
+            manifests=[{"id": "https://github.com/org-1/repo#/package.json"}],
+            manifests_cleanup_safe=True,
+        ),
+        GitHubRepoSyncResult(
+            repos=[{"id": "https://github.com/org-2/repo"}],
+            manifests=[{"id": "https://github.com/org-2/repo#/package.json"}],
+            manifests_cleanup_safe=False,
+        ),
+    ]
+    mock_repos_sync.side_effect = repo_sync_results
 
     from cartography.intel.github import start_github_ingestion
 
@@ -96,6 +110,26 @@ def test_start_github_ingestion_defers_global_cleanup_until_after_all_orgs(
     assert mock_personal_access_tokens_sync.call_count == 2
     assert mock_dependabot_alerts_sync.call_count == 2
     assert mock_codeowners_sync.call_count == 2
+    assert mock_codeowners_sync.call_args_list[0].args[-2:] == (
+        repo_sync_results[0].repos,
+        repo_sync_results[0].manifests,
+    )
+    assert (
+        mock_codeowners_sync.call_args_list[0].kwargs[
+            "dependency_manifests_cleanup_safe"
+        ]
+        is True
+    )
+    assert mock_codeowners_sync.call_args_list[1].args[-2:] == (
+        repo_sync_results[1].repos,
+        repo_sync_results[1].manifests,
+    )
+    assert (
+        mock_codeowners_sync.call_args_list[1].kwargs[
+            "dependency_manifests_cleanup_safe"
+        ]
+        is False
+    )
     mock_users_cleanup.assert_called_once_with(neo4j_session, {"UPDATE_TAG": 123})
     mock_cleanup_global_resources.assert_called_once_with(
         neo4j_session,
@@ -165,6 +199,12 @@ def test_start_github_ingestion_can_skip_unscoped_cleanup(
         update_tag=123,
         github_commit_lookback_days=7,
     )
+    repo_sync_result = GitHubRepoSyncResult(
+        repos=[{"id": "https://github.com/org-1/repo"}],
+        manifests=[{"id": "https://github.com/org-1/repo#/package.json"}],
+        manifests_cleanup_safe=True,
+    )
+    mock_repos_sync.return_value = repo_sync_result
 
     from cartography.intel.github import start_github_ingestion
 
@@ -177,6 +217,14 @@ def test_start_github_ingestion_can_skip_unscoped_cleanup(
     mock_personal_access_tokens_sync.assert_called_once()
     mock_dependabot_alerts_sync.assert_called_once()
     mock_codeowners_sync.assert_called_once()
+    assert mock_codeowners_sync.call_args.args[-2:] == (
+        repo_sync_result.repos,
+        repo_sync_result.manifests,
+    )
+    assert (
+        mock_codeowners_sync.call_args.kwargs["dependency_manifests_cleanup_safe"]
+        is True
+    )
     mock_cleanup_unscoped_github_resources.assert_not_called()
     assert mock_supply_chain_sync.call_count == 0
 

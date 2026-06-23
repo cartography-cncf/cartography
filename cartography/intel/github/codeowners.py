@@ -5,7 +5,6 @@ import shlex
 from collections import defaultdict
 from dataclasses import dataclass
 from typing import Any
-from typing import cast
 from urllib.parse import quote
 from urllib.parse import urlsplit
 from urllib.parse import urlunsplit
@@ -15,7 +14,6 @@ import requests
 
 from cartography.client.core.tx import load
 from cartography.client.core.tx import load_matchlinks
-from cartography.client.core.tx import read_list_of_dicts_tx
 from cartography.graph.job import GraphJob
 from cartography.intel.github.util import get_file_content
 from cartography.intel.github.util import github_org_url
@@ -367,48 +365,28 @@ def get_effective_codeowners_file(
     return CodeOwnersFileFetchResult(None, None, cleanup_safe=True)
 
 
-def get_repositories_from_graph(
-    neo4j_session: neo4j.Session,
-    org_url: str,
+def transform_repositories_for_codeowners(
+    repositories: list[dict[str, Any]],
+    owner_org_id: str,
 ) -> list[dict[str, Any]]:
-    query = """
-    MATCH (repo:GitHubRepository)-[:OWNER]->(:GitHubOrganization {id: $org_url})
-    RETURN repo.id AS repo_url,
-           repo.name AS repo_name,
-           repo.defaultbranch AS default_branch
-    ORDER BY repo.id
-    """
-    return cast(
-        list[dict[str, Any]],
-        neo4j_session.execute_read(read_list_of_dicts_tx, query, org_url=org_url),
-    )
-
-
-def get_dependency_manifests_from_graph(
-    neo4j_session: neo4j.Session,
-    org_url: str,
-) -> list[dict[str, Any]]:
-    query = """
-    MATCH (:GitHubOrganization {id: $org_url})-[:RESOURCE]->(manifest:DependencyGraphManifest)
-    WHERE manifest.repo_url IS NOT NULL
-    OPTIONAL MATCH (repo:GitHubRepository {id: manifest.repo_url})-[:HAS_MANIFEST]->(manifest)
-    RETURN manifest.id AS manifest_id,
-           manifest.repo_url AS repo_url,
-           manifest.repo_relative_path AS repo_relative_path,
-           manifest.blob_path AS blob_path,
-           repo.defaultbranch AS default_branch
-    ORDER BY manifest.id
-    """
-    return cast(
-        list[dict[str, Any]],
-        neo4j_session.execute_read(read_list_of_dicts_tx, query, org_url=org_url),
-    )
+    repos = [
+        {
+            "repo_url": repo["id"],
+            "repo_name": repo.get("name"),
+            "default_branch": repo.get("defaultbranch"),
+        }
+        for repo in repositories
+        if repo.get("id") and repo.get("owner_org_id") == owner_org_id
+    ]
+    return sorted(repos, key=lambda repo: repo["repo_url"])
 
 
 def build_manifest_codeowner_matches(
     rules: list[dict[str, Any]],
     manifests: list[dict[str, Any]],
+    default_branches_by_repo_url: dict[str, str | None] | None = None,
 ) -> list[dict[str, Any]]:
+    default_branches_by_repo_url = default_branches_by_repo_url or {}
     rules_by_repo: dict[str, list[dict[str, Any]]] = defaultdict(list)
     for rule in rules:
         rules_by_repo[rule["repo_url"]].append(rule)
@@ -424,14 +402,15 @@ def build_manifest_codeowner_matches(
         ) or normalize_repo_relative_path(
             manifest.get("blob_path"),
             repo_url,
-            manifest.get("default_branch"),
+            manifest.get("default_branch")
+            or default_branches_by_repo_url.get(repo_url),
         )
         matched_rule = match_codeowner_rule_for_path(repo_rules, matched_path)
         if matched_rule is None:
             continue
         matches.append(
             {
-                "manifest_id": manifest["manifest_id"],
+                "manifest_id": manifest.get("manifest_id") or manifest["id"],
                 "rule_id": matched_rule["id"],
                 "matched_path": matched_path,
                 "match_pattern": matched_rule["pattern"],
@@ -478,18 +457,26 @@ def load_manifest_matches(
 
 
 @timeit
-def cleanup(
+def cleanup_manifest_matches(
     neo4j_session: neo4j.Session,
     common_job_parameters: dict[str, Any],
     owner_org_id: str,
 ) -> None:
-    cleanup_params = {**common_job_parameters, "owner_org_id": owner_org_id}
     GraphJob.from_matchlink(
         DependencyGraphManifestToCodeOwnerRuleMatchLink(),
         "GitHubOrganization",
         owner_org_id,
         common_job_parameters["UPDATE_TAG"],
     ).run(neo4j_session)
+
+
+@timeit
+def cleanup_codeowner_rules(
+    neo4j_session: neo4j.Session,
+    common_job_parameters: dict[str, Any],
+    owner_org_id: str,
+) -> None:
+    cleanup_params = {**common_job_parameters, "owner_org_id": owner_org_id}
     GraphJob.from_node_schema(GitHubCodeOwnerRuleSchema(), cleanup_params).run(
         neo4j_session
     )
@@ -502,10 +489,14 @@ def sync(
     github_api_key: str,
     github_url: str,
     organization: str,
+    repositories: list[dict[str, Any]],
+    dependency_manifests: list[dict[str, Any]],
+    *,
+    dependency_manifests_cleanup_safe: bool = True,
 ) -> None:
     update_tag = common_job_parameters["UPDATE_TAG"]
     owner_org_id = github_org_url(github_url, organization)
-    repos = get_repositories_from_graph(neo4j_session, owner_org_id)
+    repos = transform_repositories_for_codeowners(repositories, owner_org_id)
     logger.info(
         "Syncing GitHub CODEOWNERS for %d repositories in org %s.",
         len(repos),
@@ -540,12 +531,26 @@ def sync(
 
     load_codeowner_rules(neo4j_session, all_rules, update_tag, owner_org_id)
 
-    manifests = get_dependency_manifests_from_graph(neo4j_session, owner_org_id)
-    manifest_matches = build_manifest_codeowner_matches(all_rules, manifests)
+    default_branches_by_repo_url = {
+        repo["repo_url"]: repo.get("default_branch") for repo in repos
+    }
+    manifest_matches = build_manifest_codeowner_matches(
+        all_rules,
+        dependency_manifests,
+        default_branches_by_repo_url,
+    )
     load_manifest_matches(neo4j_session, manifest_matches, update_tag, owner_org_id)
 
     if cleanup_safe:
-        cleanup(neo4j_session, common_job_parameters, owner_org_id)
+        if dependency_manifests_cleanup_safe:
+            cleanup_manifest_matches(neo4j_session, common_job_parameters, owner_org_id)
+        else:
+            logger.warning(
+                "Skipping GitHub CODEOWNERS manifest match cleanup for org %s because "
+                "GitHub returned incomplete dependency manifest data.",
+                organization,
+            )
+        cleanup_codeowner_rules(neo4j_session, common_job_parameters, owner_org_id)
     else:
         logger.warning(
             "Skipping GitHub CODEOWNERS cleanup for org %s because at least one repo fetch failed.",

@@ -15,6 +15,34 @@ TEST_REPO_URL = "https://github.com/codeownercorp/sample_repo"
 TEST_API_KEY = "token"
 
 
+def _repository_rows() -> list[dict]:
+    return [
+        {
+            "id": TEST_REPO_URL,
+            "name": "sample_repo",
+            "defaultbranch": "main",
+            "owner_org_id": TEST_GITHUB_ORG_URL,
+        },
+    ]
+
+
+def _manifest_rows() -> list[dict]:
+    return [
+        {
+            "id": f"{TEST_REPO_URL}#/package.json",
+            "repo_url": TEST_REPO_URL,
+            "repo_relative_path": "package.json",
+            "blob_path": "/package.json",
+        },
+        {
+            "id": f"{TEST_REPO_URL}#/src/index.js",
+            "repo_url": TEST_REPO_URL,
+            "repo_relative_path": "src/index.js",
+            "blob_path": "/src/index.js",
+        },
+    ]
+
+
 def _seed_codeowners_prerequisites(neo4j_session) -> None:
     # Arrange
     neo4j_session.run("MATCH (n) DETACH DELETE n")
@@ -64,13 +92,21 @@ def _seed_codeowners_prerequisites(neo4j_session) -> None:
     )
 
 
-def _run_codeowners_sync(neo4j_session, update_tag: int) -> None:
+def _run_codeowners_sync(
+    neo4j_session,
+    update_tag: int,
+    dependency_manifests_cleanup_safe: bool = True,
+    manifests: list[dict] | None = None,
+) -> None:
     sync(
         neo4j_session,
         {"UPDATE_TAG": update_tag},
         TEST_API_KEY,
         TEST_GITHUB_URL,
         TEST_GITHUB_ORG,
+        _repository_rows(),
+        _manifest_rows() if manifests is None else manifests,
+        dependency_manifests_cleanup_safe=dependency_manifests_cleanup_safe,
     )
 
 
@@ -231,4 +267,46 @@ def test_sync_codeowners_fetch_failure_preserves_existing_rules(
     )
     assert {(row["pattern"], row["lastupdated"]) for row in rows} == {
         ("/package.json", TEST_UPDATE_TAG),
+    }
+
+
+def test_sync_codeowners_preserves_manifest_matches_when_manifest_fetch_incomplete(
+    neo4j_session,
+) -> None:
+    # Arrange
+    _seed_codeowners_prerequisites(neo4j_session)
+    content = "/package.json @codeownercorp/security"
+    with patch.object(
+        cartography.intel.github.codeowners,
+        "get_effective_codeowners_file",
+        return_value=CodeOwnersFileFetchResult("CODEOWNERS", content, True),
+    ):
+        _run_codeowners_sync(neo4j_session, TEST_UPDATE_TAG)
+
+    with patch.object(
+        cartography.intel.github.codeowners,
+        "get_effective_codeowners_file",
+        return_value=CodeOwnersFileFetchResult("CODEOWNERS", content, True),
+    ):
+        # Act
+        _run_codeowners_sync(
+            neo4j_session,
+            TEST_UPDATE_TAG_2,
+            dependency_manifests_cleanup_safe=False,
+            manifests=[],
+        )
+
+    # Assert
+    rows = neo4j_session.run(
+        """
+        MATCH (m:DependencyGraphManifest)-[r:MATCHES_CODEOWNER_RULE]->(rule:GitHubCodeOwnerRule)
+        RETURN m.repo_relative_path AS manifest_path,
+               rule.pattern AS pattern,
+               r.lastupdated AS lastupdated
+        """
+    )
+    assert {
+        (row["manifest_path"], row["pattern"], row["lastupdated"]) for row in rows
+    } == {
+        ("package.json", "/package.json", TEST_UPDATE_TAG),
     }

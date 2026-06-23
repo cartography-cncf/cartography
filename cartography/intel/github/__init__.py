@@ -121,7 +121,7 @@ def start_github_ingestion(
             api_url,
             org_name,
         )
-        cartography.intel.github.repos.sync(
+        repo_sync_result = cartography.intel.github.repos.sync(
             neo4j_session,
             common_job_parameters,
             token,
@@ -155,6 +155,9 @@ def start_github_ingestion(
             token,
             api_url,
             org_name,
+            repo_sync_result.repos,
+            repo_sync_result.manifests,
+            dependency_manifests_cleanup_safe=repo_sync_result.manifests_cleanup_safe,
         )
 
         # Sync GitHub Actions (workflows, secrets, variables, environments)

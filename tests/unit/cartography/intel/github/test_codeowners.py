@@ -10,6 +10,7 @@ from cartography.intel.github.codeowners import get_effective_codeowners_file
 from cartography.intel.github.codeowners import match_codeowner_rule_for_path
 from cartography.intel.github.codeowners import normalize_repo_relative_path
 from cartography.intel.github.codeowners import parse_codeowners_content
+from cartography.intel.github.codeowners import transform_repositories_for_codeowners
 
 ORG_URL = "https://github.com/simpsoncorp"
 REPO_URL = "https://github.com/simpsoncorp/sample_repo"
@@ -130,6 +131,90 @@ def test_build_manifest_codeowner_matches_normalizes_legacy_blob_paths() -> None
     assert matches == [
         {
             "manifest_id": "legacy-manifest",
+            "rule_id": "services-owner-rule",
+            "matched_path": "services/api/go.mod",
+            "match_pattern": "/services/api/go.mod",
+        },
+    ]
+
+
+def test_transform_repositories_for_codeowners_filters_org_and_sorts_repos() -> None:
+    # Arrange
+    repositories = [
+        {
+            "id": "https://github.com/simpsoncorp/z-repo",
+            "name": "z-repo",
+            "defaultbranch": "main",
+            "owner_org_id": ORG_URL,
+        },
+        {
+            "id": "https://github.com/othercorp/other-repo",
+            "name": "other-repo",
+            "defaultbranch": "main",
+            "owner_org_id": "https://github.com/othercorp",
+        },
+        {
+            "id": REPO_URL,
+            "name": "sample_repo",
+            "defaultbranch": "release/2026",
+            "owner_org_id": ORG_URL,
+        },
+        {
+            "name": "missing-id",
+            "defaultbranch": "main",
+            "owner_org_id": ORG_URL,
+        },
+    ]
+
+    # Act
+    repos = transform_repositories_for_codeowners(repositories, ORG_URL)
+
+    # Assert
+    assert repos == [
+        {
+            "repo_url": REPO_URL,
+            "repo_name": "sample_repo",
+            "default_branch": "release/2026",
+        },
+        {
+            "repo_url": "https://github.com/simpsoncorp/z-repo",
+            "repo_name": "z-repo",
+            "default_branch": "main",
+        },
+    ]
+
+
+def test_build_manifest_codeowner_matches_uses_repo_sync_manifest_shape() -> None:
+    # Arrange
+    rules = [
+        {
+            "id": "services-owner-rule",
+            "repo_url": REPO_URL,
+            "pattern": "/services/api/go.mod",
+        },
+    ]
+    manifests = [
+        {
+            "id": f"{REPO_URL}#/services/api/go.mod",
+            "repo_url": REPO_URL,
+            "repo_relative_path": None,
+            "blob_path": (
+                "/simpsoncorp/sample_repo/blob/release/2026/services/api/go.mod"
+            ),
+        },
+    ]
+
+    # Act
+    matches = build_manifest_codeowner_matches(
+        rules,
+        manifests,
+        {REPO_URL: "release/2026"},
+    )
+
+    # Assert
+    assert matches == [
+        {
+            "manifest_id": f"{REPO_URL}#/services/api/go.mod",
             "rule_id": "services-owner-rule",
             "matched_path": "services/api/go.mod",
             "match_pattern": "/services/api/go.mod",
