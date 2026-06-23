@@ -65,6 +65,9 @@ def _seed_codeowners_prerequisites(neo4j_session) -> None:
         MERGE (user:GitHubUser {id: $user_url})
         SET user.username = "js-owner"
 
+        MERGE (mixed_case_user:GitHubUser {id: $mixed_case_user_url})
+        SET mixed_case_user.username = "MixedCaseUser"
+
         MERGE (package_manifest:DependencyGraphManifest {id: $package_manifest_id})
         SET package_manifest.blob_path = "/package.json",
             package_manifest.repo_relative_path = "package.json",
@@ -86,6 +89,7 @@ def _seed_codeowners_prerequisites(neo4j_session) -> None:
         repo_url=TEST_REPO_URL,
         team_url=f"https://github.com/orgs/{TEST_GITHUB_ORG}/teams/security",
         user_url="https://github.com/js-owner",
+        mixed_case_user_url="https://github.com/MixedCaseUser",
         package_manifest_id=f"{TEST_REPO_URL}#/package.json",
         js_manifest_id=f"{TEST_REPO_URL}#/src/index.js",
         update_tag=TEST_UPDATE_TAG,
@@ -118,7 +122,7 @@ def test_sync_codeowners_loads_rules_owner_relationships_and_manifest_matches(
     content = """
     * @global-owner
     /package.json @codeownercorp/security
-    src/*.js @js-owner
+    src/*.js @js-owner @MixedCaseUser
     docs/ docs@example.com
     """
 
@@ -171,6 +175,7 @@ def test_sync_codeowners_loads_rules_owner_relationships_and_manifest_matches(
         "id",
         "CODEOWNER",
     ) == {
+        ("src/*.js", "https://github.com/MixedCaseUser"),
         ("src/*.js", "https://github.com/js-owner"),
     }
 

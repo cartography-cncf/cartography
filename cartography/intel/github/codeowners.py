@@ -84,12 +84,9 @@ def normalize_repo_relative_path(
         return normalized
 
     remainder = path_parts[3:]
-    if default_branch:
-        branch_parts = default_branch.strip("/").split("/")
-        if remainder[: len(branch_parts)] == branch_parts:
-            remainder = remainder[len(branch_parts) :]
-        else:
-            remainder = remainder[1:]
+    branch_parts = default_branch.strip("/").split("/") if default_branch else []
+    if branch_parts and remainder[: len(branch_parts)] == branch_parts:
+        remainder = remainder[len(branch_parts) :]
     else:
         remainder = remainder[1:]
     return "/".join(remainder) or None
@@ -141,18 +138,16 @@ def _normalize_owner_tokens(
             if "/" in owner:
                 owner_org, team_slug = owner.split("/", 1)
                 if owner_org and team_slug:
-                    normalized_org = owner_org.lower()
                     normalized_slug = team_slug.lower()
                     owner_team_slugs.append(normalized_slug)
                     team_ids.append(
-                        _github_team_url(org_url, normalized_org, normalized_slug)
+                        _github_team_url(org_url, owner_org, normalized_slug)
                     )
                 else:
                     unresolved_owners.append(token)
             elif owner:
-                login = owner.lower()
-                owner_logins.append(login)
-                user_ids.append(_github_user_url(org_url, login))
+                owner_logins.append(owner.lower())
+                user_ids.append(_github_user_url(org_url, owner))
             else:
                 unresolved_owners.append(token)
         elif EMAIL_RE.match(token):

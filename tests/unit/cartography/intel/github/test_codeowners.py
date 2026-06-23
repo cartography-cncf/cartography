@@ -54,6 +54,29 @@ def test_parse_codeowners_content_keeps_supported_rules_and_owner_tokens() -> No
     assert rules[2]["owner_emails"] == ["docs@example.com"]
 
 
+def test_parse_codeowners_content_preserves_owner_url_casing_for_matchlinks() -> None:
+    # Arrange
+    content = "* @MixedCaseUser @MixedCaseOrg/Security-Team"
+
+    # Act
+    rules = parse_codeowners_content(
+        content,
+        "https://github.com/MixedCaseOrg/sample_repo",
+        "sample_repo",
+        "main",
+        "CODEOWNERS",
+        "https://github.com/MixedCaseOrg",
+    )
+
+    # Assert
+    assert rules[0]["owner_logins"] == ["mixedcaseuser"]
+    assert rules[0]["owner_team_slugs"] == ["security-team"]
+    assert rules[0]["user_ids"] == ["https://github.com/MixedCaseUser"]
+    assert rules[0]["team_ids"] == [
+        "https://github.com/orgs/MixedCaseOrg/teams/security-team",
+    ]
+
+
 def test_codeowners_pattern_matching_uses_github_precedence_examples() -> None:
     # Arrange
     rules = [

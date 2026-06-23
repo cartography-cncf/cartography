@@ -1089,6 +1089,11 @@ def transform(
             dependency_manifests,
             repo_url,
             transformed_manifests,
+            (
+                repo_object["defaultBranchRef"]["name"]
+                if repo_object["defaultBranchRef"]
+                else None
+            ),
         )
         _transform_dependency_graph(
             dependency_manifests,
@@ -1316,6 +1321,7 @@ def _transform_dependency_manifests(
     dependency_manifests: Optional[Dict],
     repo_url: str,
     out_manifests_list: List[Dict],
+    default_branch: Optional[str] = None,
 ) -> None:
     """
     Transform GitHub dependency graph manifests into cartography manifest format.
@@ -1348,7 +1354,11 @@ def _transform_dependency_manifests(
             {
                 "id": manifest_id,
                 "blob_path": blob_path,
-                "repo_relative_path": normalize_repo_relative_path(blob_path, repo_url),
+                "repo_relative_path": normalize_repo_relative_path(
+                    blob_path,
+                    repo_url,
+                    default_branch,
+                ),
                 "filename": filename,
                 "dependencies_count": dependencies_count,
                 "repo_url": repo_url,
