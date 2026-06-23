@@ -153,6 +153,9 @@
 ```{include} ../modules/tenable/schema.md
 ```
 
+```{include} ../modules/wiz/schema.md
+```
+
 ```{include} ../modules/trivy/schema.md
 ```
 
