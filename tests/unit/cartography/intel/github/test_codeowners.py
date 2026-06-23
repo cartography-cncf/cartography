@@ -43,7 +43,6 @@ def test_parse_codeowners_content_keeps_supported_rules_and_owner_tokens() -> No
         "*",
         "*.js",
         "docs/*",
-        "package.json",
     ]
     assert rules[0]["owners"] == ["@global-owner", "@simpsoncorp/team-a"]
     assert rules[0]["owner_logins"] == ["global-owner"]
@@ -52,7 +51,6 @@ def test_parse_codeowners_content_keeps_supported_rules_and_owner_tokens() -> No
     assert rules[0]["team_ids"] == ["https://github.com/orgs/simpsoncorp/teams/team-a"]
     assert rules[1]["owners"] == ["@js-owner"]
     assert rules[2]["owner_emails"] == ["docs@example.com"]
-    assert rules[3]["owners"] == []
 
 
 def test_codeowners_pattern_matching_uses_github_precedence_examples() -> None:
@@ -137,6 +135,28 @@ def test_build_manifest_codeowner_matches_normalizes_legacy_blob_paths() -> None
             "match_pattern": "/services/api/go.mod",
         },
     ]
+
+
+def test_ownerless_codeowners_rules_do_not_override_valid_matches() -> None:
+    # Arrange
+    rules = parse_codeowners_content(
+        """
+        * @global-owner
+        package.json
+        """,
+        REPO_URL,
+        "sample_repo",
+        "main",
+        "CODEOWNERS",
+        ORG_URL,
+    )
+
+    # Act
+    matched_rule = match_codeowner_rule_for_path(rules, "package.json")
+
+    # Assert
+    assert matched_rule is not None
+    assert matched_rule["owners"] == ["@global-owner"]
 
 
 @patch("cartography.intel.github.codeowners.get_file_content")

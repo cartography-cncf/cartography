@@ -218,6 +218,15 @@ def parse_codeowners_content(
             continue
 
         owners = tokens[1:]
+        if not owners:
+            logger.debug(
+                "Skipping ownerless CODEOWNERS pattern on line %d in %s: %s",
+                line_number,
+                repo_url,
+                pattern,
+            )
+            continue
+
         normalized_owners = _normalize_owner_tokens(owners, org_url)
         rules.append(
             {

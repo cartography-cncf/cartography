@@ -597,7 +597,7 @@ Represents a dependency manifest file (e.g., package.json, requirements.txt, pom
 
 ### GitHubCodeOwnerRule
 
-Represents one supported rule line from the effective GitHub `CODEOWNERS` file for a repository default branch.
+Represents one supported rule line from the effective GitHub `CODEOWNERS` file for a repository default branch. Lines without owners and unsupported CODEOWNERS syntax are skipped.
 
 | Field | Description |
 |-------|-------------|
