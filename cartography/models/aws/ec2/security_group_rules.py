@@ -108,8 +108,24 @@ class IpPermissionInboundSchema(CartographyNodeSchema):
 
 @dataclass(frozen=True)
 class IpRangeSchema(CartographyNodeSchema):
+    """
+    There is no sub-resource relationship here because a CIDR that appears as a
+    source or destination in a security group rule is a *reference*, not a
+    resource the account owns. The node is keyed solely on the raw CIDR string,
+    so it is a single global node that can be referenced by rules in more than
+    one account; scoping it to a single account via a (:AWSAccount)-[:RESOURCE]->
+    (:AWSIpRange) edge would falsely imply multi-account ownership. Genuine CIDR
+    ownership is expressed transitively through VPC membership
+    (AWSAccount)-[:RESOURCE]->(AWSVpc)-[:BLOCK_ASSOCIATION]->(AWSCidrBlock).
+
+    This matches AWSIPv4CidrBlockSchema / AWSIPv6CidrBlockSchema, which omit a
+    sub-resource relationship for the same reason. The AWSIpRule /
+    AWSIpPermissionInbound nodes keep their RESOURCE edge to the account because
+    the rule genuinely belongs to that account's security group; only the shared
+    CIDR node should not be owned.
+    """
+
     label: str = "AWSIpRange"
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["IpRange"])
     properties: IpRangeNodeProperties = IpRangeNodeProperties()
-    sub_resource_relationship: IpRuleToAWSAccountRel = IpRuleToAWSAccountRel()
     other_relationships: OtherRelationships = OtherRelationships([IpRangeToIpRuleRel()])
