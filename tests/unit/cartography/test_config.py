@@ -14,6 +14,66 @@ def test_aws_organization_account_ids_preserves_config_positional_compatibility(
     assert parameters.index("aws_organization_account_ids") > parameters.index(
         "_warn_on_legacy_report_source",
     )
+    assert parameters.index("microsoft_tenant_id") > parameters.index(
+        "aws_organization_account_ids",
+    )
+    assert parameters.index("microsoft_client_id") > parameters.index(
+        "microsoft_tenant_id",
+    )
+    assert parameters.index("microsoft_client_secret") > parameters.index(
+        "microsoft_client_id",
+    )
+
+
+def test_config_microsoft_credentials_are_canonical(caplog) -> None:
+    # Arrange and act
+    with caplog.at_level(logging.WARNING):
+        config = Config(
+            neo4j_uri="bolt://localhost:7687",
+            microsoft_tenant_id="tenant-id",
+            microsoft_client_id="client-id",
+            microsoft_client_secret="client-secret",
+        )
+
+    # Assert
+    assert config.microsoft_tenant_id == "tenant-id"
+    assert config.microsoft_client_id == "client-id"
+    assert config.microsoft_client_secret == "client-secret"
+    assert config.entra_tenant_id == "tenant-id"
+    assert config.entra_client_id == "client-id"
+    assert config.entra_client_secret == "client-secret"
+    assert "DEPRECATED" not in caplog.text
+
+
+def test_config_legacy_entra_credentials_populate_microsoft_aliases(caplog) -> None:
+    # Arrange and act
+    with caplog.at_level(logging.WARNING):
+        config = Config(
+            neo4j_uri="bolt://localhost:7687",
+            entra_tenant_id="tenant-id",
+            entra_client_id="client-id",
+            entra_client_secret="client-secret",
+        )
+
+    # Assert
+    assert config.microsoft_tenant_id == "tenant-id"
+    assert config.microsoft_client_id == "client-id"
+    assert config.microsoft_client_secret == "client-secret"
+    assert config.entra_tenant_id == "tenant-id"
+    assert config.entra_client_id == "client-id"
+    assert config.entra_client_secret == "client-secret"
+    assert "DEPRECATED: `entra_tenant_id`/`entra_client_id`" in caplog.text
+    assert "Cartography v1.0.0" in caplog.text
+
+
+def test_config_rejects_mixed_microsoft_and_entra_credentials() -> None:
+    # Act and assert
+    with pytest.raises(ValueError, match="Cannot mix Microsoft credential"):
+        Config(
+            neo4j_uri="bolt://localhost:7687",
+            microsoft_tenant_id="tenant-id",
+            entra_client_id="client-id",
+        )
 
 
 def test_config_legacy_s3_source_shim_matches_cli_normalization(caplog) -> None:

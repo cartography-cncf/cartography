@@ -1,4 +1,5 @@
 import logging
+import os
 import unittest.mock
 from typing import get_args
 
@@ -29,6 +30,127 @@ def test_cli_neo4j_liveness_check_timeout():
     sync.run.assert_called_once()
     config = sync.run.call_args[0][1]
     assert config.neo4j_liveness_check_timeout == 60
+
+
+def test_cli_microsoft_credentials_set_config():
+    # Arrange
+    sync = unittest.mock.MagicMock()
+    cli = cartography.cli.CLI(sync, "test")
+
+    # Act
+    with unittest.mock.patch.dict(os.environ, {"MICROSOFT_SECRET": "secret"}):
+        cli.main(
+            [
+                "--neo4j-uri",
+                settings.get("NEO4J_URL"),
+                "--microsoft-tenant-id",
+                "tenant-id",
+                "--microsoft-client-id",
+                "client-id",
+                "--microsoft-client-secret-env-var",
+                "MICROSOFT_SECRET",
+            ],
+        )
+
+    # Assert
+    sync.run.assert_called_once()
+    config = sync.run.call_args[0][1]
+    assert config.microsoft_tenant_id == "tenant-id"
+    assert config.microsoft_client_id == "client-id"
+    assert config.microsoft_client_secret == "secret"
+    assert config.entra_tenant_id == "tenant-id"
+    assert config.entra_client_id == "client-id"
+    assert config.entra_client_secret == "secret"
+
+
+def test_cli_legacy_entra_credentials_set_microsoft_config(caplog):
+    # Arrange
+    sync = unittest.mock.MagicMock()
+    cli = cartography.cli.CLI(sync, "test")
+
+    # Act
+    with caplog.at_level(logging.WARNING):
+        with unittest.mock.patch.dict(os.environ, {"ENTRA_SECRET": "secret"}):
+            cli.main(
+                [
+                    "--neo4j-uri",
+                    settings.get("NEO4J_URL"),
+                    "--entra-tenant-id",
+                    "tenant-id",
+                    "--entra-client-id",
+                    "client-id",
+                    "--entra-client-secret-env-var",
+                    "ENTRA_SECRET",
+                ],
+            )
+
+    # Assert
+    sync.run.assert_called_once()
+    config = sync.run.call_args[0][1]
+    assert config.microsoft_tenant_id == "tenant-id"
+    assert config.microsoft_client_id == "client-id"
+    assert config.microsoft_client_secret == "secret"
+    assert config.entra_tenant_id == "tenant-id"
+    assert config.entra_client_id == "client-id"
+    assert config.entra_client_secret == "secret"
+    assert caplog.text.count("DEPRECATED: --entra-tenant-id") == 1
+
+
+def test_cli_rejects_mixed_microsoft_and_entra_credentials():
+    # Arrange
+    sync = unittest.mock.MagicMock()
+    cli = cartography.cli.CLI(sync, "test")
+
+    # Act
+    exit_code = cli.main(
+        [
+            "--neo4j-uri",
+            settings.get("NEO4J_URL"),
+            "--microsoft-tenant-id",
+            "tenant-id",
+            "--entra-client-id",
+            "client-id",
+        ],
+    )
+
+    # Assert
+    assert exit_code == 1
+    sync.run.assert_not_called()
+
+
+def test_cli_selected_modules_microsoft_help_shows_microsoft_options(capsys):
+    # Arrange
+    sync = unittest.mock.MagicMock()
+    cli = cartography.cli.CLI(sync, "test")
+    app = cli._build_app(
+        cartography.cli._parse_selected_modules_from_argv(
+            ["--selected-modules", "microsoft", "--help"],
+        ),
+    )
+    annotations = app.registered_commands[0].callback.__annotations__
+
+    # Assert
+    assert get_args(annotations["microsoft_tenant_id"])[1].hidden is False
+    assert get_args(annotations["microsoft_client_id"])[1].hidden is False
+    assert get_args(annotations["microsoft_client_secret_env_var"])[1].hidden is False
+    assert get_args(annotations["entra_tenant_id"])[1].hidden is True
+    assert get_args(annotations["entra_client_id"])[1].hidden is True
+    assert get_args(annotations["entra_client_secret_env_var"])[1].hidden is True
+
+    # Act
+    exit_code = cli.main(["--selected-modules", "microsoft", "--help"])
+    captured = capsys.readouterr()
+
+    # Assert
+    assert exit_code == 0
+    assert "Microsoft Options" in captured.out
+    assert "--microsoft-tenant-id" in captured.out
+    assert "--microsoft-client-id" in captured.out
+    assert "--microsoft-client-secret-env-" in captured.out
+    assert "--entra-tenant-id" not in captured.out
+    assert "--entra-client-id" not in captured.out
+    assert "--entra-client-secret-env-var" not in captured.out
+    sync.run.assert_not_called()
 
 
 def test_cli_version(capsys):
