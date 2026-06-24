@@ -3,7 +3,6 @@ from cartography.graph.analysis import AnalysisJob
 from cartography.graph.analysis import AnalysisStatement
 from cartography.graph.analysis import Expr
 from cartography.graph.analysis import SetProperty
-from cartography.graph.analysis import SetRelationshipProperty
 
 AWS_USER_PROJECTION = AnalysisJob(
     name="Ontology - AWS user projection",
@@ -385,7 +384,6 @@ USER_AUTHORIZED_THIRD_PARTY_APP = AnalysisJob(
                     "u",
                     "AUTHORIZED",
                     "a",
-                    properties={"scopes": []},
                     source_label="User",
                     target_label="ThirdPartyApp",
                 ),
@@ -467,16 +465,7 @@ SUPPLY_CHAIN_SOURCE_FILE = AnalysisJob(
     short_name="supply_chain_source_file",
     statements=(
         AnalysisStatement(
-            match="MATCH (i:Image)-[r:PACKAGED_FROM]->() WHERE r.dockerfile_path IS NULL AND i.source_file IS NOT NULL",
-            effects=(
-                SetRelationshipProperty(
-                    "r",
-                    "dockerfile_path",
-                    Expr("i.source_file"),
-                    source_label="Image",
-                    rel_label="PACKAGED_FROM",
-                ),
-            ),
+            query="MATCH (i:Image)-[r:PACKAGED_FROM]->() WHERE r.dockerfile_path IS NULL AND i.source_file IS NOT NULL SET r.dockerfile_path = i.source_file",
         ),
     ),
 )

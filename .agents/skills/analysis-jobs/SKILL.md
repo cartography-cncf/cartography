@@ -1,11 +1,11 @@
 ---
 name: analysis-jobs
-description: Add a post-ingestion analysis job (JSON Cypher file) to a Cartography module to enrich the graph after sync. Use when the user asks to compute internet exposure, propagate inherited permissions, link Human / canonical ontology nodes, score risk, or add cross-resource analysis after data is loaded.
+description: Add a post-ingestion typed analysis job to a Cartography module to enrich the graph after sync. Use when the user asks to compute internet exposure, propagate inherited permissions, link Human / canonical ontology nodes, score risk, or add cross-resource analysis after data is loaded.
 ---
 
 # analysis-jobs
 
-Analysis jobs are post-ingestion Cypher queries (JSON files) that enrich the graph with computed relationships and properties. They run **after** data is loaded and perform cross-node work that cannot be done during the initial load.
+Analysis jobs are post-ingestion typed Python definitions under `cartography/models/*/analysis.py` that enrich the graph with computed relationships and properties. Custom JSON jobs are still supported for local extensions and legacy cleanup. They run **after** data is loaded and perform cross-node work that cannot be done during the initial load.
 
 ## When to use analysis jobs
 
@@ -30,62 +30,56 @@ Use them when you need to:
 4. **Clean up stale data** that the analysis job creates (don't leave orphan edges between syncs).
 5. **Order statements correctly to avoid read windows.**
     - **Properties:** clean up first (`REMOVE n.attr`), then SET. Cleanup of attributes can usually run in a single transaction.
-    - **Relationships:** MERGE first, then DELETE stale (`WHERE r.lastupdated <> $UPDATE_TAG`). Iterative DELETE commits per batch, so a leading DELETE of relationships exposes a graph with those edges missing to concurrent readers until the MERGE finishes. MERGE is idempotent and bumps `r.lastupdated`, so the trailing DELETE only targets edges that genuinely no longer have a current basis. Canonical example: `cartography/data/jobs/analysis/aws_lambda_ecr.json`.
+    - **Relationships:** MERGE first, then DELETE stale (`WHERE r.lastupdated <> $UPDATE_TAG`). Iterative DELETE commits per batch, so a leading DELETE of relationships exposes a graph with those edges missing to concurrent readers until the MERGE finishes. MERGE is idempotent and bumps `r.lastupdated`, so the trailing DELETE only targets edges that genuinely no longer have a current basis. Canonical example: `AWS_LAMBDA_ECR` in `cartography/models/aws/analysis.py`.
 
 ## Instructions
 
 ### Step 1 — Pick global vs scoped
 
-| Type    | Runs                                  | Location                                    | Helper                          |
-| ------- | ------------------------------------- | ------------------------------------------- | ------------------------------- |
-| Global  | Once after all accounts / projects    | `cartography/data/jobs/analysis/`           | `run_analysis_job()`            |
-| Scoped  | Once per account / project / tenant   | `cartography/data/jobs/scoped_analysis/`    | `run_scoped_analysis_job()`     |
+| Type    | Runs                                  | Location                            | Helper                          |
+| ------- | ------------------------------------- | ----------------------------------- | ------------------------------- |
+| Global  | Once after all accounts / projects    | `cartography/models/*/analysis.py`  | `run_analysis_job()`            |
+| Scoped  | Once per account / project / tenant   | `cartography/models/*/analysis.py`  | `run_scoped_analysis_job()`     |
 
 Examples:
 
 - Internet exposure that needs to see all security groups across all accounts -> **global**.
 - IAM instance profile analysis that runs per AWS account -> **scoped**.
 
-### Step 2 — Author the JSON file
+### Step 2 — Author the typed job
 
-```json
-{
-  "name": "Human-readable name for logging",
-  "statements": [
-    {
-      "__comment__": "Optional comment explaining this query",
-      "query": "MATCH (n:NodeType) WHERE ... SET n.property = value",
-      "iterative": false
-    },
-    {
-      "__comment__": "Iterative queries for large datasets",
-      "query": "MATCH (n:NodeType) WHERE n.property IS NULL WITH n LIMIT $LIMIT_SIZE SET n.property = value RETURN COUNT(*) AS TotalCompleted",
-      "iterative": true,
-      "iterationsize": 1000
-    }
-  ]
-}
+```python
+AnalysisJob(
+    name="Human-readable name for logging",
+    short_name="your_module_exposure_analysis",
+    statements=(
+        AnalysisStatement(
+            match="MATCH (n:NodeType) WHERE ...",
+            effects=(SetProperty("n", "property", True, label="NodeType"),),
+        ),
+    ),
+)
 ```
 
 ### Step 3 — Write the queries
 
 **Non-iterative** — single execution, OK for queries touching a manageable number of nodes:
 
-```json
-{
-  "query": "MATCH (instance:GCPInstance) WHERE ... SET instance.exposed_internet = true",
-  "iterative": false
-}
+```python
+AnalysisStatement(
+    match="MATCH (instance:GCPInstance) WHERE ...",
+    effects=(SetProperty("instance", "exposed_internet", True, label="GCPInstance"),),
+)
 ```
 
 **Iterative** — required for large datasets. Must return `TotalCompleted`:
 
-```json
-{
-  "query": "MATCH (n:Node) WHERE n.stale = true WITH n LIMIT $LIMIT_SIZE DELETE n RETURN COUNT(*) AS TotalCompleted",
-  "iterative": true,
-  "iterationsize": 1000
-}
+```python
+AnalysisStatement(
+    query="MATCH (n:Node) WHERE n.stale = true WITH n LIMIT $LIMIT_SIZE DELETE n RETURN COUNT(*) AS TotalCompleted",
+    iterative=True,
+    iterationsize=1000,
+)
 ```
 
 ### Step 4 — Available parameters
@@ -102,6 +96,7 @@ Examples:
 
 ```python
 from cartography.util import run_analysis_job
+from cartography.models.your_module.analysis import YOUR_MODULE_EXPOSURE_ANALYSIS
 
 @timeit
 def start_your_module_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
@@ -111,7 +106,7 @@ def start_your_module_ingestion(neo4j_session: neo4j.Session, config: Config) ->
         _sync_one_account(neo4j_session, account, config.update_tag, common_job_parameters)
 
     run_analysis_job(
-        "your_module_exposure_analysis.json",
+        YOUR_MODULE_EXPOSURE_ANALYSIS,
         neo4j_session,
         common_job_parameters,
     )
@@ -121,6 +116,7 @@ def start_your_module_ingestion(neo4j_session: neo4j.Session, config: Config) ->
 
 ```python
 from cartography.util import run_scoped_analysis_job
+from cartography.models.your_module.analysis import YOUR_MODULE_ACCOUNT_ANALYSIS
 
 def _sync_one_account(neo4j_session, account_id, update_tag, common_job_parameters):
     common_job_parameters["ACCOUNT_ID"] = account_id
@@ -128,7 +124,7 @@ def _sync_one_account(neo4j_session, account_id, update_tag, common_job_paramete
     sync_resources(neo4j_session, account_id, update_tag, common_job_parameters)
 
     run_scoped_analysis_job(
-        "your_module_account_analysis.json",
+        YOUR_MODULE_ACCOUNT_ANALYSIS,
         neo4j_session,
         common_job_parameters,
     )
@@ -138,10 +134,11 @@ def _sync_one_account(neo4j_session, account_id, update_tag, common_job_paramete
 
 ```python
 from cartography.util import run_analysis_and_ensure_deps
+from cartography.models.your_module.analysis import YOUR_MODULE_COMBINED_ANALYSIS
 
 def _perform_analysis(requested_syncs, neo4j_session, common_job_parameters):
     run_analysis_and_ensure_deps(
-        "your_module_combined_analysis.json",
+        YOUR_MODULE_COMBINED_ANALYSIS,
         {"ec2:instance", "ec2:security_group"},  # required upstream syncs
         set(requested_syncs),
         common_job_parameters,
