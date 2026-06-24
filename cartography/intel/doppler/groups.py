@@ -1,3 +1,4 @@
+import logging
 from typing import Any
 
 import neo4j
@@ -11,6 +12,8 @@ from cartography.intel.doppler.util import paginated_get
 from cartography.models.doppler.group import DopplerGroupMembershipMatchLink
 from cartography.models.doppler.group import DopplerGroupSchema
 from cartography.util import timeit
+
+logger = logging.getLogger(__name__)
 
 
 @timeit
@@ -40,10 +43,19 @@ def get(
     memberships: list[dict[str, Any]] = []
     for group in groups:
         slug = group["slug"]
-        req = api_session.get(
-            f"{base_url}/workplace/groups/group/{slug}", timeout=_TIMEOUT
-        )
-        req.raise_for_status()
+        # Best-effort: a single group's member fetch failing (e.g. it was deleted
+        # mid-sync, or a permissions edge case) should not abort the whole workplace
+        # sync, so log and skip that group's memberships.
+        try:
+            req = api_session.get(
+                f"{base_url}/workplace/groups/group/{slug}", timeout=_TIMEOUT
+            )
+            req.raise_for_status()
+        except requests.exceptions.HTTPError as e:
+            logger.warning(
+                "Failed to fetch members for Doppler group %s, skipping: %s", slug, e
+            )
+            continue
         members = req.json().get("group", {}).get("members", []) or []
         for member in members:
             memberships.append({"user_id": member["slug"], "group_slug": slug})

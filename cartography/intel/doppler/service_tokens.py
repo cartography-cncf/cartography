@@ -1,3 +1,4 @@
+import logging
 from typing import Any
 
 import neo4j
@@ -8,6 +9,8 @@ from cartography.graph.job import GraphJob
 from cartography.intel.doppler.util import _TIMEOUT
 from cartography.models.doppler.service_token import DopplerServiceTokenSchema
 from cartography.util import timeit
+
+logger = logging.getLogger(__name__)
 
 
 @timeit
@@ -35,12 +38,22 @@ def get(
 ) -> list[dict[str, Any]]:
     tokens: list[dict[str, Any]] = []
     for config in configs:
-        req = api_session.get(
-            f"{base_url}/configs/config/tokens",
-            params={"project": config["project"], "config": config["config"]},
-            timeout=_TIMEOUT,
-        )
-        req.raise_for_status()
+        # Best-effort per config: a single inaccessible/missing config (e.g. a 404)
+        # should not halt service-token ingestion for every other config.
+        try:
+            req = api_session.get(
+                f"{base_url}/configs/config/tokens",
+                params={"project": config["project"], "config": config["config"]},
+                timeout=_TIMEOUT,
+            )
+            req.raise_for_status()
+        except requests.exceptions.HTTPError as e:
+            logger.warning(
+                "Failed to fetch service tokens for Doppler config %s, skipping: %s",
+                config["config_id"],
+                e,
+            )
+            continue
         for token in req.json().get("tokens", []) or []:
             token["config_id"] = config["config_id"]
             tokens.append(token)

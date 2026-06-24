@@ -43,7 +43,17 @@ def paginated_get(
             timeout=timeout,
         )
         req.raise_for_status()
-        page_results = req.json().get(results_key, []) or []
+        body = req.json()
+        # Fail fast if the expected list key is missing: a silent fallback to [] would
+        # mask an API shape / auth change and could trigger destructive cleanup of an
+        # otherwise-populated node type. An explicitly empty list is fine.
+        if not isinstance(body, dict) or results_key not in body:
+            raise ValueError(
+                f"Doppler response from {url} is missing the expected "
+                f"'{results_key}' key; got keys: "
+                f"{sorted(body) if isinstance(body, dict) else type(body).__name__}",
+            )
+        page_results = body[results_key] or []
         results.extend(page_results)
         if len(page_results) < _PER_PAGE:
             break

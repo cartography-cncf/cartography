@@ -1,3 +1,4 @@
+import logging
 from typing import Any
 
 import neo4j
@@ -8,6 +9,8 @@ from cartography.graph.job import GraphJob
 from cartography.intel.doppler.util import _TIMEOUT
 from cartography.models.doppler.trusted_ip import DopplerTrustedIPSchema
 from cartography.util import timeit
+
+logger = logging.getLogger(__name__)
 
 
 @timeit
@@ -36,12 +39,22 @@ def get(
     trusted_ips: list[dict[str, Any]] = []
     for config in configs:
         config_id = config["config_id"]
-        req = api_session.get(
-            f"{base_url}/configs/config/trusted_ips",
-            params={"project": config["project"], "config": config["config"]},
-            timeout=_TIMEOUT,
-        )
-        req.raise_for_status()
+        # Best-effort per config: a single inaccessible/missing config (e.g. a 404)
+        # should not halt trusted-IP ingestion for every other config.
+        try:
+            req = api_session.get(
+                f"{base_url}/configs/config/trusted_ips",
+                params={"project": config["project"], "config": config["config"]},
+                timeout=_TIMEOUT,
+            )
+            req.raise_for_status()
+        except requests.exceptions.HTTPError as e:
+            logger.warning(
+                "Failed to fetch trusted IPs for Doppler config %s, skipping: %s",
+                config_id,
+                e,
+            )
+            continue
         for ip in req.json().get("ips", []) or []:
             trusted_ips.append(
                 {"id": f"{config_id}/{ip}", "cidr": ip, "config_id": config_id}

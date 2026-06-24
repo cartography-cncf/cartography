@@ -1,3 +1,4 @@
+import logging
 from typing import Any
 
 import neo4j
@@ -8,6 +9,8 @@ from cartography.graph.job import GraphJob
 from cartography.intel.doppler.util import _TIMEOUT
 from cartography.models.doppler.secret import DopplerSecretSchema
 from cartography.util import timeit
+
+logger = logging.getLogger(__name__)
 
 
 @timeit
@@ -41,12 +44,22 @@ def get(
             config["config"],
             config["config_id"],
         )
-        req = api_session.get(
-            f"{base_url}/configs/config/secrets/names",
-            params={"project": project, "config": name},
-            timeout=_TIMEOUT,
-        )
-        req.raise_for_status()
+        # Best-effort per config: a single inaccessible/missing config (e.g. a 404)
+        # should not halt secret-name ingestion for every other config.
+        try:
+            req = api_session.get(
+                f"{base_url}/configs/config/secrets/names",
+                params={"project": project, "config": name},
+                timeout=_TIMEOUT,
+            )
+            req.raise_for_status()
+        except requests.exceptions.HTTPError as e:
+            logger.warning(
+                "Failed to fetch secret names for Doppler config %s, skipping: %s",
+                config_id,
+                e,
+            )
+            continue
         for secret_name in req.json().get("names", []) or []:
             secrets.append(
                 {
