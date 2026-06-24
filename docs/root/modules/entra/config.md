@@ -1,3 +1,7 @@
+---
+orphan: true
+---
+
 ## Entra Configuration
 
 The canonical configuration page for this data source is now [Microsoft Configuration](../microsoft/config.md). The `microsoft` module is the top-level Microsoft Graph ingestion module; Entra ID is one of its submodules.
