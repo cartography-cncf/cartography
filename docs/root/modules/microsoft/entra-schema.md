@@ -2,6 +2,8 @@
 orphan: true
 ---
 
+<!-- entra-schema-content -->
+
 ## Entra Schema
 
 ### EntraTenant
@@ -12,7 +14,7 @@ Representation of an Entra (formerly Azure AD) Tenant.
 
 |Field | Description|
 |-------|-------------|
-|id | Entra Tenant ID (GUID)|
+|**id** | Entra Tenant ID (GUID)|
 |created_date_time | Date and time when the tenant was created|
 |default_usage_location | Default location for usage reporting|
 |deleted_date_time | Date and time when the tenant was deleted (if applicable)|
@@ -36,7 +38,7 @@ Representation of an Entra [User](https://learn.microsoft.com/en-us/graph/api/us
 
 |Field | Description|
 |-------|-------------|
-|id | Entra User ID (GUID)|
+|**id** | Entra User ID (GUID)|
 |user_principal_name | User Principal Name (UPN) of the user|
 |display_name | Display name of the user|
 |given_name | Given (first) name of the user|
@@ -100,7 +102,7 @@ Representation of an Entra [OU](https://learn.microsoft.com/en-us/graph/api/admi
 
 |Field | Description|
 |-------|-------------|
-|id | Entra Administrative Unit (OU) ID (GUID)|
+|**id** | Entra Administrative Unit (OU) ID (GUID)|
 |display_name | Display name of the administrative unit|
 |description| Description of the administrative unit|
 |membership_type| Membership type ("Assigned" for static or "Dynamic for rule-based)|
@@ -124,7 +126,7 @@ Representation of an Entra [Group](https://learn.microsoft.com/en-us/graph/api/g
 
 |Field | Description|
 |-------|-------------|
-|id | Entra Group ID (GUID)|
+|**id** | Entra Group ID (GUID)|
 |display_name | Display name of the group|
 |description | Description of the group|
 |mail | Primary email address of the group|
@@ -171,7 +173,7 @@ Representation of an Entra [Application](https://learn.microsoft.com/en-us/graph
 
 |Field | Description|
 |-------|-------------|
-|id | Entra Application ID (GUID)|
+|**id** | Entra Application ID (GUID)|
 |app_id | Application (client) ID - the unique identifier for the application|
 |display_name | Display name of the application|
 |publisher_domain | Publisher domain of the application|
@@ -206,7 +208,7 @@ Representation of an Entra [App Role Assignment](https://learn.microsoft.com/en-
 
 |Field | Description|
 |-------|-------------|
-|id | Unique identifier for the app role assignment|
+|**id** | Unique identifier for the app role assignment|
 |app_role_id | The ID of the app role assigned|
 |created_date_time | Date and time when the assignment was created|
 |principal_id | The ID of the user, group, or service principal assigned the role|
@@ -249,7 +251,7 @@ Representation of an Entra [Service Principal](https://learn.microsoft.com/en-us
 
 |Field | Description|
 |-------|-------------|
-|id | Entra Service Principal ID (GUID)|
+|**id** | Entra Service Principal ID (GUID)|
 |app_id | Application (client) ID - the unique identifier for the application|
 |display_name | Display name of the service principal|
 |reply_urls | List of reply URLs for the service principal|
@@ -293,7 +295,7 @@ Representation of an Entra directory [Role Definition](https://learn.microsoft.c
 
 |Field | Description|
 |-------|-------------|
-|id | Unique identifier for the role definition|
+|**id** | Unique identifier for the role definition|
 |display_name | Display name of the directory role (e.g. "Global Administrator")|
 |description | Description of what the role grants|
 |is_built_in | Whether this is a built-in role (vs. a custom role)|
@@ -321,7 +323,7 @@ Representation of an Entra directory [Role Assignment](https://learn.microsoft.c
 
 |Field | Description|
 |-------|-------------|
-|id | Unique identifier for the role assignment|
+|**id** | Unique identifier for the role assignment|
 |role_definition_id | The ID of the assigned role definition|
 |principal_id | The ID of the user, group, or service principal granted the role|
 |directory_scope_id | The directory scope of the assignment (e.g. "/" for tenant-wide)|
