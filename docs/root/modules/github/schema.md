@@ -10,16 +10,20 @@ O -- RESOURCE --> OS(GitHubActionsSecret)
 O -- RESOURCE --> OV(GitHubActionsVariable)
 O -- RESOURCE --> A(GitHubAction)
 O -- RESOURCE --> DA(GitHubDependabotAlert)
+O -- RESOURCE --> PAT(GitHubPersonalAccessToken)
 U(GitHubUser) -- MEMBER_OF --> O
 U -- ADMIN_OF --> O
 U -- UNAFFILIATED --> O
 U -- OWNER --> R
+PAT -- OWNED_BY --> U
 U -- OUTSIDE_COLLAB_{ACTION} --> R
 U -- DIRECT_COLLAB_{ACTION} --> R
 U -- COMMITTED_TO --> R
 R -- LANGUAGE --> L(ProgrammingLanguage)
 R -- BRANCH --> B(GitHubBranch)
 R -- HAS_RULE --> BPR(GitHubBranchProtectionRule)
+R -- HAS_RULESET --> GRS(GitHubRuleset)
+GRS -- CONTAINS_RULE --> RSR(GitHubRulesetRule)
 R -- REQUIRES --> D(Dependency)
 R -- HAS_MANIFEST --> M(DependencyGraphManifest)
 R -- HAS_WORKFLOW --> W(GitHubWorkflow)
@@ -29,14 +33,15 @@ R -- HAS_ENVIRONMENT --> E(GitHubEnvironment)
 DA -- FOUND_IN --> R
 DA -- DISMISSED_BY --> U
 DA -- ASSIGNED_TO --> U
+PAT -- CAN_ACCESS --> R
 W -- USES_ACTION --> A(GitHubAction)
 W -- REFERENCES_SECRET --> RS
 E -- HAS_SECRET --> ES(GitHubActionsSecret)
 E -- HAS_VARIABLE --> EV(GitHubActionsVariable)
 M -- HAS_DEP --> D
 T -- {ROLE} --> R
-T -- MEMBER_OF_TEAM --> T
-U -- MEMBER --> T
+T -- MEMBER_OF --> T
+U -- MEMBER_OF --> T
 U -- MAINTAINER --> T
 I(Image) -- PACKAGED_FROM --> R
 I(Image) -- PACKAGED_BY --> W
@@ -73,11 +78,11 @@ Representation of a single GitHubRepository (repo) [repository object](https://d
 
 #### Relationships
 
-- GitHubUsers or GitHubOrganizations own GitHubRepositories.
+- GitHubRepositories are owned by GitHubUsers or GitHubOrganizations.
 
     ```
-    (GitHubUser)-[OWNER]->(GitHubRepository)
-    (GitHubOrganization)-[OWNER]->(GitHubRepository)
+    (GitHubRepository)-[OWNER]->(GitHubUser)
+    (GitHubRepository)-[OWNER]->(GitHubOrganization)
     ```
 
 - GitHubRepositories in an organization can have [outside collaborators](https://docs.github.com/en/graphql/reference/enums#collaboratoraffiliation) who may be granted different levels of access, including ADMIN,
@@ -105,6 +110,10 @@ WRITE, MAINTAIN, TRIAGE, and READ ([Reference](https://docs.github.com/en/graphq
 - GitHubRepositories have GitHubBranchProtectionRules.
     ```
    (GitHubRepository)-[:HAS_RULE]->(GitHubBranchProtectionRule)
+    ```
+- GitHubRepositories have GitHubRulesets.
+    ```
+   (GitHubRepository)-[:HAS_RULESET]->(GitHubRuleset)
     ```
 - GitHubTeams can have various levels of [access](https://docs.github.com/en/graphql/reference/enums#repositorypermission) to GitHubRepositories.
 
@@ -147,16 +156,22 @@ Representation of a single GitHubOrganization [organization object](https://deve
 
 #### Relationships
 
-- GitHubOrganizations own GitHubRepositories.
+- GitHubRepositories can be owned by GitHubOrganizations.
 
     ```
-    (GitHubOrganization)-[OWNER]->(GitHubRepository)
+    (GitHubRepository)-[OWNER]->(GitHubOrganization)
     ```
 
 - GitHubTeams are resources under GitHubOrganizations
 
     ```
     (GitHubOrganization)-[RESOURCE]->(GitHubTeam)
+    ```
+
+- GitHubPersonalAccessTokens are resources under GitHubOrganizations.
+
+    ```
+    (GitHubOrganization)-[RESOURCE]->(GitHubPersonalAccessToken)
     ```
 
 - GitHubUsers relate to GitHubOrganizations in a few ways:
@@ -209,13 +224,13 @@ A GitHubTeam [organization object](https://docs.github.com/en/graphql/reference/
 - GitHubTeams may be children of other teams:
 
     ```
-    (GitHubTeam)-[MEMBER_OF_TEAM]->(GitHubTeam)
+    (GitHubTeam)-[MEMBER_OF]->(GitHubTeam)
     ```
 
 - GitHubUsers may be ['immediate'](https://docs.github.com/en/graphql/reference/enums#teammembershiptype) members of a team (as opposed to being members via membership in a child team), with their membership [role](https://docs.github.com/en/graphql/reference/enums#teammemberrole) being MEMBER or MAINTAINER.
 
     ```
-    (GitHubUser)-[MEMBER|MAINTAINER]->(GitHubTeam)
+    (GitHubUser)-[MEMBER_OF|MAINTAINER]->(GitHubTeam)
     ```
 
 
@@ -243,10 +258,10 @@ Representation of a single GitHubUser [user object](https://developer.github.com
 
 #### Relationships
 
-- GitHubUsers own GitHubRepositories.
+- GitHubRepositories can be owned by GitHubUsers.
 
     ```
-    (GitHubUser)-[OWNER]->(GitHubRepository)
+    (GitHubRepository)-[OWNER]->(GitHubUser)
     ```
 
 - GitHubRepositories in an organization can have [outside collaborators](https://docs.github.com/en/graphql/reference/enums#collaboratoraffiliation) who may be granted different levels of access, including ADMIN,
@@ -283,13 +298,13 @@ WRITE, MAINTAIN, TRIAGE, and READ ([Reference](https://docs.github.com/en/graphq
 - GitHubTeams may be children of other teams:
 
     ```
-    (GitHubTeam)-[MEMBER_OF_TEAM]->(GitHubTeam)
+    (GitHubTeam)-[MEMBER_OF]->(GitHubTeam)
     ```
 
 - GitHubUsers may be ['immediate'](https://docs.github.com/en/graphql/reference/enums#teammembershiptype) members of a team (as opposed to being members via membership in a child team), with their membership [role](https://docs.github.com/en/graphql/reference/enums#teammemberrole) being MEMBER or MAINTAINER.
 
     ```
-    (GitHubUser)-[MEMBER|MAINTAINER]->(GitHubTeam)
+    (GitHubUser)-[MEMBER_OF|MAINTAINER]->(GitHubTeam)
     ```
 
 - GitHubUsers who have committed to GitHubRepositories in the last 30 days are tracked with commit activity data.
@@ -302,6 +317,55 @@ WRITE, MAINTAIN, TRIAGE, and READ ([Reference](https://docs.github.com/en/graphq
     - **commit_count**: Number of commits made by the user to the repository in the last 30 days
     - **last_commit_date**: ISO 8601 timestamp of the user's most recent commit to the repository
     - **first_commit_date**: ISO 8601 timestamp of the user's oldest commit to the repository within the 30-day period
+
+
+### GitHubPersonalAccessToken
+
+Representation of GitHub personal access token metadata exposed to organization administrators. Fine-grained PATs are retrieved from the [organization personal access tokens API](https://docs.github.com/en/rest/orgs/personal-access-tokens). Classic PAT metadata is retrieved only when GitHub exposes it through the [SAML SSO credential authorizations API](https://docs.github.com/en/enterprise-cloud@latest/rest/orgs/orgs#list-saml-sso-authorizations-for-an-organization).
+
+Cartography never stores raw PAT values, token prefixes, or token fragments such as `token_last_eight`.
+
+Fine-grained and classic PATs also receive kind-specific labels, `GitHubFineGrainedPersonalAccessToken` and `GitHubClassicPersonalAccessToken`, to support queries that target one kind.
+
+> **Ontology Mapping**: This node has the extra label `APIKey` to enable cross-platform queries for long-lived API credentials across different systems.
+
+| Field | Description |
+|-------|--------------|
+| firstseen | Timestamp of when a sync job first created this node |
+| lastupdated | Timestamp of the last time the node was updated |
+| id | Stable Cartography ID derived from the GitHub organization URL and the fine-grained PAT access grant ID or SAML credential authorization ID |
+| token_kind | `fine_grained` or `classic` |
+| token_id | GitHub fine-grained PAT token ID, when returned |
+| token_name | Fine-grained PAT name, when returned |
+| owner_login | Login of the GitHub user who owns the token |
+| repository_selection | Fine-grained PAT repository selection, such as `all` or `selected` |
+| permissions | Fine-grained PAT permissions as a JSON string |
+| scopes | Classic PAT OAuth scopes exposed by SAML credential authorizations |
+| access_granted_at | Native datetime — when fine-grained PAT access was granted to organization resources |
+| credential_authorized_at | Native datetime — when a classic PAT was authorized for SAML SSO organization access |
+| credential_accessed_at | Native datetime — when the SAML-authorized credential was last accessed (auth events) |
+| expires_at | Native datetime — token or credential authorization expiry |
+| last_used_at | Native datetime — when the fine-grained PAT was last used to call the GitHub API. Unset for classic PATs, whose SAML endpoint reports auth events under `credential_accessed_at` and not API calls |
+
+#### Relationships
+
+- GitHubPersonalAccessTokens are resources under GitHubOrganizations.
+
+    ```
+    (GitHubOrganization)-[:RESOURCE]->(GitHubPersonalAccessToken)
+    ```
+
+- GitHubPersonalAccessTokens are owned by the GitHubUser they authenticate as, when the owner can be resolved.
+
+    ```
+    (GitHubPersonalAccessToken)-[:OWNED_BY]->(GitHubUser)
+    ```
+
+- Fine-grained GitHubPersonalAccessTokens can access GitHubRepositories returned by GitHub's token repository access endpoint.
+
+    ```
+    (GitHubPersonalAccessToken)-[:CAN_ACCESS]->(GitHubRepository)
+    ```
 
 
 ### GitHubBranch
@@ -370,6 +434,86 @@ Representation of a single GitHubBranchProtectionRule [BranchProtectionRule obje
 
     ```
     (GitHubOrganization)-[:RESOURCE]->(GitHubBranchProtectionRule)
+    ```
+
+### GitHubRuleset
+
+Representation of a single GitHubRuleset from GitHub's [repository ruleset REST response](https://docs.github.com/en/rest/repos/rules#get-a-repository-ruleset). This node contains GitHub ruleset configuration for repositories.
+
+Cartography does not ingest ruleset bypass actors. GitHub documents ruleset bypass actors as permission-limited to callers with write access to the ruleset, and Cartography is expected to run with read-only GitHub permissions. Treat bypass actor data as intentionally unavailable in this schema rather than as an empty bypass list. See GitHub's [REST API docs for repository rulesets](https://docs.github.com/en/rest/repos/rules#get-a-repository-ruleset).
+
+| Field | Description |
+|-------|--------------|
+| firstseen| Timestamp of when a sync job first created this node  |
+| lastupdated |  Timestamp of the last time the node was updated |
+| id | The GitHub ruleset node ID |
+| database_id | GitHub database ID for the ruleset |
+| name | Ruleset name |
+| target | Ruleset target, such as BRANCH or TAG |
+| enforcement | Ruleset enforcement mode |
+| created_at | GitHub timestamp from when the ruleset was created |
+| updated_at | GitHub timestamp for last time the ruleset was modified |
+| conditions_ref_name_include | Ref name include conditions |
+| conditions_ref_name_exclude | Ref name exclude conditions |
+| conditions_repository_name_include | Repository name include conditions |
+| conditions_repository_name_exclude | Repository name exclude conditions |
+| conditions_repository_name_protected | Whether repository name conditions target protected repositories |
+| conditions_repository_ids | Repository IDs matched by repository ID conditions |
+| conditions_repository_property_include | JSON-encoded repository property include conditions |
+| conditions_repository_property_exclude | JSON-encoded repository property exclude conditions |
+| conditions_organization_property_include | JSON-encoded organization property include conditions |
+| conditions_organization_property_exclude | JSON-encoded organization property exclude conditions |
+
+
+#### Relationships
+
+- GitHubRepositories have GitHubRulesets.
+
+    ```
+    (GitHubRepository)-[:HAS_RULESET]->(GitHubRuleset)
+    ```
+
+- GitHubRulesets belong to a GitHubOrganization.
+
+    ```
+    (GitHubOrganization)-[:RESOURCE]->(GitHubRuleset)
+    ```
+
+- GitHubRulesets contain GitHubRulesetRules.
+
+    ```
+    (GitHubRuleset)-[:CONTAINS_RULE]->(GitHubRulesetRule)
+    ```
+
+### GitHubRulesetRule
+
+Representation of a single rule from GitHub's [repository ruleset REST response](https://docs.github.com/en/rest/repos/rules#get-a-repository-ruleset). This node contains a single rule from a GitHub repository ruleset.
+
+| Field | Description |
+|-------|--------------|
+| firstseen| Timestamp of when a sync job first created this node  |
+| lastupdated |  Timestamp of the last time the node was updated |
+| id | A deterministic Cartography ID derived from the GitHub ruleset node ID and REST rule payload |
+| type | Rule type |
+| parameters | JSON-encoded rule parameters |
+| parameters_required_approving_review_count | Required approving review count for pull request rules |
+| parameters_dismiss_stale_reviews_on_push | Whether pull request rules dismiss stale reviews on push |
+| parameters_require_code_owner_review | Whether pull request rules require code owner review |
+| parameters_required_status_checks | Required status check contexts for required status check rules |
+
+
+#### Relationships
+
+- GitHubRulesetRules belong to a GitHubRuleset.
+
+    ```
+    (GitHubRuleset)-[:CONTAINS_RULE]->(GitHubRulesetRule)
+    ```
+
+- GitHubRulesetRules belong to a GitHubOrganization.
+
+    ```
+    (GitHubOrganization)-[:RESOURCE]->(GitHubRulesetRule)
     ```
 
 ### ProgrammingLanguage
@@ -451,6 +595,12 @@ Represents a software dependency from GitHub's dependency graph manifests. This 
 | type | Package URL type (e.g., `npm`, `pypi`, `maven`). `null` if version is not exact. |
 | purl | Package URL (e.g., `"pkg:npm/react@18.2.0"`). `null` if version is not exact. |
 | **normalized_id** | Normalized ID for cross-tool matching (format: `{type}\|{namespace/}{name}\|{version}`). Indexed. `null` if version is not exact. |
+| source | Provenance of the version: `dependency_graph` from GitHub's dependency graph, or `lockfile` when an exact version was recovered from a lockfile fallback. |
+| version_confidence | Confidence in the version: `exact` (an exact version is known), `range` (only a requirement range is known), or `unknown` (no version or requirement). |
+
+> **Ontology Mapping**: This node also carries the extra label `GitHubDependency`. When `normalized_id` is populated (exact version), a canonical `Package` (ontology) node is detected as this dependency, enabling cross-scanner queries alongside Trivy, Syft, SocketDev, and GitLab packages.
+
+> **Lockfile fallback**: GitHub's dependency graph reports some dependencies with only a version range (no exact version), so they have no `normalized_id` and cannot be projected into the Package ontology. For ecosystems with a parseable lockfile (`uv.lock` for pip, `package-lock.json` for npm), the sync fetches the lockfile co-located with the dependency's manifest (e.g. a manifest under `services/api/package.json` uses `services/api/package-lock.json`, never the repo-root lockfile) and, where it pins an exact version for a range-only dependency, fills in `version`, `type`, and `normalized_id` and sets `source` to `lockfile` and `version_confidence` to `exact`. Because a `Dependency` node is shared by `name|requirements` (not by version), if two manifests pin the same `name|requirements` to different exact versions the enrichment is declined for that node to avoid representing the wrong version. Lockfiles are fetched only for manifests that have range-only dependencies in a supported ecosystem.
 
 #### Relationships
 
@@ -460,6 +610,12 @@ Represents a software dependency from GitHub's dependency graph manifests. This 
 
     ```
     (GitHubRepository)-[:REQUIRES]->(Dependency)
+    ```
+
+- A canonical **Package** (ontology) is detected as a **GitHubDependency**.
+
+    ```
+    (Package)-[:DETECTED_AS]->(Dependency:GitHubDependency)
     ```
 
 ### GitHubDependabotAlert
@@ -551,6 +707,252 @@ Dependency nodes are deliberately shared across organizations and repositories
 not anchored to a single tenant via a `RESOURCE` edge. Stale Dependency nodes
 are cleaned up globally once per sync cycle, alongside other shared GitHub
 nodes such as `PythonLibrary`.
+
+### GitHubPackage
+
+Representation of a container package hosted on GitHub Container Registry (`ghcr.io`). Each package is the registry-side container for one or more image tags and their underlying image digests.
+
+> **Ontology Mapping**: This node has the extra label `ContainerRegistry` to enable cross-platform queries across registry repositories (e.g., `ECRRepository`, `GitLabContainerRepository`).
+
+| Field | Description |
+|-------|--------------|
+| firstseen | Timestamp of when a sync job first created this node |
+| lastupdated | Timestamp of the last time the node was updated |
+| **id** | The package `html_url` |
+| **name** | Package name |
+| **package_type** | Package type as reported by GitHub (typically `container`) |
+| visibility | Visibility of the package (`public` or `private`) |
+| **uri** | Pullable package URI (without tag or digest) |
+| **html_url** | Web URL of the package |
+| created_at | Creation timestamp from GitHub |
+| updated_at | Last-update timestamp from GitHub |
+
+#### Relationships
+
+- GitHubPackages belong to GitHubOrganizations.
+
+    ```
+    (GitHubOrganization)-[:RESOURCE]->(GitHubPackage)
+    ```
+
+- GitHubRepositories own GitHubPackages (best-effort; only set when the package payload exposes a repository).
+
+    ```
+    (GitHubRepository)-[:HAS_PACKAGE]->(GitHubPackage)
+    ```
+
+- GitHubPackages expose container image tags.
+
+    ```
+    (GitHubPackage)-[:REPO_IMAGE]->(GitHubContainerImageTag)
+    ```
+
+- GitHubPackages expose container images by digest.
+
+    ```
+    (GitHubPackage)-[:HAS_IMAGE]->(GitHubContainerImage)
+    ```
+
+### GitHubContainerImage
+
+Representation of a container image stored in GitHub Container Registry (`ghcr.io`), identified by its digest. Images are content-addressable and can be referenced by multiple tags. Manifest lists (multi-architecture images) contain references to platform-specific child images.
+
+> **Ontology Mapping**: This node has conditional extra labels based on the image type: `Image` for single-platform images (`type="image"`), or `ImageManifestList` for multi-architecture manifest lists (`type="manifest_list"`). These labels enable cross-platform queries for container images across different systems (e.g., `ECRImage`, `GCPArtifactRegistryImage`, `GitLabContainerImage`).
+
+| Field | Description |
+|-------|--------------|
+| firstseen | Timestamp of when a sync job first created this node |
+| lastupdated | Timestamp of the last time the node was updated |
+| **id** | The image digest (e.g., `sha256:abc123...`) |
+| **digest** | Same as id, the image digest |
+| **uri** | Digest-qualified pullable image reference (e.g., `ghcr.io/org/pkg@sha256:abc123...`) |
+| media_type | OCI/Docker media type of the manifest |
+| schema_version | Manifest schema version |
+| **type** | Either `image` (single platform) or `manifest_list` (multi-arch) |
+| architecture | CPU architecture (e.g., `amd64`, `arm64`); null for manifest lists |
+| os | Operating system (e.g., `linux`); null for manifest lists |
+| variant | Architecture variant (e.g., `v8`); null for manifest lists |
+| **source_uri** | Normalized VCS URL extracted from the SLSA attestation (when present) |
+| source_revision | Commit SHA extracted from the SLSA attestation |
+| source_file | Source definition file extracted from the attestation (for example `Dockerfile`) |
+| parent_image_uri | URI of the parent/base image when derivable from attestation or history |
+| parent_image_digest | Digest of the parent/base image when derivable from attestation or history |
+| child_image_digests | List of child image digests (only for manifest lists) |
+| layer_diff_ids | List of uncompressed layer diff_ids that compose this image (only for single-platform images) |
+| head_layer_diff_id | Diff_id of the first (base) layer in this image |
+| tail_layer_diff_id | Diff_id of the last (topmost) layer in this image |
+
+#### Relationships
+
+- GitHubContainerImages belong to GitHubOrganizations (for cleanup and cross-package deduplication).
+
+    ```
+    (GitHubOrganization)-[:RESOURCE]->(GitHubContainerImage)
+    ```
+
+- GitHubPackages expose GitHubContainerImages by digest.
+
+    ```
+    (GitHubPackage)-[:HAS_IMAGE]->(GitHubContainerImage)
+    ```
+
+- GitHubContainerImageTags reference GitHubContainerImages.
+
+    ```
+    (GitHubContainerImageTag)-[:IMAGE]->(GitHubContainerImage)
+    ```
+
+- GitHubContainerImages (manifest lists) contain child GitHubContainerImages.
+
+    ```
+    (GitHubContainerImage)-[:CONTAINS_IMAGE]->(GitHubContainerImage)
+    ```
+
+- GitHubContainerImages are composed of GitHubContainerImageLayers, with `HEAD`/`TAIL` shortcuts to the base and topmost layers.
+
+    ```
+    (GitHubContainerImage)-[:HAS_LAYER]->(GitHubContainerImageLayer)
+    (GitHubContainerImage)-[:HEAD]->(GitHubContainerImageLayer)
+    (GitHubContainerImage)-[:TAIL]->(GitHubContainerImageLayer)
+    ```
+
+- GitHubContainerImages can point at a parent/base image when SLSA attestation or image history identifies one. The edge carries provenance metadata.
+
+    ```
+    (GitHubContainerImage)-[:BUILT_FROM]->(GitHubContainerImage)
+    ```
+
+    Relationship properties:
+    - **from_attestation**: `true` when the link was derived from a SLSA attestation, `false` for history-based matching
+    - **parent_image_uri**: URI of the parent image (when known)
+    - **confidence**: Confidence score of the match (0.0 to 1.0)
+
+- GitHubContainerImageAttestations attest to GitHubContainerImages.
+
+    ```
+    (GitHubContainerImageAttestation)-[:ATTESTS]->(GitHubContainerImage)
+    ```
+
+- Workload containers across providers reference GitHubContainerImages by digest via `HAS_IMAGE`. See the corresponding workload sections for matching semantics.
+
+    ```
+    (:AWSLambda)-[:HAS_IMAGE]->(:GitHubContainerImage)
+    (:ECSContainer)-[:HAS_IMAGE]->(:GitHubContainerImage)
+    (:KubernetesContainer)-[:HAS_IMAGE]->(:GitHubContainerImage)
+    (:GCPCloudRunServiceContainer)-[:HAS_IMAGE]->(:GitHubContainerImage)
+    (:GCPCloudRunJobContainer)-[:HAS_IMAGE]->(:GitHubContainerImage)
+    (:AzureContainerInstance)-[:HAS_IMAGE]->(:GitHubContainerImage)
+    (:AzureFunctionApp)-[:HAS_IMAGE]->(:GitHubContainerImage)
+    ```
+
+### GitHubContainerImageTag
+
+Representation of a tag inside a GitHub container package. Tags are mutable pointers to a specific image digest. Multiple tags can resolve to the same `GitHubContainerImage` (e.g., `latest` and `v1.0.0`).
+
+> **Ontology Mapping**: This node has the extra label `ImageTag` to enable cross-platform queries for container image tags across different registries.
+
+| Field | Description |
+|-------|--------------|
+| firstseen | Timestamp of when a sync job first created this node |
+| lastupdated | Timestamp of the last time the node was updated |
+| **id** | The fully-qualified tag URI (e.g., `ghcr.io/org/pkg:v1.0.0`) |
+| **name** | Tag name (e.g., `v1.0.0`) |
+| **uri** | Same as id, the fully-qualified tag URI |
+| **digest** | Digest of the image this tag currently resolves to |
+| image_pushed_at | Push timestamp reported by GitHub |
+| package_id | `id` of the owning `GitHubPackage` |
+
+#### Relationships
+
+- GitHubContainerImageTags belong to GitHubOrganizations (for cleanup).
+
+    ```
+    (GitHubOrganization)-[:RESOURCE]->(GitHubContainerImageTag)
+    ```
+
+- GitHubPackages expose GitHubContainerImageTags.
+
+    ```
+    (GitHubPackage)-[:REPO_IMAGE]->(GitHubContainerImageTag)
+    ```
+
+- GitHubContainerImageTags resolve to GitHubContainerImages by digest.
+
+    ```
+    (GitHubContainerImageTag)-[:IMAGE]->(GitHubContainerImage)
+    ```
+
+### GitHubContainerImageLayer
+
+Representation of a container image layer stored in GitHub Container Registry. Layers are the building blocks of container images, identified by their uncompressed content hash (`diff_id`). Multiple images can share the same layers through Docker's layer deduplication.
+
+> **Ontology Mapping**: This node has the extra label `ImageLayer` to enable cross-provider queries for container image layers (e.g., `ECRImageLayer`, `GCPArtifactRegistryImageLayer`, `GitLabContainerImageLayer`).
+
+**Note**: Layers are keyed by `diff_id` (uncompressed layer digest from the image config) rather than `digest` (compressed layer digest from the manifest). This ensures consistent cross-provider layer deduplication: the same layer content may have different compressed digests in different registries but will always share the same `diff_id`.
+
+| Field | Description |
+|-------|--------------|
+| firstseen | Timestamp of when a sync job first created this node |
+| lastupdated | Timestamp of the last time the node was updated |
+| **id** | The uncompressed layer diff_id (e.g., `sha256:abc123...`) |
+| diff_id | Same as id |
+| digest | Compressed layer digest from the manifest (may differ between registries for the same content) |
+| media_type | OCI/Docker media type (e.g., `application/vnd.docker.image.rootfs.diff.tar.gzip`) |
+| size | Size of the layer in bytes (compressed) |
+| is_empty | Whether the layer is empty (no on-disk effect) |
+| history | History entry for this layer extracted from the image config |
+
+#### Relationships
+
+- GitHubContainerImageLayers belong to GitHubOrganizations (for cleanup and cross-image deduplication).
+
+    ```
+    (GitHubOrganization)-[:RESOURCE]->(GitHubContainerImageLayer)
+    ```
+
+- GitHubContainerImages are composed of GitHubContainerImageLayers, with `HEAD`/`TAIL` shortcuts to the base and topmost layers.
+
+    ```
+    (GitHubContainerImage)-[:HAS_LAYER]->(GitHubContainerImageLayer)
+    (GitHubContainerImage)-[:HEAD]->(GitHubContainerImageLayer)
+    (GitHubContainerImage)-[:TAIL]->(GitHubContainerImageLayer)
+    ```
+
+- GitHubContainerImageLayers form a linked list using `NEXT` relationships, allowing traversal of the layer stack from base to topmost. A layer may have multiple `NEXT` pointers when different images branch from it.
+
+    ```
+    (GitHubContainerImageLayer)-[:NEXT]->(GitHubContainerImageLayer)
+    ```
+
+### GitHubContainerImageAttestation
+
+Representation of a SLSA attestation (build provenance) returned by the GitHub Attestations API for an image pushed to GHCR.
+
+| Field | Description |
+|-------|--------------|
+| firstseen | Timestamp of when a sync job first created this node |
+| lastupdated | Timestamp of the last time the node was updated |
+| **id** | Attestation ID from the GitHub Attestations API |
+| bundle_id | Bundle identifier of the attestation |
+| **predicate_type** | In-toto predicate type (e.g., `https://slsa.dev/provenance/v1`) |
+| **attests_digest** | Digest of the image this attestation attests to |
+| source_uri | Normalized VCS URL extracted from the attestation predicate |
+| source_revision | Commit SHA extracted from the attestation predicate |
+| source_file | Source definition file extracted from the attestation predicate (e.g., `Dockerfile`) |
+
+#### Relationships
+
+- GitHubContainerImageAttestations belong to GitHubOrganizations (for cleanup).
+
+    ```
+    (GitHubOrganization)-[:RESOURCE]->(GitHubContainerImageAttestation)
+    ```
+
+- GitHubContainerImageAttestations attest to GitHubContainerImages.
+
+    ```
+    (GitHubContainerImageAttestation)-[:ATTESTS]->(GitHubContainerImage)
+    ```
 
 ### Image to GitHubRepository (Cross-module relationship)
 

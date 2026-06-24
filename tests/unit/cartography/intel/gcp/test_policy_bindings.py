@@ -574,7 +574,7 @@ def test_sync_skips_load_and_cleanup_on_rate_limit_retry_exhaustion(
 )
 @patch(
     "cartography.intel.gcp._services_enabled_on_project",
-    side_effect=[set(), {cartography.intel.gcp.service_names.cai}],
+    side_effect=[set()],
 )
 def test_sync_project_resources_skips_permission_relationships_after_policy_binding_rate_limit(
     mock_services_enabled,
@@ -595,9 +595,50 @@ def test_sync_project_resources_skips_permission_relationships_after_policy_bind
         requested_syncs={"policy_bindings", "permission_relationships"},
     )
 
-    assert mock_services_enabled.call_count == 2
+    assert mock_services_enabled.call_count == 1
+    mock_build_asset_client.assert_called_once()
     mock_policy_bindings_sync.assert_called_once()
     mock_permission_relationships_sync.assert_not_called()
+    assert result.policy_bindings_cleanup_safe is False
+
+
+@patch("cartography.intel.gcp.build_asset_client")
+@patch("cartography.intel.gcp.build_client")
+@patch(
+    "cartography.intel.gcp.policy_bindings.sync",
+    return_value=policy_bindings.PolicyBindingsSyncResult(
+        policy_bindings.PolicyBindingsSyncStatus.SKIPPED_PERMISSION_DENIED,
+        {},
+    ),
+)
+@patch(
+    "cartography.intel.gcp._services_enabled_on_project",
+    side_effect=[set(), set()],
+)
+def test_sync_project_resources_stops_policy_binding_attempts_after_permission_denied(
+    mock_services_enabled,
+    mock_policy_bindings_sync,
+    mock_build_client,
+    mock_build_asset_client,
+):
+    mock_build_client.return_value = MagicMock()
+    mock_build_asset_client.return_value = MagicMock()
+
+    result = cartography.intel.gcp._sync_project_resources(
+        neo4j_session=MagicMock(),
+        projects=[
+            {"projectId": TEST_PROJECT_ID},
+            {"projectId": "project-def"},
+        ],
+        gcp_update_tag=TEST_UPDATE_TAG,
+        common_job_parameters=COMMON_JOB_PARAMS.copy(),
+        credentials=MagicMock(),
+        requested_syncs={"policy_bindings"},
+    )
+
+    assert mock_services_enabled.call_count == 2
+    mock_build_asset_client.assert_called_once()
+    mock_policy_bindings_sync.assert_called_once()
     assert result.policy_bindings_cleanup_safe is False
 
 
@@ -620,7 +661,6 @@ def test_sync_project_resources_skips_permission_relationships_after_policy_bind
     "cartography.intel.gcp._services_enabled_on_project",
     side_effect=[
         set(),
-        {cartography.intel.gcp.service_names.cai},
         set(),
     ],
 )
@@ -645,7 +685,7 @@ def test_sync_project_resources_reports_policy_bindings_partial_failure(
         requested_syncs={"policy_bindings"},
     )
 
-    assert mock_services_enabled.call_count == 3
+    assert mock_services_enabled.call_count == 2
     assert mock_policy_bindings_sync.call_count == 2
     assert result.policy_bindings_cleanup_safe is False
 
@@ -663,7 +703,6 @@ def test_sync_project_resources_reports_policy_bindings_partial_failure(
     "cartography.intel.gcp._services_enabled_on_project",
     side_effect=[
         set(),
-        {cartography.intel.gcp.service_names.cai},
         set(),
     ],
 )
@@ -688,7 +727,7 @@ def test_sync_project_resources_reports_policy_bindings_full_success(
         requested_syncs={"policy_bindings"},
     )
 
-    assert mock_services_enabled.call_count == 3
+    assert mock_services_enabled.call_count == 2
     assert mock_policy_bindings_sync.call_count == 2
     assert result.policy_bindings_cleanup_safe is True
 
@@ -696,12 +735,18 @@ def test_sync_project_resources_reports_policy_bindings_full_success(
 @patch("cartography.intel.gcp.build_asset_client")
 @patch("cartography.intel.gcp.build_client")
 @patch("cartography.intel.gcp.permission_relationships.sync")
-@patch("cartography.intel.gcp.policy_bindings.sync")
+@patch(
+    "cartography.intel.gcp.policy_bindings.sync",
+    return_value=policy_bindings.PolicyBindingsSyncResult(
+        policy_bindings.PolicyBindingsSyncStatus.SKIPPED_PERMISSION_DENIED,
+        {},
+    ),
+)
 @patch(
     "cartography.intel.gcp._services_enabled_on_project",
-    side_effect=[set(), set()],
+    side_effect=[set()],
 )
-def test_sync_project_resources_skips_permission_relationships_when_cai_api_disabled(
+def test_sync_project_resources_attempts_policy_bindings_without_target_project_cai(
     mock_services_enabled,
     mock_policy_bindings_sync,
     mock_permission_relationships_sync,
@@ -720,7 +765,7 @@ def test_sync_project_resources_skips_permission_relationships_when_cai_api_disa
         requested_syncs={"policy_bindings", "permission_relationships"},
     )
 
-    assert mock_services_enabled.call_count == 2
-    mock_policy_bindings_sync.assert_not_called()
+    assert mock_services_enabled.call_count == 1
+    mock_policy_bindings_sync.assert_called_once()
     mock_permission_relationships_sync.assert_not_called()
     assert result.policy_bindings_cleanup_safe is False

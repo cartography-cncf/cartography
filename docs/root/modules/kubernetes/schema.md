@@ -75,6 +75,8 @@ Representation of a [Kubernetes Node.](https://kubernetes.io/docs/concepts/archi
 | kernel\_version | Kernel version of the node (e.g. `5.15.0-1034-aws`) |
 | container\_runtime\_version | Container runtime and version (e.g. `containerd://1.7.0`) |
 | kubelet\_version | Version of the kubelet running on the node (e.g. `v1.27.1`) |
+| provider\_id | Cloud provider instance reference from the node's `spec.providerID` (e.g. EKS: `aws:///us-east-1a/i-0123456789abcdef0`) |
+| instance\_id | EC2 instance id parsed from `provider_id` for EKS nodes (e.g. `i-0123456789abcdef0`); null for non-AWS providers |
 | firstseen | Timestamp of when a sync job first discovered this node |
 | **lastupdated** | Timestamp of the last time the node was updated |
 
@@ -87,6 +89,11 @@ Representation of a [Kubernetes Node.](https://kubernetes.io/docs/concepts/archi
 - `KubernetesPod` runs on a `KubernetesNode`.
     ```
     (:KubernetesPod)-[:RUNS_ON]->(:KubernetesNode)
+    ```
+
+- An EKS `KubernetesNode` is backed by an `EC2Instance`. Only created when the node's `spec.providerID` resolves to an EC2 instance id.
+    ```
+    (:KubernetesNode)-[:IS_INSTANCE]->(:EC2Instance)
     ```
 
 ### KubernetesNamespace
@@ -108,9 +115,7 @@ Representation of a [Kubernetes Namespace.](https://kubernetes.io/docs/concepts/
 #### Relationships
 - All namespace-scoped resources belong to a `KubernetesNamespace`.
     ```
-    (:KubernetesNamespace)-[:CONTAINS]->(:KubernetesPod,
-                                         :KubernetesContainer,
-                                         :KubernetesService,
+    (:KubernetesNamespace)-[:CONTAINS]->(:KubernetesService,
                                          :KubernetesSecret,
                                          :KubernetesIngress,
                                          :KubernetesServiceAccount,
@@ -155,19 +160,9 @@ Representation of a [Kubernetes Pod.](https://kubernetes.io/docs/concepts/worklo
 | **lastupdated** | Timestamp of the last time the node was updated |
 
 #### Relationships
-- `KubernetesPod` uses a `KubernetesServiceAccount`.
+- `KubernetesPod` runs as a `KubernetesServiceAccount`.
     ```
-    (:KubernetesPod)-[:USES_SERVICE_ACCOUNT]->(:KubernetesServiceAccount)
-    ```
-
-- `KubernetesPod` has `KubernetesContainer`. (DEPRECATED: replaced by `WORKLOAD_PARENT`, will be removed in v1.0.0)
-    ```
-    (:KubernetesPod)-[:CONTAINS]->(:KubernetesContainer)
-    ```
-
-- A `KubernetesNamespace` contains a `KubernetesPod`. (DEPRECATED: replaced by `WORKLOAD_PARENT`, will be removed in v1.0.0)
-    ```
-    (:KubernetesNamespace)-[:CONTAINS]->(:KubernetesPod)
+    (:KubernetesPod)-[:RUNS_AS]->(:KubernetesServiceAccount)
     ```
 
 - `KubernetesPod` points at its parent `KubernetesNamespace` via the unified workload chain.
@@ -222,11 +217,6 @@ Representation of a [Kubernetes Container.](https://kubernetes.io/docs/concepts/
 
 
 #### Relationships
-- `KubernetesPod` has `KubernetesContainer`. (DEPRECATED: replaced by `WORKLOAD_PARENT`, will be removed in v1.0.0)
-    ```
-    (:KubernetesPod)-[:CONTAINS]->(:KubernetesContainer)
-    ```
-
 - `KubernetesContainer` points at its parent `KubernetesPod` via the unified workload chain.
     ```
     (:KubernetesContainer)-[:WORKLOAD_PARENT]->(:KubernetesPod)
@@ -240,6 +230,7 @@ Representation of a [Kubernetes Container.](https://kubernetes.io/docs/concepts/
     (:KubernetesContainer)-[:HAS_IMAGE]->(:ECRImage)
     (:KubernetesContainer)-[:HAS_IMAGE]->(:GitLabContainerImage)
     (:KubernetesContainer)-[:HAS_IMAGE]->(:GCPArtifactRegistryImage)
+    (:KubernetesContainer)-[:HAS_IMAGE]->(:GitHubContainerImage)
     ```
 
 - An internet-facing `AWSLoadBalancerV2` exposes a `KubernetesContainer`. Created by the `k8s_lb_exposure` analysis job.
@@ -441,9 +432,9 @@ Representation of a [Kubernetes ServiceAccount.](https://kubernetes.io/docs/conc
     (:KubernetesNamespace)-[:CONTAINS]->(:KubernetesServiceAccount)
     ```
 
-- `KubernetesServiceAccount` is used by a `KubernetesPod`.
+- `KubernetesServiceAccount` is the identity a `KubernetesPod` runs as.
     ```
-    (:KubernetesPod)-[:USES_SERVICE_ACCOUNT]->(:KubernetesServiceAccount)
+    (:KubernetesPod)-[:RUNS_AS]->(:KubernetesServiceAccount)
     ```
 
 - `KubernetesServiceAccount` can assume an `AWSRole` via IRSA when annotated with `eks.amazonaws.com/role-arn`.
@@ -498,6 +489,11 @@ Representation of a Kubernetes [User](https://kubernetes.io/docs/reference/acces
 - `KubernetesUser` can map to an `AWSUser`.
     ```
     (:AWSUser)-[:MAPS_TO]->(:KubernetesUser)
+    ```
+
+- `KubernetesUser` can map to an `AWSRootPrincipal` (via aws-auth `mapAccounts`).
+    ```
+    (:AWSRootPrincipal)-[:MAPS_TO]->(:KubernetesUser)
     ```
 
 ### KubernetesGroup

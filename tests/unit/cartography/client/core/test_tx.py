@@ -1,3 +1,4 @@
+from dataclasses import dataclass
 from unittest.mock import MagicMock
 from unittest.mock import patch
 
@@ -11,6 +12,39 @@ from cartography.client.core.tx import _is_retryable_client_error
 from cartography.client.core.tx import _run_index_query_with_retry
 from cartography.client.core.tx import _run_with_retry
 from cartography.client.core.tx import execute_write_with_retry
+from cartography.client.core.tx import load_matchlinks_cartesian_product
+from cartography.models.core.common import PropertyRef
+from cartography.models.core.relationships import CartographyRelProperties
+from cartography.models.core.relationships import CartographyRelSchema
+from cartography.models.core.relationships import LinkDirection
+from cartography.models.core.relationships import make_source_node_matcher
+from cartography.models.core.relationships import make_target_node_matcher
+from cartography.models.core.relationships import SourceNodeMatcher
+from cartography.models.core.relationships import TargetNodeMatcher
+
+
+@dataclass(frozen=True)
+class BulkAccessRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    _sub_resource_label: PropertyRef = PropertyRef(
+        "_sub_resource_label", set_in_kwargs=True
+    )
+    _sub_resource_id: PropertyRef = PropertyRef("_sub_resource_id", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+class PrincipalToS3BucketCartesianProductRel(CartographyRelSchema):
+    source_node_label: str = "AWSPrincipal"
+    source_node_matcher: SourceNodeMatcher = make_source_node_matcher(
+        {"principal_arn": PropertyRef("principal_arn")},
+    )
+    target_node_label: str = "S3Bucket"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"name": PropertyRef("BucketName")},
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "CAN_BULK_ACCESS"
+    properties: BulkAccessRelProperties = BulkAccessRelProperties()
 
 
 def _create_client_error(
@@ -21,6 +55,10 @@ def _create_client_error(
     # Set the code attribute (this is how Neo4j driver sets it internally)
     object.__setattr__(exc, "_neo4j_code", code)
     return exc
+
+
+def _cartesian_product_rel_schema() -> PrincipalToS3BucketCartesianProductRel:
+    return PrincipalToS3BucketCartesianProductRel()
 
 
 # Tests for _is_retryable_client_error
@@ -265,6 +303,227 @@ def test_execute_write_with_retry_calls_run_with_retry(mock_run_with_retry):
         "arg2",
         kwarg1="value1",
     )
+
+
+def test_load_matchlinks_cartesian_product_empty_input_short_circuits():
+    # Arrange
+    rel_schema = _cartesian_product_rel_schema()
+    mock_session = MagicMock()
+
+    # Act
+    with patch(
+        "cartography.client.core.tx.ensure_indexes_for_matchlinks"
+    ) as mock_ensure:
+        result = load_matchlinks_cartesian_product(
+            mock_session,
+            rel_schema,
+            [],
+            ["bucket-1"],
+        )
+
+    # Assert
+    assert result == 0
+    mock_ensure.assert_not_called()
+
+
+def test_load_matchlinks_cartesian_product_rejects_invalid_batch_sizes():
+    # Arrange
+    rel_schema = _cartesian_product_rel_schema()
+    mock_session = MagicMock()
+
+    # Act and assert
+    with pytest.raises(ValueError, match="source_batch_size must be greater than 0"):
+        load_matchlinks_cartesian_product(
+            mock_session,
+            rel_schema,
+            ["principal-1"],
+            ["bucket-1"],
+            source_batch_size=0,
+            lastupdated=1,
+            _sub_resource_label="AWSAccount",
+            _sub_resource_id="1234",
+        )
+
+    # Act and assert
+    with pytest.raises(ValueError, match="target_batch_size must be greater than 0"):
+        load_matchlinks_cartesian_product(
+            mock_session,
+            rel_schema,
+            ["principal-1"],
+            ["bucket-1"],
+            target_batch_size=0,
+            lastupdated=1,
+            _sub_resource_label="AWSAccount",
+            _sub_resource_id="1234",
+        )
+
+
+def test_load_matchlinks_cartesian_product_requires_cleanup_kwargs():
+    # Arrange
+    rel_schema = _cartesian_product_rel_schema()
+    mock_session = MagicMock()
+
+    # Act and assert
+    with pytest.raises(
+        ValueError, match="Required kwarg '_sub_resource_label' not provided"
+    ):
+        load_matchlinks_cartesian_product(
+            mock_session,
+            rel_schema,
+            ["principal-1"],
+            ["bucket-1"],
+            lastupdated=1,
+            _sub_resource_id="1234",
+        )
+
+    # Act and assert
+    with pytest.raises(
+        ValueError, match="Required kwarg '_sub_resource_id' not provided"
+    ):
+        load_matchlinks_cartesian_product(
+            mock_session,
+            rel_schema,
+            ["principal-1"],
+            ["bucket-1"],
+            lastupdated=1,
+            _sub_resource_label="AWSAccount",
+        )
+
+
+def test_load_matchlinks_cartesian_product_batches_and_records_metrics(caplog):
+    # Arrange
+    rel_schema = _cartesian_product_rel_schema()
+    mock_session = MagicMock()
+
+    def fake_execute_write(_session, _tx_func, _query, **kwargs):
+        return len(kwargs["SourceValues"]) * len(kwargs["TargetValues"])
+
+    # Act
+    with (
+        patch(
+            "cartography.client.core.tx.ensure_indexes_for_matchlinks"
+        ) as mock_ensure,
+        patch(
+            "cartography.client.core.tx.build_matchlink_cartesian_product_query",
+            return_value="QUERY",
+        ) as mock_build_query,
+        patch(
+            "cartography.client.core.tx.execute_write_with_retry",
+            side_effect=fake_execute_write,
+        ) as mock_execute_write,
+        patch("cartography.client.core.tx.stat_handler") as mock_stat_handler,
+        caplog.at_level("INFO"),
+    ):
+        result = load_matchlinks_cartesian_product(
+            mock_session,
+            rel_schema,
+            ["principal-1", "principal-2", "principal-1", "principal-3"],
+            ["bucket-1", "bucket-2", "bucket-3", "bucket-4"],
+            source_batch_size=2,
+            target_batch_size=3,
+            progress_description="bulk permission test",
+            lastupdated=1,
+            _sub_resource_label="AWSAccount",
+            _sub_resource_id="1234",
+        )
+
+    # Assert
+    assert result == 12
+    mock_ensure.assert_called_once_with(mock_session, rel_schema)
+    mock_build_query.assert_called_once_with(rel_schema)
+    assert mock_execute_write.call_count == 4
+    assert mock_execute_write.call_args_list[0].kwargs["SourceValues"] == [
+        "principal-1",
+        "principal-2",
+    ]
+    assert mock_execute_write.call_args_list[0].kwargs["TargetValues"] == [
+        "bucket-1",
+        "bucket-2",
+        "bucket-3",
+    ]
+    mock_stat_handler.incr.assert_called_once_with(
+        "relationship.awsprincipal.can_bulk_access.s3bucket.loaded",
+        12,
+    )
+    assert any(
+        "Loaded bulk permission test batch 4/4" in r.message for r in caplog.records
+    )
+
+
+def test_load_matchlinks_cartesian_product_warns_when_nodes_do_not_match(caplog):
+    # Arrange
+    rel_schema = _cartesian_product_rel_schema()
+    mock_session = MagicMock()
+
+    # Act
+    with (
+        patch("cartography.client.core.tx.ensure_indexes_for_matchlinks"),
+        patch(
+            "cartography.client.core.tx.build_matchlink_cartesian_product_query",
+            return_value="QUERY",
+        ),
+        patch("cartography.client.core.tx.execute_write_with_retry", return_value=3),
+        patch("cartography.client.core.tx.stat_handler"),
+        caplog.at_level("WARNING"),
+    ):
+        result = load_matchlinks_cartesian_product(
+            mock_session,
+            rel_schema,
+            ["principal-1", "principal-2"],
+            ["bucket-1", "bucket-2"],
+            progress_description="partial bulk permission test",
+            lastupdated=1,
+            _sub_resource_label="AWSAccount",
+            _sub_resource_id="1234",
+        )
+
+    # Assert
+    assert result == 3
+    warning_records = [
+        r
+        for r in caplog.records
+        if "Some source or target nodes were not matched" in r.message
+    ]
+    assert len(warning_records) == 1
+
+
+def test_load_matchlinks_cartesian_product_warns_when_matcher_values_are_not_unique(
+    caplog,
+):
+    # Arrange
+    rel_schema = _cartesian_product_rel_schema()
+    mock_session = MagicMock()
+
+    # Act
+    with (
+        patch("cartography.client.core.tx.ensure_indexes_for_matchlinks"),
+        patch(
+            "cartography.client.core.tx.build_matchlink_cartesian_product_query",
+            return_value="QUERY",
+        ),
+        patch("cartography.client.core.tx.execute_write_with_retry", return_value=5),
+        patch("cartography.client.core.tx.stat_handler"),
+        caplog.at_level("WARNING"),
+    ):
+        result = load_matchlinks_cartesian_product(
+            mock_session,
+            rel_schema,
+            ["principal-1", "principal-2"],
+            ["bucket-1", "bucket-2"],
+            progress_description="duplicate matcher test",
+            lastupdated=1,
+            _sub_resource_label="AWSAccount",
+            _sub_resource_id="1234",
+        )
+
+    # Assert
+    assert result == 5
+    warning_records = [
+        r
+        for r in caplog.records
+        if "A matcher key likely resolved to multiple nodes" in r.message
+    ]
+    assert len(warning_records) == 1
 
 
 # Integration tests simulating real-world concurrent write scenarios

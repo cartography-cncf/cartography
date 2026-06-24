@@ -47,6 +47,9 @@ class AWSSSOGroupToPermissionSetRelProperties(CartographyRelProperties):
 
 
 @dataclass(frozen=True)
+# DEPRECATED: replaced by the canonical (:UserGroup)-[:HAS_ROLE]->(:PermissionRole)
+# edge (AWSSSOGroupToPermissionSetHasRoleRel). Kept for backward compatibility,
+# will be removed in v1.0.0.
 class AWSSSOGroupToPermissionSetRel(CartographyRelSchema):
     target_node_label: str = "AWSPermissionSet"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
@@ -60,6 +63,25 @@ class AWSSSOGroupToPermissionSetRel(CartographyRelSchema):
 
 
 @dataclass(frozen=True)
+class AWSSSOGroupToPermissionSetHasRoleRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+# Canonical ontology edge: (:UserGroup)-[:HAS_ROLE]->(:PermissionRole)
+class AWSSSOGroupToPermissionSetHasRoleRel(CartographyRelSchema):
+    target_node_label: str = "AWSPermissionSet"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"arn": PropertyRef("AssignedPermissionSets", one_to_many=True)},
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "HAS_ROLE"
+    properties: AWSSSOGroupToPermissionSetHasRoleRelProperties = (
+        AWSSSOGroupToPermissionSetHasRoleRelProperties()
+    )
+
+
+@dataclass(frozen=True)
 class AWSSSOGroupSchema(CartographyNodeSchema):
     label: str = "AWSSSOGroup"
     properties: AWSSSOGroupProperties = AWSSSOGroupProperties()
@@ -68,5 +90,6 @@ class AWSSSOGroupSchema(CartographyNodeSchema):
     other_relationships: OtherRelationships = OtherRelationships(
         [
             AWSSSOGroupToPermissionSetRel(),
+            AWSSSOGroupToPermissionSetHasRoleRel(),
         ]
     )

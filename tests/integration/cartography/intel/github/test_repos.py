@@ -1,6 +1,11 @@
+from copy import deepcopy
 from unittest.mock import patch
 
+import pytest
+
 import cartography.intel.github.repos
+from cartography.intel.github.repos import enrich_dependencies_with_lockfile_versions
+from cartography.intel.github.repos import load_github_dependencies
 from cartography.intel.github.util import PaginatedGraphqlData
 from tests.data.github.collaborators_test_data import COLLABORATORS_TEST_REPOS
 from tests.data.github.repos import DEP_MANIFESTS_BY_URL
@@ -18,10 +23,24 @@ TEST_GITHUB_ORG = "simpsoncorp"
 FAKE_API_KEY = "asdf"
 
 
+@pytest.fixture(autouse=True)
+def _no_lockfile_fetch():
+    """
+    By default, the lockfile fallback finds no lockfiles, so sync() never touches
+    the network. Tests that exercise the fallback patch get_file_content themselves.
+    """
+    with patch.object(
+        cartography.intel.github.repos,
+        "get_file_content",
+        return_value=None,
+    ):
+        yield
+
+
 @patch.object(
     cartography.intel.github.repos,
     "_get_dep_manifests_for_repos",
-    return_value=DEP_MANIFESTS_BY_URL,
+    return_value=(DEP_MANIFESTS_BY_URL, True),
 )
 @patch.object(
     cartography.intel.github.repos,
@@ -134,7 +153,7 @@ def test_sync_github_repos(
 @patch.object(
     cartography.intel.github.repos,
     "_get_dep_manifests_for_repos",
-    return_value=DEP_MANIFESTS_BY_URL,
+    return_value=(DEP_MANIFESTS_BY_URL, True),
 )
 @patch.object(
     cartography.intel.github.repos,
@@ -310,7 +329,7 @@ def test_sync_github_repo_collaborators(
 @patch.object(
     cartography.intel.github.repos,
     "_get_dep_manifests_for_repos",
-    return_value=DEP_MANIFESTS_BY_URL,
+    return_value=(DEP_MANIFESTS_BY_URL, True),
 )
 @patch.object(
     cartography.intel.github.repos,
@@ -408,8 +427,201 @@ def test_sync_github_dependencies(
 
 @patch.object(
     cartography.intel.github.repos,
+    "get_file_content",
+    return_value='{"packages": {"node_modules/lodash": {"version": "4.17.21"}}}',
+)
+@patch.object(
+    cartography.intel.github.repos,
     "_get_dep_manifests_for_repos",
-    return_value=DEP_MANIFESTS_BY_URL,
+    return_value=(DEP_MANIFESTS_BY_URL, True),
+)
+@patch.object(
+    cartography.intel.github.repos,
+    "get",
+    return_value=GET_REPOS,
+)
+@patch.object(
+    cartography.intel.github.repos,
+    "_get_repo_collaborators_for_multiple_repos",
+)
+def test_sync_github_dependencies_lockfile_fallback(
+    mock_get_collabs,
+    mock_get_repos,
+    mock_get_dep_manifests,
+    mock_get_file_content,
+    neo4j_session,
+):
+    """
+    The range-only `lodash` dependency (no exact version in the dependency graph)
+    is upgraded to an exact version from package-lock.json: the loaded Dependency
+    node gains a version and a normalized_id and is tagged source="lockfile".
+    """
+
+    def collabs_side_effect(repo_raw_data, affiliation, org, api_url, token):
+        return (
+            DIRECT_COLLABORATORS if affiliation == "DIRECT" else OUTSIDE_COLLABORATORS
+        )
+
+    mock_get_collabs.side_effect = collabs_side_effect
+
+    cartography.intel.github.repos.sync(
+        neo4j_session,
+        TEST_JOB_PARAMS,
+        FAKE_API_KEY,
+        TEST_GITHUB_URL,
+        TEST_GITHUB_ORG,
+    )
+
+    # lodash had no exact version from the dependency graph; the lockfile recovers it.
+    expected = {
+        ("lodash", "4.17.21", "npm|lodash|4.17.21", "lockfile", "exact"),
+    }
+    actual = check_nodes(
+        neo4j_session,
+        "Dependency",
+        ["id", "version", "normalized_id", "source", "version_confidence"],
+    )
+    assert expected.issubset(actual)
+
+
+def test_load_dependencies_shared_id_lockfile_conflict_not_corrupted(neo4j_session):
+    """
+    Two manifests reference the same `lodash|^4.0.0` but their co-located lockfiles
+    pin different exact versions. They load into a single shared Dependency node
+    (keyed by id), so enrichment must decline: the loaded node keeps a null
+    normalized_id rather than being silently pinned to one manifest's version.
+    """
+    shared_id = "lodash|^4.0.0"
+    dependencies = [
+        {
+            "id": shared_id,
+            "name": "lodash",
+            "original_name": "lodash",
+            "requirements": "^4.0.0",
+            "ecosystem": "npm",
+            "package_manager": "NPM",
+            "manifest_file": "package.json",
+            "manifest_path": "/package.json",
+            "manifest_id": "https://github.com/test-org/monorepo#/package.json",
+            "repo_url": "https://github.com/test-org/monorepo",
+            "version": None,
+            "type": None,
+            "purl": None,
+            "normalized_id": None,
+            "source": "dependency_graph",
+            "version_confidence": "range",
+        },
+        {
+            "id": shared_id,
+            "name": "lodash",
+            "original_name": "lodash",
+            "requirements": "^4.0.0",
+            "ecosystem": "npm",
+            "package_manager": "NPM",
+            "manifest_file": "package.json",
+            "manifest_path": "/services/api/package.json",
+            "manifest_id": "https://github.com/test-org/monorepo#/services/api/package.json",
+            "repo_url": "https://github.com/test-org/monorepo",
+            "version": None,
+            "type": None,
+            "purl": None,
+            "normalized_id": None,
+            "source": "dependency_graph",
+            "version_confidence": "range",
+        },
+    ]
+
+    lockfiles = {
+        "package-lock.json": '{"packages": {"node_modules/lodash": {"version": "4.17.21"}}}',
+        "services/api/package-lock.json": '{"packages": {"node_modules/lodash": {"version": "3.10.1"}}}',
+    }
+
+    def fake_get_file_content(token, owner, repo, path, base_url):
+        return lockfiles.get(path)
+
+    with patch.object(
+        cartography.intel.github.repos,
+        "get_file_content",
+        side_effect=fake_get_file_content,
+    ):
+        enrich_dependencies_with_lockfile_versions(
+            dependencies, FAKE_API_KEY, TEST_GITHUB_URL
+        )
+
+    load_github_dependencies(neo4j_session, TEST_UPDATE_TAG, dependencies)
+
+    # Exactly one shared node, and it was not pinned to either conflicting version.
+    rows = neo4j_session.run(
+        "MATCH (d:Dependency {id: $id}) RETURN d.normalized_id AS nid, d.version AS version",
+        id=shared_id,
+    ).data()
+    assert len(rows) == 1
+    assert rows[0]["nid"] is None
+    assert rows[0]["version"] is None
+
+
+def test_load_dependencies_shared_id_exact_conflict_not_corrupted(neo4j_session):
+    """
+    Two manifests resolve the same `lodash|^4.0.0` to different exact versions
+    directly from the dependency graph (no lockfile). They merge into one node,
+    so the loader's reconciliation clears the exact version and the node carries a
+    null normalized_id rather than being pinned to one manifest's version.
+    """
+    shared_id = "lodash|^4.0.0"
+    dependencies = [
+        {
+            "id": shared_id,
+            "name": "lodash",
+            "original_name": "lodash",
+            "requirements": "^4.0.0",
+            "ecosystem": "npm",
+            "package_manager": "NPM",
+            "manifest_file": "package.json",
+            "manifest_path": "/package.json",
+            "manifest_id": "https://github.com/test-org/monorepo#/package.json",
+            "repo_url": "https://github.com/test-org/monorepo",
+            "version": "4.17.21",
+            "type": "npm",
+            "purl": "pkg:npm/lodash@4.17.21",
+            "normalized_id": "npm|lodash|4.17.21",
+            "source": "dependency_graph",
+            "version_confidence": "exact",
+        },
+        {
+            "id": shared_id,
+            "name": "lodash",
+            "original_name": "lodash",
+            "requirements": "^4.0.0",
+            "ecosystem": "npm",
+            "package_manager": "NPM",
+            "manifest_file": "package.json",
+            "manifest_path": "/services/api/package.json",
+            "manifest_id": "https://github.com/test-org/monorepo#/services/api/package.json",
+            "repo_url": "https://github.com/test-org/monorepo",
+            "version": "3.10.1",
+            "type": "npm",
+            "purl": "pkg:npm/lodash@3.10.1",
+            "normalized_id": "npm|lodash|3.10.1",
+            "source": "dependency_graph",
+            "version_confidence": "exact",
+        },
+    ]
+
+    load_github_dependencies(neo4j_session, TEST_UPDATE_TAG, dependencies)
+
+    rows = neo4j_session.run(
+        "MATCH (d:Dependency {id: $id}) RETURN d.normalized_id AS nid, d.version AS version",
+        id=shared_id,
+    ).data()
+    assert len(rows) == 1
+    assert rows[0]["nid"] is None
+    assert rows[0]["version"] is None
+
+
+@patch.object(
+    cartography.intel.github.repos,
+    "_get_dep_manifests_for_repos",
+    return_value=(DEP_MANIFESTS_BY_URL, True),
 )
 @patch.object(
     cartography.intel.github.repos,
@@ -509,7 +721,7 @@ def test_sync_github_manifests(
 @patch.object(
     cartography.intel.github.repos,
     "_get_dep_manifests_for_repos",
-    return_value=DEP_MANIFESTS_BY_URL,
+    return_value=(DEP_MANIFESTS_BY_URL, True),
 )
 @patch.object(
     cartography.intel.github.repos,
@@ -587,7 +799,153 @@ def test_sync_github_branch_protection_rules(
 @patch.object(
     cartography.intel.github.repos,
     "_get_dep_manifests_for_repos",
-    return_value={},
+    return_value=(DEP_MANIFESTS_BY_URL, True),
+)
+@patch.object(
+    cartography.intel.github.repos,
+    "get",
+    return_value=GET_REPOS,
+)
+@patch.object(
+    cartography.intel.github.repos,
+    "_get_repo_collaborators_for_multiple_repos",
+)
+def test_sync_github_rulesets(
+    mock_get_collabs, mock_get_repos, mock_get_dep_manifests, neo4j_session
+):
+    """
+    Test that GitHub repository rulesets and rules are correctly synced.
+    """
+
+    def collabs_side_effect(repo_raw_data, affiliation, org, api_url, token):
+        if affiliation == "DIRECT":
+            return DIRECT_COLLABORATORS
+        else:
+            return OUTSIDE_COLLABORATORS
+
+    mock_get_collabs.side_effect = collabs_side_effect
+
+    cartography.intel.github.repos.sync(
+        neo4j_session,
+        TEST_JOB_PARAMS,
+        FAKE_API_KEY,
+        TEST_GITHUB_URL,
+        TEST_GITHUB_ORG,
+    )
+
+    repo_url = "https://github.com/cartography-cncf/cartography"
+    ruleset_id = "RRS_lACkVXNlcs4AXenizgBRqVA"
+
+    expected_ruleset_nodes = {
+        (ruleset_id, "production-ruleset", "BRANCH", "ACTIVE"),
+    }
+    actual_ruleset_nodes = check_nodes(
+        neo4j_session,
+        "GitHubRuleset",
+        ["id", "name", "target", "enforcement"],
+    )
+    assert actual_ruleset_nodes == expected_ruleset_nodes
+
+    assert (repo_url, ruleset_id) in check_rels(
+        neo4j_session,
+        "GitHubRepository",
+        "id",
+        "GitHubRuleset",
+        "id",
+        "HAS_RULESET",
+    )
+
+    assert ("https://github.com/simpsoncorp", ruleset_id) in check_rels(
+        neo4j_session,
+        "GitHubOrganization",
+        "id",
+        "GitHubRuleset",
+        "id",
+        "RESOURCE",
+    )
+
+    actual_rule_nodes = check_nodes(
+        neo4j_session,
+        "GitHubRulesetRule",
+        [
+            "id",
+            "type",
+            "parameters_required_approving_review_count",
+            "parameters_require_code_owner_review",
+        ],
+    )
+    expected_rule_nodes = {
+        ("RRU_kwDORule001", "DELETION", None, None),
+        ("RRU_kwDORule002", "PULL_REQUEST", 2, True),
+        ("RRU_kwDORule003", "REQUIRED_STATUS_CHECKS", None, None),
+    }
+    assert actual_rule_nodes == expected_rule_nodes
+
+    assert (ruleset_id, "RRU_kwDORule002") in check_rels(
+        neo4j_session,
+        "GitHubRuleset",
+        "id",
+        "GitHubRulesetRule",
+        "id",
+        "CONTAINS_RULE",
+    )
+
+
+@patch.object(
+    cartography.intel.github.repos,
+    "_get_dep_manifests_for_repos",
+    return_value=(DEP_MANIFESTS_BY_URL, True),
+)
+@patch.object(cartography.intel.github.repos, "get")
+@patch.object(
+    cartography.intel.github.repos,
+    "_get_repo_collaborators_for_multiple_repos",
+)
+def test_sync_github_rulesets_cleanup(
+    mock_get_collabs, mock_get_repos, mock_get_dep_manifests, neo4j_session
+):
+    """
+    Test that ruleset cleanup is org-scoped.
+    """
+
+    def collabs_side_effect(repo_raw_data, affiliation, org, api_url, token):
+        if affiliation == "DIRECT":
+            return DIRECT_COLLABORATORS
+        else:
+            return OUTSIDE_COLLABORATORS
+
+    mock_get_collabs.side_effect = collabs_side_effect
+
+    mock_get_repos.return_value = GET_REPOS
+
+    cartography.intel.github.repos.sync(
+        neo4j_session,
+        {"UPDATE_TAG": TEST_UPDATE_TAG},
+        FAKE_API_KEY,
+        TEST_GITHUB_URL,
+        TEST_GITHUB_ORG,
+    )
+
+    repos_without_rulesets = deepcopy(GET_REPOS)
+    repos_without_rulesets[2]["rulesets"] = {"nodes": []}
+    mock_get_repos.return_value = repos_without_rulesets
+
+    cartography.intel.github.repos.sync(
+        neo4j_session,
+        {"UPDATE_TAG": TEST_UPDATE_TAG + 1},
+        FAKE_API_KEY,
+        TEST_GITHUB_URL,
+        TEST_GITHUB_ORG,
+    )
+
+    assert check_nodes(neo4j_session, "GitHubRuleset", ["id"]) == set()
+    assert check_nodes(neo4j_session, "GitHubRulesetRule", ["id"]) == set()
+
+
+@patch.object(
+    cartography.intel.github.repos,
+    "_get_dep_manifests_for_repos",
+    return_value=({}, True),
 )
 @patch.object(cartography.intel.github.repos, "get")
 @patch.object(cartography.intel.github.repos, "_get_repo_collaborators")
@@ -698,7 +1056,7 @@ def test_sync_collaborators_per_repo(
 @patch.object(
     cartography.intel.github.repos,
     "_get_dep_manifests_for_repos",
-    return_value=DEP_MANIFESTS_BY_URL,
+    return_value=(DEP_MANIFESTS_BY_URL, True),
 )
 @patch.object(
     cartography.intel.github.repos,

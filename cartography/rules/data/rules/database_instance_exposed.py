@@ -1,3 +1,4 @@
+from cartography.rules.data.frameworks.iso27001 import iso27001_annex_a
 from cartography.rules.spec.model import Fact
 from cartography.rules.spec.model import Finding
 from cartography.rules.spec.model import Maturity
@@ -25,7 +26,7 @@ _azure_sql_internet_exposed = Fact(
       AND rule.start_ip_address = '0.0.0.0'
       AND rule.end_ip_address IS NOT NULL
       AND rule.end_ip_address <> '0.0.0.0'
-    RETURN
+    RETURN DISTINCT
         server.id AS id,
         server.name AS host,
         'Microsoft.Sql' AS engine,
@@ -45,6 +46,7 @@ _azure_sql_internet_exposed = Fact(
     RETURN COUNT(server) AS count
     """,
     asset_id_field="id",
+    identity_fields=("id",),
     module=Module.AZURE,
     maturity=Maturity.EXPERIMENTAL,
 )
@@ -83,6 +85,7 @@ _azure_cosmosdb_public_access = Fact(
     RETURN COUNT(account) AS count
     """,
     asset_id_field="id",
+    identity_fields=("id",),
     module=Module.AZURE,
     maturity=Maturity.EXPERIMENTAL,
 )
@@ -99,7 +102,7 @@ _gcp_cloud_sql_public_access = Fact(
     cypher_query="""
     MATCH (sql:GCPCloudSQLInstance)-[:AUTHORIZED_NETWORK]-(net:GCPCloudSQLAuthorizedNetwork)
     WHERE net.value = '0.0.0.0/0'
-    RETURN
+    RETURN DISTINCT
         sql.id AS id,
         sql.database_version AS engine,
         sql.connection_name AS host,
@@ -115,6 +118,7 @@ _gcp_cloud_sql_public_access = Fact(
     MATCH (sql:GCPCloudSQLInstance)
     RETURN COUNT(sql) AS count
     """,
+    identity_fields=("id",),
     module=Module.GCP,
     maturity=Maturity.EXPERIMENTAL,
 )
@@ -176,6 +180,7 @@ _aws_rds_public_access = Fact(
     MATCH (rds:RDSInstance)
     RETURN COUNT(rds) AS count
     """,
+    identity_fields=("id",),
     module=Module.AWS,
     maturity=Maturity.EXPERIMENTAL,
 )
@@ -210,4 +215,5 @@ database_instance_exposed = Rule(
         "stride:tampering",
     ),
     version="0.1.0",
+    frameworks=(iso27001_annex_a("8.20"),),
 )

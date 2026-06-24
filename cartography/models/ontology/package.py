@@ -63,6 +63,30 @@ class PackageToSocketDevDependencyRel(CartographyRelSchema):
     properties: PackageToNodeRelProperties = PackageToNodeRelProperties()
 
 
+# (:Package)-[:DETECTED_AS]->(:GitLabDependency)
+@dataclass(frozen=True)
+class PackageToGitLabDependencyRel(CartographyRelSchema):
+    target_node_label: str = "GitLabDependency"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"normalized_id": PropertyRef("normalized_id")},
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "DETECTED_AS"
+    properties: PackageToNodeRelProperties = PackageToNodeRelProperties()
+
+
+# (:Package)-[:DETECTED_AS]->(:GitHubDependency)
+@dataclass(frozen=True)
+class PackageToGitHubDependencyRel(CartographyRelSchema):
+    target_node_label: str = "GitHubDependency"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"normalized_id": PropertyRef("normalized_id")},
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "DETECTED_AS"
+    properties: PackageToNodeRelProperties = PackageToNodeRelProperties()
+
+
 @dataclass(frozen=True)
 class PackageToOntologyImageRel(CartographyRelSchema):
     """
@@ -129,6 +153,8 @@ class PackageSchema(CartographyNodeSchema):
             PackageToTrivyPackageRel(),
             PackageToSyftPackageRel(),
             PackageToSocketDevDependencyRel(),
+            PackageToGitLabDependencyRel(),
+            PackageToGitHubDependencyRel(),
             PackageToOntologyImageRel(),
             PackageToTrivyFixRel(),
             PackageToPackageDependsOnRel(),

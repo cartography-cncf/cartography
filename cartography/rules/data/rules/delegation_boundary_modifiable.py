@@ -1,3 +1,4 @@
+from cartography.rules.data.frameworks.iso27001 import iso27001_annex_a
 from cartography.rules.spec.model import Fact
 from cartography.rules.spec.model import Finding
 from cartography.rules.spec.model import Maturity
@@ -39,15 +40,20 @@ _aws_trust_relationship_manipulation = Fact(
         WITH a, principal, principal_type, policy, stmt, matched_allow_actions, deny_stmt
         WHERE deny_stmt IS NULL
         UNWIND matched_allow_actions AS action
-        RETURN DISTINCT
+        UNWIND coalesce(stmt.resource, [null]) AS resource
+        WITH a, principal, principal_type, policy,
+             collect(DISTINCT action) AS actions,
+             [r IN collect(DISTINCT resource) WHERE r IS NOT NULL] AS resources
+        RETURN
             a.name AS account,
             a.id AS account_id,
             principal.name AS principal_name,
             principal.arn AS principal_identifier,
+            policy.id AS policy_id,
             policy.name AS policy_name,
             principal_type,
-            collect(DISTINCT action) AS actions,
-            stmt.resource AS resources
+            actions,
+            resources
         ORDER BY account, principal_name
     """,
     cypher_visual_query="""
@@ -79,6 +85,7 @@ _aws_trust_relationship_manipulation = Fact(
     RETURN COUNT(principal) AS count
     """,
     asset_id_field="principal_identifier",
+    identity_fields=("account_id", "principal_identifier", "policy_id"),
     module=Module.AWS,
     maturity=Maturity.EXPERIMENTAL,
 )
@@ -154,6 +161,7 @@ _gcp_trust_relationship_manipulation = Fact(
     RETURN COUNT(principal) AS count
     """,
     asset_id_field="principal_identifier",
+    identity_fields=("account_id", "principal_identifier", "policy_name"),
     module=Module.GCP,
     maturity=Maturity.EXPERIMENTAL,
 )
@@ -213,6 +221,7 @@ _azure_trust_relationship_manipulation = Fact(
         principal.id AS principal_identifier,
         [label IN labels(principal)
             WHERE label IN ['EntraUser', 'EntraGroup', 'EntraServicePrincipal']][0] AS principal_type,
+        rd.id AS policy_id,
         rd.role_name AS policy_name,
         matched AS actions,
         [ra.scope] AS resources
@@ -242,6 +251,7 @@ _azure_trust_relationship_manipulation = Fact(
     RETURN COUNT(ra) AS count
     """,
     asset_id_field="principal_identifier",
+    identity_fields=("account_id", "principal_identifier", "policy_id"),
     module=Module.AZURE,
     maturity=Maturity.EXPERIMENTAL,
 )
@@ -254,6 +264,7 @@ class DelegationBoundaryModifiable(Finding):
     principal_type: str | None = None
     account: str | None = None
     account_id: str | None = None
+    policy_id: str | None = None
     policy_name: str | None = None
     actions: list[str] = []
     resources: list[str] = []
@@ -279,4 +290,8 @@ delegation_boundary_modifiable = Rule(
         "stride:tampering",
     ),
     version="0.1.0",
+    frameworks=(
+        iso27001_annex_a("5.18"),
+        iso27001_annex_a("8.2"),
+    ),
 )

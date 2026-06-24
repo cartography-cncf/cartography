@@ -70,6 +70,9 @@ class Config:
         False (default), AWS sync will run using the default credentials only. Optional.
     :type aws_regions: str
     :param aws_regions: Comma-separated list of AWS regions to sync. Optional.
+    :type aws_organization_account_ids: str
+    :param aws_organization_account_ids: Comma-separated list of AWS account IDs to use for AWS Organizations
+        hierarchy sync. Optional.
     :type aws_best_effort_mode: bool
     :param aws_best_effort_mode: If True, AWS sync will not raise any exceptions, just log. If False (default),
         exceptions will be raised.
@@ -221,6 +224,13 @@ class Config:
     :param tailscale_org: Tailscale organization name. Optional.
     :type tailscale_base_url: str
     :param tailscale_base_url: Tailscale API base URL. Optional.
+    :type tailscale_oauth_client_id: str
+    :param tailscale_oauth_client_id: Tailscale OAuth client ID. When set with
+        ``tailscale_oauth_client_secret``, exchanged for a short-lived bearer
+        token at sync time. Optional.
+    :type tailscale_oauth_client_secret: str
+    :param tailscale_oauth_client_secret: Tailscale OAuth client secret.
+        Optional.
     :type vercel_token: str
     :param vercel_token: Vercel API token. Optional.
     :type vercel_team_id: str
@@ -434,6 +444,8 @@ class Config:
         tailscale_token=None,
         tailscale_org=None,
         tailscale_base_url=None,
+        tailscale_oauth_client_id=None,
+        tailscale_oauth_client_secret=None,
         vercel_token=None,
         vercel_team_id=None,
         vercel_base_url=None,
@@ -465,6 +477,11 @@ class Config:
         sentinelone_api_token=None,
         sentinelone_account_ids=None,
         sentinelone_site_ids=None,
+        tenable_url=None,
+        tenable_tenant_id=None,
+        tenable_access_key=None,
+        tenable_secret_key=None,
+        tenable_findings_lookback_days=180,
         spacelift_api_endpoint=None,
         spacelift_api_token=None,
         spacelift_api_key_id=None,
@@ -503,6 +520,7 @@ class Config:
         neo4j_max_connection_pool_size=None,
         neo4j_connection_acquisition_timeout=None,
         _warn_on_legacy_report_source=True,
+        aws_organization_account_ids=None,
     ):
         self.neo4j_uri = neo4j_uri
         self.neo4j_user = neo4j_user
@@ -519,6 +537,7 @@ class Config:
         self.update_tag = update_tag
         self.aws_sync_all_profiles = aws_sync_all_profiles
         self.aws_regions = aws_regions
+        self.aws_organization_account_ids = aws_organization_account_ids
         self.aws_best_effort_mode = aws_best_effort_mode
         self.aws_cloudtrail_management_events_lookback_hours = (
             aws_cloudtrail_management_events_lookback_hours
@@ -601,6 +620,8 @@ class Config:
         self.tailscale_token = tailscale_token
         self.tailscale_org = tailscale_org
         self.tailscale_base_url = tailscale_base_url
+        self.tailscale_oauth_client_id = tailscale_oauth_client_id
+        self.tailscale_oauth_client_secret = tailscale_oauth_client_secret
         self.vercel_token = vercel_token
         self.vercel_team_id = vercel_team_id
         self.vercel_base_url = vercel_base_url
@@ -647,6 +668,11 @@ class Config:
         self.sentinelone_api_token = sentinelone_api_token
         self.sentinelone_account_ids = sentinelone_account_ids
         self.sentinelone_site_ids = sentinelone_site_ids
+        self.tenable_url = tenable_url
+        self.tenable_tenant_id = tenable_tenant_id
+        self.tenable_access_key = tenable_access_key
+        self.tenable_secret_key = tenable_secret_key
+        self.tenable_findings_lookback_days = tenable_findings_lookback_days
         self.spacelift_api_endpoint = spacelift_api_endpoint
         self.spacelift_api_token = spacelift_api_token
         self.spacelift_api_key_id = spacelift_api_key_id

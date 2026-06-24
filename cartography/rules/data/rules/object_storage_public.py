@@ -1,3 +1,4 @@
+from cartography.rules.data.frameworks.iso27001 import iso27001_annex_a
 from cartography.rules.spec.model import Fact
 from cartography.rules.spec.model import Finding
 from cartography.rules.spec.model import Maturity
@@ -42,6 +43,7 @@ _aws_s3_public = Fact(
     MATCH (b:S3Bucket)
     RETURN COUNT(b) AS count
     """,
+    identity_fields=("id",),
     module=Module.AWS,
     maturity=Maturity.EXPERIMENTAL,
 )
@@ -83,6 +85,7 @@ _gcp_bucket_public = Fact(
     MATCH (b:GCPBucket)
     RETURN COUNT(b) AS count
     """,
+    identity_fields=("id",),
     module=Module.GCP,
     maturity=Maturity.EXPERIMENTAL,
 )
@@ -119,6 +122,7 @@ _azure_storage_public_blob_access = Fact(
     MATCH (bc:AzureStorageBlobContainer)
     RETURN COUNT(bc) AS count
     """,
+    identity_fields=("id",),
     module=Module.AZURE,
     maturity=Maturity.EXPERIMENTAL,
 )
@@ -153,4 +157,5 @@ object_storage_public = Rule(
         "stride:information_disclosure",
     ),
     version="0.1.0",
+    frameworks=(iso27001_annex_a("8.3"),),
 )

@@ -8,9 +8,10 @@ Each Rule represents a distinct security concept with a consistent main node typ
 Facts within a Rule are provider-specific implementations of the same concept.
 """
 
+from cartography.rules.data.frameworks.cis import cis_google_workspace
+from cartography.rules.data.frameworks.iso27001 import iso27001_annex_a
 from cartography.rules.spec.model import Fact
 from cartography.rules.spec.model import Finding
-from cartography.rules.spec.model import Framework
 from cartography.rules.spec.model import Maturity
 from cartography.rules.spec.model import Module
 from cartography.rules.spec.model import Rule
@@ -35,8 +36,8 @@ CIS_REFERENCES = [
 class UserWithout2SVOutput(Finding):
     """Output model for users without enforced 2-Step Verification."""
 
-    user_id: str | None = None
     primary_email: str | None = None
+    user_id: str | None = None
     is_admin: bool | None = None
     org_unit_path: str | None = None
     is_enrolled_in_2sv: bool | None = None
@@ -73,13 +74,14 @@ _gw_user_2sv_not_enforced = Fact(
     MATCH (u:GoogleWorkspaceUser)
     RETURN COUNT(u) AS count
     """,
+    identity_fields=("user_id",),
     module=Module.GOOGLEWORKSPACE,
     maturity=Maturity.EXPERIMENTAL,
 )
 
-cis_gw_4_1_1_3_user_2sv_not_enforced = Rule(
-    id="cis_gw_4_1_1_3_user_2sv_not_enforced",
-    name="CIS Google Workspace 4.1.1.3: Users Without Enforced 2-Step Verification",
+googleworkspace_users_without_enforced_2sv = Rule(
+    id="googleworkspace_users_without_enforced_2sv",
+    name="Users Without Enforced 2-Step Verification",
     description=(
         "2-Step Verification should be enforced for all users to prevent unauthorized access. "
         "Enrolled but not enforced users can disable 2SV at any time."
@@ -90,13 +92,8 @@ cis_gw_4_1_1_3_user_2sv_not_enforced = Rule(
     version="1.0.0",
     references=CIS_REFERENCES,
     frameworks=(
-        Framework(
-            name="CIS Google Workspace Foundations Benchmark",
-            short_name="CIS",
-            scope="googleworkspace",
-            revision="1.3",
-            requirement="4.1.1.3",
-        ),
+        cis_google_workspace("4.1.1.3"),
+        iso27001_annex_a("8.5"),
     ),
 )
 
@@ -113,8 +110,8 @@ cis_gw_4_1_1_3_user_2sv_not_enforced = Rule(
 class AdminWithout2SVOutput(Finding):
     """Output model for admin accounts without enforced 2-Step Verification."""
 
-    user_id: str | None = None
     primary_email: str | None = None
+    user_id: str | None = None
     org_unit_path: str | None = None
     is_admin: bool | None = None
     is_delegated_admin: bool | None = None
@@ -158,13 +155,14 @@ _gw_admin_2sv_not_enforced = Fact(
     WHERE coalesce(u.is_admin, false) = true OR coalesce(u.is_delegated_admin, false) = true
     RETURN COUNT(u) AS count
     """,
+    identity_fields=("user_id",),
     module=Module.GOOGLEWORKSPACE,
     maturity=Maturity.EXPERIMENTAL,
 )
 
-cis_gw_4_1_1_1_admin_2sv_not_enforced = Rule(
-    id="cis_gw_4_1_1_1_admin_2sv_not_enforced",
-    name="CIS Google Workspace 4.1.1.1: Admins Without Enforced 2-Step Verification",
+googleworkspace_admins_without_enforced_2sv = Rule(
+    id="googleworkspace_admins_without_enforced_2sv",
+    name="Admins Without Enforced 2-Step Verification",
     description=(
         "Admin accounts should have 2-Step Verification enforced due to their elevated privileges. "
         "Enrolled but not enforced admins can disable 2SV, creating a significant security risk."
@@ -175,13 +173,9 @@ cis_gw_4_1_1_1_admin_2sv_not_enforced = Rule(
     version="1.0.0",
     references=CIS_REFERENCES,
     frameworks=(
-        Framework(
-            name="CIS Google Workspace Foundations Benchmark",
-            short_name="CIS",
-            scope="googleworkspace",
-            revision="1.3",
-            requirement="4.1.1.1",
-        ),
+        cis_google_workspace("4.1.1.1"),
+        iso27001_annex_a("8.5"),
+        iso27001_annex_a("8.2"),
     ),
 )
 
@@ -203,16 +197,16 @@ cis_gw_4_1_1_1_admin_2sv_not_enforced = Rule(
 class SuperAdminCoverageOutput(Finding):
     """Output model for tenant-level Super Admin coverage findings."""
 
-    tenant_id: str | None = None
     tenant_domain: str | None = None
+    tenant_id: str | None = None
     super_admin_count: int | None = None
 
 
 class SuperAdminExcessOutput(Finding):
     """Output model for tenants with excessive Super Admin coverage."""
 
-    tenant_id: str | None = None
     tenant_domain: str | None = None
+    tenant_id: str | None = None
     super_admin_count: int | None = None
 
 
@@ -247,13 +241,14 @@ _gw_super_admin_count_too_low = Fact(
     MATCH (t:GoogleWorkspaceTenant)
     RETURN COUNT(t) AS count
     """,
+    identity_fields=("tenant_id",),
     module=Module.GOOGLEWORKSPACE,
     maturity=Maturity.EXPERIMENTAL,
 )
 
-cis_gw_1_1_1_super_admin_count_too_low = Rule(
-    id="cis_gw_1_1_1_super_admin_count_too_low",
-    name="CIS Google Workspace 1.1.1: More Than One Super Admin Account Exists",
+googleworkspace_too_few_super_admin_accounts = Rule(
+    id="googleworkspace_too_few_super_admin_accounts",
+    name="Too Few Super Admin Accounts",
     description=(
         "Google Workspace tenants should maintain at least two Super Admin accounts "
         "to avoid a single point of failure for privileged administration."
@@ -264,13 +259,8 @@ cis_gw_1_1_1_super_admin_count_too_low = Rule(
     version="1.0.0",
     references=CIS_REFERENCES,
     frameworks=(
-        Framework(
-            name="CIS Google Workspace Foundations Benchmark",
-            short_name="CIS",
-            scope="googleworkspace",
-            revision="1.3",
-            requirement="1.1.1",
-        ),
+        cis_google_workspace("1.1.1"),
+        iso27001_annex_a("8.2"),
     ),
 )
 
@@ -310,13 +300,14 @@ _gw_super_admin_count_too_high = Fact(
     MATCH (t:GoogleWorkspaceTenant)
     RETURN COUNT(t) AS count
     """,
+    identity_fields=("tenant_id",),
     module=Module.GOOGLEWORKSPACE,
     maturity=Maturity.EXPERIMENTAL,
 )
 
-cis_gw_1_1_2_super_admin_count_too_high = Rule(
-    id="cis_gw_1_1_2_super_admin_count_too_high",
-    name="CIS Google Workspace 1.1.2: No More Than 4 Super Admin Accounts Exist",
+googleworkspace_too_many_super_admin_accounts = Rule(
+    id="googleworkspace_too_many_super_admin_accounts",
+    name="Too Many Super Admin Accounts",
     description=(
         "Google Workspace tenants should limit the number of Super Admin accounts "
         "to reduce the privileged attack surface."
@@ -327,13 +318,9 @@ cis_gw_1_1_2_super_admin_count_too_high = Rule(
     version="1.0.0",
     references=CIS_REFERENCES,
     frameworks=(
-        Framework(
-            name="CIS Google Workspace Foundations Benchmark",
-            short_name="CIS",
-            scope="googleworkspace",
-            revision="1.3",
-            requirement="1.1.2",
-        ),
+        cis_google_workspace("1.1.2"),
+        iso27001_annex_a("8.2"),
+        iso27001_annex_a("5.18"),
     ),
 )
 
@@ -345,8 +332,8 @@ cis_gw_1_1_2_super_admin_count_too_high = Rule(
 class SuperAdminDualRoleOutput(Finding):
     """Output model for Super Admins that also hold delegated admin roles."""
 
-    user_id: str | None = None
     primary_email: str | None = None
+    user_id: str | None = None
     org_unit_path: str | None = None
     tenant_id: str | None = None
 
@@ -377,13 +364,14 @@ _gw_super_admin_with_delegated_admin_role = Fact(
     WHERE coalesce(u.is_admin, false) = true
     RETURN COUNT(u) AS count
     """,
+    identity_fields=("user_id",),
     module=Module.GOOGLEWORKSPACE,
     maturity=Maturity.EXPERIMENTAL,
 )
 
-cis_gw_1_1_3_super_admin_used_for_daily_admin = Rule(
-    id="cis_gw_1_1_3_super_admin_used_for_daily_admin",
-    name="CIS Google Workspace 1.1.3: Super Admin Accounts Used Only for Super Admin Activities",
+googleworkspace_super_admin_accounts_used_for_daily_admin = Rule(
+    id="googleworkspace_super_admin_accounts_used_for_daily_admin",
+    name="Super Admin Accounts Used for Daily Admin Activities",
     description=(
         "Super Admin accounts should remain dedicated to top-level administration "
         "and not also be used as delegated admin accounts."
@@ -394,13 +382,8 @@ cis_gw_1_1_3_super_admin_used_for_daily_admin = Rule(
     version="1.0.0",
     references=CIS_REFERENCES,
     frameworks=(
-        Framework(
-            name="CIS Google Workspace Foundations Benchmark",
-            short_name="CIS",
-            scope="googleworkspace",
-            revision="1.3",
-            requirement="1.1.3",
-        ),
+        cis_google_workspace("1.1.3"),
+        iso27001_annex_a("8.2"),
     ),
 )
 

@@ -6,9 +6,10 @@ categories and are designed as practical security findings rather than
 certification assertions.
 """
 
+from cartography.rules.data.frameworks.iso27001 import iso27001_annex_a
+from cartography.rules.data.frameworks.nist_ai_rmf import nist_ai_rmf
 from cartography.rules.spec.model import Fact
 from cartography.rules.spec.model import Finding
-from cartography.rules.spec.model import Framework
 from cartography.rules.spec.model import Maturity
 from cartography.rules.spec.model import Module
 from cartography.rules.spec.model import Rule
@@ -116,6 +117,7 @@ _cross_cloud_nist_ai_app_inventory = Fact(
         coalesce(app._ont_name, app.display_name, app.display_text, app.name) AS app_name,
         coalesce(app._ont_client_id, app.client_id, app.app_id, app.id) AS app_client_id,
         app._ont_source AS app_source,
+        app._ont_source AS source,
         CASE
             WHEN allowlist_match THEN 'allowlist'
             WHEN heuristic_match THEN 'heuristic'
@@ -145,13 +147,14 @@ _cross_cloud_nist_ai_app_inventory = Fact(
     RETURN COUNT(app) AS count
     """,
     asset_id_field="app_client_id",
+    identity_fields=("app_source", "app_client_id"),
     module=Module.CROSS_CLOUD,
     maturity=Maturity.EXPERIMENTAL,
 )
 
-nist_ai_third_party_app_inventory = Rule(
-    id="nist_ai_third_party_app_inventory",
-    name="NIST AI RMF: AI Third-Party App Inventory",
+ai_third_party_app_inventory = Rule(
+    id="ai_third_party_app_inventory",
+    name="AI Third-Party App Inventory",
     description=(
         "Inventories AI-related third-party applications connected to enterprise "
         "identities, supporting governance and usage visibility."
@@ -162,12 +165,9 @@ nist_ai_third_party_app_inventory = Rule(
     version="0.1.0",
     references=NIST_REFERENCES,
     frameworks=(
-        Framework(
-            name="NIST AI Risk Management Framework",
-            short_name="NIST-AI-RMF",
-            requirement="MAP 1",
-            revision="1.0",
-        ),
+        nist_ai_rmf("MAP 1"),
+        iso27001_annex_a("5.21"),
+        iso27001_annex_a("5.23"),
     ),
 )
 
@@ -219,6 +219,7 @@ _cross_cloud_nist_ai_app_sensitive_scopes = Fact(
         coalesce(app._ont_name, app.display_name, app.display_text, app.name) AS app_name,
         coalesce(app._ont_client_id, app.client_id, app.app_id, app.id) AS app_client_id,
         app._ont_source AS app_source,
+        app._ont_source AS source,
         count(DISTINCT ua) AS authorized_identity_count,
         count(DISTINCT risky_scope) AS risky_scope_count,
         collect(DISTINCT risky_scope) AS risky_scopes
@@ -251,13 +252,14 @@ _cross_cloud_nist_ai_app_sensitive_scopes = Fact(
     RETURN COUNT(app) AS count
     """,
     asset_id_field="app_client_id",
+    identity_fields=("app_source", "app_client_id"),
     module=Module.CROSS_CLOUD,
     maturity=Maturity.EXPERIMENTAL,
 )
 
-nist_ai_third_party_app_sensitive_scopes = Rule(
-    id="nist_ai_third_party_app_sensitive_scopes",
-    name="NIST AI RMF: AI Third-Party Apps with Sensitive Scopes",
+ai_third_party_app_sensitive_scopes = Rule(
+    id="ai_third_party_app_sensitive_scopes",
+    name="AI Third-Party Apps with Sensitive Scopes",
     description=(
         "Detects AI-related third-party applications that hold sensitive OAuth "
         "grants and therefore increase data exposure risk."
@@ -268,18 +270,10 @@ nist_ai_third_party_app_sensitive_scopes = Rule(
     version="0.1.0",
     references=NIST_REFERENCES,
     frameworks=(
-        Framework(
-            name="NIST AI Risk Management Framework",
-            short_name="NIST-AI-RMF",
-            requirement="MEASURE 2",
-            revision="1.0",
-        ),
-        Framework(
-            name="NIST AI Risk Management Framework",
-            short_name="NIST-AI-RMF",
-            requirement="MANAGE 2",
-            revision="1.0",
-        ),
+        nist_ai_rmf("MEASURE 2"),
+        nist_ai_rmf("MANAGE 2"),
+        iso27001_annex_a("5.15"),
+        iso27001_annex_a("8.3"),
     ),
 )
 
@@ -389,13 +383,14 @@ _gw_nist_ai_admin_app_authorizations = Fact(
     RETURN COUNT(DISTINCT app) AS count
     """,
     asset_id_field="app_client_id",
+    identity_fields=("app_source", "app_client_id"),
     module=Module.GOOGLEWORKSPACE,
     maturity=Maturity.EXPERIMENTAL,
 )
 
-nist_ai_admin_ai_app_authorizations = Rule(
-    id="nist_ai_admin_ai_app_authorizations",
-    name="NIST AI RMF: Admin Authorization of AI Apps",
+ai_admin_app_authorizations = Rule(
+    id="ai_admin_app_authorizations",
+    name="Admin Authorization of AI Apps",
     description=(
         "Identifies privileged Google Workspace identities that have authorized "
         "AI-related third-party applications."
@@ -406,12 +401,9 @@ nist_ai_admin_ai_app_authorizations = Rule(
     version="0.1.0",
     references=NIST_REFERENCES,
     frameworks=(
-        Framework(
-            name="NIST AI Risk Management Framework",
-            short_name="NIST-AI-RMF",
-            requirement="GOVERN 5",
-            revision="1.0",
-        ),
+        nist_ai_rmf("GOVERN 5"),
+        iso27001_annex_a("5.18"),
+        iso27001_annex_a("8.2"),
     ),
 )
 
@@ -441,6 +433,7 @@ nist_ai_admin_ai_app_authorizations = Rule(
 # Main node: AIBOMComponent (AIAgent)
 # =============================================================================
 class NistAiAibomAgentInventoryOutput(Finding):
+    agent_name: str | None = None
     source_id: str | None = None
     image_uri: str | None = None
     manifest_digest: str | None = None
@@ -448,7 +441,6 @@ class NistAiAibomAgentInventoryOutput(Finding):
     scanner_version: str | None = None
     agent_component_id: str | None = None
     agent_logical_id: str | None = None
-    agent_name: str | None = None
     agent_framework: str | None = None
     agent_file_path: str | None = None
     agent_line_number: int | None = None
@@ -547,13 +539,14 @@ _aibom_nist_ai_agent_inventory = Fact(
     RETURN COUNT(DISTINCT agent) AS count
     """,
     asset_id_field="agent_component_id",
+    identity_fields=("agent_component_id",),
     module=Module.AIBOM,
     maturity=Maturity.EXPERIMENTAL,
 )
 
-nist_ai_aibom_agent_inventory = Rule(
-    id="nist_ai_aibom_agent_inventory",
-    name="NIST AI RMF: Deployed AI Agent Inventory",
+aibom_agent_inventory = Rule(
+    id="aibom_agent_inventory",
+    name="Deployed AI Agent Inventory",
     description=(
         "Inventories deployed AI agents from AIBOM and their direct agentic "
         "dependencies so teams can map runtime AI system composition."
@@ -564,18 +557,10 @@ nist_ai_aibom_agent_inventory = Rule(
     version="0.1.0",
     references=NIST_REFERENCES,
     frameworks=(
-        Framework(
-            name="NIST AI Risk Management Framework",
-            short_name="NIST-AI-RMF",
-            requirement="MAP 1",
-            revision="1.0",
-        ),
-        Framework(
-            name="NIST AI Risk Management Framework",
-            short_name="NIST-AI-RMF",
-            requirement="GOVERN 1",
-            revision="1.0",
-        ),
+        nist_ai_rmf("MAP 1"),
+        nist_ai_rmf("GOVERN 1"),
+        iso27001_annex_a("5.9"),
+        iso27001_annex_a("5.21"),
     ),
 )
 
@@ -590,11 +575,11 @@ nist_ai_aibom_agent_inventory = Rule(
 # Main node: AIBOMSource
 # =============================================================================
 class NistAiAibomCoverageGapOutput(Finding):
+    scanner_name: str | None = None
     source_id: str | None = None
     image_uri: str | None = None
     manifest_digests: list[str] | None = None
     report_location: str | None = None
-    scanner_name: str | None = None
     scanner_version: str | None = None
     source_status: str | None = None
     analysis_status: str | None = None
@@ -653,13 +638,14 @@ _aibom_nist_ai_coverage_gaps = Fact(
     RETURN COUNT(source) AS count
     """,
     asset_id_field="source_id",
+    identity_fields=("source_id",),
     module=Module.AIBOM,
     maturity=Maturity.EXPERIMENTAL,
 )
 
-nist_ai_aibom_coverage_gaps = Rule(
-    id="nist_ai_aibom_coverage_gaps",
-    name="NIST AI RMF: AIBOM Coverage Gaps",
+aibom_coverage_gaps = Rule(
+    id="aibom_coverage_gaps",
+    name="AIBOM Coverage Gaps",
     description=(
         "Detects deployed AI inventory gaps where AIBOM scans are incomplete or "
         "cannot be tied back to the canonical production image."
@@ -670,18 +656,10 @@ nist_ai_aibom_coverage_gaps = Rule(
     version="0.1.0",
     references=NIST_REFERENCES,
     frameworks=(
-        Framework(
-            name="NIST AI Risk Management Framework",
-            short_name="NIST-AI-RMF",
-            requirement="MEASURE 2",
-            revision="1.0",
-        ),
-        Framework(
-            name="NIST AI Risk Management Framework",
-            short_name="NIST-AI-RMF",
-            requirement="MANAGE 2",
-            revision="1.0",
-        ),
+        nist_ai_rmf("MEASURE 2"),
+        nist_ai_rmf("MANAGE 2"),
+        iso27001_annex_a("5.9"),
+        iso27001_annex_a("5.21"),
     ),
 )
 
@@ -726,11 +704,11 @@ nist_ai_aibom_coverage_gaps = Rule(
 # Main node: OpenAIApiKey/OpenAIAdminApiKey/AnthropicApiKey
 # =============================================================================
 class NistAiProviderApiKeyHygieneOutput(Finding):
+    api_key_name: str | None = None
     provider: str | None = None
     organization_id: str | None = None
     project_or_workspace_id: str | None = None
     api_key_id: str | None = None
-    api_key_name: str | None = None
     status: str | None = None
     created_at: str | None = None
     last_used_at: str | None = None
@@ -810,17 +788,24 @@ _openai_nist_ai_stale_or_unowned_api_keys = Fact(
     RETURN COUNT(k) AS count
     """,
     asset_id_field="api_key_id",
+    identity_fields=("provider", "api_key_id"),
     module=Module.OPENAI,
     maturity=Maturity.EXPERIMENTAL,
 )
 
 
 _anthropic_nist_ai_stale_or_unscoped_api_keys = Fact(
+    # Note: the id keeps the historical "stale_or_unscoped" suffix even
+    # though staleness is no longer evaluated. Renaming would break users
+    # and CI that pin the id with `cartography-rules run ... <fact-id>`;
+    # the actual scope is communicated via `name` and `description`.
     id="anthropic_nist_ai_stale_or_unscoped_api_keys",
-    name="Anthropic API keys stale/unused or lacking ownership/scope",
+    name="Anthropic API keys lacking ownership/scope",
     description=(
-        "Finds Anthropic API keys that are stale/unused (90+ days), lack owner "
-        "attribution, or are not scoped to a workspace."
+        "Finds Anthropic API keys that lack owner attribution or are not "
+        "scoped to a workspace. Staleness (last-used age) is not checked: "
+        "the Anthropic Admin API does not return last-used metadata for "
+        "API keys, so it cannot be evaluated from graph data."
     ),
     cypher_query="""
     MATCH (org:AnthropicOrganization)-[:RESOURCE]->(k:AnthropicApiKey)
@@ -832,18 +817,8 @@ _anthropic_nist_ai_stale_or_unscoped_api_keys = Fact(
         k,
         has_owner,
         workspace,
-        CASE
-            WHEN k.last_used_at IS NULL THEN true
-            ELSE datetime(k.last_used_at) < datetime() - duration('P90D')
-        END AS is_stale_or_unused
-    WITH
-        org,
-        k,
-        has_owner,
-        workspace,
-        is_stale_or_unused,
         workspace IS NOT NULL AS has_project_or_workspace_scope
-    WHERE is_stale_or_unused OR NOT has_owner OR NOT has_project_or_workspace_scope
+    WHERE NOT has_owner OR NOT has_project_or_workspace_scope
     RETURN
         'anthropic' AS provider,
         org.id AS organization_id,
@@ -852,8 +827,8 @@ _anthropic_nist_ai_stale_or_unscoped_api_keys = Fact(
         k.name AS api_key_name,
         coalesce(k.status, 'unknown') AS status,
         toString(k.created_at) AS created_at,
-        toString(k.last_used_at) AS last_used_at,
-        is_stale_or_unused,
+        NULL AS last_used_at,
+        NULL AS is_stale_or_unused,
         has_owner,
         has_project_or_workspace_scope
     ORDER BY provider, organization_id, api_key_name
@@ -862,16 +837,10 @@ _anthropic_nist_ai_stale_or_unscoped_api_keys = Fact(
     MATCH p=(org:AnthropicOrganization)-[:RESOURCE]->(k:AnthropicApiKey)
     OPTIONAL MATCH p1=(u:AnthropicUser)-[:OWNS]->(k)
     OPTIONAL MATCH p2=(workspace:AnthropicWorkspace)-[:CONTAINS]->(k)
-    WITH p, p1, p2, k
-    WITH
-        p, p1, p2,
-        CASE
-            WHEN k.last_used_at IS NULL THEN true
-            ELSE datetime(k.last_used_at) < datetime() - duration('P90D')
-        END AS is_stale_or_unused,
+    WITH p, p1, p2,
         p1 IS NOT NULL AS has_owner,
         p2 IS NOT NULL AS has_project_or_workspace_scope
-    WHERE is_stale_or_unused OR NOT has_owner OR NOT has_project_or_workspace_scope
+    WHERE NOT has_owner OR NOT has_project_or_workspace_scope
     RETURN *
     """,
     cypher_count_query="""
@@ -879,16 +848,19 @@ _anthropic_nist_ai_stale_or_unscoped_api_keys = Fact(
     RETURN COUNT(k) AS count
     """,
     asset_id_field="api_key_id",
+    identity_fields=("provider", "api_key_id"),
     module=Module.ANTHROPIC,
     maturity=Maturity.EXPERIMENTAL,
 )
 
-nist_ai_provider_api_key_hygiene = Rule(
-    id="nist_ai_provider_api_key_hygiene",
-    name="NIST AI RMF: AI Provider API Key Hygiene",
+ai_provider_api_key_hygiene = Rule(
+    id="ai_provider_api_key_hygiene",
+    name="AI Provider API Key Hygiene",
     description=(
-        "Detects stale/unused AI-provider API keys and ownership/scope gaps across "
-        "OpenAI and Anthropic."
+        "Detects ownership and scope gaps on AI-provider API keys across OpenAI "
+        "and Anthropic, and stale/unused keys (90+ days) for OpenAI. Anthropic "
+        "staleness is not evaluated because the Anthropic Admin API does not "
+        "return last-used metadata for API keys."
     ),
     output_model=NistAiProviderApiKeyHygieneOutput,
     facts=(
@@ -899,18 +871,10 @@ nist_ai_provider_api_key_hygiene = Rule(
     version="0.1.0",
     references=NIST_REFERENCES,
     frameworks=(
-        Framework(
-            name="NIST AI Risk Management Framework",
-            short_name="NIST-AI-RMF",
-            requirement="GOVERN 5",
-            revision="1.0",
-        ),
-        Framework(
-            name="NIST AI Risk Management Framework",
-            short_name="NIST-AI-RMF",
-            requirement="MANAGE 2",
-            revision="1.0",
-        ),
+        nist_ai_rmf("GOVERN 5"),
+        nist_ai_rmf("MANAGE 2"),
+        iso27001_annex_a("5.17"),
+        iso27001_annex_a("5.18"),
     ),
 )
 

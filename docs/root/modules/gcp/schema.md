@@ -149,6 +149,7 @@ Representation of a GCP [Storage Bucket](https://cloud.google.com/storage/docs/j
 | log_bucket                    | The destination bucket where the current bucket's logs should be placed |
 | requester_pays                | The bucket's billing configuration (if set to true, Requester Pays is enabled for this bucket) |
 | default_kms_key_name          | A Cloud KMS key that will be used to encrypt objects inserted into this bucket, if no encryption method is specified |
+| acl_public                    | `true` if the bucket's legacy ACL or default object ACL grants access to `allUsers` or `allAuthenticatedUsers`. Consumed by the `_ont_public` projection job. |
 
 #### Relationships
 
@@ -158,10 +159,10 @@ Representation of a GCP [Storage Bucket](https://cloud.google.com/storage/docs/j
     (GCPProject)-[RESOURCE]->(GCPBucket)
     ```
 
-- GCPBuckets can be labelled with GCPBucketLabels.
+- GCPBuckets can be labeled with GCPBucketLabels.
 
     ```
-    (GCPBucket)<-[LABELLED]-(GCPBucketLabels)
+    (GCPBucket)-[LABELED]->(GCPBucketLabel)
     ```
 
 - GCPPrincipals with appropriate permissions can read from GCP buckets. Created from [gcp_permission_relationships.yaml](https://github.com/cartography-cncf/cartography/blob/master/cartography/data/gcp_permission_relationships.yaml).
@@ -227,7 +228,7 @@ Representation of a GCP [Storage Bucket Label](https://cloud.google.com/storage/
 - GCPBuckets can be labeled with GCPBucketLabels.
 
     ```
-    (GCPBucket)<-[LABELED]-(GCPBucketLabels)
+    (GCPBucket)-[LABELED]->(GCPBucketLabel)
     ```
 
 
@@ -281,6 +282,9 @@ Representation of a GCP [Instance](https://cloud.google.com/compute/docs/referen
 | zone_name        | The zone that the instance is installed on |
 | hostname         | If present, the hostname of the instance |
 | machine_type | The instance machine type short name, e.g. `n2d-standard-4`. |
+| creation_timestamp | RFC 3339 timestamp of when the instance was created. |
+| private_ip | Primary internal IP address (first NIC's `networkIP`). |
+| public_ip | Primary external IP address (first access config's `natIP`), if any. |
 | service_account_email | Primary attached service account email when the instance has one. |
 | service_account_scopes | OAuth scopes configured on the primary attached service account. |
 | can_ip_forward | Whether the instance is configured with IP forwarding enabled. |
@@ -350,6 +354,12 @@ Representation of a GCP [Instance](https://cloud.google.com/compute/docs/referen
     (GCPBackendService)-[:EXPOSE]->(GCPInstance)
     ```
 
+- GCP Instances run as the GCP Service Account attached to them, matched on the service account email.
+
+    ```
+    (GCPInstance)-[:RUNS_AS]->(GCPServiceAccount)
+    ```
+
 ### GCPNetworkTag
 
 Representation of a Tag defined on a GCP Instance or GCP Firewall.  Tags are defined on GCP instances for use in [network firewall routing](https://cloud.google.com/blog/products/gcp/labelling-and-grouping-your-google-cloud-platform-resources).
@@ -377,12 +387,14 @@ Representation of a Tag defined on a GCP Instance or GCP Firewall.  Tags are def
 - GCPNetworkTags are defined on a VPC and only have effect on assets in that VPC
 
     ```
-    (GCPVpc)-[DEFINED_IN]->(GCPNetworkTag)
+    (GCPNetworkTag)-[DEFINED_IN]->(GCPVpc)
     ```
 
 ### GCPVpc
 
 Representation of a GCP [VPC](https://cloud.google.com/compute/docs/reference/rest/v1/networks/).  In GCP documentation this is also known simply as a "Network" object.
+
+> **Ontology Mapping**: This node has the extra label `VirtualNetwork` and normalized `_ont_*` properties to enable cross-platform queries for virtual networks across different systems (e.g., AWSVpc, AzureVirtualNetwork).
 
 | Field                      | Description |
 | -------------------------- | ----------- |
@@ -420,7 +432,7 @@ Representation of a GCP [VPC](https://cloud.google.com/compute/docs/reference/re
 - GCPNetworkTags are defined on a VPC and only have effect on assets in that VPC
 
     ```
-    (:GCPVpc)-[:DEFINED_IN]->(:GCPNetworkTag)
+    (:GCPNetworkTag)-[:DEFINED_IN]->(:GCPVpc)
     ```
 
 - GCP Instances may be members of one or more GCP VPCs.
@@ -521,6 +533,8 @@ Representation of a GCP [Resource Record Set](https://cloud.google.com/dns/docs/
 ### GCPSubnet
 
 Representation of a GCP [Subnetwork](https://cloud.google.com/compute/docs/reference/rest/v1/subnetworks).
+
+> **Ontology Mapping**: This node has the extra label `Subnet` and normalized `_ont_*` properties to enable cross-platform queries for network subnets across different systems (e.g., EC2Subnet, AzureSubnet).
 
 | Field                    | Description                                                                                                                                                                                        |
 | ------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -640,6 +654,7 @@ Representation of GCP [Forwarding Rules](https://cloud.google.com/compute/docs/r
 | ip_address            | IP address that this Forwarding Rule serves                                                                                                          |
 | ip_protocol           | IP protocol to which this rule applies                                                                                                               |
 | load_balancing_scheme | Specifies the Forwarding Rule type                                                                                                                   |
+| lb_type               | Normalised load-balancer family derived from the target proxy collection (`http`, `https`, `tcp`, `ssl`, `grpc`, `network`, `vpn`).                  |
 | name                  | Name of the Forwarding Rule                                                                                                                          |
 | network               | A partial resource URI of the network this Forwarding Rule belongs to                                                                                |
 | port_range            | Port range used in conjunction with a target resource. Only packets addressed to ports in the specified range will be forwarded to target configured |
@@ -792,7 +807,7 @@ Representation of a GCP [Service Account](https://cloud.google.com/iam/docs/refe
 - GCPServiceAccounts are resources of GCPProjects.
 
     ```
-    (GCPServiceAccount)-[RESOURCE]->(GCPProject)
+    (GCPProject)-[RESOURCE]->(GCPServiceAccount)
     ```
 
 - GCPPrincipals with appropriate impersonation permissions can act as a GCPServiceAccount. Created from [gcp_permission_relationships.yaml](https://github.com/cartography-cncf/cartography/blob/master/cartography/data/gcp_permission_relationships.yaml). Driven by `iam.serviceAccounts.actAs` and related permissions packaged in `roles/iam.serviceAccountTokenCreator` and `roles/iam.serviceAccountUser`.
@@ -804,12 +819,14 @@ Representation of a GCP [Service Account](https://cloud.google.com/iam/docs/refe
 - GCPServiceAccounts have user-managed authentication keys (system-managed keys are intentionally not synced).
 
     ```
-    (GCPServiceAccount)-[HAS_KEY]->(GCPServiceAccountKey)
+    (GCPServiceAccountKey)-[OWNED_BY]->(GCPServiceAccount)
     ```
 
 ### GCPServiceAccountKey
 
 Representation of a user-managed GCP [Service Account Key](https://cloud.google.com/iam/docs/reference/rest/v1/projects.serviceAccounts.keys). System-managed keys (rotated automatically by Google) are not ingested.
+
+> **Ontology Mapping**: This node has the extra label `APIKey` to enable cross-platform queries for long-lived API credentials across different systems (e.g., AccountAccessKey, ScalewayApiKey).
 
 | Field                | Description                                                                                            |
 | -------------------- | ------------------------------------------------------------------------------------------------------ |
@@ -832,10 +849,10 @@ Representation of a user-managed GCP [Service Account Key](https://cloud.google.
     (GCPProject)-[RESOURCE]->(GCPServiceAccountKey)
     ```
 
-- GCPServiceAccountKeys hang off their parent GCPServiceAccount.
+- GCPServiceAccountKeys are owned by their parent GCPServiceAccount.
 
     ```
-    (GCPServiceAccount)-[HAS_KEY]->(GCPServiceAccountKey)
+    (GCPServiceAccountKey)-[OWNED_BY]->(GCPServiceAccount)
     ```
 
 ### GCPRole
@@ -954,6 +971,7 @@ Representation of a GCP [IAM Policy Binding](https://cloud.google.com/iam/docs/r
 | resource             | The full resource name where the policy binding is attached.                     |
 | resource_type        | The type of resource.                                                            |
 | members              | A list of principal email addresses that are granted the role. The synthetic GCP principals `allUsers` and `allAuthenticatedUsers` are NOT included here; presence of either is reflected in `is_public` instead. |
+| wif_pools            | A list of Workload Identity Federation pool resource names (`projects/{N}/locations/global/workloadIdentityPools/{POOL}`) referenced by `principal://` or `principalSet://` members of this binding. |
 | is_public            | True if the binding includes the `allUsers` or `allAuthenticatedUsers` principal. Combine with `has_condition = false` to reason about unconditional public exposure. |
 | has_condition        | A boolean indicating if the policy binding has a condition attached.             |
 | condition_title      | The title of the condition.                                                      |
@@ -981,6 +999,14 @@ Representation of a GCP [IAM Policy Binding](https://cloud.google.com/iam/docs/r
     (GCPPrincipal)-[:HAS_ALLOW_POLICY]->(GCPPolicyBinding)
     ```
 
+- Workload Identity Federation pools have allow policies that grant federated
+  principals access. The edge is created when a binding member is a `principal://`
+  or `principalSet://` URI referencing the pool.
+
+    ```
+    (GCPWorkloadIdentityPool)-[:HAS_ALLOW_POLICY]->(GCPPolicyBinding)
+    ```
+
 - GCPPolicyBindings grant roles to principals.
 
     ```
@@ -997,6 +1023,76 @@ Representation of a GCP [IAM Policy Binding](https://cloud.google.com/iam/docs/r
 
     ```
     (GCPPolicyBinding)-[:APPLIES_TO]->(:GCPProject|GCPBucket|GCPCryptoKey|...)
+    ```
+
+### GCPWorkloadIdentityPool
+
+Representation of a GCP [Workload Identity Pool](https://cloud.google.com/iam/docs/reference/rest/v1/projects.locations.workloadIdentityPools). A pool groups external identities that can impersonate GCP service accounts via federation.
+
+| Field            | Description                                                                                          |
+| ---------------- | ---------------------------------------------------------------------------------------------------- |
+| id               | The full resource name, e.g. `projects/{number}/locations/global/workloadIdentityPools/{pool_id}`.   |
+| name             | Same as `id`.                                                                                        |
+| display_name     | The friendly name of the pool.                                                                       |
+| description      | A description of the pool.                                                                           |
+| state            | Pool state (`ACTIVE`, `DELETED`).                                                                    |
+| disabled         | Whether the pool is disabled.                                                                        |
+| mode             | Pool mode. `SYSTEM_TRUST_DOMAIN` indicates a GKE-managed pool (`*.svc.id.goog`) whose providers are managed by Google and not enumerated by Cartography. Otherwise the field is unset or carries a user-managed mode. |
+| session_duration | Default session duration for federated tokens issued via this pool.                                  |
+| firstseen        | Timestamp of when a sync job first discovered this node.                                             |
+| lastupdated      | Timestamp of the last time the node was updated.                                                     |
+
+#### Relationships
+
+- GCPWorkloadIdentityPools are sub-resources of GCPProjects.
+
+    ```
+    (GCPProject)-[:RESOURCE]->(GCPWorkloadIdentityPool)
+    ```
+
+- GCPWorkloadIdentityPools have allow policies granting their federated identities access.
+
+    ```
+    (GCPWorkloadIdentityPool)-[:HAS_ALLOW_POLICY]->(GCPPolicyBinding)
+    ```
+
+### GCPWorkloadIdentityProvider
+
+Representation of a GCP [Workload Identity Pool Provider](https://cloud.google.com/iam/docs/reference/rest/v1/projects.locations.workloadIdentityPools.providers). A provider connects a pool to an external identity source (OIDC, AWS, SAML, or X509).
+
+> **Ontology Mapping**: This node has the extra label `IdentityProvider` to enable cross-platform queries for federated identity providers across different systems (e.g., AWSSAMLProvider, KeycloakIdentityProvider, KubernetesOIDCProvider).
+
+| Field                  | Description                                                                                |
+| ---------------------- | ------------------------------------------------------------------------------------------ |
+| id                     | The full provider resource name.                                                           |
+| name                   | Same as `id`.                                                                              |
+| display_name           | The friendly name of the provider.                                                         |
+| description            | A description of the provider.                                                             |
+| state                  | Provider state (`ACTIVE`, `DELETED`).                                                      |
+| disabled               | Whether the provider is explicitly disabled.                                               |
+| enabled                | Effective enabled flag: true only when both the provider and its parent pool are `state == ACTIVE` and not disabled. Used for the `IdentityProvider` ontology mapping. |
+| protocol               | One of `OIDC`, `AWS`, `SAML`, `X509`, depending on which sub-object is populated.          |
+| attribute_condition    | CEL expression that gates token claims before federation.                                  |
+| oidc_issuer_uri        | OIDC issuer URI (only set when `protocol = OIDC`).                                         |
+| oidc_allowed_audiences | OIDC allowed audiences (only set when `protocol = OIDC`).                                  |
+| aws_account_id         | AWS account ID this provider trusts (only set when `protocol = AWS`).                      |
+| saml_idp_metadata_xml  | SAML IdP metadata XML (only set when `protocol = SAML`).                                   |
+| pool_name              | The resource name of the parent GCPWorkloadIdentityPool.                                   |
+| firstseen              | Timestamp of when a sync job first discovered this node.                                   |
+| lastupdated            | Timestamp of the last time the node was updated.                                           |
+
+#### Relationships
+
+- GCPWorkloadIdentityProviders are sub-resources of GCPProjects.
+
+    ```
+    (GCPProject)-[:RESOURCE]->(GCPWorkloadIdentityProvider)
+    ```
+
+- GCPWorkloadIdentityProviders belong to a GCPWorkloadIdentityPool.
+
+    ```
+    (GCPWorkloadIdentityProvider)-[:MEMBER_OF]->(GCPWorkloadIdentityPool)
     ```
 
 ### GCPBigtableInstance
@@ -1378,6 +1474,7 @@ Representation of a GCP [Cloud SQL Instance](https://cloud.google.com/sql/docs/m
 | **id** | The instance's `selfLink`, which is its unique URI. |
 | name | The user-assigned name of the instance. |
 | database\_version | The database engine type and version (e.g., `POSTGRES_15`). |
+| database\_engine | Normalised engine name derived from `database_version`, e.g. `postgres`, `mysql`, `sqlserver`. |
 | region | The GCP region the instance lives in. |
 | gce\_zone | The specific Compute Engine zone the instance is serving from. |
 | state | The current state of the instance (e.g., `RUNNABLE`). |
@@ -1527,6 +1624,8 @@ Representation of a Google [Cloud Function](https://cloud.google.com/functions/d
 | name                  | The full, unique resource name of the function (same as id).                |
 | description           | User-provided description of the function.                                  |
 | runtime               | The language runtime environment for the function (e.g., python310).        |
+| available_memory_mb   | Memory allocated to the function, in MB (from `availableMemoryMb`).         |
+| timeout               | Maximum execution time, in seconds (parsed from the API's Duration string; whole-second values are stored as int, fractional values as float). |
 | entry_point           | The name of the function within the source code to be executed.             |
 | status                | The current state of the function (e.g., ACTIVE, OFFLINE, DEPLOY_IN_PROGRESS). |
 | update_time           | The timestamp when the function was last modified.                          |
@@ -1977,9 +2076,9 @@ graph LR
     Service -->|HAS_REVISION| Revision
     Job -->|HAS_EXECUTION| Execution
 
-    Service -->|USES_SERVICE_ACCOUNT| ServiceAccount
+    Service -->|RUNS_AS| ServiceAccount
     Revision -->|USES_SERVICE_ACCOUNT| ServiceAccount
-    Job -->|USES_SERVICE_ACCOUNT| ServiceAccount
+    Job -->|RUNS_AS| ServiceAccount
 ```
 
 ### GCPCloudRunService
@@ -2015,13 +2114,9 @@ Cloud Run Service is treated as an orchestrator (analogous to `ECSService`) and 
     ```
     (GCPCloudRunService)-[:HAS_REVISION]->(GCPCloudRunRevision)
     ```
-  - GCPCloudRunServices use GCPServiceAccounts.
+  - GCPCloudRunServices run as GCPServiceAccounts.
     ```
-    (GCPCloudRunService)-[:USES_SERVICE_ACCOUNT]->(GCPServiceAccount)
-    ```
-  - GCPCloudRunServices contain one GCPCloudRunServiceContainer per container declared in the `latestReadyRevision` spec (including sidecars). (DEPRECATED: replaced by `WORKLOAD_PARENT`, will be removed in v1.0.0)
-    ```
-    (GCPCloudRunService)-[:CONTAINS]->(GCPCloudRunServiceContainer)
+    (GCPCloudRunService)-[:RUNS_AS]->(GCPServiceAccount)
     ```
 
 ### GCPCloudRunRevision
@@ -2080,13 +2175,9 @@ Representation of a GCP [Cloud Run Job](https://cloud.google.com/run/docs/refere
     ```
     (GCPCloudRunJob)-[:HAS_EXECUTION]->(GCPCloudRunExecution)
     ```
-  - GCPCloudRunJobs use GCPServiceAccounts.
+  - GCPCloudRunJobs run as GCPServiceAccounts.
     ```
-    (GCPCloudRunJob)-[:USES_SERVICE_ACCOUNT]->(GCPServiceAccount)
-    ```
-  - GCPCloudRunJobs contain one GCPCloudRunJobContainer per container declared in the task template (including sidecars). (DEPRECATED: replaced by `WORKLOAD_PARENT`, will be removed in v1.0.0)
-    ```
-    (GCPCloudRunJob)-[:CONTAINS]->(GCPCloudRunJobContainer)
+    (GCPCloudRunJob)-[:RUNS_AS]->(GCPServiceAccount)
     ```
 
 ### GCPCloudRunJobContainer
@@ -2115,10 +2206,6 @@ Representation of an individual container spec from a [Cloud Run Job](https://cl
     ```
     (GCPProject)-[:RESOURCE]->(GCPCloudRunJobContainer)
     ```
-  - GCPCloudRunJobContainers live inside a GCPCloudRunJob. (DEPRECATED: replaced by `WORKLOAD_PARENT`, will be removed in v1.0.0)
-    ```
-    (GCPCloudRunJob)-[:CONTAINS]->(GCPCloudRunJobContainer)
-    ```
   - GCPCloudRunJobContainers point at their parent GCPCloudRunJob via the unified workload chain.
     ```
     (GCPCloudRunJobContainer)-[:WORKLOAD_PARENT]->(GCPCloudRunJob)
@@ -2128,6 +2215,7 @@ Representation of an individual container spec from a [Cloud Run Job](https://cl
     (GCPCloudRunJobContainer)-[:HAS_IMAGE]->(ECRImage)
     (GCPCloudRunJobContainer)-[:HAS_IMAGE]->(GitLabContainerImage)
     (GCPCloudRunJobContainer)-[:HAS_IMAGE]->(GCPArtifactRegistryImage)
+    (GCPCloudRunJobContainer)-[:HAS_IMAGE]->(GitHubContainerImage)
     ```
   - GCPCloudRunJobContainers are connected to the concrete single platform `Image` they actually ran via `RESOLVED_IMAGE`, produced by the `resolved_image_analysis.json` analysis job when the target can be deterministically identified. See [Container](../../ontology/schema.md#container) for the full semantics.
     ```
@@ -2160,10 +2248,6 @@ Representation of an individual container spec from a [Cloud Run Service](https:
     ```
     (GCPProject)-[:RESOURCE]->(GCPCloudRunServiceContainer)
     ```
-  - GCPCloudRunServiceContainers live inside a GCPCloudRunService (sourced from the `latestReadyRevision` spec). (DEPRECATED: replaced by `WORKLOAD_PARENT`, will be removed in v1.0.0)
-    ```
-    (GCPCloudRunService)-[:CONTAINS]->(GCPCloudRunServiceContainer)
-    ```
   - GCPCloudRunServiceContainers point at their parent GCPCloudRunService via the unified workload chain.
     ```
     (GCPCloudRunServiceContainer)-[:WORKLOAD_PARENT]->(GCPCloudRunService)
@@ -2173,6 +2257,7 @@ Representation of an individual container spec from a [Cloud Run Service](https:
     (GCPCloudRunServiceContainer)-[:HAS_IMAGE]->(ECRImage)
     (GCPCloudRunServiceContainer)-[:HAS_IMAGE]->(GitLabContainerImage)
     (GCPCloudRunServiceContainer)-[:HAS_IMAGE]->(GCPArtifactRegistryImage)
+    (GCPCloudRunServiceContainer)-[:HAS_IMAGE]->(GitHubContainerImage)
     ```
   - GCPCloudRunServiceContainers are connected to the concrete single platform `Image` they actually ran via `RESOLVED_IMAGE`, produced by the `resolved_image_analysis.json` analysis job when the target can be deterministically identified. See [Container](../../ontology/schema.md#container) for the full semantics.
     ```

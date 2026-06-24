@@ -222,19 +222,36 @@ def test_sync_iam(
     }
 
     # AWSUser -MEMBER_AWS_GROUP-> AWSGroup
-    assert check_rels(
-        neo4j_session,
-        "AWSUser",
-        "arn",
-        "AWSGroup",
-        "arn",
-        "MEMBER_AWS_GROUP",
-        rel_direction_right=True,
-    ) == {
+    expected_group_membership = {
         ("arn:aws:iam::1234:user/user1", "arn:aws:iam::1234:group/example-group-0"),
         ("arn:aws:iam::1234:user/user2", "arn:aws:iam::1234:group/example-group-0"),
         ("arn:aws:iam::1234:user/user3", "arn:aws:iam::1234:group/example-group-1"),
     }
+    assert (
+        check_rels(
+            neo4j_session,
+            "AWSUser",
+            "arn",
+            "AWSGroup",
+            "arn",
+            "MEMBER_AWS_GROUP",
+            rel_direction_right=True,
+        )
+        == expected_group_membership
+    )
+    # Canonical ontology edge: (:UserAccount)-[:MEMBER_OF]->(:UserGroup)
+    assert (
+        check_rels(
+            neo4j_session,
+            "AWSUser",
+            "arn",
+            "AWSGroup",
+            "arn",
+            "MEMBER_OF",
+            rel_direction_right=True,
+        )
+        == expected_group_membership
+    )
 
     # AWSPolicy -> AWSPolicyStatement
     assert check_rels(
@@ -365,6 +382,22 @@ def test_sync_iam(
         "arn",
         "AWS_ACCESS_KEY",
         rel_direction_right=False,
+    ) == {
+        ("AKIAIOSFODNN7EXAMPLE", "arn:aws:iam::1234:user/user1"),
+        ("AKIAI44QH8DHBEXAMPLE", "arn:aws:iam::1234:user/user1"),
+        ("AKIAJQ5CMEXAMPLE", "arn:aws:iam::1234:user/user2"),
+        ("AKIAEXAMPLE123", "arn:aws:iam::1234:user/user3"),
+    }
+
+    # Canonical ontology edge: (:APIKey)-[:OWNED_BY]->(:UserAccount)
+    assert check_rels(
+        neo4j_session,
+        "AccountAccessKey",
+        "accesskeyid",
+        "AWSUser",
+        "arn",
+        "OWNED_BY",
+        rel_direction_right=True,
     ) == {
         ("AKIAIOSFODNN7EXAMPLE", "arn:aws:iam::1234:user/user1"),
         ("AKIAI44QH8DHBEXAMPLE", "arn:aws:iam::1234:user/user1"),

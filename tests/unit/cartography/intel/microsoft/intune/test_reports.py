@@ -15,6 +15,7 @@ from msgraph.generated.models.device_management_report_status import (
 import cartography.intel.microsoft.intune.reports
 from cartography.intel.microsoft.intune.reports import download_export_report_rows
 from cartography.intel.microsoft.intune.reports import export_report_rows
+from cartography.intel.microsoft.intune.reports import IntuneReportExportError
 from cartography.intel.microsoft.intune.reports import wait_for_export_job
 
 
@@ -217,3 +218,88 @@ async def test_export_report_rows_creates_job_and_downloads_rows(
         "AppInvAggregate",
     )
     assert result is mock_download_export_report_rows.return_value
+
+
+@pytest.mark.asyncio
+@patch.object(
+    cartography.intel.microsoft.intune.reports,
+    "download_export_report_rows",
+)
+@patch.object(
+    cartography.intel.microsoft.intune.reports,
+    "wait_for_export_job",
+    new_callable=AsyncMock,
+)
+async def test_export_report_rows_resubmits_after_stalled_job(
+    mock_wait_for_export_job,
+    mock_download_export_report_rows,
+):
+    # Microsoft Graph sometimes strands the first export job in `inProgress`;
+    # export_report_rows must submit a fresh job and recover within the run.
+    client = MagicMock()
+    export_jobs_builder = client.device_management.reports.export_jobs
+    export_jobs_builder.post = AsyncMock(
+        side_effect=[
+            DeviceManagementExportJob(id="job-stalled"),
+            DeviceManagementExportJob(id="job-recovered"),
+        ],
+    )
+    mock_wait_for_export_job.side_effect = [
+        TimeoutError("Timed out waiting for export job job-stalled"),
+        DeviceManagementExportJob(
+            id="job-recovered",
+            status=DeviceManagementReportStatus.Completed,
+            url="https://example.test/report.zip",
+        ),
+    ]
+    mock_download_export_report_rows.return_value = MagicMock()
+
+    result = await export_report_rows(
+        client,
+        "AppInvAggregate",
+        ["ApplicationKey"],
+    )
+
+    assert export_jobs_builder.post.await_count == 2
+    assert mock_wait_for_export_job.await_count == 2
+    mock_download_export_report_rows.assert_called_once_with(
+        "https://example.test/report.zip",
+        "AppInvAggregate",
+    )
+    assert result is mock_download_export_report_rows.return_value
+
+
+@pytest.mark.asyncio
+@patch.object(
+    cartography.intel.microsoft.intune.reports,
+    "download_export_report_rows",
+)
+@patch.object(
+    cartography.intel.microsoft.intune.reports,
+    "wait_for_export_job",
+    new_callable=AsyncMock,
+)
+async def test_export_report_rows_reraises_after_exhausting_attempts(
+    mock_wait_for_export_job,
+    mock_download_export_report_rows,
+):
+    client = MagicMock()
+    export_jobs_builder = client.device_management.reports.export_jobs
+    export_jobs_builder.post = AsyncMock(
+        return_value=DeviceManagementExportJob(id="job-stalled"),
+    )
+    stall_error = TimeoutError("Timed out waiting for export job job-stalled")
+    mock_wait_for_export_job.side_effect = stall_error
+
+    with pytest.raises(IntuneReportExportError) as exc_info:
+        await export_report_rows(
+            client,
+            "AppInvAggregate",
+            ["ApplicationKey"],
+            max_attempts=2,
+        )
+
+    assert exc_info.value.__cause__ is stall_error
+    assert export_jobs_builder.post.await_count == 2
+    assert mock_wait_for_export_job.await_count == 2
+    mock_download_export_report_rows.assert_not_called()

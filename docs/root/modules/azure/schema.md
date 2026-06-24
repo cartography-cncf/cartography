@@ -67,7 +67,7 @@ CM -- CONTAINS --> CosmosDBMongoDBCollection
 ```
 
 :::{note}
-All entities are linked to an AzureSubscription, these relationships are not represented for readability.
+Most Azure resource entities are linked to an AzureSubscription; these relationships are not represented for readability.
 :::
 
 ### AzureTenant
@@ -89,6 +89,47 @@ Representation of an [Azure Tenant](https://docs.microsoft.com/en-us/rest/api/re
     (AzureTenant)-[RESOURCE]->(AzurePrincipal)
     ```
 
+- Azure Tenant contains one or more Management Groups.
+    ```cypher
+    (AzureTenant)-[RESOURCE]->(AzureManagementGroup)
+    ```
+
+### AzureManagementGroup
+
+Representation of an [Azure Management Group](https://learn.microsoft.com/en-us/azure/governance/management-groups/overview).
+
+| Field | Description |
+|-------|-------------|
+|firstseen| Timestamp of when a sync job discovered this node|
+|lastupdated| Timestamp of the last time the node was updated|
+|**id**| The full Azure resource ID for the management group|
+|name| The management group name|
+|displayname| The friendly display name for the management group|
+|tenantid| The Azure Tenant ID that owns the management group|
+|type| The type of the resource (Microsoft.Management/managementGroups)|
+|updatedby| The principal ID that last updated the management group|
+|updatedtime| Timestamp when the management group was last updated|
+|version| The current management group version|
+|parent_tenant_id| The tenant ID when the management group's hierarchy parent is the Azure Tenant|
+|parent_management_group_id| The management group ID when the management group's hierarchy parent is another Azure Management Group|
+
+#### Relationships
+
+- Azure Management Group is part of the Azure Tenant inventory.
+    ```cypher
+    (AzureTenant)-[RESOURCE]->(AzureManagementGroup)
+    ```
+
+- Azure Management Group can have the Azure Tenant as its hierarchy parent.
+    ```cypher
+    (AzureManagementGroup)-[PARENT]->(AzureTenant)
+    ```
+
+- Azure Management Group can have another Azure Management Group as its hierarchy parent.
+    ```cypher
+    (AzureManagementGroup)-[PARENT]->(AzureManagementGroup)
+    ```
+
 ### AzurePrincipal
 
 Representation of an [Azure Principal](https://docs.microsoft.com/en-us/graph/api/resources/user?view=graph-rest-1.0)..
@@ -103,7 +144,7 @@ Representation of an [Azure Principal](https://docs.microsoft.com/en-us/graph/ap
 
 - Azure Principal is part of the Azure Account.
     ```cypher
-    (AzurePrincipal)-[RESOURCE]->(AzureTenant)
+    (AzureTenant)-[RESOURCE]->(AzurePrincipal)
     ```
 
 ### AzureSubscription
@@ -120,12 +161,18 @@ Representation of an [Azure Subscription](https://docs.microsoft.com/en-us/rest/
 |name | The friendly name that identifies the subscription|
 |path | The full ID for the Subscription|
 |state| Can be one of ``Enabled \| Disabled \| Deleted \| PastDue \| Warned``|
+|parent_management_group_id| The management group ID when the subscription belongs to an Azure Management Group|
 
 #### Relationships
 
 - Azure Tenant contains one or more Subscriptions.
     ```cypher
     (AzureTenant)-[RESOURCE]->(AzureSubscription)
+    ```
+
+- Azure Subscription can belong to an Azure Management Group in the hierarchy.
+    ```cypher
+    (AzureSubscription)-[PARENT]->(AzureManagementGroup)
     ```
 
 ### AzureRoleAssignment
@@ -142,7 +189,7 @@ Representation of an [Azure Role Assignment](https://learn.microsoft.com/en-us/a
 |principal_id| The principal ID of the assignee (user, group, or service principal)|
 |principal_type| The type of principal (User, Group, ServicePrincipal)|
 |role_definition_id| The ID of the role definition being assigned|
-|scope| The scope at which the role is assigned (subscription, resource group, or resource)|
+|scope| The scope at which the role is assigned (management group, subscription, resource group, or resource)|
 |scope_type| The type of scope|
 |created_on| Timestamp when the role assignment was created|
 |updated_on| Timestamp when the role assignment was last updated|
@@ -152,12 +199,18 @@ Representation of an [Azure Role Assignment](https://learn.microsoft.com/en-us/a
 |description| Description of the role assignment|
 |delegated_managed_identity_resource_id| The delegated managed identity resource ID, if applicable|
 |subscription_id| The Azure subscription ID|
+|management_group_id| The Azure management group ID for management-group-scoped assignments|
 
 #### Relationships
 
 - Azure Subscription contains Role Assignments.
     ```cypher
     (AzureSubscription)-[RESOURCE]->(AzureRoleAssignment)
+    ```
+
+- Azure Management Group contains directly attached Role Assignments.
+    ```cypher
+    (AzureManagementGroup)-[RESOURCE]->(AzureRoleAssignment)
     ```
 
 - Role Assignment references a Role Definition.
@@ -196,11 +249,11 @@ Representation of an [Azure Role Definition](https://learn.microsoft.com/en-us/a
 |role_name| The display name of the role (e.g., "Contributor", "Reader")|
 |description| Description of what the role allows|
 |assignable_scopes| List of scopes where this role can be assigned|
-|subscription_id| The Azure subscription ID|
+|subscription_id| The Azure subscription ID when loaded from a subscription-scoped RBAC sync|
 
 #### Relationships
 
-- Azure Subscription contains Role Definitions.
+- Azure Subscription contains subscription-loaded Role Definitions. Management-group-loaded Role Definitions may be unscoped.
     ```cypher
     (AzureSubscription)-[RESOURCE]->(AzureRoleDefinition)
     ```
@@ -228,11 +281,11 @@ Representation of the permissions within an Azure Role Definition. Each permissi
 |not_actions| List of denied control plane actions|
 |data_actions| List of allowed data plane actions (e.g., "Microsoft.Storage/storageAccounts/blobServices/containers/blobs/read")|
 |not_data_actions| List of denied data plane actions|
-|subscription_id| The Azure subscription ID|
+|subscription_id| The Azure subscription ID when loaded from a subscription-scoped RBAC sync|
 
 #### Relationships
 
-- Azure Subscription contains Permissions.
+- Azure Subscription contains subscription-loaded Permissions. Management-group-loaded Permissions may be unscoped.
     ```cypher
     (AzureSubscription)-[RESOURCE]->(AzurePermissions)
     ```
@@ -265,7 +318,7 @@ Representation of the permissions within an Azure Role Definition. Each permissi
     RETURN sp.display_name, rd.role_name, ra.scope
     ```
 
-### VirtualMachine
+### AzureVirtualMachine
 
 Representation of an [Azure Virtual Machine](https://docs.microsoft.com/en-us/rest/api/compute/virtualmachines).
 
@@ -296,7 +349,7 @@ Representation of an [Azure Virtual Machine](https://docs.microsoft.com/en-us/re
 
 - Azure Subscription contains one or more Virtual Machines.
     ```cypher
-    (AzureSubscription)-[RESOURCE]->(VirtualMachine)
+    (AzureSubscription)-[RESOURCE]->(AzureVirtualMachine)
     ```
 
 - An Azure Virtual Machine can be tagged with Azure Tags.
@@ -327,7 +380,7 @@ Representation of an [Azure Data Disk](https://docs.microsoft.com/en-us/rest/api
 
 - Azure Virtual Machines are attached to Data Disks.
     ```cypher
-    (VirtualMachine)-[ATTACHED_TO]->(AzureDataDisk)
+    (AzureVirtualMachine)-[ATTACHED_TO]->(AzureDataDisk)
     ```
 
 - Azure Data Disks belongs to a Subscription.
@@ -370,6 +423,8 @@ Representation of an [Azure Disk](https://docs.microsoft.com/en-us/rest/api/comp
 ### AzureSnapshot
 
 Representation of an [Azure Snapshot](https://docs.microsoft.com/en-us/rest/api/compute/snapshots).
+
+> **Ontology Mapping**: This node has the extra label `Snapshot` and normalized `_ont_*` properties to enable cross-platform queries for volume/database snapshots across different systems (e.g., EBSSnapshot, RDSSnapshot, ScalewayVolumeSnapshot).
 
 | Field | Description |
 |-------|-------------|
@@ -1568,6 +1623,7 @@ Representation of an [Azure Function App](https://learn.microsoft.com/en-us/rest
     (AzureFunctionApp)-[:HAS_IMAGE]->(:ECRImage)
     (AzureFunctionApp)-[:HAS_IMAGE]->(:GitLabContainerImage)
     (AzureFunctionApp)-[:HAS_IMAGE]->(:GCPArtifactRegistryImage)
+    (AzureFunctionApp)-[:HAS_IMAGE]->(:GitHubContainerImage)
     ```
 
 - Container-deployed Function Apps are connected to the concrete single platform `Image` they actually ran via `RESOLVED_IMAGE`. See [Function](../../ontology/schema.md#function) for the full semantics.
@@ -1912,6 +1968,7 @@ Representation of an [Azure Kubernetes Service Cluster](https://learn.microsoft.
 |provisioning_state| The deployment status of the Cluster (e.g., Succeeded). |
 |kubernetes_version| The version of Kubernetes the Cluster is running. |
 |fqdn| The fully qualified domain name of the Cluster's API server. |
+|api_server_public_access| True when the Kubernetes API server is reachable from the public internet. Derived from two independent gates: it is False when either `apiServerAccessProfile.enablePrivateCluster` is true (classic private cluster) or `publicNetworkAccess` is set to `Disabled` (API Server VNet Integration); otherwise True. |
 
 #### Relationships
 
@@ -1976,10 +2033,6 @@ Representation of an [Azure Container Group](https://learn.microsoft.com/en-us/r
     ```cypher
     (AzureGroupContainer)-[:ATTACHED_TO]->(:AzureSubnet)
     ```
-- An Azure Container Group contains one or more AzureContainerInstances. (DEPRECATED: replaced by `WORKLOAD_PARENT`, will be removed in v1.0.0)
-    ```cypher
-    (AzureGroupContainer)-[:CONTAINS]->(:AzureContainerInstance)
-    ```
 
 ### AzureContainerInstance
 
@@ -2011,10 +2064,6 @@ Representation of an individual container within an [Azure Container Group](http
     ```cypher
     (AzureSubscription)-[:RESOURCE]->(:AzureContainerInstance)
     ```
-- An Azure Container Group contains its AzureContainerInstances. (DEPRECATED: replaced by `WORKLOAD_PARENT`, will be removed in v1.0.0)
-    ```cypher
-    (AzureGroupContainer)-[:CONTAINS]->(:AzureContainerInstance)
-    ```
 - An AzureContainerInstance points at its parent AzureGroupContainer via the unified workload chain.
     ```cypher
     (:AzureContainerInstance)-[:WORKLOAD_PARENT]->(:AzureGroupContainer)
@@ -2024,6 +2073,7 @@ Representation of an individual container within an [Azure Container Group](http
     (:AzureContainerInstance)-[:HAS_IMAGE]->(:ECRImage)
     (:AzureContainerInstance)-[:HAS_IMAGE]->(:GitLabContainerImage)
     (:AzureContainerInstance)-[:HAS_IMAGE]->(:GCPArtifactRegistryImage)
+    (:AzureContainerInstance)-[:HAS_IMAGE]->(:GitHubContainerImage)
     ```
 
 ### AzureLoadBalancer
@@ -2312,6 +2362,8 @@ Representation of a key-value tag applied to an Azure resource. Tags with the sa
 
 Representation of an [Azure Virtual Network](https://learn.microsoft.com/en-us/rest/api/virtualnetwork/virtual-networks/get).
 
+> **Ontology Mapping**: This node has the extra label `VirtualNetwork` and normalized `_ont_*` properties to enable cross-platform queries for virtual networks across different systems (e.g., AWSVpc, GCPVpc).
+
 | Field                | Description                                                       |
 | -------------------- | ----------------------------------------------------------------- |
 | firstseen            | Timestamp of when a sync job discovered this node                 |
@@ -2341,6 +2393,8 @@ Representation of an [Azure Virtual Network](https://learn.microsoft.com/en-us/r
 ### AzureSubnet
 
 Representation of a [Subnet within an Azure Virtual Network](https://learn.microsoft.com/en-us/rest/api/virtualnetwork/subnets/get).
+
+> **Ontology Mapping**: This node has the extra label `Subnet` and normalized `_ont_*` properties to enable cross-platform queries for network subnets across different systems (e.g., EC2Subnet, GCPSubnet).
 
 | Field          | Description                                         |
 | -------------- | --------------------------------------------------- |

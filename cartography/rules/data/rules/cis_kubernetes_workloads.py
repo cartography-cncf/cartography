@@ -8,9 +8,12 @@ Section 5.4: Secrets Management
 Section 5.6: General Policies
 """
 
+import json
+
+from cartography.rules.data.frameworks.cis import cis_kubernetes
+from cartography.rules.data.frameworks.iso27001 import iso27001_annex_a
 from cartography.rules.spec.model import Fact
 from cartography.rules.spec.model import Finding
-from cartography.rules.spec.model import Framework
 from cartography.rules.spec.model import Maturity
 from cartography.rules.spec.model import Module
 from cartography.rules.spec.model import Rule
@@ -28,6 +31,47 @@ CIS_REFERENCES = [
 ]
 
 
+def _cypher_string_list(values: tuple[str, ...]) -> str:
+    return "[" + ", ".join(json.dumps(value) for value in values) + "]"
+
+
+# Keep this to namespaces documented by upstream Kubernetes or project install
+# guides as system, controller, or add-on installation namespaces.
+K8S_INFRASTRUCTURE_SERVICE_ACCOUNT_NAMESPACES = (
+    "calico-apiserver",
+    "calico-system",
+    "cert-manager",
+    "gatekeeper-system",
+    "ingress-nginx",
+    "istio-ingress",
+    "istio-system",
+    "karpenter",
+    "kube-node-lease",
+    "kube-public",
+    "kube-system",
+    "kyverno",
+    "tigera-operator",
+)
+
+K8S_INFRASTRUCTURE_SERVICE_ACCOUNT_NAMESPACES_CYPHER = _cypher_string_list(
+    K8S_INFRASTRUCTURE_SERVICE_ACCOUNT_NAMESPACES
+)
+
+K8S_INFRASTRUCTURE_SERVICE_ACCOUNT_NAMES = (
+    "aws-load-balancer-controller",
+    "cluster-autoscaler",
+    "karpenter",
+    "metrics-server",
+    "vertical-pod-autoscaler-admission-controller",
+    "vertical-pod-autoscaler-recommender",
+    "vertical-pod-autoscaler-updater",
+)
+
+K8S_INFRASTRUCTURE_SERVICE_ACCOUNT_NAMES_CYPHER = _cypher_string_list(
+    K8S_INFRASTRUCTURE_SERVICE_ACCOUNT_NAMES
+)
+
+
 # =============================================================================
 # CIS K8s 5.4.1: Prefer using secrets as files over env vars
 # Main node: KubernetesPod
@@ -35,49 +79,62 @@ CIS_REFERENCES = [
 class SecretsInEnvVarsOutput(Finding):
     """Output model for secrets in environment variables check."""
 
-    pod_name: str | None = None
-    pod_id: str | None = None
+    cluster_name: str | None = None
     namespace: str | None = None
     secret_names: list[str] | None = None
-    cluster_name: str | None = None
+    pod_names: list[str] | None = None
+    pod_count: int | None = None
 
 
 _k8s_secrets_in_env_vars = Fact(
     id="k8s_secrets_in_env_vars",
     name="Kubernetes pods using secrets via environment variables",
     description=(
-        "Detects pods that reference secrets through environment variables. "
+        "Detects namespaces whose pods reference secrets through environment variables. "
         "Secrets as environment variables are more susceptible to accidental exposure "
         "through logging, error messages, or child process inheritance. "
-        "Prefer mounting secrets as files instead."
+        "Prefer mounting secrets as files instead. Findings are grouped per namespace so "
+        "that controller-managed pod churn (random pod-name suffixes) does not produce a "
+        "new finding on every sync."
     ),
     cypher_query="""
     MATCH (cluster:KubernetesCluster)-[:RESOURCE]->(pod:KubernetesPod)
-          -[:USES_SECRET_ENV]->(secret:KubernetesSecret)
+          -[r:USES_SECRET]->(secret:KubernetesSecret)
+    WHERE 'env' IN split(r.mount_method, ',')
+    WITH cluster.name AS cluster_name, pod.namespace AS namespace,
+         collect(DISTINCT secret.name) AS secret_names_raw,
+         collect(DISTINCT pod.name) AS pod_names_raw
+    UNWIND secret_names_raw AS secret_name
+    WITH cluster_name, namespace, pod_names_raw, secret_name ORDER BY secret_name
+    WITH cluster_name, namespace, pod_names_raw, collect(secret_name) AS secret_names
+    UNWIND pod_names_raw AS pod_name
+    WITH cluster_name, namespace, secret_names, pod_name ORDER BY pod_name
+    WITH cluster_name, namespace, secret_names, collect(pod_name) AS pod_names
     RETURN
-        pod.id AS pod_id,
-        pod.name AS pod_name,
-        pod.namespace AS namespace,
-        collect(DISTINCT secret.name) AS secret_names,
-        cluster.name AS cluster_name
+        cluster_name,
+        namespace,
+        secret_names,
+        pod_names,
+        size(pod_names) AS pod_count
     """,
     cypher_visual_query="""
     MATCH p=(cluster:KubernetesCluster)-[:RESOURCE]->(pod:KubernetesPod)
-          -[:USES_SECRET_ENV]->(secret:KubernetesSecret)
+          -[r:USES_SECRET]->(secret:KubernetesSecret)
+    WHERE 'env' IN split(r.mount_method, ',')
     RETURN *
     """,
     cypher_count_query="""
-    MATCH (pod:KubernetesPod)
-    RETURN COUNT(pod) AS count
+    MATCH (ns:KubernetesNamespace)
+    RETURN COUNT(ns) AS count
     """,
-    asset_id_field="pod_id",
+    identity_fields=("cluster_name", "namespace"),
     module=Module.KUBERNETES,
     maturity=Maturity.EXPERIMENTAL,
 )
 
-cis_k8s_5_4_1_secrets_in_env_vars = Rule(
-    id="cis_k8s_5_4_1_secrets_in_env_vars",
-    name="CIS K8s 5.4.1: Secrets Used as Environment Variables",
+kubernetes_secrets_used_as_environment_variables = Rule(
+    id="kubernetes_secrets_used_as_environment_variables",
+    name="Secrets Used as Environment Variables",
     description=(
         "Secrets should be mounted as files rather than exposed as environment variables. "
         "Environment variables are more susceptible to accidental exposure through "
@@ -89,13 +146,8 @@ cis_k8s_5_4_1_secrets_in_env_vars = Rule(
     version="1.0.0",
     references=CIS_REFERENCES,
     frameworks=(
-        Framework(
-            name="CIS Kubernetes Benchmark",
-            short_name="CIS",
-            scope="kubernetes",
-            revision="1.12",
-            requirement="5.4.1",
-        ),
+        cis_kubernetes("5.4.1"),
+        iso27001_annex_a("8.12"),
     ),
 )
 
@@ -105,13 +157,11 @@ cis_k8s_5_4_1_secrets_in_env_vars = Rule(
 # Main node: KubernetesPod
 # =============================================================================
 class ServiceAccountTokenMountOutput(Finding):
-    pod_id: str | None = None
-    pod_name: str | None = None
+    cluster_name: str | None = None
     namespace: str | None = None
     service_account_name: str | None = None
-    pod_automount_service_account_token: bool | None = None
-    service_account_automount_service_account_token: bool | None = None
-    cluster_name: str | None = None
+    pod_names: list[str] | None = None
+    pod_count: int | None = None
 
 
 _k8s_service_account_tokens_mounted = Fact(
@@ -120,41 +170,101 @@ _k8s_service_account_tokens_mounted = Fact(
     description=(
         "Detects pods where service account tokens are still mounted by default or "
         "explicitly enabled. This is a heuristic for identifying workloads that may "
-        "not need API credentials."
+        "not need API credentials. Findings are grouped per (namespace, service account) "
+        "so that controller-managed pod churn (random pod-name suffixes) does not produce "
+        "a new finding on every sync."
     ),
-    cypher_query="""
+    cypher_query=f"""
     MATCH (cluster:KubernetesCluster)-[:RESOURCE]->(pod:KubernetesPod)
     OPTIONAL MATCH (pod)-[:USES_SERVICE_ACCOUNT]->(sa:KubernetesServiceAccount)
-    WITH cluster, pod, sa, coalesce(pod.automount_service_account_token, sa.automount_service_account_token, true) AS effective_automount
+    WITH
+        cluster,
+        pod,
+        sa,
+        coalesce(sa._ont_name, sa.name, pod.service_account_name) AS service_account_name,
+        coalesce(sa.namespace, pod.namespace) AS service_account_namespace,
+        sa.aws_role_arn IS NOT NULL OR EXISTS {{ (sa)-[:ASSUMES_ROLE]->(:AWSRole) }} AS service_account_assumes_aws_role,
+        sa.gcp_service_account IS NOT NULL OR EXISTS {{ (sa)-[:WORKLOAD_IDENTITY_BINDING]->(:GCPServiceAccount) }} AS service_account_assumes_gcp_identity,
+        coalesce(pod.automount_service_account_token, sa.automount_service_account_token, true) AS effective_automount
     WHERE effective_automount = true
-    RETURN
-        pod.id AS pod_id,
-        pod.name AS pod_name,
+      AND NOT (
+        service_account_name = 'default'
+        OR service_account_namespace IN {K8S_INFRASTRUCTURE_SERVICE_ACCOUNT_NAMESPACES_CYPHER}
+        OR service_account_name IN {K8S_INFRASTRUCTURE_SERVICE_ACCOUNT_NAMES_CYPHER}
+        OR service_account_assumes_aws_role
+        OR service_account_assumes_gcp_identity
+      )
+    WITH
+        cluster.name AS cluster_name,
         pod.namespace AS namespace,
-        pod.service_account_name AS service_account_name,
-        pod.automount_service_account_token AS pod_automount_service_account_token,
-        sa.automount_service_account_token AS service_account_automount_service_account_token,
-        cluster.name AS cluster_name
+        service_account_name,
+        pod.name AS pod_name
+    ORDER BY pod_name
+    WITH
+        cluster_name,
+        namespace,
+        service_account_name,
+        collect(DISTINCT pod_name) AS pod_names
+    RETURN
+        cluster_name,
+        namespace,
+        service_account_name AS service_account_name,
+        pod_names,
+        size(pod_names) AS pod_count
     """,
-    cypher_visual_query="""
+    cypher_visual_query=f"""
     MATCH p=(cluster:KubernetesCluster)-[:RESOURCE]->(pod:KubernetesPod)
     OPTIONAL MATCH p1=(pod)-[:USES_SERVICE_ACCOUNT]->(sa:KubernetesServiceAccount)
-    WITH cluster, pod, sa, p, p1, coalesce(pod.automount_service_account_token, sa.automount_service_account_token, true) AS effective_automount
+    WITH
+        cluster,
+        pod,
+        sa,
+        p,
+        p1,
+        coalesce(sa._ont_name, sa.name, pod.service_account_name) AS service_account_name,
+        coalesce(sa.namespace, pod.namespace) AS service_account_namespace,
+        sa.aws_role_arn IS NOT NULL OR EXISTS {{ (sa)-[:ASSUMES_ROLE]->(:AWSRole) }} AS service_account_assumes_aws_role,
+        sa.gcp_service_account IS NOT NULL OR EXISTS {{ (sa)-[:WORKLOAD_IDENTITY_BINDING]->(:GCPServiceAccount) }} AS service_account_assumes_gcp_identity,
+        coalesce(pod.automount_service_account_token, sa.automount_service_account_token, true) AS effective_automount
     WHERE effective_automount = true
+      AND NOT (
+        service_account_name = 'default'
+        OR service_account_namespace IN {K8S_INFRASTRUCTURE_SERVICE_ACCOUNT_NAMESPACES_CYPHER}
+        OR service_account_name IN {K8S_INFRASTRUCTURE_SERVICE_ACCOUNT_NAMES_CYPHER}
+        OR service_account_assumes_aws_role
+        OR service_account_assumes_gcp_identity
+      )
     RETURN *
     """,
-    cypher_count_query="""
-    MATCH (pod:KubernetesPod)
-    RETURN COUNT(pod) AS count
+    cypher_count_query=f"""
+    MATCH (cluster:KubernetesCluster)-[:RESOURCE]->(pod:KubernetesPod)
+    OPTIONAL MATCH (pod)-[:USES_SERVICE_ACCOUNT]->(sa:KubernetesServiceAccount)
+    WITH
+        cluster,
+        pod,
+        sa,
+        coalesce(sa._ont_name, sa.name, pod.service_account_name) AS service_account_name,
+        coalesce(sa.namespace, pod.namespace) AS service_account_namespace,
+        sa.aws_role_arn IS NOT NULL OR EXISTS {{ (sa)-[:ASSUMES_ROLE]->(:AWSRole) }} AS service_account_assumes_aws_role,
+        sa.gcp_service_account IS NOT NULL OR EXISTS {{ (sa)-[:WORKLOAD_IDENTITY_BINDING]->(:GCPServiceAccount) }} AS service_account_assumes_gcp_identity
+    WHERE NOT (
+        service_account_name = 'default'
+        OR service_account_namespace IN {K8S_INFRASTRUCTURE_SERVICE_ACCOUNT_NAMESPACES_CYPHER}
+        OR service_account_name IN {K8S_INFRASTRUCTURE_SERVICE_ACCOUNT_NAMES_CYPHER}
+        OR service_account_assumes_aws_role
+        OR service_account_assumes_gcp_identity
+      )
+    WITH DISTINCT cluster.name AS cluster_name, pod.namespace AS namespace, service_account_name
+    RETURN COUNT(*) AS count
     """,
-    asset_id_field="pod_id",
+    identity_fields=("cluster_name", "namespace", "service_account_name"),
     module=Module.KUBERNETES,
     maturity=Maturity.EXPERIMENTAL,
 )
 
-cis_k8s_5_1_6_sa_token_mounts = Rule(
-    id="cis_k8s_5_1_6_sa_token_mounts",
-    name="CIS K8s 5.1.6: Service Account Tokens Mounted in Pods",
+kubernetes_service_account_tokens_mounted_in_pods = Rule(
+    id="kubernetes_service_account_tokens_mounted_in_pods",
+    name="Service Account Tokens Mounted in Pods",
     description=(
         "Service account tokens should only be mounted into pods that explicitly need "
         "to communicate with the Kubernetes API."
@@ -165,13 +275,8 @@ cis_k8s_5_1_6_sa_token_mounts = Rule(
     version="1.0.0",
     references=CIS_REFERENCES,
     frameworks=(
-        Framework(
-            name="CIS Kubernetes Benchmark",
-            short_name="CIS",
-            scope="kubernetes",
-            revision="1.12",
-            requirement="5.1.6",
-        ),
+        cis_kubernetes("5.1.6"),
+        iso27001_annex_a("5.17"),
     ),
 )
 
@@ -187,8 +292,8 @@ cis_k8s_5_1_6_sa_token_mounts = Rule(
 # Main node: KubernetesPod
 # =============================================================================
 class HostPidOutput(Finding):
-    pod_id: str | None = None
     pod_name: str | None = None
+    pod_id: str | None = None
     namespace: str | None = None
     cluster_name: str | None = None
 
@@ -212,13 +317,14 @@ _k8s_host_pid_pods = Fact(
     RETURN COUNT(pod) AS count
     """,
     asset_id_field="pod_id",
+    identity_fields=("pod_id",),
     module=Module.KUBERNETES,
     maturity=Maturity.EXPERIMENTAL,
 )
 
-cis_k8s_5_2_3_host_pid = Rule(
-    id="cis_k8s_5_2_3_host_pid",
-    name="CIS K8s 5.2.3: Pods Sharing Host PID Namespace",
+kubernetes_pods_sharing_host_pid_namespace = Rule(
+    id="kubernetes_pods_sharing_host_pid_namespace",
+    name="Pods Sharing Host PID Namespace",
     description="Pods should not generally share the host PID namespace.",
     output_model=HostPidOutput,
     facts=(_k8s_host_pid_pods,),
@@ -226,13 +332,8 @@ cis_k8s_5_2_3_host_pid = Rule(
     version="1.0.0",
     references=CIS_REFERENCES,
     frameworks=(
-        Framework(
-            name="CIS Kubernetes Benchmark",
-            short_name="CIS",
-            scope="kubernetes",
-            revision="1.12",
-            requirement="5.2.3",
-        ),
+        cis_kubernetes("5.2.3"),
+        iso27001_annex_a("8.9"),
     ),
 )
 
@@ -242,8 +343,8 @@ cis_k8s_5_2_3_host_pid = Rule(
 # Main node: KubernetesPod
 # =============================================================================
 class HostIpcOutput(Finding):
-    pod_id: str | None = None
     pod_name: str | None = None
+    pod_id: str | None = None
     namespace: str | None = None
     cluster_name: str | None = None
 
@@ -267,13 +368,14 @@ _k8s_host_ipc_pods = Fact(
     RETURN COUNT(pod) AS count
     """,
     asset_id_field="pod_id",
+    identity_fields=("pod_id",),
     module=Module.KUBERNETES,
     maturity=Maturity.EXPERIMENTAL,
 )
 
-cis_k8s_5_2_4_host_ipc = Rule(
-    id="cis_k8s_5_2_4_host_ipc",
-    name="CIS K8s 5.2.4: Pods Sharing Host IPC Namespace",
+kubernetes_pods_sharing_host_ipc_namespace = Rule(
+    id="kubernetes_pods_sharing_host_ipc_namespace",
+    name="Pods Sharing Host IPC Namespace",
     description="Pods should not generally share the host IPC namespace.",
     output_model=HostIpcOutput,
     facts=(_k8s_host_ipc_pods,),
@@ -281,13 +383,8 @@ cis_k8s_5_2_4_host_ipc = Rule(
     version="1.0.0",
     references=CIS_REFERENCES,
     frameworks=(
-        Framework(
-            name="CIS Kubernetes Benchmark",
-            short_name="CIS",
-            scope="kubernetes",
-            revision="1.12",
-            requirement="5.2.4",
-        ),
+        cis_kubernetes("5.2.4"),
+        iso27001_annex_a("8.9"),
     ),
 )
 
@@ -297,8 +394,8 @@ cis_k8s_5_2_4_host_ipc = Rule(
 # Main node: KubernetesPod
 # =============================================================================
 class HostNetworkOutput(Finding):
-    pod_id: str | None = None
     pod_name: str | None = None
+    pod_id: str | None = None
     namespace: str | None = None
     cluster_name: str | None = None
 
@@ -322,13 +419,14 @@ _k8s_host_network_pods = Fact(
     RETURN COUNT(pod) AS count
     """,
     asset_id_field="pod_id",
+    identity_fields=("pod_id",),
     module=Module.KUBERNETES,
     maturity=Maturity.EXPERIMENTAL,
 )
 
-cis_k8s_5_2_5_host_network = Rule(
-    id="cis_k8s_5_2_5_host_network",
-    name="CIS K8s 5.2.5: Pods Sharing Host Network Namespace",
+kubernetes_pods_sharing_host_network_namespace = Rule(
+    id="kubernetes_pods_sharing_host_network_namespace",
+    name="Pods Sharing Host Network Namespace",
     description="Pods should not generally share the host network namespace.",
     output_model=HostNetworkOutput,
     facts=(_k8s_host_network_pods,),
@@ -336,13 +434,9 @@ cis_k8s_5_2_5_host_network = Rule(
     version="1.0.0",
     references=CIS_REFERENCES,
     frameworks=(
-        Framework(
-            name="CIS Kubernetes Benchmark",
-            short_name="CIS",
-            scope="kubernetes",
-            revision="1.12",
-            requirement="5.2.5",
-        ),
+        cis_kubernetes("5.2.5"),
+        iso27001_annex_a("8.9"),
+        iso27001_annex_a("8.20"),
     ),
 )
 
@@ -352,8 +446,8 @@ cis_k8s_5_2_5_host_network = Rule(
 # Main node: KubernetesContainer
 # =============================================================================
 class AllowPrivilegeEscalationOutput(Finding):
-    container_id: str | None = None
     container_name: str | None = None
+    container_id: str | None = None
     image: str | None = None
     namespace: str | None = None
     cluster_name: str | None = None
@@ -382,13 +476,14 @@ _k8s_allow_privilege_escalation = Fact(
     RETURN COUNT(c) AS count
     """,
     asset_id_field="container_id",
+    identity_fields=("container_id",),
     module=Module.KUBERNETES,
     maturity=Maturity.EXPERIMENTAL,
 )
 
-cis_k8s_5_2_6_allow_privilege_escalation = Rule(
-    id="cis_k8s_5_2_6_allow_privilege_escalation",
-    name="CIS K8s 5.2.6: Containers Allowing Privilege Escalation",
+kubernetes_containers_allowing_privilege_escalation = Rule(
+    id="kubernetes_containers_allowing_privilege_escalation",
+    name="Containers Allowing Privilege Escalation",
     description="Containers should not generally allow privilege escalation.",
     output_model=AllowPrivilegeEscalationOutput,
     facts=(_k8s_allow_privilege_escalation,),
@@ -396,13 +491,8 @@ cis_k8s_5_2_6_allow_privilege_escalation = Rule(
     version="1.0.0",
     references=CIS_REFERENCES,
     frameworks=(
-        Framework(
-            name="CIS Kubernetes Benchmark",
-            short_name="CIS",
-            scope="kubernetes",
-            revision="1.12",
-            requirement="5.2.6",
-        ),
+        cis_kubernetes("5.2.6"),
+        iso27001_annex_a("8.9"),
     ),
 )
 
@@ -417,26 +507,41 @@ cis_k8s_5_2_6_allow_privilege_escalation = Rule(
 # Main node: KubernetesPod
 # =============================================================================
 class HostPathVolumeOutput(Finding):
-    pod_id: str | None = None
-    pod_name: str | None = None
+    cluster_name: str | None = None
     namespace: str | None = None
     host_path_volume_paths: list[str] | None = None
-    cluster_name: str | None = None
+    pod_names: list[str] | None = None
+    pod_count: int | None = None
 
 
 _k8s_host_path_volumes = Fact(
     id="k8s_host_path_volumes",
     name="Kubernetes pods using hostPath volumes",
-    description="Detects pods that define one or more hostPath volumes.",
+    description=(
+        "Detects namespaces whose pods define one or more hostPath volumes. "
+        "Findings are grouped per namespace so that controller-managed pod "
+        "churn (random pod-name suffixes) does not produce a new finding on "
+        "every sync."
+    ),
     cypher_query="""
     MATCH (cluster:KubernetesCluster)-[:RESOURCE]->(pod:KubernetesPod)
     WHERE size(coalesce(pod.host_path_volume_paths, [])) > 0
+    UNWIND pod.host_path_volume_paths AS host_path
+    WITH cluster.name AS cluster_name, pod.namespace AS namespace,
+         collect(DISTINCT pod.name) AS pod_names_raw,
+         collect(DISTINCT host_path) AS host_path_volume_paths_raw
+    UNWIND host_path_volume_paths_raw AS host_path
+    WITH cluster_name, namespace, pod_names_raw, host_path ORDER BY host_path
+    WITH cluster_name, namespace, pod_names_raw, collect(host_path) AS host_path_volume_paths
+    UNWIND pod_names_raw AS pod_name
+    WITH cluster_name, namespace, host_path_volume_paths, pod_name ORDER BY pod_name
+    WITH cluster_name, namespace, host_path_volume_paths, collect(pod_name) AS pod_names
     RETURN
-        pod.id AS pod_id,
-        pod.name AS pod_name,
-        pod.namespace AS namespace,
-        pod.host_path_volume_paths AS host_path_volume_paths,
-        cluster.name AS cluster_name
+        cluster_name,
+        namespace,
+        host_path_volume_paths,
+        pod_names,
+        size(pod_names) AS pod_count
     """,
     cypher_visual_query="""
     MATCH p=(cluster:KubernetesCluster)-[:RESOURCE]->(pod:KubernetesPod)
@@ -444,17 +549,17 @@ _k8s_host_path_volumes = Fact(
     RETURN *
     """,
     cypher_count_query="""
-    MATCH (pod:KubernetesPod)
-    RETURN COUNT(pod) AS count
+    MATCH (ns:KubernetesNamespace)
+    RETURN COUNT(ns) AS count
     """,
-    asset_id_field="pod_id",
+    identity_fields=("cluster_name", "namespace"),
     module=Module.KUBERNETES,
     maturity=Maturity.EXPERIMENTAL,
 )
 
-cis_k8s_5_2_11_host_path_volumes = Rule(
-    id="cis_k8s_5_2_11_host_path_volumes",
-    name="CIS K8s 5.2.11: Pods Using HostPath Volumes",
+kubernetes_pods_using_hostpath_volumes = Rule(
+    id="kubernetes_pods_using_hostpath_volumes",
+    name="Pods Using HostPath Volumes",
     description="Pods should not generally use hostPath volumes because they expose the host filesystem.",
     output_model=HostPathVolumeOutput,
     facts=(_k8s_host_path_volumes,),
@@ -462,13 +567,8 @@ cis_k8s_5_2_11_host_path_volumes = Rule(
     version="1.0.0",
     references=CIS_REFERENCES,
     frameworks=(
-        Framework(
-            name="CIS Kubernetes Benchmark",
-            short_name="CIS",
-            scope="kubernetes",
-            revision="1.12",
-            requirement="5.2.11",
-        ),
+        cis_kubernetes("5.2.11"),
+        iso27001_annex_a("8.9"),
     ),
 )
 
@@ -478,8 +578,8 @@ cis_k8s_5_2_11_host_path_volumes = Rule(
 # Main node: KubernetesContainer
 # =============================================================================
 class HostPortOutput(Finding):
-    container_id: str | None = None
     container_name: str | None = None
+    container_id: str | None = None
     namespace: str | None = None
     host_ports: list[int] | None = None
     cluster_name: str | None = None
@@ -504,13 +604,14 @@ _k8s_host_ports = Fact(
     RETURN COUNT(c) AS count
     """,
     asset_id_field="container_id",
+    identity_fields=("container_id",),
     module=Module.KUBERNETES,
     maturity=Maturity.EXPERIMENTAL,
 )
 
-cis_k8s_5_2_12_host_ports = Rule(
-    id="cis_k8s_5_2_12_host_ports",
-    name="CIS K8s 5.2.12: Containers Using HostPorts",
+kubernetes_containers_using_hostports = Rule(
+    id="kubernetes_containers_using_hostports",
+    name="Containers Using HostPorts",
     description="Containers should not generally use hostPorts because they bypass normal cluster networking controls.",
     output_model=HostPortOutput,
     facts=(_k8s_host_ports,),
@@ -518,13 +619,9 @@ cis_k8s_5_2_12_host_ports = Rule(
     version="1.0.0",
     references=CIS_REFERENCES,
     frameworks=(
-        Framework(
-            name="CIS Kubernetes Benchmark",
-            short_name="CIS",
-            scope="kubernetes",
-            revision="1.12",
-            requirement="5.2.12",
-        ),
+        cis_kubernetes("5.2.12"),
+        iso27001_annex_a("8.9"),
+        iso27001_annex_a("8.20"),
     ),
 )
 
@@ -539,8 +636,8 @@ cis_k8s_5_2_12_host_ports = Rule(
 # Main node: KubernetesPod
 # =============================================================================
 class SeccompRuntimeDefaultOutput(Finding):
-    pod_id: str | None = None
     pod_name: str | None = None
+    pod_id: str | None = None
     namespace: str | None = None
     pod_seccomp_profile_type: str | None = None
     container_names_without_runtime_default: list[str] | None = None
@@ -586,13 +683,14 @@ _k8s_missing_runtime_default_seccomp = Fact(
     RETURN COUNT(pod) AS count
     """,
     asset_id_field="pod_id",
+    identity_fields=("pod_id",),
     module=Module.KUBERNETES,
     maturity=Maturity.EXPERIMENTAL,
 )
 
-cis_k8s_5_6_2_runtime_default_seccomp = Rule(
-    id="cis_k8s_5_6_2_runtime_default_seccomp",
-    name="CIS K8s 5.6.2: Pods Missing RuntimeDefault Seccomp",
+kubernetes_pods_missing_runtime_default_seccomp = Rule(
+    id="kubernetes_pods_missing_runtime_default_seccomp",
+    name="Pods Missing RuntimeDefault Seccomp",
     description="Pods should set the RuntimeDefault seccomp profile at the pod or container level.",
     output_model=SeccompRuntimeDefaultOutput,
     facts=(_k8s_missing_runtime_default_seccomp,),
@@ -600,13 +698,8 @@ cis_k8s_5_6_2_runtime_default_seccomp = Rule(
     version="1.0.0",
     references=CIS_REFERENCES,
     frameworks=(
-        Framework(
-            name="CIS Kubernetes Benchmark",
-            short_name="CIS",
-            scope="kubernetes",
-            revision="1.12",
-            requirement="5.6.2",
-        ),
+        cis_kubernetes("5.6.2"),
+        iso27001_annex_a("8.9"),
     ),
 )
 
@@ -624,6 +717,7 @@ class DefaultNamespaceOutput(Finding):
     """Output model for default namespace usage check."""
 
     pod_name: str | None = None
+    pod_id: str | None = None
     status_phase: str | None = None
     cluster_name: str | None = None
 
@@ -641,6 +735,7 @@ _k8s_pods_in_default_namespace = Fact(
     MATCH (cluster:KubernetesCluster)-[:RESOURCE]->(pod:KubernetesPod)
     WHERE pod.namespace = 'default'
     RETURN
+        pod.id AS pod_id,
         pod.name AS pod_name,
         pod.status_phase AS status_phase,
         cluster.name AS cluster_name
@@ -654,13 +749,14 @@ _k8s_pods_in_default_namespace = Fact(
     MATCH (pod:KubernetesPod)
     RETURN COUNT(pod) AS count
     """,
+    identity_fields=("pod_id",),
     module=Module.KUBERNETES,
     maturity=Maturity.EXPERIMENTAL,
 )
 
-cis_k8s_5_6_4_default_namespace = Rule(
-    id="cis_k8s_5_6_4_default_namespace",
-    name="CIS K8s 5.6.4: Pods Running in Default Namespace",
+kubernetes_pods_running_in_default_namespace = Rule(
+    id="kubernetes_pods_running_in_default_namespace",
+    name="Pods Running in Default Namespace",
     description=(
         "Kubernetes resources should not use the default namespace. "
         "Using dedicated namespaces allows for resource quota management, "
@@ -673,15 +769,7 @@ cis_k8s_5_6_4_default_namespace = Rule(
     tags=("namespaces", "general-policies", "stride:information_disclosure"),
     version="1.0.0",
     references=CIS_REFERENCES,
-    frameworks=(
-        Framework(
-            name="CIS Kubernetes Benchmark",
-            short_name="CIS",
-            scope="kubernetes",
-            revision="1.12",
-            requirement="5.6.4",
-        ),
-    ),
+    frameworks=(cis_kubernetes("5.6.4"),),
 )
 
 # =============================================================================

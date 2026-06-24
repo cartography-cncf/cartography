@@ -412,3 +412,188 @@ def test_sync_gcp_permission_relationships(
     ) == {
         ("bob@example.com", "sa@project-abc.iam.gserviceaccount.com"),
     }
+
+
+@patch.object(
+    cartography.intel.gcp.permission_relationships,
+    "parse_permission_relationships_file",
+    return_value=[
+        {
+            "target_label": "GCPBigQueryTable",
+            "permissions": ["bigquery.tables.getData"],
+            "relationship_name": "CAN_READ",
+        },
+        {
+            "target_label": "GCPBigQueryTable",
+            "permissions": ["bigquery.tables.updateData"],
+            "relationship_name": "CAN_WRITE",
+        },
+        {
+            "target_label": "GCPBigQueryTable",
+            "permissions": ["bigquery.tables.delete"],
+            "relationship_name": "CAN_DELETE",
+        },
+    ],
+)
+def test_sync_bigquery_table_permission_relationship_fast_paths(
+    mock_parse_yaml,
+    neo4j_session,
+):
+    # Arrange
+    neo4j_session.run("MATCH (n) DETACH DELETE n")
+    _create_test_project(neo4j_session)
+    neo4j_session.run(
+        """
+        MATCH (project:GCPProject{id: $project_id})
+        UNWIND $datasets AS dataset
+            MERGE (ds:GCPBigQueryDataset{id: dataset.id})
+            ON CREATE SET ds.firstseen = timestamp()
+            SET ds.lastupdated = $update_tag
+            MERGE (project)-[dr:RESOURCE]->(ds)
+            SET dr.lastupdated = $update_tag
+        WITH project
+        UNWIND $tables AS table
+            MATCH (ds:GCPBigQueryDataset{id: table.dataset_id})
+            MERGE (tbl:GCPBigQueryTable{id: table.id})
+            ON CREATE SET tbl.firstseen = timestamp()
+            SET tbl.lastupdated = $update_tag
+            MERGE (project)-[tr:RESOURCE]->(tbl)
+            SET tr.lastupdated = $update_tag
+            MERGE (ds)-[hr:HAS_TABLE]->(tbl)
+            SET hr.lastupdated = $update_tag
+        WITH project
+        UNWIND $principals AS principal_email
+            MERGE (principal:GCPPrincipal{email: principal_email})
+            ON CREATE SET principal.firstseen = timestamp()
+            SET principal.lastupdated = $update_tag
+        WITH project
+        MATCH (stale:GCPPrincipal{email: "stale@example.com"})
+        MATCH (stale_table:GCPBigQueryTable{id: "project-abc:analytics.events"})
+        MERGE (stale)-[stale_rel:CAN_READ]->(stale_table)
+        SET stale_rel.lastupdated = $old_update_tag,
+            stale_rel._sub_resource_label = "GCPProject",
+            stale_rel._sub_resource_id = $project_id
+        """,
+        project_id=TEST_PROJECT_ID,
+        update_tag=TEST_UPDATE_TAG,
+        old_update_tag=TEST_UPDATE_TAG - 1,
+        datasets=[
+            {"id": "project-abc:analytics"},
+            {"id": "project-abc:logs"},
+        ],
+        tables=[
+            {
+                "id": "project-abc:analytics.events",
+                "dataset_id": "project-abc:analytics",
+            },
+            {
+                "id": "project-abc:analytics.orders",
+                "dataset_id": "project-abc:analytics",
+            },
+            {
+                "id": "project-abc:logs.audit",
+                "dataset_id": "project-abc:logs",
+            },
+        ],
+        principals=[
+            "project-reader@example.com",
+            "dataset-writer@example.com",
+            "table-deleter@example.com",
+            "stale@example.com",
+        ],
+    )
+    principals = {
+        "project-reader@example.com": {
+            "binding-project-read": {
+                "permissions": cartography.intel.gcp.permission_relationships.compile_permissions(
+                    {
+                        "permissions": ["bigquery.tables.getData"],
+                        "denied_permissions": [],
+                    }
+                ),
+                "scope": cartography.intel.gcp.permission_relationships.compile_gcp_regex(
+                    "project/project-abc/*"
+                ),
+            },
+        },
+        "dataset-writer@example.com": {
+            "binding-dataset-write": {
+                "permissions": cartography.intel.gcp.permission_relationships.compile_permissions(
+                    {
+                        "permissions": ["bigquery.tables.updateData"],
+                        "denied_permissions": [],
+                    }
+                ),
+                "scope": cartography.intel.gcp.permission_relationships.compile_gcp_regex(
+                    "project/project-abc/resource/projects/project-abc/datasets/analytics"
+                ),
+            },
+        },
+        "table-deleter@example.com": {
+            "binding-table-delete": {
+                "permissions": cartography.intel.gcp.permission_relationships.compile_permissions(
+                    {
+                        "permissions": ["bigquery.tables.delete"],
+                        "denied_permissions": [],
+                    }
+                ),
+                "scope": cartography.intel.gcp.permission_relationships.compile_gcp_regex(
+                    "project/project-abc/resource/projects/project-abc/datasets/analytics/tables/events"
+                ),
+            },
+        },
+    }
+
+    # Act
+    cartography.intel.gcp.permission_relationships.sync(
+        neo4j_session,
+        TEST_PROJECT_ID,
+        TEST_UPDATE_TAG,
+        COMMON_JOB_PARAMS,
+        principals,
+    )
+
+    # Assert
+    assert check_rels(
+        neo4j_session,
+        "GCPPrincipal",
+        "email",
+        "GCPBigQueryTable",
+        "id",
+        "CAN_READ",
+        rel_direction_right=True,
+    ) == {
+        ("project-reader@example.com", "project-abc:analytics.events"),
+        ("project-reader@example.com", "project-abc:analytics.orders"),
+        ("project-reader@example.com", "project-abc:logs.audit"),
+    }
+    assert check_rels(
+        neo4j_session,
+        "GCPPrincipal",
+        "email",
+        "GCPBigQueryTable",
+        "id",
+        "CAN_WRITE",
+        rel_direction_right=True,
+    ) == {
+        ("dataset-writer@example.com", "project-abc:analytics.events"),
+        ("dataset-writer@example.com", "project-abc:analytics.orders"),
+    }
+    assert check_rels(
+        neo4j_session,
+        "GCPPrincipal",
+        "email",
+        "GCPBigQueryTable",
+        "id",
+        "CAN_DELETE",
+        rel_direction_right=True,
+    ) == {
+        ("table-deleter@example.com", "project-abc:analytics.events"),
+    }
+    stale_count = neo4j_session.run(
+        """
+        MATCH (:GCPPrincipal{email: "stale@example.com"})-[r:CAN_READ]->(:GCPBigQueryTable)
+        RETURN count(r) AS stale_count
+        """,
+    ).single()["stale_count"]
+    assert stale_count == 0

@@ -1457,6 +1457,8 @@ def build_create_index_queries(node_schema: CartographyNodeSchema) -> list[str]:
                 ),
             )
             for mapping_field in ontology_mapping.fields:
+                if not mapping_field.indexed:
+                    continue
                 result.append(
                     index_template.safe_substitute(
                         TargetNodeLabel=label_name,
@@ -1633,6 +1635,138 @@ def _build_matchlink_endpoint_match(
         endpoint_label=endpoint_label,
         match_clause=_build_match_clause(matcher),
         rel_pattern=rel_pattern,
+    )
+
+
+def _validate_matchlink_cartesian_product_matcher(
+    matcher_name: str,
+    matcher: TargetNodeMatcher | SourceNodeMatcher | None,
+) -> tuple[str, PropertyRef]:
+    if matcher is None:
+        raise ValueError(
+            f"build_matchlink_cartesian_product_query() requires a {matcher_name} matcher."
+        )
+
+    matcher_fields = asdict(matcher)
+    if len(matcher_fields) != 1:
+        raise ValueError(
+            "build_matchlink_cartesian_product_query() supports exactly one source matcher key "
+            "and one target matcher key."
+        )
+
+    node_property, property_ref = next(iter(matcher_fields.items()))
+    if property_ref.ignore_case:
+        raise ValueError(
+            "build_matchlink_cartesian_product_query() does not support ignore_case matchers."
+        )
+    if property_ref.fuzzy_and_ignore_case:
+        raise ValueError(
+            "build_matchlink_cartesian_product_query() does not support fuzzy_and_ignore_case matchers."
+        )
+    if property_ref.one_to_many:
+        raise ValueError(
+            "build_matchlink_cartesian_product_query() does not support one_to_many matchers."
+        )
+    return node_property, property_ref
+
+
+def build_matchlink_cartesian_product_query(rel_schema: CartographyRelSchema) -> str:
+    """
+    Generate a query that links every matched source node to every matched target.
+
+    This is the querybuilder companion to ``load_matchlinks_cartesian_product()``.
+    It intentionally supports only the simple MatchLink shape where each
+    endpoint is matched by one exact property and relationship properties are
+    supplied from query kwargs. Row-specific relationship properties belong on
+    the regular ``build_matchlink_query()`` path instead.
+
+    Args:
+        rel_schema: A MatchLink relationship schema.
+
+    Returns:
+        A Cypher query that accepts ``SourceValues`` and ``TargetValues`` lists
+        and returns ``rel_count``.
+
+    Raises:
+        ValueError: If the schema uses unsupported matcher, sub-resource, or
+            relationship property shapes.
+    """
+    if not rel_schema.source_node_label:
+        raise ValueError(
+            f"No source node label found for {rel_schema.rel_label}. "
+            "MatchLink Cartesian product relationships require a source_node_label."
+        )
+
+    if rel_schema.source_node_sub_resource or rel_schema.target_node_sub_resource:
+        raise ValueError(
+            "build_matchlink_cartesian_product_query() does not support endpoint sub-resource matchers."
+        )
+
+    source_node_property, _ = _validate_matchlink_cartesian_product_matcher(
+        "source node",
+        rel_schema.source_node_matcher,
+    )
+    target_node_property, _ = _validate_matchlink_cartesian_product_matcher(
+        "target node",
+        rel_schema.target_node_matcher,
+    )
+
+    rel_props_as_dict = _asdict_with_validate_relprops(rel_schema)
+    if "_sub_resource_label" not in rel_props_as_dict:
+        raise ValueError(
+            f"Expected _sub_resource_label to be defined on {rel_schema.properties.__class__.__name__}. "
+            "Please include `_sub_resource_label: PropertyRef = PropertyRef('_sub_resource_label', set_in_kwargs=True)`"
+        )
+    if "_sub_resource_id" not in rel_props_as_dict:
+        raise ValueError(
+            f"Expected _sub_resource_id to be defined on {rel_schema.properties.__class__.__name__}. "
+            "Please include `_sub_resource_id: PropertyRef = PropertyRef('_sub_resource_id', set_in_kwargs=True)`"
+        )
+    for rel_property, property_ref in rel_props_as_dict.items():
+        if not property_ref.set_in_kwargs:
+            raise ValueError(
+                "build_matchlink_cartesian_product_query() only supports relationship properties "
+                f"set from kwargs. Unsupported property: {rel_property}."
+            )
+
+    # The generated query has no row object, so every relationship property must
+    # be set from kwargs and shared by the full source x target expansion.
+    if rel_schema.direction == LinkDirection.INWARD:
+        rel = f"(from)<-[r:{rel_schema.rel_label}]-(to)"
+    else:
+        rel = f"(from)-[r:{rel_schema.rel_label}]->(to)"
+
+    matchlink_cartesian_product_query_template = Template(
+        """
+        UNWIND $SourceValues AS source_value
+            MATCH (from:$source_node_label{$source_node_property: source_value})
+        WITH collect(from) AS sources
+        UNWIND $TargetValues AS target_value
+            MATCH (to:$target_node_label{$target_node_property: target_value})
+        WITH sources, to
+        UNWIND sources AS from
+            MERGE $rel
+            ON CREATE SET r.firstseen = timestamp()
+            SET
+                r._module_name = "$module_name",
+                r._module_version = "$module_version",
+                $set_rel_properties_statement
+        RETURN count(r) AS rel_count;
+        """,
+    )
+
+    return matchlink_cartesian_product_query_template.safe_substitute(
+        source_node_label=rel_schema.source_node_label,
+        source_node_property=source_node_property,
+        target_node_label=rel_schema.target_node_label,
+        target_node_property=target_node_property,
+        rel=rel,
+        module_name=_get_module_from_schema(rel_schema),
+        module_version=get_cartography_version(),
+        set_rel_properties_statement=_build_rel_properties_statement(
+            "r",
+            rel_props_as_dict,
+        ),
     )
 
 

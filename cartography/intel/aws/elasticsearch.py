@@ -67,14 +67,32 @@ def _transform_es_domains(domain_list: List[Dict]) -> List[Dict]:
         log_options = domain.get("LogPublishingOptions", {})
         vpc_options = domain.get("VPCOptions") or {}
 
+        # AWS rebranded Elasticsearch Service to OpenSearch Service. The same
+        # ESDomain node can therefore represent either engine; AWS encodes the
+        # distinction in `ElasticsearchVersion` (e.g. "OpenSearch_2.5" vs
+        # "7.10"). Derive the engine here so downstream consumers (notably the
+        # databases ontology mapping) can label the node correctly without
+        # parsing the version string themselves. Leave engine unset when the
+        # version is missing rather than guessing — a missing version is rare
+        # but a wrong label downstream is harder to debug.
+        es_version = domain.get("ElasticsearchVersion")
+        if not es_version:
+            engine = None
+        elif es_version.startswith("OpenSearch"):
+            engine = "opensearch"
+        else:
+            engine = "elasticsearch"
+
         # Flattened data with VPC lists for one-to-many relationships
         transformed = {
             "DomainId": domain_id,
+            "DomainName": domain.get("DomainName"),
             "ARN": domain.get("ARN"),
             "Deleted": domain.get("Deleted"),
             "Created": domain.get("Created"),
             "Endpoint": domain.get("Endpoint"),
             "ElasticsearchVersion": domain.get("ElasticsearchVersion"),
+            "Engine": engine,
             # Cluster config
             "ElasticsearchClusterConfigInstanceType": cluster_config.get(
                 "InstanceType"

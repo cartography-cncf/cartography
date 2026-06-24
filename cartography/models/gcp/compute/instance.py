@@ -8,6 +8,7 @@ from cartography.models.core.relationships import CartographyRelProperties
 from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
+from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import TargetNodeMatcher
 
 
@@ -22,6 +23,9 @@ class GCPInstanceNodeProperties(CartographyNodeProperties):
     project_id: PropertyRef = PropertyRef("project_id")
     status: PropertyRef = PropertyRef("status")
     machine_type: PropertyRef = PropertyRef("machine_type")
+    creation_timestamp: PropertyRef = PropertyRef("creation_timestamp")
+    private_ip: PropertyRef = PropertyRef("private_ip")
+    public_ip: PropertyRef = PropertyRef("public_ip")
     service_account_email: PropertyRef = PropertyRef("service_account_email")
     service_account_scopes: PropertyRef = PropertyRef("service_account_scopes")
     can_ip_forward: PropertyRef = PropertyRef("can_ip_forward")
@@ -56,6 +60,25 @@ class GCPInstanceToProjectRel(CartographyRelSchema):
 
 
 @dataclass(frozen=True)
+class GCPInstanceToServiceAccountRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+# (:GCPInstance)-[:RUNS_AS]->(:GCPServiceAccount)
+class GCPInstanceToServiceAccountRel(CartographyRelSchema):
+    target_node_label: str = "GCPServiceAccount"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"email": PropertyRef("service_account_email")},
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "RUNS_AS"
+    properties: GCPInstanceToServiceAccountRelProperties = (
+        GCPInstanceToServiceAccountRelProperties()
+    )
+
+
+@dataclass(frozen=True)
 class GCPInstanceSchema(CartographyNodeSchema):
     label: str = "GCPInstance"
     properties: GCPInstanceNodeProperties = GCPInstanceNodeProperties()
@@ -63,3 +86,8 @@ class GCPInstanceSchema(CartographyNodeSchema):
         ["Instance", "ComputeInstance"]
     )
     sub_resource_relationship: GCPInstanceToProjectRel = GCPInstanceToProjectRel()
+    other_relationships: OtherRelationships = OtherRelationships(
+        [
+            GCPInstanceToServiceAccountRel(),
+        ],
+    )

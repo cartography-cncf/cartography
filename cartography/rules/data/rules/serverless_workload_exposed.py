@@ -43,6 +43,7 @@ _gcp_cloud_run_public_ingress = Fact(
     RETURN COUNT(svc) AS count
     """,
     asset_id_field="id",
+    identity_fields=("id",),
     module=Module.GCP,
     maturity=Maturity.EXPERIMENTAL,
 )
@@ -94,6 +95,7 @@ _gcp_cloud_function_http_trigger = Fact(
     RETURN COUNT(fn) AS count
     """,
     asset_id_field="id",
+    identity_fields=("id",),
     module=Module.GCP,
     maturity=Maturity.EXPERIMENTAL,
 )
@@ -131,6 +133,7 @@ _aws_lambda_anonymous_access = Fact(
     RETURN COUNT(fn) AS count
     """,
     asset_id_field="id",
+    identity_fields=("id",),
     module=Module.AWS,
     maturity=Maturity.EXPERIMENTAL,
 )
@@ -144,8 +147,8 @@ _aws_lambda_anonymous_access = Fact(
 
 # Rule
 class ServerlessWorkloadExposed(Finding):
-    id: str | None = None
     name: str | None = None
+    id: str | None = None
     region: str | None = None
     runtime: str | None = None
     exposure_type: str | None = None

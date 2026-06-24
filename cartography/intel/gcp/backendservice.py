@@ -12,8 +12,8 @@ from googleapiclient.errors import HttpError
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
+from cartography.intel.gcp.util import classify_gcp_http_error
 from cartography.intel.gcp.util import gcp_api_execute_with_retry
-from cartography.intel.gcp.util import get_error_reason
 from cartography.intel.gcp.util import parse_compute_full_uri_to_partial_uri
 from cartography.models.gcp.compute.backend_service import GCPBackendServiceSchema
 from cartography.util import timeit
@@ -66,8 +66,7 @@ def get_gcp_regional_backend_services(
         try:
             res = gcp_api_execute_with_retry(req)
         except HttpError as e:
-            reason = get_error_reason(e)
-            if reason == "invalid":
+            if classify_gcp_http_error(e) == "invalid":
                 logger.warning(
                     "GCP: Invalid region %s for project %s; skipping backend services sync for this region.",
                     region,

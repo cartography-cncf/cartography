@@ -309,6 +309,214 @@ def test_iter_permission_relationship_batches_preserves_matches():
     }
 
 
+def test_split_bigquery_table_broad_scope_principals():
+    # Arrange
+    principals = {
+        "project-viewer@example.com": _build_policy_bindings(
+            ["bigquery.tables.getData"],
+            "project/project-abc/*",
+        ),
+        "dataset-viewer@example.com": _build_policy_bindings(
+            ["bigquery.tables.getData"],
+            "project/project-abc/resource/projects/project-abc/datasets/analytics",
+        ),
+        "table-viewer@example.com": _build_policy_bindings(
+            ["bigquery.tables.getData"],
+            "project/project-abc/resource/projects/project-abc/datasets/analytics/tables/events",
+        ),
+        "writer@example.com": _build_policy_bindings(
+            ["bigquery.tables.updateData"],
+            "project/project-abc/*",
+        ),
+    }
+    principals["project-viewer@example.com"]["binding-exact-table"] = (
+        _build_policy_bindings(
+            ["bigquery.tables.getData"],
+            "project/project-abc/resource/projects/project-abc/datasets/analytics"
+            "/tables/events",
+        )["binding-1"]
+    )
+
+    # Act
+    project_principals, dataset_principals, residual_principals = (
+        permission_relationships.split_bigquery_table_broad_scope_principals(
+            principals,
+            ["bigquery.tables.getData"],
+            TEST_PROJECT_ID,
+        )
+    )
+
+    # Assert
+    assert project_principals == {"project-viewer@example.com"}
+    assert dataset_principals == {
+        "project-abc:analytics": {"dataset-viewer@example.com"},
+    }
+    assert set(residual_principals) == {"table-viewer@example.com"}
+
+
+def test_load_permission_relationships_cartesian_product_uses_core_cartesian_product_loader():
+    # Arrange
+    matchlink_schema = permission_relationships.GCPPermissionMatchLink(
+        source_node_label="GCPPrincipal",
+        target_node_label="GCPBigQueryTable",
+        rel_label="CAN_READ",
+    )
+    neo4j_session = MagicMock()
+
+    # Act
+    with patch.object(
+        permission_relationships,
+        "load_matchlinks_cartesian_product",
+        return_value=4,
+    ) as mock_load_cartesian_product:
+        loaded_count = (
+            permission_relationships.load_permission_relationships_cartesian_product(
+                neo4j_session,
+                matchlink_schema,
+                {"zara@example.com", "alice@example.com"},
+                ["project-abc:logs.audit", "project-abc:analytics.events"],
+                TEST_UPDATE_TAG,
+                TEST_PROJECT_ID,
+                "project project-abc",
+                principal_batch_size=7,
+                resource_batch_size=11,
+            )
+        )
+
+    # Assert
+    assert loaded_count == 4
+    mock_load_cartesian_product.assert_called_once_with(
+        neo4j_session,
+        matchlink_schema,
+        ["alice@example.com", "zara@example.com"],
+        ["project-abc:analytics.events", "project-abc:logs.audit"],
+        source_batch_size=7,
+        target_batch_size=11,
+        progress_description=(
+            "CAN_READ GCPBigQueryTable permissions for project project-abc"
+        ),
+        lastupdated=TEST_UPDATE_TAG,
+        _sub_resource_label="GCPProject",
+        _sub_resource_id=TEST_PROJECT_ID,
+    )
+
+
+def test_scope_aware_loader_uses_cartesian_product_for_project_scope():
+    # Arrange
+    principals = {
+        f"user-{i}@example.com": _build_policy_bindings(
+            ["storage.objects.get"],
+            "project/project-abc/*",
+        )
+        for i in range(100)
+    }
+    resource_dict = {
+        f"bucket-{i}": f"project/project-abc/resource/buckets/bucket-{i}"
+        for i in range(2000)
+    }
+    matchlink_schema = permission_relationships.GCPPermissionMatchLink(
+        source_node_label="GCPPrincipal",
+        target_node_label="GCPBucket",
+        rel_label="CAN_READ",
+    )
+    neo4j_session = MagicMock()
+
+    # Act
+    with (
+        patch.object(
+            permission_relationships,
+            "load_permission_relationships_cartesian_product",
+            return_value=200000,
+        ) as mock_bulk_load,
+        patch.object(
+            permission_relationships,
+            "calculate_permission_relationships_for_resource",
+        ) as mock_calculate,
+    ):
+        loaded_count = permission_relationships.evaluate_and_load_scope_aware_permission_relationships(
+            neo4j_session,
+            principals,
+            resource_dict,
+            ["storage.objects.get"],
+            matchlink_schema,
+            TEST_UPDATE_TAG,
+            TEST_PROJECT_ID,
+        )
+
+    # Assert
+    assert loaded_count == 200000
+    mock_bulk_load.assert_called_once_with(
+        neo4j_session,
+        matchlink_schema,
+        set(principals),
+        list(resource_dict),
+        TEST_UPDATE_TAG,
+        TEST_PROJECT_ID,
+        "project project-abc",
+    )
+    mock_calculate.assert_not_called()
+
+
+def test_bigquery_table_fast_path_keeps_exact_table_scope_on_residual_path():
+    # Arrange
+    principals = {
+        "project-viewer@example.com": _build_policy_bindings(
+            ["bigquery.tables.getData"],
+            "project/project-abc/*",
+        ),
+        "table-viewer@example.com": _build_policy_bindings(
+            ["bigquery.tables.getData"],
+            "project/project-abc/resource/projects/project-abc/datasets/analytics/tables/events",
+        ),
+    }
+    resource_dict = {
+        "project-abc:analytics.events": (
+            "project/project-abc/resource/projects/project-abc/datasets/analytics/tables/events"
+        ),
+        "project-abc:analytics.orders": (
+            "project/project-abc/resource/projects/project-abc/datasets/analytics/tables/orders"
+        ),
+    }
+    matchlink_schema = permission_relationships.GCPPermissionMatchLink(
+        source_node_label="GCPPrincipal",
+        target_node_label="GCPBigQueryTable",
+        rel_label="CAN_READ",
+    )
+    neo4j_session = MagicMock()
+
+    # Act
+    with (
+        patch.object(
+            permission_relationships,
+            "load_permission_relationships_cartesian_product",
+            return_value=2,
+        ),
+        patch.object(
+            permission_relationships,
+            "load_principal_mappings",
+        ) as mock_load_principal_mappings,
+    ):
+        loaded_count = permission_relationships.evaluate_and_load_scope_aware_permission_relationships(
+            neo4j_session,
+            principals,
+            resource_dict,
+            ["bigquery.tables.getData"],
+            matchlink_schema,
+            TEST_UPDATE_TAG,
+            TEST_PROJECT_ID,
+        )
+
+    # Assert
+    assert loaded_count == 3
+    mock_load_principal_mappings.assert_called_once()
+    assert mock_load_principal_mappings.call_args.args[1] == [
+        {
+            "principal_email": "table-viewer@example.com",
+            "resource_id": "project-abc:analytics.events",
+        },
+    ]
+
+
 def test_sync_loads_permission_relationships_in_multiple_batches(monkeypatch):
     principals = {
         "alice@example.com": _build_policy_bindings(

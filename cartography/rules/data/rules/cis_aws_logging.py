@@ -8,9 +8,10 @@ Each Rule represents a distinct security concept with a consistent main node typ
 Facts within a Rule are provider-specific implementations of the same concept.
 """
 
+from cartography.rules.data.frameworks.cis import cis_aws
+from cartography.rules.data.frameworks.iso27001 import iso27001_annex_a
 from cartography.rules.spec.model import Fact
 from cartography.rules.spec.model import Finding
-from cartography.rules.spec.model import Framework
 from cartography.rules.spec.model import Maturity
 from cartography.rules.spec.model import Module
 from cartography.rules.spec.model import Rule
@@ -72,13 +73,14 @@ _aws_cloudtrail_not_multi_region = Fact(
     RETURN COUNT(trail) AS count
     """,
     asset_id_field="trail_arn",
+    identity_fields=("trail_arn",),
     module=Module.AWS,
     maturity=Maturity.STABLE,
 )
 
-cis_aws_4_1_cloudtrail_multi_region = Rule(
-    id="cis_aws_4_1_cloudtrail_multi_region",
-    name="CIS AWS 4.1: CloudTrail Multi-Region",
+aws_cloudtrail_multi_region = Rule(
+    id="aws_cloudtrail_multi_region",
+    name="CloudTrail Multi-Region",
     description=(
         "CloudTrail should be enabled in all regions to ensure complete visibility "
         "into API activity across the entire AWS infrastructure."
@@ -89,19 +91,15 @@ cis_aws_4_1_cloudtrail_multi_region = Rule(
     version="1.0.0",
     references=CIS_REFERENCES,
     frameworks=(
-        Framework(
-            name="CIS AWS Foundations Benchmark",
-            short_name="CIS",
-            scope="aws",
-            revision="6.0.0",
-            requirement="4.1",
-        ),
+        cis_aws("4.1"),
+        iso27001_annex_a("8.15"),
+        iso27001_annex_a("8.16"),
     ),
 )
 
 
 # =============================================================================
-# CIS AWS 4.2: CloudTrail Log File Validation
+# CloudTrail Log File Validation
 # Main node: CloudTrailTrail
 # =============================================================================
 class CloudTrailLogValidationOutput(Finding):
@@ -144,13 +142,14 @@ _aws_cloudtrail_log_validation_disabled = Fact(
     RETURN COUNT(trail) AS count
     """,
     asset_id_field="trail_arn",
+    identity_fields=("trail_arn",),
     module=Module.AWS,
     maturity=Maturity.STABLE,
 )
 
-cis_aws_4_2_cloudtrail_log_validation = Rule(
-    id="cis_aws_4_2_cloudtrail_log_validation",
-    name="CIS AWS 4.2: CloudTrail Log File Validation",
+aws_cloudtrail_log_file_validation = Rule(
+    id="aws_cloudtrail_log_file_validation",
+    name="CloudTrail Log File Validation",
     description=(
         "CloudTrail should have log file validation enabled to ensure the integrity "
         "of log files through digitally signed digest files."
@@ -161,13 +160,8 @@ cis_aws_4_2_cloudtrail_log_validation = Rule(
     version="1.0.0",
     references=CIS_REFERENCES,
     frameworks=(
-        Framework(
-            name="CIS AWS Foundations Benchmark",
-            short_name="CIS",
-            scope="aws",
-            revision="6.0.0",
-            requirement="4.2",
-        ),
+        cis_aws("4.2"),
+        iso27001_annex_a("8.15"),
     ),
 )
 
@@ -220,13 +214,14 @@ _aws_cloudtrail_bucket_access_logging_disabled = Fact(
     RETURN COUNT(DISTINCT bucket) AS count
     """,
     asset_id_field="bucket_id",
+    identity_fields=("bucket_id",),
     module=Module.AWS,
     maturity=Maturity.STABLE,
 )
 
-cis_aws_4_4_cloudtrail_bucket_access_logging = Rule(
-    id="cis_aws_4_4_cloudtrail_bucket_access_logging",
-    name="CIS AWS 4.4: CloudTrail S3 Bucket Access Logging",
+aws_cloudtrail_s3_bucket_access_logging = Rule(
+    id="aws_cloudtrail_s3_bucket_access_logging",
+    name="CloudTrail S3 Bucket Access Logging",
     description=(
         "Server access logging should be enabled on the S3 bucket that stores "
         "CloudTrail logs to capture requests against the audit logs themselves."
@@ -237,19 +232,14 @@ cis_aws_4_4_cloudtrail_bucket_access_logging = Rule(
     version="1.0.0",
     references=CIS_REFERENCES,
     frameworks=(
-        Framework(
-            name="CIS AWS Foundations Benchmark",
-            short_name="CIS",
-            scope="aws",
-            revision="6.0.0",
-            requirement="4.4",
-        ),
+        cis_aws("4.4"),
+        iso27001_annex_a("8.15"),
     ),
 )
 
 
 # =============================================================================
-# CIS AWS 4.5: CloudTrail KMS Encryption
+# CloudTrail KMS Encryption
 # Main node: CloudTrailTrail
 # =============================================================================
 class CloudTrailEncryptionOutput(Finding):
@@ -292,13 +282,14 @@ _aws_cloudtrail_not_encrypted = Fact(
     RETURN COUNT(trail) AS count
     """,
     asset_id_field="trail_arn",
+    identity_fields=("trail_arn",),
     module=Module.AWS,
     maturity=Maturity.STABLE,
 )
 
-cis_aws_4_5_cloudtrail_encryption = Rule(
-    id="cis_aws_4_5_cloudtrail_encryption",
-    name="CIS AWS 4.5: CloudTrail KMS Encryption",
+aws_cloudtrail_kms_encryption = Rule(
+    id="aws_cloudtrail_kms_encryption",
+    name="CloudTrail KMS Encryption",
     description=(
         "CloudTrail logs should be encrypted using AWS KMS customer managed keys "
         "to provide an additional layer of security for sensitive API activity data."
@@ -309,13 +300,8 @@ cis_aws_4_5_cloudtrail_encryption = Rule(
     version="1.0.0",
     references=CIS_REFERENCES,
     frameworks=(
-        Framework(
-            name="CIS AWS Foundations Benchmark",
-            short_name="CIS",
-            scope="aws",
-            revision="6.0.0",
-            requirement="4.5",
-        ),
+        cis_aws("4.5"),
+        iso27001_annex_a("8.24"),
     ),
 )
 
@@ -347,4 +333,11 @@ cis_aws_4_5_cloudtrail_encryption = Rule(
 # =============================================================================
 # TODO: CIS AWS 5.16: AWS Security Hub is enabled
 # Missing datamodel or evidence: Security Hub regional hub subscription state
+# =============================================================================
+
+# =============================================================================
+# TODO: ISO 27001 Annex A 8.15 and 8.16: Broader logging and monitoring coverage
+# Missing datamodel or evidence: AWS Config recorder status, CloudWatch alarm
+# configuration, metric filters, Security Hub state, VPC flow logs, and S3 data
+# event selectors.
 # =============================================================================
