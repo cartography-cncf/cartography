@@ -150,10 +150,10 @@ Represents a [user](https://duo.com/docs/adminapi#users) in Duo.
     (DuoUser)-[HAS_DUO_TOKEN]->(DuoToken)
     ```
 
-- A DuoUser has multiple WebAuthnCredentials
+- A DuoUser has multiple DuoWebAuthnCredentials
 
     ```
-    (DuoUser)-[HAS_DUO_WEB_AUTHN_CREDENTIAL]->(WebAuthnCredential)
+    (DuoUser)-[HAS_DUO_WEB_AUTHN_CREDENTIAL]->(DuoWebAuthnCredential)
     ```
 
 - A DuoUser is an identity to a Human

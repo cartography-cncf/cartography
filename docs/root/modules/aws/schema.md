@@ -534,7 +534,7 @@ Representation of an AWS [Inspector Finding Package](https://docs.aws.amazon.com
 - AWSInspectorFindings have AWSInspectorPackages.
 
     ```cypher
-    (:AWSInspectorFindings)-[:HAS]->(:AWSInspectorPackages)
+    (:AWSInspectorFinding)-[:HAS]->(:AWSInspectorPackage)
 
     ```
     - `HAS` attributes
@@ -553,7 +553,7 @@ Representation of an AWS [Inspector Finding Package](https://docs.aws.amazon.com
 - AWSInspectorPackages belong to AWSAccounts.
 
     ```cypher
-    (:AWSAccount)-[:RESOURCE]->(:AWSInspectorPackages)
+    (:AWSAccount)-[:RESOURCE]->(:AWSInspectorPackage)
     ```
 
 
@@ -828,7 +828,7 @@ Representation of an [AWS Policy](https://docs.aws.amazon.com/IAM/latest/APIRefe
 - An `AWSInlinePolicy` is scoped to the AWSAccount of the principal it is attached to.
 
     ```cypher
-    (:AWSInlinePolicy)-[:RESOURCE]->(:AWSAccount)
+    (:AWSAccount)-[:RESOURCE]->(:AWSInlinePolicy)
     ```
 
 - `AWSInlinePolicy` contains `AWSPolicyStatement`
@@ -1602,9 +1602,9 @@ Representation of an AWS [Glue Job](https://docs.aws.amazon.com/glue/latest/weba
     ```
     (AWSAccount)-[RESOURCE]->(GlueJob)
     ```
-- Glue Jobs are used by Glue Connections.
+- Glue Jobs use Glue Connections.
     ```
-    (GlueConnection)-[USES]->(GlueJob)
+    (GlueJob)-[USES]->(GlueConnection)
     ```
 
 
@@ -2649,11 +2649,11 @@ Representation of an AWS Elastic Container Registry [pull through cache rule](ht
 
 -  EC2 Network ACLs have ingress and egress rules
     ```
-    (:EC2NetworkAcl)-[:MEMBER_OF_NACL]->(:EC2NetworkAclRule:IpPermissionInbound)
+    (:EC2NetworkAclRule:IpPermissionInbound)-[:MEMBER_OF_NACL]->(:EC2NetworkAcl)
     ```
 
     ```
-    (:EC2NetworkAcl)-[:MEMBER_OF_NACL]->(:EC2NetworkAclRule:IpPermissionEgress)
+    (:EC2NetworkAclRule:IpPermissionEgress)-[:MEMBER_OF_NACL]->(:EC2NetworkAcl)
     ```
 
 - EC2 Network ACLs define egress and ingress rules on subnets
@@ -2696,11 +2696,11 @@ For additional explanation see https://docs.aws.amazon.com/vpc/latest/userguide/
 
 -  EC2 Network ACLs have ingress and egress rules
     ```
-    (:EC2NetworkAcl)-[:MEMBER_OF_NACL]->(:EC2NetworkAclRule:IpPermissionInbound)
+    (:EC2NetworkAclRule:IpPermissionInbound)-[:MEMBER_OF_NACL]->(:EC2NetworkAcl)
     ```
 
     ```
-    (:EC2NetworkAcl)-[:MEMBER_OF_NACL]->(:EC2NetworkAclRule:IpPermissionEgress)
+    (:EC2NetworkAclRule:IpPermissionEgress)-[:MEMBER_OF_NACL]->(:EC2NetworkAcl)
     ```
 
  -  EC2 Network ACL Ruless belong to AWS Accounts
@@ -3564,7 +3564,7 @@ The `EXPOSE` relationship holds the protocol, port and TargetGroupArn the load b
     (EC2NetworkAcl)-[PROTECTS]->(AWSLoadBalancerV2)
     ```
 
-### Nameserver
+### NameServer
 
 Represents a DNS nameserver.
 | Field | Description |
@@ -3576,9 +3576,9 @@ Represents a DNS nameserver.
 
 #### Relationships
 
-- Nameservers are nameservers for to DNSZone.
+- DNS zones have nameservers.
     ```
-    (Nameserver)-[NAMESERVER]->(DNSZone)
+    (AWSDNSZone)-[NAMESERVER]->(NameServer)
     ```
 
 ### NetworkInterface
@@ -5881,7 +5881,7 @@ Representation of an AWS Identity Center Permission Set.
 #### Relationships
 - An AWSPermissionSet is part of an AWSIdentityCenter instance.
     ```
-    (:AWSIdentityCenter)<-[:HAS_PERMISSION_SET]-(:AWSPermissionSet)
+    (:AWSIdentityCenter)-[:HAS_PERMISSION_SET]->(:AWSPermissionSet)
     ```
 
 - An AWSPermissionSet creates AWSRoles in all of the AWS accounts that its associated permission set assigns it to.

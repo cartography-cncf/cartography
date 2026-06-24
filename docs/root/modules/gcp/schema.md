@@ -159,10 +159,10 @@ Representation of a GCP [Storage Bucket](https://cloud.google.com/storage/docs/j
     (GCPProject)-[RESOURCE]->(GCPBucket)
     ```
 
-- GCPBuckets can be labelled with GCPBucketLabels.
+- GCPBuckets can be labeled with GCPBucketLabels.
 
     ```
-    (GCPBucket)<-[LABELLED]-(GCPBucketLabels)
+    (GCPBucket)-[LABELED]->(GCPBucketLabel)
     ```
 
 - GCPPrincipals with appropriate permissions can read from GCP buckets. Created from [gcp_permission_relationships.yaml](https://github.com/cartography-cncf/cartography/blob/master/cartography/data/gcp_permission_relationships.yaml).
@@ -228,7 +228,7 @@ Representation of a GCP [Storage Bucket Label](https://cloud.google.com/storage/
 - GCPBuckets can be labeled with GCPBucketLabels.
 
     ```
-    (GCPBucket)<-[LABELED]-(GCPBucketLabels)
+    (GCPBucket)-[LABELED]->(GCPBucketLabel)
     ```
 
 
@@ -387,7 +387,7 @@ Representation of a Tag defined on a GCP Instance or GCP Firewall.  Tags are def
 - GCPNetworkTags are defined on a VPC and only have effect on assets in that VPC
 
     ```
-    (GCPVpc)-[DEFINED_IN]->(GCPNetworkTag)
+    (GCPNetworkTag)-[DEFINED_IN]->(GCPVpc)
     ```
 
 ### GCPVpc
@@ -432,7 +432,7 @@ Representation of a GCP [VPC](https://cloud.google.com/compute/docs/reference/re
 - GCPNetworkTags are defined on a VPC and only have effect on assets in that VPC
 
     ```
-    (:GCPVpc)-[:DEFINED_IN]->(:GCPNetworkTag)
+    (:GCPNetworkTag)-[:DEFINED_IN]->(:GCPVpc)
     ```
 
 - GCP Instances may be members of one or more GCP VPCs.
@@ -807,7 +807,7 @@ Representation of a GCP [Service Account](https://cloud.google.com/iam/docs/refe
 - GCPServiceAccounts are resources of GCPProjects.
 
     ```
-    (GCPServiceAccount)-[RESOURCE]->(GCPProject)
+    (GCPProject)-[RESOURCE]->(GCPServiceAccount)
     ```
 
 - GCPPrincipals with appropriate impersonation permissions can act as a GCPServiceAccount. Created from [gcp_permission_relationships.yaml](https://github.com/cartography-cncf/cartography/blob/master/cartography/data/gcp_permission_relationships.yaml). Driven by `iam.serviceAccounts.actAs` and related permissions packaged in `roles/iam.serviceAccountTokenCreator` and `roles/iam.serviceAccountUser`.

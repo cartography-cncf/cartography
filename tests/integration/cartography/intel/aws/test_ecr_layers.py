@@ -522,7 +522,7 @@ def test_sync_circleci_label_provenance_links_github_repository(
     )
     mock_get_github_repos.return_value = github_test_data.GET_REPOS_CIRCLECI_PROVENANCE
     mock_get_repo_collaborators.return_value = {}
-    mock_get_dep_manifests.return_value = {}
+    mock_get_dep_manifests.return_value = ({}, True)
 
     create_test_account(neo4j_session, TEST_ACCOUNT_ID, TEST_UPDATE_TAG)
     cartography.intel.aws.ecr.sync(
