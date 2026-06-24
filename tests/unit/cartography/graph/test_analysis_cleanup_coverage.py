@@ -2,7 +2,6 @@ import pytest
 
 from cartography.graph.analysis import PropertyEffect
 from cartography.graph.analysis import RelationshipEffect
-from cartography.graph.analysis import RelationshipPropertyEffect
 from cartography.graph.analysis import ScopedTo
 
 AWS = ScopedTo("AWSAccount", "AWS_ID")
@@ -53,22 +52,6 @@ def _prop_cleanup(
         f"WHERE {filters}\n"
         "WITH node LIMIT $LIMIT_SIZE\n"
         f"REMOVE {', '.join(f'node.{prop}' for prop in props)}"
-    )
-
-
-def _rel_prop_cleanup(
-    source: str,
-    rel: str,
-    *props: str,
-    target: str | None = None,
-) -> str:
-    target_pattern = f"(target:{target})" if target else "(target)"
-    filters = " OR ".join(f"r.{prop} IS NOT NULL" for prop in props)
-    return (
-        f"MATCH (source:{source})-[r:{rel}]->{target_pattern}\n"
-        f"WHERE {filters}\n"
-        "WITH r LIMIT $LIMIT_SIZE\n"
-        f"REMOVE {', '.join(f'r.{prop}' for prop in props)}"
     )
 
 
@@ -382,12 +365,6 @@ CLEANUP_CASES = [
         None,
         _rel_cleanup("Function", "RESOLVED_IMAGE", "Image"),
         id="resolved_image_function",
-    ),
-    pytest.param(
-        RelationshipPropertyEffect("Image", "PACKAGED_FROM", ("dockerfile_path",)),
-        None,
-        _rel_prop_cleanup("Image", "PACKAGED_FROM", "dockerfile_path"),
-        id="supply_chain_source_file",
     ),
     pytest.param(
         RelationshipEffect("EC2Instance", "STS_ASSUMEROLE_ALLOW", "AWSRole"),

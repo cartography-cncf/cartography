@@ -215,6 +215,7 @@ AWS_EC2_KEYPAIR_MATCHING_FINGERPRINT = AnalysisJob(
                     undirected=True,
                     source_label="EC2KeyPair",
                     target_label="EC2KeyPair",
+                    firstseen=Expr("$UPDATE_TAG"),
                 ),
             ),
         ),

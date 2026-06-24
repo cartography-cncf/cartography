@@ -297,6 +297,19 @@ def test_relationship_property_effect_requires_properties():
         RelationshipPropertyEffect("Image", "PACKAGED_FROM", ())
 
 
+def test_supply_chain_source_file_does_not_cleanup_coowned_dockerfile_path():
+    # Arrange
+    from cartography.models.ontology.analysis import SUPPLY_CHAIN_SOURCE_FILE
+
+    # Act
+    graph_job = SUPPLY_CHAIN_SOURCE_FILE.to_graph_job()
+
+    # Assert
+    assert len(graph_job.statements) == 1
+    assert "REMOVE r.dockerfile_path" not in graph_job.statements[0].query
+    assert "WHERE r.dockerfile_path IS NULL" in graph_job.statements[0].query
+
+
 def test_analysis_job_requires_statements():
     # Act and assert
     with pytest.raises(ValueError, match="at least one statement"):

@@ -8,10 +8,9 @@
 def start_gcp_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
     # ... sync all orgs, folders, projects, and resources ...
 
-    run_analysis_job("gcp_compute_asset_inet_exposure.json", neo4j_session, common_job_parameters)
-    run_analysis_job("gcp_gke_asset_exposure.json",          neo4j_session, common_job_parameters)
-    run_analysis_job("gcp_gke_basic_auth.json",              neo4j_session, common_job_parameters)
-    run_analysis_job("gcp_compute_instance_vpc_analysis.json", neo4j_session, common_job_parameters)
+    run_analysis_job(GCP_COMPUTE_INSTANCE_VPC_ANALYSIS, neo4j_session, common_job_parameters)
+    for job in (GCP_GKE_ASSET_EXPOSURE, GCP_GKE_BASIC_AUTH):
+        run_analysis_job(job, neo4j_session, common_job_parameters)
 ```
 
 ## AWS module — scoped + global with deps
@@ -23,15 +22,15 @@ def _sync_one_account(...) -> None:
     # ... sync resources ...
 
     # scoped per-account
-    run_scoped_analysis_job("aws_ec2_iaminstanceprofile.json", neo4j_session, common_job_parameters)
+    run_scoped_analysis_job(AWS_EC2_IAM_INSTANCE_PROFILE, neo4j_session, common_job_parameters)
 
     # cross-account, but called per account loop
-    run_analysis_job("aws_lambda_ecr.json", neo4j_session, common_job_parameters)
+    run_analysis_job(AWS_LAMBDA_ECR, neo4j_session, common_job_parameters)
 
 
 def _perform_aws_analysis(requested_syncs, neo4j_session, common_job_parameters) -> None:
     run_analysis_and_ensure_deps(
-        "aws_ec2_asset_exposure.json",
+        AWS_EC2_ASSET_EXPOSURE_JOBS,
         {"ec2:instance", "ec2:security_group", "ec2:load_balancer", "ec2:load_balancer_v2"},
         set(requested_syncs),
         common_job_parameters,
@@ -39,7 +38,7 @@ def _perform_aws_analysis(requested_syncs, neo4j_session, common_job_parameters)
     )
 
     run_analysis_and_ensure_deps(
-        "aws_eks_asset_exposure.json",
+        AWS_EKS_ASSET_EXPOSURE,
         {"eks"},
         set(requested_syncs),
         common_job_parameters,
@@ -55,7 +54,7 @@ def _perform_aws_analysis(requested_syncs, neo4j_session, common_job_parameters)
 def sync_findings(...) -> None:
     # ... load findings ...
 
-    run_scoped_analysis_job("semgrep_sca_risk_analysis.json", neo4j_session, common_job_parameters)
+    run_scoped_analysis_job(SEMGREP_SCA_RISK_ANALYSIS, neo4j_session, common_job_parameters)
 
     cleanup(neo4j_session, common_job_parameters)
 ```
@@ -66,12 +65,12 @@ Modules with proper analysis-job integration as of the migration:
 
 | Module    | Analysis jobs                                                                                                                                                                                       | Location                                       |
 | --------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------- |
-| AWS       | `aws_ec2_asset_exposure.json`, `aws_ec2_keypair_analysis.json`, `aws_eks_asset_exposure.json`, `aws_foreign_accounts.json`, `aws_ecs_asset_exposure.json`                                            | Global (in `_perform_aws_analysis`)            |
-| AWS       | `aws_ec2_iaminstanceprofile.json`, `aws_lambda_ecr.json`                                                                                                                                            | Scoped (per-account in `_sync_one_account`)    |
-| AWS S3    | `aws_s3acl_analysis.json`                                                                                                                                                                            | Scoped (in `s3.py`)                            |
-| GCP       | `gcp_compute_asset_inet_exposure.json`, `gcp_gke_asset_exposure.json`, `gcp_gke_basic_auth.json`, `gcp_compute_instance_vpc_analysis.json`                                                          | Global (end of `start_gcp_ingestion`)          |
-| GSuite    | `gsuite_human_link.json`                                                                                                                                                                             | Global (end of `start_gsuite_ingestion`)       |
+| AWS       | `AWS_EC2_ASSET_EXPOSURE_JOBS`, `AWS_EC2_KEYPAIR_ANALYSIS_JOBS`, `AWS_EKS_ASSET_EXPOSURE`, `AWS_FOREIGN_ACCOUNTS`, `AWS_ECS_ASSET_EXPOSURE`                                                          | Global (in `_perform_aws_analysis`)            |
+| AWS       | `AWS_EC2_IAM_INSTANCE_PROFILE`, `AWS_LAMBDA_ECR`                                                                                                                                                     | Scoped (per-account in `_sync_one_account`)    |
+| AWS S3    | `AWS_S3ACL_ANALYSIS`                                                                                                                                                                                 | Scoped (in `s3.py`)                            |
+| GCP       | `GCP_COMPUTE_EXPOSURE_JOBS`, `GCP_GKE_ASSET_EXPOSURE`, `GCP_GKE_BASIC_AUTH`, `GCP_COMPUTE_INSTANCE_VPC_ANALYSIS`                                                                                    | Global (end of `start_gcp_ingestion`)          |
+| GSuite    | `GSUITE_HUMAN_LINK`                                                                                                                                                                                  | Global (end of `start_gsuite_ingestion`)       |
 | Keycloak  | `cartography.intel.keycloak.inheritance` (Python)                                                                                                                                                    | Global (end of `start_keycloak_ingestion`)     |
-| Semgrep   | `semgrep_sca_risk_analysis.json`                                                                                                                                                                    | Scoped (in `findings.py`)                      |
+| Semgrep   | `SEMGREP_SCA_RISK_ANALYSIS`                                                                                                                                                                         | Scoped (in `findings.py`)                      |
 
-`aws_ecs_asset_exposure.json` is marked deprecated in favour of the ontology `LoadBalancer-[:EXPOSE]->Container` pattern but is still called for backward compatibility.
+`AWS_ECS_ASSET_EXPOSURE` is marked deprecated in favour of the ontology `LoadBalancer-[:EXPOSE]->Container` pattern but is still called for backward compatibility.
