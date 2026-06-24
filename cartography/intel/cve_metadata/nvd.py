@@ -20,6 +20,8 @@ DOWNLOAD_CHUNK_SIZE = 1024 * 1024
 # NVD API rate limits: 50 req/30s with key. 0.6s/req would hit the limit exactly;
 # keep a margin at 1s.
 API_SLEEP_TIME = 1.0
+# NVD cveIds parameter accepts up to 100 comma-separated CVE IDs per request.
+API_BATCH_SIZE = 100
 NVD_YEARLY_FEED_START_YEAR = 2002
 
 
@@ -37,23 +39,23 @@ def _get_years_with_yearly_nvd_feeds(cve_ids: set[str]) -> set[str]:
 
 
 @timeit
-def _fetch_cve_from_api(
+def _fetch_cves_from_api(
     http_session: Session,
-    cve_id: str,
+    cve_ids: list[str],
     api_key: str,
-) -> dict[Any, Any] | None:
-    """Fetch a single CVE from the NVD API v2.0. Returns the raw `cve` dict or None."""
+) -> list[dict[Any, Any]]:
+    """Fetch a batch of CVEs from the NVD API v2.0 via the cveIds parameter.
+
+    Returns the list of raw `cve` dicts (missing CVEs are simply absent).
+    """
     response = http_session.get(
         NVD_API_BASE_URL,
-        params={"cveId": cve_id},
+        params={"cveIds": ",".join(cve_ids)},
         headers={"apiKey": api_key, "Content-Type": "application/json"},
         timeout=CONNECT_AND_READ_TIMEOUT,
     )
     response.raise_for_status()
-    vulnerabilities = response.json().get("vulnerabilities", [])
-    if not vulnerabilities:
-        return None
-    return vulnerabilities[0].get("cve")
+    return [v["cve"] for v in response.json().get("vulnerabilities", []) if "cve" in v]
 
 
 @timeit
@@ -215,19 +217,19 @@ def _get_nvd_cves_from_api(
     cve_ids_in_graph: set[str],
     api_key: str,
 ) -> dict[str, dict[Any, Any]]:
-    """Fetch CVEs one-by-one from the NVD API, transforming each response."""
+    """Fetch CVEs from the NVD API in batches of up to 100, transforming each response."""
+    cve_ids = sorted(cve_ids_in_graph)
     logger.info(
-        "Fetching %d CVEs from NVD API v2.0 (one request per CVE)",
-        len(cve_ids_in_graph),
+        "Fetching %d CVEs from NVD API v2.0 (up to %d per request)",
+        len(cve_ids),
+        API_BATCH_SIZE,
     )
     all_cves: dict[str, dict[Any, Any]] = {}
-    for cve_id in sorted(cve_ids_in_graph):
-        raw_cve = _fetch_cve_from_api(http_session, cve_id, api_key)
-        if raw_cve is None:
-            logger.debug("CVE %s not found in NVD, skipping.", cve_id)
-            continue
+    for i in range(0, len(cve_ids), API_BATCH_SIZE):
+        batch = cve_ids[i : i + API_BATCH_SIZE]
+        raw_cves = _fetch_cves_from_api(http_session, batch, api_key)
         transformed = transform_cves(
-            {"vulnerabilities": [{"cve": raw_cve}]},
+            {"vulnerabilities": [{"cve": cve} for cve in raw_cves]},
             cve_ids_in_graph,
         )
         all_cves.update(transformed)
