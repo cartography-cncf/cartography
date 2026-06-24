@@ -40,7 +40,7 @@ def _no_lockfile_fetch():
 @patch.object(
     cartography.intel.github.repos,
     "_get_dep_manifests_for_repos",
-    return_value=DEP_MANIFESTS_BY_URL,
+    return_value=(DEP_MANIFESTS_BY_URL, True),
 )
 @patch.object(
     cartography.intel.github.repos,
@@ -153,7 +153,7 @@ def test_sync_github_repos(
 @patch.object(
     cartography.intel.github.repos,
     "_get_dep_manifests_for_repos",
-    return_value=DEP_MANIFESTS_BY_URL,
+    return_value=(DEP_MANIFESTS_BY_URL, True),
 )
 @patch.object(
     cartography.intel.github.repos,
@@ -329,7 +329,7 @@ def test_sync_github_repo_collaborators(
 @patch.object(
     cartography.intel.github.repos,
     "_get_dep_manifests_for_repos",
-    return_value=DEP_MANIFESTS_BY_URL,
+    return_value=(DEP_MANIFESTS_BY_URL, True),
 )
 @patch.object(
     cartography.intel.github.repos,
@@ -433,7 +433,7 @@ def test_sync_github_dependencies(
 @patch.object(
     cartography.intel.github.repos,
     "_get_dep_manifests_for_repos",
-    return_value=DEP_MANIFESTS_BY_URL,
+    return_value=(DEP_MANIFESTS_BY_URL, True),
 )
 @patch.object(
     cartography.intel.github.repos,
@@ -621,7 +621,7 @@ def test_load_dependencies_shared_id_exact_conflict_not_corrupted(neo4j_session)
 @patch.object(
     cartography.intel.github.repos,
     "_get_dep_manifests_for_repos",
-    return_value=DEP_MANIFESTS_BY_URL,
+    return_value=(DEP_MANIFESTS_BY_URL, True),
 )
 @patch.object(
     cartography.intel.github.repos,
@@ -721,7 +721,7 @@ def test_sync_github_manifests(
 @patch.object(
     cartography.intel.github.repos,
     "_get_dep_manifests_for_repos",
-    return_value=DEP_MANIFESTS_BY_URL,
+    return_value=(DEP_MANIFESTS_BY_URL, True),
 )
 @patch.object(
     cartography.intel.github.repos,
@@ -799,7 +799,7 @@ def test_sync_github_branch_protection_rules(
 @patch.object(
     cartography.intel.github.repos,
     "_get_dep_manifests_for_repos",
-    return_value=DEP_MANIFESTS_BY_URL,
+    return_value=(DEP_MANIFESTS_BY_URL, True),
 )
 @patch.object(
     cartography.intel.github.repos,
@@ -894,7 +894,7 @@ def test_sync_github_rulesets(
 @patch.object(
     cartography.intel.github.repos,
     "_get_dep_manifests_for_repos",
-    return_value=DEP_MANIFESTS_BY_URL,
+    return_value=(DEP_MANIFESTS_BY_URL, True),
 )
 @patch.object(cartography.intel.github.repos, "get")
 @patch.object(
@@ -945,7 +945,7 @@ def test_sync_github_rulesets_cleanup(
 @patch.object(
     cartography.intel.github.repos,
     "_get_dep_manifests_for_repos",
-    return_value={},
+    return_value=({}, True),
 )
 @patch.object(cartography.intel.github.repos, "get")
 @patch.object(cartography.intel.github.repos, "_get_repo_collaborators")
@@ -1056,7 +1056,7 @@ def test_sync_collaborators_per_repo(
 @patch.object(
     cartography.intel.github.repos,
     "_get_dep_manifests_for_repos",
-    return_value=DEP_MANIFESTS_BY_URL,
+    return_value=(DEP_MANIFESTS_BY_URL, True),
 )
 @patch.object(
     cartography.intel.github.repos,

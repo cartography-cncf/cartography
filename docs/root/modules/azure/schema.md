@@ -144,7 +144,7 @@ Representation of an [Azure Principal](https://docs.microsoft.com/en-us/graph/ap
 
 - Azure Principal is part of the Azure Account.
     ```cypher
-    (AzurePrincipal)-[RESOURCE]->(AzureTenant)
+    (AzureTenant)-[RESOURCE]->(AzurePrincipal)
     ```
 
 ### AzureSubscription
@@ -318,7 +318,7 @@ Representation of the permissions within an Azure Role Definition. Each permissi
     RETURN sp.display_name, rd.role_name, ra.scope
     ```
 
-### VirtualMachine
+### AzureVirtualMachine
 
 Representation of an [Azure Virtual Machine](https://docs.microsoft.com/en-us/rest/api/compute/virtualmachines).
 
@@ -349,7 +349,7 @@ Representation of an [Azure Virtual Machine](https://docs.microsoft.com/en-us/re
 
 - Azure Subscription contains one or more Virtual Machines.
     ```cypher
-    (AzureSubscription)-[RESOURCE]->(VirtualMachine)
+    (AzureSubscription)-[RESOURCE]->(AzureVirtualMachine)
     ```
 
 - An Azure Virtual Machine can be tagged with Azure Tags.
@@ -380,7 +380,7 @@ Representation of an [Azure Data Disk](https://docs.microsoft.com/en-us/rest/api
 
 - Azure Virtual Machines are attached to Data Disks.
     ```cypher
-    (VirtualMachine)-[ATTACHED_TO]->(AzureDataDisk)
+    (AzureVirtualMachine)-[ATTACHED_TO]->(AzureDataDisk)
     ```
 
 - Azure Data Disks belongs to a Subscription.
