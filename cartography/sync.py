@@ -49,6 +49,7 @@ TOP_LEVEL_MODULES: OrderedDict[str, Callable[..., None]] = OrderedDict(
         "anthropic": _LazyStage(
             "cartography.intel.anthropic", "start_anthropic_ingestion"
         ),
+        "doppler": _LazyStage("cartography.intel.doppler", "start_doppler_ingestion"),
         "aws": _LazyStage("cartography.intel.aws", "start_aws_ingestion"),
         "azure": _LazyStage("cartography.intel.azure", "start_azure_ingestion"),
         "microsoft": _LazyStage(

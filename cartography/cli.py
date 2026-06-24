@@ -51,6 +51,7 @@ PANEL_CLOUDFLARE = "Cloudflare Options"
 PANEL_TAILSCALE = "Tailscale Options"
 PANEL_OPENAI = "OpenAI Options"
 PANEL_ANTHROPIC = "Anthropic Options"
+PANEL_DOPPLER = "Doppler Options"
 PANEL_AIRBYTE = "Airbyte Options"
 PANEL_DOCKER_SCOUT = "Docker Scout Options"
 PANEL_TRIVY = "Trivy Options"
@@ -106,6 +107,7 @@ MODULE_PANELS = {
     "tailscale": PANEL_TAILSCALE,
     "openai": PANEL_OPENAI,
     "anthropic": PANEL_ANTHROPIC,
+    "doppler": PANEL_DOPPLER,
     "airbyte": PANEL_AIRBYTE,
     "docker_scout": PANEL_DOCKER_SCOUT,
     "trivy": PANEL_TRIVY,
@@ -1335,6 +1337,18 @@ class CLI:
                 ),
             ] = None,
             # =================================================================
+            # Doppler Options
+            # =================================================================
+            doppler_apikey_env_var: Annotated[
+                str | None,
+                typer.Option(
+                    "--doppler-apikey-env-var",
+                    help="Environment variable name containing Doppler API key.",
+                    rich_help_panel=PANEL_DOPPLER,
+                    hidden=PANEL_DOPPLER not in visible_panels,
+                ),
+            ] = None,
+            # =================================================================
             # Sentry Options
             # =================================================================
             sentry_token_env_var: Annotated[
@@ -2394,6 +2408,15 @@ class CLI:
                 )
                 anthropic_apikey = os.environ.get(anthropic_apikey_env_var)
 
+            # Read Doppler API key
+            doppler_apikey = None
+            if doppler_apikey_env_var:
+                logger.debug(
+                    "Reading Doppler API key from environment variable %s",
+                    doppler_apikey_env_var,
+                )
+                doppler_apikey = os.environ.get(doppler_apikey_env_var)
+
             # Read Sentry token
             sentry_token = None
             if sentry_token_env_var:
@@ -2687,6 +2710,7 @@ class CLI:
                 openai_apikey=openai_apikey,
                 openai_org_id=openai_org_id,
                 anthropic_apikey=anthropic_apikey,
+                doppler_apikey=doppler_apikey,
                 sentry_token=sentry_token,
                 sentry_org=sentry_org,
                 sentry_host=sentry_host,

@@ -236,6 +236,8 @@ class Config:
     :param openai_org_id: OpenAI organization id. Optional.
     :type anthropic_apikey: string
     :param anthropic_apikey: Anthropic API key. Optional.
+    :type doppler_apikey: string
+    :param doppler_apikey: Doppler API key. Optional.
     :type socketdev_token: str
     :param socketdev_token: Socket.dev API token. Optional.
     :type airbyte_client_id: str
@@ -442,6 +444,7 @@ class Config:
         openai_apikey=None,
         openai_org_id=None,
         anthropic_apikey=None,
+        doppler_apikey=None,
         subimage_client_id=None,
         subimage_client_secret=None,
         subimage_tenant_url=None,
@@ -616,6 +619,7 @@ class Config:
         self.openai_apikey = openai_apikey
         self.openai_org_id = openai_org_id
         self.anthropic_apikey = anthropic_apikey
+        self.doppler_apikey = doppler_apikey
         self.subimage_client_id = subimage_client_id
         self.subimage_client_secret = subimage_client_secret
         self.subimage_tenant_url = subimage_tenant_url
