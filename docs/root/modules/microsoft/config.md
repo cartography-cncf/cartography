@@ -18,9 +18,6 @@ To set up the Microsoft client:
     - `AdministrativeUnit.Read.All`
         - Read all administrative units
         - Type: Application
-    - `AppRoleAssignment.ReadWrite.All`
-        - Manage app permission grants and app role assignments
-        - Type: Application
     - `Application.Read.All`
         - Read all applications
         - Type: Application
