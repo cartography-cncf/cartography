@@ -1,0 +1,31 @@
+{
+  "statements": [
+    {
+      "__comment": "Reset exposed_internet properties on all OCI subnets in scope",
+      "query": "MATCH (n:OCISubnet)<-[:OCI_SUBNET]-(:OCIVcn)<-[:RESOURCE]-(:OCICompartment{id: $OCI_COMPARTMENT_ID})<-[:OWNER]-(:OCITenancy{id: $OCI_TENANCY_ID})<-[:OWNER]-(:CloudanixWorkspace{id: $WORKSPACE_ID}) WHERE n.exposed_internet IS NOT NULL WITH n LIMIT $LIMIT_SIZE REMOVE n.exposed_internet, n.exposed_internet_type, n.publicContext RETURN COUNT(*) as TotalCompleted",
+      "iterative": true,
+      "iterationsize": 100
+    },
+    {
+      "__comment": "Mark subnets as exposed if they allow public IPs on VNICs (public subnet)",
+      "query": "MATCH (subnet:OCISubnet{prohibit_public_ip_on_vnic: false})<-[:OCI_SUBNET]-(:OCIVcn)<-[:RESOURCE]-(:OCICompartment{id: $OCI_COMPARTMENT_ID})<-[:OWNER]-(:OCITenancy{id: $OCI_TENANCY_ID})<-[:OWNER]-(:CloudanixWorkspace{id: $WORKSPACE_ID}) SET subnet.exposed_internet = true, (CASE WHEN NOT 'public_subnet' IN coalesce(subnet.exposed_internet_type, []) THEN subnet END).exposed_internet_type = coalesce(subnet.exposed_internet_type, []) + 'public_subnet'",
+      "iterative": false
+    },
+    {
+      "__comment": "Mark subnets as exposed if their VCN has an enabled Internet Gateway",
+      "query": "MATCH (subnet:OCISubnet)<-[:OCI_SUBNET]-(vcn:OCIVcn)-[:OCI_INTERNET_GATEWAY]->(igw:OCIInternetGateway{is_enabled: true}) MATCH (vcn)<-[:RESOURCE]-(:OCICompartment{id: $OCI_COMPARTMENT_ID})<-[:OWNER]-(:OCITenancy{id: $OCI_TENANCY_ID})<-[:OWNER]-(:CloudanixWorkspace{id: $WORKSPACE_ID}) WHERE subnet.prohibit_public_ip_on_vnic = false SET subnet.exposed_internet = true, (CASE WHEN NOT 'internet_gateway_route' IN coalesce(subnet.exposed_internet_type, []) THEN subnet END).exposed_internet_type = coalesce(subnet.exposed_internet_type, []) + 'internet_gateway_route'",
+      "iterative": false
+    },
+    {
+      "__comment": "Mark subnets as exposed if their route table has a route targeting an Internet Gateway",
+      "query": "MATCH (subnet:OCISubnet)<-[:OCI_SUBNET]-(vcn:OCIVcn)-[:OCI_ROUTE_TABLE]->(rt:OCIRouteTable) MATCH (vcn)<-[:RESOURCE]-(:OCICompartment{id: $OCI_COMPARTMENT_ID})<-[:OWNER]-(:OCITenancy{id: $OCI_TENANCY_ID})<-[:OWNER]-(:CloudanixWorkspace{id: $WORKSPACE_ID}) WHERE subnet.route_table_id = rt.ocid AND rt.route_rules CONTAINS 'internet-gateway' SET subnet.exposed_internet = true, (CASE WHEN NOT 'igw_route_rule' IN coalesce(subnet.exposed_internet_type, []) THEN subnet END).exposed_internet_type = coalesce(subnet.exposed_internet_type, []) + 'igw_route_rule'",
+      "iterative": false
+    },
+    {
+      "__comment": "Build publicContext JSON for exposed subnets",
+      "query": "MATCH (subnet:OCISubnet)<-[:OCI_SUBNET]-(vcn:OCIVcn)<-[:RESOURCE]-(:OCICompartment{id: $OCI_COMPARTMENT_ID})<-[:OWNER]-(:OCITenancy{id: $OCI_TENANCY_ID})<-[:OWNER]-(:CloudanixWorkspace{id: $WORKSPACE_ID}) WHERE subnet.exposed_internet = true OPTIONAL MATCH (vcn)-[:OCI_INTERNET_GATEWAY]->(igw:OCIInternetGateway{is_enabled: true}) OPTIONAL MATCH (vcn)-[:OCI_ROUTE_TABLE]->(rt:OCIRouteTable) WHERE subnet.route_table_id = rt.ocid WITH subnet, vcn, collect(DISTINCT igw.ocid) as igwIds, rt SET subnet.publicContext = apoc.convert.toJson([{resource: subnet.ocid, resourceType: 'oci-subnet', context: [{subnetId: subnet.ocid, subnetName: subnet.display_name, cidrBlock: subnet.cidr_block, vcnId: vcn.ocid, vcnName: vcn.display_name, prohibitPublicIp: subnet.prohibit_public_ip_on_vnic, routeTableId: rt.ocid, internetGateways: igwIds, exposureTypes: subnet.exposed_internet_type, region: subnet.region}]}])",
+      "iterative": false
+    }
+  ],
+  "name": "OCI subnet asset internet exposure"
+}

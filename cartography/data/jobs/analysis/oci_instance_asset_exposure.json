@@ -1,0 +1,41 @@
+{
+  "statements": [
+    {
+      "__comment": "Reset exposed_internet properties on all OCI instances in scope",
+      "query": "MATCH (n:OCIInstance)<-[:RESOURCE]-(:OCICompartment{id: $OCI_COMPARTMENT_ID})<-[:OWNER]-(:OCITenancy{id: $OCI_TENANCY_ID})<-[:OWNER]-(:CloudanixWorkspace{id: $WORKSPACE_ID}) WHERE n.exposed_internet IS NOT NULL WITH n LIMIT $LIMIT_SIZE REMOVE n.exposed_internet, n.exposed_internet_type, n.publicContext RETURN COUNT(*) as TotalCompleted",
+      "iterative": true,
+      "iterationsize": 100
+    },
+    {
+      "__comment": "Mark instances as exposed if they have a VNIC with a public IP",
+      "query": "MATCH (inst:OCIInstance)-[:OCI_VNIC_ATTACHMENT]->(:OCIVnicAttachment)-[:OCI_VNIC]->(vnic:OCIVnic) MATCH (inst)<-[:RESOURCE]-(:OCICompartment{id: $OCI_COMPARTMENT_ID})<-[:OWNER]-(:OCITenancy{id: $OCI_TENANCY_ID})<-[:OWNER]-(:CloudanixWorkspace{id: $WORKSPACE_ID}) WHERE vnic.public_ip IS NOT NULL AND vnic.public_ip <> '' SET inst.exposed_internet = true, (CASE WHEN NOT 'public_ip_direct' IN coalesce(inst.exposed_internet_type, []) THEN inst END).exposed_internet_type = coalesce(inst.exposed_internet_type, []) + 'public_ip_direct'",
+      "iterative": false
+    },
+    {
+      "__comment": "Mark instances as exposed if their VNIC is in a public subnet with an enabled Internet Gateway",
+      "query": "MATCH (inst:OCIInstance)-[:OCI_VNIC_ATTACHMENT]->(:OCIVnicAttachment)-[:OCI_VNIC]->(vnic:OCIVnic) MATCH (subnet:OCISubnet{ocid: vnic.subnet_id, prohibit_public_ip_on_vnic: false})<-[:OCI_SUBNET]-(vcn:OCIVcn)-[:OCI_INTERNET_GATEWAY]->(igw:OCIInternetGateway{is_enabled: true}) MATCH (inst)<-[:RESOURCE]-(:OCICompartment{id: $OCI_COMPARTMENT_ID})<-[:OWNER]-(:OCITenancy{id: $OCI_TENANCY_ID})<-[:OWNER]-(:CloudanixWorkspace{id: $WORKSPACE_ID}) SET inst.exposed_internet = true, (CASE WHEN NOT 'public_subnet_with_igw' IN coalesce(inst.exposed_internet_type, []) THEN inst END).exposed_internet_type = coalesce(inst.exposed_internet_type, []) + 'public_subnet_with_igw'",
+      "iterative": false
+    },
+    {
+      "__comment": "Mark instances as exposed if their VCN has NSG rules allowing unrestricted ingress from 0.0.0.0/0",
+      "query": "MATCH (inst:OCIInstance)-[:OCI_VNIC_ATTACHMENT]->(:OCIVnicAttachment)-[:OCI_VNIC]->(vnic:OCIVnic) MATCH (subnet:OCISubnet{ocid: vnic.subnet_id})<-[:OCI_SUBNET]-(vcn:OCIVcn)-[:OCI_NETWORK_SECURITY_GROUP]->(nsg:OCINetworkSecurityGroup)-[:OCI_NSG_RULE]->(rule:OCINsgSecurityRule{direction: 'INGRESS', source: '0.0.0.0/0'}) MATCH (inst)<-[:RESOURCE]-(:OCICompartment{id: $OCI_COMPARTMENT_ID})<-[:OWNER]-(:OCITenancy{id: $OCI_TENANCY_ID})<-[:OWNER]-(:CloudanixWorkspace{id: $WORKSPACE_ID}) SET inst.exposed_internet = true, (CASE WHEN NOT 'unrestricted_nsg_ingress' IN coalesce(inst.exposed_internet_type, []) THEN inst END).exposed_internet_type = coalesce(inst.exposed_internet_type, []) + 'unrestricted_nsg_ingress'",
+      "iterative": false
+    },
+    {
+      "__comment": "Mark instances as exposed if their subnet has a security list allowing unrestricted ingress from 0.0.0.0/0",
+      "query": "MATCH (inst:OCIInstance)-[:OCI_VNIC_ATTACHMENT]->(:OCIVnicAttachment)-[:OCI_VNIC]->(vnic:OCIVnic) MATCH (subnet:OCISubnet{ocid: vnic.subnet_id})<-[:OCI_SUBNET]-(vcn:OCIVcn)-[:OCI_SECURITY_LIST]->(sl:OCISecurityList) MATCH (inst)<-[:RESOURCE]-(:OCICompartment{id: $OCI_COMPARTMENT_ID})<-[:OWNER]-(:OCITenancy{id: $OCI_TENANCY_ID})<-[:OWNER]-(:CloudanixWorkspace{id: $WORKSPACE_ID}) WHERE sl.ingress_security_rules CONTAINS '0.0.0.0/0' SET inst.exposed_internet = true, (CASE WHEN NOT 'unrestricted_securitylist_ingress' IN coalesce(inst.exposed_internet_type, []) THEN inst END).exposed_internet_type = coalesce(inst.exposed_internet_type, []) + 'unrestricted_securitylist_ingress'",
+      "iterative": false
+    },
+    {
+      "__comment": "Mark instances as exposed via IPv6 unrestricted NSG ingress (::/0)",
+      "query": "MATCH (inst:OCIInstance)-[:OCI_VNIC_ATTACHMENT]->(:OCIVnicAttachment)-[:OCI_VNIC]->(vnic:OCIVnic) MATCH (subnet:OCISubnet{ocid: vnic.subnet_id})<-[:OCI_SUBNET]-(vcn:OCIVcn)-[:OCI_NETWORK_SECURITY_GROUP]->(nsg:OCINetworkSecurityGroup)-[:OCI_NSG_RULE]->(rule:OCINsgSecurityRule{direction: 'INGRESS', source: '::/0'}) MATCH (inst)<-[:RESOURCE]-(:OCICompartment{id: $OCI_COMPARTMENT_ID})<-[:OWNER]-(:OCITenancy{id: $OCI_TENANCY_ID})<-[:OWNER]-(:CloudanixWorkspace{id: $WORKSPACE_ID}) SET inst.exposed_internet = true, (CASE WHEN NOT 'unrestricted_nsg_ingress_ipv6' IN coalesce(inst.exposed_internet_type, []) THEN inst END).exposed_internet_type = coalesce(inst.exposed_internet_type, []) + 'unrestricted_nsg_ingress_ipv6'",
+      "iterative": false
+    },
+    {
+      "__comment": "Build publicContext JSON for exposed instances with VNIC, subnet, and security details",
+      "query": "MATCH (inst:OCIInstance)<-[:RESOURCE]-(:OCICompartment{id: $OCI_COMPARTMENT_ID})<-[:OWNER]-(:OCITenancy{id: $OCI_TENANCY_ID})<-[:OWNER]-(:CloudanixWorkspace{id: $WORKSPACE_ID}) WHERE inst.exposed_internet = true WITH inst OPTIONAL MATCH (inst)-[:OCI_VNIC_ATTACHMENT]->(:OCIVnicAttachment)-[:OCI_VNIC]->(vnic:OCIVnic) OPTIONAL MATCH (subnet:OCISubnet{ocid: vnic.subnet_id})<-[:OCI_SUBNET]-(vcn:OCIVcn) OPTIONAL MATCH (vcn)-[:OCI_NETWORK_SECURITY_GROUP]->(nsg:OCINetworkSecurityGroup)-[:OCI_NSG_RULE]->(rule:OCINsgSecurityRule{direction: 'INGRESS'}) WHERE rule.source IN ['0.0.0.0/0', '::/0'] WITH inst, vnic, subnet, vcn, collect(DISTINCT {nsgId: nsg.ocid, ruleId: rule.ocid, protocol: rule.protocol, source: rule.source, tcpPortMin: rule.tcp_dest_port_min, tcpPortMax: rule.tcp_dest_port_max}) as nsgRules SET inst.publicContext = apoc.convert.toJson([{resource: inst.ocid, resourceType: 'oci-compute-vm-instance', context: [{instanceId: inst.ocid, instanceName: inst.display_name, publicIp: vnic.public_ip, privateIp: vnic.private_ip, shape: inst.shape, region: inst.region, subnetId: subnet.ocid, vcnId: vcn.ocid, prohibitPublicIp: subnet.prohibit_public_ip_on_vnic, exposureTypes: inst.exposed_internet_type, nsgRules: nsgRules}]}])",
+      "iterative": false
+    }
+  ],
+  "name": "OCI compute instance asset internet exposure"
+}

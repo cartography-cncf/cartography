@@ -26,7 +26,7 @@ from . import utils
 from .resources import RESOURCE_FUNCTIONS
 from cartography.config import Config
 from cartography.intel.oci.util.common import parse_and_validate_oci_requested_syncs
-# from cartography.util import run_analysis_job
+from cartography.util import run_analysis_job
 # from cartography.util import run_cleanup_job
 
 logger = logging.getLogger(__name__)
@@ -132,6 +132,22 @@ def _sync_one_compartment(
             logger.warning(
                 'OCI sync function "%s" was specified but does not exist. Did you misspell it?', func_name,
             )
+
+    # Run analysis jobs after all resource syncs complete
+    _oci_analysis_jobs = [
+        'oci_subnet_asset_exposure.json',
+        'oci_instance_asset_exposure.json',
+        'oci_iam_user_analysis.json',
+        'oci_iam_policy_analysis.json',
+        'oci_encryption_analysis.json',
+        'oci_monitoring_analysis.json',
+    ]
+    for job_file in _oci_analysis_jobs:
+        try:
+            run_analysis_job(job_file, neo4j_session, common_job_parameters)
+        except Exception as e:
+            logger.error("Error running OCI analysis job '%s': %s", job_file, e, exc_info=True)
+
     logger.info(
         json.dumps({
             "event": "oci_compartment_timing_summary",

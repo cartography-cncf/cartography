@@ -1,0 +1,31 @@
+{
+  "statements": [
+    {
+      "__comment": "Reset IAM policy analysis properties on all OCI policies in scope",
+      "query": "MATCH (:CloudanixWorkspace{id: $WORKSPACE_ID})-[:OWNER]->(:OCITenancy{id: $OCI_TENANCY_ID})-[:RESOURCE]->(n:OCIPolicy) WHERE n.policy_risk IS NOT NULL WITH n LIMIT $LIMIT_SIZE REMOVE n.policy_risk, n.policy_risk_type, n.is_overly_permissive, n.allows_all_resources RETURN COUNT(*) as TotalCompleted",
+      "iterative": true,
+      "iterationsize": 100
+    },
+    {
+      "__comment": "Flag policies with overly broad 'manage all-resources' statements",
+      "query": "MATCH (:CloudanixWorkspace{id: $WORKSPACE_ID})-[:OWNER]->(:OCITenancy{id: $OCI_TENANCY_ID})-[:RESOURCE]->(p:OCIPolicy) WHERE ANY(stmt IN p.statements WHERE toLower(stmt) CONTAINS 'manage all-resources') SET p.policy_risk = true, p.is_overly_permissive = true, p.allows_all_resources = true, (CASE WHEN NOT 'manage_all_resources' IN coalesce(p.policy_risk_type, []) THEN p END).policy_risk_type = coalesce(p.policy_risk_type, []) + 'manage_all_resources'",
+      "iterative": false
+    },
+    {
+      "__comment": "Flag policies that grant broad 'manage' verb in tenancy scope",
+      "query": "MATCH (:CloudanixWorkspace{id: $WORKSPACE_ID})-[:OWNER]->(:OCITenancy{id: $OCI_TENANCY_ID})-[:RESOURCE]->(p:OCIPolicy) WHERE ANY(stmt IN p.statements WHERE toLower(stmt) CONTAINS 'manage' AND toLower(stmt) CONTAINS 'in tenancy') AND p.managed_type = 'custom' SET p.policy_risk = true, p.is_overly_permissive = true, (CASE WHEN NOT 'manage_in_tenancy' IN coalesce(p.policy_risk_type, []) THEN p END).policy_risk_type = coalesce(p.policy_risk_type, []) + 'manage_in_tenancy'",
+      "iterative": false
+    },
+    {
+      "__comment": "Flag policies that allow use/manage of users or groups (identity risk)",
+      "query": "MATCH (:CloudanixWorkspace{id: $WORKSPACE_ID})-[:OWNER]->(:OCITenancy{id: $OCI_TENANCY_ID})-[:RESOURCE]->(p:OCIPolicy) WHERE ANY(stmt IN p.statements WHERE (toLower(stmt) CONTAINS 'manage users' OR toLower(stmt) CONTAINS 'manage groups' OR toLower(stmt) CONTAINS 'manage identity')) AND p.managed_type = 'custom' SET p.policy_risk = true, (CASE WHEN NOT 'identity_management' IN coalesce(p.policy_risk_type, []) THEN p END).policy_risk_type = coalesce(p.policy_risk_type, []) + 'identity_management'",
+      "iterative": false
+    },
+    {
+      "__comment": "Flag custom policies that reference 'any-user' (overly permissive principal)",
+      "query": "MATCH (:CloudanixWorkspace{id: $WORKSPACE_ID})-[:OWNER]->(:OCITenancy{id: $OCI_TENANCY_ID})-[:RESOURCE]->(p:OCIPolicy) WHERE ANY(stmt IN p.statements WHERE toLower(stmt) CONTAINS 'any-user') AND p.managed_type = 'custom' SET p.policy_risk = true, (CASE WHEN NOT 'any_user_principal' IN coalesce(p.policy_risk_type, []) THEN p END).policy_risk_type = coalesce(p.policy_risk_type, []) + 'any_user_principal'",
+      "iterative": false
+    }
+  ],
+  "name": "OCI IAM policy analysis"
+}

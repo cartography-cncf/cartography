@@ -1,0 +1,41 @@
+{
+  "statements": [
+    {
+      "__comment": "Reset IAM analysis properties on all OCI users in scope",
+      "query": "MATCH (:CloudanixWorkspace{id: $WORKSPACE_ID})-[:OWNER]->(:OCITenancy{id: $OCI_TENANCY_ID})-[:RESOURCE]->(n:OCIUser) WHERE n.iam_risk IS NOT NULL WITH n LIMIT $LIMIT_SIZE REMOVE n.iam_risk, n.iam_risk_type, n.group_count, n.policy_count, n.admin_access RETURN COUNT(*) as TotalCompleted",
+      "iterative": true,
+      "iterationsize": 100
+    },
+    {
+      "__comment": "Flag users without MFA enabled who can use console password",
+      "query": "MATCH (:CloudanixWorkspace{id: $WORKSPACE_ID})-[:OWNER]->(:OCITenancy{id: $OCI_TENANCY_ID})-[:RESOURCE]->(u:OCIUser) WHERE u.is_mfa_activated = false AND u.can_use_console_password = true AND u.lifecycle_state = 'ACTIVE' SET u.iam_risk = true, (CASE WHEN NOT 'mfa_not_enabled' IN coalesce(u.iam_risk_type, []) THEN u END).iam_risk_type = coalesce(u.iam_risk_type, []) + 'mfa_not_enabled'",
+      "iterative": false
+    },
+    {
+      "__comment": "Flag users who have API keys enabled (potential credential exposure risk)",
+      "query": "MATCH (:CloudanixWorkspace{id: $WORKSPACE_ID})-[:OWNER]->(:OCITenancy{id: $OCI_TENANCY_ID})-[:RESOURCE]->(u:OCIUser) WHERE u.can_use_api_keys = true AND u.lifecycle_state = 'ACTIVE' SET u.iam_risk = true, (CASE WHEN NOT 'api_keys_enabled' IN coalesce(u.iam_risk_type, []) THEN u END).iam_risk_type = coalesce(u.iam_risk_type, []) + 'api_keys_enabled'",
+      "iterative": false
+    },
+    {
+      "__comment": "Flag users who are members of the Administrators group (admin access)",
+      "query": "MATCH (:CloudanixWorkspace{id: $WORKSPACE_ID})-[:OWNER]->(:OCITenancy{id: $OCI_TENANCY_ID})-[:RESOURCE]->(u:OCIUser)-[:MEMBER_OCID_GROUP]->(g:OCIGroup{name: 'Administrators'}) WHERE u.lifecycle_state = 'ACTIVE' SET u.admin_access = true, u.iam_risk = true, (CASE WHEN NOT 'admin_group_member' IN coalesce(u.iam_risk_type, []) THEN u END).iam_risk_type = coalesce(u.iam_risk_type, []) + 'admin_group_member'",
+      "iterative": false
+    },
+    {
+      "__comment": "Count group memberships per user",
+      "query": "MATCH (:CloudanixWorkspace{id: $WORKSPACE_ID})-[:OWNER]->(:OCITenancy{id: $OCI_TENANCY_ID})-[:RESOURCE]->(u:OCIUser) OPTIONAL MATCH (u)-[:MEMBER_OCID_GROUP]->(g:OCIGroup) WITH u, count(g) as groupCount SET u.group_count = groupCount",
+      "iterative": false
+    },
+    {
+      "__comment": "Count policies that reference each user's groups",
+      "query": "MATCH (:CloudanixWorkspace{id: $WORKSPACE_ID})-[:OWNER]->(:OCITenancy{id: $OCI_TENANCY_ID})-[:RESOURCE]->(u:OCIUser)-[:MEMBER_OCID_GROUP]->(g:OCIGroup)<-[:OCI_POLICY_REFERENCE]-(p:OCIPolicy) WITH u, count(DISTINCT p) as policyCount SET u.policy_count = policyCount",
+      "iterative": false
+    },
+    {
+      "__comment": "Flag users with excessive permissions (member of 3+ groups with policies)",
+      "query": "MATCH (:CloudanixWorkspace{id: $WORKSPACE_ID})-[:OWNER]->(:OCITenancy{id: $OCI_TENANCY_ID})-[:RESOURCE]->(u:OCIUser) WHERE u.group_count >= 3 AND u.policy_count >= 3 AND u.lifecycle_state = 'ACTIVE' SET u.iam_risk = true, (CASE WHEN NOT 'excessive_permissions' IN coalesce(u.iam_risk_type, []) THEN u END).iam_risk_type = coalesce(u.iam_risk_type, []) + 'excessive_permissions'",
+      "iterative": false
+    }
+  ],
+  "name": "OCI IAM user analysis"
+}

@@ -1,0 +1,47 @@
+{
+  "statements": [
+    {
+      "__comment": "Reset encryption analysis properties on all OCI KMS vaults in scope",
+      "query": "MATCH (:CloudanixWorkspace{id: $WORKSPACE_ID})-[:OWNER]->(:OCITenancy{id: $OCI_TENANCY_ID})-[:OWNER]->(:OCICompartment{id: $OCI_COMPARTMENT_ID})-[:RESOURCE]->(n:OCIKmsVault) WHERE n.encryption_risk IS NOT NULL WITH n LIMIT $LIMIT_SIZE REMOVE n.encryption_risk, n.encryption_risk_type, n.key_count, n.has_active_keys RETURN COUNT(*) as TotalCompleted",
+      "iterative": true,
+      "iterationsize": 100
+    },
+    {
+      "__comment": "Reset encryption analysis properties on all OCI KMS keys in scope",
+      "query": "MATCH (:CloudanixWorkspace{id: $WORKSPACE_ID})-[:OWNER]->(:OCITenancy{id: $OCI_TENANCY_ID})-[:OWNER]->(:OCICompartment{id: $OCI_COMPARTMENT_ID})-[:RESOURCE]->(:OCIKmsVault)-[:OCI_KMS_KEY]->(n:OCIKmsKey) WHERE n.encryption_risk IS NOT NULL WITH n LIMIT $LIMIT_SIZE REMOVE n.encryption_risk, n.encryption_risk_type RETURN COUNT(*) as TotalCompleted",
+      "iterative": true,
+      "iterationsize": 100
+    },
+    {
+      "__comment": "Flag vaults that are not in ACTIVE state (deleted, pending deletion, etc.)",
+      "query": "MATCH (:CloudanixWorkspace{id: $WORKSPACE_ID})-[:OWNER]->(:OCITenancy{id: $OCI_TENANCY_ID})-[:OWNER]->(:OCICompartment{id: $OCI_COMPARTMENT_ID})-[:RESOURCE]->(v:OCIKmsVault) WHERE v.lifecycle_state <> 'ACTIVE' SET v.encryption_risk = true, (CASE WHEN NOT 'vault_not_active' IN coalesce(v.encryption_risk_type, []) THEN v END).encryption_risk_type = coalesce(v.encryption_risk_type, []) + 'vault_not_active'",
+      "iterative": false
+    },
+    {
+      "__comment": "Flag DEFAULT vault type (less secure than VIRTUAL_PRIVATE — shared HSM partition)",
+      "query": "MATCH (:CloudanixWorkspace{id: $WORKSPACE_ID})-[:OWNER]->(:OCITenancy{id: $OCI_TENANCY_ID})-[:OWNER]->(:OCICompartment{id: $OCI_COMPARTMENT_ID})-[:RESOURCE]->(v:OCIKmsVault{vault_type: 'DEFAULT'}) WHERE v.lifecycle_state = 'ACTIVE' SET v.encryption_risk = true, (CASE WHEN NOT 'shared_hsm_partition' IN coalesce(v.encryption_risk_type, []) THEN v END).encryption_risk_type = coalesce(v.encryption_risk_type, []) + 'shared_hsm_partition'",
+      "iterative": false
+    },
+    {
+      "__comment": "Count keys per vault and flag vaults with no active keys",
+      "query": "MATCH (:CloudanixWorkspace{id: $WORKSPACE_ID})-[:OWNER]->(:OCITenancy{id: $OCI_TENANCY_ID})-[:OWNER]->(:OCICompartment{id: $OCI_COMPARTMENT_ID})-[:RESOURCE]->(v:OCIKmsVault) OPTIONAL MATCH (v)-[:OCI_KMS_KEY]->(k:OCIKmsKey{lifecycle_state: 'ENABLED'}) WITH v, count(k) as activeKeyCount SET v.key_count = activeKeyCount, v.has_active_keys = (activeKeyCount > 0)",
+      "iterative": false
+    },
+    {
+      "__comment": "Flag active vaults with zero keys (unused vault — potential configuration gap)",
+      "query": "MATCH (:CloudanixWorkspace{id: $WORKSPACE_ID})-[:OWNER]->(:OCITenancy{id: $OCI_TENANCY_ID})-[:OWNER]->(:OCICompartment{id: $OCI_COMPARTMENT_ID})-[:RESOURCE]->(v:OCIKmsVault) WHERE v.lifecycle_state = 'ACTIVE' AND v.has_active_keys = false SET v.encryption_risk = true, (CASE WHEN NOT 'no_active_keys' IN coalesce(v.encryption_risk_type, []) THEN v END).encryption_risk_type = coalesce(v.encryption_risk_type, []) + 'no_active_keys'",
+      "iterative": false
+    },
+    {
+      "__comment": "Flag keys using SOFTWARE protection mode (less secure than HSM)",
+      "query": "MATCH (:CloudanixWorkspace{id: $WORKSPACE_ID})-[:OWNER]->(:OCITenancy{id: $OCI_TENANCY_ID})-[:OWNER]->(:OCICompartment{id: $OCI_COMPARTMENT_ID})-[:RESOURCE]->(:OCIKmsVault)-[:OCI_KMS_KEY]->(k:OCIKmsKey{protection_mode: 'SOFTWARE'}) SET k.encryption_risk = true, (CASE WHEN NOT 'software_protection' IN coalesce(k.encryption_risk_type, []) THEN k END).encryption_risk_type = coalesce(k.encryption_risk_type, []) + 'software_protection'",
+      "iterative": false
+    },
+    {
+      "__comment": "Flag keys that are not in ENABLED state (disabled, pending deletion, scheduled deletion)",
+      "query": "MATCH (:CloudanixWorkspace{id: $WORKSPACE_ID})-[:OWNER]->(:OCITenancy{id: $OCI_TENANCY_ID})-[:OWNER]->(:OCICompartment{id: $OCI_COMPARTMENT_ID})-[:RESOURCE]->(:OCIKmsVault)-[:OCI_KMS_KEY]->(k:OCIKmsKey) WHERE k.lifecycle_state <> 'ENABLED' SET k.encryption_risk = true, (CASE WHEN NOT 'key_not_enabled' IN coalesce(k.encryption_risk_type, []) THEN k END).encryption_risk_type = coalesce(k.encryption_risk_type, []) + 'key_not_enabled'",
+      "iterative": false
+    }
+  ],
+  "name": "OCI encryption (KMS) analysis"
+}

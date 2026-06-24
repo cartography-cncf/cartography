@@ -1,0 +1,52 @@
+{
+  "statements": [
+    {
+      "__comment": "Reset monitoring analysis properties on all OCI alarms in scope",
+      "query": "MATCH (:CloudanixWorkspace{id: $WORKSPACE_ID})-[:OWNER]->(:OCITenancy{id: $OCI_TENANCY_ID})-[:OWNER]->(:OCICompartment{id: $OCI_COMPARTMENT_ID})-[:RESOURCE]->(n:OCIMonitoringAlarm) WHERE n.monitoring_risk IS NOT NULL WITH n LIMIT $LIMIT_SIZE REMOVE n.monitoring_risk, n.monitoring_risk_type RETURN COUNT(*) as TotalCompleted",
+      "iterative": true,
+      "iterationsize": 100
+    },
+    {
+      "__comment": "Reset monitoring analysis on Cloud Guard",
+      "query": "MATCH (:CloudanixWorkspace{id: $WORKSPACE_ID})-[:OWNER]->(:OCITenancy{id: $OCI_TENANCY_ID})-[:OWNER]->(:OCICompartment{id: $OCI_COMPARTMENT_ID})-[:RESOURCE]->(n:OCICloudGuard) WHERE n.monitoring_risk IS NOT NULL WITH n LIMIT $LIMIT_SIZE REMOVE n.monitoring_risk, n.monitoring_risk_type RETURN COUNT(*) as TotalCompleted",
+      "iterative": true,
+      "iterationsize": 100
+    },
+    {
+      "__comment": "Flag alarms that are disabled",
+      "query": "MATCH (:CloudanixWorkspace{id: $WORKSPACE_ID})-[:OWNER]->(:OCITenancy{id: $OCI_TENANCY_ID})-[:OWNER]->(:OCICompartment{id: $OCI_COMPARTMENT_ID})-[:RESOURCE]->(a:OCIMonitoringAlarm{is_enabled: false}) SET a.monitoring_risk = true, (CASE WHEN NOT 'alarm_disabled' IN coalesce(a.monitoring_risk_type, []) THEN a END).monitoring_risk_type = coalesce(a.monitoring_risk_type, []) + 'alarm_disabled'",
+      "iterative": false
+    },
+    {
+      "__comment": "Flag alarms with no notification destinations configured",
+      "query": "MATCH (:CloudanixWorkspace{id: $WORKSPACE_ID})-[:OWNER]->(:OCITenancy{id: $OCI_TENANCY_ID})-[:OWNER]->(:OCICompartment{id: $OCI_COMPARTMENT_ID})-[:RESOURCE]->(a:OCIMonitoringAlarm) WHERE a.destinations IS NULL OR size(a.destinations) = 0 SET a.monitoring_risk = true, (CASE WHEN NOT 'no_destinations' IN coalesce(a.monitoring_risk_type, []) THEN a END).monitoring_risk_type = coalesce(a.monitoring_risk_type, []) + 'no_destinations'",
+      "iterative": false
+    },
+    {
+      "__comment": "Flag alarms in non-active lifecycle state",
+      "query": "MATCH (:CloudanixWorkspace{id: $WORKSPACE_ID})-[:OWNER]->(:OCITenancy{id: $OCI_TENANCY_ID})-[:OWNER]->(:OCICompartment{id: $OCI_COMPARTMENT_ID})-[:RESOURCE]->(a:OCIMonitoringAlarm) WHERE a.lifecycle_state <> 'ACTIVE' SET a.monitoring_risk = true, (CASE WHEN NOT 'alarm_not_active' IN coalesce(a.monitoring_risk_type, []) THEN a END).monitoring_risk_type = coalesce(a.monitoring_risk_type, []) + 'alarm_not_active'",
+      "iterative": false
+    },
+    {
+      "__comment": "Flag Cloud Guard if it is disabled",
+      "query": "MATCH (:CloudanixWorkspace{id: $WORKSPACE_ID})-[:OWNER]->(:OCITenancy{id: $OCI_TENANCY_ID})-[:OWNER]->(:OCICompartment{id: $OCI_COMPARTMENT_ID})-[:RESOURCE]->(cg:OCICloudGuard) WHERE cg.status = 'DISABLED' SET cg.monitoring_risk = true, (CASE WHEN NOT 'cloud_guard_disabled' IN coalesce(cg.monitoring_risk_type, []) THEN cg END).monitoring_risk_type = coalesce(cg.monitoring_risk_type, []) + 'cloud_guard_disabled'",
+      "iterative": false
+    },
+    {
+      "__comment": "Flag event rules that are disabled",
+      "query": "MATCH (:CloudanixWorkspace{id: $WORKSPACE_ID})-[:OWNER]->(:OCITenancy{id: $OCI_TENANCY_ID})-[:OWNER]->(:OCICompartment{id: $OCI_COMPARTMENT_ID})-[:RESOURCE]->(er:OCIEventRule{is_enabled: false}) SET er.monitoring_risk = true, (CASE WHEN NOT 'event_rule_disabled' IN coalesce(er.monitoring_risk_type, []) THEN er END).monitoring_risk_type = coalesce(er.monitoring_risk_type, []) + 'event_rule_disabled'",
+      "iterative": false
+    },
+    {
+      "__comment": "Flag compartments with no monitoring alarms configured (monitoring gap)",
+      "query": "MATCH (:CloudanixWorkspace{id: $WORKSPACE_ID})-[:OWNER]->(:OCITenancy{id: $OCI_TENANCY_ID})-[:OWNER]->(comp:OCICompartment{id: $OCI_COMPARTMENT_ID}) WHERE NOT (comp)-[:RESOURCE]->(:OCIMonitoringAlarm) SET comp.monitoring_gap = true, comp.no_alarms_configured = true",
+      "iterative": false
+    },
+    {
+      "__comment": "Flag compartments with no event rules configured (event monitoring gap)",
+      "query": "MATCH (:CloudanixWorkspace{id: $WORKSPACE_ID})-[:OWNER]->(:OCITenancy{id: $OCI_TENANCY_ID})-[:OWNER]->(comp:OCICompartment{id: $OCI_COMPARTMENT_ID}) WHERE NOT (comp)-[:RESOURCE]->(:OCIEventRule) SET comp.event_monitoring_gap = true, comp.no_event_rules_configured = true",
+      "iterative": false
+    }
+  ],
+  "name": "OCI monitoring and observability analysis"
+}
