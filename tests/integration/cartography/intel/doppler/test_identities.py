@@ -42,7 +42,7 @@ def _common():
 @patch.object(
     cartography.intel.doppler.groups,
     "get",
-    return_value=(data.GROUPS, data.GROUP_MEMBERSHIPS),
+    return_value=(data.GROUPS, data.GROUP_MEMBERSHIPS, True),
 )
 @patch.object(cartography.intel.doppler.users, "get", return_value=data.USERS)
 @patch.object(

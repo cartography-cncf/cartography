@@ -22,7 +22,9 @@ def sync(
     api_session: requests.Session,
     common_job_parameters: dict[str, Any],
 ) -> None:
-    groups, memberships = get(api_session, common_job_parameters["BASE_URL"])
+    groups, memberships, memberships_complete = get(
+        api_session, common_job_parameters["BASE_URL"]
+    )
     groups = transform(groups)
     load_groups(
         neo4j_session,
@@ -31,16 +33,19 @@ def sync(
         common_job_parameters["WORKPLACE_ID"],
         common_job_parameters["UPDATE_TAG"],
     )
-    cleanup(neo4j_session, common_job_parameters)
+    cleanup(neo4j_session, common_job_parameters, memberships_complete)
 
 
 @timeit
 def get(
     api_session: requests.Session,
     base_url: str,
-) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+) -> tuple[list[dict[str, Any]], list[dict[str, Any]], bool]:
+    """Returns (groups, memberships, memberships_complete). memberships_complete is
+    False only when there were groups to query but every member fetch failed."""
     groups = paginated_get(api_session, f"{base_url}/workplace/groups", "groups")
     memberships: list[dict[str, Any]] = []
+    success = False
     for group in groups:
         slug = group["slug"]
         # Best-effort: a single group's member fetch failing (e.g. it was deleted
@@ -56,10 +61,11 @@ def get(
                 "Failed to fetch members for Doppler group %s, skipping: %s", slug, e
             )
             continue
+        success = True
         members = req.json().get("group", {}).get("members", []) or []
         for member in members:
             memberships.append({"user_id": member["slug"], "group_slug": slug})
-    return groups, memberships
+    return groups, memberships, (success or not groups)
 
 
 def transform(groups: list[dict[str, Any]]) -> list[dict[str, Any]]:
@@ -98,13 +104,23 @@ def load_groups(
 def cleanup(
     neo4j_session: neo4j.Session,
     common_job_parameters: dict[str, Any],
+    memberships_complete: bool = True,
 ) -> None:
+    # Group nodes come from the authoritative list endpoint, so always prune them.
     GraphJob.from_node_schema(DopplerGroupSchema(), common_job_parameters).run(
         neo4j_session
     )
-    GraphJob.from_matchlink(
-        DopplerGroupMembershipMatchLink(),
-        "DopplerWorkplace",
-        common_job_parameters["WORKPLACE_ID"],
-        common_job_parameters["UPDATE_TAG"],
-    ).run(neo4j_session)
+    # Only prune membership edges if at least one group's members were fetched; an
+    # all-fail run would otherwise delete every MEMBER_OF edge.
+    if memberships_complete:
+        GraphJob.from_matchlink(
+            DopplerGroupMembershipMatchLink(),
+            "DopplerWorkplace",
+            common_job_parameters["WORKPLACE_ID"],
+            common_job_parameters["UPDATE_TAG"],
+        ).run(neo4j_session)
+    else:
+        logger.warning(
+            "Skipping DopplerGroup membership cleanup: no group member fetch "
+            "succeeded this run, preserving existing edges."
+        )

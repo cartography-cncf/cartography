@@ -20,14 +20,25 @@ def sync(
     configs: list[dict[str, Any]],
     common_job_parameters: dict[str, Any],
 ) -> None:
-    secrets = get(api_session, common_job_parameters["BASE_URL"], configs)
+    secrets, fetch_complete = get(
+        api_session, common_job_parameters["BASE_URL"], configs
+    )
     load_secrets(
         neo4j_session,
         secrets,
         common_job_parameters["WORKPLACE_ID"],
         common_job_parameters["UPDATE_TAG"],
     )
-    cleanup(neo4j_session, common_job_parameters)
+    # Only prune stale secrets if the fetch was trustworthy. If every config fetch
+    # failed, `secrets` is [] not because there are none but because we could not see
+    # them, and cleanup would wipe previously-ingested secrets.
+    if fetch_complete:
+        cleanup(neo4j_session, common_job_parameters)
+    else:
+        logger.warning(
+            "Skipping DopplerSecret cleanup: no config secret fetch succeeded this "
+            "run, preserving existing data."
+        )
 
 
 @timeit
@@ -35,9 +46,12 @@ def get(
     api_session: requests.Session,
     base_url: str,
     configs: list[dict[str, Any]],
-) -> list[dict[str, Any]]:
+) -> tuple[list[dict[str, Any]], bool]:
+    """Returns (secret name records, fetch_complete). fetch_complete is False only when
+    there were configs to query but every per-config fetch failed."""
     # Use the names-only endpoint so secret VALUES are never pulled into the process.
     secrets: list[dict[str, Any]] = []
+    success = False
     for config in configs:
         project, name, config_id = (
             config["project"],
@@ -60,6 +74,7 @@ def get(
                 e,
             )
             continue
+        success = True
         for secret_name in req.json().get("names", []) or []:
             secrets.append(
                 {
@@ -70,7 +85,7 @@ def get(
                     "config_id": config_id,
                 }
             )
-    return secrets
+    return secrets, (success or not configs)
 
 
 @timeit

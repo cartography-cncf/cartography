@@ -20,14 +20,23 @@ def sync(
     configs: list[dict[str, Any]],
     common_job_parameters: dict[str, Any],
 ) -> None:
-    tokens = get(api_session, common_job_parameters["BASE_URL"], configs)
+    tokens, fetch_complete = get(
+        api_session, common_job_parameters["BASE_URL"], configs
+    )
     load_service_tokens(
         neo4j_session,
         tokens,
         common_job_parameters["WORKPLACE_ID"],
         common_job_parameters["UPDATE_TAG"],
     )
-    cleanup(neo4j_session, common_job_parameters)
+    # Only prune stale tokens if the fetch was trustworthy; see secrets.sync for why.
+    if fetch_complete:
+        cleanup(neo4j_session, common_job_parameters)
+    else:
+        logger.warning(
+            "Skipping DopplerServiceToken cleanup: no config token fetch succeeded "
+            "this run, preserving existing data."
+        )
 
 
 @timeit
@@ -35,8 +44,11 @@ def get(
     api_session: requests.Session,
     base_url: str,
     configs: list[dict[str, Any]],
-) -> list[dict[str, Any]]:
+) -> tuple[list[dict[str, Any]], bool]:
+    """Returns (tokens, fetch_complete). fetch_complete is False only when there were
+    configs to query but every per-config fetch failed."""
     tokens: list[dict[str, Any]] = []
+    success = False
     for config in configs:
         # Best-effort per config: a single inaccessible/missing config (e.g. a 404)
         # should not halt service-token ingestion for every other config.
@@ -54,10 +66,11 @@ def get(
                 e,
             )
             continue
+        success = True
         for token in req.json().get("tokens", []) or []:
             token["config_id"] = config["config_id"]
             tokens.append(token)
-    return tokens
+    return tokens, (success or not configs)
 
 
 @timeit

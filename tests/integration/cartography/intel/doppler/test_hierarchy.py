@@ -26,12 +26,16 @@ def _common():
 
 
 @patch.object(
-    cartography.intel.doppler.trusted_ips, "get", return_value=data.TRUSTED_IPS
+    cartography.intel.doppler.trusted_ips, "get", return_value=(data.TRUSTED_IPS, True)
 )
 @patch.object(
-    cartography.intel.doppler.service_tokens, "get", return_value=data.SERVICE_TOKENS
+    cartography.intel.doppler.service_tokens,
+    "get",
+    return_value=(data.SERVICE_TOKENS, True),
 )
-@patch.object(cartography.intel.doppler.secrets, "get", return_value=data.SECRETS)
+@patch.object(
+    cartography.intel.doppler.secrets, "get", return_value=(data.SECRETS, True)
+)
 @patch.object(cartography.intel.doppler.configs, "get", return_value=data.CONFIGS)
 @patch.object(
     cartography.intel.doppler.environments, "get", return_value=data.ENVIRONMENTS
