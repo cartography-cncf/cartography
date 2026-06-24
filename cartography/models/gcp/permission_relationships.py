@@ -59,3 +59,16 @@ class GCPPermissionMatchLink(CartographyRelSchema):
         "HAS_PERMISSION"  # Will be dynamically set based on relationship_name
     )
     properties: GCPPermissionRelProperties = GCPPermissionRelProperties()
+
+
+@dataclass(frozen=True)
+class GCPExternalPrincipalPermissionMatchLink(GCPPermissionMatchLink):
+    """
+    MatchLink schema for WIF external principals, whose stable identifier is
+    the full IAM principal URI rather than an email address.
+    """
+
+    source_node_label: str = "GCPExternalPrincipal"
+    source_node_matcher: SourceNodeMatcher = make_source_node_matcher(
+        {"id": PropertyRef("principal_email")},
+    )

@@ -17,6 +17,7 @@ from tests.data.gcp.policy_bindings import MOCK_GSUITE_USERS
 from tests.data.gcp.policy_bindings import MOCK_IAM_ROLES
 from tests.data.gcp.policy_bindings import MOCK_IAM_SERVICE_ACCOUNTS
 from tests.data.gcp.policy_bindings import MOCK_POLICY_BINDINGS_RESPONSE
+from tests.data.gcp.policy_bindings import MOCK_WIF_AWS_ROLE_PRINCIPAL_SET
 from tests.integration.util import check_nodes
 from tests.integration.util import check_rels
 
@@ -299,6 +300,22 @@ def test_sync_gcp_permission_relationships(
         rel_direction_right=True,
     ) == {
         ("alice@example.com", "test-bucket"),
+        (None, "test-bucket"),
+    }
+
+    assert check_rels(
+        neo4j_session,
+        "GCPExternalPrincipal",
+        "id",
+        "GCPBucket",
+        "id",
+        "CAN_READ",
+        rel_direction_right=True,
+    ) == {
+        (
+            MOCK_WIF_AWS_ROLE_PRINCIPAL_SET,
+            "test-bucket",
+        ),
     }
 
     # Check permission relationships: GCPPrincipal CAN_GET_ACCELERATOR_TYPES GCPInstance

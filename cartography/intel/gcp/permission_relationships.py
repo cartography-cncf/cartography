@@ -13,6 +13,10 @@ from cartography.client.core.tx import load_matchlinks
 from cartography.client.core.tx import load_matchlinks_cartesian_product
 from cartography.client.core.tx import read_list_of_values_tx
 from cartography.graph.job import GraphJob
+from cartography.intel.gcp.wif import is_wif_external_principal
+from cartography.models.gcp.permission_relationships import (
+    GCPExternalPrincipalPermissionMatchLink,
+)
 from cartography.models.gcp.permission_relationships import GCPPermissionMatchLink
 from cartography.util import timeit
 
@@ -380,23 +384,52 @@ def load_permission_relationships_cartesian_product(
     if not principal_emails or not resource_ids:
         return 0
 
+    email_principals = {
+        principal
+        for principal in principal_emails
+        if not is_wif_external_principal(principal)
+    }
+    external_principals = principal_emails - email_principals
+    loaded_count = 0
+
     # A broad grant means each principal should link to each resource in this
     # scope. The core MatchLink helper performs that expansion in bounded graph
     # batches without constructing every pair as a Python dict first.
-    return load_matchlinks_cartesian_product(
-        neo4j_session,
-        matchlink_schema,
-        sorted(principal_emails),
-        sorted(resource_ids),
-        source_batch_size=principal_batch_size,
-        target_batch_size=resource_batch_size,
-        progress_description=(
-            f"{matchlink_schema.rel_label} {matchlink_schema.target_node_label} permissions for {scope_description}"
-        ),
-        lastupdated=update_tag,
-        _sub_resource_label="GCPProject",
-        _sub_resource_id=project_id,
-    )
+    if email_principals:
+        loaded_count += load_matchlinks_cartesian_product(
+            neo4j_session,
+            matchlink_schema,
+            sorted(email_principals),
+            sorted(resource_ids),
+            source_batch_size=principal_batch_size,
+            target_batch_size=resource_batch_size,
+            progress_description=(
+                f"{matchlink_schema.rel_label} {matchlink_schema.target_node_label} permissions for {scope_description}"
+            ),
+            lastupdated=update_tag,
+            _sub_resource_label="GCPProject",
+            _sub_resource_id=project_id,
+        )
+    if external_principals:
+        external_matchlink_schema = GCPExternalPrincipalPermissionMatchLink(
+            target_node_label=matchlink_schema.target_node_label,
+            rel_label=matchlink_schema.rel_label,
+        )
+        loaded_count += load_matchlinks_cartesian_product(
+            neo4j_session,
+            external_matchlink_schema,
+            sorted(external_principals),
+            sorted(resource_ids),
+            source_batch_size=principal_batch_size,
+            target_batch_size=resource_batch_size,
+            progress_description=(
+                f"{matchlink_schema.rel_label} {matchlink_schema.target_node_label} permissions for {scope_description}"
+            ),
+            lastupdated=update_tag,
+            _sub_resource_label="GCPProject",
+            _sub_resource_id=project_id,
+        )
+    return loaded_count
 
 
 @timeit
@@ -576,7 +609,11 @@ def build_principals_from_policy_bindings(
 
         # Share the compiled assignment across members of the same binding. Treat
         # it as read-only during relationship evaluation.
-        for principal_email in binding["members"]:
+        binding_principals = [
+            *binding["members"],
+            *binding.get("wif_external_principals", []),
+        ]
+        for principal_email in binding_principals:
             principals.setdefault(principal_email, {})[binding_id] = (
                 compiled_assignments[binding_id]
             )
@@ -704,10 +741,32 @@ def load_principal_mappings(
         f"for {matchlink_schema.source_node_label} -> {matchlink_schema.target_node_label}"
     )
 
+    email_mappings = []
+    external_mappings = []
+    for mapping in principal_mappings:
+        if is_wif_external_principal(mapping["principal_email"]):
+            external_mappings.append(mapping)
+        else:
+            email_mappings.append(mapping)
+
     load_matchlinks(
         neo4j_session,
         matchlink_schema,
-        principal_mappings,
+        email_mappings,
+        batch_size=batch_size,
+        lastupdated=update_tag,
+        _sub_resource_label="GCPProject",
+        _sub_resource_id=project_id,
+    )
+
+    external_matchlink_schema = GCPExternalPrincipalPermissionMatchLink(
+        target_node_label=matchlink_schema.target_node_label,
+        rel_label=matchlink_schema.rel_label,
+    )
+    load_matchlinks(
+        neo4j_session,
+        external_matchlink_schema,
+        external_mappings,
         batch_size=batch_size,
         lastupdated=update_tag,
         _sub_resource_label="GCPProject",
@@ -800,6 +859,16 @@ def cleanup_rpr(
 
     GraphJob.from_matchlink(
         matchlink_schema,
+        "GCPProject",
+        project_id,
+        update_tag,
+    ).run(neo4j_session)
+    external_matchlink_schema = GCPExternalPrincipalPermissionMatchLink(
+        target_node_label=matchlink_schema.target_node_label,
+        rel_label=matchlink_schema.rel_label,
+    )
+    GraphJob.from_matchlink(
+        external_matchlink_schema,
         "GCPProject",
         project_id,
         update_tag,

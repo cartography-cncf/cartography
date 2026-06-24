@@ -3,6 +3,7 @@ from dataclasses import dataclass
 from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeProperties
 from cartography.models.core.nodes import CartographyNodeSchema
+from cartography.models.core.nodes import ExtraNodeLabels
 from cartography.models.core.relationships import CartographyRelProperties
 from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
@@ -22,6 +23,7 @@ class GCPPolicyBindingNodeProperties(CartographyNodeProperties):
     resource_type: PropertyRef = PropertyRef("resource_type")
     members: PropertyRef = PropertyRef("members")
     wif_pools: PropertyRef = PropertyRef("wif_pools")
+    wif_external_principals: PropertyRef = PropertyRef("wif_external_principals")
     is_public: PropertyRef = PropertyRef("is_public", extra_index=True)
     has_condition: PropertyRef = PropertyRef("has_condition", extra_index=True)
     condition_title: PropertyRef = PropertyRef("condition_title")
@@ -110,6 +112,24 @@ class GCPPolicyBindingToWifPoolRel(CartographyRelSchema):
 
 
 @dataclass(frozen=True)
+class GCPPolicyBindingToExternalPrincipalRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+class GCPPolicyBindingToExternalPrincipalRel(CartographyRelSchema):
+    target_node_label: str = "GCPExternalPrincipal"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"id": PropertyRef("wif_external_principals", one_to_many=True)},
+    )
+    direction: LinkDirection = LinkDirection.INWARD
+    rel_label: str = "HAS_ALLOW_POLICY"
+    properties: GCPPolicyBindingToExternalPrincipalRelProperties = (
+        GCPPolicyBindingToExternalPrincipalRelProperties()
+    )
+
+
+@dataclass(frozen=True)
 class GCPPolicyBindingToRoleRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
@@ -138,6 +158,7 @@ class GCPPolicyBindingSchema(CartographyNodeSchema):
         [
             GCPPolicyBindingToPrincipalRel(),
             GCPPolicyBindingToWifPoolRel(),
+            GCPPolicyBindingToExternalPrincipalRel(),
             GCPPolicyBindingToRoleRel(),
         ]
     )
@@ -154,6 +175,7 @@ class GCPOrganizationPolicyBindingSchema(CartographyNodeSchema):
         [
             GCPPolicyBindingToPrincipalRel(),
             GCPPolicyBindingToWifPoolRel(),
+            GCPPolicyBindingToExternalPrincipalRel(),
             GCPPolicyBindingToRoleRel(),
         ]
     )
@@ -170,9 +192,56 @@ class GCPFolderPolicyBindingSchema(CartographyNodeSchema):
         [
             GCPPolicyBindingToPrincipalRel(),
             GCPPolicyBindingToWifPoolRel(),
+            GCPPolicyBindingToExternalPrincipalRel(),
             GCPPolicyBindingToRoleRel(),
         ]
     )
+
+
+@dataclass(frozen=True)
+class GCPExternalPrincipalNodeProperties(CartographyNodeProperties):
+    id: PropertyRef = PropertyRef("id", extra_index=True)
+    principal_type: PropertyRef = PropertyRef("principal_type")
+    workload_identity_pool_project_number: PropertyRef = PropertyRef(
+        "workload_identity_pool_project_number"
+    )
+    location: PropertyRef = PropertyRef("location")
+    workload_identity_pool_id: PropertyRef = PropertyRef("workload_identity_pool_id")
+    selector_type: PropertyRef = PropertyRef("selector_type")
+    selector_name: PropertyRef = PropertyRef("selector_name")
+    selector_value: PropertyRef = PropertyRef("selector_value")
+    workload_identity_pool: PropertyRef = PropertyRef("workload_identity_pool")
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+class GCPExternalPrincipalToWifPoolRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+class GCPExternalPrincipalToWifPoolRel(CartographyRelSchema):
+    target_node_label: str = "GCPWorkloadIdentityPool"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"id": PropertyRef("workload_identity_pool")},
+    )
+    direction: LinkDirection = LinkDirection.INWARD
+    rel_label: str = "RESOURCE"
+    properties: GCPExternalPrincipalToWifPoolRelProperties = (
+        GCPExternalPrincipalToWifPoolRelProperties()
+    )
+
+
+@dataclass(frozen=True)
+class GCPExternalPrincipalSchema(CartographyNodeSchema):
+    label: str = "GCPExternalPrincipal"
+    properties: GCPExternalPrincipalNodeProperties = (
+        GCPExternalPrincipalNodeProperties()
+    )
+    sub_resource_relationship: GCPExternalPrincipalToWifPoolRel = (
+        GCPExternalPrincipalToWifPoolRel()
+    )
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["GCPPrincipal"])
 
 
 @dataclass(frozen=True)
