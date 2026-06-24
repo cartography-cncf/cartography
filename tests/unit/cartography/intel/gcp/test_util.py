@@ -13,6 +13,7 @@ from cartography.intel.gcp.util import gcp_api_giveup_handler
 from cartography.intel.gcp.util import get_error_reason
 from cartography.intel.gcp.util import is_api_disabled_error
 from cartography.intel.gcp.util import is_billing_disabled_error
+from cartography.intel.gcp.util import is_gcp_http_error_category
 from cartography.intel.gcp.util import is_permission_denied_error
 from cartography.intel.gcp.util import is_retryable_gcp_http_error
 from cartography.intel.gcp.util import summarize_gcp_http_error
@@ -647,6 +648,25 @@ class TestClassifyGcpHttpError:
         assert classify_gcp_http_error(e) == "api_disabled"
 
     # ------------------------------------------------------------------
+    # billing_disabled
+    # ------------------------------------------------------------------
+    def test_billing_disabled(self):
+        e = _make_http_error(
+            403,
+            {
+                "error": {
+                    "details": [
+                        {
+                            "@type": "type.googleapis.com/google.rpc.ErrorInfo",
+                            "reason": "BILLING_DISABLED",
+                        }
+                    ]
+                }
+            },
+        )
+        assert classify_gcp_http_error(e) == "billing_disabled"
+
+    # ------------------------------------------------------------------
     # forbidden
     # ------------------------------------------------------------------
     @pytest.mark.parametrize(
@@ -661,23 +681,6 @@ class TestClassifyGcpHttpError:
                     "code": 403,
                     "message": "permission denied",
                     "errors": [{"reason": reason}],
-                }
-            },
-        )
-        assert classify_gcp_http_error(e) == "forbidden"
-
-    def test_forbidden_billing_disabled(self):
-        # BILLING_DISABLED is a 403 but NOT api_disabled → classifies as forbidden
-        e = _make_http_error(
-            403,
-            {
-                "error": {
-                    "details": [
-                        {
-                            "@type": "type.googleapis.com/google.rpc.ErrorInfo",
-                            "reason": "BILLING_DISABLED",
-                        }
-                    ]
                 }
             },
         )
@@ -811,3 +814,35 @@ class TestClassifyGcpHttpError:
     def test_empty_body_403(self):
         e = _make_http_error(403)
         assert classify_gcp_http_error(e) == "forbidden"
+
+
+class TestIsGcpHttpErrorCategory:
+    def test_includes_transient_403_when_requested(self):
+        e = _make_http_error(
+            403,
+            {"error": {"code": 403, "errors": [{"reason": "rateLimitExceeded"}]}},
+        )
+
+        assert (
+            is_gcp_http_error_category(
+                e,
+                ("api_disabled", "forbidden", "not_found"),
+                include_transient_403=True,
+            )
+            is True
+        )
+
+    def test_does_not_include_non_403_transient_when_requested(self):
+        e = _make_http_error(
+            503,
+            {"error": {"code": 503, "errors": [{"reason": "backendError"}]}},
+        )
+
+        assert (
+            is_gcp_http_error_category(
+                e,
+                ("api_disabled", "forbidden", "not_found"),
+                include_transient_403=True,
+            )
+            is False
+        )

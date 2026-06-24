@@ -46,6 +46,7 @@ _unpinned_github_actions_fact = Fact(
     RETURN COUNT(DISTINCT a) AS count
     """,
     asset_id_field="action_id",
+    identity_fields=("repo", "workflow_path", "action_id"),
     module=Module.GITHUB,
     maturity=Maturity.EXPERIMENTAL,
 )
@@ -80,7 +81,7 @@ unpinned_github_actions = Rule(
         ),
         RuleReference(
             text="CISA - Supply Chain Compromise of Third-Party tj-actions/changed-files (CVE-2025-30066)",
-            url="https://www.cisa.gov/news-events/alerts/2025/03/18/supply-chain-compromise-third-party-tj-actionschanged-files-cve-2025-30066",
+            url="https://www.cisa.gov/news-events/alerts/2025/03/18/supply-chain-compromise-third-party-tj-actionschanged-files-cve-2025-30066-and-reviewdogaction",
         ),
         RuleReference(
             text="StepSecurity - Harden-Runner detection of tj-actions/changed-files compromise",

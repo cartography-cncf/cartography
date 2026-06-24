@@ -15,7 +15,7 @@ U(GitHubUser) -- MEMBER_OF --> O
 U -- ADMIN_OF --> O
 U -- UNAFFILIATED --> O
 U -- OWNER --> R
-U -- OWNS --> PAT
+PAT -- OWNED_BY --> U
 U -- OUTSIDE_COLLAB_{ACTION} --> R
 U -- DIRECT_COLLAB_{ACTION} --> R
 U -- COMMITTED_TO --> R
@@ -40,8 +40,8 @@ E -- HAS_SECRET --> ES(GitHubActionsSecret)
 E -- HAS_VARIABLE --> EV(GitHubActionsVariable)
 M -- HAS_DEP --> D
 T -- {ROLE} --> R
-T -- MEMBER_OF_TEAM --> T
-U -- MEMBER --> T
+T -- MEMBER_OF --> T
+U -- MEMBER_OF --> T
 U -- MAINTAINER --> T
 I(Image) -- PACKAGED_FROM --> R
 I(Image) -- PACKAGED_BY --> W
@@ -78,11 +78,11 @@ Representation of a single GitHubRepository (repo) [repository object](https://d
 
 #### Relationships
 
-- GitHubUsers or GitHubOrganizations own GitHubRepositories.
+- GitHubRepositories are owned by GitHubUsers or GitHubOrganizations.
 
     ```
-    (GitHubUser)-[OWNER]->(GitHubRepository)
-    (GitHubOrganization)-[OWNER]->(GitHubRepository)
+    (GitHubRepository)-[OWNER]->(GitHubUser)
+    (GitHubRepository)-[OWNER]->(GitHubOrganization)
     ```
 
 - GitHubRepositories in an organization can have [outside collaborators](https://docs.github.com/en/graphql/reference/enums#collaboratoraffiliation) who may be granted different levels of access, including ADMIN,
@@ -156,10 +156,10 @@ Representation of a single GitHubOrganization [organization object](https://deve
 
 #### Relationships
 
-- GitHubOrganizations own GitHubRepositories.
+- GitHubRepositories can be owned by GitHubOrganizations.
 
     ```
-    (GitHubOrganization)-[OWNER]->(GitHubRepository)
+    (GitHubRepository)-[OWNER]->(GitHubOrganization)
     ```
 
 - GitHubTeams are resources under GitHubOrganizations
@@ -224,13 +224,13 @@ A GitHubTeam [organization object](https://docs.github.com/en/graphql/reference/
 - GitHubTeams may be children of other teams:
 
     ```
-    (GitHubTeam)-[MEMBER_OF_TEAM]->(GitHubTeam)
+    (GitHubTeam)-[MEMBER_OF]->(GitHubTeam)
     ```
 
 - GitHubUsers may be ['immediate'](https://docs.github.com/en/graphql/reference/enums#teammembershiptype) members of a team (as opposed to being members via membership in a child team), with their membership [role](https://docs.github.com/en/graphql/reference/enums#teammemberrole) being MEMBER or MAINTAINER.
 
     ```
-    (GitHubUser)-[MEMBER|MAINTAINER]->(GitHubTeam)
+    (GitHubUser)-[MEMBER_OF|MAINTAINER]->(GitHubTeam)
     ```
 
 
@@ -258,10 +258,10 @@ Representation of a single GitHubUser [user object](https://developer.github.com
 
 #### Relationships
 
-- GitHubUsers own GitHubRepositories.
+- GitHubRepositories can be owned by GitHubUsers.
 
     ```
-    (GitHubUser)-[OWNER]->(GitHubRepository)
+    (GitHubRepository)-[OWNER]->(GitHubUser)
     ```
 
 - GitHubRepositories in an organization can have [outside collaborators](https://docs.github.com/en/graphql/reference/enums#collaboratoraffiliation) who may be granted different levels of access, including ADMIN,
@@ -298,13 +298,13 @@ WRITE, MAINTAIN, TRIAGE, and READ ([Reference](https://docs.github.com/en/graphq
 - GitHubTeams may be children of other teams:
 
     ```
-    (GitHubTeam)-[MEMBER_OF_TEAM]->(GitHubTeam)
+    (GitHubTeam)-[MEMBER_OF]->(GitHubTeam)
     ```
 
 - GitHubUsers may be ['immediate'](https://docs.github.com/en/graphql/reference/enums#teammembershiptype) members of a team (as opposed to being members via membership in a child team), with their membership [role](https://docs.github.com/en/graphql/reference/enums#teammemberrole) being MEMBER or MAINTAINER.
 
     ```
-    (GitHubUser)-[MEMBER|MAINTAINER]->(GitHubTeam)
+    (GitHubUser)-[MEMBER_OF|MAINTAINER]->(GitHubTeam)
     ```
 
 - GitHubUsers who have committed to GitHubRepositories in the last 30 days are tracked with commit activity data.
@@ -355,10 +355,10 @@ Fine-grained and classic PATs also receive kind-specific labels, `GitHubFineGrai
     (GitHubOrganization)-[:RESOURCE]->(GitHubPersonalAccessToken)
     ```
 
-- GitHubUsers own GitHubPersonalAccessTokens when the owner can be resolved.
+- GitHubPersonalAccessTokens are owned by the GitHubUser they authenticate as, when the owner can be resolved.
 
     ```
-    (GitHubUser)-[:OWNS]->(GitHubPersonalAccessToken)
+    (GitHubPersonalAccessToken)-[:OWNED_BY]->(GitHubUser)
     ```
 
 - Fine-grained GitHubPersonalAccessTokens can access GitHubRepositories returned by GitHub's token repository access endpoint.
@@ -595,6 +595,12 @@ Represents a software dependency from GitHub's dependency graph manifests. This 
 | type | Package URL type (e.g., `npm`, `pypi`, `maven`). `null` if version is not exact. |
 | purl | Package URL (e.g., `"pkg:npm/react@18.2.0"`). `null` if version is not exact. |
 | **normalized_id** | Normalized ID for cross-tool matching (format: `{type}\|{namespace/}{name}\|{version}`). Indexed. `null` if version is not exact. |
+| source | Provenance of the version: `dependency_graph` from GitHub's dependency graph, or `lockfile` when an exact version was recovered from a lockfile fallback. |
+| version_confidence | Confidence in the version: `exact` (an exact version is known), `range` (only a requirement range is known), or `unknown` (no version or requirement). |
+
+> **Ontology Mapping**: This node also carries the extra label `GitHubDependency`. When `normalized_id` is populated (exact version), a canonical `Package` (ontology) node is detected as this dependency, enabling cross-scanner queries alongside Trivy, Syft, SocketDev, and GitLab packages.
+
+> **Lockfile fallback**: GitHub's dependency graph reports some dependencies with only a version range (no exact version), so they have no `normalized_id` and cannot be projected into the Package ontology. For ecosystems with a parseable lockfile (`uv.lock` for pip, `package-lock.json` for npm), the sync fetches the lockfile co-located with the dependency's manifest (e.g. a manifest under `services/api/package.json` uses `services/api/package-lock.json`, never the repo-root lockfile) and, where it pins an exact version for a range-only dependency, fills in `version`, `type`, and `normalized_id` and sets `source` to `lockfile` and `version_confidence` to `exact`. Because a `Dependency` node is shared by `name|requirements` (not by version), if two manifests pin the same `name|requirements` to different exact versions the enrichment is declined for that node to avoid representing the wrong version. Lockfiles are fetched only for manifests that have range-only dependencies in a supported ecosystem.
 
 #### Relationships
 
@@ -604,6 +610,12 @@ Represents a software dependency from GitHub's dependency graph manifests. This 
 
     ```
     (GitHubRepository)-[:REQUIRES]->(Dependency)
+    ```
+
+- A canonical **Package** (ontology) is detected as a **GitHubDependency**.
+
+    ```
+    (Package)-[:DETECTED_AS]->(Dependency:GitHubDependency)
     ```
 
 ### GitHubDependabotAlert

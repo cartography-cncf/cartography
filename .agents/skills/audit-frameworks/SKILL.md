@@ -20,7 +20,8 @@ The audit covers four dimensions:
 2. **Cite file and line for every finding**. The user must be able to jump straight to the code.
 3. **Prefer the technical framework**. When consolidating, CIS and NIST 800-53 keep the rule; ISO 27001, SOC 2, PCI DSS get added to that rule's `frameworks` tuple.
 4. **Same detection is not the same as same control**. Two rules can share a Cypher pattern but enforce different controls (e.g. encryption-at-rest vs encryption-in-transit). Verify the description and the `WHERE` clause before flagging a duplicate.
-5. **Never reference closed-source platforms or tickets** in the audit report or in any rule change. Cartography is open source.
+5. **Framework control titles are not rule names**. `Rule.name` describes the Cartography security detection; `Framework.control_title` describes the external framework control or requirement. Many rules may map to the same framework control.
+6. **Never reference closed-source platforms or tickets** in the audit report or in any rule change. Cartography is open source.
 
 ## Inputs
 
@@ -105,7 +106,7 @@ grep -nE "WHERE " cartography/rules/data/rules/*.py | sort -k2
 grep -nE "MATCH \([a-z]+:[A-Z]" cartography/rules/data/rules/*.py
 ```
 
-Report each suspected duplicate as a tuple: `{technical_rule_id, compliance_rule_id, file_paths, evidence}` plus a confidence note (HIGH / MEDIUM / LOW).
+Report each suspected duplicate as a tuple: `{keeper_rule_id, duplicate_rule_id, file_paths, evidence}` plus a confidence note (HIGH / MEDIUM / LOW).
 
 ### Step 5: consolidation plan
 
@@ -113,7 +114,7 @@ For every HIGH-confidence duplicate cluster:
 
 1. **Pick the keeper** in this priority order: CIS, then NIST 800-53, then NIST CSF / NIST AI RMF, then ISO 27001, then SOC 2, then PCI DSS, then custom. Tie-breaker: the rule with the more specific Cypher and richer Finding.
 2. **Plan the merge**:
-   - Add the duplicate's `Framework(...)` entries to the keeper's `frameworks=` tuple. Preserve `name`, `short_name`, `scope`, `revision`, `requirement` exactly.
+   - Add the duplicate's `Framework(...)` entries to the keeper's `frameworks=` tuple. Preserve `name`, `short_name`, `scope`, `revision`, `requirement`, and `control_title` exactly.
    - Delete the duplicate file or rule symbol.
    - Remove the duplicate's import + registration line from `cartography/rules/data/rules/__init__.py`.
    - If the duplicate had references the keeper lacks, merge them into the keeper's `references=` list.
@@ -138,10 +139,10 @@ Hand the plan to the user as a numbered list. Apply only after explicit confirma
 - <rule_id> (<file>): facts aws_*, azure_*, gcp_* could become a single Module.CROSS_CLOUD fact using :<SemanticLabel>.
 
 ## 3. Duplicate clusters
-- HIGH: cis_aws_X (<file>) vs iso27001_Y (<file>): same MATCH(:RDSInstance) WHERE publicly_accessible=true.
+- HIGH: aws_public_rds_instances (<file>) vs iso27001_public_databases (<file>): same MATCH(:RDSInstance) WHERE publicly_accessible=true.
 
 ## 4. Consolidation plan
-1. Keep cis_aws_X. Add Framework(short_name="iso27001", requirement="A.13.1.1", ...). Remove iso27001_Y. Update __init__.py.
+1. Keep aws_public_rds_instances. Add Framework(short_name="ISO27001", requirement="A.13.1.1", control_title=..., ...). Remove iso27001_public_databases. Update __init__.py.
 2. ...
 ```
 
@@ -169,8 +170,8 @@ User says: `find rules we can move to ontology only`.
 
 User says: `find duplicate rules across frameworks`.
 
-1. `cis_aws_2_1_3` (S3 bucket public) and `iso27001_a_13_1_1_storage_public` both `MATCH (b:S3Bucket) WHERE b.public = true`.
-2. Keeper: `cis_aws_2_1_3`. Action: append `Framework(name="ISO/IEC 27001", short_name="iso27001", requirement="A.13.1.1")` to its `frameworks=` tuple, delete `iso27001_a_13_1_1_storage_public`, drop the import from `__init__.py`.
+1. `aws_s3_public_buckets` and `storage_public_exposure` both `MATCH (b:S3Bucket) WHERE b.public = true`.
+2. Keeper: `aws_s3_public_buckets`. Action: append `Framework(name="ISO/IEC 27001:2022 Annex A", short_name="ISO27001", requirement="A.13.1.1", control_title="...")` to its `frameworks=` tuple, delete `storage_public_exposure`, drop the import from `__init__.py`.
 3. Wait for the user's go-ahead before editing.
 
 ## Hand-offs

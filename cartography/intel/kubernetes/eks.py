@@ -21,6 +21,21 @@ from cartography.util import timeit
 logger = logging.getLogger(__name__)
 
 
+class _StringScalarLoader(yaml.SafeLoader):
+    """
+    YAML loader that resolves every plain scalar as a string.
+
+    AWS account IDs in ``mapAccounts`` are 12-digit values. The default loader would
+    parse unquoted IDs as ints, which both drops leading zeros and misreads all-octal
+    digit IDs (e.g. ``012345670123``) as base-8. Disabling implicit type resolution
+    keeps account IDs as the literal strings written in the ConfigMap.
+    """
+
+
+# Empty implicit resolvers => every unquoted scalar falls back to the string tag.
+_StringScalarLoader.yaml_implicit_resolvers = {}
+
+
 AWS_AUTH_TEMPLATE_PATTERN = re.compile(r"{{[^}]+}}")
 ACCESS_ENTRIES_UNSUPPORTED_AUTH_MODE_MESSAGE = (
     "authentication mode must be set to one of [API, API_AND_CONFIG_MAP]"
@@ -38,14 +53,16 @@ def get_aws_auth_configmap(client: K8sClient) -> V1ConfigMap:
     )
 
 
-def parse_aws_auth_map(configmap: V1ConfigMap) -> dict[str, list[dict[str, Any]]]:
+def parse_aws_auth_map(configmap: V1ConfigMap) -> dict[str, list[Any]]:
     """
-    Parse mapRoles and mapUsers from aws-auth ConfigMap.
+    Parse mapRoles, mapUsers and mapAccounts from aws-auth ConfigMap.
 
     :param configmap: V1ConfigMap containing aws-auth data
-    :return: Dictionary with 'roles' and 'users' keys containing their respective mappings
+    :return: Dictionary with 'roles', 'users' and 'accounts' keys. 'roles' and 'users'
+        contain their respective mapping dicts; 'accounts' contains AWS account IDs
+        (as strings) whose IAM principals are all granted cluster access.
     """
-    result: dict[str, list[dict[str, Any]]] = {"roles": [], "users": []}
+    result: dict[str, list[Any]] = {"roles": [], "users": [], "accounts": []}
 
     if "mapRoles" in configmap.data:
         map_roles_yaml = configmap.data["mapRoles"]
@@ -64,6 +81,19 @@ def parse_aws_auth_map(configmap: V1ConfigMap) -> dict[str, list[dict[str, Any]]
         )
     else:
         logger.info("No mapUsers found in aws-auth ConfigMap")
+
+    if "mapAccounts" in configmap.data:
+        map_accounts_yaml = configmap.data["mapAccounts"]
+        # mapAccounts is a YAML list of AWS account IDs. Parse with a string-only
+        # loader so unquoted IDs keep their leading zeros and are never misread as
+        # octal/decimal integers (which would break principal resolution).
+        parsed_accounts = yaml.load(map_accounts_yaml, Loader=_StringScalarLoader) or []
+        result["accounts"] = [str(account_id) for account_id in parsed_accounts]
+        logger.info(
+            f"Parsed {len(result['accounts'])} account mappings from aws-auth ConfigMap"
+        )
+    else:
+        logger.info("No mapAccounts found in aws-auth ConfigMap")
 
     return result
 
@@ -159,24 +189,49 @@ def _find_matching_kubernetes_subjects(
     ]
 
 
+def _find_aws_principals_for_account(
+    neo4j_session: neo4j.Session,
+    account_id: str,
+) -> list[dict[str, Any]]:
+    """
+    Find all IAM users and roles in the graph that belong to the given AWS account.
+
+    aws-auth ``mapAccounts`` grants cluster access to every IAM principal in the listed
+    account, so we resolve those principals from the AWS data already ingested in Neo4j.
+    This includes the account root principal, which the authenticator also allows.
+    """
+    query = """
+    MATCH (:AWSAccount {id: $account_id})-[:RESOURCE]->(principal)
+    WHERE principal:AWSUser OR principal:AWSRole OR principal:AWSRootPrincipal
+    RETURN principal.arn AS arn,
+           ('AWSRole' IN labels(principal)) AS is_role,
+           ('AWSRootPrincipal' IN labels(principal)) AS is_root
+    ORDER BY principal.arn
+    """
+    return [record.data() for record in neo4j_session.run(query, account_id=account_id)]
+
+
 def transform_aws_auth_mappings(
     neo4j_session: neo4j.Session,
-    auth_mappings: dict[str, list[dict[str, Any]]],
+    auth_mappings: dict[str, list[Any]],
     cluster_name: str,
 ) -> dict[str, list[dict[str, Any]]]:
     """
-    Transform both role and user mappings from aws-auth ConfigMap into combined user/group data.
+    Transform role, user and account mappings from aws-auth ConfigMap into combined user/group data.
     """
     all_users = []
     all_groups = []
 
-    seen_users: set[tuple[str, str | None, str | None]] = set()
+    seen_users: set[tuple[str, str | None, str | None, str | None]] = set()
     seen_groups: set[tuple[str, str | None, str | None]] = set()
 
     def add_user(
-        name: str, aws_role_arn: str | None = None, aws_user_arn: str | None = None
+        name: str,
+        aws_role_arn: str | None = None,
+        aws_user_arn: str | None = None,
+        aws_root_principal_arn: str | None = None,
     ) -> None:
-        user_key = (name, aws_role_arn, aws_user_arn)
+        user_key = (name, aws_role_arn, aws_user_arn, aws_root_principal_arn)
         if user_key in seen_users:
             return
         seen_users.add(user_key)
@@ -189,6 +244,8 @@ def transform_aws_auth_mappings(
             user_data["aws_role_arn"] = aws_role_arn
         if aws_user_arn:
             user_data["aws_user_arn"] = aws_user_arn
+        if aws_root_principal_arn:
+            user_data["aws_root_principal_arn"] = aws_root_principal_arn
         all_users.append(user_data)
 
     def add_group(
@@ -304,6 +361,28 @@ def transform_aws_auth_mappings(
                 if resolved_group_name is not None:
                     add_group(resolved_group_name, aws_user_arn=user_arn)
 
+    # Process account mappings if they exist.
+    # Every IAM principal in a listed account (users, roles, and the account root)
+    # is granted cluster access and is mapped to a Kubernetes user whose name equals
+    # the principal's ARN, with no Kubernetes RBAC groups assigned.
+    accounts = auth_mappings.get("accounts", [])
+    for account_id in accounts:
+        principals = _find_aws_principals_for_account(neo4j_session, account_id)
+        if not principals:
+            logger.info(
+                "No AWS IAM principals found in the graph for mapAccounts account %s; "
+                "ensure the AWS account has been synced.",
+                account_id,
+            )
+        for principal in principals:
+            principal_arn = principal["arn"]
+            if principal["is_root"]:
+                add_user(principal_arn, aws_root_principal_arn=principal_arn)
+            elif principal["is_role"]:
+                add_user(principal_arn, aws_role_arn=principal_arn)
+            else:
+                add_user(principal_arn, aws_user_arn=principal_arn)
+
     # Count entries with vs without usernames for visibility
     role_entries_with_username = sum(
         1 for mapping in auth_mappings.get("roles", []) if mapping.get("username")
@@ -320,12 +399,13 @@ def transform_aws_auth_mappings(
     entries_without_username = total_entries - total_entries_with_username
 
     logger.info(
-        "Transformed %s users (from %s entries with usernames) and %s groups from %s role mappings and %s user mappings (%s entries without usernames created groups only)",
+        "Transformed %s users (from %s entries with usernames) and %s groups from %s role mappings, %s user mappings and %s account mappings (%s entries without usernames created groups only)",
         len(all_users),
         total_entries_with_username,
         len(all_groups),
         len(auth_mappings.get("roles", [])),
         len(auth_mappings.get("users", [])),
+        len(auth_mappings.get("accounts", [])),
         entries_without_username,
     )
 
@@ -634,8 +714,12 @@ def sync(
     if configmap is not None:
         auth_mappings = parse_aws_auth_map(configmap)
 
-        # Transform and load both role and user mappings
-        if auth_mappings.get("roles") or auth_mappings.get("users"):
+        # Transform and load role, user and account mappings
+        if (
+            auth_mappings.get("roles")
+            or auth_mappings.get("users")
+            or auth_mappings.get("accounts")
+        ):
             transformed_data = transform_aws_auth_mappings(
                 neo4j_session,
                 auth_mappings,
@@ -650,12 +734,13 @@ def sync(
                 kubernetes_cluster_name,
             )
             logger.info(
-                "Successfully synced %s AWS IAM role mappings and %s AWS IAM user mappings",
+                "Successfully synced %s AWS IAM role mappings, %s AWS IAM user mappings and %s AWS account mappings",
                 len(auth_mappings.get("roles", [])),
                 len(auth_mappings.get("users", [])),
+                len(auth_mappings.get("accounts", [])),
             )
         else:
-            logger.info("No role or user mappings found in aws-auth ConfigMap")
+            logger.info("No role, user or account mappings found in aws-auth ConfigMap")
 
     # 2. Sync EKS Access Entries (EKS API)
     logger.info("Syncing EKS Access Entries from EKS API")

@@ -237,6 +237,30 @@ def test_load_rds_snapshots_basic(neo4j_session):
     }
     assert actual_snapshots == expected_snapshots
 
+    # Assert - Snapshot semantic label + normalized _ont_* fields for RDS
+    # snapshots (full set: name, encrypted, public, source_id, region).
+    assert check_nodes(
+        neo4j_session,
+        "Snapshot",
+        [
+            "_ont_name",
+            "_ont_encrypted",
+            "_ont_public",
+            "_ont_source_id",
+            "_ont_region",
+            "_ont_source",
+        ],
+    ) == {
+        (
+            "some-db-snapshot-identifier",
+            True,
+            True,
+            "some-prod-db-iad-0",
+            "us-east1",
+            "aws",
+        ),
+    }
+
     query = """MATCH(rdsInstance:RDSInstance)-[:IS_SNAPSHOT_SOURCE]-(rdsSnapshot:RDSSnapshot)
                RETURN rdsInstance.id, rdsSnapshot.id"""
     results = neo4j_session.run(query)
@@ -277,6 +301,17 @@ def test_sync_rds_comprehensive(
     create_test_account(neo4j_session, TEST_ACCOUNT_ID, TEST_UPDATE_TAG)
     _create_test_security_groups(neo4j_session)
     _create_test_subnets(neo4j_session)
+    # Seed the KMS key referenced by the instance so the ENCRYPTED_BY edge can
+    # match it at load time.
+    neo4j_session.run(
+        """
+        MERGE (k:KMSKey{id: $key_id})
+        SET k.arn = $key_arn, k.lastupdated = $update_tag
+        """,
+        key_id="some-guid",
+        key_arn="arn:aws:kms:us-east-1:some-arn:key/some-guid",
+        update_tag=TEST_UPDATE_TAG,
+    )
 
     # Act
     sync(
@@ -341,6 +376,22 @@ def test_sync_rds_comprehensive(
     ) == {
         ("arn:aws:rds:us-east-1:some-arn:db:some-prod-db-iad-0", "000000000000"),
     }, "RDS instances are not connected to AWS account"
+
+    # Canonical ontology edge: (:Database)-[:ENCRYPTED_BY]->(:EncryptionKey)
+    assert check_rels(
+        neo4j_session,
+        "RDSInstance",
+        "id",
+        "KMSKey",
+        "arn",
+        "ENCRYPTED_BY",
+        rel_direction_right=True,
+    ) == {
+        (
+            "arn:aws:rds:us-east-1:some-arn:db:some-prod-db-iad-0",
+            "arn:aws:kms:us-east-1:some-arn:key/some-guid",
+        ),
+    }, "RDS instance is not connected to its KMS key"
 
     assert check_rels(
         neo4j_session,

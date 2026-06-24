@@ -39,6 +39,17 @@ def test_sync_efs(
     # Arrange
     boto3_session = MagicMock()
     create_test_account(neo4j_session, TEST_ACCOUNT_ID, TEST_UPDATE_TAG)
+    # Seed the KMS key referenced by fs-abc12345 so the ENCRYPTED_BY edge can
+    # match it at load time.
+    neo4j_session.run(
+        """
+        MERGE (k:KMSKey{id: $key_id})
+        SET k.arn = $key_arn, k.lastupdated = $update_tag
+        """,
+        key_id="abcde123-4567-8901-2345-abcdef123456",
+        key_arn="arn:aws:kms:us-west-2:123456789012:key/abcde123-4567-8901-2345-abcdef123456",
+        update_tag=TEST_UPDATE_TAG,
+    )
 
     # Act
     sync(
@@ -67,6 +78,22 @@ def test_sync_efs(
         ),
         (
             "arn:aws:elasticfilesystem:us-west-2:123456789012:access-point/fsap-444ddd555eee666ff",
+        ),
+    }
+
+    # Canonical ontology edge: (:FileStorage)-[:ENCRYPTED_BY]->(:EncryptionKey)
+    assert check_rels(
+        neo4j_session,
+        "EfsFileSystem",
+        "arn",
+        "KMSKey",
+        "arn",
+        "ENCRYPTED_BY",
+        rel_direction_right=True,
+    ) == {
+        (
+            "arn:aws:elasticfilesystem:us-west-2:123456789012:file-system/fs-abc12345",
+            "arn:aws:kms:us-west-2:123456789012:key/abcde123-4567-8901-2345-abcdef123456",
         ),
     }
 

@@ -13,8 +13,8 @@ def test_transform_findings():
     findings_data = GET_FINDINGS["Findings"]
     transformed = transform_findings(findings_data)
 
-    # Should transform 4 findings
-    assert len(transformed) == 4
+    # Should transform 5 findings
+    assert len(transformed) == 5
 
     # Expected EC2 Instance finding
     expected_ec2_finding = EXPECTED_TRANSFORM_RESULTS[0]
@@ -31,6 +31,55 @@ def test_transform_findings():
     # Expected IAM AccessKey finding (UserType=AssumedRole)
     expected_iam_role_finding = EXPECTED_TRANSFORM_RESULTS[3]
     assert transformed[3] == expected_iam_role_finding
+
+    # Expected EKS Cluster (Kubernetes) finding
+    expected_eks_finding = EXPECTED_TRANSFORM_RESULTS[4]
+    assert transformed[4] == expected_eks_finding
+
+
+def test_transform_findings_extracts_sample_flag():
+    """sample flag is parsed from the JSON-encoded service.additionalInfo.value."""
+    findings = [
+        {
+            "Id": "sample",
+            "Resource": {"ResourceType": "Instance"},
+            "Service": {
+                "AdditionalInfo": {
+                    "Value": '{"threatListName":"GeneratedFindingThreatListName","sample":true}',
+                    "Type": "default",
+                },
+            },
+        },
+        {
+            "Id": "real-with-additional-info",
+            "Resource": {"ResourceType": "Instance"},
+            "Service": {
+                "AdditionalInfo": {
+                    "Value": '{"threatListName":"GeneratedFindingThreatListName"}',
+                    "Type": "default",
+                },
+            },
+        },
+        {
+            "Id": "no-additional-info",
+            "Resource": {"ResourceType": "Instance"},
+            "Service": {},
+        },
+        {
+            "Id": "non-json-value",
+            "Resource": {"ResourceType": "Instance"},
+            "Service": {"AdditionalInfo": {"Value": "not-json", "Type": "default"}},
+        },
+    ]
+
+    samples = {f["id"]: f["sample"] for f in transform_findings(findings)}
+
+    assert samples == {
+        "sample": True,
+        "real-with-additional-info": None,
+        "no-additional-info": None,
+        "non-json-value": None,
+    }
 
 
 def test_transform_findings_prefers_service_event_fields():

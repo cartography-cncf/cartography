@@ -13,7 +13,7 @@
     },
     {
       "__comment": "Link User to APIKey",
-      "query": "MATCH (u:User)-[:HAS_ACCOUNT]->(:UserAccount)-[:OWNS|HAS]->(k:APIKey) MERGE (u)-[r:OWNS]->(k) ON CREATE SET r.firstseen = timestamp() SET r.lastupdated = $UPDATE_TAG",
+      "query": "MATCH (u:User)-[:HAS_ACCOUNT]->(:UserAccount)<-[:OWNED_BY]-(k:APIKey) MERGE (u)-[r:OWNS]->(k) ON CREATE SET r.firstseen = timestamp() SET r.lastupdated = $UPDATE_TAG",
       "iterative": false
     },
     {

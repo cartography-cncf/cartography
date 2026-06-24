@@ -12,6 +12,7 @@ from cartography.intel.microsoft.intune.compliance_policies import (
 )
 from cartography.intel.microsoft.intune.detected_apps import sync_detected_apps
 from cartography.intel.microsoft.intune.managed_devices import sync_managed_devices
+from cartography.intel.microsoft.intune.reports import IntuneReportExportError
 from cartography.util import run_scoped_analysis_job
 from cartography.util import timeit
 
@@ -91,6 +92,17 @@ def start_intune_ingestion(neo4j_session: neo4j.Session, config: Config) -> None
                 )
             else:
                 raise
+        except IntuneReportExportError as e:
+            # Detected apps come from Microsoft Graph's async report export,
+            # which intermittently strands the export job server-side even after
+            # resubmission. It is optional enrichment, so a failed export must
+            # not fail the whole Microsoft sync; the next run recovers. Errors
+            # from later report-processing phases are not caught here.
+            logger.warning(
+                "Skipping Intune detected app sync: report export did not "
+                "complete: %s",
+                e,
+            )
 
         compliance_policies_synced = False
         try:

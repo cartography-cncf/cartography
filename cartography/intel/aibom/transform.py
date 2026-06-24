@@ -18,6 +18,23 @@ def _stable_hash(value: str) -> str:
     return hashlib.sha256(value.encode("utf-8")).hexdigest()
 
 
+def _classify_source_key(source_key: str) -> tuple[list[str], list[str]]:
+    """
+    Classify a source key into image-digest and code-repository anchors.
+
+    Image source keys are digest-qualified (``<uri>@sha256:<hex>``); their
+    digest drives the :Image match and no repository URI is emitted. Any other
+    source key is treated as a code repository URI used to match an existing
+    GitHubRepository (by url) or GitLabProject (by web_url). The same URI is
+    offered to both matchers; only the node type that actually exists in the
+    graph gets a DETECTED_IN edge.
+    """
+    _, sep, remainder = source_key.partition("@")
+    if sep and remainder.startswith("sha256:"):
+        return [remainder], []
+    return [], [source_key]
+
+
 def _as_str(value: Any) -> str | None:
     if isinstance(value, str):
         cleaned = value.strip()
@@ -83,8 +100,7 @@ def _build_component_payload(
     component_type: str,
     component: dict[str, Any],
 ) -> dict[str, Any]:
-    digest = source_key.partition("@")[2]
-    manifest_digests = [digest] if digest else []
+    manifest_digests, repo_uris = _classify_source_key(source_key)
     normalized_component_type = (
         _as_str(component.get("component_type")) or component_type
     )
@@ -137,6 +153,8 @@ def _build_component_payload(
         "decision_justification": _as_str(decision_annotation.get("justification")),
         "metadata_json": _json_dumps(component_metadata),
         "manifest_digests": manifest_digests,
+        "github_repo_urls": repo_uris,
+        "gitlab_project_urls": repo_uris,
         "uses_model_component_ids": [],
         "uses_tool_component_ids": [],
         "exposes_tool_component_ids": [],
@@ -183,8 +201,7 @@ def _build_source_payload(
 
     total_relationships = len(source_relationships)
 
-    digest = source_key.partition("@")[2]
-    manifest_digests = [digest] if digest else []
+    manifest_digests, repo_uris = _classify_source_key(source_key)
     image_uri = _as_str(source_data.get("source_name")) or source_key
     report_component_type_names, report_component_type_counts = _flatten_count_map(
         report_component_types,
@@ -198,6 +215,8 @@ def _build_source_payload(
         "image_uri": image_uri,
         "manifest_digests": manifest_digests,
         "image_matched": bool(manifest_digests),
+        "github_repo_urls": repo_uris,
+        "gitlab_project_urls": repo_uris,
         "report_location": report_location,
         "run_id": _as_str(report_metadata.get("run_id")),
         "analyzer_version": _as_str(report_metadata.get("analyzer_version")),
