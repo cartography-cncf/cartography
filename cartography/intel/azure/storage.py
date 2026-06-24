@@ -33,6 +33,91 @@ from .util.tag import transform_tags
 logger = logging.getLogger(__name__)
 
 
+def _copy_properties(data: Dict, mapping: Dict[str, tuple[str, ...]]) -> Dict:
+    properties = data.get("properties") or {}
+    for target, sources in mapping.items():
+        if target in data:
+            continue
+        for source in sources:
+            if source in properties:
+                data[target] = properties[source]
+                break
+    return data
+
+
+def transform_storage_account(account: Dict) -> Dict:
+    return _copy_properties(
+        account,
+        {
+            "creation_time": ("creation_time", "creationTime"),
+            "is_hns_enabled": ("is_hns_enabled", "isHnsEnabled"),
+            "primary_location": ("primary_location", "primaryLocation"),
+            "provisioning_state": ("provisioning_state", "provisioningState"),
+            "secondary_location": ("secondary_location", "secondaryLocation"),
+            "status_of_primary": ("status_of_primary", "statusOfPrimary"),
+            "status_of_secondary": ("status_of_secondary", "statusOfSecondary"),
+            "enable_https_traffic_only": (
+                "enable_https_traffic_only",
+                "supportsHttpsTrafficOnly",
+            ),
+        },
+    )
+
+
+def transform_storage_blob_container(container: Dict) -> Dict:
+    return _copy_properties(
+        container,
+        {
+            "deleted": ("deleted",),
+            "deleted_time": ("deleted_time", "deletedTime"),
+            "default_encryption_scope": (
+                "default_encryption_scope",
+                "defaultEncryptionScope",
+            ),
+            "public_access": ("public_access", "publicAccess"),
+            "lease_status": ("lease_status", "leaseStatus"),
+            "lease_state": ("lease_state", "leaseState"),
+            "last_modified_time": ("last_modified_time", "lastModifiedTime"),
+            "remaining_retention_days": (
+                "remaining_retention_days",
+                "remainingRetentionDays",
+            ),
+            "version": ("version",),
+            "has_immutability_policy": (
+                "has_immutability_policy",
+                "hasImmutabilityPolicy",
+            ),
+            "has_legal_hold": ("has_legal_hold", "hasLegalHold"),
+            "leaseDuration": ("leaseDuration", "lease_duration"),
+        },
+    )
+
+
+def transform_storage_file_share(share: Dict) -> Dict:
+    return _copy_properties(
+        share,
+        {
+            "last_modified_time": ("last_modified_time", "lastModifiedTime"),
+            "share_quota": ("share_quota", "shareQuota"),
+            "access_tier": ("access_tier", "accessTier"),
+            "deleted": ("deleted",),
+            "access_tier_change_time": (
+                "access_tier_change_time",
+                "accessTierChangeTime",
+            ),
+            "access_tier_status": ("access_tier_status", "accessTierStatus"),
+            "deleted_time": ("deleted_time", "deletedTime"),
+            "enabled_protocols": ("enabled_protocols", "enabledProtocols"),
+            "remaining_retention_days": (
+                "remaining_retention_days",
+                "remainingRetentionDays",
+            ),
+            "share_usage_bytes": ("share_usage_bytes", "shareUsageBytes"),
+            "version": ("version",),
+        },
+    )
+
+
 @timeit
 def get_client(
     credentials: Credentials,
@@ -56,7 +141,10 @@ def get_storage_account_list(
     try:
         client = get_client(credentials, subscription_id)
         storage_account_list = list(
-            map(lambda x: x.as_dict(), client.storage_accounts.list()),
+            map(
+                lambda x: transform_storage_account(x.as_dict()),
+                client.storage_accounts.list(),
+            ),
         )
 
     # ClientAuthenticationError and ResourceNotFoundError are subclasses under HttpResponseError
@@ -696,7 +784,7 @@ def get_shares(
         client = get_client(credentials, subscription_id)
         shares = list(
             map(
-                lambda x: x.as_dict(),
+                lambda x: transform_storage_file_share(x.as_dict()),
                 client.file_shares.list(
                     file_service["resource_group_name"],
                     file_service["storage_account_name"],
@@ -806,7 +894,7 @@ def get_blob_containers(
         client = get_client(credentials, subscription_id)
         blob_containers = list(
             map(
-                lambda x: x.as_dict(),
+                lambda x: transform_storage_blob_container(x.as_dict()),
                 client.blob_containers.list(
                     blob_service["resource_group_name"],
                     blob_service["storage_account_name"],
