@@ -1,5 +1,6 @@
 import logging
 import os
+import re
 import unittest.mock
 from typing import get_args
 
@@ -7,6 +8,12 @@ import typer
 
 import cartography.cli
 from tests.integration import settings
+
+ANSI_ESCAPE_RE = re.compile(r"\x1b\[[0-?]*[ -/]*[@-~]")
+
+
+def strip_ansi(value: str) -> str:
+    return ANSI_ESCAPE_RE.sub("", value)
 
 
 def test_cli():
@@ -140,16 +147,17 @@ def test_cli_selected_modules_microsoft_help_shows_microsoft_options(capsys):
     # Act
     exit_code = cli.main(["--selected-modules", "microsoft", "--help"])
     captured = capsys.readouterr()
+    help_output = strip_ansi(captured.out)
 
     # Assert
     assert exit_code == 0
-    assert "Microsoft Options" in captured.out
-    assert "--microsoft-tenant-id" in captured.out
-    assert "--microsoft-client-id" in captured.out
-    assert "--microsoft-client-secret-env-" in captured.out
-    assert "--entra-tenant-id" not in captured.out
-    assert "--entra-client-id" not in captured.out
-    assert "--entra-client-secret-env-var" not in captured.out
+    assert "Microsoft Options" in help_output
+    assert "--microsoft-tenant-id" in help_output
+    assert "--microsoft-client-id" in help_output
+    assert "--microsoft-client-secret-env-" in help_output
+    assert "--entra-tenant-id" not in help_output
+    assert "--entra-client-id" not in help_output
+    assert "--entra-client-secret-env-var" not in help_output
     sync.run.assert_not_called()
 
 
