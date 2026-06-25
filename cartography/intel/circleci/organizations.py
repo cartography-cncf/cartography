@@ -40,7 +40,7 @@ def get(
 def transform(raw: list[dict[str, Any]]) -> list[dict[str, Any]]:
     orgs = []
     for org in raw:
-        vcs_type = org.get("vcs-type")
+        vcs_type = org.get("vcs_type")
         slug = org.get("slug")
         # Slugs look like "gh/acme"; the GitHub org login is the part after the
         # prefix. Only derive it for GitHub-backed orgs so we don't mis-match.
