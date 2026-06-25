@@ -32,7 +32,7 @@ TEST_UPDATE_TAG = 123456789
 @patch.object(
     cartography.intel.aws.iam,
     "get_saml_providers",
-    return_value={"SAMLProviderList": []},
+    return_value=[],
 )
 @patch.object(
     cartography.intel.aws.iam,
