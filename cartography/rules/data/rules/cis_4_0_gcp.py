@@ -307,6 +307,8 @@ _gcp_instance_public_ip = Fact(
     MATCH (project:GCPProject)-[:RESOURCE]->(instance:GCPInstance)
     MATCH (instance)-[:NETWORK_INTERFACE]->(:GCPNetworkInterface)-[:RESOURCE]->(access:GCPNicAccessConfig)
     WHERE access.public_ip IS NOT NULL
+      // Terminated instances release their ephemeral IPs; the stale public_ip is not live
+      AND coalesce(instance.status, '') <> 'TERMINATED'
     RETURN
         instance.instancename AS instance_name,
         instance.id AS instance_id,
@@ -319,10 +321,12 @@ _gcp_instance_public_ip = Fact(
     MATCH p=(project:GCPProject)-[:RESOURCE]->(instance:GCPInstance)
     MATCH (instance)-[:NETWORK_INTERFACE]->(nic:GCPNetworkInterface)-[:RESOURCE]->(access:GCPNicAccessConfig)
     WHERE access.public_ip IS NOT NULL
+      AND coalesce(instance.status, '') <> 'TERMINATED'
     RETURN *
     """,
     cypher_count_query="""
     MATCH (instance:GCPInstance)
+    WHERE coalesce(instance.status, '') <> 'TERMINATED'
     RETURN COUNT(instance) AS count
     """,
     asset_id_field="instance_id",
@@ -346,7 +350,7 @@ gcp_compute_instance_public_ips = Rule(
         "stride:information_disclosure",
         "stride:elevation_of_privilege",
     ),
-    version="1.0.0",
+    version="1.1.0",
     references=CIS_REFERENCES,
     frameworks=(
         cis_gcp("4.9"),
