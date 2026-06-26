@@ -571,6 +571,12 @@ _aws_admin_policy_attached = Fact(
     WHERE stmt.effect = 'Allow'
       AND any(action IN stmt.action WHERE action = '*' OR action = '*:*')
       AND any(resource IN stmt.resource WHERE resource = '*')
+      // Exclude AWS-managed automation/org-management roles that hold admin by design
+      AND NOT (
+          principal.arn CONTAINS 'aws-service-role'
+          OR principal.arn CONTAINS 'OrganizationAccountAccessRole'
+          OR principal.arn CONTAINS 'stacksets-exec'
+      )
     RETURN DISTINCT
         policy.id AS policy_id,
         policy.arn AS policy_arn,
@@ -585,10 +591,20 @@ _aws_admin_policy_attached = Fact(
     WHERE stmt.effect = 'Allow'
       AND any(action IN stmt.action WHERE action = '*' OR action = '*:*')
       AND any(resource IN stmt.resource WHERE resource = '*')
+      AND NOT (
+          principal.arn CONTAINS 'aws-service-role'
+          OR principal.arn CONTAINS 'OrganizationAccountAccessRole'
+          OR principal.arn CONTAINS 'stacksets-exec'
+      )
     RETURN *
     """,
     cypher_count_query="""
-    MATCH (:AWSPrincipal)-[:POLICY]->(policy:AWSPolicy)
+    MATCH (principal:AWSPrincipal)-[:POLICY]->(policy:AWSPolicy)
+    WHERE NOT (
+          principal.arn CONTAINS 'aws-service-role'
+          OR principal.arn CONTAINS 'OrganizationAccountAccessRole'
+          OR principal.arn CONTAINS 'stacksets-exec'
+    )
     RETURN COUNT(DISTINCT policy.id) AS count
     """,
     asset_id_field="policy_id",
@@ -609,7 +625,7 @@ aws_policies_with_full_administrative_privileges = Rule(
     output_model=AdminPolicyAttachedOutput,
     facts=(_aws_admin_policy_attached,),
     tags=("iam", "policies", "stride:elevation_of_privilege"),
-    version="1.0.0",
+    version="1.1.0",
     references=CIS_REFERENCES,
     frameworks=(
         cis_aws("2.15"),

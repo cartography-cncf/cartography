@@ -364,6 +364,9 @@ _k8s_pod_create_clusterroles = Fact(
       AND any(v IN cr.verbs WHERE v IN ['create', '*'])
       AND NOT cr.name STARTS WITH 'system:'
       AND NOT cr.name IN ['cluster-admin', 'admin', 'edit', 'view']
+      // Exclude immutable EKS-managed roles (eks: prefix and AWS platform roles)
+      AND NOT cr.name STARTS WITH 'eks:'
+      AND NOT cr.name IN ['aws-node', 'vpc-resource-controller-role']
     RETURN
         cr.id AS role_id,
         cr.name AS role_name,
@@ -376,12 +379,17 @@ _k8s_pod_create_clusterroles = Fact(
       AND any(v IN cr.verbs WHERE v IN ['create', '*'])
       AND NOT cr.name STARTS WITH 'system:'
       AND NOT cr.name IN ['cluster-admin', 'admin', 'edit', 'view']
+      // Exclude immutable EKS-managed roles (eks: prefix and AWS platform roles)
+      AND NOT cr.name STARTS WITH 'eks:'
+      AND NOT cr.name IN ['aws-node', 'vpc-resource-controller-role']
     RETURN *
     """,
     cypher_count_query="""
     MATCH (cr:KubernetesClusterRole)
     WHERE NOT cr.name STARTS WITH 'system:'
       AND NOT cr.name IN ['cluster-admin', 'admin', 'edit', 'view']
+      AND NOT cr.name STARTS WITH 'eks:'
+      AND NOT cr.name IN ['aws-node', 'vpc-resource-controller-role']
     RETURN COUNT(cr) AS count
     """,
     identity_fields=("role_id",),
@@ -402,6 +410,9 @@ _k8s_pod_create_roles = Fact(
     WHERE ('pods' IN r.resources OR '*' IN r.resources)
       AND any(v IN r.verbs WHERE v IN ['create', '*'])
       AND NOT r.name STARTS WITH 'system:'
+      // Exclude immutable EKS-managed roles (eks: prefix and AWS platform roles)
+      AND NOT r.name STARTS WITH 'eks:'
+      AND NOT r.name IN ['aws-node', 'vpc-resource-controller-role']
     RETURN
         r.id AS role_id,
         r.name AS role_name,
@@ -413,11 +424,16 @@ _k8s_pod_create_roles = Fact(
     WHERE ('pods' IN r.resources OR '*' IN r.resources)
       AND any(v IN r.verbs WHERE v IN ['create', '*'])
       AND NOT r.name STARTS WITH 'system:'
+      // Exclude immutable EKS-managed roles (eks: prefix and AWS platform roles)
+      AND NOT r.name STARTS WITH 'eks:'
+      AND NOT r.name IN ['aws-node', 'vpc-resource-controller-role']
     RETURN *
     """,
     cypher_count_query="""
     MATCH (r:KubernetesRole)
     WHERE NOT r.name STARTS WITH 'system:'
+      AND NOT r.name STARTS WITH 'eks:'
+      AND NOT r.name IN ['aws-node', 'vpc-resource-controller-role']
     RETURN COUNT(r) AS count
     """,
     identity_fields=("role_id",),
@@ -436,7 +452,7 @@ kubernetes_roles_grant_pod_creation = Rule(
     output_model=PodCreateAccessOutput,
     facts=(_k8s_pod_create_clusterroles, _k8s_pod_create_roles),
     tags=("rbac", "pods", "stride:elevation_of_privilege"),
-    version="1.0.0",
+    version="1.1.0",
     references=CIS_REFERENCES,
     frameworks=(
         cis_kubernetes("5.1.4"),
