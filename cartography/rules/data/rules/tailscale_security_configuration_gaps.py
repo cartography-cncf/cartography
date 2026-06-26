@@ -164,7 +164,10 @@ _tailscale_device_key_expiry_disabled = Fact(
     RETURN COUNT(device) AS count
     """,
     asset_id_field="asset_id",
-    identity_fields=("asset_id", "issue"),
+    # Key on tailnet + stable hostname, not device.id: Tailscale ephemeral nodes get
+    # a fresh device.id on every reconnect, which would re-create the same finding.
+    # tailnet_id keeps the identity unique across tailnets that reuse a hostname.
+    identity_fields=("tailnet_id", "asset_name", "issue"),
     module=Module.TAILSCALE,
     maturity=Maturity.EXPERIMENTAL,
 )
@@ -219,6 +222,6 @@ tailscale_device_key_expiry_disabled = Rule(
     output_model=TailscaleSecurityConfigurationGapOutput,
     facts=(_tailscale_device_key_expiry_disabled,),
     tags=("device", "authentication", "compliance", "stride:spoofing"),
-    version="0.1.0",
+    version="0.2.0",
     frameworks=(iso27001_annex_a("5.17"),),
 )
