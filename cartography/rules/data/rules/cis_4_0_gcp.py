@@ -115,6 +115,9 @@ class UnrestrictedSshOutput(Finding):
     from_port: int | None = None
     to_port: int | None = None
     source_range: str | None = None
+    # True when the firewall's VPC has at least one non-terminated instance.
+    # The rule still emits when false; consumers use it to gauge relevancy.
+    in_use: bool | None = None
 
 
 _gcp_unrestricted_ssh = Fact(
@@ -142,7 +145,13 @@ _gcp_unrestricted_ssh = Fact(
         rule.ruleid AS firewall_rule_id,
         rule.fromport AS from_port,
         rule.toport AS to_port,
-        range.range AS source_range
+        range.range AS source_range,
+        // in_use: does the firewall's VPC hold any live instance? A firewall in an
+        // empty VPC protects nothing. Exposed for relevancy, the rule does not filter on it.
+        COUNT {
+            MATCH (vpc)-[:HAS]->(:GCPSubnet)<-[:PART_OF_SUBNET]-(:GCPNetworkInterface)-[:NETWORK_INTERFACE]-(inst:GCPInstance)
+            WHERE coalesce(inst.status, '') <> 'TERMINATED'
+        } > 0 AS in_use
     """,
     cypher_visual_query="""
     MATCH p=(project:GCPProject)-[:RESOURCE]->(vpc:GCPVpc)-[:RESOURCE]->(fw:GCPFirewall {direction: 'INGRESS'})
@@ -181,7 +190,7 @@ gcp_unrestricted_ssh_access = Rule(
         "stride:information_disclosure",
         "stride:elevation_of_privilege",
     ),
-    version="1.0.0",
+    version="1.1.0",
     references=CIS_REFERENCES,
     frameworks=(
         cis_gcp("3.6"),
@@ -205,6 +214,9 @@ class UnrestrictedRdpOutput(Finding):
     from_port: int | None = None
     to_port: int | None = None
     source_range: str | None = None
+    # True when the firewall's VPC has at least one non-terminated instance.
+    # The rule still emits when false; consumers use it to gauge relevancy.
+    in_use: bool | None = None
 
 
 _gcp_unrestricted_rdp = Fact(
@@ -232,7 +244,13 @@ _gcp_unrestricted_rdp = Fact(
         rule.ruleid AS firewall_rule_id,
         rule.fromport AS from_port,
         rule.toport AS to_port,
-        range.range AS source_range
+        range.range AS source_range,
+        // in_use: does the firewall's VPC hold any live instance? A firewall in an
+        // empty VPC protects nothing. Exposed for relevancy, the rule does not filter on it.
+        COUNT {
+            MATCH (vpc)-[:HAS]->(:GCPSubnet)<-[:PART_OF_SUBNET]-(:GCPNetworkInterface)-[:NETWORK_INTERFACE]-(inst:GCPInstance)
+            WHERE coalesce(inst.status, '') <> 'TERMINATED'
+        } > 0 AS in_use
     """,
     cypher_visual_query="""
     MATCH p=(project:GCPProject)-[:RESOURCE]->(vpc:GCPVpc)-[:RESOURCE]->(fw:GCPFirewall {direction: 'INGRESS'})
@@ -271,7 +289,7 @@ gcp_unrestricted_rdp_access = Rule(
         "stride:information_disclosure",
         "stride:elevation_of_privilege",
     ),
-    version="1.0.0",
+    version="1.1.0",
     references=CIS_REFERENCES,
     frameworks=(
         cis_gcp("3.7"),
