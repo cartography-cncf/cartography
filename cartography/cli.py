@@ -911,6 +911,32 @@ class CLI:
                     hidden=PANEL_KUBERNETES not in visible_panels,
                 ),
             ] = None,
+            k8s_eks_cluster_names: Annotated[
+                str | None,
+                typer.Option(
+                    "--k8s-eks-cluster-names",
+                    help=(
+                        "Comma-separated EKS cluster names to sync via boto3 auth "
+                        "instead of a kubeconfig file, using the ambient AWS "
+                        "credentials. All clusters must be in one region."
+                    ),
+                    rich_help_panel=PANEL_KUBERNETES,
+                    hidden=PANEL_KUBERNETES not in visible_panels,
+                ),
+            ] = None,
+            k8s_eks_region: Annotated[
+                str | None,
+                typer.Option(
+                    "--k8s-eks-region",
+                    help=(
+                        "AWS region for --k8s-eks-cluster-names. Defaults to the "
+                        "ambient AWS region (AWS_REGION / AWS_DEFAULT_REGION / "
+                        "AWS config)."
+                    ),
+                    rich_help_panel=PANEL_KUBERNETES,
+                    hidden=PANEL_KUBERNETES not in visible_panels,
+                ),
+            ] = None,
             # =================================================================
             # CVE Options
             # =================================================================
@@ -2633,6 +2659,8 @@ class CLI:
                 kandji_token=kandji_token,
                 k8s_kubeconfig=k8s_kubeconfig,
                 managed_kubernetes=managed_kubernetes,
+                k8s_eks_cluster_names=k8s_eks_cluster_names,
+                k8s_eks_region=k8s_eks_region,
                 statsd_enabled=statsd_enabled,
                 statsd_prefix=statsd_prefix,
                 statsd_host=statsd_host,

@@ -391,6 +391,8 @@ class Config:
         kandji_token=None,
         k8s_kubeconfig=None,
         managed_kubernetes=None,
+        k8s_eks_cluster_names=None,
+        k8s_eks_region=None,
         statsd_enabled=False,
         statsd_prefix=None,
         statsd_host=None,
@@ -565,6 +567,8 @@ class Config:
         self.kandji_token = kandji_token
         self.k8s_kubeconfig = k8s_kubeconfig
         self.managed_kubernetes = managed_kubernetes
+        self.k8s_eks_cluster_names = k8s_eks_cluster_names
+        self.k8s_eks_region = k8s_eks_region
         self.statsd_enabled = statsd_enabled
         self.statsd_prefix = statsd_prefix
         self.statsd_host = statsd_host
