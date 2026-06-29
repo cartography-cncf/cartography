@@ -969,7 +969,11 @@ def _build_attach_relationships_statement(
         AWSAccount information, the query will ignore null relationships and continue
         to MERGE the existing ones.
     """
-    if not sub_resource_relationship and not other_relationships:
+    # If there are no sub-resource relationships and no other relationships defined,
+    # return empty string to avoid generating an empty CALL { } block in the ingestion query.
+    if not sub_resource_relationship and (
+        not other_relationships or not getattr(other_relationships, "rels", [])
+    ):
         return ""
 
     attach_sub_resource_statement = _build_attach_sub_resource_statement(
