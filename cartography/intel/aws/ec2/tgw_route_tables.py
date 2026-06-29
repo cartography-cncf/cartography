@@ -64,11 +64,12 @@ def transform_tgw_route_tables(data: list[dict[str, Any]]) -> tuple[list[dict[st
                 {
                     "id": route_id,
                     "transit_gateway_route_table_id": rtb_id,
+                    "transit_gateway_id": rtb.get("TransitGatewayId"),
                     "destination_cidr_block": route.get("DestinationCidrBlock"),
                     "destination_ipv6_cidr_block": route.get("DestinationIpv6CidrBlock"),
                     "state": route.get("State"),
                     "origin": route.get("Origin"),
-                    "_target": route.get("TransitGatewayAttachmentId") or route.get("TransitGatewayRouteTableAnnouncementId") or None,
+                    "target": route.get("TransitGatewayAttachmentId") or route.get("TransitGatewayRouteTableAnnouncementId") or None,
                     "Region": rtb.get("Region"),
                 }
             )

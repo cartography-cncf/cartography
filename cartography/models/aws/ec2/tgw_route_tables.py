@@ -81,6 +81,42 @@ class AWSTransitGatewayRouteToAWSAccountRel(CartographyRelSchema):
 
 
 @dataclass(frozen=True)
+class AWSTransitGatewayRouteToAttachmentRelRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+class AWSTransitGatewayRouteToAttachmentRel(CartographyRelSchema):
+    target_node_label: str = "AWSTransitGatewayAttachment"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"id": PropertyRef("target")},
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "ROUTES_TO_TGW_ATTACHMENT"
+    properties: AWSTransitGatewayRouteToAttachmentRelRelProperties = (
+        AWSTransitGatewayRouteToAttachmentRelRelProperties()
+    )
+
+
+@dataclass(frozen=True)
+class AWSTransitGatewayRouteToTGWRelRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+class AWSTransitGatewayRouteToTGWRel(CartographyRelSchema):
+    target_node_label: str = "AWSTransitGateway"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"tgw_id": PropertyRef("transit_gateway_id")},
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "ROUTES_TO_TGW"
+    properties: AWSTransitGatewayRouteToTGWRelRelProperties = (
+        AWSTransitGatewayRouteToTGWRelRelProperties()
+    )
+
+
+@dataclass(frozen=True)
 class AWSTransitGatewayRouteSchema(CartographyNodeSchema):
     label: str = "AWSTransitGatewayRoute"
     properties: AWSTransitGatewayRouteNodeProperties = (
@@ -89,4 +125,9 @@ class AWSTransitGatewayRouteSchema(CartographyNodeSchema):
     sub_resource_relationship: AWSTransitGatewayRouteToAWSAccountRel = (
         AWSTransitGatewayRouteToAWSAccountRel()
     )
-    other_relationships: OtherRelationships = OtherRelationships([])
+    other_relationships: OtherRelationships = OtherRelationships(
+        [
+            AWSTransitGatewayRouteToAttachmentRel(),
+            AWSTransitGatewayRouteToTGWRel(),
+        ]
+    )
