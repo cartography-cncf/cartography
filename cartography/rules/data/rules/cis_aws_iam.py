@@ -579,6 +579,7 @@ _aws_admin_policy_attached = Fact(
           principal.arn CONTAINS 'aws-service-role'
           OR principal.arn CONTAINS 'OrganizationAccountAccessRole'
           OR principal.arn CONTAINS 'stacksets-exec'
+          OR principal.arn CONTAINS 'StackSetExecutionRole'
       )
     RETURN DISTINCT
         policy.id AS policy_id,
@@ -600,6 +601,7 @@ _aws_admin_policy_attached = Fact(
           principal.arn CONTAINS 'aws-service-role'
           OR principal.arn CONTAINS 'OrganizationAccountAccessRole'
           OR principal.arn CONTAINS 'stacksets-exec'
+          OR principal.arn CONTAINS 'StackSetExecutionRole'
       )
     RETURN *
     """,
@@ -609,6 +611,7 @@ _aws_admin_policy_attached = Fact(
           principal.arn CONTAINS 'aws-service-role'
           OR principal.arn CONTAINS 'OrganizationAccountAccessRole'
           OR principal.arn CONTAINS 'stacksets-exec'
+          OR principal.arn CONTAINS 'StackSetExecutionRole'
     )
     RETURN COUNT(DISTINCT policy.id) AS count
     """,

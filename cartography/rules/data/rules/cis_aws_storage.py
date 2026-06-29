@@ -49,20 +49,16 @@ class S3MfaDeleteOutput(Finding):
 
 _aws_s3_mfa_delete_disabled = Fact(
     id="aws_s3_mfa_delete_disabled",
-    name="AWS S3 buckets with versioning enabled but MFA Delete disabled",
+    name="AWS S3 buckets without Versioning and MFA Delete",
     description=(
-        "Detects S3 buckets that have Versioning enabled but do not have MFA Delete "
-        "enabled. MFA Delete requires Versioning, so buckets without versioning are "
-        "out of scope; MFA Delete adds an additional layer of authentication when "
-        "deleting object versions or changing the versioning state."
+        "Detects S3 buckets where either Versioning or MFA Delete is not enabled. "
+        "MFA Delete requires Versioning to be enabled and adds an additional layer "
+        "of authentication when deleting object versions."
     ),
     cypher_query="""
     MATCH (a:AWSAccount)-[:RESOURCE]->(bucket:S3Bucket)
-    // MFA Delete requires versioning, so only evaluate it on versioning-enabled
-    // buckets. A NULL mfa_delete on such a bucket means the API reported no MFA
-    // Delete (i.e. disabled); buckets without versioning are out of scope here.
-    WHERE bucket.versioning_status = 'Enabled'
-      AND coalesce(bucket.mfa_delete, 'Disabled') <> 'Enabled'
+    WHERE bucket.versioning_status IS NULL OR bucket.versioning_status <> 'Enabled'
+       OR bucket.mfa_delete IS NULL OR bucket.mfa_delete <> 'Enabled'
     RETURN
         bucket.name AS bucket_name,
         bucket.id AS bucket_id,
@@ -74,11 +70,8 @@ _aws_s3_mfa_delete_disabled = Fact(
     """,
     cypher_visual_query="""
     MATCH p=(a:AWSAccount)-[:RESOURCE]->(bucket:S3Bucket)
-    // MFA Delete requires versioning, so only evaluate it on versioning-enabled
-    // buckets. A NULL mfa_delete on such a bucket means the API reported no MFA
-    // Delete (i.e. disabled); buckets without versioning are out of scope here.
-    WHERE bucket.versioning_status = 'Enabled'
-      AND coalesce(bucket.mfa_delete, 'Disabled') <> 'Enabled'
+    WHERE bucket.versioning_status IS NULL OR bucket.versioning_status <> 'Enabled'
+       OR bucket.mfa_delete IS NULL OR bucket.mfa_delete <> 'Enabled'
     RETURN *
     """,
     cypher_count_query="""
@@ -94,13 +87,13 @@ aws_s3_bucket_mfa_delete = Rule(
     id="aws_s3_bucket_mfa_delete",
     name="S3 Bucket MFA Delete",
     description=(
-        "Versioning-enabled S3 buckets should also enable MFA Delete to require MFA "
-        "authentication for deleting object versions or changing the versioning state."
+        "S3 buckets should have Versioning and MFA Delete enabled to require MFA "
+        "authentication for deleting object versions or changing versioning state."
     ),
     output_model=S3MfaDeleteOutput,
     facts=(_aws_s3_mfa_delete_disabled,),
     tags=("storage", "s3", "stride:tampering"),
-    version="1.1.0",
+    version="1.0.0",
     references=CIS_REFERENCES,
     frameworks=(
         cis_aws("3.1.2"),
