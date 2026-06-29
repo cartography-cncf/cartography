@@ -714,16 +714,16 @@ wheels = [
 
 [[package]]
 name = "azure-mgmt-web"
-version = "10.1.0"
+version = "11.0.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "azure-mgmt-core" },
-    { name = "msrest" },
+    { name = "isodate" },
     { name = "typing-extensions" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/24/dc/7b96067ce47b16a36a3235d5ed3931dceaaf95253dc7dbd0b0c4b7bbc8d4/azure_mgmt_web-10.1.0.tar.gz", hash = "sha256:26d3594bbe1b30589b72922c35855bc5b74c151f0224147a60d1a75234859226", size = 573655, upload-time = "2025-11-17T09:14:54.608Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/71/dd/581afc7b4e6e2a86859e1323d654f58a7e3f63cfaa69ddbdb0baa8419d0a/azure_mgmt_web-11.0.0.tar.gz", hash = "sha256:1f98b29283ecb9c36ede7309c0da8d26db0455d77ae37e1cb6cdcd244044d6de", size = 520401, upload-time = "2026-05-06T18:42:03.281Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/bd/5e/2057f4e790a870ea8f1ba46bccf7d15fbafe2d78a3b76a50e161e8944df6/azure_mgmt_web-10.1.0-py3-none-any.whl", hash = "sha256:4f6d71bc68c5278fbb34fb4c7225ae949c5336b1e2c6810c045e737d964e6602", size = 653657, upload-time = "2025-11-17T09:14:57.155Z" },
+    { url = "https://files.pythonhosted.org/packages/fd/5e/0e4922a0c17464a821271ae2df4e49e351364d2062e131b96fd3d70f7a97/azure_mgmt_web-11.0.0-py3-none-any.whl", hash = "sha256:ccaeeaa757de94a6deb62e7692c0274190fe9e252e67984baf43d7fa3913df7b", size = 499178, upload-time = "2026-05-06T18:42:05.228Z" },
 ]
 
 [[package]]
@@ -1018,7 +1018,7 @@ requires-dist = [
     { name = "azure-mgmt-sql", specifier = ">=3.0.1" },
     { name = "azure-mgmt-storage", specifier = ">=16.0.0" },
     { name = "azure-mgmt-synapse", specifier = ">=2.0.0" },
-    { name = "azure-mgmt-web", specifier = ">=7.0.0" },
+    { name = "azure-mgmt-web", specifier = ">=11.0.0" },
     { name = "azure-storage-blob", specifier = ">=12.0.0" },
     { name = "azure-synapse-artifacts", specifier = ">=0.17.0" },
     { name = "backoff", specifier = ">=2.1.2" },
