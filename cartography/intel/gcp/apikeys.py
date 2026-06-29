@@ -147,7 +147,7 @@ def sync(
     """
     Sync GCP API Keys (apikeys.googleapis.com) for a project.
     """
-    logger.info(f"Syncing API Keys for project {project_id}.")
+    logger.info("Syncing API Keys for project %s.", project_id)
     keys = get_api_keys(apikeys, project_id)
     transformed = transform_api_keys(keys)
     load_api_keys(neo4j_session, transformed, project_id, gcp_update_tag)

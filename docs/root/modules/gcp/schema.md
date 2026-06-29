@@ -863,7 +863,7 @@ Representation of a GCP [API Key](https://cloud.google.com/api-keys/docs/referen
 
 | Field        | Description                                                                                   |
 | ------------ | --------------------------------------------------------------------------------------------- |
-| id           | The full resource name, e.g. `projects/{p}/locations/global/keys/{uid}`.                      |
+| **id**       | The full resource name, e.g. `projects/{p}/locations/global/keys/{uid}`.                      |
 | name         | Same as id.                                                                                   |
 | uid          | The unique identifier of the key.                                                             |
 | display_name | Human-readable display name of the key.                                                       |
