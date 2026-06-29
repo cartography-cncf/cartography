@@ -61,7 +61,9 @@ _aws_policy_manipulation_capabilities = Fact(
             policy.id      AS policy_id,
             policy.name    AS policy_name,
             actions,
-            resources
+            resources,
+            // SSO-reserved roles (break-glass) can be triaged differently from app roles
+            principal.arn CONTAINS 'aws-reserved/sso.amazonaws.com' AS is_sso_reserved
         ORDER BY account, principal_name, policy_name
     """,
     cypher_visual_query="""
@@ -279,6 +281,8 @@ class PolicyAdministrationPrivileges(Finding):
     policy_name: str | None = None
     actions: list[str] = []
     resources: list[str] = []
+    # True for AWS IAM Identity Center (SSO) reserved roles; only the AWS fact sets it.
+    is_sso_reserved: bool = False
 
 
 policy_administration_privileges = Rule(
@@ -300,7 +304,7 @@ policy_administration_privileges = Rule(
         "stride:spoofing",
         "stride:tampering",
     ),
-    version="0.1.0",
+    version="0.2.0",
     frameworks=(
         iso27001_annex_a("5.18"),
         iso27001_annex_a("8.2"),

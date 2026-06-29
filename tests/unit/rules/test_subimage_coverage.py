@@ -22,10 +22,11 @@ SUBIMAGE_COVERAGE_RULES = (
 
 
 def test_subimage_coverage_rules_registered_without_frameworks():
+    expected_versions = {"container_image_not_found": "0.2.0"}
     for rule in SUBIMAGE_COVERAGE_RULES:
         assert rule.id in RULES
         assert RULES[rule.id] is rule
-        assert rule.version == "0.1.0"
+        assert rule.version == expected_versions.get(rule.id, "0.1.0")
         assert rule.frameworks == ()
         assert "coverage" in rule.tags
 
