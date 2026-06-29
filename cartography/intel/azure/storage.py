@@ -118,6 +118,10 @@ def transform_storage_file_share(share: Dict) -> Dict:
     )
 
 
+def transform_storage_table(table: Dict) -> Dict:
+    return _copy_properties(table, {"table_name": ("table_name", "tableName")})
+
+
 @timeit
 def get_client(
     credentials: Credentials,
@@ -678,7 +682,7 @@ def get_tables(
         client = get_client(credentials, subscription_id)
         tables = list(
             map(
-                lambda x: x.as_dict(),
+                lambda x: transform_storage_table(x.as_dict()),
                 client.table.list(
                     table_service["resource_group_name"],
                     table_service["storage_account_name"],

@@ -1,6 +1,7 @@
 from cartography.intel.azure.storage import transform_storage_account
 from cartography.intel.azure.storage import transform_storage_blob_container
 from cartography.intel.azure.storage import transform_storage_file_share
+from cartography.intel.azure.storage import transform_storage_table
 
 
 def test_transform_storage_account_flattens_sdk_25_properties():
@@ -77,3 +78,17 @@ def test_transform_storage_file_share_flattens_sdk_25_properties():
     assert share["remaining_retention_days"] == 7
     assert share["share_usage_bytes"] == 4096
     assert share["version"] == "1"
+
+
+def test_transform_storage_table_flattens_sdk_25_properties():
+    table = transform_storage_table(
+        {
+            "id": "table-id",
+            "name": "table",
+            "properties": {
+                "tableName": "table1",
+            },
+        }
+    )
+
+    assert table["table_name"] == "table1"
