@@ -81,8 +81,9 @@ class ScalewayInstanceToFlexibleIpRel(CartographyRelSchema):
     )
 
 
+# Note: the (:ScalewayInstance)-[:MEMBER_OF_SCALEWAY_SECURITY_GROUP]->(:ScalewaySecurityGroup)
+# edge is declared on the SecurityGroup side (see models/scaleway/instance/securitygroup.py).
 # TODO: Link to Image with image.id
-# TODO: Link to SecurityGroup with security_group.id
 # TODO: Link to PlacementGroup with placement_group.id
 
 

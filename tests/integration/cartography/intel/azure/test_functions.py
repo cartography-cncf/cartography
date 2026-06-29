@@ -57,6 +57,24 @@ def test_sync_function_apps(mock_get, mock_fetch_configs, neo4j_session):
     }
     actual_nodes = check_nodes(neo4j_session, "AzureFunctionApp", ["id", "name"])
     assert actual_nodes == expected_nodes
+    assert check_nodes(
+        neo4j_session,
+        "AzureFunctionApp",
+        ["id", "state", "default_host_name", "https_only"],
+    ) == {
+        (
+            TEST_FUNCTIONAPP_CODE_ID,
+            "Running",
+            "my-test-func-app.azurewebsites.net",
+            True,
+        ),
+        (
+            TEST_FUNCTIONAPP_CONTAINER_ID,
+            "Running",
+            "my-container-func-app.azurewebsites.net",
+            True,
+        ),
+    }
 
     # Assert: container-based function app has image fields populated,
     # and the Function ontology sees deployment_type correctly ("container" vs "code").

@@ -14,6 +14,7 @@ from googleapiclient.discovery import Resource
 
 from cartography.config import Config
 from cartography.graph.job import GraphJob
+from cartography.intel.gcp import apikeys
 from cartography.intel.gcp import artifact_registry
 from cartography.intel.gcp import bigquery_connection
 from cartography.intel.gcp import bigquery_dataset
@@ -75,7 +76,7 @@ logger = logging.getLogger(__name__)
 # and https://cloud.google.com/service-usage/docs/reference/rest/v1/services#ServiceConfig
 Services = namedtuple(
     "Services",
-    "compute storage gke dns iam kms bigtable cai aiplatform cloud_sql gcf secretsmanager artifact_registry cloud_run bigquery bigquery_connection",
+    "compute storage gke dns iam kms bigtable cai aiplatform cloud_sql gcf secretsmanager artifact_registry cloud_run bigquery bigquery_connection apikeys",
 )
 service_names = Services(
     compute="compute.googleapis.com",
@@ -94,6 +95,7 @@ service_names = Services(
     cloud_run="run.googleapis.com",
     bigquery="bigquery.googleapis.com",
     bigquery_connection="bigqueryconnection.googleapis.com",
+    apikeys="apikeys.googleapis.com",
 )
 
 
@@ -544,6 +546,17 @@ def _sync_project_resources(
             secretsmanager.sync(
                 neo4j_session,
                 secretsmanager_client,
+                project_id,
+                gcp_update_tag,
+                common_job_parameters,
+            )
+
+        if service_names.apikeys in enabled_services:
+            logger.info("Syncing GCP project %s for API Keys.", project_id)
+            apikeys_client = build_client("apikeys", "v2", credentials=credentials)
+            apikeys.sync(
+                neo4j_session,
+                apikeys_client,
                 project_id,
                 gcp_update_tag,
                 common_job_parameters,

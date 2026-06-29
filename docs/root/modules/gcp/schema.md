@@ -855,6 +855,34 @@ Representation of a user-managed GCP [Service Account Key](https://cloud.google.
     (GCPServiceAccountKey)-[OWNED_BY]->(GCPServiceAccount)
     ```
 
+### GCPApiKey
+
+Representation of a GCP [API Key](https://cloud.google.com/api-keys/docs/reference/rest/v2/projects.locations.keys) (`apikeys.googleapis.com`). These are the encrypted-string keys used to authenticate to public Google APIs, distinct from `GCPServiceAccountKey`. The secret key material (`keyString`) is never ingested.
+
+> **Ontology Mapping**: This node has the extra label `APIKey` to enable cross-platform queries for long-lived API credentials across different systems (e.g., AccountAccessKey, ScalewayApiKey).
+
+| Field        | Description                                                                                   |
+| ------------ | --------------------------------------------------------------------------------------------- |
+| **id**       | The full resource name, e.g. `projects/{p}/locations/global/keys/{uid}`.                      |
+| name         | Same as id.                                                                                   |
+| uid          | The unique identifier of the key.                                                             |
+| display_name | Human-readable display name of the key.                                                       |
+| create_time  | RFC 3339 timestamp when the key was created.                                                  |
+| update_time  | RFC 3339 timestamp when the key was last updated.                                             |
+| delete_time  | RFC 3339 timestamp when the key was deleted, if applicable.                                   |
+| restricted   | Whether the key has any API or application restrictions. Unrestricted keys are higher risk.   |
+| restrictions | JSON-encoded restriction configuration (API targets, allowed referrers/IPs/apps), if any.     |
+| etag         | The etag of the key.                                                                          |
+| lastupdated  | The timestamp of the last update.                                                             |
+
+#### Relationships
+
+- GCPApiKeys are resources of GCPProjects.
+
+    ```
+    (GCPProject)-[RESOURCE]->(GCPApiKey)
+    ```
+
 ### GCPRole
 
 Representation of a GCP [Role](https://cloud.google.com/iam/docs/reference/rest/v1/organizations.roles).

@@ -14,7 +14,11 @@ PRJ -- RESOURCE --> INS(Instance)
 PRJ -- RESOURCE --> FIP(FlexibleIp)
 PRJ -- RESOURCE --> VOL(Volume)
 PRJ -- RESOURCE --> SNAP(VolumeSnapshot)
+PRJ -- RESOURCE --> SG(SecurityGroup)
+PRJ -- RESOURCE --> SGR(SecurityGroupRule)
 INS -- MOUNTS --> VOL
+INS -- MEMBER_OF_SCALEWAY_SECURITY_GROUP --> SG
+SGR -- MEMBER_OF_SCALEWAY_SECURITY_GROUP --> SG
 FIP -- IDENTIFIES --> INS
 VOL -- HAS --> SNAP
 USR -- MEMBER_OF --> GRP(ScalewayGroup)
@@ -80,7 +84,9 @@ Represents a Project in Scaleway. Projects are groupings of Scaleway resources.
         :ScalewayFlexibleIp,
         :ScalewayVolume,
         :ScalewayVolumeSnapshot,
-        :ScalewayInstance
+        :ScalewayInstance,
+        :ScalewaySecurityGroup,
+        :ScalewaySecurityGroupRule
     )
     ```
 
@@ -449,4 +455,78 @@ An Instance is a virtual computing unit that provides resources, such as process
 - `Instance` is identified by `FlexibleIp`
     ```
     (:ScalewayFlexibleIp)-[:IDENTIFIES]->(:ScalewayInstance)
+    ```
+- `Instance` is a member of a `SecurityGroup`
+    ```
+    (:ScalewayInstance)-[:MEMBER_OF_SCALEWAY_SECURITY_GROUP]->(:ScalewaySecurityGroup)
+    ```
+
+
+### ScalewaySecurityGroup
+
+A Security Group is a set of firewall rules that controls inbound and outbound traffic for the Instances attached to it.
+
+> **Ontology Mapping**: This node has the extra label `NetworkAccessControl` to enable cross-platform queries for firewall constructs across different systems (e.g., EC2SecurityGroup, AzureNetworkSecurityGroup, GCPFirewall).
+
+| Field      | Description                                  |
+|------------|----------------------------------------------|
+| id         | Security Group unique ID.                    |
+| name       | Security Group name.                          |
+| description | Security Group description.                 |
+| enable_default_security | True if SMTP is blocked on IPv4 and IPv6. |
+| inbound_default_policy | Default inbound policy (`accept`, `drop`). |
+| outbound_default_policy | Default outbound policy (`accept`, `drop`). |
+| stateful   | True if the Security Group is stateful.       |
+| project_default | True if it is the default Security Group for the Project. |
+| organization_default | True if it is the default Security Group for the Organization. |
+| tags       | Tags associated with the Security Group.     |
+| state      | Security Group state.                         |
+| zone       | Zone in which the Security Group is located.  |
+| creation_date | Security Group creation date.             |
+| modification_date | Security Group modification date.     |
+| lastupdated | Timestamp of the last update                 |
+
+#### Relationships
+- A `SecurityGroup` belongs to a `Project`
+    ```
+    (:ScalewayProject)-[:RESOURCE]->(:ScalewaySecurityGroup)
+    ```
+- An `Instance` is a member of a `SecurityGroup`
+    ```
+    (:ScalewayInstance)-[:MEMBER_OF_SCALEWAY_SECURITY_GROUP]->(:ScalewaySecurityGroup)
+    ```
+- A `SecurityGroupRule` is a member of a `SecurityGroup`
+    ```
+    (:ScalewaySecurityGroupRule)-[:MEMBER_OF_SCALEWAY_SECURITY_GROUP]->(:ScalewaySecurityGroup)
+    ```
+
+
+### ScalewaySecurityGroupRule
+
+A Security Group Rule is a single firewall rule (inbound or outbound) belonging to a Security Group.
+
+> **Ontology Mapping**: This node has the extra label `IpRule`, plus `IpPermissionInbound` or `IpPermissionEgress` depending on its direction, to enable cross-platform queries for firewall rules across different systems (e.g., AWSIpRule, AzureNetworkSecurityRule, GCPIpRule).
+
+| Field      | Description                                  |
+|------------|----------------------------------------------|
+| id         | Rule unique ID.                              |
+| protocol   | Protocol the rule applies to (`tcp`, `udp`, `icmp`, `any`). |
+| direction  | Rule direction (`inbound`, `outbound`).       |
+| action     | Action taken on matching traffic (`accept`, `drop`). |
+| ip_range   | IP range the rule applies to (CIDR notation). |
+| dest_port_from | Beginning of the destination port range.  |
+| dest_port_to | End of the destination port range.         |
+| position   | Rule position (evaluation order).             |
+| editable   | True if the rule is editable.                 |
+| zone       | Zone in which the rule is located.            |
+| lastupdated | Timestamp of the last update                 |
+
+#### Relationships
+- A `SecurityGroupRule` belongs to a `Project`
+    ```
+    (:ScalewayProject)-[:RESOURCE]->(:ScalewaySecurityGroupRule)
+    ```
+- A `SecurityGroupRule` is a member of a `SecurityGroup`
+    ```
+    (:ScalewaySecurityGroupRule)-[:MEMBER_OF_SCALEWAY_SECURITY_GROUP]->(:ScalewaySecurityGroup)
     ```

@@ -532,6 +532,8 @@ _aws_ec2_imdsv2_required = Fact(
     cypher_query="""
     MATCH (a:AWSAccount)-[:RESOURCE]->(ec2:EC2Instance)
     WHERE ec2.metadatahttptokens = 'optional'
+      // Terminated/shutting-down instances have no live IMDS to attack
+      AND NOT coalesce(ec2.state, 'running') IN ['terminated', 'shutting-down']
     OPTIONAL MATCH (ec2)-[:TAGGED]->(nametag:AWSTag {key: 'Name'})
     RETURN
         coalesce(nametag.value, ec2.instanceid) AS instance_name,
@@ -545,10 +547,12 @@ _aws_ec2_imdsv2_required = Fact(
     cypher_visual_query="""
     MATCH p=(a:AWSAccount)-[:RESOURCE]->(ec2:EC2Instance)
     WHERE ec2.metadatahttptokens = 'optional'
+      AND NOT coalesce(ec2.state, 'running') IN ['terminated', 'shutting-down']
     RETURN *
     """,
     cypher_count_query="""
     MATCH (ec2:EC2Instance)
+    WHERE NOT coalesce(ec2.state, 'running') IN ['terminated', 'shutting-down']
     RETURN COUNT(ec2) AS count
     """,
     asset_id_field="instance_id",
@@ -573,7 +577,7 @@ aws_ec2_instances_use_imdsv2 = Rule(
         "stride:spoofing",
         "stride:elevation_of_privilege",
     ),
-    version="1.0.0",
+    version="1.1.0",
     references=CIS_REFERENCES,
     frameworks=(
         cis_aws("6.7"),

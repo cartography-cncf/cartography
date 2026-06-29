@@ -17,6 +17,15 @@ TEST_ORG_ID = "0681c477-fbb9-4820-b8d6-0eef10cfcd6d"
 TEST_PROJECT_ID = "0681c477-fbb9-4820-b8d6-0eef10cfcd6d"
 
 
+def _ensure_local_neo4j_has_test_instances(neo4j_session):
+    data = cartography.intel.scaleway.instances.instances.transform_instances(
+        tests.data.scaleway.instances.SCALEWAY_INSTANCES
+    )
+    cartography.intel.scaleway.instances.instances.load_instances(
+        neo4j_session, data, TEST_UPDATE_TAG
+    )
+
+
 @patch.object(
     cartography.intel.scaleway.instances.instances,
     "get",
