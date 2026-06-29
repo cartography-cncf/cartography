@@ -554,6 +554,9 @@ class AdminPolicyAttachedOutput(Finding):
     principal_arn: str | None = None
     account_id: str | None = None
     account: str | None = None
+    # True for AWS IAM Identity Center (SSO) reserved roles, which ship with the
+    # AdministratorAccess managed policy by design; lets consumers triage them apart.
+    is_sso_reserved: bool = False
 
 
 _aws_admin_policy_attached = Fact(
@@ -571,6 +574,13 @@ _aws_admin_policy_attached = Fact(
     WHERE stmt.effect = 'Allow'
       AND any(action IN stmt.action WHERE action = '*' OR action = '*:*')
       AND any(resource IN stmt.resource WHERE resource = '*')
+      // Exclude AWS-managed automation/org-management roles that hold admin by design
+      AND NOT (
+          principal.arn CONTAINS 'aws-service-role'
+          OR principal.arn CONTAINS 'OrganizationAccountAccessRole'
+          OR principal.arn CONTAINS 'stacksets-exec'
+          OR principal.arn CONTAINS 'StackSetExecutionRole'
+      )
     RETURN DISTINCT
         policy.id AS policy_id,
         policy.arn AS policy_arn,
@@ -578,17 +588,31 @@ _aws_admin_policy_attached = Fact(
         stmt.sid AS statement_sid,
         principal.arn AS principal_arn,
         a.id AS account_id,
-        a.name AS account
+        a.name AS account,
+        // SSO-provisioned admin roles (AdministratorAccess permission set) by design
+        principal.arn CONTAINS 'aws-reserved/sso.amazonaws.com' AS is_sso_reserved
     """,
     cypher_visual_query="""
     MATCH p=(a:AWSAccount)-[:RESOURCE]->(principal:AWSPrincipal)-[:POLICY]->(policy:AWSPolicy)-[:STATEMENT]->(stmt:AWSPolicyStatement)
     WHERE stmt.effect = 'Allow'
       AND any(action IN stmt.action WHERE action = '*' OR action = '*:*')
       AND any(resource IN stmt.resource WHERE resource = '*')
+      AND NOT (
+          principal.arn CONTAINS 'aws-service-role'
+          OR principal.arn CONTAINS 'OrganizationAccountAccessRole'
+          OR principal.arn CONTAINS 'stacksets-exec'
+          OR principal.arn CONTAINS 'StackSetExecutionRole'
+      )
     RETURN *
     """,
     cypher_count_query="""
-    MATCH (:AWSPrincipal)-[:POLICY]->(policy:AWSPolicy)
+    MATCH (principal:AWSPrincipal)-[:POLICY]->(policy:AWSPolicy)
+    WHERE NOT (
+          principal.arn CONTAINS 'aws-service-role'
+          OR principal.arn CONTAINS 'OrganizationAccountAccessRole'
+          OR principal.arn CONTAINS 'stacksets-exec'
+          OR principal.arn CONTAINS 'StackSetExecutionRole'
+    )
     RETURN COUNT(DISTINCT policy.id) AS count
     """,
     asset_id_field="policy_id",
@@ -609,7 +633,7 @@ aws_policies_with_full_administrative_privileges = Rule(
     output_model=AdminPolicyAttachedOutput,
     facts=(_aws_admin_policy_attached,),
     tags=("iam", "policies", "stride:elevation_of_privilege"),
-    version="1.0.0",
+    version="1.2.0",
     references=CIS_REFERENCES,
     frameworks=(
         cis_aws("2.15"),

@@ -19,10 +19,11 @@ def test_nist_ai_rules_registered_and_metadata():
         "ai_provider_api_key_hygiene": ai_provider_api_key_hygiene,
     }
 
+    expected_versions = {"ai_provider_api_key_hygiene": "0.2.0"}
     for rule_id, rule_obj in expected_rules.items():
         assert rule_id in RULES
         assert RULES[rule_id] is rule_obj
-        assert rule_obj.version == "0.1.0"
+        assert rule_obj.version == expected_versions.get(rule_id, "0.1.0")
         assert rule_obj.references
         assert rule_obj.has_framework("NIST", scope="ai-rmf", revision="1.0")
 
