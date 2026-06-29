@@ -131,12 +131,14 @@ def cleanup(
     for project_id in projects_id:
         scoped_job_parameters = common_job_parameters.copy()
         scoped_job_parameters["PROJECT_ID"] = project_id
-        GraphJob.from_node_schema(
-            ScalewaySecurityGroupSchema(), scoped_job_parameters
-        ).run(neo4j_session)
+        # Clean up children (rules) before the parent (security group) to keep
+        # the child->parent hierarchy consistent if a run is interrupted.
         GraphJob.from_node_schema(
             ScalewayInboundSecurityGroupRuleSchema(), scoped_job_parameters
         ).run(neo4j_session)
         GraphJob.from_node_schema(
             ScalewayOutboundSecurityGroupRuleSchema(), scoped_job_parameters
+        ).run(neo4j_session)
+        GraphJob.from_node_schema(
+            ScalewaySecurityGroupSchema(), scoped_job_parameters
         ).run(neo4j_session)
