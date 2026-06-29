@@ -13,6 +13,7 @@ import cartography.intel.scaleway.instances.flexibleips
 import cartography.intel.scaleway.instances.instances
 import cartography.intel.scaleway.instances.securitygroups
 import cartography.intel.scaleway.projects
+import cartography.intel.scaleway.storage.objectstorage
 import cartography.intel.scaleway.storage.snapshots
 import cartography.intel.scaleway.storage.volumes
 from cartography.config import Config
@@ -114,6 +115,14 @@ def start_scaleway_ingestion(neo4j_session: neo4j.Session, config: Config) -> No
         update_tag=config.update_tag,
     )
     cartography.intel.scaleway.storage.snapshots.sync(
+        neo4j_session,
+        client,
+        common_job_parameters,
+        org_id=config.scaleway_org,
+        projects_id=projects_id,
+        update_tag=config.update_tag,
+    )
+    cartography.intel.scaleway.storage.objectstorage.sync(
         neo4j_session,
         client,
         common_job_parameters,

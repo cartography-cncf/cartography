@@ -1,0 +1,216 @@
+import json
+import logging
+from typing import Any
+
+import boto3
+import neo4j
+import scaleway
+from botocore.exceptions import ClientError
+from policyuniverse.policy import Policy
+
+from cartography.client.core.tx import load
+from cartography.graph.job import GraphJob
+from cartography.intel.scaleway.utils import OBJECT_STORAGE_REGIONS
+from cartography.models.scaleway.storage.objectstorage import (
+    ScalewayObjectStorageBucketSchema,
+)
+from cartography.util import timeit
+
+logger = logging.getLogger(__name__)
+
+# Canned S3 group URIs that expose a bucket to everyone on the internet.
+PUBLIC_ACL_URIS = {
+    "http://acs.amazonaws.com/groups/global/AllUsers",
+    "http://acs.amazonaws.com/groups/global/AuthenticatedUsers",
+}
+
+# Sentinel for a detail call that could not be read (e.g. AccessDenied): the
+# state is unknown, which must NOT be collapsed into a "not public" signal.
+FETCH_FAILED = "__FETCH_FAILED__"
+
+# Error codes that mean the config genuinely does not exist (a real "absent"
+# answer, distinct from a read failure).
+_ABSENT_ERROR_CODES = {
+    "NoSuchBucketPolicy",
+    "NoSuchTagSet",
+    "NoSuchConfiguration",
+}
+
+
+@timeit
+def sync(
+    neo4j_session: neo4j.Session,
+    client: scaleway.Client,
+    common_job_parameters: dict[str, Any],
+    org_id: str,
+    projects_id: list[str],
+    update_tag: int,
+) -> None:
+    buckets = get(client)
+    buckets_by_project = transform_buckets(buckets)
+    load_buckets(neo4j_session, buckets_by_project, update_tag)
+    cleanup(neo4j_session, projects_id, common_job_parameters)
+
+
+@timeit
+def get(client: scaleway.Client) -> list[dict[str, Any]]:
+    """Scaleway Object Storage is S3-compatible and is not exposed by the
+    Scaleway Python SDK, so we use boto3 against the regional S3 endpoints."""
+    buckets: list[dict[str, Any]] = []
+    for region in OBJECT_STORAGE_REGIONS:
+        s3 = boto3.client(
+            "s3",
+            region_name=region,
+            endpoint_url=f"https://s3.{region}.scw.cloud",
+            aws_access_key_id=client.access_key,
+            aws_secret_access_key=client.secret_key,
+        )
+        listing = s3.list_buckets()
+        owner_id = listing.get("Owner", {}).get("ID", "")
+        for bucket in listing.get("Buckets", []):
+            buckets.append(_get_bucket_details(s3, bucket, region, owner_id))
+    return buckets
+
+
+def _get_bucket_details(
+    s3: Any, bucket: dict[str, Any], region: str, owner_id: str
+) -> dict[str, Any]:
+    name = bucket["Name"]
+    details: dict[str, Any] = {
+        "name": name,
+        "region": region,
+        "endpoint": f"https://{name}.s3.{region}.scw.cloud",
+        "creation_date": bucket.get("CreationDate"),
+        "owner_id": owner_id,
+        "acl": None,
+        "policy": None,
+        "versioning": None,
+        "tags": None,
+    }
+    # Each call is independent: a bucket policy can lock the owner out of the
+    # admin endpoints (AccessDenied), so we keep whatever we can read.
+    details["acl"] = _safe_call(s3.get_bucket_acl, name)
+    details["policy"] = _safe_call(s3.get_bucket_policy, name)
+    details["versioning"] = _safe_call(s3.get_bucket_versioning, name)
+    details["tags"] = _safe_call(s3.get_bucket_tagging, name)
+    return details
+
+
+def _safe_call(func: Any, name: str) -> Any:
+    """Returns the response, None if the config is genuinely absent, or
+    FETCH_FAILED if the call could not be read (so callers can keep the state
+    unknown instead of assuming a benign default)."""
+    try:
+        return func(Bucket=name)
+    except ClientError as e:
+        code = e.response.get("Error", {}).get("Code")
+        logger.debug(
+            "Scaleway Object Storage %s on bucket '%s' failed: %s",
+            func.__name__,
+            name,
+            code,
+        )
+        return None if code in _ABSENT_ERROR_CODES else FETCH_FAILED
+
+
+def transform_buckets(
+    buckets: list[dict[str, Any]],
+) -> dict[str, list[dict[str, Any]]]:
+    result: dict[str, list[dict[str, Any]]] = {}
+    for bucket in buckets:
+        # The S3 owner ID is "<project_id>:<project_id>" on Scaleway.
+        project_id = bucket["owner_id"].split(":")[0]
+        # Leave the exposure signals null (unknown) when their source read
+        # failed, rather than reporting a bucket as not-public on bad data.
+        acl = bucket["acl"]
+        acl_public = None if acl is FETCH_FAILED else _is_acl_public(acl)
+        policy = bucket["policy"]
+        if policy is FETCH_FAILED:
+            anonymous_access, anonymous_actions = None, None
+        else:
+            anonymous_access, anonymous_actions = _parse_policy(policy)
+        versioning = bucket["versioning"]
+        formatted = {
+            "id": bucket["name"],
+            "name": bucket["name"],
+            "region": bucket["region"],
+            "endpoint": bucket["endpoint"],
+            "creation_date": bucket["creation_date"],
+            "owner_id": bucket["owner_id"],
+            "tags": (
+                None if bucket["tags"] is FETCH_FAILED else _format_tags(bucket["tags"])
+            ),
+            "versioning_status": (
+                None
+                if versioning in (None, FETCH_FAILED)
+                else (versioning.get("Status") or None)
+            ),
+            "acl_public": acl_public,
+            "anonymous_access": anonymous_access,
+            "anonymous_actions": anonymous_actions,
+        }
+        result.setdefault(project_id, []).append(formatted)
+    return result
+
+
+def _format_tags(tagging: dict[str, Any] | None) -> list[str] | None:
+    if not tagging:
+        return None
+    tags = [f"{t['Key']}={t['Value']}" for t in tagging.get("TagSet", [])]
+    return tags or None
+
+
+def _is_acl_public(acl: dict[str, Any] | None) -> bool:
+    if not acl:
+        return False
+    for grant in acl.get("Grants", []):
+        grantee = grant.get("Grantee", {})
+        if grantee.get("Type") == "Group" and grantee.get("URI") in PUBLIC_ACL_URIS:
+            return True
+    return False
+
+
+def _parse_policy(policy: dict[str, Any] | None) -> tuple[bool, list[str]]:
+    """Reuse policyuniverse (as the AWS S3 module does) to detect anonymous
+    access from an S3-compatible bucket policy."""
+    if not policy:
+        return False, []
+    parsed = Policy(json.loads(policy["Policy"]))
+    if parsed.is_internet_accessible():
+        return True, sorted(parsed.internet_accessible_actions())
+    return False, []
+
+
+@timeit
+def load_buckets(
+    neo4j_session: neo4j.Session,
+    data: dict[str, list[dict[str, Any]]],
+    update_tag: int,
+) -> None:
+    for project_id, buckets in data.items():
+        logger.info(
+            "Loading %d Scaleway ObjectStorageBuckets in project '%s' into Neo4j.",
+            len(buckets),
+            project_id,
+        )
+        load(
+            neo4j_session,
+            ScalewayObjectStorageBucketSchema(),
+            buckets,
+            lastupdated=update_tag,
+            PROJECT_ID=project_id,
+        )
+
+
+@timeit
+def cleanup(
+    neo4j_session: neo4j.Session,
+    projects_id: list[str],
+    common_job_parameters: dict[str, Any],
+) -> None:
+    for project_id in projects_id:
+        scoped_job_parameters = common_job_parameters.copy()
+        scoped_job_parameters["PROJECT_ID"] = project_id
+        GraphJob.from_node_schema(
+            ScalewayObjectStorageBucketSchema(), scoped_job_parameters
+        ).run(neo4j_session)

@@ -5,6 +5,9 @@ from typing import Any
 # Zone does not really matter for readonly access, but we need to set it
 DEFAULT_ZONE = "fr-par-1"
 
+# Scaleway Object Storage regions (S3-compatible endpoints live per region).
+OBJECT_STORAGE_REGIONS = ("fr-par", "nl-ams", "pl-waw", "it-mil")
+
 
 def scaleway_obj_to_dict(obj: Any) -> dict[str, Any]:
     """Transform a Scaleway object (dataclass, dict, or list) into a dictionary."""

@@ -16,6 +16,7 @@ PRJ -- RESOURCE --> VOL(Volume)
 PRJ -- RESOURCE --> SNAP(VolumeSnapshot)
 PRJ -- RESOURCE --> SG(SecurityGroup)
 PRJ -- RESOURCE --> SGR(SecurityGroupRule)
+PRJ -- RESOURCE --> BKT(ObjectStorageBucket)
 INS -- MOUNTS --> VOL
 INS -- MEMBER_OF_SCALEWAY_SECURITY_GROUP --> SG
 SGR -- MEMBER_OF_SCALEWAY_SECURITY_GROUP --> SG
@@ -86,7 +87,8 @@ Represents a Project in Scaleway. Projects are groupings of Scaleway resources.
         :ScalewayVolumeSnapshot,
         :ScalewayInstance,
         :ScalewaySecurityGroup,
-        :ScalewaySecurityGroupRule
+        :ScalewaySecurityGroupRule,
+        :ScalewayObjectStorageBucket
     )
     ```
 
@@ -529,4 +531,31 @@ A Security Group Rule is a single firewall rule (inbound or outbound) belonging 
 - A `SecurityGroupRule` is a member of a `SecurityGroup`
     ```
     (:ScalewaySecurityGroupRule)-[:MEMBER_OF_SCALEWAY_SECURITY_GROUP]->(:ScalewaySecurityGroup)
+    ```
+
+### ScalewayObjectStorageBucket
+
+An Object Storage bucket is an S3-compatible container for objects. Scaleway Object Storage is not exposed by the Scaleway Python SDK, so it is collected through the regional S3-compatible endpoints.
+
+> **Ontology Mapping**: This node has the extra label `ObjectStorage` to enable cross-platform queries for object storage across different systems (e.g., S3Bucket, GCPBucket).
+
+| Field      | Description                                  |
+|------------|----------------------------------------------|
+| id         | Bucket name (globally unique).               |
+| name       | Bucket name.                                 |
+| region     | Region the bucket lives in (`fr-par`, `nl-ams`, `pl-waw`). |
+| endpoint   | Public S3 endpoint URL of the bucket.        |
+| creation_date | Bucket creation date.                     |
+| tags       | Bucket tags (`key=value`).                   |
+| owner_id   | S3 owner ID (`<project_id>:<project_id>`).   |
+| versioning_status | Versioning status (`Enabled`, `Suspended`, or unset). |
+| acl_public | True if the bucket ACL grants access to `AllUsers` / `AuthenticatedUsers`. |
+| anonymous_access | True if the bucket policy grants anonymous (internet) access. |
+| anonymous_actions | Actions granted to anonymous principals by the bucket policy. |
+| lastupdated | Timestamp of the last update                 |
+
+#### Relationships
+- An `ObjectStorageBucket` belongs to a `Project`
+    ```
+    (:ScalewayProject)-[:RESOURCE]->(:ScalewayObjectStorageBucket)
     ```
