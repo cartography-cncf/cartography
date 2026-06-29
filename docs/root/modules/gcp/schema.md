@@ -159,10 +159,10 @@ Representation of a GCP [Storage Bucket](https://cloud.google.com/storage/docs/j
     (GCPProject)-[RESOURCE]->(GCPBucket)
     ```
 
-- GCPBuckets can be labelled with GCPBucketLabels.
+- GCPBuckets can be labeled with GCPBucketLabels.
 
     ```
-    (GCPBucket)<-[LABELLED]-(GCPBucketLabels)
+    (GCPBucket)-[LABELED]->(GCPBucketLabel)
     ```
 
 - GCPPrincipals with appropriate permissions can read from GCP buckets. Created from [gcp_permission_relationships.yaml](https://github.com/cartography-cncf/cartography/blob/master/cartography/data/gcp_permission_relationships.yaml).
@@ -228,7 +228,7 @@ Representation of a GCP [Storage Bucket Label](https://cloud.google.com/storage/
 - GCPBuckets can be labeled with GCPBucketLabels.
 
     ```
-    (GCPBucket)<-[LABELED]-(GCPBucketLabels)
+    (GCPBucket)-[LABELED]->(GCPBucketLabel)
     ```
 
 
@@ -387,7 +387,7 @@ Representation of a Tag defined on a GCP Instance or GCP Firewall.  Tags are def
 - GCPNetworkTags are defined on a VPC and only have effect on assets in that VPC
 
     ```
-    (GCPVpc)-[DEFINED_IN]->(GCPNetworkTag)
+    (GCPNetworkTag)-[DEFINED_IN]->(GCPVpc)
     ```
 
 ### GCPVpc
@@ -432,7 +432,7 @@ Representation of a GCP [VPC](https://cloud.google.com/compute/docs/reference/re
 - GCPNetworkTags are defined on a VPC and only have effect on assets in that VPC
 
     ```
-    (:GCPVpc)-[:DEFINED_IN]->(:GCPNetworkTag)
+    (:GCPNetworkTag)-[:DEFINED_IN]->(:GCPVpc)
     ```
 
 - GCP Instances may be members of one or more GCP VPCs.
@@ -807,7 +807,7 @@ Representation of a GCP [Service Account](https://cloud.google.com/iam/docs/refe
 - GCPServiceAccounts are resources of GCPProjects.
 
     ```
-    (GCPServiceAccount)-[RESOURCE]->(GCPProject)
+    (GCPProject)-[RESOURCE]->(GCPServiceAccount)
     ```
 
 - GCPPrincipals with appropriate impersonation permissions can act as a GCPServiceAccount. Created from [gcp_permission_relationships.yaml](https://github.com/cartography-cncf/cartography/blob/master/cartography/data/gcp_permission_relationships.yaml). Driven by `iam.serviceAccounts.actAs` and related permissions packaged in `roles/iam.serviceAccountTokenCreator` and `roles/iam.serviceAccountUser`.
@@ -819,12 +819,14 @@ Representation of a GCP [Service Account](https://cloud.google.com/iam/docs/refe
 - GCPServiceAccounts have user-managed authentication keys (system-managed keys are intentionally not synced).
 
     ```
-    (GCPServiceAccount)-[HAS_KEY]->(GCPServiceAccountKey)
+    (GCPServiceAccountKey)-[OWNED_BY]->(GCPServiceAccount)
     ```
 
 ### GCPServiceAccountKey
 
 Representation of a user-managed GCP [Service Account Key](https://cloud.google.com/iam/docs/reference/rest/v1/projects.serviceAccounts.keys). System-managed keys (rotated automatically by Google) are not ingested.
+
+> **Ontology Mapping**: This node has the extra label `APIKey` to enable cross-platform queries for long-lived API credentials across different systems (e.g., AccountAccessKey, ScalewayApiKey).
 
 | Field                | Description                                                                                            |
 | -------------------- | ------------------------------------------------------------------------------------------------------ |
@@ -847,10 +849,10 @@ Representation of a user-managed GCP [Service Account Key](https://cloud.google.
     (GCPProject)-[RESOURCE]->(GCPServiceAccountKey)
     ```
 
-- GCPServiceAccountKeys hang off their parent GCPServiceAccount.
+- GCPServiceAccountKeys are owned by their parent GCPServiceAccount.
 
     ```
-    (GCPServiceAccount)-[HAS_KEY]->(GCPServiceAccountKey)
+    (GCPServiceAccountKey)-[OWNED_BY]->(GCPServiceAccount)
     ```
 
 ### GCPRole
@@ -2074,9 +2076,9 @@ graph LR
     Service -->|HAS_REVISION| Revision
     Job -->|HAS_EXECUTION| Execution
 
-    Service -->|USES_SERVICE_ACCOUNT| ServiceAccount
+    Service -->|RUNS_AS| ServiceAccount
     Revision -->|USES_SERVICE_ACCOUNT| ServiceAccount
-    Job -->|USES_SERVICE_ACCOUNT| ServiceAccount
+    Job -->|RUNS_AS| ServiceAccount
 ```
 
 ### GCPCloudRunService
@@ -2112,9 +2114,9 @@ Cloud Run Service is treated as an orchestrator (analogous to `ECSService`) and 
     ```
     (GCPCloudRunService)-[:HAS_REVISION]->(GCPCloudRunRevision)
     ```
-  - GCPCloudRunServices use GCPServiceAccounts.
+  - GCPCloudRunServices run as GCPServiceAccounts.
     ```
-    (GCPCloudRunService)-[:USES_SERVICE_ACCOUNT]->(GCPServiceAccount)
+    (GCPCloudRunService)-[:RUNS_AS]->(GCPServiceAccount)
     ```
 
 ### GCPCloudRunRevision
@@ -2173,9 +2175,9 @@ Representation of a GCP [Cloud Run Job](https://cloud.google.com/run/docs/refere
     ```
     (GCPCloudRunJob)-[:HAS_EXECUTION]->(GCPCloudRunExecution)
     ```
-  - GCPCloudRunJobs use GCPServiceAccounts.
+  - GCPCloudRunJobs run as GCPServiceAccounts.
     ```
-    (GCPCloudRunJob)-[:USES_SERVICE_ACCOUNT]->(GCPServiceAccount)
+    (GCPCloudRunJob)-[:RUNS_AS]->(GCPServiceAccount)
     ```
 
 ### GCPCloudRunJobContainer

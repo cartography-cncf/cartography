@@ -15,7 +15,7 @@ U(GitHubUser) -- MEMBER_OF --> O
 U -- ADMIN_OF --> O
 U -- UNAFFILIATED --> O
 U -- OWNER --> R
-U -- OWNS --> PAT
+PAT -- OWNED_BY --> U
 U -- OUTSIDE_COLLAB_{ACTION} --> R
 U -- DIRECT_COLLAB_{ACTION} --> R
 U -- COMMITTED_TO --> R
@@ -78,11 +78,11 @@ Representation of a single GitHubRepository (repo) [repository object](https://d
 
 #### Relationships
 
-- GitHubUsers or GitHubOrganizations own GitHubRepositories.
+- GitHubRepositories are owned by GitHubUsers or GitHubOrganizations.
 
     ```
-    (GitHubUser)-[OWNER]->(GitHubRepository)
-    (GitHubOrganization)-[OWNER]->(GitHubRepository)
+    (GitHubRepository)-[OWNER]->(GitHubUser)
+    (GitHubRepository)-[OWNER]->(GitHubOrganization)
     ```
 
 - GitHubRepositories in an organization can have [outside collaborators](https://docs.github.com/en/graphql/reference/enums#collaboratoraffiliation) who may be granted different levels of access, including ADMIN,
@@ -156,10 +156,10 @@ Representation of a single GitHubOrganization [organization object](https://deve
 
 #### Relationships
 
-- GitHubOrganizations own GitHubRepositories.
+- GitHubRepositories can be owned by GitHubOrganizations.
 
     ```
-    (GitHubOrganization)-[OWNER]->(GitHubRepository)
+    (GitHubRepository)-[OWNER]->(GitHubOrganization)
     ```
 
 - GitHubTeams are resources under GitHubOrganizations
@@ -258,10 +258,10 @@ Representation of a single GitHubUser [user object](https://developer.github.com
 
 #### Relationships
 
-- GitHubUsers own GitHubRepositories.
+- GitHubRepositories can be owned by GitHubUsers.
 
     ```
-    (GitHubUser)-[OWNER]->(GitHubRepository)
+    (GitHubRepository)-[OWNER]->(GitHubUser)
     ```
 
 - GitHubRepositories in an organization can have [outside collaborators](https://docs.github.com/en/graphql/reference/enums#collaboratoraffiliation) who may be granted different levels of access, including ADMIN,
@@ -355,10 +355,10 @@ Fine-grained and classic PATs also receive kind-specific labels, `GitHubFineGrai
     (GitHubOrganization)-[:RESOURCE]->(GitHubPersonalAccessToken)
     ```
 
-- GitHubUsers own GitHubPersonalAccessTokens when the owner can be resolved.
+- GitHubPersonalAccessTokens are owned by the GitHubUser they authenticate as, when the owner can be resolved.
 
     ```
-    (GitHubUser)-[:OWNS]->(GitHubPersonalAccessToken)
+    (GitHubPersonalAccessToken)-[:OWNED_BY]->(GitHubUser)
     ```
 
 - Fine-grained GitHubPersonalAccessTokens can access GitHubRepositories returned by GitHub's token repository access endpoint.

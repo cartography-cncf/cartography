@@ -17,6 +17,7 @@ from cartography.models.cve_metadata.cve_metadata import CVEMetadataSchema
 from cartography.models.cve_metadata.cve_metadata_feed import CVEMetadataFeedSchema
 from cartography.stats import get_stats_client
 from cartography.util import merge_module_sync_metadata
+from cartography.util import run_analysis_job
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
@@ -49,6 +50,14 @@ def get_cve_ids_from_graph(neo4j_session: neo4j.Session) -> list[str]:
     query = """
     MATCH (c:CVE)
     WHERE c.cve_id STARTS WITH "CVE"
+      AND NOT (
+        labels(c) = ['CVE']
+        AND coalesce(c._module_name, '') = 'cartography:cve'
+        AND NOT EXISTS {
+          MATCH (c)-[r]-()
+          WHERE NOT type(r) IN ['RESOURCE', 'ENRICHES']
+        }
+      )
     RETURN DISTINCT c.cve_id
     """
     return [str(cve_id) for cve_id in read_list_of_values_tx(neo4j_session, query)]
@@ -110,6 +119,18 @@ def start_cve_metadata_ingestion(
             f"Invalid CVE metadata sources: {invalid}. Valid sources: {ALL_SOURCES}",
         )
 
+    common_job_parameters = {
+        "UPDATE_TAG": config.update_tag,
+        "FEED_ID": CVE_METADATA_FEED_ID,
+    }
+
+    # DEPRECATED: cleanup for plain CVE feed nodes from cartography:cve; remove in v1.0.0.
+    run_analysis_job(
+        "cve_deprecated_feed_cleanup.json",
+        neo4j_session,
+        common_job_parameters,
+    )
+
     # Step 1: Get all CVE IDs from the graph — this is the authoritative list
     cve_ids = get_cve_ids_from_graph(neo4j_session)
     logger.info("Found %d CVE nodes in graph to enrich.", len(cve_ids))
@@ -164,10 +185,6 @@ def start_cve_metadata_ingestion(
                 load_cve_metadata(neo4j_session, cves, config.update_tag)
 
     # Step 4: Cleanup stale CVEMetadata nodes from previous syncs
-    common_job_parameters = {
-        "UPDATE_TAG": config.update_tag,
-        "FEED_ID": CVE_METADATA_FEED_ID,
-    }
     GraphJob.from_node_schema(CVEMetadataSchema(), common_job_parameters).run(
         neo4j_session,
     )

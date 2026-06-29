@@ -150,6 +150,9 @@
 ```{include} ../modules/tailscale/schema.md
 ```
 
+```{include} ../modules/tenable/schema.md
+```
+
 ```{include} ../modules/trivy/schema.md
 ```
 

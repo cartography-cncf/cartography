@@ -220,3 +220,117 @@ def test_sync_findings_for_account_skips_validation_exception(
         BATCH_SIZE,
     )
     assert check_nodes(neo4j_session, "AWSInspectorFinding", ["id"]) == set()
+
+
+def _raising_findings_generator(*args, **kwargs):
+    # Mimics get_inspector_findings raising a connection-level error while the
+    # paginator is being iterated (the failure mode reported for unreachable /
+    # opt-in inspector2 regional endpoints).
+    raise botocore.exceptions.ConnectTimeoutError(
+        endpoint_url="https://inspector2.me-south-1.amazonaws.com/findings/list",
+    )
+    yield  # pragma: no cover - makes this function a generator
+
+
+@patch.object(
+    cartography.intel.aws.inspector,
+    "get_member_accounts",
+    return_value=[],
+)
+@patch.object(
+    cartography.intel.aws.inspector,
+    "get_inspector_findings",
+    side_effect=_raising_findings_generator,
+)
+def test_sync_inspector_survives_connection_timeout(
+    mock_get,
+    mock_members,
+    neo4j_session,
+):
+    # Arrange: a finding from a previous (successful) run already lives in the
+    # graph, stamped with an older update tag.
+    old_update_tag = TEST_UPDATE_TAG - 1
+    boto3_session = MagicMock()
+    neo4j_session.run("MATCH (n) DETACH DELETE n")
+    neo4j_session.run(
+        """
+        MERGE (a:AWSAccount{id: $acc})
+        MERGE (f:AWSInspectorFinding{id: 'arn:aws:stale'})
+        SET f.lastupdated = $old_tag
+        MERGE (a)-[r:RESOURCE]->(f)
+        SET r.lastupdated = $old_tag
+        """,
+        acc=TEST_ACC_ID_1,
+        old_tag=old_update_tag,
+    )
+
+    # Act: a fresh sync hits a transient connection failure for the region.
+    sync(
+        neo4j_session,
+        boto3_session,
+        [TEST_REGION],
+        TEST_ACC_ID_1,
+        TEST_UPDATE_TAG,
+        {"UPDATE_TAG": TEST_UPDATE_TAG, "AWS_ID": TEST_ACC_ID_1},
+    )
+
+    # Assert: the account sync completed without raising, and cleanup was skipped
+    # so the last-known-good finding from the previous run was preserved.
+    assert check_nodes(neo4j_session, "AWSInspectorFinding", ["id"]) == {
+        ("arn:aws:stale",),
+    }
+
+
+@patch.object(
+    cartography.intel.aws.inspector,
+    "get_inspector_findings",
+    return_value=[],
+)
+@patch.object(cartography.intel.aws.inspector, "create_boto3_client")
+@patch.object(
+    cartography.intel.aws.inspector,
+    "aws_paginate",
+    side_effect=botocore.exceptions.ConnectTimeoutError(
+        endpoint_url="https://inspector2.me-south-1.amazonaws.com/members/list",
+    ),
+)
+def test_sync_inspector_preserves_data_on_member_listing_timeout(
+    mock_paginate,
+    mock_client,
+    mock_findings,
+    neo4j_session,
+):
+    # This exercises the real get_member_accounts() decorator stack: a transient
+    # connection failure while listing members must NOT be swallowed into an empty
+    # member list (which would let cleanup run and delete stale member findings).
+    old_update_tag = TEST_UPDATE_TAG - 1
+    boto3_session = MagicMock()
+    neo4j_session.run("MATCH (n) DETACH DELETE n")
+    # A delegated-member finding from a previous successful run, stamped older.
+    neo4j_session.run(
+        """
+        MERGE (a:AWSAccount{id: $acc})
+        MERGE (f:AWSInspectorFinding{id: 'arn:aws:stale-member'})
+        SET f.lastupdated = $old_tag
+        MERGE (a)-[r:RESOURCE]->(f)
+        SET r.lastupdated = $old_tag
+        """,
+        acc=TEST_ACC_ID_1,
+        old_tag=old_update_tag,
+    )
+
+    # Act: list_members connect-times-out for the region.
+    sync(
+        neo4j_session,
+        boto3_session,
+        [TEST_REGION],
+        TEST_ACC_ID_1,
+        TEST_UPDATE_TAG,
+        {"UPDATE_TAG": TEST_UPDATE_TAG, "AWS_ID": TEST_ACC_ID_1},
+    )
+
+    # Assert: the region was skipped, cleanup was skipped, and the stale member
+    # finding was preserved rather than deleted.
+    assert check_nodes(neo4j_session, "AWSInspectorFinding", ["id"]) == {
+        ("arn:aws:stale-member",),
+    }

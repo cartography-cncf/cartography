@@ -32,7 +32,7 @@ TEST_UPDATE_TAG = 123456789
 @patch.object(
     cartography.intel.aws.iam,
     "get_saml_providers",
-    return_value={"SAMLProviderList": []},
+    return_value=[],
 )
 @patch.object(
     cartography.intel.aws.iam,
@@ -382,6 +382,22 @@ def test_sync_iam(
         "arn",
         "AWS_ACCESS_KEY",
         rel_direction_right=False,
+    ) == {
+        ("AKIAIOSFODNN7EXAMPLE", "arn:aws:iam::1234:user/user1"),
+        ("AKIAI44QH8DHBEXAMPLE", "arn:aws:iam::1234:user/user1"),
+        ("AKIAJQ5CMEXAMPLE", "arn:aws:iam::1234:user/user2"),
+        ("AKIAEXAMPLE123", "arn:aws:iam::1234:user/user3"),
+    }
+
+    # Canonical ontology edge: (:APIKey)-[:OWNED_BY]->(:UserAccount)
+    assert check_rels(
+        neo4j_session,
+        "AccountAccessKey",
+        "accesskeyid",
+        "AWSUser",
+        "arn",
+        "OWNED_BY",
+        rel_direction_right=True,
     ) == {
         ("AKIAIOSFODNN7EXAMPLE", "arn:aws:iam::1234:user/user1"),
         ("AKIAI44QH8DHBEXAMPLE", "arn:aws:iam::1234:user/user1"),

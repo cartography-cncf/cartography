@@ -1,18 +1,26 @@
 import copy
 from unittest.mock import patch
 
+import pytest
+
 import cartography.intel.cve_metadata
 from cartography.config import Config
 from cartography.intel.cve_metadata import CVE_METADATA_FEED_ID
 from cartography.intel.cve_metadata import get_cve_ids_from_graph
 from cartography.intel.cve_metadata import start_cve_metadata_ingestion
 from cartography.intel.cve_metadata.nvd import transform_cves
+from cartography.util import run_analysis_job
 from tests.data.cve_metadata.nvd import GET_NVD_API_DATA
 from tests.integration.util import check_nodes
 from tests.integration.util import check_rels
 
 TEST_UPDATE_TAG = 123456789
 TEST_UPDATE_TAG_2 = 987654321
+
+
+@pytest.fixture(autouse=True)
+def _clear_graph(neo4j_session):
+    neo4j_session.run("MATCH (n) DETACH DELETE n")
 
 
 def _create_cve_nodes(neo4j_session, cve_ids=None):
@@ -40,8 +48,66 @@ MOCK_EPSS = {
 
 def test_get_cve_ids_from_graph(neo4j_session):
     _create_cve_nodes(neo4j_session)
+    neo4j_session.run(
+        """
+        CREATE (:CVE {
+            id: 'CVE-2024-0001',
+            cve_id: 'CVE-2024-0001',
+            _module_name: 'cartography:cve'
+        })
+        CREATE (:CVE:Vulnerability {
+            id: 'CVE-2024-0002',
+            cve_id: 'CVE-2024-0002',
+            _module_name: 'cartography:cve'
+        })
+        CREATE (preserved:CVE {
+            id: 'CVE-2024-0003',
+            cve_id: 'CVE-2024-0003',
+            _module_name: 'cartography:cve'
+        })
+        CREATE (finding:Finding {id: 'finding'})
+        CREATE (finding)-[:AFFECTS]->(preserved)
+        """,
+    )
     cve_ids = get_cve_ids_from_graph(neo4j_session)
-    assert set(cve_ids) == {"CVE-2023-41782", "CVE-2024-22075"}
+    assert set(cve_ids) == {
+        "CVE-2023-41782",
+        "CVE-2024-0002",
+        "CVE-2024-0003",
+        "CVE-2024-22075",
+    }
+
+
+def test_deprecated_cve_feed_cleanup(neo4j_session):
+    neo4j_session.run(
+        """
+        CREATE (deleted:CVE {
+            id: 'CVE-2024-0001',
+            cve_id: 'CVE-2024-0001',
+            _module_name: 'cartography:cve'
+        })
+        CREATE (preserved:CVE {
+            id: 'CVE-2024-0002',
+            cve_id: 'CVE-2024-0002',
+            _module_name: 'cartography:cve'
+        })
+        CREATE (feed:Feed {id: 'feed'})
+        CREATE (metadata:CVEMetadata {id: 'CVE-2024-0001'})
+        CREATE (finding:Finding {id: 'finding'})
+        CREATE (feed)-[:RESOURCE]->(deleted)
+        CREATE (metadata)-[:ENRICHES]->(deleted)
+        CREATE (feed)-[:RESOURCE]->(preserved)
+        CREATE (finding)-[:AFFECTS]->(preserved)
+        """,
+    )
+
+    run_analysis_job(
+        "cve_deprecated_feed_cleanup.json",
+        neo4j_session,
+        {"UPDATE_TAG": TEST_UPDATE_TAG},
+    )
+
+    assert check_nodes(neo4j_session, "CVE", ["cve_id"]) == {("CVE-2024-0002",)}
 
 
 @patch.object(

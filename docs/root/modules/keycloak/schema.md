@@ -144,7 +144,7 @@ Represents a Keycloak realm, which is a security domain where users, groups, rol
 #### Relationships
 - `KeycloakRealm` is the parent container for other Keycloak entities
     ```
-    (:KeycloakRealm)<-[:RESOURCE]-(
+    (:KeycloakRealm)-[:RESOURCE]->(
         :KeycloakClient,
         :KeycloakGroup,
         :KeycloakUser,
@@ -463,8 +463,8 @@ Represents a Keycloak organization, which is a logical grouping of users, domain
     ```
 - `KeycloakOrganization` can have managed and unmanaged user members
     ```
-    (:KeycloakUser)<-[:MANAGED_MEMBER_OF]-(:KeycloakOrganization)
-    (:KeycloakUser)<-[:UNMANAGED_MEMBER_OF]-(:KeycloakOrganization)
+    (:KeycloakUser)-[:MANAGED_MEMBER_OF]->(:KeycloakOrganization)
+    (:KeycloakUser)-[:UNMANAGED_MEMBER_OF]->(:KeycloakOrganization)
     ```
 - `KeycloakOrganization` can enforce identity providers
     ```

@@ -50,6 +50,9 @@ class CloudRunServiceToServiceAccountRelProperties(CartographyRelProperties):
 
 
 @dataclass(frozen=True)
+# DEPRECATED: replaced by the canonical (:ComputeService)-[:RUNS_AS]->(:ServiceAccount)
+# edge (CloudRunServiceToServiceAccountRunsAsRel). Kept for backward
+# compatibility, will be removed in v1.0.0.
 class CloudRunServiceToServiceAccountRel(CartographyRelSchema):
     target_node_label: str = "GCPServiceAccount"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
@@ -59,6 +62,25 @@ class CloudRunServiceToServiceAccountRel(CartographyRelSchema):
     rel_label: str = "USES_SERVICE_ACCOUNT"
     properties: CloudRunServiceToServiceAccountRelProperties = (
         CloudRunServiceToServiceAccountRelProperties()
+    )
+
+
+@dataclass(frozen=True)
+class CloudRunServiceToServiceAccountRunsAsRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+# Canonical ontology edge: (:ComputeService)-[:RUNS_AS]->(:ServiceAccount)
+class CloudRunServiceToServiceAccountRunsAsRel(CartographyRelSchema):
+    target_node_label: str = "GCPServiceAccount"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"email": PropertyRef("service_account_email")},
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "RUNS_AS"
+    properties: CloudRunServiceToServiceAccountRunsAsRelProperties = (
+        CloudRunServiceToServiceAccountRunsAsRelProperties()
     )
 
 
@@ -73,5 +95,6 @@ class GCPCloudRunServiceSchema(CartographyNodeSchema):
     other_relationships: OtherRelationships = OtherRelationships(
         [
             CloudRunServiceToServiceAccountRel(),
+            CloudRunServiceToServiceAccountRunsAsRel(),
         ],
     )

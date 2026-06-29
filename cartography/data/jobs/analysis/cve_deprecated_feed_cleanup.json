@@ -1,0 +1,11 @@
+{
+  "name": "CVE deprecated feed cleanup",
+  "statements": [
+    {
+      "__comment__": "DEPRECATED: remove plain CVE feed nodes from the deprecated cartography:cve module; delete this migration in v1.0.0.",
+      "query": "MATCH (c:CVE) WHERE labels(c) = ['CVE'] AND c._module_name = 'cartography:cve' AND NOT EXISTS { MATCH (c)-[r]-() WHERE NOT type(r) IN ['RESOURCE', 'ENRICHES'] } WITH c LIMIT $LIMIT_SIZE OPTIONAL MATCH (c)-[r:RESOURCE|ENRICHES]-() DELETE r WITH DISTINCT c DELETE c RETURN count(c) AS TotalCompleted",
+      "iterative": true,
+      "iterationsize": 10000
+    }
+  ]
+}
