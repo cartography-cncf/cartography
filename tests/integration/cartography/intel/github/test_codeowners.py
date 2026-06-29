@@ -111,6 +111,17 @@ def _run_codeowners_sync(
         _repository_rows(),
         _manifest_rows() if manifests is None else manifests,
         dependency_manifests_cleanup_safe=dependency_manifests_cleanup_safe,
+        github_users=[
+            {"login": "js-owner", "url": "https://github.com/js-owner"},
+            {"login": "MixedCaseUser", "url": "https://github.com/MixedCaseUser"},
+        ],
+        github_teams=[
+            {
+                "org_login": TEST_GITHUB_ORG,
+                "name": "security",
+                "url": f"https://github.com/orgs/{TEST_GITHUB_ORG}/teams/security",
+            },
+        ],
     )
 
 
@@ -121,8 +132,8 @@ def test_sync_codeowners_loads_rules_owner_relationships_and_manifest_matches(
     _seed_codeowners_prerequisites(neo4j_session)
     content = """
     * @global-owner
-    /package.json @codeownercorp/security
-    src/*.js @js-owner @MixedCaseUser
+    /package.json @CodeOwnerCorp/Security
+    src/*.js @JS-Owner @mixedcaseuser
     docs/ docs@example.com
     """
 

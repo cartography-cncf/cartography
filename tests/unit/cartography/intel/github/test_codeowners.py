@@ -3,6 +3,7 @@ from unittest.mock import patch
 from requests import Response
 from requests.exceptions import HTTPError
 
+from cartography.intel.github.codeowners import build_codeowner_target_lookups
 from cartography.intel.github.codeowners import build_manifest_codeowner_matches
 from cartography.intel.github.codeowners import codeowners_pattern_matches
 from cartography.intel.github.codeowners import CodeOwnersFileFetchResult
@@ -54,9 +55,19 @@ def test_parse_codeowners_content_keeps_supported_rules_and_owner_tokens() -> No
     assert rules[2]["owner_emails"] == ["docs@example.com"]
 
 
-def test_parse_codeowners_content_preserves_owner_url_casing_for_matchlinks() -> None:
+def test_parse_codeowners_content_resolves_canonical_owner_urls() -> None:
     # Arrange
-    content = "* @MixedCaseUser @MixedCaseOrg/Security-Team"
+    content = "* @mixedcaseuser @mixedcaseorg/Security-Team"
+    owner_targets = build_codeowner_target_lookups(
+        [{"login": "MixedCaseUser", "url": "https://github.com/MixedCaseUser"}],
+        [
+            {
+                "org_login": "MixedCaseOrg",
+                "name": "security-team",
+                "url": "https://github.com/orgs/MixedCaseOrg/teams/security-team",
+            },
+        ],
+    )
 
     # Act
     rules = parse_codeowners_content(
@@ -66,6 +77,7 @@ def test_parse_codeowners_content_preserves_owner_url_casing_for_matchlinks() ->
         "main",
         "CODEOWNERS",
         "https://github.com/MixedCaseOrg",
+        owner_targets,
     )
 
     # Assert
@@ -75,6 +87,32 @@ def test_parse_codeowners_content_preserves_owner_url_casing_for_matchlinks() ->
     assert rules[0]["team_ids"] == [
         "https://github.com/orgs/MixedCaseOrg/teams/security-team",
     ]
+
+
+def test_parse_codeowners_content_preserves_quotes_as_pattern_characters() -> None:
+    # Arrange
+    content = """
+    docs/space\\ file.txt @space-owner
+    docs/"quoted".txt @quote-owner
+    """
+
+    # Act
+    rules = parse_codeowners_content(
+        content,
+        REPO_URL,
+        "sample_repo",
+        "main",
+        "CODEOWNERS",
+        ORG_URL,
+    )
+
+    # Assert
+    assert [rule["pattern"] for rule in rules] == [
+        "docs/space file.txt",
+        'docs/"quoted".txt',
+    ]
+    assert rules[0]["owner_logins"] == ["space-owner"]
+    assert rules[1]["owner_logins"] == ["quote-owner"]
 
 
 def test_codeowners_pattern_matching_uses_github_precedence_examples() -> None:

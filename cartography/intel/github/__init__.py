@@ -114,7 +114,7 @@ def start_github_ingestion(
         # credential is a GitHubCredential (duck-typed as str by _resolve_token in util.py)
         token: Any = credential
 
-        cartography.intel.github.users.sync(
+        github_users = cartography.intel.github.users.sync(
             neo4j_session,
             common_job_parameters,
             token,
@@ -142,7 +142,7 @@ def start_github_ingestion(
             api_url,
             org_name,
         )
-        cartography.intel.github.teams.sync_github_teams(
+        github_teams = cartography.intel.github.teams.sync_github_teams(
             neo4j_session,
             common_job_parameters,
             token,
@@ -158,6 +158,8 @@ def start_github_ingestion(
             repo_sync_result.repos,
             repo_sync_result.manifests,
             dependency_manifests_cleanup_safe=repo_sync_result.manifests_cleanup_safe,
+            github_users=github_users,
+            github_teams=github_teams,
         )
 
         # Sync GitHub Actions (workflows, secrets, variables, environments)

@@ -2490,6 +2490,11 @@ def load(
         common_job_parameters["UPDATE_TAG"],
         repo_data["python_requirements"],
     )
+    load_github_dependencies(
+        neo4j_session,
+        common_job_parameters["UPDATE_TAG"],
+        repo_data["dependencies"],
+    )
     owner_org_id = next(
         (
             repo["owner_org_id"]
@@ -2505,12 +2510,6 @@ def load(
             repo_data["manifests"],
             owner_org_id,
         )
-    load_github_dependencies(
-        neo4j_session,
-        common_job_parameters["UPDATE_TAG"],
-        repo_data["dependencies"],
-    )
-    if owner_org_id is not None:
         load_branch_protection_rules(
             neo4j_session,
             common_job_parameters["UPDATE_TAG"],

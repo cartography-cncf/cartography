@@ -244,7 +244,7 @@ def sync(
     github_api_key: str,
     github_url: str,
     organization: str,
-) -> None:
+) -> list[dict[str, Any]]:
     logger.info("Syncing GitHub users")
     user_data, org_data = get_users(github_api_key, github_url, organization)
     owners_data, org_data = get_enterprise_owners(
@@ -286,3 +286,4 @@ def sync(
         update_tag=common_job_parameters["UPDATE_TAG"],
         stat_handler=stat_handler,
     )
+    return processed_affiliated_user_data + processed_unaffiliated_user_data

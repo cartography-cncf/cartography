@@ -1,7 +1,6 @@
 import hashlib
 import logging
 import re
-import shlex
 from collections import defaultdict
 from dataclasses import dataclass
 from typing import Any
@@ -35,6 +34,12 @@ class CodeOwnersFileFetchResult:
     source_path: str | None
     content: str | None
     cleanup_safe: bool
+
+
+@dataclass(frozen=True)
+class CodeOwnerTargetLookups:
+    user_ids_by_login: dict[str, str]
+    team_ids_by_org_slug: dict[tuple[str, str], str]
 
 
 def _repo_parts_from_url(repo_url: str) -> tuple[str, str] | None:
@@ -109,10 +114,36 @@ def _split_codeowners_line(line: str) -> list[str] | None:
     without_comment = _strip_inline_comment(line).strip()
     if not without_comment:
         return None
-    try:
-        return shlex.split(without_comment, comments=False, posix=True)
-    except ValueError:
-        return []
+
+    tokens: list[str] = []
+    token_chars: list[str] = []
+    escaping = False
+    for char in without_comment:
+        if escaping:
+            if char.isspace():
+                token_chars.append(char)
+            else:
+                token_chars.extend(("\\", char))
+            escaping = False
+            continue
+
+        if char == "\\":
+            escaping = True
+            continue
+
+        if char.isspace():
+            if token_chars:
+                tokens.append("".join(token_chars))
+                token_chars = []
+            continue
+
+        token_chars.append(char)
+
+    if escaping:
+        token_chars.append("\\")
+    if token_chars:
+        tokens.append("".join(token_chars))
+    return tokens
 
 
 def _is_unsupported_pattern(pattern: str) -> bool:
@@ -122,6 +153,7 @@ def _is_unsupported_pattern(pattern: str) -> bool:
 def _normalize_owner_tokens(
     owner_tokens: list[str],
     org_url: str,
+    owner_targets: CodeOwnerTargetLookups | None = None,
 ) -> dict[str, list[str]]:
     owner_logins: list[str] = []
     owner_team_slugs: list[str] = []
@@ -140,14 +172,25 @@ def _normalize_owner_tokens(
                 if owner_org and team_slug:
                     normalized_slug = team_slug.lower()
                     owner_team_slugs.append(normalized_slug)
-                    team_ids.append(
-                        _github_team_url(org_url, owner_org, normalized_slug)
-                    )
+                    team_id = _github_team_url(org_url, owner_org, normalized_slug)
+                    if owner_targets:
+                        team_id = owner_targets.team_ids_by_org_slug.get(
+                            (owner_org.lower(), normalized_slug),
+                            team_id,
+                        )
+                    team_ids.append(team_id)
                 else:
                     unresolved_owners.append(token)
             elif owner:
-                owner_logins.append(owner.lower())
-                user_ids.append(_github_user_url(org_url, owner))
+                normalized_login = owner.lower()
+                owner_logins.append(normalized_login)
+                user_id = _github_user_url(org_url, owner)
+                if owner_targets:
+                    user_id = owner_targets.user_ids_by_login.get(
+                        normalized_login,
+                        user_id,
+                    )
+                user_ids.append(user_id)
             else:
                 unresolved_owners.append(token)
         elif EMAIL_RE.match(token):
@@ -185,6 +228,7 @@ def parse_codeowners_content(
     default_branch: str | None,
     source_path: str,
     org_url: str,
+    owner_targets: CodeOwnerTargetLookups | None = None,
 ) -> list[dict[str, Any]]:
     rules: list[dict[str, Any]] = []
     for line_number, line in enumerate(content.splitlines(), start=1):
@@ -220,7 +264,7 @@ def parse_codeowners_content(
             )
             continue
 
-        normalized_owners = _normalize_owner_tokens(owners, org_url)
+        normalized_owners = _normalize_owner_tokens(owners, org_url, owner_targets)
         rules.append(
             {
                 "id": _rule_id(repo_url, source_path, line_number, pattern, owners),
@@ -235,6 +279,31 @@ def parse_codeowners_content(
             }
         )
     return rules
+
+
+def build_codeowner_target_lookups(
+    github_users: list[dict[str, Any]] | None,
+    github_teams: list[dict[str, Any]] | None,
+) -> CodeOwnerTargetLookups:
+    user_ids_by_login: dict[str, str] = {}
+    for user in github_users or []:
+        login = user.get("login")
+        url = user.get("url")
+        if login and url:
+            user_ids_by_login[login.lower()] = url
+
+    team_ids_by_org_slug: dict[tuple[str, str], str] = {}
+    for team in github_teams or []:
+        org_login = team.get("org_login")
+        slug = team.get("name") or team.get("slug")
+        url = team.get("url")
+        if org_login and slug and url:
+            team_ids_by_org_slug[(org_login.lower(), slug.lower())] = url
+
+    return CodeOwnerTargetLookups(
+        user_ids_by_login=user_ids_by_login,
+        team_ids_by_org_slug=team_ids_by_org_slug,
+    )
 
 
 def _glob_fragment_to_regex(pattern: str) -> str:
@@ -488,6 +557,8 @@ def sync(
     dependency_manifests: list[dict[str, Any]],
     *,
     dependency_manifests_cleanup_safe: bool = True,
+    github_users: list[dict[str, Any]] | None = None,
+    github_teams: list[dict[str, Any]] | None = None,
 ) -> None:
     update_tag = common_job_parameters["UPDATE_TAG"]
     owner_org_id = github_org_url(github_url, organization)
@@ -500,6 +571,7 @@ def sync(
 
     all_rules: list[dict[str, Any]] = []
     cleanup_safe = True
+    owner_targets = build_codeowner_target_lookups(github_users, github_teams)
     for repo in repos:
         fetch_result = get_effective_codeowners_file(
             github_api_key,
@@ -521,6 +593,7 @@ def sync(
                 repo.get("default_branch"),
                 fetch_result.source_path,
                 owner_org_id,
+                owner_targets,
             )
         )
 

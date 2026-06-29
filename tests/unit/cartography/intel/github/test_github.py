@@ -98,7 +98,29 @@ def test_start_github_ingestion_defers_global_cleanup_until_after_all_orgs(
             manifests_cleanup_safe=False,
         ),
     ]
+    github_users_by_org = [
+        [{"login": "owner-1", "url": "https://github.com/owner-1"}],
+        [{"login": "owner-2", "url": "https://github.com/owner-2"}],
+    ]
+    github_teams_by_org = [
+        [
+            {
+                "org_login": "org-1",
+                "name": "team-1",
+                "url": "https://github.com/orgs/org-1/teams/team-1",
+            },
+        ],
+        [
+            {
+                "org_login": "org-2",
+                "name": "team-2",
+                "url": "https://github.com/orgs/org-2/teams/team-2",
+            },
+        ],
+    ]
+    mock_users_sync.side_effect = github_users_by_org
     mock_repos_sync.side_effect = repo_sync_results
+    mock_teams_sync.side_effect = github_teams_by_org
 
     from cartography.intel.github import start_github_ingestion
 
@@ -120,6 +142,9 @@ def test_start_github_ingestion_defers_global_cleanup_until_after_all_orgs(
         ]
         is True
     )
+    first_codeowners_kwargs = mock_codeowners_sync.call_args_list[0].kwargs
+    assert first_codeowners_kwargs["github_users"] == github_users_by_org[0]
+    assert first_codeowners_kwargs["github_teams"] == github_teams_by_org[0]
     assert mock_codeowners_sync.call_args_list[1].args[-2:] == (
         repo_sync_results[1].repos,
         repo_sync_results[1].manifests,
@@ -130,6 +155,9 @@ def test_start_github_ingestion_defers_global_cleanup_until_after_all_orgs(
         ]
         is False
     )
+    second_codeowners_kwargs = mock_codeowners_sync.call_args_list[1].kwargs
+    assert second_codeowners_kwargs["github_users"] == github_users_by_org[1]
+    assert second_codeowners_kwargs["github_teams"] == github_teams_by_org[1]
     mock_users_cleanup.assert_called_once_with(neo4j_session, {"UPDATE_TAG": 123})
     mock_cleanup_global_resources.assert_called_once_with(
         neo4j_session,
@@ -205,6 +233,16 @@ def test_start_github_ingestion_can_skip_unscoped_cleanup(
         manifests_cleanup_safe=True,
     )
     mock_repos_sync.return_value = repo_sync_result
+    github_users = [{"login": "owner-1", "url": "https://github.com/owner-1"}]
+    github_teams = [
+        {
+            "org_login": "org-1",
+            "name": "team-1",
+            "url": "https://github.com/orgs/org-1/teams/team-1",
+        },
+    ]
+    mock_users_sync.return_value = github_users
+    mock_teams_sync.return_value = github_teams
 
     from cartography.intel.github import start_github_ingestion
 
@@ -225,6 +263,8 @@ def test_start_github_ingestion_can_skip_unscoped_cleanup(
         mock_codeowners_sync.call_args.kwargs["dependency_manifests_cleanup_safe"]
         is True
     )
+    assert mock_codeowners_sync.call_args.kwargs["github_users"] == github_users
+    assert mock_codeowners_sync.call_args.kwargs["github_teams"] == github_teams
     mock_cleanup_unscoped_github_resources.assert_not_called()
     assert mock_supply_chain_sync.call_count == 0
 
