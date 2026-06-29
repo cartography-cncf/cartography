@@ -18,6 +18,7 @@ from cartography.models.core.relationships import TargetNodeMatcher
 class TenableAssetAWSNodeProperties(CartographyNodeProperties):
     id: PropertyRef = PropertyRef("id")
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    ec2_instance_id: PropertyRef = PropertyRef("ec2_instance_id", extra_index=True)
     ec2_instance_ami_id: PropertyRef = PropertyRef("ec2_instance_ami_id")
     owner_id: PropertyRef = PropertyRef("owner_id")
     availability_zone: PropertyRef = PropertyRef("availability_zone")
@@ -65,6 +66,7 @@ class TenableAssetAWSSchema(CartographyNodeSchema):
 class TenableAssetAzureNodeProperties(CartographyNodeProperties):
     id: PropertyRef = PropertyRef("id")
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    vm_id: PropertyRef = PropertyRef("vm_id", extra_index=True)
     resource_id: PropertyRef = PropertyRef("resource_id", extra_index=True)
 
 
@@ -105,6 +107,7 @@ class TenableAssetAzureSchema(CartographyNodeSchema):
 class TenableAssetGCPNodeProperties(CartographyNodeProperties):
     id: PropertyRef = PropertyRef("id")
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    instance_id: PropertyRef = PropertyRef("instance_id", extra_index=True)
     project_id: PropertyRef = PropertyRef("project_id")
     zone: PropertyRef = PropertyRef("zone")
 

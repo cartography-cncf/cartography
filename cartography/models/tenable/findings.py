@@ -17,6 +17,7 @@ from cartography.models.core.relationships import TargetNodeMatcher
 class TenableFindingNodeProperties(CartographyNodeProperties):
     id: PropertyRef = PropertyRef("id")
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    finding_id: PropertyRef = PropertyRef("finding_id", extra_index=True)
     asset_uuid: PropertyRef = PropertyRef("asset_uuid", extra_index=True)
     severity: PropertyRef = PropertyRef("severity")
     severity_id: PropertyRef = PropertyRef("severity_id")
@@ -67,7 +68,7 @@ class TenableFindingToAssetRelProperties(CartographyRelProperties):
 class TenableFindingToAssetRel(CartographyRelSchema):
     target_node_label: str = "TenableAsset"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {"id": PropertyRef("asset_uuid")},
+        {"id": PropertyRef("asset_id")},
     )
     direction: LinkDirection = LinkDirection.OUTWARD
     rel_label: str = "AFFECTS"
@@ -86,7 +87,7 @@ class TenableFindingToPluginRelProperties(CartographyRelProperties):
 class TenableFindingToPluginRel(CartographyRelSchema):
     target_node_label: str = "TenablePlugin"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {"id": PropertyRef("plugin_id")},
+        {"id": PropertyRef("plugin_node_id")},
     )
     direction: LinkDirection = LinkDirection.OUTWARD
     rel_label: str = "DETECTED_BY"
@@ -105,7 +106,7 @@ class TenableFindingToScanRelProperties(CartographyRelProperties):
 class TenableFindingToScanRel(CartographyRelSchema):
     target_node_label: str = "TenableScan"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {"id": PropertyRef("scan_uuid")},
+        {"id": PropertyRef("scan_node_id")},
     )
     direction: LinkDirection = LinkDirection.OUTWARD
     rel_label: str = "PART_OF_SCAN"

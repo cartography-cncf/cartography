@@ -1,18 +1,27 @@
 from tests.data.tenable.assets import ASSET_ID_1
 from tests.data.tenable.assets import ASSET_ID_2
+from tests.data.tenable.assets import tenable_id
 
 TENABLE_TENANT_ID = "cloud.tenable.com"
 
 FINDING_ID_1 = "02716af9-1adb-4057-b4d5-dcb0c36b290c"
 FINDING_ID_2 = "12ab3af9-1adb-4057-b4d5-dcb0c36b294d"
 FINDING_ID_3 = "33333333-3333-3333-3333-333333333333"
+SCOPED_FINDING_ID_1 = tenable_id(FINDING_ID_1)
+SCOPED_FINDING_ID_2 = tenable_id(FINDING_ID_2)
+SCOPED_FINDING_ID_3 = tenable_id(FINDING_ID_3)
 
 PLUGIN_ID_1 = 156641  # SharePoint — has CVEs
 PLUGIN_ID_2 = 50344  # Missing CSP header — no CVEs
 PLUGIN_ID_3 = 19506  # Nessus scan info — no CVEs
+SCOPED_PLUGIN_ID_1 = tenable_id(PLUGIN_ID_1)
+SCOPED_PLUGIN_ID_2 = tenable_id(PLUGIN_ID_2)
+SCOPED_PLUGIN_ID_3 = tenable_id(PLUGIN_ID_3)
 
 SCAN_UUID_1 = "270b911b-1fe6-4760-8c49-88d315cb764e"
 SCAN_UUID_2 = "e86252a3-8dc0-43b6-8ddd-afb219d040ed"
+SCOPED_SCAN_UUID_1 = tenable_id(SCAN_UUID_1)
+SCOPED_SCAN_UUID_2 = tenable_id(SCAN_UUID_2)
 
 FINDINGS_DATA = [
     {

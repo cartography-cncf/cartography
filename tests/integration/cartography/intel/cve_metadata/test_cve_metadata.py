@@ -67,6 +67,10 @@ def test_get_cve_ids_from_graph(neo4j_session):
         })
         CREATE (finding:Finding {id: 'finding'})
         CREATE (finding)-[:AFFECTS]->(preserved)
+        CREATE (:CVE:TenableFinding {
+            id: 'tenable-finding',
+            cve_list: ['CVE-2024-0004', 'NOT-A-CVE']
+        })
         """,
     )
     cve_ids = get_cve_ids_from_graph(neo4j_session)
@@ -74,6 +78,7 @@ def test_get_cve_ids_from_graph(neo4j_session):
         "CVE-2023-41782",
         "CVE-2024-0002",
         "CVE-2024-0003",
+        "CVE-2024-0004",
         "CVE-2024-22075",
     }
 
@@ -123,6 +128,16 @@ def test_deprecated_cve_feed_cleanup(neo4j_session):
 def test_sync(mock_nvd, mock_epss, neo4j_session):
     # Arrange
     _create_cve_nodes(neo4j_session)
+    neo4j_session.run(
+        """
+        CREATE (:CVE:TenableFinding {
+            id: 'tenable-finding',
+            cve_id: 'CVE-2023-41782',
+            cve_list: ['CVE-2023-41782', 'CVE-2024-22075'],
+            has_cve: 'true'
+        })
+        """,
+    )
     config = Config(
         neo4j_uri="bolt://localhost:7687",
         update_tag=TEST_UPDATE_TAG,
@@ -173,17 +188,27 @@ def test_sync(mock_nvd, mock_epss, neo4j_session):
     }
 
     # Assert - ENRICHES relationship to CVE
-    assert check_rels(
+    actual_enriches_rels = check_rels(
         neo4j_session,
         "CVEMetadata",
         "id",
         "CVE",
         "cve_id",
         "ENRICHES",
-    ) == {
+    )
+    assert {
         ("CVE-2023-41782", "CVE-2023-41782"),
         ("CVE-2024-22075", "CVE-2024-22075"),
-    }
+    } <= actual_enriches_rels
+
+    # Assert - list-valued CVE nodes receive metadata for every CVE in cve_list
+    record = neo4j_session.run(
+        """
+        MATCH (metadata:CVEMetadata)-[:ENRICHES]->(:CVE {id: 'tenable-finding'})
+        RETURN collect(metadata.id) AS metadata_ids
+        """,
+    ).single()
+    assert set(record["metadata_ids"]) == {"CVE-2023-41782", "CVE-2024-22075"}
 
 
 @patch.object(

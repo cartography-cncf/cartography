@@ -9,6 +9,7 @@ from urllib3 import Retry
 
 from cartography.client.core.tx import load
 from cartography.client.core.tx import read_list_of_values_tx
+from cartography.client.core.tx import run_write_query
 from cartography.config import Config
 from cartography.graph.job import GraphJob
 from cartography.intel.cve_metadata import epss
@@ -49,7 +50,11 @@ def get_cve_ids_from_graph(neo4j_session: neo4j.Session) -> list[str]:
     """Query Neo4j for all CVE node IDs present in the graph."""
     query = """
     MATCH (c:CVE)
-    WHERE c.cve_id STARTS WITH "CVE"
+    WITH c, (
+      CASE WHEN c.cve_id STARTS WITH "CVE" THEN [c.cve_id] ELSE [] END
+      + [cve_id IN coalesce(c.cve_list, []) WHERE cve_id STARTS WITH "CVE"]
+    ) AS cve_ids
+    WHERE size(cve_ids) > 0
       AND NOT (
         labels(c) = ['CVE']
         AND coalesce(c._module_name, '') = 'cartography:cve'
@@ -58,7 +63,8 @@ def get_cve_ids_from_graph(neo4j_session: neo4j.Session) -> list[str]:
           WHERE NOT type(r) IN ['RESOURCE', 'ENRICHES']
         }
       )
-    RETURN DISTINCT c.cve_id
+    UNWIND cve_ids AS cve_id
+    RETURN DISTINCT cve_id
     """
     return [str(cve_id) for cve_id in read_list_of_values_tx(neo4j_session, query)]
 
@@ -99,6 +105,28 @@ def load_cve_metadata(
         data,
         lastupdated=update_tag,
         FEED_ID=CVE_METADATA_FEED_ID,
+    )
+
+
+@timeit
+def link_cve_metadata_to_cve_lists(
+    neo4j_session: neo4j.Session,
+    update_tag: int,
+) -> None:
+    """Attach CVEMetadata to CVE-labelled nodes that store multiple CVE IDs."""
+    run_write_query(
+        neo4j_session,
+        """
+        MATCH (cve:CVE)
+        UNWIND coalesce(cve.cve_list, []) AS cve_id
+        WITH cve, cve_id
+        WHERE cve_id STARTS WITH "CVE"
+        MATCH (metadata:CVEMetadata {id: cve_id})
+        MERGE (metadata)-[r:ENRICHES]->(cve)
+        ON CREATE SET r.firstseen = timestamp()
+        SET r.lastupdated = $UPDATE_TAG
+        """,
+        UPDATE_TAG=update_tag,
     )
 
 
@@ -183,6 +211,8 @@ def start_cve_metadata_ingestion(
                         )
 
                 load_cve_metadata(neo4j_session, cves, config.update_tag)
+
+    link_cve_metadata_to_cve_lists(neo4j_session, config.update_tag)
 
     # Step 4: Cleanup stale CVEMetadata nodes from previous syncs
     GraphJob.from_node_schema(CVEMetadataSchema(), common_job_parameters).run(

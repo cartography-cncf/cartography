@@ -15,6 +15,7 @@ from cartography.models.core.relationships import TargetNodeMatcher
 class TenableAssetNodeProperties(CartographyNodeProperties):
     id: PropertyRef = PropertyRef("id")
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    asset_uuid: PropertyRef = PropertyRef("asset_uuid", extra_index=True)
     # Core flags
     has_agent: PropertyRef = PropertyRef("has_agent")
     has_plugin_results: PropertyRef = PropertyRef("has_plugin_results")
@@ -87,7 +88,7 @@ class TenableAssetToNetworkRelProperties(CartographyRelProperties):
 class TenableAssetToNetworkRel(CartographyRelSchema):
     target_node_label: str = "TenableNetwork"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {"id": PropertyRef("network_id")},
+        {"id": PropertyRef("network_node_id")},
     )
     direction: LinkDirection = LinkDirection.OUTWARD
     rel_label: str = "MEMBER_OF_NETWORK"
@@ -106,7 +107,7 @@ class TenableAssetToAWSRelProperties(CartographyRelProperties):
 class TenableAssetToAWSRel(CartographyRelSchema):
     target_node_label: str = "TenableAssetAWS"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {"id": PropertyRef("aws_ec2_instance_id")},
+        {"id": PropertyRef("aws_node_id")},
     )
     direction: LinkDirection = LinkDirection.OUTWARD
     rel_label: str = "HAS_AWS_INFO"
@@ -123,7 +124,7 @@ class TenableAssetToAzureRelProperties(CartographyRelProperties):
 class TenableAssetToAzureRel(CartographyRelSchema):
     target_node_label: str = "TenableAssetAzure"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {"id": PropertyRef("azure_vm_id")},
+        {"id": PropertyRef("azure_node_id")},
     )
     direction: LinkDirection = LinkDirection.OUTWARD
     rel_label: str = "HAS_AZURE_INFO"
@@ -140,7 +141,7 @@ class TenableAssetToGCPRelProperties(CartographyRelProperties):
 class TenableAssetToGCPRel(CartographyRelSchema):
     target_node_label: str = "TenableAssetGCP"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {"id": PropertyRef("gcp_instance_id")},
+        {"id": PropertyRef("gcp_node_id")},
     )
     direction: LinkDirection = LinkDirection.OUTWARD
     rel_label: str = "HAS_GCP_INFO"

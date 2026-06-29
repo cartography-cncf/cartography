@@ -2,6 +2,9 @@ from cartography.intel.tenable.findings import transform
 from cartography.intel.tenable.findings import transform_plugins
 from cartography.intel.tenable.findings import transform_scans
 from tests.data.tenable.assets import ASSET_ID_1
+from tests.data.tenable.assets import SCOPED_ASSET_ID_1
+from tests.data.tenable.assets import tenable_id
+from tests.data.tenable.assets import TENABLE_TENANT_ID
 from tests.data.tenable.findings import FINDING_ID_1
 from tests.data.tenable.findings import FINDING_ID_2
 from tests.data.tenable.findings import FINDING_ID_3
@@ -11,6 +14,9 @@ from tests.data.tenable.findings import PLUGIN_ID_2
 from tests.data.tenable.findings import PLUGIN_ID_3
 from tests.data.tenable.findings import SCAN_UUID_1
 from tests.data.tenable.findings import SCAN_UUID_2
+from tests.data.tenable.findings import SCOPED_FINDING_ID_1
+from tests.data.tenable.findings import SCOPED_PLUGIN_ID_1
+from tests.data.tenable.findings import SCOPED_SCAN_UUID_1
 
 # ---------------------------------------------------------------------------
 # transform()
@@ -18,14 +24,18 @@ from tests.data.tenable.findings import SCAN_UUID_2
 
 
 def test_transform_maps_all_fields():
-    result = transform(FINDINGS_DATA)
+    result = transform(FINDINGS_DATA, TENABLE_TENANT_ID)
 
     assert len(result) == 3
 
-    f1 = next(r for r in result if r["id"] == FINDING_ID_1)
+    f1 = next(r for r in result if r["id"] == SCOPED_FINDING_ID_1)
+    assert f1["finding_id"] == FINDING_ID_1
     assert f1["asset_uuid"] == ASSET_ID_1
+    assert f1["asset_id"] == SCOPED_ASSET_ID_1
     assert f1["plugin_id"] == PLUGIN_ID_1
+    assert f1["plugin_node_id"] == SCOPED_PLUGIN_ID_1
     assert f1["scan_uuid"] == SCAN_UUID_1
+    assert f1["scan_node_id"] == SCOPED_SCAN_UUID_1
     assert f1["severity"] == "high"
     assert f1["severity_id"] == 3
     assert f1["severity_default_id"] == 3
@@ -56,16 +66,16 @@ def test_transform_maps_all_fields():
 
 
 def test_transform_cve_fields_no_cves():
-    result = transform(FINDINGS_DATA)
-    f2 = next(r for r in result if r["id"] == FINDING_ID_2)
+    result = transform(FINDINGS_DATA, TENABLE_TENANT_ID)
+    f2 = next(r for r in result if r["finding_id"] == FINDING_ID_2)
     assert f2["cve_id"] is None
     assert f2["cve_list"] == []
     assert f2["has_cve"] == "false"
 
 
 def test_transform_port_zero_and_null_service():
-    result = transform(FINDINGS_DATA)
-    f3 = next(r for r in result if r["id"] == FINDING_ID_3)
+    result = transform(FINDINGS_DATA, TENABLE_TENANT_ID)
+    f3 = next(r for r in result if r["finding_id"] == FINDING_ID_3)
     assert f3["port"] == 0
     assert f3["protocol"] == "TCP"
     assert f3["service"] is None
@@ -76,9 +86,10 @@ def test_transform_skips_missing_asset_uuid():
         {"finding_id": "f1", "asset": {}, "plugin": {"id": 1}},
         {"finding_id": "f2", "asset": {"uuid": "a-uuid"}, "plugin": {"id": 2}},
     ]
-    result = transform(raw)
+    result = transform(raw, TENABLE_TENANT_ID)
     assert len(result) == 1
-    assert result[0]["id"] == "f2"
+    assert result[0]["id"] == tenable_id("f2")
+    assert result[0]["finding_id"] == "f2"
 
 
 def test_transform_skips_missing_finding_id():
@@ -86,9 +97,10 @@ def test_transform_skips_missing_finding_id():
         {"asset": {"uuid": "a-uuid"}, "plugin": {"id": 1}},
         {"finding_id": "f2", "asset": {"uuid": "a-uuid"}, "plugin": {"id": 2}},
     ]
-    result = transform(raw)
+    result = transform(raw, TENABLE_TENANT_ID)
     assert len(result) == 1
-    assert result[0]["id"] == "f2"
+    assert result[0]["id"] == tenable_id("f2")
+    assert result[0]["finding_id"] == "f2"
 
 
 def test_transform_skips_missing_plugin_id():
@@ -96,21 +108,23 @@ def test_transform_skips_missing_plugin_id():
         {"finding_id": "f1", "asset": {"uuid": "a-uuid"}, "plugin": {}},
         {"finding_id": "f2", "asset": {"uuid": "a-uuid"}, "plugin": {"id": 99}},
     ]
-    result = transform(raw)
+    result = transform(raw, TENABLE_TENANT_ID)
     assert len(result) == 1
-    assert result[0]["id"] == "f2"
+    assert result[0]["id"] == tenable_id("f2")
+    assert result[0]["finding_id"] == "f2"
 
 
 def test_transform_null_scan_uuid_allowed():
     """A finding with no scan block should still be included; scan_uuid will be None."""
     raw = [{"finding_id": "f1", "asset": {"uuid": "a-uuid"}, "plugin": {"id": 1}}]
-    result = transform(raw)
+    result = transform(raw, TENABLE_TENANT_ID)
     assert len(result) == 1
     assert result[0]["scan_uuid"] is None
+    assert result[0]["scan_node_id"] is None
 
 
 def test_transform_empty_input():
-    assert transform([]) == []
+    assert transform([], TENABLE_TENANT_ID) == []
 
 
 # ---------------------------------------------------------------------------
@@ -119,10 +133,11 @@ def test_transform_empty_input():
 
 
 def test_transform_plugins_basic():
-    result = transform_plugins(FINDINGS_DATA)
+    result = transform_plugins(FINDINGS_DATA, TENABLE_TENANT_ID)
     assert len(result) == 3
 
-    p1 = next(r for r in result if r["id"] == PLUGIN_ID_1)
+    p1 = next(r for r in result if r["id"] == SCOPED_PLUGIN_ID_1)
+    assert p1["plugin_id"] == PLUGIN_ID_1
     assert (
         p1["name"]
         == "Security Updates for Microsoft SharePoint Server 2016 (January 2022)"
@@ -136,14 +151,14 @@ def test_transform_plugins_basic():
 
 
 def test_transform_plugins_vpr_none_when_missing():
-    result = transform_plugins(FINDINGS_DATA)
-    p2 = next(r for r in result if r["id"] == PLUGIN_ID_2)
+    result = transform_plugins(FINDINGS_DATA, TENABLE_TENANT_ID)
+    p2 = next(r for r in result if r["plugin_id"] == PLUGIN_ID_2)
     assert p2["vpr_score"] is None
 
 
 def test_transform_plugins_empty_cve_list():
-    result = transform_plugins(FINDINGS_DATA)
-    p3 = next(r for r in result if r["id"] == PLUGIN_ID_3)
+    result = transform_plugins(FINDINGS_DATA, TENABLE_TENANT_ID)
+    p3 = next(r for r in result if r["plugin_id"] == PLUGIN_ID_3)
     assert p3["cve_list"] == []
 
 
@@ -165,9 +180,10 @@ def test_transform_plugins_deduplicates():
             "plugin": {"id": 99, "name": "Plugin B"},
         },
     ]
-    result = transform_plugins(raw)
+    result = transform_plugins(raw, TENABLE_TENANT_ID)
     assert len(result) == 2
-    assert {r["id"] for r in result} == {42, 99}
+    assert {r["id"] for r in result} == {tenable_id(42), tenable_id(99)}
+    assert {r["plugin_id"] for r in result} == {42, 99}
 
 
 def test_transform_plugins_skips_missing_id():
@@ -175,13 +191,14 @@ def test_transform_plugins_skips_missing_id():
         {"finding_id": "f1", "asset": {"uuid": "a"}, "plugin": {}},
         {"finding_id": "f2", "asset": {"uuid": "b"}, "plugin": {"id": 7}},
     ]
-    result = transform_plugins(raw)
+    result = transform_plugins(raw, TENABLE_TENANT_ID)
     assert len(result) == 1
-    assert result[0]["id"] == 7
+    assert result[0]["id"] == tenable_id(7)
+    assert result[0]["plugin_id"] == 7
 
 
 def test_transform_plugins_empty_input():
-    assert transform_plugins([]) == []
+    assert transform_plugins([], TENABLE_TENANT_ID) == []
 
 
 # ---------------------------------------------------------------------------
@@ -190,16 +207,17 @@ def test_transform_plugins_empty_input():
 
 
 def test_transform_scans_basic():
-    result = transform_scans(FINDINGS_DATA)
+    result = transform_scans(FINDINGS_DATA, TENABLE_TENANT_ID)
     # FINDING_ID_1 and FINDING_ID_3 share SCAN_UUID_1 — only two scan nodes
     assert len(result) == 2
 
-    s1 = next(r for r in result if r["id"] == SCAN_UUID_1)
+    s1 = next(r for r in result if r["id"] == SCOPED_SCAN_UUID_1)
+    assert s1["scan_uuid"] == SCAN_UUID_1
     assert s1["schedule_uuid"] == "461e4ebc-b309-face-6fa1-afa4ba163cb6d84b9dc0a0dc5020"
     assert s1["started_at"] == "2023-05-03T14:14:02.387Z"
     assert s1["last_scan_target"] == "192.0.2.58"
 
-    s2 = next(r for r in result if r["id"] == SCAN_UUID_2)
+    s2 = next(r for r in result if r["scan_uuid"] == SCAN_UUID_2)
     assert s2["last_scan_target"] == "192.0.2.58"
 
 
@@ -218,9 +236,12 @@ def test_transform_scans_deduplicates():
             "scan": {"uuid": "scan-bbb", "last_scan_target": "10.0.0.2"},
         },
     ]
-    result = transform_scans(raw)
+    result = transform_scans(raw, TENABLE_TENANT_ID)
     assert len(result) == 2
-    assert {r["id"] for r in result} == {"scan-aaa", "scan-bbb"}
+    assert {r["id"] for r in result} == {
+        tenable_id("scan-aaa"),
+        tenable_id("scan-bbb"),
+    }
 
 
 def test_transform_scans_skips_missing_uuid():
@@ -229,10 +250,11 @@ def test_transform_scans_skips_missing_uuid():
         {"finding_id": "f2"},
         {"finding_id": "f3", "scan": {"uuid": "scan-xyz"}},
     ]
-    result = transform_scans(raw)
+    result = transform_scans(raw, TENABLE_TENANT_ID)
     assert len(result) == 1
-    assert result[0]["id"] == "scan-xyz"
+    assert result[0]["id"] == tenable_id("scan-xyz")
+    assert result[0]["scan_uuid"] == "scan-xyz"
 
 
 def test_transform_scans_empty_input():
-    assert transform_scans([]) == []
+    assert transform_scans([], TENABLE_TENANT_ID) == []

@@ -7,6 +7,7 @@ import requests
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
 from cartography.intel.tenable.api import export_and_download
+from cartography.intel.tenable.common import make_tenable_id
 from cartography.models.tenable.findings import TenableFindingSchema
 from cartography.models.tenable.plugins import TenablePluginSchema
 from cartography.models.tenable.scans import TenableScanSchema
@@ -28,19 +29,18 @@ def get(
     since_epoch: int,
 ) -> list[dict[str, Any]]:
     """
-    Export all vulnerability findings from Tenable with ``last_found >= since_epoch``.
+    Export all vulnerability findings from Tenable with ``since >= since_epoch``.
 
-    All states (OPEN, REOPENED, FIXED) are requested so that the graph reflects
-    the full picture for the configured window and the cleanup job can remove
-    findings that have fallen outside it.
+    Tenable applies ``since`` to ``last_found`` for OPEN/REOPENED findings and
+    ``last_fixed`` for FIXED findings, so mixed-state exports need this filter.
     """
     params: dict[str, Any] = dict(_FINDING_EXPORT_PARAMS)
     params["filters"] = {
-        "last_found": since_epoch,
+        "since": since_epoch,
         "state": _FINDING_EXPORT_STATES,
     }
     logger.info(
-        "Findings export from %s (last_found >= %d)",
+        "Findings export from %s (since >= %d)",
         base_url,
         since_epoch,
     )
@@ -53,7 +53,10 @@ def get(
     )
 
 
-def transform(raw_findings: list[dict[str, Any]]) -> list[dict[str, Any]]:
+def transform(
+    raw_findings: list[dict[str, Any]],
+    tenant_id: str,
+) -> list[dict[str, Any]]:
     result = []
     for finding in raw_findings:
         asset = finding.get("asset") or {}
@@ -63,6 +66,7 @@ def transform(raw_findings: list[dict[str, Any]]) -> list[dict[str, Any]]:
         asset_uuid = asset.get("uuid")
         finding_id = finding.get("finding_id")
         plugin_id = plugin.get("id")
+        scan_uuid = (finding.get("scan") or {}).get("uuid")
 
         if not asset_uuid or not finding_id or plugin_id is None:
             logger.warning(
@@ -74,10 +78,16 @@ def transform(raw_findings: list[dict[str, Any]]) -> list[dict[str, Any]]:
 
         result.append(
             {
-                "id": finding_id,
+                "id": make_tenable_id(tenant_id, finding_id),
+                "finding_id": finding_id,
                 "asset_uuid": asset_uuid,
+                "asset_id": make_tenable_id(tenant_id, asset_uuid),
                 "plugin_id": plugin_id,
-                "scan_uuid": (finding.get("scan") or {}).get("uuid"),
+                "plugin_node_id": make_tenable_id(tenant_id, plugin_id),
+                "scan_uuid": scan_uuid,
+                "scan_node_id": (
+                    make_tenable_id(tenant_id, scan_uuid) if scan_uuid else None
+                ),
                 "severity": finding.get("severity"),
                 "severity_id": finding.get("severity_id"),
                 "severity_default_id": finding.get("severity_default_id"),
@@ -94,7 +104,7 @@ def transform(raw_findings: list[dict[str, Any]]) -> list[dict[str, Any]]:
                 "port": port_info.get("port"),
                 "protocol": port_info.get("protocol"),
                 "service": port_info.get("service"),
-                # First CVE for CVEMetadata ontology matching
+                # First CVE retained for scalar CVE compatibility.
                 "cve_id": cve_ids[0] if cve_ids else None,
                 "cve_list": cve_ids,
                 "has_cve": "true" if cve_ids else "false",
@@ -103,7 +113,10 @@ def transform(raw_findings: list[dict[str, Any]]) -> list[dict[str, Any]]:
     return result
 
 
-def transform_plugins(raw_findings: list[dict[str, Any]]) -> list[dict[str, Any]]:
+def transform_plugins(
+    raw_findings: list[dict[str, Any]],
+    tenant_id: str,
+) -> list[dict[str, Any]]:
     seen: set[int] = set()
     result = []
     for finding in raw_findings:
@@ -115,7 +128,8 @@ def transform_plugins(raw_findings: list[dict[str, Any]]) -> list[dict[str, Any]
         vpr = plugin.get("vpr") or {}
         result.append(
             {
-                "id": plugin_id,
+                "id": make_tenable_id(tenant_id, plugin_id),
+                "plugin_id": plugin_id,
                 "name": plugin.get("name"),
                 "family": plugin.get("family"),
                 "family_id": plugin.get("family_id"),
@@ -150,7 +164,10 @@ def transform_plugins(raw_findings: list[dict[str, Any]]) -> list[dict[str, Any]
     return result
 
 
-def transform_scans(raw_findings: list[dict[str, Any]]) -> list[dict[str, Any]]:
+def transform_scans(
+    raw_findings: list[dict[str, Any]],
+    tenant_id: str,
+) -> list[dict[str, Any]]:
     seen: set[str] = set()
     result = []
     for finding in raw_findings:
@@ -161,7 +178,8 @@ def transform_scans(raw_findings: list[dict[str, Any]]) -> list[dict[str, Any]]:
         seen.add(scan_uuid)
         result.append(
             {
-                "id": scan_uuid,
+                "id": make_tenable_id(tenant_id, scan_uuid),
+                "scan_uuid": scan_uuid,
                 "schedule_uuid": scan.get("schedule_uuid"),
                 "started_at": scan.get("started_at"),
                 "last_scan_target": scan.get("last_scan_target"),
@@ -242,8 +260,8 @@ def sync(
     )
     since_epoch = update_tag - (lookback_days * 86400)
     raw_findings = get(session, base_url, since_epoch)
-    findings = transform(raw_findings)
-    plugins = transform_plugins(raw_findings)
-    scans = transform_scans(raw_findings)
+    findings = transform(raw_findings, tenant_id)
+    plugins = transform_plugins(raw_findings, tenant_id)
+    scans = transform_scans(raw_findings, tenant_id)
     load_findings(neo4j_session, findings, plugins, scans, tenant_id, update_tag)
     cleanup(neo4j_session, common_job_parameters)

@@ -1,14 +1,25 @@
 TENABLE_TENANT_ID = "cloud.tenable.com"
 
+
+def tenable_id(provider_id):
+    return f"{TENABLE_TENANT_ID}:{provider_id}"
+
+
 ASSET_ID_1 = "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"
 ASSET_ID_2 = "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb"
+SCOPED_ASSET_ID_1 = tenable_id(ASSET_ID_1)
+SCOPED_ASSET_ID_2 = tenable_id(ASSET_ID_2)
 
 NETWORK_ID = "00000000-0000-0000-0000-000000000000"
+SCOPED_NETWORK_ID = tenable_id(NETWORK_ID)
 
 TAG_ID_1 = "cccccccc-cccc-cccc-cccc-cccccccccccc"
+SCOPED_TAG_ID_1 = tenable_id(TAG_ID_1)
 
 AWS_EC2_INSTANCE_ID_1 = "i-1234567890abcdef0"
 AZURE_VM_ID_2 = "dddddddd-dddd-dddd-dddd-dddddddddddd"
+SCOPED_AWS_EC2_INSTANCE_ID_1 = tenable_id(AWS_EC2_INSTANCE_ID_1)
+SCOPED_AZURE_VM_ID_2 = tenable_id(AZURE_VM_ID_2)
 
 ASSETS_DATA = [
     {

@@ -14,6 +14,7 @@ from cartography.models.core.relationships import TargetNodeMatcher
 class TenableNetworkNodeProperties(CartographyNodeProperties):
     id: PropertyRef = PropertyRef("id")
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    network_id: PropertyRef = PropertyRef("network_id", extra_index=True)
     name: PropertyRef = PropertyRef("name")
 
 

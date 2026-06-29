@@ -7,6 +7,7 @@ import requests
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
 from cartography.intel.tenable.api import export_and_download
+from cartography.intel.tenable.common import make_tenable_id
 from cartography.models.tenable.assets import TenableAssetSchema
 from cartography.models.tenable.cloud import TenableAssetAWSSchema
 from cartography.models.tenable.cloud import TenableAssetAzureSchema
@@ -39,7 +40,7 @@ def get(
     )
 
 
-def transform(raw_assets: list[dict[str, Any]]) -> list[dict[str, Any]]:
+def transform(raw_assets: list[dict[str, Any]], tenant_id: str) -> list[dict[str, Any]]:
     result = []
     for asset in raw_assets:
         timestamps = asset.get("timestamps") or {}
@@ -51,10 +52,16 @@ def transform(raw_assets: list[dict[str, Any]]) -> list[dict[str, Any]]:
         gcp = cloud.get("gcp") or {}
         ratings = asset.get("ratings") or {}
         fqdns = network.get("fqdns") or []
+        asset_id = asset["id"]
+        network_id = network.get("network_id")
+        aws_ec2_instance_id = aws.get("ec2_instance_id")
+        azure_vm_id = azure.get("vm_id")
+        gcp_instance_id = gcp.get("instance_id")
 
         result.append(
             {
-                "id": asset["id"],
+                "id": make_tenable_id(tenant_id, asset_id),
+                "asset_uuid": asset_id,
                 # Core flags
                 "has_agent": asset.get("has_agent"),
                 "has_plugin_results": asset.get("has_plugin_results"),
@@ -82,7 +89,10 @@ def transform(raw_assets: list[dict[str, Any]]) -> list[dict[str, Any]]:
                 "last_licensed_scan_date": scan.get("last_licensed_scan_date"),
                 "last_scan_id": scan.get("last_scan_id"),
                 # Network — name detail in TenableNetwork
-                "network_id": network.get("network_id"),
+                "network_id": network_id,
+                "network_node_id": (
+                    make_tenable_id(tenant_id, network_id) if network_id else None
+                ),
                 "fqdn": fqdns[0] if fqdns else None,
                 "ipv4s": network.get("ipv4s") or [],
                 "ipv6s": network.get("ipv6s") or [],
@@ -90,9 +100,22 @@ def transform(raw_assets: list[dict[str, Any]]) -> list[dict[str, Any]]:
                 "hostnames": network.get("hostnames") or [],
                 "mac_addresses": network.get("mac_addresses") or [],
                 # Cloud identifiers — detail in TenableAssetAWS / TenableAssetAzure / TenableAssetGCP
-                "aws_ec2_instance_id": aws.get("ec2_instance_id"),
-                "azure_vm_id": azure.get("vm_id"),
-                "gcp_instance_id": gcp.get("instance_id"),
+                "aws_ec2_instance_id": aws_ec2_instance_id,
+                "aws_node_id": (
+                    make_tenable_id(tenant_id, aws_ec2_instance_id)
+                    if aws_ec2_instance_id
+                    else None
+                ),
+                "azure_vm_id": azure_vm_id,
+                "azure_node_id": (
+                    make_tenable_id(tenant_id, azure_vm_id) if azure_vm_id else None
+                ),
+                "gcp_instance_id": gcp_instance_id,
+                "gcp_node_id": (
+                    make_tenable_id(tenant_id, gcp_instance_id)
+                    if gcp_instance_id
+                    else None
+                ),
                 # Ratings
                 "acr_score": (ratings.get("acr") or {}).get("score"),
                 "aes_score": (ratings.get("aes") or {}).get("score"),
@@ -101,7 +124,10 @@ def transform(raw_assets: list[dict[str, Any]]) -> list[dict[str, Any]]:
     return result
 
 
-def transform_networks(raw_assets: list[dict[str, Any]]) -> list[dict[str, Any]]:
+def transform_networks(
+    raw_assets: list[dict[str, Any]],
+    tenant_id: str,
+) -> list[dict[str, Any]]:
     seen: set[str] = set()
     result = []
     for asset in raw_assets:
@@ -111,22 +137,27 @@ def transform_networks(raw_assets: list[dict[str, Any]]) -> list[dict[str, Any]]
             seen.add(network_id)
             result.append(
                 {
-                    "id": network_id,
+                    "id": make_tenable_id(tenant_id, network_id),
+                    "network_id": network_id,
                     "name": network.get("network_name"),
                 }
             )
     return result
 
 
-def transform_sources(raw_assets: list[dict[str, Any]]) -> list[dict[str, Any]]:
+def transform_sources(
+    raw_assets: list[dict[str, Any]],
+    tenant_id: str,
+) -> list[dict[str, Any]]:
     result = []
     for asset in raw_assets:
-        asset_id = asset["id"]
+        asset_uuid = asset["id"]
+        asset_id = make_tenable_id(tenant_id, asset_uuid)
         for source in asset.get("sources") or []:
             name = source.get("name") or ""
             result.append(
                 {
-                    "id": f"{asset_id}::{name}",
+                    "id": make_tenable_id(tenant_id, f"{asset_uuid}::{name}"),
                     "name": name,
                     "source_first_seen": source.get("first_seen"),
                     "source_last_seen": source.get("last_seen"),
@@ -136,14 +167,19 @@ def transform_sources(raw_assets: list[dict[str, Any]]) -> list[dict[str, Any]]:
     return result
 
 
-def transform_tags(raw_assets: list[dict[str, Any]]) -> list[dict[str, Any]]:
+def transform_tags(
+    raw_assets: list[dict[str, Any]],
+    tenant_id: str,
+) -> list[dict[str, Any]]:
     result = []
     for asset in raw_assets:
-        asset_id = asset["id"]
+        asset_id = make_tenable_id(tenant_id, asset["id"])
         for tag in asset.get("tags") or []:
+            tag_uuid = tag["uuid"]
             result.append(
                 {
-                    "id": tag["uuid"],
+                    "id": make_tenable_id(tenant_id, tag_uuid),
+                    "tag_uuid": tag_uuid,
                     "tag_key": tag.get("key"),
                     "tag_value": tag.get("value"),
                     "added_by": tag.get("added_by"),
@@ -154,7 +190,10 @@ def transform_tags(raw_assets: list[dict[str, Any]]) -> list[dict[str, Any]]:
     return result
 
 
-def transform_aws(raw_assets: list[dict[str, Any]]) -> list[dict[str, Any]]:
+def transform_aws(
+    raw_assets: list[dict[str, Any]],
+    tenant_id: str,
+) -> list[dict[str, Any]]:
     seen: set[str] = set()
     result = []
     for asset in raw_assets:
@@ -165,7 +204,8 @@ def transform_aws(raw_assets: list[dict[str, Any]]) -> list[dict[str, Any]]:
         seen.add(ec2_instance_id)
         result.append(
             {
-                "id": ec2_instance_id,
+                "id": make_tenable_id(tenant_id, ec2_instance_id),
+                "ec2_instance_id": ec2_instance_id,
                 "ec2_instance_ami_id": aws.get("ec2_instance_ami_id"),
                 "owner_id": aws.get("owner_id"),
                 "availability_zone": aws.get("availability_zone"),
@@ -181,7 +221,10 @@ def transform_aws(raw_assets: list[dict[str, Any]]) -> list[dict[str, Any]]:
     return result
 
 
-def transform_azure(raw_assets: list[dict[str, Any]]) -> list[dict[str, Any]]:
+def transform_azure(
+    raw_assets: list[dict[str, Any]],
+    tenant_id: str,
+) -> list[dict[str, Any]]:
     seen: set[str] = set()
     result = []
     for asset in raw_assets:
@@ -192,14 +235,18 @@ def transform_azure(raw_assets: list[dict[str, Any]]) -> list[dict[str, Any]]:
         seen.add(vm_id)
         result.append(
             {
-                "id": vm_id,
+                "id": make_tenable_id(tenant_id, vm_id),
+                "vm_id": vm_id,
                 "resource_id": azure.get("resource_id"),
             }
         )
     return result
 
 
-def transform_gcp(raw_assets: list[dict[str, Any]]) -> list[dict[str, Any]]:
+def transform_gcp(
+    raw_assets: list[dict[str, Any]],
+    tenant_id: str,
+) -> list[dict[str, Any]]:
     seen: set[str] = set()
     result = []
     for asset in raw_assets:
@@ -210,7 +257,8 @@ def transform_gcp(raw_assets: list[dict[str, Any]]) -> list[dict[str, Any]]:
         seen.add(instance_id)
         result.append(
             {
-                "id": instance_id,
+                "id": make_tenable_id(tenant_id, instance_id),
+                "instance_id": instance_id,
                 "project_id": gcp.get("project_id"),
                 "zone": gcp.get("zone"),
             }
@@ -330,13 +378,13 @@ def sync(
 ) -> None:
     logger.info("Syncing Tenable assets for tenant %s", tenant_id)
     raw_assets = get(session, base_url)
-    assets = transform(raw_assets)
-    networks = transform_networks(raw_assets)
-    aws_nodes = transform_aws(raw_assets)
-    azure_nodes = transform_azure(raw_assets)
-    gcp_nodes = transform_gcp(raw_assets)
-    sources = transform_sources(raw_assets)
-    tags = transform_tags(raw_assets)
+    assets = transform(raw_assets, tenant_id)
+    networks = transform_networks(raw_assets, tenant_id)
+    aws_nodes = transform_aws(raw_assets, tenant_id)
+    azure_nodes = transform_azure(raw_assets, tenant_id)
+    gcp_nodes = transform_gcp(raw_assets, tenant_id)
+    sources = transform_sources(raw_assets, tenant_id)
+    tags = transform_tags(raw_assets, tenant_id)
     load_assets(
         neo4j_session,
         assets,
