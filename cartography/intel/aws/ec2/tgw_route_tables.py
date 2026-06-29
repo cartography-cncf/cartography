@@ -52,9 +52,23 @@ def get_transit_gateway_routes_for_table(
     )
     routes: list[dict[str, Any]] = []
     try:
-        paginator = client.get_paginator("search_transit_gateway_routes")
-        for page in paginator.paginate(TransitGatewayRouteTableId=route_table_id):
-            routes.extend(page.get("Routes", []))
+        # search_transit_gateway_routes is not pageable via botocore paginator in some botocore versions.
+        # Fall back to explicit NextToken loop and include a broad state filter to capture routes.
+        next_token = None
+        # Accept common states; this will return routes in any of these states.
+        state_values = ["active", "blackhole", "pending", "deleting", "deleted"]
+        while True:
+            params: dict[str, Any] = {
+                "TransitGatewayRouteTableId": route_table_id,
+                "Filters": [{"Name": "state", "Values": state_values}],
+            }
+            if next_token:
+                params["NextToken"] = next_token
+            resp = client.search_transit_gateway_routes(**params)
+            routes.extend(resp.get("Routes", []))
+            next_token = resp.get("NextToken")
+            if not next_token:
+                break
     except botocore.exceptions.ClientError as e:
         logger.warning(
             "Could not search Transit Gateway routes for %s due to boto3 error %s: %s. Skipping.",
