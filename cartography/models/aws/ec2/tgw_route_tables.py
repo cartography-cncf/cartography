@@ -1,0 +1,92 @@
+from dataclasses import dataclass
+
+from cartography.models.core.common import PropertyRef
+from cartography.models.core.nodes import CartographyNodeProperties
+from cartography.models.core.nodes import CartographyNodeSchema
+from cartography.models.core.relationships import CartographyRelProperties
+from cartography.models.core.relationships import CartographyRelSchema
+from cartography.models.core.relationships import LinkDirection
+from cartography.models.core.relationships import make_target_node_matcher
+from cartography.models.core.relationships import OtherRelationships
+from cartography.models.core.relationships import TargetNodeMatcher
+
+
+# =============================================================================
+# Shared rel properties
+# =============================================================================
+
+
+@dataclass(frozen=True)
+class TGWRouteRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+# =============================================================================
+# AWSTransitGatewayRouteTable
+# =============================================================================
+
+
+@dataclass(frozen=True)
+class AWSTransitGatewayRouteTableNodeProperties(CartographyNodeProperties):
+    id: PropertyRef = PropertyRef("TransitGatewayRouteTableId")
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    transit_gateway_id: PropertyRef = PropertyRef("TransitGatewayId")
+    state: PropertyRef = PropertyRef("State")
+    region: PropertyRef = PropertyRef("Region", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+class AWSTransitGatewayRouteTableSchema(CartographyNodeSchema):
+    label: str = "AWSTransitGatewayRouteTable"
+    properties: AWSTransitGatewayRouteTableNodeProperties = (
+        AWSTransitGatewayRouteTableNodeProperties()
+    )
+    other_relationships: OtherRelationships = OtherRelationships([])
+
+
+# =============================================================================
+# AWSTransitGatewayRoute
+# =============================================================================
+
+
+@dataclass(frozen=True)
+class AWSTransitGatewayRouteNodeProperties(CartographyNodeProperties):
+    id: PropertyRef = PropertyRef("id")
+    transit_gateway_route_table_id: PropertyRef = PropertyRef("transit_gateway_route_table_id")
+    destination_cidr_block: PropertyRef = PropertyRef("destination_cidr_block")
+    destination_ipv6_cidr_block: PropertyRef = PropertyRef("destination_ipv6_cidr_block")
+    target: PropertyRef = PropertyRef("_target")
+    state: PropertyRef = PropertyRef("state")
+    origin: PropertyRef = PropertyRef("origin")
+    region: PropertyRef = PropertyRef("Region", set_in_kwargs=True)
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+class AWSTransitGatewayRouteToAWSAccountRelRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+class AWSTransitGatewayRouteToAWSAccountRel(CartographyRelSchema):
+    target_node_label: str = "AWSAccount"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"id": PropertyRef("AWS_ID", set_in_kwargs=True)},
+    )
+    direction: LinkDirection = LinkDirection.INWARD
+    rel_label: str = "RESOURCE"
+    properties: AWSTransitGatewayRouteToAWSAccountRelRelProperties = (
+        AWSTransitGatewayRouteToAWSAccountRelRelProperties()
+    )
+
+
+@dataclass(frozen=True)
+class AWSTransitGatewayRouteSchema(CartographyNodeSchema):
+    label: str = "AWSTransitGatewayRoute"
+    properties: AWSTransitGatewayRouteNodeProperties = (
+        AWSTransitGatewayRouteNodeProperties()
+    )
+    sub_resource_relationship: AWSTransitGatewayRouteToAWSAccountRel = (
+        AWSTransitGatewayRouteToAWSAccountRel()
+    )
+    other_relationships: OtherRelationships = OtherRelationships([])
