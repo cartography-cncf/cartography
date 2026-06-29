@@ -139,19 +139,17 @@ _scaleway_bucket_public = Fact(
     ),
     cypher_query="""
     MATCH (b:ScalewayObjectStorageBucket)
-    WHERE coalesce(b.anonymous_access, false) = true
-    OR coalesce(b.acl_public, false) = true
+    WHERE b.public = true
     RETURN
         b.id AS id,
         b.name AS name,
         b.region AS region,
-        coalesce(b.anonymous_access, false) OR coalesce(b.acl_public, false) AS public_access,
+        b.public AS public_access,
         b.anonymous_actions AS public_actions
     """,
     cypher_visual_query="""
     MATCH p=(b:ScalewayObjectStorageBucket)<-[:RESOURCE]-(prj:ScalewayProject)
-    WHERE coalesce(b.anonymous_access, false) = true
-    OR coalesce(b.acl_public, false) = true
+    WHERE b.public = true
     RETURN *
     """,
     cypher_count_query="""

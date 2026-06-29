@@ -46,34 +46,48 @@ def sync(
     projects_id: list[str],
     update_tag: int,
 ) -> None:
-    buckets = get(client)
+    buckets = get(client, projects_id)
     buckets_by_project = transform_buckets(buckets)
     load_buckets(neo4j_session, buckets_by_project, update_tag)
     cleanup(neo4j_session, projects_id, common_job_parameters)
 
 
 @timeit
-def get(client: scaleway.Client) -> list[dict[str, Any]]:
+def get(client: scaleway.Client, projects_id: list[str]) -> list[dict[str, Any]]:
     """Scaleway Object Storage is S3-compatible and is not exposed by the
-    Scaleway Python SDK, so we use boto3 against the regional S3 endpoints."""
+    Scaleway Python SDK, so we use boto3 against the regional S3 endpoints.
+
+    S3 calls are scoped to the access key's preferred Project unless the key is
+    suffixed with ``@<project_id>``, so we iterate every project explicitly to
+    cover multi-project orgs (and to keep ingestion aligned with cleanup)."""
     buckets: list[dict[str, Any]] = []
-    for region in OBJECT_STORAGE_REGIONS:
-        s3 = boto3.client(
-            "s3",
-            region_name=region,
-            endpoint_url=f"https://s3.{region}.scw.cloud",
-            aws_access_key_id=client.access_key,
-            aws_secret_access_key=client.secret_key,
-        )
-        listing = s3.list_buckets()
-        owner_id = listing.get("Owner", {}).get("ID", "")
-        for bucket in listing.get("Buckets", []):
-            buckets.append(_get_bucket_details(s3, bucket, region, owner_id))
+    for project_id in projects_id:
+        for region in OBJECT_STORAGE_REGIONS:
+            s3 = boto3.client(
+                "s3",
+                region_name=region,
+                endpoint_url=f"https://s3.{region}.scw.cloud",
+                aws_access_key_id=f"{client.access_key}@{project_id}",
+                aws_secret_access_key=client.secret_key,
+            )
+            try:
+                listing = s3.list_buckets()
+            except ClientError as e:
+                # Don't let one region/project abort the whole Scaleway sync.
+                logger.warning(
+                    "Could not list Scaleway buckets in project '%s' region '%s': %s",
+                    project_id,
+                    region,
+                    e.response.get("Error", {}).get("Code"),
+                )
+                continue
+            for bucket in listing.get("Buckets", []):
+                buckets.append(_get_bucket_details(s3, bucket, region, project_id))
     return buckets
 
 
 def _get_bucket_details(
-    s3: Any, bucket: dict[str, Any], region: str, owner_id: str
+    s3: Any, bucket: dict[str, Any], region: str, project_id: str
 ) -> dict[str, Any]:
     name = bucket["Name"]
     details: dict[str, Any] = {
@@ -81,7 +95,7 @@ def _get_bucket_details(
         "region": region,
         "endpoint": f"https://{name}.s3.{region}.scw.cloud",
         "creation_date": bucket.get("CreationDate"),
-        "owner_id": owner_id,
+        "project_id": project_id,
         "acl": None,
         "policy": None,
         "versioning": None,
@@ -118,8 +132,7 @@ def transform_buckets(
 ) -> dict[str, list[dict[str, Any]]]:
     result: dict[str, list[dict[str, Any]]] = {}
     for bucket in buckets:
-        # The S3 owner ID is "<project_id>:<project_id>" on Scaleway.
-        project_id = bucket["owner_id"].split(":")[0]
+        project_id = bucket["project_id"]
         # Leave the exposure signals null (unknown) when their source read
         # failed, rather than reporting a bucket as not-public on bad data.
         acl = bucket["acl"]
@@ -136,7 +149,6 @@ def transform_buckets(
             "region": bucket["region"],
             "endpoint": bucket["endpoint"],
             "creation_date": bucket["creation_date"],
-            "owner_id": bucket["owner_id"],
             "tags": (
                 None if bucket["tags"] is FETCH_FAILED else _format_tags(bucket["tags"])
             ),
@@ -148,9 +160,21 @@ def transform_buckets(
             "acl_public": acl_public,
             "anonymous_access": anonymous_access,
             "anonymous_actions": anonymous_actions,
+            # Tri-state combined public signal: True/False when known, None when
+            # both sources were unreadable (so "unknown" is not reported as safe).
+            "public": _combine_public(acl_public, anonymous_access),
         }
         result.setdefault(project_id, []).append(formatted)
     return result
+
+
+def _combine_public(
+    acl_public: bool | None, anonymous_access: bool | None
+) -> bool | None:
+    known = [v for v in (acl_public, anonymous_access) if v is not None]
+    if not known:
+        return None
+    return any(known)
 
 
 def _format_tags(tagging: dict[str, Any] | None) -> list[str] | None:

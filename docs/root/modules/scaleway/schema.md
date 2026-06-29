@@ -543,15 +543,15 @@ An Object Storage bucket is an S3-compatible container for objects. Scaleway Obj
 |------------|----------------------------------------------|
 | id         | Bucket name (globally unique).               |
 | name       | Bucket name.                                 |
-| region     | Region the bucket lives in (`fr-par`, `nl-ams`, `pl-waw`). |
+| region     | Region the bucket lives in (`fr-par`, `nl-ams`, `pl-waw`, `it-mil`). |
 | endpoint   | Public S3 endpoint URL of the bucket.        |
 | creation_date | Bucket creation date.                     |
 | tags       | Bucket tags (`key=value`).                   |
-| owner_id   | S3 owner ID (`<project_id>:<project_id>`).   |
 | versioning_status | Versioning status (`Enabled`, `Suspended`, or unset). |
-| acl_public | True if the bucket ACL grants access to `AllUsers` / `AuthenticatedUsers`. |
-| anonymous_access | True if the bucket policy grants anonymous (internet) access. |
+| acl_public | True if the bucket ACL grants access to `AllUsers` / `AuthenticatedUsers` (null if the ACL could not be read). |
+| anonymous_access | True if the bucket policy grants anonymous (internet) access (null if the policy could not be read). |
 | anonymous_actions | Actions granted to anonymous principals by the bucket policy. |
+| public     | Combined public-exposure signal: `acl_public` OR `anonymous_access`; null when both sources were unreadable. |
 | lastupdated | Timestamp of the last update                 |
 
 #### Relationships

@@ -46,8 +46,9 @@ SCALEWAY_SNAPSHOTS = [
 ]
 
 # Object Storage buckets are S3-compatible: get() returns raw boto3-shaped dicts.
-# The S3 owner ID is "<project_id>:<project_id>" on Scaleway.
-_OWNER_ID = "0681c477-fbb9-4820-b8d6-0eef10cfcd6d:0681c477-fbb9-4820-b8d6-0eef10cfcd6d"
+# get() tags each bucket with the project it was enumerated under.
+_PROJECT_ID = "0681c477-fbb9-4820-b8d6-0eef10cfcd6d"
+_OWNER_ID = f"{_PROJECT_ID}:{_PROJECT_ID}"
 
 SCALEWAY_BUCKETS = [
     {
@@ -55,7 +56,7 @@ SCALEWAY_BUCKETS = [
         "region": "fr-par",
         "endpoint": "https://cartography-private-bucket.s3.fr-par.scw.cloud",
         "creation_date": datetime(2025, 6, 20, 12, 0, 0, tzinfo=tzutc()),
-        "owner_id": _OWNER_ID,
+        "project_id": _PROJECT_ID,
         "acl": {
             "Owner": {"ID": _OWNER_ID, "DisplayName": _OWNER_ID},
             "Grants": [
@@ -79,7 +80,7 @@ SCALEWAY_BUCKETS = [
         "region": "nl-ams",
         "endpoint": "https://cartography-public-bucket.s3.nl-ams.scw.cloud",
         "creation_date": datetime(2025, 6, 20, 12, 5, 0, tzinfo=tzutc()),
-        "owner_id": _OWNER_ID,
+        "project_id": _PROJECT_ID,
         "acl": {
             "Owner": {"ID": _OWNER_ID, "DisplayName": _OWNER_ID},
             "Grants": [

@@ -19,12 +19,13 @@ class ScalewayObjectStorageBucketNodeProperties(CartographyNodeProperties):
     endpoint: PropertyRef = PropertyRef("endpoint")
     creation_date: PropertyRef = PropertyRef("creation_date")
     tags: PropertyRef = PropertyRef("tags")
-    owner_id: PropertyRef = PropertyRef("owner_id")
     versioning_status: PropertyRef = PropertyRef("versioning_status")
     # Public-exposure signals (mirrors AWS S3 anonymous_access / GCP acl_public).
+    # `public` is the combined tri-state (null = unknown, both sources unreadable).
     acl_public: PropertyRef = PropertyRef("acl_public")
     anonymous_access: PropertyRef = PropertyRef("anonymous_access", extra_index=True)
     anonymous_actions: PropertyRef = PropertyRef("anonymous_actions")
+    public: PropertyRef = PropertyRef("public", extra_index=True)
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 

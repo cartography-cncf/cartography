@@ -127,14 +127,13 @@ scaleway_mapping = OntologyMapping(
                     special_handling="equal_boolean",
                     extra={"values": ["Enabled"]},
                 ),
-                # A bucket is public if its policy grants anonymous access OR its ACL
-                # grants AllUsers/AuthenticatedUsers (the model stores these signals
-                # separately, so ACL-only public buckets must not be missed).
+                # `public` is the tri-state combined signal (policy anonymous
+                # access OR ACL AllUsers/AuthenticatedUsers; null when both
+                # sources were unreadable). Mapped directly to preserve the
+                # unknown state instead of coalescing it to false.
                 OntologyFieldMapping(
                     ontology_field="public",
-                    node_field="anonymous_access",
-                    special_handling="or_boolean",
-                    extra={"fields": ["acl_public"]},
+                    node_field="public",
                 ),
             ],
         ),

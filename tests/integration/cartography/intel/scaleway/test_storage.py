@@ -204,13 +204,13 @@ def test_load_scaleway_object_storage_buckets(_mock_get, neo4j_session):
     assert check_nodes(
         neo4j_session,
         "ScalewayObjectStorageBucket",
-        ["id", "region", "acl_public", "anonymous_access"],
+        ["id", "region", "acl_public", "anonymous_access", "public"],
     ) == {
-        ("cartography-private-bucket", "fr-par", False, False),
-        ("cartography-public-bucket", "nl-ams", True, True),
+        ("cartography-private-bucket", "fr-par", False, False, False),
+        ("cartography-public-bucket", "nl-ams", True, True, True),
     }
     # Assert the ObjectStorage ontology mapping populates normalized _ont_* fields.
-    # _ont_public ORs anonymous_access (policy) and acl_public (ACL).
+    # _ont_public is mapped from the tri-state `public` field.
     assert check_nodes(
         neo4j_session,
         "ObjectStorage",
