@@ -179,7 +179,7 @@ def test_load_scaleway_snapshots(_mock_get, neo4j_session):
 @patch.object(
     cartography.intel.scaleway.storage.objectstorage,
     "get",
-    return_value=tests.data.scaleway.storages.SCALEWAY_BUCKETS,
+    return_value=(tests.data.scaleway.storages.SCALEWAY_BUCKETS, [TEST_PROJECT_ID]),
 )
 def test_load_scaleway_object_storage_buckets(_mock_get, neo4j_session):
     # Arrange

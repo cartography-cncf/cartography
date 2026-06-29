@@ -46,22 +46,33 @@ def sync(
     projects_id: list[str],
     update_tag: int,
 ) -> None:
-    buckets = get(client, projects_id)
+    buckets, complete_projects = get(client, projects_id)
     buckets_by_project = transform_buckets(buckets)
     load_buckets(neo4j_session, buckets_by_project, update_tag)
-    cleanup(neo4j_session, projects_id, common_job_parameters)
+    # Only clean projects we fully enumerated: a project whose listing failed in
+    # any region has an incomplete view, so cleaning it would delete
+    # last-known-good buckets that simply weren't (re)listed this run.
+    cleanup(neo4j_session, complete_projects, common_job_parameters)
 
 
 @timeit
-def get(client: scaleway.Client, projects_id: list[str]) -> list[dict[str, Any]]:
+def get(
+    client: scaleway.Client, projects_id: list[str]
+) -> tuple[list[dict[str, Any]], list[str]]:
     """Scaleway Object Storage is S3-compatible and is not exposed by the
     Scaleway Python SDK, so we use boto3 against the regional S3 endpoints.
 
     S3 calls are scoped to the access key's preferred Project unless the key is
     suffixed with ``@<project_id>``, so we iterate every project explicitly to
-    cover multi-project orgs (and to keep ingestion aligned with cleanup)."""
+    cover multi-project orgs (and to keep ingestion aligned with cleanup).
+
+    Returns the discovered buckets and the list of projects that were fully
+    enumerated (every region listed without error) and are therefore safe to
+    clean up."""
     buckets: list[dict[str, Any]] = []
+    complete_projects: list[str] = []
     for project_id in projects_id:
+        project_complete = True
         for region in OBJECT_STORAGE_REGIONS:
             s3 = boto3.client(
                 "s3",
@@ -73,17 +84,21 @@ def get(client: scaleway.Client, projects_id: list[str]) -> list[dict[str, Any]]
             try:
                 listing = s3.list_buckets()
             except ClientError as e:
-                # Don't let one region/project abort the whole Scaleway sync.
+                # Don't let one region/project abort the whole Scaleway sync,
+                # but mark the project incomplete so cleanup skips it.
                 logger.warning(
                     "Could not list Scaleway buckets in project '%s' region '%s': %s",
                     project_id,
                     region,
                     e.response.get("Error", {}).get("Code"),
                 )
+                project_complete = False
                 continue
             for bucket in listing.get("Buckets", []):
                 buckets.append(_get_bucket_details(s3, bucket, region, project_id))
-    return buckets
+        if project_complete:
+            complete_projects.append(project_id)
+    return buckets, complete_projects
 
 
 def _get_bucket_details(
