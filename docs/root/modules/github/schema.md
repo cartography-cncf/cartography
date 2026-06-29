@@ -11,6 +11,7 @@ O -- RESOURCE --> OV(GitHubActionsVariable)
 O -- RESOURCE --> A(GitHubAction)
 O -- RESOURCE --> DA(GitHubDependabotAlert)
 O -- RESOURCE --> PAT(GitHubPersonalAccessToken)
+O -- RESOURCE --> COR(GitHubCodeOwnerRule)
 U(GitHubUser) -- MEMBER_OF --> O
 U -- ADMIN_OF --> O
 U -- UNAFFILIATED --> O
@@ -23,6 +24,7 @@ R -- LANGUAGE --> L(ProgrammingLanguage)
 R -- BRANCH --> B(GitHubBranch)
 R -- HAS_RULE --> BPR(GitHubBranchProtectionRule)
 R -- HAS_RULESET --> GRS(GitHubRuleset)
+R -- HAS_CODEOWNER_RULE --> COR
 GRS -- CONTAINS_RULE --> RSR(GitHubRulesetRule)
 R -- REQUIRES --> D(Dependency)
 R -- HAS_MANIFEST --> M(DependencyGraphManifest)
@@ -39,6 +41,9 @@ W -- REFERENCES_SECRET --> RS
 E -- HAS_SECRET --> ES(GitHubActionsSecret)
 E -- HAS_VARIABLE --> EV(GitHubActionsVariable)
 M -- HAS_DEP --> D
+M -- MATCHES_CODEOWNER_RULE --> COR
+COR -- CODEOWNER --> T
+COR -- CODEOWNER --> U
 T -- {ROLE} --> R
 T -- MEMBER_OF --> T
 U -- MEMBER_OF --> T
@@ -119,6 +124,12 @@ WRITE, MAINTAIN, TRIAGE, and READ ([Reference](https://docs.github.com/en/graphq
 
   ```
   (GitHubTeam)-[ADMIN|READ|WRITE|TRIAGE|MAINTAIN]->(GitHubRepository)
+  ```
+
+- GitHubRepositories can have CODEOWNERS rules parsed from the effective `CODEOWNERS` file on the default branch.
+
+  ```
+  (GitHubRepository)-[:HAS_CODEOWNER_RULE]->(GitHubCodeOwnerRule)
   ```
 
 - GitHubUsers who have committed to GitHubRepositories in the last 30 days are tracked with commit activity data.
@@ -549,6 +560,7 @@ Represents a dependency manifest file (e.g., package.json, requirements.txt, pom
 | lastupdated | Timestamp of the last time the node was updated |
 | **id** | Unique identifier: `{repo_url}#{blob_path}` |
 | **blob_path** | Path to the manifest file in the repository (e.g., "/package.json") |
+| **repo_relative_path** | Normalized repository-relative path for matching CODEOWNERS patterns (e.g., "package.json") |
 | **filename** | Name of the manifest file (e.g., "package.json") |
 | **dependencies_count** | Number of dependencies listed in this manifest |
 | **repo_url** | URL of the GitHub repository containing this manifest |
@@ -569,11 +581,70 @@ Represents a dependency manifest file (e.g., package.json, requirements.txt, pom
     (DependencyGraphManifest)-[:HAS_DEP]->(Dependency)
     ```
 
+- **GitHubCodeOwnerRule** via **MATCHES_CODEOWNER_RULE** relationship
+  - Each manifest is linked to the last matching CODEOWNERS rule for its repository-relative path.
+
+    ```
+    (DependencyGraphManifest)-[:MATCHES_CODEOWNER_RULE]->(GitHubCodeOwnerRule)
+    ```
+
 - **GitHubOrganization** via **RESOURCE** relationship
   - Manifests are scoped to the owning organization for cleanup
 
     ```
     (GitHubOrganization)-[:RESOURCE]->(DependencyGraphManifest)
+    ```
+
+### GitHubCodeOwnerRule
+
+Represents one supported rule line from the effective GitHub `CODEOWNERS` file for a repository default branch. Lines without owners and unsupported CODEOWNERS syntax are skipped.
+
+| Field | Description |
+|-------|-------------|
+| firstseen | Timestamp of when a sync job first discovered this node |
+| lastupdated | Timestamp of the last time the node was updated |
+| **id** | Stable identifier derived from repository URL, source path, line number, pattern, and owners |
+| **repo_url** | URL of the GitHub repository containing the CODEOWNERS file |
+| **repo_name** | Name of the GitHub repository |
+| **default_branch** | Branch used to fetch the effective CODEOWNERS file |
+| **source_path** | CODEOWNERS file path used by GitHub (`.github/CODEOWNERS`, `CODEOWNERS`, or `docs/CODEOWNERS`) |
+| **line_number** | Line number of the rule in the CODEOWNERS file |
+| **pattern** | CODEOWNERS path pattern |
+| **owners** | Raw owner tokens from the rule |
+| **owner_logins** | Parsed GitHub user logins from `@user` owners |
+| **owner_team_slugs** | Parsed GitHub team slugs from `@org/team` owners |
+| **owner_emails** | Parsed email owners |
+| **unresolved_owners** | Owner tokens that could not be classified as a GitHub user, team, or email owner |
+
+#### Relationships
+
+- **GitHubOrganization** via **RESOURCE** relationship
+  - CODEOWNERS rules are scoped to the owning organization for cleanup.
+
+    ```
+    (GitHubOrganization)-[:RESOURCE]->(GitHubCodeOwnerRule)
+    ```
+
+- **GitHubRepository** via **HAS_CODEOWNER_RULE** relationship
+  - Repositories own the parsed CODEOWNERS rules from their effective CODEOWNERS file.
+
+    ```
+    (GitHubRepository)-[:HAS_CODEOWNER_RULE]->(GitHubCodeOwnerRule)
+    ```
+
+- **GitHubTeam** and **GitHubUser** via **CODEOWNER** relationship
+  - Parsed owners are linked when the corresponding team or user node exists in the graph.
+
+    ```
+    (GitHubCodeOwnerRule)-[:CODEOWNER]->(GitHubTeam)
+    (GitHubCodeOwnerRule)-[:CODEOWNER]->(GitHubUser)
+    ```
+
+- **DependencyGraphManifest** via **MATCHES_CODEOWNER_RULE** relationship
+  - Dependency manifests are linked to the last matching CODEOWNERS rule for their repository-relative path.
+
+    ```
+    (DependencyGraphManifest)-[:MATCHES_CODEOWNER_RULE]->(GitHubCodeOwnerRule)
     ```
 
 ### Dependency
