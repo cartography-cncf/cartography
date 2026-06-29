@@ -139,6 +139,66 @@ def test_sync_github_personal_access_tokens(mock_pages, neo4j_session):
         (f"{ORG_URL}/personal-access-tokens/25381",),
         (f"{ORG_URL}/credential-authorizations/161195",),
     }
+    assert (
+        {
+            row["id"]: (
+                row["source"],
+                row["has_created_at"],
+                row["created_at_matches"],
+                row["expires_at_matches"],
+                row["has_last_used_at"],
+                row["last_used_at_matches"],
+            )
+            for row in neo4j_session.run(
+                """
+            MATCH (k:GitHubPersonalAccessToken)
+            RETURN k.id AS id,
+                k._ont_source AS source,
+                k._ont_created_at IS NOT NULL AS has_created_at,
+                k._ont_created_at = coalesce(
+                    k.access_granted_at,
+                    k.credential_authorized_at
+                ) AS created_at_matches,
+                k._ont_expires_at = k.expires_at AS expires_at_matches,
+                k._ont_last_used_at IS NOT NULL AS has_last_used_at,
+                CASE
+                    WHEN coalesce(k.last_used_at, k.credential_accessed_at) IS NULL
+                    THEN k._ont_last_used_at IS NULL
+                    ELSE k._ont_last_used_at = coalesce(
+                        k.last_used_at,
+                        k.credential_accessed_at
+                    )
+                END AS last_used_at_matches
+            """
+            )
+        }
+        == {
+            f"{ORG_URL}/personal-access-tokens/25381": (
+                "github",
+                True,
+                True,
+                True,
+                True,
+                True,
+            ),
+            f"{ORG_URL}/personal-access-tokens/25382": (
+                "github",
+                True,
+                True,
+                True,
+                False,
+                True,
+            ),
+            f"{ORG_URL}/credential-authorizations/161195": (
+                "github",
+                True,
+                True,
+                True,
+                True,
+                True,
+            ),
+        }
+    )
     assert check_nodes(
         neo4j_session, "GitHubFineGrainedPersonalAccessToken", ["id"]
     ) == {

@@ -4,7 +4,7 @@ from unittest.mock import patch
 from cartography.intel.gsuite import groups
 from cartography.intel.gsuite import users
 from tests.data.gsuite.api import MOCK_GSUITE_GROUPS_RESPONSE
-from tests.data.gsuite.api import MOCK_GSUITE_MEMBERS_BY_GROUP_EMAIL
+from tests.data.gsuite.api import MOCK_GSUITE_MEMBERS_BY_GROUP_ID
 from tests.data.gsuite.api import MOCK_GSUITE_USERS_RESPONSE
 from tests.integration.util import check_rels
 
@@ -16,7 +16,7 @@ COMMON_JOB_PARAMETERS = {
 
 
 @patch.object(
-    groups, "get_members_for_groups", return_value=MOCK_GSUITE_MEMBERS_BY_GROUP_EMAIL
+    groups, "get_members_for_groups", return_value=MOCK_GSUITE_MEMBERS_BY_GROUP_ID
 )
 @patch.object(groups, "get_all_groups", return_value=MOCK_GSUITE_GROUPS_RESPONSE)
 @patch.object(users, "get_all_users", return_value=MOCK_GSUITE_USERS_RESPONSE)
@@ -75,7 +75,7 @@ def test_sync_gsuite_users_creates_user_group_memberships(
 
 
 @patch.object(
-    groups, "get_members_for_groups", return_value=MOCK_GSUITE_MEMBERS_BY_GROUP_EMAIL
+    groups, "get_members_for_groups", return_value=MOCK_GSUITE_MEMBERS_BY_GROUP_ID
 )
 @patch.object(groups, "get_all_groups", return_value=MOCK_GSUITE_GROUPS_RESPONSE)
 @patch.object(users, "get_all_users", return_value=MOCK_GSUITE_USERS_RESPONSE)
