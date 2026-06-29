@@ -49,16 +49,38 @@ def get(
 ) -> tuple[list[SecurityGroup], dict[str, list[SecurityGroupRule]]]:
     api = InstanceV1API(client)
     groups = api.list_security_groups_all(organization=org_id, zone=DEFAULT_ZONE)
-    # ponytail: single page (per_page=100). The SDK's list_security_group_rules_all
-    # helper recurses without terminating against the live API (same pagination bug
-    # class as flexibleips / SDK #1040); a security group never has >100 rules.
-    rules_by_group = {
-        group.id: api.list_security_group_rules(
-            security_group_id=group.id, zone=DEFAULT_ZONE, per_page=100
-        ).rules
-        for group in groups
-    }
+    rules_by_group = {group.id: _list_all_rules(api, group.id) for group in groups}
     return groups, rules_by_group
+
+
+def _list_all_rules(
+    api: InstanceV1API,
+    security_group_id: str,
+) -> list[SecurityGroupRule]:
+    """Paginate a security group's rules manually.
+
+    We can't use the SDK's ``list_security_group_rules_all`` helper: it never
+    terminates against the live API. ``fetch_all_pages`` only stops when it
+    reads ``page_size`` from the fetcher args, but this endpoint passes
+    ``per_page``, so the size check is skipped and it recurses until an empty
+    page is returned, which this endpoint never returns. We instead stop on the
+    authoritative ``total_count`` (and on an empty page as a safety net), so
+    rules are never silently truncated past the first page.
+    """
+    rules: list[SecurityGroupRule] = []
+    page = 1
+    while True:
+        response = api.list_security_group_rules(
+            security_group_id=security_group_id,
+            zone=DEFAULT_ZONE,
+            per_page=100,
+            page=page,
+        )
+        rules.extend(response.rules)
+        if not response.rules or len(rules) >= response.total_count:
+            break
+        page += 1
+    return rules
 
 
 def transform_security_groups(
