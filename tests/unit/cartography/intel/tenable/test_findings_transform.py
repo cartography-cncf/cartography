@@ -1,10 +1,14 @@
 from cartography.intel.tenable.findings import transform
+from cartography.intel.tenable.findings import transform_cves
 from cartography.intel.tenable.findings import transform_plugins
 from cartography.intel.tenable.findings import transform_scans
 from tests.data.tenable.assets import ASSET_ID_1
 from tests.data.tenable.assets import SCOPED_ASSET_ID_1
 from tests.data.tenable.assets import tenable_id
 from tests.data.tenable.assets import TENABLE_TENANT_ID
+from tests.data.tenable.findings import CVE_ID_1
+from tests.data.tenable.findings import CVE_ID_2
+from tests.data.tenable.findings import CVE_ID_3
 from tests.data.tenable.findings import FINDING_ID_1
 from tests.data.tenable.findings import FINDING_ID_2
 from tests.data.tenable.findings import FINDING_ID_3
@@ -14,6 +18,9 @@ from tests.data.tenable.findings import PLUGIN_ID_2
 from tests.data.tenable.findings import PLUGIN_ID_3
 from tests.data.tenable.findings import SCAN_UUID_1
 from tests.data.tenable.findings import SCAN_UUID_2
+from tests.data.tenable.findings import SCOPED_CVE_ID_1
+from tests.data.tenable.findings import SCOPED_CVE_ID_2
+from tests.data.tenable.findings import SCOPED_CVE_ID_3
 from tests.data.tenable.findings import SCOPED_FINDING_ID_1
 from tests.data.tenable.findings import SCOPED_PLUGIN_ID_1
 from tests.data.tenable.findings import SCOPED_SCAN_UUID_1
@@ -55,22 +62,13 @@ def test_transform_maps_all_fields():
     assert f1["port"] == 445
     assert f1["protocol"] == "TCP"
     assert f1["service"] == "cifs"
-    # CVE fields — finding has CVEs
-    assert f1["cve_id"] == "CVE-2022-21837"
-    assert set(f1["cve_list"]) == {
-        "CVE-2022-21837",
-        "CVE-2022-21840",
-        "CVE-2022-21842",
-    }
-    assert f1["has_cve"] == "true"
+    assert f1["cve_node_ids"] == [SCOPED_CVE_ID_1, SCOPED_CVE_ID_2, SCOPED_CVE_ID_3]
 
 
 def test_transform_cve_fields_no_cves():
     result = transform(FINDINGS_DATA, TENABLE_TENANT_ID)
     f2 = next(r for r in result if r["finding_id"] == FINDING_ID_2)
-    assert f2["cve_id"] is None
-    assert f2["cve_list"] == []
-    assert f2["has_cve"] == "false"
+    assert f2["cve_node_ids"] == []
 
 
 def test_transform_port_zero_and_null_service():
@@ -147,7 +145,8 @@ def test_transform_plugins_basic():
     assert p1["cvss3_base_score"] == 8.8
     assert p1["vpr_score"] == 6.7
     assert p1["epss_score"] == 10.647
-    assert set(p1["cve_list"]) == {"CVE-2022-21837", "CVE-2022-21840", "CVE-2022-21842"}
+    assert p1["cve_list"] == [CVE_ID_1, CVE_ID_2, CVE_ID_3]
+    assert p1["cve_node_ids"] == [SCOPED_CVE_ID_1, SCOPED_CVE_ID_2, SCOPED_CVE_ID_3]
 
 
 def test_transform_plugins_vpr_none_when_missing():
@@ -160,6 +159,7 @@ def test_transform_plugins_empty_cve_list():
     result = transform_plugins(FINDINGS_DATA, TENABLE_TENANT_ID)
     p3 = next(r for r in result if r["plugin_id"] == PLUGIN_ID_3)
     assert p3["cve_list"] == []
+    assert p3["cve_node_ids"] == []
 
 
 def test_transform_plugins_deduplicates():
@@ -199,6 +199,42 @@ def test_transform_plugins_skips_missing_id():
 
 def test_transform_plugins_empty_input():
     assert transform_plugins([], TENABLE_TENANT_ID) == []
+
+
+# ---------------------------------------------------------------------------
+# transform_cves()
+# ---------------------------------------------------------------------------
+
+
+def test_transform_cves_deduplicates_plugin_cves():
+    result = transform_cves(FINDINGS_DATA, TENABLE_TENANT_ID)
+
+    assert result == [
+        {"id": SCOPED_CVE_ID_1, "cve_id": CVE_ID_1},
+        {"id": SCOPED_CVE_ID_2, "cve_id": CVE_ID_2},
+        {"id": SCOPED_CVE_ID_3, "cve_id": CVE_ID_3},
+    ]
+
+
+def test_transform_cves_filters_non_cve_values():
+    raw = [
+        {
+            "finding_id": "f1",
+            "asset": {"uuid": "a"},
+            "plugin": {
+                "id": 42,
+                "cve": [CVE_ID_1, "GHSA-1234", None, CVE_ID_1],
+            },
+        },
+    ]
+
+    result = transform_cves(raw, TENABLE_TENANT_ID)
+
+    assert result == [{"id": SCOPED_CVE_ID_1, "cve_id": CVE_ID_1}]
+
+
+def test_transform_cves_empty_input():
+    assert transform_cves([], TENABLE_TENANT_ID) == []
 
 
 # ---------------------------------------------------------------------------

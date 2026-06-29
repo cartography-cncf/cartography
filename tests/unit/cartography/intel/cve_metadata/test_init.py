@@ -29,7 +29,6 @@ def test_build_yearly_cve_batches_groups_by_feed_year():
 @patch.object(GraphJob, "from_node_schema")
 @patch.object(cve_metadata, "run_analysis_job")
 @patch.object(cve_metadata, "load_cve_metadata_feed")
-@patch.object(cve_metadata, "link_cve_metadata_to_cve_lists")
 @patch.object(cve_metadata, "load_cve_metadata")
 @patch.object(cve_metadata.epss, "merge_epss_into_cves")
 @patch.object(cve_metadata.epss, "get_epss_scores")
@@ -45,7 +44,6 @@ def test_start_cve_metadata_ingestion_loads_one_year_at_a_time(
     mock_get_epss_scores,
     mock_merge_epss_into_cves,
     mock_load_cve_metadata,
-    mock_link_cve_metadata_to_cve_lists,
     mock_load_cve_metadata_feed,
     mock_run_analysis_job,
     mock_graphjob_from_node_schema,
@@ -113,7 +111,6 @@ def test_start_cve_metadata_ingestion_loads_one_year_at_a_time(
         neo4j_session,
         {"UPDATE_TAG": 123, "FEED_ID": cve_metadata.CVE_METADATA_FEED_ID},
     )
-    mock_link_cve_metadata_to_cve_lists.assert_called_once_with(neo4j_session, 123)
     mock_merge_nvd_into_cves.assert_has_calls(
         [
             call(

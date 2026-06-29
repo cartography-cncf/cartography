@@ -67,9 +67,9 @@ def test_get_cve_ids_from_graph(neo4j_session):
         })
         CREATE (finding:Finding {id: 'finding'})
         CREATE (finding)-[:AFFECTS]->(preserved)
-        CREATE (:CVE:TenableFinding {
-            id: 'tenable-finding',
-            cve_list: ['CVE-2024-0004', 'NOT-A-CVE']
+        CREATE (:CVE:TenableCVE {
+            id: 'tenable:CVE-2024-0004',
+            cve_id: 'CVE-2024-0004'
         })
         """,
     )
@@ -130,11 +130,13 @@ def test_sync(mock_nvd, mock_epss, neo4j_session):
     _create_cve_nodes(neo4j_session)
     neo4j_session.run(
         """
-        CREATE (:CVE:TenableFinding {
-            id: 'tenable-finding',
-            cve_id: 'CVE-2023-41782',
-            cve_list: ['CVE-2023-41782', 'CVE-2024-22075'],
-            has_cve: 'true'
+        CREATE (:CVE:TenableCVE {
+            id: 'tenable:CVE-2023-41782',
+            cve_id: 'CVE-2023-41782'
+        })
+        CREATE (:CVE:TenableCVE {
+            id: 'tenable:CVE-2024-22075',
+            cve_id: 'CVE-2024-22075'
         })
         """,
     )
@@ -201,10 +203,10 @@ def test_sync(mock_nvd, mock_epss, neo4j_session):
         ("CVE-2024-22075", "CVE-2024-22075"),
     } <= actual_enriches_rels
 
-    # Assert - list-valued CVE nodes receive metadata for every CVE in cve_list
+    # Assert - TenableCVE nodes receive metadata through the generic CVE relationship
     record = neo4j_session.run(
         """
-        MATCH (metadata:CVEMetadata)-[:ENRICHES]->(:CVE {id: 'tenable-finding'})
+        MATCH (metadata:CVEMetadata)-[:ENRICHES]->(:TenableCVE)
         RETURN collect(metadata.id) AS metadata_ids
         """,
     ).single()

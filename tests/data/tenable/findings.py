@@ -18,6 +18,13 @@ SCOPED_PLUGIN_ID_1 = tenable_id(PLUGIN_ID_1)
 SCOPED_PLUGIN_ID_2 = tenable_id(PLUGIN_ID_2)
 SCOPED_PLUGIN_ID_3 = tenable_id(PLUGIN_ID_3)
 
+CVE_ID_1 = "CVE-2022-21837"
+CVE_ID_2 = "CVE-2022-21840"
+CVE_ID_3 = "CVE-2022-21842"
+SCOPED_CVE_ID_1 = tenable_id(CVE_ID_1)
+SCOPED_CVE_ID_2 = tenable_id(CVE_ID_2)
+SCOPED_CVE_ID_3 = tenable_id(CVE_ID_3)
+
 SCAN_UUID_1 = "270b911b-1fe6-4760-8c49-88d315cb764e"
 SCAN_UUID_2 = "e86252a3-8dc0-43b6-8ddd-afb219d040ed"
 SCOPED_SCAN_UUID_1 = tenable_id(SCAN_UUID_1)
@@ -66,7 +73,7 @@ FINDINGS_DATA = [
             "cvss4_base_score": 6.9,
             "vpr": {"score": 6.7},
             "epss_score": 10.647,
-            "cve": ["CVE-2022-21837", "CVE-2022-21840", "CVE-2022-21842"],
+            "cve": [CVE_ID_1, CVE_ID_2, CVE_ID_3],
             "type": "local",
         },
         "port": {"port": 445, "protocol": "TCP", "service": "cifs"},

@@ -8,6 +8,7 @@ from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
 from cartography.intel.tenable.api import export_and_download
 from cartography.intel.tenable.common import make_tenable_id
+from cartography.models.tenable.findings import TenableCVESchema
 from cartography.models.tenable.findings import TenableFindingSchema
 from cartography.models.tenable.plugins import TenablePluginSchema
 from cartography.models.tenable.scans import TenableScanSchema
@@ -20,6 +21,19 @@ _FINDING_EXPORT_PATH = "vulns/export"
 _FINDING_RESULT_BASE = "vulns/export"
 _FINDING_EXPORT_PARAMS: dict[str, Any] = {"num_assets": 500}
 _FINDING_EXPORT_STATES = ["OPEN", "REOPENED", "FIXED"]
+
+
+def _get_cve_ids(plugin: dict[str, Any]) -> list[str]:
+    cve_ids = []
+    seen = set()
+    for cve_id in plugin.get("cve") or []:
+        if not isinstance(cve_id, str) or not cve_id.startswith("CVE"):
+            continue
+        if cve_id in seen:
+            continue
+        seen.add(cve_id)
+        cve_ids.append(cve_id)
+    return cve_ids
 
 
 @timeit
@@ -74,7 +88,7 @@ def transform(
             )
             continue
 
-        cve_ids: list[str] = plugin.get("cve") or []
+        cve_ids = _get_cve_ids(plugin)
 
         result.append(
             {
@@ -104,10 +118,9 @@ def transform(
                 "port": port_info.get("port"),
                 "protocol": port_info.get("protocol"),
                 "service": port_info.get("service"),
-                # First CVE retained for scalar CVE compatibility.
-                "cve_id": cve_ids[0] if cve_ids else None,
-                "cve_list": cve_ids,
-                "has_cve": "true" if cve_ids else "false",
+                "cve_node_ids": [
+                    make_tenable_id(tenant_id, cve_id) for cve_id in cve_ids
+                ],
             }
         )
     return result
@@ -125,6 +138,7 @@ def transform_plugins(
         if plugin_id is None or plugin_id in seen:
             continue
         seen.add(plugin_id)
+        cve_ids = _get_cve_ids(plugin)
         vpr = plugin.get("vpr") or {}
         result.append(
             {
@@ -157,10 +171,34 @@ def transform_plugins(
                 "cvss4_base_score": plugin.get("cvss4_base_score"),
                 "vpr_score": vpr.get("score"),
                 "epss_score": plugin.get("epss_score"),
-                "cve_list": plugin.get("cve") or [],
+                "cve_list": cve_ids,
+                "cve_node_ids": [
+                    make_tenable_id(tenant_id, cve_id) for cve_id in cve_ids
+                ],
                 "type": plugin.get("type"),
             }
         )
+    return result
+
+
+def transform_cves(
+    raw_findings: list[dict[str, Any]],
+    tenant_id: str,
+) -> list[dict[str, Any]]:
+    seen = set()
+    result = []
+    for finding in raw_findings:
+        plugin = finding.get("plugin") or {}
+        for cve_id in _get_cve_ids(plugin):
+            if cve_id in seen:
+                continue
+            seen.add(cve_id)
+            result.append(
+                {
+                    "id": make_tenable_id(tenant_id, cve_id),
+                    "cve_id": cve_id,
+                }
+            )
     return result
 
 
@@ -192,6 +230,7 @@ def transform_scans(
 def load_findings(
     neo4j_session: neo4j.Session,
     findings: list[dict[str, Any]],
+    cves: list[dict[str, Any]],
     plugins: list[dict[str, Any]],
     scans: list[dict[str, Any]],
     tenant_id: str,
@@ -203,7 +242,14 @@ def load_findings(
         [{"id": tenant_id}],
         lastupdated=update_tag,
     )
-    # Plugins and scans must exist before findings so outward rel targets are present.
+    load(
+        neo4j_session,
+        TenableCVESchema(),
+        cves,
+        lastupdated=update_tag,
+        TENABLE_TENANT_ID=tenant_id,
+    )
+    # Plugins, scans, and CVEs must exist before findings so outward rel targets are present.
     load(
         neo4j_session,
         TenablePluginSchema(),
@@ -241,6 +287,9 @@ def cleanup(
     GraphJob.from_node_schema(TenableScanSchema(), common_job_parameters).run(
         neo4j_session
     )
+    GraphJob.from_node_schema(TenableCVESchema(), common_job_parameters).run(
+        neo4j_session
+    )
 
 
 @timeit
@@ -261,7 +310,8 @@ def sync(
     since_epoch = update_tag - (lookback_days * 86400)
     raw_findings = get(session, base_url, since_epoch)
     findings = transform(raw_findings, tenant_id)
+    cves = transform_cves(raw_findings, tenant_id)
     plugins = transform_plugins(raw_findings, tenant_id)
     scans = transform_scans(raw_findings, tenant_id)
-    load_findings(neo4j_session, findings, plugins, scans, tenant_id, update_tag)
+    load_findings(neo4j_session, findings, cves, plugins, scans, tenant_id, update_tag)
     cleanup(neo4j_session, common_job_parameters)

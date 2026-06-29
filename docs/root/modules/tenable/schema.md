@@ -197,8 +197,6 @@ A vulnerability instance detected by Tenable on a specific asset. Corresponds to
 
 The `id` is tenant-scoped to avoid collisions across Tenable tenants. Plugin details live in `TenablePlugin`; scan metadata lives in `TenableScan`.
 
-> **Ontology note:** when `has_cve` is `"true"` the node is also labelled `CVE`, allowing `CVEMetadata` nodes to enrich it automatically via `(:CVEMetadata)-[:ENRICHES]->(:CVE)`. Metadata enrichment discovers and links every CVE in `cve_list`.
-
 | Field | Description |
 |---|---|
 | **id** | Tenant-scoped finding UUID: `{tenant_id}:{finding_id}` |
@@ -219,9 +217,6 @@ The `id` is tenant-scoped to avoid collisions across Tenable tenants. Plugin det
 | port | Port number the finding was detected on |
 | protocol | Protocol (e.g. `TCP`, `UDP`) |
 | service | Service name (e.g. `www`, `cifs`) |
-| **cve_id** | First CVE ID from the plugin's CVE list; retained for scalar CVE compatibility (indexed) |
-| cve_list | Full list of CVE IDs associated with this finding |
-| has_cve | `"true"` if the plugin has at least one CVE ID, `"false"` otherwise |
 | lastupdated | Timestamp of the last sync run |
 
 #### Relationships
@@ -231,6 +226,26 @@ The `id` is tenant-scoped to avoid collisions across Tenable tenants. Plugin det
 (:TenableFinding)-[:AFFECTS]->(:TenableAsset)
 (:TenableFinding)-[:DETECTED_BY]->(:TenablePlugin)
 (:TenableFinding)-[:PART_OF_SCAN]->(:TenableScan)
+(:TenableFinding)-[:HAS_CVE]->(:TenableCVE)
+```
+
+### TenableCVE::CVE
+
+A CVE referenced by a Tenable plugin and observed through one or more findings. The node is tenant-scoped to avoid collisions across Tenable tenants while still carrying the shared `CVE` label and scalar `cve_id` property used by `cve_metadata`.
+
+| Field | Description |
+|---|---|
+| **id** | Tenant-scoped CVE ID: `{tenant_id}:{cve_id}` |
+| **cve_id** | Raw CVE ID (e.g. `CVE-2022-21837`); indexed |
+| lastupdated | Timestamp of the last sync run |
+
+#### Relationships
+
+```
+(:TenableTenant)-[:RESOURCE]->(:TenableCVE)
+(:TenableFinding)-[:HAS_CVE]->(:TenableCVE)
+(:TenablePlugin)-[:REFERENCES_CVE]->(:TenableCVE)
+(:CVEMetadata)-[:ENRICHES]->(:TenableCVE)
 ```
 
 ### TenablePlugin
@@ -266,7 +281,7 @@ A Tenable plugin that detected one or more findings. Plugins are deduplicated ac
 | cvss4_base_score | CVSS v4 base score |
 | vpr_score | Tenable Vulnerability Priority Rating score |
 | epss_score | EPSS probability score |
-| cve_list | Full list of CVE IDs associated with this plugin |
+| cve_list | Raw list of CVE IDs associated with this plugin |
 | type | Scan type (`local`, `remote`, `combined`) |
 | lastupdated | Timestamp of the last sync run |
 
@@ -275,6 +290,7 @@ A Tenable plugin that detected one or more findings. Plugins are deduplicated ac
 ```
 (:TenableTenant)-[:RESOURCE]->(:TenablePlugin)
 (:TenableFinding)-[:DETECTED_BY]->(:TenablePlugin)
+(:TenablePlugin)-[:REFERENCES_CVE]->(:TenableCVE)
 ```
 
 ### TenableScan

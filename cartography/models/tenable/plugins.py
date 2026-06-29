@@ -7,6 +7,7 @@ from cartography.models.core.relationships import CartographyRelProperties
 from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
+from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import TargetNodeMatcher
 
 
@@ -66,7 +67,29 @@ class TenablePluginToTenantRel(CartographyRelSchema):
 
 
 @dataclass(frozen=True)
+class TenablePluginToCVERelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+# (:TenablePlugin)-[:REFERENCES_CVE]->(:TenableCVE:CVE)
+@dataclass(frozen=True)
+class TenablePluginToCVERel(CartographyRelSchema):
+    target_node_label: str = "TenableCVE"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"id": PropertyRef("cve_node_ids", one_to_many=True)},
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "REFERENCES_CVE"
+    properties: TenablePluginToCVERelProperties = TenablePluginToCVERelProperties()
+
+
+@dataclass(frozen=True)
 class TenablePluginSchema(CartographyNodeSchema):
     label: str = "TenablePlugin"
     properties: TenablePluginNodeProperties = TenablePluginNodeProperties()
     sub_resource_relationship: TenablePluginToTenantRel = TenablePluginToTenantRel()
+    other_relationships: OtherRelationships = OtherRelationships(
+        [
+            TenablePluginToCVERel(),
+        ]
+    )
