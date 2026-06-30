@@ -77,6 +77,11 @@ def transform_loadbalancers(
     frontends_by_project: dict[str, list[dict[str, Any]]] = {}
     backends_by_project: dict[str, list[dict[str, Any]]] = {}
 
+    # Frontends / backends inherit the project of their parent load balancer.
+    # Resolve it from the parent LBs rather than the embedded child `lb`, so a
+    # partial child payload can't strand children under PROJECT_ID=None.
+    project_by_lb_id = {lb.id: lb.project_id for lb in lbs}
+
     for lb in lbs:
         formatted_lb = scaleway_obj_to_dict(lb)
         ip_addresses = [ip["ip_address"] for ip in (formatted_lb.get("ip") or [])]
@@ -86,23 +91,34 @@ def transform_loadbalancers(
 
     for frontend in frontends:
         formatted_frontend = scaleway_obj_to_dict(frontend)
-        lb = formatted_frontend.get("lb") or {}
-        formatted_frontend["lb_id"] = lb.get("id")
+        lb_id = (formatted_frontend.get("lb") or {}).get("id")
+        project_id = project_by_lb_id.get(lb_id)
+        if project_id is None:
+            logger.warning(
+                "Skipping Scaleway LB frontend %s: unknown parent LB %s.",
+                formatted_frontend.get("id"),
+                lb_id,
+            )
+            continue
+        formatted_frontend["lb_id"] = lb_id
         formatted_frontend["backend_id"] = (
             formatted_frontend.get("backend") or {}
         ).get("id")
-        # Frontends inherit the project of their parent load balancer.
-        frontends_by_project.setdefault(lb.get("project_id"), []).append(
-            formatted_frontend
-        )
+        frontends_by_project.setdefault(project_id, []).append(formatted_frontend)
 
     for backend in backends:
         formatted_backend = scaleway_obj_to_dict(backend)
-        lb = formatted_backend.get("lb") or {}
-        formatted_backend["lb_id"] = lb.get("id")
-        backends_by_project.setdefault(lb.get("project_id"), []).append(
-            formatted_backend
-        )
+        lb_id = (formatted_backend.get("lb") or {}).get("id")
+        project_id = project_by_lb_id.get(lb_id)
+        if project_id is None:
+            logger.warning(
+                "Skipping Scaleway LB backend %s: unknown parent LB %s.",
+                formatted_backend.get("id"),
+                lb_id,
+            )
+            continue
+        formatted_backend["lb_id"] = lb_id
+        backends_by_project.setdefault(project_id, []).append(formatted_backend)
 
     return lbs_by_project, frontends_by_project, backends_by_project
 
