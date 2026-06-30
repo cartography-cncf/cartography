@@ -17,11 +17,18 @@ PRJ -- RESOURCE --> SNAP(VolumeSnapshot)
 PRJ -- RESOURCE --> SG(SecurityGroup)
 PRJ -- RESOURCE --> SGR(SecurityGroupRule)
 PRJ -- RESOURCE --> BKT(ObjectStorageBucket)
+PRJ -- RESOURCE --> VPC(Vpc)
+PRJ -- RESOURCE --> PN(PrivateNetwork)
+PRJ -- RESOURCE --> SUB(Subnet)
+PRJ -- RESOURCE --> IP(IP)
 INS -- MOUNTS --> VOL
 INS -- MEMBER_OF_SCALEWAY_SECURITY_GROUP --> SG
 SGR -- MEMBER_OF_SCALEWAY_SECURITY_GROUP --> SG
 FIP -- IDENTIFIES --> INS
 VOL -- HAS --> SNAP
+VPC -- HAS --> PN
+PN -- HAS --> SUB
+SUB -- HAS --> IP
 USR -- MEMBER_OF --> GRP(ScalewayGroup)
 APIKEY(ScalewayApiKey) -- OWNED_BY --> USR
 APP -- MEMBER_OF --> GRP(ScalewayGroup)
@@ -88,7 +95,11 @@ Represents a Project in Scaleway. Projects are groupings of Scaleway resources.
         :ScalewayInstance,
         :ScalewaySecurityGroup,
         :ScalewaySecurityGroupRule,
-        :ScalewayObjectStorageBucket
+        :ScalewayObjectStorageBucket,
+        :ScalewayVpc,
+        :ScalewayPrivateNetwork,
+        :ScalewaySubnet,
+        :ScalewayIP
     )
     ```
 
@@ -558,4 +569,124 @@ An Object Storage bucket is an S3-compatible container for objects. Scaleway Obj
 - An `ObjectStorageBucket` belongs to a `Project`
     ```
     (:ScalewayProject)-[:RESOURCE]->(:ScalewayObjectStorageBucket)
+    ```
+
+### ScalewayVpc
+
+A VPC (Virtual Private Cloud) is a regional, isolated network that groups Private Networks.
+
+> **Ontology Mapping**: This node has the extra label `VirtualNetwork` to enable cross-platform queries for virtual networks across different systems (e.g., AWSVpc, GCPVpc, AzureVirtualNetwork).
+
+| Field      | Description                                  |
+|------------|----------------------------------------------|
+| id         | VPC unique ID.                               |
+| name       | VPC name.                                    |
+| region     | Region the VPC lives in.                     |
+| tags       | Tags associated with the VPC.                |
+| is_default | True if it is the default VPC of the Project. |
+| private_network_count | Number of Private Networks in the VPC. |
+| routing_enabled | True if routing between Private Networks is enabled. |
+| custom_routes_propagation_enabled | True if custom routes are propagated. |
+| created_at | VPC creation date.                           |
+| updated_at | VPC last update date.                        |
+| lastupdated | Timestamp of the last update                 |
+
+#### Relationships
+- A `Vpc` belongs to a `Project`
+    ```
+    (:ScalewayProject)-[:RESOURCE]->(:ScalewayVpc)
+    ```
+- A `Vpc` has `PrivateNetwork`
+    ```
+    (:ScalewayVpc)-[:HAS]->(:ScalewayPrivateNetwork)
+    ```
+
+### ScalewayPrivateNetwork
+
+A Private Network is a layer-2 network within a VPC that Instances and other resources attach to.
+
+| Field      | Description                                  |
+|------------|----------------------------------------------|
+| id         | Private Network unique ID.                   |
+| name       | Private Network name.                        |
+| region     | Region the Private Network lives in.         |
+| tags       | Tags associated with the Private Network.    |
+| vpc_id     | ID of the VPC the Private Network belongs to. |
+| dhcp_enabled | True if managed DHCP is enabled.           |
+| default_route_propagation_enabled | True if the default route is propagated. |
+| created_at | Private Network creation date.               |
+| updated_at | Private Network last update date.            |
+| lastupdated | Timestamp of the last update                 |
+
+#### Relationships
+- A `PrivateNetwork` belongs to a `Project`
+    ```
+    (:ScalewayProject)-[:RESOURCE]->(:ScalewayPrivateNetwork)
+    ```
+- A `Vpc` has `PrivateNetwork`
+    ```
+    (:ScalewayVpc)-[:HAS]->(:ScalewayPrivateNetwork)
+    ```
+- A `PrivateNetwork` has `Subnet`
+    ```
+    (:ScalewayPrivateNetwork)-[:HAS]->(:ScalewaySubnet)
+    ```
+
+### ScalewaySubnet
+
+A Subnet is a CIDR block (IPv4 or IPv6) belonging to a Private Network.
+
+> **Ontology Mapping**: This node has the extra label `Subnet` to enable cross-platform queries for subnets across different systems (e.g., EC2Subnet, GCPSubnet, AzureSubnet).
+
+| Field      | Description                                  |
+|------------|----------------------------------------------|
+| id         | Subnet unique ID.                            |
+| subnet     | CIDR block of the subnet.                    |
+| private_network_id | ID of the Private Network the subnet belongs to. |
+| vpc_id     | ID of the VPC the subnet belongs to.         |
+| created_at | Subnet creation date.                        |
+| updated_at | Subnet last update date.                     |
+| lastupdated | Timestamp of the last update                 |
+
+#### Relationships
+- A `Subnet` belongs to a `Project`
+    ```
+    (:ScalewayProject)-[:RESOURCE]->(:ScalewaySubnet)
+    ```
+- A `PrivateNetwork` has `Subnet`
+    ```
+    (:ScalewayPrivateNetwork)-[:HAS]->(:ScalewaySubnet)
+    ```
+
+### ScalewayIP
+
+An IP is an IPAM-managed IP address (IPv4 or IPv6) allocated within a Private Network and optionally attached to a resource.
+
+| Field      | Description                                  |
+|------------|----------------------------------------------|
+| id         | IP unique ID.                                |
+| address    | The IP address (CIDR notation).              |
+| is_ipv6    | True if the address is IPv6.                 |
+| tags       | Tags associated with the IP.                 |
+| region     | Region the IP lives in.                      |
+| zone       | Zone the IP lives in (when zonal).           |
+| source_private_network_id | ID of the Private Network the IP was booked in. |
+| source_subnet_id | ID of the subnet the IP was booked in.  |
+| source_vpc_id | ID of the VPC the IP was booked in.       |
+| resource_type | Type of resource the IP is attached to (e.g. `instance_private_nic`). |
+| resource_id | ID of the resource the IP is attached to.   |
+| resource_name | Name of the resource the IP is attached to. |
+| resource_mac_address | MAC address of the resource the IP is attached to. |
+| created_at | IP creation date.                            |
+| updated_at | IP last update date.                         |
+| lastupdated | Timestamp of the last update                 |
+
+#### Relationships
+- An `IP` belongs to a `Project`
+    ```
+    (:ScalewayProject)-[:RESOURCE]->(:ScalewayIP)
+    ```
+- A `Subnet` has `IP`
+    ```
+    (:ScalewaySubnet)-[:HAS]->(:ScalewayIP)
     ```
