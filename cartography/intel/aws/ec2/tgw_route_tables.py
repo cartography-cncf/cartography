@@ -219,6 +219,13 @@ def get_transit_gateway_route_table_associations(boto3_session: boto3.session.Se
     client = create_boto3_client(boto3_session, "ec2", region_name=region, config=get_botocore_config())
     associations: list[dict[str, Any]] = []
     try:
+        # Some older botocore/boto3 versions may not expose describe_transit_gateway_route_table_associations.
+        if not hasattr(client, "describe_transit_gateway_route_table_associations"):
+            logger.debug(
+                "EC2 client does not support describe_transit_gateway_route_table_associations; skipping associations fallback for region %s",
+                region,
+            )
+            return associations
         # describe_transit_gateway_route_table_associations may not be pageable via botocore paginator in all versions.
         next_token = None
         while True:
