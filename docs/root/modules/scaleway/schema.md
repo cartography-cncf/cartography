@@ -16,11 +16,33 @@ PRJ -- RESOURCE --> VOL(Volume)
 PRJ -- RESOURCE --> SNAP(VolumeSnapshot)
 PRJ -- RESOURCE --> SG(SecurityGroup)
 PRJ -- RESOURCE --> SGR(SecurityGroupRule)
+PRJ -- RESOURCE --> BKT(ObjectStorageBucket)
+PRJ -- RESOURCE --> VPC(Vpc)
+PRJ -- RESOURCE --> PN(PrivateNetwork)
+PRJ -- RESOURCE --> SUB(Subnet)
+PRJ -- RESOURCE --> IP(IP)
+PRJ -- RESOURCE --> LB(LoadBalancer)
+PRJ -- RESOURCE --> FE(LBFrontend)
+PRJ -- RESOURCE --> BE(LBBackend)
+PRJ -- RESOURCE --> DZ(DnsZone)
+PRJ -- RESOURCE --> DR(DnsRecord)
+PRJ -- RESOURCE --> SEC(Secret)
+PRJ -- RESOURCE --> SV(SecretVersion)
+PRJ -- RESOURCE --> KEY(Key)
 INS -- MOUNTS --> VOL
 INS -- MEMBER_OF_SCALEWAY_SECURITY_GROUP --> SG
 SGR -- MEMBER_OF_SCALEWAY_SECURITY_GROUP --> SG
 FIP -- IDENTIFIES --> INS
 VOL -- HAS --> SNAP
+VPC -- HAS --> PN
+PN -- HAS --> SUB
+SUB -- HAS --> IP
+LB -- HAS --> FE
+LB -- HAS --> BE
+FE -- ROUTES_TO --> BE
+DZ -- HAS_RECORD --> DR
+SEC -- HAS --> SV
+SEC -- ENCRYPTED_BY --> KEY
 USR -- MEMBER_OF --> GRP(ScalewayGroup)
 APIKEY(ScalewayApiKey) -- OWNED_BY --> USR
 APP -- MEMBER_OF --> GRP(ScalewayGroup)
@@ -86,7 +108,15 @@ Represents a Project in Scaleway. Projects are groupings of Scaleway resources.
         :ScalewayVolumeSnapshot,
         :ScalewayInstance,
         :ScalewaySecurityGroup,
-        :ScalewaySecurityGroupRule
+        :ScalewaySecurityGroupRule,
+        :ScalewayObjectStorageBucket,
+        :ScalewayVpc,
+        :ScalewayPrivateNetwork,
+        :ScalewaySubnet,
+        :ScalewayIP,
+        :ScalewayLoadBalancer,
+        :ScalewayLBFrontend,
+        :ScalewayLBBackend
     )
     ```
 
@@ -529,4 +559,421 @@ A Security Group Rule is a single firewall rule (inbound or outbound) belonging 
 - A `SecurityGroupRule` is a member of a `SecurityGroup`
     ```
     (:ScalewaySecurityGroupRule)-[:MEMBER_OF_SCALEWAY_SECURITY_GROUP]->(:ScalewaySecurityGroup)
+    ```
+
+### ScalewayObjectStorageBucket
+
+An Object Storage bucket is an S3-compatible container for objects. Scaleway Object Storage is not exposed by the Scaleway Python SDK, so it is collected through the regional S3-compatible endpoints.
+
+> **Ontology Mapping**: This node has the extra label `ObjectStorage` to enable cross-platform queries for object storage across different systems (e.g., S3Bucket, GCPBucket).
+
+| Field      | Description                                  |
+|------------|----------------------------------------------|
+| id         | Bucket name (globally unique).               |
+| name       | Bucket name.                                 |
+| region     | Region the bucket lives in (`fr-par`, `nl-ams`, `pl-waw`, `it-mil`). |
+| endpoint   | Public S3 endpoint URL of the bucket.        |
+| creation_date | Bucket creation date.                     |
+| tags       | Bucket tags (`key=value`).                   |
+| versioning_status | Versioning status (`Enabled`, `Suspended`, or unset). |
+| acl_public | True if the bucket ACL grants access to `AllUsers` / `AuthenticatedUsers` (null if the ACL could not be read). |
+| anonymous_access | True if the bucket policy grants anonymous (internet) access (null if the policy could not be read). |
+| anonymous_actions | Actions granted to anonymous principals by the bucket policy. |
+| public     | Combined public-exposure signal: `acl_public` OR `anonymous_access`; null when both sources were unreadable. |
+| lastupdated | Timestamp of the last update                 |
+
+#### Relationships
+- An `ObjectStorageBucket` belongs to a `Project`
+    ```
+    (:ScalewayProject)-[:RESOURCE]->(:ScalewayObjectStorageBucket)
+    ```
+
+### ScalewayVpc
+
+A VPC (Virtual Private Cloud) is a regional, isolated network that groups Private Networks.
+
+> **Ontology Mapping**: This node has the extra label `VirtualNetwork` to enable cross-platform queries for virtual networks across different systems (e.g., AWSVpc, GCPVpc, AzureVirtualNetwork).
+
+| Field      | Description                                  |
+|------------|----------------------------------------------|
+| id         | VPC unique ID.                               |
+| name       | VPC name.                                    |
+| region     | Region the VPC lives in.                     |
+| tags       | Tags associated with the VPC.                |
+| is_default | True if it is the default VPC of the Project. |
+| private_network_count | Number of Private Networks in the VPC. |
+| routing_enabled | True if routing between Private Networks is enabled. |
+| custom_routes_propagation_enabled | True if custom routes are propagated. |
+| created_at | VPC creation date.                           |
+| updated_at | VPC last update date.                        |
+| lastupdated | Timestamp of the last update                 |
+
+#### Relationships
+- A `Vpc` belongs to a `Project`
+    ```
+    (:ScalewayProject)-[:RESOURCE]->(:ScalewayVpc)
+    ```
+- A `Vpc` has `PrivateNetwork`
+    ```
+    (:ScalewayVpc)-[:HAS]->(:ScalewayPrivateNetwork)
+    ```
+
+### ScalewayPrivateNetwork
+
+A Private Network is a layer-2 network within a VPC that Instances and other resources attach to.
+
+| Field      | Description                                  |
+|------------|----------------------------------------------|
+| id         | Private Network unique ID.                   |
+| name       | Private Network name.                        |
+| region     | Region the Private Network lives in.         |
+| tags       | Tags associated with the Private Network.    |
+| vpc_id     | ID of the VPC the Private Network belongs to. |
+| dhcp_enabled | True if managed DHCP is enabled.           |
+| default_route_propagation_enabled | True if the default route is propagated. |
+| created_at | Private Network creation date.               |
+| updated_at | Private Network last update date.            |
+| lastupdated | Timestamp of the last update                 |
+
+#### Relationships
+- A `PrivateNetwork` belongs to a `Project`
+    ```
+    (:ScalewayProject)-[:RESOURCE]->(:ScalewayPrivateNetwork)
+    ```
+- A `Vpc` has `PrivateNetwork`
+    ```
+    (:ScalewayVpc)-[:HAS]->(:ScalewayPrivateNetwork)
+    ```
+- A `PrivateNetwork` has `Subnet`
+    ```
+    (:ScalewayPrivateNetwork)-[:HAS]->(:ScalewaySubnet)
+    ```
+
+### ScalewaySubnet
+
+A Subnet is a CIDR block (IPv4 or IPv6) belonging to a Private Network.
+
+> **Ontology Mapping**: This node has the extra label `Subnet` to enable cross-platform queries for subnets across different systems (e.g., EC2Subnet, GCPSubnet, AzureSubnet).
+
+| Field      | Description                                  |
+|------------|----------------------------------------------|
+| id         | Subnet unique ID.                            |
+| subnet     | CIDR block of the subnet.                    |
+| private_network_id | ID of the Private Network the subnet belongs to. |
+| vpc_id     | ID of the VPC the subnet belongs to.         |
+| created_at | Subnet creation date.                        |
+| updated_at | Subnet last update date.                     |
+| lastupdated | Timestamp of the last update                 |
+
+#### Relationships
+- A `Subnet` belongs to a `Project`
+    ```
+    (:ScalewayProject)-[:RESOURCE]->(:ScalewaySubnet)
+    ```
+- A `PrivateNetwork` has `Subnet`
+    ```
+    (:ScalewayPrivateNetwork)-[:HAS]->(:ScalewaySubnet)
+    ```
+
+### ScalewayIP
+
+An IP is an IPAM-managed IP address (IPv4 or IPv6) allocated within a Private Network and optionally attached to a resource.
+
+| Field      | Description                                  |
+|------------|----------------------------------------------|
+| id         | IP unique ID.                                |
+| address    | The IP address (CIDR notation).              |
+| is_ipv6    | True if the address is IPv6.                 |
+| tags       | Tags associated with the IP.                 |
+| region     | Region the IP lives in.                      |
+| zone       | Zone the IP lives in (when zonal).           |
+| source_private_network_id | ID of the Private Network the IP was booked in. |
+| source_subnet_id | ID of the subnet the IP was booked in.  |
+| source_vpc_id | ID of the VPC the IP was booked in.       |
+| resource_type | Type of resource the IP is attached to (e.g. `instance_private_nic`). |
+| resource_id | ID of the resource the IP is attached to.   |
+| resource_name | Name of the resource the IP is attached to. |
+| resource_mac_address | MAC address of the resource the IP is attached to. |
+| created_at | IP creation date.                            |
+| updated_at | IP last update date.                         |
+| lastupdated | Timestamp of the last update                 |
+
+#### Relationships
+- An `IP` belongs to a `Project`
+    ```
+    (:ScalewayProject)-[:RESOURCE]->(:ScalewayIP)
+    ```
+- A `Subnet` has `IP`
+    ```
+    (:ScalewaySubnet)-[:HAS]->(:ScalewayIP)
+    ```
+
+### ScalewayLoadBalancer
+
+A Load Balancer distributes incoming traffic across backend servers. Its public IP(s) make it an internet-facing entry point.
+
+> **Ontology Mapping**: This node has the extra label `LoadBalancer` to enable cross-platform queries for load balancers across different systems (e.g., AWSLoadBalancerV2, GCPForwardingRule, AzureLoadBalancer).
+
+| Field      | Description                                  |
+|------------|----------------------------------------------|
+| id         | Load Balancer unique ID.                     |
+| name       | Load Balancer name.                          |
+| description | Load Balancer description.                  |
+| status     | Load Balancer status (e.g. `ready`).          |
+| type       | Load Balancer commercial type (e.g. `LB-S`). |
+| tags       | Tags associated with the Load Balancer.       |
+| frontend_count | Number of frontends.                      |
+| backend_count | Number of backends.                        |
+| private_network_count | Number of attached Private Networks. |
+| route_count | Number of routes.                            |
+| ssl_compatibility_level | SSL compatibility level.          |
+| ip_address | Primary public IP address (first entry of `ip_addresses`). |
+| ip_addresses | All public IP addresses of the Load Balancer. |
+| zone       | Zone the Load Balancer lives in.              |
+| region     | Region the Load Balancer lives in.            |
+| created_at | Load Balancer creation date.                  |
+| updated_at | Load Balancer last update date.               |
+| lastupdated | Timestamp of the last update                 |
+
+#### Relationships
+- A `LoadBalancer` belongs to a `Project`
+    ```
+    (:ScalewayProject)-[:RESOURCE]->(:ScalewayLoadBalancer)
+    ```
+- A `LoadBalancer` has `LBFrontend` and `LBBackend`
+    ```
+    (:ScalewayLoadBalancer)-[:HAS]->(:ScalewayLBFrontend)
+    (:ScalewayLoadBalancer)-[:HAS]->(:ScalewayLBBackend)
+    ```
+
+### ScalewayLBFrontend
+
+A Frontend defines an inbound listener (port) on a Load Balancer and the backend it routes to.
+
+| Field      | Description                                  |
+|------------|----------------------------------------------|
+| id         | Frontend unique ID.                          |
+| name       | Frontend name.                               |
+| inbound_port | Port the frontend listens on.              |
+| certificate_ids | IDs of the TLS certificates attached.    |
+| enable_http3 | True if HTTP/3 is enabled.                  |
+| enable_access_logs | True if access logs are enabled.      |
+| timeout_client | Client inactivity timeout.                |
+| connection_rate_limit | Per-source connection rate limit.   |
+| created_at | Frontend creation date.                      |
+| updated_at | Frontend last update date.                   |
+| lastupdated | Timestamp of the last update                 |
+
+#### Relationships
+- A `LBFrontend` belongs to a `Project`
+    ```
+    (:ScalewayProject)-[:RESOURCE]->(:ScalewayLBFrontend)
+    ```
+- A `LoadBalancer` has `LBFrontend`
+    ```
+    (:ScalewayLoadBalancer)-[:HAS]->(:ScalewayLBFrontend)
+    ```
+- A `LBFrontend` routes to a `LBBackend`
+    ```
+    (:ScalewayLBFrontend)-[:ROUTES_TO]->(:ScalewayLBBackend)
+    ```
+
+### ScalewayLBBackend
+
+A Backend defines a pool of servers and the forwarding / health-check configuration a Load Balancer uses to reach them.
+
+| Field      | Description                                  |
+|------------|----------------------------------------------|
+| id         | Backend unique ID.                           |
+| name       | Backend name.                                |
+| forward_protocol | Protocol used to forward traffic (`tcp`, `http`). |
+| forward_port | Port traffic is forwarded to.              |
+| forward_port_algorithm | Load-balancing algorithm (e.g. `roundrobin`). |
+| sticky_sessions | Sticky-session mode.                     |
+| on_marked_down_action | Action when a server is marked down. |
+| proxy_protocol | Proxy protocol mode.                      |
+| pool       | List of backend server IP addresses.          |
+| health_check_port | Port used for health checks.           |
+| health_check_delay | Delay between health checks.          |
+| health_check_max_retries | Max health-check retries before marking down. |
+| timeout_server | Server inactivity timeout.                |
+| timeout_connect | Connection timeout.                      |
+| ssl_bridging | True if SSL bridging to the backend is enabled. |
+| created_at | Backend creation date.                       |
+| updated_at | Backend last update date.                    |
+| lastupdated | Timestamp of the last update                 |
+
+#### Relationships
+- A `LBBackend` belongs to a `Project`
+    ```
+    (:ScalewayProject)-[:RESOURCE]->(:ScalewayLBBackend)
+    ```
+- A `LoadBalancer` has `LBBackend`
+    ```
+    (:ScalewayLoadBalancer)-[:HAS]->(:ScalewayLBBackend)
+    ```
+- A `LBFrontend` routes to a `LBBackend`
+    ```
+    (:ScalewayLBFrontend)-[:ROUTES_TO]->(:ScalewayLBBackend)
+    ```
+
+
+### ScalewayDnsZone
+
+Represents a DNS zone managed by Scaleway Domains & DNS. The zone's ID is composed from `{subdomain}.{domain}` (or just `{domain}` for apex zones), which is the value the Scaleway API itself uses as the zone path parameter.
+
+> **Ontology Mapping**: This node has the extra label `DNSZone` to enable cross-platform queries for DNS zones across different systems (e.g., AWSDNSZone, GCPDNSZone).
+
+| Field      | Description                                  |
+|------------|----------------------------------------------|
+| id         | Full zone name (`subdomain.domain` or `domain`). |
+| domain     | Apex domain of the zone.                     |
+| subdomain  | Subdomain within the apex (empty for the apex zone itself). |
+| status     | Zone status (`active`, `pending`, `error`, ...). |
+| message    | Status message returned by the API.          |
+| ns         | Authoritative name servers currently configured for the zone. |
+| ns_default | Default Scaleway name servers.               |
+| ns_master  | Master name servers.                         |
+| linked_products | Scaleway products linked to this zone.  |
+| updated_at | Zone last update date.                       |
+| lastupdated | Timestamp of the last update                 |
+
+#### Relationships
+- A `DnsZone` belongs to a `Project`
+    ```
+    (:ScalewayProject)-[:RESOURCE]->(:ScalewayDnsZone)
+    ```
+
+
+### ScalewayDnsRecord
+
+Represents an individual DNS record within a `ScalewayDnsZone`.
+
+> **Ontology Mapping**: This node has the extra label `DNSRecord` to enable cross-platform queries for DNS records across different systems.
+
+| Field      | Description                                  |
+|------------|----------------------------------------------|
+| id         | Record unique ID.                            |
+| name       | Record name (relative to its zone).          |
+| type       | Record type (`a`, `aaaa`, `cname`, `mx`, ...). |
+| data       | Record data (target IP, hostname, value, ...). |
+| ttl        | Record TTL in seconds.                       |
+| priority   | Record priority (relevant for MX/SRV).       |
+| comment    | Free-form record comment.                    |
+| updated_at | Record last update date.                     |
+| lastupdated | Timestamp of the last update                 |
+
+#### Relationships
+- A `DnsRecord` belongs to a `Project`
+    ```
+    (:ScalewayProject)-[:RESOURCE]->(:ScalewayDnsRecord)
+    ```
+- A `DnsZone` has `DnsRecord`s
+    ```
+    (:ScalewayDnsZone)-[:HAS_RECORD]->(:ScalewayDnsRecord)
+    ```
+
+
+### ScalewaySecret
+
+Represents a secret managed by Scaleway Secret Manager.
+
+> **Ontology Mapping**: This node has the extra label `Secret` to enable cross-platform queries for secrets across different systems (e.g., AWSSecret, GCPSecretManagerSecret).
+
+| Field      | Description                                  |
+|------------|----------------------------------------------|
+| id         | Secret unique ID.                            |
+| name       | Secret name.                                 |
+| status     | Secret status (`ready`, `locked`, ...).      |
+| type       | Secret type (`opaque`, `basic_credentials`, `ssh_key`, ...). |
+| path       | Folder path of the secret.                   |
+| tags       | Secret tags.                                 |
+| version_count | Number of versions on this secret.        |
+| managed    | True if the secret is managed by another Scaleway product. |
+| protected  | True if the secret is protected against deletion. |
+| description | Secret description.                         |
+| region     | Region the secret lives in.                  |
+| key_id     | ID of the Key Manager key encrypting this secret (if any). |
+| used_by    | Scaleway products using this secret.         |
+| deletion_requested_at | Timestamp when deletion was requested. |
+| created_at | Secret creation date.                        |
+| updated_at | Secret last update date.                     |
+| lastupdated | Timestamp of the last update                 |
+
+#### Relationships
+- A `Secret` belongs to a `Project`
+    ```
+    (:ScalewayProject)-[:RESOURCE]->(:ScalewaySecret)
+    ```
+- A `Secret` may be encrypted by a `Key`
+    ```
+    (:ScalewaySecret)-[:ENCRYPTED_BY]->(:ScalewayKey)
+    ```
+
+
+### ScalewaySecretVersion
+
+Represents a version of a `ScalewaySecret`. The version's ID is composed as `{secret_id}/{revision}` since Scaleway does not expose a provider-side version ID.
+
+| Field      | Description                                  |
+|------------|----------------------------------------------|
+| id         | `{secret_id}/{revision}`.                    |
+| revision   | Monotonic revision number.                   |
+| status     | Version status (`enabled`, `disabled`, `destroyed`, ...). |
+| latest     | True if this version is the latest for its secret. |
+| description | Version description.                        |
+| region     | Region the version lives in.                 |
+| deletion_requested_at | Timestamp when deletion was requested. |
+| deleted_at | Deletion date (when the version is destroyed). |
+| created_at | Version creation date.                       |
+| updated_at | Version last update date.                    |
+| lastupdated | Timestamp of the last update                 |
+
+#### Relationships
+- A `SecretVersion` belongs to a `Project`
+    ```
+    (:ScalewayProject)-[:RESOURCE]->(:ScalewaySecretVersion)
+    ```
+- A `Secret` has `SecretVersion`s
+    ```
+    (:ScalewaySecret)-[:HAS]->(:ScalewaySecretVersion)
+    ```
+
+
+### ScalewayKey
+
+Represents a Scaleway Key Manager key.
+
+> **Ontology Mapping**: This node has the extra label `EncryptionKey` to enable cross-platform queries for encryption keys across different systems (e.g., AWSKMSKey, GCPCryptoKey).
+
+| Field      | Description                                  |
+|------------|----------------------------------------------|
+| id         | Key unique ID.                               |
+| name       | Key name.                                    |
+| description | Key description.                            |
+| state      | Key state (`enabled`, `disabled`, `pending_deletion`, ...). |
+| usage_type | Active key usage category (`symmetric_encryption`, `asymmetric_encryption`, `asymmetric_signing`). |
+| usage_algorithm | Algorithm corresponding to `usage_type` (e.g. `aes_256_gcm`). |
+| origin     | Key material origin (`scaleway_kms`, `external`).  |
+| region     | Region the key lives in.                     |
+| tags       | Key tags.                                    |
+| rotation_count | Number of times the key has been rotated. |
+| protected  | True if the key is protected against deletion. |
+| locked     | True if the key is locked.                   |
+| rotation_period | Automatic rotation period (ISO 8601 duration). |
+| rotation_next_at | Next scheduled rotation timestamp.      |
+| rotated_at | Last rotation date.                          |
+| deletion_requested_at | Timestamp when deletion was requested. |
+| created_at | Key creation date.                           |
+| updated_at | Key last update date.                        |
+| lastupdated | Timestamp of the last update                 |
+
+#### Relationships
+- A `Key` belongs to a `Project`
+    ```
+    (:ScalewayProject)-[:RESOURCE]->(:ScalewayKey)
+    ```
+- A `Secret` may be encrypted by a `Key`
+    ```
+    (:ScalewaySecret)-[:ENCRYPTED_BY]->(:ScalewayKey)
     ```

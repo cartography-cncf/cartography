@@ -100,8 +100,49 @@ azure_mapping = OntologyMapping(
     ],
 )
 
+scaleway_mapping = OntologyMapping(
+    module_name="scaleway",
+    nodes=[
+        OntologyNodeMapping(
+            node_label="ScalewayObjectStorageBucket",
+            fields=[
+                OntologyFieldMapping(
+                    ontology_field="name",
+                    node_field="name",
+                    required=True,
+                ),
+                OntologyFieldMapping(ontology_field="location", node_field="region"),
+                # Scaleway Object Storage encrypts every object at rest by default,
+                # so report encrypted=True statically (as GCP does) rather than
+                # leaving it unset.
+                OntologyFieldMapping(
+                    ontology_field="encrypted",
+                    node_field="",
+                    special_handling="static_value",
+                    extra={"value": True},
+                ),
+                OntologyFieldMapping(
+                    ontology_field="versioning",
+                    node_field="versioning_status",
+                    special_handling="equal_boolean",
+                    extra={"values": ["Enabled"]},
+                ),
+                # `public` is the tri-state combined signal (policy anonymous
+                # access OR ACL AllUsers/AuthenticatedUsers; null when both
+                # sources were unreadable). Mapped directly to preserve the
+                # unknown state instead of coalescing it to false.
+                OntologyFieldMapping(
+                    ontology_field="public",
+                    node_field="public",
+                ),
+            ],
+        ),
+    ],
+)
+
 OBJECT_STORAGE_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     "aws": aws_mapping,
     "gcp": gcp_mapping,
     "azure": azure_mapping,
+    "scaleway": scaleway_mapping,
 }

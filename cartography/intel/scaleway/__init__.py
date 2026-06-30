@@ -3,6 +3,7 @@ import logging
 import neo4j
 import scaleway
 
+import cartography.intel.scaleway.dns.dns
 import cartography.intel.scaleway.iam.apikeys
 import cartography.intel.scaleway.iam.applications
 import cartography.intel.scaleway.iam.groups
@@ -12,7 +13,14 @@ import cartography.intel.scaleway.iam.users
 import cartography.intel.scaleway.instances.flexibleips
 import cartography.intel.scaleway.instances.instances
 import cartography.intel.scaleway.instances.securitygroups
+import cartography.intel.scaleway.kms.keys
+import cartography.intel.scaleway.loadbalancers.loadbalancers
+import cartography.intel.scaleway.network.ips
+import cartography.intel.scaleway.network.private_networks
+import cartography.intel.scaleway.network.vpcs
 import cartography.intel.scaleway.projects
+import cartography.intel.scaleway.secrets.secrets
+import cartography.intel.scaleway.storage.objectstorage
 import cartography.intel.scaleway.storage.snapshots
 import cartography.intel.scaleway.storage.volumes
 from cartography.config import Config
@@ -121,6 +129,14 @@ def start_scaleway_ingestion(neo4j_session: neo4j.Session, config: Config) -> No
         projects_id=projects_id,
         update_tag=config.update_tag,
     )
+    cartography.intel.scaleway.storage.objectstorage.sync(
+        neo4j_session,
+        client,
+        common_job_parameters,
+        org_id=config.scaleway_org,
+        projects_id=projects_id,
+        update_tag=config.update_tag,
+    )
 
     # Instances
     # DISABLED due to https://github.com/scaleway/scaleway-sdk-python/issues/1040
@@ -143,6 +159,72 @@ def start_scaleway_ingestion(neo4j_session: neo4j.Session, config: Config) -> No
         update_tag=config.update_tag,
     )
     cartography.intel.scaleway.instances.securitygroups.sync(
+        neo4j_session,
+        client,
+        common_job_parameters,
+        org_id=config.scaleway_org,
+        projects_id=projects_id,
+        update_tag=config.update_tag,
+    )
+
+    # Network (VPC + IPAM)
+    cartography.intel.scaleway.network.vpcs.sync(
+        neo4j_session,
+        client,
+        common_job_parameters,
+        org_id=config.scaleway_org,
+        projects_id=projects_id,
+        update_tag=config.update_tag,
+    )
+    cartography.intel.scaleway.network.private_networks.sync(
+        neo4j_session,
+        client,
+        common_job_parameters,
+        org_id=config.scaleway_org,
+        projects_id=projects_id,
+        update_tag=config.update_tag,
+    )
+    cartography.intel.scaleway.network.ips.sync(
+        neo4j_session,
+        client,
+        common_job_parameters,
+        org_id=config.scaleway_org,
+        projects_id=projects_id,
+        update_tag=config.update_tag,
+    )
+
+    # Load Balancers
+    cartography.intel.scaleway.loadbalancers.loadbalancers.sync(
+        neo4j_session,
+        client,
+        common_job_parameters,
+        org_id=config.scaleway_org,
+        projects_id=projects_id,
+        update_tag=config.update_tag,
+    )
+
+    # DNS
+    cartography.intel.scaleway.dns.dns.sync(
+        neo4j_session,
+        client,
+        common_job_parameters,
+        org_id=config.scaleway_org,
+        projects_id=projects_id,
+        update_tag=config.update_tag,
+    )
+
+    # Key Manager (loaded before Secrets so Secret -> Key ENCRYPTED_BY edges resolve).
+    cartography.intel.scaleway.kms.keys.sync(
+        neo4j_session,
+        client,
+        common_job_parameters,
+        org_id=config.scaleway_org,
+        projects_id=projects_id,
+        update_tag=config.update_tag,
+    )
+
+    # Secret Manager
+    cartography.intel.scaleway.secrets.secrets.sync(
         neo4j_session,
         client,
         common_job_parameters,

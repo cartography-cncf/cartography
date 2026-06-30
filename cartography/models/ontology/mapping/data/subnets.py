@@ -78,8 +78,29 @@ azure_mapping = OntologyMapping(
     ],
 )
 
+scaleway_mapping = OntologyMapping(
+    module_name="scaleway",
+    nodes=[
+        OntologyNodeMapping(
+            node_label="ScalewaySubnet",
+            fields=[
+                # Scaleway subnets have no display name; the id is the canonical
+                # identifier (the `subnet` property holds the CIDR block).
+                OntologyFieldMapping(
+                    ontology_field="name", node_field="id", required=True
+                ),
+                OntologyFieldMapping(ontology_field="cidr_block", node_field="subnet"),
+                # _ont_availability_zone / _ont_region: not mapped. Scaleway subnets
+                # are regional and the region lives on the parent VPC / private
+                # network, not on the subnet node.
+            ],
+        ),
+    ],
+)
+
 SUBNETS_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     "aws": aws_mapping,
     "gcp": gcp_mapping,
     "azure": azure_mapping,
+    "scaleway": scaleway_mapping,
 }
