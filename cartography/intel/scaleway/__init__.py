@@ -12,6 +12,7 @@ import cartography.intel.scaleway.iam.users
 import cartography.intel.scaleway.instances.flexibleips
 import cartography.intel.scaleway.instances.instances
 import cartography.intel.scaleway.instances.securitygroups
+import cartography.intel.scaleway.loadbalancers.loadbalancers
 import cartography.intel.scaleway.network.ips
 import cartography.intel.scaleway.network.private_networks
 import cartography.intel.scaleway.network.vpcs
@@ -181,6 +182,16 @@ def start_scaleway_ingestion(neo4j_session: neo4j.Session, config: Config) -> No
         update_tag=config.update_tag,
     )
     cartography.intel.scaleway.network.ips.sync(
+        neo4j_session,
+        client,
+        common_job_parameters,
+        org_id=config.scaleway_org,
+        projects_id=projects_id,
+        update_tag=config.update_tag,
+    )
+
+    # Load Balancers
+    cartography.intel.scaleway.loadbalancers.loadbalancers.sync(
         neo4j_session,
         client,
         common_job_parameters,

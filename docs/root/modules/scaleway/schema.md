@@ -21,6 +21,9 @@ PRJ -- RESOURCE --> VPC(Vpc)
 PRJ -- RESOURCE --> PN(PrivateNetwork)
 PRJ -- RESOURCE --> SUB(Subnet)
 PRJ -- RESOURCE --> IP(IP)
+PRJ -- RESOURCE --> LB(LoadBalancer)
+PRJ -- RESOURCE --> FE(LBFrontend)
+PRJ -- RESOURCE --> BE(LBBackend)
 INS -- MOUNTS --> VOL
 INS -- MEMBER_OF_SCALEWAY_SECURITY_GROUP --> SG
 SGR -- MEMBER_OF_SCALEWAY_SECURITY_GROUP --> SG
@@ -29,6 +32,9 @@ VOL -- HAS --> SNAP
 VPC -- HAS --> PN
 PN -- HAS --> SUB
 SUB -- HAS --> IP
+LB -- HAS --> FE
+LB -- HAS --> BE
+FE -- ROUTES_TO --> BE
 USR -- MEMBER_OF --> GRP(ScalewayGroup)
 APIKEY(ScalewayApiKey) -- OWNED_BY --> USR
 APP -- MEMBER_OF --> GRP(ScalewayGroup)
@@ -99,7 +105,10 @@ Represents a Project in Scaleway. Projects are groupings of Scaleway resources.
         :ScalewayVpc,
         :ScalewayPrivateNetwork,
         :ScalewaySubnet,
-        :ScalewayIP
+        :ScalewayIP,
+        :ScalewayLoadBalancer,
+        :ScalewayLBFrontend,
+        :ScalewayLBBackend
     )
     ```
 
@@ -689,4 +698,113 @@ An IP is an IPAM-managed IP address (IPv4 or IPv6) allocated within a Private Ne
 - A `Subnet` has `IP`
     ```
     (:ScalewaySubnet)-[:HAS]->(:ScalewayIP)
+    ```
+
+### ScalewayLoadBalancer
+
+A Load Balancer distributes incoming traffic across backend servers. Its public IP(s) make it an internet-facing entry point.
+
+> **Ontology Mapping**: This node has the extra label `LoadBalancer` to enable cross-platform queries for load balancers across different systems (e.g., AWSLoadBalancerV2, GCPForwardingRule, AzureLoadBalancer).
+
+| Field      | Description                                  |
+|------------|----------------------------------------------|
+| id         | Load Balancer unique ID.                     |
+| name       | Load Balancer name.                          |
+| description | Load Balancer description.                  |
+| status     | Load Balancer status (e.g. `ready`).          |
+| type       | Load Balancer commercial type (e.g. `LB-S`). |
+| tags       | Tags associated with the Load Balancer.       |
+| frontend_count | Number of frontends.                      |
+| backend_count | Number of backends.                        |
+| private_network_count | Number of attached Private Networks. |
+| route_count | Number of routes.                            |
+| ssl_compatibility_level | SSL compatibility level.          |
+| ip_address | Primary public IP address (first entry of `ip_addresses`). |
+| ip_addresses | All public IP addresses of the Load Balancer. |
+| zone       | Zone the Load Balancer lives in.              |
+| region     | Region the Load Balancer lives in.            |
+| created_at | Load Balancer creation date.                  |
+| updated_at | Load Balancer last update date.               |
+| lastupdated | Timestamp of the last update                 |
+
+#### Relationships
+- A `LoadBalancer` belongs to a `Project`
+    ```
+    (:ScalewayProject)-[:RESOURCE]->(:ScalewayLoadBalancer)
+    ```
+- A `LoadBalancer` has `LBFrontend` and `LBBackend`
+    ```
+    (:ScalewayLoadBalancer)-[:HAS]->(:ScalewayLBFrontend)
+    (:ScalewayLoadBalancer)-[:HAS]->(:ScalewayLBBackend)
+    ```
+
+### ScalewayLBFrontend
+
+A Frontend defines an inbound listener (port) on a Load Balancer and the backend it routes to.
+
+| Field      | Description                                  |
+|------------|----------------------------------------------|
+| id         | Frontend unique ID.                          |
+| name       | Frontend name.                               |
+| inbound_port | Port the frontend listens on.              |
+| certificate_ids | IDs of the TLS certificates attached.    |
+| enable_http3 | True if HTTP/3 is enabled.                  |
+| enable_access_logs | True if access logs are enabled.      |
+| timeout_client | Client inactivity timeout.                |
+| connection_rate_limit | Per-source connection rate limit.   |
+| created_at | Frontend creation date.                      |
+| updated_at | Frontend last update date.                   |
+| lastupdated | Timestamp of the last update                 |
+
+#### Relationships
+- A `LBFrontend` belongs to a `Project`
+    ```
+    (:ScalewayProject)-[:RESOURCE]->(:ScalewayLBFrontend)
+    ```
+- A `LoadBalancer` has `LBFrontend`
+    ```
+    (:ScalewayLoadBalancer)-[:HAS]->(:ScalewayLBFrontend)
+    ```
+- A `LBFrontend` routes to a `LBBackend`
+    ```
+    (:ScalewayLBFrontend)-[:ROUTES_TO]->(:ScalewayLBBackend)
+    ```
+
+### ScalewayLBBackend
+
+A Backend defines a pool of servers and the forwarding / health-check configuration a Load Balancer uses to reach them.
+
+| Field      | Description                                  |
+|------------|----------------------------------------------|
+| id         | Backend unique ID.                           |
+| name       | Backend name.                                |
+| forward_protocol | Protocol used to forward traffic (`tcp`, `http`). |
+| forward_port | Port traffic is forwarded to.              |
+| forward_port_algorithm | Load-balancing algorithm (e.g. `roundrobin`). |
+| sticky_sessions | Sticky-session mode.                     |
+| on_marked_down_action | Action when a server is marked down. |
+| proxy_protocol | Proxy protocol mode.                      |
+| pool       | List of backend server IP addresses.          |
+| health_check_port | Port used for health checks.           |
+| health_check_delay | Delay between health checks.          |
+| health_check_max_retries | Max health-check retries before marking down. |
+| timeout_server | Server inactivity timeout.                |
+| timeout_connect | Connection timeout.                      |
+| ssl_bridging | True if SSL bridging to the backend is enabled. |
+| created_at | Backend creation date.                       |
+| updated_at | Backend last update date.                    |
+| lastupdated | Timestamp of the last update                 |
+
+#### Relationships
+- A `LBBackend` belongs to a `Project`
+    ```
+    (:ScalewayProject)-[:RESOURCE]->(:ScalewayLBBackend)
+    ```
+- A `LoadBalancer` has `LBBackend`
+    ```
+    (:ScalewayLoadBalancer)-[:HAS]->(:ScalewayLBBackend)
+    ```
+- A `LBFrontend` routes to a `LBBackend`
+    ```
+    (:ScalewayLBFrontend)-[:ROUTES_TO]->(:ScalewayLBBackend)
     ```

@@ -1,16 +1,46 @@
 import dataclasses
+import logging
+from collections.abc import Callable
 from enum import Enum
 from typing import Any
+from typing import TypeVar
+
+from scaleway_core.api import ScalewayException
+
+logger = logging.getLogger(__name__)
 
 # Zone does not really matter for readonly access, but we need to set it
 DEFAULT_ZONE = "fr-par-1"
 
-# Scaleway Object Storage regions (S3-compatible endpoints live per region).
-OBJECT_STORAGE_REGIONS = ("fr-par", "nl-ams", "pl-waw", "it-mil")
-
-# Regions exposing the VPC / IPAM regional APIs. Listing is per-region, so we
-# fan out over all of them.
+# Scaleway regions. Most regional APIs (Object Storage, VPC, IPAM, Load
+# Balancer, ...) list per-region, so we fan out over all of them. Not every
+# service is deployed in every region; list_all_regions skips the gaps.
 DEFAULT_REGIONS = ("fr-par", "nl-ams", "pl-waw", "it-mil")
+
+T = TypeVar("T")
+
+
+def list_all_regions(fetcher: Callable[..., list[T]], **kwargs: Any) -> list[T]:
+    """Call a region-scoped SDK ``list_*_all`` fetcher across every region.
+
+    Each region is passed as the ``region`` keyword. Regions where the service
+    is not deployed answer with an "unknown service" error; those are skipped
+    rather than aborting the whole sync.
+    """
+    items: list[T] = []
+    for region in DEFAULT_REGIONS:
+        try:
+            items.extend(fetcher(region=region, **kwargs))
+        except ScalewayException as exc:
+            if "unknown service" in str(exc).lower():
+                logger.info(
+                    "Scaleway service %s not available in region %s, skipping.",
+                    getattr(fetcher, "__name__", "list"),
+                    region,
+                )
+                continue
+            raise
+    return items
 
 
 def scaleway_obj_to_dict(obj: Any) -> dict[str, Any]:

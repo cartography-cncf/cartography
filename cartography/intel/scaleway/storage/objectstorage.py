@@ -10,7 +10,7 @@ from policyuniverse.policy import Policy
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
-from cartography.intel.scaleway.utils import OBJECT_STORAGE_REGIONS
+from cartography.intel.scaleway.utils import DEFAULT_REGIONS
 from cartography.models.scaleway.storage.objectstorage import (
     ScalewayObjectStorageBucketSchema,
 )
@@ -73,7 +73,7 @@ def get(
     complete_projects: list[str] = []
     for project_id in projects_id:
         project_complete = True
-        for region in OBJECT_STORAGE_REGIONS:
+        for region in DEFAULT_REGIONS:
             s3 = boto3.client(
                 "s3",
                 region_name=region,

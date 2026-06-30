@@ -8,7 +8,7 @@ from scaleway.vpc.v2 import VpcV2API
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
-from cartography.intel.scaleway.utils import DEFAULT_REGIONS
+from cartography.intel.scaleway.utils import list_all_regions
 from cartography.intel.scaleway.utils import scaleway_obj_to_dict
 from cartography.models.scaleway.network.vpc import ScalewayVpcSchema
 from cartography.util import timeit
@@ -37,10 +37,7 @@ def get(
     org_id: str,
 ) -> list[VPC]:
     api = VpcV2API(client)
-    vpcs: list[VPC] = []
-    for region in DEFAULT_REGIONS:
-        vpcs.extend(api.list_vp_cs_all(organization_id=org_id, region=region))
-    return vpcs
+    return list_all_regions(api.list_vp_cs_all, organization_id=org_id)
 
 
 def transform_vpcs(vpcs: list[VPC]) -> dict[str, list[dict[str, Any]]]:

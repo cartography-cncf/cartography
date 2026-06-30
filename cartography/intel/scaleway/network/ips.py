@@ -8,7 +8,7 @@ from scaleway.ipam.v1 import IpamV1API
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
-from cartography.intel.scaleway.utils import DEFAULT_REGIONS
+from cartography.intel.scaleway.utils import list_all_regions
 from cartography.intel.scaleway.utils import scaleway_obj_to_dict
 from cartography.models.scaleway.network.ip import ScalewayIPSchema
 from cartography.util import timeit
@@ -37,10 +37,7 @@ def get(
     org_id: str,
 ) -> list[IP]:
     api = IpamV1API(client)
-    ips: list[IP] = []
-    for region in DEFAULT_REGIONS:
-        ips.extend(api.list_i_ps_all(organization_id=org_id, region=region))
-    return ips
+    return list_all_regions(api.list_i_ps_all, organization_id=org_id)
 
 
 def transform_ips(ips: list[IP]) -> dict[str, list[dict[str, Any]]]:

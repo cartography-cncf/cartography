@@ -8,7 +8,7 @@ from scaleway.vpc.v2 import VpcV2API
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
-from cartography.intel.scaleway.utils import DEFAULT_REGIONS
+from cartography.intel.scaleway.utils import list_all_regions
 from cartography.intel.scaleway.utils import scaleway_obj_to_dict
 from cartography.models.scaleway.network.private_network import (
     ScalewayPrivateNetworkSchema,
@@ -44,12 +44,7 @@ def get(
     org_id: str,
 ) -> list[PrivateNetwork]:
     api = VpcV2API(client)
-    networks: list[PrivateNetwork] = []
-    for region in DEFAULT_REGIONS:
-        networks.extend(
-            api.list_private_networks_all(organization_id=org_id, region=region)
-        )
-    return networks
+    return list_all_regions(api.list_private_networks_all, organization_id=org_id)
 
 
 def transform_private_networks(
