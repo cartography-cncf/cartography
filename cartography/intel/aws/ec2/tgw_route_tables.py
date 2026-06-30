@@ -267,7 +267,7 @@ def load_transit_gateway_route_table_associations(neo4j_session: neo4j.Session, 
 
 def get_transit_gateway_route_table_propagations(boto3_session: boto3.session.Session, region: str) -> list[dict[str, Any]]:
     client = create_boto3_client(boto3_session, "ec2", region_name=region, config=get_botocore_config())
-        props: list[dict[str, Any]] = []
+    props: list[dict[str, Any]] = []
     try:
         # describe_transit_gateway_route_table_propagations may not be pageable via botocore paginator in all versions.
         next_token = None
