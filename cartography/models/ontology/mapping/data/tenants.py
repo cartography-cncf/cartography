@@ -449,4 +449,18 @@ TENANTS_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     "socketdev": socketdev_mapping,
     "workos": workos_tenants_mapping,
     "vercel": vercel_mapping,
+    "databricks": OntologyMapping(
+        module_name="databricks",
+        nodes=[
+            OntologyNodeMapping(
+                node_label="DatabricksWorkspace",
+                fields=[
+                    OntologyFieldMapping(
+                        ontology_field="name", node_field="host", required=True
+                    ),
+                    OntologyFieldMapping(ontology_field="domain", node_field="host"),
+                ],
+            ),
+        ],
+    ),
 }

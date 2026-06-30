@@ -51,6 +51,9 @@
 ```{include} ../modules/crowdstrike/schema.md
 ```
 
+```{include} ../modules/databricks/schema.md
+```
+
 ```{include} ../modules/cve/schema.md
 ```
 
