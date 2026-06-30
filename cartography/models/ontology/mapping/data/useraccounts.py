@@ -636,4 +636,21 @@ USERACCOUNTS_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     "kubernetes": kubernetes_mapping,
     "jumpcloud": jumpcloud_mapping,
     "vercel": vercel_mapping,
+    "databricks": OntologyMapping(
+        module_name="databricks",
+        nodes=[
+            OntologyNodeMapping(
+                node_label="DatabricksUser",
+                fields=[
+                    OntologyFieldMapping(
+                        ontology_field="email", node_field="email", required=True
+                    ),
+                    OntologyFieldMapping(
+                        ontology_field="fullname", node_field="display_name"
+                    ),
+                    OntologyFieldMapping(ontology_field="active", node_field="active"),
+                ],
+            ),
+        ],
+    ),
 }

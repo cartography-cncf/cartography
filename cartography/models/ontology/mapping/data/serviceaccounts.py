@@ -122,4 +122,21 @@ SERVICEACCOUNTS_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     "scaleway": scaleway_mapping,
     "aws": aws_mapping,
     "microsoft": microsoft_mapping,
+    "databricks": OntologyMapping(
+        module_name="databricks",
+        nodes=[
+            OntologyNodeMapping(
+                node_label="DatabricksServicePrincipal",
+                fields=[
+                    OntologyFieldMapping(
+                        ontology_field="name",
+                        node_field="display_name",
+                        required=True,
+                    ),
+                    # email: Not available
+                    OntologyFieldMapping(ontology_field="active", node_field="active"),
+                ],
+            ),
+        ],
+    ),
 }
