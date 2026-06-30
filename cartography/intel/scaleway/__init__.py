@@ -3,6 +3,7 @@ import logging
 import neo4j
 import scaleway
 
+import cartography.intel.scaleway.dns.dns
 import cartography.intel.scaleway.iam.apikeys
 import cartography.intel.scaleway.iam.applications
 import cartography.intel.scaleway.iam.groups
@@ -192,6 +193,16 @@ def start_scaleway_ingestion(neo4j_session: neo4j.Session, config: Config) -> No
 
     # Load Balancers
     cartography.intel.scaleway.loadbalancers.loadbalancers.sync(
+        neo4j_session,
+        client,
+        common_job_parameters,
+        org_id=config.scaleway_org,
+        projects_id=projects_id,
+        update_tag=config.update_tag,
+    )
+
+    # DNS
+    cartography.intel.scaleway.dns.dns.sync(
         neo4j_session,
         client,
         common_job_parameters,

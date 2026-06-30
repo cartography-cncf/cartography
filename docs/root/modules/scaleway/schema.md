@@ -24,6 +24,8 @@ PRJ -- RESOURCE --> IP(IP)
 PRJ -- RESOURCE --> LB(LoadBalancer)
 PRJ -- RESOURCE --> FE(LBFrontend)
 PRJ -- RESOURCE --> BE(LBBackend)
+PRJ -- RESOURCE --> DZ(DnsZone)
+PRJ -- RESOURCE --> DR(DnsRecord)
 INS -- MOUNTS --> VOL
 INS -- MEMBER_OF_SCALEWAY_SECURITY_GROUP --> SG
 SGR -- MEMBER_OF_SCALEWAY_SECURITY_GROUP --> SG
@@ -35,6 +37,7 @@ SUB -- HAS --> IP
 LB -- HAS --> FE
 LB -- HAS --> BE
 FE -- ROUTES_TO --> BE
+DZ -- HAS_RECORD --> DR
 USR -- MEMBER_OF --> GRP(ScalewayGroup)
 APIKEY(ScalewayApiKey) -- OWNED_BY --> USR
 APP -- MEMBER_OF --> GRP(ScalewayGroup)
@@ -807,4 +810,60 @@ A Backend defines a pool of servers and the forwarding / health-check configurat
 - A `LBFrontend` routes to a `LBBackend`
     ```
     (:ScalewayLBFrontend)-[:ROUTES_TO]->(:ScalewayLBBackend)
+    ```
+
+
+### ScalewayDnsZone
+
+Represents a DNS zone managed by Scaleway Domains & DNS. The zone's ID is composed from `{subdomain}.{domain}` (or just `{domain}` for apex zones), which is the value the Scaleway API itself uses as the zone path parameter.
+
+> **Ontology Mapping**: This node has the extra label `DNSZone` to enable cross-platform queries for DNS zones across different systems (e.g., AWSDNSZone, GCPDNSZone).
+
+| Field      | Description                                  |
+|------------|----------------------------------------------|
+| id         | Full zone name (`subdomain.domain` or `domain`). |
+| domain     | Apex domain of the zone.                     |
+| subdomain  | Subdomain within the apex (empty for the apex zone itself). |
+| status     | Zone status (`active`, `pending`, `error`, ...). |
+| message    | Status message returned by the API.          |
+| ns         | Authoritative name servers currently configured for the zone. |
+| ns_default | Default Scaleway name servers.               |
+| ns_master  | Master name servers.                         |
+| linked_products | Scaleway products linked to this zone.  |
+| updated_at | Zone last update date.                       |
+| lastupdated | Timestamp of the last update                 |
+
+#### Relationships
+- A `DnsZone` belongs to a `Project`
+    ```
+    (:ScalewayProject)-[:RESOURCE]->(:ScalewayDnsZone)
+    ```
+
+
+### ScalewayDnsRecord
+
+Represents an individual DNS record within a `ScalewayDnsZone`.
+
+> **Ontology Mapping**: This node has the extra label `DNSRecord` to enable cross-platform queries for DNS records across different systems.
+
+| Field      | Description                                  |
+|------------|----------------------------------------------|
+| id         | Record unique ID.                            |
+| name       | Record name (relative to its zone).          |
+| type       | Record type (`a`, `aaaa`, `cname`, `mx`, ...). |
+| data       | Record data (target IP, hostname, value, ...). |
+| ttl        | Record TTL in seconds.                       |
+| priority   | Record priority (relevant for MX/SRV).       |
+| comment    | Free-form record comment.                    |
+| updated_at | Record last update date.                     |
+| lastupdated | Timestamp of the last update                 |
+
+#### Relationships
+- A `DnsRecord` belongs to a `Project`
+    ```
+    (:ScalewayProject)-[:RESOURCE]->(:ScalewayDnsRecord)
+    ```
+- A `DnsZone` has `DnsRecord`s
+    ```
+    (:ScalewayDnsZone)-[:HAS_RECORD]->(:ScalewayDnsRecord)
     ```
