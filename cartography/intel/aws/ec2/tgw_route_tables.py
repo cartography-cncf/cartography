@@ -82,32 +82,37 @@ def transform_tgw_route_tables(data: list[dict[str, Any]]) -> tuple[list[dict[st
     routes: list[dict[str, Any]] = []
     for rtb in data:
         rtb_id = rtb.get("TransitGatewayRouteTableId")
-        route_tables.append(
-            {
-                "id": rtb_id,
-                "TransitGatewayRouteTableId": rtb_id,
-                "TransitGatewayId": rtb.get("TransitGatewayId"),
-                "State": rtb.get("State"),
-                "Region": rtb.get("Region"),
-            }
-        )
+        # Skip route tables without an id
+        if not rtb_id:
+            logger.debug("Skipping TransitGatewayRouteTable without id: %s", rtb)
+            continue
+        rt_entry: dict[str, Any] = {
+            "id": rtb_id,
+            "TransitGatewayRouteTableId": rtb_id,
+            "TransitGatewayId": rtb.get("TransitGatewayId"),
+            "State": rtb.get("State"),
+        }
+        # Only include Region if present (otherwise use Region passed to load)
+        if rtb.get("Region") is not None:
+            rt_entry["Region"] = rtb.get("Region")
+        route_tables.append(rt_entry)
         # Routes may be under 'Routes' key
         for route in rtb.get("Routes", []) if rtb.get("Routes") else []:
             dest = route.get("DestinationCidrBlock") or route.get("DestinationIpv6CidrBlock") or str(route)
             route_id = f"{rtb_id}|{dest}"
-            routes.append(
-                {
-                    "id": route_id,
-                    "transit_gateway_route_table_id": rtb_id,
-                    "transit_gateway_id": rtb.get("TransitGatewayId"),
-                    "destination_cidr_block": route.get("DestinationCidrBlock"),
-                    "destination_ipv6_cidr_block": route.get("DestinationIpv6CidrBlock"),
-                    "state": route.get("State"),
-                    "origin": route.get("Origin"),
-                    "target": route.get("TransitGatewayAttachmentId") or route.get("TransitGatewayRouteTableAnnouncementId") or None,
-                    "Region": rtb.get("Region"),
-                }
-            )
+            route_entry: dict[str, Any] = {
+                "id": route_id,
+                "transit_gateway_route_table_id": rtb_id,
+                "transit_gateway_id": rtb.get("TransitGatewayId"),
+                "destination_cidr_block": route.get("DestinationCidrBlock"),
+                "destination_ipv6_cidr_block": route.get("DestinationIpv6CidrBlock"),
+                "state": route.get("State"),
+                "origin": route.get("Origin"),
+                "target": route.get("TransitGatewayAttachmentId") or route.get("TransitGatewayRouteTableAnnouncementId") or None,
+            }
+            if rtb.get("Region") is not None:
+                route_entry["Region"] = rtb.get("Region")
+            routes.append(route_entry)
     return route_tables, routes
 
 
@@ -219,24 +224,35 @@ def get_transit_gateway_route_table_associations(boto3_session: boto3.session.Se
     client = create_boto3_client(boto3_session, "ec2", region_name=region, config=get_botocore_config())
     associations: list[dict[str, Any]] = []
     try:
-        # Some older botocore/boto3 versions may not expose describe_transit_gateway_route_table_associations.
-        if not hasattr(client, "describe_transit_gateway_route_table_associations"):
+        # Prefer get_ API names if available (newer service models use get_* instead of describe_*)
+        api_name = None
+        if hasattr(client, "get_transit_gateway_route_table_associations"):
+            api_name = "get_transit_gateway_route_table_associations"
+        elif hasattr(client, "describe_transit_gateway_route_table_associations"):
+            api_name = "describe_transit_gateway_route_table_associations"
+        else:
             logger.debug(
-                "EC2 client does not support describe_transit_gateway_route_table_associations; skipping associations fallback for region %s",
+                "EC2 client does not support transit gateway route table associations API; skipping associations fallback for region %s",
                 region,
             )
             return associations
-        # describe_transit_gateway_route_table_associations may not be pageable via botocore paginator in all versions.
-        next_token = None
-        while True:
-            params: dict[str, Any] = {}
-            if next_token:
-                params["NextToken"] = next_token
-            resp = client.describe_transit_gateway_route_table_associations(**params)
-            associations.extend(resp.get("TransitGatewayRouteTableAssociations", []))
-            next_token = resp.get("NextToken")
-            if not next_token:
-                break
+        # The get/describe operation requires a TransitGatewayRouteTableId parameter in newer models.
+        # To be robust, iterate over known route tables and call the API per table with explicit NextToken handling.
+        rts = get_transit_gateway_route_tables(boto3_session, region)
+        for rtb in rts:
+            rtb_id = rtb.get("TransitGatewayRouteTableId")
+            if not rtb_id:
+                continue
+            next_token = None
+            while True:
+                params: dict[str, Any] = {"TransitGatewayRouteTableId": rtb_id}
+                if next_token:
+                    params["NextToken"] = next_token
+                resp = getattr(client, api_name)(**params)
+                associations.extend(resp.get("TransitGatewayRouteTableAssociations", []))
+                next_token = resp.get("NextToken")
+                if not next_token:
+                    break
     except botocore.exceptions.ClientError as e:
         logger.warning(
             "Could not retrieve Transit Gateway route table associations due to boto3 error %s: %s. Skipping.",
@@ -246,25 +262,50 @@ def get_transit_gateway_route_table_associations(boto3_session: boto3.session.Se
     return associations
 
 
-    # Fallback for describe_transit_gateway_route_table_propagations
+
+def get_transit_gateway_route_table_propagations(boto3_session: boto3.session.Session, region: str) -> list[dict[str, Any]]:
+    client = create_boto3_client(boto3_session, "ec2", region_name=region, config=get_botocore_config())
+    props: list[dict[str, Any]] = []
     try:
-        # If the client doesn't implement the API, skip gracefully.
-        if not hasattr(client, "describe_transit_gateway_route_table_propagations"):
+        # Prefer get_ API names if available (newer service models use get_* instead of describe_*)
+        api_name = None
+        if hasattr(client, "get_transit_gateway_route_table_propagations"):
+            api_name = "get_transit_gateway_route_table_propagations"
+        elif hasattr(client, "describe_transit_gateway_route_table_propagations"):
+            api_name = "describe_transit_gateway_route_table_propagations"
+        else:
             logger.debug(
-                "EC2 client does not support describe_transit_gateway_route_table_propagations; skipping propagations fallback for region %s",
+                "EC2 client does not support transit gateway route table propagations API; skipping propagations fallback for region %s",
                 region,
             )
             return props
-        next_token = None
-        while True:
-            params: dict[str, Any] = {}
-            if next_token:
-                params["NextToken"] = next_token
-            resp = client.describe_transit_gateway_route_table_propagations(**params)
-            props.extend(resp.get("TransitGatewayRouteTablePropagations", []))
-            next_token = resp.get("NextToken")
-            if not next_token:
-                break
+        # The get/describe operation requires a TransitGatewayRouteTableId parameter in newer models.
+        # Iterate per known route table and call API per-table with explicit NextToken handling.
+        rts = get_transit_gateway_route_tables(boto3_session, region)
+        for rtb in rts:
+            rtb_id = rtb.get("TransitGatewayRouteTableId")
+            if not rtb_id:
+                continue
+            next_token = None
+            while True:
+                params: dict[str, Any] = {"TransitGatewayRouteTableId": rtb_id}
+                if next_token:
+                    params["NextToken"] = next_token
+                resp = getattr(client, api_name)(**params)
+                # The API returns propagation items that may not include a propagation id or the route table id.
+                # Attach the TransitGatewayRouteTableId context and generate a stable id if missing.
+                items = resp.get("TransitGatewayRouteTablePropagations", [])
+                for item in items:
+                    # attach route table id context
+                    item.setdefault("TransitGatewayRouteTableId", rtb_id)
+                    # prefer existing propagation id, otherwise synthesize one from route-table + attachment
+                    if not item.get("TransitGatewayRouteTablePropagationId"):
+                        attachment = item.get("TransitGatewayAttachmentId") or item.get("ResourceId")
+                        item["TransitGatewayRouteTablePropagationId"] = f"{rtb_id}|{attachment}" if attachment else None
+                props.extend(items)
+                next_token = resp.get("NextToken")
+                if not next_token:
+                    break
     except botocore.exceptions.ClientError as e:
         logger.warning(
             "Could not retrieve Transit Gateway route table propagations due to boto3 error %s: %s. Skipping.",
@@ -272,6 +313,7 @@ def get_transit_gateway_route_table_associations(boto3_session: boto3.session.Se
             e.response.get("Error", {}).get("Message"),
         )
     return props
+
 
 
 def transform_tgw_route_table_associations(data: list[dict[str, Any]]) -> list[dict[str, Any]]:
@@ -293,13 +335,17 @@ def transform_tgw_route_table_associations(data: list[dict[str, Any]]) -> list[d
 def load_transit_gateway_route_table_associations(neo4j_session: neo4j.Session, data: list[dict[str, Any]], region: str, current_aws_account_id: str, update_tag: int) -> None:
     # For now load as simple nodes/relationships using a custom query; this can be replaced with model-driven load later
     for item in data:
+        # Skip items missing an id (Neo4j will reject null id merge)
+        if not item.get("id"):
+            logger.debug("Skipping association with missing id: %s", item)
+            continue
         run_write_query(
             neo4j_session,
             """
             MERGE (a:AWSTransitGatewayRouteTableAssociation{id: $id})
             SET a.route_table_id = $route_table_id, a.attachment_id = $attachment_id, a.resource_id = $resource_id, a.resource_type = $resource_type, a.state = $state, a.Region = $Region, a.lastupdated = $lastupdated
             WITH a
-            MATCH (rt:AWSTransitGatewayRouteTable{TransitGatewayRouteTableId: $route_table_id})
+            MATCH (rt:AWSTransitGatewayRouteTable{id: $route_table_id})
             MERGE (rt)<-[:RESOURCE]-(a)
             """,
             id=item.get("id"),
@@ -311,30 +357,6 @@ def load_transit_gateway_route_table_associations(neo4j_session: neo4j.Session, 
             Region=region,
             lastupdated=update_tag,
         )
-
-
-def get_transit_gateway_route_table_propagations(boto3_session: boto3.session.Session, region: str) -> list[dict[str, Any]]:
-    client = create_boto3_client(boto3_session, "ec2", region_name=region, config=get_botocore_config())
-    props: list[dict[str, Any]] = []
-    try:
-        # describe_transit_gateway_route_table_propagations may not be pageable via botocore paginator in all versions.
-        next_token = None
-        while True:
-            params: dict[str, Any] = {}
-            if next_token:
-                params["NextToken"] = next_token
-            resp = client.describe_transit_gateway_route_table_propagations(**params)
-            props.extend(resp.get("TransitGatewayRouteTablePropagations", []))
-            next_token = resp.get("NextToken")
-            if not next_token:
-                break
-    except botocore.exceptions.ClientError as e:
-        logger.warning(
-            "Could not retrieve Transit Gateway route table propagations due to boto3 error %s: %s. Skipping.",
-            e.response.get("Error", {}).get("Code"),
-            e.response.get("Error", {}).get("Message"),
-        )
-    return props
 
 
 def transform_tgw_route_table_propagations(data: list[dict[str, Any]]) -> list[dict[str, Any]]:
@@ -353,13 +375,17 @@ def transform_tgw_route_table_propagations(data: list[dict[str, Any]]) -> list[d
 
 def load_transit_gateway_route_table_propagations(neo4j_session: neo4j.Session, data: list[dict[str, Any]], region: str, current_aws_account_id: str, update_tag: int) -> None:
     for item in data:
+        # Skip items missing an id (Neo4j will reject null id merge)
+        if not item.get("id"):
+            logger.debug("Skipping propagation with missing id: %s", item)
+            continue
         run_write_query(
             neo4j_session,
             """
             MERGE (p:AWSTransitGatewayRouteTablePropagation{id: $id})
             SET p.route_table_id = $route_table_id, p.attachment_id = $attachment_id, p.state = $state, p.Region = $Region, p.lastupdated = $lastupdated
             WITH p
-            MATCH (rt:AWSTransitGatewayRouteTable{TransitGatewayRouteTableId: $route_table_id})
+            MATCH (rt:AWSTransitGatewayRouteTable{id: $route_table_id})
             MERGE (rt)<-[:PROPAGATED_BY]-(p)
             """,
             id=item.get("id"),

@@ -44,6 +44,8 @@ def test_search_fallback_used(monkeypatch):
     monkeypatch.setattr(tgw_route_tables, 'get_transit_gateway_routes_for_table', fake_search_routes)
     monkeypatch.setattr(tgw_route_tables, 'load_transit_gateway_routes', fake_load_routes)
     monkeypatch.setattr(tgw_route_tables, 'load_transit_gateway_route_tables', fake_load_rtbs)
+    # Prevent cleanup from running against a fake neo4j session
+    monkeypatch.setattr(tgw_route_tables, 'cleanup_transit_gateway_route_tables', lambda session, common: None)
 
     # Call sync (boto3_session not used by our fake_get_rts)
     tgw_route_tables.sync_transit_gateway_route_tables(
@@ -52,7 +54,7 @@ def test_search_fallback_used(monkeypatch):
         regions=["us-east-1"],
         current_aws_account_id="000000000000",
         update_tag=123,
-        common_job_parameters={},
+        common_job_parameters={"AWS_ID": "000000000000", "UPDATE_TAG": 123},
     )
 
     # Assertions
