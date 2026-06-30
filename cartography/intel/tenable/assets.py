@@ -1,14 +1,19 @@
 import logging
+from collections import defaultdict
 from typing import Any
 
 import neo4j
 import requests
 
 from cartography.client.core.tx import load
+from cartography.client.core.tx import load_matchlinks
 from cartography.graph.job import GraphJob
 from cartography.intel.tenable.api import export_and_download
 from cartography.intel.tenable.common import make_tenable_id
 from cartography.models.tenable.assets import TenableAssetSchema
+from cartography.models.tenable.assets import TenableAssetToAzureVirtualMachineMatchLink
+from cartography.models.tenable.assets import TenableAssetToEC2InstanceMatchLink
+from cartography.models.tenable.assets import TenableAssetToGCPInstanceMatchLink
 from cartography.models.tenable.cloud import TenableAssetAWSSchema
 from cartography.models.tenable.cloud import TenableAssetAzureSchema
 from cartography.models.tenable.cloud import TenableAssetGCPSchema
@@ -266,6 +271,88 @@ def transform_gcp(
     return result
 
 
+def transform_aws_native_links(
+    raw_assets: list[dict[str, Any]],
+    tenant_id: str,
+) -> list[dict[str, Any]]:
+    seen: set[tuple[str, str, str, str]] = set()
+    result = []
+    for asset in raw_assets:
+        asset_uuid = asset.get("id")
+        aws = (asset.get("cloud") or {}).get("aws") or {}
+        ec2_instance_id = aws.get("ec2_instance_id")
+        owner_id = aws.get("owner_id")
+        region = aws.get("region")
+        if not asset_uuid or not ec2_instance_id or not owner_id or not region:
+            continue
+        key = (asset_uuid, ec2_instance_id, owner_id, region)
+        if key in seen:
+            continue
+        seen.add(key)
+        result.append(
+            {
+                "asset_id": make_tenable_id(tenant_id, asset_uuid),
+                "aws_ec2_instance_id": ec2_instance_id,
+                "aws_account_id": owner_id,
+                "aws_region": region,
+            }
+        )
+    return result
+
+
+def transform_azure_native_links(
+    raw_assets: list[dict[str, Any]],
+    tenant_id: str,
+) -> list[dict[str, Any]]:
+    seen: set[tuple[str, str]] = set()
+    result = []
+    for asset in raw_assets:
+        asset_uuid = asset.get("id")
+        azure = (asset.get("cloud") or {}).get("azure") or {}
+        resource_id = azure.get("resource_id")
+        if not asset_uuid or not resource_id:
+            continue
+        key = (asset_uuid, resource_id)
+        if key in seen:
+            continue
+        seen.add(key)
+        result.append(
+            {
+                "asset_id": make_tenable_id(tenant_id, asset_uuid),
+                "azure_resource_id": resource_id,
+            }
+        )
+    return result
+
+
+def transform_gcp_native_links(
+    raw_assets: list[dict[str, Any]],
+    tenant_id: str,
+) -> list[dict[str, Any]]:
+    seen: set[tuple[str, str]] = set()
+    result = []
+    for asset in raw_assets:
+        asset_uuid = asset.get("id")
+        gcp = (asset.get("cloud") or {}).get("gcp") or {}
+        instance_id = gcp.get("instance_id")
+        project_id = gcp.get("project_id")
+        zone = gcp.get("zone")
+        if not asset_uuid or not instance_id or not project_id or not zone:
+            continue
+        gcp_instance_id = f"projects/{project_id}/zones/{zone}/instances/{instance_id}"
+        key = (asset_uuid, gcp_instance_id)
+        if key in seen:
+            continue
+        seen.add(key)
+        result.append(
+            {
+                "asset_id": make_tenable_id(tenant_id, asset_uuid),
+                "gcp_instance_id": gcp_instance_id,
+            }
+        )
+    return result
+
+
 @timeit
 def load_assets(
     neo4j_session: neo4j.Session,
@@ -274,6 +361,9 @@ def load_assets(
     aws_nodes: list[dict[str, Any]],
     azure_nodes: list[dict[str, Any]],
     gcp_nodes: list[dict[str, Any]],
+    aws_native_links: list[dict[str, Any]],
+    azure_native_links: list[dict[str, Any]],
+    gcp_native_links: list[dict[str, Any]],
     sources: list[dict[str, Any]],
     tags: list[dict[str, Any]],
     tenant_id: str,
@@ -322,6 +412,14 @@ def load_assets(
         lastupdated=update_tag,
         TENABLE_TENANT_ID=tenant_id,
     )
+    load_native_cloud_links(
+        neo4j_session,
+        aws_native_links,
+        azure_native_links,
+        gcp_native_links,
+        tenant_id,
+        update_tag,
+    )
     # Sources and tags carry asset_id for inward rels; assets must exist first.
     load(
         neo4j_session,
@@ -336,6 +434,48 @@ def load_assets(
         tags,
         lastupdated=update_tag,
         TENABLE_TENANT_ID=tenant_id,
+    )
+
+
+@timeit
+def load_native_cloud_links(
+    neo4j_session: neo4j.Session,
+    aws_native_links: list[dict[str, Any]],
+    azure_native_links: list[dict[str, Any]],
+    gcp_native_links: list[dict[str, Any]],
+    tenant_id: str,
+    update_tag: int,
+) -> None:
+    aws_links_by_account: dict[str, list[dict[str, Any]]] = defaultdict(list)
+    for link in aws_native_links:
+        aws_links_by_account[link["aws_account_id"]].append(link)
+
+    for aws_account_id, links in aws_links_by_account.items():
+        load_matchlinks(
+            neo4j_session,
+            TenableAssetToEC2InstanceMatchLink(),
+            links,
+            lastupdated=update_tag,
+            _sub_resource_label="TenableTenant",
+            _sub_resource_id=tenant_id,
+            AWS_ACCOUNT_ID=aws_account_id,
+        )
+
+    load_matchlinks(
+        neo4j_session,
+        TenableAssetToAzureVirtualMachineMatchLink(),
+        azure_native_links,
+        lastupdated=update_tag,
+        _sub_resource_label="TenableTenant",
+        _sub_resource_id=tenant_id,
+    )
+    load_matchlinks(
+        neo4j_session,
+        TenableAssetToGCPInstanceMatchLink(),
+        gcp_native_links,
+        lastupdated=update_tag,
+        _sub_resource_label="TenableTenant",
+        _sub_resource_id=tenant_id,
     )
 
 
@@ -365,6 +505,32 @@ def cleanup(
     GraphJob.from_node_schema(TenableAssetSchema(), common_job_parameters).run(
         neo4j_session
     )
+    cleanup_native_cloud_links(neo4j_session, common_job_parameters)
+
+
+@timeit
+def cleanup_native_cloud_links(
+    neo4j_session: neo4j.Session,
+    common_job_parameters: dict[str, Any],
+) -> None:
+    GraphJob.from_matchlink(
+        TenableAssetToEC2InstanceMatchLink(),
+        "TenableTenant",
+        common_job_parameters["TENABLE_TENANT_ID"],
+        common_job_parameters["UPDATE_TAG"],
+    ).run(neo4j_session)
+    GraphJob.from_matchlink(
+        TenableAssetToAzureVirtualMachineMatchLink(),
+        "TenableTenant",
+        common_job_parameters["TENABLE_TENANT_ID"],
+        common_job_parameters["UPDATE_TAG"],
+    ).run(neo4j_session)
+    GraphJob.from_matchlink(
+        TenableAssetToGCPInstanceMatchLink(),
+        "TenableTenant",
+        common_job_parameters["TENABLE_TENANT_ID"],
+        common_job_parameters["UPDATE_TAG"],
+    ).run(neo4j_session)
 
 
 @timeit
@@ -383,6 +549,9 @@ def sync(
     aws_nodes = transform_aws(raw_assets, tenant_id)
     azure_nodes = transform_azure(raw_assets, tenant_id)
     gcp_nodes = transform_gcp(raw_assets, tenant_id)
+    aws_native_links = transform_aws_native_links(raw_assets, tenant_id)
+    azure_native_links = transform_azure_native_links(raw_assets, tenant_id)
+    gcp_native_links = transform_gcp_native_links(raw_assets, tenant_id)
     sources = transform_sources(raw_assets, tenant_id)
     tags = transform_tags(raw_assets, tenant_id)
     load_assets(
@@ -392,6 +561,9 @@ def sync(
         aws_nodes,
         azure_nodes,
         gcp_nodes,
+        aws_native_links,
+        azure_native_links,
+        gcp_native_links,
         sources,
         tags,
         tenant_id,

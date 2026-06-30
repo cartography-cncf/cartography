@@ -6,8 +6,11 @@ from cartography.models.core.nodes import CartographyNodeSchema
 from cartography.models.core.relationships import CartographyRelProperties
 from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
+from cartography.models.core.relationships import make_source_node_matcher
 from cartography.models.core.relationships import make_target_node_matcher
+from cartography.models.core.relationships import MatchLinkSubResource
 from cartography.models.core.relationships import OtherRelationships
+from cartography.models.core.relationships import SourceNodeMatcher
 from cartography.models.core.relationships import TargetNodeMatcher
 
 
@@ -160,4 +163,82 @@ class TenableAssetSchema(CartographyNodeSchema):
             TenableAssetToAzureRel(),
             TenableAssetToGCPRel(),
         ]
+    )
+
+
+@dataclass(frozen=True)
+class TenableAssetObservedAsRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    _sub_resource_label: PropertyRef = PropertyRef(
+        "_sub_resource_label",
+        set_in_kwargs=True,
+    )
+    _sub_resource_id: PropertyRef = PropertyRef(
+        "_sub_resource_id",
+        set_in_kwargs=True,
+    )
+
+
+# (:TenableAsset)-[:OBSERVED_AS]->(:EC2Instance)
+@dataclass(frozen=True)
+class TenableAssetToEC2InstanceMatchLink(CartographyRelSchema):
+    source_node_label: str = "TenableAsset"
+    source_node_matcher: SourceNodeMatcher = make_source_node_matcher(
+        {"id": PropertyRef("asset_id")},
+    )
+    target_node_label: str = "EC2Instance"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {
+            "instanceid": PropertyRef("aws_ec2_instance_id"),
+            "region": PropertyRef("aws_region"),
+        },
+    )
+    target_node_sub_resource: MatchLinkSubResource = MatchLinkSubResource(
+        target_node_label="AWSAccount",
+        target_node_matcher=make_target_node_matcher(
+            {"id": PropertyRef("AWS_ACCOUNT_ID", set_in_kwargs=True)},
+        ),
+        direction=LinkDirection.INWARD,
+        rel_label="RESOURCE",
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "OBSERVED_AS"
+    properties: TenableAssetObservedAsRelProperties = (
+        TenableAssetObservedAsRelProperties()
+    )
+
+
+# (:TenableAsset)-[:OBSERVED_AS]->(:AzureVirtualMachine)
+@dataclass(frozen=True)
+class TenableAssetToAzureVirtualMachineMatchLink(CartographyRelSchema):
+    source_node_label: str = "TenableAsset"
+    source_node_matcher: SourceNodeMatcher = make_source_node_matcher(
+        {"id": PropertyRef("asset_id")},
+    )
+    target_node_label: str = "AzureVirtualMachine"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"id": PropertyRef("azure_resource_id")},
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "OBSERVED_AS"
+    properties: TenableAssetObservedAsRelProperties = (
+        TenableAssetObservedAsRelProperties()
+    )
+
+
+# (:TenableAsset)-[:OBSERVED_AS]->(:GCPInstance)
+@dataclass(frozen=True)
+class TenableAssetToGCPInstanceMatchLink(CartographyRelSchema):
+    source_node_label: str = "TenableAsset"
+    source_node_matcher: SourceNodeMatcher = make_source_node_matcher(
+        {"id": PropertyRef("asset_id")},
+    )
+    target_node_label: str = "GCPInstance"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"id": PropertyRef("gcp_instance_id")},
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "OBSERVED_AS"
+    properties: TenableAssetObservedAsRelProperties = (
+        TenableAssetObservedAsRelProperties()
     )

@@ -1,7 +1,10 @@
 from cartography.intel.tenable.assets import transform
 from cartography.intel.tenable.assets import transform_aws
+from cartography.intel.tenable.assets import transform_aws_native_links
 from cartography.intel.tenable.assets import transform_azure
+from cartography.intel.tenable.assets import transform_azure_native_links
 from cartography.intel.tenable.assets import transform_gcp
+from cartography.intel.tenable.assets import transform_gcp_native_links
 from cartography.intel.tenable.assets import transform_networks
 from cartography.intel.tenable.assets import transform_sources
 from cartography.intel.tenable.assets import transform_tags
@@ -12,6 +15,7 @@ from tests.data.tenable.assets import AWS_EC2_INSTANCE_ID_1
 from tests.data.tenable.assets import AZURE_VM_ID_2
 from tests.data.tenable.assets import NETWORK_ID
 from tests.data.tenable.assets import SCOPED_ASSET_ID_1
+from tests.data.tenable.assets import SCOPED_ASSET_ID_2
 from tests.data.tenable.assets import SCOPED_AWS_EC2_INSTANCE_ID_1
 from tests.data.tenable.assets import SCOPED_AZURE_VM_ID_2
 from tests.data.tenable.assets import SCOPED_NETWORK_ID
@@ -439,3 +443,136 @@ def test_transform_gcp_skips_missing_instance_id():
 def test_transform_gcp_not_present_in_assets_data():
     # ASSETS_DATA has no GCP assets
     assert transform_gcp(ASSETS_DATA, TENABLE_TENANT_ID) == []
+
+
+# ---------------------------------------------------------------------------
+# native cloud link transforms
+# ---------------------------------------------------------------------------
+
+
+def test_transform_aws_native_links_basic():
+    result = transform_aws_native_links(ASSETS_DATA, TENABLE_TENANT_ID)
+    assert result == [
+        {
+            "asset_id": SCOPED_ASSET_ID_1,
+            "aws_ec2_instance_id": AWS_EC2_INSTANCE_ID_1,
+            "aws_account_id": "123456789012",
+            "aws_region": "us-east-1",
+        }
+    ]
+
+
+def test_transform_aws_native_links_requires_identity_fields():
+    raw = [
+        {
+            "id": "missing-owner",
+            "cloud": {"aws": {"ec2_instance_id": "i-1", "region": "us-east-1"}},
+        },
+        {
+            "id": "missing-region",
+            "cloud": {"aws": {"ec2_instance_id": "i-2", "owner_id": "123"}},
+        },
+        {
+            "id": "missing-instance",
+            "cloud": {"aws": {"owner_id": "123", "region": "us-east-1"}},
+        },
+        {
+            "id": "complete",
+            "cloud": {
+                "aws": {
+                    "ec2_instance_id": "i-3",
+                    "owner_id": "123",
+                    "region": "us-west-2",
+                }
+            },
+        },
+    ]
+    assert transform_aws_native_links(raw, TENABLE_TENANT_ID) == [
+        {
+            "asset_id": tenable_id("complete"),
+            "aws_ec2_instance_id": "i-3",
+            "aws_account_id": "123",
+            "aws_region": "us-west-2",
+        }
+    ]
+
+
+def test_transform_azure_native_links_basic():
+    result = transform_azure_native_links(ASSETS_DATA, TENABLE_TENANT_ID)
+    assert result == [
+        {
+            "asset_id": SCOPED_ASSET_ID_2,
+            "azure_resource_id": (
+                "/subscriptions/sub-123/resourceGroups/rg-prod/"
+                "providers/Microsoft.Compute/virtualMachines/test-vm"
+            ),
+        }
+    ]
+
+
+def test_transform_azure_native_links_requires_resource_id():
+    raw = [
+        {"id": "missing-resource", "cloud": {"azure": {"vm_id": "vm-1"}}},
+        {
+            "id": "complete",
+            "cloud": {"azure": {"resource_id": "/subscriptions/sub/vm/complete"}},
+        },
+    ]
+    assert transform_azure_native_links(raw, TENABLE_TENANT_ID) == [
+        {
+            "asset_id": tenable_id("complete"),
+            "azure_resource_id": "/subscriptions/sub/vm/complete",
+        }
+    ]
+
+
+def test_transform_gcp_native_links_basic():
+    raw = [
+        {
+            "id": "asset-g",
+            "cloud": {
+                "gcp": {
+                    "instance_id": "gcp-inst-1",
+                    "project_id": "my-project",
+                    "zone": "us-central1-a",
+                }
+            },
+        }
+    ]
+    assert transform_gcp_native_links(raw, TENABLE_TENANT_ID) == [
+        {
+            "asset_id": tenable_id("asset-g"),
+            "gcp_instance_id": (
+                "projects/my-project/zones/us-central1-a/instances/gcp-inst-1"
+            ),
+        }
+    ]
+
+
+def test_transform_gcp_native_links_requires_identity_fields():
+    raw = [
+        {
+            "id": "missing-project",
+            "cloud": {"gcp": {"instance_id": "inst-1", "zone": "z1"}},
+        },
+        {
+            "id": "missing-zone",
+            "cloud": {"gcp": {"instance_id": "inst-2", "project_id": "p1"}},
+        },
+        {
+            "id": "missing-instance",
+            "cloud": {"gcp": {"project_id": "p1", "zone": "z1"}},
+        },
+        {
+            "id": "complete",
+            "cloud": {
+                "gcp": {"instance_id": "inst-3", "project_id": "p2", "zone": "z2"}
+            },
+        },
+    ]
+    assert transform_gcp_native_links(raw, TENABLE_TENANT_ID) == [
+        {
+            "asset_id": tenable_id("complete"),
+            "gcp_instance_id": "projects/p2/zones/z2/instances/inst-3",
+        }
+    ]

@@ -19,7 +19,7 @@ Represents the Tenable instance being synced. All other Tenable nodes are scoped
 
 An asset discovered and tracked by Tenable. Corresponds to a record returned by the [Assets Export v2 API](https://developer.tenable.com/reference/export-assets-v2).
 
-Cloud-provider details live in the `TenableAssetAWS`, `TenableAssetAzure`, and `TenableAssetGCP` sub-nodes; only the cloud identifier keys are stored here for cross-module indexing.
+Native cloud correlations are modeled with `OBSERVED_AS` relationships to existing cloud compute nodes when those nodes are already present in the graph. `TenableAssetAWS`, `TenableAssetAzure`, and `TenableAssetGCP` retain the raw provider-specific details from the Tenable asset export.
 
 | Field | Description |
 |---|---|
@@ -50,9 +50,9 @@ Cloud-provider details live in the `TenableAssetAWS`, `TenableAssetAzure`, and `
 | ipv4s | List of IPv4 addresses |
 | ipv6s | List of IPv6 addresses |
 | mac_addresses | List of MAC addresses |
-| **aws_ec2_instance_id** | AWS EC2 instance ID (indexed) |
-| **azure_vm_id** | Azure VM ID (indexed) |
-| **gcp_instance_id** | GCP instance ID (indexed) |
+| **aws_ec2_instance_id** | AWS EC2 instance ID used to correlate to `EC2Instance` (indexed) |
+| **azure_vm_id** | Azure VM ID from Tenable (indexed) |
+| **gcp_instance_id** | GCP instance ID from Tenable (indexed) |
 | acr_score | Asset Criticality Rating (0–10) |
 | aes_score | Asset Exposure Score |
 | lastupdated | Timestamp of the last sync run |
@@ -67,11 +67,14 @@ Cloud-provider details live in the `TenableAssetAWS`, `TenableAssetAzure`, and `
 (:TenableAsset)-[:HAS_GCP_INFO]->(:TenableAssetGCP)
 (:TenableAsset)-[:HAS_SOURCE]->(:TenableAssetSource)
 (:TenableAsset)-[:HAS_TAG]->(:TenableAssetTag)
+(:TenableAsset)-[:OBSERVED_AS]->(:EC2Instance)
+(:TenableAsset)-[:OBSERVED_AS]->(:AzureVirtualMachine)
+(:TenableAsset)-[:OBSERVED_AS]->(:GCPInstance)
 ```
 
 ### TenableAssetAWS
 
-AWS-specific cloud details for a Tenable asset. The `id` is tenant-scoped to avoid collisions across Tenable tenants.
+Raw AWS-specific cloud details from a Tenable asset export. The `id` is tenant-scoped to avoid collisions across Tenable tenants. Use `(:TenableAsset)-[:OBSERVED_AS]->(:EC2Instance)` for native AWS compute correlation.
 
 | Field | Description |
 |---|---|
@@ -98,7 +101,7 @@ AWS-specific cloud details for a Tenable asset. The `id` is tenant-scoped to avo
 
 ### TenableAssetAzure
 
-Azure-specific cloud details for a Tenable asset. The `id` is tenant-scoped to avoid collisions across Tenable tenants.
+Raw Azure-specific cloud details from a Tenable asset export. The `id` is tenant-scoped to avoid collisions across Tenable tenants. Use `(:TenableAsset)-[:OBSERVED_AS]->(:AzureVirtualMachine)` for native Azure compute correlation.
 
 | Field | Description |
 |---|---|
@@ -116,7 +119,7 @@ Azure-specific cloud details for a Tenable asset. The `id` is tenant-scoped to a
 
 ### TenableAssetGCP
 
-GCP-specific cloud details for a Tenable asset. The `id` is tenant-scoped to avoid collisions across Tenable tenants.
+Raw GCP-specific cloud details from a Tenable asset export. The `id` is tenant-scoped to avoid collisions across Tenable tenants. Use `(:TenableAsset)-[:OBSERVED_AS]->(:GCPInstance)` for native GCP compute correlation.
 
 | Field | Description |
 |---|---|

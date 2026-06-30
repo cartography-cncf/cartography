@@ -22,6 +22,33 @@ TEST_BASE_URL = "https://cloud.tenable.com"
 
 SOURCE_ID_1 = tenable_id(f"{ASSET_ID_1}::NESSUS_AGENT")
 SOURCE_ID_2 = tenable_id(f"{ASSET_ID_2}::NESSUS_SCAN")
+AZURE_RESOURCE_ID_2 = (
+    "/subscriptions/sub-123/resourceGroups/rg-prod/"
+    "providers/Microsoft.Compute/virtualMachines/test-vm"
+)
+GCP_ASSET_ID = "eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee"
+SCOPED_GCP_ASSET_ID = tenable_id(GCP_ASSET_ID)
+GCP_INSTANCE_NAME = "gcp-test-instance"
+GCP_PROJECT_ID = "tenable-test-project"
+GCP_ZONE = "us-central1-a"
+GCP_INSTANCE_ID = (
+    f"projects/{GCP_PROJECT_ID}/zones/{GCP_ZONE}/instances/{GCP_INSTANCE_NAME}"
+)
+
+
+def _gcp_asset_data():
+    return {
+        "id": GCP_ASSET_ID,
+        "cloud": {
+            "gcp": {
+                "instance_id": GCP_INSTANCE_NAME,
+                "project_id": GCP_PROJECT_ID,
+                "zone": GCP_ZONE,
+            }
+        },
+        "sources": [],
+        "tags": [],
+    }
 
 
 def _sync_assets(neo4j_session, mocker, data=None):
@@ -37,6 +64,37 @@ def _sync_assets(neo4j_session, mocker, data=None):
         TENABLE_TENANT_ID,
         TEST_UPDATE_TAG,
         {"UPDATE_TAG": TEST_UPDATE_TAG, "TENABLE_TENANT_ID": TENABLE_TENANT_ID},
+    )
+
+
+def _seed_native_cloud_nodes(neo4j_session):
+    neo4j_session.run(
+        """
+        CREATE (aws:AWSAccount {id: '123456789012'})
+        CREATE (other_aws:AWSAccount {id: '999999999999'})
+        CREATE (ec2:EC2Instance {
+            id: $aws_instance_id,
+            instanceid: $aws_instance_id,
+            region: 'us-east-1'
+        })
+        CREATE (wrong_account_ec2:EC2Instance {
+            id: 'wrong-account-ec2',
+            instanceid: $aws_instance_id,
+            region: 'us-east-1'
+        })
+        CREATE (aws)-[:RESOURCE]->(ec2)
+        CREATE (other_aws)-[:RESOURCE]->(wrong_account_ec2)
+        CREATE (sub:AzureSubscription {id: 'sub-123'})
+        CREATE (vm:AzureVirtualMachine {id: $azure_resource_id})
+        CREATE (sub)-[:RESOURCE]->(vm)
+        CREATE (project:GCPProject {id: $gcp_project_id})
+        CREATE (gcp:GCPInstance {id: $gcp_instance_id})
+        CREATE (project)-[:RESOURCE]->(gcp)
+        """,
+        aws_instance_id=AWS_EC2_INSTANCE_ID_1,
+        azure_resource_id=AZURE_RESOURCE_ID_2,
+        gcp_project_id=GCP_PROJECT_ID,
+        gcp_instance_id=GCP_INSTANCE_ID,
     )
 
 
@@ -264,6 +322,118 @@ def test_sync_azure_cloud(neo4j_session, mocker):
         rel_direction_right=True,
     )
     assert actual_rels == {(SCOPED_ASSET_ID_2, SCOPED_AZURE_VM_ID_2)}
+
+
+def test_sync_native_cloud_observed_as_rels(neo4j_session, mocker):
+    """Tenable assets correlate to existing native cloud compute nodes."""
+    # Arrange
+    neo4j_session.run("MATCH (n) DETACH DELETE n")
+    _seed_native_cloud_nodes(neo4j_session)
+
+    # Act
+    _sync_assets(neo4j_session, mocker, [*ASSETS_DATA, _gcp_asset_data()])
+
+    # Assert
+    aws_account_rows = neo4j_session.run(
+        """
+        MATCH (:TenableAsset {id: $asset_id})-[:OBSERVED_AS]->(:EC2Instance)
+            <-[:RESOURCE]-(account:AWSAccount)
+        RETURN collect(account.id) AS account_ids
+        """,
+        asset_id=SCOPED_ASSET_ID_1,
+    ).single()
+    assert aws_account_rows["account_ids"] == ["123456789012"]
+
+    assert check_rels(
+        neo4j_session,
+        "TenableAsset",
+        "id",
+        "AzureVirtualMachine",
+        "id",
+        "OBSERVED_AS",
+        rel_direction_right=True,
+    ) == {(SCOPED_ASSET_ID_2, AZURE_RESOURCE_ID_2)}
+
+    assert check_rels(
+        neo4j_session,
+        "TenableAsset",
+        "id",
+        "GCPInstance",
+        "id",
+        "OBSERVED_AS",
+        rel_direction_right=True,
+    ) == {(SCOPED_GCP_ASSET_ID, GCP_INSTANCE_ID)}
+
+
+def test_sync_native_cloud_observed_as_skips_missing_native_nodes(
+    neo4j_session, mocker
+):
+    """Tenable does not create native cloud correlation edges without a target node."""
+    # Arrange
+    neo4j_session.run("MATCH (n) DETACH DELETE n")
+
+    # Act
+    _sync_assets(neo4j_session, mocker, [*ASSETS_DATA, _gcp_asset_data()])
+
+    # Assert
+    record = neo4j_session.run(
+        "MATCH (:TenableAsset)-[r:OBSERVED_AS]->() RETURN count(r) AS rel_count"
+    ).single()
+    assert record["rel_count"] == 0
+
+
+def test_sync_native_cloud_observed_as_cleanup(neo4j_session, mocker):
+    """Stale Tenable native cloud correlations are deleted after sync."""
+    # Arrange
+    neo4j_session.run("MATCH (n) DETACH DELETE n")
+    old_update_tag = TEST_UPDATE_TAG - 1000
+    neo4j_session.run(
+        """
+        CREATE (tenant:TenableTenant {id: $tenant_id})
+        CREATE (asset:TenableAsset {id: $asset_id, lastupdated: $old_tag})
+        CREATE (tenant)-[:RESOURCE]->(asset)
+        CREATE (old_ec2:EC2Instance {id: 'old-ec2', instanceid: 'i-old'})
+        CREATE (old_vm:AzureVirtualMachine {id: '/subscriptions/sub/old-vm'})
+        CREATE (old_gcp:GCPInstance {id: 'projects/old/zones/old/instances/old'})
+        CREATE (asset)-[:OBSERVED_AS {
+            lastupdated: $old_tag,
+            _sub_resource_label: 'TenableTenant',
+            _sub_resource_id: $tenant_id
+        }]->(old_ec2)
+        CREATE (asset)-[:OBSERVED_AS {
+            lastupdated: $old_tag,
+            _sub_resource_label: 'TenableTenant',
+            _sub_resource_id: $tenant_id
+        }]->(old_vm)
+        CREATE (asset)-[:OBSERVED_AS {
+            lastupdated: $old_tag,
+            _sub_resource_label: 'TenableTenant',
+            _sub_resource_id: $tenant_id
+        }]->(old_gcp)
+        """,
+        tenant_id=TENABLE_TENANT_ID,
+        asset_id=SCOPED_ASSET_ID_1,
+        old_tag=old_update_tag,
+    )
+    _seed_native_cloud_nodes(neo4j_session)
+
+    # Act
+    _sync_assets(neo4j_session, mocker, ASSETS_DATA)
+
+    # Assert
+    stale_record = neo4j_session.run(
+        """
+        MATCH (:TenableAsset {id: $asset_id})-[r:OBSERVED_AS]->(n)
+        WHERE n.id IN [
+            'old-ec2',
+            '/subscriptions/sub/old-vm',
+            'projects/old/zones/old/instances/old'
+        ]
+        RETURN count(r) AS rel_count
+        """,
+        asset_id=SCOPED_ASSET_ID_1,
+    ).single()
+    assert stale_record["rel_count"] == 0
 
 
 def test_sync_sources(neo4j_session, mocker):
