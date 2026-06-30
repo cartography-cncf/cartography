@@ -60,9 +60,7 @@ def test_load_scaleway_secrets(_mock_secrets_get, _mock_keys_get, neo4j_session)
     assert check_nodes(neo4j_session, "ScalewaySecret", ["id", "name"]) == {
         (TEST_SECRET_ID, "demo-secret"),
     }
-    assert check_nodes(
-        neo4j_session, "ScalewaySecretVersion", ["id", "revision"]
-    ) == {
+    assert check_nodes(neo4j_session, "ScalewaySecretVersion", ["id", "revision"]) == {
         (f"{TEST_SECRET_ID}/1", 1),
     }
     assert check_nodes(neo4j_session, "ScalewayKey", ["id", "name"]) == {

@@ -122,6 +122,6 @@ def cleanup(
         GraphJob.from_node_schema(
             ScalewaySecretVersionSchema(), scoped_job_parameters
         ).run(neo4j_session)
-        GraphJob.from_node_schema(
-            ScalewaySecretSchema(), scoped_job_parameters
-        ).run(neo4j_session)
+        GraphJob.from_node_schema(ScalewaySecretSchema(), scoped_job_parameters).run(
+            neo4j_session
+        )

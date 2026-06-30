@@ -75,9 +75,7 @@ class ScalewaySecretSchema(CartographyNodeSchema):
     label: str = "ScalewaySecret"
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["Secret"])
     properties: ScalewaySecretProperties = ScalewaySecretProperties()
-    sub_resource_relationship: ScalewaySecretToProjectRel = (
-        ScalewaySecretToProjectRel()
-    )
+    sub_resource_relationship: ScalewaySecretToProjectRel = ScalewaySecretToProjectRel()
     other_relationships: OtherRelationships = OtherRelationships(
         [
             ScalewaySecretToKeyRel(),

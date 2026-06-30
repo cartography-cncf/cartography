@@ -118,9 +118,9 @@ def cleanup(
         scoped_job_parameters = common_job_parameters.copy()
         scoped_job_parameters["PROJECT_ID"] = project_id
         # Records before zones (records depend on zones).
-        GraphJob.from_node_schema(
-            ScalewayDnsRecordSchema(), scoped_job_parameters
-        ).run(neo4j_session)
-        GraphJob.from_node_schema(
-            ScalewayDnsZoneSchema(), scoped_job_parameters
-        ).run(neo4j_session)
+        GraphJob.from_node_schema(ScalewayDnsRecordSchema(), scoped_job_parameters).run(
+            neo4j_session
+        )
+        GraphJob.from_node_schema(ScalewayDnsZoneSchema(), scoped_job_parameters).run(
+            neo4j_session
+        )
