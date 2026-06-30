@@ -70,6 +70,21 @@ PASSROLE_POLICY_DATA = {
     }
 }
 
+APPRUNNER_CREATE_SERVICE_POLICY_DATA = {
+    "arn:aws:iam::000000000000:role/TestReadRole": {
+        "AppRunnerCreateServicePolicy": [
+            {
+                "Effect": "Allow",
+                "Action": ["iam:PassRole", "apprunner:CreateService"],
+                "Resource": [
+                    "arn:aws:iam::000000000000:role/AppRunnerExecutionRole",
+                    "arn:aws:apprunner:us-east-1:000000000000:service/test-service/*",
+                ],
+            }
+        ]
+    }
+}
+
 
 def test_permission_relationships_with_iam_integration(neo4j_session):
     """
@@ -298,3 +313,80 @@ def test_permission_relationships_skips_resources_without_arn(neo4j_session):
     )
 
     assert actual_rels == set()
+
+
+def test_permission_relationships_can_exec_apprunner_service(neo4j_session):
+    create_test_account(neo4j_session, TEST_ACCOUNT_ID, TEST_UPDATE_TAG)
+
+    neo4j_session.run(
+        """
+        MATCH (aws:AWSAccount{id: $AccountId})
+        MERGE (svc:AppRunnerService{
+            arn: 'arn:aws:apprunner:us-east-1:000000000000:service/test-service/service-1234567890'
+        })<-[:RESOURCE]-(aws)
+        SET svc.id = svc.arn,
+            svc.service_name = 'test-service',
+            svc.lastupdated = $UpdateTag
+        MERGE (role:AWSRole:AWSPrincipal{
+            arn: 'arn:aws:iam::000000000000:role/AppRunnerExecutionRole'
+        })<-[:RESOURCE]-(aws)
+        SET role.roleid = 'AROAAPPROLE123456789',
+            role.name = 'AppRunnerExecutionRole',
+            role.lastupdated = $UpdateTag
+        """,
+        AccountId=TEST_ACCOUNT_ID,
+        UpdateTag=TEST_UPDATE_TAG,
+    )
+
+    with (
+        patch(
+            "cartography.intel.aws.iam.get_role_list_data",
+            return_value=SIMPLE_ROLE_DATA,
+        ),
+        patch(
+            "cartography.intel.aws.iam.get_role_policy_data",
+            return_value=APPRUNNER_CREATE_SERVICE_POLICY_DATA,
+        ),
+        patch(
+            "cartography.intel.aws.iam.get_role_managed_policy_data", return_value={}
+        ),
+    ):
+        common_job_parameters = {"AWS_ID": TEST_ACCOUNT_ID}
+        cartography.intel.aws.iam.sync_roles(
+            neo4j_session,
+            MagicMock(),
+            TEST_ACCOUNT_ID,
+            TEST_UPDATE_TAG,
+            common_job_parameters,
+        )
+
+    cartography.intel.aws.permission_relationships.sync(
+        neo4j_session,
+        None,
+        [TEST_REGION],
+        TEST_ACCOUNT_ID,
+        TEST_UPDATE_TAG,
+        {
+            "permission_relationships_file": "cartography/data/permission_relationships.yaml",
+        },
+    )
+
+    actual_rels = check_rels(
+        neo4j_session,
+        "AWSRole",
+        "arn",
+        "AppRunnerService",
+        "arn",
+        "CAN_EXEC",
+    )
+
+    expected_rels = {
+        (
+            "arn:aws:iam::000000000000:role/TestReadRole",
+            "arn:aws:apprunner:us-east-1:000000000000:service/test-service/service-1234567890",
+        )
+    }
+
+    assert (
+        actual_rels == expected_rels
+    ), f"Expected CAN_EXEC relationship for App Runner not found. Got: {actual_rels}"
