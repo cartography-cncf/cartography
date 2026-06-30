@@ -1,4 +1,3 @@
-import logging
 from datetime import datetime
 from datetime import timezone
 from typing import Any
@@ -11,8 +10,6 @@ from cartography.intel.databricks.util import DatabricksWorkspaceClient
 from cartography.intel.databricks.util import scoped_id
 from cartography.models.databricks.cluster import DatabricksClusterSchema
 from cartography.util import timeit
-
-logger = logging.getLogger(__name__)
 
 
 def _epoch_ms_to_datetime(value: Any) -> datetime | None:
@@ -87,14 +84,11 @@ def transform(
     """
     result: list[dict[str, Any]] = []
     for c in clusters:
-        cluster_id = c.get("cluster_id")
+        # Fail loudly on missing/empty canonical id rather than minting a
+        # corrupt `{workspace_id}/` node (team rule for Neo4j canonical ids).
+        cluster_id = c["cluster_id"]
         if not cluster_id:
-            logger.warning(
-                "Skipping Databricks cluster with missing/empty cluster_id; "
-                "API returned %r.",
-                c,
-            )
-            continue
+            raise ValueError("Databricks cluster returned with empty cluster_id")
         result.append(
             {
                 "id": scoped_id(workspace_id, cluster_id),

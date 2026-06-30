@@ -70,14 +70,11 @@ def transform(
 ) -> list[dict[str, Any]]:
     result: list[dict[str, Any]] = []
     for a in access_lists:
-        list_id = a.get("list_id")
+        # Fail loudly on missing/empty canonical id rather than minting a
+        # corrupt `{workspace_id}/` node (team rule for Neo4j canonical ids).
+        list_id = a["list_id"]
         if not list_id:
-            logger.warning(
-                "Skipping Databricks IP access list with missing/empty list_id; "
-                "API returned %r.",
-                a,
-            )
-            continue
+            raise ValueError("Databricks IP access list returned with empty list_id")
         result.append(
             {
                 "id": scoped_id(workspace_id, list_id),
