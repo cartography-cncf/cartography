@@ -243,6 +243,8 @@ A Databricks compute cluster returned by the clusters 2.1 API.
 | data_security_mode | UC access mode (`NONE`, `SINGLE_USER`, `USER_ISOLATION`, `LEGACY_*`) |
 | single_user_name | Owning user for single-user UC clusters (indexed) |
 | creator_user_name | User name of the cluster creator (indexed) |
+| instance_pool_id | Raw worker instance pool id, when the cluster targets one (indexed) |
+| driver_instance_pool_id | Raw driver instance pool id, when the driver targets a distinct pool (indexed) |
 | enable_local_disk_encryption | Whether local disks are encrypted |
 | enable_elastic_disk | Whether elastic disk autoscaling is enabled |
 | start_time | Native datetime when the cluster was first started (UTC) |
@@ -260,7 +262,7 @@ A Databricks compute cluster returned by the clusters 2.1 API.
     ```
     (:DatabricksCluster)-[:HAS_POLICY]->(:DatabricksClusterPolicy)
     ```
-- A `DatabricksCluster` allocates nodes from a `DatabricksInstancePool`.
+- A `DatabricksCluster` allocates nodes from one or more `DatabricksInstancePool` — the worker pool and, when set, a distinct driver pool both land here.
     ```
     (:DatabricksCluster)-[:USES_INSTANCE_POOL]->(:DatabricksInstancePool)
     ```

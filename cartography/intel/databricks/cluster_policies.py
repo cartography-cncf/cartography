@@ -1,3 +1,4 @@
+import logging
 from datetime import datetime
 from datetime import timezone
 from typing import Any
@@ -10,6 +11,8 @@ from cartography.intel.databricks.util import DatabricksWorkspaceClient
 from cartography.intel.databricks.util import scoped_id
 from cartography.models.databricks.cluster_policy import DatabricksClusterPolicySchema
 from cartography.util import timeit
+
+logger = logging.getLogger(__name__)
 
 
 def _epoch_ms_to_datetime(value: Any) -> datetime | None:
@@ -49,7 +52,14 @@ def transform(
     """Scope ids to the workspace; policy ids are workspace-local."""
     result: list[dict[str, Any]] = []
     for p in policies:
-        policy_id = p["policy_id"]
+        policy_id = p.get("policy_id")
+        if not policy_id:
+            logger.warning(
+                "Skipping Databricks cluster policy with missing/empty policy_id; "
+                "API returned %r.",
+                p,
+            )
+            continue
         result.append(
             {
                 "id": scoped_id(workspace_id, policy_id),

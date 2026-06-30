@@ -1,3 +1,4 @@
+import logging
 from typing import Any
 
 import neo4j
@@ -8,6 +9,8 @@ from cartography.intel.databricks.util import DatabricksWorkspaceClient
 from cartography.intel.databricks.util import scoped_id
 from cartography.models.databricks.secret_scope import DatabricksSecretScopeSchema
 from cartography.util import timeit
+
+logger = logging.getLogger(__name__)
 
 
 @timeit
@@ -39,7 +42,14 @@ def transform(scopes: list[dict[str, Any]], workspace_id: str) -> list[dict[str,
     """Flatten ``keyvault_metadata`` so Azure KV-backed scopes carry resource id + DNS."""
     result: list[dict[str, Any]] = []
     for s in scopes:
-        name = s["name"]
+        name = s.get("name")
+        if not name:
+            logger.warning(
+                "Skipping Databricks secret scope with missing/empty name; "
+                "API returned %r.",
+                s,
+            )
+            continue
         keyvault = s.get("keyvault_metadata") or {}
         result.append(
             {

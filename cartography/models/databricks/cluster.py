@@ -27,6 +27,10 @@ class DatabricksClusterNodeProperties(CartographyNodeProperties):
     data_security_mode: PropertyRef = PropertyRef("data_security_mode")
     single_user_name: PropertyRef = PropertyRef("single_user_name", extra_index=True)
     creator_user_name: PropertyRef = PropertyRef("creator_user_name", extra_index=True)
+    driver_instance_pool_id: PropertyRef = PropertyRef(
+        "driver_instance_pool_id", extra_index=True
+    )
+    instance_pool_id: PropertyRef = PropertyRef("instance_pool_id", extra_index=True)
     enable_local_disk_encryption: PropertyRef = PropertyRef(
         "enable_local_disk_encryption"
     )
@@ -81,10 +85,12 @@ class DatabricksClusterToInstancePoolRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 # (:DatabricksCluster)-[:USES_INSTANCE_POOL]->(:DatabricksInstancePool)
+# Covers both worker and driver pools; a cluster can target each from a
+# different pool, and the security/dependency implications are identical.
 class DatabricksClusterToInstancePoolRel(CartographyRelSchema):
     target_node_label: str = "DatabricksInstancePool"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {"id": PropertyRef("instance_pool_id_scoped")},
+        {"id": PropertyRef("instance_pool_ids_scoped", one_to_many=True)},
     )
     direction: LinkDirection = LinkDirection.OUTWARD
     rel_label: str = "USES_INSTANCE_POOL"

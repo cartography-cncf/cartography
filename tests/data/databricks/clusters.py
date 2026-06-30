@@ -19,6 +19,9 @@ DATABRICKS_CLUSTERS = [
         "terminated_time": 1700000200000,
         "policy_id": "0001-policy-aaaa",
         "instance_pool_id": "0101-pool-aaaa",
+        # Distinct driver pool — the cluster should land a second
+        # USES_INSTANCE_POOL edge to it on top of the worker pool.
+        "driver_instance_pool_id": "0101-pool-driver",
     },
     {
         "cluster_id": "0202-cluster-bbbb",

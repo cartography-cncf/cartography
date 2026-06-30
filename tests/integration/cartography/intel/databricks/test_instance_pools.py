@@ -45,6 +45,12 @@ def test_load_databricks_instance_pools(mock_get, neo4j_session):
             "shared-warm-pool",
             "ACTIVE",
         ),
+        (
+            scoped("0101-pool-driver"),
+            "0101-pool-driver",
+            "driver-only-pool",
+            "ACTIVE",
+        ),
     }
 
     assert check_rels(
@@ -55,4 +61,7 @@ def test_load_databricks_instance_pools(mock_get, neo4j_session):
         "id",
         "RESOURCE",
         rel_direction_right=False,
-    ) == {(scoped("0101-pool-aaaa"), DATABRICKS_WORKSPACE_ID)}
+    ) == {
+        (scoped("0101-pool-aaaa"), DATABRICKS_WORKSPACE_ID),
+        (scoped("0101-pool-driver"), DATABRICKS_WORKSPACE_ID),
+    }

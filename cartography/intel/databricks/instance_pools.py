@@ -1,3 +1,4 @@
+import logging
 from typing import Any
 
 import neo4j
@@ -8,6 +9,8 @@ from cartography.intel.databricks.util import DatabricksWorkspaceClient
 from cartography.intel.databricks.util import scoped_id
 from cartography.models.databricks.instance_pool import DatabricksInstancePoolSchema
 from cartography.util import timeit
+
+logger = logging.getLogger(__name__)
 
 
 @timeit
@@ -38,7 +41,14 @@ def get(api_session: DatabricksWorkspaceClient) -> list[dict[str, Any]]:
 def transform(pools: list[dict[str, Any]], workspace_id: str) -> list[dict[str, Any]]:
     result: list[dict[str, Any]] = []
     for p in pools:
-        pool_id = p["instance_pool_id"]
+        pool_id = p.get("instance_pool_id")
+        if not pool_id:
+            logger.warning(
+                "Skipping Databricks instance pool with missing/empty "
+                "instance_pool_id; API returned %r.",
+                p,
+            )
+            continue
         result.append(
             {
                 "id": scoped_id(workspace_id, pool_id),

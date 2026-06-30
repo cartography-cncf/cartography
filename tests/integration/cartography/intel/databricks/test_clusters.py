@@ -102,7 +102,9 @@ def test_load_databricks_clusters(mock_get, neo4j_session):
         rel_direction_right=True,
     ) == {(scoped("0202-cluster-aaaa"), scoped("0001-policy-aaaa"))}
 
-    # Cluster -> InstancePool USES_INSTANCE_POOL (only first cluster uses a pool)
+    # Cluster -> InstancePool USES_INSTANCE_POOL: first cluster lands edges
+    # to *both* its worker pool and its distinct driver pool; the second
+    # cluster has no pools attached.
     assert check_rels(
         neo4j_session,
         "DatabricksCluster",
@@ -111,4 +113,7 @@ def test_load_databricks_clusters(mock_get, neo4j_session):
         "id",
         "USES_INSTANCE_POOL",
         rel_direction_right=True,
-    ) == {(scoped("0202-cluster-aaaa"), scoped("0101-pool-aaaa"))}
+    ) == {
+        (scoped("0202-cluster-aaaa"), scoped("0101-pool-aaaa")),
+        (scoped("0202-cluster-aaaa"), scoped("0101-pool-driver")),
+    }

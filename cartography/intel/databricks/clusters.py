@@ -1,3 +1,4 @@
+import logging
 from datetime import datetime
 from datetime import timezone
 from typing import Any
@@ -11,6 +12,8 @@ from cartography.intel.databricks.util import scoped_id
 from cartography.models.databricks.cluster import DatabricksClusterSchema
 from cartography.util import timeit
 
+logger = logging.getLogger(__name__)
+
 
 def _epoch_ms_to_datetime(value: Any) -> datetime | None:
     if value in (None, 0):
@@ -22,6 +25,21 @@ def _scoped_or_none(workspace_id: str, value: Any) -> str | None:
     if value in (None, ""):
         return None
     return scoped_id(workspace_id, str(value))
+
+
+def _pool_ids_scoped(workspace_id: str, cluster: dict[str, Any]) -> list[str]:
+    """Dedupe worker + driver pool ids and scope to the workspace.
+
+    Clusters may target a separate ``driver_instance_pool_id`` from their
+    worker ``instance_pool_id``; both belong on the cluster's
+    USES_INSTANCE_POOL edge so blast-radius queries see the full set.
+    """
+    scoped: list[str] = []
+    for key in ("instance_pool_id", "driver_instance_pool_id"):
+        s = _scoped_or_none(workspace_id, cluster.get(key))
+        if s is not None and s not in scoped:
+            scoped.append(s)
+    return scoped
 
 
 @timeit
@@ -69,7 +87,14 @@ def transform(
     """
     result: list[dict[str, Any]] = []
     for c in clusters:
-        cluster_id = c["cluster_id"]
+        cluster_id = c.get("cluster_id")
+        if not cluster_id:
+            logger.warning(
+                "Skipping Databricks cluster with missing/empty cluster_id; "
+                "API returned %r.",
+                c,
+            )
+            continue
         result.append(
             {
                 "id": scoped_id(workspace_id, cluster_id),
@@ -86,14 +111,14 @@ def transform(
                 "data_security_mode": c.get("data_security_mode"),
                 "single_user_name": c.get("single_user_name"),
                 "creator_user_name": c.get("creator_user_name"),
+                "instance_pool_id": c.get("instance_pool_id"),
+                "driver_instance_pool_id": c.get("driver_instance_pool_id"),
                 "enable_local_disk_encryption": c.get("enable_local_disk_encryption"),
                 "enable_elastic_disk": c.get("enable_elastic_disk"),
                 "start_time": _epoch_ms_to_datetime(c.get("start_time")),
                 "terminated_time": _epoch_ms_to_datetime(c.get("terminated_time")),
                 "policy_id_scoped": _scoped_or_none(workspace_id, c.get("policy_id")),
-                "instance_pool_id_scoped": _scoped_or_none(
-                    workspace_id, c.get("instance_pool_id")
-                ),
+                "instance_pool_ids_scoped": _pool_ids_scoped(workspace_id, c),
             }
         )
     return result

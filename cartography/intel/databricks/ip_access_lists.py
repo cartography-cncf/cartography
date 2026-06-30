@@ -70,7 +70,14 @@ def transform(
 ) -> list[dict[str, Any]]:
     result: list[dict[str, Any]] = []
     for a in access_lists:
-        list_id = a["list_id"]
+        list_id = a.get("list_id")
+        if not list_id:
+            logger.warning(
+                "Skipping Databricks IP access list with missing/empty list_id; "
+                "API returned %r.",
+                a,
+            )
+            continue
         result.append(
             {
                 "id": scoped_id(workspace_id, list_id),
