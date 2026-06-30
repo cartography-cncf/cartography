@@ -248,6 +248,7 @@ def get_transit_gateway_route_table_associations(boto3_session: boto3.session.Se
 
     # Fallback for describe_transit_gateway_route_table_propagations
     try:
+        # If the client doesn't implement the API, skip gracefully.
         if not hasattr(client, "describe_transit_gateway_route_table_propagations"):
             logger.debug(
                 "EC2 client does not support describe_transit_gateway_route_table_propagations; skipping propagations fallback for region %s",
