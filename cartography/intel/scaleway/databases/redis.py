@@ -18,10 +18,11 @@ from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
 
-# Redis is zone-scoped: every region exposes a single "<region>-1" zone where
-# clusters live. Fan out across all regions, skipping the ones where Redis is
-# not deployed.
-_REDIS_ZONES = tuple(f"{region}-1" for region in DEFAULT_REGIONS)
+# Redis is zone-scoped, not region-scoped. Scaleway currently exposes two AZs
+# per region (e.g. fr-par-1, fr-par-2). We fan out across both for every known
+# region; zones where Redis is not deployed answer "unknown service" and are
+# skipped, so unsupported permutations are harmless.
+_REDIS_ZONES = tuple(f"{region}-{az}" for region in DEFAULT_REGIONS for az in (1, 2))
 
 
 @timeit
