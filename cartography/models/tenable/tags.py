@@ -3,6 +3,7 @@ from dataclasses import dataclass
 from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeProperties
 from cartography.models.core.nodes import CartographyNodeSchema
+from cartography.models.core.nodes import ExtraNodeLabels
 from cartography.models.core.relationships import CartographyRelProperties
 from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
@@ -15,8 +16,12 @@ from cartography.models.core.relationships import TargetNodeMatcher
 class TenableAssetTagNodeProperties(CartographyNodeProperties):
     id: PropertyRef = PropertyRef("id")
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
-    tag_key: PropertyRef = PropertyRef("tag_key")
-    tag_value: PropertyRef = PropertyRef("tag_value")
+    key: PropertyRef = PropertyRef("key", extra_index=True)
+    value: PropertyRef = PropertyRef("value")
+    # DEPRECATED: will be deleted in version 1.0.0
+    tag_key: PropertyRef = PropertyRef("key")
+    # DEPRECATED: will be deleted in version 1.0.0
+    tag_value: PropertyRef = PropertyRef("value")
     added_by: PropertyRef = PropertyRef("added_by")
     added_at: PropertyRef = PropertyRef("added_at")
 
@@ -62,6 +67,7 @@ class TenableAssetTagToAssetRel(CartographyRelSchema):
 @dataclass(frozen=True)
 class TenableAssetTagSchema(CartographyNodeSchema):
     label: str = "TenableAssetTag"
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["Tag"])
     properties: TenableAssetTagNodeProperties = TenableAssetTagNodeProperties()
     sub_resource_relationship: TenableAssetTagToTenantRel = TenableAssetTagToTenantRel()
     other_relationships: OtherRelationships = OtherRelationships(

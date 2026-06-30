@@ -310,9 +310,7 @@ def test_sync_tags(neo4j_session, mocker):
         common_job_parameters,
     )
 
-    actual_tags = check_nodes(
-        neo4j_session, "TenableAssetTag", ["id", "tag_key", "tag_value"]
-    )
+    actual_tags = check_nodes(neo4j_session, "TenableAssetTag", ["id", "key", "value"])
     assert actual_tags == {(TAG_ID_1, "Environment", "Production")}
 
     actual_rels = check_rels(

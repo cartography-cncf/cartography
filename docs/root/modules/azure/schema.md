@@ -2338,9 +2338,9 @@ Representation of a Request Routing Rule for an Azure Application Gateway. Prope
     (AzureApplicationGatewayRule)-[:ROUTES_TO]->(:AzureApplicationGatewayBackendPool)
     ```
 
-### AzureTag
+### Tag::AzureTag
 
-Representation of a key-value tag applied to an Azure resource. Tags with the same key and value share a single node in the graph, allowing for easy cross-resource querying.
+Representation of a key-value tag applied to an Azure resource. Tags with the same key and value share a single node in the graph, allowing for easy cross-resource querying. Also carries the cross-provider `:Tag` label, so `(:Tag {key, value})` matches Azure, AWS, GCP, and Tenable tags together.
 
 | Field | Description |
 |---|---|
