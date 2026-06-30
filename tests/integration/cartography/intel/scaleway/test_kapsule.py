@@ -61,6 +61,13 @@ def test_load_scaleway_kapsule(_mock_get, neo4j_session):
     # Cross-cloud ontology label on the cluster.
     assert check_nodes(neo4j_session, "ComputeCluster", ["id"]) == {(TEST_CLUSTER_ID,)}
 
+    # Normalized _ont_* fields populated from the ComputeCluster mapping.
+    assert check_nodes(
+        neo4j_session,
+        "ComputeCluster",
+        ["_ont_name", "_ont_region", "_ont_version", "_ont_status", "_ont_source"],
+    ) == {("demo-cluster", "fr-par", "1.30.2", "ready", "scaleway")}
+
     # Project ownership.
     for label in (
         "ScalewayKapsuleCluster",

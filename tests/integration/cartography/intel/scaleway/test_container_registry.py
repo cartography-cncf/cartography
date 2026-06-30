@@ -56,6 +56,21 @@ def test_load_scaleway_container_registry(_mock_get, neo4j_session):
         (TEST_NAMESPACE_ID,)
     }
 
+    # Normalized _ont_* fields populated from the ContainerRegistry mapping.
+    assert check_nodes(
+        neo4j_session,
+        "ContainerRegistry",
+        ["_ont_name", "_ont_uri", "_ont_location", "_ont_size_bytes", "_ont_source"],
+    ) == {
+        (
+            "demo-namespace",
+            "rg.fr-par.scw.cloud/demo-namespace",
+            "fr-par",
+            1024,
+            "scaleway",
+        )
+    }
+
     # Project ownership.
     for label in (
         "ScalewayContainerRegistryNamespace",
