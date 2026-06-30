@@ -50,6 +50,7 @@ class TenableAssetTagToAssetRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
+# DEPRECATED: replaced by :TAGGED, will be removed in v1.0.0
 # (:TenableAsset)-[:HAS_TAG]->(:TenableAssetTag)
 @dataclass(frozen=True)
 class TenableAssetTagToAssetRel(CartographyRelSchema):
@@ -65,6 +66,25 @@ class TenableAssetTagToAssetRel(CartographyRelSchema):
 
 
 @dataclass(frozen=True)
+class TenableAssetTagToAssetTaggedRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+# (:TenableAsset)-[:TAGGED]->(:TenableAssetTag)
+@dataclass(frozen=True)
+class TenableAssetTagToAssetTaggedRel(CartographyRelSchema):
+    target_node_label: str = "TenableAsset"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"id": PropertyRef("asset_id")},
+    )
+    direction: LinkDirection = LinkDirection.INWARD
+    rel_label: str = "TAGGED"
+    properties: TenableAssetTagToAssetTaggedRelProperties = (
+        TenableAssetTagToAssetTaggedRelProperties()
+    )
+
+
+@dataclass(frozen=True)
 class TenableAssetTagSchema(CartographyNodeSchema):
     label: str = "TenableAssetTag"
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["Tag"])
@@ -73,5 +93,6 @@ class TenableAssetTagSchema(CartographyNodeSchema):
     other_relationships: OtherRelationships = OtherRelationships(
         [
             TenableAssetTagToAssetRel(),
+            TenableAssetTagToAssetTaggedRel(),
         ]
     )

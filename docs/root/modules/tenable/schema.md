@@ -75,7 +75,7 @@ Cloud-provider details live in the `TenableAssetAWS`, `TenableAssetAzure`, and `
 (:TenableAsset)-[:HAS_AZURE_INFO]->(:TenableAssetAzure)
 (:TenableAsset)-[:HAS_GCP_INFO]->(:TenableAssetGCP)
 (:TenableAsset)-[:HAS_SOURCE]->(:TenableAssetSource)
-(:TenableAsset)-[:HAS_TAG]->(:TenableAssetTag)
+(:TenableAsset)-[:TAGGED]->(:TenableAssetTag)
 ```
 
 ### TenableAssetAWS
@@ -194,8 +194,10 @@ A key/value tag applied to a Tenable asset. The `id` is the Tenable tag UUID. Al
 
 ```
 (:TenableTenant)-[:RESOURCE]->(:TenableAssetTag)
-(:TenableAsset)-[:HAS_TAG]->(:TenableAssetTag)
+(:TenableAsset)-[:TAGGED]->(:TenableAssetTag)
 ```
+
+The legacy `(:TenableAsset)-[:HAS_TAG]->(:TenableAssetTag)` edge is still written in parallel and will be removed in v1.0.0.
 
 ### TenableFinding
 

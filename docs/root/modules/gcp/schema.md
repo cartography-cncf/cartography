@@ -251,11 +251,11 @@ Each resource type has its own declarative schema (e.g., `GCPBucketGCPLabelSchem
 
 #### Relationships
 
-- GCP resources can be labeled with GCPLabels.
+- GCP resources are linked to their GCPLabels via `:TAGGED` (canonical, matches the cross-provider tag pattern). The legacy `:LABELED` edge is still written in parallel and will be removed in v1.0.0.
 
     ```
-    (GCPBucket)-[LABELED]->(GCPLabel:GCPBucketLabel)
-    (GCPInstance)-[LABELED]->(GCPLabel)
+    (GCPBucket)-[TAGGED]->(GCPLabel:GCPBucketLabel)
+    (GCPInstance)-[TAGGED]->(GCPLabel)
     ```
 
 - GCPLabel nodes are associated with a GCPProject via the RESOURCE relationship.
