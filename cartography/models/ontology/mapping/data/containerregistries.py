@@ -77,8 +77,31 @@ gitlab_mapping = OntologyMapping(
     ],
 )
 
+scaleway_mapping = OntologyMapping(
+    module_name="scaleway",
+    nodes=[
+        OntologyNodeMapping(
+            node_label="ScalewayContainerRegistryNamespace",
+            fields=[
+                OntologyFieldMapping(
+                    ontology_field="name",
+                    node_field="name",
+                    required=True,
+                ),
+                OntologyFieldMapping(ontology_field="uri", node_field="endpoint"),
+                OntologyFieldMapping(ontology_field="location", node_field="region"),
+                OntologyFieldMapping(
+                    ontology_field="created_at", node_field="created_at"
+                ),
+                OntologyFieldMapping(ontology_field="size_bytes", node_field="size"),
+            ],
+        ),
+    ],
+)
+
 CONTAINERREGISTRIES_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     "aws": aws_mapping,
     "gcp": gcp_mapping,
     "gitlab": gitlab_mapping,
+    "scaleway": scaleway_mapping,
 }

@@ -29,6 +29,11 @@ PRJ -- RESOURCE --> DR(DnsRecord)
 PRJ -- RESOURCE --> SEC(Secret)
 PRJ -- RESOURCE --> SV(SecretVersion)
 PRJ -- RESOURCE --> KEY(Key)
+PRJ -- RESOURCE --> KC(KapsuleCluster)
+PRJ -- RESOURCE --> KP(KapsulePool)
+PRJ -- RESOURCE --> KN(KapsuleNode)
+PRJ -- RESOURCE --> CRN(ContainerRegistryNamespace)
+PRJ -- RESOURCE --> CRI(ContainerRegistryImage)
 INS -- MOUNTS --> VOL
 INS -- MEMBER_OF_SCALEWAY_SECURITY_GROUP --> SG
 SGR -- MEMBER_OF_SCALEWAY_SECURITY_GROUP --> SG
@@ -43,6 +48,11 @@ FE -- ROUTES_TO --> BE
 DZ -- HAS_RECORD --> DR
 SEC -- HAS --> SV
 SEC -- ENCRYPTED_BY --> KEY
+KC -- HAS --> KP
+KC -- HAS --> KN
+KP -- HAS --> KN
+KC -- ATTACHED_TO --> PN
+CRN -- HAS --> CRI
 USR -- MEMBER_OF --> GRP(ScalewayGroup)
 APIKEY(ScalewayApiKey) -- OWNED_BY --> USR
 APP -- MEMBER_OF --> GRP(ScalewayGroup)
@@ -976,4 +986,186 @@ Represents a Scaleway Key Manager key.
 - A `Secret` may be encrypted by a `Key`
     ```
     (:ScalewaySecret)-[:ENCRYPTED_BY]->(:ScalewayKey)
+    ```
+
+
+### ScalewayKapsuleCluster
+
+Represents a Scaleway Kapsule (managed Kubernetes) cluster.
+
+> **Ontology Mapping**: This node has the extra label `ComputeCluster` to enable cross-platform queries for compute clusters across different systems (e.g., EKSCluster, GKECluster, AzureKubernetesCluster).
+
+| Field      | Description                                  |
+|------------|----------------------------------------------|
+| id         | Cluster UUID.                                |
+| name       | Cluster name.                                |
+| description | Cluster description.                        |
+| status     | Cluster status (`ready`, `creating`, ...).   |
+| type       | Cluster offer type (e.g. `kapsule`, `multicloud`). |
+| version    | Kubernetes version.                          |
+| cni        | CNI plugin (`cilium`, `calico`, ...).        |
+| cluster_url | API server URL.                             |
+| dns_wildcard | Wildcard DNS name pointing at the cluster. |
+| upgrade_available | True if a newer Kubernetes version is offered. |
+| pod_cidr   | Pod IP range.                                |
+| service_cidr | Service IP range.                          |
+| service_dns_ip | In-cluster DNS service IP.               |
+| private_network_id | ID of the VPC private network this cluster is attached to (if any). |
+| apiserver_cert_sans | Extra SANs added to the apiserver cert. |
+| feature_gates | List of enabled Kubernetes feature gates. |
+| admission_plugins | List of enabled admission plugins.    |
+| tags       | Cluster tags.                                |
+| region     | Region the cluster lives in.                 |
+| created_at | Creation timestamp.                          |
+| updated_at | Last update timestamp.                       |
+| lastupdated | Timestamp of the last update                |
+
+#### Relationships
+- A `KapsuleCluster` belongs to a `Project`.
+    ```
+    (:ScalewayProject)-[:RESOURCE]->(:ScalewayKapsuleCluster)
+    ```
+- A `KapsuleCluster` may be attached to a `PrivateNetwork`.
+    ```
+    (:ScalewayKapsuleCluster)-[:ATTACHED_TO]->(:ScalewayPrivateNetwork)
+    ```
+- A `KapsuleCluster` has `KapsulePool` and `KapsuleNode` resources.
+    ```
+    (:ScalewayKapsuleCluster)-[:HAS]->(:ScalewayKapsulePool)
+    (:ScalewayKapsuleCluster)-[:HAS]->(:ScalewayKapsuleNode)
+    ```
+
+
+### ScalewayKapsulePool
+
+Represents a Kapsule node pool: a homogeneous group of nodes provisioned for a Kapsule cluster.
+
+| Field      | Description                                  |
+|------------|----------------------------------------------|
+| id         | Pool UUID.                                   |
+| name       | Pool name.                                   |
+| status     | Pool status.                                 |
+| version    | Kubernetes version of the pool.              |
+| node_type  | Scaleway instance commercial type used for nodes (e.g. `DEV1-M`). |
+| autoscaling | True if the pool autoscales.                |
+| size       | Current size of the pool.                    |
+| min_size   | Minimum size for autoscaling.                |
+| max_size   | Maximum size for autoscaling.                |
+| container_runtime | Container runtime (`containerd`, ...). |
+| autohealing | True if autohealing is enabled.             |
+| root_volume_type | Root volume type for nodes.             |
+| root_volume_size | Root volume size in bytes.              |
+| public_ip_disabled | True if nodes have no public IP.      |
+| placement_group_id | ID of the placement group, if any.    |
+| security_group_id | Security group applied to the nodes.   |
+| tags       | Pool tags.                                   |
+| zone       | Zone the pool's nodes live in.               |
+| region     | Region the pool lives in.                    |
+| created_at | Creation timestamp.                          |
+| updated_at | Last update timestamp.                       |
+| lastupdated | Timestamp of the last update                |
+
+#### Relationships
+- A `KapsulePool` belongs to a `Project`.
+    ```
+    (:ScalewayProject)-[:RESOURCE]->(:ScalewayKapsulePool)
+    ```
+- A `KapsulePool` is part of a `KapsuleCluster`.
+    ```
+    (:ScalewayKapsuleCluster)-[:HAS]->(:ScalewayKapsulePool)
+    ```
+- A `KapsulePool` has `KapsuleNode` members.
+    ```
+    (:ScalewayKapsulePool)-[:HAS]->(:ScalewayKapsuleNode)
+    ```
+
+
+### ScalewayKapsuleNode
+
+Represents a single node in a Kapsule pool.
+
+| Field      | Description                                  |
+|------------|----------------------------------------------|
+| id         | Node UUID.                                   |
+| name       | Node name.                                   |
+| status     | Node status (`ready`, `not_ready`, ...).     |
+| provider_id | Provider-side identifier for the backing instance (e.g. `scaleway://instance/<zone>/<id>`). |
+| public_ip_v4 | Public IPv4 address.                       |
+| public_ip_v6 | Public IPv6 address.                       |
+| error_message | Last error message reported by the node.  |
+| region     | Region the node lives in.                    |
+| created_at | Creation timestamp.                          |
+| updated_at | Last update timestamp.                       |
+| lastupdated | Timestamp of the last update                |
+
+#### Relationships
+- A `KapsuleNode` belongs to a `Project`.
+    ```
+    (:ScalewayProject)-[:RESOURCE]->(:ScalewayKapsuleNode)
+    ```
+- A `KapsuleNode` is part of a `KapsulePool` and a `KapsuleCluster`.
+    ```
+    (:ScalewayKapsulePool)-[:HAS]->(:ScalewayKapsuleNode)
+    (:ScalewayKapsuleCluster)-[:HAS]->(:ScalewayKapsuleNode)
+    ```
+
+
+### ScalewayContainerRegistryNamespace
+
+Represents a Scaleway Container Registry namespace (top-level repository scope).
+
+> **Ontology Mapping**: This node has the extra label `ContainerRegistry` to enable cross-platform queries for container registries across different systems (e.g., ECRRepository, GCPArtifactRegistryRepository, GitHubPackage).
+
+| Field      | Description                                  |
+|------------|----------------------------------------------|
+| id         | Namespace UUID.                              |
+| name       | Namespace name.                              |
+| description | Namespace description.                      |
+| status     | Namespace status.                            |
+| status_message | Human-readable status message.           |
+| endpoint   | Registry endpoint (e.g. `rg.fr-par.scw.cloud/<name>`). |
+| is_public  | True if the namespace allows unauthenticated reads. |
+| size       | Total size in bytes of stored images.        |
+| image_count | Number of images in the namespace.          |
+| region     | Region the namespace lives in.               |
+| created_at | Creation timestamp.                          |
+| updated_at | Last update timestamp.                       |
+| lastupdated | Timestamp of the last update                |
+
+#### Relationships
+- A `ContainerRegistryNamespace` belongs to a `Project`.
+    ```
+    (:ScalewayProject)-[:RESOURCE]->(:ScalewayContainerRegistryNamespace)
+    ```
+- A `ContainerRegistryNamespace` has `ContainerRegistryImage` members.
+    ```
+    (:ScalewayContainerRegistryNamespace)-[:HAS]->(:ScalewayContainerRegistryImage)
+    ```
+
+
+### ScalewayContainerRegistryImage
+
+Represents a container image stored in a Container Registry namespace.
+
+| Field      | Description                                  |
+|------------|----------------------------------------------|
+| id         | Image UUID.                                  |
+| name       | Image name (without tag).                    |
+| status     | Image status.                                |
+| status_message | Human-readable status message.           |
+| visibility | Per-image visibility (`public`, `private`, `inherit`). Combined with the namespace `is_public` flag to derive effective exposure. |
+| size       | Total image size in bytes.                   |
+| tags       | List of tag names available for this image.  |
+| created_at | Creation timestamp.                          |
+| updated_at | Last update timestamp.                       |
+| lastupdated | Timestamp of the last update                |
+
+#### Relationships
+- A `ContainerRegistryImage` belongs to a `Project`.
+    ```
+    (:ScalewayProject)-[:RESOURCE]->(:ScalewayContainerRegistryImage)
+    ```
+- A `ContainerRegistryImage` lives in a `ContainerRegistryNamespace`.
+    ```
+    (:ScalewayContainerRegistryNamespace)-[:HAS]->(:ScalewayContainerRegistryImage)
     ```
