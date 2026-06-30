@@ -188,14 +188,27 @@ def sync_transit_gateway_route_tables(
         load_transit_gateway_routes(neo4j_session, route_data, region, current_aws_account_id, update_tag)
         load_transit_gateway_route_tables(neo4j_session, rtb_data, region, current_aws_account_id, update_tag)
 
-        # Load associations and propagations
-        assoc = get_transit_gateway_route_table_associations(boto3_session, region)
-        transformed_assoc = transform_tgw_route_table_associations(assoc)
-        load_transit_gateway_route_table_associations(neo4j_session, transformed_assoc, region, current_aws_account_id, update_tag)
+        # Load associations and propagations — prefer values present on the described RTBs
+        assoc_list: list[dict[str, Any]] = []
+        for rtb in rts:
+            assoc_list.extend(rtb.get("Associations", []))
+        if not assoc_list:
+            assoc_list = get_transit_gateway_route_table_associations(boto3_session, region)
+        transformed_assoc = transform_tgw_route_table_associations(assoc_list)
+        load_transit_gateway_route_table_associations(
+            neo4j_session, transformed_assoc, region, current_aws_account_id, update_tag
+        )
 
-        propagations = get_transit_gateway_route_table_propagations(boto3_session, region)
-        transformed_propagations = transform_tgw_route_table_propagations(propagations)
-        load_transit_gateway_route_table_propagations(neo4j_session, transformed_propagations, region, current_aws_account_id, update_tag)
+        prop_list: list[dict[str, Any]] = []
+        for rtb in rts:
+            # Some describe responses include PropagatingVgws; use that if present
+            prop_list.extend(rtb.get("PropagatingVgws", []))
+        if not prop_list:
+            prop_list = get_transit_gateway_route_table_propagations(boto3_session, region)
+        transformed_propagations = transform_tgw_route_table_propagations(prop_list)
+        load_transit_gateway_route_table_propagations(
+            neo4j_session, transformed_propagations, region, current_aws_account_id, update_tag
+        )
 
     cleanup_transit_gateway_route_tables(neo4j_session, common_job_parameters)
 
