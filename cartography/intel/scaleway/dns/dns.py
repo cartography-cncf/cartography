@@ -53,9 +53,12 @@ def get(
     records_by_zone: dict[str, list[Record]] = {}
     for zone in zones:
         zone_name = _zone_full_name(zone)
-        # `name=""` lists every record in the zone.
+        # `name=""` lists every record in the zone. We pass `project_id`
+        # explicitly: the SDK falls back to the client's default project
+        # when omitted, which would silently drop records from zones owned
+        # by other projects.
         records_by_zone[zone_name] = api.list_dns_zone_records_all(
-            dns_zone=zone_name, name=""
+            dns_zone=zone_name, name="", project_id=zone.project_id
         )
     return zones, records_by_zone
 
