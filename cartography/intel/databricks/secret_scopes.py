@@ -35,9 +35,7 @@ def get(api_session: DatabricksWorkspaceClient) -> list[dict[str, Any]]:
 
 
 @timeit
-def transform(
-    scopes: list[dict[str, Any]], workspace_id: str
-) -> list[dict[str, Any]]:
+def transform(scopes: list[dict[str, Any]], workspace_id: str) -> list[dict[str, Any]]:
     """Flatten ``keyvault_metadata`` so Azure KV-backed scopes carry resource id + DNS."""
     result: list[dict[str, Any]] = []
     for s in scopes:
@@ -75,6 +73,6 @@ def load_secret_scopes(
 def cleanup(
     neo4j_session: neo4j.Session, common_job_parameters: dict[str, Any]
 ) -> None:
-    GraphJob.from_node_schema(
-        DatabricksSecretScopeSchema(), common_job_parameters
-    ).run(neo4j_session)
+    GraphJob.from_node_schema(DatabricksSecretScopeSchema(), common_job_parameters).run(
+        neo4j_session
+    )

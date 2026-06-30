@@ -6,9 +6,7 @@ from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
 from cartography.intel.databricks.util import DatabricksWorkspaceClient
 from cartography.intel.databricks.util import scoped_id
-from cartography.models.databricks.instance_pool import (
-    DatabricksInstancePoolSchema,
-)
+from cartography.models.databricks.instance_pool import DatabricksInstancePoolSchema
 from cartography.util import timeit
 
 
@@ -37,9 +35,7 @@ def get(api_session: DatabricksWorkspaceClient) -> list[dict[str, Any]]:
 
 
 @timeit
-def transform(
-    pools: list[dict[str, Any]], workspace_id: str
-) -> list[dict[str, Any]]:
+def transform(pools: list[dict[str, Any]], workspace_id: str) -> list[dict[str, Any]]:
     result: list[dict[str, Any]] = []
     for p in pools:
         pool_id = p["instance_pool_id"]

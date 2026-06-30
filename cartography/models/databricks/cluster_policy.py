@@ -18,9 +18,7 @@ class DatabricksClusterPolicyNodeProperties(CartographyNodeProperties):
     description: PropertyRef = PropertyRef("description")
     definition: PropertyRef = PropertyRef("definition")
     policy_family_id: PropertyRef = PropertyRef("policy_family_id")
-    creator_user_name: PropertyRef = PropertyRef(
-        "creator_user_name", extra_index=True
-    )
+    creator_user_name: PropertyRef = PropertyRef("creator_user_name", extra_index=True)
     created_at: PropertyRef = PropertyRef("created_at")
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 

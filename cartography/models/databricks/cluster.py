@@ -26,9 +26,7 @@ class DatabricksClusterNodeProperties(CartographyNodeProperties):
     cluster_source: PropertyRef = PropertyRef("cluster_source")
     data_security_mode: PropertyRef = PropertyRef("data_security_mode")
     single_user_name: PropertyRef = PropertyRef("single_user_name", extra_index=True)
-    creator_user_name: PropertyRef = PropertyRef(
-        "creator_user_name", extra_index=True
-    )
+    creator_user_name: PropertyRef = PropertyRef("creator_user_name", extra_index=True)
     enable_local_disk_encryption: PropertyRef = PropertyRef(
         "enable_local_disk_encryption"
     )

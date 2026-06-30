@@ -86,9 +86,7 @@ def transform(
                 "data_security_mode": c.get("data_security_mode"),
                 "single_user_name": c.get("single_user_name"),
                 "creator_user_name": c.get("creator_user_name"),
-                "enable_local_disk_encryption": c.get(
-                    "enable_local_disk_encryption"
-                ),
+                "enable_local_disk_encryption": c.get("enable_local_disk_encryption"),
                 "enable_elastic_disk": c.get("enable_elastic_disk"),
                 "start_time": _epoch_ms_to_datetime(c.get("start_time")),
                 "terminated_time": _epoch_ms_to_datetime(c.get("terminated_time")),
@@ -121,6 +119,6 @@ def load_clusters(
 def cleanup(
     neo4j_session: neo4j.Session, common_job_parameters: dict[str, Any]
 ) -> None:
-    GraphJob.from_node_schema(
-        DatabricksClusterSchema(), common_job_parameters
-    ).run(neo4j_session)
+    GraphJob.from_node_schema(DatabricksClusterSchema(), common_job_parameters).run(
+        neo4j_session
+    )

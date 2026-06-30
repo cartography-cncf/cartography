@@ -10,9 +10,7 @@ from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
 from cartography.intel.databricks.util import DatabricksWorkspaceClient
 from cartography.intel.databricks.util import scoped_id
-from cartography.models.databricks.ip_access_list import (
-    DatabricksIpAccessListSchema,
-)
+from cartography.models.databricks.ip_access_list import DatabricksIpAccessListSchema
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)

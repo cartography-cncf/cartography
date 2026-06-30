@@ -8,9 +8,7 @@ from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
 from cartography.intel.databricks.util import DatabricksWorkspaceClient
 from cartography.intel.databricks.util import scoped_id
-from cartography.models.databricks.cluster_policy import (
-    DatabricksClusterPolicySchema,
-)
+from cartography.models.databricks.cluster_policy import DatabricksClusterPolicySchema
 from cartography.util import timeit
 
 
