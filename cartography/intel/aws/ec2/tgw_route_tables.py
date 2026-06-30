@@ -246,6 +246,33 @@ def get_transit_gateway_route_table_associations(boto3_session: boto3.session.Se
     return associations
 
 
+    # Fallback for describe_transit_gateway_route_table_propagations
+    try:
+        if not hasattr(client, "describe_transit_gateway_route_table_propagations"):
+            logger.debug(
+                "EC2 client does not support describe_transit_gateway_route_table_propagations; skipping propagations fallback for region %s",
+                region,
+            )
+            return props
+        next_token = None
+        while True:
+            params: dict[str, Any] = {}
+            if next_token:
+                params["NextToken"] = next_token
+            resp = client.describe_transit_gateway_route_table_propagations(**params)
+            props.extend(resp.get("TransitGatewayRouteTablePropagations", []))
+            next_token = resp.get("NextToken")
+            if not next_token:
+                break
+    except botocore.exceptions.ClientError as e:
+        logger.warning(
+            "Could not retrieve Transit Gateway route table propagations due to boto3 error %s: %s. Skipping.",
+            e.response.get("Error", {}).get("Code"),
+            e.response.get("Error", {}).get("Message"),
+        )
+    return props
+
+
 def transform_tgw_route_table_associations(data: list[dict[str, Any]]) -> list[dict[str, Any]]:
     transformed: list[dict[str, Any]] = []
     for assoc in data:
