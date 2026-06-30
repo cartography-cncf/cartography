@@ -2479,7 +2479,11 @@ class CLI:
                 )
                 databricks_token = os.environ.get(databricks_token_env_var)
             databricks_client_secret = None
-            if databricks_client_id and databricks_client_secret_env_var:
+            if databricks_client_secret_env_var:
+                # Read the secret whenever the env-var flag is set, even if
+                # --databricks-client-id is missing, so the module entry's
+                # partial-OAuth guard sees the asymmetric configuration and
+                # fails loudly instead of silently skipping ingestion.
                 logger.debug(
                     "Reading Databricks OAuth M2M secret from environment variable %s",
                     databricks_client_secret_env_var,
