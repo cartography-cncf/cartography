@@ -131,3 +131,93 @@ class AWSTransitGatewayRouteSchema(CartographyNodeSchema):
             AWSTransitGatewayRouteToTGWRel(),
         ]
     )
+
+
+# =============================================================================
+# AWSTransitGatewayRouteTableAssociation
+# =============================================================================
+
+
+@dataclass(frozen=True)
+class AWSTransitGatewayRouteTableAssociationNodeProperties(CartographyNodeProperties):
+    id: PropertyRef = PropertyRef("id")
+    route_table_id: PropertyRef = PropertyRef("route_table_id")
+    attachment_id: PropertyRef = PropertyRef("attachment_id")
+    resource_id: PropertyRef = PropertyRef("resource_id")
+    resource_type: PropertyRef = PropertyRef("resource_type")
+    state: PropertyRef = PropertyRef("state")
+    region: PropertyRef = PropertyRef("Region", set_in_kwargs=True)
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+class AWSTransitGatewayRouteTableAssociationToRouteTableRelRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+class AWSTransitGatewayRouteTableAssociationToRouteTableRel(CartographyRelSchema):
+    target_node_label: str = "AWSTransitGatewayRouteTable"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"id": PropertyRef("route_table_id")},
+    )
+    direction: LinkDirection = LinkDirection.INWARD
+    rel_label: str = "RESOURCE"
+    properties: AWSTransitGatewayRouteTableAssociationToRouteTableRelRelProperties = (
+        AWSTransitGatewayRouteTableAssociationToRouteTableRelRelProperties()
+    )
+
+
+@dataclass(frozen=True)
+class AWSTransitGatewayRouteTableAssociationSchema(CartographyNodeSchema):
+    label: str = "AWSTransitGatewayRouteTableAssociation"
+    properties: AWSTransitGatewayRouteTableAssociationNodeProperties = (
+        AWSTransitGatewayRouteTableAssociationNodeProperties()
+    )
+    other_relationships: OtherRelationships = OtherRelationships([
+        AWSTransitGatewayRouteTableAssociationToRouteTableRel(),
+    ])
+
+
+# =============================================================================
+# AWSTransitGatewayRouteTablePropagation
+# =============================================================================
+
+
+@dataclass(frozen=True)
+class AWSTransitGatewayRouteTablePropagationNodeProperties(CartographyNodeProperties):
+    id: PropertyRef = PropertyRef("id")
+    route_table_id: PropertyRef = PropertyRef("route_table_id")
+    attachment_id: PropertyRef = PropertyRef("attachment_id")
+    state: PropertyRef = PropertyRef("state")
+    region: PropertyRef = PropertyRef("Region", set_in_kwargs=True)
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+class AWSTransitGatewayRouteTablePropagationToRouteTableRelRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+class AWSTransitGatewayRouteTablePropagationToRouteTableRel(CartographyRelSchema):
+    target_node_label: str = "AWSTransitGatewayRouteTable"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"id": PropertyRef("route_table_id")},
+    )
+    direction: LinkDirection = LinkDirection.INWARD
+    rel_label: str = "PROPAGATED_BY"
+    properties: AWSTransitGatewayRouteTablePropagationToRouteTableRelRelProperties = (
+        AWSTransitGatewayRouteTablePropagationToRouteTableRelRelProperties()
+    )
+
+
+@dataclass(frozen=True)
+class AWSTransitGatewayRouteTablePropagationSchema(CartographyNodeSchema):
+    label: str = "AWSTransitGatewayRouteTablePropagation"
+    properties: AWSTransitGatewayRouteTablePropagationNodeProperties = (
+        AWSTransitGatewayRouteTablePropagationNodeProperties()
+    )
+    other_relationships: OtherRelationships = OtherRelationships([
+        AWSTransitGatewayRouteTablePropagationToRouteTableRel(),
+    ])

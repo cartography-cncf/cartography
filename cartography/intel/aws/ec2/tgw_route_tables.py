@@ -12,6 +12,8 @@ from cartography.intel.aws.util.botocore_config import get_botocore_config
 from cartography.models.aws.ec2.tgw_route_tables import (
     AWSTransitGatewayRouteTableSchema,
     AWSTransitGatewayRouteSchema,
+    AWSTransitGatewayRouteTableAssociationSchema,
+    AWSTransitGatewayRouteTablePropagationSchema,
 )
 from cartography.util import aws_handle_regions
 from cartography.util import timeit
@@ -161,6 +163,13 @@ def cleanup_transit_gateway_route_tables(
         neo4j_session
     )
     GraphJob.from_node_schema(AWSTransitGatewayRouteSchema(), common_job_parameters).run(
+        neo4j_session
+    )
+    # Cleanup for associations and propagations
+    GraphJob.from_node_schema(AWSTransitGatewayRouteTableAssociationSchema(), common_job_parameters).run(
+        neo4j_session
+    )
+    GraphJob.from_node_schema(AWSTransitGatewayRouteTablePropagationSchema(), common_job_parameters).run(
         neo4j_session
     )
 
@@ -333,30 +342,19 @@ def transform_tgw_route_table_associations(data: list[dict[str, Any]]) -> list[d
 
 
 def load_transit_gateway_route_table_associations(neo4j_session: neo4j.Session, data: list[dict[str, Any]], region: str, current_aws_account_id: str, update_tag: int) -> None:
-    # For now load as simple nodes/relationships using a custom query; this can be replaced with model-driven load later
-    for item in data:
-        # Skip items missing an id (Neo4j will reject null id merge)
-        if not item.get("id"):
-            logger.debug("Skipping association with missing id: %s", item)
-            continue
-        run_write_query(
-            neo4j_session,
-            """
-            MERGE (a:AWSTransitGatewayRouteTableAssociation{id: $id})
-            SET a.route_table_id = $route_table_id, a.attachment_id = $attachment_id, a.resource_id = $resource_id, a.resource_type = $resource_type, a.state = $state, a.Region = $Region, a.lastupdated = $lastupdated
-            WITH a
-            MATCH (rt:AWSTransitGatewayRouteTable{id: $route_table_id})
-            MERGE (rt)<-[:RESOURCE]-(a)
-            """,
-            id=item.get("id"),
-            route_table_id=item.get("route_table_id"),
-            attachment_id=item.get("attachment_id"),
-            resource_id=item.get("resource_id"),
-            resource_type=item.get("resource_type"),
-            state=item.get("state"),
-            Region=region,
-            lastupdated=update_tag,
-        )
+    # Use model-driven load for associations
+    # Filter out items missing id first
+    filtered = [item for item in data if item.get("id")]
+    if not filtered:
+        return
+    load(
+        neo4j_session,
+        AWSTransitGatewayRouteTableAssociationSchema(),
+        filtered,
+        lastupdated=update_tag,
+        Region=region,
+        AWS_ID=current_aws_account_id,
+    )
 
 
 def transform_tgw_route_table_propagations(data: list[dict[str, Any]]) -> list[dict[str, Any]]:
@@ -374,24 +372,15 @@ def transform_tgw_route_table_propagations(data: list[dict[str, Any]]) -> list[d
 
 
 def load_transit_gateway_route_table_propagations(neo4j_session: neo4j.Session, data: list[dict[str, Any]], region: str, current_aws_account_id: str, update_tag: int) -> None:
-    for item in data:
-        # Skip items missing an id (Neo4j will reject null id merge)
-        if not item.get("id"):
-            logger.debug("Skipping propagation with missing id: %s", item)
-            continue
-        run_write_query(
-            neo4j_session,
-            """
-            MERGE (p:AWSTransitGatewayRouteTablePropagation{id: $id})
-            SET p.route_table_id = $route_table_id, p.attachment_id = $attachment_id, p.state = $state, p.Region = $Region, p.lastupdated = $lastupdated
-            WITH p
-            MATCH (rt:AWSTransitGatewayRouteTable{id: $route_table_id})
-            MERGE (rt)<-[:PROPAGATED_BY]-(p)
-            """,
-            id=item.get("id"),
-            route_table_id=item.get("route_table_id"),
-            attachment_id=item.get("attachment_id"),
-            state=item.get("state"),
-            Region=region,
-            lastupdated=update_tag,
-        )
+    # Use model-driven load for propagations
+    filtered = [item for item in data if item.get("id")]
+    if not filtered:
+        return
+    load(
+        neo4j_session,
+        AWSTransitGatewayRouteTablePropagationSchema(),
+        filtered,
+        lastupdated=update_tag,
+        Region=region,
+        AWS_ID=current_aws_account_id,
+    )

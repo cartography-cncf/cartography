@@ -60,7 +60,9 @@ def test_cleanup_transit_gateway_route_tables_calls_graphjob(monkeypatch):
 
     tgw_route_tables.cleanup_transit_gateway_route_tables(sess, common)
 
-    # cleanup should have invoked run() twice: once for route tables and once for routes
-    assert len(runs) == 2
+    # cleanup should have invoked run() for route tables, routes, associations, and propagations
+    assert len(runs) == 4
     assert runs[0] is sess
     assert runs[1] is sess
+    assert runs[2] is sess
+    assert runs[3] is sess
