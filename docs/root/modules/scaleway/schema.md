@@ -26,6 +26,9 @@ PRJ -- RESOURCE --> FE(LBFrontend)
 PRJ -- RESOURCE --> BE(LBBackend)
 PRJ -- RESOURCE --> DZ(DnsZone)
 PRJ -- RESOURCE --> DR(DnsRecord)
+PRJ -- RESOURCE --> SEC(Secret)
+PRJ -- RESOURCE --> SV(SecretVersion)
+PRJ -- RESOURCE --> KEY(Key)
 INS -- MOUNTS --> VOL
 INS -- MEMBER_OF_SCALEWAY_SECURITY_GROUP --> SG
 SGR -- MEMBER_OF_SCALEWAY_SECURITY_GROUP --> SG
@@ -38,6 +41,8 @@ LB -- HAS --> FE
 LB -- HAS --> BE
 FE -- ROUTES_TO --> BE
 DZ -- HAS_RECORD --> DR
+SEC -- HAS --> SV
+SEC -- ENCRYPTED_BY --> KEY
 USR -- MEMBER_OF --> GRP(ScalewayGroup)
 APIKEY(ScalewayApiKey) -- OWNED_BY --> USR
 APP -- MEMBER_OF --> GRP(ScalewayGroup)
@@ -866,4 +871,109 @@ Represents an individual DNS record within a `ScalewayDnsZone`.
 - A `DnsZone` has `DnsRecord`s
     ```
     (:ScalewayDnsZone)-[:HAS_RECORD]->(:ScalewayDnsRecord)
+    ```
+
+
+### ScalewaySecret
+
+Represents a secret managed by Scaleway Secret Manager.
+
+> **Ontology Mapping**: This node has the extra label `Secret` to enable cross-platform queries for secrets across different systems (e.g., AWSSecret, GCPSecretManagerSecret).
+
+| Field      | Description                                  |
+|------------|----------------------------------------------|
+| id         | Secret unique ID.                            |
+| name       | Secret name.                                 |
+| status     | Secret status (`ready`, `locked`, ...).      |
+| type       | Secret type (`opaque`, `basic_credentials`, `ssh_key`, ...). |
+| path       | Folder path of the secret.                   |
+| tags       | Secret tags.                                 |
+| version_count | Number of versions on this secret.        |
+| managed    | True if the secret is managed by another Scaleway product. |
+| protected  | True if the secret is protected against deletion. |
+| description | Secret description.                         |
+| region     | Region the secret lives in.                  |
+| key_id     | ID of the Key Manager key encrypting this secret (if any). |
+| used_by    | Scaleway products using this secret.         |
+| deletion_requested_at | Timestamp when deletion was requested. |
+| created_at | Secret creation date.                        |
+| updated_at | Secret last update date.                     |
+| lastupdated | Timestamp of the last update                 |
+
+#### Relationships
+- A `Secret` belongs to a `Project`
+    ```
+    (:ScalewayProject)-[:RESOURCE]->(:ScalewaySecret)
+    ```
+- A `Secret` may be encrypted by a `Key`
+    ```
+    (:ScalewaySecret)-[:ENCRYPTED_BY]->(:ScalewayKey)
+    ```
+
+
+### ScalewaySecretVersion
+
+Represents a version of a `ScalewaySecret`. The version's ID is composed as `{secret_id}/{revision}` since Scaleway does not expose a provider-side version ID.
+
+| Field      | Description                                  |
+|------------|----------------------------------------------|
+| id         | `{secret_id}/{revision}`.                    |
+| revision   | Monotonic revision number.                   |
+| status     | Version status (`enabled`, `disabled`, `destroyed`, ...). |
+| latest     | True if this version is the latest for its secret. |
+| description | Version description.                        |
+| region     | Region the version lives in.                 |
+| deletion_requested_at | Timestamp when deletion was requested. |
+| deleted_at | Deletion date (when the version is destroyed). |
+| created_at | Version creation date.                       |
+| updated_at | Version last update date.                    |
+| lastupdated | Timestamp of the last update                 |
+
+#### Relationships
+- A `SecretVersion` belongs to a `Project`
+    ```
+    (:ScalewayProject)-[:RESOURCE]->(:ScalewaySecretVersion)
+    ```
+- A `Secret` has `SecretVersion`s
+    ```
+    (:ScalewaySecret)-[:HAS]->(:ScalewaySecretVersion)
+    ```
+
+
+### ScalewayKey
+
+Represents a Scaleway Key Manager key.
+
+> **Ontology Mapping**: This node has the extra label `EncryptionKey` to enable cross-platform queries for encryption keys across different systems (e.g., AWSKMSKey, GCPCryptoKey).
+
+| Field      | Description                                  |
+|------------|----------------------------------------------|
+| id         | Key unique ID.                               |
+| name       | Key name.                                    |
+| description | Key description.                            |
+| state      | Key state (`enabled`, `disabled`, `pending_deletion`, ...). |
+| usage_type | Active key usage category (`symmetric_encryption`, `asymmetric_encryption`, `asymmetric_signing`). |
+| usage_algorithm | Algorithm corresponding to `usage_type` (e.g. `aes_256_gcm`). |
+| origin     | Key material origin (`scaleway_kms`, `external`).  |
+| region     | Region the key lives in.                     |
+| tags       | Key tags.                                    |
+| rotation_count | Number of times the key has been rotated. |
+| protected  | True if the key is protected against deletion. |
+| locked     | True if the key is locked.                   |
+| rotation_period | Automatic rotation period (ISO 8601 duration). |
+| rotation_next_at | Next scheduled rotation timestamp.      |
+| rotated_at | Last rotation date.                          |
+| deletion_requested_at | Timestamp when deletion was requested. |
+| created_at | Key creation date.                           |
+| updated_at | Key last update date.                        |
+| lastupdated | Timestamp of the last update                 |
+
+#### Relationships
+- A `Key` belongs to a `Project`
+    ```
+    (:ScalewayProject)-[:RESOURCE]->(:ScalewayKey)
+    ```
+- A `Secret` may be encrypted by a `Key`
+    ```
+    (:ScalewaySecret)-[:ENCRYPTED_BY]->(:ScalewayKey)
     ```
