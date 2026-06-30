@@ -42,15 +42,22 @@ def get(api_session: DatabricksWorkspaceClient) -> dict[str, Any]:
     )
     enable_tokens = token_conf.get("enableTokensConfig")
     max_lifetime = token_conf.get("maxTokenLifetimeDays")
+    # Databricks treats ``maxTokenLifetimeDays == "0"`` as a sentinel meaning
+    # "revert to the system default" (730 days as of 2026-06), not a literal
+    # zero-day lifetime. Map "" and "0" to None so security queries comparing
+    # the explicit cap stay correct.
+    parsed_lifetime: int | None
+    if max_lifetime in (None, "", "0"):
+        parsed_lifetime = None
+    else:
+        parsed_lifetime = int(max_lifetime)
     return {
         "id": workspace_id,
         "host": api_session.host,
         "tokens_enabled": (
             str(enable_tokens).lower() == "true" if enable_tokens is not None else None
         ),
-        "max_token_lifetime_days": (
-            int(max_lifetime) if max_lifetime not in (None, "") else None
-        ),
+        "max_token_lifetime_days": parsed_lifetime,
     }
 
 

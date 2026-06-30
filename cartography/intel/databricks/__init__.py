@@ -35,9 +35,21 @@ def start_databricks_ingestion(neo4j_session: neo4j.Session, config: Config) -> 
         )
         return
 
-    if not config.databricks_token and not (
-        config.databricks_client_id and config.databricks_client_secret
-    ):
+    has_token = bool(config.databricks_token)
+    has_client_id = bool(config.databricks_client_id)
+    has_client_secret = bool(config.databricks_client_secret)
+
+    # OAuth requires *both* halves. A partial pair is an operator mistake
+    # (typo in --databricks-client-secret-env-var, missing env variable) —
+    # fail loudly so it cannot silently fall through to "not configured".
+    if has_client_id ^ has_client_secret:
+        raise ValueError(
+            "Databricks OAuth M2M is partially configured: "
+            "--databricks-client-id and --databricks-client-secret-env-var "
+            "must be set together (and the env variable must be populated).",
+        )
+
+    if not has_token and not (has_client_id and has_client_secret):
         logger.info(
             "Databricks import is not configured - skipping this module. "
             "Set --databricks-token-env-var or "

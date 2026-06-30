@@ -24,7 +24,7 @@ A Databricks workspace, scoped by host URL.
 | **id** | Workspace host (e.g. `dbc-xxxx.cloud.databricks.com`) |
 | **host** | Full workspace URL (indexed) |
 | tokens_enabled | Whether PATs are enabled in the workspace |
-| max_token_lifetime_days | Max PAT lifetime in days, per workspace token management settings |
+| max_token_lifetime_days | Max PAT lifetime in days from the workspace token management settings, or null when the workspace is on the Databricks default policy (the API encodes that as the string `"0"`) |
 | firstseen | Timestamp of when a sync job first created this node |
 | lastupdated | Timestamp of the last time the node was updated |
 
@@ -132,8 +132,8 @@ A Databricks personal access token (PAT) returned by the token management API.
 | **id** | Workspace-scoped composite id `{workspace_id}/{token_id}` (token-management ids are workspace-local) |
 | **token_id** | Raw token id returned by the token-management API (indexed) |
 | comment | Token description provided at creation |
-| creation_time | Unix epoch (ms) when the token was created |
-| expiry_time | Unix epoch (ms) when the token expires (-1 if no expiry) |
+| creation_time | Native datetime when the token was created (UTC) |
+| expiry_time | Native datetime when the token expires (UTC); null when the token has no expiry |
 | owner_id | Workspace-scoped composite id of the token owner (matches `DatabricksUser.id` or `DatabricksServicePrincipal.id`) |
 | created_by_id | Workspace-scoped composite id of the principal that created the token |
 | created_by_username | Username/email of the principal that created the token (indexed) |

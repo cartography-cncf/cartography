@@ -1,3 +1,5 @@
+from datetime import datetime
+from datetime import timezone
 from typing import Any
 
 import neo4j
@@ -14,6 +16,17 @@ def _scoped_or_none(workspace_id: str, value: Any) -> str | None:
     if value is None:
         return None
     return scoped_id(workspace_id, str(value))
+
+
+def _epoch_ms_to_datetime(value: Any) -> datetime | None:
+    """Convert a Unix-epoch-milliseconds value to a UTC datetime.
+
+    The Databricks token-management API encodes ``expiry_time = -1`` as a
+    sentinel for "no expiry"; both that and a missing value yield ``None``.
+    """
+    if value in (None, -1):
+        return None
+    return datetime.fromtimestamp(int(value) / 1000, tz=timezone.utc)
 
 
 @timeit
@@ -55,8 +68,8 @@ def transform(tokens: list[dict[str, Any]], workspace_id: str) -> list[dict[str,
                 "id": scoped_id(workspace_id, token_id),
                 "token_id": token_id,
                 "comment": t.get("comment"),
-                "creation_time": t.get("creation_time"),
-                "expiry_time": t.get("expiry_time"),
+                "creation_time": _epoch_ms_to_datetime(t.get("creation_time")),
+                "expiry_time": _epoch_ms_to_datetime(t.get("expiry_time")),
                 "owner_id": _scoped_or_none(workspace_id, t.get("owner_id")),
                 "created_by_id": _scoped_or_none(workspace_id, t.get("created_by_id")),
                 "created_by_username": t.get("created_by_username"),
