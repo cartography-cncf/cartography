@@ -1,4 +1,7 @@
 import json
+from types import ModuleType
+from typing import Any
+from typing import Callable
 from unittest.mock import MagicMock
 
 import pytest
@@ -25,27 +28,29 @@ def _make_http_error(status: int = 403, reason: str | None = None) -> HttpError:
     return HttpError(resp=resp, content=json.dumps(payload).encode("utf-8"))
 
 
-@pytest.mark.parametrize(
-    "module,func,args,expected",
-    [
-        (bigquery_dataset, get_bigquery_datasets, ("test-project",), None),
-        (
-            bigquery_dataset,
-            get_bigquery_dataset_detail,
-            ("test-project", "dataset-1"),
-            None,
-        ),
-        (bigquery_table, get_bigquery_tables, ("test-project", "dataset-1"), None),
-        (
-            bigquery_table,
-            get_bigquery_table_detail,
-            ("test-project", "dataset-1", "table-1"),
-            None,
-        ),
-        (bigquery_routine, get_bigquery_routines, ("test-project", "dataset-1"), None),
-        (bigquery_connection, get_bigquery_connections, ("test-project",), []),
-    ],
-)
+BIGQUERY_HANDLER_CASES: list[
+    tuple[ModuleType, Callable[..., Any], tuple[str, ...], list[Any] | None]
+] = [
+    (bigquery_dataset, get_bigquery_datasets, ("test-project",), None),
+    (
+        bigquery_dataset,
+        get_bigquery_dataset_detail,
+        ("test-project", "dataset-1"),
+        None,
+    ),
+    (bigquery_table, get_bigquery_tables, ("test-project", "dataset-1"), None),
+    (
+        bigquery_table,
+        get_bigquery_table_detail,
+        ("test-project", "dataset-1", "table-1"),
+        None,
+    ),
+    (bigquery_routine, get_bigquery_routines, ("test-project", "dataset-1"), None),
+    (bigquery_connection, get_bigquery_connections, ("test-project",), []),
+]
+
+
+@pytest.mark.parametrize("module,func,args,expected", BIGQUERY_HANDLER_CASES)
 @pytest.mark.parametrize(
     "reason",
     [
@@ -63,6 +68,26 @@ def test_bigquery_handlers_skip_legacy_403_errors(
 ):
     client = MagicMock()
     error = _make_http_error(403, reason)
+
+    monkeypatch.setattr(
+        module,
+        "gcp_api_execute_with_retry",
+        lambda _request: (_ for _ in ()).throw(error),
+    )
+
+    assert func(client, *args) == expected
+
+
+@pytest.mark.parametrize("module,func,args,expected", BIGQUERY_HANDLER_CASES)
+def test_bigquery_handlers_skip_invalid_400_errors(
+    monkeypatch,
+    module,
+    func,
+    args,
+    expected,
+):
+    client = MagicMock()
+    error = _make_http_error(400, "invalidQuery")
 
     monkeypatch.setattr(
         module,
