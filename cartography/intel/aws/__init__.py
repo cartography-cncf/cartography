@@ -12,20 +12,20 @@ import boto3
 import botocore.exceptions
 import neo4j
 
+from cartography.analysis.aws.analysis import AWS_EC2_ASSET_EXPOSURE_JOBS
+from cartography.analysis.aws.analysis import AWS_EC2_IAM_INSTANCE_PROFILE
+from cartography.analysis.aws.analysis import AWS_EC2_KEYPAIR_ANALYSIS_JOBS
+from cartography.analysis.aws.analysis import AWS_ECS_ASSET_EXPOSURE
+from cartography.analysis.aws.analysis import AWS_EKS_ASSET_EXPOSURE
+from cartography.analysis.aws.analysis import AWS_FOREIGN_ACCOUNTS
+from cartography.analysis.aws.analysis import AWS_LAMBDA_ECR
+from cartography.analysis.aws.analysis import AWS_LB_CONTAINER_EXPOSURE
+from cartography.analysis.aws.analysis import AWS_LB_NACL_DIRECT
 from cartography.config import Config
 from cartography.intel.aws.util.botocore_config import create_boto3_client
 from cartography.intel.aws.util.common import parse_and_validate_aws_account_ids
 from cartography.intel.aws.util.common import parse_and_validate_aws_regions
 from cartography.intel.aws.util.common import parse_and_validate_aws_requested_syncs
-from cartography.models.aws.analysis import AWS_EC2_ASSET_EXPOSURE_JOBS
-from cartography.models.aws.analysis import AWS_EC2_IAM_INSTANCE_PROFILE
-from cartography.models.aws.analysis import AWS_EC2_KEYPAIR_ANALYSIS_JOBS
-from cartography.models.aws.analysis import AWS_ECS_ASSET_EXPOSURE
-from cartography.models.aws.analysis import AWS_EKS_ASSET_EXPOSURE
-from cartography.models.aws.analysis import AWS_FOREIGN_ACCOUNTS
-from cartography.models.aws.analysis import AWS_LAMBDA_ECR
-from cartography.models.aws.analysis import AWS_LB_CONTAINER_EXPOSURE
-from cartography.models.aws.analysis import AWS_LB_NACL_DIRECT
 from cartography.stats import get_stats_client
 from cartography.util import merge_module_sync_metadata
 from cartography.util import run_analysis_and_ensure_deps

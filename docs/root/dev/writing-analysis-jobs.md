@@ -7,7 +7,7 @@ In a nutshell, Analysis Jobs let you add your own customizations to Cartography 
 There are 3 stages to a cartography sync. First we create database indexes, next we ingest assets via intel modules, and finally we can run Analysis Jobs on the database (see [cartography.sync.build\_default\_sync()](https://github.com/cartography-cncf/cartography/blob/master/cartography/sync.py)). This tutorial focuses on Analysis Jobs.
 
 ### How to run
-Built-in enrichment Analysis Jobs are typed Python definitions under `cartography/models/*/analysis.py`; the remaining built-in JSON jobs are migration/cleanup-only compatibility jobs. Custom JSON Analysis Jobs are still supported with `--analysis-job-directory`; each JSON file contains a list of Neo4j statements which get run in order. Although the order of statements within a single job is preserved, we don't guarantee the order in which jobs are executed.
+Built-in enrichment Analysis Jobs are typed Python definitions under `cartography/analysis/*/analysis.py`; the remaining built-in JSON jobs are migration/cleanup-only compatibility jobs. Custom JSON Analysis Jobs are still supported with `--analysis-job-directory`; each JSON file contains a list of Neo4j statements which get run in order. Although the order of statements within a single job is preserved, we don't guarantee the order in which jobs are executed.
 
 ### Typed job syntax
 Typed Analysis Jobs declare a Cypher match pattern and the effect Cartography should apply. The framework compiles the write query and the cleanup query from those effects.
@@ -43,7 +43,7 @@ Common primitives:
 `label` is required only when the effect should generate property cleanup. Relationship cleanup is scoped by `source_label` / `target_label`. For relationships, `scoped_to="source"` or `"target"` chooses which endpoint is attached to the `ScopedTo(...)` node during cleanup.
 
 ## Example job: which of my EC2 instances is accessible to any host on the internet?
-The easiest way to learn how to write an Analysis Job is through an example. One of the Analysis Jobs included by default in Cartography's source tree is `AWS_EC2_ASSET_EXPOSURE_INSTANCE` in [cartography/models/aws/analysis.py](https://github.com/cartography-cncf/cartography/blob/master/cartography/models/aws/analysis.py). This tutorial covers only the EC2 instance part of that job, but after reading this you should be able to understand the other steps in that file.
+The easiest way to learn how to write an Analysis Job is through an example. One of the Analysis Jobs included by default in Cartography's source tree is `AWS_EC2_ASSET_EXPOSURE_INSTANCE` in [cartography/analysis/aws/analysis.py](https://github.com/cartography-cncf/cartography/blob/master/cartography/analysis/aws/analysis.py). This tutorial covers only the EC2 instance part of that job, but after reading this you should be able to understand the other steps in that file.
 
 ### Our goal
 After ingesting all our AWS data, we want to explicitly mark EC2 instances that are accessible to the public internet - a useful thing to know for anyone running an internet service. If any internet-open nodes are found, the job will add an attribute `exposed_internet = True` to the node. This way we can easily query to find the assets later on and take remediation action if needed.
@@ -114,7 +114,7 @@ Now that we know what we want to do on a sync, how should we structure the Analy
 For analysis jobs that **set custom attributes on nodes**, the first statement(s) should be a "clean-up phase" that removes the custom attributes you may have added in a previous run. This ensures that whatever labels you add on this current run will be up to date and not stale. Next, the statements after the clean-up phase will perform the matching and attribute updates as described in the previous section.
 
 #### MERGE first, then clean up (relationships)
-For analysis jobs that **create or update relationships**, invert the order: run the `MERGE` statements first, then `DELETE` any edge whose `r.lastupdated <> $UPDATE_TAG` at the end. Iterative `DELETE` statements commit per batch, so a leading `DELETE` of relationships creates a visible window during which concurrent readers observe the graph with those edges missing or partially deleted. `MERGE` is idempotent and bumps `r.lastupdated` on every still-valid edge, so the trailing `DELETE` only removes edges that genuinely no longer have a current basis. See `AWS_LAMBDA_ECR` in `cartography/models/aws/analysis.py` for the canonical ordering.
+For analysis jobs that **create or update relationships**, invert the order: run the `MERGE` statements first, then `DELETE` any edge whose `r.lastupdated <> $UPDATE_TAG` at the end. Iterative `DELETE` statements commit per batch, so a leading `DELETE` of relationships creates a visible window during which concurrent readers observe the graph with those edges missing or partially deleted. `MERGE` is idempotent and bumps `r.lastupdated` on every still-valid edge, so the trailing `DELETE` only removes edges that genuinely no longer have a current basis. See `AWS_LAMBDA_ECR` in `cartography/analysis/aws/analysis.py` for the canonical ordering.
 
 **Here's our final result:**
 

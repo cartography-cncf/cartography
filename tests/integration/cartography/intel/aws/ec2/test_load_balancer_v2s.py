@@ -2,10 +2,10 @@ from unittest.mock import MagicMock
 from unittest.mock import patch
 
 import cartography.intel.aws.ec2.load_balancer_v2s
+from cartography.analysis.aws.analysis import AWS_LB_CONTAINER_EXPOSURE
+from cartography.analysis.aws.analysis import AWS_LB_NACL_DIRECT
 from cartography.intel.aws.ec2.load_balancer_v2s import sync_load_balancer_v2_expose
 from cartography.intel.aws.ec2.load_balancer_v2s import sync_load_balancer_v2s
-from cartography.models.aws.analysis import AWS_LB_CONTAINER_EXPOSURE
-from cartography.models.aws.analysis import AWS_LB_NACL_DIRECT
 from cartography.util import run_scoped_analysis_job
 from tests.data.aws.ec2.load_balancer_v2s import GET_LOAD_BALANCER_V2_DATA
 from tests.integration.cartography.intel.aws.common import create_test_account

@@ -12,6 +12,12 @@ from google.cloud.asset_v1 import AssetServiceClient
 from googleapiclient.discovery import HttpError
 from googleapiclient.discovery import Resource
 
+from cartography.analysis.gcp.analysis import GCP_BUCKET_PUBLIC_PROJECTION
+from cartography.analysis.gcp.analysis import GCP_COMPUTE_EXPOSURE_JOBS
+from cartography.analysis.gcp.analysis import GCP_COMPUTE_INSTANCE_VPC_ANALYSIS
+from cartography.analysis.gcp.analysis import GCP_GKE_ASSET_EXPOSURE
+from cartography.analysis.gcp.analysis import GCP_GKE_BASIC_AUTH
+from cartography.analysis.gcp.analysis import GCP_LB_EXPOSURE
 from cartography.config import Config
 from cartography.graph.job import GraphJob
 from cartography.intel.gcp import artifact_registry
@@ -62,12 +68,6 @@ from cartography.intel.gcp.vertex.instances import sync_workbench_instances
 from cartography.intel.gcp.vertex.models import get_vertex_ai_locations
 from cartography.intel.gcp.vertex.models import sync_vertex_ai_models
 from cartography.intel.gcp.vertex.training_pipelines import sync_training_pipelines
-from cartography.models.gcp.analysis import GCP_BUCKET_PUBLIC_PROJECTION
-from cartography.models.gcp.analysis import GCP_COMPUTE_EXPOSURE_JOBS
-from cartography.models.gcp.analysis import GCP_COMPUTE_INSTANCE_VPC_ANALYSIS
-from cartography.models.gcp.analysis import GCP_GKE_ASSET_EXPOSURE
-from cartography.models.gcp.analysis import GCP_GKE_BASIC_AUTH
-from cartography.models.gcp.analysis import GCP_LB_EXPOSURE
 from cartography.models.gcp.crm.folders import GCPFolderSchema
 from cartography.models.gcp.crm.organizations import GCPOrganizationSchema
 from cartography.models.gcp.crm.projects import GCPProjectSchema

@@ -3,6 +3,8 @@ import logging
 import boto3
 from neo4j import Session
 
+from cartography.analysis.kubernetes.analysis import K8S_COMPUTE_ASSET_EXPOSURE_JOBS
+from cartography.analysis.kubernetes.analysis import K8S_LB_EXPOSURE_JOBS
 from cartography.config import Config
 from cartography.intel.kubernetes.clusters import sync_kubernetes_cluster
 from cartography.intel.kubernetes.eks import sync as sync_eks
@@ -15,8 +17,6 @@ from cartography.intel.kubernetes.rbac import sync_kubernetes_rbac
 from cartography.intel.kubernetes.secrets import sync_secrets
 from cartography.intel.kubernetes.services import sync_services
 from cartography.intel.kubernetes.util import get_k8s_clients
-from cartography.models.kubernetes.analysis import K8S_COMPUTE_ASSET_EXPOSURE_JOBS
-from cartography.models.kubernetes.analysis import K8S_LB_EXPOSURE_JOBS
 from cartography.util import run_scoped_analysis_job
 from cartography.util import timeit
 

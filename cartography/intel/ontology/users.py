@@ -3,11 +3,11 @@ from typing import Any
 
 import neo4j
 
+from cartography.analysis.ontology.analysis import AWS_USER_PROJECTION
+from cartography.analysis.ontology.analysis import USER_LINKING_JOBS
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
 from cartography.intel.ontology.utils import get_source_nodes_from_graph
-from cartography.models.ontology.analysis import AWS_USER_PROJECTION
-from cartography.models.ontology.analysis import USER_LINKING_JOBS
 from cartography.models.ontology.user import UserSchema
 from cartography.util import run_analysis_job
 from cartography.util import timeit

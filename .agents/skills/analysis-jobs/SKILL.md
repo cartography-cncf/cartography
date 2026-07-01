@@ -5,7 +5,7 @@ description: Add a post-ingestion typed analysis job to a Cartography module to 
 
 # analysis-jobs
 
-Analysis jobs are post-ingestion typed Python definitions under `cartography/models/*/analysis.py` that enrich the graph with computed relationships and properties. Custom JSON jobs are still supported for local extensions and legacy cleanup. They run **after** data is loaded and perform cross-node work that cannot be done during the initial load.
+Analysis jobs are post-ingestion typed Python definitions under `cartography/analysis/*/analysis.py` that enrich the graph with computed relationships and properties. Custom JSON jobs are still supported for local extensions and legacy cleanup. They run **after** data is loaded and perform cross-node work that cannot be done during the initial load.
 
 ## When to use analysis jobs
 
@@ -30,7 +30,7 @@ Use them when you need to:
 4. **Clean up stale data** that the analysis job creates (don't leave orphan edges between syncs).
 5. **Order statements correctly to avoid read windows.**
     - **Properties:** clean up first (`REMOVE n.attr`), then SET. Cleanup of attributes can usually run in a single transaction.
-    - **Relationships:** MERGE first, then DELETE stale (`WHERE r.lastupdated <> $UPDATE_TAG`). Iterative DELETE commits per batch, so a leading DELETE of relationships exposes a graph with those edges missing to concurrent readers until the MERGE finishes. MERGE is idempotent and bumps `r.lastupdated`, so the trailing DELETE only targets edges that genuinely no longer have a current basis. Canonical example: `AWS_LAMBDA_ECR` in `cartography/models/aws/analysis.py`.
+    - **Relationships:** MERGE first, then DELETE stale (`WHERE r.lastupdated <> $UPDATE_TAG`). Iterative DELETE commits per batch, so a leading DELETE of relationships exposes a graph with those edges missing to concurrent readers until the MERGE finishes. MERGE is idempotent and bumps `r.lastupdated`, so the trailing DELETE only targets edges that genuinely no longer have a current basis. Canonical example: `AWS_LAMBDA_ECR` in `cartography/analysis/aws/analysis.py`.
 
 ## Instructions
 
@@ -38,8 +38,8 @@ Use them when you need to:
 
 | Type    | Runs                                  | Location                            | Helper                          |
 | ------- | ------------------------------------- | ----------------------------------- | ------------------------------- |
-| Global  | Once after all accounts / projects    | `cartography/models/*/analysis.py`  | `run_analysis_job()`            |
-| Scoped  | Once per account / project / tenant   | `cartography/models/*/analysis.py`  | `run_scoped_analysis_job()`     |
+| Global  | Once after all accounts / projects    | `cartography/analysis/*/analysis.py`  | `run_analysis_job()`            |
+| Scoped  | Once per account / project / tenant   | `cartography/analysis/*/analysis.py`  | `run_scoped_analysis_job()`     |
 
 Examples:
 
@@ -96,7 +96,7 @@ AnalysisStatement(
 
 ```python
 from cartography.util import run_analysis_job
-from cartography.models.your_module.analysis import YOUR_MODULE_EXPOSURE_ANALYSIS
+from cartography.analysis.your_module.analysis import YOUR_MODULE_EXPOSURE_ANALYSIS
 
 @timeit
 def start_your_module_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
@@ -116,7 +116,7 @@ def start_your_module_ingestion(neo4j_session: neo4j.Session, config: Config) ->
 
 ```python
 from cartography.util import run_scoped_analysis_job
-from cartography.models.your_module.analysis import YOUR_MODULE_ACCOUNT_ANALYSIS
+from cartography.analysis.your_module.analysis import YOUR_MODULE_ACCOUNT_ANALYSIS
 
 def _sync_one_account(neo4j_session, account_id, update_tag, common_job_parameters):
     common_job_parameters["ACCOUNT_ID"] = account_id
@@ -134,7 +134,7 @@ def _sync_one_account(neo4j_session, account_id, update_tag, common_job_paramete
 
 ```python
 from cartography.util import run_analysis_and_ensure_deps
-from cartography.models.your_module.analysis import YOUR_MODULE_COMBINED_ANALYSIS
+from cartography.analysis.your_module.analysis import YOUR_MODULE_COMBINED_ANALYSIS
 
 def _perform_analysis(requested_syncs, neo4j_session, common_job_parameters):
     run_analysis_and_ensure_deps(

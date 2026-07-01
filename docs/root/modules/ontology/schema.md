@@ -402,7 +402,7 @@ GCP Cloud Run Services, Jobs and Revisions are themselves **not** modeled as `Co
     (:Container)-[:HAS_IMAGE]->(:Image)
     (:Container)-[:HAS_IMAGE]->(:ImageManifestList)
     ```
-- `Container` is connected to a concrete single platform `Image` that actually ran via `RESOLVED_IMAGE`. This edge is produced by `RESOLVED_IMAGE_JOBS` in `cartography/models/ontology/analysis.py`, which runs after the ontology stage. It is only created when the target can be deterministically identified:
+- `Container` is connected to a concrete single platform `Image` that actually ran via `RESOLVED_IMAGE`. This edge is produced by `RESOLVED_IMAGE_JOBS` in `cartography/analysis/ontology/analysis.py`, which runs after the ontology stage. It is only created when the target can be deterministically identified:
     - When `HAS_IMAGE` already points at an `:Image` (not `:ImageManifestList`), `RESOLVED_IMAGE` is created directly.
     - When `HAS_IMAGE` points at an `:ImageManifestList`, `RESOLVED_IMAGE` is created to the child `:Image` reached via `CONTAINS_IMAGE` whose architecture matches the container's `architecture_normalized`. If zero or more than one child match, no edge is created (determinism guard).
     ```
@@ -856,7 +856,7 @@ It generalizes concepts like AWS Lambda functions, GCP Cloud Functions, and Azur
 
 #### Relationships
 
-- `Function` is connected to the concrete single platform `Image` it actually ran via `RESOLVED_IMAGE`. This edge is produced by `RESOLVED_IMAGE_JOBS` in `cartography/models/ontology/analysis.py` and covers container-based functions that expose a container image reference:
+- `Function` is connected to the concrete single platform `Image` it actually ran via `RESOLVED_IMAGE`. This edge is produced by `RESOLVED_IMAGE_JOBS` in `cartography/analysis/ontology/analysis.py` and covers container-based functions that expose a container image reference:
     - **AWSLambda** (`PackageType=Image`) has `HAS_IMAGE` on the node itself — `RESOLVED_IMAGE` is created directly.
     - **AzureFunctionApp** (`is_container=true`) has `HAS_IMAGE` on the node itself — `RESOLVED_IMAGE` is created directly.
     - **GCPCloudRunService** and **GCPCloudRunJob** do NOT carry `:Function`. They are orchestrators (analogous to `ECSService` and AWS Batch). Their per-container specs are materialized as child `GCPCloudRunServiceContainer` / `GCPCloudRunJobContainer` nodes that carry `:Container` and participate in `RESOLVED_IMAGE` via the `:Container` path.

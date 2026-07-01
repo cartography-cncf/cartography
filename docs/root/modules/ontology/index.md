@@ -160,7 +160,7 @@ your_service_mapping = OntologyMapping(
 )
 ```
 
-Ontology relationship linking queries are defined in typed analysis jobs under `cartography/models/ontology/analysis.py`.
+Ontology relationship linking queries are defined in typed analysis jobs under `cartography/analysis/ontology/analysis.py`.
 
 This structure allows Cartography to flexibly describe how to map and relate entities from specific integrations into the unified ontology graph.
 

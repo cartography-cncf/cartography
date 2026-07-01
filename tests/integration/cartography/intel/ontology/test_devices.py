@@ -8,7 +8,7 @@ import pytest
 
 import cartography.intel.ontology.devices
 import tests.data.snipeit.tenants
-from cartography.models.ontology.analysis import DEVICE_OWNS_LINKING
+from cartography.analysis.ontology.analysis import DEVICE_OWNS_LINKING
 from cartography.util import run_analysis_job
 from tests.integration.cartography.intel.snipeit.test_snipeit_assets import (
     _ensure_local_neo4j_has_test_snipeit_assets,

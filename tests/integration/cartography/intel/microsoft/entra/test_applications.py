@@ -9,6 +9,7 @@ import cartography.intel.microsoft.entra.applications
 import cartography.intel.microsoft.entra.service_principals
 import cartography.util
 import tests.data.aws.identitycenter
+from cartography.analysis.microsoft.entra.analysis import ENTRA_APPLICATION_PROJECTION
 from cartography.intel.microsoft.entra.app_role_assignments import (
     sync_app_role_assignments,
 )
@@ -18,7 +19,6 @@ from cartography.intel.microsoft.entra.federation.aws_identity_center import (
 )
 from cartography.intel.microsoft.entra.service_principals import sync_service_principals
 from cartography.intel.microsoft.entra.users import load_tenant
-from cartography.models.microsoft.entra.analysis import ENTRA_APPLICATION_PROJECTION
 from tests.data.microsoft.entra.applications import MOCK_APP_ROLE_ASSIGNMENTS
 from tests.data.microsoft.entra.applications import MOCK_ENTRA_APPLICATIONS
 from tests.data.microsoft.entra.applications import MOCK_SERVICE_PRINCIPALS

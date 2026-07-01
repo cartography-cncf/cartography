@@ -5,6 +5,9 @@ import neo4j
 from azure.identity import ClientSecretCredential
 from kiota_abstractions.api_error import APIError
 
+from cartography.analysis.microsoft.intune.analysis import (
+    INTUNE_COMPLIANCE_POLICY_DEVICE,
+)
 from cartography.config import Config
 from cartography.intel.microsoft.client import create_graph_service_client
 from cartography.intel.microsoft.intune.compliance_policies import (
@@ -13,7 +16,6 @@ from cartography.intel.microsoft.intune.compliance_policies import (
 from cartography.intel.microsoft.intune.detected_apps import sync_detected_apps
 from cartography.intel.microsoft.intune.managed_devices import sync_managed_devices
 from cartography.intel.microsoft.intune.reports import IntuneReportExportError
-from cartography.models.microsoft.intune.analysis import INTUNE_COMPLIANCE_POLICY_DEVICE
 from cartography.util import run_scoped_analysis_job
 from cartography.util import timeit
 

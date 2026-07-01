@@ -15,10 +15,10 @@ from google.oauth2.credentials import Credentials as OAuth2Credentials
 from google.oauth2.service_account import Credentials as ServiceAccountCredentials
 from googleapiclient.discovery import Resource
 
+from cartography.analysis.gsuite.analysis import GSUITE_HUMAN_LINK
 from cartography.config import Config
 from cartography.intel.gsuite import groups
 from cartography.intel.gsuite import users
-from cartography.models.gsuite.analysis import GSUITE_HUMAN_LINK
 from cartography.util import run_analysis_job
 from cartography.util import timeit
 

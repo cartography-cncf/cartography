@@ -3,7 +3,7 @@ from typing import Any
 
 import neo4j
 
-from cartography.models.ontology.analysis import LOADBALANCER_EXPOSE_CONTAINER
+from cartography.analysis.ontology.analysis import LOADBALANCER_EXPOSE_CONTAINER
 from cartography.util import run_analysis_job
 from cartography.util import timeit
 

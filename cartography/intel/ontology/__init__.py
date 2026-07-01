@@ -8,12 +8,12 @@ import cartography.intel.ontology.loadbalancers
 import cartography.intel.ontology.packages
 import cartography.intel.ontology.publicips
 import cartography.intel.ontology.users
+from cartography.analysis.aibom.analysis import AIBOM_RUNS_ON_CONTAINER
+from cartography.analysis.ontology.analysis import RESOLVED_IMAGE_JOBS
 from cartography.config import Config
 from cartography.intel.ontology.deprecated_indexes import (
     drop_deprecated_ontology_indexes,
 )
-from cartography.models.aibom.analysis import AIBOM_RUNS_ON_CONTAINER
-from cartography.models.ontology.analysis import RESOLVED_IMAGE_JOBS
 from cartography.util import run_analysis_job
 from cartography.util import timeit
 

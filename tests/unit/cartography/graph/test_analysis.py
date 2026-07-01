@@ -304,7 +304,7 @@ def test_relationship_property_effect_requires_properties():
 
 def test_supply_chain_source_file_does_not_cleanup_coowned_dockerfile_path():
     # Arrange
-    from cartography.models.ontology.analysis import SUPPLY_CHAIN_SOURCE_FILE
+    from cartography.analysis.ontology.analysis import SUPPLY_CHAIN_SOURCE_FILE
 
     # Act
     graph_job = SUPPLY_CHAIN_SOURCE_FILE.to_graph_job()
