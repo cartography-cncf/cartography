@@ -1,6 +1,7 @@
 import logging
 from typing import Dict
 from typing import List
+from typing import Mapping
 from typing import Tuple
 
 import neo4j
@@ -22,6 +23,112 @@ from .util.credentials import Credentials
 logger = logging.getLogger(__name__)
 
 
+def _copy_properties(data: Dict, mapping: Mapping[str, tuple[str, ...]]) -> Dict:
+    properties = data.get("properties") or {}
+    for target, sources in mapping.items():
+        if target in data:
+            continue
+        for source in sources:
+            if source in properties:
+                data[target] = properties[source]
+                break
+    return data
+
+
+def _copy_nested_properties(data: Dict, mapping: Mapping[str, tuple[str, ...]]) -> Dict:
+    for target, sources in mapping.items():
+        if target in data:
+            continue
+        for source in sources:
+            if source in data:
+                data[target] = data[source]
+                break
+    return data
+
+
+def transform_vm(vm: Dict) -> Dict:
+    vm = _copy_properties(
+        vm,
+        {
+            "storage_profile": ("storage_profile", "storageProfile"),
+            "hardware_profile": ("hardware_profile", "hardwareProfile"),
+            "os_profile": ("os_profile", "osProfile"),
+            "additional_capabilities": (
+                "additional_capabilities",
+                "additionalCapabilities",
+            ),
+            "license_type": ("license_type", "licenseType"),
+            "priority": ("priority",),
+            "eviction_policy": ("eviction_policy", "evictionPolicy"),
+        },
+    )
+    hardware_profile = vm.get("hardware_profile") or {}
+    if isinstance(hardware_profile, dict):
+        _copy_nested_properties(hardware_profile, {"vm_size": ("vmSize",)})
+
+    os_profile = vm.get("os_profile") or {}
+    if isinstance(os_profile, dict):
+        _copy_nested_properties(os_profile, {"computer_name": ("computerName",)})
+
+    additional_capabilities = vm.get("additional_capabilities") or {}
+    if isinstance(additional_capabilities, dict):
+        _copy_nested_properties(
+            additional_capabilities,
+            {"ultra_ssd_enabled": ("ultraSSDEnabled",)},
+        )
+
+    storage_profile = vm.get("storage_profile") or {}
+    if isinstance(storage_profile, dict):
+        _copy_nested_properties(storage_profile, {"data_disks": ("dataDisks",)})
+        for data_disk in storage_profile.get("data_disks") or []:
+            if isinstance(data_disk, dict):
+                _copy_nested_properties(
+                    data_disk,
+                    {
+                        "disk_size_gb": ("diskSizeGB",),
+                        "create_option": ("createOption",),
+                        "write_accelerator_enabled": ("writeAcceleratorEnabled",),
+                        "managed_disk": ("managedDisk",),
+                    },
+                )
+                managed_disk = data_disk.get("managed_disk") or {}
+                if isinstance(managed_disk, dict):
+                    _copy_nested_properties(
+                        managed_disk,
+                        {"storage_account_type": ("storageAccountType",)},
+                    )
+    return vm
+
+
+DISK_PROPERTY_MAP = {
+    "creation_data": ("creation_data", "creationData"),
+    "disk_size_gb": ("disk_size_gb", "diskSizeGB"),
+    "encryption_settings_collection": (
+        "encryption_settings_collection",
+        "encryptionSettingsCollection",
+    ),
+    "max_shares": ("max_shares", "maxShares"),
+    "network_access_policy": ("network_access_policy", "networkAccessPolicy"),
+    "os_type": ("os_type", "osType"),
+    "disk_state": ("disk_state", "diskState"),
+    "tier": ("tier",),
+}
+
+
+def transform_disk(disk: Dict) -> Dict:
+    return _copy_properties(disk, DISK_PROPERTY_MAP)
+
+
+SNAPSHOT_PROPERTY_MAP = {
+    **DISK_PROPERTY_MAP,
+    "incremental": ("incremental",),
+}
+
+
+def transform_snapshot(snapshot: Dict) -> Dict:
+    return _copy_properties(snapshot, SNAPSHOT_PROPERTY_MAP)
+
+
 def get_client(
     credentials: Credentials,
     subscription_id: str,
@@ -33,7 +140,9 @@ def get_client(
 def get_vm_list(credentials: Credentials, subscription_id: str) -> List[Dict]:
     try:
         client = get_client(credentials, subscription_id)
-        vm_list = list(map(lambda x: x.as_dict(), client.virtual_machines.list_all()))
+        vm_list = list(
+            map(lambda x: transform_vm(x.as_dict()), client.virtual_machines.list_all())
+        )
 
         for vm in vm_list:
             # Normalize the VM id to lowercase to match references from other Azure APIs
@@ -112,7 +221,9 @@ def cleanup_virtual_machine(
 def get_disks(credentials: Credentials, subscription_id: str) -> List[Dict]:
     try:
         client = get_client(credentials, subscription_id)
-        disk_list = list(map(lambda x: x.as_dict(), client.disks.list()))
+        disk_list = list(
+            map(lambda x: transform_disk(x.as_dict()), client.disks.list())
+        )
 
         for disk in disk_list:
             x = disk["id"].split("/")
@@ -149,7 +260,9 @@ def cleanup_disks(neo4j_session: neo4j.Session, common_job_parameters: Dict) -> 
 def get_snapshots_list(credentials: Credentials, subscription_id: str) -> List[Dict]:
     try:
         client = get_client(credentials, subscription_id)
-        snapshots = list(map(lambda x: x.as_dict(), client.snapshots.list()))
+        snapshots = list(
+            map(lambda x: transform_snapshot(x.as_dict()), client.snapshots.list())
+        )
 
         for snapshot in snapshots:
             x = snapshot["id"].split("/")
