@@ -2,7 +2,7 @@ from unittest.mock import MagicMock
 from unittest.mock import patch
 
 import cartography.intel.azure.functions as functions
-from cartography.models.ontology.analysis import RESOLVED_IMAGE_JOBS
+from cartography.analysis.ontology.analysis import RESOLVED_IMAGE_JOBS
 from cartography.util import run_analysis_job
 from tests.data.azure.functions import MOCK_FUNCTION_APP_CONFIGS
 from tests.data.azure.functions import MOCK_FUNCTION_APPS

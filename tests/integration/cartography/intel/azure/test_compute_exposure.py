@@ -7,9 +7,9 @@ and then running the analysis jobs against it.
 """
 
 import cartography.util
-from cartography.models.azure.analysis import AZURE_COMPUTE_ASSET_EXPOSURE_JOBS
-from cartography.models.azure.analysis import AZURE_FIREWALL_LB_PROTECTION
-from cartography.models.azure.analysis import AZURE_LB_EXPOSURE
+from cartography.analysis.azure.analysis import AZURE_COMPUTE_ASSET_EXPOSURE_JOBS
+from cartography.analysis.azure.analysis import AZURE_FIREWALL_LB_PROTECTION
+from cartography.analysis.azure.analysis import AZURE_LB_EXPOSURE
 from tests.integration.util import check_nodes
 from tests.integration.util import check_rels
 

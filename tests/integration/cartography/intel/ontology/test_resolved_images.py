@@ -8,7 +8,7 @@ from unittest.mock import patch
 import cartography.intel.gcp.cloudrun.job as cloudrun_job
 import cartography.intel.gcp.cloudrun.revision as cloudrun_revision
 import cartography.intel.gcp.cloudrun.service as cloudrun_service
-from cartography.models.ontology.analysis import RESOLVED_IMAGE_JOBS
+from cartography.analysis.ontology.analysis import RESOLVED_IMAGE_JOBS
 from cartography.util import run_analysis_job
 from tests.data.gcp.cloudrun import MOCK_JOB_WITH_DIGEST
 from tests.data.gcp.cloudrun import MOCK_REVISION_WITH_DIGEST

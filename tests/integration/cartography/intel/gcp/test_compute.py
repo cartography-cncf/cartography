@@ -4,7 +4,7 @@ from unittest.mock import patch
 import cartography.intel.gcp.compute
 import cartography.intel.gcp.iam
 import tests.data.gcp.compute
-from cartography.models.gcp.analysis import GCP_COMPUTE_INSTANCE_VPC_ANALYSIS
+from cartography.analysis.gcp.analysis import GCP_COMPUTE_INSTANCE_VPC_ANALYSIS
 from cartography.util import run_analysis_job
 from tests.integration.util import check_nodes
 from tests.integration.util import check_rels

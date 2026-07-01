@@ -5,8 +5,8 @@ import cartography.intel.gcp.backendservice
 import cartography.intel.gcp.cloud_armor
 import cartography.intel.gcp.compute
 import cartography.intel.gcp.instancegroup
-from cartography.models.gcp.analysis import GCP_COMPUTE_EXPOSURE_JOBS
-from cartography.models.gcp.analysis import GCP_LB_EXPOSURE
+from cartography.analysis.gcp.analysis import GCP_COMPUTE_EXPOSURE_JOBS
+from cartography.analysis.gcp.analysis import GCP_LB_EXPOSURE
 from cartography.util import run_scoped_analysis_job
 from tests.data.gcp.compute_exposure import BACKEND_SERVICE_RESPONSE
 from tests.data.gcp.compute_exposure import CLOUD_ARMOR_RESPONSE

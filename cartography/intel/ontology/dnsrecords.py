@@ -3,7 +3,7 @@ from typing import Any
 
 import neo4j
 
-from cartography.models.ontology.analysis import DNS_RECORD_LINKING_JOBS
+from cartography.analysis.ontology.analysis import DNS_RECORD_LINKING_JOBS
 from cartography.util import run_analysis_job
 from cartography.util import timeit
 

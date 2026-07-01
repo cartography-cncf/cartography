@@ -3,8 +3,8 @@ from unittest.mock import patch
 
 import cartography.intel.aws.ec2
 import tests.data.aws.ec2.key_pairs
+from cartography.analysis.aws.analysis import AWS_EC2_KEYPAIR_ANALYSIS_JOBS
 from cartography.intel.aws.ec2.key_pairs import sync_ec2_key_pairs
-from cartography.models.aws.analysis import AWS_EC2_KEYPAIR_ANALYSIS_JOBS
 from cartography.util import run_analysis_job
 
 TEST_ACCOUNT_ID = "000000000000"

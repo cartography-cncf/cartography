@@ -5,6 +5,7 @@ from typing import Any
 import neo4j
 import requests
 
+from cartography.analysis.ontology.analysis import SUPPLY_CHAIN_SOURCE_FILE
 from cartography.client.core.tx import load_matchlinks
 from cartography.graph.job import GraphJob
 from cartography.intel.github.util import call_github_rest_api
@@ -27,7 +28,6 @@ from cartography.models.github.packaged_matchlink import (
 from cartography.models.github.packaged_matchlink import (
     ImagePackagedByWorkflowMatchLink,
 )
-from cartography.models.ontology.analysis import SUPPLY_CHAIN_SOURCE_FILE
 from cartography.util import run_analysis_job
 from cartography.util import timeit
 

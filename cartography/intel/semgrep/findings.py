@@ -9,10 +9,10 @@ import requests
 from requests.exceptions import HTTPError
 from requests.exceptions import ReadTimeout
 
+from cartography.analysis.semgrep.analysis import SEMGREP_SAST_RISK_ANALYSIS
+from cartography.analysis.semgrep.analysis import SEMGREP_SCA_RISK_ANALYSIS
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
-from cartography.models.semgrep.analysis import SEMGREP_SAST_RISK_ANALYSIS
-from cartography.models.semgrep.analysis import SEMGREP_SCA_RISK_ANALYSIS
 from cartography.models.semgrep.assistant import SemgrepFindingAssistantSchema
 from cartography.models.semgrep.findings import SemgrepSCAFindingSchema
 from cartography.models.semgrep.locations import SemgrepSCALocationSchema

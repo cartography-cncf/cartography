@@ -3,7 +3,7 @@ from unittest.mock import patch
 
 import cartography.intel.aws.lambda_function
 import tests.data.aws.lambda_function
-from cartography.models.ontology.analysis import RESOLVED_IMAGE_JOBS
+from cartography.analysis.ontology.analysis import RESOLVED_IMAGE_JOBS
 from cartography.util import run_analysis_job
 from tests.data.aws.lambda_function import LIST_LAMBDA_FUNCTIONS_CONTAINER_IMAGE
 from tests.data.aws.lambda_function import mock_get_event_source_mappings_for_sync_test

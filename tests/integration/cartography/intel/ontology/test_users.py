@@ -2,8 +2,8 @@ from unittest.mock import patch
 
 import cartography.intel.ontology.users
 import tests.data.duo.users
+from cartography.analysis.ontology.analysis import USER_AUTHORIZED_THIRD_PARTY_APP
 from cartography.intel.duo.users import _transform_users
-from cartography.models.ontology.analysis import USER_AUTHORIZED_THIRD_PARTY_APP
 from cartography.util import run_analysis_job
 from tests.integration.cartography.intel.duo.test_users import (
     _ensure_local_neo4j_has_test_users as _ensure_local_neo4j_has_test_duo_users,

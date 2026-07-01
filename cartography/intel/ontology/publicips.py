@@ -3,10 +3,10 @@ from typing import Any
 
 import neo4j
 
+from cartography.analysis.ontology.analysis import PUBLIC_IP_POINTS_TO_DEVICE
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
 from cartography.intel.ontology.utils import get_source_nodes_from_graph
-from cartography.models.ontology.analysis import PUBLIC_IP_POINTS_TO_DEVICE
 from cartography.models.ontology.publicip import PublicIPSchema
 from cartography.util import run_analysis_job
 from cartography.util import timeit

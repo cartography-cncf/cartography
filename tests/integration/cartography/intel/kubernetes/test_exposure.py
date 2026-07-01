@@ -1,5 +1,8 @@
 import copy
 
+from cartography.analysis.aws.analysis import AWS_EC2_ASSET_EXPOSURE_JOBS
+from cartography.analysis.kubernetes.analysis import K8S_COMPUTE_ASSET_EXPOSURE_JOBS
+from cartography.analysis.kubernetes.analysis import K8S_LB_EXPOSURE_JOBS
 from cartography.intel.aws.ec2.load_balancer_v2s import load_load_balancer_v2s
 from cartography.intel.kubernetes.clusters import load_kubernetes_cluster
 from cartography.intel.kubernetes.ingress import load_ingresses
@@ -7,9 +10,6 @@ from cartography.intel.kubernetes.namespaces import load_namespaces
 from cartography.intel.kubernetes.pods import load_containers
 from cartography.intel.kubernetes.pods import load_pods
 from cartography.intel.kubernetes.services import load_services
-from cartography.models.aws.analysis import AWS_EC2_ASSET_EXPOSURE_JOBS
-from cartography.models.kubernetes.analysis import K8S_COMPUTE_ASSET_EXPOSURE_JOBS
-from cartography.models.kubernetes.analysis import K8S_LB_EXPOSURE_JOBS
 from cartography.util import run_analysis_job
 from cartography.util import run_scoped_analysis_job
 from tests.data.kubernetes.exposure import build_exposure_test_data

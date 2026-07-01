@@ -8,10 +8,10 @@ from azure.identity import ClientSecretCredential
 from msgraph import GraphServiceClient
 from msgraph.generated.models.service_principal import ServicePrincipal
 
+from cartography.analysis.microsoft.entra.analysis import ENTRA_APPLICATION_PROJECTION
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
 from cartography.intel.microsoft.entra.utils import call_with_retries
-from cartography.models.microsoft.entra.analysis import ENTRA_APPLICATION_PROJECTION
 from cartography.models.microsoft.entra.service_principal import (
     EntraServicePrincipalSchema,
 )

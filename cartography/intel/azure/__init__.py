@@ -2,10 +2,10 @@ import logging
 
 import neo4j
 
+from cartography.analysis.azure.analysis import AZURE_COMPUTE_ASSET_EXPOSURE_JOBS
+from cartography.analysis.azure.analysis import AZURE_FIREWALL_LB_PROTECTION
+from cartography.analysis.azure.analysis import AZURE_LB_EXPOSURE
 from cartography.config import Config
-from cartography.models.azure.analysis import AZURE_COMPUTE_ASSET_EXPOSURE_JOBS
-from cartography.models.azure.analysis import AZURE_FIREWALL_LB_PROTECTION
-from cartography.models.azure.analysis import AZURE_LB_EXPOSURE
 from cartography.util import run_analysis_job
 from cartography.util import run_scoped_analysis_job
 from cartography.util import timeit
