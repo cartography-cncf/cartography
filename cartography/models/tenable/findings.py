@@ -3,7 +3,6 @@ from dataclasses import dataclass
 from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeProperties
 from cartography.models.core.nodes import CartographyNodeSchema
-from cartography.models.core.nodes import ConditionalNodeLabel
 from cartography.models.core.nodes import ExtraNodeLabels
 from cartography.models.core.relationships import CartographyRelProperties
 from cartography.models.core.relationships import CartographyRelSchema
@@ -17,6 +16,7 @@ from cartography.models.core.relationships import TargetNodeMatcher
 class TenableFindingNodeProperties(CartographyNodeProperties):
     id: PropertyRef = PropertyRef("id")
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    finding_id: PropertyRef = PropertyRef("finding_id", extra_index=True)
     asset_uuid: PropertyRef = PropertyRef("asset_uuid", extra_index=True)
     severity: PropertyRef = PropertyRef("severity")
     severity_id: PropertyRef = PropertyRef("severity_id")
@@ -33,9 +33,13 @@ class TenableFindingNodeProperties(CartographyNodeProperties):
     port: PropertyRef = PropertyRef("port")
     protocol: PropertyRef = PropertyRef("protocol")
     service: PropertyRef = PropertyRef("service")
+
+
+@dataclass(frozen=True)
+class TenableCVENodeProperties(CartographyNodeProperties):
+    id: PropertyRef = PropertyRef("id")
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
     cve_id: PropertyRef = PropertyRef("cve_id", extra_index=True)
-    cve_list: PropertyRef = PropertyRef("cve_list", extra_index=True)
-    has_cve: PropertyRef = PropertyRef("has_cve")
 
 
 @dataclass(frozen=True)
@@ -58,6 +62,23 @@ class TenableFindingToTenantRel(CartographyRelSchema):
 
 
 @dataclass(frozen=True)
+class TenableCVEToTenantRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+# (:TenableTenant)-[:RESOURCE]->(:TenableCVE)
+@dataclass(frozen=True)
+class TenableCVEToTenantRel(CartographyRelSchema):
+    target_node_label: str = "TenableTenant"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"id": PropertyRef("TENABLE_TENANT_ID", set_in_kwargs=True)},
+    )
+    direction: LinkDirection = LinkDirection.INWARD
+    rel_label: str = "RESOURCE"
+    properties: TenableCVEToTenantRelProperties = TenableCVEToTenantRelProperties()
+
+
+@dataclass(frozen=True)
 class TenableFindingToAssetRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
@@ -67,7 +88,7 @@ class TenableFindingToAssetRelProperties(CartographyRelProperties):
 class TenableFindingToAssetRel(CartographyRelSchema):
     target_node_label: str = "TenableAsset"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {"id": PropertyRef("asset_uuid")},
+        {"id": PropertyRef("asset_id")},
     )
     direction: LinkDirection = LinkDirection.OUTWARD
     rel_label: str = "AFFECTS"
@@ -86,7 +107,7 @@ class TenableFindingToPluginRelProperties(CartographyRelProperties):
 class TenableFindingToPluginRel(CartographyRelSchema):
     target_node_label: str = "TenablePlugin"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {"id": PropertyRef("plugin_id")},
+        {"id": PropertyRef("plugin_node_id")},
     )
     direction: LinkDirection = LinkDirection.OUTWARD
     rel_label: str = "DETECTED_BY"
@@ -105,7 +126,7 @@ class TenableFindingToScanRelProperties(CartographyRelProperties):
 class TenableFindingToScanRel(CartographyRelSchema):
     target_node_label: str = "TenableScan"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {"id": PropertyRef("scan_uuid")},
+        {"id": PropertyRef("scan_node_id")},
     )
     direction: LinkDirection = LinkDirection.OUTWARD
     rel_label: str = "PART_OF_SCAN"
@@ -113,11 +134,33 @@ class TenableFindingToScanRel(CartographyRelSchema):
 
 
 @dataclass(frozen=True)
+class TenableFindingToCVERelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+# (:TenableFinding)-[:HAS_CVE]->(:TenableCVE:CVE)
+@dataclass(frozen=True)
+class TenableFindingToCVERel(CartographyRelSchema):
+    target_node_label: str = "TenableCVE"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"id": PropertyRef("cve_node_ids", one_to_many=True)},
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "HAS_CVE"
+    properties: TenableFindingToCVERelProperties = TenableFindingToCVERelProperties()
+
+
+@dataclass(frozen=True)
+class TenableCVESchema(CartographyNodeSchema):
+    label: str = "TenableCVE"
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["CVE"])
+    properties: TenableCVENodeProperties = TenableCVENodeProperties()
+    sub_resource_relationship: TenableCVEToTenantRel = TenableCVEToTenantRel()
+
+
+@dataclass(frozen=True)
 class TenableFindingSchema(CartographyNodeSchema):
     label: str = "TenableFinding"
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
-        [ConditionalNodeLabel(label="CVE", conditions={"has_cve": "true"})]
-    )
     properties: TenableFindingNodeProperties = TenableFindingNodeProperties()
     sub_resource_relationship: TenableFindingToTenantRel = TenableFindingToTenantRel()
     other_relationships: OtherRelationships = OtherRelationships(
@@ -125,5 +168,6 @@ class TenableFindingSchema(CartographyNodeSchema):
             TenableFindingToAssetRel(),
             TenableFindingToPluginRel(),
             TenableFindingToScanRel(),
+            TenableFindingToCVERel(),
         ]
     )

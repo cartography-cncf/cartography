@@ -1,6 +1,6 @@
 ## CVE Metadata Configuration
 
-This module enriches existing CVE nodes in the graph with metadata from external sources. Unlike the deprecated [CVE](../cve/) module which imports all CVEs from NIST, this module only fetches metadata for CVEs already present in the graph from other modules (e.g., CrowdStrike, Semgrep, SentinelOne).
+This module enriches existing CVE nodes in the graph with metadata from external sources. Unlike the deprecated [CVE](../cve/) module which imports all CVEs from NIST, this module only fetches metadata for CVEs already present in the graph from other modules (e.g., CrowdStrike, Semgrep, SentinelOne, Tenable).
 
 ### Data Sources
 
@@ -13,7 +13,7 @@ No explicit enable flag is needed. Include `cve_metadata` in your module list or
 
 ### Enrichment order
 
-`cve_metadata` only enriches `:CVE` nodes that are already present in the graph — it does not create them. Modules that produce `:CVE` nodes (e.g. CrowdStrike, Semgrep, SentinelOne, Trivy) must run **before** `cve_metadata` in the same sync. Running all modules in a single cartography invocation is sufficient: the module ordering in `cartography/sync.py` places `cve_metadata` after the CVE-producing modules, so the enrichment pass picks up every freshly ingested CVE.
+`cve_metadata` only enriches `:CVE` nodes that are already present in the graph — it does not create them. Modules that produce `:CVE` nodes (e.g. CrowdStrike, Semgrep, SentinelOne, Tenable, Trivy) must run **before** `cve_metadata` in the same sync. Running all modules in a single cartography invocation is sufficient: the module ordering in `cartography/sync.py` places `cve_metadata` after the CVE-producing modules, so the enrichment pass picks up every freshly ingested CVE.
 
 If you only run `cve_metadata` in isolation, it will enrich the CVEs from the previous sync and skip the step silently if no `:CVE` nodes exist yet.
 

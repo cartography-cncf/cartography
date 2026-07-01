@@ -1,9 +1,12 @@
 import cartography.intel.tenable.assets
 import cartography.intel.tenable.findings
-from tests.data.tenable.assets import ASSET_ID_1
-from tests.data.tenable.assets import ASSET_ID_2
 from tests.data.tenable.assets import ASSETS_DATA
+from tests.data.tenable.assets import SCOPED_ASSET_ID_1
+from tests.data.tenable.assets import SCOPED_ASSET_ID_2
 from tests.data.tenable.assets import TENABLE_TENANT_ID
+from tests.data.tenable.findings import CVE_ID_1
+from tests.data.tenable.findings import CVE_ID_2
+from tests.data.tenable.findings import CVE_ID_3
 from tests.data.tenable.findings import FINDING_ID_1
 from tests.data.tenable.findings import FINDING_ID_2
 from tests.data.tenable.findings import FINDING_ID_3
@@ -13,6 +16,17 @@ from tests.data.tenable.findings import PLUGIN_ID_2
 from tests.data.tenable.findings import PLUGIN_ID_3
 from tests.data.tenable.findings import SCAN_UUID_1
 from tests.data.tenable.findings import SCAN_UUID_2
+from tests.data.tenable.findings import SCOPED_CVE_ID_1
+from tests.data.tenable.findings import SCOPED_CVE_ID_2
+from tests.data.tenable.findings import SCOPED_CVE_ID_3
+from tests.data.tenable.findings import SCOPED_FINDING_ID_1
+from tests.data.tenable.findings import SCOPED_FINDING_ID_2
+from tests.data.tenable.findings import SCOPED_FINDING_ID_3
+from tests.data.tenable.findings import SCOPED_PLUGIN_ID_1
+from tests.data.tenable.findings import SCOPED_PLUGIN_ID_2
+from tests.data.tenable.findings import SCOPED_PLUGIN_ID_3
+from tests.data.tenable.findings import SCOPED_SCAN_UUID_1
+from tests.data.tenable.findings import SCOPED_SCAN_UUID_2
 from tests.integration.util import check_nodes
 from tests.integration.util import check_rels
 
@@ -60,38 +74,51 @@ def test_sync_findings(neo4j_session, mocker):
     actual_nodes = check_nodes(
         neo4j_session,
         "TenableFinding",
-        ["id", "severity", "severity_id", "state", "port", "protocol", "service"],
+        [
+            "id",
+            "finding_id",
+            "severity",
+            "severity_id",
+            "state",
+            "port",
+            "protocol",
+            "service",
+        ],
     )
     assert actual_nodes == {
-        (FINDING_ID_1, "high", 3, "OPEN", 445, "TCP", "cifs"),
-        (FINDING_ID_2, "info", 0, "OPEN", 443, "TCP", "www"),
-        (FINDING_ID_3, "info", 0, "OPEN", 0, "TCP", None),
+        (SCOPED_FINDING_ID_1, FINDING_ID_1, "high", 3, "OPEN", 445, "TCP", "cifs"),
+        (SCOPED_FINDING_ID_2, FINDING_ID_2, "info", 0, "OPEN", 443, "TCP", "www"),
+        (SCOPED_FINDING_ID_3, FINDING_ID_3, "info", 0, "OPEN", 0, "TCP", None),
     }
 
 
-def test_sync_findings_cve_fields(neo4j_session, mocker):
-    """Test that cve_id and has_cve are set on findings and the CVE label is applied."""
+def test_sync_tenable_cves(neo4j_session, mocker):
+    """Test that Tenable CVEs are modeled as first-class CVE-labelled nodes."""
     _load_assets(neo4j_session, mocker)
     _sync_findings(neo4j_session, mocker)
 
-    # Finding with CVEs
-    record = neo4j_session.run(
-        "MATCH (f:TenableFinding {id: $id}) "
-        "RETURN f.cve_id AS cve_id, f.has_cve AS has_cve, f:CVE AS has_cve_label",
-        id=FINDING_ID_1,
-    ).single()
-    assert record["cve_id"] == "CVE-2022-21837"
-    assert record["has_cve"] == "true"
-    assert record["has_cve_label"] is True
+    actual_nodes = check_nodes(
+        neo4j_session,
+        "TenableCVE",
+        ["id", "cve_id"],
+    )
+    assert actual_nodes == {
+        (SCOPED_CVE_ID_1, CVE_ID_1),
+        (SCOPED_CVE_ID_2, CVE_ID_2),
+        (SCOPED_CVE_ID_3, CVE_ID_3),
+    }
 
-    # Finding without CVEs
-    record = neo4j_session.run(
-        "MATCH (f:TenableFinding {id: $id}) "
-        "RETURN f.has_cve AS has_cve, f:CVE AS has_cve_label",
-        id=FINDING_ID_2,
-    ).single()
-    assert record["has_cve"] == "false"
-    assert record["has_cve_label"] is False
+    cve_labels = neo4j_session.run(
+        """
+        MATCH (c:TenableCVE)
+        RETURN c.id AS id, c:CVE AS has_cve_label
+        """,
+    )
+    assert {r["id"]: r["has_cve_label"] for r in cve_labels} == {
+        SCOPED_CVE_ID_1: True,
+        SCOPED_CVE_ID_2: True,
+        SCOPED_CVE_ID_3: True,
+    }
 
 
 def test_sync_findings_affects_asset_rel(neo4j_session, mocker):
@@ -109,9 +136,9 @@ def test_sync_findings_affects_asset_rel(neo4j_session, mocker):
         rel_direction_right=True,
     )
     assert actual_rels == {
-        (FINDING_ID_1, ASSET_ID_1),
-        (FINDING_ID_2, ASSET_ID_2),
-        (FINDING_ID_3, ASSET_ID_1),
+        (SCOPED_FINDING_ID_1, SCOPED_ASSET_ID_1),
+        (SCOPED_FINDING_ID_2, SCOPED_ASSET_ID_2),
+        (SCOPED_FINDING_ID_3, SCOPED_ASSET_ID_1),
     }
 
 
@@ -123,10 +150,11 @@ def test_sync_plugins(neo4j_session, mocker):
     actual_plugins = check_nodes(
         neo4j_session,
         "TenablePlugin",
-        ["id", "name", "family", "risk_factor", "cvss3_base_score"],
+        ["id", "plugin_id", "name", "family", "risk_factor", "cvss3_base_score"],
     )
     assert actual_plugins == {
         (
+            SCOPED_PLUGIN_ID_1,
             PLUGIN_ID_1,
             "Security Updates for Microsoft SharePoint Server 2016 (January 2022)",
             "Windows : Microsoft Bulletins",
@@ -134,19 +162,27 @@ def test_sync_plugins(neo4j_session, mocker):
             8.8,
         ),
         (
+            SCOPED_PLUGIN_ID_2,
             PLUGIN_ID_2,
             "Missing or Permissive Content-Security-Policy frame-ancestors HTTP Response Header",
             "CGI abuses",
             "info",
             None,
         ),
-        (PLUGIN_ID_3, "Nessus Scan Information", "Settings", "none", None),
+        (
+            SCOPED_PLUGIN_ID_3,
+            PLUGIN_ID_3,
+            "Nessus Scan Information",
+            "Settings",
+            "none",
+            None,
+        ),
     }
 
     # Plugin CVE list lives on TenablePlugin, not on TenableFinding
     record = neo4j_session.run(
         "MATCH (p:TenablePlugin {id: $id}) RETURN p.cve_list AS cve_list",
-        id=PLUGIN_ID_1,
+        id=SCOPED_PLUGIN_ID_1,
     ).single()
     assert set(record["cve_list"]) == {
         "CVE-2022-21837",
@@ -170,9 +206,51 @@ def test_sync_findings_detected_by_rel(neo4j_session, mocker):
         rel_direction_right=True,
     )
     assert actual_rels == {
-        (FINDING_ID_1, PLUGIN_ID_1),
-        (FINDING_ID_2, PLUGIN_ID_2),
-        (FINDING_ID_3, PLUGIN_ID_3),
+        (SCOPED_FINDING_ID_1, SCOPED_PLUGIN_ID_1),
+        (SCOPED_FINDING_ID_2, SCOPED_PLUGIN_ID_2),
+        (SCOPED_FINDING_ID_3, SCOPED_PLUGIN_ID_3),
+    }
+
+
+def test_sync_findings_has_cve_rel(neo4j_session, mocker):
+    """Test that TenableFinding-[:HAS_CVE]->TenableCVE relationships are created."""
+    _load_assets(neo4j_session, mocker)
+    _sync_findings(neo4j_session, mocker)
+
+    actual_rels = check_rels(
+        neo4j_session,
+        "TenableFinding",
+        "id",
+        "TenableCVE",
+        "id",
+        "HAS_CVE",
+        rel_direction_right=True,
+    )
+    assert actual_rels == {
+        (SCOPED_FINDING_ID_1, SCOPED_CVE_ID_1),
+        (SCOPED_FINDING_ID_1, SCOPED_CVE_ID_2),
+        (SCOPED_FINDING_ID_1, SCOPED_CVE_ID_3),
+    }
+
+
+def test_sync_plugins_references_cve_rel(neo4j_session, mocker):
+    """Test that TenablePlugin-[:REFERENCES_CVE]->TenableCVE relationships are created."""
+    _load_assets(neo4j_session, mocker)
+    _sync_findings(neo4j_session, mocker)
+
+    actual_rels = check_rels(
+        neo4j_session,
+        "TenablePlugin",
+        "id",
+        "TenableCVE",
+        "id",
+        "REFERENCES_CVE",
+        rel_direction_right=True,
+    )
+    assert actual_rels == {
+        (SCOPED_PLUGIN_ID_1, SCOPED_CVE_ID_1),
+        (SCOPED_PLUGIN_ID_1, SCOPED_CVE_ID_2),
+        (SCOPED_PLUGIN_ID_1, SCOPED_CVE_ID_3),
     }
 
 
@@ -182,10 +260,12 @@ def test_sync_scans(neo4j_session, mocker):
     _sync_findings(neo4j_session, mocker)
 
     # FINDING_ID_1 and FINDING_ID_3 share SCAN_UUID_1 — only one scan node should exist
-    actual_scans = check_nodes(neo4j_session, "TenableScan", ["id", "last_scan_target"])
+    actual_scans = check_nodes(
+        neo4j_session, "TenableScan", ["id", "scan_uuid", "last_scan_target"]
+    )
     assert actual_scans == {
-        (SCAN_UUID_1, "192.0.2.58"),
-        (SCAN_UUID_2, "192.0.2.58"),
+        (SCOPED_SCAN_UUID_1, SCAN_UUID_1, "192.0.2.58"),
+        (SCOPED_SCAN_UUID_2, SCAN_UUID_2, "192.0.2.58"),
     }
 
     actual_rels = check_rels(
@@ -198,9 +278,9 @@ def test_sync_scans(neo4j_session, mocker):
         rel_direction_right=True,
     )
     assert actual_rels == {
-        (FINDING_ID_1, SCAN_UUID_1),
-        (FINDING_ID_2, SCAN_UUID_2),
-        (FINDING_ID_3, SCAN_UUID_1),
+        (SCOPED_FINDING_ID_1, SCOPED_SCAN_UUID_1),
+        (SCOPED_FINDING_ID_2, SCOPED_SCAN_UUID_2),
+        (SCOPED_FINDING_ID_3, SCOPED_SCAN_UUID_1),
     }
 
 
@@ -219,10 +299,31 @@ def test_sync_findings_tenant_resource_rel(neo4j_session, mocker):
         rel_direction_right=True,
     )
     assert {
-        (TENABLE_TENANT_ID, FINDING_ID_1),
-        (TENABLE_TENANT_ID, FINDING_ID_2),
-        (TENABLE_TENANT_ID, FINDING_ID_3),
+        (TENABLE_TENANT_ID, SCOPED_FINDING_ID_1),
+        (TENABLE_TENANT_ID, SCOPED_FINDING_ID_2),
+        (TENABLE_TENANT_ID, SCOPED_FINDING_ID_3),
     } <= actual_rels
+
+
+def test_sync_cves_tenant_resource_rel(neo4j_session, mocker):
+    """Test that TenableTenant-[:RESOURCE]->TenableCVE relationships are created."""
+    _load_assets(neo4j_session, mocker)
+    _sync_findings(neo4j_session, mocker)
+
+    actual_rels = check_rels(
+        neo4j_session,
+        "TenableTenant",
+        "id",
+        "TenableCVE",
+        "id",
+        "RESOURCE",
+        rel_direction_right=True,
+    )
+    assert actual_rels == {
+        (TENABLE_TENANT_ID, SCOPED_CVE_ID_1),
+        (TENABLE_TENANT_ID, SCOPED_CVE_ID_2),
+        (TENABLE_TENANT_ID, SCOPED_CVE_ID_3),
+    }
 
 
 def test_sync_findings_cleanup(neo4j_session, mocker):
@@ -245,7 +346,7 @@ def test_sync_findings_cleanup(neo4j_session, mocker):
     result = neo4j_session.run("MATCH (f:TenableFinding) RETURN f.id AS id")
     existing_ids = {r["id"] for r in result}
     assert "stale-finding-id" not in existing_ids
-    assert FINDING_ID_1 in existing_ids
+    assert SCOPED_FINDING_ID_1 in existing_ids
 
 
 def test_sync_plugins_cleanup(neo4j_session, mocker):
@@ -268,9 +369,9 @@ def test_sync_plugins_cleanup(neo4j_session, mocker):
     result = neo4j_session.run("MATCH (p:TenablePlugin) RETURN p.id AS id")
     existing_ids = {r["id"] for r in result}
     assert "stale-plugin-id" not in existing_ids
-    assert PLUGIN_ID_1 in existing_ids
-    assert PLUGIN_ID_2 in existing_ids
-    assert PLUGIN_ID_3 in existing_ids
+    assert SCOPED_PLUGIN_ID_1 in existing_ids
+    assert SCOPED_PLUGIN_ID_2 in existing_ids
+    assert SCOPED_PLUGIN_ID_3 in existing_ids
 
 
 def test_sync_scans_cleanup(neo4j_session, mocker):
@@ -293,12 +394,41 @@ def test_sync_scans_cleanup(neo4j_session, mocker):
     result = neo4j_session.run("MATCH (s:TenableScan) RETURN s.id AS id")
     existing_ids = {r["id"] for r in result}
     assert "stale-scan-id" not in existing_ids
-    assert SCAN_UUID_1 in existing_ids
-    assert SCAN_UUID_2 in existing_ids
+    assert SCOPED_SCAN_UUID_1 in existing_ids
+    assert SCOPED_SCAN_UUID_2 in existing_ids
+
+
+def test_sync_cves_cleanup(neo4j_session, mocker):
+    """Test that stale TenableCVE nodes are deleted after sync."""
+    old_update_tag = TEST_UPDATE_TAG - 1000
+    neo4j_session.run(
+        """
+        CREATE (t:TenableTenant {id: $tenant_id, lastupdated: $update_tag})
+        CREATE (c:TenableCVE:CVE {
+            id: 'stale-cve-id',
+            cve_id: 'CVE-1999-9999',
+            lastupdated: $old_tag
+        })
+        CREATE (t)-[:RESOURCE]->(c)
+        """,
+        tenant_id=TENABLE_TENANT_ID,
+        update_tag=TEST_UPDATE_TAG,
+        old_tag=old_update_tag,
+    )
+
+    _load_assets(neo4j_session, mocker)
+    _sync_findings(neo4j_session, mocker)
+
+    result = neo4j_session.run("MATCH (c:TenableCVE) RETURN c.id AS id")
+    existing_ids = {r["id"] for r in result}
+    assert "stale-cve-id" not in existing_ids
+    assert SCOPED_CVE_ID_1 in existing_ids
+    assert SCOPED_CVE_ID_2 in existing_ids
+    assert SCOPED_CVE_ID_3 in existing_ids
 
 
 def test_sync_findings_export_filter(neo4j_session, mocker):
-    """Every sync sends a last_found filter derived from lookback_days."""
+    """Every sync sends a since filter derived from lookback_days."""
     _load_assets(neo4j_session, mocker)
     mock_export = mocker.patch(
         "cartography.intel.tenable.findings.export_and_download",
@@ -316,7 +446,7 @@ def test_sync_findings_export_filter(neo4j_session, mocker):
     )
 
     export_params = mock_export.call_args[0][4]
-    assert export_params["filters"]["last_found"] == TEST_UPDATE_TAG - (
+    assert export_params["filters"]["since"] == TEST_UPDATE_TAG - (
         lookback_days * 86400
     )
     assert export_params["filters"]["state"] == ["OPEN", "REOPENED", "FIXED"]

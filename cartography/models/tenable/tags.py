@@ -15,6 +15,7 @@ from cartography.models.core.relationships import TargetNodeMatcher
 class TenableAssetTagNodeProperties(CartographyNodeProperties):
     id: PropertyRef = PropertyRef("id")
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    tag_uuid: PropertyRef = PropertyRef("tag_uuid", extra_index=True)
     tag_key: PropertyRef = PropertyRef("tag_key")
     tag_value: PropertyRef = PropertyRef("tag_value")
     added_by: PropertyRef = PropertyRef("added_by")

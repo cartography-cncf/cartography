@@ -1,0 +1,6 @@
+# Tenable
+
+```{toctree}
+config
+schema
+```

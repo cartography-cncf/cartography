@@ -4,16 +4,6 @@
 
 Cartography ingests assets and vulnerability findings from the [Tenable Export API](https://developer.tenable.com/reference/export-assets-v2). The integration uses the async bulk-export workflow (POST to initiate, poll for status, download chunks) to retrieve complete datasets efficiently.
 
-## Configuration
-
-| CLI flag | Default | Required | Description |
-|---|---|---|---|
-| `--tenable-access-key-env-var` | `TENABLE_ACCESS_KEY` | Yes | Environment variable holding the Tenable API access key |
-| `--tenable-secret-key-env-var` | `TENABLE_SECRET_KEY` | Yes | Environment variable holding the Tenable API secret key |
-| `--tenable-url` | `https://cloud.tenable.com` | No | Base URL of the Tenable API endpoint |
-| `--tenable-tenant-id` | hostname of `--tenable-url` | No | Identifier used to scope all graph nodes for this Tenable instance. Set this to the **container UUID** shown in your Tenable account settings when running multiple tenants or using a custom URL. Defaults to the hostname portion of `--tenable-url` (e.g. `cloud.tenable.com`). |
-| `--tenable-findings-lookback-days` | `180` | No | Number of days of vulnerability findings to retrieve on each sync. Tenable's export API filters on `last_found >= now - lookback_days`. Stale findings outside this window are removed from the graph by the cleanup job. |
-
 ## Nodes
 
 ### TenableTenant
@@ -29,11 +19,12 @@ Represents the Tenable instance being synced. All other Tenable nodes are scoped
 
 An asset discovered and tracked by Tenable. Corresponds to a record returned by the [Assets Export v2 API](https://developer.tenable.com/reference/export-assets-v2).
 
-Cloud-provider details live in the `TenableAssetAWS`, `TenableAssetAzure`, and `TenableAssetGCP` sub-nodes; only the cloud identifier keys are stored here for cross-module indexing.
+Native cloud correlations are modeled with `OBSERVED_AS` relationships to existing cloud compute nodes when those nodes are already present in the graph. `TenableAssetAWS`, `TenableAssetAzure`, and `TenableAssetGCP` retain the raw provider-specific details from the Tenable asset export.
 
 | Field | Description |
 |---|---|
-| **id** | Asset UUID (Tenable's `id` field) |
+| **id** | Tenant-scoped asset UUID: `{tenant_id}:{asset_uuid}` |
+| **asset_uuid** | Raw Tenable asset UUID (`id` from the asset export); indexed |
 | has_agent | Whether a Tenable agent is installed |
 | has_plugin_results | Whether plugin scan results exist |
 | is_licensed | Whether the asset counts against the license |
@@ -52,16 +43,16 @@ Cloud-provider details live in the `TenableAssetAWS`, `TenableAssetAzure`, and `
 | last_authenticated_scan_date | Timestamp of the most recent authenticated scan |
 | last_licensed_scan_date | Timestamp of the most recent licensed scan |
 | last_scan_id | ID of the most recent scan |
-| network_id | Tenable network container ID |
+| network_id | Raw Tenable network container ID |
 | **fqdn** | Primary FQDN (first entry of `fqdns`); indexed for cross-module relationship matching |
 | fqdns | Full list of FQDNs |
 | hostnames | List of hostnames |
 | ipv4s | List of IPv4 addresses |
 | ipv6s | List of IPv6 addresses |
 | mac_addresses | List of MAC addresses |
-| **aws_ec2_instance_id** | AWS EC2 instance ID (indexed) |
-| **azure_vm_id** | Azure VM ID (indexed) |
-| **gcp_instance_id** | GCP instance ID (indexed) |
+| **aws_ec2_instance_id** | AWS EC2 instance ID used to correlate to `EC2Instance` (indexed) |
+| **azure_vm_id** | Azure VM ID from Tenable (indexed) |
+| **gcp_instance_id** | GCP instance ID from Tenable (indexed) |
 | acr_score | Asset Criticality Rating (0â€“10) |
 | aes_score | Asset Exposure Score |
 | lastupdated | Timestamp of the last sync run |
@@ -76,15 +67,19 @@ Cloud-provider details live in the `TenableAssetAWS`, `TenableAssetAzure`, and `
 (:TenableAsset)-[:HAS_GCP_INFO]->(:TenableAssetGCP)
 (:TenableAsset)-[:HAS_SOURCE]->(:TenableAssetSource)
 (:TenableAsset)-[:HAS_TAG]->(:TenableAssetTag)
+(:TenableAsset)-[:OBSERVED_AS]->(:EC2Instance)
+(:TenableAsset)-[:OBSERVED_AS]->(:AzureVirtualMachine)
+(:TenableAsset)-[:OBSERVED_AS]->(:GCPInstance)
 ```
 
 ### TenableAssetAWS
 
-AWS-specific cloud details for a Tenable asset. The `id` is the EC2 instance ID.
+Raw AWS-specific cloud details from a Tenable asset export. The `id` is tenant-scoped to avoid collisions across Tenable tenants. Use `(:TenableAsset)-[:OBSERVED_AS]->(:EC2Instance)` for native AWS compute correlation.
 
 | Field | Description |
 |---|---|
-| **id** | EC2 instance ID (`ec2_instance_id` from `cloud.aws`) |
+| **id** | Tenant-scoped EC2 instance ID: `{tenant_id}:{ec2_instance_id}` |
+| **ec2_instance_id** | Raw EC2 instance ID (`ec2_instance_id` from `cloud.aws`); indexed |
 | ec2_instance_ami_id | AMI ID used to launch the instance |
 | owner_id | AWS account ID |
 | availability_zone | AWS availability zone |
@@ -106,11 +101,12 @@ AWS-specific cloud details for a Tenable asset. The `id` is the EC2 instance ID.
 
 ### TenableAssetAzure
 
-Azure-specific cloud details for a Tenable asset. The `id` is the Azure VM ID (GUID).
+Raw Azure-specific cloud details from a Tenable asset export. The `id` is tenant-scoped to avoid collisions across Tenable tenants. Use `(:TenableAsset)-[:OBSERVED_AS]->(:AzureVirtualMachine)` for native Azure compute correlation.
 
 | Field | Description |
 |---|---|
-| **id** | Azure VM ID (`vm_id` from `cloud.azure`) |
+| **id** | Tenant-scoped Azure VM ID: `{tenant_id}:{vm_id}` |
+| **vm_id** | Raw Azure VM ID (`vm_id` from `cloud.azure`); indexed |
 | **resource_id** | Azure Resource Manager resource ID (indexed) |
 | lastupdated | Timestamp of the last sync run |
 
@@ -123,11 +119,12 @@ Azure-specific cloud details for a Tenable asset. The `id` is the Azure VM ID (G
 
 ### TenableAssetGCP
 
-GCP-specific cloud details for a Tenable asset. The `id` is the GCP instance ID.
+Raw GCP-specific cloud details from a Tenable asset export. The `id` is tenant-scoped to avoid collisions across Tenable tenants. Use `(:TenableAsset)-[:OBSERVED_AS]->(:GCPInstance)` for native GCP compute correlation.
 
 | Field | Description |
 |---|---|
-| **id** | GCP instance ID (`instance_id` from `cloud.gcp`) |
+| **id** | Tenant-scoped GCP instance ID: `{tenant_id}:{instance_id}` |
+| **instance_id** | Raw GCP instance ID (`instance_id` from `cloud.gcp`); indexed |
 | project_id | GCP project ID |
 | zone | GCP zone |
 | lastupdated | Timestamp of the last sync run |
@@ -145,7 +142,8 @@ A Tenable logical network container. Multiple assets can belong to the same netw
 
 | Field | Description |
 |---|---|
-| **id** | Network UUID (`network_id` from the asset export) |
+| **id** | Tenant-scoped network UUID: `{tenant_id}:{network_id}` |
+| **network_id** | Raw network UUID (`network_id` from the asset export); indexed |
 | name | Network name (e.g. `Default`) |
 | lastupdated | Timestamp of the last sync run |
 
@@ -158,11 +156,11 @@ A Tenable logical network container. Multiple assets can belong to the same netw
 
 ### TenableAssetSource
 
-A data source that has observed a Tenable asset (e.g. `NESSUS_AGENT`, `NESSUS_SCAN`, `WAS`). The `id` is scoped to the asset: `{asset_uuid}::{source_name}`.
+A data source that has observed a Tenable asset (e.g. `NESSUS_AGENT`, `NESSUS_SCAN`, `WAS`). The `id` is scoped to both the tenant and the asset: `{tenant_id}:{asset_uuid}::{source_name}`.
 
 | Field | Description |
 |---|---|
-| **id** | Composite key: `asset_uuid::source_name` |
+| **id** | Tenant-scoped composite key: `{tenant_id}:{asset_uuid}::{source_name}` |
 | name | Source name (e.g. `NESSUS_AGENT`) |
 | source_first_seen | Timestamp when this source first observed the asset |
 | source_last_seen | Timestamp when this source last observed the asset |
@@ -177,11 +175,12 @@ A data source that has observed a Tenable asset (e.g. `NESSUS_AGENT`, `NESSUS_SC
 
 ### TenableAssetTag
 
-A key/value tag applied to a Tenable asset. The `id` is the Tenable tag UUID.
+A key/value tag applied to a Tenable asset. The `id` is tenant-scoped to avoid collisions across Tenable tenants.
 
 | Field | Description |
 |---|---|
-| **id** | Tag UUID |
+| **id** | Tenant-scoped tag UUID: `{tenant_id}:{tag_uuid}` |
+| **tag_uuid** | Raw Tenable tag UUID; indexed |
 | tag_key | Tag category/key (e.g. `Environment`) |
 | tag_value | Tag value (e.g. `Production`) |
 | added_by | User who applied the tag |
@@ -199,13 +198,12 @@ A key/value tag applied to a Tenable asset. The `id` is the Tenable tag UUID.
 
 A vulnerability instance detected by Tenable on a specific asset. Corresponds to a record returned by the [Vulnerability Export API](https://developer.tenable.com/reference/exports-vulns-request-export).
 
-The `id` is the Tenable finding UUID (`finding_id`). Plugin details live in `TenablePlugin`; scan metadata lives in `TenableScan`.
-
-> **Ontology note:** when `has_cve` is `"true"` the node is also labelled `CVE`, allowing `CVEMetadata` nodes to enrich it automatically via `(:CVEMetadata)-[:ENRICHES]->(:CVE)` (matched on `cve_id`).
+The `id` is tenant-scoped to avoid collisions across Tenable tenants. Plugin details live in `TenablePlugin`; scan metadata lives in `TenableScan`.
 
 | Field | Description |
 |---|---|
-| **id** | Finding UUID (`finding_id` from the export) |
+| **id** | Tenant-scoped finding UUID: `{tenant_id}:{finding_id}` |
+| **finding_id** | Raw finding UUID (`finding_id` from the export); indexed |
 | **asset_uuid** | UUID of the asset this finding was detected on (indexed) |
 | severity | Severity string (`info`, `low`, `medium`, `high`, `critical`) |
 | severity_id | Numeric severity (0=info, 1=low, 2=medium, 3=high, 4=critical) |
@@ -222,9 +220,6 @@ The `id` is the Tenable finding UUID (`finding_id`). Plugin details live in `Ten
 | port | Port number the finding was detected on |
 | protocol | Protocol (e.g. `TCP`, `UDP`) |
 | service | Service name (e.g. `www`, `cifs`) |
-| **cve_id** | First CVE ID from the plugin's CVE list; used for CVEMetadata ontology matching (indexed) |
-| cve_list | Full list of CVE IDs associated with this finding |
-| has_cve | `"true"` if the plugin has at least one CVE ID, `"false"` otherwise |
 | lastupdated | Timestamp of the last sync run |
 
 #### Relationships
@@ -234,6 +229,26 @@ The `id` is the Tenable finding UUID (`finding_id`). Plugin details live in `Ten
 (:TenableFinding)-[:AFFECTS]->(:TenableAsset)
 (:TenableFinding)-[:DETECTED_BY]->(:TenablePlugin)
 (:TenableFinding)-[:PART_OF_SCAN]->(:TenableScan)
+(:TenableFinding)-[:HAS_CVE]->(:TenableCVE)
+```
+
+### TenableCVE::CVE
+
+A CVE referenced by a Tenable plugin and observed through one or more findings. The node is tenant-scoped to avoid collisions across Tenable tenants while still carrying the shared `CVE` label and scalar `cve_id` property used by `cve_metadata`.
+
+| Field | Description |
+|---|---|
+| **id** | Tenant-scoped CVE ID: `{tenant_id}:{cve_id}` |
+| **cve_id** | Raw CVE ID (e.g. `CVE-2022-21837`); indexed |
+| lastupdated | Timestamp of the last sync run |
+
+#### Relationships
+
+```
+(:TenableTenant)-[:RESOURCE]->(:TenableCVE)
+(:TenableFinding)-[:HAS_CVE]->(:TenableCVE)
+(:TenablePlugin)-[:REFERENCES_CVE]->(:TenableCVE)
+(:CVEMetadata)-[:ENRICHES]->(:TenableCVE)
 ```
 
 ### TenablePlugin
@@ -242,7 +257,8 @@ A Tenable plugin that detected one or more findings. Plugins are deduplicated ac
 
 | Field | Description |
 |---|---|
-| **id** | Integer plugin ID (e.g. `156641`) |
+| **id** | Tenant-scoped plugin ID: `{tenant_id}:{plugin_id}` |
+| **plugin_id** | Raw integer plugin ID (e.g. `156641`); indexed |
 | name | Human-readable plugin name |
 | family | Plugin family (e.g. `Windows : Microsoft Bulletins`, `CGI abuses`) |
 | family_id | Numeric family ID |
@@ -268,7 +284,7 @@ A Tenable plugin that detected one or more findings. Plugins are deduplicated ac
 | cvss4_base_score | CVSS v4 base score |
 | vpr_score | Tenable Vulnerability Priority Rating score |
 | epss_score | EPSS probability score |
-| cve_list | Full list of CVE IDs associated with this plugin |
+| cve_list | Raw list of CVE IDs associated with this plugin |
 | type | Scan type (`local`, `remote`, `combined`) |
 | lastupdated | Timestamp of the last sync run |
 
@@ -277,6 +293,7 @@ A Tenable plugin that detected one or more findings. Plugins are deduplicated ac
 ```
 (:TenableTenant)-[:RESOURCE]->(:TenablePlugin)
 (:TenableFinding)-[:DETECTED_BY]->(:TenablePlugin)
+(:TenablePlugin)-[:REFERENCES_CVE]->(:TenableCVE)
 ```
 
 ### TenableScan
@@ -285,7 +302,8 @@ A Tenable scan run that produced one or more findings. Scans are deduplicated â€
 
 | Field | Description |
 |---|---|
-| **id** | Scan UUID (`scan.uuid` from the findings export) |
+| **id** | Tenant-scoped scan UUID: `{tenant_id}:{scan_uuid}` |
+| **scan_uuid** | Raw scan UUID (`scan.uuid` from the findings export); indexed |
 | schedule_uuid | UUID of the scan schedule template |
 | started_at | Timestamp when the scan started |
 | last_scan_target | IP address or hostname that was most recently scanned |

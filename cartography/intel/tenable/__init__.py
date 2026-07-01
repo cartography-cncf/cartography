@@ -6,14 +6,14 @@ import cartography.intel.tenable.assets
 import cartography.intel.tenable.findings
 from cartography.config import Config
 from cartography.intel.tenable.api import get_tenable_session
+from cartography.intel.tenable.common import get_tenant_id_from_url
+from cartography.intel.tenable.common import TENABLE_DEFAULT_URL
 from cartography.stats import get_stats_client
 from cartography.util import merge_module_sync_metadata
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
 stat_handler = get_stats_client(__name__)
-
-TENABLE_DEFAULT_URL = "https://cloud.tenable.com"
 
 
 @timeit
@@ -39,9 +39,7 @@ def start_tenable_ingestion(neo4j_session: neo4j.Session, config: Config) -> Non
         return
 
     base_url = config.tenable_url or TENABLE_DEFAULT_URL
-    tenant_id = config.tenable_tenant_id or base_url.removeprefix(
-        "https://"
-    ).removeprefix("http://")
+    tenant_id = config.tenable_tenant_id or get_tenant_id_from_url(base_url)
 
     common_job_parameters = {
         "UPDATE_TAG": config.update_tag,
