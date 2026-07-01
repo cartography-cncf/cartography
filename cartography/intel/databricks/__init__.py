@@ -20,6 +20,7 @@ import cartography.intel.databricks.secret_scopes
 import cartography.intel.databricks.storage_credentials
 import cartography.intel.databricks.service_principals
 import cartography.intel.databricks.tables
+import cartography.intel.databricks.vector_search
 import cartography.intel.databricks.volumes
 import cartography.intel.databricks.tokens
 import cartography.intel.databricks.users
@@ -248,6 +249,13 @@ def start_databricks_ingestion(neo4j_session: neo4j.Session, config: Config) -> 
 
     # Online tables read managed tables from the graph, so run after tables.
     cartography.intel.databricks.online_tables.sync(
+        neo4j_session,
+        api_client,
+        workspace_id,
+        common_job_parameters,
+    )
+
+    cartography.intel.databricks.vector_search.sync(
         neo4j_session,
         api_client,
         workspace_id,
