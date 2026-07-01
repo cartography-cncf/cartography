@@ -3,6 +3,7 @@ import pytest
 from cartography.graph.analysis import PropertyEffect
 from cartography.graph.analysis import RelationshipEffect
 from cartography.graph.analysis import ScopedTo
+from cartography.graph.analysisbuilder import cleanup_query
 
 AWS = ScopedTo("AWSAccount", "AWS_ID")
 AZURE = ScopedTo("AzureSubscription", "AZURE_SUBSCRIPTION_ID")
@@ -551,4 +552,4 @@ def test_generated_cleanup_queries_cover_existing_analysis_job_shapes(
     scope,
     expected,
 ):
-    assert effect.cleanup_query(scope) == expected
+    assert cleanup_query(effect, scope) == expected
