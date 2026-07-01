@@ -34,10 +34,59 @@ def sync(
 ) -> None:
     securables = get_securables(neo4j_session, workspace_id)
     grants = get(api_session, securables)
+    principals = get_principals(neo4j_session, workspace_id)
+    grants = resolve_principals(grants, principals)
     load_grants(
         neo4j_session, grants, workspace_id, common_job_parameters["UPDATE_TAG"]
     )
     cleanup(neo4j_session, workspace_id, common_job_parameters["UPDATE_TAG"])
+
+
+@timeit
+def get_principals(neo4j_session: neo4j.Session, workspace_id: str) -> dict[str, str]:
+    """Map each workspace principal's UC name to its scoped node id.
+
+    UC reports grant principals by name (user_name / group display name / SP
+    application id); resolving them against *this workspace's* principals keeps
+    a shared name across workspaces from matching the wrong node.
+    """
+    # Key each principal by the exact field UC uses in grants: user_name for
+    # users, display_name for groups, application_id for service principals (a
+    # service principal also has a display_name, so coalesce would mis-key it).
+    query = """
+    MATCH (:DatabricksWorkspace {id: $workspace_id})-[:RESOURCE]->(p)
+    WHERE p:DatabricksUser OR p:DatabricksGroup OR p:DatabricksServicePrincipal
+    RETURN p.id AS id,
+           CASE
+               WHEN p:DatabricksServicePrincipal THEN p.application_id
+               WHEN p:DatabricksGroup THEN p.display_name
+               ELSE p.user_name
+           END AS name
+    """
+    result = neo4j_session.run(query, workspace_id=workspace_id)
+    principals: dict[str, str] = {}
+    for record in result:
+        if record["name"] and record["id"]:
+            principals[record["name"]] = record["id"]
+    return principals
+
+
+def resolve_principals(
+    grants: list[dict[str, Any]], principals: dict[str, str]
+) -> list[dict[str, Any]]:
+    """Attach the scoped principal node id to each grant, dropping unmatched ones.
+
+    Grants to principals not ingested in this workspace (e.g. account-level
+    pseudo-groups like ``account users``) have no node to point at and are
+    dropped.
+    """
+    resolved: list[dict[str, Any]] = []
+    for grant in grants:
+        principal_id = principals.get(grant["principal"])
+        if principal_id is None:
+            continue
+        resolved.append({**grant, "principal_id": principal_id})
+    return resolved
 
 
 @timeit

@@ -115,7 +115,7 @@ class DatabricksVSIndexToTableRelProperties(CartographyRelProperties):
 class DatabricksVSIndexToTableRel(CartographyRelSchema):
     target_node_label: str = "DatabricksTable"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {"full_name": PropertyRef("source_table")},
+        {"id": PropertyRef("source_table_id")},
     )
     direction: LinkDirection = LinkDirection.OUTWARD
     rel_label: str = "SOURCED_FROM"

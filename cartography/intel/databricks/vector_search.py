@@ -9,6 +9,7 @@ from cartography.graph.job import GraphJob
 from cartography.intel.databricks.util import DatabricksWorkspaceClient
 from cartography.intel.databricks.util import epoch_ms_to_datetime
 from cartography.intel.databricks.util import scoped_id
+from cartography.intel.databricks.util import uc_id
 from cartography.models.databricks.vector_search import (
     DatabricksVectorSearchEndpointSchema,
 )
@@ -25,12 +26,13 @@ def sync(
     neo4j_session: neo4j.Session,
     api_session: DatabricksWorkspaceClient,
     workspace_id: str,
+    metastore_id: str,
     common_job_parameters: dict[str, Any],
 ) -> None:
     endpoints = get_endpoints(api_session)
     indexes = get_indexes(api_session, endpoints)
     t_endpoints = transform_endpoints(endpoints, workspace_id)
-    t_indexes = transform_indexes(indexes, workspace_id)
+    t_indexes = transform_indexes(indexes, workspace_id, metastore_id)
     load_vector_search(
         neo4j_session,
         t_endpoints,
@@ -100,7 +102,7 @@ def transform_endpoints(
 
 @timeit
 def transform_indexes(
-    indexes: list[dict[str, Any]], workspace_id: str
+    indexes: list[dict[str, Any]], workspace_id: str, metastore_id: str
 ) -> list[dict[str, Any]]:
     result: list[dict[str, Any]] = []
     for idx in indexes:
@@ -108,6 +110,7 @@ def transform_indexes(
         if not name:
             raise ValueError("Databricks vector search index returned empty name")
         delta_spec = idx.get("delta_sync_index_spec") or {}
+        source_table = delta_spec.get("source_table")
         result.append(
             {
                 "id": scoped_id(workspace_id, name),
@@ -120,7 +123,12 @@ def transform_indexes(
                 ),
                 "index_type": idx.get("index_type"),
                 "primary_key": idx.get("primary_key"),
-                "source_table": delta_spec.get("source_table"),
+                "source_table": source_table,
+                # Metastore-scoped id so the SOURCED_FROM edge cannot match a
+                # same-named table from another metastore.
+                "source_table_id": (
+                    uc_id(metastore_id, source_table) if source_table else None
+                ),
                 "creator": idx.get("creator"),
             }
         )

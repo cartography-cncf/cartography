@@ -20,9 +20,15 @@ class DatabricksGrantRelProperties(CartographyRelProperties):
     privileges: PropertyRef = PropertyRef("privileges")
 
 
+# The three principal rels all match the source by ``principal_id`` — the
+# workspace-scoped node id resolved from the grant's principal name in the intel
+# layer. Matching by the scoped id (not the bare name) keeps grants from two
+# workspaces that share an email / group name / application id from attaching to
+# the wrong workspace's principal.
+
+
 @dataclass(frozen=True)
 # (:DatabricksUser)-[:HAS_PRIVILEGE {privileges}]->(:DatabricksSecurable)
-# UC grants name the principal by username/email for users.
 class DatabricksUserGrantRel(CartographyRelSchema):
     target_node_label: str = "DatabricksSecurable"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
@@ -30,7 +36,7 @@ class DatabricksUserGrantRel(CartographyRelSchema):
     )
     source_node_label: str = "DatabricksUser"
     source_node_matcher: SourceNodeMatcher = make_source_node_matcher(
-        {"user_name": PropertyRef("principal")},
+        {"id": PropertyRef("principal_id")},
     )
     direction: LinkDirection = LinkDirection.OUTWARD
     rel_label: str = "HAS_PRIVILEGE"
@@ -39,7 +45,6 @@ class DatabricksUserGrantRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 # (:DatabricksGroup)-[:HAS_PRIVILEGE {privileges}]->(:DatabricksSecurable)
-# UC grants name the principal by display name for groups.
 class DatabricksGroupGrantRel(CartographyRelSchema):
     target_node_label: str = "DatabricksSecurable"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
@@ -47,7 +52,7 @@ class DatabricksGroupGrantRel(CartographyRelSchema):
     )
     source_node_label: str = "DatabricksGroup"
     source_node_matcher: SourceNodeMatcher = make_source_node_matcher(
-        {"display_name": PropertyRef("principal")},
+        {"id": PropertyRef("principal_id")},
     )
     direction: LinkDirection = LinkDirection.OUTWARD
     rel_label: str = "HAS_PRIVILEGE"
@@ -56,7 +61,6 @@ class DatabricksGroupGrantRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 # (:DatabricksServicePrincipal)-[:HAS_PRIVILEGE {privileges}]->(:DatabricksSecurable)
-# UC grants name the principal by OAuth application id for service principals.
 class DatabricksServicePrincipalGrantRel(CartographyRelSchema):
     target_node_label: str = "DatabricksSecurable"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
@@ -64,7 +68,7 @@ class DatabricksServicePrincipalGrantRel(CartographyRelSchema):
     )
     source_node_label: str = "DatabricksServicePrincipal"
     source_node_matcher: SourceNodeMatcher = make_source_node_matcher(
-        {"application_id": PropertyRef("principal")},
+        {"id": PropertyRef("principal_id")},
     )
     direction: LinkDirection = LinkDirection.OUTWARD
     rel_label: str = "HAS_PRIVILEGE"

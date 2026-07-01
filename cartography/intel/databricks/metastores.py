@@ -23,9 +23,9 @@ def sync(
     locations, ...) can attach to it, or None when no metastore is assigned.
     """
     metastore = get(api_session)
-    if metastore is None:
-        return None
-    transformed = transform(metastore)
+    # Load empty + cleanup when the workspace has no metastore so a workspace
+    # that lost its assignment does not leave a stale metastore node behind.
+    transformed = transform(metastore) if metastore is not None else []
     load_metastores(
         neo4j_session,
         transformed,
@@ -33,7 +33,7 @@ def sync(
         common_job_parameters["UPDATE_TAG"],
     )
     cleanup(neo4j_session, common_job_parameters)
-    return metastore["metastore_id"]
+    return metastore["metastore_id"] if metastore is not None else None
 
 
 @timeit

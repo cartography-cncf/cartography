@@ -33,6 +33,37 @@ from cartography.util import timeit
 logger = logging.getLogger(__name__)
 
 
+def _cleanup_unity_catalog(
+    neo4j_session: neo4j.Session,
+    workspace_id: str,
+    common_job_parameters: dict,
+) -> None:
+    """Run cleanup for every Unity Catalog resource type.
+
+    Used when the workspace has no metastore so that stale UC nodes / grant
+    edges from a previous run (when it did have one) are removed even though we
+    skip the fetch/load phase.
+    """
+    for module in (
+        cartography.intel.databricks.storage_credentials,
+        cartography.intel.databricks.external_locations,
+        cartography.intel.databricks.catalogs,
+        cartography.intel.databricks.schemas,
+        cartography.intel.databricks.tables,
+        cartography.intel.databricks.volumes,
+        cartography.intel.databricks.functions,
+        cartography.intel.databricks.connections,
+        cartography.intel.databricks.registered_models,
+        cartography.intel.databricks.online_tables,
+        cartography.intel.databricks.vector_search,
+        cartography.intel.databricks.artifact_allowlists,
+    ):
+        module.cleanup(neo4j_session, common_job_parameters)
+    cartography.intel.databricks.grants.cleanup(
+        neo4j_session, workspace_id, common_job_parameters["UPDATE_TAG"]
+    )
+
+
 @timeit
 def start_databricks_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
     """
@@ -172,9 +203,10 @@ def start_databricks_ingestion(neo4j_session: neo4j.Session, config: Config) -> 
     if metastore_id is None:
         logger.info(
             "Databricks workspace %s has no Unity Catalog metastore assigned - "
-            "skipping UC data-plane sync.",
+            "purging any stale UC data and skipping the UC data-plane sync.",
             workspace_id,
         )
+        _cleanup_unity_catalog(neo4j_session, workspace_id, common_job_parameters)
         return
 
     # Storage credentials + external locations first so catalogs / tables /
@@ -260,6 +292,7 @@ def start_databricks_ingestion(neo4j_session: neo4j.Session, config: Config) -> 
         neo4j_session,
         api_client,
         workspace_id,
+        metastore_id,
         common_job_parameters,
     )
 

@@ -54,6 +54,7 @@ def test_load_databricks_vector_search(mock_ep, mock_idx, neo4j_session):
         neo4j_session,
         api_session,
         DATABRICKS_WORKSPACE_ID,
+        DATABRICKS_METASTORE_ID,
         common_job_parameters,
     )
 
