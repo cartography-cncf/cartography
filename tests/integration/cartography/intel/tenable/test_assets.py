@@ -324,6 +324,18 @@ def test_sync_tags(neo4j_session, mocker):
     )
     assert actual_rels == {(ASSET_ID_1, TAG_ID_1)}
 
+    # Assert the new TAGGED edge (parallel to HAS_TAG) is also created
+    tagged_rels = check_rels(
+        neo4j_session,
+        "TenableAsset",
+        "id",
+        "TenableAssetTag",
+        "id",
+        "TAGGED",
+        rel_direction_right=True,
+    )
+    assert tagged_rels == {(ASSET_ID_1, TAG_ID_1)}
+
 
 def test_sync_assets_empty_response(neo4j_session, mocker):
     """Test that asset sync handles an empty export gracefully."""
