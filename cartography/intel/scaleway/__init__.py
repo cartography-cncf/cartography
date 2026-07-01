@@ -22,6 +22,7 @@ import cartography.intel.scaleway.kms.keys
 import cartography.intel.scaleway.loadbalancers.loadbalancers
 import cartography.intel.scaleway.network.ips
 import cartography.intel.scaleway.network.private_networks
+import cartography.intel.scaleway.network.public_gateways
 import cartography.intel.scaleway.network.vpcs
 import cartography.intel.scaleway.projects
 import cartography.intel.scaleway.secrets.secrets
@@ -193,6 +194,15 @@ def start_scaleway_ingestion(neo4j_session: neo4j.Session, config: Config) -> No
         update_tag=config.update_tag,
     )
     cartography.intel.scaleway.network.ips.sync(
+        neo4j_session,
+        client,
+        common_job_parameters,
+        org_id=config.scaleway_org,
+        projects_id=projects_id,
+        update_tag=config.update_tag,
+    )
+    # Public Gateways (loaded after PrivateNetworks so ATTACHED_TO edges resolve).
+    cartography.intel.scaleway.network.public_gateways.sync(
         neo4j_session,
         client,
         common_job_parameters,

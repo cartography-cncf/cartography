@@ -21,6 +21,8 @@ PRJ -- RESOURCE --> VPC(Vpc)
 PRJ -- RESOURCE --> PN(PrivateNetwork)
 PRJ -- RESOURCE --> SUB(Subnet)
 PRJ -- RESOURCE --> IP(IP)
+PRJ -- RESOURCE --> PGW(PublicGateway)
+PRJ -- RESOURCE --> PAT(PublicGatewayPatRule)
 PRJ -- RESOURCE --> LB(LoadBalancer)
 PRJ -- RESOURCE --> FE(LBFrontend)
 PRJ -- RESOURCE --> BE(LBBackend)
@@ -50,6 +52,8 @@ VOL -- HAS --> SNAP
 VPC -- HAS --> PN
 PN -- HAS --> SUB
 SUB -- HAS --> IP
+PGW -- ATTACHED_TO --> PN
+PGW -- HAS --> PAT
 LB -- HAS --> FE
 LB -- HAS --> BE
 FE -- ROUTES_TO --> BE
@@ -731,6 +735,71 @@ An IP is an IPAM-managed IP address (IPv4 or IPv6) allocated within a Private Ne
 - A `Subnet` has `IP`
     ```
     (:ScalewaySubnet)-[:HAS]->(:ScalewayIP)
+    ```
+
+### ScalewayPublicGateway
+
+Represents a Scaleway Public Gateway: a managed NAT gateway providing internet egress (and optional SSH bastion) to instances on attached private networks.
+
+| Field      | Description                                  |
+|------------|----------------------------------------------|
+| id         | Gateway UUID.                                |
+| name       | Gateway name.                                |
+| type_      | Commercial gateway type (e.g. `VPC-GW-S`).   |
+| bandwidth  | Gateway bandwidth in Mbps.                   |
+| status     | Gateway status (`running`, `stopped`, ...).  |
+| tags       | Gateway tags.                                |
+| ipv4_address | Public egress IP of the gateway.           |
+| bastion_enabled | True if the SSH bastion is enabled.      |
+| bastion_port | Port the SSH bastion listens on.           |
+| bastion_allowed_ips | CIDRs allowed to reach the bastion, if restricted. |
+| smtp_enabled | True if outbound SMTP is allowed.          |
+| is_legacy  | True if this is a legacy (v1) gateway.       |
+| version    | Gateway software version.                    |
+| zone       | Zone the gateway lives in.                   |
+| created_at | Creation timestamp.                          |
+| updated_at | Last update timestamp.                       |
+| lastupdated | Timestamp of the last update                |
+
+#### Relationships
+- A `PublicGateway` belongs to a `Project`.
+    ```
+    (:ScalewayProject)-[:RESOURCE]->(:ScalewayPublicGateway)
+    ```
+- A `PublicGateway` provides NAT / egress to one or more `PrivateNetwork`s.
+    ```
+    (:ScalewayPublicGateway)-[:ATTACHED_TO]->(:ScalewayPrivateNetwork)
+    ```
+- A `PublicGateway` has `PublicGatewayPatRule` port-forwarding rules.
+    ```
+    (:ScalewayPublicGateway)-[:HAS]->(:ScalewayPublicGatewayPatRule)
+    ```
+
+
+### ScalewayPublicGatewayPatRule
+
+Represents a PAT (Port Address Translation) rule on a Public Gateway: it forwards a public port on the gateway's IP to a private IP/port, exposing an internal service to the internet.
+
+| Field      | Description                                  |
+|------------|----------------------------------------------|
+| id         | PAT rule UUID.                               |
+| public_port | Public port on the gateway IP.              |
+| private_ip | Destination private IP.                      |
+| private_port | Destination private port.                  |
+| protocol   | Forwarded protocol (`tcp`, `udp`, `both`).   |
+| zone       | Zone the rule lives in.                      |
+| created_at | Creation timestamp.                          |
+| updated_at | Last update timestamp.                       |
+| lastupdated | Timestamp of the last update                |
+
+#### Relationships
+- A `PublicGatewayPatRule` belongs to a `Project`.
+    ```
+    (:ScalewayProject)-[:RESOURCE]->(:ScalewayPublicGatewayPatRule)
+    ```
+- A `PublicGatewayPatRule` is defined on a `PublicGateway`.
+    ```
+    (:ScalewayPublicGateway)-[:HAS]->(:ScalewayPublicGatewayPatRule)
     ```
 
 ### ScalewayLoadBalancer
