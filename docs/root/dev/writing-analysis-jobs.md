@@ -28,6 +28,24 @@ AnalysisJob(
 )
 ```
 
+The typed syntax has three parts:
+
+```text
+AnalysisJob(scope=ScopedTo(...))
+    -> AnalysisStatement(match="MATCH ...", effects=(...))
+        -> SetProperty / AddToSet / AddRelationship / SetRelationshipProperty
+```
+
+```mermaid
+flowchart LR
+    job["AnalysisJob"] --> scope["scope: ScopedTo"]
+    job --> stmt["AnalysisStatement"]
+    stmt --> match["match: Cypher pattern"]
+    stmt --> effects["effects"]
+    effects --> write["generated write query"]
+    effects --> cleanup["generated cleanup query"]
+```
+
 Common primitives:
 
 | Primitive | Use |
@@ -40,7 +58,9 @@ Common primitives:
 | `Expr("cypher")` | Use a Cypher expression instead of a literal value. |
 | `ScopedTo(label, id_param)` | Constrain generated cleanup to one tenant/account/project. |
 
-`label` is required only when the effect should generate property cleanup. Relationship cleanup is scoped by `source_label` / `target_label`. For relationships, `scoped_to="source"` or `"target"` chooses which endpoint is attached to the `ScopedTo(...)` node during cleanup.
+`label` is required for node-property effects because cleanup needs to know which label owns the property. `Expr("...")` is for Cypher values like `$UPDATE_TAG`, `timestamp()`, or `coalesce(...)`; plain Python strings become quoted Cypher strings.
+
+`ScopedTo(...)` lives on the `AnalysisJob` and describes the resource boundary used during generated cleanup, for example `ScopedTo("AWSAccount", "AWS_ID")`. For relationship effects, `scoped_to="source"` or `"target"` lives on `AddRelationship` and chooses which endpoint is connected to that scoped resource. Keep the default `source` when the source node is under the scoped account/project; override it to `target` when only the target node is under that scope.
 
 ## Example job: which of my EC2 instances is accessible to any host on the internet?
 The easiest way to learn how to write an Analysis Job is through an example. One of the Analysis Jobs included by default in Cartography's source tree is `AWS_EC2_ASSET_EXPOSURE_INSTANCE` in [cartography/analysis/aws/analysis.py](https://github.com/cartography-cncf/cartography/blob/master/cartography/analysis/aws/analysis.py). This tutorial covers only the EC2 instance part of that job, but after reading this you should be able to understand the other steps in that file.
