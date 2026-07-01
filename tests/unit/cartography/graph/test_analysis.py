@@ -14,6 +14,7 @@ from cartography.graph.analysis import ScopedTo
 from cartography.graph.analysis import SetProperty
 from cartography.graph.analysis import SetRelationshipProperty
 from cartography.graph.job import GraphJob
+from tests.unit.cartography.graph.helpers import clean_query_list
 
 
 def test_relationship_job_appends_cleanup_statement():
@@ -79,13 +80,17 @@ def test_statement_compiles_add_relationship_effect():
     )
 
     # Act and assert
-    assert statement.compile_query() == (
-        "MATCH (l:AWSLambda)\n"
-        "MATCH (e:ECRImage)\n"
-        "WHERE e.digest = 'sha256:' + l.codesha256\n"
-        "MERGE (l)-[r:HAS]->(e)\n"
-        "ON CREATE SET r.firstseen = timestamp()\n"
-        "SET r.lastupdated = $UPDATE_TAG"
+    assert clean_query_list([statement.compile_query()]) == clean_query_list(
+        [
+            """
+            MATCH (l:AWSLambda)
+            MATCH (e:ECRImage)
+            WHERE e.digest = 'sha256:' + l.codesha256
+            MERGE (l)-[r:HAS]->(e)
+            ON CREATE SET r.firstseen = timestamp()
+            SET r.lastupdated = $UPDATE_TAG
+            """
+        ]
     )
 
 

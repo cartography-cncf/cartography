@@ -9,6 +9,39 @@ There are 3 stages to a cartography sync. First we create database indexes, next
 ### How to run
 Built-in enrichment Analysis Jobs are typed Python definitions under `cartography/models/*/analysis.py`; the remaining built-in JSON jobs are migration/cleanup-only compatibility jobs. Custom JSON Analysis Jobs are still supported with `--analysis-job-directory`; each JSON file contains a list of Neo4j statements which get run in order. Although the order of statements within a single job is preserved, we don't guarantee the order in which jobs are executed.
 
+### Typed job syntax
+Typed Analysis Jobs declare a Cypher match pattern and the effect Cartography should apply. The framework compiles the write query and the cleanup query from those effects.
+
+```python
+AnalysisJob(
+    name="AWS EC2 instance internet exposure",
+    short_name="aws_ec2_asset_exposure_instance",
+    statements=(
+        AnalysisStatement(
+            match="MATCH (instance:EC2Instance) WHERE instance.publicipaddress IS NOT NULL",
+            effects=(
+                SetProperty("instance", "exposed_internet", True, label="EC2Instance"),
+                AddToSet("instance", "exposed_internet_type", "direct", label="EC2Instance"),
+            ),
+        ),
+    ),
+)
+```
+
+Common primitives:
+
+| Primitive | Use |
+| --- | --- |
+| `SetProperty(node, property, value, label=...)` | Set one node property and derive cleanup for that label. |
+| `SetProperties(node, {property: value}, label=...)` | Set several node properties with one effect. |
+| `AddToSet(node, property, value, label=...)` | Add a value to a list property without duplicates. |
+| `AddRelationship(source, rel, target, source_label=..., target_label=...)` | MERGE a relationship, set `firstseen` on create, set `lastupdated` every run, and derive stale-edge cleanup. |
+| `SetRelationshipProperty(rel, property, value, source_label=..., rel_label=...)` | Set a relationship property and derive property cleanup. |
+| `Expr("cypher")` | Use a Cypher expression instead of a literal value. |
+| `ScopedTo(label, id_param)` | Constrain generated cleanup to one tenant/account/project. |
+
+`label` is required only when the effect should generate property cleanup. Relationship cleanup is scoped by `source_label` / `target_label`. For relationships, `scoped_to="source"` or `"target"` chooses which endpoint is attached to the `ScopedTo(...)` node during cleanup.
+
 ## Example job: which of my EC2 instances is accessible to any host on the internet?
 The easiest way to learn how to write an Analysis Job is through an example. One of the Analysis Jobs included by default in Cartography's source tree is `AWS_EC2_ASSET_EXPOSURE_INSTANCE` in [cartography/models/aws/analysis.py](https://github.com/cartography-cncf/cartography/blob/master/cartography/models/aws/analysis.py). This tutorial covers only the EC2 instance part of that job, but after reading this you should be able to understand the other steps in that file.
 
