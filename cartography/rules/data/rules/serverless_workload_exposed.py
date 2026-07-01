@@ -145,6 +145,77 @@ _aws_lambda_anonymous_access = Fact(
 # discriminate publicly-invokable Function Apps from privately-bound ones.
 
 
+# Scaleway Facts
+_scaleway_serverless_function_public = Fact(
+    id="scaleway_serverless_function_public",
+    name="Internet-Accessible Scaleway Serverless Function Attack Surface",
+    description=(
+        "Scaleway Serverless Functions with privacy = 'public'. A public "
+        "function is invokable over its auto-assigned HTTPS domain without "
+        "any authentication token, exposing it to anonymous callers on the "
+        "internet."
+    ),
+    cypher_query="""
+    MATCH (prj:ScalewayProject)-[:RESOURCE]->(fn:ScalewayServerlessFunction)
+    WHERE fn.privacy = 'public'
+    RETURN
+        fn.id AS id,
+        fn.name AS name,
+        fn.region AS region,
+        fn.runtime AS runtime,
+        'scaleway_function_public' AS exposure_type
+    """,
+    cypher_visual_query="""
+    MATCH p=(prj:ScalewayProject)-[:RESOURCE]->(fn:ScalewayServerlessFunction)
+    WHERE fn.privacy = 'public'
+    RETURN *
+    """,
+    cypher_count_query="""
+    MATCH (fn:ScalewayServerlessFunction)
+    RETURN COUNT(fn) AS count
+    """,
+    asset_id_field="id",
+    identity_fields=("id",),
+    module=Module.SCALEWAY,
+    maturity=Maturity.EXPERIMENTAL,
+)
+
+
+_scaleway_serverless_container_public = Fact(
+    id="scaleway_serverless_container_public",
+    name="Internet-Accessible Scaleway Serverless Container Attack Surface",
+    description=(
+        "Scaleway Serverless Containers with privacy = 'public'. A public "
+        "container is invokable over its auto-assigned HTTPS domain without "
+        "any authentication token, exposing it to anonymous callers on the "
+        "internet."
+    ),
+    cypher_query="""
+    MATCH (prj:ScalewayProject)-[:RESOURCE]->(c:ScalewayServerlessContainer)
+    WHERE c.privacy = 'public'
+    RETURN
+        c.id AS id,
+        c.name AS name,
+        c.region AS region,
+        null AS runtime,
+        'scaleway_container_public' AS exposure_type
+    """,
+    cypher_visual_query="""
+    MATCH p=(prj:ScalewayProject)-[:RESOURCE]->(c:ScalewayServerlessContainer)
+    WHERE c.privacy = 'public'
+    RETURN *
+    """,
+    cypher_count_query="""
+    MATCH (c:ScalewayServerlessContainer)
+    RETURN COUNT(c) AS count
+    """,
+    asset_id_field="id",
+    identity_fields=("id",),
+    module=Module.SCALEWAY,
+    maturity=Maturity.EXPERIMENTAL,
+)
+
+
 # Rule
 class ServerlessWorkloadExposed(Finding):
     name: str | None = None
@@ -160,14 +231,16 @@ serverless_workload_exposed = Rule(
     description=(
         "Serverless compute reachable from the public internet via "
         "permissive ingress, anonymous IAM bindings, or unauthenticated "
-        "Function URLs. Covers GCP Cloud Run, GCP Cloud Functions, and "
-        "AWS Lambda."
+        "Function URLs. Covers GCP Cloud Run, GCP Cloud Functions, "
+        "AWS Lambda, and Scaleway Serverless Functions / Containers."
     ),
     output_model=ServerlessWorkloadExposed,
     facts=(
         _aws_lambda_anonymous_access,
         _gcp_cloud_run_public_ingress,
         _gcp_cloud_function_http_trigger,
+        _scaleway_serverless_function_public,
+        _scaleway_serverless_container_public,
     ),
     tags=(
         "infrastructure",
