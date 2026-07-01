@@ -4,6 +4,7 @@ from unittest.mock import patch
 import cartography.intel.scaleway.baremetal.apple_silicon
 import cartography.intel.scaleway.baremetal.dedibox
 import cartography.intel.scaleway.baremetal.elastic_metal
+import cartography.intel.scaleway.baremetal.flexible_ips
 import tests.data.scaleway.baremetal
 from tests.integration.cartography.intel.scaleway.test_projects import (
     _ensure_local_neo4j_has_test_projects_and_orgs,
@@ -127,4 +128,73 @@ def test_load_scaleway_dedibox(_mock_get, neo4j_session):
         rel_direction_right=False,
     ) == {
         ("12345", TEST_PROJECT_ID),
+    }
+
+
+@patch.object(
+    cartography.intel.scaleway.baremetal.elastic_metal,
+    "get",
+    return_value=tests.data.scaleway.baremetal.SCALEWAY_ELASTIC_METAL_SERVERS,
+)
+@patch.object(
+    cartography.intel.scaleway.baremetal.flexible_ips,
+    "get",
+    return_value=tests.data.scaleway.baremetal.SCALEWAY_ELASTIC_METAL_FLEXIBLE_IPS,
+)
+def test_load_scaleway_elastic_metal_flexible_ips(
+    _mock_fip_get, _mock_em_get, neo4j_session
+):
+    # Arrange
+    client = Mock()
+    common_job_parameters = {"UPDATE_TAG": TEST_UPDATE_TAG, "ORG_ID": TEST_ORG_ID}
+    _ensure_local_neo4j_has_test_projects_and_orgs(neo4j_session)
+    cartography.intel.scaleway.baremetal.elastic_metal.sync(
+        neo4j_session,
+        client,
+        common_job_parameters,
+        org_id=TEST_ORG_ID,
+        projects_id=[TEST_PROJECT_ID],
+        update_tag=TEST_UPDATE_TAG,
+    )
+
+    # Act
+    cartography.intel.scaleway.baremetal.flexible_ips.sync(
+        neo4j_session,
+        client,
+        common_job_parameters,
+        org_id=TEST_ORG_ID,
+        projects_id=[TEST_PROJECT_ID],
+        update_tag=TEST_UPDATE_TAG,
+    )
+
+    # Assert node + project + IDENTIFIES edge to its Elastic Metal server
+    assert check_nodes(
+        neo4j_session, "ScalewayElasticMetalFlexibleIp", ["id", "ip_address"]
+    ) == {
+        ("fip00000-0000-0000-0000-000000000001", "51.15.9.9"),
+    }
+    assert check_rels(
+        neo4j_session,
+        "ScalewayElasticMetalFlexibleIp",
+        "id",
+        "ScalewayProject",
+        "id",
+        "RESOURCE",
+        rel_direction_right=False,
+    ) == {
+        ("fip00000-0000-0000-0000-000000000001", TEST_PROJECT_ID),
+    }
+    assert check_rels(
+        neo4j_session,
+        "ScalewayElasticMetalFlexibleIp",
+        "id",
+        "ScalewayElasticMetalServer",
+        "id",
+        "IDENTIFIES",
+        rel_direction_right=True,
+    ) == {
+        (
+            "fip00000-0000-0000-0000-000000000001",
+            "11111111-1111-1111-1111-111111111111",
+        ),
     }

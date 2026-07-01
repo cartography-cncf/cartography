@@ -7,6 +7,7 @@ from scaleway.baremetal.v1 import Server as ElasticMetalServer
 from scaleway.dedibox.v1 import IP as DediboxIP
 from scaleway.dedibox.v1 import NetworkInterface
 from scaleway.dedibox.v1 import ServerSummary as DediboxServer
+from scaleway.flexibleip.v1alpha1 import FlexibleIP as ElasticMetalFlexibleIP
 
 TEST_ORG_ID = "0681c477-fbb9-4820-b8d6-0eef10cfcd6d"
 TEST_PROJECT_ID = "0681c477-fbb9-4820-b8d6-0eef10cfcd6d"
@@ -103,6 +104,23 @@ SCALEWAY_DEDIBOX_SERVERS = [
         is_outsourced=False,
         qinq=False,
         is_hds=False,
+        created_at=datetime(2025, 3, 20, 10, 58, 0, 784077, tzinfo=tzutc()),
+        updated_at=datetime(2025, 3, 20, 10, 58, 0, 784077, tzinfo=tzutc()),
+    ),
+]
+
+SCALEWAY_ELASTIC_METAL_FLEXIBLE_IPS = [
+    ElasticMetalFlexibleIP(
+        id="fip00000-0000-0000-0000-000000000001",
+        organization_id=TEST_ORG_ID,
+        project_id=TEST_PROJECT_ID,
+        description="em flexible ip",
+        tags=["demo"],
+        status="attached",
+        ip_address="51.15.9.9",
+        reverse="em-demo.example.com",
+        zone="fr-par-1",
+        server_id="11111111-1111-1111-1111-111111111111",
         created_at=datetime(2025, 3, 20, 10, 58, 0, 784077, tzinfo=tzutc()),
         updated_at=datetime(2025, 3, 20, 10, 58, 0, 784077, tzinfo=tzutc()),
     ),

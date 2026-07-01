@@ -1,6 +1,7 @@
 from datetime import datetime
 
 from dateutil.tz import tzutc
+from scaleway.datawarehouse.v1beta1 import Deployment as DWDeployment
 from scaleway.mongodb.v1 import Endpoint as MongoEndpoint
 from scaleway.mongodb.v1 import EndpointPrivateNetworkDetails as MongoPrivateNetDetails
 from scaleway.mongodb.v1 import EndpointPublicNetworkDetails as MongoPublicNetDetails
@@ -19,6 +20,8 @@ from scaleway.redis.v1 import Cluster as RedisCluster
 from scaleway.redis.v1 import Endpoint as RedisEndpoint
 from scaleway.redis.v1 import PrivateNetwork as RedisPrivateNet
 from scaleway.redis.v1 import PublicNetwork as RedisPublicNet
+from scaleway.searchdb.v1alpha1 import Deployment as SearchDeployment
+from scaleway.serverless_sqldb.v1alpha1 import Database as ServerlessSqlDatabase
 
 TEST_ORG_ID = "0681c477-fbb9-4820-b8d6-0eef10cfcd6d"
 TEST_PROJECT_ID = "0681c477-fbb9-4820-b8d6-0eef10cfcd6d"
@@ -172,5 +175,62 @@ SCALEWAY_MONGO_INSTANCES = [
         volume=MongoVolume(type_=MongoVolumeType.SBS_5K, size_bytes=5368709120),
         created_at=datetime(2025, 3, 20, 14, 49, 48, 107731, tzinfo=tzutc()),
         snapshot_schedule=None,
+    ),
+]
+
+SCALEWAY_DATAWAREHOUSE = [
+    DWDeployment(
+        id="dw000000-0000-0000-0000-000000000001",
+        name="analytics-dw",
+        organization_id="0681c477-fbb9-4820-b8d6-0eef10cfcd6d",
+        project_id="0681c477-fbb9-4820-b8d6-0eef10cfcd6d",
+        status="ready",
+        tags=["demo"],
+        version="24.8",
+        replica_count=2,
+        shard_count=1,
+        cpu_min=2,
+        cpu_max=8,
+        endpoints=[],
+        ram_per_cpu=4,
+        region="fr-par",
+        created_at=datetime(2025, 3, 20, 10, 58, 0, 784077, tzinfo=tzutc()),
+        updated_at=datetime(2025, 3, 20, 10, 58, 0, 784077, tzinfo=tzutc()),
+    ),
+]
+
+SCALEWAY_SERVERLESS_SQL = [
+    ServerlessSqlDatabase(
+        id="sq000000-0000-0000-0000-000000000001",
+        name="serverless-pg",
+        status="ready",
+        endpoint="postgres://serverless-pg.fr-par.sdb.scw.cloud:5432/main",
+        organization_id="0681c477-fbb9-4820-b8d6-0eef10cfcd6d",
+        project_id="0681c477-fbb9-4820-b8d6-0eef10cfcd6d",
+        region="fr-par",
+        cpu_min=0,
+        cpu_max=8,
+        cpu_current=1,
+        started=True,
+        engine_major_version="16",
+        created_at=datetime(2025, 3, 20, 10, 58, 0, 784077, tzinfo=tzutc()),
+    ),
+]
+
+SCALEWAY_SEARCHDB = [
+    SearchDeployment(
+        id="se000000-0000-0000-0000-000000000001",
+        name="logs-search",
+        organization_id="0681c477-fbb9-4820-b8d6-0eef10cfcd6d",
+        project_id="0681c477-fbb9-4820-b8d6-0eef10cfcd6d",
+        status="ready",
+        tags=["demo"],
+        node_amount=3,
+        node_type="essentials",
+        endpoints=[],
+        version="2.17",
+        region="fr-par",
+        created_at=datetime(2025, 3, 20, 10, 58, 0, 784077, tzinfo=tzutc()),
+        updated_at=datetime(2025, 3, 20, 10, 58, 0, 784077, tzinfo=tzutc()),
     ),
 ]

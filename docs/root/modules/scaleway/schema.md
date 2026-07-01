@@ -1663,3 +1663,177 @@ Represents a Scaleway Serverless Job definition (a runnable, optionally schedule
     ```
     (:ScalewayProject)-[:RESOURCE]->(:ScalewayServerlessJobDefinition)
     ```
+
+
+### ScalewayFileSystem
+
+Represents a File Storage file system in Scaleway.
+
+> **Ontology Mapping**: This node has the extra label `FileStorage` to enable cross-platform queries for managed file storage across different providers.
+
+| Field                 | Description                            |
+|-----------------------|----------------------------------------|
+| id                    | ID of the file system.                 |
+| name                  | Name of the file system.               |
+| size                  | Size of the file system in bytes.      |
+| status                | Status of the file system.             |
+| tags                  | Tags attached to the file system.      |
+| number_of_attachments | Number of resources it is attached to. |
+| region                | Region the file system lives in.       |
+| created_at            | Creation timestamp.                    |
+| updated_at            | Last update timestamp.                 |
+| lastupdated           | Timestamp of the last update           |
+
+#### Relationships
+- A `FileSystem` belongs to a `Project`.
+    ```
+    (:ScalewayProject)-[:RESOURCE]->(:ScalewayFileSystem)
+    ```
+
+
+### ScalewayDataWarehouseDeployment
+
+Represents a Data Warehouse (ClickHouse) deployment in Scaleway.
+
+> **Ontology Mapping**: This node has the extra label `Database`.
+
+| Field         | Description                                  |
+|---------------|----------------------------------------------|
+| id            | ID of the deployment.                        |
+| name          | Name of the deployment.                      |
+| status        | Status of the deployment.                    |
+| tags          | Tags attached to the deployment.             |
+| version       | Engine version.                              |
+| replica_count | Number of replicas.                          |
+| shard_count   | Number of shards.                            |
+| cpu_min       | Minimum vCPU.                                |
+| cpu_max       | Maximum vCPU.                                |
+| ram_per_cpu   | RAM per vCPU.                                |
+| is_public     | True if any endpoint is public-facing.       |
+| region        | Region the deployment lives in.              |
+| created_at    | Creation timestamp.                          |
+| updated_at    | Last update timestamp.                       |
+| lastupdated   | Timestamp of the last update                 |
+
+#### Relationships
+- A `DataWarehouseDeployment` belongs to a `Project`.
+    ```
+    (:ScalewayProject)-[:RESOURCE]->(:ScalewayDataWarehouseDeployment)
+    ```
+
+
+### ScalewayServerlessSQLDatabase
+
+Represents a Serverless SQL Database (PostgreSQL) in Scaleway.
+
+> **Ontology Mapping**: This node has the extra label `Database`.
+
+| Field                | Description                            |
+|----------------------|----------------------------------------|
+| id                   | ID of the database.                    |
+| name                 | Name of the database.                  |
+| status               | Status of the database.                |
+| endpoint             | Connection endpoint URL.               |
+| cpu_min              | Minimum vCPU.                          |
+| cpu_max              | Maximum vCPU.                          |
+| cpu_current          | Current vCPU.                          |
+| started              | Whether the database is started.       |
+| engine_major_version | Major engine version.                  |
+| region               | Region the database lives in.          |
+| created_at           | Creation timestamp.                    |
+| lastupdated          | Timestamp of the last update           |
+
+#### Relationships
+- A `ServerlessSQLDatabase` belongs to a `Project`.
+    ```
+    (:ScalewayProject)-[:RESOURCE]->(:ScalewayServerlessSQLDatabase)
+    ```
+
+
+### ScalewaySearchDeployment
+
+Represents a managed OpenSearch deployment (SearchDB) in Scaleway.
+
+> **Ontology Mapping**: This node has the extra label `Database`.
+
+| Field       | Description                                  |
+|-------------|----------------------------------------------|
+| id          | ID of the deployment.                        |
+| name        | Name of the deployment.                      |
+| status      | Status of the deployment.                    |
+| tags        | Tags attached to the deployment.             |
+| node_amount | Number of nodes.                             |
+| node_type   | Node type.                                   |
+| version     | Engine version.                              |
+| is_public   | True if any endpoint is public-facing.       |
+| region      | Region the deployment lives in.              |
+| created_at  | Creation timestamp.                          |
+| updated_at  | Last update timestamp.                       |
+| lastupdated | Timestamp of the last update                 |
+
+#### Relationships
+- A `SearchDeployment` belongs to a `Project`.
+    ```
+    (:ScalewayProject)-[:RESOURCE]->(:ScalewaySearchDeployment)
+    ```
+
+
+### ScalewayElasticMetalFlexibleIp
+
+Represents a flexible (portable) public IP for Elastic Metal servers in Scaleway.
+
+| Field       | Description                                  |
+|-------------|----------------------------------------------|
+| id          | ID of the flexible IP.                       |
+| description | Description of the flexible IP.              |
+| tags        | Tags attached to the flexible IP.            |
+| status      | Status of the flexible IP.                   |
+| ip_address  | The IP address.                              |
+| reverse     | Reverse DNS value.                           |
+| server_id   | ID of the server the IP is attached to.      |
+| zone        | Availability zone.                           |
+| created_at  | Creation timestamp.                          |
+| updated_at  | Last update timestamp.                       |
+| lastupdated | Timestamp of the last update                 |
+
+#### Relationships
+- An `ElasticMetalFlexibleIp` belongs to a `Project`.
+    ```
+    (:ScalewayProject)-[:RESOURCE]->(:ScalewayElasticMetalFlexibleIp)
+    ```
+- An `ElasticMetalFlexibleIp` identifies an `ElasticMetalServer`.
+    ```
+    (:ScalewayElasticMetalFlexibleIp)-[:IDENTIFIES]->(:ScalewayElasticMetalServer)
+    ```
+
+
+### ScalewayRegisteredDomain
+
+Represents a domain registered with the Scaleway registrar.
+
+| Field                               | Description                     |
+|-------------------------------------|---------------------------------|
+| id                                  | Domain name (unique id).        |
+| name                                | Domain name.                    |
+| status                              | Status of the domain.           |
+| registrar                           | Registrar of the domain.        |
+| is_external                         | Whether the domain is external. |
+| epp_code                            | EPP status codes.               |
+| auto_renew_status                   | Auto-renewal status.            |
+| dnssec_status                       | DNSSEC status.                  |
+| external_domain_registration_status | External registration status.  |
+| transfer_registration_status        | Transfer registration status.   |
+| expired_at                          | Expiration timestamp.           |
+| created_at                          | Creation timestamp.             |
+| updated_at                          | Last update timestamp.          |
+| lastupdated                         | Timestamp of the last update    |
+
+#### Relationships
+- A `RegisteredDomain` belongs to an `Organization`.
+    ```
+    (:ScalewayOrganization)-[:RESOURCE]->(:ScalewayRegisteredDomain)
+    ```
+- A `RegisteredDomain` belongs to a `Project`.
+    ```
+    (:ScalewayProject)-[:RESOURCE]->(:ScalewayRegisteredDomain)
+    ```

@@ -1,13 +1,19 @@
 from unittest.mock import Mock
 from unittest.mock import patch
 
+import cartography.intel.scaleway.databases.datawarehouse
 import cartography.intel.scaleway.databases.mongodb
 import cartography.intel.scaleway.databases.rdb
 import cartography.intel.scaleway.databases.redis
+import cartography.intel.scaleway.databases.searchdb
+import cartography.intel.scaleway.databases.serverless_sql
 import cartography.intel.scaleway.network.private_networks
+from tests.data.scaleway.databases import SCALEWAY_DATAWAREHOUSE
 from tests.data.scaleway.databases import SCALEWAY_MONGO_INSTANCES
 from tests.data.scaleway.databases import SCALEWAY_RDB_INSTANCES
 from tests.data.scaleway.databases import SCALEWAY_REDIS_CLUSTERS
+from tests.data.scaleway.databases import SCALEWAY_SEARCHDB
+from tests.data.scaleway.databases import SCALEWAY_SERVERLESS_SQL
 from tests.data.scaleway.databases import TEST_MONGO_INSTANCE_ID
 from tests.data.scaleway.databases import TEST_PRIVATE_NETWORK_ID
 from tests.data.scaleway.databases import TEST_RDB_INSTANCE_ID
@@ -233,3 +239,106 @@ def test_load_scaleway_databases(
         None,
         "scaleway",
     ) in rdb_rows
+
+
+@patch.object(
+    cartography.intel.scaleway.databases.datawarehouse,
+    "get",
+    return_value=SCALEWAY_DATAWAREHOUSE,
+)
+def test_load_scaleway_datawarehouse(_mock_get, neo4j_session):
+    client = Mock()
+    common_job_parameters = {"UPDATE_TAG": TEST_UPDATE_TAG, "ORG_ID": TEST_ORG_ID}
+    _ensure_local_neo4j_has_test_projects_and_orgs(neo4j_session)
+    cartography.intel.scaleway.databases.datawarehouse.sync(
+        neo4j_session,
+        client,
+        common_job_parameters,
+        org_id=TEST_ORG_ID,
+        projects_id=[TEST_PROJECT_ID],
+        update_tag=TEST_UPDATE_TAG,
+    )
+    assert check_nodes(
+        neo4j_session, "ScalewayDataWarehouseDeployment", ["id", "is_public"]
+    ) == {
+        ("dw000000-0000-0000-0000-000000000001", False),
+    }
+    assert check_rels(
+        neo4j_session,
+        "ScalewayDataWarehouseDeployment",
+        "id",
+        "ScalewayProject",
+        "id",
+        "RESOURCE",
+        rel_direction_right=False,
+    ) == {
+        ("dw000000-0000-0000-0000-000000000001", TEST_PROJECT_ID),
+    }
+
+
+@patch.object(
+    cartography.intel.scaleway.databases.serverless_sql,
+    "get",
+    return_value=SCALEWAY_SERVERLESS_SQL,
+)
+def test_load_scaleway_serverless_sql(_mock_get, neo4j_session):
+    client = Mock()
+    common_job_parameters = {"UPDATE_TAG": TEST_UPDATE_TAG, "ORG_ID": TEST_ORG_ID}
+    _ensure_local_neo4j_has_test_projects_and_orgs(neo4j_session)
+    cartography.intel.scaleway.databases.serverless_sql.sync(
+        neo4j_session,
+        client,
+        common_job_parameters,
+        org_id=TEST_ORG_ID,
+        projects_id=[TEST_PROJECT_ID],
+        update_tag=TEST_UPDATE_TAG,
+    )
+    assert check_nodes(
+        neo4j_session, "ScalewayServerlessSQLDatabase", ["id", "name"]
+    ) == {
+        ("sq000000-0000-0000-0000-000000000001", "serverless-pg"),
+    }
+    assert check_rels(
+        neo4j_session,
+        "ScalewayServerlessSQLDatabase",
+        "id",
+        "ScalewayProject",
+        "id",
+        "RESOURCE",
+        rel_direction_right=False,
+    ) == {
+        ("sq000000-0000-0000-0000-000000000001", TEST_PROJECT_ID),
+    }
+
+
+@patch.object(
+    cartography.intel.scaleway.databases.searchdb,
+    "get",
+    return_value=SCALEWAY_SEARCHDB,
+)
+def test_load_scaleway_searchdb(_mock_get, neo4j_session):
+    client = Mock()
+    common_job_parameters = {"UPDATE_TAG": TEST_UPDATE_TAG, "ORG_ID": TEST_ORG_ID}
+    _ensure_local_neo4j_has_test_projects_and_orgs(neo4j_session)
+    cartography.intel.scaleway.databases.searchdb.sync(
+        neo4j_session,
+        client,
+        common_job_parameters,
+        org_id=TEST_ORG_ID,
+        projects_id=[TEST_PROJECT_ID],
+        update_tag=TEST_UPDATE_TAG,
+    )
+    assert check_nodes(neo4j_session, "ScalewaySearchDeployment", ["id", "name"]) == {
+        ("se000000-0000-0000-0000-000000000001", "logs-search"),
+    }
+    assert check_rels(
+        neo4j_session,
+        "ScalewaySearchDeployment",
+        "id",
+        "ScalewayProject",
+        "id",
+        "RESOURCE",
+        rel_direction_right=False,
+    ) == {
+        ("se000000-0000-0000-0000-000000000001", TEST_PROJECT_ID),
+    }

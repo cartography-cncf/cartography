@@ -2,8 +2,10 @@ from unittest.mock import Mock
 from unittest.mock import patch
 
 import cartography.intel.scaleway.dns.dns
+import cartography.intel.scaleway.dns.domains
 from tests.data.scaleway.dns import SCALEWAY_DNS_RECORDS_BY_ZONE
 from tests.data.scaleway.dns import SCALEWAY_DNS_ZONES
+from tests.data.scaleway.dns import SCALEWAY_REGISTERED_DOMAINS
 from tests.data.scaleway.dns import TEST_RECORD_A_ID
 from tests.data.scaleway.dns import TEST_RECORD_MX_ID
 from tests.data.scaleway.dns import TEST_ZONE_ID
@@ -82,4 +84,51 @@ def test_load_scaleway_dns(_mock_get, neo4j_session):
     ) == {
         (TEST_ZONE_ID, TEST_RECORD_A_ID),
         (TEST_ZONE_ID, TEST_RECORD_MX_ID),
+    }
+
+
+@patch.object(
+    cartography.intel.scaleway.dns.domains,
+    "get",
+    return_value=SCALEWAY_REGISTERED_DOMAINS,
+)
+def test_load_scaleway_registered_domains(_mock_get, neo4j_session):
+    client = Mock()
+    common_job_parameters = {"UPDATE_TAG": TEST_UPDATE_TAG, "ORG_ID": TEST_ORG_ID}
+    _ensure_local_neo4j_has_test_projects_and_orgs(neo4j_session)
+
+    cartography.intel.scaleway.dns.domains.sync(
+        neo4j_session,
+        client,
+        common_job_parameters,
+        org_id=TEST_ORG_ID,
+        update_tag=TEST_UPDATE_TAG,
+    )
+
+    assert check_nodes(
+        neo4j_session, "ScalewayRegisteredDomain", ["id", "registrar"]
+    ) == {
+        ("example.com", "scaleway"),
+    }
+    assert check_rels(
+        neo4j_session,
+        "ScalewayRegisteredDomain",
+        "id",
+        "ScalewayOrganization",
+        "id",
+        "RESOURCE",
+        rel_direction_right=False,
+    ) == {
+        ("example.com", TEST_ORG_ID),
+    }
+    assert check_rels(
+        neo4j_session,
+        "ScalewayRegisteredDomain",
+        "id",
+        "ScalewayProject",
+        "id",
+        "RESOURCE",
+        rel_direction_right=False,
+    ) == {
+        ("example.com", TEST_PROJECT_ID),
     }
