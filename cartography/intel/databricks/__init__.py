@@ -5,6 +5,7 @@ import neo4j
 import cartography.intel.databricks.catalogs
 import cartography.intel.databricks.cluster_policies
 import cartography.intel.databricks.clusters
+import cartography.intel.databricks.connections
 import cartography.intel.databricks.external_locations
 import cartography.intel.databricks.groups
 import cartography.intel.databricks.instance_pools
@@ -215,5 +216,12 @@ def start_databricks_ingestion(neo4j_session: neo4j.Session, config: Config) -> 
         api_client,
         workspace_id,
         schemas,
+        common_job_parameters,
+    )
+
+    cartography.intel.databricks.connections.sync(
+        neo4j_session,
+        api_client,
+        workspace_id,
         common_job_parameters,
     )
