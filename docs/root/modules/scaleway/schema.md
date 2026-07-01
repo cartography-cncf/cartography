@@ -34,6 +34,9 @@ PRJ -- RESOURCE --> KP(KapsulePool)
 PRJ -- RESOURCE --> KN(KapsuleNode)
 PRJ -- RESOURCE --> CRN(ContainerRegistryNamespace)
 PRJ -- RESOURCE --> CRI(ContainerRegistryImage)
+PRJ -- RESOURCE --> RDB(RdbInstance)
+PRJ -- RESOURCE --> RC(RedisCluster)
+PRJ -- RESOURCE --> MGO(MongoDBInstance)
 INS -- MOUNTS --> VOL
 INS -- MEMBER_OF_SCALEWAY_SECURITY_GROUP --> SG
 SGR -- MEMBER_OF_SCALEWAY_SECURITY_GROUP --> SG
@@ -53,6 +56,9 @@ KC -- HAS --> KN
 KP -- HAS --> KN
 KC -- ATTACHED_TO --> PN
 CRN -- HAS --> CRI
+RDB -- ATTACHED_TO --> PN
+RC -- ATTACHED_TO --> PN
+MGO -- ATTACHED_TO --> PN
 USR -- MEMBER_OF --> GRP(ScalewayGroup)
 APIKEY(ScalewayApiKey) -- OWNED_BY --> USR
 APP -- MEMBER_OF --> GRP(ScalewayGroup)
@@ -1168,4 +1174,121 @@ Represents a container image stored in a Container Registry namespace.
 - A `ContainerRegistryImage` lives in a `ContainerRegistryNamespace`.
     ```
     (:ScalewayContainerRegistryNamespace)-[:HAS]->(:ScalewayContainerRegistryImage)
+    ```
+
+
+### ScalewayRdbInstance
+
+Represents a managed PostgreSQL / MySQL database instance (Scaleway "Managed Database for PostgreSQL and MySQL").
+
+> **Ontology Mapping**: This node has the extra label `Database` to enable cross-platform queries for databases across providers (e.g. RDSInstance, GCPCloudSQLInstance, AzureSQLDatabase).
+
+| Field      | Description                                  |
+|------------|----------------------------------------------|
+| id         | Instance UUID.                               |
+| name       | Instance name.                               |
+| status     | Instance status (`ready`, `provisioning`, ...). |
+| engine     | Engine and version (e.g. `PostgreSQL-15`, `MySQL-8`). |
+| node_type  | Commercial node type (e.g. `DB-DEV-S`).      |
+| is_ha_cluster | True if the instance runs in high-availability mode. |
+| encryption_at_rest_enabled | True if encryption at rest is enabled. |
+| volume_type | Storage volume type (`lssd`, `bssd`, `sbs_5k`, ...). |
+| volume_size | Storage volume size in bytes.               |
+| backup_schedule_disabled | True if automated backups are disabled. |
+| backup_schedule_retention_days | Backup retention in days, when configured. |
+| backup_same_region | True if backups are stored in the same region as the instance. |
+| tags       | Instance tags.                               |
+| is_public  | True if the instance exposes a publicly reachable endpoint (load balancer or direct access). |
+| public_endpoint_ip | IP of the public endpoint, if any.    |
+| public_endpoint_hostname | Hostname of the public endpoint, if any. |
+| public_endpoint_port | Port of the public endpoint, if any. |
+| private_endpoint_ip | IP of the first private-network endpoint, if any. |
+| private_endpoint_port | Port of the first private-network endpoint, if any. |
+| region     | Region the instance lives in.                |
+| created_at | Creation timestamp.                          |
+| lastupdated | Timestamp of the last update.               |
+
+#### Relationships
+- An `RdbInstance` belongs to a `Project`.
+    ```
+    (:ScalewayProject)-[:RESOURCE]->(:ScalewayRdbInstance)
+    ```
+- An `RdbInstance` may be attached to one or more `PrivateNetwork`s.
+    ```
+    (:ScalewayRdbInstance)-[:ATTACHED_TO]->(:ScalewayPrivateNetwork)
+    ```
+
+
+### ScalewayRedisCluster
+
+Represents a managed Redis cluster (Scaleway "Managed Database for Redis").
+
+> **Ontology Mapping**: This node has the extra label `Database` to enable cross-platform queries for databases across providers.
+
+| Field      | Description                                  |
+|------------|----------------------------------------------|
+| id         | Cluster UUID.                                |
+| name       | Cluster name.                                |
+| status     | Cluster status.                              |
+| version    | Redis version (e.g. `7.0.5`).                |
+| node_type  | Commercial node type.                        |
+| cluster_size | Number of nodes in the cluster.            |
+| tls_enabled | True if TLS is enabled for client traffic.  |
+| user_name  | Default admin user.                          |
+| tags       | Cluster tags.                                |
+| is_public  | True if the cluster exposes a publicly reachable endpoint. |
+| public_endpoint_ip | IP of the public endpoint, if any.    |
+| public_endpoint_port | Port of the public endpoint, if any. |
+| private_endpoint_ip | IP of the first private-network endpoint, if any. |
+| private_endpoint_port | Port of the first private-network endpoint, if any. |
+| zone       | Zone the cluster lives in.                   |
+| created_at | Creation timestamp.                          |
+| updated_at | Last update timestamp.                       |
+| lastupdated | Timestamp of the last update.               |
+
+#### Relationships
+- A `RedisCluster` belongs to a `Project`.
+    ```
+    (:ScalewayProject)-[:RESOURCE]->(:ScalewayRedisCluster)
+    ```
+- A `RedisCluster` may be attached to one or more `PrivateNetwork`s.
+    ```
+    (:ScalewayRedisCluster)-[:ATTACHED_TO]->(:ScalewayPrivateNetwork)
+    ```
+
+
+### ScalewayMongoDBInstance
+
+Represents a managed MongoDB instance (Scaleway "Managed Database for MongoDB").
+
+> **Ontology Mapping**: This node has the extra label `Database` to enable cross-platform queries for databases across providers.
+
+| Field      | Description                                  |
+|------------|----------------------------------------------|
+| id         | Instance UUID.                               |
+| name       | Instance name.                               |
+| status     | Instance status.                             |
+| version    | MongoDB version (e.g. `7.0`).                |
+| node_type  | Commercial node type.                        |
+| node_amount | Number of nodes in the deployment.          |
+| volume_type | Storage volume type.                        |
+| volume_size | Storage volume size in bytes.               |
+| tags       | Instance tags.                               |
+| is_public  | True if the instance exposes a publicly reachable endpoint. |
+| public_endpoint_dns | DNS record for the public endpoint, if any. |
+| public_endpoint_port | Port of the public endpoint, if any. |
+| private_endpoint_dns | DNS record for the first private-network endpoint, if any. |
+| private_endpoint_port | Port of the first private-network endpoint, if any. |
+| region     | Region the instance lives in.                |
+| created_at | Creation timestamp.                          |
+| lastupdated | Timestamp of the last update.               |
+
+#### Relationships
+- A `MongoDBInstance` belongs to a `Project`.
+    ```
+    (:ScalewayProject)-[:RESOURCE]->(:ScalewayMongoDBInstance)
+    ```
+- A `MongoDBInstance` may be attached to one or more `PrivateNetwork`s.
+    ```
+    (:ScalewayMongoDBInstance)-[:ATTACHED_TO]->(:ScalewayPrivateNetwork)
     ```

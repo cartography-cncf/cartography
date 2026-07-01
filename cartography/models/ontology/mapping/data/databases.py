@@ -221,8 +221,102 @@ gcp_mapping = OntologyMapping(
     ],
 )
 
+scaleway_mapping = OntologyMapping(
+    module_name="scaleway",
+    nodes=[
+        OntologyNodeMapping(
+            node_label="ScalewayRdbInstance",
+            fields=[
+                OntologyFieldMapping(
+                    ontology_field="name", node_field="name", required=True
+                ),
+                OntologyFieldMapping(ontology_field="type", node_field="engine"),
+                # version: not exposed as a standalone field; engine string includes it.
+                OntologyFieldMapping(
+                    ontology_field="endpoint",
+                    node_field="public_endpoint_hostname",
+                    special_handling="coalesce",
+                    extra={"fields": ["public_endpoint_ip", "private_endpoint_ip"]},
+                ),
+                OntologyFieldMapping(
+                    ontology_field="port",
+                    node_field="public_endpoint_port",
+                    special_handling="coalesce",
+                    extra={"fields": ["private_endpoint_port"]},
+                ),
+                OntologyFieldMapping(
+                    ontology_field="encrypted",
+                    node_field="encryption_at_rest_enabled",
+                ),
+                OntologyFieldMapping(ontology_field="location", node_field="region"),
+            ],
+        ),
+        OntologyNodeMapping(
+            node_label="ScalewayRedisCluster",
+            fields=[
+                OntologyFieldMapping(
+                    ontology_field="name", node_field="name", required=True
+                ),
+                OntologyFieldMapping(
+                    ontology_field="type",
+                    node_field="",
+                    special_handling="static_value",
+                    extra={"value": "redis"},
+                ),
+                OntologyFieldMapping(ontology_field="version", node_field="version"),
+                OntologyFieldMapping(
+                    ontology_field="endpoint",
+                    node_field="public_endpoint_ip",
+                    special_handling="coalesce",
+                    extra={"fields": ["private_endpoint_ip"]},
+                ),
+                OntologyFieldMapping(
+                    ontology_field="port",
+                    node_field="public_endpoint_port",
+                    special_handling="coalesce",
+                    extra={"fields": ["private_endpoint_port"]},
+                ),
+                # _ont_db_encrypted: Redis storage encryption isn't exposed on the
+                # cluster node; tls_enabled covers transport encryption only.
+                OntologyFieldMapping(ontology_field="location", node_field="zone"),
+            ],
+        ),
+        OntologyNodeMapping(
+            node_label="ScalewayMongoDBInstance",
+            fields=[
+                OntologyFieldMapping(
+                    ontology_field="name", node_field="name", required=True
+                ),
+                OntologyFieldMapping(
+                    ontology_field="type",
+                    node_field="",
+                    special_handling="static_value",
+                    extra={"value": "mongodb"},
+                ),
+                OntologyFieldMapping(ontology_field="version", node_field="version"),
+                OntologyFieldMapping(
+                    ontology_field="endpoint",
+                    node_field="public_endpoint_dns",
+                    special_handling="coalesce",
+                    extra={"fields": ["private_endpoint_dns"]},
+                ),
+                OntologyFieldMapping(
+                    ontology_field="port",
+                    node_field="public_endpoint_port",
+                    special_handling="coalesce",
+                    extra={"fields": ["private_endpoint_port"]},
+                ),
+                # _ont_db_encrypted: Scaleway MongoDB is encrypted at rest by
+                # default but the flag isn't surfaced on the instance object.
+                OntologyFieldMapping(ontology_field="location", node_field="region"),
+            ],
+        ),
+    ],
+)
+
 DATABASES_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     "aws": aws_mapping,
     "azure": azure_mapping,
     "gcp": gcp_mapping,
+    "scaleway": scaleway_mapping,
 }
