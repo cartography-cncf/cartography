@@ -13,6 +13,7 @@ import cartography.intel.databricks.groups
 import cartography.intel.databricks.instance_pools
 import cartography.intel.databricks.ip_access_lists
 import cartography.intel.databricks.metastores
+import cartography.intel.databricks.online_tables
 import cartography.intel.databricks.registered_models
 import cartography.intel.databricks.schemas
 import cartography.intel.databricks.secret_scopes
@@ -242,6 +243,14 @@ def start_databricks_ingestion(neo4j_session: neo4j.Session, config: Config) -> 
         api_client,
         workspace_id,
         schemas,
+        common_job_parameters,
+    )
+
+    # Online tables read managed tables from the graph, so run after tables.
+    cartography.intel.databricks.online_tables.sync(
+        neo4j_session,
+        api_client,
+        workspace_id,
         common_job_parameters,
     )
 
