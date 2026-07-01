@@ -259,6 +259,74 @@ _aws_ec2_instance_internet_exposed = Fact(
 )
 
 
+# Scaleway Facts
+_scaleway_instance_internet_exposed = Fact(
+    id="scaleway_instance_internet_exposed",
+    name="Internet-Exposed Scaleway Instances on Common Management Ports",
+    description=(
+        "Scaleway Instances with at least one public IP attached whose "
+        "attached Security Group has an inbound rule accepting traffic from "
+        "0.0.0.0/0 over TCP (or `any` protocol) on a management port (22, "
+        "3389, 3306, 5432, 6379, 9200, 27017). Port ranges "
+        "(dest_port_from/dest_port_to) covering a management port are "
+        "detected, including all-port rules (dest_port_from IS NULL). Stopped "
+        "instances are excluded as they are not a live attack surface. The "
+        "public-IP signal comes from the instance's retained public_ips id "
+        "list; the SG default inbound policy is not evaluated here, only "
+        "explicit accept rules."
+    ),
+    cypher_query="""
+    MATCH (prj:ScalewayProject)-[:RESOURCE]->(instance:ScalewayInstance)-[:MEMBER_OF_SCALEWAY_SECURITY_GROUP]->(sg:ScalewaySecurityGroup)<-[:MEMBER_OF_SCALEWAY_SECURITY_GROUP]-(rule:ScalewaySecurityGroupRule)
+    WHERE size(coalesce(instance.public_ips, [])) > 0
+      AND NOT coalesce(instance.state, 'running') IN ['stopped', 'stopped_in_place']
+      AND rule.direction = 'inbound'
+      AND rule.action = 'accept'
+      AND rule.ip_range = '0.0.0.0/0'
+      AND coalesce(rule.protocol, '') IN ['tcp', 'any']
+    UNWIND [22, 3389, 3306, 5432, 6379, 9200, 27017] AS managed_port
+    WITH prj, instance, sg, rule, managed_port
+    WHERE rule.dest_port_from IS NULL
+       OR (
+         coalesce(rule.dest_port_from, 0) <= managed_port
+         AND coalesce(rule.dest_port_to, rule.dest_port_from, 0) >= managed_port
+       )
+    RETURN DISTINCT
+        prj.id AS account_id,
+        prj.id AS account,
+        instance.id AS instance_id,
+        instance.name AS instance,
+        managed_port AS port,
+        sg.id AS security_group
+    ORDER BY account, instance_id, port, security_group
+    """,
+    cypher_visual_query="""
+    MATCH p=(prj:ScalewayProject)-[:RESOURCE]->(instance:ScalewayInstance)-[:MEMBER_OF_SCALEWAY_SECURITY_GROUP]->(sg:ScalewaySecurityGroup)<-[:MEMBER_OF_SCALEWAY_SECURITY_GROUP]-(rule:ScalewaySecurityGroupRule)
+    WHERE size(coalesce(instance.public_ips, [])) > 0
+      AND NOT coalesce(instance.state, 'running') IN ['stopped', 'stopped_in_place']
+      AND rule.direction = 'inbound'
+      AND rule.action = 'accept'
+      AND rule.ip_range = '0.0.0.0/0'
+      AND coalesce(rule.protocol, '') IN ['tcp', 'any']
+      AND (
+        rule.dest_port_from IS NULL
+        OR ANY(managed_port IN [22, 3389, 3306, 5432, 6379, 9200, 27017]
+               WHERE coalesce(rule.dest_port_from, 0) <= managed_port
+                 AND coalesce(rule.dest_port_to, rule.dest_port_from, 0) >= managed_port)
+      )
+    RETURN *
+    """,
+    cypher_count_query="""
+    MATCH (instance:ScalewayInstance)
+    WHERE NOT coalesce(instance.state, 'running') IN ['stopped', 'stopped_in_place']
+    RETURN COUNT(instance) AS count
+    """,
+    asset_id_field="instance_id",
+    identity_fields=("instance_id", "port", "security_group"),
+    module=Module.SCALEWAY,
+    maturity=Maturity.EXPERIMENTAL,
+)
+
+
 # Rule
 class ComputeInstanceExposed(Finding):
     instance: str | None = None
@@ -281,6 +349,7 @@ compute_instance_exposed = Rule(
         _aws_ec2_instance_internet_exposed,
         _azure_vm_internet_exposed,
         _gcp_instance_internet_exposed,
+        _scaleway_instance_internet_exposed,
     ),
     tags=(
         "infrastructure",
