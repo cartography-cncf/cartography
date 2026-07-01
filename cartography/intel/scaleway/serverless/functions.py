@@ -52,7 +52,8 @@ def get(
     functions: list[Function] = []
     for namespace in namespaces:
         # A namespace can be deleted between the list and this per-namespace
-        # call; skip it rather than aborting the whole sync.
+        # call; skip it on a 404 rather than aborting the whole sync, but let
+        # any other API error surface.
         try:
             functions.extend(
                 api.list_functions_all(
@@ -60,12 +61,14 @@ def get(
                 )
             )
         except ScalewayException as exc:
-            logger.warning(
-                "Skipping Scaleway functions for namespace %s: %s",
-                namespace.id,
-                exc,
-            )
-            continue
+            if exc.status_code == 404:
+                logger.warning(
+                    "Skipping Scaleway functions for namespace %s: not found (%s).",
+                    namespace.id,
+                    exc,
+                )
+                continue
+            raise
     return namespaces, functions
 
 
