@@ -34,14 +34,16 @@ def sync(
 def get(client: Cloudflare) -> List[Dict[str, Any]]:
     # The SDK auto-paginator increments `page` and stops only on an empty page,
     # which never terminates on /accounts (cloudflare/cloudflare-python#2584).
-    # /accounts caps per_page at 50 and has no cursor, so fetch a single
-    # max-size page and reconcile against total_count rather than iterating. If
-    # more accounts exist than were returned, fail loudly instead of syncing a
-    # partial set (correct whether or not `page` is honored).
+    # /accounts caps per_page at 50 and has no cursor, so fetch a single max-size
+    # page and reconcile against total_count rather than iterating. Raise on
+    # overflow rather than return a partial set: cleanup() is scoped by update
+    # tag, so silently syncing a subset would delete the accounts that were not
+    # returned (and orphan their sub-resources).
     page = client.accounts.list(per_page=MAX_ACCOUNTS_PER_PAGE)
     accounts = [account.to_dict() for account in page.result or []]
 
-    total_count = page.result_info.total_count
+    # result_info is Optional and total_count is not a guaranteed field.
+    total_count = getattr(page.result_info, "total_count", None)
     if total_count is not None and total_count > len(accounts):
         raise RuntimeError(
             f"Cloudflare reports {total_count} accounts but only {len(accounts)} "
