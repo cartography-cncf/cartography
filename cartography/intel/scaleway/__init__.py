@@ -25,6 +25,9 @@ import cartography.intel.scaleway.network.private_networks
 import cartography.intel.scaleway.network.vpcs
 import cartography.intel.scaleway.projects
 import cartography.intel.scaleway.secrets.secrets
+import cartography.intel.scaleway.serverless.containers
+import cartography.intel.scaleway.serverless.functions
+import cartography.intel.scaleway.serverless.jobs
 import cartography.intel.scaleway.storage.objectstorage
 import cartography.intel.scaleway.storage.snapshots
 import cartography.intel.scaleway.storage.volumes
@@ -277,6 +280,33 @@ def start_scaleway_ingestion(neo4j_session: neo4j.Session, config: Config) -> No
         update_tag=config.update_tag,
     )
     cartography.intel.scaleway.databases.mongodb.sync(
+        neo4j_session,
+        client,
+        common_job_parameters,
+        org_id=config.scaleway_org,
+        projects_id=projects_id,
+        update_tag=config.update_tag,
+    )
+
+    # Serverless (Functions / Containers / Jobs). Loaded after PrivateNetworks
+    # so the ATTACHED_TO edges resolve.
+    cartography.intel.scaleway.serverless.functions.sync(
+        neo4j_session,
+        client,
+        common_job_parameters,
+        org_id=config.scaleway_org,
+        projects_id=projects_id,
+        update_tag=config.update_tag,
+    )
+    cartography.intel.scaleway.serverless.containers.sync(
+        neo4j_session,
+        client,
+        common_job_parameters,
+        org_id=config.scaleway_org,
+        projects_id=projects_id,
+        update_tag=config.update_tag,
+    )
+    cartography.intel.scaleway.serverless.jobs.sync(
         neo4j_session,
         client,
         common_job_parameters,
