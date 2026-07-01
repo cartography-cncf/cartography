@@ -94,6 +94,9 @@ TOP_LEVEL_MODULES: OrderedDict[str, Callable[..., None]] = OrderedDict(
         "scaleway": _LazyStage(
             "cartography.intel.scaleway", "start_scaleway_ingestion"
         ),
+        "salesforce": _LazyStage(
+            "cartography.intel.salesforce", "start_salesforce_ingestion"
+        ),
         "semgrep": _LazyStage("cartography.intel.semgrep", "start_semgrep_ingestion"),
         "sentry": _LazyStage("cartography.intel.sentry", "start_sentry_ingestion"),
         "snipeit": _LazyStage("cartography.intel.snipeit", "start_snipeit_ingestion"),

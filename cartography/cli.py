@@ -68,6 +68,7 @@ PANEL_SENTRY = "Sentry Options"
 PANEL_SUBIMAGE = "SubImage Options"
 PANEL_SPACELIFT = "Spacelift Options"
 PANEL_WORKOS = "WorkOS Options"
+PANEL_SALESFORCE = "Salesforce Options"
 PANEL_JUMPCLOUD = "JumpCloud Options"
 PANEL_SOCKETDEV = "Socket.dev Options"
 PANEL_VERCEL = "Vercel Options"
@@ -124,6 +125,7 @@ MODULE_PANELS = {
     "subimage": PANEL_SUBIMAGE,
     "spacelift": PANEL_SPACELIFT,
     "workos": PANEL_WORKOS,
+    "salesforce": PANEL_SALESFORCE,
     "vercel": PANEL_VERCEL,
     "analysis": PANEL_ANALYSIS,
 }
@@ -1966,6 +1968,65 @@ class CLI:
                 ),
             ] = None,
             # =================================================================
+            # Salesforce Options
+            # =================================================================
+            salesforce_instance_url: Annotated[
+                str | None,
+                typer.Option(
+                    "--salesforce-instance-url",
+                    help=(
+                        "Salesforce My Domain login URL, e.g. "
+                        "https://mydomain.my.salesforce.com."
+                    ),
+                    rich_help_panel=PANEL_SALESFORCE,
+                    hidden=PANEL_SALESFORCE not in visible_panels,
+                ),
+            ] = None,
+            salesforce_client_id: Annotated[
+                str | None,
+                typer.Option(
+                    "--salesforce-client-id",
+                    help="Salesforce connected app consumer key.",
+                    rich_help_panel=PANEL_SALESFORCE,
+                    hidden=PANEL_SALESFORCE not in visible_panels,
+                ),
+            ] = None,
+            salesforce_client_secret_env_var: Annotated[
+                str | None,
+                typer.Option(
+                    "--salesforce-client-secret-env-var",
+                    help=(
+                        "Environment variable name containing the Salesforce connected "
+                        "app consumer secret (selects the Client Credentials flow)."
+                    ),
+                    rich_help_panel=PANEL_SALESFORCE,
+                    hidden=PANEL_SALESFORCE not in visible_panels,
+                ),
+            ] = None,
+            salesforce_username: Annotated[
+                str | None,
+                typer.Option(
+                    "--salesforce-username",
+                    help=(
+                        "Salesforce username to authenticate as for the JWT Bearer flow."
+                    ),
+                    rich_help_panel=PANEL_SALESFORCE,
+                    hidden=PANEL_SALESFORCE not in visible_panels,
+                ),
+            ] = None,
+            salesforce_private_key_env_var: Annotated[
+                str | None,
+                typer.Option(
+                    "--salesforce-private-key-env-var",
+                    help=(
+                        "Environment variable name containing the PEM-encoded private "
+                        "key used to sign the JWT for the JWT Bearer flow."
+                    ),
+                    rich_help_panel=PANEL_SALESFORCE,
+                    hidden=PANEL_SALESFORCE not in visible_panels,
+                ),
+            ] = None,
+            # =================================================================
             # Vercel Options
             # =================================================================
             vercel_token_env_var: Annotated[
@@ -2647,6 +2708,25 @@ class CLI:
                 )
                 workos_api_key = os.environ.get(workos_apikey_env_var)
 
+            # Read Salesforce secrets from their environment variables
+            salesforce_client_secret = None
+            if salesforce_client_secret_env_var:
+                logger.debug(
+                    "Reading Salesforce client secret from environment variable %s",
+                    salesforce_client_secret_env_var,
+                )
+                salesforce_client_secret = os.environ.get(
+                    salesforce_client_secret_env_var
+                )
+
+            salesforce_private_key = None
+            if salesforce_private_key_env_var:
+                logger.debug(
+                    "Reading Salesforce private key from environment variable %s",
+                    salesforce_private_key_env_var,
+                )
+                salesforce_private_key = os.environ.get(salesforce_private_key_env_var)
+
             # Build the Config object
             config = Config(
                 neo4j_uri=neo4j_uri,
@@ -2815,6 +2895,11 @@ class CLI:
                 slack_channels_memberships=slack_channels_memberships,
                 workos_api_key=workos_api_key,
                 workos_client_id=workos_client_id,
+                salesforce_instance_url=salesforce_instance_url,
+                salesforce_client_id=salesforce_client_id,
+                salesforce_client_secret=salesforce_client_secret,
+                salesforce_username=salesforce_username,
+                salesforce_private_key=salesforce_private_key,
                 ubuntu_security_enabled=ubuntu_security_enabled,
                 ubuntu_security_api_url=ubuntu_security_api_url,
                 _warn_on_legacy_report_source=False,

@@ -123,6 +123,9 @@
 ```{include} ../modules/scaleway/schema.md
 ```
 
+```{include} ../modules/salesforce/schema.md
+```
+
 ```{include} ../modules/semgrep/schema.md
 ```
 
