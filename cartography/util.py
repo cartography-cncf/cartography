@@ -34,6 +34,7 @@ from botocore.parsers import ResponseParserError
 
 from cartography import helpers
 from cartography.graph.analysis import AnalysisJob
+from cartography.graph.analysisbuilder import to_graph_job
 from cartography.graph.job import GraphJob
 from cartography.graph.statement import get_job_shortname
 from cartography.stats import get_stats_client
@@ -136,7 +137,7 @@ def run_typed_analysis_job(
     neo4j_session: neo4j.Session,
     common_job_parameters: Dict,
 ) -> None:
-    job = analysis_job.to_graph_job()
+    job = to_graph_job(analysis_job)
     job.merge_parameters(dict(common_job_parameters or {}))
     job.run(neo4j_session)
 

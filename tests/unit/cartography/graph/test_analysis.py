@@ -13,6 +13,10 @@ from cartography.graph.analysis import RelationshipPropertyEffect
 from cartography.graph.analysis import ScopedTo
 from cartography.graph.analysis import SetProperty
 from cartography.graph.analysis import SetRelationshipProperty
+from cartography.graph.analysisbuilder import compile_query
+from cartography.graph.analysisbuilder import properties_set
+from cartography.graph.analysisbuilder import relationships_added
+from cartography.graph.analysisbuilder import to_graph_job
 from cartography.graph.job import GraphJob
 from tests.unit.cartography.graph.helpers import clean_query_list
 
@@ -42,13 +46,13 @@ def test_relationship_job_appends_cleanup_statement():
     )
 
     # Act
-    graph_job = job.to_graph_job()
+    graph_job = to_graph_job(job)
 
     # Assert
-    assert job.relationships_added() == (
+    assert relationships_added(job) == (
         RelationshipEffect("AWSLambda", "HAS", "ECRImage"),
     )
-    assert job.properties_set() == ()
+    assert properties_set(job) == ()
     assert len(graph_job.statements) == 2
     assert graph_job.statements[1].query == (
         "MATCH (source:AWSLambda)-[r:HAS]->(target:ECRImage)\n"
@@ -80,7 +84,7 @@ def test_statement_compiles_add_relationship_effect():
     )
 
     # Act and assert
-    assert clean_query_list([statement.compile_query()]) == clean_query_list(
+    assert clean_query_list([compile_query(statement)]) == clean_query_list(
         [
             """
             MATCH (l:AWSLambda)
@@ -101,7 +105,7 @@ def test_matching_fingerprint_uses_update_tag_firstseen():
     statement = AWS_EC2_KEYPAIR_MATCHING_FINGERPRINT.statements[0]
 
     # Act and assert
-    assert "ON CREATE SET r.firstseen = $UPDATE_TAG" in statement.compile_query()
+    assert "ON CREATE SET r.firstseen = $UPDATE_TAG" in compile_query(statement)
 
 
 def test_statement_compiles_property_effects():
@@ -120,7 +124,7 @@ def test_statement_compiles_property_effects():
     )
 
     # Act and assert
-    assert statement.compile_query() == (
+    assert compile_query(statement) == (
         "MATCH (instance:EC2Instance) WHERE instance.publicipaddress IS NOT NULL\n"
         "SET instance.exposed_internet_type = "
         "CASE WHEN instance.exposed_internet_type IS NULL THEN ['direct'] "
@@ -132,12 +136,15 @@ def test_statement_compiles_property_effects():
 
 
 def test_statement_rejects_property_effect_without_label():
+    # Arrange
+    statement = AnalysisStatement(
+        match="MATCH (n:Node)",
+        effects=(SetProperty("n", "flag", True),),
+    )
+
     # Act and assert
     with pytest.raises(ValueError, match="Property effects require label"):
-        AnalysisStatement(
-            match="MATCH (n:Node)",
-            effects=(SetProperty("n", "flag", True),),
-        )
+        compile_query(statement)
 
 
 def test_statement_rejects_mixed_raw_and_compiled_query():
@@ -175,7 +182,7 @@ def test_scoped_relationship_cleanup_targets_source_by_default():
     )
 
     # Act
-    graph_job = job.to_graph_job()
+    graph_job = to_graph_job(job)
 
     # Assert
     assert graph_job.statements[1].query == (
@@ -222,7 +229,7 @@ def test_relationship_job_allows_multiple_statements_for_one_effect():
     )
 
     # Act
-    graph_job = job.to_graph_job()
+    graph_job = to_graph_job(job)
 
     # Assert
     assert len(graph_job.statements) == 3
@@ -255,11 +262,11 @@ def test_property_job_prepends_cleanup_statement():
     )
 
     # Act
-    graph_job = job.to_graph_job()
+    graph_job = to_graph_job(job)
 
     # Assert
-    assert job.relationships_added() == ()
-    assert job.properties_set() == (
+    assert relationships_added(job) == ()
+    assert properties_set(job) == (
         PropertyEffect("SemgrepSASTFinding", ("risk_severity",)),
     )
     assert graph_job.statements[0].query == (
@@ -301,10 +308,10 @@ def test_relationship_property_job_prepends_cleanup_statement():
     )
 
     # Act
-    graph_job = job.to_graph_job()
+    graph_job = to_graph_job(job)
 
     # Assert
-    assert job.properties_set() == (
+    assert properties_set(job) == (
         RelationshipPropertyEffect("Image", "PACKAGED_FROM", ("dockerfile_path",)),
     )
     assert graph_job.statements[0].query == (
@@ -326,7 +333,7 @@ def test_supply_chain_source_file_does_not_cleanup_coowned_dockerfile_path():
     from cartography.analysis.ontology.analysis import SUPPLY_CHAIN_SOURCE_FILE
 
     # Act
-    graph_job = SUPPLY_CHAIN_SOURCE_FILE.to_graph_job()
+    graph_job = to_graph_job(SUPPLY_CHAIN_SOURCE_FILE)
 
     # Assert
     assert len(graph_job.statements) == 1

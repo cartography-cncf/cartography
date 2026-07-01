@@ -98,7 +98,7 @@ def test_run_typed_analysis_job(mocker):
             ),
         ),
     )
-    mocker.patch.object(AnalysisJob, "to_graph_job", return_value=graph_job)
+    mocker.patch("cartography.util.to_graph_job", return_value=graph_job)
     neo4j_session = mocker.Mock()
 
     # Act
