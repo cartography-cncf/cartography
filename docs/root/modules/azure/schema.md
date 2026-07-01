@@ -1895,6 +1895,11 @@ Representation of a [Secret within an Azure Key Vault](https://learn.microsoft.c
     (AzureKeyVault)-[:CONTAINS]->(:AzureKeyVaultSecret)
     ```
 
+- An Azure Key Vault Secret can be tagged with AzureTags.
+    ```cypher
+    (AzureKeyVaultSecret)-[:TAGGED]->(:AzureTag)
+    ```
+
 ### AzureKeyVaultKey
 
 Representation of a [Key within an Azure Key Vault](https://learn.microsoft.com/en-us/rest/api/keyvault/keys/get-keys/get-keys).

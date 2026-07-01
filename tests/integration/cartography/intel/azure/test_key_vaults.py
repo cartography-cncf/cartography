@@ -163,3 +163,17 @@ def test_sync_key_vaults_and_contents(
         ),
     )
     assert actual_resource_rels == expected_resource_rels
+
+    # Assert TAGGED relationships from secrets to AzureTag
+    expected_tag_rels = {
+        (secret_id, f"{TEST_SUBSCRIPTION_ID}|env:prod"),
+    }
+    actual_tag_rels = check_rels(
+        neo4j_session,
+        "AzureKeyVaultSecret",
+        "id",
+        "AzureTag",
+        "id",
+        "TAGGED",
+    )
+    assert actual_tag_rels == expected_tag_rels

@@ -10,12 +10,16 @@ from azure.mgmt.keyvault import KeyVaultManagementClient
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
+from cartography.intel.azure.util.tag import transform_tags
 from cartography.models.azure.key_vault import AzureKeyVaultSchema
 from cartography.models.azure.key_vault_certificate import (
     AzureKeyVaultCertificateSchema,
 )
 from cartography.models.azure.key_vault_key import AzureKeyVaultKeySchema
 from cartography.models.azure.key_vault_secret import AzureKeyVaultSecretSchema
+from cartography.models.azure.tags.key_vault_secret_tag import (
+    AzureKeyVaultSecretTagsSchema,
+)
 from cartography.util import timeit
 
 from .util.credentials import Credentials
@@ -41,6 +45,7 @@ def get_secrets(credentials: Credentials, vault_uri: str) -> list[dict]:
                 "enabled": secret_props.enabled,
                 "created_on": secret_props.created_on,
                 "updated_on": secret_props.updated_on,
+                "tags": secret_props.tags,
             }
         )
     return secrets
@@ -109,6 +114,7 @@ def transform_secrets(secrets_response: list[dict]) -> list[dict]:
             "enabled": secret.get("enabled"),
             "created_on": secret.get("created_on"),
             "updated_on": secret.get("updated_on"),
+            "tags": secret.get("tags"),
         }
         transformed_secrets.append(transformed_secret)
     return transformed_secrets
@@ -178,6 +184,23 @@ def load_secrets(
 
 
 @timeit
+def load_secret_tags(
+    neo4j_session: neo4j.Session,
+    data: list[dict[str, Any]],
+    subscription_id: str,
+    update_tag: int,
+) -> None:
+    tags = transform_tags(data, subscription_id)
+    load(
+        neo4j_session,
+        AzureKeyVaultSecretTagsSchema(),
+        tags,
+        lastupdated=update_tag,
+        AZURE_SUBSCRIPTION_ID=subscription_id,
+    )
+
+
+@timeit
 def load_keys(
     neo4j_session: neo4j.Session,
     data: list[dict[str, Any]],
@@ -237,12 +260,16 @@ def sync_secrets(
     load_secrets(
         neo4j_session, transformed_secrets, subscription_id, vault_id, update_tag
     )
+    load_secret_tags(neo4j_session, transformed_secrets, subscription_id, update_tag)
 
     secret_cleanup_params = common_job_parameters.copy()
     secret_cleanup_params["VAULT_ID"] = vault_id
     GraphJob.from_node_schema(AzureKeyVaultSecretSchema(), secret_cleanup_params).run(
         neo4j_session
     )
+    GraphJob.from_node_schema(
+        AzureKeyVaultSecretTagsSchema(), common_job_parameters
+    ).run(neo4j_session)
 
 
 @timeit

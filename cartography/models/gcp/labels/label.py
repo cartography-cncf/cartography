@@ -382,3 +382,41 @@ class GCPCloudRunJobGCPLabelSchema(CartographyNodeSchema):
     other_relationships: OtherRelationships = OtherRelationships(
         [GCPLabelToCloudRunJobRel()],
     )
+
+
+# --- GCPCloudFunction label schema ---
+
+
+@dataclass(frozen=True)
+class GCPLabelToCloudFunctionRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+class GCPLabelToCloudFunctionRel(CartographyRelSchema):
+    """(:GCPCloudFunction)-[:LABELED]->(:GCPLabel)"""
+
+    target_node_label: str = "GCPCloudFunction"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"id": PropertyRef("resource_id")},
+    )
+    direction: LinkDirection = LinkDirection.INWARD
+    rel_label: str = "LABELED"
+    properties: GCPLabelToCloudFunctionRelProperties = (
+        GCPLabelToCloudFunctionRelProperties()
+    )
+
+
+@dataclass(frozen=True)
+class GCPCloudFunctionGCPLabelSchema(CartographyNodeSchema):
+    """
+    GCPLabel nodes sourced from GCPCloudFunction resources.
+    """
+
+    label: str = "GCPLabel"
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["Label"])
+    properties: GCPLabelNodeProperties = GCPLabelNodeProperties()
+    sub_resource_relationship: GCPLabelToProjectRel = GCPLabelToProjectRel()
+    other_relationships: OtherRelationships = OtherRelationships(
+        [GCPLabelToCloudFunctionRel()],
+    )

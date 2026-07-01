@@ -1679,6 +1679,12 @@ Representation of a Google [Cloud Function](https://cloud.google.com/functions/d
     (GCPCloudFunction)-[:RUNS_AS]->(GCPServiceAccount)
     ```
 
+- GCPCloudFunctions can be labeled with GCPLabels.
+
+    ```
+    (GCPCloudFunction)-[:LABELED]->(GCPLabel)
+    ```
+
 ### GCPSecretManagerSecret
 
 Representation of a GCP [Secret Manager Secret](https://cloud.google.com/secret-manager/docs/reference/rest/v1/projects.secrets). A Secret is a logical container for secret data that can have multiple versions.
