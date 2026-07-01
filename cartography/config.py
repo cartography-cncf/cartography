@@ -199,6 +199,15 @@ class Config:
     :param gitlab_organization_id: GitLab organization (top-level group) ID to sync. Optional.
     :type gitlab_commits_since_days: int
     :param gitlab_commits_since_days: Number of days of commit history to fetch. Defaults to 90.
+    :type gitlab_requested_syncs: str
+    :param gitlab_requested_syncs: Comma-separated list of GitLab resource types to sync. Optional.
+        Valid values: organizations, groups, projects, users, runners, ci_variables, environments,
+        ci_config, container_repositories, branches, dependencies, terraform_states.
+        If not set, all resource types are synced.
+    :type gitlab_group_paths: str
+    :param gitlab_group_paths: Comma-separated list of group full_path values to include.
+        Only groups (and their projects) matching these paths are synced.
+        Example: "myorg/platform,myorg/security". If not set, all groups/projects are synced.
     :param semgrep_app_token: The Semgrep api token. Optional.
     :type semgrep_app_token: str
     :param semgrep_dependency_ecosystems: Comma-separated list of Semgrep dependency ecosystems to fetch. Optional.
@@ -432,6 +441,8 @@ class Config:
         gitlab_token=None,
         gitlab_organization_id=None,
         gitlab_commits_since_days=90,
+        gitlab_requested_syncs=None,
+        gitlab_group_paths=None,
         semgrep_app_token=None,
         semgrep_dependency_ecosystems=None,
         semgrep_oss_source=None,
@@ -515,6 +526,7 @@ class Config:
         jumpcloud_api_key=None,
         jumpcloud_org_id=None,
         socketdev_token=None,
+        terraform_state_source=None,
         neo4j_connection_timeout=None,
         neo4j_keep_alive=None,
         neo4j_max_transaction_retry_time=None,
@@ -610,6 +622,8 @@ class Config:
         self.gitlab_token = gitlab_token
         self.gitlab_organization_id = gitlab_organization_id
         self.gitlab_commits_since_days = gitlab_commits_since_days
+        self.gitlab_requested_syncs = gitlab_requested_syncs
+        self.gitlab_group_paths = gitlab_group_paths
         self.semgrep_app_token = semgrep_app_token
         self.semgrep_dependency_ecosystems = semgrep_dependency_ecosystems
         self.semgrep_oss_source = semgrep_oss_source
@@ -722,3 +736,11 @@ class Config:
         self.jumpcloud_api_key = jumpcloud_api_key
         self.jumpcloud_org_id = jumpcloud_org_id
         self.socketdev_token = socketdev_token
+        self.terraform_state_source: str | None = _resolve_report_source_config(
+            module="terraform",
+            source=terraform_state_source,
+            local_path=None,
+            s3_bucket=None,
+            s3_prefix=None,
+            warn_on_legacy=_warn_on_legacy_report_source,
+        )

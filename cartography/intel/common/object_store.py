@@ -322,6 +322,51 @@ class AzureBlobContainerReader(_BaseReader):
             ) from exc
 
 
+class HttpReportReader(_BaseReader):
+    """Reads a single Terraform state file from an HTTP/HTTPS URL.
+
+    Intended for GitLab HTTP backend state URLs of the form:
+      https://<gitlab-host>/api/v4/projects/<id>/terraform/state/<name>
+
+    Auth: Bearer token passed as `token` (use config.gitlab_token).
+    The URL is treated as a single-file source: list_reports() always
+    returns exactly one ReportRef pointing at the URL.
+    """
+
+    def __init__(self, url: str, token: str | None = None) -> None:
+        self.source_uri = url
+        self._url = url
+        self._token = token
+
+    def list_reports(self) -> list[ReportRef]:
+        # The URL path segment (e.g. "enbuild_eks_dev") carries no file extension.
+        # Use a fixed ".tfstate" sentinel so the extension filter in the caller
+        # accepts this ref — the URL is always a Terraform state endpoint.
+        name = self._url.rstrip("/").rsplit("/", 1)[-1] + ".tfstate"
+        return [ReportRef(uri=self._url, name=name)]
+
+    def read_bytes(self, ref: ReportRef) -> bytes:
+        import requests
+
+        headers: dict[str, str] = {}
+        if self._token:
+            headers["Authorization"] = f"Bearer {self._token}"
+
+        try:
+            response = requests.get(ref.uri, headers=headers, timeout=30)
+            response.raise_for_status()
+            return response.content
+        except requests.HTTPError as exc:
+            raise ObjectStoreError(
+                f"HTTP {exc.response.status_code} fetching state file",
+                source=ref.uri,
+            ) from exc
+        except requests.RequestException as exc:
+            raise ObjectStoreError(
+                "Failed to fetch HTTP state file", source=ref.uri
+            ) from exc
+
+
 def filter_report_refs(
     refs: Iterable[ReportRef],
     *,
