@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from functools import singledispatch
 from typing import Any
 from typing import Literal
 from typing import Sequence
@@ -39,18 +40,14 @@ class AnalysisStatement:
             raise ValueError("AnalysisStatement requires query or match/effects.")
         if not self.query:
             for effect in self.effects:
-                if isinstance(effect, (SetProperty, SetProperties, AddToSet)):
-                    if not effect.label:
-                        raise ValueError("Property effects require label for cleanup.")
+                effect.validate()
 
     def compile_query(self) -> str:
         if self.query:
             return self.query
         if self.match is None:
             raise ValueError("AnalysisStatement requires match or query.")
-        return "\n".join(
-            (self.match.strip(), *(_compile_effect(e) for e in self.effects))
-        )
+        return "\n".join((self.match.strip(), *(e.compile() for e in self.effects)))
 
     def to_graph_statement(
         self,
@@ -73,12 +70,46 @@ class SetProperty:
     value: Any
     label: str | None = None
 
+    def validate(self) -> None:
+        _require_label(self.label)
+
+    def compile(self) -> str:
+        return f"SET {self.node}.{self.property} = {_cypher_literal(self.value)}"
+
+    def relationship_effect(self) -> RelationshipEffect | None:
+        return None
+
+    def property_effect(self) -> PropertyEffect:
+        return PropertyEffect(_label(self.label), (self.property,))
+
+    def cleanup_effect(self) -> PropertyEffect:
+        return self.property_effect()
+
 
 @dataclass(frozen=True)
 class SetProperties:
     node: str
     properties: dict[str, Any]
     label: str | None = None
+
+    def validate(self) -> None:
+        _require_label(self.label)
+
+    def compile(self) -> str:
+        assignments = ", ".join(
+            f"{self.node}.{key} = {_cypher_literal(value)}"
+            for key, value in self.properties.items()
+        )
+        return f"SET {assignments}"
+
+    def relationship_effect(self) -> RelationshipEffect | None:
+        return None
+
+    def property_effect(self) -> PropertyEffect:
+        return PropertyEffect(_label(self.label), tuple(self.properties))
+
+    def cleanup_effect(self) -> PropertyEffect:
+        return self.property_effect()
 
 
 @dataclass(frozen=True)
@@ -90,6 +121,26 @@ class SetRelationshipProperty:
     rel_label: str = ""
     target_label: str | None = None
 
+    def validate(self) -> None:
+        return None
+
+    def compile(self) -> str:
+        return f"SET {self.rel}.{self.property} = {_cypher_literal(self.value)}"
+
+    def relationship_effect(self) -> RelationshipEffect | None:
+        return None
+
+    def property_effect(self) -> RelationshipPropertyEffect:
+        return RelationshipPropertyEffect(
+            self.source_label,
+            self.rel_label,
+            (self.property,),
+            self.target_label,
+        )
+
+    def cleanup_effect(self) -> RelationshipPropertyEffect:
+        return self.property_effect()
+
 
 @dataclass(frozen=True)
 class AddToSet:
@@ -97,6 +148,28 @@ class AddToSet:
     property: str
     value: Any
     label: str | None = None
+
+    def validate(self) -> None:
+        _require_label(self.label)
+
+    def compile(self) -> str:
+        value = _cypher_literal(self.value)
+        return (
+            f"SET {self.node}.{self.property} = "
+            f"CASE WHEN {self.node}.{self.property} IS NULL THEN [{value}] "
+            f"WHEN NOT {value} IN {self.node}.{self.property} "
+            f"THEN {self.node}.{self.property} + [{value}] "
+            f"ELSE {self.node}.{self.property} END"
+        )
+
+    def relationship_effect(self) -> RelationshipEffect | None:
+        return None
+
+    def property_effect(self) -> PropertyEffect:
+        return PropertyEffect(_label(self.label), (self.property,))
+
+    def cleanup_effect(self) -> PropertyEffect:
+        return self.property_effect()
 
 
 @dataclass(frozen=True)
@@ -113,6 +186,44 @@ class AddRelationship:
     # Which endpoint is constrained by AnalysisJob.scope during stale-edge cleanup.
     scoped_to: Literal["source", "target"] = "source"
 
+    def validate(self) -> None:
+        return None
+
+    def compile(self) -> str:
+        rel = (
+            f"({self.source})-[{self.rel_alias}:{self.rel}]-({self.target})"
+            if self.undirected
+            else f"({self.source})-[{self.rel_alias}:{self.rel}]->({self.target})"
+        )
+        property_assignments = ""
+        if self.properties:
+            property_assignments = ", " + ", ".join(
+                f"{self.rel_alias}.{key} = {_cypher_literal(value)}"
+                for key, value in self.properties.items()
+            )
+        firstseen_value = _cypher_literal(self.firstseen or Expr("timestamp()"))
+        return (
+            f"MERGE {rel}\n"
+            f"ON CREATE SET {self.rel_alias}.firstseen = {firstseen_value}\n"
+            f"SET {self.rel_alias}.lastupdated = $UPDATE_TAG{property_assignments}"
+        )
+
+    def relationship_effect(self) -> RelationshipEffect:
+        return RelationshipEffect(
+            self.source_label,
+            self.rel,
+            self.target_label,
+            tuple(self.properties or ()),
+            LinkDirection.OUTWARD if not self.undirected else None,
+            self.scoped_to,
+        )
+
+    def property_effect(self) -> PropertyEffect | RelationshipPropertyEffect | None:
+        return None
+
+    def cleanup_effect(self) -> RelationshipEffect:
+        return self.relationship_effect()
+
 
 @dataclass(frozen=True)
 class Expr:
@@ -124,59 +235,59 @@ StatementEffect = (
 )
 
 
-def _compile_effect(effect: StatementEffect) -> str:
-    if isinstance(effect, SetProperty):
-        return f"SET {effect.node}.{effect.property} = {_cypher_literal(effect.value)}"
-    if isinstance(effect, SetProperties):
-        assignments = ", ".join(
-            f"{effect.node}.{key} = {_cypher_literal(value)}"
-            for key, value in effect.properties.items()
-        )
-        return f"SET {assignments}"
-    if isinstance(effect, SetRelationshipProperty):
-        return f"SET {effect.rel}.{effect.property} = {_cypher_literal(effect.value)}"
-    if isinstance(effect, AddToSet):
-        value = _cypher_literal(effect.value)
-        return (
-            f"SET {effect.node}.{effect.property} = "
-            f"CASE WHEN {effect.node}.{effect.property} IS NULL THEN [{value}] "
-            f"WHEN NOT {value} IN {effect.node}.{effect.property} "
-            f"THEN {effect.node}.{effect.property} + [{value}] "
-            f"ELSE {effect.node}.{effect.property} END"
-        )
-    rel = (
-        f"({effect.source})-[{effect.rel_alias}:{effect.rel}]-({effect.target})"
-        if effect.undirected
-        else f"({effect.source})-[{effect.rel_alias}:{effect.rel}]->({effect.target})"
-    )
-    property_assignments = ""
-    if effect.properties:
-        property_assignments = ", " + ", ".join(
-            f"{effect.rel_alias}.{key} = {_cypher_literal(value)}"
-            for key, value in effect.properties.items()
-        )
-    firstseen_value = _cypher_literal(effect.firstseen or Expr("timestamp()"))
-    return (
-        f"MERGE {rel}\n"
-        f"ON CREATE SET {effect.rel_alias}.firstseen = {firstseen_value}\n"
-        f"SET {effect.rel_alias}.lastupdated = $UPDATE_TAG{property_assignments}"
-    )
+def _require_label(label: str | None) -> None:
+    if not label:
+        raise ValueError("Property effects require label for cleanup.")
 
 
+def _label(label: str | None) -> str:
+    _require_label(label)
+    return label or ""
+
+
+@singledispatch
 def _cypher_literal(value: Any) -> str:
-    if isinstance(value, Expr):
-        return value.value
-    if isinstance(value, bool):
-        return str(value).lower()
-    if isinstance(value, str):
-        return "'" + value.replace("\\", "\\\\").replace("'", "\\'") + "'"
-    if value is None:
-        return "NULL"
-    if isinstance(value, (int, float)):
-        return str(value)
-    if isinstance(value, (list, tuple)):
-        return "[" + ", ".join(_cypher_literal(v) for v in value) + "]"
     raise TypeError(f"Unsupported Cypher literal: {value!r}")
+
+
+@_cypher_literal.register
+def _(value: Expr) -> str:
+    return value.value
+
+
+@_cypher_literal.register
+def _(value: bool) -> str:
+    return str(value).lower()
+
+
+@_cypher_literal.register
+def _(value: str) -> str:
+    return "'" + value.replace("\\", "\\\\").replace("'", "\\'") + "'"
+
+
+@_cypher_literal.register(type(None))
+def _(_: None) -> str:
+    return "NULL"
+
+
+@_cypher_literal.register
+def _(value: int) -> str:
+    return str(value)
+
+
+@_cypher_literal.register
+def _(value: float) -> str:
+    return str(value)
+
+
+@_cypher_literal.register
+def _(value: list) -> str:
+    return "[" + ", ".join(_cypher_literal(v) for v in value) + "]"
+
+
+@_cypher_literal.register
+def _(value: tuple) -> str:
+    return "[" + ", ".join(_cypher_literal(v) for v in value) + "]"
 
 
 @dataclass(frozen=True)
@@ -187,6 +298,7 @@ class RelationshipEffect:
     properties: tuple[str, ...] = ()
     direction: LinkDirection | None = LinkDirection.OUTWARD
     scoped_to: Literal["source", "target"] = "source"
+    cleanup_before_statements: bool = False
 
     def cleanup_query(self, scope: ScopedTo | None) -> str:
         source = f"(source:{self.source_label})"
@@ -220,6 +332,7 @@ class RelationshipEffect:
 class PropertyEffect:
     node_label: str
     properties: tuple[str, ...]
+    cleanup_before_statements: bool = True
 
     def __post_init__(self) -> None:
         if not self.properties:
@@ -242,6 +355,7 @@ class RelationshipPropertyEffect:
     properties: tuple[str, ...]
     target_label: str | None = None
     direction: LinkDirection = LinkDirection.OUTWARD
+    cleanup_before_statements: bool = True
 
     def __post_init__(self) -> None:
         if not self.properties:
@@ -288,42 +402,15 @@ class AnalysisJob:
     def relationships_added(self) -> tuple[RelationshipEffect, ...]:
         relationships: list[RelationshipEffect] = []
         for effect in self._effects():
-            if isinstance(effect, AddRelationship):
-                rel_effect = RelationshipEffect(
-                    effect.source_label,
-                    effect.rel,
-                    effect.target_label,
-                    tuple(effect.properties or ()),
-                    LinkDirection.OUTWARD if not effect.undirected else None,
-                    effect.scoped_to,
-                )
-                if rel_effect not in relationships:
-                    relationships.append(rel_effect)
+            rel_effect = effect.relationship_effect()
+            if rel_effect and rel_effect not in relationships:
+                relationships.append(rel_effect)
         return tuple(relationships)
 
     def properties_set(self) -> tuple[PropertyEffect | RelationshipPropertyEffect, ...]:
         properties: list[PropertyEffect | RelationshipPropertyEffect] = []
         for effect in self._effects():
-            prop_effect: PropertyEffect | RelationshipPropertyEffect | None = None
-            if isinstance(effect, SetProperty):
-                if not effect.label:
-                    raise ValueError("Property effects require label for cleanup.")
-                prop_effect = PropertyEffect(effect.label, (effect.property,))
-            elif isinstance(effect, SetProperties):
-                if not effect.label:
-                    raise ValueError("Property effects require label for cleanup.")
-                prop_effect = PropertyEffect(effect.label, tuple(effect.properties))
-            elif isinstance(effect, AddToSet):
-                if not effect.label:
-                    raise ValueError("Property effects require label for cleanup.")
-                prop_effect = PropertyEffect(effect.label, (effect.property,))
-            elif isinstance(effect, SetRelationshipProperty):
-                prop_effect = RelationshipPropertyEffect(
-                    effect.source_label,
-                    effect.rel_label,
-                    (effect.property,),
-                    effect.target_label,
-                )
+            prop_effect = effect.property_effect()
             if prop_effect and prop_effect not in properties:
                 properties.append(prop_effect)
         return tuple(properties)
@@ -335,7 +422,7 @@ class AnalysisJob:
         cleanup_effects = self._cleanup_effects()
 
         for effect in cleanup_effects:
-            if isinstance(effect, (PropertyEffect, RelationshipPropertyEffect)):
+            if effect.cleanup_before_statements:
                 statements.append(
                     self._cleanup_statement(effect, parent_name, len(statements) + 1)
                 )
@@ -344,7 +431,7 @@ class AnalysisJob:
             statements.append(statement.to_graph_statement(parent_name, offset))
 
         for effect in cleanup_effects:
-            if isinstance(effect, RelationshipEffect):
+            if not effect.cleanup_before_statements:
                 statements.append(
                     self._cleanup_statement(effect, parent_name, len(statements) + 1)
                 )
@@ -359,37 +446,7 @@ class AnalysisJob:
     def _cleanup_effects(self) -> tuple[AnalysisEffect, ...]:
         cleanups: list[AnalysisEffect] = []
         for effect in self._effects():
-            cleanup: AnalysisEffect
-            if isinstance(effect, SetProperty):
-                if not effect.label:
-                    raise ValueError("Property effects require label for cleanup.")
-                cleanup = PropertyEffect(effect.label, (effect.property,))
-            elif isinstance(effect, SetProperties):
-                if not effect.label:
-                    raise ValueError("Property effects require label for cleanup.")
-                cleanup = PropertyEffect(effect.label, tuple(effect.properties))
-            elif isinstance(effect, AddToSet):
-                if not effect.label:
-                    raise ValueError("Property effects require label for cleanup.")
-                cleanup = PropertyEffect(effect.label, (effect.property,))
-            elif isinstance(effect, SetRelationshipProperty):
-                cleanup = RelationshipPropertyEffect(
-                    effect.source_label,
-                    effect.rel_label,
-                    (effect.property,),
-                    effect.target_label,
-                )
-            elif isinstance(effect, AddRelationship):
-                cleanup = RelationshipEffect(
-                    effect.source_label,
-                    effect.rel,
-                    effect.target_label,
-                    tuple(effect.properties or ()),
-                    LinkDirection.OUTWARD if not effect.undirected else None,
-                    effect.scoped_to,
-                )
-            else:
-                continue
+            cleanup = effect.cleanup_effect()
             if cleanup not in cleanups:
                 cleanups.append(cleanup)
         return tuple(cleanups)

@@ -5,7 +5,7 @@ import cartography.intel.gcp.compute
 import cartography.intel.gcp.iam
 import tests.data.gcp.compute
 from cartography.analysis.gcp.analysis import GCP_COMPUTE_INSTANCE_VPC_ANALYSIS
-from cartography.util import run_analysis_job
+from cartography.util import run_typed_analysis_job
 from tests.integration.util import check_nodes
 from tests.integration.util import check_rels
 
@@ -673,7 +673,7 @@ def test_sync_gcp_instances_with_vpc_relationship(
     )
 
     # Run the analysis job to create MEMBER_OF_GCP_VPC relationships
-    run_analysis_job(
+    run_typed_analysis_job(
         GCP_COMPUTE_INSTANCE_VPC_ANALYSIS,
         neo4j_session,
         common_job_parameters,

@@ -22,6 +22,7 @@ from cartography.util import aws_handle_regions
 from cartography.util import batch
 from cartography.util import is_service_control_policy_explicit_deny
 from cartography.util import run_analysis_and_ensure_deps
+from cartography.util import run_typed_analysis_and_ensure_deps
 from cartography.util import to_datetime
 
 SAMPLE_GRAPH_JOB = """
@@ -82,7 +83,7 @@ def test_run_scoped_analysis_job_default_package(mocker):
     neo4j_session.execute_write.assert_called_once()
 
 
-def test_run_analysis_job_accepts_typed_job(mocker):
+def test_run_typed_analysis_job(mocker):
     # Arrange
     graph_job = mocker.Mock()
     graph_job.merge_parameters = mocker.Mock()
@@ -101,7 +102,7 @@ def test_run_analysis_job_accepts_typed_job(mocker):
     neo4j_session = mocker.Mock()
 
     # Act
-    util.run_analysis_job(analysis_job, neo4j_session, {"UPDATE_TAG": 1})
+    util.run_typed_analysis_job(analysis_job, neo4j_session, {"UPDATE_TAG": 1})
 
     # Assert
     graph_job.merge_parameters.assert_called_once_with({"UPDATE_TAG": 1})
@@ -376,6 +377,38 @@ def test_run_analysis_and_ensure_deps_no_requirements(
     # Assert
     mock_run_analysis_job.assert_called_once_with(
         "aws_foreign_accounts.json",
+        neo4j_session,
+        common_job_parameters,
+    )
+
+
+@mock.patch.object(cartography.util, "run_typed_analysis_job", return_value=None)
+def test_run_typed_analysis_and_ensure_deps(mock_run_typed_analysis_job):
+    # Arrange
+    neo4j_session = mock.MagicMock()
+    common_job_parameters = mock.MagicMock()
+    analysis_job = AnalysisJob(
+        name="typed job",
+        statements=(
+            AnalysisStatement(
+                match="MATCH (n:TestNode)",
+                effects=(SetProperty("n", "computed", True, label="TestNode"),),
+            ),
+        ),
+    )
+
+    # Act
+    run_typed_analysis_and_ensure_deps(
+        analysis_job,
+        {"ec2:instance"},
+        {"ec2:instance"},
+        common_job_parameters,
+        neo4j_session,
+    )
+
+    # Assert
+    mock_run_typed_analysis_job.assert_called_once_with(
+        analysis_job,
         neo4j_session,
         common_job_parameters,
     )

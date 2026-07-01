@@ -10,7 +10,11 @@ AWS_S3ACL_ANALYSIS = AnalysisJob(
     scope=ScopedTo("AWSAccount", "AWS_ID"),
     statements=(
         AnalysisStatement(
-            match="MATCH (acl:S3Acl)-[:APPLIES_TO]->(bucket:S3Bucket)<-[:RESOURCE]-(aws:AWSAccount{id: $AWS_ID})\nWHERE acl.uri IN ['http://acs.amazonaws.com/groups/global/AllUsers', 'http://acs.amazonaws.com/groups/global/AuthenticatedUsers'] AND acl.permission = 'READ'",
+            match="""
+            MATCH (acl:S3Acl)-[:APPLIES_TO]->(bucket:S3Bucket)<-[:RESOURCE]-(aws:AWSAccount{id: $AWS_ID})
+            WHERE acl.uri IN ['http://acs.amazonaws.com/groups/global/AllUsers', 'http://acs.amazonaws.com/groups/global/AuthenticatedUsers']
+            AND acl.permission = 'READ'
+            """,
             effects=(
                 SetProperties(
                     "bucket",
@@ -25,7 +29,11 @@ AWS_S3ACL_ANALYSIS = AnalysisJob(
             ),
         ),
         AnalysisStatement(
-            match="MATCH (acl:S3Acl)-[:APPLIES_TO]->(bucket:S3Bucket)<-[:RESOURCE]-(aws:AWSAccount{id: $AWS_ID})\nWHERE acl.uri IN ['http://acs.amazonaws.com/groups/global/AllUsers', 'http://acs.amazonaws.com/groups/global/AuthenticatedUsers'] AND acl.permission = 'WRITE'",
+            match="""
+            MATCH (acl:S3Acl)-[:APPLIES_TO]->(bucket:S3Bucket)<-[:RESOURCE]-(aws:AWSAccount{id: $AWS_ID})
+            WHERE acl.uri IN ['http://acs.amazonaws.com/groups/global/AllUsers', 'http://acs.amazonaws.com/groups/global/AuthenticatedUsers']
+            AND acl.permission = 'WRITE'
+            """,
             effects=(
                 SetProperties(
                     "bucket",
@@ -40,7 +48,11 @@ AWS_S3ACL_ANALYSIS = AnalysisJob(
             ),
         ),
         AnalysisStatement(
-            match="MATCH (acl:S3Acl)-[:APPLIES_TO]->(bucket:S3Bucket)<-[:RESOURCE]-(aws:AWSAccount{id: $AWS_ID})\nWHERE acl.uri IN ['http://acs.amazonaws.com/groups/global/AllUsers', 'http://acs.amazonaws.com/groups/global/AuthenticatedUsers'] AND acl.permission = 'READ_ACP'",
+            match="""
+            MATCH (acl:S3Acl)-[:APPLIES_TO]->(bucket:S3Bucket)<-[:RESOURCE]-(aws:AWSAccount{id: $AWS_ID})
+            WHERE acl.uri IN ['http://acs.amazonaws.com/groups/global/AllUsers', 'http://acs.amazonaws.com/groups/global/AuthenticatedUsers']
+            AND acl.permission = 'READ_ACP'
+            """,
             effects=(
                 SetProperties(
                     "bucket",
@@ -55,7 +67,11 @@ AWS_S3ACL_ANALYSIS = AnalysisJob(
             ),
         ),
         AnalysisStatement(
-            match="MATCH (acl:S3Acl)-[:APPLIES_TO]->(bucket:S3Bucket)<-[:RESOURCE]-(aws:AWSAccount{id: $AWS_ID})\nWHERE acl.uri IN ['http://acs.amazonaws.com/groups/global/AllUsers', 'http://acs.amazonaws.com/groups/global/AuthenticatedUsers'] AND acl.permission = 'WRITE_ACP'",
+            match="""
+            MATCH (acl:S3Acl)-[:APPLIES_TO]->(bucket:S3Bucket)<-[:RESOURCE]-(aws:AWSAccount{id: $AWS_ID})
+            WHERE acl.uri IN ['http://acs.amazonaws.com/groups/global/AllUsers', 'http://acs.amazonaws.com/groups/global/AuthenticatedUsers']
+            AND acl.permission = 'WRITE_ACP'
+            """,
             effects=(
                 SetProperties(
                     "bucket",
@@ -70,7 +86,11 @@ AWS_S3ACL_ANALYSIS = AnalysisJob(
             ),
         ),
         AnalysisStatement(
-            match="MATCH (acl:S3Acl)-[:APPLIES_TO]->(bucket:S3Bucket)<-[:RESOURCE]-(aws:AWSAccount{id: $AWS_ID})\nWHERE acl.uri IN ['http://acs.amazonaws.com/groups/global/AllUsers', 'http://acs.amazonaws.com/groups/global/AuthenticatedUsers'] AND acl.permission = 'FULL_CONTROL'",
+            match="""
+            MATCH (acl:S3Acl)-[:APPLIES_TO]->(bucket:S3Bucket)<-[:RESOURCE]-(aws:AWSAccount{id: $AWS_ID})
+            WHERE acl.uri IN ['http://acs.amazonaws.com/groups/global/AllUsers', 'http://acs.amazonaws.com/groups/global/AuthenticatedUsers']
+            AND acl.permission = 'FULL_CONTROL'
+            """,
             effects=(
                 SetProperties(
                     "bucket",

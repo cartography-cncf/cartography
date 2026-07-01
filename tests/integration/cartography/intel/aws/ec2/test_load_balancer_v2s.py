@@ -6,7 +6,7 @@ from cartography.analysis.aws.analysis import AWS_LB_CONTAINER_EXPOSURE
 from cartography.analysis.aws.analysis import AWS_LB_NACL_DIRECT
 from cartography.intel.aws.ec2.load_balancer_v2s import sync_load_balancer_v2_expose
 from cartography.intel.aws.ec2.load_balancer_v2s import sync_load_balancer_v2s
-from cartography.util import run_scoped_analysis_job
+from cartography.util import run_scoped_typed_analysis_job
 from tests.data.aws.ec2.load_balancer_v2s import GET_LOAD_BALANCER_V2_DATA
 from tests.integration.cartography.intel.aws.common import create_test_account
 from tests.integration.util import check_nodes
@@ -330,7 +330,7 @@ def test_nacl_protects_lb_analysis(mock_get_loadbalancer_v2_data, neo4j_session)
     )
 
     # Act
-    run_scoped_analysis_job(
+    run_scoped_typed_analysis_job(
         AWS_LB_NACL_DIRECT,
         neo4j_session,
         {"UPDATE_TAG": TEST_UPDATE_TAG, "AWS_ID": TEST_ACCOUNT_ID},
@@ -415,7 +415,7 @@ def test_lb_expose_container_analysis(mock_get_loadbalancer_v2_data, neo4j_sessi
     )
 
     # Act
-    run_scoped_analysis_job(
+    run_scoped_typed_analysis_job(
         AWS_LB_CONTAINER_EXPOSURE,
         neo4j_session,
         {"UPDATE_TAG": TEST_UPDATE_TAG, "AWS_ID": TEST_ACCOUNT_ID},

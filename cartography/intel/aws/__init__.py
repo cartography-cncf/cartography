@@ -29,9 +29,10 @@ from cartography.intel.aws.util.common import parse_and_validate_aws_requested_s
 from cartography.stats import get_stats_client
 from cartography.util import merge_module_sync_metadata
 from cartography.util import run_analysis_and_ensure_deps
-from cartography.util import run_analysis_job
 from cartography.util import run_cleanup_job
-from cartography.util import run_scoped_analysis_job
+from cartography.util import run_scoped_typed_analysis_job
+from cartography.util import run_typed_analysis_and_ensure_deps
+from cartography.util import run_typed_analysis_job
 from cartography.util import timeit
 
 from . import ec2
@@ -190,13 +191,13 @@ def _sync_one_account(
     if "resourcegroupstaggingapi" in aws_requested_syncs:
         RESOURCE_FUNCTIONS["resourcegroupstaggingapi"](**sync_args)
 
-    run_scoped_analysis_job(
+    run_scoped_typed_analysis_job(
         AWS_EC2_IAM_INSTANCE_PROFILE,
         neo4j_session,
         common_job_parameters,
     )
 
-    run_analysis_job(
+    run_typed_analysis_job(
         AWS_LAMBDA_ECR,
         neo4j_session,
         common_job_parameters,
@@ -205,14 +206,14 @@ def _sync_one_account(
     if {"ecs", "ec2:load_balancer_v2", "ec2:load_balancer_v2:expose"}.issubset(
         requested_syncs_set
     ):
-        run_scoped_analysis_job(
+        run_scoped_typed_analysis_job(
             AWS_LB_CONTAINER_EXPOSURE,
             neo4j_session,
             common_job_parameters,
         )
 
     if {"ec2:network_acls", "ec2:load_balancer_v2"}.issubset(requested_syncs_set):
-        run_scoped_analysis_job(
+        run_scoped_typed_analysis_job(
             AWS_LB_NACL_DIRECT,
             neo4j_session,
             common_job_parameters,
@@ -629,7 +630,7 @@ def _perform_aws_analysis(
     }
     if ec2_asset_exposure_requirements.issubset(requested_syncs_as_set):
         for job in AWS_EC2_ASSET_EXPOSURE_JOBS:
-            run_analysis_job(job, neo4j_session, common_job_parameters)
+            run_typed_analysis_job(job, neo4j_session, common_job_parameters)
     else:
         logger.info(
             f"Did not run AWS EC2 asset exposure analysis because it needs {ec2_asset_exposure_requirements} "
@@ -638,14 +639,14 @@ def _perform_aws_analysis(
 
     if {"ec2:keypair"}.issubset(requested_syncs_as_set):
         for job in AWS_EC2_KEYPAIR_ANALYSIS_JOBS:
-            run_analysis_job(job, neo4j_session, common_job_parameters)
+            run_typed_analysis_job(job, neo4j_session, common_job_parameters)
     else:
         logger.info(
             f"Did not run AWS EC2 keypair analysis because it needs {{'ec2:keypair'}} "
             f"to be included as a requested sync. You specified: {requested_syncs_as_set}.",
         )
 
-    run_analysis_and_ensure_deps(
+    run_typed_analysis_and_ensure_deps(
         AWS_EKS_ASSET_EXPOSURE,
         {"eks"},
         requested_syncs_as_set,
@@ -653,7 +654,7 @@ def _perform_aws_analysis(
         neo4j_session,
     )
 
-    run_analysis_and_ensure_deps(
+    run_typed_analysis_and_ensure_deps(
         AWS_FOREIGN_ACCOUNTS,
         set(),  # This job has no requirements
         requested_syncs_as_set,
@@ -661,7 +662,7 @@ def _perform_aws_analysis(
         neo4j_session,
     )
 
-    run_analysis_and_ensure_deps(
+    run_typed_analysis_and_ensure_deps(
         AWS_ECS_ASSET_EXPOSURE,
         {"ecs", "ec2:load_balancer_v2", "ec2:load_balancer_v2:expose"},
         requested_syncs_as_set,

@@ -180,13 +180,15 @@ def test_azure_compute_exposure_end_to_end(neo4j_session):
 
     # Act: Run all three analysis jobs in order
     for job in AZURE_COMPUTE_ASSET_EXPOSURE_JOBS:
-        cartography.util.run_analysis_job(job, neo4j_session, COMMON_JOB_PARAMETERS)
-    cartography.util.run_scoped_analysis_job(
+        cartography.util.run_typed_analysis_job(
+            job, neo4j_session, COMMON_JOB_PARAMETERS
+        )
+    cartography.util.run_scoped_typed_analysis_job(
         AZURE_LB_EXPOSURE,
         neo4j_session,
         COMMON_JOB_PARAMETERS,
     )
-    cartography.util.run_scoped_analysis_job(
+    cartography.util.run_scoped_typed_analysis_job(
         AZURE_FIREWALL_LB_PROTECTION,
         neo4j_session,
         COMMON_JOB_PARAMETERS,
@@ -253,7 +255,7 @@ def test_azure_lb_exposure_requires_compute_analysis_first(neo4j_session):
     _create_base_graph(neo4j_session)
 
     # Running scoped LB exposure before compute analysis should not create EXPOSE rels.
-    cartography.util.run_scoped_analysis_job(
+    cartography.util.run_scoped_typed_analysis_job(
         AZURE_LB_EXPOSURE,
         neo4j_session,
         COMMON_JOB_PARAMETERS,
@@ -273,8 +275,10 @@ def test_azure_lb_exposure_requires_compute_analysis_first(neo4j_session):
 
     # After compute analysis, scoped LB exposure should create EXPOSE rels.
     for job in AZURE_COMPUTE_ASSET_EXPOSURE_JOBS:
-        cartography.util.run_analysis_job(job, neo4j_session, COMMON_JOB_PARAMETERS)
-    cartography.util.run_scoped_analysis_job(
+        cartography.util.run_typed_analysis_job(
+            job, neo4j_session, COMMON_JOB_PARAMETERS
+        )
+    cartography.util.run_scoped_typed_analysis_job(
         AZURE_LB_EXPOSURE,
         neo4j_session,
         COMMON_JOB_PARAMETERS,

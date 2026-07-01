@@ -7,7 +7,7 @@ import cartography.intel.gcp.compute
 import cartography.intel.gcp.instancegroup
 from cartography.analysis.gcp.analysis import GCP_COMPUTE_EXPOSURE_JOBS
 from cartography.analysis.gcp.analysis import GCP_LB_EXPOSURE
-from cartography.util import run_scoped_analysis_job
+from cartography.util import run_scoped_typed_analysis_job
 from tests.data.gcp.compute_exposure import BACKEND_SERVICE_RESPONSE
 from tests.data.gcp.compute_exposure import CLOUD_ARMOR_RESPONSE
 from tests.data.gcp.compute_exposure import GLOBAL_FORWARDING_RULES_RESPONSE
@@ -272,8 +272,8 @@ def test_scoped_gcp_compute_exposure_jobs_model_and_cleanup(
 
     # Act
     for job in GCP_COMPUTE_EXPOSURE_JOBS:
-        run_scoped_analysis_job(job, neo4j_session, common_job_parameters)
-    run_scoped_analysis_job(GCP_LB_EXPOSURE, neo4j_session, common_job_parameters)
+        run_scoped_typed_analysis_job(job, neo4j_session, common_job_parameters)
+    run_scoped_typed_analysis_job(GCP_LB_EXPOSURE, neo4j_session, common_job_parameters)
 
     # Assert
     assert check_nodes(
@@ -338,7 +338,7 @@ def test_scoped_gcp_compute_exposure_jobs_model_and_cleanup(
         instance_group_id=f"projects/{TEST_PROJECT_ID}/zones/us-central1-a/instanceGroups/test-instance-group",
     )
 
-    run_scoped_analysis_job(
+    run_scoped_typed_analysis_job(
         GCP_LB_EXPOSURE,
         neo4j_session,
         {

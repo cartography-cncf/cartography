@@ -412,7 +412,7 @@ async def test_sync_entra_applications(
         DETACH DELETE sp
         """,
     )
-    cartography.util.run_analysis_job(
+    cartography.util.run_typed_analysis_job(
         ENTRA_APPLICATION_PROJECTION,
         neo4j_session,
         {"UPDATE_TAG": TEST_UPDATE_TAG, "TENANT_ID": TEST_TENANT_ID},
@@ -463,7 +463,7 @@ async def test_sync_entra_applications(
         CREATE (foreign_app)-[:SERVICE_PRINCIPAL]->(foreign_sp)
         """,
     )
-    cartography.util.run_analysis_job(
+    cartography.util.run_typed_analysis_job(
         ENTRA_APPLICATION_PROJECTION,
         neo4j_session,
         {"UPDATE_TAG": TEST_UPDATE_TAG, "TENANT_ID": TEST_TENANT_ID},

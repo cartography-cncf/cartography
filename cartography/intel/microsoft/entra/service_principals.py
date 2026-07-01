@@ -15,7 +15,7 @@ from cartography.intel.microsoft.entra.utils import call_with_retries
 from cartography.models.microsoft.entra.service_principal import (
     EntraServicePrincipalSchema,
 )
-from cartography.util import run_analysis_job
+from cartography.util import run_typed_analysis_job
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
@@ -243,7 +243,7 @@ async def sync_service_principals(
     # stale value from a prior run. Lives in the Entra path (not the
     # ontology stage) so a `--selected-modules microsoft` sync still
     # projects the field.
-    run_analysis_job(
+    run_typed_analysis_job(
         ENTRA_APPLICATION_PROJECTION,
         neo4j_session,
         common_job_parameters,

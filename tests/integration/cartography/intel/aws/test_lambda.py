@@ -4,7 +4,7 @@ from unittest.mock import patch
 import cartography.intel.aws.lambda_function
 import tests.data.aws.lambda_function
 from cartography.analysis.ontology.analysis import RESOLVED_IMAGE_JOBS
-from cartography.util import run_analysis_job
+from cartography.util import run_typed_analysis_job
 from tests.data.aws.lambda_function import LIST_LAMBDA_FUNCTIONS_CONTAINER_IMAGE
 from tests.data.aws.lambda_function import mock_get_event_source_mappings_for_sync_test
 from tests.data.aws.lambda_function import mock_get_function_aliases_for_sync_test
@@ -21,7 +21,7 @@ TEST_UPDATE_TAG = 123456789
 
 def _run_resolved_image_analysis(neo4j_session):
     for job in RESOLVED_IMAGE_JOBS:
-        run_analysis_job(job, neo4j_session, {"UPDATE_TAG": TEST_UPDATE_TAG})
+        run_typed_analysis_job(job, neo4j_session, {"UPDATE_TAG": TEST_UPDATE_TAG})
 
 
 @patch.object(
