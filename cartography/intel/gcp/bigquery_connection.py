@@ -120,7 +120,6 @@ def get_bigquery_connections(
                     "api_disabled",
                     "billing_disabled",
                     "forbidden",
-                    "invalid",
                     "not_found",
                 ),
                 include_transient_403=True,
