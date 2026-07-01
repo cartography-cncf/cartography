@@ -9,6 +9,7 @@ from azure.keyvault.secrets import SecretClient
 from azure.mgmt.keyvault import KeyVaultManagementClient
 
 from cartography.client.core.tx import load
+from cartography.client.core.tx import run_write_query
 from cartography.graph.job import GraphJob
 from cartography.intel.azure.util.tag import transform_tags
 from cartography.models.azure.key_vault import AzureKeyVaultSchema
@@ -201,6 +202,29 @@ def load_secret_tags(
 
 
 @timeit
+def cleanup_secret_tags(
+    neo4j_session: neo4j.Session,
+    subscription_id: str,
+    update_tag: int,
+) -> None:
+    # AzureTag nodes are shared across resource types, so only detach stale TAGGED
+    # edges from AzureKeyVaultSecret here; deleting the shared nodes would remove
+    # tags still referenced by other resources. Orphaned tag nodes are swept by the
+    # subscription-wide tag cleanup that other resource modules already run.
+    run_write_query(
+        neo4j_session,
+        """
+        MATCH (:AzureSubscription {id: $AZURE_SUBSCRIPTION_ID})-[:RESOURCE]->(t:AzureTag)
+        MATCH (:AzureKeyVaultSecret)-[r:TAGGED]->(t)
+        WHERE r.lastupdated <> $UPDATE_TAG
+        DELETE r
+        """,
+        AZURE_SUBSCRIPTION_ID=subscription_id,
+        UPDATE_TAG=update_tag,
+    )
+
+
+@timeit
 def load_keys(
     neo4j_session: neo4j.Session,
     data: list[dict[str, Any]],
@@ -254,22 +278,23 @@ def sync_secrets(
     vault_uri: str,
     update_tag: int,
     common_job_parameters: dict,
-) -> None:
+) -> list[dict[str, Any]]:
     raw_secrets = get_secrets(credentials, vault_uri)
     transformed_secrets = transform_secrets(raw_secrets)
     load_secrets(
         neo4j_session, transformed_secrets, subscription_id, vault_id, update_tag
     )
-    load_secret_tags(neo4j_session, transformed_secrets, subscription_id, update_tag)
 
     secret_cleanup_params = common_job_parameters.copy()
     secret_cleanup_params["VAULT_ID"] = vault_id
     GraphJob.from_node_schema(AzureKeyVaultSecretSchema(), secret_cleanup_params).run(
         neo4j_session
     )
-    GraphJob.from_node_schema(
-        AzureKeyVaultSecretTagsSchema(), common_job_parameters
-    ).run(neo4j_session)
+    # Tag load + cleanup is intentionally NOT done here. AzureTag nodes are shared
+    # across resource types, and node-scoped cleanup runs per subscription, so
+    # cleaning per vault would delete tags still in use by other vaults/resources
+    # not yet synced. The caller loads and cleans secret tags once per subscription.
+    return transformed_secrets
 
 
 @timeit
@@ -349,6 +374,7 @@ def sync(
         common_job_parameters,
     )
 
+    all_secrets: list[dict[str, Any]] = []
     for vault in transformed_vaults:
         vault_id = vault["id"]
         vault_uri = vault.get("vault_uri")
@@ -357,14 +383,16 @@ def sync(
             # Per AGENTS.md: Let errors propagate to surface systemic failures
             # Only catch ResourceNotFoundError for vaults that were deleted between list and access
             try:
-                sync_secrets(
-                    neo4j_session,
-                    credentials,
-                    subscription_id,
-                    vault_id,
-                    vault_uri,
-                    update_tag,
-                    common_job_parameters,
+                all_secrets.extend(
+                    sync_secrets(
+                        neo4j_session,
+                        credentials,
+                        subscription_id,
+                        vault_id,
+                        vault_uri,
+                        update_tag,
+                        common_job_parameters,
+                    )
                 )
             except ResourceNotFoundError:
                 logger.warning(
@@ -402,3 +430,8 @@ def sync(
                 logger.warning(
                     f"Vault {vault_id} not found when syncing certificates, likely deleted. Skipping."
                 )
+
+    # Load and clean secret tags once per subscription, after every vault's secrets
+    # are loaded, so cleanup never removes tags belonging to a not-yet-synced vault.
+    load_secret_tags(neo4j_session, all_secrets, subscription_id, update_tag)
+    cleanup_secret_tags(neo4j_session, subscription_id, update_tag)
