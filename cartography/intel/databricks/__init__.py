@@ -7,6 +7,7 @@ import cartography.intel.databricks.cluster_policies
 import cartography.intel.databricks.clusters
 import cartography.intel.databricks.connections
 import cartography.intel.databricks.external_locations
+import cartography.intel.databricks.functions
 import cartography.intel.databricks.groups
 import cartography.intel.databricks.instance_pools
 import cartography.intel.databricks.ip_access_lists
@@ -212,6 +213,14 @@ def start_databricks_ingestion(neo4j_session: neo4j.Session, config: Config) -> 
     )
 
     cartography.intel.databricks.volumes.sync(
+        neo4j_session,
+        api_client,
+        workspace_id,
+        schemas,
+        common_job_parameters,
+    )
+
+    cartography.intel.databricks.functions.sync(
         neo4j_session,
         api_client,
         workspace_id,
