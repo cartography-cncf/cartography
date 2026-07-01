@@ -9,6 +9,7 @@ import cartography.intel.databricks.instance_pools
 import cartography.intel.databricks.ip_access_lists
 import cartography.intel.databricks.metastores
 import cartography.intel.databricks.secret_scopes
+import cartography.intel.databricks.storage_credentials
 import cartography.intel.databricks.service_principals
 import cartography.intel.databricks.tokens
 import cartography.intel.databricks.users
@@ -163,3 +164,12 @@ def start_databricks_ingestion(neo4j_session: neo4j.Session, config: Config) -> 
             workspace_id,
         )
         return
+
+    # Storage credentials + external locations first so catalogs / tables /
+    # volumes can attach to them.
+    cartography.intel.databricks.storage_credentials.sync(
+        neo4j_session,
+        api_client,
+        workspace_id,
+        common_job_parameters,
+    )
