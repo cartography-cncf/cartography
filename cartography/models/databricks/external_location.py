@@ -52,6 +52,25 @@ class DatabricksExternalLocationToWorkspaceRel(CartographyRelSchema):
 
 
 @dataclass(frozen=True)
+class DatabricksExternalLocationToMetastoreRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+# (:DatabricksMetastore)-[:CONTAINS]->(:DatabricksExternalLocation)
+class DatabricksExternalLocationToMetastoreRel(CartographyRelSchema):
+    target_node_label: str = "DatabricksMetastore"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"id": PropertyRef("metastore_id")},
+    )
+    direction: LinkDirection = LinkDirection.INWARD
+    rel_label: str = "CONTAINS"
+    properties: DatabricksExternalLocationToMetastoreRelProperties = (
+        DatabricksExternalLocationToMetastoreRelProperties()
+    )
+
+
+@dataclass(frozen=True)
 class DatabricksExternalLocationToCredentialRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
@@ -119,6 +138,7 @@ class DatabricksExternalLocationSchema(CartographyNodeSchema):
     )
     other_relationships: OtherRelationships = OtherRelationships(
         [
+            DatabricksExternalLocationToMetastoreRel(),
             DatabricksExternalLocationToCredentialRel(),
             DatabricksExternalLocationToS3Rel(),
             DatabricksExternalLocationToGCSRel(),

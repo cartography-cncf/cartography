@@ -15,6 +15,16 @@ def epoch_ms_to_datetime(value: Any) -> datetime | None:
         return None
     return datetime.fromtimestamp(int(value) / 1000, tz=timezone.utc)
 
+
+def uc_id(metastore_id: str, full_name: str) -> str:
+    """Build a metastore-scoped id for a Unity Catalog securable.
+
+    UC full names (``catalog``, ``catalog.schema``, ``catalog.schema.table``)
+    are unique within a metastore, so ``{metastore_id}/{full_name}`` is a stable
+    key that children can recompute from their parent's full name.
+    """
+    return f"{metastore_id}/{full_name}"
+
 # Connect and read timeouts of 60 seconds each.
 _TIMEOUT = (60, 60)
 _SCIM_PAGE_SIZE = 100

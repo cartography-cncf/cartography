@@ -63,14 +63,14 @@ class DatabricksStorageCredentialToMetastoreRelProperties(CartographyRelProperti
 
 
 @dataclass(frozen=True)
-# (:DatabricksMetastore)-[:RESOURCE]->(:DatabricksStorageCredential)
+# (:DatabricksMetastore)-[:CONTAINS]->(:DatabricksStorageCredential)
 class DatabricksStorageCredentialToMetastoreRel(CartographyRelSchema):
     target_node_label: str = "DatabricksMetastore"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("metastore_id")},
     )
     direction: LinkDirection = LinkDirection.INWARD
-    rel_label: str = "RESOURCE"
+    rel_label: str = "CONTAINS"
     properties: DatabricksStorageCredentialToMetastoreRelProperties = (
         DatabricksStorageCredentialToMetastoreRelProperties()
     )
