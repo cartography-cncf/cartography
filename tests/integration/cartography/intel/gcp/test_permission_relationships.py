@@ -821,3 +821,95 @@ def test_sync_gcp_permission_relationships_clears_stale_condition_on_transition(
     assert edge["has_condition"] is False
     assert edge["condition_title"] is None
     assert edge["condition_expression"] is None
+
+
+@patch.object(
+    cartography.intel.gcp.permission_relationships,
+    "parse_permission_relationships_file",
+    return_value=[
+        {
+            "target_label": "GCPBigQueryTable",
+            "permissions": ["bigquery.tables.getData"],
+            "relationship_name": "CAN_READ",
+        },
+    ],
+)
+def test_sync_gcp_permission_relationships_unconditional_dataset_beats_conditional_table(
+    mock_parse_yaml,
+    neo4j_session,
+):
+    """
+    A principal with an unconditional dataset-scope grant AND a conditional binding on
+    a table in that dataset must end up with an unconditional edge (has_condition=false):
+    the broad unconditional grant wins over the conditional table binding for the same
+    principal/table. Regression for PR #2891 review (kunaals).
+    """
+    # Arrange
+    neo4j_session.run("MATCH (n) DETACH DELETE n")
+    _create_test_project(neo4j_session)
+    neo4j_session.run(
+        """
+        MATCH (project:GCPProject{id: $project_id})
+        MERGE (ds:GCPBigQueryDataset{id: "project-abc:analytics"})
+        ON CREATE SET ds.firstseen = timestamp()
+        SET ds.lastupdated = $update_tag
+        MERGE (project)-[dr:RESOURCE]->(ds)
+        SET dr.lastupdated = $update_tag
+        WITH project
+        UNWIND ["project-abc:analytics.events", "project-abc:analytics.orders"] AS tid
+            MERGE (t:GCPBigQueryTable{id: tid})
+            ON CREATE SET t.firstseen = timestamp()
+            SET t.lastupdated = $update_tag
+            MERGE (project)-[tr:RESOURCE]->(t)
+            SET tr.lastupdated = $update_tag
+        WITH project
+        MERGE (p:GCPPrincipal{email: "dev@example.com"})
+        ON CREATE SET p.firstseen = timestamp()
+        SET p.lastupdated = $update_tag
+        """,
+        project_id=TEST_PROJECT_ID,
+        update_tag=TEST_UPDATE_TAG,
+    )
+    perms = cartography.intel.gcp.permission_relationships.compile_permissions(
+        {"permissions": ["bigquery.tables.getData"], "denied_permissions": []}
+    )
+
+    # Act: same principal has both an unconditional dataset-scope grant and a
+    # conditional binding on one table in that dataset.
+    cartography.intel.gcp.permission_relationships.sync(
+        neo4j_session,
+        TEST_PROJECT_ID,
+        TEST_UPDATE_TAG,
+        COMMON_JOB_PARAMS,
+        {
+            "dev@example.com": {
+                "binding-dataset-open": {
+                    "permissions": perms,
+                    "scope": cartography.intel.gcp.permission_relationships.compile_gcp_regex(
+                        "project/project-abc/resource/projects/project-abc/datasets/analytics"
+                    ),
+                    "has_condition": False,
+                    "condition_title": None,
+                    "condition_expression": None,
+                },
+                "binding-table-conditional": {
+                    "permissions": perms,
+                    "scope": cartography.intel.gcp.permission_relationships.compile_gcp_regex(
+                        "project/project-abc/resource/projects/project-abc/datasets/analytics/tables/events"
+                    ),
+                    "has_condition": True,
+                    "condition_title": "business-hours",
+                    "condition_expression": "request.time.getHours() < 18",
+                },
+            },
+        },
+    )
+
+    # Assert: the events edge is unconditional (dataset grant wins), not conditional.
+    events_has_condition = neo4j_session.run(
+        """
+        MATCH (:GCPPrincipal{email: "dev@example.com"})-[r:CAN_READ]->(:GCPBigQueryTable{id: "project-abc:analytics.events"})
+        RETURN r.has_condition AS has_condition
+        """,
+    ).single()["has_condition"]
+    assert events_has_condition is False

@@ -481,69 +481,69 @@ def load_permission_relationships_cartesian_product(
 
 
 @timeit
-def _load_bigquery_table_dataset_scope_relationships(
+def _load_bigquery_dataset_scope_bulk(
     neo4j_session: neo4j.Session,
-    principals: GCPPrincipalPermissionContext,
+    dataset_scope_principals: dict[str, set[str]],
     resource_dict: dict[str, str],
-    permissions: list[str],
     matchlink_schema: GCPPermissionMatchLink,
     update_tag: int,
     project_id: str,
-) -> tuple[int, GCPPrincipalPermissionContext]:
-    dataset_scope_principals, residual_principals = (
-        _split_bigquery_table_dataset_scope_principals(
-            principals,
-            permissions,
-            project_id,
-        )
-    )
-
+) -> int:
     relationships_loaded = 0
-    table_ids = list(resource_dict)
-    if dataset_scope_principals:
-        table_ids_by_dataset: dict[str, list[str]] = {}
-        for table_id in table_ids:
-            dataset_id = _bigquery_dataset_id_from_table_id(table_id)
-            if dataset_id in dataset_scope_principals:
-                table_ids_by_dataset.setdefault(dataset_id, []).append(table_id)
+    table_ids_by_dataset: dict[str, list[str]] = {}
+    for table_id in resource_dict:
+        dataset_id = _bigquery_dataset_id_from_table_id(table_id)
+        if dataset_id in dataset_scope_principals:
+            table_ids_by_dataset.setdefault(dataset_id, []).append(table_id)
 
-        for dataset_id, dataset_table_ids in table_ids_by_dataset.items():
-            dataset_principals = dataset_scope_principals[dataset_id]
-            logger.info(
-                "Bulk loading relationship '%s' for %d dataset-scope principals across %d BigQuery tables in dataset '%s'",
-                matchlink_schema.rel_label,
-                len(dataset_principals),
-                len(dataset_table_ids),
-                dataset_id,
-            )
-            relationships_loaded += load_permission_relationships_cartesian_product(
-                neo4j_session,
-                matchlink_schema,
-                dataset_principals,
-                dataset_table_ids,
-                update_tag,
-                project_id,
-                f"dataset {dataset_id}",
-            )
+    for dataset_id, dataset_table_ids in table_ids_by_dataset.items():
+        dataset_principals = dataset_scope_principals[dataset_id]
+        logger.info(
+            "Bulk loading relationship '%s' for %d dataset-scope principals across %d BigQuery tables in dataset '%s'",
+            matchlink_schema.rel_label,
+            len(dataset_principals),
+            len(dataset_table_ids),
+            dataset_id,
+        )
+        relationships_loaded += load_permission_relationships_cartesian_product(
+            neo4j_session,
+            matchlink_schema,
+            dataset_principals,
+            dataset_table_ids,
+            update_tag,
+            project_id,
+            f"dataset {dataset_id}",
+        )
 
-    return relationships_loaded, residual_principals
+    return relationships_loaded
 
 
-_ContainerScopeLoader = Callable[
+_ContainerScopeSplitter = Callable[
+    [GCPPrincipalPermissionContext, list[str], str],
+    tuple[dict[str, set[str]], GCPPrincipalPermissionContext],
+]
+_ContainerScopeBulkLoader = Callable[
     [
         neo4j.Session,
-        GCPPrincipalPermissionContext,
+        dict[str, set[str]],
         dict[str, str],
-        list[str],
         GCPPermissionMatchLink,
         int,
         str,
     ],
-    tuple[int, GCPPrincipalPermissionContext],
+    int,
 ]
 
-_CONTAINER_SCOPE_LOADERS: dict[str, _ContainerScopeLoader] = {
-    "GCPBigQueryTable": _load_bigquery_table_dataset_scope_relationships,
+# Container scopes (e.g. a BigQuery dataset covering all its tables) are handled
+# in two phases: a splitter separates broad-scope principals from exact residual
+# work, then a bulk loader Cartesian-writes the broad grants.
+_CONTAINER_SCOPE_HANDLERS: dict[
+    str, tuple[_ContainerScopeSplitter, _ContainerScopeBulkLoader]
+] = {
+    "GCPBigQueryTable": (
+        _split_bigquery_table_dataset_scope_principals,
+        _load_bigquery_dataset_scope_bulk,
+    ),
 }
 
 
@@ -564,8 +564,55 @@ def evaluate_and_load_scope_aware_permission_relationships(
         project_id,
     )
 
+    # Split container-scope (e.g. BigQuery dataset) broad grants out of the residual
+    # up front so we know the final residual before loading anything.
+    dataset_scope_principals: dict[str, set[str]] = {}
+    handler = _CONTAINER_SCOPE_HANDLERS.get(matchlink_schema.target_node_label)
+    if handler is not None:
+        splitter, _ = handler
+        dataset_scope_principals, residual_principals = splitter(
+            residual_principals,
+            permissions,
+            project_id,
+        )
+
     relationships_loaded = 0
     resource_ids = list(resource_dict)
+
+    # Load the residual (row-by-row) path FIRST. It may write conditional edges, and
+    # the bulk unconditional loads below must overwrite any overlapping edge so that
+    # broader unconditional access always wins (has_condition=false). See #2891 review.
+    if residual_principals:
+        residual_matchlink_schema = GCPConditionalPermissionMatchLink(
+            source_node_label=matchlink_schema.source_node_label,
+            target_node_label=matchlink_schema.target_node_label,
+            rel_label=matchlink_schema.rel_label,
+        )
+        relationships_loaded += evaluate_and_load_permission_relationships(
+            neo4j_session,
+            residual_principals,
+            resource_dict,
+            permissions,
+            residual_matchlink_schema,
+            update_tag,
+            project_id,
+            batch_size=batch_size,
+        )
+
+    # Container (dataset) bulk: overwrites overlapping residual edges with
+    # has_condition=false.
+    if handler is not None and dataset_scope_principals:
+        _, bulk_loader = handler
+        relationships_loaded += bulk_loader(
+            neo4j_session,
+            dataset_scope_principals,
+            resource_dict,
+            matchlink_schema,
+            update_tag,
+            project_id,
+        )
+
+    # Project bulk is the broadest scope, so it runs last and wins over everything.
     if project_scope_principals:
         logger.info(
             "Bulk loading relationship '%s' for %d project-scope principals across %d %s resources in project '%s'",
@@ -583,44 +630,6 @@ def evaluate_and_load_scope_aware_permission_relationships(
             update_tag,
             project_id,
             f"project {project_id}",
-        )
-
-    # Project scopes are universal, but container scopes are resource-specific.
-    # Each registered loader decides from assignment scope whether a Cartesian
-    # write is correct and returns the exact/non-container work for row-by-row
-    # evaluation.
-    container_scope_loader = _CONTAINER_SCOPE_LOADERS.get(
-        matchlink_schema.target_node_label
-    )
-    if container_scope_loader is not None:
-        container_loaded, residual_principals = container_scope_loader(
-            neo4j_session,
-            residual_principals,
-            resource_dict,
-            permissions,
-            matchlink_schema,
-            update_tag,
-            project_id,
-        )
-        relationships_loaded += container_loaded
-
-    if residual_principals:
-        # The residual path evaluates row-by-row and may emit conditional edges, so it
-        # uses the condition-capable schema (same rel_label, with per-edge metadata).
-        residual_matchlink_schema = GCPConditionalPermissionMatchLink(
-            source_node_label=matchlink_schema.source_node_label,
-            target_node_label=matchlink_schema.target_node_label,
-            rel_label=matchlink_schema.rel_label,
-        )
-        relationships_loaded += evaluate_and_load_permission_relationships(
-            neo4j_session,
-            residual_principals,
-            resource_dict,
-            permissions,
-            residual_matchlink_schema,
-            update_tag,
-            project_id,
-            batch_size=batch_size,
         )
 
     return relationships_loaded
