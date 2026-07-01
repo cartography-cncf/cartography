@@ -927,52 +927,88 @@ gcp_bigquery_datasets_publicly_accessible = Rule(
 
 
 # =============================================================================
-# CIS GCP 7.2: BigQuery tables are encrypted with CMEK
-# Main node: GCPBigQueryTable
+# CIS GCP 7.2 (scoped): persistent BigQuery tables are encrypted with CMEK
+# Main node: GCPBigQueryTable, aggregated to the parent dataset.
+#
+# Two deliberate reductions vs the literal benchmark ("all BigQuery tables"):
+#
+# 1. Aggregate to the dataset. A single dataset can hold hundreds of thousands
+#    of tables (per-day shards, query-result cache). CMEK is remediated per
+#    dataset (default CMEK) or per logical table, not per shard, so one finding
+#    per table explodes cardinality without adding signal. We emit one finding
+#    per dataset holding >=1 in-scope table without CMEK, with the offending
+#    table count. No in-scope table is hidden: its dataset always surfaces.
+#
+# 2. Exclude expiring tables (expirationTime set). These are dominated by the
+#    ~24h query-result cache, which cannot be CMEK-encrypted. This also skips
+#    user tables with an explicit TTL, so the rule is scoped to *persistent*
+#    tables and does NOT fully cover CIS 7.2; the sibling dataset default-CMEK
+#    rule (7.3) governs future tables. This is an accepted trade-off to keep the
+#    finding volume actionable. https://cloud.google.com/bigquery/docs/cached-results
+#
+# We also exclude VIEW and EXTERNAL tables: they have no BigQuery-managed data
+# at rest, so kms_key_name is always empty and they would be false positives.
+# MATERIALIZED_VIEW / SNAPSHOT / CLONE do store data and support CMEK, so they
+# stay in scope. A null type is kept in scope to avoid dropping real tables.
 # =============================================================================
 class BigQueryTableCmekMissingOutput(Finding):
-    table_name: str | None = None
-    table_id: str | None = None
+    dataset_name: str | None = None
     dataset_id: str | None = None
     project_id: str | None = None
     project_name: str | None = None
-    kms_key_name: str | None = None
+    tables_without_cmek: str | None = None
+    sample_tables: list[str] | None = None
 
 
 _gcp_bigquery_table_cmek_missing = Fact(
     id="gcp_bigquery_table_cmek_missing",
-    name="GCP BigQuery tables without CMEK",
-    description="Detects BigQuery tables whose encryptionConfiguration.kmsKeyName is not set.",
+    name="GCP BigQuery datasets containing persistent tables without CMEK",
+    description="Detects BigQuery datasets holding persistent (non-expiring) tables whose encryptionConfiguration.kmsKeyName is not set, with a count of the offending tables.",
     cypher_query="""
     MATCH (project:GCPProject)-[:RESOURCE]->(table:GCPBigQueryTable)
-    WHERE table.kms_key_name IS NULL OR table.kms_key_name = ''
+    WHERE (table.kms_key_name IS NULL OR table.kms_key_name = '')
+      AND (table.expiration_time IS NULL OR table.expiration_time = '')
+      AND (table.type IS NULL OR NOT table.type IN ['VIEW', 'EXTERNAL'])
+    WITH project, table.dataset_id AS dataset_id,
+         count(table) AS tables_without_cmek,
+         collect(coalesce(table.friendly_name, table.table_id))[..10] AS sample_tables
     RETURN
-        coalesce(table.friendly_name, table.table_id) AS table_name,
-        table.id AS table_id,
-        table.dataset_id AS dataset_id,
+        split(dataset_id, ':')[-1] AS dataset_name,
+        dataset_id,
         project.id AS project_id,
         project.displayname AS project_name,
-        table.kms_key_name AS kms_key_name
+        tables_without_cmek,
+        sample_tables
     """,
     cypher_visual_query="""
     MATCH p=(project:GCPProject)-[:RESOURCE]->(table:GCPBigQueryTable)
-    WHERE table.kms_key_name IS NULL OR table.kms_key_name = ''
+    WHERE (table.kms_key_name IS NULL OR table.kms_key_name = '')
+      AND (table.expiration_time IS NULL OR table.expiration_time = '')
+      AND (table.type IS NULL OR NOT table.type IN ['VIEW', 'EXTERNAL'])
     RETURN *
     """,
     cypher_count_query="""
-    MATCH (table:GCPBigQueryTable)
-    RETURN COUNT(table) AS count
+    MATCH (:GCPProject)-[:RESOURCE]->(table:GCPBigQueryTable)
+    WHERE (table.expiration_time IS NULL OR table.expiration_time = '')
+      AND (table.type IS NULL OR NOT table.type IN ['VIEW', 'EXTERNAL'])
+    RETURN count(DISTINCT table.dataset_id) AS count
     """,
-    asset_id_field="table_id",
-    identity_fields=("table_id",),
+    asset_id_field="dataset_id",
+    identity_fields=("dataset_id",),
     module=Module.GCP,
     maturity=Maturity.STABLE,
 )
 
 gcp_bigquery_tables_without_cmek = Rule(
     id="gcp_bigquery_tables_without_cmek",
-    name="BigQuery Tables Without CMEK",
-    description="BigQuery tables should use customer-managed encryption keys.",
+    name="Persistent BigQuery Tables Without CMEK",
+    description=(
+        "Persistent BigQuery tables should use customer-managed encryption keys. "
+        "Findings are grouped by dataset, with a count of the tables missing CMEK. "
+        "Expiring/temporary tables (e.g. the query-result cache) are excluded, so "
+        "this partially covers CIS 7.2; the dataset default-CMEK rule (7.3) covers "
+        "future tables."
+    ),
     output_model=BigQueryTableCmekMissingOutput,
     facts=(_gcp_bigquery_table_cmek_missing,),
     tags=("bigquery", "encryption", "cmek", "stride:information_disclosure"),
