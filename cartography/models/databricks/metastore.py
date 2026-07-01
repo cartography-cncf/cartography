@@ -7,6 +7,7 @@ from cartography.models.core.relationships import CartographyRelProperties
 from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
+from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import TargetNodeMatcher
 
 
@@ -33,23 +34,43 @@ class DatabricksMetastoreNodeProperties(CartographyNodeProperties):
 @dataclass(frozen=True)
 class DatabricksMetastoreToWorkspaceRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
-    default_catalog_name: PropertyRef = PropertyRef("default_catalog_name")
-    workspace_numeric_id: PropertyRef = PropertyRef("workspace_numeric_id")
 
 
 @dataclass(frozen=True)
-# (:DatabricksWorkspace)-[:ASSIGNED_METASTORE]->(:DatabricksMetastore)
-# Doubles as the sub-resource edge so metastore cleanup is scoped per workspace,
-# matching the single-workspace ingestion model used across the module.
+# (:DatabricksWorkspace)-[:RESOURCE]->(:DatabricksMetastore)
+# Sub-resource edge so metastore cleanup is scoped per workspace, matching the
+# single-workspace ingestion model used across the module.
 class DatabricksMetastoreToWorkspaceRel(CartographyRelSchema):
     target_node_label: str = "DatabricksWorkspace"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("WORKSPACE_ID", set_in_kwargs=True)},
     )
     direction: LinkDirection = LinkDirection.INWARD
-    rel_label: str = "ASSIGNED_METASTORE"
+    rel_label: str = "RESOURCE"
     properties: DatabricksMetastoreToWorkspaceRelProperties = (
         DatabricksMetastoreToWorkspaceRelProperties()
+    )
+
+
+@dataclass(frozen=True)
+class DatabricksMetastoreAssignmentRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    default_catalog_name: PropertyRef = PropertyRef("default_catalog_name")
+    workspace_numeric_id: PropertyRef = PropertyRef("workspace_numeric_id")
+
+
+@dataclass(frozen=True)
+# (:DatabricksWorkspace)-[:ASSIGNED_METASTORE]->(:DatabricksMetastore)
+# The semantic assignment edge, carrying the workspace's default catalog.
+class DatabricksMetastoreAssignmentRel(CartographyRelSchema):
+    target_node_label: str = "DatabricksWorkspace"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"id": PropertyRef("WORKSPACE_ID", set_in_kwargs=True)},
+    )
+    direction: LinkDirection = LinkDirection.INWARD
+    rel_label: str = "ASSIGNED_METASTORE"
+    properties: DatabricksMetastoreAssignmentRelProperties = (
+        DatabricksMetastoreAssignmentRelProperties()
     )
 
 
@@ -59,4 +80,7 @@ class DatabricksMetastoreSchema(CartographyNodeSchema):
     properties: DatabricksMetastoreNodeProperties = DatabricksMetastoreNodeProperties()
     sub_resource_relationship: DatabricksMetastoreToWorkspaceRel = (
         DatabricksMetastoreToWorkspaceRel()
+    )
+    other_relationships: OtherRelationships = OtherRelationships(
+        [DatabricksMetastoreAssignmentRel()],
     )

@@ -18,7 +18,8 @@ U -- OWNER_OF --> T
 S -- OWNER_OF --> T
 C -- HAS_POLICY --> CP
 C -- USES_INSTANCE_POOL --> IP
-W -- ASSIGNED_METASTORE --> M(DatabricksMetastore)
+W -- RESOURCE --> M(DatabricksMetastore)
+W -- ASSIGNED_METASTORE --> M
 W -- RESOURCE --> SC(DatabricksStorageCredential)
 W -- RESOURCE --> EL(DatabricksExternalLocation)
 W -- RESOURCE --> CAT(DatabricksCatalog)
@@ -373,8 +374,9 @@ The Unity Catalog metastore assigned to the workspace. A metastore is account
 
 #### Relationships
 
-- A `DatabricksWorkspace` is assigned a `DatabricksMetastore` (edge carries the workspace's default catalog).
+- A `DatabricksMetastore` belongs to a `DatabricksWorkspace`, which is also assigned to it (the assignment edge carries the workspace's default catalog).
     ```
+    (:DatabricksWorkspace)-[:RESOURCE]->(:DatabricksMetastore)
     (:DatabricksWorkspace)-[:ASSIGNED_METASTORE]->(:DatabricksMetastore)
     ```
 - A `DatabricksMetastore` contains catalogs, storage credentials, external locations, connections and artifact allowlists.
