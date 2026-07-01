@@ -2,6 +2,7 @@ import logging
 
 import neo4j
 
+import cartography.intel.databricks.artifact_allowlists
 import cartography.intel.databricks.catalogs
 import cartography.intel.databricks.cluster_policies
 import cartography.intel.databricks.clusters
@@ -259,6 +260,14 @@ def start_databricks_ingestion(neo4j_session: neo4j.Session, config: Config) -> 
         neo4j_session,
         api_client,
         workspace_id,
+        common_job_parameters,
+    )
+
+    cartography.intel.databricks.artifact_allowlists.sync(
+        neo4j_session,
+        api_client,
+        workspace_id,
+        metastore_id,
         common_job_parameters,
     )
 
