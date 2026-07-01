@@ -419,6 +419,189 @@ def test_sync_gcp_permission_relationships(
     "parse_permission_relationships_file",
     return_value=[
         {
+            "target_label": "GCPBucket",
+            "permissions": ["storage.objects.get"],
+            "relationship_name": "CAN_READ",
+        },
+    ],
+)
+def test_sync_resolves_wif_pool_capability_edges(mock_parse_yaml, neo4j_session):
+    """
+    A WIF pool's federated identity granted a role at org/project scope must get
+    resolved CAN_* capability edges to the in-scope GCP resources, attached
+    directly to the GCPWorkloadIdentityPool node. Normal GCPPrincipal grants
+    resolve in the same pass and must not bleed onto the pool.
+    """
+    # Arrange
+    neo4j_session.run("MATCH (n) DETACH DELETE n")
+    _create_test_project(neo4j_session)
+    pool_id = (
+        "projects/123456789012/locations/global/workloadIdentityPools/subimage-aws"
+    )
+    neo4j_session.run(
+        """
+        MATCH (project:GCPProject{id: $project_id})
+        MERGE (pool:GCPWorkloadIdentityPool{id: $pool_id})
+        ON CREATE SET pool.firstseen = timestamp()
+        SET pool.lastupdated = $update_tag, pool.name = $pool_id
+        MERGE (project)-[pr:RESOURCE]->(pool)
+        SET pr.lastupdated = $update_tag
+        MERGE (b1:GCPBucket{id: "wif-bucket-1"})
+        ON CREATE SET b1.firstseen = timestamp()
+        SET b1.lastupdated = $update_tag
+        MERGE (project)-[br1:RESOURCE]->(b1)
+        SET br1.lastupdated = $update_tag
+        MERGE (b2:GCPBucket{id: "wif-bucket-2"})
+        ON CREATE SET b2.firstseen = timestamp()
+        SET b2.lastupdated = $update_tag
+        MERGE (project)-[br2:RESOURCE]->(b2)
+        SET br2.lastupdated = $update_tag
+        MERGE (principal:GCPPrincipal{email: "alice@example.com"})
+        ON CREATE SET principal.firstseen = timestamp()
+        SET principal.lastupdated = $update_tag
+        """,
+        project_id=TEST_PROJECT_ID,
+        pool_id=pool_id,
+        update_tag=TEST_UPDATE_TAG,
+    )
+
+    def _project_scope_context(key: str) -> dict:
+        return {
+            key: {
+                "binding-storage-view": {
+                    "permissions": cartography.intel.gcp.permission_relationships.compile_permissions(
+                        {
+                            "permissions": ["storage.objects.get"],
+                            "denied_permissions": [],
+                        }
+                    ),
+                    "scope": cartography.intel.gcp.permission_relationships.compile_gcp_regex(
+                        "project/project-abc/*"
+                    ),
+                },
+            },
+        }
+
+    principals = _project_scope_context("alice@example.com")
+    wif_pool_principals = _project_scope_context(pool_id)
+
+    # Act
+    cartography.intel.gcp.permission_relationships.sync(
+        neo4j_session,
+        TEST_PROJECT_ID,
+        TEST_UPDATE_TAG,
+        COMMON_JOB_PARAMS,
+        principals,
+        wif_pool_principals,
+    )
+
+    # Assert: the pool reaches both project buckets via CAN_READ.
+    assert check_rels(
+        neo4j_session,
+        "GCPWorkloadIdentityPool",
+        "id",
+        "GCPBucket",
+        "id",
+        "CAN_READ",
+        rel_direction_right=True,
+    ) == {
+        (pool_id, "wif-bucket-1"),
+        (pool_id, "wif-bucket-2"),
+    }
+
+    # The normal principal pass still resolves independently.
+    assert check_rels(
+        neo4j_session,
+        "GCPPrincipal",
+        "email",
+        "GCPBucket",
+        "id",
+        "CAN_READ",
+        rel_direction_right=True,
+    ) == {
+        ("alice@example.com", "wif-bucket-1"),
+        ("alice@example.com", "wif-bucket-2"),
+    }
+
+
+@patch.object(
+    cartography.intel.gcp.permission_relationships,
+    "parse_permission_relationships_file",
+    return_value=[
+        {
+            "target_label": "GCPBucket",
+            "permissions": ["storage.objects.get"],
+            "relationship_name": "CAN_READ",
+        },
+    ],
+)
+def test_sync_prunes_stale_wif_pool_capability_edges(mock_parse_yaml, neo4j_session):
+    """
+    When the last WIF grant is removed, a pool CAN_* edge created by a prior run
+    must be cleaned up even though there are no WIF pool principals this run.
+    """
+    # Arrange
+    neo4j_session.run("MATCH (n) DETACH DELETE n")
+    _create_test_project(neo4j_session)
+    pool_id = (
+        "projects/123456789012/locations/global/workloadIdentityPools/subimage-aws"
+    )
+    # Seed a pool, a bucket, and a STALE CAN_READ edge from a previous run
+    # (carrying the matchlink _sub_resource bookkeeping the cleanup keys on).
+    neo4j_session.run(
+        """
+        MATCH (project:GCPProject{id: $project_id})
+        MERGE (pool:GCPWorkloadIdentityPool{id: $pool_id})
+        ON CREATE SET pool.firstseen = timestamp()
+        SET pool.lastupdated = $update_tag, pool.name = $pool_id
+        MERGE (project)-[pr:RESOURCE]->(pool)
+        SET pr.lastupdated = $update_tag
+        MERGE (b:GCPBucket{id: "wif-bucket-1"})
+        ON CREATE SET b.firstseen = timestamp()
+        SET b.lastupdated = $update_tag
+        MERGE (project)-[br:RESOURCE]->(b)
+        SET br.lastupdated = $update_tag
+        MERGE (pool)-[stale:CAN_READ]->(b)
+        SET stale.lastupdated = $old_update_tag,
+            stale._sub_resource_label = "GCPProject",
+            stale._sub_resource_id = $project_id
+        """,
+        project_id=TEST_PROJECT_ID,
+        pool_id=pool_id,
+        update_tag=TEST_UPDATE_TAG,
+        old_update_tag=TEST_UPDATE_TAG - 1,
+    )
+
+    # Act: the WIF grant is gone this run (empty pool context).
+    cartography.intel.gcp.permission_relationships.sync(
+        neo4j_session,
+        TEST_PROJECT_ID,
+        TEST_UPDATE_TAG,
+        COMMON_JOB_PARAMS,
+        {},
+        {},
+    )
+
+    # Assert: the stale pool edge was pruned.
+    assert (
+        check_rels(
+            neo4j_session,
+            "GCPWorkloadIdentityPool",
+            "id",
+            "GCPBucket",
+            "id",
+            "CAN_READ",
+            rel_direction_right=True,
+        )
+        == set()
+    )
+
+
+@patch.object(
+    cartography.intel.gcp.permission_relationships,
+    "parse_permission_relationships_file",
+    return_value=[
+        {
             "target_label": "GCPBigQueryTable",
             "permissions": ["bigquery.tables.getData"],
             "relationship_name": "CAN_READ",

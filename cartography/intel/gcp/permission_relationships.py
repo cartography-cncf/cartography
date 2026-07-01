@@ -13,6 +13,8 @@ from cartography.client.core.tx import load_matchlinks
 from cartography.client.core.tx import load_matchlinks_cartesian_product
 from cartography.client.core.tx import read_list_of_values_tx
 from cartography.graph.job import GraphJob
+from cartography.models.core.common import PropertyRef
+from cartography.models.core.relationships import make_source_node_matcher
 from cartography.models.gcp.permission_relationships import GCPPermissionMatchLink
 from cartography.util import timeit
 
@@ -543,16 +545,27 @@ def build_principals_from_policy_bindings(
     policy_bindings: list[dict[str, Any]],
     role_permissions_by_name: dict[str, list[str]],
     project_id: str,
-) -> GCPPrincipalPermissionContext:
+) -> tuple[GCPPrincipalPermissionContext, GCPPrincipalPermissionContext]:
     """
     Build the permission evaluation input directly from the current sync's
     transformed policy bindings and IAM role payloads.
+
+    Returns two contexts that share the same compiled assignments:
+    - ``principals`` keyed by GCP principal email (binding ``members``), resolved
+      against ``GCPPrincipal`` nodes.
+    - ``wif_pool_principals`` keyed by Workload Identity Pool resource id (binding
+      ``wif_pools``), resolved against ``GCPWorkloadIdentityPool`` nodes. The pool's
+      federated identity is granted these roles via ``principalSet://`` members, so
+      treating the pool as a principal lets the same scope-aware engine attach
+      ``CAN_*`` capability edges to the pool node.
     """
     principals: GCPPrincipalPermissionContext = {}
+    wif_pool_principals: GCPPrincipalPermissionContext = {}
     compiled_assignments: dict[str, dict[str, Any]] = {}
     skipped_conditional = 0
     skipped_missing_roles = 0
     total_member_assignments = 0
+    total_pool_assignments = 0
 
     for binding in policy_bindings:
         if binding["has_condition"]:
@@ -582,17 +595,28 @@ def build_principals_from_policy_bindings(
             )
             total_member_assignments += 1
 
+        # The same binding can also grant the role to a WIF pool's federated
+        # identity. Key those grants by the pool resource id so they resolve
+        # against GCPWorkloadIdentityPool nodes instead of GCPPrincipal nodes.
+        for pool_id in binding.get("wif_pools", []):
+            wif_pool_principals.setdefault(pool_id, {})[binding_id] = (
+                compiled_assignments[binding_id]
+            )
+            total_pool_assignments += 1
+
     logger.info(
-        "Built GCP permission evaluation context for project '%s': bindings=%d, usable_bindings=%d, member_assignments=%d, principals=%d, skipped_conditional=%d, skipped_missing_roles=%d",
+        "Built GCP permission evaluation context for project '%s': bindings=%d, usable_bindings=%d, member_assignments=%d, principals=%d, pool_assignments=%d, wif_pools=%d, skipped_conditional=%d, skipped_missing_roles=%d",
         project_id,
         len(policy_bindings),
         len(compiled_assignments),
         total_member_assignments,
         len(principals),
+        total_pool_assignments,
+        len(wif_pool_principals),
         skipped_conditional,
         skipped_missing_roles,
     )
-    return principals
+    return principals, wif_pool_principals
 
 
 def compile_permissions_from_role(role_permissions: list[str]) -> dict[str, Any]:
@@ -807,14 +831,67 @@ def cleanup_rpr(
 
 
 @timeit
+def _evaluate_and_load_for_matchlink(
+    neo4j_session: neo4j.Session,
+    matchlink_schema: GCPPermissionMatchLink,
+    source_principals: GCPPrincipalPermissionContext,
+    resource_dict: dict[str, str],
+    permissions: list[str],
+    relationship_name: str,
+    target_label: str,
+    project_id: str,
+    update_tag: int,
+) -> None:
+    """Resolve and load capability edges for one source-node family, then clean up."""
+    logger.info(
+        "Starting relationship '%s' for resource type '%s' from %s in project '%s' with %d permissions, %d sources, and %d resources",
+        relationship_name,
+        target_label,
+        matchlink_schema.source_node_label,
+        project_id,
+        len(permissions),
+        len(source_principals),
+        len(resource_dict),
+    )
+
+    loaded_relationship_count = evaluate_and_load_scope_aware_permission_relationships(
+        neo4j_session,
+        source_principals,
+        resource_dict,
+        permissions,
+        matchlink_schema,
+        update_tag,
+        project_id,
+        batch_size=GCP_PERMISSION_RELATIONSHIP_BATCH_SIZE,
+    )
+    logger.info(
+        "Finished loading relationship '%s' for resource type '%s' from %s in project '%s' with %d total relationships before cleanup",
+        relationship_name,
+        target_label,
+        matchlink_schema.source_node_label,
+        project_id,
+        loaded_relationship_count,
+    )
+    cleanup_rpr(
+        neo4j_session,
+        matchlink_schema,
+        update_tag,
+        project_id,
+    )
+
+
 def sync(
     neo4j_session: neo4j.Session,
     project_id: str,
     update_tag: int,
     common_job_parameters: dict[str, Any],
     principals: GCPPrincipalPermissionContext,
+    wif_pool_principals: GCPPrincipalPermissionContext | None = None,
 ) -> None:
     logger.info("Syncing GCP Permission Relationships for project '%s'.", project_id)
+
+    if wif_pool_principals is None:
+        wif_pool_principals = {}
 
     pr_file = common_job_parameters.get("gcp_permission_relationships_file")
     if not pr_file:
@@ -838,50 +915,50 @@ def sync(
         permissions = rpr["permissions"]
 
         resource_dict = get_resource_ids(neo4j_session, project_id, target_label)
-        principal_count = len(principals)
-        resource_count = len(resource_dict)
 
-        logger.info(
-            "Starting relationship '%s' for resource type '%s' in project '%s' with %d permissions, %d principals, and %d resources",
-            relationship_name,
-            target_label,
-            project_id,
-            len(permissions),
-            principal_count,
-            resource_count,
-        )
-
-        # Create MatchLink schema with dynamic attributes
+        # GCPPrincipal pass: (GCPUser/GCPServiceAccount/GCPGroup)-[:CAN_*]->(resource)
         matchlink_schema = GCPPermissionMatchLink(
             source_node_label="GCPPrincipal",
             target_node_label=target_label,
             rel_label=relationship_name,
         )
-
-        loaded_relationship_count = (
-            evaluate_and_load_scope_aware_permission_relationships(
-                neo4j_session,
-                principals,
-                resource_dict,
-                permissions,
-                matchlink_schema,
-                update_tag,
-                project_id,
-                batch_size=GCP_PERMISSION_RELATIONSHIP_BATCH_SIZE,
-            )
-        )
-        logger.info(
-            "Finished loading relationship '%s' for resource type '%s' in project '%s' with %d total relationships before cleanup",
+        _evaluate_and_load_for_matchlink(
+            neo4j_session,
+            matchlink_schema,
+            principals,
+            resource_dict,
+            permissions,
             relationship_name,
             target_label,
             project_id,
-            loaded_relationship_count,
-        )
-        cleanup_rpr(
-            neo4j_session,
-            matchlink_schema,
             update_tag,
+        )
+
+        # WIF pool pass: (GCPWorkloadIdentityPool)-[:CAN_*]->(resource). The pool's
+        # federated identity is granted roles via principalSet:// members, so we
+        # resolve them with the same scope-aware engine but match the pool node by
+        # id. The mapping rows still use the "principal_email" key (now the pool id).
+        # This always runs (even with an empty context) so the matchlink cleanup
+        # prunes pool edges from a prior run once the last WIF grant is removed,
+        # mirroring the GCPPrincipal pass above.
+        wif_matchlink_schema = GCPPermissionMatchLink(
+            source_node_label="GCPWorkloadIdentityPool",
+            source_node_matcher=make_source_node_matcher(
+                {"id": PropertyRef("principal_email")},
+            ),
+            target_node_label=target_label,
+            rel_label=relationship_name,
+        )
+        _evaluate_and_load_for_matchlink(
+            neo4j_session,
+            wif_matchlink_schema,
+            wif_pool_principals,
+            resource_dict,
+            permissions,
+            relationship_name,
+            target_label,
             project_id,
+            update_tag,
         )
 
     logger.info(f"Completed GCP Permission Relationships sync for project {project_id}")

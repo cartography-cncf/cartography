@@ -82,12 +82,15 @@ def test_build_principals_from_policy_bindings_uses_in_memory_role_permissions()
         "roles/storage.objectCreator": ["storage.objects.create"],
     }
 
-    principals = permission_relationships.build_principals_from_policy_bindings(
-        policy_bindings,
-        role_permissions_by_name,
-        TEST_PROJECT_ID,
+    principals, wif_pool_principals = (
+        permission_relationships.build_principals_from_policy_bindings(
+            policy_bindings,
+            role_permissions_by_name,
+            TEST_PROJECT_ID,
+        )
     )
 
+    assert wif_pool_principals == {}
     assert _normalize_principals(principals) == {
         "alice@example.com": {
             "binding-1": {
@@ -143,7 +146,7 @@ def test_build_principals_from_policy_bindings_logs_context_diagnostics(caplog):
         },
     ]
     with caplog.at_level(logging.DEBUG):
-        principals = permission_relationships.build_principals_from_policy_bindings(
+        principals, _ = permission_relationships.build_principals_from_policy_bindings(
             policy_bindings,
             {"roles/storage.objectViewer": ["storage.objects.get"]},
             TEST_PROJECT_ID,
@@ -177,13 +180,68 @@ def test_build_principals_from_policy_bindings_logs_context_diagnostics(caplog):
 
 
 def test_build_principals_from_policy_bindings_returns_empty_without_policy_bindings():
-    principals = permission_relationships.build_principals_from_policy_bindings(
-        [],
-        {},
-        TEST_PROJECT_ID,
+    principals, wif_pool_principals = (
+        permission_relationships.build_principals_from_policy_bindings(
+            [],
+            {},
+            TEST_PROJECT_ID,
+        )
     )
 
     assert principals == {}
+    assert wif_pool_principals == {}
+
+
+def test_build_principals_from_policy_bindings_resolves_wif_pools():
+    pool_id = "projects/123/locations/global/workloadIdentityPools/subimage-aws"
+    policy_bindings = [
+        # Org-scoped grant to the pool's federated identity.
+        {
+            "id": "binding-pool-org",
+            "role": "roles/storage.objectViewer",
+            "resource": "//cloudresourcemanager.googleapis.com/organizations/1337",
+            "members": [],
+            "wif_pools": [pool_id],
+            "has_condition": False,
+        },
+        # Conditional bindings are skipped for pools just like for principals.
+        {
+            "id": "binding-pool-conditional",
+            "role": "roles/storage.objectViewer",
+            "resource": "//storage.googleapis.com/buckets/bucket-2",
+            "members": [],
+            "wif_pools": [pool_id],
+            "has_condition": True,
+        },
+        # Missing-role bindings are skipped.
+        {
+            "id": "binding-pool-missing-role",
+            "role": "roles/missing",
+            "resource": "//storage.googleapis.com/buckets/bucket-3",
+            "members": [],
+            "wif_pools": [pool_id],
+            "has_condition": False,
+        },
+    ]
+
+    principals, wif_pool_principals = (
+        permission_relationships.build_principals_from_policy_bindings(
+            policy_bindings,
+            {"roles/storage.objectViewer": ["storage.objects.get"]},
+            TEST_PROJECT_ID,
+        )
+    )
+
+    assert principals == {}
+    assert _normalize_principals(wif_pool_principals) == {
+        pool_id: {
+            "binding-pool-org": {
+                "permissions": ["storage\\.objects\\.get"],
+                "denied_permissions": [],
+                "scope": "project/project-abc/.*",
+            },
+        },
+    }
 
 
 def test_build_principals_from_policy_bindings_reuses_compiled_assignments_per_binding():
@@ -216,7 +274,7 @@ def test_build_principals_from_policy_bindings_reuses_compiled_assignments_per_b
             return_value=compiled_scope,
         ) as mock_compile_scope,
     ):
-        principals = permission_relationships.build_principals_from_policy_bindings(
+        principals, _ = permission_relationships.build_principals_from_policy_bindings(
             policy_bindings,
             {"roles/storage.objectViewer": ["storage.objects.get"]},
             TEST_PROJECT_ID,
@@ -579,7 +637,139 @@ def test_sync_loads_permission_relationships_in_multiple_batches(monkeypatch):
         2,
         1,
     ]
-    mock_cleanup_rpr.assert_called_once()
+    # GCPPrincipal cleanup, plus the always-on GCPWorkloadIdentityPool cleanup.
+    assert mock_cleanup_rpr.call_count == 2
+
+
+def test_sync_runs_wif_pool_pass_with_pool_matchlink():
+    pool_id = "projects/123/locations/global/workloadIdentityPools/subimage-aws"
+    principals = {
+        "alice@example.com": _build_policy_bindings(
+            ["storage.objects.get"],
+            "project/project-abc/*",
+        ),
+    }
+    wif_pool_principals = {
+        pool_id: _build_policy_bindings(
+            ["storage.objects.get"],
+            "project/project-abc/*",
+        ),
+    }
+    relationship_mapping = [
+        {
+            "permissions": ["storage.objects.get"],
+            "relationship_name": "CAN_READ",
+            "target_label": "GCPBucket",
+        }
+    ]
+    neo4j_session = MagicMock()
+
+    with (
+        patch.object(
+            permission_relationships,
+            "parse_permission_relationships_file",
+            return_value=relationship_mapping,
+        ),
+        patch.object(
+            permission_relationships,
+            "get_resource_ids",
+            return_value={"bucket-1": "project/project-abc/resource/buckets/bucket-1"},
+        ),
+        patch.object(
+            permission_relationships,
+            "evaluate_and_load_scope_aware_permission_relationships",
+            return_value=1,
+        ) as mock_evaluate,
+        patch.object(
+            permission_relationships,
+            "cleanup_rpr",
+        ) as mock_cleanup_rpr,
+    ):
+        permission_relationships.sync(
+            neo4j_session,
+            TEST_PROJECT_ID,
+            TEST_UPDATE_TAG,
+            COMMON_JOB_PARAMS,
+            principals,
+            wif_pool_principals,
+        )
+
+    # One pass per source-node family: GCPPrincipal then GCPWorkloadIdentityPool.
+    assert mock_evaluate.call_count == 2
+    assert mock_cleanup_rpr.call_count == 2
+
+    principal_schema = mock_evaluate.call_args_list[0].args[4]
+    pool_schema = mock_evaluate.call_args_list[1].args[4]
+    assert principal_schema.source_node_label == "GCPPrincipal"
+    assert pool_schema.source_node_label == "GCPWorkloadIdentityPool"
+    assert pool_schema.rel_label == "CAN_READ"
+    assert pool_schema.target_node_label == "GCPBucket"
+    # Pool is matched by id (the mapping rows still carry "principal_email").
+    assert pool_schema.source_node_matcher.id.name == "principal_email"
+    # The pool context, not the principal context, is fed to the pool pass.
+    assert mock_evaluate.call_args_list[1].args[1] is wif_pool_principals
+
+
+def test_sync_runs_wif_pool_cleanup_even_with_no_pools():
+    """
+    With no WIF grants this run, the pool pass must still run so its matchlink
+    cleanup prunes any (GCPWorkloadIdentityPool)-[:CAN_*]->(resource) edges left
+    by a prior run. Otherwise stale pool edges would over-report permissions.
+    """
+    principals = {
+        "alice@example.com": _build_policy_bindings(
+            ["storage.objects.get"],
+            "project/project-abc/*",
+        ),
+    }
+    relationship_mapping = [
+        {
+            "permissions": ["storage.objects.get"],
+            "relationship_name": "CAN_READ",
+            "target_label": "GCPBucket",
+        }
+    ]
+    neo4j_session = MagicMock()
+
+    with (
+        patch.object(
+            permission_relationships,
+            "parse_permission_relationships_file",
+            return_value=relationship_mapping,
+        ),
+        patch.object(
+            permission_relationships,
+            "get_resource_ids",
+            return_value={"bucket-1": "project/project-abc/resource/buckets/bucket-1"},
+        ),
+        patch.object(
+            permission_relationships,
+            "evaluate_and_load_scope_aware_permission_relationships",
+            return_value=0,
+        ) as mock_evaluate,
+        patch.object(
+            permission_relationships,
+            "cleanup_rpr",
+        ) as mock_cleanup_rpr,
+    ):
+        permission_relationships.sync(
+            neo4j_session,
+            TEST_PROJECT_ID,
+            TEST_UPDATE_TAG,
+            COMMON_JOB_PARAMS,
+            principals,
+        )
+
+    # Both passes run: GCPPrincipal then GCPWorkloadIdentityPool (empty context).
+    assert mock_evaluate.call_count == 2
+    assert mock_cleanup_rpr.call_count == 2
+
+    pool_evaluate_call = mock_evaluate.call_args_list[1]
+    pool_cleanup_call = mock_cleanup_rpr.call_args_list[1]
+    # The empty WIF context is fed to the pool pass...
+    assert pool_evaluate_call.args[1] == {}
+    # ...and the cleanup targets the pool matchlink so stale edges are pruned.
+    assert pool_cleanup_call.args[1].source_node_label == "GCPWorkloadIdentityPool"
 
 
 def test_sync_skips_cleanup_when_batch_load_fails(monkeypatch):

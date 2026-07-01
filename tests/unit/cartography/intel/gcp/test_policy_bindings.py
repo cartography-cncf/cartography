@@ -501,7 +501,7 @@ def test_sync_limits_policy_binding_graph_writes(
     graph_semaphore = MagicMock()
     mock_get_policy_bindings.return_value = {"policy_results": []}
     mock_transform_bindings.return_value = [{"id": "binding-1"}]
-    mock_build_principals.return_value = {}
+    mock_build_principals.return_value = ({}, {})
 
     with patch.object(
         policy_bindings,
