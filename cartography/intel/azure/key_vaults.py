@@ -9,8 +9,8 @@ from azure.keyvault.secrets import SecretClient
 from azure.mgmt.keyvault import KeyVaultManagementClient
 
 from cartography.client.core.tx import load
-from cartography.client.core.tx import run_write_query
 from cartography.graph.job import GraphJob
+from cartography.graph.statement import GraphStatement
 from cartography.intel.azure.util.tag import transform_tags
 from cartography.models.azure.key_vault import AzureKeyVaultSchema
 from cartography.models.azure.key_vault_certificate import (
@@ -26,6 +26,9 @@ from cartography.util import timeit
 from .util.credentials import Credentials
 
 logger = logging.getLogger(__name__)
+
+# Chunk size for iterative deletion of stale secret TAGGED relationships.
+SECRET_TAGS_CLEANUP_ITERATION_SIZE = 10000
 
 
 @timeit
@@ -211,17 +214,23 @@ def cleanup_secret_tags(
     # edges from AzureKeyVaultSecret here; deleting the shared nodes would remove
     # tags still referenced by other resources. Orphaned tag nodes are swept by the
     # subscription-wide tag cleanup that other resource modules already run.
-    run_write_query(
-        neo4j_session,
+    # Delete iteratively in chunks so large subscriptions don't exhaust transaction memory.
+    GraphStatement(
         """
         MATCH (:AzureSubscription {id: $AZURE_SUBSCRIPTION_ID})-[:RESOURCE]->(t:AzureTag)
         MATCH (:AzureKeyVaultSecret)-[r:TAGGED]->(t)
         WHERE r.lastupdated <> $UPDATE_TAG
-        DELETE r
+        WITH r LIMIT $LIMIT_SIZE
+        DELETE r;
         """,
-        AZURE_SUBSCRIPTION_ID=subscription_id,
-        UPDATE_TAG=update_tag,
-    )
+        parameters={
+            "AZURE_SUBSCRIPTION_ID": subscription_id,
+            "UPDATE_TAG": update_tag,
+        },
+        iterative=True,
+        iterationsize=SECRET_TAGS_CLEANUP_ITERATION_SIZE,
+        parent_job_name="AzureKeyVaultSecretTags",
+    ).run(neo4j_session)
 
 
 @timeit
