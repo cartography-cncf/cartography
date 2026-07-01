@@ -7,6 +7,7 @@ import cartography.intel.databricks.clusters
 import cartography.intel.databricks.groups
 import cartography.intel.databricks.instance_pools
 import cartography.intel.databricks.ip_access_lists
+import cartography.intel.databricks.metastores
 import cartography.intel.databricks.secret_scopes
 import cartography.intel.databricks.service_principals
 import cartography.intel.databricks.tokens
@@ -146,3 +147,19 @@ def start_databricks_ingestion(neo4j_session: neo4j.Session, config: Config) -> 
         workspace_id,
         common_job_parameters,
     )
+
+    # Unity Catalog (data plane). The metastore anchors every UC object; when
+    # the workspace has no metastore assigned, skip the whole UC surface.
+    metastore_id = cartography.intel.databricks.metastores.sync(
+        neo4j_session,
+        api_client,
+        workspace_id,
+        common_job_parameters,
+    )
+    if metastore_id is None:
+        logger.info(
+            "Databricks workspace %s has no Unity Catalog metastore assigned - "
+            "skipping UC data-plane sync.",
+            workspace_id,
+        )
+        return

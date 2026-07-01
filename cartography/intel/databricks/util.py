@@ -1,10 +1,19 @@
 import logging
 import time
+from datetime import datetime
+from datetime import timezone
 from typing import Any
 
 import requests
 
 logger = logging.getLogger(__name__)
+
+
+def epoch_ms_to_datetime(value: Any) -> datetime | None:
+    """Convert Databricks epoch-milliseconds timestamps to a UTC datetime."""
+    if value in (None, 0):
+        return None
+    return datetime.fromtimestamp(int(value) / 1000, tz=timezone.utc)
 
 # Connect and read timeouts of 60 seconds each.
 _TIMEOUT = (60, 60)
