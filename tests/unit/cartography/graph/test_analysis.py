@@ -94,6 +94,16 @@ def test_statement_compiles_add_relationship_effect():
     )
 
 
+def test_matching_fingerprint_uses_update_tag_firstseen():
+    # Arrange
+    from cartography.analysis.aws.analysis import AWS_EC2_KEYPAIR_MATCHING_FINGERPRINT
+
+    statement = AWS_EC2_KEYPAIR_MATCHING_FINGERPRINT.statements[0]
+
+    # Act and assert
+    assert "ON CREATE SET r.firstseen = $UPDATE_TAG" in statement.compile_query()
+
+
 def test_statement_compiles_property_effects():
     # Arrange
     statement = AnalysisStatement(

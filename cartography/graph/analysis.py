@@ -183,7 +183,7 @@ class AddRelationship:
     properties: dict[str, Any] | None = None
     undirected: bool = False
     firstseen: Any = None
-    # Which endpoint is constrained by AnalysisJob.scope during stale-edge cleanup.
+    # Override to "target" when the target, not the source, is under AnalysisJob.scope.
     scoped_to: Literal["source", "target"] = "source"
 
     def validate(self) -> None:

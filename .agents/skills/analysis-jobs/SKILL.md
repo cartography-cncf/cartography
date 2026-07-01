@@ -24,7 +24,7 @@ Use them when you need to:
 
 ## Critical rules
 
-1. **Pick the right scope.** Global jobs run after all accounts/projects/tenants (`run_analysis_job`). Scoped jobs run once per account (`run_scoped_analysis_job`). Use dependency checking (`run_analysis_and_ensure_deps`) when a job needs specific upstream modules.
+1. **Pick the right scope.** Global typed jobs run after all accounts/projects/tenants (`run_typed_analysis_job`). Scoped typed jobs run once per account (`run_scoped_typed_analysis_job`). Use dependency checking (`run_typed_analysis_and_ensure_deps`) when a job needs specific upstream modules.
 2. **Use iterative queries for large datasets.** They must return `COUNT(*) AS TotalCompleted`.
 3. **Document each query** with `__comment__`.
 4. **Clean up stale data** that the analysis job creates (don't leave orphan edges between syncs).
@@ -60,6 +60,18 @@ AnalysisJob(
     ),
 )
 ```
+
+Typed jobs read as:
+
+```text
+AnalysisJob(scope=ScopedTo(...))
+    -> AnalysisStatement(match="MATCH ...", effects=(...))
+        -> SetProperty / AddToSet / AddRelationship / SetRelationshipProperty
+```
+
+`label` is required for node-property effects so cleanup knows which label owns the property. Use `Expr("...")` for Cypher expressions like `$UPDATE_TAG`, `timestamp()`, and `coalesce(...)`; plain strings become quoted Cypher strings.
+
+`ScopedTo(...)` on the job defines the account/project/tenant boundary used by generated cleanup. `scoped_to="source"` or `"target"` on `AddRelationship` chooses which endpoint is attached to that scoped resource; keep the default `source` unless the target node is the scoped resource.
 
 ### Step 3 — Write the queries
 
@@ -158,7 +170,7 @@ See the `create-module` skill for testing conventions.
 ## Best practices
 
 1. **Right scope.** Global runs after all accounts; scoped runs per-account.
-2. **Use dep-checking** (`run_analysis_and_ensure_deps`) when a job requires upstream modules.
+2. **Use dep-checking** (`run_typed_analysis_and_ensure_deps`) when a typed job requires upstream modules.
 3. **Document queries** with `__comment__`.
 4. **Test analysis jobs** with integration tests.
 5. **Use iterative queries** for large datasets.
