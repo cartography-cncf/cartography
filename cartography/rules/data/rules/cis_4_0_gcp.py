@@ -945,6 +945,11 @@ gcp_bigquery_datasets_publicly_accessible = Rule(
 #    tables and does NOT fully cover CIS 7.2; the sibling dataset default-CMEK
 #    rule (7.3) governs future tables. This is an accepted trade-off to keep the
 #    finding volume actionable. https://cloud.google.com/bigquery/docs/cached-results
+#
+# We also exclude VIEW and EXTERNAL tables: they have no BigQuery-managed data
+# at rest, so kms_key_name is always empty and they would be false positives.
+# MATERIALIZED_VIEW / SNAPSHOT / CLONE do store data and support CMEK, so they
+# stay in scope. A null type is kept in scope to avoid dropping real tables.
 # =============================================================================
 class BigQueryTableCmekMissingOutput(Finding):
     dataset_name: str | None = None
@@ -963,6 +968,7 @@ _gcp_bigquery_table_cmek_missing = Fact(
     MATCH (project:GCPProject)-[:RESOURCE]->(table:GCPBigQueryTable)
     WHERE (table.kms_key_name IS NULL OR table.kms_key_name = '')
       AND (table.expiration_time IS NULL OR table.expiration_time = '')
+      AND (table.type IS NULL OR NOT table.type IN ['VIEW', 'EXTERNAL'])
     WITH project, table.dataset_id AS dataset_id,
          count(table) AS tables_without_cmek,
          collect(coalesce(table.friendly_name, table.table_id))[..10] AS sample_tables
@@ -978,11 +984,13 @@ _gcp_bigquery_table_cmek_missing = Fact(
     MATCH p=(project:GCPProject)-[:RESOURCE]->(table:GCPBigQueryTable)
     WHERE (table.kms_key_name IS NULL OR table.kms_key_name = '')
       AND (table.expiration_time IS NULL OR table.expiration_time = '')
+      AND (table.type IS NULL OR NOT table.type IN ['VIEW', 'EXTERNAL'])
     RETURN *
     """,
     cypher_count_query="""
     MATCH (:GCPProject)-[:RESOURCE]->(table:GCPBigQueryTable)
-    WHERE table.expiration_time IS NULL OR table.expiration_time = ''
+    WHERE (table.expiration_time IS NULL OR table.expiration_time = '')
+      AND (table.type IS NULL OR NOT table.type IN ['VIEW', 'EXTERNAL'])
     RETURN count(DISTINCT table.dataset_id) AS count
     """,
     asset_id_field="dataset_id",
