@@ -1336,9 +1336,45 @@ Representation of an AWS [Tag](https://docs.aws.amazon.com/resourcegroupstagging
 | value | One part of a key-value pair that makes up a tag. |
 
 #### Relationships
--  AWS VPCs, DB Subnet Groups, EC2 Instances, EC2 SecurityGroups, EC2 Subnets, EC2 Network Interfaces, RDS Instances, S3 Buckets, AWS Roles, AWS Users, and AWS Groups can be tagged with AWSTags.
+- Many AWS resource types can be tagged with AWSTags. Tags are ingested centrally via the Resource Groups Tagging API (`cartography/intel/aws/resourcegroupstaggingapi.py`), so the full set of source node types is defined by `TAG_RESOURCE_TYPE_MAPPINGS` there rather than by per-model relationship schemas.
     ```
-    (AWSVpc, DBSubnetGroup, EC2Instance, EC2SecurityGroup, EC2Subnet, NetworkInterface, RDSInstance, S3Bucket, AWSRole, AWSUser)-[TAGGED]->(AWSTag)
+    (AWSInternetGateway)-[TAGGED]->(AWSTag)
+    (AWSLambda)-[TAGGED]->(AWSTag)
+    (AWSLoadBalancer)-[TAGGED]->(AWSTag)
+    (AWSLoadBalancerV2)-[TAGGED]->(AWSTag)
+    (AWSRole)-[TAGGED]->(AWSTag)
+    (AWSTransitGateway)-[TAGGED]->(AWSTag)
+    (AWSTransitGatewayAttachment)-[TAGGED]->(AWSTag)
+    (AWSUser)-[TAGGED]->(AWSTag)
+    (AWSVpc)-[TAGGED]->(AWSTag)
+    (AutoScalingGroup)-[TAGGED]->(AWSTag)
+    (DBSubnetGroup)-[TAGGED]->(AWSTag)
+    (DynamoDBTable)-[TAGGED]->(AWSTag)
+    (EBSVolume)-[TAGGED]->(AWSTag)
+    (EC2Instance)-[TAGGED]->(AWSTag)
+    (EC2KeyPair)-[TAGGED]->(AWSTag)
+    (EC2SecurityGroup)-[TAGGED]->(AWSTag)
+    (EC2Subnet)-[TAGGED]->(AWSTag)
+    (ECRRepository)-[TAGGED]->(AWSTag)
+    (ECSCluster)-[TAGGED]->(AWSTag)
+    (ECSContainer)-[TAGGED]->(AWSTag)
+    (ECSContainerInstance)-[TAGGED]->(AWSTag)
+    (ECSTask)-[TAGGED]->(AWSTag)
+    (ECSTaskDefinition)-[TAGGED]->(AWSTag)
+    (EKSCluster)-[TAGGED]->(AWSTag)
+    (EMRCluster)-[TAGGED]->(AWSTag)
+    (ESDomain)-[TAGGED]->(AWSTag)
+    (ElasticIPAddress)-[TAGGED]->(AWSTag)
+    (ElasticacheCluster)-[TAGGED]->(AWSTag)
+    (KMSKey)-[TAGGED]->(AWSTag)
+    (NetworkInterface)-[TAGGED]->(AWSTag)
+    (RDSCluster)-[TAGGED]->(AWSTag)
+    (RDSInstance)-[TAGGED]->(AWSTag)
+    (RDSSnapshot)-[TAGGED]->(AWSTag)
+    (RedshiftCluster)-[TAGGED]->(AWSTag)
+    (S3Bucket)-[TAGGED]->(AWSTag)
+    (SQSQueue)-[TAGGED]->(AWSTag)
+    (SecretsManagerSecret)-[TAGGED]->(AWSTag)
     ```
 
 ### AccountAccessKey
