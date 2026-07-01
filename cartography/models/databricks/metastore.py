@@ -3,6 +3,7 @@ from dataclasses import dataclass
 from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeProperties
 from cartography.models.core.nodes import CartographyNodeSchema
+from cartography.models.core.nodes import ExtraNodeLabels
 from cartography.models.core.relationships import CartographyRelProperties
 from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
@@ -78,6 +79,8 @@ class DatabricksMetastoreAssignmentRel(CartographyRelSchema):
 class DatabricksMetastoreSchema(CartographyNodeSchema):
     label: str = "DatabricksMetastore"
     properties: DatabricksMetastoreNodeProperties = DatabricksMetastoreNodeProperties()
+    # Metastores are grantable UC securables (metastore-level admin privileges).
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["DatabricksSecurable"])
     sub_resource_relationship: DatabricksMetastoreToWorkspaceRel = (
         DatabricksMetastoreToWorkspaceRel()
     )

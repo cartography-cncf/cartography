@@ -6,6 +6,7 @@ from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
 from cartography.intel.databricks.util import DatabricksWorkspaceClient
 from cartography.intel.databricks.util import epoch_ms_to_datetime
+from cartography.intel.databricks.util import uc_id
 from cartography.models.databricks.storage_credential import (
     DatabricksStorageCredentialSchema,
 )
@@ -44,7 +45,6 @@ def sync(
         workspace_id,
         common_job_parameters["UPDATE_TAG"],
     )
-    cleanup(neo4j_session, common_job_parameters)
 
 
 @timeit
@@ -61,15 +61,20 @@ def transform(creds: list[dict[str, Any]]) -> list[dict[str, Any]]:
         name = c["name"]
         if not name:
             raise ValueError("Databricks storage credential returned with empty name")
+        metastore_id = c["metastore_id"]
         aws = c.get("aws_iam_role") or {}
         azure_mi = c.get("azure_managed_identity") or {}
         gcp = c.get("databricks_gcp_service_account") or {}
         result.append(
             {
-                "id": c.get("id") or name,
+                # Names are only metastore-scoped, so a payload missing the API
+                # id falls back to a metastore-scoped id (never a bare name that
+                # could collide across metastores). uc_id fails loudly if the
+                # metastore id is also missing.
+                "id": c.get("id") or uc_id(metastore_id, name),
                 "credential_id": c.get("id"),
                 "name": name,
-                "metastore_id": c.get("metastore_id"),
+                "metastore_id": metastore_id,
                 "credential_type": _credential_type(c),
                 "owner": c.get("owner"),
                 "read_only": c.get("read_only"),

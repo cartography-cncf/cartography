@@ -32,7 +32,6 @@ def sync(
         workspace_id,
         common_job_parameters["UPDATE_TAG"],
     )
-    cleanup(neo4j_session, common_job_parameters)
     return metastore["metastore_id"] if metastore is not None else None
 
 

@@ -38,30 +38,35 @@ def _cleanup_unity_catalog(
     workspace_id: str,
     common_job_parameters: dict,
 ) -> None:
-    """Run cleanup for every Unity Catalog resource type.
+    """Run every Unity Catalog cleanup, in reverse dependency order.
 
-    Used when the workspace has no metastore so that stale UC nodes / grant
-    edges from a previous run (when it did have one) are removed even though we
-    skip the fetch/load phase.
+    Cleanup runs centrally (not inside each resource sync) and only after the
+    whole UC sync succeeds. That keeps a mid-sync failure from deleting stale
+    nodes on partial data, and deleting children before parents avoids
+    detaching hierarchy edges or orphaning child nodes. Also invoked on the
+    no-metastore path to purge UC data left over from a previous run.
     """
-    for module in (
-        cartography.intel.databricks.storage_credentials,
-        cartography.intel.databricks.external_locations,
-        cartography.intel.databricks.catalogs,
-        cartography.intel.databricks.schemas,
-        cartography.intel.databricks.tables,
-        cartography.intel.databricks.volumes,
-        cartography.intel.databricks.functions,
-        cartography.intel.databricks.connections,
-        cartography.intel.databricks.registered_models,
-        cartography.intel.databricks.online_tables,
-        cartography.intel.databricks.vector_search,
-        cartography.intel.databricks.artifact_allowlists,
-    ):
-        module.cleanup(neo4j_session, common_job_parameters)
+    # Grants (edges) first, then leaf resources, then up the containment
+    # hierarchy, and the metastore last.
     cartography.intel.databricks.grants.cleanup(
         neo4j_session, workspace_id, common_job_parameters["UPDATE_TAG"]
     )
+    for module in (
+        cartography.intel.databricks.online_tables,
+        cartography.intel.databricks.vector_search,
+        cartography.intel.databricks.registered_models,
+        cartography.intel.databricks.functions,
+        cartography.intel.databricks.tables,
+        cartography.intel.databricks.volumes,
+        cartography.intel.databricks.schemas,
+        cartography.intel.databricks.catalogs,
+        cartography.intel.databricks.external_locations,
+        cartography.intel.databricks.storage_credentials,
+        cartography.intel.databricks.connections,
+        cartography.intel.databricks.artifact_allowlists,
+        cartography.intel.databricks.metastores,
+    ):
+        module.cleanup(neo4j_session, common_job_parameters)
 
 
 @timeit
@@ -312,3 +317,7 @@ def start_databricks_ingestion(neo4j_session: neo4j.Session, config: Config) -> 
         workspace_id,
         common_job_parameters,
     )
+
+    # Cleanup runs once, centrally, only after every UC sync above succeeded, in
+    # reverse dependency order (see _cleanup_unity_catalog).
+    _cleanup_unity_catalog(neo4j_session, workspace_id, common_job_parameters)

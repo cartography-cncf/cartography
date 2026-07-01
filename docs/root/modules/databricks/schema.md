@@ -51,10 +51,12 @@ VSI(DatabricksVectorSearchIndex) -- USES_ENDPOINT --> VSE(DatabricksVectorSearch
 VSI -- SOURCED_FROM --> TB
 ```
 
-Unity Catalog nodes (`DatabricksCatalog`, `DatabricksSchema`, `DatabricksTable`,
-`DatabricksVolume`, `DatabricksFunction`, `DatabricksConnection`) also carry the
-shared `DatabricksSecurable` label so UC grants can point a principal at any
-grantable object with one relationship type.
+Grantable Unity Catalog nodes (`DatabricksMetastore`, `DatabricksCatalog`,
+`DatabricksSchema`, `DatabricksTable`, `DatabricksVolume`, `DatabricksFunction`,
+`DatabricksConnection`, `DatabricksStorageCredential`,
+`DatabricksExternalLocation`, `DatabricksRegisteredModel`) also carry the shared
+`DatabricksSecurable` label so UC grants can point a principal at any grantable
+object with one relationship type.
 
 ### DatabricksWorkspace
 
@@ -759,9 +761,12 @@ coordinates) at the metastore level.
 ### DatabricksSecurable
 
 A shared label applied to every grantable Unity Catalog object
-(`DatabricksCatalog`, `DatabricksSchema`, `DatabricksTable`, `DatabricksVolume`,
-`DatabricksFunction`, `DatabricksConnection`). It exists so a single
-`HAS_PRIVILEGE` relationship type can point any principal at any securable.
+(`DatabricksMetastore`, `DatabricksCatalog`, `DatabricksSchema`,
+`DatabricksTable`, `DatabricksVolume`, `DatabricksFunction`,
+`DatabricksConnection`, `DatabricksStorageCredential`,
+`DatabricksExternalLocation`, `DatabricksRegisteredModel`). It exists so a
+single `HAS_PRIVILEGE` relationship type can point any principal at any
+securable.
 
 #### Relationships
 

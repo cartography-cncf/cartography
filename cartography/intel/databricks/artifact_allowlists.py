@@ -37,7 +37,6 @@ def sync(
         workspace_id,
         common_job_parameters["UPDATE_TAG"],
     )
-    cleanup(neo4j_session, common_job_parameters)
 
 
 @timeit
@@ -49,12 +48,15 @@ def get(api_session: DatabricksWorkspaceClient) -> list[dict[str, Any]]:
                 f"/api/2.1/unity-catalog/artifact-allowlists/{artifact_type}"
             )
         except requests.HTTPError as e:
-            # A 404 means no allowlist is configured for this artifact type;
-            # skip it. Any other error must abort so cleanup does not drop a
-            # still-valid allowlist node.
-            skip_or_raise_http(e, 404)
+            # 404 = no allowlist configured for this type; 403 = the scan
+            # principal lacks MANAGE ALLOWLIST (the common read-only case).
+            # Both are skippable; any other error must abort so cleanup does not
+            # drop a still-valid allowlist node.
+            skip_or_raise_http(e, 403, 404)
             logger.warning(
-                "No artifact allowlist configured for %s: %s", artifact_type, e
+                "Skipping artifact allowlist %s (not configured or no access): %s",
+                artifact_type,
+                e,
             )
             continue
         response["artifact_type"] = artifact_type

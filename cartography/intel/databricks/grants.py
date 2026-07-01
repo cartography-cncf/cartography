@@ -17,12 +17,16 @@ logger = logging.getLogger(__name__)
 
 # Maps a securable node label to its Unity Catalog permissions API path segment.
 _SECURABLE_TYPE_BY_LABEL = {
+    "DatabricksMetastore": "metastore",
     "DatabricksCatalog": "catalog",
     "DatabricksSchema": "schema",
     "DatabricksTable": "table",
     "DatabricksVolume": "volume",
     "DatabricksFunction": "function",
     "DatabricksConnection": "connection",
+    "DatabricksStorageCredential": "storage_credential",
+    "DatabricksExternalLocation": "external_location",
+    "DatabricksRegisteredModel": "registered_model",
 }
 
 
@@ -40,7 +44,6 @@ def sync(
     load_grants(
         neo4j_session, grants, workspace_id, common_job_parameters["UPDATE_TAG"]
     )
-    cleanup(neo4j_session, workspace_id, common_job_parameters["UPDATE_TAG"])
 
 
 @timeit
@@ -99,11 +102,20 @@ def get_securables(
     Grants are read straight from the graph so this sync does not depend on the
     ordering of the catalog/schema/table/... syncs that populate it.
     """
+    # The permissions endpoint keys most securables by full_name, but metastores
+    # by metastore id and storage credentials / external locations by bare name.
     query = """
     MATCH (:DatabricksWorkspace {id: $workspace_id})-[:RESOURCE]->(n:DatabricksSecurable)
+    WITH n, [l IN labels(n) WHERE l IN $labels][0] AS label
+    WHERE label IS NOT NULL
     RETURN n.id AS id,
-           n.full_name AS full_name,
-           [l IN labels(n) WHERE l IN $labels][0] AS label
+           label,
+           CASE label
+               WHEN 'DatabricksMetastore' THEN n.metastore_id
+               WHEN 'DatabricksStorageCredential' THEN n.name
+               WHEN 'DatabricksExternalLocation' THEN n.name
+               ELSE n.full_name
+           END AS full_name
     """
     result = neo4j_session.run(
         query,
@@ -142,7 +154,14 @@ def get(
             f"{s['securable_type']}/{s['full_name']}"
         )
         try:
-            response = api_session.get(uri)
+            # Paginate: the permissions endpoint can return a next_page_token
+            # (and even empty pages), so a single GET would silently truncate
+            # large grant sets and cleanup would then drop the missing edges.
+            assignments = api_session.uc_list(
+                uri,
+                "privilege_assignments",
+                params={"max_results": 0},
+            )
         except requests.HTTPError as e:
             # A securable the caller can't read grants on (403) or that vanished
             # mid-sync (404) is skippable; any other error must abort so the
@@ -155,7 +174,7 @@ def get(
                 e,
             )
             continue
-        for assignment in response.get("privilege_assignments", []) or []:
+        for assignment in assignments:
             principal = assignment.get("principal")
             privileges = assignment.get("privileges") or []
             if not principal or not privileges:

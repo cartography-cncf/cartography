@@ -7,6 +7,7 @@ from cartography.graph.job import GraphJob
 from cartography.intel.databricks.util import DatabricksWorkspaceClient
 from cartography.intel.databricks.util import epoch_ms_to_datetime
 from cartography.intel.databricks.util import parse_storage_url
+from cartography.intel.databricks.util import uc_id
 from cartography.models.databricks.external_location import (
     DatabricksExternalLocationSchema,
 )
@@ -28,7 +29,6 @@ def sync(
         workspace_id,
         common_job_parameters["UPDATE_TAG"],
     )
-    cleanup(neo4j_session, common_job_parameters)
 
 
 @timeit
@@ -45,13 +45,16 @@ def transform(locations: list[dict[str, Any]]) -> list[dict[str, Any]]:
         name = loc["name"]
         if not name:
             raise ValueError("Databricks external location returned with empty name")
+        metastore_id = loc["metastore_id"]
         scheme, bucket = parse_storage_url(loc.get("url"))
         result.append(
             {
-                "id": loc.get("id") or name,
+                # Fall back to a metastore-scoped id (never a bare name that
+                # could collide across metastores) when the API id is missing.
+                "id": loc.get("id") or uc_id(metastore_id, name),
                 "external_location_id": loc.get("id"),
                 "name": name,
-                "metastore_id": loc.get("metastore_id"),
+                "metastore_id": metastore_id,
                 "url": loc.get("url"),
                 "credential_id": loc.get("credential_id"),
                 "credential_name": loc.get("credential_name"),
