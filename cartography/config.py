@@ -244,6 +244,14 @@ class Config:
     :param airbyte_client_secret: Airbyte client secret for API authentication. Optional.
     :type airbyte_api_url: str
     :param airbyte_api_url: Airbyte API base URL, e.g. https://api.airbyte.com/v1. Optional.
+    :type databricks_workspace_url: str
+    :param databricks_workspace_url: Databricks workspace URL, e.g. https://dbc-xxxx.cloud.databricks.com. Optional.
+    :type databricks_token: str
+    :param databricks_token: Databricks personal access token (PAT). Optional.
+    :type databricks_client_id: str
+    :param databricks_client_id: Databricks OAuth M2M client ID. Optional.
+    :type databricks_client_secret: str
+    :param databricks_client_secret: Databricks OAuth M2M client secret. Optional.
     :type docker_scout_results_dir: str
     :param docker_scout_results_dir: Local directory containing Docker Scout recommendation text reports. Optional.
     :type docker_scout_source: str
@@ -449,6 +457,10 @@ class Config:
         airbyte_client_id=None,
         airbyte_client_secret=None,
         airbyte_api_url=None,
+        databricks_workspace_url=None,
+        databricks_token=None,
+        databricks_client_id=None,
+        databricks_client_secret=None,
         docker_scout_source=None,
         docker_scout_results_dir=None,
         docker_scout_s3_bucket=None,
@@ -623,6 +635,10 @@ class Config:
         self.airbyte_client_id = airbyte_client_id
         self.airbyte_client_secret = airbyte_client_secret
         self.airbyte_api_url = airbyte_api_url
+        self.databricks_workspace_url = databricks_workspace_url
+        self.databricks_token = databricks_token
+        self.databricks_client_id = databricks_client_id
+        self.databricks_client_secret = databricks_client_secret
         # DEPRECATED: `*_results_dir` and `*_s3_*` compat shims; removed in Cartography v1.0.0.
         self.docker_scout_source = _resolve_report_source_config(
             module="docker_scout",

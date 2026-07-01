@@ -32,6 +32,8 @@ _gcp_instance_internet_exposed = Fact(
     WITH project, instance, nic, ac, fw, rule, managed_port
     WHERE ac.type = 'ONE_TO_ONE_NAT'
       AND ac.public_ip IS NOT NULL
+      // Terminated instances are not a live attack surface
+      AND coalesce(instance.status, '') <> 'TERMINATED'
       AND coalesce(fw.disabled, false) = false
       AND fw.direction = 'INGRESS'
       AND (
@@ -59,6 +61,8 @@ _gcp_instance_internet_exposed = Fact(
     MATCH p6=(rule)<-[:MEMBER_OF_IP_RULE]-(ip:GCPIpRange{range:'0.0.0.0/0'})
     WHERE ac.type = 'ONE_TO_ONE_NAT'
       AND ac.public_ip IS NOT NULL
+      // Terminated instances are not a live attack surface
+      AND coalesce(instance.status, '') <> 'TERMINATED'
       AND coalesce(fw.disabled, false) = false
       AND fw.direction = 'INGRESS'
       AND (
@@ -76,6 +80,7 @@ _gcp_instance_internet_exposed = Fact(
     """,
     cypher_count_query="""
     MATCH (instance:GCPInstance)
+    WHERE coalesce(instance.status, '') <> 'TERMINATED'
     RETURN COUNT(instance) AS count
     """,
     asset_id_field="instance_id",
@@ -213,6 +218,7 @@ _aws_ec2_instance_internet_exposed = Fact(
     MATCH (a:AWSAccount)-[:RESOURCE]->(ec2:EC2Instance)-[:MEMBER_OF_EC2_SECURITY_GROUP]->(sg:EC2SecurityGroup)<-[:MEMBER_OF_EC2_SECURITY_GROUP]-(rule:AWSIpPermissionInbound)
     MATCH (rule)<-[:MEMBER_OF_IP_RULE]-(ip:AWSIpRange{range:'0.0.0.0/0'})
     WHERE coalesce(rule.protocol, '') IN ['tcp', '-1', 'all']
+      AND NOT coalesce(ec2.state, 'running') IN ['terminated', 'shutting-down']
     UNWIND [22, 3389, 3306, 5432, 6379, 9200, 27017] AS managed_port
     WITH a, ec2, sg, rule, managed_port
     WHERE rule.fromport IS NULL
@@ -232,6 +238,7 @@ _aws_ec2_instance_internet_exposed = Fact(
     MATCH p=(a:AWSAccount)-[:RESOURCE]->(ec2:EC2Instance)-[:MEMBER_OF_EC2_SECURITY_GROUP]->(sg:EC2SecurityGroup)<-[:MEMBER_OF_EC2_SECURITY_GROUP]-(rule:AWSIpPermissionInbound)
     MATCH p2=(rule)<-[:MEMBER_OF_IP_RULE]-(ip:AWSIpRange{range:'0.0.0.0/0'})
     WHERE coalesce(rule.protocol, '') IN ['tcp', '-1', 'all']
+      AND NOT coalesce(ec2.state, 'running') IN ['terminated', 'shutting-down']
       AND (
         rule.fromport IS NULL
         OR ANY(managed_port IN [22, 3389, 3306, 5432, 6379, 9200, 27017]
@@ -242,6 +249,7 @@ _aws_ec2_instance_internet_exposed = Fact(
     """,
     cypher_count_query="""
     MATCH (ec2:EC2Instance)
+    WHERE NOT coalesce(ec2.state, 'running') IN ['terminated', 'shutting-down']
     RETURN COUNT(ec2) AS count
     """,
     asset_id_field="instance_id",
@@ -281,6 +289,6 @@ compute_instance_exposed = Rule(
         "stride:information_disclosure",
         "stride:elevation_of_privilege",
     ),
-    version="0.1.0",
+    version="0.2.0",
     frameworks=(iso27001_annex_a("8.20"),),
 )

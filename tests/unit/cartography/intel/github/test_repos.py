@@ -188,6 +188,43 @@ def test_transform_dependency_manifests_converts_to_expected_format():
     assert pom_manifest["blob_path"] == "/pom.xml"
 
 
+def test_transform_dependency_manifests_uses_default_branch_for_blob_paths():
+    # Arrange
+    repo_url = "https://github.com/test-org/test-repo"
+    dependency_manifests = {
+        "nodes": [
+            {
+                "blobPath": "/test-org/test-repo/blob/release/2026/services/api/go.mod",
+                "dependencies": {"nodes": []},
+            },
+        ],
+    }
+    output_list = []
+
+    # Act
+    _transform_dependency_manifests(
+        dependency_manifests,
+        repo_url,
+        output_list,
+        default_branch="release/2026",
+    )
+
+    # Assert
+    assert output_list == [
+        {
+            "id": (
+                "https://github.com/test-org/test-repo"
+                "#/test-org/test-repo/blob/release/2026/services/api/go.mod"
+            ),
+            "blob_path": "/test-org/test-repo/blob/release/2026/services/api/go.mod",
+            "repo_relative_path": "services/api/go.mod",
+            "filename": "go.mod",
+            "dependencies_count": 0,
+            "repo_url": repo_url,
+        },
+    ]
+
+
 def test_transform_dependency_converts_to_expected_format():
     """
     Test that the dependency transformation function correctly processes GitHub API data
