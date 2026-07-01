@@ -121,6 +121,15 @@ def test_statement_compiles_property_effects():
     )
 
 
+def test_statement_rejects_property_effect_without_label():
+    # Act and assert
+    with pytest.raises(ValueError, match="Property effects require label"):
+        AnalysisStatement(
+            match="MATCH (n:Node)",
+            effects=(SetProperty("n", "flag", True),),
+        )
+
+
 def test_statement_rejects_mixed_raw_and_compiled_query():
     # Act and assert
     with pytest.raises(ValueError, match="query or match/effects"):

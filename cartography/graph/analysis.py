@@ -37,6 +37,11 @@ class AnalysisStatement:
             )
         if not self.query and (not self.match or not self.effects):
             raise ValueError("AnalysisStatement requires query or match/effects.")
+        if not self.query:
+            for effect in self.effects:
+                if isinstance(effect, (SetProperty, SetProperties, AddToSet)):
+                    if not effect.label:
+                        raise ValueError("Property effects require label for cleanup.")
 
     def compile_query(self) -> str:
         if self.query:
@@ -302,15 +307,15 @@ class AnalysisJob:
             prop_effect: PropertyEffect | RelationshipPropertyEffect | None = None
             if isinstance(effect, SetProperty):
                 if not effect.label:
-                    continue
+                    raise ValueError("Property effects require label for cleanup.")
                 prop_effect = PropertyEffect(effect.label, (effect.property,))
             elif isinstance(effect, SetProperties):
                 if not effect.label:
-                    continue
+                    raise ValueError("Property effects require label for cleanup.")
                 prop_effect = PropertyEffect(effect.label, tuple(effect.properties))
             elif isinstance(effect, AddToSet):
                 if not effect.label:
-                    continue
+                    raise ValueError("Property effects require label for cleanup.")
                 prop_effect = PropertyEffect(effect.label, (effect.property,))
             elif isinstance(effect, SetRelationshipProperty):
                 prop_effect = RelationshipPropertyEffect(
@@ -357,15 +362,15 @@ class AnalysisJob:
             cleanup: AnalysisEffect
             if isinstance(effect, SetProperty):
                 if not effect.label:
-                    continue
+                    raise ValueError("Property effects require label for cleanup.")
                 cleanup = PropertyEffect(effect.label, (effect.property,))
             elif isinstance(effect, SetProperties):
                 if not effect.label:
-                    continue
+                    raise ValueError("Property effects require label for cleanup.")
                 cleanup = PropertyEffect(effect.label, tuple(effect.properties))
             elif isinstance(effect, AddToSet):
                 if not effect.label:
-                    continue
+                    raise ValueError("Property effects require label for cleanup.")
                 cleanup = PropertyEffect(effect.label, (effect.property,))
             elif isinstance(effect, SetRelationshipProperty):
                 cleanup = RelationshipPropertyEffect(
