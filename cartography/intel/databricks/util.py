@@ -97,3 +97,43 @@ class DatabricksWorkspaceClient:
                 break
             start_index += len(resources)
         return results
+
+    def uc_list(
+        self, uri: str, key: str, params: dict | None = None
+    ) -> list[dict[str, Any]]:
+        """Paginate a Unity Catalog listing endpoint (``next_page_token``).
+
+        UC list endpoints return the resources under ``key`` and a
+        ``next_page_token`` to fetch the next page; an empty/absent token ends
+        the walk.
+        """
+        results: list[dict[str, Any]] = []
+        page_params = {**(params or {})}
+        while True:
+            data = self.get(uri, params=page_params)
+            results.extend(data.get(key, []) or [])
+            next_token = data.get("next_page_token")
+            if not next_token:
+                break
+            page_params = {**(params or {}), "page_token": next_token}
+        return results
+
+
+def parse_storage_url(url: str | None) -> tuple[str | None, str | None]:
+    """Return ``(scheme, bucket)`` for a UC storage URL, else ``(None, None)``.
+
+    Handles ``s3://bucket/path`` and ``gs://bucket/path`` (bucket is the netloc)
+    and ``abfss://container@account.dfs.core.windows.net/path`` (container is the
+    netloc user-info). Used to link tables / volumes / external locations to the
+    underlying S3 / GCS bucket already ingested by the aws / gcp modules.
+    """
+    if not url:
+        return None, None
+    scheme, _, rest = url.partition("://")
+    if not rest:
+        return None, None
+    netloc = rest.split("/", 1)[0]
+    if scheme.lower() in ("abfss", "abfs", "wasbs", "wasb"):
+        # container@account.dfs.core.windows.net -> container
+        return scheme.lower(), (netloc.split("@", 1)[0] or None)
+    return scheme.lower(), (netloc or None)
