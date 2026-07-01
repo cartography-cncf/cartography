@@ -3,6 +3,7 @@ from dataclasses import dataclass
 from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeProperties
 from cartography.models.core.nodes import CartographyNodeSchema
+from cartography.models.core.nodes import ExtraNodeLabels
 from cartography.models.core.relationships import CartographyRelProperties
 from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
@@ -71,6 +72,8 @@ class DatabricksSchemaToCatalogRel(CartographyRelSchema):
 class DatabricksSchemaSchema(CartographyNodeSchema):
     label: str = "DatabricksSchema"
     properties: DatabricksSchemaNodeProperties = DatabricksSchemaNodeProperties()
+    # Shared label so UC grants can target any grantable securable by one label.
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["DatabricksSecurable"])
     sub_resource_relationship: DatabricksSchemaToWorkspaceRel = (
         DatabricksSchemaToWorkspaceRel()
     )
