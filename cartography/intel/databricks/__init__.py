@@ -18,13 +18,13 @@ import cartography.intel.databricks.online_tables
 import cartography.intel.databricks.registered_models
 import cartography.intel.databricks.schemas
 import cartography.intel.databricks.secret_scopes
-import cartography.intel.databricks.storage_credentials
 import cartography.intel.databricks.service_principals
+import cartography.intel.databricks.storage_credentials
 import cartography.intel.databricks.tables
-import cartography.intel.databricks.vector_search
-import cartography.intel.databricks.volumes
 import cartography.intel.databricks.tokens
 import cartography.intel.databricks.users
+import cartography.intel.databricks.vector_search
+import cartography.intel.databricks.volumes
 import cartography.intel.databricks.workspaces
 from cartography.config import Config
 from cartography.intel.databricks.util import DatabricksWorkspaceClient

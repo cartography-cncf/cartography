@@ -101,7 +101,9 @@ class DatabricksVolumeToGCSRel(CartographyRelSchema):
     )
     direction: LinkDirection = LinkDirection.OUTWARD
     rel_label: str = "BACKED_BY"
-    properties: DatabricksVolumeToGCSRelProperties = DatabricksVolumeToGCSRelProperties()
+    properties: DatabricksVolumeToGCSRelProperties = (
+        DatabricksVolumeToGCSRelProperties()
+    )
 
 
 @dataclass(frozen=True)

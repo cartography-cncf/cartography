@@ -9,9 +9,7 @@ from cartography.graph.job import GraphJob
 from cartography.intel.databricks.util import DatabricksWorkspaceClient
 from cartography.intel.databricks.util import epoch_ms_to_datetime
 from cartography.intel.databricks.util import uc_id
-from cartography.models.databricks.registered_model import (
-    DatabricksModelVersionSchema,
-)
+from cartography.models.databricks.registered_model import DatabricksModelVersionSchema
 from cartography.models.databricks.registered_model import (
     DatabricksRegisteredModelSchema,
 )
@@ -32,7 +30,10 @@ def sync(
     versions = get_versions(api_session, models)
     t_models, t_versions = transform(models, versions)
     load_models(
-        neo4j_session, t_models, t_versions, workspace_id,
+        neo4j_session,
+        t_models,
+        t_versions,
+        workspace_id,
         common_job_parameters["UPDATE_TAG"],
     )
     cleanup(neo4j_session, common_job_parameters)
@@ -86,9 +87,7 @@ def get_versions(
                 )
             )
         except requests.HTTPError as e:
-            logger.warning(
-                "Failed to list versions for model %s: %s", full_name, e
-            )
+            logger.warning("Failed to list versions for model %s: %s", full_name, e)
     return versions
 
 

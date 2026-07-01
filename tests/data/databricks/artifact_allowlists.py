@@ -4,7 +4,10 @@ DATABRICKS_ARTIFACT_ALLOWLISTS = [
     {
         "artifact_type": "INIT_SCRIPT",
         "artifact_matchers": [
-            {"artifact": "/Volumes/prod/finance/landing/", "match_type": "PREFIX_MATCH"},
+            {
+                "artifact": "/Volumes/prod/finance/landing/",
+                "match_type": "PREFIX_MATCH",
+            },
         ],
         "created_at": 1782835899900,
         "created_by": "admin@subimage.io",

@@ -80,7 +80,8 @@ def transform(online_tables: list[dict[str, Any]]) -> list[dict[str, Any]]:
     result: list[dict[str, Any]] = []
     for ot in online_tables:
         name = ot["name"]
-        metastore_id = ot.get("_metastore_id")
+        # Always injected from the source table's graph row in get().
+        metastore_id = str(ot["_metastore_id"])
         spec = ot.get("spec") or {}
         status = ot.get("status") or {}
         source_full_name = spec.get("source_table_full_name")
@@ -91,9 +92,7 @@ def transform(online_tables: list[dict[str, Any]]) -> list[dict[str, Any]]:
                 "metastore_id": metastore_id,
                 "source_table_full_name": source_full_name,
                 "source_table_id": (
-                    uc_id(metastore_id, source_full_name)
-                    if source_full_name
-                    else None
+                    uc_id(metastore_id, source_full_name) if source_full_name else None
                 ),
                 "pipeline_id": spec.get("pipeline_id"),
                 "detailed_state": status.get("detailed_state"),
@@ -126,6 +125,6 @@ def load_online_tables(
 def cleanup(
     neo4j_session: neo4j.Session, common_job_parameters: dict[str, Any]
 ) -> None:
-    GraphJob.from_node_schema(
-        DatabricksOnlineTableSchema(), common_job_parameters
-    ).run(neo4j_session)
+    GraphJob.from_node_schema(DatabricksOnlineTableSchema(), common_job_parameters).run(
+        neo4j_session
+    )

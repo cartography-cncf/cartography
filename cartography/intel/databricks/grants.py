@@ -34,7 +34,9 @@ def sync(
 ) -> None:
     securables = get_securables(neo4j_session, workspace_id)
     grants = get(api_session, securables)
-    load_grants(neo4j_session, grants, workspace_id, common_job_parameters["UPDATE_TAG"])
+    load_grants(
+        neo4j_session, grants, workspace_id, common_job_parameters["UPDATE_TAG"]
+    )
     cleanup(neo4j_session, workspace_id, common_job_parameters["UPDATE_TAG"])
 
 
@@ -142,9 +144,7 @@ def load_grants(
 
 
 @timeit
-def cleanup(
-    neo4j_session: neo4j.Session, workspace_id: str, update_tag: int
-) -> None:
+def cleanup(neo4j_session: neo4j.Session, workspace_id: str, update_tag: int) -> None:
     for rel in (
         DatabricksUserGrantRel(),
         DatabricksGroupGrantRel(),

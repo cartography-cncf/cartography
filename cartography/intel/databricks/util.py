@@ -25,6 +25,7 @@ def uc_id(metastore_id: str, full_name: str) -> str:
     """
     return f"{metastore_id}/{full_name}"
 
+
 # Connect and read timeouts of 60 seconds each.
 _TIMEOUT = (60, 60)
 _SCIM_PAGE_SIZE = 100

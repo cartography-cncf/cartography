@@ -46,9 +46,7 @@ def get(api_session: DatabricksWorkspaceClient) -> dict[str, Any] | None:
     summary = api_session.get("/api/2.1/unity-catalog/metastore_summary")
     if not summary.get("metastore_id"):
         return None
-    assignment = api_session.get(
-        "/api/2.1/unity-catalog/current-metastore-assignment"
-    )
+    assignment = api_session.get("/api/2.1/unity-catalog/current-metastore-assignment")
     return {**summary, "assignment": assignment or {}}
 
 

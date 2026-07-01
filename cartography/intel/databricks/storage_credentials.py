@@ -20,7 +20,9 @@ def _credential_type(cred: dict[str, Any]) -> str | None:
         return "AZURE_MANAGED_IDENTITY"
     if cred.get("azure_service_principal"):
         return "AZURE_SERVICE_PRINCIPAL"
-    if cred.get("databricks_gcp_service_account") or cred.get("gcp_service_account_key"):
+    if cred.get("databricks_gcp_service_account") or cred.get(
+        "gcp_service_account_key"
+    ):
         return "GCP_SERVICE_ACCOUNT"
     if cred.get("cloudflare_api_token"):
         return "CLOUDFLARE_API_TOKEN"

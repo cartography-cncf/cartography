@@ -56,9 +56,7 @@ def get(
         except requests.HTTPError as e:
             # System-managed catalogs (samples, system) can deny listing; skip
             # them rather than aborting the whole UC sync.
-            logger.warning(
-                "Failed to list schemas for catalog %s: %s", catalog_name, e
-            )
+            logger.warning("Failed to list schemas for catalog %s: %s", catalog_name, e)
     return schemas
 
 

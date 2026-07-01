@@ -2,12 +2,8 @@ from unittest.mock import Mock
 from unittest.mock import patch
 
 import cartography.intel.databricks.storage_credentials
-from tests.data.databricks.storage_credentials import (
-    DATABRICKS_STORAGE_CRED_AWS_ARN,
-)
-from tests.data.databricks.storage_credentials import (
-    DATABRICKS_STORAGE_CRED_GCP_EMAIL,
-)
+from tests.data.databricks.storage_credentials import DATABRICKS_STORAGE_CRED_AWS_ARN
+from tests.data.databricks.storage_credentials import DATABRICKS_STORAGE_CRED_GCP_EMAIL
 from tests.data.databricks.storage_credentials import DATABRICKS_STORAGE_CREDENTIALS
 from tests.data.databricks.workspace import DATABRICKS_WORKSPACE_ID
 from tests.integration.cartography.intel.databricks.test_metastores import (

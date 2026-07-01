@@ -1,13 +1,13 @@
 from unittest.mock import Mock
 from unittest.mock import patch
 
-import cartography.intel.databricks.groups
 import cartography.intel.databricks.grants
+import cartography.intel.databricks.groups
 import cartography.intel.databricks.service_principals
 import cartography.intel.databricks.tables
 import cartography.intel.databricks.users
-from tests.data.databricks.groups import DATABRICKS_GROUPS
 from tests.data.databricks.grants import DATABRICKS_GRANTS
+from tests.data.databricks.groups import DATABRICKS_GROUPS
 from tests.data.databricks.metastore import DATABRICKS_METASTORE_ID
 from tests.data.databricks.service_principals import DATABRICKS_SERVICE_PRINCIPALS
 from tests.data.databricks.tables import DATABRICKS_TABLES
