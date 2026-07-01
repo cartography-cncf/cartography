@@ -879,7 +879,9 @@ def test_start_aws_ingestion_does_cleanup(
     cartography.intel.aws, "_autodiscover_account_regions", return_value=TEST_REGIONS
 )
 @mock.patch.object(cartography.intel.aws, "run_cleanup_job", return_value=None)
-@mock.patch.object(cartography.intel.aws, "run_scoped_analysis_job", return_value=None)
+@mock.patch.object(
+    cartography.intel.aws, "run_scoped_typed_analysis_job", return_value=None
+)
 def test_sync_one_account_all_sync_functions(
     mock_analysis,
     mock_cleanup,
@@ -936,7 +938,9 @@ def test_sync_one_account_all_sync_functions(
     cartography.intel.aws, "_autodiscover_account_regions", return_value=TEST_REGIONS
 )
 @mock.patch.object(cartography.intel.aws, "run_cleanup_job", return_value=None)
-@mock.patch.object(cartography.intel.aws, "run_scoped_analysis_job", return_value=None)
+@mock.patch.object(
+    cartography.intel.aws, "run_scoped_typed_analysis_job", return_value=None
+)
 def test_sync_one_account_just_iam_rels_and_tags(
     mock_analysis,
     mock_cleanup,
