@@ -7,6 +7,7 @@ import requests
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
 from cartography.intel.databricks.util import DatabricksWorkspaceClient
+from cartography.intel.databricks.util import skip_or_raise_http
 from cartography.intel.databricks.util import uc_id
 from cartography.models.databricks.online_table import DatabricksOnlineTableSchema
 from cartography.util import timeit
@@ -64,10 +65,10 @@ def get(
         try:
             ot = api_session.get(f"/api/2.0/online-tables/{full_name}")
         except requests.HTTPError as e:
-            # 404 = the table has no online-table twin, which is the common case.
-            if e.response is not None and e.response.status_code == 404:
-                continue
-            logger.warning("Failed to fetch online table %s: %s", full_name, e)
+            # 404 = the table has no online-table twin, which is the common
+            # case. Any other error (auth, rate-limit, 5xx) must abort so
+            # cleanup does not run on partial data.
+            skip_or_raise_http(e, 404)
             continue
         if ot.get("name"):
             ot["_metastore_id"] = c.get("metastore_id")

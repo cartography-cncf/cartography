@@ -8,6 +8,7 @@ from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
 from cartography.intel.databricks.util import DatabricksWorkspaceClient
 from cartography.intel.databricks.util import epoch_ms_to_datetime
+from cartography.intel.databricks.util import skip_or_raise_http
 from cartography.intel.databricks.util import uc_id
 from cartography.models.databricks.function import DatabricksFunctionSchema
 from cartography.util import timeit
@@ -56,8 +57,11 @@ def get(
                 )
             )
         except requests.HTTPError as e:
+            # Skip an expected 403 on a system-managed schema; re-raise anything
+            # else so cleanup does not run on partial data.
+            skip_or_raise_http(e, 403)
             logger.warning(
-                "Failed to list functions for schema %s.%s: %s",
+                "Skipping functions for schema %s.%s (permission denied): %s",
                 catalog_name,
                 schema_name,
                 e,

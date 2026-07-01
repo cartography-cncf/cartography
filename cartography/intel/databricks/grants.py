@@ -7,6 +7,7 @@ import requests
 from cartography.client.core.tx import load_matchlinks
 from cartography.graph.job import GraphJob
 from cartography.intel.databricks.util import DatabricksWorkspaceClient
+from cartography.intel.databricks.util import skip_or_raise_http
 from cartography.models.databricks.grant import DatabricksGroupGrantRel
 from cartography.models.databricks.grant import DatabricksServicePrincipalGrantRel
 from cartography.models.databricks.grant import DatabricksUserGrantRel
@@ -143,8 +144,12 @@ def get(
         try:
             response = api_session.get(uri)
         except requests.HTTPError as e:
+            # A securable the caller can't read grants on (403) or that vanished
+            # mid-sync (404) is skippable; any other error must abort so the
+            # grant cleanup does not drop still-valid HAS_PRIVILEGE edges.
+            skip_or_raise_http(e, 403, 404)
             logger.warning(
-                "Failed to fetch grants for %s %s: %s",
+                "Skipping grants for %s %s: %s",
                 s["securable_type"],
                 s["full_name"],
                 e,

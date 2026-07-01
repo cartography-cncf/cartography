@@ -8,6 +8,7 @@ from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
 from cartography.intel.databricks.util import DatabricksWorkspaceClient
 from cartography.intel.databricks.util import epoch_ms_to_datetime
+from cartography.intel.databricks.util import skip_or_raise_http
 from cartography.intel.databricks.util import uc_id
 from cartography.models.databricks.registered_model import DatabricksModelVersionSchema
 from cartography.models.databricks.registered_model import (
@@ -61,8 +62,11 @@ def get(
                 )
             )
         except requests.HTTPError as e:
+            # Skip an expected 403 on a system-managed schema; re-raise anything
+            # else so cleanup does not run on partial data.
+            skip_or_raise_http(e, 403)
             logger.warning(
-                "Failed to list models for schema %s.%s: %s",
+                "Skipping models for schema %s.%s (permission denied): %s",
                 catalog_name,
                 schema_name,
                 e,
@@ -87,7 +91,10 @@ def get_versions(
                 )
             )
         except requests.HTTPError as e:
-            logger.warning("Failed to list versions for model %s: %s", full_name, e)
+            # A model deleted mid-sync yields 404; skip it. Any other failure
+            # must abort so cleanup does not delete still-valid version nodes.
+            skip_or_raise_http(e, 404)
+            logger.warning("Skipping versions for deleted model %s: %s", full_name, e)
     return versions
 
 

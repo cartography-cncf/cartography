@@ -9,6 +9,7 @@ from cartography.graph.job import GraphJob
 from cartography.intel.databricks.util import DatabricksWorkspaceClient
 from cartography.intel.databricks.util import epoch_ms_to_datetime
 from cartography.intel.databricks.util import scoped_id
+from cartography.intel.databricks.util import skip_or_raise_http
 from cartography.intel.databricks.util import uc_id
 from cartography.models.databricks.vector_search import (
     DatabricksVectorSearchEndpointSchema,
@@ -66,8 +67,13 @@ def get_indexes(
                 )
             )
         except requests.HTTPError as ex:
+            # An endpoint deleted mid-sync yields 404; skip it. Any other error
+            # must abort so cleanup does not drop still-valid index nodes.
+            skip_or_raise_http(ex, 404)
             logger.warning(
-                "Failed to list vector search indexes for endpoint %s: %s", name, ex
+                "Skipping vector search indexes for deleted endpoint %s: %s",
+                name,
+                ex,
             )
     return indexes
 

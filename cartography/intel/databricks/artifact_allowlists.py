@@ -8,6 +8,7 @@ from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
 from cartography.intel.databricks.util import DatabricksWorkspaceClient
 from cartography.intel.databricks.util import epoch_ms_to_datetime
+from cartography.intel.databricks.util import skip_or_raise_http
 from cartography.models.databricks.artifact_allowlist import (
     DatabricksArtifactAllowlistSchema,
 )
@@ -48,8 +49,12 @@ def get(api_session: DatabricksWorkspaceClient) -> list[dict[str, Any]]:
                 f"/api/2.1/unity-catalog/artifact-allowlists/{artifact_type}"
             )
         except requests.HTTPError as e:
+            # A 404 means no allowlist is configured for this artifact type;
+            # skip it. Any other error must abort so cleanup does not drop a
+            # still-valid allowlist node.
+            skip_or_raise_http(e, 404)
             logger.warning(
-                "Failed to fetch artifact allowlist %s: %s", artifact_type, e
+                "No artifact allowlist configured for %s: %s", artifact_type, e
             )
             continue
         response["artifact_type"] = artifact_type

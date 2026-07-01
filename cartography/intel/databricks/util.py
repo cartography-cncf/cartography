@@ -22,8 +22,29 @@ def uc_id(metastore_id: str, full_name: str) -> str:
     UC full names (``catalog``, ``catalog.schema``, ``catalog.schema.table``)
     are unique within a metastore, so ``{metastore_id}/{full_name}`` is a stable
     key that children can recompute from their parent's full name.
+
+    Both parts must be non-empty: a blank metastore id would collapse securables
+    from different metastores onto the same node.
     """
+    if not metastore_id or not full_name:
+        raise ValueError(
+            f"Cannot build a Unity Catalog id from metastore_id="
+            f"{metastore_id!r}, full_name={full_name!r}",
+        )
     return f"{metastore_id}/{full_name}"
+
+
+def skip_or_raise_http(error: requests.HTTPError, *skippable_statuses: int) -> None:
+    """Re-raise an HTTP error unless its status is an expected, skippable one.
+
+    Unity Catalog listings are fetched per parent (per catalog / schema / ...).
+    A ``403`` on a system-managed securable is expected and skippable, but a
+    transient ``5x`` or an auth failure must abort the sync so the caller does
+    NOT run cleanup on partial data and delete still-valid nodes.
+    """
+    status = error.response.status_code if error.response is not None else None
+    if status not in skippable_statuses:
+        raise error
 
 
 # Connect and read timeouts of 60 seconds each.
@@ -129,12 +150,21 @@ class DatabricksWorkspaceClient:
         """
         results: list[dict[str, Any]] = []
         page_params = {**(params or {})}
+        seen_tokens: set[str] = set()
         while True:
             data = self.get(uri, params=page_params)
             results.extend(data.get(key, []) or [])
             next_token = data.get("next_page_token")
             if not next_token:
                 break
+            # Guard against a malformed response that keeps returning the same
+            # token, which would otherwise loop forever.
+            if next_token in seen_tokens:
+                raise ValueError(
+                    f"Unity Catalog listing {uri} repeated page token "
+                    f"{next_token!r}; aborting to avoid an infinite loop.",
+                )
+            seen_tokens.add(next_token)
             page_params = {**(params or {}), "page_token": next_token}
         return results
 

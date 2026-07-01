@@ -8,6 +8,7 @@ from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
 from cartography.intel.databricks.util import DatabricksWorkspaceClient
 from cartography.intel.databricks.util import epoch_ms_to_datetime
+from cartography.intel.databricks.util import skip_or_raise_http
 from cartography.intel.databricks.util import uc_id
 from cartography.models.databricks.schema import DatabricksSchemaSchema
 from cartography.util import timeit
@@ -54,9 +55,15 @@ def get(
                 )
             )
         except requests.HTTPError as e:
-            # System-managed catalogs (samples, system) can deny listing; skip
-            # them rather than aborting the whole UC sync.
-            logger.warning("Failed to list schemas for catalog %s: %s", catalog_name, e)
+            # A 403 on a system-managed catalog (samples, system) is expected;
+            # skip it. Any other error (transient 5xx, auth) must abort so the
+            # caller does not run cleanup on partial data and delete valid nodes.
+            skip_or_raise_http(e, 403)
+            logger.warning(
+                "Skipping schemas for catalog %s (permission denied): %s",
+                catalog_name,
+                e,
+            )
     return schemas
 
 

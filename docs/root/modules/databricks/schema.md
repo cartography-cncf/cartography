@@ -473,6 +473,7 @@ A Unity Catalog catalog (top of the data hierarchy). Carries the shared
 | storage_root | Managed storage root |
 | connection_name | Source connection for foreign catalogs (indexed) |
 | share_name / provider_name | Delta Sharing source, when applicable |
+| securable_kind | UC securable kind (e.g. `CATALOG_STANDARD`, `CATALOG_DB_STORAGE`) |
 | created_at / updated_at / created_by / updated_by | Provenance |
 | firstseen / lastupdated | Sync bookkeeping timestamps |
 
