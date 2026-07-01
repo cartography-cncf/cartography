@@ -135,7 +135,7 @@ Add a page at `docs/root/modules/your_service/schema.md`. Use `###` for node nam
 
 ### Step 9 — Optional: analysis jobs
 
-If the module needs post-ingestion enrichment (internet exposure, permission inheritance, cross-resource linking), call `run_analysis_job()` / `run_scoped_analysis_job()` at the end of the entry point. See the `analysis-jobs` skill.
+If the module needs post-ingestion enrichment (internet exposure, permission inheritance, cross-resource linking), call `run_typed_analysis_job()` / `run_scoped_typed_analysis_job()` at the end of the entry point. See the `analysis-jobs` skill.
 
 ### Step 10 — Pre-submission checks
 

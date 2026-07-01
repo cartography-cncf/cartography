@@ -73,7 +73,8 @@ from cartography.models.gcp.crm.folders import GCPFolderSchema
 from cartography.models.gcp.crm.organizations import GCPOrganizationSchema
 from cartography.models.gcp.crm.projects import GCPProjectSchema
 from cartography.util import run_analysis_job
-from cartography.util import run_scoped_analysis_job
+from cartography.util import run_scoped_typed_analysis_job
+from cartography.util import run_typed_analysis_job
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
@@ -791,8 +792,8 @@ def _sync_project_resources(
         # We keep them split because they serve different outputs and cleanup scopes.
         if requested_syncs is None or "compute" in requested_syncs:
             for job in GCP_COMPUTE_EXPOSURE_JOBS:
-                run_scoped_analysis_job(job, neo4j_session, common_job_parameters)
-            run_scoped_analysis_job(
+                run_scoped_typed_analysis_job(job, neo4j_session, common_job_parameters)
+            run_scoped_typed_analysis_job(
                 GCP_LB_EXPOSURE,
                 neo4j_session,
                 common_job_parameters,
@@ -1039,7 +1040,7 @@ def start_gcp_ingestion(
             common_job_parameters,
         )
 
-        run_analysis_job(
+        run_typed_analysis_job(
             GCP_COMPUTE_INSTANCE_VPC_ANALYSIS,
             neo4j_session,
             common_job_parameters,
@@ -1062,13 +1063,13 @@ def start_gcp_ingestion(
         )
 
     if requested_syncs is None or "gke" in requested_syncs:
-        run_analysis_job(
+        run_typed_analysis_job(
             GCP_GKE_ASSET_EXPOSURE,
             neo4j_session,
             common_job_parameters,
         )
 
-        run_analysis_job(
+        run_typed_analysis_job(
             GCP_GKE_BASIC_AUTH,
             neo4j_session,
             common_job_parameters,
@@ -1087,7 +1088,7 @@ def start_gcp_ingestion(
         any_policy_bindings_synced and not policy_bindings_sync_failed
     )
     if storage_requested and policy_bindings_requested and policy_bindings_fully_synced:
-        run_analysis_job(
+        run_typed_analysis_job(
             GCP_BUCKET_PUBLIC_PROJECTION,
             neo4j_session,
             common_job_parameters,

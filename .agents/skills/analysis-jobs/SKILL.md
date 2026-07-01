@@ -38,8 +38,8 @@ Use them when you need to:
 
 | Type    | Runs                                  | Location                            | Helper                          |
 | ------- | ------------------------------------- | ----------------------------------- | ------------------------------- |
-| Global  | Once after all accounts / projects    | `cartography/analysis/*/analysis.py`  | `run_analysis_job()`            |
-| Scoped  | Once per account / project / tenant   | `cartography/analysis/*/analysis.py`  | `run_scoped_analysis_job()`     |
+| Global  | Once after all accounts / projects    | `cartography/analysis/*/analysis.py`  | `run_typed_analysis_job()`            |
+| Scoped  | Once per account / project / tenant   | `cartography/analysis/*/analysis.py`  | `run_scoped_typed_analysis_job()`     |
 
 Examples:
 
@@ -95,7 +95,7 @@ AnalysisStatement(
 #### Pattern A — global analysis at end of ingestion
 
 ```python
-from cartography.util import run_analysis_job
+from cartography.util import run_typed_analysis_job
 from cartography.analysis.your_module.analysis import YOUR_MODULE_EXPOSURE_ANALYSIS
 
 @timeit
@@ -105,7 +105,7 @@ def start_your_module_ingestion(neo4j_session: neo4j.Session, config: Config) ->
     for account in accounts:
         _sync_one_account(neo4j_session, account, config.update_tag, common_job_parameters)
 
-    run_analysis_job(
+    run_typed_analysis_job(
         YOUR_MODULE_EXPOSURE_ANALYSIS,
         neo4j_session,
         common_job_parameters,
@@ -115,7 +115,7 @@ def start_your_module_ingestion(neo4j_session: neo4j.Session, config: Config) ->
 #### Pattern B — scoped per account/project
 
 ```python
-from cartography.util import run_scoped_analysis_job
+from cartography.util import run_scoped_typed_analysis_job
 from cartography.analysis.your_module.analysis import YOUR_MODULE_ACCOUNT_ANALYSIS
 
 def _sync_one_account(neo4j_session, account_id, update_tag, common_job_parameters):
@@ -123,7 +123,7 @@ def _sync_one_account(neo4j_session, account_id, update_tag, common_job_paramete
 
     sync_resources(neo4j_session, account_id, update_tag, common_job_parameters)
 
-    run_scoped_analysis_job(
+    run_scoped_typed_analysis_job(
         YOUR_MODULE_ACCOUNT_ANALYSIS,
         neo4j_session,
         common_job_parameters,
@@ -133,11 +133,11 @@ def _sync_one_account(neo4j_session, account_id, update_tag, common_job_paramete
 #### Pattern C — conditional with dependency checking
 
 ```python
-from cartography.util import run_analysis_and_ensure_deps
+from cartography.util import run_typed_analysis_and_ensure_deps
 from cartography.analysis.your_module.analysis import YOUR_MODULE_COMBINED_ANALYSIS
 
 def _perform_analysis(requested_syncs, neo4j_session, common_job_parameters):
-    run_analysis_and_ensure_deps(
+    run_typed_analysis_and_ensure_deps(
         YOUR_MODULE_COMBINED_ANALYSIS,
         {"ec2:instance", "ec2:security_group"},  # required upstream syncs
         set(requested_syncs),

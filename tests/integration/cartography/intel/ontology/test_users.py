@@ -4,7 +4,7 @@ import cartography.intel.ontology.users
 import tests.data.duo.users
 from cartography.analysis.ontology.analysis import USER_AUTHORIZED_THIRD_PARTY_APP
 from cartography.intel.duo.users import _transform_users
-from cartography.util import run_analysis_job
+from cartography.util import run_typed_analysis_job
 from tests.integration.cartography.intel.duo.test_users import (
     _ensure_local_neo4j_has_test_users as _ensure_local_neo4j_has_test_duo_users,
 )
@@ -246,7 +246,7 @@ def test_okta_group_authorization_does_not_overwrite_direct_scopes(neo4j_session
         """
     )
 
-    run_analysis_job(
+    run_typed_analysis_job(
         USER_AUTHORIZED_THIRD_PARTY_APP,
         neo4j_session,
         {"UPDATE_TAG": TEST_UPDATE_TAG},

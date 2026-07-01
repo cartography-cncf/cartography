@@ -37,8 +37,8 @@ from cartography.models.aws.s3.policy_statement import S3PolicyStatementSchema
 from cartography.stats import get_stats_client
 from cartography.util import aws_handle_regions
 from cartography.util import merge_module_sync_metadata
-from cartography.util import run_analysis_job
 from cartography.util import run_cleanup_job
+from cartography.util import run_typed_analysis_job
 from cartography.util import timeit
 from cartography.util import to_asynchronous
 from cartography.util import to_synchronous
@@ -437,7 +437,7 @@ def _load_s3_acls(
 
     # implement the acl permission
     # https://docs.aws.amazon.com/AmazonS3/latest/dev/acl-overview.html#permissions
-    run_analysis_job(
+    run_typed_analysis_job(
         AWS_S3ACL_ANALYSIS,
         neo4j_session,
         {"AWS_ID": aws_account_id},

@@ -16,7 +16,7 @@ from cartography.intel.microsoft.intune.compliance_policies import (
 from cartography.intel.microsoft.intune.detected_apps import sync_detected_apps
 from cartography.intel.microsoft.intune.managed_devices import sync_managed_devices
 from cartography.intel.microsoft.intune.reports import IntuneReportExportError
-from cartography.util import run_scoped_analysis_job
+from cartography.util import run_scoped_typed_analysis_job
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
@@ -131,7 +131,7 @@ def start_intune_ingestion(neo4j_session: neo4j.Session, config: Config) -> None
         # cleanup; running the analysis would refresh APPLIES_TO edges on
         # those stale nodes, preventing their eventual removal.
         if managed_devices_synced and compliance_policies_synced:
-            run_scoped_analysis_job(
+            run_scoped_typed_analysis_job(
                 INTUNE_COMPLIANCE_POLICY_DEVICE,
                 neo4j_session,
                 common_job_parameters,

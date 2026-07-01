@@ -8,30 +8,30 @@
 def start_gcp_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
     # ... sync all orgs, folders, projects, and resources ...
 
-    run_analysis_job(GCP_COMPUTE_INSTANCE_VPC_ANALYSIS, neo4j_session, common_job_parameters)
-    run_analysis_job(GCP_GKE_ASSET_EXPOSURE, neo4j_session, common_job_parameters)
-    run_analysis_job(GCP_GKE_BASIC_AUTH, neo4j_session, common_job_parameters)
+    run_typed_analysis_job(GCP_COMPUTE_INSTANCE_VPC_ANALYSIS, neo4j_session, common_job_parameters)
+    run_typed_analysis_job(GCP_GKE_ASSET_EXPOSURE, neo4j_session, common_job_parameters)
+    run_typed_analysis_job(GCP_GKE_BASIC_AUTH, neo4j_session, common_job_parameters)
 
 
 def _sync_one_project(...) -> None:
     # ... sync project resources ...
 
-    run_scoped_analysis_job(
+    run_scoped_typed_analysis_job(
         GCP_COMPUTE_FORWARDING_RULE_EXPOSURE,
         neo4j_session,
         common_job_parameters,
     )
-    run_scoped_analysis_job(
+    run_scoped_typed_analysis_job(
         GCP_COMPUTE_FIREWALL_INGRESS,
         neo4j_session,
         common_job_parameters,
     )
-    run_scoped_analysis_job(
+    run_scoped_typed_analysis_job(
         GCP_COMPUTE_INSTANCE_EXPOSURE,
         neo4j_session,
         common_job_parameters,
     )
-    run_scoped_analysis_job(
+    run_scoped_typed_analysis_job(
         GCP_COMPUTE_CLOUDRUN_EXPOSURE,
         neo4j_session,
         common_job_parameters,
@@ -47,14 +47,14 @@ def _sync_one_account(...) -> None:
     # ... sync resources ...
 
     # scoped per-account
-    run_scoped_analysis_job(AWS_EC2_IAM_INSTANCE_PROFILE, neo4j_session, common_job_parameters)
+    run_scoped_typed_analysis_job(AWS_EC2_IAM_INSTANCE_PROFILE, neo4j_session, common_job_parameters)
 
     # cross-account, but called per account loop
-    run_analysis_job(AWS_LAMBDA_ECR, neo4j_session, common_job_parameters)
+    run_typed_analysis_job(AWS_LAMBDA_ECR, neo4j_session, common_job_parameters)
 
 
 def _perform_aws_analysis(requested_syncs, neo4j_session, common_job_parameters) -> None:
-    run_analysis_and_ensure_deps(
+    run_typed_analysis_and_ensure_deps(
         AWS_EC2_ASSET_EXPOSURE_JOBS,
         {"ec2:instance", "ec2:security_group", "ec2:load_balancer", "ec2:load_balancer_v2"},
         set(requested_syncs),
@@ -62,7 +62,7 @@ def _perform_aws_analysis(requested_syncs, neo4j_session, common_job_parameters)
         neo4j_session,
     )
 
-    run_analysis_and_ensure_deps(
+    run_typed_analysis_and_ensure_deps(
         AWS_EKS_ASSET_EXPOSURE,
         {"eks"},
         set(requested_syncs),
@@ -79,7 +79,7 @@ def _perform_aws_analysis(requested_syncs, neo4j_session, common_job_parameters)
 def sync_findings(...) -> None:
     # ... load findings ...
 
-    run_scoped_analysis_job(SEMGREP_SCA_RISK_ANALYSIS, neo4j_session, common_job_parameters)
+    run_scoped_typed_analysis_job(SEMGREP_SCA_RISK_ANALYSIS, neo4j_session, common_job_parameters)
 
     cleanup(neo4j_session, common_job_parameters)
 ```

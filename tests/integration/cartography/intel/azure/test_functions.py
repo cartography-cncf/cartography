@@ -3,7 +3,7 @@ from unittest.mock import patch
 
 import cartography.intel.azure.functions as functions
 from cartography.analysis.ontology.analysis import RESOLVED_IMAGE_JOBS
-from cartography.util import run_analysis_job
+from cartography.util import run_typed_analysis_job
 from tests.data.azure.functions import MOCK_FUNCTION_APP_CONFIGS
 from tests.data.azure.functions import MOCK_FUNCTION_APPS
 from tests.data.azure.functions import TEST_FUNCTIONAPP_CODE_ID
@@ -19,7 +19,7 @@ TEST_UPDATE_TAG = 123456789
 
 def _run_resolved_image_analysis(neo4j_session):
     for job in RESOLVED_IMAGE_JOBS:
-        run_analysis_job(job, neo4j_session, {"UPDATE_TAG": TEST_UPDATE_TAG})
+        run_typed_analysis_job(job, neo4j_session, {"UPDATE_TAG": TEST_UPDATE_TAG})
 
 
 @patch("cartography.intel.azure.functions.fetch_function_app_configurations")

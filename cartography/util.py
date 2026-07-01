@@ -75,7 +75,7 @@ def backoff_handler(details: Dict) -> None:
 
 
 def run_analysis_job(
-    filename: str | AnalysisJob,
+    filename: str,
     neo4j_session: neo4j.Session,
     common_job_parameters: Dict,
     package: str = "cartography.data.jobs.analysis",
@@ -120,12 +120,6 @@ def run_analysis_job(
         The job file must be a valid JSON file containing GraphJob-compatible
         query definitions.
     """
-    if isinstance(filename, AnalysisJob):
-        job = filename.to_graph_job()
-        job.merge_parameters(dict(common_job_parameters or {}))
-        job.run(neo4j_session)
-        return
-
     GraphJob.run_from_json(
         neo4j_session,
         read_text(
@@ -137,8 +131,18 @@ def run_analysis_job(
     )
 
 
+def run_typed_analysis_job(
+    analysis_job: AnalysisJob,
+    neo4j_session: neo4j.Session,
+    common_job_parameters: Dict,
+) -> None:
+    job = analysis_job.to_graph_job()
+    job.merge_parameters(dict(common_job_parameters or {}))
+    job.run(neo4j_session)
+
+
 def run_analysis_and_ensure_deps(
-    analysis_job_name: str | AnalysisJob,
+    analysis_job_name: str,
     resource_dependencies: Set[str],
     requested_syncs: Set[str],
     common_job_parameters: Dict[str, Any],
@@ -213,8 +217,30 @@ def run_analysis_and_ensure_deps(
     )
 
 
+def run_typed_analysis_and_ensure_deps(
+    analysis_job: AnalysisJob,
+    resource_dependencies: Set[str],
+    requested_syncs: Set[str],
+    common_job_parameters: Dict[str, Any],
+    neo4j_session: neo4j.Session,
+) -> None:
+    if not resource_dependencies.issubset(requested_syncs):
+        logger.info(
+            f"Did not run {analysis_job.name} because it needs {resource_dependencies} to be included "
+            f"as a requested sync. You specified: {requested_syncs}. If you want this job to run, please change your "
+            f"CLI args/cartography config so that all required resources are included.",
+        )
+        return
+
+    run_typed_analysis_job(
+        analysis_job,
+        neo4j_session,
+        common_job_parameters,
+    )
+
+
 def run_scoped_analysis_job(
-    filename: str | AnalysisJob,
+    filename: str,
     neo4j_session: neo4j.Session,
     common_job_parameters: Dict,
     package: str = "cartography.data.jobs.scoped_analysis",
@@ -268,6 +294,18 @@ def run_scoped_analysis_job(
         neo4j_session,
         common_job_parameters,
         package,
+    )
+
+
+def run_scoped_typed_analysis_job(
+    analysis_job: AnalysisJob,
+    neo4j_session: neo4j.Session,
+    common_job_parameters: Dict,
+) -> None:
+    run_typed_analysis_job(
+        analysis_job,
+        neo4j_session,
+        common_job_parameters,
     )
 
 
