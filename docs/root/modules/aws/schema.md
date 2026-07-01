@@ -6739,3 +6739,38 @@ Representation of an AWS [CloudFormation Stack](https://docs.aws.amazon.com/AWSC
     (AWSPrincipal)-[:CAN_EXEC]->(CloudFormationStack)
     ```
     **Note:** This edge is created for any principal with `cloudformation:UpdateStack` permission on a stack. However, true privilege escalation only occurs when the target stack has a service role (`role_arn` is set), because stacks without a service role execute with the caller's own permissions. Downstream consumers should filter on `role_arn IS NOT NULL` for high-confidence escalation paths.
+
+### AWSWebACL
+
+Representation of an AWS WAFv2 [Web ACL](https://docs.aws.amazon.com/waf/latest/APIReference/API_WebACLSummary.html). A web ACL gives fine-grained control over the web requests that protected resources respond to.
+
+| Field | Description |
+|-------|-------------|
+| firstseen | Timestamp of when a sync job first discovered this node |
+| lastupdated | Timestamp of the last time the node was updated |
+| **id** | The ARN of the web ACL |
+| arn | The ARN of the web ACL |
+| web\_acl\_id | The unique identifier (UUID) of the web ACL. Note this differs from `CloudFrontDistribution.web_acl_id`, which holds the web ACL ARN; join on `AWSWebACL.arn` instead |
+| name | The name of the web ACL |
+| description | The description of the web ACL |
+| scope | The scope of the web ACL, either `REGIONAL` or `CLOUDFRONT` |
+| region | The AWS region of the web ACL. CLOUDFRONT-scoped web ACLs are global and recorded under `us-east-1` |
+
+#### Relationships
+
+- Web ACLs are resources under an AWS Account.
+    ```
+    (AWSAccount)-[RESOURCE]->(AWSWebACL)
+    ```
+- REGIONAL web ACLs protect the application load balancers they are associated with.
+    ```
+    (AWSWebACL)-[PROTECTS]->(AWSLoadBalancerV2)
+    ```
+- REGIONAL web ACLs protect the API Gateway REST API stages they are associated with.
+    ```
+    (AWSWebACL)-[PROTECTS]->(APIGatewayStage)
+    ```
+- CLOUDFRONT-scoped web ACLs protect the CloudFront distributions they are associated with.
+    ```
+    (AWSWebACL)-[PROTECTS]->(CloudFrontDistribution)
+    ```
