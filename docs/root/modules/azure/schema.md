@@ -1895,6 +1895,11 @@ Representation of a [Secret within an Azure Key Vault](https://learn.microsoft.c
     (AzureKeyVault)-[:CONTAINS]->(:AzureKeyVaultSecret)
     ```
 
+- An Azure Key Vault Secret can be tagged with AzureTags.
+    ```cypher
+    (AzureKeyVaultSecret)-[:TAGGED]->(:AzureTag)
+    ```
+
 ### AzureKeyVaultKey
 
 Representation of a [Key within an Azure Key Vault](https://learn.microsoft.com/en-us/rest/api/keyvault/keys/get-keys/get-keys).
@@ -2338,9 +2343,9 @@ Representation of a Request Routing Rule for an Azure Application Gateway. Prope
     (AzureApplicationGatewayRule)-[:ROUTES_TO]->(:AzureApplicationGatewayBackendPool)
     ```
 
-### AzureTag
+### Tag::AzureTag
 
-Representation of a key-value tag applied to an Azure resource. Tags with the same key and value share a single node in the graph, allowing for easy cross-resource querying.
+Representation of a key-value tag applied to an Azure resource. Tags with the same key and value share a single node in the graph, allowing for easy cross-resource querying. Also carries the cross-provider `:Tag` label, so `(:Tag {key, value})` matches Azure, AWS, GCP, and Tenable tags together.
 
 | Field | Description |
 |---|---|

@@ -310,9 +310,7 @@ def test_sync_tags(neo4j_session, mocker):
         common_job_parameters,
     )
 
-    actual_tags = check_nodes(
-        neo4j_session, "TenableAssetTag", ["id", "tag_key", "tag_value"]
-    )
+    actual_tags = check_nodes(neo4j_session, "TenableAssetTag", ["id", "key", "value"])
     assert actual_tags == {(TAG_ID_1, "Environment", "Production")}
 
     actual_rels = check_rels(
@@ -325,6 +323,18 @@ def test_sync_tags(neo4j_session, mocker):
         rel_direction_right=True,
     )
     assert actual_rels == {(ASSET_ID_1, TAG_ID_1)}
+
+    # Assert the new TAGGED edge (parallel to HAS_TAG) is also created
+    tagged_rels = check_rels(
+        neo4j_session,
+        "TenableAsset",
+        "id",
+        "TenableAssetTag",
+        "id",
+        "TAGGED",
+        rel_direction_right=True,
+    )
+    assert tagged_rels == {(ASSET_ID_1, TAG_ID_1)}
 
 
 def test_sync_assets_empty_response(neo4j_session, mocker):
