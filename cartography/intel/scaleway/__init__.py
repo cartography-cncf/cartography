@@ -3,6 +3,9 @@ import logging
 import neo4j
 import scaleway
 
+import cartography.intel.scaleway.baremetal.apple_silicon
+import cartography.intel.scaleway.baremetal.dedibox
+import cartography.intel.scaleway.baremetal.elastic_metal
 import cartography.intel.scaleway.container_registry.namespaces
 import cartography.intel.scaleway.databases.mongodb
 import cartography.intel.scaleway.databases.rdb
@@ -13,6 +16,7 @@ import cartography.intel.scaleway.iam.applications
 import cartography.intel.scaleway.iam.groups
 import cartography.intel.scaleway.iam.permissionsets
 import cartography.intel.scaleway.iam.policies
+import cartography.intel.scaleway.iam.sshkeys
 import cartography.intel.scaleway.iam.users
 import cartography.intel.scaleway.instances.flexibleips
 import cartography.intel.scaleway.instances.instances
@@ -120,6 +124,13 @@ def start_scaleway_ingestion(neo4j_session: neo4j.Session, config: Config) -> No
         org_id=config.scaleway_org,
         update_tag=config.update_tag,
     )
+    cartography.intel.scaleway.iam.sshkeys.sync(
+        neo4j_session,
+        client,
+        common_job_parameters,
+        org_id=config.scaleway_org,
+        update_tag=config.update_tag,
+    )
 
     # Storage
     cartography.intel.scaleway.storage.volumes.sync(
@@ -148,8 +159,6 @@ def start_scaleway_ingestion(neo4j_session: neo4j.Session, config: Config) -> No
     )
 
     # Instances
-    # DISABLED due to https://github.com/scaleway/scaleway-sdk-python/issues/1040
-    """
     cartography.intel.scaleway.instances.flexibleips.sync(
         neo4j_session,
         client,
@@ -158,7 +167,6 @@ def start_scaleway_ingestion(neo4j_session: neo4j.Session, config: Config) -> No
         projects_id=projects_id,
         update_tag=config.update_tag,
     )
-    """
     cartography.intel.scaleway.instances.instances.sync(
         neo4j_session,
         client,
@@ -168,6 +176,32 @@ def start_scaleway_ingestion(neo4j_session: neo4j.Session, config: Config) -> No
         update_tag=config.update_tag,
     )
     cartography.intel.scaleway.instances.securitygroups.sync(
+        neo4j_session,
+        client,
+        common_job_parameters,
+        org_id=config.scaleway_org,
+        projects_id=projects_id,
+        update_tag=config.update_tag,
+    )
+
+    # Bare Metal (Elastic Metal / Apple silicon / Dedibox)
+    cartography.intel.scaleway.baremetal.elastic_metal.sync(
+        neo4j_session,
+        client,
+        common_job_parameters,
+        org_id=config.scaleway_org,
+        projects_id=projects_id,
+        update_tag=config.update_tag,
+    )
+    cartography.intel.scaleway.baremetal.apple_silicon.sync(
+        neo4j_session,
+        client,
+        common_job_parameters,
+        org_id=config.scaleway_org,
+        projects_id=projects_id,
+        update_tag=config.update_tag,
+    )
+    cartography.intel.scaleway.baremetal.dedibox.sync(
         neo4j_session,
         client,
         common_job_parameters,
