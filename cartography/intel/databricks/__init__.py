@@ -37,6 +37,7 @@ def _cleanup_unity_catalog(
     neo4j_session: neo4j.Session,
     workspace_id: str,
     common_job_parameters: dict,
+    clean_artifact_allowlists: bool = True,
 ) -> None:
     """Run every Unity Catalog cleanup, in reverse dependency order.
 
@@ -45,6 +46,10 @@ def _cleanup_unity_catalog(
     nodes on partial data, and deleting children before parents avoids
     detaching hierarchy edges or orphaning child nodes. Also invoked on the
     no-metastore path to purge UC data left over from a previous run.
+
+    ``clean_artifact_allowlists`` is False when the allowlist fetch was
+    incomplete (a 403 on a type), so its cleanup is skipped rather than deleting
+    an allowlist node we could not re-read this run.
     """
     # Grants (edges) first, then leaf resources, then up the containment
     # hierarchy, and the metastore last.
@@ -63,10 +68,15 @@ def _cleanup_unity_catalog(
         cartography.intel.databricks.external_locations,
         cartography.intel.databricks.storage_credentials,
         cartography.intel.databricks.connections,
-        cartography.intel.databricks.artifact_allowlists,
-        cartography.intel.databricks.metastores,
     ):
         module.cleanup(neo4j_session, common_job_parameters)
+    if clean_artifact_allowlists:
+        cartography.intel.databricks.artifact_allowlists.cleanup(
+            neo4j_session, common_job_parameters
+        )
+    cartography.intel.databricks.metastores.cleanup(
+        neo4j_session, common_job_parameters
+    )
 
 
 @timeit
@@ -301,12 +311,14 @@ def start_databricks_ingestion(neo4j_session: neo4j.Session, config: Config) -> 
         common_job_parameters,
     )
 
-    cartography.intel.databricks.artifact_allowlists.sync(
-        neo4j_session,
-        api_client,
-        workspace_id,
-        metastore_id,
-        common_job_parameters,
+    artifact_allowlists_complete = (
+        cartography.intel.databricks.artifact_allowlists.sync(
+            neo4j_session,
+            api_client,
+            workspace_id,
+            metastore_id,
+            common_job_parameters,
+        )
     )
 
     # Grants last: materialises principal -> securable HAS_PRIVILEGE edges by
@@ -319,5 +331,12 @@ def start_databricks_ingestion(neo4j_session: neo4j.Session, config: Config) -> 
     )
 
     # Cleanup runs once, centrally, only after every UC sync above succeeded, in
-    # reverse dependency order (see _cleanup_unity_catalog).
-    _cleanup_unity_catalog(neo4j_session, workspace_id, common_job_parameters)
+    # reverse dependency order (see _cleanup_unity_catalog). Artifact-allowlist
+    # cleanup is gated: a 403-skipped type must not be deleted just because we
+    # couldn't re-read it this run.
+    _cleanup_unity_catalog(
+        neo4j_session,
+        workspace_id,
+        common_job_parameters,
+        clean_artifact_allowlists=artifact_allowlists_complete,
+    )

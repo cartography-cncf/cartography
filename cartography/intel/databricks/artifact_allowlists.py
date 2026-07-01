@@ -28,8 +28,15 @@ def sync(
     workspace_id: str,
     metastore_id: str,
     common_job_parameters: dict[str, Any],
-) -> None:
-    allowlists = get(api_session)
+) -> bool:
+    """Sync artifact allowlists.
+
+    Returns whether the fetch was complete. A 403 on a type (the scan principal
+    lacks MANAGE ALLOWLIST) means we could not read it this run, so the caller
+    must NOT clean up artifact allowlists or it would delete a previously
+    ingested node we simply could not re-read.
+    """
+    allowlists, complete = get(api_session)
     transformed = transform(allowlists, metastore_id)
     load_artifact_allowlists(
         neo4j_session,
@@ -37,31 +44,45 @@ def sync(
         workspace_id,
         common_job_parameters["UPDATE_TAG"],
     )
+    return complete
 
 
 @timeit
-def get(api_session: DatabricksWorkspaceClient) -> list[dict[str, Any]]:
+def get(api_session: DatabricksWorkspaceClient) -> tuple[list[dict[str, Any]], bool]:
+    """Fetch each artifact allowlist. Returns ``(allowlists, complete)``.
+
+    ``complete`` is False when any type was skipped due to a 403 (no access),
+    signalling that cleanup is unsafe. A 404 (no allowlist configured for that
+    type) is a genuine absence and keeps ``complete`` True, so its stale node is
+    still pruned.
+    """
     allowlists: list[dict[str, Any]] = []
+    complete = True
     for artifact_type in _ARTIFACT_TYPES:
         try:
             response = api_session.get(
                 f"/api/2.1/unity-catalog/artifact-allowlists/{artifact_type}"
             )
         except requests.HTTPError as e:
-            # 404 = no allowlist configured for this type; 403 = the scan
-            # principal lacks MANAGE ALLOWLIST (the common read-only case).
-            # Both are skippable; any other error must abort so cleanup does not
-            # drop a still-valid allowlist node.
+            # 404 = not configured (prune-safe); 403 = no MANAGE ALLOWLIST
+            # access (prune-unsafe); anything else must abort the sync.
             skip_or_raise_http(e, 403, 404)
-            logger.warning(
-                "Skipping artifact allowlist %s (not configured or no access): %s",
-                artifact_type,
-                e,
-            )
+            status = e.response.status_code if e.response is not None else None
+            if status == 403:
+                complete = False
+                logger.warning(
+                    "No access to artifact allowlist %s; skipping its cleanup: %s",
+                    artifact_type,
+                    e,
+                )
+            else:
+                logger.warning(
+                    "No artifact allowlist configured for %s: %s", artifact_type, e
+                )
             continue
         response["artifact_type"] = artifact_type
         allowlists.append(response)
-    return allowlists
+    return allowlists, complete
 
 
 @timeit

@@ -20,7 +20,7 @@ TEST_UPDATE_TAG = 123456789
 @patch.object(
     cartography.intel.databricks.artifact_allowlists,
     "get",
-    return_value=DATABRICKS_ARTIFACT_ALLOWLISTS,
+    return_value=(DATABRICKS_ARTIFACT_ALLOWLISTS, True),
 )
 def test_load_databricks_artifact_allowlists(mock_get, neo4j_session):
     api_session = Mock()
