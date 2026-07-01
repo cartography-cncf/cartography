@@ -22,11 +22,13 @@ from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
 
-# Public Gateways are zone-scoped. Scaleway currently exposes two AZs per
-# region (e.g. fr-par-1, fr-par-2); we fan out over both for every known
-# region. Zones where the service is not deployed answer "unknown service"
-# and are skipped, so unsupported permutations are harmless.
-_GATEWAY_ZONES = tuple(f"{region}-{az}" for region in DEFAULT_REGIONS for az in (1, 2))
+# Public Gateways are zone-scoped and Scaleway exposes up to three AZs per
+# region (e.g. nl-ams-1..3, pl-waw-1..3). We fan out over all three for every
+# known region; zones where the service is not deployed answer "unknown
+# service" and are skipped, so unsupported permutations are harmless.
+_GATEWAY_ZONES = tuple(
+    f"{region}-{az}" for region in DEFAULT_REGIONS for az in (1, 2, 3)
+)
 
 
 @timeit

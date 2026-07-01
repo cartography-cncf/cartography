@@ -6,6 +6,7 @@ import scaleway
 from scaleway.function.v1beta1 import Function
 from scaleway.function.v1beta1 import FunctionV1Beta1API
 from scaleway.function.v1beta1 import Namespace
+from scaleway_core.api import ScalewayException
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
@@ -50,9 +51,21 @@ def get(
     # namespace already knows its region, so query each one directly.
     functions: list[Function] = []
     for namespace in namespaces:
-        functions.extend(
-            api.list_functions_all(region=namespace.region, namespace_id=namespace.id)
-        )
+        # A namespace can be deleted between the list and this per-namespace
+        # call; skip it rather than aborting the whole sync.
+        try:
+            functions.extend(
+                api.list_functions_all(
+                    region=namespace.region, namespace_id=namespace.id
+                )
+            )
+        except ScalewayException as exc:
+            logger.warning(
+                "Skipping Scaleway functions for namespace %s: %s",
+                namespace.id,
+                exc,
+            )
+            continue
     return namespaces, functions
 
 

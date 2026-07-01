@@ -15,7 +15,7 @@ from cartography.models.core.relationships import TargetNodeMatcher
 class ScalewayPublicGatewayProperties(CartographyNodeProperties):
     id: PropertyRef = PropertyRef("id", extra_index=True)
     name: PropertyRef = PropertyRef("name", extra_index=True)
-    type_: PropertyRef = PropertyRef("type_")
+    type: PropertyRef = PropertyRef("type_")
     bandwidth: PropertyRef = PropertyRef("bandwidth")
     status: PropertyRef = PropertyRef("status")
     tags: PropertyRef = PropertyRef("tags")

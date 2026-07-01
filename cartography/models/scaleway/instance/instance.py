@@ -24,6 +24,9 @@ class ScalewayInstanceProperties(CartographyNodeProperties):
     enable_ipv6: PropertyRef = PropertyRef("enable_ipv6")
     hostname: PropertyRef = PropertyRef("hostname")
     private_ip: PropertyRef = PropertyRef("private_ip")
+    # List of attached public IP ids (also used to match the FlexibleIp
+    # relationship). Persisted so exposure rules can test for a public IP.
+    public_ips: PropertyRef = PropertyRef("public_ips")
     mac_address: PropertyRef = PropertyRef("mac_address")
     modification_date: PropertyRef = PropertyRef("modification_date")
     state: PropertyRef = PropertyRef("state")
