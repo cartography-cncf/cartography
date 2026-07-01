@@ -1,10 +1,51 @@
 import logging
 import time
+from datetime import datetime
+from datetime import timezone
 from typing import Any
 
 import requests
 
 logger = logging.getLogger(__name__)
+
+
+def epoch_ms_to_datetime(value: Any) -> datetime | None:
+    """Convert Databricks epoch-milliseconds timestamps to a UTC datetime."""
+    if value in (None, 0):
+        return None
+    return datetime.fromtimestamp(int(value) / 1000, tz=timezone.utc)
+
+
+def uc_id(metastore_id: str, full_name: str) -> str:
+    """Build a metastore-scoped id for a Unity Catalog securable.
+
+    UC full names (``catalog``, ``catalog.schema``, ``catalog.schema.table``)
+    are unique within a metastore, so ``{metastore_id}/{full_name}`` is a stable
+    key that children can recompute from their parent's full name.
+
+    Both parts must be non-empty: a blank metastore id would collapse securables
+    from different metastores onto the same node.
+    """
+    if not metastore_id or not full_name:
+        raise ValueError(
+            f"Cannot build a Unity Catalog id from metastore_id="
+            f"{metastore_id!r}, full_name={full_name!r}",
+        )
+    return f"{metastore_id}/{full_name}"
+
+
+def skip_or_raise_http(error: requests.HTTPError, *skippable_statuses: int) -> None:
+    """Re-raise an HTTP error unless its status is an expected, skippable one.
+
+    Unity Catalog listings are fetched per parent (per catalog / schema / ...).
+    A ``403`` on a system-managed securable is expected and skippable, but a
+    transient ``5x`` or an auth failure must abort the sync so the caller does
+    NOT run cleanup on partial data and delete still-valid nodes.
+    """
+    status = error.response.status_code if error.response is not None else None
+    if status not in skippable_statuses:
+        raise error
+
 
 # Connect and read timeouts of 60 seconds each.
 _TIMEOUT = (60, 60)
@@ -97,3 +138,52 @@ class DatabricksWorkspaceClient:
                 break
             start_index += len(resources)
         return results
+
+    def uc_list(
+        self, uri: str, key: str, params: dict | None = None
+    ) -> list[dict[str, Any]]:
+        """Paginate a Unity Catalog listing endpoint (``next_page_token``).
+
+        UC list endpoints return the resources under ``key`` and a
+        ``next_page_token`` to fetch the next page; an empty/absent token ends
+        the walk.
+        """
+        results: list[dict[str, Any]] = []
+        page_params = {**(params or {})}
+        seen_tokens: set[str] = set()
+        while True:
+            data = self.get(uri, params=page_params)
+            results.extend(data.get(key, []) or [])
+            next_token = data.get("next_page_token")
+            if not next_token:
+                break
+            # Guard against a malformed response that keeps returning the same
+            # token, which would otherwise loop forever.
+            if next_token in seen_tokens:
+                raise ValueError(
+                    f"Unity Catalog listing {uri} repeated page token "
+                    f"{next_token!r}; aborting to avoid an infinite loop.",
+                )
+            seen_tokens.add(next_token)
+            page_params = {**(params or {}), "page_token": next_token}
+        return results
+
+
+def parse_storage_url(url: str | None) -> tuple[str | None, str | None]:
+    """Return ``(scheme, bucket)`` for a UC storage URL, else ``(None, None)``.
+
+    Handles ``s3://bucket/path`` and ``gs://bucket/path`` (bucket is the netloc)
+    and ``abfss://container@account.dfs.core.windows.net/path`` (container is the
+    netloc user-info). Used to link tables / volumes / external locations to the
+    underlying S3 / GCS bucket already ingested by the aws / gcp modules.
+    """
+    if not url:
+        return None, None
+    scheme, _, rest = url.partition("://")
+    if not rest:
+        return None, None
+    netloc = rest.split("/", 1)[0]
+    if scheme.lower() in ("abfss", "abfs", "wasbs", "wasb"):
+        # container@account.dfs.core.windows.net -> container
+        return scheme.lower(), (netloc.split("@", 1)[0] or None)
+    return scheme.lower(), (netloc or None)

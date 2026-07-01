@@ -21,6 +21,8 @@ PRJ -- RESOURCE --> VPC(Vpc)
 PRJ -- RESOURCE --> PN(PrivateNetwork)
 PRJ -- RESOURCE --> SUB(Subnet)
 PRJ -- RESOURCE --> IP(IP)
+PRJ -- RESOURCE --> PGW(PublicGateway)
+PRJ -- RESOURCE --> PAT(PublicGatewayPatRule)
 PRJ -- RESOURCE --> LB(LoadBalancer)
 PRJ -- RESOURCE --> FE(LBFrontend)
 PRJ -- RESOURCE --> BE(LBBackend)
@@ -37,6 +39,11 @@ PRJ -- RESOURCE --> CRI(ContainerRegistryImage)
 PRJ -- RESOURCE --> RDB(RdbInstance)
 PRJ -- RESOURCE --> RC(RedisCluster)
 PRJ -- RESOURCE --> MGO(MongoDBInstance)
+PRJ -- RESOURCE --> SFN(ServerlessFunctionNamespace)
+PRJ -- RESOURCE --> SF(ServerlessFunction)
+PRJ -- RESOURCE --> SCN(ServerlessContainerNamespace)
+PRJ -- RESOURCE --> SC(ServerlessContainer)
+PRJ -- RESOURCE --> SJ(ServerlessJobDefinition)
 INS -- MOUNTS --> VOL
 INS -- MEMBER_OF_SCALEWAY_SECURITY_GROUP --> SG
 SGR -- MEMBER_OF_SCALEWAY_SECURITY_GROUP --> SG
@@ -45,6 +52,8 @@ VOL -- HAS --> SNAP
 VPC -- HAS --> PN
 PN -- HAS --> SUB
 SUB -- HAS --> IP
+PGW -- ATTACHED_TO --> PN
+PGW -- HAS --> PAT
 LB -- HAS --> FE
 LB -- HAS --> BE
 FE -- ROUTES_TO --> BE
@@ -59,6 +68,10 @@ CRN -- HAS --> CRI
 RDB -- ATTACHED_TO --> PN
 RC -- ATTACHED_TO --> PN
 MGO -- ATTACHED_TO --> PN
+SFN -- HAS --> SF
+SCN -- HAS --> SC
+SF -- ATTACHED_TO --> PN
+SC -- ATTACHED_TO --> PN
 USR -- MEMBER_OF --> GRP(ScalewayGroup)
 APIKEY(ScalewayApiKey) -- OWNED_BY --> USR
 APP -- MEMBER_OF --> GRP(ScalewayGroup)
@@ -724,6 +737,71 @@ An IP is an IPAM-managed IP address (IPv4 or IPv6) allocated within a Private Ne
     (:ScalewaySubnet)-[:HAS]->(:ScalewayIP)
     ```
 
+### ScalewayPublicGateway
+
+Represents a Scaleway Public Gateway: a managed NAT gateway providing internet egress (and optional SSH bastion) to instances on attached private networks.
+
+| Field      | Description                                  |
+|------------|----------------------------------------------|
+| id         | Gateway UUID.                                |
+| name       | Gateway name.                                |
+| type_      | Commercial gateway type (e.g. `VPC-GW-S`).   |
+| bandwidth  | Gateway bandwidth in Mbps.                   |
+| status     | Gateway status (`running`, `stopped`, ...).  |
+| tags       | Gateway tags.                                |
+| ipv4_address | Public egress IP of the gateway.           |
+| bastion_enabled | True if the SSH bastion is enabled.      |
+| bastion_port | Port the SSH bastion listens on.           |
+| bastion_allowed_ips | CIDRs allowed to reach the bastion, if restricted. |
+| smtp_enabled | True if outbound SMTP is allowed.          |
+| is_legacy  | True if this is a legacy (v1) gateway.       |
+| version    | Gateway software version.                    |
+| zone       | Zone the gateway lives in.                   |
+| created_at | Creation timestamp.                          |
+| updated_at | Last update timestamp.                       |
+| lastupdated | Timestamp of the last update                |
+
+#### Relationships
+- A `PublicGateway` belongs to a `Project`.
+    ```
+    (:ScalewayProject)-[:RESOURCE]->(:ScalewayPublicGateway)
+    ```
+- A `PublicGateway` provides NAT / egress to one or more `PrivateNetwork`s.
+    ```
+    (:ScalewayPublicGateway)-[:ATTACHED_TO]->(:ScalewayPrivateNetwork)
+    ```
+- A `PublicGateway` has `PublicGatewayPatRule` port-forwarding rules.
+    ```
+    (:ScalewayPublicGateway)-[:HAS]->(:ScalewayPublicGatewayPatRule)
+    ```
+
+
+### ScalewayPublicGatewayPatRule
+
+Represents a PAT (Port Address Translation) rule on a Public Gateway: it forwards a public port on the gateway's IP to a private IP/port, exposing an internal service to the internet.
+
+| Field      | Description                                  |
+|------------|----------------------------------------------|
+| id         | PAT rule UUID.                               |
+| public_port | Public port on the gateway IP.              |
+| private_ip | Destination private IP.                      |
+| private_port | Destination private port.                  |
+| protocol   | Forwarded protocol (`tcp`, `udp`, `both`).   |
+| zone       | Zone the rule lives in.                      |
+| created_at | Creation timestamp.                          |
+| updated_at | Last update timestamp.                       |
+| lastupdated | Timestamp of the last update                |
+
+#### Relationships
+- A `PublicGatewayPatRule` belongs to a `Project`.
+    ```
+    (:ScalewayProject)-[:RESOURCE]->(:ScalewayPublicGatewayPatRule)
+    ```
+- A `PublicGatewayPatRule` is defined on a `PublicGateway`.
+    ```
+    (:ScalewayPublicGateway)-[:HAS]->(:ScalewayPublicGatewayPatRule)
+    ```
+
 ### ScalewayLoadBalancer
 
 A Load Balancer distributes incoming traffic across backend servers. Its public IP(s) make it an internet-facing entry point.
@@ -1291,4 +1369,179 @@ Represents a managed MongoDB instance (Scaleway "Managed Database for MongoDB").
 - A `MongoDBInstance` may be attached to one or more `PrivateNetwork`s.
     ```
     (:ScalewayMongoDBInstance)-[:ATTACHED_TO]->(:ScalewayPrivateNetwork)
+    ```
+
+
+### ScalewayServerlessFunctionNamespace
+
+Represents a Scaleway Serverless Functions namespace (project-scoped grouping of functions, backed by a hidden container registry namespace).
+
+| Field      | Description                                  |
+|------------|----------------------------------------------|
+| id         | Namespace UUID.                              |
+| name       | Namespace name.                              |
+| description | Namespace description.                      |
+| status     | Namespace status.                            |
+| error_message | Human-readable error message, if any.     |
+| registry_namespace_id | UUID of the backing container registry namespace. |
+| registry_endpoint | Endpoint of the backing container registry. |
+| vpc_integration_activated | True if the namespace can reach a VPC private network. |
+| region     | Region the namespace lives in.               |
+| tags       | Namespace tags.                              |
+| created_at | Creation timestamp.                          |
+| updated_at | Last update timestamp.                       |
+| lastupdated | Timestamp of the last update                |
+
+#### Relationships
+- A `ServerlessFunctionNamespace` belongs to a `Project`.
+    ```
+    (:ScalewayProject)-[:RESOURCE]->(:ScalewayServerlessFunctionNamespace)
+    ```
+- A `ServerlessFunctionNamespace` has `ServerlessFunction` members.
+    ```
+    (:ScalewayServerlessFunctionNamespace)-[:HAS]->(:ScalewayServerlessFunction)
+    ```
+
+
+### ScalewayServerlessFunction
+
+Represents a Scaleway Serverless Function.
+
+| Field      | Description                                  |
+|------------|----------------------------------------------|
+| id         | Function UUID.                               |
+| name       | Function name.                               |
+| status     | Function status.                             |
+| runtime    | Runtime (e.g. `python311`, `node20`).        |
+| handler    | Function entrypoint handler.                 |
+| privacy    | Invocation privacy (`public` allows unauthenticated invokes, `private` requires a token). |
+| domain_name | Auto-assigned invocation domain.            |
+| http_option | `enabled` allows plain HTTP; `redirected` forces HTTPS. |
+| sandbox    | Sandbox generation (`v1`, `v2`).             |
+| min_scale  | Minimum number of instances.                 |
+| max_scale  | Maximum number of instances.                 |
+| memory_limit | Memory limit in MB.                        |
+| cpu_limit  | CPU limit in mvCPU.                          |
+| timeout    | Invocation timeout (e.g. `300s`).            |
+| region     | Region the function lives in.                |
+| tags       | Function tags.                               |
+| created_at | Creation timestamp.                          |
+| updated_at | Last update timestamp.                       |
+| lastupdated | Timestamp of the last update                |
+
+#### Relationships
+- A `ServerlessFunction` belongs to a `Project`.
+    ```
+    (:ScalewayProject)-[:RESOURCE]->(:ScalewayServerlessFunction)
+    ```
+- A `ServerlessFunction` lives in a `ServerlessFunctionNamespace`.
+    ```
+    (:ScalewayServerlessFunctionNamespace)-[:HAS]->(:ScalewayServerlessFunction)
+    ```
+- A `ServerlessFunction` may be attached to a `PrivateNetwork`.
+    ```
+    (:ScalewayServerlessFunction)-[:ATTACHED_TO]->(:ScalewayPrivateNetwork)
+    ```
+
+
+### ScalewayServerlessContainerNamespace
+
+Represents a Scaleway Serverless Containers namespace (project-scoped grouping of containers, backed by a hidden container registry namespace).
+
+| Field      | Description                                  |
+|------------|----------------------------------------------|
+| id         | Namespace UUID.                              |
+| name       | Namespace name.                              |
+| description | Namespace description.                      |
+| status     | Namespace status.                            |
+| error_message | Human-readable error message, if any.     |
+| registry_namespace_id | UUID of the backing container registry namespace. |
+| registry_endpoint | Endpoint of the backing container registry. |
+| vpc_integration_activated | True if the namespace can reach a VPC private network. |
+| region     | Region the namespace lives in.               |
+| tags       | Namespace tags.                              |
+| created_at | Creation timestamp.                          |
+| updated_at | Last update timestamp.                       |
+| lastupdated | Timestamp of the last update                |
+
+#### Relationships
+- A `ServerlessContainerNamespace` belongs to a `Project`.
+    ```
+    (:ScalewayProject)-[:RESOURCE]->(:ScalewayServerlessContainerNamespace)
+    ```
+- A `ServerlessContainerNamespace` has `ServerlessContainer` members.
+    ```
+    (:ScalewayServerlessContainerNamespace)-[:HAS]->(:ScalewayServerlessContainer)
+    ```
+
+
+### ScalewayServerlessContainer
+
+Represents a Scaleway Serverless Container.
+
+| Field      | Description                                  |
+|------------|----------------------------------------------|
+| id         | Container UUID.                              |
+| name       | Container name.                              |
+| status     | Container status.                            |
+| registry_image | Container image URI pulled at deploy time. |
+| privacy    | Invocation privacy (`public` allows unauthenticated invokes, `private` requires a token). |
+| domain_name | Auto-assigned invocation domain.            |
+| http_option | `enabled` allows plain HTTP; `redirected` forces HTTPS. |
+| protocol   | Serving protocol (`http1`, `h2c`).           |
+| port       | Container listening port.                    |
+| sandbox    | Sandbox generation (`v1`, `v2`).             |
+| min_scale  | Minimum number of instances.                 |
+| max_scale  | Maximum number of instances.                 |
+| max_concurrency | Max concurrent requests per instance.   |
+| memory_limit | Memory limit in MB.                        |
+| cpu_limit  | CPU limit in mvCPU.                          |
+| timeout    | Invocation timeout (e.g. `300s`).            |
+| region     | Region the container lives in.               |
+| tags       | Container tags.                              |
+| created_at | Creation timestamp.                          |
+| updated_at | Last update timestamp.                       |
+| lastupdated | Timestamp of the last update                |
+
+#### Relationships
+- A `ServerlessContainer` belongs to a `Project`.
+    ```
+    (:ScalewayProject)-[:RESOURCE]->(:ScalewayServerlessContainer)
+    ```
+- A `ServerlessContainer` lives in a `ServerlessContainerNamespace`.
+    ```
+    (:ScalewayServerlessContainerNamespace)-[:HAS]->(:ScalewayServerlessContainer)
+    ```
+- A `ServerlessContainer` may be attached to a `PrivateNetwork`.
+    ```
+    (:ScalewayServerlessContainer)-[:ATTACHED_TO]->(:ScalewayPrivateNetwork)
+    ```
+
+
+### ScalewayServerlessJobDefinition
+
+Represents a Scaleway Serverless Job definition (a runnable, optionally scheduled, container job).
+
+| Field      | Description                                  |
+|------------|----------------------------------------------|
+| id         | Job definition UUID.                         |
+| name       | Job definition name.                         |
+| description | Job description.                            |
+| image_uri  | Container image URI executed by the job.     |
+| command    | Command run inside the container.            |
+| cpu_limit  | CPU limit in mvCPU.                          |
+| memory_limit | Memory limit in MB.                        |
+| local_storage_capacity | Local storage capacity in MB.     |
+| job_timeout | Per-run timeout (e.g. `3600s`).             |
+| cron_schedule | Cron expression, if the job is scheduled. |
+| cron_timezone | Timezone for the cron schedule.           |
+| region     | Region the job lives in.                     |
+| created_at | Creation timestamp.                          |
+| updated_at | Last update timestamp.                       |
+| lastupdated | Timestamp of the last update                |
+
+#### Relationships
+- A `ServerlessJobDefinition` belongs to a `Project`.
+    ```
+    (:ScalewayProject)-[:RESOURCE]->(:ScalewayServerlessJobDefinition)
     ```
