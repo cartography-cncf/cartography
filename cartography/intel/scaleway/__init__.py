@@ -4,6 +4,9 @@ import neo4j
 import scaleway
 
 import cartography.intel.scaleway.container_registry.namespaces
+import cartography.intel.scaleway.databases.mongodb
+import cartography.intel.scaleway.databases.rdb
+import cartography.intel.scaleway.databases.redis
 import cartography.intel.scaleway.dns.dns
 import cartography.intel.scaleway.iam.apikeys
 import cartography.intel.scaleway.iam.applications
@@ -248,6 +251,32 @@ def start_scaleway_ingestion(neo4j_session: neo4j.Session, config: Config) -> No
 
     # Container Registry
     cartography.intel.scaleway.container_registry.namespaces.sync(
+        neo4j_session,
+        client,
+        common_job_parameters,
+        org_id=config.scaleway_org,
+        projects_id=projects_id,
+        update_tag=config.update_tag,
+    )
+
+    # Managed Databases (loaded after PrivateNetworks so ATTACHED_TO edges resolve).
+    cartography.intel.scaleway.databases.rdb.sync(
+        neo4j_session,
+        client,
+        common_job_parameters,
+        org_id=config.scaleway_org,
+        projects_id=projects_id,
+        update_tag=config.update_tag,
+    )
+    cartography.intel.scaleway.databases.redis.sync(
+        neo4j_session,
+        client,
+        common_job_parameters,
+        org_id=config.scaleway_org,
+        projects_id=projects_id,
+        update_tag=config.update_tag,
+    )
+    cartography.intel.scaleway.databases.mongodb.sync(
         neo4j_session,
         client,
         common_job_parameters,
