@@ -130,6 +130,30 @@ Notes:
 - Cartography derives the EKS region from the `cluster` field of each kubeconfig context entry. When using `aws eks update-kubeconfig`, this field is automatically set to the cluster ARN.
 - If you use `aws eks update-kubeconfig` to generate the kubeconfig that Cartography consumes, that command also requires `eks:DescribeCluster`.
 
+### Connecting to EKS without a kubeconfig file
+
+Instead of maintaining a kubeconfig file (and its short-lived `aws eks get-token`
+credentials), you can have Cartography connect to EKS directly using the AWS
+credentials it already uses for the AWS module. Pass `--k8s-eks-cluster-names`
+(comma-separated) and, optionally, `--k8s-eks-region`:
+
+```
+cartography ... --k8s-eks-cluster-names my-cluster,other-cluster --k8s-eks-region us-east-1
+```
+
+Cartography resolves the cluster endpoint and CA via `eks:DescribeCluster`, mints a
+short-lived bearer token from the ambient AWS credentials (the same mechanism as
+`aws eks get-token`), and connects — no kubeconfig file, no `aws` CLI, and no exec
+credential plugin required. If `--k8s-eks-region` is omitted, the region is taken
+from the standard AWS resolution chain (`AWS_REGION` / `AWS_DEFAULT_REGION` /
+`~/.aws/config`); all named clusters must be in that region. This implies EKS
+enrichment (Access Entries, OIDC), so `--managed-kubernetes eks` is not required.
+
+In addition to the Kubernetes RBAC above (bound to the calling IAM principal via an
+[EKS access entry](https://docs.aws.amazon.com/eks/latest/userguide/access-entries.html),
+e.g. the AWS-managed `AmazonEKSViewPolicy`), this path requires `eks:DescribeCluster`
+alongside the `eks:*` actions listed above.
+
 ### TLS Troubleshooting and Validation
 
 When Kubernetes API server cert settings are misconfigured, sync failures can be difficult to diagnose from raw kubeconfig alone. Cartography writes kubeconfig TLS posture fields onto `KubernetesCluster` so operators can quickly reason about configuration risk.
