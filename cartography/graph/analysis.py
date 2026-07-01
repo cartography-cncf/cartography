@@ -41,7 +41,8 @@ class AnalysisStatement:
     def compile_query(self) -> str:
         if self.query:
             return self.query
-        assert self.match
+        if self.match is None:
+            raise ValueError("AnalysisStatement requires match or query.")
         return "\n".join(
             (self.match.strip(), *(_compile_effect(e) for e in self.effects))
         )
@@ -65,14 +66,14 @@ class SetProperty:
     node: str
     property: str
     value: Any
-    label: str = ""
+    label: str | None = None
 
 
 @dataclass(frozen=True)
 class SetProperties:
     node: str
     properties: dict[str, Any]
-    label: str = ""
+    label: str | None = None
 
 
 @dataclass(frozen=True)
@@ -90,7 +91,7 @@ class AddToSet:
     node: str
     property: str
     value: Any
-    label: str = ""
+    label: str | None = None
 
 
 @dataclass(frozen=True)
@@ -104,6 +105,7 @@ class AddRelationship:
     properties: dict[str, Any] | None = None
     undirected: bool = False
     firstseen: Any = None
+    # Which endpoint is constrained by AnalysisJob.scope during stale-edge cleanup.
     scoped_to: Literal["source", "target"] = "source"
 
 
@@ -307,6 +309,8 @@ class AnalysisJob:
                     continue
                 prop_effect = PropertyEffect(effect.label, tuple(effect.properties))
             elif isinstance(effect, AddToSet):
+                if not effect.label:
+                    continue
                 prop_effect = PropertyEffect(effect.label, (effect.property,))
             elif isinstance(effect, SetRelationshipProperty):
                 prop_effect = RelationshipPropertyEffect(

@@ -9,15 +9,33 @@ def start_gcp_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
     # ... sync all orgs, folders, projects, and resources ...
 
     run_analysis_job(GCP_COMPUTE_INSTANCE_VPC_ANALYSIS, neo4j_session, common_job_parameters)
-    for job in (GCP_GKE_ASSET_EXPOSURE, GCP_GKE_BASIC_AUTH):
-        run_analysis_job(job, neo4j_session, common_job_parameters)
+    run_analysis_job(GCP_GKE_ASSET_EXPOSURE, neo4j_session, common_job_parameters)
+    run_analysis_job(GCP_GKE_BASIC_AUTH, neo4j_session, common_job_parameters)
 
 
 def _sync_one_project(...) -> None:
     # ... sync project resources ...
 
-    for job in GCP_COMPUTE_EXPOSURE_JOBS:
-        run_scoped_analysis_job(job, neo4j_session, common_job_parameters)
+    run_scoped_analysis_job(
+        GCP_COMPUTE_FORWARDING_RULE_EXPOSURE,
+        neo4j_session,
+        common_job_parameters,
+    )
+    run_scoped_analysis_job(
+        GCP_COMPUTE_FIREWALL_INGRESS,
+        neo4j_session,
+        common_job_parameters,
+    )
+    run_scoped_analysis_job(
+        GCP_COMPUTE_INSTANCE_EXPOSURE,
+        neo4j_session,
+        common_job_parameters,
+    )
+    run_scoped_analysis_job(
+        GCP_COMPUTE_CLOUDRUN_EXPOSURE,
+        neo4j_session,
+        common_job_parameters,
+    )
 ```
 
 ## AWS module — scoped + global with deps
