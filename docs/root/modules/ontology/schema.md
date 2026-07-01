@@ -38,9 +38,29 @@ FN{{Function}}
 REPO{{CodeRepository}}
 SC{{Secret}}
 EK{{EncryptionKey}}
+SC -- ENCRYPTED_BY --> EK
+DB -- ENCRYPTED_BY --> EK
+OS -- ENCRYPTED_BY --> EK
+FS -- ENCRYPTED_BY --> EK
+CP -- USES_SECRET --> SC
+FN -- USES_SECRET --> SC
+CI -- USES_SECRET --> SC
 PR{{PermissionRole}}
 UA -- HAS_ROLE --> PR
 SA -- HAS_ROLE --> PR
+UG -- HAS_ROLE --> PR
+PR -- INCLUDES --> PR
+UA -- MEMBER_OF --> UG
+SA -- MEMBER_OF --> UG
+UG -- MEMBER_OF --> UG
+AK -- OWNED_BY --> UA
+AK -- OWNED_BY --> SA
+CI -- RUNS_AS --> SA
+CP -- RUNS_AS --> SA
+FN -- RUNS_AS --> SA
+CS -- RUNS_AS --> SA
+CI -- ASSUMES --> PR
+FN -- ASSUMES --> PR
 NAC{{NetworkAccessControl}}
 AIM{{AIModel}}
 PIP(PublicIP) -- POINTS_TO --> LB
@@ -197,6 +217,16 @@ Common group concepts across platforms include:
 | _ont_email | Email address associated with the group (for mail-enabled groups). |
 | _ont_source | Source of the data. |
 
+#### Relationships
+
+- A `UserAccount` or `ServiceAccount` is a member of a `UserGroup` via the canonical `MEMBER_OF` edge. Groups also nest into other groups with the same edge:
+    ```
+    (:UserAccount)-[:MEMBER_OF]->(:UserGroup)
+    (:ServiceAccount)-[:MEMBER_OF]->(:UserGroup)
+    (:UserGroup)-[:MEMBER_OF]->(:UserGroup)
+    ```
+  Group "owner", "maintainer", and "admin" roles are kept as their own provider-specific edges (a distinct, more privileged semantic), as are transitive `INHERITED_MEMBER_OF` edges derived across nested groups.
+
 
 ### Device
 
@@ -253,7 +283,13 @@ API keys are used across different cloud providers and SaaS platforms for authen
 
 #### Relationships
 
-- `User` can own one or many `APIKey`
+- An `APIKey` is owned by the `UserAccount` or `ServiceAccount` it authenticates as, via the canonical `OWNED_BY` edge:
+    ```
+    (:APIKey)-[:OWNED_BY]->(:UserAccount)
+    (:APIKey)-[:OWNED_BY]->(:ServiceAccount)
+    ```
+
+- At the abstract layer, a `User` owns one or many `APIKey` (derived from the `OWNED_BY` edges above during the ontology linking job):
     ```
     (:User)-[:OWNS]->(:APIKey)
     ```
@@ -276,6 +312,15 @@ They are managed by dedicated services like AWS Secrets Manager, GCP Secret Mana
 | _ont_updated_at | Timestamp when the secret was last updated. |
 | _ont_rotation_enabled | Whether automatic rotation is enabled for the secret. |
 
+#### Relationships
+
+- A `ComputePod`, `Function`, or `ComputeInstance` that consumes a secret is linked via the canonical `USES_SECRET` edge. The injection method is captured on the edge as the `mount_method` property (e.g. `volume`, `env`):
+    ```
+    (:ComputePod)-[:USES_SECRET]->(:Secret)
+    (:Function)-[:USES_SECRET]->(:Secret)
+    (:ComputeInstance)-[:USES_SECRET]->(:Secret)
+    ```
+
 
 ### EncryptionKey
 
@@ -293,6 +338,16 @@ Encryption keys are used for data encryption, signing, and other cryptographic o
 | _ont_key_type | The key purpose or usage type (e.g., "ENCRYPT_DECRYPT", "SIGN_VERIFY"). |
 | _ont_enabled | Whether the encryption key is currently enabled. |
 | _ont_rotation_enabled | Whether automatic key rotation is configured. |
+
+#### Relationships
+
+- A `Secret`, `Database`, `ObjectStorage`, or `FileStorage` encrypted with a customer-managed key is linked to it via the canonical `ENCRYPTED_BY` edge:
+    ```
+    (:Secret)-[:ENCRYPTED_BY]->(:EncryptionKey)
+    (:Database)-[:ENCRYPTED_BY]->(:EncryptionKey)
+    (:ObjectStorage)-[:ENCRYPTED_BY]->(:EncryptionKey)
+    (:FileStorage)-[:ENCRYPTED_BY]->(:EncryptionKey)
+    ```
 
 
 ### ComputeInstance
@@ -577,11 +632,24 @@ Common role concepts across platforms include:
 | _ont_scope | The scope level of the role (e.g., "global", "account", "org", "project", "namespace", "cluster"). |
 | _ont_source | Source of the data. |
 
-A `UserAccount` or `ServiceAccount` that is granted a permission role is linked via the canonical `HAS_ROLE` edge:
+A `UserAccount`, `ServiceAccount`, or `UserGroup` that is granted a permission role is linked via the canonical `HAS_ROLE` edge. Members inherit the roles granted to their groups:
 ```
 (:UserAccount)-[:HAS_ROLE]->(:PermissionRole)
 (:ServiceAccount)-[:HAS_ROLE]->(:PermissionRole)
+(:UserGroup)-[:HAS_ROLE]->(:PermissionRole)
 ```
+
+A composite or hierarchical role includes other roles via the canonical `INCLUDES` edge (e.g. Keycloak composite roles):
+```
+(:PermissionRole)-[:INCLUDES]->(:PermissionRole)
+```
+
+A workload that assumes a permission role to obtain its privileges is linked via the canonical `ASSUMES` edge:
+```
+(:ComputeInstance)-[:ASSUMES]->(:PermissionRole)
+(:Function)-[:ASSUMES]->(:PermissionRole)
+```
+Currently only `Function` is wired: an AWS Lambda is linked to its execution role (`(:AWSLambda)-[:ASSUMES]->(:AWSRole)`). `ComputeInstance` coverage is governed by the constraint but not yet materialized: an EC2 instance still reaches its role only through the instance profile (`EC2Instance-[:INSTANCE_PROFILE]->AWSInstanceProfile-[:ASSOCIATED_WITH]->AWSRole`, plus the analysis-job `STS_ASSUMEROLE_ALLOW` edge), so the direct `ASSUMES` edge for EC2 / GCP / Azure compute is still pending.
 
 
 ### ObjectStorage
@@ -738,6 +806,16 @@ Common service account concepts across platforms include:
 | _ont_email | Email address associated with the service account. |
 | _ont_active | Whether the service account is active. |
 | _ont_source | Source of the data. |
+
+#### Relationships
+
+- A workload runs as (assumes the identity of) a `ServiceAccount` via the canonical `RUNS_AS` edge:
+    ```
+    (:ComputeInstance)-[:RUNS_AS]->(:ServiceAccount)
+    (:ComputePod)-[:RUNS_AS]->(:ServiceAccount)
+    (:Function)-[:RUNS_AS]->(:ServiceAccount)
+    (:ComputeService)-[:RUNS_AS]->(:ServiceAccount)
+    ```
 
 
 ### Certificate

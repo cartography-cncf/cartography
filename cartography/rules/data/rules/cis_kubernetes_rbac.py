@@ -118,8 +118,8 @@ kubernetes_cluster_admin_role_usage = Rule(
 class SecretAccessOutput(Finding):
     """Output model for secret access check."""
 
-    role_id: str | None = None
     role_name: str | None = None
+    role_id: str | None = None
     role_type: str | None = None
     verbs: list[str] | None = None
     cluster_name: str | None = None
@@ -231,8 +231,8 @@ kubernetes_roles_grant_secret_access = Rule(
 class WildcardRoleOutput(Finding):
     """Output model for wildcard role check."""
 
-    role_id: str | None = None
     role_name: str | None = None
+    role_id: str | None = None
     role_type: str | None = None
     wildcard_in: str | None = None
     cluster_name: str | None = None
@@ -344,8 +344,8 @@ kubernetes_wildcard_roles = Rule(
 class PodCreateAccessOutput(Finding):
     """Output model for pod creation access check."""
 
-    role_id: str | None = None
     role_name: str | None = None
+    role_id: str | None = None
     role_type: str | None = None
     cluster_name: str | None = None
 
@@ -363,6 +363,10 @@ _k8s_pod_create_clusterroles = Fact(
     WHERE ('pods' IN cr.resources OR '*' IN cr.resources)
       AND any(v IN cr.verbs WHERE v IN ['create', '*'])
       AND NOT cr.name STARTS WITH 'system:'
+      AND NOT cr.name IN ['cluster-admin', 'admin', 'edit', 'view']
+      // Exclude immutable EKS-managed roles (eks: prefix and AWS platform roles)
+      AND NOT cr.name STARTS WITH 'eks:'
+      AND NOT cr.name IN ['aws-node', 'vpc-resource-controller-role']
     RETURN
         cr.id AS role_id,
         cr.name AS role_name,
@@ -374,11 +378,18 @@ _k8s_pod_create_clusterroles = Fact(
     WHERE ('pods' IN cr.resources OR '*' IN cr.resources)
       AND any(v IN cr.verbs WHERE v IN ['create', '*'])
       AND NOT cr.name STARTS WITH 'system:'
+      AND NOT cr.name IN ['cluster-admin', 'admin', 'edit', 'view']
+      // Exclude immutable EKS-managed roles (eks: prefix and AWS platform roles)
+      AND NOT cr.name STARTS WITH 'eks:'
+      AND NOT cr.name IN ['aws-node', 'vpc-resource-controller-role']
     RETURN *
     """,
     cypher_count_query="""
     MATCH (cr:KubernetesClusterRole)
     WHERE NOT cr.name STARTS WITH 'system:'
+      AND NOT cr.name IN ['cluster-admin', 'admin', 'edit', 'view']
+      AND NOT cr.name STARTS WITH 'eks:'
+      AND NOT cr.name IN ['aws-node', 'vpc-resource-controller-role']
     RETURN COUNT(cr) AS count
     """,
     identity_fields=("role_id",),
@@ -399,6 +410,9 @@ _k8s_pod_create_roles = Fact(
     WHERE ('pods' IN r.resources OR '*' IN r.resources)
       AND any(v IN r.verbs WHERE v IN ['create', '*'])
       AND NOT r.name STARTS WITH 'system:'
+      // Exclude immutable EKS-managed roles (eks: prefix and AWS platform roles)
+      AND NOT r.name STARTS WITH 'eks:'
+      AND NOT r.name IN ['aws-node', 'vpc-resource-controller-role']
     RETURN
         r.id AS role_id,
         r.name AS role_name,
@@ -410,11 +424,16 @@ _k8s_pod_create_roles = Fact(
     WHERE ('pods' IN r.resources OR '*' IN r.resources)
       AND any(v IN r.verbs WHERE v IN ['create', '*'])
       AND NOT r.name STARTS WITH 'system:'
+      // Exclude immutable EKS-managed roles (eks: prefix and AWS platform roles)
+      AND NOT r.name STARTS WITH 'eks:'
+      AND NOT r.name IN ['aws-node', 'vpc-resource-controller-role']
     RETURN *
     """,
     cypher_count_query="""
     MATCH (r:KubernetesRole)
     WHERE NOT r.name STARTS WITH 'system:'
+      AND NOT r.name STARTS WITH 'eks:'
+      AND NOT r.name IN ['aws-node', 'vpc-resource-controller-role']
     RETURN COUNT(r) AS count
     """,
     identity_fields=("role_id",),
@@ -433,7 +452,7 @@ kubernetes_roles_grant_pod_creation = Rule(
     output_model=PodCreateAccessOutput,
     facts=(_k8s_pod_create_clusterroles, _k8s_pod_create_roles),
     tags=("rbac", "pods", "stride:elevation_of_privilege"),
-    version="1.0.0",
+    version="1.1.0",
     references=CIS_REFERENCES,
     frameworks=(
         cis_kubernetes("5.1.4"),
@@ -461,6 +480,7 @@ class DefaultSaBindingsOutput(Finding):
     namespace: str | None = None
     role_name: str | None = None
     pod_name: str | None = None
+    pod_names: list[str] | None = None
     automount_service_account_token: bool | None = None
     cluster_name: str | None = None
 
@@ -545,19 +565,24 @@ _k8s_default_sa_used_by_pods = Fact(
     id="k8s_default_sa_used_by_pods",
     name="Kubernetes pods using the default service account",
     description=(
-        "Detects pods that are still configured to run under the default service account. "
-        "The benchmark recommends creating explicit service accounts instead."
+        "Detects namespaces whose pods are still configured to run under the default "
+        "service account. The benchmark recommends creating explicit service accounts "
+        "instead. Findings are grouped per namespace so that controller-managed pod "
+        "churn (random pod-name suffixes) does not produce a new finding on every sync."
     ),
     cypher_query="""
     MATCH (cluster:KubernetesCluster)-[:RESOURCE]->(pod:KubernetesPod)-[:USES_SERVICE_ACCOUNT]->(sa:KubernetesServiceAccount)
     WHERE sa.name = 'default'
+    WITH cluster.name AS cluster_name, sa.namespace AS namespace, pod.name AS pod_name
+    ORDER BY pod_name
+    WITH cluster_name, namespace, collect(DISTINCT pod_name) AS pod_names
     RETURN
-        pod.id AS binding_id,
+        cluster_name + '/' + namespace AS binding_id,
         'PodUsesDefaultServiceAccount' AS binding_type,
-        sa.name AS service_account_name,
-        sa.namespace AS namespace,
-        pod.name AS pod_name,
-        cluster.name AS cluster_name
+        'default' AS service_account_name,
+        namespace,
+        pod_names,
+        cluster_name
     """,
     cypher_visual_query="""
     MATCH p=(cluster:KubernetesCluster)-[:RESOURCE]->(pod:KubernetesPod)-[:USES_SERVICE_ACCOUNT]->(sa:KubernetesServiceAccount)
@@ -565,12 +590,12 @@ _k8s_default_sa_used_by_pods = Fact(
     RETURN *
     """,
     cypher_count_query="""
-    MATCH (:KubernetesPod)-[:USES_SERVICE_ACCOUNT]->(sa:KubernetesServiceAccount)
+    MATCH (sa:KubernetesServiceAccount)
     WHERE sa.name = 'default'
     RETURN COUNT(sa) AS count
     """,
     asset_id_field="binding_id",
-    identity_fields=("binding_id",),
+    identity_fields=("cluster_name", "namespace"),
     module=Module.KUBERNETES,
     maturity=Maturity.EXPERIMENTAL,
 )
@@ -587,6 +612,7 @@ _k8s_default_sa_automount_enabled = Fact(
     WHERE sa.name = 'default'
       AND coalesce(sa.automount_service_account_token, true) = true
     RETURN
+        sa.namespace + '/' + sa.name AS binding_name,
         sa.id AS binding_id,
         'ServiceAccountAutomount' AS binding_type,
         sa.name AS service_account_name,
@@ -757,8 +783,8 @@ kubernetes_system_masters_group_usage = Rule(
 class EscalationPermissionsOutput(Finding):
     """Output model for escalation permissions check."""
 
-    role_id: str | None = None
     role_name: str | None = None
+    role_id: str | None = None
     role_type: str | None = None
     dangerous_verbs: list[str] | None = None
     cluster_name: str | None = None
@@ -865,8 +891,8 @@ kubernetes_bind_impersonate_escalate_permissions = Rule(
 class PvCreateAccessOutput(Finding):
     """Output model for PV creation access check."""
 
-    role_id: str | None = None
     role_name: str | None = None
+    role_id: str | None = None
     role_type: str | None = None
     cluster_name: str | None = None
 
@@ -974,8 +1000,8 @@ kubernetes_roles_grant_persistent_volume_creation = Rule(
 class NodeProxyAccessOutput(Finding):
     """Output model for node proxy access check."""
 
-    role_id: str | None = None
     role_name: str | None = None
+    role_id: str | None = None
     role_type: str | None = None
     cluster_name: str | None = None
 
@@ -1046,8 +1072,8 @@ kubernetes_node_proxy_subresource_access = Rule(
 class CsrApprovalAccessOutput(Finding):
     """Output model for CSR approval access check."""
 
-    role_id: str | None = None
     role_name: str | None = None
+    role_id: str | None = None
     role_type: str | None = None
     cluster_name: str | None = None
 
@@ -1119,8 +1145,8 @@ kubernetes_csr_approval_subresource_access = Rule(
 class WebhookConfigAccessOutput(Finding):
     """Output model for webhook configuration access check."""
 
-    role_id: str | None = None
     role_name: str | None = None
+    role_id: str | None = None
     role_type: str | None = None
     webhook_resources: str | None = None
     cluster_name: str | None = None
@@ -1206,8 +1232,8 @@ kubernetes_webhook_configuration_access = Rule(
 class SaTokenCreationAccessOutput(Finding):
     """Output model for SA token creation access check."""
 
-    role_id: str | None = None
     role_name: str | None = None
+    role_id: str | None = None
     role_type: str | None = None
     cluster_name: str | None = None
 
@@ -1225,6 +1251,8 @@ _k8s_sa_token_creation_clusterroles = Fact(
     WHERE any(r IN cr.resources WHERE r IN ['serviceaccounts/token', '*'])
       AND any(v IN cr.verbs WHERE v IN ['create', '*'])
       AND NOT cr.name STARTS WITH 'system:'
+      AND NOT cr.name STARTS WITH 'eks:'
+      AND NOT cr.name IN ['cluster-admin', 'admin', 'edit', 'view']
     RETURN
         cr.id AS role_id,
         cr.name AS role_name,
@@ -1236,11 +1264,15 @@ _k8s_sa_token_creation_clusterroles = Fact(
     WHERE any(r IN cr.resources WHERE r IN ['serviceaccounts/token', '*'])
       AND any(v IN cr.verbs WHERE v IN ['create', '*'])
       AND NOT cr.name STARTS WITH 'system:'
+      AND NOT cr.name STARTS WITH 'eks:'
+      AND NOT cr.name IN ['cluster-admin', 'admin', 'edit', 'view']
     RETURN *
     """,
     cypher_count_query="""
     MATCH (cr:KubernetesClusterRole)
     WHERE NOT cr.name STARTS WITH 'system:'
+      AND NOT cr.name STARTS WITH 'eks:'
+      AND NOT cr.name IN ['cluster-admin', 'admin', 'edit', 'view']
     RETURN COUNT(cr) AS count
     """,
     identity_fields=("role_id",),

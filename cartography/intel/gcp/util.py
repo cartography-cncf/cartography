@@ -9,6 +9,7 @@ import json
 import logging
 from typing import Any
 from typing import cast
+from typing import Collection
 from typing import Dict
 from typing import List
 
@@ -40,6 +41,13 @@ GCP_QUOTA_EXCEEDED_REASONS = frozenset(
 
 # Number of retries for network-level errors (handled natively by googleapiclient)
 GCP_API_NUM_RETRIES = 5
+
+
+def _get_gcp_http_error_status(e: HttpError) -> int | None:
+    try:
+        return int(e.resp.status)
+    except (AttributeError, TypeError, ValueError):
+        return None
 
 
 def proto_message_to_dict(
@@ -455,21 +463,24 @@ def classify_gcp_http_error(e: HttpError) -> str:
     classified as "unknown".
 
     Mapping rules:
-      - 403 + api-disabled pattern (is_api_disabled_error) → "api_disabled"
-      - (other) 403                                        → "forbidden"
-      - 404                                                → "not_found"
-      - 400 + reason "invalid" or "badRequest"            → "invalid"
-      - status in {429, 500, 502, 503, 504}               → "transient"
-      - anything else                                      → "unknown"
+      - billing-disabled pattern (is_billing_disabled_error) → "billing_disabled"
+      - 403 + api-disabled pattern (is_api_disabled_error)   → "api_disabled"
+      - (other) 403                                          → "forbidden"
+      - 404                                                  → "not_found"
+      - 400 + reason "invalid" or "badRequest"              → "invalid"
+      - status in {429, 500, 502, 503, 504}                 → "transient"
+      - anything else                                        → "unknown"
 
     :param e: The HttpError exception to classify
-    :return: One of "api_disabled", "forbidden", "not_found", "invalid",
-             "transient", "unknown"
+    :return: One of "billing_disabled", "api_disabled", "forbidden",
+             "not_found", "invalid", "transient", "unknown"
     """
-    try:
-        status = int(e.resp.status)
-    except (AttributeError, TypeError, ValueError):
+    status = _get_gcp_http_error_status(e)
+    if status is None:
         return "unknown"
+
+    if is_billing_disabled_error(e):
+        return "billing_disabled"
 
     if status == 403:
         if is_api_disabled_error(e):
@@ -491,3 +502,26 @@ def classify_gcp_http_error(e: HttpError) -> str:
         return "transient"
 
     return "unknown"
+
+
+def is_gcp_http_error_category(
+    e: HttpError,
+    categories: Collection[str],
+    *,
+    include_transient_403: bool = False,
+) -> bool:
+    """
+    Return whether a GCP HttpError belongs to one of the given categories.
+
+    `include_transient_403` exists for legacy REST handlers that intentionally
+    skipped all HTTP 403s, including quota/rate-limit 403s after retries, while
+    still re-raising 429/5xx transient failures.
+    """
+    category = classify_gcp_http_error(e)
+    if category in categories:
+        return True
+    return (
+        include_transient_403
+        and category == "transient"
+        and _get_gcp_http_error_status(e) == 403
+    )

@@ -19,12 +19,13 @@ def test_nist_ai_rules_registered_and_metadata():
         "ai_provider_api_key_hygiene": ai_provider_api_key_hygiene,
     }
 
+    expected_versions = {"ai_provider_api_key_hygiene": "0.2.0"}
     for rule_id, rule_obj in expected_rules.items():
         assert rule_id in RULES
         assert RULES[rule_id] is rule_obj
-        assert rule_obj.version == "0.1.0"
+        assert rule_obj.version == expected_versions.get(rule_id, "0.1.0")
         assert rule_obj.references
-        assert rule_obj.has_framework("nist-ai-rmf", revision="1.0")
+        assert rule_obj.has_framework("NIST", scope="ai-rmf", revision="1.0")
 
 
 def test_nist_ai_rule_modules():
@@ -66,32 +67,32 @@ def test_nist_ai_framework_requirements():
     inventory_requirements = {
         fw.requirement
         for fw in ai_third_party_app_inventory.frameworks
-        if fw.short_name == "nist-ai-rmf"
+        if fw.short_name == "nist" and fw.scope == "ai-rmf"
     }
     sensitive_requirements = {
         fw.requirement
         for fw in ai_third_party_app_sensitive_scopes.frameworks
-        if fw.short_name == "nist-ai-rmf"
+        if fw.short_name == "nist" and fw.scope == "ai-rmf"
     }
     admin_requirements = {
         fw.requirement
         for fw in ai_admin_app_authorizations.frameworks
-        if fw.short_name == "nist-ai-rmf"
+        if fw.short_name == "nist" and fw.scope == "ai-rmf"
     }
     aibom_inventory_requirements = {
         fw.requirement
         for fw in aibom_agent_inventory.frameworks
-        if fw.short_name == "nist-ai-rmf"
+        if fw.short_name == "nist" and fw.scope == "ai-rmf"
     }
     aibom_gap_requirements = {
         fw.requirement
         for fw in aibom_coverage_gaps.frameworks
-        if fw.short_name == "nist-ai-rmf"
+        if fw.short_name == "nist" and fw.scope == "ai-rmf"
     }
     provider_requirements = {
         fw.requirement
         for fw in ai_provider_api_key_hygiene.frameworks
-        if fw.short_name == "nist-ai-rmf"
+        if fw.short_name == "nist" and fw.scope == "ai-rmf"
     }
 
     assert inventory_requirements == {"map 1"}

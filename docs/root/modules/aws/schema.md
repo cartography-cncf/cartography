@@ -278,7 +278,7 @@ Representation of AWS [IAM Groups](https://docs.aws.amazon.com/IAM/latest/APIRef
 - AWSUsers and AWSPrincipals can be members of AWSGroups.
 
     ```cypher
-    (:AWSUser, :AWSPrincipal)-[:MEMBER_AWS_GROUP]->(:AWSGroup)
+    (:AWSUser, :AWSPrincipal)-[:MEMBER_OF]->(:AWSGroup)
     ```
 
 - AWSGroups belong to AWSAccounts.
@@ -370,6 +370,7 @@ Representation of an AWS [GuardDuty Finding](https://docs.aws.amazon.com/guarddu
 | detectorid | The ID of the detector that generated the finding |
 | resource_type | The type of AWS resource affected (Instance, S3Bucket, AccessKey, etc.) |
 | resource_id | The identifier of the affected resource (instance ID, bucket name, etc.) |
+| eks_cluster_arn | For `EKSCluster` findings, the ARN of the affected EKS cluster reported by GuardDuty |
 | access_key_id | For `AccessKey` findings, the AWS access key ID reported by GuardDuty |
 | principal_user_id | For `AccessKey` findings where `UserType=IAMUser`, the IAM user unique ID reported by GuardDuty |
 | principal_role_id | For `AccessKey` findings where `UserType=AssumedRole`, the IAM role unique ID (the prefix of GuardDuty's `PrincipalId` before `:session-name`) |
@@ -414,6 +415,11 @@ Representation of an AWS [GuardDuty Finding](https://docs.aws.amazon.com/guarddu
 - GuardDuty findings may affect EC2 Instances
     ```cypher
     (:GuardDutyFinding)-[:AFFECTS]->(:EC2Instance)
+    ```
+
+- GuardDuty Kubernetes findings may affect EKS Clusters
+    ```cypher
+    (:GuardDutyFinding)-[:AFFECTS]->(:EKSCluster)
     ```
 
 - GuardDuty findings may affect S3 Buckets
@@ -528,7 +534,7 @@ Representation of an AWS [Inspector Finding Package](https://docs.aws.amazon.com
 - AWSInspectorFindings have AWSInspectorPackages.
 
     ```cypher
-    (:AWSInspectorFindings)-[:HAS]->(:AWSInspectorPackages)
+    (:AWSInspectorFinding)-[:HAS]->(:AWSInspectorPackage)
 
     ```
     - `HAS` attributes
@@ -547,7 +553,7 @@ Representation of an AWS [Inspector Finding Package](https://docs.aws.amazon.com
 - AWSInspectorPackages belong to AWSAccounts.
 
     ```cypher
-    (:AWSAccount)-[:RESOURCE]->(:AWSInspectorPackages)
+    (:AWSAccount)-[:RESOURCE]->(:AWSInspectorPackage)
     ```
 
 
@@ -638,6 +644,11 @@ Representation of an AWS [Lambda Function](https://docs.aws.amazon.com/lambda/la
 - AWSLambda functions may act as AWSPrincipals via role assumption.
     ```
     (:AWSLambda)-[:STS_ASSUMEROLE_ALLOW]->(:AWSPrincipal)
+    ```
+
+- AWSLambda functions run with the permissions of their execution role (canonical ontology edge).
+    ```
+    (:AWSLambda)-[:ASSUMES]->(:AWSRole)
     ```
 
 - AWSLambda functions may also have aliases.
@@ -817,7 +828,7 @@ Representation of an [AWS Policy](https://docs.aws.amazon.com/IAM/latest/APIRefe
 - An `AWSInlinePolicy` is scoped to the AWSAccount of the principal it is attached to.
 
     ```cypher
-    (:AWSInlinePolicy)-[:RESOURCE]->(:AWSAccount)
+    (:AWSAccount)-[:RESOURCE]->(:AWSInlinePolicy)
     ```
 
 - `AWSInlinePolicy` contains `AWSPolicyStatement`
@@ -902,13 +913,13 @@ Representation of an [AWSPrincipal](https://docs.aws.amazon.com/IAM/latest/APIRe
 - AWS Principals can be members of AWS Groups.
 
     ```cypher
-    (AWSPrincipal)-[MEMBER_AWS_GROUP]->(AWSGroup)
+    (AWSPrincipal)-[MEMBER_OF]->(AWSGroup)
     ```
 
-- This AccountAccessKey is used to authenticate to this AWSPrincipal.
+- This AccountAccessKey is owned by the AWSUser it authenticates as.
 
     ```cypher
-    (AWSPrincipal)-[AWS_ACCESS_KEY]->(AccountAccessKey)
+    (AccountAccessKey)-[OWNED_BY]->(AWSUser)
     ```
 
 - AWS Roles can trust AWS Principals.
@@ -985,7 +996,7 @@ Representation of an [AWSUser](https://docs.aws.amazon.com/IAM/latest/APIReferen
 - AWS Users can be members of AWS Groups.
 
     ```cypher
-    (AWSUser)-[MEMBER_AWS_GROUP]->(AWSGroup)
+    (AWSUser)-[MEMBER_OF]->(AWSGroup)
     ```
 
 - AWS Users can assume AWS Roles.
@@ -994,10 +1005,10 @@ Representation of an [AWSUser](https://docs.aws.amazon.com/IAM/latest/APIReferen
     (AWSUser)-[STS_ASSUMEROLE_ALLOW]->(AWSRole)
     ```
 
-- This AccountAccessKey is used to authenticate to this AWSUser
+- This AccountAccessKey is owned by this AWSUser.
 
     ```cypher
-    (AWSUser)-[AWS_ACCESS_KEY]->(AccountAccessKey)
+    (AccountAccessKey)-[OWNED_BY]->(AWSUser)
     ```
 
 - AWS Accounts contain AWS Users.
@@ -1325,9 +1336,45 @@ Representation of an AWS [Tag](https://docs.aws.amazon.com/resourcegroupstagging
 | value | One part of a key-value pair that makes up a tag. |
 
 #### Relationships
--  AWS VPCs, DB Subnet Groups, EC2 Instances, EC2 SecurityGroups, EC2 Subnets, EC2 Network Interfaces, RDS Instances, S3 Buckets, AWS Roles, AWS Users, and AWS Groups can be tagged with AWSTags.
+- Many AWS resource types can be tagged with AWSTags. Tags are ingested centrally via the Resource Groups Tagging API (`cartography/intel/aws/resourcegroupstaggingapi.py`), so the full set of source node types is defined by `TAG_RESOURCE_TYPE_MAPPINGS` there rather than by per-model relationship schemas.
     ```
-    (AWSVpc, DBSubnetGroup, EC2Instance, EC2SecurityGroup, EC2Subnet, NetworkInterface, RDSInstance, S3Bucket, AWSRole, AWSUser)-[TAGGED]->(AWSTag)
+    (AWSInternetGateway)-[TAGGED]->(AWSTag)
+    (AWSLambda)-[TAGGED]->(AWSTag)
+    (AWSLoadBalancer)-[TAGGED]->(AWSTag)
+    (AWSLoadBalancerV2)-[TAGGED]->(AWSTag)
+    (AWSRole)-[TAGGED]->(AWSTag)
+    (AWSTransitGateway)-[TAGGED]->(AWSTag)
+    (AWSTransitGatewayAttachment)-[TAGGED]->(AWSTag)
+    (AWSUser)-[TAGGED]->(AWSTag)
+    (AWSVpc)-[TAGGED]->(AWSTag)
+    (AutoScalingGroup)-[TAGGED]->(AWSTag)
+    (DBSubnetGroup)-[TAGGED]->(AWSTag)
+    (DynamoDBTable)-[TAGGED]->(AWSTag)
+    (EBSVolume)-[TAGGED]->(AWSTag)
+    (EC2Instance)-[TAGGED]->(AWSTag)
+    (EC2KeyPair)-[TAGGED]->(AWSTag)
+    (EC2SecurityGroup)-[TAGGED]->(AWSTag)
+    (EC2Subnet)-[TAGGED]->(AWSTag)
+    (ECRRepository)-[TAGGED]->(AWSTag)
+    (ECSCluster)-[TAGGED]->(AWSTag)
+    (ECSContainer)-[TAGGED]->(AWSTag)
+    (ECSContainerInstance)-[TAGGED]->(AWSTag)
+    (ECSTask)-[TAGGED]->(AWSTag)
+    (ECSTaskDefinition)-[TAGGED]->(AWSTag)
+    (EKSCluster)-[TAGGED]->(AWSTag)
+    (EMRCluster)-[TAGGED]->(AWSTag)
+    (ESDomain)-[TAGGED]->(AWSTag)
+    (ElasticIPAddress)-[TAGGED]->(AWSTag)
+    (ElasticacheCluster)-[TAGGED]->(AWSTag)
+    (KMSKey)-[TAGGED]->(AWSTag)
+    (NetworkInterface)-[TAGGED]->(AWSTag)
+    (RDSCluster)-[TAGGED]->(AWSTag)
+    (RDSInstance)-[TAGGED]->(AWSTag)
+    (RDSSnapshot)-[TAGGED]->(AWSTag)
+    (RedshiftCluster)-[TAGGED]->(AWSTag)
+    (S3Bucket)-[TAGGED]->(AWSTag)
+    (SQSQueue)-[TAGGED]->(AWSTag)
+    (SecretsManagerSecret)-[TAGGED]->(AWSTag)
     ```
 
 ### AccountAccessKey
@@ -1591,9 +1638,9 @@ Representation of an AWS [Glue Job](https://docs.aws.amazon.com/glue/latest/weba
     ```
     (AWSAccount)-[RESOURCE]->(GlueJob)
     ```
-- Glue Jobs are used by Glue Connections.
+- Glue Jobs use Glue Connections.
     ```
-    (GlueConnection)-[USES]->(GlueJob)
+    (GlueJob)-[USES]->(GlueConnection)
     ```
 
 
@@ -2639,11 +2686,11 @@ Representation of an AWS Elastic Container Registry [pull through cache rule](ht
 
 -  EC2 Network ACLs have ingress and egress rules
     ```
-    (:EC2NetworkAcl)-[:MEMBER_OF_NACL]->(:EC2NetworkAclRule:IpPermissionInbound)
+    (:EC2NetworkAclRule:IpPermissionInbound)-[:MEMBER_OF_NACL]->(:EC2NetworkAcl)
     ```
 
     ```
-    (:EC2NetworkAcl)-[:MEMBER_OF_NACL]->(:EC2NetworkAclRule:IpPermissionEgress)
+    (:EC2NetworkAclRule:IpPermissionEgress)-[:MEMBER_OF_NACL]->(:EC2NetworkAcl)
     ```
 
 - EC2 Network ACLs define egress and ingress rules on subnets
@@ -2686,11 +2733,11 @@ For additional explanation see https://docs.aws.amazon.com/vpc/latest/userguide/
 
 -  EC2 Network ACLs have ingress and egress rules
     ```
-    (:EC2NetworkAcl)-[:MEMBER_OF_NACL]->(:EC2NetworkAclRule:IpPermissionInbound)
+    (:EC2NetworkAclRule:IpPermissionInbound)-[:MEMBER_OF_NACL]->(:EC2NetworkAcl)
     ```
 
     ```
-    (:EC2NetworkAcl)-[:MEMBER_OF_NACL]->(:EC2NetworkAclRule:IpPermissionEgress)
+    (:EC2NetworkAclRule:IpPermissionEgress)-[:MEMBER_OF_NACL]->(:EC2NetworkAcl)
     ```
 
  -  EC2 Network ACL Ruless belong to AWS Accounts
@@ -3554,7 +3601,7 @@ The `EXPOSE` relationship holds the protocol, port and TargetGroupArn the load b
     (EC2NetworkAcl)-[PROTECTS]->(AWSLoadBalancerV2)
     ```
 
-### Nameserver
+### NameServer
 
 Represents a DNS nameserver.
 | Field | Description |
@@ -3566,9 +3613,9 @@ Represents a DNS nameserver.
 
 #### Relationships
 
-- Nameservers are nameservers for to DNSZone.
+- DNS zones have nameservers.
     ```
-    (Nameserver)-[NAMESERVER]->(DNSZone)
+    (AWSDNSZone)-[NAMESERVER]->(NameServer)
     ```
 
 ### NetworkInterface
@@ -3869,6 +3916,11 @@ Representation of an AWS Relational Database Service [DBInstance](https://docs.a
     (RDSInstance)-[TAGGED]->(AWSTag)
     ```
 
+- RDS Instances encrypted with a customer-managed KMS key are linked to it.
+    ```
+    (RDSInstance)-[:ENCRYPTED_BY]->(KMSKey)
+    ```
+
 ### RDSSnapshot
 
 Representation of an AWS Relational Database Service [DBSnapshot](https://docs.aws.amazon.com/AmazonRDS/latest/APIReference/API_DBSnapshot.html).
@@ -4115,6 +4167,11 @@ Representation of an AWS S3 [Bucket](https://docs.aws.amazon.com/AmazonS3/latest
 -  S3 Buckets can be tagged with AWSTags.
     ```
     (S3Bucket)-[TAGGED]->(AWSTag)
+    ```
+
+- S3 Buckets whose default encryption uses a customer-managed KMS key are linked to it.
+    ```
+    (S3Bucket)-[:ENCRYPTED_BY]->(KMSKey)
     ```
 
 - S3 Buckets can send notifications to SNS Topics.
@@ -5488,6 +5545,11 @@ Representation of an AWS [EFS Access Point](https://docs.aws.amazon.com/efs/late
     (EfsAccessPoint)-[ACCESS_POINT_OF]->(EfsFileSystem)
     ```
 
+- EFS File Systems encrypted with a customer-managed KMS key are linked to it.
+    ```
+    (EfsFileSystem)-[:ENCRYPTED_BY]->(KMSKey)
+    ```
+
 ### SNSTopic
 Representation of an AWS [SNS Topic](https://docs.aws.amazon.com/sns/latest/api/API_Topic.html)
 | Field | Description |
@@ -5751,7 +5813,7 @@ Representation of an AWS SSO User.
 
 - An AWSSSOUser can be a member of one or more AWSSSOGroups. In effect, the AWSSSOUser will receive all permission sets that the group is assigned to.
     ```
-    (:AWSSSOUser)-[:MEMBER_OF_SSO_GROUP]->(:AWSSSOGroup)
+    (:AWSSSOUser)-[:MEMBER_OF]->(:AWSSSOGroup)
     ```
 
 - AWSSSOUsers can be assigned to AWSRoles. This happens when the user is assigned to a permission set for a specific account. This includes both direct assignments to the user and assignments inherited through AWSSSOGroup membership. Note: The AWS Identity Center API (`list_account_assignments_for_principal`) automatically resolves group memberships server-side, so users receive `ALLOWED_BY` relationships for roles they can access through groups they belong to.
@@ -5823,7 +5885,7 @@ Representation of an AWS SSO Group.
 
 - An AWSSSOGroup has assigned permission sets. AWSSSOUsers in the group will receive all permission sets that the group is assigned to.
     ```
-    (:AWSSSOGroup)-[:HAS_PERMISSION_SET]->(:AWSPermissionSet)
+    (:AWSSSOGroup)-[:HAS_ROLE]->(:AWSPermissionSet)
     ```
     Notes:
     - This relationship does not indicate which accounts the group has access to, only that it has been assigned to the permission set. For a group to have access to an AWS account, it must be assigned to a permission set for that specific account. This is captured by the `ALLOWED_BY` relationship.
@@ -5831,7 +5893,7 @@ Representation of an AWS SSO Group.
 
 - AWSSSOUsers can be members of AWSSSOGroups. In effect, the AWSSSOUser will receive all permission sets that the group is assigned to.
     ```
-    (:AWSSSOUser)-[:MEMBER_OF_SSO_GROUP]->(:AWSSSOGroup)
+    (:AWSSSOUser)-[:MEMBER_OF]->(:AWSSSOGroup)
     ```
 
 ### AWSPermissionSet
@@ -5856,7 +5918,7 @@ Representation of an AWS Identity Center Permission Set.
 #### Relationships
 - An AWSPermissionSet is part of an AWSIdentityCenter instance.
     ```
-    (:AWSIdentityCenter)<-[:HAS_PERMISSION_SET]-(:AWSPermissionSet)
+    (:AWSIdentityCenter)-[:HAS_PERMISSION_SET]->(:AWSPermissionSet)
     ```
 
 - An AWSPermissionSet creates AWSRoles in all of the AWS accounts that its associated permission set assigns it to.
@@ -5874,7 +5936,7 @@ Representation of an AWS Identity Center Permission Set.
 
 - An AWSSSOGroup has assigned permission sets. AWSSSOUsers in the group will receive all permission sets that the group is assigned to.
     ```
-    (:AWSSSOGroup)-[:HAS_PERMISSION_SET]->(:AWSPermissionSet)
+    (:AWSSSOGroup)-[:HAS_ROLE]->(:AWSPermissionSet)
     ```
     Note: This relationship does not indicate which accounts the group has access to, only that it has been assigned to the permission set. For a group to have access to an AWS account, it must be assigned to a permission set for that specific account. This is captured by the `ALLOWED_BY` relationship.
 

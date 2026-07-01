@@ -26,7 +26,7 @@ class GCPPolicyBindingNodeProperties(CartographyNodeProperties):
     # GCPPrincipal node, but are retained for visibility (e.g. broad-access audits).
     domains: PropertyRef = PropertyRef("domains")
     is_public: PropertyRef = PropertyRef("is_public", extra_index=True)
-    has_condition: PropertyRef = PropertyRef("has_condition")
+    has_condition: PropertyRef = PropertyRef("has_condition", extra_index=True)
     condition_title: PropertyRef = PropertyRef("condition_title")
     condition_expression: PropertyRef = PropertyRef("condition_expression")
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)

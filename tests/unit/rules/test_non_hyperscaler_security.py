@@ -34,7 +34,7 @@ def test_non_hyperscaler_rules_are_registered():
 
 def test_non_hyperscaler_rules_have_iso27001_mappings():
     for rule in NON_HYPERSCALER_RULES:
-        assert rule.has_framework(short_name="ISO27001", revision="2022")
+        assert rule.has_framework(short_name="ISO", scope="27001", revision="2022")
 
 
 def test_identity_mfa_gaps_cover_expected_providers():
@@ -64,7 +64,18 @@ def test_device_security_posture_gaps_cover_expected_providers():
     }
 
 
-def test_tailscale_boolean_predicates_accept_string_values():
+def test_tailscale_boolean_predicates_use_native_booleans():
+    expected_predicates = {
+        "tailscale_device_approval_disabled": "tailnet.devices_approval_on = false",
+        "tailscale_user_approval_disabled": "tailnet.users_approval_on = false",
+        "tailscale_network_flow_logging_disabled": (
+            "tailnet.network_flow_logging_on = false"
+        ),
+        "tailscale_device_auto_updates_disabled": (
+            "tailnet.devices_auto_updates_on = false"
+        ),
+        "tailscale_device_key_expiry_disabled": ("device.key_expiry_disabled = true"),
+    }
     for rule in (
         tailscale_tailnet_approval_disabled,
         tailscale_network_flow_logging_disabled,
@@ -72,8 +83,11 @@ def test_tailscale_boolean_predicates_accept_string_values():
         tailscale_device_key_expiry_disabled,
     ):
         for fact in rule.facts:
-            assert "toLower(toString(" in fact.cypher_query
-            assert "toLower(toString(" in fact.cypher_visual_query
+            expected_predicate = expected_predicates[fact.id]
+            assert expected_predicate in fact.cypher_query
+            assert expected_predicate in fact.cypher_visual_query
+            assert "toLower(toString(" not in fact.cypher_query
+            assert "toLower(toString(" not in fact.cypher_visual_query
 
 
 def test_duo_phone_visual_query_keeps_unlinked_phones():

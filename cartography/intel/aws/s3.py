@@ -1260,6 +1260,12 @@ def cleanup_s3_buckets(
     GraphJob.from_node_schema(S3BucketSchema(), common_job_parameters).run(
         neo4j_session
     )
+    # S3BucketEncryptionSchema has no sub_resource_relationship, so this cleans up
+    # only stale (:S3Bucket)-[:ENCRYPTED_BY]->(:KMSKey) edges (no node deletion),
+    # e.g. when a bucket rotates its key or disables default KMS encryption.
+    GraphJob.from_node_schema(S3BucketEncryptionSchema(), common_job_parameters).run(
+        neo4j_session
+    )
 
 
 @timeit

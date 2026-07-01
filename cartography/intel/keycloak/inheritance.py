@@ -21,13 +21,13 @@ _SUB_RESOURCE_LABEL = "KeycloakRealm"
 
 _INHERITED_MEMBER_OF_QUERY = """
     MATCH (:KeycloakRealm {name: $REALM})-[:RESOURCE]->(u:KeycloakUser)
-          -[:MEMBER_OF]->(:KeycloakGroup)-[:SUBGROUP_OF*1..5]->(pg:KeycloakGroup)
+          -[:MEMBER_OF]->(:KeycloakGroup)-[:MEMBER_OF|SUBGROUP_OF*1..5]->(pg:KeycloakGroup)
     RETURN DISTINCT u.id AS user_id, pg.id AS group_id
 """
 
 _ASSUME_ROLE_VIA_GROUP_QUERY = """
     MATCH (:KeycloakRealm {name: $REALM})-[:RESOURCE]->(u:KeycloakUser)
-          -[:MEMBER_OF|INHERITED_MEMBER_OF]->(:KeycloakGroup)-[:GRANTS]->(r:KeycloakRole)
+          -[:MEMBER_OF|INHERITED_MEMBER_OF]->(:KeycloakGroup)-[:GRANTS|HAS_ROLE]->(r:KeycloakRole)
     // DEPRECATED: ASSUME_ROLE is kept for backward compatibility alongside the
     // canonical HAS_ROLE edge; will be removed in v1.0.0.
     MERGE (u)-[rel:ASSUME_ROLE]->(r)

@@ -6,7 +6,7 @@ O(Organization) -- RESOURCE --> W(Workspace)
 O -- RESOURCE --> U(User)
 O -- RESOURCE --> K(ApiKey)
 W -- CONTAINS --> K
-U -- OWNS --> K
+K -- OWNED_BY --> U
 U -- MEMBER_OF --> W
 U -- ADMIN_OF --> W
 ```
@@ -86,19 +86,19 @@ Represents an individual workspace.
 #### Relationships
 - `Workspace` belongs to an `Organization`
     ```
-    (:AnthropicOrganization)-[:RESOURCE]->(:AnthropicWorkpace)
+    (:AnthropicOrganization)-[:RESOURCE]->(:AnthropicWorkspace)
     ```
 - `Workspace` contains `ApiKey`
     ```
     (:AnthropicWorkspace)-[:CONTAINS]->(:AnthropicApiKey)
     ```
-- `User` are member of a `Workpace`
+- `User` are member of a `Workspace`
     ```
-    (:AnthropicUser)-[:MEMBER_OF]->(:AnthropicWorkpace)
+    (:AnthropicUser)-[:MEMBER_OF]->(:AnthropicWorkspace)
     ```
-- `User` are admin of a `Workpace`
+- `User` are admin of a `Workspace`
     ```
-    (:AnthropicUser)-[:ADMIN_OF]->(:AnthropicWorkpace)
+    (:AnthropicUser)-[:ADMIN_OF]->(:AnthropicWorkspace)
     ```
 
 
@@ -124,7 +124,7 @@ Represents an individual API key in a project.
     ```
 - `APIKey` is owned by a `User`
     ```
-    (:AnthropicUser)-[:OWNS]->(:AnthropicApiKey)
+    (:AnthropicApiKey)-[:OWNED_BY]->(:AnthropicUser)
     ```
 - `Workspace` contains `ApiKey`
     ```

@@ -7,11 +7,11 @@ from cartography.rules.spec.model import Rule
 
 
 class IdentityMfaGapOutput(Finding):
+    principal_name: str | None = None
     provider: str | None = None
     account_id: str | None = None
     account_name: str | None = None
     principal_id: str | None = None
-    principal_name: str | None = None
     principal_type: str | None = None
     issue: str | None = None
     current_value: str | None = None

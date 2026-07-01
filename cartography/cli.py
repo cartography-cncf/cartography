@@ -52,6 +52,7 @@ PANEL_TAILSCALE = "Tailscale Options"
 PANEL_OPENAI = "OpenAI Options"
 PANEL_ANTHROPIC = "Anthropic Options"
 PANEL_AIRBYTE = "Airbyte Options"
+PANEL_DATABRICKS = "Databricks Options"
 PANEL_DOCKER_SCOUT = "Docker Scout Options"
 PANEL_TRIVY = "Trivy Options"
 PANEL_SYFT = "Syft Options"
@@ -60,6 +61,7 @@ PANEL_UBUNTU = "Ubuntu Security Options"
 PANEL_ONTOLOGY = "Ontology Options"
 PANEL_SCALEWAY = "Scaleway Options"
 PANEL_SENTINELONE = "SentinelOne Options"
+PANEL_TENABLE = "Tenable Options"
 PANEL_KEYCLOAK = "Keycloak Options"
 PANEL_SLACK = "Slack Options"
 PANEL_SENTRY = "Sentry Options"
@@ -106,6 +108,7 @@ MODULE_PANELS = {
     "openai": PANEL_OPENAI,
     "anthropic": PANEL_ANTHROPIC,
     "airbyte": PANEL_AIRBYTE,
+    "databricks": PANEL_DATABRICKS,
     "docker_scout": PANEL_DOCKER_SCOUT,
     "trivy": PANEL_TRIVY,
     "syft": PANEL_SYFT,
@@ -115,6 +118,7 @@ MODULE_PANELS = {
     "scaleway": PANEL_SCALEWAY,
     "sentry": PANEL_SENTRY,
     "sentinelone": PANEL_SENTINELONE,
+    "tenable": PANEL_TENABLE,
     "keycloak": PANEL_KEYCLOAK,
     "slack": PANEL_SLACK,
     "subimage": PANEL_SUBIMAGE,
@@ -1432,6 +1436,45 @@ class CLI:
                 ),
             ] = "https://api.airbyte.com/v1",
             # =================================================================
+            # Databricks Options
+            # =================================================================
+            databricks_workspace_url: Annotated[
+                str | None,
+                typer.Option(
+                    "--databricks-workspace-url",
+                    help="Databricks workspace URL, e.g. https://dbc-xxxx.cloud.databricks.com.",
+                    rich_help_panel=PANEL_DATABRICKS,
+                    hidden=PANEL_DATABRICKS not in visible_panels,
+                ),
+            ] = None,
+            databricks_token_env_var: Annotated[
+                str | None,
+                typer.Option(
+                    "--databricks-token-env-var",
+                    help="Environment variable name containing the Databricks personal access token (PAT).",
+                    rich_help_panel=PANEL_DATABRICKS,
+                    hidden=PANEL_DATABRICKS not in visible_panels,
+                ),
+            ] = None,
+            databricks_client_id: Annotated[
+                str | None,
+                typer.Option(
+                    "--databricks-client-id",
+                    help="Databricks OAuth M2M client ID (workspace-level service principal).",
+                    rich_help_panel=PANEL_DATABRICKS,
+                    hidden=PANEL_DATABRICKS not in visible_panels,
+                ),
+            ] = None,
+            databricks_client_secret_env_var: Annotated[
+                str | None,
+                typer.Option(
+                    "--databricks-client-secret-env-var",
+                    help="Environment variable name containing the Databricks OAuth M2M client secret.",
+                    rich_help_panel=PANEL_DATABRICKS,
+                    hidden=PANEL_DATABRICKS not in visible_panels,
+                ),
+            ] = None,
+            # =================================================================
             # Docker Scout Options
             # =================================================================
             docker_scout_source: Annotated[
@@ -1710,6 +1753,62 @@ class CLI:
                     hidden=PANEL_SENTINELONE not in visible_panels,
                 ),
             ] = "SENTINELONE_API_TOKEN",
+            # =================================================================
+            # Tenable Options
+            # =================================================================
+            tenable_url: Annotated[
+                str | None,
+                typer.Option(
+                    "--tenable-url",
+                    help="Tenable API base URL. Defaults to https://cloud.tenable.com.",
+                    rich_help_panel=PANEL_TENABLE,
+                    hidden=PANEL_TENABLE not in visible_panels,
+                ),
+            ] = None,
+            tenable_tenant_id: Annotated[
+                str | None,
+                typer.Option(
+                    "--tenable-tenant-id",
+                    help=(
+                        "Identifier used to scope all Tenable nodes in the graph "
+                        "(the TenableTenant node id). Defaults to the hostname of "
+                        "--tenable-url when not set."
+                    ),
+                    rich_help_panel=PANEL_TENABLE,
+                    hidden=PANEL_TENABLE not in visible_panels,
+                ),
+            ] = None,
+            tenable_access_key_env_var: Annotated[
+                str,
+                typer.Option(
+                    "--tenable-access-key-env-var",
+                    help="Environment variable name containing the Tenable access key.",
+                    rich_help_panel=PANEL_TENABLE,
+                    hidden=PANEL_TENABLE not in visible_panels,
+                ),
+            ] = "TENABLE_ACCESS_KEY",
+            tenable_secret_key_env_var: Annotated[
+                str,
+                typer.Option(
+                    "--tenable-secret-key-env-var",
+                    help="Environment variable name containing the Tenable secret key.",
+                    rich_help_panel=PANEL_TENABLE,
+                    hidden=PANEL_TENABLE not in visible_panels,
+                ),
+            ] = "TENABLE_SECRET_KEY",
+            tenable_findings_lookback_days: Annotated[
+                int,
+                typer.Option(
+                    "--tenable-findings-lookback-days",
+                    help=(
+                        "Number of days to look back for Tenable findings exports on each run. "
+                        "Stale findings outside this window are removed from the graph by the cleanup job. Defaults to 180."
+                    ),
+                    min=1,
+                    rich_help_panel=PANEL_TENABLE,
+                    hidden=PANEL_TENABLE not in visible_panels,
+                ),
+            ] = 180,
             # =================================================================
             # Keycloak Options
             # =================================================================
@@ -2371,6 +2470,28 @@ class CLI:
                 )
                 airbyte_client_secret = os.environ.get(airbyte_client_secret_env_var)
 
+            # Read Databricks credentials
+            databricks_token = None
+            if databricks_token_env_var:
+                logger.debug(
+                    "Reading Databricks PAT from environment variable %s",
+                    databricks_token_env_var,
+                )
+                databricks_token = os.environ.get(databricks_token_env_var)
+            databricks_client_secret = None
+            if databricks_client_secret_env_var:
+                # Read the secret whenever the env-var flag is set, even if
+                # --databricks-client-id is missing, so the module entry's
+                # partial-OAuth guard sees the asymmetric configuration and
+                # fails loudly instead of silently skipping ingestion.
+                logger.debug(
+                    "Reading Databricks OAuth M2M secret from environment variable %s",
+                    databricks_client_secret_env_var,
+                )
+                databricks_client_secret = os.environ.get(
+                    databricks_client_secret_env_var,
+                )
+
             resolved_docker_scout_source = _resolve_report_source_option(
                 module="docker_scout",
                 source=docker_scout_source,
@@ -2447,6 +2568,22 @@ class CLI:
                     sentinelone_api_token_env_var,
                 )
                 sentinelone_api_token = os.environ.get(sentinelone_api_token_env_var)
+
+            # Read Tenable API keys
+            tenable_access_key = None
+            if tenable_access_key_env_var:
+                logger.debug(
+                    "Reading Tenable access key from environment variable %s",
+                    tenable_access_key_env_var,
+                )
+                tenable_access_key = os.environ.get(tenable_access_key_env_var)
+            tenable_secret_key = None
+            if tenable_secret_key_env_var:
+                logger.debug(
+                    "Reading Tenable secret key from environment variable %s",
+                    tenable_secret_key_env_var,
+                )
+                tenable_secret_key = os.environ.get(tenable_secret_key_env_var)
 
             # Read Keycloak client secret
             keycloak_client_secret = None
@@ -2623,6 +2760,10 @@ class CLI:
                 airbyte_client_id=airbyte_client_id,
                 airbyte_client_secret=airbyte_client_secret,
                 airbyte_api_url=airbyte_api_url,
+                databricks_workspace_url=databricks_workspace_url,
+                databricks_token=databricks_token,
+                databricks_client_id=databricks_client_id,
+                databricks_client_secret=databricks_client_secret,
                 # Forward the user-provided values (not resolved). Config calls
                 # resolve_report_source_with_legacy_fields() internally; the CLI's
                 # _resolve_report_source_option above runs the same logic for early
@@ -2653,6 +2794,11 @@ class CLI:
                 sentinelone_api_token=sentinelone_api_token,
                 sentinelone_account_ids=sentinelone_account_ids_list,
                 sentinelone_site_ids=sentinelone_site_ids_list,
+                tenable_url=tenable_url,
+                tenable_tenant_id=tenable_tenant_id,
+                tenable_access_key=tenable_access_key,
+                tenable_secret_key=tenable_secret_key,
+                tenable_findings_lookback_days=tenable_findings_lookback_days,
                 spacelift_api_endpoint=spacelift_api_endpoint_resolved,
                 spacelift_api_token=spacelift_api_token,
                 spacelift_api_key_id=spacelift_api_key_id,

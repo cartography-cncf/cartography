@@ -120,6 +120,9 @@ class DuoGroupToDuoUserRelProperties(CartographyRelProperties):
 
 
 @dataclass(frozen=True)
+# DEPRECATED: replaced by the canonical (:UserAccount)-[:MEMBER_OF]->(:UserGroup)
+# edge (DuoGroupToDuoUserMemberOfRel). Kept for backward compatibility, will be
+# removed in v1.0.0.
 class DuoGroupToDuoUserRel(CartographyRelSchema):
     target_node_label: str = "DuoGroup"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
@@ -128,6 +131,25 @@ class DuoGroupToDuoUserRel(CartographyRelSchema):
     direction: LinkDirection = LinkDirection.OUTWARD
     rel_label: str = "MEMBER_OF_DUO_GROUP"
     properties: DuoGroupToDuoUserRelProperties = DuoGroupToDuoUserRelProperties()
+
+
+@dataclass(frozen=True)
+class DuoGroupToDuoUserMemberOfRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+# Canonical ontology edge: (:UserAccount)-[:MEMBER_OF]->(:UserGroup)
+class DuoGroupToDuoUserMemberOfRel(CartographyRelSchema):
+    target_node_label: str = "DuoGroup"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"group_id": PropertyRef("group_id")},
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "MEMBER_OF"
+    properties: DuoGroupToDuoUserMemberOfRelProperties = (
+        DuoGroupToDuoUserMemberOfRelProperties()
+    )
 
 
 @dataclass(frozen=True)
@@ -159,6 +181,7 @@ class DuoUserSchema(CartographyNodeSchema):
         rels=[
             DuoUserToHumanRel(),
             DuoGroupToDuoUserRel(),
+            DuoGroupToDuoUserMemberOfRel(),
             DuoEndpointToDuoUserRel(),
             DuoPhoneToDuoUserRel(),
             DuoTokenToDuoUserRel(),

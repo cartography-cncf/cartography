@@ -159,10 +159,10 @@ Representation of a GCP [Storage Bucket](https://cloud.google.com/storage/docs/j
     (GCPProject)-[RESOURCE]->(GCPBucket)
     ```
 
-- GCPBuckets can be labelled with GCPBucketLabels.
+- GCPBuckets can be labeled with GCPBucketLabels.
 
     ```
-    (GCPBucket)<-[LABELLED]-(GCPBucketLabels)
+    (GCPBucket)-[LABELED]->(GCPBucketLabel)
     ```
 
 - GCPPrincipals with appropriate permissions can read from GCP buckets. Created from [gcp_permission_relationships.yaml](https://github.com/cartography-cncf/cartography/blob/master/cartography/data/gcp_permission_relationships.yaml).
@@ -228,15 +228,15 @@ Representation of a GCP [Storage Bucket Label](https://cloud.google.com/storage/
 - GCPBuckets can be labeled with GCPBucketLabels.
 
     ```
-    (GCPBucket)<-[LABELED]-(GCPBucketLabels)
+    (GCPBucket)-[LABELED]->(GCPBucketLabel)
     ```
 
 
-### Label::GCPLabel
+### Tag::Label::GCPLabel
 
 Representation of a GCP [Label](https://cloud.google.com/resource-manager/docs/labels-overview). GCP Labels can be applied to many resource types. This is a unified label node type similar to how `AWSTag` works for AWS resources.
 
-> **Ontology Mapping**: This node has the extra label `Label` to preserve cross-platform semantics for generic key/value labels.
+> **Ontology Mapping**: This node has the extra labels `Tag` and `Label` to preserve cross-platform semantics for generic key/value labels. `(:Tag {key, value})` matches GCP labels alongside AWS, Azure, and Tenable tags.
 
 Each resource type has its own declarative schema (e.g., `GCPBucketGCPLabelSchema` and `GCPInstanceGCPLabelSchema`). Bucket-sourced labels also carry the `GCPBucketLabel` extra label for backward compatibility with the legacy per-resource label schema.
 
@@ -251,11 +251,11 @@ Each resource type has its own declarative schema (e.g., `GCPBucketGCPLabelSchem
 
 #### Relationships
 
-- GCP resources can be labeled with GCPLabels.
+- GCP resources are linked to their GCPLabels via `:TAGGED` (canonical, matches the cross-provider tag pattern). The legacy `:LABELED` edge is still written in parallel and will be removed in v1.0.0.
 
     ```
-    (GCPBucket)-[LABELED]->(GCPLabel:GCPBucketLabel)
-    (GCPInstance)-[LABELED]->(GCPLabel)
+    (GCPBucket)-[TAGGED]->(GCPLabel:GCPBucketLabel)
+    (GCPInstance)-[TAGGED]->(GCPLabel)
     ```
 
 - GCPLabel nodes are associated with a GCPProject via the RESOURCE relationship.
@@ -387,7 +387,7 @@ Representation of a Tag defined on a GCP Instance or GCP Firewall.  Tags are def
 - GCPNetworkTags are defined on a VPC and only have effect on assets in that VPC
 
     ```
-    (GCPVpc)-[DEFINED_IN]->(GCPNetworkTag)
+    (GCPNetworkTag)-[DEFINED_IN]->(GCPVpc)
     ```
 
 ### GCPVpc
@@ -432,7 +432,7 @@ Representation of a GCP [VPC](https://cloud.google.com/compute/docs/reference/re
 - GCPNetworkTags are defined on a VPC and only have effect on assets in that VPC
 
     ```
-    (:GCPVpc)-[:DEFINED_IN]->(:GCPNetworkTag)
+    (:GCPNetworkTag)-[:DEFINED_IN]->(:GCPVpc)
     ```
 
 - GCP Instances may be members of one or more GCP VPCs.
@@ -807,7 +807,7 @@ Representation of a GCP [Service Account](https://cloud.google.com/iam/docs/refe
 - GCPServiceAccounts are resources of GCPProjects.
 
     ```
-    (GCPServiceAccount)-[RESOURCE]->(GCPProject)
+    (GCPProject)-[RESOURCE]->(GCPServiceAccount)
     ```
 
 - GCPPrincipals with appropriate impersonation permissions can act as a GCPServiceAccount. Created from [gcp_permission_relationships.yaml](https://github.com/cartography-cncf/cartography/blob/master/cartography/data/gcp_permission_relationships.yaml). Driven by `iam.serviceAccounts.actAs` and related permissions packaged in `roles/iam.serviceAccountTokenCreator` and `roles/iam.serviceAccountUser`.
@@ -819,12 +819,14 @@ Representation of a GCP [Service Account](https://cloud.google.com/iam/docs/refe
 - GCPServiceAccounts have user-managed authentication keys (system-managed keys are intentionally not synced).
 
     ```
-    (GCPServiceAccount)-[HAS_KEY]->(GCPServiceAccountKey)
+    (GCPServiceAccountKey)-[OWNED_BY]->(GCPServiceAccount)
     ```
 
 ### GCPServiceAccountKey
 
 Representation of a user-managed GCP [Service Account Key](https://cloud.google.com/iam/docs/reference/rest/v1/projects.serviceAccounts.keys). System-managed keys (rotated automatically by Google) are not ingested.
+
+> **Ontology Mapping**: This node has the extra label `APIKey` to enable cross-platform queries for long-lived API credentials across different systems (e.g., AccountAccessKey, ScalewayApiKey).
 
 | Field                | Description                                                                                            |
 | -------------------- | ------------------------------------------------------------------------------------------------------ |
@@ -847,10 +849,38 @@ Representation of a user-managed GCP [Service Account Key](https://cloud.google.
     (GCPProject)-[RESOURCE]->(GCPServiceAccountKey)
     ```
 
-- GCPServiceAccountKeys hang off their parent GCPServiceAccount.
+- GCPServiceAccountKeys are owned by their parent GCPServiceAccount.
 
     ```
-    (GCPServiceAccount)-[HAS_KEY]->(GCPServiceAccountKey)
+    (GCPServiceAccountKey)-[OWNED_BY]->(GCPServiceAccount)
+    ```
+
+### GCPApiKey
+
+Representation of a GCP [API Key](https://cloud.google.com/api-keys/docs/reference/rest/v2/projects.locations.keys) (`apikeys.googleapis.com`). These are the encrypted-string keys used to authenticate to public Google APIs, distinct from `GCPServiceAccountKey`. The secret key material (`keyString`) is never ingested.
+
+> **Ontology Mapping**: This node has the extra label `APIKey` to enable cross-platform queries for long-lived API credentials across different systems (e.g., AccountAccessKey, ScalewayApiKey).
+
+| Field        | Description                                                                                   |
+| ------------ | --------------------------------------------------------------------------------------------- |
+| **id**       | The full resource name, e.g. `projects/{p}/locations/global/keys/{uid}`.                      |
+| name         | Same as id.                                                                                   |
+| uid          | The unique identifier of the key.                                                             |
+| display_name | Human-readable display name of the key.                                                       |
+| create_time  | RFC 3339 timestamp when the key was created.                                                  |
+| update_time  | RFC 3339 timestamp when the key was last updated.                                             |
+| delete_time  | RFC 3339 timestamp when the key was deleted, if applicable.                                   |
+| restricted   | Whether the key has any API or application restrictions. Unrestricted keys are higher risk.   |
+| restrictions | JSON-encoded restriction configuration (API targets, allowed referrers/IPs/apps), if any.     |
+| etag         | The etag of the key.                                                                          |
+| lastupdated  | The timestamp of the last update.                                                             |
+
+#### Relationships
+
+- GCPApiKeys are resources of GCPProjects.
+
+    ```
+    (GCPProject)-[RESOURCE]->(GCPApiKey)
     ```
 
 ### GCPRole
@@ -1650,6 +1680,12 @@ Representation of a Google [Cloud Function](https://cloud.google.com/functions/d
     (GCPCloudFunction)-[:RUNS_AS]->(GCPServiceAccount)
     ```
 
+- GCPCloudFunctions can be labeled with GCPLabels.
+
+    ```
+    (GCPCloudFunction)-[:LABELED]->(GCPLabel)
+    ```
+
 ### GCPSecretManagerSecret
 
 Representation of a GCP [Secret Manager Secret](https://cloud.google.com/secret-manager/docs/reference/rest/v1/projects.secrets). A Secret is a logical container for secret data that can have multiple versions.
@@ -2075,9 +2111,9 @@ graph LR
     Service -->|HAS_REVISION| Revision
     Job -->|HAS_EXECUTION| Execution
 
-    Service -->|USES_SERVICE_ACCOUNT| ServiceAccount
+    Service -->|RUNS_AS| ServiceAccount
     Revision -->|USES_SERVICE_ACCOUNT| ServiceAccount
-    Job -->|USES_SERVICE_ACCOUNT| ServiceAccount
+    Job -->|RUNS_AS| ServiceAccount
 ```
 
 ### GCPCloudRunService
@@ -2113,9 +2149,9 @@ Cloud Run Service is treated as an orchestrator (analogous to `ECSService`) and 
     ```
     (GCPCloudRunService)-[:HAS_REVISION]->(GCPCloudRunRevision)
     ```
-  - GCPCloudRunServices use GCPServiceAccounts.
+  - GCPCloudRunServices run as GCPServiceAccounts.
     ```
-    (GCPCloudRunService)-[:USES_SERVICE_ACCOUNT]->(GCPServiceAccount)
+    (GCPCloudRunService)-[:RUNS_AS]->(GCPServiceAccount)
     ```
 
 ### GCPCloudRunRevision
@@ -2174,9 +2210,9 @@ Representation of a GCP [Cloud Run Job](https://cloud.google.com/run/docs/refere
     ```
     (GCPCloudRunJob)-[:HAS_EXECUTION]->(GCPCloudRunExecution)
     ```
-  - GCPCloudRunJobs use GCPServiceAccounts.
+  - GCPCloudRunJobs run as GCPServiceAccounts.
     ```
-    (GCPCloudRunJob)-[:USES_SERVICE_ACCOUNT]->(GCPServiceAccount)
+    (GCPCloudRunJob)-[:RUNS_AS]->(GCPServiceAccount)
     ```
 
 ### GCPCloudRunJobContainer

@@ -65,8 +65,8 @@ def test_multiple_rules_can_map_to_same_framework_control():
             mappings.setdefault(key, set()).add(rule.id)
 
     privileged_access_rights = (
-        "iso27001",
-        None,
+        "iso",
+        "27001",
         "2022",
         "8.2",
         "Privileged access rights",
@@ -116,8 +116,8 @@ def test_framework_mappings_remain_on_renamed_rules():
             "Limit use of the Bind, Impersonate and Escalate permissions in the Kubernetes cluster",
         ),
         "ai_provider_api_key_hygiene": (
-            "nist-ai-rmf",
-            None,
+            "nist",
+            "ai-rmf",
             "1.0",
             "govern 5",
             "Processes are in place for robust engagement with relevant AI actors",
@@ -171,6 +171,22 @@ def test_framework_filtering_returns_renamed_rule_ids():
     )
     assert "kubernetes_pods_sharing_host_pid_namespace" in filter_rules_by_framework(
         rule_ids, "CIS:kubernetes:1.12"
+    )
+    assert "ai_provider_api_key_hygiene" in filter_rules_by_framework(
+        rule_ids,
+        "NIST:ai-rmf",
+    )
+    assert "aws_root_user_access_keys" in filter_rules_by_framework(
+        rule_ids,
+        "iso:27001",
+    )
+    assert "aws_root_user_access_keys" in filter_rules_by_framework(
+        rule_ids,
+        "iso:27001:2022",
+    )
+    assert "aws_root_user_access_keys" in filter_rules_by_framework(
+        rule_ids,
+        "ISO27001",
     )
     assert "ai_provider_api_key_hygiene" in filter_rules_by_framework(
         rule_ids,

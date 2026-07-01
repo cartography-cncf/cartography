@@ -47,8 +47,8 @@ def test_framework_helpers_preserve_framework_metadata():
         (
             iso27001_annex_a("8.15"),
             "iso/iec 27001:2022 annex a",
-            "iso27001",
-            None,
+            "iso",
+            "27001",
             "2022",
             "8.15",
             "Logging",
@@ -56,8 +56,8 @@ def test_framework_helpers_preserve_framework_metadata():
         (
             nist_ai_rmf("MAP 1"),
             "nist ai risk management framework",
-            "nist-ai-rmf",
-            None,
+            "nist",
+            "ai-rmf",
             "1.0",
             "map 1",
             "Context is established and understood",

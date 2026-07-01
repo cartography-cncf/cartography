@@ -49,8 +49,8 @@ _aws_role_external_account_trust = Fact(
 
 
 class IamRoleExternalAccountTrust(Finding):
-    role_arn: str | None = None
     role_name: str | None = None
+    role_arn: str | None = None
     account_id: str | None = None
     external_account_id: str | None = None
     trusted_principal_arn: str | None = None

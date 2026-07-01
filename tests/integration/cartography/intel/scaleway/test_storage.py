@@ -1,6 +1,7 @@
 from unittest.mock import Mock
 from unittest.mock import patch
 
+import cartography.intel.scaleway.storage.objectstorage
 import cartography.intel.scaleway.storage.snapshots
 import cartography.intel.scaleway.storage.volumes
 import tests.data.scaleway.storages
@@ -172,4 +173,88 @@ def test_load_scaleway_snapshots(_mock_get, neo4j_session):
             rel_direction_right=False,
         )
         == expected_volume_rels
+    )
+
+
+@patch.object(
+    cartography.intel.scaleway.storage.objectstorage,
+    "get",
+    return_value=(tests.data.scaleway.storages.SCALEWAY_BUCKETS, [TEST_PROJECT_ID]),
+)
+def test_load_scaleway_object_storage_buckets(_mock_get, neo4j_session):
+    # Arrange
+    client = Mock()
+    common_job_parameters = {
+        "UPDATE_TAG": TEST_UPDATE_TAG,
+        "ORG_ID": TEST_ORG_ID,
+    }
+    _ensure_local_neo4j_has_test_projects_and_orgs(neo4j_session)
+
+    # Act
+    cartography.intel.scaleway.storage.objectstorage.sync(
+        neo4j_session,
+        client,
+        common_job_parameters,
+        org_id=TEST_ORG_ID,
+        projects_id=[TEST_PROJECT_ID],
+        update_tag=TEST_UPDATE_TAG,
+    )
+
+    # Assert Buckets exist with the ObjectStorage ontology label
+    assert check_nodes(
+        neo4j_session,
+        "ScalewayObjectStorageBucket",
+        ["id", "region", "acl_public", "anonymous_access", "public"],
+    ) == {
+        ("cartography-private-bucket", "fr-par", False, False, False),
+        ("cartography-public-bucket", "nl-ams", True, True, True),
+    }
+    # Assert the ObjectStorage ontology mapping populates normalized _ont_* fields.
+    # _ont_public is mapped from the tri-state `public` field.
+    assert check_nodes(
+        neo4j_session,
+        "ObjectStorage",
+        [
+            "id",
+            "_ont_name",
+            "_ont_location",
+            "_ont_encrypted",
+            "_ont_versioning",
+            "_ont_public",
+        ],
+    ) == {
+        (
+            "cartography-private-bucket",
+            "cartography-private-bucket",
+            "fr-par",
+            True,
+            True,
+            False,
+        ),
+        (
+            "cartography-public-bucket",
+            "cartography-public-bucket",
+            "nl-ams",
+            True,
+            None,  # versioning unset -> _ont_versioning is null
+            True,
+        ),
+    }
+
+    # Assert buckets are linked to the project
+    expected_rels = {
+        ("cartography-private-bucket", TEST_PROJECT_ID),
+        ("cartography-public-bucket", TEST_PROJECT_ID),
+    }
+    assert (
+        check_rels(
+            neo4j_session,
+            "ScalewayObjectStorageBucket",
+            "id",
+            "ScalewayProject",
+            "id",
+            "RESOURCE",
+            rel_direction_right=False,
+        )
+        == expected_rels
     )
