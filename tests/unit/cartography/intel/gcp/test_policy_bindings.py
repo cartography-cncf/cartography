@@ -20,6 +20,53 @@ COMMON_JOB_PARAMS = {
 }
 
 
+def _policy_results_with_members(members: list[str]) -> dict:
+    return {
+        "project_id": TEST_PROJECT_ID,
+        "policy_results": [
+            {
+                "policies": [
+                    {
+                        "attached_resource": f"//cloudresourcemanager.googleapis.com/projects/{TEST_PROJECT_ID}",
+                        "policy": {
+                            "bindings": [
+                                {"role": "roles/viewer", "members": members},
+                            ],
+                        },
+                    },
+                ],
+            },
+        ],
+    }
+
+
+def test_transform_bindings_retains_domain_members():
+    data = _policy_results_with_members(
+        [
+            "user:alice@example.com",
+            "domain:example.com",
+        ],
+    )
+
+    bindings = policy_bindings.transform_bindings(data)
+
+    assert len(bindings) == 1
+    binding = bindings[0]
+    assert binding["members"] == ["alice@example.com"]
+    assert binding["domains"] == ["example.com"]
+
+
+def test_transform_bindings_keeps_domain_only_binding():
+    # A binding whose only principal is a domain must not be dropped.
+    data = _policy_results_with_members(["domain:example.com"])
+
+    bindings = policy_bindings.transform_bindings(data)
+
+    assert len(bindings) == 1
+    assert bindings[0]["members"] == []
+    assert bindings[0]["domains"] == ["example.com"]
+
+
 @pytest.mark.parametrize(
     "full_name, expected",
     [

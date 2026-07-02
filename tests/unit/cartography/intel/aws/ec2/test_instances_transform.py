@@ -42,6 +42,29 @@ def test_transform_ec2_instances_handles_missing_private_ip():
     ]
 
 
+def test_transform_ec2_instances_builds_arn():
+    reservations = [
+        {
+            "ReservationId": "r-1",
+            "OwnerId": FAKE_ACCOUNT_ID,
+            "Instances": [
+                {
+                    "InstanceId": "i-abc123",
+                    "NetworkInterfaces": [],
+                    "BlockDeviceMappings": [],
+                },
+            ],
+        },
+    ]
+
+    data = transform_ec2_instances(reservations, FAKE_REGION, FAKE_ACCOUNT_ID)
+
+    assert (
+        data.instance_list[0]["Arn"]
+        == "arn:aws:ec2:us-east-1:123456789012:instance/i-abc123"
+    )
+
+
 def test_transform_ec2_instances_extracts_eks_cluster_tag():
     reservations = [
         {

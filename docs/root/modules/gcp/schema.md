@@ -1000,6 +1000,7 @@ Representation of a GCP [IAM Policy Binding](https://cloud.google.com/iam/docs/r
 | resource_type        | The type of resource.                                                            |
 | members              | A list of principal email addresses that are granted the role. The synthetic GCP principals `allUsers` and `allAuthenticatedUsers` are NOT included here; presence of either is reflected in `is_public` instead. |
 | wif_pools            | A list of Workload Identity Federation pool resource names (`projects/{N}/locations/global/workloadIdentityPools/{POOL}`) referenced by `principal://` or `principalSet://` members of this binding. |
+| domains              | A list of domains (`domain:{domain}`) granted the role. These do not resolve to a single `GCPPrincipal` node, but are retained for visibility (e.g. broad-access audits). |
 | is_public            | True if the binding includes the `allUsers` or `allAuthenticatedUsers` principal. Combine with `has_condition = false` to reason about unconditional public exposure. |
 | has_condition        | A boolean indicating if the policy binding has a condition attached.             |
 | condition_title      | The title of the condition.                                                      |
