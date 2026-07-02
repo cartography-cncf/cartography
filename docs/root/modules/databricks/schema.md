@@ -70,6 +70,16 @@ Q -- USES_WAREHOUSE --> WH
 AL -- MONITORS --> Q
 DSRC -- BACKED_BY --> WH
 DASH -- USES_WAREHOUSE --> WH
+W -- RESOURCE --> SVE(DatabricksServingEndpoint)
+W -- RESOURCE --> SVN(DatabricksServedEntity)
+W -- RESOURCE --> GEN(DatabricksGenieSpace)
+W -- RESOURCE --> APP(DatabricksApp)
+W -- RESOURCE --> REPO(DatabricksRepo)
+W -- RESOURCE --> GC(DatabricksGitCredential)
+SVE -- SERVES --> SVN
+GEN -- USES_WAREHOUSE --> WH
+W -- RESOURCE --> NB(DatabricksNotebook)
+JT -- RUNS_NOTEBOOK --> NB
 ```
 
 Grantable Unity Catalog nodes (`DatabricksMetastore`, `DatabricksCatalog`,
@@ -1081,4 +1091,190 @@ A Databricks dashboard. Both current Lakeview dashboards and legacy
 - A `DatabricksDashboard` uses a `DatabricksSqlWarehouse` (Lakeview dashboards).
     ```
     (:DatabricksDashboard)-[:USES_WAREHOUSE]->(:DatabricksSqlWarehouse)
+    ```
+
+### DatabricksServingEndpoint
+
+A Mosaic AI model serving endpoint (custom model, foundation model, or external
+model proxy).
+
+| Field | Description |
+|-------|-------------|
+| **id** | Workspace-scoped composite id `{workspace_id}/{name}` |
+| **name** | Endpoint name (indexed) |
+| endpoint_type | Endpoint type (`FOUNDATION_MODEL_API`, `EXTERNAL_MODEL`, …) |
+| task | Endpoint task (`llm/v1/chat`, `llm/v1/completions`, …) |
+| state_ready | Readiness state (`READY`, `NOT_READY`) |
+| state_config_update | Config update state (`NOT_UPDATING`, `IN_PROGRESS`, …) |
+| permission_level | The caller's permission level on the endpoint |
+| route_optimized | Whether the endpoint is route-optimized |
+| creator | User name of the endpoint creator (indexed) |
+| creation_timestamp | Native datetime the endpoint was created (UTC) |
+| last_updated_timestamp | Native datetime the endpoint was last updated (UTC) |
+| firstseen | Timestamp of when a sync job first created this node |
+| lastupdated | Timestamp of the last time the node was updated |
+
+#### Relationships
+
+- A `DatabricksServingEndpoint` belongs to a `DatabricksWorkspace`.
+    ```
+    (:DatabricksWorkspace)-[:RESOURCE]->(:DatabricksServingEndpoint)
+    ```
+- A `DatabricksServingEndpoint` serves one or more `DatabricksServedEntity`.
+    ```
+    (:DatabricksServingEndpoint)-[:SERVES]->(:DatabricksServedEntity)
+    ```
+
+### DatabricksServedEntity
+
+A single model served behind a serving endpoint. An endpoint can serve several
+entities (traffic split); each carries the model identity.
+
+| Field | Description |
+|-------|-------------|
+| **id** | Composite id `{workspace_id}/{endpoint_name}/{served_name}` |
+| **served_name** | Name of the served entity within its endpoint (indexed) |
+| **endpoint_name** | Name of the owning endpoint (indexed) |
+| entity_name | Full name of the served entity (e.g. `catalog.schema.model` or `system.ai.*`) (indexed) |
+| entity_type | Entity type (`FOUNDATION_MODEL`, `CUSTOM_MODEL`, `EXTERNAL_MODEL`, `FEATURE_SPEC`) |
+| entity_version | Served model version, for custom models |
+| foundation_model_name | Backing foundation-model name, for `FOUNDATION_MODEL` entities |
+| external_model_provider | Third-party provider data is routed to (`openai`, `anthropic`, …), for `EXTERNAL_MODEL` entities — a data-egress signal |
+| external_model_name | Third-party model name, for `EXTERNAL_MODEL` entities |
+| firstseen | Timestamp of when a sync job first created this node |
+| lastupdated | Timestamp of the last time the node was updated |
+
+#### Relationships
+
+- A `DatabricksServedEntity` belongs to a `DatabricksWorkspace`.
+    ```
+    (:DatabricksWorkspace)-[:RESOURCE]->(:DatabricksServedEntity)
+    ```
+- A `DatabricksServedEntity` is served by a `DatabricksServingEndpoint`.
+    ```
+    (:DatabricksServingEndpoint)-[:SERVES]->(:DatabricksServedEntity)
+    ```
+
+### DatabricksGenieSpace
+
+An AI/BI Genie space (natural-language analytics over a warehouse).
+
+| Field | Description |
+|-------|-------------|
+| **id** | Workspace-scoped composite id `{workspace_id}/{space_id}` |
+| **space_id** | Raw Genie space id (indexed) |
+| **title** | Space title (indexed) |
+| description | Space description |
+| warehouse_id | Raw id of the warehouse the space queries (indexed) |
+| firstseen | Timestamp of when a sync job first created this node |
+| lastupdated | Timestamp of the last time the node was updated |
+
+#### Relationships
+
+- A `DatabricksGenieSpace` belongs to a `DatabricksWorkspace`.
+    ```
+    (:DatabricksWorkspace)-[:RESOURCE]->(:DatabricksGenieSpace)
+    ```
+- A `DatabricksGenieSpace` uses a `DatabricksSqlWarehouse`.
+    ```
+    (:DatabricksGenieSpace)-[:USES_WAREHOUSE]->(:DatabricksSqlWarehouse)
+    ```
+
+### DatabricksApp
+
+A Databricks App (a hosted web application). The app runs as an auto-provisioned
+service principal whose client id is retained for principal-to-resource
+resolution.
+
+| Field | Description |
+|-------|-------------|
+| **id** | Workspace-scoped composite id `{workspace_id}/{name}` |
+| **name** | App name (indexed) |
+| description | App description |
+| url | Public URL the app is served at (indexed) |
+| app_state | Application status (`RUNNING`, `UNAVAILABLE`, …) |
+| compute_state | Compute status (`ACTIVE`, `STOPPED`, …) |
+| compute_size | Compute size (`MEDIUM`, `LARGE`) |
+| creator | User name of the app creator (indexed) |
+| service_principal_client_id | Application id of the service principal the app runs as (indexed) |
+| service_principal_name | Display name of the app's service principal |
+| oauth2_app_client_id | OAuth2 client id of the app integration |
+| create_time | Native datetime the app was created (UTC) |
+| update_time | Native datetime the app was last updated (UTC) |
+| firstseen | Timestamp of when a sync job first created this node |
+| lastupdated | Timestamp of the last time the node was updated |
+
+#### Relationships
+
+- A `DatabricksApp` belongs to a `DatabricksWorkspace`.
+    ```
+    (:DatabricksWorkspace)-[:RESOURCE]->(:DatabricksApp)
+    ```
+
+### DatabricksRepo
+
+A Databricks repo (git folder) cloned into the workspace.
+
+| Field | Description |
+|-------|-------------|
+| **id** | Workspace-scoped composite id `{workspace_id}/{repo_id}` |
+| **repo_id** | Raw repo id (indexed) |
+| url | Git remote URL (indexed) |
+| provider | Git provider (`gitHub`, `gitLab`, `bitbucketCloud`, …) |
+| branch | Checked-out branch |
+| head_commit_id | Currently checked-out commit sha |
+| path | Workspace path of the repo (indexed) |
+| firstseen | Timestamp of when a sync job first created this node |
+| lastupdated | Timestamp of the last time the node was updated |
+
+#### Relationships
+
+- A `DatabricksRepo` belongs to a `DatabricksWorkspace`.
+    ```
+    (:DatabricksWorkspace)-[:RESOURCE]->(:DatabricksRepo)
+    ```
+
+### DatabricksGitCredential
+
+A stored Git credential used to authenticate to a Git provider for repos.
+
+| Field | Description |
+|-------|-------------|
+| **id** | Workspace-scoped composite id `{workspace_id}/{credential_id}` |
+| **credential_id** | Raw credential id (indexed) |
+| git_provider | Git provider the credential authenticates to |
+| git_username | Git username the credential is bound to (indexed) |
+| firstseen | Timestamp of when a sync job first created this node |
+| lastupdated | Timestamp of the last time the node was updated |
+
+#### Relationships
+
+- A `DatabricksGitCredential` belongs to a `DatabricksWorkspace`.
+    ```
+    (:DatabricksWorkspace)-[:RESOURCE]->(:DatabricksGitCredential)
+    ```
+
+### DatabricksNotebook
+
+A workspace notebook. To avoid walking the entire workspace tree, notebooks are
+materialised lazily: one lightweight, path-keyed node per distinct notebook a
+job task references (no content, permissions, or recursive listing). This is
+enough to carry the code-to-cloud `RUNS_NOTEBOOK` edge.
+
+| Field | Description |
+|-------|-------------|
+| **id** | Workspace-scoped composite id `{workspace_id}/{path}` |
+| **path** | Workspace path of the notebook (indexed) |
+| firstseen | Timestamp of when a sync job first created this node |
+| lastupdated | Timestamp of the last time the node was updated |
+
+#### Relationships
+
+- A `DatabricksNotebook` belongs to a `DatabricksWorkspace`.
+    ```
+    (:DatabricksWorkspace)-[:RESOURCE]->(:DatabricksNotebook)
+    ```
+- A `DatabricksJobTask` runs a `DatabricksNotebook`.
+    ```
+    (:DatabricksJobTask)-[:RUNS_NOTEBOOK]->(:DatabricksNotebook)
     ```

@@ -3,6 +3,7 @@ import logging
 import neo4j
 
 import cartography.intel.databricks.alerts
+import cartography.intel.databricks.apps
 import cartography.intel.databricks.artifact_allowlists
 import cartography.intel.databricks.catalogs
 import cartography.intel.databricks.cluster_policies
@@ -12,19 +13,24 @@ import cartography.intel.databricks.dashboards
 import cartography.intel.databricks.data_sources
 import cartography.intel.databricks.external_locations
 import cartography.intel.databricks.functions
+import cartography.intel.databricks.genie_spaces
+import cartography.intel.databricks.git_credentials
 import cartography.intel.databricks.grants
 import cartography.intel.databricks.groups
 import cartography.intel.databricks.instance_pools
 import cartography.intel.databricks.ip_access_lists
 import cartography.intel.databricks.jobs
 import cartography.intel.databricks.metastores
+import cartography.intel.databricks.notebooks
 import cartography.intel.databricks.online_tables
 import cartography.intel.databricks.pipelines
 import cartography.intel.databricks.queries
 import cartography.intel.databricks.registered_models
+import cartography.intel.databricks.repos
 import cartography.intel.databricks.schemas
 import cartography.intel.databricks.secret_scopes
 import cartography.intel.databricks.service_principals
+import cartography.intel.databricks.serving_endpoints
 import cartography.intel.databricks.sql_warehouses
 import cartography.intel.databricks.storage_credentials
 import cartography.intel.databricks.tables
@@ -110,6 +116,13 @@ def _sync_workflows(
     cartography.intel.databricks.jobs.sync(
         neo4j_session,
         api_client,
+        workspace_id,
+        common_job_parameters,
+    )
+    # Notebooks are derived from the task notebook_paths just loaded, so this
+    # runs last and needs no api_client.
+    cartography.intel.databricks.notebooks.sync(
+        neo4j_session,
         workspace_id,
         common_job_parameters,
     )
@@ -275,6 +288,43 @@ def start_databricks_ingestion(neo4j_session: neo4j.Session, config: Config) -> 
     )
 
     cartography.intel.databricks.dashboards.sync(
+        neo4j_session,
+        api_client,
+        workspace_id,
+        common_job_parameters,
+    )
+
+    # ML serving + apps + content. Genie spaces bind to a warehouse synced
+    # above; the rest are independent workspace-level surfaces.
+    cartography.intel.databricks.serving_endpoints.sync(
+        neo4j_session,
+        api_client,
+        workspace_id,
+        common_job_parameters,
+    )
+
+    cartography.intel.databricks.genie_spaces.sync(
+        neo4j_session,
+        api_client,
+        workspace_id,
+        common_job_parameters,
+    )
+
+    cartography.intel.databricks.apps.sync(
+        neo4j_session,
+        api_client,
+        workspace_id,
+        common_job_parameters,
+    )
+
+    cartography.intel.databricks.repos.sync(
+        neo4j_session,
+        api_client,
+        workspace_id,
+        common_job_parameters,
+    )
+
+    cartography.intel.databricks.git_credentials.sync(
         neo4j_session,
         api_client,
         workspace_id,
