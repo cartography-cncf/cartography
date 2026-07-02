@@ -213,11 +213,16 @@ def fetch_image_supply_chain(
 def _get_images_to_enrich(
     neo4j_session: neo4j.Session,
 ) -> list[dict[str, Any]]:
-    """Return the digest/project/uri of every Scaleway registry image to enrich."""
+    """Return the digest/project/uri of every Scaleway registry image to enrich.
+
+    An image digest is deduplicated globally, so the same node can belong to
+    several projects. Scope the tag to the same project as the image so the pull
+    URI is always project-local (never a repository from another project).
+    """
     result = neo4j_session.run(
         """
         MATCH (p:ScalewayProject)-[:RESOURCE]->(i:ScalewayContainerRegistryImage)
-        MATCH (i)<-[:IMAGE]-(t:ScalewayContainerRegistryImageTag)
+        MATCH (p)-[:RESOURCE]->(t:ScalewayContainerRegistryImageTag)-[:IMAGE]->(i)
         WITH i, p, collect(t.uri) AS uris
         RETURN i.digest AS digest, p.id AS project_id, uris[0] AS uri
         """

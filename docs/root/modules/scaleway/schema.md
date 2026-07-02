@@ -35,7 +35,9 @@ PRJ -- RESOURCE --> KC(KapsuleCluster)
 PRJ -- RESOURCE --> KP(KapsulePool)
 PRJ -- RESOURCE --> KN(KapsuleNode)
 PRJ -- RESOURCE --> CRN(ContainerRegistryNamespace)
+PRJ -- RESOURCE --> CIT(ContainerRegistryImageTag)
 PRJ -- RESOURCE --> CRI(ContainerRegistryImage)
+PRJ -- RESOURCE --> CIL(ContainerRegistryImageLayer)
 PRJ -- RESOURCE --> RDB(RdbInstance)
 PRJ -- RESOURCE --> RC(RedisCluster)
 PRJ -- RESOURCE --> MGO(MongoDBInstance)
@@ -64,7 +66,9 @@ KC -- HAS --> KP
 KC -- HAS --> KN
 KP -- HAS --> KN
 KC -- ATTACHED_TO --> PN
-CRN -- HAS --> CRI
+CRN -- REPO_IMAGE --> CIT
+CIT -- IMAGE --> CRI
+CRI -- HAS_LAYER --> CIL
 RDB -- ATTACHED_TO --> PN
 RC -- ATTACHED_TO --> PN
 MGO -- ATTACHED_TO --> PN
@@ -72,6 +76,7 @@ SFN -- HAS --> SF
 SCN -- HAS --> SC
 SF -- ATTACHED_TO --> PN
 SC -- ATTACHED_TO --> PN
+SC -- HAS_IMAGE --> CRI
 USR -- MEMBER_OF --> GRP(ScalewayGroup)
 APIKEY(ScalewayApiKey) -- OWNED_BY --> USR
 APP -- MEMBER_OF --> GRP(ScalewayGroup)
@@ -81,6 +86,12 @@ POL -- APPLIES_TO --> GRP
 POL -- APPLIES_TO --> APP
 POL -- HAS --> RULE(Rule)
 RULE -- SCOPED_TO --> PRJ
+USR -- HAS_ROLE --> PS
+APP -- HAS_ROLE --> PS
+GRP -- HAS_ROLE --> PS
+USR -- CAN_ACCESS --> PRJ
+APP -- CAN_ACCESS --> PRJ
+GRP -- CAN_ACCESS --> PRJ
 ```
 
 ### ScalewayOrganization
