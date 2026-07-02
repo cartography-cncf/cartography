@@ -3,11 +3,12 @@ from typing import Any
 
 import neo4j
 
+from cartography.analysis.ontology.analysis import PACKAGE_LINKING_JOBS
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
 from cartography.intel.ontology.utils import get_source_nodes_from_graph
 from cartography.models.ontology.package import PackageSchema
-from cartography.util import run_analysis_job
+from cartography.util import run_typed_analysis_job
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
@@ -25,11 +26,8 @@ def sync(
         data,
         update_tag,
     )
-    run_analysis_job(
-        "ontology_packages_linking.json",
-        neo4j_session,
-        common_job_parameters,
-    )
+    for job in PACKAGE_LINKING_JOBS:
+        run_typed_analysis_job(job, neo4j_session, common_job_parameters)
     cleanup(neo4j_session, common_job_parameters)
 
 

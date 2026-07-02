@@ -3,8 +3,9 @@ from unittest.mock import patch
 
 import cartography.intel.aws.ec2
 import tests.data.aws.ec2.key_pairs
+from cartography.analysis.aws.analysis import AWS_EC2_KEYPAIR_ANALYSIS_JOBS
 from cartography.intel.aws.ec2.key_pairs import sync_ec2_key_pairs
-from cartography.util import run_analysis_job
+from cartography.util import run_typed_analysis_job
 
 TEST_ACCOUNT_ID = "000000000000"
 TEST_REGION = "us-east-1"
@@ -83,11 +84,8 @@ def test_ec2_key_pairs_analysis_job(mock_key_pairs, neo4j_session):
     )
 
     # Act
-    run_analysis_job(
-        "aws_ec2_keypair_analysis.json",
-        neo4j_session,
-        {"UPDATE_TAG": TEST_UPDATE_TAG},
-    )
+    for job in AWS_EC2_KEYPAIR_ANALYSIS_JOBS:
+        run_typed_analysis_job(job, neo4j_session, {"UPDATE_TAG": TEST_UPDATE_TAG})
 
     # Assert
     expected_nodes = {
