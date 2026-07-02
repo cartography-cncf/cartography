@@ -17,6 +17,9 @@ class ScalewayServerlessSQLDatabaseProperties(CartographyNodeProperties):
     name: PropertyRef = PropertyRef("name")
     status: PropertyRef = PropertyRef("status")
     endpoint: PropertyRef = PropertyRef("endpoint")
+    # Serverless SQL is reached over a public connection endpoint; kept
+    # consistent with the other data-service exposure flags.
+    is_public: PropertyRef = PropertyRef("is_public")
     cpu_min: PropertyRef = PropertyRef("cpu_min")
     cpu_max: PropertyRef = PropertyRef("cpu_max")
     cpu_current: PropertyRef = PropertyRef("cpu_current")

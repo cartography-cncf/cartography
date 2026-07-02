@@ -55,6 +55,9 @@ def transform_databases(
             formatted["endpoint"] = (
                 endpoint.get("url") or endpoint.get("host") or endpoint.get("ip")
             )
+        # Serverless SQL databases are exposed through a public connection
+        # endpoint; flag it for exposure analysis like the other data services.
+        formatted["is_public"] = formatted.get("endpoint") is not None
         result.setdefault(database.project_id, []).append(formatted)
     return result
 

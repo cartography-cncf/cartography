@@ -9,7 +9,7 @@ from scaleway_core.api import ScalewayException
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
-from cartography.intel.scaleway.utils import DEFAULT_ZONE
+from cartography.intel.scaleway.utils import list_all_zones
 from cartography.intel.scaleway.utils import scaleway_obj_to_dict
 from cartography.models.scaleway.baremetal.dedibox import ScalewayDediboxServerSchema
 from cartography.util import timeit
@@ -26,34 +26,42 @@ def sync(
     projects_id: list[str],
     update_tag: int,
 ) -> None:
+    # Only clean up projects we could actually read. A project whose Dedibox
+    # API answered "permission denied" is skipped entirely, so its previously
+    # ingested nodes are not wiped by a cleanup that saw zero servers.
+    fetched_projects: list[str] = []
     for project_id in projects_id:
         servers = get(client, project_id)
+        if servers is None:
+            continue
         formatted_servers = transform_servers(servers)
         load_servers(neo4j_session, formatted_servers, project_id, update_tag)
-    cleanup(neo4j_session, projects_id, common_job_parameters)
+        fetched_projects.append(project_id)
+    cleanup(neo4j_session, fetched_projects, common_job_parameters)
 
 
 @timeit
 def get(
     client: scaleway.Client,
     project_id: str,
-) -> list[ServerSummary]:
+) -> list[ServerSummary] | None:
+    """Return the project's Dedibox servers, or None if the project cannot be
+    read (permission denied). None signals the caller to skip load/cleanup for
+    that project rather than treating the error as an authoritative empty set."""
     api = DediboxV1API(client)
     # Dedibox has no organization-wide list; it is scoped per project.
-    # ponytail: single zone like the Instance module; fan out over zones if
-    # multi-zone bare-metal inventory is ever needed.
     try:
-        return api.list_servers_all(project_id=project_id, zone=DEFAULT_ZONE)
+        return list_all_zones(api.list_servers_all, project_id=project_id)
     except ScalewayException as exc:
         # Dedibox is a legacy, opt-in product; accounts that never subscribed to
         # it answer "permissions_denied" for the whole API. Skip rather than
-        # aborting the sync.
+        # aborting the sync or wiping existing inventory.
         if exc.status_code == 403:
             logger.info(
                 "Scaleway Dedibox not enabled for project %s, skipping.",
                 project_id,
             )
-            return []
+            return None
         raise
 
 

@@ -8,7 +8,7 @@ from scaleway.flexibleip.v1alpha1 import FlexibleipV1Alpha1API
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
-from cartography.intel.scaleway.utils import DEFAULT_ZONE
+from cartography.intel.scaleway.utils import list_all_zones
 from cartography.intel.scaleway.utils import scaleway_obj_to_dict
 from cartography.models.scaleway.baremetal.flexible_ip import (
     ScalewayElasticMetalFlexibleIpSchema,
@@ -39,9 +39,7 @@ def get(
     org_id: str,
 ) -> list[FlexibleIP]:
     api = FlexibleipV1Alpha1API(client)
-    # ponytail: single zone like the Instance module; fan out over zones if
-    # multi-zone bare-metal inventory is ever needed.
-    return api.list_flexible_i_ps_all(organization_id=org_id, zone=DEFAULT_ZONE)
+    return list_all_zones(api.list_flexible_i_ps_all, organization_id=org_id)
 
 
 def transform_flexibleips(

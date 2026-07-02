@@ -1736,6 +1736,7 @@ Represents a Serverless SQL Database (PostgreSQL) in Scaleway.
 | name                 | Name of the database.                  |
 | status               | Status of the database.                |
 | endpoint             | Connection endpoint URL.               |
+| is_public            | True if reachable over a public endpoint. |
 | cpu_min              | Minimum vCPU.                          |
 | cpu_max              | Maximum vCPU.                          |
 | cpu_current          | Current vCPU.                          |
