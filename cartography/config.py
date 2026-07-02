@@ -289,6 +289,20 @@ class Config:
     :param sentinelone_account_ids: List of SentinelOne account IDs to sync. Optional.
     :type sentinelone_site_ids: list[str]
     :param sentinelone_site_ids: List of SentinelOne site IDs to sync. Optional.
+    :type wiz_graphql_url: str
+    :param wiz_graphql_url: Wiz GraphQL API endpoint. Optional.
+    :type wiz_auth_url: str
+    :param wiz_auth_url: Wiz OAuth token endpoint. Optional.
+    :type wiz_client_id: str
+    :param wiz_client_id: Wiz API client ID. Optional.
+    :type wiz_client_secret: str
+    :param wiz_client_secret: Wiz API client secret. Optional.
+    :type wiz_tenant_id: str
+    :param wiz_tenant_id: Identifier used to scope Wiz nodes. Optional.
+    :type wiz_project_ids: list[str]
+    :param wiz_project_ids: List of Wiz project IDs to import. Optional.
+    :type wiz_lookback_days: int
+    :param wiz_lookback_days: Number of days of Wiz updates to fetch. Optional.
     :type spacelift_api_endpoint: string
     :param spacelift_api_endpoint: Spacelift GraphQL API endpoint. Optional.
     :type spacelift_api_token: string
@@ -478,6 +492,13 @@ class Config:
         sentinelone_api_token=None,
         sentinelone_account_ids=None,
         sentinelone_site_ids=None,
+        wiz_graphql_url=None,
+        wiz_auth_url="https://auth.app.wiz.io/oauth/token",
+        wiz_client_id=None,
+        wiz_client_secret=None,
+        wiz_tenant_id=None,
+        wiz_project_ids=None,
+        wiz_lookback_days=180,
         tenable_url=None,
         tenable_tenant_id=None,
         tenable_access_key=None,
@@ -671,6 +692,13 @@ class Config:
         self.sentinelone_api_token = sentinelone_api_token
         self.sentinelone_account_ids = sentinelone_account_ids
         self.sentinelone_site_ids = sentinelone_site_ids
+        self.wiz_graphql_url = wiz_graphql_url
+        self.wiz_auth_url = wiz_auth_url
+        self.wiz_client_id = wiz_client_id
+        self.wiz_client_secret = wiz_client_secret
+        self.wiz_tenant_id = wiz_tenant_id
+        self.wiz_project_ids = wiz_project_ids
+        self.wiz_lookback_days = wiz_lookback_days
         self.tenable_url = tenable_url
         self.tenable_tenant_id = tenable_tenant_id
         self.tenable_access_key = tenable_access_key
