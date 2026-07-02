@@ -56,7 +56,9 @@ _aws_ebs_encryption_disabled = Fact(
     ),
     cypher_query="""
     MATCH (a:AWSAccount)-[:RESOURCE]->(volume:EBSVolume)
-    WHERE volume.encrypted = false
+    // A NULL ``encrypted`` (absent from the graph) is not proof of encryption;
+    // treat it as unencrypted so those volumes are not silently passed.
+    WHERE volume.encrypted = false OR volume.encrypted IS NULL
     OPTIONAL MATCH (volume)-[:TAGGED]->(nametag:AWSTag {key: 'Name'})
     RETURN
         coalesce(nametag.value, volume.id) AS volume_name,
@@ -71,7 +73,7 @@ _aws_ebs_encryption_disabled = Fact(
     """,
     cypher_visual_query="""
     MATCH p=(a:AWSAccount)-[:RESOURCE]->(volume:EBSVolume)
-    WHERE volume.encrypted = false
+    WHERE volume.encrypted = false OR volume.encrypted IS NULL
     RETURN *
     """,
     cypher_count_query="""
