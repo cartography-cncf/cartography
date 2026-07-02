@@ -3,8 +3,11 @@ from unittest.mock import patch
 
 import cartography.intel.databricks.clean_rooms
 from tests.data.databricks.clean_rooms import DATABRICKS_CLEAN_ROOMS
+from tests.data.databricks.metastore import DATABRICKS_METASTORE_ID
 from tests.data.databricks.workspace import DATABRICKS_WORKSPACE_ID
-from tests.data.databricks.workspace import scoped
+from tests.integration.cartography.intel.databricks.test_metastores import (
+    _ensure_local_neo4j_has_test_metastore,
+)
 from tests.integration.cartography.intel.databricks.test_workspaces import (
     _ensure_local_neo4j_has_test_workspace,
 )
@@ -12,12 +15,13 @@ from tests.integration.util import check_nodes
 from tests.integration.util import check_rels
 
 TEST_UPDATE_TAG = 123456789
+_CLEAN_ROOM_ID = f"{DATABRICKS_METASTORE_ID}/carto_test_clean_room"
 
 
 @patch.object(
     cartography.intel.databricks.clean_rooms,
     "get",
-    return_value=DATABRICKS_CLEAN_ROOMS,
+    return_value=(DATABRICKS_CLEAN_ROOMS, True),
 )
 def test_load_databricks_clean_rooms(mock_get, neo4j_session):
     api_session = Mock()
@@ -26,20 +30,23 @@ def test_load_databricks_clean_rooms(mock_get, neo4j_session):
         "WORKSPACE_ID": DATABRICKS_WORKSPACE_ID,
     }
     _ensure_local_neo4j_has_test_workspace(neo4j_session)
+    _ensure_local_neo4j_has_test_metastore(neo4j_session)
 
-    cartography.intel.databricks.clean_rooms.sync(
+    complete = cartography.intel.databricks.clean_rooms.sync(
         neo4j_session,
         api_session,
         DATABRICKS_WORKSPACE_ID,
+        DATABRICKS_METASTORE_ID,
         common_job_parameters,
     )
+    assert complete is True
 
     assert check_nodes(
         neo4j_session,
         "DatabricksCleanRoom",
         ["id", "name", "access_restricted"],
     ) == {
-        (scoped("carto_test_clean_room"), "carto_test_clean_room", "CSP_MISCONFIGURED"),
+        (_CLEAN_ROOM_ID, "carto_test_clean_room", "CSP_MISCONFIGURED"),
     }
 
     assert check_rels(
@@ -50,4 +57,14 @@ def test_load_databricks_clean_rooms(mock_get, neo4j_session):
         "id",
         "RESOURCE",
         rel_direction_right=False,
-    ) == {(scoped("carto_test_clean_room"), DATABRICKS_WORKSPACE_ID)}
+    ) == {(_CLEAN_ROOM_ID, DATABRICKS_WORKSPACE_ID)}
+
+    assert check_rels(
+        neo4j_session,
+        "DatabricksMetastore",
+        "id",
+        "DatabricksCleanRoom",
+        "id",
+        "CONTAINS",
+        rel_direction_right=True,
+    ) == {(DATABRICKS_METASTORE_ID, _CLEAN_ROOM_ID)}

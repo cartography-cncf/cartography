@@ -27,6 +27,7 @@ class DatabricksProviderNodeProperties(CartographyNodeProperties):
     created_at: PropertyRef = PropertyRef("created_at")
     created_by: PropertyRef = PropertyRef("created_by")
     updated_at: PropertyRef = PropertyRef("updated_at")
+    updated_by: PropertyRef = PropertyRef("updated_by")
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 

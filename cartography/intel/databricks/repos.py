@@ -40,12 +40,19 @@ def get(api_session: DatabricksWorkspaceClient) -> list[dict[str, Any]]:
     results: list[dict[str, Any]] = []
     base = {"path_prefix": "/Workspace"}
     params: dict[str, Any] = dict(base)
+    seen_tokens: set[str] = set()
     while True:
         response = api_session.get("/api/2.0/repos", params=params)
         results.extend(response.get("repos", []) or [])
         next_token = response.get("next_page_token")
         if not next_token:
             break
+        if next_token in seen_tokens:
+            raise ValueError(
+                f"Databricks repos list repeated page token {next_token!r}; "
+                "aborting to avoid an infinite loop.",
+            )
+        seen_tokens.add(next_token)
         params = {**base, "next_page_token": next_token}
     return results
 

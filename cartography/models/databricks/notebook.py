@@ -44,13 +44,15 @@ class DatabricksNotebookToJobTaskRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 # (:DatabricksJobTask)-[:RUNS_NOTEBOOK]->(:DatabricksNotebook)
-# Matches every job task whose notebook_path equals this notebook's path; the
-# notebook is a lightweight, path-keyed node (no content / permissions) derived
-# only from the workloads that reference it, so there is no full workspace walk.
+# Matches job tasks by the workspace-scoped notebook id (task.notebook_scoped_id
+# == notebook.id), not the raw path, so two workspaces sharing a notebook path
+# cannot produce a cross-workspace edge. The notebook is a lightweight,
+# path-keyed node (no content / permissions) derived only from the workloads
+# that reference it, so there is no full workspace walk.
 class DatabricksNotebookToJobTaskRel(CartographyRelSchema):
     target_node_label: str = "DatabricksJobTask"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {"notebook_path": PropertyRef("path")},
+        {"notebook_scoped_id": PropertyRef("id")},
     )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "RUNS_NOTEBOOK"

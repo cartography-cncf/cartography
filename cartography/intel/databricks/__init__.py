@@ -55,6 +55,7 @@ def _cleanup_unity_catalog(
     workspace_id: str,
     common_job_parameters: dict,
     clean_artifact_allowlists: bool = True,
+    clean_clean_rooms: bool = True,
 ) -> None:
     """Run every Unity Catalog cleanup, in reverse dependency order.
 
@@ -66,7 +67,9 @@ def _cleanup_unity_catalog(
 
     ``clean_artifact_allowlists`` is False when the allowlist fetch was
     incomplete (a 403 on a type), so its cleanup is skipped rather than deleting
-    an allowlist node we could not re-read this run.
+    an allowlist node we could not re-read this run. ``clean_clean_rooms`` is
+    False when the clean-rooms listing was skipped (external OpenSharing
+    disabled), for the same reason.
     """
     # Grants (edges) first, then leaf resources, then up the containment
     # hierarchy, and the metastore last.
@@ -80,7 +83,6 @@ def _cleanup_unity_catalog(
         cartography.intel.databricks.shares,
         cartography.intel.databricks.recipients,
         cartography.intel.databricks.providers,
-        cartography.intel.databricks.clean_rooms,
         cartography.intel.databricks.online_tables,
         cartography.intel.databricks.vector_search,
         cartography.intel.databricks.registered_models,
@@ -94,6 +96,10 @@ def _cleanup_unity_catalog(
         cartography.intel.databricks.connections,
     ):
         module.cleanup(neo4j_session, common_job_parameters)
+    if clean_clean_rooms:
+        cartography.intel.databricks.clean_rooms.cleanup(
+            neo4j_session, common_job_parameters
+        )
     if clean_artifact_allowlists:
         cartography.intel.databricks.artifact_allowlists.cleanup(
             neo4j_session, common_job_parameters
@@ -487,10 +493,11 @@ def start_databricks_ingestion(neo4j_session: neo4j.Session, config: Config) -> 
         common_job_parameters,
     )
 
-    cartography.intel.databricks.clean_rooms.sync(
+    clean_rooms_complete = cartography.intel.databricks.clean_rooms.sync(
         neo4j_session,
         api_client,
         workspace_id,
+        metastore_id,
         common_job_parameters,
     )
 
@@ -520,4 +527,5 @@ def start_databricks_ingestion(neo4j_session: neo4j.Session, config: Config) -> 
         workspace_id,
         common_job_parameters,
         clean_artifact_allowlists=artifact_allowlists_complete,
+        clean_clean_rooms=clean_rooms_complete,
     )

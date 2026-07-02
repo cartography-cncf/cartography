@@ -55,29 +55,42 @@ def _recipient_names(
     share_scoped_id: str,
 ) -> list[str]:
     """Return the recipients granted access to a share (its SELECT grantees)."""
-    try:
-        data = api_session.get(
-            f"/api/2.1/unity-catalog/shares/{share_name}/permissions"
-        )
-    except requests.HTTPError as e:
-        # A share we can't read permissions on (403) or that vanished mid-sync
-        # (404) is skippable; anything else aborts the sync. On a skip we carry
-        # forward the last-known recipients from the graph: returning [] here
-        # would let this run's cleanup delete SHARED_WITH edges that are still
-        # valid, silently hiding who a share is exposed to.
-        skip_or_raise_http(e, 403, 404)
-        logger.warning(
-            "Could not read permissions for share %s (%s); keeping last-known "
-            "recipients.",
-            share_name,
-            e,
-        )
-        return _existing_recipient_names(neo4j_session, share_scoped_id)
+    uri = f"/api/2.1/unity-catalog/shares/{share_name}/permissions"
     names: list[str] = []
-    for assignment in data.get("privilege_assignments", []) or []:
-        principal = assignment.get("principal")
-        if principal:
-            names.append(principal)
+    params: dict[str, Any] = {}
+    seen_tokens: set[str] = set()
+    while True:
+        try:
+            data = api_session.get(uri, params=params)
+        except requests.HTTPError as e:
+            # A share we can't read permissions on (403) or that vanished
+            # mid-sync (404) is skippable; anything else aborts the sync. On a
+            # skip we carry forward the last-known recipients from the graph:
+            # returning [] here would let this run's cleanup delete SHARED_WITH
+            # edges that are still valid, silently hiding who a share is exposed
+            # to.
+            skip_or_raise_http(e, 403, 404)
+            logger.warning(
+                "Could not read permissions for share %s (%s); keeping "
+                "last-known recipients.",
+                share_name,
+                e,
+            )
+            return _existing_recipient_names(neo4j_session, share_scoped_id)
+        for assignment in data.get("privilege_assignments", []) or []:
+            principal = assignment.get("principal")
+            if principal:
+                names.append(principal)
+        next_token = data.get("next_page_token")
+        if not next_token:
+            break
+        if next_token in seen_tokens:
+            raise ValueError(
+                f"Databricks share permissions for {share_name} repeated page "
+                f"token {next_token!r}; aborting to avoid an infinite loop.",
+            )
+        seen_tokens.add(next_token)
+        params = {"page_token": next_token}
     return names
 
 
@@ -108,6 +121,7 @@ def transform(
                 "created_at": epoch_ms_to_datetime(s.get("created_at")),
                 "created_by": s.get("created_by"),
                 "updated_at": epoch_ms_to_datetime(s.get("updated_at")),
+                "updated_by": s.get("updated_by"),
                 "recipient_scoped_ids": [
                     uc_id(metastore_id, r) for r in recipient_names
                 ],

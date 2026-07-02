@@ -58,12 +58,25 @@ def get(api_session: DatabricksWorkspaceClient) -> list[dict[str, Any]]:
     """List jobs with their task graph expanded (paginated via page_token)."""
     results: list[dict[str, Any]] = []
     params: dict[str, Any] = {"limit": 100, "expand_tasks": "true"}
+    seen_tokens: set[str] = set()
     while True:
         response = api_session.get("/api/2.1/jobs/list", params=params)
         results.extend(response.get("jobs", []) or [])
-        next_token = response.get("next_page_token")
-        if not response.get("has_more") or not next_token:
+        if not response.get("has_more"):
             break
+        next_token = response.get("next_page_token")
+        # has_more with no token is a malformed response: breaking here would
+        # silently drop the remaining jobs and let cleanup delete their nodes.
+        if not next_token:
+            raise ValueError(
+                "Databricks jobs list reported has_more but no next_page_token",
+            )
+        if next_token in seen_tokens:
+            raise ValueError(
+                f"Databricks jobs list repeated page token {next_token!r}; "
+                "aborting to avoid an infinite loop.",
+            )
+        seen_tokens.add(next_token)
         params = {"limit": 100, "expand_tasks": "true", "page_token": next_token}
     return results
 
@@ -152,6 +165,11 @@ def transform_tasks(
                     "job_scoped_id": job_scoped_id,
                     "task_type": _task_type(task),
                     "notebook_path": notebook_path,
+                    "notebook_scoped_id": (
+                        scoped_id(workspace_id, notebook_path)
+                        if notebook_path
+                        else None
+                    ),
                     "existing_cluster_id": existing_cluster_id,
                     "existing_cluster_scoped_id": (
                         scoped_id(workspace_id, existing_cluster_id)

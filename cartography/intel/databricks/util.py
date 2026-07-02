@@ -6,6 +6,7 @@ from typing import Any
 
 import neo4j
 import requests
+from dateutil import parser as dateutil_parser
 
 logger = logging.getLogger(__name__)
 
@@ -21,12 +22,12 @@ def iso_to_datetime(value: Any) -> datetime | None:
     """Parse an ISO-8601 timestamp (as the SQL / Lakeview APIs return) to datetime.
 
     Unlike the older endpoints (epoch milliseconds), the SQL and Lakeview APIs
-    return RFC-3339 strings such as ``2026-07-01T23:27:40Z``; normalise the
-    trailing ``Z`` so :func:`datetime.fromisoformat` accepts it.
+    return RFC-3339 strings such as ``2026-07-01T23:27:40Z``; ``isoparse``
+    handles the trailing ``Z`` and offset forms, matching the rest of the repo.
     """
     if not value:
         return None
-    return datetime.fromisoformat(str(value).replace("Z", "+00:00"))
+    return dateutil_parser.isoparse(str(value))
 
 
 def get_run_as_principal_index(

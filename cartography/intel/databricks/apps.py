@@ -34,12 +34,19 @@ def get(api_session: DatabricksWorkspaceClient) -> list[dict[str, Any]]:
     """Paginate Databricks Apps via ``apps`` + ``next_page_token``."""
     results: list[dict[str, Any]] = []
     params: dict[str, Any] = {"page_size": 100}
+    seen_tokens: set[str] = set()
     while True:
         response = api_session.get("/api/2.0/apps", params=params)
         results.extend(response.get("apps", []) or [])
         next_token = response.get("next_page_token")
         if not next_token:
             break
+        if next_token in seen_tokens:
+            raise ValueError(
+                f"Databricks apps list repeated page token {next_token!r}; "
+                "aborting to avoid an infinite loop.",
+            )
+        seen_tokens.add(next_token)
         params = {"page_size": 100, "page_token": next_token}
     return results
 

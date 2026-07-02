@@ -57,6 +57,7 @@ def transform(
                 "created_at": epoch_ms_to_datetime(r.get("created_at")),
                 "created_by": r.get("created_by"),
                 "updated_at": epoch_ms_to_datetime(r.get("updated_at")),
+                "updated_by": r.get("updated_by"),
             }
         )
     return result

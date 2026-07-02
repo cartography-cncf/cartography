@@ -87,6 +87,7 @@ W -- RESOURCE --> CR(DatabricksCleanRoom)
 M -- CONTAINS --> SHR
 M -- CONTAINS --> RCP
 M -- CONTAINS --> PRV
+M -- CONTAINS --> CR
 SHR -- SHARED_WITH --> RCP
 ```
 
@@ -1303,6 +1304,7 @@ with recipients.
 | created_at | Native datetime the share was created (UTC) |
 | created_by | User name that created the share |
 | updated_at | Native datetime the share was last updated (UTC) |
+| updated_by | User name that last updated the share |
 | firstseen | Timestamp of when a sync job first created this node |
 | lastupdated | Timestamp of the last time the node was updated |
 
@@ -1340,6 +1342,7 @@ A Delta Sharing recipient: an external party a share is shared with.
 | created_at | Native datetime the recipient was created (UTC) |
 | created_by | User name that created the recipient |
 | updated_at | Native datetime the recipient was last updated (UTC) |
+| updated_by | User name that last updated the recipient |
 | firstseen | Timestamp of when a sync job first created this node |
 | lastupdated | Timestamp of the last time the node was updated |
 
@@ -1373,6 +1376,7 @@ from.
 | created_at | Native datetime the provider was created (UTC) |
 | created_by | User name that created the provider |
 | updated_at | Native datetime the provider was last updated (UTC) |
+| updated_by | User name that last updated the provider |
 | firstseen | Timestamp of when a sync job first created this node |
 | lastupdated | Timestamp of the last time the node was updated |
 
@@ -1395,8 +1399,9 @@ skipped otherwise).
 
 | Field | Description |
 |-------|-------------|
-| **id** | Workspace-scoped composite id `{workspace_id}/{name}` |
+| **id** | Metastore-scoped id `{metastore_id}/{name}` |
 | **name** | Clean room name (indexed) |
+| metastore_id | Owning metastore id (indexed) |
 | owner | Clean room owner (indexed) |
 | comment | Free-text comment |
 | access_restricted | Whether access is restricted (e.g. on misconfiguration) |
@@ -1410,4 +1415,8 @@ skipped otherwise).
 - A `DatabricksCleanRoom` belongs to a `DatabricksWorkspace`.
     ```
     (:DatabricksWorkspace)-[:RESOURCE]->(:DatabricksCleanRoom)
+    ```
+- A `DatabricksCleanRoom` is contained by a `DatabricksMetastore`.
+    ```
+    (:DatabricksMetastore)-[:CONTAINS]->(:DatabricksCleanRoom)
     ```

@@ -33,12 +33,19 @@ def get(api_session: DatabricksWorkspaceClient) -> list[dict[str, Any]]:
     """Paginate Genie spaces (``spaces`` + ``next_page_token``)."""
     results: list[dict[str, Any]] = []
     params: dict[str, Any] = {"page_size": 100}
+    seen_tokens: set[str] = set()
     while True:
         response = api_session.get("/api/2.0/genie/spaces", params=params)
         results.extend(response.get("spaces", []) or [])
         next_token = response.get("next_page_token")
         if not next_token:
             break
+        if next_token in seen_tokens:
+            raise ValueError(
+                f"Databricks Genie spaces list repeated page token "
+                f"{next_token!r}; aborting to avoid an infinite loop.",
+            )
+        seen_tokens.add(next_token)
         params = {"page_size": 100, "page_token": next_token}
     return results
 

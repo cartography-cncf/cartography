@@ -1,15 +1,20 @@
+import logging
 from typing import Any
 
 import neo4j
+import requests
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
 from cartography.intel.databricks.util import DatabricksWorkspaceClient
 from cartography.intel.databricks.util import get_run_as_principal_index
 from cartography.intel.databricks.util import scoped_id
+from cartography.intel.databricks.util import skip_or_raise_http
 from cartography.intel.databricks.util import uc_id
 from cartography.models.databricks.pipeline import DatabricksPipelineSchema
 from cartography.util import timeit
+
+logger = logging.getLogger(__name__)
 
 
 @timeit
@@ -41,12 +46,19 @@ def get(api_session: DatabricksWorkspaceClient) -> list[dict[str, Any]]:
     """
     statuses: list[dict[str, Any]] = []
     params: dict[str, Any] = {"max_results": 100}
+    seen_tokens: set[str] = set()
     while True:
         response = api_session.get("/api/2.0/pipelines", params=params)
         statuses.extend(response.get("statuses", []) or [])
         next_token = response.get("next_page_token")
         if not next_token:
             break
+        if next_token in seen_tokens:
+            raise ValueError(
+                f"Databricks pipelines list repeated page token {next_token!r}; "
+                "aborting to avoid an infinite loop.",
+            )
+        seen_tokens.add(next_token)
         params = {"max_results": 100, "page_token": next_token}
 
     pipelines: list[dict[str, Any]] = []
@@ -54,7 +66,14 @@ def get(api_session: DatabricksWorkspaceClient) -> list[dict[str, Any]]:
         pipeline_id = status.get("pipeline_id")
         if not pipeline_id:
             continue
-        pipelines.append(api_session.get(f"/api/2.0/pipelines/{pipeline_id}"))
+        try:
+            pipelines.append(api_session.get(f"/api/2.0/pipelines/{pipeline_id}"))
+        except requests.HTTPError as e:
+            # A pipeline deleted mid-sync (404) or one we cannot read (403) is
+            # skipped per-resource, matching the other UC modules; anything else
+            # aborts so cleanup does not run on partial data.
+            skip_or_raise_http(e, 403, 404)
+            logger.warning("Skipping pipeline %s: %s", pipeline_id, e)
     return pipelines
 
 

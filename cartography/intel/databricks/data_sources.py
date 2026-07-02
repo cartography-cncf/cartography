@@ -32,7 +32,12 @@ def sync(
 def get(api_session: DatabricksWorkspaceClient) -> list[dict[str, Any]]:
     """List SQL data sources. The endpoint returns a bare list, no pagination."""
     response = api_session.get("/api/2.0/preview/sql/data_sources")
-    return response if isinstance(response, list) else []
+    if not isinstance(response, list):
+        raise ValueError(
+            "Databricks data sources endpoint returned "
+            f"{type(response).__name__}, expected a list.",
+        )
+    return response
 
 
 @timeit

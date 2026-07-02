@@ -18,6 +18,9 @@ class DatabricksJobTaskNodeProperties(CartographyNodeProperties):
     job_id: PropertyRef = PropertyRef("job_id", extra_index=True)
     task_type: PropertyRef = PropertyRef("task_type")
     notebook_path: PropertyRef = PropertyRef("notebook_path", extra_index=True)
+    notebook_scoped_id: PropertyRef = PropertyRef(
+        "notebook_scoped_id", extra_index=True
+    )
     existing_cluster_id: PropertyRef = PropertyRef("existing_cluster_id")
     job_cluster_key: PropertyRef = PropertyRef("job_cluster_key")
     pipeline_id: PropertyRef = PropertyRef("pipeline_id", extra_index=True)

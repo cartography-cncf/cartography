@@ -7,6 +7,7 @@ from cartography.models.core.relationships import CartographyRelProperties
 from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
+from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import TargetNodeMatcher
 
 
@@ -14,6 +15,7 @@ from cartography.models.core.relationships import TargetNodeMatcher
 class DatabricksCleanRoomNodeProperties(CartographyNodeProperties):
     id: PropertyRef = PropertyRef("id")
     name: PropertyRef = PropertyRef("name", extra_index=True)
+    metastore_id: PropertyRef = PropertyRef("metastore_id", extra_index=True)
     owner: PropertyRef = PropertyRef("owner", extra_index=True)
     comment: PropertyRef = PropertyRef("comment")
     access_restricted: PropertyRef = PropertyRef("access_restricted")
@@ -42,9 +44,31 @@ class DatabricksCleanRoomToWorkspaceRel(CartographyRelSchema):
 
 
 @dataclass(frozen=True)
+class DatabricksCleanRoomToMetastoreRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+# (:DatabricksMetastore)-[:CONTAINS]->(:DatabricksCleanRoom)
+class DatabricksCleanRoomToMetastoreRel(CartographyRelSchema):
+    target_node_label: str = "DatabricksMetastore"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"id": PropertyRef("metastore_id")},
+    )
+    direction: LinkDirection = LinkDirection.INWARD
+    rel_label: str = "CONTAINS"
+    properties: DatabricksCleanRoomToMetastoreRelProperties = (
+        DatabricksCleanRoomToMetastoreRelProperties()
+    )
+
+
+@dataclass(frozen=True)
 class DatabricksCleanRoomSchema(CartographyNodeSchema):
     label: str = "DatabricksCleanRoom"
     properties: DatabricksCleanRoomNodeProperties = DatabricksCleanRoomNodeProperties()
     sub_resource_relationship: DatabricksCleanRoomToWorkspaceRel = (
         DatabricksCleanRoomToWorkspaceRel()
+    )
+    other_relationships: OtherRelationships = OtherRelationships(
+        [DatabricksCleanRoomToMetastoreRel()],
     )
