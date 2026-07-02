@@ -2200,6 +2200,7 @@ Our representation of an AWS [EC2 Instance](https://docs.aws.amazon.com/AWSEC2/l
 | lastupdated |  Timestamp of the last time the node was updated |
 | **id** | Same as `instanceid` below. |
 | **instanceid** | The instance id provided by AWS.  This is [globally unique](https://forums.aws.amazon.com/thread.jspa?threadID=137203) |
+| arn | The Amazon Resource Name of the instance, e.g. `arn:aws:ec2:{region}:{account}:instance/{instanceid}`. Synthesized by cartography for IAM permission matching. |
 | **publicdnsname** | The public DNS name assigned to the instance |
 | publicipaddress | The public IPv4 address assigned to the instance if applicable |
 | privateipaddress | The private IPv4 address assigned to the instance |

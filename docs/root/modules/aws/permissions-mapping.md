@@ -31,3 +31,49 @@ It can also be used to absract many different permissions into one. This example
   relationship_name: CAN_QUERY
 ```
 If a principal has any of the permission it will be mapped
+
+#### Target preconditions
+
+An RPR may declare a `target_precondition` so the edge is only drawn when the target resource also satisfies a graph condition, in addition to the IAM permission. This is useful when a permission is only meaningful if the resource is in a particular state.
+
+For example, a principal can only open an SSM Session Manager shell on an EC2 instance if it has `ssm:StartSession` **and** the instance is actually managed by SSM (it has an `(:EC2Instance)-[:HAS_INFORMATION]->(:SSMInstanceInformation)` edge). See issue #1643.
+
+```yaml
+- target_label: EC2Instance
+  permissions:
+  - ssm:StartSession
+  relationship_name: CAN_START_SESSION
+  target_precondition:
+    related_label: SSMInstanceInformation
+    relationship: HAS_INFORMATION
+    direction: outgoing
+```
+
+A `target_precondition` accepts:
+- `related_label` (string) - the label of the node the resource must be connected to.
+- `relationship` (string) - the relationship type connecting them.
+- `direction` (string) - `outgoing` (default) for `(resource)-[rel]->(related)`, or `incoming` for `(resource)<-[rel]-(related)`.
+
+### IAM policy conditions on permission edges
+
+IAM policy statements can carry a `Condition` block (for example, restricting access to a corporate IP range or requiring MFA). AWS evaluates conditions at request time, so Cartography cannot statically decide whether a conditional grant resolves to allow or deny. Instead, every permission edge is annotated so you can reason about conditional access yourself:
+
+- `has_condition` (bool) - `true` when *every* matching Allow statement that grants the edge is gated by a `Condition`. If any matching Allow grants the access unconditionally, this is `false`.
+- `condition_keys` (list of string) - the IAM condition context keys referenced by those conditions, e.g. `["aws:SourceIp", "aws:MultiFactorAuthPresent"]`.
+- `conditions` (string) - the raw condition operator maps as a JSON string, for full-fidelity inspection.
+
+Exclude conditionally-gated access from an analysis:
+```cypher
+MATCH (p:AWSPrincipal)-[r:CAN_READ]->(b:S3Bucket)
+WHERE NOT r.has_condition
+RETURN p.arn, b.arn
+```
+
+Find buckets only reachable when an IP-range condition holds:
+```cypher
+MATCH (p:AWSPrincipal)-[r:CAN_READ]->(b:S3Bucket)
+WHERE r.has_condition AND 'aws:SourceIp' IN r.condition_keys
+RETURN p.arn, b.arn, r.conditions
+```
+
+> Note: conditions on `Deny` statements are not yet modeled; a conditional `Deny` is currently treated as an absolute deny when computing edges.

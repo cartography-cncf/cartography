@@ -2,21 +2,81 @@ import logging
 
 import neo4j
 
+import cartography.intel.databricks.artifact_allowlists
+import cartography.intel.databricks.catalogs
 import cartography.intel.databricks.cluster_policies
 import cartography.intel.databricks.clusters
+import cartography.intel.databricks.connections
+import cartography.intel.databricks.external_locations
+import cartography.intel.databricks.functions
+import cartography.intel.databricks.grants
 import cartography.intel.databricks.groups
 import cartography.intel.databricks.instance_pools
 import cartography.intel.databricks.ip_access_lists
+import cartography.intel.databricks.metastores
+import cartography.intel.databricks.online_tables
+import cartography.intel.databricks.registered_models
+import cartography.intel.databricks.schemas
 import cartography.intel.databricks.secret_scopes
 import cartography.intel.databricks.service_principals
+import cartography.intel.databricks.storage_credentials
+import cartography.intel.databricks.tables
 import cartography.intel.databricks.tokens
 import cartography.intel.databricks.users
+import cartography.intel.databricks.vector_search
+import cartography.intel.databricks.volumes
 import cartography.intel.databricks.workspaces
 from cartography.config import Config
 from cartography.intel.databricks.util import DatabricksWorkspaceClient
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
+
+
+def _cleanup_unity_catalog(
+    neo4j_session: neo4j.Session,
+    workspace_id: str,
+    common_job_parameters: dict,
+    clean_artifact_allowlists: bool = True,
+) -> None:
+    """Run every Unity Catalog cleanup, in reverse dependency order.
+
+    Cleanup runs centrally (not inside each resource sync) and only after the
+    whole UC sync succeeds. That keeps a mid-sync failure from deleting stale
+    nodes on partial data, and deleting children before parents avoids
+    detaching hierarchy edges or orphaning child nodes. Also invoked on the
+    no-metastore path to purge UC data left over from a previous run.
+
+    ``clean_artifact_allowlists`` is False when the allowlist fetch was
+    incomplete (a 403 on a type), so its cleanup is skipped rather than deleting
+    an allowlist node we could not re-read this run.
+    """
+    # Grants (edges) first, then leaf resources, then up the containment
+    # hierarchy, and the metastore last.
+    cartography.intel.databricks.grants.cleanup(
+        neo4j_session, workspace_id, common_job_parameters["UPDATE_TAG"]
+    )
+    for module in (
+        cartography.intel.databricks.online_tables,
+        cartography.intel.databricks.vector_search,
+        cartography.intel.databricks.registered_models,
+        cartography.intel.databricks.functions,
+        cartography.intel.databricks.tables,
+        cartography.intel.databricks.volumes,
+        cartography.intel.databricks.schemas,
+        cartography.intel.databricks.catalogs,
+        cartography.intel.databricks.external_locations,
+        cartography.intel.databricks.storage_credentials,
+        cartography.intel.databricks.connections,
+    ):
+        module.cleanup(neo4j_session, common_job_parameters)
+    if clean_artifact_allowlists:
+        cartography.intel.databricks.artifact_allowlists.cleanup(
+            neo4j_session, common_job_parameters
+        )
+    cartography.intel.databricks.metastores.cleanup(
+        neo4j_session, common_job_parameters
+    )
 
 
 @timeit
@@ -145,4 +205,138 @@ def start_databricks_ingestion(neo4j_session: neo4j.Session, config: Config) -> 
         api_client,
         workspace_id,
         common_job_parameters,
+    )
+
+    # Unity Catalog (data plane). The metastore anchors every UC object; when
+    # the workspace has no metastore assigned, skip the whole UC surface.
+    metastore_id = cartography.intel.databricks.metastores.sync(
+        neo4j_session,
+        api_client,
+        workspace_id,
+        common_job_parameters,
+    )
+    if metastore_id is None:
+        logger.info(
+            "Databricks workspace %s has no Unity Catalog metastore assigned - "
+            "purging any stale UC data and skipping the UC data-plane sync.",
+            workspace_id,
+        )
+        _cleanup_unity_catalog(neo4j_session, workspace_id, common_job_parameters)
+        return
+
+    # Storage credentials + external locations first so catalogs / tables /
+    # volumes can attach to them.
+    cartography.intel.databricks.storage_credentials.sync(
+        neo4j_session,
+        api_client,
+        workspace_id,
+        common_job_parameters,
+    )
+
+    cartography.intel.databricks.external_locations.sync(
+        neo4j_session,
+        api_client,
+        workspace_id,
+        common_job_parameters,
+    )
+
+    # Catalog -> schema -> table/volume hierarchy.
+    catalogs = cartography.intel.databricks.catalogs.sync(
+        neo4j_session,
+        api_client,
+        workspace_id,
+        common_job_parameters,
+    )
+
+    schemas = cartography.intel.databricks.schemas.sync(
+        neo4j_session,
+        api_client,
+        workspace_id,
+        catalogs,
+        common_job_parameters,
+    )
+
+    cartography.intel.databricks.tables.sync(
+        neo4j_session,
+        api_client,
+        workspace_id,
+        schemas,
+        common_job_parameters,
+    )
+
+    cartography.intel.databricks.volumes.sync(
+        neo4j_session,
+        api_client,
+        workspace_id,
+        schemas,
+        common_job_parameters,
+    )
+
+    cartography.intel.databricks.functions.sync(
+        neo4j_session,
+        api_client,
+        workspace_id,
+        schemas,
+        common_job_parameters,
+    )
+
+    cartography.intel.databricks.connections.sync(
+        neo4j_session,
+        api_client,
+        workspace_id,
+        common_job_parameters,
+    )
+
+    cartography.intel.databricks.registered_models.sync(
+        neo4j_session,
+        api_client,
+        workspace_id,
+        schemas,
+        common_job_parameters,
+    )
+
+    # Online tables read managed tables from the graph, so run after tables.
+    cartography.intel.databricks.online_tables.sync(
+        neo4j_session,
+        api_client,
+        workspace_id,
+        common_job_parameters,
+    )
+
+    cartography.intel.databricks.vector_search.sync(
+        neo4j_session,
+        api_client,
+        workspace_id,
+        metastore_id,
+        common_job_parameters,
+    )
+
+    artifact_allowlists_complete = (
+        cartography.intel.databricks.artifact_allowlists.sync(
+            neo4j_session,
+            api_client,
+            workspace_id,
+            metastore_id,
+            common_job_parameters,
+        )
+    )
+
+    # Grants last: materialises principal -> securable HAS_PRIVILEGE edges by
+    # reading every securable already loaded for the workspace.
+    cartography.intel.databricks.grants.sync(
+        neo4j_session,
+        api_client,
+        workspace_id,
+        common_job_parameters,
+    )
+
+    # Cleanup runs once, centrally, only after every UC sync above succeeded, in
+    # reverse dependency order (see _cleanup_unity_catalog). Artifact-allowlist
+    # cleanup is gated: a 403-skipped type must not be deleted just because we
+    # couldn't re-read it this run.
+    _cleanup_unity_catalog(
+        neo4j_session,
+        workspace_id,
+        common_job_parameters,
+        clean_artifact_allowlists=artifact_allowlists_complete,
     )

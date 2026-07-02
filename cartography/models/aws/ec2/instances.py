@@ -14,8 +14,8 @@ from cartography.models.core.relationships import TargetNodeMatcher
 
 @dataclass(frozen=True)
 class EC2InstanceNodeProperties(CartographyNodeProperties):
-    # TODO arn: PropertyRef = PropertyRef('Arn', extra_index=True)
     id: PropertyRef = PropertyRef("InstanceId")
+    arn: PropertyRef = PropertyRef("Arn", extra_index=True)
     instanceid: PropertyRef = PropertyRef("InstanceId", extra_index=True)
     publicdnsname: PropertyRef = PropertyRef("PublicDnsName", extra_index=True)
     privateipaddress: PropertyRef = PropertyRef("PrivateIpAddress")
