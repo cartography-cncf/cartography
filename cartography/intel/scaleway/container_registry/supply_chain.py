@@ -8,11 +8,14 @@ with the Scaleway secret key as a registry Bearer token) and enriches the
 
 * ``layer_diff_ids`` + ``ScalewayContainerRegistryImageLayer`` nodes -- feed the
   shared supply-chain *dockerfile-matching* arm.
+* ``source_uri`` / ``source_revision`` / ``source_file`` -- the *provenance* arm,
+  parsed from OCI labels/annotations (``org.opencontainers.image.source``) and,
+  when present, the buildx SLSA attestation manifest carried in the image index.
 
 The GitHub/GitLab supply-chain matchers then draw ``PACKAGED_FROM`` edges from
 these images to their source repositories; nothing registry-specific is needed
 there because those matchers key on the generic ``:Image`` / ``:ImageLayer``
-labels.
+labels and on ``source_uri``.
 """
 
 import base64
@@ -24,7 +27,11 @@ import neo4j
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
+from cartography.intel.supply_chain import decode_attestation_blob_to_predicate
+from cartography.intel.supply_chain import extract_image_source_provenance
 from cartography.intel.supply_chain import extract_layers_from_oci_config
+from cartography.intel.supply_chain import extract_provenance_from_oci_config
+from cartography.intel.supply_chain import normalize_vcs_url
 from cartography.models.scaleway.container_registry.image import (
     ScalewayContainerRegistryImageSchema,
 )
@@ -46,6 +53,10 @@ _MANIFEST_ACCEPT = ", ".join(
 )
 # Attestation manifests reference a subject image, not a runnable config.
 _ATTESTATION_REFERENCE_TYPE = "attestation-manifest"
+_INTOTO_MEDIA_TYPE = "application/vnd.in-toto+json"
+_OCI_SOURCE_ANNOTATION = "org.opencontainers.image.source"
+_OCI_REVISION_ANNOTATION = "org.opencontainers.image.revision"
+_PROVENANCE_FIELDS = ("source_uri", "source_revision", "source_file")
 
 
 @timeit
@@ -56,9 +67,18 @@ def sync(
     projects_id: list[str],
     update_tag: int,
 ) -> None:
-    raw = get(neo4j_session, secret_key)
+    raw, fetch_failed = get(neo4j_session, secret_key)
     images_by_project, layers_by_project = transform(raw)
     load_supply_chain(neo4j_session, images_by_project, layers_by_project, update_tag)
+    if fetch_failed:
+        # A transient registry error (timeout/401/5xx) on any image means we did
+        # not refresh that image's layers this run. Skipping cleanup avoids
+        # deleting layer nodes (and their HAS_LAYER edges) that are merely
+        # stale-tagged, not actually gone; they get cleaned on a clean run.
+        logger.warning(
+            "Skipping Scaleway image-layer cleanup: one or more OCI fetches failed."
+        )
+        return
     cleanup(neo4j_session, projects_id, common_job_parameters)
 
 
@@ -95,52 +115,99 @@ def _get_json(client: httpx.Client, url: str, accept: str) -> dict[str, Any]:
     return resp.json()
 
 
-def fetch_image_config(
+def _fetch_config(
+    client: httpx.Client, base: str, manifest: dict[str, Any]
+) -> dict[str, Any] | None:
+    config_descriptor = manifest.get("config") or {}
+    config_digest = config_descriptor.get("digest")
+    if not config_digest:
+        return None
+    return _get_json(
+        client,
+        f"{base}/blobs/{config_digest}",
+        config_descriptor.get("mediaType", "application/vnd.oci.image.config.v1+json"),
+    )
+
+
+def _fetch_attestation_predicate(
+    client: httpx.Client, base: str, attestation_digest: str
+) -> dict[str, Any] | None:
+    """Fetch a buildx attestation manifest and return its SLSA provenance predicate."""
+    att_manifest = _get_json(
+        client, f"{base}/manifests/{attestation_digest}", _MANIFEST_ACCEPT
+    )
+    for layer in att_manifest.get("layers") or []:
+        if layer.get("mediaType") != _INTOTO_MEDIA_TYPE:
+            continue
+        predicate_type = (layer.get("annotations") or {}).get(
+            "in-toto.io/predicate-type", ""
+        )
+        if "slsa.dev/provenance" not in predicate_type:
+            continue
+        blob = _get_json(client, f"{base}/blobs/{layer['digest']}", _INTOTO_MEDIA_TYPE)
+        predicate = decode_attestation_blob_to_predicate(blob)
+        if predicate:
+            return predicate
+    return None
+
+
+def fetch_image_supply_chain(
     host: str,
     region: str,
     repo_path: str,
     reference: str,
     secret_key: str,
-) -> dict[str, Any] | None:
-    """Fetch and return the OCI image config JSON for an image reference.
+) -> tuple[dict[str, Any] | None, dict[str, str], dict[str, Any] | None]:
+    """Fetch OCI supply-chain data for an image reference.
 
-    Resolves a multi-arch index to its first runnable platform manifest. Returns
-    None when there is no enrichable config (e.g. an attestation-only manifest).
+    Returns ``(config, annotations, attestation_predicate)``, resolving a
+    multi-arch index to its runnable platform manifest and, if present, its
+    buildx SLSA attestation manifest. ``config``/``predicate`` are None when
+    absent; ``annotations`` merges index + platform manifest annotations.
     """
     token = _registry_token(host, region, repo_path, secret_key)
     base = f"https://{host}/v2/{repo_path}"
+    annotations: dict[str, str] = {}
+    attestation_predicate: dict[str, Any] | None = None
+    # Blob reads 307-redirect to object storage; httpx drops the Authorization
+    # header on the cross-host hop, so the presigned URL authenticates itself.
     with httpx.Client(
-        headers={"Authorization": f"Bearer {token}"}, timeout=_HTTP_TIMEOUT
+        headers={"Authorization": f"Bearer {token}"},
+        timeout=_HTTP_TIMEOUT,
+        follow_redirects=True,
     ) as client:
         manifest = _get_json(client, f"{base}/manifests/{reference}", _MANIFEST_ACCEPT)
-        # Resolve an index to a concrete platform image manifest.
+        annotations.update(manifest.get("annotations") or {})
+        # Resolve an index to a concrete platform image manifest (and grab the
+        # attestation manifest for SLSA provenance, if any).
         if manifest.get("manifests"):
             platform_digest = None
             for entry in manifest["manifests"]:
-                ann = entry.get("annotations") or {}
-                if ann.get("vnd.docker.reference.type") == _ATTESTATION_REFERENCE_TYPE:
+                entry_ann = entry.get("annotations") or {}
+                if (
+                    entry_ann.get("vnd.docker.reference.type")
+                    == _ATTESTATION_REFERENCE_TYPE
+                ):
+                    try:
+                        attestation_predicate = _fetch_attestation_predicate(
+                            client, base, entry["digest"]
+                        )
+                    except httpx.HTTPError as exc:
+                        logger.debug("Attestation fetch failed for %s: %s", base, exc)
                     continue
                 platform = entry.get("platform") or {}
                 if platform.get("os") in (None, "unknown"):
                     continue
-                platform_digest = entry.get("digest")
-                break
+                if platform_digest is None:
+                    platform_digest = entry.get("digest")
             if platform_digest is None:
-                return None
+                return None, annotations, attestation_predicate
             manifest = _get_json(
                 client, f"{base}/manifests/{platform_digest}", _MANIFEST_ACCEPT
             )
-        config_descriptor = manifest.get("config") or {}
-        config_digest = config_descriptor.get("digest")
-        if not config_digest:
-            return None
-        return _get_json(
-            client,
-            f"{base}/blobs/{config_digest}",
-            config_descriptor.get(
-                "mediaType", "application/vnd.oci.image.config.v1+json"
-            ),
-        )
+            annotations.update(manifest.get("annotations") or {})
+        config = _fetch_config(client, base, manifest)
+    return config, annotations, attestation_predicate
 
 
 def _get_images_to_enrich(
@@ -159,9 +226,17 @@ def _get_images_to_enrich(
 
 
 @timeit
-def get(neo4j_session: neo4j.Session, secret_key: str) -> list[dict[str, Any]]:
-    """Fetch the OCI config for every Scaleway registry image."""
+def get(
+    neo4j_session: neo4j.Session, secret_key: str
+) -> tuple[list[dict[str, Any]], bool]:
+    """Fetch the OCI config for every Scaleway registry image.
+
+    Returns ``(enriched, fetch_failed)`` where ``fetch_failed`` is True if any
+    image's OCI fetch hit a transient registry error, so the caller can skip
+    layer cleanup and avoid deleting layers it could not refresh this run.
+    """
     enriched: list[dict[str, Any]] = []
+    fetch_failed = False
     for image in _get_images_to_enrich(neo4j_session):
         uri = image.get("uri")
         digest = image.get("digest")
@@ -173,11 +248,14 @@ def get(neo4j_session: neo4j.Session, secret_key: str) -> list[dict[str, Any]]:
             continue
         host, region, repo_path = parsed
         try:
-            config = fetch_image_config(host, region, repo_path, digest, secret_key)
+            config, annotations, attestation_predicate = fetch_image_supply_chain(
+                host, region, repo_path, digest, secret_key
+            )
         except httpx.HTTPError as exc:
             logger.warning(
-                "Failed to fetch OCI config for %s@%s: %s", repo_path, digest, exc
+                "Failed to fetch OCI data for %s@%s: %s", repo_path, digest, exc
             )
+            fetch_failed = True
             continue
         if config is None:
             continue
@@ -186,9 +264,40 @@ def get(neo4j_session: neo4j.Session, secret_key: str) -> list[dict[str, Any]]:
                 "digest": digest,
                 "project_id": image["project_id"],
                 "config": config,
+                "annotations": annotations,
+                "attestation_predicate": attestation_predicate,
             }
         )
-    return enriched
+    return enriched, fetch_failed
+
+
+def _provenance_from_annotations(annotations: dict[str, str]) -> dict[str, str]:
+    result: dict[str, str] = {}
+    source = annotations.get(_OCI_SOURCE_ANNOTATION)
+    if source:
+        result["source_uri"] = normalize_vcs_url(source)
+    revision = annotations.get(_OCI_REVISION_ANNOTATION)
+    if revision:
+        result["source_revision"] = revision
+    return result
+
+
+def _resolve_provenance(entry: dict[str, Any]) -> dict[str, str]:
+    """Coalesce source provenance from the SLSA attestation, OCI config labels,
+    and manifest annotations (in that order of authority)."""
+    predicate = entry.get("attestation_predicate")
+    sources = [
+        extract_image_source_provenance(predicate) if predicate else {},
+        extract_provenance_from_oci_config(entry["config"]),
+        _provenance_from_annotations(entry.get("annotations") or {}),
+    ]
+    provenance: dict[str, str] = {}
+    for source in sources:
+        for field in _PROVENANCE_FIELDS:
+            value = source.get(field)
+            if value and not provenance.get(field):
+                provenance[field] = value
+    return provenance
 
 
 def transform(
@@ -201,14 +310,23 @@ def transform(
         project_id = entry["project_id"]
         config = entry["config"]
         diff_ids, layer_history = extract_layers_from_oci_config(config)
-        if not diff_ids:
+        provenance = _resolve_provenance(entry)
+
+        # Skip images that yield neither layers nor provenance.
+        if not diff_ids and not provenance:
             continue
 
         image_update: dict[str, Any] = {
             "digest": entry["digest"],
             "layer_diff_ids": diff_ids,
+            "source_uri": provenance.get("source_uri"),
+            "source_revision": provenance.get("source_revision"),
+            "source_file": provenance.get("source_file"),
         }
         images_by_project.setdefault(project_id, []).append(image_update)
+
+        if not diff_ids:
+            continue
 
         # Align each non-empty history command to its diff_id (empty layers such
         # as ENV/WORKDIR carry no diff_id). Standard OCI: the count of non-empty

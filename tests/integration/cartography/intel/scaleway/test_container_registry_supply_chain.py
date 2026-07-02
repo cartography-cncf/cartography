@@ -48,9 +48,10 @@ def _ensure_registry_image(neo4j_session):
 @patch.object(
     supply_chain,
     "get",
-    return_value=[
-        {"digest": TEST_DIGEST, "project_id": TEST_PROJECT_ID, "config": FAKE_CONFIG}
-    ],
+    return_value=(
+        [{"digest": TEST_DIGEST, "project_id": TEST_PROJECT_ID, "config": FAKE_CONFIG}],
+        False,
+    ),
 )
 def test_scaleway_registry_image_layers(_mock_get, neo4j_session):
     # Arrange
@@ -82,12 +83,14 @@ def test_scaleway_registry_image_layers(_mock_get, neo4j_session):
         (DIFF_ID_2,),
     }
 
-    # Assert: layer_diff_ids set on the image (ordered).
+    # Assert: layer_diff_ids + source_uri (from the OCI config label) on the image.
     result = neo4j_session.run(
-        "MATCH (i:ScalewayContainerRegistryImage {digest: $d}) RETURN i.layer_diff_ids AS l",
+        "MATCH (i:ScalewayContainerRegistryImage {digest: $d}) "
+        "RETURN i.layer_diff_ids AS l, i.source_uri AS src",
         d=TEST_DIGEST,
     ).single()
     assert result["l"] == [DIFF_ID_1, DIFF_ID_2]
+    assert result["src"] == "https://github.com/acme/app"
 
     # Assert: HAS_LAYER edges image -> layers.
     assert check_rels(
@@ -99,3 +102,73 @@ def test_scaleway_registry_image_layers(_mock_get, neo4j_session):
         "HAS_LAYER",
         rel_direction_right=True,
     ) == {(TEST_DIGEST, DIFF_ID_1), (TEST_DIGEST, DIFF_ID_2)}
+
+
+# An image with no OCI labels but a buildx SLSA provenance attestation.
+FAKE_CONFIG_NO_LABELS = {
+    "architecture": "amd64",
+    "os": "linux",
+    "config": {},
+    "rootfs": {"type": "layers", "diff_ids": [DIFF_ID_1]},
+    "history": [{"created_by": "COPY app /app"}],
+}
+SLSA_PREDICATE = {
+    "buildDefinition": {
+        "externalParameters": {"configSource": {"path": "Dockerfile"}},
+        "resolvedDependencies": [
+            {
+                "uri": "https://github.com/acme/from-slsa",
+                "digest": {"gitCommit": "abc123"},
+            }
+        ],
+    },
+    "metadata": {
+        "https://mobyproject.org/buildkit@v1#metadata": {
+            "vcs": {
+                "source": "https://github.com/acme/from-slsa",
+                "revision": "abc123",
+            }
+        }
+    },
+}
+
+
+@patch.object(
+    supply_chain,
+    "get",
+    return_value=(
+        [
+            {
+                "digest": TEST_DIGEST,
+                "project_id": TEST_PROJECT_ID,
+                "config": FAKE_CONFIG_NO_LABELS,
+                "annotations": {},
+                "attestation_predicate": SLSA_PREDICATE,
+            }
+        ],
+        False,
+    ),
+)
+def test_scaleway_registry_image_provenance_from_attestation(_mock_get, neo4j_session):
+    # Arrange
+    common_job_parameters = {"UPDATE_TAG": TEST_UPDATE_TAG, "ORG_ID": TEST_ORG_ID}
+    _ensure_local_neo4j_has_test_projects_and_orgs(neo4j_session)
+    _ensure_registry_image(neo4j_session)
+
+    # Act
+    supply_chain.sync(
+        neo4j_session,
+        "fake-secret",
+        common_job_parameters,
+        projects_id=[TEST_PROJECT_ID],
+        update_tag=TEST_UPDATE_TAG,
+    )
+
+    # Assert: source_uri + source_revision resolved from the SLSA attestation.
+    result = neo4j_session.run(
+        "MATCH (i:ScalewayContainerRegistryImage {digest: $d}) "
+        "RETURN i.source_uri AS src, i.source_revision AS rev",
+        d=TEST_DIGEST,
+    ).single()
+    assert result["src"] == "https://github.com/acme/from-slsa"
+    assert result["rev"] == "abc123"

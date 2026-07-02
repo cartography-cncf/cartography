@@ -1419,10 +1419,16 @@ Represents the digest-addressed image content in a Container Registry. Deduplica
 
 > **Ontology Mapping**: This node has the extra label `Image` to enable cross-platform queries for container images across registries (e.g. ECRImage, GCPArtifactRegistryImage, GitLabContainerImage). It is the join target for `(:Container|:Function)-[:HAS_IMAGE]->(:Image)` and `RESOLVED_IMAGE`.
 
+Provenance and layer fields are populated from the OCI registry endpoint by the supply-chain enrichment.
+
 | Field      | Description                                  |
 |------------|----------------------------------------------|
 | id         | Image digest (sha256).                       |
 | digest     | Image digest (sha256).                       |
+| layer_diff_ids | Ordered uncompressed layer digests (from the OCI image config). |
+| source_uri | Source VCS repository URL the image was built from (OCI label/annotation or SLSA attestation). Match key for `PACKAGED_FROM`. |
+| source_revision | Source commit the image was built from.   |
+| source_file | Dockerfile path within the source repository. |
 | lastupdated | Timestamp of the last update                |
 
 #### Relationships
@@ -1433,6 +1439,40 @@ Represents the digest-addressed image content in a Container Registry. Deduplica
 - Tags resolve to an `Image`.
     ```
     (:ScalewayContainerRegistryImageTag)-[:IMAGE]->(:ScalewayContainerRegistryImage)
+    ```
+- An `Image` is composed of filesystem layers.
+    ```
+    (:ScalewayContainerRegistryImage)-[:HAS_LAYER]->(:ScalewayContainerRegistryImageLayer)
+    ```
+- An `Image` is built from a source repository (code-to-cloud, drawn by the GitHub/GitLab supply-chain matchers from `source_uri` or layer analysis).
+    ```
+    (:ScalewayContainerRegistryImage)-[:PACKAGED_FROM]->(:GitHubRepository)
+    (:ScalewayContainerRegistryImage)-[:PACKAGED_FROM]->(:GitLabProject)
+    ```
+
+
+### ScalewayContainerRegistryImageLayer
+
+Represents a filesystem layer of a container image, keyed by its uncompressed digest (`diff_id`) and shared across images that reuse it.
+
+> **Ontology Mapping**: This node has the extra label `ImageLayer` to enable cross-platform queries and the supply-chain dockerfile matcher (e.g. ECRImageLayer, GCPArtifactRegistryImageLayer).
+
+| Field      | Description                                  |
+|------------|----------------------------------------------|
+| id         | Layer diff_id (sha256).                      |
+| diff_id    | Uncompressed layer digest (sha256).          |
+| history    | Build command (`created_by`) that produced the layer. |
+| is_empty   | Whether the layer is an empty (metadata-only) layer. |
+| lastupdated | Timestamp of the last update                |
+
+#### Relationships
+- A layer belongs to a `Project`.
+    ```
+    (:ScalewayProject)-[:RESOURCE]->(:ScalewayContainerRegistryImageLayer)
+    ```
+- An `Image` is composed of layers.
+    ```
+    (:ScalewayContainerRegistryImage)-[:HAS_LAYER]->(:ScalewayContainerRegistryImageLayer)
     ```
 
 

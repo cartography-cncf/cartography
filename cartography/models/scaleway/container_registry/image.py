@@ -24,6 +24,12 @@ class ScalewayContainerRegistryImageProperties(CartographyNodeProperties):
     # Ordered uncompressed layer digests, from the OCI image config; feeds the
     # supply-chain dockerfile matcher. Populated by the supply_chain enrichment.
     layer_diff_ids: PropertyRef = PropertyRef("layer_diff_ids")
+    # Source provenance (code-to-cloud): the VCS repo the image was built from,
+    # from OCI labels/annotations or the SLSA attestation. `source_uri` is the
+    # match key for (:Image)-[:PACKAGED_FROM]->(:GitHubRepository|GitLab repo).
+    source_uri: PropertyRef = PropertyRef("source_uri", extra_index=True)
+    source_revision: PropertyRef = PropertyRef("source_revision")
+    source_file: PropertyRef = PropertyRef("source_file")
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
