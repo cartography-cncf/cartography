@@ -414,6 +414,45 @@ def test_run_typed_analysis_and_ensure_deps(mock_run_typed_analysis_job):
     )
 
 
+@mock.patch.object(cartography.util, "run_typed_analysis_job", return_value=None)
+def test_run_typed_analysis_and_ensure_deps_accepts_tuple(mock_run_typed_analysis_job):
+    neo4j_session = mock.MagicMock()
+    common_job_parameters = mock.MagicMock()
+    analysis_jobs = (
+        AnalysisJob(
+            name="typed job 1",
+            statements=(
+                AnalysisStatement(
+                    match="MATCH (n:TestNode)",
+                    effects=(SetProperty("n", "computed", True, label="TestNode"),),
+                ),
+            ),
+        ),
+        AnalysisJob(
+            name="typed job 2",
+            statements=(
+                AnalysisStatement(
+                    match="MATCH (n:TestNode)",
+                    effects=(SetProperty("n", "computed", True, label="TestNode"),),
+                ),
+            ),
+        ),
+    )
+
+    run_typed_analysis_and_ensure_deps(
+        analysis_jobs,
+        {"ec2:instance"},
+        {"ec2:instance"},
+        common_job_parameters,
+        neo4j_session,
+    )
+
+    assert mock_run_typed_analysis_job.call_args_list == [
+        mock.call(analysis_jobs[0], neo4j_session, common_job_parameters),
+        mock.call(analysis_jobs[1], neo4j_session, common_job_parameters),
+    ]
+
+
 def test_aws_handle_regions_retries_on_response_parser_error(mocker):
     """Test that aws_handle_regions retries on ResponseParserError.
 

@@ -219,25 +219,34 @@ def run_analysis_and_ensure_deps(
 
 
 def run_typed_analysis_and_ensure_deps(
-    analysis_job: AnalysisJob,
+    analysis_job: AnalysisJob | tuple[AnalysisJob, ...],
     resource_dependencies: Set[str],
     requested_syncs: Set[str],
     common_job_parameters: Dict[str, Any],
     neo4j_session: neo4j.Session,
 ) -> None:
+    analysis_job_name = (
+        ", ".join(job.name for job in analysis_job)
+        if isinstance(analysis_job, tuple)
+        else analysis_job.name
+    )
     if not resource_dependencies.issubset(requested_syncs):
         logger.info(
-            f"Did not run {analysis_job.name} because it needs {resource_dependencies} to be included "
+            f"Did not run {analysis_job_name} because it needs {resource_dependencies} to be included "
             f"as a requested sync. You specified: {requested_syncs}. If you want this job to run, please change your "
             f"CLI args/cartography config so that all required resources are included.",
         )
         return
 
-    run_typed_analysis_job(
-        analysis_job,
-        neo4j_session,
-        common_job_parameters,
-    )
+    if isinstance(analysis_job, tuple):
+        for job in analysis_job:
+            run_typed_analysis_job(job, neo4j_session, common_job_parameters)
+    else:
+        run_typed_analysis_job(
+            analysis_job,
+            neo4j_session,
+            common_job_parameters,
+        )
 
 
 def run_scoped_analysis_job(
@@ -295,18 +304,6 @@ def run_scoped_analysis_job(
         neo4j_session,
         common_job_parameters,
         package,
-    )
-
-
-def run_scoped_typed_analysis_job(
-    analysis_job: AnalysisJob,
-    neo4j_session: neo4j.Session,
-    common_job_parameters: Dict,
-) -> None:
-    run_typed_analysis_job(
-        analysis_job,
-        neo4j_session,
-        common_job_parameters,
     )
 
 

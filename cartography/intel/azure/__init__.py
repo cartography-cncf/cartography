@@ -7,7 +7,6 @@ from cartography.analysis.azure.analysis import AZURE_FIREWALL_LB_PROTECTION
 from cartography.analysis.azure.analysis import AZURE_LB_EXPOSURE
 from cartography.config import Config
 from cartography.util import run_analysis_job
-from cartography.util import run_scoped_typed_analysis_job
 from cartography.util import run_typed_analysis_job
 from cartography.util import timeit
 
@@ -489,12 +488,12 @@ def start_azure_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
         try:
             for sub in subscriptions:
                 common_job_parameters["AZURE_SUBSCRIPTION_ID"] = sub["subscriptionId"]
-                run_scoped_typed_analysis_job(
+                run_typed_analysis_job(
                     AZURE_LB_EXPOSURE,
                     neo4j_session,
                     common_job_parameters,
                 )
-                run_scoped_typed_analysis_job(
+                run_typed_analysis_job(
                     AZURE_FIREWALL_LB_PROTECTION,
                     neo4j_session,
                     common_job_parameters,

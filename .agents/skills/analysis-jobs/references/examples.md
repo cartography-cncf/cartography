@@ -1,6 +1,6 @@
 # Analysis-job examples
 
-## GCP module — scoped + global jobs
+## GCP module - scoped + global jobs
 
 ```python
 # cartography/intel/gcp/__init__.py
@@ -16,29 +16,29 @@ def start_gcp_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
 def _sync_one_project(...) -> None:
     # ... sync project resources ...
 
-    run_scoped_typed_analysis_job(
+    run_typed_analysis_job(
         GCP_COMPUTE_FORWARDING_RULE_EXPOSURE,
         neo4j_session,
         common_job_parameters,
     )
-    run_scoped_typed_analysis_job(
+    run_typed_analysis_job(
         GCP_COMPUTE_FIREWALL_INGRESS,
         neo4j_session,
         common_job_parameters,
     )
-    run_scoped_typed_analysis_job(
+    run_typed_analysis_job(
         GCP_COMPUTE_INSTANCE_EXPOSURE,
         neo4j_session,
         common_job_parameters,
     )
-    run_scoped_typed_analysis_job(
+    run_typed_analysis_job(
         GCP_COMPUTE_CLOUDRUN_EXPOSURE,
         neo4j_session,
         common_job_parameters,
     )
 ```
 
-## AWS module — scoped + global with deps
+## AWS module - scoped + global with deps
 
 ```python
 # cartography/intel/aws/__init__.py
@@ -47,7 +47,7 @@ def _sync_one_account(...) -> None:
     # ... sync resources ...
 
     # scoped per-account
-    run_scoped_typed_analysis_job(AWS_EC2_IAM_INSTANCE_PROFILE, neo4j_session, common_job_parameters)
+    run_typed_analysis_job(AWS_EC2_IAM_INSTANCE_PROFILE, neo4j_session, common_job_parameters)
 
     # cross-account, but called per account loop
     run_typed_analysis_job(AWS_LAMBDA_ECR, neo4j_session, common_job_parameters)
@@ -71,7 +71,7 @@ def _perform_aws_analysis(requested_syncs, neo4j_session, common_job_parameters)
     )
 ```
 
-## Semgrep module — scoped within findings sync
+## Semgrep module - scoped within findings sync
 
 ```python
 # cartography/intel/semgrep/findings.py
@@ -79,7 +79,7 @@ def _perform_aws_analysis(requested_syncs, neo4j_session, common_job_parameters)
 def sync_findings(...) -> None:
     # ... load findings ...
 
-    run_scoped_typed_analysis_job(SEMGREP_SCA_RISK_ANALYSIS, neo4j_session, common_job_parameters)
+    run_typed_analysis_job(SEMGREP_SCA_RISK_ANALYSIS, neo4j_session, common_job_parameters)
 
     cleanup(neo4j_session, common_job_parameters)
 ```

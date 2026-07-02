@@ -10,7 +10,6 @@ from cartography.intel.kubernetes.namespaces import load_namespaces
 from cartography.intel.kubernetes.pods import load_containers
 from cartography.intel.kubernetes.pods import load_pods
 from cartography.intel.kubernetes.services import load_services
-from cartography.util import run_scoped_typed_analysis_job
 from cartography.util import run_typed_analysis_job
 from tests.data.kubernetes.exposure import build_exposure_test_data
 from tests.integration.cartography.intel.aws.common import create_test_account
@@ -95,12 +94,12 @@ def _seed_exposure_graph(
 
 def _run_k8s_compute_analysis(neo4j_session, common_job_parameters):
     for job in K8S_COMPUTE_ASSET_EXPOSURE_JOBS:
-        run_scoped_typed_analysis_job(job, neo4j_session, common_job_parameters)
+        run_typed_analysis_job(job, neo4j_session, common_job_parameters)
 
 
 def _run_k8s_lb_analysis(neo4j_session, common_job_parameters):
     for job in K8S_LB_EXPOSURE_JOBS:
-        run_scoped_typed_analysis_job(job, neo4j_session, common_job_parameters)
+        run_typed_analysis_job(job, neo4j_session, common_job_parameters)
 
 
 def test_k8s_lb_expose_via_service(neo4j_session):

@@ -18,13 +18,13 @@ Use them when you need to:
 
 **Do NOT** use analysis jobs for:
 
-1. Simple node-to-node relationships (use the data model — see `add-relationship`).
+1. Simple node-to-node relationships (use the data model - see `add-relationship`).
 2. Properties that can be computed during `transform()`.
 3. Relationships already present in the source data.
 
 ## Critical rules
 
-1. **Pick the right scope.** Global typed jobs run after all accounts/projects/tenants (`run_typed_analysis_job`). Scoped typed jobs run once per account (`run_scoped_typed_analysis_job`). Use dependency checking (`run_typed_analysis_and_ensure_deps`) when a job needs specific upstream modules.
+1. **Pick the right scope.** Global typed jobs run after all accounts/projects/tenants. Scoped typed jobs run once per account. Both use `run_typed_analysis_job`; the scope lives on `AnalysisJob.scope`. Use dependency checking (`run_typed_analysis_and_ensure_deps`) when a job needs specific upstream modules.
 2. **Use iterative queries for large datasets.** They must return `COUNT(*) AS TotalCompleted`.
 3. **Document each query** with `__comment__`.
 4. **Clean up stale data** that the analysis job creates (don't leave orphan edges between syncs).
@@ -34,19 +34,19 @@ Use them when you need to:
 
 ## Instructions
 
-### Step 1 — Pick global vs scoped
+### Step 1 - Pick global vs scoped
 
 | Type    | Runs                                  | Location                            | Helper                          |
 | ------- | ------------------------------------- | ----------------------------------- | ------------------------------- |
 | Global  | Once after all accounts / projects    | `cartography/analysis/*/analysis.py`  | `run_typed_analysis_job()`            |
-| Scoped  | Once per account / project / tenant   | `cartography/analysis/*/analysis.py`  | `run_scoped_typed_analysis_job()`     |
+| Scoped  | Once per account / project / tenant   | `cartography/analysis/*/analysis.py`  | `run_typed_analysis_job()`            |
 
 Examples:
 
 - Internet exposure that needs to see all security groups across all accounts -> **global**.
 - IAM instance profile analysis that runs per AWS account -> **scoped**.
 
-### Step 2 — Author the typed job
+### Step 2 - Author the typed job
 
 ```python
 AnalysisJob(
@@ -73,9 +73,9 @@ AnalysisJob(scope=ScopedTo(...))
 
 `ScopedTo(...)` on the job defines the account/project/tenant boundary used by generated cleanup. `scoped_to="source"` or `"target"` on `AddRelationship` chooses which endpoint is attached to that scoped resource; keep the default `source` unless the target node is the scoped resource.
 
-### Step 3 — Write the queries
+### Step 3 - Write the queries
 
-**Non-iterative** — single execution, OK for queries touching a manageable number of nodes:
+**Non-iterative** - single execution, OK for queries touching a manageable number of nodes:
 
 ```python
 AnalysisStatement(
@@ -84,7 +84,7 @@ AnalysisStatement(
 )
 ```
 
-**Iterative** — required for large datasets. Must return `TotalCompleted`:
+**Iterative** - required for large datasets. Must return `TotalCompleted`:
 
 ```python
 AnalysisStatement(
@@ -94,17 +94,17 @@ AnalysisStatement(
 )
 ```
 
-### Step 4 — Available parameters
+### Step 4 - Available parameters
 
 `common_job_parameters` is forwarded into the query. Typical params:
 
-- `$UPDATE_TAG` — current sync timestamp.
-- `$LIMIT_SIZE` — set automatically by the iterative runner.
+-- `$UPDATE_TAG` - current sync timestamp.
+-- `$LIMIT_SIZE` - set automatically by the iterative runner.
 - Module-specific (`$AWS_ID`, `$PROJECT_ID`, ...).
 
-### Step 5 — Wire the call into your module
+### Step 5 - Wire the call into your module
 
-#### Pattern A — global analysis at end of ingestion
+#### Pattern A - global analysis at end of ingestion
 
 ```python
 from cartography.util import run_typed_analysis_job
@@ -124,10 +124,10 @@ def start_your_module_ingestion(neo4j_session: neo4j.Session, config: Config) ->
     )
 ```
 
-#### Pattern B — scoped per account/project
+#### Pattern B - scoped per account/project
 
 ```python
-from cartography.util import run_scoped_typed_analysis_job
+from cartography.util import run_typed_analysis_job
 from cartography.analysis.your_module.analysis import YOUR_MODULE_ACCOUNT_ANALYSIS
 
 def _sync_one_account(neo4j_session, account_id, update_tag, common_job_parameters):
@@ -135,14 +135,14 @@ def _sync_one_account(neo4j_session, account_id, update_tag, common_job_paramete
 
     sync_resources(neo4j_session, account_id, update_tag, common_job_parameters)
 
-    run_scoped_typed_analysis_job(
+    run_typed_analysis_job(
         YOUR_MODULE_ACCOUNT_ANALYSIS,
         neo4j_session,
         common_job_parameters,
     )
 ```
 
-#### Pattern C — conditional with dependency checking
+#### Pattern C - conditional with dependency checking
 
 ```python
 from cartography.util import run_typed_analysis_and_ensure_deps
@@ -158,7 +158,7 @@ def _perform_analysis(requested_syncs, neo4j_session, common_job_parameters):
     )
 ```
 
-### Step 6 — Test it
+### Step 6 - Test it
 
 Add an integration test that:
 
@@ -178,12 +178,12 @@ See the `create-module` skill for testing conventions.
 
 ## Common issues
 
-- Job runs before the upstream module — switch to `run_analysis_and_ensure_deps` with the right deps.
-- Iterative query never terminates — make sure it returns `COUNT(*) AS TotalCompleted` and the matched set shrinks each iteration.
-- Wrong scope — global query reading per-account state can be empty if it runs in the wrong place.
+- Job runs before the upstream module - switch to `run_analysis_and_ensure_deps` with the right deps.
+- Iterative query never terminates - make sure it returns `COUNT(*) AS TotalCompleted` and the matched set shrinks each iteration.
+- Wrong scope - global query reading per-account state can be empty if it runs in the wrong place.
 
 For broader troubleshooting, see the `troubleshooting` skill.
 
 ## References (load on demand)
 
-- `references/examples.md` — GCP, AWS, Semgrep wiring examples plus the audit table of modules with proper analysis-job integration.
+- `references/examples.md` - GCP, AWS, Semgrep wiring examples plus the audit table of modules with proper analysis-job integration.

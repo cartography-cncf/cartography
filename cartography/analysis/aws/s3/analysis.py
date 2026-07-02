@@ -97,7 +97,7 @@ AWS_S3ACL_ANALYSIS = AnalysisJob(
                     {
                         "anonymous_access": True,
                         "anonymous_actions": Expr(
-                            "coalesce(bucket.anonymous_actions, []) + ['s3:ListBucket', 's3:ListBucketVersions', 's3:ListBucketMultipartUploads', 's3:PutObject', 's3:DeleteObject', 's3:DeleteObjectVersion', 's3:GetBucketAcl', 's3:PutBucketAcl']"
+                            "coalesce(bucket.anonymous_actions, []) + ['s3:ListBucket', 's3:ListBucketVersions', 's3:ListBucketMultipartUploads', 's3:PutObject', 's3:DeleteObject', 's3:DeleteObjectVersion', 's3:PutBucketAcl']"
                         ),
                     },
                     label="S3Bucket",
