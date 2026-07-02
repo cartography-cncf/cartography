@@ -2,23 +2,30 @@ import logging
 
 import neo4j
 
+import cartography.intel.databricks.alerts
 import cartography.intel.databricks.artifact_allowlists
 import cartography.intel.databricks.catalogs
 import cartography.intel.databricks.cluster_policies
 import cartography.intel.databricks.clusters
 import cartography.intel.databricks.connections
+import cartography.intel.databricks.dashboards
+import cartography.intel.databricks.data_sources
 import cartography.intel.databricks.external_locations
 import cartography.intel.databricks.functions
 import cartography.intel.databricks.grants
 import cartography.intel.databricks.groups
 import cartography.intel.databricks.instance_pools
 import cartography.intel.databricks.ip_access_lists
+import cartography.intel.databricks.jobs
 import cartography.intel.databricks.metastores
 import cartography.intel.databricks.online_tables
+import cartography.intel.databricks.pipelines
+import cartography.intel.databricks.queries
 import cartography.intel.databricks.registered_models
 import cartography.intel.databricks.schemas
 import cartography.intel.databricks.secret_scopes
 import cartography.intel.databricks.service_principals
+import cartography.intel.databricks.sql_warehouses
 import cartography.intel.databricks.storage_credentials
 import cartography.intel.databricks.tables
 import cartography.intel.databricks.tokens
@@ -76,6 +83,35 @@ def _cleanup_unity_catalog(
         )
     cartography.intel.databricks.metastores.cleanup(
         neo4j_session, common_job_parameters
+    )
+
+
+def _sync_workflows(
+    neo4j_session: neo4j.Session,
+    api_client: DatabricksWorkspaceClient,
+    workspace_id: str,
+    metastore_id: str | None,
+    common_job_parameters: dict,
+) -> None:
+    """Sync pipelines then jobs.
+
+    Ordered so that a job task's RUNS_PIPELINE edge lands (pipelines first) and
+    a pipeline's PUBLISHES_TO edge lands (catalogs already synced by the caller
+    when a metastore is present). Both are workspace-level, so this runs whether
+    or not the workspace has Unity Catalog.
+    """
+    cartography.intel.databricks.pipelines.sync(
+        neo4j_session,
+        api_client,
+        workspace_id,
+        metastore_id,
+        common_job_parameters,
+    )
+    cartography.intel.databricks.jobs.sync(
+        neo4j_session,
+        api_client,
+        workspace_id,
+        common_job_parameters,
     )
 
 
@@ -207,8 +243,47 @@ def start_databricks_ingestion(neo4j_session: neo4j.Session, config: Config) -> 
         common_job_parameters,
     )
 
+    # SQL workloads. Warehouses first so data sources / queries / dashboards /
+    # job tasks can attach to them; queries before alerts (alerts monitor a
+    # query). None of these need Unity Catalog.
+    cartography.intel.databricks.sql_warehouses.sync(
+        neo4j_session,
+        api_client,
+        workspace_id,
+        common_job_parameters,
+    )
+
+    cartography.intel.databricks.data_sources.sync(
+        neo4j_session,
+        api_client,
+        workspace_id,
+        common_job_parameters,
+    )
+
+    cartography.intel.databricks.queries.sync(
+        neo4j_session,
+        api_client,
+        workspace_id,
+        common_job_parameters,
+    )
+
+    cartography.intel.databricks.alerts.sync(
+        neo4j_session,
+        api_client,
+        workspace_id,
+        common_job_parameters,
+    )
+
+    cartography.intel.databricks.dashboards.sync(
+        neo4j_session,
+        api_client,
+        workspace_id,
+        common_job_parameters,
+    )
+
     # Unity Catalog (data plane). The metastore anchors every UC object; when
-    # the workspace has no metastore assigned, skip the whole UC surface.
+    # the workspace has no metastore assigned, skip the whole UC surface but
+    # still sync workspace-level pipelines + jobs below.
     metastore_id = cartography.intel.databricks.metastores.sync(
         neo4j_session,
         api_client,
@@ -222,6 +297,12 @@ def start_databricks_ingestion(neo4j_session: neo4j.Session, config: Config) -> 
             workspace_id,
         )
         _cleanup_unity_catalog(neo4j_session, workspace_id, common_job_parameters)
+        # Pipelines + jobs are workspace-level: sync them even without UC. The
+        # pipeline -> catalog edge is skipped (no metastore), but nodes, run-as
+        # and job-task -> pipeline edges still land.
+        _sync_workflows(
+            neo4j_session, api_client, workspace_id, None, common_job_parameters
+        )
         return
 
     # Storage credentials + external locations first so catalogs / tables /
@@ -246,6 +327,12 @@ def start_databricks_ingestion(neo4j_session: neo4j.Session, config: Config) -> 
         api_client,
         workspace_id,
         common_job_parameters,
+    )
+
+    # Pipelines + jobs after catalogs so pipeline -> catalog and job-task ->
+    # pipeline edges resolve against nodes already in the graph.
+    _sync_workflows(
+        neo4j_session, api_client, workspace_id, metastore_id, common_job_parameters
     )
 
     schemas = cartography.intel.databricks.schemas.sync(
