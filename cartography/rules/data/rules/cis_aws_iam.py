@@ -196,8 +196,9 @@ class UserDirectPoliciesOutput(Finding):
 
     user_name: str | None = None
     user_arn: str | None = None
-    policy_name: str | None = None
-    policy_arn: str | None = None
+    direct_policy_arns: list[str] | None = None
+    direct_policy_names: list[str] | None = None
+    direct_policy_count: int | None = None
     account_id: str | None = None
     account: str | None = None
 
@@ -212,11 +213,18 @@ _aws_user_direct_policies = Fact(
     ),
     cypher_query="""
     MATCH (a:AWSAccount)-[:RESOURCE]->(user:AWSUser)-[:POLICY]->(policy:AWSPolicy)
+    // Inline policies have no ARN, so fall back to policy.id; collect() drops
+    // nulls, which would otherwise report an empty list / zero count for a user
+    // whose only direct attachments are inline.
+    WITH a, user,
+         collect(DISTINCT coalesce(policy.arn, policy.id)) AS direct_policy_arns,
+         collect(DISTINCT policy.name) AS direct_policy_names
     RETURN
         user.arn AS user_arn,
         user.name AS user_name,
-        policy.name AS policy_name,
-        policy.arn AS policy_arn,
+        direct_policy_arns,
+        direct_policy_names,
+        size(direct_policy_arns) AS direct_policy_count,
         a.id AS account_id,
         a.name AS account
     """,
@@ -229,7 +237,9 @@ _aws_user_direct_policies = Fact(
     RETURN COUNT(user) AS count
     """,
     asset_id_field="user_arn",
-    identity_fields=("user_arn", "policy_arn"),
+    # CIS 2.14 is a per-user control, so a user with N direct attachments is
+    # one finding; the attached policies are surfaced as list fields.
+    identity_fields=("user_arn",),
     module=Module.AWS,
     maturity=Maturity.STABLE,
 )
