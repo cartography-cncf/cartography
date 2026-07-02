@@ -328,14 +328,18 @@ def start_scaleway_ingestion(neo4j_session: neo4j.Session, config: Config) -> No
         update_tag=config.update_tag,
     )
 
-    # Container Registry
-    cartography.intel.scaleway.container_registry.namespaces.sync(
-        neo4j_session,
-        client,
-        common_job_parameters,
-        org_id=config.scaleway_org,
-        projects_id=projects_id,
-        update_tag=config.update_tag,
+    # Container Registry. Returns the tag URI -> digest map so serverless
+    # containers can resolve their `registry_image` to a digest and declare a
+    # HAS_IMAGE edge to the Image node.
+    registry_image_digests = (
+        cartography.intel.scaleway.container_registry.namespaces.sync(
+            neo4j_session,
+            client,
+            common_job_parameters,
+            org_id=config.scaleway_org,
+            projects_id=projects_id,
+            update_tag=config.update_tag,
+        )
     )
 
     # Managed Databases (loaded after PrivateNetworks so ATTACHED_TO edges resolve).
@@ -389,7 +393,8 @@ def start_scaleway_ingestion(neo4j_session: neo4j.Session, config: Config) -> No
     )
 
     # Serverless (Functions / Containers / Jobs). Loaded after PrivateNetworks
-    # so the ATTACHED_TO edges resolve.
+    # so the ATTACHED_TO edges resolve, and after the Container Registry so the
+    # container HAS_IMAGE -> Image edges resolve (registry_image_digests below).
     cartography.intel.scaleway.serverless.functions.sync(
         neo4j_session,
         client,
@@ -405,6 +410,7 @@ def start_scaleway_ingestion(neo4j_session: neo4j.Session, config: Config) -> No
         org_id=config.scaleway_org,
         projects_id=projects_id,
         update_tag=config.update_tag,
+        registry_image_digests=registry_image_digests,
     )
     cartography.intel.scaleway.serverless.jobs.sync(
         neo4j_session,

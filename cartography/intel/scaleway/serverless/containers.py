@@ -31,9 +31,12 @@ def sync(
     org_id: str,
     projects_id: list[str],
     update_tag: int,
+    registry_image_digests: dict[str, str] | None = None,
 ) -> None:
     namespaces, containers = get(client, org_id)
-    namespaces_by_project, containers_by_project = transform(namespaces, containers)
+    namespaces_by_project, containers_by_project = transform(
+        namespaces, containers, registry_image_digests or {}
+    )
     load_containers(
         neo4j_session, namespaces_by_project, containers_by_project, update_tag
     )
@@ -72,9 +75,28 @@ def get(
     return namespaces, containers
 
 
+def _resolve_image_digest(
+    registry_image: str | None,
+    registry_image_digests: dict[str, str],
+) -> str | None:
+    """Resolve a container's `registry_image` pull reference to a digest.
+
+    A digest-pinned reference (`repo@sha256:...`) carries the digest inline;
+    a tag reference (`repo:tag`) is looked up against the tag URI -> digest map
+    built by the container-registry sync. Returns None when the image lives
+    outside a synced Scaleway namespace.
+    """
+    if not registry_image:
+        return None
+    if "@sha256:" in registry_image:
+        return registry_image.split("@", 1)[1]
+    return registry_image_digests.get(registry_image)
+
+
 def transform(
     namespaces: list[Namespace],
     containers: list[Container],
+    registry_image_digests: dict[str, str],
 ) -> tuple[dict[str, list[dict[str, Any]]], dict[str, list[dict[str, Any]]]]:
     namespaces_by_project: dict[str, list[dict[str, Any]]] = {}
     containers_by_project: dict[str, list[dict[str, Any]]] = {}
@@ -97,9 +119,11 @@ def transform(
                 container.namespace_id,
             )
             continue
-        containers_by_project.setdefault(project_id, []).append(
-            scaleway_obj_to_dict(container)
+        formatted_container = scaleway_obj_to_dict(container)
+        formatted_container["image_digest"] = _resolve_image_digest(
+            container.registry_image, registry_image_digests
         )
+        containers_by_project.setdefault(project_id, []).append(formatted_container)
 
     return namespaces_by_project, containers_by_project
 

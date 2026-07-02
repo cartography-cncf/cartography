@@ -1664,16 +1664,17 @@ Represents a Scaleway Serverless Containers namespace (project-scoped grouping o
 
 ### ScalewayServerlessContainer
 
-Represents a Scaleway Serverless Container (a managed, autoscaled container service).
+Represents a Scaleway Serverless Container (a managed, autoscaled container service that runs a single container).
 
-> **Ontology Mapping**: This node has the extra label `ComputeService` to enable cross-platform queries for container services across different systems (e.g., ECSService, GCPCloudRunService).
+> **Ontology Mapping**: This node has the extra labels `ComputeService` (cross-platform container services, e.g. ECSService, GCPCloudRunService) and `Container` (the running container, so the shared `RESOLVED_IMAGE` analysis reaches it via `HAS_IMAGE`).
 
 | Field      | Description                                  |
 |------------|----------------------------------------------|
 | id         | Container UUID.                              |
 | name       | Container name.                              |
 | status     | Container status.                            |
-| registry_image | Container image URI pulled at deploy time. |
+| registry_image | Container image pull URI.                |
+| image_digest | Digest the `registry_image` resolves to, populated at ingest from the container-registry sync. |
 | privacy    | Invocation privacy (`public` allows unauthenticated invokes, `private` requires a token). |
 | domain_name | Auto-assigned invocation domain.            |
 | http_option | `enabled` allows plain HTTP; `redirected` forces HTTPS. |
@@ -1704,6 +1705,10 @@ Represents a Scaleway Serverless Container (a managed, autoscaled container serv
 - A `ServerlessContainer` may be attached to a `PrivateNetwork`.
     ```
     (:ScalewayServerlessContainer)-[:ATTACHED_TO]->(:ScalewayPrivateNetwork)
+    ```
+- A `ServerlessContainer` runs a digest-addressed `Image` (its `registry_image` resolved to a digest). Feeds the shared `RESOLVED_IMAGE` analysis.
+    ```
+    (:ScalewayServerlessContainer)-[:HAS_IMAGE]->(:ScalewayContainerRegistryImage)
     ```
 
 

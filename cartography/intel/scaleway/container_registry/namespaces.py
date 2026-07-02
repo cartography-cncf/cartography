@@ -36,7 +36,7 @@ def sync(
     org_id: str,
     projects_id: list[str],
     update_tag: int,
-) -> None:
+) -> dict[str, str]:
     namespaces, images, tags = get(client, org_id)
     namespaces_by_project, images_by_project, tags_by_project = transform_namespaces(
         namespaces, images, tags
@@ -49,6 +49,15 @@ def sync(
         update_tag,
     )
     cleanup(neo4j_session, projects_id, common_job_parameters)
+    # Return the tag URI -> digest map so downstream syncs (e.g. serverless
+    # containers) can resolve a `registry_image` pull URI to its digest and
+    # declare a HAS_IMAGE relationship to the Image node.
+    return {
+        tag["uri"]: tag["digest"]
+        for tags in tags_by_project.values()
+        for tag in tags
+        if tag.get("uri") and tag.get("digest")
+    }
 
 
 @timeit
