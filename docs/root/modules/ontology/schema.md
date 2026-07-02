@@ -68,6 +68,7 @@ PIP -- POINTS_TO --> CI
 PKG(Package) -- DEPLOYED --> IM{{Image}}
 PKG -- DEPENDS_ON --> PKG
 F[TrivyImageFinding] -- AFFECTS --> PKG
+SCA[SemgrepSCAFinding] -- AFFECTS --> PKG
 CR{{ContainerRegistry}} -- REPO_IMAGE --> IT{{ImageTag}}
 IT -- IMAGE --> IM
 IML{{ImageManifestList}} -- CONTAINS_IMAGE --> IM
@@ -1032,14 +1033,16 @@ Package nodes are deduplicated by their `id`, which uses the format `{type}|{nam
     ```
     (:Package)-[:DETECTED_AS]->(:TrivyPackage)
     (:Package)-[:DETECTED_AS]->(:SyftPackage)
+    (:Package)-[:DETECTED_AS]->(:SemgrepDependency)
     ```
 - `Package` can be deployed in one or many container images (propagated from TrivyPackage and SyftPackage):
     ```
     (:Package)-[:DEPLOYED]->(:Image)
     ```
-- `Package` can be affected by one or many vulnerability findings (propagated from TrivyPackage):
+- `Package` can be affected by one or many vulnerability findings or security issues (propagated from TrivyPackage and SemgrepDependency):
     ```
     (:TrivyImageFinding)-[:AFFECTS]->(:Package)
+    (:SemgrepSCAFinding)-[:AFFECTS]->(:Package)
     ```
 - `Package` can have one or many recommended fix versions (propagated from TrivyPackage):
     ```
