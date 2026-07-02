@@ -10,6 +10,7 @@ from google.cloud import resourcemanager_v3
 from cartography.client.core.tx import load
 from cartography.intel.gcp.crm.folders import get_default_apps_script_folder_names
 from cartography.models.gcp.crm.projects import GCPProjectSchema
+from cartography.models.gcp.crm.projects import GCPStandaloneProjectSchema
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
@@ -72,14 +73,18 @@ def transform_gcp_projects(data: List[Dict]) -> List[Dict]:
         project["parent_org"] = None
         project["parent_folder"] = None
 
-        # Set parent fields based on parent type
-        if project["parent"].startswith("organizations"):
-            project["parent_org"] = project["parent"]
-        elif project["parent"].startswith("folders"):
-            project["parent_folder"] = project["parent"]
-        else:
+        # Set parent fields based on parent type. A standalone project synced
+        # directly by ID may have no parent at all (it does not belong to an org
+        # or folder), in which case both fields stay None and no PARENT edge is
+        # created.
+        parent = project.get("parent") or ""
+        if parent.startswith("organizations"):
+            project["parent_org"] = parent
+        elif parent.startswith("folders"):
+            project["parent_folder"] = parent
+        elif parent:
             logger.warning(
-                f"Project {project['projectId']} has unexpected parent type: {project['parent']}"
+                f"Project {project['projectId']} has unexpected parent type: {parent}"
             )
 
     return data
@@ -128,4 +133,89 @@ def sync_gcp_projects(
         credentials=credentials,
     )
     load_gcp_projects(neo4j_session, projects, gcp_update_tag, org_resource_name)
+    return projects
+
+
+@timeit
+def get_gcp_projects_by_ids(
+    project_ids: List[str],
+    credentials: Optional[GoogleCredentials] = None,
+) -> List[Dict]:
+    """
+    Fetch specific GCP projects directly by project ID, bypassing organization and
+    folder discovery.
+
+    Unlike get_gcp_projects(), which lists projects under an organization hierarchy,
+    this uses get_project() so it works for any project the caller can access -
+    including projects that do not belong to a GCP Organization. This raises if a
+    requested project cannot be fetched (e.g. it does not exist or the identity lacks
+    access), so that misconfigured project IDs surface loudly rather than being
+    silently skipped.
+
+    :param project_ids: List of GCP project IDs (e.g. ["my-project-1", "my-project-2"]).
+    :param credentials: GCP credentials to use for API calls.
+    :return: List of project dicts matching the shape returned by get_gcp_projects().
+    """
+    client = resourcemanager_v3.ProjectsClient(credentials=credentials)
+    results: List[Dict] = []
+    for project_id in project_ids:
+        proj = client.get_project(name=f"projects/{project_id}")
+        name_field = proj.name  # "projects/<number>"
+        project_number = name_field.split("/")[-1] if name_field else None
+        results.append(
+            {
+                "projectId": getattr(proj, "project_id", None),
+                "projectNumber": project_number,
+                "name": getattr(proj, "display_name", None),
+                "lifecycleState": proj.state.name,
+                "parent": getattr(proj, "parent", None),
+            }
+        )
+    return results
+
+
+@timeit
+def load_standalone_gcp_projects(
+    neo4j_session: neo4j.Session,
+    data: List[Dict],
+    gcp_update_tag: int,
+) -> None:
+    """
+    Load GCP projects that were fetched directly by ID (no organization context).
+
+    Uses GCPStandaloneProjectSchema, which has no organization sub-resource
+    relationship. Any PARENT edges to a GCPOrganization or GCPFolder are still
+    created if those nodes already exist in the graph, but are skipped otherwise.
+    """
+    transformed_data = transform_gcp_projects(data)
+    load(
+        neo4j_session,
+        GCPStandaloneProjectSchema(),
+        transformed_data,
+        lastupdated=gcp_update_tag,
+    )
+
+
+@timeit
+def sync_gcp_projects_by_ids(
+    neo4j_session: neo4j.Session,
+    project_ids: List[str],
+    gcp_update_tag: int,
+    credentials: Optional[GoogleCredentials] = None,
+) -> List[Dict]:
+    """
+    Get and sync specific GCP projects by ID, without organization/folder discovery.
+
+    This powers the standalone single-project sync path. No cleanup job is run for the
+    project node itself: a standalone project has no organization sub-resource to scope
+    a cleanup against, and running a global cleanup would risk deleting projects synced
+    by the organization-based path. Resource-level cleanup (Compute, IAM, etc.) is still
+    handled per-project by the individual resource modules, scoped by PROJECT_ID.
+
+    :param project_ids: List of GCP project IDs to sync.
+    :return: List of projects synced (may be shorter than project_ids if some were skipped).
+    """
+    logger.debug("Syncing GCP projects by id: %s", project_ids)
+    projects = get_gcp_projects_by_ids(project_ids, credentials=credentials)
+    load_standalone_gcp_projects(neo4j_session, projects, gcp_update_tag)
     return projects

@@ -5,6 +5,7 @@ from unittest.mock import patch
 
 from cartography.intel.gcp.crm.folders import get_default_apps_script_folder_names
 from cartography.intel.gcp.crm.projects import get_gcp_projects
+from cartography.intel.gcp.crm.projects import get_gcp_projects_by_ids
 
 
 def test_get_default_apps_script_folder_names_only_matches_documented_lineage():
@@ -149,3 +150,53 @@ def test_get_gcp_projects_skips_default_apps_script_parent_only():
         "business-project",
         "standard-apps-script-project",
     }
+
+
+def test_get_gcp_projects_by_ids_fetches_each_project_directly():
+    """get_gcp_projects_by_ids calls get_project per ID and normalises the result."""
+    projects_by_name = {
+        "projects/standalone-one": SimpleNamespace(
+            name="projects/1001",
+            project_id="standalone-one",
+            display_name="Standalone One",
+            state=SimpleNamespace(name="ACTIVE"),
+            parent="",  # no organization or folder parent
+        ),
+        "projects/standalone-two": SimpleNamespace(
+            name="projects/1002",
+            project_id="standalone-two",
+            display_name="Standalone Two",
+            state=SimpleNamespace(name="ACTIVE"),
+            parent="organizations/1337",
+        ),
+    }
+    mock_client = MagicMock()
+    mock_client.get_project.side_effect = lambda *, name: projects_by_name[name]
+
+    with patch(
+        "cartography.intel.gcp.crm.projects.resourcemanager_v3.ProjectsClient",
+        return_value=mock_client,
+    ):
+        projects = get_gcp_projects_by_ids(["standalone-one", "standalone-two"])
+
+    # Each requested project is fetched directly by resource name.
+    assert {
+        fetched.kwargs["name"] for fetched in mock_client.get_project.call_args_list
+    } == {"projects/standalone-one", "projects/standalone-two"}
+
+    assert projects == [
+        {
+            "projectId": "standalone-one",
+            "projectNumber": "1001",
+            "name": "Standalone One",
+            "lifecycleState": "ACTIVE",
+            "parent": "",
+        },
+        {
+            "projectId": "standalone-two",
+            "projectNumber": "1002",
+            "name": "Standalone Two",
+            "lifecycleState": "ACTIVE",
+            "parent": "organizations/1337",
+        },
+    ]

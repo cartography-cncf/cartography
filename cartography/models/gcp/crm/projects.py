@@ -100,3 +100,37 @@ class GCPProjectSchema(CartographyNodeSchema):
         ]
     )
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["Tenant"])
+
+
+@dataclass(frozen=True)
+class GCPStandaloneProjectSchema(CartographyNodeSchema):
+    """
+    A GCP project synced directly by project ID, outside of any organization context
+    (see the ``--gcp-project-ids`` option).
+
+    Identical to GCPProjectSchema except that it has no organization
+    sub_resource_relationship: a standalone project may not belong to a GCP
+    Organization, and the caller may only have project-scoped credentials. The
+    optional PARENT edges to a GCPOrganization / GCPFolder are still declared, so they
+    are created when those parent nodes happen to already exist in the graph and are
+    skipped otherwise.
+
+    ``scoped_cleanup`` is False because there is no sub-resource to scope a cleanup
+    against. The standalone sync path intentionally does not run a cleanup job for this
+    node (a global GCPProject cleanup could delete projects synced by the
+    organization-based path), so this flag exists only to satisfy the data model's
+    requirement that sub_resource_relationship may be None only when scoped_cleanup is
+    False.
+    """
+
+    label: str = "GCPProject"
+    properties: GCPProjectNodeProperties = GCPProjectNodeProperties()
+    sub_resource_relationship: None = None
+    scoped_cleanup: bool = False
+    other_relationships: OtherRelationships = OtherRelationships(
+        [
+            GCPProjectToOrgParentRel(),
+            GCPProjectToFolderParentRel(),
+        ]
+    )
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["Tenant"])

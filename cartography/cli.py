@@ -669,6 +669,20 @@ class CLI:
                     hidden=PANEL_GCP not in visible_panels,
                 ),
             ] = None,
+            gcp_project_ids: Annotated[
+                str | None,
+                typer.Option(
+                    "--gcp-project-ids",
+                    help=(
+                        "Comma-separated list of specific GCP project IDs to sync directly, "
+                        "bypassing organization and folder discovery. Use this to sync one or "
+                        "more projects that may not belong to a GCP Organization, or when you "
+                        'only have project-scoped credentials. Example: "my-project-1,my-project-2".'
+                    ),
+                    rich_help_panel=PANEL_GCP,
+                    hidden=PANEL_GCP not in visible_panels,
+                ),
+            ] = None,
             gcp_permission_relationships_file: Annotated[
                 str,
                 typer.Option(
@@ -2687,6 +2701,7 @@ class CLI:
                 permission_relationships_file=permission_relationships_file,
                 azure_permission_relationships_file=azure_permission_relationships_file,
                 gcp_requested_syncs=gcp_requested_syncs,
+                gcp_project_ids=gcp_project_ids,
                 gcp_permission_relationships_file=gcp_permission_relationships_file,
                 jamf_base_uri=jamf_base_uri,
                 jamf_user=jamf_user,
