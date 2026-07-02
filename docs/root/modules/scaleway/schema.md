@@ -1384,9 +1384,9 @@ Represents a Scaleway Container Registry namespace (top-level repository scope).
     ```
     (:ScalewayProject)-[:RESOURCE]->(:ScalewayContainerRegistryNamespace)
     ```
-- A `ContainerRegistryNamespace` has `ContainerRegistryImage` members.
+- A `ContainerRegistryNamespace` exposes image tags (canonical `REPO_IMAGE` registry -> tag edge).
     ```
-    (:ScalewayContainerRegistryNamespace)-[:HAS]->(:ScalewayContainerRegistryImage)
+    (:ScalewayContainerRegistryNamespace)-[:REPO_IMAGE]->(:ScalewayContainerRegistryImageTag)
     ```
 
 
