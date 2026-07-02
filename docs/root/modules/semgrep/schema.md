@@ -325,7 +325,7 @@ See [SemgrepDependency](#semgrepdependency) for details.
     - transitivity: A string describing whether the dependency is direct or [transitive](https://en.wikipedia.org/wiki/Transitive_dependency) (e.g. direct, transitive)
     - url: The URL where the dependency is defined (e.g. `https://github.com/org/repo/blob/00000000000000000000000000000000/go.mod#L6`)
 
-- A SemgrepDependency is detected as a `Package` ontology node (optional)
+- A canonical Package (ontology) is detected as a SemgrepDependency.
 
     ```
     (:Package)-[:DETECTED_AS]->(:SemgrepDependency)
