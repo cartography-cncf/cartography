@@ -8,6 +8,8 @@ graph LR
 
 U(User) -- HAS_ACCOUNT --> UA{{UserAccount}}
 U -- OWNS --> CC(Device)
+SAF[S1AppFinding] -- AFFECTS --> CC
+CSF[CrowdstrikeFinding] -- AFFECTS --> CC
 U -- OWNS --> AK{{APIKey}}
 U -- AUTHORIZED --> OA{{ThirdPartyApp}}
 UG{{UserGroup}}
@@ -262,6 +264,11 @@ A client computer is a host that accesses a service made available by a server o
     (:User)-[:OWNS]->(:Device)
     ```
   This relationship may be derived from provider signals such as Jamf device emails, CrowdStrike host emails, or native provider ownership edges.
+- A `Device` can be affected by one or many findings (propagated from the provider host/agent during the ontology linking job):
+    ```
+    (:S1AppFinding)-[:AFFECTS]->(:Device)
+    (:CrowdstrikeFinding)-[:AFFECTS]->(:Device)
+    ```
 
 
 ### APIKey
