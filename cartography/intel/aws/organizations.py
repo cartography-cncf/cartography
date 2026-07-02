@@ -145,7 +145,7 @@ def get_aws_organization_accounts_for_parent(
 
 
 def _get_account_state(account: dict[str, Any]) -> str | None:
-    return account.get("State") or account.get("Status")
+    return account.get("State")
 
 
 def _has_account_state_signal(account: dict[str, Any]) -> bool:
@@ -186,8 +186,6 @@ def transform_aws_organization_accounts(
                 "email": account.get("Email"),
                 "name": account.get("Name"),
                 "state": _get_account_state(account),
-                # TODO: Remove status after AWS retires it on 2026-09-09.
-                "status": account.get("Status"),
                 "joined_method": account.get("JoinedMethod"),
                 "joined_timestamp": account.get("JoinedTimestamp"),
                 "org_id": organization_id,
@@ -565,7 +563,6 @@ def cleanup_stale_aws_account_organization_metadata(
         SET account.arn = null,
             account.email = null,
             account.state = null,
-            account.status = null,
             account.joined_method = null,
             account.joined_timestamp = null,
             account.org_id = null,
