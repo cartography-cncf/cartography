@@ -6,6 +6,7 @@ import cartography.intel.databricks.alerts
 import cartography.intel.databricks.apps
 import cartography.intel.databricks.artifact_allowlists
 import cartography.intel.databricks.catalogs
+import cartography.intel.databricks.clean_rooms
 import cartography.intel.databricks.cluster_policies
 import cartography.intel.databricks.clusters
 import cartography.intel.databricks.connections
@@ -24,13 +25,16 @@ import cartography.intel.databricks.metastores
 import cartography.intel.databricks.notebooks
 import cartography.intel.databricks.online_tables
 import cartography.intel.databricks.pipelines
+import cartography.intel.databricks.providers
 import cartography.intel.databricks.queries
+import cartography.intel.databricks.recipients
 import cartography.intel.databricks.registered_models
 import cartography.intel.databricks.repos
 import cartography.intel.databricks.schemas
 import cartography.intel.databricks.secret_scopes
 import cartography.intel.databricks.service_principals
 import cartography.intel.databricks.serving_endpoints
+import cartography.intel.databricks.shares
 import cartography.intel.databricks.sql_warehouses
 import cartography.intel.databricks.storage_credentials
 import cartography.intel.databricks.tables
@@ -70,6 +74,13 @@ def _cleanup_unity_catalog(
         neo4j_session, workspace_id, common_job_parameters["UPDATE_TAG"]
     )
     for module in (
+        # Delta Sharing: share nodes carry the SHARED_WITH edge, so purge them
+        # before recipients. All are metastore-scoped leaves cleaned centrally
+        # (like the rest of UC) so the no-metastore path purges them too.
+        cartography.intel.databricks.shares,
+        cartography.intel.databricks.recipients,
+        cartography.intel.databricks.providers,
+        cartography.intel.databricks.clean_rooms,
         cartography.intel.databricks.online_tables,
         cartography.intel.databricks.vector_search,
         cartography.intel.databricks.registered_models,
@@ -456,6 +467,39 @@ def start_databricks_ingestion(neo4j_session: neo4j.Session, config: Config) -> 
             metastore_id,
             common_job_parameters,
         )
+    )
+
+    # Delta Sharing. Recipients + providers before shares so the share ->
+    # recipient SHARED_WITH edge resolves against recipient nodes already loaded.
+    cartography.intel.databricks.recipients.sync(
+        neo4j_session,
+        api_client,
+        workspace_id,
+        metastore_id,
+        common_job_parameters,
+    )
+
+    cartography.intel.databricks.providers.sync(
+        neo4j_session,
+        api_client,
+        workspace_id,
+        metastore_id,
+        common_job_parameters,
+    )
+
+    cartography.intel.databricks.clean_rooms.sync(
+        neo4j_session,
+        api_client,
+        workspace_id,
+        common_job_parameters,
+    )
+
+    cartography.intel.databricks.shares.sync(
+        neo4j_session,
+        api_client,
+        workspace_id,
+        metastore_id,
+        common_job_parameters,
     )
 
     # Grants last: materialises principal -> securable HAS_PRIVILEGE edges by

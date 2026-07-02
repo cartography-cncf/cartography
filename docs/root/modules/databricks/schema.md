@@ -80,6 +80,14 @@ SVE -- SERVES --> SVN
 GEN -- USES_WAREHOUSE --> WH
 W -- RESOURCE --> NB(DatabricksNotebook)
 JT -- RUNS_NOTEBOOK --> NB
+W -- RESOURCE --> SHR(DatabricksShare)
+W -- RESOURCE --> RCP(DatabricksRecipient)
+W -- RESOURCE --> PRV(DatabricksProvider)
+W -- RESOURCE --> CR(DatabricksCleanRoom)
+M -- CONTAINS --> SHR
+M -- CONTAINS --> RCP
+M -- CONTAINS --> PRV
+SHR -- SHARED_WITH --> RCP
 ```
 
 Grantable Unity Catalog nodes (`DatabricksMetastore`, `DatabricksCatalog`,
@@ -1277,4 +1285,129 @@ enough to carry the code-to-cloud `RUNS_NOTEBOOK` edge.
 - A `DatabricksJobTask` runs a `DatabricksNotebook`.
     ```
     (:DatabricksJobTask)-[:RUNS_NOTEBOOK]->(:DatabricksNotebook)
+    ```
+
+### DatabricksShare
+
+A Delta Sharing share: a named, outbound collection of data a provider shares
+with recipients.
+
+| Field | Description |
+|-------|-------------|
+| **id** | Metastore-scoped id `{metastore_id}/{name}` |
+| **share_id** | Raw share id (indexed) |
+| **name** | Share name (indexed) |
+| metastore_id | Owning metastore id (indexed) |
+| owner | Share owner (indexed) |
+| comment | Free-text comment |
+| created_at | Native datetime the share was created (UTC) |
+| created_by | User name that created the share |
+| updated_at | Native datetime the share was last updated (UTC) |
+| firstseen | Timestamp of when a sync job first created this node |
+| lastupdated | Timestamp of the last time the node was updated |
+
+#### Relationships
+
+- A `DatabricksShare` belongs to a `DatabricksWorkspace`.
+    ```
+    (:DatabricksWorkspace)-[:RESOURCE]->(:DatabricksShare)
+    ```
+- A `DatabricksShare` is contained by a `DatabricksMetastore`.
+    ```
+    (:DatabricksMetastore)-[:CONTAINS]->(:DatabricksShare)
+    ```
+- A `DatabricksShare` is shared with a `DatabricksRecipient` (from the share's permission assignments).
+    ```
+    (:DatabricksShare)-[:SHARED_WITH]->(:DatabricksRecipient)
+    ```
+
+### DatabricksRecipient
+
+A Delta Sharing recipient: an external party a share is shared with.
+
+| Field | Description |
+|-------|-------------|
+| **id** | Metastore-scoped id `{metastore_id}/{name}` |
+| **name** | Recipient name (indexed) |
+| metastore_id | Owning metastore id (indexed) |
+| authentication_type | `TOKEN` (open, bearer-token sharing to any party — external exposure) or `DATABRICKS` (sharing to another Databricks account) |
+| activated | Whether the recipient's credential has been activated |
+| owner | Recipient owner (indexed) |
+| comment | Free-text comment |
+| data_recipient_global_metastore_id | For `DATABRICKS` recipients, the target account's metastore id (indexed) |
+| cloud | Recipient cloud |
+| region | Recipient region |
+| created_at | Native datetime the recipient was created (UTC) |
+| created_by | User name that created the recipient |
+| updated_at | Native datetime the recipient was last updated (UTC) |
+| firstseen | Timestamp of when a sync job first created this node |
+| lastupdated | Timestamp of the last time the node was updated |
+
+#### Relationships
+
+- A `DatabricksRecipient` belongs to a `DatabricksWorkspace`.
+    ```
+    (:DatabricksWorkspace)-[:RESOURCE]->(:DatabricksRecipient)
+    ```
+- A `DatabricksRecipient` is contained by a `DatabricksMetastore`.
+    ```
+    (:DatabricksMetastore)-[:CONTAINS]->(:DatabricksRecipient)
+    ```
+
+### DatabricksProvider
+
+A Delta Sharing provider: an external party this metastore receives shared data
+from.
+
+| Field | Description |
+|-------|-------------|
+| **id** | Metastore-scoped id `{metastore_id}/{name}` |
+| **name** | Provider name (indexed) |
+| metastore_id | Owning metastore id (indexed) |
+| authentication_type | Provider authentication type (`TOKEN`, `DATABRICKS`) |
+| owner | Provider owner (indexed) |
+| comment | Free-text comment |
+| data_provider_global_metastore_id | The provider account's metastore id (indexed) |
+| cloud | Provider cloud |
+| region | Provider region |
+| created_at | Native datetime the provider was created (UTC) |
+| created_by | User name that created the provider |
+| updated_at | Native datetime the provider was last updated (UTC) |
+| firstseen | Timestamp of when a sync job first created this node |
+| lastupdated | Timestamp of the last time the node was updated |
+
+#### Relationships
+
+- A `DatabricksProvider` belongs to a `DatabricksWorkspace`.
+    ```
+    (:DatabricksWorkspace)-[:RESOURCE]->(:DatabricksProvider)
+    ```
+- A `DatabricksProvider` is contained by a `DatabricksMetastore`.
+    ```
+    (:DatabricksMetastore)-[:CONTAINS]->(:DatabricksProvider)
+    ```
+
+### DatabricksCleanRoom
+
+A Databricks clean room for privacy-safe multi-party collaboration. Ingested
+only when external OpenSharing is enabled on the metastore (the listing is
+skipped otherwise).
+
+| Field | Description |
+|-------|-------------|
+| **id** | Workspace-scoped composite id `{workspace_id}/{name}` |
+| **name** | Clean room name (indexed) |
+| owner | Clean room owner (indexed) |
+| comment | Free-text comment |
+| access_restricted | Whether access is restricted (e.g. on misconfiguration) |
+| created_at | Native datetime the clean room was created (UTC) |
+| updated_at | Native datetime the clean room was last updated (UTC) |
+| firstseen | Timestamp of when a sync job first created this node |
+| lastupdated | Timestamp of the last time the node was updated |
+
+#### Relationships
+
+- A `DatabricksCleanRoom` belongs to a `DatabricksWorkspace`.
+    ```
+    (:DatabricksWorkspace)-[:RESOURCE]->(:DatabricksCleanRoom)
     ```
