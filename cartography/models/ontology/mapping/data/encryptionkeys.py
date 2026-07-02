@@ -83,8 +83,40 @@ azure_mapping = OntologyMapping(
     ],
 )
 
+scaleway_mapping = OntologyMapping(
+    module_name="scaleway",
+    nodes=[
+        OntologyNodeMapping(
+            node_label="ScalewayKey",
+            fields=[
+                OntologyFieldMapping(
+                    ontology_field="name",
+                    node_field="name",
+                    required=True,
+                ),
+                OntologyFieldMapping(
+                    ontology_field="key_type",
+                    node_field="usage_type",
+                ),
+                OntologyFieldMapping(
+                    ontology_field="enabled",
+                    node_field="state",
+                    special_handling="equal_boolean",
+                    extra={"values": ["enabled"]},
+                ),
+                OntologyFieldMapping(
+                    ontology_field="rotation_enabled",
+                    node_field="rotation_period",
+                    special_handling="to_boolean",
+                ),
+            ],
+        ),
+    ],
+)
+
 ENCRYPTIONKEYS_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     "aws": aws_mapping,
     "gcp": gcp_mapping,
     "azure": azure_mapping,
+    "scaleway": scaleway_mapping,
 }

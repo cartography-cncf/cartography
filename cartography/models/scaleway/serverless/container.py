@@ -3,6 +3,7 @@ from dataclasses import dataclass
 from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeProperties
 from cartography.models.core.nodes import CartographyNodeSchema
+from cartography.models.core.nodes import ExtraNodeLabels
 from cartography.models.core.relationships import CartographyRelProperties
 from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
@@ -100,6 +101,9 @@ class ScalewayServerlessContainerToPrivateNetworkRel(CartographyRelSchema):
 @dataclass(frozen=True)
 class ScalewayServerlessContainerSchema(CartographyNodeSchema):
     label: str = "ScalewayServerlessContainer"
+    # A Scaleway Serverless Container is a managed, autoscaled container service
+    # (the Cloud Run Service / AWS App Runner analog), so it maps to ComputeService.
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["ComputeService"])
     properties: ScalewayServerlessContainerProperties = (
         ScalewayServerlessContainerProperties()
     )

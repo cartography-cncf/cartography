@@ -78,9 +78,24 @@ github_mapping = OntologyMapping(
     ],
 )
 
+scaleway_mapping = OntologyMapping(
+    module_name="scaleway",
+    nodes=[
+        OntologyNodeMapping(
+            node_label="ScalewayContainerRegistryImage",
+            fields=[
+                OntologyFieldMapping(ontology_field="digest", node_field="digest"),
+                # Scaleway's registry API exposes no per-digest architecture/os
+                # or manifest-list metadata, so only the digest is mapped.
+            ],
+        ),
+    ],
+)
+
 IMAGES_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     "aws": aws_ecr_mapping,
     "gcp": gcp_mapping,
     "github": github_mapping,
     "gitlab": gitlab_mapping,
+    "scaleway": scaleway_mapping,
 }

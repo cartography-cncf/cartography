@@ -19,6 +19,7 @@ import cartography.intel.scaleway.dns.domains
 import cartography.intel.scaleway.iam.apikeys
 import cartography.intel.scaleway.iam.applications
 import cartography.intel.scaleway.iam.groups
+import cartography.intel.scaleway.iam.permissions
 import cartography.intel.scaleway.iam.permissionsets
 import cartography.intel.scaleway.iam.policies
 import cartography.intel.scaleway.iam.sshkeys
@@ -406,6 +407,18 @@ def start_scaleway_ingestion(neo4j_session: neo4j.Session, config: Config) -> No
         update_tag=config.update_tag,
     )
     cartography.intel.scaleway.serverless.jobs.sync(
+        neo4j_session,
+        client,
+        common_job_parameters,
+        org_id=config.scaleway_org,
+        projects_id=projects_id,
+        update_tag=config.update_tag,
+    )
+
+    # IAM permissions: materialize principal -> permission set (HAS_ROLE) and
+    # principal -> project (CAN_ACCESS) edges from the policy/rule graph. Runs
+    # last so all IAM and project nodes are present.
+    cartography.intel.scaleway.iam.permissions.sync(
         neo4j_session,
         client,
         common_job_parameters,
