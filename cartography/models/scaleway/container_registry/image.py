@@ -8,6 +8,7 @@ from cartography.models.core.relationships import CartographyRelProperties
 from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
+from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import TargetNodeMatcher
 
 
@@ -20,6 +21,9 @@ class ScalewayContainerRegistryImageProperties(CartographyNodeProperties):
     # by digest.
     id: PropertyRef = PropertyRef("digest")
     digest: PropertyRef = PropertyRef("digest", extra_index=True)
+    # Ordered uncompressed layer digests, from the OCI image config; feeds the
+    # supply-chain dockerfile matcher. Populated by the supply_chain enrichment.
+    layer_diff_ids: PropertyRef = PropertyRef("layer_diff_ids")
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
@@ -43,6 +47,25 @@ class ScalewayContainerRegistryImageToProjectRel(CartographyRelSchema):
 
 
 @dataclass(frozen=True)
+class ScalewayContainerRegistryImageToLayerRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+# (:ScalewayContainerRegistryImage)-[:HAS_LAYER]->(:ScalewayContainerRegistryImageLayer)
+class ScalewayContainerRegistryImageToLayerRel(CartographyRelSchema):
+    target_node_label: str = "ScalewayContainerRegistryImageLayer"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"diff_id": PropertyRef("layer_diff_ids", one_to_many=True)},
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "HAS_LAYER"
+    properties: ScalewayContainerRegistryImageToLayerRelProperties = (
+        ScalewayContainerRegistryImageToLayerRelProperties()
+    )
+
+
+@dataclass(frozen=True)
 class ScalewayContainerRegistryImageSchema(CartographyNodeSchema):
     label: str = "ScalewayContainerRegistryImage"
     # Ontology `Image`: the digest-addressed content, the join target for
@@ -53,4 +76,9 @@ class ScalewayContainerRegistryImageSchema(CartographyNodeSchema):
     )
     sub_resource_relationship: ScalewayContainerRegistryImageToProjectRel = (
         ScalewayContainerRegistryImageToProjectRel()
+    )
+    other_relationships: OtherRelationships = OtherRelationships(
+        [
+            ScalewayContainerRegistryImageToLayerRel(),
+        ]
     )

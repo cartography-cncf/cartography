@@ -8,6 +8,7 @@ import cartography.intel.scaleway.baremetal.dedibox
 import cartography.intel.scaleway.baremetal.elastic_metal
 import cartography.intel.scaleway.baremetal.flexible_ips
 import cartography.intel.scaleway.container_registry.namespaces
+import cartography.intel.scaleway.container_registry.supply_chain
 import cartography.intel.scaleway.databases.datawarehouse
 import cartography.intel.scaleway.databases.mongodb
 import cartography.intel.scaleway.databases.rdb
@@ -340,6 +341,15 @@ def start_scaleway_ingestion(neo4j_session: neo4j.Session, config: Config) -> No
             projects_id=projects_id,
             update_tag=config.update_tag,
         )
+    )
+    # Enrich registry images with layers + provenance from the OCI registry
+    # endpoint (source for code-to-cloud); runs after the registry nodes exist.
+    cartography.intel.scaleway.container_registry.supply_chain.sync(
+        neo4j_session,
+        config.scaleway_secret_key,
+        common_job_parameters,
+        projects_id=projects_id,
+        update_tag=config.update_tag,
     )
 
     # Managed Databases (loaded after PrivateNetworks so ATTACHED_TO edges resolve).
