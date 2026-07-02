@@ -289,10 +289,27 @@ github_mapping = OntologyMapping(
     ],
 )
 
+sentinelone_mapping = OntologyMapping(
+    module_name="sentinelone",
+    nodes=[
+        OntologyNodeMapping(
+            node_label="S1AppFinding",
+            fields=[
+                OntologyFieldMapping(ontology_field="cve_id", node_field="cve_id"),
+                OntologyFieldMapping(
+                    ontology_field="base_severity",
+                    node_field="severity",
+                ),
+            ],
+        ),
+    ],
+)
+
 CVES_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     "cve": cve_mapping,
     "trivy": trivy_mapping,
     "ubuntu": ubuntu_mapping,
     "crowdstrike": crowdstrike_mapping,
     "github": github_mapping,
+    "sentinelone": sentinelone_mapping,
 }
