@@ -50,6 +50,7 @@ PANEL_SNIPEIT = "SnipeIT Options"
 PANEL_CLOUDFLARE = "Cloudflare Options"
 PANEL_TAILSCALE = "Tailscale Options"
 PANEL_OPENAI = "OpenAI Options"
+PANEL_PORTKEY = "Portkey Options"
 PANEL_ANTHROPIC = "Anthropic Options"
 PANEL_AIRBYTE = "Airbyte Options"
 PANEL_DATABRICKS = "Databricks Options"
@@ -106,6 +107,7 @@ MODULE_PANELS = {
     "cloudflare": PANEL_CLOUDFLARE,
     "tailscale": PANEL_TAILSCALE,
     "openai": PANEL_OPENAI,
+    "portkey": PANEL_PORTKEY,
     "anthropic": PANEL_ANTHROPIC,
     "airbyte": PANEL_AIRBYTE,
     "databricks": PANEL_DATABRICKS,
@@ -1325,6 +1327,36 @@ class CLI:
                 ),
             ] = None,
             # =================================================================
+            # Portkey Options
+            # =================================================================
+            portkey_apikey_env_var: Annotated[
+                str | None,
+                typer.Option(
+                    "--portkey-apikey-env-var",
+                    help="Environment variable name containing Portkey Admin API key.",
+                    rich_help_panel=PANEL_PORTKEY,
+                    hidden=PANEL_PORTKEY not in visible_panels,
+                ),
+            ] = None,
+            portkey_org_id: Annotated[
+                str | None,
+                typer.Option(
+                    "--portkey-org-id",
+                    help="Portkey organization ID to sync.",
+                    rich_help_panel=PANEL_PORTKEY,
+                    hidden=PANEL_PORTKEY not in visible_panels,
+                ),
+            ] = None,
+            portkey_base_url: Annotated[
+                str,
+                typer.Option(
+                    "--portkey-base-url",
+                    help="Portkey Admin API base URL.",
+                    rich_help_panel=PANEL_PORTKEY,
+                    hidden=PANEL_PORTKEY not in visible_panels,
+                ),
+            ] = "https://api.portkey.ai/v1",
+            # =================================================================
             # Anthropic Options
             # =================================================================
             anthropic_apikey_env_var: Annotated[
@@ -2426,6 +2458,15 @@ class CLI:
                 )
                 openai_apikey = os.environ.get(openai_apikey_env_var)
 
+            # Read Portkey API key
+            portkey_apikey = None
+            if portkey_apikey_env_var:
+                logger.debug(
+                    "Reading Portkey API key from environment variable %s",
+                    portkey_apikey_env_var,
+                )
+                portkey_apikey = os.environ.get(portkey_apikey_env_var)
+
             # Read Anthropic API key
             anthropic_apikey = None
             if anthropic_apikey_env_var:
@@ -2749,6 +2790,9 @@ class CLI:
                 cloudflare_token=cloudflare_token,
                 openai_apikey=openai_apikey,
                 openai_org_id=openai_org_id,
+                portkey_apikey=portkey_apikey,
+                portkey_org_id=portkey_org_id,
+                portkey_base_url=portkey_base_url,
                 anthropic_apikey=anthropic_apikey,
                 sentry_token=sentry_token,
                 sentry_org=sentry_org,
