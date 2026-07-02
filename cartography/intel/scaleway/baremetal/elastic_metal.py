@@ -53,6 +53,7 @@ def transform_servers(
         formatted["ips"] = [
             ip["address"] for ip in (formatted.get("ips") or []) if ip.get("address")
         ]
+        formatted["public_ip"] = formatted["ips"][0] if formatted["ips"] else None
         result.setdefault(server.project_id, []).append(formatted)
     return result
 

@@ -636,6 +636,7 @@ Represents an Elastic Metal (bare-metal) server in Scaleway.
 | ping_status | Status of the server ping.                   |
 | protected   | If enabled, the server can not be deleted.   |
 | ips         | Public IP addresses attached to the server.  |
+| public_ip   | First public IP (scalar, for ontology).      |
 | zone        | Zone in which the server is located.         |
 | created_at  | Date and time of server creation.            |
 | updated_at  | Date and time of last server update.         |
@@ -694,6 +695,7 @@ Represents a Dedibox (dedicated) server in Scaleway.
 | offer_name      | Offer name of the server.                |
 | status          | Status of the server.                    |
 | ips             | Public IP addresses of the server.       |
+| public_ip       | First public IP (scalar, for ontology).  |
 | is_outsourced   | Whether the server is outsourced.        |
 | is_hds          | Whether the server is HDS certified.     |
 | zone            | Zone in which the server is located.     |

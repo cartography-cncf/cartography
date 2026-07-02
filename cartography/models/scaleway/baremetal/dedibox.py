@@ -22,6 +22,8 @@ class ScalewayDediboxServerProperties(CartographyNodeProperties):
     # Public IP addresses across the server network interfaces. Persisted so
     # exposure rules can test for a public IP without a separate node.
     ips: PropertyRef = PropertyRef("ips")
+    # First public IP, as a scalar, for the ComputeInstance ontology mapping.
+    public_ip: PropertyRef = PropertyRef("public_ip")
     is_outsourced: PropertyRef = PropertyRef("is_outsourced")
     is_hds: PropertyRef = PropertyRef("is_hds")
     zone: PropertyRef = PropertyRef("zone")

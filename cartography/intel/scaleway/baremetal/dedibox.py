@@ -70,6 +70,7 @@ def transform_servers(servers: list[ServerSummary]) -> list[dict[str, Any]]:
             for ip in (interface.get("ips") or [])
             if ip.get("address")
         ]
+        formatted["public_ip"] = formatted["ips"][0] if formatted["ips"] else None
         result.append(formatted)
     return result
 

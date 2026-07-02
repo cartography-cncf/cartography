@@ -27,6 +27,8 @@ class ScalewayElasticMetalServerProperties(CartographyNodeProperties):
     # Public IP addresses attached to the server. Persisted so exposure rules
     # can test for a public IP without a separate node.
     ips: PropertyRef = PropertyRef("ips")
+    # First public IP, as a scalar, for the ComputeInstance ontology mapping.
+    public_ip: PropertyRef = PropertyRef("public_ip")
     zone: PropertyRef = PropertyRef("zone")
     created_at: PropertyRef = PropertyRef("created_at")
     updated_at: PropertyRef = PropertyRef("updated_at")
