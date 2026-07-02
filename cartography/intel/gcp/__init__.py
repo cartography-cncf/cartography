@@ -72,7 +72,6 @@ from cartography.models.gcp.crm.folders import GCPFolderSchema
 from cartography.models.gcp.crm.organizations import GCPOrganizationSchema
 from cartography.models.gcp.crm.projects import GCPProjectSchema
 from cartography.util import run_analysis_job
-from cartography.util import run_scoped_typed_analysis_job
 from cartography.util import run_typed_analysis_job
 from cartography.util import timeit
 
@@ -779,8 +778,8 @@ def _sync_project_resources(
         # We keep them split because they serve different outputs and cleanup scopes.
         if requested_syncs is None or "compute" in requested_syncs:
             for job in GCP_COMPUTE_EXPOSURE_JOBS:
-                run_scoped_typed_analysis_job(job, neo4j_session, common_job_parameters)
-            run_scoped_typed_analysis_job(
+                run_typed_analysis_job(job, neo4j_session, common_job_parameters)
+            run_typed_analysis_job(
                 GCP_LB_EXPOSURE,
                 neo4j_session,
                 common_job_parameters,

@@ -51,11 +51,7 @@ AZURE_COMPUTE_ASSET_EXPOSURE_LB = AnalysisJob(
         AnalysisStatement(
             match="MATCH (lb:AzureLoadBalancer)-[:CONTAINS]->(fip:AzureLoadBalancerFrontendIPConfiguration)-[:ASSOCIATED_WITH]->(pip:AzurePublicIPAddress) WHERE pip.ip_address IS NOT NULL",
             effects=(
-                SetProperties(
-                    "lb",
-                    {"exposed_internet": True, "exposed_internet_type": ["direct"]},
-                    label="AzureLoadBalancer",
-                ),
+                SetProperty("lb", "exposed_internet", True, label="AzureLoadBalancer"),
             ),
         ),
         AnalysisStatement(
