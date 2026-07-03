@@ -76,6 +76,14 @@ def test_sync_inspector_network_findings(mock_get, neo4j_session):
         ("123456789011", "arn:aws:test123"),
     }
 
+    # Network-reachability findings are labeled as configuration security issues,
+    # not CVEs.
+    labels = neo4j_session.run(
+        "MATCH (f:AWSInspectorFinding {id: 'arn:aws:test123'}) RETURN labels(f) AS labels",
+    ).single()["labels"]
+    assert "SecurityIssue" in labels
+    assert "CVE" not in labels
+
 
 @patch.object(
     cartography.intel.aws.inspector,
@@ -186,6 +194,13 @@ def test_sync_inspector_ec2_package_findings(mock_get, neo4j_session):
         ("123456789012", "kernel|0:4.9.17-6.29.amzn1.X86_64"),
         ("123456789012", "openssl|0:1.0.2k-1.amzn2.X86_64"),
     }
+
+    # Package-vulnerability findings are CVE-backed and labeled as such.
+    labels = neo4j_session.run(
+        "MATCH (f:AWSInspectorFinding {id: 'arn:aws:test456'}) RETURN labels(f) AS labels",
+    ).single()["labels"]
+    assert "CVE" in labels
+    assert "SecurityIssue" not in labels
 
 
 @patch.object(

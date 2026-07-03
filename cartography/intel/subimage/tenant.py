@@ -36,9 +36,9 @@ def transform(raw: list[dict[str, Any]]) -> list[dict[str, Any]]:
     for tenant in raw:
         result.append(
             {
-                "id": tenant["tenantId"],
-                "account_id": tenant["accountId"],
-                "scan_role_name": tenant["scanRoleName"],
+                "id": tenant["tenant_id"],
+                "account_id": tenant["account_id"],
+                "scan_role_name": tenant["scan_role_name"],
             }
         )
     return result

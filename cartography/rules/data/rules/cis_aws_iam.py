@@ -196,8 +196,9 @@ class UserDirectPoliciesOutput(Finding):
 
     user_name: str | None = None
     user_arn: str | None = None
-    policy_name: str | None = None
-    policy_arn: str | None = None
+    direct_policy_arns: list[str] | None = None
+    direct_policy_names: list[str] | None = None
+    direct_policy_count: int | None = None
     account_id: str | None = None
     account: str | None = None
 
@@ -212,11 +213,18 @@ _aws_user_direct_policies = Fact(
     ),
     cypher_query="""
     MATCH (a:AWSAccount)-[:RESOURCE]->(user:AWSUser)-[:POLICY]->(policy:AWSPolicy)
+    // Inline policies have no ARN, so fall back to policy.id; collect() drops
+    // nulls, which would otherwise report an empty list / zero count for a user
+    // whose only direct attachments are inline.
+    WITH a, user,
+         collect(DISTINCT coalesce(policy.arn, policy.id)) AS direct_policy_arns,
+         collect(DISTINCT policy.name) AS direct_policy_names
     RETURN
         user.arn AS user_arn,
         user.name AS user_name,
-        policy.name AS policy_name,
-        policy.arn AS policy_arn,
+        direct_policy_arns,
+        direct_policy_names,
+        size(direct_policy_arns) AS direct_policy_count,
         a.id AS account_id,
         a.name AS account
     """,
@@ -229,7 +237,9 @@ _aws_user_direct_policies = Fact(
     RETURN COUNT(user) AS count
     """,
     asset_id_field="user_arn",
-    identity_fields=("user_arn", "policy_arn"),
+    # CIS 2.14 is a per-user control, so a user with N direct attachments is
+    # one finding; the attached policies are surfaced as list fields.
+    identity_fields=("user_arn",),
     module=Module.AWS,
     maturity=Maturity.STABLE,
 )
@@ -550,8 +560,9 @@ class AdminPolicyAttachedOutput(Finding):
     policy_name: str | None = None
     policy_id: str | None = None
     policy_arn: str | None = None
-    statement_sid: str | None = None
-    principal_arn: str | None = None
+    principal_arns: list[str] | None = None
+    principal_count: int | None = None
+    statement_sids: list[str] | None = None
     account_id: str | None = None
     account: str | None = None
     # True for AWS IAM Identity Center (SSO) reserved roles, which ship with the
@@ -581,16 +592,23 @@ _aws_admin_policy_attached = Fact(
           OR principal.arn CONTAINS 'stacksets-exec'
           OR principal.arn CONTAINS 'StackSetExecutionRole'
       )
-    RETURN DISTINCT
+    // CIS 2.15 is a per-policy control, but AWS-managed policies are global and
+    // shared across accounts, so aggregate per (account, policy) to keep account
+    // ownership correct while collapsing the per-principal/statement rows.
+    WITH a, policy,
+         collect(DISTINCT principal.arn) AS principal_arns,
+         collect(DISTINCT stmt.sid) AS statement_sids,
+         max(CASE WHEN principal.arn CONTAINS 'aws-reserved/sso.amazonaws.com' THEN 1 ELSE 0 END) AS sso_flag
+    RETURN
         policy.id AS policy_id,
         policy.arn AS policy_arn,
         policy.name AS policy_name,
-        stmt.sid AS statement_sid,
-        principal.arn AS principal_arn,
+        principal_arns,
+        size(principal_arns) AS principal_count,
+        statement_sids,
         a.id AS account_id,
         a.name AS account,
-        // SSO-provisioned admin roles (AdministratorAccess permission set) by design
-        principal.arn CONTAINS 'aws-reserved/sso.amazonaws.com' AS is_sso_reserved
+        sso_flag = 1 AS is_sso_reserved
     """,
     cypher_visual_query="""
     MATCH p=(a:AWSAccount)-[:RESOURCE]->(principal:AWSPrincipal)-[:POLICY]->(policy:AWSPolicy)-[:STATEMENT]->(stmt:AWSPolicyStatement)
@@ -606,17 +624,21 @@ _aws_admin_policy_attached = Fact(
     RETURN *
     """,
     cypher_count_query="""
-    MATCH (principal:AWSPrincipal)-[:POLICY]->(policy:AWSPolicy)
+    MATCH (a:AWSAccount)-[:RESOURCE]->(principal:AWSPrincipal)-[:POLICY]->(policy:AWSPolicy)
     WHERE NOT (
           principal.arn CONTAINS 'aws-service-role'
           OR principal.arn CONTAINS 'OrganizationAccountAccessRole'
           OR principal.arn CONTAINS 'stacksets-exec'
           OR principal.arn CONTAINS 'StackSetExecutionRole'
     )
-    RETURN COUNT(DISTINCT policy.id) AS count
+    WITH DISTINCT a, policy
+    RETURN COUNT(*) AS count
     """,
-    asset_id_field="policy_id",
-    identity_fields=("policy_id", "principal_arn"),
+    # No asset_id_field: the query already yields one row per (account, policy),
+    # so failing = row count. A single field cannot express that composite unit,
+    # and policy_id alone would under-count global AWS-managed policies shared
+    # across accounts (breaking passing = total - failing).
+    identity_fields=("account_id", "policy_id"),
     module=Module.AWS,
     maturity=Maturity.STABLE,
 )
