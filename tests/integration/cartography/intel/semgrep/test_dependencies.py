@@ -3,6 +3,7 @@ from unittest.mock import patch
 
 import pytest
 
+import cartography.intel.ontology.packages
 import cartography.intel.semgrep.dependencies
 import cartography.intel.semgrep.deployment
 import tests.data.semgrep.dependencies
@@ -248,6 +249,77 @@ def _mock_get_gitlab_dependencies(
     if ecosystem == "npm":
         return _build_gitlab_npm_deps()
     raise ValueError(f"Unexpected value for `ecosystem`: {ecosystem}")
+
+
+@patch.object(
+    cartography.intel.semgrep.deployment,
+    "get_deployment",
+    return_value=tests.data.semgrep.deployment.DEPLOYMENTS,
+)
+@patch.object(
+    cartography.intel.semgrep.dependencies,
+    "get_dependencies",
+    side_effect=_mock_get_dependencies,
+)
+def test_sync_dependencies_promotes_sca_finding_to_package_ontology(
+    mock_get_dependencies, mock_get_deployment, neo4j_session
+):
+    """
+    A SemgrepSCAFinding that AFFECTS a SemgrepDependency should reach the
+    canonical Package ontology node once the packages ontology sync runs:
+    the dependency dedups into a :Package via DETECTED_AS, and the finding's
+    AFFECTS edge is propagated onto that :Package.
+    """
+    # Arrange: real dependency nodes (carrying normalized_id) + a SCA finding
+    # that affects one of them.
+    create_github_repos(neo4j_session)
+    common_job_parameters = {"UPDATE_TAG": TEST_UPDATE_TAG}
+    sync_deployment(
+        neo4j_session,
+        "your_semgrep_app_token",
+        TEST_UPDATE_TAG,
+        common_job_parameters,
+    )
+    sync_dependencies(
+        neo4j_session,
+        "your_semgrep_app_token",
+        "gomod,npm",
+        TEST_UPDATE_TAG,
+        common_job_parameters,
+    )
+    neo4j_session.run(
+        """
+        MATCH (d:SemgrepDependency {id: 'github.com/foo/baz|1.2.3'})
+        MERGE (f:SemgrepSCAFinding:SecurityIssue {id: 'test-sca-finding'})
+        MERGE (f)-[:AFFECTS]->(d)
+        """,
+    )
+
+    # Act
+    cartography.intel.ontology.packages.sync(
+        neo4j_session,
+        TEST_UPDATE_TAG,
+        common_job_parameters,
+    )
+
+    # Assert: the dependency deduped into a canonical Package...
+    detected = neo4j_session.run(
+        """
+        MATCH (p:Package)-[:DETECTED_AS]->(:SemgrepDependency {id: 'github.com/foo/baz|1.2.3'})
+        RETURN count(p) AS c
+        """,
+    ).single()
+    assert detected["c"] == 1
+
+    # ...and the finding's AFFECTS edge reached that canonical Package.
+    affects = neo4j_session.run(
+        """
+        MATCH (:SemgrepSCAFinding {id: 'test-sca-finding'})-[:AFFECTS]->(p:Package)
+              -[:DETECTED_AS]->(:SemgrepDependency {id: 'github.com/foo/baz|1.2.3'})
+        RETURN count(p) AS c
+        """,
+    ).single()
+    assert affects["c"] == 1
 
 
 @patch.object(
