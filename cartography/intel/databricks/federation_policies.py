@@ -26,12 +26,25 @@ def sync(
 ) -> None:
     account_policies = get_account_policies(api_session)
     service_principals = get_account_service_principals(neo4j_session, account_id)
-    sp_policies = get_service_principal_policies(api_session, service_principals)
+    sp_policies, complete = get_service_principal_policies(
+        api_session, service_principals
+    )
     transformed = transform(account_policies, sp_policies, account_id)
     load_policies(
         neo4j_session, transformed, account_id, common_job_parameters["UPDATE_TAG"]
     )
-    cleanup(neo4j_session, common_job_parameters)
+    # Only clean up when every service principal's policies were read this run. A
+    # 403/404 on one SP means its policies were not refreshed, so an
+    # account-scoped node cleanup would delete still-valid DatabricksFederationPolicy
+    # nodes for it; skip cleanup and let a fully successful run reconcile them.
+    if complete:
+        cleanup(neo4j_session, common_job_parameters)
+    else:
+        logger.warning(
+            "Databricks federation policies were partially read for account %s; "
+            "skipping cleanup to avoid deleting valid policy nodes.",
+            account_id,
+        )
 
 
 @timeit
@@ -68,13 +81,16 @@ def get_account_service_principals(
 def get_service_principal_policies(
     api_session: DatabricksAccountClient,
     service_principals: list[dict[str, Any]],
-) -> list[dict[str, Any]]:
+) -> tuple[list[dict[str, Any]], bool]:
     """Fetch federation policies scoped to each account service principal.
 
-    Each returned row carries the owning SP's node id so the OWNED_BY edge lands.
-    Iterating every SP can be heavy; that is acceptable for this sync.
+    Returns ``(policies, complete)``. Each row carries the owning SP's node id so
+    the OWNED_BY edge lands. ``complete`` is False when any SP's policies were
+    skipped (403/404) so the caller can skip cleanup rather than delete the
+    unrefreshed policy nodes. Iterating every SP can be heavy; that is acceptable.
     """
     policies: list[dict[str, Any]] = []
+    complete = True
     for sp in service_principals:
         uri = api_session.account_uri(
             f"/servicePrincipals/{sp['scim_id']}/federationPolicies"
@@ -86,6 +102,7 @@ def get_service_principal_policies(
             # mid-sync (404) is skippable; any other error must abort so cleanup
             # does not drop still-valid policy nodes.
             skip_or_raise_http(e, 403, 404)
+            complete = False
             logger.warning(
                 "Skipping federation policies for service principal %s: %s",
                 sp["scim_id"],
@@ -100,7 +117,7 @@ def get_service_principal_policies(
                     "sp_scim_id": sp["scim_id"],
                 }
             )
-    return policies
+    return policies, complete
 
 
 def _flatten(policy: dict[str, Any], account_id: str) -> dict[str, Any]:
