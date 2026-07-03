@@ -4,7 +4,9 @@ from datetime import datetime
 from datetime import timezone
 from typing import Any
 
+import neo4j
 import requests
+from dateutil import parser as dateutil_parser
 
 logger = logging.getLogger(__name__)
 
@@ -14,6 +16,48 @@ def epoch_ms_to_datetime(value: Any) -> datetime | None:
     if value in (None, 0):
         return None
     return datetime.fromtimestamp(int(value) / 1000, tz=timezone.utc)
+
+
+def iso_to_datetime(value: Any) -> datetime | None:
+    """Parse an ISO-8601 timestamp (as the SQL / Lakeview APIs return) to datetime.
+
+    Unlike the older endpoints (epoch milliseconds), the SQL and Lakeview APIs
+    return RFC-3339 strings such as ``2026-07-01T23:27:40Z``; ``isoparse``
+    handles the trailing ``Z`` and offset forms, matching the rest of the repo.
+    """
+    if not value:
+        return None
+    return dateutil_parser.isoparse(str(value))
+
+
+def get_run_as_principal_index(
+    neo4j_session: neo4j.Session, workspace_id: str
+) -> dict[str, tuple[str, bool]]:
+    """Map a run-as principal name to ``(scoped node id, is_service_principal)``.
+
+    Jobs and pipelines report their run-as identity by name (a user's
+    ``user_name`` or a service principal's ``application_id``). Resolving that
+    against *this workspace's* principals keeps a name shared across workspaces
+    (federated identities routinely share an email) from attaching the RUN_AS
+    edge to the wrong principal node. Mirrors ``grants.get_principals`` but
+    keeps the user/service-principal distinction the RUN_AS edge needs.
+    """
+    query = """
+    MATCH (:DatabricksWorkspace {id: $workspace_id})-[:RESOURCE]->(p)
+    WHERE p:DatabricksUser OR p:DatabricksServicePrincipal
+    RETURN p.id AS id,
+           p:DatabricksServicePrincipal AS is_sp,
+           CASE
+               WHEN p:DatabricksServicePrincipal THEN p.application_id
+               ELSE p.user_name
+           END AS name
+    """
+    result = neo4j_session.run(query, workspace_id=workspace_id)
+    index: dict[str, tuple[str, bool]] = {}
+    for record in result:
+        if record["name"] and record["id"]:
+            index[record["name"]] = (record["id"], bool(record["is_sp"]))
+    return index
 
 
 def uc_id(metastore_id: str, full_name: str) -> str:
