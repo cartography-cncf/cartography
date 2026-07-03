@@ -3,6 +3,7 @@ from dataclasses import dataclass
 from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeProperties
 from cartography.models.core.nodes import CartographyNodeSchema
+from cartography.models.core.nodes import ExtraNodeLabels
 from cartography.models.core.relationships import CartographyRelProperties
 from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
@@ -17,6 +18,9 @@ class ScalewayServerlessContainerProperties(CartographyNodeProperties):
     name: PropertyRef = PropertyRef("name", extra_index=True)
     status: PropertyRef = PropertyRef("status")
     registry_image: PropertyRef = PropertyRef("registry_image", extra_index=True)
+    # Digest the `registry_image` pull URI resolves to, populated at ingest from
+    # the container-registry sync so HAS_IMAGE can match the Image node.
+    image_digest: PropertyRef = PropertyRef("image_digest", extra_index=True)
     # Exposure signal: `public` lets anyone invoke the container without auth.
     privacy: PropertyRef = PropertyRef("privacy")
     domain_name: PropertyRef = PropertyRef("domain_name", extra_index=True)
@@ -98,8 +102,38 @@ class ScalewayServerlessContainerToPrivateNetworkRel(CartographyRelSchema):
 
 
 @dataclass(frozen=True)
+class ScalewayServerlessContainerToImageRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+# (:ScalewayServerlessContainer)-[:HAS_IMAGE]->(:ScalewayContainerRegistryImage)
+# The container's `registry_image` pull URI is resolved to a digest at ingest;
+# this ties the running container to the digest-addressed Image so the shared
+# RESOLVED_IMAGE analysis can reach it.
+class ScalewayServerlessContainerToImageRel(CartographyRelSchema):
+    target_node_label: str = "ScalewayContainerRegistryImage"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"digest": PropertyRef("image_digest")},
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "HAS_IMAGE"
+    properties: ScalewayServerlessContainerToImageRelProperties = (
+        ScalewayServerlessContainerToImageRelProperties()
+    )
+
+
+@dataclass(frozen=True)
 class ScalewayServerlessContainerSchema(CartographyNodeSchema):
     label: str = "ScalewayServerlessContainer"
+    # A Scaleway Serverless Container is a managed, autoscaled container service
+    # (the Cloud Run Service / AWS App Runner analog) that runs a single
+    # container. It is both the service (`ComputeService`) and the running
+    # container (`Container`); the `Container` label lets the shared
+    # RESOLVED_IMAGE analysis reach it via HAS_IMAGE.
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
+        ["ComputeService", "Container"]
+    )
     properties: ScalewayServerlessContainerProperties = (
         ScalewayServerlessContainerProperties()
     )
@@ -110,5 +144,6 @@ class ScalewayServerlessContainerSchema(CartographyNodeSchema):
         [
             ScalewayServerlessContainerToNamespaceRel(),
             ScalewayServerlessContainerToPrivateNetworkRel(),
+            ScalewayServerlessContainerToImageRel(),
         ]
     )

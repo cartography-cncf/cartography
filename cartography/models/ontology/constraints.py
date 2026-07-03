@@ -166,6 +166,10 @@ ONTOLOGY_REL_CONSTRAINTS: tuple[RelConstraint, ...] = (
     # A workload assumes a permission role to obtain its privileges.
     RelConstraint(src="ComputeInstance", dst="PermissionRole", label="ASSUMES"),
     RelConstraint(src="Function", dst="PermissionRole", label="ASSUMES"),
+    # A vulnerability finding (CVE) or a rule-based security issue affects a
+    # software package. Both finding shapes point at the same canonical Package.
+    RelConstraint(src="CVE", dst="Package", label="AFFECTS"),
+    RelConstraint(src="SecurityIssue", dst="Package", label="AFFECTS"),
 )
 
 

@@ -446,6 +446,8 @@ Representation of an AWS [GuardDuty Finding](https://docs.aws.amazon.com/guarddu
 
 Representation of an AWS [Inspector Finding](https://docs.aws.amazon.com/inspector/v2/APIReference/API_Finding.html)
 
+Depending on its `type`, the finding also carries an ontology finding label: `PACKAGE_VULNERABILITY` findings are labeled `:CVE`, and `NETWORK_REACHABILITY` findings are labeled `:SecurityIssue`.
+
 | Field | Description | Required|
 |-------|-------------|------|
 |firstseen|Timestamp of when a sync job first discovered this node|no|
