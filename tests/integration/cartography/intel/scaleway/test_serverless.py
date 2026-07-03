@@ -4,6 +4,10 @@ from unittest.mock import patch
 import cartography.intel.scaleway.serverless.containers
 import cartography.intel.scaleway.serverless.functions
 import cartography.intel.scaleway.serverless.jobs
+from cartography.client.core.tx import load
+from cartography.models.scaleway.container_registry.image import (
+    ScalewayContainerRegistryImageSchema,
+)
 from tests.data.scaleway.serverless import SCALEWAY_CONTAINER_NAMESPACES
 from tests.data.scaleway.serverless import SCALEWAY_CONTAINERS
 from tests.data.scaleway.serverless import SCALEWAY_FUNCTION_NAMESPACES
@@ -23,6 +27,11 @@ from tests.integration.util import check_rels
 TEST_UPDATE_TAG = 123456789
 TEST_ORG_ID = "0681c477-fbb9-4820-b8d6-0eef10cfcd6d"
 TEST_PROJECT_ID = "0681c477-fbb9-4820-b8d6-0eef10cfcd6d"
+# Matches SCALEWAY_CONTAINERS[0].registry_image.
+TEST_CONTAINER_IMAGE_URI = "rg.fr-par.scw.cloud/contscwdemo/demo:latest"
+TEST_CONTAINER_IMAGE_DIGEST = (
+    "sha256:2222222222222222222222222222222222222222222222222222222222222222"
+)
 
 
 @patch.object(
@@ -50,11 +59,18 @@ def test_load_scaleway_serverless(
         "ORG_ID": TEST_ORG_ID,
     }
     _ensure_local_neo4j_has_test_projects_and_orgs(neo4j_session)
+    # A registry image (digest node) the container's registry_image resolves to.
+    load(
+        neo4j_session,
+        ScalewayContainerRegistryImageSchema(),
+        [{"digest": TEST_CONTAINER_IMAGE_DIGEST}],
+        lastupdated=TEST_UPDATE_TAG,
+        PROJECT_ID=TEST_PROJECT_ID,
+    )
 
     # Act
     for module in (
         cartography.intel.scaleway.serverless.functions,
-        cartography.intel.scaleway.serverless.containers,
         cartography.intel.scaleway.serverless.jobs,
     ):
         module.sync(
@@ -65,6 +81,15 @@ def test_load_scaleway_serverless(
             projects_id=[TEST_PROJECT_ID],
             update_tag=TEST_UPDATE_TAG,
         )
+    cartography.intel.scaleway.serverless.containers.sync(
+        neo4j_session,
+        client,
+        common_job_parameters,
+        org_id=TEST_ORG_ID,
+        projects_id=[TEST_PROJECT_ID],
+        update_tag=TEST_UPDATE_TAG,
+        registry_image_digests={TEST_CONTAINER_IMAGE_URI: TEST_CONTAINER_IMAGE_DIGEST},
+    )
 
     # Assert nodes
     assert check_nodes(
@@ -124,3 +149,14 @@ def test_load_scaleway_serverless(
         "HAS",
         rel_direction_right=True,
     ) == {(TEST_CONTAINER_NAMESPACE_ID, TEST_CONTAINER_ID)}
+
+    # Container -[:HAS_IMAGE]-> registry Image (digest resolved from registry_image)
+    assert check_rels(
+        neo4j_session,
+        "ScalewayServerlessContainer",
+        "id",
+        "ScalewayContainerRegistryImage",
+        "id",
+        "HAS_IMAGE",
+        rel_direction_right=True,
+    ) == {(TEST_CONTAINER_ID, TEST_CONTAINER_IMAGE_DIGEST)}

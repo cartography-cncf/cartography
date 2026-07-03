@@ -8,6 +8,7 @@ import cartography.intel.scaleway.baremetal.dedibox
 import cartography.intel.scaleway.baremetal.elastic_metal
 import cartography.intel.scaleway.baremetal.flexible_ips
 import cartography.intel.scaleway.container_registry.namespaces
+import cartography.intel.scaleway.container_registry.supply_chain
 import cartography.intel.scaleway.databases.datawarehouse
 import cartography.intel.scaleway.databases.mongodb
 import cartography.intel.scaleway.databases.rdb
@@ -19,6 +20,7 @@ import cartography.intel.scaleway.dns.domains
 import cartography.intel.scaleway.iam.apikeys
 import cartography.intel.scaleway.iam.applications
 import cartography.intel.scaleway.iam.groups
+import cartography.intel.scaleway.iam.permissions
 import cartography.intel.scaleway.iam.permissionsets
 import cartography.intel.scaleway.iam.policies
 import cartography.intel.scaleway.iam.sshkeys
@@ -327,12 +329,25 @@ def start_scaleway_ingestion(neo4j_session: neo4j.Session, config: Config) -> No
         update_tag=config.update_tag,
     )
 
-    # Container Registry
-    cartography.intel.scaleway.container_registry.namespaces.sync(
+    # Container Registry. Returns the tag URI -> digest map so serverless
+    # containers can resolve their `registry_image` to a digest and declare a
+    # HAS_IMAGE edge to the Image node.
+    registry_image_digests = (
+        cartography.intel.scaleway.container_registry.namespaces.sync(
+            neo4j_session,
+            client,
+            common_job_parameters,
+            org_id=config.scaleway_org,
+            projects_id=projects_id,
+            update_tag=config.update_tag,
+        )
+    )
+    # Enrich registry images with layers + provenance from the OCI registry
+    # endpoint (source for code-to-cloud); runs after the registry nodes exist.
+    cartography.intel.scaleway.container_registry.supply_chain.sync(
         neo4j_session,
-        client,
+        config.scaleway_secret_key,
         common_job_parameters,
-        org_id=config.scaleway_org,
         projects_id=projects_id,
         update_tag=config.update_tag,
     )
@@ -388,7 +403,8 @@ def start_scaleway_ingestion(neo4j_session: neo4j.Session, config: Config) -> No
     )
 
     # Serverless (Functions / Containers / Jobs). Loaded after PrivateNetworks
-    # so the ATTACHED_TO edges resolve.
+    # so the ATTACHED_TO edges resolve, and after the Container Registry so the
+    # container HAS_IMAGE -> Image edges resolve (registry_image_digests below).
     cartography.intel.scaleway.serverless.functions.sync(
         neo4j_session,
         client,
@@ -404,8 +420,21 @@ def start_scaleway_ingestion(neo4j_session: neo4j.Session, config: Config) -> No
         org_id=config.scaleway_org,
         projects_id=projects_id,
         update_tag=config.update_tag,
+        registry_image_digests=registry_image_digests,
     )
     cartography.intel.scaleway.serverless.jobs.sync(
+        neo4j_session,
+        client,
+        common_job_parameters,
+        org_id=config.scaleway_org,
+        projects_id=projects_id,
+        update_tag=config.update_tag,
+    )
+
+    # IAM permissions: materialize principal -> permission set (HAS_ROLE) and
+    # principal -> project (CAN_ACCESS) edges from the policy/rule graph. Runs
+    # last so all IAM and project nodes are present.
+    cartography.intel.scaleway.iam.permissions.sync(
         neo4j_session,
         client,
         common_job_parameters,

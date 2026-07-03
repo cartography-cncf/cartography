@@ -35,7 +35,9 @@ PRJ -- RESOURCE --> KC(KapsuleCluster)
 PRJ -- RESOURCE --> KP(KapsulePool)
 PRJ -- RESOURCE --> KN(KapsuleNode)
 PRJ -- RESOURCE --> CRN(ContainerRegistryNamespace)
+PRJ -- RESOURCE --> CIT(ContainerRegistryImageTag)
 PRJ -- RESOURCE --> CRI(ContainerRegistryImage)
+PRJ -- RESOURCE --> CIL(ContainerRegistryImageLayer)
 PRJ -- RESOURCE --> RDB(RdbInstance)
 PRJ -- RESOURCE --> RC(RedisCluster)
 PRJ -- RESOURCE --> MGO(MongoDBInstance)
@@ -64,7 +66,9 @@ KC -- HAS --> KP
 KC -- HAS --> KN
 KP -- HAS --> KN
 KC -- ATTACHED_TO --> PN
-CRN -- HAS --> CRI
+CRN -- REPO_IMAGE --> CIT
+CIT -- IMAGE --> CRI
+CRI -- HAS_LAYER --> CIL
 RDB -- ATTACHED_TO --> PN
 RC -- ATTACHED_TO --> PN
 MGO -- ATTACHED_TO --> PN
@@ -72,6 +76,7 @@ SFN -- HAS --> SF
 SCN -- HAS --> SC
 SF -- ATTACHED_TO --> PN
 SC -- ATTACHED_TO --> PN
+SC -- HAS_IMAGE --> CRI
 USR -- MEMBER_OF --> GRP(ScalewayGroup)
 APIKEY(ScalewayApiKey) -- OWNED_BY --> USR
 APP -- MEMBER_OF --> GRP(ScalewayGroup)
@@ -81,6 +86,12 @@ POL -- APPLIES_TO --> GRP
 POL -- APPLIES_TO --> APP
 POL -- HAS --> RULE(Rule)
 RULE -- SCOPED_TO --> PRJ
+USR -- HAS_ROLE --> PS
+APP -- HAS_ROLE --> PS
+GRP -- HAS_ROLE --> PS
+USR -- CAN_ACCESS --> PRJ
+APP -- CAN_ACCESS --> PRJ
+GRP -- CAN_ACCESS --> PRJ
 ```
 
 ### ScalewayOrganization
@@ -191,6 +202,14 @@ Represents a User in Scaleway.
     ```
     (:ScalewayApiKey)-[:OWNED_BY]->(:ScalewayUser)
     ```
+- `User` is granted a `PermissionSet` (canonical `HAS_ROLE`, materialized from the policy/rule graph).
+    ```
+    (:ScalewayUser)-[:HAS_ROLE]->(:ScalewayPermissionSet)
+    ```
+- `User` can access a `Project` (materialized scope of the grant; `has_condition` flags condition-gated grants).
+    ```
+    (:ScalewayUser)-[:CAN_ACCESS]->(:ScalewayProject)
+    ```
 
 
 ### ScalewayGroup
@@ -221,6 +240,14 @@ Represents a Group in Scaleway.
     ```
     (:ScalewayUser)-[:MEMBER_OF]->(:ScalewayGroup)
     (:ScalewayApplication)-[:MEMBER_OF]->(:ScalewayGroup)
+    ```
+- `Group` is granted a `PermissionSet` (canonical `HAS_ROLE`; members inherit via `MEMBER_OF`).
+    ```
+    (:ScalewayGroup)-[:HAS_ROLE]->(:ScalewayPermissionSet)
+    ```
+- `Group` can access a `Project` (materialized scope of the grant).
+    ```
+    (:ScalewayGroup)-[:CAN_ACCESS]->(:ScalewayProject)
     ```
 
 
@@ -256,6 +283,14 @@ Represents an Application (Service Account) in Scaleway
 - `Application` owns `ApiKey`
     ```
     (:ScalewayApiKey)-[:OWNED_BY]->(:ScalewayApplication)
+    ```
+- `Application` is granted a `PermissionSet` (canonical `HAS_ROLE`, materialized from the policy/rule graph).
+    ```
+    (:ScalewayApplication)-[:HAS_ROLE]->(:ScalewayPermissionSet)
+    ```
+- `Application` can access a `Project` (materialized scope of the grant).
+    ```
+    (:ScalewayApplication)-[:CAN_ACCESS]->(:ScalewayProject)
     ```
 
 ### ScalewayApiKey
@@ -359,6 +394,8 @@ Represents an IAM Rule within a Policy. Rules define which permission sets apply
 
 Represents a Permission Set in Scaleway. Permission sets are predefined collections of permissions.
 
+> **Ontology Mapping**: This node has the extra label `PermissionRole` to enable cross-platform queries for roles across different systems (e.g., AWSRole, GCPRole, AzureRoleDefinition).
+
 | Field       | Description                                  |
 |-------------|----------------------------------------------|
 | id          | ID of the permission set.                    |
@@ -372,6 +409,12 @@ Represents a Permission Set in Scaleway. Permission sets are predefined collecti
 - `PermissionSet` belongs to an `Organization`.
     ```
     (:ScalewayOrganization)-[:RESOURCE]->(:ScalewayPermissionSet)
+    ```
+- Principals (`User`, `Application`, `Group`) are granted a `PermissionSet` via the canonical `HAS_ROLE` edge, materialized from the policy/rule graph.
+    ```
+    (:ScalewayUser)-[:HAS_ROLE]->(:ScalewayPermissionSet)
+    (:ScalewayApplication)-[:HAS_ROLE]->(:ScalewayPermissionSet)
+    (:ScalewayGroup)-[:HAS_ROLE]->(:ScalewayPermissionSet)
     ```
 
 
@@ -1341,37 +1384,106 @@ Represents a Scaleway Container Registry namespace (top-level repository scope).
     ```
     (:ScalewayProject)-[:RESOURCE]->(:ScalewayContainerRegistryNamespace)
     ```
-- A `ContainerRegistryNamespace` has `ContainerRegistryImage` members.
+- A `ContainerRegistryNamespace` exposes image tags (canonical `REPO_IMAGE` registry -> tag edge).
     ```
-    (:ScalewayContainerRegistryNamespace)-[:HAS]->(:ScalewayContainerRegistryImage)
+    (:ScalewayContainerRegistryNamespace)-[:REPO_IMAGE]->(:ScalewayContainerRegistryImageTag)
     ```
 
 
-### ScalewayContainerRegistryImage
+### ScalewayContainerRegistryImageTag
 
-Represents a container image stored in a Container Registry namespace.
+Represents a tag (a named pointer such as `latest` or `v1.2.3`) inside a Container Registry namespace, resolving to a specific image digest. Scaleway's namespace is the registry (like a GCP Artifact Registry repository), so the "named image" from `list_images` is not modeled as its own node; its name and visibility are denormalized onto the tag.
+
+> **Ontology Mapping**: This node has the extra label `ImageTag` to enable cross-platform queries for image tags across registries (e.g. ECRRepositoryImage, GCPArtifactRegistryRepositoryImage, GitLabContainerRepositoryTag).
 
 | Field      | Description                                  |
 |------------|----------------------------------------------|
-| id         | Image UUID.                                  |
-| name       | Image name (without tag).                    |
-| status     | Image status.                                |
-| status_message | Human-readable status message.           |
+| id         | Tag UUID.                                    |
+| name       | Tag string (e.g. `latest`).                  |
+| image_name | Name of the repository (named image) the tag belongs to. |
+| uri        | Full pull URI, e.g. `rg.fr-par.scw.cloud/<namespace>/<image>:<tag>`. |
+| digest     | Digest (sha256) the tag resolves to.         |
+| status     | Tag status.                                  |
 | visibility | Per-image visibility (`public`, `private`, `inherit`). Combined with the namespace `is_public` flag to derive effective exposure. |
-| size       | Total image size in bytes.                   |
-| tags       | List of tag names available for this image.  |
 | created_at | Creation timestamp.                          |
 | updated_at | Last update timestamp.                       |
 | lastupdated | Timestamp of the last update                |
 
 #### Relationships
-- A `ContainerRegistryImage` belongs to a `Project`.
+- An `ImageTag` belongs to a `Project`.
+    ```
+    (:ScalewayProject)-[:RESOURCE]->(:ScalewayContainerRegistryImageTag)
+    ```
+- An `ImageTag` lives in a `ContainerRegistryNamespace` (canonical `REPO_IMAGE` registry -> tag edge).
+    ```
+    (:ScalewayContainerRegistryNamespace)-[:REPO_IMAGE]->(:ScalewayContainerRegistryImageTag)
+    ```
+- An `ImageTag` resolves to a digest-addressed `Image`.
+    ```
+    (:ScalewayContainerRegistryImageTag)-[:IMAGE]->(:ScalewayContainerRegistryImage)
+    ```
+
+
+### ScalewayContainerRegistryImage
+
+Represents the digest-addressed image content in a Container Registry. Deduplicated by digest, so multiple tags (and repositories) referencing the same digest share one node.
+
+> **Ontology Mapping**: This node has the extra label `Image` to enable cross-platform queries for container images across registries (e.g. ECRImage, GCPArtifactRegistryImage, GitLabContainerImage). It is the join target for `(:Container|:Function)-[:HAS_IMAGE]->(:Image)` and `RESOLVED_IMAGE`.
+
+Provenance and layer fields are populated from the OCI registry endpoint by the supply-chain enrichment.
+
+| Field      | Description                                  |
+|------------|----------------------------------------------|
+| id         | Image digest (sha256).                       |
+| digest     | Image digest (sha256).                       |
+| layer_diff_ids | Ordered uncompressed layer digests (from the OCI image config). |
+| source_uri | Source VCS repository URL the image was built from (OCI label/annotation or SLSA attestation). Match key for `PACKAGED_FROM`. |
+| source_revision | Source commit the image was built from.   |
+| source_file | Dockerfile path within the source repository. |
+| lastupdated | Timestamp of the last update                |
+
+#### Relationships
+- An `Image` belongs to a `Project`.
     ```
     (:ScalewayProject)-[:RESOURCE]->(:ScalewayContainerRegistryImage)
     ```
-- A `ContainerRegistryImage` lives in a `ContainerRegistryNamespace`.
+- Tags resolve to an `Image`.
     ```
-    (:ScalewayContainerRegistryNamespace)-[:HAS]->(:ScalewayContainerRegistryImage)
+    (:ScalewayContainerRegistryImageTag)-[:IMAGE]->(:ScalewayContainerRegistryImage)
+    ```
+- An `Image` is composed of filesystem layers.
+    ```
+    (:ScalewayContainerRegistryImage)-[:HAS_LAYER]->(:ScalewayContainerRegistryImageLayer)
+    ```
+- An `Image` is built from a source repository (code-to-cloud, drawn by the GitHub/GitLab supply-chain matchers from `source_uri` or layer analysis).
+    ```
+    (:ScalewayContainerRegistryImage)-[:PACKAGED_FROM]->(:GitHubRepository)
+    (:ScalewayContainerRegistryImage)-[:PACKAGED_FROM]->(:GitLabProject)
+    ```
+
+
+### ScalewayContainerRegistryImageLayer
+
+Represents a filesystem layer of a container image, keyed by its uncompressed digest (`diff_id`) and shared across images that reuse it.
+
+> **Ontology Mapping**: This node has the extra label `ImageLayer` to enable cross-platform queries and the supply-chain dockerfile matcher (e.g. ECRImageLayer, GCPArtifactRegistryImageLayer).
+
+| Field      | Description                                  |
+|------------|----------------------------------------------|
+| id         | Layer diff_id (sha256).                      |
+| diff_id    | Uncompressed layer digest (sha256).          |
+| history    | Build command (`created_by`) that produced the layer. |
+| is_empty   | Whether the layer is an empty (metadata-only) layer. |
+| lastupdated | Timestamp of the last update                |
+
+#### Relationships
+- A layer belongs to a `Project`.
+    ```
+    (:ScalewayProject)-[:RESOURCE]->(:ScalewayContainerRegistryImageLayer)
+    ```
+- An `Image` is composed of layers.
+    ```
+    (:ScalewayContainerRegistryImage)-[:HAS_LAYER]->(:ScalewayContainerRegistryImageLayer)
     ```
 
 
@@ -1496,6 +1608,8 @@ Represents a managed MongoDB instance (Scaleway "Managed Database for MongoDB").
 
 Represents a Scaleway Serverless Functions namespace (project-scoped grouping of functions, backed by a hidden container registry namespace).
 
+> **Ontology Mapping**: This node has the extra label `ComputeNamespace` to enable cross-platform queries for compute namespaces across different systems (e.g., KubernetesNamespace).
+
 | Field      | Description                                  |
 |------------|----------------------------------------------|
 | id         | Namespace UUID.                              |
@@ -1526,6 +1640,8 @@ Represents a Scaleway Serverless Functions namespace (project-scoped grouping of
 ### ScalewayServerlessFunction
 
 Represents a Scaleway Serverless Function.
+
+> **Ontology Mapping**: This node has the extra label `Function` to enable cross-platform queries for functions across different systems (e.g., AWSLambda, GCPCloudFunction, AzureFunctionApp).
 
 | Field      | Description                                  |
 |------------|----------------------------------------------|
@@ -1568,6 +1684,8 @@ Represents a Scaleway Serverless Function.
 
 Represents a Scaleway Serverless Containers namespace (project-scoped grouping of containers, backed by a hidden container registry namespace).
 
+> **Ontology Mapping**: This node has the extra label `ComputeNamespace` to enable cross-platform queries for compute namespaces across different systems (e.g., KubernetesNamespace).
+
 | Field      | Description                                  |
 |------------|----------------------------------------------|
 | id         | Namespace UUID.                              |
@@ -1597,14 +1715,17 @@ Represents a Scaleway Serverless Containers namespace (project-scoped grouping o
 
 ### ScalewayServerlessContainer
 
-Represents a Scaleway Serverless Container.
+Represents a Scaleway Serverless Container (a managed, autoscaled container service that runs a single container).
+
+> **Ontology Mapping**: This node has the extra labels `ComputeService` (cross-platform container services, e.g. ECSService, GCPCloudRunService) and `Container` (the running container, so the shared `RESOLVED_IMAGE` analysis reaches it via `HAS_IMAGE`).
 
 | Field      | Description                                  |
 |------------|----------------------------------------------|
 | id         | Container UUID.                              |
 | name       | Container name.                              |
 | status     | Container status.                            |
-| registry_image | Container image URI pulled at deploy time. |
+| registry_image | Container image pull URI.                |
+| image_digest | Digest the `registry_image` resolves to, populated at ingest from the container-registry sync. |
 | privacy    | Invocation privacy (`public` allows unauthenticated invokes, `private` requires a token). |
 | domain_name | Auto-assigned invocation domain.            |
 | http_option | `enabled` allows plain HTTP; `redirected` forces HTTPS. |
@@ -1635,6 +1756,10 @@ Represents a Scaleway Serverless Container.
 - A `ServerlessContainer` may be attached to a `PrivateNetwork`.
     ```
     (:ScalewayServerlessContainer)-[:ATTACHED_TO]->(:ScalewayPrivateNetwork)
+    ```
+- A `ServerlessContainer` runs a digest-addressed `Image` (its `registry_image` resolved to a digest). Feeds the shared `RESOLVED_IMAGE` analysis.
+    ```
+    (:ScalewayServerlessContainer)-[:HAS_IMAGE]->(:ScalewayContainerRegistryImage)
     ```
 
 

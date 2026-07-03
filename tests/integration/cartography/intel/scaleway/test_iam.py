@@ -4,6 +4,7 @@ from unittest.mock import patch
 import cartography.intel.scaleway.iam.apikeys
 import cartography.intel.scaleway.iam.applications
 import cartography.intel.scaleway.iam.groups
+import cartography.intel.scaleway.iam.permissions
 import cartography.intel.scaleway.iam.permissionsets
 import cartography.intel.scaleway.iam.policies
 import cartography.intel.scaleway.iam.sshkeys
@@ -476,6 +477,32 @@ def _ensure_local_neo4j_has_test_policies(neo4j_session):
     )
 
 
+def _ensure_local_neo4j_has_test_permission_sets(neo4j_session):
+    data = cartography.intel.scaleway.iam.permissionsets.transform_permission_sets(
+        tests.data.scaleway.iam.SCALEWAY_PERMISSION_SETS
+    )
+    cartography.intel.scaleway.iam.permissionsets.load_permission_sets(
+        neo4j_session, data, TEST_ORG_ID, TEST_UPDATE_TAG
+    )
+
+
+def _ensure_local_neo4j_has_test_rules(neo4j_session):
+    for policy_id, rules in (
+        (
+            "pol-11111111-1111-1111-1111-111111111111",
+            tests.data.scaleway.iam.SCALEWAY_RULES_POLICY_1,
+        ),
+        (
+            "pol-22222222-2222-2222-2222-222222222222",
+            tests.data.scaleway.iam.SCALEWAY_RULES_POLICY_2,
+        ),
+    ):
+        data = cartography.intel.scaleway.iam.policies.transform_rules(rules, policy_id)
+        cartography.intel.scaleway.iam.policies.load_rules(
+            neo4j_session, data, TEST_ORG_ID, TEST_UPDATE_TAG
+        )
+
+
 @patch.object(
     cartography.intel.scaleway.iam.policies,
     "get_rules",
@@ -729,4 +756,100 @@ def test_load_scaleway_sshkeys(_mock_get, neo4j_session):
         rel_direction_right=False,
     ) == {
         ("1a2b3c4d-5e6f-7890-abcd-ef1234567890", TEST_PROJECT_ID),
+    }
+
+
+@patch.object(
+    cartography.intel.scaleway.iam.permissions,
+    "get_rules",
+    side_effect=[
+        tests.data.scaleway.iam.SCALEWAY_RULES_POLICY_1,
+        tests.data.scaleway.iam.SCALEWAY_RULES_POLICY_2,
+    ],
+)
+@patch.object(
+    cartography.intel.scaleway.iam.permissions,
+    "get_policies",
+    return_value=tests.data.scaleway.iam.SCALEWAY_POLICIES,
+)
+def test_scaleway_iam_permissions(_mock_get_policies, _mock_get_rules, neo4j_session):
+    # Arrange: users, groups, permission sets and policies must exist first.
+    client = Mock()
+    common_job_parameters = {
+        "UPDATE_TAG": TEST_UPDATE_TAG,
+        "ORG_ID": TEST_ORG_ID,
+    }
+    _ensure_local_neo4j_has_test_projects_and_orgs(neo4j_session)
+    _ensure_local_neo4j_has_test_users(neo4j_session)
+    _ensure_local_neo4j_has_test_groups(neo4j_session)
+    _ensure_local_neo4j_has_test_permission_sets(neo4j_session)
+    _ensure_local_neo4j_has_test_policies(neo4j_session)
+    _ensure_local_neo4j_has_test_rules(neo4j_session)
+
+    # Act
+    cartography.intel.scaleway.iam.permissions.sync(
+        neo4j_session,
+        client,
+        common_job_parameters,
+        org_id=TEST_ORG_ID,
+        projects_id=[TEST_PROJECT_ID],
+        update_tag=TEST_UPDATE_TAG,
+    )
+
+    # Assert: canonical HAS_ROLE from the user (direct policy) to its permission set
+    assert check_rels(
+        neo4j_session,
+        "ScalewayUser",
+        "id",
+        "ScalewayPermissionSet",
+        "id",
+        "HAS_ROLE",
+        rel_direction_right=True,
+    ) == {
+        (
+            "998cbe72-913f-4f55-8620-4b0f7655d343",
+            "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+        ),
+    }
+
+    # Assert: canonical HAS_ROLE from the group (members inherit via MEMBER_OF)
+    assert check_rels(
+        neo4j_session,
+        "ScalewayGroup",
+        "id",
+        "ScalewayPermissionSet",
+        "id",
+        "HAS_ROLE",
+        rel_direction_right=True,
+    ) == {
+        (
+            "1f767996-f6f6-4b0e-a7b1-6a255e809ed6",
+            "b2c3d4e5-f6a7-8901-bcde-f12345678901",
+        ),
+    }
+
+    # Assert: factual CAN_ACCESS scope edge from the user to the scoped project
+    assert check_rels(
+        neo4j_session,
+        "ScalewayUser",
+        "id",
+        "ScalewayProject",
+        "id",
+        "CAN_ACCESS",
+        rel_direction_right=True,
+    ) == {
+        ("998cbe72-913f-4f55-8620-4b0f7655d343", TEST_PROJECT_ID),
+    }
+
+    # Assert: factual CAN_ACCESS scope edge from the group to the scoped project
+    assert check_rels(
+        neo4j_session,
+        "ScalewayGroup",
+        "id",
+        "ScalewayProject",
+        "id",
+        "CAN_ACCESS",
+        rel_direction_right=True,
+    ) == {
+        ("1f767996-f6f6-4b0e-a7b1-6a255e809ed6", TEST_PROJECT_ID),
     }

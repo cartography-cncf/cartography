@@ -45,6 +45,16 @@
       "__comment": "Link Device to User based on JumpCloudUser-JumpCloudSystem ownership",
       "query": "MATCH (u:User)-[:HAS_ACCOUNT]->(:JumpCloudUser)-[:OWNS]->(:JumpCloudSystem)<-[obs:OBSERVED_AS]-(d:Device) WHERE obs.lastupdated = $UPDATE_TAG AND d.lastupdated = $UPDATE_TAG MERGE (u)-[r:OWNS]->(d) ON CREATE SET r.firstseen = timestamp() SET r.lastupdated = $UPDATE_TAG",
       "iterative": false
+    },
+    {
+      "__comment": "Link SentinelOne S1AppFinding AFFECTS to the abstract Device via its agent",
+      "query": "MATCH (d:Device)-[obs:OBSERVED_AS]->(:S1Agent)<-[:AFFECTS]-(f:S1AppFinding) WHERE obs.lastupdated = $UPDATE_TAG AND d.lastupdated = $UPDATE_TAG MERGE (f)-[r:AFFECTS]->(d) ON CREATE SET r.firstseen = timestamp() SET r.lastupdated = $UPDATE_TAG",
+      "iterative": false
+    },
+    {
+      "__comment": "Link CrowdStrike CrowdstrikeFinding AFFECTS to the abstract Device via host and Spotlight vulnerability",
+      "query": "MATCH (d:Device)-[obs:OBSERVED_AS]->(:CrowdstrikeHost)-[:HAS_VULNERABILITY]->(:SpotlightVulnerability)-[:HAS_CVE]->(f:CrowdstrikeFinding) WHERE obs.lastupdated = $UPDATE_TAG AND d.lastupdated = $UPDATE_TAG MERGE (f)-[r:AFFECTS]->(d) ON CREATE SET r.firstseen = timestamp() SET r.lastupdated = $UPDATE_TAG",
+      "iterative": false
     }
   ]
 }

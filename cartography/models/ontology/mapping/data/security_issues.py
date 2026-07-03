@@ -66,6 +66,28 @@ semgrep_mapping = OntologyMapping(
                 ),
             ],
         ),
+        OntologyNodeMapping(
+            node_label="SemgrepSCAFinding",
+            fields=[
+                OntologyFieldMapping(
+                    ontology_field="title",
+                    node_field="summary",
+                    required=True,
+                ),
+                OntologyFieldMapping(
+                    ontology_field="severity",
+                    node_field="severity",
+                ),
+                OntologyFieldMapping(
+                    ontology_field="status",
+                    node_field="triage_status",
+                ),
+                OntologyFieldMapping(
+                    ontology_field="first_seen",
+                    node_field="scan_time",
+                ),
+            ],
+        ),
         # SemgrepSecretsFinding has no dedicated title; type (e.g. "AWS Secret Key") serves as both
         OntologyNodeMapping(
             node_label="SemgrepSecretsFinding",
