@@ -1,0 +1,6 @@
+# Databricks
+
+```{toctree}
+config
+schema
+```

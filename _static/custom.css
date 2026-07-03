@@ -1,0 +1,49 @@
+/* STEP 1: Make the parent a relative-positioned flex container */
+li.toctree-l1._collapse {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    padding-right: 2.5em; /* Space for button */
+  }
+
+  /* STEP 2: Style the link so it wraps and respects padding */
+  li.toctree-l1._collapse > a.reference.internal {
+    display: block;
+    word-break: break-word;
+    overflow-wrap: break-word;
+    white-space: normal;
+    padding-right: 2.5em; /* Same as button's space */
+  }
+
+  /* STEP 3: LOCK the button to top-right of the <li> */
+  li.toctree-l1._collapse > button {
+    position: absolute;
+    top: 0.5em;
+    right: 0.5em;
+    z-index: 10;
+    pointer-events: auto;
+  }
+
+/* <UGLY hack!>
+When Sphinx renders a TOC entry for the schema docs, it makes it look like:
+
+AWSInstanceProfile
+  Relationships
+
+This crowds the page if there's dozens of items there, and these
+extra headings aren't valuable.
+The below hack uses CSS selectors to remove the 'relationships'
+thing.
+It's too hard to figure out how to get Sphinx to not render it in the
+first place but this works fine.
+*/
+/* Hide auto-ID entries */
+li > ul > li > a[href^="#id"] {
+    display: none !important;
+  }
+
+  /* Also hide deterministic anchor version */
+  li > ul > li > a[href="#relationships"] {
+    display: none !important;
+  }
+/* </UGLY hack!> */
