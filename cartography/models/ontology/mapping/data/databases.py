@@ -311,6 +311,64 @@ scaleway_mapping = OntologyMapping(
                 OntologyFieldMapping(ontology_field="location", node_field="region"),
             ],
         ),
+        OntologyNodeMapping(
+            node_label="ScalewayDataWarehouseDeployment",
+            fields=[
+                OntologyFieldMapping(
+                    ontology_field="name", node_field="name", required=True
+                ),
+                OntologyFieldMapping(
+                    ontology_field="type",
+                    node_field="",
+                    special_handling="static_value",
+                    extra={"value": "clickhouse"},
+                ),
+                OntologyFieldMapping(ontology_field="version", node_field="version"),
+                OntologyFieldMapping(ontology_field="location", node_field="region"),
+                # endpoint/port: not surfaced as scalars on the deployment; only
+                # a public-exposure flag (is_public) is retained.
+                # _ont_db_encrypted: encrypted at rest by default, not exposed.
+            ],
+        ),
+        OntologyNodeMapping(
+            node_label="ScalewayServerlessSQLDatabase",
+            fields=[
+                OntologyFieldMapping(
+                    ontology_field="name", node_field="name", required=True
+                ),
+                OntologyFieldMapping(
+                    ontology_field="type",
+                    node_field="",
+                    special_handling="static_value",
+                    extra={"value": "postgres"},
+                ),
+                OntologyFieldMapping(
+                    ontology_field="version", node_field="engine_major_version"
+                ),
+                OntologyFieldMapping(ontology_field="endpoint", node_field="endpoint"),
+                OntologyFieldMapping(ontology_field="location", node_field="region"),
+                # _ont_db_encrypted: encrypted at rest by default, not exposed.
+            ],
+        ),
+        OntologyNodeMapping(
+            node_label="ScalewaySearchDeployment",
+            fields=[
+                OntologyFieldMapping(
+                    ontology_field="name", node_field="name", required=True
+                ),
+                OntologyFieldMapping(
+                    ontology_field="type",
+                    node_field="",
+                    special_handling="static_value",
+                    extra={"value": "opensearch"},
+                ),
+                OntologyFieldMapping(ontology_field="version", node_field="version"),
+                OntologyFieldMapping(ontology_field="location", node_field="region"),
+                # endpoint/port: not surfaced as scalars; only a public-exposure
+                # flag (is_public) is retained.
+                # _ont_db_encrypted: encrypted at rest by default, not exposed.
+            ],
+        ),
     ],
 )
 

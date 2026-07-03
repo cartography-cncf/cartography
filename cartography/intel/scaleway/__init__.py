@@ -3,16 +3,25 @@ import logging
 import neo4j
 import scaleway
 
+import cartography.intel.scaleway.baremetal.apple_silicon
+import cartography.intel.scaleway.baremetal.dedibox
+import cartography.intel.scaleway.baremetal.elastic_metal
+import cartography.intel.scaleway.baremetal.flexible_ips
 import cartography.intel.scaleway.container_registry.namespaces
+import cartography.intel.scaleway.databases.datawarehouse
 import cartography.intel.scaleway.databases.mongodb
 import cartography.intel.scaleway.databases.rdb
 import cartography.intel.scaleway.databases.redis
+import cartography.intel.scaleway.databases.searchdb
+import cartography.intel.scaleway.databases.serverless_sql
 import cartography.intel.scaleway.dns.dns
+import cartography.intel.scaleway.dns.domains
 import cartography.intel.scaleway.iam.apikeys
 import cartography.intel.scaleway.iam.applications
 import cartography.intel.scaleway.iam.groups
 import cartography.intel.scaleway.iam.permissionsets
 import cartography.intel.scaleway.iam.policies
+import cartography.intel.scaleway.iam.sshkeys
 import cartography.intel.scaleway.iam.users
 import cartography.intel.scaleway.instances.flexibleips
 import cartography.intel.scaleway.instances.instances
@@ -29,6 +38,7 @@ import cartography.intel.scaleway.secrets.secrets
 import cartography.intel.scaleway.serverless.containers
 import cartography.intel.scaleway.serverless.functions
 import cartography.intel.scaleway.serverless.jobs
+import cartography.intel.scaleway.storage.filesystems
 import cartography.intel.scaleway.storage.objectstorage
 import cartography.intel.scaleway.storage.snapshots
 import cartography.intel.scaleway.storage.volumes
@@ -120,6 +130,13 @@ def start_scaleway_ingestion(neo4j_session: neo4j.Session, config: Config) -> No
         org_id=config.scaleway_org,
         update_tag=config.update_tag,
     )
+    cartography.intel.scaleway.iam.sshkeys.sync(
+        neo4j_session,
+        client,
+        common_job_parameters,
+        org_id=config.scaleway_org,
+        update_tag=config.update_tag,
+    )
 
     # Storage
     cartography.intel.scaleway.storage.volumes.sync(
@@ -146,10 +163,16 @@ def start_scaleway_ingestion(neo4j_session: neo4j.Session, config: Config) -> No
         projects_id=projects_id,
         update_tag=config.update_tag,
     )
+    cartography.intel.scaleway.storage.filesystems.sync(
+        neo4j_session,
+        client,
+        common_job_parameters,
+        org_id=config.scaleway_org,
+        projects_id=projects_id,
+        update_tag=config.update_tag,
+    )
 
     # Instances
-    # DISABLED due to https://github.com/scaleway/scaleway-sdk-python/issues/1040
-    """
     cartography.intel.scaleway.instances.flexibleips.sync(
         neo4j_session,
         client,
@@ -158,7 +181,6 @@ def start_scaleway_ingestion(neo4j_session: neo4j.Session, config: Config) -> No
         projects_id=projects_id,
         update_tag=config.update_tag,
     )
-    """
     cartography.intel.scaleway.instances.instances.sync(
         neo4j_session,
         client,
@@ -168,6 +190,42 @@ def start_scaleway_ingestion(neo4j_session: neo4j.Session, config: Config) -> No
         update_tag=config.update_tag,
     )
     cartography.intel.scaleway.instances.securitygroups.sync(
+        neo4j_session,
+        client,
+        common_job_parameters,
+        org_id=config.scaleway_org,
+        projects_id=projects_id,
+        update_tag=config.update_tag,
+    )
+
+    # Bare Metal (Elastic Metal / Apple silicon / Dedibox)
+    cartography.intel.scaleway.baremetal.elastic_metal.sync(
+        neo4j_session,
+        client,
+        common_job_parameters,
+        org_id=config.scaleway_org,
+        projects_id=projects_id,
+        update_tag=config.update_tag,
+    )
+    cartography.intel.scaleway.baremetal.apple_silicon.sync(
+        neo4j_session,
+        client,
+        common_job_parameters,
+        org_id=config.scaleway_org,
+        projects_id=projects_id,
+        update_tag=config.update_tag,
+    )
+    cartography.intel.scaleway.baremetal.dedibox.sync(
+        neo4j_session,
+        client,
+        common_job_parameters,
+        org_id=config.scaleway_org,
+        projects_id=projects_id,
+        update_tag=config.update_tag,
+    )
+    # Elastic Metal Flexible IPs (loaded after Elastic Metal servers so the
+    # IDENTIFIES edge resolves).
+    cartography.intel.scaleway.baremetal.flexible_ips.sync(
         neo4j_session,
         client,
         common_job_parameters,
@@ -230,6 +288,13 @@ def start_scaleway_ingestion(neo4j_session: neo4j.Session, config: Config) -> No
         projects_id=projects_id,
         update_tag=config.update_tag,
     )
+    cartography.intel.scaleway.dns.domains.sync(
+        neo4j_session,
+        client,
+        common_job_parameters,
+        org_id=config.scaleway_org,
+        update_tag=config.update_tag,
+    )
 
     # Key Manager (loaded before Secrets so Secret -> Key ENCRYPTED_BY edges resolve).
     cartography.intel.scaleway.kms.keys.sync(
@@ -290,6 +355,30 @@ def start_scaleway_ingestion(neo4j_session: neo4j.Session, config: Config) -> No
         update_tag=config.update_tag,
     )
     cartography.intel.scaleway.databases.mongodb.sync(
+        neo4j_session,
+        client,
+        common_job_parameters,
+        org_id=config.scaleway_org,
+        projects_id=projects_id,
+        update_tag=config.update_tag,
+    )
+    cartography.intel.scaleway.databases.datawarehouse.sync(
+        neo4j_session,
+        client,
+        common_job_parameters,
+        org_id=config.scaleway_org,
+        projects_id=projects_id,
+        update_tag=config.update_tag,
+    )
+    cartography.intel.scaleway.databases.serverless_sql.sync(
+        neo4j_session,
+        client,
+        common_job_parameters,
+        org_id=config.scaleway_org,
+        projects_id=projects_id,
+        update_tag=config.update_tag,
+    )
+    cartography.intel.scaleway.databases.searchdb.sync(
         neo4j_session,
         client,
         common_job_parameters,

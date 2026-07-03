@@ -6,6 +6,7 @@ import cartography.intel.scaleway.iam.applications
 import cartography.intel.scaleway.iam.groups
 import cartography.intel.scaleway.iam.permissionsets
 import cartography.intel.scaleway.iam.policies
+import cartography.intel.scaleway.iam.sshkeys
 import cartography.intel.scaleway.iam.users
 import tests.data.scaleway.iam
 from tests.integration.cartography.intel.scaleway.test_projects import (
@@ -16,6 +17,7 @@ from tests.integration.util import check_rels
 
 TEST_UPDATE_TAG = 123456789
 TEST_ORG_ID = "0681c477-fbb9-4820-b8d6-0eef10cfcd6d"
+TEST_PROJECT_ID = "0681c477-fbb9-4820-b8d6-0eef10cfcd6d"
 
 
 def _ensure_local_neo4j_has_test_users(neo4j_session):
@@ -673,3 +675,58 @@ def test_load_scaleway_policies(_mock_get_policies, _mock_get_rules, neo4j_sessi
         )
         == expected_rule_project_rels
     )
+
+
+@patch.object(
+    cartography.intel.scaleway.iam.sshkeys,
+    "get",
+    return_value=tests.data.scaleway.iam.SCALEWAY_SSH_KEYS,
+)
+def test_load_scaleway_sshkeys(_mock_get, neo4j_session):
+    # Arrange
+    client = Mock()
+    common_job_parameters = {
+        "UPDATE_TAG": TEST_UPDATE_TAG,
+        "ORG_ID": TEST_ORG_ID,
+    }
+    _ensure_local_neo4j_has_test_projects_and_orgs(neo4j_session)
+
+    # Act
+    cartography.intel.scaleway.iam.sshkeys.sync(
+        neo4j_session,
+        client,
+        common_job_parameters,
+        org_id=TEST_ORG_ID,
+        update_tag=TEST_UPDATE_TAG,
+    )
+
+    # Assert SSH keys exist
+    assert check_nodes(neo4j_session, "ScalewaySSHKey", ["id", "name"]) == {
+        ("1a2b3c4d-5e6f-7890-abcd-ef1234567890", "laptop"),
+    }
+
+    # Assert SSH keys are linked to the organization
+    assert check_rels(
+        neo4j_session,
+        "ScalewaySSHKey",
+        "id",
+        "ScalewayOrganization",
+        "id",
+        "RESOURCE",
+        rel_direction_right=False,
+    ) == {
+        ("1a2b3c4d-5e6f-7890-abcd-ef1234567890", TEST_ORG_ID),
+    }
+
+    # Assert SSH keys are linked to the project
+    assert check_rels(
+        neo4j_session,
+        "ScalewaySSHKey",
+        "id",
+        "ScalewayProject",
+        "id",
+        "RESOURCE",
+        rel_direction_right=False,
+    ) == {
+        ("1a2b3c4d-5e6f-7890-abcd-ef1234567890", TEST_PROJECT_ID),
+    }

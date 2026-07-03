@@ -2,6 +2,7 @@ from datetime import datetime
 
 from dateutil.tz import tzutc
 from scaleway.domain.v2beta1 import DNSZone
+from scaleway.domain.v2beta1 import DomainSummary
 from scaleway.domain.v2beta1 import Record
 
 TEST_ORG_ID = "0681c477-fbb9-4820-b8d6-0eef10cfcd6d"
@@ -53,3 +54,21 @@ SCALEWAY_DNS_RECORDS_BY_ZONE = {
         ),
     ],
 }
+
+SCALEWAY_REGISTERED_DOMAINS = [
+    DomainSummary(
+        domain="example.com",
+        project_id="0681c477-fbb9-4820-b8d6-0eef10cfcd6d",
+        organization_id="0681c477-fbb9-4820-b8d6-0eef10cfcd6d",
+        auto_renew_status="enabled",
+        dnssec_status="enabled",
+        epp_code=["clientTransferProhibited"],
+        registrar="scaleway",
+        is_external=False,
+        status="active",
+        pending_trade=False,
+        expired_at=datetime(2026, 3, 20, 10, 58, 0, 784077, tzinfo=tzutc()),
+        updated_at=datetime(2025, 3, 20, 10, 58, 0, 784077, tzinfo=tzutc()),
+        created_at=datetime(2025, 3, 20, 10, 58, 0, 784077, tzinfo=tzutc()),
+    ),
+]

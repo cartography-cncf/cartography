@@ -375,6 +375,32 @@ Represents a Permission Set in Scaleway. Permission sets are predefined collecti
     ```
 
 
+### ScalewaySSHKey
+
+Represents an SSH key registered in Scaleway IAM.
+
+| Field       | Description                                  |
+|-------------|----------------------------------------------|
+| id          | ID of the SSH key.                           |
+| name        | Name of the SSH key.                         |
+| public_key  | Public key material.                         |
+| fingerprint | Fingerprint of the SSH key.                  |
+| disabled    | Defines whether or not the SSH key is disabled. |
+| created_at  | Date and time of SSH key creation.           |
+| updated_at  | Date and time of last SSH key update.        |
+| lastupdated | Timestamp of the last update                 |
+
+#### Relationships
+- `SSHKey` belongs to an `Organization`.
+    ```
+    (:ScalewayOrganization)-[:RESOURCE]->(:ScalewaySSHKey)
+    ```
+- `SSHKey` belongs to a `Project`.
+    ```
+    (:ScalewayProject)-[:RESOURCE]->(:ScalewaySSHKey)
+    ```
+
+
 ### ScalewayVolume
 
 Volumes are storage space used by your Instances. You can attach several volumes to an Instance.
@@ -588,6 +614,100 @@ A Security Group Rule is a single firewall rule (inbound or outbound) belonging 
 - A `SecurityGroupRule` is a member of a `SecurityGroup`
     ```
     (:ScalewaySecurityGroupRule)-[:MEMBER_OF_SCALEWAY_SECURITY_GROUP]->(:ScalewaySecurityGroup)
+    ```
+
+### ScalewayElasticMetalServer
+
+Represents an Elastic Metal (bare-metal) server in Scaleway.
+
+> **Ontology Mapping**: This node has the extra label `ComputeInstance` to enable cross-platform queries for compute instances across different providers.
+
+| Field       | Description                                  |
+|-------------|----------------------------------------------|
+| id          | ID of the server.                            |
+| name        | Name of the server.                          |
+| description | Description of the server.                   |
+| tags        | Tags attached to the server.                 |
+| status      | Status of the server.                        |
+| offer_id    | Offer ID of the server.                      |
+| offer_name  | Offer name of the server.                    |
+| domain      | Domain of the server.                        |
+| boot_type   | Boot type of the server.                     |
+| ping_status | Status of the server ping.                   |
+| protected   | If enabled, the server can not be deleted.   |
+| ips         | Public IP addresses attached to the server.  |
+| public_ip   | First public IP (scalar, for ontology).      |
+| zone        | Zone in which the server is located.         |
+| created_at  | Date and time of server creation.            |
+| updated_at  | Date and time of last server update.         |
+| lastupdated | Timestamp of the last update                 |
+
+#### Relationships
+- An `ElasticMetalServer` belongs to a `Project`.
+    ```
+    (:ScalewayProject)-[:RESOURCE]->(:ScalewayElasticMetalServer)
+    ```
+
+
+### ScalewayAppleSiliconServer
+
+Represents an Apple silicon (Mac mini) server in Scaleway.
+
+> **Ontology Mapping**: This node has the extra label `ComputeInstance` to enable cross-platform queries for compute instances across different providers.
+
+| Field                | Description                             |
+|----------------------|-----------------------------------------|
+| id                   | ID of the server.                       |
+| name                 | Name of the server.                     |
+| type                 | Commercial type of the server.          |
+| tags                 | Tags attached to the server.            |
+| status               | Status of the server.                   |
+| ip                   | Public IP address of the server.        |
+| vpc_status           | Private network status of the server.   |
+| public_bandwidth_bps | Public bandwidth in bits per second.    |
+| deletion_scheduled   | Whether deletion is scheduled.          |
+| delivered            | Whether the server has been delivered.  |
+| zone                 | Zone in which the server is located.    |
+| created_at           | Date and time of server creation.       |
+| updated_at           | Date and time of last server update.    |
+| deletable_at         | Date and time the server can be deleted.|
+| lastupdated          | Timestamp of the last update            |
+
+#### Relationships
+- An `AppleSiliconServer` belongs to a `Project`.
+    ```
+    (:ScalewayProject)-[:RESOURCE]->(:ScalewayAppleSiliconServer)
+    ```
+
+
+### ScalewayDediboxServer
+
+Represents a Dedibox (dedicated) server in Scaleway.
+
+> **Ontology Mapping**: This node has the extra label `ComputeInstance` to enable cross-platform queries for compute instances across different providers.
+
+| Field           | Description                              |
+|-----------------|------------------------------------------|
+| id              | ID of the server (stringified).          |
+| hostname        | Hostname of the server.                  |
+| datacenter_name | Datacenter hosting the server.           |
+| offer_id        | Offer ID of the server.                  |
+| offer_name      | Offer name of the server.                |
+| status          | Status of the server.                    |
+| ips             | Public IP addresses of the server.       |
+| public_ip       | First public IP (scalar, for ontology).  |
+| is_outsourced   | Whether the server is outsourced.        |
+| is_hds          | Whether the server is HDS certified.     |
+| zone            | Zone in which the server is located.     |
+| created_at      | Date and time of server creation.        |
+| updated_at      | Date and time of last server update.     |
+| expired_at      | Date and time the server expires.        |
+| lastupdated     | Timestamp of the last update             |
+
+#### Relationships
+- A `DediboxServer` belongs to a `Project`.
+    ```
+    (:ScalewayProject)-[:RESOURCE]->(:ScalewayDediboxServer)
     ```
 
 ### ScalewayObjectStorageBucket
@@ -1544,4 +1664,179 @@ Represents a Scaleway Serverless Job definition (a runnable, optionally schedule
 - A `ServerlessJobDefinition` belongs to a `Project`.
     ```
     (:ScalewayProject)-[:RESOURCE]->(:ScalewayServerlessJobDefinition)
+    ```
+
+
+### ScalewayFileSystem
+
+Represents a File Storage file system in Scaleway.
+
+> **Ontology Mapping**: This node has the extra label `FileStorage` to enable cross-platform queries for managed file storage across different providers.
+
+| Field                 | Description                            |
+|-----------------------|----------------------------------------|
+| id                    | ID of the file system.                 |
+| name                  | Name of the file system.               |
+| size                  | Size of the file system in bytes.      |
+| status                | Status of the file system.             |
+| tags                  | Tags attached to the file system.      |
+| number_of_attachments | Number of resources it is attached to. |
+| region                | Region the file system lives in.       |
+| created_at            | Creation timestamp.                    |
+| updated_at            | Last update timestamp.                 |
+| lastupdated           | Timestamp of the last update           |
+
+#### Relationships
+- A `FileSystem` belongs to a `Project`.
+    ```
+    (:ScalewayProject)-[:RESOURCE]->(:ScalewayFileSystem)
+    ```
+
+
+### ScalewayDataWarehouseDeployment
+
+Represents a Data Warehouse (ClickHouse) deployment in Scaleway.
+
+> **Ontology Mapping**: This node has the extra label `Database`.
+
+| Field         | Description                                  |
+|---------------|----------------------------------------------|
+| id            | ID of the deployment.                        |
+| name          | Name of the deployment.                      |
+| status        | Status of the deployment.                    |
+| tags          | Tags attached to the deployment.             |
+| version       | Engine version.                              |
+| replica_count | Number of replicas.                          |
+| shard_count   | Number of shards.                            |
+| cpu_min       | Minimum vCPU.                                |
+| cpu_max       | Maximum vCPU.                                |
+| ram_per_cpu   | RAM per vCPU.                                |
+| is_public     | True if any endpoint is public-facing.       |
+| region        | Region the deployment lives in.              |
+| created_at    | Creation timestamp.                          |
+| updated_at    | Last update timestamp.                       |
+| lastupdated   | Timestamp of the last update                 |
+
+#### Relationships
+- A `DataWarehouseDeployment` belongs to a `Project`.
+    ```
+    (:ScalewayProject)-[:RESOURCE]->(:ScalewayDataWarehouseDeployment)
+    ```
+
+
+### ScalewayServerlessSQLDatabase
+
+Represents a Serverless SQL Database (PostgreSQL) in Scaleway.
+
+> **Ontology Mapping**: This node has the extra label `Database`.
+
+| Field                | Description                            |
+|----------------------|----------------------------------------|
+| id                   | ID of the database.                    |
+| name                 | Name of the database.                  |
+| status               | Status of the database.                |
+| endpoint             | Connection endpoint URL.               |
+| is_public            | True if reachable over a public endpoint. |
+| cpu_min              | Minimum vCPU.                          |
+| cpu_max              | Maximum vCPU.                          |
+| cpu_current          | Current vCPU.                          |
+| started              | Whether the database is started.       |
+| engine_major_version | Major engine version.                  |
+| region               | Region the database lives in.          |
+| created_at           | Creation timestamp.                    |
+| lastupdated          | Timestamp of the last update           |
+
+#### Relationships
+- A `ServerlessSQLDatabase` belongs to a `Project`.
+    ```
+    (:ScalewayProject)-[:RESOURCE]->(:ScalewayServerlessSQLDatabase)
+    ```
+
+
+### ScalewaySearchDeployment
+
+Represents a managed OpenSearch deployment (SearchDB) in Scaleway.
+
+> **Ontology Mapping**: This node has the extra label `Database`.
+
+| Field       | Description                                  |
+|-------------|----------------------------------------------|
+| id          | ID of the deployment.                        |
+| name        | Name of the deployment.                      |
+| status      | Status of the deployment.                    |
+| tags        | Tags attached to the deployment.             |
+| node_amount | Number of nodes.                             |
+| node_type   | Node type.                                   |
+| version     | Engine version.                              |
+| is_public   | True if any endpoint is public-facing.       |
+| region      | Region the deployment lives in.              |
+| created_at  | Creation timestamp.                          |
+| updated_at  | Last update timestamp.                       |
+| lastupdated | Timestamp of the last update                 |
+
+#### Relationships
+- A `SearchDeployment` belongs to a `Project`.
+    ```
+    (:ScalewayProject)-[:RESOURCE]->(:ScalewaySearchDeployment)
+    ```
+
+
+### ScalewayElasticMetalFlexibleIp
+
+Represents a flexible (portable) public IP for Elastic Metal servers in Scaleway.
+
+| Field       | Description                                  |
+|-------------|----------------------------------------------|
+| id          | ID of the flexible IP.                       |
+| description | Description of the flexible IP.              |
+| tags        | Tags attached to the flexible IP.            |
+| status      | Status of the flexible IP.                   |
+| ip_address  | The IP address.                              |
+| reverse     | Reverse DNS value.                           |
+| server_id   | ID of the server the IP is attached to.      |
+| zone        | Availability zone.                           |
+| created_at  | Creation timestamp.                          |
+| updated_at  | Last update timestamp.                       |
+| lastupdated | Timestamp of the last update                 |
+
+#### Relationships
+- An `ElasticMetalFlexibleIp` belongs to a `Project`.
+    ```
+    (:ScalewayProject)-[:RESOURCE]->(:ScalewayElasticMetalFlexibleIp)
+    ```
+- An `ElasticMetalFlexibleIp` identifies an `ElasticMetalServer`.
+    ```
+    (:ScalewayElasticMetalFlexibleIp)-[:IDENTIFIES]->(:ScalewayElasticMetalServer)
+    ```
+
+
+### ScalewayRegisteredDomain
+
+Represents a domain registered with the Scaleway registrar.
+
+| Field                               | Description                     |
+|-------------------------------------|---------------------------------|
+| id                                  | Domain name (unique id).        |
+| name                                | Domain name.                    |
+| status                              | Status of the domain.           |
+| registrar                           | Registrar of the domain.        |
+| is_external                         | Whether the domain is external. |
+| epp_code                            | EPP status codes.               |
+| auto_renew_status                   | Auto-renewal status.            |
+| dnssec_status                       | DNSSEC status.                  |
+| external_domain_registration_status | External registration status.  |
+| transfer_registration_status        | Transfer registration status.   |
+| expired_at                          | Expiration timestamp.           |
+| created_at                          | Creation timestamp.             |
+| updated_at                          | Last update timestamp.          |
+| lastupdated                         | Timestamp of the last update    |
+
+#### Relationships
+- A `RegisteredDomain` belongs to an `Organization`.
+    ```
+    (:ScalewayOrganization)-[:RESOURCE]->(:ScalewayRegisteredDomain)
+    ```
+- A `RegisteredDomain` belongs to a `Project`.
+    ```
+    (:ScalewayProject)-[:RESOURCE]->(:ScalewayRegisteredDomain)
     ```
