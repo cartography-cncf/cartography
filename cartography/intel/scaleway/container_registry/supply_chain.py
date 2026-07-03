@@ -33,7 +33,7 @@ from cartography.intel.supply_chain import extract_layers_from_oci_config
 from cartography.intel.supply_chain import extract_provenance_from_oci_config
 from cartography.intel.supply_chain import normalize_vcs_url
 from cartography.models.scaleway.container_registry.image import (
-    ScalewayContainerRegistryImageSchema,
+    ScalewayContainerRegistryImageEnrichmentSchema,
 )
 from cartography.models.scaleway.container_registry.image_layer import (
     ScalewayContainerRegistryImageLayerSchema,
@@ -374,7 +374,7 @@ def load_supply_chain(
     for project_id, images in images_by_project.items():
         load(
             neo4j_session,
-            ScalewayContainerRegistryImageSchema(),
+            ScalewayContainerRegistryImageEnrichmentSchema(),
             images,
             lastupdated=update_tag,
             PROJECT_ID=project_id,

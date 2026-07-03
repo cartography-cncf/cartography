@@ -14,15 +14,32 @@ from cartography.models.core.relationships import TargetNodeMatcher
 
 @dataclass(frozen=True)
 class ScalewayContainerRegistryImageProperties(CartographyNodeProperties):
-    # The digest-addressed image content. Scaleway's registry keys content by
-    # digest (carried on tags); the "named image" from list_images is only a
-    # repository grouping and is not modeled as its own node. Many tags (and
-    # repositories) can reference the same digest, so this node is deduplicated
-    # by digest.
+    # Base inventory properties, loaded from the registry listing. The
+    # digest-addressed image content: Scaleway keys content by digest (carried
+    # on tags); the "named image" from list_images is only a repository grouping
+    # and is not modeled as its own node. Deduplicated by digest.
+    #
+    # Layer/provenance fields are intentionally NOT here: `load()` rewrites every
+    # property of its schema, so a base `{digest}` load would null the fields the
+    # supply_chain enrichment owns. Those live on the enrichment schema below.
+    id: PropertyRef = PropertyRef("digest")
+    digest: PropertyRef = PropertyRef("digest", extra_index=True)
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+class ScalewayContainerRegistryImageEnrichmentProperties(CartographyNodeProperties):
+    """Full property set written by the OCI supply-chain enrichment.
+
+    Includes the base fields (so identity/lastupdated stay set) plus the
+    layer/provenance fields; used only by ``supply_chain`` so the registry
+    inventory load never clears these.
+    """
+
     id: PropertyRef = PropertyRef("digest")
     digest: PropertyRef = PropertyRef("digest", extra_index=True)
     # Ordered uncompressed layer digests, from the OCI image config; feeds the
-    # supply-chain dockerfile matcher. Populated by the supply_chain enrichment.
+    # supply-chain dockerfile matcher.
     layer_diff_ids: PropertyRef = PropertyRef("layer_diff_ids")
     # Source provenance (code-to-cloud): the VCS repo the image was built from,
     # from OCI labels/annotations or the SLSA attestation. `source_uri` is the
@@ -73,12 +90,33 @@ class ScalewayContainerRegistryImageToLayerRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class ScalewayContainerRegistryImageSchema(CartographyNodeSchema):
+    """Base image node from the registry inventory (namespaces sync).
+
+    Does not carry layer/provenance fields or HAS_LAYER so it never overwrites
+    what the supply_chain enrichment sets.
+    """
+
     label: str = "ScalewayContainerRegistryImage"
     # Ontology `Image`: the digest-addressed content, the join target for
     # (:Container|:Function)-[:HAS_IMAGE]->(:Image) and RESOLVED_IMAGE.
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["Image"])
     properties: ScalewayContainerRegistryImageProperties = (
         ScalewayContainerRegistryImageProperties()
+    )
+    sub_resource_relationship: ScalewayContainerRegistryImageToProjectRel = (
+        ScalewayContainerRegistryImageToProjectRel()
+    )
+
+
+@dataclass(frozen=True)
+class ScalewayContainerRegistryImageEnrichmentSchema(CartographyNodeSchema):
+    """Enrichment view written by the OCI supply-chain step: adds layer/provenance
+    fields and the HAS_LAYER relationship without disturbing base inventory."""
+
+    label: str = "ScalewayContainerRegistryImage"
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["Image"])
+    properties: ScalewayContainerRegistryImageEnrichmentProperties = (
+        ScalewayContainerRegistryImageEnrichmentProperties()
     )
     sub_resource_relationship: ScalewayContainerRegistryImageToProjectRel = (
         ScalewayContainerRegistryImageToProjectRel()

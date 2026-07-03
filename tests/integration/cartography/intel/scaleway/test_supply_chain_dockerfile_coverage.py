@@ -7,7 +7,7 @@ per repository (namespace + image name)."""
 from cartography.client.core.tx import load
 from cartography.intel.supply_chain import get_unmatched_scaleway_images_with_history
 from cartography.models.scaleway.container_registry.image import (
-    ScalewayContainerRegistryImageSchema,
+    ScalewayContainerRegistryImageEnrichmentSchema,
 )
 from cartography.models.scaleway.container_registry.image_tag import (
     ScalewayContainerRegistryImageTagSchema,
@@ -40,7 +40,7 @@ def test_get_unmatched_scaleway_images_covers_all_repositories(neo4j_session):
     # api + worker in ns-a, and api in ns-b (same name, different namespace).
     load(
         neo4j_session,
-        ScalewayContainerRegistryImageSchema(),
+        ScalewayContainerRegistryImageEnrichmentSchema(),
         [
             {"digest": DIGEST_API_A, "layer_diff_ids": [_diff("aa")]},
             {"digest": DIGEST_WORKER_A, "layer_diff_ids": [_diff("bb")]},

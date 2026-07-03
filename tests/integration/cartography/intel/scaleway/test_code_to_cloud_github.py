@@ -7,7 +7,7 @@ from unittest.mock import patch
 import cartography.intel.github.supply_chain as github_supply_chain
 from cartography.client.core.tx import load
 from cartography.models.scaleway.container_registry.image import (
-    ScalewayContainerRegistryImageSchema,
+    ScalewayContainerRegistryImageEnrichmentSchema,
 )
 from tests.integration.cartography.intel.scaleway.test_projects import (
     _ensure_local_neo4j_has_test_projects_and_orgs,
@@ -28,7 +28,7 @@ def test_scaleway_image_packaged_from_github_repo(_mock_dockerfiles, neo4j_sessi
     _ensure_local_neo4j_has_test_projects_and_orgs(neo4j_session)
     load(
         neo4j_session,
-        ScalewayContainerRegistryImageSchema(),
+        ScalewayContainerRegistryImageEnrichmentSchema(),
         [{"digest": TEST_DIGEST, "source_uri": REPO_URL}],
         lastupdated=TEST_UPDATE_TAG,
         PROJECT_ID=TEST_PROJECT_ID,

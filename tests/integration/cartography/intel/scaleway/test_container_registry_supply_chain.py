@@ -172,3 +172,37 @@ def test_scaleway_registry_image_provenance_from_attestation(_mock_get, neo4j_se
     ).single()
     assert result["src"] == "https://github.com/acme/from-slsa"
     assert result["rev"] == "abc123"
+
+
+def test_registry_inventory_reload_preserves_enrichment(neo4j_session):
+    """A base `{digest}` inventory reload must not clear the layer/provenance
+    fields owned by the supply-chain enrichment (regression: kunaals review)."""
+    from cartography.models.scaleway.container_registry.image import (
+        ScalewayContainerRegistryImageEnrichmentSchema,
+    )
+
+    _ensure_local_neo4j_has_test_projects_and_orgs(neo4j_session)
+    # Enrich the image (as supply_chain does).
+    load(
+        neo4j_session,
+        ScalewayContainerRegistryImageEnrichmentSchema(),
+        [
+            {
+                "digest": TEST_DIGEST,
+                "layer_diff_ids": [DIFF_ID_1],
+                "source_uri": "https://github.com/acme/app",
+            }
+        ],
+        lastupdated=TEST_UPDATE_TAG,
+        PROJECT_ID=TEST_PROJECT_ID,
+    )
+    # Re-run the base registry inventory load (digest only).
+    _ensure_registry_image(neo4j_session)
+
+    result = neo4j_session.run(
+        "MATCH (i:ScalewayContainerRegistryImage {digest: $d}) "
+        "RETURN i.layer_diff_ids AS l, i.source_uri AS src",
+        d=TEST_DIGEST,
+    ).single()
+    assert result["l"] == [DIFF_ID_1]
+    assert result["src"] == "https://github.com/acme/app"
