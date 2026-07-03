@@ -252,6 +252,14 @@ class Config:
     :param databricks_client_id: Databricks OAuth M2M client ID. Optional.
     :type databricks_client_secret: str
     :param databricks_client_secret: Databricks OAuth M2M client secret. Optional.
+    :type databricks_account_id: str
+    :param databricks_account_id: Databricks account ID (AWS / GCP account console). Optional.
+    :type databricks_account_host: str
+    :param databricks_account_host: Databricks account API host, e.g. https://accounts.cloud.databricks.com. Optional.
+    :type databricks_account_client_id: str
+    :param databricks_account_client_id: Databricks account-level OAuth M2M client ID. Optional.
+    :type databricks_account_client_secret: str
+    :param databricks_account_client_secret: Databricks account-level OAuth M2M client secret. Optional.
     :type docker_scout_results_dir: str
     :param docker_scout_results_dir: Local directory containing Docker Scout recommendation text reports. Optional.
     :type docker_scout_source: str
@@ -461,6 +469,10 @@ class Config:
         databricks_token=None,
         databricks_client_id=None,
         databricks_client_secret=None,
+        databricks_account_id=None,
+        databricks_account_host=None,
+        databricks_account_client_id=None,
+        databricks_account_client_secret=None,
         docker_scout_source=None,
         docker_scout_results_dir=None,
         docker_scout_s3_bucket=None,
@@ -639,6 +651,10 @@ class Config:
         self.databricks_token = databricks_token
         self.databricks_client_id = databricks_client_id
         self.databricks_client_secret = databricks_client_secret
+        self.databricks_account_id = databricks_account_id
+        self.databricks_account_host = databricks_account_host
+        self.databricks_account_client_id = databricks_account_client_id
+        self.databricks_account_client_secret = databricks_account_client_secret
         # DEPRECATED: `*_results_dir` and `*_s3_*` compat shims; removed in Cartography v1.0.0.
         self.docker_scout_source = _resolve_report_source_config(
             module="docker_scout",

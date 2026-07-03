@@ -388,6 +388,18 @@ GROUPS_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
                     # email: Not available
                 ],
             ),
+            OntologyNodeMapping(
+                node_label="DatabricksAccountGroup",
+                fields=[
+                    OntologyFieldMapping(
+                        ontology_field="name",
+                        node_field="display_name",
+                        required=True,
+                    ),
+                    # description: Not available
+                    # email: Not available
+                ],
+            ),
         ],
     ),
 }

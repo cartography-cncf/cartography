@@ -483,6 +483,15 @@ TENANTS_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
                     OntologyFieldMapping(ontology_field="domain", node_field="host"),
                 ],
             ),
+            OntologyNodeMapping(
+                node_label="DatabricksAccount",
+                fields=[
+                    OntologyFieldMapping(
+                        ontology_field="name", node_field="account_id", required=True
+                    ),
+                    OntologyFieldMapping(ontology_field="domain", node_field="host"),
+                ],
+            ),
         ],
     ),
 }

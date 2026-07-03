@@ -1474,6 +1474,42 @@ class CLI:
                     hidden=PANEL_DATABRICKS not in visible_panels,
                 ),
             ] = None,
+            databricks_account_id: Annotated[
+                str | None,
+                typer.Option(
+                    "--databricks-account-id",
+                    help="Databricks account ID (AWS / GCP account console). Enables the account-level API surface.",
+                    rich_help_panel=PANEL_DATABRICKS,
+                    hidden=PANEL_DATABRICKS not in visible_panels,
+                ),
+            ] = None,
+            databricks_account_host: Annotated[
+                str,
+                typer.Option(
+                    "--databricks-account-host",
+                    help="Databricks account API host.",
+                    rich_help_panel=PANEL_DATABRICKS,
+                    hidden=PANEL_DATABRICKS not in visible_panels,
+                ),
+            ] = "https://accounts.cloud.databricks.com",
+            databricks_account_client_id: Annotated[
+                str | None,
+                typer.Option(
+                    "--databricks-account-client-id",
+                    help="Databricks account-level OAuth M2M client ID (account service principal).",
+                    rich_help_panel=PANEL_DATABRICKS,
+                    hidden=PANEL_DATABRICKS not in visible_panels,
+                ),
+            ] = None,
+            databricks_account_client_secret_env_var: Annotated[
+                str | None,
+                typer.Option(
+                    "--databricks-account-client-secret-env-var",
+                    help="Environment variable name containing the Databricks account-level OAuth M2M client secret.",
+                    rich_help_panel=PANEL_DATABRICKS,
+                    hidden=PANEL_DATABRICKS not in visible_panels,
+                ),
+            ] = None,
             # =================================================================
             # Docker Scout Options
             # =================================================================
@@ -2491,6 +2527,19 @@ class CLI:
                 databricks_client_secret = os.environ.get(
                     databricks_client_secret_env_var,
                 )
+            databricks_account_client_secret = None
+            if databricks_account_client_secret_env_var:
+                # Read the secret whenever the env-var flag is set, even if
+                # --databricks-account-client-id is missing, so the module
+                # entry's partial-OAuth guard sees the asymmetric configuration
+                # and fails loudly instead of silently skipping the account API.
+                logger.debug(
+                    "Reading Databricks account OAuth M2M secret from environment variable %s",
+                    databricks_account_client_secret_env_var,
+                )
+                databricks_account_client_secret = os.environ.get(
+                    databricks_account_client_secret_env_var,
+                )
 
             resolved_docker_scout_source = _resolve_report_source_option(
                 module="docker_scout",
@@ -2764,6 +2813,10 @@ class CLI:
                 databricks_token=databricks_token,
                 databricks_client_id=databricks_client_id,
                 databricks_client_secret=databricks_client_secret,
+                databricks_account_id=databricks_account_id,
+                databricks_account_host=databricks_account_host,
+                databricks_account_client_id=databricks_account_client_id,
+                databricks_account_client_secret=databricks_account_client_secret,
                 # Forward the user-provided values (not resolved). Config calls
                 # resolve_report_source_with_legacy_fields() internally; the CLI's
                 # _resolve_report_source_option above runs the same logic for early
