@@ -166,7 +166,11 @@ def transform_dependencies(raw_deps: List[Dict[str, Any]]) -> List[Dict[str, Any
         version = raw_dep["package"]["versionSpecifier"]
         id = f"{name}|{version}"
 
-        # Cross-tool dedup key for the Package ontology node (matches Trivy/Syft).
+        # Cross-tool dedup key for the Package ontology node.
+        # ponytail: gomod dedup is best-effort. Go versions vary by source (bare
+        # "1.2.3" here vs purl-derived "v1.2.3") and names appear as full module
+        # path or short name, so some Go packages won't merge with Trivy/Syft.
+        # Normalize the leading "v" and the name form on all sources if it matters.
         pkg_type = ECOSYSTEM_TO_PACKAGE_TYPE.get(raw_dep["ecosystem"])
         normalized_id = make_normalized_package_id(
             name=name,
