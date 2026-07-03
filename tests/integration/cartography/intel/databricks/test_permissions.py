@@ -91,12 +91,12 @@ def _seed_objects(neo4j_session):
 @patch.object(
     cartography.intel.databricks.permissions,
     "get_secret_scope_acls",
-    return_value=_SECRET_SCOPE_ACLS,
+    return_value=(_SECRET_SCOPE_ACLS, True),
 )
 @patch.object(
     cartography.intel.databricks.permissions,
     "get",
-    return_value=_OBJECT_PERMISSIONS,
+    return_value=(_OBJECT_PERMISSIONS, True),
 )
 def test_load_databricks_permissions(mock_get, mock_scope_acls, neo4j_session):
     api_session = Mock()

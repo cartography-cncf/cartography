@@ -43,14 +43,26 @@ def sync(
 ) -> None:
     objects = get_objects(neo4j_session, workspace_id)
     scopes = get_secret_scopes(neo4j_session, workspace_id)
-    permissions = get(api_session, objects)
-    permissions += get_secret_scope_acls(api_session, scopes)
+    object_permissions, objects_complete = get(api_session, objects)
+    scope_permissions, scopes_complete = get_secret_scope_acls(api_session, scopes)
+    permissions = object_permissions + scope_permissions
     principals = get_principals(neo4j_session, workspace_id)
     permissions = resolve_principals(permissions, principals)
     load_permissions(
         neo4j_session, permissions, workspace_id, common_job_parameters["UPDATE_TAG"]
     )
-    cleanup(neo4j_session, workspace_id, common_job_parameters["UPDATE_TAG"])
+    # Only clean up when every object's ACL was read this run. A 403/404 on one
+    # object means its edges were not refreshed, so a whole-workspace MatchLink
+    # cleanup would delete still-valid HAS_PERMISSION edges for it; skip cleanup
+    # and let a fully successful run reconcile the stale edges instead.
+    if objects_complete and scopes_complete:
+        cleanup(neo4j_session, workspace_id, common_job_parameters["UPDATE_TAG"])
+    else:
+        logger.warning(
+            "Databricks permissions were partially read for workspace %s; "
+            "skipping HAS_PERMISSION cleanup to avoid deleting valid edges.",
+            workspace_id,
+        )
 
 
 @timeit
@@ -173,14 +185,18 @@ def get_secret_scopes(
 @timeit
 def get(
     api_session: DatabricksWorkspaceClient, objects: list[dict[str, Any]]
-) -> list[dict[str, Any]]:
+) -> tuple[list[dict[str, Any]], bool]:
     """Fetch the ACL of each workspace object via the permissions endpoint.
 
-    Returns one row per (principal, object): the principal string as the API
-    reports it (user_name / group_name / service_principal_name) plus the object
-    node id, so a downstream MatchLink resolves it to the right principal node.
+    Returns ``(permissions, complete)`` where each permission is one row per
+    (principal, object): the principal string as the API reports it (user_name /
+    group_name / service_principal_name) plus the object node id, so a downstream
+    MatchLink resolves it to the right principal node. ``complete`` is False when
+    any object's ACL was skipped (403/404), so the caller can skip cleanup rather
+    than delete the unrefreshed edges.
     """
     permissions: list[dict[str, Any]] = []
+    complete = True
     for obj in objects:
         uri = f"/api/2.0/permissions/{obj['object_type']}/{obj['object_ref']}"
         try:
@@ -190,6 +206,7 @@ def get(
             # mid-sync (404) is skippable; any other error must abort so the
             # permission cleanup does not drop still-valid HAS_PERMISSION edges.
             skip_or_raise_http(e, 403, 404)
+            complete = False
             logger.warning(
                 "Skipping permissions for %s %s: %s",
                 obj["object_type"],
@@ -226,20 +243,23 @@ def get(
                     "object_type": obj["object_type"],
                 }
             )
-    return permissions
+    return permissions, complete
 
 
 @timeit
 def get_secret_scope_acls(
     api_session: DatabricksWorkspaceClient, scopes: list[dict[str, Any]]
-) -> list[dict[str, Any]]:
+) -> tuple[list[dict[str, Any]], bool]:
     """Fetch each secret scope's ACL via the secrets endpoint.
 
     Secret scopes use ``/api/2.0/secrets/acls/list`` (keyed by scope name), whose
     items carry ``principal`` + a single ``permission`` (READ | WRITE | MANAGE)
     rather than the ``access_control_list`` shape the permissions endpoint uses.
+    Returns ``(permissions, complete)``; ``complete`` is False when any scope's
+    ACL was skipped (403/404) so the caller can skip cleanup.
     """
     permissions: list[dict[str, Any]] = []
+    complete = True
     for scope in scopes:
         try:
             response = api_session.get(
@@ -247,6 +267,7 @@ def get_secret_scope_acls(
             )
         except requests.HTTPError as e:
             skip_or_raise_http(e, 403, 404)
+            complete = False
             logger.warning("Skipping secret scope ACL for %s: %s", scope["name"], e)
             continue
         for item in response.get("items", []) or []:
@@ -262,7 +283,7 @@ def get_secret_scope_acls(
                     "object_type": "secret-scope",
                 }
             )
-    return permissions
+    return permissions, complete
 
 
 @timeit

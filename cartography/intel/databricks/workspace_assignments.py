@@ -37,26 +37,40 @@ def sync(
     workspace_node_ids: dict[str, str],
     common_job_parameters: dict[str, Any],
 ) -> None:
-    assignments = get(api_session, workspace_node_ids)
+    assignments, complete = get(api_session, workspace_node_ids)
     transformed = transform(assignments, account_id)
     load_assignments(
         neo4j_session, transformed, account_id, common_job_parameters["UPDATE_TAG"]
     )
-    cleanup(neo4j_session, account_id, common_job_parameters["UPDATE_TAG"])
+    # Only clean up when every workspace's assignments were read this run. A
+    # 403/404 on one workspace means its assignments were not refreshed, so a
+    # whole-account MatchLink cleanup would delete still-valid ASSIGNED_TO edges
+    # for it; skip cleanup and let a fully successful run reconcile stale edges.
+    if complete:
+        cleanup(neo4j_session, account_id, common_job_parameters["UPDATE_TAG"])
+    else:
+        logger.warning(
+            "Databricks workspace assignments were partially read for account "
+            "%s; skipping ASSIGNED_TO cleanup to avoid deleting valid edges.",
+            account_id,
+        )
 
 
 @timeit
 def get(
     api_session: DatabricksAccountClient, workspace_node_ids: dict[str, str]
-) -> list[dict[str, Any]]:
+) -> tuple[list[dict[str, Any]], bool]:
     """Fetch permission assignments for each account workspace.
 
-    Returns one row per (principal, workspace) carrying the SCIM ``principal_id``
-    (resolved to a node in transform), the target workspace node id, and the
-    granted ``permissions`` list, so a downstream MatchLink attaches it to the
-    right principal.
+    Returns ``(assignments, complete)`` where each assignment is one row per
+    (principal, workspace) carrying the SCIM ``principal_id`` (resolved to a node
+    in transform), the target workspace node id, and the granted ``permissions``
+    list, so a downstream MatchLink attaches it to the right principal.
+    ``complete`` is False when any workspace's assignments were skipped (403/404)
+    so the caller can skip cleanup.
     """
     assignments: list[dict[str, Any]] = []
+    complete = True
     for numeric_id, workspace_node_id in workspace_node_ids.items():
         uri = api_session.account_uri(f"/workspaces/{numeric_id}/permissionassignments")
         try:
@@ -66,6 +80,7 @@ def get(
             # vanished mid-sync (404) is skippable; any other error must abort so
             # the assignment cleanup does not drop still-valid ASSIGNED_TO edges.
             skip_or_raise_http(e, 403, 404)
+            complete = False
             logger.warning(
                 "Skipping permission assignments for workspace %s: %s", numeric_id, e
             )
@@ -83,7 +98,7 @@ def get(
                     "permissions": permissions,
                 }
             )
-    return assignments
+    return assignments, complete
 
 
 @timeit
