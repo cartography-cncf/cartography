@@ -14,8 +14,10 @@ from cartography.models.databricks.credential_config import (
 from cartography.util import timeit
 
 # IAM role ARNs embed the owning 12-digit AWS account id as the 5th
-# colon-separated field: arn:aws:iam::123456789012:role/name.
-_AWS_ACCOUNT_ID_RE = re.compile(r"^arn:aws:iam::(\d{12}):")
+# colon-separated field: arn:<partition>:iam::123456789012:role/name. The
+# partition segment is left permissive (aws, aws-us-gov, aws-cn) so GovCloud /
+# China role ARNs still link to their AWSAccount.
+_AWS_ACCOUNT_ID_RE = re.compile(r"^arn:[^:]+:iam::(\d{12}):")
 
 
 def _aws_account_id_from_arn(arn: str | None) -> str | None:

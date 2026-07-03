@@ -1,3 +1,4 @@
+import logging
 from typing import Any
 
 import neo4j
@@ -10,6 +11,8 @@ from cartography.models.databricks.account_service_principal import (
     DatabricksAccountServicePrincipalSchema,
 )
 from cartography.util import timeit
+
+logger = logging.getLogger(__name__)
 
 
 @timeit
@@ -36,7 +39,15 @@ def get(api_session: DatabricksAccountClient) -> list[dict[str, Any]]:
 def transform(sps: list[dict[str, Any]], account_id: str) -> list[dict[str, Any]]:
     result: list[dict[str, Any]] = []
     for sp in sps:
-        scim_id = sp["id"]
+        scim_id = sp.get("id")
+        # A blank SCIM id would collapse to the account-scoped key
+        # "{account_id}/" and merge distinct malformed records onto one node;
+        # skip rather than corrupt graph identity.
+        if not scim_id:
+            logger.warning(
+                "Skipping Databricks account service principal with empty SCIM id."
+            )
+            continue
         result.append(
             {
                 "id": account_scoped_id(account_id, scim_id),

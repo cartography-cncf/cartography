@@ -69,60 +69,13 @@ databricks_pat_never_expires = Rule(
 )
 
 
-# ---------------------------------------------------------------------------
-# Workspaces that allow tokens with an unbounded lifetime
-# ---------------------------------------------------------------------------
-_workspace_unbounded_token_lifetime = Fact(
-    id="databricks_workspace_unbounded_token_lifetime",
-    name="Databricks Workspaces Without a Token Lifetime Cap",
-    description=(
-        "Databricks workspaces with personal access tokens enabled but no "
-        "maximum token lifetime configured, so users can mint tokens that "
-        "never expire."
-    ),
-    cypher_query="""
-    MATCH (w:DatabricksWorkspace)
-    WHERE w.tokens_enabled = true
-      AND w.max_token_lifetime_days IS NULL
-    RETURN
-        w.id AS id,
-        coalesce(w.workspace_name, w.host) AS name,
-        w.host AS host
-    """,
-    cypher_visual_query="""
-    MATCH (w:DatabricksWorkspace)
-    WHERE w.tokens_enabled = true
-      AND w.max_token_lifetime_days IS NULL
-    RETURN w
-    """,
-    cypher_count_query="""
-    MATCH (w:DatabricksWorkspace)
-    RETURN COUNT(w) AS count
-    """,
-    identity_fields=("id",),
-    module=Module.DATABRICKS,
-    maturity=Maturity.EXPERIMENTAL,
-)
-
-
-class DatabricksWorkspaceTokenLifetimeOutput(Finding):
-    name: str | None = None
-    id: str | None = None
-    host: str | None = None
-
-
-databricks_workspace_unbounded_token_lifetime = Rule(
-    id="databricks_workspace_unbounded_token_lifetime",
-    name="Databricks Workspaces Without a Token Lifetime Cap",
-    description=(
-        "Detects Databricks workspaces that permit personal access tokens "
-        "without enforcing a maximum lifetime."
-    ),
-    output_model=DatabricksWorkspaceTokenLifetimeOutput,
-    facts=(_workspace_unbounded_token_lifetime,),
-    tags=("identity", "credentials"),
-    version="0.1.0",
-)
+# Note: a "workspace without a token lifetime cap" rule was considered but
+# dropped. Ingestion normalises Databricks maxTokenLifetimeDays "0"
+# (system-default cap) and an unset value both to null, and the account default
+# (730 days) is always a cap, so a null value cannot distinguish "truly
+# unbounded" from "default cap" and the rule would misfire on every workspace
+# that never set an explicit override. The never-expiring PAT rule above carries
+# the real signal.
 
 
 # ---------------------------------------------------------------------------

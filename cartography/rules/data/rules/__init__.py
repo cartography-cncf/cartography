@@ -234,9 +234,6 @@ from cartography.rules.data.rules.databricks_security import (
 from cartography.rules.data.rules.databricks_security import (
     databricks_public_delta_sharing_recipient,
 )
-from cartography.rules.data.rules.databricks_security import (
-    databricks_workspace_unbounded_token_lifetime,
-)
 from cartography.rules.data.rules.delegation_boundary_modifiable import (
     delegation_boundary_modifiable,
 )
@@ -309,7 +306,6 @@ from cartography.rules.data.rules.workload_identity_admin_capabilities import (
 RULES = {
     # Databricks Rules
     databricks_pat_never_expires.id: databricks_pat_never_expires,
-    databricks_workspace_unbounded_token_lifetime.id: databricks_workspace_unbounded_token_lifetime,
     databricks_ip_access_list_allows_all.id: databricks_ip_access_list_allows_all,
     databricks_public_delta_sharing_recipient.id: databricks_public_delta_sharing_recipient,
     # CIS AWS IAM Rules (Section 2)

@@ -1,3 +1,4 @@
+import logging
 from typing import Any
 
 import neo4j
@@ -8,6 +9,8 @@ from cartography.intel.databricks._account_scope import account_scoped_id
 from cartography.intel.databricks.util import DatabricksAccountClient
 from cartography.models.databricks.account_user import DatabricksAccountUserSchema
 from cartography.util import timeit
+
+logger = logging.getLogger(__name__)
 
 
 def _primary_email(emails: list[dict[str, Any]] | None) -> str | None:
@@ -43,7 +46,13 @@ def get(api_session: DatabricksAccountClient) -> list[dict[str, Any]]:
 def transform(users: list[dict[str, Any]], account_id: str) -> list[dict[str, Any]]:
     result: list[dict[str, Any]] = []
     for u in users:
-        scim_id = u["id"]
+        scim_id = u.get("id")
+        # A blank SCIM id would collapse to the account-scoped key
+        # "{account_id}/" and merge distinct malformed records onto one node;
+        # skip rather than corrupt graph identity.
+        if not scim_id:
+            logger.warning("Skipping Databricks account user with empty SCIM id.")
+            continue
         result.append(
             {
                 "id": account_scoped_id(account_id, scim_id),

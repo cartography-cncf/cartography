@@ -71,8 +71,11 @@ class DatabricksEncryptionKeyToGCPCryptoKeyRelProperties(CartographyRelPropertie
 # (:DatabricksEncryptionKey)-[:REFERENCES_KEY]->(:GCPCryptoKey)
 class DatabricksEncryptionKeyToGCPCryptoKeyRel(CartographyRelSchema):
     target_node_label: str = "GCPCryptoKey"
+    # GCPCryptoKey.id is the full KMS resource name (projects/.../cryptoKeys/...),
+    # which is what Databricks reports in gcp_key_info.kms_key_id; the node's
+    # `name` is only the short trailing segment, so match on id.
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {"name": PropertyRef("gcp_kms_key_name")},
+        {"id": PropertyRef("gcp_kms_key_name")},
     )
     direction: LinkDirection = LinkDirection.OUTWARD
     rel_label: str = "REFERENCES_KEY"

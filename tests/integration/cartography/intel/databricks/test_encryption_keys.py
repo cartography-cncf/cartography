@@ -22,7 +22,9 @@ def _seed_cloud_keys(neo4j_session):
         tag=TEST_UPDATE_TAG,
     )
     neo4j_session.run(
-        "MERGE (k:GCPCryptoKey {name: $name}) SET k.lastupdated = $tag",
+        # GCPCryptoKey.id is the full KMS resource name, matching the value
+        # Databricks reports in gcp_key_info.kms_key_id.
+        "MERGE (k:GCPCryptoKey {id: $name}) SET k.lastupdated = $tag",
         name=DATABRICKS_ENCRYPTION_KEY_GCP_NAME,
         tag=TEST_UPDATE_TAG,
     )
@@ -89,7 +91,7 @@ def test_load_databricks_encryption_keys(mock_get, neo4j_session):
         "DatabricksEncryptionKey",
         "customer_managed_key_id",
         "GCPCryptoKey",
-        "name",
+        "id",
         "REFERENCES_KEY",
         rel_direction_right=True,
     ) == {("cmk-def-456", DATABRICKS_ENCRYPTION_KEY_GCP_NAME)}

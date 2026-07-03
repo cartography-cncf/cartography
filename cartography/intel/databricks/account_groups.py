@@ -1,3 +1,4 @@
+import logging
 from typing import Any
 
 import neo4j
@@ -8,6 +9,8 @@ from cartography.intel.databricks._account_scope import account_scoped_id
 from cartography.intel.databricks.util import DatabricksAccountClient
 from cartography.models.databricks.account_group import DatabricksAccountGroupSchema
 from cartography.util import timeit
+
+logger = logging.getLogger(__name__)
 
 
 @timeit
@@ -50,7 +53,13 @@ def transform(groups: list[dict[str, Any]], account_id: str) -> list[dict[str, A
     """
     by_scim_id: dict[str, dict[str, Any]] = {}
     for g in groups:
-        scim_id = g["id"]
+        scim_id = g.get("id")
+        # A blank SCIM id would collapse to the account-scoped key
+        # "{account_id}/" and merge distinct malformed records onto one node;
+        # skip rather than corrupt graph identity.
+        if not scim_id:
+            logger.warning("Skipping Databricks account group with empty SCIM id.")
+            continue
         by_scim_id[scim_id] = {
             "id": account_scoped_id(account_id, scim_id),
             "scim_id": scim_id,
@@ -61,7 +70,10 @@ def transform(groups: list[dict[str, Any]], account_id: str) -> list[dict[str, A
             "_parent_set": set(),
         }
     for g in groups:
-        scim_id = g["id"]
+        scim_id = g.get("id")
+        # Skip the same blank-id records dropped above (not in by_scim_id).
+        if not scim_id or scim_id not in by_scim_id:
+            continue
         # Upward: the child group's own ``groups`` field.
         for parent in g.get("groups", []) or []:
             parent_id = parent.get("value")
