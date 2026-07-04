@@ -25,6 +25,9 @@ aws_mapping = OntologyMapping(
 )
 
 # GCP
+# GCPRecordSet.data is list-valued, so it is not mapped to the scalar _ont_value:
+# toString(_ont_value) in ontology_dnsrecords_linking.json rejects lists. GCP record
+# linking is done directly off the raw list field via UNWIND dns.data in that job.
 gcp_mapping = OntologyMapping(
     module_name="gcp",
     nodes=[
@@ -35,7 +38,6 @@ gcp_mapping = OntologyMapping(
                     ontology_field="name", node_field="name", required=True
                 ),
                 OntologyFieldMapping(ontology_field="type", node_field="type"),
-                OntologyFieldMapping(ontology_field="value", node_field="data"),
             ],
         ),
     ],
