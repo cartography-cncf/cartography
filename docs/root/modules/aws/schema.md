@@ -2275,6 +2275,11 @@ Our representation of an AWS [EC2 Instance](https://docs.aws.amazon.com/AWSEC2/l
     (AWSAccount)-[RESOURCE]->(EC2Instance)
     ```
 
+- EC2 Instances assume the AWS Role attached through their instance profile (canonical ontology `ASSUMES` edge).
+    ```
+    (EC2Instance)-[ASSUMES]->(AWSRole)
+    ```
+
 -  EC2 Instances can be tagged with AWSTags.
     ```
     (EC2Instance)-[TAGGED]->(AWSTag)
