@@ -9,6 +9,7 @@ from azure.mgmt.web import WebSiteManagementClient
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
+from cartography.intel.azure.util.common import extract_identity_principal_ids
 from cartography.intel.azure.util.tag import transform_tags
 from cartography.intel.container_arch import normalize_architecture
 from cartography.intel.container_image import parse_image_uri
@@ -167,6 +168,9 @@ def transform_function_apps(
                 "image_digest": image_digest,
                 "architecture_normalized": architecture_normalized,
                 "tags": app.get("tags"),
+                "identity_principal_ids": extract_identity_principal_ids(
+                    app.get("identity"),
+                ),
             }
             transformed_apps.append(transformed_app)
     return transformed_apps
