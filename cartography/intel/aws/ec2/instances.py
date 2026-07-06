@@ -604,9 +604,12 @@ def sync_ec2_instances(
             ec2_data.instance_ebs_volumes_list,
             ec2_data.ipv6_address_list,
         )
+    # Clean up stale instances / INSTANCE_PROFILE edges first so the ASSUMES
+    # edges are derived from the current profile chain only (a re-profiled
+    # instance would otherwise keep an obsolete role binding for one cycle).
+    cleanup(neo4j_session, common_job_parameters)
     sync_ec2_instance_assumes_role(
         neo4j_session,
         current_aws_account_id,
         update_tag,
     )
-    cleanup(neo4j_session, common_job_parameters)
