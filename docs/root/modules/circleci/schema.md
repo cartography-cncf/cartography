@@ -2,8 +2,7 @@
 
 ```mermaid
 graph LR
-O(Organization) -- RESOURCE --> U(User)
-O -- RESOURCE --> C(Context)
+O(Organization) -- RESOURCE --> C(Context)
 O -- RESOURCE --> CEV(ContextEnvVar)
 C -- HAS_ENV_VAR --> CEV
 O -- RESOURCE --> OIDC(OidcConfig)
@@ -50,27 +49,6 @@ Represents a CircleCI organization (a VCS org the token owner collaborates with)
 | **slug** | Organization slug (e.g. `gh/my-org`). |
 | vcs_type | Version control system (`github`, `bitbucket`, ...). |
 | avatar_url | URL of the organization avatar. |
-
-### CircleCIUser
-
-Represents the owner of the API token used for the sync (`GET /me`).
-
-> **Ontology Mapping**: This node has the extra label `UserAccount` to enable cross-platform identity queries alongside other user accounts (e.g. GitHubUser, OktaUser, VercelUser).
-
-| Field | Description |
-|-------|-------------|
-| **id** | User ID. |
-| firstseen | Timestamp of when a sync job first created this node. |
-| lastupdated | Timestamp of the last time the node was updated. |
-| **login** | User login/handle. |
-| name | User display name. |
-| avatar_url | URL of the user avatar. |
-
-#### Relationships
-- A user collaborates with an organization.
-    ```
-    (:CircleCIOrganization)-[:RESOURCE]->(:CircleCIUser)
-    ```
 
 ### CircleCIContext
 

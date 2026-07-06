@@ -20,7 +20,6 @@ import cartography.intel.circleci.policies
 import cartography.intel.circleci.project_env_vars
 import cartography.intel.circleci.projects
 import cartography.intel.circleci.triggers
-import cartography.intel.circleci.users
 import cartography.intel.circleci.webhooks
 from cartography.config import Config
 from cartography.util import timeit
@@ -78,11 +77,6 @@ def start_circleci_ingestion(neo4j_session: neo4j.Session, config: Config) -> No
         neo4j_session,
         api_session,
         common_job_parameters,
-    )
-
-    # The token owner (/me) is the same across all orgs; fetch it once.
-    user = cartography.intel.circleci.users.get(
-        api_session, common_job_parameters["BASE_URL"]
     )
 
     # API v2 has no list-projects endpoint, so discover slugs from each org's
@@ -162,14 +156,6 @@ def start_circleci_ingestion(neo4j_session: neo4j.Session, config: Config) -> No
         org_id = org["id"]
         org_job_parameters = {**common_job_parameters, "ORG_ID": org_id}
 
-        _run(
-            f"users (org {org_id})",
-            cartography.intel.circleci.users.sync,
-            neo4j_session,
-            org_job_parameters,
-            org_id,
-            user,
-        )
         contexts = _run(
             f"contexts (org {org_id})",
             cartography.intel.circleci.contexts.sync,
