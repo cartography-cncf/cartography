@@ -18,18 +18,18 @@ def sync(
     neo4j_session: neo4j.Session,
     api_session: requests.Session,
     common_job_parameters: dict[str, Any],
-    definitions: list[dict[str, Any]],
+    pipelines: list[dict[str, Any]],
 ) -> None:
     project_id = common_job_parameters["PROJECT_ID"]
     triggers: list[dict[str, Any]] = []
-    for definition in definitions:
+    for pipeline in pipelines:
         raw = get(
             api_session,
             common_job_parameters["BASE_URL"],
             project_id,
-            definition["id"],
+            pipeline["id"],
         )
-        triggers.extend(transform(raw, definition["id"]))
+        triggers.extend(transform(raw, pipeline["id"]))
     load_triggers(
         neo4j_session,
         triggers,
@@ -45,31 +45,34 @@ def get(
     api_session: requests.Session,
     base_url: str,
     project_id: str,
-    definition_id: str,
+    pipeline_id: str,
 ) -> list[dict[str, Any]]:
     return paginated_get(
         api_session,
-        f"{base_url}/projects/{project_id}/pipeline-definitions/{definition_id}/triggers",
+        f"{base_url}/projects/{project_id}/pipeline-definitions/{pipeline_id}/triggers",
     )
 
 
 def transform(
     raw: list[dict[str, Any]],
-    definition_id: str,
+    pipeline_id: str,
 ) -> list[dict[str, Any]]:
     triggers = []
     for item in raw:
         event_source = item.get("event_source") or {}
+        schedule = event_source.get("schedule") or {}
         triggers.append(
             {
                 "id": item["id"],
                 "event_name": item.get("event_name"),
+                "description": item.get("description"),
                 "event_preset": item.get("event_preset"),
                 "event_source_provider": event_source.get("provider"),
+                "cron_expression": schedule.get("cron_expression"),
                 "checkout_ref": item.get("checkout_ref"),
                 "config_ref": item.get("config_ref"),
                 "disabled": item.get("disabled"),
-                "pipeline_definition_id": definition_id,
+                "pipeline_id": pipeline_id,
             }
         )
     return triggers

@@ -1,12 +1,19 @@
-# Raw items of GET /project/{slug}/pipeline.
+# Raw items of GET /projects/{project_id}/pipeline-definitions (a pipeline is
+# the config/source binding; runs are intentionally not ingested).
 CIRCLECI_PIPELINES = [
     {
-        "id": "pipe-1",
-        "number": 42,
-        "state": "created",
-        "project_slug": "gh/acme/web",
-        "created_at": "2021-09-04T08:00:00Z",
-        "updated_at": "2021-09-04T08:05:00Z",
-        "trigger": {"type": "webhook", "received_at": "2021-09-04T08:00:00Z"},
+        "id": "def-1",
+        "name": "build-and-test",
+        "description": "Default pipeline",
+        "created_at": "2021-09-01T09:00:00Z",
+        "config_source": {
+            "provider": "github_app",
+            "repo": {"full_name": "acme/web", "external_id": "123456"},
+            "file_path": ".circleci/config.yml",
+        },
+        "checkout_source": {
+            "provider": "github_app",
+            "repo": {"full_name": "acme/web", "external_id": "123456"},
+        },
     },
 ]

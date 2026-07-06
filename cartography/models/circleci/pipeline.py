@@ -12,14 +12,28 @@ from cartography.models.core.relationships import TargetNodeMatcher
 
 @dataclass(frozen=True)
 class CircleCIPipelineNodeProperties(CartographyNodeProperties):
+    # A pipeline definition (the config/source binding). Pipeline runs are not
+    # ingested - they are high-volume ephemeral telemetry, not inventory.
     id: PropertyRef = PropertyRef("id")
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
-    number: PropertyRef = PropertyRef("number")
-    state: PropertyRef = PropertyRef("state")
-    project_slug: PropertyRef = PropertyRef("project_slug")
-    trigger_type: PropertyRef = PropertyRef("trigger_type")
+    name: PropertyRef = PropertyRef("name", extra_index=True)
+    description: PropertyRef = PropertyRef("description")
     created_at: PropertyRef = PropertyRef("created_at")
-    updated_at: PropertyRef = PropertyRef("updated_at")
+    config_source_provider: PropertyRef = PropertyRef("config_source_provider")
+    config_source_repo_full_name: PropertyRef = PropertyRef(
+        "config_source_repo_full_name"
+    )
+    config_source_repo_external_id: PropertyRef = PropertyRef(
+        "config_source_repo_external_id"
+    )
+    config_source_file_path: PropertyRef = PropertyRef("config_source_file_path")
+    checkout_source_provider: PropertyRef = PropertyRef("checkout_source_provider")
+    checkout_source_repo_full_name: PropertyRef = PropertyRef(
+        "checkout_source_repo_full_name"
+    )
+    checkout_source_repo_external_id: PropertyRef = PropertyRef(
+        "checkout_source_repo_external_id"
+    )
 
 
 @dataclass(frozen=True)

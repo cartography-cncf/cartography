@@ -16,12 +16,16 @@ class CircleCITriggerNodeProperties(CartographyNodeProperties):
     id: PropertyRef = PropertyRef("id")
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
     event_name: PropertyRef = PropertyRef("event_name", extra_index=True)
+    description: PropertyRef = PropertyRef("description")
     event_preset: PropertyRef = PropertyRef("event_preset")
     event_source_provider: PropertyRef = PropertyRef("event_source_provider")
+    # Set when the trigger is a schedule (provider == "schedule"); this is how
+    # scheduled pipeline runs are modelled in CircleCI's current pipeline API.
+    cron_expression: PropertyRef = PropertyRef("cron_expression")
     checkout_ref: PropertyRef = PropertyRef("checkout_ref")
     config_ref: PropertyRef = PropertyRef("config_ref")
     disabled: PropertyRef = PropertyRef("disabled")
-    pipeline_definition_id: PropertyRef = PropertyRef("pipeline_definition_id")
+    pipeline_id: PropertyRef = PropertyRef("pipeline_id")
 
 
 @dataclass(frozen=True)
@@ -44,21 +48,21 @@ class CircleCITriggerToProjectRel(CartographyRelSchema):
 
 
 @dataclass(frozen=True)
-class CircleCITriggerToPipelineDefinitionRelProperties(CartographyRelProperties):
+class CircleCITriggerToPipelineRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
-# (:CircleCIPipelineDefinition)-[:HAS_TRIGGER]->(:CircleCITrigger)
-class CircleCITriggerToPipelineDefinitionRel(CartographyRelSchema):
-    target_node_label: str = "CircleCIPipelineDefinition"
+# (:CircleCIPipeline)-[:HAS_TRIGGER]->(:CircleCITrigger)
+class CircleCITriggerToPipelineRel(CartographyRelSchema):
+    target_node_label: str = "CircleCIPipeline"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {"id": PropertyRef("pipeline_definition_id")},
+        {"id": PropertyRef("pipeline_id")},
     )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "HAS_TRIGGER"
-    properties: CircleCITriggerToPipelineDefinitionRelProperties = (
-        CircleCITriggerToPipelineDefinitionRelProperties()
+    properties: CircleCITriggerToPipelineRelProperties = (
+        CircleCITriggerToPipelineRelProperties()
     )
 
 
@@ -70,5 +74,5 @@ class CircleCITriggerSchema(CartographyNodeSchema):
         CircleCITriggerToProjectRel()
     )
     other_relationships: OtherRelationships = OtherRelationships(
-        [CircleCITriggerToPipelineDefinitionRel()],
+        [CircleCITriggerToPipelineRel()],
     )

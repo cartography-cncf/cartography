@@ -18,10 +18,9 @@ P -- RESOURCE --> CK(CheckoutKey)
 P -- RESOURCE --> W(Webhook)
 P -- RESOURCE --> S(Schedule)
 P -- RESOURCE --> PL(Pipeline)
-P -- RESOURCE --> PD(PipelineDefinition)
 P -- RESOURCE --> TR(Trigger)
 P -- RESOURCE --> POIDC(ProjectOidcConfig)
-PD -- HAS_TRIGGER --> TR
+PL -- HAS_TRIGGER --> TR
 C -- RESTRICTED_TO --> P
 O -. ASSOCIATED_WITH .-> GHO(GitHubOrganization)
 P -. BUILDS .-> GHR(GitHubRepository / GitLabProject)
@@ -335,37 +334,15 @@ Represents a scheduled pipeline trigger (`GET /project/{slug}/schedule`).
 
 ### CircleCIPipeline
 
-Represents a pipeline run (`GET /project/{slug}/pipeline`). Pagination is capped to bound graph size.
+Represents a pipeline: the config/source binding (`GET /projects/{project_id}/pipeline-definitions`). Pipeline **runs** (executions) are intentionally not ingested - they are high-volume, ephemeral telemetry rather than inventory.
 
 | Field | Description |
 |-------|-------------|
 | **id** | Pipeline ID. |
 | firstseen | Timestamp of when a sync job first created this node. |
 | lastupdated | Timestamp of the last time the node was updated. |
-| number | Pipeline number. |
-| state | Pipeline state. |
-| project_slug | Slug of the owning project. |
-| trigger_type | What triggered the pipeline (`webhook`, `schedule`, `api`, ...). |
-| created_at | Pipeline creation timestamp. |
-| updated_at | Pipeline last-update timestamp. |
-
-#### Relationships
-- A pipeline belongs to a project.
-    ```
-    (:CircleCIProject)-[:RESOURCE]->(:CircleCIPipeline)
-    ```
-
-### CircleCIPipelineDefinition
-
-Represents a pipeline definition (the config/source binding, `GET /projects/{project_id}/pipeline-definitions`). Distinct from a pipeline run.
-
-| Field | Description |
-|-------|-------------|
-| **id** | Pipeline definition ID. |
-| firstseen | Timestamp of when a sync job first created this node. |
-| lastupdated | Timestamp of the last time the node was updated. |
-| **name** | Definition name. |
-| description | Definition description. |
+| **name** | Pipeline name. |
+| description | Pipeline description. |
 | created_at | Creation timestamp. |
 | config_source_provider | Provider of the config source (e.g. `github_app`). |
 | config_source_repo_full_name | Full name of the repository holding the config. |
@@ -376,14 +353,14 @@ Represents a pipeline definition (the config/source binding, `GET /projects/{pro
 | checkout_source_repo_external_id | VCS external id of the checkout repository. |
 
 #### Relationships
-- A pipeline definition belongs to a project.
+- A pipeline belongs to a project.
     ```
-    (:CircleCIProject)-[:RESOURCE]->(:CircleCIPipelineDefinition)
+    (:CircleCIProject)-[:RESOURCE]->(:CircleCIPipeline)
     ```
 
 ### CircleCITrigger
 
-Represents a trigger attached to a pipeline definition (`GET /projects/{id}/pipeline-definitions/{def_id}/triggers`).
+Represents a trigger attached to a pipeline (`GET /projects/{id}/pipeline-definitions/{pipeline_id}/triggers`).
 
 | Field | Description |
 |-------|-------------|
@@ -391,18 +368,20 @@ Represents a trigger attached to a pipeline definition (`GET /projects/{id}/pipe
 | firstseen | Timestamp of when a sync job first created this node. |
 | lastupdated | Timestamp of the last time the node was updated. |
 | **event_name** | Event the trigger fires on (e.g. `push`). |
+| description | Trigger description. |
 | event_preset | Event preset. |
-| event_source_provider | Provider of the event source. |
+| event_source_provider | Provider of the event source (`github_app`, `schedule`, ...). |
+| cron_expression | Cron schedule when the trigger is a scheduled trigger (`provider == schedule`); this is how scheduled pipeline runs are modelled. |
 | checkout_ref | Ref to check out. |
 | config_ref | Ref to read config from. |
 | disabled | Whether the trigger is disabled. |
-| pipeline_definition_id | ID of the owning pipeline definition. |
+| pipeline_id | ID of the owning pipeline. |
 
 #### Relationships
-- A trigger belongs to a project and to a pipeline definition.
+- A trigger belongs to a project and to a pipeline.
     ```
     (:CircleCIProject)-[:RESOURCE]->(:CircleCITrigger)
-    (:CircleCIPipelineDefinition)-[:HAS_TRIGGER]->(:CircleCITrigger)
+    (:CircleCIPipeline)-[:HAS_TRIGGER]->(:CircleCITrigger)
     ```
 
 ### CircleCIProjectOidcConfig

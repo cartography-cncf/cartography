@@ -16,7 +16,18 @@ from tests.integration.util import check_rels
 TEST_UPDATE_TAG = 123456789
 TEST_BASE_URL = "https://circleci.fake/api/v2"
 TEST_PROJECT_ID = "proj-1"
-TEST_PROJECT_SLUG = "gh/acme/web"
+
+
+def _ensure_local_neo4j_has_test_pipelines(neo4j_session):
+    pipelines = cartography.intel.circleci.pipelines.transform(
+        tests.data.circleci.pipelines.CIRCLECI_PIPELINES,
+    )
+    cartography.intel.circleci.pipelines.load_pipelines(
+        neo4j_session,
+        pipelines,
+        TEST_PROJECT_ID,
+        TEST_UPDATE_TAG,
+    )
 
 
 @patch.object(
@@ -40,15 +51,16 @@ def test_load_circleci_pipelines(mock_api, neo4j_session):
         neo4j_session,
         api_session,
         common_job_parameters,
-        TEST_PROJECT_SLUG,
     )
 
-    # Assert pipelines exist
-    assert check_nodes(neo4j_session, "CircleCIPipeline", ["id", "state"]) == {
-        ("pipe-1", "created"),
+    # Assert (repo is flattened from an object, not stored as a map)
+    assert check_nodes(
+        neo4j_session,
+        "CircleCIPipeline",
+        ["id", "name", "config_source_repo_full_name"],
+    ) == {
+        ("def-1", "build-and-test", "acme/web"),
     }
-
-    # Assert (Project)-[:RESOURCE]->(Pipeline)
     assert check_rels(
         neo4j_session,
         "CircleCIPipeline",
@@ -58,5 +70,5 @@ def test_load_circleci_pipelines(mock_api, neo4j_session):
         "RESOURCE",
         rel_direction_right=False,
     ) == {
-        ("pipe-1", TEST_PROJECT_ID),
+        ("def-1", TEST_PROJECT_ID),
     }
