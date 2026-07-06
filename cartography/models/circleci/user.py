@@ -3,6 +3,7 @@ from dataclasses import dataclass
 from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeProperties
 from cartography.models.core.nodes import CartographyNodeSchema
+from cartography.models.core.nodes import ExtraNodeLabels
 from cartography.models.core.relationships import CartographyRelProperties
 from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
@@ -42,6 +43,9 @@ class CircleCIUserToOrganizationRel(CartographyRelSchema):
 class CircleCIUserSchema(CartographyNodeSchema):
     label: str = "CircleCIUser"
     properties: CircleCIUserNodeProperties = CircleCIUserNodeProperties()
+    # UserAccount label maps this node into the ontology for cross-platform
+    # identity queries (like VercelUser, GitHubUser, OktaUser).
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["UserAccount"])
     sub_resource_relationship: CircleCIUserToOrganizationRel = (
         CircleCIUserToOrganizationRel()
     )

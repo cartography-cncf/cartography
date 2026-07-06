@@ -55,6 +55,8 @@ Represents a CircleCI organization (a VCS org the token owner collaborates with)
 
 Represents the owner of the API token used for the sync (`GET /me`).
 
+> **Ontology Mapping**: This node has the extra label `UserAccount` to enable cross-platform identity queries alongside other user accounts (e.g. GitHubUser, OktaUser, VercelUser).
+
 | Field | Description |
 |-------|-------------|
 | **id** | User ID. |
