@@ -16,7 +16,6 @@ P -- HAS_COMPONENT --> CMP
 P -- RESOURCE --> PEV(ProjectEnvVar)
 P -- RESOURCE --> CK(CheckoutKey)
 P -- RESOURCE --> W(Webhook)
-P -- RESOURCE --> S(Schedule)
 P -- RESOURCE --> PL(Pipeline)
 P -- RESOURCE --> TR(Trigger)
 P -- RESOURCE --> POIDC(ProjectOidcConfig)
@@ -310,26 +309,6 @@ Represents an outbound webhook scoped to a project (`GET /webhook`).
 - A webhook belongs to a project.
     ```
     (:CircleCIProject)-[:RESOURCE]->(:CircleCIWebhook)
-    ```
-
-### CircleCISchedule
-
-Represents a scheduled pipeline trigger (`GET /project/{slug}/schedule`).
-
-| Field | Description |
-|-------|-------------|
-| **id** | Schedule ID. |
-| firstseen | Timestamp of when a sync job first created this node. |
-| lastupdated | Timestamp of the last time the node was updated. |
-| **name** | Schedule name. |
-| description | Schedule description. |
-| project_slug | Slug of the owning project. |
-| actor_login | Login of the actor the schedule runs as. |
-
-#### Relationships
-- A schedule belongs to a project.
-    ```
-    (:CircleCIProject)-[:RESOURCE]->(:CircleCISchedule)
     ```
 
 ### CircleCIPipeline

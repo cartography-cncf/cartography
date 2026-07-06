@@ -19,7 +19,6 @@ import cartography.intel.circleci.pipelines
 import cartography.intel.circleci.policies
 import cartography.intel.circleci.project_env_vars
 import cartography.intel.circleci.projects
-import cartography.intel.circleci.schedules
 import cartography.intel.circleci.triggers
 import cartography.intel.circleci.users
 import cartography.intel.circleci.webhooks
@@ -133,9 +132,6 @@ def start_circleci_ingestion(neo4j_session: neo4j.Session, config: Config) -> No
                     neo4j_session, api_session, project_job_parameters, slug
                 )
                 cartography.intel.circleci.webhooks.sync(
-                    neo4j_session, api_session, project_job_parameters, slug
-                )
-                cartography.intel.circleci.schedules.sync(
                     neo4j_session, api_session, project_job_parameters, slug
                 )
                 pipelines = cartography.intel.circleci.pipelines.sync(
