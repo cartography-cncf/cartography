@@ -27,25 +27,40 @@ def sync(
     # Enrich each context with the projects it is restricted to so the
     # one-to-many RESTRICTED_TO relationship can attach (best-effort). A
     # restrictions failure must not block ingesting the contexts themselves.
+    restrictions_complete = True
     for context in contexts:
         try:
             context["restricted_project_ids"] = get_restricted_project_ids(
                 api_session, base_url, context["id"]
             )
-        except requests.exceptions.HTTPError as exc:
+        except requests.exceptions.RequestException as exc:
+            # Leave restricted_project_ids empty (no RESTRICTED_TO refreshed for
+            # this context) and remember the data is incomplete. We must NOT let
+            # a failed fetch look like "no restrictions" - see cleanup below.
             logger.warning(
                 "Could not fetch restrictions for CircleCI context %s: %s",
                 context["id"],
                 exc,
             )
-            context["restricted_project_ids"] = []
+            restrictions_complete = False
     load_contexts(
         neo4j_session,
         contexts,
         org_id,
         common_job_parameters["UPDATE_TAG"],
     )
-    cleanup(neo4j_session, common_job_parameters)
+    # Cleanup deletes stale CircleCIContext nodes AND stale RESTRICTED_TO edges.
+    # Skip it when restrictions were incomplete: an empty restricted_project_ids
+    # from a failed fetch would otherwise wipe still-valid RESTRICTED_TO edges.
+    if restrictions_complete:
+        cleanup(neo4j_session, common_job_parameters)
+    else:
+        logger.warning(
+            "Skipping CircleCI context cleanup for org %s: restrictions were "
+            "incomplete this run, so stale nodes/edges are preserved rather than "
+            "risk wiping valid RESTRICTED_TO relationships.",
+            org_id,
+        )
     return contexts
 
 
