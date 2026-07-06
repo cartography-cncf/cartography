@@ -801,6 +801,9 @@ _k8s_escalation_clusterroles = Fact(
     MATCH (cluster:KubernetesCluster)-[:RESOURCE]->(cr:KubernetesClusterRole)
     WHERE any(v IN cr.verbs WHERE v IN ['bind', 'impersonate', 'escalate', '*'])
       AND NOT cr.name STARTS WITH 'system:'
+      // The default RBAC aggregation ClusterRoles ship on every conformant cluster
+      // carrying these verbs by design; they are noise, not misconfiguration.
+      AND NOT cr.name IN ['cluster-admin', 'admin', 'edit', 'view']
     RETURN
         cr.id AS role_id,
         cr.name AS role_name,
@@ -812,11 +815,13 @@ _k8s_escalation_clusterroles = Fact(
     MATCH p=(cluster:KubernetesCluster)-[:RESOURCE]->(cr:KubernetesClusterRole)
     WHERE any(v IN cr.verbs WHERE v IN ['bind', 'impersonate', 'escalate', '*'])
       AND NOT cr.name STARTS WITH 'system:'
+      AND NOT cr.name IN ['cluster-admin', 'admin', 'edit', 'view']
     RETURN *
     """,
     cypher_count_query="""
     MATCH (cr:KubernetesClusterRole)
     WHERE NOT cr.name STARTS WITH 'system:'
+      AND NOT cr.name IN ['cluster-admin', 'admin', 'edit', 'view']
     RETURN COUNT(cr) AS count
     """,
     identity_fields=("role_id",),

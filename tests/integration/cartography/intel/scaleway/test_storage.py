@@ -1,6 +1,7 @@
 from unittest.mock import Mock
 from unittest.mock import patch
 
+import cartography.intel.scaleway.storage.filesystems
 import cartography.intel.scaleway.storage.objectstorage
 import cartography.intel.scaleway.storage.snapshots
 import cartography.intel.scaleway.storage.volumes
@@ -258,3 +259,38 @@ def test_load_scaleway_object_storage_buckets(_mock_get, neo4j_session):
         )
         == expected_rels
     )
+
+
+@patch.object(
+    cartography.intel.scaleway.storage.filesystems,
+    "get",
+    return_value=tests.data.scaleway.storages.SCALEWAY_FILESYSTEMS,
+)
+def test_load_scaleway_filesystems(_mock_get, neo4j_session):
+    client = Mock()
+    common_job_parameters = {"UPDATE_TAG": TEST_UPDATE_TAG, "ORG_ID": TEST_ORG_ID}
+    _ensure_local_neo4j_has_test_projects_and_orgs(neo4j_session)
+
+    cartography.intel.scaleway.storage.filesystems.sync(
+        neo4j_session,
+        client,
+        common_job_parameters,
+        org_id=TEST_ORG_ID,
+        projects_id=[TEST_PROJECT_ID],
+        update_tag=TEST_UPDATE_TAG,
+    )
+
+    assert check_nodes(neo4j_session, "ScalewayFileSystem", ["id", "name"]) == {
+        ("a1a1a1a1-0000-0000-0000-000000000001", "shared-fs"),
+    }
+    assert check_rels(
+        neo4j_session,
+        "ScalewayFileSystem",
+        "id",
+        "ScalewayProject",
+        "id",
+        "RESOURCE",
+        rel_direction_right=False,
+    ) == {
+        ("a1a1a1a1-0000-0000-0000-000000000001", TEST_PROJECT_ID),
+    }

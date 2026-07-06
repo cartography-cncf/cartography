@@ -39,7 +39,25 @@ azure_mapping = OntologyMapping(
     ],
 )
 
+scaleway_mapping = OntologyMapping(
+    module_name="scaleway",
+    nodes=[
+        OntologyNodeMapping(
+            node_label="ScalewayFileSystem",
+            fields=[
+                OntologyFieldMapping(
+                    ontology_field="name", node_field="name", required=True
+                ),
+                OntologyFieldMapping(ontology_field="location", node_field="region"),
+                # _ont_encrypted: Scaleway File Storage is encrypted at rest by
+                # default but the flag isn't surfaced on the file system object.
+            ],
+        ),
+    ],
+)
+
 FILE_STORAGE_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     "aws": aws_mapping,
     "azure": azure_mapping,
+    "scaleway": scaleway_mapping,
 }

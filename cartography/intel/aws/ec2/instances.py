@@ -161,6 +161,7 @@ def transform_ec2_instances(
             instance_list.append(
                 {
                     "InstanceId": instance_id,
+                    "Arn": f"arn:aws:ec2:{region}:{current_aws_account_id}:instance/{instance_id}",
                     "ReservationId": reservation_id,
                     "PublicDnsName": instance.get("PublicDnsName"),
                     "PublicIpAddress": instance.get("PublicIpAddress"),

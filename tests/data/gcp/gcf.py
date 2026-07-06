@@ -13,6 +13,7 @@ GCF_RESPONSE = {
             "serviceAccountEmail": "service-1@test-project.iam.gserviceaccount.com",
             "availableMemoryMb": 256,
             "timeout": "60s",
+            "labels": {"team": "security", "env": "prod"},
         },
         {
             "name": "projects/test-project/locations/us-east1/functions/function-2",

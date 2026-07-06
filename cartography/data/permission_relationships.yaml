@@ -74,3 +74,18 @@
   permissions:
   - cloudformation:UpdateStack
   relationship_name: CAN_EXEC
+# Map principals that can open an SSM Session Manager shell on an EC2 instance.
+# Two conditions must both hold (see issue #1643):
+#   1. the principal has ssm:StartSession on the instance, and
+#   2. the instance is actually managed by SSM, i.e. it has an
+#      (:EC2Instance)-[:HAS_INFORMATION]->(:SSMInstanceInformation) edge.
+# The target_precondition enforces (2) so we don't draw CAN_START_SESSION edges
+# to instances the SSM agent never registered (where StartSession would fail).
+- target_label: EC2Instance
+  permissions:
+  - ssm:StartSession
+  relationship_name: CAN_START_SESSION
+  target_precondition:
+    related_label: SSMInstanceInformation
+    relationship: HAS_INFORMATION
+    direction: outgoing

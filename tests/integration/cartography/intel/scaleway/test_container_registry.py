@@ -4,8 +4,10 @@ from unittest.mock import patch
 import cartography.intel.scaleway.container_registry.namespaces
 from tests.data.scaleway.container_registry import SCALEWAY_REGISTRY_IMAGES
 from tests.data.scaleway.container_registry import SCALEWAY_REGISTRY_NAMESPACES
-from tests.data.scaleway.container_registry import TEST_IMAGE_ID
+from tests.data.scaleway.container_registry import SCALEWAY_REGISTRY_TAGS
 from tests.data.scaleway.container_registry import TEST_NAMESPACE_ID
+from tests.data.scaleway.container_registry import TEST_TAG_DIGEST
+from tests.data.scaleway.container_registry import TEST_TAG_ID
 from tests.integration.cartography.intel.scaleway.test_projects import (
     _ensure_local_neo4j_has_test_projects_and_orgs,
 )
@@ -20,7 +22,11 @@ TEST_PROJECT_ID = "0681c477-fbb9-4820-b8d6-0eef10cfcd6d"
 @patch.object(
     cartography.intel.scaleway.container_registry.namespaces,
     "get",
-    return_value=(SCALEWAY_REGISTRY_NAMESPACES, SCALEWAY_REGISTRY_IMAGES),
+    return_value=(
+        SCALEWAY_REGISTRY_NAMESPACES,
+        SCALEWAY_REGISTRY_IMAGES,
+        SCALEWAY_REGISTRY_TAGS,
+    ),
 )
 def test_load_scaleway_container_registry(_mock_get, neo4j_session):
     # Arrange
@@ -41,17 +47,12 @@ def test_load_scaleway_container_registry(_mock_get, neo4j_session):
         update_tag=TEST_UPDATE_TAG,
     )
 
-    # Assert nodes
+    # Assert the namespace (the registry) exists and carries ContainerRegistry.
     assert check_nodes(
         neo4j_session,
         "ScalewayContainerRegistryNamespace",
         ["id", "name", "is_public"],
     ) == {(TEST_NAMESPACE_ID, "demo-namespace", True)}
-    assert check_nodes(
-        neo4j_session, "ScalewayContainerRegistryImage", ["id", "name"]
-    ) == {(TEST_IMAGE_ID, "demo-image")}
-
-    # Cross-cloud ontology label.
     assert check_nodes(neo4j_session, "ContainerRegistry", ["id"]) == {
         (TEST_NAMESPACE_ID,)
     }
@@ -71,10 +72,36 @@ def test_load_scaleway_container_registry(_mock_get, neo4j_session):
         )
     }
 
+    # Tag node (ontology ImageTag) carries the denormalized image name + URI.
+    assert check_nodes(
+        neo4j_session,
+        "ScalewayContainerRegistryImageTag",
+        ["id", "name", "digest", "image_name", "uri", "visibility"],
+    ) == {
+        (
+            TEST_TAG_ID,
+            "latest",
+            TEST_TAG_DIGEST,
+            "demo-image",
+            "rg.fr-par.scw.cloud/demo-namespace/demo-image:latest",
+            "inherit",
+        )
+    }
+    assert check_nodes(neo4j_session, "ImageTag", ["id"]) == {(TEST_TAG_ID,)}
+
+    # Digest-addressed content node carries the cross-cloud Image label.
+    assert check_nodes(
+        neo4j_session, "ScalewayContainerRegistryImage", ["id", "digest"]
+    ) == {(TEST_TAG_DIGEST, TEST_TAG_DIGEST)}
+    assert check_nodes(neo4j_session, "Image", ["_ont_digest", "_ont_source"]) == {
+        (TEST_TAG_DIGEST, "scaleway")
+    }
+
     # Project ownership.
     for label in (
         "ScalewayContainerRegistryNamespace",
         "ScalewayContainerRegistryImage",
+        "ScalewayContainerRegistryImageTag",
     ):
         assert check_rels(
             neo4j_session,
@@ -86,13 +113,22 @@ def test_load_scaleway_container_registry(_mock_get, neo4j_session):
             rel_direction_right=False,
         ), f"{label} not linked to project"
 
-    # Namespace -> Image
+    # Namespace -[:REPO_IMAGE]-> Tag -[:IMAGE]-> Image  (canonical cross-provider shape)
     assert check_rels(
         neo4j_session,
         "ScalewayContainerRegistryNamespace",
         "id",
+        "ScalewayContainerRegistryImageTag",
+        "id",
+        "REPO_IMAGE",
+        rel_direction_right=True,
+    ) == {(TEST_NAMESPACE_ID, TEST_TAG_ID)}
+    assert check_rels(
+        neo4j_session,
+        "ScalewayContainerRegistryImageTag",
+        "id",
         "ScalewayContainerRegistryImage",
         "id",
-        "HAS",
+        "IMAGE",
         rel_direction_right=True,
-    ) == {(TEST_NAMESPACE_ID, TEST_IMAGE_ID)}
+    ) == {(TEST_TAG_ID, TEST_TAG_DIGEST)}

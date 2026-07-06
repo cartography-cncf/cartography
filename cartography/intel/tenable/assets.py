@@ -144,8 +144,8 @@ def transform_tags(raw_assets: list[dict[str, Any]]) -> list[dict[str, Any]]:
             result.append(
                 {
                     "id": tag["uuid"],
-                    "tag_key": tag.get("key"),
-                    "tag_value": tag.get("value"),
+                    "key": tag.get("key"),
+                    "value": tag.get("value"),
                     "added_by": tag.get("added_by"),
                     "added_at": tag.get("added_at"),
                     "asset_id": asset_id,

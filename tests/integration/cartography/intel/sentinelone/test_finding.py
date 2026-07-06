@@ -124,6 +124,13 @@ def test_sync_cves(mock_get_paginated_results, neo4j_session):
 
     assert actual_nodes == expected_nodes
 
+    # S1AppFinding is CVE-shaped (carries a cve_id) and is labeled :CVE.
+    labels = neo4j_session.run(
+        "MATCH (f:S1AppFinding {id: $id}) RETURN labels(f) AS labels",
+        id=CVE_ID_1,
+    ).single()["labels"]
+    assert "CVE" in labels
+
     # Verify that relationships to the account were created
     expected_rels = {
         (CVE_ID_1, TEST_ACCOUNT_ID),

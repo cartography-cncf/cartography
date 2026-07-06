@@ -7,6 +7,7 @@ from googleapiclient.errors import HttpError
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
+from cartography.intel.gcp.labels import sync_labels
 from cartography.intel.gcp.util import classify_gcp_http_error
 from cartography.intel.gcp.util import gcp_api_execute_with_retry
 from cartography.models.gcp.gcf import GCPCloudFunctionSchema
@@ -191,6 +192,16 @@ def sync(
             load_gcp_cloud_functions(
                 neo4j_session, transformed_functions, project_id, update_tag
             )
+
+        # Cloud Functions carry `labels` on the raw resource; ingest them as GCPLabel.
+        sync_labels(
+            neo4j_session,
+            functions_data,
+            "cloud_function",
+            project_id,
+            update_tag,
+            common_job_parameters,
+        )
 
         cleanup_job_params = common_job_parameters.copy()
         cleanup_job_params["projectId"] = project_id

@@ -56,7 +56,9 @@ _aws_ebs_encryption_disabled = Fact(
     ),
     cypher_query="""
     MATCH (a:AWSAccount)-[:RESOURCE]->(volume:EBSVolume)
-    WHERE volume.encrypted = false
+    // A NULL ``encrypted`` (absent from the graph) is not proof of encryption;
+    // treat it as unencrypted so those volumes are not silently passed.
+    WHERE volume.encrypted = false OR volume.encrypted IS NULL
     OPTIONAL MATCH (volume)-[:TAGGED]->(nametag:AWSTag {key: 'Name'})
     RETURN
         coalesce(nametag.value, volume.id) AS volume_name,
@@ -71,7 +73,7 @@ _aws_ebs_encryption_disabled = Fact(
     """,
     cypher_visual_query="""
     MATCH p=(a:AWSAccount)-[:RESOURCE]->(volume:EBSVolume)
-    WHERE volume.encrypted = false
+    WHERE volume.encrypted = false OR volume.encrypted IS NULL
     RETURN *
     """,
     cypher_count_query="""
@@ -221,6 +223,9 @@ class RemoteAdminIpv4Output(Finding):
     cidr_range: str | None = None
     account_id: str | None = None
     account: str | None = None
+    # True when the security group has at least one non-terminated EC2 instance.
+    # The rule still emits when false; consumers use it to gauge relevancy.
+    in_use: bool | None = None
 
 
 _aws_remote_admin_ipv4 = Fact(
@@ -252,7 +257,14 @@ _aws_remote_admin_ipv4 = Fact(
         rule.protocol AS protocol,
         range.id AS cidr_range,
         a.id AS account_id,
-        a.name AS account
+        a.name AS account,
+        // in_use: does any non-terminated EC2 instance use this security group?
+        // A group whose only members are terminated is not a live attack surface.
+        // Exposed for relevancy; the rule does not filter on it.
+        COUNT {
+            MATCH (sg)<-[:MEMBER_OF_EC2_SECURITY_GROUP]-(i:EC2Instance)
+            WHERE coalesce(i.state, '') <> 'terminated'
+        } > 0 AS in_use
     """,
     cypher_visual_query="""
     MATCH p=(a:AWSAccount)-[:RESOURCE]->(ec2:EC2Instance)
@@ -326,6 +338,9 @@ class RemoteAdminIpv6Output(Finding):
     cidr_range: str | None = None
     account_id: str | None = None
     account: str | None = None
+    # True when the security group has at least one non-terminated EC2 instance.
+    # The rule still emits when false; consumers use it to gauge relevancy.
+    in_use: bool | None = None
 
 
 _aws_remote_admin_ipv6 = Fact(
@@ -357,7 +372,14 @@ _aws_remote_admin_ipv6 = Fact(
         rule.protocol AS protocol,
         range.id AS cidr_range,
         a.id AS account_id,
-        a.name AS account
+        a.name AS account,
+        // in_use: does any non-terminated EC2 instance use this security group?
+        // A group whose only members are terminated is not a live attack surface.
+        // Exposed for relevancy; the rule does not filter on it.
+        COUNT {
+            MATCH (sg)<-[:MEMBER_OF_EC2_SECURITY_GROUP]-(i:EC2Instance)
+            WHERE coalesce(i.state, '') <> 'terminated'
+        } > 0 AS in_use
     """,
     cypher_visual_query="""
     MATCH p=(a:AWSAccount)-[:RESOURCE]->(ec2:EC2Instance)

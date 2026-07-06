@@ -1,6 +1,7 @@
 from datetime import datetime
 
 from dateutil.tz import tzutc
+from scaleway.file.v1alpha1 import FileSystem
 from scaleway.instance.v1 import ServerSummary
 from scaleway.instance.v1 import Snapshot
 from scaleway.instance.v1 import SnapshotBaseVolume
@@ -103,4 +104,20 @@ SCALEWAY_BUCKETS = [
         "versioning": None,
         "tags": None,
     },
+]
+
+SCALEWAY_FILESYSTEMS = [
+    FileSystem(
+        id="a1a1a1a1-0000-0000-0000-000000000001",
+        name="shared-fs",
+        size=100000000000,
+        status="available",
+        project_id="0681c477-fbb9-4820-b8d6-0eef10cfcd6d",
+        organization_id="0681c477-fbb9-4820-b8d6-0eef10cfcd6d",
+        tags=["demo"],
+        number_of_attachments=1,
+        region="fr-par",
+        created_at=datetime(2025, 3, 20, 10, 58, 0, 784077, tzinfo=tzutc()),
+        updated_at=datetime(2025, 3, 20, 10, 58, 0, 784077, tzinfo=tzutc()),
+    ),
 ]

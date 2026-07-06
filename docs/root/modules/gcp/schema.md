@@ -232,11 +232,11 @@ Representation of a GCP [Storage Bucket Label](https://cloud.google.com/storage/
     ```
 
 
-### Label::GCPLabel
+### Tag::Label::GCPLabel
 
 Representation of a GCP [Label](https://cloud.google.com/resource-manager/docs/labels-overview). GCP Labels can be applied to many resource types. This is a unified label node type similar to how `AWSTag` works for AWS resources.
 
-> **Ontology Mapping**: This node has the extra label `Label` to preserve cross-platform semantics for generic key/value labels.
+> **Ontology Mapping**: This node has the extra labels `Tag` and `Label` to preserve cross-platform semantics for generic key/value labels. `(:Tag {key, value})` matches GCP labels alongside AWS, Azure, and Tenable tags.
 
 Each resource type has its own declarative schema (e.g., `GCPBucketGCPLabelSchema` and `GCPInstanceGCPLabelSchema`). Bucket-sourced labels also carry the `GCPBucketLabel` extra label for backward compatibility with the legacy per-resource label schema.
 
@@ -251,11 +251,11 @@ Each resource type has its own declarative schema (e.g., `GCPBucketGCPLabelSchem
 
 #### Relationships
 
-- GCP resources can be labeled with GCPLabels.
+- GCP resources are linked to their GCPLabels via `:TAGGED` (canonical, matches the cross-provider tag pattern). The legacy `:LABELED` edge is still written in parallel and will be removed in v1.0.0.
 
     ```
-    (GCPBucket)-[LABELED]->(GCPLabel:GCPBucketLabel)
-    (GCPInstance)-[LABELED]->(GCPLabel)
+    (GCPBucket)-[TAGGED]->(GCPLabel:GCPBucketLabel)
+    (GCPInstance)-[TAGGED]->(GCPLabel)
     ```
 
 - GCPLabel nodes are associated with a GCPProject via the RESOURCE relationship.
@@ -1000,6 +1000,7 @@ Representation of a GCP [IAM Policy Binding](https://cloud.google.com/iam/docs/r
 | resource_type        | The type of resource.                                                            |
 | members              | A list of principal email addresses that are granted the role. The synthetic GCP principals `allUsers` and `allAuthenticatedUsers` are NOT included here; presence of either is reflected in `is_public` instead. |
 | wif_pools            | A list of Workload Identity Federation pool resource names (`projects/{N}/locations/global/workloadIdentityPools/{POOL}`) referenced by `principal://` or `principalSet://` members of this binding. |
+| domains              | A list of domains (`domain:{domain}`) granted the role. These do not resolve to a single `GCPPrincipal` node, but are retained for visibility (e.g. broad-access audits). |
 | is_public            | True if the binding includes the `allUsers` or `allAuthenticatedUsers` principal. Combine with `has_condition = false` to reason about unconditional public exposure. |
 | has_condition        | A boolean indicating if the policy binding has a condition attached.             |
 | condition_title      | The title of the condition.                                                      |
@@ -1677,6 +1678,12 @@ Representation of a Google [Cloud Function](https://cloud.google.com/functions/d
 
     ```
     (GCPCloudFunction)-[:RUNS_AS]->(GCPServiceAccount)
+    ```
+
+- GCPCloudFunctions can be labeled with GCPLabels.
+
+    ```
+    (GCPCloudFunction)-[:LABELED]->(GCPLabel)
     ```
 
 ### GCPSecretManagerSecret

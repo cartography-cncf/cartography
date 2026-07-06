@@ -4,6 +4,7 @@ from typing import Dict
 from typing import Generator
 from typing import Iterable
 from typing import List
+from typing import Mapping
 from typing import Tuple
 
 import neo4j
@@ -51,6 +52,111 @@ from .util.credentials import Credentials
 logger = logging.getLogger(__name__)
 
 
+def _copy_properties(data: Dict, mapping: Mapping[str, tuple[str, ...]]) -> Dict:
+    properties = data.get("properties") or {}
+    for target, sources in mapping.items():
+        if target in data:
+            continue
+        for source in sources:
+            if source in properties:
+                data[target] = properties[source]
+                break
+    return data
+
+
+SQL_SERVER_PROPERTY_MAP = {
+    "state": ("state",),
+    "version": ("version",),
+    "public_network_access": ("public_network_access", "publicNetworkAccess"),
+    "minimal_tls_version": ("minimal_tls_version", "minimalTlsVersion"),
+}
+
+SQL_DATABASE_PROPERTY_MAP = {
+    "creation_date": ("creation_date", "creationDate"),
+    "database_id": ("database_id", "databaseId"),
+    "max_size_bytes": ("max_size_bytes", "maxSizeBytes"),
+    "license_type": ("license_type", "licenseType"),
+    "default_secondary_location": (
+        "default_secondary_location",
+        "defaultSecondaryLocation",
+    ),
+    "elastic_pool_id": ("elastic_pool_id", "elasticPoolId"),
+    "collation": ("collation",),
+    "failover_group_id": ("failover_group_id", "failoverGroupId"),
+    "zone_redundant": ("zone_redundant", "zoneRedundant"),
+    "restorable_dropped_database_id": (
+        "restorable_dropped_database_id",
+        "restorableDroppedDatabaseId",
+    ),
+    "recoverable_database_id": ("recoverable_database_id", "recoverableDatabaseId"),
+}
+
+SQL_FIREWALL_RULE_PROPERTY_MAP = {
+    "start_ip_address": ("start_ip_address", "startIpAddress"),
+    "end_ip_address": ("end_ip_address", "endIpAddress"),
+}
+
+SQL_DETAIL_PROPERTY_MAP = {
+    "administrator_type": ("administrator_type", "administratorType"),
+    "azure_dns_record": ("azure_dns_record", "azureDnsRecord"),
+    "creation_date": ("creation_date", "creationDate"),
+    "creation_time": ("creation_time", "creationTime"),
+    "database_name": ("database_name", "databaseName"),
+    "default_secondary_location": (
+        "default_secondary_location",
+        "defaultSecondaryLocation",
+    ),
+    "deletion_date": ("deletion_date", "deletionDate"),
+    "disabled_alerts": ("disabled_alerts", "disabledAlerts"),
+    "earliest_restore_date": ("earliest_restore_date", "earliestRestoreDate"),
+    "email_account_admins": ("email_account_admins", "emailAccountAdmins"),
+    "email_addresses": ("email_addresses", "emailAddresses"),
+    "is_termination_allowed": ("is_termination_allowed", "isTerminationAllowed"),
+    "last_available_backup_date": (
+        "last_available_backup_date",
+        "lastAvailableBackupDate",
+    ),
+    "license_type": ("license_type", "licenseType"),
+    "max_size_bytes": ("max_size_bytes", "maxSizeBytes"),
+    "partner_database": ("partner_database", "partnerDatabase"),
+    "partner_location": ("partner_location", "partnerLocation"),
+    "partner_role": ("partner_role", "partnerRole"),
+    "partner_server": ("partner_server", "partnerServer"),
+    "percent_complete": ("percent_complete", "percentComplete"),
+    "replication_mode": ("replication_mode", "replicationMode"),
+    "replication_role": ("replication_role", "replicationRole"),
+    "replication_state": ("replication_state", "replicationState"),
+    "restore_point_creation_date": (
+        "restore_point_creation_date",
+        "restorePointCreationDate",
+    ),
+    "restore_point_type": ("restore_point_type", "restorePointType"),
+    "retention_days": ("retention_days", "retentionDays"),
+    "service_level_objective": ("service_level_objective", "serviceLevelObjective"),
+    "start_time": ("start_time", "startTime"),
+    "state": ("state",),
+    "status": ("status",),
+    "storage_endpoint": ("storage_endpoint", "storageEndpoint"),
+    "zone_redundant": ("zone_redundant", "zoneRedundant"),
+}
+
+
+def transform_sql_server(server: Dict) -> Dict:
+    return _copy_properties(server, SQL_SERVER_PROPERTY_MAP)
+
+
+def transform_sql_database(database: Dict) -> Dict:
+    return _copy_properties(database, SQL_DATABASE_PROPERTY_MAP)
+
+
+def transform_sql_firewall_rule(rule: Dict) -> Dict:
+    return _copy_properties(rule, SQL_FIREWALL_RULE_PROPERTY_MAP)
+
+
+def transform_sql_detail(data: Dict) -> Dict:
+    return _copy_properties(data, SQL_DETAIL_PROPERTY_MAP)
+
+
 @timeit
 def get_client(credentials: Credentials, subscription_id: str) -> SqlManagementClient:
     """
@@ -67,7 +173,9 @@ def get_server_list(credentials: Credentials, subscription_id: str) -> List[Dict
     """
     try:
         client = get_client(credentials, subscription_id)
-        server_list = list(map(lambda x: x.as_dict(), client.servers.list()))
+        server_list = list(
+            map(lambda x: transform_sql_server(x.as_dict()), client.servers.list())
+        )
 
     # ClientAuthenticationError and ResourceNotFoundError are subclasses under HttpResponseError
     except ClientAuthenticationError as e:
@@ -83,15 +191,6 @@ def get_server_list(credentials: Credentials, subscription_id: str) -> List[Dict
     for server in server_list:
         x = server["id"].split("/")
         server["resourceGroup"] = x[x.index("resourceGroups") + 1]
-        # Azure SDK as_dict() may flatten or nest network/TLS fields under properties
-        server_props = server.get("properties", {})
-        server["public_network_access"] = server.get(
-            "public_network_access"
-        ) or server_props.get("public_network_access")
-        server["minimal_tls_version"] = server.get(
-            "minimal_tls_version"
-        ) or server_props.get("minimal_tls_version")
-
     return server_list
 
 
@@ -163,7 +262,7 @@ def get_dns_aliases(
         client = get_client(credentials, subscription_id)
         dns_aliases = list(
             map(
-                lambda x: x.as_dict(),
+                lambda x: transform_sql_detail(x.as_dict()),
                 client.server_dns_aliases.list_by_server(
                     server["resourceGroup"],
                     server["name"],
@@ -199,7 +298,7 @@ def get_ad_admins(
         client = get_client(credentials, subscription_id)
         ad_admins = list(
             map(
-                lambda x: x.as_dict(),
+                lambda x: transform_sql_detail(x.as_dict()),
                 client.server_azure_ad_administrators.list_by_server(
                     server["resourceGroup"],
                     server["name"],
@@ -235,7 +334,7 @@ def get_recoverable_databases(
         client = get_client(credentials, subscription_id)
         recoverable_databases = list(
             map(
-                lambda x: x.as_dict(),
+                lambda x: transform_sql_detail(x.as_dict()),
                 client.recoverable_databases.list_by_server(
                     server["resourceGroup"],
                     server["name"],
@@ -274,7 +373,7 @@ def get_restorable_dropped_databases(
         client = get_client(credentials, subscription_id)
         restorable_dropped_databases = list(
             map(
-                lambda x: x.as_dict(),
+                lambda x: transform_sql_detail(x.as_dict()),
                 client.restorable_dropped_databases.list_by_server(
                     server["resourceGroup"],
                     server["name"],
@@ -310,7 +409,7 @@ def get_failover_groups(
         client = get_client(credentials, subscription_id)
         failover_groups = list(
             map(
-                lambda x: x.as_dict(),
+                lambda x: transform_sql_detail(x.as_dict()),
                 client.failover_groups.list_by_server(
                     server["resourceGroup"],
                     server["name"],
@@ -346,7 +445,7 @@ def get_elastic_pools(
         client = get_client(credentials, subscription_id)
         elastic_pools = list(
             map(
-                lambda x: x.as_dict(),
+                lambda x: transform_sql_detail(x.as_dict()),
                 client.elastic_pools.list_by_server(
                     server["resourceGroup"],
                     server["name"],
@@ -382,7 +481,7 @@ def get_firewall_rules(
         client = get_client(credentials, subscription_id)
         firewall_rules = list(
             map(
-                lambda x: x.as_dict(),
+                lambda x: transform_sql_firewall_rule(x.as_dict()),
                 client.firewall_rules.list_by_server(
                     server["resourceGroup"],
                     server["name"],
@@ -418,7 +517,7 @@ def get_databases(
         client = get_client(credentials, subscription_id)
         databases = list(
             map(
-                lambda x: x.as_dict(),
+                lambda x: transform_sql_database(x.as_dict()),
                 client.databases.list_by_server(
                     server["resourceGroup"],
                     server["name"],
@@ -779,7 +878,7 @@ def get_replication_links(
         client = get_client(credentials, subscription_id)
         replication_links = list(
             map(
-                lambda x: x.as_dict(),
+                lambda x: transform_sql_detail(x.as_dict()),
                 client.replication_links.list_by_database(
                     database["resource_group_name"],
                     database["server_name"],
@@ -820,6 +919,9 @@ def get_db_threat_detection_policies(
             database["name"],
             SecurityAlertPolicyName.DEFAULT,
         ).as_dict()
+        db_threat_detection_policies = transform_sql_detail(
+            db_threat_detection_policies
+        )
     except ClientAuthenticationError as e:
         logger.warning(
             f"Client Authentication Error while retrieving threat detection policy - {e}",
@@ -850,7 +952,7 @@ def get_restore_points(
         client = get_client(credentials, subscription_id)
         restore_points_list = list(
             map(
-                lambda x: x.as_dict(),
+                lambda x: transform_sql_detail(x.as_dict()),
                 client.restore_points.list_by_database(
                     database["resource_group_name"],
                     database["server_name"],
@@ -891,6 +993,9 @@ def get_transparent_data_encryptions(
             database["name"],
             TransparentDataEncryptionName.CURRENT,
         ).as_dict()
+        transparent_data_encryptions_list = transform_sql_detail(
+            transparent_data_encryptions_list
+        )
     except ClientAuthenticationError as e:
         logger.warning(
             f"Client Authentication Error while retrieving transparent data encryptions - {e}",

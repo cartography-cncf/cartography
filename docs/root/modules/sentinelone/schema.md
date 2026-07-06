@@ -174,9 +174,9 @@ Represents a specific version of an application.
     (S1AppFinding)-[AFFECTS]->(S1ApplicationVersion)
     ```
 
-### S1AppFinding::S1Finding::Risk
+### S1AppFinding::S1Finding::Risk::CVE
 
-Represents a specific **instance** of a vulnerability detection (finding) on a specific endpoint. Unlike generic CVE definitions, each `S1AppFinding` node represents a unique finding on a specific agent.
+Represents a specific **instance** of a vulnerability detection (finding) on a specific endpoint. Unlike generic CVE definitions, each `S1AppFinding` node represents a unique finding on a specific agent. It carries the `:CVE` ontology label (it is keyed on a `cve_id`), so it participates in cross-tool vulnerability queries.
 
 | Field | Description |
 |-------|-------------|

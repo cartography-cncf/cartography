@@ -8,6 +8,8 @@ graph LR
 
 U(User) -- HAS_ACCOUNT --> UA{{UserAccount}}
 U -- OWNS --> CC(Device)
+SAF[S1AppFinding] -- AFFECTS --> CC
+CSF[CrowdstrikeFinding] -- AFFECTS --> CC
 U -- OWNS --> AK{{APIKey}}
 U -- AUTHORIZED --> OA{{ThirdPartyApp}}
 UG{{UserGroup}}
@@ -68,6 +70,7 @@ PIP -- POINTS_TO --> CI
 PKG(Package) -- DEPLOYED --> IM{{Image}}
 PKG -- DEPENDS_ON --> PKG
 F[TrivyImageFinding] -- AFFECTS --> PKG
+SCA[SemgrepSCAFinding] -- AFFECTS --> PKG
 CR{{ContainerRegistry}} -- REPO_IMAGE --> IT{{ImageTag}}
 IT -- IMAGE --> IM
 IML{{ImageManifestList}} -- CONTAINS_IMAGE --> IM
@@ -261,6 +264,11 @@ A client computer is a host that accesses a service made available by a server o
     (:User)-[:OWNS]->(:Device)
     ```
   This relationship may be derived from provider signals such as Jamf device emails, CrowdStrike host emails, or native provider ownership edges.
+- A `Device` can be affected by one or many findings (propagated from the provider host/agent during the ontology linking job):
+    ```
+    (:S1AppFinding)-[:AFFECTS]->(:Device)
+    (:CrowdstrikeFinding)-[:AFFECTS]->(:Device)
+    ```
 
 
 ### APIKey
@@ -1032,14 +1040,16 @@ Package nodes are deduplicated by their `id`, which uses the format `{type}|{nam
     ```
     (:Package)-[:DETECTED_AS]->(:TrivyPackage)
     (:Package)-[:DETECTED_AS]->(:SyftPackage)
+    (:Package)-[:DETECTED_AS]->(:SemgrepDependency)
     ```
 - `Package` can be deployed in one or many container images (propagated from TrivyPackage and SyftPackage):
     ```
     (:Package)-[:DEPLOYED]->(:Image)
     ```
-- `Package` can be affected by one or many vulnerability findings (propagated from TrivyPackage):
+- `Package` can be affected by one or many vulnerability findings or security issues (propagated from TrivyPackage and SemgrepDependency):
     ```
     (:TrivyImageFinding)-[:AFFECTS]->(:Package)
+    (:SemgrepSCAFinding)-[:AFFECTS]->(:Package)
     ```
 - `Package` can have one or many recommended fix versions (propagated from TrivyPackage):
     ```
