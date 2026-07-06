@@ -52,7 +52,7 @@ def transform(raw: list[dict[str, Any]]) -> list[dict[str, Any]]:
                 "id": item["id"],
                 "name": item.get("name"),
                 "description": item.get("description"),
-                "project_slug": item.get("project-slug"),
+                "project_slug": item.get("project_slug"),
                 "actor_login": actor.get("login"),
             }
         )

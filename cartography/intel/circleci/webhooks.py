@@ -51,8 +51,8 @@ def transform(raw: list[dict[str, Any]]) -> list[dict[str, Any]]:
             "id": item["id"],
             "name": item.get("name"),
             "url": item.get("url"),
-            "verify_tls": item.get("verify-tls"),
-            "has_signing_secret": bool(item.get("signing-secret")),
+            "verify_tls": item.get("verify_tls"),
+            "has_signing_secret": bool(item.get("signing_secret")),
             "events": item.get("events"),
         }
         for item in raw
