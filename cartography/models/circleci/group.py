@@ -3,6 +3,7 @@ from dataclasses import dataclass
 from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeProperties
 from cartography.models.core.nodes import CartographyNodeSchema
+from cartography.models.core.nodes import ExtraNodeLabels
 from cartography.models.core.relationships import CartographyRelProperties
 from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
@@ -41,6 +42,9 @@ class CircleCIGroupToOrganizationRel(CartographyRelSchema):
 class CircleCIGroupSchema(CartographyNodeSchema):
     label: str = "CircleCIGroup"
     properties: CircleCIGroupNodeProperties = CircleCIGroupNodeProperties()
+    # UserGroup label maps this node into the ontology alongside other org groups
+    # (GitLabGroup, EntraGroup, GoogleWorkspaceGroup, ...).
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["UserGroup"])
     sub_resource_relationship: CircleCIGroupToOrganizationRel = (
         CircleCIGroupToOrganizationRel()
     )

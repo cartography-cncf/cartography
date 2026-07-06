@@ -355,8 +355,28 @@ vercel_mapping = OntologyMapping(
     ],
 )
 
+circleci_mapping = OntologyMapping(
+    module_name="circleci",
+    nodes=[
+        OntologyNodeMapping(
+            node_label="CircleCIGroup",
+            fields=[
+                OntologyFieldMapping(
+                    ontology_field="name", node_field="name", required=True
+                ),
+                OntologyFieldMapping(
+                    ontology_field="description",
+                    node_field="description",
+                    indexed=False,
+                ),
+            ],
+        ),
+    ],
+)
+
 GROUPS_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     "aws": aws_mapping,
+    "circleci": circleci_mapping,
     "duo": duo_mapping,
     "microsoft": entra_mapping,
     "github": github_mapping,

@@ -138,6 +138,8 @@ Represents an organization's OIDC custom-claims configuration (`GET /org/{orgID}
 
 Represents an organization group (`GET /organizations/{org_id}/groups`).
 
+> **Ontology Mapping**: This node has the extra label `UserGroup` for cross-platform group queries (e.g. GitLabGroup, EntraGroup, GoogleWorkspaceGroup).
+
 | Field | Description |
 |-------|-------------|
 | **id** | Group ID. |
@@ -316,6 +318,8 @@ Represents an outbound webhook scoped to a project (`GET /webhook`).
 ### CircleCIPipeline
 
 Represents a pipeline: the config/source binding (`GET /projects/{project_id}/pipeline-definitions`). Pipeline **runs** (executions) are intentionally not ingested - they are high-volume, ephemeral telemetry rather than inventory.
+
+> **Ontology Mapping**: This node has the extra label `CICDPipeline` for cross-platform CI/CD queries alongside GitHubWorkflow, GitLab CI, AWS CodeBuild, and Spacelift stacks.
 
 | Field | Description |
 |-------|-------------|

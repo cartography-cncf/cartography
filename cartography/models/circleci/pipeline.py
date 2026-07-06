@@ -3,6 +3,7 @@ from dataclasses import dataclass
 from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeProperties
 from cartography.models.core.nodes import CartographyNodeSchema
+from cartography.models.core.nodes import ExtraNodeLabels
 from cartography.models.core.relationships import CartographyRelProperties
 from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
@@ -59,6 +60,9 @@ class CircleCIPipelineToProjectRel(CartographyRelSchema):
 class CircleCIPipelineSchema(CartographyNodeSchema):
     label: str = "CircleCIPipeline"
     properties: CircleCIPipelineNodeProperties = CircleCIPipelineNodeProperties()
+    # CICDPipeline label maps this node into the ontology alongside other CI/CD
+    # pipelines (GitHubWorkflow, GitLab CI, AWS CodeBuild, Spacelift stacks).
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["CICDPipeline"])
     sub_resource_relationship: CircleCIPipelineToProjectRel = (
         CircleCIPipelineToProjectRel()
     )
