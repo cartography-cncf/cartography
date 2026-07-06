@@ -80,6 +80,7 @@ class AddRelationship:
     firstseen: Any = None
     # Override to "target" when the target, not the source, is under AnalysisJob.scope.
     scoped_to: Literal["source", "target"] = "source"
+    cleanup_where: str = ""
 
 
 @dataclass(frozen=True)
@@ -101,6 +102,7 @@ class RelationshipEffect:
     direction: LinkDirection | None = LinkDirection.OUTWARD
     scoped_to: Literal["source", "target"] = "source"
     cleanup_before_statements: bool = False
+    cleanup_where: str = ""
 
 
 @dataclass(frozen=True)

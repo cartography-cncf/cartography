@@ -206,6 +206,7 @@ def _(effect: AddRelationship) -> RelationshipEffect:
         tuple(effect.properties or ()),
         LinkDirection.OUTWARD if not effect.undirected else None,
         effect.scoped_to,
+        cleanup_where=effect.cleanup_where,
     )
 
 
@@ -296,9 +297,13 @@ def _(effect: RelationshipEffect, scope: ScopedTo | None) -> str:
             f"({scoped_alias})\n{match}"
         )
 
+    filters = ["r.lastupdated <> $UPDATE_TAG"]
+    if effect.cleanup_where:
+        filters.append(f"({effect.cleanup_where})")
+
     return (
         f"{match}\n"
-        "WHERE r.lastupdated <> $UPDATE_TAG\n"
+        f"WHERE {' AND '.join(filters)}\n"
         "WITH r LIMIT $LIMIT_SIZE\n"
         "DELETE r"
     )

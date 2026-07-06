@@ -112,13 +112,54 @@ DEVICE_OWNS_LINKING = AnalysisJob(
         ),
     ),
 )
+DEVICE_AFFECTS_S1_FINDING = AnalysisJob(
+    name="Ontology - S1AppFinding AFFECTS Device linking",
+    short_name="ontology_devices_s1_app_finding_affects",
+    statements=(
+        AnalysisStatement(
+            match="MATCH (d:Device)-[obs:OBSERVED_AS]->(:S1Agent)<-[:AFFECTS]-(f:S1AppFinding) WHERE obs.lastupdated = $UPDATE_TAG AND d.lastupdated = $UPDATE_TAG",
+            effects=(
+                AddRelationship(
+                    "f",
+                    "AFFECTS",
+                    "d",
+                    source_label="S1AppFinding",
+                    target_label="Device",
+                ),
+            ),
+        ),
+    ),
+)
+DEVICE_AFFECTS_CROWDSTRIKE_FINDING = AnalysisJob(
+    name="Ontology - CrowdstrikeFinding AFFECTS Device linking",
+    short_name="ontology_devices_crowdstrike_finding_affects",
+    statements=(
+        AnalysisStatement(
+            match="MATCH (d:Device)-[obs:OBSERVED_AS]->(:CrowdstrikeHost)-[:HAS_VULNERABILITY]->(:SpotlightVulnerability)-[:HAS_CVE]->(f:CrowdstrikeFinding) WHERE obs.lastupdated = $UPDATE_TAG AND d.lastupdated = $UPDATE_TAG",
+            effects=(
+                AddRelationship(
+                    "f",
+                    "AFFECTS",
+                    "d",
+                    source_label="CrowdstrikeFinding",
+                    target_label="Device",
+                ),
+            ),
+        ),
+    ),
+)
+DEVICE_LINKING_JOBS = (
+    DEVICE_OWNS_LINKING,
+    DEVICE_AFFECTS_S1_FINDING,
+    DEVICE_AFFECTS_CROWDSTRIKE_FINDING,
+)
 DNS_RECORD_TO_KUBERNETES_INGRESS = AnalysisJob(
     name="Ontology - DNSRecord to KubernetesIngress linking",
     short_name="ontology_dnsrecords_kubernetes_ingress",
     cleanup_iterationsize=1000,
     statements=(
         AnalysisStatement(
-            match="MATCH (dns:DNSRecord) WHERE dns.lastupdated = $UPDATE_TAG AND dns._ont_name IS NOT NULL WITH dns MATCH (ing:KubernetesIngress) WHERE dns._ont_name IN ing.host_names",
+            match="MATCH (dns:DNSRecord) WHERE dns._ont_name IS NOT NULL WITH dns MATCH (ing:KubernetesIngress) WHERE dns._ont_name IN ing.host_names",
             effects=(
                 AddRelationship(
                     "dns",
@@ -132,13 +173,28 @@ DNS_RECORD_TO_KUBERNETES_INGRESS = AnalysisJob(
     ),
 )
 DNS_RECORD_TARGETS = (
-    ("AWSLoadBalancerV2", "dnsname"),
-    ("AWSLoadBalancer", "dnsname"),
-    ("CloudFrontDistribution", "domain_name"),
-    ("EC2Instance", "publicdnsname"),
-    ("GCPInstance", "hostname"),
-    ("AzureAppService", "default_host_name"),
-    ("AzureFunctionApp", "default_host_name"),
+    (
+        "AWSLoadBalancerV2",
+        "dnsname",
+        "AND NOT dns:AWSDNSRecord",
+        "NOT source:AWSDNSRecord",
+    ),
+    (
+        "AWSLoadBalancer",
+        "dnsname",
+        "AND NOT dns:AWSDNSRecord",
+        "NOT source:AWSDNSRecord",
+    ),
+    ("CloudFrontDistribution", "domain_name", "", ""),
+    (
+        "EC2Instance",
+        "publicdnsname",
+        "AND NOT dns:AWSDNSRecord",
+        "NOT source:AWSDNSRecord",
+    ),
+    ("GCPInstance", "hostname", "", ""),
+    ("AzureAppService", "default_host_name", "", ""),
+    ("AzureFunctionApp", "default_host_name", "", ""),
 )
 DNS_RECORD_LINKING_JOBS = (DNS_RECORD_TO_KUBERNETES_INGRESS,) + tuple(
     (
@@ -148,7 +204,7 @@ DNS_RECORD_LINKING_JOBS = (DNS_RECORD_TO_KUBERNETES_INGRESS,) + tuple(
             cleanup_iterationsize=1000,
             statements=(
                 AnalysisStatement(
-                    match=f"MATCH (dns:DNSRecord) WHERE dns.lastupdated = $UPDATE_TAG AND dns._ont_value IS NOT NULL WITH dns MATCH (target:{target_label}) WHERE toLower(toString(dns._ont_value)) = toLower(target.{target_property})",
+                    match=f"MATCH (dns:DNSRecord) WHERE dns._ont_value IS NOT NULL {match_filter} WITH dns MATCH (target:{target_label}) WHERE toLower(toString(dns._ont_value)) = toLower(target.{target_property})",
                     effects=(
                         AddRelationship(
                             "dns",
@@ -156,11 +212,12 @@ DNS_RECORD_LINKING_JOBS = (DNS_RECORD_TO_KUBERNETES_INGRESS,) + tuple(
                             "target",
                             source_label="DNSRecord",
                             target_label=target_label,
+                            cleanup_where=cleanup_where,
                         ),
                     ),
                 ),
                 AnalysisStatement(
-                    match=f"MATCH (dns:GCPRecordSet) WHERE dns.lastupdated = $UPDATE_TAG AND dns.data IS NOT NULL UNWIND dns.data AS val WITH dns, val MATCH (target:{target_label}) WHERE toLower(val) = toLower(target.{target_property})",
+                    match=f"MATCH (dns:GCPRecordSet) WHERE dns.data IS NOT NULL UNWIND dns.data AS val WITH dns, val MATCH (target:{target_label}) WHERE toLower(val) = toLower(target.{target_property})",
                     effects=(
                         AddRelationship(
                             "dns",
@@ -173,7 +230,7 @@ DNS_RECORD_LINKING_JOBS = (DNS_RECORD_TO_KUBERNETES_INGRESS,) + tuple(
                 ),
             ),
         )
-        for target_label, target_property in DNS_RECORD_TARGETS
+        for target_label, target_property, match_filter, cleanup_where in DNS_RECORD_TARGETS
     )
 )
 LOADBALANCER_EXPOSE_CONTAINER = AnalysisJob(
@@ -250,6 +307,24 @@ PACKAGE_AFFECTS_LINKING = AnalysisJob(
         ),
     ),
 )
+PACKAGE_AFFECTS_SEMGREP_SCA_LINKING = AnalysisJob(
+    name="Ontology - SemgrepSCAFinding AFFECTS Package linking",
+    short_name="ontology_packages_semgrep_sca_affects",
+    statements=(
+        AnalysisStatement(
+            match="MATCH (f:SemgrepSCAFinding)-[:AFFECTS]->(d:SemgrepDependency)<-[:DETECTED_AS]-(p:Package)",
+            effects=(
+                AddRelationship(
+                    "f",
+                    "AFFECTS",
+                    "p",
+                    source_label="SemgrepSCAFinding",
+                    target_label="Package",
+                ),
+            ),
+        ),
+    ),
+)
 PACKAGE_SHOULD_UPDATE_TO_LINKING = AnalysisJob(
     name="Ontology - Package SHOULD_UPDATE_TO TrivyFix linking",
     short_name="ontology_packages_should_update_to",
@@ -289,6 +364,7 @@ PACKAGE_DEPENDS_ON_LINKING = AnalysisJob(
 PACKAGE_LINKING_JOBS = (
     *PACKAGE_DEPLOYED_IMAGE_JOBS,
     PACKAGE_AFFECTS_LINKING,
+    PACKAGE_AFFECTS_SEMGREP_SCA_LINKING,
     PACKAGE_SHOULD_UPDATE_TO_LINKING,
     PACKAGE_DEPENDS_ON_LINKING,
 )

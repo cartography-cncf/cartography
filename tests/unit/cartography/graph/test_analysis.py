@@ -64,6 +64,36 @@ def test_relationship_job_appends_cleanup_statement():
     assert graph_job.statements[1].parameters["LIMIT_SIZE"] == 10000
 
 
+def test_relationship_cleanup_can_keep_provider_owned_edges():
+    job = AnalysisJob(
+        name="DNS records to EC2 instances",
+        statements=(
+            AnalysisStatement(
+                match="MATCH (dns:DNSRecord), (i:EC2Instance)",
+                effects=(
+                    AddRelationship(
+                        "dns",
+                        "DNS_POINTS_TO",
+                        "i",
+                        source_label="DNSRecord",
+                        target_label="EC2Instance",
+                        cleanup_where="NOT source:AWSDNSRecord",
+                    ),
+                ),
+            ),
+        ),
+    )
+
+    graph_job = to_graph_job(job)
+
+    assert graph_job.statements[1].query == (
+        "MATCH (source:DNSRecord)-[r:DNS_POINTS_TO]->(target:EC2Instance)\n"
+        "WHERE r.lastupdated <> $UPDATE_TAG AND (NOT source:AWSDNSRecord)\n"
+        "WITH r LIMIT $LIMIT_SIZE\n"
+        "DELETE r"
+    )
+
+
 def test_statement_compiles_add_relationship_effect():
     # Arrange
     statement = AnalysisStatement(

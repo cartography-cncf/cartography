@@ -3,7 +3,7 @@ from typing import Any
 
 import neo4j
 
-from cartography.analysis.ontology.analysis import DEVICE_OWNS_LINKING
+from cartography.analysis.ontology.analysis import DEVICE_LINKING_JOBS
 from cartography.client.core.tx import load
 from cartography.client.core.tx import load_matchlinks
 from cartography.graph.job import GraphJob
@@ -33,11 +33,8 @@ def sync(
         update_tag,
     )
     _run_hostname_matchlinks(neo4j_session, update_tag)
-    run_typed_analysis_job(
-        DEVICE_OWNS_LINKING,
-        neo4j_session,
-        common_job_parameters,
-    )
+    for job in DEVICE_LINKING_JOBS:
+        run_typed_analysis_job(job, neo4j_session, common_job_parameters)
     cleanup(neo4j_session, common_job_parameters)
 
 
