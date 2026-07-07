@@ -1,5 +1,5 @@
+from cartography.intel.cve_metadata.effect_tags import _VOCAB_ORDER
 from cartography.intel.cve_metadata.effect_tags import derive_effect_tags
-from cartography.intel.cve_metadata.effect_tags import EFFECT_TAG_VOCABULARY
 from cartography.intel.cve_metadata.effect_tags import unmapped_cwes
 
 
@@ -21,8 +21,8 @@ def test_multi_cwe_union_deduplicated():
     assert source == "cwe"
     assert set(tags) == {"execute-code", "tamper-data", "deny-service", "disclose-data"}
     # Output is vocabulary-ordered and within the controlled set.
-    assert tags == sorted(tags, key=_VOCAB.index)
-    assert set(tags) <= EFFECT_TAG_VOCABULARY
+    assert tags == sorted(tags, key=_VOCAB_ORDER.index)
+    assert set(tags) <= set(_VOCAB_ORDER)
 
 
 def test_uninformative_cwe_falls_through_to_cvss():
@@ -99,14 +99,3 @@ def test_cwe_precedence_over_cvss():
     tags, source = derive_effect_tags(cve)
     assert source == "cwe"
     assert tags == ["execute-code"]
-
-
-_VOCAB = [
-    "execute-code",
-    "gain-privileges",
-    "access-credentials",
-    "bypass-control",
-    "disclose-data",
-    "tamper-data",
-    "deny-service",
-]

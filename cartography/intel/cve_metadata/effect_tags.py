@@ -18,16 +18,6 @@ DISCLOSE_DATA = "disclose-data"
 TAMPER_DATA = "tamper-data"
 DENY_SERVICE = "deny-service"
 
-EFFECT_TAG_VOCABULARY = {
-    EXECUTE_CODE,
-    GAIN_PRIVILEGES,
-    ACCESS_CREDENTIALS,
-    BYPASS_CONTROL,
-    DISCLOSE_DATA,
-    TAMPER_DATA,
-    DENY_SERVICE,
-}
-
 # Static CWE -> effect_tags bootstrap table, hand-curated from MITRE CWE Common
 # Consequences. Covers the CWEs actually observed in current data plus common
 # neighbours. Grows over time via PR. Uninformative CWEs (NVD-CWE-noinfo,
