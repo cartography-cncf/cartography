@@ -3,11 +3,14 @@ import json
 import logging
 import time
 from typing import Callable
+from typing import TypeVar
 
 from okta.framework import PagedResults
 from okta.framework.ApiClient import ApiClient
 from okta.framework.OktaError import OktaError
 from requests import Response
+
+T = TypeVar("T")
 
 logger = logging.getLogger(__name__)
 
@@ -26,16 +29,17 @@ OKTA_RETRY_DELAY_SECONDS = 1
 
 
 def okta_paged_request_with_retry(
-    request: Callable[[], Response],
+    request: Callable[[], T],
     description: str,
-) -> Response:
+) -> T:
     """
     Run an Okta paged request, retrying when the legacy Okta SDK raises
     JSONDecodeError while parsing a non-JSON error body. OktaError is left for
     the caller to handle.
-    :param request: zero-arg callable performing the api_client call
+    :param request: zero-arg callable performing the SDK call (an ApiClient
+        get/get_path returning a Response, or a UsersClient pager call)
     :param description: what the request is doing, for log messages
-    :return: the requests Response returned by the SDK
+    :return: whatever the request callable returns
     """
     for attempt in range(1, OKTA_REQUEST_ATTEMPTS + 1):
         try:
