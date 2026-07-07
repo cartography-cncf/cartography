@@ -52,8 +52,13 @@ def _get_okta_users(user_client: UsersClient) -> List[Dict]:
         user_list.extend(paged_users.result)
         check_rate_limit(paged_users.response)
         if not paged_users.is_last_page():
-            # Keep on fetching pages of users until the last page
-            paged_users = _get_okta_users_page(user_client, paged_users.next_url)
+            # Keep on fetching pages of users until the last page. A missing
+            # next URL here would otherwise be treated as an initial request
+            # and re-fetch the first page forever.
+            next_url = paged_users.next_url
+            if not next_url:
+                raise ValueError("Okta paginated response was missing a next URL.")
+            paged_users = _get_okta_users_page(user_client, next_url)
         else:
             break
 
