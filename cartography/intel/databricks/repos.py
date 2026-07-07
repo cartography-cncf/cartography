@@ -66,8 +66,12 @@ def _github_url(url: str | None, provider: str | None) -> str | None:
     """
     if not url or "github" not in (provider or "").lower():
         return None
-    trimmed = url[: -len(".git")] if url.endswith(".git") else url
-    return trimmed.rstrip("/")
+    # Strip trailing slashes first so a clone URL like "…/repo.git/" still has
+    # its ".git" suffix trimmed and lines up with the GitHubRepository html url.
+    cleaned = url.rstrip("/")
+    if cleaned.endswith(".git"):
+        cleaned = cleaned[: -len(".git")]
+    return cleaned.rstrip("/")
 
 
 @timeit
