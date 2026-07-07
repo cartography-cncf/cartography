@@ -37,7 +37,7 @@ def test_load_databricks_account_settings(mock_get, neo4j_session):
         neo4j_session,
         "DatabricksAccountSetting",
         ["setting_name", "value"],
-    ) == {("personal_compute", "True")}
+    ) == {("personal_compute", "ON")}
 
     # AccountSetting -> Account RESOURCE
     assert check_rels(

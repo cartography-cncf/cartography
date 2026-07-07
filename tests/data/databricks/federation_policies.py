@@ -1,6 +1,5 @@
 DATABRICKS_ACCOUNT_FEDERATION_POLICIES = [
     {
-        "id": "policy-account-1",
         "name": "github-actions",
         "uid": "uid-account-1",
         "description": "Federate GitHub Actions OIDC into the account.",
@@ -17,7 +16,6 @@ DATABRICKS_SP_FEDERATION_POLICIES = {
     "510001": {
         "policies": [
             {
-                "id": "policy-sp-1",
                 "name": "etl-oidc",
                 "uid": "uid-sp-1",
                 "description": "Federate CI into the etl-runner service principal.",

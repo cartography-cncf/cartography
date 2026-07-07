@@ -120,10 +120,17 @@ def get_service_principal_policies(
     return policies, complete
 
 
-def _flatten(policy: dict[str, Any], account_id: str) -> dict[str, Any]:
+def _flatten(policy: dict[str, Any], account_id: str) -> dict[str, Any] | None:
+    # The federation policy API keys a policy by its server-assigned ``uid``
+    # (falling back to ``policy_id`` / ``name``); there is no ``id`` field, so
+    # never index ``policy["id"]``. Drop a policy with no identifier rather than
+    # collapse it onto a blank account-scoped key.
+    policy_uid = policy.get("uid") or policy.get("policy_id") or policy.get("name")
+    if not policy_uid:
+        return None
     oidc = policy.get("oidc_policy") or {}
     return {
-        "id": account_scoped_id(account_id, str(policy["id"])),
+        "id": account_scoped_id(account_id, str(policy_uid)),
         "name": policy.get("name"),
         "uid": policy.get("uid"),
         "description": policy.get("description"),
@@ -142,10 +149,10 @@ def transform(
     account_id: str,
 ) -> list[dict[str, Any]]:
     result: list[dict[str, Any]] = []
-    for policy in account_policies:
-        result.append(_flatten(policy, account_id))
-    for policy in sp_policies:
-        result.append(_flatten(policy, account_id))
+    for policy in (*account_policies, *sp_policies):
+        flattened = _flatten(policy, account_id)
+        if flattened is not None:
+            result.append(flattened)
     return result
 
 

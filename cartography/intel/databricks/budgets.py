@@ -34,12 +34,15 @@ def get(api_session: DatabricksAccountClient) -> list[dict[str, Any]]:
     """List account budget configurations.
 
     The budgets endpoint is a 2.1 API, so build the path manually since
-    ``account_uri`` hardcodes 2.0. Some accounts / regions do not expose the
-    endpoint (returns 404); treat that as "no budgets" so the sync stays usable.
+    ``account_uri`` hardcodes 2.0. It paginates with ``next_page_token``, so walk
+    every page via ``uc_list`` rather than returning only the first (otherwise
+    later-page budgets would be omitted and then deleted by cleanup). Some
+    accounts / regions do not expose the endpoint (returns 404); treat that as
+    "no budgets" so the sync stays usable.
     """
     uri = f"/api/2.1/accounts/{api_session.account_id}/budgets"
     try:
-        data = api_session.get(uri) or {}
+        return api_session.uc_list(uri, key="budgets")
     except requests.HTTPError as exc:
         if exc.response is not None and exc.response.status_code == 404:
             logger.info(
@@ -47,7 +50,6 @@ def get(api_session: DatabricksAccountClient) -> list[dict[str, Any]]:
             )
             return []
         raise
-    return data.get("budgets", []) or []
 
 
 @timeit

@@ -1590,7 +1590,7 @@ A shared label applied to every workspace object that exposes an object-level AC
 
 ### Code to cloud
 
-Databricks Git-backed repos are linked to the GitHub repository that hosts their source during the analysis phase:
+Databricks Git-backed repos are linked to the GitHub repository that hosts their source at ingest time (the edge forms when the GitHub repo is already in the graph):
 
 ```
 (:DatabricksRepo)-[:SOURCED_FROM]->(:GitHubRepository)

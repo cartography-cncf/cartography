@@ -65,13 +65,27 @@ def get(api_session: DatabricksAccountClient) -> list[dict[str, Any]]:
 
 
 def _setting_value(data: dict[str, Any]) -> str | None:
-    """Stringify whichever typed value field the setting returned."""
-    for key in ("boolean_val", "string_val", "integer_val"):
+    """Stringify whichever typed value field the setting returned.
+
+    Different account settings wrap the value differently. Personal compute
+    returns ``personal_compute: {"value": "ON"|"DELEGATE"}``; the generic typed
+    settings use ``boolean_val`` / ``string_val`` / ``integer_val`` blocks. Scan
+    the known keys, then fall back to any nested ``{"value": ...}`` block so a
+    setting-specific wrapper (like personal_compute) is still captured.
+    """
+    for key in ("personal_compute", "boolean_val", "string_val", "integer_val"):
         block = data.get(key)
         if isinstance(block, dict) and "value" in block:
             return str(block["value"])
     if "enabled" in data:
         return str(data["enabled"])
+    # Fallback: some settings nest the value under a setting-named key we do not
+    # enumerate; take the first nested {"value": ...} that is not metadata.
+    for key, block in data.items():
+        if key in ("etag", "setting_name", "_setting_name"):
+            continue
+        if isinstance(block, dict) and "value" in block:
+            return str(block["value"])
     return None
 
 

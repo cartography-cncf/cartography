@@ -1,4 +1,5 @@
 from typing import Any
+from urllib.parse import urlparse
 
 import neo4j
 
@@ -6,6 +7,21 @@ from cartography.client.core.tx import load
 from cartography.intel.databricks.util import DatabricksAccountClient
 from cartography.models.databricks.workspace import DatabricksWorkspaceSchema
 from cartography.util import timeit
+
+
+def _workspace_host_suffix(account_host: str) -> str:
+    """Derive the per-workspace host suffix from the account host.
+
+    The account console host mirrors the workspace host domain:
+    ``accounts.cloud.databricks.com`` (AWS) -> workspaces at
+    ``<deployment>.cloud.databricks.com``; ``accounts.gcp.databricks.com`` (GCP)
+    -> ``<deployment>.gcp.databricks.com``. Stripping the leading ``accounts.``
+    yields the suffix, so GCP workspaces get the right node id (and collide with
+    the workspace-API node) instead of a hardcoded AWS suffix.
+    """
+    netloc = (urlparse(account_host).netloc or account_host).lower()
+    prefix = "accounts."
+    return netloc[len(prefix) :] if netloc.startswith(prefix) else netloc
 
 
 @timeit
@@ -26,7 +42,7 @@ def sync(
     numeric id / deployment / name and the DatabricksAccount -> RESOURCE edge.
     """
     workspaces = get(api_session)
-    transformed = transform(workspaces)
+    transformed = transform(workspaces, _workspace_host_suffix(api_session.host))
     load_workspaces(
         neo4j_session, transformed, account_id, common_job_parameters["UPDATE_TAG"]
     )
@@ -39,14 +55,16 @@ def get(api_session: DatabricksAccountClient) -> list[dict[str, Any]]:
 
 
 @timeit
-def transform(workspaces: list[dict[str, Any]]) -> list[dict[str, Any]]:
+def transform(
+    workspaces: list[dict[str, Any]], host_suffix: str
+) -> list[dict[str, Any]]:
     result: list[dict[str, Any]] = []
     for w in workspaces:
         deployment_name = w.get("deployment_name")
         numeric_id = w.get("workspace_id")
         if not deployment_name or numeric_id is None:
             continue
-        host_id = f"{deployment_name}.cloud.databricks.com".lower()
+        host_id = f"{deployment_name}.{host_suffix}".lower()
         result.append(
             {
                 # Node id is the deployment host so it collides with the same

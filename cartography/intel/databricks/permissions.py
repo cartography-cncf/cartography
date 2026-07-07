@@ -29,7 +29,7 @@ _ACL_OBJECT_BY_LABEL = {
     "DatabricksJob": ("jobs", "job_id"),
     "DatabricksPipeline": ("pipelines", "pipeline_id"),
     "DatabricksSqlWarehouse": ("sql/warehouses", "warehouse_id"),
-    "DatabricksServingEndpoint": ("serving-endpoints", "name"),
+    "DatabricksServingEndpoint": ("serving-endpoints", "endpoint_id"),
     "DatabricksApp": ("apps", "name"),
 }
 
@@ -137,6 +137,7 @@ def get_objects(
                WHEN 'DatabricksJob' THEN n.job_id
                WHEN 'DatabricksPipeline' THEN n.pipeline_id
                WHEN 'DatabricksSqlWarehouse' THEN n.warehouse_id
+               WHEN 'DatabricksServingEndpoint' THEN n.endpoint_id
                ELSE n.name
            END AS object_ref
     """

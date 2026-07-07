@@ -15,6 +15,8 @@ from cartography.models.core.relationships import TargetNodeMatcher
 class DatabricksServingEndpointNodeProperties(CartographyNodeProperties):
     id: PropertyRef = PropertyRef("id")
     name: PropertyRef = PropertyRef("name", extra_index=True)
+    # System id the Permissions API keys off (distinct from the display name).
+    endpoint_id: PropertyRef = PropertyRef("endpoint_id", extra_index=True)
     endpoint_type: PropertyRef = PropertyRef("endpoint_type")
     task: PropertyRef = PropertyRef("task")
     state_ready: PropertyRef = PropertyRef("state_ready")

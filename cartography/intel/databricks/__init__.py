@@ -164,26 +164,28 @@ def _sync_workflows(
     )
 
 
-def _sync_account(
+def _sync_account_details(
     neo4j_session: neo4j.Session,
     account_client: DatabricksAccountClient,
+    account_id: str,
     update_tag: int,
-) -> str:
-    """Sync the account-level surface (AWS / GCP) and return the account id.
+) -> None:
+    """Sync the account-level surface (AWS / GCP) below the account node.
 
-    Covers the Databricks Account API, which does not exist on Azure: the
-    account node, account SCIM (groups first so member edges land, then users +
-    service principals), the account's workspaces (so workspace permission
-    assignments can key off the numeric workspace id), account-to-workspace
-    permission assignments, federation policies, and the workspace cloud
-    configurations (credentials / storage / network / encryption / ...).
+    Covers the Databricks Account API, which does not exist on Azure: account
+    SCIM (groups first so member edges land, then users + service principals),
+    the account's workspaces (so workspace permission assignments can key off
+    the numeric workspace id), account-to-workspace permission assignments,
+    federation policies, and the workspace cloud configurations (credentials /
+    storage / network / encryption / ...).
 
-    Each account resource is scoped to ``DatabricksAccount`` for cleanup, so
-    ``ACCOUNT_ID`` rides in the common job parameters.
+    Runs AFTER the workspace-API workspace sync so that account_workspaces
+    enriches (rather than gets clobbered by) the DatabricksWorkspace node. The
+    ``DatabricksAccount`` node itself is synced earlier, before the workspace, so
+    the workspace's account RESOURCE edge can form. Each account resource is
+    scoped to ``DatabricksAccount`` for cleanup, so ``ACCOUNT_ID`` rides in the
+    common job parameters.
     """
-    account_id = cartography.intel.databricks.account.sync(
-        neo4j_session, account_client, {"UPDATE_TAG": update_tag}
-    )
     account_job_parameters = {"UPDATE_TAG": update_tag, "ACCOUNT_ID": account_id}
 
     cartography.intel.databricks.account_groups.sync(
@@ -230,8 +232,6 @@ def _sync_account(
         cartography.intel.databricks.account_settings,
     ):
         module.sync(neo4j_session, account_client, account_id, account_job_parameters)
-
-    return account_id
 
 
 @timeit
@@ -303,7 +303,13 @@ def start_databricks_ingestion(neo4j_session: neo4j.Session, config: Config) -> 
             "--databricks-account-client-secret-env-var must be set together.",
         )
 
+    # Sync the DatabricksAccount node first (before the workspace) so the
+    # workspace's account RESOURCE edge can match it. The rest of the account
+    # surface runs after the workspace sync below, so account_workspaces enriches
+    # the DatabricksWorkspace node instead of being clobbered by the workspace
+    # sync (which does not carry the numeric id / deployment fields).
     account_id: str | None = None
+    account_client: DatabricksAccountClient | None = None
     if account_configured:
         account_client = DatabricksAccountClient(
             host=config.databricks_account_host,
@@ -311,7 +317,9 @@ def start_databricks_ingestion(neo4j_session: neo4j.Session, config: Config) -> 
             client_id=config.databricks_account_client_id,
             client_secret=config.databricks_account_client_secret,
         )
-        account_id = _sync_account(neo4j_session, account_client, config.update_tag)
+        account_id = cartography.intel.databricks.account.sync(
+            neo4j_session, account_client, {"UPDATE_TAG": config.update_tag}
+        )
 
     api_client = DatabricksWorkspaceClient(
         host=config.databricks_workspace_url,
@@ -331,6 +339,14 @@ def start_databricks_ingestion(neo4j_session: neo4j.Session, config: Config) -> 
         "UPDATE_TAG": config.update_tag,
         "WORKSPACE_ID": workspace_id,
     }
+
+    # Account-level surface (SCIM, workspaces, assignments, federation, cloud
+    # configs). Runs after the workspace sync so account_workspaces enriches the
+    # existing workspace node rather than being overwritten by it.
+    if account_client is not None and account_id is not None:
+        _sync_account_details(
+            neo4j_session, account_client, account_id, config.update_tag
+        )
 
     # Groups must be synced before users + service principals so the
     # User/SP -[:MEMBER_OF]-> Group MATCH lands the relationship.

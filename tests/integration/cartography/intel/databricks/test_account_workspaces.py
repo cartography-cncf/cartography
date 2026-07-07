@@ -20,7 +20,7 @@ def _ensure_local_neo4j_has_test_account_workspaces(neo4j_session):
     cartography.intel.databricks.account_workspaces.load_workspaces(
         neo4j_session,
         cartography.intel.databricks.account_workspaces.transform(
-            DATABRICKS_ACCOUNT_WORKSPACES
+            DATABRICKS_ACCOUNT_WORKSPACES, "cloud.databricks.com"
         ),
         DATABRICKS_ACCOUNT_ID,
         TEST_UPDATE_TAG,
@@ -35,6 +35,7 @@ def _ensure_local_neo4j_has_test_account_workspaces(neo4j_session):
 def test_load_databricks_account_workspaces(mock_get, neo4j_session):
     # Arrange
     api_session = Mock()
+    api_session.host = "https://accounts.cloud.databricks.com"
     common_job_parameters = {
         "UPDATE_TAG": TEST_UPDATE_TAG,
         "ACCOUNT_ID": DATABRICKS_ACCOUNT_ID,

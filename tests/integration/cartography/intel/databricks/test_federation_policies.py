@@ -56,8 +56,8 @@ def test_load_databricks_federation_policies(neo4j_session):
         "DatabricksFederationPolicy",
         ["id", "name", "service_principal_id"],
     ) == {
-        (account_scoped("policy-account-1"), "github-actions", None),
-        (account_scoped("policy-sp-1"), "etl-oidc", "510001"),
+        (account_scoped("uid-account-1"), "github-actions", None),
+        (account_scoped("uid-sp-1"), "etl-oidc", "510001"),
     }
 
     # Assert Account -> Policy RESOURCE
@@ -70,8 +70,8 @@ def test_load_databricks_federation_policies(neo4j_session):
         "RESOURCE",
         rel_direction_right=False,
     ) == {
-        (account_scoped("policy-account-1"), DATABRICKS_ACCOUNT_ID),
-        (account_scoped("policy-sp-1"), DATABRICKS_ACCOUNT_ID),
+        (account_scoped("uid-account-1"), DATABRICKS_ACCOUNT_ID),
+        (account_scoped("uid-sp-1"), DATABRICKS_ACCOUNT_ID),
     }
 
     # Assert SP-scoped Policy -> ServicePrincipal OWNED_BY
@@ -84,5 +84,5 @@ def test_load_databricks_federation_policies(neo4j_session):
         "OWNED_BY",
         rel_direction_right=True,
     ) == {
-        (account_scoped("policy-sp-1"), account_scoped("510001")),
+        (account_scoped("uid-sp-1"), account_scoped("510001")),
     }
