@@ -94,15 +94,28 @@ def test_start_cve_metadata_ingestion_loads_one_year_at_a_time(
     assert mock_load_cve_metadata_feed.call_args_list == [
         call(neo4j_session, 123, {"nvd", "epss"}),
     ]
+    # merge_nvd_into_cves is mocked out, so cves stay stubs; effect_tags derivation
+    # still runs on each, resolving to []/none with no CWE or CVSS present.
     assert mock_load_cve_metadata.call_args_list == [
         call(
             neo4j_session,
-            [{"id": "CVE-2023-0001"}, {"id": "CVE-2023-0002"}],
+            [
+                {
+                    "id": "CVE-2023-0001",
+                    "effect_tags": [],
+                    "effect_tags_source": "none",
+                },
+                {
+                    "id": "CVE-2023-0002",
+                    "effect_tags": [],
+                    "effect_tags_source": "none",
+                },
+            ],
             123,
         ),
         call(
             neo4j_session,
-            [{"id": "CVE-2024-0001"}],
+            [{"id": "CVE-2024-0001", "effect_tags": [], "effect_tags_source": "none"}],
             123,
         ),
     ]
@@ -111,17 +124,34 @@ def test_start_cve_metadata_ingestion_loads_one_year_at_a_time(
         neo4j_session,
         {"UPDATE_TAG": 123, "FEED_ID": cve_metadata.CVE_METADATA_FEED_ID},
     )
+    # The merge mocks capture the cve dicts by reference; effect_tags are added to
+    # those same dicts before load, so they appear here by assertion time.
+    stub_2023_0001 = {
+        "id": "CVE-2023-0001",
+        "effect_tags": [],
+        "effect_tags_source": "none",
+    }
+    stub_2023_0002 = {
+        "id": "CVE-2023-0002",
+        "effect_tags": [],
+        "effect_tags_source": "none",
+    }
+    stub_2024_0001 = {
+        "id": "CVE-2024-0001",
+        "effect_tags": [],
+        "effect_tags_source": "none",
+    }
     mock_merge_nvd_into_cves.assert_has_calls(
         [
             call(
-                [{"id": "CVE-2023-0001"}, {"id": "CVE-2023-0002"}],
+                [stub_2023_0001, stub_2023_0002],
                 {
                     "CVE-2023-0001": {"id": "CVE-2023-0001", "baseScore": 1.0},
                     "CVE-2023-0002": {"id": "CVE-2023-0002", "baseScore": 2.0},
                 },
             ),
             call(
-                [{"id": "CVE-2024-0001"}],
+                [stub_2024_0001],
                 {"CVE-2024-0001": {"id": "CVE-2024-0001", "baseScore": 3.0}},
             ),
         ],
@@ -129,14 +159,14 @@ def test_start_cve_metadata_ingestion_loads_one_year_at_a_time(
     mock_merge_epss_into_cves.assert_has_calls(
         [
             call(
-                [{"id": "CVE-2023-0001"}, {"id": "CVE-2023-0002"}],
+                [stub_2023_0001, stub_2023_0002],
                 {
                     "CVE-2023-0001": {"epss_score": 0.1, "epss_percentile": 0.2},
                     "CVE-2023-0002": {"epss_score": 0.3, "epss_percentile": 0.4},
                 },
             ),
             call(
-                [{"id": "CVE-2024-0001"}],
+                [stub_2024_0001],
                 {"CVE-2024-0001": {"epss_score": 0.5, "epss_percentile": 0.6}},
             ),
         ],

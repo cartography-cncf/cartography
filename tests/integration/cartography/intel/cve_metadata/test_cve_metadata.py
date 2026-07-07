@@ -149,6 +149,18 @@ def test_sync(mock_nvd, mock_epss, neo4j_session):
         ("CVE-2024-22075", 6.1, "MEDIUM", 0.97530, 0.99940),
     }
 
+    # Assert - effect_tags derived (both test CVEs have uninformative/absent CWEs
+    # and no HIGH CVSS impacts, so they resolve to the "none" source)
+    effect_nodes = check_nodes(
+        neo4j_session,
+        "CVEMetadata",
+        ["id", "effect_tags_source"],
+    )
+    assert effect_nodes == {
+        ("CVE-2023-41782", "none"),
+        ("CVE-2024-22075", "none"),
+    }
+
     # Assert - CISA KEV fields on the KEV-listed CVE
     kev_nodes = check_nodes(
         neo4j_session,
