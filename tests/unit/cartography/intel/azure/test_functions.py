@@ -42,5 +42,6 @@ def test_transform_function_apps_reads_sdk_11_site_config_shape() -> None:
             "image_digest": digest,
             "architecture_normalized": "amd64",
             "tags": None,
+            "identity_principal_ids": [],
         },
     ]

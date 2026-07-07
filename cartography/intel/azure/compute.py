@@ -18,6 +18,7 @@ from cartography.models.azure.vm.snapshot import AzureSnapshotSchema
 from cartography.models.azure.vm.virtualmachine import AzureVirtualMachineSchema
 from cartography.util import timeit
 
+from .util.common import extract_identity_principal_ids
 from .util.credentials import Credentials
 
 logger = logging.getLogger(__name__)
@@ -97,6 +98,8 @@ def transform_vm(vm: Dict) -> Dict:
                         managed_disk,
                         {"storage_account_type": ("storageAccountType",)},
                     )
+
+    vm["identity_principal_ids"] = extract_identity_principal_ids(vm.get("identity"))
     return vm
 
 
