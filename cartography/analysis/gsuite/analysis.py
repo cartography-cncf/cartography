@@ -1,7 +1,7 @@
 from cartography.graph.analysis import AddRelationship
 from cartography.graph.analysis import AnalysisJob
 from cartography.graph.analysis import AnalysisStatement
-from cartography.graph.analysis import Expr
+from cartography.graph.analysis import Param
 
 GSUITE_HUMAN_LINK = AnalysisJob(
     name="GSuite user map to Human",
@@ -15,7 +15,7 @@ GSUITE_HUMAN_LINK = AnalysisJob(
                     "human",
                     "IDENTITY_GSUITE",
                     "guser",
-                    firstseen=Expr("$UPDATE_TAG"),
+                    firstseen=Param("UPDATE_TAG"),
                     source_label="Human",
                     target_label="GSuiteUser",
                 ),

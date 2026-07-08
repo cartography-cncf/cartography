@@ -1,13 +1,13 @@
 from cartography.graph.analysis import AddRelationship
 from cartography.graph.analysis import AnalysisJob
 from cartography.graph.analysis import AnalysisStatement
-from cartography.graph.analysis import Expr
-from cartography.graph.analysis import ScopedTo
+from cartography.graph.analysis import CleanupScopedTo
+from cartography.graph.analysis import Param
 
 INTUNE_COMPLIANCE_POLICY_DEVICE = AnalysisJob(
     name="Intune compliance policy to device resolution",
     short_name="intune_compliance_policy_device",
-    scope=ScopedTo("EntraTenant", "TENANT_ID"),
+    scope=CleanupScopedTo("EntraTenant", "TENANT_ID"),
     cleanup_iterationsize=1000,
     statements=(
         AnalysisStatement(
@@ -17,7 +17,7 @@ INTUNE_COMPLIANCE_POLICY_DEVICE = AnalysisJob(
                     "policy",
                     "APPLIES_TO",
                     "device",
-                    firstseen=Expr("$UPDATE_TAG"),
+                    firstseen=Param("UPDATE_TAG"),
                     source_label="IntuneCompliancePolicy",
                     target_label="IntuneManagedDevice",
                 ),
@@ -30,7 +30,7 @@ INTUNE_COMPLIANCE_POLICY_DEVICE = AnalysisJob(
                     "policy",
                     "APPLIES_TO",
                     "device",
-                    firstseen=Expr("$UPDATE_TAG"),
+                    firstseen=Param("UPDATE_TAG"),
                     source_label="IntuneCompliancePolicy",
                     target_label="IntuneManagedDevice",
                 ),
@@ -43,7 +43,7 @@ INTUNE_COMPLIANCE_POLICY_DEVICE = AnalysisJob(
                     "policy",
                     "APPLIES_TO",
                     "device",
-                    firstseen=Expr("$UPDATE_TAG"),
+                    firstseen=Param("UPDATE_TAG"),
                     source_label="IntuneCompliancePolicy",
                     target_label="IntuneManagedDevice",
                 ),

@@ -2,7 +2,7 @@ from cartography.graph.analysis import AddRelationship
 from cartography.graph.analysis import AddToSet
 from cartography.graph.analysis import AnalysisJob
 from cartography.graph.analysis import AnalysisStatement
-from cartography.graph.analysis import ScopedTo
+from cartography.graph.analysis import CleanupScopedTo
 from cartography.graph.analysis import SetProperties
 from cartography.graph.analysis import SetProperty
 
@@ -95,7 +95,7 @@ AZURE_COMPUTE_ASSET_EXPOSURE_JOBS = (
 AZURE_LB_EXPOSURE = AnalysisJob(
     name="Azure LB EXPOSE relationships",
     short_name="azure_lb_exposure",
-    scope=ScopedTo("AzureSubscription", "AZURE_SUBSCRIPTION_ID"),
+    scope=CleanupScopedTo("AzureSubscription", "AZURE_SUBSCRIPTION_ID"),
     statements=(
         AnalysisStatement(
             match="MATCH (s:AzureSubscription{id: $AZURE_SUBSCRIPTION_ID})-[:RESOURCE]->(lb:AzureLoadBalancer{exposed_internet: true})-[:CONTAINS]->(:AzureLoadBalancerBackendPool)-[:ROUTES_TO]->(nic:AzureNetworkInterface)-[:ATTACHED_TO]->(vm:AzureVirtualMachine) WHERE NOT (nic)-[:ASSOCIATED_WITH]->(:AzurePublicIPAddress)",
@@ -115,7 +115,7 @@ AZURE_LB_EXPOSURE = AnalysisJob(
 AZURE_FIREWALL_LB_PROTECTION = AnalysisJob(
     name="Azure Firewall PROTECTS LB relationships",
     short_name="azure_firewall_lb_protection",
-    scope=ScopedTo("AzureSubscription", "AZURE_SUBSCRIPTION_ID"),
+    scope=CleanupScopedTo("AzureSubscription", "AZURE_SUBSCRIPTION_ID"),
     statements=(
         AnalysisStatement(
             match="MATCH (s:AzureSubscription{id: $AZURE_SUBSCRIPTION_ID})-[:RESOURCE]->(fw:AzureFirewall)-[:MEMBER_OF]->(vnet:AzureVirtualNetwork)-[:CONTAINS]->(subnet:AzureSubnet)<-[:ATTACHED_TO]-(nic:AzureNetworkInterface)<-[:ROUTES_TO]-(:AzureLoadBalancerBackendPool)<-[:CONTAINS]-(lb:AzureLoadBalancer)",

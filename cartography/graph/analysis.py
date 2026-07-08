@@ -1,15 +1,17 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any
 from typing import Literal
 from typing import Sequence
+from typing import TypeAlias
 
 from cartography.models.core.relationships import LinkDirection
 
 
 @dataclass(frozen=True)
-class ScopedTo:
+class CleanupScopedTo:
+    """Restrict generated cleanup to nodes attached to a scoped resource."""
+
     label: str
     id_param: str
     id_property: str = "id"
@@ -18,8 +20,10 @@ class ScopedTo:
 
 @dataclass(frozen=True)
 class AnalysisStatement:
+    """One analysis statement, either raw Cypher or a match plus typed effects."""
+
     query: str | None = None
-    comment: str = ""
+    comment: str | None = None
     match: str | None = None
     effects: Sequence[StatementEffect] = ()
     iterative: bool = False
@@ -36,65 +40,120 @@ class AnalysisStatement:
 
 @dataclass(frozen=True)
 class SetProperty:
+    """Set one node property; label is required for generated cleanup."""
+
     node: str
     property: str
-    value: Any
+    value: CypherValue
     label: str | None = None
 
 
 @dataclass(frozen=True)
 class SetProperties:
+    """Set multiple node properties; label is required for generated cleanup."""
+
     node: str
-    properties: dict[str, Any]
+    properties: dict[str, CypherValue]
     label: str | None = None
 
 
 @dataclass(frozen=True)
 class SetRelationshipProperty:
+    """Set one relationship property and declare its cleanup pattern."""
+
     rel: str
     property: str
-    value: Any
-    source_label: str = ""
-    rel_label: str = ""
+    value: CypherValue
+    source_label: str | None = None
+    rel_label: str | None = None
     target_label: str | None = None
 
 
 @dataclass(frozen=True)
 class AddToSet:
+    """Append a value to a list-like node property if it is not already present."""
+
     node: str
     property: str
-    value: Any
+    value: CypherValue
+    label: str | None = None
+
+
+@dataclass(frozen=True)
+class AddValuesToSet:
+    """Append multiple values to a list-like node property."""
+
+    node: str
+    property: str
+    values: Sequence[CypherValue]
     label: str | None = None
 
 
 @dataclass(frozen=True)
 class AddRelationship:
+    """Create a relationship and declare the labels needed for generated cleanup."""
+
     source: str
     rel: str
     target: str
-    source_label: str = ""
-    target_label: str = ""
+    source_label: str | None = None
+    target_label: str | None = None
     rel_alias: str = "r"
-    properties: dict[str, Any] | None = None
+    properties: dict[str, CypherValue] | None = None
     undirected: bool = False
-    firstseen: Any = None
-    # Override to "target" when the target, not the source, is under AnalysisJob.scope.
+    firstseen: CypherValue = None
+    # Override to "target" when cleanup scope reaches the target, not the source.
     scoped_to: Literal["source", "target"] = "source"
-    cleanup_where: str = ""
+    cleanup_where: str | None = None
 
 
 @dataclass(frozen=True)
-class Expr:
+class Var:
+    """Cypher variable or property reference used as an effect value."""
+
     value: str
 
 
+@dataclass(frozen=True)
+class Param:
+    """Cypher parameter reference used as an effect value."""
+
+    name: str
+
+
+@dataclass(frozen=True)
+class RawCypher:
+    """Raw Cypher expression used as an effect value."""
+
+    value: str
+
+
+@dataclass(frozen=True)
+class Case:
+    """Cypher CASE expression with raw Cypher conditions."""
+
+    when: Sequence[tuple[str, CypherValue]]
+    else_: CypherValue
+
+
+CypherValue: TypeAlias = (
+    str | bool | int | float | list[str] | None | Var | Param | RawCypher | Case
+)
+
 StatementEffect = (
-    SetProperty | SetProperties | SetRelationshipProperty | AddToSet | AddRelationship
+    SetProperty
+    | SetProperties
+    | SetRelationshipProperty
+    | AddToSet
+    | AddValuesToSet
+    | AddRelationship
 )
 
 
 @dataclass(frozen=True)
 class RelationshipEffect:
+    """Relationship cleanup declaration derived from AddRelationship effects."""
+
     source_label: str
     rel_label: str
     target_label: str
@@ -107,6 +166,8 @@ class RelationshipEffect:
 
 @dataclass(frozen=True)
 class PropertyEffect:
+    """Node-property cleanup declaration derived from property effects."""
+
     node_label: str
     properties: tuple[str, ...]
     cleanup_before_statements: bool = True
@@ -118,6 +179,8 @@ class PropertyEffect:
 
 @dataclass(frozen=True)
 class RelationshipPropertyEffect:
+    """Relationship-property cleanup declaration derived from relationship effects."""
+
     source_label: str
     rel_label: str
     properties: tuple[str, ...]
@@ -137,9 +200,11 @@ AnalysisEffect = RelationshipEffect | PropertyEffect | RelationshipPropertyEffec
 
 @dataclass(frozen=True)
 class AnalysisJob:
+    """Named analysis job compiled into a GraphJob with generated cleanup."""
+
     name: str
     statements: Sequence[AnalysisStatement]
-    scope: ScopedTo | None = None
+    scope: CleanupScopedTo | None = None
     short_name: str | None = None
     cleanup_iterationsize: int = 10000
 

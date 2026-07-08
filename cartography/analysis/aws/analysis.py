@@ -2,14 +2,15 @@ from cartography.graph.analysis import AddRelationship
 from cartography.graph.analysis import AddToSet
 from cartography.graph.analysis import AnalysisJob
 from cartography.graph.analysis import AnalysisStatement
-from cartography.graph.analysis import Expr
-from cartography.graph.analysis import ScopedTo
+from cartography.graph.analysis import CleanupScopedTo
+from cartography.graph.analysis import Param
 from cartography.graph.analysis import SetProperty
+from cartography.graph.analysis import Var
 
 AWS_EC2_IAM_INSTANCE_PROFILE = AnalysisJob(
     name="EC2 Instances assume IAM roles",
     short_name="aws_ec2_iaminstanceprofile",
-    scope=ScopedTo("AWSAccount", "AWS_ID"),
+    scope=CleanupScopedTo("AWSAccount", "AWS_ID"),
     statements=(
         AnalysisStatement(
             match="MATCH (aa:AWSAccount{id: $AWS_ID})-[:RESOURCE]->(i:EC2Instance)-[:INSTANCE_PROFILE]->(p:AWSInstanceProfile)-[:ASSOCIATED_WITH]->(r:AWSRole)",
@@ -31,7 +32,11 @@ AWS_LAMBDA_ECR = AnalysisJob(
     short_name="aws_lambda_ecr",
     statements=(
         AnalysisStatement(
-            match="MATCH (lmbda:AWSLambda)\nMATCH (e:ECRImage)\nWHERE e.digest = 'sha256:' + lmbda.codesha256",
+            match="""
+            MATCH (lmbda:AWSLambda)
+            MATCH (e:ECRImage)
+            WHERE e.digest = 'sha256:' + lmbda.codesha256
+            """,
             effects=(
                 AddRelationship(
                     "lmbda",
@@ -47,7 +52,7 @@ AWS_LAMBDA_ECR = AnalysisJob(
 AWS_LB_CONTAINER_EXPOSURE = AnalysisJob(
     name="AWS LoadBalancer to ECS Container direct relationship",
     short_name="aws_lb_container_exposure",
-    scope=ScopedTo("AWSAccount", "AWS_ID"),
+    scope=CleanupScopedTo("AWSAccount", "AWS_ID"),
     statements=(
         AnalysisStatement(
             match="MATCH (aa:AWSAccount{id: $AWS_ID})-[:RESOURCE]->(lb:AWSLoadBalancerV2 {scheme: 'internet-facing'})-[:EXPOSE]->(ip:EC2PrivateIp)<-[:PRIVATE_IP_ADDRESS]-(ni:NetworkInterface)<-[:NETWORK_INTERFACE]-(task:ECSTask)-[:HAS_CONTAINER]->(c:ECSContainer) WHERE ip.public_ip IS NULL",
@@ -67,7 +72,7 @@ AWS_LB_CONTAINER_EXPOSURE = AnalysisJob(
 AWS_LB_NACL_DIRECT = AnalysisJob(
     name="AWS LoadBalancer to NACL direct relationship",
     short_name="aws_lb_nacl_direct",
-    scope=ScopedTo("AWSAccount", "AWS_ID"),
+    scope=CleanupScopedTo("AWSAccount", "AWS_ID"),
     statements=(
         AnalysisStatement(
             match="MATCH (aa:AWSAccount{id: $AWS_ID})-[:RESOURCE]->(lb:AWSLoadBalancerV2)-[:SUBNET]->(subnet:EC2Subnet)<-[:PART_OF_SUBNET]-(nacl:EC2NetworkAcl)",
@@ -90,7 +95,10 @@ AWS_EC2_ASSET_EXPOSURE_LOAD_BALANCER_V2 = AnalysisJob(
     cleanup_iterationsize=1000,
     statements=(
         AnalysisStatement(
-            match="MATCH (elbv2:AWSLoadBalancerV2{scheme: 'internet-facing', type: 'network'})-->(:ELBV2Listener)\nWITH DISTINCT elbv2",
+            match="""
+            MATCH (elbv2:AWSLoadBalancerV2{scheme: 'internet-facing', type: 'network'})-[:ELBV2_LISTENER]->(:ELBV2Listener)
+            WITH DISTINCT elbv2
+            """,
             effects=(
                 SetProperty(
                     "elbv2", "exposed_internet", True, label="AWSLoadBalancerV2"
@@ -101,7 +109,10 @@ AWS_EC2_ASSET_EXPOSURE_LOAD_BALANCER_V2 = AnalysisJob(
             ),
         ),
         AnalysisStatement(
-            match="MATCH (cidr:AWSIpRange{range:'0.0.0.0/0'})-->(perm:AWSIpPermissionInbound)-->(sg:EC2SecurityGroup)<-[:MEMBER_OF_EC2_SECURITY_GROUP]-(elbv2:AWSLoadBalancerV2{scheme: 'internet-facing'})-->(listener:ELBV2Listener)\nWHERE perm.protocol = '-1' OR (listener.port>=perm.fromport AND listener.port<=perm.toport)",
+            match="""
+            MATCH (cidr:AWSIpRange{range:'0.0.0.0/0'})-[:MEMBER_OF_IP_RULE]->(perm:AWSIpPermissionInbound)-[:MEMBER_OF_EC2_SECURITY_GROUP]->(sg:EC2SecurityGroup)<-[:MEMBER_OF_EC2_SECURITY_GROUP]-(elbv2:AWSLoadBalancerV2{scheme: 'internet-facing'})-[:ELBV2_LISTENER]->(listener:ELBV2Listener)
+            WHERE perm.protocol = '-1' OR (listener.port>=perm.fromport AND listener.port<=perm.toport)
+            """,
             effects=(
                 SetProperty(
                     "elbv2", "exposed_internet", True, label="AWSLoadBalancerV2"
@@ -119,7 +130,10 @@ AWS_EC2_ASSET_EXPOSURE_LOAD_BALANCER = AnalysisJob(
     cleanup_iterationsize=1000,
     statements=(
         AnalysisStatement(
-            match="MATCH (cidr:AWSIpRange{range:'0.0.0.0/0'})-->(perm:AWSIpPermissionInbound)-->(sg:EC2SecurityGroup)<-[:SOURCE_SECURITY_GROUP]-(elb:AWSLoadBalancer{scheme: 'internet-facing'})-->(listener:ELBListener)\nWHERE perm.protocol = '-1' OR (listener.port>=perm.fromport AND listener.port<=perm.toport)",
+            match="""
+            MATCH (cidr:AWSIpRange{range:'0.0.0.0/0'})-[:MEMBER_OF_IP_RULE]->(perm:AWSIpPermissionInbound)-[:MEMBER_OF_EC2_SECURITY_GROUP]->(sg:EC2SecurityGroup)<-[:SOURCE_SECURITY_GROUP]-(elb:AWSLoadBalancer{scheme: 'internet-facing'})-[:ELB_LISTENER]->(listener:ELBListener)
+            WHERE perm.protocol = '-1' OR (listener.port>=perm.fromport AND listener.port<=perm.toport)
+            """,
             effects=(
                 SetProperty("elb", "exposed_internet", True, label="AWSLoadBalancer"),
                 SetProperty(
@@ -135,7 +149,10 @@ AWS_EC2_ASSET_EXPOSURE_INSTANCE = AnalysisJob(
     cleanup_iterationsize=1000,
     statements=(
         AnalysisStatement(
-            match="MATCH (:AWSIpRange{id: '0.0.0.0/0'})-[:MEMBER_OF_IP_RULE]->(:AWSIpPermissionInbound)-[:MEMBER_OF_EC2_SECURITY_GROUP]->(:EC2SecurityGroup)<-[:MEMBER_OF_EC2_SECURITY_GROUP|NETWORK_INTERFACE*..2]-(instance:EC2Instance)\nWHERE instance.publicipaddress IS NOT NULL",
+            match="""
+            MATCH (:AWSIpRange{id: '0.0.0.0/0'})-[:MEMBER_OF_IP_RULE]->(:AWSIpPermissionInbound)-[:MEMBER_OF_EC2_SECURITY_GROUP]->(:EC2SecurityGroup)<-[:MEMBER_OF_EC2_SECURITY_GROUP|NETWORK_INTERFACE*..2]-(instance:EC2Instance)
+            WHERE instance.publicipaddress IS NOT NULL
+            """,
             effects=(
                 SetProperty("instance", "exposed_internet", True, label="EC2Instance"),
                 AddToSet(
@@ -165,13 +182,18 @@ AWS_EC2_ASSET_EXPOSURE_AUTO_SCALING_GROUP = AnalysisJob(
     cleanup_iterationsize=1000,
     statements=(
         AnalysisStatement(
-            match="MATCH (instance:EC2Instance{exposed_internet: true})-[:MEMBER_AUTO_SCALE_GROUP]->(asg:AutoScalingGroup)\nWITH distinct instance.exposed_internet_type as types, asg\nUNWIND types as type\nWITH type, asg",
+            match="""
+            MATCH (instance:EC2Instance{exposed_internet: true})-[:MEMBER_AUTO_SCALE_GROUP]->(asg:AutoScalingGroup)
+            WITH distinct instance.exposed_internet_type as types, asg
+            UNWIND types as type
+            WITH type, asg
+            """,
             effects=(
                 SetProperty("asg", "exposed_internet", True, label="AutoScalingGroup"),
                 AddToSet(
                     "asg",
                     "exposed_internet_type",
-                    Expr("type"),
+                    Var("type"),
                     label="AutoScalingGroup",
                 ),
             ),
@@ -215,7 +237,7 @@ AWS_EC2_KEYPAIR_MATCHING_FINGERPRINT = AnalysisJob(
                     undirected=True,
                     source_label="EC2KeyPair",
                     target_label="EC2KeyPair",
-                    firstseen=Expr("$UPDATE_TAG"),
+                    firstseen=Param("UPDATE_TAG"),
                 ),
             ),
         ),
@@ -253,7 +275,10 @@ AWS_ECS_ASSET_EXPOSURE = AnalysisJob(
     cleanup_iterationsize=1000,
     statements=(
         AnalysisStatement(
-            match="MATCH (lb:AWSLoadBalancerV2 {exposed_internet: true})-[:EXPOSE]->(ip:EC2PrivateIp)<-[:PRIVATE_IP_ADDRESS]-(ni:NetworkInterface)<-[:NETWORK_INTERFACE]-(task:ECSTask)-[:HAS_CONTAINER]->(container:ECSContainer)\nWITH DISTINCT container",
+            match="""
+            MATCH (lb:AWSLoadBalancerV2 {exposed_internet: true})-[:EXPOSE]->(ip:EC2PrivateIp)<-[:PRIVATE_IP_ADDRESS]-(ni:NetworkInterface)<-[:NETWORK_INTERFACE]-(task:ECSTask)-[:HAS_CONTAINER]->(container:ECSContainer)
+            WITH DISTINCT container
+            """,
             effects=(
                 SetProperty(
                     "container", "exposed_internet", True, label="ECSContainer"

@@ -1,8 +1,9 @@
 from cartography.graph.analysis import AddRelationship
 from cartography.graph.analysis import AnalysisJob
 from cartography.graph.analysis import AnalysisStatement
-from cartography.graph.analysis import Expr
-from cartography.graph.analysis import ScopedTo
+from cartography.graph.analysis import Case
+from cartography.graph.analysis import CleanupScopedTo
+from cartography.graph.analysis import RawCypher
 from cartography.graph.analysis import SetProperties
 from cartography.graph.analysis import SetProperty
 
@@ -58,8 +59,16 @@ GCP_BUCKET_PUBLIC_PROJECTION = AnalysisJob(
                 SetProperty(
                     "b",
                     "_ont_public",
-                    Expr(
-                        "CASE WHEN COALESCE(b.iam_config_public_access_prevention, '') = 'enforced' THEN false ELSE COALESCE(b.acl_public, false) OR EXISTS { MATCH (b)<-[:APPLIES_TO]-(binding:GCPPolicyBinding) WHERE binding.is_public = true AND COALESCE(binding.has_condition, false) = false } END"
+                    Case(
+                        when=(
+                            (
+                                "COALESCE(b.iam_config_public_access_prevention, '') = 'enforced'",
+                                False,
+                            ),
+                        ),
+                        else_=RawCypher(
+                            "COALESCE(b.acl_public, false) OR EXISTS { MATCH (b)<-[:APPLIES_TO]-(binding:GCPPolicyBinding) WHERE binding.is_public = true AND COALESCE(binding.has_condition, false) = false }"
+                        ),
                     ),
                     label="GCPBucket",
                 ),
@@ -70,7 +79,7 @@ GCP_BUCKET_PUBLIC_PROJECTION = AnalysisJob(
 GCP_COMPUTE_FORWARDING_RULE_EXPOSURE = AnalysisJob(
     name="GCP ForwardingRule internet exposure",
     short_name="gcp_compute_forwarding_rule_exposure",
-    scope=ScopedTo("GCPProject", "PROJECT_ID"),
+    scope=CleanupScopedTo("GCPProject", "PROJECT_ID"),
     cleanup_iterationsize=1000,
     statements=(
         AnalysisStatement(
@@ -94,7 +103,7 @@ GCP_COMPUTE_FORWARDING_RULE_EXPOSURE = AnalysisJob(
 GCP_COMPUTE_FIREWALL_INGRESS = AnalysisJob(
     name="GCP firewall ingress to instance analysis",
     short_name="gcp_compute_firewall_ingress",
-    scope=ScopedTo("GCPProject", "PROJECT_ID"),
+    scope=CleanupScopedTo("GCPProject", "PROJECT_ID"),
     cleanup_iterationsize=1000,
     statements=(
         AnalysisStatement(
@@ -130,7 +139,7 @@ GCP_COMPUTE_FIREWALL_INGRESS = AnalysisJob(
 GCP_COMPUTE_INSTANCE_EXPOSURE = AnalysisJob(
     name="GCP Instance internet exposure",
     short_name="gcp_compute_instance_exposure",
-    scope=ScopedTo("GCPProject", "PROJECT_ID"),
+    scope=CleanupScopedTo("GCPProject", "PROJECT_ID"),
     cleanup_iterationsize=1000,
     statements=(
         AnalysisStatement(
@@ -182,7 +191,7 @@ GCP_COMPUTE_INSTANCE_EXPOSURE = AnalysisJob(
 GCP_COMPUTE_CLOUDRUN_EXPOSURE = AnalysisJob(
     name="GCP CloudRunService internet exposure",
     short_name="gcp_compute_cloudrun_exposure",
-    scope=ScopedTo("GCPProject", "PROJECT_ID"),
+    scope=CleanupScopedTo("GCPProject", "PROJECT_ID"),
     cleanup_iterationsize=1000,
     statements=(
         AnalysisStatement(
@@ -214,7 +223,7 @@ GCP_COMPUTE_EXPOSURE_JOBS = (
 GCP_LB_EXPOSURE = AnalysisJob(
     name="GCP BackendService to Instance EXPOSE relationship (scoped per project)",
     short_name="gcp_lb_exposure",
-    scope=ScopedTo("GCPProject", "PROJECT_ID"),
+    scope=CleanupScopedTo("GCPProject", "PROJECT_ID"),
     cleanup_iterationsize=1000,
     statements=(
         AnalysisStatement(

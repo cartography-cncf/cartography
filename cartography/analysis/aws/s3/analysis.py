@@ -1,13 +1,13 @@
+from cartography.graph.analysis import AddValuesToSet
 from cartography.graph.analysis import AnalysisJob
 from cartography.graph.analysis import AnalysisStatement
-from cartography.graph.analysis import Expr
-from cartography.graph.analysis import ScopedTo
-from cartography.graph.analysis import SetProperties
+from cartography.graph.analysis import CleanupScopedTo
+from cartography.graph.analysis import SetProperty
 
 AWS_S3ACL_ANALYSIS = AnalysisJob(
     name="AWS S3 Acl exposure analysis",
     short_name="aws_s3acl_analysis",
-    scope=ScopedTo("AWSAccount", "AWS_ID"),
+    scope=CleanupScopedTo("AWSAccount", "AWS_ID"),
     statements=(
         AnalysisStatement(
             match="""
@@ -16,14 +16,15 @@ AWS_S3ACL_ANALYSIS = AnalysisJob(
             AND acl.permission = 'READ'
             """,
             effects=(
-                SetProperties(
+                SetProperty("bucket", "anonymous_access", True, label="S3Bucket"),
+                AddValuesToSet(
                     "bucket",
-                    {
-                        "anonymous_access": True,
-                        "anonymous_actions": Expr(
-                            "coalesce(bucket.anonymous_actions, []) + ['s3:ListBucket', 's3:ListBucketVersions', 's3:ListBucketMultipartUploads']"
-                        ),
-                    },
+                    "anonymous_actions",
+                    (
+                        "s3:ListBucket",
+                        "s3:ListBucketVersions",
+                        "s3:ListBucketMultipartUploads",
+                    ),
                     label="S3Bucket",
                 ),
             ),
@@ -35,14 +36,11 @@ AWS_S3ACL_ANALYSIS = AnalysisJob(
             AND acl.permission = 'WRITE'
             """,
             effects=(
-                SetProperties(
+                SetProperty("bucket", "anonymous_access", True, label="S3Bucket"),
+                AddValuesToSet(
                     "bucket",
-                    {
-                        "anonymous_access": True,
-                        "anonymous_actions": Expr(
-                            "coalesce(bucket.anonymous_actions, []) + ['s3:PutObject']"
-                        ),
-                    },
+                    "anonymous_actions",
+                    ("s3:PutObject",),
                     label="S3Bucket",
                 ),
             ),
@@ -54,14 +52,11 @@ AWS_S3ACL_ANALYSIS = AnalysisJob(
             AND acl.permission = 'READ_ACP'
             """,
             effects=(
-                SetProperties(
+                SetProperty("bucket", "anonymous_access", True, label="S3Bucket"),
+                AddValuesToSet(
                     "bucket",
-                    {
-                        "anonymous_access": True,
-                        "anonymous_actions": Expr(
-                            "coalesce(bucket.anonymous_actions, []) + ['s3:GetBucketAcl']"
-                        ),
-                    },
+                    "anonymous_actions",
+                    ("s3:GetBucketAcl",),
                     label="S3Bucket",
                 ),
             ),
@@ -73,14 +68,11 @@ AWS_S3ACL_ANALYSIS = AnalysisJob(
             AND acl.permission = 'WRITE_ACP'
             """,
             effects=(
-                SetProperties(
+                SetProperty("bucket", "anonymous_access", True, label="S3Bucket"),
+                AddValuesToSet(
                     "bucket",
-                    {
-                        "anonymous_access": True,
-                        "anonymous_actions": Expr(
-                            "coalesce(bucket.anonymous_actions, []) + ['s3:PutBucketAcl']"
-                        ),
-                    },
+                    "anonymous_actions",
+                    ("s3:PutBucketAcl",),
                     label="S3Bucket",
                 ),
             ),
@@ -92,14 +84,19 @@ AWS_S3ACL_ANALYSIS = AnalysisJob(
             AND acl.permission = 'FULL_CONTROL'
             """,
             effects=(
-                SetProperties(
+                SetProperty("bucket", "anonymous_access", True, label="S3Bucket"),
+                AddValuesToSet(
                     "bucket",
-                    {
-                        "anonymous_access": True,
-                        "anonymous_actions": Expr(
-                            "coalesce(bucket.anonymous_actions, []) + ['s3:ListBucket', 's3:ListBucketVersions', 's3:ListBucketMultipartUploads', 's3:PutObject', 's3:DeleteObject', 's3:DeleteObjectVersion', 's3:PutBucketAcl']"
-                        ),
-                    },
+                    "anonymous_actions",
+                    (
+                        "s3:ListBucket",
+                        "s3:ListBucketVersions",
+                        "s3:ListBucketMultipartUploads",
+                        "s3:PutObject",
+                        "s3:DeleteObject",
+                        "s3:DeleteObjectVersion",
+                        "s3:PutBucketAcl",
+                    ),
                     label="S3Bucket",
                 ),
             ),

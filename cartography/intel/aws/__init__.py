@@ -621,26 +621,28 @@ def _perform_aws_analysis(
         neo4j_session,
     )
 
-    run_typed_analysis_and_ensure_deps(
-        AWS_EC2_ASSET_EXPOSURE_JOBS,
-        {
-            "ec2:instance",
-            "ec2:security_group",
-            "ec2:load_balancer",
-            "ec2:load_balancer_v2",
-        },
-        requested_syncs_as_set,
-        common_job_parameters,
-        neo4j_session,
-    )
+    for job in AWS_EC2_ASSET_EXPOSURE_JOBS:
+        run_typed_analysis_and_ensure_deps(
+            job,
+            {
+                "ec2:instance",
+                "ec2:security_group",
+                "ec2:load_balancer",
+                "ec2:load_balancer_v2",
+            },
+            requested_syncs_as_set,
+            common_job_parameters,
+            neo4j_session,
+        )
 
-    run_typed_analysis_and_ensure_deps(
-        AWS_EC2_KEYPAIR_ANALYSIS_JOBS,
-        {"ec2:keypair"},
-        requested_syncs_as_set,
-        common_job_parameters,
-        neo4j_session,
-    )
+    for job in AWS_EC2_KEYPAIR_ANALYSIS_JOBS:
+        run_typed_analysis_and_ensure_deps(
+            job,
+            {"ec2:keypair"},
+            requested_syncs_as_set,
+            common_job_parameters,
+            neo4j_session,
+        )
 
     run_typed_analysis_and_ensure_deps(
         AWS_EKS_ASSET_EXPOSURE,

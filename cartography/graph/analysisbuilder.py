@@ -1,3 +1,5 @@
+"""Compile typed analysis jobs into Cypher GraphJobs and generated cleanups."""
+
 from __future__ import annotations
 
 from functools import singledispatch
@@ -6,18 +8,22 @@ from typing import cast
 
 from cartography.graph.analysis import AddRelationship
 from cartography.graph.analysis import AddToSet
+from cartography.graph.analysis import AddValuesToSet
 from cartography.graph.analysis import AnalysisEffect
 from cartography.graph.analysis import AnalysisJob
 from cartography.graph.analysis import AnalysisStatement
-from cartography.graph.analysis import Expr
+from cartography.graph.analysis import Case
+from cartography.graph.analysis import CleanupScopedTo
+from cartography.graph.analysis import Param
 from cartography.graph.analysis import PropertyEffect
+from cartography.graph.analysis import RawCypher
 from cartography.graph.analysis import RelationshipEffect
 from cartography.graph.analysis import RelationshipPropertyEffect
-from cartography.graph.analysis import ScopedTo
 from cartography.graph.analysis import SetProperties
 from cartography.graph.analysis import SetProperty
 from cartography.graph.analysis import SetRelationshipProperty
 from cartography.graph.analysis import StatementEffect
+from cartography.graph.analysis import Var
 from cartography.graph.job import GraphJob
 from cartography.graph.statement import GraphStatement
 from cartography.models.core.relationships import LinkDirection
@@ -93,7 +99,7 @@ def to_graph_job(job: AnalysisJob) -> GraphJob:
     return GraphJob(job.name, statements, job.short_name)
 
 
-def cleanup_query(effect: AnalysisEffect, scope: ScopedTo | None) -> str:
+def cleanup_query(effect: AnalysisEffect, scope: CleanupScopedTo | None) -> str:
     return _cleanup_query(effect, scope)
 
 
@@ -131,7 +137,7 @@ def _require_label(label: str | None) -> str:
     return label
 
 
-def _scope_match(scope: ScopedTo, alias: str) -> str:
+def _scope_match(scope: CleanupScopedTo, alias: str) -> str:
     return f"({alias}:{scope.label} {{{scope.id_property}: ${scope.id_param}}})"
 
 
@@ -162,12 +168,24 @@ def _(effect: SetRelationshipProperty) -> str:
 @_compile_effect.register
 def _(effect: AddToSet) -> str:
     value = _cypher_literal(effect.value)
+    return _add_to_set_query(effect.node, effect.property, value)
+
+
+@_compile_effect.register
+def _(effect: AddValuesToSet) -> str:
+    return "\n".join(
+        _add_to_set_query(effect.node, effect.property, _cypher_literal(value))
+        for value in effect.values
+    )
+
+
+def _add_to_set_query(node: str, property_name: str, value: str) -> str:
     return (
-        f"SET {effect.node}.{effect.property} = "
-        f"CASE WHEN {effect.node}.{effect.property} IS NULL THEN [{value}] "
-        f"WHEN NOT {value} IN {effect.node}.{effect.property} "
-        f"THEN {effect.node}.{effect.property} + [{value}] "
-        f"ELSE {effect.node}.{effect.property} END"
+        f"SET {node}.{property_name} = "
+        f"CASE WHEN {node}.{property_name} IS NULL THEN [{value}] "
+        f"WHEN NOT {value} IN {node}.{property_name} "
+        f"THEN {node}.{property_name} + [{value}] "
+        f"ELSE {node}.{property_name} END"
     )
 
 
@@ -184,7 +202,7 @@ def _(effect: AddRelationship) -> str:
             f"{effect.rel_alias}.{key} = {_cypher_literal(value)}"
             for key, value in effect.properties.items()
         )
-    firstseen_value = _cypher_literal(effect.firstseen or Expr("timestamp()"))
+    firstseen_value = _cypher_literal(effect.firstseen or RawCypher("timestamp()"))
     return (
         f"MERGE {rel}\n"
         f"ON CREATE SET {effect.rel_alias}.firstseen = {firstseen_value}\n"
@@ -200,13 +218,13 @@ def _relationship_effect(_: StatementEffect) -> RelationshipEffect | None:
 @_relationship_effect.register
 def _(effect: AddRelationship) -> RelationshipEffect:
     return RelationshipEffect(
-        effect.source_label,
+        effect.source_label or "",
         effect.rel,
-        effect.target_label,
+        effect.target_label or "",
         tuple(effect.properties or ()),
         LinkDirection.OUTWARD if not effect.undirected else None,
         effect.scoped_to,
-        cleanup_where=effect.cleanup_where,
+        cleanup_where=effect.cleanup_where or "",
     )
 
 
@@ -233,10 +251,15 @@ def _(effect: AddToSet) -> PropertyEffect:
 
 
 @_property_effect.register
+def _(effect: AddValuesToSet) -> PropertyEffect:
+    return PropertyEffect(_require_label(effect.label), (effect.property,))
+
+
+@_property_effect.register
 def _(effect: SetRelationshipProperty) -> RelationshipPropertyEffect:
     return RelationshipPropertyEffect(
-        effect.source_label,
-        effect.rel_label,
+        effect.source_label or "",
+        effect.rel_label or "",
         (effect.property,),
         effect.target_label,
     )
@@ -263,6 +286,11 @@ def _(effect: AddToSet) -> PropertyEffect:
 
 
 @_cleanup_effect.register
+def _(effect: AddValuesToSet) -> PropertyEffect:
+    return cast(PropertyEffect, _property_effect(effect))
+
+
+@_cleanup_effect.register
 def _(effect: SetRelationshipProperty) -> RelationshipPropertyEffect:
     return cast(RelationshipPropertyEffect, _property_effect(effect))
 
@@ -273,12 +301,12 @@ def _(effect: AddRelationship) -> RelationshipEffect:
 
 
 @singledispatch
-def _cleanup_query(effect: AnalysisEffect, scope: ScopedTo | None) -> str:
+def _cleanup_query(effect: AnalysisEffect, scope: CleanupScopedTo | None) -> str:
     raise TypeError(f"Unsupported cleanup effect: {effect!r}")
 
 
 @_cleanup_query.register
-def _(effect: RelationshipEffect, scope: ScopedTo | None) -> str:
+def _(effect: RelationshipEffect, scope: CleanupScopedTo | None) -> str:
     source = f"(source:{effect.source_label})"
     target = f"(target:{effect.target_label})"
     rel = f"[r:{effect.rel_label}]"
@@ -310,7 +338,7 @@ def _(effect: RelationshipEffect, scope: ScopedTo | None) -> str:
 
 
 @_cleanup_query.register
-def _(effect: PropertyEffect, scope: ScopedTo | None) -> str:
+def _(effect: PropertyEffect, scope: CleanupScopedTo | None) -> str:
     node = f"(node:{effect.node_label})"
     match = f"MATCH {node}"
     if scope:
@@ -321,7 +349,7 @@ def _(effect: PropertyEffect, scope: ScopedTo | None) -> str:
 
 
 @_cleanup_query.register
-def _(effect: RelationshipPropertyEffect, scope: ScopedTo | None) -> str:
+def _(effect: RelationshipPropertyEffect, scope: CleanupScopedTo | None) -> str:
     source = f"(source:{effect.source_label})"
     target = f"(target:{effect.target_label})" if effect.target_label else "(target)"
     rel = f"[r:{effect.rel_label}]"
@@ -345,8 +373,27 @@ def _cypher_literal(value: Any) -> str:
 
 
 @_cypher_literal.register
-def _(value: Expr) -> str:
+def _(value: Var) -> str:
     return value.value
+
+
+@_cypher_literal.register
+def _(value: Param) -> str:
+    return value.name if value.name.startswith("$") else f"${value.name}"
+
+
+@_cypher_literal.register
+def _(value: RawCypher) -> str:
+    return value.value
+
+
+@_cypher_literal.register
+def _(value: Case) -> str:
+    branches = " ".join(
+        f"WHEN {condition} THEN {_cypher_literal(result)}"
+        for condition, result in value.when
+    )
+    return f"CASE {branches} ELSE {_cypher_literal(value.else_)} END"
 
 
 @_cypher_literal.register

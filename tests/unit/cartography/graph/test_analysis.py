@@ -5,12 +5,15 @@ import pytest
 
 from cartography.graph.analysis import AddRelationship
 from cartography.graph.analysis import AddToSet
+from cartography.graph.analysis import AddValuesToSet
 from cartography.graph.analysis import AnalysisJob
 from cartography.graph.analysis import AnalysisStatement
+from cartography.graph.analysis import Case
+from cartography.graph.analysis import CleanupScopedTo
 from cartography.graph.analysis import PropertyEffect
+from cartography.graph.analysis import RawCypher
 from cartography.graph.analysis import RelationshipEffect
 from cartography.graph.analysis import RelationshipPropertyEffect
-from cartography.graph.analysis import ScopedTo
 from cartography.graph.analysis import SetProperty
 from cartography.graph.analysis import SetRelationshipProperty
 from cartography.graph.analysisbuilder import compile_query
@@ -165,6 +168,57 @@ def test_statement_compiles_property_effects():
     )
 
 
+def test_statement_compiles_multiple_values_to_set():
+    statement = AnalysisStatement(
+        match="MATCH (bucket:S3Bucket)",
+        effects=(
+            AddValuesToSet(
+                "bucket",
+                "anonymous_actions",
+                ("s3:ListBucket", "s3:GetBucketAcl"),
+                label="S3Bucket",
+            ),
+        ),
+    )
+
+    assert compile_query(statement) == (
+        "MATCH (bucket:S3Bucket)\n"
+        "SET bucket.anonymous_actions = "
+        "CASE WHEN bucket.anonymous_actions IS NULL THEN ['s3:ListBucket'] "
+        "WHEN NOT 's3:ListBucket' IN bucket.anonymous_actions "
+        "THEN bucket.anonymous_actions + ['s3:ListBucket'] "
+        "ELSE bucket.anonymous_actions END\n"
+        "SET bucket.anonymous_actions = "
+        "CASE WHEN bucket.anonymous_actions IS NULL THEN ['s3:GetBucketAcl'] "
+        "WHEN NOT 's3:GetBucketAcl' IN bucket.anonymous_actions "
+        "THEN bucket.anonymous_actions + ['s3:GetBucketAcl'] "
+        "ELSE bucket.anonymous_actions END"
+    )
+
+
+def test_statement_compiles_case_expression():
+    statement = AnalysisStatement(
+        match="MATCH (bucket:GCPBucket)",
+        effects=(
+            SetProperty(
+                "bucket",
+                "_ont_public",
+                Case(
+                    when=(("bucket.disabled = true", False),),
+                    else_=RawCypher("coalesce(bucket.public, false)"),
+                ),
+                label="GCPBucket",
+            ),
+        ),
+    )
+
+    assert compile_query(statement) == (
+        "MATCH (bucket:GCPBucket)\n"
+        "SET bucket._ont_public = CASE WHEN bucket.disabled = true THEN false "
+        "ELSE coalesce(bucket.public, false) END"
+    )
+
+
 def test_statement_rejects_property_effect_without_label():
     # Arrange
     statement = AnalysisStatement(
@@ -192,7 +246,7 @@ def test_scoped_relationship_cleanup_targets_source_by_default():
     job = AnalysisJob(
         name="GCP LB exposure",
         short_name="gcp_lb_exposure",
-        scope=ScopedTo("GCPProject", "PROJECT_ID"),
+        scope=CleanupScopedTo("GCPProject", "PROJECT_ID"),
         statements=(
             AnalysisStatement(
                 match="MATCH (p:GCPProject{id: $PROJECT_ID})-[:RESOURCE]->"
@@ -273,7 +327,7 @@ def test_property_job_prepends_cleanup_statement():
     job = AnalysisJob(
         name="Semgrep SAST risk analysis",
         short_name="semgrep_sast_risk_analysis",
-        scope=ScopedTo("SemgrepDeployment", "DEPLOYMENT_ID"),
+        scope=CleanupScopedTo("SemgrepDeployment", "DEPLOYMENT_ID"),
         statements=(
             AnalysisStatement(
                 match="MATCH (g:GitHubRepository{archived:true})"

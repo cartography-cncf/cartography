@@ -1,7 +1,7 @@
 from cartography.graph.analysis import AddRelationship
 from cartography.graph.analysis import AnalysisJob
 from cartography.graph.analysis import AnalysisStatement
-from cartography.graph.analysis import Expr
+from cartography.graph.analysis import RawCypher
 from cartography.graph.analysis import SetProperty
 
 AWS_USER_PROJECTION = AnalysisJob(
@@ -14,7 +14,7 @@ AWS_USER_PROJECTION = AnalysisJob(
                 SetProperty(
                     "u",
                     "_ont_has_mfa",
-                    Expr("EXISTS((u)-[:MFA_DEVICE]->(:AWSMfaDevice))"),
+                    RawCypher("EXISTS((u)-[:MFA_DEVICE]->(:AWSMfaDevice))"),
                     label="AWSUser",
                 ),
             ),
@@ -25,7 +25,7 @@ AWS_USER_PROJECTION = AnalysisJob(
                 SetProperty(
                     "u",
                     "_ont_active",
-                    Expr(
+                    RawCypher(
                         "CASE WHEN (u.passwordlastused_dt IS NOT NULL) OR EXISTS((u)-[:AWS_ACCESS_KEY]->(:AccountAccessKey {status: 'Active'})) THEN true ELSE NULL END"
                     ),
                     label="AWSUser",
@@ -447,7 +447,7 @@ USER_AUTHORIZED_THIRD_PARTY_APP = AnalysisJob(
                     "u",
                     "AUTHORIZED",
                     "a",
-                    properties={"scopes": Expr("coalesce(authr.scopes, [])")},
+                    properties={"scopes": RawCypher("coalesce(authr.scopes, [])")},
                     source_label="User",
                     target_label="ThirdPartyApp",
                 ),

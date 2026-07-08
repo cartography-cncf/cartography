@@ -1,16 +1,16 @@
 import pytest
 
+from cartography.graph.analysis import CleanupScopedTo
 from cartography.graph.analysis import PropertyEffect
 from cartography.graph.analysis import RelationshipEffect
-from cartography.graph.analysis import ScopedTo
 from cartography.graph.analysisbuilder import cleanup_query
 
-AWS = ScopedTo("AWSAccount", "AWS_ID")
-AZURE = ScopedTo("AzureSubscription", "AZURE_SUBSCRIPTION_ID")
-ENTRA = ScopedTo("EntraTenant", "TENANT_ID")
-GCP = ScopedTo("GCPProject", "PROJECT_ID")
-K8S = ScopedTo("KubernetesCluster", "CLUSTER_ID")
-SEMGREP = ScopedTo("SemgrepDeployment", "DEPLOYMENT_ID")
+AWS = CleanupScopedTo("AWSAccount", "AWS_ID")
+AZURE = CleanupScopedTo("AzureSubscription", "AZURE_SUBSCRIPTION_ID")
+ENTRA = CleanupScopedTo("EntraTenant", "TENANT_ID")
+GCP = CleanupScopedTo("GCPProject", "PROJECT_ID")
+K8S = CleanupScopedTo("KubernetesCluster", "CLUSTER_ID")
+SEMGREP = CleanupScopedTo("SemgrepDeployment", "DEPLOYMENT_ID")
 
 
 def _rel_cleanup(
@@ -18,7 +18,7 @@ def _rel_cleanup(
     rel: str,
     target: str,
     *,
-    scope: ScopedTo | None = None,
+    scope: CleanupScopedTo | None = None,
     scoped_to: str = "source",
 ) -> str:
     match = f"MATCH (source:{source})-[r:{rel}]->(target:{target})"
@@ -39,7 +39,7 @@ def _rel_cleanup(
 def _prop_cleanup(
     label: str,
     *props: str,
-    scope: ScopedTo | None = None,
+    scope: CleanupScopedTo | None = None,
 ) -> str:
     node = f"(node:{label})"
     match = f"MATCH {node}"
@@ -394,10 +394,16 @@ CLEANUP_CASES = [
         id="aws_lb_nacl_direct",
     ),
     pytest.param(
-        PropertyEffect("S3Bucket", ("anonymous_access", "anonymous_actions")),
+        PropertyEffect("S3Bucket", ("anonymous_access",)),
         AWS,
-        _prop_cleanup("S3Bucket", "anonymous_access", "anonymous_actions", scope=AWS),
-        id="aws_s3acl_analysis",
+        _prop_cleanup("S3Bucket", "anonymous_access", scope=AWS),
+        id="aws_s3acl_analysis_access",
+    ),
+    pytest.param(
+        PropertyEffect("S3Bucket", ("anonymous_actions",)),
+        AWS,
+        _prop_cleanup("S3Bucket", "anonymous_actions", scope=AWS),
+        id="aws_s3acl_analysis_actions",
     ),
     pytest.param(
         RelationshipEffect("AzureFirewall", "PROTECTS", "AzureLoadBalancer"),

@@ -46,10 +46,7 @@ def _sync_one_project(...) -> None:
 def _sync_one_account(...) -> None:
     # ... sync resources ...
 
-    # scoped per-account
     run_typed_analysis_job(AWS_EC2_IAM_INSTANCE_PROFILE, neo4j_session, common_job_parameters)
-
-    # cross-account, but called per account loop
     run_typed_analysis_job(AWS_LAMBDA_ECR, neo4j_session, common_job_parameters)
 
 

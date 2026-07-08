@@ -1,13 +1,13 @@
 from cartography.graph.analysis import AnalysisJob
 from cartography.graph.analysis import AnalysisStatement
-from cartography.graph.analysis import Expr
-from cartography.graph.analysis import ScopedTo
+from cartography.graph.analysis import CleanupScopedTo
 from cartography.graph.analysis import SetProperty
+from cartography.graph.analysis import Var
 
 SEMGREP_SAST_RISK_ANALYSIS = AnalysisJob(
     name="Semgrep SAST findings risk analysis based on severity and repository archive status.",
     short_name="semgrep_sast_risk_analysis",
-    scope=ScopedTo("SemgrepDeployment", "DEPLOYMENT_ID"),
+    scope=CleanupScopedTo("SemgrepDeployment", "DEPLOYMENT_ID"),
     statements=(
         AnalysisStatement(
             match="MATCH (g:GitHubRepository{archived:true})<-[:FOUND_IN]-(s:SemgrepSASTFinding{lastupdated:$UPDATE_TAG})<-[:RESOURCE]-(:SemgrepDeployment{id:$DEPLOYMENT_ID})",
@@ -19,7 +19,7 @@ SEMGREP_SAST_RISK_ANALYSIS = AnalysisJob(
             match="MATCH (g:GitHubRepository)<-[:FOUND_IN]-(s:SemgrepSASTFinding{lastupdated:$UPDATE_TAG})<-[:RESOURCE]-(:SemgrepDeployment{id:$DEPLOYMENT_ID}) WHERE g.archived = false OR g.archived IS NULL",
             effects=(
                 SetProperty(
-                    "s", "risk_severity", Expr("s.severity"), label="SemgrepSASTFinding"
+                    "s", "risk_severity", Var("s.severity"), label="SemgrepSASTFinding"
                 ),
             ),
         ),
@@ -28,7 +28,7 @@ SEMGREP_SAST_RISK_ANALYSIS = AnalysisJob(
 SEMGREP_SCA_RISK_ANALYSIS = AnalysisJob(
     name="Semgrep SCA findings reachability risk analysis based on likelihood and impact. Impact = Severity, Likelihood = reachability + reachability_check",
     short_name="semgrep_sca_risk_analysis",
-    scope=ScopedTo("SemgrepDeployment", "DEPLOYMENT_ID"),
+    scope=CleanupScopedTo("SemgrepDeployment", "DEPLOYMENT_ID"),
     statements=(
         AnalysisStatement(
             match="MATCH (g:GitHubRepository{archived:true})<-[:FOUND_IN]-(s:SemgrepSCAFinding{lastupdated:$UPDATE_TAG})<-[:RESOURCE]-(:SemgrepDeployment{id:$DEPLOYMENT_ID})",
@@ -110,7 +110,7 @@ SEMGREP_SCA_RISK_ANALYSIS = AnalysisJob(
                 SetProperty(
                     "s",
                     "reachability_risk",
-                    Expr("s.severity"),
+                    Var("s.severity"),
                     label="SemgrepSCAFinding",
                 ),
             ),
