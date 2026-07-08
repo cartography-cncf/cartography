@@ -153,6 +153,15 @@ DEVICE_LINKING_JOBS = (
     DEVICE_AFFECTS_S1_FINDING,
     DEVICE_AFFECTS_CROWDSTRIKE_FINDING,
 )
+DNS_RECORD_GCP_RECORD_SET_ONT_VALUE_CLEANUP = AnalysisJob(
+    name="Ontology - GCPRecordSet stale _ont_value cleanup",
+    short_name="ontology_dnsrecords_gcp_record_set_ont_value_cleanup",
+    statements=(
+        AnalysisStatement(
+            query="MATCH (n:GCPRecordSet) WHERE n._ont_value IS NOT NULL REMOVE n._ont_value",
+        ),
+    ),
+)
 DNS_RECORD_TO_KUBERNETES_INGRESS = AnalysisJob(
     name="Ontology - DNSRecord to KubernetesIngress linking",
     short_name="ontology_dnsrecords_kubernetes_ingress",
@@ -176,27 +185,30 @@ DNS_RECORD_TARGETS = (
     (
         "AWSLoadBalancerV2",
         "dnsname",
-        "AND NOT dns:AWSDNSRecord",
+        "AND NOT dns:AWSDNSRecord AND NOT dns:GCPRecordSet",
         "NOT source:AWSDNSRecord",
     ),
     (
         "AWSLoadBalancer",
         "dnsname",
-        "AND NOT dns:AWSDNSRecord",
+        "AND NOT dns:AWSDNSRecord AND NOT dns:GCPRecordSet",
         "NOT source:AWSDNSRecord",
     ),
-    ("CloudFrontDistribution", "domain_name", "", ""),
+    ("CloudFrontDistribution", "domain_name", "AND NOT dns:GCPRecordSet", ""),
     (
         "EC2Instance",
         "publicdnsname",
-        "AND NOT dns:AWSDNSRecord",
+        "AND NOT dns:AWSDNSRecord AND NOT dns:GCPRecordSet",
         "NOT source:AWSDNSRecord",
     ),
-    ("GCPInstance", "hostname", "", ""),
-    ("AzureAppService", "default_host_name", "", ""),
-    ("AzureFunctionApp", "default_host_name", "", ""),
+    ("GCPInstance", "hostname", "AND NOT dns:GCPRecordSet", ""),
+    ("AzureAppService", "default_host_name", "AND NOT dns:GCPRecordSet", ""),
+    ("AzureFunctionApp", "default_host_name", "AND NOT dns:GCPRecordSet", ""),
 )
-DNS_RECORD_LINKING_JOBS = (DNS_RECORD_TO_KUBERNETES_INGRESS,) + tuple(
+DNS_RECORD_LINKING_JOBS = (
+    DNS_RECORD_GCP_RECORD_SET_ONT_VALUE_CLEANUP,
+    DNS_RECORD_TO_KUBERNETES_INGRESS,
+) + tuple(
     (
         AnalysisJob(
             name=f"Ontology - DNSRecord to {target_label} linking",
