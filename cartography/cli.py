@@ -63,6 +63,7 @@ PANEL_SCALEWAY = "Scaleway Options"
 PANEL_SENTINELONE = "SentinelOne Options"
 PANEL_TENABLE = "Tenable Options"
 PANEL_KEYCLOAK = "Keycloak Options"
+PANEL_SALESFORCE = "Salesforce Options"
 PANEL_SLACK = "Slack Options"
 PANEL_SENTRY = "Sentry Options"
 PANEL_SUBIMAGE = "SubImage Options"
@@ -120,6 +121,7 @@ MODULE_PANELS = {
     "sentinelone": PANEL_SENTINELONE,
     "tenable": PANEL_TENABLE,
     "keycloak": PANEL_KEYCLOAK,
+    "salesforce": PANEL_SALESFORCE,
     "slack": PANEL_SLACK,
     "subimage": PANEL_SUBIMAGE,
     "spacelift": PANEL_SPACELIFT,
@@ -1849,6 +1851,54 @@ class CLI:
                 ),
             ] = "master",
             # =================================================================
+            # Salesforce Options
+            # =================================================================
+            salesforce_login_url: Annotated[
+                str,
+                typer.Option(
+                    "--salesforce-login-url",
+                    help="Salesforce OAuth login URL (e.g. https://login.salesforce.com or a My Domain URL).",
+                    rich_help_panel=PANEL_SALESFORCE,
+                    hidden=PANEL_SALESFORCE not in visible_panels,
+                ),
+            ] = "https://login.salesforce.com",
+            salesforce_client_id: Annotated[
+                str | None,
+                typer.Option(
+                    "--salesforce-client-id",
+                    help="Salesforce connected app consumer key.",
+                    rich_help_panel=PANEL_SALESFORCE,
+                    hidden=PANEL_SALESFORCE not in visible_panels,
+                ),
+            ] = None,
+            salesforce_client_secret_env_var: Annotated[
+                str,
+                typer.Option(
+                    "--salesforce-client-secret-env-var",
+                    help="Environment variable name containing the Salesforce connected app consumer secret (client credentials flow).",
+                    rich_help_panel=PANEL_SALESFORCE,
+                    hidden=PANEL_SALESFORCE not in visible_panels,
+                ),
+            ] = "SALESFORCE_CLIENT_SECRET",
+            salesforce_username: Annotated[
+                str | None,
+                typer.Option(
+                    "--salesforce-username",
+                    help="Salesforce username to impersonate (JWT bearer flow).",
+                    rich_help_panel=PANEL_SALESFORCE,
+                    hidden=PANEL_SALESFORCE not in visible_panels,
+                ),
+            ] = None,
+            salesforce_private_key_env_var: Annotated[
+                str,
+                typer.Option(
+                    "--salesforce-private-key-env-var",
+                    help="Environment variable name containing the PEM-encoded private key (JWT bearer flow).",
+                    rich_help_panel=PANEL_SALESFORCE,
+                    hidden=PANEL_SALESFORCE not in visible_panels,
+                ),
+            ] = "SALESFORCE_PRIVATE_KEY",
+            # =================================================================
             # Slack Options
             # =================================================================
             slack_token_env_var: Annotated[
@@ -2594,6 +2644,24 @@ class CLI:
                 )
                 keycloak_client_secret = os.environ.get(keycloak_client_secret_env_var)
 
+            # Read Salesforce secrets
+            salesforce_client_secret = None
+            if salesforce_client_secret_env_var:
+                logger.debug(
+                    "Reading Salesforce client secret from environment variable %s",
+                    salesforce_client_secret_env_var,
+                )
+                salesforce_client_secret = os.environ.get(
+                    salesforce_client_secret_env_var
+                )
+            salesforce_private_key = None
+            if salesforce_private_key_env_var:
+                logger.debug(
+                    "Reading Salesforce private key from environment variable %s",
+                    salesforce_private_key_env_var,
+                )
+                salesforce_private_key = os.environ.get(salesforce_private_key_env_var)
+
             # Read Slack token
             slack_token = None
             if slack_token_env_var:
@@ -2810,6 +2878,11 @@ class CLI:
                 keycloak_client_secret=keycloak_client_secret,
                 keycloak_realm=keycloak_realm,
                 keycloak_url=keycloak_url,
+                salesforce_login_url=salesforce_login_url,
+                salesforce_client_id=salesforce_client_id,
+                salesforce_client_secret=salesforce_client_secret,
+                salesforce_username=salesforce_username,
+                salesforce_private_key=salesforce_private_key,
                 slack_token=slack_token,
                 slack_teams=slack_teams,
                 slack_channels_memberships=slack_channels_memberships,

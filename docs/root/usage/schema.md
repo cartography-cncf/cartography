@@ -99,6 +99,9 @@
 ```{include} ../modules/keycloak/schema.md
 ```
 
+```{include} ../modules/salesforce/schema.md
+```
+
 ```{include} ../modules/kubernetes/schema.md
 ```
 

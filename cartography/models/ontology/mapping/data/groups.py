@@ -355,8 +355,25 @@ vercel_mapping = OntologyMapping(
     ],
 )
 
+salesforce_mapping = OntologyMapping(
+    module_name="salesforce",
+    nodes=[
+        OntologyNodeMapping(
+            node_label="SalesforceGroup",
+            fields=[
+                OntologyFieldMapping(
+                    ontology_field="name", node_field="name", required=True
+                ),
+                # description: Not available
+                # email: Not available
+            ],
+        ),
+    ],
+)
+
 GROUPS_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     "aws": aws_mapping,
+    "salesforce": salesforce_mapping,
     "duo": duo_mapping,
     "microsoft": entra_mapping,
     "github": github_mapping,

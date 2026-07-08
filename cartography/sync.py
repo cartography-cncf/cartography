@@ -81,6 +81,9 @@ TOP_LEVEL_MODULES: OrderedDict[str, Callable[..., None]] = OrderedDict(
         "keycloak": _LazyStage(
             "cartography.intel.keycloak", "start_keycloak_ingestion"
         ),
+        "salesforce": _LazyStage(
+            "cartography.intel.salesforce", "start_salesforce_ingestion"
+        ),
         "kubernetes": _LazyStage("cartography.intel.kubernetes", "start_k8s_ingestion"),
         "jumpcloud": _LazyStage(
             "cartography.intel.jumpcloud", "start_jumpcloud_ingestion"

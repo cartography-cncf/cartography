@@ -311,6 +311,16 @@ class Config:
     :param keycloak_realm: Keycloak realm for authentication (all realms will be synced). Optional.
     :type keycloak_url: str
     :param keycloak_url: Keycloak base URL, e.g. https://keycloak.example.com. Optional.
+    :type salesforce_login_url: str
+    :param salesforce_login_url: Salesforce OAuth login URL (e.g. https://login.salesforce.com or a My Domain URL). Optional.
+    :type salesforce_client_id: str
+    :param salesforce_client_id: Salesforce connected app consumer key. Optional.
+    :type salesforce_client_secret: str
+    :param salesforce_client_secret: Salesforce connected app consumer secret, for the client credentials flow. Optional.
+    :type salesforce_username: str
+    :param salesforce_username: Salesforce username to impersonate, for the JWT bearer flow. Optional.
+    :type salesforce_private_key: str
+    :param salesforce_private_key: PEM-encoded private key, for the JWT bearer flow. Optional.
     :type slack_token: str
     :param slack_token: Slack API token. Optional.
     :type slack_teams: list[str]
@@ -494,6 +504,11 @@ class Config:
         keycloak_client_secret=None,
         keycloak_realm=None,
         keycloak_url=None,
+        salesforce_login_url="https://login.salesforce.com",
+        salesforce_client_id=None,
+        salesforce_client_secret=None,
+        salesforce_username=None,
+        salesforce_private_key=None,
         slack_token=None,
         slack_teams=None,
         slack_channels_memberships=False,
@@ -687,6 +702,11 @@ class Config:
         self.keycloak_client_secret = keycloak_client_secret
         self.keycloak_realm = keycloak_realm
         self.keycloak_url = keycloak_url
+        self.salesforce_login_url = salesforce_login_url
+        self.salesforce_client_id = salesforce_client_id
+        self.salesforce_client_secret = salesforce_client_secret
+        self.salesforce_username = salesforce_username
+        self.salesforce_private_key = salesforce_private_key
         self.slack_token = slack_token
         self.slack_teams = slack_teams
         self.slack_channels_memberships = slack_channels_memberships
