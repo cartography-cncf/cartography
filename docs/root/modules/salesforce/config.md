@@ -32,16 +32,26 @@ In Setup, go to **App Manager** → **New External Client App** (on older orgs, 
 
 **Client credentials flow (recommended for a quick start):**
 
-1. Open the app's **Policies** tab → **Edit** → **OAuth Policies** (on a classic
-   Connected App this is under **Manage** → **Edit Policies**).
-1. Check **Enable Client Credentials Flow**.
-1. Set **Run As** to a user with **API Enabled** and read access to the ingested
-   objects (a System Administrator is the simplest choice on a test org).
-1. Save.
+On an **External Client App** the flow is enabled in **Settings** first, then the
+run-as user is set in **Policies** (the flow only appears under Policies once enabled):
+
+1. Open the app's **Settings** tab → **OAuth Settings** → **Edit** → under **Flow
+   Enablement**, check **Enable Client Credentials Flow**. Save. (On a classic
+   Connected App, this checkbox lives directly in the OAuth settings instead.)
+1. Open the **Policies** tab → **Edit**. A **Client Credentials Flow** section now
+   appears → set **Run As** to a user with **API Enabled** and read access to the
+   ingested objects (a System Administrator is the simplest choice on a test org).
+   Save. (On a classic Connected App this is under **Manage** → **Edit Policies**.)
 1. Pass:
    - `--salesforce-client-id` : the app **Consumer Key**
    - the consumer secret in the environment variable named by
      `--salesforce-client-secret-env-var` (default `SALESFORCE_CLIENT_SECRET`)
+
+```{note}
+If **Enable Client Credentials Flow** is greyed out, deploy **My Domain** first and
+make sure **Allow OAuth Client Credentials Flows** is enabled under Setup → **OAuth
+and OpenID Connect Settings**.
+```
 
 **JWT bearer flow (server-to-server, no stored secret):**
 
