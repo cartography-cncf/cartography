@@ -19,12 +19,12 @@ class SalesforceGroupNodeProperties(CartographyNodeProperties):
     developer_name: PropertyRef = PropertyRef("DeveloperName", extra_index=True)
     type: PropertyRef = PropertyRef("Type")
     related_id: PropertyRef = PropertyRef("RelatedId")
-    lastupdated: PropertyRef = PropertyRef("LASTUPDATED", set_in_kwargs=True)
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
 class SalesforceGroupToOrganizationRelProperties(CartographyRelProperties):
-    lastupdated: PropertyRef = PropertyRef("LASTUPDATED", set_in_kwargs=True)
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
@@ -43,7 +43,7 @@ class SalesforceGroupToOrganizationRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class SalesforceGroupToUserRelProperties(CartographyRelProperties):
-    lastupdated: PropertyRef = PropertyRef("LASTUPDATED", set_in_kwargs=True)
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
@@ -62,7 +62,7 @@ class SalesforceGroupToUserRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class SalesforceGroupToGroupRelProperties(CartographyRelProperties):
-    lastupdated: PropertyRef = PropertyRef("LASTUPDATED", set_in_kwargs=True)
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)

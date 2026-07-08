@@ -21,12 +21,12 @@ class SalesforceConnectedAppNodeProperties(CartographyNodeProperties):
     )
     created_date: PropertyRef = PropertyRef("CreatedDate")
     last_modified_date: PropertyRef = PropertyRef("LastModifiedDate")
-    lastupdated: PropertyRef = PropertyRef("LASTUPDATED", set_in_kwargs=True)
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
 class SalesforceConnectedAppToOrganizationRelProperties(CartographyRelProperties):
-    lastupdated: PropertyRef = PropertyRef("LASTUPDATED", set_in_kwargs=True)
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
@@ -45,7 +45,7 @@ class SalesforceConnectedAppToOrganizationRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class SalesforceConnectedAppToUserRelProperties(CartographyRelProperties):
-    lastupdated: PropertyRef = PropertyRef("LASTUPDATED", set_in_kwargs=True)
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)

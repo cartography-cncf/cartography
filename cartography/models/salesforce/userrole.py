@@ -19,12 +19,12 @@ class SalesforceUserRoleNodeProperties(CartographyNodeProperties):
     parent_role_id: PropertyRef = PropertyRef("ParentRoleId")
     rollup_description: PropertyRef = PropertyRef("RollupDescription")
     portal_type: PropertyRef = PropertyRef("PortalType")
-    lastupdated: PropertyRef = PropertyRef("LASTUPDATED", set_in_kwargs=True)
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
 class SalesforceUserRoleToOrganizationRelProperties(CartographyRelProperties):
-    lastupdated: PropertyRef = PropertyRef("LASTUPDATED", set_in_kwargs=True)
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
@@ -43,7 +43,7 @@ class SalesforceUserRoleToOrganizationRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class SalesforceUserRoleToParentRelProperties(CartographyRelProperties):
-    lastupdated: PropertyRef = PropertyRef("LASTUPDATED", set_in_kwargs=True)
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)

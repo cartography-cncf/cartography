@@ -32,12 +32,12 @@ class SalesforceUserNodeProperties(CartographyNodeProperties):
     created_date: PropertyRef = PropertyRef("CreatedDate")
     last_login_date: PropertyRef = PropertyRef("LastLoginDate")
     last_password_change_date: PropertyRef = PropertyRef("LastPasswordChangeDate")
-    lastupdated: PropertyRef = PropertyRef("LASTUPDATED", set_in_kwargs=True)
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
 class SalesforceUserToOrganizationRelProperties(CartographyRelProperties):
-    lastupdated: PropertyRef = PropertyRef("LASTUPDATED", set_in_kwargs=True)
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
@@ -56,7 +56,7 @@ class SalesforceUserToOrganizationRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class SalesforceUserToProfileRelProperties(CartographyRelProperties):
-    lastupdated: PropertyRef = PropertyRef("LASTUPDATED", set_in_kwargs=True)
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
@@ -76,7 +76,7 @@ class SalesforceUserToProfileRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class SalesforceUserToUserRoleRelProperties(CartographyRelProperties):
-    lastupdated: PropertyRef = PropertyRef("LASTUPDATED", set_in_kwargs=True)
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)

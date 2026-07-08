@@ -43,7 +43,7 @@ def load_user_roles(
         neo4j_session,
         SalesforceUserRoleSchema(),
         data,
-        LASTUPDATED=update_tag,
+        lastupdated=update_tag,
         ORG_ID=org_id,
     )
 

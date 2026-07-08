@@ -27,12 +27,12 @@ class SalesforcePermissionSetNodeProperties(CartographyNodeProperties):
     permissions_author_apex: PropertyRef = PropertyRef("PermissionsAuthorApex")
     namespace_prefix: PropertyRef = PropertyRef("NamespacePrefix")
     created_date: PropertyRef = PropertyRef("CreatedDate")
-    lastupdated: PropertyRef = PropertyRef("LASTUPDATED", set_in_kwargs=True)
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
 class SalesforcePermissionSetToOrganizationRelProperties(CartographyRelProperties):
-    lastupdated: PropertyRef = PropertyRef("LASTUPDATED", set_in_kwargs=True)
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
@@ -51,7 +51,7 @@ class SalesforcePermissionSetToOrganizationRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class SalesforcePermissionSetToUserRelProperties(CartographyRelProperties):
-    lastupdated: PropertyRef = PropertyRef("LASTUPDATED", set_in_kwargs=True)
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)

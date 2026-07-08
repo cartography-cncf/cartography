@@ -50,7 +50,7 @@ def load_organization(
         neo4j_session,
         SalesforceOrganizationSchema(),
         [org],
-        LASTUPDATED=update_tag,
+        lastupdated=update_tag,
     )
 
 

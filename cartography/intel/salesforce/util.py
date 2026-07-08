@@ -41,6 +41,15 @@ class SalesforceClient:
             records.extend(body.get("records", []))
             # nextRecordsUrl is an absolute path on the instance host
             next_path = body.get("nextRecordsUrl")
+            # Fail fast rather than silently truncate: a well-formed response is
+            # either done, or not-done with a next page. Anything else means we
+            # would return a partial result set that looks complete.
+            if not body.get("done", True) and not next_path:
+                raise ValueError(
+                    f"Salesforce SOQL response is not done but has no "
+                    f"nextRecordsUrl; refusing to return a truncated result "
+                    f"set for query: {soql}"
+                )
             url = f"{self.instance_url}{next_path}" if next_path else None
             params = None
         return [

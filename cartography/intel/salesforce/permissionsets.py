@@ -80,7 +80,7 @@ def load_permission_sets(
         neo4j_session,
         SalesforcePermissionSetSchema(),
         data,
-        LASTUPDATED=update_tag,
+        lastupdated=update_tag,
         ORG_ID=org_id,
     )
 

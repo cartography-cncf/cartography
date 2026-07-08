@@ -59,7 +59,7 @@ def load_users(
         neo4j_session,
         SalesforceUserSchema(),
         data,
-        LASTUPDATED=update_tag,
+        lastupdated=update_tag,
         ORG_ID=org_id,
     )
 

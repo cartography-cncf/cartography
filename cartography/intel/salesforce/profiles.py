@@ -55,7 +55,7 @@ def load_profiles(
         neo4j_session,
         SalesforceProfileSchema(),
         data,
-        LASTUPDATED=update_tag,
+        lastupdated=update_tag,
         ORG_ID=org_id,
     )
 

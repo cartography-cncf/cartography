@@ -19,7 +19,7 @@ class SalesforceOrganizationNodeProperties(CartographyNodeProperties):
     namespace_prefix: PropertyRef = PropertyRef("NamespacePrefix")
     trial_expiration_date: PropertyRef = PropertyRef("TrialExpirationDate")
     created_date: PropertyRef = PropertyRef("CreatedDate")
-    lastupdated: PropertyRef = PropertyRef("LASTUPDATED", set_in_kwargs=True)
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)

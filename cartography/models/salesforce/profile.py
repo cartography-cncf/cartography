@@ -23,12 +23,12 @@ class SalesforceProfileNodeProperties(CartographyNodeProperties):
     permissions_author_apex: PropertyRef = PropertyRef("PermissionsAuthorApex")
     permissions_manage_users: PropertyRef = PropertyRef("PermissionsManageUsers")
     created_date: PropertyRef = PropertyRef("CreatedDate")
-    lastupdated: PropertyRef = PropertyRef("LASTUPDATED", set_in_kwargs=True)
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
 class SalesforceProfileToOrganizationRelProperties(CartographyRelProperties):
-    lastupdated: PropertyRef = PropertyRef("LASTUPDATED", set_in_kwargs=True)
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
