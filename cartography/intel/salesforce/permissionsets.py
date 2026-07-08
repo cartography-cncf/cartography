@@ -46,8 +46,11 @@ def get_permission_sets(client: SalesforceClient) -> list[dict[str, Any]]:
 
 @timeit
 def get_assignments(client: SalesforceClient) -> list[dict[str, Any]]:
+    # Only pull assignments for standalone permission sets, matching the node
+    # filter above (profile-owned permission sets are represented by profiles).
     return client.query_all(
-        "SELECT Id, AssigneeId, PermissionSetId FROM PermissionSetAssignment"
+        "SELECT Id, AssigneeId, PermissionSetId FROM PermissionSetAssignment "
+        "WHERE PermissionSet.IsOwnedByProfile = false"
     )
 
 

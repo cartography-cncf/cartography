@@ -26,7 +26,11 @@ class SalesforceClient:
         self.instance_url = instance_url.rstrip("/")
 
     def query_all(self, soql: str) -> list[dict[str, Any]]:
-        """Run a SOQL query and follow pagination until all records are fetched."""
+        """Run a SOQL query and follow pagination until all records are fetched.
+
+        The Salesforce-internal ``attributes`` key (record type + self URL) that the
+        REST API attaches to every record is stripped so callers get plain dicts.
+        """
         records: list[dict[str, Any]] = []
         url: str | None = f"{self.instance_url}/services/data/{API_VERSION}/query"
         params: dict[str, Any] | None = {"q": soql}
@@ -39,7 +43,10 @@ class SalesforceClient:
             next_path = body.get("nextRecordsUrl")
             url = f"{self.instance_url}{next_path}" if next_path else None
             params = None
-        return records
+        return [
+            {key: value for key, value in record.items() if key != "attributes"}
+            for record in records
+        ]
 
 
 def _authenticate_jwt_bearer(
