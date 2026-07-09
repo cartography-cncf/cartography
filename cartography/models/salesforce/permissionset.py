@@ -24,7 +24,6 @@ class SalesforcePermissionSetNodeProperties(CartographyNodeProperties):
     permissions_modify_all_data: PropertyRef = PropertyRef("PermissionsModifyAllData")
     permissions_view_all_data: PropertyRef = PropertyRef("PermissionsViewAllData")
     permissions_api_enabled: PropertyRef = PropertyRef("PermissionsApiEnabled")
-    permissions_author_apex: PropertyRef = PropertyRef("PermissionsAuthorApex")
     namespace_prefix: PropertyRef = PropertyRef("NamespacePrefix")
     created_date: PropertyRef = PropertyRef("CreatedDate")
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)

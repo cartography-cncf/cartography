@@ -123,7 +123,6 @@ Represents a `Profile`: the baseline permission bundle assigned to each user.
 | permissions_modify_all_data | Whether the profile grants Modify All Data |
 | permissions_view_all_data | Whether the profile grants View All Data |
 | permissions_api_enabled | Whether the profile grants API access |
-| permissions_author_apex | Whether the profile grants Author Apex |
 | permissions_manage_users | Whether the profile grants Manage Users |
 | created_date | When the profile was created |
 
@@ -157,7 +156,6 @@ already represented by `SalesforceProfile`).
 | permissions_modify_all_data | Whether it grants Modify All Data |
 | permissions_view_all_data | Whether it grants View All Data |
 | permissions_api_enabled | Whether it grants API access |
-| permissions_author_apex | Whether it grants Author Apex |
 | namespace_prefix | Managed-package namespace prefix, if any |
 | created_date | When the permission set was created |
 

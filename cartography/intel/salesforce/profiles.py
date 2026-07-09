@@ -11,8 +11,8 @@ from cartography.util import timeit
 
 _FIELDS = (
     "Id, Name, UserType, Description, PermissionsModifyAllData, "
-    "PermissionsViewAllData, PermissionsApiEnabled, PermissionsAuthorApex, "
-    "PermissionsManageUsers, CreatedDate"
+    "PermissionsViewAllData, PermissionsApiEnabled, PermissionsManageUsers, "
+    "CreatedDate"
 )
 
 

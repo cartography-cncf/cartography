@@ -15,7 +15,7 @@ from cartography.util import timeit
 _PS_FIELDS = (
     "Id, Name, Label, Description, Type, IsOwnedByProfile, ProfileId, "
     "PermissionsModifyAllData, PermissionsViewAllData, PermissionsApiEnabled, "
-    "PermissionsAuthorApex, NamespacePrefix, CreatedDate"
+    "NamespacePrefix, CreatedDate"
 )
 
 
