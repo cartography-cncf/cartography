@@ -32,7 +32,7 @@ def get(api_session: requests.Session, base_url: str) -> list[dict[str, Any]]:
         timeout=_TIMEOUT,
     )
     response.raise_for_status()
-    return response.json()["frameworks"]
+    return response.json()["items"]
 
 
 def transform(raw_data: list[dict[str, Any]]) -> list[dict[str, Any]]:
