@@ -86,6 +86,6 @@ def cleanup(
     for project_id in projects_id:
         scoped_job_parameters = common_job_parameters.copy()
         scoped_job_parameters["PROJECT_ID"] = project_id
-        GraphJob.from_node_schema(
-            ScalewayTemDomainSchema(), scoped_job_parameters
-        ).run(neo4j_session)
+        GraphJob.from_node_schema(ScalewayTemDomainSchema(), scoped_job_parameters).run(
+            neo4j_session
+        )
