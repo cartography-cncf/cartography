@@ -74,6 +74,13 @@ def run(neo4j_session: neo4j.Session, config: Config) -> None:
         config.update_tag,
         common_job_parameters,
     )
+    # Link Tailscale endpoint devices to the cloud compute instances they identify as.
+    # Runs after provider syncs so EC2/GCP ComputeInstance nodes are available.
+    run_analysis_job(
+        "tailscale_device_instance_linking.json",
+        neo4j_session,
+        common_job_parameters,
+    )
     # Create RESOLVED_IMAGE edges from :Container to the concrete single-platform :Image they are running.
     # Runs last so the :Container / :Image semantic labels and HAS_IMAGE edges from every provider are in place.
     run_analysis_job(

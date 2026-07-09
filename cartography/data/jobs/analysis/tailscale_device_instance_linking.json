@@ -1,0 +1,21 @@
+{
+  "name": "Tailscale device to cloud instance linking",
+  "statements": [
+    {
+      "__comment": "Create IS_INSTANCE edges from TailscaleDevice to a cloud ComputeInstance when a unique current Tailscale hostname or MagicDNS short name matches a unique current EC2 or GCP instance hostname, instance name, or public DNS name.",
+      "query": "MATCH (instance:ComputeInstance) WHERE instance.lastupdated = $UPDATE_TAG AND (instance:EC2Instance OR instance:GCPInstance) WITH instance, [instance.hostname, instance.instancename, instance.publicdnsname] AS raw_keys UNWIND raw_keys AS raw_key WITH instance, raw_key WHERE raw_key IS NOT NULL AND trim(toString(raw_key)) <> '' WITH instance, toLower(trim(toString(raw_key))) AS full_key WITH instance, [full_key, split(full_key, '.')[0]] AS keys UNWIND keys AS instance_key WITH instance_key, collect(DISTINCT instance) AS instances WHERE instance_key <> '' AND size(instances) = 1 MATCH (device:TailscaleDevice) WHERE device.lastupdated = $UPDATE_TAG WITH instance_key, instances[0] AS instance, device, [device.hostname, device.name] AS raw_device_keys UNWIND raw_device_keys AS raw_device_key WITH instance_key, instance, device, raw_device_key WHERE raw_device_key IS NOT NULL AND trim(toString(raw_device_key)) <> '' WITH instance_key, instance, device, toLower(trim(toString(raw_device_key))) AS full_device_key WITH instance_key, instance, device, [full_device_key, split(full_device_key, '.')[0]] AS device_keys UNWIND device_keys AS device_key WITH instance_key, instance, device_key, collect(DISTINCT device) AS devices WHERE device_key = instance_key AND size(devices) = 1 WITH devices[0] AS device, instance MERGE (device)-[r:IS_INSTANCE]->(instance) ON CREATE SET r.firstseen = timestamp() SET r.lastupdated = $UPDATE_TAG",
+      "iterative": false
+    },
+    {
+      "__comment": "Create IS_INSTANCE edges from TailscaleDevice to a cloud ComputeInstance when a unique current Tailscale magicsock IPv4 endpoint matches a unique current EC2 or GCP instance public IP.",
+      "query": "MATCH (device:TailscaleDevice) WHERE device.lastupdated = $UPDATE_TAG AND device.client_connectivity_endpoints IS NOT NULL UNWIND device.client_connectivity_endpoints AS endpoint WITH device, endpoint WHERE endpoint =~ '^\\\\d+\\\\.\\\\d+\\\\.\\\\d+\\\\.\\\\d+:\\\\d+$' WITH split(endpoint, ':')[0] AS ip, collect(DISTINCT device) AS devices WHERE ip <> '' AND size(devices) = 1 MATCH (instance:ComputeInstance) WHERE instance.lastupdated = $UPDATE_TAG AND (instance:EC2Instance OR instance:GCPInstance) WITH ip, devices[0] AS device, instance, [instance.publicipaddress, instance.public_ip] AS raw_ips UNWIND raw_ips AS raw_ip WITH ip, device, instance, raw_ip WHERE raw_ip IS NOT NULL AND trim(toString(raw_ip)) = ip WITH ip, device, collect(DISTINCT instance) AS instances WHERE size(instances) = 1 WITH device, instances[0] AS instance MERGE (device)-[r:IS_INSTANCE]->(instance) ON CREATE SET r.firstseen = timestamp() SET r.lastupdated = $UPDATE_TAG",
+      "iterative": false
+    },
+    {
+      "__comment": "Cleanup stale TailscaleDevice IS_INSTANCE edges after all current edges have been merged.",
+      "query": "MATCH (:TailscaleDevice)-[r:IS_INSTANCE]->(:ComputeInstance) WHERE r.lastupdated <> $UPDATE_TAG OR r.lastupdated IS NULL WITH r LIMIT $LIMIT_SIZE DELETE r RETURN COUNT(*) AS TotalCompleted",
+      "iterative": true,
+      "iterationsize": 1000
+    }
+  ]
+}

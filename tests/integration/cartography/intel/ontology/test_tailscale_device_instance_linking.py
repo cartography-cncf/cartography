@@ -1,0 +1,117 @@
+from cartography.util import run_analysis_job
+
+TEST_UPDATE_TAG = 123456789
+
+
+def test_link_tailscale_devices_to_cloud_instances(neo4j_session):
+    neo4j_session.run("MATCH (n) DETACH DELETE n")
+    stale_tag = TEST_UPDATE_TAG - 1
+
+    # Arrange
+    neo4j_session.run(
+        """
+        CREATE (:TailscaleDevice {
+            id: 'ts-ec2-host',
+            hostname: 'ip-10-0-0-5',
+            name: 'ip-10-0-0-5.example.ts.net',
+            lastupdated: $update_tag
+        })
+        CREATE (:EC2Instance:ComputeInstance {
+            id: 'i-host-match',
+            publicdnsname: 'ip-10-0-0-5.ec2.internal',
+            publicipaddress: '198.51.100.10',
+            lastupdated: $update_tag
+        })
+
+        CREATE (:TailscaleDevice {
+            id: 'ts-gcp-ip',
+            hostname: 'unrelated-host',
+            name: 'unrelated-host.example.ts.net',
+            client_connectivity_endpoints: ['203.0.113.10:41641'],
+            lastupdated: $update_tag
+        })
+        CREATE (:GCPInstance:ComputeInstance {
+            id: 'projects/test/zones/us-central1-a/instances/gcp-instance',
+            instancename: 'gcp-instance',
+            hostname: 'gcp-instance.c.test.internal',
+            public_ip: '203.0.113.10',
+            lastupdated: $update_tag
+        })
+
+        CREATE (:TailscaleDevice {
+            id: 'ts-stale',
+            hostname: 'stale-host',
+            lastupdated: $update_tag
+        })-[stale:IS_INSTANCE]->(:EC2Instance:ComputeInstance {
+            id: 'i-stale',
+            publicdnsname: 'different-host.ec2.internal',
+            lastupdated: $update_tag
+        })
+        SET stale.lastupdated = $stale_tag
+        """,
+        update_tag=TEST_UPDATE_TAG,
+        stale_tag=stale_tag,
+    )
+
+    # Act
+    run_analysis_job(
+        "tailscale_device_instance_linking.json",
+        neo4j_session,
+        {"UPDATE_TAG": TEST_UPDATE_TAG},
+    )
+
+    # Assert
+    result = neo4j_session.run(
+        """
+        MATCH (device:TailscaleDevice)-[:IS_INSTANCE]->(instance:ComputeInstance)
+        RETURN device.id AS device_id, instance.id AS instance_id
+        """
+    )
+    assert {(r["device_id"], r["instance_id"]) for r in result} == {
+        ("ts-ec2-host", "i-host-match"),
+        ("ts-gcp-ip", "projects/test/zones/us-central1-a/instances/gcp-instance"),
+    }
+
+
+def test_tailscale_device_instance_linking_skips_ambiguous_hostnames(
+    neo4j_session,
+):
+    neo4j_session.run("MATCH (n) DETACH DELETE n")
+
+    # Arrange
+    neo4j_session.run(
+        """
+        CREATE (:TailscaleDevice {
+            id: 'ts-duplicate',
+            hostname: 'shared-host',
+            lastupdated: $update_tag
+        })
+        CREATE (:EC2Instance:ComputeInstance {
+            id: 'i-duplicate-a',
+            publicdnsname: 'shared-host.ec2.internal',
+            lastupdated: $update_tag
+        })
+        CREATE (:GCPInstance:ComputeInstance {
+            id: 'projects/test/zones/us-central1-a/instances/shared-host',
+            instancename: 'shared-host',
+            lastupdated: $update_tag
+        })
+        """,
+        update_tag=TEST_UPDATE_TAG,
+    )
+
+    # Act
+    run_analysis_job(
+        "tailscale_device_instance_linking.json",
+        neo4j_session,
+        {"UPDATE_TAG": TEST_UPDATE_TAG},
+    )
+
+    # Assert
+    count = neo4j_session.run(
+        """
+        MATCH (:TailscaleDevice)-[r:IS_INSTANCE]->(:ComputeInstance)
+        RETURN count(r) AS count
+        """
+    ).single()["count"]
+    assert count == 0
