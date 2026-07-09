@@ -39,9 +39,9 @@ run-as user is set in **Policies** (the flow only appears under Policies once en
    Enablement**, check **Enable Client Credentials Flow**. Save. (On a classic
    Connected App, this checkbox lives directly in the OAuth settings instead.)
 1. Open the **Policies** tab → **Edit**. A **Client Credentials Flow** section now
-   appears → set **Run As** to a user with **API Enabled** and read access to the
-   ingested objects (a System Administrator is the simplest choice on a test org).
-   Save. (On a classic Connected App this is under **Manage** → **Edit Policies**.)
+   appears → set **Run As** to the dedicated read-only integration user (see
+   [Permissions](#permissions-least-privilege) below). Save. (On a classic
+   Connected App this is under **Manage** → **Edit Policies**.)
 1. Pass:
    - `--salesforce-client-id` : the app **Consumer Key**
    - the consumer secret in the environment variable named by
@@ -81,6 +81,32 @@ Use `--salesforce-login-url` to point at the right token endpoint:
 
 Cartography resolves the org's instance URL automatically from the token response.
 
+### Permissions (least privilege)
+
+Cartography only **reads** from Salesforce (SOQL `SELECT` queries); it never creates,
+updates, or deletes anything. Grant it a dedicated, read-only identity rather than a
+human's admin account:
+
+1. **Create a dedicated integration user** (e.g. `cartography@yourco.com`). The
+   **Salesforce Integration** user license is purpose-built for this (API-only, no UI
+   login) and a small number are included at no extra cost; a standard license also
+   works.
+1. **Create a permission set** granting only:
+   - **API Enabled** (system permission)
+   - **View Setup and Configuration** (to read `Profile`, `PermissionSet`,
+     `PermissionSetAssignment`, `ConnectedApplication`)
+   - **Manage Users** (so `OAuthToken` returns *all* users' tokens; without it the
+     query is silently limited to the run-as user's own tokens, producing incomplete
+     `AUTHORIZED` edges)
+   - Read on the ingested objects: `Organization`, `User`, `UserRole`, `Group`,
+     `GroupMember`
+   Do not grant any Create/Edit/Delete or Modify All Data permissions.
+1. **Assign** the permission set to the integration user and use that user as the
+   connected app's **Run As** (client credentials) or JWT `--salesforce-username`.
+
+On a throwaway test org you can shortcut this by running as a System Administrator, but
+that is over-privileged (read-write) and should not be used in production.
+
 ### Example
 
 ```bash
@@ -91,7 +117,3 @@ cartography \
   --salesforce-login-url 'https://mycompany.my.salesforce.com' \
   --salesforce-client-id '<consumer key>'
 ```
-
-The integration user needs read access to the objects Cartography ingests:
-`Organization`, `User`, `Profile`, `PermissionSet`, `PermissionSetAssignment`,
-`UserRole`, `Group`, `GroupMember`, `ConnectedApplication`, and `OAuthToken`.
