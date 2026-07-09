@@ -3,6 +3,7 @@ import logging
 import neo4j
 import scaleway
 
+import cartography.intel.scaleway.audit_trail.audit_trail
 import cartography.intel.scaleway.baremetal.apple_silicon
 import cartography.intel.scaleway.baremetal.dedibox
 import cartography.intel.scaleway.baremetal.elastic_metal
@@ -44,6 +45,7 @@ import cartography.intel.scaleway.storage.filesystems
 import cartography.intel.scaleway.storage.objectstorage
 import cartography.intel.scaleway.storage.snapshots
 import cartography.intel.scaleway.storage.volumes
+import cartography.intel.scaleway.tem.tem
 from cartography.config import Config
 from cartography.util import timeit
 
@@ -435,6 +437,26 @@ def start_scaleway_ingestion(neo4j_session: neo4j.Session, config: Config) -> No
     # principal -> project (CAN_ACCESS) edges from the policy/rule graph. Runs
     # last so all IAM and project nodes are present.
     cartography.intel.scaleway.iam.permissions.sync(
+        neo4j_session,
+        client,
+        common_job_parameters,
+        org_id=config.scaleway_org,
+        projects_id=projects_id,
+        update_tag=config.update_tag,
+    )
+
+    # Audit Trail (alert rules). Org-scoped; no inter-module edges required.
+    cartography.intel.scaleway.audit_trail.audit_trail.sync(
+        neo4j_session,
+        client,
+        common_job_parameters,
+        org_id=config.scaleway_org,
+        projects_id=projects_id,
+        update_tag=config.update_tag,
+    )
+
+    # Transactional Email (TEM) domains. Org-scoped; no inter-module edges required.
+    cartography.intel.scaleway.tem.tem.sync(
         neo4j_session,
         client,
         common_job_parameters,
