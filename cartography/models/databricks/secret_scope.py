@@ -3,6 +3,7 @@ from dataclasses import dataclass
 from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeProperties
 from cartography.models.core.nodes import CartographyNodeSchema
+from cartography.models.core.nodes import ExtraNodeLabels
 from cartography.models.core.relationships import CartographyRelProperties
 from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
@@ -50,3 +51,5 @@ class DatabricksSecretScopeSchema(CartographyNodeSchema):
     sub_resource_relationship: DatabricksSecretScopeToWorkspaceRel = (
         DatabricksSecretScopeToWorkspaceRel()
     )
+    # ACL-target ontology label so the HAS_PERMISSION MatchLinks can target it.
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["DatabricksAclObject"])

@@ -72,6 +72,7 @@ PANEL_WORKOS = "WorkOS Options"
 PANEL_JUMPCLOUD = "JumpCloud Options"
 PANEL_SOCKETDEV = "Socket.dev Options"
 PANEL_VERCEL = "Vercel Options"
+PANEL_CIRCLECI = "CircleCI Options"
 PANEL_STATSD = "StatsD Metrics"
 PANEL_ANALYSIS = "Analysis Options"
 
@@ -127,6 +128,7 @@ MODULE_PANELS = {
     "spacelift": PANEL_SPACELIFT,
     "workos": PANEL_WORKOS,
     "vercel": PANEL_VERCEL,
+    "circleci": PANEL_CIRCLECI,
     "analysis": PANEL_ANALYSIS,
 }
 
@@ -1476,6 +1478,42 @@ class CLI:
                     hidden=PANEL_DATABRICKS not in visible_panels,
                 ),
             ] = None,
+            databricks_account_id: Annotated[
+                str | None,
+                typer.Option(
+                    "--databricks-account-id",
+                    help="Databricks account ID (AWS / GCP account console). Enables the account-level API surface.",
+                    rich_help_panel=PANEL_DATABRICKS,
+                    hidden=PANEL_DATABRICKS not in visible_panels,
+                ),
+            ] = None,
+            databricks_account_host: Annotated[
+                str,
+                typer.Option(
+                    "--databricks-account-host",
+                    help="Databricks account API host.",
+                    rich_help_panel=PANEL_DATABRICKS,
+                    hidden=PANEL_DATABRICKS not in visible_panels,
+                ),
+            ] = "https://accounts.cloud.databricks.com",
+            databricks_account_client_id: Annotated[
+                str | None,
+                typer.Option(
+                    "--databricks-account-client-id",
+                    help="Databricks account-level OAuth M2M client ID (account service principal).",
+                    rich_help_panel=PANEL_DATABRICKS,
+                    hidden=PANEL_DATABRICKS not in visible_panels,
+                ),
+            ] = None,
+            databricks_account_client_secret_env_var: Annotated[
+                str | None,
+                typer.Option(
+                    "--databricks-account-client-secret-env-var",
+                    help="Environment variable name containing the Databricks account-level OAuth M2M client secret.",
+                    rich_help_panel=PANEL_DATABRICKS,
+                    hidden=PANEL_DATABRICKS not in visible_panels,
+                ),
+            ] = None,
             # =================================================================
             # Docker Scout Options
             # =================================================================
@@ -2046,6 +2084,41 @@ class CLI:
                 ),
             ] = "https://api.vercel.com",
             # =================================================================
+            # CircleCI Options
+            # =================================================================
+            circleci_token_env_var: Annotated[
+                str | None,
+                typer.Option(
+                    "--circleci-token-env-var",
+                    help="Environment variable name containing a CircleCI personal API token.",
+                    rich_help_panel=PANEL_CIRCLECI,
+                    hidden=PANEL_CIRCLECI not in visible_panels,
+                ),
+            ] = None,
+            circleci_base_url: Annotated[
+                str,
+                typer.Option(
+                    "--circleci-base-url",
+                    help="CircleCI API v2 base URL.",
+                    rich_help_panel=PANEL_CIRCLECI,
+                    hidden=PANEL_CIRCLECI not in visible_panels,
+                ),
+            ] = "https://circleci.com/api/v2",
+            circleci_project_slugs: Annotated[
+                str | None,
+                typer.Option(
+                    "--circleci-project-slugs",
+                    help=(
+                        "Comma-separated CircleCI project slugs (e.g. gh/org/repo) to sync "
+                        "in addition to those auto-discovered from each org's pipeline feed. "
+                        "Use this for projects with no recent pipeline activity, which the "
+                        "feed will not surface."
+                    ),
+                    rich_help_panel=PANEL_CIRCLECI,
+                    hidden=PANEL_CIRCLECI not in visible_panels,
+                ),
+            ] = None,
+            # =================================================================
             # StatsD Metrics Options
             # =================================================================
             statsd_enabled: Annotated[
@@ -2458,6 +2531,20 @@ class CLI:
                 )
                 vercel_token = os.environ.get(vercel_token_env_var)
 
+            # Read CircleCI token
+            circleci_token = None
+            if circleci_token_env_var:
+                logger.debug(
+                    "Reading CircleCI API token from environment variable %s",
+                    circleci_token_env_var,
+                )
+                circleci_token = os.environ.get(circleci_token_env_var)
+            circleci_project_slug_list = (
+                [s.strip() for s in circleci_project_slugs.split(",") if s.strip()]
+                if circleci_project_slugs
+                else None
+            )
+
             # Read Cloudflare token
             cloudflare_token = None
             if cloudflare_token_env_var:
@@ -2540,6 +2627,19 @@ class CLI:
                 )
                 databricks_client_secret = os.environ.get(
                     databricks_client_secret_env_var,
+                )
+            databricks_account_client_secret = None
+            if databricks_account_client_secret_env_var:
+                # Read the secret whenever the env-var flag is set, even if
+                # --databricks-account-client-id is missing, so the module
+                # entry's partial-OAuth guard sees the asymmetric configuration
+                # and fails loudly instead of silently skipping the account API.
+                logger.debug(
+                    "Reading Databricks account OAuth M2M secret from environment variable %s",
+                    databricks_account_client_secret_env_var,
+                )
+                databricks_account_client_secret = os.environ.get(
+                    databricks_account_client_secret_env_var,
                 )
 
             resolved_docker_scout_source = _resolve_report_source_option(
@@ -2814,6 +2914,9 @@ class CLI:
                 vercel_token=vercel_token,
                 vercel_team_id=vercel_team_id,
                 vercel_base_url=vercel_base_url,
+                circleci_token=circleci_token,
+                circleci_base_url=circleci_base_url,
+                circleci_project_slugs=circleci_project_slug_list,
                 cloudflare_token=cloudflare_token,
                 openai_apikey=openai_apikey,
                 openai_org_id=openai_org_id,
@@ -2832,6 +2935,10 @@ class CLI:
                 databricks_token=databricks_token,
                 databricks_client_id=databricks_client_id,
                 databricks_client_secret=databricks_client_secret,
+                databricks_account_id=databricks_account_id,
+                databricks_account_host=databricks_account_host,
+                databricks_account_client_id=databricks_account_client_id,
+                databricks_account_client_secret=databricks_account_client_secret,
                 # Forward the user-provided values (not resolved). Config calls
                 # resolve_report_source_with_legacy_fields() internally; the CLI's
                 # _resolve_report_source_option above runs the same logic for early

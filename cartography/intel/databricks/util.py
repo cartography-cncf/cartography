@@ -106,13 +106,17 @@ def scoped_id(workspace_id: str, scim_id: str) -> str:
     return f"{workspace_id}/{scim_id}"
 
 
-class DatabricksWorkspaceClient:
-    """A thin client for the Databricks Workspace REST API.
+class _BaseDatabricksClient:
+    """Shared REST plumbing for the Databricks workspace + account APIs.
+
+    Both APIs speak the same request/response shapes (SCIM listings, Unity
+    Catalog ``next_page_token`` pagination, bearer auth). They differ only in the
+    OAuth token endpoint (``_token_url``), so that is the single override point.
 
     Supports two authentication modes:
-      - Personal Access Token (PAT): pass ``token``.
-      - OAuth M2M (workspace-level service principal client credentials):
-        pass ``client_id`` and ``client_secret``.
+      - Personal Access Token (PAT): pass ``token`` (workspace API only).
+      - OAuth M2M (service principal client credentials): pass ``client_id`` and
+        ``client_secret``.
     """
 
     def __init__(
@@ -133,6 +137,9 @@ class DatabricksWorkspaceClient:
         self._access_token_expiry: float | None = None
         self._session = requests.Session()
 
+    def _token_url(self) -> str:
+        raise NotImplementedError
+
     def authenticate(self) -> None:
         if self._token:
             self._session.headers["Authorization"] = f"Bearer {self._token}"
@@ -141,7 +148,7 @@ class DatabricksWorkspaceClient:
             return
         self._session.headers.pop("Authorization", None)
         response = self._session.post(
-            f"{self.host}/oidc/v1/token",
+            self._token_url(),
             data={"grant_type": "client_credentials", "scope": "all-apis"},
             auth=(self._client_id, self._client_secret),  # type: ignore[arg-type]
             timeout=_TIMEOUT,
@@ -211,6 +218,41 @@ class DatabricksWorkspaceClient:
             seen_tokens.add(next_token)
             page_params = {**(params or {}), "page_token": next_token}
         return results
+
+
+class DatabricksWorkspaceClient(_BaseDatabricksClient):
+    """A thin client for the Databricks Workspace REST API."""
+
+    def _token_url(self) -> str:
+        return f"{self.host}/oidc/v1/token"
+
+
+class DatabricksAccountClient(_BaseDatabricksClient):
+    """A thin client for the Databricks Account REST API.
+
+    The account API lives on a different host (``accounts.cloud.databricks.com``
+    on AWS, ``accounts.gcp.databricks.com`` on GCP; Azure has no account API) and
+    the OAuth token endpoint is account-scoped. Every account resource path is
+    prefixed with ``/api/2.0/accounts/{account_id}``, so callers build URIs with
+    :attr:`account_id`. OAuth M2M is the only supported auth (no PAT).
+    """
+
+    def __init__(
+        self,
+        host: str,
+        account_id: str,
+        client_id: str,
+        client_secret: str,
+    ) -> None:
+        super().__init__(host, client_id=client_id, client_secret=client_secret)
+        self.account_id = account_id
+
+    def _token_url(self) -> str:
+        return f"{self.host}/oidc/accounts/{self.account_id}/v1/token"
+
+    def account_uri(self, suffix: str) -> str:
+        """Build an account-scoped API path from a suffix like ``/scim/v2/Users``."""
+        return f"/api/2.0/accounts/{self.account_id}{suffix}"
 
 
 def parse_storage_url(url: str | None) -> tuple[str | None, str | None]:

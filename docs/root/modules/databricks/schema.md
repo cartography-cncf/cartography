@@ -89,7 +89,46 @@ M -- CONTAINS --> RCP
 M -- CONTAINS --> PRV
 M -- CONTAINS --> CR
 SHR -- SHARED_WITH --> RCP
+ACC(DatabricksAccount) -- RESOURCE --> W
+ACC -- RESOURCE --> AU(DatabricksAccountUser)
+ACC -- RESOURCE --> AG(DatabricksAccountGroup)
+ACC -- RESOURCE --> ASP(DatabricksAccountServicePrincipal)
+ACC -- RESOURCE --> FP(DatabricksFederationPolicy)
+AU -- MEMBER_OF --> AG
+ASP -- MEMBER_OF --> AG
+AG -- MEMBER_OF --> AG
+AU -- ASSIGNED_TO --> W
+AG -- ASSIGNED_TO --> W
+ASP -- ASSIGNED_TO --> W
+FP -- OWNED_BY --> ASP
+ACC -- RESOURCE --> CC(DatabricksCredentialConfig)
+ACC -- RESOURCE --> STC(DatabricksStorageConfig)
+ACC -- RESOURCE --> NC(DatabricksNetworkConfig)
+ACC -- RESOURCE --> PAS(DatabricksPrivateAccessSettings)
+ACC -- RESOURCE --> VE(DatabricksVpcEndpoint)
+ACC -- RESOURCE --> EK(DatabricksEncryptionKey)
+ACC -- RESOURCE --> NCC(DatabricksNetworkConnectivityConfig)
+ACC -- RESOURCE --> LD(DatabricksLogDelivery)
+ACC -- RESOURCE --> BUD(DatabricksBudget)
+ACC -- RESOURCE --> ASET(DatabricksAccountSetting)
+CC -- ASSUMES_ROLE --> AWS
+CC -- IN_ACCOUNT --> AWSACC(AWSAccount)
+STC -- BACKED_BY --> BKT
+NC -- USES_VPC --> VPC(AWSVpc)
+NC -- USES_SUBNET --> SUB(EC2Subnet)
+NC -- USES_SECURITY_GROUP --> SG(EC2SecurityGroup)
+VE -- POINTS_TO --> AWSVE(AWSVpcEndpoint)
+EK -- REFERENCES_KEY --> KEY(KMSKey / GCPCryptoKey)
+LD -- DELIVERS_TO --> BKT
+U -- HAS_PERMISSION --> ACLO(DatabricksAclObject)
+G -- HAS_PERMISSION --> ACLO
+S -- HAS_PERMISSION --> ACLO
+DR(DatabricksRepo) -- SOURCED_FROM --> GH(GitHubRepository)
 ```
+
+> The account-level nodes (`DatabricksAccountUser`, `DatabricksAccountServicePrincipal`, `DatabricksAccountGroup`) carry the same ontology labels as their workspace-level counterparts (`UserAccount`, `ServiceAccount`, `UserGroup`); `DatabricksAccount` carries `Tenant`. Unity Catalog catalogs / schemas / tables carry `Database`, external locations / volumes carry `ObjectStorage`, and IP access lists carry `NetworkAccessControl`, so Databricks data plane and network controls surface in cross-provider ontology queries.
+
+ACL-bearing workspace objects (`DatabricksCluster`, `DatabricksClusterPolicy`, `DatabricksInstancePool`, `DatabricksJob`, `DatabricksPipeline`, `DatabricksSqlWarehouse`, `DatabricksServingEndpoint`, `DatabricksApp`, `DatabricksSecretScope`) also carry the shared `DatabricksAclObject` label so a principal's object-ACL permission can point at any of them with one relationship type (`HAS_PERMISSION`, carrying a `permission_level` list).
 
 Grantable Unity Catalog nodes (`DatabricksMetastore`, `DatabricksCatalog`,
 `DatabricksSchema`, `DatabricksTable`, `DatabricksVolume`, `DatabricksFunction`,
@@ -1420,3 +1459,139 @@ skipped otherwise).
     ```
     (:DatabricksMetastore)-[:CONTAINS]->(:DatabricksCleanRoom)
     ```
+
+### DatabricksAccount
+
+A Databricks account (AWS / GCP account console). Carries the `Tenant` ontology label and owns every workspace, account principal, and cloud configuration.
+
+| Field | Description |
+|-------|-------------|
+| id | The account id |
+| account_id | The account id |
+| host | The account API host |
+| lastupdated | Timestamp of the last sync |
+
+#### Relationships
+- A `DatabricksAccount` owns its `DatabricksWorkspace`s, account principals, federation policies, and cloud configurations.
+    ```
+    (:DatabricksAccount)-[:RESOURCE]->(:DatabricksWorkspace)
+    ```
+
+### DatabricksAccountUser
+
+A Databricks account-level SCIM user. Extra label: `UserAccount`.
+
+| Field | Description |
+|-------|-------------|
+| id | `{account_id}/{scim_id}` |
+| scim_id | Account SCIM user id |
+| user_name | Login (usually email) |
+| email | Primary email |
+| display_name | Display name |
+| external_id | External IdP id |
+| active | Whether the user is active |
+| lastupdated | Timestamp of the last sync |
+
+#### Relationships
+```
+(:DatabricksAccount)-[:RESOURCE]->(:DatabricksAccountUser)
+(:DatabricksAccountUser)-[:MEMBER_OF]->(:DatabricksAccountGroup)
+(:DatabricksAccountUser)-[:ASSIGNED_TO {permissions}]->(:DatabricksWorkspace)
+```
+
+### DatabricksAccountGroup
+
+A Databricks account-level SCIM group. Extra label: `UserGroup`.
+
+| Field | Description |
+|-------|-------------|
+| id | `{account_id}/{scim_id}` |
+| scim_id | Account SCIM group id |
+| display_name | Group name |
+| external_id | External IdP id |
+| lastupdated | Timestamp of the last sync |
+
+#### Relationships
+```
+(:DatabricksAccount)-[:RESOURCE]->(:DatabricksAccountGroup)
+(:DatabricksAccountGroup)-[:MEMBER_OF]->(:DatabricksAccountGroup)
+(:DatabricksAccountGroup)-[:ASSIGNED_TO {permissions}]->(:DatabricksWorkspace)
+```
+
+### DatabricksAccountServicePrincipal
+
+A Databricks account-level SCIM service principal. Extra label: `ServiceAccount`.
+
+| Field | Description |
+|-------|-------------|
+| id | `{account_id}/{scim_id}` |
+| scim_id | Account SCIM service principal id |
+| application_id | OAuth application id |
+| display_name | Display name |
+| external_id | External IdP id |
+| active | Whether the service principal is active |
+| lastupdated | Timestamp of the last sync |
+
+#### Relationships
+```
+(:DatabricksAccount)-[:RESOURCE]->(:DatabricksAccountServicePrincipal)
+(:DatabricksAccountServicePrincipal)-[:MEMBER_OF]->(:DatabricksAccountGroup)
+(:DatabricksAccountServicePrincipal)-[:ASSIGNED_TO {permissions}]->(:DatabricksWorkspace)
+(:DatabricksFederationPolicy)-[:OWNED_BY]->(:DatabricksAccountServicePrincipal)
+```
+
+### DatabricksFederationPolicy
+
+An account federation policy (account-wide or scoped to a service principal).
+
+| Field | Description |
+|-------|-------------|
+| id | `{account_id}/{policy_id}` |
+| name | Policy name |
+| uid | Policy uid |
+| issuer | OIDC issuer |
+| subject_claim | OIDC subject claim |
+| audiences | OIDC audiences |
+| service_principal_id | SCIM id of the SP this policy is scoped to (None for account-wide) |
+| lastupdated | Timestamp of the last sync |
+
+#### Relationships
+```
+(:DatabricksAccount)-[:RESOURCE]->(:DatabricksFederationPolicy)
+(:DatabricksFederationPolicy)-[:OWNED_BY]->(:DatabricksAccountServicePrincipal)
+```
+
+### DatabricksCredentialConfig / DatabricksStorageConfig / DatabricksNetworkConfig / DatabricksPrivateAccessSettings / DatabricksVpcEndpoint / DatabricksEncryptionKey / DatabricksNetworkConnectivityConfig / DatabricksLogDelivery / DatabricksBudget / DatabricksAccountSetting
+
+Account-level workspace cloud configurations (AWS / GCP). Each is owned by the `DatabricksAccount` and, where the matching cloud node is already in the graph, links to it:
+
+```
+(:DatabricksAccount)-[:RESOURCE]->(:DatabricksCredentialConfig)-[:ASSUMES_ROLE]->(:AWSPrincipal)
+(:DatabricksCredentialConfig)-[:IN_ACCOUNT]->(:AWSAccount)
+(:DatabricksStorageConfig)-[:BACKED_BY]->(:S3Bucket)
+(:DatabricksNetworkConfig)-[:USES_VPC]->(:AWSVpc)
+(:DatabricksNetworkConfig)-[:USES_SUBNET]->(:EC2Subnet)
+(:DatabricksNetworkConfig)-[:USES_SECURITY_GROUP]->(:EC2SecurityGroup)
+(:DatabricksVpcEndpoint)-[:POINTS_TO]->(:AWSVpcEndpoint)
+(:DatabricksEncryptionKey)-[:REFERENCES_KEY]->(:KMSKey)
+(:DatabricksEncryptionKey)-[:REFERENCES_KEY]->(:GCPCryptoKey)
+(:DatabricksLogDelivery)-[:DELIVERS_TO]->(:S3Bucket)
+```
+
+### DatabricksAclObject
+
+A shared label applied to every workspace object that exposes an object-level ACL (cluster, cluster policy, instance pool, job, pipeline, SQL warehouse, serving endpoint, app, secret scope). It is the target of the `HAS_PERMISSION` edge from a `DatabricksUser`, `DatabricksGroup`, or `DatabricksServicePrincipal`, carrying the `permission_level` list. It is never a node type of its own.
+
+```
+(:DatabricksUser)-[:HAS_PERMISSION {permission_level}]->(:DatabricksAclObject)
+(:DatabricksGroup)-[:HAS_PERMISSION {permission_level}]->(:DatabricksAclObject)
+(:DatabricksServicePrincipal)-[:HAS_PERMISSION {permission_level}]->(:DatabricksAclObject)
+```
+
+### Code to cloud
+
+Databricks Git-backed repos are linked to the GitHub repository that hosts their source at ingest time (the edge forms when the GitHub repo is already in the graph):
+
+```
+(:DatabricksRepo)-[:SOURCED_FROM]->(:GitHubRepository)
+```

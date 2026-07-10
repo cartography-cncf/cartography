@@ -134,8 +134,11 @@ class DatabricksExternalLocationSchema(CartographyNodeSchema):
     properties: DatabricksExternalLocationNodeProperties = (
         DatabricksExternalLocationNodeProperties()
     )
-    # External locations are grantable UC securables.
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["DatabricksSecurable"])
+    # DatabricksSecurable: grantable UC securable. ObjectStorage: ontology label;
+    # an external location points at a cloud storage path.
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
+        ["DatabricksSecurable", "ObjectStorage"]
+    )
     sub_resource_relationship: DatabricksExternalLocationToWorkspaceRel = (
         DatabricksExternalLocationToWorkspaceRel()
     )

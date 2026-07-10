@@ -7,6 +7,7 @@ from cartography.models.core.relationships import CartographyRelProperties
 from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
+from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import TargetNodeMatcher
 
 
@@ -42,9 +43,34 @@ class DatabricksRepoToWorkspaceRel(CartographyRelSchema):
 
 
 @dataclass(frozen=True)
+class DatabricksRepoToGitHubRepositoryRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+# (:DatabricksRepo)-[:SOURCED_FROM]->(:GitHubRepository)
+class DatabricksRepoToGitHubRepositoryRel(CartographyRelSchema):
+    target_node_label: str = "GitHubRepository"
+    # ``github_url`` is the repo URL with a trailing ``.git`` trimmed, matching
+    # the GitHubRepository html url; the edge forms only when that repo has been
+    # ingested by the github module (code-to-cloud correlation).
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"url": PropertyRef("github_url")},
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "SOURCED_FROM"
+    properties: DatabricksRepoToGitHubRepositoryRelProperties = (
+        DatabricksRepoToGitHubRepositoryRelProperties()
+    )
+
+
+@dataclass(frozen=True)
 class DatabricksRepoSchema(CartographyNodeSchema):
     label: str = "DatabricksRepo"
     properties: DatabricksRepoNodeProperties = DatabricksRepoNodeProperties()
     sub_resource_relationship: DatabricksRepoToWorkspaceRel = (
         DatabricksRepoToWorkspaceRel()
+    )
+    other_relationships: OtherRelationships = OtherRelationships(
+        [DatabricksRepoToGitHubRepositoryRel()],
     )

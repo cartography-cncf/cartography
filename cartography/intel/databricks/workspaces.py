@@ -25,9 +25,15 @@ def sync(
     neo4j_session: neo4j.Session,
     api_session: DatabricksWorkspaceClient,
     common_job_parameters: dict[str, Any],
+    account_id: str | None = None,
 ) -> dict[str, Any]:
     workspace = get(api_session)
-    load_workspaces(neo4j_session, [workspace], common_job_parameters["UPDATE_TAG"])
+    load_workspaces(
+        neo4j_session,
+        [workspace],
+        common_job_parameters["UPDATE_TAG"],
+        account_id,
+    )
     cleanup(neo4j_session, common_job_parameters)
     return workspace
 
@@ -66,12 +72,14 @@ def load_workspaces(
     neo4j_session: neo4j.Session,
     data: list[dict[str, Any]],
     update_tag: int,
+    account_id: str | None = None,
 ) -> None:
     load(
         neo4j_session,
         DatabricksWorkspaceSchema(),
         data,
         lastupdated=update_tag,
+        ACCOUNT_ID=account_id,
     )
 
 
