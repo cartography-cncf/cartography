@@ -258,3 +258,13 @@ fixtures, and `check_nodes()` / `check_rels()` helpers, see `tests/AGENTS.md`.
 ---
 
 Remember: Start simple, iterate, and use existing modules as references. The Cartography community is here to help!
+
+## Cursor Cloud specific instructions
+
+Environment: Python project managed with `uv` (Python 3.13 per `.python-version`). Dependencies are refreshed automatically on startup by the update script (`uv sync --frozen --all-extras --dev`); `uv` is on `PATH` via `~/.profile`.
+
+- **Docker is not managed by systemd** in this VM. It is installed but the daemon does not auto-start. Start it manually once per session (e.g. `sudo dockerd > /tmp/dockerd.log 2>&1 &`, then `sudo chmod 666 /var/run/docker.sock`). Docker uses the `fuse-overlayfs` storage driver. Docker is only needed for Neo4j and integration tests.
+- **Neo4j** is the only backing datastore. Start it with `docker compose up -d neo4j` and wait for the container healthcheck (`docker inspect --format '{{.State.Health.Status}}' workspace-neo4j-1`). Bolt is at `bolt://localhost:7687`, browser at `http://localhost:7474`, auth is disabled (`NEO4J_AUTH=none`).
+- **Tests / lint / build** are defined in the `Makefile` and `docs/root/dev/developer-guide.md`: `make test_lint`, `make test_unit`, `make test_integration`, `make test`. Lint uses `pre-commit` (first run downloads hook envs).
+- **Integration tests DELETE ALL NODES** in their target DB. By default they spin up a disposable Neo4j testcontainer (Docker required) — leave `NEO4J_URL` unset to use it. Only set `NEO4J_URL` to point at a database you are OK clearing.
+- **Running the app**: `uv run cartography --neo4j-uri bolt://localhost:7687`. Most intel modules require provider credentials and are skipped if unconfigured; `--selected-modules create-indexes` runs a real sync stage against Neo4j without any credentials.
