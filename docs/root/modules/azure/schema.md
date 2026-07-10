@@ -357,6 +357,16 @@ Representation of an [Azure Virtual Machine](https://docs.microsoft.com/en-us/re
     (AzureVirtualMachine)-[:TAGGED]->(AzureTag)
     ```
 
+- An Azure Virtual Machine runs as its managed identity's service principal (canonical ontology `RUNS_AS` edge).
+    ```cypher
+    (AzureVirtualMachine)-[:RUNS_AS]->(EntraServicePrincipal)
+    ```
+
+- An Azure Virtual Machine assumes the role definitions assigned to its managed identity (canonical ontology `ASSUMES` edge).
+    ```cypher
+    (AzureVirtualMachine)-[:ASSUMES]->(AzureRoleDefinition)
+    ```
+
 ### AzureDataDisk
 
 Representation of an [Azure Data Disk](https://docs.microsoft.com/en-us/rest/api/compute/virtualmachines/get#datadisk).
@@ -1616,6 +1626,16 @@ Representation of an [Azure Function App](https://learn.microsoft.com/en-us/rest
 - Azure Function Apps can be tagged with Azure Tags.
     ```cypher
     (AzureFunctionApp)-[:TAGGED]->(AzureTag)
+    ```
+
+- An Azure Function App runs as its managed identity's service principal (canonical ontology `RUNS_AS` edge).
+    ```cypher
+    (AzureFunctionApp)-[:RUNS_AS]->(EntraServicePrincipal)
+    ```
+
+- An Azure Function App assumes the role definitions assigned to its managed identity (canonical ontology `ASSUMES` edge).
+    ```cypher
+    (AzureFunctionApp)-[:ASSUMES]->(AzureRoleDefinition)
     ```
 
 - Container-deployed Function Apps are linked to the image they run via `HAS_IMAGE` (matched on `image_digest`):

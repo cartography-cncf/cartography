@@ -430,6 +430,23 @@ socketdev_mapping = OntologyMapping(
     ],
 )
 
+# Salesforce
+salesforce_mapping = OntologyMapping(
+    module_name="salesforce",
+    nodes=[
+        OntologyNodeMapping(
+            node_label="SalesforceOrganization",
+            fields=[
+                OntologyFieldMapping(
+                    ontology_field="name", node_field="name", required=True
+                ),
+                # status: Not available
+                # domain: Not available
+            ],
+        ),
+    ],
+)
+
 # Vercel
 vercel_mapping = OntologyMapping(
     module_name="vercel",
@@ -459,6 +476,7 @@ TENANTS_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     "github": github_mapping,
     "googleworkspace": googleworkspace_mapping,
     "keycloak": keycloak_mapping,
+    "salesforce": salesforce_mapping,
     "okta": okta_mapping,
     "openai": openai_mapping,
     "scaleway": scaleway_mapping,

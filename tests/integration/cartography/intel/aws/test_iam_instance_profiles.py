@@ -119,6 +119,20 @@ def test_sync_iam_instance_profiles(
         ("i-00bd", "arn:aws:iam::1234:instance-profile/cartography-service"),
     }
 
+    # Assert canonical EC2Instance -[:ASSUMES]-> AWSRole edge (assembled from the
+    # instance-profile binding chain by sync_ec2_instances).
+    assert check_rels(
+        neo4j_session,
+        "EC2Instance",
+        "id",
+        "AWSRole",
+        "arn",
+        "ASSUMES",
+        rel_direction_right=True,
+    ) == {
+        ("i-00bd", "arn:aws:iam::1234:role/cartography-service"),
+    }
+
     # Act
     run_scoped_analysis_job(
         "aws_ec2_iaminstanceprofile.json",
