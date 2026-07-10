@@ -227,7 +227,11 @@ _aws_account_not_synced_fact = Fact(
     MATCH (a:AWSAccount)
     OPTIONAL MATCH (a)-[:RESOURCE]->(n)
     WITH a, count(n) AS resource_count
-    WHERE resource_count <= 1
+    // <= 1 (not 0): every configured account carries an AWSRootPrincipal RESOURCE
+    // edge, so a root-principal-only account is the "discovered but not ingested"
+    // case. The inscope filter drops out-of-scope org stubs (0 resources, not synced
+    // by design) that previously produced false positives.
+    WHERE resource_count <= 1 AND coalesce(a.inscope, false) = true
     RETURN a.id AS account_id, a.name AS account_name, resource_count
     ORDER BY a.name
     """,
@@ -235,14 +239,22 @@ _aws_account_not_synced_fact = Fact(
     MATCH (a:AWSAccount)
     OPTIONAL MATCH (a)-[:RESOURCE]->(n)
     WITH a, count(n) AS resource_count
-    WHERE resource_count <= 1
+    // <= 1 (not 0): every configured account carries an AWSRootPrincipal RESOURCE
+    // edge, so a root-principal-only account is the "discovered but not ingested"
+    // case. The inscope filter drops out-of-scope org stubs (0 resources, not synced
+    // by design) that previously produced false positives.
+    WHERE resource_count <= 1 AND coalesce(a.inscope, false) = true
     RETURN a
     """,
     cypher_count_query="""
     MATCH (a:AWSAccount)
     OPTIONAL MATCH (a)-[:RESOURCE]->(n)
     WITH a, count(n) AS resource_count
-    WHERE resource_count <= 1
+    // <= 1 (not 0): every configured account carries an AWSRootPrincipal RESOURCE
+    // edge, so a root-principal-only account is the "discovered but not ingested"
+    // case. The inscope filter drops out-of-scope org stubs (0 resources, not synced
+    // by design) that previously produced false positives.
+    WHERE resource_count <= 1 AND coalesce(a.inscope, false) = true
     RETURN count(a) AS count
     """,
     identity_fields=("account_id",),
@@ -275,7 +287,7 @@ aws_account_not_synced = Rule(
         "misconfiguration",
     ),
     facts=(_aws_account_not_synced_fact,),
-    version="0.1.0",
+    version="0.2.0",
 )
 
 # =============================================================================
