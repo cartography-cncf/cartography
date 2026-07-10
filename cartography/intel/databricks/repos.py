@@ -57,6 +57,23 @@ def get(api_session: DatabricksWorkspaceClient) -> list[dict[str, Any]]:
     return results
 
 
+def _github_url(url: str | None, provider: str | None) -> str | None:
+    """Normalise a GitHub-hosted repo URL to the GitHubRepository html url.
+
+    Only GitHub providers are correlated, and only a *trailing* ``.git`` is
+    trimmed (str.replace would strip an interior ``.git`` in an org/repo name),
+    so the value lines up with the html url the github module stores.
+    """
+    if not url or "github" not in (provider or "").lower():
+        return None
+    # Strip trailing slashes first so a clone URL like "…/repo.git/" still has
+    # its ".git" suffix trimmed and lines up with the GitHubRepository html url.
+    cleaned = url.rstrip("/")
+    if cleaned.endswith(".git"):
+        cleaned = cleaned[: -len(".git")]
+    return cleaned.rstrip("/")
+
+
 @timeit
 def transform(repos: list[dict[str, Any]], workspace_id: str) -> list[dict[str, Any]]:
     result: list[dict[str, Any]] = []
@@ -64,15 +81,20 @@ def transform(repos: list[dict[str, Any]], workspace_id: str) -> list[dict[str, 
         repo_id = r.get("id")
         if not repo_id:
             raise ValueError("Databricks repo returned with empty id")
+        url = r.get("url")
+        provider = r.get("provider")
         result.append(
             {
                 "id": scoped_id(workspace_id, str(repo_id)),
                 "repo_id": str(repo_id),
-                "url": r.get("url"),
-                "provider": r.get("provider"),
+                "url": url,
+                "provider": provider,
                 "branch": r.get("branch"),
                 "head_commit_id": r.get("head_commit_id"),
                 "path": r.get("path"),
+                # Code-to-cloud: matches the GitHubRepository html url so the
+                # SOURCED_FROM edge forms when that repo is in the graph.
+                "github_url": _github_url(url, provider),
             }
         )
     return result

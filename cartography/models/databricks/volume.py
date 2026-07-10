@@ -110,8 +110,11 @@ class DatabricksVolumeToGCSRel(CartographyRelSchema):
 class DatabricksVolumeSchema(CartographyNodeSchema):
     label: str = "DatabricksVolume"
     properties: DatabricksVolumeNodeProperties = DatabricksVolumeNodeProperties()
-    # Shared label so UC grants can target any grantable securable by one label.
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["DatabricksSecurable"])
+    # DatabricksSecurable: shared UC-grant target label. ObjectStorage: ontology
+    # label; a UC volume is object/file storage backed by cloud storage.
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
+        ["DatabricksSecurable", "ObjectStorage"]
+    )
     sub_resource_relationship: DatabricksVolumeToWorkspaceRel = (
         DatabricksVolumeToWorkspaceRel()
     )

@@ -140,9 +140,33 @@ scaleway_mapping = OntologyMapping(
     ],
 )
 
+# Databricks Unity Catalog external locations + volumes are cloud storage paths.
+databricks_mapping = OntologyMapping(
+    module_name="databricks",
+    nodes=[
+        OntologyNodeMapping(
+            node_label="DatabricksExternalLocation",
+            fields=[
+                OntologyFieldMapping(
+                    ontology_field="name", node_field="name", required=True
+                ),
+            ],
+        ),
+        OntologyNodeMapping(
+            node_label="DatabricksVolume",
+            fields=[
+                OntologyFieldMapping(
+                    ontology_field="name", node_field="full_name", required=True
+                ),
+            ],
+        ),
+    ],
+)
+
 OBJECT_STORAGE_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     "aws": aws_mapping,
     "gcp": gcp_mapping,
     "azure": azure_mapping,
     "scaleway": scaleway_mapping,
+    "databricks": databricks_mapping,
 }

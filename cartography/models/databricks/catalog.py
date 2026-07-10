@@ -77,8 +77,12 @@ class DatabricksCatalogToMetastoreRel(CartographyRelSchema):
 class DatabricksCatalogSchema(CartographyNodeSchema):
     label: str = "DatabricksCatalog"
     properties: DatabricksCatalogNodeProperties = DatabricksCatalogNodeProperties()
-    # Shared label so UC grants can target any grantable securable by one label.
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["DatabricksSecurable"])
+    # DatabricksSecurable: shared label so UC grants can target any grantable
+    # securable by one label. Database: ontology label for cross-provider data
+    # store queries.
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
+        ["DatabricksSecurable", "Database"]
+    )
     sub_resource_relationship: DatabricksCatalogToWorkspaceRel = (
         DatabricksCatalogToWorkspaceRel()
     )

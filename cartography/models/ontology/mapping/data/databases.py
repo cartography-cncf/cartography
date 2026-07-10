@@ -372,9 +372,42 @@ scaleway_mapping = OntologyMapping(
     ],
 )
 
+# Databricks Unity Catalog: catalogs, schemas, and tables are the data stores.
+databricks_mapping = OntologyMapping(
+    module_name="databricks",
+    nodes=[
+        OntologyNodeMapping(
+            node_label="DatabricksCatalog",
+            fields=[
+                OntologyFieldMapping(
+                    ontology_field="name", node_field="full_name", required=True
+                ),
+                OntologyFieldMapping(ontology_field="type", node_field="catalog_type"),
+            ],
+        ),
+        OntologyNodeMapping(
+            node_label="DatabricksSchema",
+            fields=[
+                OntologyFieldMapping(
+                    ontology_field="name", node_field="full_name", required=True
+                ),
+            ],
+        ),
+        OntologyNodeMapping(
+            node_label="DatabricksTable",
+            fields=[
+                OntologyFieldMapping(
+                    ontology_field="name", node_field="full_name", required=True
+                ),
+            ],
+        ),
+    ],
+)
+
 DATABASES_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     "aws": aws_mapping,
     "azure": azure_mapping,
     "gcp": gcp_mapping,
     "scaleway": scaleway_mapping,
+    "databricks": databricks_mapping,
 }

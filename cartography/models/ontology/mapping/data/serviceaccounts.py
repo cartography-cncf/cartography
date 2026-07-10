@@ -137,6 +137,18 @@ SERVICEACCOUNTS_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
                     OntologyFieldMapping(ontology_field="active", node_field="active"),
                 ],
             ),
+            OntologyNodeMapping(
+                node_label="DatabricksAccountServicePrincipal",
+                fields=[
+                    OntologyFieldMapping(
+                        ontology_field="name",
+                        node_field="display_name",
+                        required=True,
+                    ),
+                    # email: Not available
+                    OntologyFieldMapping(ontology_field="active", node_field="active"),
+                ],
+            ),
         ],
     ),
 }
