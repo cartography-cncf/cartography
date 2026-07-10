@@ -306,7 +306,7 @@ Representation of a [Kubernetes NetworkPolicy.](https://kubernetes.io/docs/conce
     (:KubernetesNamespace)-[:CONTAINS]->(:KubernetesNetworkPolicy)
     ```
 
-- `KubernetesNetworkPolicy` applies to the `KubernetesPod` resources selected by its `podSelector` (resolved at ingest; an empty selector applies to every pod in the namespace). Only equality-based `matchLabels` are resolved into edges today; set-based `matchExpressions` are retained in `pod_selector` but not yet resolved.
+- `KubernetesNetworkPolicy` applies to the `KubernetesPod` resources selected by its `podSelector` (resolved at ingest; an empty selector applies to every pod in the namespace). Both equality-based `matchLabels` and set-based `matchExpressions` (`In`, `NotIn`, `Exists`, `DoesNotExist`) are evaluated.
     ```
     (:KubernetesNetworkPolicy)-[:APPLIES_TO]->(:KubernetesPod)
     ```
