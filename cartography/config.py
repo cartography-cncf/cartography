@@ -228,6 +228,13 @@ class Config:
     :param vercel_team_id: Vercel team ID to sync. Optional.
     :type vercel_base_url: str
     :param vercel_base_url: Vercel API base URL. Optional.
+    :type circleci_token: str
+    :param circleci_token: CircleCI personal API token. Optional.
+    :type circleci_base_url: str
+    :param circleci_base_url: CircleCI API v2 base URL. Optional.
+    :type circleci_project_slugs: list
+    :param circleci_project_slugs: CircleCI project slugs to sync (project-scoped
+        resources cannot be enumerated via API v2). Optional.
     :type cloudflare_token: string
     :param cloudflare_token: Cloudflare API key. Optional.
     :type openai_apikey: string
@@ -464,6 +471,9 @@ class Config:
         vercel_token=None,
         vercel_team_id=None,
         vercel_base_url=None,
+        circleci_token=None,
+        circleci_base_url=None,
+        circleci_project_slugs=None,
         cloudflare_token=None,
         openai_apikey=None,
         openai_org_id=None,
@@ -651,6 +661,9 @@ class Config:
         self.vercel_token = vercel_token
         self.vercel_team_id = vercel_team_id
         self.vercel_base_url = vercel_base_url
+        self.circleci_token = circleci_token
+        self.circleci_base_url = circleci_base_url
+        self.circleci_project_slugs = circleci_project_slugs
         self.cloudflare_token = cloudflare_token
         self.openai_apikey = openai_apikey
         self.openai_org_id = openai_org_id

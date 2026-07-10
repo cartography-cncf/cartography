@@ -464,9 +464,24 @@ vercel_mapping = OntologyMapping(
     ],
 )
 
+circleci_mapping = OntologyMapping(
+    module_name="circleci",
+    nodes=[
+        OntologyNodeMapping(
+            node_label="CircleCIOrganization",
+            fields=[
+                OntologyFieldMapping(
+                    ontology_field="name", node_field="name", required=True
+                ),
+            ],
+        ),
+    ],
+)
+
 TENANTS_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     "airbyte": airbyte_mapping,
     "aws": aws_mapping,
+    "circleci": circleci_mapping,
     "azure": azure_mapping,
     "cloudflare": cloudflare_mapping,
     "crowdstrike": crowdstrike_mapping,
