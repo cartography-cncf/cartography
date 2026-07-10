@@ -211,8 +211,8 @@ Representation of a [Kubernetes Container.](https://kubernetes.io/docs/concepts/
 | added\_capabilities | Linux capabilities explicitly added to the container. Derived from `container.security_context.capabilities.add`. |
 | dropped\_capabilities | Linux capabilities explicitly dropped by the container. Derived from `container.security_context.capabilities.drop`. |
 | host\_ports | List of host ports exposed by the container. Derived from `container.ports[].host_port`. |
-| container\_ports | The ports the container declares it listens on. Derived from `container.ports[]`, stored as a JSON-encoded list of `{container_port, protocol, name}`. |
-| container\_port\_numbers | Flat, queryable list of the TCP/UDP `containerPort` numbers the container listens on. Derived from `container.ports[].container_port`; an empty list means the container declares no listening ports. |
+| container\_ports | The ports the container *declares* in its pod spec. Derived from `container.ports[]`, stored as a JSON-encoded list of `{container_port, protocol, name}`. `containerPort` is optional in Kubernetes, so this reflects declared ports only, not necessarily every port the process listens on. |
+| container\_port\_numbers | Flat, queryable list of the declared TCP/UDP `containerPort` numbers. Derived from `container.ports[].container_port`. An empty list means the container *declares* no ports; it is not proof that the container listens on nothing, since a process can bind ports it never declared. |
 | architecture\_normalized | Canonical CPU architecture derived from the scheduled node when available (e.g. `amd64`, `arm64`). |
 | exposed\_internet | Set by analysis job. `true` if this container is reachable from an internet-facing load balancer. |
 | exposed\_internet\_type | Set by analysis job. List of exposure types (e.g. `['lb']`). |

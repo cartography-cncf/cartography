@@ -25,8 +25,11 @@ class KubernetesNetworkPolicyNodeProperties(CartographyNodeProperties):
     # Derived from policy_types: whether this policy restricts ingress/egress for the
     # pods it selects. A pod selected by a policy with restricts_ingress=True is
     # default-deny for ingress except for what the policy's ingress rules admit.
-    restricts_ingress: PropertyRef = PropertyRef("restricts_ingress", extra_index=True)
-    restricts_egress: PropertyRef = PropertyRef("restricts_egress", extra_index=True)
+    # Left unindexed: these booleans are low-selectivity and are read after already
+    # scoping to a namespace/pod, so an index would add write cost without helping
+    # query plans.
+    restricts_ingress: PropertyRef = PropertyRef("restricts_ingress")
+    restricts_egress: PropertyRef = PropertyRef("restricts_egress")
     cluster_name: PropertyRef = PropertyRef(
         "CLUSTER_NAME", set_in_kwargs=True, extra_index=True
     )

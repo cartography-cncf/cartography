@@ -72,11 +72,14 @@ def _extract_pod_containers(pod: V1Pod, node_arch: str | None = None) -> dict[st
                 [port.host_port for port in ports if port.host_port is not None]
             )
 
-            # containerPorts are the ports the container actually listens on
-            # (as opposed to the rarely-used host_ports). Retain the full
-            # structured spec as JSON, plus a flat list of TCP/UDP port numbers
-            # for querying reachability without parsing JSON. A protocol of None
-            # defaults to TCP per the Kubernetes API.
+            # The containerPorts a container *declares* (as opposed to the
+            # rarely-used host_ports). containerPort is optional in the pod spec,
+            # so an empty list means "declares no ports", NOT a guarantee that the
+            # container listens on nothing; a process can bind ports it never
+            # declared. Consumers should treat these as declared ports, not proof
+            # of the full listening set. Retain the full structured spec as JSON,
+            # plus a flat list of TCP/UDP port numbers for querying without parsing
+            # JSON. A protocol of None defaults to TCP per the Kubernetes API.
             containers[container.name]["container_ports"] = json.dumps(
                 [
                     {
