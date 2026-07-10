@@ -28,9 +28,9 @@ class GitHubRepositoryNodeProperties(CartographyNodeProperties):
     disabled: PropertyRef = PropertyRef("disabled")
     archived: PropertyRef = PropertyRef("archived")
     locked: PropertyRef = PropertyRef("locked")
-    giturl: PropertyRef = PropertyRef("giturl")
+    giturl: PropertyRef = PropertyRef("giturl", extra_index=True)
     url: PropertyRef = PropertyRef("url", extra_index=True)
-    sshurl: PropertyRef = PropertyRef("sshurl")
+    sshurl: PropertyRef = PropertyRef("sshurl", extra_index=True)
     updatedat: PropertyRef = PropertyRef("updatedat")
 
 
