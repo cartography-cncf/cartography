@@ -37,6 +37,8 @@ def _extract_pod_containers(pod: V1Pod, node_arch: str | None = None) -> dict[st
             "added_capabilities": [],
             "dropped_capabilities": [],
             "host_ports": [],
+            "container_ports": json.dumps([]),
+            "container_port_numbers": [],
         }
 
         security_context = getattr(container, "security_context", None)
@@ -68,6 +70,31 @@ def _extract_pod_containers(pod: V1Pod, node_arch: str | None = None) -> dict[st
         if ports:
             containers[container.name]["host_ports"] = sorted(
                 [port.host_port for port in ports if port.host_port is not None]
+            )
+
+            # containerPorts are the ports the container actually listens on
+            # (as opposed to the rarely-used host_ports). Retain the full
+            # structured spec as JSON, plus a flat list of TCP/UDP port numbers
+            # for querying reachability without parsing JSON. A protocol of None
+            # defaults to TCP per the Kubernetes API.
+            containers[container.name]["container_ports"] = json.dumps(
+                [
+                    {
+                        "container_port": port.container_port,
+                        "protocol": port.protocol,
+                        "name": port.name,
+                    }
+                    for port in ports
+                    if port.container_port is not None
+                ]
+            )
+            containers[container.name]["container_port_numbers"] = sorted(
+                {
+                    port.container_port
+                    for port in ports
+                    if port.container_port is not None
+                    and (port.protocol or "TCP") in ("TCP", "UDP")
+                }
             )
 
         # Extract resource requests and limits
