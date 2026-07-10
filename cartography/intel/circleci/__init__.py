@@ -83,13 +83,23 @@ def start_circleci_ingestion(neo4j_session: neo4j.Session, config: Config) -> No
     # pipeline feed and union with any operator-configured slugs.
     project_slugs: set[str] = set(config.circleci_project_slugs or [])
     for org in orgs:
-        if org.get("slug"):
+        if not org.get("slug"):
+            continue
+        # Isolate discovery per org: one org's pipeline-feed error must not abort
+        # the whole module (configured slugs + downstream resources still run).
+        try:
             project_slugs.update(
                 cartography.intel.circleci.projects.discover_project_slugs(
                     api_session,
                     common_job_parameters["BASE_URL"],
                     org["slug"],
                 )
+            )
+        except requests.exceptions.RequestException as exc:
+            logger.warning(
+                "Could not discover CircleCI projects for org %s: %s",
+                org["slug"],
+                exc,
             )
 
     # Projects are synced BEFORE org-scoped resources so that context ->

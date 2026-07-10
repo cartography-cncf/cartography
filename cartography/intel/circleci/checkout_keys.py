@@ -54,8 +54,9 @@ def transform(
             "fingerprint": item["fingerprint"],
             "type": item.get("type"),
             "preferred": item.get("preferred"),
-            "public_key": item.get("public_key"),
-            "created_at": parse_iso(item.get("created_at")),
+            # The checkout-key endpoint (older v2 surface) returns hyphenated keys.
+            "public_key": item.get("public-key"),
+            "created_at": parse_iso(item.get("created-at")),
             "project_slug": project_slug,
         }
         for item in raw
