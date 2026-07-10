@@ -592,15 +592,31 @@ _k8s_host_ports = Fact(
     cypher_query="""
     MATCH (cluster:KubernetesCluster)-[:RESOURCE]->(c:KubernetesContainer)
     WHERE size(coalesce(c.host_ports, [])) > 0
+      // hostPort is redundant/ignored once the pod shares the host network namespace;
+      // that exposure is reported by the host-network rule instead.
+      AND NOT EXISTS {
+        MATCH (c)<-[:CONTAINS]-(pod:KubernetesPod)
+        WHERE coalesce(pod.host_network, false) = true
+      }
     RETURN c.id AS container_id, c.name AS container_name, c.namespace AS namespace, c.host_ports AS host_ports, cluster.name AS cluster_name
     """,
     cypher_visual_query="""
     MATCH p=(cluster:KubernetesCluster)-[:RESOURCE]->(c:KubernetesContainer)
     WHERE size(coalesce(c.host_ports, [])) > 0
+      // hostPort is redundant/ignored once the pod shares the host network namespace;
+      // that exposure is reported by the host-network rule instead.
+      AND NOT EXISTS {
+        MATCH (c)<-[:CONTAINS]-(pod:KubernetesPod)
+        WHERE coalesce(pod.host_network, false) = true
+      }
     RETURN *
     """,
     cypher_count_query="""
     MATCH (c:KubernetesContainer)
+    WHERE NOT EXISTS {
+        MATCH (c)<-[:CONTAINS]-(pod:KubernetesPod)
+        WHERE coalesce(pod.host_network, false) = true
+    }
     RETURN COUNT(c) AS count
     """,
     asset_id_field="container_id",
@@ -616,7 +632,7 @@ kubernetes_containers_using_hostports = Rule(
     output_model=HostPortOutput,
     facts=(_k8s_host_ports,),
     tags=("pod-security", "hostports", "networking", "stride:elevation_of_privilege"),
-    version="1.0.0",
+    version="1.1.0",
     references=CIS_REFERENCES,
     frameworks=(
         cis_kubernetes("5.2.12"),

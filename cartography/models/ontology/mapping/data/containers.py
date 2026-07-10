@@ -112,9 +112,27 @@ gcp_mapping = OntologyMapping(
 )
 
 
+scaleway_mapping = OntologyMapping(
+    module_name="scaleway",
+    nodes=[
+        OntologyNodeMapping(
+            node_label="ScalewayServerlessContainer",
+            fields=[
+                OntologyFieldMapping(ontology_field="name", node_field="name"),
+                OntologyFieldMapping(
+                    ontology_field="image", node_field="registry_image"
+                ),
+                OntologyFieldMapping(ontology_field="state", node_field="status"),
+                OntologyFieldMapping(ontology_field="region", node_field="region"),
+            ],
+        ),
+    ],
+)
+
 CONTAINER_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     "aws_ecs_container": aws_ecs_container_mapping,
     "kubernetes": kubernetes_mapping,
     "azure": azure_mapping,
     "gcp": gcp_mapping,
+    "scaleway": scaleway_mapping,
 }

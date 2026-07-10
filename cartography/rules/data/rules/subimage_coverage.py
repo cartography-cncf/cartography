@@ -149,9 +149,13 @@ _container_image_not_found_fact = Fact(
     WHERE NOT (c)-[:RESOLVED_IMAGE]->(:Image)
       AND NOT coalesce(c.image, '') CONTAINS 'amazon/cloudwatch-agent'
       AND NOT coalesce(c.name, '') STARTS WITH 'aws-guardduty-agent'
+      // Kubernetes system namespaces run vendor images that are never published
+      // to customer registries, so an unresolved image there is expected, not a gap.
+      AND NOT coalesce(c.namespace, '') IN ['kube-system', 'calico-system', 'tigera-operator']
     OPTIONAL MATCH (c)<-[:HAS_CONTAINER]-(cluster)
     RETURN c.name AS container_name, c.id AS container_id,
-           c.image AS image, cluster.name AS cluster_name
+           c.image AS image, cluster.name AS cluster_name,
+           c._ont_source AS source
     ORDER BY c.name
     """,
     cypher_visual_query="""
@@ -159,6 +163,9 @@ _container_image_not_found_fact = Fact(
     WHERE NOT (c)-[:RESOLVED_IMAGE]->(:Image)
       AND NOT coalesce(c.image, '') CONTAINS 'amazon/cloudwatch-agent'
       AND NOT coalesce(c.name, '') STARTS WITH 'aws-guardduty-agent'
+      // Kubernetes system namespaces run vendor images that are never published
+      // to customer registries, so an unresolved image there is expected, not a gap.
+      AND NOT coalesce(c.namespace, '') IN ['kube-system', 'calico-system', 'tigera-operator']
     OPTIONAL MATCH (c)<-[:HAS_CONTAINER]-(cluster)
     RETURN *
     """,
@@ -167,6 +174,9 @@ _container_image_not_found_fact = Fact(
     WHERE NOT (c)-[:RESOLVED_IMAGE]->(:Image)
       AND NOT coalesce(c.image, '') CONTAINS 'amazon/cloudwatch-agent'
       AND NOT coalesce(c.name, '') STARTS WITH 'aws-guardduty-agent'
+      // Kubernetes system namespaces run vendor images that are never published
+      // to customer registries, so an unresolved image there is expected, not a gap.
+      AND NOT coalesce(c.namespace, '') IN ['kube-system', 'calico-system', 'tigera-operator']
     RETURN count(c) AS count
     """,
     identity_fields=("container_id",),
@@ -198,7 +208,7 @@ container_image_not_found = Rule(
         "infrastructure",
     ),
     facts=(_container_image_not_found_fact,),
-    version="0.1.0",
+    version="0.2.0",
 )
 
 # =============================================================================

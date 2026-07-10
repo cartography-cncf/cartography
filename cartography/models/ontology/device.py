@@ -50,6 +50,36 @@ class DeviceOwnedByUserRel(CartographyRelSchema):
     properties: DeviceToNodeRelProperties = DeviceToNodeRelProperties()
 
 
+# Cleanup-only relationship.
+# Created by the devices linking query (walking OBSERVED_AS -> S1Agent <- AFFECTS),
+# not by load(DeviceSchema()). Kept on the schema so GraphJob cleanup removes stale edges.
+# (:S1AppFinding)-[:AFFECTS]->(:Device)
+@dataclass(frozen=True)
+class DeviceAffectedByS1AppFindingRel(CartographyRelSchema):
+    target_node_label: str = "S1AppFinding"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"id": PropertyRef("_cleanup_finding_id")},
+    )
+    direction: LinkDirection = LinkDirection.INWARD
+    rel_label: str = "AFFECTS"
+    properties: DeviceToNodeRelProperties = DeviceToNodeRelProperties()
+
+
+# Cleanup-only relationship.
+# Created by the devices linking query (walking OBSERVED_AS -> CrowdstrikeHost ->
+# SpotlightVulnerability -> CrowdstrikeFinding), not by load(DeviceSchema()).
+# (:CrowdstrikeFinding)-[:AFFECTS]->(:Device)
+@dataclass(frozen=True)
+class DeviceAffectedByCrowdstrikeFindingRel(CartographyRelSchema):
+    target_node_label: str = "CrowdstrikeFinding"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"id": PropertyRef("_cleanup_finding_id")},
+    )
+    direction: LinkDirection = LinkDirection.INWARD
+    rel_label: str = "AFFECTS"
+    properties: DeviceToNodeRelProperties = DeviceToNodeRelProperties()
+
+
 # (:Device)-[:OBSERVED_AS]->(:JumpCloudSystem)
 @dataclass(frozen=True)
 class DeviceToJumpCloudSystemRel(CartographyRelSchema):
@@ -181,6 +211,8 @@ class DeviceSchema(CartographyNodeSchema):
     other_relationships: OtherRelationships = OtherRelationships(
         rels=[
             DeviceOwnedByUserRel(),
+            DeviceAffectedByS1AppFindingRel(),
+            DeviceAffectedByCrowdstrikeFindingRel(),
             DeviceToJumpCloudSystemRel(),
             # Serial number-based relationships
             DeviceToCrowdstrikeHostBySerialRel(),

@@ -15,6 +15,9 @@ from cartography.models.core.relationships import TargetNodeMatcher
 class DependencyGraphManifestNodeProperties(CartographyNodeProperties):
     id: PropertyRef = PropertyRef("id")
     blob_path: PropertyRef = PropertyRef("blob_path")
+    repo_relative_path: PropertyRef = PropertyRef(
+        "repo_relative_path", extra_index=True
+    )
     filename: PropertyRef = PropertyRef("filename")
     dependencies_count: PropertyRef = PropertyRef("dependencies_count")
     repo_url: PropertyRef = PropertyRef("repo_url")

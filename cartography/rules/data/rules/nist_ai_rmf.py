@@ -117,6 +117,7 @@ _cross_cloud_nist_ai_app_inventory = Fact(
         coalesce(app._ont_name, app.display_name, app.display_text, app.name) AS app_name,
         coalesce(app._ont_client_id, app.client_id, app.app_id, app.id) AS app_client_id,
         app._ont_source AS app_source,
+        app._ont_source AS source,
         CASE
             WHEN allowlist_match THEN 'allowlist'
             WHEN heuristic_match THEN 'heuristic'
@@ -218,6 +219,7 @@ _cross_cloud_nist_ai_app_sensitive_scopes = Fact(
         coalesce(app._ont_name, app.display_name, app.display_text, app.name) AS app_name,
         coalesce(app._ont_client_id, app.client_id, app.app_id, app.id) AS app_client_id,
         app._ont_source AS app_source,
+        app._ont_source AS source,
         count(DISTINCT ua) AS authorized_identity_count,
         count(DISTINCT risky_scope) AS risky_scope_count,
         collect(DISTINCT risky_scope) AS risky_scopes
@@ -729,6 +731,8 @@ _openai_nist_ai_stale_or_unowned_api_keys = Fact(
     OPTIONAL MATCH (org_from_project:OpenAIOrganization)-[:RESOURCE]->(project)
     OPTIONAL MATCH (org_direct:OpenAIOrganization)-[:RESOURCE]->(k)
     WITH k, project, coalesce(org_from_project, org_direct) AS org
+    // Exclude keys in non-active projects; admin keys are org-scoped, not project-scoped
+    WHERE k:OpenAIAdminApiKey OR coalesce(project.status, 'active') = 'active'
     OPTIONAL MATCH (u:OpenAIUser)-[:OWNS]->(k)
     WITH org, k, project, count(u) > 0 AS has_user_owner
     OPTIONAL MATCH (sa:OpenAIServiceAccount)-[:OWNS]->(k)
@@ -769,7 +773,8 @@ _openai_nist_ai_stale_or_unowned_api_keys = Fact(
     OPTIONAL MATCH p4=(org_from_project:OpenAIOrganization)-[:RESOURCE]->(project)
     OPTIONAL MATCH p1=(u:OpenAIUser)-[:OWNS]->(k)
     OPTIONAL MATCH p2=(sa:OpenAIServiceAccount)-[:OWNS]->(k)
-    WITH p, p1, p2, p3, p4, k
+    WITH p, p1, p2, p3, p4, k, project
+    WHERE k:OpenAIAdminApiKey OR coalesce(project.status, 'active') = 'active'
     WITH
         p, p1, p2, p3, p4,
         CASE
@@ -783,6 +788,9 @@ _openai_nist_ai_stale_or_unowned_api_keys = Fact(
     cypher_count_query="""
     MATCH (k)
     WHERE k:OpenAIApiKey OR k:OpenAIAdminApiKey
+    OPTIONAL MATCH (project:OpenAIProject)-[:RESOURCE]->(k)
+    WITH k, project
+    WHERE k:OpenAIAdminApiKey OR coalesce(project.status, 'active') = 'active'
     RETURN COUNT(k) AS count
     """,
     asset_id_field="api_key_id",
@@ -807,6 +815,7 @@ _anthropic_nist_ai_stale_or_unscoped_api_keys = Fact(
     ),
     cypher_query="""
     MATCH (org:AnthropicOrganization)-[:RESOURCE]->(k:AnthropicApiKey)
+    WHERE k.status = 'active'
     OPTIONAL MATCH (u:AnthropicUser)-[:OWNS]->(k)
     WITH org, k, count(u) > 0 AS has_owner
     OPTIONAL MATCH (workspace:AnthropicWorkspace)-[:CONTAINS]->(k)
@@ -833,6 +842,7 @@ _anthropic_nist_ai_stale_or_unscoped_api_keys = Fact(
     """,
     cypher_visual_query="""
     MATCH p=(org:AnthropicOrganization)-[:RESOURCE]->(k:AnthropicApiKey)
+    WHERE k.status = 'active'
     OPTIONAL MATCH p1=(u:AnthropicUser)-[:OWNS]->(k)
     OPTIONAL MATCH p2=(workspace:AnthropicWorkspace)-[:CONTAINS]->(k)
     WITH p, p1, p2,
@@ -843,6 +853,7 @@ _anthropic_nist_ai_stale_or_unscoped_api_keys = Fact(
     """,
     cypher_count_query="""
     MATCH (k:AnthropicApiKey)
+    WHERE k.status = 'active'
     RETURN COUNT(k) AS count
     """,
     asset_id_field="api_key_id",
@@ -866,7 +877,7 @@ ai_provider_api_key_hygiene = Rule(
         _anthropic_nist_ai_stale_or_unscoped_api_keys,
     ),
     tags=("ai", "credentials", "governance", "compliance"),
-    version="0.1.0",
+    version="0.2.0",
     references=NIST_REFERENCES,
     frameworks=(
         nist_ai_rmf("GOVERN 5"),

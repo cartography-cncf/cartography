@@ -11,6 +11,7 @@ from cartography.intel.github.util import call_github_rest_api
 from cartography.intel.supply_chain import ContainerImage
 from cartography.intel.supply_chain import convert_layer_history_records
 from cartography.intel.supply_chain import get_unmatched_gcp_images_with_history
+from cartography.intel.supply_chain import get_unmatched_scaleway_images_with_history
 from cartography.intel.supply_chain import match_images_to_dockerfiles
 from cartography.intel.supply_chain import parse_dockerfile_info
 from cartography.intel.supply_chain import transform_matches_for_matchlink
@@ -502,6 +503,17 @@ def sync(
     )
     if remaining_limit != 0:
         unmatched += get_unmatched_gcp_images_with_history(
+            neo4j_session,
+            sub_resource_label="GitHubOrganization",
+            sub_resource_id=organization,
+            update_tag=update_tag,
+            limit=remaining_limit,
+        )
+    remaining_limit = (
+        None if image_limit is None else max(image_limit - len(unmatched), 0)
+    )
+    if remaining_limit != 0:
+        unmatched += get_unmatched_scaleway_images_with_history(
             neo4j_session,
             sub_resource_label="GitHubOrganization",
             sub_resource_id=organization,

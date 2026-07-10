@@ -694,6 +694,85 @@ def test_load_ontology_devices_from_jamf_mobile_devices(neo4j_session):
     }
 
 
+def test_link_ontology_device_affected_by_sentinelone_finding(neo4j_session):
+    """SentinelOne app findings should AFFECTS the canonical Device via their agent."""
+    neo4j_session.run("MATCH (n) DETACH DELETE n")
+    neo4j_session.run(
+        """
+        CREATE (a:S1Agent {
+            id: 's1-agent-affects',
+            computer_name: 'sentinel-host-01',
+            os_name: 'Windows 11',
+            os_revision: '23H2',
+            serial_number: 'SN-S1-AFFECTS',
+            lastupdated: $update_tag
+        })
+        CREATE (f:S1AppFinding {id: 'CVE-2024-0001', lastupdated: $update_tag})
+        MERGE (f)-[r:AFFECTS]->(a)
+        SET r.lastupdated = $update_tag
+        """,
+        update_tag=TEST_UPDATE_TAG,
+    )
+
+    cartography.intel.ontology.devices.sync(
+        neo4j_session,
+        ["sentinelone"],
+        TEST_UPDATE_TAG,
+        {"UPDATE_TAG": TEST_UPDATE_TAG},
+    )
+
+    assert check_rels(
+        neo4j_session,
+        "S1AppFinding",
+        "id",
+        "Device",
+        "serial_number",
+        "AFFECTS",
+        rel_direction_right=True,
+    ) == {("CVE-2024-0001", "SN-S1-AFFECTS")}
+
+
+def test_link_ontology_device_affected_by_crowdstrike_finding(neo4j_session):
+    """CrowdStrike findings should AFFECTS the canonical Device via host and Spotlight vuln."""
+    neo4j_session.run("MATCH (n) DETACH DELETE n")
+    neo4j_session.run(
+        """
+        CREATE (h:CrowdstrikeHost {
+            id: 'crowdstrike-host-affects',
+            hostname: 'falcon-host-01',
+            platform_name: 'Windows',
+            os_version: '11.0.22631',
+            serial_number: 'SN-CROWDSTRIKE-AFFECTS',
+            lastupdated: $update_tag
+        })
+        CREATE (v:SpotlightVulnerability {id: 'spotlight-vuln-1', lastupdated: $update_tag})
+        CREATE (f:CrowdstrikeFinding {id: 'CVE-2024-0002', lastupdated: $update_tag})
+        MERGE (h)-[hv:HAS_VULNERABILITY]->(v)
+        SET hv.lastupdated = $update_tag
+        MERGE (v)-[hc:HAS_CVE]->(f)
+        SET hc.lastupdated = $update_tag
+        """,
+        update_tag=TEST_UPDATE_TAG,
+    )
+
+    cartography.intel.ontology.devices.sync(
+        neo4j_session,
+        ["crowdstrike"],
+        TEST_UPDATE_TAG,
+        {"UPDATE_TAG": TEST_UPDATE_TAG},
+    )
+
+    assert check_rels(
+        neo4j_session,
+        "CrowdstrikeFinding",
+        "id",
+        "Device",
+        "serial_number",
+        "AFFECTS",
+        rel_direction_right=True,
+    ) == {("CVE-2024-0002", "SN-CROWDSTRIKE-AFFECTS")}
+
+
 def test_link_ontology_devices_from_intune_enrolled_to(neo4j_session):
     """Intune enrollment should derive canonical User-OWNS-Device relationships."""
     neo4j_session.run("MATCH (n) DETACH DELETE n")

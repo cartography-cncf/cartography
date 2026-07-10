@@ -65,9 +65,11 @@ def test_sync_tags(mock_get_tags, mock_get_instances, neo4j_session):
         tag_resource_type_mappings=test_mapping,
     )
 
-    # Assert - AWSTag nodes exist
-    assert check_nodes(neo4j_session, "AWSTag", ["id", "key", "value"]) == {
-        ("TestKey:TestValue", "TestKey", "TestValue"),
+    # Assert - AWSTag nodes exist and carry the ontology _ont_source.
+    assert check_nodes(
+        neo4j_session, "AWSTag", ["id", "key", "value", "_ont_source"]
+    ) == {
+        ("TestKey:TestValue", "TestKey", "TestValue", "aws"),
     }
 
     # Assert - Relationships (EC2Instance)-[TAGGED]->(AWSTag)

@@ -54,6 +54,9 @@
 ```{include} ../modules/crowdstrike/schema.md
 ```
 
+```{include} ../modules/databricks/schema.md
+```
+
 ```{include} ../modules/cve/schema.md
 ```
 
@@ -97,6 +100,9 @@
 ```
 
 ```{include} ../modules/keycloak/schema.md
+```
+
+```{include} ../modules/salesforce/schema.md
 ```
 
 ```{include} ../modules/kubernetes/schema.md
@@ -151,6 +157,9 @@
 ```
 
 ```{include} ../modules/tailscale/schema.md
+```
+
+```{include} ../modules/tenable/schema.md
 ```
 
 ```{include} ../modules/trivy/schema.md

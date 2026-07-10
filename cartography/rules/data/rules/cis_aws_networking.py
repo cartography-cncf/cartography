@@ -56,7 +56,9 @@ _aws_ebs_encryption_disabled = Fact(
     ),
     cypher_query="""
     MATCH (a:AWSAccount)-[:RESOURCE]->(volume:EBSVolume)
-    WHERE volume.encrypted = false
+    // A NULL ``encrypted`` (absent from the graph) is not proof of encryption;
+    // treat it as unencrypted so those volumes are not silently passed.
+    WHERE volume.encrypted = false OR volume.encrypted IS NULL
     OPTIONAL MATCH (volume)-[:TAGGED]->(nametag:AWSTag {key: 'Name'})
     RETURN
         coalesce(nametag.value, volume.id) AS volume_name,
@@ -71,7 +73,7 @@ _aws_ebs_encryption_disabled = Fact(
     """,
     cypher_visual_query="""
     MATCH p=(a:AWSAccount)-[:RESOURCE]->(volume:EBSVolume)
-    WHERE volume.encrypted = false
+    WHERE volume.encrypted = false OR volume.encrypted IS NULL
     RETURN *
     """,
     cypher_count_query="""
@@ -221,6 +223,9 @@ class RemoteAdminIpv4Output(Finding):
     cidr_range: str | None = None
     account_id: str | None = None
     account: str | None = None
+    # True when the security group has at least one non-terminated EC2 instance.
+    # The rule still emits when false; consumers use it to gauge relevancy.
+    in_use: bool | None = None
 
 
 _aws_remote_admin_ipv4 = Fact(
@@ -252,7 +257,14 @@ _aws_remote_admin_ipv4 = Fact(
         rule.protocol AS protocol,
         range.id AS cidr_range,
         a.id AS account_id,
-        a.name AS account
+        a.name AS account,
+        // in_use: does any non-terminated EC2 instance use this security group?
+        // A group whose only members are terminated is not a live attack surface.
+        // Exposed for relevancy; the rule does not filter on it.
+        COUNT {
+            MATCH (sg)<-[:MEMBER_OF_EC2_SECURITY_GROUP]-(i:EC2Instance)
+            WHERE coalesce(i.state, '') <> 'terminated'
+        } > 0 AS in_use
     """,
     cypher_visual_query="""
     MATCH p=(a:AWSAccount)-[:RESOURCE]->(ec2:EC2Instance)
@@ -326,6 +338,9 @@ class RemoteAdminIpv6Output(Finding):
     cidr_range: str | None = None
     account_id: str | None = None
     account: str | None = None
+    # True when the security group has at least one non-terminated EC2 instance.
+    # The rule still emits when false; consumers use it to gauge relevancy.
+    in_use: bool | None = None
 
 
 _aws_remote_admin_ipv6 = Fact(
@@ -357,7 +372,14 @@ _aws_remote_admin_ipv6 = Fact(
         rule.protocol AS protocol,
         range.id AS cidr_range,
         a.id AS account_id,
-        a.name AS account
+        a.name AS account,
+        // in_use: does any non-terminated EC2 instance use this security group?
+        // A group whose only members are terminated is not a live attack surface.
+        // Exposed for relevancy; the rule does not filter on it.
+        COUNT {
+            MATCH (sg)<-[:MEMBER_OF_EC2_SECURITY_GROUP]-(i:EC2Instance)
+            WHERE coalesce(i.state, '') <> 'terminated'
+        } > 0 AS in_use
     """,
     cypher_visual_query="""
     MATCH p=(a:AWSAccount)-[:RESOURCE]->(ec2:EC2Instance)
@@ -532,6 +554,8 @@ _aws_ec2_imdsv2_required = Fact(
     cypher_query="""
     MATCH (a:AWSAccount)-[:RESOURCE]->(ec2:EC2Instance)
     WHERE ec2.metadatahttptokens = 'optional'
+      // Terminated/shutting-down instances have no live IMDS to attack
+      AND NOT coalesce(ec2.state, 'running') IN ['terminated', 'shutting-down']
     OPTIONAL MATCH (ec2)-[:TAGGED]->(nametag:AWSTag {key: 'Name'})
     RETURN
         coalesce(nametag.value, ec2.instanceid) AS instance_name,
@@ -545,10 +569,12 @@ _aws_ec2_imdsv2_required = Fact(
     cypher_visual_query="""
     MATCH p=(a:AWSAccount)-[:RESOURCE]->(ec2:EC2Instance)
     WHERE ec2.metadatahttptokens = 'optional'
+      AND NOT coalesce(ec2.state, 'running') IN ['terminated', 'shutting-down']
     RETURN *
     """,
     cypher_count_query="""
     MATCH (ec2:EC2Instance)
+    WHERE NOT coalesce(ec2.state, 'running') IN ['terminated', 'shutting-down']
     RETURN COUNT(ec2) AS count
     """,
     asset_id_field="instance_id",
@@ -573,7 +599,7 @@ aws_ec2_instances_use_imdsv2 = Rule(
         "stride:spoofing",
         "stride:elevation_of_privilege",
     ),
-    version="1.0.0",
+    version="1.1.0",
     references=CIS_REFERENCES,
     frameworks=(
         cis_aws("6.7"),
