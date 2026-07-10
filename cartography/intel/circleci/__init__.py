@@ -29,15 +29,20 @@ logger = logging.getLogger(__name__)
 
 def _run(label: str, fn: Callable[..., Any], *args: Any) -> Any:
     """
-    Run a resource sync, isolating expected per-resource API failures. On an HTTP
-    error the resource is skipped entirely - because its load/cleanup never runs,
-    previously-ingested data is preserved (no destructive empty-then-cleanup) - and
-    the rest of the module continues. Returns the sync's result, or None if it
-    raised, so callers can distinguish "failed" (None) from "empty" ([]).
+    Run a resource sync, isolating expected per-resource API failures. On a
+    request error the resource is skipped entirely - because its load/cleanup
+    never runs, previously-ingested data is preserved (no destructive
+    empty-then-cleanup) - and the rest of the module continues. Returns the
+    sync's result, or None if it raised, so callers can distinguish "failed"
+    (None) from "empty" ([]).
+
+    Catches RequestException (not just HTTPError): the retry adapter raises
+    RetryError once 429/5xx retries are exhausted, and connection/timeout errors
+    are also RequestException, not HTTPError.
     """
     try:
         return fn(*args)
-    except requests.exceptions.HTTPError as exc:
+    except requests.exceptions.RequestException as exc:
         logger.warning("Skipping CircleCI %s due to API error: %s", label, exc)
         return None
 
@@ -151,7 +156,7 @@ def start_circleci_ingestion(neo4j_session: neo4j.Session, config: Config) -> No
                     project["organization_id"],
                     project["id"],
                 )
-            except requests.exceptions.HTTPError as exc:
+            except requests.exceptions.RequestException as exc:
                 logger.warning(
                     "Skipping remaining resources for CircleCI project %s due to API error: %s",
                     slug,
