@@ -176,3 +176,129 @@ def test_tailscale_device_instance_linking_requires_one_to_one_final_match(
         """
     ).single()["count"]
     assert count == 0
+
+
+def test_tailscale_device_instance_linking_matches_ec2_private_ip(
+    neo4j_session,
+):
+    neo4j_session.run("MATCH (n) DETACH DELETE n")
+
+    # Arrange
+    neo4j_session.run(
+        """
+        CREATE (:TailscaleDevice {
+            id: 'ts-private-ip',
+            client_connectivity_endpoints: ['10.0.0.5:41641'],
+            lastupdated: $update_tag
+        })
+        CREATE (:EC2Instance:ComputeInstance {
+            id: 'i-private-ip',
+            privateipaddress: '10.0.0.5',
+            lastupdated: $update_tag
+        })
+        """,
+        update_tag=TEST_UPDATE_TAG,
+    )
+
+    # Act
+    run_analysis_job(
+        "tailscale_device_instance_linking.json",
+        neo4j_session,
+        {"UPDATE_TAG": TEST_UPDATE_TAG},
+    )
+
+    # Assert
+    result = neo4j_session.run(
+        """
+        MATCH (device:TailscaleDevice)-[:IS_INSTANCE]->(instance:EC2Instance)
+        RETURN device.id AS device_id, instance.id AS instance_id
+        """
+    ).single()
+    assert result["device_id"] == "ts-private-ip"
+    assert result["instance_id"] == "i-private-ip"
+
+
+def test_tailscale_device_instance_linking_keeps_valid_stale_source_edges(
+    neo4j_session,
+):
+    neo4j_session.run("MATCH (n) DETACH DELETE n")
+    stale_tag = TEST_UPDATE_TAG - 1
+
+    # Arrange
+    neo4j_session.run(
+        """
+        CREATE (:TailscaleDevice {
+            id: 'ts-old-source',
+            client_connectivity_endpoints: ['10.0.0.6:41641'],
+            lastupdated: $stale_tag
+        })-[old_edge:IS_INSTANCE]->(:EC2Instance:ComputeInstance {
+            id: 'i-old-source',
+            privateipaddress: '10.0.0.6',
+            lastupdated: $stale_tag
+        })
+        SET old_edge.lastupdated = $stale_tag
+        """,
+        stale_tag=stale_tag,
+    )
+
+    # Act
+    run_analysis_job(
+        "tailscale_device_instance_linking.json",
+        neo4j_session,
+        {"UPDATE_TAG": TEST_UPDATE_TAG},
+    )
+
+    # Assert
+    result = neo4j_session.run(
+        """
+        MATCH (:TailscaleDevice {id: 'ts-old-source'})
+              -[r:IS_INSTANCE]->
+              (:EC2Instance {id: 'i-old-source'})
+        RETURN r.lastupdated AS lastupdated
+        """
+    ).single()
+    assert result["lastupdated"] == TEST_UPDATE_TAG
+
+
+def test_tailscale_device_instance_linking_skips_ambiguous_private_ips(
+    neo4j_session,
+):
+    neo4j_session.run("MATCH (n) DETACH DELETE n")
+
+    # Arrange
+    neo4j_session.run(
+        """
+        CREATE (:TailscaleDevice {
+            id: 'ts-overlapping-private-ip',
+            client_connectivity_endpoints: ['10.0.0.7:41641'],
+            lastupdated: $update_tag
+        })
+        CREATE (:EC2Instance:ComputeInstance {
+            id: 'i-overlap-a',
+            privateipaddress: '10.0.0.7',
+            lastupdated: $update_tag
+        })
+        CREATE (:GCPInstance:ComputeInstance {
+            id: 'projects/test/zones/us-central1-a/instances/i-overlap-b',
+            private_ip: '10.0.0.7',
+            lastupdated: $update_tag
+        })
+        """,
+        update_tag=TEST_UPDATE_TAG,
+    )
+
+    # Act
+    run_analysis_job(
+        "tailscale_device_instance_linking.json",
+        neo4j_session,
+        {"UPDATE_TAG": TEST_UPDATE_TAG},
+    )
+
+    # Assert
+    count = neo4j_session.run(
+        """
+        MATCH (:TailscaleDevice)-[r:IS_INSTANCE]->(:ComputeInstance)
+        RETURN count(r) AS count
+        """
+    ).single()["count"]
+    assert count == 0
