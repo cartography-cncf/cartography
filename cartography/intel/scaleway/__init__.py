@@ -44,6 +44,7 @@ import cartography.intel.scaleway.storage.filesystems
 import cartography.intel.scaleway.storage.objectstorage
 import cartography.intel.scaleway.storage.snapshots
 import cartography.intel.scaleway.storage.volumes
+import cartography.intel.scaleway.webhosting.hostings
 from cartography.config import Config
 from cartography.util import timeit
 
@@ -295,6 +296,16 @@ def start_scaleway_ingestion(neo4j_session: neo4j.Session, config: Config) -> No
         client,
         common_job_parameters,
         org_id=config.scaleway_org,
+        update_tag=config.update_tag,
+    )
+
+    # Web Hosting
+    cartography.intel.scaleway.webhosting.hostings.sync(
+        neo4j_session,
+        client,
+        common_job_parameters,
+        org_id=config.scaleway_org,
+        projects_id=projects_id,
         update_tag=config.update_tag,
     )
 
