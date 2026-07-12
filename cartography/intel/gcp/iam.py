@@ -335,7 +335,7 @@ def load_standalone_predefined_roles(
     :param roles: List of transformed role dictionaries.
     :param gcp_update_tag: The timestamp of the current sync run.
     """
-    logger.debug(f"Loading {len(roles)} standalone predefined roles")
+    logger.debug("Loading %s standalone predefined roles", len(roles))
 
     load(
         neo4j_session,
