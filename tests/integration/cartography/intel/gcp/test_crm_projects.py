@@ -1,7 +1,17 @@
+from unittest.mock import MagicMock
 from unittest.mock import patch
 
+import cartography.intel.gcp
 import cartography.intel.gcp.crm
+import cartography.intel.gcp.iam
 import tests.data.gcp.crm
+from cartography.client.core.tx import load
+from cartography.config import Config
+from cartography.intel.gcp.iam import transform_org_roles
+from cartography.models.gcp.crm.projects import GCPStandaloneProjectSchema
+from cartography.models.gcp.iam import GCPStandalonePredefinedRoleSchema
+from cartography.models.gcp.policy_bindings import GCPPolicyBindingSchema
+from tests.integration import settings
 from tests.integration.util import check_nodes
 from tests.integration.util import check_rels
 
@@ -10,6 +20,14 @@ COMMON_JOB_PARAMS = {
     "UPDATE_TAG": TEST_UPDATE_TAG,
     "ORG_RESOURCE_NAME": "organizations/1337",
 }
+
+
+def _make_fake_credentials():
+    """Create a mock GCP credentials object for testing."""
+    creds = MagicMock()
+    creds.quota_project_id = "test-quota-project"
+    creds.universe_domain = "googleapis.com"
+    return creds
 
 
 @patch.object(
@@ -295,3 +313,199 @@ def test_sync_gcp_projects_by_ids_links_existing_parent_org(
         )
         == set()
     )
+
+
+@patch.object(
+    cartography.intel.gcp,
+    "get_gcp_credentials",
+    return_value=_make_fake_credentials(),
+)
+@patch.object(cartography.intel.gcp, "_run_gcp_global_analysis_jobs")
+@patch.object(
+    cartography.intel.gcp,
+    "_sync_project_resources",
+    return_value=cartography.intel.gcp.GCPProjectResourcesSyncResult(
+        policy_bindings_cleanup_safe=True,
+    ),
+)
+@patch.object(
+    cartography.intel.gcp.iam,
+    "get_gcp_predefined_roles",
+    return_value=[
+        {
+            "name": "roles/owner",
+            "includedPermissions": ["resourcemanager.projects.get"],
+        },
+    ],
+)
+@patch.object(
+    cartography.intel.gcp.crm.projects,
+    "get_gcp_projects_by_ids",
+    return_value=tests.data.gcp.crm.GCP_STANDALONE_PROJECTS,
+)
+@patch.object(cartography.intel.gcp.crm.orgs, "get_gcp_organizations")
+def test_start_gcp_ingestion_standalone_project_ids(
+    mock_get_orgs,
+    mock_get_projects_by_ids,
+    _mock_get_predefined_roles,
+    mock_sync_resources,
+    mock_run_analysis,
+    _mock_get_creds,
+    neo4j_session,
+) -> None:
+    """
+    start_gcp_ingestion with config.gcp_project_ids set takes the standalone path:
+    parses the IDs, skips org/folder discovery, syncs the projects directly, resolves
+    predefined-role permissions, and reuses the shared post-sync analysis jobs.
+    """
+    neo4j_session.run("MATCH (n) DETACH DELETE n")
+
+    config = Config(
+        neo4j_uri=settings.get("NEO4J_URL"),
+        update_tag=TEST_UPDATE_TAG,
+        # Leading/trailing spaces and a blank entry exercise the ID parsing/trim logic.
+        gcp_project_ids=" standalone-project , ",
+    )
+
+    cartography.intel.gcp.start_gcp_ingestion(neo4j_session, config)
+
+    # IDs are parsed with whitespace trimmed and blank entries dropped.
+    mock_get_projects_by_ids.assert_called_once()
+    assert mock_get_projects_by_ids.call_args.args[0] == ["standalone-project"]
+
+    # Organization/folder discovery is bypassed entirely in this path.
+    mock_get_orgs.assert_not_called()
+
+    # The project node was loaded via the standalone path.
+    assert check_nodes(neo4j_session, "GCPProject", ["id"]) == {("standalone-project",)}
+
+    # Predefined-role nodes are loaded (so GRANTS_ROLE matchlinks from policy bindings
+    # can resolve), even though there is no organization in the graph.
+    assert ("roles/owner",) in check_nodes(neo4j_session, "GCPRole", ["id"])
+
+    # Project resources are synced, and the predefined-role permission map is threaded
+    # through so bindings to predefined roles (roles/owner, ...) resolve to permissions.
+    mock_sync_resources.assert_called_once()
+    assert mock_sync_resources.call_args.kwargs["org_role_permissions_by_name"] == {
+        "roles/owner": ["resourcemanager.projects.get"],
+    }
+
+    # The shared post-sync analysis jobs still run.
+    mock_run_analysis.assert_called_once()
+
+
+@patch.object(
+    cartography.intel.gcp,
+    "get_gcp_credentials",
+    return_value=_make_fake_credentials(),
+)
+@patch.object(cartography.intel.gcp, "_run_gcp_global_analysis_jobs")
+@patch.object(cartography.intel.gcp, "_sync_project_resources")
+@patch.object(
+    cartography.intel.gcp.crm.projects,
+    "get_gcp_projects_by_ids",
+    return_value=[],
+)
+@patch.object(cartography.intel.gcp.crm.orgs, "get_gcp_organizations")
+def test_start_gcp_ingestion_standalone_no_projects_returns_early(
+    mock_get_orgs,
+    _mock_get_projects_by_ids,
+    mock_sync_resources,
+    mock_run_analysis,
+    _mock_get_creds,
+    neo4j_session,
+) -> None:
+    """
+    When no projects resolve for the requested IDs, the standalone path returns early:
+    it neither syncs resources nor runs analysis jobs, and never falls back to org
+    discovery.
+    """
+    neo4j_session.run("MATCH (n) DETACH DELETE n")
+
+    config = Config(
+        neo4j_uri=settings.get("NEO4J_URL"),
+        update_tag=TEST_UPDATE_TAG,
+        gcp_project_ids="missing-project",
+    )
+
+    cartography.intel.gcp.start_gcp_ingestion(neo4j_session, config)
+
+    mock_get_orgs.assert_not_called()
+    mock_sync_resources.assert_not_called()
+    mock_run_analysis.assert_not_called()
+
+
+def test_standalone_predefined_role_enables_grants_role_edge(neo4j_session) -> None:
+    """
+    Loading predefined roles in the standalone path lets a policy binding that references
+    a predefined role resolve its GRANTS_ROLE matchlink - the edge that would be missing
+    if only the permission map (and not the GCPRole node) were synced.
+    """
+    neo4j_session.run("MATCH (n) DETACH DELETE n")
+
+    # Predefined role node, loaded exactly as the standalone path loads it.
+    predefined_roles = transform_org_roles(
+        [
+            {
+                "name": "roles/owner",
+                "includedPermissions": ["resourcemanager.projects.get"],
+            },
+        ],
+    )
+    load(
+        neo4j_session,
+        GCPStandalonePredefinedRoleSchema(),
+        predefined_roles,
+        lastupdated=TEST_UPDATE_TAG,
+    )
+
+    # A standalone project to own the policy binding.
+    load(
+        neo4j_session,
+        GCPStandaloneProjectSchema(),
+        [
+            {
+                "projectId": "standalone-project",
+                "projectNumber": "999",
+                "name": "Standalone Project",
+                "lifecycleState": "ACTIVE",
+                "parent_org": None,
+                "parent_folder": None,
+            },
+        ],
+        lastupdated=TEST_UPDATE_TAG,
+    )
+
+    # A policy binding that grants the predefined role on the project.
+    load(
+        neo4j_session,
+        GCPPolicyBindingSchema(),
+        [
+            {
+                "id": "standalone-project/roles/owner",
+                "role": "roles/owner",
+                "resource": "standalone-project",
+                "resource_type": "project",
+                "members": [],
+                "wif_pools": [],
+                "domains": [],
+                "is_public": False,
+                "has_condition": False,
+                "condition_title": None,
+                "condition_expression": None,
+            },
+        ],
+        lastupdated=TEST_UPDATE_TAG,
+        PROJECT_ID="standalone-project",
+    )
+
+    # The GRANTS_ROLE matchlink resolved because the predefined GCPRole node exists.
+    assert check_rels(
+        neo4j_session,
+        "GCPPolicyBinding",
+        "id",
+        "GCPRole",
+        "id",
+        "GRANTS_ROLE",
+        rel_direction_right=True,
+    ) == {("standalone-project/roles/owner", "roles/owner")}

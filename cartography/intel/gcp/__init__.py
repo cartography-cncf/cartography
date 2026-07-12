@@ -972,6 +972,28 @@ def start_gcp_ingestion(
             )
             return
 
+        # Sync Google predefined roles (roles/*) even without organization access.
+        # These are global, so unlike org custom roles they can be fetched in the
+        # standalone path. This loads them as GCPRole nodes (so GRANTS_ROLE matchlinks
+        # from policy bindings resolve) and returns their permission map, letting policy
+        # bindings that reference predefined roles (roles/owner, roles/editor, ...) expand
+        # into permission relationships. Org-level *custom* roles remain unresolved here
+        # (they require org access); this limitation is documented in
+        # docs/root/modules/gcp/config.md.
+        if (
+            requested_syncs is None
+            or "iam" in requested_syncs
+            or "policy_bindings" in requested_syncs
+        ):
+            iam_client = build_client("iam", "v1", credentials=credentials)
+            standalone_role_permissions_by_name = iam.sync_standalone_predefined_roles(
+                neo4j_session,
+                iam_client,
+                config.update_tag,
+            )
+        else:
+            standalone_role_permissions_by_name = {}
+
         project_resources_result = _sync_project_resources(
             neo4j_session,
             projects,
@@ -979,6 +1001,7 @@ def start_gcp_ingestion(
             common_job_parameters,
             credentials=credentials,
             requested_syncs=requested_syncs,
+            org_role_permissions_by_name=standalone_role_permissions_by_name,
         )
 
         # Reuse the same post-sync analysis jobs as the org-based path. The bucket

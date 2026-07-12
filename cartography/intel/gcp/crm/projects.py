@@ -62,11 +62,18 @@ def get_gcp_projects(
 
 
 @timeit
-def transform_gcp_projects(data: List[Dict]) -> List[Dict]:
+def transform_gcp_projects(
+    data: List[Dict],
+    warn_on_missing_parent: bool = True,
+) -> List[Dict]:
     """
     Transform GCP project data to add parent_org or parent_folder fields based on parent type.
 
     :param data: List of project dicts
+    :param warn_on_missing_parent: Whether to warn when a project has no parent. True for
+        the org-based sync path, where every project is discovered under an organization or
+        folder so an empty parent is unexpected. False for the standalone (``--gcp-project-ids``)
+        path, where a project legitimately may not belong to any org or folder.
     :return: List of transformed project dicts with parent_org and parent_folder fields
     """
     for project in data:
@@ -85,6 +92,16 @@ def transform_gcp_projects(data: List[Dict]) -> List[Dict]:
         elif parent:
             logger.warning(
                 f"Project {project['projectId']} has unexpected parent type: {parent}"
+            )
+        elif warn_on_missing_parent:
+            # Empty parent in the org-based path is unexpected: list_projects()
+            # walks the org/folder hierarchy, so every project should have one.
+            # The standalone path passes warn_on_missing_parent=False because a
+            # parentless project is normal there.
+            logger.warning(
+                "Project %s has no parent; expected an organization or folder "
+                "in the org-based sync path.",
+                project["projectId"],
             )
 
     return data
@@ -152,6 +169,12 @@ def get_gcp_projects_by_ids(
     access), so that misconfigured project IDs surface loudly rather than being
     silently skipped.
 
+    Note that get_project() returns a project in any lifecycle state, whereas the
+    org-based path relies on list_projects() returning only ACTIVE projects. To keep
+    the two paths consistent, non-ACTIVE projects (e.g. DELETE_REQUESTED) are skipped
+    with a warning rather than ingested as live GCPProjects, so the returned list may
+    be shorter than project_ids.
+
     :param project_ids: List of GCP project IDs (e.g. ["my-project-1", "my-project-2"]).
     :param credentials: GCP credentials to use for API calls.
     :return: List of project dicts matching the shape returned by get_gcp_projects().
@@ -160,6 +183,17 @@ def get_gcp_projects_by_ids(
     results: List[Dict] = []
     for project_id in project_ids:
         proj = client.get_project(name=f"projects/{project_id}")
+        lifecycle_state = proj.state.name
+        # Match org-path semantics (list_projects() only returns ACTIVE): skip
+        # projects that are pending deletion or otherwise not ACTIVE so they are
+        # not ingested as live projects.
+        if lifecycle_state != "ACTIVE":
+            logger.warning(
+                "Skipping GCP project %s: lifecycle state is %s, not ACTIVE.",
+                project_id,
+                lifecycle_state,
+            )
+            continue
         name_field = proj.name  # "projects/<number>"
         project_number = name_field.split("/")[-1] if name_field else None
         results.append(
@@ -167,7 +201,7 @@ def get_gcp_projects_by_ids(
                 "projectId": getattr(proj, "project_id", None),
                 "projectNumber": project_number,
                 "name": getattr(proj, "display_name", None),
-                "lifecycleState": proj.state.name,
+                "lifecycleState": lifecycle_state,
                 "parent": getattr(proj, "parent", None),
             }
         )
@@ -187,7 +221,10 @@ def load_standalone_gcp_projects(
     relationship. Any PARENT edges to a GCPOrganization or GCPFolder are still
     created if those nodes already exist in the graph, but are skipped otherwise.
     """
-    transformed_data = transform_gcp_projects(data)
+    # warn_on_missing_parent=False: a standalone project legitimately may have no
+    # parent (it does not belong to an org or folder), so a missing parent here is
+    # expected and should not emit a warning.
+    transformed_data = transform_gcp_projects(data, warn_on_missing_parent=False)
     load(
         neo4j_session,
         GCPStandaloneProjectSchema(),
@@ -213,7 +250,9 @@ def sync_gcp_projects_by_ids(
     handled per-project by the individual resource modules, scoped by PROJECT_ID.
 
     :param project_ids: List of GCP project IDs to sync.
-    :return: List of projects synced (may be shorter than project_ids if some were skipped).
+    :return: List of projects synced. An inaccessible or non-existent project ID raises
+        (fail loud), but projects that exist in a non-ACTIVE lifecycle state are skipped,
+        so the returned list may be shorter than project_ids.
     """
     logger.debug("Syncing GCP projects by id: %s", project_ids)
     projects = get_gcp_projects_by_ids(project_ids, credentials=credentials)

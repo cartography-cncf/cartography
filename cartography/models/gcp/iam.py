@@ -118,6 +118,56 @@ class GCPOrgRoleSchema(CartographyNodeSchema):
 
 
 # =============================================================================
+# Standalone predefined roles (global roles synced without organization context)
+# =============================================================================
+
+
+@dataclass(frozen=True)
+class GCPPredefinedRoleNodeProperties(CartographyNodeProperties):
+    """
+    Properties for global predefined/basic roles synced without organization context.
+
+    Same shape as GCPOrgRoleNodeProperties but without the ``organization_id`` sub-resource
+    key: predefined roles (roles/*) are global and not owned by any organization.
+    """
+
+    id: PropertyRef = PropertyRef("name", extra_index=True)
+    name: PropertyRef = PropertyRef("name", extra_index=True)
+    title: PropertyRef = PropertyRef("title")
+    description: PropertyRef = PropertyRef("description")
+    deleted: PropertyRef = PropertyRef("deleted")
+    etag: PropertyRef = PropertyRef("etag")
+    permissions: PropertyRef = PropertyRef("includedPermissions")
+    role_type: PropertyRef = PropertyRef("roleType")  # BASIC or PREDEFINED
+    scope: PropertyRef = PropertyRef("scope")  # GLOBAL
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+class GCPStandalonePredefinedRoleSchema(CartographyNodeSchema):
+    """
+    Global predefined/basic GCP IAM roles (roles/*) synced in the standalone
+    (``--gcp-project-ids``) path, where there is no organization to own them.
+
+    Identical to GCPOrgRoleSchema in label (``GCPRole``) and permission modeling, so that
+    the ``(:GCPPolicyBinding)-[:GRANTS_ROLE]->(:GCPRole)`` matchlink resolves for bindings
+    that reference predefined roles. It differs in two ways:
+
+    - No ``sub_resource_relationship``: predefined roles are global, not owned by an org.
+    - ``scoped_cleanup`` is False: the standalone path intentionally runs no cleanup for
+      these nodes. A global GCPRole cleanup would delete role nodes synced by the
+      organization-based path. The flag exists only to satisfy the data model's rule that
+      ``sub_resource_relationship`` may be None only when ``scoped_cleanup`` is False.
+    """
+
+    label: str = "GCPRole"
+    properties: GCPPredefinedRoleNodeProperties = GCPPredefinedRoleNodeProperties()
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["PermissionRole"])
+    sub_resource_relationship: None = None
+    scoped_cleanup: bool = False
+
+
+# =============================================================================
 # Project-level roles (custom project roles only)
 # =============================================================================
 

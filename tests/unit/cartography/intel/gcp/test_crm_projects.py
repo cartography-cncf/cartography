@@ -1,3 +1,4 @@
+import logging
 from types import SimpleNamespace
 from unittest.mock import call
 from unittest.mock import MagicMock
@@ -6,6 +7,7 @@ from unittest.mock import patch
 from cartography.intel.gcp.crm.folders import get_default_apps_script_folder_names
 from cartography.intel.gcp.crm.projects import get_gcp_projects
 from cartography.intel.gcp.crm.projects import get_gcp_projects_by_ids
+from cartography.intel.gcp.crm.projects import transform_gcp_projects
 
 
 def test_get_default_apps_script_folder_names_only_matches_documented_lineage():
@@ -198,5 +200,75 @@ def test_get_gcp_projects_by_ids_fetches_each_project_directly():
             "name": "Standalone Two",
             "lifecycleState": "ACTIVE",
             "parent": "organizations/1337",
+        },
+    ]
+
+
+def test_transform_gcp_projects_warns_on_missing_parent_in_org_path(caplog):
+    """The org path warns when a project has no parent (unexpected under an org)."""
+    data = [{"projectId": "orphan-project", "parent": None}]
+    with caplog.at_level(logging.WARNING):
+        transform_gcp_projects(data)
+
+    assert data[0]["parent_org"] is None
+    assert data[0]["parent_folder"] is None
+    assert any(
+        "has no parent" in record.message and "orphan-project" in record.message
+        for record in caplog.records
+    )
+
+
+def test_transform_gcp_projects_standalone_silent_on_missing_parent(caplog):
+    """The standalone path does not warn: a parentless project is expected there."""
+    data = [{"projectId": "standalone-project", "parent": None}]
+    with caplog.at_level(logging.WARNING):
+        transform_gcp_projects(data, warn_on_missing_parent=False)
+
+    assert data[0]["parent_org"] is None
+    assert data[0]["parent_folder"] is None
+    assert not any("has no parent" in record.message for record in caplog.records)
+
+
+def test_get_gcp_projects_by_ids_skips_non_active_projects():
+    """
+    get_project() returns projects in any lifecycle state, but only ACTIVE ones should
+    be ingested (matching the org path's list_projects() ACTIVE-only semantics).
+    """
+    projects_by_name = {
+        "projects/active-project": SimpleNamespace(
+            name="projects/1001",
+            project_id="active-project",
+            display_name="Active Project",
+            state=SimpleNamespace(name="ACTIVE"),
+            parent="",
+        ),
+        "projects/deleting-project": SimpleNamespace(
+            name="projects/1002",
+            project_id="deleting-project",
+            display_name="Deleting Project",
+            state=SimpleNamespace(name="DELETE_REQUESTED"),
+            parent="",
+        ),
+    }
+    mock_client = MagicMock()
+    mock_client.get_project.side_effect = lambda *, name: projects_by_name[name]
+
+    with patch(
+        "cartography.intel.gcp.crm.projects.resourcemanager_v3.ProjectsClient",
+        return_value=mock_client,
+    ):
+        projects = get_gcp_projects_by_ids(["active-project", "deleting-project"])
+
+    # Both projects are fetched, but the non-ACTIVE one is dropped from the result.
+    assert {
+        fetched.kwargs["name"] for fetched in mock_client.get_project.call_args_list
+    } == {"projects/active-project", "projects/deleting-project"}
+    assert projects == [
+        {
+            "projectId": "active-project",
+            "projectNumber": "1001",
+            "name": "Active Project",
+            "lifecycleState": "ACTIVE",
+            "parent": "",
         },
     ]
