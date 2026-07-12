@@ -56,7 +56,7 @@ def get(client: WorkOSClient, org_ids: list[str]) -> List[Dict[str, Any]]:
     for org_id in org_ids:
         result.extend(
             paginated_list(
-                client.user_management.list_organization_memberships,
+                client.organization_membership.list_organization_memberships,
                 organization_id=org_id,
             )
         )

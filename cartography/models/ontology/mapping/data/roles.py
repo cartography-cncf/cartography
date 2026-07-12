@@ -312,11 +312,47 @@ workos_mapping = OntologyMapping(
     ],
 )
 
+# Salesforce (Profiles and Permission Sets are both permission grants)
+salesforce_mapping = OntologyMapping(
+    module_name="salesforce",
+    nodes=[
+        OntologyNodeMapping(
+            node_label="SalesforceProfile",
+            fields=[
+                OntologyFieldMapping(
+                    ontology_field="name", node_field="name", required=True
+                ),
+                OntologyFieldMapping(
+                    ontology_field="scope",
+                    node_field="",
+                    special_handling="static_value",
+                    extra={"value": "org"},
+                ),
+            ],
+        ),
+        OntologyNodeMapping(
+            node_label="SalesforcePermissionSet",
+            fields=[
+                OntologyFieldMapping(
+                    ontology_field="name", node_field="name", required=True
+                ),
+                OntologyFieldMapping(
+                    ontology_field="scope",
+                    node_field="",
+                    special_handling="static_value",
+                    extra={"value": "org"},
+                ),
+            ],
+        ),
+    ],
+)
+
 ROLES_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     "aws": aws_mapping,
     "azure": azure_mapping,
     "gcp": gcp_mapping,
     "keycloak": keycloak_mapping,
+    "salesforce": salesforce_mapping,
     "kubernetes": kubernetes_mapping,
     "cloudflare": cloudflare_mapping,
     "oci": oci_mapping,

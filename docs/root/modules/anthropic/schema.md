@@ -86,19 +86,19 @@ Represents an individual workspace.
 #### Relationships
 - `Workspace` belongs to an `Organization`
     ```
-    (:AnthropicOrganization)-[:RESOURCE]->(:AnthropicWorkpace)
+    (:AnthropicOrganization)-[:RESOURCE]->(:AnthropicWorkspace)
     ```
 - `Workspace` contains `ApiKey`
     ```
     (:AnthropicWorkspace)-[:CONTAINS]->(:AnthropicApiKey)
     ```
-- `User` are member of a `Workpace`
+- `User` are member of a `Workspace`
     ```
-    (:AnthropicUser)-[:MEMBER_OF]->(:AnthropicWorkpace)
+    (:AnthropicUser)-[:MEMBER_OF]->(:AnthropicWorkspace)
     ```
-- `User` are admin of a `Workpace`
+- `User` are admin of a `Workspace`
     ```
-    (:AnthropicUser)-[:ADMIN_OF]->(:AnthropicWorkpace)
+    (:AnthropicUser)-[:ADMIN_OF]->(:AnthropicWorkspace)
     ```
 
 

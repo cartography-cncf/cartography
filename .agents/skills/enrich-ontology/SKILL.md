@@ -16,7 +16,7 @@ Most modules only need semantic labels.
 
 1. **Mark primary identifiers `required=True`** in `OntologyFieldMapping` (e.g. `email` for `User`, `hostname` for `Device`). Records missing these are excluded from ontology node creation.
 2. **For semantic labels, just add `ExtraNodeLabels(["UserAccount"])`** to your node schema. The ontology system handles the `_ont_*` properties automatically.
-3. **`special_handling` values are strings**: `invert_boolean`, `to_boolean`, `or_boolean`, `nor_boolean`, `equal_boolean`, `static_value`. Boolean conditions inside `extra={"values": ...}` must also be strings (`"true"`, not `True`).
+3. **`special_handling` values are strings**: `invert_boolean`, `to_boolean`, `or_boolean`, `nor_boolean`, `equal_boolean`, `static_value`, `coalesce`. Boolean conditions inside `extra={"values": ...}` must also be strings (`"true"`, not `True`).
 4. **Document ontology mapping** in your schema doc using the standard blockquote phrase.
 5. **Module name `microsoft`** is the canonical source for Microsoft Graph. `entra` is still accepted as a backward-compatible alias during migration.
 
@@ -206,6 +206,7 @@ Standard phrases by semantic label:
 | `nor_boolean`     | Logical NOR over multiple boolean fields                   | `extra={"fields": [...]}`                 |
 | `equal_boolean`   | `true` if value matches any of the specified strings       | `extra={"values": ["active", "bypass"]}`  |
 | `static_value`    | Sets a static value, ignoring `node_field`                 | `extra={"value": "dynamodb"}`             |
+| `coalesce`        | Sets the first non-null value from multiple fields         | `extra={"fields": [...]}`                 |
 
 ## Canonical node configuration (CLI)
 

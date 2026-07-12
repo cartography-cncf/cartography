@@ -9,14 +9,35 @@ from typing import Optional
 import neo4j
 from okta.framework.ApiClient import ApiClient
 from okta.framework.OktaError import OktaError
+from requests import Response
 
 from cartography.client.core.tx import run_write_query
 from cartography.intel.okta.utils import check_rate_limit
 from cartography.intel.okta.utils import create_api_client
 from cartography.intel.okta.utils import is_last_page
+from cartography.intel.okta.utils import okta_paged_request_with_retry
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
+
+
+def _get_application_page(
+    api_client: ApiClient,
+    path: str,
+    next_url: Optional[str],
+    description: str,
+) -> Response:
+    """
+    Fetch one page of an Okta application listing, retrying transient non-JSON
+    error responses. See okta_paged_request_with_retry for details.
+    """
+
+    def _request() -> Response:
+        if next_url:
+            return api_client.get(next_url)
+        return api_client.get_path(path, {"limit": 500})
+
+    return okta_paged_request_with_retry(_request, description)
 
 
 @timeit
@@ -31,14 +52,9 @@ def _get_okta_applications(api_client: ApiClient) -> List[Dict]:
     next_url = None
     while True:
         try:
-            # https://developer.okta.com/docs/reference/api/apps/#list-applications
-            if next_url:
-                paged_response = api_client.get(next_url)
-            else:
-                params = {
-                    "limit": 500,
-                }
-                paged_response = api_client.get_path("/", params)
+            paged_response = _get_application_page(
+                api_client, "/", next_url, "listing applications"
+            )
         except OktaError as okta_error:
             logger.debug(f"Got error while listing applications {okta_error}")
             break
@@ -69,13 +85,12 @@ def _get_application_assigned_users(api_client: ApiClient, app_id: str) -> List[
     while True:
         try:
             # https://developer.okta.com/docs/reference/api/apps/#list-users-assigned-to-application
-            if next_url:
-                paged_response = api_client.get(next_url)
-            else:
-                params = {
-                    "limit": 500,
-                }
-                paged_response = api_client.get_path(f"/{app_id}/users", params)
+            paged_response = _get_application_page(
+                api_client,
+                f"/{app_id}/users",
+                next_url,
+                f"listing users assigned to application {app_id}",
+            )
         except OktaError as okta_error:
             logger.debug(
                 f"Got error while going through list application assigned users {okta_error}",
@@ -108,13 +123,12 @@ def _get_application_assigned_groups(api_client: ApiClient, app_id: str) -> List
 
     while True:
         try:
-            if next_url:
-                paged_response = api_client.get(next_url)
-            else:
-                params = {
-                    "limit": 500,
-                }
-                paged_response = api_client.get_path(f"/{app_id}/groups", params)
+            paged_response = _get_application_page(
+                api_client,
+                f"/{app_id}/groups",
+                next_url,
+                f"listing groups assigned to application {app_id}",
+            )
         except OktaError as okta_error:
             logger.debug(
                 f"Got error while going through list application assigned groups {okta_error}",

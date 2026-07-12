@@ -33,3 +33,37 @@ It can also be used to abstract many different permissions into one. This exampl
   relationship_name: CAN_MANAGE
 ```
 If a principal has any of the permissions it will be mapped
+
+#### IAM conditions on permission edges
+
+GCP IAM bindings can carry a [condition](https://cloud.google.com/iam/docs/conditions-overview) (a CEL expression, e.g. restricting access to business hours or a resource tag). These bindings used to be dropped, which understated access. They are now retained and the resulting permission edge is annotated so you can reason about conditional access. GCP evaluates conditions at request time, so cartography cannot statically decide whether the condition holds.
+
+- `has_condition` (bool) - `true` when every binding that grants the edge is conditional. If any matching binding grants the access unconditionally, this is `false`.
+- `condition_title` (string) - the title(s) of the matching condition(s).
+- `condition_expression` (string) - the CEL expression(s) of the matching condition(s).
+
+Exclude conditionally-gated access from an analysis:
+```cypher
+MATCH (p:GCPPrincipal)-[r:CAN_READ]->(b:GCPBucket)
+WHERE NOT r.has_condition
+RETURN p.email, b.id
+```
+
+> Note: conditional grants are always evaluated per-resource (row-by-row), so they carry their condition metadata; broad unconditional grants are bulk-loaded and set `has_condition = false` explicitly (clearing any stale metadata if the same edge was previously conditional).
+
+#### Supported principal types
+
+Permission edges are created for `user:`, `serviceAccount:` (including GKE Workload Identity service accounts of the form `serviceAccount:{project}.svc.id.goog[...]`), and `group:` members. Other member types are retained for visibility rather than dropped:
+
+- `allUsers` / `allAuthenticatedUsers` set `is_public = true` on the `GCPPolicyBinding` (these never resolve to a real principal node).
+- Workload Identity Federation members (`principal://` / `principalSet://`) are recorded in `GCPPolicyBinding.wif_pools`.
+- `domain:{domain}` members are recorded in `GCPPolicyBinding.domains`.
+
+#### Expanding group permissions to members
+
+A `group:` member resolves to a `GoogleWorkspaceGroup`, which also carries the `GCPPrincipal` label, so the permission edge attaches directly to the group node. Group membership is already in the graph as `(:GoogleWorkspaceUser)-[:MEMBER_OF]->(:GoogleWorkspaceGroup)` (and `INHERITED_MEMBER_OF` for nested groups), so you expand a group's permissions to its effective members by traversing those edges, no separate materialization is needed:
+
+```cypher
+MATCH (u:GoogleWorkspaceUser)-[:MEMBER_OF|INHERITED_MEMBER_OF]->(g:GCPPrincipal)-[r:CAN_READ]->(b:GCPBucket)
+RETURN u.email AS user, g.email AS via_group, b.id AS bucket
+```

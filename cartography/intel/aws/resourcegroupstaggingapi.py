@@ -244,7 +244,8 @@ INGEST_TAG_TEMPLATE = Template(
 
             SET aws_tag.lastupdated = $UpdateTag,
             aws_tag.key = input_tag.Key,
-            aws_tag.value =  input_tag.Value
+            aws_tag.value =  input_tag.Value,
+            aws_tag._ont_source = 'aws'
 
             MERGE (resource)-[r:TAGGED]->(aws_tag)
             SET r.lastupdated = $UpdateTag,

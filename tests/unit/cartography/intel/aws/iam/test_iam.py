@@ -1,4 +1,7 @@
 import datetime
+from unittest.mock import MagicMock
+
+from botocore.exceptions import ClientError
 
 from cartography.intel.aws import iam
 from cartography.intel.aws.iam import PolicyType
@@ -321,3 +324,21 @@ def test_transform_mfa_devices_empty():
     raw_data = []
     result = iam.transform_mfa_devices(raw_data)
     assert result == []
+
+
+def test_get_saml_providers_access_denied_returns_empty_list():
+    # @aws_handle_regions swallows AccessDenied and returns []; the getter and
+    # its caller must tolerate that instead of crashing the account sync.
+    session = MagicMock()
+    client = session.client.return_value
+    client.list_saml_providers.side_effect = ClientError(
+        {"Error": {"Code": "AccessDenied", "Message": "nope"}},
+        "ListSAMLProviders",
+    )
+
+    result = iam.get_saml_providers(session)
+
+    assert result == []
+    # transform_policy_data feeds the same [] fallback from sibling getters.
+    transformed = transform_policy_data([], PolicyType.inline.value)
+    assert transformed.statements_by_policy_id == {}

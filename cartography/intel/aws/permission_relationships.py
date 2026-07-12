@@ -1,3 +1,4 @@
+import json
 import logging
 import os
 import re
@@ -133,6 +134,25 @@ def evaluate_notresource_for_permission(statement: Dict, resource_arn: str) -> b
     return False
 
 
+def statement_applies_to_permission(
+    statement: Dict,
+    permission: str,
+    resource_arn: str,
+) -> bool:
+    """Return whether a single statement applies to the given permission and resource.
+
+    This is the core action/resource matching predicate, ignoring Effect (Allow/Deny)
+    and any Condition block. It is shared between permission evaluation and condition
+    metadata collection so both stay in sync.
+    """
+    return (
+        not evaluate_notaction_for_permission(statement, permission)
+        and evaluate_action_for_permission(statement, permission)
+        and evaluate_resource_for_permission(statement, resource_arn)
+        and not evaluate_notresource_for_permission(statement, resource_arn)
+    )
+
+
 def evaluate_statements_for_permission(
     statements: List[Dict],
     permission: str,
@@ -148,15 +168,11 @@ def evaluate_statements_for_permission(
     Returns:
         [bool] -- If the statement grants the specific permission to the resource
     """
-    allowed = False
     for statement in statements:
-        if not evaluate_notaction_for_permission(statement, permission):
-            if evaluate_action_for_permission(statement, permission):
-                if evaluate_resource_for_permission(statement, resource_arn):
-                    if not evaluate_notresource_for_permission(statement, resource_arn):
-                        return True
+        if statement_applies_to_permission(statement, permission, resource_arn):
+            return True
 
-    return allowed
+    return False
 
 
 def evaluate_policy_for_permissions(
@@ -236,6 +252,105 @@ def principal_allowed_on_resource(
     return granted
 
 
+def parse_condition_blob(condition_blob: Any) -> List[Any]:
+    """Normalize a stored Condition value into a list of operator maps.
+
+    Statements ingested by the IAM module store their Condition block as a JSON string
+    (see cartography.intel.aws.iam._transform_policy_statements). The structure is a list
+    of operator maps, e.g. [{"IpAddress": {"aws:SourceIp": "10.0.0.0/8"}}]. Returns an
+    empty list for missing or malformed values.
+    """
+    if not condition_blob:
+        return []
+    if isinstance(condition_blob, str):
+        try:
+            conditions = json.loads(condition_blob)
+        except (TypeError, ValueError):
+            logger.warning("Could not parse IAM condition blob: %s", condition_blob)
+            return []
+    else:
+        conditions = condition_blob
+    if isinstance(conditions, dict):
+        conditions = [conditions]
+    if not isinstance(conditions, list):
+        return []
+    return conditions
+
+
+def extract_condition_context_keys(condition_blob: Any) -> List[str]:
+    """Extract the IAM condition context keys (e.g. 'aws:SourceIp') from a stored
+    Condition value, sorted and de-duplicated across all operators.
+    """
+    keys: set = set()
+    for operator_map in parse_condition_blob(condition_blob):
+        if not isinstance(operator_map, dict):
+            continue
+        for context_map in operator_map.values():
+            if isinstance(context_map, dict):
+                keys.update(context_map.keys())
+    return sorted(keys)
+
+
+def collect_edge_conditions(
+    policies: Dict,
+    resource_arn: str,
+    permissions: List[str],
+) -> Dict[str, Any]:
+    """Determine the condition metadata to stamp on a granted permission edge.
+
+    AWS evaluates conditions at request time, so we cannot statically decide whether a
+    conditional grant resolves to allow or deny. Instead we annotate the edge:
+    - If any matching Allow statement grants access *without* a Condition, the edge is
+      reachable unconditionally and we report has_condition=False.
+    - Otherwise every path to the grant is gated by a Condition; we report
+      has_condition=True along with the union of referenced context keys and the raw
+      condition blobs (as a JSON string) for downstream filtering.
+
+    This should only be called for edges already confirmed by principal_allowed_on_resource.
+    """
+    conditional_blobs: List[Any] = []
+    condition_keys: set = set()
+    for statements in policies.values():
+        for statement in statements:
+            if statement.get("effect") != "Allow":
+                continue
+            if not any(
+                statement_applies_to_permission(statement, permission, resource_arn)
+                for permission in permissions
+            ):
+                continue
+            condition = statement.get("condition")
+            if not condition:
+                # An unconditional Allow path exists; the edge is effectively unconditional.
+                return {
+                    "has_condition": False,
+                    "condition_keys": [],
+                    "conditions": None,
+                }
+            # The statement carries a Condition. Fail safe toward "conditional": if the
+            # blob can't be parsed (it should always be valid JSON written by the IAM
+            # module), keep the edge flagged and preserve the raw blob rather than
+            # downgrading it to an unconditional grant.
+            parsed = parse_condition_blob(condition)
+            if parsed:
+                conditional_blobs.extend(parsed)
+                condition_keys.update(extract_condition_context_keys(parsed))
+            else:
+                conditional_blobs.append(
+                    condition if isinstance(condition, str) else str(condition)
+                )
+
+    if not conditional_blobs:
+        # Defensive: a granted edge with no matching Allow statement shouldn't happen.
+        return {"has_condition": False, "condition_keys": [], "conditions": None}
+
+    return {
+        "has_condition": True,
+        "condition_keys": sorted(condition_keys),
+        "conditions": json.dumps(conditional_blobs),
+    }
+
+
 def calculate_permission_relationships(
     principals: Dict,
     resource_arns: List[str],
@@ -262,8 +377,17 @@ def calculate_permission_relationships(
     for resource_arn in resource_arns:
         for principal_arn, policies in principals.items():
             if principal_allowed_on_resource(policies, resource_arn, permissions):
+                conditions = collect_edge_conditions(
+                    policies,
+                    resource_arn,
+                    permissions,
+                )
                 allowed_mappings.append(
-                    {"principal_arn": principal_arn, "resource_arn": resource_arn},
+                    {
+                        "principal_arn": principal_arn,
+                        "resource_arn": resource_arn,
+                        **conditions,
+                    },
                 )
     return allowed_mappings
 
@@ -342,20 +466,57 @@ def get_principals_for_account(neo4j_session: neo4j.Session, account_id: str) ->
     return principals
 
 
+def build_target_precondition_clause(precondition: Dict | None) -> str:
+    """Build a Cypher WHERE fragment for an optional target precondition.
+
+    A precondition requires the candidate resource to be connected to a node of a given
+    label via a given relationship. This lets a permission relationship require graph
+    state in addition to IAM permissions (e.g. an EC2 instance must be managed by SSM
+    before a CAN_START_SESSION edge is drawn). See issue #1643.
+
+    The precondition dict accepts:
+    - related_label (str): the label of the node the resource must be connected to
+    - relationship (str): the relationship type connecting them
+    - direction (str): "outgoing" (default) for (resource)-[rel]->(related) or
+      "incoming" for (resource)<-[rel]-(related)
+    """
+    if not precondition:
+        return ""
+    related_label = precondition["related_label"]
+    relationship = precondition["relationship"]
+    direction = precondition.get("direction", "outgoing")
+    if not isinstance(direction, str) or direction.lower() not in (
+        "incoming",
+        "outgoing",
+    ):
+        raise ValueError(
+            "target_precondition.direction must be 'incoming' or 'outgoing', "
+            f"got: {direction!r}",
+        )
+    if direction.lower() == "incoming":
+        pattern = f"(resource)<-[:{relationship}]-(:{related_label})"
+    else:
+        pattern = f"(resource)-[:{relationship}]->(:{related_label})"
+    return f"AND EXISTS {{ MATCH {pattern} }}"
+
+
 def get_resource_arns(
     neo4j_session: neo4j.Session,
     account_id: str,
     node_label: str,
+    target_precondition: Dict | None = None,
 ) -> List[Any]:
     get_resource_query = Template(
         """
     MATCH (acc:AWSAccount{id:$AccountId})-[:RESOURCE]->(resource:$node_label)
     WHERE resource.arn IS NOT NULL
+    $precondition_clause
     return resource.arn as arn
     """,
     )
     get_resource_query_template = get_resource_query.safe_substitute(
         node_label=node_label,
+        precondition_clause=build_target_precondition_clause(target_precondition),
     )
     return neo4j_session.execute_read(
         read_list_of_values_tx,
@@ -377,7 +538,10 @@ def load_principal_mappings(
     MATCH (principal:AWSPrincipal{arn:mapping.principal_arn})
     MATCH (resource:$node_label{arn:mapping.resource_arn})
     MERGE (principal)-[r:$relationship_name]->(resource)
-    SET r.lastupdated = $aws_update_tag
+    SET r.lastupdated = $aws_update_tag,
+        r.has_condition = coalesce(mapping.has_condition, false),
+        r.condition_keys = mapping.condition_keys,
+        r.conditions = mapping.conditions
     """,
     )
     if not principal_mappings:
@@ -452,6 +616,14 @@ def is_valid_rpr(rpr: Dict) -> bool:
         if field not in rpr:
             return False
 
+    precondition = rpr.get("target_precondition")
+    if precondition is not None:
+        if not isinstance(precondition, dict):
+            return False
+        for field in ("related_label", "relationship"):
+            if field not in precondition:
+                return False
+
     return True
 
 
@@ -482,16 +654,19 @@ def sync(
             raise ValueError(
                 """
         Resource permission relationship is missing fields.
-        Required fields: permissions, relationship_name, target_label"
+        Required fields: permissions, relationship_name, target_label.
+        Optional target_precondition requires: related_label, relationship.
         """,
             )
         permissions = rpr["permissions"]
         relationship_name = rpr["relationship_name"]
         target_label = rpr["target_label"]
+        target_precondition = rpr.get("target_precondition")
         resource_arns = get_resource_arns(
             neo4j_session,
             current_aws_account_id,
             target_label,
+            target_precondition,
         )
         logger.info(
             "Syncing relationship '%s' for node label '%s'",
