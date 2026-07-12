@@ -126,7 +126,7 @@ async def sync_user_license_details(
     client: GraphServiceClient,
     tenant_id: str,
     update_tag: int,
-) -> None:
+) -> bool:
     """
     Sync per-user license assignments by querying existing EntraUser nodes
     and fetching their license details from the Graph API.
@@ -148,7 +148,7 @@ async def sync_user_license_details(
 
     if not user_ids:
         logger.info("No Entra users found; skipping license detail sync")
-        return
+        return False
 
     # Fetch license details in batches to control memory
     batch_size = 200
@@ -179,10 +179,4 @@ async def sync_user_license_details(
         update_tag,
     )
 
-    if has_failures:
-        logger.warning(
-            "One or more user license detail fetches failed or were skipped. "
-            "Bypassing ASSIGNED_LICENSE cleanup to prevent accidental data loss."
-        )
-    else:
-        cleanup_user_license_assignments(neo4j_session, tenant_id, update_tag)
+    return has_failures
