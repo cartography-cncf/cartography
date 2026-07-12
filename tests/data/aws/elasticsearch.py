@@ -6,9 +6,9 @@ GET_ES_DOMAINS = [
         "Created": True,
         "Deleted": False,
         "Endpoint": "search-test-es-domain-1.us-east-1.es.amazonaws.com",
-        "ElasticsearchVersion": "7.10",
-        "ElasticsearchClusterConfig": {
-            "InstanceType": "t3.small.elasticsearch",
+        "EngineVersion": "OpenSearch_2.5",
+        "ClusterConfig": {
+            "InstanceType": "t3.small.search",
             "InstanceCount": 1,
             "DedicatedMasterEnabled": False,
             "ZoneAwarenessEnabled": False,
@@ -48,13 +48,13 @@ GET_ES_DOMAINS = [
         "Created": True,
         "Deleted": False,
         "Endpoint": "search-test-es-domain-2.us-east-1.es.amazonaws.com",
-        "ElasticsearchVersion": "6.8",
-        "ElasticsearchClusterConfig": {
-            "InstanceType": "m5.large.elasticsearch",
+        "EngineVersion": "7.10",
+        "ClusterConfig": {
+            "InstanceType": "m5.large.search",
             "InstanceCount": 2,
             "DedicatedMasterEnabled": True,
             "ZoneAwarenessEnabled": True,
-            "DedicatedMasterType": "m5.large.elasticsearch",
+            "DedicatedMasterType": "m5.large.search",
             "DedicatedMasterCount": 3,
         },
         "EBSOptions": {
