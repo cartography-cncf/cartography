@@ -7,6 +7,9 @@ from kiota_abstractions.api_error import APIError
 
 from cartography.config import Config
 from cartography.intel.microsoft.client import create_graph_service_client
+from cartography.intel.microsoft.o365.license_details import (
+    cleanup_user_license_assignments,
+)
 from cartography.intel.microsoft.o365.license_details import sync_user_license_details
 from cartography.intel.microsoft.o365.licenses import sync_licenses
 from cartography.util import timeit
@@ -77,12 +80,24 @@ def start_o365_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
 
         try:
             # Sync per-user license assignments (depends on licenses loaded above)
-            await sync_user_license_details(
+            has_failures = await sync_user_license_details(
                 neo4j_session,
                 o365_client,
                 config.entra_tenant_id,
                 config.update_tag,
             )
+
+            if has_failures:
+                logger.warning(
+                    "One or more user license detail fetches failed or were skipped. "
+                    "Bypassing ASSIGNED_LICENSE cleanup to prevent accidental data loss."
+                )
+            else:
+                cleanup_user_license_assignments(
+                    neo4j_session,
+                    config.entra_tenant_id,
+                    config.update_tag,
+                )
         except APIError as e:
             if e.response_status_code in (401, 403):
                 logger.warning(
