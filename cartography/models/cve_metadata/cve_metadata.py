@@ -19,6 +19,9 @@ class CVEMetadataNodeProperties(CartographyNodeProperties):
     description: PropertyRef = PropertyRef("description_en")
     references: PropertyRef = PropertyRef("references_urls")
     problem_types: PropertyRef = PropertyRef("weaknesses")
+    # Technical-effect labels derived from CWE (preferred) or CVSS fallback.
+    effect_tags: PropertyRef = PropertyRef("effect_tags")
+    effect_tags_source: PropertyRef = PropertyRef("effect_tags_source")
     cvss_version: PropertyRef = PropertyRef("cvss_version")
     vector_string: PropertyRef = PropertyRef("vectorString")
     attack_vector: PropertyRef = PropertyRef("attackVector")

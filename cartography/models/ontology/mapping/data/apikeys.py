@@ -163,6 +163,26 @@ gcp_mapping = OntologyMapping(
                 ),
             ],
         ),
+        OntologyNodeMapping(
+            node_label="GCPApiKey",
+            fields=[
+                # display_name is optional upstream; fall back to the resource
+                # name so _ont_name is always populated.
+                OntologyFieldMapping(
+                    ontology_field="name",
+                    node_field="display_name",
+                    required=True,
+                    special_handling="coalesce",
+                    extra={"fields": ["name"]},
+                ),
+                OntologyFieldMapping(
+                    ontology_field="created_at", node_field="create_time"
+                ),
+                OntologyFieldMapping(
+                    ontology_field="updated_at", node_field="update_time"
+                ),
+            ],
+        ),
     ],
 )
 

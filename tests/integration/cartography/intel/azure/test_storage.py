@@ -238,11 +238,12 @@ def test_sync_storage_accounts(
 
     # Assert - Check tables exist
     expected_table_nodes = {
-        (sa1 + "/tableServices/TS1/tables/table1",),
-        (sa2 + "/tableServices/TS2/tables/table2",),
+        (sa1 + "/tableServices/TS1/tables/table1", "table1"),
+        (sa2 + "/tableServices/TS2/tables/table2", "table2"),
     }
     assert (
-        check_nodes(neo4j_session, "AzureStorageTable", ["id"]) == expected_table_nodes
+        check_nodes(neo4j_session, "AzureStorageTable", ["id", "tablename"])
+        == expected_table_nodes
     )
 
     # Assert - Check table service-to-table relationships

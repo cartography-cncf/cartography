@@ -205,6 +205,10 @@ A Tailscale device (sometimes referred to as *node* or *machine*), is any comput
     ```
     (:TailscaleDevice)-[:TAGGED]->(:TailscaleTag)
     ```
+- `Device` can identify the cloud compute instance it represents.
+    ```
+    (:TailscaleDevice)-[:IS_INSTANCE]->(:ComputeInstance)
+    ```
 
 
 ### TailscaleGrant

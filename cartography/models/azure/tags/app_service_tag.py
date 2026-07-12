@@ -4,6 +4,7 @@ from cartography.models.azure.tags.tag import AzureTagProperties
 from cartography.models.azure.tags.tag import AzureTagToSubscriptionRel
 from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeSchema
+from cartography.models.core.nodes import ExtraNodeLabels
 from cartography.models.core.relationships import CartographyRelProperties
 from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
@@ -31,6 +32,7 @@ class AppServiceToTagRel(CartographyRelSchema):
 @dataclass(frozen=True)
 class AzureAppServiceTagsSchema(CartographyNodeSchema):
     label: str = "AzureTag"
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["Tag"])
     properties: AzureTagProperties = AzureTagProperties()
     sub_resource_relationship: AzureTagToSubscriptionRel = AzureTagToSubscriptionRel()
     other_relationships: OtherRelationships = OtherRelationships(

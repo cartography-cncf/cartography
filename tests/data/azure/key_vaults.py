@@ -20,6 +20,7 @@ MOCK_SECRETS = [
         "enabled": True,
         "created_on": "2025-01-01T12:00:00.000Z",
         "updated_on": "2025-01-01T12:05:00.000Z",
+        "tags": {"env": "prod"},
     },
 ]
 

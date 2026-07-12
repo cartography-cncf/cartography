@@ -228,6 +228,13 @@ class Config:
     :param vercel_team_id: Vercel team ID to sync. Optional.
     :type vercel_base_url: str
     :param vercel_base_url: Vercel API base URL. Optional.
+    :type circleci_token: str
+    :param circleci_token: CircleCI personal API token. Optional.
+    :type circleci_base_url: str
+    :param circleci_base_url: CircleCI API v2 base URL. Optional.
+    :type circleci_project_slugs: list
+    :param circleci_project_slugs: CircleCI project slugs to sync (project-scoped
+        resources cannot be enumerated via API v2). Optional.
     :type cloudflare_token: string
     :param cloudflare_token: Cloudflare API key. Optional.
     :type openai_apikey: string
@@ -244,6 +251,22 @@ class Config:
     :param airbyte_client_secret: Airbyte client secret for API authentication. Optional.
     :type airbyte_api_url: str
     :param airbyte_api_url: Airbyte API base URL, e.g. https://api.airbyte.com/v1. Optional.
+    :type databricks_workspace_url: str
+    :param databricks_workspace_url: Databricks workspace URL, e.g. https://dbc-xxxx.cloud.databricks.com. Optional.
+    :type databricks_token: str
+    :param databricks_token: Databricks personal access token (PAT). Optional.
+    :type databricks_client_id: str
+    :param databricks_client_id: Databricks OAuth M2M client ID. Optional.
+    :type databricks_client_secret: str
+    :param databricks_client_secret: Databricks OAuth M2M client secret. Optional.
+    :type databricks_account_id: str
+    :param databricks_account_id: Databricks account ID (AWS / GCP account console). Optional.
+    :type databricks_account_host: str
+    :param databricks_account_host: Databricks account API host, e.g. https://accounts.cloud.databricks.com. Optional.
+    :type databricks_account_client_id: str
+    :param databricks_account_client_id: Databricks account-level OAuth M2M client ID. Optional.
+    :type databricks_account_client_secret: str
+    :param databricks_account_client_secret: Databricks account-level OAuth M2M client secret. Optional.
     :type docker_scout_results_dir: str
     :param docker_scout_results_dir: Local directory containing Docker Scout recommendation text reports. Optional.
     :type docker_scout_source: str
@@ -303,6 +326,16 @@ class Config:
     :param keycloak_realm: Keycloak realm for authentication (all realms will be synced). Optional.
     :type keycloak_url: str
     :param keycloak_url: Keycloak base URL, e.g. https://keycloak.example.com. Optional.
+    :type salesforce_login_url: str
+    :param salesforce_login_url: Salesforce OAuth login URL (e.g. https://login.salesforce.com or a My Domain URL). Optional.
+    :type salesforce_client_id: str
+    :param salesforce_client_id: Salesforce connected app consumer key. Optional.
+    :type salesforce_client_secret: str
+    :param salesforce_client_secret: Salesforce connected app consumer secret, for the client credentials flow. Optional.
+    :type salesforce_username: str
+    :param salesforce_username: Salesforce username to impersonate, for the JWT bearer flow. Optional.
+    :type salesforce_private_key: str
+    :param salesforce_private_key: PEM-encoded private key, for the JWT bearer flow. Optional.
     :type slack_token: str
     :param slack_token: Slack API token. Optional.
     :type slack_teams: list[str]
@@ -438,6 +471,9 @@ class Config:
         vercel_token=None,
         vercel_team_id=None,
         vercel_base_url=None,
+        circleci_token=None,
+        circleci_base_url=None,
+        circleci_project_slugs=None,
         cloudflare_token=None,
         openai_apikey=None,
         openai_org_id=None,
@@ -449,6 +485,14 @@ class Config:
         airbyte_client_id=None,
         airbyte_client_secret=None,
         airbyte_api_url=None,
+        databricks_workspace_url=None,
+        databricks_token=None,
+        databricks_client_id=None,
+        databricks_client_secret=None,
+        databricks_account_id=None,
+        databricks_account_host=None,
+        databricks_account_client_id=None,
+        databricks_account_client_secret=None,
         docker_scout_source=None,
         docker_scout_results_dir=None,
         docker_scout_s3_bucket=None,
@@ -482,6 +526,11 @@ class Config:
         keycloak_client_secret=None,
         keycloak_realm=None,
         keycloak_url=None,
+        salesforce_login_url="https://login.salesforce.com",
+        salesforce_client_id=None,
+        salesforce_client_secret=None,
+        salesforce_username=None,
+        salesforce_private_key=None,
         slack_token=None,
         slack_teams=None,
         slack_channels_memberships=False,
@@ -612,6 +661,9 @@ class Config:
         self.vercel_token = vercel_token
         self.vercel_team_id = vercel_team_id
         self.vercel_base_url = vercel_base_url
+        self.circleci_token = circleci_token
+        self.circleci_base_url = circleci_base_url
+        self.circleci_project_slugs = circleci_project_slugs
         self.cloudflare_token = cloudflare_token
         self.openai_apikey = openai_apikey
         self.openai_org_id = openai_org_id
@@ -623,6 +675,14 @@ class Config:
         self.airbyte_client_id = airbyte_client_id
         self.airbyte_client_secret = airbyte_client_secret
         self.airbyte_api_url = airbyte_api_url
+        self.databricks_workspace_url = databricks_workspace_url
+        self.databricks_token = databricks_token
+        self.databricks_client_id = databricks_client_id
+        self.databricks_client_secret = databricks_client_secret
+        self.databricks_account_id = databricks_account_id
+        self.databricks_account_host = databricks_account_host
+        self.databricks_account_client_id = databricks_account_client_id
+        self.databricks_account_client_secret = databricks_account_client_secret
         # DEPRECATED: `*_results_dir` and `*_s3_*` compat shims; removed in Cartography v1.0.0.
         self.docker_scout_source = _resolve_report_source_config(
             module="docker_scout",
@@ -671,6 +731,11 @@ class Config:
         self.keycloak_client_secret = keycloak_client_secret
         self.keycloak_realm = keycloak_realm
         self.keycloak_url = keycloak_url
+        self.salesforce_login_url = salesforce_login_url
+        self.salesforce_client_id = salesforce_client_id
+        self.salesforce_client_secret = salesforce_client_secret
+        self.salesforce_username = salesforce_username
+        self.salesforce_private_key = salesforce_private_key
         self.slack_token = slack_token
         self.slack_teams = slack_teams
         self.slack_channels_memberships = slack_channels_memberships

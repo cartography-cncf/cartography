@@ -9,6 +9,7 @@ from cartography.intel.kubernetes.eks import sync as sync_eks
 from cartography.intel.kubernetes.gateway_api import sync_gateway_api
 from cartography.intel.kubernetes.ingress import sync_ingress
 from cartography.intel.kubernetes.namespaces import sync_namespaces
+from cartography.intel.kubernetes.networkpolicies import sync_network_policies
 from cartography.intel.kubernetes.nodes import sync_nodes
 from cartography.intel.kubernetes.pods import sync_pods
 from cartography.intel.kubernetes.rbac import sync_kubernetes_rbac
@@ -96,6 +97,13 @@ def start_k8s_ingestion(session: Session, config: Config) -> None:
             )
             sync_secrets(session, client, config.update_tag, common_job_parameters)
             sync_services(
+                session,
+                client,
+                all_pods,
+                config.update_tag,
+                common_job_parameters,
+            )
+            sync_network_policies(
                 session,
                 client,
                 all_pods,

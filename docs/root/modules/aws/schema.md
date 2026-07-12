@@ -446,6 +446,8 @@ Representation of an AWS [GuardDuty Finding](https://docs.aws.amazon.com/guarddu
 
 Representation of an AWS [Inspector Finding](https://docs.aws.amazon.com/inspector/v2/APIReference/API_Finding.html)
 
+Depending on its `type`, the finding also carries an ontology finding label: `PACKAGE_VULNERABILITY` findings are labeled `:CVE`, and `NETWORK_REACHABILITY` findings are labeled `:SecurityIssue`.
+
 | Field | Description | Required|
 |-------|-------------|------|
 |firstseen|Timestamp of when a sync job first discovered this node|no|
@@ -1336,9 +1338,45 @@ Representation of an AWS [Tag](https://docs.aws.amazon.com/resourcegroupstagging
 | value | One part of a key-value pair that makes up a tag. |
 
 #### Relationships
--  AWS VPCs, DB Subnet Groups, EC2 Instances, EC2 SecurityGroups, EC2 Subnets, EC2 Network Interfaces, RDS Instances, S3 Buckets, AWS Roles, AWS Users, and AWS Groups can be tagged with AWSTags.
+- Many AWS resource types can be tagged with AWSTags. Tags are ingested centrally via the Resource Groups Tagging API (`cartography/intel/aws/resourcegroupstaggingapi.py`), so the full set of source node types is defined by `TAG_RESOURCE_TYPE_MAPPINGS` there rather than by per-model relationship schemas.
     ```
-    (AWSVpc, DBSubnetGroup, EC2Instance, EC2SecurityGroup, EC2Subnet, NetworkInterface, RDSInstance, S3Bucket, AWSRole, AWSUser)-[TAGGED]->(AWSTag)
+    (AWSInternetGateway)-[TAGGED]->(AWSTag)
+    (AWSLambda)-[TAGGED]->(AWSTag)
+    (AWSLoadBalancer)-[TAGGED]->(AWSTag)
+    (AWSLoadBalancerV2)-[TAGGED]->(AWSTag)
+    (AWSRole)-[TAGGED]->(AWSTag)
+    (AWSTransitGateway)-[TAGGED]->(AWSTag)
+    (AWSTransitGatewayAttachment)-[TAGGED]->(AWSTag)
+    (AWSUser)-[TAGGED]->(AWSTag)
+    (AWSVpc)-[TAGGED]->(AWSTag)
+    (AutoScalingGroup)-[TAGGED]->(AWSTag)
+    (DBSubnetGroup)-[TAGGED]->(AWSTag)
+    (DynamoDBTable)-[TAGGED]->(AWSTag)
+    (EBSVolume)-[TAGGED]->(AWSTag)
+    (EC2Instance)-[TAGGED]->(AWSTag)
+    (EC2KeyPair)-[TAGGED]->(AWSTag)
+    (EC2SecurityGroup)-[TAGGED]->(AWSTag)
+    (EC2Subnet)-[TAGGED]->(AWSTag)
+    (ECRRepository)-[TAGGED]->(AWSTag)
+    (ECSCluster)-[TAGGED]->(AWSTag)
+    (ECSContainer)-[TAGGED]->(AWSTag)
+    (ECSContainerInstance)-[TAGGED]->(AWSTag)
+    (ECSTask)-[TAGGED]->(AWSTag)
+    (ECSTaskDefinition)-[TAGGED]->(AWSTag)
+    (EKSCluster)-[TAGGED]->(AWSTag)
+    (EMRCluster)-[TAGGED]->(AWSTag)
+    (ESDomain)-[TAGGED]->(AWSTag)
+    (ElasticIPAddress)-[TAGGED]->(AWSTag)
+    (ElasticacheCluster)-[TAGGED]->(AWSTag)
+    (KMSKey)-[TAGGED]->(AWSTag)
+    (NetworkInterface)-[TAGGED]->(AWSTag)
+    (RDSCluster)-[TAGGED]->(AWSTag)
+    (RDSInstance)-[TAGGED]->(AWSTag)
+    (RDSSnapshot)-[TAGGED]->(AWSTag)
+    (RedshiftCluster)-[TAGGED]->(AWSTag)
+    (S3Bucket)-[TAGGED]->(AWSTag)
+    (SQSQueue)-[TAGGED]->(AWSTag)
+    (SecretsManagerSecret)-[TAGGED]->(AWSTag)
     ```
 
 ### AccountAccessKey
@@ -2164,6 +2202,7 @@ Our representation of an AWS [EC2 Instance](https://docs.aws.amazon.com/AWSEC2/l
 | lastupdated |  Timestamp of the last time the node was updated |
 | **id** | Same as `instanceid` below. |
 | **instanceid** | The instance id provided by AWS.  This is [globally unique](https://forums.aws.amazon.com/thread.jspa?threadID=137203) |
+| arn | The Amazon Resource Name of the instance, e.g. `arn:aws:ec2:{region}:{account}:instance/{instanceid}`. Synthesized by cartography for IAM permission matching. |
 | **publicdnsname** | The public DNS name assigned to the instance |
 | publicipaddress | The public IPv4 address assigned to the instance if applicable |
 | privateipaddress | The private IPv4 address assigned to the instance |
@@ -2234,6 +2273,11 @@ Our representation of an AWS [EC2 Instance](https://docs.aws.amazon.com/AWSEC2/l
 - AWS Accounts contain EC2 Instances.
     ```
     (AWSAccount)-[RESOURCE]->(EC2Instance)
+    ```
+
+- EC2 Instances assume the AWS Role attached through their instance profile (canonical ontology `ASSUMES` edge).
+    ```
+    (EC2Instance)-[ASSUMES]->(AWSRole)
     ```
 
 -  EC2 Instances can be tagged with AWSTags.

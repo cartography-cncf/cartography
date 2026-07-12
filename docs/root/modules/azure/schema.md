@@ -357,6 +357,16 @@ Representation of an [Azure Virtual Machine](https://docs.microsoft.com/en-us/re
     (AzureVirtualMachine)-[:TAGGED]->(AzureTag)
     ```
 
+- An Azure Virtual Machine runs as its managed identity's service principal (canonical ontology `RUNS_AS` edge).
+    ```cypher
+    (AzureVirtualMachine)-[:RUNS_AS]->(EntraServicePrincipal)
+    ```
+
+- An Azure Virtual Machine assumes the role definitions assigned to its managed identity (canonical ontology `ASSUMES` edge).
+    ```cypher
+    (AzureVirtualMachine)-[:ASSUMES]->(AzureRoleDefinition)
+    ```
+
 ### AzureDataDisk
 
 Representation of an [Azure Data Disk](https://docs.microsoft.com/en-us/rest/api/compute/virtualmachines/get#datadisk).
@@ -1618,6 +1628,16 @@ Representation of an [Azure Function App](https://learn.microsoft.com/en-us/rest
     (AzureFunctionApp)-[:TAGGED]->(AzureTag)
     ```
 
+- An Azure Function App runs as its managed identity's service principal (canonical ontology `RUNS_AS` edge).
+    ```cypher
+    (AzureFunctionApp)-[:RUNS_AS]->(EntraServicePrincipal)
+    ```
+
+- An Azure Function App assumes the role definitions assigned to its managed identity (canonical ontology `ASSUMES` edge).
+    ```cypher
+    (AzureFunctionApp)-[:ASSUMES]->(AzureRoleDefinition)
+    ```
+
 - Container-deployed Function Apps are linked to the image they run via `HAS_IMAGE` (matched on `image_digest`):
     ```cypher
     (AzureFunctionApp)-[:HAS_IMAGE]->(:ECRImage)
@@ -1893,6 +1913,11 @@ Representation of a [Secret within an Azure Key Vault](https://learn.microsoft.c
 - An Azure Key Vault contains one or more Secrets.
     ```cypher
     (AzureKeyVault)-[:CONTAINS]->(:AzureKeyVaultSecret)
+    ```
+
+- An Azure Key Vault Secret can be tagged with AzureTags.
+    ```cypher
+    (AzureKeyVaultSecret)-[:TAGGED]->(:AzureTag)
     ```
 
 ### AzureKeyVaultKey
@@ -2338,9 +2363,9 @@ Representation of a Request Routing Rule for an Azure Application Gateway. Prope
     (AzureApplicationGatewayRule)-[:ROUTES_TO]->(:AzureApplicationGatewayBackendPool)
     ```
 
-### AzureTag
+### Tag::AzureTag
 
-Representation of a key-value tag applied to an Azure resource. Tags with the same key and value share a single node in the graph, allowing for easy cross-resource querying.
+Representation of a key-value tag applied to an Azure resource. Tags with the same key and value share a single node in the graph, allowing for easy cross-resource querying. Also carries the cross-provider `:Tag` label, so `(:Tag {key, value})` matches Azure, AWS, GCP, and Tenable tags together.
 
 | Field | Description |
 |---|---|

@@ -2,8 +2,11 @@ from unittest.mock import MagicMock
 from unittest.mock import patch
 
 import pytest
+from google.api_core.exceptions import BadGateway
 from google.api_core.exceptions import DeadlineExceeded
+from google.api_core.exceptions import GatewayTimeout
 from google.api_core.exceptions import GoogleAPICallError
+from google.api_core.exceptions import InternalServerError
 from google.api_core.exceptions import PermissionDenied
 from googleapiclient.errors import HttpError
 
@@ -276,6 +279,19 @@ def test_build_cloud_run_resource_retry_retries_deadline_exceeded(mocker):
 
     assert result == [{"id": "service-1"}]
     assert calls == 2
+
+
+def test_build_cloud_run_resource_retry_predicate_matches_transient_5xx():
+    retry = build_cloud_run_resource_retry(
+        resource_type="jobs",
+        location="projects/p/locations/us",
+        project_id="p",
+    )
+
+    assert retry._predicate(InternalServerError("500 Internal error"))
+    assert retry._predicate(BadGateway("502 bad gateway"))
+    assert retry._predicate(GatewayTimeout("504 gateway timeout"))
+    assert not retry._predicate(PermissionDenied("403 forbidden"))
 
 
 def test_list_cloud_run_resources_for_location_uses_retry_for_deadline_exceeded(
