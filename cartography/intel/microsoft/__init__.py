@@ -5,6 +5,7 @@ import neo4j
 from cartography.config import Config
 from cartography.intel.microsoft.entra import start_entra_ingestion
 from cartography.intel.microsoft.intune import start_intune_ingestion
+from cartography.intel.microsoft.o365 import start_o365_ingestion
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
@@ -33,3 +34,4 @@ def start_microsoft_ingestion(neo4j_session: neo4j.Session, config: Config) -> N
 
     start_entra_ingestion(neo4j_session, config)
     start_intune_ingestion(neo4j_session, config)
+    start_o365_ingestion(neo4j_session, config)
