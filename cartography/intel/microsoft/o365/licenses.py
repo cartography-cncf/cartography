@@ -46,17 +46,19 @@ def transform_licenses(
         sku_id_str = str(sku.sku_id) if sku.sku_id else None
         prepaid = sku.prepaid_units
 
-        licenses.append({
-            "id": sku.id,
-            "sku_id": sku_id_str,
-            "sku_part_number": sku.sku_part_number,
-            "capability_status": sku.capability_status,
-            "applies_to": sku.applies_to,
-            "consumed_units": sku.consumed_units,
-            "prepaid_enabled": prepaid.enabled if prepaid else None,
-            "prepaid_suspended": prepaid.suspended if prepaid else None,
-            "prepaid_warning": prepaid.warning if prepaid else None,
-        })
+        licenses.append(
+            {
+                "id": sku.id,
+                "sku_id": sku_id_str,
+                "sku_part_number": sku.sku_part_number,
+                "capability_status": sku.capability_status,
+                "applies_to": sku.applies_to,
+                "consumed_units": sku.consumed_units,
+                "prepaid_enabled": prepaid.enabled if prepaid else None,
+                "prepaid_suspended": prepaid.suspended if prepaid else None,
+                "prepaid_warning": prepaid.warning if prepaid else None,
+            }
+        )
 
         for sp in sku.service_plans or []:
             sp_id = str(sp.service_plan_id) if sp.service_plan_id else None
@@ -65,17 +67,17 @@ def transform_licenses(
 
             if sp_id in service_plan_map:
                 # Same service plan appears in multiple licenses; collect
-                # all parent sku_ids for the one-to-many relationship.
-                existing_sku_ids = service_plan_map[sp_id]["license_sku_ids"]
-                if sku_id_str and sku_id_str not in existing_sku_ids:
-                    existing_sku_ids.append(sku_id_str)
+                # all parent license IDs for the one-to-many relationship.
+                existing_ids = service_plan_map[sp_id]["license_ids"]
+                if sku.id and sku.id not in existing_ids:
+                    existing_ids.append(sku.id)
             else:
                 service_plan_map[sp_id] = {
                     "id": sp_id,
                     "service_plan_name": sp.service_plan_name,
                     "provisioning_status": sp.provisioning_status,
                     "applies_to": sp.applies_to,
-                    "license_sku_ids": [sku_id_str] if sku_id_str else [],
+                    "license_ids": [sku.id] if sku.id else [],
                 }
 
     service_plans = list(service_plan_map.values())

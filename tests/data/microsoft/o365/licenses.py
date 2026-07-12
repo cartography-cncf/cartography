@@ -5,8 +5,6 @@ from msgraph.generated.models.license_units_detail import LicenseUnitsDetail
 from msgraph.generated.models.service_plan_info import ServicePlanInfo
 from msgraph.generated.models.subscribed_sku import SubscribedSku
 
-from tests.data.microsoft.entra.users import TEST_TENANT_ID
-
 # SKU IDs — stable UUIDs for test assertions
 SKU_ID_E5 = uuid.UUID("c7df2760-2c81-4ef7-b578-5b5392b571df")
 SKU_ID_EMS = uuid.UUID("725422ed-e205-400e-ab0a-3899d8a398ca")

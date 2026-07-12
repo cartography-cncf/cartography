@@ -49,7 +49,7 @@ class M365ServicePlanToLicenseRelProperties(CartographyRelProperties):
 class M365ServicePlanToLicenseRel(CartographyRelSchema):
     target_node_label: str = "M365License"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {"sku_id": PropertyRef("license_sku_ids", one_to_many=True)},
+        {"id": PropertyRef("license_ids", one_to_many=True)},
     )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "HAS_SERVICE_PLAN"
@@ -62,9 +62,7 @@ class M365ServicePlanToLicenseRel(CartographyRelSchema):
 class M365ServicePlanSchema(CartographyNodeSchema):
     label: str = "M365ServicePlan"
     properties: M365ServicePlanNodeProperties = M365ServicePlanNodeProperties()
-    sub_resource_relationship: M365ServicePlanToTenantRel = (
-        M365ServicePlanToTenantRel()
-    )
+    sub_resource_relationship: M365ServicePlanToTenantRel = M365ServicePlanToTenantRel()
     other_relationships: OtherRelationships = OtherRelationships(
         [
             M365ServicePlanToLicenseRel(),
