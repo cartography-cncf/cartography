@@ -1,3 +1,4 @@
+import asyncio
 import logging
 from typing import Any
 
@@ -19,45 +20,46 @@ logger = logging.getLogger(__name__)
 async def get_user_license_details(
     client: GraphServiceClient,
     user_ids: list[str],
-) -> dict[str, list[LicenseDetails]]:
+) -> tuple[dict[str, list[LicenseDetails]], bool]:
     """
-    Fetch license details for each user from Microsoft Graph API.
+    Fetch license details for each user from Microsoft Graph API concurrently.
 
-    Returns a mapping of user_id -> list of LicenseDetails.
+    Returns a tuple of (user_license_map, has_failures).
 
     https://learn.microsoft.com/en-us/graph/api/user-list-licensedetails
     """
     user_license_map: dict[str, list[LicenseDetails]] = {}
+    has_failures = False
+    semaphore = asyncio.Semaphore(20)
 
-    for user_id in user_ids:
-        try:
-            response = await call_with_retries(
-                lambda uid=user_id: client.users.by_user_id(uid).license_details.get(),
-            )
-            if response and response.value:
-                user_license_map[user_id] = response.value
-        except APIError as e:
-            # 404 --> the user was deleted between user-sync and license-sync.
-            # 403 --> insufficient permissions for this specific user.
-            # Both are non-fatal: skip and continue.
-            if e.response_status_code in (403, 404):
-                logger.debug(
-                    "Skipping license details for user %s: %d %s",
-                    user_id,
-                    e.response_status_code,
-                    e.message,
+    async def fetch_for_user(user_id: str) -> None:
+        nonlocal has_failures
+        async with semaphore:
+            try:
+                response = await call_with_retries(
+                    lambda uid=user_id: client.users.by_user_id(
+                        uid
+                    ).license_details.get(),
                 )
-                continue
-            raise
-        except Exception:
-            logger.warning(
-                "Failed to fetch license details for user %s; skipping.",
-                user_id,
-                exc_info=True,
-            )
-            continue
+                if response and response.value:
+                    user_license_map[user_id] = response.value
+            except APIError as e:
+                # 404 --> the user was deleted between user-sync and license-sync.
+                # 403 --> insufficient permissions for this specific user.
+                # Both are non-fatal: skip and continue, but mark as failure for cleanup.
+                if e.response_status_code in (403, 404):
+                    logger.debug(
+                        "Skipping license details for user %s: %d %s",
+                        user_id,
+                        e.response_status_code,
+                        e.message,
+                    )
+                    has_failures = True
+                    return
+                raise
 
-    return user_license_map
+    await asyncio.gather(*(fetch_for_user(uid) for uid in user_ids))
+    return user_license_map, has_failures
 
 
 def transform_user_license_assignments(
@@ -76,10 +78,12 @@ def transform_user_license_assignments(
             sku_id = str(ld.sku_id) if ld.sku_id else None
             if sku_id is None:
                 continue
-            assignments.append({
-                "user_id": user_id,
-                "sku_id": sku_id,
-            })
+            assignments.append(
+                {
+                    "user_id": user_id,
+                    "sku_id": sku_id,
+                }
+            )
 
     return assignments
 
@@ -149,10 +153,15 @@ async def sync_user_license_details(
     # Fetch license details in batches to control memory
     batch_size = 200
     all_assignments: list[dict[str, Any]] = []
+    has_failures = False
 
     for i in range(0, len(user_ids), batch_size):
-        batch = user_ids[i:i + batch_size]
-        user_license_map = await get_user_license_details(client, batch)
+        batch = user_ids[i : i + batch_size]
+        user_license_map, batch_has_failures = await get_user_license_details(
+            client, batch
+        )
+        if batch_has_failures:
+            has_failures = True
 
         assignments = transform_user_license_assignments(user_license_map)
         all_assignments.extend(assignments)
@@ -164,7 +173,16 @@ async def sync_user_license_details(
     )
 
     load_user_license_assignments(
-        neo4j_session, all_assignments, tenant_id, update_tag,
+        neo4j_session,
+        all_assignments,
+        tenant_id,
+        update_tag,
     )
 
-    cleanup_user_license_assignments(neo4j_session, tenant_id, update_tag)
+    if has_failures:
+        logger.warning(
+            "One or more user license detail fetches failed or were skipped. "
+            "Bypassing ASSIGNED_LICENSE cleanup to prevent accidental data loss."
+        )
+    else:
+        cleanup_user_license_assignments(neo4j_session, tenant_id, update_tag)
