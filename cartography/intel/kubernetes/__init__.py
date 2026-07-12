@@ -15,6 +15,7 @@ from cartography.intel.kubernetes.pods import sync_pods
 from cartography.intel.kubernetes.rbac import sync_kubernetes_rbac
 from cartography.intel.kubernetes.secrets import sync_secrets
 from cartography.intel.kubernetes.services import sync_services
+from cartography.intel.kubernetes.util import get_eks_k8s_clients
 from cartography.intel.kubernetes.util import get_k8s_clients
 from cartography.util import run_scoped_analysis_job
 from cartography.util import timeit
@@ -39,13 +40,31 @@ def start_k8s_ingestion(session: Session, config: Config) -> None:
         logger.error("Cartography update tag not provided.")
         return
 
-    if not config.k8s_kubeconfig:
-        logger.error("Kubernetes kubeconfig not provided.")
+    if config.k8s_eks_cluster_names:
+        # region_name=None lets boto3 fall back to its default region resolution.
+        boto3_session = boto3.Session(region_name=config.k8s_eks_region)
+        if not boto3_session.region_name:
+            logger.error(
+                "Could not determine an AWS region for EKS sync. Set "
+                "--k8s-eks-region or configure a default AWS region.",
+            )
+            return
+        cluster_names = [
+            c.strip() for c in config.k8s_eks_cluster_names.split(",") if c.strip()
+        ]
+        k8s_clients = get_eks_k8s_clients(cluster_names, boto3_session)
+    elif config.k8s_kubeconfig:
+        k8s_clients = get_k8s_clients(config.k8s_kubeconfig)
+    else:
+        logger.error(
+            "Kubernetes not configured: provide --k8s-kubeconfig or "
+            "--k8s-eks-cluster-names.",
+        )
         return
 
     common_job_parameters = {"UPDATE_TAG": config.update_tag}
 
-    for client in get_k8s_clients(config.k8s_kubeconfig):
+    for client in k8s_clients:
         logger.info(f"Syncing data for k8s cluster {client.name}...")
         try:
             cluster_info = sync_kubernetes_cluster(
@@ -69,7 +88,10 @@ def start_k8s_ingestion(session: Session, config: Config) -> None:
 
             # Extract region from cluster ARN (works for EKS; None for non-EKS clusters)
             region: str | None = None
-            if config.managed_kubernetes == "eks":
+            is_eks = config.managed_kubernetes == "eks" or bool(
+                config.k8s_eks_cluster_names
+            )
+            if is_eks:
                 # EKS clusters always have a valid ARN — let ValueError propagate if not
                 region = get_region_from_arn(cluster_external_ref)
                 boto3_session = boto3.Session()

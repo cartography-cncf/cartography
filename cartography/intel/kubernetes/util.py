@@ -1,4 +1,6 @@
+import base64
 import logging
+import ssl
 from datetime import datetime
 from typing import Any
 from typing import Callable
@@ -6,6 +8,7 @@ from typing import Callable
 from dateutil.parser import isoparse
 from kubernetes import config
 from kubernetes.client import ApiClient
+from kubernetes.client import Configuration
 from kubernetes.client import CoreV1Api
 from kubernetes.client import CustomObjectsApi
 from kubernetes.client import NetworkingV1Api
@@ -15,6 +18,9 @@ from kubernetes.client.exceptions import ApiException
 from kubernetes.config.kube_config import KubeConfigMerger
 
 logger = logging.getLogger(__name__)
+
+# EKS bearer-token lifetime is ~15 min; mint just before use.
+_EKS_TOKEN_TTL_SECONDS = 60
 
 
 class KubernetesContextNotFound(Exception):
@@ -100,17 +106,18 @@ class K8sClient:
     def __init__(
         self,
         name: str,
-        config_file: str,
+        config_file: str | None = None,
         external_id: str | None = None,
+        api_client: ApiClient | None = None,
     ) -> None:
         self.name = name
         self.config_file = config_file
         self.external_id = external_id
-        self.core = K8CoreApiClient(self.name, self.config_file)
-        self.networking = K8NetworkingApiClient(self.name, self.config_file)
-        self.version = K8VersionApiClient(self.name, self.config_file)
-        self.rbac = K8RbacApiClient(self.name, self.config_file)
-        self.custom = K8CustomObjectsApiClient(self.name, self.config_file)
+        self.core = K8CoreApiClient(self.name, self.config_file, api_client)
+        self.networking = K8NetworkingApiClient(self.name, self.config_file, api_client)
+        self.version = K8VersionApiClient(self.name, self.config_file, api_client)
+        self.rbac = K8RbacApiClient(self.name, self.config_file, api_client)
+        self.custom = K8CustomObjectsApiClient(self.name, self.config_file, api_client)
 
 
 def get_k8s_clients(kubeconfig: str) -> list[K8sClient]:
@@ -126,6 +133,79 @@ def get_k8s_clients(kubeconfig: str) -> list[K8sClient]:
                 context["name"],
                 kubeconfig,
                 external_id=context["context"].get("cluster"),
+            ),
+        )
+    return clients
+
+
+def _get_eks_token(cluster_name: str, boto3_session: Any) -> str:
+    """Mint an EKS bearer token from a presigned STS GetCallerIdentity URL.
+
+    Uses the boto3 session's STS client, so no aws CLI or kubeconfig exec plugin
+    is required. The ``x-k8s-aws-id`` header EKS requires is attached to the
+    GetCallerIdentity request via the client event system.
+    """
+    sts = boto3_session.client("sts")
+
+    def _add_cluster_header(request, **kwargs):
+        request.headers["x-k8s-aws-id"] = cluster_name
+
+    sts.meta.events.register("before-sign.sts.GetCallerIdentity", _add_cluster_header)
+    signed_url = sts.generate_presigned_url(
+        "get_caller_identity",
+        Params={},
+        ExpiresIn=_EKS_TOKEN_TTL_SECONDS,
+        HttpMethod="GET",
+    )
+    return "k8s-aws-v1." + base64.urlsafe_b64encode(
+        signed_url.encode()
+    ).decode().rstrip("=")
+
+
+def _build_eks_api_client(endpoint: str, ca_cert_pem: str, token: str) -> ApiClient:
+    """Build a kubernetes ApiClient for an EKS endpoint with a relaxed-but-verifying
+    TLS context.
+
+    EKS cluster CA certs do not carry an Authority Key Identifier extension, which
+    Python 3.13 / urllib3 reject under the default VERIFY_X509_STRICT flag. We clear
+    only that subflag; certificate verification against the cluster CA stays on
+    (CERT_REQUIRED). This is not InsecureSkipVerify. The kubernetes client does not
+    plumb a custom ssl_context through Configuration, so it is injected via the
+    urllib3 pool args the RESTClientObject forwards.
+    """
+    ssl_context = ssl.create_default_context(cadata=ca_cert_pem)
+    ssl_context.check_hostname = True
+    ssl_context.verify_mode = ssl.CERT_REQUIRED
+    ssl_context.verify_flags &= ~ssl.VERIFY_X509_STRICT
+
+    cfg = Configuration()
+    cfg.host = endpoint
+    cfg.api_key = {"authorization": f"Bearer {token}"}
+    cfg.verify_ssl = True
+
+    api_client = ApiClient(configuration=cfg)
+    api_client.rest_client.pool_manager.connection_pool_kw["ssl_context"] = ssl_context
+    return api_client
+
+
+def get_eks_k8s_clients(
+    cluster_names: list[str], boto3_session: Any
+) -> list[K8sClient]:
+    """Build K8sClients for EKS clusters using boto3 auth instead of a kubeconfig file."""
+    eks = boto3_session.client("eks")
+    clients = []
+    for cluster_name in cluster_names:
+        described = eks.describe_cluster(name=cluster_name)["cluster"]
+        ca_cert_pem = base64.b64decode(
+            described["certificateAuthority"]["data"]
+        ).decode()
+        token = _get_eks_token(cluster_name, boto3_session)
+        api_client = _build_eks_api_client(described["endpoint"], ca_cert_pem, token)
+        clients.append(
+            K8sClient(
+                cluster_name,
+                external_id=described["arn"],
+                api_client=api_client,
             ),
         )
     return clients
