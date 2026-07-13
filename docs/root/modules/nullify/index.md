@@ -1,0 +1,6 @@
+# Nullify
+
+```{toctree}
+config
+schema
+```

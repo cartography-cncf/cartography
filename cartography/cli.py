@@ -73,6 +73,7 @@ PANEL_JUMPCLOUD = "JumpCloud Options"
 PANEL_SOCKETDEV = "Socket.dev Options"
 PANEL_VERCEL = "Vercel Options"
 PANEL_CIRCLECI = "CircleCI Options"
+PANEL_NULLIFY = "Nullify Options"
 PANEL_STATSD = "StatsD Metrics"
 PANEL_ANALYSIS = "Analysis Options"
 
@@ -129,6 +130,7 @@ MODULE_PANELS = {
     "workos": PANEL_WORKOS,
     "vercel": PANEL_VERCEL,
     "circleci": PANEL_CIRCLECI,
+    "nullify": PANEL_NULLIFY,
     "analysis": PANEL_ANALYSIS,
 }
 
@@ -2119,6 +2121,39 @@ class CLI:
                 ),
             ] = None,
             # =================================================================
+            # Nullify Options
+            # =================================================================
+            nullify_tenant: Annotated[
+                str | None,
+                typer.Option(
+                    "--nullify-tenant",
+                    help="Nullify tenant slug (used to build https://api.<tenant>.nullify.ai).",
+                    rich_help_panel=PANEL_NULLIFY,
+                    hidden=PANEL_NULLIFY not in visible_panels,
+                ),
+            ] = None,
+            nullify_token_env_var: Annotated[
+                str | None,
+                typer.Option(
+                    "--nullify-token-env-var",
+                    help="Environment variable name containing a Nullify service-account token.",
+                    rich_help_panel=PANEL_NULLIFY,
+                    hidden=PANEL_NULLIFY not in visible_panels,
+                ),
+            ] = None,
+            nullify_base_url: Annotated[
+                str | None,
+                typer.Option(
+                    "--nullify-base-url",
+                    help=(
+                        "Nullify API base URL override. Defaults to "
+                        "https://api.<tenant>.nullify.ai derived from --nullify-tenant."
+                    ),
+                    rich_help_panel=PANEL_NULLIFY,
+                    hidden=PANEL_NULLIFY not in visible_panels,
+                ),
+            ] = None,
+            # =================================================================
             # StatsD Metrics Options
             # =================================================================
             statsd_enabled: Annotated[
@@ -2545,6 +2580,15 @@ class CLI:
                 else None
             )
 
+            # Read Nullify token
+            nullify_token = None
+            if nullify_token_env_var:
+                logger.debug(
+                    "Reading Nullify service-account token from environment variable %s",
+                    nullify_token_env_var,
+                )
+                nullify_token = os.environ.get(nullify_token_env_var)
+
             # Read Cloudflare token
             cloudflare_token = None
             if cloudflare_token_env_var:
@@ -2917,6 +2961,9 @@ class CLI:
                 circleci_token=circleci_token,
                 circleci_base_url=circleci_base_url,
                 circleci_project_slugs=circleci_project_slug_list,
+                nullify_tenant=nullify_tenant,
+                nullify_token=nullify_token,
+                nullify_base_url=nullify_base_url,
                 cloudflare_token=cloudflare_token,
                 openai_apikey=openai_apikey,
                 openai_org_id=openai_org_id,
