@@ -6,11 +6,13 @@ from typing import Tuple
 
 import neo4j
 from okta import UsersClient
+from okta.framework.PagedResults import PagedResults
 from okta.models.user import User
 
 from cartography.client.core.tx import run_write_query
 from cartography.intel.okta.sync_state import OktaSyncState
 from cartography.intel.okta.utils import check_rate_limit
+from cartography.intel.okta.utils import okta_paged_request_with_retry
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
@@ -43,19 +45,36 @@ def _get_okta_users(user_client: UsersClient) -> List[Dict]:
     :return: Array of user data
     """
     user_list: List[Dict] = []
-    paged_users = user_client.get_paged_users()
+    paged_users = _get_okta_users_page(user_client, None)
 
     # TODO: Fix bug, we miss last page :(
     while True:
         user_list.extend(paged_users.result)
         check_rate_limit(paged_users.response)
         if not paged_users.is_last_page():
-            # Keep on fetching pages of users until the last page
-            paged_users = user_client.get_paged_users(url=paged_users.next_url)
+            # Keep on fetching pages of users until the last page. A missing
+            # next URL here would otherwise be treated as an initial request
+            # and re-fetch the first page forever.
+            next_url = paged_users.next_url
+            if not next_url:
+                raise ValueError("Okta paginated response was missing a next URL.")
+            paged_users = _get_okta_users_page(user_client, next_url)
         else:
             break
 
     return user_list
+
+
+def _get_okta_users_page(user_client: UsersClient, url: str | None) -> PagedResults:
+    def _request() -> PagedResults:
+        # The UsersClient pager calls ApiClient.get/get_path under the hood, so
+        # it can raise JSONDecodeError on a non-JSON Okta error body just like
+        # the other paged requests.
+        if url:
+            return user_client.get_paged_users(url=url)
+        return user_client.get_paged_users()
+
+    return okta_paged_request_with_retry(_request, "listing users")
 
 
 @timeit

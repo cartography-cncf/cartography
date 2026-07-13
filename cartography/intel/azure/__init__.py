@@ -39,6 +39,7 @@ from . import storage
 from . import subscription
 from . import synapse
 from . import tenant
+from . import workload_identity
 from .data_factory_util import AzureDataFactoryTransientError
 from .util.credentials import Authenticator
 from .util.credentials import Credentials
@@ -154,6 +155,13 @@ def _sync_one_subscription(
         subscription_id,
         update_tag,
         common_job_parameters,
+    )
+    # Runs after compute/functions (identity principal ids) and rbac (role
+    # assignments) so it can join them into the canonical ASSUMES edges.
+    workload_identity.sync(
+        neo4j_session,
+        subscription_id,
+        update_tag,
     )
     sql.sync(
         neo4j_session,

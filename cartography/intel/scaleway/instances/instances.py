@@ -48,7 +48,9 @@ def transform_instances(
         project_id = instance.project
         formatted_instance = scaleway_obj_to_dict(instance)
         formatted_instance["public_ips"] = [
-            ip["id"] for ip in (formatted_instance.get("public_ips") or [])
+            ip["id"]
+            for ip in (formatted_instance.get("public_ips") or [])
+            if ip.get("id")
         ]
         formatted_instance["volumes_id"] = [
             volume["id"]

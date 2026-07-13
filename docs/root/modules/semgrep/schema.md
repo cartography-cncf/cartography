@@ -161,7 +161,7 @@ Represents a [Semgrep Secrets](https://semgrep.dev/docs/semgrep-secrets/conceptu
     (SemgrepSecretsFinding)-[FOUND_IN]->(GitLabProject)
     ```
 
-### SemgrepSCAFinding
+### SemgrepSCAFinding::SecurityIssue
 
 Represents a [Semgrep Supply Chain](https://semgrep.dev/docs/semgrep-supply-chain/overview/) finding. This is, a vulnerability in a dependency of a project discovered by Semgrep performing software composition analysis (SCA) and code reachability analysis. Before ingesting this node, make sure you have run Semgrep CI and that it's connected to Semgrep Cloud Platform [Running Semgrep CI with Semgrep Cloud Platform](https://semgrep.dev/docs/semgrep-ci/running-semgrep-ci-with-semgrep-cloud-platform/). The API called to retrieve this information is documented at https://semgrep.dev/api/v1/docs/#tag/SupplyChainService.
 
@@ -290,6 +290,8 @@ Represents a dependency of a repository as returned by the Semgrep
 | name | Name of the dependency |
 | version | Version of the dependency |
 | ecosystem | Ecosystem of the dependency, e.g. "gomod" for dependencies defined in go.mod files. (see [API docs](https://semgrep.dev/api/v1/docs/#tag/SupplyChainService/operation/semgrep_app.products.sca.handlers.dependency.list_dependencies_conexxion) for full list of options) |
+| type | Canonical package type derived from the ecosystem (e.g. `golang`, `npm`), used to build the `normalized_id`. |
+| normalized_id | Cross-tool package identifier (`{type}\|{name}\|{version}`) used to dedup into the `Package` ontology node. |
 
 
 ### GoLibrary
@@ -322,3 +324,9 @@ See [SemgrepDependency](#semgrepdependency) for details.
     - specifier: A string describing the library version required by the repo (e.g. "==1.0.2")
     - transitivity: A string describing whether the dependency is direct or [transitive](https://en.wikipedia.org/wiki/Transitive_dependency) (e.g. direct, transitive)
     - url: The URL where the dependency is defined (e.g. `https://github.com/org/repo/blob/00000000000000000000000000000000/go.mod#L6`)
+
+- A canonical Package (ontology) is detected as a SemgrepDependency.
+
+    ```
+    (:Package)-[:DETECTED_AS]->(:SemgrepDependency)
+    ```

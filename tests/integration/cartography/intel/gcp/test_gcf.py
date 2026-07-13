@@ -68,7 +68,11 @@ def test_gcp_functions_load_and_relationships(
         None,
         TEST_PROJECT_ID,
         TEST_UPDATE_TAG,
-        {"UPDATE_TAG": TEST_UPDATE_TAG, "projectId": TEST_PROJECT_ID},
+        {
+            "UPDATE_TAG": TEST_UPDATE_TAG,
+            "projectId": TEST_PROJECT_ID,
+            "PROJECT_ID": TEST_PROJECT_ID,
+        },
     )
 
     # Assert: Test that the nodes exist
@@ -152,4 +156,22 @@ def test_gcp_functions_load_and_relationships(
             "RUNS_AS",
         )
         == expected_rels_runs_as
+    )
+
+    # Assert: Test that the (GCPCloudFunction)-[:LABELED]->(GCPLabel) relationships exist
+    fn1 = "projects/test-project/locations/us-central1/functions/function-1"
+    expected_rels_labeled = {
+        (fn1, f"{fn1}:team:security"),
+        (fn1, f"{fn1}:env:prod"),
+    }
+    assert (
+        check_rels(
+            neo4j_session,
+            "GCPCloudFunction",
+            "id",
+            "GCPLabel",
+            "id",
+            "LABELED",
+        )
+        == expected_rels_labeled
     )

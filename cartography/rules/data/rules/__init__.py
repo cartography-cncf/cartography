@@ -225,6 +225,15 @@ from cartography.rules.data.rules.compute_instance_exposed import (
 from cartography.rules.data.rules.database_instance_exposed import (
     database_instance_exposed,
 )
+from cartography.rules.data.rules.databricks_security import (
+    databricks_ip_access_list_allows_all,
+)
+from cartography.rules.data.rules.databricks_security import (
+    databricks_pat_never_expires,
+)
+from cartography.rules.data.rules.databricks_security import (
+    databricks_public_delta_sharing_recipient,
+)
 from cartography.rules.data.rules.delegation_boundary_modifiable import (
     delegation_boundary_modifiable,
 )
@@ -295,6 +304,10 @@ from cartography.rules.data.rules.workload_identity_admin_capabilities import (
 
 # Rule registry - all available rules
 RULES = {
+    # Databricks Rules
+    databricks_pat_never_expires.id: databricks_pat_never_expires,
+    databricks_ip_access_list_allows_all.id: databricks_ip_access_list_allows_all,
+    databricks_public_delta_sharing_recipient.id: databricks_public_delta_sharing_recipient,
     # CIS AWS IAM Rules (Section 2)
     aws_root_user_access_keys.id: aws_root_user_access_keys,
     aws_root_user_mfa_disabled.id: aws_root_user_mfa_disabled,

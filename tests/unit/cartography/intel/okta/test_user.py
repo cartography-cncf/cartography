@@ -1,5 +1,29 @@
+from unittest import mock
+
+import pytest
+
+from cartography.intel.okta.users import _get_okta_users
 from cartography.intel.okta.users import transform_okta_user
 from tests.data.okta.users import create_test_user
+
+
+@mock.patch("cartography.intel.okta.users.check_rate_limit", return_value=None)
+def test_get_okta_users_raises_on_malformed_next_link(
+    _mock_rate_limit: mock.MagicMock,
+) -> None:
+    """
+    A next link present but missing its URL must raise instead of silently
+    re-fetching the first page forever.
+    """
+    paged_users = mock.MagicMock()
+    paged_users.result = []
+    paged_users.is_last_page.return_value = False
+    paged_users.next_url = None
+    user_client = mock.MagicMock()
+    user_client.get_paged_users.return_value = paged_users
+
+    with pytest.raises(ValueError, match="missing a next URL"):
+        _get_okta_users(user_client)
 
 
 def test_user_transform_with_all_values():

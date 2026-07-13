@@ -27,12 +27,25 @@ def sync(
 
 @timeit
 def get(api_session: requests.Session, base_url: str) -> list[dict[str, Any]]:
-    response = api_session.get(
-        f"{base_url}/api/findings/frameworks",
-        timeout=_TIMEOUT,
-    )
-    response.raise_for_status()
-    return response.json()["frameworks"]
+    # The endpoint returns the paginated Page[T] envelope
+    # ({"items": [...], "total_count": N, "limit": N, "offset": N}). Walk every
+    # page so cleanup does not delete frameworks that live on later pages.
+    frameworks: list[dict[str, Any]] = []
+    offset = 0
+    while True:
+        response = api_session.get(
+            f"{base_url}/api/findings/frameworks",
+            params={"offset": offset},
+            timeout=_TIMEOUT,
+        )
+        response.raise_for_status()
+        page = response.json()
+        items = page["items"]
+        frameworks.extend(items)
+        offset += len(items)
+        if not items or offset >= page["total_count"]:
+            break
+    return frameworks
 
 
 def transform(raw_data: list[dict[str, Any]]) -> list[dict[str, Any]]:

@@ -269,6 +269,56 @@ def _build_ontology_field_statement_mapping(
     return f"i._ont_{mapping_field.ontology_field} = {case_expr}"
 
 
+def _build_ontology_field_statement_coalesce(
+    mapping_field: OntologyFieldMapping,
+    node_property_map: dict[str, PropertyRef],
+) -> str | None:
+    """Maps the first non-null source field to an ontology field."""
+    extra_fields = mapping_field.extra.get("fields")
+    if extra_fields is None:
+        logger.warning(
+            "coalesce special handling requires 'fields' in extra for field %s",
+            mapping_field.ontology_field,
+        )
+        return None
+    if not isinstance(extra_fields, list):
+        logger.warning(
+            "coalesce special handling 'fields' in extra for field %s must be a list",
+            mapping_field.ontology_field,
+        )
+        return None
+
+    primary_property_ref = node_property_map.get(mapping_field.node_field)
+    if not primary_property_ref:
+        logger.debug(
+            "Field '%s' not found in node properties for coalesce special handling of field %s",
+            mapping_field.node_field,
+            mapping_field.ontology_field,
+        )
+        return None
+
+    property_refs = [primary_property_ref]
+    for extra_field in extra_fields:
+        extra_property_ref = node_property_map.get(extra_field)
+        if not extra_property_ref:
+            # Expected for Composite Node Pattern schemas (see comment in
+            # _build_ontology_node_properties_statement).
+            logger.debug(
+                "Extra field '%s' not found in node properties for coalesce special handling of field %s",
+                extra_field,
+                mapping_field.ontology_field,
+            )
+            continue
+        property_refs.append(extra_property_ref)
+
+    property_ref_expression = ", ".join(
+        str(property_ref) for property_ref in property_refs
+    )
+    return (
+        f"i._ont_{mapping_field.ontology_field} = coalesce({property_ref_expression})"
+    )
+
+
 def _build_ontology_node_properties_statement(
     node_schema: CartographyNodeSchema,
     node_property_map: dict[str, PropertyRef],
@@ -346,6 +396,12 @@ def _build_ontology_node_properties_statement(
             )
             if mapping_statement:
                 set_clauses.append(mapping_statement)
+        elif mapping_field.special_handling == "coalesce":
+            coalesce_statement = _build_ontology_field_statement_coalesce(
+                mapping_field, node_property_map
+            )
+            if coalesce_statement:
+                set_clauses.append(coalesce_statement)
         else:
             simple_field_template = Template("i.$node_property = $property_ref")
             set_clauses.append(

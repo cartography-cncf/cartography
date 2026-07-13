@@ -129,10 +129,12 @@ def test_build_principals_from_policy_bindings_logs_context_diagnostics(caplog):
         },
         {
             "id": "binding-3",
-            "role": "roles/storage.admin",
+            "role": "roles/storage.objectViewer",
             "resource": "//storage.googleapis.com/buckets/bucket-3",
             "members": ["alice@example.com"],
             "has_condition": True,
+            "condition_title": "business-hours",
+            "condition_expression": "request.time.getHours() < 18",
         },
         {
             "id": "binding-4",
@@ -149,12 +151,18 @@ def test_build_principals_from_policy_bindings_logs_context_diagnostics(caplog):
             TEST_PROJECT_ID,
         )
 
+    # Conditional bindings (binding-3) are now retained, not dropped.
     assert _normalize_principals(principals) == {
         "alice@example.com": {
             "binding-1": {
                 "permissions": ["storage\\.objects\\.get"],
                 "denied_permissions": [],
                 "scope": "project/project-abc/.*",
+            },
+            "binding-3": {
+                "permissions": ["storage\\.objects\\.get"],
+                "denied_permissions": [],
+                "scope": "project/project-abc/resource/buckets/bucket-3",
             },
         },
         "bob@example.com": {
@@ -165,15 +173,102 @@ def test_build_principals_from_policy_bindings_logs_context_diagnostics(caplog):
             },
         },
     }
+    # binding-3 carries its condition metadata onto the compiled assignment.
+    assert principals["alice@example.com"]["binding-3"]["has_condition"] is True
+    assert (
+        principals["alice@example.com"]["binding-3"]["condition_title"]
+        == "business-hours"
+    )
+    assert principals["alice@example.com"]["binding-1"]["has_condition"] is False
     assert any(
-        "usable_bindings=2" in record.message
-        and "member_assignments=2" in record.message
+        "usable_bindings=3" in record.message
+        and "member_assignments=3" in record.message
         and "principals=2" in record.message
-        and "skipped_conditional=1" in record.message
+        and "conditional_bindings=1" in record.message
         and "skipped_missing_roles=1" in record.message
         for record in caplog.records
         if record.levelno == logging.INFO
     )
+
+
+def _build_assignment(
+    permissions: list[str],
+    scope: str,
+    has_condition: bool = False,
+    condition_title: str | None = None,
+    condition_expression: str | None = None,
+) -> dict[str, Any]:
+    return {
+        "permissions": permission_relationships.compile_permissions(
+            {"permissions": permissions, "denied_permissions": []}
+        ),
+        "scope": permission_relationships.compile_gcp_regex(scope),
+        "has_condition": has_condition,
+        "condition_title": condition_title,
+        "condition_expression": condition_expression,
+    }
+
+
+def test_collect_binding_conditions_unconditional():
+    policy_bindings = {
+        "binding-1": _build_assignment(
+            ["storage.objects.get"], "project/project-abc/*"
+        ),
+    }
+    result = permission_relationships.collect_binding_conditions(
+        policy_bindings,
+        "project/project-abc/resource/buckets/bucket-1",
+        ["storage.objects.get"],
+    )
+    assert result == {
+        "has_condition": False,
+        "condition_title": None,
+        "condition_expression": None,
+    }
+
+
+def test_collect_binding_conditions_conditional():
+    policy_bindings = {
+        "binding-1": _build_assignment(
+            ["storage.objects.get"],
+            "project/project-abc/*",
+            has_condition=True,
+            condition_title="business-hours",
+            condition_expression="request.time.getHours() < 18",
+        ),
+    }
+    result = permission_relationships.collect_binding_conditions(
+        policy_bindings,
+        "project/project-abc/resource/buckets/bucket-1",
+        ["storage.objects.get"],
+    )
+    assert result == {
+        "has_condition": True,
+        "condition_title": "business-hours",
+        "condition_expression": "request.time.getHours() < 18",
+    }
+
+
+def test_collect_binding_conditions_unconditional_wins():
+    # A conditional and an unconditional binding both grant access; the edge is
+    # effectively unconditional.
+    policy_bindings = {
+        "conditional": _build_assignment(
+            ["storage.objects.get"],
+            "project/project-abc/*",
+            has_condition=True,
+            condition_title="business-hours",
+        ),
+        "unconditional": _build_assignment(
+            ["storage.objects.get"], "project/project-abc/*"
+        ),
+    }
+    result = permission_relationships.collect_binding_conditions(
+        policy_bindings,
+        "project/project-abc/resource/buckets/bucket-1",
+        ["storage.objects.get"],
+    )
+    assert result["has_condition"] is False
 
 
 def test_build_principals_from_policy_bindings_returns_empty_without_policy_bindings():
@@ -301,12 +396,16 @@ def test_iter_permission_relationship_batches_preserves_matches():
     flattened = [mapping for batch in batches for mapping in batch]
 
     assert all(len(batch) <= 2 for batch in batches)
-    assert {tuple(sorted(mapping.items())) for mapping in flattened} == {
-        (("principal_email", "alice@example.com"), ("resource_id", "bucket-1")),
-        (("principal_email", "alice@example.com"), ("resource_id", "bucket-2")),
-        (("principal_email", "alice@example.com"), ("resource_id", "bucket-3")),
-        (("principal_email", "bob@example.com"), ("resource_id", "bucket-2")),
+    assert {
+        (mapping["principal_email"], mapping["resource_id"]) for mapping in flattened
+    } == {
+        ("alice@example.com", "bucket-1"),
+        ("alice@example.com", "bucket-2"),
+        ("alice@example.com", "bucket-3"),
+        ("bob@example.com", "bucket-2"),
     }
+    # These bindings carry no condition, so edges are flagged unconditional.
+    assert all(mapping["has_condition"] is False for mapping in flattened)
 
 
 def test_split_bigquery_table_broad_scope_principals():
@@ -396,6 +495,9 @@ def test_load_permission_relationships_cartesian_product_uses_core_cartesian_pro
             "CAN_READ GCPBigQueryTable permissions for project project-abc"
         ),
         lastupdated=TEST_UPDATE_TAG,
+        has_condition=False,
+        condition_title=None,
+        condition_expression=None,
         _sub_resource_label="GCPProject",
         _sub_resource_id=TEST_PROJECT_ID,
     )
@@ -513,6 +615,9 @@ def test_bigquery_table_fast_path_keeps_exact_table_scope_on_residual_path():
         {
             "principal_email": "table-viewer@example.com",
             "resource_id": "project-abc:analytics.events",
+            "has_condition": False,
+            "condition_title": None,
+            "condition_expression": None,
         },
     ]
 

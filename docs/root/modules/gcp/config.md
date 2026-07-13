@@ -21,6 +21,7 @@ Grant the following roles to the identity at the **organization level**. This en
 | `roles/artifactregistry.reader` | List/get Artifact Registry repositories and artifacts | Optional |
 | `roles/run.viewer` | List/get Cloud Run services, jobs, and executions | Optional |
 | `roles/notebooks.viewer` | List/get Vertex AI Workbench (Notebooks API) resources | Optional |
+| `roles/serviceusage.apiKeysViewer` | List/get GCP API Keys (`apikeys.googleapis.com`) | Optional |
 
 To grant a role at the organization level:
 ```bash
@@ -74,6 +75,7 @@ gcloud services enable run.googleapis.com --project=YOUR_HOST_PROJECT
 gcloud services enable aiplatform.googleapis.com --project=YOUR_HOST_PROJECT
 gcloud services enable notebooks.googleapis.com --project=YOUR_HOST_PROJECT
 gcloud services enable cloudasset.googleapis.com --project=YOUR_HOST_PROJECT
+gcloud services enable apikeys.googleapis.com --project=YOUR_HOST_PROJECT
 ```
 
 #### Using GOOGLE_CLOUD_QUOTA_PROJECT

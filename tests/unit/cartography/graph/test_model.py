@@ -115,6 +115,10 @@ ADDITIONAL_TOP_LEVEL_TENANT_LABELS: Set[str] = {
     # AWSAccount remains the root tenant for normal AWS service resources, while
     # AWSOrganization is a separate top-level tenant for Organizations hierarchy.
     "AWSOrganization",
+    # DatabricksWorkspace remains the root tenant for workspace resources, while
+    # DatabricksAccount is a separate top-level tenant for the account hierarchy
+    # (and is absent on the workspace-only path).
+    "DatabricksAccount",
 }
 
 

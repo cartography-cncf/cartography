@@ -52,6 +52,7 @@ PANEL_TAILSCALE = "Tailscale Options"
 PANEL_OPENAI = "OpenAI Options"
 PANEL_ANTHROPIC = "Anthropic Options"
 PANEL_AIRBYTE = "Airbyte Options"
+PANEL_DATABRICKS = "Databricks Options"
 PANEL_DOCKER_SCOUT = "Docker Scout Options"
 PANEL_TRIVY = "Trivy Options"
 PANEL_SYFT = "Syft Options"
@@ -62,6 +63,7 @@ PANEL_SCALEWAY = "Scaleway Options"
 PANEL_SENTINELONE = "SentinelOne Options"
 PANEL_TENABLE = "Tenable Options"
 PANEL_KEYCLOAK = "Keycloak Options"
+PANEL_SALESFORCE = "Salesforce Options"
 PANEL_SLACK = "Slack Options"
 PANEL_SENTRY = "Sentry Options"
 PANEL_SUBIMAGE = "SubImage Options"
@@ -70,6 +72,7 @@ PANEL_WORKOS = "WorkOS Options"
 PANEL_JUMPCLOUD = "JumpCloud Options"
 PANEL_SOCKETDEV = "Socket.dev Options"
 PANEL_VERCEL = "Vercel Options"
+PANEL_CIRCLECI = "CircleCI Options"
 PANEL_STATSD = "StatsD Metrics"
 PANEL_ANALYSIS = "Analysis Options"
 
@@ -107,6 +110,7 @@ MODULE_PANELS = {
     "openai": PANEL_OPENAI,
     "anthropic": PANEL_ANTHROPIC,
     "airbyte": PANEL_AIRBYTE,
+    "databricks": PANEL_DATABRICKS,
     "docker_scout": PANEL_DOCKER_SCOUT,
     "trivy": PANEL_TRIVY,
     "syft": PANEL_SYFT,
@@ -118,11 +122,13 @@ MODULE_PANELS = {
     "sentinelone": PANEL_SENTINELONE,
     "tenable": PANEL_TENABLE,
     "keycloak": PANEL_KEYCLOAK,
+    "salesforce": PANEL_SALESFORCE,
     "slack": PANEL_SLACK,
     "subimage": PANEL_SUBIMAGE,
     "spacelift": PANEL_SPACELIFT,
     "workos": PANEL_WORKOS,
     "vercel": PANEL_VERCEL,
+    "circleci": PANEL_CIRCLECI,
     "analysis": PANEL_ANALYSIS,
 }
 
@@ -1510,6 +1516,81 @@ class CLI:
                 ),
             ] = "https://api.airbyte.com/v1",
             # =================================================================
+            # Databricks Options
+            # =================================================================
+            databricks_workspace_url: Annotated[
+                str | None,
+                typer.Option(
+                    "--databricks-workspace-url",
+                    help="Databricks workspace URL, e.g. https://dbc-xxxx.cloud.databricks.com.",
+                    rich_help_panel=PANEL_DATABRICKS,
+                    hidden=PANEL_DATABRICKS not in visible_panels,
+                ),
+            ] = None,
+            databricks_token_env_var: Annotated[
+                str | None,
+                typer.Option(
+                    "--databricks-token-env-var",
+                    help="Environment variable name containing the Databricks personal access token (PAT).",
+                    rich_help_panel=PANEL_DATABRICKS,
+                    hidden=PANEL_DATABRICKS not in visible_panels,
+                ),
+            ] = None,
+            databricks_client_id: Annotated[
+                str | None,
+                typer.Option(
+                    "--databricks-client-id",
+                    help="Databricks OAuth M2M client ID (workspace-level service principal).",
+                    rich_help_panel=PANEL_DATABRICKS,
+                    hidden=PANEL_DATABRICKS not in visible_panels,
+                ),
+            ] = None,
+            databricks_client_secret_env_var: Annotated[
+                str | None,
+                typer.Option(
+                    "--databricks-client-secret-env-var",
+                    help="Environment variable name containing the Databricks OAuth M2M client secret.",
+                    rich_help_panel=PANEL_DATABRICKS,
+                    hidden=PANEL_DATABRICKS not in visible_panels,
+                ),
+            ] = None,
+            databricks_account_id: Annotated[
+                str | None,
+                typer.Option(
+                    "--databricks-account-id",
+                    help="Databricks account ID (AWS / GCP account console). Enables the account-level API surface.",
+                    rich_help_panel=PANEL_DATABRICKS,
+                    hidden=PANEL_DATABRICKS not in visible_panels,
+                ),
+            ] = None,
+            databricks_account_host: Annotated[
+                str,
+                typer.Option(
+                    "--databricks-account-host",
+                    help="Databricks account API host.",
+                    rich_help_panel=PANEL_DATABRICKS,
+                    hidden=PANEL_DATABRICKS not in visible_panels,
+                ),
+            ] = "https://accounts.cloud.databricks.com",
+            databricks_account_client_id: Annotated[
+                str | None,
+                typer.Option(
+                    "--databricks-account-client-id",
+                    help="Databricks account-level OAuth M2M client ID (account service principal).",
+                    rich_help_panel=PANEL_DATABRICKS,
+                    hidden=PANEL_DATABRICKS not in visible_panels,
+                ),
+            ] = None,
+            databricks_account_client_secret_env_var: Annotated[
+                str | None,
+                typer.Option(
+                    "--databricks-account-client-secret-env-var",
+                    help="Environment variable name containing the Databricks account-level OAuth M2M client secret.",
+                    rich_help_panel=PANEL_DATABRICKS,
+                    hidden=PANEL_DATABRICKS not in visible_panels,
+                ),
+            ] = None,
+            # =================================================================
             # Docker Scout Options
             # =================================================================
             docker_scout_source: Annotated[
@@ -1884,6 +1965,54 @@ class CLI:
                 ),
             ] = "master",
             # =================================================================
+            # Salesforce Options
+            # =================================================================
+            salesforce_login_url: Annotated[
+                str,
+                typer.Option(
+                    "--salesforce-login-url",
+                    help="Salesforce OAuth login URL (e.g. https://login.salesforce.com or a My Domain URL).",
+                    rich_help_panel=PANEL_SALESFORCE,
+                    hidden=PANEL_SALESFORCE not in visible_panels,
+                ),
+            ] = "https://login.salesforce.com",
+            salesforce_client_id: Annotated[
+                str | None,
+                typer.Option(
+                    "--salesforce-client-id",
+                    help="Salesforce connected app consumer key.",
+                    rich_help_panel=PANEL_SALESFORCE,
+                    hidden=PANEL_SALESFORCE not in visible_panels,
+                ),
+            ] = None,
+            salesforce_client_secret_env_var: Annotated[
+                str,
+                typer.Option(
+                    "--salesforce-client-secret-env-var",
+                    help="Environment variable name containing the Salesforce connected app consumer secret (client credentials flow).",
+                    rich_help_panel=PANEL_SALESFORCE,
+                    hidden=PANEL_SALESFORCE not in visible_panels,
+                ),
+            ] = "SALESFORCE_CLIENT_SECRET",
+            salesforce_username: Annotated[
+                str | None,
+                typer.Option(
+                    "--salesforce-username",
+                    help="Salesforce username to impersonate (JWT bearer flow).",
+                    rich_help_panel=PANEL_SALESFORCE,
+                    hidden=PANEL_SALESFORCE not in visible_panels,
+                ),
+            ] = None,
+            salesforce_private_key_env_var: Annotated[
+                str,
+                typer.Option(
+                    "--salesforce-private-key-env-var",
+                    help="Environment variable name containing the PEM-encoded private key (JWT bearer flow).",
+                    rich_help_panel=PANEL_SALESFORCE,
+                    hidden=PANEL_SALESFORCE not in visible_panels,
+                ),
+            ] = "SALESFORCE_PRIVATE_KEY",
+            # =================================================================
             # Slack Options
             # =================================================================
             slack_token_env_var: Annotated[
@@ -2030,6 +2159,41 @@ class CLI:
                     hidden=PANEL_VERCEL not in visible_panels,
                 ),
             ] = "https://api.vercel.com",
+            # =================================================================
+            # CircleCI Options
+            # =================================================================
+            circleci_token_env_var: Annotated[
+                str | None,
+                typer.Option(
+                    "--circleci-token-env-var",
+                    help="Environment variable name containing a CircleCI personal API token.",
+                    rich_help_panel=PANEL_CIRCLECI,
+                    hidden=PANEL_CIRCLECI not in visible_panels,
+                ),
+            ] = None,
+            circleci_base_url: Annotated[
+                str,
+                typer.Option(
+                    "--circleci-base-url",
+                    help="CircleCI API v2 base URL.",
+                    rich_help_panel=PANEL_CIRCLECI,
+                    hidden=PANEL_CIRCLECI not in visible_panels,
+                ),
+            ] = "https://circleci.com/api/v2",
+            circleci_project_slugs: Annotated[
+                str | None,
+                typer.Option(
+                    "--circleci-project-slugs",
+                    help=(
+                        "Comma-separated CircleCI project slugs (e.g. gh/org/repo) to sync "
+                        "in addition to those auto-discovered from each org's pipeline feed. "
+                        "Use this for projects with no recent pipeline activity, which the "
+                        "feed will not surface."
+                    ),
+                    rich_help_panel=PANEL_CIRCLECI,
+                    hidden=PANEL_CIRCLECI not in visible_panels,
+                ),
+            ] = None,
             # =================================================================
             # StatsD Metrics Options
             # =================================================================
@@ -2462,6 +2626,20 @@ class CLI:
                 )
                 vercel_token = os.environ.get(vercel_token_env_var)
 
+            # Read CircleCI token
+            circleci_token = None
+            if circleci_token_env_var:
+                logger.debug(
+                    "Reading CircleCI API token from environment variable %s",
+                    circleci_token_env_var,
+                )
+                circleci_token = os.environ.get(circleci_token_env_var)
+            circleci_project_slug_list = (
+                [s.strip() for s in circleci_project_slugs.split(",") if s.strip()]
+                if circleci_project_slugs
+                else None
+            )
+
             # Read Cloudflare token
             cloudflare_token = None
             if cloudflare_token_env_var:
@@ -2523,6 +2701,41 @@ class CLI:
                     airbyte_client_secret_env_var,
                 )
                 airbyte_client_secret = os.environ.get(airbyte_client_secret_env_var)
+
+            # Read Databricks credentials
+            databricks_token = None
+            if databricks_token_env_var:
+                logger.debug(
+                    "Reading Databricks PAT from environment variable %s",
+                    databricks_token_env_var,
+                )
+                databricks_token = os.environ.get(databricks_token_env_var)
+            databricks_client_secret = None
+            if databricks_client_secret_env_var:
+                # Read the secret whenever the env-var flag is set, even if
+                # --databricks-client-id is missing, so the module entry's
+                # partial-OAuth guard sees the asymmetric configuration and
+                # fails loudly instead of silently skipping ingestion.
+                logger.debug(
+                    "Reading Databricks OAuth M2M secret from environment variable %s",
+                    databricks_client_secret_env_var,
+                )
+                databricks_client_secret = os.environ.get(
+                    databricks_client_secret_env_var,
+                )
+            databricks_account_client_secret = None
+            if databricks_account_client_secret_env_var:
+                # Read the secret whenever the env-var flag is set, even if
+                # --databricks-account-client-id is missing, so the module
+                # entry's partial-OAuth guard sees the asymmetric configuration
+                # and fails loudly instead of silently skipping the account API.
+                logger.debug(
+                    "Reading Databricks account OAuth M2M secret from environment variable %s",
+                    databricks_account_client_secret_env_var,
+                )
+                databricks_account_client_secret = os.environ.get(
+                    databricks_account_client_secret_env_var,
+                )
 
             resolved_docker_scout_source = _resolve_report_source_option(
                 module="docker_scout",
@@ -2625,6 +2838,24 @@ class CLI:
                     keycloak_client_secret_env_var,
                 )
                 keycloak_client_secret = os.environ.get(keycloak_client_secret_env_var)
+
+            # Read Salesforce secrets
+            salesforce_client_secret = None
+            if salesforce_client_secret_env_var:
+                logger.debug(
+                    "Reading Salesforce client secret from environment variable %s",
+                    salesforce_client_secret_env_var,
+                )
+                salesforce_client_secret = os.environ.get(
+                    salesforce_client_secret_env_var
+                )
+            salesforce_private_key = None
+            if salesforce_private_key_env_var:
+                logger.debug(
+                    "Reading Salesforce private key from environment variable %s",
+                    salesforce_private_key_env_var,
+                )
+                salesforce_private_key = os.environ.get(salesforce_private_key_env_var)
 
             # Read Slack token
             slack_token = None
@@ -2778,6 +3009,9 @@ class CLI:
                 vercel_token=vercel_token,
                 vercel_team_id=vercel_team_id,
                 vercel_base_url=vercel_base_url,
+                circleci_token=circleci_token,
+                circleci_base_url=circleci_base_url,
+                circleci_project_slugs=circleci_project_slug_list,
                 cloudflare_token=cloudflare_token,
                 openai_apikey=openai_apikey,
                 openai_org_id=openai_org_id,
@@ -2792,6 +3026,14 @@ class CLI:
                 airbyte_client_id=airbyte_client_id,
                 airbyte_client_secret=airbyte_client_secret,
                 airbyte_api_url=airbyte_api_url,
+                databricks_workspace_url=databricks_workspace_url,
+                databricks_token=databricks_token,
+                databricks_client_id=databricks_client_id,
+                databricks_client_secret=databricks_client_secret,
+                databricks_account_id=databricks_account_id,
+                databricks_account_host=databricks_account_host,
+                databricks_account_client_id=databricks_account_client_id,
+                databricks_account_client_secret=databricks_account_client_secret,
                 # Forward the user-provided values (not resolved). Config calls
                 # resolve_report_source_with_legacy_fields() internally; the CLI's
                 # _resolve_report_source_option above runs the same logic for early
@@ -2838,6 +3080,11 @@ class CLI:
                 keycloak_client_secret=keycloak_client_secret,
                 keycloak_realm=keycloak_realm,
                 keycloak_url=keycloak_url,
+                salesforce_login_url=salesforce_login_url,
+                salesforce_client_id=salesforce_client_id,
+                salesforce_client_secret=salesforce_client_secret,
+                salesforce_username=salesforce_username,
+                salesforce_private_key=salesforce_private_key,
                 slack_token=slack_token,
                 slack_teams=slack_teams,
                 slack_channels_memberships=slack_channels_memberships,

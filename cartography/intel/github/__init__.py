@@ -7,6 +7,7 @@ from typing import cast
 import neo4j
 
 import cartography.intel.github.actions
+import cartography.intel.github.codeowners
 import cartography.intel.github.commits
 import cartography.intel.github.container_image_attestations
 import cartography.intel.github.container_image_tags
@@ -113,14 +114,14 @@ def start_github_ingestion(
         # credential is a GitHubCredential (duck-typed as str by _resolve_token in util.py)
         token: Any = credential
 
-        cartography.intel.github.users.sync(
+        github_users = cartography.intel.github.users.sync(
             neo4j_session,
             common_job_parameters,
             token,
             api_url,
             org_name,
         )
-        cartography.intel.github.repos.sync(
+        repo_sync_result = cartography.intel.github.repos.sync(
             neo4j_session,
             common_job_parameters,
             token,
@@ -141,12 +142,24 @@ def start_github_ingestion(
             api_url,
             org_name,
         )
-        cartography.intel.github.teams.sync_github_teams(
+        github_teams = cartography.intel.github.teams.sync_github_teams(
             neo4j_session,
             common_job_parameters,
             token,
             api_url,
             org_name,
+        )
+        cartography.intel.github.codeowners.sync(
+            neo4j_session,
+            common_job_parameters,
+            token,
+            api_url,
+            org_name,
+            repo_sync_result.repos,
+            repo_sync_result.manifests,
+            dependency_manifests_cleanup_safe=repo_sync_result.manifests_cleanup_safe,
+            github_users=github_users,
+            github_teams=github_teams,
         )
 
         # Sync GitHub Actions (workflows, secrets, variables, environments)

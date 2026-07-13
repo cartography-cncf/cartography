@@ -141,6 +141,29 @@ kubernetes_mapping = OntologyMapping(
     ],
 )
 
+scaleway_kapsule_mapping = OntologyMapping(
+    module_name="scaleway",
+    nodes=[
+        OntologyNodeMapping(
+            node_label="ScalewayKapsuleCluster",
+            fields=[
+                OntologyFieldMapping(ontology_field="name", node_field="name"),
+                OntologyFieldMapping(ontology_field="region", node_field="region"),
+                OntologyFieldMapping(ontology_field="version", node_field="version"),
+                OntologyFieldMapping(
+                    ontology_field="endpoint",
+                    node_field="cluster_url",
+                ),
+                OntologyFieldMapping(ontology_field="status", node_field="status"),
+                # control_plane_public_access: Kapsule's apiserver is always
+                # internet-reachable; access can be restricted by IP allowlists
+                # (ACLs) but the endpoint itself is public. The ACL config isn't
+                # exposed on the cluster node, so leave this unmapped.
+            ],
+        ),
+    ],
+)
+
 CLUSTERS_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     "aws_eks": aws_eks_mapping,
     "aws_ecs": aws_ecs_mapping,
@@ -148,4 +171,5 @@ CLUSTERS_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     "azure_aks": azure_aks_mapping,
     "gcp_gke": gcp_gke_mapping,
     "kubernetes": kubernetes_mapping,
+    "scaleway_kapsule": scaleway_kapsule_mapping,
 }

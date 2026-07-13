@@ -1,4 +1,5 @@
 import logging
+from collections import Counter
 from typing import Any
 
 import neo4j
@@ -13,6 +14,8 @@ from cartography.config import Config
 from cartography.graph.job import GraphJob
 from cartography.intel.cve_metadata import epss
 from cartography.intel.cve_metadata import nvd
+from cartography.intel.cve_metadata.effect_tags import derive_effect_tags
+from cartography.intel.cve_metadata.effect_tags import unmapped_cwes
 from cartography.models.cve_metadata.cve_metadata import CVEMetadataSchema
 from cartography.models.cve_metadata.cve_metadata_feed import CVEMetadataFeedSchema
 from cartography.stats import get_stats_client
@@ -156,6 +159,10 @@ def start_cve_metadata_ingestion(
         )
         session.mount("https://", HTTPAdapter(max_retries=retry_policy))
 
+        # Count vulns per CWE we don't yet have in the effect_tags mapping table,
+        # so the aggregated gap is logged once at the end of the sync.
+        unmapped_cwe_counts: Counter[str] = Counter()
+
         with session as http_session:
             # Step 2: Enrich and load one CVE year at a time to keep memory bounded.
             for batch_cve_ids in yearly_batches:
@@ -182,7 +189,26 @@ def start_cve_metadata_ingestion(
                             exc_info=True,
                         )
 
+                # Derive effect_tags for every CVE (not just NVD-transformed ones),
+                # so the ingest contract holds even for epss-only / NVD-absent nodes.
+                for cve in cves:
+                    cve["effect_tags"], cve["effect_tags_source"] = derive_effect_tags(
+                        cve,
+                    )
+                    unmapped_cwe_counts.update(unmapped_cwes(cve.get("weaknesses", [])))
+
                 load_cve_metadata(neo4j_session, cves, config.update_tag)
+
+        if unmapped_cwe_counts:
+            summary = ", ".join(
+                f"{count} vuln(s) with {cwe}"
+                for cwe, count in unmapped_cwe_counts.most_common()
+            )
+            logger.warning(
+                "effect_tags: %d CWE(s) not in the mapping table: %s",
+                len(unmapped_cwe_counts),
+                summary,
+            )
 
     # Step 4: Cleanup stale CVEMetadata nodes from previous syncs
     GraphJob.from_node_schema(CVEMetadataSchema(), common_job_parameters).run(

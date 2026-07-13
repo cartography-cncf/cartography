@@ -61,7 +61,9 @@ _aws_policy_manipulation_capabilities = Fact(
             policy.id      AS policy_id,
             policy.name    AS policy_name,
             actions,
-            resources
+            resources,
+            // SSO-reserved roles (break-glass) can be triaged differently from app roles
+            principal.arn CONTAINS 'aws-reserved/sso.amazonaws.com' AS is_sso_reserved
         ORDER BY account, principal_name, policy_name
     """,
     cypher_visual_query="""
@@ -268,6 +270,57 @@ _azure_policy_manipulation_capabilities = Fact(
 )
 
 
+# Scaleway
+_scaleway_policy_manipulation_capabilities = Fact(
+    id="scaleway_policy_manipulation_capabilities",
+    name="Scaleway Principals with IAM Administration Permissions",
+    description=(
+        "Scaleway principals (users, applications or groups) granted the "
+        "`IAMManager` permission set, which gives full access to IAM: creating "
+        "and editing policies, permission sets and API keys for any principal. "
+        "Indirect privilege-escalation surface. The grant is resolved through "
+        "the materialized principal-[:HAS_ROLE]->PermissionSet edge; group "
+        "grants are inherited by members via MEMBER_OF."
+    ),
+    cypher_query="""
+    MATCH (org:ScalewayOrganization)-[:RESOURCE]->(ps:ScalewayPermissionSet)
+    WHERE ps.name = 'IAMManager'
+    MATCH (principal)-[:HAS_ROLE]->(ps)
+    WHERE any(l IN labels(principal)
+              WHERE l IN ['ScalewayUser', 'ScalewayApplication', 'ScalewayGroup'])
+    RETURN
+        org.id AS account,
+        org.id AS account_id,
+        coalesce(principal.email, principal.name, principal.id) AS principal_name,
+        principal.id AS principal_identifier,
+        head([l IN ['UserAccount', 'ServiceAccount', 'UserGroup']
+              WHERE l IN labels(principal)]) AS principal_type,
+        ps.id AS policy_id,
+        ps.name AS policy_name,
+        [ps.name] AS actions,
+        [org.id] AS resources
+    ORDER BY account, principal_name
+    """,
+    cypher_visual_query="""
+    MATCH p=(org:ScalewayOrganization)-[:RESOURCE]->(ps:ScalewayPermissionSet)<-[:HAS_ROLE]-(principal)
+    WHERE ps.name = 'IAMManager'
+      AND any(l IN labels(principal)
+              WHERE l IN ['ScalewayUser', 'ScalewayApplication', 'ScalewayGroup'])
+    RETURN *
+    """,
+    cypher_count_query="""
+    MATCH (principal)
+    WHERE any(l IN labels(principal)
+              WHERE l IN ['ScalewayUser', 'ScalewayApplication', 'ScalewayGroup'])
+    RETURN COUNT(principal) AS count
+    """,
+    asset_id_field="principal_identifier",
+    identity_fields=("account_id", "principal_identifier", "policy_id"),
+    module=Module.SCALEWAY,
+    maturity=Maturity.EXPERIMENTAL,
+)
+
+
 # Findings
 class PolicyAdministrationPrivileges(Finding):
     principal_name: str | None = None
@@ -279,6 +332,8 @@ class PolicyAdministrationPrivileges(Finding):
     policy_name: str | None = None
     actions: list[str] = []
     resources: list[str] = []
+    # True for AWS IAM Identity Center (SSO) reserved roles; only the AWS fact sets it.
+    is_sso_reserved: bool = False
 
 
 policy_administration_privileges = Rule(
@@ -293,6 +348,7 @@ policy_administration_privileges = Rule(
         _aws_policy_manipulation_capabilities,
         _azure_policy_manipulation_capabilities,
         _gcp_policy_manipulation_capabilities,
+        _scaleway_policy_manipulation_capabilities,
     ),
     tags=(
         "iam",
@@ -300,7 +356,7 @@ policy_administration_privileges = Rule(
         "stride:spoofing",
         "stride:tampering",
     ),
-    version="0.1.0",
+    version="0.2.0",
     frameworks=(
         iso27001_annex_a("5.18"),
         iso27001_annex_a("8.2"),
