@@ -1,3 +1,47 @@
+import logging
+
+logger = logging.getLogger(__name__)
+
+
+def _resolve_microsoft_credentials_config(
+    *,
+    microsoft_tenant_id: str | None,
+    microsoft_client_id: str | None,
+    microsoft_client_secret: str | None,
+    entra_tenant_id: str | None,
+    entra_client_id: str | None,
+    entra_client_secret: str | None,
+) -> tuple[str | None, str | None, str | None]:
+    microsoft_values = (
+        microsoft_tenant_id,
+        microsoft_client_id,
+        microsoft_client_secret,
+    )
+    entra_values = (entra_tenant_id, entra_client_id, entra_client_secret)
+
+    has_microsoft_values = any(value is not None for value in microsoft_values)
+    has_entra_values = any(value is not None for value in entra_values)
+    if has_microsoft_values and has_entra_values:
+        raise ValueError(
+            "Cannot mix Microsoft credential config fields "
+            "(`microsoft_tenant_id`, `microsoft_client_id`, "
+            "`microsoft_client_secret`) with deprecated Entra credential "
+            "config fields (`entra_tenant_id`, `entra_client_id`, "
+            "`entra_client_secret`). Use the Microsoft fields instead.",
+        )
+
+    if has_entra_values:
+        logger.warning(
+            "DEPRECATED: `entra_tenant_id`/`entra_client_id`/"
+            "`entra_client_secret` will be removed in Cartography v1.0.0; "
+            "use `microsoft_tenant_id`/`microsoft_client_id`/"
+            "`microsoft_client_secret` instead.",
+        )
+        return entra_values
+
+    return microsoft_values
+
+
 def _resolve_report_source_config(
     *,
     module: str,
@@ -92,12 +136,21 @@ class Config:
     :param azure_client_secret: Client Secret for connecting in a Service Principal Authentication approach. Optional.
     :type azure_subscription_id: str | None
     :param azure_subscription_id: The Azure Subscription ID to sync.
+    :type microsoft_tenant_id: str
+    :param microsoft_tenant_id: Tenant Id for connecting to Microsoft Graph via Service Principal Authentication. Optional.
+    :type microsoft_client_id: str
+    :param microsoft_client_id: Client Id for connecting to Microsoft Graph via Service Principal Authentication. Optional.
+    :type microsoft_client_secret: str
+    :param microsoft_client_secret: Client Secret for connecting to Microsoft Graph via Service Principal Authentication. Optional.
     :type entra_tenant_id: str
-    :param entra_tenant_id: Tenant Id for connecting in a Service Principal Authentication approach. Optional.
+    :param entra_tenant_id: DEPRECATED compatibility alias for microsoft_tenant_id. Optional.
     :type entra_client_id: str
-    :param entra_client_id: Client Id for connecting in a Service Principal Authentication approach. Optional.
+    :param entra_client_id: DEPRECATED compatibility alias for microsoft_client_id. Optional.
     :type entra_client_secret: str
-    :param entra_client_secret: Client Secret for connecting in a Service Principal Authentication approach. Optional.
+    :param entra_client_secret: DEPRECATED compatibility alias for microsoft_client_secret. Optional.
+        Entra compatibility fields are resolved only when ``Config`` is constructed;
+        assigning to an ``entra_*`` attribute later does not update the canonical
+        ``microsoft_*`` attribute used by ingestion.
     :type aws_requested_syncs: str
     :param aws_requested_syncs: Comma-separated list of AWS resources to sync. Optional.
     :type aws_guardduty_severity_threshold: str
@@ -559,6 +612,9 @@ class Config:
         neo4j_connection_acquisition_timeout=None,
         _warn_on_legacy_report_source=True,
         aws_organization_account_ids=None,
+        microsoft_tenant_id=None,
+        microsoft_client_id=None,
+        microsoft_client_secret=None,
     ):
         self.neo4j_uri = neo4j_uri
         self.neo4j_user = neo4j_user
@@ -588,9 +644,24 @@ class Config:
         self.azure_client_id = azure_client_id
         self.azure_client_secret = azure_client_secret
         self.azure_subscription_id = azure_subscription_id
-        self.entra_tenant_id = entra_tenant_id
-        self.entra_client_id = entra_client_id
-        self.entra_client_secret = entra_client_secret
+        (
+            self.microsoft_tenant_id,
+            self.microsoft_client_id,
+            self.microsoft_client_secret,
+        ) = _resolve_microsoft_credentials_config(
+            microsoft_tenant_id=microsoft_tenant_id,
+            microsoft_client_id=microsoft_client_id,
+            microsoft_client_secret=microsoft_client_secret,
+            entra_tenant_id=entra_tenant_id,
+            entra_client_id=entra_client_id,
+            entra_client_secret=entra_client_secret,
+        )
+        # DEPRECATED: constructor-time compatibility snapshots for legacy Entra
+        # config names. Later assignments do not propagate to microsoft_*.
+        # Remove in v1.0.0.
+        self.entra_tenant_id = self.microsoft_tenant_id
+        self.entra_client_id = self.microsoft_client_id
+        self.entra_client_secret = self.microsoft_client_secret
         self.aws_requested_syncs = aws_requested_syncs
         self.aws_guardduty_severity_threshold = aws_guardduty_severity_threshold
         self.analysis_job_directory = analysis_job_directory

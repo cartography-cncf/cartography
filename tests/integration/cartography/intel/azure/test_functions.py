@@ -2,7 +2,8 @@ from unittest.mock import MagicMock
 from unittest.mock import patch
 
 import cartography.intel.azure.functions as functions
-from cartography.util import run_analysis_job
+from cartography.analysis.ontology.analysis import RESOLVED_IMAGE_JOBS
+from cartography.util import run_typed_analysis_job
 from tests.data.azure.functions import MOCK_FUNCTION_APP_CONFIGS
 from tests.data.azure.functions import MOCK_FUNCTION_APPS
 from tests.data.azure.functions import TEST_FUNCTIONAPP_CODE_ID
@@ -14,6 +15,11 @@ from tests.integration.util import check_rels
 
 TEST_SUBSCRIPTION_ID = "00-00-00-00"
 TEST_UPDATE_TAG = 123456789
+
+
+def _run_resolved_image_analysis(neo4j_session):
+    for job in RESOLVED_IMAGE_JOBS:
+        run_typed_analysis_job(job, neo4j_session, {"UPDATE_TAG": TEST_UPDATE_TAG})
 
 
 @patch("cartography.intel.azure.functions.fetch_function_app_configurations")
@@ -163,11 +169,7 @@ def test_container_function_app_has_image_and_resolved_image(
         "HAS_IMAGE",
     ) == {(TEST_FUNCTIONAPP_CONTAINER_ID, TEST_FUNCTIONAPP_IMAGE_DIGEST)}
 
-    run_analysis_job(
-        "resolved_image_analysis.json",
-        neo4j_session,
-        {"UPDATE_TAG": TEST_UPDATE_TAG},
-    )
+    _run_resolved_image_analysis(neo4j_session)
 
     assert check_rels(
         neo4j_session,

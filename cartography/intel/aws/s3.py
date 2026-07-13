@@ -19,6 +19,7 @@ from botocore.exceptions import EndpointConnectionError
 from botocore.exceptions import ReadTimeoutError
 from policyuniverse.policy import Policy
 
+from cartography.analysis.aws.s3.analysis import AWS_S3ACL_ANALYSIS
 from cartography.client.core.tx import load
 from cartography.client.core.tx import run_write_query
 from cartography.graph.job import GraphJob
@@ -36,8 +37,8 @@ from cartography.models.aws.s3.policy_statement import S3PolicyStatementSchema
 from cartography.stats import get_stats_client
 from cartography.util import aws_handle_regions
 from cartography.util import merge_module_sync_metadata
-from cartography.util import run_analysis_job
 from cartography.util import run_cleanup_job
+from cartography.util import run_typed_analysis_job
 from cartography.util import timeit
 from cartography.util import to_asynchronous
 from cartography.util import to_synchronous
@@ -436,11 +437,13 @@ def _load_s3_acls(
 
     # implement the acl permission
     # https://docs.aws.amazon.com/AmazonS3/latest/dev/acl-overview.html#permissions
-    run_analysis_job(
-        "aws_s3acl_analysis.json",
+    run_typed_analysis_job(
+        AWS_S3ACL_ANALYSIS,
         neo4j_session,
-        {"AWS_ID": aws_account_id},
-        package="cartography.data.jobs.scoped_analysis",
+        {
+            "AWS_ID": aws_account_id,
+            "UPDATE_TAG": update_tag,
+        },
     )
 
 

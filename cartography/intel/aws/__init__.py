@@ -12,6 +12,15 @@ import boto3
 import botocore.exceptions
 import neo4j
 
+from cartography.analysis.aws.analysis import AWS_EC2_ASSET_EXPOSURE_JOBS
+from cartography.analysis.aws.analysis import AWS_EC2_IAM_INSTANCE_PROFILE
+from cartography.analysis.aws.analysis import AWS_EC2_KEYPAIR_ANALYSIS_JOBS
+from cartography.analysis.aws.analysis import AWS_ECS_ASSET_EXPOSURE
+from cartography.analysis.aws.analysis import AWS_EKS_ASSET_EXPOSURE
+from cartography.analysis.aws.analysis import AWS_FOREIGN_ACCOUNTS
+from cartography.analysis.aws.analysis import AWS_LAMBDA_ECR
+from cartography.analysis.aws.analysis import AWS_LB_CONTAINER_EXPOSURE
+from cartography.analysis.aws.analysis import AWS_LB_NACL_DIRECT
 from cartography.config import Config
 from cartography.intel.aws.util.botocore_config import create_boto3_client
 from cartography.intel.aws.util.common import parse_and_validate_aws_account_ids
@@ -20,9 +29,9 @@ from cartography.intel.aws.util.common import parse_and_validate_aws_requested_s
 from cartography.stats import get_stats_client
 from cartography.util import merge_module_sync_metadata
 from cartography.util import run_analysis_and_ensure_deps
-from cartography.util import run_analysis_job
 from cartography.util import run_cleanup_job
-from cartography.util import run_scoped_analysis_job
+from cartography.util import run_typed_analysis_and_ensure_deps
+from cartography.util import run_typed_analysis_job
 from cartography.util import timeit
 
 from . import ec2
@@ -181,14 +190,14 @@ def _sync_one_account(
     if "resourcegroupstaggingapi" in aws_requested_syncs:
         RESOURCE_FUNCTIONS["resourcegroupstaggingapi"](**sync_args)
 
-    run_scoped_analysis_job(
-        "aws_ec2_iaminstanceprofile.json",
+    run_typed_analysis_job(
+        AWS_EC2_IAM_INSTANCE_PROFILE,
         neo4j_session,
         common_job_parameters,
     )
 
-    run_analysis_job(
-        "aws_lambda_ecr.json",
+    run_typed_analysis_job(
+        AWS_LAMBDA_ECR,
         neo4j_session,
         common_job_parameters,
     )
@@ -196,15 +205,15 @@ def _sync_one_account(
     if {"ecs", "ec2:load_balancer_v2", "ec2:load_balancer_v2:expose"}.issubset(
         requested_syncs_set
     ):
-        run_scoped_analysis_job(
-            "aws_lb_container_exposure.json",
+        run_typed_analysis_job(
+            AWS_LB_CONTAINER_EXPOSURE,
             neo4j_session,
             common_job_parameters,
         )
 
     if {"ec2:network_acls", "ec2:load_balancer_v2"}.issubset(requested_syncs_set):
-        run_scoped_analysis_job(
-            "aws_lb_nacl_direct.json",
+        run_typed_analysis_job(
+            AWS_LB_NACL_DIRECT,
             neo4j_session,
             common_job_parameters,
         )
@@ -612,46 +621,47 @@ def _perform_aws_analysis(
         neo4j_session,
     )
 
-    ec2_asset_exposure_requirements = {
-        "ec2:instance",
-        "ec2:security_group",
-        "ec2:load_balancer",
-        "ec2:load_balancer_v2",
-    }
-    run_analysis_and_ensure_deps(
-        "aws_ec2_asset_exposure.json",
-        ec2_asset_exposure_requirements,
-        requested_syncs_as_set,
-        common_job_parameters,
-        neo4j_session,
-    )
+    for job in AWS_EC2_ASSET_EXPOSURE_JOBS:
+        run_typed_analysis_and_ensure_deps(
+            job,
+            {
+                "ec2:instance",
+                "ec2:security_group",
+                "ec2:load_balancer",
+                "ec2:load_balancer_v2",
+            },
+            requested_syncs_as_set,
+            common_job_parameters,
+            neo4j_session,
+        )
 
-    run_analysis_and_ensure_deps(
-        "aws_ec2_keypair_analysis.json",
-        {"ec2:keypair"},
-        requested_syncs_as_set,
-        common_job_parameters,
-        neo4j_session,
-    )
+    for job in AWS_EC2_KEYPAIR_ANALYSIS_JOBS:
+        run_typed_analysis_and_ensure_deps(
+            job,
+            {"ec2:keypair"},
+            requested_syncs_as_set,
+            common_job_parameters,
+            neo4j_session,
+        )
 
-    run_analysis_and_ensure_deps(
-        "aws_eks_asset_exposure.json",
+    run_typed_analysis_and_ensure_deps(
+        AWS_EKS_ASSET_EXPOSURE,
         {"eks"},
         requested_syncs_as_set,
         common_job_parameters,
         neo4j_session,
     )
 
-    run_analysis_and_ensure_deps(
-        "aws_foreign_accounts.json",
+    run_typed_analysis_and_ensure_deps(
+        AWS_FOREIGN_ACCOUNTS,
         set(),  # This job has no requirements
         requested_syncs_as_set,
         common_job_parameters,
         neo4j_session,
     )
 
-    run_analysis_and_ensure_deps(
-        "aws_ecs_asset_exposure.json",
+    run_typed_analysis_and_ensure_deps(
+        AWS_ECS_ASSET_EXPOSURE,
         {"ecs", "ec2:load_balancer_v2", "ec2:load_balancer_v2:expose"},
         requested_syncs_as_set,
         common_job_parameters,

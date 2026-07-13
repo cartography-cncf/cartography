@@ -1,4 +1,5 @@
-from cartography.util import run_analysis_job
+from cartography.analysis.ontology.analysis import TAILSCALE_DEVICE_INSTANCE_LINKING
+from cartography.util import run_typed_analysis_job
 
 TEST_UPDATE_TAG = 123456789
 
@@ -54,8 +55,8 @@ def test_link_tailscale_devices_to_cloud_instances(neo4j_session):
     )
 
     # Act
-    run_analysis_job(
-        "tailscale_device_instance_linking.json",
+    run_typed_analysis_job(
+        TAILSCALE_DEVICE_INSTANCE_LINKING,
         neo4j_session,
         {"UPDATE_TAG": TEST_UPDATE_TAG},
     )
@@ -101,8 +102,8 @@ def test_tailscale_device_instance_linking_skips_ambiguous_hostnames(
     )
 
     # Act
-    run_analysis_job(
-        "tailscale_device_instance_linking.json",
+    run_typed_analysis_job(
+        TAILSCALE_DEVICE_INSTANCE_LINKING,
         neo4j_session,
         {"UPDATE_TAG": TEST_UPDATE_TAG},
     )
@@ -162,8 +163,8 @@ def test_tailscale_device_instance_linking_requires_one_to_one_final_match(
     )
 
     # Act
-    run_analysis_job(
-        "tailscale_device_instance_linking.json",
+    run_typed_analysis_job(
+        TAILSCALE_DEVICE_INSTANCE_LINKING,
         neo4j_session,
         {"UPDATE_TAG": TEST_UPDATE_TAG},
     )
@@ -201,8 +202,8 @@ def test_tailscale_device_instance_linking_matches_ec2_private_ip(
     )
 
     # Act
-    run_analysis_job(
-        "tailscale_device_instance_linking.json",
+    run_typed_analysis_job(
+        TAILSCALE_DEVICE_INSTANCE_LINKING,
         neo4j_session,
         {"UPDATE_TAG": TEST_UPDATE_TAG},
     )
@@ -242,8 +243,8 @@ def test_tailscale_device_instance_linking_keeps_valid_stale_source_edges(
     )
 
     # Act
-    run_analysis_job(
-        "tailscale_device_instance_linking.json",
+    run_typed_analysis_job(
+        TAILSCALE_DEVICE_INSTANCE_LINKING,
         neo4j_session,
         {"UPDATE_TAG": TEST_UPDATE_TAG},
     )
@@ -288,8 +289,8 @@ def test_tailscale_device_instance_linking_skips_ambiguous_private_ips(
     )
 
     # Act
-    run_analysis_job(
-        "tailscale_device_instance_linking.json",
+    run_typed_analysis_job(
+        TAILSCALE_DEVICE_INSTANCE_LINKING,
         neo4j_session,
         {"UPDATE_TAG": TEST_UPDATE_TAG},
     )

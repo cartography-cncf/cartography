@@ -25,7 +25,7 @@ PANEL_CORE = "Core Options"
 PANEL_NEO4J = "Neo4j Connection"
 PANEL_AWS = "AWS Options"
 PANEL_AZURE = "Azure Options"
-PANEL_ENTRA = "Entra ID Options"
+PANEL_MICROSOFT = "Microsoft Options"
 PANEL_GCP = "GCP Options"
 PANEL_OCI = "OCI Options"
 PANEL_OKTA = "Okta Options"
@@ -80,8 +80,8 @@ PANEL_ANALYSIS = "Analysis Options"
 MODULE_PANELS = {
     "aws": PANEL_AWS,
     "azure": PANEL_AZURE,
-    "entra": PANEL_ENTRA,
-    "microsoft": PANEL_ENTRA,
+    "entra": PANEL_MICROSOFT,
+    "microsoft": PANEL_MICROSOFT,
     "gcp": PANEL_GCP,
     "oci": PANEL_OCI,
     "okta": PANEL_OKTA,
@@ -211,6 +211,51 @@ def _resolve_report_source_option(
         )
     except ValueError as exc:
         raise typer.BadParameter(str(exc)) from exc
+
+
+def _resolve_microsoft_credential_options(
+    *,
+    microsoft_tenant_id: str | None,
+    microsoft_client_id: str | None,
+    microsoft_client_secret_env_var: str | None,
+    entra_tenant_id: str | None,
+    entra_client_id: str | None,
+    entra_client_secret_env_var: str | None,
+) -> tuple[str | None, str | None, str | None]:
+    """Resolve CLI option names before reading the secret environment variable.
+
+    This intentionally remains separate from the config-layer resolver: CLI errors
+    use ``typer.BadParameter`` and operate on environment-variable names, while the
+    config layer validates resolved secret values and raises ``ValueError``.
+    """
+    microsoft_values = (
+        microsoft_tenant_id,
+        microsoft_client_id,
+        microsoft_client_secret_env_var,
+    )
+    entra_values = (entra_tenant_id, entra_client_id, entra_client_secret_env_var)
+
+    has_microsoft_values = any(value is not None for value in microsoft_values)
+    has_entra_values = any(value is not None for value in entra_values)
+    if has_microsoft_values and has_entra_values:
+        raise typer.BadParameter(
+            "Cannot mix Microsoft credential flags "
+            "(--microsoft-tenant-id, --microsoft-client-id, "
+            "--microsoft-client-secret-env-var) with deprecated Entra "
+            "credential flags (--entra-tenant-id, --entra-client-id, "
+            "--entra-client-secret-env-var). Use the Microsoft flags instead.",
+        )
+
+    if has_entra_values:
+        logger.warning(
+            "DEPRECATED: --entra-tenant-id/--entra-client-id/"
+            "--entra-client-secret-env-var will be removed in Cartography "
+            "v1.0.0; use --microsoft-tenant-id/--microsoft-client-id/"
+            "--microsoft-client-secret-env-var instead.",
+        )
+        return entra_values
+
+    return microsoft_values
 
 
 class CLI:
@@ -629,33 +674,70 @@ class CLI:
                 ),
             ] = "cartography/data/azure_permission_relationships.yaml",
             # =================================================================
-            # Entra ID Options
+            # Microsoft Options
             # =================================================================
+            microsoft_tenant_id: Annotated[
+                str | None,
+                typer.Option(
+                    "--microsoft-tenant-id",
+                    help="Microsoft tenant ID for Service Principal Authentication.",
+                    rich_help_panel=PANEL_MICROSOFT,
+                    hidden=PANEL_MICROSOFT not in visible_panels,
+                ),
+            ] = None,
+            microsoft_client_id: Annotated[
+                str | None,
+                typer.Option(
+                    "--microsoft-client-id",
+                    help="Microsoft client ID for Service Principal Authentication.",
+                    rich_help_panel=PANEL_MICROSOFT,
+                    hidden=PANEL_MICROSOFT not in visible_panels,
+                ),
+            ] = None,
+            microsoft_client_secret_env_var: Annotated[
+                str | None,
+                typer.Option(
+                    "--microsoft-client-secret-env-var",
+                    help="Environment variable name containing Microsoft client secret.",
+                    rich_help_panel=PANEL_MICROSOFT,
+                    hidden=PANEL_MICROSOFT not in visible_panels,
+                ),
+            ] = None,
+            # DEPRECATED: `--entra-*` credential flags will be removed in v1.0.0.
             entra_tenant_id: Annotated[
                 str | None,
                 typer.Option(
                     "--entra-tenant-id",
-                    help="Entra Tenant ID for Service Principal Authentication.",
-                    rich_help_panel=PANEL_ENTRA,
-                    hidden=PANEL_ENTRA not in visible_panels,
+                    help=(
+                        "DEPRECATED: use --microsoft-tenant-id instead. "
+                        "Will be removed in Cartography v1.0.0."
+                    ),
+                    rich_help_panel=PANEL_MICROSOFT,
+                    hidden=True,
                 ),
             ] = None,
             entra_client_id: Annotated[
                 str | None,
                 typer.Option(
                     "--entra-client-id",
-                    help="Entra Client ID for Service Principal Authentication.",
-                    rich_help_panel=PANEL_ENTRA,
-                    hidden=PANEL_ENTRA not in visible_panels,
+                    help=(
+                        "DEPRECATED: use --microsoft-client-id instead. "
+                        "Will be removed in Cartography v1.0.0."
+                    ),
+                    rich_help_panel=PANEL_MICROSOFT,
+                    hidden=True,
                 ),
             ] = None,
             entra_client_secret_env_var: Annotated[
                 str | None,
                 typer.Option(
                     "--entra-client-secret-env-var",
-                    help="Environment variable name containing Entra Client Secret.",
-                    rich_help_panel=PANEL_ENTRA,
-                    hidden=PANEL_ENTRA not in visible_panels,
+                    help=(
+                        "DEPRECATED: use --microsoft-client-secret-env-var instead. "
+                        "Will be removed in Cartography v1.0.0."
+                    ),
+                    rich_help_panel=PANEL_MICROSOFT,
+                    hidden=True,
                 ),
             ] = None,
             # =================================================================
@@ -2249,14 +2331,33 @@ class CLI:
                 )
                 azure_client_secret = os.environ.get(azure_client_secret_env_var)
 
-            # Read Entra client secret
-            entra_client_secret = None
-            if entra_tenant_id and entra_client_id and entra_client_secret_env_var:
+            (
+                microsoft_tenant_id,
+                microsoft_client_id,
+                microsoft_client_secret_env_var,
+            ) = _resolve_microsoft_credential_options(
+                microsoft_tenant_id=microsoft_tenant_id,
+                microsoft_client_id=microsoft_client_id,
+                microsoft_client_secret_env_var=microsoft_client_secret_env_var,
+                entra_tenant_id=entra_tenant_id,
+                entra_client_id=entra_client_id,
+                entra_client_secret_env_var=entra_client_secret_env_var,
+            )
+
+            # Read Microsoft client secret
+            microsoft_client_secret = None
+            if (
+                microsoft_tenant_id
+                and microsoft_client_id
+                and microsoft_client_secret_env_var
+            ):
                 logger.debug(
-                    "Reading Client Secret for Entra from environment variable %s",
-                    entra_client_secret_env_var,
+                    "Reading Client Secret for Microsoft from environment variable %s",
+                    microsoft_client_secret_env_var,
                 )
-                entra_client_secret = os.environ.get(entra_client_secret_env_var)
+                microsoft_client_secret = os.environ.get(
+                    microsoft_client_secret_env_var
+                )
 
             # Read Okta API key
             okta_api_key = None
@@ -2838,9 +2939,9 @@ class CLI:
                 azure_client_id=azure_client_id,
                 azure_client_secret=azure_client_secret,
                 azure_subscription_id=azure_subscription_id,
-                entra_tenant_id=entra_tenant_id,
-                entra_client_id=entra_client_id,
-                entra_client_secret=entra_client_secret,
+                microsoft_tenant_id=microsoft_tenant_id,
+                microsoft_client_id=microsoft_client_id,
+                microsoft_client_secret=microsoft_client_secret,
                 aws_requested_syncs=aws_requested_syncs,
                 aws_guardduty_severity_threshold=aws_guardduty_severity_threshold,
                 analysis_job_directory=analysis_job_directory,

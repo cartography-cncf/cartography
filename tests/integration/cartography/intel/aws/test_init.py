@@ -879,7 +879,7 @@ def test_start_aws_ingestion_does_cleanup(
     cartography.intel.aws, "_autodiscover_account_regions", return_value=TEST_REGIONS
 )
 @mock.patch.object(cartography.intel.aws, "run_cleanup_job", return_value=None)
-@mock.patch.object(cartography.intel.aws, "run_scoped_analysis_job", return_value=None)
+@mock.patch.object(cartography.intel.aws, "run_typed_analysis_job", return_value=None)
 def test_sync_one_account_all_sync_functions(
     mock_analysis,
     mock_cleanup,
@@ -920,7 +920,7 @@ def test_sync_one_account_all_sync_functions(
     # Check that the boilerplate functions get called as expected. Brittle, but a good sanity check.
     assert mock_autodiscover.call_count == 0
     assert mock_cleanup.call_count == 0
-    assert mock_analysis.call_count == 3
+    assert mock_analysis.call_count == 4
 
 
 @mock.patch("cartography.intel.aws.aioboto3.Session")
@@ -936,7 +936,7 @@ def test_sync_one_account_all_sync_functions(
     cartography.intel.aws, "_autodiscover_account_regions", return_value=TEST_REGIONS
 )
 @mock.patch.object(cartography.intel.aws, "run_cleanup_job", return_value=None)
-@mock.patch.object(cartography.intel.aws, "run_scoped_analysis_job", return_value=None)
+@mock.patch.object(cartography.intel.aws, "run_typed_analysis_job", return_value=None)
 def test_sync_one_account_just_iam_rels_and_tags(
     mock_analysis,
     mock_cleanup,
@@ -976,7 +976,7 @@ def test_sync_one_account_just_iam_rels_and_tags(
     # _sync_one_account() above did not specify regions, so we expect 1 call to _autodiscover_account_regions().
     assert mock_autodiscover.call_count == 1
     assert mock_cleanup.call_count == 0
-    assert mock_analysis.call_count == 1
+    assert mock_analysis.call_count == 2
 
 
 def test_standardize_aws_sync_kwargs():
