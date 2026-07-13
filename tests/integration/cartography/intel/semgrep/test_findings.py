@@ -1,3 +1,5 @@
+import json
+from pathlib import Path
 from unittest.mock import patch
 
 import cartography.intel.semgrep.deployment
@@ -7,10 +9,13 @@ import tests.data.semgrep.sast
 import tests.data.semgrep.sca
 from cartography.intel.semgrep.deployment import sync_deployment
 from cartography.intel.semgrep.findings import sync_findings
+from cartography.intel.semgrep.ossfindings import OSS_DEPLOYMENT_ID
+from cartography.intel.semgrep.ossfindings import sync_oss_semgrep_sast_findings
 from tests.integration.cartography.intel.semgrep.common import check_nodes_as_list
 from tests.integration.cartography.intel.semgrep.common import create_cve_nodes
 from tests.integration.cartography.intel.semgrep.common import create_dependency_nodes
 from tests.integration.cartography.intel.semgrep.common import create_github_repos
+from tests.integration.cartography.intel.semgrep.common import TEST_REPO_ID
 from tests.integration.cartography.intel.semgrep.common import TEST_UPDATE_TAG
 from tests.integration.util import check_nodes
 from tests.integration.util import check_rels
@@ -439,3 +444,235 @@ def test_sync_findings(
             "INFO",
         ),
     }
+
+
+def test_sync_oss_sast_findings(neo4j_session):
+    neo4j_session.run("MATCH (n) DETACH DELETE n")
+    create_github_repos(neo4j_session)
+
+    report_fixture_path = Path("tests/data/semgrep/oss_sast_report.json")
+    report_document = json.loads(report_fixture_path.read_text())
+    expected_finding_nodes = set()
+    expected_resource_rels = set()
+    expected_found_in_rels = set()
+
+    for result in report_document["results"]:
+        expected_finding_nodes.add((result["check_id"],))
+        expected_resource_rels.add((OSS_DEPLOYMENT_ID, result["check_id"]))
+        expected_found_in_rels.add((TEST_REPO_ID, result["check_id"]))
+
+    sync_oss_semgrep_sast_findings(
+        neo4j_session,
+        "tests/data/semgrep/repository_mappings_single_repo.yaml",
+        TEST_UPDATE_TAG,
+    )
+
+    assert check_nodes(
+        neo4j_session,
+        "SemgrepDeployment",
+        ["id"],
+    ) == {(OSS_DEPLOYMENT_ID,)}
+
+    assert (
+        check_nodes(
+            neo4j_session,
+            "SemgrepSASTFinding",
+            ["rule_id"],
+        )
+        == expected_finding_nodes
+    )
+
+    assert (
+        check_rels(
+            neo4j_session,
+            "SemgrepDeployment",
+            "id",
+            "SemgrepSASTFinding",
+            "rule_id",
+            "RESOURCE",
+        )
+        == expected_resource_rels
+    )
+
+    assert (
+        check_rels(
+            neo4j_session,
+            "GitHubRepository",
+            "id",
+            "SemgrepSASTFinding",
+            "rule_id",
+            "FOUND_IN",
+            rel_direction_right=False,
+        )
+        == expected_found_in_rels
+    )
+
+
+def test_sync_oss_sast_findings_multi_entry_multi_report(neo4j_session):
+    neo4j_session.run("MATCH (n) DETACH DELETE n")
+    create_github_repos(neo4j_session)
+    # Seed the second GitHubRepository node so FOUND_IN can match the second
+    # repository mapping entry during OSS sync.
+    neo4j_session.run(
+        """
+        MERGE (repo:GitHubRepository{id: $repo_id, fullname: $repo_fullname, name: $repo_name})
+        ON CREATE SET repo.firstseen = timestamp()
+        SET repo.lastupdated = $update_tag
+        SET repo.archived = false
+        """,
+        repo_id="https://github.com/simpsoncorp/sample_repo_two",
+        repo_fullname="simpsoncorp/sample_repo_two",
+        repo_name="sample_repo_two",
+        update_tag=TEST_UPDATE_TAG,
+    )
+
+    report_to_repo = {
+        "tests/data/semgrep/oss_sast_report_2.json": TEST_REPO_ID,
+        "tests/data/semgrep/oss_sast_report_3.json": "https://github.com/simpsoncorp/sample_repo_two",
+        "tests/data/semgrep/oss_sast_report_4.json": "https://github.com/simpsoncorp/sample_repo_two",
+    }
+    expected_finding_nodes = set()
+    expected_resource_rels = set()
+    expected_found_in_rels = set()
+
+    for report_path, repository_id in report_to_repo.items():
+        report_document = json.loads(Path(report_path).read_text())
+        for result in report_document["results"]:
+            expected_finding_nodes.add((result["check_id"],))
+            expected_resource_rels.add((OSS_DEPLOYMENT_ID, result["check_id"]))
+            expected_found_in_rels.add((repository_id, result["check_id"]))
+
+    sync_oss_semgrep_sast_findings(
+        neo4j_session,
+        "tests/data/semgrep/repository_mappings_multi_entry.yaml",
+        TEST_UPDATE_TAG,
+    )
+
+    assert check_nodes(
+        neo4j_session,
+        "SemgrepDeployment",
+        ["id"],
+    ) == {(OSS_DEPLOYMENT_ID,)}
+
+    assert (
+        check_nodes(
+            neo4j_session,
+            "SemgrepSASTFinding",
+            ["rule_id"],
+        )
+        == expected_finding_nodes
+    )
+
+    assert (
+        check_rels(
+            neo4j_session,
+            "SemgrepDeployment",
+            "id",
+            "SemgrepSASTFinding",
+            "rule_id",
+            "RESOURCE",
+        )
+        == expected_resource_rels
+    )
+
+    assert (
+        check_rels(
+            neo4j_session,
+            "GitHubRepository",
+            "id",
+            "SemgrepSASTFinding",
+            "rule_id",
+            "FOUND_IN",
+            rel_direction_right=False,
+        )
+        == expected_found_in_rels
+    )
+
+
+def test_sync_oss_sast_findings_partial_failure_preserves_stale_repo(neo4j_session):
+    neo4j_session.run("MATCH (n) DETACH DELETE n")
+    create_github_repos(neo4j_session)
+    # Seed the second GitHubRepository node so FOUND_IN can match the second
+    # repository mapping entry during OSS sync.
+    neo4j_session.run(
+        """
+        MERGE (repo:GitHubRepository{id: $repo_id, fullname: $repo_fullname, name: $repo_name})
+        ON CREATE SET repo.firstseen = timestamp()
+        SET repo.lastupdated = $update_tag
+        SET repo.archived = false
+        """,
+        repo_id="https://github.com/simpsoncorp/sample_repo_two",
+        repo_fullname="simpsoncorp/sample_repo_two",
+        repo_name="sample_repo_two",
+        update_tag=TEST_UPDATE_TAG,
+    )
+    # Seed one stale OSS finding per repo under the synthetic deployment so the
+    # sync can prove repo-scoped cleanup behavior: repo A should be deleted
+    # after a fully successful snapshot, while repo B should be preserved when
+    # one of its listed report artifacts fails.
+    neo4j_session.run(
+        """
+        MERGE (deployment:SemgrepDeployment {id: $deployment_id})
+        ON CREATE SET deployment.firstseen = timestamp()
+        SET deployment.lastupdated = $stale_update_tag,
+            deployment.name = "OSS Semgrep",
+            deployment.slug = "oss"
+
+        MERGE (repo_a_finding:SemgrepSASTFinding {id: "stale-a"})
+        ON CREATE SET repo_a_finding.firstseen = timestamp()
+        SET repo_a_finding.lastupdated = $stale_update_tag,
+            repo_a_finding.rule_id = "stale-rule-a",
+            repo_a_finding.repository = "simpsoncorp/sample_repo",
+            repo_a_finding.repository_url = $repo_a_url,
+            repo_a_finding.branch = "main"
+
+        MERGE (repo_b_finding:SemgrepSASTFinding {id: "stale-b"})
+        ON CREATE SET repo_b_finding.firstseen = timestamp()
+        SET repo_b_finding.lastupdated = $stale_update_tag,
+            repo_b_finding.rule_id = "stale-rule-b",
+            repo_b_finding.repository = "simpsoncorp/sample_repo_two",
+            repo_b_finding.repository_url = $repo_b_url,
+            repo_b_finding.branch = "main"
+
+        MERGE (deployment)-[:RESOURCE]->(repo_a_finding)
+        MERGE (deployment)-[:RESOURCE]->(repo_b_finding)
+        WITH repo_a_finding, repo_b_finding
+        MATCH (repo_a:GitHubRepository {id: $repo_a_url})
+        MATCH (repo_b:GitHubRepository {id: $repo_b_url})
+        MERGE (repo_a_finding)-[:FOUND_IN]->(repo_a)
+        MERGE (repo_b_finding)-[:FOUND_IN]->(repo_b)
+        """,
+        deployment_id=OSS_DEPLOYMENT_ID,
+        stale_update_tag=TEST_UPDATE_TAG - 1,
+        repo_a_url=TEST_REPO_ID,
+        repo_b_url="https://github.com/simpsoncorp/sample_repo_two",
+    )
+
+    sync_oss_semgrep_sast_findings(
+        neo4j_session,
+        "tests/data/semgrep/repository_mappings_partial_failure.yaml",
+        TEST_UPDATE_TAG,
+    )
+
+    finding_rule_ids = check_nodes(
+        neo4j_session,
+        "SemgrepSASTFinding",
+        ["rule_id"],
+    )
+    assert ("stale-rule-a",) not in finding_rule_ids
+    assert ("stale-rule-b",) in finding_rule_ids
+
+    found_in_rels = check_rels(
+        neo4j_session,
+        "GitHubRepository",
+        "id",
+        "SemgrepSASTFinding",
+        "rule_id",
+        "FOUND_IN",
+        rel_direction_right=False,
+    )
+    assert (TEST_REPO_ID, "stale-rule-a") not in found_in_rels
+    assert (
+        "https://github.com/simpsoncorp/sample_repo_two",
+        "stale-rule-b",
+    ) in found_in_rels

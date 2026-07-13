@@ -3,8 +3,12 @@ from unittest.mock import patch
 
 import cartography.intel.aws.lambda_function
 import tests.data.aws.lambda_function
+from cartography.util import run_analysis_job
+from tests.data.aws.lambda_function import LIST_LAMBDA_FUNCTIONS_CONTAINER_IMAGE
 from tests.data.aws.lambda_function import mock_get_event_source_mappings_for_sync_test
 from tests.data.aws.lambda_function import mock_get_function_aliases_for_sync_test
+from tests.data.aws.lambda_function import TEST_LAMBDA_IMAGE_DIGEST
+from tests.data.aws.lambda_function import TEST_LAMBDA_IMAGE_URI
 from tests.integration.cartography.intel.aws.common import create_test_account
 from tests.integration.util import check_nodes
 from tests.integration.util import check_rels
@@ -48,6 +52,16 @@ def test_sync_lambda_functions(
     boto3_session = MagicMock()
     create_test_account(neo4j_session, TEST_ACCOUNT_ID, TEST_UPDATE_TAG)
     common_job_parameters = {"UPDATE_TAG": TEST_UPDATE_TAG, "AWS_ID": TEST_ACCOUNT_ID}
+    # Seed the execution role of sample-function-7 so the canonical
+    # (:Function)-[:ASSUMES]->(:PermissionRole) edge has a target to match.
+    neo4j_session.run(
+        """
+        MERGE (r:AWSRole:AWSPrincipal {arn: $arn})
+        ON CREATE SET r.lastupdated = $update_tag
+        """,
+        arn="arn:aws:iam::000000000000:role/sample-role-2",
+        update_tag=TEST_UPDATE_TAG,
+    )
 
     # Act
     cartography.intel.aws.lambda_function.sync(
@@ -122,6 +136,22 @@ def test_sync_lambda_functions(
     }
 
     # Assert - Check all relationship types were created correctly
+
+    # Canonical ontology edge: (:Function)-[:ASSUMES]->(:PermissionRole)
+    assert check_rels(
+        neo4j_session,
+        "AWSLambda",
+        "id",
+        "AWSRole",
+        "arn",
+        "ASSUMES",
+        rel_direction_right=True,
+    ) == {
+        (
+            "arn:aws:lambda:us-west-2:000000000000:function:sample-function-7",
+            "arn:aws:iam::000000000000:role/sample-role-2",
+        ),
+    }
 
     assert check_rels(
         neo4j_session,
@@ -292,6 +322,7 @@ def test_load_lambda_functions(neo4j_session):
     transformed_data = cartography.intel.aws.lambda_function.transform_lambda_functions(
         data,
         permissions,
+        {},
         TEST_REGION,
     )
 
@@ -338,6 +369,7 @@ def test_load_lambda_relationships(neo4j_session):
     transformed_data = cartography.intel.aws.lambda_function.transform_lambda_functions(
         data,
         permissions,
+        {},
         TEST_REGION,
     )
 
@@ -476,6 +508,7 @@ def test_load_lambda_function_aliases_relationships(neo4j_session):
     transformed_data = cartography.intel.aws.lambda_function.transform_lambda_functions(
         data,
         permissions,
+        {},
         TEST_REGION,
     )
 
@@ -584,6 +617,7 @@ def test_load_lambda_event_source_mappings_relationships(neo4j_session):
     transformed_data = cartography.intel.aws.lambda_function.transform_lambda_functions(
         data,
         permissions,
+        {},
         TEST_REGION,
     )
 
@@ -683,6 +717,7 @@ def test_load_lambda_layers_relationships(neo4j_session):
     transformed_data = cartography.intel.aws.lambda_function.transform_lambda_functions(
         data,
         permissions,
+        {},
         TEST_REGION,
     )
 
@@ -726,3 +761,122 @@ def test_load_lambda_layers_relationships(neo4j_session):
             "arn:aws:lambda:us-east-2:123456789012:layer:my-layer-3",
         ),
     }
+
+
+TEST_CONTAINER_LAMBDA_ARN = (
+    "arn:aws:lambda:us-west-2:000000000000:function:container-function"
+)
+
+
+@patch.object(
+    cartography.intel.aws.lambda_function,
+    "get_lambda_image_uris",
+    return_value={
+        TEST_CONTAINER_LAMBDA_ARN: {
+            "ImageUri": TEST_LAMBDA_IMAGE_URI,
+            "ResolvedImageUri": TEST_LAMBDA_IMAGE_URI,
+        },
+    },
+)
+@patch.object(
+    cartography.intel.aws.lambda_function,
+    "get_lambda_permissions",
+    return_value={
+        TEST_CONTAINER_LAMBDA_ARN: {
+            "AnonymousAccess": False,
+            "AnonymousActions": (),
+        },
+    },
+)
+@patch.object(
+    cartography.intel.aws.lambda_function,
+    "get_lambda_data",
+    return_value=LIST_LAMBDA_FUNCTIONS_CONTAINER_IMAGE,
+)
+@patch.object(
+    cartography.intel.aws.lambda_function,
+    "get_function_aliases",
+    return_value=[],
+)
+@patch.object(
+    cartography.intel.aws.lambda_function,
+    "get_event_source_mappings",
+    return_value=[],
+)
+def test_container_image_lambda_has_image_and_resolved_image(
+    _mock_event_sources,
+    _mock_aliases,
+    _mock_lambda_data,
+    _mock_permissions,
+    _mock_image_uris,
+    neo4j_session,
+):
+    """A PackageType=Image Lambda should get image_uri/image_digest populated,
+    a HAS_IMAGE edge to ECRImage (matched on digest) and a RESOLVED_IMAGE edge
+    produced by the Function-scoped analysis pass."""
+    # Isolate from Lambdas/state left by the shared-session sync test above.
+    neo4j_session.run("MATCH (n) DETACH DELETE n")
+    create_test_account(neo4j_session, TEST_ACCOUNT_ID, TEST_UPDATE_TAG)
+    neo4j_session.run(
+        """
+        MERGE (i:Image:ECRImage {id: $digest})
+        SET i.digest = $digest, i.lastupdated = $tag
+        """,
+        digest=TEST_LAMBDA_IMAGE_DIGEST,
+        tag=TEST_UPDATE_TAG,
+    )
+
+    cartography.intel.aws.lambda_function.sync(
+        neo4j_session,
+        MagicMock(),
+        [TEST_REGION],
+        TEST_ACCOUNT_ID,
+        TEST_UPDATE_TAG,
+        {"UPDATE_TAG": TEST_UPDATE_TAG, "AWS_ID": TEST_ACCOUNT_ID},
+    )
+
+    assert check_nodes(
+        neo4j_session,
+        "AWSLambda",
+        [
+            "id",
+            "packagetype",
+            "image_uri",
+            "image_digest",
+            "architecture_normalized",
+            "_ont_deployment_type",
+        ],
+    ) == {
+        (
+            TEST_CONTAINER_LAMBDA_ARN,
+            "Image",
+            TEST_LAMBDA_IMAGE_URI,
+            TEST_LAMBDA_IMAGE_DIGEST,
+            "arm64",
+            "container",
+        ),
+    }
+
+    assert check_rels(
+        neo4j_session,
+        "AWSLambda",
+        "id",
+        "ECRImage",
+        "digest",
+        "HAS_IMAGE",
+    ) == {(TEST_CONTAINER_LAMBDA_ARN, TEST_LAMBDA_IMAGE_DIGEST)}
+
+    run_analysis_job(
+        "resolved_image_analysis.json",
+        neo4j_session,
+        {"UPDATE_TAG": TEST_UPDATE_TAG},
+    )
+
+    assert check_rels(
+        neo4j_session,
+        "Function",
+        "id",
+        "Image",
+        "id",
+        "RESOLVED_IMAGE",
+    ) == {(TEST_CONTAINER_LAMBDA_ARN, TEST_LAMBDA_IMAGE_DIGEST)}

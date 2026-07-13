@@ -1,6 +1,6 @@
 ## Keycloak Built-In Analysis
 
-Cartography includes several automatic analyses for Keycloak that help identify inheritance relationships and derived permissions in a Keycloak realm. These analyses are defined in `cartography/data/jobs/analysis/keycloak_inheritance.json`.
+Cartography includes several automatic analyses for Keycloak that help identify inheritance relationships and derived permissions in a Keycloak realm. These analyses are implemented in `cartography/intel/keycloak/inheritance.py` and run after all realms are synced.
 
 ### 1. Group Membership Inheritance
 
@@ -8,7 +8,7 @@ Cartography includes several automatic analyses for Keycloak that help identify 
 
 **Query**:
 ```cypher
-MATCH (u:KeycloakUser)-[:MEMBER_OF|INHERITED_MEMBER_OF]->(g:KeycloakGroup)-[:SUBGROUP_OF]->(pg:KeycloakGroup)
+MATCH (u:KeycloakUser)-[:MEMBER_OF|INHERITED_MEMBER_OF]->(g:KeycloakGroup)-[:MEMBER_OF|SUBGROUP_OF]->(pg:KeycloakGroup)
 MERGE (u)-[r:INHERITED_MEMBER_OF]->(pg)
 ON CREATE SET r.firstseen = $UPDATE_TAG
 SET r.lastupdated = $UPDATE_TAG
@@ -21,7 +21,7 @@ SET r.lastupdated = $UPDATE_TAG
 ```mermaid
 graph LR
     U(KeycloakUser) -- MEMBER_OF --> SG(KeycloakGroup)
-    SG -- SUBGROUP_OF --> PG(KeycloakGroup)
+    SG -- MEMBER_OF --> PG(KeycloakGroup)
     U == INHERITED_MEMBER_OF ==> PG
 ```
 
@@ -31,8 +31,8 @@ graph LR
 
 **Query**:
 ```cypher
-MATCH (u:KeycloakUser)-[:MEMBER_OF|INHERITED_MEMBER_OF]->(g:KeycloakGroup)-[:GRANTS]->(r:KeycloakRole)
-MERGE (u)-[r0:ASSUME_ROLE]->(r)
+MATCH (u:KeycloakUser)-[:MEMBER_OF|INHERITED_MEMBER_OF]->(g:KeycloakGroup)-[:GRANTS|HAS_ROLE]->(r:KeycloakRole)
+MERGE (u)-[r0:HAS_ROLE]->(r)
 ON CREATE SET r0.firstseen = $UPDATE_TAG
 SET r0.lastupdated = $UPDATE_TAG
 ```
@@ -44,8 +44,8 @@ SET r0.lastupdated = $UPDATE_TAG
 ```mermaid
 graph LR
     U(KeycloakUser) -- MEMBER_OF --> G[KeycloakGroup]
-    G -- GRANTS --> R(KeycloakRole)
-    U == ASSUME_ROLE ==> R
+    G -- HAS_ROLE --> R(KeycloakRole)
+    U == HAS_ROLE ==> R
 ```
 
 ### 3. Composite Role Grants Propagation
@@ -77,7 +77,7 @@ graph LR
 
 **Query**:
 ```cypher
-MATCH (u:KeycloakUser)-[:ASSUME_ROLE]->(:KeycloakRole)-[:GRANTS|INDIRECT_GRANTS]->(s:KeycloakScope)
+MATCH (u:KeycloakUser)-[:HAS_ROLE]->(:KeycloakRole)-[:GRANTS|INDIRECT_GRANTS]->(s:KeycloakScope)
 MERGE (u)-[r:ASSUME_SCOPE]->(s)
 ON CREATE SET r.firstseen = $UPDATE_TAG
 SET r.lastupdated = $UPDATE_TAG
@@ -89,7 +89,7 @@ SET r.lastupdated = $UPDATE_TAG
 
 ```mermaid
 graph LR
-    U(KeycloakUser) -- ASSUME_ROLE --> R(KeycloakRole)
+    U(KeycloakUser) -- HAS_ROLE --> R(KeycloakRole)
     R -- GRANTS --> S(KeycloakScope)
     U == ASSUME_SCOPE ==> S
 ```

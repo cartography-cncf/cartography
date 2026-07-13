@@ -30,7 +30,7 @@ def sync(
     postures: list[dict[str, Any]],
     posture_conditions: list[dict[str, Any]],
     device_posture_attributes: dict[str, dict[str, Any]],
-) -> None:
+) -> list[dict[str, str]]:
     posture_resolution = get(
         postures,
         posture_conditions,
@@ -49,6 +49,7 @@ def sync(
         org,
         update_tag,
     )
+    return posture_matches
 
 
 @timeit

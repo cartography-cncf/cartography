@@ -26,7 +26,7 @@ class PublicIPToNodeRelProperties(CartographyRelProperties):
 
 
 # Cleanup-only relationship definition for custom ontology links.
-# This relation is created by link_ontology_nodes() queries, not by load(PublicIPSchema()).
+# This relation is created by ontology analysis jobs, not by load(PublicIPSchema()).
 # The PropertyRef intentionally uses a field absent from public IP load payloads so
 # normal ingestion will never create this edge, but cleanup can still remove stale ones.
 # (:PublicIP)-[:POINTS_TO]->(:Device)
@@ -76,6 +76,18 @@ class PublicIPToScalewayFlexibleIpRel(CartographyRelSchema):
     target_node_label: str = "ScalewayFlexibleIp"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"address": PropertyRef("ip_address")},
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "RESERVED_BY"
+    properties: PublicIPToNodeRelProperties = PublicIPToNodeRelProperties()
+
+
+# (:PublicIP)-[:RESERVED_BY]->(:ScalewayElasticMetalFlexibleIp)
+@dataclass(frozen=True)
+class PublicIPToScalewayElasticMetalFlexibleIpRel(CartographyRelSchema):
+    target_node_label: str = "ScalewayElasticMetalFlexibleIp"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"ip_address": PropertyRef("ip_address")},
     )
     direction: LinkDirection = LinkDirection.OUTWARD
     rel_label: str = "RESERVED_BY"
@@ -136,6 +148,7 @@ class PublicIPSchema(CartographyNodeSchema):
             PublicIPToElasticIPAddressRel(),
             PublicIPToAzurePublicIPAddressRel(),
             PublicIPToScalewayFlexibleIpRel(),
+            PublicIPToScalewayElasticMetalFlexibleIpRel(),
             PublicIPToGCPNicAccessConfigRel(),
             # POINTS_TO - Ontology semantic labels
             PublicIPToDeviceRel(),

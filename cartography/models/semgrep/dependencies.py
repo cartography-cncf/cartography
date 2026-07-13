@@ -20,6 +20,8 @@ class SemgrepDependencyNodeProperties(CartographyNodeProperties):
     name: PropertyRef = PropertyRef("name")
     ecosystem: PropertyRef = PropertyRef("ecosystem")
     version: PropertyRef = PropertyRef("version")
+    type: PropertyRef = PropertyRef("type")
+    normalized_id: PropertyRef = PropertyRef("normalized_id", extra_index=True)
 
 
 @dataclass(frozen=True)
@@ -64,6 +66,28 @@ class SemgrepDependencyToGithubRepoRel(CartographyRelSchema):
 
 
 @dataclass(frozen=True)
+class SemgrepDependencyToGitLabProjectRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    specifier: PropertyRef = PropertyRef("specifier")
+    transitivity: PropertyRef = PropertyRef("transitivity")
+    url: PropertyRef = PropertyRef("url")
+
+
+@dataclass(frozen=True)
+# (:SemgrepDependency)<-[:REQUIRES]-(:GitLabProject)
+class SemgrepDependencyToGitLabProjectRel(CartographyRelSchema):
+    target_node_label: str = "GitLabProject"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"web_url": PropertyRef("repo_url")},
+    )
+    direction: LinkDirection = LinkDirection.INWARD
+    rel_label: str = "REQUIRES"
+    properties: SemgrepDependencyToGitLabProjectRelProperties = (
+        SemgrepDependencyToGitLabProjectRelProperties()
+    )
+
+
+@dataclass(frozen=True)
 class SemgrepSCAFindngToDependencyRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
@@ -81,6 +105,7 @@ class SemgrepGoLibrarySchema(CartographyNodeSchema):
     other_relationships: OtherRelationships = OtherRelationships(
         [
             SemgrepDependencyToGithubRepoRel(),
+            SemgrepDependencyToGitLabProjectRel(),
         ],
     )
 
@@ -98,5 +123,6 @@ class SemgrepNpmLibrarySchema(CartographyNodeSchema):
     other_relationships: OtherRelationships = OtherRelationships(
         [
             SemgrepDependencyToGithubRepoRel(),
+            SemgrepDependencyToGitLabProjectRel(),
         ],
     )

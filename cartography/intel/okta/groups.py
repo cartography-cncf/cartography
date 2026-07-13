@@ -10,12 +10,15 @@ from okta.framework.ApiClient import ApiClient
 from okta.framework.OktaError import OktaError
 from okta.framework.PagedResults import PagedResults
 from okta.models.usergroup import UserGroup
+from requests import Response
 
 from cartography.client.core.tx import run_write_query
 from cartography.intel.okta.sync_state import OktaSyncState
 from cartography.intel.okta.utils import check_rate_limit
 from cartography.intel.okta.utils import create_api_client
 from cartography.intel.okta.utils import is_last_page
+from cartography.intel.okta.utils import is_resource_not_found_error
+from cartography.intel.okta.utils import okta_paged_request_with_retry
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
@@ -35,14 +38,7 @@ def _get_okta_groups(api_client: ApiClient) -> List[str]:
     # get_paged_groups returns User object instead of UserGroup
 
     while True:
-        # https://developer.okta.com/docs/reference/api/groups/#list-groups
-        if next_url:
-            paged_response = api_client.get(next_url)
-        else:
-            params = {
-                "limit": 10000,
-            }
-            paged_response = api_client.get_path("/", params)
+        paged_response = _get_okta_groups_page(api_client, next_url)
 
         paged_results = PagedResults(paged_response, UserGroup)
 
@@ -51,7 +47,7 @@ def _get_okta_groups(api_client: ApiClient) -> List[str]:
         check_rate_limit(paged_response)
 
         if not is_last_page(paged_response):
-            next_url = paged_response.links.get("next").get("url")
+            next_url = _get_next_url(paged_response)
         else:
             break
 
@@ -70,29 +66,54 @@ def get_okta_group_members(api_client: ApiClient, group_id: str) -> List[Dict]:
     next_url = None
 
     while True:
-        try:
-            # https://developer.okta.com/docs/reference/api/groups/#list-group-members
-            if next_url:
-                paged_response = api_client.get(next_url)
-            else:
-                params = {
-                    "limit": 1000,
-                }
-                paged_response = api_client.get_path(f"/{group_id}/users", params)
-        except OktaError:
-            logger.error(f"OktaError while listing members of group {group_id}")
-            raise
+        paged_response = _get_okta_group_members_page(api_client, group_id, next_url)
 
         member_list.extend(json.loads(paged_response.text))
 
         check_rate_limit(paged_response)
 
         if not is_last_page(paged_response):
-            next_url = paged_response.links.get("next").get("url")
+            next_url = _get_next_url(paged_response)
         else:
             break
 
     return member_list
+
+
+def _get_next_url(paged_response: Response) -> str:
+    next_link = paged_response.links.get("next")
+    if not isinstance(next_link, dict) or not next_link.get("url"):
+        raise ValueError("Okta paginated response was missing a next URL.")
+    return str(next_link["url"])
+
+
+def _get_okta_groups_page(
+    api_client: ApiClient,
+    next_url: str | None,
+) -> Response:
+    def _request() -> Response:
+        # https://developer.okta.com/docs/reference/api/groups/#list-groups
+        if next_url:
+            return api_client.get(next_url)
+        return api_client.get_path("/", {"limit": 10000})
+
+    return okta_paged_request_with_retry(_request, "listing groups")
+
+
+def _get_okta_group_members_page(
+    api_client: ApiClient,
+    group_id: str,
+    next_url: str | None,
+) -> Response:
+    def _request() -> Response:
+        # https://developer.okta.com/docs/reference/api/groups/#list-group-members
+        if next_url:
+            return api_client.get(next_url)
+        return api_client.get_path(f"/{group_id}/users", {"limit": 1000})
+
+    return okta_paged_request_with_retry(
+        _request, f"listing members of group {group_id}"
+    )
 
 
 @timeit
@@ -285,7 +306,20 @@ def sync_okta_group_membership(
 
     for group_info in group_list_info:
         group_id = group_info["id"]
-        members_data: List[Dict] = get_okta_group_members(api_client, group_id)
+        try:
+            members_data: List[Dict] = get_okta_group_members(api_client, group_id)
+        except OktaError as e:
+            # A group can be deleted between listing groups and fetching its
+            # members, in which case Okta returns a "resource not found" error.
+            # Skip the group instead of failing the whole sync.
+            if is_resource_not_found_error(e):
+                logger.warning(
+                    "Okta group %s no longer exists (likely deleted during the "
+                    "sync); skipping its membership.",
+                    group_id,
+                )
+                continue
+            raise
         transformed_member_data: List[Dict] = transform_okta_group_member_list(
             members_data,
         )

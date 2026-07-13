@@ -53,7 +53,7 @@ SYFT_TRIVY_OVERLAP_SAMPLE = {
     ],
     "source": {
         "type": "image",
-        "target": {"digest": TEST_IMAGE_DIGEST},
+        "metadata": {"manifestDigest": TEST_IMAGE_DIGEST},
     },
 }
 
@@ -148,13 +148,13 @@ def test_packages_end_to_end_from_trivy_syft_to_ontology(
         rel_direction_right=True,
     ) >= {("pypi|h11|0.14.0", "pypi|h11|0.14.0")}
 
-    # Assert package-to-image deployment propagation.
+    # Assert package-to-image deployment propagation via ontology Image.
     assert check_rels(
         neo4j_session,
         "Package",
         "id",
-        "ECRImage",
-        "id",
+        "Image",
+        "_ont_digest",
         "DEPLOYED",
         rel_direction_right=True,
     ) >= {("pypi|h11|0.14.0", TEST_IMAGE_DIGEST)}

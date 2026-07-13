@@ -1,6 +1,7 @@
 from unittest.mock import MagicMock
 from unittest.mock import patch
 
+from kubernetes.client.exceptions import ApiException
 from kubernetes.client.models import V1ConfigMap
 
 from cartography.intel.aws.iam import load_role_data
@@ -10,6 +11,7 @@ from cartography.intel.aws.iam import transform_users
 from cartography.intel.kubernetes.clusters import load_kubernetes_cluster
 from cartography.intel.kubernetes.eks import sync as sync_eks
 from tests.data.kubernetes.eks import AWS_AUTH_CONFIGMAP_DATA
+from tests.data.kubernetes.eks import AWS_AUTH_CONFIGMAP_WITH_ACCOUNTS_DATA
 from tests.data.kubernetes.eks import MOCK_ACCESS_ENTRIES
 from tests.data.kubernetes.eks import MOCK_AWS_ROLES
 from tests.data.kubernetes.eks import MOCK_AWS_USERS
@@ -23,6 +25,10 @@ from tests.data.kubernetes.eks import TEST_UPDATE_TAG
 from tests.integration.util import check_nodes
 from tests.integration.util import check_rels
 
+TEST_CLUSTER_ARN = (
+    f"arn:aws:eks:{TEST_REGION}:{TEST_ACCOUNT_ID}:cluster/{TEST_CLUSTER_NAME}"
+)
+
 
 def create_mock_aws_auth_configmap():
     """Create a mock V1ConfigMap object for testing."""
@@ -31,6 +37,15 @@ def create_mock_aws_auth_configmap():
         kind="ConfigMap",
         metadata={"name": "aws-auth", "namespace": "kube-system"},
         data=AWS_AUTH_CONFIGMAP_DATA,
+    )
+
+
+def create_custom_aws_auth_configmap(data):
+    return V1ConfigMap(
+        api_version="v1",
+        kind="ConfigMap",
+        metadata={"name": "aws-auth", "namespace": "kube-system"},
+        data=data,
     )
 
 
@@ -103,7 +118,7 @@ def test_eks_sync_creates_aws_role_relationships_and_oidc_providers(
         TEST_REGION,
         TEST_UPDATE_TAG,
         TEST_CLUSTER_ID,
-        TEST_CLUSTER_NAME,
+        TEST_CLUSTER_ARN,
     )
 
     # Assert: Verify AWS Role to Kubernetes User relationships
@@ -330,6 +345,441 @@ def test_eks_sync_creates_aws_role_relationships_and_oidc_providers(
         actual_access_entry_role_group_relationships
     )
 
+
+@patch("cartography.intel.kubernetes.eks.get_access_entries", return_value=[])
+@patch("cartography.intel.kubernetes.eks.get_oidc_provider", return_value=[])
+def test_eks_sync_maps_accounts_to_all_iam_principals(
+    mock_get_oidc_provider,
+    mock_get_access_entries,
+    neo4j_session,
+):
+    """
+    Test that an aws-auth mapAccounts entry grants cluster access to every IAM user
+    and role in the listed account, creating a KubernetesUser (named after the
+    principal ARN) with a MAPS_TO relationship from the AWS principal.
+    """
+    # Arrange: Create AWS Account first (required for role/user loading)
+    neo4j_session.run(
+        """
+        MERGE (aa:AWSAccount{id: $account_id})
+        ON CREATE SET aa.firstseen = timestamp()
+        SET aa.lastupdated = $update_tag, aa :Tenant
+        """,
+        account_id=TEST_ACCOUNT_ID,
+        update_tag=TEST_UPDATE_TAG,
+    )
+
+    load_kubernetes_cluster(neo4j_session, MOCK_CLUSTER_DATA, TEST_UPDATE_TAG)
+
+    # Arrange: Set up prerequisite AWS Roles and Users in the graph
+    transformed_role_data = transform_role_trust_policies(
+        MOCK_AWS_ROLES, TEST_ACCOUNT_ID
+    )
+    load_role_data(
+        neo4j_session,
+        transformed_role_data.role_data,
+        TEST_ACCOUNT_ID,
+        TEST_UPDATE_TAG,
+    )
+    transformed_user_data = transform_users(MOCK_AWS_USERS)
+    load_users(
+        neo4j_session,
+        transformed_user_data,
+        TEST_ACCOUNT_ID,
+        TEST_UPDATE_TAG,
+    )
+
+    # Arrange: the account root principal is also an IAM principal mapAccounts allows
+    root_principal_arn = f"arn:aws:iam::{TEST_ACCOUNT_ID}:root"
+    neo4j_session.run(
+        """
+        MATCH (account:AWSAccount {id: $account_id})
+        MERGE (root:AWSRootPrincipal {arn: $arn})
+        SET root.id = $arn, root.lastupdated = $update_tag, root :AWSPrincipal
+        MERGE (account)-[:RESOURCE]->(root)
+        """,
+        account_id=TEST_ACCOUNT_ID,
+        arn=root_principal_arn,
+        update_tag=TEST_UPDATE_TAG,
+    )
+
+    mock_k8s_client = MagicMock()
+    mock_k8s_client.name = TEST_CLUSTER_NAME
+    mock_k8s_client.core.read_namespaced_config_map.return_value = (
+        create_custom_aws_auth_configmap(AWS_AUTH_CONFIGMAP_WITH_ACCOUNTS_DATA)
+    )
+
+    # Act: Run EKS sync
+    sync_eks(
+        neo4j_session,
+        mock_k8s_client,
+        MagicMock(),
+        TEST_REGION,
+        TEST_UPDATE_TAG,
+        TEST_CLUSTER_ID,
+        TEST_CLUSTER_ARN,
+    )
+
+    # Assert: Every AWS Role in the account is mapped to a KubernetesUser named by its ARN
+    expected_role_user_relationships = {
+        (role["Arn"], f"{TEST_CLUSTER_NAME}/{role['Arn']}") for role in MOCK_AWS_ROLES
+    }
+    actual_role_user_relationships = check_rels(
+        neo4j_session,
+        "AWSRole",
+        "arn",
+        "KubernetesUser",
+        "id",
+        "MAPS_TO",
+    )
+    assert expected_role_user_relationships.issubset(actual_role_user_relationships)
+
+    # Assert: Every AWS User in the account is mapped to a KubernetesUser named by its ARN
+    expected_user_user_relationships = {
+        (user["Arn"], f"{TEST_CLUSTER_NAME}/{user['Arn']}") for user in MOCK_AWS_USERS
+    }
+    actual_user_user_relationships = check_rels(
+        neo4j_session,
+        "AWSUser",
+        "arn",
+        "KubernetesUser",
+        "id",
+        "MAPS_TO",
+    )
+    assert expected_user_user_relationships.issubset(actual_user_user_relationships)
+
+    # Assert: the account root principal is mapped to a KubernetesUser named by its ARN
+    actual_root_user_relationships = check_rels(
+        neo4j_session,
+        "AWSRootPrincipal",
+        "arn",
+        "KubernetesUser",
+        "id",
+        "MAPS_TO",
+    )
+    assert (
+        root_principal_arn,
+        f"{TEST_CLUSTER_NAME}/{root_principal_arn}",
+    ) in actual_root_user_relationships
+
+    # Assert: mapAccounts assigns no Kubernetes groups, so no KubernetesGroup node is
+    # named after a mapped principal ARN.
+    actual_groups = check_nodes(neo4j_session, "KubernetesGroup", ["id"])
+    account_arns = {role["Arn"] for role in MOCK_AWS_ROLES} | {
+        user["Arn"] for user in MOCK_AWS_USERS
+    }
+    assert not any(
+        group_id == f"{TEST_CLUSTER_NAME}/{arn}"
+        for (group_id,) in actual_groups
+        for arn in account_arns
+    )
+
+
+@patch("cartography.intel.kubernetes.eks.get_access_entries", return_value=[])
+@patch("cartography.intel.kubernetes.eks.get_oidc_provider", return_value=[])
+def test_eks_sync_resolves_supported_aws_auth_templates(
+    mock_get_oidc_provider,
+    mock_get_access_entries,
+    neo4j_session,
+):
+    neo4j_session.run(
+        """
+        MERGE (aa:AWSAccount{id: $account_id})
+        ON CREATE SET aa.firstseen = timestamp()
+        SET aa.lastupdated = $update_tag, aa :Tenant
+        """,
+        account_id=TEST_ACCOUNT_ID,
+        update_tag=TEST_UPDATE_TAG,
+    )
+
+    load_kubernetes_cluster(neo4j_session, MOCK_CLUSTER_DATA, TEST_UPDATE_TAG)
+
+    for role_arn in (
+        f"arn:aws:iam::{TEST_ACCOUNT_ID}:role/TemplateAccountRole",
+        f"arn:aws:iam::{TEST_ACCOUNT_ID}:role/TemplateSessionRole",
+        f"arn:aws:iam::{TEST_ACCOUNT_ID}:role/TemplateSessionRawRole",
+    ):
+        neo4j_session.run(
+            """
+            MERGE (role:AWSRole {arn: $arn})
+            SET role.id = $arn, role.lastupdated = $update_tag
+            """,
+            arn=role_arn,
+            update_tag=TEST_UPDATE_TAG,
+        )
+
+    neo4j_session.run(
+        """
+        MERGE (user:AWSUser {arn: $arn})
+        SET user.id = $arn, user.lastupdated = $update_tag
+        """,
+        arn=f"arn:aws:iam::{TEST_ACCOUNT_ID}:user/template-user",
+        update_tag=TEST_UPDATE_TAG,
+    )
+
+    neo4j_session.run(
+        """
+        UNWIND $users AS user
+        MERGE (u:KubernetesUser {id: user.id})
+        SET u.name = user.name,
+            u.cluster_name = $cluster_name,
+            u.lastupdated = $update_tag
+        WITH u
+        MATCH (c:KubernetesCluster {id: $cluster_id})
+        MERGE (c)-[:RESOURCE]->(u)
+        """,
+        users=[
+            {
+                "id": f"{TEST_CLUSTER_NAME}/sso:alice-example.com",
+                "name": "sso:alice-example.com",
+            },
+            {
+                "id": f"{TEST_CLUSTER_NAME}/raw:alice@example.com",
+                "name": "raw:alice@example.com",
+            },
+            {
+                "id": f"{TEST_CLUSTER_NAME}/sso:alice@example.com",
+                "name": "sso:alice@example.com",
+            },
+        ],
+        cluster_name=TEST_CLUSTER_NAME,
+        cluster_id=TEST_CLUSTER_ID,
+        update_tag=TEST_UPDATE_TAG,
+    )
+    neo4j_session.run(
+        """
+        UNWIND $groups AS group
+        MERGE (g:KubernetesGroup {id: group.id})
+        SET g.name = group.name,
+            g.cluster_name = $cluster_name,
+            g.lastupdated = $update_tag
+        WITH g
+        MATCH (c:KubernetesCluster {id: $cluster_id})
+        MERGE (c)-[:RESOURCE]->(g)
+        """,
+        groups=[
+            {
+                "id": f"{TEST_CLUSTER_NAME}/team:alice-example.com",
+                "name": "team:alice-example.com",
+            },
+            {
+                "id": f"{TEST_CLUSTER_NAME}/raw-team:alice@example.com",
+                "name": "raw-team:alice@example.com",
+            },
+            {
+                "id": f"{TEST_CLUSTER_NAME}/team:alice@example.com",
+                "name": "team:alice@example.com",
+            },
+        ],
+        cluster_name=TEST_CLUSTER_NAME,
+        cluster_id=TEST_CLUSTER_ID,
+        update_tag=TEST_UPDATE_TAG,
+    )
+
+    mock_k8s_client = MagicMock()
+    mock_k8s_client.name = TEST_CLUSTER_NAME
+    mock_k8s_client.core.read_namespaced_config_map.return_value = create_custom_aws_auth_configmap(
+        {
+            "mapRoles": f"""
+- rolearn: arn:aws:iam::{TEST_ACCOUNT_ID}:role/TemplateAccountRole
+  username: acct-{{{{AccountID}}}}-admin
+  groups:
+  - acct-{{{{AccountID}}}}-admins
+- rolearn: arn:aws:iam::{TEST_ACCOUNT_ID}:role/TemplateSessionRole
+  username: sso:{{{{SessionName}}}}
+  groups:
+  - team:{{{{SessionName}}}}
+- rolearn: arn:aws:iam::{TEST_ACCOUNT_ID}:role/TemplateSessionRawRole
+  username: raw:{{{{SessionNameRaw}}}}
+  groups:
+  - raw-team:{{{{SessionNameRaw}}}}
+""",
+            "mapUsers": f"""
+- userarn: arn:aws:iam::{TEST_ACCOUNT_ID}:user/template-user
+  username: acct-user-{{{{AccountID}}}}
+  groups:
+  - acct-group-{{{{AccountID}}}}
+""",
+        }
+    )
+
+    sync_eks(
+        neo4j_session,
+        mock_k8s_client,
+        MagicMock(),
+        TEST_REGION,
+        TEST_UPDATE_TAG,
+        TEST_CLUSTER_ID,
+        TEST_CLUSTER_ARN,
+    )
+
+    actual_role_user_relationships = check_rels(
+        neo4j_session,
+        "AWSRole",
+        "arn",
+        "KubernetesUser",
+        "id",
+        "MAPS_TO",
+    )
+    assert {
+        (
+            f"arn:aws:iam::{TEST_ACCOUNT_ID}:role/TemplateAccountRole",
+            f"{TEST_CLUSTER_NAME}/acct-{TEST_ACCOUNT_ID}-admin",
+        ),
+        (
+            f"arn:aws:iam::{TEST_ACCOUNT_ID}:role/TemplateSessionRole",
+            f"{TEST_CLUSTER_NAME}/sso:alice-example.com",
+        ),
+        (
+            f"arn:aws:iam::{TEST_ACCOUNT_ID}:role/TemplateSessionRawRole",
+            f"{TEST_CLUSTER_NAME}/raw:alice@example.com",
+        ),
+    }.issubset(actual_role_user_relationships)
+
+    actual_role_group_relationships = check_rels(
+        neo4j_session,
+        "AWSRole",
+        "arn",
+        "KubernetesGroup",
+        "id",
+        "MAPS_TO",
+    )
+    assert {
+        (
+            f"arn:aws:iam::{TEST_ACCOUNT_ID}:role/TemplateAccountRole",
+            f"{TEST_CLUSTER_NAME}/acct-{TEST_ACCOUNT_ID}-admins",
+        ),
+        (
+            f"arn:aws:iam::{TEST_ACCOUNT_ID}:role/TemplateSessionRole",
+            f"{TEST_CLUSTER_NAME}/team:alice-example.com",
+        ),
+        (
+            f"arn:aws:iam::{TEST_ACCOUNT_ID}:role/TemplateSessionRawRole",
+            f"{TEST_CLUSTER_NAME}/raw-team:alice@example.com",
+        ),
+    }.issubset(actual_role_group_relationships)
+
+    actual_user_group_relationships = check_rels(
+        neo4j_session,
+        "AWSUser",
+        "arn",
+        "KubernetesGroup",
+        "id",
+        "MAPS_TO",
+    )
+    assert {
+        (
+            f"arn:aws:iam::{TEST_ACCOUNT_ID}:user/template-user",
+            f"{TEST_CLUSTER_NAME}/acct-group-{TEST_ACCOUNT_ID}",
+        ),
+    }.issubset(actual_user_group_relationships)
+
+    actual_user_user_relationships = check_rels(
+        neo4j_session,
+        "AWSUser",
+        "arn",
+        "KubernetesUser",
+        "id",
+        "MAPS_TO",
+    )
+    assert {
+        (
+            f"arn:aws:iam::{TEST_ACCOUNT_ID}:user/template-user",
+            f"{TEST_CLUSTER_NAME}/acct-user-{TEST_ACCOUNT_ID}",
+        ),
+    }.issubset(actual_user_user_relationships)
+
+    assert (
+        f"arn:aws:iam::{TEST_ACCOUNT_ID}:role/TemplateSessionRole",
+        f"{TEST_CLUSTER_NAME}/sso:alice@example.com",
+    ) not in actual_role_user_relationships
+    assert (
+        f"arn:aws:iam::{TEST_ACCOUNT_ID}:role/TemplateSessionRole",
+        f"{TEST_CLUSTER_NAME}/team:alice@example.com",
+    ) not in actual_role_group_relationships
+
     # Note: OIDC Provider nodes only contain infrastructure metadata.
     # Identity relationships (OktaUser/Group -> KubernetesUser/Group) are handled
     # by the respective data models and Okta module, not by the EKS module.
+
+
+def _run_eks_sync_with_configmap_error(
+    neo4j_session, status: int, caplog_level: str | None = None, caplog=None
+) -> None:
+    """Helper: set up AWS prereqs, mock aws-auth read to raise ApiException, run sync_eks."""
+    neo4j_session.run(
+        """
+        MERGE (aa:AWSAccount{id: $account_id})
+        ON CREATE SET aa.firstseen = timestamp()
+        SET aa.lastupdated = $update_tag, aa :Tenant
+        """,
+        account_id=TEST_ACCOUNT_ID,
+        update_tag=TEST_UPDATE_TAG,
+    )
+    load_kubernetes_cluster(neo4j_session, MOCK_CLUSTER_DATA, TEST_UPDATE_TAG)
+
+    mock_k8s_client = MagicMock()
+    mock_k8s_client.name = TEST_CLUSTER_NAME
+    mock_k8s_client.core.read_namespaced_config_map.side_effect = ApiException(
+        status=status, reason="Forbidden" if status == 403 else "Not Found"
+    )
+
+    with (
+        patch(
+            "cartography.intel.kubernetes.eks.get_access_entries",
+            return_value=MOCK_ACCESS_ENTRIES,
+        ),
+        patch(
+            "cartography.intel.kubernetes.eks.get_oidc_provider",
+            return_value=MOCK_OIDC_PROVIDER,
+        ),
+    ):
+        sync_eks(
+            neo4j_session,
+            mock_k8s_client,
+            MagicMock(),
+            TEST_REGION,
+            TEST_UPDATE_TAG,
+            TEST_CLUSTER_ID,
+            TEST_CLUSTER_NAME,
+        )
+
+
+def test_eks_sync_skips_aws_auth_on_forbidden(neo4j_session, caplog):
+    """
+    When Cartography lacks `get` on the aws-auth ConfigMap, sync_eks logs a warning,
+    skips legacy IAM mappings, but still ingests Access Entries and OIDC providers.
+    """
+    with caplog.at_level("WARNING"):
+        _run_eks_sync_with_configmap_error(neo4j_session, status=403)
+
+    assert any(
+        "lacks permission to read the aws-auth ConfigMap" in record.message
+        for record in caplog.records
+    )
+
+    # Access Entries users still created
+    actual_users = check_nodes(neo4j_session, "KubernetesUser", ["id"])
+    assert ("test-cluster/alice-access-entry",) in actual_users
+
+    # OIDC Provider still created
+    actual_oidc = check_nodes(neo4j_session, "KubernetesOIDCProvider", ["id"])
+    assert (f"{TEST_CLUSTER_NAME}/oidc/okta-provider",) in actual_oidc
+
+
+def test_eks_sync_skips_aws_auth_on_not_found(neo4j_session, caplog):
+    """
+    When the aws-auth ConfigMap does not exist (404, typical for Access Entries-only
+    clusters), sync_eks logs an info message and continues with the remaining steps.
+    """
+    with caplog.at_level("INFO"):
+        _run_eks_sync_with_configmap_error(neo4j_session, status=404)
+
+    assert any(
+        "No aws-auth ConfigMap on cluster" in record.message
+        for record in caplog.records
+    )
+
+    # Access Entries still ingested
+    actual_users = check_nodes(neo4j_session, "KubernetesUser", ["id"])
+    assert ("test-cluster/alice-access-entry",) in actual_users

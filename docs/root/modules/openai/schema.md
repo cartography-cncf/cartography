@@ -6,10 +6,10 @@ O(Organization) -- RESOURCE --> P(Project)
 O -- RESOURCE --> U(User)
 P -- RESOURCE --> K(ApiKey)
 P -- RESOURCE --> SA(ServiceAccount)
-U -- OWNS --> AK
-U -- OWNS --> K
-SA -- OWNS --> AK
-SA -- OWNS --> K
+AK -- OWNED_BY --> U
+K -- OWNED_BY --> U
+AK -- OWNED_BY --> SA
+K -- OWNED_BY --> SA
 U -- MEMBER_OF --> P
 U -- ADMIN_OF --> P
 O -- RESOURCE --> AK(AdminApiKey)
@@ -62,8 +62,8 @@ Represents an individual Admin API key in an org.
     ```
 - `Admin API Key` is owned by a `User` or a `ServiceAccount`
     ```
-    (:OpenAIUser)-[:OWNS]->(:OpenAIAdminApiKey)
-    (:OpenAIServiceAccount)-[:OWNS]->(:OpenAIAdminApiKey)
+    (:OpenAIAdminApiKey)-[:OWNED_BY]->(:OpenAIUser)
+    (:OpenAIAdminApiKey)-[:OWNED_BY]->(:OpenAIServiceAccount)
     ```
 
 ### OpenAIUser
@@ -90,11 +90,11 @@ Represents an individual `user` within an organization.
     ```
 - `Admin API Key` is owned by a `User`
     ```
-    (:OpenAIUser)-[:OWNS]->(:OpenAIAdminApiKey)
+    (:OpenAIAdminApiKey)-[:OWNED_BY]->(:OpenAIUser)
     ```
 - `API Key` is owned by a `User`
     ```
-    (:OpenAIUser)-[:OWNS]->(:OpenAIApiKey)
+    (:OpenAIApiKey)-[:OWNED_BY]->(:OpenAIUser)
     ```
 - `User` are member of a `Project`
     ```
@@ -125,7 +125,7 @@ Represents an individual project.
 #### Relationships
 -  `ServiceAccount` and `APIKey` belong to an `OpenAIProject`.
     ```
-    (:OpenAIProject)<-[:RESOURCE]-(
+    (:OpenAIProject)-[:RESOURCE]->(
         :OpenAIServiceAccount,
         :OpenAIApiKey,
     )
@@ -162,15 +162,15 @@ Represents an individual service account in a project.
 #### Relationships
 - `ServiceAccount` belongs to a `Project`
     ```
-    (:OpenAIServiceAccount)-[:RESOURCE]->(:OpenAIProject)
+    (:OpenAIProject)-[:RESOURCE]->(:OpenAIServiceAccount)
     ```
 - `Admin API Key` is owned by a `ServiceAccount`
     ```
-    (:OpenAIServiceAccount)-[:OWNS]->(:OpenAIAdminApiKey)
+    (:OpenAIAdminApiKey)-[:OWNED_BY]->(:OpenAIServiceAccount)
     ```
 - `API Key` is owned by a `ServiceAccount`
     ```
-    (:OpenAIServiceAccount)-[:OWNS]->(:OpenAIApiKey)
+    (:OpenAIApiKey)-[:OWNED_BY]->(:OpenAIServiceAccount)
     ```
 
 
@@ -194,10 +194,10 @@ Represents an individual API key in a project.
 #### Relationships
 - `ApiKey` belongs to a `Project`
     ```
-    (:OpenAIApiKey)-[:RESOURCE]->(:OpenAIProject)
+    (:OpenAIProject)-[:RESOURCE]->(:OpenAIApiKey)
     ```
 - `APIKey` is owned by a `User` or a `ServiceAccount`
     ```
-    (:OpenAIUser)-[:OWNS]->(:OpenAIApiKey)
-    (:OpenAIServiceAccount)-[:OWNS]->(:OpenAIApiKey)
+    (:OpenAIApiKey)-[:OWNED_BY]->(:OpenAIUser)
+    (:OpenAIApiKey)-[:OWNED_BY]->(:OpenAIServiceAccount)
     ```

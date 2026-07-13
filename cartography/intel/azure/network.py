@@ -12,6 +12,12 @@ from cartography.models.azure.network_interface import AzureNetworkInterfaceSche
 from cartography.models.azure.network_security_group import (
     AzureNetworkSecurityGroupSchema,
 )
+from cartography.models.azure.network_security_rule import (
+    AzureInboundNetworkSecurityRuleSchema,
+)
+from cartography.models.azure.network_security_rule import (
+    AzureOutboundNetworkSecurityRuleSchema,
+)
 from cartography.models.azure.public_ip_address import AzurePublicIPAddressSchema
 from cartography.models.azure.subnet import AzureSubnetSchema
 from cartography.models.azure.subnet import AzureSubnetToNSGRel
@@ -27,6 +33,20 @@ from cartography.util import timeit
 from .util.credentials import Credentials
 
 logger = logging.getLogger(__name__)
+
+
+def _get_properties(data: dict[str, Any]) -> dict[str, Any]:
+    return data.get("properties") or {}
+
+
+def _get_value(data: dict[str, Any], *keys: str) -> Any:
+    properties = _get_properties(data)
+    for key in keys:
+        if key in data:
+            return data[key]
+        if key in properties:
+            return properties[key]
+    return None
 
 
 def _get_resource_group_from_id(resource_id: str) -> str:
@@ -83,17 +103,17 @@ def get_network_interfaces(client: NetworkManagementClient) -> list[dict]:
 def transform_virtual_networks(vnets: list[dict]) -> list[dict]:
     transformed: list[dict[str, Any]] = []
     for vnet in vnets:
-        # Azure SDK as_dict() may return properties nested or flattened
-        provisioning_state = vnet.get("properties", {}).get(
-            "provisioning_state"
-        ) or vnet.get("provisioning_state")
         transformed.append(
             {
                 "id": vnet.get("id"),
                 "name": vnet.get("name"),
                 "location": vnet.get("location"),
                 "tags": vnet.get("tags"),
-                "provisioning_state": provisioning_state,
+                "provisioning_state": _get_value(
+                    vnet,
+                    "provisioning_state",
+                    "provisioningState",
+                ),
             }
         )
     return transformed
@@ -103,20 +123,23 @@ def transform_subnets(subnets: list[dict]) -> list[dict]:
     transformed: list[dict[str, Any]] = []
     for subnet in subnets:
         nsg_id = None
-        network_security_group = subnet.get("network_security_group")
+        network_security_group = _get_value(
+            subnet,
+            "network_security_group",
+            "networkSecurityGroup",
+        )
         if network_security_group:
             nsg_id = network_security_group.get("id")
-
-        # Azure SDK as_dict() may return properties nested or flattened
-        address_prefix = subnet.get("properties", {}).get(
-            "address_prefix"
-        ) or subnet.get("address_prefix")
 
         transformed.append(
             {
                 "id": subnet.get("id"),
                 "name": subnet.get("name"),
-                "address_prefix": address_prefix,
+                "address_prefix": _get_value(
+                    subnet,
+                    "address_prefix",
+                    "addressPrefix",
+                ),
                 "nsg_id": nsg_id,
             }
         )
@@ -137,22 +160,75 @@ def transform_network_security_groups(nsgs: list[dict]) -> list[dict]:
     return transformed
 
 
+def transform_network_security_rules(nsgs: list[dict]) -> list[dict]:
+    """
+    Flatten the inbound/outbound and default security rules from each NSG into a
+    single list, tagging each rule with its parent NSG id.
+    """
+    transformed: list[dict[str, Any]] = []
+    for nsg in nsgs:
+        nsg_id = nsg.get("id")
+
+        rule_collections = (
+            (_get_value(nsg, "security_rules", "securityRules") or []),
+            (_get_value(nsg, "default_security_rules", "defaultSecurityRules") or []),
+        )
+        is_default_flags = (False, True)
+
+        for rules, is_default in zip(rule_collections, is_default_flags):
+            for rule in rules:
+                rule_props = rule.get("properties", {})
+                merged = {**rule_props, **{k: v for k, v in rule.items() if v}}
+                transformed.append(
+                    {
+                        "id": rule.get("id"),
+                        "name": rule.get("name"),
+                        "nsg_id": nsg_id,
+                        "description": merged.get("description"),
+                        "protocol": merged.get("protocol"),
+                        "direction": merged.get("direction"),
+                        "access": merged.get("access"),
+                        "priority": merged.get("priority"),
+                        "source_port_range": merged.get("source_port_range")
+                        or merged.get("sourcePortRange"),
+                        "source_port_ranges": merged.get("source_port_ranges")
+                        or merged.get("sourcePortRanges"),
+                        "destination_port_range": merged.get("destination_port_range")
+                        or merged.get("destinationPortRange"),
+                        "destination_port_ranges": merged.get("destination_port_ranges")
+                        or merged.get("destinationPortRanges"),
+                        "source_address_prefix": merged.get("source_address_prefix")
+                        or merged.get("sourceAddressPrefix"),
+                        "source_address_prefixes": merged.get("source_address_prefixes")
+                        or merged.get("sourceAddressPrefixes"),
+                        "destination_address_prefix": merged.get(
+                            "destination_address_prefix"
+                        )
+                        or merged.get("destinationAddressPrefix"),
+                        "destination_address_prefixes": merged.get(
+                            "destination_address_prefixes"
+                        )
+                        or merged.get("destinationAddressPrefixes"),
+                        "is_default": is_default,
+                    }
+                )
+    return transformed
+
+
 def transform_public_ip_addresses(public_ips: list[dict]) -> list[dict]:
     transformed: list[dict[str, Any]] = []
     for public_ip in public_ips:
-        # Azure SDK as_dict() may return properties nested or flattened
-        properties = public_ip.get("properties", {})
-        ip_address = properties.get("ip_address") or public_ip.get("ip_address")
-        allocation_method = properties.get(
-            "public_ip_allocation_method"
-        ) or public_ip.get("public_ip_allocation_method")
         transformed.append(
             {
                 "id": public_ip.get("id"),
                 "name": public_ip.get("name"),
                 "location": public_ip.get("location"),
-                "ip_address": ip_address,
-                "public_ip_allocation_method": allocation_method,
+                "ip_address": _get_value(public_ip, "ip_address", "ipAddress"),
+                "public_ip_allocation_method": _get_value(
+                    public_ip,
+                    "public_ip_allocation_method",
+                    "publicIPAllocationMethod",
+                ),
             }
         )
     return transformed
@@ -165,7 +241,14 @@ def transform_network_interfaces(network_interfaces: list[dict]) -> list[dict]:
         public_ip_ids: list[str] = []
         private_ips: list[str] = []
 
-        for ip_config in interface.get("ip_configurations", []):
+        for ip_config in (
+            _get_value(
+                interface,
+                "ip_configurations",
+                "ipConfigurations",
+            )
+            or []
+        ):
             # Azure SDK as_dict() may return properties nested or flattened
             # Try nested first (properties wrapper), then flattened (direct access)
             ip_config_props = ip_config.get("properties", {})
@@ -178,8 +261,11 @@ def transform_network_interfaces(network_interfaces: list[dict]) -> list[dict]:
                     subnet_ids.append(subnet_id)
 
             # Get public IP ID - try nested then flattened
-            public_ip_ref = ip_config_props.get("public_ip_address") or ip_config.get(
-                "public_ip_address"
+            public_ip_ref = (
+                ip_config_props.get("public_ip_address")
+                or ip_config_props.get("publicIPAddress")
+                or ip_config.get("public_ip_address")
+                or ip_config.get("publicIPAddress")
             )
             if public_ip_ref and isinstance(public_ip_ref, dict):
                 public_ip_id = public_ip_ref.get("id")
@@ -187,8 +273,11 @@ def transform_network_interfaces(network_interfaces: list[dict]) -> list[dict]:
                     public_ip_ids.append(public_ip_id)
 
             # Get private IP - try nested then flattened
-            private_ip = ip_config_props.get("private_ip_address") or ip_config.get(
-                "private_ip_address"
+            private_ip = (
+                ip_config_props.get("private_ip_address")
+                or ip_config_props.get("privateIPAddress")
+                or ip_config.get("private_ip_address")
+                or ip_config.get("privateIPAddress")
             )
             if private_ip:
                 private_ips.append(private_ip)
@@ -196,8 +285,13 @@ def transform_network_interfaces(network_interfaces: list[dict]) -> list[dict]:
         # Handle case where virtual_machine can be None (unattached NIC)
         # Lowercase the VM ID to match the normalized VM node id (Azure APIs
         # return inconsistent casing for resource group names across services)
-        vm_ref = interface.get("virtual_machine")
+        vm_ref = _get_value(interface, "virtual_machine", "virtualMachine")
         vm_id = vm_ref.get("id").lower() if vm_ref and vm_ref.get("id") else None
+
+        nsg_ref = _get_value(
+            interface, "network_security_group", "networkSecurityGroup"
+        )
+        nsg_id = nsg_ref.get("id") if nsg_ref and isinstance(nsg_ref, dict) else None
 
         transformed.append(
             {
@@ -209,6 +303,7 @@ def transform_network_interfaces(network_interfaces: list[dict]) -> list[dict]:
                 "VIRTUAL_MACHINE_ID": vm_id,
                 "SUBNET_IDS": subnet_ids,
                 "PUBLIC_IP_IDS": public_ip_ids,
+                "NSG_ID": nsg_id,
             }
         )
     return transformed
@@ -262,6 +357,38 @@ def load_network_security_groups(
         lastupdated=update_tag,
         AZURE_SUBSCRIPTION_ID=subscription_id,
     )
+
+
+@timeit
+def load_network_security_rules(
+    neo4j_session: neo4j.Session,
+    data: list[dict[str, Any]],
+    subscription_id: str,
+    update_tag: int,
+) -> None:
+    """
+    Load NSG rules into Neo4j, splitting Inbound and Outbound rules so each
+    batch picks up the appropriate ontology label (`IpPermissionInbound` vs
+    `IpPermissionEgress`).
+    """
+    inbound = [r for r in data if (r.get("direction") or "").lower() == "inbound"]
+    outbound = [r for r in data if (r.get("direction") or "").lower() == "outbound"]
+    if inbound:
+        load(
+            neo4j_session,
+            AzureInboundNetworkSecurityRuleSchema(),
+            inbound,
+            lastupdated=update_tag,
+            AZURE_SUBSCRIPTION_ID=subscription_id,
+        )
+    if outbound:
+        load(
+            neo4j_session,
+            AzureOutboundNetworkSecurityRuleSchema(),
+            outbound,
+            lastupdated=update_tag,
+            AZURE_SUBSCRIPTION_ID=subscription_id,
+        )
 
 
 @timeit
@@ -397,14 +524,24 @@ def _sync_network_security_groups(
     common_job_parameters: dict,
 ) -> None:
     """
-    Syncs Network Security Groups.
+    Syncs Network Security Groups and the inbound/outbound security rules they
+    contain.
     """
     nsgs = get_network_security_groups(client)
     transformed_nsgs = transform_network_security_groups(nsgs)
     load_network_security_groups(
         neo4j_session, transformed_nsgs, subscription_id, update_tag
     )
+    transformed_rules = transform_network_security_rules(nsgs)
+    load_network_security_rules(
+        neo4j_session, transformed_rules, subscription_id, update_tag
+    )
     load_nsg_tags(neo4j_session, subscription_id, nsgs, update_tag)
+    # Both rule schemas share the AzureNetworkSecurityRule node label, so a
+    # single cleanup pass covers nodes loaded under either schema.
+    GraphJob.from_node_schema(
+        AzureInboundNetworkSecurityRuleSchema(), common_job_parameters
+    ).run(neo4j_session)
     GraphJob.from_node_schema(
         AzureNetworkSecurityGroupSchema(), common_job_parameters
     ).run(neo4j_session)

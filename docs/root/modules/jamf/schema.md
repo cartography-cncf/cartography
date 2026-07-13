@@ -6,6 +6,7 @@ T(JamfTenant) -- RESOURCE --> CG(JamfComputerGroup)
 T -- RESOURCE --> MG(JamfMobileDeviceGroup)
 T -- RESOURCE --> C(JamfComputer)
 T -- RESOURCE --> M(JamfMobileDevice)
+U(User) -- OWNS --> D(Device)
 C -- MEMBER_OF --> CG
 M -- MEMBER_OF --> MG
 D(Device) -- OBSERVED_AS --> C
@@ -100,7 +101,7 @@ Representation of a Jamf mobile device group.
 
 Representation of a Jamf-managed macOS computer inventory record.
 
-> **Ontology Mapping**: `JamfComputer` contributes to the `Device` ontology using serial number as the primary key and hostname as a supplemental match strategy.
+> **Ontology Mapping**: `JamfComputer` contributes to the `Device` ontology using serial number as the primary key and hostname as a supplemental match strategy. When Jamf provides a device email, the ontology also uses that email as a correlation signal to derive canonical `(:User)-[:OWNS]->(:Device)` relationships.
 
 | Field | Description |
 |-------|-------------|
@@ -150,13 +151,17 @@ Representation of a Jamf-managed macOS computer inventory record.
   ```
   (:Device)-[:OBSERVED_AS]->(:JamfComputer)
   ```
+- `User` can own a canonical `Device` observed through Jamf when the Jamf device email matches the canonical user email.
+  ```
+  (:User)-[:OWNS]->(:Device)-[:OBSERVED_AS]->(:JamfComputer)
+  ```
 
 
 ### JamfMobileDevice
 
 Representation of a Jamf-managed iPhone or iPad inventory record.
 
-> **Ontology Mapping**: `JamfMobileDevice` contributes to the `Device` ontology using serial number as the primary key while promoting Jamf `display_name` and a normalized Jamf mobile OS value into the canonical `Device` hostname and OS fields.
+> **Ontology Mapping**: `JamfMobileDevice` contributes to the `Device` ontology using serial number as the primary key while promoting Jamf `display_name` and a normalized Jamf mobile OS value into the canonical `Device` hostname and OS fields. When Jamf provides a device email, the ontology also uses that email as a correlation signal to derive canonical `(:User)-[:OWNS]->(:Device)` relationships.
 
 | Field | Description |
 |-------|-------------|
@@ -200,4 +205,8 @@ Representation of a Jamf-managed iPhone or iPad inventory record.
 - `Device` can observe the same endpoint as a `JamfMobileDevice`.
   ```
   (:Device)-[:OBSERVED_AS]->(:JamfMobileDevice)
+  ```
+- `User` can own a canonical `Device` observed through Jamf when the Jamf device email matches the canonical user email.
+  ```
+  (:User)-[:OWNS]->(:Device)-[:OBSERVED_AS]->(:JamfMobileDevice)
   ```

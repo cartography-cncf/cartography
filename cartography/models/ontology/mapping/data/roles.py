@@ -214,12 +214,149 @@ oci_mapping = OntologyMapping(
     ],
 )
 
+# Okta
+okta_mapping = OntologyMapping(
+    module_name="okta",
+    nodes=[
+        OntologyNodeMapping(
+            node_label="OktaAdministrationRole",
+            fields=[
+                OntologyFieldMapping(
+                    ontology_field="name", node_field="label", required=True
+                ),
+                OntologyFieldMapping(
+                    ontology_field="type",
+                    node_field="",
+                    special_handling="static_value",
+                    extra={"value": "builtin"},
+                ),
+                OntologyFieldMapping(
+                    ontology_field="scope",
+                    node_field="",
+                    special_handling="static_value",
+                    extra={"value": "org"},
+                ),
+            ],
+        ),
+    ],
+)
+
+
+# Scaleway
+scaleway_mapping = OntologyMapping(
+    module_name="scaleway",
+    nodes=[
+        OntologyNodeMapping(
+            node_label="ScalewayPermissionSet",
+            fields=[
+                OntologyFieldMapping(
+                    ontology_field="name", node_field="name", required=True
+                ),
+                OntologyFieldMapping(
+                    ontology_field="type",
+                    node_field="",
+                    special_handling="static_value",
+                    extra={"value": "builtin"},
+                ),
+                OntologyFieldMapping(
+                    ontology_field="scope",
+                    node_field="scope_type",
+                    special_handling="mapping",
+                    extra={
+                        "map": {
+                            "projects": "project",
+                            "organization": "org",
+                            "account_root_user": "account",
+                        }
+                    },
+                ),
+            ],
+        ),
+    ],
+)
+
+# WorkOS
+workos_mapping = OntologyMapping(
+    module_name="workos",
+    nodes=[
+        OntologyNodeMapping(
+            node_label="WorkOSRole",
+            fields=[
+                OntologyFieldMapping(
+                    ontology_field="name", node_field="name", required=True
+                ),
+                OntologyFieldMapping(
+                    ontology_field="type",
+                    node_field="type",
+                    special_handling="mapping",
+                    extra={
+                        "map": {
+                            "EnvironmentRole": "custom",
+                            "OrganizationRole": "custom",
+                        }
+                    },
+                ),
+                OntologyFieldMapping(
+                    ontology_field="scope",
+                    node_field="type",
+                    special_handling="mapping",
+                    extra={
+                        "map": {
+                            "EnvironmentRole": "global",
+                            "OrganizationRole": "org",
+                        }
+                    },
+                ),
+            ],
+        ),
+    ],
+)
+
+# Salesforce (Profiles and Permission Sets are both permission grants)
+salesforce_mapping = OntologyMapping(
+    module_name="salesforce",
+    nodes=[
+        OntologyNodeMapping(
+            node_label="SalesforceProfile",
+            fields=[
+                OntologyFieldMapping(
+                    ontology_field="name", node_field="name", required=True
+                ),
+                OntologyFieldMapping(
+                    ontology_field="scope",
+                    node_field="",
+                    special_handling="static_value",
+                    extra={"value": "org"},
+                ),
+            ],
+        ),
+        OntologyNodeMapping(
+            node_label="SalesforcePermissionSet",
+            fields=[
+                OntologyFieldMapping(
+                    ontology_field="name", node_field="name", required=True
+                ),
+                OntologyFieldMapping(
+                    ontology_field="scope",
+                    node_field="",
+                    special_handling="static_value",
+                    extra={"value": "org"},
+                ),
+            ],
+        ),
+    ],
+)
+
 ROLES_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     "aws": aws_mapping,
     "azure": azure_mapping,
     "gcp": gcp_mapping,
     "keycloak": keycloak_mapping,
+    "salesforce": salesforce_mapping,
     "kubernetes": kubernetes_mapping,
     "cloudflare": cloudflare_mapping,
     "oci": oci_mapping,
+    "okta": okta_mapping,
+    "scaleway": scaleway_mapping,
+    "workos": workos_mapping,
 }

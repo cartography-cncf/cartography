@@ -515,6 +515,59 @@ def test_sync_load_balancers(mock_get_instances, mock_get_loadbalancers, neo4j_s
     }
 
 
+def test_load_load_balancer_v2_target_group_nodes(neo4j_session, *args):
+    load_balancer_data = tests.data.aws.ec2.load_balancers.LOAD_BALANCER_DATA
+    load_balancer_id = "myawesomeloadbalancer.amazonaws.com"
+
+    neo4j_session.run(
+        """
+        MERGE (aws:AWSAccount{id: $aws_account_id})
+        ON CREATE SET aws.firstseen = timestamp()
+        SET aws.lastupdated = $aws_update_tag, aws :Tenant
+        """,
+        aws_account_id=TEST_ACCOUNT_ID,
+        aws_update_tag=TEST_UPDATE_TAG,
+    )
+
+    cartography.intel.aws.ec2.load_balancer_v2s.load_load_balancer_v2s(
+        neo4j_session,
+        load_balancer_data,
+        TEST_REGION,
+        TEST_ACCOUNT_ID,
+        TEST_UPDATE_TAG,
+    )
+
+    # Assert 4 ELBV2TargetGroup nodes are attached to the valid LB
+    result = neo4j_session.run(
+        """
+        MATCH (lb:AWSLoadBalancerV2 {id: $lb_id})-[:ELBV2_TARGET_GROUP]->(tg:ELBV2TargetGroup)
+        RETURN tg.id AS id, tg.name AS name, tg.target_type AS target_type,
+               tg.port AS port, tg.protocol AS protocol, tg.vpc_id AS vpc_id
+        ORDER BY tg.name
+        """,
+        lb_id=load_balancer_id,
+    )
+    tg_records = [dict(r) for r in result]
+    assert len(tg_records) == 4
+
+    tg_by_name = {r["name"]: r for r in tg_records}
+    assert tg_by_name["alb-tg"]["target_type"] == "alb"
+    assert tg_by_name["instance-tg"]["port"] == 80
+    assert tg_by_name["ip-tg"]["protocol"] == "HTTPS"
+    assert tg_by_name["lambda-tg"]["port"] is None
+    assert tg_by_name["instance-tg"]["vpc_id"] == "vpc-12345"
+
+    # Assert sub-resource relationship to AWSAccount
+    account_result = neo4j_session.run(
+        """
+        MATCH (aws:AWSAccount {id: $aws_id})-[:RESOURCE]->(tg:ELBV2TargetGroup)
+        RETURN count(tg) AS count
+        """,
+        aws_id=TEST_ACCOUNT_ID,
+    )
+    assert account_result.single()["count"] == 4
+
+
 def test_load_balancer_v2s_skips_missing_dnsname(neo4j_session, *args):
     load_balancer_data = tests.data.aws.ec2.load_balancers.LOAD_BALANCER_DATA
     # Setup required nodes

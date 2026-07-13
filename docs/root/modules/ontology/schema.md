@@ -8,6 +8,8 @@ graph LR
 
 U(User) -- HAS_ACCOUNT --> UA{{UserAccount}}
 U -- OWNS --> CC(Device)
+SAF[S1AppFinding] -- AFFECTS --> CC
+CSF[CrowdstrikeFinding] -- AFFECTS --> CC
 U -- OWNS --> AK{{APIKey}}
 U -- AUTHORIZED --> OA{{ThirdPartyApp}}
 UG{{UserGroup}}
@@ -16,21 +18,59 @@ CERT{{Certificate}}
 LB{{LoadBalancer}} -- EXPOSE --> CI{{ComputeInstance}}
 LB{{LoadBalancer}} -- EXPOSE --> CT{{Container}}
 CL{{ComputeCluster}}
+CS{{ComputeService}}
+CNS{{ComputeNamespace}}
+CP{{ComputePod}}
+CT -- WORKLOAD_PARENT --> CP
+CT -- WORKLOAD_PARENT --> CS
+CP -- WORKLOAD_PARENT --> CS
+CP -- WORKLOAD_PARENT --> CNS
+CP -- WORKLOAD_PARENT --> CL
+CS -- WORKLOAD_PARENT --> CL
+CNS -- WORKLOAD_PARENT --> CL
 DB{{Database}}
 DZ{{DNSZone}}
 OS{{ObjectStorage}}
+FS{{FileStorage}}
+BS{{BlockStorage}}
+IDP{{IdentityProvider}}
+CICD{{CICDPipeline}}
 TN{{Tenant}}
 FN{{Function}}
 REPO{{CodeRepository}}
 SC{{Secret}}
 EK{{EncryptionKey}}
+SC -- ENCRYPTED_BY --> EK
+DB -- ENCRYPTED_BY --> EK
+OS -- ENCRYPTED_BY --> EK
+FS -- ENCRYPTED_BY --> EK
+CP -- USES_SECRET --> SC
+FN -- USES_SECRET --> SC
+CI -- USES_SECRET --> SC
 PR{{PermissionRole}}
+UA -- HAS_ROLE --> PR
+SA -- HAS_ROLE --> PR
+UG -- HAS_ROLE --> PR
+PR -- INCLUDES --> PR
+UA -- MEMBER_OF --> UG
+SA -- MEMBER_OF --> UG
+UG -- MEMBER_OF --> UG
+AK -- OWNED_BY --> UA
+AK -- OWNED_BY --> SA
+CI -- RUNS_AS --> SA
+CP -- RUNS_AS --> SA
+FN -- RUNS_AS --> SA
+CS -- RUNS_AS --> SA
+CI -- ASSUMES --> PR
+FN -- ASSUMES --> PR
 NAC{{NetworkAccessControl}}
+AIM{{AIModel}}
 PIP(PublicIP) -- POINTS_TO --> LB
 PIP -- POINTS_TO --> CI
 PKG(Package) -- DEPLOYED --> IM{{Image}}
 PKG -- DEPENDS_ON --> PKG
 F[TrivyImageFinding] -- AFFECTS --> PKG
+SCA[SemgrepSCAFinding] -- AFFECTS --> PKG
 CR{{ContainerRegistry}} -- REPO_IMAGE --> IT{{ImageTag}}
 IT -- IMAGE --> IM
 IML{{ImageManifestList}} -- CONTAINS_IMAGE --> IM
@@ -44,6 +84,12 @@ CT -- RESOLVED_IMAGE --> IM
 :::{note}
 In this schema, `squares` represent `Abstract Nodes` and `hexagons` represent `Semantic Labels` (on module nodes).
 :::
+
+### Where ontology relationships come from
+
+1. The abstract ontology node schemas (`User`, `Device`, `PublicIP`, `Package`) declare the edges they own to module nodes (e.g. `(:User)-[:HAS_ACCOUNT]->(:UserAccount)`).
+2. Ontology analysis jobs derive cross-module edges after sync (e.g. `ontology_users_linking.json` builds the `User`/`UserAccount` graph; `resolved_image_analysis.json` connects `Container` and `Function` to a single-platform `Image`).
+3. Sync modules wire edges between two ontology-labelled nodes themselves (e.g. ECS adding `(:ECSContainer:Container)-[:WORKLOAD_PARENT]->(:ECSTask:ComputePod)`). For this last source, canonical `(src, dst, label)` triples are encoded as `RelConstraint` entries in [`cartography/models/ontology/constraints.py`](https://github.com/cartography-cncf/cartography/blob/master/cartography/models/ontology/constraints.py); a unit test rejects any module rel between those two ontology labels that uses a different name or direction.
 
 ### Ontology Properties on Nodes
 
@@ -116,6 +162,7 @@ If field `active` is null, it should not be considered as `true` or `false`, onl
     ```
     (:User)-[:OWNS]->(:Device)
     ```
+  Jamf device emails, CrowdStrike host emails, and provider-native ownership edges are examples of signals Cartography can use to derive this relationship.
 - `User` can own one or many `APIKey` (semantic label):
     ```
     (:User)-[:OWNS]->(:APIKey)
@@ -142,6 +189,13 @@ Unlike the abstract `User` node, `UserAccount` is a semantic label applied to co
 | _ont_lastactivity | Timestamp of the last activity or login for this account. |
 | _ont_source | Source of the data. |
 
+#### Relationships
+
+- A `User` has one or many `UserAccount`:
+    ```
+    (:User)-[:HAS_ACCOUNT]->(:UserAccount)
+    ```
+
 
 ### UserGroup
 
@@ -165,6 +219,16 @@ Common group concepts across platforms include:
 | _ont_description | Description of the group. |
 | _ont_email | Email address associated with the group (for mail-enabled groups). |
 | _ont_source | Source of the data. |
+
+#### Relationships
+
+- A `UserAccount` or `ServiceAccount` is a member of a `UserGroup` via the canonical `MEMBER_OF` edge. Groups also nest into other groups with the same edge:
+    ```
+    (:UserAccount)-[:MEMBER_OF]->(:UserGroup)
+    (:ServiceAccount)-[:MEMBER_OF]->(:UserGroup)
+    (:UserGroup)-[:MEMBER_OF]->(:UserGroup)
+    ```
+  Group "owner", "maintainer", and "admin" roles are kept as their own provider-specific edges (a distinct, more privileged semantic), as are transitive `INHERITED_MEMBER_OF` edges derived across nested groups.
 
 
 ### Device
@@ -199,6 +263,12 @@ A client computer is a host that accesses a service made available by a server o
     ```
     (:User)-[:OWNS]->(:Device)
     ```
+  This relationship may be derived from provider signals such as Jamf device emails, CrowdStrike host emails, or native provider ownership edges.
+- A `Device` can be affected by one or many findings (propagated from the provider host/agent during the ontology linking job):
+    ```
+    (:S1AppFinding)-[:AFFECTS]->(:Device)
+    (:CrowdstrikeFinding)-[:AFFECTS]->(:Device)
+    ```
 
 
 ### APIKey
@@ -221,7 +291,13 @@ API keys are used across different cloud providers and SaaS platforms for authen
 
 #### Relationships
 
-- `User` can own one or many `APIKey`
+- An `APIKey` is owned by the `UserAccount` or `ServiceAccount` it authenticates as, via the canonical `OWNED_BY` edge:
+    ```
+    (:APIKey)-[:OWNED_BY]->(:UserAccount)
+    (:APIKey)-[:OWNED_BY]->(:ServiceAccount)
+    ```
+
+- At the abstract layer, a `User` owns one or many `APIKey` (derived from the `OWNED_BY` edges above during the ontology linking job):
     ```
     (:User)-[:OWNS]->(:APIKey)
     ```
@@ -244,6 +320,15 @@ They are managed by dedicated services like AWS Secrets Manager, GCP Secret Mana
 | _ont_updated_at | Timestamp when the secret was last updated. |
 | _ont_rotation_enabled | Whether automatic rotation is enabled for the secret. |
 
+#### Relationships
+
+- A `ComputePod`, `Function`, or `ComputeInstance` that consumes a secret is linked via the canonical `USES_SECRET` edge. The injection method is captured on the edge as the `mount_method` property (e.g. `volume`, `env`):
+    ```
+    (:ComputePod)-[:USES_SECRET]->(:Secret)
+    (:Function)-[:USES_SECRET]->(:Secret)
+    (:ComputeInstance)-[:USES_SECRET]->(:Secret)
+    ```
+
 
 ### EncryptionKey
 
@@ -261,6 +346,16 @@ Encryption keys are used for data encryption, signing, and other cryptographic o
 | _ont_key_type | The key purpose or usage type (e.g., "ENCRYPT_DECRYPT", "SIGN_VERIFY"). |
 | _ont_enabled | Whether the encryption key is currently enabled. |
 | _ont_rotation_enabled | Whether automatic key rotation is configured. |
+
+#### Relationships
+
+- A `Secret`, `Database`, `ObjectStorage`, or `FileStorage` encrypted with a customer-managed key is linked to it via the canonical `ENCRYPTED_BY` edge:
+    ```
+    (:Secret)-[:ENCRYPTED_BY]->(:EncryptionKey)
+    (:Database)-[:ENCRYPTED_BY]->(:EncryptionKey)
+    (:ObjectStorage)-[:ENCRYPTED_BY]->(:EncryptionKey)
+    (:FileStorage)-[:ENCRYPTED_BY]->(:EncryptionKey)
+    ```
 
 
 ### ComputeInstance
@@ -290,7 +385,11 @@ Container is a semantic label.
 ```
 
 A container represents a lightweight, standalone executable package that includes everything needed to run an application.
-It generalizes concepts like ECS Containers, Kubernetes Containers, Azure Container Instances, and GCP Cloud Run Revisions / Jobs.
+It generalizes concepts like ECS Containers, Kubernetes Containers, individual containers within Azure Container Groups (`AzureContainerInstance`), and individual containers within GCP Cloud Run Services (`GCPCloudRunServiceContainer`) and Jobs (`GCPCloudRunJobContainer`).
+
+```{note}
+GCP Cloud Run Services, Jobs and Revisions are themselves **not** modeled as `Container` (and no longer as `Function` either). Services and Jobs are orchestrators (analogous to `ECSService` / AWS Batch); Revisions are pure versioning markers for Services. Their per-container specs are materialized as child `GCPCloudRunServiceContainer` / `GCPCloudRunJobContainer` nodes that carry `:Container` and `RESOLVED_IMAGE`.
+```
 
 | Field | Description |
 |-------|-------------|
@@ -317,6 +416,11 @@ It generalizes concepts like ECS Containers, Kubernetes Containers, Azure Contai
     ```
     (:Container)-[:RESOLVED_IMAGE]->(:Image)
     ```
+- `Container` points at its parent in the unified workload chain. Depending on the provider this is a `ComputePod` (cluster-backed providers like AWS ECS and Kubernetes) or directly a `ComputeService` (serverless providers like GCP Cloud Run).
+    ```
+    (:Container)-[:WORKLOAD_PARENT]->(:ComputePod)
+    (:Container)-[:WORKLOAD_PARENT]->(:ComputeService)
+    ```
 
 
 ### ComputeCluster
@@ -335,6 +439,102 @@ It generalizes concepts like AWS EKS clusters, AWS ECS clusters, AWS EMR cluster
 | _ont_version | The version of the cluster engine (e.g., Kubernetes version, EMR release label). |
 | _ont_endpoint | The API endpoint or FQDN for the cluster. |
 | _ont_status | The current status of the cluster (e.g., ACTIVE, RUNNING, Succeeded). |
+| _ont_control_plane_public_access | True when the cluster's control plane API server is reachable from the public internet. Populated for EKS, GKE, and AKS; left unset for self-managed Kubernetes clusters and for cluster types without a control-plane concept (ECS, EMR). |
+
+#### Relationships
+
+- `ComputeCluster` is the top of the unified workload chain. Children point at it via `WORKLOAD_PARENT`:
+    ```
+    (:ComputeService)-[:WORKLOAD_PARENT]->(:ComputeCluster)
+    (:ComputeNamespace)-[:WORKLOAD_PARENT]->(:ComputeCluster)
+    (:ComputePod)-[:WORKLOAD_PARENT]->(:ComputeCluster)
+    ```
+
+
+### ComputeService
+
+```{note}
+ComputeService is a semantic label.
+```
+
+A compute service represents an orchestrator that schedules, scales, and manages a set of workloads.
+It generalizes concepts like AWS ECS services and GCP Cloud Run services and jobs.
+
+`ComputeService` participates in the unified workload chain as the parent of workload nodes. Its position depends on the provider: in cluster-backed providers (AWS ECS) it sits between `ComputeCluster` and `ComputePod`, while in serverless providers like GCP Cloud Run it is the top-of-chain terminus reached directly by `:Container` nodes.
+
+| Field | Description |
+|-------|-------------|
+| _ont_name | The display name of the service / orchestrator. |
+| _ont_region | The region or location where the service is deployed. |
+| _ont_status | Current provisioning or operational status of the service (when available from the provider). |
+
+#### Relationships
+
+- `ComputeService` points at its parent `ComputeCluster` when one exists (AWS ECS).
+    ```
+    (:ComputeService)-[:WORKLOAD_PARENT]->(:ComputeCluster)
+    ```
+- A workload (`ComputePod` or, in serverless providers, `:Container` directly) points at its parent `ComputeService`.
+    ```
+    (:ComputePod)-[:WORKLOAD_PARENT]->(:ComputeService)
+    (:Container)-[:WORKLOAD_PARENT]->(:ComputeService)
+    ```
+
+
+### ComputeNamespace
+
+```{note}
+ComputeNamespace is a semantic label.
+```
+
+A compute namespace represents a workload-isolation scope within a `ComputeCluster`.
+Today it generalizes the Kubernetes Namespace concept; other providers may join when an analogous scope is modeled.
+
+| Field | Description |
+|-------|-------------|
+| _ont_name | The display name of the namespace. |
+| _ont_status | Current lifecycle phase of the namespace (e.g., `Active`, `Terminating`). |
+
+#### Relationships
+
+- `ComputeNamespace` points at its parent `ComputeCluster`.
+    ```
+    (:ComputeNamespace)-[:WORKLOAD_PARENT]->(:ComputeCluster)
+    ```
+- A `ComputePod` in a namespaced provider points at its enclosing `ComputeNamespace`.
+    ```
+    (:ComputePod)-[:WORKLOAD_PARENT]->(:ComputeNamespace)
+    ```
+
+
+### ComputePod
+
+```{note}
+ComputePod is a semantic label.
+```
+
+A compute pod represents the smallest schedulable workload unit on a compute platform: a co-scheduled, co-located group of containers sharing network and storage.
+It generalizes concepts like Kubernetes Pods, AWS ECS Tasks, and Azure Container Instance container groups.
+
+| Field | Description |
+|-------|-------------|
+| _ont_name | The display name of the pod / task (when the provider exposes one). |
+| _ont_status | Current runtime status of the pod / task (e.g., `Running`, `Pending`). |
+| _ont_namespace | Namespace the pod runs in (Kubernetes only). |
+| _ont_node | Node or host the pod is scheduled on (Kubernetes only). |
+
+#### Relationships
+
+- A `:Container` points at its parent `ComputePod` in cluster-backed providers (AWS ECS, Kubernetes).
+    ```
+    (:Container)-[:WORKLOAD_PARENT]->(:ComputePod)
+    ```
+- `ComputePod` points at its parent in the unified workload chain. Depending on the provider this is a `ComputeService` (ECS task attached to a service), a `ComputeNamespace` (Kubernetes pod), or directly a `ComputeCluster` (standalone ECS task). In serverless providers like Azure Container Instances, the pod is the top-of-chain terminus and has no `WORKLOAD_PARENT` outgoing.
+    ```
+    (:ComputePod)-[:WORKLOAD_PARENT]->(:ComputeService)
+    (:ComputePod)-[:WORKLOAD_PARENT]->(:ComputeNamespace)
+    (:ComputePod)-[:WORKLOAD_PARENT]->(:ComputeCluster)
+    ```
 
 
 ### ThirdPartyApp
@@ -400,6 +600,24 @@ It generalizes concepts like AWS RDS instances/clusters, DynamoDB tables, Azure 
 | _ont_db_location | The physical location/region of the database. |
 
 
+### AIModel
+
+```{note}
+AIModel is a semantic label.
+```
+
+An AI/ML model represents a deployed or referenced foundation, custom, or fine-tuned model across cloud providers and AI bills of materials.
+It generalizes concepts like AWS Bedrock foundation and custom models, AWS SageMaker models, GCP Vertex AI models, and AIBOM-detected model components.
+
+| Field | Description |
+|-------|-------------|
+| _ont_name | Name or identifier of the model (REQUIRED). |
+| _ont_provider | Vendor of the model (e.g. "Anthropic", "Amazon", "Meta") when known, otherwise the cloud provider hosting the model (e.g. "aws", "gcp"), or the framework reporting the model for AIBOM components. |
+| _ont_status | Lifecycle or operational status of the model (when exposed by the source). |
+| _ont_type | One of "foundation", "custom", or "fine-tuned" (when determinable). |
+| _ont_source | Source of the data. |
+
+
 ### PermissionRole
 
 ```{note}
@@ -422,6 +640,29 @@ Common role concepts across platforms include:
 | _ont_scope | The scope level of the role (e.g., "global", "account", "org", "project", "namespace", "cluster"). |
 | _ont_source | Source of the data. |
 
+A `UserAccount`, `ServiceAccount`, or `UserGroup` that is granted a permission role is linked via the canonical `HAS_ROLE` edge. Members inherit the roles granted to their groups:
+```
+(:UserAccount)-[:HAS_ROLE]->(:PermissionRole)
+(:ServiceAccount)-[:HAS_ROLE]->(:PermissionRole)
+(:UserGroup)-[:HAS_ROLE]->(:PermissionRole)
+```
+
+A composite or hierarchical role includes other roles via the canonical `INCLUDES` edge (e.g. Keycloak composite roles):
+```
+(:PermissionRole)-[:INCLUDES]->(:PermissionRole)
+```
+
+A workload that assumes a permission role to obtain its privileges is linked via the canonical `ASSUMES` edge:
+```
+(:ComputeInstance)-[:ASSUMES]->(:PermissionRole)
+(:Function)-[:ASSUMES]->(:PermissionRole)
+```
+Wired for both `Function` and `ComputeInstance`:
+- `Function`: an AWS Lambda is linked to its execution role (`(:AWSLambda)-[:ASSUMES]->(:AWSRole)`); an Azure Function App is linked to the role definitions assigned to its managed identity (`(:AzureFunctionApp)-[:ASSUMES]->(:AzureRoleDefinition)`).
+- `ComputeInstance`: an EC2 instance is linked to the role attached through its instance profile (`(:EC2Instance)-[:ASSUMES]->(:AWSRole)`, assembled from `EC2Instance-[:INSTANCE_PROFILE]->AWSInstanceProfile-[:ASSOCIATED_WITH]->AWSRole`); an Azure VM is linked to the role definitions assigned to its managed identity (`(:AzureVirtualMachine)-[:ASSUMES]->(:AzureRoleDefinition)`). The AWS analysis-job `STS_ASSUMEROLE_ALLOW` edge is kept as the distinct IAM trust-policy view.
+
+GCP compute (`ComputeInstance -[:ASSUMES]-> GCPRole`) is still pending, as it spans the compute and IAM-policy-binding syncs.
+
 
 ### ObjectStorage
 
@@ -439,6 +680,99 @@ It generalizes concepts like AWS S3 buckets, GCP Cloud Storage buckets, and Azur
 | _ont_encrypted | Whether the storage is encrypted. |
 | _ont_versioning | Whether versioning is enabled. |
 | _ont_public | Whether the storage has public access (not available for all providers). |
+
+
+### FileStorage
+
+```{note}
+FileStorage is a semantic label.
+```
+
+A file storage represents a managed network file system or file share across different cloud providers.
+It generalizes concepts like AWS EFS and Azure Files shares, as opposed to object storage (S3-like)
+or block storage (EBS-like).
+
+| Field | Description |
+|-------|-------------|
+| _ont_name | The name/identifier of the file system/share (REQUIRED). |
+| _ont_location | The region/location of the file storage. |
+| _ont_encrypted | Whether the storage is encrypted at rest. |
+
+
+### BlockStorage
+
+```{note}
+BlockStorage is a semantic label.
+```
+
+A block storage represents a managed block-level volume that can be attached to compute instances.
+It generalizes concepts like AWS EBS volumes, Azure managed disks, and Scaleway Instance volumes,
+as opposed to object storage (S3-like) or network file storage (EFS-like).
+
+| Field | Description |
+|-------|-------------|
+| _ont_name | The name/identifier of the volume (REQUIRED). |
+| _ont_size_gb | The size of the volume in gigabytes. |
+| _ont_encrypted | Whether the volume is encrypted at rest. Currently populated for AWS EBS volumes only. Azure managed disks are encrypted at rest by default via Storage Service Encryption (SSE), but cartography does not yet model SSE / disk-encryption-set posture, so the field is left unset. Scaleway block volumes do not expose encryption posture in the API. |
+| _ont_region | The region/zone where the volume lives. |
+| _ont_state | The lifecycle state of the volume (e.g., `available`, `in-use`). |
+
+
+### Snapshot
+
+```{note}
+Snapshot is a semantic label.
+```
+
+A snapshot represents a point-in-time copy of a volume or database. It generalizes AWS EBS/RDS snapshots, Azure snapshots, and Scaleway volume snapshots. Publicly shared snapshots are a known data-exfiltration vector.
+
+| Field | Description |
+|-------|-------------|
+| _ont_name | The name/identifier of the snapshot (REQUIRED). For AWS EBS this is the SnapshotId. |
+| _ont_encrypted | Whether the snapshot is encrypted at rest. Populated for AWS EBS/RDS snapshots only. **Absence is not `false`**: it means "unknown / not modeled" for that provider, not "unencrypted". Azure exposes only the legacy Azure Disk Encryption flag (snapshots are encrypted at rest by default via SSE), and Scaleway does not expose encryption posture, so the field is left unset for both. Do not write `coalesce(s._ont_encrypted, false) = false` to find unencrypted snapshots; filter on `s._ont_encrypted = false` instead. |
+| _ont_public | Whether the snapshot is publicly shared. Populated for AWS EBS/RDS snapshots only. **Absence is not `false`**: Azure and Scaleway do not expose a public-sharing flag on the snapshot node, so the field is left unset (state unknown, not "private"). |
+| _ont_source_id | The source volume (AWS EBS), database instance (AWS RDS) the snapshot was taken from. Not populated for Azure (no source on the node) or Scaleway (the source volume is only linked via the `HAS` relationship). |
+| _ont_created_at | When the snapshot was created. Not populated for Azure (no creation timestamp captured). |
+| _ont_region | The region/zone where the snapshot lives. |
+
+
+### IdentityProvider
+
+```{note}
+IdentityProvider is a semantic label.
+```
+
+An identity provider represents a federated identity source (SAML, OIDC, or vendor-defined)
+that other systems trust to authenticate users. It generalizes concepts like AWS IAM SAML
+providers, Kubernetes OIDC providers (e.g. on EKS), and Keycloak identity providers.
+
+| Field | Description |
+|-------|-------------|
+| _ont_name | Display name of the identity provider (REQUIRED). |
+| _ont_protocol | The federation protocol (`SAML`, `OIDC`, or provider-defined). |
+| _ont_issuer | The issuer URL or trust identifier. Populated for Kubernetes OIDC providers from `issuer_url`. Not populated for AWS IAM SAML providers (the ARN is the AWS-local resource id, not the SAML issuer / entity ID; the real issuer lives in the SAML metadata XML returned by `GetSAMLProvider`, which is not currently parsed) or Keycloak (issuer URL lives in `config.idpEntityId`, which is not currently stored on the node). |
+| _ont_enabled | Whether the provider is currently active. |
+
+
+### CICDPipeline
+
+```{note}
+CICDPipeline is a semantic label.
+```
+
+A CI/CD pipeline represents a build, deploy, or infrastructure-as-code pipeline definition
+across CI/CD platforms. It generalizes concepts like AWS CodeBuild projects, GitHub Actions
+workflows, GitLab `.gitlab-ci.yml` configs, and Spacelift stacks.
+This category models pipeline *definitions* only; runtime executions (e.g. workflow runs,
+Spacelift runs) and step components (e.g. third-party GitHub Actions referenced inside a
+workflow) are intentionally excluded. Data-movement / ETL workflows (e.g. Azure Data
+Factory pipelines) are also out of scope.
+
+| Field | Description |
+|-------|-------------|
+| _ont_name | The display name of the pipeline definition (REQUIRED). |
+| _ont_type | The pipeline category, normalized to `build` / `deploy` / `iac`. |
+| _ont_status | The lifecycle state of the pipeline (e.g., `active`, `disabled`). |
 
 
 ### Tenant
@@ -485,6 +819,16 @@ Common service account concepts across platforms include:
 | _ont_active | Whether the service account is active. |
 | _ont_source | Source of the data. |
 
+#### Relationships
+
+- A workload runs as (assumes the identity of) a `ServiceAccount` via the canonical `RUNS_AS` edge:
+    ```
+    (:ComputeInstance)-[:RUNS_AS]->(:ServiceAccount)
+    (:ComputePod)-[:RUNS_AS]->(:ServiceAccount)
+    (:Function)-[:RUNS_AS]->(:ServiceAccount)
+    (:ComputeService)-[:RUNS_AS]->(:ServiceAccount)
+    ```
+
 
 ### Certificate
 
@@ -510,7 +854,7 @@ Function is a semantic label.
 ```
 
 A function represents a serverless compute unit that runs code or containers in response to events without managing servers.
-It generalizes concepts like AWS Lambda functions, GCP Cloud Functions, GCP Cloud Run services/jobs, and Azure Function Apps.
+It generalizes concepts like AWS Lambda functions, GCP Cloud Functions, and Azure Function Apps. GCP Cloud Run Services and Jobs are orchestrators (not functions) — see the note in the Relationships section below.
 
 | Field | Description |
 |-------|-------------|
@@ -518,7 +862,20 @@ It generalizes concepts like AWS Lambda functions, GCP Cloud Functions, GCP Clou
 | _ont_runtime | The runtime environment (e.g., python3.9, nodejs18.x, dotnet6). Only applicable for code-based functions. |
 | _ont_memory | Memory allocated to the function (in MB). |
 | _ont_timeout | Timeout for function execution (in seconds). |
-| _ont_deployment_type | The deployment type: `code` for source code functions (Lambda, Cloud Functions, Azure Functions), `container` for container-based functions (Cloud Run). |
+| _ont_deployment_type | The deployment type: `code` for source-code functions, `container` for container-image functions. Derived per-provider: AWS Lambda maps `PackageType` (`Zip`→`code`, `Image`→`container`); Azure Function App maps `is_container`; GCP Cloud Functions are always `code`. |
+| _ont_image | The container image reference (populated when the function is container-deployed: Lambda `PackageType=Image`, Azure Function App with `DOCKER|...`). |
+| _ont_image_digest | Content-addressable digest (`sha256:...`) of the container image, when the reference is digest-pinned. |
+
+#### Relationships
+
+- `Function` is connected to the concrete single platform `Image` it actually ran via `RESOLVED_IMAGE`. This edge is produced by the `resolved_image_analysis.json` analysis job and covers container-based functions that expose a container image reference:
+    - **AWSLambda** (`PackageType=Image`) has `HAS_IMAGE` on the node itself — `RESOLVED_IMAGE` is created directly.
+    - **AzureFunctionApp** (`is_container=true`) has `HAS_IMAGE` on the node itself — `RESOLVED_IMAGE` is created directly.
+    - **GCPCloudRunService** and **GCPCloudRunJob** do NOT carry `:Function`. They are orchestrators (analogous to `ECSService` and AWS Batch). Their per-container specs are materialized as child `GCPCloudRunServiceContainer` / `GCPCloudRunJobContainer` nodes that carry `:Container` and participate in `RESOLVED_IMAGE` via the `:Container` path.
+    - When `HAS_IMAGE` points at an `:ImageManifestList`, the determinism guard from the `Container` section applies (single arch-matching child required).
+    ```
+    (:Function)-[:RESOLVED_IMAGE]->(:Image)
+    ```
 
 
 ### CodeRepository
@@ -625,6 +982,43 @@ If field `ip_version` is null, it should not be considered as `4` or `6`, only a
     ```
 
 
+### Subnet
+
+```{note}
+Subnet is a semantic label.
+```
+
+A subnet represents an IP subnetwork within a virtual network. It generalizes AWS EC2 subnets, GCP subnetworks, and Azure subnets.
+
+| Field | Description |
+|-------|-------------|
+| _ont_name | The name/identifier of the subnet (REQUIRED). For AWS this is the SubnetId (EC2 subnets have no display name). |
+| _ont_cidr_block | The IP range (CIDR) of the subnet. |
+| _ont_availability_zone | The availability zone of the subnet. AWS only: GCP subnets are regional and Azure subnets are not zone-scoped, so the field is left unset for those providers. |
+| _ont_region | The region/zone where the subnet lives. Not populated for Azure subnets: the region lives on the parent `AzureVirtualNetwork`. A region-scoped cross-cloud query like `MATCH (s:Subnet) WHERE s._ont_region = $region` will silently drop Azure subnets; traverse through `AzureVirtualNetwork` to filter those by region. |
+
+`_ont_is_public` is intentionally not modeled: no provider exposes a faithful public/private flag on the subnet node (it depends on route-table/internet-gateway analysis on AWS, and route/NSG configuration on Azure).
+
+```{note}
+Several AWS sync paths (instances, network interfaces, VPC endpoints, auto scaling groups) create partial `EC2Subnet` nodes that know only the subnet id and sometimes the region. These nodes carry the `Subnet` label with `_ont_name` and `_ont_source` set, but may have a null `_ont_cidr_block` / `_ont_availability_zone` until a full subnet sync enriches them. `(:Subnet)` queries that rely on CIDR/AZ should treat absence as "not yet known", not as a real value. GCP subnet stub nodes are deliberately left unlabeled because they lack even a name.
+```
+
+
+### VirtualNetwork
+
+```{note}
+VirtualNetwork is a semantic label.
+```
+
+A virtual network represents an isolated virtual network environment that defines the network boundary for cloud resources. It generalizes AWS VPCs, GCP VPCs, and Azure virtual networks.
+
+| Field | Description |
+|-------|-------------|
+| _ont_name | The name/identifier of the virtual network (REQUIRED). For AWS this is the VpcId (VPCs have no display name). |
+| _ont_cidr | The IP range (CIDR) of the virtual network. AWS only: GCP VPCs keep CIDRs on their subnets, and Azure stores the address space on subnets rather than the virtual network, so the field is left unset for those providers. |
+| _ont_region | The region where the virtual network lives. Not populated for GCP (VPCs are global). |
+
+
 ### Package
 
 ```{note}
@@ -650,14 +1044,16 @@ Package nodes are deduplicated by their `id`, which uses the format `{type}|{nam
     ```
     (:Package)-[:DETECTED_AS]->(:TrivyPackage)
     (:Package)-[:DETECTED_AS]->(:SyftPackage)
+    (:Package)-[:DETECTED_AS]->(:SemgrepDependency)
     ```
-- `Package` can be deployed in one or many container images (propagated from TrivyPackage):
+- `Package` can be deployed in one or many container images (propagated from TrivyPackage and SyftPackage):
     ```
     (:Package)-[:DEPLOYED]->(:Image)
     ```
-- `Package` can be affected by one or many vulnerability findings (propagated from TrivyPackage):
+- `Package` can be affected by one or many vulnerability findings or security issues (propagated from TrivyPackage and SemgrepDependency):
     ```
     (:TrivyImageFinding)-[:AFFECTS]->(:Package)
+    (:SemgrepSCAFinding)-[:AFFECTS]->(:Package)
     ```
 - `Package` can have one or many recommended fix versions (propagated from TrivyPackage):
     ```
@@ -729,6 +1125,26 @@ It generalizes concepts like AWS ECRImage (type=image), GCP Container Images, an
 - `Image` can be linked to the public base image identified by Docker Scout:
     ```
     (:Image)-[:BUILT_ON]->(:DockerScoutPublicImage)
+    ```
+
+- `TrivyPackage` nodes discovered by Trivy are deployed on an `Image`:
+    ```
+    (:TrivyPackage)-[:DEPLOYED]->(:Image)
+    ```
+
+- `SyftPackage` nodes discovered by Syft are deployed on an `Image`:
+    ```
+    (:SyftPackage)-[:DEPLOYED]->(:Image)
+    ```
+
+- `TrivyImageFinding` vulnerabilities discovered by Trivy affect an `Image`:
+    ```
+    (:TrivyImageFinding)-[:AFFECTS]->(:Image)
+    ```
+
+- Canonical `Package` nodes are deployed on an `Image` (propagated from TrivyPackage and SyftPackage):
+    ```
+    (:Package)-[:DEPLOYED]->(:Image)
     ```
 
 

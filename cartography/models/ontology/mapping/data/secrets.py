@@ -28,6 +28,19 @@ aws_mapping = OntologyMapping(
                 ),
             ],
         ),
+        OntologyNodeMapping(
+            node_label="SSMParameter",
+            fields=[
+                OntologyFieldMapping(
+                    ontology_field="name", node_field="name", required=True
+                ),
+                OntologyFieldMapping(
+                    ontology_field="updated_at", node_field="lastmodifieddate"
+                ),
+                # created_at: Not available on SSM Parameter
+                # rotation_enabled: Not available on SSM Parameter
+            ],
+        ),
     ],
 )
 

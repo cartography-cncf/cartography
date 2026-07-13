@@ -118,6 +118,47 @@ def test_load_rds_clusters_basic(neo4j_session):
     )
 
 
+@patch.object(cartography.intel.aws.rds, "aws_paginate")
+@patch.object(cartography.intel.aws.rds, "create_boto3_client")
+def test_get_rds_snapshot_data_only_checks_manual_snapshots(
+    mock_create_client,
+    mock_aws_paginate,
+):
+    client = MagicMock()
+    mock_create_client.return_value = client
+    mock_aws_paginate.return_value = [
+        {
+            "DBSnapshotIdentifier": "manual-snapshot",
+            "SnapshotType": "manual",
+        },
+        {
+            "DBSnapshotIdentifier": "automated-snapshot",
+            "SnapshotType": "automated",
+        },
+    ]
+    client.describe_db_snapshot_attributes.return_value = {
+        "DBSnapshotAttributesResult": {
+            "DBSnapshotAttributes": [
+                {
+                    "AttributeName": "restore",
+                    "AttributeValues": ["all"],
+                },
+            ],
+        },
+    }
+
+    snapshots = cartography.intel.aws.rds.get_rds_snapshot_data(
+        MagicMock(),
+        TEST_REGION,
+    )
+
+    assert snapshots[0]["Public"] is True
+    assert snapshots[1]["Public"] is False
+    client.describe_db_snapshot_attributes.assert_called_once_with(
+        DBSnapshotIdentifier="manual-snapshot",
+    )
+
+
 def test_load_rds_instances_basic(neo4j_session):
     """Test that we successfully load RDS instance nodes to the graph"""
     # Transform the data first
@@ -172,7 +213,7 @@ def test_load_rds_snapshots_basic(neo4j_session):
         TEST_UPDATE_TAG,
     )
 
-    query = """MATCH(rds:RDSSnapshot) RETURN rds.id, rds.arn, rds.db_snapshot_identifier, rds.db_instance_identifier"""
+    query = """MATCH(rds:RDSSnapshot) RETURN rds.id, rds.arn, rds.db_snapshot_identifier, rds.db_instance_identifier, rds.ispublic"""
     snapshots = neo4j_session.run(query)
 
     actual_snapshots = {
@@ -181,6 +222,7 @@ def test_load_rds_snapshots_basic(neo4j_session):
             n["rds.arn"],
             n["rds.db_snapshot_identifier"],
             n["rds.db_instance_identifier"],
+            n["rds.ispublic"],
         )
         for n in snapshots
     }
@@ -190,9 +232,34 @@ def test_load_rds_snapshots_basic(neo4j_session):
             "arn:aws:rds:us-east-1:some-arn:snapshot:some-prod-db-iad-0",
             "some-db-snapshot-identifier",
             "some-prod-db-iad-0",
+            True,
         ),
     }
     assert actual_snapshots == expected_snapshots
+
+    # Assert - Snapshot semantic label + normalized _ont_* fields for RDS
+    # snapshots (full set: name, encrypted, public, source_id, region).
+    assert check_nodes(
+        neo4j_session,
+        "Snapshot",
+        [
+            "_ont_name",
+            "_ont_encrypted",
+            "_ont_public",
+            "_ont_source_id",
+            "_ont_region",
+            "_ont_source",
+        ],
+    ) == {
+        (
+            "some-db-snapshot-identifier",
+            True,
+            True,
+            "some-prod-db-iad-0",
+            "us-east1",
+            "aws",
+        ),
+    }
 
     query = """MATCH(rdsInstance:RDSInstance)-[:IS_SNAPSHOT_SOURCE]-(rdsSnapshot:RDSSnapshot)
                RETURN rdsInstance.id, rdsSnapshot.id"""
@@ -234,6 +301,17 @@ def test_sync_rds_comprehensive(
     create_test_account(neo4j_session, TEST_ACCOUNT_ID, TEST_UPDATE_TAG)
     _create_test_security_groups(neo4j_session)
     _create_test_subnets(neo4j_session)
+    # Seed the KMS key referenced by the instance so the ENCRYPTED_BY edge can
+    # match it at load time.
+    neo4j_session.run(
+        """
+        MERGE (k:KMSKey{id: $key_id})
+        SET k.arn = $key_arn, k.lastupdated = $update_tag
+        """,
+        key_id="some-guid",
+        key_arn="arn:aws:kms:us-east-1:some-arn:key/some-guid",
+        update_tag=TEST_UPDATE_TAG,
+    )
 
     # Act
     sync(
@@ -262,11 +340,12 @@ def test_sync_rds_comprehensive(
     }, "RDS instances don't exist"
 
     assert check_nodes(
-        neo4j_session, "RDSSnapshot", ["id", "db_snapshot_identifier"]
+        neo4j_session, "RDSSnapshot", ["id", "db_snapshot_identifier", "ispublic"]
     ) == {
         (
             "arn:aws:rds:us-east-1:some-arn:snapshot:some-prod-db-iad-0",
             "some-db-snapshot-identifier",
+            True,
         ),
     }, "RDS snapshots don't exist"
 
@@ -297,6 +376,22 @@ def test_sync_rds_comprehensive(
     ) == {
         ("arn:aws:rds:us-east-1:some-arn:db:some-prod-db-iad-0", "000000000000"),
     }, "RDS instances are not connected to AWS account"
+
+    # Canonical ontology edge: (:Database)-[:ENCRYPTED_BY]->(:EncryptionKey)
+    assert check_rels(
+        neo4j_session,
+        "RDSInstance",
+        "id",
+        "KMSKey",
+        "arn",
+        "ENCRYPTED_BY",
+        rel_direction_right=True,
+    ) == {
+        (
+            "arn:aws:rds:us-east-1:some-arn:db:some-prod-db-iad-0",
+            "arn:aws:kms:us-east-1:some-arn:key/some-guid",
+        ),
+    }, "RDS instance is not connected to its KMS key"
 
     assert check_rels(
         neo4j_session,

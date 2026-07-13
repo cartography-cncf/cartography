@@ -27,6 +27,8 @@ class GCPBigQueryDatasetProperties(CartographyNodeProperties):
     default_partition_expiration_ms: PropertyRef = PropertyRef(
         "default_partition_expiration_ms"
     )
+    default_kms_key_name: PropertyRef = PropertyRef("default_kms_key_name")
+    access_entries: PropertyRef = PropertyRef("access_entries")
 
 
 @dataclass(frozen=True)

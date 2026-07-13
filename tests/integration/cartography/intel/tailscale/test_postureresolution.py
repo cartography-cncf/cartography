@@ -71,7 +71,7 @@ def test_resolve_tailscale_device_posture_compliance(
         common_job_parameters,
         TEST_ORG,
     )
-    postures, posture_conditions = cartography.intel.tailscale.acls.sync(
+    postures, posture_conditions, _, _ = cartography.intel.tailscale.acls.sync(
         neo4j_session,
         api_session,
         common_job_parameters,

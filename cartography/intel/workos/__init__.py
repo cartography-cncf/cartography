@@ -4,6 +4,7 @@ import neo4j
 from workos import WorkOSClient
 
 import cartography.intel.workos.api_keys
+import cartography.intel.workos.application_client_secrets
 import cartography.intel.workos.applications
 import cartography.intel.workos.directories
 import cartography.intel.workos.directory_groups
@@ -71,9 +72,17 @@ def start_workos_ingestion(neo4j_session: neo4j.Session, config: Config) -> None
     )
 
     # Sync Connect applications
-    cartography.intel.workos.applications.sync(
+    application_ids = cartography.intel.workos.applications.sync(
         neo4j_session,
         client,
+        common_job_parameters,
+    )
+
+    # Sync Connect application client secrets (depends on application IDs)
+    cartography.intel.workos.application_client_secrets.sync(
+        neo4j_session,
+        client,
+        application_ids,
         common_job_parameters,
     )
 

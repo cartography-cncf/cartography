@@ -60,6 +60,58 @@ def _create_test_organization(neo4j_session):
     )
 
 
+def _create_extended_test_resources(neo4j_session):
+    """
+    Create BigQuery, KMS and Artifact Registry target nodes attached to the test
+    project so that the permission_relationships engine can resolve them. Adds
+    a sibling table sharing the leaf name "events" in a second dataset so the
+    test exercises the uniqueness of resource scope matching.
+    """
+    neo4j_session.run(
+        """
+        MATCH (project:GCPProject{id: $project_id})
+        MERGE (ds:GCPBigQueryDataset{id: $dataset_id})
+        ON CREATE SET ds.firstseen = timestamp()
+        SET ds.lastupdated = $update_tag
+        MERGE (project)-[r1:RESOURCE]->(ds)
+        SET r1.lastupdated = $update_tag
+        MERGE (tbl:GCPBigQueryTable{id: $table_id})
+        ON CREATE SET tbl.firstseen = timestamp()
+        SET tbl.lastupdated = $update_tag
+        MERGE (project)-[r2:RESOURCE]->(tbl)
+        SET r2.lastupdated = $update_tag
+        MERGE (events1:GCPBigQueryTable{id: $events1_id})
+        ON CREATE SET events1.firstseen = timestamp()
+        SET events1.lastupdated = $update_tag
+        MERGE (project)-[r2a:RESOURCE]->(events1)
+        SET r2a.lastupdated = $update_tag
+        MERGE (events2:GCPBigQueryTable{id: $events2_id})
+        ON CREATE SET events2.firstseen = timestamp()
+        SET events2.lastupdated = $update_tag
+        MERGE (project)-[r2b:RESOURCE]->(events2)
+        SET r2b.lastupdated = $update_tag
+        MERGE (key:GCPCryptoKey{id: $key_id})
+        ON CREATE SET key.firstseen = timestamp()
+        SET key.lastupdated = $update_tag
+        MERGE (project)-[r3:RESOURCE]->(key)
+        SET r3.lastupdated = $update_tag
+        MERGE (repo:GCPArtifactRegistryRepository{id: $repo_id})
+        ON CREATE SET repo.firstseen = timestamp()
+        SET repo.lastupdated = $update_tag
+        MERGE (project)-[r4:RESOURCE]->(repo)
+        SET r4.lastupdated = $update_tag
+        """,
+        project_id=TEST_PROJECT_ID,
+        dataset_id="projects/project-abc/datasets/test_dataset",
+        table_id="projects/project-abc/datasets/test_dataset/tables/test_table",
+        events1_id="projects/project-abc/datasets/dataset_a/tables/events",
+        events2_id="projects/project-abc/datasets/dataset_b/tables/events",
+        key_id="projects/project-abc/locations/us/keyRings/test-keyring/cryptoKeys/test-key",
+        repo_id="projects/project-abc/locations/us/repositories/test-repo",
+        update_tag=TEST_UPDATE_TAG,
+    )
+
+
 @patch.object(
     cartography.intel.gcp.permission_relationships,
     "parse_permission_relationships_file",
@@ -148,7 +200,7 @@ def test_sync_gcp_permission_relationships(
     mock_asset_client = MagicMock()
 
     # Sync org-level IAM (predefined roles) first
-    cartography.intel.gcp.iam.sync_org_iam(
+    org_roles = cartography.intel.gcp.iam.sync_org_iam(
         neo4j_session,
         mock_iam_client,
         COMMON_JOB_PARAMS["ORG_RESOURCE_NAME"],
@@ -157,7 +209,7 @@ def test_sync_gcp_permission_relationships(
     )
 
     # Sync project-level IAM (service accounts and project custom roles)
-    cartography.intel.gcp.iam.sync(
+    project_roles = cartography.intel.gcp.iam.sync(
         neo4j_session,
         mock_iam_client,
         TEST_PROJECT_ID,
@@ -179,12 +231,16 @@ def test_sync_gcp_permission_relationships(
         GSUITE_COMMON_PARAMS,
     )
 
-    cartography.intel.gcp.policy_bindings.sync(
+    role_permissions_by_name = cartography.intel.gcp.iam.build_role_permissions_by_name(
+        org_roles + project_roles
+    )
+    policy_bindings_result = cartography.intel.gcp.policy_bindings.sync(
         neo4j_session,
         TEST_PROJECT_ID,
         TEST_UPDATE_TAG,
         COMMON_JOB_PARAMS,
         mock_asset_client,
+        role_permissions_by_name,
     )
 
     cartography.intel.gcp.storage.sync_gcp_buckets(
@@ -204,12 +260,15 @@ def test_sync_gcp_permission_relationships(
         COMMON_JOB_PARAMS,
     )
 
+    _create_extended_test_resources(neo4j_session)
+
     # ACT
     cartography.intel.gcp.permission_relationships.sync(
         neo4j_session,
         TEST_PROJECT_ID,
         TEST_UPDATE_TAG,
         COMMON_JOB_PARAMS,
+        policy_bindings_result.permission_context,
     )
 
     # ASSERT
@@ -263,3 +322,594 @@ def test_sync_gcp_permission_relationships(
             "projects/project-abc/zones/us-east1-b/instances/instance-1",
         ),
     }
+
+    # alice@example.com is bound to roles/test.gcp_extended at project level,
+    # which propagates BigQuery / KMS / Artifact Registry permissions onto every
+    # project resource of the matching label.
+    assert check_rels(
+        neo4j_session,
+        "GCPPrincipal",
+        "email",
+        "GCPBigQueryDataset",
+        "id",
+        "CAN_READ",
+        rel_direction_right=True,
+    ) == {
+        ("alice@example.com", "projects/project-abc/datasets/test_dataset"),
+    }
+
+    # alice@example.com gets project-level access to every table.
+    # bob@example.com is bound at resource scope to a SPECIFIC events table
+    # in dataset_a; the engine must NOT extend that to the homonymous events
+    # table in dataset_b — we expose that regression here.
+    assert check_rels(
+        neo4j_session,
+        "GCPPrincipal",
+        "email",
+        "GCPBigQueryTable",
+        "id",
+        "CAN_READ",
+        rel_direction_right=True,
+    ) == {
+        (
+            "alice@example.com",
+            "projects/project-abc/datasets/test_dataset/tables/test_table",
+        ),
+        (
+            "alice@example.com",
+            "projects/project-abc/datasets/dataset_a/tables/events",
+        ),
+        (
+            "alice@example.com",
+            "projects/project-abc/datasets/dataset_b/tables/events",
+        ),
+        (
+            "bob@example.com",
+            "projects/project-abc/datasets/dataset_a/tables/events",
+        ),
+    }
+
+    assert check_rels(
+        neo4j_session,
+        "GCPPrincipal",
+        "email",
+        "GCPCryptoKey",
+        "id",
+        "CAN_DECRYPT",
+        rel_direction_right=True,
+    ) == {
+        (
+            "alice@example.com",
+            "projects/project-abc/locations/us/keyRings/test-keyring/cryptoKeys/test-key",
+        ),
+    }
+
+    assert check_rels(
+        neo4j_session,
+        "GCPPrincipal",
+        "email",
+        "GCPArtifactRegistryRepository",
+        "id",
+        "CAN_READ",
+        rel_direction_right=True,
+    ) == {
+        (
+            "alice@example.com",
+            "projects/project-abc/locations/us/repositories/test-repo",
+        ),
+    }
+
+    # bob@example.com is bound to roles/iam.serviceAccountTokenCreator at
+    # project level, which propagates CAN_IMPERSONATE onto every project SA.
+    assert check_rels(
+        neo4j_session,
+        "GCPPrincipal",
+        "email",
+        "GCPServiceAccount",
+        "email",
+        "CAN_IMPERSONATE",
+        rel_direction_right=True,
+    ) == {
+        ("bob@example.com", "sa@project-abc.iam.gserviceaccount.com"),
+    }
+
+
+@patch.object(
+    cartography.intel.gcp.permission_relationships,
+    "parse_permission_relationships_file",
+    return_value=[
+        {
+            "target_label": "GCPBigQueryTable",
+            "permissions": ["bigquery.tables.getData"],
+            "relationship_name": "CAN_READ",
+        },
+        {
+            "target_label": "GCPBigQueryTable",
+            "permissions": ["bigquery.tables.updateData"],
+            "relationship_name": "CAN_WRITE",
+        },
+        {
+            "target_label": "GCPBigQueryTable",
+            "permissions": ["bigquery.tables.delete"],
+            "relationship_name": "CAN_DELETE",
+        },
+    ],
+)
+def test_sync_bigquery_table_permission_relationship_fast_paths(
+    mock_parse_yaml,
+    neo4j_session,
+):
+    # Arrange
+    neo4j_session.run("MATCH (n) DETACH DELETE n")
+    _create_test_project(neo4j_session)
+    neo4j_session.run(
+        """
+        MATCH (project:GCPProject{id: $project_id})
+        UNWIND $datasets AS dataset
+            MERGE (ds:GCPBigQueryDataset{id: dataset.id})
+            ON CREATE SET ds.firstseen = timestamp()
+            SET ds.lastupdated = $update_tag
+            MERGE (project)-[dr:RESOURCE]->(ds)
+            SET dr.lastupdated = $update_tag
+        WITH project
+        UNWIND $tables AS table
+            MATCH (ds:GCPBigQueryDataset{id: table.dataset_id})
+            MERGE (tbl:GCPBigQueryTable{id: table.id})
+            ON CREATE SET tbl.firstseen = timestamp()
+            SET tbl.lastupdated = $update_tag
+            MERGE (project)-[tr:RESOURCE]->(tbl)
+            SET tr.lastupdated = $update_tag
+            MERGE (ds)-[hr:HAS_TABLE]->(tbl)
+            SET hr.lastupdated = $update_tag
+        WITH project
+        UNWIND $principals AS principal_email
+            MERGE (principal:GCPPrincipal{email: principal_email})
+            ON CREATE SET principal.firstseen = timestamp()
+            SET principal.lastupdated = $update_tag
+        WITH project
+        MATCH (stale:GCPPrincipal{email: "stale@example.com"})
+        MATCH (stale_table:GCPBigQueryTable{id: "project-abc:analytics.events"})
+        MERGE (stale)-[stale_rel:CAN_READ]->(stale_table)
+        SET stale_rel.lastupdated = $old_update_tag,
+            stale_rel._sub_resource_label = "GCPProject",
+            stale_rel._sub_resource_id = $project_id
+        """,
+        project_id=TEST_PROJECT_ID,
+        update_tag=TEST_UPDATE_TAG,
+        old_update_tag=TEST_UPDATE_TAG - 1,
+        datasets=[
+            {"id": "project-abc:analytics"},
+            {"id": "project-abc:logs"},
+        ],
+        tables=[
+            {
+                "id": "project-abc:analytics.events",
+                "dataset_id": "project-abc:analytics",
+            },
+            {
+                "id": "project-abc:analytics.orders",
+                "dataset_id": "project-abc:analytics",
+            },
+            {
+                "id": "project-abc:logs.audit",
+                "dataset_id": "project-abc:logs",
+            },
+        ],
+        principals=[
+            "project-reader@example.com",
+            "dataset-writer@example.com",
+            "table-deleter@example.com",
+            "stale@example.com",
+        ],
+    )
+    principals = {
+        "project-reader@example.com": {
+            "binding-project-read": {
+                "permissions": cartography.intel.gcp.permission_relationships.compile_permissions(
+                    {
+                        "permissions": ["bigquery.tables.getData"],
+                        "denied_permissions": [],
+                    }
+                ),
+                "scope": cartography.intel.gcp.permission_relationships.compile_gcp_regex(
+                    "project/project-abc/*"
+                ),
+            },
+        },
+        "dataset-writer@example.com": {
+            "binding-dataset-write": {
+                "permissions": cartography.intel.gcp.permission_relationships.compile_permissions(
+                    {
+                        "permissions": ["bigquery.tables.updateData"],
+                        "denied_permissions": [],
+                    }
+                ),
+                "scope": cartography.intel.gcp.permission_relationships.compile_gcp_regex(
+                    "project/project-abc/resource/projects/project-abc/datasets/analytics"
+                ),
+            },
+        },
+        "table-deleter@example.com": {
+            "binding-table-delete": {
+                "permissions": cartography.intel.gcp.permission_relationships.compile_permissions(
+                    {
+                        "permissions": ["bigquery.tables.delete"],
+                        "denied_permissions": [],
+                    }
+                ),
+                "scope": cartography.intel.gcp.permission_relationships.compile_gcp_regex(
+                    "project/project-abc/resource/projects/project-abc/datasets/analytics/tables/events"
+                ),
+            },
+        },
+    }
+
+    # Act
+    cartography.intel.gcp.permission_relationships.sync(
+        neo4j_session,
+        TEST_PROJECT_ID,
+        TEST_UPDATE_TAG,
+        COMMON_JOB_PARAMS,
+        principals,
+    )
+
+    # Assert
+    assert check_rels(
+        neo4j_session,
+        "GCPPrincipal",
+        "email",
+        "GCPBigQueryTable",
+        "id",
+        "CAN_READ",
+        rel_direction_right=True,
+    ) == {
+        ("project-reader@example.com", "project-abc:analytics.events"),
+        ("project-reader@example.com", "project-abc:analytics.orders"),
+        ("project-reader@example.com", "project-abc:logs.audit"),
+    }
+    assert check_rels(
+        neo4j_session,
+        "GCPPrincipal",
+        "email",
+        "GCPBigQueryTable",
+        "id",
+        "CAN_WRITE",
+        rel_direction_right=True,
+    ) == {
+        ("dataset-writer@example.com", "project-abc:analytics.events"),
+        ("dataset-writer@example.com", "project-abc:analytics.orders"),
+    }
+    assert check_rels(
+        neo4j_session,
+        "GCPPrincipal",
+        "email",
+        "GCPBigQueryTable",
+        "id",
+        "CAN_DELETE",
+        rel_direction_right=True,
+    ) == {
+        ("table-deleter@example.com", "project-abc:analytics.events"),
+    }
+    stale_count = neo4j_session.run(
+        """
+        MATCH (:GCPPrincipal{email: "stale@example.com"})-[r:CAN_READ]->(:GCPBigQueryTable)
+        RETURN count(r) AS stale_count
+        """,
+    ).single()["stale_count"]
+    assert stale_count == 0
+
+
+@patch.object(
+    cartography.intel.gcp.permission_relationships,
+    "parse_permission_relationships_file",
+    return_value=[
+        {
+            "target_label": "GCPBucket",
+            "permissions": ["storage.objects.get"],
+            "relationship_name": "CAN_READ",
+        },
+    ],
+)
+def test_sync_gcp_permission_relationships_flags_conditional_edges(
+    mock_parse_yaml,
+    neo4j_session,
+):
+    """
+    A conditional IAM binding should still produce a permission edge, flagged with
+    has_condition=True and its condition metadata, rather than being dropped (#2312).
+    """
+    # Arrange
+    neo4j_session.run("MATCH (n) DETACH DELETE n")
+    _create_test_project(neo4j_session)
+    neo4j_session.run(
+        """
+        MATCH (project:GCPProject{id: $project_id})
+        UNWIND $buckets AS bucket_id
+            MERGE (b:GCPBucket{id: bucket_id})
+            ON CREATE SET b.firstseen = timestamp()
+            SET b.lastupdated = $update_tag
+            MERGE (project)-[r:RESOURCE]->(b)
+            SET r.lastupdated = $update_tag
+        WITH project
+        UNWIND $principals AS principal_email
+            MERGE (p:GCPPrincipal{email: principal_email})
+            ON CREATE SET p.firstseen = timestamp()
+            SET p.lastupdated = $update_tag
+        """,
+        project_id=TEST_PROJECT_ID,
+        update_tag=TEST_UPDATE_TAG,
+        buckets=["bucket-1", "bucket-2"],
+        principals=["conditional@example.com", "open@example.com"],
+    )
+    principals = {
+        "conditional@example.com": {
+            "binding-conditional": {
+                "permissions": cartography.intel.gcp.permission_relationships.compile_permissions(
+                    {"permissions": ["storage.objects.get"], "denied_permissions": []}
+                ),
+                "scope": cartography.intel.gcp.permission_relationships.compile_gcp_regex(
+                    "project/project-abc/resource/buckets/bucket-1"
+                ),
+                "has_condition": True,
+                "condition_title": "business-hours",
+                "condition_expression": "request.time.getHours() < 18",
+            },
+        },
+        "open@example.com": {
+            "binding-open": {
+                "permissions": cartography.intel.gcp.permission_relationships.compile_permissions(
+                    {"permissions": ["storage.objects.get"], "denied_permissions": []}
+                ),
+                "scope": cartography.intel.gcp.permission_relationships.compile_gcp_regex(
+                    "project/project-abc/resource/buckets/bucket-2"
+                ),
+                "has_condition": False,
+                "condition_title": None,
+                "condition_expression": None,
+            },
+        },
+    }
+
+    # Act
+    cartography.intel.gcp.permission_relationships.sync(
+        neo4j_session,
+        TEST_PROJECT_ID,
+        TEST_UPDATE_TAG,
+        COMMON_JOB_PARAMS,
+        principals,
+    )
+
+    # Assert: both edges exist
+    assert check_rels(
+        neo4j_session,
+        "GCPPrincipal",
+        "email",
+        "GCPBucket",
+        "id",
+        "CAN_READ",
+        rel_direction_right=True,
+    ) == {
+        ("conditional@example.com", "bucket-1"),
+        ("open@example.com", "bucket-2"),
+    }
+
+    # The conditional edge is flagged with its condition metadata.
+    conditional_edge = neo4j_session.run(
+        """
+        MATCH (:GCPPrincipal{email: "conditional@example.com"})-[r:CAN_READ]->(:GCPBucket{id: "bucket-1"})
+        RETURN r.has_condition AS has_condition,
+               r.condition_title AS condition_title,
+               r.condition_expression AS condition_expression
+        """,
+    ).single()
+    assert conditional_edge["has_condition"] is True
+    assert conditional_edge["condition_title"] == "business-hours"
+    assert conditional_edge["condition_expression"] == "request.time.getHours() < 18"
+
+    # The unconditional edge is flagged has_condition=False.
+    open_has_condition = neo4j_session.run(
+        """
+        MATCH (:GCPPrincipal{email: "open@example.com"})-[r:CAN_READ]->(:GCPBucket{id: "bucket-2"})
+        RETURN r.has_condition AS has_condition
+        """,
+    ).single()["has_condition"]
+    assert open_has_condition is False
+
+
+@patch.object(
+    cartography.intel.gcp.permission_relationships,
+    "parse_permission_relationships_file",
+    return_value=[
+        {
+            "target_label": "GCPBucket",
+            "permissions": ["storage.objects.get"],
+            "relationship_name": "CAN_READ",
+        },
+    ],
+)
+def test_sync_gcp_permission_relationships_clears_stale_condition_on_transition(
+    mock_parse_yaml,
+    neo4j_session,
+):
+    """
+    If an edge was written conditional (row-by-row) and a later sync routes the same
+    now-unconditional grant through the bulk Cartesian path, the stale condition
+    metadata must be cleared, not left behind. Regression for PR #2891 review.
+    """
+    # Arrange
+    neo4j_session.run("MATCH (n) DETACH DELETE n")
+    _create_test_project(neo4j_session)
+    neo4j_session.run(
+        """
+        MATCH (project:GCPProject{id: $project_id})
+        MERGE (b:GCPBucket{id: "bucket-1"})
+        ON CREATE SET b.firstseen = timestamp()
+        SET b.lastupdated = $update_tag
+        MERGE (project)-[r:RESOURCE]->(b)
+        SET r.lastupdated = $update_tag
+        MERGE (p:GCPPrincipal{email: "dev@example.com"})
+        ON CREATE SET p.firstseen = timestamp()
+        SET p.lastupdated = $update_tag
+        """,
+        project_id=TEST_PROJECT_ID,
+        update_tag=TEST_UPDATE_TAG,
+    )
+
+    def _compiled(scope: str):
+        return cartography.intel.gcp.permission_relationships.compile_gcp_regex(scope)
+
+    perms = cartography.intel.gcp.permission_relationships.compile_permissions(
+        {"permissions": ["storage.objects.get"], "denied_permissions": []}
+    )
+
+    # First sync: a conditional, bucket-specific grant -> row-by-row -> has_condition.
+    cartography.intel.gcp.permission_relationships.sync(
+        neo4j_session,
+        TEST_PROJECT_ID,
+        TEST_UPDATE_TAG,
+        COMMON_JOB_PARAMS,
+        {
+            "dev@example.com": {
+                "binding-conditional": {
+                    "permissions": perms,
+                    "scope": _compiled("project/project-abc/resource/buckets/bucket-1"),
+                    "has_condition": True,
+                    "condition_title": "business-hours",
+                    "condition_expression": "request.time.getHours() < 18",
+                },
+            },
+        },
+    )
+    assert (
+        neo4j_session.run(
+            """
+            MATCH (:GCPPrincipal{email: "dev@example.com"})-[r:CAN_READ]->(:GCPBucket{id: "bucket-1"})
+            RETURN r.has_condition AS has_condition
+            """,
+        ).single()["has_condition"]
+        is True
+    )
+
+    # Second sync: same grant is now unconditional and project-wide -> bulk path.
+    cartography.intel.gcp.permission_relationships.sync(
+        neo4j_session,
+        TEST_PROJECT_ID,
+        TEST_UPDATE_TAG + 1,
+        COMMON_JOB_PARAMS,
+        {
+            "dev@example.com": {
+                "binding-open": {
+                    "permissions": perms,
+                    "scope": _compiled("project/project-abc/*"),
+                    "has_condition": False,
+                    "condition_title": None,
+                    "condition_expression": None,
+                },
+            },
+        },
+    )
+
+    # Assert: stale condition metadata is cleared.
+    edge = neo4j_session.run(
+        """
+        MATCH (:GCPPrincipal{email: "dev@example.com"})-[r:CAN_READ]->(:GCPBucket{id: "bucket-1"})
+        RETURN r.has_condition AS has_condition,
+               r.condition_title AS condition_title,
+               r.condition_expression AS condition_expression
+        """,
+    ).single()
+    assert edge["has_condition"] is False
+    assert edge["condition_title"] is None
+    assert edge["condition_expression"] is None
+
+
+@patch.object(
+    cartography.intel.gcp.permission_relationships,
+    "parse_permission_relationships_file",
+    return_value=[
+        {
+            "target_label": "GCPBigQueryTable",
+            "permissions": ["bigquery.tables.getData"],
+            "relationship_name": "CAN_READ",
+        },
+    ],
+)
+def test_sync_gcp_permission_relationships_unconditional_dataset_beats_conditional_table(
+    mock_parse_yaml,
+    neo4j_session,
+):
+    """
+    A principal with an unconditional dataset-scope grant AND a conditional binding on
+    a table in that dataset must end up with an unconditional edge (has_condition=false):
+    the broad unconditional grant wins over the conditional table binding for the same
+    principal/table. Regression for PR #2891 review (kunaals).
+    """
+    # Arrange
+    neo4j_session.run("MATCH (n) DETACH DELETE n")
+    _create_test_project(neo4j_session)
+    neo4j_session.run(
+        """
+        MATCH (project:GCPProject{id: $project_id})
+        MERGE (ds:GCPBigQueryDataset{id: "project-abc:analytics"})
+        ON CREATE SET ds.firstseen = timestamp()
+        SET ds.lastupdated = $update_tag
+        MERGE (project)-[dr:RESOURCE]->(ds)
+        SET dr.lastupdated = $update_tag
+        WITH project
+        UNWIND ["project-abc:analytics.events", "project-abc:analytics.orders"] AS tid
+            MERGE (t:GCPBigQueryTable{id: tid})
+            ON CREATE SET t.firstseen = timestamp()
+            SET t.lastupdated = $update_tag
+            MERGE (project)-[tr:RESOURCE]->(t)
+            SET tr.lastupdated = $update_tag
+        WITH project
+        MERGE (p:GCPPrincipal{email: "dev@example.com"})
+        ON CREATE SET p.firstseen = timestamp()
+        SET p.lastupdated = $update_tag
+        """,
+        project_id=TEST_PROJECT_ID,
+        update_tag=TEST_UPDATE_TAG,
+    )
+    perms = cartography.intel.gcp.permission_relationships.compile_permissions(
+        {"permissions": ["bigquery.tables.getData"], "denied_permissions": []}
+    )
+
+    # Act: same principal has both an unconditional dataset-scope grant and a
+    # conditional binding on one table in that dataset.
+    cartography.intel.gcp.permission_relationships.sync(
+        neo4j_session,
+        TEST_PROJECT_ID,
+        TEST_UPDATE_TAG,
+        COMMON_JOB_PARAMS,
+        {
+            "dev@example.com": {
+                "binding-dataset-open": {
+                    "permissions": perms,
+                    "scope": cartography.intel.gcp.permission_relationships.compile_gcp_regex(
+                        "project/project-abc/resource/projects/project-abc/datasets/analytics"
+                    ),
+                    "has_condition": False,
+                    "condition_title": None,
+                    "condition_expression": None,
+                },
+                "binding-table-conditional": {
+                    "permissions": perms,
+                    "scope": cartography.intel.gcp.permission_relationships.compile_gcp_regex(
+                        "project/project-abc/resource/projects/project-abc/datasets/analytics/tables/events"
+                    ),
+                    "has_condition": True,
+                    "condition_title": "business-hours",
+                    "condition_expression": "request.time.getHours() < 18",
+                },
+            },
+        },
+    )
+
+    # Assert: the events edge is unconditional (dataset grant wins), not conditional.
+    events_has_condition = neo4j_session.run(
+        """
+        MATCH (:GCPPrincipal{email: "dev@example.com"})-[r:CAN_READ]->(:GCPBigQueryTable{id: "project-abc:analytics.events"})
+        RETURN r.has_condition AS has_condition
+        """,
+    ).single()["has_condition"]
+    assert events_has_condition is False

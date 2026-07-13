@@ -1,9 +1,11 @@
+import logging
 from typing import Any
 from typing import AsyncGenerator
 from typing import Generator
 
 import neo4j
 from azure.identity import ClientSecretCredential
+from kiota_abstractions.api_error import APIError
 from msgraph import GraphServiceClient
 from msgraph.generated.models.directory_object import DirectoryObject
 from msgraph.generated.models.group import Group
@@ -11,8 +13,13 @@ from msgraph.generated.models.group import Group
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
 from cartography.intel.microsoft.entra.utils import call_with_retries
+from cartography.intel.microsoft.entra.utils import (
+    get_paginated_values_with_expired_page_retry,
+)
 from cartography.models.microsoft.entra.group import EntraGroupSchema
 from cartography.util import timeit
+
+logger = logging.getLogger(__name__)
 
 
 @timeit
@@ -39,19 +46,18 @@ async def get_group_members(
     user_ids: list[str] = []
     group_ids: list[str] = []
     request_builder = client.groups.by_group_id(group_id).members
-    page = await request_builder.get()
-    while page:
-        if page.value:
-            for obj in page.value:
-                if isinstance(obj, DirectoryObject):
-                    odata_type = getattr(obj, "odata_type", "")
-                    if odata_type == "#microsoft.graph.user":
-                        user_ids.append(obj.id)
-                    elif odata_type == "#microsoft.graph.group":
-                        group_ids.append(obj.id)
-        if not page.odata_next_link:
-            break
-        page = await request_builder.with_url(page.odata_next_link).get()
+    members = await get_paginated_values_with_expired_page_retry(
+        request_builder.get,
+        lambda next_link: request_builder.with_url(next_link).get(),
+        f"members for Entra group {group_id}",
+    )
+    for obj in members:
+        if isinstance(obj, DirectoryObject):
+            odata_type = getattr(obj, "odata_type", "")
+            if odata_type == "#microsoft.graph.user":
+                user_ids.append(obj.id)
+            elif odata_type == "#microsoft.graph.group":
+                group_ids.append(obj.id)
     return user_ids, group_ids
 
 
@@ -60,16 +66,15 @@ async def get_group_owners(client: GraphServiceClient, group_id: str) -> list[st
     """Get owner user IDs for a given group."""
     owner_ids: list[str] = []
     request_builder = client.groups.by_group_id(group_id).owners
-    page = await request_builder.get()
-    while page:
-        if page.value:
-            for obj in page.value:
-                odata_type = getattr(obj, "odata_type", "")
-                if odata_type == "#microsoft.graph.user":
-                    owner_ids.append(obj.id)
-        if not page.odata_next_link:
-            break
-        page = await request_builder.with_url(page.odata_next_link).get()
+    owners = await get_paginated_values_with_expired_page_retry(
+        request_builder.get,
+        lambda next_link: request_builder.with_url(next_link).get(),
+        f"owners for Entra group {group_id}",
+    )
+    for obj in owners:
+        odata_type = getattr(obj, "odata_type", "")
+        if odata_type == "#microsoft.graph.user":
+            owner_ids.append(obj.id)
     return owner_ids
 
 
@@ -152,13 +157,49 @@ async def sync_entra_groups(
 
     # First pass: collect groups and their owners/members
     async for group in get_entra_groups(client):
+        # Fetch owners and members for this group.
+        # The group may no longer exist by the time we fetch details,
+        # returning a 404 or 410. Skip it and move on.
+        try:
+            owners = await call_with_retries(get_group_owners, client, group.id)
+        except Exception as e:
+            if isinstance(e, APIError) and e.response_status_code in (404, 410):
+                logger.warning(
+                    "Group %s (%s) not found (%d) while fetching owners; skipping.",
+                    group.id,
+                    group.display_name,
+                    e.response_status_code,
+                )
+                continue
+            logger.exception(
+                "Failed to fetch owners for Entra group %s (%s).",
+                group.id,
+                group.display_name,
+            )
+            raise
+
+        try:
+            users, subgroups = await call_with_retries(
+                get_group_members, client, group.id
+            )
+        except Exception as e:
+            if isinstance(e, APIError) and e.response_status_code in (404, 410):
+                logger.warning(
+                    "Group %s (%s) not found (%d) while fetching members; skipping.",
+                    group.id,
+                    group.display_name,
+                    e.response_status_code,
+                )
+                continue
+            logger.exception(
+                "Failed to fetch members for Entra group %s (%s).",
+                group.id,
+                group.display_name,
+            )
+            raise
+
         groups_batch.append(group)
-
-        # Fetch owners and members for this group
-        owners = await call_with_retries(get_group_owners, client, group.id)
         group_owner_map[group.id] = owners
-
-        users, subgroups = await call_with_retries(get_group_members, client, group.id)
         user_member_map[group.id] = users
         group_member_map[group.id] = subgroups
 

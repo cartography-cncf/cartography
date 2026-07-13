@@ -7,6 +7,7 @@ from unittest.mock import patch
 
 import pytest
 from requests import Session
+from requests.exceptions import ChunkedEncodingError
 
 from cartography.intel.cve.feed import _call_cves_api
 from cartography.intel.cve.feed import _map_cve_dict
@@ -97,6 +98,29 @@ def _mock_good_responses() -> list[Mock]:
         "vulnerabilities": [],
     }
     return [mock_response_1, mock_response_2, mock_response_3]
+
+
+def test_call_cves_api_retries_on_chunked_encoding_error(mock_session):
+    """
+    _call_cves_api should retry per-page requests that fail with
+    ChunkedEncodingError (raised when the NVD API truncates a chunked
+    response body mid-read) and complete successfully once the next attempt
+    returns a valid payload.
+    """
+    # Arrange: first call raises, subsequent calls return the three good pages.
+    mock_session.get.side_effect = [
+        ChunkedEncodingError("Response ended prematurely"),
+        *_mock_good_responses(),
+    ]
+    params = {"start": "2024-01-10T00:00:00Z", "end": "2024-01-10T23:59:59Z"}
+
+    # Act
+    result = _call_cves_api(mock_session, NIST_CVE_URL, API_KEY, params)
+
+    # Assert: one retry + three successful page fetches.
+    assert mock_session.get.call_count == 4
+    assert result["totalResults"] == 4000
+    assert len(result["vulnerabilities"]) == 6
 
 
 def test_call_cves_api(mock_session):

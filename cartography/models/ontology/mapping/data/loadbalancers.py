@@ -1,7 +1,6 @@
 from cartography.models.ontology.mapping.specs import OntologyFieldMapping
 from cartography.models.ontology.mapping.specs import OntologyMapping
 from cartography.models.ontology.mapping.specs import OntologyNodeMapping
-from cartography.models.ontology.mapping.specs import OntologyRelMapping
 
 # LoadBalancer fields:
 # name - The name of the load balancer
@@ -44,20 +43,6 @@ aws_mapping = OntologyMapping(
             ],
         ),
     ],
-    rels=[
-        OntologyRelMapping(
-            __comment__="Link LoadBalancer to Container via ECSTask network interface path",
-            query=(
-                "MATCH (lb:LoadBalancer {lastupdated: $UPDATE_TAG})-[:EXPOSE]->(ip:EC2PrivateIp)"
-                "<-[:PRIVATE_IP_ADDRESS]-(ni:NetworkInterface)"
-                "<-[:NETWORK_INTERFACE]-(task:ECSTask)-[:HAS_CONTAINER]->(c:Container) "
-                "MERGE (lb)-[r:EXPOSE]->(c) "
-                "ON CREATE SET r.firstseen = timestamp() "
-                "SET r.lastupdated = $UPDATE_TAG"
-            ),
-            iterative=False,
-        ),
-    ],
 )
 
 gcp_mapping = OntologyMapping(
@@ -76,8 +61,8 @@ gcp_mapping = OntologyMapping(
                 OntologyFieldMapping(
                     ontology_field="ip_address", node_field="ip_address"
                 ),
-                # lb_type: not directly available, depends on backend service type
-                # dns_name: GCP uses IP addresses, not DNS names for forwarding rules
+                OntologyFieldMapping(ontology_field="lb_type", node_field="lb_type"),
+                # dns_name: GCP forwarding rules are addressed by IP only — no DNS name field exists
             ],
         ),
     ],
@@ -101,8 +86,29 @@ azure_mapping = OntologyMapping(
     ],
 )
 
+scaleway_mapping = OntologyMapping(
+    module_name="scaleway",
+    nodes=[
+        OntologyNodeMapping(
+            node_label="ScalewayLoadBalancer",
+            fields=[
+                OntologyFieldMapping(
+                    ontology_field="name", node_field="name", required=True
+                ),
+                OntologyFieldMapping(ontology_field="lb_type", node_field="type"),
+                OntologyFieldMapping(
+                    ontology_field="ip_address", node_field="ip_address"
+                ),
+                OntologyFieldMapping(ontology_field="region", node_field="region"),
+                # scheme / dns_name: not exposed by the Scaleway LB API.
+            ],
+        ),
+    ],
+)
+
 LOADBALANCERS_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     "aws": aws_mapping,
     "gcp": gcp_mapping,
     "azure": azure_mapping,
+    "scaleway": scaleway_mapping,
 }

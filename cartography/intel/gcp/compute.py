@@ -11,13 +11,14 @@ from googleapiclient.discovery import Resource
 from googleapiclient.errors import HttpError
 
 from cartography.client.core.tx import load
+from cartography.client.core.tx import run_write_query
 from cartography.graph.job import GraphJob
 from cartography.intel.gcp.backendservice import sync_gcp_backend_services
 from cartography.intel.gcp.cloud_armor import sync_gcp_cloud_armor
 from cartography.intel.gcp.instancegroup import sync_gcp_instance_groups
 from cartography.intel.gcp.labels import sync_labels
+from cartography.intel.gcp.util import classify_gcp_http_error
 from cartography.intel.gcp.util import gcp_api_execute_with_retry
-from cartography.intel.gcp.util import get_error_reason
 from cartography.intel.gcp.util import is_permission_denied_error
 from cartography.intel.gcp.util import parse_compute_full_uri_to_partial_uri
 from cartography.intel.gcp.util import summarize_gcp_http_error
@@ -70,15 +71,15 @@ def get_zones_in_project(
         res = gcp_api_execute_with_retry(req)
         return res["items"]
     except HttpError as e:
-        reason = get_error_reason(e)
-        if reason == "accessNotConfigured":
+        category = classify_gcp_http_error(e)
+        if category == "api_disabled":
             logger.info(
                 "Google Compute Engine API access is not configured for project %s; skipping. %s",
                 project_id,
                 summarize_gcp_http_error(e),
             )
             return None
-        elif reason == "notFound":
+        elif category == "not_found":
             logger.info(
                 "Project %s returned a 404 not found error. %s",
                 project_id,
@@ -122,8 +123,12 @@ def get_gcp_instance_responses(
             res = gcp_api_execute_with_retry(req)
             response_objects.append(res)
         except HttpError as e:
-            reason = get_error_reason(e)
-            if reason in {"backendError", "rateLimitExceeded", "internalError"}:
+            # Intentional widening vs. the old check (reason in {"backendError",
+            # "rateLimitExceeded", "internalError"}): classify_gcp_http_error covers
+            # 429, generic 500/502/504, and 403-quota responses in addition to the
+            # original three reasons. After gcp_api_execute_with_retry has already
+            # retried all of these, skipping the zone is the right fallback.
+            if classify_gcp_http_error(e) == "transient":
                 logger.warning(
                     "Transient error listing instances for project %s zone %s: %s; skipping this zone.",
                     project_id,
@@ -149,8 +154,7 @@ def get_gcp_subnets(projectid: str, region: str, compute: Resource) -> dict | No
     try:
         req = compute.subnetworks().list(project=projectid, region=region)
     except HttpError as e:
-        reason = get_error_reason(e)
-        if reason == "invalid":
+        if classify_gcp_http_error(e) == "invalid":
             logger.warning(
                 "GCP: Invalid region %s for project %s; skipping subnet sync for this region.",
                 region,
@@ -172,8 +176,7 @@ def get_gcp_subnets(projectid: str, region: str, compute: Resource) -> dict | No
             )
             break
         except HttpError as e:
-            reason = get_error_reason(e)
-            if reason == "invalid":
+            if classify_gcp_http_error(e) == "invalid":
                 logger.warning(
                     "GCP: Invalid region %s for project %s; skipping subnet sync for this region.",
                     region,
@@ -202,6 +205,15 @@ def get_gcp_vpcs(projectid: str, compute: Resource) -> Resource:
 
 
 @timeit
+def get_gcp_compute_project_metadata(project_id: str, compute: Resource) -> dict:
+    """
+    Return project-level Compute metadata relevant to CIS checks.
+    """
+    req = compute.projects().get(project=project_id)
+    return gcp_api_execute_with_retry(req)
+
+
+@timeit
 def get_gcp_regional_forwarding_rules(
     project_id: str,
     region: str,
@@ -219,8 +231,7 @@ def get_gcp_regional_forwarding_rules(
     try:
         return gcp_api_execute_with_retry(req)
     except HttpError as e:
-        reason = get_error_reason(e)
-        if reason == "invalid":
+        if classify_gcp_http_error(e) == "invalid":
             logger.warning(
                 "GCP: Invalid region %s for project %s; skipping forwarding rules sync for this region.",
                 region,
@@ -271,8 +282,53 @@ def transform_gcp_instances(response_objects: list[dict]) -> list[dict]:
             instance["partial_uri"] = f"{prefix}/{instance['name']}"
             instance["project_id"] = prefix_fields.project_id
             instance["zone_name"] = prefix_fields.zone_name
+            machine_type = instance.get("machineType")
+            instance["machine_type"] = (
+                machine_type.split("/")[-1] if machine_type else None
+            )
+            service_accounts = instance.get("serviceAccounts", [])
+            primary_service_account = service_accounts[0] if service_accounts else {}
+            instance["service_account_email"] = primary_service_account.get("email")
+            instance["service_account_scopes"] = primary_service_account.get(
+                "scopes", []
+            )
+            instance["can_ip_forward"] = instance.get("canIpForward")
+            shielded_config = instance.get("shieldedInstanceConfig", {})
+            instance["enable_vtpm"] = shielded_config.get("enableVtpm")
+            instance["enable_integrity_monitoring"] = shielded_config.get(
+                "enableIntegrityMonitoring"
+            )
+            confidential_config = instance.get("confidentialInstanceConfig", {})
+            instance["enable_confidential_compute"] = confidential_config.get(
+                "enableConfidentialCompute"
+            )
+            metadata_items = {
+                item.get("key"): item.get("value")
+                for item in instance.get("metadata", {}).get("items", [])
+                if item.get("key")
+            }
+            instance["block_project_ssh_keys"] = metadata_items.get(
+                "block-project-ssh-keys"
+            )
+            instance["enable_oslogin_metadata"] = metadata_items.get("enable-oslogin")
+            instance["serial_port_enable"] = metadata_items.get("serial-port-enable")
+            instance["creation_timestamp"] = instance.get("creationTimestamp")
 
-            for nic in instance.get("networkInterfaces", []):
+            # Project primary IPs onto the instance for the ComputeInstance ontology.
+            # The full set of NIC / access-config IPs stays modelled on
+            # GCPNetworkInterface / GCPNicAccessConfig; these fields just expose the
+            # first pair for cross-cloud semantic queries.
+            network_interfaces = instance.get("networkInterfaces", []) or []
+            primary_nic = network_interfaces[0] if network_interfaces else {}
+            instance["private_ip"] = primary_nic.get("networkIP")
+            primary_access_configs = primary_nic.get("accessConfigs", []) or []
+            instance["public_ip"] = (
+                primary_access_configs[0].get("natIP")
+                if primary_access_configs
+                else None
+            )
+
+            for nic in network_interfaces:
                 nic["subnet_partial_uri"] = _parse_compute_full_uri_to_partial_uri(
                     nic["subnetwork"],
                 )
@@ -384,9 +440,49 @@ def transform_gcp_subnets(subnet_res: dict) -> list[dict]:
         subnet["ip_cidr_range"] = s.get("ipCidrRange", None)
         subnet["self_link"] = s["selfLink"]
         subnet["private_ip_google_access"] = s.get("privateIpGoogleAccess", None)
+        subnet["purpose"] = s.get("purpose", None)
+        subnet["flow_logs_enabled"] = s.get("enableFlowLogs", None)
+        subnet["flow_logs_aggregation_interval"] = s.get("logConfig", {}).get(
+            "aggregationInterval", None
+        )
+        subnet["flow_logs_sampling"] = s.get("logConfig", {}).get("flowSampling", None)
+        subnet["flow_logs_metadata"] = s.get("logConfig", {}).get("metadata", None)
+        subnet["flow_logs_filter_expr"] = s.get("logConfig", {}).get("filterExpr", None)
 
         subnet_list.append(subnet)
     return subnet_list
+
+
+# Map forwarding-rule target collection -> ontology `lb_type`. GCP encodes the load
+# balancer family in the target proxy resource path (e.g. targetHttpsProxies, targetPools).
+_FORWARDING_RULE_LB_TYPE_BY_TARGET_KIND = {
+    "targetHttpProxies": "http",
+    "targetHttpsProxies": "https",
+    "targetTcpProxies": "tcp",
+    "targetSslProxies": "ssl",
+    "targetGrpcProxies": "grpc",
+    "targetPools": "network",
+    # Backend-service-only forwarding rules (no target proxy) are L4 Network LBs.
+    # The protocol (TCP/UDP/ESP/L3_DEFAULT) lives on `IPProtocol`, not the family.
+    "backendServices": "network",
+    "targetInstances": "network",
+    "targetVpnGateways": "vpn",
+}
+
+
+def _derive_forwarding_rule_lb_type(*uris: str | None) -> str | None:
+    # Forwarding rules either reference a target proxy / pool URI (`target`) or,
+    # for internal LBs, point straight at a backend service (`backendService`).
+    # Inspect each candidate URI in order and stop at the first known collection
+    # segment. Target URIs look like ".../{collection}/{name}", so we walk segments
+    # in reverse to ignore the trailing resource name.
+    for uri in uris:
+        if not uri:
+            continue
+        for segment in reversed(uri.split("/")):
+            if segment in _FORWARDING_RULE_LB_TYPE_BY_TARGET_KIND:
+                return _FORWARDING_RULE_LB_TYPE_BY_TARGET_KIND[segment]
+    return None
 
 
 @timeit
@@ -424,6 +520,12 @@ def transform_gcp_forwarding_rules(fwd_response: Resource) -> list[dict]:
             forwarding_rule["target"] = _parse_compute_full_uri_to_partial_uri(target)
         else:
             forwarding_rule["target"] = None
+        # Internal regional LBs front a backend service directly and omit `target`,
+        # so fall back to the `backendService` URI to recover an lb_type for them.
+        forwarding_rule["lb_type"] = _derive_forwarding_rule_lb_type(
+            target,
+            fwd.get("backendService"),
+        )
 
         network = fwd.get("network", None)
         if network:
@@ -520,7 +622,6 @@ def _transform_fw_entry(
 
     # If the protocol covered is TCP or UDP then we need to handle ports
     if protocol == "tcp" or protocol == "udp":
-
         # If ports are specified then create rules for each port and range
         if "ports" in rule:
             for port in rule["ports"]:
@@ -1203,6 +1304,31 @@ def sync_gcp_instances(
 
 
 @timeit
+def update_gcp_project_compute_metadata(
+    neo4j_session: neo4j.Session,
+    project_id: str,
+    project_metadata: dict,
+    gcp_update_tag: int,
+) -> None:
+    metadata_items = {
+        item.get("key"): item.get("value")
+        for item in project_metadata.get("commonInstanceMetadata", {}).get("items", [])
+        if item.get("key")
+    }
+    run_write_query(
+        neo4j_session,
+        """
+        MATCH (p:GCPProject {id: $PROJECT_ID})
+        SET p.compute_project_enable_oslogin = $COMPUTE_PROJECT_ENABLE_OSLOGIN,
+            p.lastupdated = $LASTUPDATED
+        """,
+        PROJECT_ID=project_id,
+        COMPUTE_PROJECT_ENABLE_OSLOGIN=metadata_items.get("enable-oslogin"),
+        LASTUPDATED=gcp_update_tag,
+    )
+
+
+@timeit
 def sync_gcp_vpcs(
     neo4j_session: neo4j.Session,
     compute: Resource,
@@ -1345,6 +1471,13 @@ def sync(
     if zones is None:
         return
     else:
+        project_metadata = get_gcp_compute_project_metadata(project_id, compute)
+        update_gcp_project_compute_metadata(
+            neo4j_session,
+            project_id,
+            project_metadata,
+            gcp_update_tag,
+        )
         regions = _zones_to_regions(zones)
         sync_gcp_vpcs(
             neo4j_session,

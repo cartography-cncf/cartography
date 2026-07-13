@@ -2,8 +2,13 @@
 
 The `microsoft` module is the top-level umbrella for Microsoft tenant, SaaS, and security control plane data ingested via Microsoft Graph. It currently contains the following submodules:
 
-- **entra** — Entra ID identity objects (users, groups, OUs, applications, service principals, app role assignments). See the `entra` schema section for node and relationship definitions.
+- **entra** — Entra ID identity objects (users, groups, OUs, applications, service principals, app role assignments).
 - **intune** — Intune managed devices, detected apps, and compliance policies (documented below).
+
+```{include} /modules/microsoft/entra-schema.md
+```
+
+## Intune Schema
 
 ### IntuneManagedDevice
 
@@ -56,10 +61,10 @@ Representation of an application detected on a device managed by Microsoft Intun
 
 | Field | Description |
 |-------|-------------|
-| id | Unique identifier for the detected app (composite of tenant, app, device) |
+| id | Intune report `ApplicationKey` for the detected app |
+| application_id | Intune report `ApplicationId` when the report includes one |
 | display_name | Display name of the application |
 | version | Version of the application |
-| size_in_byte | Size of the application in bytes |
 | device_count | Number of devices this app is detected on |
 | publisher | Publisher of the application |
 | platform | Platform the application runs on |

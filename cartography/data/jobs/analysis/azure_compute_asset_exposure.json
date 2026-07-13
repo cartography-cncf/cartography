@@ -14,8 +14,8 @@
       "iterationsize": 1000
     },
     {
-      "__comment": "Reset exposed_internet on AzureContainerInstance",
-      "query": "MATCH (n:AzureContainerInstance) WHERE n.exposed_internet IS NOT NULL WITH n LIMIT $LIMIT_SIZE REMOVE n.exposed_internet, n.exposed_internet_type RETURN COUNT(*) AS TotalCompleted",
+      "__comment": "Reset exposed_internet on AzureGroupContainer",
+      "query": "MATCH (n:AzureGroupContainer) WHERE n.exposed_internet IS NOT NULL WITH n LIMIT $LIMIT_SIZE REMOVE n.exposed_internet, n.exposed_internet_type RETURN COUNT(*) AS TotalCompleted",
       "iterative": true,
       "iterationsize": 1000
     },
@@ -36,7 +36,7 @@
     },
     {
       "__comment": "Mark container instances as directly exposed if they have a public IP and are not VNet-integrated. Prefer ip_address_type when present, fall back to topology.",
-      "query": "MATCH (c:AzureContainerInstance) WHERE c.ip_address IS NOT NULL AND (c.ip_address_type = 'Public' OR (c.ip_address_type IS NULL AND NOT (c)-[:ATTACHED_TO]->(:AzureSubnet))) SET c.exposed_internet = true, c.exposed_internet_type = ['direct']",
+      "query": "MATCH (c:AzureGroupContainer) WHERE c.ip_address IS NOT NULL AND (c.ip_address_type = 'Public' OR (c.ip_address_type IS NULL AND NOT (c)-[:ATTACHED_TO]->(:AzureSubnet))) SET c.exposed_internet = true, c.exposed_internet_type = ['direct']",
       "iterative": false
     },
     {
@@ -51,7 +51,7 @@
     },
     {
       "__comment": "Set exposed_internet = false on container instances not marked as exposed",
-      "query": "MATCH (c:AzureContainerInstance) WHERE c.exposed_internet IS NULL SET c.exposed_internet = false",
+      "query": "MATCH (c:AzureGroupContainer) WHERE c.exposed_internet IS NULL SET c.exposed_internet = false",
       "iterative": false
     }
   ]

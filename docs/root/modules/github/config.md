@@ -30,6 +30,7 @@ Fine-grained PATs offer better security through minimal permissions and organiza
    | **Actions** | Read | Optional | GitHub Actions workflows, runs, and artifacts. |
    | **Administration** | Read | Yes (for collaborator/branch protection coverage) | Collaborators and branch protection rules. Without this, Cartography logs warnings and skips this data. |
    | **Contents** | Read | Yes | Repository files, commit history, dependency manifests. |
+   | **Dependabot alerts** | Read | Optional | Dependabot vulnerability alert metadata, triage state, assignees, and dismissal actors. |
    | **Environments** | Read | Optional | Deployment environments configuration. |
    | **Metadata** | Read | Yes | Auto-added. Repository discovery and basic info. |
    | **Secrets** | Read | Optional | Repository secrets metadata (names, creation dates). |
@@ -42,6 +43,8 @@ Fine-grained PATs offer better security through minimal permissions and organiza
    | **Members** | Read | Yes | Organization members, teams, team membership, user profiles/emails. |
    | **Secrets** | Read | Optional | Organization secrets metadata (names, creation dates). |
    | **Variables** | Read | Optional | Organization variables for Actions workflows. |
+
+   > **Note:** Fine-grained PATs [cannot access GitHub Packages](https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/managing-your-personal-access-tokens#fine-grained-personal-access-tokens-limitations). To enable GHCR (GitHub Container Registry) ingestion — packages, image manifests, layers, tags, and SLSA attestations — use a classic PAT (Option B) with the `read:packages` scope or a GitHub App.
 
    > **Note:** The Secrets permission only provides access to secret **metadata** (name, creation date, update date). GitHub never exposes the actual secret values through its API—they are encrypted and cannot be retrieved.
 
@@ -65,6 +68,8 @@ Classic PATs use broader OAuth scopes. Use this option if fine-grained PATs are 
    | `read:org` | Organization membership and team data |
    | `read:user` | User profile information |
    | `user:email` | User email addresses |
+   | `security_events` | Optional. Dependabot alerts for private repositories. |
+   | `read:packages` | Optional. GHCR (GitHub Container Registry) packages, image manifests, layers, tags, and SLSA attestations. Without this, Cartography skips GHCR ingestion. |
 
 4. Click **Generate token** and copy it immediately.
 
@@ -76,6 +81,9 @@ Some data requires elevated permissions. Without these, Cartography will log war
 |------|-------------|
 | **Collaborators** | For fine-grained PATs, both are required: `Repository -> Administration: Read` on the token and token-owner rights as an **Organization Owner** or **Admin** on the repositories. |
 | **Branch protection rules** | Same as collaborators: both `Repository -> Administration: Read` and owner/admin-equivalent rights are required. |
+| **Dependabot alerts** | Fine-grained PATs and GitHub Apps require `Repository -> Dependabot alerts: Read`. Classic PATs require `security_events` for private repositories; `public_repo` is sufficient for public repositories. |
+| **Fine-grained PAT inventory** | Requires GitHub App authentication with `Organization -> Personal access tokens: Read`. GitHub does not allow PAT-authenticated calls to this endpoint. |
+| **Classic PAT inventory** | Available only from SAML SSO credential authorizations for SAML-enabled organizations. The authenticated user must be an organization owner; classic PAT auth requires `read:org`. |
 | **Two-factor authentication status** | Visible only to Organization Owners. |
 | **Enterprise owners** | Requires GitHub Enterprise with appropriate enterprise-level permissions. |
 
@@ -89,6 +97,8 @@ GitHub App authentication provides better security through short-lived tokens an
 4. Generate and download a **private key** from the App's settings page.
 
 Then configure Cartography with the App credentials instead of a PAT (see Step 2 below).
+
+> **Note:** GitHub's fine-grained PAT inventory endpoints are GitHub App-only and require the App's **Personal access tokens: Read** organization permission. Classic PAT metadata is only available through the SAML SSO credential authorizations endpoint for SAML-enabled organizations, and requires organization owner access.
 
 ### Step 2: Configure Cartography
 
@@ -175,6 +185,8 @@ For GitHub Enterprise, use the same token scopes/permissions as above. Set the `
 | Issue | Solution |
 |-------|----------|
 | `FORBIDDEN` warnings for collaborators/branch protection rules | Ensure fine-grained PAT includes `Repository -> Administration: Read` and the token owner has Organization Owner or repository Admin rights; otherwise Cartography will skip this enrichment and continue. |
+| `403 Forbidden for /orgs/{org}/packages` and no `GitHubPackage` nodes | GHCR ingestion requires the `read:packages` scope on a classic PAT (or a GitHub App). Fine-grained PATs [cannot access GitHub Packages](https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/managing-your-personal-access-tokens#fine-grained-personal-access-tokens-limitations). |
+| No `GitHubPersonalAccessToken` nodes | Fine-grained PAT inventory requires GitHub App authentication with `Personal access tokens: Read`. Classic PAT metadata is limited to SAML SSO credential authorizations on SAML-enabled organizations. Cartography skips cleanup when GitHub returns authorization or availability errors for these endpoints. |
 | Empty dependency data | Ensure the [dependency graph](https://docs.github.com/en/code-security/supply-chain-security/understanding-your-software-supply-chain/about-the-dependency-graph) is enabled on your repositories. |
 | Missing 2FA status | Only visible to Organization Owners. |
 | Rate limiting | Cartography handles rate limits automatically by sleeping until the quota resets. |

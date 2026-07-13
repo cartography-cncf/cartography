@@ -33,7 +33,7 @@
 
 #### General
 - [ ] I have read the [contributing guidelines](https://cartography-cncf.github.io/cartography/dev/developer-guide.html).
-- [ ] The linter passes locally (`make lint`).
+- [ ] The linter passes locally (`make test_lint`).
 - [ ] I have added/updated tests that prove my fix is effective or my feature works.
 
 #### Proof of functionality

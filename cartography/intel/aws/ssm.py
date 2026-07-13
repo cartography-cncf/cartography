@@ -159,7 +159,6 @@ def get_public_ssm_parameters_by_path(
     boto3_session: boto3.session.Session,
     region: str,
     allowlist_prefixes: list[str],
-    ingest_secure_strings: bool,
 ) -> List[Dict[str, Any]]:
     if not allowlist_prefixes:
         return []
@@ -177,15 +176,6 @@ def get_public_ssm_parameters_by_path(
             PaginationConfig={"PageSize": 10},
         ):
             for parameter in page.get("Parameters", []):
-                if (
-                    not ingest_secure_strings
-                    and parameter.get("Type") == "SecureString"
-                ):
-                    logger.debug(
-                        "Skipping SecureString SSM parameter in region %s.",
-                        region,
-                    )
-                    continue
                 ssm_parameters_data.append(parameter)
                 prefix_parameter_count += 1
         logger.info(
@@ -370,10 +360,10 @@ def sync(
 @timeit
 def sync_public_parameters(
     neo4j_session: neo4j.Session,
-    boto3_session: boto3.session.Session,
-    regions: List[str],
+    region_session_candidates: dict[str, list[boto3.session.Session]],
     update_tag: int,
     common_job_parameters: Dict[str, Any],
+    cleanup_allowed: bool = True,
 ) -> None:
     allowlist_prefixes = _minimize_allowlisted_prefixes(
         _normalize_allowlisted_prefixes(
@@ -387,21 +377,28 @@ def sync_public_parameters(
         cleanup_public_ssm_parameters(neo4j_session, common_job_parameters)
         return
 
-    ingest_secure_strings = common_job_parameters.get(
-        "aws_ssm_ingest_secure_strings",
-        False,
-    )
-    for region in regions:
+    all_regions_complete = cleanup_allowed and bool(region_session_candidates)
+    for region, boto3_sessions in region_session_candidates.items():
         logger.info(
             "Syncing shared public SSM parameters for region '%s'.",
             region,
         )
-        data = get_public_ssm_parameters_by_path(
-            boto3_session,
-            region,
-            allowlist_prefixes,
-            ingest_secure_strings,
-        )
+        data: list[dict[str, Any]] = []
+        for boto3_session in boto3_sessions:
+            data = get_public_ssm_parameters_by_path(
+                boto3_session,
+                region,
+                allowlist_prefixes,
+            )
+            if data:
+                break
+        if not data:
+            all_regions_complete = False
+            logger.warning(
+                "No configured AWS profile could read allowlisted public SSM parameters in region '%s'; preserving previously ingested public parameters.",
+                region,
+            )
+            continue
         data = transform_ssm_parameters(data)
         load_public_ssm_parameters(
             neo4j_session,
@@ -410,4 +407,9 @@ def sync_public_parameters(
             update_tag,
         )
 
-    cleanup_public_ssm_parameters(neo4j_session, common_job_parameters)
+    if all_regions_complete:
+        cleanup_public_ssm_parameters(neo4j_session, common_job_parameters)
+    else:
+        logger.warning(
+            "Shared public SSM parameter sync was incomplete; skipping cleanup to preserve data from regions that could not be read."
+        )

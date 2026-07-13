@@ -87,7 +87,12 @@ entra_mapping = OntologyMapping(
                     node_field="display_name",
                     required=True,
                 ),
-                # enabled: Not available - Entra applications don't have an enabled field in current schema
+                # enabled: Microsoft Graph exposes `accountEnabled` on the
+                # service principal (the tenant-local instance), not on the
+                # application registration. `_ont_enabled` is projected onto
+                # EntraApplication by the `ontology_entra_application_projection`
+                # analysis job, which copies it from the linked
+                # EntraServicePrincipal.
                 # native_app: Not available - Application type not currently ingested
                 OntologyFieldMapping(
                     ontology_field="protocol",
@@ -179,8 +184,37 @@ jumpcloud_mapping = OntologyMapping(
     ],
 )
 
+salesforce_mapping = OntologyMapping(
+    module_name="salesforce",
+    nodes=[
+        OntologyNodeMapping(
+            node_label="SalesforceConnectedApp",
+            fields=[
+                # Salesforce does not expose the OAuth consumer key via SOQL, so
+                # use the ConnectedApplication record id as the client identifier.
+                OntologyFieldMapping(
+                    ontology_field="client_id",
+                    node_field="id",
+                ),
+                OntologyFieldMapping(
+                    ontology_field="name",
+                    node_field="name",
+                    required=True,
+                ),
+                OntologyFieldMapping(
+                    ontology_field="protocol",
+                    node_field="",
+                    special_handling="static_value",
+                    extra={"value": "oauth2"},
+                ),
+            ],
+        ),
+    ],
+)
+
 THIRDPARTYAPPS_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     "googleworkspace": googleworkspace_mapping,
+    "salesforce": salesforce_mapping,
     "keycloak": keycloak_mapping,
     "microsoft": entra_mapping,
     "okta": okta_mapping,

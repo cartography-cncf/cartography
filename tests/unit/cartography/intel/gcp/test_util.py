@@ -5,6 +5,7 @@ from unittest.mock import MagicMock
 import pytest
 from google.api_core.exceptions import InternalServerError
 from google.api_core.exceptions import ServiceUnavailable
+from google.api_core.exceptions import TooManyRequests
 from googleapiclient.errors import HttpError
 
 from cartography.intel.gcp.util import classify_gcp_http_error
@@ -12,6 +13,7 @@ from cartography.intel.gcp.util import gcp_api_giveup_handler
 from cartography.intel.gcp.util import get_error_reason
 from cartography.intel.gcp.util import is_api_disabled_error
 from cartography.intel.gcp.util import is_billing_disabled_error
+from cartography.intel.gcp.util import is_gcp_http_error_category
 from cartography.intel.gcp.util import is_permission_denied_error
 from cartography.intel.gcp.util import is_retryable_gcp_http_error
 from cartography.intel.gcp.util import summarize_gcp_http_error
@@ -261,6 +263,60 @@ class TestGetErrorReason:
         error = HttpError(mock_resp, error_content)
         assert get_error_reason(error) == "BILLING_DISABLED"
 
+    def test_extracts_reason_from_precondition_failure_violation_type(self):
+        mock_resp = MagicMock()
+        mock_resp.status = 400
+        error_content = json.dumps(
+            {
+                "error": {
+                    "code": 400,
+                    "message": "Billing is disabled for project 123456789",
+                    "details": [
+                        {
+                            "@type": "type.googleapis.com/google.rpc.PreconditionFailure",
+                            "violations": [
+                                {
+                                    "type": "BILLING_DISABLED",
+                                    "subject": "123456789",
+                                }
+                            ],
+                        }
+                    ],
+                }
+            }
+        ).encode("utf-8")
+        error = HttpError(mock_resp, error_content)
+        assert get_error_reason(error) == "BILLING_DISABLED"
+
+    def test_prefers_detail_reason_over_violation_type(self):
+        mock_resp = MagicMock()
+        mock_resp.status = 400
+        error_content = json.dumps(
+            {
+                "error": {
+                    "code": 400,
+                    "details": [
+                        {
+                            "@type": "type.googleapis.com/google.rpc.PreconditionFailure",
+                            "violations": [
+                                {
+                                    "type": "BILLING_DISABLED",
+                                    "subject": "123456789",
+                                }
+                            ],
+                        },
+                        {
+                            "@type": "type.googleapis.com/google.rpc.ErrorInfo",
+                            "reason": "RATE_LIMIT_EXCEEDED",
+                            "domain": "googleapis.com",
+                        },
+                    ],
+                }
+            }
+        ).encode("utf-8")
+        error = HttpError(mock_resp, error_content)
+        assert get_error_reason(error) == "RATE_LIMIT_EXCEEDED"
+
     def test_extracts_reason_from_standard_errors_array(self):
         mock_resp = MagicMock()
         mock_resp.status = 403
@@ -289,6 +345,56 @@ class TestIsBillingDisabledError:
         ).encode("utf-8")
         error = HttpError(mock_resp, error_content)
         assert is_billing_disabled_error(error) is True
+
+    def test_true_for_precondition_failure_billing_disabled_payload(self):
+        mock_resp = MagicMock()
+        mock_resp.status = 400
+        error_content = json.dumps(
+            {
+                "error": {
+                    "code": 400,
+                    "message": (
+                        "Billing is disabled for project 123456789. Enable it by "
+                        "visiting https://console.cloud.google.com/billing/projects "
+                        "and associating your project with a billing account."
+                    ),
+                    "details": [
+                        {
+                            "@type": "type.googleapis.com/google.rpc.PreconditionFailure",
+                            "violations": [
+                                {
+                                    "type": "BILLING_DISABLED",
+                                    "subject": "123456789",
+                                }
+                            ],
+                        }
+                    ],
+                }
+            }
+        ).encode("utf-8")
+        error = HttpError(mock_resp, error_content)
+        assert is_billing_disabled_error(error) is True
+
+    def test_false_when_structured_non_billing_reason_has_billing_like_message(self):
+        mock_resp = MagicMock()
+        mock_resp.status = 403
+        error_content = json.dumps(
+            {
+                "error": {
+                    "code": 403,
+                    "message": "Billing is disabled for project 123456789",
+                    "details": [
+                        {
+                            "@type": "type.googleapis.com/google.rpc.ErrorInfo",
+                            "reason": "PERMISSION_DENIED",
+                            "domain": "googleapis.com",
+                        }
+                    ],
+                }
+            }
+        ).encode("utf-8")
+        error = HttpError(mock_resp, error_content)
+        assert is_billing_disabled_error(error) is False
 
     def test_false_when_unrelated_403(self):
         mock_resp = MagicMock()
@@ -402,8 +508,10 @@ class TestIsRetryableGcpHttpError:
     def test_false_for_non_http_error(self):
         assert is_retryable_gcp_http_error(ValueError("not an HttpError")) is False
 
-    @pytest.mark.parametrize("error_cls", [InternalServerError, ServiceUnavailable])
-    def test_true_for_google_api_core_server_errors(self, error_cls):
+    @pytest.mark.parametrize(
+        "error_cls", [InternalServerError, ServiceUnavailable, TooManyRequests]
+    )
+    def test_true_for_retryable_google_api_core_errors(self, error_cls):
         assert is_retryable_gcp_http_error(error_cls("transient server error")) is True
 
 
@@ -540,6 +648,25 @@ class TestClassifyGcpHttpError:
         assert classify_gcp_http_error(e) == "api_disabled"
 
     # ------------------------------------------------------------------
+    # billing_disabled
+    # ------------------------------------------------------------------
+    def test_billing_disabled(self):
+        e = _make_http_error(
+            403,
+            {
+                "error": {
+                    "details": [
+                        {
+                            "@type": "type.googleapis.com/google.rpc.ErrorInfo",
+                            "reason": "BILLING_DISABLED",
+                        }
+                    ]
+                }
+            },
+        )
+        assert classify_gcp_http_error(e) == "billing_disabled"
+
+    # ------------------------------------------------------------------
     # forbidden
     # ------------------------------------------------------------------
     @pytest.mark.parametrize(
@@ -554,23 +681,6 @@ class TestClassifyGcpHttpError:
                     "code": 403,
                     "message": "permission denied",
                     "errors": [{"reason": reason}],
-                }
-            },
-        )
-        assert classify_gcp_http_error(e) == "forbidden"
-
-    def test_forbidden_billing_disabled(self):
-        # BILLING_DISABLED is a 403 but NOT api_disabled → classifies as forbidden
-        e = _make_http_error(
-            403,
-            {
-                "error": {
-                    "details": [
-                        {
-                            "@type": "type.googleapis.com/google.rpc.ErrorInfo",
-                            "reason": "BILLING_DISABLED",
-                        }
-                    ]
                 }
             },
         )
@@ -596,7 +706,7 @@ class TestClassifyGcpHttpError:
     # ------------------------------------------------------------------
     @pytest.mark.parametrize(
         "reason",
-        ["invalid", "badRequest"],
+        ["invalid", "badRequest", "invalidQuery"],
     )
     def test_invalid_400_matching_reasons(self, reason):
         e = _make_http_error(
@@ -704,3 +814,35 @@ class TestClassifyGcpHttpError:
     def test_empty_body_403(self):
         e = _make_http_error(403)
         assert classify_gcp_http_error(e) == "forbidden"
+
+
+class TestIsGcpHttpErrorCategory:
+    def test_includes_transient_403_when_requested(self):
+        e = _make_http_error(
+            403,
+            {"error": {"code": 403, "errors": [{"reason": "rateLimitExceeded"}]}},
+        )
+
+        assert (
+            is_gcp_http_error_category(
+                e,
+                ("api_disabled", "forbidden", "not_found"),
+                include_transient_403=True,
+            )
+            is True
+        )
+
+    def test_does_not_include_non_403_transient_when_requested(self):
+        e = _make_http_error(
+            503,
+            {"error": {"code": 503, "errors": [{"reason": "backendError"}]}},
+        )
+
+        assert (
+            is_gcp_http_error_category(
+                e,
+                ("api_disabled", "forbidden", "not_found"),
+                include_transient_403=True,
+            )
+            is False
+        )

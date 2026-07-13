@@ -7,15 +7,17 @@ from cartography.models.core.nodes import ExtraNodeLabels
 from cartography.models.core.relationships import CartographyRelProperties
 from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
+from cartography.models.core.relationships import make_source_node_matcher
 from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import OtherRelationships
+from cartography.models.core.relationships import SourceNodeMatcher
 from cartography.models.core.relationships import TargetNodeMatcher
 
 
 @dataclass(frozen=True)
 class EC2InstanceNodeProperties(CartographyNodeProperties):
-    # TODO arn: PropertyRef = PropertyRef('Arn', extra_index=True)
     id: PropertyRef = PropertyRef("InstanceId")
+    arn: PropertyRef = PropertyRef("Arn", extra_index=True)
     instanceid: PropertyRef = PropertyRef("InstanceId", extra_index=True)
     publicdnsname: PropertyRef = PropertyRef("PublicDnsName", extra_index=True)
     privateipaddress: PropertyRef = PropertyRef("PrivateIpAddress")
@@ -38,7 +40,9 @@ class EC2InstanceNodeProperties(CartographyNodeProperties):
     bootmode: PropertyRef = PropertyRef("BootMode")
     instancelifecycle: PropertyRef = PropertyRef("InstanceLifecycle")
     hibernationoptions: PropertyRef = PropertyRef("HibernationOption")
-    metadatahttptokens: PropertyRef = PropertyRef("MetadataHttpTokens")
+    metadatahttptokens: PropertyRef = PropertyRef(
+        "MetadataHttpTokens", extra_index=True
+    )
     metadatahttpputresponsehoplimit: PropertyRef = PropertyRef(
         "MetadataHttpPutResponseHopLimit"
     )
@@ -48,7 +52,11 @@ class EC2InstanceNodeProperties(CartographyNodeProperties):
     imdsaccessmode: PropertyRef = PropertyRef("ImdsAccessMode")
     imdsv1enabled: PropertyRef = PropertyRef("ImdsV1Enabled")
     imdsv2required: PropertyRef = PropertyRef("ImdsV2Required")
+    exposed_internet: PropertyRef = PropertyRef(
+        "exposed_internet", extra_index=True
+    )  # Populated by aws_ec2_asset_exposure.json.
     eks_cluster_name: PropertyRef = PropertyRef("EksClusterName")
+    ipv6address: PropertyRef = PropertyRef("IPv6Address")
 
 
 @dataclass(frozen=True)
@@ -137,4 +145,36 @@ class EC2InstanceSchema(CartographyNodeSchema):
             EC2InstanceToInstanceProfileRel(),
             EC2InstanceToEKSClusterRel(),
         ],
+    )
+
+
+@dataclass(frozen=True)
+class EC2InstanceToRoleAssumesRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    _sub_resource_label: PropertyRef = PropertyRef(
+        "_sub_resource_label", set_in_kwargs=True
+    )
+    _sub_resource_id: PropertyRef = PropertyRef("_sub_resource_id", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+# Canonical ontology edge: (:EC2Instance)-[:ASSUMES]->(:AWSRole).
+# The instance runs with the permissions of the role attached through its
+# instance profile: EC2Instance-[:INSTANCE_PROFILE]->AWSInstanceProfile
+# -[:ASSOCIATED_WITH]->AWSRole. There is no direct instance->role edge in the
+# AWS API, so the pairs are assembled from that binding chain and loaded as a
+# MatchLink.
+class EC2InstanceToRoleAssumesMatchLink(CartographyRelSchema):
+    rel_label: str = "ASSUMES"
+    direction: LinkDirection = LinkDirection.OUTWARD
+    properties: EC2InstanceToRoleAssumesRelProperties = (
+        EC2InstanceToRoleAssumesRelProperties()
+    )
+    target_node_label: str = "AWSRole"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"arn": PropertyRef("role_arn")},
+    )
+    source_node_label: str = "EC2Instance"
+    source_node_matcher: SourceNodeMatcher = make_source_node_matcher(
+        {"id": PropertyRef("instance_id")},
     )

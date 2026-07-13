@@ -3,6 +3,7 @@ from dataclasses import dataclass
 from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeProperties
 from cartography.models.core.nodes import CartographyNodeSchema
+from cartography.models.core.nodes import ConditionalNodeLabel
 from cartography.models.core.nodes import ExtraNodeLabels
 from cartography.models.core.relationships import CartographyRelProperties
 from cartography.models.core.relationships import CartographyRelSchema
@@ -75,6 +76,15 @@ class SSMParameterSchema(CartographyNodeSchema):
 
     label: str = "SSMParameter"
     properties: SSMParameterNodeProperties = SSMParameterNodeProperties()
+    # Only SecureString parameters are secrets (String/StringList are plaintext config).
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
+        [
+            ConditionalNodeLabel(
+                label="Secret",
+                conditions={"type": "SecureString"},
+            ),
+        ],
+    )
     sub_resource_relationship: SSMParameterToAWSAccountRel = (
         SSMParameterToAWSAccountRel()
     )
@@ -91,11 +101,7 @@ class PublicSSMParameterSchema(CartographyNodeSchema):
 
     label: str = "PublicSSMParameter"
     properties: SSMParameterNodeProperties = SSMParameterNodeProperties()
+    # AWS-managed public parameters are shared regional data, not account resources.
     sub_resource_relationship: None = None
     scoped_cleanup: bool = False
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["SSMParameter"])
-    other_relationships: OtherRelationships = OtherRelationships(
-        [
-            SSMParameterToKMSKeyRel(),
-        ],
-    )

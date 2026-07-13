@@ -39,6 +39,20 @@ class SpotlightVulnerabilityRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
+# (:CrowdstrikeTenant)-[:RESOURCE]->(:SpotlightVulnerability)
+@dataclass(frozen=True)
+class SpotlightVulnerabilityToCrowdstrikeTenantRel(CartographyRelSchema):
+    target_node_label: str = "CrowdstrikeTenant"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"id": PropertyRef("CID", set_in_kwargs=True)},
+    )
+    direction: LinkDirection = LinkDirection.INWARD
+    rel_label: str = "RESOURCE"
+    properties: SpotlightVulnerabilityRelProperties = (
+        SpotlightVulnerabilityRelProperties()
+    )
+
+
 # (:CrowdstrikeHost)-[:HAS_VULNERABILITY]->(:SpotlightVulnerability)
 @dataclass(frozen=True)
 class SpotlightVulnerabilityToCrowdstrikeHostRel(CartographyRelSchema):
@@ -59,6 +73,9 @@ class SpotlightVulnerabilitySchema(CartographyNodeSchema):
     properties: SpotlightVulnerabilityNodeProperties = (
         SpotlightVulnerabilityNodeProperties()
     )
+    sub_resource_relationship: SpotlightVulnerabilityToCrowdstrikeTenantRel = (
+        SpotlightVulnerabilityToCrowdstrikeTenantRel()
+    )
     other_relationships: OtherRelationships = OtherRelationships(
         [
             SpotlightVulnerabilityToCrowdstrikeHostRel(),
@@ -74,6 +91,7 @@ class SpotlightVulnerabilitySchema(CartographyNodeSchema):
 @dataclass(frozen=True)
 class CrowdstrikeCVENodeProperties(CartographyNodeProperties):
     id: PropertyRef = PropertyRef("id")
+    cve_id: PropertyRef = PropertyRef("id", extra_index=True)
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
     base_score: PropertyRef = PropertyRef("base_score")
     base_severity: PropertyRef = PropertyRef("severity")
@@ -96,8 +114,9 @@ class CrowdstrikeCVEToSpotlightVulnerabilityRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class CrowdstrikeCVESchema(CartographyNodeSchema):
-    label: str = "CVE"
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["CrowdstrikeFinding"])
+    label: str = "CrowdstrikeFinding"
+    scoped_cleanup: bool = False
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["CVE"])
     properties: CrowdstrikeCVENodeProperties = CrowdstrikeCVENodeProperties()
     other_relationships: OtherRelationships = OtherRelationships(
         [

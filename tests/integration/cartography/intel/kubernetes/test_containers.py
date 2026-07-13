@@ -26,48 +26,17 @@ def test_container_has_image_rels(neo4j_session):
 
     neo4j_session.run(
         """
-        MERGE (img:GCPArtifactRegistryContainerImage {id: $id})
-        SET img.digest = $digest,
-            img.uri = $uri,
+        MERGE (img:GCPArtifactRegistryImage:Image {id: $digest, digest: $digest})
+        SET img.type = 'image',
             img.media_type = $media_type,
-            img.lastupdated = $tag
-        """,
-        id=parent_image["name"],
-        digest=parent_image["name"].split("@", 1)[1],
-        uri=parent_image["uri"],
-        media_type=parent_image["mediaType"],
-        tag=TEST_UPDATE_TAG,
-    )
-    neo4j_session.run(
-        """
-        MERGE (img:GCPArtifactRegistryContainerImage {id: $id})
-        SET img.digest = $digest,
-            img.uri = $uri,
-            img.media_type = $media_type,
-            img.lastupdated = $tag
-        """,
-        id=f"{parent_image['name'].rsplit('@', 1)[0]}@{child_image['digest']}",
-        digest=child_image["digest"],
-        uri=child_container_image_uri,
-        media_type=child_image["media_type"],
-        tag=TEST_UPDATE_TAG,
-    )
-    neo4j_session.run(
-        """
-        MERGE (img:GCPArtifactRegistryPlatformImage {id: $id})
-        SET img.digest = $digest,
             img.architecture = $architecture,
             img.os = $os,
-            img.media_type = $media_type,
-            img.parent_artifact_id = $parent_artifact_id,
             img.lastupdated = $tag
         """,
-        id=child_image["id"],
         digest=child_image["digest"],
+        media_type=child_image["media_type"],
         architecture=child_image["architecture"],
         os=child_image["os"],
-        media_type=child_image["media_type"],
-        parent_artifact_id=child_image["parent_artifact_id"],
         tag=TEST_UPDATE_TAG,
     )
 
@@ -117,7 +86,7 @@ def test_container_has_image_rels(neo4j_session):
         neo4j_session,
         "KubernetesContainer",
         "name",
-        "GCPArtifactRegistryContainerImage",
+        "GCPArtifactRegistryImage",
         "digest",
         "HAS_IMAGE",
     ) == {
@@ -125,14 +94,34 @@ def test_container_has_image_rels(neo4j_session):
         ("my-service-pod-container", child_image["digest"]),
     }
 
-    assert check_rels(
+
+def test_container_listening_ports(neo4j_session):
+    load_kubernetes_cluster(neo4j_session, KUBERNETES_CLUSTER_DATA, TEST_UPDATE_TAG)
+    load_namespaces(
         neo4j_session,
-        "KubernetesContainer",
-        "name",
-        "GCPArtifactRegistryPlatformImage",
-        "digest",
-        "HAS_IMAGE",
-    ) == {
-        ("my-pod-container", child_image["digest"]),
-        ("my-service-pod-container", child_image["digest"]),
+        KUBERNETES_CLUSTER_1_NAMESPACES_DATA,
+        TEST_UPDATE_TAG,
+        KUBERNETES_CLUSTER_NAMES[0],
+        KUBERNETES_CLUSTER_IDS[0],
+    )
+    load_containers(
+        neo4j_session,
+        deepcopy(KUBERNETES_CONTAINER_DATA),
+        update_tag=TEST_UPDATE_TAG,
+        cluster_id=KUBERNETES_CLUSTER_IDS[0],
+        cluster_name=KUBERNETES_CLUSTER_NAMES[0],
+    )
+
+    # The listening containerPorts are exposed as a flat, queryable list; a
+    # container that declares no ports has an empty list.
+    result = neo4j_session.run(
+        """
+        MATCH (c:KubernetesContainer)
+        RETURN c.name AS name, c.container_port_numbers AS ports
+        """
+    )
+    ports_by_name = {row["name"]: row["ports"] for row in result}
+    assert ports_by_name == {
+        "my-pod-container": [8080],
+        "my-service-pod-container": [],
     }

@@ -44,6 +44,11 @@ STACKS_DATA = {
                 "branch": "main",
                 "projectRoot": "/terraform/prod",
                 "space": "root-space",
+                "integrations": {
+                    "aws": {
+                        "assumedRoleArn": "arn:aws:iam::000000000000:role/SpaceLift-Administrator-Access",
+                    },
+                },
             },
             {
                 "id": "stack-2",
@@ -55,6 +60,12 @@ STACKS_DATA = {
                 "branch": "staging",
                 "projectRoot": "/terraform/staging",
                 "space": "child-space-1",
+                # No AWS integration: assumedRoleArn is null, so no ASSUMES edge.
+                "integrations": {
+                    "aws": {
+                        "assumedRoleArn": None,
+                    },
+                },
             },
         ],
     },

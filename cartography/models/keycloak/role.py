@@ -101,6 +101,9 @@ class KeycloakRoleToUserRelProperties(CartographyRelProperties):
 
 
 @dataclass(frozen=True)
+# DEPRECATED: replaced by the canonical (:UserAccount)-[:HAS_ROLE]->(:PermissionRole)
+# edge (KeycloakRoleToUserHasRoleRel). Kept for backward compatibility, will be
+# removed in v1.0.0.
 # (:KeycloakRole)<-[:ASSUME_ROLE]-(:KeycloakUser)
 class KeycloakRoleToUserRel(CartographyRelSchema):
     target_node_label: str = "KeycloakUser"
@@ -110,6 +113,26 @@ class KeycloakRoleToUserRel(CartographyRelSchema):
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "ASSUME_ROLE"
     properties: KeycloakRoleToUserRelProperties = KeycloakRoleToUserRelProperties()
+
+
+@dataclass(frozen=True)
+class KeycloakRoleToUserHasRoleRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("LASTUPDATED", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+# Canonical ontology edge: (:UserAccount)-[:HAS_ROLE]->(:PermissionRole)
+# i.e. (:KeycloakRole)<-[:HAS_ROLE]-(:KeycloakUser)
+class KeycloakRoleToUserHasRoleRel(CartographyRelSchema):
+    target_node_label: str = "KeycloakUser"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"id": PropertyRef("_direct_members", one_to_many=True)},
+    )
+    direction: LinkDirection = LinkDirection.INWARD
+    rel_label: str = "HAS_ROLE"
+    properties: KeycloakRoleToUserHasRoleRelProperties = (
+        KeycloakRoleToUserHasRoleRelProperties()
+    )
 
 
 @dataclass(frozen=True)
@@ -124,5 +147,6 @@ class KeycloakRoleSchema(CartographyNodeSchema):
             KeycloakRoleToRoleRel(),
             KeycloakRoleToScopeRel(),
             KeycloakRoleToUserRel(),
+            KeycloakRoleToUserHasRoleRel(),
         ],
     )

@@ -40,14 +40,17 @@ class Module(str, Enum):
     CROWDSTRIKE = "CrowdStrike"
     """CrowdStrike endpoint security"""
 
+    DATABRICKS = "Databricks"
+    """Databricks lakehouse platform"""
+
     DIGITALOCEAN = "DigitalOcean"
     """DigitalOcean cloud services"""
 
     DUO = "Duo"
     """Duo authentication"""
 
-    ENTRA = "Entra"
-    """Entra identity and access management"""
+    MICROSOFT = "microsoft"
+    """Microsoft Entra identity and access management"""
 
     GCP = "GCP"
     """Google Cloud Platform"""
@@ -58,11 +61,14 @@ class Module(str, Enum):
     GITLAB = "GitLab"
     """GitLab source code management"""
 
-    GOOGLEWORKSPACE = "GoogleWorkspace"
+    GOOGLEWORKSPACE = "googleworkspace"
     """Google Workspace identity and access management"""
 
     JAMF = "Jamf"
     """Jamf endpoint security"""
+
+    JUMPCLOUD = "JumpCloud"
+    """JumpCloud identity and device management"""
 
     KANDJI = "Kandji"
     """Kandji endpoint security"""
@@ -97,7 +103,7 @@ class Module(str, Enum):
     SENTINELONE = "SentinelOne"
     """SentinelOne endpoint security"""
 
-    SNIPEIT = "Snipe-IT"
+    SNIPEIT = "snipeit"
     """Snipe-IT asset management"""
 
     SPACELIFT = "SpaceLift"
@@ -135,14 +141,16 @@ MODULE_TO_CARTOGRAPHY_INTEL = {
     Module.BIGFIX: "bigfix",
     Module.CLOUDFLARE: "cloudflare",
     Module.CROWDSTRIKE: "crowdstrike",
+    Module.DATABRICKS: "databricks",
     Module.DIGITALOCEAN: "digitalocean",
     Module.DUO: "duo",
-    Module.ENTRA: "microsoft",
+    Module.MICROSOFT: "microsoft",
     Module.GCP: "gcp",
     Module.GITHUB: "github",
     Module.GITLAB: "gitlab",
     Module.GOOGLEWORKSPACE: "googleworkspace",
     Module.JAMF: "jamf",
+    Module.JUMPCLOUD: "jumpcloud",
     Module.KANDJI: "kandji",
     Module.KEYCLOAK: "keycloak",
     Module.KUBERNETES: "kubernetes",
@@ -165,16 +173,23 @@ MODULE_TO_CARTOGRAPHY_INTEL = {
 @dataclass(frozen=True)
 class Framework:
     """
-    A reference to a compliance framework requirement.
+    A reference to a compliance framework requirement/control mapping.
 
-    All fields are case-insensitive and normalized to lowercase on creation.
+    A rule can map to many framework controls, and many rules can map to the same
+    framework control. The mapped control title is external framework metadata,
+    not the rule display name.
+
+    Matching fields are case-insensitive and normalized to lowercase on creation.
+    The optional control_title preserves display casing because it is user-facing
+    copy.
 
     Attributes:
         name: Full name of the framework (e.g., "cis aws foundations benchmark").
         short_name: Abbreviated name for filtering (e.g., "cis").
-        requirement: The specific requirement identifier (e.g., "1.14").
+        requirement: The specific requirement/control id (e.g., "5.1.8", "8.2", "govern 5").
         scope: Optional platform or domain the framework applies to (e.g., "aws", "gcp").
         revision: Optional version/revision of the framework (e.g., "5.0").
+        control_title: Optional external control or requirement title for this framework mapping.
     """
 
     name: str
@@ -182,9 +197,11 @@ class Framework:
     requirement: str
     scope: str | None = None
     revision: str | None = None
+    control_title: str | None = None
 
     def __post_init__(self) -> None:
-        # Normalize all fields to lowercase for case-insensitive comparison
+        # Normalize matching fields to lowercase for case-insensitive comparison.
+        # Keep control_title casing intact because it is display copy, not a filter key.
         object.__setattr__(self, "name", self.name.lower())
         object.__setattr__(self, "short_name", self.short_name.lower())
         object.__setattr__(self, "requirement", self.requirement.lower())
@@ -257,6 +274,8 @@ class Fact:
     This count includes all assets regardless of whether they match the Fact criteria.
     Should return a single value with `RETURN COUNT(...) AS count`.
     """
+    identity_fields: tuple[str, ...]
+    """Output-model field(s) forming the stable logical identity of a finding across syncs; must exist on the output model and be returned by ``cypher_query``, and are distinct from volatile display fields and from ``asset_id_field`` (which only drives the compliance failing-count). Required with no default: a Fact that omits it fails to construct, forcing every rule to declare a stable identity explicitly."""
     asset_id_field: str | None = None
     """
     The field name in the output model that uniquely identifies an asset.
@@ -264,6 +283,12 @@ class Fact:
     rather than the total number of finding rows. This is needed when a single asset
     can produce multiple finding rows (e.g., one security group with multiple violating rules).
     """
+
+    def __post_init__(self) -> None:
+        if not self.identity_fields:
+            raise ValueError(
+                f"Fact '{self.id}' must declare a non-empty identity_fields tuple."
+            )
 
 
 class Finding(BaseModel):
@@ -321,7 +346,7 @@ class Rule:
     references: list[RuleReference] = field(default_factory=list)
     """References or links to external resources related to the Rule."""
     frameworks: tuple[Framework, ...] = ()
-    """Compliance frameworks this rule maps to (e.g., CIS benchmarks)."""
+    """Compliance framework requirement/control mappings for this rule."""
 
     @property
     def modules(self) -> set[Module]:

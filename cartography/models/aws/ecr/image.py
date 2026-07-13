@@ -235,3 +235,53 @@ class ECRImageSchema(CartographyNodeSchema):
             ),
         ],
     )
+
+
+@dataclass(frozen=True)
+class ECRImageLayerEnrichmentSchema(CartographyNodeSchema):
+    """Load ECRImage layer/provenance properties without fan-out HAS_LAYER edges."""
+
+    label: str = "ECRImage"
+    properties: ECRImageNodeProperties = ECRImageNodeProperties()
+    sub_resource_relationship: ECRImageToAWSAccountRel = ECRImageToAWSAccountRel()
+    other_relationships: OtherRelationships = OtherRelationships(
+        [
+            ECRImageToParentImageRel(),
+            ECRImageContainsImageRel(),
+            ECRImageAttestsRel(),
+        ],
+    )
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
+        [
+            ConditionalNodeLabel(
+                label="Image",
+                conditions={"type": "image"},
+            ),
+            ConditionalNodeLabel(
+                label="ImageAttestation",
+                conditions={"type": "attestation"},
+            ),
+            ConditionalNodeLabel(
+                label="ImageManifestList",
+                conditions={"type": "manifest_list"},
+            ),
+        ],
+    )
+
+
+@dataclass(frozen=True)
+class ECRImageHasLayerRelLoadProperties(CartographyNodeProperties):
+    id: PropertyRef = PropertyRef("imageDigest")
+    digest: PropertyRef = PropertyRef("imageDigest")
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+class ECRImageHasLayerRelSchema(CartographyNodeSchema):
+    """Load bounded HAS_LAYER relationship rows without reloading image metadata."""
+
+    label: str = "ECRImage"
+    properties: ECRImageHasLayerRelLoadProperties = ECRImageHasLayerRelLoadProperties()
+    other_relationships: OtherRelationships = OtherRelationships(
+        [ECRImageHasLayerRel()],
+    )

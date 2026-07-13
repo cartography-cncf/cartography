@@ -142,6 +142,25 @@ class RDSInstanceToRDSClusterRel(CartographyRelSchema):
 
 
 @dataclass(frozen=True)
+class RDSInstanceToKMSKeyRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+# Canonical ontology edge: (:Database)-[:ENCRYPTED_BY]->(:EncryptionKey).
+# Only created when the instance has a customer-managed KMS key (KmsKeyId is the
+# key ARN).
+class RDSInstanceToKMSKeyRel(CartographyRelSchema):
+    target_node_label: str = "KMSKey"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"arn": PropertyRef("KmsKeyId")},
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "ENCRYPTED_BY"
+    properties: RDSInstanceToKMSKeyRelProperties = RDSInstanceToKMSKeyRelProperties()
+
+
+@dataclass(frozen=True)
 class RDSInstanceSchema(CartographyNodeSchema):
     label: str = "RDSInstance"
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["Database"])
@@ -152,5 +171,6 @@ class RDSInstanceSchema(CartographyNodeSchema):
             RDSInstanceToEC2SecurityGroupRel(),
             RDSInstanceToRDSInstanceRel(),
             RDSInstanceToRDSClusterRel(),
+            RDSInstanceToKMSKeyRel(),
         ]
     )

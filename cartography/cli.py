@@ -25,7 +25,7 @@ PANEL_CORE = "Core Options"
 PANEL_NEO4J = "Neo4j Connection"
 PANEL_AWS = "AWS Options"
 PANEL_AZURE = "Azure Options"
-PANEL_ENTRA = "Entra ID Options"
+PANEL_MICROSOFT = "Microsoft Options"
 PANEL_GCP = "GCP Options"
 PANEL_OCI = "OCI Options"
 PANEL_OKTA = "Okta Options"
@@ -39,6 +39,7 @@ PANEL_JAMF = "Jamf Options"
 PANEL_KANDJI = "Kandji Options"
 PANEL_KUBERNETES = "Kubernetes Options"
 PANEL_CVE = "CVE Options"
+PANEL_CVE_METADATA = "CVE Metadata Options"
 PANEL_PAGERDUTY = "PagerDuty Options"
 PANEL_LASTPASS = "LastPass Options"
 PANEL_BIGFIX = "BigFix Options"
@@ -51,6 +52,7 @@ PANEL_TAILSCALE = "Tailscale Options"
 PANEL_OPENAI = "OpenAI Options"
 PANEL_ANTHROPIC = "Anthropic Options"
 PANEL_AIRBYTE = "Airbyte Options"
+PANEL_DATABRICKS = "Databricks Options"
 PANEL_DOCKER_SCOUT = "Docker Scout Options"
 PANEL_TRIVY = "Trivy Options"
 PANEL_SYFT = "Syft Options"
@@ -59,13 +61,18 @@ PANEL_UBUNTU = "Ubuntu Security Options"
 PANEL_ONTOLOGY = "Ontology Options"
 PANEL_SCALEWAY = "Scaleway Options"
 PANEL_SENTINELONE = "SentinelOne Options"
+PANEL_TENABLE = "Tenable Options"
 PANEL_KEYCLOAK = "Keycloak Options"
+PANEL_SALESFORCE = "Salesforce Options"
 PANEL_SLACK = "Slack Options"
 PANEL_SENTRY = "Sentry Options"
 PANEL_SUBIMAGE = "SubImage Options"
 PANEL_SPACELIFT = "Spacelift Options"
 PANEL_WORKOS = "WorkOS Options"
 PANEL_JUMPCLOUD = "JumpCloud Options"
+PANEL_SOCKETDEV = "Socket.dev Options"
+PANEL_VERCEL = "Vercel Options"
+PANEL_CIRCLECI = "CircleCI Options"
 PANEL_STATSD = "StatsD Metrics"
 PANEL_ANALYSIS = "Analysis Options"
 
@@ -73,8 +80,8 @@ PANEL_ANALYSIS = "Analysis Options"
 MODULE_PANELS = {
     "aws": PANEL_AWS,
     "azure": PANEL_AZURE,
-    "entra": PANEL_ENTRA,
-    "microsoft": PANEL_ENTRA,
+    "entra": PANEL_MICROSOFT,
+    "microsoft": PANEL_MICROSOFT,
     "gcp": PANEL_GCP,
     "oci": PANEL_OCI,
     "okta": PANEL_OKTA,
@@ -88,8 +95,10 @@ MODULE_PANELS = {
     "kandji": PANEL_KANDJI,
     "kubernetes": PANEL_KUBERNETES,
     "cve": PANEL_CVE,
+    "cve_metadata": PANEL_CVE_METADATA,
     "pagerduty": PANEL_PAGERDUTY,
     "jumpcloud": PANEL_JUMPCLOUD,
+    "socketdev": PANEL_SOCKETDEV,
     "lastpass": PANEL_LASTPASS,
     "bigfix": PANEL_BIGFIX,
     "duo": PANEL_DUO,
@@ -101,6 +110,7 @@ MODULE_PANELS = {
     "openai": PANEL_OPENAI,
     "anthropic": PANEL_ANTHROPIC,
     "airbyte": PANEL_AIRBYTE,
+    "databricks": PANEL_DATABRICKS,
     "docker_scout": PANEL_DOCKER_SCOUT,
     "trivy": PANEL_TRIVY,
     "syft": PANEL_SYFT,
@@ -110,11 +120,15 @@ MODULE_PANELS = {
     "scaleway": PANEL_SCALEWAY,
     "sentry": PANEL_SENTRY,
     "sentinelone": PANEL_SENTINELONE,
+    "tenable": PANEL_TENABLE,
     "keycloak": PANEL_KEYCLOAK,
+    "salesforce": PANEL_SALESFORCE,
     "slack": PANEL_SLACK,
     "subimage": PANEL_SUBIMAGE,
     "spacelift": PANEL_SPACELIFT,
     "workos": PANEL_WORKOS,
+    "vercel": PANEL_VERCEL,
+    "circleci": PANEL_CIRCLECI,
     "analysis": PANEL_ANALYSIS,
 }
 
@@ -172,6 +186,76 @@ def _parse_selected_modules_from_argv(argv: list[str]) -> set[str]:
             visible_panels.add(MODULE_PANELS[module])
 
     return visible_panels
+
+
+def _resolve_report_source_option(
+    *,
+    module: str,
+    source: str | None,
+    local_path: str | None,
+    s3_bucket: str | None,
+    s3_prefix: str | None,
+) -> str | None:
+    from cartography.intel.common.report_source import LegacyReportSourceNames
+    from cartography.intel.common.report_source import (
+        resolve_report_source_with_legacy_fields,
+    )
+
+    try:
+        return resolve_report_source_with_legacy_fields(
+            source=source,
+            local_path=local_path,
+            s3_bucket=s3_bucket,
+            s3_prefix=s3_prefix,
+            names=LegacyReportSourceNames.for_cli(module),
+        )
+    except ValueError as exc:
+        raise typer.BadParameter(str(exc)) from exc
+
+
+def _resolve_microsoft_credential_options(
+    *,
+    microsoft_tenant_id: str | None,
+    microsoft_client_id: str | None,
+    microsoft_client_secret_env_var: str | None,
+    entra_tenant_id: str | None,
+    entra_client_id: str | None,
+    entra_client_secret_env_var: str | None,
+) -> tuple[str | None, str | None, str | None]:
+    """Resolve CLI option names before reading the secret environment variable.
+
+    This intentionally remains separate from the config-layer resolver: CLI errors
+    use ``typer.BadParameter`` and operate on environment-variable names, while the
+    config layer validates resolved secret values and raises ``ValueError``.
+    """
+    microsoft_values = (
+        microsoft_tenant_id,
+        microsoft_client_id,
+        microsoft_client_secret_env_var,
+    )
+    entra_values = (entra_tenant_id, entra_client_id, entra_client_secret_env_var)
+
+    has_microsoft_values = any(value is not None for value in microsoft_values)
+    has_entra_values = any(value is not None for value in entra_values)
+    if has_microsoft_values and has_entra_values:
+        raise typer.BadParameter(
+            "Cannot mix Microsoft credential flags "
+            "(--microsoft-tenant-id, --microsoft-client-id, "
+            "--microsoft-client-secret-env-var) with deprecated Entra "
+            "credential flags (--entra-tenant-id, --entra-client-id, "
+            "--entra-client-secret-env-var). Use the Microsoft flags instead.",
+        )
+
+    if has_entra_values:
+        logger.warning(
+            "DEPRECATED: --entra-tenant-id/--entra-client-id/"
+            "--entra-client-secret-env-var will be removed in Cartography "
+            "v1.0.0; use --microsoft-tenant-id/--microsoft-client-id/"
+            "--microsoft-client-secret-env-var instead.",
+        )
+        return entra_values
+
+    return microsoft_values
 
 
 class CLI:
@@ -444,6 +528,19 @@ class CLI:
                     hidden=PANEL_AWS not in visible_panels,
                 ),
             ] = None,
+            aws_organization_account_ids: Annotated[
+                str | None,
+                typer.Option(
+                    "--aws-organization-account-ids",
+                    help=(
+                        "Comma-separated AWS account IDs to use for AWS Organizations hierarchy sync. "
+                        "Use this to provide the management or delegated administrator account and skip "
+                        "Organizations candidate discovery."
+                    ),
+                    rich_help_panel=PANEL_AWS,
+                    hidden=PANEL_AWS not in visible_panels,
+                ),
+            ] = None,
             aws_best_effort_mode: Annotated[
                 bool,
                 typer.Option(
@@ -501,6 +598,18 @@ class CLI:
                     hidden=PANEL_AWS not in visible_panels,
                 ),
             ] = 1000,
+            aws_ssm_public_parameter_prefix_allowlist: Annotated[
+                str | None,
+                typer.Option(
+                    "--aws-ssm-public-parameter-prefix-allowlist",
+                    help=(
+                        "Comma-separated AWS-managed public SSM parameter prefixes to ingest. "
+                        "Set to an empty string to disable public parameter ingestion."
+                    ),
+                    rich_help_panel=PANEL_AWS,
+                    hidden=PANEL_AWS not in visible_panels,
+                ),
+            ] = None,
             permission_relationships_file: Annotated[
                 str,
                 typer.Option(
@@ -577,33 +686,70 @@ class CLI:
                 ),
             ] = "cartography/data/azure_permission_relationships.yaml",
             # =================================================================
-            # Entra ID Options
+            # Microsoft Options
             # =================================================================
+            microsoft_tenant_id: Annotated[
+                str | None,
+                typer.Option(
+                    "--microsoft-tenant-id",
+                    help="Microsoft tenant ID for Service Principal Authentication.",
+                    rich_help_panel=PANEL_MICROSOFT,
+                    hidden=PANEL_MICROSOFT not in visible_panels,
+                ),
+            ] = None,
+            microsoft_client_id: Annotated[
+                str | None,
+                typer.Option(
+                    "--microsoft-client-id",
+                    help="Microsoft client ID for Service Principal Authentication.",
+                    rich_help_panel=PANEL_MICROSOFT,
+                    hidden=PANEL_MICROSOFT not in visible_panels,
+                ),
+            ] = None,
+            microsoft_client_secret_env_var: Annotated[
+                str | None,
+                typer.Option(
+                    "--microsoft-client-secret-env-var",
+                    help="Environment variable name containing Microsoft client secret.",
+                    rich_help_panel=PANEL_MICROSOFT,
+                    hidden=PANEL_MICROSOFT not in visible_panels,
+                ),
+            ] = None,
+            # DEPRECATED: `--entra-*` credential flags will be removed in v1.0.0.
             entra_tenant_id: Annotated[
                 str | None,
                 typer.Option(
                     "--entra-tenant-id",
-                    help="Entra Tenant ID for Service Principal Authentication.",
-                    rich_help_panel=PANEL_ENTRA,
-                    hidden=PANEL_ENTRA not in visible_panels,
+                    help=(
+                        "DEPRECATED: use --microsoft-tenant-id instead. "
+                        "Will be removed in Cartography v1.0.0."
+                    ),
+                    rich_help_panel=PANEL_MICROSOFT,
+                    hidden=True,
                 ),
             ] = None,
             entra_client_id: Annotated[
                 str | None,
                 typer.Option(
                     "--entra-client-id",
-                    help="Entra Client ID for Service Principal Authentication.",
-                    rich_help_panel=PANEL_ENTRA,
-                    hidden=PANEL_ENTRA not in visible_panels,
+                    help=(
+                        "DEPRECATED: use --microsoft-client-id instead. "
+                        "Will be removed in Cartography v1.0.0."
+                    ),
+                    rich_help_panel=PANEL_MICROSOFT,
+                    hidden=True,
                 ),
             ] = None,
             entra_client_secret_env_var: Annotated[
                 str | None,
                 typer.Option(
                     "--entra-client-secret-env-var",
-                    help="Environment variable name containing Entra Client Secret.",
-                    rich_help_panel=PANEL_ENTRA,
-                    hidden=PANEL_ENTRA not in visible_panels,
+                    help=(
+                        "DEPRECATED: use --microsoft-client-secret-env-var instead. "
+                        "Will be removed in Cartography v1.0.0."
+                    ),
+                    rich_help_panel=PANEL_MICROSOFT,
+                    hidden=True,
                 ),
             ] = None,
             # =================================================================
@@ -896,6 +1042,31 @@ class CLI:
                 ),
             ] = None,
             # =================================================================
+            # CVE Metadata Options
+            # =================================================================
+            cve_metadata_src: Annotated[
+                list[str] | None,
+                typer.Option(
+                    "--cve-metadata-src",
+                    help="CVE metadata sources to enable. Valid values: nvd, epss. All enabled by default.",
+                    rich_help_panel=PANEL_CVE_METADATA,
+                    hidden=PANEL_CVE_METADATA not in visible_panels,
+                ),
+            ] = None,
+            cve_metadata_nist_api_key_env_var: Annotated[
+                str | None,
+                typer.Option(
+                    "--cve-metadata-nist-api-key-env-var",
+                    help=(
+                        "Environment variable name containing the NIST NVD API v2.0 key. "
+                        "When set, the module queries the API per-CVE; otherwise it falls back "
+                        "to yearly JSON feed downloads."
+                    ),
+                    rich_help_panel=PANEL_CVE_METADATA,
+                    hidden=PANEL_CVE_METADATA not in visible_panels,
+                ),
+            ] = None,
+            # =================================================================
             # PagerDuty Options
             # =================================================================
             pagerduty_api_key_env_var: Annotated[
@@ -998,6 +1169,18 @@ class CLI:
                     help="JumpCloud organization ID used as the tenant identifier.",
                     rich_help_panel=PANEL_JUMPCLOUD,
                     hidden=PANEL_JUMPCLOUD not in visible_panels,
+                ),
+            ] = None,
+            # =================================================================
+            # Socket.dev Options
+            # =================================================================
+            socketdev_token_env_var: Annotated[
+                str | None,
+                typer.Option(
+                    "--socketdev-token-env-var",
+                    help="Environment variable name containing Socket.dev API token.",
+                    rich_help_panel=PANEL_SOCKETDEV,
+                    hidden=PANEL_SOCKETDEV not in visible_panels,
                 ),
             ] = None,
             # =================================================================
@@ -1111,6 +1294,15 @@ class CLI:
                     hidden=PANEL_SEMGREP not in visible_panels,
                 ),
             ] = None,
+            semgrep_oss_source: Annotated[
+                str | None,
+                typer.Option(
+                    "--semgrep-oss-source",
+                    help="Semgrep OSS repository mapping file source. Accepts a local file, s3://bucket/key, gs://bucket/object, or azblob://account/container/blob.",
+                    rich_help_panel=PANEL_SEMGREP,
+                    hidden=PANEL_SEMGREP not in visible_panels,
+                ),
+            ] = None,
             # =================================================================
             # SnipeIT Options
             # =================================================================
@@ -1183,6 +1375,32 @@ class CLI:
                     hidden=PANEL_TAILSCALE not in visible_panels,
                 ),
             ] = "https://api.tailscale.com/api/v2",
+            tailscale_oauth_client_id_env_var: Annotated[
+                str | None,
+                typer.Option(
+                    "--tailscale-oauth-client-id-env-var",
+                    help=(
+                        "Environment variable name containing a Tailscale OAuth "
+                        "client ID. Used together with "
+                        "--tailscale-oauth-client-secret-env-var to mint a "
+                        "short-lived bearer token at sync time."
+                    ),
+                    rich_help_panel=PANEL_TAILSCALE,
+                    hidden=PANEL_TAILSCALE not in visible_panels,
+                ),
+            ] = None,
+            tailscale_oauth_client_secret_env_var: Annotated[
+                str | None,
+                typer.Option(
+                    "--tailscale-oauth-client-secret-env-var",
+                    help=(
+                        "Environment variable name containing a Tailscale OAuth "
+                        "client secret."
+                    ),
+                    rich_help_panel=PANEL_TAILSCALE,
+                    hidden=PANEL_TAILSCALE not in visible_panels,
+                ),
+            ] = None,
             # =================================================================
             # OpenAI Options
             # =================================================================
@@ -1316,122 +1534,246 @@ class CLI:
                 ),
             ] = "https://api.airbyte.com/v1",
             # =================================================================
+            # Databricks Options
+            # =================================================================
+            databricks_workspace_url: Annotated[
+                str | None,
+                typer.Option(
+                    "--databricks-workspace-url",
+                    help="Databricks workspace URL, e.g. https://dbc-xxxx.cloud.databricks.com.",
+                    rich_help_panel=PANEL_DATABRICKS,
+                    hidden=PANEL_DATABRICKS not in visible_panels,
+                ),
+            ] = None,
+            databricks_token_env_var: Annotated[
+                str | None,
+                typer.Option(
+                    "--databricks-token-env-var",
+                    help="Environment variable name containing the Databricks personal access token (PAT).",
+                    rich_help_panel=PANEL_DATABRICKS,
+                    hidden=PANEL_DATABRICKS not in visible_panels,
+                ),
+            ] = None,
+            databricks_client_id: Annotated[
+                str | None,
+                typer.Option(
+                    "--databricks-client-id",
+                    help="Databricks OAuth M2M client ID (workspace-level service principal).",
+                    rich_help_panel=PANEL_DATABRICKS,
+                    hidden=PANEL_DATABRICKS not in visible_panels,
+                ),
+            ] = None,
+            databricks_client_secret_env_var: Annotated[
+                str | None,
+                typer.Option(
+                    "--databricks-client-secret-env-var",
+                    help="Environment variable name containing the Databricks OAuth M2M client secret.",
+                    rich_help_panel=PANEL_DATABRICKS,
+                    hidden=PANEL_DATABRICKS not in visible_panels,
+                ),
+            ] = None,
+            databricks_account_id: Annotated[
+                str | None,
+                typer.Option(
+                    "--databricks-account-id",
+                    help="Databricks account ID (AWS / GCP account console). Enables the account-level API surface.",
+                    rich_help_panel=PANEL_DATABRICKS,
+                    hidden=PANEL_DATABRICKS not in visible_panels,
+                ),
+            ] = None,
+            databricks_account_host: Annotated[
+                str,
+                typer.Option(
+                    "--databricks-account-host",
+                    help="Databricks account API host.",
+                    rich_help_panel=PANEL_DATABRICKS,
+                    hidden=PANEL_DATABRICKS not in visible_panels,
+                ),
+            ] = "https://accounts.cloud.databricks.com",
+            databricks_account_client_id: Annotated[
+                str | None,
+                typer.Option(
+                    "--databricks-account-client-id",
+                    help="Databricks account-level OAuth M2M client ID (account service principal).",
+                    rich_help_panel=PANEL_DATABRICKS,
+                    hidden=PANEL_DATABRICKS not in visible_panels,
+                ),
+            ] = None,
+            databricks_account_client_secret_env_var: Annotated[
+                str | None,
+                typer.Option(
+                    "--databricks-account-client-secret-env-var",
+                    help="Environment variable name containing the Databricks account-level OAuth M2M client secret.",
+                    rich_help_panel=PANEL_DATABRICKS,
+                    hidden=PANEL_DATABRICKS not in visible_panels,
+                ),
+            ] = None,
+            # =================================================================
             # Docker Scout Options
             # =================================================================
+            docker_scout_source: Annotated[
+                str | None,
+                typer.Option(
+                    "--docker-scout-source",
+                    help="Docker Scout report source. Accepts a local file or directory, s3://bucket/prefix, gs://bucket/prefix, or azblob://account/container/prefix.",
+                    rich_help_panel=PANEL_DOCKER_SCOUT,
+                    hidden=PANEL_DOCKER_SCOUT not in visible_panels,
+                ),
+            ] = None,
+            # DEPRECATED: `--docker-scout-results-dir` will be removed in Cartography v1.0.0.
             docker_scout_results_dir: Annotated[
                 str | None,
                 typer.Option(
                     "--docker-scout-results-dir",
-                    help="Local directory containing Docker Scout recommendation text reports.",
+                    help="DEPRECATED: use --docker-scout-source with a local path. Will be removed in Cartography v1.0.0.",
                     rich_help_panel=PANEL_DOCKER_SCOUT,
-                    hidden=PANEL_DOCKER_SCOUT not in visible_panels,
+                    hidden=True,
                 ),
             ] = None,
+            # DEPRECATED: `--docker-scout-s3-bucket` will be removed in Cartography v1.0.0.
             docker_scout_s3_bucket: Annotated[
                 str | None,
                 typer.Option(
                     "--docker-scout-s3-bucket",
-                    help="S3 bucket name containing Docker Scout recommendation text reports.",
+                    help="DEPRECATED: use --docker-scout-source with an s3:// URI. Will be removed in Cartography v1.0.0.",
                     rich_help_panel=PANEL_DOCKER_SCOUT,
-                    hidden=PANEL_DOCKER_SCOUT not in visible_panels,
+                    hidden=True,
                 ),
             ] = None,
+            # DEPRECATED: `--docker-scout-s3-prefix` will be removed in Cartography v1.0.0.
             docker_scout_s3_prefix: Annotated[
                 str | None,
                 typer.Option(
                     "--docker-scout-s3-prefix",
-                    help="S3 prefix path for Docker Scout recommendation text reports.",
+                    help="DEPRECATED: use --docker-scout-source with an s3:// URI. Will be removed in Cartography v1.0.0.",
                     rich_help_panel=PANEL_DOCKER_SCOUT,
-                    hidden=PANEL_DOCKER_SCOUT not in visible_panels,
+                    hidden=True,
                 ),
             ] = None,
             # =================================================================
             # Trivy Options
             # =================================================================
+            trivy_source: Annotated[
+                str | None,
+                typer.Option(
+                    "--trivy-source",
+                    help="Trivy report source. Accepts a local file or directory, s3://bucket/prefix, gs://bucket/prefix, or azblob://account/container/prefix.",
+                    rich_help_panel=PANEL_TRIVY,
+                    hidden=PANEL_TRIVY not in visible_panels,
+                ),
+            ] = None,
+            # DEPRECATED: `--trivy-s3-bucket` will be removed in Cartography v1.0.0.
             trivy_s3_bucket: Annotated[
                 str | None,
                 typer.Option(
                     "--trivy-s3-bucket",
-                    help="S3 bucket name containing Trivy scan results.",
+                    help="DEPRECATED: use --trivy-source with an s3:// URI. Will be removed in Cartography v1.0.0.",
                     rich_help_panel=PANEL_TRIVY,
-                    hidden=PANEL_TRIVY not in visible_panels,
+                    hidden=True,
                 ),
             ] = None,
+            # DEPRECATED: `--trivy-s3-prefix` will be removed in Cartography v1.0.0.
             trivy_s3_prefix: Annotated[
                 str | None,
                 typer.Option(
                     "--trivy-s3-prefix",
-                    help="S3 prefix path for Trivy scan results.",
+                    help="DEPRECATED: use --trivy-source with an s3:// URI. Will be removed in Cartography v1.0.0.",
                     rich_help_panel=PANEL_TRIVY,
-                    hidden=PANEL_TRIVY not in visible_panels,
+                    hidden=True,
                 ),
             ] = None,
+            # DEPRECATED: `--trivy-results-dir` will be removed in Cartography v1.0.0.
             trivy_results_dir: Annotated[
                 str | None,
                 typer.Option(
                     "--trivy-results-dir",
-                    help="Local directory containing Trivy JSON results.",
+                    help="DEPRECATED: use --trivy-source with a local path. Will be removed in Cartography v1.0.0.",
                     rich_help_panel=PANEL_TRIVY,
-                    hidden=PANEL_TRIVY not in visible_panels,
+                    hidden=True,
                 ),
             ] = None,
             # =================================================================
             # Syft Options
             # =================================================================
+            syft_source: Annotated[
+                str | None,
+                typer.Option(
+                    "--syft-source",
+                    help="Syft report source. Accepts a local file or directory, s3://bucket/prefix, gs://bucket/prefix, or azblob://account/container/prefix.",
+                    rich_help_panel=PANEL_SYFT,
+                    hidden=PANEL_SYFT not in visible_panels,
+                ),
+            ] = None,
+            # DEPRECATED: `--syft-s3-bucket` will be removed in Cartography v1.0.0.
             syft_s3_bucket: Annotated[
                 str | None,
                 typer.Option(
                     "--syft-s3-bucket",
-                    help="S3 bucket name containing Syft scan results.",
+                    help="DEPRECATED: use --syft-source with an s3:// URI. Will be removed in Cartography v1.0.0.",
                     rich_help_panel=PANEL_SYFT,
-                    hidden=PANEL_SYFT not in visible_panels,
+                    hidden=True,
                 ),
             ] = None,
+            # DEPRECATED: `--syft-s3-prefix` will be removed in Cartography v1.0.0.
             syft_s3_prefix: Annotated[
                 str | None,
                 typer.Option(
                     "--syft-s3-prefix",
-                    help="S3 prefix path for Syft scan results.",
+                    help="DEPRECATED: use --syft-source with an s3:// URI. Will be removed in Cartography v1.0.0.",
                     rich_help_panel=PANEL_SYFT,
-                    hidden=PANEL_SYFT not in visible_panels,
+                    hidden=True,
                 ),
             ] = None,
+            # DEPRECATED: `--syft-results-dir` will be removed in Cartography v1.0.0.
             syft_results_dir: Annotated[
                 str | None,
                 typer.Option(
                     "--syft-results-dir",
-                    help="Local directory containing Syft JSON results.",
+                    help="DEPRECATED: use --syft-source with a local path. Will be removed in Cartography v1.0.0.",
                     rich_help_panel=PANEL_SYFT,
-                    hidden=PANEL_SYFT not in visible_panels,
+                    hidden=True,
                 ),
             ] = None,
+            # =================================================================
             # AIBOM Options
             # =================================================================
+            aibom_source: Annotated[
+                str | None,
+                typer.Option(
+                    "--aibom-source",
+                    help="AIBOM report source. Accepts a local file or directory, s3://bucket/prefix, gs://bucket/prefix, or azblob://account/container/prefix.",
+                    rich_help_panel=PANEL_AIBOM,
+                    hidden=PANEL_AIBOM not in visible_panels,
+                ),
+            ] = None,
+            # DEPRECATED: `--aibom-s3-bucket` will be removed in Cartography v1.0.0.
             aibom_s3_bucket: Annotated[
                 str | None,
                 typer.Option(
                     "--aibom-s3-bucket",
-                    help="S3 bucket name containing AIBOM scan results.",
+                    help="DEPRECATED: use --aibom-source with an s3:// URI. Will be removed in Cartography v1.0.0.",
                     rich_help_panel=PANEL_AIBOM,
-                    hidden=PANEL_AIBOM not in visible_panels,
+                    hidden=True,
                 ),
             ] = None,
+            # DEPRECATED: `--aibom-s3-prefix` will be removed in Cartography v1.0.0.
             aibom_s3_prefix: Annotated[
                 str | None,
                 typer.Option(
                     "--aibom-s3-prefix",
-                    help="S3 prefix path for AIBOM scan results.",
+                    help="DEPRECATED: use --aibom-source with an s3:// URI. Will be removed in Cartography v1.0.0.",
                     rich_help_panel=PANEL_AIBOM,
-                    hidden=PANEL_AIBOM not in visible_panels,
+                    hidden=True,
                 ),
             ] = None,
+            # DEPRECATED: `--aibom-results-dir` will be removed in Cartography v1.0.0.
             aibom_results_dir: Annotated[
                 str | None,
                 typer.Option(
                     "--aibom-results-dir",
-                    help="Local directory containing AIBOM JSON results.",
+                    help="DEPRECATED: use --aibom-source with a local path. Will be removed in Cartography v1.0.0.",
                     rich_help_panel=PANEL_AIBOM,
-                    hidden=PANEL_AIBOM not in visible_panels,
+                    hidden=True,
                 ),
             ] = None,
             # =================================================================
@@ -1546,6 +1888,62 @@ class CLI:
                 ),
             ] = "SENTINELONE_API_TOKEN",
             # =================================================================
+            # Tenable Options
+            # =================================================================
+            tenable_url: Annotated[
+                str | None,
+                typer.Option(
+                    "--tenable-url",
+                    help="Tenable API base URL. Defaults to https://cloud.tenable.com.",
+                    rich_help_panel=PANEL_TENABLE,
+                    hidden=PANEL_TENABLE not in visible_panels,
+                ),
+            ] = None,
+            tenable_tenant_id: Annotated[
+                str | None,
+                typer.Option(
+                    "--tenable-tenant-id",
+                    help=(
+                        "Identifier used to scope all Tenable nodes in the graph "
+                        "(the TenableTenant node id). Defaults to the hostname of "
+                        "--tenable-url when not set."
+                    ),
+                    rich_help_panel=PANEL_TENABLE,
+                    hidden=PANEL_TENABLE not in visible_panels,
+                ),
+            ] = None,
+            tenable_access_key_env_var: Annotated[
+                str,
+                typer.Option(
+                    "--tenable-access-key-env-var",
+                    help="Environment variable name containing the Tenable access key.",
+                    rich_help_panel=PANEL_TENABLE,
+                    hidden=PANEL_TENABLE not in visible_panels,
+                ),
+            ] = "TENABLE_ACCESS_KEY",
+            tenable_secret_key_env_var: Annotated[
+                str,
+                typer.Option(
+                    "--tenable-secret-key-env-var",
+                    help="Environment variable name containing the Tenable secret key.",
+                    rich_help_panel=PANEL_TENABLE,
+                    hidden=PANEL_TENABLE not in visible_panels,
+                ),
+            ] = "TENABLE_SECRET_KEY",
+            tenable_findings_lookback_days: Annotated[
+                int,
+                typer.Option(
+                    "--tenable-findings-lookback-days",
+                    help=(
+                        "Number of days to look back for Tenable findings exports on each run. "
+                        "Stale findings outside this window are removed from the graph by the cleanup job. Defaults to 180."
+                    ),
+                    min=1,
+                    rich_help_panel=PANEL_TENABLE,
+                    hidden=PANEL_TENABLE not in visible_panels,
+                ),
+            ] = 180,
+            # =================================================================
             # Keycloak Options
             # =================================================================
             keycloak_client_id: Annotated[
@@ -1584,6 +1982,54 @@ class CLI:
                     hidden=PANEL_KEYCLOAK not in visible_panels,
                 ),
             ] = "master",
+            # =================================================================
+            # Salesforce Options
+            # =================================================================
+            salesforce_login_url: Annotated[
+                str,
+                typer.Option(
+                    "--salesforce-login-url",
+                    help="Salesforce OAuth login URL (e.g. https://login.salesforce.com or a My Domain URL).",
+                    rich_help_panel=PANEL_SALESFORCE,
+                    hidden=PANEL_SALESFORCE not in visible_panels,
+                ),
+            ] = "https://login.salesforce.com",
+            salesforce_client_id: Annotated[
+                str | None,
+                typer.Option(
+                    "--salesforce-client-id",
+                    help="Salesforce connected app consumer key.",
+                    rich_help_panel=PANEL_SALESFORCE,
+                    hidden=PANEL_SALESFORCE not in visible_panels,
+                ),
+            ] = None,
+            salesforce_client_secret_env_var: Annotated[
+                str,
+                typer.Option(
+                    "--salesforce-client-secret-env-var",
+                    help="Environment variable name containing the Salesforce connected app consumer secret (client credentials flow).",
+                    rich_help_panel=PANEL_SALESFORCE,
+                    hidden=PANEL_SALESFORCE not in visible_panels,
+                ),
+            ] = "SALESFORCE_CLIENT_SECRET",
+            salesforce_username: Annotated[
+                str | None,
+                typer.Option(
+                    "--salesforce-username",
+                    help="Salesforce username to impersonate (JWT bearer flow).",
+                    rich_help_panel=PANEL_SALESFORCE,
+                    hidden=PANEL_SALESFORCE not in visible_panels,
+                ),
+            ] = None,
+            salesforce_private_key_env_var: Annotated[
+                str,
+                typer.Option(
+                    "--salesforce-private-key-env-var",
+                    help="Environment variable name containing the PEM-encoded private key (JWT bearer flow).",
+                    rich_help_panel=PANEL_SALESFORCE,
+                    hidden=PANEL_SALESFORCE not in visible_panels,
+                ),
+            ] = "SALESFORCE_PRIVATE_KEY",
             # =================================================================
             # Slack Options
             # =================================================================
@@ -1702,6 +2148,71 @@ class CLI:
                 ),
             ] = None,
             # =================================================================
+            # Vercel Options
+            # =================================================================
+            vercel_token_env_var: Annotated[
+                str | None,
+                typer.Option(
+                    "--vercel-token-env-var",
+                    help="Environment variable name containing Vercel API token.",
+                    rich_help_panel=PANEL_VERCEL,
+                    hidden=PANEL_VERCEL not in visible_panels,
+                ),
+            ] = None,
+            vercel_team_id: Annotated[
+                str | None,
+                typer.Option(
+                    "--vercel-team-id",
+                    help="Vercel team ID to sync.",
+                    rich_help_panel=PANEL_VERCEL,
+                    hidden=PANEL_VERCEL not in visible_panels,
+                ),
+            ] = None,
+            vercel_base_url: Annotated[
+                str,
+                typer.Option(
+                    "--vercel-base-url",
+                    help="Vercel API base URL.",
+                    rich_help_panel=PANEL_VERCEL,
+                    hidden=PANEL_VERCEL not in visible_panels,
+                ),
+            ] = "https://api.vercel.com",
+            # =================================================================
+            # CircleCI Options
+            # =================================================================
+            circleci_token_env_var: Annotated[
+                str | None,
+                typer.Option(
+                    "--circleci-token-env-var",
+                    help="Environment variable name containing a CircleCI personal API token.",
+                    rich_help_panel=PANEL_CIRCLECI,
+                    hidden=PANEL_CIRCLECI not in visible_panels,
+                ),
+            ] = None,
+            circleci_base_url: Annotated[
+                str,
+                typer.Option(
+                    "--circleci-base-url",
+                    help="CircleCI API v2 base URL.",
+                    rich_help_panel=PANEL_CIRCLECI,
+                    hidden=PANEL_CIRCLECI not in visible_panels,
+                ),
+            ] = "https://circleci.com/api/v2",
+            circleci_project_slugs: Annotated[
+                str | None,
+                typer.Option(
+                    "--circleci-project-slugs",
+                    help=(
+                        "Comma-separated CircleCI project slugs (e.g. gh/org/repo) to sync "
+                        "in addition to those auto-discovered from each org's pipeline feed. "
+                        "Use this for projects with no recent pipeline activity, which the "
+                        "feed will not surface."
+                    ),
+                    rich_help_panel=PANEL_CIRCLECI,
+                    hidden=PANEL_CIRCLECI not in visible_panels,
+                ),
+            ] = None,
+            # =================================================================
             # StatsD Metrics Options
             # =================================================================
             statsd_enabled: Annotated[
@@ -1808,6 +2319,12 @@ class CLI:
                 )
 
                 parse_and_validate_aws_regions(aws_regions)
+            if aws_organization_account_ids:
+                from cartography.intel.aws.util.common import (
+                    parse_and_validate_aws_account_ids,
+                )
+
+                parse_and_validate_aws_account_ids(aws_organization_account_ids)
 
             # Validate GCP options
             if gcp_requested_syncs:
@@ -1826,14 +2343,33 @@ class CLI:
                 )
                 azure_client_secret = os.environ.get(azure_client_secret_env_var)
 
-            # Read Entra client secret
-            entra_client_secret = None
-            if entra_tenant_id and entra_client_id and entra_client_secret_env_var:
+            (
+                microsoft_tenant_id,
+                microsoft_client_id,
+                microsoft_client_secret_env_var,
+            ) = _resolve_microsoft_credential_options(
+                microsoft_tenant_id=microsoft_tenant_id,
+                microsoft_client_id=microsoft_client_id,
+                microsoft_client_secret_env_var=microsoft_client_secret_env_var,
+                entra_tenant_id=entra_tenant_id,
+                entra_client_id=entra_client_id,
+                entra_client_secret_env_var=entra_client_secret_env_var,
+            )
+
+            # Read Microsoft client secret
+            microsoft_client_secret = None
+            if (
+                microsoft_tenant_id
+                and microsoft_client_id
+                and microsoft_client_secret_env_var
+            ):
                 logger.debug(
-                    "Reading Client Secret for Entra from environment variable %s",
-                    entra_client_secret_env_var,
+                    "Reading Client Secret for Microsoft from environment variable %s",
+                    microsoft_client_secret_env_var,
                 )
-                entra_client_secret = os.environ.get(entra_client_secret_env_var)
+                microsoft_client_secret = os.environ.get(
+                    microsoft_client_secret_env_var
+                )
 
             # Read Okta API key
             okta_api_key = None
@@ -1957,6 +2493,16 @@ class CLI:
                     jumpcloud_api_key_env_var,
                 )
                 jumpcloud_api_key = os.environ.get(jumpcloud_api_key_env_var)
+
+            # Read Socket.dev token
+            socketdev_token = None
+            if socketdev_token_env_var:
+                logger.debug(
+                    "Reading Socket.dev API token from environment variable %s",
+                    socketdev_token_env_var,
+                )
+                socketdev_token = os.environ.get(socketdev_token_env_var)
+
             # Read LastPass credentials
             lastpass_cid = None
             if lastpass_cid_env_var:
@@ -2038,6 +2584,17 @@ class CLI:
                 )
                 cve_api_key = os.environ.get(cve_api_key_env_var)
 
+            # Read CVE Metadata NIST API key
+            cve_metadata_nist_api_key = None
+            if cve_metadata_nist_api_key_env_var:
+                logger.debug(
+                    "Reading CVE Metadata NIST API key from environment variable %s",
+                    cve_metadata_nist_api_key_env_var,
+                )
+                cve_metadata_nist_api_key = os.environ.get(
+                    cve_metadata_nist_api_key_env_var,
+                )
+
             # Read SnipeIT token
             snipeit_token = None
             if snipeit_base_uri:
@@ -2065,6 +2622,41 @@ class CLI:
                     tailscale_token_env_var,
                 )
                 tailscale_token = os.environ.get(tailscale_token_env_var)
+
+            # Read Tailscale OAuth client credentials
+            tailscale_oauth_client_id = None
+            if tailscale_oauth_client_id_env_var:
+                tailscale_oauth_client_id = os.environ.get(
+                    tailscale_oauth_client_id_env_var,
+                )
+            tailscale_oauth_client_secret = None
+            if tailscale_oauth_client_secret_env_var:
+                tailscale_oauth_client_secret = os.environ.get(
+                    tailscale_oauth_client_secret_env_var,
+                )
+
+            # Read Vercel token
+            vercel_token = None
+            if vercel_token_env_var:
+                logger.debug(
+                    "Reading Vercel API token from environment variable %s",
+                    vercel_token_env_var,
+                )
+                vercel_token = os.environ.get(vercel_token_env_var)
+
+            # Read CircleCI token
+            circleci_token = None
+            if circleci_token_env_var:
+                logger.debug(
+                    "Reading CircleCI API token from environment variable %s",
+                    circleci_token_env_var,
+                )
+                circleci_token = os.environ.get(circleci_token_env_var)
+            circleci_project_slug_list = (
+                [s.strip() for s in circleci_project_slugs.split(",") if s.strip()]
+                if circleci_project_slugs
+                else None
+            )
 
             # Read Cloudflare token
             cloudflare_token = None
@@ -2128,37 +2720,78 @@ class CLI:
                 )
                 airbyte_client_secret = os.environ.get(airbyte_client_secret_env_var)
 
-            # Log Docker Scout config
-            if docker_scout_results_dir:
-                logger.debug("Docker Scout results dir: %s", docker_scout_results_dir)
-            if docker_scout_s3_bucket:
-                logger.debug("Docker Scout S3 bucket: %s", docker_scout_s3_bucket)
-            if docker_scout_s3_prefix:
-                logger.debug("Docker Scout S3 prefix: %s", docker_scout_s3_prefix)
+            # Read Databricks credentials
+            databricks_token = None
+            if databricks_token_env_var:
+                logger.debug(
+                    "Reading Databricks PAT from environment variable %s",
+                    databricks_token_env_var,
+                )
+                databricks_token = os.environ.get(databricks_token_env_var)
+            databricks_client_secret = None
+            if databricks_client_secret_env_var:
+                # Read the secret whenever the env-var flag is set, even if
+                # --databricks-client-id is missing, so the module entry's
+                # partial-OAuth guard sees the asymmetric configuration and
+                # fails loudly instead of silently skipping ingestion.
+                logger.debug(
+                    "Reading Databricks OAuth M2M secret from environment variable %s",
+                    databricks_client_secret_env_var,
+                )
+                databricks_client_secret = os.environ.get(
+                    databricks_client_secret_env_var,
+                )
+            databricks_account_client_secret = None
+            if databricks_account_client_secret_env_var:
+                # Read the secret whenever the env-var flag is set, even if
+                # --databricks-account-client-id is missing, so the module
+                # entry's partial-OAuth guard sees the asymmetric configuration
+                # and fails loudly instead of silently skipping the account API.
+                logger.debug(
+                    "Reading Databricks account OAuth M2M secret from environment variable %s",
+                    databricks_account_client_secret_env_var,
+                )
+                databricks_account_client_secret = os.environ.get(
+                    databricks_account_client_secret_env_var,
+                )
 
-            # Log Trivy config
-            if trivy_s3_bucket:
-                logger.debug("Trivy S3 bucket: %s", trivy_s3_bucket)
-            if trivy_s3_prefix:
-                logger.debug("Trivy S3 prefix: %s", trivy_s3_prefix)
-            if trivy_results_dir:
-                logger.debug("Trivy results dir: %s", trivy_results_dir)
+            resolved_docker_scout_source = _resolve_report_source_option(
+                module="docker_scout",
+                source=docker_scout_source,
+                local_path=docker_scout_results_dir,
+                s3_bucket=docker_scout_s3_bucket,
+                s3_prefix=docker_scout_s3_prefix,
+            )
+            resolved_trivy_source = _resolve_report_source_option(
+                module="trivy",
+                source=trivy_source,
+                local_path=trivy_results_dir,
+                s3_bucket=trivy_s3_bucket,
+                s3_prefix=trivy_s3_prefix,
+            )
+            resolved_syft_source = _resolve_report_source_option(
+                module="syft",
+                source=syft_source,
+                local_path=syft_results_dir,
+                s3_bucket=syft_s3_bucket,
+                s3_prefix=syft_s3_prefix,
+            )
+            resolved_aibom_source = _resolve_report_source_option(
+                module="aibom",
+                source=aibom_source,
+                local_path=aibom_results_dir,
+                s3_bucket=aibom_s3_bucket,
+                s3_prefix=aibom_s3_prefix,
+            )
 
-            # Log Syft config
-            if syft_s3_bucket:
-                logger.debug("Syft S3 bucket: %s", syft_s3_bucket)
-            if syft_s3_prefix:
-                logger.debug("Syft S3 prefix: %s", syft_s3_prefix)
-            if syft_results_dir:
-                logger.debug("Syft results dir: %s", syft_results_dir)
-
-            # Log AIBOM config
-            if aibom_s3_bucket:
-                logger.debug("AIBOM S3 bucket: %s", aibom_s3_bucket)
-            if aibom_s3_prefix:
-                logger.debug("AIBOM S3 prefix: %s", aibom_s3_prefix)
-            if aibom_results_dir:
-                logger.debug("AIBOM results dir: %s", aibom_results_dir)
+            if resolved_docker_scout_source:
+                logger.debug("Docker Scout source: %s", resolved_docker_scout_source)
+            if resolved_trivy_source:
+                logger.debug("Trivy source: %s", resolved_trivy_source)
+            if resolved_syft_source:
+                logger.debug("Syft source: %s", resolved_syft_source)
+            if resolved_aibom_source:
+                logger.debug("AIBOM source: %s", resolved_aibom_source)
 
             # Read Scaleway secret key
             scaleway_secret_key = None
@@ -2199,6 +2832,22 @@ class CLI:
                 )
                 sentinelone_api_token = os.environ.get(sentinelone_api_token_env_var)
 
+            # Read Tenable API keys
+            tenable_access_key = None
+            if tenable_access_key_env_var:
+                logger.debug(
+                    "Reading Tenable access key from environment variable %s",
+                    tenable_access_key_env_var,
+                )
+                tenable_access_key = os.environ.get(tenable_access_key_env_var)
+            tenable_secret_key = None
+            if tenable_secret_key_env_var:
+                logger.debug(
+                    "Reading Tenable secret key from environment variable %s",
+                    tenable_secret_key_env_var,
+                )
+                tenable_secret_key = os.environ.get(tenable_secret_key_env_var)
+
             # Read Keycloak client secret
             keycloak_client_secret = None
             if keycloak_client_secret_env_var:
@@ -2207,6 +2856,24 @@ class CLI:
                     keycloak_client_secret_env_var,
                 )
                 keycloak_client_secret = os.environ.get(keycloak_client_secret_env_var)
+
+            # Read Salesforce secrets
+            salesforce_client_secret = None
+            if salesforce_client_secret_env_var:
+                logger.debug(
+                    "Reading Salesforce client secret from environment variable %s",
+                    salesforce_client_secret_env_var,
+                )
+                salesforce_client_secret = os.environ.get(
+                    salesforce_client_secret_env_var
+                )
+            salesforce_private_key = None
+            if salesforce_private_key_env_var:
+                logger.debug(
+                    "Reading Salesforce private key from environment variable %s",
+                    salesforce_private_key_env_var,
+                )
+                salesforce_private_key = os.environ.get(salesforce_private_key_env_var)
 
             # Read Slack token
             slack_token = None
@@ -2273,19 +2940,21 @@ class CLI:
                 update_tag=update_tag,
                 aws_sync_all_profiles=aws_sync_all_profiles,
                 aws_regions=aws_regions,
+                aws_organization_account_ids=aws_organization_account_ids,
                 aws_best_effort_mode=aws_best_effort_mode,
                 aws_cloudtrail_management_events_lookback_hours=aws_cloudtrail_management_events_lookback_hours,
                 experimental_aws_inspector_batch=experimental_aws_inspector_batch,
                 aws_tagging_api_cleanup_batch=aws_tagging_api_cleanup_batch,
+                aws_ssm_public_parameter_prefix_allowlist=aws_ssm_public_parameter_prefix_allowlist,
                 azure_sync_all_subscriptions=azure_sync_all_subscriptions,
                 azure_sp_auth=azure_sp_auth,
                 azure_tenant_id=azure_tenant_id,
                 azure_client_id=azure_client_id,
                 azure_client_secret=azure_client_secret,
                 azure_subscription_id=azure_subscription_id,
-                entra_tenant_id=entra_tenant_id,
-                entra_client_id=entra_client_id,
-                entra_client_secret=entra_client_secret,
+                microsoft_tenant_id=microsoft_tenant_id,
+                microsoft_client_id=microsoft_client_id,
+                microsoft_client_secret=microsoft_client_secret,
                 aws_requested_syncs=aws_requested_syncs,
                 aws_guardduty_severity_threshold=aws_guardduty_severity_threshold,
                 analysis_job_directory=analysis_job_directory,
@@ -2318,6 +2987,8 @@ class CLI:
                 nist_cve_url=nist_cve_url,
                 cve_enabled=cve_enabled,
                 cve_api_key=cve_api_key,
+                cve_metadata_src=cve_metadata_src,
+                cve_metadata_nist_api_key=cve_metadata_nist_api_key,
                 crowdstrike_client_id=crowdstrike_client_id,
                 crowdstrike_client_secret=crowdstrike_client_secret,
                 crowdstrike_api_url=crowdstrike_api_url,
@@ -2327,6 +2998,7 @@ class CLI:
                 googleworkspace_config=googleworkspace_config,
                 jumpcloud_api_key=jumpcloud_api_key,
                 jumpcloud_org_id=jumpcloud_org_id,
+                socketdev_token=socketdev_token,
                 lastpass_cid=lastpass_cid,
                 lastpass_provhash=lastpass_provhash,
                 bigfix_username=bigfix_username,
@@ -2344,12 +3016,21 @@ class CLI:
                 gitlab_commits_since_days=gitlab_commits_since_days,
                 semgrep_app_token=semgrep_app_token,
                 semgrep_dependency_ecosystems=semgrep_dependency_ecosystems,
+                semgrep_oss_source=semgrep_oss_source,
                 snipeit_base_uri=snipeit_base_uri,
                 snipeit_token=snipeit_token,
                 snipeit_tenant_id=snipeit_tenant_id,
                 tailscale_token=tailscale_token,
                 tailscale_org=tailscale_org,
                 tailscale_base_url=tailscale_base_url,
+                tailscale_oauth_client_id=tailscale_oauth_client_id,
+                tailscale_oauth_client_secret=tailscale_oauth_client_secret,
+                vercel_token=vercel_token,
+                vercel_team_id=vercel_team_id,
+                vercel_base_url=vercel_base_url,
+                circleci_token=circleci_token,
+                circleci_base_url=circleci_base_url,
+                circleci_project_slugs=circleci_project_slug_list,
                 cloudflare_token=cloudflare_token,
                 openai_apikey=openai_apikey,
                 openai_org_id=openai_org_id,
@@ -2364,20 +3045,37 @@ class CLI:
                 airbyte_client_id=airbyte_client_id,
                 airbyte_client_secret=airbyte_client_secret,
                 airbyte_api_url=airbyte_api_url,
+                databricks_workspace_url=databricks_workspace_url,
+                databricks_token=databricks_token,
+                databricks_client_id=databricks_client_id,
+                databricks_client_secret=databricks_client_secret,
+                databricks_account_id=databricks_account_id,
+                databricks_account_host=databricks_account_host,
+                databricks_account_client_id=databricks_account_client_id,
+                databricks_account_client_secret=databricks_account_client_secret,
+                # Forward the user-provided values (not resolved). Config calls
+                # resolve_report_source_with_legacy_fields() internally; the CLI's
+                # _resolve_report_source_option above runs the same logic for early
+                # validation/deprecation warning, then we suppress the duplicate
+                # config-time warning via _warn_on_legacy_report_source=False below.
+                docker_scout_source=docker_scout_source,
                 docker_scout_results_dir=docker_scout_results_dir,
                 docker_scout_s3_bucket=docker_scout_s3_bucket,
                 docker_scout_s3_prefix=docker_scout_s3_prefix,
+                trivy_source=trivy_source,
+                trivy_results_dir=trivy_results_dir,
                 trivy_s3_bucket=trivy_s3_bucket,
                 trivy_s3_prefix=trivy_s3_prefix,
+                syft_source=syft_source,
+                syft_results_dir=syft_results_dir,
                 syft_s3_bucket=syft_s3_bucket,
                 syft_s3_prefix=syft_s3_prefix,
-                syft_results_dir=syft_results_dir,
+                aibom_source=aibom_source,
+                aibom_results_dir=aibom_results_dir,
                 aibom_s3_bucket=aibom_s3_bucket,
                 aibom_s3_prefix=aibom_s3_prefix,
-                aibom_results_dir=aibom_results_dir,
                 ontology_users_source=ontology_users_source,
                 ontology_devices_source=ontology_devices_source,
-                trivy_results_dir=trivy_results_dir,
                 scaleway_access_key=scaleway_access_key,
                 scaleway_secret_key=scaleway_secret_key,
                 scaleway_org=scaleway_org,
@@ -2385,6 +3083,11 @@ class CLI:
                 sentinelone_api_token=sentinelone_api_token,
                 sentinelone_account_ids=sentinelone_account_ids_list,
                 sentinelone_site_ids=sentinelone_site_ids_list,
+                tenable_url=tenable_url,
+                tenable_tenant_id=tenable_tenant_id,
+                tenable_access_key=tenable_access_key,
+                tenable_secret_key=tenable_secret_key,
+                tenable_findings_lookback_days=tenable_findings_lookback_days,
                 spacelift_api_endpoint=spacelift_api_endpoint_resolved,
                 spacelift_api_token=spacelift_api_token,
                 spacelift_api_key_id=spacelift_api_key_id,
@@ -2396,6 +3099,11 @@ class CLI:
                 keycloak_client_secret=keycloak_client_secret,
                 keycloak_realm=keycloak_realm,
                 keycloak_url=keycloak_url,
+                salesforce_login_url=salesforce_login_url,
+                salesforce_client_id=salesforce_client_id,
+                salesforce_client_secret=salesforce_client_secret,
+                salesforce_username=salesforce_username,
+                salesforce_private_key=salesforce_private_key,
                 slack_token=slack_token,
                 slack_teams=slack_teams,
                 slack_channels_memberships=slack_channels_memberships,
@@ -2403,6 +3111,7 @@ class CLI:
                 workos_client_id=workos_client_id,
                 ubuntu_security_enabled=ubuntu_security_enabled,
                 ubuntu_security_api_url=ubuntu_security_api_url,
+                _warn_on_legacy_report_source=False,
             )
 
             # Run the sync

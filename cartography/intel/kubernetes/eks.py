@@ -1,10 +1,12 @@
 import logging
+import re
 from typing import Any
 
 import boto3
 import neo4j
 import yaml
 from botocore.exceptions import ClientError
+from kubernetes.client.exceptions import ApiException
 from kubernetes.client.models import V1ConfigMap
 
 from cartography.client.core.tx import load
@@ -19,78 +21,250 @@ from cartography.util import timeit
 logger = logging.getLogger(__name__)
 
 
+class _StringScalarLoader(yaml.SafeLoader):
+    """
+    YAML loader that resolves every plain scalar as a string.
+
+    AWS account IDs in ``mapAccounts`` are 12-digit values. The default loader would
+    parse unquoted IDs as ints, which both drops leading zeros and misreads all-octal
+    digit IDs (e.g. ``012345670123``) as base-8. Disabling implicit type resolution
+    keeps account IDs as the literal strings written in the ConfigMap.
+    """
+
+
+# Empty implicit resolvers => every unquoted scalar falls back to the string tag.
+_StringScalarLoader.yaml_implicit_resolvers = {}
+
+
+AWS_AUTH_TEMPLATE_PATTERN = re.compile(r"{{[^}]+}}")
+ACCESS_ENTRIES_UNSUPPORTED_AUTH_MODE_MESSAGE = (
+    "authentication mode must be set to one of [API, API_AND_CONFIG_MAP]"
+)
+
+
 @timeit
 def get_aws_auth_configmap(client: K8sClient) -> V1ConfigMap:
     """
     Get aws-auth ConfigMap from kube-system namespace.
     """
-    logger.info(f"Retrieving aws-auth ConfigMap from cluster {client.name}")
+    logger.info("Retrieving aws-auth ConfigMap from cluster %s", client.name)
     return client.core.read_namespaced_config_map(
         name="aws-auth", namespace="kube-system"
     )
 
 
-def parse_aws_auth_map(configmap: V1ConfigMap) -> dict[str, list[dict[str, Any]]]:
+def parse_aws_auth_map(configmap: V1ConfigMap) -> dict[str, list[Any]]:
     """
-    Parse mapRoles and mapUsers from aws-auth ConfigMap.
+    Parse mapRoles, mapUsers and mapAccounts from aws-auth ConfigMap.
 
     :param configmap: V1ConfigMap containing aws-auth data
-    :return: Dictionary with 'roles' and 'users' keys containing their respective mappings
+    :return: Dictionary with 'roles', 'users' and 'accounts' keys. 'roles' and 'users'
+        contain their respective mapping dicts; 'accounts' contains AWS account IDs
+        (as strings) whose IAM principals are all granted cluster access.
     """
-    result: dict[str, list[dict[str, Any]]] = {"roles": [], "users": []}
+    result: dict[str, list[Any]] = {"roles": [], "users": [], "accounts": []}
 
-    # Parse mapRoles
     if "mapRoles" in configmap.data:
         map_roles_yaml = configmap.data["mapRoles"]
-        role_mappings = yaml.safe_load(map_roles_yaml) or []
-
-        # Filter out templated entries for now (https://github.com/cartography-cncf/cartography/issues/1854)
-        filtered_role_mappings = []
-        for mapping in role_mappings:
-            username = mapping.get("username", "")
-            if "{{" in username:
-                logger.debug(f"Skipping templated username in mapRoles: {username}")
-                continue
-            filtered_role_mappings.append(mapping)
-
-        result["roles"] = filtered_role_mappings
+        result["roles"] = yaml.safe_load(map_roles_yaml) or []
         logger.info(
-            f"Parsed {len(filtered_role_mappings)} role mappings from aws-auth ConfigMap"
+            f"Parsed {len(result['roles'])} role mappings from aws-auth ConfigMap"
         )
     else:
         logger.info("No mapRoles found in aws-auth ConfigMap")
 
-    # Parse mapUsers
     if "mapUsers" in configmap.data:
         map_users_yaml = configmap.data["mapUsers"]
-        user_mappings = yaml.safe_load(map_users_yaml) or []
-
-        filtered_user_mappings = []
-        for mapping in user_mappings:
-            username = mapping.get("username", "")
-            if "{{" in username:
-                logger.debug(f"Skipping templated username in mapUsers: {username}")
-                continue
-            filtered_user_mappings.append(mapping)
-
-        result["users"] = filtered_user_mappings
+        result["users"] = yaml.safe_load(map_users_yaml) or []
         logger.info(
-            f"Parsed {len(filtered_user_mappings)} user mappings from aws-auth ConfigMap"
+            f"Parsed {len(result['users'])} user mappings from aws-auth ConfigMap"
         )
     else:
         logger.info("No mapUsers found in aws-auth ConfigMap")
 
+    if "mapAccounts" in configmap.data:
+        map_accounts_yaml = configmap.data["mapAccounts"]
+        # mapAccounts is a YAML list of AWS account IDs. Parse with a string-only
+        # loader so unquoted IDs keep their leading zeros and are never misread as
+        # octal/decimal integers (which would break principal resolution).
+        parsed_accounts = yaml.load(map_accounts_yaml, Loader=_StringScalarLoader) or []
+        result["accounts"] = [str(account_id) for account_id in parsed_accounts]
+        logger.info(
+            f"Parsed {len(result['accounts'])} account mappings from aws-auth ConfigMap"
+        )
+    else:
+        logger.info("No mapAccounts found in aws-auth ConfigMap")
+
     return result
 
 
+def _extract_principal_account_id(principal_arn: str) -> str | None:
+    parts = principal_arn.split(":")
+    if len(parts) < 5 or parts[2] != "iam":
+        logger.warning(
+            "Unable to extract AWS account ID from IAM principal ARN %s",
+            principal_arn,
+        )
+        return None
+    return parts[4]
+
+
+def _contains_unsupported_template(value: str) -> bool:
+    return any(
+        token not in {"{{AccountID}}", "{{SessionName}}", "{{SessionNameRaw}}"}
+        for token in AWS_AUTH_TEMPLATE_PATTERN.findall(value)
+    )
+
+
+def _is_access_entries_unsupported_auth_mode_error(error: ClientError) -> bool:
+    error_details = error.response.get("Error", {})
+    error_code = error_details.get("Code")
+    error_message = error_details.get("Message", "")
+    return (
+        error_code == "InvalidRequestException"
+        and ACCESS_ENTRIES_UNSUPPORTED_AUTH_MODE_MESSAGE in error_message
+    )
+
+
+def _list_access_entry_principal_arns(client: Any, cluster_name: str) -> list[str]:
+    principal_arns = []
+
+    try:
+        paginator = client.get_paginator("list_access_entries")
+        page_iterator = paginator.paginate(clusterName=cluster_name)
+        for page in page_iterator:
+            principal_arns.extend(page.get("accessEntries", []))
+    except ClientError as e:
+        if _is_access_entries_unsupported_auth_mode_error(e):
+            logger.info(
+                "EKS Access Entries are unavailable for cluster %s authentication "
+                "mode; skipping Access Entries.",
+                cluster_name,
+            )
+            return []
+        raise
+
+    return principal_arns
+
+
+def _replace_account_id_template(value: str, principal_arn: str) -> str | None:
+    if "{{AccountID}}" not in value:
+        return value
+
+    account_id = _extract_principal_account_id(principal_arn)
+    if account_id is None:
+        return None
+    return value.replace("{{AccountID}}", account_id)
+
+
+def _build_subject_name_pattern(template_value: str, role_arn: str) -> str | None:
+    resolved_value = _replace_account_id_template(template_value, role_arn)
+    if resolved_value is None:
+        return None
+
+    escaped_value = re.escape(resolved_value)
+    escaped_value = escaped_value.replace(re.escape("{{SessionNameRaw}}"), ".+")
+    escaped_value = escaped_value.replace(re.escape("{{SessionName}}"), "[^@]+")
+    return f"^{escaped_value}$"
+
+
+def _find_matching_kubernetes_subjects(
+    neo4j_session: neo4j.Session,
+    label: str,
+    cluster_name: str,
+    name_pattern: str,
+) -> list[dict[str, str]]:
+    query = f"""
+    MATCH (subject:{label})
+    WHERE subject.cluster_name = $cluster_name
+      AND subject.name =~ $name_pattern
+    RETURN subject.id AS id, subject.name AS name
+    ORDER BY subject.name
+    """
+    return [
+        record.data()
+        for record in neo4j_session.run(
+            query, cluster_name=cluster_name, name_pattern=name_pattern
+        )
+    ]
+
+
+def _find_aws_principals_for_account(
+    neo4j_session: neo4j.Session,
+    account_id: str,
+) -> list[dict[str, Any]]:
+    """
+    Find all IAM users and roles in the graph that belong to the given AWS account.
+
+    aws-auth ``mapAccounts`` grants cluster access to every IAM principal in the listed
+    account, so we resolve those principals from the AWS data already ingested in Neo4j.
+    This includes the account root principal, which the authenticator also allows.
+    """
+    query = """
+    MATCH (:AWSAccount {id: $account_id})-[:RESOURCE]->(principal)
+    WHERE principal:AWSUser OR principal:AWSRole OR principal:AWSRootPrincipal
+    RETURN principal.arn AS arn,
+           ('AWSRole' IN labels(principal)) AS is_role,
+           ('AWSRootPrincipal' IN labels(principal)) AS is_root
+    ORDER BY principal.arn
+    """
+    return [record.data() for record in neo4j_session.run(query, account_id=account_id)]
+
+
 def transform_aws_auth_mappings(
-    auth_mappings: dict[str, list[dict[str, Any]]], cluster_name: str
+    neo4j_session: neo4j.Session,
+    auth_mappings: dict[str, list[Any]],
+    cluster_name: str,
 ) -> dict[str, list[dict[str, Any]]]:
     """
-    Transform both role and user mappings from aws-auth ConfigMap into combined user/group data.
+    Transform role, user and account mappings from aws-auth ConfigMap into combined user/group data.
     """
     all_users = []
     all_groups = []
+
+    seen_users: set[tuple[str, str | None, str | None, str | None]] = set()
+    seen_groups: set[tuple[str, str | None, str | None]] = set()
+
+    def add_user(
+        name: str,
+        aws_role_arn: str | None = None,
+        aws_user_arn: str | None = None,
+        aws_root_principal_arn: str | None = None,
+    ) -> None:
+        user_key = (name, aws_role_arn, aws_user_arn, aws_root_principal_arn)
+        if user_key in seen_users:
+            return
+        seen_users.add(user_key)
+        user_data = {
+            "id": f"{cluster_name}/{name}",
+            "name": name,
+            "cluster_name": cluster_name,
+        }
+        if aws_role_arn:
+            user_data["aws_role_arn"] = aws_role_arn
+        if aws_user_arn:
+            user_data["aws_user_arn"] = aws_user_arn
+        if aws_root_principal_arn:
+            user_data["aws_root_principal_arn"] = aws_root_principal_arn
+        all_users.append(user_data)
+
+    def add_group(
+        name: str, aws_role_arn: str | None = None, aws_user_arn: str | None = None
+    ) -> None:
+        group_key = (name, aws_role_arn, aws_user_arn)
+        if group_key in seen_groups:
+            return
+        seen_groups.add(group_key)
+        group_data = {
+            "id": f"{cluster_name}/{name}",
+            "name": name,
+            "cluster_name": cluster_name,
+        }
+        if aws_role_arn:
+            group_data["aws_role_arn"] = aws_role_arn
+        if aws_user_arn:
+            group_data["aws_user_arn"] = aws_user_arn
+        all_groups.append(group_data)
 
     # Process role mappings if they exist
     if auth_mappings.get("roles"):
@@ -102,27 +276,52 @@ def transform_aws_auth_mappings(
             if not role_arn:
                 continue
 
-            # Create user data with AWS role relationship (only if username is provided)
             if username:
-                all_users.append(
-                    {
-                        "id": f"{cluster_name}/{username}",
-                        "name": username,
-                        "cluster_name": cluster_name,
-                        "aws_role_arn": role_arn,
-                    }
-                )
+                if _contains_unsupported_template(username):
+                    logger.debug(
+                        "Skipping unsupported templated username in mapRoles: %s",
+                        username,
+                    )
+                elif "{{SessionName" in username:
+                    name_pattern = _build_subject_name_pattern(username, role_arn)
+                    if name_pattern is not None:
+                        matching_users = _find_matching_kubernetes_subjects(
+                            neo4j_session,
+                            "KubernetesUser",
+                            cluster_name,
+                            name_pattern,
+                        )
+                        for user in matching_users:
+                            add_user(user["name"], aws_role_arn=role_arn)
+                else:
+                    resolved_username = _replace_account_id_template(username, role_arn)
+                    if resolved_username is not None:
+                        add_user(resolved_username, aws_role_arn=role_arn)
 
-            # Create group data with AWS role relationship for each group
             for group_name in group_names:
-                all_groups.append(
-                    {
-                        "id": f"{cluster_name}/{group_name}",
-                        "name": group_name,
-                        "cluster_name": cluster_name,
-                        "aws_role_arn": role_arn,
-                    }
-                )
+                if _contains_unsupported_template(group_name):
+                    logger.debug(
+                        "Skipping unsupported templated group in mapRoles: %s",
+                        group_name,
+                    )
+                    continue
+
+                if "{{SessionName" in group_name:
+                    name_pattern = _build_subject_name_pattern(group_name, role_arn)
+                    if name_pattern is not None:
+                        matching_groups = _find_matching_kubernetes_subjects(
+                            neo4j_session,
+                            "KubernetesGroup",
+                            cluster_name,
+                            name_pattern,
+                        )
+                        for group in matching_groups:
+                            add_group(group["name"], aws_role_arn=role_arn)
+                    continue
+
+                resolved_group_name = _replace_account_id_template(group_name, role_arn)
+                if resolved_group_name is not None:
+                    add_group(resolved_group_name, aws_role_arn=role_arn)
 
     # Process user mappings if they exist
     if auth_mappings.get("users"):
@@ -134,27 +333,55 @@ def transform_aws_auth_mappings(
             if not user_arn:
                 continue
 
-            # Create user data with AWS user relationship (only if username is provided)
             if username:
-                all_users.append(
-                    {
-                        "id": f"{cluster_name}/{username}",
-                        "name": username,
-                        "cluster_name": cluster_name,
-                        "aws_user_arn": user_arn,
-                    }
-                )
+                if (
+                    _contains_unsupported_template(username)
+                    or "{{SessionName" in username
+                ):
+                    logger.debug(
+                        "Skipping templated username in mapUsers because session templates are only supported for mapRoles: %s",
+                        username,
+                    )
+                else:
+                    resolved_username = _replace_account_id_template(username, user_arn)
+                    if resolved_username is not None:
+                        add_user(resolved_username, aws_user_arn=user_arn)
 
-            # Create group data with AWS user relationship for each group
             for group_name in group_names:
-                all_groups.append(
-                    {
-                        "id": f"{cluster_name}/{group_name}",
-                        "name": group_name,
-                        "cluster_name": cluster_name,
-                        "aws_user_arn": user_arn,
-                    }
-                )
+                if (
+                    _contains_unsupported_template(group_name)
+                    or "{{SessionName" in group_name
+                ):
+                    logger.debug(
+                        "Skipping templated group in mapUsers because session templates are only supported for mapRoles: %s",
+                        group_name,
+                    )
+                    continue
+                resolved_group_name = _replace_account_id_template(group_name, user_arn)
+                if resolved_group_name is not None:
+                    add_group(resolved_group_name, aws_user_arn=user_arn)
+
+    # Process account mappings if they exist.
+    # Every IAM principal in a listed account (users, roles, and the account root)
+    # is granted cluster access and is mapped to a Kubernetes user whose name equals
+    # the principal's ARN, with no Kubernetes RBAC groups assigned.
+    accounts = auth_mappings.get("accounts", [])
+    for account_id in accounts:
+        principals = _find_aws_principals_for_account(neo4j_session, account_id)
+        if not principals:
+            logger.info(
+                "No AWS IAM principals found in the graph for mapAccounts account %s; "
+                "ensure the AWS account has been synced.",
+                account_id,
+            )
+        for principal in principals:
+            principal_arn = principal["arn"]
+            if principal["is_root"]:
+                add_user(principal_arn, aws_root_principal_arn=principal_arn)
+            elif principal["is_role"]:
+                add_user(principal_arn, aws_role_arn=principal_arn)
+            else:
+                add_user(principal_arn, aws_user_arn=principal_arn)
 
     # Count entries with vs without usernames for visibility
     role_entries_with_username = sum(
@@ -172,10 +399,14 @@ def transform_aws_auth_mappings(
     entries_without_username = total_entries - total_entries_with_username
 
     logger.info(
-        f"Transformed {len(all_users)} users (from {total_entries_with_username} entries with usernames) "
-        f"and {len(all_groups)} groups from {len(auth_mappings.get('roles', []))} role mappings "
-        f"and {len(auth_mappings.get('users', []))} user mappings "
-        f"({entries_without_username} entries without usernames created groups only)"
+        "Transformed %s users (from %s entries with usernames) and %s groups from %s role mappings, %s user mappings and %s account mappings (%s entries without usernames created groups only)",
+        len(all_users),
+        total_entries_with_username,
+        len(all_groups),
+        len(auth_mappings.get("roles", [])),
+        len(auth_mappings.get("users", [])),
+        len(auth_mappings.get("accounts", [])),
+        entries_without_username,
     )
 
     return {"users": all_users, "groups": all_groups}
@@ -240,27 +471,25 @@ def get_access_entries(
     if cluster_name.startswith("arn:aws:eks:"):
         cluster_name = cluster_name.split("/")[-1]
 
-    paginator = client.get_paginator("list_access_entries")
-    page_iterator = paginator.paginate(clusterName=cluster_name)
+    principal_arns = _list_access_entry_principal_arns(client, cluster_name)
 
     # Get detailed information for each access entry
-    for page in page_iterator:
-        for principal_arn in page.get("accessEntries", []):
-            try:
-                detail_response = client.describe_access_entry(
-                    clusterName=cluster_name, principalArn=principal_arn
+    for principal_arn in principal_arns:
+        try:
+            detail_response = client.describe_access_entry(
+                clusterName=cluster_name, principalArn=principal_arn
+            )
+            access_entries.append(detail_response["accessEntry"])
+        except ClientError as e:
+            # If the access entry is not found, we can safely skip it.
+            if e.response["Error"]["Code"] == "ResourceNotFoundException":
+                logger.warning(
+                    f"Access entry lookup failed for principal {principal_arn}: {e}"
                 )
-                access_entries.append(detail_response["accessEntry"])
-            except ClientError as e:
-                # If the access entry is not found, we can safely skip it.
-                if e.response["Error"]["Code"] == "ResourceNotFoundException":
-                    logger.warning(
-                        f"Access entry lookup failed for principal {principal_arn}: {e}"
-                    )
-                    continue
-                # For other errors (e.g. AccessDenied, Throttling), we re-raise to avoid
-                # returning partial data which could cause destructive cleanup.
-                raise
+                continue
+            # For other errors (e.g. AccessDenied, Throttling), we re-raise to avoid
+            # returning partial data which could cause destructive cleanup.
+            raise
 
     logger.info(
         f"Retrieved {len(access_entries)} access entries for cluster {cluster_name}"
@@ -449,41 +678,80 @@ def sync(
     2. EKS Access Entries (EKS API)
     3. External OIDC providers (EKS API)
     """
-    logger.info(f"Starting EKS identity provider sync for cluster {cluster_name}")
+    eks_cluster_ref = cluster_name
+    kubernetes_cluster_name = k8s_client.name
+
+    logger.info(
+        "Starting EKS identity provider sync for cluster %s",
+        kubernetes_cluster_name,
+    )
 
     # 1. Sync AWS IAM mappings (aws-auth ConfigMap)
     logger.info("Syncing AWS IAM mappings from aws-auth ConfigMap")
-    configmap = get_aws_auth_configmap(k8s_client)
-    auth_mappings = parse_aws_auth_map(configmap)
+    configmap: V1ConfigMap | None
+    try:
+        configmap = get_aws_auth_configmap(k8s_client)
+    except ApiException as e:
+        if e.status in (401, 403):
+            logger.warning(
+                "Cartography lacks permission to read the aws-auth ConfigMap on cluster %s "
+                "(status %s). Skipping legacy IAM mappings; continuing with Access Entries "
+                "and OIDC providers.",
+                kubernetes_cluster_name,
+                e.status,
+            )
+            configmap = None
+        elif e.status == 404:
+            logger.info(
+                "No aws-auth ConfigMap on cluster %s — normal for clusters using EKS "
+                "Access Entries exclusively.",
+                kubernetes_cluster_name,
+            )
+            configmap = None
+        else:
+            raise
 
-    # Transform and load both role and user mappings
-    if auth_mappings.get("roles") or auth_mappings.get("users"):
-        transformed_data = transform_aws_auth_mappings(auth_mappings, cluster_name)
-        load_aws_auth_mappings(
-            neo4j_session,
-            transformed_data["users"],
-            transformed_data["groups"],
-            update_tag,
-            cluster_id,
-            cluster_name,
-        )
-        logger.info(
-            f"Successfully synced {len(auth_mappings.get('roles', []))} AWS IAM role mappings "
-            f"and {len(auth_mappings.get('users', []))} AWS IAM user mappings"
-        )
-    else:
-        logger.info("No role or user mappings found in aws-auth ConfigMap")
+    if configmap is not None:
+        auth_mappings = parse_aws_auth_map(configmap)
+
+        # Transform and load role, user and account mappings
+        if (
+            auth_mappings.get("roles")
+            or auth_mappings.get("users")
+            or auth_mappings.get("accounts")
+        ):
+            transformed_data = transform_aws_auth_mappings(
+                neo4j_session,
+                auth_mappings,
+                kubernetes_cluster_name,
+            )
+            load_aws_auth_mappings(
+                neo4j_session,
+                transformed_data["users"],
+                transformed_data["groups"],
+                update_tag,
+                cluster_id,
+                kubernetes_cluster_name,
+            )
+            logger.info(
+                "Successfully synced %s AWS IAM role mappings, %s AWS IAM user mappings and %s AWS account mappings",
+                len(auth_mappings.get("roles", [])),
+                len(auth_mappings.get("users", [])),
+                len(auth_mappings.get("accounts", [])),
+            )
+        else:
+            logger.info("No role, user or account mappings found in aws-auth ConfigMap")
 
     # 2. Sync EKS Access Entries (EKS API)
     logger.info("Syncing EKS Access Entries from EKS API")
 
     # Get access entries from EKS API
-    access_entries = get_access_entries(boto3_session, region, cluster_name)
+    access_entries = get_access_entries(boto3_session, region, eks_cluster_ref)
 
     if access_entries:
         # Transform access entries into users and groups
         transformed_access_entries = transform_access_entries(
-            access_entries, cluster_name
+            access_entries, kubernetes_cluster_name
         )
 
         # Load users and groups from access entries
@@ -493,7 +761,7 @@ def sync(
             transformed_access_entries["groups"],
             update_tag,
             cluster_id,
-            cluster_name,
+            kubernetes_cluster_name,
         )
     else:
         logger.info("No EKS Access Entries found for cluster")
@@ -502,11 +770,14 @@ def sync(
     logger.info("Syncing external OIDC providers from EKS API")
 
     # Get OIDC providers from EKS API
-    oidc_provider = get_oidc_provider(boto3_session, region, cluster_name)
+    oidc_provider = get_oidc_provider(boto3_session, region, eks_cluster_ref)
 
     if oidc_provider:
         # Transform OIDC providers (infrastructure metadata only)
-        transformed_oidc_provider = transform_oidc_provider(oidc_provider, cluster_name)
+        transformed_oidc_provider = transform_oidc_provider(
+            oidc_provider,
+            kubernetes_cluster_name,
+        )
 
         # Load OIDC providers
         load_oidc_provider(
@@ -514,7 +785,7 @@ def sync(
             transformed_oidc_provider,
             update_tag,
             cluster_id,
-            cluster_name,
+            kubernetes_cluster_name,
         )
     else:
         logger.info("No external OIDC provider found for cluster")
@@ -527,5 +798,6 @@ def sync(
     cleanup(neo4j_session, common_job_parameters)
 
     logger.info(
-        f"Successfully completed EKS identity provider sync for cluster {cluster_name}"
+        "Successfully completed EKS identity provider sync for cluster %s",
+        kubernetes_cluster_name,
     )

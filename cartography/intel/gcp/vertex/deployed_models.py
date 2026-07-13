@@ -1,6 +1,4 @@
 import logging
-from typing import Dict
-from typing import List
 
 import neo4j
 
@@ -13,7 +11,7 @@ logger = logging.getLogger(__name__)
 
 
 @timeit
-def transform_deployed_models_from_endpoints(endpoints: List[Dict]) -> List[Dict]:
+def transform_deployed_models_from_endpoints(endpoints: list[dict]) -> list[dict]:
     """
     Extracts and transforms deployed models from endpoint API responses.
 
@@ -57,7 +55,7 @@ def transform_deployed_models_from_endpoints(endpoints: List[Dict]) -> List[Dict
 @timeit
 def load_vertex_ai_deployed_models(
     neo4j_session: neo4j.Session,
-    deployed_models: List[Dict],
+    deployed_models: list[dict],
     project_id: str,
     gcp_update_tag: int,
 ) -> None:
@@ -74,7 +72,7 @@ def load_vertex_ai_deployed_models(
 @timeit
 def cleanup_vertex_ai_deployed_models(
     neo4j_session: neo4j.Session,
-    common_job_parameters: Dict,
+    common_job_parameters: dict,
 ) -> None:
 
     GraphJob.from_node_schema(
@@ -87,10 +85,10 @@ def cleanup_vertex_ai_deployed_models(
 @timeit
 def sync_vertex_ai_deployed_models(
     neo4j_session: neo4j.Session,
-    endpoints: List[Dict],
+    endpoints: list[dict],
     project_id: str,
     gcp_update_tag: int,
-    common_job_parameters: Dict,
+    common_job_parameters: dict,
 ) -> None:
 
     logger.info("Syncing Vertex AI deployed models for project %s.", project_id)

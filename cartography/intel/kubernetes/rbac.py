@@ -31,6 +31,7 @@ logger = logging.getLogger(__name__)
 
 
 IRSA_ROLE_ARN_ANNOTATION = "eks.amazonaws.com/role-arn"
+GKE_WORKLOAD_IDENTITY_ANNOTATION = "iam.gke.io/gcp-service-account"
 
 
 @timeit
@@ -78,7 +79,13 @@ def transform_service_accounts(
                 "id": f"{cluster_name}/{sa.metadata.namespace}/{sa.metadata.name}",
                 "name": sa.metadata.name,
                 "namespace": sa.metadata.namespace,
+                "automount_service_account_token": getattr(
+                    sa, "automount_service_account_token", None
+                ),
                 "aws_role_arn": annotations.get(IRSA_ROLE_ARN_ANNOTATION),
+                "gcp_service_account": annotations.get(
+                    GKE_WORKLOAD_IDENTITY_ANNOTATION
+                ),
                 "uid": sa.metadata.uid,
                 "creation_timestamp": get_epoch(sa.metadata.creation_timestamp),
                 "resource_version": sa.metadata.resource_version,

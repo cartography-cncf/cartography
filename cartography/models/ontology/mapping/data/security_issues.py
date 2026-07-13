@@ -9,10 +9,9 @@ from cartography.models.ontology.mapping.specs import OntologyNodeMapping
 # status
 # first_seen
 #
-# CVE-related nodes (TrivyImageFinding, UbuntuCVE, CVE, AWSInspectorFinding,
-# S1AppFinding, SemgrepSCAFinding, SpotlightVulnerability) are intentionally
-# excluded: they are already covered by the `CVE` extra label which plays the
-# ontology role for CVE-linked detections.
+# CVE-related nodes are intentionally excluded: they are covered by the `CVE`
+# extra label and CVE semantic mapping, which plays the ontology role for
+# CVE-linked detections.
 
 aws_mapping = OntologyMapping(
     module_name="aws",
@@ -67,6 +66,28 @@ semgrep_mapping = OntologyMapping(
                 ),
             ],
         ),
+        OntologyNodeMapping(
+            node_label="SemgrepSCAFinding",
+            fields=[
+                OntologyFieldMapping(
+                    ontology_field="title",
+                    node_field="summary",
+                    required=True,
+                ),
+                OntologyFieldMapping(
+                    ontology_field="severity",
+                    node_field="severity",
+                ),
+                OntologyFieldMapping(
+                    ontology_field="status",
+                    node_field="triage_status",
+                ),
+                OntologyFieldMapping(
+                    ontology_field="first_seen",
+                    node_field="scan_time",
+                ),
+            ],
+        ),
         # SemgrepSecretsFinding has no dedicated title; type (e.g. "AWS Secret Key") serves as both
         OntologyNodeMapping(
             node_label="SemgrepSecretsFinding",
@@ -74,6 +95,38 @@ semgrep_mapping = OntologyMapping(
                 OntologyFieldMapping(
                     ontology_field="title",
                     node_field="type",
+                    required=True,
+                ),
+                OntologyFieldMapping(
+                    ontology_field="severity",
+                    node_field="severity",
+                ),
+                OntologyFieldMapping(
+                    ontology_field="type",
+                    node_field="type",
+                ),
+                OntologyFieldMapping(
+                    ontology_field="status",
+                    node_field="status",
+                ),
+                OntologyFieldMapping(
+                    ontology_field="first_seen",
+                    node_field="created_at",
+                ),
+            ],
+        ),
+    ],
+)
+
+socketdev_mapping = OntologyMapping(
+    module_name="socketdev",
+    nodes=[
+        OntologyNodeMapping(
+            node_label="SocketDevAlert",
+            fields=[
+                OntologyFieldMapping(
+                    ontology_field="title",
+                    node_field="title",
                     required=True,
                 ),
                 OntologyFieldMapping(
@@ -116,5 +169,6 @@ azure_mapping = OntologyMapping(
 SECURITY_ISSUES_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     "aws": aws_mapping,
     "semgrep": semgrep_mapping,
+    "socketdev": socketdev_mapping,
     "azure": azure_mapping,
 }

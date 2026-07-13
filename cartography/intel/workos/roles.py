@@ -3,7 +3,7 @@ from typing import Any
 
 import neo4j
 from workos import WorkOSClient
-from workos.types.roles.role import Role
+from workos.authorization.models.role import Role
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
@@ -55,7 +55,7 @@ def get(client: WorkOSClient, org_id: str) -> list[dict[str, Any]]:
     # Fetch organization-level roles for each organization
     logger.debug("Fetching WorkOS roles for organization: %s", org_id)
     return paginated_list(
-        client.organizations.list_organization_roles, organization_id=org_id
+        client.authorization.list_organization_roles, organization_id=org_id
     )
 
 

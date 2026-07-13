@@ -3,6 +3,7 @@ from dataclasses import dataclass
 from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeProperties
 from cartography.models.core.nodes import CartographyNodeSchema
+from cartography.models.core.nodes import ExtraNodeLabels
 from cartography.models.core.relationships import CartographyRelProperties
 from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
@@ -16,6 +17,8 @@ class EBSSnapshotNodeProperties(CartographyNodeProperties):
     id: PropertyRef = PropertyRef("SnapshotId")
     snapshotid: PropertyRef = PropertyRef("SnapshotId", extra_index=True)
     description: PropertyRef = PropertyRef("Description")
+    ownerid: PropertyRef = PropertyRef("OwnerId")
+    ispublic: PropertyRef = PropertyRef("Public")
     encrypted: PropertyRef = PropertyRef("Encrypted")
     progress: PropertyRef = PropertyRef("Progress")
     starttime: PropertyRef = PropertyRef("StartTime")
@@ -54,5 +57,6 @@ class EBSSnapshotToAWSAccountRel(CartographyRelSchema):
 class EBSSnapshotSchema(CartographyNodeSchema):
     label: str = "EBSSnapshot"
     properties: EBSSnapshotNodeProperties = EBSSnapshotNodeProperties()
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["Snapshot"])
     sub_resource_relationship: EBSSnapshotToAWSAccountRel = EBSSnapshotToAWSAccountRel()
     other_relationships: OtherRelationships = OtherRelationships([])

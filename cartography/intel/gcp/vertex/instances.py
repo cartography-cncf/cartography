@@ -1,7 +1,4 @@
 import logging
-from typing import Dict
-from typing import List
-from typing import Optional
 
 import neo4j
 import requests
@@ -19,7 +16,7 @@ logger = logging.getLogger(__name__)
 def get_workbench_api_locations(
     aiplatform: Resource,
     project_id: str,
-) -> Optional[List[str]]:
+) -> list[str] | None:
     """
     Gets all available Workbench (In Notebooks API) API locations for a project.
     The Notebooks API uses both zones and regions, unlike Vertex AI which primarily uses regions.
@@ -122,7 +119,7 @@ def get_workbench_instances_for_location(
     aiplatform: Resource,
     project_id: str,
     location: str,
-) -> List[Dict]:
+) -> list[dict]:
     """
     Gets all Vertex AI Workbench instances for a specific location.
     Note: This queries the Notebooks API v2 for Workbench instances. The v2 API is used
@@ -154,7 +151,7 @@ def get_workbench_instances_for_location(
 
 
 @timeit
-def transform_workbench_instances(instances: List[Dict]) -> List[Dict]:
+def transform_workbench_instances(instances: list[dict]) -> list[dict]:
 
     transformed_instances = []
 
@@ -197,7 +194,7 @@ def transform_workbench_instances(instances: List[Dict]) -> List[Dict]:
 @timeit
 def load_workbench_instances(
     neo4j_session: neo4j.Session,
-    instances: List[Dict],
+    instances: list[dict],
     project_id: str,
     gcp_update_tag: int,
 ) -> None:
@@ -214,7 +211,7 @@ def load_workbench_instances(
 @timeit
 def cleanup_workbench_instances(
     neo4j_session: neo4j.Session,
-    common_job_parameters: Dict,
+    common_job_parameters: dict,
 ) -> None:
 
     GraphJob.from_node_schema(
@@ -230,7 +227,7 @@ def sync_workbench_instances(
     aiplatform: Resource,
     project_id: str,
     gcp_update_tag: int,
-    common_job_parameters: Dict,
+    common_job_parameters: dict,
 ) -> None:
 
     logger.info("Syncing Vertex AI Workbench instances for project %s.", project_id)

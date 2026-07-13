@@ -345,7 +345,6 @@ def test_private_ssm_sync_does_not_load_public_parameters(
         "UPDATE_TAG": TEST_UPDATE_TAG,
         "AWS_ID": TEST_ACCOUNT_ID,
         "aws_ssm_public_parameter_prefix_allowlist": "/aws/service/bottlerocket/",
-        "aws_ssm_ingest_secure_strings": False,
     }
     cartography.intel.aws.ssm.sync(
         neo4j_session,
@@ -380,14 +379,12 @@ def test_load_shared_public_ssm_parameters(
     common_params = {
         "UPDATE_TAG": TEST_UPDATE_TAG,
         "aws_ssm_public_parameter_prefix_allowlist": "/aws/service/bottlerocket/",
-        "aws_ssm_ingest_secure_strings": False,
     }
     mock_boto3_session = MagicMock()
 
     cartography.intel.aws.ssm.sync_public_parameters(
         neo4j_session,
-        mock_boto3_session,
-        [TEST_REGION],
+        {TEST_REGION: [mock_boto3_session]},
         TEST_UPDATE_TAG,
         common_params,
     )
@@ -428,6 +425,14 @@ def test_load_shared_public_ssm_parameters(
     }
     assert actual_ssm_parameter_data == expected_ssm_parameter_data
 
+    public_kms_relationship_count = neo4j_session.run(
+        """
+        MATCH (:PublicSSMParameter)-[r:ENCRYPTED_BY]->(:KMSKey)
+        RETURN count(r) AS count
+        """
+    ).single()["count"]
+    assert public_kms_relationship_count == 0
+
     actual_rels_account_to_ssm = {
         (record["a.id"], record["p.id"])
         for record in neo4j_session.run(
@@ -446,5 +451,4 @@ def test_load_shared_public_ssm_parameters(
         mock_boto3_session,
         TEST_REGION,
         ["/aws/service/bottlerocket/"],
-        False,
     )

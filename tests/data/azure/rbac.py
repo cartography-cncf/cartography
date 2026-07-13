@@ -214,6 +214,72 @@ AZURE_ROLE_ASSIGNMENTS = [
     },
 ]
 
+TEST_MANAGEMENT_GROUP_ID = (
+    "/providers/Microsoft.Management/managementGroups/test-management-group"
+)
+
+AZURE_MANAGEMENT_GROUP_ROLE_DEFINITIONS = [
+    {
+        "id": f"{TEST_MANAGEMENT_GROUP_ID}/providers/Microsoft.Authorization/roleDefinitions/mg-role-definition-1",
+        "name": "Management Group Reader",
+        "role_name": "Management Group Reader",
+        "description": "View management group resources",
+        "permissions": [
+            {
+                "actions": [
+                    "Microsoft.Management/managementGroups/read",
+                    "Microsoft.Authorization/*/read",
+                ],
+                "not_actions": [],
+                "data_actions": [],
+                "not_data_actions": [],
+            }
+        ],
+    },
+]
+
+AZURE_MANAGEMENT_GROUP_ROLE_ASSIGNMENTS = [
+    {
+        "id": f"{TEST_MANAGEMENT_GROUP_ID}/providers/Microsoft.Authorization/roleAssignments/mg-assignment-1",
+        "name": "mg-assignment-1",
+        "principal_id": "user-123",
+        "principal_type": "User",
+        "role_definition_id": AZURE_MANAGEMENT_GROUP_ROLE_DEFINITIONS[0]["id"],
+        "scope": TEST_MANAGEMENT_GROUP_ID,
+        "management_group_id": TEST_MANAGEMENT_GROUP_ID,
+    },
+]
+
+AZURE_MANAGEMENT_GROUP_ROLE_ASSIGNMENTS_MIXED_SCOPES = [
+    {
+        "id": "/providers/Microsoft.Management/managementGroups/parent-management-group/providers/Microsoft.Authorization/roleAssignments/parent-mg-assignment",
+        "name": "parent-mg-assignment",
+        "principal_id": "user-456",
+        "principal_type": "User",
+        "role_definition_id": "/subscriptions/12345678-1234-1234-1234-123456789012/providers/Microsoft.Authorization/roleDefinitions/acdd72a7-3385-48ef-bd42-f606fba81ae7",
+        "scope": "/providers/Microsoft.Management/managementGroups/parent-management-group",
+    },
+    AZURE_MANAGEMENT_GROUP_ROLE_ASSIGNMENTS[0],
+    {
+        "id": "/subscriptions/12345678-1234-1234-1234-123456789012/providers/Microsoft.Authorization/roleAssignments/subscription-assignment",
+        "name": "subscription-assignment",
+        "principal_id": "group-789",
+        "principal_type": "Group",
+        "role_definition_id": "/subscriptions/12345678-1234-1234-1234-123456789012/providers/Microsoft.Authorization/roleDefinitions/9b7fa4d4-9aa6-4d26-9dfc-4ef0b805d5d4",
+        "scope": "/subscriptions/12345678-1234-1234-1234-123456789012",
+        "subscription_id": "12345678-1234-1234-1234-123456789012",
+    },
+    {
+        "id": "/subscriptions/12345678-1234-1234-1234-123456789012/resourceGroups/test-rg/providers/Microsoft.Authorization/roleAssignments/resource-group-assignment",
+        "name": "resource-group-assignment",
+        "principal_id": "sp-101",
+        "principal_type": "ServicePrincipal",
+        "role_definition_id": "/subscriptions/12345678-1234-1234-1234-123456789012/providers/Microsoft.Authorization/roleDefinitions/8e3af657-a8ff-443c-a75c-2fe8c4bcb635",
+        "scope": "/subscriptions/12345678-1234-1234-1234-123456789012/resourceGroups/test-rg",
+        "subscription_id": "12345678-1234-1234-1234-123456789012",
+    },
+]
+
 # Mock Azure Permissions (separate nodes)
 AZURE_PERMISSIONS = [
     {
