@@ -58,7 +58,7 @@ Configured AWS sync accounts are marked `inscope=true`. Accounts discovered only
                                 :AWSVpc,
                                 :AutoScalingGroup,
                                 :DNSZone,
-                                :DynamoDBTable,
+                                :AWSDynamoDBTable,
                                 :EBSSnapshot,
                                 :EBSVolume,
                                 :EC2Image,
@@ -70,7 +70,7 @@ Configured AWS sync accounts are marked `inscope=true`. Accounts discovered only
                                 :ESDomain,
                                 :AWSGuardDutyDetector,
                                 :AWSGuardDutyFinding,
-                                :KMSAlias,
+                                :AWSKMSAlias,
                                 :LaunchConfiguration,
                                 :LaunchTemplate,
                                 :LaunchTemplateVersion,
@@ -80,11 +80,11 @@ Configured AWS sync accounts are marked `inscope=true`. Accounts discovered only
                                 :RDSSnapshot,
                                 :RDSEventSubscription,
                                 :ECRPullThroughCacheRule,
-                                :SecretsManagerSecret,
+                                :AWSSecretsManagerSecret,
                                 :AWSSecurityHub,
                                 :AWSSQSQueue,
-                                :SSMInstanceInformation,
-                                :SSMInstancePatch,
+                                :AWSSSMInstanceInformation,
+                                :AWSSSMInstancePatch,
                                 ...)
     ```
 
@@ -960,7 +960,7 @@ Representation of an [AWSPrincipal](https://docs.aws.amazon.com/IAM/latest/APIRe
 - AWSPrincipals with appropriate permissions can query DynamoDB tables. Created from [permission_relationships.yaml](https://github.com/cartography-cncf/cartography/blob/master/cartography/data/permission_relationships.yaml).
 
     ```cypher
-    (AWSPrincipal)-[CAN_QUERY]->(DynamoDBTable)
+    (AWSPrincipal)-[CAN_QUERY]->(AWSDynamoDBTable)
     ```
 
 - AWSPrincipals with appropriate permissions can administer Redshift clusters. Created from [permission_relationships.yaml](https://github.com/cartography-cncf/cartography/blob/master/cartography/data/permission_relationships.yaml).
@@ -1354,7 +1354,7 @@ Representation of an AWS [Tag](https://docs.aws.amazon.com/resourcegroupstagging
     (AWSVpc)-[TAGGED]->(AWSTag)
     (AutoScalingGroup)-[TAGGED]->(AWSTag)
     (DBSubnetGroup)-[TAGGED]->(AWSTag)
-    (DynamoDBTable)-[TAGGED]->(AWSTag)
+    (AWSDynamoDBTable)-[TAGGED]->(AWSTag)
     (EBSVolume)-[TAGGED]->(AWSTag)
     (EC2Instance)-[TAGGED]->(AWSTag)
     (EC2KeyPair)-[TAGGED]->(AWSTag)
@@ -1371,7 +1371,7 @@ Representation of an AWS [Tag](https://docs.aws.amazon.com/resourcegroupstagging
     (ESDomain)-[TAGGED]->(AWSTag)
     (ElasticIPAddress)-[TAGGED]->(AWSTag)
     (ElasticacheCluster)-[TAGGED]->(AWSTag)
-    (KMSKey)-[TAGGED]->(AWSTag)
+    (AWSKMSKey)-[TAGGED]->(AWSTag)
     (NetworkInterface)-[TAGGED]->(AWSTag)
     (RDSCluster)-[TAGGED]->(AWSTag)
     (RDSInstance)-[TAGGED]->(AWSTag)
@@ -1379,7 +1379,7 @@ Representation of an AWS [Tag](https://docs.aws.amazon.com/resourcegroupstagging
     (RedshiftCluster)-[TAGGED]->(AWSTag)
     (S3Bucket)-[TAGGED]->(AWSTag)
     (AWSSQSQueue)-[TAGGED]->(AWSTag)
-    (SecretsManagerSecret)-[TAGGED]->(AWSTag)
+    (AWSSecretsManagerSecret)-[TAGGED]->(AWSTag)
     ```
 
 ### AWSAccountAccessKey
@@ -1901,9 +1901,9 @@ Representation of a DNS name server associated with an AWS Route53 hosted zone.
     ```
 
 
-### DynamoDBTable::Database
+### AWSDynamoDBTable::Database
 
-Representation of an AWS [DynamoDBTable](https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_TableDescription.html).
+Representation of an AWS [AWSDynamoDBTable](https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_TableDescription.html).
 
 > **Ontology Mapping**: This node has the extra label `Database` to enable cross-platform queries for database instances across different systems (e.g., AzureSQLDatabase, GCPBigtableInstance).
 
@@ -1925,41 +1925,41 @@ Representation of an AWS [DynamoDBTable](https://docs.aws.amazon.com/amazondynam
 #### Relationships
 - DynamoDBTables belong to AWS Accounts.
     ```cypher
-    (AWSAccount)-[:RESOURCE]->(DynamoDBTable)
+    (AWSAccount)-[:RESOURCE]->(AWSDynamoDBTable)
     ```
 
 - DynamoDBTables have Global Secondary Indexes.
     ```cypher
-    (DynamoDBTable)-[:GLOBAL_SECONDARY_INDEX]->(DynamoDBGlobalSecondaryIndex)
+    (AWSDynamoDBTable)-[:GLOBAL_SECONDARY_INDEX]->(AWSDynamoDBGlobalSecondaryIndex)
     ```
 
 - DynamoDBTables have SSE (Server-Side Encryption) descriptions.
     ```cypher
-    (DynamoDBTable)-[:HAS_SSE]->(DynamoDBSSEDescription)
+    (AWSDynamoDBTable)-[:HAS_SSE]->(AWSDynamoDBSSEDescription)
     ```
 
 - DynamoDBTables have billing mode summaries.
     ```cypher
-    (DynamoDBTable)-[:HAS_BILLING]->(DynamoDBBillingModeSummary)
+    (AWSDynamoDBTable)-[:HAS_BILLING]->(AWSDynamoDBBillingModeSummary)
     ```
 
 - DynamoDBTables have streams.
     ```cypher
-    (DynamoDBTable)-[:LATEST_STREAM]->(DynamoDBStream)
+    (AWSDynamoDBTable)-[:LATEST_STREAM]->(AWSDynamoDBStream)
     ```
 
 - DynamoDBTables have archival summaries (for archived tables).
     ```cypher
-    (DynamoDBTable)-[:HAS_ARCHIVAL]->(DynamoDBArchivalSummary)
+    (AWSDynamoDBTable)-[:HAS_ARCHIVAL]->(AWSDynamoDBArchivalSummary)
     ```
 
 - DynamoDBTables have restore summaries (for restored tables).
     ```cypher
-    (DynamoDBTable)-[:HAS_RESTORE]->(DynamoDBRestoreSummary)
+    (AWSDynamoDBTable)-[:HAS_RESTORE]->(AWSDynamoDBRestoreSummary)
     ```
 
 
-### DynamoDBGlobalSecondaryIndex
+### AWSDynamoDBGlobalSecondaryIndex
 
 Representation of a DynamoDB [Global Secondary Index](https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_GlobalSecondaryIndexDescription.html).
 
@@ -1977,16 +1977,16 @@ Representation of a DynamoDB [Global Secondary Index](https://docs.aws.amazon.co
 #### Relationships
 - DynamoDBGlobalSecondaryIndexes belong to AWS Accounts.
     ```cypher
-    (AWSAccount)-[:RESOURCE]->(DynamoDBGlobalSecondaryIndex)
+    (AWSAccount)-[:RESOURCE]->(AWSDynamoDBGlobalSecondaryIndex)
     ```
 
 - DynamoDBGlobalSecondaryIndexes belong to DynamoDBTables.
     ```cypher
-    (DynamoDBTable)-[:GLOBAL_SECONDARY_INDEX]->(DynamoDBGlobalSecondaryIndex)
+    (AWSDynamoDBTable)-[:GLOBAL_SECONDARY_INDEX]->(AWSDynamoDBGlobalSecondaryIndex)
     ```
 
 
-### DynamoDBSSEDescription
+### AWSDynamoDBSSEDescription
 
 Representation of DynamoDB [Server-Side Encryption description](https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_SSEDescription.html).
 
@@ -2002,21 +2002,21 @@ Representation of DynamoDB [Server-Side Encryption description](https://docs.aws
 #### Relationships
 - DynamoDBSSEDescriptions belong to AWS Accounts.
     ```cypher
-    (AWSAccount)-[:RESOURCE]->(DynamoDBSSEDescription)
+    (AWSAccount)-[:RESOURCE]->(AWSDynamoDBSSEDescription)
     ```
 
 - DynamoDBSSEDescriptions belong to DynamoDBTables.
     ```cypher
-    (DynamoDBTable)-[:HAS_SSE]->(DynamoDBSSEDescription)
+    (AWSDynamoDBTable)-[:HAS_SSE]->(AWSDynamoDBSSEDescription)
     ```
 
 - DynamoDBSSEDescriptions may use KMS keys for encryption.
     ```cypher
-    (DynamoDBSSEDescription)-[:USES_KMS_KEY]->(KMSKey)
+    (AWSDynamoDBSSEDescription)-[:USES_KMS_KEY]->(AWSKMSKey)
     ```
 
 
-### DynamoDBBillingModeSummary
+### AWSDynamoDBBillingModeSummary
 
 Representation of DynamoDB [Billing Mode Summary](https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_BillingModeSummary.html).
 
@@ -2031,16 +2031,16 @@ Representation of DynamoDB [Billing Mode Summary](https://docs.aws.amazon.com/am
 #### Relationships
 - DynamoDBBillingModeSummaries belong to AWS Accounts.
     ```cypher
-    (AWSAccount)-[:RESOURCE]->(DynamoDBBillingModeSummary)
+    (AWSAccount)-[:RESOURCE]->(AWSDynamoDBBillingModeSummary)
     ```
 
 - DynamoDBBillingModeSummaries belong to DynamoDBTables.
     ```cypher
-    (DynamoDBTable)-[:HAS_BILLING]->(DynamoDBBillingModeSummary)
+    (AWSDynamoDBTable)-[:HAS_BILLING]->(AWSDynamoDBBillingModeSummary)
     ```
 
 
-### DynamoDBStream
+### AWSDynamoDBStream
 
 Representation of a DynamoDB [Stream](https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_StreamSpecification.html).
 
@@ -2057,16 +2057,16 @@ Representation of a DynamoDB [Stream](https://docs.aws.amazon.com/amazondynamodb
 #### Relationships
 - DynamoDBStreams belong to AWS Accounts.
     ```cypher
-    (AWSAccount)-[:RESOURCE]->(DynamoDBStream)
+    (AWSAccount)-[:RESOURCE]->(AWSDynamoDBStream)
     ```
 
 - DynamoDBStreams belong to DynamoDBTables.
     ```cypher
-    (DynamoDBTable)-[:LATEST_STREAM]->(DynamoDBStream)
+    (AWSDynamoDBTable)-[:LATEST_STREAM]->(AWSDynamoDBStream)
     ```
 
 
-### DynamoDBArchivalSummary
+### AWSDynamoDBArchivalSummary
 
 Representation of DynamoDB [Archival Summary](https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_ArchivalSummary.html) for archived tables.
 
@@ -2082,21 +2082,21 @@ Representation of DynamoDB [Archival Summary](https://docs.aws.amazon.com/amazon
 #### Relationships
 - DynamoDBArchivalSummaries belong to AWS Accounts.
     ```cypher
-    (AWSAccount)-[:RESOURCE]->(DynamoDBArchivalSummary)
+    (AWSAccount)-[:RESOURCE]->(AWSDynamoDBArchivalSummary)
     ```
 
 - DynamoDBArchivalSummaries belong to DynamoDBTables.
     ```cypher
-    (DynamoDBTable)-[:HAS_ARCHIVAL]->(DynamoDBArchivalSummary)
+    (AWSDynamoDBTable)-[:HAS_ARCHIVAL]->(AWSDynamoDBArchivalSummary)
     ```
 
 - DynamoDBArchivalSummaries reference the backup created during archival.
     ```cypher
-    (DynamoDBArchivalSummary)-[:ARCHIVED_TO_BACKUP]->(DynamoDBBackup)
+    (AWSDynamoDBArchivalSummary)-[:ARCHIVED_TO_BACKUP]->(AWSDynamoDBBackup)
     ```
 
 
-### DynamoDBRestoreSummary
+### AWSDynamoDBRestoreSummary
 
 Representation of DynamoDB [Restore Summary](https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_RestoreSummary.html) for restored tables.
 
@@ -2113,26 +2113,26 @@ Representation of DynamoDB [Restore Summary](https://docs.aws.amazon.com/amazond
 #### Relationships
 - DynamoDBRestoreSummaries belong to AWS Accounts.
     ```cypher
-    (AWSAccount)-[:RESOURCE]->(DynamoDBRestoreSummary)
+    (AWSAccount)-[:RESOURCE]->(AWSDynamoDBRestoreSummary)
     ```
 
 - DynamoDBRestoreSummaries belong to DynamoDBTables (the restored table).
     ```cypher
-    (DynamoDBTable)-[:HAS_RESTORE]->(DynamoDBRestoreSummary)
+    (AWSDynamoDBTable)-[:HAS_RESTORE]->(AWSDynamoDBRestoreSummary)
     ```
 
 - DynamoDBRestoreSummaries reference the source backup.
     ```cypher
-    (DynamoDBRestoreSummary)-[:RESTORED_FROM_BACKUP]->(DynamoDBBackup)
+    (AWSDynamoDBRestoreSummary)-[:RESTORED_FROM_BACKUP]->(AWSDynamoDBBackup)
     ```
 
 - DynamoDBRestoreSummaries reference the source table.
     ```cypher
-    (DynamoDBRestoreSummary)-[:RESTORED_FROM_TABLE]->(DynamoDBTable)
+    (AWSDynamoDBRestoreSummary)-[:RESTORED_FROM_TABLE]->(AWSDynamoDBTable)
     ```
 
 
-### DynamoDBBackup
+### AWSDynamoDBBackup
 
 Representation of a DynamoDB [Backup](https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_BackupDetails.html). Currently a stub entity referenced by archival and restore summaries.
 
@@ -2146,26 +2146,26 @@ Representation of a DynamoDB [Backup](https://docs.aws.amazon.com/amazondynamodb
 #### Relationships
 - DynamoDBBackups belong to AWS Accounts.
     ```cypher
-    (AWSAccount)-[:RESOURCE]->(DynamoDBBackup)
+    (AWSAccount)-[:RESOURCE]->(AWSDynamoDBBackup)
     ```
 
 - DynamoDBBackups are referenced by archival summaries.
     ```cypher
-    (DynamoDBArchivalSummary)-[:ARCHIVED_TO_BACKUP]->(DynamoDBBackup)
+    (AWSDynamoDBArchivalSummary)-[:ARCHIVED_TO_BACKUP]->(AWSDynamoDBBackup)
     ```
 
 - DynamoDBBackups are referenced by restore summaries.
     ```cypher
-    (DynamoDBRestoreSummary)-[:RESTORED_FROM_BACKUP]->(DynamoDBBackup)
+    (AWSDynamoDBRestoreSummary)-[:RESTORED_FROM_BACKUP]->(AWSDynamoDBBackup)
     ```
 
 - AWSPrincipals with appropriate permissions can query DynamoDB tables. Created from [permission_relationships.yaml](https://github.com/cartography-cncf/cartography/blob/master/cartography/data/permission_relationships.yaml).
     ```
-    (AWSPrincipal)-[CAN_QUERY]->(DynamoDBTable)
+    (AWSPrincipal)-[CAN_QUERY]->(AWSDynamoDBTable)
     ```
 
 
-### DynamoDBGlobalSecondaryIndex
+### AWSDynamoDBGlobalSecondaryIndex
 
 Representation of a [DynamoDB Global Secondary Index](https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_GlobalSecondaryIndexDescription.html).
 
@@ -2182,14 +2182,14 @@ Representation of a [DynamoDB Global Secondary Index](https://docs.aws.amazon.co
 
 #### Relationships
 
-- DynamoDBGlobalSecondaryIndex belongs to AWS Accounts.
+- AWSDynamoDBGlobalSecondaryIndex belongs to AWS Accounts.
     ```
-    (AWSAccount)-[RESOURCE]->(DynamoDBGlobalSecondaryIndex)
+    (AWSAccount)-[RESOURCE]->(AWSDynamoDBGlobalSecondaryIndex)
     ```
 
-- DynamoDBGlobalSecondaryIndex belongs to DynamoDBTables.
+- AWSDynamoDBGlobalSecondaryIndex belongs to DynamoDBTables.
     ```
-    (DynamoDBTable)-[GLOBAL_SECONDARY_INDEX]->(DynamoDBGlobalSecondaryIndex)
+    (AWSDynamoDBTable)-[GLOBAL_SECONDARY_INDEX]->(AWSDynamoDBGlobalSecondaryIndex)
     ```
 
 
@@ -2303,14 +2303,14 @@ Our representation of an AWS [EC2 Instance](https://docs.aws.amazon.com/AWSEC2/l
     (EC2Instance)-[STS_ASSUMEROLE_ALLOW]->(AWSRole)
     ```
 
-- EC2Instances can have SSMInstanceInformation
+- EC2Instances can have AWSSSMInstanceInformation
     ```
-    (EC2Instance)-[HAS_INFORMATION]->(SSMInstanceInformation)
+    (EC2Instance)-[HAS_INFORMATION]->(AWSSSMInstanceInformation)
     ```
 
 - EC2Instances can have SSMInstancePatches
     ```
-    (EC2Instance)-[HAS_PATCH]->(SSMInstancePatch)
+    (EC2Instance)-[HAS_PATCH]->(AWSSSMInstancePatch)
     ```
 
 - EC2Instances can be members of EKS Clusters
@@ -2669,7 +2669,7 @@ Representation of an AWS Elastic Container Registry [pull through cache rule](ht
 
 - ECR pull through cache rules may use a Secrets Manager secret for upstream credentials:
     ```
-    (:ECRPullThroughCacheRule)-[:USES_SECRET]->(:SecretsManagerSecret)
+    (:ECRPullThroughCacheRule)-[:USES_SECRET]->(:AWSSecretsManagerSecret)
     ```
 
 - ECR pull through cache rules may be associated with an IAM role:
@@ -3188,7 +3188,7 @@ Representation of an AWS [EMR Cluster](https://docs.aws.amazon.com/emr/latest/AP
 
 Representation of an AWS [ElasticSearch Domain](https://docs.aws.amazon.com/elasticsearch-service/latest/developerguide/es-configuration-api.html#es-configuration-api-datatypes) (see ElasticsearchDomainConfig).
 
-> **Ontology Mapping**: This node has the extra label `Database` to enable cross-platform queries for database instances across different systems (e.g., RDSInstance, DynamoDBTable, AzureSQLDatabase, GCPBigtableInstance).
+> **Ontology Mapping**: This node has the extra label `Database` to enable cross-platform queries for database instances across different systems (e.g., RDSInstance, AWSDynamoDBTable, AzureSQLDatabase, GCPBigtableInstance).
 
 | Field | Description |
 |-------|-------------|
@@ -3928,7 +3928,7 @@ Representation of an AWS Relational Database Service [DBInstance](https://docs.a
 
 - RDS Instances encrypted with a customer-managed KMS key are linked to it.
     ```
-    (RDSInstance)-[:ENCRYPTED_BY]->(KMSKey)
+    (RDSInstance)-[:ENCRYPTED_BY]->(AWSKMSKey)
     ```
 
 ### RDSSnapshot
@@ -4181,7 +4181,7 @@ Representation of an AWS S3 [Bucket](https://docs.aws.amazon.com/AmazonS3/latest
 
 - S3 Buckets whose default encryption uses a customer-managed KMS key are linked to it.
     ```
-    (S3Bucket)-[:ENCRYPTED_BY]->(KMSKey)
+    (S3Bucket)-[:ENCRYPTED_BY]->(AWSKMSKey)
     ```
 
 - S3 Buckets can send notifications to SNS Topics.
@@ -4224,11 +4224,11 @@ Representation of an AWS S3 [Bucket Policy Statements](https://docs.aws.amazon.c
     ```
 
 
-### KMSKey
+### AWSKMSKey
 
 Representation of an AWS [KMS Key](https://docs.aws.amazon.com/kms/latest/APIReference/API_KeyListEntry.html).
 
-> **Ontology Mapping**: This node has the extra label `EncryptionKey` to enable cross-platform queries for encryption keys across different systems (e.g., KMSKey, GCPCryptoKey, AzureKeyVaultKey).
+> **Ontology Mapping**: This node has the extra label `EncryptionKey` to enable cross-platform queries for encryption keys across different systems (e.g., AWSKMSKey, GCPCryptoKey, AzureKeyVaultKey).
 
 | Field | Description |
 |-------|-------------|
@@ -4260,20 +4260,20 @@ Representation of an AWS [KMS Key](https://docs.aws.amazon.com/kms/latest/APIRef
 
 - AWS KMS Keys are resources in an AWS Account.
     ```
-    (AWSAccount)-[:RESOURCE]->(KMSKey)
+    (AWSAccount)-[:RESOURCE]->(AWSKMSKey)
     ```
 
-- AWS KMS Key may also be referred as KMSAlias via aliases.
+- AWS KMS Key may also be referred as AWSKMSAlias via aliases.
     ```
-    (KMSAlias)-[:KNOWN_AS]->(KMSKey)
-    ```
-
-- AWS KMS Key may also have KMSGrant based on grants.
-    ```
-    (KMSGrant)-[:APPLIED_ON]->(KMSKey)
+    (AWSKMSAlias)-[:KNOWN_AS]->(AWSKMSKey)
     ```
 
-### KMSAlias
+- AWS KMS Key may also have AWSKMSGrant based on grants.
+    ```
+    (AWSKMSGrant)-[:APPLIED_ON]->(AWSKMSKey)
+    ```
+
+### AWSKMSAlias
 
 Representation of an AWS [KMS Key Alias](https://docs.aws.amazon.com/kms/latest/APIReference/API_AliasListEntry.html).
 
@@ -4293,15 +4293,15 @@ Representation of an AWS [KMS Key Alias](https://docs.aws.amazon.com/kms/latest/
 
 - AWS KMS Aliases belong to AWS Accounts.
     ```
-    (AWSAccount)-[:RESOURCE]->(KMSAlias)
+    (AWSAccount)-[:RESOURCE]->(AWSKMSAlias)
     ```
 
-- AWS KMS Key may also be referred as KMSAlias via aliases.
+- AWS KMS Key may also be referred as AWSKMSAlias via aliases.
     ```
-    (KMSAlias)-[KNOWN_AS]->(KMSKey)
+    (AWSKMSAlias)-[KNOWN_AS]->(AWSKMSKey)
     ```
 
-### KMSGrant
+### AWSKMSGrant
 
 Representation of an AWS [KMS Key Grant](https://docs.aws.amazon.com/kms/latest/APIReference/API_GrantListEntry.html).
 
@@ -4322,12 +4322,12 @@ Representation of an AWS [KMS Key Grant](https://docs.aws.amazon.com/kms/latest/
 
 - AWS KMS Grants are resources in an AWS Account.
     ```
-    (AWSAccount)-[:RESOURCE]->(KMSGrant)
+    (AWSAccount)-[:RESOURCE]->(AWSKMSGrant)
     ```
 
 - AWS KMS Grants are applied to KMS Keys.
     ```
-    (KMSGrant)-[:APPLIED_ON]->(KMSKey)
+    (AWSKMSGrant)-[:APPLIED_ON]->(AWSKMSKey)
     ```
 
 ### AWSAPIGatewayRestAPI
@@ -4732,7 +4732,7 @@ Representation of an AWS [EC2 Reserved Instance](https://docs.aws.amazon.com/AWS
     (AWSAccount)-[RESOURCE]->(EC2ReservedInstance)
     ```
 
-### SecretsManagerSecret
+### AWSSecretsManagerSecret
 
 Representation of an AWS [Secrets Manager Secret](https://docs.aws.amazon.com/secretsmanager/latest/apireference/API_SecretListEntry.html)
 
@@ -4761,11 +4761,11 @@ Representation of an AWS [Secrets Manager Secret](https://docs.aws.amazon.com/se
 
 - AWS Secrets Manager Secrets are a resource under the AWS Account.
     ```
-    (AWSAccount)-[RESOURCE]->(SecretsManagerSecret)
+    (AWSAccount)-[RESOURCE]->(AWSSecretsManagerSecret)
     ```
 - If the secret is encrypted with a KMS key, it has a relationship to that key.
     ```
-    (SecretsManagerSecret)-[ENCRYPTED_BY]->(KMSKey)
+    (AWSSecretsManagerSecret)-[ENCRYPTED_BY]->(AWSKMSKey)
     ```
 
 ### EBSVolume
@@ -5557,7 +5557,7 @@ Representation of an AWS [EFS Access Point](https://docs.aws.amazon.com/efs/late
 
 - EFS File Systems encrypted with a customer-managed KMS key are linked to it.
     ```
-    (EfsFileSystem)-[:ENCRYPTED_BY]->(KMSKey)
+    (EfsFileSystem)-[:ENCRYPTED_BY]->(AWSKMSKey)
     ```
 
 ### AWSSNSTopic
@@ -5653,7 +5653,7 @@ Representation of an AWS [S3 Account Public Access Block](https://docs.aws.amazo
     (AWSAccount)-[:RESOURCE]->(S3AccountPublicAccessBlock)
     ```
 
-### SSMInstanceInformation
+### AWSSSMInstanceInformation
 
 Representation of an AWS SSM [InstanceInformation](https://docs.aws.amazon.com/systems-manager/latest/APIReference/API_InstanceInformation.html)
 
@@ -5686,17 +5686,17 @@ Representation of an AWS SSM [InstanceInformation](https://docs.aws.amazon.com/s
 
 #### Relationships
 
-- SSMInstanceInformation is a resource under the AWS Account.
+- AWSSSMInstanceInformation is a resource under the AWS Account.
     ```
-    (AWSAccount)-[RESOURCE]->(SSMInstanceInformation)
-    ```
-
-- SSMInstanceInformation is a resource of an EC2Instance
-    ```
-    (EC2Instance)-[HAS_INFORMATION]->(SSMInstanceInformation)
+    (AWSAccount)-[RESOURCE]->(AWSSSMInstanceInformation)
     ```
 
-### SSMInstancePatch
+- AWSSSMInstanceInformation is a resource of an EC2Instance
+    ```
+    (EC2Instance)-[HAS_INFORMATION]->(AWSSSMInstanceInformation)
+    ```
+
+### AWSSSMInstancePatch
 
 Representation of an AWS SSM [PatchComplianceData](https://docs.aws.amazon.com/systems-manager/latest/APIReference/API_PatchComplianceData.html)
 
@@ -5717,17 +5717,17 @@ Representation of an AWS SSM [PatchComplianceData](https://docs.aws.amazon.com/s
 
 #### Relationships
 
-- SSMInstancePatch is a resource under the AWS Account.
+- AWSSSMInstancePatch is a resource under the AWS Account.
     ```
-    (AWSAccount)-[RESOURCE]->(SSMInstancePatch)
+    (AWSAccount)-[RESOURCE]->(AWSSSMInstancePatch)
     ```
 
 - EC2Instances have SSMInstancePatches
     ```
-    (EC2Instance)-[HAS_INFORMATION]->(SSMInstancePatch)
+    (EC2Instance)-[HAS_INFORMATION]->(AWSSSMInstancePatch)
     ```
 
-### SSMParameter
+### AWSSSMParameter
 
 Representation of an AWS Systems Manager Parameter as returned by the [`describe_parameters` API](https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ssm/client/describe_parameters.html).
 
@@ -5753,14 +5753,14 @@ Representation of an AWS Systems Manager Parameter as returned by the [`describe
 
 #### Relationships
 
-- SSMParameter is a resource under the AWS Account.
+- AWSSSMParameter is a resource under the AWS Account.
     ```
-    (AWSAccount)-[RESOURCE]->(SSMParameter)
+    (AWSAccount)-[RESOURCE]->(AWSSSMParameter)
     ```
 
 - SecureString SSMParameters may be encrypted by an AWS KMS Key.
     ```
-    (SSMParameter)-[ENCRYPTED_BY]->(KMSKey)
+    (AWSSSMParameter)-[ENCRYPTED_BY]->(AWSKMSKey)
     ```
 
 ### AWSIdentityCenter
@@ -6066,7 +6066,7 @@ Representation of an AWS [EC2 Route](https://docs.aws.amazon.com/AWSEC2/latest/A
     (EC2Route)-[ROUTES_TO_GATEWAY]->(AWSInternetGateway)
     ```
 
-### SecretsManagerSecretVersion
+### AWSSecretsManagerSecretVersion
 
 Representation of an AWS [Secrets Manager Secret Version](https://docs.aws.amazon.com/secretsmanager/latest/apireference/API_SecretVersionListEntry.html)
 
@@ -6088,15 +6088,15 @@ Representation of an AWS [Secrets Manager Secret Version](https://docs.aws.amazo
 
 - AWS Secrets Manager Secret Versions are a resource under the AWS Account.
     ```
-    (AWSAccount)-[RESOURCE]->(SecretsManagerSecretVersion)
+    (AWSAccount)-[RESOURCE]->(AWSSecretsManagerSecretVersion)
     ```
 - Secret Versions belong to a Secret.
     ```
-    (SecretsManagerSecretVersion)-[VERSION_OF]->(SecretsManagerSecret)
+    (AWSSecretsManagerSecretVersion)-[VERSION_OF]->(AWSSecretsManagerSecret)
     ```
 - If the secret version is encrypted with a KMS key, it has a relationship to that key.
     ```
-    (SecretsManagerSecretVersion)-[ENCRYPTED_BY]->(KMSKey)
+    (AWSSecretsManagerSecretVersion)-[ENCRYPTED_BY]->(AWSKMSKey)
     ```
 
 ### AWSBedrockFoundationModel

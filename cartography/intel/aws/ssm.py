@@ -130,7 +130,7 @@ def transform_ssm_parameters(
     for param in raw_parameters_data:
         param["LastModifiedDate"] = dict_date_to_epoch(param, "LastModifiedDate")
         param["PoliciesJson"] = json.dumps(param.get("Policies", []))
-        # KMSKey uses shorter UUID as their primary id
+        # AWSKMSKey uses shorter UUID as their primary id
         # SSM Parameters, when encrypted, reference KMS keys using their full ARNs in the KeyId field
         # Adding a param to match on the id property of the target node
         if param.get("Type") == "SecureString" and param.get("KeyId") is not None:

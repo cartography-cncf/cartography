@@ -43,7 +43,7 @@ def test_sync_efs(
     # match it at load time.
     neo4j_session.run(
         """
-        MERGE (k:KMSKey{id: $key_id})
+        MERGE (k:AWSKMSKey{id: $key_id})
         SET k.arn = $key_arn, k.lastupdated = $update_tag
         """,
         key_id="abcde123-4567-8901-2345-abcdef123456",
@@ -86,7 +86,7 @@ def test_sync_efs(
         neo4j_session,
         "EfsFileSystem",
         "arn",
-        "KMSKey",
+        "AWSKMSKey",
         "arn",
         "ENCRYPTED_BY",
         rel_direction_right=True,

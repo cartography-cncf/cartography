@@ -49,7 +49,7 @@ class ECRPullThroughCacheRuleToAWSAccountRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class ECRPullThroughCacheRuleToSecretsManagerSecretRel(CartographyRelSchema):
-    target_node_label: str = "SecretsManagerSecret"
+    target_node_label: str = "AWSSecretsManagerSecret"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"arn": PropertyRef("credential_arn")}
     )

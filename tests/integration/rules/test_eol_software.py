@@ -336,13 +336,13 @@ def test_ec2_fact_flags_amazon_linux_2_after_eol(neo4j_session) -> None:
             instanceid: 'i-al2023',
             region: 'us-east-1'
         })
-        CREATE (al2_ssm:SSMInstanceInformation {
+        CREATE (al2_ssm:AWSSSMInstanceInformation {
             id: 'i-al2',
             platform_name: 'Amazon Linux',
             platform_version: '2',
             region: 'us-east-1'
         })
-        CREATE (al2023_ssm:SSMInstanceInformation {
+        CREATE (al2023_ssm:AWSSSMInstanceInformation {
             id: 'i-al2023',
             platform_name: 'Amazon Linux',
             platform_version: '2023',

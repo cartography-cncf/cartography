@@ -236,7 +236,7 @@ def test_permission_relationships_ssm_precondition(neo4j_session):
     """
     A principal with ssm:StartSession should only get a CAN_START_SESSION edge to an
     EC2 instance that is actually managed by SSM (i.e. has a HAS_INFORMATION edge to an
-    SSMInstanceInformation node). See issue #1643.
+    AWSSSMInstanceInformation node). See issue #1643.
     """
     create_test_account(neo4j_session, TEST_ACCOUNT_ID, TEST_UPDATE_TAG)
 
@@ -247,7 +247,7 @@ def test_permission_relationships_ssm_precondition(neo4j_session):
         MERGE (managed:EC2Instance{id: 'i-managed'})<-[:RESOURCE]-(aws)
         SET managed.arn = 'arn:aws:ec2:us-east-1:000000000000:instance/i-managed',
             managed.lastupdated = $UpdateTag
-        MERGE (ssm:SSMInstanceInformation{id: 'i-managed'})
+        MERGE (ssm:AWSSSMInstanceInformation{id: 'i-managed'})
         MERGE (managed)-[:HAS_INFORMATION]->(ssm)
         MERGE (unmanaged:EC2Instance{id: 'i-unmanaged'})<-[:RESOURCE]-(aws)
         SET unmanaged.arn = 'arn:aws:ec2:us-east-1:000000000000:instance/i-unmanaged',
@@ -277,7 +277,7 @@ def test_permission_relationships_ssm_precondition(neo4j_session):
                     "permissions": ["ssm:StartSession"],
                     "relationship_name": "CAN_START_SESSION",
                     "target_precondition": {
-                        "related_label": "SSMInstanceInformation",
+                        "related_label": "AWSSSMInstanceInformation",
                         "relationship": "HAS_INFORMATION",
                         "direction": "outgoing",
                     },
@@ -328,7 +328,7 @@ def test_permission_relationships_ssm_precondition(neo4j_session):
     )
     neo4j_session.run(
         """
-        MATCH (s:SSMInstanceInformation{id: 'i-managed'}) DETACH DELETE s
+        MATCH (s:AWSSSMInstanceInformation{id: 'i-managed'}) DETACH DELETE s
         """,
     )
 

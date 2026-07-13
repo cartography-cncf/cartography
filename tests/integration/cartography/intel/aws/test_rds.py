@@ -305,7 +305,7 @@ def test_sync_rds_comprehensive(
     # match it at load time.
     neo4j_session.run(
         """
-        MERGE (k:KMSKey{id: $key_id})
+        MERGE (k:AWSKMSKey{id: $key_id})
         SET k.arn = $key_arn, k.lastupdated = $update_tag
         """,
         key_id="some-guid",
@@ -382,7 +382,7 @@ def test_sync_rds_comprehensive(
         neo4j_session,
         "RDSInstance",
         "id",
-        "KMSKey",
+        "AWSKMSKey",
         "arn",
         "ENCRYPTED_BY",
         rel_direction_right=True,

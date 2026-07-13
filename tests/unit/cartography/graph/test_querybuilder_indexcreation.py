@@ -72,4 +72,4 @@ def test_build_create_index_queries_skips_unindexed_ontology_fields():
 def test_build_create_index_queries_for_dynamodb_table_arn():
     result = build_create_index_queries(DynamoDBTableSchema())
 
-    assert "CREATE INDEX IF NOT EXISTS FOR (n:DynamoDBTable) ON (n.arn);" in result
+    assert "CREATE INDEX IF NOT EXISTS FOR (n:AWSDynamoDBTable) ON (n.arn);" in result

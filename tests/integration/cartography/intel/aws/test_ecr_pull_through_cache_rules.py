@@ -22,7 +22,7 @@ def _seed_relationship_targets(neo4j_session):
     role_arn = tests.data.aws.ecr.PULL_THROUGH_CACHE_ROLE_ARN
     neo4j_session.run(
         """
-        MERGE (secret:SecretsManagerSecret {id: $secret_arn})
+        MERGE (secret:AWSSecretsManagerSecret {id: $secret_arn})
         SET secret.arn = $secret_arn, secret.name = "dockerhub"
         """,
         secret_arn=secret_arn,
@@ -116,7 +116,7 @@ def test_sync_pull_through_cache_rules(mock_get_rules, neo4j_session):
         neo4j_session,
         "ECRPullThroughCacheRule",
         "id",
-        "SecretsManagerSecret",
+        "AWSSecretsManagerSecret",
         "arn",
         "USES_SECRET",
         rel_direction_right=True,
@@ -164,7 +164,7 @@ def test_sync_pull_through_cache_rules(mock_get_rules, neo4j_session):
             neo4j_session,
             "ECRPullThroughCacheRule",
             "id",
-            "SecretsManagerSecret",
+            "AWSSecretsManagerSecret",
             "arn",
             "USES_SECRET",
             rel_direction_right=True,

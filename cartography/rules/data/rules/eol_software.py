@@ -70,7 +70,7 @@ def _build_ec2_instance_amazon_linux_2_eol_query(
     current_date_expression: str = "date()",
 ) -> str:
     return f"""
-    MATCH (ec2:EC2Instance)-[:HAS_INFORMATION]->(ssm:SSMInstanceInformation)
+    MATCH (ec2:EC2Instance)-[:HAS_INFORMATION]->(ssm:AWSSSMInstanceInformation)
     WHERE toLower(trim(coalesce(ssm.platform_name, ''))) = 'amazon linux'
       AND trim(toString(ssm.platform_version)) = '2'
       AND {current_date_expression} > date('{_AMAZON_LINUX_2_EOL_DATE}')
@@ -502,7 +502,7 @@ _ec2_instance_amazon_linux_2_eol = Fact(
     ),
     cypher_query=_build_ec2_instance_amazon_linux_2_eol_query(),
     cypher_visual_query=f"""
-    MATCH (ec2:EC2Instance)-[:HAS_INFORMATION]->(ssm:SSMInstanceInformation)
+    MATCH (ec2:EC2Instance)-[:HAS_INFORMATION]->(ssm:AWSSSMInstanceInformation)
     WHERE toLower(trim(coalesce(ssm.platform_name, ''))) = 'amazon linux'
       AND trim(toString(ssm.platform_version)) = '2'
       AND date() > date('{_AMAZON_LINUX_2_EOL_DATE}')
@@ -510,7 +510,7 @@ _ec2_instance_amazon_linux_2_eol = Fact(
     RETURN *
     """,
     cypher_count_query=f"""
-    MATCH (ec2:EC2Instance)-[:HAS_INFORMATION]->(ssm:SSMInstanceInformation)
+    MATCH (ec2:EC2Instance)-[:HAS_INFORMATION]->(ssm:AWSSSMInstanceInformation)
     WHERE toLower(trim(coalesce(ssm.platform_name, ''))) = 'amazon linux'
       AND trim(toString(ssm.platform_version)) = '2'
       AND date() > date('{_AMAZON_LINUX_2_EOL_DATE}')

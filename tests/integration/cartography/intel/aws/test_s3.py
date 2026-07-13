@@ -165,7 +165,7 @@ def test_load_s3_encryption(neo4j_session, *args):
     # it at load time.
     neo4j_session.run(
         """
-        MERGE (k:KMSKey{id: $key_id})
+        MERGE (k:AWSKMSKey{id: $key_id})
         SET k.arn = $key_arn, k.lastupdated = $update_tag
         """,
         key_id="9a1ad414-6e3b-47ce-8366-6b8f26ba467d",
@@ -209,7 +209,7 @@ def test_load_s3_encryption(neo4j_session, *args):
         neo4j_session,
         "S3Bucket",
         "id",
-        "KMSKey",
+        "AWSKMSKey",
         "arn",
         "ENCRYPTED_BY",
         rel_direction_right=True,
@@ -222,13 +222,13 @@ def test_load_s3_encryption(neo4j_session, *args):
 
 
 def test_s3_encryption_relationship_cleanup(neo4j_session):
-    """A stale (:S3Bucket)-[:ENCRYPTED_BY]->(:KMSKey) edge is removed when the
+    """A stale (:S3Bucket)-[:ENCRYPTED_BY]->(:AWSKMSKey) edge is removed when the
     bucket stops using that KMS key (key rotation or KMS encryption disabled).
     The edge lives on the S3BucketEncryptionSchema composite (no sub_resource),
     so it must be cleaned via its own rel-only cleanup."""
     key_arn = "arn:aws:kms:us-east-1:000000000000:key/cleanup-test-key"
     neo4j_session.run(
-        "MERGE (k:KMSKey{id: $id}) SET k.arn = $arn, k.lastupdated = $tag",
+        "MERGE (k:AWSKMSKey{id: $id}) SET k.arn = $arn, k.lastupdated = $tag",
         id="cleanup-test-key",
         arn=key_arn,
         tag=TEST_UPDATE_TAG,
@@ -250,7 +250,7 @@ def test_s3_encryption_relationship_cleanup(neo4j_session):
         neo4j_session,
         "S3Bucket",
         "id",
-        "KMSKey",
+        "AWSKMSKey",
         "arn",
         "ENCRYPTED_BY",
         rel_direction_right=True,
@@ -283,7 +283,7 @@ def test_s3_encryption_relationship_cleanup(neo4j_session):
         neo4j_session,
         "S3Bucket",
         "id",
-        "KMSKey",
+        "AWSKMSKey",
         "arn",
         "ENCRYPTED_BY",
         rel_direction_right=True,

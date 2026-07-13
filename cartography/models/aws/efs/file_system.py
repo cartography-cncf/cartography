@@ -63,7 +63,7 @@ class EfsFileSystemToKMSKeyRelProperties(CartographyRelProperties):
 # Only created when the file system has a customer-managed KMS key (KmsKeyId is
 # the key ARN).
 class EfsFileSystemToKMSKeyRel(CartographyRelSchema):
-    target_node_label: str = "KMSKey"
+    target_node_label: str = "AWSKMSKey"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"arn": PropertyRef("KmsKeyId")},
     )

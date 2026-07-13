@@ -118,7 +118,7 @@ NC -- USES_VPC --> VPC(AWSVpc)
 NC -- USES_SUBNET --> SUB(EC2Subnet)
 NC -- USES_SECURITY_GROUP --> SG(EC2SecurityGroup)
 VE -- POINTS_TO --> AWSVE(AWSVpcEndpoint)
-EK -- REFERENCES_KEY --> KEY(KMSKey / GCPCryptoKey)
+EK -- REFERENCES_KEY --> KEY(AWSKMSKey / GCPCryptoKey)
 LD -- DELIVERS_TO --> BKT
 U -- HAS_PERMISSION --> ACLO(DatabricksAclObject)
 G -- HAS_PERMISSION --> ACLO
@@ -1573,7 +1573,7 @@ Account-level workspace cloud configurations (AWS / GCP). Each is owned by the `
 (:DatabricksNetworkConfig)-[:USES_SUBNET]->(:EC2Subnet)
 (:DatabricksNetworkConfig)-[:USES_SECURITY_GROUP]->(:EC2SecurityGroup)
 (:DatabricksVpcEndpoint)-[:POINTS_TO]->(:AWSVpcEndpoint)
-(:DatabricksEncryptionKey)-[:REFERENCES_KEY]->(:KMSKey)
+(:DatabricksEncryptionKey)-[:REFERENCES_KEY]->(:AWSKMSKey)
 (:DatabricksEncryptionKey)-[:REFERENCES_KEY]->(:GCPCryptoKey)
 (:DatabricksLogDelivery)-[:DELIVERS_TO]->(:S3Bucket)
 ```

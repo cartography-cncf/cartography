@@ -111,7 +111,7 @@ class S3BucketToKMSKeyRelProperties(CartographyRelProperties):
 # Created when default encryption uses a customer-managed KMS key and
 # `KMSMasterKeyID` is reported as the key ARN.
 class S3BucketToKMSKeyRel(CartographyRelSchema):
-    target_node_label: str = "KMSKey"
+    target_node_label: str = "AWSKMSKey"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"arn": PropertyRef("encryption_key_id")},
     )
@@ -125,9 +125,9 @@ class S3BucketToKMSKeyRel(CartographyRelSchema):
 # a bare key id rather than a full ARN (S3 returns either form depending on how
 # the bucket policy was configured). The two matchers are mutually exclusive, so
 # a bucket gets at most one ENCRYPTED_BY edge. Alias references (alias/<name>)
-# are not resolved here as they point at a KMSAlias node, not a KMSKey.
+# are not resolved here as they point at a AWSKMSAlias node, not a AWSKMSKey.
 class S3BucketToKMSKeyByIdRel(CartographyRelSchema):
-    target_node_label: str = "KMSKey"
+    target_node_label: str = "AWSKMSKey"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("encryption_key_id")},
     )

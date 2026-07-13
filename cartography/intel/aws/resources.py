@@ -79,7 +79,7 @@ RESOURCE_FUNCTIONS: OrderedDict[str, Callable[..., None]] = OrderedDict(
         "iam": iam.sync,
         "iaminstanceprofiles": sync_iam_instance_profiles,
         # `kms` must run before the resources that create canonical ENCRYPTED_BY
-        # edges to existing KMSKey nodes by matching on the key ARN: `s3`, `rds`,
+        # edges to existing AWSKMSKey nodes by matching on the key ARN: `s3`, `rds`,
         # `efs`, `dynamodb`, and the Secrets Manager / SSM secret syncs.
         "kms": kms.sync,
         "s3": s3.sync,

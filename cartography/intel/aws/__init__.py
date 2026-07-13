@@ -138,8 +138,8 @@ def _sync_one_account(
         # TARGETS matchlinks (ELBV2TargetGroup→ECSService)
         "ecs": ["ec2:instance", "ec2:load_balancer_v2"],
         "dynamodb": ["kms"],
-        # s3/rds/efs create canonical (:...)-[:ENCRYPTED_BY]->(:KMSKey) edges by
-        # matching existing KMSKey nodes on their ARN, so kms must sync first.
+        # s3/rds/efs create canonical (:...)-[:ENCRYPTED_BY]->(:AWSKMSKey) edges by
+        # matching existing AWSKMSKey nodes on their ARN, so kms must sync first.
         "s3": ["kms"],
         "rds": ["kms"],
         "efs": ["kms"],

@@ -151,7 +151,7 @@ class RDSInstanceToKMSKeyRelProperties(CartographyRelProperties):
 # Only created when the instance has a customer-managed KMS key (KmsKeyId is the
 # key ARN).
 class RDSInstanceToKMSKeyRel(CartographyRelSchema):
-    target_node_label: str = "KMSKey"
+    target_node_label: str = "AWSKMSKey"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"arn": PropertyRef("KmsKeyId")},
     )

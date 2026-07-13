@@ -12,7 +12,7 @@
   - S3:PutObject
   relationship_name: CAN_WRITE
 # Map principals that can retrieve data from DynamoDB.
-- target_label: DynamoDBTable
+- target_label: AWSDynamoDBTable
   permissions:
   - dynamodb:BatchGetItem
   - dynamodb:GetItem
@@ -21,7 +21,7 @@
   - dynamodb:Scan
   relationship_name: CAN_QUERY
 # Map principals that can write data to DynamoDB.
-- target_label: DynamoDBTable
+- target_label: AWSDynamoDBTable
   permissions:
   - dynamodb:PutItem
   - dynamodb:UpdateItem
@@ -29,7 +29,7 @@
   - dynamodb:BatchWriteItem
   relationship_name: CAN_WRITE
 # Map principals that can retrieve secrets from Secrets Manager.
-- target_label: SecretsManagerSecret
+- target_label: AWSSecretsManagerSecret
   permissions:
   - secretsmanager:GetSecretValue
   relationship_name: GET_SECRET
@@ -78,7 +78,7 @@
 # Two conditions must both hold (see issue #1643):
 #   1. the principal has ssm:StartSession on the instance, and
 #   2. the instance is actually managed by SSM, i.e. it has an
-#      (:EC2Instance)-[:HAS_INFORMATION]->(:SSMInstanceInformation) edge.
+#      (:EC2Instance)-[:HAS_INFORMATION]->(:AWSSSMInstanceInformation) edge.
 # The target_precondition enforces (2) so we don't draw CAN_START_SESSION edges
 # to instances the SSM agent never registered (where StartSession would fail).
 - target_label: EC2Instance
@@ -86,6 +86,6 @@
   - ssm:StartSession
   relationship_name: CAN_START_SESSION
   target_precondition:
-    related_label: SSMInstanceInformation
+    related_label: AWSSSMInstanceInformation
     relationship: HAS_INFORMATION
     direction: outgoing

@@ -60,7 +60,7 @@ aws_mapping = OntologyMapping(
             ],
         ),
         OntologyNodeMapping(
-            node_label="DynamoDBTable",
+            node_label="AWSDynamoDBTable",
             fields=[
                 OntologyFieldMapping(
                     ontology_field="name", node_field="name", required=True

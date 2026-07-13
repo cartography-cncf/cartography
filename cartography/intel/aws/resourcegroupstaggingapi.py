@@ -110,7 +110,7 @@ def get_resource_type_from_arn(arn: str) -> str:
 # TODO - we should make EC2 and S3 assets query-able by their full ARN so that we don't need this workaround.
 TAG_RESOURCE_TYPE_MAPPINGS: Dict = {
     "autoscaling:autoScalingGroup": {"label": "AutoScalingGroup", "property": "arn"},
-    "dynamodb:table": {"label": "DynamoDBTable", "property": "id"},
+    "dynamodb:table": {"label": "AWSDynamoDBTable", "property": "id"},
     "ec2:instance": {
         "label": "EC2Instance",
         "property": "id",
@@ -189,7 +189,7 @@ TAG_RESOURCE_TYPE_MAPPINGS: Dict = {
     },
     "elasticmapreduce:cluster": {"label": "EMRCluster", "property": "arn"},
     "es:domain": {"label": "ESDomain", "property": "arn"},
-    "kms:key": {"label": "KMSKey", "property": "arn"},
+    "kms:key": {"label": "AWSKMSKey", "property": "arn"},
     "iam:role": {"label": "AWSRole", "property": "arn"},
     "iam:user": {"label": "AWSUser", "property": "arn"},
     "lambda:function": {"label": "AWSLambda", "property": "id"},
@@ -200,7 +200,7 @@ TAG_RESOURCE_TYPE_MAPPINGS: Dict = {
     "rds:snapshot": {"label": "RDSSnapshot", "property": "id"},
     # Buckets are the only objects in the S3 service: https://docs.aws.amazon.com/AmazonS3/latest/dev/s3-arn-format.html
     "s3": {"label": "S3Bucket", "property": "id", "id_func": get_bucket_name_from_arn},
-    "secretsmanager:secret": {"label": "SecretsManagerSecret", "property": "id"},
+    "secretsmanager:secret": {"label": "AWSSecretsManagerSecret", "property": "id"},
     "sqs": {"label": "AWSSQSQueue", "property": "id"},
 }
 
@@ -375,9 +375,9 @@ _RESOURCE_CLEANUP_PATHS: Dict[str, str] = {
     "AWSRole": "(:AWSRole)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})",
     "AWSUser": "(:AWSUser)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})",
     "AWSGroup": "(:AWSGroup)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})",
-    "KMSKey": "(:KMSKey)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})",
+    "AWSKMSKey": "(:AWSKMSKey)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})",
     "AWSLambda": "(:AWSLambda)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})",
-    "DynamoDBTable": "(:DynamoDBTable)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})",
+    "AWSDynamoDBTable": "(:AWSDynamoDBTable)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})",
     "AutoScalingGroup": "(:AutoScalingGroup)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})",
     "EC2KeyPair": "(:EC2KeyPair)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})",
     "ECRRepository": "(:ECRRepository)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})",
@@ -399,8 +399,8 @@ _RESOURCE_CLEANUP_PATHS: Dict[str, str] = {
     "AWSLoadBalancer": ("(:AWSLoadBalancer)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})"),
     "AWSLoadBalancerV2": "(:AWSLoadBalancerV2)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})",
     "EMRCluster": "(:EMRCluster)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})",
-    "SecretsManagerSecret": (
-        "(:SecretsManagerSecret)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})"
+    "AWSSecretsManagerSecret": (
+        "(:AWSSecretsManagerSecret)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})"
     ),
     "AWSSQSQueue": "(:AWSSQSQueue)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})",
     "AWSInternetGateway": (
