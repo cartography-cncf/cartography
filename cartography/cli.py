@@ -667,6 +667,37 @@ class CLI:
                     hidden=PANEL_OKTA not in visible_panels,
                 ),
             ] = None,
+            okta_client_id: Annotated[
+                str | None,
+                typer.Option(
+                    "--okta-client-id",
+                    help="Okta API Services app client ID, for OAuth 2.0 client "
+                    "credentials authentication instead of an SSWS API key.",
+                    rich_help_panel=PANEL_OKTA,
+                    hidden=PANEL_OKTA not in visible_panels,
+                ),
+            ] = None,
+            okta_private_key_env_var: Annotated[
+                str | None,
+                typer.Option(
+                    "--okta-private-key-env-var",
+                    help="Environment variable name containing the Okta API Services "
+                    "app private key (JWK JSON or PEM) for private_key_jwt "
+                    "authentication.",
+                    rich_help_panel=PANEL_OKTA,
+                    hidden=PANEL_OKTA not in visible_panels,
+                ),
+            ] = None,
+            okta_dpop: Annotated[
+                bool,
+                typer.Option(
+                    "--okta-dpop",
+                    help="Enable DPoP sender-constrained tokens for Okta OAuth. "
+                    "Required if the Okta app enforces DPoP.",
+                    rich_help_panel=PANEL_OKTA,
+                    hidden=PANEL_OKTA not in visible_panels,
+                ),
+            ] = False,
             okta_base_domain: Annotated[
                 str,
                 typer.Option(
@@ -1890,6 +1921,15 @@ class CLI:
                 )
                 okta_api_key = os.environ.get(okta_api_key_env_var)
 
+            # Read Okta private key for OAuth 2.0 client credentials
+            okta_private_key = None
+            if okta_org_id and okta_private_key_env_var:
+                logger.debug(
+                    "Reading private key for Okta from environment variable %s",
+                    okta_private_key_env_var,
+                )
+                okta_private_key = os.environ.get(okta_private_key_env_var)
+
             # Read GitHub config
             github_config = None
             if github_config_env_var:
@@ -2357,6 +2397,9 @@ class CLI:
                 oci_sync_all_profiles=oci_sync_all_profiles,
                 okta_org_id=okta_org_id,
                 okta_api_key=okta_api_key,
+                okta_client_id=okta_client_id,
+                okta_private_key=okta_private_key,
+                okta_dpop=okta_dpop,
                 okta_base_domain=okta_base_domain,
                 okta_saml_role_regex=okta_saml_role_regex,
                 github_config=github_config,
