@@ -22,6 +22,48 @@ from cartography.util import timeit
 logger = logging.getLogger(__name__)
 stat_handler = get_stats_client(__name__)
 
+# Read-only OAuth scopes covering every API the Okta sync touches, requested
+# when authenticating with client credentials (OAuth for Okta). Each scope
+# must also be granted to the API Services app in the Okta admin console.
+OKTA_OAUTH_SCOPES = [
+    "okta.users.read",
+    "okta.groups.read",
+    "okta.apps.read",
+    "okta.trustedOrigins.read",
+    "okta.authenticators.read",
+    "okta.userTypes.read",
+]
+
+
+def _build_okta_client_config(config: Config) -> dict | None:
+    """
+    Build the okta-sdk-python client configuration from cartography config.
+
+    Two authentication modes are supported:
+    - OAuth 2.0 client credentials (preferred): set okta_client_id and
+      okta_private_key (an API Services app with private_key_jwt client
+      authentication). okta_dpop additionally enables DPoP sender-constrained
+      tokens for orgs/apps that require them.
+    - SSWS API token (legacy): set okta_api_key.
+
+    Returns None when no usable credentials are configured.
+    """
+    org_url = f"https://{config.okta_org_id}.{config.okta_base_domain}"
+    if config.okta_client_id and config.okta_private_key:
+        client_config: dict = {
+            "orgUrl": org_url,
+            "authorizationMode": "PrivateKey",
+            "clientId": config.okta_client_id,
+            "privateKey": config.okta_private_key,
+            "scopes": OKTA_OAUTH_SCOPES,
+        }
+        if config.okta_dpop:
+            client_config["dpopEnabled"] = True
+        return client_config
+    if config.okta_api_key:
+        return {"orgUrl": org_url, "token": config.okta_api_key}
+    return None
+
 
 @timeit
 def _cleanup_okta_organizations(
@@ -54,9 +96,11 @@ def start_okta_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
     :param config: A `cartography.config` object
     :return: Nothing
     """
-    if not config.okta_api_key:
+    okta_client_config = _build_okta_client_config(config)
+    if okta_client_config is None:
         logger.warning(
-            "No valid Okta credentials could be found. Exiting Okta sync stage.",
+            "No valid Okta credentials could be found: set an SSWS API key, or a "
+            "client id and private key for OAuth. Exiting Okta sync stage.",
         )
         return
 
@@ -67,12 +111,7 @@ def start_okta_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
         "OKTA_ORG_ID": config.okta_org_id,
     }
 
-    okta_client = OktaClient(
-        {
-            "orgUrl": f"https://{config.okta_org_id}.{config.okta_base_domain}",
-            "token": config.okta_api_key,
-        }
-    )
+    okta_client = OktaClient(okta_client_config)
 
     organization.sync_okta_organization(neo4j_session, common_job_parameters)
     user_ids = users.sync_okta_users(okta_client, neo4j_session, common_job_parameters)

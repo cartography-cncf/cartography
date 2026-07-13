@@ -89,7 +89,16 @@ class Config:
     :type okta_org_id: str
     :param okta_org_id: Okta organization id. Optional.
     :type okta_api_key: str
-    :param okta_api_key: Okta API key. Optional.
+    :param okta_api_key: Okta SSWS API key. Optional.
+    :type okta_client_id: str
+    :param okta_client_id: Okta API Services app client id for OAuth 2.0 client
+        credentials authentication. Optional.
+    :type okta_private_key: str
+    :param okta_private_key: Private key (JWK JSON or PEM) for the Okta API
+        Services app, used for private_key_jwt client authentication. Optional.
+    :type okta_dpop: bool
+    :param okta_dpop: Enable DPoP sender-constrained tokens for Okta OAuth.
+        Optional.
     :type okta_saml_role_regex: str
     :param okta_saml_role_regex: The regex used to map okta groups to AWS roles. Optional.
     :type github_config: str
@@ -328,6 +337,9 @@ class Config:
         oci_sync_all_profiles=None,
         okta_org_id=None,
         okta_api_key=None,
+        okta_client_id=None,
+        okta_private_key=None,
+        okta_dpop=False,
         okta_base_domain="okta.com",
         okta_saml_role_regex=None,
         github_config=None,
@@ -485,6 +497,9 @@ class Config:
         self.oci_sync_all_profiles = oci_sync_all_profiles
         self.okta_org_id = okta_org_id
         self.okta_api_key = okta_api_key
+        self.okta_client_id = okta_client_id
+        self.okta_private_key = okta_private_key
+        self.okta_dpop = okta_dpop
         self.okta_base_domain = okta_base_domain
         self.okta_saml_role_regex = okta_saml_role_regex
         self.github_config = github_config
