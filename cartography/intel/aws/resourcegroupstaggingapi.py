@@ -201,7 +201,7 @@ TAG_RESOURCE_TYPE_MAPPINGS: Dict = {
     # Buckets are the only objects in the S3 service: https://docs.aws.amazon.com/AmazonS3/latest/dev/s3-arn-format.html
     "s3": {"label": "S3Bucket", "property": "id", "id_func": get_bucket_name_from_arn},
     "secretsmanager:secret": {"label": "SecretsManagerSecret", "property": "id"},
-    "sqs": {"label": "SQSQueue", "property": "id"},
+    "sqs": {"label": "AWSSQSQueue", "property": "id"},
 }
 
 
@@ -402,7 +402,7 @@ _RESOURCE_CLEANUP_PATHS: Dict[str, str] = {
     "SecretsManagerSecret": (
         "(:SecretsManagerSecret)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})"
     ),
-    "SQSQueue": "(:SQSQueue)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})",
+    "AWSSQSQueue": "(:AWSSQSQueue)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})",
     "AWSInternetGateway": (
         "(:AWSInternetGateway)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})"
     ),

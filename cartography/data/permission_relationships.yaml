@@ -70,7 +70,7 @@
   - iam:PassRole
   relationship_name: CAN_PASS_ROLE
 # Map principals that can execute CloudFormation stacks.
-- target_label: CloudFormationStack
+- target_label: AWSCloudFormationStack
   permissions:
   - cloudformation:UpdateStack
   relationship_name: CAN_EXEC

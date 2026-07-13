@@ -136,7 +136,7 @@ Representation of a human or machine identity that interacts with Spacelift. Use
 
 Representation of the fundamental building block of Spacelift infrastructure management. A stack combines source code (from VCS), current state (e.g., Terraform state), and configuration (environment variables, mounted files) into an isolated, independent entity.
 
-> **Ontology Mapping**: This node has the extra label `CICDPipeline` to enable cross-platform queries for CI/CD pipeline definitions across different systems (e.g., CodeBuildProject, GitHubWorkflow, GitLabCIConfig).
+> **Ontology Mapping**: This node has the extra label `CICDPipeline` to enable cross-platform queries for CI/CD pipeline definitions across different systems (e.g., AWSCodeBuildProject, GitHubWorkflow, GitLabCIConfig).
 
 | Field | Description |
 |-------|-------------|

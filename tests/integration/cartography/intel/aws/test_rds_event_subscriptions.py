@@ -23,7 +23,7 @@ def _ensure_local_neo4j_has_test_sns_topics(neo4j_session):
     for topic_arn in TEST_RDS_EVENT_SUBSCRIPTION_TOPICS:
         neo4j_session.run(
             """
-            MERGE (topic:SNSTopic{arn: $topic_arn})
+            MERGE (topic:AWSSNSTopic{arn: $topic_arn})
             ON CREATE SET topic.firstseen = timestamp()
             SET topic.lastupdated = $update_tag
             """,
@@ -128,7 +128,7 @@ def test_sync_rds_event_subscriptions(neo4j_session):
         neo4j_session,
         "RDSEventSubscription",
         "id",
-        "SNSTopic",
+        "AWSSNSTopic",
         "arn",
         "NOTIFIES",
         rel_direction_right=True,

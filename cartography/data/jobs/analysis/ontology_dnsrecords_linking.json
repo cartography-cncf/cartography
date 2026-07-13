@@ -32,13 +32,13 @@
       "iterative": false
     },
     {
-      "__comment": "Link DNSRecord to CloudFrontDistribution via _ont_value (scalar)",
-      "query": "MATCH (dns:DNSRecord) WHERE dns._ont_value IS NOT NULL AND NOT dns:GCPRecordSet WITH dns MATCH (cf:CloudFrontDistribution) WHERE toLower(toString(dns._ont_value)) = toLower(cf.domain_name) MERGE (dns)-[r:DNS_POINTS_TO]->(cf) ON CREATE SET r.firstseen = timestamp() SET r.lastupdated = $UPDATE_TAG",
+      "__comment": "Link DNSRecord to AWSCloudFrontDistribution via _ont_value (scalar)",
+      "query": "MATCH (dns:DNSRecord) WHERE dns._ont_value IS NOT NULL AND NOT dns:GCPRecordSet WITH dns MATCH (cf:AWSCloudFrontDistribution) WHERE toLower(toString(dns._ont_value)) = toLower(cf.domain_name) MERGE (dns)-[r:DNS_POINTS_TO]->(cf) ON CREATE SET r.firstseen = timestamp() SET r.lastupdated = $UPDATE_TAG",
       "iterative": false
     },
     {
-      "__comment": "Link GCPRecordSet to CloudFrontDistribution via UNWIND on list-valued data",
-      "query": "MATCH (dns:GCPRecordSet) WHERE dns.data IS NOT NULL UNWIND dns.data AS val WITH dns, val MATCH (cf:CloudFrontDistribution) WHERE toLower(val) = toLower(cf.domain_name) MERGE (dns)-[r:DNS_POINTS_TO]->(cf) ON CREATE SET r.firstseen = timestamp() SET r.lastupdated = $UPDATE_TAG",
+      "__comment": "Link GCPRecordSet to AWSCloudFrontDistribution via UNWIND on list-valued data",
+      "query": "MATCH (dns:GCPRecordSet) WHERE dns.data IS NOT NULL UNWIND dns.data AS val WITH dns, val MATCH (cf:AWSCloudFrontDistribution) WHERE toLower(val) = toLower(cf.domain_name) MERGE (dns)-[r:DNS_POINTS_TO]->(cf) ON CREATE SET r.firstseen = timestamp() SET r.lastupdated = $UPDATE_TAG",
       "iterative": false
     },
     {

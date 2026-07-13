@@ -37,7 +37,7 @@ def test_sync_acm(mock_get_certs, neo4j_session):
         {"UPDATE_TAG": TEST_UPDATE_TAG, "AWS_ID": TEST_ACCOUNT_ID},
     )
 
-    assert check_nodes(neo4j_session, "ACMCertificate", ["arn", "domainname"]) == {
+    assert check_nodes(neo4j_session, "AWSACMCertificate", ["arn", "domainname"]) == {
         ("arn:aws:acm:us-east-1:000000000000:certificate/test-cert", "example.com")
     }
 
@@ -45,7 +45,7 @@ def test_sync_acm(mock_get_certs, neo4j_session):
         neo4j_session,
         "AWSAccount",
         "id",
-        "ACMCertificate",
+        "AWSACMCertificate",
         "arn",
         "RESOURCE",
         rel_direction_right=True,
@@ -53,7 +53,7 @@ def test_sync_acm(mock_get_certs, neo4j_session):
 
     assert check_rels(
         neo4j_session,
-        "ACMCertificate",
+        "AWSACMCertificate",
         "arn",
         "ELBV2Listener",
         "id",

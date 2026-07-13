@@ -1,5 +1,8 @@
 ## AWS Schema
 
+AWS resource labels are provider-prefixed. Labels that were historically
+unprefixed remain attached as compatibility aliases until v1.0.0, but new
+queries should use the documented `AWS*` labels.
 
 ### AWSAccount
 
@@ -65,8 +68,8 @@ Configured AWS sync accounts are marked `inscope=true`. Accounts discovered only
                                 :EC2SecurityGroup,
                                 :ElasticIPAddress,
                                 :ESDomain,
-                                :GuardDutyDetector,
-                                :GuardDutyFinding,
+                                :AWSGuardDutyDetector,
+                                :AWSGuardDutyFinding,
                                 :KMSAlias,
                                 :LaunchConfiguration,
                                 :LaunchTemplate,
@@ -78,8 +81,8 @@ Configured AWS sync accounts are marked `inscope=true`. Accounts discovered only
                                 :RDSEventSubscription,
                                 :ECRPullThroughCacheRule,
                                 :SecretsManagerSecret,
-                                :SecurityHub,
-                                :SQSQueue,
+                                :AWSSecurityHub,
+                                :AWSSQSQueue,
                                 :SSMInstanceInformation,
                                 :SSMInstancePatch,
                                 ...)
@@ -298,7 +301,7 @@ Representation of AWS [IAM Groups](https://docs.aws.amazon.com/IAM/latest/APIRef
     ```cypher
     ```
 
-### GuardDutyDetector
+### AWSGuardDutyDetector
 
 Representation of an AWS [GuardDuty Detector](https://docs.aws.amazon.com/guardduty/latest/APIReference/API_GetDetector.html).
 
@@ -319,17 +322,17 @@ Representation of an AWS [GuardDuty Detector](https://docs.aws.amazon.com/guardd
 
 - AWS Accounts can enable GuardDuty detectors
     ```cypher
-    (:AWSAccount)-[:RESOURCE]->(:GuardDutyDetector)
+    (:AWSAccount)-[:RESOURCE]->(:AWSGuardDutyDetector)
     ```
 
 - GuardDuty detectors generate GuardDuty findings
     ```cypher
-    (:GuardDutyDetector)<-[:DETECTED_BY]-(:GuardDutyFinding)
+    (:AWSGuardDutyDetector)<-[:DETECTED_BY]-(:AWSGuardDutyFinding)
     ```
 
 - "What regions have GuardDuty enabled?"
     ```cypher
-    MATCH (a:AWSAccount)-[:RESOURCE]->(d:GuardDutyDetector)
+    MATCH (a:AWSAccount)-[:RESOURCE]->(d:AWSGuardDutyDetector)
     RETURN DISTINCT a.name, d.region
     ```
 
@@ -337,14 +340,14 @@ Representation of an AWS [GuardDuty Detector](https://docs.aws.amazon.com/guardd
     ```cypher
     MATCH (a:AWSAccount)-[:RESOURCE]->(i:EC2Instance)
     WHERE NOT EXISTS {
-        MATCH (a)-[:RESOURCE]->(d:GuardDutyDetector{status: "ENABLED"})
+        MATCH (a)-[:RESOURCE]->(d:AWSGuardDutyDetector{status: "ENABLED"})
         WHERE d.region = i.region
     }
     RETURN a.name, i.instanceid, i.region
     ORDER BY a.name, i.region
     ```
 
-### GuardDutyFinding::Risk::SecurityIssue
+### AWSGuardDutyFinding::Risk::SecurityIssue
 
 Representation of an AWS [GuardDuty Finding](https://docs.aws.amazon.com/guardduty/latest/APIReference/API_Finding.html).
 
@@ -399,47 +402,47 @@ Representation of an AWS [GuardDuty Finding](https://docs.aws.amazon.com/guarddu
 
 - GuardDuty findings belong to AWS Accounts
     ```cypher
-    (:AWSAccount)-[:RESOURCE]->(:GuardDutyFinding)
+    (:AWSAccount)-[:RESOURCE]->(:AWSGuardDutyFinding)
     ```
 
 - GuardDuty findings link back to the detector that produced them
     ```cypher
-    (:GuardDutyFinding)-[:DETECTED_BY]->(:GuardDutyDetector)
+    (:AWSGuardDutyFinding)-[:DETECTED_BY]->(:AWSGuardDutyDetector)
     ```
 
 - GuardDuty API-call findings may link to the remote AWS account that triggered them when GuardDuty provides `RemoteAccountDetails`
     ```cypher
-    (:GuardDutyFinding)-[:REMOTE_ACCOUNT]->(:AWSAccount)
+    (:AWSGuardDutyFinding)-[:REMOTE_ACCOUNT]->(:AWSAccount)
     ```
 
 - GuardDuty findings may affect EC2 Instances
     ```cypher
-    (:GuardDutyFinding)-[:AFFECTS]->(:EC2Instance)
+    (:AWSGuardDutyFinding)-[:AFFECTS]->(:EC2Instance)
     ```
 
 - GuardDuty Kubernetes findings may affect EKS Clusters
     ```cypher
-    (:GuardDutyFinding)-[:AFFECTS]->(:EKSCluster)
+    (:AWSGuardDutyFinding)-[:AFFECTS]->(:EKSCluster)
     ```
 
 - GuardDuty findings may affect S3 Buckets
     ```cypher
-    (:GuardDutyFinding)-[:AFFECTS]->(:S3Bucket)
+    (:AWSGuardDutyFinding)-[:AFFECTS]->(:S3Bucket)
     ```
 
-- GuardDuty `AccessKey` findings affect the long-term IAM user access key reported in `AccessKeyDetails`. STS temporary credentials (`ASIA*`) used by assumed-role sessions are not ingested as `AccountAccessKey` nodes, so the assumed-role case is covered by the `AWSRole` edge below.
+- GuardDuty `AccessKey` findings affect the long-term IAM user access key reported in `AccessKeyDetails`. STS temporary credentials (`ASIA*`) used by assumed-role sessions are not ingested as `AWSAccountAccessKey` nodes, so the assumed-role case is covered by the `AWSRole` edge below.
     ```cypher
-    (:GuardDutyFinding)-[:AFFECTS]->(:AccountAccessKey)
+    (:AWSGuardDutyFinding)-[:AFFECTS]->(:AWSAccountAccessKey)
     ```
 
 - GuardDuty `AccessKey` findings with `UserType=IAMUser` affect the AWS IAM user
     ```cypher
-    (:GuardDutyFinding)-[:AFFECTS]->(:AWSUser)
+    (:AWSGuardDutyFinding)-[:AFFECTS]->(:AWSUser)
     ```
 
 - GuardDuty `AccessKey` findings with `UserType=AssumedRole` affect the assumed IAM role
     ```cypher
-    (:GuardDutyFinding)-[:AFFECTS]->(:AWSRole)
+    (:AWSGuardDutyFinding)-[:AFFECTS]->(:AWSRole)
     ```
 
 ### AWSInspectorFinding::Risk
@@ -918,10 +921,10 @@ Representation of an [AWSPrincipal](https://docs.aws.amazon.com/IAM/latest/APIRe
     (AWSPrincipal)-[MEMBER_OF]->(AWSGroup)
     ```
 
-- This AccountAccessKey is owned by the AWSUser it authenticates as.
+- This AWSAccountAccessKey is owned by the AWSUser it authenticates as.
 
     ```cypher
-    (AccountAccessKey)-[OWNED_BY]->(AWSUser)
+    (AWSAccountAccessKey)-[OWNED_BY]->(AWSUser)
     ```
 
 - AWS Roles can trust AWS Principals.
@@ -1007,10 +1010,10 @@ Representation of an [AWSUser](https://docs.aws.amazon.com/IAM/latest/APIReferen
     (AWSUser)-[STS_ASSUMEROLE_ALLOW]->(AWSRole)
     ```
 
-- This AccountAccessKey is owned by this AWSUser.
+- This AWSAccountAccessKey is owned by this AWSUser.
 
     ```cypher
-    (AccountAccessKey)-[OWNED_BY]->(AWSUser)
+    (AWSAccountAccessKey)-[OWNED_BY]->(AWSUser)
     ```
 
 - AWS Accounts contain AWS Users.
@@ -1375,11 +1378,11 @@ Representation of an AWS [Tag](https://docs.aws.amazon.com/resourcegroupstagging
     (RDSSnapshot)-[TAGGED]->(AWSTag)
     (RedshiftCluster)-[TAGGED]->(AWSTag)
     (S3Bucket)-[TAGGED]->(AWSTag)
-    (SQSQueue)-[TAGGED]->(AWSTag)
+    (AWSSQSQueue)-[TAGGED]->(AWSTag)
     (SecretsManagerSecret)-[TAGGED]->(AWSTag)
     ```
 
-### AccountAccessKey
+### AWSAccountAccessKey
 
 Representation of an AWS [Access Key](https://docs.aws.amazon.com/IAM/latest/APIReference/API_AccessKey.html).
 
@@ -1400,12 +1403,12 @@ Representation of an AWS [Access Key](https://docs.aws.amazon.com/IAM/latest/API
 #### Relationships
 - Account Access Keys may authenticate AWS Users and AWS Principal objects.
     ```
-    (:AWSUser, :AWSPrincipal)-[:AWS_ACCESS_KEY]->(:AccountAccessKey)
+    (:AWSUser, :AWSPrincipal)-[:AWS_ACCESS_KEY]->(:AWSAccountAccessKey)
     ```
 
 - Account Access Keys are a resource under the AWS Account.
     ```
-    (:AWSAccount)-[:RESOURCE]->(:AccountAccessKey)
+    (:AWSAccount)-[:RESOURCE]->(:AWSAccountAccessKey)
     ```
 
 ### AWSMfaDevice
@@ -1436,7 +1439,7 @@ Representation of an AWS [MFA Device](https://docs.aws.amazon.com/IAM/latest/API
     (AWSAccount)-[:RESOURCE]->(AWSMfaDevice)
     ```
 
-### CloudTrailTrail
+### AWSCloudTrailTrail
 
 Representation of an AWS [CloudTrail Trail](https://docs.aws.amazon.com/awscloudtrail/latest/APIReference/API_Trail.html).
 
@@ -1447,34 +1450,34 @@ Representation of an AWS [CloudTrail Trail](https://docs.aws.amazon.com/awscloud
 | **id** | The ARN of the trail (same as arn) |
 | arn | The ARN of the trail |
 | region | The AWS region |
-| cloudwatch_logs_log_group_arn | The ARN identifier representing the log group where the CloudTrailTrail delivers logs. |
-| cloudwatch_logs_role_arn | The role ARN that the CloudTrailTrail's CloudWatch Logs endpoint assumes. |
-| has_custom_event_selectors | Indicates if the CloudTrailTrail has custom event selectors. |
-| has_insight_selectors | Indicates if the CloudTrailTrail has insight types specified. |
-| home_region | The Region where the CloudTrailTrail was created. |
-| include_global_service_events | Indicates if the CloudTrailTrail includes AWS API calls from global services. |
-| is_multi_region_trail | Indicates if the CloudTrailTrail exists in one or all Regions. |
-| is_organization_trail | Indicates if the CloudTrailTrail is an organization trail. |
-| kms_key_id | The AWS KMS key ID that encrypts the CloudTrailTrail's delivered logs. |
-| log_file_validation_enabled | Indicates if log file validation is enabled for the CloudTrailTrail. |
-| event_selectors | JSON array of event selectors configured for the CloudTrailTrail. |
-| advanced_event_selectors | JSON array of advanced event selectors configured for the CloudTrailTrail. |
-| name | The name of the CloudTrailTrail. |
-| s3_bucket_name | The Amazon S3 bucket name where the CloudTrailTrail delivers files. |
-| s3_key_prefix | The S3 key prefix used after the bucket name for the CloudTrailTrail's log files. |
-| sns_topic_arn | The ARN of the SNS topic used by the CloudTrailTrail for delivery notifications. |
+| cloudwatch_logs_log_group_arn | The ARN identifier representing the log group where the AWSCloudTrailTrail delivers logs. |
+| cloudwatch_logs_role_arn | The role ARN that the AWSCloudTrailTrail's CloudWatch Logs endpoint assumes. |
+| has_custom_event_selectors | Indicates if the AWSCloudTrailTrail has custom event selectors. |
+| has_insight_selectors | Indicates if the AWSCloudTrailTrail has insight types specified. |
+| home_region | The Region where the AWSCloudTrailTrail was created. |
+| include_global_service_events | Indicates if the AWSCloudTrailTrail includes AWS API calls from global services. |
+| is_multi_region_trail | Indicates if the AWSCloudTrailTrail exists in one or all Regions. |
+| is_organization_trail | Indicates if the AWSCloudTrailTrail is an organization trail. |
+| kms_key_id | The AWS KMS key ID that encrypts the AWSCloudTrailTrail's delivered logs. |
+| log_file_validation_enabled | Indicates if log file validation is enabled for the AWSCloudTrailTrail. |
+| event_selectors | JSON array of event selectors configured for the AWSCloudTrailTrail. |
+| advanced_event_selectors | JSON array of advanced event selectors configured for the AWSCloudTrailTrail. |
+| name | The name of the AWSCloudTrailTrail. |
+| s3_bucket_name | The Amazon S3 bucket name where the AWSCloudTrailTrail delivers files. |
+| s3_key_prefix | The S3 key prefix used after the bucket name for the AWSCloudTrailTrail's log files. |
+| sns_topic_arn | The ARN of the SNS topic used by the AWSCloudTrailTrail for delivery notifications. |
 
 #### Relationships
 - CloudTrail Trails can be configured to log to S3 Buckets
     ```
-    (:CloudTrailTrail)-[:LOGS_TO]->(:S3Bucket)
+    (:AWSCloudTrailTrail)-[:LOGS_TO]->(:S3Bucket)
     ```
-- CloudTrail Trail can send logs to CloudWatchLogGroup.
+- CloudTrail Trail can send logs to AWSCloudWatchLogGroup.
     ```
-    (:CloudTrailTrail)-[:SENDS_LOGS_TO_CLOUDWATCH]->(:CloudWatchLogGroup)
+    (:AWSCloudTrailTrail)-[:SENDS_LOGS_TO_CLOUDWATCH]->(:AWSCloudWatchLogGroup)
     ```
 
-### CloudFrontDistribution
+### AWSCloudFrontDistribution
 
 Representation of an AWS [CloudFront Distribution](https://docs.aws.amazon.com/cloudfront/latest/APIReference/API_DistributionSummary.html).
 
@@ -1511,22 +1514,22 @@ CloudFront is AWS's global content delivery network (CDN) service. CloudFront di
 
 - CloudFront Distributions are resources in an AWS Account.
     ```
-    (:AWSAccount)-[:RESOURCE]->(:CloudFrontDistribution)
+    (:AWSAccount)-[:RESOURCE]->(:AWSCloudFrontDistribution)
     ```
 - CloudFront Distributions can serve content from S3 Buckets.
     ```
-    (:CloudFrontDistribution)-[:SERVES_FROM]->(:S3Bucket)
+    (:AWSCloudFrontDistribution)-[:SERVES_FROM]->(:S3Bucket)
     ```
 - CloudFront Distributions can use ACM Certificates for HTTPS.
     ```
-    (:CloudFrontDistribution)-[:USES_CERTIFICATE]->(:ACMCertificate)
+    (:AWSCloudFrontDistribution)-[:USES_CERTIFICATE]->(:AWSACMCertificate)
     ```
 - CloudFront Distributions can use Lambda@Edge functions.
     ```
-    (:CloudFrontDistribution)-[:USES_LAMBDA_EDGE]->(:AWSLambda)
+    (:AWSCloudFrontDistribution)-[:USES_LAMBDA_EDGE]->(:AWSLambda)
     ```
 
-### CloudWatchLogGroup
+### AWSCloudWatchLogGroup
 Representation of an AWS [CloudWatch Log Group](https://docs.aws.amazon.com/AmazonCloudWatchLogs/latest/APIReference/API_LogGroup.html)
 
 | Field | Description |
@@ -1548,10 +1551,10 @@ Representation of an AWS [CloudWatch Log Group](https://docs.aws.amazon.com/Amaz
 #### Relationships
 - CLoudWatch LogGroups are a resource under the AWS Account.
     ```
-    (AWSAccount)-[RESOURCE]->(CloudWatchLogGroup)
+    (AWSAccount)-[RESOURCE]->(AWSCloudWatchLogGroup)
     ```
 
-### CloudWatchMetricAlarm
+### AWSCloudWatchMetricAlarm
 Representation of an AWS [CloudWatch Metric Alarm](https://docs.aws.amazon.com/AmazonCloudWatch/latest/APIReference/API_DescribeAlarms.html)
 
 | Field | Description |
@@ -1570,10 +1573,10 @@ Representation of an AWS [CloudWatch Metric Alarm](https://docs.aws.amazon.com/A
 #### Relationships
 - CloudWatch Metric Alarms are a resource under the AWS Account.
     ```
-    (AWSAccount)-[RESOURCE]->(CloudWatchMetricAlarm)
+    (AWSAccount)-[RESOURCE]->(AWSCloudWatchMetricAlarm)
     ```
 
-### CloudWatchLogMetricFilter
+### AWSCloudWatchLogMetricFilter
 Representation of an AWS [CloudWatch Log Metric Filter](https://docs.aws.amazon.com/AmazonCloudWatchLogs/latest/APIReference/API_DescribeMetricFilters.html)
 
 | Field | Description |
@@ -1592,11 +1595,11 @@ Representation of an AWS [CloudWatch Log Metric Filter](https://docs.aws.amazon.
 #### Relationships
 - CLoudWatch Log Metric Filters are a resource under the AWS Account.
     ```
-    (AWSAccount)-[RESOURCE]->(CloudWatchLogMetricFilter)
+    (AWSAccount)-[RESOURCE]->(AWSCloudWatchLogMetricFilter)
     ```
-- CloudWatchLogMetricFilter associated with CloudWatchLogGroup via the METRIC_FILTER_OF relationship
+- AWSCloudWatchLogMetricFilter associated with AWSCloudWatchLogGroup via the METRIC_FILTER_OF relationship
     ```
-    (CloudWatchLogMetricFilter)-[METRIC_FILTER_OF]->(CloudWatchLogGroup)
+    (AWSCloudWatchLogMetricFilter)-[METRIC_FILTER_OF]->(AWSCloudWatchLogGroup)
     ```
 
 ### GlueConnection
@@ -1646,7 +1649,7 @@ Representation of an AWS [Glue Job](https://docs.aws.amazon.com/glue/latest/weba
     ```
 
 
-### CodeBuildProject
+### AWSCodeBuildProject
 Representation of an AWS [CodeBuild Project](https://docs.aws.amazon.com/codebuild/latest/APIReference/API_Project.html)
 
 > **Ontology Mapping**: This node has the extra label `CICDPipeline` to enable cross-platform queries for CI/CD pipeline definitions across different systems (e.g., GitHubWorkflow, GitLabCIConfig, SpaceliftStack).
@@ -1666,10 +1669,10 @@ Representation of an AWS [CodeBuild Project](https://docs.aws.amazon.com/codebui
 #### Relationships
 - CodeBuild Projects are a resource under the AWS Account.
     ```
-    (AWSAccount)-[RESOURCE]->(CodeBuildProject)
+    (AWSAccount)-[RESOURCE]->(AWSCodeBuildProject)
     ```
 
-### CognitoIdentityPool
+### AWSCognitoIdentityPool
 Representation of an AWS [Cognito Identity Pool](https://docs.aws.amazon.com/cognitoidentity/latest/APIReference/API_ListIdentityPools.html)
 
 | Field | Description |
@@ -1683,14 +1686,14 @@ Representation of an AWS [Cognito Identity Pool](https://docs.aws.amazon.com/cog
 #### Relationships
 - Cognito Identity Pools are a resource under the AWS Account.
     ```
-    (AWSAccount)-[RESOURCE]->(CognitoIdentityPool)
+    (AWSAccount)-[RESOURCE]->(AWSCognitoIdentityPool)
     ```
 - Cognito Identity Pools are associated with AWS Roles.
     ```
-    (CognitoIdentityPool)-[ASSOCIATED_WITH]->(AWSRole)
+    (AWSCognitoIdentityPool)-[ASSOCIATED_WITH]->(AWSRole)
     ```
 
-### CognitoUserPool
+### AWSCognitoUserPool
 Representation of an AWS [Cognito User Pool](https://docs.aws.amazon.com/cognito-user-identity-pools/latest/APIReference/API_ListUserPools.html)
 
 | Field | Description |
@@ -1705,7 +1708,7 @@ Representation of an AWS [Cognito User Pool](https://docs.aws.amazon.com/cognito
 #### Relationships
 - Cognito User Pools are a resource under the AWS Account.
     ```
-    (AWSAccount)-[RESOURCE]->(CognitoUserPool)
+    (AWSAccount)-[RESOURCE]->(AWSCognitoUserPool)
     ```
 
 ### DBSubnetGroup
@@ -3297,10 +3300,10 @@ Representation of an AWS Elastic Load Balancer V2 [Listener](https://docs.aws.am
     ```
 - ACM Certificates may be used by ELBV2Listeners.
     ```
-    (:ACMCertificate)-[:USED_BY]->(:ELBV2Listener)
+    (:AWSACMCertificate)-[:USED_BY]->(:ELBV2Listener)
     ```
 
-### EventBridgeRule
+### AWSEventBridgeRule
 Representation of an AWS [EventBridge Rule](https://docs.aws.amazon.com/eventbridge/latest/APIReference/API_ListRules.html)
 | Field | Description |
 |-------|-------------|
@@ -3320,14 +3323,14 @@ Representation of an AWS [EventBridge Rule](https://docs.aws.amazon.com/eventbri
 #### Relationships
 - EventBridge Rules are resource under the AWS Account.
     ```
-    (AWSAccount)-[RESOURCE]->(EventBridgeRule)
+    (AWSAccount)-[RESOURCE]->(AWSEventBridgeRule)
     ```
  - EventBridge Rules are associated with the AWS Role.
     ```
-    (EventBridgeRule)-[ASSOCIATED_WITH]->(AWSRole)
+    (AWSEventBridgeRule)-[ASSOCIATED_WITH]->(AWSRole)
     ```
 
-### EventBridgeTarget
+### AWSEventBridgeTarget
 Representation of an AWS [EventBridge Target](https://docs.aws.amazon.com/eventbridge/latest/APIReference/API_ListTargetsByRule.html)
 | Field | Description |
 |-------|-------------|
@@ -3341,11 +3344,11 @@ Representation of an AWS [EventBridge Target](https://docs.aws.amazon.com/eventb
 #### Relationships
 - EventBridge Targets are resource under the AWS Account.
     ```
-    (AWSAccount)-[RESOURCE]->(EventBridgeTarget)
+    (AWSAccount)-[RESOURCE]->(AWSEventBridgeTarget)
     ```
  - EventBridge Targets are linked with the EventBridge Rules.
     ```
-    (EventBridgeTarget)-[LINKED_TO_RULE]->(EventBridgeRule)
+    (AWSEventBridgeTarget)-[LINKED_TO_RULE]->(AWSEventBridgeRule)
     ```
 
 ### Ip
@@ -4021,7 +4024,7 @@ Representation of an AWS Relational Database Service [EventSubscription](https:/
 
 - RDS Event Subscriptions send notifications to SNS Topics.
     ```
-    (RDSEventSubscription)-[:NOTIFIES]->(SNSTopic)
+    (RDSEventSubscription)-[:NOTIFIES]->(AWSSNSTopic)
     ```
 
 - RDS Event Subscriptions monitor RDS Instances.
@@ -4183,7 +4186,7 @@ Representation of an AWS S3 [Bucket](https://docs.aws.amazon.com/AmazonS3/latest
 
 - S3 Buckets can send notifications to SNS Topics.
     ```
-    (S3Bucket)-[NOTIFIES]->(SNSTopic)
+    (S3Bucket)-[NOTIFIES]->(AWSSNSTopic)
     ```
 
 - AWSPrincipals with appropriate permissions can read from S3 buckets. Created from [permission_relationships.yaml](https://github.com/cartography-cncf/cartography/blob/master/cartography/data/permission_relationships.yaml).
@@ -4327,7 +4330,7 @@ Representation of an AWS [KMS Key Grant](https://docs.aws.amazon.com/kms/latest/
     (KMSGrant)-[:APPLIED_ON]->(KMSKey)
     ```
 
-### APIGatewayRestAPI
+### AWSAPIGatewayRestAPI
 
 Representation of an AWS [API Gateway REST API](https://docs.aws.amazon.com/apigateway/latest/api/API_GetRestApis.html).
 
@@ -4350,20 +4353,20 @@ Representation of an AWS [API Gateway REST API](https://docs.aws.amazon.com/apig
 
 - AWS API Gateway REST APIs are resources in an AWS Account.
     ```
-    (AWSAccount)-[RESOURCE]->(APIGatewayRestAPI)
+    (AWSAccount)-[RESOURCE]->(AWSAPIGatewayRestAPI)
     ```
 
 - AWS API Gateway REST APIs may be associated with an API Gateway Stage.
     ```
-    (APIGatewayRestAPI)-[ASSOCIATED_WITH]->(APIGatewayStage)
+    (AWSAPIGatewayRestAPI)-[ASSOCIATED_WITH]->(AWSAPIGatewayStage)
     ```
 
 - AWS API Gateway REST APIs may also have API Gateway Resource resources.
     ```
-    (APIGatewayRestAPI)-[RESOURCE]->(APIGatewayResource)
+    (AWSAPIGatewayRestAPI)-[RESOURCE]->(AWSAPIGatewayResource)
     ```
 
-### APIGatewayStage
+### AWSAPIGatewayStage
 
 Representation of an AWS [API Gateway Stage](https://docs.aws.amazon.com/apigateway/latest/developerguide/set-up-stages.html).
 
@@ -4385,15 +4388,15 @@ Representation of an AWS [API Gateway Stage](https://docs.aws.amazon.com/apigate
 
 - AWS API Gateway REST APIs may be associated with an API Gateway Stage.
     ```
-    (APIGatewayRestAPI)-[ASSOCIATED_WITH]->(APIGatewayStage)
+    (AWSAPIGatewayRestAPI)-[ASSOCIATED_WITH]->(AWSAPIGatewayStage)
     ```
 
 - AWS API Gateway Stage may also contain a Client Certificate.
     ```
-    (APIGatewayStage)-[HAS_CERTIFICATE]->(APIGatewayClientCertificate)
+    (AWSAPIGatewayStage)-[HAS_CERTIFICATE]->(AWSAPIGatewayClientCertificate)
     ```
 
-### APIGatewayClientCertificate
+### AWSAPIGatewayClientCertificate
 
 Representation of an AWS [API Gateway Client Certificate](https://docs.aws.amazon.com/apigateway/api-reference/resource/client-certificate/).
 
@@ -4409,10 +4412,10 @@ Representation of an AWS [API Gateway Client Certificate](https://docs.aws.amazo
 
 - AWS API Gateway Stage may also contain a Client Certificate.
     ```
-    (APIGatewayStage)-[HAS_CERTIFICATE]->(APIGatewayClientCertificate)
+    (AWSAPIGatewayStage)-[HAS_CERTIFICATE]->(AWSAPIGatewayClientCertificate)
     ```
 
-### APIGatewayDeployment
+### AWSAPIGatewayDeployment
 
 Representation of an AWS [API Gateway Deployment](https://docs.aws.amazon.com/apigateway/latest/api/API_GetDeployments.html).
 
@@ -4429,14 +4432,14 @@ Representation of an AWS [API Gateway Deployment](https://docs.aws.amazon.com/ap
 
 - AWS API Gateway Deployments are resources in an AWS Account.
     ```
-    (AWSAccount)-[RESOURCE]->(APIGatewayDeployment)
+    (AWSAccount)-[RESOURCE]->(AWSAPIGatewayDeployment)
     ```
 - AWS API Gateway REST APIs have deployments API Gateway Deployments.
     ```
-    (APIGatewayRestAPI)-[HAS_DEPLOYMENT]->(APIGatewayDeployment)
+    (AWSAPIGatewayRestAPI)-[HAS_DEPLOYMENT]->(AWSAPIGatewayDeployment)
     ```
 
-### ACMCertificate
+### AWSACMCertificate
 
 Representation of an AWS [ACM Certificate](https://docs.aws.amazon.com/acm/latest/APIReference/API_CertificateDetail.html).
 
@@ -4462,11 +4465,11 @@ Representation of an AWS [ACM Certificate](https://docs.aws.amazon.com/acm/lates
 
 - ACM Certificates are resources under the AWS Account.
     ```
-    (:AWSAccount)-[:RESOURCE]->(:ACMCertificate)
+    (:AWSAccount)-[:RESOURCE]->(:AWSACMCertificate)
     ```
 - ACM Certificates may be used by ELBV2Listeners.
     ```
-    (:ACMCertificate)-[:USED_BY]->(:ELBV2Listener)
+    (:AWSACMCertificate)-[:USED_BY]->(:ELBV2Listener)
     ```
   Note: the AWS ACM API may return a load balancer ARN for the `in_use_by` field instead of a listener ARN. To properly map the certificate to the listener in this situation, we need to rely on data from the ELBV2 module. This is a weird quirk of the AWS API.
 
@@ -4474,7 +4477,7 @@ Representation of an AWS [ACM Certificate](https://docs.aws.amazon.com/acm/lates
 
 Representation of an AWS [IAM Server Certificate](https://docs.aws.amazon.com/IAM/latest/APIReference/API_ServerCertificateMetadata.html).
 
-> **Ontology Mapping**: This node has the extra label `Certificate` to enable cross-platform queries for managed certificates across different systems (e.g., ACMCertificate, AzureKeyVaultCertificate).
+> **Ontology Mapping**: This node has the extra label `Certificate` to enable cross-platform queries for managed certificates across different systems (e.g., AWSACMCertificate, AzureKeyVaultCertificate).
 
 | Field | Description |
 |-------|-------------|
@@ -4495,7 +4498,7 @@ Representation of an AWS [IAM Server Certificate](https://docs.aws.amazon.com/IA
     (:AWSAccount)-[:RESOURCE]->(:AWSServerCertificate)
     ```
 
-### APIGatewayResource
+### AWSAPIGatewayResource
 
 Representation of an AWS [API Gateway Resource](https://docs.aws.amazon.com/apigateway/api-reference/resource/resource/).
 
@@ -4512,10 +4515,10 @@ Representation of an AWS [API Gateway Resource](https://docs.aws.amazon.com/apig
 
 - AWS API Gateway REST APIs may also have API Gateway Resource resources.
     ```
-    (APIGatewayRestAPI)-[RESOURCE]->(APIGatewayResource)
+    (AWSAPIGatewayRestAPI)-[RESOURCE]->(AWSAPIGatewayResource)
     ```
 
-### APIGatewayMethod
+### AWSAPIGatewayMethod
 
 Representation of an AWS [API Gateway Method](https://docs.aws.amazon.com/apigateway/latest/api/API_GetMethod.html).
 
@@ -4537,14 +4540,14 @@ Representation of an AWS [API Gateway Method](https://docs.aws.amazon.com/apigat
 
 - AWS API Gateway Methods are a resource under the AWS Account.
     ```
-    (AWSAccount)-[RESOURCE]->(APIGatewayMethod)
+    (AWSAccount)-[RESOURCE]->(AWSAPIGatewayMethod)
     ```
 - AWS API Gateway Methods are attached to API Gateway Resource .
     ```
-    (APIGatewayResource)-[HAS_METHOD]->(APIGatewayMethod)
+    (AWSAPIGatewayResource)-[HAS_METHOD]->(AWSAPIGatewayMethod)
     ```
 
-### APIGatewayIntegration
+### AWSAPIGatewayIntegration
 
 Representation of an AWS [API Gateway Integration](https://docs.aws.amazon.com/apigateway/latest/api/API_GetIntegration.html).
 
@@ -4567,14 +4570,14 @@ Representation of an AWS [API Gateway Integration](https://docs.aws.amazon.com/a
 
 - AWS API Gateway Integrations are a resource under the AWS Account.
     ```
-    (AWSAccount)-[RESOURCE]->(APIGatewayIntegration)
+    (AWSAccount)-[RESOURCE]->(AWSAPIGatewayIntegration)
     ```
 - AWS API Gateway Integrations are attached to API Gateway Resource .
     ```
-    (APIGatewayResource)-[HAS_INTEGRATION]->(APIGatewayIntegration)
+    (AWSAPIGatewayResource)-[HAS_INTEGRATION]->(AWSAPIGatewayIntegration)
     ```
 
-### APIGatewayV2API
+### AWSAPIGatewayV2API
 
 Representation of an AWS [API Gateway v2 API](https://docs.aws.amazon.com/apigatewayv2/latest/api-reference/apis.html#apisget).
 
@@ -4597,7 +4600,7 @@ Representation of an AWS [API Gateway v2 API](https://docs.aws.amazon.com/apigat
 
 - AWS API Gateway v2 APIs are resources in an AWS Account.
     ```
-    (:AWSAccount)-[:RESOURCE]->(:APIGatewayV2API)
+    (:AWSAccount)-[:RESOURCE]->(:AWSAPIGatewayV2API)
     ```
 
 ### AutoScalingGroup
@@ -4853,7 +4856,7 @@ Representation of an AWS [EBS Snapshot](https://docs.aws.amazon.com/AWSEC2/lates
     (EBSSnapshot)-[CREATED_FROM]->(EBSVolume)
     ```
 
-### SQSQueue
+### AWSSQSQueue
 
 Representation of an AWS [SQS Queue](https://docs.aws.amazon.com/AWSSimpleQueueService/latest/APIReference/API_GetQueueAttributes.html)
 
@@ -4884,15 +4887,15 @@ Representation of an AWS [SQS Queue](https://docs.aws.amazon.com/AWSSimpleQueueS
 
 - AWS SQS Queues are a resource under the AWS Account.
     ```
-    (AWSAccount)-[RESOURCE]->(SQSQueue)
+    (AWSAccount)-[RESOURCE]->(AWSSQSQueue)
     ```
 
 - AWS SQS Queues can have other SQS Queues configured as dead letter queues
     ```
-    (SQSQueue)-[HAS_DEADLETTER_QUEUE]->(SQSQueue)
+    (AWSSQSQueue)-[HAS_DEADLETTER_QUEUE]->(AWSSQSQueue)
     ```
 
-### SecurityHub
+### AWSSecurityHub
 
 Representation of the configuration of AWS [Security Hub](https://docs.aws.amazon.com/securityhub/1.0/APIReference/API_DescribeHub.html)
 
@@ -4908,7 +4911,7 @@ Representation of the configuration of AWS [Security Hub](https://docs.aws.amazo
 
 - AWS Security Hub nodes are a resource under the AWS Account.
     ```
-    (AWSAccount)-[RESOURCE]->(SecurityHub)
+    (AWSAccount)-[RESOURCE]->(AWSSecurityHub)
     ```
 
 ### AWSConfigurationRecorder
@@ -5557,7 +5560,7 @@ Representation of an AWS [EFS Access Point](https://docs.aws.amazon.com/efs/late
     (EfsFileSystem)-[:ENCRYPTED_BY]->(KMSKey)
     ```
 
-### SNSTopic
+### AWSSNSTopic
 Representation of an AWS [SNS Topic](https://docs.aws.amazon.com/sns/latest/api/API_Topic.html)
 | Field | Description |
 |-------|-------------|
@@ -5578,10 +5581,10 @@ Representation of an AWS [SNS Topic](https://docs.aws.amazon.com/sns/latest/api/
 #### Relationships
 - SNS Topics are a resource under the AWS Account.
     ```
-    (AWSAccount)-[RESOURCE]->(SNSTopic)
+    (AWSAccount)-[RESOURCE]->(AWSSNSTopic)
     ```
 
-### SNSTopicSubscription
+### AWSSNSTopicSubscription
 Representation of an AWS [SNS Topic Subscription](https://docs.aws.amazon.com/sns/latest/api/API_GetSubscriptionAttributes.html)
 
 | Field | Description |
@@ -5597,14 +5600,14 @@ Representation of an AWS [SNS Topic Subscription](https://docs.aws.amazon.com/sn
 #### Relationships
 - SNS Topic Subscriptions are a resource under the AWS Account.
     ```
-    (AWSAccount)-[RESOURCE]->(SNSTopicSubscription)
+    (AWSAccount)-[RESOURCE]->(AWSSNSTopicSubscription)
     ```
 - SNS Topic Subscriptions are associated with SNS Topics.
     ```
-    (:SNSTopicSubscription)-[HAS_SUBSCRIPTION]->(:SNSTopic)
+    (:AWSSNSTopicSubscription)-[HAS_SUBSCRIPTION]->(:AWSSNSTopic)
     ```
 
-### SESEmailIdentity
+### AWSSESEmailIdentity
 
 Representation of an AWS [SES Email Identity](https://docs.aws.amazon.com/ses/latest/APIReference-V2/API_GetEmailIdentity.html). An SES email identity is a domain or email address that you use to send email through Amazon Simple Email Service (SESv2).
 
@@ -5626,7 +5629,7 @@ Representation of an AWS [SES Email Identity](https://docs.aws.amazon.com/ses/la
 
 - SES Email Identities are resources under an AWS Account.
     ```
-    (AWSAccount)-[RESOURCE]->(SESEmailIdentity)
+    (AWSAccount)-[RESOURCE]->(AWSSESEmailIdentity)
     ```
 
 ### S3AccountPublicAccessBlock
@@ -6707,7 +6710,7 @@ Represents an [AWS SageMaker Model Package](https://docs.aws.amazon.com/sagemake
     (AWSSageMakerModelPackage)-[:REFERENCES_ARTIFACTS_IN]->(S3Bucket)
     ```
 
-### CloudFormationStack
+### AWSCloudFormationStack
 
 Representation of an AWS [CloudFormation Stack](https://docs.aws.amazon.com/AWSCloudFormation/latest/APIReference/API_Stack.html).
 
@@ -6734,16 +6737,16 @@ Representation of an AWS [CloudFormation Stack](https://docs.aws.amazon.com/AWSC
 
 - CloudFormation Stack is a resource under an AWS Account
     ```
-    (AWSAccount)-[:RESOURCE]->(CloudFormationStack)
+    (AWSAccount)-[:RESOURCE]->(AWSCloudFormationStack)
     ```
 
 - CloudFormation Stack uses an IAM Role for execution (if configured)
     ```
-    (CloudFormationStack)-[:HAS_EXECUTION_ROLE]->(AWSRole)
+    (AWSCloudFormationStack)-[:HAS_EXECUTION_ROLE]->(AWSRole)
     ```
 
 - An AWS Principal can escalate privileges via CloudFormation
     ```
-    (AWSPrincipal)-[:CAN_EXEC]->(CloudFormationStack)
+    (AWSPrincipal)-[:CAN_EXEC]->(AWSCloudFormationStack)
     ```
     **Note:** This edge is created for any principal with `cloudformation:UpdateStack` permission on a stack. However, true privilege escalation only occurs when the target stack has a service role (`role_arn` is set), because stacks without a service role execute with the caller's own permissions. Downstream consumers should filter on `role_arn IS NOT NULL` for high-confidence escalation paths.

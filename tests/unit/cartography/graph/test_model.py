@@ -84,6 +84,37 @@ def test_aws_primary_node_labels_use_provider_prefix():
     assert not errors, "AWS node label prefix violations:\n  - " + "\n  - ".join(errors)
 
 
+def test_migrated_aws_labels_keep_legacy_alias_until_v1():
+    migrations_by_new_label = {
+        migration.new_label: migration.old_label for migration in AWS_LABEL_MIGRATIONS
+    }
+    errors: List[str] = []
+
+    for module_name, element in load_models(cartography.models):
+        if module_name != "cartography.models.aws":
+            continue
+        if not issubclass(element, CartographyNodeSchema):
+            continue
+        old_label = migrations_by_new_label.get(element.label)
+        if old_label is None:
+            continue
+        node_schema = element()
+        extra_labels = (
+            node_schema.extra_node_labels.labels
+            if node_schema.extra_node_labels is not None
+            else []
+        )
+        if old_label not in extra_labels:
+            errors.append(
+                f"{element.__name__} must keep {old_label!r} as an alias "
+                "until v1.0.0.",
+            )
+
+    assert not errors, "Missing AWS compatibility aliases:\n  - " + "\n  - ".join(
+        errors
+    )
+
+
 def test_relationship_endpoint_labels_are_registered():
     model_objects = list(load_models(cartography.models))
     registered_labels: Set[str] = set(RELATION_ONLY_NODE_LABELS)

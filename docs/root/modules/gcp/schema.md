@@ -826,7 +826,7 @@ Representation of a GCP [Service Account](https://cloud.google.com/iam/docs/refe
 
 Representation of a user-managed GCP [Service Account Key](https://cloud.google.com/iam/docs/reference/rest/v1/projects.serviceAccounts.keys). System-managed keys (rotated automatically by Google) are not ingested.
 
-> **Ontology Mapping**: This node has the extra label `APIKey` to enable cross-platform queries for long-lived API credentials across different systems (e.g., AccountAccessKey, ScalewayApiKey).
+> **Ontology Mapping**: This node has the extra label `APIKey` to enable cross-platform queries for long-lived API credentials across different systems (e.g., AWSAccountAccessKey, ScalewayApiKey).
 
 | Field                | Description                                                                                            |
 | -------------------- | ------------------------------------------------------------------------------------------------------ |
@@ -859,7 +859,7 @@ Representation of a user-managed GCP [Service Account Key](https://cloud.google.
 
 Representation of a GCP [API Key](https://cloud.google.com/api-keys/docs/reference/rest/v2/projects.locations.keys) (`apikeys.googleapis.com`). These are the encrypted-string keys used to authenticate to public Google APIs, distinct from `GCPServiceAccountKey`. The secret key material (`keyString`) is never ingested.
 
-> **Ontology Mapping**: This node has the extra label `APIKey` to enable cross-platform queries for long-lived API credentials across different systems (e.g., AccountAccessKey, ScalewayApiKey).
+> **Ontology Mapping**: This node has the extra label `APIKey` to enable cross-platform queries for long-lived API credentials across different systems (e.g., AWSAccountAccessKey, ScalewayApiKey).
 
 | Field        | Description                                                                                   |
 | ------------ | --------------------------------------------------------------------------------------------- |

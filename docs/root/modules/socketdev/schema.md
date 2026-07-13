@@ -126,7 +126,7 @@ Represents an open-source dependency tracked by Socket.dev across the organizati
 
 Represents a security alert from Socket.dev. Alerts cover vulnerabilities (CVE), supply chain risks (malware, typosquatting), quality issues, maintenance concerns, and license violations.
 
-> **Ontology Mapping**: This node has the extra labels `Risk` and `SecurityIssue` to enable cross-platform queries for security findings (e.g., TrivyImageFinding, S1AppFinding, AWSInspectorFinding) and for non-CVE security issues across different tools (e.g., GuardDutyFinding, SemgrepSASTFinding, AzureSecurityAssessment).
+> **Ontology Mapping**: This node has the extra labels `Risk` and `SecurityIssue` to enable cross-platform queries for security findings (e.g., TrivyImageFinding, S1AppFinding, AWSInspectorFinding) and for non-CVE security issues across different tools (e.g., AWSGuardDutyFinding, SemgrepSASTFinding, AzureSecurityAssessment).
 
 | Field | Description |
 |-------|-------------|

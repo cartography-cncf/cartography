@@ -107,7 +107,7 @@ class GuardDutyFindingToGuardDutyDetectorRelRelProperties(CartographyRelProperti
 
 @dataclass(frozen=True)
 class GuardDutyFindingToGuardDutyDetectorRel(CartographyRelSchema):
-    target_node_label: str = "GuardDutyDetector"
+    target_node_label: str = "AWSGuardDutyDetector"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("detectorid")},
     )
@@ -179,7 +179,7 @@ class GuardDutyFindingToAccountAccessKeyRelRelProperties(CartographyRelPropertie
 
 @dataclass(frozen=True)
 class GuardDutyFindingToAccountAccessKeyRel(CartographyRelSchema):
-    target_node_label: str = "AccountAccessKey"
+    target_node_label: str = "AWSAccountAccessKey"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("access_key_id")},
     )
@@ -228,9 +228,12 @@ class GuardDutyFindingToAWSRoleRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class GuardDutyFindingSchema(CartographyNodeSchema):
-    label: str = "GuardDutyFinding"
+    label: str = "AWSGuardDutyFinding"
     properties: GuardDutyFindingNodeProperties = GuardDutyFindingNodeProperties()
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["Risk", "SecurityIssue"])
+    # DEPRECATED: GuardDutyFinding will be removed in v1.0.0.
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
+        ["GuardDutyFinding", "Risk", "SecurityIssue"]
+    )
     sub_resource_relationship: GuardDutyFindingToAWSAccountRel = (
         GuardDutyFindingToAWSAccountRel()
     )

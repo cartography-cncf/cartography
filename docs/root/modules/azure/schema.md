@@ -1952,7 +1952,7 @@ Representation of a [Key within an Azure Key Vault](https://learn.microsoft.com/
 
 Representation of a [Certificate within an Azure Key Vault](https://learn.microsoft.com/en-us/rest/api/keyvault/certificates/get-certificates).
 
-> **Ontology Mapping**: This node has the extra label `Certificate` to enable cross-platform queries for managed certificates across different systems (e.g., ACMCertificate, AWSServerCertificate).
+> **Ontology Mapping**: This node has the extra label `Certificate` to enable cross-platform queries for managed certificates across different systems (e.g., AWSACMCertificate, AWSServerCertificate).
 
 | Field | Description |
 |---|---|
@@ -2894,7 +2894,7 @@ Representation of an Azure Synapse [Managed Private Endpoint](https://learn.micr
 
 Representation of an Azure Security [Assessment](https://learn.microsoft.com/en-us/rest/api/defenderforcloud/assessments/get).
 
-> **Ontology Mapping**: This node has the extra label `SecurityIssue` to enable cross-scanner queries for non-CVE security issues across different tools (e.g., GuardDutyFinding, SemgrepSASTFinding, SemgrepSecretsFinding).
+> **Ontology Mapping**: This node has the extra label `SecurityIssue` to enable cross-scanner queries for non-CVE security issues across different tools (e.g., AWSGuardDutyFinding, SemgrepSASTFinding, SemgrepSecretsFinding).
 
 | Field | Description |
 |---|---|

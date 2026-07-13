@@ -27,7 +27,7 @@ def sync(
         update_tag,
     )
     # Derive `_ont_has_mfa` and `_ont_active` on AWSUser from related
-    # AWSMfaDevice and AccountAccessKey nodes, since AWS does not expose these
+    # AWSMfaDevice and AWSAccountAccessKey nodes, since AWS does not expose these
     # as direct properties on the IAM user (no credential report ingestion).
     run_analysis_job(
         "ontology_aws_user_projection.json",

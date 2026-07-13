@@ -446,7 +446,7 @@ def test_s3_sns_relationship(neo4j_session):
         neo4j_session,
         "S3Bucket",
         "id",
-        "SNSTopic",
+        "AWSSNSTopic",
         "arn",
         "NOTIFIES",
         rel_direction_right=True,

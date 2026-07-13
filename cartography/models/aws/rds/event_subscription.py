@@ -54,7 +54,7 @@ class RDSEventSubscriptionToSNSTopicRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class RDSEventSubscriptionToSNSTopicRel(CartographyRelSchema):
-    target_node_label: str = "SNSTopic"
+    target_node_label: str = "AWSSNSTopic"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {
             "arn": PropertyRef("SnsTopicArn"),

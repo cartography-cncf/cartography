@@ -1113,7 +1113,7 @@ def _load_s3_notifications(
     ingest_notifications = """
     UNWIND $notifications AS notification
     MATCH (bucket:S3Bucket{name: notification.bucket})
-    MATCH (topic:SNSTopic{arn: notification.TopicArn})
+    MATCH (topic:AWSSNSTopic{arn: notification.TopicArn})
     MERGE (bucket)-[r:NOTIFIES]->(topic)
     ON CREATE SET r.firstseen = timestamp()
     SET r.lastupdated = $UpdateTag

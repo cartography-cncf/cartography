@@ -3,6 +3,7 @@ from dataclasses import dataclass
 from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeProperties
 from cartography.models.core.nodes import CartographyNodeSchema
+from cartography.models.core.nodes import ExtraNodeLabels
 from cartography.models.core.relationships import CartographyRelProperties
 from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
@@ -82,7 +83,7 @@ class CloudTrailTrailToCloudWatchLogGroupRelProperties(CartographyRelProperties)
 
 @dataclass(frozen=True)
 class CloudTrailTrailToCloudWatchLogGroupRel(CartographyRelSchema):
-    target_node_label: str = "CloudWatchLogGroup"
+    target_node_label: str = "AWSCloudWatchLogGroup"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {
             "id": PropertyRef("CloudWatchLogsLogGroupArn"),
@@ -97,7 +98,9 @@ class CloudTrailTrailToCloudWatchLogGroupRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class CloudTrailTrailSchema(CartographyNodeSchema):
-    label: str = "CloudTrailTrail"
+    label: str = "AWSCloudTrailTrail"
+    # DEPRECATED: CloudTrailTrail will be removed in v1.0.0.
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["CloudTrailTrail"])
     properties: CloudTrailTrailNodeProperties = CloudTrailTrailNodeProperties()
     sub_resource_relationship: CloudTrailToAWSAccountRel = CloudTrailToAWSAccountRel()
     other_relationships: OtherRelationships = OtherRelationships(

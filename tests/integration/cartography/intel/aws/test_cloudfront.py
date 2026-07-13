@@ -18,7 +18,7 @@ TEST_UPDATE_TAG = 123456789
 
 def _cleanup_cloudfront(neo4j_session):
     """Remove CloudFront nodes from previous tests."""
-    neo4j_session.run("MATCH (n:CloudFrontDistribution) DETACH DELETE n")
+    neo4j_session.run("MATCH (n:AWSCloudFrontDistribution) DETACH DELETE n")
 
 
 @patch.object(
@@ -40,7 +40,7 @@ def test_sync_cloudfront_basic(mock_get_distributions, neo4j_session):
 
     # Pre-create ACM certificate node to test relationship
     neo4j_session.run(
-        "MERGE (:ACMCertificate {arn: $arn})",
+        "MERGE (:AWSACMCertificate {arn: $arn})",
         arn=f"arn:aws:acm:us-east-1:{TEST_ACCOUNT_ID}:certificate/test-cert-1",
     )
 
@@ -58,7 +58,7 @@ def test_sync_cloudfront_basic(mock_get_distributions, neo4j_session):
     # Verify CloudFront distribution node was created
     assert check_nodes(
         neo4j_session,
-        "CloudFrontDistribution",
+        "AWSCloudFrontDistribution",
         ["arn", "distribution_id", "domain_name", "enabled"],
     ) == {
         (
@@ -74,7 +74,7 @@ def test_sync_cloudfront_basic(mock_get_distributions, neo4j_session):
         neo4j_session,
         "AWSAccount",
         "id",
-        "CloudFrontDistribution",
+        "AWSCloudFrontDistribution",
         "arn",
         "RESOURCE",
         rel_direction_right=True,
@@ -88,7 +88,7 @@ def test_sync_cloudfront_basic(mock_get_distributions, neo4j_session):
     # Verify relationship to S3Bucket
     assert check_rels(
         neo4j_session,
-        "CloudFrontDistribution",
+        "AWSCloudFrontDistribution",
         "arn",
         "S3Bucket",
         "name",
@@ -101,12 +101,12 @@ def test_sync_cloudfront_basic(mock_get_distributions, neo4j_session):
         ),
     }
 
-    # Verify relationship to ACMCertificate
+    # Verify relationship to AWSACMCertificate
     assert check_rels(
         neo4j_session,
-        "CloudFrontDistribution",
+        "AWSCloudFrontDistribution",
         "arn",
-        "ACMCertificate",
+        "AWSACMCertificate",
         "arn",
         "USES_CERTIFICATE",
         rel_direction_right=True,
@@ -151,14 +151,14 @@ def test_sync_cloudfront_with_lambda(mock_get_distributions, neo4j_session):
     # Verify CloudFront distribution node was created
     assert check_nodes(
         neo4j_session,
-        "CloudFrontDistribution",
+        "AWSCloudFrontDistribution",
         ["distribution_id"],
     ) == {("E7F8G9H0I1J2K3",)}
 
     # Verify relationships to Lambda functions
     rels = check_rels(
         neo4j_session,
-        "CloudFrontDistribution",
+        "AWSCloudFrontDistribution",
         "arn",
         "AWSLambda",
         "arn",
@@ -200,7 +200,7 @@ def test_sync_cloudfront_custom_origin(mock_get_distributions, neo4j_session):
     # Verify CloudFront distribution node was created with expected properties
     assert check_nodes(
         neo4j_session,
-        "CloudFrontDistribution",
+        "AWSCloudFrontDistribution",
         ["distribution_id", "cloudfront_default_certificate", "geo_restriction_type"],
     ) == {("E9Z8Y7X6W5V4U3", True, "blacklist")}
 
@@ -208,7 +208,7 @@ def test_sync_cloudfront_custom_origin(mock_get_distributions, neo4j_session):
     assert (
         check_rels(
             neo4j_session,
-            "CloudFrontDistribution",
+            "AWSCloudFrontDistribution",
             "arn",
             "S3Bucket",
             "name",
@@ -252,7 +252,7 @@ def test_sync_cloudfront_multi_origin(mock_get_distributions, neo4j_session):
     # Verify relationships to multiple S3 buckets
     s3_rels = check_rels(
         neo4j_session,
-        "CloudFrontDistribution",
+        "AWSCloudFrontDistribution",
         "arn",
         "S3Bucket",
         "name",
@@ -273,7 +273,7 @@ def test_sync_cloudfront_multi_origin(mock_get_distributions, neo4j_session):
     # Verify relationship to Lambda from cache behaviors
     assert check_rels(
         neo4j_session,
-        "CloudFrontDistribution",
+        "AWSCloudFrontDistribution",
         "arn",
         "AWSLambda",
         "arn",
@@ -309,6 +309,6 @@ def test_sync_cloudfront_empty(mock_get_distributions, neo4j_session):
 
     # Verify no CloudFront distribution nodes created
     assert (
-        check_nodes(neo4j_session, "CloudFrontDistribution", ["distribution_id"])
+        check_nodes(neo4j_session, "AWSCloudFrontDistribution", ["distribution_id"])
         == set()
     )
