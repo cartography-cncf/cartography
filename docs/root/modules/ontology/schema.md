@@ -88,7 +88,7 @@ In this schema, `squares` represent `Abstract Nodes` and `hexagons` represent `S
 ### Where ontology relationships come from
 
 1. The abstract ontology node schemas (`User`, `Device`, `PublicIP`, `Package`) declare the edges they own to module nodes (e.g. `(:User)-[:HAS_ACCOUNT]->(:UserAccount)`).
-2. Ontology analysis jobs derive cross-module edges after sync (e.g. `ontology_users_linking.json` builds the `User`/`UserAccount` graph; `resolved_image_analysis.json` connects `Container` and `Function` to a single-platform `Image`).
+2. Ontology analysis jobs derive cross-module edges after sync (e.g. `USER_LINKING_JOBS` builds the `User`/`UserAccount` graph; `RESOLVED_IMAGE_JOBS` connects `Container` and `Function` to a single-platform `Image`).
 3. Sync modules wire edges between two ontology-labelled nodes themselves (e.g. ECS adding `(:ECSContainer:Container)-[:WORKLOAD_PARENT]->(:ECSTask:ComputePod)`). For this last source, canonical `(src, dst, label)` triples are encoded as `RelConstraint` entries in [`cartography/models/ontology/constraints.py`](https://github.com/cartography-cncf/cartography/blob/master/cartography/models/ontology/constraints.py); a unit test rejects any module rel between those two ontology labels that uses a different name or direction.
 
 ### Ontology Properties on Nodes
@@ -410,7 +410,7 @@ GCP Cloud Run Services, Jobs and Revisions are themselves **not** modeled as `Co
     (:Container)-[:HAS_IMAGE]->(:Image)
     (:Container)-[:HAS_IMAGE]->(:ImageManifestList)
     ```
-- `Container` is connected to a concrete single platform `Image` that actually ran via `RESOLVED_IMAGE`. This edge is produced by the `resolved_image_analysis.json` analysis job, which runs after the ontology stage. It is only created when the target can be deterministically identified:
+- `Container` is connected to a concrete single platform `Image` that actually ran via `RESOLVED_IMAGE`. This edge is produced by `RESOLVED_IMAGE_JOBS` in `cartography/analysis/ontology/analysis.py`, which runs after the ontology stage. It is only created when the target can be deterministically identified:
     - When `HAS_IMAGE` already points at an `:Image` (not `:ImageManifestList`), `RESOLVED_IMAGE` is created directly.
     - When `HAS_IMAGE` points at an `:ImageManifestList`, `RESOLVED_IMAGE` is created to the child `:Image` reached via `CONTAINS_IMAGE` whose architecture matches the container's `architecture_normalized`. If zero or more than one child match, no edge is created (determinism guard).
     ```
@@ -868,7 +868,7 @@ It generalizes concepts like AWS Lambda functions, GCP Cloud Functions, and Azur
 
 #### Relationships
 
-- `Function` is connected to the concrete single platform `Image` it actually ran via `RESOLVED_IMAGE`. This edge is produced by the `resolved_image_analysis.json` analysis job and covers container-based functions that expose a container image reference:
+- `Function` is connected to the concrete single platform `Image` it actually ran via `RESOLVED_IMAGE`. This edge is produced by `RESOLVED_IMAGE_JOBS` in `cartography/analysis/ontology/analysis.py` and covers container-based functions that expose a container image reference:
     - **AWSLambda** (`PackageType=Image`) has `HAS_IMAGE` on the node itself — `RESOLVED_IMAGE` is created directly.
     - **AzureFunctionApp** (`is_container=true`) has `HAS_IMAGE` on the node itself — `RESOLVED_IMAGE` is created directly.
     - **GCPCloudRunService** and **GCPCloudRunJob** do NOT carry `:Function`. They are orchestrators (analogous to `ECSService` and AWS Batch). Their per-container specs are materialized as child `GCPCloudRunServiceContainer` / `GCPCloudRunJobContainer` nodes that carry `:Container` and participate in `RESOLVED_IMAGE` via the `:Container` path.

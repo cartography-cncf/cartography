@@ -2216,7 +2216,7 @@ Our representation of an AWS [EC2 Instance](https://docs.aws.amazon.com/AWSEC2/l
 | launchtimeunix | The time the instance was launched in unix time |
 | region | The AWS region this Instance is running in|
 | exposed\_internet |  The `exposed_internet` flag on an EC2 instance is set to `True` when (1) the instance is part of an EC2 security group or is connected to a network interface connected to an EC2 security group that allows connectivity from the 0.0.0.0/0 subnet or (2) the instance is connected to an Elastic Load Balancer that has its own `exposed_internet` flag set to `True`. |
-| exposed\_internet\_type | A list indicating the type(s) of internet exposure. Possible values are `direct` (directly exposed via security group), `elb` (exposed via classic LoadBalancer), or `elbv2` (exposed via AWSLoadBalancerV2). Set by the `aws_ec2_asset_exposure` [analysis job](https://github.com/cartography-cncf/cartography/blob/master/cartography/data/jobs/analysis/aws_ec2_asset_exposure.json). |
+| exposed\_internet\_type | A list indicating the type(s) of internet exposure. Possible values are `direct` (directly exposed via security group), `elb` (exposed via classic LoadBalancer), or `elbv2` (exposed via AWSLoadBalancerV2). Set by the `AWS_EC2_ASSET_EXPOSURE_JOBS` analysis jobs in [cartography/analysis/aws/analysis.py](https://github.com/cartography-cncf/cartography/blob/master/cartography/analysis/aws/analysis.py). |
 | availabilityzone | The Availability Zone of the instance.|
 | tenancy | The tenancy of the instance.|
 | hostresourcegrouparn | The ARN of the host resource group in which to launch the instances.|
@@ -3538,7 +3538,7 @@ Represents an Elastic Load Balancer V2 ([Application Load Balancer](https://docs
 | name| The name of the load balancer|
 | **dnsname** | The DNS name of the load balancer. |
 | exposed_internet | The `exposed_internet` flag is set to `True` by the `aws_ec2_asset_exposure` analysis job when internet reachability is inferred. For NLBs (`type='network'`), this is based on `scheme='internet-facing'` and listener presence. For ALBs, this requires `scheme='internet-facing'` plus a security group path open from `0.0.0.0/0` to a listener port. |
-| exposed\_internet\_type | A list indicating the type(s) of internet exposure. Set by the `aws_ec2_asset_exposure` [analysis job](https://github.com/cartography-cncf/cartography/blob/master/cartography/data/jobs/analysis/aws_ec2_asset_exposure.json). |
+| exposed\_internet\_type | A list indicating the type(s) of internet exposure. Set by the `AWS_EC2_ASSET_EXPOSURE_JOBS` analysis jobs in [cartography/analysis/aws/analysis.py](https://github.com/cartography-cncf/cartography/blob/master/cartography/analysis/aws/analysis.py). |
 | **id** |  Currently set to the `dnsname` of the load balancer. |
 | arn | The Amazon Resource Name (ARN) of the load balancer. |
 | type | Can be `application` or `network` |
@@ -4627,8 +4627,8 @@ Representation of an AWS [Auto Scaling Group Resource](https://docs.aws.amazon.c
 | maxinstancelifetime | The maximum amount of time, in seconds, that an instance can be in service. |
 | capacityrebalance | Indicates whether Capacity Rebalancing is enabled. |
 | region | The region of the auto scaling group. |
-| exposed\_internet | Set to `True` if any EC2 instance in this Auto Scaling Group is exposed to the internet. Set by the `aws_ec2_asset_exposure` [analysis job](https://github.com/cartography-cncf/cartography/blob/master/cartography/data/jobs/analysis/aws_ec2_asset_exposure.json). |
-| exposed\_internet\_type | A list indicating the type(s) of internet exposure inherited from the EC2 instances in the group. Possible values are `direct`, `elb`, or `elbv2`. Set by the `aws_ec2_asset_exposure` [analysis job](https://github.com/cartography-cncf/cartography/blob/master/cartography/data/jobs/analysis/aws_ec2_asset_exposure.json). |
+| exposed\_internet | Set to `True` if any EC2 instance in this Auto Scaling Group is exposed to the internet. Set by the `AWS_EC2_ASSET_EXPOSURE_JOBS` analysis jobs in [cartography/analysis/aws/analysis.py](https://github.com/cartography-cncf/cartography/blob/master/cartography/analysis/aws/analysis.py). |
+| exposed\_internet\_type | A list indicating the type(s) of internet exposure inherited from the EC2 instances in the group. Possible values are `direct`, `elb`, or `elbv2`. Set by the `AWS_EC2_ASSET_EXPOSURE_JOBS` analysis jobs in [cartography/analysis/aws/analysis.py](https://github.com/cartography-cncf/cartography/blob/master/cartography/analysis/aws/analysis.py). |
 
 
 [Link to API Documentation](https://docs.aws.amazon.com/autoscaling/ec2/APIReference/API_AutoScalingGroup.html) of AWS Auto Scaling Groups
@@ -5448,7 +5448,7 @@ Representation of an AWS ECS [Container](https://docs.aws.amazon.com/AmazonECS/l
 | memory | The hard limit (in MiB) of memory set for the container. |
 | memory\_reservation | The soft limit (in MiB) of memory set for the container. |
 | gpu\_ids | The IDs of each GPU assigned to the container. |
-| exposed\_internet | Set to `True` if this container is exposed to the internet via an internet-facing load balancer. Set by the `aws_ecs_asset_exposure` [analysis job](https://github.com/cartography-cncf/cartography/blob/master/cartography/data/jobs/analysis/aws_ecs_asset_exposure.json). |
+| exposed\_internet | Set to `True` if this container is exposed to the internet via an internet-facing load balancer. Set by the `AWS_ECS_ASSET_EXPOSURE` analysis job in [cartography/analysis/aws/analysis.py](https://github.com/cartography-cncf/cartography/blob/master/cartography/analysis/aws/analysis.py). |
 
 #### Relationships
 

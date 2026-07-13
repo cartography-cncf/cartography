@@ -5,13 +5,16 @@ import pytest
 import cartography.intel.microsoft.intune.compliance_policies
 import cartography.intel.microsoft.intune.detected_apps
 import cartography.intel.microsoft.intune.managed_devices
+from cartography.analysis.microsoft.intune.analysis import (
+    INTUNE_COMPLIANCE_POLICY_DEVICE,
+)
 from cartography.intel.microsoft.intune.compliance_policies import (
     sync_compliance_policies,
 )
 from cartography.intel.microsoft.intune.detected_apps import sync_detected_apps
 from cartography.intel.microsoft.intune.managed_devices import sync_managed_devices
 from cartography.intel.microsoft.intune.reports import ExportedReportRows
-from cartography.util import run_scoped_analysis_job
+from cartography.util import run_typed_analysis_job
 from tests.data.microsoft.intune.compliance_policies import MOCK_COMPLIANCE_POLICIES
 from tests.data.microsoft.intune.compliance_policies import TEST_GROUP_ID
 from tests.data.microsoft.intune.detected_apps import MOCK_DETECTED_APP_AGGREGATE_ROWS
@@ -255,8 +258,8 @@ async def test_sync_intune(
         ("policy-002", TEST_TENANT_ID),
     }
 
-    run_scoped_analysis_job(
-        "intune_compliance_policy_device.json",
+    run_typed_analysis_job(
+        INTUNE_COMPLIANCE_POLICY_DEVICE,
         neo4j_session,
         common_job_parameters,
     )
