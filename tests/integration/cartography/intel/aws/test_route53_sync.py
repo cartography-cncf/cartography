@@ -157,7 +157,7 @@ def test_sync_route53(mock_get_zones, neo4j_session):
         ("/hostedzone/HOSTED_ZONE/ipv6.example.com/AAAA", "/hostedzone/HOSTED_ZONE"),
     }, "DNS records aren't connected to DNS zones"
 
-    assert check_nodes(neo4j_session, "NameServer", ["id", "name"]) == {
+    assert check_nodes(neo4j_session, "AWSNameServer", ["id", "name"]) == {
         (
             "ec2-1-2-3-4.us-east-2.compute.amazonaws.com",
             "ec2-1-2-3-4.us-east-2.compute.amazonaws.com",
@@ -169,7 +169,7 @@ def test_sync_route53(mock_get_zones, neo4j_session):
         neo4j_session,
         "AWSDNSRecord",
         "id",
-        "NameServer",
+        "AWSNameServer",
         "id",
         "DNS_POINTS_TO",
         rel_direction_right=True,
@@ -185,7 +185,7 @@ def test_sync_route53(mock_get_zones, neo4j_session):
         neo4j_session,
         "AWSDNSZone",
         "zoneid",
-        "NameServer",
+        "AWSNameServer",
         "id",
         "NAMESERVER",
         rel_direction_right=True,

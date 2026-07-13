@@ -10,7 +10,7 @@ You can specify your own permission mapping file using the `--permission-relatio
 #### Permission Mapping File
 The [permission relationship file](https://github.com/cartography-cncf/cartography/blob/master/cartography/data/permission_relationships.yaml) is a yaml file that specifies what permission relationships should be created in the graph. It consists of RPR (Resource Permission Relationship) sections that are going to map specific permissions between AWSPrincipals and resources
 ```yaml
-- target_label: S3Bucket
+- target_label: AWSS3Bucket
   permissions:
   - S3:GetObject
   relationship_name: CAN_READ
@@ -64,14 +64,14 @@ IAM policy statements can carry a `Condition` block (for example, restricting ac
 
 Exclude conditionally-gated access from an analysis:
 ```cypher
-MATCH (p:AWSPrincipal)-[r:CAN_READ]->(b:S3Bucket)
+MATCH (p:AWSPrincipal)-[r:CAN_READ]->(b:AWSS3Bucket)
 WHERE NOT r.has_condition
 RETURN p.arn, b.arn
 ```
 
 Find buckets only reachable when an IP-range condition holds:
 ```cypher
-MATCH (p:AWSPrincipal)-[r:CAN_READ]->(b:S3Bucket)
+MATCH (p:AWSPrincipal)-[r:CAN_READ]->(b:AWSS3Bucket)
 WHERE r.has_condition AND 'aws:SourceIp' IN r.condition_keys
 RETURN p.arn, b.arn, r.conditions
 ```

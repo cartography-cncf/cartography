@@ -91,7 +91,7 @@ def test_sync_cloudtrail(mock_get_trails, neo4j_session):
         neo4j_session,
         "AWSCloudTrailTrail",
         "arn",
-        "S3Bucket",
+        "AWSS3Bucket",
         "name",
         "LOGS_TO",
         rel_direction_right=True,

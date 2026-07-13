@@ -141,7 +141,7 @@ class ESDomainSchema(CartographyNodeSchema):
     flattened so each combination is a separate row.
     """
 
-    label: str = "ESDomain"
+    label: str = "AWSESDomain"
     properties: ESDomainNodeProperties = ESDomainNodeProperties()
     sub_resource_relationship: ESDomainToAWSAccountRel = ESDomainToAWSAccountRel()
     other_relationships: OtherRelationships = OtherRelationships(
@@ -150,4 +150,5 @@ class ESDomainSchema(CartographyNodeSchema):
             ESDomainToEC2SecurityGroupRel(),
         ],
     )
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["Database"])
+    # DEPRECATED: ESDomain will be removed in v1.0.0.
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["ESDomain", "Database"])

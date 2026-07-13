@@ -62,7 +62,7 @@ class AWSDNSRecordToNameServerRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class AWSDNSRecordToNameServerRel(CartographyRelSchema):
-    target_node_label: str = "NameServer"
+    target_node_label: str = "AWSNameServer"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {
             "id": PropertyRef("servers", one_to_many=True),
@@ -142,7 +142,7 @@ class AWSDNSRecordToESDomainRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class AWSDNSRecordToESDomainRel(CartographyRelSchema):
-    target_node_label: str = "ESDomain"
+    target_node_label: str = "AWSESDomain"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {
             "endpoint": PropertyRef("value"),

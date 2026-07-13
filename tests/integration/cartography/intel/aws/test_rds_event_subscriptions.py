@@ -104,7 +104,7 @@ def test_sync_rds_event_subscriptions(neo4j_session):
     }
     actual_nodes = check_nodes(
         neo4j_session,
-        "RDSEventSubscription",
+        "AWSRDSEventSubscription",
         ["id", "arn", "source_type", "status", "enabled"],
     )
     assert actual_nodes == expected_nodes
@@ -114,7 +114,7 @@ def test_sync_rds_event_subscriptions(neo4j_session):
         neo4j_session,
         "AWSAccount",
         "id",
-        "RDSEventSubscription",
+        "AWSRDSEventSubscription",
         "id",
         "RESOURCE",
         rel_direction_right=True,
@@ -126,7 +126,7 @@ def test_sync_rds_event_subscriptions(neo4j_session):
     # NOTIFIES
     assert check_rels(
         neo4j_session,
-        "RDSEventSubscription",
+        "AWSRDSEventSubscription",
         "id",
         "AWSSNSTopic",
         "arn",
@@ -140,9 +140,9 @@ def test_sync_rds_event_subscriptions(neo4j_session):
     # MONITORS db_instance
     assert check_rels(
         neo4j_session,
-        "RDSEventSubscription",
+        "AWSRDSEventSubscription",
         "id",
-        "RDSInstance",
+        "AWSRDSInstance",
         "db_instance_identifier",
         "MONITORS",
         rel_direction_right=True,
@@ -156,9 +156,9 @@ def test_sync_rds_event_subscriptions(neo4j_session):
     # MONITORS db_cluster
     assert check_rels(
         neo4j_session,
-        "RDSEventSubscription",
+        "AWSRDSEventSubscription",
         "id",
-        "RDSCluster",
+        "AWSRDSCluster",
         "db_cluster_identifier",
         "MONITORS",
         rel_direction_right=True,
@@ -172,9 +172,9 @@ def test_sync_rds_event_subscriptions(neo4j_session):
     # MONITORS db_snapshot
     assert check_rels(
         neo4j_session,
-        "RDSEventSubscription",
+        "AWSRDSEventSubscription",
         "id",
-        "RDSSnapshot",
+        "AWSRDSSnapshot",
         "db_snapshot_identifier",
         "MONITORS",
         rel_direction_right=True,

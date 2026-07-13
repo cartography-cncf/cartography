@@ -101,7 +101,7 @@ class CloudFrontDistributionToAWSAccountRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class CloudFrontDistributionToS3BucketRelProperties(CartographyRelProperties):
-    """Properties for the relationship between AWSCloudFrontDistribution and S3Bucket."""
+    """Properties for the relationship between AWSCloudFrontDistribution and AWSS3Bucket."""
 
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
@@ -109,13 +109,13 @@ class CloudFrontDistributionToS3BucketRelProperties(CartographyRelProperties):
 @dataclass(frozen=True)
 class CloudFrontDistributionToS3BucketRel(CartographyRelSchema):
     """
-    Defines the relationship from AWSCloudFrontDistribution to S3Bucket.
+    Defines the relationship from AWSCloudFrontDistribution to AWSS3Bucket.
 
     Created when a CloudFront distribution has S3 bucket origins.
-    (:AWSCloudFrontDistribution)-[:SERVES_FROM]->(:S3Bucket)
+    (:AWSCloudFrontDistribution)-[:SERVES_FROM]->(:AWSS3Bucket)
     """
 
-    target_node_label: str = "S3Bucket"
+    target_node_label: str = "AWSS3Bucket"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"name": PropertyRef("s3_origin_bucket_names", one_to_many=True)},
     )

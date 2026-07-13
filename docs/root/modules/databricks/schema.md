@@ -40,7 +40,7 @@ RM -- HAS_VERSION --> MV(DatabricksModelVersion)
 SC -- ASSUMES_ROLE --> AWS(AWSPrincipal)
 SC -- IMPERSONATES --> GSA(GCPServiceAccount)
 EL -- USES_CREDENTIAL --> SC
-EL -- BACKED_BY --> BKT(S3Bucket / GCPBucket)
+EL -- BACKED_BY --> BKT(AWSS3Bucket / GCPBucket)
 TB -- BACKED_BY --> BKT
 VOL -- BACKED_BY --> BKT
 U -- HAS_PRIVILEGE --> DS(DatabricksSecurable)
@@ -533,7 +533,7 @@ A named external storage location governed by Unity Catalog.
     (:DatabricksWorkspace)-[:RESOURCE]->(:DatabricksExternalLocation)
     (:DatabricksMetastore)-[:CONTAINS]->(:DatabricksExternalLocation)
     (:DatabricksExternalLocation)-[:USES_CREDENTIAL]->(:DatabricksStorageCredential)
-    (:DatabricksExternalLocation)-[:BACKED_BY]->(:S3Bucket)
+    (:DatabricksExternalLocation)-[:BACKED_BY]->(:AWSS3Bucket)
     (:DatabricksExternalLocation)-[:BACKED_BY]->(:GCPBucket)
     ```
 
@@ -614,7 +614,7 @@ A UC table or view. Carries the shared `DatabricksSecurable` label.
 ```
 (:DatabricksWorkspace)-[:RESOURCE]->(:DatabricksTable)
 (:DatabricksSchema)-[:CONTAINS]->(:DatabricksTable)
-(:DatabricksTable)-[:BACKED_BY]->(:S3Bucket | :GCPBucket)
+(:DatabricksTable)-[:BACKED_BY]->(:AWSS3Bucket | :GCPBucket)
 ```
 
 ### DatabricksVolume
@@ -640,7 +640,7 @@ A UC volume (managed or external file storage). Carries the shared
 ```
 (:DatabricksWorkspace)-[:RESOURCE]->(:DatabricksVolume)
 (:DatabricksSchema)-[:CONTAINS]->(:DatabricksVolume)
-(:DatabricksVolume)-[:BACKED_BY]->(:S3Bucket | :GCPBucket)
+(:DatabricksVolume)-[:BACKED_BY]->(:AWSS3Bucket | :GCPBucket)
 ```
 
 ### DatabricksFunction
@@ -1568,14 +1568,14 @@ Account-level workspace cloud configurations (AWS / GCP). Each is owned by the `
 ```
 (:DatabricksAccount)-[:RESOURCE]->(:DatabricksCredentialConfig)-[:ASSUMES_ROLE]->(:AWSPrincipal)
 (:DatabricksCredentialConfig)-[:IN_ACCOUNT]->(:AWSAccount)
-(:DatabricksStorageConfig)-[:BACKED_BY]->(:S3Bucket)
+(:DatabricksStorageConfig)-[:BACKED_BY]->(:AWSS3Bucket)
 (:DatabricksNetworkConfig)-[:USES_VPC]->(:AWSVpc)
 (:DatabricksNetworkConfig)-[:USES_SUBNET]->(:EC2Subnet)
 (:DatabricksNetworkConfig)-[:USES_SECURITY_GROUP]->(:EC2SecurityGroup)
 (:DatabricksVpcEndpoint)-[:POINTS_TO]->(:AWSVpcEndpoint)
 (:DatabricksEncryptionKey)-[:REFERENCES_KEY]->(:AWSKMSKey)
 (:DatabricksEncryptionKey)-[:REFERENCES_KEY]->(:GCPCryptoKey)
-(:DatabricksLogDelivery)-[:DELIVERS_TO]->(:S3Bucket)
+(:DatabricksLogDelivery)-[:DELIVERS_TO]->(:AWSS3Bucket)
 ```
 
 ### DatabricksAclObject

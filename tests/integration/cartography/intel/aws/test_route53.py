@@ -16,8 +16,8 @@ def _ensure_local_neo4j_has_test_route53_records(neo4j_session):
     """
     Populate graph with fake paths
     (:AWSAccount)--(:AWSDNSZone)--(:AWSDNSRecord),
-    (:AWSDNSZone)--(:NameServer),
-    (:AWSDNSRecord{type:"NS"})-[:DNS_POINTS_TO]->(:NameServer),
+    (:AWSDNSZone)--(:AWSNameServer),
+    (:AWSDNSRecord{type:"NS"})-[:DNS_POINTS_TO]->(:AWSNameServer),
     (:AWSDNSRecord)-[:DNS_POINTS_TO]->(:AWSDNSRecord),
     (:AWSDNSZone)-[:SUBZONE]->(:AWSDNSZone)
     based on fake data.

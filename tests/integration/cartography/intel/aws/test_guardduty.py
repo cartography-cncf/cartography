@@ -90,7 +90,7 @@ def test_sync_guardduty_findings(
 
     neo4j_session.run(
         """
-        MERGE (bucket:S3Bucket {id: $bucket_name})
+        MERGE (bucket:AWSS3Bucket {id: $bucket_name})
         ON CREATE SET bucket.firstseen = timestamp()
         SET bucket.lastupdated = $update_tag
         """,
@@ -186,7 +186,7 @@ def test_sync_guardduty_findings(
         ("96d3456789012cdef3456789012cdef01", 7.5, "AccessKey"),
         ("a7e4567890123def4567890123def45670", 7.8, "AccessKey"),
         ("b8f5678901234abcdef5678901234abcdef", 8.5, "EKSCluster"),
-        # Note: S3Bucket finding with severity 5.0 excluded by HIGH threshold
+        # Note: AWSS3Bucket finding with severity 5.0 excluded by HIGH threshold
     }
 
     # Assert - Check that finding date fields were populated from the expected API paths
@@ -331,7 +331,7 @@ def test_sync_guardduty_findings(
         neo4j_session,
         "AWSGuardDutyFinding",
         "id",
-        "S3Bucket",
+        "AWSS3Bucket",
         "id",
         "AFFECTS",
         rel_direction_right=True,
@@ -488,7 +488,7 @@ def test_sync_guardduty_aws_api_call_fields(
 
     neo4j_session.run(
         """
-        MERGE (bucket:S3Bucket {id: $bucket_name})
+        MERGE (bucket:AWSS3Bucket {id: $bucket_name})
         ON CREATE SET bucket.firstseen = timestamp()
         SET bucket.lastupdated = $update_tag
         """,
@@ -620,7 +620,7 @@ def test_sync_guardduty_aws_api_call_remote_account_without_matching_node(
 
     neo4j_session.run(
         """
-        MERGE (bucket:S3Bucket {id: $bucket_name})
+        MERGE (bucket:AWSS3Bucket {id: $bucket_name})
         ON CREATE SET bucket.firstseen = timestamp()
         SET bucket.lastupdated = $update_tag
         """,

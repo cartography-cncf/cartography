@@ -108,7 +108,7 @@ class RDSInstanceToRDSInstanceRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class RDSInstanceToRDSInstanceRel(CartographyRelSchema):
-    target_node_label: str = "RDSInstance"
+    target_node_label: str = "AWSRDSInstance"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {
             "db_instance_identifier": PropertyRef("read_replica_source_identifier"),
@@ -128,7 +128,7 @@ class RDSInstanceToRDSClusterRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class RDSInstanceToRDSClusterRel(CartographyRelSchema):
-    target_node_label: str = "RDSCluster"
+    target_node_label: str = "AWSRDSCluster"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {
             "db_cluster_identifier": PropertyRef("db_cluster_identifier"),
@@ -162,8 +162,9 @@ class RDSInstanceToKMSKeyRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class RDSInstanceSchema(CartographyNodeSchema):
-    label: str = "RDSInstance"
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["Database"])
+    label: str = "AWSRDSInstance"
+    # DEPRECATED: RDSInstance will be removed in v1.0.0.
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["RDSInstance", "Database"])
     properties: RDSInstanceNodeProperties = RDSInstanceNodeProperties()
     sub_resource_relationship: RDSInstanceToAWSAccountRel = RDSInstanceToAWSAccountRel()
     other_relationships: OtherRelationships = OtherRelationships(

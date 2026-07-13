@@ -76,9 +76,12 @@ class EfsFileSystemToKMSKeyRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class EfsFileSystemSchema(CartographyNodeSchema):
-    label: str = "EfsFileSystem"
+    label: str = "AWSEfsFileSystem"
     properties: EfsFileSystemNodeProperties = EfsFileSystemNodeProperties()
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["FileStorage"])
+    # DEPRECATED: EfsFileSystem will be removed in v1.0.0.
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
+        ["EfsFileSystem", "FileStorage"]
+    )
     sub_resource_relationship: EfsFileSystemToAWSAccountRel = (
         EfsFileSystemToAWSAccountRel()
     )

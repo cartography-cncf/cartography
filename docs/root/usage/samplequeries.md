@@ -35,14 +35,14 @@ RETURN *
 
 ### What [RDS](https://aws.amazon.com/rds/) instances are installed in my [AWS](https://aws.amazon.com/) accounts?
 ```cypher
-MATCH (aws:AWSAccount)-[r:RESOURCE]->(rds:RDSInstance)
+MATCH (aws:AWSAccount)-[r:RESOURCE]->(rds:AWSRDSInstance)
 RETURN *
 ```
 [test it locally](http://localhost:7474/browser/?preselectAuthMethod=NO_AUTH&db=neo4j&connectURL=bolt://neo4j:neo4j@localhost:7474&cmd=edit&arg=MATCH%20%28aws%3AAWSAccount%29-%5Br%3ARESOURCE%5D-%3E%28rds%3ARDSInstance%29%0ARETURN%20%2A)
 
 ### Which RDS instances have [encryption](https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/Overview.Encryption.html) turned off?
 ```cypher
-MATCH (a:AWSAccount)-[:RESOURCE]->(rds:RDSInstance{storage_encrypted:false})
+MATCH (a:AWSAccount)-[:RESOURCE]->(rds:AWSRDSInstance{storage_encrypted:false})
 RETURN a.name, rds.id
 ```
 [test it locally](http://localhost:7474/browser/?preselectAuthMethod=NO_AUTH&db=neo4j&connectURL=bolt://neo4j:neo4j@localhost:7474&cmd=edit&arg=MATCH%20%28a%3AAWSAccount%29-%5B%3ARESOURCE%5D-%3E%28rds%3ARDSInstance%7Bstorage_encrypted%3Afalse%7D%29%0ARETURN%20a.name%2C%20rds.id)
@@ -115,7 +115,7 @@ RETURN n, r, n2
 
 ### Which [S3](https://aws.amazon.com/s3/) buckets have a policy granting any level of anonymous access to the bucket?
 ```cypher
-MATCH (s:S3Bucket)
+MATCH (s:AWSS3Bucket)
 WHERE s.anonymous_access = true
 RETURN s
 ```
@@ -124,7 +124,7 @@ RETURN s
 ### How many unencrypted RDS instances do I have in all my AWS accounts?
 
 ```cypher
-MATCH (a:AWSAccount)-[:RESOURCE]->(rds:RDSInstance)
+MATCH (a:AWSAccount)-[:RESOURCE]->(rds:AWSRDSInstance)
 WHERE rds.storage_encrypted = false
 RETURN a.name as AWSAccount, count(rds) as UnencryptedInstances
 ```

@@ -13,14 +13,14 @@ def test_merge_module_sync_metadata(mock_stat_incr, neo4j_session):
     # Arrange
     group_type = "AWSAccount"
     group_id = TEST_ACCOUNT_ID
-    synced_type = "S3Bucket"
+    synced_type = "AWSS3Bucket"
     stat_handler = get_stats_client(__name__)
     expected_nodes = {
         (
             f"AWSAccount_{TEST_ACCOUNT_ID}_S3Bucket",
             "AWSAccount",
             TEST_ACCOUNT_ID,
-            "S3Bucket",
+            "AWSS3Bucket",
             TEST_UPDATE_TAG,
         ),
     }

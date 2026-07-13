@@ -33,7 +33,7 @@ aws_ebs_mapping = OntologyMapping(
             ],
         ),
         OntologyNodeMapping(
-            node_label="RDSSnapshot",
+            node_label="AWSRDSSnapshot",
             fields=[
                 OntologyFieldMapping(
                     ontology_field="name",

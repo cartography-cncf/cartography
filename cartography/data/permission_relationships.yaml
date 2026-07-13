@@ -1,13 +1,13 @@
-# Map principals that can read items from an S3Bucket. Specifically,
-# create an (:AWSPrincipal)-[:CAN_READ]->(:S3Bucket) relationship
+# Map principals that can read items from an AWSS3Bucket. Specifically,
+# create an (:AWSPrincipal)-[:CAN_READ]->(:AWSS3Bucket) relationship
 # for principals that have a policy attached with _any_ of the below
 # permissions. Similar logic applies for the other entries in this file.
-- target_label: S3Bucket
+- target_label: AWSS3Bucket
   permissions:
   - S3:GetObject
   relationship_name: CAN_READ
-# Map principals that can write items to an S3Bucket.
-- target_label: S3Bucket
+# Map principals that can write items to an AWSS3Bucket.
+- target_label: AWSS3Bucket
   permissions:
   - S3:PutObject
   relationship_name: CAN_WRITE
@@ -34,7 +34,7 @@
   - secretsmanager:GetSecretValue
   relationship_name: GET_SECRET
 # Map principals that can administer RedshiftClusters.
-- target_label: RedshiftCluster
+- target_label: AWSRedshiftCluster
   permissions:
   - redshift:*
   - redshift:CreateClusterUser
@@ -42,12 +42,12 @@
   - redshift:JoinGroup
   relationship_name: CAN_ADMINISTER
 # Map principals that can query RDS instances via IAM database authentication.
-- target_label: RDSInstance
+- target_label: AWSRDSInstance
   permissions:
   - rds-db:connect
   relationship_name: CAN_QUERY
 # Map principals that can administer RDS instances.
-- target_label: RDSInstance
+- target_label: AWSRDSInstance
   permissions:
   - rds:*
   - rds:ModifyDBInstance

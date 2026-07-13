@@ -161,7 +161,7 @@ class GuardDutyFindingToS3BucketRelRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class GuardDutyFindingToS3BucketRel(CartographyRelSchema):
-    target_node_label: str = "S3Bucket"
+    target_node_label: str = "AWSS3Bucket"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("resource_id")},
     )

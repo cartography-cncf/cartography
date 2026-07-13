@@ -67,7 +67,7 @@ Configured AWS sync accounts are marked `inscope=true`. Accounts discovered only
                                 :EC2ReservedInstance,
                                 :EC2SecurityGroup,
                                 :ElasticIPAddress,
-                                :ESDomain,
+                                :AWSESDomain,
                                 :AWSGuardDutyDetector,
                                 :AWSGuardDutyFinding,
                                 :AWSKMSAlias,
@@ -75,10 +75,10 @@ Configured AWS sync accounts are marked `inscope=true`. Accounts discovered only
                                 :LaunchTemplate,
                                 :LaunchTemplateVersion,
                                 :LoadBalancer,
-                                :RDSCluster,
-                                :RDSInstance,
-                                :RDSSnapshot,
-                                :RDSEventSubscription,
+                                :AWSRDSCluster,
+                                :AWSRDSInstance,
+                                :AWSRDSSnapshot,
+                                :AWSRDSEventSubscription,
                                 :ECRPullThroughCacheRule,
                                 :AWSSecretsManagerSecret,
                                 :AWSSecurityHub,
@@ -371,7 +371,7 @@ Representation of an AWS [GuardDuty Finding](https://docs.aws.amazon.com/guarddu
 | accountid | The ID of the AWS account in which the finding was generated |
 | region | The AWS Region where the finding was generated |
 | detectorid | The ID of the detector that generated the finding |
-| resource_type | The type of AWS resource affected (Instance, S3Bucket, AccessKey, etc.) |
+| resource_type | The type of AWS resource affected (Instance, AWSS3Bucket, AccessKey, etc.) |
 | resource_id | The identifier of the affected resource (instance ID, bucket name, etc.) |
 | eks_cluster_arn | For `EKSCluster` findings, the ARN of the affected EKS cluster reported by GuardDuty |
 | access_key_id | For `AccessKey` findings, the AWS access key ID reported by GuardDuty |
@@ -427,7 +427,7 @@ Representation of an AWS [GuardDuty Finding](https://docs.aws.amazon.com/guarddu
 
 - GuardDuty findings may affect S3 Buckets
     ```cypher
-    (:AWSGuardDutyFinding)-[:AFFECTS]->(:S3Bucket)
+    (:AWSGuardDutyFinding)-[:AFFECTS]->(:AWSS3Bucket)
     ```
 
 - GuardDuty `AccessKey` findings affect the long-term IAM user access key reported in `AccessKeyDetails`. STS temporary credentials (`ASIA*`) used by assumed-role sessions are not ingested as `AWSAccountAccessKey` nodes, so the assumed-role case is covered by the `AWSRole` edge below.
@@ -942,19 +942,19 @@ Representation of an [AWSPrincipal](https://docs.aws.amazon.com/IAM/latest/APIRe
 - Redshift clusters may assume IAM roles. See [this article](https://docs.aws.amazon.com/redshift/latest/mgmt/authorizing-redshift-service.html).
 
     ```
-    (RedshiftCluster)-[STS_ASSUMEROLE_ALLOW]->(AWSPrincipal)
+    (AWSRedshiftCluster)-[STS_ASSUMEROLE_ALLOW]->(AWSPrincipal)
     ```
 
 - AWSPrincipals with appropriate permissions can read from S3 buckets. Created from [permission_relationships.yaml](https://github.com/cartography-cncf/cartography/blob/master/cartography/data/permission_relationships.yaml).
 
     ```cypher
-    (AWSPrincipal)-[CAN_READ]->(S3Bucket)
+    (AWSPrincipal)-[CAN_READ]->(AWSS3Bucket)
     ```
 
 - AWSPrincipals with appropriate permissions can write to S3 buckets. Created from [permission_relationships.yaml](https://github.com/cartography-cncf/cartography/blob/master/cartography/data/permission_relationships.yaml).
 
     ```cypher
-    (AWSPrincipal)-[CAN_WRITE]->(S3Bucket)
+    (AWSPrincipal)-[CAN_WRITE]->(AWSS3Bucket)
     ```
 
 - AWSPrincipals with appropriate permissions can query DynamoDB tables. Created from [permission_relationships.yaml](https://github.com/cartography-cncf/cartography/blob/master/cartography/data/permission_relationships.yaml).
@@ -966,7 +966,7 @@ Representation of an [AWSPrincipal](https://docs.aws.amazon.com/IAM/latest/APIRe
 - AWSPrincipals with appropriate permissions can administer Redshift clusters. Created from [permission_relationships.yaml](https://github.com/cartography-cncf/cartography/blob/master/cartography/data/permission_relationships.yaml).
 
     ```cypher
-    (AWSPrincipal)-[CAN_ADMINISTER]->(RedshiftCluster)
+    (AWSPrincipal)-[CAN_ADMINISTER]->(AWSRedshiftCluster)
     ```
 
 - AWSPrincipals with `iam:PassRole` can pass an IAM role to an AWS service (e.g. attaching an instance profile to `ec2:RunInstances`, an execution role to `lambda:CreateFunction`, `ecs:RunTask`). Combined with a service-launch permission this is a privilege-escalation primitive. Created from [permission_relationships.yaml](https://github.com/cartography-cncf/cartography/blob/master/cartography/data/permission_relationships.yaml).
@@ -1319,7 +1319,7 @@ More information on https://docs.aws.amazon.com/cli/latest/reference/ec2/describ
         ```
 - Redshift clusters can be members of AWSVpcs.
     ```
-    (RedshiftCluster)-[MEMBER_OF_AWS_VPC]->(AWSVpc)
+    (AWSRedshiftCluster)-[MEMBER_OF_AWS_VPC]->(AWSVpc)
     ```
 - Peering connection where `AWSVpc` is an accepter or requester vpc.
   ```
@@ -1353,7 +1353,7 @@ Representation of an AWS [Tag](https://docs.aws.amazon.com/resourcegroupstagging
     (AWSUser)-[TAGGED]->(AWSTag)
     (AWSVpc)-[TAGGED]->(AWSTag)
     (AutoScalingGroup)-[TAGGED]->(AWSTag)
-    (DBSubnetGroup)-[TAGGED]->(AWSTag)
+    (AWSDBSubnetGroup)-[TAGGED]->(AWSTag)
     (AWSDynamoDBTable)-[TAGGED]->(AWSTag)
     (EBSVolume)-[TAGGED]->(AWSTag)
     (EC2Instance)-[TAGGED]->(AWSTag)
@@ -1367,17 +1367,17 @@ Representation of an AWS [Tag](https://docs.aws.amazon.com/resourcegroupstagging
     (ECSTask)-[TAGGED]->(AWSTag)
     (ECSTaskDefinition)-[TAGGED]->(AWSTag)
     (EKSCluster)-[TAGGED]->(AWSTag)
-    (EMRCluster)-[TAGGED]->(AWSTag)
-    (ESDomain)-[TAGGED]->(AWSTag)
+    (AWSEMRCluster)-[TAGGED]->(AWSTag)
+    (AWSESDomain)-[TAGGED]->(AWSTag)
     (ElasticIPAddress)-[TAGGED]->(AWSTag)
-    (ElasticacheCluster)-[TAGGED]->(AWSTag)
+    (AWSElasticacheCluster)-[TAGGED]->(AWSTag)
     (AWSKMSKey)-[TAGGED]->(AWSTag)
     (NetworkInterface)-[TAGGED]->(AWSTag)
-    (RDSCluster)-[TAGGED]->(AWSTag)
-    (RDSInstance)-[TAGGED]->(AWSTag)
-    (RDSSnapshot)-[TAGGED]->(AWSTag)
-    (RedshiftCluster)-[TAGGED]->(AWSTag)
-    (S3Bucket)-[TAGGED]->(AWSTag)
+    (AWSRDSCluster)-[TAGGED]->(AWSTag)
+    (AWSRDSInstance)-[TAGGED]->(AWSTag)
+    (AWSRDSSnapshot)-[TAGGED]->(AWSTag)
+    (AWSRedshiftCluster)-[TAGGED]->(AWSTag)
+    (AWSS3Bucket)-[TAGGED]->(AWSTag)
     (AWSSQSQueue)-[TAGGED]->(AWSTag)
     (AWSSecretsManagerSecret)-[TAGGED]->(AWSTag)
     ```
@@ -1470,7 +1470,7 @@ Representation of an AWS [CloudTrail Trail](https://docs.aws.amazon.com/awscloud
 #### Relationships
 - CloudTrail Trails can be configured to log to S3 Buckets
     ```
-    (:AWSCloudTrailTrail)-[:LOGS_TO]->(:S3Bucket)
+    (:AWSCloudTrailTrail)-[:LOGS_TO]->(:AWSS3Bucket)
     ```
 - CloudTrail Trail can send logs to AWSCloudWatchLogGroup.
     ```
@@ -1518,7 +1518,7 @@ CloudFront is AWS's global content delivery network (CDN) service. CloudFront di
     ```
 - CloudFront Distributions can serve content from S3 Buckets.
     ```
-    (:AWSCloudFrontDistribution)-[:SERVES_FROM]->(:S3Bucket)
+    (:AWSCloudFrontDistribution)-[:SERVES_FROM]->(:AWSS3Bucket)
     ```
 - CloudFront Distributions can use ACM Certificates for HTTPS.
     ```
@@ -1602,7 +1602,7 @@ Representation of an AWS [CloudWatch Log Metric Filter](https://docs.aws.amazon.
     (AWSCloudWatchLogMetricFilter)-[METRIC_FILTER_OF]->(AWSCloudWatchLogGroup)
     ```
 
-### GlueConnection
+### AWSGlueConnection
 Representation of an AWS [Glue Connection](https://docs.aws.amazon.com/glue/latest/webapi/API_GetConnections.html)
 
 | Field | Description |
@@ -1621,10 +1621,10 @@ Representation of an AWS [Glue Connection](https://docs.aws.amazon.com/glue/late
 #### Relationships
 - Glue Connections are a resource under the AWS Account.
     ```
-    (AWSAccount)-[RESOURCE]->(GlueConnection)
+    (AWSAccount)-[RESOURCE]->(AWSGlueConnection)
     ```
 
-### GlueJob
+### AWSGlueJob
 Representation of an AWS [Glue Job](https://docs.aws.amazon.com/glue/latest/webapi/API_GetJobs.html)
 
 | Field | Description |
@@ -1641,11 +1641,11 @@ Representation of an AWS [Glue Job](https://docs.aws.amazon.com/glue/latest/weba
 #### Relationships
 - Glue Jobs are a resource under the AWS Account.
     ```
-    (AWSAccount)-[RESOURCE]->(GlueJob)
+    (AWSAccount)-[RESOURCE]->(AWSGlueJob)
     ```
 - Glue Jobs use Glue Connections.
     ```
-    (GlueJob)-[USES]->(GlueConnection)
+    (AWSGlueJob)-[USES]->(AWSGlueConnection)
     ```
 
 
@@ -1711,15 +1711,15 @@ Representation of an AWS [Cognito User Pool](https://docs.aws.amazon.com/cognito
     (AWSAccount)-[RESOURCE]->(AWSCognitoUserPool)
     ```
 
-### DBSubnetGroup
+### AWSDBSubnetGroup
 
 Representation of an RDS [DB Subnet Group](https://docs.aws.amazon.com/AmazonRDS/latest/APIReference/API_DBSubnetGroup.html).  For more information on how RDS instances interact with these, please see [this article](https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/USER_VPC.WorkingWithRDSInstanceinaVPC.html).
 
 | Field | Description |
 |-------|-------------|
 |firstseen| Timestamp of when a sync job first discovered this node |
-|id| The ARN of the DBSubnetGroup|
-|name | The name of DBSubnetGroup |
+|id| The ARN of the AWSDBSubnetGroup|
+|name | The name of AWSDBSubnetGroup |
 |lastupdated| Timestamp of the last time the node was updated|
 |description| Description of the DB Subnet Group|
 |status| The status of the group |
@@ -1730,17 +1730,17 @@ Representation of an RDS [DB Subnet Group](https://docs.aws.amazon.com/AmazonRDS
 
 - RDS Instances are part of DB Subnet Groups
     ```
-    (RDSInstance)-[:MEMBER_OF_DB_SUBNET_GROUP]->(DBSubnetGroup)
+    (AWSRDSInstance)-[:MEMBER_OF_DB_SUBNET_GROUP]->(AWSDBSubnetGroup)
     ```
 
 - DB Subnet Groups consist of EC2 Subnets
     ```
-    (DBSubnetGroup)-[:RESOURCE]->(EC2Subnet)
+    (AWSDBSubnetGroup)-[:RESOURCE]->(EC2Subnet)
     ```
 
 -  DB Subnet Groups can be tagged with AWSTags.
     ```
-    (DBSubnetGroup)-[TAGGED]->(AWSTag)
+    (AWSDBSubnetGroup)-[TAGGED]->(AWSTag)
     ```
 
 
@@ -1809,7 +1809,7 @@ Representation of an AWS DNS [ResourceRecordSet](https://docs.aws.amazon.com/Rou
 
 - AWSDNSRecords can point to LoadBalancers.
     ```
-    (:AWSDNSRecord)-[:DNS_POINTS_TO]->(:LoadBalancer, :ESDomain)
+    (:AWSDNSRecord)-[:DNS_POINTS_TO]->(:LoadBalancer, :AWSESDomain)
     ```
 
 - AWSDNSRecords can point to ElasticIPAddresses.
@@ -1876,7 +1876,7 @@ Representation of an AWS DNS [HostedZone](https://docs.aws.amazon.com/Route53/la
     ```
 
 
-### NameServer
+### AWSNameServer
 
 Representation of a DNS name server associated with an AWS Route53 hosted zone.
 
@@ -1892,12 +1892,12 @@ Representation of a DNS name server associated with an AWS Route53 hosted zone.
 
 - NameServers belong to AWS Accounts.
     ```
-    (AWSAccount)-[RESOURCE]->(NameServer)
+    (AWSAccount)-[RESOURCE]->(AWSNameServer)
     ```
 
 - NameServers are associated with AWSDNSZones.
     ```
-    (AWSDNSZone)-[NAMESERVER]->(NameServer)
+    (AWSDNSZone)-[NAMESERVER]->(AWSNameServer)
     ```
 
 
@@ -2460,10 +2460,10 @@ Representation of an AWS EC2 [Security Group](https://docs.aws.amazon.com/AWSEC2
     (EC2Instance,
         NetworkInterface,
         LoadBalancer,
-        ESDomain,
+        AWSESDomain,
         IpRule,
         IpPermissionInbound,
-        RDSInstance,
+        AWSRDSInstance,
         AWSVpc)-[MEMBER_OF_EC2_SECURITY_GROUP]->(EC2SecurityGroup)
     ```
 
@@ -2489,7 +2489,7 @@ Representation of an AWS EC2 [Security Group](https://docs.aws.amazon.com/AWSEC2
 
 - Redshift clusters can be members of EC2 Security Groups.
     ```
-    (RedshiftCluster)-[MEMBER_OF_EC2_SECURITY_GROUP]->(EC2SecurityGroup)
+    (AWSRedshiftCluster)-[MEMBER_OF_EC2_SECURITY_GROUP]->(EC2SecurityGroup)
     ```
 
 
@@ -2551,7 +2551,7 @@ Representation of an AWS EC2 [Subnet](https://docs.aws.amazon.com/AWSEC2/latest/
 
 - DB Subnet Groups consist of EC2 Subnets
     ```
-    (DBSubnetGroup)-[RESOURCE]->(EC2Subnet)
+    (AWSDBSubnetGroup)-[RESOURCE]->(EC2Subnet)
     ```
 
 
@@ -3144,7 +3144,7 @@ Representation of an AWS [EKS Cluster](https://docs.aws.amazon.com/eks/latest/AP
            c.certificate_authority_parse_error
     ORDER BY c.certificate_authority_parse_status, c.name;
     ```
-### EMRCluster
+### AWSEMRCluster
 
 Representation of an AWS [EMR Cluster](https://docs.aws.amazon.com/emr/latest/APIReference/API_Cluster.html).
 
@@ -3180,15 +3180,15 @@ Representation of an AWS [EMR Cluster](https://docs.aws.amazon.com/emr/latest/AP
 
 - EMR Clusters belong to AWS Accounts.
     ```
-    (AWSAccount)-[RESOURCE]->(EMRCluster)
+    (AWSAccount)-[RESOURCE]->(AWSEMRCluster)
     ```
 
 
-### ESDomain::Database
+### AWSESDomain::Database
 
 Representation of an AWS [ElasticSearch Domain](https://docs.aws.amazon.com/elasticsearch-service/latest/developerguide/es-configuration-api.html#es-configuration-api-datatypes) (see ElasticsearchDomainConfig).
 
-> **Ontology Mapping**: This node has the extra label `Database` to enable cross-platform queries for database instances across different systems (e.g., RDSInstance, AWSDynamoDBTable, AzureSQLDatabase, GCPBigtableInstance).
+> **Ontology Mapping**: This node has the extra label `Database` to enable cross-platform queries for database instances across different systems (e.g., AWSRDSInstance, AWSDynamoDBTable, AzureSQLDatabase, GCPBigtableInstance).
 
 | Field | Description |
 |-------|-------------|
@@ -3212,17 +3212,17 @@ Representation of an AWS [ElasticSearch Domain](https://docs.aws.amazon.com/elas
 
 - Elastic Search domains can be members of EC2 Security Groups.
     ```
-    (ESDomain)-[MEMBER_OF_EC2_SECURITY_GROUP]->(EC2SecurityGroup)
+    (AWSESDomain)-[MEMBER_OF_EC2_SECURITY_GROUP]->(EC2SecurityGroup)
     ```
 
 - Elastic Search domains belong to AWS Accounts.
     ```
-    (AWSAccount)-[RESOURCE]->(ESDomain)
+    (AWSAccount)-[RESOURCE]->(AWSESDomain)
     ```
 
 - DNS Records can point to Elastic Search domains.
     ```
-    (DNSRecord)-[DNS_POINTS_TO]->(ESDomain)
+    (DNSRecord)-[DNS_POINTS_TO]->(AWSESDomain)
     ```
 
 ### Endpoint
@@ -3611,7 +3611,7 @@ The `EXPOSE` relationship holds the protocol, port and TargetGroupArn the load b
     (EC2NetworkAcl)-[PROTECTS]->(AWSLoadBalancerV2)
     ```
 
-### NameServer
+### AWSNameServer
 
 Represents a DNS nameserver.
 | Field | Description |
@@ -3625,7 +3625,7 @@ Represents a DNS nameserver.
 
 - DNS zones have nameservers.
     ```
-    (AWSDNSZone)-[NAMESERVER]->(NameServer)
+    (AWSDNSZone)-[NAMESERVER]->(AWSNameServer)
     ```
 
 ### NetworkInterface
@@ -3747,9 +3747,9 @@ Representation of an AWS [PeeringConnection](https://docs.aws.amazon.com/vpc/lat
   (AWSCidrBlock)<-[ACCEPTER_CIDR]-(AWSPeeringConnection)
   ```
 
-### RedshiftCluster
+### AWSRedshiftCluster
 
-Representation of an AWS [RedshiftCluster](https://docs.aws.amazon.com/redshift/latest/APIReference/API_Cluster.html).
+Representation of an AWS [AWSRedshiftCluster](https://docs.aws.amazon.com/redshift/latest/APIReference/API_Cluster.html).
 
 | Field | Description |
 |-------|-------------|
@@ -3777,30 +3777,30 @@ Representation of an AWS [RedshiftCluster](https://docs.aws.amazon.com/redshift/
 
 - Redshift clusters are part of AWS Accounts.
     ```
-    (AWSAccount)-[RESOURCE]->(RedshiftCluster)
+    (AWSAccount)-[RESOURCE]->(AWSRedshiftCluster)
     ```
 
 - Redshift clusters can be members of EC2 Security Groups.
     ```
-    (RedshiftCluster)-[MEMBER_OF_EC2_SECURITY_GROUP]->(EC2SecurityGroup)
+    (AWSRedshiftCluster)-[MEMBER_OF_EC2_SECURITY_GROUP]->(EC2SecurityGroup)
     ```
 
 - Redshift clusters may assume IAM roles. See [this article](https://docs.aws.amazon.com/redshift/latest/mgmt/authorizing-redshift-service.html).
     ```
-    (RedshiftCluster)-[STS_ASSUMEROLE_ALLOW]->(AWSPrincipal)
+    (AWSRedshiftCluster)-[STS_ASSUMEROLE_ALLOW]->(AWSPrincipal)
     ```
 
 - Redshift clusters can be members of AWSVpcs.
     ```
-    (RedshiftCluster)-[MEMBER_OF_AWS_VPC]->(AWSVpc)
+    (AWSRedshiftCluster)-[MEMBER_OF_AWS_VPC]->(AWSVpc)
     ```
 
 - AWSPrincipals with appropriate permissions can administer Redshift clusters. Created from [permission_relationships.yaml](https://github.com/cartography-cncf/cartography/blob/master/cartography/data/permission_relationships.yaml).
     ```
-    (AWSPrincipal)-[CAN_ADMINISTER]->(RedshiftCluster)
+    (AWSPrincipal)-[CAN_ADMINISTER]->(AWSRedshiftCluster)
     ```
 
-### RDSCluster
+### AWSRDSCluster
 
 Representation of an AWS Relational Database Service [DBCluster](https://docs.aws.amazon.com/AmazonRDS/latest/APIReference/API_DBCluster.html)
 
@@ -3849,15 +3849,15 @@ Representation of an AWS Relational Database Service [DBCluster](https://docs.aw
 
 - RDS Clusters are part of AWS Accounts.
     ```
-    (AWSAccount)-[RESOURCE]->(RDSCluster)
+    (AWSAccount)-[RESOURCE]->(AWSRDSCluster)
     ```
 
 - Some RDS instances are cluster members.
     ```
-    (replica:RDSInstance)-[IS_CLUSTER_MEMBER_OF]->(source:RDSCluster)
+    (replica:AWSRDSInstance)-[IS_CLUSTER_MEMBER_OF]->(source:AWSRDSCluster)
     ```
 
-### RDSInstance
+### AWSRDSInstance
 
 Representation of an AWS Relational Database Service [DBInstance](https://docs.aws.amazon.com/AmazonRDS/latest/APIReference/API_DBInstance.html).
 
@@ -3903,35 +3903,35 @@ Representation of an AWS Relational Database Service [DBInstance](https://docs.a
 
 - RDS Instances are part of AWS Accounts.
     ```
-    (AWSAccount)-[RESOURCE]->(RDSInstance)
+    (AWSAccount)-[RESOURCE]->(AWSRDSInstance)
     ```
 
 - Some RDS instances are Read Replicas.
     ```
-    (replica:RDSInstance)-[IS_READ_REPLICA_OF]->(source:RDSInstance)
+    (replica:AWSRDSInstance)-[IS_READ_REPLICA_OF]->(source:AWSRDSInstance)
     ```
 
 - RDS Instances can be members of EC2 Security Groups.
     ```
-    (RDSInstance)-[m:MEMBER_OF_EC2_SECURITY_GROUP]->(EC2SecurityGroup)
+    (AWSRDSInstance)-[m:MEMBER_OF_EC2_SECURITY_GROUP]->(EC2SecurityGroup)
     ```
 
 - RDS Instances are connected to DB Subnet Groups.
     ```
-    (RDSInstance)-[:MEMBER_OF_DB_SUBNET_GROUP]->(DBSubnetGroup)
+    (AWSRDSInstance)-[:MEMBER_OF_DB_SUBNET_GROUP]->(AWSDBSubnetGroup)
     ```
 
 -  RDS Instances can be tagged with AWSTags.
     ```
-    (RDSInstance)-[TAGGED]->(AWSTag)
+    (AWSRDSInstance)-[TAGGED]->(AWSTag)
     ```
 
 - RDS Instances encrypted with a customer-managed KMS key are linked to it.
     ```
-    (RDSInstance)-[:ENCRYPTED_BY]->(AWSKMSKey)
+    (AWSRDSInstance)-[:ENCRYPTED_BY]->(AWSKMSKey)
     ```
 
-### RDSSnapshot
+### AWSRDSSnapshot
 
 Representation of an AWS Relational Database Service [DBSnapshot](https://docs.aws.amazon.com/AmazonRDS/latest/APIReference/API_DBSnapshot.html).
 
@@ -3982,20 +3982,20 @@ Representation of an AWS Relational Database Service [DBSnapshot](https://docs.a
 
 - RDS Snapshots are part of AWS Accounts.
     ```
-    (AWSAccount)-[RESOURCE]->(RDSSnapshot)
+    (AWSAccount)-[RESOURCE]->(AWSRDSSnapshot)
     ```
 
 - RDS Snapshots are connected to DB Instances.
     ```
-    (RDSSnapshot)-[:IS_SNAPSHOT_SOURCE]->(RDSInstance)
+    (AWSRDSSnapshot)-[:IS_SNAPSHOT_SOURCE]->(AWSRDSInstance)
     ```
 
 -  RDS Snapshots can be tagged with AWSTags.
     ```
-    (RDSSnapshot)-[TAGGED]->(AWSTag)
+    (AWSRDSSnapshot)-[TAGGED]->(AWSTag)
     ```
 
-### RDSEventSubscription
+### AWSRDSEventSubscription
 
 Representation of an AWS Relational Database Service [EventSubscription](https://docs.aws.amazon.com/AmazonRDS/latest/APIReference/API_EventSubscription.html).
 
@@ -4019,30 +4019,30 @@ Representation of an AWS Relational Database Service [EventSubscription](https:/
 
 - RDS Event Subscriptions are part of AWS Accounts.
     ```
-    (AWSAccount)-[:RESOURCE]->(RDSEventSubscription)
+    (AWSAccount)-[:RESOURCE]->(AWSRDSEventSubscription)
     ```
 
 - RDS Event Subscriptions send notifications to SNS Topics.
     ```
-    (RDSEventSubscription)-[:NOTIFIES]->(AWSSNSTopic)
+    (AWSRDSEventSubscription)-[:NOTIFIES]->(AWSSNSTopic)
     ```
 
 - RDS Event Subscriptions monitor RDS Instances.
     ```
-    (RDSEventSubscription)-[:MONITORS]->(RDSInstance)
+    (AWSRDSEventSubscription)-[:MONITORS]->(AWSRDSInstance)
     ```
 
 - RDS Event Subscriptions monitor RDS Clusters.
     ```
-    (RDSEventSubscription)-[:MONITORS]->(RDSCluster)
+    (AWSRDSEventSubscription)-[:MONITORS]->(AWSRDSCluster)
     ```
 
 - RDS Event Subscriptions monitor RDS Snapshots.
     ```
-    (RDSEventSubscription)-[:MONITORS]->(RDSSnapshot)
+    (AWSRDSEventSubscription)-[:MONITORS]->(AWSRDSSnapshot)
     ```
 
-### ElasticacheCluster
+### AWSElasticacheCluster
 
 Representation of an AWS [ElastiCache Cluster](https://docs.aws.amazon.com/AmazonElastiCache/latest/APIReference/API_CacheCluster.html).
 
@@ -4076,15 +4076,15 @@ Representation of an AWS [ElastiCache Cluster](https://docs.aws.amazon.com/Amazo
 
 - ElastiCache clusters are part of AWS Accounts.
     ```
-    (:AWSAccount)-[:RESOURCE]->(:ElasticacheCluster)
+    (:AWSAccount)-[:RESOURCE]->(:AWSElasticacheCluster)
     ```
 
 - ElastiCache topics are associated with ElastiCache clusters.
     ```
-    (:ElasticacheTopic)-[:CACHE_CLUSTER]->(:ElasticacheCluster)
+    (:AWSElasticacheTopic)-[:CACHE_CLUSTER]->(:AWSElasticacheCluster)
     ```
 
-### ElasticacheTopic
+### AWSElasticacheTopic
 
 Representation of an AWS [ElastiCache Topic](https://docs.aws.amazon.com/AmazonElastiCache/latest/APIReference/API_CacheCluster.html) for notifications.
 
@@ -4100,15 +4100,15 @@ Representation of an AWS [ElastiCache Topic](https://docs.aws.amazon.com/AmazonE
 
 - ElastiCache topics are part of AWS Accounts.
     ```
-    (:AWSAccount)-[:RESOURCE]->(:ElasticacheTopic)
+    (:AWSAccount)-[:RESOURCE]->(:AWSElasticacheTopic)
     ```
 
 - ElastiCache topics are associated with ElastiCache clusters.
     ```
-    (:ElasticacheTopic)-[:CACHE_CLUSTER]->(:ElasticacheCluster)
+    (:AWSElasticacheTopic)-[:CACHE_CLUSTER]->(:AWSElasticacheCluster)
     ```
 
-### S3Acl
+### AWSS3Acl
 
 Representation of an AWS S3 [Access Control List](https://docs.aws.amazon.com/AmazonS3/latest/API/API_control_S3AccessControlList.html).
 
@@ -4129,10 +4129,10 @@ Representation of an AWS S3 [Access Control List](https://docs.aws.amazon.com/Am
 
 - S3 Access Control Lists apply to S3 buckets.
     ```
-    (S3Acl)-[APPLIES_TO]->(S3Bucket)
+    (AWSS3Acl)-[APPLIES_TO]->(AWSS3Bucket)
     ```
 
-### S3Bucket
+### AWSS3Bucket
 
 Representation of an AWS S3 [Bucket](https://docs.aws.amazon.com/AmazonS3/latest/API/API_Bucket.html).
 
@@ -4166,40 +4166,40 @@ Representation of an AWS S3 [Bucket](https://docs.aws.amazon.com/AmazonS3/latest
 
 - S3Buckets are resources in an AWS Account.
     ```
-    (AWSAccount)-[RESOURCE]->(S3Bucket)
+    (AWSAccount)-[RESOURCE]->(AWSS3Bucket)
     ```
 
 - S3 Access Control Lists apply to S3 buckets.
     ```
-    (S3Acl)-[APPLIES_TO]->(S3Bucket)
+    (AWSS3Acl)-[APPLIES_TO]->(AWSS3Bucket)
     ```
 
 -  S3 Buckets can be tagged with AWSTags.
     ```
-    (S3Bucket)-[TAGGED]->(AWSTag)
+    (AWSS3Bucket)-[TAGGED]->(AWSTag)
     ```
 
 - S3 Buckets whose default encryption uses a customer-managed KMS key are linked to it.
     ```
-    (S3Bucket)-[:ENCRYPTED_BY]->(AWSKMSKey)
+    (AWSS3Bucket)-[:ENCRYPTED_BY]->(AWSKMSKey)
     ```
 
 - S3 Buckets can send notifications to SNS Topics.
     ```
-    (S3Bucket)-[NOTIFIES]->(AWSSNSTopic)
+    (AWSS3Bucket)-[NOTIFIES]->(AWSSNSTopic)
     ```
 
 - AWSPrincipals with appropriate permissions can read from S3 buckets. Created from [permission_relationships.yaml](https://github.com/cartography-cncf/cartography/blob/master/cartography/data/permission_relationships.yaml).
     ```
-    (AWSPrincipal)-[CAN_READ]->(S3Bucket)
+    (AWSPrincipal)-[CAN_READ]->(AWSS3Bucket)
     ```
 
 - AWSPrincipals with appropriate permissions can write to S3 buckets. Created from [permission_relationships.yaml](https://github.com/cartography-cncf/cartography/blob/master/cartography/data/permission_relationships.yaml).
     ```
-    (AWSPrincipal)-[CAN_WRITE]->(S3Bucket)
+    (AWSPrincipal)-[CAN_WRITE]->(AWSS3Bucket)
     ```
 
-### S3PolicyStatement
+### AWSS3PolicyStatement
 
 Representation of an AWS S3 [Bucket Policy Statements](https://docs.aws.amazon.com/AmazonS3/latest/userguide/bucket-policies.html) for controlling ownership of objects and ACLs of the bucket.
 
@@ -4220,7 +4220,7 @@ Representation of an AWS S3 [Bucket Policy Statements](https://docs.aws.amazon.c
 
 - S3PolicyStatements define the policy for S3 Buckets.
     ```
-    (:S3Bucket)-[:POLICY_STATEMENT]->(:S3PolicyStatement)
+    (:AWSS3Bucket)-[:POLICY_STATEMENT]->(:AWSS3PolicyStatement)
     ```
 
 
@@ -4823,7 +4823,7 @@ Representation of an AWS [EBS Volume](https://docs.aws.amazon.com/AWSEC2/latest/
 
 Representation of an AWS [EBS Snapshot](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/EBSSnapshots.html).
 
-> **Ontology Mapping**: This node has the extra label `Snapshot` and normalized `_ont_*` properties to enable cross-platform queries for volume/database snapshots across different systems (e.g., RDSSnapshot, AzureSnapshot, ScalewayVolumeSnapshot).
+> **Ontology Mapping**: This node has the extra label `Snapshot` and normalized `_ont_*` properties to enable cross-platform queries for volume/database snapshots across different systems (e.g., AWSRDSSnapshot, AzureSnapshot, ScalewayVolumeSnapshot).
 
 | Field | Description |
 |-------|-------------|
@@ -5468,7 +5468,7 @@ Representation of an AWS ECS [Container](https://docs.aws.amazon.com/AmazonECS/l
     (:ECSContainer)-[:HAS_IMAGE]->(:GitHubContainerImage)
     ```
 
-### EfsFileSystem
+### AWSEfsFileSystem
 Representation of an AWS [EFS File System](https://docs.aws.amazon.com/efs/latest/ug/API_FileSystemDescription.html)
 | Field | Description |
 |-------|-------------|
@@ -5494,12 +5494,12 @@ Representation of an AWS [EFS File System](https://docs.aws.amazon.com/efs/lates
 | file_system_protection | Describes the protection on the file system |
 
 #### Relationships
-- EfsFileSystem are a resource under the AWS Account.
+- AWSEfsFileSystem are a resource under the AWS Account.
    ```
-   (AWSAccount)-[RESOURCE]->(EfsFileSystem)
+   (AWSAccount)-[RESOURCE]->(AWSEfsFileSystem)
    ```
 
-### EfsMountTarget
+### AWSEfsMountTarget
 Representation of an AWS [EFS Mount Target](https://docs.aws.amazon.com/efs/latest/ug/API_MountTargetDescription.html)
 | Field | Description |
 |-------|-------------|
@@ -5521,14 +5521,14 @@ Representation of an AWS [EFS Mount Target](https://docs.aws.amazon.com/efs/late
 #### Relationships
 - Efs MountTargets are a resource under the AWS Account.
     ```
-    (AWSAccount)-[RESOURCE]->(EfsMountTarget)
+    (AWSAccount)-[RESOURCE]->(AWSEfsMountTarget)
     ```
 - Efs MountTargets are attached to Efs FileSystems.
     ```
-    (EfsMountTarget)-[ATTACHED_TO]->(EfsFileSystem)
+    (AWSEfsMountTarget)-[ATTACHED_TO]->(AWSEfsFileSystem)
     ```
 
-### EfsAccessPoint
+### AWSEfsAccessPoint
 Representation of an AWS [EFS Access Point](https://docs.aws.amazon.com/efs/latest/ug/API_AccessPointDescription.html)
 | Field | Description |
 |-------|-------------|
@@ -5548,16 +5548,16 @@ Representation of an AWS [EFS Access Point](https://docs.aws.amazon.com/efs/late
 #### Relationships
 - Efs AccessPoints are a resource under the AWS Account.
     ```
-    (AWSAccount)-[RESOURCE]->(EfsAccessPoint)
+    (AWSAccount)-[RESOURCE]->(AWSEfsAccessPoint)
     ```
 - EFS Access Points are entry points into EFS File Systems.
     ```
-    (EfsAccessPoint)-[ACCESS_POINT_OF]->(EfsFileSystem)
+    (AWSEfsAccessPoint)-[ACCESS_POINT_OF]->(AWSEfsFileSystem)
     ```
 
 - EFS File Systems encrypted with a customer-managed KMS key are linked to it.
     ```
-    (EfsFileSystem)-[:ENCRYPTED_BY]->(AWSKMSKey)
+    (AWSEfsFileSystem)-[:ENCRYPTED_BY]->(AWSKMSKey)
     ```
 
 ### AWSSNSTopic
@@ -5632,7 +5632,7 @@ Representation of an AWS [SES Email Identity](https://docs.aws.amazon.com/ses/la
     (AWSAccount)-[RESOURCE]->(AWSSESEmailIdentity)
     ```
 
-### S3AccountPublicAccessBlock
+### AWSS3AccountPublicAccessBlock
 Representation of an AWS [S3 Account Public Access Block](https://docs.aws.amazon.com/AmazonS3/latest/dev/access-control-block-public-access.html) configuration, which provides account-level settings to block public access to S3 resources.
 
 | Field | Description |
@@ -5648,9 +5648,9 @@ Representation of an AWS [S3 Account Public Access Block](https://docs.aws.amazo
 | restrict_public_buckets | Whether Amazon S3 restricts public policies for this bucket |
 
 #### Relationships
-- S3AccountPublicAccessBlock is a resource of an AWS Account.
+- AWSS3AccountPublicAccessBlock is a resource of an AWS Account.
     ```
-    (AWSAccount)-[:RESOURCE]->(S3AccountPublicAccessBlock)
+    (AWSAccount)-[:RESOURCE]->(AWSS3AccountPublicAccessBlock)
     ```
 
 ### AWSSSMInstanceInformation
@@ -6191,7 +6191,7 @@ Representation of an AWS [Bedrock Custom Model](https://docs.aws.amazon.com/bedr
 
 - Custom models are trained from data in S3 buckets.
     ```
-    (AWSBedrockCustomModel)-[TRAINED_FROM]->(S3Bucket)
+    (AWSBedrockCustomModel)-[TRAINED_FROM]->(AWSS3Bucket)
     ```
 
 - Agents use custom models for inference.
@@ -6293,7 +6293,7 @@ Representation of an AWS [Bedrock Knowledge Base](https://docs.aws.amazon.com/be
 
 - Knowledge bases source data from S3 buckets.
     ```
-    (AWSBedrockKnowledgeBase)-[SOURCES_DATA_FROM]->(S3Bucket)
+    (AWSBedrockKnowledgeBase)-[SOURCES_DATA_FROM]->(AWSS3Bucket)
     ```
 
 - Knowledge bases use embedding models to convert documents to vectors.
@@ -6517,11 +6517,11 @@ Represents an [AWS SageMaker Training Job](https://docs.aws.amazon.com/sagemaker
     ```
 - Training Job reads data from S3 Bucket
     ```
-    (AWSSageMakerTrainingJob)-[:READS_FROM]->(S3Bucket)
+    (AWSSageMakerTrainingJob)-[:READS_FROM]->(AWSS3Bucket)
     ```
 - Training Job produces model artifacts in S3 Bucket
     ```
-    (AWSSageMakerTrainingJob)-[:PRODUCES_MODEL_ARTIFACT]->(S3Bucket)
+    (AWSSageMakerTrainingJob)-[:PRODUCES_MODEL_ARTIFACT]->(AWSS3Bucket)
     ```
 
 ### AWSSageMakerModel
@@ -6556,7 +6556,7 @@ Represents an [AWS SageMaker Model](https://docs.aws.amazon.com/sagemaker/latest
     ```
 - Model references artifacts (Knowledge from training ) that is stored in an S3 bucket
     ```
-    (AWSSageMakerModel)-[:REFERENCES_ARTIFACTS_IN]->(S3Bucket)
+    (AWSSageMakerModel)-[:REFERENCES_ARTIFACTS_IN]->(AWSS3Bucket)
     ```
 - Model derives model blueprint from a model package
     ```
@@ -6647,7 +6647,7 @@ a large dataset and uses batch inference to write multiple predictions to an S3 
     ```
 - Transform Job writes output to S3 Bucket
     ```
-    (AWSSageMakerTransformJob)-[:WRITES_TO]->(S3Bucket)
+    (AWSSageMakerTransformJob)-[:WRITES_TO]->(AWSS3Bucket)
     ```
 
 ### AWSSageMakerModelPackageGroup
@@ -6707,7 +6707,7 @@ Represents an [AWS SageMaker Model Package](https://docs.aws.amazon.com/sagemake
     ```
 - Model Package references artifacts in S3 Bucket
     ```
-    (AWSSageMakerModelPackage)-[:REFERENCES_ARTIFACTS_IN]->(S3Bucket)
+    (AWSSageMakerModelPackage)-[:REFERENCES_ARTIFACTS_IN]->(AWSS3Bucket)
     ```
 
 ### AWSCloudFormationStack

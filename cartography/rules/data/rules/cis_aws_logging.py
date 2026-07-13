@@ -168,7 +168,7 @@ aws_cloudtrail_log_file_validation = Rule(
 
 # =============================================================================
 # CIS AWS 4.4: Server access logging on the CloudTrail S3 bucket
-# Main node: S3Bucket
+# Main node: AWSS3Bucket
 # =============================================================================
 class CloudTrailBucketAccessLoggingOutput(Finding):
     """Output model for CloudTrail S3 bucket access logging check."""
@@ -192,7 +192,7 @@ _aws_cloudtrail_bucket_access_logging_disabled = Fact(
         "captures requests against audit logs themselves."
     ),
     cypher_query="""
-    MATCH (a:AWSAccount)-[:RESOURCE]->(trail:AWSCloudTrailTrail)-[:LOGS_TO]->(bucket:S3Bucket)
+    MATCH (a:AWSAccount)-[:RESOURCE]->(trail:AWSCloudTrailTrail)-[:LOGS_TO]->(bucket:AWSS3Bucket)
     WHERE bucket.logging_enabled IS NULL OR bucket.logging_enabled = false
     RETURN
         bucket.name AS bucket_name,
@@ -205,12 +205,12 @@ _aws_cloudtrail_bucket_access_logging_disabled = Fact(
         a.name AS account
     """,
     cypher_visual_query="""
-    MATCH p=(a:AWSAccount)-[:RESOURCE]->(trail:AWSCloudTrailTrail)-[:LOGS_TO]->(bucket:S3Bucket)
+    MATCH p=(a:AWSAccount)-[:RESOURCE]->(trail:AWSCloudTrailTrail)-[:LOGS_TO]->(bucket:AWSS3Bucket)
     WHERE bucket.logging_enabled IS NULL OR bucket.logging_enabled = false
     RETURN *
     """,
     cypher_count_query="""
-    MATCH (:AWSCloudTrailTrail)-[:LOGS_TO]->(bucket:S3Bucket)
+    MATCH (:AWSCloudTrailTrail)-[:LOGS_TO]->(bucket:AWSS3Bucket)
     RETURN COUNT(DISTINCT bucket) AS count
     """,
     asset_id_field="bucket_id",

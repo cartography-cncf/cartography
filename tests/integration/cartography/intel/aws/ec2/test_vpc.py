@@ -424,7 +424,7 @@ def test_sync_vpc(
     # Assert Redshift clusters are connected to their VPCs
     assert check_rels(
         neo4j_session,
-        "RedshiftCluster",
+        "AWSRedshiftCluster",
         "id",
         "AWSVpc",
         "id",
@@ -434,7 +434,7 @@ def test_sync_vpc(
         (
             "arn:aws:redshift:us-east-1:12345:cluster:my-cluster",
             "my_vpc",
-        ),  # AWSVpc created by RedshiftCluster sync,  Redshift cluster has a special way of assigning arn
+        ),  # AWSVpc created by AWSRedshiftCluster sync,  Redshift cluster has a special way of assigning arn
     }  # it takes the region, account id, and cluster name and creates an arn -> thats why it maches this test
 
     # Assert VPC peering connections are connected to their requester CIDR blocks

@@ -480,7 +480,7 @@ Volumes are storage space used by your Instances. You can attach several volumes
 
 A snapshot takes a picture of a volume at one specific point in time. For a complete backup of your Instance, you can create an image.
 
-> **Ontology Mapping**: This node has the extra label `Snapshot` and normalized `_ont_*` properties to enable cross-platform queries for volume/database snapshots across different systems (e.g., EBSSnapshot, RDSSnapshot, AzureSnapshot).
+> **Ontology Mapping**: This node has the extra label `Snapshot` and normalized `_ont_*` properties to enable cross-platform queries for volume/database snapshots across different systems (e.g., EBSSnapshot, AWSRDSSnapshot, AzureSnapshot).
 
 | Field           | Description                                  |
 |-----------------|----------------------------------------------|
@@ -757,7 +757,7 @@ Represents a Dedibox (dedicated) server in Scaleway.
 
 An Object Storage bucket is an S3-compatible container for objects. Scaleway Object Storage is not exposed by the Scaleway Python SDK, so it is collected through the regional S3-compatible endpoints.
 
-> **Ontology Mapping**: This node has the extra label `ObjectStorage` to enable cross-platform queries for object storage across different systems (e.g., S3Bucket, GCPBucket).
+> **Ontology Mapping**: This node has the extra label `ObjectStorage` to enable cross-platform queries for object storage across different systems (e.g., AWSS3Bucket, GCPBucket).
 
 | Field      | Description                                  |
 |------------|----------------------------------------------|
@@ -1491,7 +1491,7 @@ Represents a filesystem layer of a container image, keyed by its uncompressed di
 
 Represents a managed PostgreSQL / MySQL database instance (Scaleway "Managed Database for PostgreSQL and MySQL").
 
-> **Ontology Mapping**: This node has the extra label `Database` to enable cross-platform queries for databases across providers (e.g. RDSInstance, GCPCloudSQLInstance, AzureSQLDatabase).
+> **Ontology Mapping**: This node has the extra label `Database` to enable cross-platform queries for databases across providers (e.g. AWSRDSInstance, GCPCloudSQLInstance, AzureSQLDatabase).
 
 | Field      | Description                                  |
 |------------|----------------------------------------------|

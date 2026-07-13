@@ -65,7 +65,7 @@ class CloudTrailTrailToS3BucketRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class CloudTrailTrailToS3BucketRel(CartographyRelSchema):
-    target_node_label: str = "S3Bucket"
+    target_node_label: str = "AWSS3Bucket"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"name": PropertyRef("S3BucketName")},
     )

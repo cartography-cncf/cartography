@@ -68,7 +68,7 @@ def _transform_es_domains(domain_list: List[Dict]) -> List[Dict]:
         vpc_options = domain.get("VPCOptions") or {}
 
         # AWS rebranded Elasticsearch Service to OpenSearch Service. The same
-        # ESDomain node can therefore represent either engine; AWS encodes the
+        # AWSESDomain node can therefore represent either engine; AWS encodes the
         # distinction in `ElasticsearchVersion` (e.g. "OpenSearch_2.5" vs
         # "7.10"). Derive the engine here so downstream consumers (notably the
         # databases ontology mapping) can label the node correctly without
@@ -211,7 +211,7 @@ def _link_es_domains_to_dns(
             aws_update_tag,
             domain_data["Endpoint"],
             domain_id,
-            record_label="ESDomain",
+            record_label="AWSESDomain",
             dns_node_additional_label="AWSDNSRecord",
         )
     else:
@@ -232,9 +232,7 @@ def _process_access_policy(
     :param domain_id: ES domain id
     :param domain_data: domain data
     """
-    tag_es = (
-        "MATCH (es:ESDomain{id: $DomainId}) SET es.exposed_internet = $InternetExposed"
-    )
+    tag_es = "MATCH (es:AWSESDomain{id: $DomainId}) SET es.exposed_internet = $InternetExposed"
 
     exposed_internet = False
 
@@ -253,7 +251,7 @@ def _process_access_policy(
 
 @timeit
 def cleanup(neo4j_session: neo4j.Session, update_tag: int, aws_account_id: int) -> None:
-    # Clean up ESDomain nodes and schema-defined relationships
+    # Clean up AWSESDomain nodes and schema-defined relationships
     GraphJob.from_node_schema(
         ESDomainSchema(),
         {"UPDATE_TAG": update_tag, "AWS_ID": aws_account_id},
@@ -263,7 +261,7 @@ def cleanup(neo4j_session: neo4j.Session, update_tag: int, aws_account_id: int) 
     # DNSRecord:AWSDNSRecord nodes and DNS_POINTS_TO edges outside the schema.
     # This will be handled at the ontology level soon.
     cleanup_dns_query = """
-        MATCH (:AWSAccount{id: $AWS_ID})-[:RESOURCE]->(:ESDomain)<-[:DNS_POINTS_TO]-(n:DNSRecord)
+        MATCH (:AWSAccount{id: $AWS_ID})-[:RESOURCE]->(:AWSESDomain)<-[:DNS_POINTS_TO]-(n:DNSRecord)
         WHERE n.lastupdated <> $UPDATE_TAG
         DETACH DELETE n
     """

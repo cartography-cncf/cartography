@@ -34,7 +34,7 @@ def test_sync_cloudfront_basic(mock_get_distributions, neo4j_session):
 
     # Pre-create S3 bucket node to test relationship
     neo4j_session.run(
-        "MERGE (:S3Bucket {name: $name})",
+        "MERGE (:AWSS3Bucket {name: $name})",
         name="my-test-bucket",
     )
 
@@ -85,12 +85,12 @@ def test_sync_cloudfront_basic(mock_get_distributions, neo4j_session):
         ),
     }
 
-    # Verify relationship to S3Bucket
+    # Verify relationship to AWSS3Bucket
     assert check_rels(
         neo4j_session,
         "AWSCloudFrontDistribution",
         "arn",
-        "S3Bucket",
+        "AWSS3Bucket",
         "name",
         "SERVES_FROM",
         rel_direction_right=True,
@@ -210,7 +210,7 @@ def test_sync_cloudfront_custom_origin(mock_get_distributions, neo4j_session):
             neo4j_session,
             "AWSCloudFrontDistribution",
             "arn",
-            "S3Bucket",
+            "AWSS3Bucket",
             "name",
             "SERVES_FROM",
             rel_direction_right=True,
@@ -231,8 +231,8 @@ def test_sync_cloudfront_multi_origin(mock_get_distributions, neo4j_session):
     create_test_account(neo4j_session, TEST_ACCOUNT_ID, TEST_UPDATE_TAG)
 
     # Pre-create S3 bucket nodes
-    neo4j_session.run("MERGE (:S3Bucket {name: $name})", name="primary-bucket")
-    neo4j_session.run("MERGE (:S3Bucket {name: $name})", name="backup-bucket")
+    neo4j_session.run("MERGE (:AWSS3Bucket {name: $name})", name="primary-bucket")
+    neo4j_session.run("MERGE (:AWSS3Bucket {name: $name})", name="backup-bucket")
 
     # Pre-create Lambda function node (from cache behaviors)
     neo4j_session.run(
@@ -254,7 +254,7 @@ def test_sync_cloudfront_multi_origin(mock_get_distributions, neo4j_session):
         neo4j_session,
         "AWSCloudFrontDistribution",
         "arn",
-        "S3Bucket",
+        "AWSS3Bucket",
         "name",
         "SERVES_FROM",
         rel_direction_right=True,

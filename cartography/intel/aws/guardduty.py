@@ -269,7 +269,7 @@ def transform_findings(findings: list[dict[str, Any]]) -> list[dict[str, Any]]:
         if item["resource_type"] == "Instance":
             details = resource.get("InstanceDetails", {})
             item["resource_id"] = details.get("InstanceId")
-        elif item["resource_type"] == "S3Bucket":
+        elif item["resource_type"] == "AWSS3Bucket":
             buckets = resource.get("S3BucketDetails") or []
             if buckets:
                 item["resource_id"] = buckets[0].get("Name")

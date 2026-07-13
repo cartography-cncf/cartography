@@ -83,7 +83,7 @@ def test_permission_relationships_with_iam_integration(neo4j_session):
     neo4j_session.run(
         """
         MATCH (aws:AWSAccount{id: $AccountId})
-        MERGE (s3:S3Bucket{arn: 'arn:aws:s3:::test-bucket'})<-[:RESOURCE]-(aws)
+        MERGE (s3:AWSS3Bucket{arn: 'arn:aws:s3:::test-bucket'})<-[:RESOURCE]-(aws)
         SET s3.lastupdated = $UpdateTag
         """,
         AccountId=TEST_ACCOUNT_ID,
@@ -140,7 +140,7 @@ def test_permission_relationships_with_iam_integration(neo4j_session):
         neo4j_session,
         "AWSRole",
         "arn",
-        "S3Bucket",
+        "AWSS3Bucket",
         "arn",
         "CAN_READ",
     )

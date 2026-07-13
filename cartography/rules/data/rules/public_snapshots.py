@@ -53,7 +53,7 @@ _aws_rds_snapshot_public = Fact(
         "contents of the source database to anyone."
     ),
     cypher_query="""
-    MATCH (a:AWSAccount)-[:RESOURCE]->(s:RDSSnapshot)
+    MATCH (a:AWSAccount)-[:RESOURCE]->(s:AWSRDSSnapshot)
     WHERE s.ispublic = true
     RETURN
         s.db_snapshot_identifier AS name,
@@ -64,15 +64,15 @@ _aws_rds_snapshot_public = Fact(
         s.region AS region,
         a.id AS account_id,
         a.name AS account,
-        'RDSSnapshot' AS resource_type
+        'AWSRDSSnapshot' AS resource_type
     """,
     cypher_visual_query="""
-    MATCH p=(a:AWSAccount)-[:RESOURCE]->(s:RDSSnapshot)
+    MATCH p=(a:AWSAccount)-[:RESOURCE]->(s:AWSRDSSnapshot)
     WHERE s.ispublic = true
     RETURN *
     """,
     cypher_count_query="""
-    MATCH (s:RDSSnapshot)
+    MATCH (s:AWSRDSSnapshot)
     RETURN COUNT(s) AS count
     """,
     asset_id_field="arn",

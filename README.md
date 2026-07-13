@@ -56,7 +56,7 @@ Open http://localhost:7474 and try:
 
 ```cypher
 // Find unencrypted RDS instances by account
-MATCH (a:AWSAccount)-[:RESOURCE]->(rds:RDSInstance{storage_encrypted:false})
+MATCH (a:AWSAccount)-[:RESOURCE]->(rds:AWSRDSInstance{storage_encrypted:false})
 RETURN a.name, rds.id
 ```
 
