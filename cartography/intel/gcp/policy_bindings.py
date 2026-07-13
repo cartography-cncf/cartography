@@ -23,6 +23,7 @@ from google.protobuf.json_format import MessageToDict
 
 from cartography.client.core.tx import load
 from cartography.client.core.tx import load_matchlinks
+from cartography.client.core.tx import read_list_of_values_tx
 from cartography.graph.job import GraphJob
 from cartography.intel.gcp.permission_relationships import (
     build_principals_from_policy_bindings,
@@ -843,7 +844,20 @@ def _cleanup_applies_to_relationships(
     sub_resource_id: str,
     update_tag: int,
 ) -> None:
-    target_labels = sorted({mapping.label for mapping in _FULL_NAME_MAPPINGS})
+    target_labels = neo4j_session.execute_read(
+        read_list_of_values_tx,
+        """
+        MATCH (:GCPPolicyBinding)-[r:APPLIES_TO]->(target)
+        WHERE r.lastupdated <> $UPDATE_TAG
+          AND r._sub_resource_label = $_sub_resource_label
+          AND r._sub_resource_id = $_sub_resource_id
+        UNWIND labels(target) AS target_label
+        RETURN DISTINCT target_label
+        """,
+        UPDATE_TAG=update_tag,
+        _sub_resource_label=sub_resource_label,
+        _sub_resource_id=sub_resource_id,
+    )
     for target_label in target_labels:
         GraphJob.from_matchlink(
             make_policy_binding_applies_to_matchlink(

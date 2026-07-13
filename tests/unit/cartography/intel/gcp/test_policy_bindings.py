@@ -472,6 +472,8 @@ def test_cleanup_uses_matchlink_cleanup_for_each_target_label(
     mock_from_node_schema.return_value = cleanup_job
     applies_to_cleanup = MagicMock()
     mock_from_matchlink.return_value = applies_to_cleanup
+    expected_target_labels = {"GCPProject", "LegacyGCPResource"}
+    neo4j_session.execute_read.return_value = sorted(expected_target_labels)
 
     policy_bindings.cleanup(neo4j_session, COMMON_JOB_PARAMS)
 
@@ -480,9 +482,6 @@ def test_cleanup_uses_matchlink_cleanup_for_each_target_label(
         == policy_bindings.GCP_POLICY_BINDINGS_CLEANUP_ITERATION_SIZE
     )
     cleanup_job.run.assert_called_once_with(neo4j_session)
-    expected_target_labels = {
-        mapping.label for mapping in policy_bindings._FULL_NAME_MAPPINGS
-    }
     assert mock_from_matchlink.call_count == len(expected_target_labels)
     assert {
         call.args[0].target_node_label for call in mock_from_matchlink.call_args_list
@@ -509,6 +508,7 @@ def test_cleanup_inherited_policy_bindings_cleans_org_and_folders(
     neo4j_session = MagicMock()
     mock_from_node_schema.return_value = MagicMock()
     mock_from_matchlink.return_value = MagicMock()
+    neo4j_session.execute_read.return_value = ["LegacyGCPResource"]
 
     policy_bindings.cleanup_inherited_policy_bindings(
         neo4j_session,
@@ -517,10 +517,7 @@ def test_cleanup_inherited_policy_bindings_cleans_org_and_folders(
     )
 
     assert mock_from_node_schema.call_count == 2
-    target_label_count = len(
-        {mapping.label for mapping in policy_bindings._FULL_NAME_MAPPINGS}
-    )
-    assert mock_from_matchlink.call_count == target_label_count * 2
+    assert mock_from_matchlink.call_count == 2
     cleanup_scopes = {
         (call.args[1], call.args[2]) for call in mock_from_matchlink.call_args_list
     }

@@ -762,8 +762,10 @@ def test_cleanup_applies_to_relationships_across_target_labels(neo4j_session):
         """
         MERGE (project:GCPProject {id: $project_id})
         MERGE (bucket:GCPBucket {id: "cleanup-test-bucket"})
+        MERGE (legacy:LegacyGCPResource {id: "cleanup-test-legacy"})
         MERGE (stale_project:GCPPolicyBinding {id: "cleanup-stale-project"})
         MERGE (stale_bucket:GCPPolicyBinding {id: "cleanup-stale-bucket"})
+        MERGE (stale_legacy:GCPPolicyBinding {id: "cleanup-stale-legacy"})
         MERGE (current_bucket:GCPPolicyBinding {id: "cleanup-current-bucket"})
         MERGE (stale_project)-[project_rel:APPLIES_TO]->(project)
         SET project_rel.lastupdated = $old_update_tag,
@@ -773,6 +775,10 @@ def test_cleanup_applies_to_relationships_across_target_labels(neo4j_session):
         SET stale_bucket_rel.lastupdated = $old_update_tag,
             stale_bucket_rel._sub_resource_label = "GCPProject",
             stale_bucket_rel._sub_resource_id = $project_id
+        MERGE (stale_legacy)-[stale_legacy_rel:APPLIES_TO]->(legacy)
+        SET stale_legacy_rel.lastupdated = $old_update_tag,
+            stale_legacy_rel._sub_resource_label = "GCPProject",
+            stale_legacy_rel._sub_resource_id = $project_id
         MERGE (current_bucket)-[current_bucket_rel:APPLIES_TO]->(bucket)
         SET current_bucket_rel.lastupdated = $update_tag,
             current_bucket_rel._sub_resource_label = "GCPProject",
