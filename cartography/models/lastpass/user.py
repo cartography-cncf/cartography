@@ -14,25 +14,78 @@ from cartography.models.core.relationships import TargetNodeMatcher
 
 @dataclass(frozen=True)
 class LastpassUserNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("id")
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
-    name: PropertyRef = PropertyRef("fullname")
-    email: PropertyRef = PropertyRef("username", extra_index=True)
-    created: PropertyRef = PropertyRef("created")
-    last_pw_change: PropertyRef = PropertyRef("last_pw_change")
-    last_login: PropertyRef = PropertyRef("last_login")
-    neverloggedin: PropertyRef = PropertyRef("neverloggedin")
-    disabled: PropertyRef = PropertyRef("disabled")
-    admin: PropertyRef = PropertyRef("admin")
-    totalscore: PropertyRef = PropertyRef("totalscore")
-    mpstrength: PropertyRef = PropertyRef("mpstrength")
-    sites: PropertyRef = PropertyRef("sites")
-    notes: PropertyRef = PropertyRef("notes")
-    formfills: PropertyRef = PropertyRef("formfills")
-    applications: PropertyRef = PropertyRef("applications")
-    attachments: PropertyRef = PropertyRef("attachments")
-    password_reset_required: PropertyRef = PropertyRef("password_reset_required")
-    multifactor: PropertyRef = PropertyRef("multifactor")
+    id: PropertyRef = PropertyRef("id", description="LastPass user ID.")
+    lastupdated: PropertyRef = PropertyRef(
+        "lastupdated",
+        set_in_kwargs=True,
+        description="Timestamp of the last time the node was updated.",
+    )
+    name: PropertyRef = PropertyRef("fullname", description="Full name of the user.")
+    email: PropertyRef = PropertyRef(
+        "username",
+        extra_index=True,
+        description="Email address of the user.",
+    )
+    created: PropertyRef = PropertyRef(
+        "created",
+        description="Timestamp when the account was created.",
+    )
+    last_pw_change: PropertyRef = PropertyRef(
+        "last_pw_change",
+        description="Timestamp of the last master password change.",
+    )
+    last_login: PropertyRef = PropertyRef(
+        "last_login",
+        description="Timestamp of the last login.",
+    )
+    neverloggedin: PropertyRef = PropertyRef(
+        "neverloggedin",
+        description="Whether the user has never logged in.",
+    )
+    disabled: PropertyRef = PropertyRef(
+        "disabled",
+        description="Whether the account is disabled.",
+    )
+    admin: PropertyRef = PropertyRef(
+        "admin",
+        description="Whether the account is an administrator.",
+    )
+    totalscore: PropertyRef = PropertyRef(
+        "totalscore",
+        description="LastPass security score, with a maximum of 100.",
+    )
+    mpstrength: PropertyRef = PropertyRef(
+        "mpstrength",
+        description="Master password strength score, with a maximum of 100.",
+    )
+    sites: PropertyRef = PropertyRef(
+        "sites",
+        description="Number of site credentials stored.",
+    )
+    notes: PropertyRef = PropertyRef(
+        "notes",
+        description="Number of secure notes stored.",
+    )
+    formfills: PropertyRef = PropertyRef(
+        "formfills",
+        description="Number of form-fill profiles stored.",
+    )
+    applications: PropertyRef = PropertyRef(
+        "applications",
+        description="Number of mobile applications stored.",
+    )
+    attachments: PropertyRef = PropertyRef(
+        "attachments",
+        description="Number of file attachments stored.",
+    )
+    password_reset_required: PropertyRef = PropertyRef(
+        "password_reset_required",
+        description="Whether the user must reset their password.",
+    )
+    multifactor: PropertyRef = PropertyRef(
+        "multifactor",
+        description="Configured multifactor authentication method.",
+    )
 
 
 @dataclass(frozen=True)
@@ -43,6 +96,8 @@ class LastpassUserToHumanRelProperties(CartographyRelProperties):
 @dataclass(frozen=True)
 # (:LastpassUser)<-[:IDENTITY_LASTPASS]-(:Human)
 class LastpassHumanToUserRel(CartographyRelSchema):
+    """Links a Human identity to the LastPass user account with the same email."""
+
     target_node_label: str = "Human"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"email": PropertyRef("username")},
@@ -60,6 +115,8 @@ class LastpassTenantToLastpassUserRelProperties(CartographyRelProperties):
 @dataclass(frozen=True)
 # (:LastpassTenant)-[:RESOURCE]->(:LastpassUser)
 class LastpassTenantToUserRel(CartographyRelSchema):
+    """Contains a LastPass user in a LastPass tenant."""
+
     target_node_label: str = "LastpassTenant"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("TENANT_ID", set_in_kwargs=True)},
@@ -74,6 +131,8 @@ class LastpassTenantToUserRel(CartographyRelSchema):
 @dataclass(frozen=True)
 # (:LastpassUser)-[:RESOURCE]->(:LastpassTenant) - Backwards compatibility
 class LastpassUserToTenantDeprecatedRel(CartographyRelSchema):
+    """Deprecated reverse tenant edge retained for backward compatibility."""
+
     target_node_label: str = "LastpassTenant"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("TENANT_ID", set_in_kwargs=True)},
@@ -87,6 +146,8 @@ class LastpassUserToTenantDeprecatedRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class LastpassUserSchema(CartographyNodeSchema):
+    """Representation of a LastPass user account."""
+
     label: str = "LastpassUser"
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
         ["UserAccount"]
