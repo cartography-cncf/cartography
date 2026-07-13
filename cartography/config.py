@@ -148,6 +148,9 @@ class Config:
     :param entra_client_id: DEPRECATED compatibility alias for microsoft_client_id. Optional.
     :type entra_client_secret: str
     :param entra_client_secret: DEPRECATED compatibility alias for microsoft_client_secret. Optional.
+        Entra compatibility fields are resolved only when ``Config`` is constructed;
+        assigning to an ``entra_*`` attribute later does not update the canonical
+        ``microsoft_*`` attribute used by ingestion.
     :type aws_requested_syncs: str
     :param aws_requested_syncs: Comma-separated list of AWS resources to sync. Optional.
     :type aws_guardduty_severity_threshold: str
@@ -653,7 +656,9 @@ class Config:
             entra_client_id=entra_client_id,
             entra_client_secret=entra_client_secret,
         )
-        # DEPRECATED: compatibility aliases for legacy Entra config names. Remove in v1.0.0.
+        # DEPRECATED: constructor-time compatibility snapshots for legacy Entra
+        # config names. Later assignments do not propagate to microsoft_*.
+        # Remove in v1.0.0.
         self.entra_tenant_id = self.microsoft_tenant_id
         self.entra_client_id = self.microsoft_client_id
         self.entra_client_secret = self.microsoft_client_secret

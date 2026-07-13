@@ -222,6 +222,12 @@ def _resolve_microsoft_credential_options(
     entra_client_id: str | None,
     entra_client_secret_env_var: str | None,
 ) -> tuple[str | None, str | None, str | None]:
+    """Resolve CLI option names before reading the secret environment variable.
+
+    This intentionally remains separate from the config-layer resolver: CLI errors
+    use ``typer.BadParameter`` and operate on environment-variable names, while the
+    config layer validates resolved secret values and raises ``ValueError``.
+    """
     microsoft_values = (
         microsoft_tenant_id,
         microsoft_client_id,
