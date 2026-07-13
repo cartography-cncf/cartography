@@ -27,7 +27,7 @@ R -- HAS_RULESET --> GRS(GitHubRuleset)
 R -- HAS_CODEOWNER_RULE --> COR
 GRS -- CONTAINS_RULE --> RSR(GitHubRulesetRule)
 R -- REQUIRES --> D(Dependency)
-R -- HAS_MANIFEST --> M(DependencyGraphManifest)
+R -- HAS_MANIFEST --> M(GitHubDependencyGraphManifest)
 R -- HAS_WORKFLOW --> W(GitHubWorkflow)
 R -- HAS_SECRET --> RS(GitHubActionsSecret)
 R -- HAS_VARIABLE --> RV(GitHubActionsVariable)
@@ -550,7 +550,10 @@ ProgrammingLanguage nodes are shared globally across repositories and are linked
     ```
 
 
-### DependencyGraphManifest
+### GitHubDependencyGraphManifest
+
+The legacy `DependencyGraphManifest` label remains attached for compatibility until
+v1.0.0.
 
 Represents a dependency manifest file (e.g., package.json, requirements.txt, pom.xml) from GitHub's dependency graph API.
 
@@ -571,28 +574,28 @@ Represents a dependency manifest file (e.g., package.json, requirements.txt, pom
   - GitHubRepositories can have multiple dependency manifests
 
     ```
-    (GitHubRepository)-[:HAS_MANIFEST]->(DependencyGraphManifest)
+    (GitHubRepository)-[:HAS_MANIFEST]->(GitHubDependencyGraphManifest)
     ```
 
 - **Dependency** via **HAS_DEP** relationship
   - Each manifest lists specific dependencies
 
     ```
-    (DependencyGraphManifest)-[:HAS_DEP]->(Dependency)
+    (GitHubDependencyGraphManifest)-[:HAS_DEP]->(Dependency)
     ```
 
 - **GitHubCodeOwnerRule** via **MATCHES_CODEOWNER_RULE** relationship
   - Each manifest is linked to the last matching CODEOWNERS rule for its repository-relative path.
 
     ```
-    (DependencyGraphManifest)-[:MATCHES_CODEOWNER_RULE]->(GitHubCodeOwnerRule)
+    (GitHubDependencyGraphManifest)-[:MATCHES_CODEOWNER_RULE]->(GitHubCodeOwnerRule)
     ```
 
 - **GitHubOrganization** via **RESOURCE** relationship
   - Manifests are scoped to the owning organization for cleanup
 
     ```
-    (GitHubOrganization)-[:RESOURCE]->(DependencyGraphManifest)
+    (GitHubOrganization)-[:RESOURCE]->(GitHubDependencyGraphManifest)
     ```
 
 ### GitHubCodeOwnerRule
@@ -640,11 +643,11 @@ Represents one supported rule line from the effective GitHub `CODEOWNERS` file f
     (GitHubCodeOwnerRule)-[:CODEOWNER]->(GitHubUser)
     ```
 
-- **DependencyGraphManifest** via **MATCHES_CODEOWNER_RULE** relationship
+- **GitHubDependencyGraphManifest** via **MATCHES_CODEOWNER_RULE** relationship
   - Dependency manifests are linked to the last matching CODEOWNERS rule for their repository-relative path.
 
     ```
-    (DependencyGraphManifest)-[:MATCHES_CODEOWNER_RULE]->(GitHubCodeOwnerRule)
+    (GitHubDependencyGraphManifest)-[:MATCHES_CODEOWNER_RULE]->(GitHubCodeOwnerRule)
     ```
 
 ### Dependency
@@ -766,11 +769,11 @@ Represents a [Dependabot alert](https://docs.github.com/en/rest/dependabot/alert
 
 Dependabot package, GHSA, CWE, and reference identifiers are currently stored as properties. Cartography does not create dependency or CVE relationships from this payload until package/dependency identity can be normalized safely across sources. CVE-backed alerts are labeled `CVE` for compatibility with CVE metadata enrichment.
 
-- **DependencyGraphManifest** via **HAS_DEP** relationship
+- **GitHubDependencyGraphManifest** via **HAS_DEP** relationship
   - Dependencies are linked to their specific manifest files
 
     ```
-    (DependencyGraphManifest)-[:HAS_DEP]->(Dependency)
+    (GitHubDependencyGraphManifest)-[:HAS_DEP]->(Dependency)
     ```
 
 Dependency nodes are deliberately shared across organizations and repositories

@@ -294,16 +294,18 @@ Represents a dependency of a repository as returned by the Semgrep
 | normalized_id | Cross-tool package identifier (`{type}\|{name}\|{version}`) used to dedup into the `Package` ontology node. |
 
 
-### GoLibrary
+### SemgrepGoLibrary
 
 Represents a Go library dependency as listed in a go.mod file.
-All GoLibrary nodes are also SemgrepDependency nodes.
+All SemgrepGoLibrary nodes are also SemgrepDependency nodes.
+The legacy `GoLibrary` label remains attached for compatibility until v1.0.0.
 See [SemgrepDependency](#semgrepdependency) for details.
 
-### NpmLibrary
+### SemgrepNpmLibrary
 
 Represents a NPM library dependency as listed in a package-lock.json file.
-All NpmLibrary nodes are also SemgrepDependency nodes.
+All SemgrepNpmLibrary nodes are also SemgrepDependency nodes.
+The legacy `NpmLibrary` label remains attached for compatibility until v1.0.0.
 See [SemgrepDependency](#semgrepdependency) for details.
 
 

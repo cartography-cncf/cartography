@@ -32,6 +32,30 @@ RELATION_ONLY_NODE_LABELS: Set[str] = {
     "OktaUser",
 }
 
+PROVIDER_PREFIX_EXCEPTIONS: Dict[str, Set[str]] = {
+    "cartography.models.github": {
+        "Dependency",
+        "ProgrammingLanguage",
+        "PythonLibrary",
+    },
+}
+
+MIGRATED_PROVIDER_LABELS: Dict[str, Dict[str, str]] = {
+    "cartography.models.github": {
+        "GitHubDependencyGraphManifest": "DependencyGraphManifest",
+    },
+    "cartography.models.semgrep": {
+        "SemgrepGoLibrary": "GoLibrary",
+        "SemgrepNpmLibrary": "NpmLibrary",
+    },
+    "cartography.models.crowdstrike": {
+        "CrowdstrikeSpotlightVulnerability": "SpotlightVulnerability",
+    },
+    "cartography.models.spacelift": {
+        "SpaceliftCloudTrailEvent": "CloudTrailSpaceliftEvent",
+    },
+}
+
 
 def test_model_objects_naming_convention():
     """Test that all model objects follow the naming convention."""
@@ -105,6 +129,59 @@ def test_migrated_aws_labels_keep_legacy_alias_until_v1():
             )
 
     assert not errors, "Missing AWS compatibility aliases:\n  - " + "\n  - ".join(
+        errors
+    )
+
+
+@pytest.mark.parametrize(
+    ("module_name", "prefix"),
+    [
+        ("cartography.models.github", "GitHub"),
+        ("cartography.models.semgrep", "Semgrep"),
+        ("cartography.models.crowdstrike", "Crowdstrike"),
+        ("cartography.models.spacelift", "Spacelift"),
+    ],
+)
+def test_provider_primary_node_labels_use_provider_prefix(module_name, prefix):
+    errors: List[str] = []
+    exceptions = PROVIDER_PREFIX_EXCEPTIONS.get(module_name, set())
+    for loaded_module_name, element in load_models(cartography.models):
+        if loaded_module_name != module_name:
+            continue
+        if not issubclass(element, CartographyNodeSchema):
+            continue
+        if element.label.startswith(prefix) or element.label in exceptions:
+            continue
+        errors.append(
+            f"{element.__name__} uses unprefixed {prefix} label {element.label!r}.",
+        )
+
+    assert not errors, f"{prefix} node label prefix violations:\n  - " + "\n  - ".join(
+        errors
+    )
+
+
+def test_migrated_provider_labels_keep_legacy_alias_until_v1():
+    errors: List[str] = []
+    for module_name, element in load_models(cartography.models):
+        if not issubclass(element, CartographyNodeSchema):
+            continue
+        old_label = MIGRATED_PROVIDER_LABELS.get(module_name, {}).get(element.label)
+        if old_label is None:
+            continue
+        node_schema = element()
+        extra_labels = (
+            node_schema.extra_node_labels.labels
+            if node_schema.extra_node_labels is not None
+            else []
+        )
+        if old_label not in extra_labels:
+            errors.append(
+                f"{element.__name__} must keep {old_label!r} as an alias "
+                "until v1.0.0.",
+            )
+
+    assert not errors, "Missing provider compatibility aliases:\n  - " + "\n  - ".join(
         errors
     )
 

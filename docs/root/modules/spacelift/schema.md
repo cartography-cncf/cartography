@@ -314,12 +314,15 @@ Representation of a job that can touch infrastructure. It is the execution insta
     - The Instance Id from spacelift is often seen in hex format (seen when using workerpools), causing a mistmatch with the InstanceID on an EC2 Node. (Hence the need for Source 2)
 
     **Source 2: CloudTrail Data (optional, requires EC2 ownership configuration)**
-    - Created via MatchLink using CloudTrail data from S3
-    - Additional properties with CloudTrail metadata:
-      - `event_time`: Timestamp of the CloudTrail event
-      - `event_name`: Name of the AWS API call (e.g., "RunInstances", "TerminateInstances")
-      - `aws_account`: AWS account ID where the event occurred
-      - `aws_region`: AWS region where the event occurred
+    - Represented by a `SpaceliftCloudTrailEvent` intermediary node:
+
+      ```
+      (SpaceliftCloudTrailEvent)-[:FROM_RUN]->(SpaceliftRun)
+      (SpaceliftCloudTrailEvent)-[:AFFECTED]->(AWSEC2Instance)
+      ```
+
+    - `CloudTrailSpaceliftEvent` remains as a compatibility label until v1.0.0
+    - The event stores `event_time`, `event_name`, `aws_account`, and `aws_region`
     - Loaded separately by the `ec2_ownership` module
     - Requires CLI configuration: `--spacelift-ec2-ownership-s3-bucket`, `--spacelift-ec2-ownership-s3-key`, and optionally `--spacelift-ec2-ownership-aws-profile`
 

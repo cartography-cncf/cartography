@@ -25,6 +25,9 @@ from cartography.client.core.tx import load as load_data
 from cartography.graph.job import GraphJob
 from cartography.helpers import backoff_handler
 from cartography.intel.github.codeowners import normalize_repo_relative_path
+from cartography.intel.github.label_migrations import (
+    migrate_dependency_graph_manifest_label,
+)
 from cartography.intel.github.lockfiles import parse_npm_lock
 from cartography.intel.github.lockfiles import parse_uv_lock
 from cartography.intel.github.util import call_github_rest_api
@@ -2618,7 +2621,6 @@ def sync(
         github_api_key,
         github_url,
     )
-    load(neo4j_session, common_job_parameters, repo_data)
     owner_org_id = next(
         (
             repo["owner_org_id"]
@@ -2627,11 +2629,13 @@ def sync(
         ),
         f"https://github.com/{organization}",
     )
+    migrate_dependency_graph_manifest_label(neo4j_session, owner_org_id)
+    load(neo4j_session, common_job_parameters, repo_data)
     cleanup_github_branches(neo4j_session, common_job_parameters, owner_org_id)
 
     # DEPRECATED: compatibility migrations to backfill the RESOURCE edge from
     # GitHubOrganization to GitHubBranchProtectionRule and
-    # DependencyGraphManifest. Scoped to the current org so a multi-org sync
+    # GitHubDependencyGraphManifest. Scoped to the current org so a multi-org sync
     # doesn't replay the same global Cypher per organization. Remove in
     # v1.0.0.
     migration_params = {**common_job_parameters, "owner_org_id": owner_org_id}
