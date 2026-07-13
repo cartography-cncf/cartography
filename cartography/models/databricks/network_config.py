@@ -67,9 +67,9 @@ class DatabricksNetworkConfigToSubnetRelProperties(CartographyRelProperties):
 
 
 @dataclass(frozen=True)
-# (:DatabricksNetworkConfig)-[:USES_SUBNET]->(:EC2Subnet)
+# (:DatabricksNetworkConfig)-[:USES_SUBNET]->(:AWSEC2Subnet)
 class DatabricksNetworkConfigToSubnetRel(CartographyRelSchema):
-    target_node_label: str = "EC2Subnet"
+    target_node_label: str = "AWSEC2Subnet"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("subnet_ids", one_to_many=True)},
     )
@@ -86,9 +86,9 @@ class DatabricksNetworkConfigToSecurityGroupRelProperties(CartographyRelProperti
 
 
 @dataclass(frozen=True)
-# (:DatabricksNetworkConfig)-[:USES_SECURITY_GROUP]->(:EC2SecurityGroup)
+# (:DatabricksNetworkConfig)-[:USES_SECURITY_GROUP]->(:AWSEC2SecurityGroup)
 class DatabricksNetworkConfigToSecurityGroupRel(CartographyRelSchema):
-    target_node_label: str = "EC2SecurityGroup"
+    target_node_label: str = "AWSEC2SecurityGroup"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("security_group_ids", one_to_many=True)},
     )

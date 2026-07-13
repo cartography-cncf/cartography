@@ -123,18 +123,18 @@ TAG_RESOURCE_TYPE_MAPPINGS: Dict = {
     },
     "ec2:key-pair": {"label": "EC2KeyPair", "property": "id"},
     "ec2:network-interface": {
-        "label": "NetworkInterface",
+        "label": "AWSNetworkInterface",
         "property": "id",
         "id_func": get_short_id_from_ec2_arn,
     },
     "ecr:repository": {"label": "AWSECRRepository", "property": "id"},
     "ec2:security-group": {
-        "label": "EC2SecurityGroup",
+        "label": "AWSEC2SecurityGroup",
         "property": "id",
         "id_func": get_short_id_from_ec2_arn,
     },
     "ec2:subnet": {
-        "label": "EC2Subnet",
+        "label": "AWSEC2Subnet",
         "property": "subnetid",
         "id_func": get_short_id_from_ec2_arn,
     },
@@ -154,7 +154,7 @@ TAG_RESOURCE_TYPE_MAPPINGS: Dict = {
         "id_func": get_short_id_from_ec2_arn,
     },
     "ec2:elastic-ip-address": {
-        "label": "ElasticIPAddress",
+        "label": "AWSElasticIPAddress",
         "property": "id",
         "id_func": get_short_id_from_ec2_arn,
     },
@@ -362,12 +362,12 @@ def _group_tag_data_by_resource_type(
 # Most resources have a direct RESOURCE relationship, but some require traversal
 _RESOURCE_CLEANUP_PATHS: Dict[str, str] = {
     "EC2Instance": "(:EC2Instance)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})",
-    "NetworkInterface": (
-        "(:NetworkInterface)-[:PART_OF_SUBNET]->"
-        "(:EC2Subnet)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})"
+    "AWSNetworkInterface": (
+        "(:AWSNetworkInterface)-[:PART_OF_SUBNET]->"
+        "(:AWSEC2Subnet)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})"
     ),
-    "EC2SecurityGroup": "(:EC2SecurityGroup)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})",
-    "EC2Subnet": "(:EC2Subnet)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})",
+    "AWSEC2SecurityGroup": "(:AWSEC2SecurityGroup)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})",
+    "AWSEC2Subnet": "(:AWSEC2Subnet)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})",
     "AWSVpc": "(:AWSVpc)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})",
     "AWSESDomain": "(:AWSESDomain)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})",
     "AWSRedshiftCluster": "(:AWSRedshiftCluster)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})",
@@ -390,7 +390,7 @@ _RESOURCE_CLEANUP_PATHS: Dict[str, str] = {
         "(:AWSTransitGatewayAttachment)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})"
     ),
     "EBSVolume": "(:EBSVolume)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})",
-    "ElasticIPAddress": "(:ElasticIPAddress)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})",
+    "AWSElasticIPAddress": "(:AWSElasticIPAddress)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})",
     "AWSECSCluster": "(:AWSECSCluster)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})",
     "AWSECSContainer": "(:AWSECSContainer)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})",
     "AWSECSContainerInstance": (

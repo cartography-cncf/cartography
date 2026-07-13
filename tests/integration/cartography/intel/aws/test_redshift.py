@@ -15,7 +15,7 @@ TEST_UPDATE_TAG = 123456789
 def _create_prerequisite_nodes(neo4j_session):
     """Pre-create nodes that Redshift clusters will connect to via other_relationships."""
     neo4j_session.run(
-        "MERGE (sg:EC2SecurityGroup {id: 'my-vpc-sg'})"
+        "MERGE (sg:AWSEC2SecurityGroup {id: 'my-vpc-sg'})"
         " ON CREATE SET sg.firstseen = timestamp()",
     )
     neo4j_session.run(
@@ -67,12 +67,12 @@ def test_sync_redshift_clusters(mock_get_data, neo4j_session):
         (TEST_ACCOUNT_ID, "arn:aws:redshift:us-east-1:1111:cluster:my-cluster"),
     }
 
-    # Verify AWSRedshiftCluster -[:MEMBER_OF_EC2_SECURITY_GROUP]-> EC2SecurityGroup
+    # Verify AWSRedshiftCluster -[:MEMBER_OF_EC2_SECURITY_GROUP]-> AWSEC2SecurityGroup
     assert check_rels(
         neo4j_session,
         "AWSRedshiftCluster",
         "id",
-        "EC2SecurityGroup",
+        "AWSEC2SecurityGroup",
         "id",
         "MEMBER_OF_EC2_SECURITY_GROUP",
         rel_direction_right=True,

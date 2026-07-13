@@ -24,7 +24,7 @@ def _create_test_subnets_security_groups_and_instances(neo4j_session):
     for subnet_id in ["subnet-11111111", "subnet-22222222", "subnet-33333333"]:
         neo4j_session.run(
             """
-            MERGE (s:EC2Subnet{subnetid: $subnet_id})
+            MERGE (s:AWSEC2Subnet{subnetid: $subnet_id})
             SET s.lastupdated = $update_tag
             """,
             subnet_id=subnet_id,
@@ -34,7 +34,7 @@ def _create_test_subnets_security_groups_and_instances(neo4j_session):
     for sg_id in ["sg-12345678", "sg-87654321"]:
         neo4j_session.run(
             """
-            MERGE (sg:EC2SecurityGroup{groupid: $sg_id})
+            MERGE (sg:AWSEC2SecurityGroup{groupid: $sg_id})
             SET sg.lastupdated = $update_tag
             """,
             sg_id=sg_id,
@@ -181,12 +181,12 @@ def test_sync_load_balancer_v2s(mock_get_loadbalancer_v2_data, neo4j_session):
         ),
     }
 
-    # Assert - Relationships (AWSLoadBalancerV2)-[SUBNET]->(EC2Subnet)
+    # Assert - Relationships (AWSLoadBalancerV2)-[SUBNET]->(AWSEC2Subnet)
     assert check_rels(
         neo4j_session,
         "AWSLoadBalancerV2",
         "id",
-        "EC2Subnet",
+        "AWSEC2Subnet",
         "subnetid",
         "SUBNET",
         rel_direction_right=True,
@@ -196,13 +196,13 @@ def test_sync_load_balancer_v2s(mock_get_loadbalancer_v2_data, neo4j_session):
         ("test-nlb-abcdef0123.us-east-1.elb.amazonaws.com", "subnet-33333333"),
     }
 
-    # Assert - Relationships (AWSLoadBalancerV2)-[MEMBER_OF_EC2_SECURITY_GROUP]->(EC2SecurityGroup)
+    # Assert - Relationships (AWSLoadBalancerV2)-[MEMBER_OF_EC2_SECURITY_GROUP]->(AWSEC2SecurityGroup)
     # Only ALBs have security groups, not NLBs
     assert check_rels(
         neo4j_session,
         "AWSLoadBalancerV2",
         "id",
-        "EC2SecurityGroup",
+        "AWSEC2SecurityGroup",
         "groupid",
         "MEMBER_OF_EC2_SECURITY_GROUP",
         rel_direction_right=True,
@@ -234,7 +234,7 @@ def test_sync_load_balancer_v2s(mock_get_loadbalancer_v2_data, neo4j_session):
 )
 def test_sync_load_balancer_v2_expose(mock_get_loadbalancer_v2_data, neo4j_session):
     """
-    Ensure that Phase 2 (sync_load_balancer_v2_expose) creates EXPOSE rels to EC2PrivateIp.
+    Ensure that Phase 2 (sync_load_balancer_v2_expose) creates EXPOSE rels to AWSEC2PrivateIp.
     """
     # Arrange
     boto3_session = MagicMock()
@@ -251,10 +251,10 @@ def test_sync_load_balancer_v2_expose(mock_get_loadbalancer_v2_data, neo4j_sessi
         {"UPDATE_TAG": TEST_UPDATE_TAG, "AWS_ID": TEST_ACCOUNT_ID},
     )
 
-    # Create EC2PrivateIp nodes (normally created by ec2:network_interface)
+    # Create AWSEC2PrivateIp nodes (normally created by ec2:network_interface)
     for ip in ["10.0.0.50", "10.0.0.51"]:
         neo4j_session.run(
-            "MERGE (ip:EC2PrivateIp{id: $ip}) SET ip.lastupdated = $tag, ip.private_ip_address = $ip",
+            "MERGE (ip:AWSEC2PrivateIp{id: $ip}) SET ip.lastupdated = $tag, ip.private_ip_address = $ip",
             ip=ip,
             tag=TEST_UPDATE_TAG,
         )
@@ -269,12 +269,12 @@ def test_sync_load_balancer_v2_expose(mock_get_loadbalancer_v2_data, neo4j_sessi
         {"UPDATE_TAG": TEST_UPDATE_TAG, "AWS_ID": TEST_ACCOUNT_ID},
     )
 
-    # Assert - Relationships (AWSLoadBalancerV2)-[EXPOSE]->(EC2PrivateIp)
+    # Assert - Relationships (AWSLoadBalancerV2)-[EXPOSE]->(AWSEC2PrivateIp)
     assert check_rels(
         neo4j_session,
         "AWSLoadBalancerV2",
         "id",
-        "EC2PrivateIp",
+        "AWSEC2PrivateIp",
         "id",
         "EXPOSE",
         rel_direction_right=True,
@@ -322,11 +322,11 @@ def test_nacl_protects_lb_analysis(mock_get_loadbalancer_v2_data, neo4j_session)
 
     # Create a NACL attached to subnet-11111111
     neo4j_session.run(
-        "MERGE (nacl:EC2NetworkAcl{id: 'acl-11111111'}) SET nacl.lastupdated = $tag",
+        "MERGE (nacl:AWSEC2NetworkAcl{id: 'acl-11111111'}) SET nacl.lastupdated = $tag",
         tag=TEST_UPDATE_TAG,
     )
     neo4j_session.run(
-        "MATCH (nacl:EC2NetworkAcl{id: 'acl-11111111'}), (s:EC2Subnet{subnetid: 'subnet-11111111'}) "
+        "MATCH (nacl:AWSEC2NetworkAcl{id: 'acl-11111111'}), (s:AWSEC2Subnet{subnetid: 'subnet-11111111'}) "
         "MERGE (nacl)-[:PART_OF_SUBNET]->(s)",
     )
 
@@ -340,7 +340,7 @@ def test_nacl_protects_lb_analysis(mock_get_loadbalancer_v2_data, neo4j_session)
     # Assert
     assert check_rels(
         neo4j_session,
-        "EC2NetworkAcl",
+        "AWSEC2NetworkAcl",
         "id",
         "AWSLoadBalancerV2",
         "id",
@@ -374,24 +374,24 @@ def test_lb_expose_container_analysis(mock_get_loadbalancer_v2_data, neo4j_sessi
     )
 
     # Manually create the full traversal chain:
-    # LB -[:EXPOSE]-> EC2PrivateIp <-[:PRIVATE_IP_ADDRESS]- NetworkInterface
+    # LB -[:EXPOSE]-> AWSEC2PrivateIp <-[:PRIVATE_IP_ADDRESS]- AWSNetworkInterface
     #   <-[:NETWORK_INTERFACE]- AWSECSTask -[:HAS_CONTAINER]-> AWSECSContainer
     lb_id = "test-alb-1234567890.us-east-1.elb.amazonaws.com"
     neo4j_session.run(
-        "MERGE (ip:EC2PrivateIp{id: '10.0.0.50'}) SET ip.lastupdated = $tag",
+        "MERGE (ip:AWSEC2PrivateIp{id: '10.0.0.50'}) SET ip.lastupdated = $tag",
         tag=TEST_UPDATE_TAG,
     )
     neo4j_session.run(
-        "MATCH (lb:AWSLoadBalancerV2{id: $lb_id}), (ip:EC2PrivateIp{id: '10.0.0.50'}) "
+        "MATCH (lb:AWSLoadBalancerV2{id: $lb_id}), (ip:AWSEC2PrivateIp{id: '10.0.0.50'}) "
         "MERGE (lb)-[:EXPOSE]->(ip)",
         lb_id=lb_id,
     )
     neo4j_session.run(
-        "MERGE (ni:NetworkInterface{id: 'eni-test123'}) SET ni.lastupdated = $tag",
+        "MERGE (ni:AWSNetworkInterface{id: 'eni-test123'}) SET ni.lastupdated = $tag",
         tag=TEST_UPDATE_TAG,
     )
     neo4j_session.run(
-        "MATCH (ni:NetworkInterface{id: 'eni-test123'}), (ip:EC2PrivateIp{id: '10.0.0.50'}) "
+        "MATCH (ni:AWSNetworkInterface{id: 'eni-test123'}), (ip:AWSEC2PrivateIp{id: '10.0.0.50'}) "
         "MERGE (ni)-[:PRIVATE_IP_ADDRESS]->(ip)",
     )
     neo4j_session.run(
@@ -401,7 +401,7 @@ def test_lb_expose_container_analysis(mock_get_loadbalancer_v2_data, neo4j_sessi
     )
     neo4j_session.run(
         "MATCH (task:AWSECSTask{id: 'arn:aws:ecs:us-east-1:000000000000:task/cluster/task1'}), "
-        "(ni:NetworkInterface{id: 'eni-test123'}) "
+        "(ni:AWSNetworkInterface{id: 'eni-test123'}) "
         "MERGE (task)-[:NETWORK_INTERFACE]->(ni)",
     )
     neo4j_session.run(

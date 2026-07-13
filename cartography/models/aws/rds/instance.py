@@ -88,7 +88,7 @@ class RDSInstanceToEC2SecurityGroupRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class RDSInstanceToEC2SecurityGroupRel(CartographyRelSchema):
-    target_node_label: str = "EC2SecurityGroup"
+    target_node_label: str = "AWSEC2SecurityGroup"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {
             "id": PropertyRef("security_group_ids", one_to_many=True),

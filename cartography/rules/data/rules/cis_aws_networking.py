@@ -106,7 +106,7 @@ aws_ebs_volume_encryption = Rule(
 
 # =============================================================================
 # CIFS Access Is Restricted to Trusted Networks
-# Main node: EC2SecurityGroup
+# Main node: AWSEC2SecurityGroup
 # =============================================================================
 class CifsInternetAccessOutput(Finding):
     """Output model for CIFS internet exposure check."""
@@ -131,7 +131,7 @@ _aws_cifs_internet_access = Fact(
         "port 445. CIFS access should be restricted to trusted networks."
     ),
     cypher_query="""
-    MATCH (a:AWSAccount)-[:RESOURCE]->(sg:EC2SecurityGroup)
+    MATCH (a:AWSAccount)-[:RESOURCE]->(sg:AWSEC2SecurityGroup)
           <-[:MEMBER_OF_EC2_SECURITY_GROUP]-(rule:AWSIpPermissionInbound)
           <-[:MEMBER_OF_IP_RULE]-(range:AWSIpRange)
     WHERE coalesce(range.range, range.id) IN ['0.0.0.0/0', '::/0']
@@ -153,7 +153,7 @@ _aws_cifs_internet_access = Fact(
         a.name AS account
     """,
     cypher_visual_query="""
-    MATCH p=(a:AWSAccount)-[:RESOURCE]->(sg:EC2SecurityGroup)
+    MATCH p=(a:AWSAccount)-[:RESOURCE]->(sg:AWSEC2SecurityGroup)
           <-[:MEMBER_OF_EC2_SECURITY_GROUP]-(rule:AWSIpPermissionInbound)
           <-[:MEMBER_OF_IP_RULE]-(range:AWSIpRange)
     WHERE coalesce(range.range, range.id) IN ['0.0.0.0/0', '::/0']
@@ -165,7 +165,7 @@ _aws_cifs_internet_access = Fact(
     RETURN *
     """,
     cypher_count_query="""
-    MATCH (sg:EC2SecurityGroup)
+    MATCH (sg:AWSEC2SecurityGroup)
     RETURN COUNT(sg) AS count
     """,
     asset_id_field="security_group_id",
@@ -208,7 +208,7 @@ aws_cifs_access_restricted_to_trusted_networks = Rule(
 
 # =============================================================================
 # CIS AWS 6.3: Remote Administration Ports Open to IPv4 Internet
-# Main node: EC2SecurityGroup
+# Main node: AWSEC2SecurityGroup
 # =============================================================================
 class RemoteAdminIpv4Output(Finding):
     """Output model for IPv4 remote administration exposure check."""
@@ -238,7 +238,7 @@ _aws_remote_admin_ipv4 = Fact(
     ),
     cypher_query="""
     MATCH (a:AWSAccount)-[:RESOURCE]->(ec2:EC2Instance)
-          -[:MEMBER_OF_EC2_SECURITY_GROUP]->(sg:EC2SecurityGroup)
+          -[:MEMBER_OF_EC2_SECURITY_GROUP]->(sg:AWSEC2SecurityGroup)
           <-[:MEMBER_OF_EC2_SECURITY_GROUP]-(rule:AWSIpPermissionInbound)
           <-[:MEMBER_OF_IP_RULE]-(range:AWSIpRange)
     WHERE range.id = '0.0.0.0/0'
@@ -268,7 +268,7 @@ _aws_remote_admin_ipv4 = Fact(
     """,
     cypher_visual_query="""
     MATCH p=(a:AWSAccount)-[:RESOURCE]->(ec2:EC2Instance)
-          -[:MEMBER_OF_EC2_SECURITY_GROUP]->(sg:EC2SecurityGroup)
+          -[:MEMBER_OF_EC2_SECURITY_GROUP]->(sg:AWSEC2SecurityGroup)
           <-[:MEMBER_OF_EC2_SECURITY_GROUP]-(rule:AWSIpPermissionInbound)
           <-[:MEMBER_OF_IP_RULE]-(range:AWSIpRange)
     WHERE range.id = '0.0.0.0/0'
@@ -280,7 +280,7 @@ _aws_remote_admin_ipv4 = Fact(
     RETURN *
     """,
     cypher_count_query="""
-    MATCH (sg:EC2SecurityGroup)
+    MATCH (sg:AWSEC2SecurityGroup)
     RETURN COUNT(sg) AS count
     """,
     asset_id_field="security_group_id",
@@ -323,7 +323,7 @@ aws_ipv4_remote_administration_ports_open_to_internet = Rule(
 
 # =============================================================================
 # CIS AWS 6.4: Remote Administration Ports Open to IPv6 Internet
-# Main node: EC2SecurityGroup
+# Main node: AWSEC2SecurityGroup
 # =============================================================================
 class RemoteAdminIpv6Output(Finding):
     """Output model for IPv6 remote administration exposure check."""
@@ -353,7 +353,7 @@ _aws_remote_admin_ipv6 = Fact(
     ),
     cypher_query="""
     MATCH (a:AWSAccount)-[:RESOURCE]->(ec2:EC2Instance)
-          -[:MEMBER_OF_EC2_SECURITY_GROUP]->(sg:EC2SecurityGroup)
+          -[:MEMBER_OF_EC2_SECURITY_GROUP]->(sg:AWSEC2SecurityGroup)
           <-[:MEMBER_OF_EC2_SECURITY_GROUP]-(rule:AWSIpPermissionInbound)
           <-[:MEMBER_OF_IP_RULE]-(range:AWSIpRange)
     WHERE range.id = '::/0'
@@ -383,7 +383,7 @@ _aws_remote_admin_ipv6 = Fact(
     """,
     cypher_visual_query="""
     MATCH p=(a:AWSAccount)-[:RESOURCE]->(ec2:EC2Instance)
-          -[:MEMBER_OF_EC2_SECURITY_GROUP]->(sg:EC2SecurityGroup)
+          -[:MEMBER_OF_EC2_SECURITY_GROUP]->(sg:AWSEC2SecurityGroup)
           <-[:MEMBER_OF_EC2_SECURITY_GROUP]-(rule:AWSIpPermissionInbound)
           <-[:MEMBER_OF_IP_RULE]-(range:AWSIpRange)
     WHERE range.id = '::/0'
@@ -395,7 +395,7 @@ _aws_remote_admin_ipv6 = Fact(
     RETURN *
     """,
     cypher_count_query="""
-    MATCH (sg:EC2SecurityGroup)
+    MATCH (sg:AWSEC2SecurityGroup)
     RETURN COUNT(sg) AS count
     """,
     asset_id_field="security_group_id",
@@ -438,7 +438,7 @@ aws_ipv6_remote_administration_ports_open_to_internet = Rule(
 
 # =============================================================================
 # CIS AWS 6.5: Default Security Group Restricts All Traffic
-# Main node: EC2SecurityGroup
+# Main node: AWSEC2SecurityGroup
 # =============================================================================
 class DefaultSgAllowsTrafficOutput(Finding):
     """Output model for default security group check."""
@@ -464,7 +464,7 @@ _aws_default_sg_allows_traffic = Fact(
         "is attached, so unused-VPC defaults can be filtered or downgraded."
     ),
     cypher_query="""
-    MATCH (a:AWSAccount)-[:RESOURCE]->(sg:EC2SecurityGroup)
+    MATCH (a:AWSAccount)-[:RESOURCE]->(sg:AWSEC2SecurityGroup)
     WHERE sg.name = 'default'
     OPTIONAL MATCH (sg)<-[:MEMBER_OF_EC2_SECURITY_GROUP]-(inbound:AWSIpPermissionInbound)
     OPTIONAL MATCH (sg)<-[:MEMBER_OF_EC2_SECURITY_GROUP]-(egress:AWSIpRule)
@@ -487,13 +487,13 @@ _aws_default_sg_allows_traffic = Fact(
         a.name AS account
     """,
     cypher_visual_query="""
-    MATCH p=(a:AWSAccount)-[:RESOURCE]->(sg:EC2SecurityGroup)
+    MATCH p=(a:AWSAccount)-[:RESOURCE]->(sg:AWSEC2SecurityGroup)
           <-[:MEMBER_OF_EC2_SECURITY_GROUP]-(rule:AWSIpRule)
     WHERE sg.name = 'default'
     RETURN *
     """,
     cypher_count_query="""
-    MATCH (sg:EC2SecurityGroup)
+    MATCH (sg:AWSEC2SecurityGroup)
     RETURN COUNT(sg) AS count
     """,
     asset_id_field="security_group_id",

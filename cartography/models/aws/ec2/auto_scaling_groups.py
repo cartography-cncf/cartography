@@ -97,7 +97,7 @@ class EC2InstanceAutoScalingGroupSchema(CartographyNodeSchema):
     )
 
 
-# EC2Subnet to AutoScalingGroup
+# AWSEC2Subnet to AutoScalingGroup
 @dataclass(frozen=True)
 class EC2SubnetToAWSAccountRelRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
@@ -143,11 +143,12 @@ class EC2SubnetAutoScalingGroupNodeProperties(CartographyNodeProperties):
 
 @dataclass(frozen=True)
 class EC2SubnetAutoScalingGroupSchema(CartographyNodeSchema):
-    label: str = "EC2Subnet"
+    label: str = "AWSEC2Subnet"
     properties: EC2SubnetAutoScalingGroupNodeProperties = (
         EC2SubnetAutoScalingGroupNodeProperties()
     )
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["Subnet"])
+    # DEPRECATED: EC2Subnet will be removed in v1.0.0.
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["EC2Subnet", "Subnet"])
     sub_resource_relationship: EC2SubnetToAWSAccountRel = EC2SubnetToAWSAccountRel()
     other_relationships: OtherRelationships = OtherRelationships(
         [

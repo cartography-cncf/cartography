@@ -58,10 +58,10 @@ class RedshiftClusterToEC2SecurityGroupRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
-# (:AWSRedshiftCluster)-[:MEMBER_OF_EC2_SECURITY_GROUP]->(:EC2SecurityGroup)
+# (:AWSRedshiftCluster)-[:MEMBER_OF_EC2_SECURITY_GROUP]->(:AWSEC2SecurityGroup)
 @dataclass(frozen=True)
 class RedshiftClusterToEC2SecurityGroupRel(CartographyRelSchema):
-    target_node_label: str = "EC2SecurityGroup"
+    target_node_label: str = "AWSEC2SecurityGroup"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("_security_group_ids", one_to_many=True)},
     )

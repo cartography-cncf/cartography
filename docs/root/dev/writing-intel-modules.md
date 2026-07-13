@@ -643,7 +643,7 @@ resources that exist in the graph don't change across syncs.
     # RDS Instance refers to Security Groups by ID only
     @dataclass(frozen=True)
     class RDSInstanceToSecurityGroupRel(CartographyRelSchema):
-        target_node_label: str = "EC2SecurityGroup"
+        target_node_label: str = "AWSEC2SecurityGroup"
         target_node_matcher: TargetNodeMatcher = make_target_node_matcher({
             "id": PropertyRef("SecurityGroupId"),  # Just the ID, no additional properties
         })

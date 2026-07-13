@@ -70,7 +70,7 @@ class DBSubnetGroupToEC2SubnetRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class DBSubnetGroupToEC2SubnetRel(CartographyRelSchema):
-    target_node_label: str = "EC2Subnet"
+    target_node_label: str = "AWSEC2Subnet"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {
             "subnetid": PropertyRef("subnet_ids", one_to_many=True),

@@ -56,7 +56,7 @@ RETURN instance.instanceid, instance.publicdnsname
 
 ### Which open ports are internet accesible from [SecurityGroups](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-security-groups.html)
 ```cypher
-    MATCH (open)-[:MEMBER_OF_EC2_SECURITY_GROUP]->(sg:EC2SecurityGroup)
+    MATCH (open)-[:MEMBER_OF_EC2_SECURITY_GROUP]->(sg:AWSEC2SecurityGroup)
     MATCH (sg)<-[:MEMBER_OF_EC2_SECURITY_GROUP]-(ipi:IpPermissionInbound)
     MATCH (ipi)<--(ir:IpRange)
     WHERE ir.range = "0.0.0.0/0"
@@ -95,7 +95,7 @@ ORDER by elbv2.dnsname, listener.port
 
 ### Find everything about an IP Address
 ```cypher
-MATCH (n:EC2PrivateIp)-[r]-(n2)
+MATCH (n:AWSEC2PrivateIp)-[r]-(n2)
 WHERE n.public_ip = $neodash_ip
 RETURN n, r, n2
 
@@ -103,11 +103,11 @@ UNION MATCH(n:EC2Instance)-[r]-(n2)
 WHERE n.publicipaddress = $neodash_ip
 RETURN  n, r, n2
 
-UNION MATCH(n:NetworkInterface)-[r]-(n2)
+UNION MATCH(n:AWSNetworkInterface)-[r]-(n2)
 WHERE n.public_ip = $neodash_ip
 RETURN n, r, n2
 
-UNION MATCH(n:ElasticIPAddress)-[r]-(n2)
+UNION MATCH(n:AWSElasticIPAddress)-[r]-(n2)
 WHERE n.public_ip = $neodash_ip
 RETURN n, r, n2
 ```

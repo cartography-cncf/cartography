@@ -105,7 +105,7 @@ class ESDomainToEC2SubnetRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class ESDomainToEC2SubnetRel(CartographyRelSchema):
-    target_node_label: str = "EC2Subnet"
+    target_node_label: str = "AWSEC2Subnet"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("SubnetIds", one_to_many=True)},
     )
@@ -121,7 +121,7 @@ class ESDomainToEC2SecurityGroupRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class ESDomainToEC2SecurityGroupRel(CartographyRelSchema):
-    target_node_label: str = "EC2SecurityGroup"
+    target_node_label: str = "AWSEC2SecurityGroup"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("SecurityGroupIds", one_to_many=True)},
     )

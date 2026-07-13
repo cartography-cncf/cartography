@@ -35,11 +35,11 @@ def test_load_load_balancer_v2s(neo4j_session, *args):
         ON CREATE SET aws.firstseen = timestamp()
         SET aws.lastupdated = $aws_update_tag, aws :Tenant
 
-        MERGE (group:EC2SecurityGroup{groupid: $GROUP_ID_1})
+        MERGE (group:AWSEC2SecurityGroup{groupid: $GROUP_ID_1})
         ON CREATE SET group.firstseen = timestamp()
         SET group.last_updated = $aws_update_tag
 
-        MERGE (group2:EC2SecurityGroup{groupid: $GROUP_ID_2})
+        MERGE (group2:AWSEC2SecurityGroup{groupid: $GROUP_ID_2})
         ON CREATE SET group2.firstseen = timestamp()
         SET group2.last_updated = $aws_update_tag
         """,
@@ -53,9 +53,9 @@ def test_load_load_balancer_v2s(neo4j_session, *args):
     # Makes elbv2
     # (aa)-[r:RESOURCE]->(elbv2)
     # also makes
-    # (elbv2)->[RESOURCE]->(EC2Subnet)
+    # (elbv2)->[RESOURCE]->(AWSEC2Subnet)
     # also makes (relationship only, won't create SG)
-    # (elbv2)->[MEMBER_OF_SECURITY_GROUP]->(EC2SecurityGroup)
+    # (elbv2)->[MEMBER_OF_SECURITY_GROUP]->(AWSEC2SecurityGroup)
     cartography.intel.aws.ec2.load_balancer_v2s.load_load_balancer_v2s(
         neo4j_session,
         load_balancer_data,
@@ -165,7 +165,7 @@ def test_load_load_balancer_v2_target_groups(neo4j_session, *args):
         ON CREATE SET ec2.firstseen = timestamp()
         SET ec2.lastupdated = $aws_update_tag
 
-        MERGE (private_ip:EC2PrivateIp{private_ip_address: $private_ip_address})
+        MERGE (private_ip:AWSEC2PrivateIp{private_ip_address: $private_ip_address})
         ON CREATE SET private_ip.firstseen = timestamp()
         SET private_ip.lastupdated = $aws_update_tag
 
@@ -211,7 +211,7 @@ def test_load_load_balancer_v2_target_groups(neo4j_session, *args):
 
     ip_nodes = neo4j_session.run(
         """
-        MATCH (elbv2:AWSLoadBalancerV2{id: $ID})-[r:EXPOSE]->(ip:EC2PrivateIp{private_ip_address: $private_ip_address})
+        MATCH (elbv2:AWSLoadBalancerV2{id: $ID})-[r:EXPOSE]->(ip:AWSEC2PrivateIp{private_ip_address: $private_ip_address})
         RETURN elbv2.id, ip.private_ip_address
         """,
         ID=load_balancer_id,
@@ -264,7 +264,7 @@ def test_load_load_balancer_v2_target_groups(neo4j_session, *args):
 
 
 def test_load_load_balancer_v2_subnet_relationships(neo4j_session, *args):
-    """Test that SUBNET relationships are created via the main loader when EC2Subnet nodes exist."""
+    """Test that SUBNET relationships are created via the main loader when AWSEC2Subnet nodes exist."""
     load_balancer_data = tests.data.aws.ec2.load_balancers.LOAD_BALANCER_DATA
     load_balancer_id = "myawesomeloadbalancer.amazonaws.com"
 
@@ -279,15 +279,15 @@ def test_load_load_balancer_v2_subnet_relationships(neo4j_session, *args):
         ON CREATE SET ec2.firstseen = timestamp()
         SET ec2.lastupdated = $aws_update_tag
 
-        MERGE (sg1:EC2SecurityGroup{groupid: $sg1})
+        MERGE (sg1:AWSEC2SecurityGroup{groupid: $sg1})
         ON CREATE SET sg1.firstseen = timestamp()
         SET sg1.lastupdated = $aws_update_tag
 
-        MERGE (sg2:EC2SecurityGroup{groupid: $sg2})
+        MERGE (sg2:AWSEC2SecurityGroup{groupid: $sg2})
         ON CREATE SET sg2.firstseen = timestamp()
         SET sg2.lastupdated = $aws_update_tag
 
-        MERGE (subnet:EC2Subnet{subnetid: $subnet_id})
+        MERGE (subnet:AWSEC2Subnet{subnetid: $subnet_id})
         ON CREATE SET subnet.firstseen = timestamp(), subnet.id = $subnet_id
         SET subnet.region = $region, subnet.lastupdated = $aws_update_tag
         """,
@@ -312,7 +312,7 @@ def test_load_load_balancer_v2_subnet_relationships(neo4j_session, *args):
     # Verify SUBNET relationship was created
     rels = neo4j_session.run(
         """
-        MATCH (elbv2:AWSLoadBalancerV2{id: $lb_id})-[:SUBNET]->(subnet:EC2Subnet)
+        MATCH (elbv2:AWSLoadBalancerV2{id: $lb_id})-[:SUBNET]->(subnet:AWSEC2Subnet)
         RETURN elbv2.id, subnet.subnetid
         """,
         lb_id=load_balancer_id,
@@ -358,7 +358,7 @@ def test_sync_load_balancers(mock_get_instances, mock_get_loadbalancers, neo4j_s
     # lot of work for this test.
     neo4j_session.run(
         """
-        MATCH (sg:EC2SecurityGroup{id: "SOME_GROUP_ID_2"})
+        MATCH (sg:AWSEC2SecurityGroup{id: "SOME_GROUP_ID_2"})
         SET sg.name = "default"
         """,
     )
@@ -425,7 +425,7 @@ def test_sync_load_balancers(mock_get_instances, mock_get_loadbalancers, neo4j_s
         neo4j_session,
         "AWSLoadBalancer",
         "id",
-        "EC2SecurityGroup",
+        "AWSEC2SecurityGroup",
         "id",
         "MEMBER_OF_EC2_SECURITY_GROUP",
         rel_direction_right=True,
@@ -439,7 +439,7 @@ def test_sync_load_balancers(mock_get_instances, mock_get_loadbalancers, neo4j_s
         neo4j_session,
         "AWSLoadBalancer",
         "id",
-        "EC2SecurityGroup",
+        "AWSEC2SecurityGroup",
         "name",
         "SOURCE_SECURITY_GROUP",
         rel_direction_right=True,
@@ -582,11 +582,11 @@ def test_load_balancer_v2s_skips_missing_dnsname(neo4j_session, *args):
         ON CREATE SET aws.firstseen = timestamp()
         SET aws.lastupdated = $aws_update_tag, aws :Tenant
 
-        MERGE (group:EC2SecurityGroup{groupid: $GROUP_ID_1})
+        MERGE (group:AWSEC2SecurityGroup{groupid: $GROUP_ID_1})
         ON CREATE SET group.firstseen = timestamp()
         SET group.last_updated = $aws_update_tag
 
-        MERGE (group2:EC2SecurityGroup{groupid: $GROUP_ID_2})
+        MERGE (group2:AWSEC2SecurityGroup{groupid: $GROUP_ID_2})
         ON CREATE SET group2.firstseen = timestamp()
         SET group2.last_updated = $aws_update_tag
         """,

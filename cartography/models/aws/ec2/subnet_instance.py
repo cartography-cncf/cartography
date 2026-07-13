@@ -65,9 +65,10 @@ class EC2SubnetInstanceSchema(CartographyNodeSchema):
     EC2 Subnet as known by describe-ec2-instances
     """
 
-    label: str = "EC2Subnet"
+    label: str = "AWSEC2Subnet"
     properties: EC2SubnetInstanceNodeProperties = EC2SubnetInstanceNodeProperties()
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["Subnet"])
+    # DEPRECATED: EC2Subnet will be removed in v1.0.0.
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["EC2Subnet", "Subnet"])
     sub_resource_relationship: EC2SubnetToAWSAccountRel = EC2SubnetToAWSAccountRel()
     other_relationships: OtherRelationships = OtherRelationships(
         [

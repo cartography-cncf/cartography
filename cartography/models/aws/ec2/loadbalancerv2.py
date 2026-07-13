@@ -156,7 +156,7 @@ class LoadBalancerV2ToEC2SecurityGroupRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class LoadBalancerV2ToEC2SecurityGroupRel(CartographyRelSchema):
-    target_node_label: str = "EC2SecurityGroup"
+    target_node_label: str = "AWSEC2SecurityGroup"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"groupid": PropertyRef("SecurityGroupIds", one_to_many=True)},
     )
@@ -174,7 +174,7 @@ class LoadBalancerV2ToEC2SubnetRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class LoadBalancerV2ToEC2SubnetRel(CartographyRelSchema):
-    target_node_label: str = "EC2Subnet"
+    target_node_label: str = "AWSEC2Subnet"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"subnetid": PropertyRef("SubnetIds", one_to_many=True)},
     )
@@ -251,9 +251,9 @@ class LoadBalancerV2ToEC2InstanceMatchLink(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class LoadBalancerV2ToEC2PrivateIpMatchLink(CartographyRelSchema):
-    """(:LoadBalancerV2)-[:EXPOSE]->(:EC2PrivateIp)"""
+    """(:LoadBalancerV2)-[:EXPOSE]->(:AWSEC2PrivateIp)"""
 
-    target_node_label: str = "EC2PrivateIp"
+    target_node_label: str = "AWSEC2PrivateIp"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"private_ip_address": PropertyRef("TargetId")},
     )

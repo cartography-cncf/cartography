@@ -594,7 +594,7 @@ An Instance is a virtual computing unit that provides resources, such as process
 
 A Security Group is a set of firewall rules that controls inbound and outbound traffic for the Instances attached to it.
 
-> **Ontology Mapping**: This node has the extra label `NetworkAccessControl` to enable cross-platform queries for firewall constructs across different systems (e.g., EC2SecurityGroup, AzureNetworkSecurityGroup, GCPFirewall).
+> **Ontology Mapping**: This node has the extra label `NetworkAccessControl` to enable cross-platform queries for firewall constructs across different systems (e.g., AWSEC2SecurityGroup, AzureNetworkSecurityGroup, GCPFirewall).
 
 | Field      | Description                                  |
 |------------|----------------------------------------------|
@@ -845,7 +845,7 @@ A Private Network is a layer-2 network within a VPC that Instances and other res
 
 A Subnet is a CIDR block (IPv4 or IPv6) belonging to a Private Network.
 
-> **Ontology Mapping**: This node has the extra label `Subnet` to enable cross-platform queries for subnets across different systems (e.g., EC2Subnet, GCPSubnet, AzureSubnet).
+> **Ontology Mapping**: This node has the extra label `Subnet` to enable cross-platform queries for subnets across different systems (e.g., AWSEC2Subnet, GCPSubnet, AzureSubnet).
 
 | Field      | Description                                  |
 |------------|----------------------------------------------|

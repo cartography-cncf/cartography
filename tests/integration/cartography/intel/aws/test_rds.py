@@ -23,7 +23,7 @@ def _create_test_security_groups(neo4j_session):
     for sg_id in security_group_ids:
         neo4j_session.run(
             """
-            MERGE (sg:EC2SecurityGroup{id: $sg_id})
+            MERGE (sg:AWSEC2SecurityGroup{id: $sg_id})
             ON CREATE SET sg.firstseen = timestamp()
             SET sg.lastupdated = $update_tag
             """,
@@ -40,7 +40,7 @@ def _create_test_subnets(neo4j_session):
     for subnet_id in subnet_ids:
         neo4j_session.run(
             """
-            MERGE (subnet:EC2Subnet{subnetid: $subnet_id})
+            MERGE (subnet:AWSEC2Subnet{subnetid: $subnet_id})
             ON CREATE SET subnet.firstseen = timestamp()
             SET subnet.lastupdated = $update_tag
             """,
@@ -438,7 +438,7 @@ def test_sync_rds_comprehensive(
         neo4j_session,
         "AWSRDSInstance",
         "id",
-        "EC2SecurityGroup",
+        "AWSEC2SecurityGroup",
         "id",
         "MEMBER_OF_EC2_SECURITY_GROUP",
         rel_direction_right=True,
@@ -467,7 +467,7 @@ def test_sync_rds_comprehensive(
         neo4j_session,
         "AWSDBSubnetGroup",
         "id",
-        "EC2Subnet",
+        "AWSEC2Subnet",
         "subnetid",
         "RESOURCE",
         rel_direction_right=True,

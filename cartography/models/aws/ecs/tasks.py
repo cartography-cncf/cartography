@@ -160,7 +160,7 @@ class ECSTaskToNetworkInterfaceRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class ECSTaskToNetworkInterfaceRel(CartographyRelSchema):
-    target_node_label: str = "NetworkInterface"
+    target_node_label: str = "AWSNetworkInterface"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("networkInterfaceId")}
     )

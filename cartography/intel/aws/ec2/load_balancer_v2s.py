@@ -318,7 +318,7 @@ def load_load_balancer_v2s(
         )
 
     # Load non-IP target relationships (instance, lambda, alb)
-    # IP targets are deferred to sync_load_balancer_v2_expose so that EC2PrivateIp nodes
+    # IP targets are deferred to sync_load_balancer_v2_expose so that AWSEC2PrivateIp nodes
     # created by ec2:network_interface exist first.
     if target_data:
         _load_load_balancer_v2_non_ip_targets(
@@ -377,7 +377,7 @@ def _load_load_balancer_v2_ip_targets(
     current_aws_account_id: str,
     update_tag: int,
 ) -> None:
-    """Load EXPOSE relationships to IP target types (EC2PrivateIp) using MatchLinks."""
+    """Load EXPOSE relationships to IP target types (AWSEC2PrivateIp) using MatchLinks."""
     ip_targets = [t for t in target_data if t["TargetType"] == "ip"]
 
     if ip_targets:
@@ -520,7 +520,7 @@ def cleanup_load_balancer_v2_expose(
     neo4j_session: neo4j.Session,
     common_job_parameters: Dict,
 ) -> None:
-    """Cleanup stale IP target MatchLinks (EC2PrivateIp EXPOSE relationships)."""
+    """Cleanup stale IP target MatchLinks (AWSEC2PrivateIp EXPOSE relationships)."""
     GraphJob.from_matchlink(
         LoadBalancerV2ToEC2PrivateIpMatchLink(),
         "AWSAccount",
@@ -541,7 +541,7 @@ def sync_load_balancer_v2s(
     """Phase 1: Sync LBv2 nodes, listeners, and non-IP MatchLinks (instance, lambda, alb).
 
     IP target MatchLinks are deferred to sync_load_balancer_v2_expose (Phase 2)
-    so that EC2PrivateIp nodes created by ec2:network_interface exist first.
+    so that AWSEC2PrivateIp nodes created by ec2:network_interface exist first.
     """
     _migrate_legacy_loadbalancerv2_labels(
         neo4j_session,
@@ -602,9 +602,9 @@ def sync_load_balancer_v2_expose(
     update_tag: int,
     common_job_parameters: Dict,
 ) -> None:
-    """Phase 2: Sync IP target MatchLinks (LBv2 -> EC2PrivateIp EXPOSE relationships).
+    """Phase 2: Sync IP target MatchLinks (LBv2 -> AWSEC2PrivateIp EXPOSE relationships).
 
-    Runs after ec2:network_interface so that EC2PrivateIp nodes exist.
+    Runs after ec2:network_interface so that AWSEC2PrivateIp nodes exist.
     Re-fetches LBv2 data from AWS API to get target information.
     """
     cleanup_safe = True

@@ -3,6 +3,7 @@ from dataclasses import dataclass
 from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeProperties
 from cartography.models.core.nodes import CartographyNodeSchema
+from cartography.models.core.nodes import ExtraNodeLabels
 from cartography.models.core.relationships import CartographyRelProperties
 from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
@@ -62,7 +63,9 @@ class EC2SecurityGroupInstanceSchema(CartographyNodeSchema):
     Security groups as known by describe-ec2-instances
     """
 
-    label: str = "EC2SecurityGroup"
+    label: str = "AWSEC2SecurityGroup"
+    # DEPRECATED: EC2SecurityGroup will be removed in v1.0.0.
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["EC2SecurityGroup"])
     properties: EC2SecurityGroupInstanceNodeProperties = (
         EC2SecurityGroupInstanceNodeProperties()
     )

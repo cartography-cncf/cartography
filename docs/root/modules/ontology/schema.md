@@ -1000,7 +1000,7 @@ A subnet represents an IP subnetwork within a virtual network. It generalizes AW
 `_ont_is_public` is intentionally not modeled: no provider exposes a faithful public/private flag on the subnet node (it depends on route-table/internet-gateway analysis on AWS, and route/NSG configuration on Azure).
 
 ```{note}
-Several AWS sync paths (instances, network interfaces, VPC endpoints, auto scaling groups) create partial `EC2Subnet` nodes that know only the subnet id and sometimes the region. These nodes carry the `Subnet` label with `_ont_name` and `_ont_source` set, but may have a null `_ont_cidr_block` / `_ont_availability_zone` until a full subnet sync enriches them. `(:Subnet)` queries that rely on CIDR/AZ should treat absence as "not yet known", not as a real value. GCP subnet stub nodes are deliberately left unlabeled because they lack even a name.
+Several AWS sync paths (instances, network interfaces, VPC endpoints, auto scaling groups) create partial `AWSEC2Subnet` nodes that know only the subnet id and sometimes the region. These nodes carry the `Subnet` label with `_ont_name` and `_ont_source` set, but may have a null `_ont_cidr_block` / `_ont_availability_zone` until a full subnet sync enriches them. `(:Subnet)` queries that rely on CIDR/AZ should treat absence as "not yet known", not as a real value. GCP subnet stub nodes are deliberately left unlabeled because they lack even a name.
 ```
 
 

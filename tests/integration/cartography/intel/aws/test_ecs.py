@@ -475,7 +475,7 @@ def test_transform_ecs_tasks(neo4j_session):
     # Arrange
     neo4j_session.run(
         """
-        MERGE (ni:NetworkInterface{id: $NetworkInterfaceId})
+        MERGE (ni:AWSNetworkInterface{id: $NetworkInterfaceId})
         ON CREATE SET ni.firstseen = timestamp()
         SET ni.lastupdated = $aws_update_tag
         """,
@@ -501,7 +501,7 @@ def test_transform_ecs_tasks(neo4j_session):
         neo4j_session,
         "AWSECSTask",
         "id",
-        "NetworkInterface",
+        "AWSNetworkInterface",
         "id",
         "NETWORK_INTERFACE",
     ) == {

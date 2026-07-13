@@ -10,7 +10,7 @@ S -- RESOURCE --> Snapshot
 S -- RESOURCE --> SQL(SQLServer)
 S -- RESOURCE --> SA(StorageAccount)
 S -- RESOURCE --> CA(CosmosDBAccount)
-S -- RESOURCE --> NIC(NetworkInterface)
+S -- RESOURCE --> NIC(AWSNetworkInterface)
 S -- RESOURCE --> PIP(PublicIPAddress)
 S -- RESOURCE --> FW(Firewall)
 S -- RESOURCE --> FWP(FirewallPolicy)
@@ -710,7 +710,7 @@ Two distinct cases are worth calling out and should NOT be conflated by downstre
 - **Public-internet exposure**: a rule whose range covers public IP space (for example `start_ip_address = 0.0.0.0` / `end_ip_address = 255.255.255.255`, or any rule whose range overlaps the public internet) lets arbitrary clients on the public internet reach the server.
 - **Allow Azure services**: the special `start_ip_address = 0.0.0.0` / `end_ip_address = 0.0.0.0` row (also exposed via the SQL Server's `public_network_access` + the "Allow Azure services and resources to access this server" toggle) allows traffic from Azure-hosted services / resources only, not arbitrary public IPs. It is a different exposure class and should be flagged separately.
 
-> **Ontology Mapping**: This node carries the extra labels `IpPermissionInbound` and `IpRule` so it can be matched alongside `EC2NetworkAclRule:IpPermissionInbound`, `AWSIpRule`, `GCPIpRule`, and other inbound rule nodes via cross-cloud queries.
+> **Ontology Mapping**: This node carries the extra labels `IpPermissionInbound` and `IpRule` so it can be matched alongside `AWSEC2NetworkAclRule:IpPermissionInbound`, `AWSIpRule`, `GCPIpRule`, and other inbound rule nodes via cross-cloud queries.
 
 | Field | Description |
 |-------|-------------|
@@ -2419,7 +2419,7 @@ Representation of an [Azure Virtual Network](https://learn.microsoft.com/en-us/r
 
 Representation of a [Subnet within an Azure Virtual Network](https://learn.microsoft.com/en-us/rest/api/virtualnetwork/subnets/get).
 
-> **Ontology Mapping**: This node has the extra label `Subnet` and normalized `_ont_*` properties to enable cross-platform queries for network subnets across different systems (e.g., EC2Subnet, GCPSubnet).
+> **Ontology Mapping**: This node has the extra label `Subnet` and normalized `_ont_*` properties to enable cross-platform queries for network subnets across different systems (e.g., AWSEC2Subnet, GCPSubnet).
 
 | Field          | Description                                         |
 | -------------- | --------------------------------------------------- |
@@ -2440,7 +2440,7 @@ Representation of a [Subnet within an Azure Virtual Network](https://learn.micro
 
 Representation of an [Azure Network Security Group (NSG)](https://learn.microsoft.com/en-us/rest/api/virtualnetwork/network-security-groups/get).
 
-> **Ontology Mapping**: This node has the extra label `NetworkAccessControl` to enable cross-platform queries for security groups and firewall rules across different systems (e.g., EC2SecurityGroup, GCPFirewall, AzureNetworkSecurityGroup).
+> **Ontology Mapping**: This node has the extra label `NetworkAccessControl` to enable cross-platform queries for security groups and firewall rules across different systems (e.g., AWSEC2SecurityGroup, GCPFirewall, AzureNetworkSecurityGroup).
 
 | Field       | Description                                           |
 | ----------- | ----------------------------------------------------- |
@@ -2472,7 +2472,7 @@ Representation of an [Azure Network Security Group (NSG)](https://learn.microsof
 
 Representation of a single rule inside an [Azure Network Security Group](https://learn.microsoft.com/en-us/rest/api/virtualnetwork/security-rules/get). Both user-defined rules and the platform default rules are ingested. Rules with `direction = Inbound`, `access = Allow`, and a wildcard source (`*`, `Internet`, or `0.0.0.0/0`) covering management ports (22, 3389, 1433, 3306, 5432, 6379, etc.) make the associated workloads internet-reachable.
 
-> **Ontology Mapping**: This node carries the extra label `IpRule` plus either `IpPermissionInbound` (for `direction = Inbound` rules) or `IpPermissionEgress` (for `direction = Outbound` rules), so cross-cloud queries can match it alongside AWS `EC2NetworkAclRule` / `AWSIpRule` and GCP `GCPIpRule`.
+> **Ontology Mapping**: This node carries the extra label `IpRule` plus either `IpPermissionInbound` (for `direction = Inbound` rules) or `IpPermissionEgress` (for `direction = Outbound` rules), so cross-cloud queries can match it alongside AWS `AWSEC2NetworkAclRule` / `AWSIpRule` and GCP `GCPIpRule`.
 
 | Field | Description |
 |-------|-------------|
@@ -2512,7 +2512,7 @@ Representation of an [Azure Firewall](https://learn.microsoft.com/en-us/rest/api
 
 Azure Firewall is a cloud-native network security service that provides threat protection for cloud workloads running in Azure. It's a fully stateful firewall as a service with built-in high availability and unrestricted cloud scalability.
 
-> **Ontology Mapping**: This node has the extra label `NetworkAccessControl` to enable cross-platform queries for security groups and firewall rules across different systems (e.g., EC2SecurityGroup, GCPFirewall, AzureNetworkSecurityGroup).
+> **Ontology Mapping**: This node has the extra label `NetworkAccessControl` to enable cross-platform queries for security groups and firewall rules across different systems (e.g., AWSEC2SecurityGroup, GCPFirewall, AzureNetworkSecurityGroup).
 
 | Field       | Description                                           |
 | ----------- | ----------------------------------------------------- |

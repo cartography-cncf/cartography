@@ -35,7 +35,7 @@ We can take the ideas above and use Cypher's declarative syntax to "sketch" out 
     ```
     MATCH
     (:IpRange{id: '0.0.0.0/0'})-[:MEMBER_OF_IP_RULE]->(:IpPermissionInbound)
-    -[:MEMBER_OF_EC2_SECURITY_GROUP]->(group:EC2SecurityGroup)
+    -[:MEMBER_OF_EC2_SECURITY_GROUP]->(group:AWSEC2SecurityGroup)
     <-[:MEMBER_OF_EC2_SECURITY_GROUP]-(instance:EC2Instance)
 
     SET instance.exposed_internet = true,
@@ -51,7 +51,7 @@ We can take the ideas above and use Cypher's declarative syntax to "sketch" out 
     ```
     MATCH
     (:IpRange{id: '0.0.0.0/0'})-[:MEMBER_OF_IP_RULE]->(:IpPermissionInbound)
-    -[:MEMBER_OF_EC2_SECURITY_GROUP]->(group:EC2SecurityGroup)
+    -[:MEMBER_OF_EC2_SECURITY_GROUP]->(group:AWSEC2SecurityGroup)
     <-[:NETWORK_INTERFACE*..2]-(instance:EC2Instance)
 
     SET instance.exposed_internet = true,
@@ -65,7 +65,7 @@ Finally, notice that (1) and (2) are similar enough that we can actually merge t
 ```
 MATCH
 (:IpRange{id: '0.0.0.0/0'})-[:MEMBER_OF_IP_RULE]->(:IpPermissionInbound)
--[:MEMBER_OF_EC2_SECURITY_GROUP]->(group:EC2SecurityGroup)
+-[:MEMBER_OF_EC2_SECURITY_GROUP]->(group:AWSEC2SecurityGroup)
 <-[:MEMBER_OF_EC2_SECURITY_GROUP|NETWORK_INTERFACE*..2]-(instance:EC2Instance)
 
 SET instance.exposed_internet = true,
@@ -103,7 +103,7 @@ For analysis jobs that **create or update relationships**, invert the order: run
       {
         "__comment__": "This is our analysis logic as described in the section above",
         "query": MATCH (:IpRange{id: '0.0.0.0/0'})-[:MEMBER_OF_IP_RULE]->(:IpPermissionInbound)
-                 -[:MEMBER_OF_EC2_SECURITY_GROUP]->(group:EC2SecurityGroup)
+                 -[:MEMBER_OF_EC2_SECURITY_GROUP]->(group:AWSEC2SecurityGroup)
                  <-[:MEMBER_OF_EC2_SECURITY_GROUP|NETWORK_INTERFACE*..2]-(instance:EC2Instance)
 
                  SET instance.exposed_internet = true,

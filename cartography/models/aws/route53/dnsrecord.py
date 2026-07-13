@@ -200,7 +200,7 @@ class AWSDNSRecordToElasticIPAddressRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class AWSDNSRecordToElasticIPAddressRel(CartographyRelSchema):
-    target_node_label: str = "ElasticIPAddress"
+    target_node_label: str = "AWSElasticIPAddress"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {
             "public_ip": PropertyRef("value"),

@@ -263,7 +263,7 @@ def test_load_dnspointsto_elasticip_relationships(neo4j_session):
         neo4j_session,
         "AWSDNSRecord",
         "name",
-        "ElasticIPAddress",
+        "AWSElasticIPAddress",
         "public_ip",
         "DNS_POINTS_TO",
         rel_direction_right=True,

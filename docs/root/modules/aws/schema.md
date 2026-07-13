@@ -65,8 +65,8 @@ Configured AWS sync accounts are marked `inscope=true`. Accounts discovered only
                                 :EC2Instance,
                                 :EC2Reservation,
                                 :EC2ReservedInstance,
-                                :EC2SecurityGroup,
-                                :ElasticIPAddress,
+                                :AWSEC2SecurityGroup,
+                                :AWSElasticIPAddress,
                                 :AWSESDomain,
                                 :AWSGuardDutyDetector,
                                 :AWSGuardDutyFinding,
@@ -245,7 +245,7 @@ type for `AWSIpv4CidrBlock` and `AWSIpv6CidrBlock`
   ```
   MATCH (outbound_account:AWSAccount)-[:RESOURCE|BLOCK_ASSOCIATION*..]->(:AWSCidrBlock)<-[:ACCEPTER_CIDR]-(:AWSPeeringConnection)-[:REQUESTER_CIDR]->(inbound_block:AWSCidrBlock)<-[:BLOCK_ASSOCIATION]-(inbound_vpc:AWSVpc)<-[:RESOURCE]-(inbound_account:AWSAccount)
   WITH inbound_vpc, inbound_block, outbound_account, inbound_account
-  MATCH (inbound_range:IpRange{id: inbound_block.cidr_block})-[:MEMBER_OF_IP_RULE]->(inbound_rule:IpPermissionInbound)-[:MEMBER_OF_EC2_SECURITY_GROUP]->(inbound_group:EC2SecurityGroup)<-[:MEMBER_OF_EC2_SECURITY_GROUP]-(inbound_vpc)
+  MATCH (inbound_range:IpRange{id: inbound_block.cidr_block})-[:MEMBER_OF_IP_RULE]->(inbound_rule:IpPermissionInbound)-[:MEMBER_OF_EC2_SECURITY_GROUP]->(inbound_group:AWSEC2SecurityGroup)<-[:MEMBER_OF_EC2_SECURITY_GROUP]-(inbound_vpc)
   RETURN outbound_account.name, inbound_account.name, inbound_range.range, inbound_rule.fromport, inbound_rule.toport, inbound_rule.protocol, inbound_group.name, inbound_vpc.id
   ```
 
@@ -1309,9 +1309,9 @@ More information on https://docs.aws.amazon.com/cli/latest/reference/ec2/describ
   ```
   (AWSVpc)-[BLOCK_ASSOCIATION]->(AWSCidrBlock)
   ```
-- `AWSVpc` and `EC2SecurityGroup` membership association
+- `AWSVpc` and `AWSEC2SecurityGroup` membership association
   ```
-  (AWSVpc)-[MEMBER_OF_EC2_SECURITY_GROUP]->(EC2SecurityGroup)
+  (AWSVpc)-[MEMBER_OF_EC2_SECURITY_GROUP]->(AWSEC2SecurityGroup)
   ```
 -  AWS VPCs can be tagged with AWSTags.
     ```
@@ -1358,8 +1358,8 @@ Representation of an AWS [Tag](https://docs.aws.amazon.com/resourcegroupstagging
     (EBSVolume)-[TAGGED]->(AWSTag)
     (EC2Instance)-[TAGGED]->(AWSTag)
     (EC2KeyPair)-[TAGGED]->(AWSTag)
-    (EC2SecurityGroup)-[TAGGED]->(AWSTag)
-    (EC2Subnet)-[TAGGED]->(AWSTag)
+    (AWSEC2SecurityGroup)-[TAGGED]->(AWSTag)
+    (AWSEC2Subnet)-[TAGGED]->(AWSTag)
     (AWSECRRepository)-[TAGGED]->(AWSTag)
     (AWSECSCluster)-[TAGGED]->(AWSTag)
     (AWSECSContainer)-[TAGGED]->(AWSTag)
@@ -1369,10 +1369,10 @@ Representation of an AWS [Tag](https://docs.aws.amazon.com/resourcegroupstagging
     (AWSEKSCluster)-[TAGGED]->(AWSTag)
     (AWSEMRCluster)-[TAGGED]->(AWSTag)
     (AWSESDomain)-[TAGGED]->(AWSTag)
-    (ElasticIPAddress)-[TAGGED]->(AWSTag)
+    (AWSElasticIPAddress)-[TAGGED]->(AWSTag)
     (AWSElasticacheCluster)-[TAGGED]->(AWSTag)
     (AWSKMSKey)-[TAGGED]->(AWSTag)
-    (NetworkInterface)-[TAGGED]->(AWSTag)
+    (AWSNetworkInterface)-[TAGGED]->(AWSTag)
     (AWSRDSCluster)-[TAGGED]->(AWSTag)
     (AWSRDSInstance)-[TAGGED]->(AWSTag)
     (AWSRDSSnapshot)-[TAGGED]->(AWSTag)
@@ -1735,7 +1735,7 @@ Representation of an RDS [DB Subnet Group](https://docs.aws.amazon.com/AmazonRDS
 
 - DB Subnet Groups consist of EC2 Subnets
     ```
-    (AWSDBSubnetGroup)-[:RESOURCE]->(EC2Subnet)
+    (AWSDBSubnetGroup)-[:RESOURCE]->(AWSEC2Subnet)
     ```
 
 -  DB Subnet Groups can be tagged with AWSTags.
@@ -1814,7 +1814,7 @@ Representation of an AWS DNS [ResourceRecordSet](https://docs.aws.amazon.com/Rou
 
 - AWSDNSRecords can point to ElasticIPAddresses.
     ```
-    (:AWSDNSRecord)-[:DNS_POINTS_TO]->(:ElasticIPAddress)
+    (:AWSDNSRecord)-[:DNS_POINTS_TO]->(:AWSElasticIPAddress)
     ```
 
 - AWSDNSRecords can be members of AWSDNSZones.
@@ -2210,7 +2210,7 @@ Our representation of an AWS [EC2 Instance](https://docs.aws.amazon.com/AWSEC2/l
 | publicipaddress | The public IPv4 address assigned to the instance if applicable |
 | privateipaddress | The private IPv4 address assigned to the instance |
 | imageid | The ID of the [Amazon Machine Image](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/AMIs.html) used to launch the instance |
-| subnetid | The ID of the EC2Subnet associated with this instance |
+| subnetid | The ID of the AWSEC2Subnet associated with this instance |
 | instancetype | The instance type.  See API docs linked above for specifics. |
 | iaminstanceprofile | The IAM instance profile associated with the instance, if applicable. |
 | launchtime | The time the instance was launched |
@@ -2245,12 +2245,12 @@ Our representation of an AWS [EC2 Instance](https://docs.aws.amazon.com/AWSEC2/l
 
 - EC2 Instances can be part of subnets
     ```
-    (EC2Instance)-[PART_OF_SUBNET]->(EC2Subnet)
+    (EC2Instance)-[PART_OF_SUBNET]->(AWSEC2Subnet)
     ```
 
 - EC2 Instances can have NetworkInterfaces connected to them
     ```
-    (EC2Instance)-[NETWORK_INTERFACE]->(NetworkInterface)
+    (EC2Instance)-[NETWORK_INTERFACE]->(AWSNetworkInterface)
     ```
 
 - EC2 Instances may be members of EC2 Reservations
@@ -2260,7 +2260,7 @@ Our representation of an AWS [EC2 Instance](https://docs.aws.amazon.com/AWSEC2/l
 
 - EC2 Instances can be part of EC2 Security Groups
     ```
-    (EC2Instance)-[MEMBER_OF_EC2_SECURITY_GROUP]->(EC2SecurityGroup)
+    (EC2Instance)-[MEMBER_OF_EC2_SECURITY_GROUP]->(AWSEC2SecurityGroup)
     ```
 
 - Load Balancers can expose (be connected to) EC2 Instances
@@ -2323,9 +2323,9 @@ Our representation of an AWS [EC2 Instance](https://docs.aws.amazon.com/AWSEC2/l
     (AWSECSContainerInstance)-[IS_INSTANCE]->(EC2Instance)
     ```
 
-### EC2Ipv6Address
+### AWSEC2Ipv6Address
 
-Representation of an IPv6 address assigned to an EC2 network interface. Each `EC2Ipv6Address` node corresponds to one entry in `NetworkInterfaces[].Ipv6Addresses[]` from the AWS [DescribeInstances](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_DescribeInstances.html) API.
+Representation of an IPv6 address assigned to an EC2 network interface. Each `AWSEC2Ipv6Address` node corresponds to one entry in `NetworkInterfaces[].Ipv6Addresses[]` from the AWS [DescribeInstances](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_DescribeInstances.html) API.
 
 > **Ontology Mapping**: This node also carries the extra label `Ip` so that existing `AWSDNSRecord` AAAA records can reach it via the `DNS_POINTS_TO` relationship (which targets nodes with the `Ip` label matched by `id`).
 
@@ -2341,19 +2341,19 @@ Representation of an IPv6 address assigned to an EC2 network interface. Each `EC
 
 #### Relationships
 
-- AWS Accounts contain EC2Ipv6Address nodes.
+- AWS Accounts contain AWSEC2Ipv6Address nodes.
     ```
-    (AWSAccount)-[RESOURCE]->(EC2Ipv6Address)
+    (AWSAccount)-[RESOURCE]->(AWSEC2Ipv6Address)
     ```
 
 - NetworkInterfaces have IPv6 addresses.
     ```
-    (NetworkInterface)-[IPV6_ADDRESS]->(EC2Ipv6Address)
+    (AWSNetworkInterface)-[IPV6_ADDRESS]->(AWSEC2Ipv6Address)
     ```
 
 - AWSDNSRecord AAAA records can point to IPv6 addresses (via the shared `Ip` label).
     ```
-    (AWSDNSRecord)-[DNS_POINTS_TO]->(EC2Ipv6Address)
+    (AWSDNSRecord)-[DNS_POINTS_TO]->(AWSEC2Ipv6Address)
     ```
 
 ### EC2KeyPair
@@ -2389,7 +2389,7 @@ Representation of an AWS [EC2 Key Pair](https://docs.aws.amazon.com/AWSEC2/lates
     (EC2KeyPair)-[MATCHING_FINGERPRINT]->(EC2KeyPair)
     ```
 
-### EC2PrivateIp
+### AWSEC2PrivateIp
 Representation of an AWS EC2 [InstancePrivateIpAddress](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_InstancePrivateIpAddress.html)
 
 | Field | Description |
@@ -2407,7 +2407,7 @@ Representation of an AWS EC2 [InstancePrivateIpAddress](https://docs.aws.amazon.
 
 - EC2PrivateIps are connected with NetworkInterfaces.
     ```
-    (NetworkInterface)-[PRIVATE_IP_ADDRESS]->(EC2PrivateIp)
+    (AWSNetworkInterface)-[PRIVATE_IP_ADDRESS]->(AWSEC2PrivateIp)
     ```
 
 
@@ -2437,10 +2437,10 @@ Representation of an AWS EC2 [Reservation](https://docs.aws.amazon.com/AWSEC2/la
     ```
 
 
-### EC2SecurityGroup
+### AWSEC2SecurityGroup
 Representation of an AWS EC2 [Security Group](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_SecurityGroup.html).
 
-> **Ontology Mapping**: This node has the extra label `NetworkAccessControl` to enable cross-platform queries for security groups and firewall rules across different systems (e.g., EC2SecurityGroup, GCPFirewall, AzureNetworkSecurityGroup).
+> **Ontology Mapping**: This node has the extra label `NetworkAccessControl` to enable cross-platform queries for security groups and firewall rules across different systems (e.g., AWSEC2SecurityGroup, GCPFirewall, AzureNetworkSecurityGroup).
 
 | Field | Description |
 |-------|-------------|
@@ -2458,42 +2458,42 @@ Representation of an AWS EC2 [Security Group](https://docs.aws.amazon.com/AWSEC2
 - EC2 Instances, Network Interfaces, Load Balancers, Elastic Search Domains, IP Rules, IP Permission Inbound nodes, and RDS Instances can be members of EC2 Security Groups.
     ```
     (EC2Instance,
-        NetworkInterface,
+        AWSNetworkInterface,
         LoadBalancer,
         AWSESDomain,
         IpRule,
         IpPermissionInbound,
         AWSRDSInstance,
-        AWSVpc)-[MEMBER_OF_EC2_SECURITY_GROUP]->(EC2SecurityGroup)
+        AWSVpc)-[MEMBER_OF_EC2_SECURITY_GROUP]->(AWSEC2SecurityGroup)
     ```
 
 - Load balancers can define inbound [Source Security Groups](https://docs.aws.amazon.com/elasticloadbalancing/latest/classic/elb-security-groups.html).
     ```
-    (LoadBalancer)-[SOURCE_SECURITY_GROUP]->(EC2SecurityGroup)
+    (LoadBalancer)-[SOURCE_SECURITY_GROUP]->(AWSEC2SecurityGroup)
     ```
 
 - Security Groups can allow traffic from other security groups. This relationship can also be self-referential, meaning that a security group can allow traffic from itself (as security groups are default-deny). Relevant API docs: [IP Permission](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_IpPermission.html), [UserIdGroupPair](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_UserIdGroupPair.html).
     ```
-    (:EC2SecurityGroup)-[:ALLOWS_TRAFFIC_FROM]->(:EC2SecurityGroup)
+    (:AWSEC2SecurityGroup)-[:ALLOWS_TRAFFIC_FROM]->(:AWSEC2SecurityGroup)
     ```
 
 - AWS Accounts contain EC2 Security Groups.
     ```
-    (AWSAccount)-[RESOURCE]->(EC2SecurityGroup)
+    (AWSAccount)-[RESOURCE]->(AWSEC2SecurityGroup)
     ```
 
 -  EC2 SecurityGroups can be tagged with AWSTags.
     ```
-    (EC2SecurityGroup)-[TAGGED]->(AWSTag)
+    (AWSEC2SecurityGroup)-[TAGGED]->(AWSTag)
     ```
 
 - Redshift clusters can be members of EC2 Security Groups.
     ```
-    (AWSRedshiftCluster)-[MEMBER_OF_EC2_SECURITY_GROUP]->(EC2SecurityGroup)
+    (AWSRedshiftCluster)-[MEMBER_OF_EC2_SECURITY_GROUP]->(AWSEC2SecurityGroup)
     ```
 
 
-### EC2Subnet
+### AWSEC2Subnet
 
 Representation of an AWS EC2 [Subnet](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_Subnet.html).
 
@@ -2525,59 +2525,59 @@ Representation of an AWS EC2 [Subnet](https://docs.aws.amazon.com/AWSEC2/latest/
 
 - A Network Interface can be part of an EC2 Subnet.
     ```
-    (NetworkInterface)-[PART_OF_SUBNET]->(EC2Subnet)
+    (AWSNetworkInterface)-[PART_OF_SUBNET]->(AWSEC2Subnet)
     ```
 
 - An EC2 Instance can be part of an EC2 Subnet.
     ```
-    (EC2Instance)-[PART_OF_SUBNET]->(EC2Subnet)
+    (EC2Instance)-[PART_OF_SUBNET]->(AWSEC2Subnet)
     ```
 
 - A LoadBalancer can be part of an EC2 Subnet.
     ```
-    (LoadBalancer)-[SUBNET]->(EC2Subnet)
+    (LoadBalancer)-[SUBNET]->(AWSEC2Subnet)
     ```
 
 - A LoadBalancer can be part of an EC2 Subnet.
     ```
-    (LoadBalancer)-[PART_OF_SUBNET]->(EC2Subnet)
+    (LoadBalancer)-[PART_OF_SUBNET]->(AWSEC2Subnet)
     ```
 
 - A AWSLoadBalancerV2 can be part of an EC2 Subnet.
     ```
-    (AWSLoadBalancerV2)-[PART_OF_SUBNET]->(EC2Subnet)
+    (AWSLoadBalancerV2)-[PART_OF_SUBNET]->(AWSEC2Subnet)
     ```
 
 
 - DB Subnet Groups consist of EC2 Subnets
     ```
-    (AWSDBSubnetGroup)-[RESOURCE]->(EC2Subnet)
+    (AWSDBSubnetGroup)-[RESOURCE]->(AWSEC2Subnet)
     ```
 
 
 -  EC2 Subnets can be tagged with AWSTags.
     ```
-    (EC2Subnet)-[TAGGED]->(AWSTag)
+    (AWSEC2Subnet)-[TAGGED]->(AWSTag)
     ```
 
 -  EC2 Subnets are member of a VPC.
     ```
-    (EC2Subnet)-[MEMBER_OF_AWS_VPC]->(AWSVpc)
+    (AWSEC2Subnet)-[MEMBER_OF_AWS_VPC]->(AWSVpc)
     ```
 
 -  EC2 Subnets belong to AWS Accounts
     ```
-    (AWSAccount)-[RESOURCE]->(EC2Subnet)
+    (AWSAccount)-[RESOURCE]->(AWSEC2Subnet)
     ```
 
 -  EC2PrivateIps are connected with NetworkInterfaces.
     ```
-    (NetworkInterface)-[PRIVATE_IP_ADDRESS]->(EC2PrivateIp)
+    (AWSNetworkInterface)-[PRIVATE_IP_ADDRESS]->(AWSEC2PrivateIp)
     ```
 
-- EC2RouteTableAssociation links a subnet to a route table. The subnet uses this route table for egress routing decisions.
+- AWSEC2RouteTableAssociation links a subnet to a route table. The subnet uses this route table for egress routing decisions.
     ```
-    (EC2RouteTableAssociation)-[ASSOCIATED_SUBNET]->(EC2Subnet)
+    (AWSEC2RouteTableAssociation)-[ASSOCIATED_SUBNET]->(AWSEC2Subnet)
     ```
 
 
@@ -2604,14 +2604,14 @@ Representation of an AWS EC2 [Subnet](https://docs.aws.amazon.com/AWSEC2/latest/
     (AWSAccount)-[RESOURCE]->(AWSInternetGateway)
     ```
 
-- EC2RouteTableAssociation is associated with an internet gateway. In this configuration, AWS uses this given route table to decide how to route packets that arrive through the given IGW.
+- AWSEC2RouteTableAssociation is associated with an internet gateway. In this configuration, AWS uses this given route table to decide how to route packets that arrive through the given IGW.
     ```
-    (EC2RouteTableAssociation)-[ASSOCIATED_IGW_FOR_INGRESS]->(AWSInternetGateway)
+    (AWSEC2RouteTableAssociation)-[ASSOCIATED_IGW_FOR_INGRESS]->(AWSInternetGateway)
     ```
 
-- EC2Route routes to an AWSInternetGateway. In most cases this tells AWS "to reach the internet, use this IGW".
+- AWSEC2Route routes to an AWSInternetGateway. In most cases this tells AWS "to reach the internet, use this IGW".
     ```
-    (EC2Route)-[ROUTES_TO_GATEWAY]->(AWSInternetGateway)
+    (AWSEC2Route)-[ROUTES_TO_GATEWAY]->(AWSInternetGateway)
     ```
 
 
@@ -2678,7 +2678,7 @@ Representation of an AWS Elastic Container Registry [pull through cache rule](ht
     ```
 
 
-### EC2NetworkAcl
+### AWSEC2NetworkAcl
 
  Representation of an AWS [EC2 Network ACL](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_NetworkAcl.html)
 
@@ -2696,30 +2696,30 @@ Representation of an AWS Elastic Container Registry [pull through cache rule](ht
 
 -  EC2 Network ACLs have ingress and egress rules
     ```
-    (:EC2NetworkAclRule:IpPermissionInbound)-[:MEMBER_OF_NACL]->(:EC2NetworkAcl)
+    (:AWSEC2NetworkAclRule:IpPermissionInbound)-[:MEMBER_OF_NACL]->(:AWSEC2NetworkAcl)
     ```
 
     ```
-    (:EC2NetworkAclRule:IpPermissionEgress)-[:MEMBER_OF_NACL]->(:EC2NetworkAcl)
+    (:AWSEC2NetworkAclRule:IpPermissionEgress)-[:MEMBER_OF_NACL]->(:AWSEC2NetworkAcl)
     ```
 
 - EC2 Network ACLs define egress and ingress rules on subnets
     ```
-    (:EC2NetworkAcl)-[:PART_OF_SUBNET]->(:EC2Subnet)
+    (:AWSEC2NetworkAcl)-[:PART_OF_SUBNET]->(:AWSEC2Subnet)
     ```
 
 - EC2 Network ACLs are attached to VPCs.
     ```
-    (:EC2NetworkAcl)-[:MEMBER_OF_AWS_VPC]->(:AWSVpc)
+    (:AWSEC2NetworkAcl)-[:MEMBER_OF_AWS_VPC]->(:AWSVpc)
     ```
 
 - EC2 Network ACLs belong to AWS Accounts
     ```
-    (:AWSAccount)-[:RESOURCE]->(:EC2NetworkAcl)
+    (:AWSAccount)-[:RESOURCE]->(:AWSEC2NetworkAcl)
     ```
 
 
-### EC2NetworkAclRule :: IpPermissionInbound / IpPermissionEgress
+### AWSEC2NetworkAclRule :: IpPermissionInbound / IpPermissionEgress
 
 Representation of an AWS [EC2 Network ACL Rule Entry](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_NetworkAclEntry.html)
 For additional explanation see https://docs.aws.amazon.com/vpc/latest/userguide/nacl-rules.html.
@@ -2743,16 +2743,16 @@ For additional explanation see https://docs.aws.amazon.com/vpc/latest/userguide/
 
 -  EC2 Network ACLs have ingress and egress rules
     ```
-    (:EC2NetworkAclRule:IpPermissionInbound)-[:MEMBER_OF_NACL]->(:EC2NetworkAcl)
+    (:AWSEC2NetworkAclRule:IpPermissionInbound)-[:MEMBER_OF_NACL]->(:AWSEC2NetworkAcl)
     ```
 
     ```
-    (:EC2NetworkAclRule:IpPermissionEgress)-[:MEMBER_OF_NACL]->(:EC2NetworkAcl)
+    (:AWSEC2NetworkAclRule:IpPermissionEgress)-[:MEMBER_OF_NACL]->(:AWSEC2NetworkAcl)
     ```
 
  -  EC2 Network ACL Ruless belong to AWS Accounts
     ```
-    (:AWSAccount)-[:RESOURCE]->(:EC2NetworkAclRule)
+    (:AWSAccount)-[:RESOURCE]->(:AWSEC2NetworkAclRule)
     ```
 
 
@@ -3212,7 +3212,7 @@ Representation of an AWS [ElasticSearch Domain](https://docs.aws.amazon.com/elas
 
 - Elastic Search domains can be members of EC2 Security Groups.
     ```
-    (AWSESDomain)-[MEMBER_OF_EC2_SECURITY_GROUP]->(EC2SecurityGroup)
+    (AWSESDomain)-[MEMBER_OF_EC2_SECURITY_GROUP]->(AWSEC2SecurityGroup)
     ```
 
 - Elastic Search domains belong to AWS Accounts.
@@ -3393,7 +3393,7 @@ Represents a generic IP rule.  The creation of this node is currently derived fr
 
 - AWSIpRules are defined from EC2SecurityGroups.
     ```
-    (AWSIpRule)-[MEMBER_OF_EC2_SECURITY_GROUP]->(EC2SecurityGroup)
+    (AWSIpRule)-[MEMBER_OF_EC2_SECURITY_GROUP]->(AWSEC2SecurityGroup)
     ```
 
 
@@ -3417,7 +3417,7 @@ An AWSIpPermissionInbound node is a specific type of AWSIpRule. It represents in
 
 - AWSIpPermissionInbound rules are defined from EC2SecurityGroups.
     ```
-    (AWSIpPermissionInbound)-[MEMBER_OF_EC2_SECURITY_GROUP]->(EC2SecurityGroup)
+    (AWSIpPermissionInbound)-[MEMBER_OF_EC2_SECURITY_GROUP]->(AWSEC2SecurityGroup)
     ```
 
 
@@ -3485,23 +3485,23 @@ Represents a classic [AWS Elastic Load Balancer](https://docs.aws.amazon.com/ela
 
 - LoadBalancers can have [source security groups](https://docs.aws.amazon.com/elasticloadbalancing/2012-06-01/APIReference/API_SourceSecurityGroup.html) configured.
     ```
-    (LoadBalancer)-[SOURCE_SECURITY_GROUP]->(EC2SecurityGroup)
+    (LoadBalancer)-[SOURCE_SECURITY_GROUP]->(AWSEC2SecurityGroup)
     ```
 
 - LoadBalancers can be part of EC2SecurityGroups.
     ```
-    (LoadBalancer)-[MEMBER_OF_EC2_SECURITY_GROUP]->(EC2SecurityGroup)
+    (LoadBalancer)-[MEMBER_OF_EC2_SECURITY_GROUP]->(AWSEC2SecurityGroup)
     ```
 
 - LoadBalancers can be part of EC2 Subnets
     ```
-    (LoadBalancer)-[SUBNET]->(EC2Subnet)
+    (LoadBalancer)-[SUBNET]->(AWSEC2Subnet)
     ```
 
 
 - LoadBalancers can be part of EC2 Subnets
     ```
-    (LoadBalancer)-[PART_OF_SUBNET]->(EC2Subnet)
+    (LoadBalancer)-[PART_OF_SUBNET]->(AWSEC2Subnet)
     ```
 
 - LoadBalancers can have listeners configured to accept connections from clients ([good introduction](https://docs.aws.amazon.com/elasticloadbalancing/2012-06-01/APIReference/Welcome.html)).
@@ -3560,7 +3560,7 @@ Represents an Elastic Load Balancer V2 ([Application Load Balancer](https://docs
 
 - AWSLoadBalancerV2's can expose IP addresses when using `ip` target type.
     ```
-    (AWSLoadBalancerV2)-[EXPOSE]->(EC2PrivateIp)
+    (AWSLoadBalancerV2)-[EXPOSE]->(AWSEC2PrivateIp)
     ```
 
 - AWSLoadBalancerV2's can expose Lambda functions when using `lambda` target type.
@@ -3577,17 +3577,17 @@ The `EXPOSE` relationship holds the protocol, port and TargetGroupArn the load b
 
 - AWSLoadBalancerV2's can be part of EC2SecurityGroups but only if their `type` = "application". NLBs don't have SGs.
     ```
-    (AWSLoadBalancerV2)-[MEMBER_OF_EC2_SECURITY_GROUP]->(EC2SecurityGroup)
+    (AWSLoadBalancerV2)-[MEMBER_OF_EC2_SECURITY_GROUP]->(AWSEC2SecurityGroup)
     ```
 
 - AWSLoadBalancerV2's can be part of EC2 Subnets
     ```
-    (AWSLoadBalancerV2)-[SUBNET]->(EC2Subnet)
+    (AWSLoadBalancerV2)-[SUBNET]->(AWSEC2Subnet)
     ```
 
 - AWSLoadBalancerV2's can be part of EC2 Subnets
     ```
-    (AWSLoadBalancerV2)-[PART_OF_SUBNET]->(EC2Subnet)
+    (AWSLoadBalancerV2)-[PART_OF_SUBNET]->(AWSEC2Subnet)
     ```
 
 - AWSLoadBalancerV2's have [listeners](https://docs.aws.amazon.com/elasticloadbalancing/latest/APIReference/API_Listener.html):
@@ -3606,9 +3606,9 @@ The `EXPOSE` relationship holds the protocol, port and TargetGroupArn the load b
     (AWSLoadBalancerV2)-[EXPOSE {exposure_type: 'via_lb_only'}]->(KubernetesContainer)
     ```
 
-- EC2NetworkAcl's can protect AWSLoadBalancerV2's via subnet traversal. Set by an analysis job.
+- AWSEC2NetworkAcl's can protect AWSLoadBalancerV2's via subnet traversal. Set by an analysis job.
     ```
-    (EC2NetworkAcl)-[PROTECTS]->(AWSLoadBalancerV2)
+    (AWSEC2NetworkAcl)-[PROTECTS]->(AWSLoadBalancerV2)
     ```
 
 ### AWSNameServer
@@ -3628,9 +3628,9 @@ Represents a DNS nameserver.
     (AWSDNSZone)-[NAMESERVER]->(AWSNameServer)
     ```
 
-### NetworkInterface
+### AWSNetworkInterface
 
-Representation of a generic Network Interface.  Currently however, we only create NetworkInterface nodes from AWS [EC2 Instances](#ec2instance).  The spec for an AWS EC2 network interface is [here](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_InstanceNetworkInterface.html).
+Representation of a generic Network Interface.  Currently however, we only create AWSNetworkInterface nodes from AWS [EC2 Instances](#ec2instance).  The spec for an AWS EC2 network interface is [here](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_InstanceNetworkInterface.html).
 
 | Field | Description |
 |-------|-------------|
@@ -3661,7 +3661,7 @@ The `LaunchTime` field on EC2Instance nodes shows the *last* launch time (e.g., 
 
 ```cypher
 // Get the true first launch time for EC2 instances
-MATCH (i:EC2Instance)-[:NETWORK_INTERFACE]->(ni:NetworkInterface {device_index: 0})
+MATCH (i:EC2Instance)-[:NETWORK_INTERFACE]->(ni:AWSNetworkInterface {device_index: 0})
 WHERE ni.attach_time IS NOT NULL
 RETURN i.instanceid, i.launchtime as last_launch, ni.attach_time as first_launch
 ```
@@ -3674,46 +3674,46 @@ RETURN i.instanceid, i.launchtime as last_launch, ni.attach_time as first_launch
 
 -  EC2 Network Interfaces belong to AWS accounts.
 
-        (NetworkInterface)<-[:RESOURCE]->(:AWSAccount)
+        (AWSNetworkInterface)<-[:RESOURCE]->(:AWSAccount)
 
 - Network interfaces can be connected to EC2Subnets.
     ```
-    (NetworkInterface)-[PART_OF_SUBNET]->(EC2Subnet)
+    (AWSNetworkInterface)-[PART_OF_SUBNET]->(AWSEC2Subnet)
     ```
 
 - Network interfaces can be members of EC2SecurityGroups.
     ```
-    (NetworkInterface)-[MEMBER_OF_EC2_SECURITY_GROUP]->(EC2SecurityGroup)
+    (AWSNetworkInterface)-[MEMBER_OF_EC2_SECURITY_GROUP]->(AWSEC2SecurityGroup)
     ```
 
 - EC2Instances can have NetworkInterfaces connected to them.
     ```
-    (EC2Instance)-[NETWORK_INTERFACE]->(NetworkInterface)
+    (EC2Instance)-[NETWORK_INTERFACE]->(AWSNetworkInterface)
     ```
 
 - LoadBalancers can have NetworkInterfaces connected to them.
     ```
-    (LoadBalancer)-[NETWORK_INTERFACE]->(NetworkInterface)
+    (LoadBalancer)-[NETWORK_INTERFACE]->(AWSNetworkInterface)
     ```
 
 - AWSLoadBalancerV2s can have NetworkInterfaces connected to them.
     ```
-    (AWSLoadBalancerV2)-[NETWORK_INTERFACE]->(NetworkInterface)
+    (AWSLoadBalancerV2)-[NETWORK_INTERFACE]->(AWSNetworkInterface)
     ```
 
-- EC2PrivateIps are connected to a NetworkInterface.
+- EC2PrivateIps are connected to a AWSNetworkInterface.
     ```
-    (NetworkInterface)-[PRIVATE_IP_ADDRESS]->(EC2PrivateIp)
+    (AWSNetworkInterface)-[PRIVATE_IP_ADDRESS]->(AWSEC2PrivateIp)
     ```
 
 - NetworkInterfaces can have IPv6 addresses.
     ```
-    (NetworkInterface)-[IPV6_ADDRESS]->(EC2Ipv6Address)
+    (AWSNetworkInterface)-[IPV6_ADDRESS]->(AWSEC2Ipv6Address)
     ```
 
 -  EC2 Network Interfaces can be tagged with AWSTags.
     ```
-    (NetworkInterface)-[TAGGED]->(AWSTag)
+    (AWSNetworkInterface)-[TAGGED]->(AWSTag)
     ```
 
 ### AWSPeeringConnection
@@ -3782,7 +3782,7 @@ Representation of an AWS [AWSRedshiftCluster](https://docs.aws.amazon.com/redshi
 
 - Redshift clusters can be members of EC2 Security Groups.
     ```
-    (AWSRedshiftCluster)-[MEMBER_OF_EC2_SECURITY_GROUP]->(EC2SecurityGroup)
+    (AWSRedshiftCluster)-[MEMBER_OF_EC2_SECURITY_GROUP]->(AWSEC2SecurityGroup)
     ```
 
 - Redshift clusters may assume IAM roles. See [this article](https://docs.aws.amazon.com/redshift/latest/mgmt/authorizing-redshift-service.html).
@@ -3913,7 +3913,7 @@ Representation of an AWS Relational Database Service [DBInstance](https://docs.a
 
 - RDS Instances can be members of EC2 Security Groups.
     ```
-    (AWSRDSInstance)-[m:MEMBER_OF_EC2_SECURITY_GROUP]->(EC2SecurityGroup)
+    (AWSRDSInstance)-[m:MEMBER_OF_EC2_SECURITY_GROUP]->(AWSEC2SecurityGroup)
     ```
 
 - RDS Instances are connected to DB Subnet Groups.
@@ -4645,7 +4645,7 @@ Representation of an AWS [Auto Scaling Group Resource](https://docs.aws.amazon.c
 
 - AWS Auto Scaling Groups has one or more subnets/vpc identifiers.
     ```
-    (AutoScalingGroup)-[VPC_IDENTIFIER]->(EC2Subnet)
+    (AutoScalingGroup)-[VPC_IDENTIFIER]->(AWSEC2Subnet)
     ```
 
 - AWS EC2 Instances are members of one or more AWS Auto Scaling Groups.
@@ -5097,7 +5097,7 @@ Representation of an AWS [Launch Template Version](https://docs.aws.amazon.com/A
     (LaunchTemplate)-[VERSION]->(LaunchTemplateVersion)
     ```
 
-### ElasticIPAddress
+### AWSElasticIPAddress
 
 Representation of an AWS EC2 [Elastic IP address](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_Address.html)
 
@@ -5124,22 +5124,22 @@ Representation of an AWS EC2 [Elastic IP address](https://docs.aws.amazon.com/AW
 
 - Elastic IPs are a resource under the AWS Account.
     ```
-    (AWSAccount)-[RESOURCE]->(ElasticIPAddress)
+    (AWSAccount)-[RESOURCE]->(AWSElasticIPAddress)
     ```
 
 - Elastic IPs can be attached to EC2 instances
     ```
-    (EC2Instance)-[ELASTIC_IP_ADDRESS]->(ElasticIPAddress)
+    (EC2Instance)-[ELASTIC_IP_ADDRESS]->(AWSElasticIPAddress)
     ```
 
 - Elastic IPs can be attached to NetworkInterfaces
     ```
-    (NetworkInterface)-[ELASTIC_IP_ADDRESS]->(ElasticIPAddress)
+    (AWSNetworkInterface)-[ELASTIC_IP_ADDRESS]->(AWSElasticIPAddress)
     ```
 
 - AWSDNSRecords can point to ElasticIPAddresses
     ```
-    (AWSDNSRecord)-[DNS_POINTS_TO]->(ElasticIPAddress)
+    (AWSDNSRecord)-[DNS_POINTS_TO]->(AWSElasticIPAddress)
     ```
 
 ### AWSECSCluster
@@ -5413,7 +5413,7 @@ Representation of an AWS ECS [Task](https://docs.aws.amazon.com/AmazonECS/latest
 
 - ECSTasks in awsvpc network mode have NetworkInterfaces
     ```
-    (:AWSECSTask)-[:NETWORK_INTERFACE]->(:NetworkInterface)
+    (:AWSECSTask)-[:NETWORK_INTERFACE]->(:AWSNetworkInterface)
     ```
 
 - ECSTasks point at their parent in the unified workload chain. Service-attached tasks point at the AWSECSService; standalone tasks point directly at the AWSECSCluster.
@@ -5950,7 +5950,7 @@ Representation of an AWS Identity Center Permission Set.
     ```
     Note: This relationship does not indicate which accounts the group has access to, only that it has been assigned to the permission set. For a group to have access to an AWS account, it must be assigned to a permission set for that specific account. This is captured by the `ALLOWED_BY` relationship.
 
-### EC2RouteTable
+### AWSEC2RouteTable
 
 Representation of an AWS [EC2 Route Table](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_RouteTable.html).
 
@@ -5966,27 +5966,27 @@ Representation of an AWS [EC2 Route Table](https://docs.aws.amazon.com/AWSEC2/la
 |region| The AWS region the route table is in|
 
 #### Relationships
-- EC2RouteTable belongs to an AWSAccount.
+- AWSEC2RouteTable belongs to an AWSAccount.
     ```
-    (AWSAccount)-[RESOURCE]->(EC2RouteTable)
-    ```
-
-- EC2RouteTable is associated with a VPC.
-    ```
-    (EC2RouteTable)-[MEMBER_OF_AWS_VPC]->(AWSVpc)
+    (AWSAccount)-[RESOURCE]->(AWSEC2RouteTable)
     ```
 
-- EC2RouteTable contains EC2Routes.
+- AWSEC2RouteTable is associated with a VPC.
     ```
-    (EC2RouteTable)-[ROUTE]->(EC2Route)
-    ```
-
-- EC2RouteTable has EC2RouteTableAssociations.
-    ```
-    (EC2RouteTable)-[ASSOCIATION]->(EC2RouteTableAssociation)
+    (AWSEC2RouteTable)-[MEMBER_OF_AWS_VPC]->(AWSVpc)
     ```
 
-### EC2RouteTableAssociation
+- AWSEC2RouteTable contains EC2Routes.
+    ```
+    (AWSEC2RouteTable)-[ROUTE]->(AWSEC2Route)
+    ```
+
+- AWSEC2RouteTable has EC2RouteTableAssociations.
+    ```
+    (AWSEC2RouteTable)-[ASSOCIATION]->(AWSEC2RouteTableAssociation)
+    ```
+
+### AWSEC2RouteTableAssociation
 
 Representation of an AWS [EC2 Route Table Association](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_RouteTableAssociation.html).
 
@@ -6006,22 +6006,22 @@ Representation of an AWS [EC2 Route Table Association](https://docs.aws.amazon.c
 |region| The AWS region the association is in|
 
 #### Relationships
-- EC2RouteTableAssociation belongs to an AWSAccount.
+- AWSEC2RouteTableAssociation belongs to an AWSAccount.
     ```
-    (AWSAccount)-[RESOURCE]->(EC2RouteTableAssociation)
-    ```
-
-- EC2RouteTableAssociation is associated with a subnet.
-    ```
-    (EC2RouteTableAssociation)-[ASSOCIATED_SUBNET]->(EC2Subnet)
+    (AWSAccount)-[RESOURCE]->(AWSEC2RouteTableAssociation)
     ```
 
-- EC2RouteTableAssociation is associated with an internet gateway. In this configuration, AWS uses this given route table to decide how to route packets that arrive through the given IGW.
+- AWSEC2RouteTableAssociation is associated with a subnet.
     ```
-    (EC2RouteTableAssociation)-[ASSOCIATED_IGW_FOR_INGRESS]->(AWSInternetGateway)
+    (AWSEC2RouteTableAssociation)-[ASSOCIATED_SUBNET]->(AWSEC2Subnet)
     ```
 
-### EC2Route
+- AWSEC2RouteTableAssociation is associated with an internet gateway. In this configuration, AWS uses this given route table to decide how to route packets that arrive through the given IGW.
+    ```
+    (AWSEC2RouteTableAssociation)-[ASSOCIATED_IGW_FOR_INGRESS]->(AWSInternetGateway)
+    ```
+
+### AWSEC2Route
 
 Representation of an AWS [EC2 Route](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_Route.html).
 
@@ -6051,19 +6051,19 @@ Representation of an AWS [EC2 Route](https://docs.aws.amazon.com/AWSEC2/latest/A
 |region| The AWS region the route is in|
 
 #### Relationships
-- EC2Route belongs to an AWSAccount.
+- AWSEC2Route belongs to an AWSAccount.
     ```
-    (AWSAccount)-[RESOURCE]->(EC2Route)
-    ```
-
-- EC2Route is contained in an EC2RouteTable.
-    ```
-    (EC2RouteTable)-[ROUTE]->(EC2Route)
+    (AWSAccount)-[RESOURCE]->(AWSEC2Route)
     ```
 
-- EC2Route routes to an AWSInternetGateway. In most cases this tells AWS "to reach the internet, use this IGW".
+- AWSEC2Route is contained in an AWSEC2RouteTable.
     ```
-    (EC2Route)-[ROUTES_TO_GATEWAY]->(AWSInternetGateway)
+    (AWSEC2RouteTable)-[ROUTE]->(AWSEC2Route)
+    ```
+
+- AWSEC2Route routes to an AWSInternetGateway. In most cases this tells AWS "to reach the internet, use this IGW".
+    ```
+    (AWSEC2Route)-[ROUTES_TO_GATEWAY]->(AWSInternetGateway)
     ```
 
 ### AWSSecretsManagerSecretVersion

@@ -83,7 +83,7 @@
     },
     {
       "__comment": "Cleanup: delete stale ontology-created DNS_POINTS_TO edges, excluding the (AWSDNSRecord, target) tuples the route53 loader owns so its edges are never deleted even when the AWS and ontology syncs run with different update tags. The excluded target list must mirror every DNS_POINTS_TO target in the route53 dnsrecord model. MERGE runs first so live edges carry the current tag.",
-      "query": "MATCH (dns:DNSRecord)-[r:DNS_POINTS_TO]->(t) WHERE r.lastupdated <> $UPDATE_TAG AND NOT (dns:AWSDNSRecord AND (t:AWSLoadBalancer OR t:AWSLoadBalancerV2 OR t:EC2Instance OR t:AWSESDomain OR t:Ip OR t:ElasticIPAddress OR t:AWSNameServer OR t:AWSDNSRecord)) WITH r LIMIT $LIMIT_SIZE DELETE r RETURN COUNT(*) AS TotalCompleted",
+      "query": "MATCH (dns:DNSRecord)-[r:DNS_POINTS_TO]->(t) WHERE r.lastupdated <> $UPDATE_TAG AND NOT (dns:AWSDNSRecord AND (t:AWSLoadBalancer OR t:AWSLoadBalancerV2 OR t:EC2Instance OR t:AWSESDomain OR t:Ip OR t:AWSElasticIPAddress OR t:AWSNameServer OR t:AWSDNSRecord)) WITH r LIMIT $LIMIT_SIZE DELETE r RETURN COUNT(*) AS TotalCompleted",
       "iterative": true,
       "iterationsize": 1000
     }

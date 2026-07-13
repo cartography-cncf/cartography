@@ -534,7 +534,7 @@ Representation of a GCP [Resource Record Set](https://cloud.google.com/dns/docs/
 
 Representation of a GCP [Subnetwork](https://cloud.google.com/compute/docs/reference/rest/v1/subnetworks).
 
-> **Ontology Mapping**: This node has the extra label `Subnet` and normalized `_ont_*` properties to enable cross-platform queries for network subnets across different systems (e.g., EC2Subnet, AzureSubnet).
+> **Ontology Mapping**: This node has the extra label `Subnet` and normalized `_ont_*` properties to enable cross-platform queries for network subnets across different systems (e.g., AWSEC2Subnet, AzureSubnet).
 
 | Field                    | Description                                                                                                                                                                                        |
 | ------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -582,7 +582,7 @@ Representation of a GCP [Subnetwork](https://cloud.google.com/compute/docs/refer
 
 Representation of a GCP [Firewall](https://cloud.google.com/compute/docs/reference/rest/v1/firewalls/list).
 
-> **Ontology Mapping**: This node has the extra label `NetworkAccessControl` to enable cross-platform queries for security groups and firewall rules across different systems (e.g., EC2SecurityGroup, GCPFirewall, AzureNetworkSecurityGroup).
+> **Ontology Mapping**: This node has the extra label `NetworkAccessControl` to enable cross-platform queries for security groups and firewall rules across different systems (e.g., AWSEC2SecurityGroup, GCPFirewall, AzureNetworkSecurityGroup).
 
 | Field                       | Description |
 | --------------------------- | ----------- |
@@ -2408,7 +2408,7 @@ Representation of a GCP [Instance Group](https://cloud.google.com/compute/docs/r
 
 Representation of a GCP [Cloud Armor Security Policy](https://cloud.google.com/compute/docs/reference/rest/v1/securityPolicies). Cloud Armor policies provide DDoS protection and WAF capabilities for backend services.
 
-> **Ontology Mapping**: This node has the extra label `NetworkAccessControl` to enable cross-platform queries for security groups and firewall rules across different systems (e.g., EC2SecurityGroup, GCPFirewall, AzureNetworkSecurityGroup).
+> **Ontology Mapping**: This node has the extra label `NetworkAccessControl` to enable cross-platform queries for security groups and firewall rules across different systems (e.g., AWSEC2SecurityGroup, GCPFirewall, AzureNetworkSecurityGroup).
 
 | Field | Description |
 |---|---|

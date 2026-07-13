@@ -115,8 +115,8 @@ CC -- ASSUMES_ROLE --> AWS
 CC -- IN_ACCOUNT --> AWSACC(AWSAccount)
 STC -- BACKED_BY --> BKT
 NC -- USES_VPC --> VPC(AWSVpc)
-NC -- USES_SUBNET --> SUB(EC2Subnet)
-NC -- USES_SECURITY_GROUP --> SG(EC2SecurityGroup)
+NC -- USES_SUBNET --> SUB(AWSEC2Subnet)
+NC -- USES_SECURITY_GROUP --> SG(AWSEC2SecurityGroup)
 VE -- POINTS_TO --> AWSVE(AWSVpcEndpoint)
 EK -- REFERENCES_KEY --> KEY(AWSKMSKey / GCPCryptoKey)
 LD -- DELIVERS_TO --> BKT
@@ -1570,8 +1570,8 @@ Account-level workspace cloud configurations (AWS / GCP). Each is owned by the `
 (:DatabricksCredentialConfig)-[:IN_ACCOUNT]->(:AWSAccount)
 (:DatabricksStorageConfig)-[:BACKED_BY]->(:AWSS3Bucket)
 (:DatabricksNetworkConfig)-[:USES_VPC]->(:AWSVpc)
-(:DatabricksNetworkConfig)-[:USES_SUBNET]->(:EC2Subnet)
-(:DatabricksNetworkConfig)-[:USES_SECURITY_GROUP]->(:EC2SecurityGroup)
+(:DatabricksNetworkConfig)-[:USES_SUBNET]->(:AWSEC2Subnet)
+(:DatabricksNetworkConfig)-[:USES_SECURITY_GROUP]->(:AWSEC2SecurityGroup)
 (:DatabricksVpcEndpoint)-[:POINTS_TO]->(:AWSVpcEndpoint)
 (:DatabricksEncryptionKey)-[:REFERENCES_KEY]->(:AWSKMSKey)
 (:DatabricksEncryptionKey)-[:REFERENCES_KEY]->(:GCPCryptoKey)
