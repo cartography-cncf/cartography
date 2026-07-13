@@ -184,9 +184,8 @@ AWS_EC2_ASSET_EXPOSURE_AUTO_SCALING_GROUP = AnalysisJob(
         AnalysisStatement(
             match="""
             MATCH (instance:EC2Instance{exposed_internet: true})-[:MEMBER_AUTO_SCALE_GROUP]->(asg:AutoScalingGroup)
-            WITH distinct instance.exposed_internet_type as types, asg
-            UNWIND types as type
-            WITH type, asg
+            UNWIND instance.exposed_internet_type as type
+            WITH DISTINCT type, asg
             """,
             effects=(
                 SetProperty("asg", "exposed_internet", True, label="AutoScalingGroup"),

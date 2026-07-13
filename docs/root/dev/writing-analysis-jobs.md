@@ -31,14 +31,14 @@ AnalysisJob(
 The typed syntax has three parts:
 
 ```text
-AnalysisJob(scope=ScopedTo(...))
+AnalysisJob(scope=CleanupScopedTo(...))
     -> AnalysisStatement(match="MATCH ...", effects=(...))
         -> SetProperty / AddToSet / AddRelationship / SetRelationshipProperty
 ```
 
 ```mermaid
 flowchart LR
-    job["AnalysisJob"] --> scope["scope: ScopedTo"]
+    job["AnalysisJob"] --> scope["scope: CleanupScopedTo"]
     job --> stmt["AnalysisStatement"]
     stmt --> match["match: Cypher pattern"]
     stmt --> effects["effects"]
@@ -53,14 +53,17 @@ Common primitives:
 | `SetProperty(node, property, value, label=...)` | Set one node property and derive cleanup for that label. |
 | `SetProperties(node, {property: value}, label=...)` | Set several node properties with one effect. |
 | `AddToSet(node, property, value, label=...)` | Add a value to a list property without duplicates. |
+| `AddValuesToSet(node, property, values, label=...)` | Add several values to a list property without duplicates. |
 | `AddRelationship(source, rel, target, source_label=..., target_label=...)` | MERGE a relationship, set `firstseen` on create, set `lastupdated` every run, and derive stale-edge cleanup. |
 | `SetRelationshipProperty(rel, property, value, source_label=..., rel_label=...)` | Set a relationship property and derive property cleanup. |
-| `Expr("cypher")` | Use a Cypher expression instead of a literal value. |
-| `ScopedTo(label, id_param)` | Constrain generated cleanup to one tenant/account/project. |
+| `Var("node.property")` | Use a Cypher variable or property reference as a value. |
+| `Param("UPDATE_TAG")` | Use a Cypher parameter as a value. |
+| `RawCypher("coalesce(...)")` | Use a raw Cypher expression as a value. |
+| `CleanupScopedTo(label, id_param)` | Constrain generated cleanup to one tenant/account/project. |
 
-`label` is required for node-property effects because cleanup needs to know which label owns the property. `Expr("...")` is for Cypher values like `$UPDATE_TAG`, `timestamp()`, or `coalesce(...)`; plain Python strings become quoted Cypher strings.
+`label` is required for node-property effects because cleanup needs to know which label owns the property. Plain Python strings become quoted Cypher strings, so use `Var`, `Param`, or `RawCypher` when the value should compile as Cypher.
 
-`ScopedTo(...)` lives on the `AnalysisJob` and describes the resource boundary used during generated cleanup, for example `ScopedTo("AWSAccount", "AWS_ID")`. For relationship effects, `scoped_to="source"` or `"target"` lives on `AddRelationship` and chooses which endpoint is connected to that scoped resource. Keep the default `source` when the source node is under the scoped account/project; override it to `target` when only the target node is under that scope.
+`CleanupScopedTo(...)` lives on the `AnalysisJob` and describes the resource boundary used during generated cleanup, for example `CleanupScopedTo("AWSAccount", "AWS_ID")`. For relationship effects, `scoped_to="source"` or `"target"` lives on `AddRelationship` and chooses which endpoint is connected to that scoped resource. Keep the default `source` when the source node is under the scoped account/project; override it to `target` when only the target node is under that scope.
 
 ## Example job: which of my EC2 instances is accessible to any host on the internet?
 The easiest way to learn how to write an Analysis Job is through an example. One of the Analysis Jobs included by default in Cartography's source tree is `AWS_EC2_ASSET_EXPOSURE_INSTANCE` in [cartography/analysis/aws/analysis.py](https://github.com/cartography-cncf/cartography/blob/master/cartography/analysis/aws/analysis.py). This tutorial covers only the EC2 instance part of that job, but after reading this you should be able to understand the other steps in that file.

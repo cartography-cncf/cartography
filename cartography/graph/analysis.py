@@ -20,7 +20,15 @@ class CleanupScopedTo:
 
 @dataclass(frozen=True)
 class AnalysisStatement:
-    """One analysis statement, either raw Cypher or a match plus typed effects."""
+    """
+    One analysis statement, either raw Cypher or a match plus typed effects.
+
+    query is for hand-written Cypher and cannot be combined with match/effects.
+    match provides the read pattern for typed effects. effects declare the write
+    operations and generated cleanup coverage. iterative and iterationsize apply
+    only to this statement's write query; generated cleanup statements are
+    iterative separately and use AnalysisJob.cleanup_iterationsize.
+    """
 
     query: str | None = None
     comment: str | None = None

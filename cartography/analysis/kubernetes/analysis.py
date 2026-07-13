@@ -50,7 +50,7 @@ K8S_CONTAINER_ASSET_EXPOSURE = AnalysisJob(
     scope=CleanupScopedTo("KubernetesCluster", "CLUSTER_ID"),
     statements=(
         AnalysisStatement(
-            match="MATCH (cluster:KubernetesCluster{id: $CLUSTER_ID})-[:RESOURCE]->(pod:KubernetesPod{exposed_internet: true})-[:CONTAINS]->(c:KubernetesContainer) WITH DISTINCT c",
+            match="MATCH (cluster:KubernetesCluster{id: $CLUSTER_ID})-[:RESOURCE]->(pod:KubernetesPod{exposed_internet: true})-[:CONTAINS]->(c:KubernetesContainer)",
             effects=(
                 SetProperty("c", "exposed_internet", True, label="KubernetesContainer"),
                 AddToSet(

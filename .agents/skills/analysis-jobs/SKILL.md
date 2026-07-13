@@ -64,14 +64,14 @@ AnalysisJob(
 Typed jobs read as:
 
 ```text
-AnalysisJob(scope=ScopedTo(...))
+AnalysisJob(scope=CleanupScopedTo(...))
     -> AnalysisStatement(match="MATCH ...", effects=(...))
-        -> SetProperty / AddToSet / AddRelationship / SetRelationshipProperty
+        -> SetProperty / AddToSet / AddValuesToSet / AddRelationship / SetRelationshipProperty
 ```
 
-`label` is required for node-property effects so cleanup knows which label owns the property. Use `Expr("...")` for Cypher expressions like `$UPDATE_TAG`, `timestamp()`, and `coalesce(...)`; plain strings become quoted Cypher strings.
+`label` is required for node-property effects so cleanup knows which label owns the property. Plain strings become quoted Cypher strings. Use `Var("node.property")`, `Param("UPDATE_TAG")`, or `RawCypher("coalesce(...)")` when the value should compile as Cypher.
 
-`ScopedTo(...)` on the job defines the account/project/tenant boundary used by generated cleanup. `scoped_to="source"` or `"target"` on `AddRelationship` chooses which endpoint is attached to that scoped resource; keep the default `source` unless the target node is the scoped resource.
+`CleanupScopedTo(...)` on the job defines the account/project/tenant boundary used by generated cleanup. `scoped_to="source"` or `"target"` on `AddRelationship` chooses which endpoint is attached to that scoped resource; keep the default `source` unless the target node is the scoped resource.
 
 ### Step 3 - Write the queries
 
@@ -84,7 +84,7 @@ AnalysisStatement(
 )
 ```
 
-**Iterative** - required for large datasets. Must return `TotalCompleted`:
+**Iterative raw query** - required for large raw statements. Must return `TotalCompleted`:
 
 ```python
 AnalysisStatement(
