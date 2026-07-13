@@ -257,7 +257,7 @@ def test_sync_route53_with_existing_resources(mock_get_zones, neo4j_session):
     )
     neo4j_session.run(
         """
-        MERGE (ec2:EC2Instance {id: "i-1234567890abcdef0", publicdnsname: "hello.what.example.com"})
+        MERGE (ec2:AWSEC2Instance {id: "i-1234567890abcdef0", publicdnsname: "hello.what.example.com"})
         SET ec2.lastupdated = $update_tag
         """,
         update_tag=TEST_UPDATE_TAG,
@@ -295,7 +295,7 @@ def test_sync_route53_with_existing_resources(mock_get_zones, neo4j_session):
         neo4j_session,
         "AWSDNSRecord",
         "id",
-        "EC2Instance",
+        "AWSEC2Instance",
         "id",
         "DNS_POINTS_TO",
         rel_direction_right=True,

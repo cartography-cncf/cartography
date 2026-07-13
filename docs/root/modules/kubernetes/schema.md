@@ -92,9 +92,9 @@ Representation of a [Kubernetes Node.](https://kubernetes.io/docs/concepts/archi
     (:KubernetesPod)-[:RUNS_ON]->(:KubernetesNode)
     ```
 
-- An EKS `KubernetesNode` is backed by an `EC2Instance`. Only created when the node's `spec.providerID` resolves to an EC2 instance id.
+- An EKS `KubernetesNode` is backed by an `AWSEC2Instance`. Only created when the node's `spec.providerID` resolves to an EC2 instance id.
     ```
-    (:KubernetesNode)-[:IS_INSTANCE]->(:EC2Instance)
+    (:KubernetesNode)-[:IS_INSTANCE]->(:AWSEC2Instance)
     ```
 
 ### KubernetesNamespace

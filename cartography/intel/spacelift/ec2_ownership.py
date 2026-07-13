@@ -216,7 +216,7 @@ def load_cloudtrail_events(
     account_id: str,
 ) -> None:
     """
-    Load CloudTrailSpaceliftEvent nodes with relationships to SpaceliftRun and EC2Instance nodes.
+    Load CloudTrailSpaceliftEvent nodes with relationships to SpaceliftRun and AWSEC2Instance nodes.
     """
     logger.info(
         f"Loading {len(events)} CloudTrailSpaceliftEvent nodes with relationships into Neo4j"

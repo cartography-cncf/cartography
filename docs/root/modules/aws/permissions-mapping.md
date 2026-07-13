@@ -36,10 +36,10 @@ If a principal has any of the permission it will be mapped
 
 An RPR may declare a `target_precondition` so the edge is only drawn when the target resource also satisfies a graph condition, in addition to the IAM permission. This is useful when a permission is only meaningful if the resource is in a particular state.
 
-For example, a principal can only open an SSM Session Manager shell on an EC2 instance if it has `ssm:StartSession` **and** the instance is actually managed by SSM (it has an `(:EC2Instance)-[:HAS_INFORMATION]->(:AWSSSMInstanceInformation)` edge). See issue #1643.
+For example, a principal can only open an SSM Session Manager shell on an EC2 instance if it has `ssm:StartSession` **and** the instance is actually managed by SSM (it has an `(:AWSEC2Instance)-[:HAS_INFORMATION]->(:AWSSSMInstanceInformation)` edge). See issue #1643.
 
 ```yaml
-- target_label: EC2Instance
+- target_label: AWSEC2Instance
   permissions:
   - ssm:StartSession
   relationship_name: CAN_START_SESSION

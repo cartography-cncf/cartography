@@ -80,7 +80,7 @@ def test_sync_guardduty_findings(
     # Create test EC2 instance and S3 bucket that match the findings
     neo4j_session.run(
         """
-        MERGE (instance:EC2Instance {id: $instance_id})
+        MERGE (instance:AWSEC2Instance {id: $instance_id})
         ON CREATE SET instance.firstseen = timestamp()
         SET instance.lastupdated = $update_tag
         """,
@@ -301,7 +301,7 @@ def test_sync_guardduty_findings(
         neo4j_session,
         "AWSGuardDutyFinding",
         "id",
-        "EC2Instance",
+        "AWSEC2Instance",
         "id",
         "AFFECTS",
         rel_direction_right=True,

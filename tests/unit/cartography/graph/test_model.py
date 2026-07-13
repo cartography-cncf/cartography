@@ -20,10 +20,6 @@ from tests.utils import load_models
 
 logger = logging.getLogger(__name__)
 
-AWS_LEGACY_PRIMARY_NODE_LABELS: Set[str] = {
-    migration.old_label for migration in AWS_LABEL_MIGRATIONS
-}
-
 # Relationship endpoints that are intentionally supplied by legacy loaders,
 # dynamic permission nodes, or optional modules rather than node schemas.
 RELATION_ONLY_NODE_LABELS: Set[str] = {
@@ -74,8 +70,6 @@ def test_aws_primary_node_labels_use_provider_prefix():
         if not issubclass(element, CartographyNodeSchema):
             continue
         if element.label.startswith("AWS"):
-            continue
-        if element.label in AWS_LEGACY_PRIMARY_NODE_LABELS:
             continue
         errors.append(
             f"{element.__name__} uses unprefixed AWS label {element.label!r}.",

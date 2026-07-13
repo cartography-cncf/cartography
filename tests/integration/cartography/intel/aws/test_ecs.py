@@ -44,10 +44,10 @@ def test_load_ecs_container_instances(neo4j_session, *args):
         TEST_ACCOUNT_ID,
         TEST_UPDATE_TAG,
     )
-    # Create EC2Instance node so the IS_INSTANCE relationship can be created
+    # Create AWSEC2Instance node so the IS_INSTANCE relationship can be created
     neo4j_session.run(
         """
-        MERGE (i:EC2Instance{id: $InstanceId})
+        MERGE (i:AWSEC2Instance{id: $InstanceId})
         ON CREATE SET i.firstseen = timestamp()
         SET i.lastupdated = $aws_update_tag
         """,
@@ -96,7 +96,7 @@ def test_load_ecs_container_instances(neo4j_session, *args):
         neo4j_session,
         "AWSECSContainerInstance",
         "id",
-        "EC2Instance",
+        "AWSEC2Instance",
         "id",
         "IS_INSTANCE",
         rel_direction_right=True,
@@ -174,11 +174,11 @@ def test_load_ecs_services_target_group_registrations(neo4j_session, *args):
         TEST_UPDATE_TAG,
     )
 
-    # Seed an ELBV2TargetGroup node matching the ARN in GET_ECS_SERVICES fixture
+    # Seed an AWSELBV2TargetGroup node matching the ARN in GET_ECS_SERVICES fixture
     tg_arn = "arn:aws:elasticloadbalancing:us-east-1:000000000000:targetgroup/test_group/0000000000090000"
     neo4j_session.run(
         """
-        MERGE (tg:ELBV2TargetGroup{id: $tg_arn})
+        MERGE (tg:AWSELBV2TargetGroup{id: $tg_arn})
         ON CREATE SET tg.firstseen = timestamp()
         SET tg.lastupdated = $update_tag
         """,
@@ -199,7 +199,7 @@ def test_load_ecs_services_target_group_registrations(neo4j_session, *args):
     # Assert the TARGETS edge exists with the right properties
     result = neo4j_session.run(
         """
-        MATCH (tg:ELBV2TargetGroup {id: $tg_arn})-[r:TARGETS]->(svc:AWSECSService)
+        MATCH (tg:AWSELBV2TargetGroup {id: $tg_arn})-[r:TARGETS]->(svc:AWSECSService)
         RETURN svc.id AS svc_id, r.container_name AS container_name, r.container_port AS container_port
         """,
         tg_arn=tg_arn,
@@ -643,10 +643,10 @@ def test_sync_ecs_comprehensive(
         aws_update_tag=TEST_UPDATE_TAG,
     )
 
-    # Create EC2Instance node for container instance relationship
+    # Create AWSEC2Instance node for container instance relationship
     neo4j_session.run(
         """
-        MERGE (i:EC2Instance{id: $InstanceId})
+        MERGE (i:AWSEC2Instance{id: $InstanceId})
         ON CREATE SET i.firstseen = timestamp()
         SET i.lastupdated = $aws_update_tag
         """,
@@ -898,12 +898,12 @@ def test_sync_ecs_comprehensive(
         ),
     }, "ECSContainerInstances to AWSAccount"
 
-    # 15. ECSContainerInstances to EC2Instance (IS_INSTANCE relationship)
+    # 15. ECSContainerInstances to AWSEC2Instance (IS_INSTANCE relationship)
     assert check_rels(
         neo4j_session,
         "AWSECSContainerInstance",
         "id",
-        "EC2Instance",
+        "AWSEC2Instance",
         "id",
         "IS_INSTANCE",
         rel_direction_right=True,
@@ -912,7 +912,7 @@ def test_sync_ecs_comprehensive(
             "arn:aws:ecs:us-east-1:000000000000:container-instance/test_instance/a0000000000000000000000000000000",
             "i-00000000000000000",
         ),
-    }, "ECSContainerInstances to EC2Instance"
+    }, "ECSContainerInstances to AWSEC2Instance"
 
     # 16. ECSServices to AWSAccount (sub-resource relationship)
     assert check_rels(

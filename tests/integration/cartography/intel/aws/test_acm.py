@@ -26,7 +26,7 @@ def test_sync_acm(mock_get_certs, neo4j_session):
     create_test_account(neo4j_session, TEST_ACCOUNT_ID, TEST_UPDATE_TAG)
 
     # Pre-create listener node to attach relationship
-    neo4j_session.run("MERGE (:ELBV2Listener {id: $id})", id=LISTENER_ARN)
+    neo4j_session.run("MERGE (:AWSELBV2Listener {id: $id})", id=LISTENER_ARN)
 
     sync(
         neo4j_session,
@@ -55,7 +55,7 @@ def test_sync_acm(mock_get_certs, neo4j_session):
         neo4j_session,
         "AWSACMCertificate",
         "arn",
-        "ELBV2Listener",
+        "AWSELBV2Listener",
         "id",
         "USED_BY",
         rel_direction_right=True,

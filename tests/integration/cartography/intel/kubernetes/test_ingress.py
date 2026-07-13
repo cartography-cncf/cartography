@@ -95,7 +95,7 @@ def _create_test_cluster(neo4j_session):
     )
     neo4j_session.run(
         """
-        MATCH (n: ELBV2Listener)
+        MATCH (n: AWSELBV2Listener)
         DETACH DELETE n
         """,
     )

@@ -29,7 +29,7 @@ def get_instance_ids(
     current_aws_account_id: str,
 ) -> List[str]:
     get_instances_query = """
-    MATCH (:AWSAccount{id: $AWS_ACCOUNT_ID})-[:RESOURCE]->(i:EC2Instance)
+    MATCH (:AWSAccount{id: $AWS_ACCOUNT_ID})-[:RESOURCE]->(i:AWSEC2Instance)
     WHERE i.region = $Region
     RETURN i.id
     """

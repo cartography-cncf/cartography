@@ -659,7 +659,7 @@ A workload that assumes a permission role to obtain its privileges is linked via
 ```
 Wired for both `Function` and `ComputeInstance`:
 - `Function`: an AWS Lambda is linked to its execution role (`(:AWSLambda)-[:ASSUMES]->(:AWSRole)`); an Azure Function App is linked to the role definitions assigned to its managed identity (`(:AzureFunctionApp)-[:ASSUMES]->(:AzureRoleDefinition)`).
-- `ComputeInstance`: an EC2 instance is linked to the role attached through its instance profile (`(:EC2Instance)-[:ASSUMES]->(:AWSRole)`, assembled from `EC2Instance-[:INSTANCE_PROFILE]->AWSInstanceProfile-[:ASSOCIATED_WITH]->AWSRole`); an Azure VM is linked to the role definitions assigned to its managed identity (`(:AzureVirtualMachine)-[:ASSUMES]->(:AzureRoleDefinition)`). The AWS analysis-job `STS_ASSUMEROLE_ALLOW` edge is kept as the distinct IAM trust-policy view.
+- `ComputeInstance`: an EC2 instance is linked to the role attached through its instance profile (`(:AWSEC2Instance)-[:ASSUMES]->(:AWSRole)`, assembled from `AWSEC2Instance-[:INSTANCE_PROFILE]->AWSInstanceProfile-[:ASSOCIATED_WITH]->AWSRole`); an Azure VM is linked to the role definitions assigned to its managed identity (`(:AzureVirtualMachine)-[:ASSUMES]->(:AzureRoleDefinition)`). The AWS analysis-job `STS_ASSUMEROLE_ALLOW` edge is kept as the distinct IAM trust-policy view.
 
 GCP compute (`ComputeInstance -[:ASSUMES]-> GCPRole`) is still pending, as it spans the compute and IAM-policy-binding syncs.
 

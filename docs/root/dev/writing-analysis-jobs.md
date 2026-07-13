@@ -36,7 +36,7 @@ We can take the ideas above and use Cypher's declarative syntax to "sketch" out 
     MATCH
     (:IpRange{id: '0.0.0.0/0'})-[:MEMBER_OF_IP_RULE]->(:IpPermissionInbound)
     -[:MEMBER_OF_EC2_SECURITY_GROUP]->(group:AWSEC2SecurityGroup)
-    <-[:MEMBER_OF_EC2_SECURITY_GROUP]-(instance:EC2Instance)
+    <-[:MEMBER_OF_EC2_SECURITY_GROUP]-(instance:AWSEC2Instance)
 
     SET instance.exposed_internet = true,
         instance.exposed_internet_type = coalesce(instance.exposed_internet_type , []) + 'direct';
@@ -52,7 +52,7 @@ We can take the ideas above and use Cypher's declarative syntax to "sketch" out 
     MATCH
     (:IpRange{id: '0.0.0.0/0'})-[:MEMBER_OF_IP_RULE]->(:IpPermissionInbound)
     -[:MEMBER_OF_EC2_SECURITY_GROUP]->(group:AWSEC2SecurityGroup)
-    <-[:NETWORK_INTERFACE*..2]-(instance:EC2Instance)
+    <-[:NETWORK_INTERFACE*..2]-(instance:AWSEC2Instance)
 
     SET instance.exposed_internet = true,
         instance.exposed_internet_type = coalesce(instance.exposed_internet_type , []) + 'direct';
@@ -66,7 +66,7 @@ Finally, notice that (1) and (2) are similar enough that we can actually merge t
 MATCH
 (:IpRange{id: '0.0.0.0/0'})-[:MEMBER_OF_IP_RULE]->(:IpPermissionInbound)
 -[:MEMBER_OF_EC2_SECURITY_GROUP]->(group:AWSEC2SecurityGroup)
-<-[:MEMBER_OF_EC2_SECURITY_GROUP|NETWORK_INTERFACE*..2]-(instance:EC2Instance)
+<-[:MEMBER_OF_EC2_SECURITY_GROUP|NETWORK_INTERFACE*..2]-(instance:AWSEC2Instance)
 
 SET instance.exposed_internet = true,
     instance.exposed_internet_type = coalesce(instance.exposed_internet_type , []) + 'direct';
@@ -93,7 +93,7 @@ For analysis jobs that **create or update relationships**, invert the order: run
         "__comment": "This is a clean-up statement to remove custom attributes",
         "query": "MATCH (n)
                   WHERE n.exposed_internet IS NOT NULL
-                        AND labels(n) IN ['AutoScalingGroup', 'EC2Instance', 'LoadBalancer']
+                        AND labels(n) IN ['AWSAutoScalingGroup', 'AWSEC2Instance', 'LoadBalancer']
                   WITH n LIMIT $LIMIT_SIZE
                   REMOVE n.exposed_internet, n.exposed_internet_type
                   RETURN COUNT(*) as TotalCompleted",
@@ -104,7 +104,7 @@ For analysis jobs that **create or update relationships**, invert the order: run
         "__comment__": "This is our analysis logic as described in the section above",
         "query": MATCH (:IpRange{id: '0.0.0.0/0'})-[:MEMBER_OF_IP_RULE]->(:IpPermissionInbound)
                  -[:MEMBER_OF_EC2_SECURITY_GROUP]->(group:AWSEC2SecurityGroup)
-                 <-[:MEMBER_OF_EC2_SECURITY_GROUP|NETWORK_INTERFACE*..2]-(instance:EC2Instance)
+                 <-[:MEMBER_OF_EC2_SECURITY_GROUP|NETWORK_INTERFACE*..2]-(instance:AWSEC2Instance)
 
                  SET instance.exposed_internet = true,
                      instance.exposed_internet_type = coalesce(instance.exposed_internet_type , []) + 'direct';,

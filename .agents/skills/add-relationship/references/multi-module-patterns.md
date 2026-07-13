@@ -39,7 +39,7 @@ class EBSVolumeInstanceProperties(CartographyNodeProperties):
 
 @dataclass(frozen=True)
 class EBSVolumeInstanceSchema(CartographyNodeSchema):
-    label: str = "EBSVolume"  # same label as EBSVolumeSchema
+    label: str = "AWSEBSVolume"  # same label as EBSVolumeSchema
     properties: EBSVolumeInstanceProperties = EBSVolumeInstanceProperties()
     sub_resource_relationship: EBSVolumeToAWSAccountRel = EBSVolumeToAWSAccountRel()
     # ... other relationships

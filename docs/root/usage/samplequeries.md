@@ -49,7 +49,7 @@ RETURN a.name, rds.id
 
 ### Which [EC2](https://aws.amazon.com/ec2/) instances are exposed (directly or indirectly) to the internet?
 ```cypher
-MATCH (instance:EC2Instance{exposed_internet: true})
+MATCH (instance:AWSEC2Instance{exposed_internet: true})
 RETURN instance.instanceid, instance.publicdnsname
 ```
 [test it locally](http://localhost:7474/browser/?preselectAuthMethod=NO_AUTH&db=neo4j&connectURL=bolt://neo4j:neo4j@localhost:7474&cmd=edit&arg=MATCH%20%28instance%3AEC2Instance%7Bexposed_internet%3A%20true%7D%29%0ARETURN%20instance.instanceid%2C%20instance.publicdnsname)
@@ -68,7 +68,7 @@ RETURN instance.instanceid, instance.publicdnsname
 
 ### Which [ELB](https://aws.amazon.com/elasticloadbalancing/) LoadBalancers are internet accessible?
 ```cypher
-MATCH (elb:LoadBalancer{exposed_internet: true})—->(listener:ELBListener)
+MATCH (elb:LoadBalancer{exposed_internet: true})—->(listener:AWSELBListener)
 RETURN elb.dnsname, listener.port
 ORDER by elb.dnsname, listener.port
 ```
@@ -76,7 +76,7 @@ ORDER by elb.dnsname, listener.port
 
 ### Which [ELBv2](https://aws.amazon.com/elasticloadbalancing/) AWSLoadBalancerV2s (Application Load Balancers) are internet accessible?
 ```cypher
-MATCH (elbv2:AWSLoadBalancerV2{exposed_internet: true})—->(listener:ELBV2Listener)
+MATCH (elbv2:AWSLoadBalancerV2{exposed_internet: true})—->(listener:AWSELBV2Listener)
 RETURN elbv2.dnsname, listener.port
 ORDER by elbv2.dnsname, listener.port
 ```
@@ -84,10 +84,10 @@ ORDER by elbv2.dnsname, listener.port
 
 ### Which open ports are internet accesible from ELB or ELBv2?
 ```cypher
-    MATCH (elb:LoadBalancer{exposed_internet: true})—->(listener:ELBListener)
+    MATCH (elb:LoadBalancer{exposed_internet: true})—->(listener:AWSELBListener)
     RETURN DISTINCT elb.dnsname as dnsname, listener.port as port
     UNION
-    MATCH (lb:AWSLoadBalancerV2)-[:ELBV2_LISTENER]->(l:ELBV2Listener)
+    MATCH (lb:AWSLoadBalancerV2)-[:ELBV2_LISTENER]->(l:AWSELBV2Listener)
     WHERE lb.scheme = "internet-facing"
     RETURN DISTINCT lb.dnsname as dnsname, l.port as port
 ```
@@ -99,7 +99,7 @@ MATCH (n:AWSEC2PrivateIp)-[r]-(n2)
 WHERE n.public_ip = $neodash_ip
 RETURN n, r, n2
 
-UNION MATCH(n:EC2Instance)-[r]-(n2)
+UNION MATCH(n:AWSEC2Instance)-[r]-(n2)
 WHERE n.publicipaddress = $neodash_ip
 RETURN  n, r, n2
 

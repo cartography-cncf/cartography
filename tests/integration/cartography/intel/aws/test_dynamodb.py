@@ -486,7 +486,7 @@ def test_sync_dynamodb_nodes_and_relationships(mock_get_tables, neo4j_session):
 
     neo4j_session.run(
         """
-        MERGE (i:EC2Instance{id:1234, lastupdated: $lastupdated})<-[r:RESOURCE]-(:AWSAccount{id: $aws_account_id})
+        MERGE (i:AWSEC2Instance{id:1234, lastupdated: $lastupdated})<-[r:RESOURCE]-(:AWSAccount{id: $aws_account_id})
         SET r.lastupdated = $lastupdated
         """,
         aws_account_id=TEST_ACCOUNT_ID,
@@ -498,7 +498,7 @@ def test_sync_dynamodb_nodes_and_relationships(mock_get_tables, neo4j_session):
         neo4j_session,
         "AWSAccount",
         "id",
-        "EC2Instance",
+        "AWSEC2Instance",
         "id",
         "RESOURCE",
         rel_direction_right=True,
@@ -537,7 +537,7 @@ def test_sync_dynamodb_nodes_and_relationships(mock_get_tables, neo4j_session):
         neo4j_session,
         "AWSAccount",
         "id",
-        "EC2Instance",
+        "AWSEC2Instance",
         "id",
         "RESOURCE",
         rel_direction_right=True,

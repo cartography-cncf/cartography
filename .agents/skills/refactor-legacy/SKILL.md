@@ -61,7 +61,7 @@ def test_sync_ec2_instances(mock_get, neo4j_session):
         ("i-1234567890abcdef0", "running"),
         ("i-0987654321fedcba0", "stopped"),
     }
-    assert check_nodes(neo4j_session, "EC2Instance", ["id", "state"]) == expected_nodes
+    assert check_nodes(neo4j_session, "AWSEC2Instance", ["id", "state"]) == expected_nodes
 ```
 
 Run the test against the legacy code and ensure it passes. If it does not exist or does not pass, fix that first — **no exceptions**.
@@ -101,7 +101,7 @@ class EC2InstanceToAWSAccountRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class EC2InstanceSchema(CartographyNodeSchema):
-    label: str = "EC2Instance"
+    label: str = "AWSEC2Instance"
     properties: EC2InstanceNodeProperties = EC2InstanceNodeProperties()
     sub_resource_relationship: EC2InstanceToAWSAccountRel = EC2InstanceToAWSAccountRel()
 ```
@@ -115,7 +115,7 @@ For node, relationship, and schema details, see the `add-node-type` and `add-rel
 def load_ec2_instances(neo4j_session, data, region, current_aws_account_id, update_tag):
     ingest_instances = """
     UNWIND $instances_list AS instance
-    MERGE (i:EC2Instance {id: instance.id})
+    MERGE (i:AWSEC2Instance {id: instance.id})
     ON CREATE SET i.firstseen = timestamp()
     SET i.instanceid = instance.InstanceId,
         i.state = instance.State,
@@ -169,8 +169,8 @@ In `cartography/data/indexes.cypher`:
 
 ```cypher
 # Remove entries like these — the data model creates indexes automatically
-CREATE INDEX IF NOT EXISTS FOR (n:EC2Instance) ON (n.id);
-CREATE INDEX IF NOT EXISTS FOR (n:EC2Instance) ON (n.lastupdated);
+CREATE INDEX IF NOT EXISTS FOR (n:AWSEC2Instance) ON (n.id);
+CREATE INDEX IF NOT EXISTS FOR (n:AWSEC2Instance) ON (n.lastupdated);
 ```
 
 Only remove indexes for nodes you actually converted.

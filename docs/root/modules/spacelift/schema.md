@@ -20,7 +20,7 @@ St -- ASSUMES --> Role(AWSRole)
 U -- TRIGGERED --> R
 W -- EXECUTES --> R
 C -- COMMITTED --> R
-R -- AFFECTS --> EC2(EC2Instance)
+R -- AFFECTS --> EC2(AWSEC2Instance)
 
 U -- HAS_ROLE_IN --> S
 C -- CONFIRMED --> U
@@ -302,7 +302,7 @@ Representation of a job that can touch infrastructure. It is the execution insta
 - SpaceliftRuns can affect EC2 Instances:
 
     ```
-    (SpaceliftRun)-[AFFECTED]->(EC2Instance)
+    (SpaceliftRun)-[AFFECTED]->(AWSEC2Instance)
     ```
 
     This relationship is created from **two sources**, and a single EC2 instance may have multiple `AFFECTED` relationships to different runs:

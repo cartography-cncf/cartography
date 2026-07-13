@@ -448,7 +448,7 @@ Represents an SSH key registered in Scaleway IAM.
 
 Volumes are storage space used by your Instances. You can attach several volumes to an Instance.
 
-> **Ontology Mapping**: This node has the extra label `BlockStorage` to enable cross-platform queries for block storage volumes across different systems (e.g., EBSVolume, AzureDisk).
+> **Ontology Mapping**: This node has the extra label `BlockStorage` to enable cross-platform queries for block storage volumes across different systems (e.g., AWSEBSVolume, AzureDisk).
 
 | Field           | Description                                  |
 |-----------------|----------------------------------------------|
@@ -480,7 +480,7 @@ Volumes are storage space used by your Instances. You can attach several volumes
 
 A snapshot takes a picture of a volume at one specific point in time. For a complete backup of your Instance, you can create an image.
 
-> **Ontology Mapping**: This node has the extra label `Snapshot` and normalized `_ont_*` properties to enable cross-platform queries for volume/database snapshots across different systems (e.g., EBSSnapshot, AWSRDSSnapshot, AzureSnapshot).
+> **Ontology Mapping**: This node has the extra label `Snapshot` and normalized `_ont_*` properties to enable cross-platform queries for volume/database snapshots across different systems (e.g., AWSEBSSnapshot, AWSRDSSnapshot, AzureSnapshot).
 
 | Field           | Description                                  |
 |-----------------|----------------------------------------------|
@@ -539,7 +539,7 @@ Flexible IP addresses are public IP addresses that you can hold independently of
 
 An Instance is a virtual computing unit that provides resources, such as processing power, memory, and network connectivity, to run your applications.
 
-> **Ontology Mapping**: This node has the extra label `ComputeInstance` to enable cross-platform queries for compute instances across different systems (e.g., EC2Instance, DigitalOceanDroplet).
+> **Ontology Mapping**: This node has the extra label `ComputeInstance` to enable cross-platform queries for compute instances across different systems (e.g., AWSEC2Instance, DigitalOceanDroplet).
 
 | Field      | Description                                  |
 |------------|----------------------------------------------|

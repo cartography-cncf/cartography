@@ -32,15 +32,15 @@ def _setup_test_infrastructure(neo4j_session: neo4j.Session) -> None:
     # instances directly rather than using the full EC2 sync.
     neo4j_session.run(
         """
-        MERGE (i1:EC2Instance{id: 'i-01234567', instanceid: 'i-01234567'})
+        MERGE (i1:AWSEC2Instance{id: 'i-01234567', instanceid: 'i-01234567'})
         ON CREATE SET i1.firstseen = timestamp()
         SET i1.lastupdated = $update_tag
 
-        MERGE (i2:EC2Instance{id: 'i-89abcdef', instanceid: 'i-89abcdef'})
+        MERGE (i2:AWSEC2Instance{id: 'i-89abcdef', instanceid: 'i-89abcdef'})
         ON CREATE SET i2.firstseen = timestamp()
         SET i2.lastupdated = $update_tag
 
-        MERGE (i3:EC2Instance{id: 'i-02345678', instanceid: 'i-02345678'})
+        MERGE (i3:AWSEC2Instance{id: 'i-02345678', instanceid: 'i-02345678'})
         ON CREATE SET i3.firstseen = timestamp()
         SET i3.lastupdated = $update_tag
 
@@ -183,7 +183,7 @@ def test_ec2_ownership_preserves_multiple_events(
         neo4j_session,
         "CloudTrailSpaceliftEvent",
         "id",
-        "EC2Instance",
+        "AWSEC2Instance",
         "instanceid",
         "AFFECTED",
         rel_direction_right=True,

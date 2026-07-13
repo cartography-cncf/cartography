@@ -95,7 +95,7 @@ def test_load_instance_information(mock_get_instances, neo4j_session):
 
     nodes = neo4j_session.run(
         """
-        MATCH (:EC2Instance{id: "i-01"})-[:HAS_INFORMATION]->(n:AWSSSMInstanceInformation)
+        MATCH (:AWSEC2Instance{id: "i-01"})-[:HAS_INFORMATION]->(n:AWSSSMInstanceInformation)
         RETURN n.id
         """,
     )
@@ -104,7 +104,7 @@ def test_load_instance_information(mock_get_instances, neo4j_session):
 
     nodes = neo4j_session.run(
         """
-        MATCH (:EC2Instance{id: "i-02"})-[:HAS_INFORMATION]->(n:AWSSSMInstanceInformation)
+        MATCH (:AWSEC2Instance{id: "i-02"})-[:HAS_INFORMATION]->(n:AWSSSMInstanceInformation)
         RETURN n.id
         """,
     )
@@ -168,7 +168,7 @@ def test_load_instance_patches(mock_get_instances, neo4j_session):
     # Assert
     nodes = neo4j_session.run(
         """
-        MATCH (:EC2Instance{id: "i-01"})-[:HAS_PATCH]->(n:AWSSSMInstancePatch)
+        MATCH (:AWSEC2Instance{id: "i-01"})-[:HAS_PATCH]->(n:AWSSSMInstancePatch)
         RETURN n.id
         """,
     )
@@ -178,7 +178,7 @@ def test_load_instance_patches(mock_get_instances, neo4j_session):
     # Assert
     nodes = neo4j_session.run(
         """
-        MATCH (:EC2Instance{id: "i-02"})-[:HAS_PATCH]->(n:AWSSSMInstancePatch)
+        MATCH (:AWSEC2Instance{id: "i-02"})-[:HAS_PATCH]->(n:AWSSSMInstancePatch)
         RETURN n.id
         """,
     )

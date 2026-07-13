@@ -56,24 +56,24 @@ Configured AWS sync accounts are marked `inscope=true`. Accounts discovered only
                                 :AWSPrincipal,
                                 :AWSUser,
                                 :AWSVpc,
-                                :AutoScalingGroup,
+                                :AWSAutoScalingGroup,
                                 :DNSZone,
                                 :AWSDynamoDBTable,
-                                :EBSSnapshot,
-                                :EBSVolume,
-                                :EC2Image,
-                                :EC2Instance,
-                                :EC2Reservation,
-                                :EC2ReservedInstance,
+                                :AWSEBSSnapshot,
+                                :AWSEBSVolume,
+                                :AWSEC2Image,
+                                :AWSEC2Instance,
+                                :AWSEC2Reservation,
+                                :AWSEC2ReservedInstance,
                                 :AWSEC2SecurityGroup,
                                 :AWSElasticIPAddress,
                                 :AWSESDomain,
                                 :AWSGuardDutyDetector,
                                 :AWSGuardDutyFinding,
                                 :AWSKMSAlias,
-                                :LaunchConfiguration,
-                                :LaunchTemplate,
-                                :LaunchTemplateVersion,
+                                :AWSLaunchConfiguration,
+                                :AWSLaunchTemplate,
+                                :AWSLaunchTemplateVersion,
                                 :LoadBalancer,
                                 :AWSRDSCluster,
                                 :AWSRDSInstance,
@@ -338,7 +338,7 @@ Representation of an AWS [GuardDuty Detector](https://docs.aws.amazon.com/guardd
 
 - "Which EC2 instances are not covered by an enabled GuardDuty detector?"
     ```cypher
-    MATCH (a:AWSAccount)-[:RESOURCE]->(i:EC2Instance)
+    MATCH (a:AWSAccount)-[:RESOURCE]->(i:AWSEC2Instance)
     WHERE NOT EXISTS {
         MATCH (a)-[:RESOURCE]->(d:AWSGuardDutyDetector{status: "ENABLED"})
         WHERE d.region = i.region
@@ -417,7 +417,7 @@ Representation of an AWS [GuardDuty Finding](https://docs.aws.amazon.com/guarddu
 
 - GuardDuty findings may affect EC2 Instances
     ```cypher
-    (:AWSGuardDutyFinding)-[:AFFECTS]->(:EC2Instance)
+    (:AWSGuardDutyFinding)-[:AFFECTS]->(:AWSEC2Instance)
     ```
 
 - GuardDuty Kubernetes findings may affect EKS Clusters
@@ -489,7 +489,7 @@ Depending on its `type`, the finding also carries an ontology finding label: `PA
 - AWSInspectorFinding may affect EC2 Instances
 
     ```cypher
-    (:AWSInspectorFinding)-[:AFFECTS]->(:EC2Instance)
+    (:AWSInspectorFinding)-[:AFFECTS]->(:AWSEC2Instance)
     ```
 
 - AWSInspectorFinding may affect ECR Repositories
@@ -592,7 +592,7 @@ Representation of an AWS [IAM Instance Profile](https://docs.aws.amazon.com/IAM/
 
 - Instance profiles can be associated with one or more EC2 instances.
     ```cypher
-    (:EC2Instance)-[:INSTANCE_PROFILE]->(:AWSInstanceProfile)
+    (:AWSEC2Instance)-[:INSTANCE_PROFILE]->(:AWSInstanceProfile)
     ```
 
 
@@ -1069,7 +1069,7 @@ Representation of an AWS [IAM Role](https://docs.aws.amazon.com/IAM/latest/APIRe
 - Some AWS Groups, Users, Principals, and EC2 Instances can assume AWS Roles.
 
     ```cypher
-    (:AWSGroup, :AWSUser, :EC2Instance)-[:STS_ASSUMEROLE_ALLOW]->(:AWSRole)
+    (:AWSGroup, :AWSUser, :AWSEC2Instance)-[:STS_ASSUMEROLE_ALLOW]->(:AWSRole)
     ```
 
 - Some AWS Roles can assume other AWS Roles.
@@ -1352,12 +1352,12 @@ Representation of an AWS [Tag](https://docs.aws.amazon.com/resourcegroupstagging
     (AWSTransitGatewayAttachment)-[TAGGED]->(AWSTag)
     (AWSUser)-[TAGGED]->(AWSTag)
     (AWSVpc)-[TAGGED]->(AWSTag)
-    (AutoScalingGroup)-[TAGGED]->(AWSTag)
+    (AWSAutoScalingGroup)-[TAGGED]->(AWSTag)
     (AWSDBSubnetGroup)-[TAGGED]->(AWSTag)
     (AWSDynamoDBTable)-[TAGGED]->(AWSTag)
-    (EBSVolume)-[TAGGED]->(AWSTag)
-    (EC2Instance)-[TAGGED]->(AWSTag)
-    (EC2KeyPair)-[TAGGED]->(AWSTag)
+    (AWSEBSVolume)-[TAGGED]->(AWSTag)
+    (AWSEC2Instance)-[TAGGED]->(AWSTag)
+    (AWSEC2KeyPair)-[TAGGED]->(AWSTag)
     (AWSEC2SecurityGroup)-[TAGGED]->(AWSTag)
     (AWSEC2Subnet)-[TAGGED]->(AWSTag)
     (AWSECRRepository)-[TAGGED]->(AWSTag)
@@ -2193,7 +2193,7 @@ Representation of a [DynamoDB Global Secondary Index](https://docs.aws.amazon.co
     ```
 
 
-### EC2Instance
+### AWSEC2Instance
 
 Our representation of an AWS [EC2 Instance](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_Instance.html).
 
@@ -2245,82 +2245,82 @@ Our representation of an AWS [EC2 Instance](https://docs.aws.amazon.com/AWSEC2/l
 
 - EC2 Instances can be part of subnets
     ```
-    (EC2Instance)-[PART_OF_SUBNET]->(AWSEC2Subnet)
+    (AWSEC2Instance)-[PART_OF_SUBNET]->(AWSEC2Subnet)
     ```
 
 - EC2 Instances can have NetworkInterfaces connected to them
     ```
-    (EC2Instance)-[NETWORK_INTERFACE]->(AWSNetworkInterface)
+    (AWSEC2Instance)-[NETWORK_INTERFACE]->(AWSNetworkInterface)
     ```
 
 - EC2 Instances may be members of EC2 Reservations
     ```
-    (EC2Instance)-[MEMBER_OF_EC2_RESERVATION]->(EC2Reservation)
+    (AWSEC2Instance)-[MEMBER_OF_EC2_RESERVATION]->(AWSEC2Reservation)
     ```
 
 - EC2 Instances can be part of EC2 Security Groups
     ```
-    (EC2Instance)-[MEMBER_OF_EC2_SECURITY_GROUP]->(AWSEC2SecurityGroup)
+    (AWSEC2Instance)-[MEMBER_OF_EC2_SECURITY_GROUP]->(AWSEC2SecurityGroup)
     ```
 
 - Load Balancers can expose (be connected to) EC2 Instances
     ```
-    (LoadBalancer)-[EXPOSE]->(EC2Instance)
+    (LoadBalancer)-[EXPOSE]->(AWSEC2Instance)
     ```
 
 - Package and Dependency nodes can be deployed in EC2 Instances.
     ```
-    (Package, Dependency)-[DEPLOYED]->(EC2Instance)
+    (Package, Dependency)-[DEPLOYED]->(AWSEC2Instance)
     ```
 
 - AWS Accounts contain EC2 Instances.
     ```
-    (AWSAccount)-[RESOURCE]->(EC2Instance)
+    (AWSAccount)-[RESOURCE]->(AWSEC2Instance)
     ```
 
 - EC2 Instances assume the AWS Role attached through their instance profile (canonical ontology `ASSUMES` edge).
     ```
-    (EC2Instance)-[ASSUMES]->(AWSRole)
+    (AWSEC2Instance)-[ASSUMES]->(AWSRole)
     ```
 
 -  EC2 Instances can be tagged with AWSTags.
     ```
-    (EC2Instance)-[TAGGED]->(AWSTag)
+    (AWSEC2Instance)-[TAGGED]->(AWSTag)
     ```
 
 - AWS EBS Volumes are attached to an EC2 Instance
     ```
-    (EBSVolume)-[ATTACHED_TO]->(EC2Instance)
+    (AWSEBSVolume)-[ATTACHED_TO]->(AWSEC2Instance)
     ```
 
 - Instance profiles can be associated with one or more EC2 instances.
     ```
-    (EC2Instance)-[INSTANCE_PROFILE]->(AWSInstanceProfile)
+    (AWSEC2Instance)-[INSTANCE_PROFILE]->(AWSInstanceProfile)
     ```
 
 -  EC2 Instances can assume IAM Roles (due to their IAM instance profiles).
     ```
-    (EC2Instance)-[STS_ASSUMEROLE_ALLOW]->(AWSRole)
+    (AWSEC2Instance)-[STS_ASSUMEROLE_ALLOW]->(AWSRole)
     ```
 
 - EC2Instances can have AWSSSMInstanceInformation
     ```
-    (EC2Instance)-[HAS_INFORMATION]->(AWSSSMInstanceInformation)
+    (AWSEC2Instance)-[HAS_INFORMATION]->(AWSSSMInstanceInformation)
     ```
 
 - EC2Instances can have SSMInstancePatches
     ```
-    (EC2Instance)-[HAS_PATCH]->(AWSSSMInstancePatch)
+    (AWSEC2Instance)-[HAS_PATCH]->(AWSSSMInstancePatch)
     ```
 
 - EC2Instances can be members of EKS Clusters
     ```
-    (EC2Instance)-[MEMBER_OF_EKS_CLUSTER]->(AWSEKSCluster)
+    (AWSEC2Instance)-[MEMBER_OF_EKS_CLUSTER]->(AWSEKSCluster)
     ```
 
 - ECS Container Instances can be backed by EC2 Instances
     ```
-    (AWSECSContainerInstance)-[IS_INSTANCE]->(EC2Instance)
+    (AWSECSContainerInstance)-[IS_INSTANCE]->(AWSEC2Instance)
     ```
 
 ### AWSEC2Ipv6Address
@@ -2356,7 +2356,7 @@ Representation of an IPv6 address assigned to an EC2 network interface. Each `AW
     (AWSDNSRecord)-[DNS_POINTS_TO]->(AWSEC2Ipv6Address)
     ```
 
-### EC2KeyPair
+### AWSEC2KeyPair
 
 Representation of an AWS [EC2 Key Pair](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_KeyPairInfo.html)
 
@@ -2376,17 +2376,17 @@ Representation of an AWS [EC2 Key Pair](https://docs.aws.amazon.com/AWSEC2/lates
 
 - EC2 key pairs are contained in AWS Accounts.
     ```
-    (AWSAccount)-[RESOURCE]->(EC2KeyPair)
+    (AWSAccount)-[RESOURCE]->(AWSEC2KeyPair)
     ```
 
 - EC2 key pairs can be used to log in to AWS EC2 isntances.
     ```
-    (EC2KeyPair)-[SSH_LOGIN_TO]->(EC2Instance)
+    (AWSEC2KeyPair)-[SSH_LOGIN_TO]->(AWSEC2Instance)
     ```
 
 - EC2 key pairs have matching `keyfingerprint`.
     ```
-    (EC2KeyPair)-[MATCHING_FINGERPRINT]->(EC2KeyPair)
+    (AWSEC2KeyPair)-[MATCHING_FINGERPRINT]->(AWSEC2KeyPair)
     ```
 
 ### AWSEC2PrivateIp
@@ -2411,7 +2411,7 @@ Representation of an AWS EC2 [InstancePrivateIpAddress](https://docs.aws.amazon.
     ```
 
 
-### EC2Reservation
+### AWSEC2Reservation
 Representation of an AWS EC2 [Reservation](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_Reservation.html).
 
 | Field | Description |
@@ -2428,12 +2428,12 @@ Representation of an AWS EC2 [Reservation](https://docs.aws.amazon.com/AWSEC2/la
 
 - EC2 reservations are contained in AWS Accounts.
     ```
-    (AWSAccount)-[RESOURCE]->(EC2Reservation)
+    (AWSAccount)-[RESOURCE]->(AWSEC2Reservation)
     ```
 
 - EC2 Instances are members of EC2 reservations.
     ```
-    (EC2Instance)-[MEMBER_OF_EC2_RESERVATION]->(EC2Reservation)
+    (AWSEC2Instance)-[MEMBER_OF_EC2_RESERVATION]->(AWSEC2Reservation)
     ```
 
 
@@ -2457,7 +2457,7 @@ Representation of an AWS EC2 [Security Group](https://docs.aws.amazon.com/AWSEC2
 
 - EC2 Instances, Network Interfaces, Load Balancers, Elastic Search Domains, IP Rules, IP Permission Inbound nodes, and RDS Instances can be members of EC2 Security Groups.
     ```
-    (EC2Instance,
+    (AWSEC2Instance,
         AWSNetworkInterface,
         LoadBalancer,
         AWSESDomain,
@@ -2530,7 +2530,7 @@ Representation of an AWS EC2 [Subnet](https://docs.aws.amazon.com/AWSEC2/latest/
 
 - An EC2 Instance can be part of an EC2 Subnet.
     ```
-    (EC2Instance)-[PART_OF_SUBNET]->(AWSEC2Subnet)
+    (AWSEC2Instance)-[PART_OF_SUBNET]->(AWSEC2Subnet)
     ```
 
 - A LoadBalancer can be part of an EC2 Subnet.
@@ -3245,9 +3245,9 @@ Representation of a generic network endpoint.
     ```
 
 
-### Endpoint::ELBListener
+### Endpoint::AWSELBListener
 
-Representation of an AWS Elastic Load Balancer [Listener](https://docs.aws.amazon.com/elasticloadbalancing/2012-06-01/APIReference/API_Listener.html).  Here, an ELBListener is a more specific type of Endpoint.  Here'a [good introduction](https://docs.aws.amazon.com/elasticloadbalancing/2012-06-01/APIReference/Welcome.html).
+Representation of an AWS Elastic Load Balancer [Listener](https://docs.aws.amazon.com/elasticloadbalancing/2012-06-01/APIReference/API_Listener.html).  Here, an AWSELBListener is a more specific type of Endpoint.  Here'a [good introduction](https://docs.aws.amazon.com/elasticloadbalancing/2012-06-01/APIReference/Welcome.html).
 
 | Field | Description |
 |-------|-------------|
@@ -3263,17 +3263,17 @@ Representation of an AWS Elastic Load Balancer [Listener](https://docs.aws.amazo
 
 #### Relationships
 
-- A ELBListener is installed on a load balancer.
+- A AWSELBListener is installed on a load balancer.
     ```
-    (LoadBalancer)-[ELB_LISTENER]->(ELBListener)
-    ```
-
-- A ELBListener is associated with an AWS Account.
-    ```
-    (AWSAccount)-[RESOURCE]->(ELBListener)
+    (LoadBalancer)-[ELB_LISTENER]->(AWSELBListener)
     ```
 
-### Endpoint::ELBV2Listener
+- A AWSELBListener is associated with an AWS Account.
+    ```
+    (AWSAccount)-[RESOURCE]->(AWSELBListener)
+    ```
+
+### Endpoint::AWSELBV2Listener
 
 Representation of an AWS Elastic Load Balancer V2 [Listener](https://docs.aws.amazon.com/elasticloadbalancing/latest/APIReference/API_Listener.html).
 
@@ -3285,7 +3285,7 @@ Representation of an AWS Elastic Load Balancer V2 [Listener](https://docs.aws.am
 | port | The port of this endpoint |
 | ssl\_policy | Only set for HTTPS or TLS listener. The security policy that defines which protocols and ciphers are supported. |
 | targetgrouparn | The ARN of the Target Group, if the Action type is `forward`. |
-| arn | The ARN of the ELBV2Listener |
+| arn | The ARN of the AWSELBV2Listener |
 | mutual\_authentication\_mode | Mutual TLS authentication mode on the listener. One of `off`, `verify`, `passthrough`. Null when mTLS is not configured. |
 | trust\_store\_arn | The ARN of the trust store used for mutual TLS, when `mutual_authentication_mode` is `verify`. |
 | ignore\_client\_certificate\_expiry | Whether expired client certificates are accepted (boolean). Only meaningful when `mutual_authentication_mode` is `verify`. |
@@ -3296,11 +3296,11 @@ Representation of an AWS Elastic Load Balancer V2 [Listener](https://docs.aws.am
 
 - AWSLoadBalancerV2's have [listeners](https://docs.aws.amazon.com/elasticloadbalancing/latest/APIReference/API_Listener.html):
     ```
-    (:AWSLoadBalancerV2)-[:ELBV2_LISTENER]->(:ELBV2Listener)
+    (:AWSLoadBalancerV2)-[:ELBV2_LISTENER]->(:AWSELBV2Listener)
     ```
 - ACM Certificates may be used by ELBV2Listeners.
     ```
-    (:AWSACMCertificate)-[:USED_BY]->(:ELBV2Listener)
+    (:AWSACMCertificate)-[:USED_BY]->(:AWSELBV2Listener)
     ```
 
 ### AWSEventBridgeRule
@@ -3480,7 +3480,7 @@ Represents a classic [AWS Elastic Load Balancer](https://docs.aws.amazon.com/ela
 
 - LoadBalancers can be connected to EC2Instances and therefore expose them.
     ```
-    (LoadBalancer)-[EXPOSE]->(EC2Instance)
+    (LoadBalancer)-[EXPOSE]->(AWSEC2Instance)
     ```
 
 - LoadBalancers can have [source security groups](https://docs.aws.amazon.com/elasticloadbalancing/2012-06-01/APIReference/API_SourceSecurityGroup.html) configured.
@@ -3506,7 +3506,7 @@ Represents a classic [AWS Elastic Load Balancer](https://docs.aws.amazon.com/ela
 
 - LoadBalancers can have listeners configured to accept connections from clients ([good introduction](https://docs.aws.amazon.com/elasticloadbalancing/2012-06-01/APIReference/Welcome.html)).
     ```
-    (LoadBalancer)-[ELB_LISTENER]->(Endpoint, ELBListener)
+    (LoadBalancer)-[ELB_LISTENER]->(Endpoint, AWSELBListener)
     ```
 
 - LoadBalancers are part of AWSAccounts.
@@ -3555,7 +3555,7 @@ Represents an Elastic Load Balancer V2 ([Application Load Balancer](https://docs
 
 - AWSLoadBalancerV2's can be connected to EC2Instances and therefore expose them.
     ```
-    (AWSLoadBalancerV2)-[EXPOSE]->(EC2Instance)
+    (AWSLoadBalancerV2)-[EXPOSE]->(AWSEC2Instance)
     ```
 
 - AWSLoadBalancerV2's can expose IP addresses when using `ip` target type.
@@ -3592,7 +3592,7 @@ The `EXPOSE` relationship holds the protocol, port and TargetGroupArn the load b
 
 - AWSLoadBalancerV2's have [listeners](https://docs.aws.amazon.com/elasticloadbalancing/latest/APIReference/API_Listener.html):
     ```
-    (AWSLoadBalancerV2)-[ELBV2_LISTENER]->(ELBV2Listener)
+    (AWSLoadBalancerV2)-[ELBV2_LISTENER]->(AWSELBV2Listener)
     ```
 
 - Internet-facing AWSLoadBalancerV2's can expose private ECS containers. Set by an analysis job.
@@ -3657,11 +3657,11 @@ Representation of a generic Network Interface.  Currently however, we only creat
 
 **Finding the True First Launch Time:**
 
-The `LaunchTime` field on EC2Instance nodes shows the *last* launch time (e.g., if an instance was stopped and restarted). To find when an instance was *originally* created, use the `attach_time` of the primary network interface (`device_index: 0`):
+The `LaunchTime` field on AWSEC2Instance nodes shows the *last* launch time (e.g., if an instance was stopped and restarted). To find when an instance was *originally* created, use the `attach_time` of the primary network interface (`device_index: 0`):
 
 ```cypher
 // Get the true first launch time for EC2 instances
-MATCH (i:EC2Instance)-[:NETWORK_INTERFACE]->(ni:AWSNetworkInterface {device_index: 0})
+MATCH (i:AWSEC2Instance)-[:NETWORK_INTERFACE]->(ni:AWSNetworkInterface {device_index: 0})
 WHERE ni.attach_time IS NOT NULL
 RETURN i.instanceid, i.launchtime as last_launch, ni.attach_time as first_launch
 ```
@@ -3688,7 +3688,7 @@ RETURN i.instanceid, i.launchtime as last_launch, ni.attach_time as first_launch
 
 - EC2Instances can have NetworkInterfaces connected to them.
     ```
-    (EC2Instance)-[NETWORK_INTERFACE]->(AWSNetworkInterface)
+    (AWSEC2Instance)-[NETWORK_INTERFACE]->(AWSNetworkInterface)
     ```
 
 - LoadBalancers can have NetworkInterfaces connected to them.
@@ -3935,7 +3935,7 @@ Representation of an AWS Relational Database Service [DBInstance](https://docs.a
 
 Representation of an AWS Relational Database Service [DBSnapshot](https://docs.aws.amazon.com/AmazonRDS/latest/APIReference/API_DBSnapshot.html).
 
-> **Ontology Mapping**: This node has the extra label `Snapshot` and normalized `_ont_*` properties to enable cross-platform queries for volume/database snapshots across different systems (e.g., EBSSnapshot, AzureSnapshot, ScalewayVolumeSnapshot).
+> **Ontology Mapping**: This node has the extra label `Snapshot` and normalized `_ont_*` properties to enable cross-platform queries for volume/database snapshots across different systems (e.g., AWSEBSSnapshot, AzureSnapshot, ScalewayVolumeSnapshot).
 
 | Field | Description |
 |-------|-------------|
@@ -4469,7 +4469,7 @@ Representation of an AWS [ACM Certificate](https://docs.aws.amazon.com/acm/lates
     ```
 - ACM Certificates may be used by ELBV2Listeners.
     ```
-    (:AWSACMCertificate)-[:USED_BY]->(:ELBV2Listener)
+    (:AWSACMCertificate)-[:USED_BY]->(:AWSELBV2Listener)
     ```
   Note: the AWS ACM API may return a load balancer ARN for the `in_use_by` field instead of a listener ARN. To properly map the certificate to the listener in this situation, we need to rely on data from the ELBV2 module. This is a weird quirk of the AWS API.
 
@@ -4603,9 +4603,9 @@ Representation of an AWS [API Gateway v2 API](https://docs.aws.amazon.com/apigat
     (:AWSAccount)-[:RESOURCE]->(:AWSAPIGatewayV2API)
     ```
 
-### AutoScalingGroup
+### AWSAutoScalingGroup
 
-Representation of an AWS [Auto Scaling Group Resource](https://docs.aws.amazon.com/autoscaling/ec2/userguide/AutoScalingGroup.html).
+Representation of an AWS [Auto Scaling Group Resource](https://docs.aws.amazon.com/autoscaling/ec2/userguide/AWSAutoScalingGroup.html).
 
 | Field | Description |
 |-------|-------------|
@@ -4640,30 +4640,30 @@ Representation of an AWS [Auto Scaling Group Resource](https://docs.aws.amazon.c
 
 - AWS Auto Scaling Groups are a resource under the AWS Account.
     ```
-    (AWSAccount)-[RESOURCE]->(AutoScalingGroup)
+    (AWSAccount)-[RESOURCE]->(AWSAutoScalingGroup)
     ```
 
 - AWS Auto Scaling Groups has one or more subnets/vpc identifiers.
     ```
-    (AutoScalingGroup)-[VPC_IDENTIFIER]->(AWSEC2Subnet)
+    (AWSAutoScalingGroup)-[VPC_IDENTIFIER]->(AWSEC2Subnet)
     ```
 
 - AWS EC2 Instances are members of one or more AWS Auto Scaling Groups.
     ```
-    (EC2Instance)-[MEMBER_AUTO_SCALE_GROUP]->(AutoScalingGroup)
+    (AWSEC2Instance)-[MEMBER_AUTO_SCALE_GROUP]->(AWSAutoScalingGroup)
     ```
 
 - AWS Auto Scaling Groups have Launch Configurations
     ```
-    (AutoScalingGroup)-[HAS_LAUNCH_CONFIG]->(LaunchConfiguration)
+    (AWSAutoScalingGroup)-[HAS_LAUNCH_CONFIG]->(AWSLaunchConfiguration)
     ```
 
 - AWS Auto Scaling Groups have Launch Templates
     ```
-    (AutoScalingGroup)-[HAS_LAUNCH_TEMPLATE]->(LaunchTemplate)
+    (AWSAutoScalingGroup)-[HAS_LAUNCH_TEMPLATE]->(AWSLaunchTemplate)
     ```
 
-### EC2Image
+### AWSEC2Image
 
 Representation of an AWS [EC2 Images (AMIs)](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/AMIs.html).
 
@@ -4697,10 +4697,10 @@ Representation of an AWS [EC2 Images (AMIs)](https://docs.aws.amazon.com/AWSEC2/
 
 - AWS EC2 Images (AMIs) are a resource under the AWS Account.
     ```
-    (AWSAccount)-[RESOURCE]->(EC2Image)
+    (AWSAccount)-[RESOURCE]->(AWSEC2Image)
     ```
 
-### EC2ReservedInstance
+### AWSEC2ReservedInstance
 
 Representation of an AWS [EC2 Reserved Instance](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-reserved-instances.html).
 
@@ -4729,7 +4729,7 @@ Representation of an AWS [EC2 Reserved Instance](https://docs.aws.amazon.com/AWS
 
 - AWS EC2 Reserved Instances are a resource under the AWS Account.
     ```
-    (AWSAccount)-[RESOURCE]->(EC2ReservedInstance)
+    (AWSAccount)-[RESOURCE]->(AWSEC2ReservedInstance)
     ```
 
 ### AWSSecretsManagerSecret
@@ -4768,7 +4768,7 @@ Representation of an AWS [Secrets Manager Secret](https://docs.aws.amazon.com/se
     (AWSSecretsManagerSecret)-[ENCRYPTED_BY]->(AWSKMSKey)
     ```
 
-### EBSVolume
+### AWSEBSVolume
 
 Representation of an AWS [EBS Volume](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ebs-volumes.html).
 
@@ -4801,25 +4801,25 @@ Representation of an AWS [EBS Volume](https://docs.aws.amazon.com/AWSEC2/latest/
 
 - AWS EBS Volumes are a resource under the AWS Account.
     ```
-    (AWSAccount)-[RESOURCE]->(EBSVolume)
+    (AWSAccount)-[RESOURCE]->(AWSEBSVolume)
     ```
 
 - AWS EBS Snapshots are created using EBS Volumes
     ```
-    (EBSSnapshot)-[CREATED_FROM]->(EBSVolume)
+    (AWSEBSSnapshot)-[CREATED_FROM]->(AWSEBSVolume)
     ```
 
 - AWS EBS Volumes are attached to an EC2 Instance
     ```
-    (EBSVolume)-[ATTACHED_TO_EC2_INSTANCE]->(EC2Instance)
+    (AWSEBSVolume)-[ATTACHED_TO_EC2_INSTANCE]->(AWSEC2Instance)
     ```
 
 - `AWSTag`
     ```
-    (EBSVolume)-[TAGGED]->(AWSTag)
+    (AWSEBSVolume)-[TAGGED]->(AWSTag)
     ```
 
-### EBSSnapshot
+### AWSEBSSnapshot
 
 Representation of an AWS [EBS Snapshot](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/EBSSnapshots.html).
 
@@ -4848,12 +4848,12 @@ Representation of an AWS [EBS Snapshot](https://docs.aws.amazon.com/AWSEC2/lates
 
 - AWS EBS Snapshots are a resource under the AWS Account.
     ```
-    (AWSAccount)-[RESOURCE]->(EBSSnapshot)
+    (AWSAccount)-[RESOURCE]->(AWSEBSSnapshot)
     ```
 
 - AWS EBS Snapshots are created using EBS Volumes
     ```
-    (EBSSnapshot)-[CREATED_FROM]->(EBSVolume)
+    (AWSEBSSnapshot)-[CREATED_FROM]->(AWSEBSVolume)
     ```
 
 ### AWSSQSQueue
@@ -4993,7 +4993,7 @@ Representation of an AWS [Config Rule](https://docs.aws.amazon.com/config/latest
     (AWSAccount)-[RESOURCE]->(AWSConfigRule)
     ```
 
-### LaunchConfiguration
+### AWSLaunchConfiguration
 
 Representation of an AWS [Launch Configuration](https://docs.aws.amazon.com/autoscaling/ec2/APIReference/API_LaunchConfiguration.html)
 
@@ -5023,10 +5023,10 @@ Representation of an AWS [Launch Configuration](https://docs.aws.amazon.com/auto
 
 - Launch Configurations are a resource under the AWS Account.
     ```
-    (AWSAccount)-[RESOURCE]->(LaunchConfiguration)
+    (AWSAccount)-[RESOURCE]->(AWSLaunchConfiguration)
     ```
 
-### LaunchTemplate
+### AWSLaunchTemplate
 
 Representation of an AWS [Launch Template](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_LaunchTemplate.html)
 
@@ -5047,15 +5047,15 @@ Representation of an AWS [Launch Template](https://docs.aws.amazon.com/AWSEC2/la
 
 - Launch Templates are a resource under the AWS Account.
     ```
-    (AWSAccount)-[RESOURCE]->(LaunchTemplate)
+    (AWSAccount)-[RESOURCE]->(AWSLaunchTemplate)
     ```
 
 - Launch templates have Launch Template Versions
     ```
-    (LaunchTemplate)-[VERSION]->(LaunchTemplateVersion)
+    (AWSLaunchTemplate)-[VERSION]->(AWSLaunchTemplateVersion)
     ```
 
-### LaunchTemplateVersion
+### AWSLaunchTemplateVersion
 
 Representation of an AWS [Launch Template Version](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_LaunchTemplateVersion.html)
 
@@ -5089,12 +5089,12 @@ Representation of an AWS [Launch Template Version](https://docs.aws.amazon.com/A
 
 - Launch Template Versions are a resource under the AWS Account.
     ```
-    (AWSAccount)-[RESOURCE]->(LaunchTemplateVersion)
+    (AWSAccount)-[RESOURCE]->(AWSLaunchTemplateVersion)
     ```
 
 - Launch templates have Launch Template Versions
     ```
-    (LaunchTemplate)-[VERSION]->(LaunchTemplateVersion)
+    (AWSLaunchTemplate)-[VERSION]->(AWSLaunchTemplateVersion)
     ```
 
 ### AWSElasticIPAddress
@@ -5129,7 +5129,7 @@ Representation of an AWS EC2 [Elastic IP address](https://docs.aws.amazon.com/AW
 
 - Elastic IPs can be attached to EC2 instances
     ```
-    (EC2Instance)-[ELASTIC_IP_ADDRESS]->(AWSElasticIPAddress)
+    (AWSEC2Instance)-[ELASTIC_IP_ADDRESS]->(AWSElasticIPAddress)
     ```
 
 - Elastic IPs can be attached to NetworkInterfaces
@@ -5212,7 +5212,7 @@ Representation of an AWS ECS [Container Instance](https://docs.aws.amazon.com/Am
 
 - ECSContainerInstances are backed by EC2 Instances
     ```
-    (:AWSECSContainerInstance)-[:IS_INSTANCE]->(:EC2Instance)
+    (:AWSECSContainerInstance)-[:IS_INSTANCE]->(:AWSEC2Instance)
     ```
 
 ### AWSECSService
@@ -5691,9 +5691,9 @@ Representation of an AWS SSM [InstanceInformation](https://docs.aws.amazon.com/s
     (AWSAccount)-[RESOURCE]->(AWSSSMInstanceInformation)
     ```
 
-- AWSSSMInstanceInformation is a resource of an EC2Instance
+- AWSSSMInstanceInformation is a resource of an AWSEC2Instance
     ```
-    (EC2Instance)-[HAS_INFORMATION]->(AWSSSMInstanceInformation)
+    (AWSEC2Instance)-[HAS_INFORMATION]->(AWSSSMInstanceInformation)
     ```
 
 ### AWSSSMInstancePatch
@@ -5724,7 +5724,7 @@ Representation of an AWS SSM [PatchComplianceData](https://docs.aws.amazon.com/s
 
 - EC2Instances have SSMInstancePatches
     ```
-    (EC2Instance)-[HAS_INFORMATION]->(AWSSSMInstancePatch)
+    (AWSEC2Instance)-[HAS_INFORMATION]->(AWSSSMInstancePatch)
     ```
 
 ### AWSSSMParameter

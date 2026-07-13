@@ -107,7 +107,7 @@ def test_eks_visual_query_returns_account_and_worker_context(neo4j_session) -> N
             version: '1.28',
             region: 'us-east-1'
         })
-        CREATE (worker:EC2Instance {
+        CREATE (worker:AWSEC2Instance {
             id: 'i-eks-worker',
             instanceid: 'i-eks-worker'
         })
@@ -326,12 +326,12 @@ def test_ec2_fact_flags_amazon_linux_2_after_eol(neo4j_session) -> None:
     _reset_graph(neo4j_session)
     neo4j_session.run(
         """
-        CREATE (al2:EC2Instance {
+        CREATE (al2:AWSEC2Instance {
             id: 'i-al2',
             instanceid: 'i-al2',
             region: 'us-east-1'
         })
-        CREATE (al2023:EC2Instance {
+        CREATE (al2023:AWSEC2Instance {
             id: 'i-al2023',
             instanceid: 'i-al2023',
             region: 'us-east-1'
@@ -362,7 +362,7 @@ def test_ec2_fact_flags_amazon_linux_2_after_eol(neo4j_session) -> None:
         {
             "asset_id": "i-al2",
             "asset_name": "i-al2",
-            "asset_type": "EC2Instance",
+            "asset_type": "AWSEC2Instance",
             "software_name": "amazon-linux",
             "software_version": "2",
             "software_major": 2,

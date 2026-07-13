@@ -109,10 +109,10 @@ def get_resource_type_from_arn(arn: str) -> str:
 # cross-tagged.
 # TODO - we should make EC2 and S3 assets query-able by their full ARN so that we don't need this workaround.
 TAG_RESOURCE_TYPE_MAPPINGS: Dict = {
-    "autoscaling:autoScalingGroup": {"label": "AutoScalingGroup", "property": "arn"},
+    "autoscaling:autoScalingGroup": {"label": "AWSAutoScalingGroup", "property": "arn"},
     "dynamodb:table": {"label": "AWSDynamoDBTable", "property": "id"},
     "ec2:instance": {
-        "label": "EC2Instance",
+        "label": "AWSEC2Instance",
         "property": "id",
         "id_func": get_short_id_from_ec2_arn,
     },
@@ -121,7 +121,7 @@ TAG_RESOURCE_TYPE_MAPPINGS: Dict = {
         "property": "id",
         "id_func": get_short_id_from_ec2_arn,
     },
-    "ec2:key-pair": {"label": "EC2KeyPair", "property": "id"},
+    "ec2:key-pair": {"label": "AWSEC2KeyPair", "property": "id"},
     "ec2:network-interface": {
         "label": "AWSNetworkInterface",
         "property": "id",
@@ -149,7 +149,7 @@ TAG_RESOURCE_TYPE_MAPPINGS: Dict = {
         "id_func": get_short_id_from_ec2_arn,
     },
     "ec2:volume": {
-        "label": "EBSVolume",
+        "label": "AWSEBSVolume",
         "property": "id",
         "id_func": get_short_id_from_ec2_arn,
     },
@@ -361,7 +361,7 @@ def _group_tag_data_by_resource_type(
 # Mapping of resource labels to their path to AWSAccount for cleanup
 # Most resources have a direct RESOURCE relationship, but some require traversal
 _RESOURCE_CLEANUP_PATHS: Dict[str, str] = {
-    "EC2Instance": "(:EC2Instance)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})",
+    "AWSEC2Instance": "(:AWSEC2Instance)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})",
     "AWSNetworkInterface": (
         "(:AWSNetworkInterface)-[:PART_OF_SUBNET]->"
         "(:AWSEC2Subnet)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})"
@@ -382,14 +382,14 @@ _RESOURCE_CLEANUP_PATHS: Dict[str, str] = {
     "AWSKMSKey": "(:AWSKMSKey)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})",
     "AWSLambda": "(:AWSLambda)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})",
     "AWSDynamoDBTable": "(:AWSDynamoDBTable)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})",
-    "AutoScalingGroup": "(:AutoScalingGroup)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})",
-    "EC2KeyPair": "(:EC2KeyPair)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})",
+    "AWSAutoScalingGroup": "(:AWSAutoScalingGroup)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})",
+    "AWSEC2KeyPair": "(:AWSEC2KeyPair)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})",
     "AWSECRRepository": "(:AWSECRRepository)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})",
     "AWSTransitGateway": "(:AWSTransitGateway)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})",
     "AWSTransitGatewayAttachment": (
         "(:AWSTransitGatewayAttachment)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})"
     ),
-    "EBSVolume": "(:EBSVolume)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})",
+    "AWSEBSVolume": "(:AWSEBSVolume)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})",
     "AWSElasticIPAddress": "(:AWSElasticIPAddress)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})",
     "AWSECSCluster": "(:AWSECSCluster)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})",
     "AWSECSContainer": "(:AWSECSContainer)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})",

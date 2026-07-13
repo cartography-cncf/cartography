@@ -48,7 +48,7 @@ def load_elastic_ip_addresses(
     """
     Creates (:ElasticIpAddress)
     (:ElasticIpAddress)-[:RESOURCE]->(:AWSAccount),
-    (:EC2Instance)-[:ELASTIC_IP_ADDRESS]->(:ElasticIpAddress),
+    (:AWSEC2Instance)-[:ELASTIC_IP_ADDRESS]->(:ElasticIpAddress),
     (:AWSNetworkInterface)-[:ELASTIC_IP_ADDRESS]->(:ElasticIpAddress),
     """
     logger.info(

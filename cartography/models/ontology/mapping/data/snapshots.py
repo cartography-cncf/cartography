@@ -14,7 +14,7 @@ aws_ebs_mapping = OntologyMapping(
     module_name="aws",
     nodes=[
         OntologyNodeMapping(
-            node_label="EBSSnapshot",
+            node_label="AWSEBSSnapshot",
             fields=[
                 # EBS snapshots have no display name; the SnapshotId (`id`) is the
                 # canonical identifier.

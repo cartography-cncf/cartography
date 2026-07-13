@@ -654,7 +654,7 @@ resources that exist in the graph don't change across syncs.
 
     **Composite Node Pattern**: When a data type `A` refers to another data type `B` and offers additional fields about `B` that `B` doesn't have itself, we should define a composite node schema. This composite node would be named "`BASchema`" to denote that it's a "`B`" object as known by an "`A`" object. When loaded, the composite node schema targets the same node label as the primary `B` schema, allowing the loading system to perform a `MERGE` operation that combines properties from both sources.
 
-    For example, in the AWS EC2 module, we have both `EBSVolumeSchema` (from the EBS API) and `EBSVolumeInstanceSchema` (from the EC2 Instance API). The EC2 Instance API provides additional properties about EBS volumes that the EBS API doesn't have, such as `deleteontermination`. Both schemas target the same `EBSVolume` node label, allowing the node to accumulate properties from both sources.
+    For example, in the AWS EC2 module, we have both `EBSVolumeSchema` (from the EBS API) and `EBSVolumeInstanceSchema` (from the EC2 Instance API). The EC2 Instance API provides additional properties about EBS volumes that the EBS API doesn't have, such as `deleteontermination`. Both schemas target the same `AWSEBSVolume` node label, allowing the node to accumulate properties from both sources.
 
     ```python
     # EC2 Instance provides additional properties about EBS Volumes
@@ -668,7 +668,7 @@ resources that exist in the graph don't change across syncs.
 
     @dataclass(frozen=True)
     class EBSVolumeInstanceSchema(CartographyNodeSchema):
-        label: str = "EBSVolume"  # Same label as EBSVolumeSchema
+        label: str = "AWSEBSVolume"  # Same label as EBSVolumeSchema
         properties: EBSVolumeInstanceProperties = EBSVolumeInstanceProperties()
         sub_resource_relationship: EBSVolumeToAWSAccountRel = EBSVolumeToAWSAccountRel()
         # ... other relationships

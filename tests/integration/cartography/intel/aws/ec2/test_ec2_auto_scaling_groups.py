@@ -64,7 +64,7 @@ def test_sync_ec2_auto_scaling_groups(
     )
 
     # Assert
-    assert check_nodes(neo4j_session, "AutoScalingGroup", ["arn", "name"]) == {
+    assert check_nodes(neo4j_session, "AWSAutoScalingGroup", ["arn", "name"]) == {
         (
             GET_AUTO_SCALING_GROUPS[0]["AutoScalingGroupARN"],
             GET_AUTO_SCALING_GROUPS[0]["AutoScalingGroupName"],
@@ -75,7 +75,9 @@ def test_sync_ec2_auto_scaling_groups(
         ),
     }
 
-    assert check_nodes(neo4j_session, "LaunchConfiguration", ["id", "arn", "name"]) == {
+    assert check_nodes(
+        neo4j_session, "AWSLaunchConfiguration", ["id", "arn", "name"]
+    ) == {
         (
             GET_LAUNCH_CONFIGURATIONS[0]["LaunchConfigurationARN"],
             GET_LAUNCH_CONFIGURATIONS[0]["LaunchConfigurationARN"],
@@ -95,7 +97,7 @@ def test_sync_ec2_auto_scaling_groups(
 
     assert check_rels(
         neo4j_session,
-        node_1_label="AutoScalingGroup",
+        node_1_label="AWSAutoScalingGroup",
         node_1_attr="id",
         node_2_label="AWSAccount",
         node_2_attr="id",
@@ -108,9 +110,9 @@ def test_sync_ec2_auto_scaling_groups(
 
     assert check_rels(
         neo4j_session,
-        node_1_label="AutoScalingGroup",
+        node_1_label="AWSAutoScalingGroup",
         node_1_attr="id",
-        node_2_label="LaunchConfiguration",
+        node_2_label="AWSLaunchConfiguration",
         node_2_attr="name",
         rel_label="HAS_LAUNCH_CONFIG",
         rel_direction_right=True,
@@ -123,9 +125,9 @@ def test_sync_ec2_auto_scaling_groups(
 
     assert check_rels(
         neo4j_session,
-        node_1_label="AutoScalingGroup",
+        node_1_label="AWSAutoScalingGroup",
         node_1_attr="id",
-        node_2_label="EC2Instance",
+        node_2_label="AWSEC2Instance",
         node_2_attr="id",
         rel_label="MEMBER_AUTO_SCALE_GROUP",
         rel_direction_right=False,

@@ -109,7 +109,7 @@ def test_sync_iam_instance_profiles(
     # Assert EC2 Instance to Instance Profile relationship
     assert check_rels(
         neo4j_session,
-        "EC2Instance",
+        "AWSEC2Instance",
         "id",
         "AWSInstanceProfile",
         "arn",
@@ -119,11 +119,11 @@ def test_sync_iam_instance_profiles(
         ("i-00bd", "arn:aws:iam::1234:instance-profile/cartography-service"),
     }
 
-    # Assert canonical EC2Instance -[:ASSUMES]-> AWSRole edge (assembled from the
+    # Assert canonical AWSEC2Instance -[:ASSUMES]-> AWSRole edge (assembled from the
     # instance-profile binding chain by sync_ec2_instances).
     assert check_rels(
         neo4j_session,
-        "EC2Instance",
+        "AWSEC2Instance",
         "id",
         "AWSRole",
         "arn",
@@ -143,7 +143,7 @@ def test_sync_iam_instance_profiles(
     # Assert
     assert check_rels(
         neo4j_session,
-        "EC2Instance",
+        "AWSEC2Instance",
         "id",
         "AWSRole",
         "arn",

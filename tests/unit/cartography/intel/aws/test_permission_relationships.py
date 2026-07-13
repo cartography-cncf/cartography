@@ -676,7 +676,7 @@ def test_is_valid_rpr_accepts_valid_precondition():
         {
             "permissions": ["ssm:StartSession"],
             "relationship_name": "CAN_START_SESSION",
-            "target_label": "EC2Instance",
+            "target_label": "AWSEC2Instance",
             "target_precondition": {
                 "related_label": "AWSSSMInstanceInformation",
                 "relationship": "HAS_INFORMATION",
@@ -690,7 +690,7 @@ def test_is_valid_rpr_rejects_malformed_precondition():
         {
             "permissions": ["ssm:StartSession"],
             "relationship_name": "CAN_START_SESSION",
-            "target_label": "EC2Instance",
+            "target_label": "AWSEC2Instance",
             "target_precondition": {"related_label": "AWSSSMInstanceInformation"},
         },
     )
@@ -698,7 +698,7 @@ def test_is_valid_rpr_rejects_malformed_precondition():
         {
             "permissions": ["ssm:StartSession"],
             "relationship_name": "CAN_START_SESSION",
-            "target_label": "EC2Instance",
+            "target_label": "AWSEC2Instance",
             "target_precondition": "not-a-dict",
         },
     )

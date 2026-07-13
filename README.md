@@ -62,7 +62,7 @@ RETURN a.name, rds.id
 
 ```cypher
 // Find EC2 instances exposed to the internet
-MATCH (instance:EC2Instance{exposed_internet: true})
+MATCH (instance:AWSEC2Instance{exposed_internet: true})
 RETURN instance.instanceid, instance.publicdnsname
 ```
 

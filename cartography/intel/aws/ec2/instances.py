@@ -525,7 +525,7 @@ def sync_ec2_instance_assumes_role(
     # the canonical ASSUMES ontology edge. Scoped to the current account so the
     # MatchLink cleanup only touches this account's edges.
     query = """
-    MATCH (:AWSAccount{id: $AccountId})-[:RESOURCE]->(i:EC2Instance)
+    MATCH (:AWSAccount{id: $AccountId})-[:RESOURCE]->(i:AWSEC2Instance)
         -[:INSTANCE_PROFILE]->(:AWSInstanceProfile)-[:ASSOCIATED_WITH]->(r:AWSRole)
     WHERE i.id IS NOT NULL AND r.arn IS NOT NULL
     RETURN i.id AS instance_id, r.arn AS role_arn

@@ -399,7 +399,7 @@ def load_load_balancer_v2_listeners(
     update_tag: int,
     aws_account_id: str,
 ) -> None:
-    """Load ELBV2Listener nodes and their relationships to LoadBalancerV2."""
+    """Load AWSELBV2Listener nodes and their relationships to LoadBalancerV2."""
     transformed_data = [
         _transform_listener(listener, load_balancer_id) for listener in listener_data
     ]
@@ -421,7 +421,7 @@ def load_load_balancer_v2_target_groups(
     update_tag: int,
     region: str | None = None,
 ) -> None:
-    """Load ELBV2TargetGroup nodes and EXPOSE relationships from LoadBalancerV2 to target resources."""
+    """Load AWSELBV2TargetGroup nodes and EXPOSE relationships from LoadBalancerV2 to target resources."""
     # Load target group nodes
     tg_node_data = []
     for tg in target_groups:
@@ -496,7 +496,7 @@ def cleanup_load_balancer_v2s(
             common_job_parameters["UPDATE_TAG"],
         ).run(neo4j_session)
 
-    # Cleanup ELBV2TargetGroup nodes before LoadBalancerV2 so ELBV2_TARGET_GROUP rels detach first
+    # Cleanup AWSELBV2TargetGroup nodes before LoadBalancerV2 so ELBV2_TARGET_GROUP rels detach first
     GraphJob.from_node_schema(
         ELBV2TargetGroupSchema(),
         common_job_parameters,
@@ -508,7 +508,7 @@ def cleanup_load_balancer_v2s(
         common_job_parameters,
     ).run(neo4j_session)
 
-    # Cleanup ELBV2Listener nodes
+    # Cleanup AWSELBV2Listener nodes
     GraphJob.from_node_schema(
         ELBV2ListenerSchema(),
         common_job_parameters,

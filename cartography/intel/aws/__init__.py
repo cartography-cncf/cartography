@@ -134,8 +134,8 @@ def _sync_one_account(
             "ec2:network_interface",
         ],
         "ec2:route_table": ["ec2:vpc_endpoint"],
-        # `ecs` creates IS_INSTANCE rels (AWSECSContainerInstance→EC2Instance) and
-        # TARGETS matchlinks (ELBV2TargetGroup→AWSECSService)
+        # `ecs` creates IS_INSTANCE rels (AWSECSContainerInstance→AWSEC2Instance) and
+        # TARGETS matchlinks (AWSELBV2TargetGroup→AWSECSService)
         "ecs": ["ec2:instance", "ec2:load_balancer_v2"],
         "dynamodb": ["kms"],
         # s3/rds/efs create canonical (:...)-[:ENCRYPTED_BY]->(:AWSKMSKey) edges by

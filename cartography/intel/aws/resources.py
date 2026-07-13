@@ -87,7 +87,7 @@ RESOURCE_FUNCTIONS: OrderedDict[str, Callable[..., None]] = OrderedDict(
         "ec2:launch_templates": sync_ec2_launch_templates,
         "ec2:autoscalinggroup": sync_ec2_auto_scaling_groups,
         # `ec2:instance` must be included before `ssm` and `ec2:images`,
-        # they rely on EC2Instance data provided by this module.
+        # they rely on AWSEC2Instance data provided by this module.
         "ec2:instance": sync_ec2_instances,
         "ec2:images": sync_ec2_images,
         "ec2:keypair": sync_ec2_key_pairs,
@@ -95,7 +95,7 @@ RESOURCE_FUNCTIONS: OrderedDict[str, Callable[..., None]] = OrderedDict(
         # so that AWSEC2SecurityGroup nodes exist for MEMBER_OF_EC2_SECURITY_GROUP edges.
         "ec2:security_group": sync_ec2_security_groupinfo,
         # `ec2:subnet` and `ec2:instance` must be synced before `ec2:load_balancer` and `ec2:load_balancer_v2`
-        # so that AWSEC2Subnet and EC2Instance nodes exist when load balancers create relationships.
+        # so that AWSEC2Subnet and AWSEC2Instance nodes exist when load balancers create relationships.
         "ec2:subnet": sync_subnets,
         "ec2:load_balancer": sync_load_balancers,
         "ec2:load_balancer_v2": sync_load_balancer_v2s,
@@ -117,7 +117,7 @@ RESOURCE_FUNCTIONS: OrderedDict[str, Callable[..., None]] = OrderedDict(
         "ec2:snapshots": sync_ebs_snapshots,
         "ecr": ecr.sync,
         "ecr:image_layers": ecr_image_layers.sync,
-        # `ec2:instance` must be synced before `ecs` so that EC2Instance nodes exist
+        # `ec2:instance` must be synced before `ecs` so that AWSEC2Instance nodes exist
         # when AWSECSContainerInstance creates IS_INSTANCE relationships.
         "ecs": ecs.sync,
         "eks": eks.sync,

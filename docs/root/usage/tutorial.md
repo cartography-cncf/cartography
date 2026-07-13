@@ -44,14 +44,14 @@ Let's look at some other AWS assets now.
 
 ### Which [EC2](https://aws.amazon.com/ec2/) instances are directly exposed to the internet?
 ```cypher
-MATCH (instance:EC2Instance{exposed_internet: true})
+MATCH (instance:AWSEC2Instance{exposed_internet: true})
 RETURN instance.instanceid, instance.publicdnsname
 ```
 ![EC2 instances open to the internet](../images/ec2-inet-open.png)
 
 These instances are open to the internet either through permissive inbound IP permissions defined on their EC2SecurityGroups or their NetworkInterfaces.
 
-If you know a lot about AWS, you may have noticed that EC2 instances [don't actually have an exposed_internet field](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_Instance.html). We're able to query for this because Cartography performs some [data enrichment](#data-enrichment) to add this field to EC2Instance nodes.
+If you know a lot about AWS, you may have noticed that EC2 instances [don't actually have an exposed_internet field](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_Instance.html). We're able to query for this because Cartography performs some [data enrichment](#data-enrichment) to add this field to AWSEC2Instance nodes.
 
 ### Which [S3](https://aws.amazon.com/s3/) buckets have a policy granting any level of anonymous access to the bucket?
 ```cypher
@@ -96,13 +96,13 @@ This says "what are the possible labels for all nodes connected to all DNSRecord
 ["AWSNameServer"]
 ["AWSESDomain"]
 ["LoadBalancer"]
-["EC2Instance", "Instance"]
+["AWSEC2Instance", "Instance"]
 ```
 
 You can then make the path more specific like this:
 
 ```cypher
-match (d:DNSRecord)--(:EC2Instance)--(n)
+match (d:DNSRecord)--(:AWSEC2Instance)--(n)
 return distinct labels(n);
 ```
 

@@ -14,7 +14,7 @@ _aws_service_account_manipulation_via_ec2 = Fact(
         "Also indicates whether the instance is internet-exposed."
     ),
     cypher_query="""
-        MATCH (a:AWSAccount)-[:RESOURCE]->(ec2:EC2Instance)
+        MATCH (a:AWSAccount)-[:RESOURCE]->(ec2:AWSEC2Instance)
         MATCH (ec2)-[:INSTANCE_PROFILE]->(profile:AWSInstanceProfile)
         MATCH (profile)-[:ASSOCIATED_WITH]->(role:AWSRole)
         MATCH (role)-[:POLICY]->(:AWSPolicy)-[:STATEMENT]->(allow_stmt:AWSPolicyStatement {effect:"Allow"})
@@ -70,7 +70,7 @@ _aws_service_account_manipulation_via_ec2 = Fact(
         ORDER BY account, workload_id, internet_accessible
     """,
     cypher_visual_query="""
-        MATCH p = (a:AWSAccount)-[:RESOURCE]->(ec2:EC2Instance)
+        MATCH p = (a:AWSAccount)-[:RESOURCE]->(ec2:AWSEC2Instance)
         MATCH p1 = (ec2)-[:INSTANCE_PROFILE]->(profile:AWSInstanceProfile)
         MATCH p2 = (profile)-[:ASSOCIATED_WITH]->(role:AWSRole)
         MATCH p3 = (role)-[:POLICY]->(:AWSPolicy)-[:STATEMENT]->(stmt:AWSPolicyStatement)
@@ -90,7 +90,7 @@ _aws_service_account_manipulation_via_ec2 = Fact(
         RETURN *
     """,
     cypher_count_query="""
-    MATCH (ec2:EC2Instance)
+    MATCH (ec2:AWSEC2Instance)
     RETURN COUNT(ec2) AS count
     """,
     asset_id_field="workload_id",

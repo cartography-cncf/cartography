@@ -92,7 +92,7 @@ def test_cleanup_emr(neo4j_session):
     # Arrange: load in an unrelated EC2 instance. This should not be affected by the EMR module's cleanup job.
     neo4j_session.run(
         """
-        MERGE (i:EC2Instance{id:1234, lastupdated: $lastupdated})<-[r:RESOURCE]-(:AWSAccount{id: $aws_account_id})
+        MERGE (i:AWSEC2Instance{id:1234, lastupdated: $lastupdated})<-[r:RESOURCE]-(:AWSAccount{id: $aws_account_id})
         SET r.lastupdated = $lastupdated
         """,
         aws_account_id=TEST_ACCOUNT_ID,
@@ -109,7 +109,7 @@ def test_cleanup_emr(neo4j_session):
         neo4j_session,
         "AWSAccount",
         "id",
-        "EC2Instance",
+        "AWSEC2Instance",
         "id",
         "RESOURCE",
     ) == {
@@ -135,7 +135,7 @@ def test_cleanup_emr(neo4j_session):
         neo4j_session,
         "AWSAccount",
         "id",
-        "EC2Instance",
+        "AWSEC2Instance",
         "id",
         "RESOURCE",
     ) == {

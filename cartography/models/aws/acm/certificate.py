@@ -53,7 +53,7 @@ class ACMCertificateToELBV2ListenerRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class ACMCertificateToELBV2ListenerRel(CartographyRelSchema):
-    target_node_label: str = "ELBV2Listener"
+    target_node_label: str = "AWSELBV2Listener"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("ELBV2ListenerArns", one_to_many=True)}
     )

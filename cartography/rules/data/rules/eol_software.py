@@ -70,13 +70,13 @@ def _build_ec2_instance_amazon_linux_2_eol_query(
     current_date_expression: str = "date()",
 ) -> str:
     return f"""
-    MATCH (ec2:EC2Instance)-[:HAS_INFORMATION]->(ssm:AWSSSMInstanceInformation)
+    MATCH (ec2:AWSEC2Instance)-[:HAS_INFORMATION]->(ssm:AWSSSMInstanceInformation)
     WHERE toLower(trim(coalesce(ssm.platform_name, ''))) = 'amazon linux'
       AND trim(toString(ssm.platform_version)) = '2'
       AND {current_date_expression} > date('{_AMAZON_LINUX_2_EOL_DATE}')
     RETURN ec2.id AS asset_id,
            coalesce(ec2.instanceid, ec2.id) AS asset_name,
-           'EC2Instance' AS asset_type,
+           'AWSEC2Instance' AS asset_type,
            'amazon-linux' AS software_name,
            trim(toString(ssm.platform_version)) AS software_version,
            2 AS software_major,
@@ -201,7 +201,7 @@ _eks_cluster_kubernetes_version_eol = Fact(
          END AS kubernetes_minor
     WHERE kubernetes_minor IS NOT NULL
       AND kubernetes_minor < {_OLDEST_SUPPORTED_EKS_KUBERNETES_MINOR}
-    OPTIONAL MATCH worker_path=(ec2:EC2Instance)-[:MEMBER_OF_EKS_CLUSTER]->(e)
+    OPTIONAL MATCH worker_path=(ec2:AWSEC2Instance)-[:MEMBER_OF_EKS_CLUSTER]->(e)
     WITH account_path, e, head(collect(worker_path)) AS worker_path
     RETURN e AS cluster, account_path, worker_path
     """,
@@ -502,7 +502,7 @@ _ec2_instance_amazon_linux_2_eol = Fact(
     ),
     cypher_query=_build_ec2_instance_amazon_linux_2_eol_query(),
     cypher_visual_query=f"""
-    MATCH (ec2:EC2Instance)-[:HAS_INFORMATION]->(ssm:AWSSSMInstanceInformation)
+    MATCH (ec2:AWSEC2Instance)-[:HAS_INFORMATION]->(ssm:AWSSSMInstanceInformation)
     WHERE toLower(trim(coalesce(ssm.platform_name, ''))) = 'amazon linux'
       AND trim(toString(ssm.platform_version)) = '2'
       AND date() > date('{_AMAZON_LINUX_2_EOL_DATE}')
@@ -510,7 +510,7 @@ _ec2_instance_amazon_linux_2_eol = Fact(
     RETURN *
     """,
     cypher_count_query=f"""
-    MATCH (ec2:EC2Instance)-[:HAS_INFORMATION]->(ssm:AWSSSMInstanceInformation)
+    MATCH (ec2:AWSEC2Instance)-[:HAS_INFORMATION]->(ssm:AWSSSMInstanceInformation)
     WHERE toLower(trim(coalesce(ssm.platform_name, ''))) = 'amazon linux'
       AND trim(toString(ssm.platform_version)) = '2'
       AND date() > date('{_AMAZON_LINUX_2_EOL_DATE}')

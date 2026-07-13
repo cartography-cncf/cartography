@@ -44,7 +44,7 @@ def _create_test_subnets_security_groups_and_instances(neo4j_session):
     for instance_id in ["i-1234567890abcdef0", "i-0987654321fedcba0"]:
         neo4j_session.run(
             """
-            MERGE (i:EC2Instance{instanceid: $instance_id})
+            MERGE (i:AWSEC2Instance{instanceid: $instance_id})
             SET i.lastupdated = $update_tag
             """,
             instance_id=instance_id,
@@ -59,7 +59,7 @@ def _create_test_subnets_security_groups_and_instances(neo4j_session):
 )
 def test_sync_load_balancer_v2s(mock_get_loadbalancer_v2_data, neo4j_session):
     """
-    Ensure that AWSLoadBalancerV2 and ELBV2Listener are synced correctly with relationships.
+    Ensure that AWSLoadBalancerV2 and AWSELBV2Listener are synced correctly with relationships.
     """
     # Arrange
     boto3_session = MagicMock()
@@ -110,10 +110,10 @@ def test_sync_load_balancer_v2s(mock_get_loadbalancer_v2_data, neo4j_session):
         (TEST_ACCOUNT_ID, "test-nlb-abcdef0123.us-east-1.elb.amazonaws.com"),
     }
 
-    # Assert - ELBV2Listener nodes exist with mTLS fields
+    # Assert - AWSELBV2Listener nodes exist with mTLS fields
     assert check_nodes(
         neo4j_session,
-        "ELBV2Listener",
+        "AWSELBV2Listener",
         [
             "id",
             "port",
@@ -157,12 +157,12 @@ def test_sync_load_balancer_v2s(mock_get_loadbalancer_v2_data, neo4j_session):
         ),
     }
 
-    # Assert - Relationships (AWSLoadBalancerV2)-[ELBV2_LISTENER]->(ELBV2Listener)
+    # Assert - Relationships (AWSLoadBalancerV2)-[ELBV2_LISTENER]->(AWSELBV2Listener)
     assert check_rels(
         neo4j_session,
         "AWSLoadBalancerV2",
         "id",
-        "ELBV2Listener",
+        "AWSELBV2Listener",
         "id",
         "ELBV2_LISTENER",
         rel_direction_right=True,
@@ -211,13 +211,13 @@ def test_sync_load_balancer_v2s(mock_get_loadbalancer_v2_data, neo4j_session):
         ("test-alb-1234567890.us-east-1.elb.amazonaws.com", "sg-87654321"),
     }
 
-    # Assert - Relationships (AWSLoadBalancerV2)-[EXPOSE]->(EC2Instance)
+    # Assert - Relationships (AWSLoadBalancerV2)-[EXPOSE]->(AWSEC2Instance)
     # Only for target groups with target type = instance
     assert check_rels(
         neo4j_session,
         "AWSLoadBalancerV2",
         "id",
-        "EC2Instance",
+        "AWSEC2Instance",
         "instanceid",
         "EXPOSE",
         rel_direction_right=True,
@@ -288,7 +288,7 @@ def test_sync_load_balancer_v2_expose(mock_get_loadbalancer_v2_data, neo4j_sessi
         neo4j_session,
         "AWSLoadBalancerV2",
         "id",
-        "EC2Instance",
+        "AWSEC2Instance",
         "instanceid",
         "EXPOSE",
         rel_direction_right=True,
@@ -450,7 +450,7 @@ def test_migrate_legacy_loadbalancerv2_labels_repairs_partial_state(
         CREATE (other:AWSAccount{id: $other_account_id})
         CREATE (lb:LoadBalancerV2:LoadBalancer{id: 'legacy-v2'})
         CREATE (other_lb:LoadBalancerV2{id: 'other-legacy-v2'})
-        CREATE (listener:ELBV2Listener{id: 'legacy-v2-listener'})
+        CREATE (listener:AWSELBV2Listener{id: 'legacy-v2-listener'})
         CREATE (account)-[:RESOURCE]->(lb)
         CREATE (other)-[:RESOURCE]->(other_lb)
         CREATE (lb)-[:ELBV2_LISTENER]->(listener)
@@ -473,7 +473,7 @@ def test_migrate_legacy_loadbalancerv2_labels_repairs_partial_state(
                lb:AWSLoadBalancerV2 AS has_aws_label,
                lb:LoadBalancer AS has_semantic_label,
                lb:LoadBalancerV2 AS has_legacy_label,
-               count { (lb)-[:ELBV2_LISTENER]->(:ELBV2Listener) } AS listener_count
+               count { (lb)-[:ELBV2_LISTENER]->(:AWSELBV2Listener) } AS listener_count
         """,
         account_id=TEST_ACCOUNT_ID,
     ).single()

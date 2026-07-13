@@ -72,10 +72,10 @@ def test_sync_tags(mock_get_tags, mock_get_instances, neo4j_session):
         ("TestKey:TestValue", "TestKey", "TestValue", "aws"),
     }
 
-    # Assert - Relationships (EC2Instance)-[TAGGED]->(AWSTag)
+    # Assert - Relationships (AWSEC2Instance)-[TAGGED]->(AWSTag)
     assert check_rels(
         neo4j_session,
-        "EC2Instance",
+        "AWSEC2Instance",
         "id",
         "AWSTag",
         "id",
