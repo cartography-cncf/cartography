@@ -6,7 +6,7 @@ aws_eks_mapping = OntologyMapping(
     module_name="aws",
     nodes=[
         OntologyNodeMapping(
-            node_label="EKSCluster",
+            node_label="AWSEKSCluster",
             fields=[
                 OntologyFieldMapping(ontology_field="name", node_field="name"),
                 OntologyFieldMapping(ontology_field="region", node_field="region"),
@@ -26,7 +26,7 @@ aws_ecs_mapping = OntologyMapping(
     module_name="aws",
     nodes=[
         OntologyNodeMapping(
-            node_label="ECSCluster",
+            node_label="AWSECSCluster",
             fields=[
                 OntologyFieldMapping(
                     ontology_field="name",

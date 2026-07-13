@@ -79,7 +79,7 @@ Configured AWS sync accounts are marked `inscope=true`. Accounts discovered only
                                 :AWSRDSInstance,
                                 :AWSRDSSnapshot,
                                 :AWSRDSEventSubscription,
-                                :ECRPullThroughCacheRule,
+                                :AWSECRPullThroughCacheRule,
                                 :AWSSecretsManagerSecret,
                                 :AWSSecurityHub,
                                 :AWSSQSQueue,
@@ -373,7 +373,7 @@ Representation of an AWS [GuardDuty Finding](https://docs.aws.amazon.com/guarddu
 | detectorid | The ID of the detector that generated the finding |
 | resource_type | The type of AWS resource affected (Instance, AWSS3Bucket, AccessKey, etc.) |
 | resource_id | The identifier of the affected resource (instance ID, bucket name, etc.) |
-| eks_cluster_arn | For `EKSCluster` findings, the ARN of the affected EKS cluster reported by GuardDuty |
+| eks_cluster_arn | For `AWSEKSCluster` findings, the ARN of the affected EKS cluster reported by GuardDuty |
 | access_key_id | For `AccessKey` findings, the AWS access key ID reported by GuardDuty |
 | principal_user_id | For `AccessKey` findings where `UserType=IAMUser`, the IAM user unique ID reported by GuardDuty |
 | principal_role_id | For `AccessKey` findings where `UserType=AssumedRole`, the IAM role unique ID (the prefix of GuardDuty's `PrincipalId` before `:session-name`) |
@@ -422,7 +422,7 @@ Representation of an AWS [GuardDuty Finding](https://docs.aws.amazon.com/guarddu
 
 - GuardDuty Kubernetes findings may affect EKS Clusters
     ```cypher
-    (:AWSGuardDutyFinding)-[:AFFECTS]->(:EKSCluster)
+    (:AWSGuardDutyFinding)-[:AFFECTS]->(:AWSEKSCluster)
     ```
 
 - GuardDuty findings may affect S3 Buckets
@@ -495,13 +495,13 @@ Depending on its `type`, the finding also carries an ontology finding label: `PA
 - AWSInspectorFinding may affect ECR Repositories
 
     ```cypher
-    (:AWSInspectorFinding)-[:AFFECTS]->(:ECRRepository)
+    (:AWSInspectorFinding)-[:AFFECTS]->(:AWSECRRepository)
     ```
 
 - AWSInspectorFinding may affect ECR Images
 
     ```cypher
-    (:AWSInspectorFinding)-[:AFFECTS]->(:ECRImage)
+    (:AWSInspectorFinding)-[:AFFECTS]->(:AWSECRImage)
     ```
 
 - AWSInspectorFindings managed by AWSAccount.
@@ -673,12 +673,12 @@ Representation of an AWS [Lambda Function](https://docs.aws.amazon.com/lambda/la
 
 - AWSLambda functions has AWS ECR Images.
     ```
-    (:AWSLambda)-[:HAS]->(:ECRImage)
+    (:AWSLambda)-[:HAS]->(:AWSECRImage)
     ```
 
-- AWSLambda functions deployed from a container image are linked to the image they run via `HAS_IMAGE`. The target is matched on `image_digest` and may be an `ECRImage`, `GitLabContainerImage`, `GCPArtifactRegistryImage`, or `GitHubContainerImage`.
+- AWSLambda functions deployed from a container image are linked to the image they run via `HAS_IMAGE`. The target is matched on `image_digest` and may be an `AWSECRImage`, `GitLabContainerImage`, `GCPArtifactRegistryImage`, or `GitHubContainerImage`.
     ```
-    (:AWSLambda)-[:HAS_IMAGE]->(:ECRImage)
+    (:AWSLambda)-[:HAS_IMAGE]->(:AWSECRImage)
     (:AWSLambda)-[:HAS_IMAGE]->(:GitLabContainerImage)
     (:AWSLambda)-[:HAS_IMAGE]->(:GCPArtifactRegistryImage)
     (:AWSLambda)-[:HAS_IMAGE]->(:GitHubContainerImage)
@@ -1110,12 +1110,12 @@ Representation of an AWS [IAM Role](https://docs.aws.amazon.com/IAM/latest/APIRe
 
 - ECSTaskDefinitions have task roles.
     ```cypher
-    (:ECSTaskDefinition)-[:HAS_TASK_ROLE]->(:AWSRole)
+    (:AWSECSTaskDefinition)-[:HAS_TASK_ROLE]->(:AWSRole)
     ```
 
 - ECSTaskDefinitions have execution roles.
     ```cypher
-    (:ECSTaskDefinition)-[:HAS_EXECUTION_ROLE]->(:AWSRole)
+    (:AWSECSTaskDefinition)-[:HAS_EXECUTION_ROLE]->(:AWSRole)
     ```
 
 - If an AWSRole trusts an AWSRootPrincipal, all roles in the AWSRootPrincipal's account will be able to assume the role.
@@ -1360,13 +1360,13 @@ Representation of an AWS [Tag](https://docs.aws.amazon.com/resourcegroupstagging
     (EC2KeyPair)-[TAGGED]->(AWSTag)
     (EC2SecurityGroup)-[TAGGED]->(AWSTag)
     (EC2Subnet)-[TAGGED]->(AWSTag)
-    (ECRRepository)-[TAGGED]->(AWSTag)
-    (ECSCluster)-[TAGGED]->(AWSTag)
-    (ECSContainer)-[TAGGED]->(AWSTag)
-    (ECSContainerInstance)-[TAGGED]->(AWSTag)
-    (ECSTask)-[TAGGED]->(AWSTag)
-    (ECSTaskDefinition)-[TAGGED]->(AWSTag)
-    (EKSCluster)-[TAGGED]->(AWSTag)
+    (AWSECRRepository)-[TAGGED]->(AWSTag)
+    (AWSECSCluster)-[TAGGED]->(AWSTag)
+    (AWSECSContainer)-[TAGGED]->(AWSTag)
+    (AWSECSContainerInstance)-[TAGGED]->(AWSTag)
+    (AWSECSTask)-[TAGGED]->(AWSTag)
+    (AWSECSTaskDefinition)-[TAGGED]->(AWSTag)
+    (AWSEKSCluster)-[TAGGED]->(AWSTag)
     (AWSEMRCluster)-[TAGGED]->(AWSTag)
     (AWSESDomain)-[TAGGED]->(AWSTag)
     (ElasticIPAddress)-[TAGGED]->(AWSTag)
@@ -2315,12 +2315,12 @@ Our representation of an AWS [EC2 Instance](https://docs.aws.amazon.com/AWSEC2/l
 
 - EC2Instances can be members of EKS Clusters
     ```
-    (EC2Instance)-[MEMBER_OF_EKS_CLUSTER]->(EKSCluster)
+    (EC2Instance)-[MEMBER_OF_EKS_CLUSTER]->(AWSEKSCluster)
     ```
 
 - ECS Container Instances can be backed by EC2 Instances
     ```
-    (ECSContainerInstance)-[IS_INSTANCE]->(EC2Instance)
+    (AWSECSContainerInstance)-[IS_INSTANCE]->(EC2Instance)
     ```
 
 ### EC2Ipv6Address
@@ -2615,11 +2615,11 @@ Representation of an AWS EC2 [Subnet](https://docs.aws.amazon.com/AWSEC2/latest/
     ```
 
 
-### ECRRepository
+### AWSECRRepository
 
 Representation of an AWS Elastic Container Registry [Repository](https://docs.aws.amazon.com/AmazonECR/latest/APIReference/API_Repository.html).
 
-> **Ontology Mapping**: This node has the extra label `ContainerRegistry` to enable cross-platform queries for container registries across different systems (e.g., ECRRepository, GCPArtifactRegistryRepository, GitLabContainerRepository).
+> **Ontology Mapping**: This node has the extra label `ContainerRegistry` to enable cross-platform queries for container registries across different systems (e.g., AWSECRRepository, GCPArtifactRegistryRepository, GitLabContainerRepository).
 
 | Field | Description |
 |--------|-----------|
@@ -2634,13 +2634,13 @@ Representation of an AWS Elastic Container Registry [Repository](https://docs.aw
 
 #### Relationships
 
-- An ECRRepository contains ECRRepositoryImages:
+- An AWSECRRepository contains ECRRepositoryImages:
     ```
-    (:ECRRepository)-[:REPO_IMAGE]->(:ECRRepositoryImage)
+    (:AWSECRRepository)-[:REPO_IMAGE]->(:AWSECRRepositoryImage)
     ```
 
 
-### ECRPullThroughCacheRule
+### AWSECRPullThroughCacheRule
 
 Representation of an AWS Elastic Container Registry [pull through cache rule](https://docs.aws.amazon.com/AmazonECR/latest/APIReference/API_PullThroughCacheRule.html).
 
@@ -2664,17 +2664,17 @@ Representation of an AWS Elastic Container Registry [pull through cache rule](ht
 
 - ECR pull through cache rules are resources under the AWS Account:
     ```
-    (:AWSAccount)-[:RESOURCE]->(:ECRPullThroughCacheRule)
+    (:AWSAccount)-[:RESOURCE]->(:AWSECRPullThroughCacheRule)
     ```
 
 - ECR pull through cache rules may use a Secrets Manager secret for upstream credentials:
     ```
-    (:ECRPullThroughCacheRule)-[:USES_SECRET]->(:AWSSecretsManagerSecret)
+    (:AWSECRPullThroughCacheRule)-[:USES_SECRET]->(:AWSSecretsManagerSecret)
     ```
 
 - ECR pull through cache rules may be associated with an IAM role:
     ```
-    (:ECRPullThroughCacheRule)-[:ASSOCIATED_WITH]->(:AWSRole)
+    (:AWSECRPullThroughCacheRule)-[:ASSOCIATED_WITH]->(:AWSRole)
     ```
 
 
@@ -2756,16 +2756,16 @@ For additional explanation see https://docs.aws.amazon.com/vpc/latest/userguide/
     ```
 
 
-### ECRRepositoryImage
+### AWSECRRepositoryImage
 
 An ECR image may be referenced and tagged by more than one ECR Repository. To best represent this, we've created an
-`ECRRepositoryImage` node as a layer of indirection between the repo and the image.
+`AWSECRRepositoryImage` node as a layer of indirection between the repo and the image.
 
 More concretely explained, we run
 [`ecr.list_images()`](https://docs.aws.amazon.com/AmazonECR/latest/APIReference/API_ImageIdentifier.html), and then
-store the image tag on an `ECRRepositoryImage` node and the image digest hash on a separate `ECRImage` node.
+store the image tag on an `AWSECRRepositoryImage` node and the image digest hash on a separate `AWSECRImage` node.
 
-This way, more than one `ECRRepositoryImage` can reference/be connected to the same `ECRImage`.
+This way, more than one `AWSECRRepositoryImage` can reference/be connected to the same `AWSECRImage`.
 
 > **Ontology Mapping**: This node has the extra label `ImageTag` to enable cross-platform queries for image tags across different container registries.
 
@@ -2782,19 +2782,19 @@ This way, more than one `ECRRepositoryImage` can reference/be connected to the s
 
 #### Relationships
 
-- An ECRRepository contains ECRRepositoryImages:
+- An AWSECRRepository contains ECRRepositoryImages:
     ```
-    (:ECRRepository)-[:REPO_IMAGE]->(:ECRRepositoryImage)
+    (:AWSECRRepository)-[:REPO_IMAGE]->(:AWSECRRepositoryImage)
     ```
 
 - ECRRepositoryImages reference ECRImages
     ```
-    (:ECRRepositoryImage)-[:IMAGE]->(:ECRImage)
+    (:AWSECRRepositoryImage)-[:IMAGE]->(:AWSECRImage)
     ```
 
 - ECRRepositoryImages may be packaged from a source repository (cross-module relationship via VCS modules)
     ```
-    (:ECRRepositoryImage)-[:PACKAGED_FROM]->(:GitHubRepository)
+    (:AWSECRRepositoryImage)-[:PACKAGED_FROM]->(:GitHubRepository)
     ```
 
     Relationship properties:
@@ -2807,13 +2807,13 @@ This way, more than one `ECRRepositoryImage` can reference/be connected to the s
     This relationship links all images in an ECR repository to the source VCS repository via `repo_uri` matching.
 
 
-### ECRImage
+### AWSECRImage
 
 Representation of an ECR image identified by its digest (e.g. a SHA hash). Specifically, this is the "digest part" of
 [`ecr.list_images()`](https://docs.aws.amazon.com/AmazonECR/latest/APIReference/API_ImageIdentifier.html). Also see
-ECRRepositoryImage.
+AWSECRRepositoryImage.
 
-For multi-architecture images, Cartography creates ECRImage nodes for the manifest list, each platform-specific image, and any attestations.
+For multi-architecture images, Cartography creates AWSECRImage nodes for the manifest list, each platform-specific image, and any attestations.
 
 > **Ontology Mapping**: This node has conditional extra labels based on the `type` field: `Image` (when type="image"), `ImageAttestation` (when type="attestation"), or `ImageManifestList` (when type="manifest_list"). This enables cross-platform queries for container images across different registries.
 
@@ -2845,41 +2845,41 @@ For multi-architecture images, Cartography creates ECRImage nodes for the manife
 
 - ECRRepositoryImages reference ECRImages
     ```
-    (:ECRRepositoryImage)-[:IMAGE]->(:ECRImage)
+    (:AWSECRRepositoryImage)-[:IMAGE]->(:AWSECRImage)
     ```
 
 - Software packages are a part of ECR Images
     ```
-    (:Package)-[:DEPLOYED]->(:ECRImage)
+    (:Package)-[:DEPLOYED]->(:AWSECRImage)
     ```
 
-- An ECRImage references its layers (only applies to `type="image"` nodes)
+- An AWSECRImage references its layers (only applies to `type="image"` nodes)
     ```
-    (:ECRImage)-[:HAS_LAYER]->(:ECRImageLayer)
+    (:AWSECRImage)-[:HAS_LAYER]->(:AWSECRImageLayer)
     ```
 
-- A TrivyImageFinding is a vulnerability that affects an ECRImage.
+- A TrivyImageFinding is a vulnerability that affects an AWSECRImage.
 
     ```
-    (:TrivyImageFinding)-[:AFFECTS]->(:ECRImage)
+    (:TrivyImageFinding)-[:AFFECTS]->(:AWSECRImage)
     ```
 
 - ECSContainers have images. HAS_IMAGE edges are created at ingest time by matching the container's runtime `imageDigest` against image nodes from every supported registry.
     ```
-    (:ECSContainer)-[:HAS_IMAGE]->(:ECRImage)
-    (:ECSContainer)-[:HAS_IMAGE]->(:GitLabContainerImage)
-    (:ECSContainer)-[:HAS_IMAGE]->(:GCPArtifactRegistryImage)
-    (:ECSContainer)-[:HAS_IMAGE]->(:GitHubContainerImage)
+    (:AWSECSContainer)-[:HAS_IMAGE]->(:AWSECRImage)
+    (:AWSECSContainer)-[:HAS_IMAGE]->(:GitLabContainerImage)
+    (:AWSECSContainer)-[:HAS_IMAGE]->(:GCPArtifactRegistryImage)
+    (:AWSECSContainer)-[:HAS_IMAGE]->(:GitHubContainerImage)
     ```
 
 - KubernetesContainers have images. The relationship matches containers to images by digest (`status_image_sha`).
     ```
-    (:KubernetesContainer)-[:HAS_IMAGE]->(:ECRImage)
+    (:KubernetesContainer)-[:HAS_IMAGE]->(:AWSECRImage)
     ```
 
-- An ECRImage may be built from a parent ECRImage (derived from provenance attestations).
+- An AWSECRImage may be built from a parent AWSECRImage (derived from provenance attestations).
     ```
-    (:ECRImage)-[:BUILT_FROM]->(:ECRImage)
+    (:AWSECRImage)-[:BUILT_FROM]->(:AWSECRImage)
     ```
 
     Relationship properties:
@@ -2887,27 +2887,27 @@ For multi-architecture images, Cartography creates ECRImage nodes for the manife
     - `from_attestation`: Boolean flag indicating the relationship was derived from provenance attestation (always `true`)
     - `confidence`: Confidence level of the relationship (always `"explicit"` for attestation-based relationships)
 
-- A manifest list ECRImage contains platform-specific ECRImages (only applies to `type="manifest_list"` nodes)
+- A manifest list AWSECRImage contains platform-specific ECRImages (only applies to `type="manifest_list"` nodes)
     ```
-    (:ECRImage {type: "manifest_list"})-[:CONTAINS_IMAGE]->(:ECRImage {type: "image"})
-    ```
-
-- An attestation ECRImage attests/validates another ECRImage (only applies to `type="attestation"` nodes)
-    ```
-    (:ECRImage {type: "attestation"})-[:ATTESTS]->(:ECRImage)
+    (:AWSECRImage {type: "manifest_list"})-[:CONTAINS_IMAGE]->(:AWSECRImage {type: "image"})
     ```
 
-- An ECRImage may be packaged by a GitHubWorkflow (derived from SLSA provenance attestations). Only applies to `type="image"` nodes with the `Image` semantic label.
+- An attestation AWSECRImage attests/validates another AWSECRImage (only applies to `type="attestation"` nodes)
     ```
-    (:ECRImage:Image)-[:PACKAGED_BY]->(:GitHubWorkflow)
+    (:AWSECRImage {type: "attestation"})-[:ATTESTS]->(:AWSECRImage)
+    ```
+
+- An AWSECRImage may be packaged by a GitHubWorkflow (derived from SLSA provenance attestations). Only applies to `type="image"` nodes with the `Image` semantic label.
+    ```
+    (:AWSECRImage:Image)-[:PACKAGED_BY]->(:GitHubWorkflow)
     ```
 
     Note: This cross-module relationship is created when SLSA provenance attestations specify the GitHub Actions workflow that built the container image. See the [GitHub schema](../github/schema.md#githubworkflow) for more details on GitHubWorkflow nodes.
 
 
-### ECRImageLayer
+### AWSECRImageLayer
 
-Representation of an individual Docker image layer discovered while processing ECR manifests. Layers are de-duplicated by `diff_id`, so multiple images (or multiple points within the same image) may reference the same `ECRImageLayer` node. Note that `diff_id` is the **uncompressed** (DiffID) SHA-256 of the layer tar stream. Docker's canonical empty layer therefore always appears as `sha256:5f70bf18a086007016e948b04aed3b82103a36bea41755b6cddfaf10ace3c6ef` and is marked with `is_empty = true`. (If you inspect registry manifests you may see the compressed blob digest `sha256:a3ed95ca...`, both refer to the same empty layer.)
+Representation of an individual Docker image layer discovered while processing ECR manifests. Layers are de-duplicated by `diff_id`, so multiple images (or multiple points within the same image) may reference the same `AWSECRImageLayer` node. Note that `diff_id` is the **uncompressed** (DiffID) SHA-256 of the layer tar stream. Docker's canonical empty layer therefore always appears as `sha256:5f70bf18a086007016e948b04aed3b82103a36bea41755b6cddfaf10ace3c6ef` and is marked with `is_empty = true`. (If you inspect registry manifests you may see the compressed blob digest `sha256:a3ed95ca...`, both refer to the same empty layer.)
 
 > **Ontology Mapping**: This node has the extra label `ImageLayer` to enable cross-platform queries for image layers across different container registries.
 
@@ -2923,35 +2923,35 @@ Representation of an individual Docker image layer discovered while processing E
 
 - Image layers belong to an AWSAccount
     ```
-    (:ECRImageLayer)<-[:RESOURCE]-(:AWSAccount)
+    (:AWSECRImageLayer)<-[:RESOURCE]-(:AWSAccount)
     ```
 
 - Layers point to the next layer in the manifest
     ```
-    (:ECRImageLayer)-[:NEXT]->(:ECRImageLayer)
+    (:AWSECRImageLayer)-[:NEXT]->(:AWSECRImageLayer)
     ```
 
 - A layer can be the head of a platform-specific image (only `type="image"` nodes have layer relationships)
     ```
-    (:ECRImage {type: "image"})-[:HEAD]->(:ECRImageLayer)
+    (:AWSECRImage {type: "image"})-[:HEAD]->(:AWSECRImageLayer)
     ```
 
 - A layer can be the tail of a platform-specific image
     ```
-    (:ECRImage {type: "image"})-[:TAIL]->(:ECRImageLayer)
+    (:AWSECRImage {type: "image"})-[:TAIL]->(:AWSECRImageLayer)
     ```
 
 - Platform-specific images reference all of their layers
     ```
-    (:ECRImage {type: "image"})-[:HAS_LAYER]->(:ECRImageLayer)
+    (:AWSECRImage {type: "image"})-[:HAS_LAYER]->(:AWSECRImageLayer)
     ```
 
 #### Query Examples
 
 - List the ordered layers for a specific image directly from graph relationships:
     ```cypher
-    MATCH (img:ECRImage {digest: $digest})-[:HEAD]->(head:ECRImageLayer)
-    MATCH (img)-[:TAIL]->(tail:ECRImageLayer)
+    MATCH (img:AWSECRImage {digest: $digest})-[:HEAD]->(head:AWSECRImageLayer)
+    MATCH (img)-[:TAIL]->(tail:AWSECRImageLayer)
     MATCH path = (head)-[:NEXT*0..]->(tail)
     WHERE ALL(layer IN nodes(path) WHERE (img)-[:HAS_LAYER]->(layer))
     WITH path
@@ -2964,7 +2964,7 @@ Representation of an individual Docker image layer discovered while processing E
 
 - Use the stored manifest order when you only need the digests:
     ```cypher
-    MATCH (img:ECRImage {digest: $digest})
+    MATCH (img:AWSECRImage {digest: $digest})
     UNWIND range(0, size(img.layer_diff_ids) - 1) AS idx
     RETURN idx AS position, img.layer_diff_ids[idx] AS diff_id
     ORDER BY position;
@@ -2972,8 +2972,8 @@ Representation of an individual Docker image layer discovered while processing E
 
 - Detect images whose layer chains diverge (typically because the Docker empty layer is repeated):
     ```cypher
-    MATCH (img:ECRImage)-[:HAS_LAYER]->(layer:ECRImageLayer)
-    MATCH (layer)-[:NEXT]->(child:ECRImageLayer)
+    MATCH (img:AWSECRImage)-[:HAS_LAYER]->(layer:AWSECRImageLayer)
+    MATCH (layer)-[:NEXT]->(child:AWSECRImageLayer)
     WHERE (img)-[:HAS_LAYER]->(child)
     WITH img, layer, collect(DISTINCT child.diff_id) AS next_diff_ids
     WHERE size(next_diff_ids) > 1
@@ -2986,28 +2986,28 @@ Representation of an individual Docker image layer discovered while processing E
     ```cypher
     WITH $target_digest as target_digest
     // Get target image's layer chain via graph traversal
-    MATCH (target:ECRImage {digest: target_digest})
-    MATCH (target)-[:HAS_LAYER]->(tl:ECRImageLayer)
+    MATCH (target:AWSECRImage {digest: target_digest})
+    MATCH (target)-[:HAS_LAYER]->(tl:AWSECRImageLayer)
     WITH target, collect(id(tl)) AS targetAllowedIds
     CALL {
     WITH target, targetAllowedIds
-    MATCH p = (target)-[:HEAD]->(:ECRImageLayer)-[:NEXT*0..]->(:ECRImageLayer)<-[:TAIL]-(target)
-    WITH p, targetAllowedIds, [n IN nodes(p) WHERE n:ECRImageLayer | id(n)] AS layerIds
+    MATCH p = (target)-[:HEAD]->(:AWSECRImageLayer)-[:NEXT*0..]->(:AWSECRImageLayer)<-[:TAIL]-(target)
+    WITH p, targetAllowedIds, [n IN nodes(p) WHERE n:AWSECRImageLayer | id(n)] AS layerIds
     WHERE all(i IN layerIds WHERE i IN targetAllowedIds)
-    RETURN [n IN nodes(p) WHERE n:ECRImageLayer | n.diff_id] AS target_diff_ids
+    RETURN [n IN nodes(p) WHERE n:AWSECRImageLayer | n.diff_id] AS target_diff_ids
     ORDER BY length(p) DESC
     LIMIT 1
     }
     // Get all base images with their layer chains from a repo called 'base-images'
-    MATCH (base_repo:ECRRepository {name: 'base-images'})-[:REPO_IMAGE]->(base_img:ECRRepositoryImage)-[:IMAGE]->(base:ECRImage)
-    MATCH (base)-[:HAS_LAYER]->(bl:ECRImageLayer)
+    MATCH (base_repo:AWSECRRepository {name: 'base-images'})-[:REPO_IMAGE]->(base_img:AWSECRRepositoryImage)-[:IMAGE]->(base:AWSECRImage)
+    MATCH (base)-[:HAS_LAYER]->(bl:AWSECRImageLayer)
     WITH target_diff_ids, base, base_img, collect(id(bl)) AS baseAllowedIds
     CALL {
     WITH base, baseAllowedIds
-    MATCH p = (base)-[:HEAD]->(:ECRImageLayer)-[:NEXT*0..]->(:ECRImageLayer)<-[:TAIL]-(base)
-    WITH p, baseAllowedIds, [n IN nodes(p) WHERE n:ECRImageLayer | id(n)] AS layerIds
+    MATCH p = (base)-[:HEAD]->(:AWSECRImageLayer)-[:NEXT*0..]->(:AWSECRImageLayer)<-[:TAIL]-(base)
+    WITH p, baseAllowedIds, [n IN nodes(p) WHERE n:AWSECRImageLayer | id(n)] AS layerIds
     WHERE all(i IN layerIds WHERE i IN baseAllowedIds)
-    RETURN [n IN nodes(p) WHERE n:ECRImageLayer | n.diff_id] AS base_diff_ids
+    RETURN [n IN nodes(p) WHERE n:AWSECRImageLayer | n.diff_id] AS base_diff_ids
     ORDER BY length(p) DESC
     LIMIT 1
     }
@@ -3027,20 +3027,20 @@ Representation of an individual Docker image layer discovered while processing E
 
 - Find all platform-specific images in a multi-architecture manifest list:
     ```cypher
-    MATCH (manifest_list:ECRImage {type: "manifest_list"})-[:CONTAINS_IMAGE]->(platform_image:ECRImage)
+    MATCH (manifest_list:AWSECRImage {type: "manifest_list"})-[:CONTAINS_IMAGE]->(platform_image:AWSECRImage)
     RETURN platform_image.architecture, platform_image.os, platform_image.variant, platform_image.digest
     ORDER BY platform_image.architecture;
     ```
 
 - Find which image an attestation validates:
     ```cypher
-    MATCH (attestation:ECRImage {type: "attestation"})-[:ATTESTS]->(image:ECRImage)
+    MATCH (attestation:AWSECRImage {type: "attestation"})-[:ATTESTS]->(image:AWSECRImage)
     RETURN attestation.digest AS attestation_digest, image.digest AS validated_image_digest;
     ```
 
 - Find all attestations for a specific image:
     ```cypher
-    MATCH (attestation:ECRImage {type: "attestation"})-[:ATTESTS]->(image:ECRImage {digest: $digest})
+    MATCH (attestation:AWSECRImage {type: "attestation"})-[:ATTESTS]->(image:AWSECRImage {digest: $digest})
     RETURN attestation.digest, attestation.attestation_type;
     ```
 
@@ -3059,7 +3059,7 @@ Representation of a software package, as found by an AWS ECR vulnerability scan.
 
 - Software packages are a part of ECR Images
     ```
-    (:Package)-[:DEPLOYED]->(:ECRImage)
+    (:Package)-[:DEPLOYED]->(:AWSECRImage)
     ```
 
 - A TrivyImageFinding is a vulnerability that affects a software Package.
@@ -3075,11 +3075,11 @@ Representation of a software package, as found by an AWS ECR vulnerability scan.
     ```
 
 
-### EKSCluster
+### AWSEKSCluster
 
 Representation of an AWS [EKS Cluster](https://docs.aws.amazon.com/eks/latest/APIReference/API_Cluster.html).
 
-> **Ontology Mapping**: This node has the extra label `ComputeCluster` to enable cross-platform queries for compute clusters across different systems (e.g., ECSCluster, AzureKubernetesCluster, GKECluster, KubernetesCluster).
+> **Ontology Mapping**: This node has the extra label `ComputeCluster` to enable cross-platform queries for compute clusters across different systems (e.g., AWSECSCluster, AzureKubernetesCluster, GKECluster, KubernetesCluster).
 
 | Field | Description |
 |-------|-------------|
@@ -3113,19 +3113,19 @@ Representation of an AWS [EKS Cluster](https://docs.aws.amazon.com/eks/latest/AP
 
 - EKS Clusters belong to AWS Accounts.
     ```
-    (AWSAccount)-[RESOURCE]->(EKSCluster)
+    (AWSAccount)-[RESOURCE]->(AWSEKSCluster)
     ```
 
 - An EKS Cluster maps to the `KubernetesCluster` synced from the same control plane.
     ```
-    (:EKSCluster)-[:MAPS_TO]->(:KubernetesCluster)
+    (:AWSEKSCluster)-[:MAPS_TO]->(:KubernetesCluster)
     ```
 
 #### Example queries
 
 - Compare EKS API server certificate authority metadata across clusters:
     ```cypher
-    MATCH (a:AWSAccount)-[:RESOURCE]->(c:EKSCluster)
+    MATCH (a:AWSAccount)-[:RESOURCE]->(c:AWSEKSCluster)
     RETURN a.id, c.name, c.region, c.endpoint,
            c.certificate_authority_sha256_fingerprint,
            c.certificate_authority_subject,
@@ -3137,7 +3137,7 @@ Representation of an AWS [EKS Cluster](https://docs.aws.amazon.com/eks/latest/AP
 
 - Identify EKS clusters where certificate authority parsing failed:
     ```cypher
-    MATCH (:AWSAccount)-[:RESOURCE]->(c:EKSCluster)
+    MATCH (:AWSAccount)-[:RESOURCE]->(c:AWSEKSCluster)
     WHERE c.certificate_authority_parse_status <> "parsed"
     RETURN c.name, c.arn, c.status,
            c.certificate_authority_parse_status,
@@ -3148,7 +3148,7 @@ Representation of an AWS [EKS Cluster](https://docs.aws.amazon.com/eks/latest/AP
 
 Representation of an AWS [EMR Cluster](https://docs.aws.amazon.com/emr/latest/APIReference/API_Cluster.html).
 
-> **Ontology Mapping**: This node has the extra label `ComputeCluster` to enable cross-platform queries for compute clusters across different systems (e.g., EKSCluster, ECSCluster, AzureKubernetesCluster, GKECluster).
+> **Ontology Mapping**: This node has the extra label `ComputeCluster` to enable cross-platform queries for compute clusters across different systems (e.g., AWSEKSCluster, AWSECSCluster, AzureKubernetesCluster, GKECluster).
 
 | Field | Description |
 |-------|-------------|
@@ -3597,7 +3597,7 @@ The `EXPOSE` relationship holds the protocol, port and TargetGroupArn the load b
 
 - Internet-facing AWSLoadBalancerV2's can expose private ECS containers. Set by an analysis job.
     ```
-    (AWSLoadBalancerV2)-[EXPOSE]->(ECSContainer)
+    (AWSLoadBalancerV2)-[EXPOSE]->(AWSECSContainer)
     ```
 
 - Internet-facing AWSLoadBalancerV2's can expose Kubernetes pods and containers. Set by the `k8s_lb_exposure` analysis job.
@@ -5142,11 +5142,11 @@ Representation of an AWS EC2 [Elastic IP address](https://docs.aws.amazon.com/AW
     (AWSDNSRecord)-[DNS_POINTS_TO]->(ElasticIPAddress)
     ```
 
-### ECSCluster
+### AWSECSCluster
 
 Representation of an AWS ECS [Cluster](https://docs.aws.amazon.com/AmazonECS/latest/APIReference/API_Cluster.html)
 
-> **Ontology Mapping**: This node has the extra label `ComputeCluster` to enable cross-platform queries for compute clusters across different systems (e.g., EKSCluster, AzureKubernetesCluster, GKECluster, KubernetesCluster).
+> **Ontology Mapping**: This node has the extra label `ComputeCluster` to enable cross-platform queries for compute clusters across different systems (e.g., AWSEKSCluster, AzureKubernetesCluster, GKECluster, KubernetesCluster).
 
 | Field | Description |
 |-------|-------------|
@@ -5172,10 +5172,10 @@ Representation of an AWS ECS [Cluster](https://docs.aws.amazon.com/AmazonECS/lat
 
 - ECSClusters are a resource under the AWS Account.
     ```
-    (:AWSAccount)-[:RESOURCE]->(:ECSCluster)
+    (:AWSAccount)-[:RESOURCE]->(:AWSECSCluster)
     ```
 
-### ECSContainerInstance
+### AWSECSContainerInstance
 
 Representation of an AWS ECS [Container Instance](https://docs.aws.amazon.com/AmazonECS/latest/APIReference/API_ContainerInstance.html)
 
@@ -5200,22 +5200,22 @@ Representation of an AWS ECS [Container Instance](https://docs.aws.amazon.com/Am
 
 #### Relationships
 
-- An ECSCluster has ECSContainerInstances
+- An AWSECSCluster has ECSContainerInstances
     ```
-    (:ECSCluster)-[:HAS_CONTAINER_INSTANCE]->(:ECSContainerInstance)
+    (:AWSECSCluster)-[:HAS_CONTAINER_INSTANCE]->(:AWSECSContainerInstance)
     ```
 
 - ECSContainerInstances have ECSTasks
     ```
-    (:ECSContainerInstance)-[:HAS_TASK]->(:ECSTask)
+    (:AWSECSContainerInstance)-[:HAS_TASK]->(:AWSECSTask)
     ```
 
 - ECSContainerInstances are backed by EC2 Instances
     ```
-    (:ECSContainerInstance)-[:IS_INSTANCE]->(:EC2Instance)
+    (:AWSECSContainerInstance)-[:IS_INSTANCE]->(:EC2Instance)
     ```
 
-### ECSService
+### AWSECSService
 
 Representation of an AWS ECS [Service](https://docs.aws.amazon.com/AmazonECS/latest/APIReference/API_Service.html)
 
@@ -5252,12 +5252,12 @@ Representation of an AWS ECS [Service](https://docs.aws.amazon.com/AmazonECS/lat
 
 #### Relationships
 
-- An ECSService points at its parent cluster via the unified workload chain.
+- An AWSECSService points at its parent cluster via the unified workload chain.
     ```
-    (:ECSService)-[:WORKLOAD_PARENT]->(:ECSCluster)
+    (:AWSECSService)-[:WORKLOAD_PARENT]->(:AWSECSCluster)
     ```
 
-### ECSTaskDefinition
+### AWSECSTaskDefinition
 
 Representation of an AWS ECS [Task Definition](https://docs.aws.amazon.com/AmazonECS/latest/APIReference/API_TaskDefinition.html)
 
@@ -5290,27 +5290,27 @@ Representation of an AWS ECS [Task Definition](https://docs.aws.amazon.com/Amazo
 
 #### Relationships
 
-- ECSTaskDefinition are a resource under the AWS Account.
+- AWSECSTaskDefinition are a resource under the AWS Account.
     ```
-    (:AWSAccount)-[:RESOURCE]->(:ECSTaskDefinition)
+    (:AWSAccount)-[:RESOURCE]->(:AWSECSTaskDefinition)
     ```
 
-- An ECSTask has an ECSTaskDefinition.
+- An AWSECSTask has an AWSECSTaskDefinition.
     ```
-    (:ECSTask)-[:HAS_TASK_DEFINITION]->(:ECSTaskDefinition)
+    (:AWSECSTask)-[:HAS_TASK_DEFINITION]->(:AWSECSTaskDefinition)
     ```
 
 - ECSTaskDefinitions have task roles.
     ```
-    (:ECSTaskDefinition)-[:HAS_TASK_ROLE]->(:AWSRole)
+    (:AWSECSTaskDefinition)-[:HAS_TASK_ROLE]->(:AWSRole)
     ```
 
 - ECSTaskDefinitions have execution roles.
     ```
-    (:ECSTaskDefinition)-[:HAS_EXECUTION_ROLE]->(:AWSRole)
+    (:AWSECSTaskDefinition)-[:HAS_EXECUTION_ROLE]->(:AWSRole)
     ```
 
-### ECSContainerDefinition
+### AWSECSContainerDefinition
 
 Representation of an AWS ECS [Container Definition](https://docs.aws.amazon.com/AmazonECS/latest/APIReference/API_ContainerDefinition.html)
 
@@ -5347,10 +5347,10 @@ Representation of an AWS ECS [Container Definition](https://docs.aws.amazon.com/
 
 - ECSTaskDefinitions have ECSContainerDefinitions
     ```
-    (:ECSTaskDefinition)-[:HAS_CONTAINER_DEFINITION]->(:ECSContainerDefinition)
+    (:AWSECSTaskDefinition)-[:HAS_CONTAINER_DEFINITION]->(:AWSECSContainerDefinition)
     ```
 
-### ECSTask
+### AWSECSTask
 
 Representation of an AWS ECS [Task](https://docs.aws.amazon.com/AmazonECS/latest/APIReference/API_Task.html)
 
@@ -5398,31 +5398,31 @@ Representation of an AWS ECS [Task](https://docs.aws.amazon.com/AmazonECS/latest
 
 - ECSTasks are a resource under the AWS Account
     ```
-    (:AWSAccount)-[:RESOURCE]->(:ECSTask)
+    (:AWSAccount)-[:RESOURCE]->(:AWSECSTask)
     ```
 
 - ECSContainerInstances have ECSTasks
     ```
-    (:ECSContainerInstance)-[:HAS_TASK]->(:ECSTask)
+    (:AWSECSContainerInstance)-[:HAS_TASK]->(:AWSECSTask)
     ```
 
 - ECSTasks have ECSTaskDefinitions
     ```
-    (:ECSTask)-[:HAS_TASK_DEFINITION]->(:ECSTaskDefinition)
+    (:AWSECSTask)-[:HAS_TASK_DEFINITION]->(:AWSECSTaskDefinition)
     ```
 
 - ECSTasks in awsvpc network mode have NetworkInterfaces
     ```
-    (:ECSTask)-[:NETWORK_INTERFACE]->(:NetworkInterface)
+    (:AWSECSTask)-[:NETWORK_INTERFACE]->(:NetworkInterface)
     ```
 
-- ECSTasks point at their parent in the unified workload chain. Service-attached tasks point at the ECSService; standalone tasks point directly at the ECSCluster.
+- ECSTasks point at their parent in the unified workload chain. Service-attached tasks point at the AWSECSService; standalone tasks point directly at the AWSECSCluster.
     ```
-    (:ECSTask)-[:WORKLOAD_PARENT]->(:ECSService)
-    (:ECSTask)-[:WORKLOAD_PARENT]->(:ECSCluster)
+    (:AWSECSTask)-[:WORKLOAD_PARENT]->(:AWSECSService)
+    (:AWSECSTask)-[:WORKLOAD_PARENT]->(:AWSECSCluster)
     ```
 
-### ECSContainer
+### AWSECSContainer
 
 Representation of an AWS ECS [Container](https://docs.aws.amazon.com/AmazonECS/latest/APIReference/API_Container.html)
 
@@ -5455,17 +5455,17 @@ Representation of an AWS ECS [Container](https://docs.aws.amazon.com/AmazonECS/l
 
 #### Relationships
 
-- ECSContainers point at their parent ECSTask via the unified workload chain.
+- ECSContainers point at their parent AWSECSTask via the unified workload chain.
     ```
-    (:ECSContainer)-[:WORKLOAD_PARENT]->(:ECSTask)
+    (:AWSECSContainer)-[:WORKLOAD_PARENT]->(:AWSECSTask)
     ```
 
 - ECSContainers have images. HAS_IMAGE edges are created at ingest time by matching the container's runtime `imageDigest` against image nodes from every supported registry.
     ```
-    (:ECSContainer)-[:HAS_IMAGE]->(:ECRImage)
-    (:ECSContainer)-[:HAS_IMAGE]->(:GitLabContainerImage)
-    (:ECSContainer)-[:HAS_IMAGE]->(:GCPArtifactRegistryImage)
-    (:ECSContainer)-[:HAS_IMAGE]->(:GitHubContainerImage)
+    (:AWSECSContainer)-[:HAS_IMAGE]->(:AWSECRImage)
+    (:AWSECSContainer)-[:HAS_IMAGE]->(:GitLabContainerImage)
+    (:AWSECSContainer)-[:HAS_IMAGE]->(:GCPArtifactRegistryImage)
+    (:AWSECSContainer)-[:HAS_IMAGE]->(:GitHubContainerImage)
     ```
 
 ### AWSEfsFileSystem

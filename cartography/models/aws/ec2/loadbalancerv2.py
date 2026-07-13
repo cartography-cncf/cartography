@@ -77,7 +77,7 @@ class ELBV2TargetGroupSchema(CartographyNodeSchema):
     )
 
 
-# ELBV2TargetGroup -> ECSService MatchLink
+# ELBV2TargetGroup -> AWSECSService MatchLink
 
 
 @dataclass(frozen=True)
@@ -94,9 +94,9 @@ class ELBV2TargetGroupToECSServiceRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class ELBV2TargetGroupToECSServiceMatchLink(CartographyRelSchema):
-    """(:ELBV2TargetGroup)-[:TARGETS]->(:ECSService)"""
+    """(:ELBV2TargetGroup)-[:TARGETS]->(:AWSECSService)"""
 
-    target_node_label: str = "ECSService"
+    target_node_label: str = "AWSECSService"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("ServiceArn")},
     )

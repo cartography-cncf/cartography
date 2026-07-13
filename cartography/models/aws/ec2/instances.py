@@ -120,7 +120,7 @@ class EC2InstanceToEKSClusterRelRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class EC2InstanceToEKSClusterRel(CartographyRelSchema):
-    target_node_label: str = "EKSCluster"
+    target_node_label: str = "AWSEKSCluster"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {
             "name": PropertyRef("EksClusterName"),

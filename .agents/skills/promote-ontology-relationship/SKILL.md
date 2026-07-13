@@ -143,7 +143,7 @@ Re-run until green. Add the needed imports to `constraints.py` (isort will order
   ```bash
   grep -rn "OLD_LABEL\|<SrcNode>.*<DstNode>" docs/root/modules/<provider>/schema.md
   ```
-- **Do not remove a same-label edge that is a different, non-deprecated relationship.** Cross-check against `LEGACY_REL_WHITELIST`: only the exact `(src, label, dst)` triples you deprecated are removed. Example from the `WORKLOAD_PARENT` cleanup: `(:ECSService)-[:HAS_TASK]->(:ECSTask)` was removed, but `(:ECSContainerInstance)-[:HAS_TASK]->(:ECSTask)` (same `HAS_TASK` label, not deprecated) was kept. Likewise the Kubernetes namespace catch-all kept `CONTAINS` to `Secret`/`Service`/`Role` and only dropped `Pod`/`Container`.
+- **Do not remove a same-label edge that is a different, non-deprecated relationship.** Cross-check against `LEGACY_REL_WHITELIST`: only the exact `(src, label, dst)` triples you deprecated are removed. Example from the `WORKLOAD_PARENT` cleanup: `(:AWSECSService)-[:HAS_TASK]->(:AWSECSTask)` was removed, but `(:AWSECSContainerInstance)-[:HAS_TASK]->(:AWSECSTask)` (same `HAS_TASK` label, not deprecated) was kept. Likewise the Kubernetes namespace catch-all kept `CONTAINS` to `Secret`/`Service`/`Role` and only dropped `Pod`/`Container`.
 - Reword surrounding prose/notes to the canonical label.
 
 **Ontology `schema.md`** (`docs/root/modules/ontology/schema.md`): add the edge to the top mermaid diagram (`UA -- HAS_ROLE --> PR`) and to the prose under the `dst` semantic-label section.

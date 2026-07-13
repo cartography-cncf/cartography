@@ -1240,7 +1240,7 @@ Represents a Scaleway Key Manager key.
 
 Represents a Scaleway Kapsule (managed Kubernetes) cluster.
 
-> **Ontology Mapping**: This node has the extra label `ComputeCluster` to enable cross-platform queries for compute clusters across different systems (e.g., EKSCluster, GKECluster, AzureKubernetesCluster).
+> **Ontology Mapping**: This node has the extra label `ComputeCluster` to enable cross-platform queries for compute clusters across different systems (e.g., AWSEKSCluster, GKECluster, AzureKubernetesCluster).
 
 | Field      | Description                                  |
 |------------|----------------------------------------------|
@@ -1361,7 +1361,7 @@ Represents a single node in a Kapsule pool.
 
 Represents a Scaleway Container Registry namespace (top-level repository scope).
 
-> **Ontology Mapping**: This node has the extra label `ContainerRegistry` to enable cross-platform queries for container registries across different systems (e.g., ECRRepository, GCPArtifactRegistryRepository, GitHubPackage).
+> **Ontology Mapping**: This node has the extra label `ContainerRegistry` to enable cross-platform queries for container registries across different systems (e.g., AWSECRRepository, GCPArtifactRegistryRepository, GitHubPackage).
 
 | Field      | Description                                  |
 |------------|----------------------------------------------|
@@ -1394,7 +1394,7 @@ Represents a Scaleway Container Registry namespace (top-level repository scope).
 
 Represents a tag (a named pointer such as `latest` or `v1.2.3`) inside a Container Registry namespace, resolving to a specific image digest. Scaleway's namespace is the registry (like a GCP Artifact Registry repository), so the "named image" from `list_images` is not modeled as its own node; its name and visibility are denormalized onto the tag.
 
-> **Ontology Mapping**: This node has the extra label `ImageTag` to enable cross-platform queries for image tags across registries (e.g. ECRRepositoryImage, GCPArtifactRegistryRepositoryImage, GitLabContainerRepositoryTag).
+> **Ontology Mapping**: This node has the extra label `ImageTag` to enable cross-platform queries for image tags across registries (e.g. AWSECRRepositoryImage, GCPArtifactRegistryRepositoryImage, GitLabContainerRepositoryTag).
 
 | Field      | Description                                  |
 |------------|----------------------------------------------|
@@ -1428,7 +1428,7 @@ Represents a tag (a named pointer such as `latest` or `v1.2.3`) inside a Contain
 
 Represents the digest-addressed image content in a Container Registry. Deduplicated by digest, so multiple tags (and repositories) referencing the same digest share one node.
 
-> **Ontology Mapping**: This node has the extra label `Image` to enable cross-platform queries for container images across registries (e.g. ECRImage, GCPArtifactRegistryImage, GitLabContainerImage). It is the join target for `(:Container|:Function)-[:HAS_IMAGE]->(:Image)` and `RESOLVED_IMAGE`.
+> **Ontology Mapping**: This node has the extra label `Image` to enable cross-platform queries for container images across registries (e.g. AWSECRImage, GCPArtifactRegistryImage, GitLabContainerImage). It is the join target for `(:Container|:Function)-[:HAS_IMAGE]->(:Image)` and `RESOLVED_IMAGE`.
 
 Provenance and layer fields are populated from the OCI registry endpoint by the supply-chain enrichment.
 
@@ -1466,7 +1466,7 @@ Provenance and layer fields are populated from the OCI registry endpoint by the 
 
 Represents a filesystem layer of a container image, keyed by its uncompressed digest (`diff_id`) and shared across images that reuse it.
 
-> **Ontology Mapping**: This node has the extra label `ImageLayer` to enable cross-platform queries and the supply-chain dockerfile matcher (e.g. ECRImageLayer, GCPArtifactRegistryImageLayer).
+> **Ontology Mapping**: This node has the extra label `ImageLayer` to enable cross-platform queries and the supply-chain dockerfile matcher (e.g. AWSECRImageLayer, GCPArtifactRegistryImageLayer).
 
 | Field      | Description                                  |
 |------------|----------------------------------------------|
@@ -1717,7 +1717,7 @@ Represents a Scaleway Serverless Containers namespace (project-scoped grouping o
 
 Represents a Scaleway Serverless Container (a managed, autoscaled container service that runs a single container).
 
-> **Ontology Mapping**: This node has the extra labels `ComputeService` (cross-platform container services, e.g. ECSService, GCPCloudRunService) and `Container` (the running container, so the shared `RESOLVED_IMAGE` analysis reaches it via `HAS_IMAGE`).
+> **Ontology Mapping**: This node has the extra labels `ComputeService` (cross-platform container services, e.g. AWSECSService, GCPCloudRunService) and `Container` (the running container, so the shared `RESOLVED_IMAGE` analysis reaches it via `HAS_IMAGE`).
 
 | Field      | Description                                  |
 |------------|----------------------------------------------|

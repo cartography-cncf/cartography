@@ -134,7 +134,7 @@ def test_sync_with_layers(
     )
 
     # Assert
-    # Check that ECRImage nodes were created
+    # Check that AWSECRImage nodes were created
     expected_ecr_images = {
         (
             "sha256:0000000000000000000000000000000000000000000000000000000000000000",
@@ -142,16 +142,17 @@ def test_sync_with_layers(
         ),
     }
     assert (
-        check_nodes(neo4j_session, "ECRImage", ["id", "region"]) == expected_ecr_images
+        check_nodes(neo4j_session, "AWSECRImage", ["id", "region"])
+        == expected_ecr_images
     )
 
-    # Check that ECRImageLayer nodes were created
+    # Check that AWSECRImageLayer nodes were created
     expected_layers = {
         ("sha256:2c26b46b68ffc68ff99b453c1d30413413422d706483bfa0f98a5e886266e7ae",),
         ("sha256:fcde2b2edba56bf408601fb721fe9b5c338d10ee429ea04fae5511b68fbf8fb9",),
         ("sha256:4ac5bb3f45ba451e817df5f30b950f6eb32145e00ba5f134973810881fde7ac0",),
     }
-    assert check_nodes(neo4j_session, "ECRImageLayer", ["id"]) == expected_layers
+    assert check_nodes(neo4j_session, "AWSECRImageLayer", ["id"]) == expected_layers
     # Also verify they have the ImageLayer extra label
     assert check_nodes(neo4j_session, "ImageLayer", ["id"]) == expected_layers
 
@@ -169,9 +170,9 @@ def test_sync_with_layers(
     assert (
         check_rels(
             neo4j_session,
-            "ECRImageLayer",
+            "AWSECRImageLayer",
             "id",
-            "ECRImageLayer",
+            "AWSECRImageLayer",
             "id",
             "NEXT",
             rel_direction_right=True,
@@ -196,9 +197,9 @@ def test_sync_with_layers(
     assert (
         check_rels(
             neo4j_session,
-            "ECRImage",
+            "AWSECRImage",
             "id",
-            "ECRImageLayer",
+            "AWSECRImageLayer",
             "id",
             "HAS_LAYER",
             rel_direction_right=True,
@@ -208,7 +209,7 @@ def test_sync_with_layers(
 
     sequence_record = neo4j_session.run(
         """
-        MATCH (img:ECRImage {id: $digest})
+        MATCH (img:AWSECRImage {id: $digest})
         RETURN img.layer_diff_ids AS layer_diff_ids
         """,
         digest="sha256:0000000000000000000000000000000000000000000000000000000000000000",
@@ -222,8 +223,8 @@ def test_sync_with_layers(
 
     path_rows = neo4j_session.run(
         """
-        MATCH (img:ECRImage {id: $digest})-[:HEAD]->(head:ECRImageLayer)
-        MATCH (img)-[:TAIL]->(tail:ECRImageLayer)
+        MATCH (img:AWSECRImage {id: $digest})-[:HEAD]->(head:AWSECRImageLayer)
+        MATCH (img)-[:TAIL]->(tail:AWSECRImageLayer)
         MATCH path = (head)-[:NEXT*0..]->(tail)
         WHERE ALL(layer IN nodes(path) WHERE (img)-[:HAS_LAYER]->(layer))
         WITH path
@@ -238,7 +239,7 @@ def test_sync_with_layers(
     path_layers = [record["diff_id"] for record in path_rows]
     assert path_layers == sequence_record["layer_diff_ids"]
 
-    # Check HEAD relationship from ECRImage to first layer
+    # Check HEAD relationship from AWSECRImage to first layer
     expected_head_rels = {
         (
             "sha256:0000000000000000000000000000000000000000000000000000000000000000",
@@ -248,7 +249,7 @@ def test_sync_with_layers(
     assert (
         check_rels(
             neo4j_session,
-            "ECRImage",
+            "AWSECRImage",
             "id",
             "ImageLayer",
             "id",
@@ -258,7 +259,7 @@ def test_sync_with_layers(
         == expected_head_rels
     )
 
-    # Check TAIL relationship from ECRImage to last layer
+    # Check TAIL relationship from AWSECRImage to last layer
     expected_tail_rels = {
         (
             "sha256:0000000000000000000000000000000000000000000000000000000000000000",
@@ -268,7 +269,7 @@ def test_sync_with_layers(
     assert (
         check_rels(
             neo4j_session,
-            "ECRImage",
+            "AWSECRImage",
             "id",
             "ImageLayer",
             "id",
@@ -399,7 +400,7 @@ def test_sync_built_from_relationship(
     mock_get_repos,
     neo4j_session,
 ):
-    """Test that BUILT_FROM relationship is created between ECRImage nodes."""
+    """Test that BUILT_FROM relationship is created between AWSECRImage nodes."""
     parent_digest = (
         "sha256:0000000000000000000000000000000000000000000000000000000000000000"
     )
@@ -467,9 +468,9 @@ def test_sync_built_from_relationship(
 
     assert check_rels(
         neo4j_session,
-        "ECRImage",
+        "AWSECRImage",
         "id",
-        "ECRImage",
+        "AWSECRImage",
         "id",
         "BUILT_FROM",
         rel_direction_right=True,
@@ -545,7 +546,7 @@ def test_sync_circleci_label_provenance_links_github_repository(
 
     enriched = neo4j_session.run(
         """
-        MATCH (img:ECRImage {digest: $digest})
+        MATCH (img:AWSECRImage {digest: $digest})
         RETURN img.source_uri AS source_uri,
                img.source_revision AS source_revision,
                img.source_file AS source_file
@@ -578,7 +579,7 @@ def test_sync_circleci_label_provenance_links_github_repository(
 
     packaged_from = neo4j_session.run(
         """
-        MATCH (img:ECRImage {digest: $digest})-[r:PACKAGED_FROM]->(repo:GitHubRepository)
+        MATCH (img:AWSECRImage {digest: $digest})-[r:PACKAGED_FROM]->(repo:GitHubRepository)
         RETURN repo.id AS repo_url, r.match_method AS match_method, r.dockerfile_path AS dockerfile_path
         """,
         digest=image_digest,
@@ -1076,7 +1077,7 @@ def test_sync_layers_preserves_multi_arch_image_properties(
     neo4j_session,
 ):
     """
-    Regression test for bug where ecr_image_layers sync would overwrite ECRImage properties to NULL.
+    Regression test for bug where ecr_image_layers sync would overwrite AWSECRImage properties to NULL.
 
     This test ensures that when layer sync runs after ECR sync, it preserves the type, architecture,
     os, variant, and other fields that were set during the initial ECR sync for multi-arch images.
@@ -1122,7 +1123,7 @@ def test_sync_layers_preserves_multi_arch_image_properties(
     )
     boto3_session.client.return_value = mock_client
 
-    # Act 1: Run ECR sync to populate ECRImage nodes with multi-arch properties
+    # Act 1: Run ECR sync to populate AWSECRImage nodes with multi-arch properties
     cartography.intel.aws.ecr.sync(
         neo4j_session,
         boto3_session,
@@ -1132,9 +1133,9 @@ def test_sync_layers_preserves_multi_arch_image_properties(
         {"UPDATE_TAG": TEST_UPDATE_TAG, "AWS_ID": TEST_ACCOUNT_ID},
     )
 
-    # Assert 1: Verify ECRImage nodes have type, architecture, os, variant set
+    # Assert 1: Verify AWSECRImage nodes have type, architecture, os, variant set
     assert check_nodes(
-        neo4j_session, "ECRImage", ["digest", "type", "architecture"]
+        neo4j_session, "AWSECRImage", ["digest", "type", "architecture"]
     ) == {
         (test_data.MANIFEST_LIST_DIGEST, "manifest_list", None),
         (test_data.MANIFEST_LIST_AMD64_DIGEST, "image", "amd64"),
@@ -1177,29 +1178,29 @@ def test_sync_layers_preserves_multi_arch_image_properties(
         {"UPDATE_TAG": TEST_UPDATE_TAG, "AWS_ID": TEST_ACCOUNT_ID},
     )
 
-    # Assert 2: Verify ECRImage properties are PRESERVED after layer sync (not overwritten to NULL)
+    # Assert 2: Verify AWSECRImage properties are PRESERVED after layer sync (not overwritten to NULL)
     assert check_nodes(
-        neo4j_session, "ECRImage", ["digest", "type", "architecture"]
+        neo4j_session, "AWSECRImage", ["digest", "type", "architecture"]
     ) == {
         (test_data.MANIFEST_LIST_DIGEST, "manifest_list", None),
         (test_data.MANIFEST_LIST_AMD64_DIGEST, "image", "amd64"),
         (test_data.MANIFEST_LIST_ARM64_DIGEST, "image", "arm64"),
         (test_data.MANIFEST_LIST_ATTESTATION_DIGEST, "attestation", "unknown"),
-    }, "ECRImage properties were overwritten after layer sync!"
+    }, "AWSECRImage properties were overwritten after layer sync!"
 
     # Verify layer relationships: only platform images (type="image") should have HAS_LAYER relationships
     # Manifest lists and attestations should NOT have any layer relationships
     has_layer_rels = check_rels(
         neo4j_session,
-        "ECRImage",
+        "AWSECRImage",
         "digest",
-        "ECRImageLayer",
+        "AWSECRImageLayer",
         "diff_id",
         "HAS_LAYER",
         rel_direction_right=True,
     )
 
-    # Get all ECRImage digests that have HAS_LAYER relationships
+    # Get all AWSECRImage digests that have HAS_LAYER relationships
     images_with_layers = {img_digest for (img_digest, _) in has_layer_rels}
 
     # Only AMD64 and ARM64 platform images should have layers
@@ -1215,9 +1216,9 @@ def test_sync_layers_preserves_multi_arch_image_properties(
     # Verify CONTAINS_IMAGE relationships from manifest list to platform images
     assert check_rels(
         neo4j_session,
-        "ECRImage",
+        "AWSECRImage",
         "digest",
-        "ECRImage",
+        "AWSECRImage",
         "digest",
         "CONTAINS_IMAGE",
         rel_direction_right=True,
@@ -1229,9 +1230,9 @@ def test_sync_layers_preserves_multi_arch_image_properties(
     # Verify ATTESTS relationships from attestations to images they validate
     attests_rels = check_rels(
         neo4j_session,
-        "ECRImage",
+        "AWSECRImage",
         "digest",
-        "ECRImage",
+        "AWSECRImage",
         "digest",
         "ATTESTS",
         rel_direction_right=True,

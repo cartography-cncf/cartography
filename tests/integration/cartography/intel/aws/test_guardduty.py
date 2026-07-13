@@ -98,11 +98,11 @@ def test_sync_guardduty_findings(
         update_tag=TEST_UPDATE_TAG,
     )
 
-    # Create test EKS cluster that matches the Kubernetes finding. EKSCluster.id
+    # Create test EKS cluster that matches the Kubernetes finding. AWSEKSCluster.id
     # is the cluster ARN, which the finding's EksClusterDetails.Arn matches.
     neo4j_session.run(
         """
-        MERGE (cluster:EKSCluster {id: $cluster_arn})
+        MERGE (cluster:AWSEKSCluster {id: $cluster_arn})
         ON CREATE SET cluster.firstseen = timestamp()
         SET cluster.arn = $cluster_arn, cluster.lastupdated = $update_tag
         """,
@@ -185,7 +185,7 @@ def test_sync_guardduty_findings(
         ("74b1234567890abcdef1234567890abcdef", 8.0, "Instance"),
         ("96d3456789012cdef3456789012cdef01", 7.5, "AccessKey"),
         ("a7e4567890123def4567890123def45670", 7.8, "AccessKey"),
-        ("b8f5678901234abcdef5678901234abcdef", 8.5, "EKSCluster"),
+        ("b8f5678901234abcdef5678901234abcdef", 8.5, "AWSEKSCluster"),
         # Note: AWSS3Bucket finding with severity 5.0 excluded by HIGH threshold
     }
 
@@ -314,7 +314,7 @@ def test_sync_guardduty_findings(
         neo4j_session,
         "AWSGuardDutyFinding",
         "id",
-        "EKSCluster",
+        "AWSEKSCluster",
         "id",
         "AFFECTS",
         rel_direction_right=True,

@@ -783,7 +783,7 @@ nodes such as `PythonLibrary`.
 
 Representation of a container package hosted on GitHub Container Registry (`ghcr.io`). Each package is the registry-side container for one or more image tags and their underlying image digests.
 
-> **Ontology Mapping**: This node has the extra label `ContainerRegistry` to enable cross-platform queries across registry repositories (e.g., `ECRRepository`, `GitLabContainerRepository`).
+> **Ontology Mapping**: This node has the extra label `ContainerRegistry` to enable cross-platform queries across registry repositories (e.g., `AWSECRRepository`, `GitLabContainerRepository`).
 
 | Field | Description |
 |-------|--------------|
@@ -828,7 +828,7 @@ Representation of a container package hosted on GitHub Container Registry (`ghcr
 
 Representation of a container image stored in GitHub Container Registry (`ghcr.io`), identified by its digest. Images are content-addressable and can be referenced by multiple tags. Manifest lists (multi-architecture images) contain references to platform-specific child images.
 
-> **Ontology Mapping**: This node has conditional extra labels based on the image type: `Image` for single-platform images (`type="image"`), or `ImageManifestList` for multi-architecture manifest lists (`type="manifest_list"`). These labels enable cross-platform queries for container images across different systems (e.g., `ECRImage`, `GCPArtifactRegistryImage`, `GitLabContainerImage`).
+> **Ontology Mapping**: This node has conditional extra labels based on the image type: `Image` for single-platform images (`type="image"`), or `ImageManifestList` for multi-architecture manifest lists (`type="manifest_list"`). These labels enable cross-platform queries for container images across different systems (e.g., `AWSECRImage`, `GCPArtifactRegistryImage`, `GitLabContainerImage`).
 
 | Field | Description |
 |-------|--------------|
@@ -908,7 +908,7 @@ Representation of a container image stored in GitHub Container Registry (`ghcr.i
 
     ```
     (:AWSLambda)-[:HAS_IMAGE]->(:GitHubContainerImage)
-    (:ECSContainer)-[:HAS_IMAGE]->(:GitHubContainerImage)
+    (:AWSECSContainer)-[:HAS_IMAGE]->(:GitHubContainerImage)
     (:KubernetesContainer)-[:HAS_IMAGE]->(:GitHubContainerImage)
     (:GCPCloudRunServiceContainer)-[:HAS_IMAGE]->(:GitHubContainerImage)
     (:GCPCloudRunJobContainer)-[:HAS_IMAGE]->(:GitHubContainerImage)
@@ -957,7 +957,7 @@ Representation of a tag inside a GitHub container package. Tags are mutable poin
 
 Representation of a container image layer stored in GitHub Container Registry. Layers are the building blocks of container images, identified by their uncompressed content hash (`diff_id`). Multiple images can share the same layers through Docker's layer deduplication.
 
-> **Ontology Mapping**: This node has the extra label `ImageLayer` to enable cross-provider queries for container image layers (e.g., `ECRImageLayer`, `GCPArtifactRegistryImageLayer`, `GitLabContainerImageLayer`).
+> **Ontology Mapping**: This node has the extra label `ImageLayer` to enable cross-provider queries for container image layers (e.g., `AWSECRImageLayer`, `GCPArtifactRegistryImageLayer`, `GitLabContainerImageLayer`).
 
 **Note**: Layers are keyed by `diff_id` (uncompressed layer digest from the image config) rather than `digest` (compressed layer digest from the manifest). This ensures consistent cross-provider layer deduplication: the same layer content may have different compressed digests in different registries but will always share the same `diff_id`.
 

@@ -13,7 +13,7 @@ aws_mapping = OntologyMapping(
     module_name="aws",
     nodes=[
         OntologyNodeMapping(
-            node_label="ECRRepository",
+            node_label="AWSECRRepository",
             fields=[
                 OntologyFieldMapping(
                     ontology_field="name",
@@ -25,7 +25,7 @@ aws_mapping = OntologyMapping(
                 OntologyFieldMapping(
                     ontology_field="created_at", node_field="created_at"
                 ),
-                # _ont_size_bytes: Not directly available in ECRRepository model
+                # _ont_size_bytes: Not directly available in AWSECRRepository model
             ],
         ),
     ],

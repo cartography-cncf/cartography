@@ -333,7 +333,7 @@ GET_FINDINGS = {
             "DetectorId": "12abc34d56e78f901234567890abcdef",
             "Archived": False,
             "Resource": {
-                "ResourceType": "EKSCluster",
+                "ResourceType": "AWSEKSCluster",
                 "EksClusterDetails": {
                     "Name": "test-cluster",
                     "Arn": "arn:aws:eks:us-east-1:123456789012:cluster/test-cluster",
@@ -910,7 +910,7 @@ EXPECTED_TRANSFORM_RESULTS = [
         "detectorid": "12abc34d56e78f901234567890abcdef",
         "archived": False,
         "sample": None,
-        "resource_type": "EKSCluster",
+        "resource_type": "AWSEKSCluster",
         "resource_id": None,
         "eks_cluster_arn": "arn:aws:eks:us-east-1:123456789012:cluster/test-cluster",
         "access_key_id": None,

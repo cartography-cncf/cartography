@@ -180,7 +180,7 @@ from cartography.models.core.nodes import ConditionalNodeLabel, ExtraNodeLabels
 
 @dataclass(frozen=True)
 class ECRImageSchema(CartographyNodeSchema):
-    label: str = "ECRImage"
+    label: str = "AWSECRImage"
     properties: ECRImageNodeProperties = ECRImageNodeProperties()
     sub_resource_relationship: ECRImageToAccountRel = ECRImageToAccountRel()
 
@@ -211,7 +211,7 @@ ECR (and other container registries) store different types of artifacts that sha
 | `IMAGE_ATTESTATION` | `ImageAttestation` | SLSA/Sigstore attestation |
 | `IMAGE_MANIFEST_LIST` | `ImageManifestList` | Multi-arch manifest list |
 
-Without conditional labels, we cannot accurately map these to distinct ontology types. An `ECRImage` node with `type: "IMAGE_ATTESTATION"` should be labeled as `ImageAttestation` in the ontology, not just generic `Image`.
+Without conditional labels, we cannot accurately map these to distinct ontology types. An `AWSECRImage` node with `type: "IMAGE_ATTESTATION"` should be labeled as `ImageAttestation` in the ontology, not just generic `Image`.
 
 **How it works:**
 - String labels are applied unconditionally to all nodes during ingestion

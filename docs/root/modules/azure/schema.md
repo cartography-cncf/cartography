@@ -1640,7 +1640,7 @@ Representation of an [Azure Function App](https://learn.microsoft.com/en-us/rest
 
 - Container-deployed Function Apps are linked to the image they run via `HAS_IMAGE` (matched on `image_digest`):
     ```cypher
-    (AzureFunctionApp)-[:HAS_IMAGE]->(:ECRImage)
+    (AzureFunctionApp)-[:HAS_IMAGE]->(:AWSECRImage)
     (AzureFunctionApp)-[:HAS_IMAGE]->(:GitLabContainerImage)
     (AzureFunctionApp)-[:HAS_IMAGE]->(:GCPArtifactRegistryImage)
     (AzureFunctionApp)-[:HAS_IMAGE]->(:GitHubContainerImage)
@@ -1981,7 +1981,7 @@ Representation of a [Certificate within an Azure Key Vault](https://learn.micros
 
 Representation of an [Azure Kubernetes Service Cluster](https://learn.microsoft.com/en-us/rest/api/aks/managed-clusters/get).
 
-> **Ontology Mapping**: This node has the extra label `ComputeCluster` to enable cross-platform queries for compute clusters across different systems (e.g., EKSCluster, ECSCluster, GKECluster, KubernetesCluster).
+> **Ontology Mapping**: This node has the extra label `ComputeCluster` to enable cross-platform queries for compute clusters across different systems (e.g., AWSEKSCluster, AWSECSCluster, GKECluster, KubernetesCluster).
 
 | Field | Description |
 |---|---|
@@ -2033,7 +2033,7 @@ Representation of an [Azure Kubernetes Service Agent Pool](https://learn.microso
 
 Representation of an [Azure Container Group](https://learn.microsoft.com/en-us/rest/api/container-instances/container-groups/get). In Azure's API this resource is a *container group* that holds one or more individual containers (modeled as [AzureContainerInstance](#azurecontainerinstance)) — analogous to an ECS Task or Kubernetes Pod rather than an individual container.
 
-> **Ontology Mapping**: This node has the extra label `ComputePod` to enable cross-platform queries for the smallest schedulable workload unit (a co-scheduled, co-located group of containers sharing network and storage) across different systems (e.g., `KubernetesPod`, `ECSTask`). An ACI container group matches Kubernetes Pod semantics, not those of a service / orchestrator.
+> **Ontology Mapping**: This node has the extra label `ComputePod` to enable cross-platform queries for the smallest schedulable workload unit (a co-scheduled, co-located group of containers sharing network and storage) across different systems (e.g., `KubernetesPod`, `AWSECSTask`). An ACI container group matches Kubernetes Pod semantics, not those of a service / orchestrator.
 
 |**id**| The full resource ID of the Container Group. |
 |name| The name of the Container Group. |
@@ -2063,7 +2063,7 @@ Representation of an [Azure Container Group](https://learn.microsoft.com/en-us/r
 
 Representation of an individual container within an [Azure Container Group](https://learn.microsoft.com/en-us/rest/api/container-instances/container-groups/get). A container group may run one or more containers — this node models each container separately to enable per-container image tracking.
 
-> **Ontology Mapping**: This node has the extra label `Container` to enable cross-platform queries across container runtimes (e.g., KubernetesContainer, ECSContainer).
+> **Ontology Mapping**: This node has the extra label `Container` to enable cross-platform queries across container runtimes (e.g., KubernetesContainer, AWSECSContainer).
 > **Note**: ACI does not expose host architecture via its API; all workloads are assumed to run on `amd64`. `HAS_IMAGE` resolves only when the image is referenced by digest (`image@sha256:...`); tag-based references produce no relationship.
 
 | Field | Description |
@@ -2095,7 +2095,7 @@ Representation of an individual container within an [Azure Container Group](http
     ```
 - AzureContainerInstances are linked to the image they run when the image is pinned by digest.
     ```cypher
-    (:AzureContainerInstance)-[:HAS_IMAGE]->(:ECRImage)
+    (:AzureContainerInstance)-[:HAS_IMAGE]->(:AWSECRImage)
     (:AzureContainerInstance)-[:HAS_IMAGE]->(:GitLabContainerImage)
     (:AzureContainerInstance)-[:HAS_IMAGE]->(:GCPArtifactRegistryImage)
     (:AzureContainerInstance)-[:HAS_IMAGE]->(:GitHubContainerImage)

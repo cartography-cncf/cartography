@@ -118,7 +118,7 @@ RESOURCE_FUNCTIONS: OrderedDict[str, Callable[..., None]] = OrderedDict(
         "ecr": ecr.sync,
         "ecr:image_layers": ecr_image_layers.sync,
         # `ec2:instance` must be synced before `ecs` so that EC2Instance nodes exist
-        # when ECSContainerInstance creates IS_INSTANCE relationships.
+        # when AWSECSContainerInstance creates IS_INSTANCE relationships.
         "ecs": ecs.sync,
         "eks": eks.sync,
         "elasticache": elasticache.sync,

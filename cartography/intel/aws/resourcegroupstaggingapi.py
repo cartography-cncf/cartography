@@ -127,7 +127,7 @@ TAG_RESOURCE_TYPE_MAPPINGS: Dict = {
         "property": "id",
         "id_func": get_short_id_from_ec2_arn,
     },
-    "ecr:repository": {"label": "ECRRepository", "property": "id"},
+    "ecr:repository": {"label": "AWSECRRepository", "property": "id"},
     "ec2:security-group": {
         "label": "EC2SecurityGroup",
         "property": "id",
@@ -158,12 +158,12 @@ TAG_RESOURCE_TYPE_MAPPINGS: Dict = {
         "property": "id",
         "id_func": get_short_id_from_ec2_arn,
     },
-    "ecs:cluster": {"label": "ECSCluster", "property": "id"},
-    "ecs:container": {"label": "ECSContainer", "property": "id"},
-    "ecs:container-instance": {"label": "ECSContainerInstance", "property": "id"},
-    "ecs:task": {"label": "ECSTask", "property": "id"},
-    "ecs:task-definition": {"label": "ECSTaskDefinition", "property": "id"},
-    "eks:cluster": {"label": "EKSCluster", "property": "id"},
+    "ecs:cluster": {"label": "AWSECSCluster", "property": "id"},
+    "ecs:container": {"label": "AWSECSContainer", "property": "id"},
+    "ecs:container-instance": {"label": "AWSECSContainerInstance", "property": "id"},
+    "ecs:task": {"label": "AWSECSTask", "property": "id"},
+    "ecs:task-definition": {"label": "AWSECSTaskDefinition", "property": "id"},
+    "eks:cluster": {"label": "AWSEKSCluster", "property": "id"},
     "elasticache:cluster": {"label": "AWSElasticacheCluster", "property": "arn"},
     # Match on the classic ELB's own label (AWSLoadBalancer), not the shared
     # "LoadBalancer" ontology label, which is also attached to AWSLoadBalancerV2
@@ -384,21 +384,21 @@ _RESOURCE_CLEANUP_PATHS: Dict[str, str] = {
     "AWSDynamoDBTable": "(:AWSDynamoDBTable)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})",
     "AutoScalingGroup": "(:AutoScalingGroup)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})",
     "EC2KeyPair": "(:EC2KeyPair)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})",
-    "ECRRepository": "(:ECRRepository)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})",
+    "AWSECRRepository": "(:AWSECRRepository)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})",
     "AWSTransitGateway": "(:AWSTransitGateway)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})",
     "AWSTransitGatewayAttachment": (
         "(:AWSTransitGatewayAttachment)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})"
     ),
     "EBSVolume": "(:EBSVolume)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})",
     "ElasticIPAddress": "(:ElasticIPAddress)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})",
-    "ECSCluster": "(:ECSCluster)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})",
-    "ECSContainer": "(:ECSContainer)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})",
-    "ECSContainerInstance": (
-        "(:ECSContainerInstance)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})"
+    "AWSECSCluster": "(:AWSECSCluster)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})",
+    "AWSECSContainer": "(:AWSECSContainer)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})",
+    "AWSECSContainerInstance": (
+        "(:AWSECSContainerInstance)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})"
     ),
-    "ECSTask": "(:ECSTask)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})",
-    "ECSTaskDefinition": "(:ECSTaskDefinition)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})",
-    "EKSCluster": "(:EKSCluster)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})",
+    "AWSECSTask": "(:AWSECSTask)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})",
+    "AWSECSTaskDefinition": "(:AWSECSTaskDefinition)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})",
+    "AWSEKSCluster": "(:AWSEKSCluster)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})",
     "AWSElasticacheCluster": "(:AWSElasticacheCluster)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})",
     "AWSLoadBalancer": ("(:AWSLoadBalancer)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})"),
     "AWSLoadBalancerV2": "(:AWSLoadBalancerV2)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})",

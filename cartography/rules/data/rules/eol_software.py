@@ -172,7 +172,7 @@ _eks_cluster_kubernetes_version_eol = Fact(
         "1.30; 1.29 and earlier are EOL."
     ),
     cypher_query=f"""
-    MATCH (e:EKSCluster)
+    MATCH (e:AWSEKSCluster)
     WITH e,
          CASE
              WHEN e.version IS NULL OR size(split(toString(e.version), '.')) < 2 THEN NULL
@@ -182,7 +182,7 @@ _eks_cluster_kubernetes_version_eol = Fact(
       AND kubernetes_minor < {_OLDEST_SUPPORTED_EKS_KUBERNETES_MINOR}
     RETURN e.id AS asset_id,
            e.name AS asset_name,
-           'EKSCluster' AS asset_type,
+           'AWSEKSCluster' AS asset_type,
            'kubernetes' AS software_name,
            toString(e.version) AS software_version,
            1 AS software_major,
@@ -193,7 +193,7 @@ _eks_cluster_kubernetes_version_eol = Fact(
     ORDER BY asset_name
     """,
     cypher_visual_query=f"""
-    MATCH account_path=(a:AWSAccount)-[:RESOURCE]->(e:EKSCluster)
+    MATCH account_path=(a:AWSAccount)-[:RESOURCE]->(e:AWSEKSCluster)
     WITH account_path, e,
          CASE
              WHEN e.version IS NULL OR size(split(toString(e.version), '.')) < 2 THEN NULL
@@ -206,7 +206,7 @@ _eks_cluster_kubernetes_version_eol = Fact(
     RETURN e AS cluster, account_path, worker_path
     """,
     cypher_count_query="""
-    MATCH (e:EKSCluster)
+    MATCH (e:AWSEKSCluster)
     RETURN COUNT(e) AS count
     """,
     asset_id_field="asset_id",
@@ -332,7 +332,7 @@ _kubernetes_cluster_kubernetes_version_eol = Fact(
     description=(
         "Detects Kubernetes clusters running end-of-life minor versions. "
         "If a native KubernetesCluster is the same EKS-backed cluster already "
-        "represented as an EKSCluster, it is excluded so managed clusters are "
+        "represented as an AWSEKSCluster, it is excluded so managed clusters are "
         "evaluated against the EKS provider lifecycle instead of upstream support."
     ),
     cypher_query=f"""
@@ -345,7 +345,7 @@ _kubernetes_cluster_kubernetes_version_eol = Fact(
     WHERE kubernetes_minor IS NOT NULL
       AND kubernetes_minor < {_OLDEST_SUPPORTED_UPSTREAM_KUBERNETES_MINOR}
       AND NOT EXISTS {{
-          MATCH (e:EKSCluster)
+          MATCH (e:AWSEKSCluster)
           WHERE e.id = k.external_id
              OR e.name = k.external_id
              OR (k.api_server_url IS NOT NULL AND e.endpoint = k.api_server_url)
@@ -372,7 +372,7 @@ _kubernetes_cluster_kubernetes_version_eol = Fact(
     WHERE kubernetes_minor IS NOT NULL
       AND kubernetes_minor < {_OLDEST_SUPPORTED_UPSTREAM_KUBERNETES_MINOR}
       AND NOT EXISTS {{
-          MATCH (e:EKSCluster)
+          MATCH (e:AWSEKSCluster)
           WHERE e.id = k.external_id
              OR e.name = k.external_id
              OR (k.api_server_url IS NOT NULL AND e.endpoint = k.api_server_url)
@@ -386,7 +386,7 @@ _kubernetes_cluster_kubernetes_version_eol = Fact(
     cypher_count_query="""
     MATCH (k:KubernetesCluster)
     WHERE NOT EXISTS {
-        MATCH (e:EKSCluster)
+        MATCH (e:AWSEKSCluster)
         WHERE e.id = k.external_id
            OR e.name = k.external_id
            OR (k.api_server_url IS NOT NULL AND e.endpoint = k.api_server_url)

@@ -375,7 +375,7 @@ def test_lb_expose_container_analysis(mock_get_loadbalancer_v2_data, neo4j_sessi
 
     # Manually create the full traversal chain:
     # LB -[:EXPOSE]-> EC2PrivateIp <-[:PRIVATE_IP_ADDRESS]- NetworkInterface
-    #   <-[:NETWORK_INTERFACE]- ECSTask -[:HAS_CONTAINER]-> ECSContainer
+    #   <-[:NETWORK_INTERFACE]- AWSECSTask -[:HAS_CONTAINER]-> AWSECSContainer
     lb_id = "test-alb-1234567890.us-east-1.elb.amazonaws.com"
     neo4j_session.run(
         "MERGE (ip:EC2PrivateIp{id: '10.0.0.50'}) SET ip.lastupdated = $tag",
@@ -395,23 +395,23 @@ def test_lb_expose_container_analysis(mock_get_loadbalancer_v2_data, neo4j_sessi
         "MERGE (ni)-[:PRIVATE_IP_ADDRESS]->(ip)",
     )
     neo4j_session.run(
-        "MERGE (task:ECSTask{id: 'arn:aws:ecs:us-east-1:000000000000:task/cluster/task1'}) "
+        "MERGE (task:AWSECSTask{id: 'arn:aws:ecs:us-east-1:000000000000:task/cluster/task1'}) "
         "SET task.lastupdated = $tag",
         tag=TEST_UPDATE_TAG,
     )
     neo4j_session.run(
-        "MATCH (task:ECSTask{id: 'arn:aws:ecs:us-east-1:000000000000:task/cluster/task1'}), "
+        "MATCH (task:AWSECSTask{id: 'arn:aws:ecs:us-east-1:000000000000:task/cluster/task1'}), "
         "(ni:NetworkInterface{id: 'eni-test123'}) "
         "MERGE (task)-[:NETWORK_INTERFACE]->(ni)",
     )
     neo4j_session.run(
-        "MERGE (c:ECSContainer{id: 'arn:aws:ecs:us-east-1:000000000000:container/cluster/task1/web'}) "
+        "MERGE (c:AWSECSContainer{id: 'arn:aws:ecs:us-east-1:000000000000:container/cluster/task1/web'}) "
         "SET c.lastupdated = $tag, c.name = 'web'",
         tag=TEST_UPDATE_TAG,
     )
     neo4j_session.run(
-        "MATCH (task:ECSTask{id: 'arn:aws:ecs:us-east-1:000000000000:task/cluster/task1'}), "
-        "(c:ECSContainer{id: 'arn:aws:ecs:us-east-1:000000000000:container/cluster/task1/web'}) "
+        "MATCH (task:AWSECSTask{id: 'arn:aws:ecs:us-east-1:000000000000:task/cluster/task1'}), "
+        "(c:AWSECSContainer{id: 'arn:aws:ecs:us-east-1:000000000000:container/cluster/task1/web'}) "
         "MERGE (task)-[:HAS_CONTAINER]->(c)",
     )
 
@@ -427,7 +427,7 @@ def test_lb_expose_container_analysis(mock_get_loadbalancer_v2_data, neo4j_sessi
         neo4j_session,
         "AWSLoadBalancerV2",
         "id",
-        "ECSContainer",
+        "AWSECSContainer",
         "id",
         "EXPOSE",
         rel_direction_right=True,

@@ -143,7 +143,7 @@ class GuardDutyFindingToEKSClusterRelRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class GuardDutyFindingToEKSClusterRel(CartographyRelSchema):
-    target_node_label: str = "EKSCluster"
+    target_node_label: str = "AWSEKSCluster"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("eks_cluster_arn")},
     )

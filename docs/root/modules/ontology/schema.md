@@ -89,7 +89,7 @@ In this schema, `squares` represent `Abstract Nodes` and `hexagons` represent `S
 
 1. The abstract ontology node schemas (`User`, `Device`, `PublicIP`, `Package`) declare the edges they own to module nodes (e.g. `(:User)-[:HAS_ACCOUNT]->(:UserAccount)`).
 2. Ontology analysis jobs derive cross-module edges after sync (e.g. `ontology_users_linking.json` builds the `User`/`UserAccount` graph; `resolved_image_analysis.json` connects `Container` and `Function` to a single-platform `Image`).
-3. Sync modules wire edges between two ontology-labelled nodes themselves (e.g. ECS adding `(:ECSContainer:Container)-[:WORKLOAD_PARENT]->(:ECSTask:ComputePod)`). For this last source, canonical `(src, dst, label)` triples are encoded as `RelConstraint` entries in [`cartography/models/ontology/constraints.py`](https://github.com/cartography-cncf/cartography/blob/master/cartography/models/ontology/constraints.py); a unit test rejects any module rel between those two ontology labels that uses a different name or direction.
+3. Sync modules wire edges between two ontology-labelled nodes themselves (e.g. ECS adding `(:AWSECSContainer:Container)-[:WORKLOAD_PARENT]->(:AWSECSTask:ComputePod)`). For this last source, canonical `(src, dst, label)` triples are encoded as `RelConstraint` entries in [`cartography/models/ontology/constraints.py`](https://github.com/cartography-cncf/cartography/blob/master/cartography/models/ontology/constraints.py); a unit test rejects any module rel between those two ontology labels that uses a different name or direction.
 
 ### Ontology Properties on Nodes
 
@@ -388,7 +388,7 @@ A container represents a lightweight, standalone executable package that include
 It generalizes concepts like ECS Containers, Kubernetes Containers, individual containers within Azure Container Groups (`AzureContainerInstance`), and individual containers within GCP Cloud Run Services (`GCPCloudRunServiceContainer`) and Jobs (`GCPCloudRunJobContainer`).
 
 ```{note}
-GCP Cloud Run Services, Jobs and Revisions are themselves **not** modeled as `Container` (and no longer as `Function` either). Services and Jobs are orchestrators (analogous to `ECSService` / AWS Batch); Revisions are pure versioning markers for Services. Their per-container specs are materialized as child `GCPCloudRunServiceContainer` / `GCPCloudRunJobContainer` nodes that carry `:Container` and `RESOLVED_IMAGE`.
+GCP Cloud Run Services, Jobs and Revisions are themselves **not** modeled as `Container` (and no longer as `Function` either). Services and Jobs are orchestrators (analogous to `AWSECSService` / AWS Batch); Revisions are pure versioning markers for Services. Their per-container specs are materialized as child `GCPCloudRunServiceContainer` / `GCPCloudRunJobContainer` nodes that carry `:Container` and `RESOLVED_IMAGE`.
 ```
 
 | Field | Description |
@@ -871,7 +871,7 @@ It generalizes concepts like AWS Lambda functions, GCP Cloud Functions, and Azur
 - `Function` is connected to the concrete single platform `Image` it actually ran via `RESOLVED_IMAGE`. This edge is produced by the `resolved_image_analysis.json` analysis job and covers container-based functions that expose a container image reference:
     - **AWSLambda** (`PackageType=Image`) has `HAS_IMAGE` on the node itself — `RESOLVED_IMAGE` is created directly.
     - **AzureFunctionApp** (`is_container=true`) has `HAS_IMAGE` on the node itself — `RESOLVED_IMAGE` is created directly.
-    - **GCPCloudRunService** and **GCPCloudRunJob** do NOT carry `:Function`. They are orchestrators (analogous to `ECSService` and AWS Batch). Their per-container specs are materialized as child `GCPCloudRunServiceContainer` / `GCPCloudRunJobContainer` nodes that carry `:Container` and participate in `RESOLVED_IMAGE` via the `:Container` path.
+    - **GCPCloudRunService** and **GCPCloudRunJob** do NOT carry `:Function`. They are orchestrators (analogous to `AWSECSService` and AWS Batch). Their per-container specs are materialized as child `GCPCloudRunServiceContainer` / `GCPCloudRunJobContainer` nodes that carry `:Container` and participate in `RESOLVED_IMAGE` via the `:Container` path.
     - When `HAS_IMAGE` points at an `:ImageManifestList`, the determinism guard from the `Container` section applies (single arch-matching child required).
     ```
     (:Function)-[:RESOLVED_IMAGE]->(:Image)
@@ -1089,7 +1089,7 @@ ImageTag is a semantic label.
 ```
 
 An image tag represents a human-readable reference to a container image within a registry.
-It generalizes concepts like AWS ECRRepositoryImage, GCP Artifact Registry image tags, and GitLab Container Registry tags.
+It generalizes concepts like AWS AWSECRRepositoryImage, GCP Artifact Registry image tags, and GitLab Container Registry tags.
 
 | Field | Description |
 |-------|-------------|
@@ -1111,7 +1111,7 @@ Image is a conditional semantic label applied to container image nodes when `typ
 ```
 
 An image represents a runnable container image (single-architecture or platform-specific).
-It generalizes concepts like AWS ECRImage (type=image), GCP Container Images, and GitLab Container Images.
+It generalizes concepts like AWS AWSECRImage (type=image), GCP Container Images, and GitLab Container Images.
 
 | Field | Description |
 |-------|-------------|
@@ -1155,7 +1155,7 @@ ImageAttestation is a conditional semantic label applied to container image node
 ```
 
 An image attestation represents cryptographic metadata that validates or provides provenance information about a container image.
-It generalizes concepts like AWS ECRImage attestations and OCI attestation manifests.
+It generalizes concepts like AWS AWSECRImage attestations and OCI attestation manifests.
 
 | Field | Description |
 |-------|-------------|
@@ -1178,7 +1178,7 @@ ImageManifestList is a conditional semantic label applied to container image nod
 ```
 
 An image manifest list (also known as an image index) represents a multi-architecture container image that contains references to platform-specific images.
-It generalizes concepts like AWS ECRImage manifest lists and OCI image indexes.
+It generalizes concepts like AWS AWSECRImage manifest lists and OCI image indexes.
 
 | Field | Description |
 |-------|-------------|
@@ -1201,7 +1201,7 @@ ImageLayer is a semantic label.
 
 An image layer represents an individual filesystem layer within a container image.
 Layers are de-duplicated by their content-addressable digest, so multiple images may reference the same layer node.
-It generalizes concepts like AWS ECRImageLayer and OCI image layers.
+It generalizes concepts like AWS AWSECRImageLayer and OCI image layers.
 
 | Field | Description |
 |-------|-------------|

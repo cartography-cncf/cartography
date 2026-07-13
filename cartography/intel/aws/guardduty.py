@@ -273,8 +273,8 @@ def transform_findings(findings: list[dict[str, Any]]) -> list[dict[str, Any]]:
             buckets = resource.get("S3BucketDetails") or []
             if buckets:
                 item["resource_id"] = buckets[0].get("Name")
-        elif item["resource_type"] == "EKSCluster":
-            # EKS/Kubernetes findings target a cluster. EKSCluster.id is the
+        elif item["resource_type"] == "AWSEKSCluster":
+            # EKS/Kubernetes findings target a cluster. AWSEKSCluster.id is the
             # cluster ARN, so match on the Arn from EksClusterDetails.
             details = resource.get("EksClusterDetails", {})
             item["eks_cluster_arn"] = details.get("Arn")

@@ -74,7 +74,7 @@ For child resources, the `sub_resource_relationship` must point to a tenant-like
 | GitHub             | `GitHubOrganization`      |
 | SaaS               | `<Service>Tenant`         |
 
-**Wrong:** pointing to an infrastructure parent (e.g. `ECSContainer -> ECSTask`) or a logical grouping that is not an organisational boundary.
+**Wrong:** pointing to an infrastructure parent (e.g. `AWSECSContainer -> AWSECSTask`) or a logical grouping that is not an organisational boundary.
 
 ### Why
 
@@ -87,7 +87,7 @@ For child resources, the `sub_resource_relationship` must point to a tenant-like
 ```python
 @dataclass(frozen=True)
 class ECSContainerDefinitionSchema(CartographyNodeSchema):
-    label: str = "ECSContainerDefinition"
+    label: str = "AWSECSContainerDefinition"
     properties: ECSContainerDefinitionNodeProperties = ECSContainerDefinitionNodeProperties()
     sub_resource_relationship: ECSContainerDefinitionToAWSAccountRel = ECSContainerDefinitionToAWSAccountRel()  # tenant
     other_relationships: OtherRelationships = OtherRelationships([

@@ -64,7 +64,7 @@ def test_sync_pull_through_cache_rules(mock_get_rules, neo4j_session):
     # Assert
     assert check_nodes(
         neo4j_session,
-        "ECRPullThroughCacheRule",
+        "AWSECRPullThroughCacheRule",
         [
             "id",
             "registry_id",
@@ -102,7 +102,7 @@ def test_sync_pull_through_cache_rules(mock_get_rules, neo4j_session):
     }
     assert check_rels(
         neo4j_session,
-        "ECRPullThroughCacheRule",
+        "AWSECRPullThroughCacheRule",
         "id",
         "AWSAccount",
         "id",
@@ -114,7 +114,7 @@ def test_sync_pull_through_cache_rules(mock_get_rules, neo4j_session):
     }
     assert check_rels(
         neo4j_session,
-        "ECRPullThroughCacheRule",
+        "AWSECRPullThroughCacheRule",
         "id",
         "AWSSecretsManagerSecret",
         "arn",
@@ -128,7 +128,7 @@ def test_sync_pull_through_cache_rules(mock_get_rules, neo4j_session):
     }
     assert check_rels(
         neo4j_session,
-        "ECRPullThroughCacheRule",
+        "AWSECRPullThroughCacheRule",
         "id",
         "AWSRole",
         "arn",
@@ -154,7 +154,7 @@ def test_sync_pull_through_cache_rules(mock_get_rules, neo4j_session):
     # Assert
     assert check_nodes(
         neo4j_session,
-        "ECRPullThroughCacheRule",
+        "AWSECRPullThroughCacheRule",
         ["id", "lastupdated"],
     ) == {
         (f"{TEST_ACCOUNT_ID}:{TEST_REGION}:ROOT", TEST_UPDATE_TAG_2),
@@ -162,7 +162,7 @@ def test_sync_pull_through_cache_rules(mock_get_rules, neo4j_session):
     assert (
         check_rels(
             neo4j_session,
-            "ECRPullThroughCacheRule",
+            "AWSECRPullThroughCacheRule",
             "id",
             "AWSSecretsManagerSecret",
             "arn",
