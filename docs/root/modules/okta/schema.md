@@ -147,7 +147,7 @@ Representation of an [Okta Group](https://developer.okta.com/docs/reference/api/
 
  - OktaOrganizations contain OktaGroups
     ```
-    (OktaGroup)<-[RESOURCE]->(OktaOrganizations)
+    (OktaOrganization)-[RESOURCE]->(OktaGroup)
     ```
  - OktaApplications can be assigned to OktaGroups
 

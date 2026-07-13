@@ -17,6 +17,11 @@
       "iterative": false
     },
     {
+      "__comment": "Link SemgrepSCAFinding AFFECTS to canonical Package via SemgrepDependency",
+      "query": "MATCH (f:SemgrepSCAFinding)-[:AFFECTS]->(d:SemgrepDependency)<-[:DETECTED_AS]-(p:Package) MERGE (f)-[r:AFFECTS]->(p) ON CREATE SET r.firstseen = timestamp() SET r.lastupdated = $UPDATE_TAG",
+      "iterative": false
+    },
+    {
       "__comment": "DEPRECATED: Link Package SHOULD_UPDATE_TO TrivyFix via TrivyPackage for compatibility",
       "query": "MATCH (p:Package)-[:DETECTED_AS]->(tp:TrivyPackage)-[:SHOULD_UPDATE_TO]->(fix:TrivyFix) MERGE (p)-[r:SHOULD_UPDATE_TO]->(fix) ON CREATE SET r.firstseen = timestamp() SET r.lastupdated = $UPDATE_TAG",
       "iterative": false

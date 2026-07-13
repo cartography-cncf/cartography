@@ -14,6 +14,7 @@ from googleapiclient.discovery import Resource
 
 from cartography.config import Config
 from cartography.graph.job import GraphJob
+from cartography.intel.gcp import apikeys
 from cartography.intel.gcp import artifact_registry
 from cartography.intel.gcp import bigquery_connection
 from cartography.intel.gcp import bigquery_dataset
@@ -75,7 +76,7 @@ logger = logging.getLogger(__name__)
 # and https://cloud.google.com/service-usage/docs/reference/rest/v1/services#ServiceConfig
 Services = namedtuple(
     "Services",
-    "compute storage gke dns iam kms bigtable cai aiplatform cloud_sql gcf secretsmanager artifact_registry cloud_run bigquery bigquery_connection",
+    "compute storage gke dns iam kms bigtable cai aiplatform cloud_sql gcf secretsmanager artifact_registry cloud_run bigquery bigquery_connection apikeys",
 )
 service_names = Services(
     compute="compute.googleapis.com",
@@ -94,6 +95,7 @@ service_names = Services(
     cloud_run="run.googleapis.com",
     bigquery="bigquery.googleapis.com",
     bigquery_connection="bigqueryconnection.googleapis.com",
+    apikeys="apikeys.googleapis.com",
 )
 
 
@@ -219,6 +221,38 @@ def _sync_project_resources(
         # across projects when this project takes the CAI fallback.
         common_job_parameters["_iam_keys_sync_complete"] = False
 
+        # IAM runs before the resource syncs that attach to service accounts
+        # (e.g. compute below) so that the GCPServiceAccount nodes already exist
+        # when those modules create their RUNS_AS / RESOURCE edges by matching on
+        # service account email. The IAM cleanup still runs at the end of the
+        # project, after all consumers, so deletion semantics are unchanged.
+        # Caveat: under selective sync (e.g. `--gcp-requested-syncs compute`) IAM
+        # may not run in this pass, so the GCPInstance-[:RUNS_AS]->GCPServiceAccount
+        # edge is only created for service accounts already present in the graph
+        # from a prior full sync.
+        if service_names.iam in enabled_services:
+            logger.info("Syncing GCP project %s for IAM.", project_id)
+            iam_cred = build_client("iam", "v1", credentials=credentials)
+            project_roles = iam.sync(
+                neo4j_session,
+                iam_cred,
+                project_id,
+                gcp_update_tag,
+                common_job_parameters,
+            )
+            role_permissions_by_name.update(
+                iam.build_role_permissions_by_name(project_roles)
+            )
+            iam_sync_succeeded = True
+
+            workload_identity.sync(
+                neo4j_session,
+                iam_cred,
+                project_id,
+                gcp_update_tag,
+                common_job_parameters,
+            )
+
         if service_names.compute in enabled_services:
             logger.info("Syncing GCP project %s for Compute.", project_id)
             compute_cred = build_client("compute", "v1", credentials=credentials)
@@ -274,28 +308,6 @@ def _sync_project_resources(
                 common_job_parameters,
             )
 
-        if service_names.iam in enabled_services:
-            logger.info("Syncing GCP project %s for IAM.", project_id)
-            iam_cred = build_client("iam", "v1", credentials=credentials)
-            project_roles = iam.sync(
-                neo4j_session,
-                iam_cred,
-                project_id,
-                gcp_update_tag,
-                common_job_parameters,
-            )
-            role_permissions_by_name.update(
-                iam.build_role_permissions_by_name(project_roles)
-            )
-            iam_sync_succeeded = True
-
-            workload_identity.sync(
-                neo4j_session,
-                iam_cred,
-                project_id,
-                gcp_update_tag,
-                common_job_parameters,
-            )
         if service_names.kms in enabled_services:
             logger.info("Syncing GCP project %s for KMS.", project_id)
             kms_cred = build_client("cloudkms", "v1", credentials=credentials)
@@ -534,6 +546,17 @@ def _sync_project_resources(
             secretsmanager.sync(
                 neo4j_session,
                 secretsmanager_client,
+                project_id,
+                gcp_update_tag,
+                common_job_parameters,
+            )
+
+        if service_names.apikeys in enabled_services:
+            logger.info("Syncing GCP project %s for API Keys.", project_id)
+            apikeys_client = build_client("apikeys", "v2", credentials=credentials)
+            apikeys.sync(
+                neo4j_session,
+                apikeys_client,
                 project_id,
                 gcp_update_tag,
                 common_job_parameters,

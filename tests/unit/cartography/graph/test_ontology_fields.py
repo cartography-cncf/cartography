@@ -1,3 +1,4 @@
+from cartography.graph.querybuilder import _build_ontology_field_statement_coalesce
 from cartography.graph.querybuilder import _build_ontology_field_statement_equal_boolean
 from cartography.graph.querybuilder import (
     _build_ontology_field_statement_invert_boolean,
@@ -53,6 +54,81 @@ def test_build_ontology_field_statement_to_boolean():
     # Assert
     expected = "i._ont_is_enabled = coalesce(toBooleanOrNull(item.enabled), (item.enabled IS NOT NULL))"
     assert result == expected
+
+
+def test_build_ontology_field_statement_coalesce():
+    """
+    Test _build_ontology_field_statement_coalesce function.
+    This function picks the first non-null field from a primary field and fallback fields.
+    """
+    # Arrange
+    mapping_field = OntologyFieldMapping(
+        ontology_field="created_at",
+        node_field="access_granted_at",
+        special_handling="coalesce",
+        extra={"fields": ["credential_authorized_at"]},
+    )
+    node_property_map = {
+        "access_granted_at": PropertyRef("access_granted_at"),
+        "credential_authorized_at": PropertyRef("credential_authorized_at"),
+    }
+
+    # Act
+    result = _build_ontology_field_statement_coalesce(mapping_field, node_property_map)
+
+    # Assert
+    expected = (
+        "i._ont_created_at = coalesce("
+        "item.access_granted_at, item.credential_authorized_at"
+        ")"
+    )
+    assert result == expected
+
+
+def test_build_ontology_field_statement_coalesce_missing_fields():
+    """
+    Test _build_ontology_field_statement_coalesce function when 'fields' is missing in extra.
+    Should return None and log a warning.
+    """
+    # Arrange
+    mapping_field = OntologyFieldMapping(
+        ontology_field="created_at",
+        node_field="access_granted_at",
+        special_handling="coalesce",
+        extra={},
+    )
+    node_property_map = {
+        "access_granted_at": PropertyRef("access_granted_at"),
+    }
+
+    # Act
+    result = _build_ontology_field_statement_coalesce(mapping_field, node_property_map)
+
+    # Assert
+    assert result is None
+
+
+def test_build_ontology_field_statement_coalesce_invalid_fields_type():
+    """
+    Test _build_ontology_field_statement_coalesce function when 'fields' is not a list.
+    Should return None and log a warning.
+    """
+    # Arrange
+    mapping_field = OntologyFieldMapping(
+        ontology_field="created_at",
+        node_field="access_granted_at",
+        special_handling="coalesce",
+        extra={"fields": "credential_authorized_at"},
+    )
+    node_property_map = {
+        "access_granted_at": PropertyRef("access_granted_at"),
+    }
+
+    # Act
+    result = _build_ontology_field_statement_coalesce(mapping_field, node_property_map)
+
+    # Assert
+    assert result is None
 
 
 def test_build_ontology_field_statement_equal_boolean_with_values():

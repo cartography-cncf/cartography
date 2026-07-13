@@ -210,6 +210,7 @@ _eks_cluster_kubernetes_version_eol = Fact(
     RETURN COUNT(e) AS count
     """,
     asset_id_field="asset_id",
+    identity_fields=("asset_id",),
     module=Module.AWS,
     maturity=Maturity.EXPERIMENTAL,
 )
@@ -261,6 +262,7 @@ _gke_cluster_kubernetes_version_eol = Fact(
     RETURN COUNT(g) AS count
     """,
     asset_id_field="asset_id",
+    identity_fields=("asset_id",),
     module=Module.GCP,
     maturity=Maturity.EXPERIMENTAL,
 )
@@ -318,6 +320,7 @@ _aks_cluster_kubernetes_version_eol = Fact(
     RETURN COUNT(a) AS count
     """,
     asset_id_field="asset_id",
+    identity_fields=("asset_id",),
     module=Module.AZURE,
     maturity=Maturity.EXPERIMENTAL,
 )
@@ -391,6 +394,7 @@ _kubernetes_cluster_kubernetes_version_eol = Fact(
     RETURN COUNT(k) AS count
     """,
     asset_id_field="asset_id",
+    identity_fields=("asset_id",),
     module=Module.KUBERNETES,
     maturity=Maturity.EXPERIMENTAL,
 )
@@ -482,6 +486,7 @@ _kubernetes_ingress_nginx_controller_eol = Fact(
     RETURN COUNT(asset_id) AS count
     """,
     asset_id_field="asset_id",
+    identity_fields=("asset_id",),
     module=Module.KUBERNETES,
     maturity=Maturity.EXPERIMENTAL,
 )
@@ -512,6 +517,7 @@ _ec2_instance_amazon_linux_2_eol = Fact(
     RETURN COUNT(ec2) AS count
     """,
     asset_id_field="asset_id",
+    identity_fields=("asset_id",),
     module=Module.AWS,
     maturity=Maturity.EXPERIMENTAL,
 )

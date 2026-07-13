@@ -63,6 +63,15 @@ AWS_AUTH_CONFIGMAP_DATA = {
 }
 
 
+# aws-auth ConfigMap data that uses mapAccounts to grant cluster access to every
+# IAM principal in the listed account(s).
+AWS_AUTH_CONFIGMAP_WITH_ACCOUNTS_DATA = {
+    "mapAccounts": """
+- "123456789012"
+""",
+}
+
+
 # Mock AWS Role data that should exist in the graph before EKS sync
 MOCK_AWS_ROLES = [
     {

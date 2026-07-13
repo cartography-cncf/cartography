@@ -73,13 +73,14 @@ _aws_cloudtrail_not_multi_region = Fact(
     RETURN COUNT(trail) AS count
     """,
     asset_id_field="trail_arn",
+    identity_fields=("trail_arn",),
     module=Module.AWS,
     maturity=Maturity.STABLE,
 )
 
-cis_aws_4_1_cloudtrail_multi_region = Rule(
-    id="cis_aws_4_1_cloudtrail_multi_region",
-    name="CIS AWS 4.1: CloudTrail Multi-Region",
+aws_cloudtrail_multi_region = Rule(
+    id="aws_cloudtrail_multi_region",
+    name="CloudTrail Multi-Region",
     description=(
         "CloudTrail should be enabled in all regions to ensure complete visibility "
         "into API activity across the entire AWS infrastructure."
@@ -98,7 +99,7 @@ cis_aws_4_1_cloudtrail_multi_region = Rule(
 
 
 # =============================================================================
-# CIS AWS 4.2: CloudTrail Log File Validation
+# CloudTrail Log File Validation
 # Main node: CloudTrailTrail
 # =============================================================================
 class CloudTrailLogValidationOutput(Finding):
@@ -141,13 +142,14 @@ _aws_cloudtrail_log_validation_disabled = Fact(
     RETURN COUNT(trail) AS count
     """,
     asset_id_field="trail_arn",
+    identity_fields=("trail_arn",),
     module=Module.AWS,
     maturity=Maturity.STABLE,
 )
 
-cis_aws_4_2_cloudtrail_log_validation = Rule(
-    id="cis_aws_4_2_cloudtrail_log_validation",
-    name="CIS AWS 4.2: CloudTrail Log File Validation",
+aws_cloudtrail_log_file_validation = Rule(
+    id="aws_cloudtrail_log_file_validation",
+    name="CloudTrail Log File Validation",
     description=(
         "CloudTrail should have log file validation enabled to ensure the integrity "
         "of log files through digitally signed digest files."
@@ -212,13 +214,14 @@ _aws_cloudtrail_bucket_access_logging_disabled = Fact(
     RETURN COUNT(DISTINCT bucket) AS count
     """,
     asset_id_field="bucket_id",
+    identity_fields=("bucket_id",),
     module=Module.AWS,
     maturity=Maturity.STABLE,
 )
 
-cis_aws_4_4_cloudtrail_bucket_access_logging = Rule(
-    id="cis_aws_4_4_cloudtrail_bucket_access_logging",
-    name="CIS AWS 4.4: CloudTrail S3 Bucket Access Logging",
+aws_cloudtrail_s3_bucket_access_logging = Rule(
+    id="aws_cloudtrail_s3_bucket_access_logging",
+    name="CloudTrail S3 Bucket Access Logging",
     description=(
         "Server access logging should be enabled on the S3 bucket that stores "
         "CloudTrail logs to capture requests against the audit logs themselves."
@@ -236,7 +239,7 @@ cis_aws_4_4_cloudtrail_bucket_access_logging = Rule(
 
 
 # =============================================================================
-# CIS AWS 4.5: CloudTrail KMS Encryption
+# CloudTrail KMS Encryption
 # Main node: CloudTrailTrail
 # =============================================================================
 class CloudTrailEncryptionOutput(Finding):
@@ -279,13 +282,14 @@ _aws_cloudtrail_not_encrypted = Fact(
     RETURN COUNT(trail) AS count
     """,
     asset_id_field="trail_arn",
+    identity_fields=("trail_arn",),
     module=Module.AWS,
     maturity=Maturity.STABLE,
 )
 
-cis_aws_4_5_cloudtrail_encryption = Rule(
-    id="cis_aws_4_5_cloudtrail_encryption",
-    name="CIS AWS 4.5: CloudTrail KMS Encryption",
+aws_cloudtrail_kms_encryption = Rule(
+    id="aws_cloudtrail_kms_encryption",
+    name="CloudTrail KMS Encryption",
     description=(
         "CloudTrail logs should be encrypted using AWS KMS customer managed keys "
         "to provide an additional layer of security for sensitive API activity data."

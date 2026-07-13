@@ -364,3 +364,48 @@ def test_sync_ebs_snapshots_with_snapshots_in_use(mock_get_snapshots, neo4j_sess
         )
         == expected_created_from_relationships
     )
+
+
+@patch.object(
+    cartography.intel.aws.ec2.snapshots,
+    "get_snapshots",
+    return_value=tests.data.aws.ec2.snapshots.DESCRIBE_SNAPSHOTS,
+)
+@patch.object(
+    cartography.intel.aws.ec2.snapshots,
+    "get_snapshots_in_use",
+    return_value=[],
+)
+def test_snapshot_ontology_labels(
+    mock_get_snapshots_in_use, mock_get_snapshots, neo4j_session
+):
+    # Arrange / Act
+    neo4j_session.run("MATCH (n) DETACH DELETE n")
+    boto3_session = MagicMock()
+    create_test_account(neo4j_session, TEST_ACCOUNT_ID, TEST_UPDATE_TAG)
+    cartography.intel.aws.ec2.snapshots.sync_ebs_snapshots(
+        neo4j_session,
+        boto3_session,
+        [TEST_REGION],
+        TEST_ACCOUNT_ID,
+        TEST_UPDATE_TAG,
+        {"UPDATE_TAG": TEST_UPDATE_TAG, "AWS_ID": TEST_ACCOUNT_ID},
+    )
+
+    # Assert: every EBSSnapshot carries the Snapshot semantic label with
+    # normalized _ont_* properties populated.
+    assert check_nodes(
+        neo4j_session,
+        "Snapshot",
+        [
+            "_ont_name",
+            "_ont_public",
+            "_ont_encrypted",
+            "_ont_source_id",
+            "_ont_region",
+            "_ont_source",
+        ],
+    ) == {
+        ("sn-01", True, True, "vol-0df", TEST_REGION, "aws"),
+        ("sn-02", False, True, "vol-03", TEST_REGION, "aws"),
+    }

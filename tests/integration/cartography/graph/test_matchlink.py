@@ -8,7 +8,11 @@ import neo4j
 import pytest
 
 from cartography.client.core.tx import load_matchlinks
+from cartography.client.core.tx import load_matchlinks_cartesian_product
 from cartography.graph.job import GraphJob
+from tests.data.graph.matchlink.iam_permissions import (
+    PrincipalToS3BucketCartesianProductPermissionRel,
+)
 from tests.data.graph.matchlink.iam_permissions import PrincipalToS3BucketPermissionRel
 from tests.data.graph.matchlink.iam_permissions import (
     PrincipalToS3BucketScopedPermissionRel,
@@ -265,6 +269,82 @@ def test_load_rels_and_cleanup_integration(neo4j_session):
         f"Data isolation test failed: Account {TEST_ACCOUNT_2} relationships "
         f"should be set to timestamp {TEST_UPDATE_TAG_1}"
     )
+
+
+def test_load_matchlinks_cartesian_product_and_cleanup_integration(neo4j_session):
+    # Arrange
+    matchlink = PrincipalToS3BucketCartesianProductPermissionRel()
+    _setup_test_data(neo4j_session, TEST_UPDATE_TAG_1)
+
+    # Act
+    rel_count = load_matchlinks_cartesian_product(
+        neo4j_session,
+        matchlink,
+        [
+            "arn:aws:iam::9876:role/Admin",
+            "arn:aws:iam::9876:role/Viewer",
+        ],
+        [
+            "sensitive-data",
+            "public-bucket",
+            "private-bucket",
+        ],
+        source_batch_size=1,
+        target_batch_size=2,
+        progress_description="test bulk AWS permissions",
+        UPDATE_TAG=TEST_UPDATE_TAG_1,
+        _sub_resource_label="AWSAccount",
+        _sub_resource_id=TEST_ACCOUNT_1,
+    )
+
+    # Assert
+    assert rel_count == 6
+    assert check_rels(
+        neo4j_session,
+        "AWSPrincipal",
+        "principal_arn",
+        "S3Bucket",
+        "name",
+        "CAN_BULK_ACCESS",
+        rel_direction_right=True,
+    ) == {
+        ("arn:aws:iam::9876:role/Admin", "sensitive-data"),
+        ("arn:aws:iam::9876:role/Admin", "public-bucket"),
+        ("arn:aws:iam::9876:role/Admin", "private-bucket"),
+        ("arn:aws:iam::9876:role/Viewer", "sensitive-data"),
+        ("arn:aws:iam::9876:role/Viewer", "public-bucket"),
+        ("arn:aws:iam::9876:role/Viewer", "private-bucket"),
+    }
+
+    # Act
+    load_matchlinks_cartesian_product(
+        neo4j_session,
+        matchlink,
+        ["arn:aws:iam::9876:role/Admin"],
+        ["sensitive-data"],
+        UPDATE_TAG=TEST_UPDATE_TAG_2,
+        _sub_resource_label="AWSAccount",
+        _sub_resource_id=TEST_ACCOUNT_1,
+    )
+    GraphJob.from_matchlink(
+        matchlink,
+        "AWSAccount",
+        TEST_ACCOUNT_1,
+        TEST_UPDATE_TAG_2,
+    ).run(neo4j_session)
+
+    # Assert
+    assert check_rels(
+        neo4j_session,
+        "AWSPrincipal",
+        "principal_arn",
+        "S3Bucket",
+        "name",
+        "CAN_BULK_ACCESS",
+        rel_direction_right=True,
+    ) == {
+        ("arn:aws:iam::9876:role/Admin", "sensitive-data"),
+    }
 
 
 def test_scoped_matchlinks_do_not_cross_sub_resources(neo4j_session):

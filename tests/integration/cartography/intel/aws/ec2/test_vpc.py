@@ -468,3 +468,38 @@ def test_sync_vpc(
             "vpc-0015dc961e537676a|10.0.0.0/16",
         ),  # Accepter CIDR block for VPC peering
     }
+
+
+@patch.object(
+    cartography.intel.aws.ec2.vpc,
+    "get_ec2_vpcs",
+    return_value=TEST_VPCS,
+)
+def test_vpc_ontology_labels(mock_get_vpcs, neo4j_session):
+    # Arrange / Act
+    neo4j_session.run("MATCH (n) DETACH DELETE n")
+    boto3_session = MagicMock()
+    create_test_account(neo4j_session, TEST_ACCOUNT_ID, TEST_UPDATE_TAG)
+    sync_vpc(
+        neo4j_session,
+        boto3_session,
+        [TEST_REGION],
+        TEST_ACCOUNT_ID,
+        TEST_UPDATE_TAG,
+        {"UPDATE_TAG": TEST_UPDATE_TAG, "AWS_ID": TEST_ACCOUNT_ID},
+    )
+
+    # Assert: every AWSVpc carries the VirtualNetwork semantic label with
+    # normalized _ont_* properties populated.
+    assert check_nodes(
+        neo4j_session,
+        "VirtualNetwork",
+        ["_ont_name", "_ont_cidr", "_ont_region", "_ont_source"],
+    ) == {
+        ("vpc-038cf", "172.31.0.0/16", TEST_REGION, "aws"),
+        ("vpc-0f510", "10.1.0.0/16", TEST_REGION, "aws"),
+        ("vpc-0a1b2", "2001:db8::/32", TEST_REGION, "aws"),
+        ("vpc-05326141848d1c681", "10.0.0.0/16", TEST_REGION, "aws"),
+        ("vpc-0767", "192.168.0.0/16", TEST_REGION, "aws"),
+        ("vpc-025873e026b9e8ee6", "172.16.0.0/16", TEST_REGION, "aws"),
+    }

@@ -66,6 +66,8 @@ Represents a SentinelOne agent installed on an endpoint device.
 | **uuid** | The UUID of the agent |
 | **computer_name** | The name of the computer where the agent is installed |
 | **serial_number** | The serial number of the endpoint device |
+| public_ip | The public IP address reported by SentinelOne for the endpoint device |
+| local_ips | Local IPv4 addresses reported by SentinelOne network interfaces for the endpoint device |
 | firewall_enabled | Boolean indicating if the firewall is enabled |
 | os_name | The name of the operating system |
 | os_revision | The operating system revision/version |
@@ -172,9 +174,9 @@ Represents a specific version of an application.
     (S1AppFinding)-[AFFECTS]->(S1ApplicationVersion)
     ```
 
-### S1AppFinding::S1Finding::Risk
+### S1AppFinding::S1Finding::Risk::CVE
 
-Represents a specific **instance** of a vulnerability detection (finding) on a specific endpoint. Unlike generic CVE definitions, each `S1AppFinding` node represents a unique finding on a specific agent.
+Represents a specific **instance** of a vulnerability detection (finding) on a specific endpoint. Unlike generic CVE definitions, each `S1AppFinding` node represents a unique finding on a specific agent. It carries the `:CVE` ontology label (it is keyed on a `cve_id`), so it participates in cross-tool vulnerability queries.
 
 | Field | Description |
 |-------|-------------|

@@ -21,7 +21,7 @@ _tailscale_device_approval_disabled = Fact(
     description="Detects Tailscale tailnets where new device approval is disabled.",
     cypher_query="""
     MATCH (tailnet:TailscaleTailnet)
-    WHERE toLower(toString(tailnet.devices_approval_on)) = 'false'
+    WHERE tailnet.devices_approval_on = false
     RETURN
         tailnet.id AS tailnet_id,
         tailnet.id AS asset_id,
@@ -32,7 +32,7 @@ _tailscale_device_approval_disabled = Fact(
     """,
     cypher_visual_query="""
     MATCH (tailnet:TailscaleTailnet)
-    WHERE toLower(toString(tailnet.devices_approval_on)) = 'false'
+    WHERE tailnet.devices_approval_on = false
     RETURN tailnet
     """,
     cypher_count_query="""
@@ -40,6 +40,7 @@ _tailscale_device_approval_disabled = Fact(
     RETURN COUNT(tailnet) AS count
     """,
     asset_id_field="asset_id",
+    identity_fields=("asset_id", "issue"),
     module=Module.TAILSCALE,
     maturity=Maturity.EXPERIMENTAL,
 )
@@ -51,7 +52,7 @@ _tailscale_user_approval_disabled = Fact(
     description="Detects Tailscale tailnets where new user approval is disabled.",
     cypher_query="""
     MATCH (tailnet:TailscaleTailnet)
-    WHERE toLower(toString(tailnet.users_approval_on)) = 'false'
+    WHERE tailnet.users_approval_on = false
     RETURN
         tailnet.id AS tailnet_id,
         tailnet.id AS asset_id,
@@ -62,7 +63,7 @@ _tailscale_user_approval_disabled = Fact(
     """,
     cypher_visual_query="""
     MATCH (tailnet:TailscaleTailnet)
-    WHERE toLower(toString(tailnet.users_approval_on)) = 'false'
+    WHERE tailnet.users_approval_on = false
     RETURN tailnet
     """,
     cypher_count_query="""
@@ -70,6 +71,7 @@ _tailscale_user_approval_disabled = Fact(
     RETURN COUNT(tailnet) AS count
     """,
     asset_id_field="asset_id",
+    identity_fields=("asset_id", "issue"),
     module=Module.TAILSCALE,
     maturity=Maturity.EXPERIMENTAL,
 )
@@ -81,7 +83,7 @@ _tailscale_network_flow_logging_disabled = Fact(
     description="Detects Tailscale tailnets where network flow logging is disabled.",
     cypher_query="""
     MATCH (tailnet:TailscaleTailnet)
-    WHERE toLower(toString(tailnet.network_flow_logging_on)) = 'false'
+    WHERE tailnet.network_flow_logging_on = false
     RETURN
         tailnet.id AS tailnet_id,
         tailnet.id AS asset_id,
@@ -92,7 +94,7 @@ _tailscale_network_flow_logging_disabled = Fact(
     """,
     cypher_visual_query="""
     MATCH (tailnet:TailscaleTailnet)
-    WHERE toLower(toString(tailnet.network_flow_logging_on)) = 'false'
+    WHERE tailnet.network_flow_logging_on = false
     RETURN tailnet
     """,
     cypher_count_query="""
@@ -100,6 +102,7 @@ _tailscale_network_flow_logging_disabled = Fact(
     RETURN COUNT(tailnet) AS count
     """,
     asset_id_field="asset_id",
+    identity_fields=("asset_id", "issue"),
     module=Module.TAILSCALE,
     maturity=Maturity.EXPERIMENTAL,
 )
@@ -111,7 +114,7 @@ _tailscale_device_auto_updates_disabled = Fact(
     description="Detects Tailscale tailnets where device auto-updates are disabled.",
     cypher_query="""
     MATCH (tailnet:TailscaleTailnet)
-    WHERE toLower(toString(tailnet.devices_auto_updates_on)) = 'false'
+    WHERE tailnet.devices_auto_updates_on = false
     RETURN
         tailnet.id AS tailnet_id,
         tailnet.id AS asset_id,
@@ -122,7 +125,7 @@ _tailscale_device_auto_updates_disabled = Fact(
     """,
     cypher_visual_query="""
     MATCH (tailnet:TailscaleTailnet)
-    WHERE toLower(toString(tailnet.devices_auto_updates_on)) = 'false'
+    WHERE tailnet.devices_auto_updates_on = false
     RETURN tailnet
     """,
     cypher_count_query="""
@@ -130,6 +133,7 @@ _tailscale_device_auto_updates_disabled = Fact(
     RETURN COUNT(tailnet) AS count
     """,
     asset_id_field="asset_id",
+    identity_fields=("asset_id", "issue"),
     module=Module.TAILSCALE,
     maturity=Maturity.EXPERIMENTAL,
 )
@@ -141,7 +145,7 @@ _tailscale_device_key_expiry_disabled = Fact(
     description="Detects Tailscale devices where key expiry is disabled.",
     cypher_query="""
     MATCH (tailnet:TailscaleTailnet)-[:RESOURCE]->(device:TailscaleDevice)
-    WHERE toLower(toString(device.key_expiry_disabled)) = 'true'
+    WHERE device.key_expiry_disabled = true
     RETURN
         tailnet.id AS tailnet_id,
         device.id AS asset_id,
@@ -152,7 +156,7 @@ _tailscale_device_key_expiry_disabled = Fact(
     """,
     cypher_visual_query="""
     MATCH p=(tailnet:TailscaleTailnet)-[:RESOURCE]->(device:TailscaleDevice)
-    WHERE toLower(toString(device.key_expiry_disabled)) = 'true'
+    WHERE device.key_expiry_disabled = true
     RETURN *
     """,
     cypher_count_query="""
@@ -160,6 +164,10 @@ _tailscale_device_key_expiry_disabled = Fact(
     RETURN COUNT(device) AS count
     """,
     asset_id_field="asset_id",
+    # Key on tailnet + stable hostname, not device.id: Tailscale ephemeral nodes get
+    # a fresh device.id on every reconnect, which would re-create the same finding.
+    # tailnet_id keeps the identity unique across tailnets that reuse a hostname.
+    identity_fields=("tailnet_id", "asset_name", "issue"),
     module=Module.TAILSCALE,
     maturity=Maturity.EXPERIMENTAL,
 )
@@ -214,6 +222,6 @@ tailscale_device_key_expiry_disabled = Rule(
     output_model=TailscaleSecurityConfigurationGapOutput,
     facts=(_tailscale_device_key_expiry_disabled,),
     tags=("device", "authentication", "compliance", "stride:spoofing"),
-    version="0.1.0",
+    version="0.2.0",
     frameworks=(iso27001_annex_a("5.17"),),
 )

@@ -39,6 +39,7 @@ class ClusterAdminUsageOutput(Finding):
     binding_name: str | None = None
     binding_id: str | None = None
     subject_type: str | None = None
+    subject_id: str | None = None
     subject_name: str | None = None
     cluster_name: str | None = None
 
@@ -61,14 +62,15 @@ _k8s_cluster_admin_usage = Fact(
     OPTIONAL MATCH (crb)-[:SUBJECT]->(g:KubernetesGroup)
     WITH cluster, crb, sas, users, collect(g) AS groups
     UNWIND (
-        [sa IN sas | {subject_type: 'ServiceAccount', subject_name: sa.name}] +
-        [u IN users | {subject_type: 'User', subject_name: u.name}] +
-        [g IN groups | {subject_type: 'Group', subject_name: g.name}]
+        [sa IN sas | {subject_type: 'ServiceAccount', subject_id: sa.id, subject_name: sa.name}] +
+        [u IN users | {subject_type: 'User', subject_id: u.id, subject_name: u.name}] +
+        [g IN groups | {subject_type: 'Group', subject_id: g.id, subject_name: g.name}]
     ) AS subject
     RETURN
         crb.id AS binding_id,
         crb.name AS binding_name,
         subject.subject_type AS subject_type,
+        subject.subject_id AS subject_id,
         subject.subject_name AS subject_name,
         cluster.name AS cluster_name
     """,
@@ -83,13 +85,14 @@ _k8s_cluster_admin_usage = Fact(
     RETURN COUNT(crb) AS count
     """,
     asset_id_field="binding_id",
+    identity_fields=("binding_id", "subject_id"),
     module=Module.KUBERNETES,
     maturity=Maturity.EXPERIMENTAL,
 )
 
-cis_k8s_5_1_1_cluster_admin_usage = Rule(
-    id="cis_k8s_5_1_1_cluster_admin_usage",
-    name="CIS K8s 5.1.1: Cluster-Admin Role Usage",
+kubernetes_cluster_admin_role_usage = Rule(
+    id="kubernetes_cluster_admin_role_usage",
+    name="Cluster-Admin Role Usage",
     description=(
         "The cluster-admin role provides wide-ranging powers over the environment "
         "and should be used only where and when needed. Review all bindings to "
@@ -116,8 +119,9 @@ class SecretAccessOutput(Finding):
     """Output model for secret access check."""
 
     role_name: str | None = None
+    role_id: str | None = None
     role_type: str | None = None
-    verbs: str | None = None
+    verbs: list[str] | None = None
     cluster_name: str | None = None
 
 
@@ -135,6 +139,7 @@ _k8s_secret_access_clusterroles = Fact(
       AND any(v IN cr.verbs WHERE v IN ['get', 'list', 'watch', '*'])
       AND NOT cr.name STARTS WITH 'system:'
     RETURN
+        cr.id AS role_id,
         cr.name AS role_name,
         'ClusterRole' AS role_type,
         cr.verbs AS verbs,
@@ -152,6 +157,7 @@ _k8s_secret_access_clusterroles = Fact(
     WHERE NOT cr.name STARTS WITH 'system:'
     RETURN COUNT(cr) AS count
     """,
+    identity_fields=("role_id",),
     module=Module.KUBERNETES,
     maturity=Maturity.EXPERIMENTAL,
 )
@@ -170,6 +176,7 @@ _k8s_secret_access_roles = Fact(
       AND any(v IN r.verbs WHERE v IN ['get', 'list', 'watch', '*'])
       AND NOT r.name STARTS WITH 'system:'
     RETURN
+        r.id AS role_id,
         r.name AS role_name,
         'Role' AS role_type,
         r.verbs AS verbs,
@@ -187,13 +194,14 @@ _k8s_secret_access_roles = Fact(
     WHERE NOT r.name STARTS WITH 'system:'
     RETURN COUNT(r) AS count
     """,
+    identity_fields=("role_id",),
     module=Module.KUBERNETES,
     maturity=Maturity.EXPERIMENTAL,
 )
 
-cis_k8s_5_1_2_secret_access = Rule(
-    id="cis_k8s_5_1_2_secret_access",
-    name="CIS K8s 5.1.2: Roles Granting Access to Secrets",
+kubernetes_roles_grant_secret_access = Rule(
+    id="kubernetes_roles_grant_secret_access",
+    name="Roles Granting Access to Secrets",
     description=(
         "Access to secrets stored within the Kubernetes cluster should be restricted "
         "to the smallest possible group of users to reduce the risk of privilege escalation. "
@@ -224,6 +232,7 @@ class WildcardRoleOutput(Finding):
     """Output model for wildcard role check."""
 
     role_name: str | None = None
+    role_id: str | None = None
     role_type: str | None = None
     wildcard_in: str | None = None
     cluster_name: str | None = None
@@ -242,6 +251,7 @@ _k8s_wildcard_clusterroles = Fact(
     WHERE ('*' IN cr.resources OR '*' IN cr.verbs)
       AND NOT cr.name STARTS WITH 'system:'
     RETURN
+        cr.id AS role_id,
         cr.name AS role_name,
         'ClusterRole' AS role_type,
         CASE
@@ -262,6 +272,7 @@ _k8s_wildcard_clusterroles = Fact(
     WHERE NOT cr.name STARTS WITH 'system:'
     RETURN COUNT(cr) AS count
     """,
+    identity_fields=("role_id",),
     module=Module.KUBERNETES,
     maturity=Maturity.EXPERIMENTAL,
 )
@@ -279,6 +290,7 @@ _k8s_wildcard_roles = Fact(
     WHERE ('*' IN r.resources OR '*' IN r.verbs)
       AND NOT r.name STARTS WITH 'system:'
     RETURN
+        r.id AS role_id,
         r.name AS role_name,
         'Role' AS role_type,
         CASE
@@ -299,13 +311,14 @@ _k8s_wildcard_roles = Fact(
     WHERE NOT r.name STARTS WITH 'system:'
     RETURN COUNT(r) AS count
     """,
+    identity_fields=("role_id",),
     module=Module.KUBERNETES,
     maturity=Maturity.EXPERIMENTAL,
 )
 
-cis_k8s_5_1_3_wildcard_roles = Rule(
-    id="cis_k8s_5_1_3_wildcard_roles",
-    name="CIS K8s 5.1.3: Wildcard Use in Roles and ClusterRoles",
+kubernetes_wildcard_roles = Rule(
+    id="kubernetes_wildcard_roles",
+    name="Wildcard Use in Roles and ClusterRoles",
     description=(
         "Kubernetes Roles and ClusterRoles should not use wildcard (*) for resources "
         "or verbs. Wildcards grant broad access that may inadvertently include new "
@@ -332,6 +345,7 @@ class PodCreateAccessOutput(Finding):
     """Output model for pod creation access check."""
 
     role_name: str | None = None
+    role_id: str | None = None
     role_type: str | None = None
     cluster_name: str | None = None
 
@@ -349,7 +363,12 @@ _k8s_pod_create_clusterroles = Fact(
     WHERE ('pods' IN cr.resources OR '*' IN cr.resources)
       AND any(v IN cr.verbs WHERE v IN ['create', '*'])
       AND NOT cr.name STARTS WITH 'system:'
+      AND NOT cr.name IN ['cluster-admin', 'admin', 'edit', 'view']
+      // Exclude immutable EKS-managed roles (eks: prefix and AWS platform roles)
+      AND NOT cr.name STARTS WITH 'eks:'
+      AND NOT cr.name IN ['aws-node', 'vpc-resource-controller-role']
     RETURN
+        cr.id AS role_id,
         cr.name AS role_name,
         'ClusterRole' AS role_type,
         cluster.name AS cluster_name
@@ -359,13 +378,21 @@ _k8s_pod_create_clusterroles = Fact(
     WHERE ('pods' IN cr.resources OR '*' IN cr.resources)
       AND any(v IN cr.verbs WHERE v IN ['create', '*'])
       AND NOT cr.name STARTS WITH 'system:'
+      AND NOT cr.name IN ['cluster-admin', 'admin', 'edit', 'view']
+      // Exclude immutable EKS-managed roles (eks: prefix and AWS platform roles)
+      AND NOT cr.name STARTS WITH 'eks:'
+      AND NOT cr.name IN ['aws-node', 'vpc-resource-controller-role']
     RETURN *
     """,
     cypher_count_query="""
     MATCH (cr:KubernetesClusterRole)
     WHERE NOT cr.name STARTS WITH 'system:'
+      AND NOT cr.name IN ['cluster-admin', 'admin', 'edit', 'view']
+      AND NOT cr.name STARTS WITH 'eks:'
+      AND NOT cr.name IN ['aws-node', 'vpc-resource-controller-role']
     RETURN COUNT(cr) AS count
     """,
+    identity_fields=("role_id",),
     module=Module.KUBERNETES,
     maturity=Maturity.EXPERIMENTAL,
 )
@@ -383,7 +410,11 @@ _k8s_pod_create_roles = Fact(
     WHERE ('pods' IN r.resources OR '*' IN r.resources)
       AND any(v IN r.verbs WHERE v IN ['create', '*'])
       AND NOT r.name STARTS WITH 'system:'
+      // Exclude immutable EKS-managed roles (eks: prefix and AWS platform roles)
+      AND NOT r.name STARTS WITH 'eks:'
+      AND NOT r.name IN ['aws-node', 'vpc-resource-controller-role']
     RETURN
+        r.id AS role_id,
         r.name AS role_name,
         'Role' AS role_type,
         cluster.name AS cluster_name
@@ -393,20 +424,26 @@ _k8s_pod_create_roles = Fact(
     WHERE ('pods' IN r.resources OR '*' IN r.resources)
       AND any(v IN r.verbs WHERE v IN ['create', '*'])
       AND NOT r.name STARTS WITH 'system:'
+      // Exclude immutable EKS-managed roles (eks: prefix and AWS platform roles)
+      AND NOT r.name STARTS WITH 'eks:'
+      AND NOT r.name IN ['aws-node', 'vpc-resource-controller-role']
     RETURN *
     """,
     cypher_count_query="""
     MATCH (r:KubernetesRole)
     WHERE NOT r.name STARTS WITH 'system:'
+      AND NOT r.name STARTS WITH 'eks:'
+      AND NOT r.name IN ['aws-node', 'vpc-resource-controller-role']
     RETURN COUNT(r) AS count
     """,
+    identity_fields=("role_id",),
     module=Module.KUBERNETES,
     maturity=Maturity.EXPERIMENTAL,
 )
 
-cis_k8s_5_1_4_pod_create_access = Rule(
-    id="cis_k8s_5_1_4_pod_create_access",
-    name="CIS K8s 5.1.4: Roles Granting Pod Creation",
+kubernetes_roles_grant_pod_creation = Rule(
+    id="kubernetes_roles_grant_pod_creation",
+    name="Roles Granting Pod Creation",
     description=(
         "The ability to create pods in a namespace can provide opportunities for "
         "privilege escalation. Access to create new pods should be restricted to "
@@ -415,7 +452,7 @@ cis_k8s_5_1_4_pod_create_access = Rule(
     output_model=PodCreateAccessOutput,
     facts=(_k8s_pod_create_clusterroles, _k8s_pod_create_roles),
     tags=("rbac", "pods", "stride:elevation_of_privilege"),
-    version="1.0.0",
+    version="1.1.0",
     references=CIS_REFERENCES,
     frameworks=(
         cis_kubernetes("5.1.4"),
@@ -443,6 +480,7 @@ class DefaultSaBindingsOutput(Finding):
     namespace: str | None = None
     role_name: str | None = None
     pod_name: str | None = None
+    pod_names: list[str] | None = None
     automount_service_account_token: bool | None = None
     cluster_name: str | None = None
 
@@ -480,6 +518,7 @@ _k8s_default_sa_cluster_role_bindings = Fact(
     RETURN COUNT(sa) AS count
     """,
     asset_id_field="binding_id",
+    identity_fields=("binding_id",),
     module=Module.KUBERNETES,
     maturity=Maturity.EXPERIMENTAL,
 )
@@ -517,6 +556,7 @@ _k8s_default_sa_role_bindings = Fact(
     RETURN COUNT(sa) AS count
     """,
     asset_id_field="binding_id",
+    identity_fields=("binding_id",),
     module=Module.KUBERNETES,
     maturity=Maturity.EXPERIMENTAL,
 )
@@ -525,19 +565,24 @@ _k8s_default_sa_used_by_pods = Fact(
     id="k8s_default_sa_used_by_pods",
     name="Kubernetes pods using the default service account",
     description=(
-        "Detects pods that are still configured to run under the default service account. "
-        "The benchmark recommends creating explicit service accounts instead."
+        "Detects namespaces whose pods are still configured to run under the default "
+        "service account. The benchmark recommends creating explicit service accounts "
+        "instead. Findings are grouped per namespace so that controller-managed pod "
+        "churn (random pod-name suffixes) does not produce a new finding on every sync."
     ),
     cypher_query="""
     MATCH (cluster:KubernetesCluster)-[:RESOURCE]->(pod:KubernetesPod)-[:USES_SERVICE_ACCOUNT]->(sa:KubernetesServiceAccount)
     WHERE sa.name = 'default'
+    WITH cluster.name AS cluster_name, sa.namespace AS namespace, pod.name AS pod_name
+    ORDER BY pod_name
+    WITH cluster_name, namespace, collect(DISTINCT pod_name) AS pod_names
     RETURN
-        pod.id AS binding_id,
+        cluster_name + '/' + namespace AS binding_id,
         'PodUsesDefaultServiceAccount' AS binding_type,
-        sa.name AS service_account_name,
-        sa.namespace AS namespace,
-        pod.name AS pod_name,
-        cluster.name AS cluster_name
+        'default' AS service_account_name,
+        namespace,
+        pod_names,
+        cluster_name
     """,
     cypher_visual_query="""
     MATCH p=(cluster:KubernetesCluster)-[:RESOURCE]->(pod:KubernetesPod)-[:USES_SERVICE_ACCOUNT]->(sa:KubernetesServiceAccount)
@@ -545,11 +590,12 @@ _k8s_default_sa_used_by_pods = Fact(
     RETURN *
     """,
     cypher_count_query="""
-    MATCH (:KubernetesPod)-[:USES_SERVICE_ACCOUNT]->(sa:KubernetesServiceAccount)
+    MATCH (sa:KubernetesServiceAccount)
     WHERE sa.name = 'default'
     RETURN COUNT(sa) AS count
     """,
     asset_id_field="binding_id",
+    identity_fields=("cluster_name", "namespace"),
     module=Module.KUBERNETES,
     maturity=Maturity.EXPERIMENTAL,
 )
@@ -566,6 +612,7 @@ _k8s_default_sa_automount_enabled = Fact(
     WHERE sa.name = 'default'
       AND coalesce(sa.automount_service_account_token, true) = true
     RETURN
+        sa.namespace + '/' + sa.name AS binding_name,
         sa.id AS binding_id,
         'ServiceAccountAutomount' AS binding_type,
         sa.name AS service_account_name,
@@ -586,13 +633,14 @@ _k8s_default_sa_automount_enabled = Fact(
     RETURN COUNT(sa) AS count
     """,
     asset_id_field="binding_id",
+    identity_fields=("binding_id",),
     module=Module.KUBERNETES,
     maturity=Maturity.EXPERIMENTAL,
 )
 
-cis_k8s_5_1_5_default_sa_bindings = Rule(
-    id="cis_k8s_5_1_5_default_sa_bindings",
-    name="CIS K8s 5.1.5: Default Service Account Bindings",
+kubernetes_default_service_account_bindings = Rule(
+    id="kubernetes_default_service_account_bindings",
+    name="Default Service Account Bindings",
     description=(
         "The default service account should not be used to ensure that rights "
         "granted to applications can be more easily audited and reviewed. "
@@ -666,6 +714,7 @@ _k8s_system_masters_cluster_role_bindings = Fact(
     RETURN COUNT(crb) AS count
     """,
     asset_id_field="binding_id",
+    identity_fields=("binding_id",),
     module=Module.KUBERNETES,
     maturity=Maturity.EXPERIMENTAL,
 )
@@ -699,13 +748,14 @@ _k8s_system_masters_role_bindings = Fact(
     RETURN COUNT(rb) AS count
     """,
     asset_id_field="binding_id",
+    identity_fields=("binding_id",),
     module=Module.KUBERNETES,
     maturity=Maturity.EXPERIMENTAL,
 )
 
-cis_k8s_5_1_7_system_masters_group = Rule(
-    id="cis_k8s_5_1_7_system_masters_group",
-    name="CIS K8s 5.1.7: system:masters Group Usage",
+kubernetes_system_masters_group_usage = Rule(
+    id="kubernetes_system_masters_group_usage",
+    name="system:masters Group Usage",
     description=(
         "The system:masters group has unrestricted access to the Kubernetes API "
         "hard-coded into the API server. An authenticated user who is a member of "
@@ -734,8 +784,9 @@ class EscalationPermissionsOutput(Finding):
     """Output model for escalation permissions check."""
 
     role_name: str | None = None
+    role_id: str | None = None
     role_type: str | None = None
-    dangerous_verbs: str | None = None
+    dangerous_verbs: list[str] | None = None
     cluster_name: str | None = None
 
 
@@ -750,7 +801,11 @@ _k8s_escalation_clusterroles = Fact(
     MATCH (cluster:KubernetesCluster)-[:RESOURCE]->(cr:KubernetesClusterRole)
     WHERE any(v IN cr.verbs WHERE v IN ['bind', 'impersonate', 'escalate', '*'])
       AND NOT cr.name STARTS WITH 'system:'
+      // The default RBAC aggregation ClusterRoles ship on every conformant cluster
+      // carrying these verbs by design; they are noise, not misconfiguration.
+      AND NOT cr.name IN ['cluster-admin', 'admin', 'edit', 'view']
     RETURN
+        cr.id AS role_id,
         cr.name AS role_name,
         'ClusterRole' AS role_type,
         [v IN cr.verbs WHERE v IN ['bind', 'impersonate', 'escalate', '*']] AS dangerous_verbs,
@@ -760,13 +815,16 @@ _k8s_escalation_clusterroles = Fact(
     MATCH p=(cluster:KubernetesCluster)-[:RESOURCE]->(cr:KubernetesClusterRole)
     WHERE any(v IN cr.verbs WHERE v IN ['bind', 'impersonate', 'escalate', '*'])
       AND NOT cr.name STARTS WITH 'system:'
+      AND NOT cr.name IN ['cluster-admin', 'admin', 'edit', 'view']
     RETURN *
     """,
     cypher_count_query="""
     MATCH (cr:KubernetesClusterRole)
     WHERE NOT cr.name STARTS WITH 'system:'
+      AND NOT cr.name IN ['cluster-admin', 'admin', 'edit', 'view']
     RETURN COUNT(cr) AS count
     """,
+    identity_fields=("role_id",),
     module=Module.KUBERNETES,
     maturity=Maturity.EXPERIMENTAL,
 )
@@ -783,6 +841,7 @@ _k8s_escalation_roles = Fact(
     WHERE any(v IN r.verbs WHERE v IN ['bind', 'impersonate', 'escalate', '*'])
       AND NOT r.name STARTS WITH 'system:'
     RETURN
+        r.id AS role_id,
         r.name AS role_name,
         'Role' AS role_type,
         [v IN r.verbs WHERE v IN ['bind', 'impersonate', 'escalate', '*']] AS dangerous_verbs,
@@ -799,13 +858,14 @@ _k8s_escalation_roles = Fact(
     WHERE NOT r.name STARTS WITH 'system:'
     RETURN COUNT(r) AS count
     """,
+    identity_fields=("role_id",),
     module=Module.KUBERNETES,
     maturity=Maturity.EXPERIMENTAL,
 )
 
-cis_k8s_5_1_8_escalation_permissions = Rule(
-    id="cis_k8s_5_1_8_escalation_permissions",
-    name="CIS K8s 5.1.8: Bind/Impersonate/Escalate Permissions",
+kubernetes_bind_impersonate_escalate_permissions = Rule(
+    id="kubernetes_bind_impersonate_escalate_permissions",
+    name="Bind/Impersonate/Escalate Permissions",
     description=(
         "Roles with impersonate, bind, or escalate permissions allow subjects to "
         "escalate their privileges beyond those explicitly granted. These permissions "
@@ -837,6 +897,7 @@ class PvCreateAccessOutput(Finding):
     """Output model for PV creation access check."""
 
     role_name: str | None = None
+    role_id: str | None = None
     role_type: str | None = None
     cluster_name: str | None = None
 
@@ -855,6 +916,7 @@ _k8s_pv_create_clusterroles = Fact(
       AND any(v IN cr.verbs WHERE v IN ['create', '*'])
       AND NOT cr.name STARTS WITH 'system:'
     RETURN
+        cr.id AS role_id,
         cr.name AS role_name,
         'ClusterRole' AS role_type,
         cluster.name AS cluster_name
@@ -871,6 +933,7 @@ _k8s_pv_create_clusterroles = Fact(
     WHERE NOT cr.name STARTS WITH 'system:'
     RETURN COUNT(cr) AS count
     """,
+    identity_fields=("role_id",),
     module=Module.KUBERNETES,
     maturity=Maturity.EXPERIMENTAL,
 )
@@ -889,6 +952,7 @@ _k8s_pv_create_roles = Fact(
       AND any(v IN r.verbs WHERE v IN ['create', '*'])
       AND NOT r.name STARTS WITH 'system:'
     RETURN
+        r.id AS role_id,
         r.name AS role_name,
         'Role' AS role_type,
         cluster.name AS cluster_name
@@ -905,13 +969,14 @@ _k8s_pv_create_roles = Fact(
     WHERE NOT r.name STARTS WITH 'system:'
     RETURN COUNT(r) AS count
     """,
+    identity_fields=("role_id",),
     module=Module.KUBERNETES,
     maturity=Maturity.EXPERIMENTAL,
 )
 
-cis_k8s_5_1_9_pv_create_access = Rule(
-    id="cis_k8s_5_1_9_pv_create_access",
-    name="CIS K8s 5.1.9: Roles Granting Persistent Volume Creation",
+kubernetes_roles_grant_persistent_volume_creation = Rule(
+    id="kubernetes_roles_grant_persistent_volume_creation",
+    name="Roles Granting Persistent Volume Creation",
     description=(
         "The ability to create persistent volumes can provide privilege escalation "
         "via hostPath volumes, bypassing Pod Security Admission controls."
@@ -941,6 +1006,7 @@ class NodeProxyAccessOutput(Finding):
     """Output model for node proxy access check."""
 
     role_name: str | None = None
+    role_id: str | None = None
     role_type: str | None = None
     cluster_name: str | None = None
 
@@ -958,6 +1024,7 @@ _k8s_node_proxy_clusterroles = Fact(
     WHERE any(r IN cr.resources WHERE r IN ['nodes/proxy', '*'])
       AND NOT cr.name STARTS WITH 'system:'
     RETURN
+        cr.id AS role_id,
         cr.name AS role_name,
         'ClusterRole' AS role_type,
         cluster.name AS cluster_name
@@ -973,13 +1040,14 @@ _k8s_node_proxy_clusterroles = Fact(
     WHERE NOT cr.name STARTS WITH 'system:'
     RETURN COUNT(cr) AS count
     """,
+    identity_fields=("role_id",),
     module=Module.KUBERNETES,
     maturity=Maturity.EXPERIMENTAL,
 )
 
-cis_k8s_5_1_10_node_proxy_access = Rule(
-    id="cis_k8s_5_1_10_node_proxy_access",
-    name="CIS K8s 5.1.10: Node Proxy Sub-Resource Access",
+kubernetes_node_proxy_subresource_access = Rule(
+    id="kubernetes_node_proxy_subresource_access",
+    name="Node Proxy Sub-Resource Access",
     description=(
         "Access to the proxy sub-resource of nodes provides direct access to the "
         "kubelet API, bypassing audit logging and admission control. This access "
@@ -1010,6 +1078,7 @@ class CsrApprovalAccessOutput(Finding):
     """Output model for CSR approval access check."""
 
     role_name: str | None = None
+    role_id: str | None = None
     role_type: str | None = None
     cluster_name: str | None = None
 
@@ -1028,6 +1097,7 @@ _k8s_csr_approval_clusterroles = Fact(
       AND any(v IN cr.verbs WHERE v IN ['update', '*'])
       AND NOT cr.name STARTS WITH 'system:'
     RETURN
+        cr.id AS role_id,
         cr.name AS role_name,
         'ClusterRole' AS role_type,
         cluster.name AS cluster_name
@@ -1044,13 +1114,14 @@ _k8s_csr_approval_clusterroles = Fact(
     WHERE NOT cr.name STARTS WITH 'system:'
     RETURN COUNT(cr) AS count
     """,
+    identity_fields=("role_id",),
     module=Module.KUBERNETES,
     maturity=Maturity.EXPERIMENTAL,
 )
 
-cis_k8s_5_1_11_csr_approval_access = Rule(
-    id="cis_k8s_5_1_11_csr_approval_access",
-    name="CIS K8s 5.1.11: CSR Approval Sub-Resource Access",
+kubernetes_csr_approval_subresource_access = Rule(
+    id="kubernetes_csr_approval_subresource_access",
+    name="CSR Approval Sub-Resource Access",
     description=(
         "Users with access to approve CertificateSigningRequests can create new "
         "client certificates, effectively allowing creation of high-privileged user accounts."
@@ -1080,6 +1151,7 @@ class WebhookConfigAccessOutput(Finding):
     """Output model for webhook configuration access check."""
 
     role_name: str | None = None
+    role_id: str | None = None
     role_type: str | None = None
     webhook_resources: str | None = None
     cluster_name: str | None = None
@@ -1103,6 +1175,7 @@ _k8s_webhook_config_clusterroles = Fact(
       AND any(v IN cr.verbs WHERE v IN ['create', 'update', 'patch', 'delete', '*'])
       AND NOT cr.name STARTS WITH 'system:'
     RETURN
+        cr.id AS role_id,
         cr.name AS role_name,
         'ClusterRole' AS role_type,
         [r IN cr.resources WHERE r IN [
@@ -1127,13 +1200,14 @@ _k8s_webhook_config_clusterroles = Fact(
     WHERE NOT cr.name STARTS WITH 'system:'
     RETURN COUNT(cr) AS count
     """,
+    identity_fields=("role_id",),
     module=Module.KUBERNETES,
     maturity=Maturity.EXPERIMENTAL,
 )
 
-cis_k8s_5_1_12_webhook_config_access = Rule(
-    id="cis_k8s_5_1_12_webhook_config_access",
-    name="CIS K8s 5.1.12: Webhook Configuration Access",
+kubernetes_webhook_configuration_access = Rule(
+    id="kubernetes_webhook_configuration_access",
+    name="Webhook Configuration Access",
     description=(
         "Users with rights to create, modify, or delete webhook configurations "
         "can control webhooks that read or mutate any object admitted to the cluster, "
@@ -1164,6 +1238,7 @@ class SaTokenCreationAccessOutput(Finding):
     """Output model for SA token creation access check."""
 
     role_name: str | None = None
+    role_id: str | None = None
     role_type: str | None = None
     cluster_name: str | None = None
 
@@ -1181,7 +1256,10 @@ _k8s_sa_token_creation_clusterroles = Fact(
     WHERE any(r IN cr.resources WHERE r IN ['serviceaccounts/token', '*'])
       AND any(v IN cr.verbs WHERE v IN ['create', '*'])
       AND NOT cr.name STARTS WITH 'system:'
+      AND NOT cr.name STARTS WITH 'eks:'
+      AND NOT cr.name IN ['cluster-admin', 'admin', 'edit', 'view']
     RETURN
+        cr.id AS role_id,
         cr.name AS role_name,
         'ClusterRole' AS role_type,
         cluster.name AS cluster_name
@@ -1191,20 +1269,25 @@ _k8s_sa_token_creation_clusterroles = Fact(
     WHERE any(r IN cr.resources WHERE r IN ['serviceaccounts/token', '*'])
       AND any(v IN cr.verbs WHERE v IN ['create', '*'])
       AND NOT cr.name STARTS WITH 'system:'
+      AND NOT cr.name STARTS WITH 'eks:'
+      AND NOT cr.name IN ['cluster-admin', 'admin', 'edit', 'view']
     RETURN *
     """,
     cypher_count_query="""
     MATCH (cr:KubernetesClusterRole)
     WHERE NOT cr.name STARTS WITH 'system:'
+      AND NOT cr.name STARTS WITH 'eks:'
+      AND NOT cr.name IN ['cluster-admin', 'admin', 'edit', 'view']
     RETURN COUNT(cr) AS count
     """,
+    identity_fields=("role_id",),
     module=Module.KUBERNETES,
     maturity=Maturity.EXPERIMENTAL,
 )
 
-cis_k8s_5_1_13_sa_token_creation = Rule(
-    id="cis_k8s_5_1_13_sa_token_creation",
-    name="CIS K8s 5.1.13: Service Account Token Creation Access",
+kubernetes_service_account_token_creation_access = Rule(
+    id="kubernetes_service_account_token_creation_access",
+    name="Service Account Token Creation Access",
     description=(
         "Users with rights to create service account tokens can create long-lived "
         "privileged credentials that persist even after the user's account is revoked."

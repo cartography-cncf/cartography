@@ -17,16 +17,16 @@ C -- HAS_OPTIONAL_SCOPE --> S
 C -- DEFINES --> ROLE
 C -- HAS_SERVICE_ACCOUNT --> U
 C -- USES --> AF
-G -- SUBGROUP_OF --> G
+G -- MEMBER_OF --> G
 U -- MEMBER_OF --> G
 U ==> INHERITED_MEMBER_OF ==> G
-G -- GRANTS --> ROLE
+G -- HAS_ROLE --> ROLE
 ROLE -- GRANTS --> S
 ROLE -- INCLUDES --> ROLE
 U -- HAS_IDENTITY --> IDP
 U -- MANAGED_MEMBER_OF --> O
 U -- UNMANAGED_MEMBER_OF --> O
-U == ASSUME_ROLE ==> ROLE
+U == HAS_ROLE ==> ROLE
 U == ASSUME_SCOPE ==> S
 O -- ENFORCES --> IDP
 OD -- BELONGS_TO --> O
@@ -144,7 +144,7 @@ Represents a Keycloak realm, which is a security domain where users, groups, rol
 #### Relationships
 - `KeycloakRealm` is the parent container for other Keycloak entities
     ```
-    (:KeycloakRealm)<-[:RESOURCE]-(
+    (:KeycloakRealm)-[:RESOURCE]->(
         :KeycloakClient,
         :KeycloakGroup,
         :KeycloakUser,
@@ -240,7 +240,7 @@ Represents a group of users in Keycloak that can be used for organizing users an
     ```
 - `KeycloakGroup` can be a member of another group (hierarchical structure)
     ```
-    (:KeycloakGroup)-[:SUBGROUP_OF]->(:KeycloakGroup)
+    (:KeycloakGroup)-[:MEMBER_OF]->(:KeycloakGroup)
     ```
 - `KeycloakUser` can be a member of groups
     ```
@@ -252,7 +252,7 @@ Represents a group of users in Keycloak that can be used for organizing users an
     ```
 - `KeycloakGroup` can grant roles
     ```
-    (:KeycloakGroup)-[:GRANTS]->(:KeycloakRole)
+    (:KeycloakGroup)-[:HAS_ROLE]->(:KeycloakRole)
     ```
 
 
@@ -303,9 +303,9 @@ Represents a user in the Keycloak realm with authentication and profile informat
     ```
     (:KeycloakUser)-[:HAS_IDENTITY]->(:KeycloakIdentityProvider)
     ```
-- `KeycloakUser` can assume Role (this can be direct definition or inherited from groups)
+- `KeycloakUser` is granted a Role (direct definition or inherited from groups).
     ```
-    (:KeycloakUser)-[:ASSUME_ROLE]->(:KeycloakRole)
+    (:KeycloakUser)-[:HAS_ROLE]->(:KeycloakRole)
     ```
 - `KeycloakUser` can assume Scope (drawn by analysis job)
     ```
@@ -346,7 +346,7 @@ Represents a role in Keycloak that defines permissions and can be assigned to us
     ```
 - `KeycloakGroup` can grant roles
     ```
-    (:KeycloakGroup)-[:GRANTS]->(:KeycloakRole)
+    (:KeycloakGroup)-[:HAS_ROLE]->(:KeycloakRole)
     ```
 - `KeycloakRole` can grant scopes
     ```
@@ -360,9 +360,9 @@ Represents a role in Keycloak that defines permissions and can be assigned to us
     ```
     (:KeycloakRole)-[:INDIRECT_GRANTS]->(:KeycloakScope)
     ```
-- `KeycloakUser` can assume Role (this can be direct definition or inherited from groups)
+- `KeycloakUser` is granted a Role (direct definition or inherited from groups).
     ```
-    (:KeycloakUser)-[:ASSUME_ROLE]->(:KeycloakRole)
+    (:KeycloakUser)-[:HAS_ROLE]->(:KeycloakRole)
     ```
 
 
@@ -463,8 +463,8 @@ Represents a Keycloak organization, which is a logical grouping of users, domain
     ```
 - `KeycloakOrganization` can have managed and unmanaged user members
     ```
-    (:KeycloakUser)<-[:MANAGED_MEMBER_OF]-(:KeycloakOrganization)
-    (:KeycloakUser)<-[:UNMANAGED_MEMBER_OF]-(:KeycloakOrganization)
+    (:KeycloakUser)-[:MANAGED_MEMBER_OF]->(:KeycloakOrganization)
+    (:KeycloakUser)-[:UNMANAGED_MEMBER_OF]->(:KeycloakOrganization)
     ```
 - `KeycloakOrganization` can enforce identity providers
     ```

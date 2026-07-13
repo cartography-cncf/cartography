@@ -96,6 +96,7 @@ _new_attack_surface = Fact(
     cypher_query="...",
     cypher_visual_query="...",
     cypher_count_query="...",
+    identity_fields=("id",),
     module=Module.AWS,
     maturity=Maturity.EXPERIMENTAL,  # New, needs testing
 )
@@ -120,6 +121,7 @@ _proven_check = Fact(
     cypher_query="...",
     cypher_visual_query="...",
     cypher_count_query="...",
+    identity_fields=("id",),
     module=Module.AWS,
     maturity=Maturity.STABLE,  # Battle-tested in production
 )
@@ -288,10 +290,10 @@ You can filter rules by compliance framework short name, optional scope, and opt
 
 ```bash
 # List all NIST AI RMF-mapped rules
-cartography-rules list --framework NIST-AI-RMF
+cartography-rules list --framework nist:ai-rmf
 
 # Run all NIST AI RMF-mapped rules
-cartography-rules run all --framework NIST-AI-RMF
+cartography-rules run all --framework nist:ai-rmf
 ```
 
 ### `list`
@@ -482,9 +484,10 @@ from cartography.rules.spec.model import Finding
 class MyRuleOutput(Finding):
     """Output model for my custom rule."""
 
-    # Define the fields that will be populated from cypher_query results
+    # Define the fields that will be populated from cypher_query results.
+    # Declare a human-readable label first: the first non-empty field is used as the finding title.
+    name: str | None = None         # Resource name (used as the finding title)
     id: str | None = None           # Resource identifier
-    name: str | None = None         # Resource name
     email: str | None = None        # User email (if applicable)
     region: str | None = None       # Cloud region
     public_access: bool | None = None  # Access level
@@ -525,6 +528,88 @@ object_storage_public = Rule(
 )
 ```
 
+### Finding identity vs. display fields
+
+Output-model fields are for display and context. Many of them change over time even though the
+underlying finding does not: counts (`active_key_count`, `super_admin_count`, `image_count`), dates
+and usage flags (`days_since_rotation`, `last_used_date`, `is_stale_or_unused`), and aggregate
+lists. If a downstream system that tracks finding lifecycle (first-seen time, acceptance/suppression,
+ownership, issue correlation) keys on those volatile fields, the same finding reappears as new every
+time a metric moves.
+
+To give such consumers a stable contract, every `Fact` **must** declare `identity_fields`: the
+subset of output-model fields that form the **stable logical identity** of a finding across syncs.
+The field is required (no default), so a fact that omits it fails to construct.
+
+```python
+_aws_user_direct_policies = Fact(
+    id="aws_user_direct_policies",
+    ...
+    asset_id_field="user_arn",                    # compliance failing-count only
+    identity_fields=("user_arn", "policy_arn"),   # one finding per attachment
+)
+```
+
+Guidelines:
+
+- Every field in `identity_fields` must exist on the rule's output model and be returned by the
+  fact's `cypher_query` (a unit test enforces this).
+- Downstream lifecycle tracking should build its storage identity from `rule.id` + `fact.id` +
+  the `identity_fields` values, so multi-fact rules cannot collide.
+- For shared ontology labels (`:UserAccount`, `:DeviceInstance`, `:Tenant`, ...) a node id is only
+  unique per provider: two providers can have distinct nodes with the same `id`. A cross-cloud fact
+  that matches such a label must include a provider discriminator (typically `source` from
+  `_ont_source`) in `identity_fields`, returning it from the query if it is not already aliased.
+- `identity_fields` is emitted per fact in the `cartography-rules run --output json` output (on each
+  fact result, alongside `fact_id`), so JSON consumers get the contract without importing the
+  Python rule registry.
+- `identity_fields` is distinct from `asset_id_field`. `asset_id_field` only drives the
+  distinct-asset failing count shown in compliance metrics; it is not a lifecycle-identity contract.
+  The two can differ on purpose: `aws_user_direct_policies` counts distinct users
+  (`asset_id_field="user_arn"`) but treats each user/policy attachment as a separate finding
+  (`identity_fields=("user_arn", "policy_arn")`).
+
+### Display field order (finding title)
+
+The **order** in which fields are declared on the output model is a de-facto display contract.
+Downstream consumers derive a finding's title by taking the **first non-empty rule-specific field
+of the output model, in class declaration order**. Declaration order is independent of
+`identity_fields` and `asset_id_field` (those stay whatever the identity contract needs) and of the
+`cypher_query` `RETURN` order (the model is keyed by alias name, not position).
+
+The base `Finding` class declares two inherited fields, `source` and `extra`, before any
+rule-specific field, so `model_fields` / `model_dump()` lists them first. They are metadata, not
+display fields: a title-deriving consumer must **skip `source` and `extra`** and start from the
+first field declared on the rule's own subclass. (The text runner's sample output at
+`cartography/rules/runners.py` prints every field for debugging and is not the title consumer.)
+
+Guidelines:
+
+- Declare a **human-readable label first**: a name, `*_name`, `email`, domain, or title. Avoid
+  leading with an opaque id, ARN, URI, digest, region, or a boolean: those make the title an
+  unreadable string instead of the resource a user recognizes.
+- A scope-level name (project/account/org) is only a good title when the finding's resource **is**
+  that scope (e.g. a project-level or account-level check). For a resource inside a scope, lead with
+  the resource's own name, not the project/account name.
+- If the field would be **empty for every finding**, it cannot serve as the title even if declared
+  first. For example a "missing CMEK key" check whose key field is null by definition: the consumer
+  skips it and falls through to the next field.
+- If the node has no natural name, **alias one in the `cypher_query`** and declare it first rather
+  than leading with an id. Common patterns:
+  - `coalesce(n.friendly_name, n.short_id) AS name`
+  - an AWS `Name` tag: `OPTIONAL MATCH (n)-[:TAGGED]->(t:AWSTag {key: 'Name'})` then
+    `coalesce(t.value, n.id) AS name`
+  - a stable user-chosen identifier (e.g. an RDS DB instance identifier) is already human-readable
+    and fine as the first field.
+
+```python
+class DatabaseExposedOutput(Finding):
+    """Output model for publicly exposed databases."""
+    name: str | None = None    # human-readable label first: used as the finding title
+    id: str | None = None
+    region: str | None = None
+```
+
 ### Steps to add a new rule
 
 1. **Create a new rule file** in `cartography/rules/data/rules/`:
@@ -550,6 +635,7 @@ object_storage_public = Rule(
        MATCH (n:SomeNode)
        RETURN COUNT(n) AS count
        """,
+       identity_fields=("id",),
        module=Module.AWS,
        maturity=Maturity.EXPERIMENTAL,
    )
@@ -572,6 +658,7 @@ object_storage_public = Rule(
        MATCH (n:SomeAzureNode)
        RETURN COUNT(n) AS count
        """,
+       identity_fields=("id",),
        module=Module.AZURE,
        maturity=Maturity.EXPERIMENTAL,
    )
@@ -579,8 +666,8 @@ object_storage_public = Rule(
    # Define output model
    class MyRuleOutput(Finding):
        """Output model for my custom rule."""
+       name: str | None = None    # human-readable label first: used as the finding title
        id: str | None = None
-       name: str | None = None
        region: str | None = None
 
    # Define rule

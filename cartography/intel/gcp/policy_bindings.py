@@ -546,6 +546,7 @@ def transform_bindings(data: dict[str, Any]) -> list[dict[str, Any]]:
                 # Extract email part from each member (format: "type:email@example.com")
                 filtered_members = []
                 wif_pools: set[str] = set()
+                domains: set[str] = set()
                 is_public = False
                 for member in members:
                     # GCP encodes the "anyone on the internet" principals as
@@ -569,10 +570,20 @@ def transform_bindings(data: dict[str, Any]) -> list[dict[str, Any]]:
                     if member_type in ("user", "serviceAccount", "group"):
                         # Store only the email part
                         filtered_members.append(identifier)
+                    elif member_type == "domain":
+                        # domain:{domain} grants access to every principal in a
+                        # Google Workspace / Cloud Identity domain. It has no single
+                        # GCPPrincipal node, but we retain it for visibility.
+                        domains.add(identifier)
 
                 # Skip bindings that have no resolvable principals AND no public
-                # exposure, e.g. unsupported principal types like domain:.
-                if not filtered_members and not is_public and not wif_pools:
+                # exposure AND no domain grant, e.g. truly unsupported principal types.
+                if (
+                    not filtered_members
+                    and not is_public
+                    and not wif_pools
+                    and not domains
+                ):
                     continue
 
                 # Extract condition expression for deduplication key
@@ -592,6 +603,9 @@ def transform_bindings(data: dict[str, Any]) -> list[dict[str, Any]]:
                     existing_pools = set(bindings[key].get("wif_pools", []))
                     existing_pools.update(wif_pools)
                     bindings[key]["wif_pools"] = sorted(existing_pools)
+                    existing_domains = set(bindings[key].get("domains", []))
+                    existing_domains.update(domains)
+                    bindings[key]["domains"] = sorted(existing_domains)
                     bindings[key]["is_public"] = (
                         bindings[key].get("is_public", False) or is_public
                     )
@@ -616,6 +630,7 @@ def transform_bindings(data: dict[str, Any]) -> list[dict[str, Any]]:
                         "resource_type": resource_type,
                         "members": sorted(filtered_members),
                         "wif_pools": sorted(wif_pools),
+                        "domains": sorted(domains),
                         "is_public": is_public,
                         "has_condition": condition is not None,
                         "condition_title": (

@@ -26,7 +26,7 @@ _azure_sql_internet_exposed = Fact(
       AND rule.start_ip_address = '0.0.0.0'
       AND rule.end_ip_address IS NOT NULL
       AND rule.end_ip_address <> '0.0.0.0'
-    RETURN
+    RETURN DISTINCT
         server.id AS id,
         server.name AS host,
         'Microsoft.Sql' AS engine,
@@ -46,6 +46,7 @@ _azure_sql_internet_exposed = Fact(
     RETURN COUNT(server) AS count
     """,
     asset_id_field="id",
+    identity_fields=("id",),
     module=Module.AZURE,
     maturity=Maturity.EXPERIMENTAL,
 )
@@ -84,6 +85,7 @@ _azure_cosmosdb_public_access = Fact(
     RETURN COUNT(account) AS count
     """,
     asset_id_field="id",
+    identity_fields=("id",),
     module=Module.AZURE,
     maturity=Maturity.EXPERIMENTAL,
 )
@@ -100,7 +102,7 @@ _gcp_cloud_sql_public_access = Fact(
     cypher_query="""
     MATCH (sql:GCPCloudSQLInstance)-[:AUTHORIZED_NETWORK]-(net:GCPCloudSQLAuthorizedNetwork)
     WHERE net.value = '0.0.0.0/0'
-    RETURN
+    RETURN DISTINCT
         sql.id AS id,
         sql.database_version AS engine,
         sql.connection_name AS host,
@@ -116,6 +118,7 @@ _gcp_cloud_sql_public_access = Fact(
     MATCH (sql:GCPCloudSQLInstance)
     RETURN COUNT(sql) AS count
     """,
+    identity_fields=("id",),
     module=Module.GCP,
     maturity=Maturity.EXPERIMENTAL,
 )
@@ -177,7 +180,116 @@ _aws_rds_public_access = Fact(
     MATCH (rds:RDSInstance)
     RETURN COUNT(rds) AS count
     """,
+    identity_fields=("id",),
     module=Module.AWS,
+    maturity=Maturity.EXPERIMENTAL,
+)
+
+
+# Scaleway Facts
+# Scaleway managed databases expose an `is_public` flag that the intel layer
+# derives from the endpoints list: it is true when the instance has a
+# load-balancer or direct-access endpoint, i.e. a routable public endpoint.
+# That single flag is the internet-reachability signal here (no separate
+# firewall layer to join, unlike AWS/GCP).
+_scaleway_rdb_public_access = Fact(
+    id="scaleway_rdb_public_access",
+    name="Internet-Accessible Scaleway Managed Database Attack Surface",
+    description=(
+        "Scaleway Managed Databases for PostgreSQL / MySQL (RDB) that expose "
+        "a public endpoint (is_public = true), reachable from the internet."
+    ),
+    cypher_query="""
+    MATCH (prj:ScalewayProject)-[:RESOURCE]->(db:ScalewayRdbInstance)
+    WHERE db.is_public = true
+    RETURN
+        db.id AS id,
+        coalesce(db.public_endpoint_hostname, db.public_endpoint_ip) AS host,
+        db.engine AS engine,
+        db.public_endpoint_port AS port,
+        db.region AS region,
+        db.encryption_at_rest_enabled AS encrypted
+    """,
+    cypher_visual_query="""
+    MATCH p=(prj:ScalewayProject)-[:RESOURCE]->(db:ScalewayRdbInstance)
+    WHERE db.is_public = true
+    RETURN *
+    """,
+    cypher_count_query="""
+    MATCH (db:ScalewayRdbInstance)
+    RETURN COUNT(db) AS count
+    """,
+    asset_id_field="id",
+    identity_fields=("id",),
+    module=Module.SCALEWAY,
+    maturity=Maturity.EXPERIMENTAL,
+)
+
+
+_scaleway_redis_public_access = Fact(
+    id="scaleway_redis_public_access",
+    name="Internet-Accessible Scaleway Managed Redis Attack Surface",
+    description=(
+        "Scaleway Managed Redis clusters that expose a public endpoint "
+        "(is_public = true), reachable from the internet."
+    ),
+    cypher_query="""
+    MATCH (prj:ScalewayProject)-[:RESOURCE]->(rc:ScalewayRedisCluster)
+    WHERE rc.is_public = true
+    RETURN
+        rc.id AS id,
+        rc.public_endpoint_ip AS host,
+        'Redis' + coalesce(' ' + rc.version, '') AS engine,
+        rc.public_endpoint_port AS port,
+        rc.zone AS region,
+        rc.tls_enabled AS encrypted
+    """,
+    cypher_visual_query="""
+    MATCH p=(prj:ScalewayProject)-[:RESOURCE]->(rc:ScalewayRedisCluster)
+    WHERE rc.is_public = true
+    RETURN *
+    """,
+    cypher_count_query="""
+    MATCH (rc:ScalewayRedisCluster)
+    RETURN COUNT(rc) AS count
+    """,
+    asset_id_field="id",
+    identity_fields=("id",),
+    module=Module.SCALEWAY,
+    maturity=Maturity.EXPERIMENTAL,
+)
+
+
+_scaleway_mongodb_public_access = Fact(
+    id="scaleway_mongodb_public_access",
+    name="Internet-Accessible Scaleway Managed MongoDB Attack Surface",
+    description=(
+        "Scaleway Managed MongoDB instances that expose a public endpoint "
+        "(is_public = true), reachable from the internet."
+    ),
+    cypher_query="""
+    MATCH (prj:ScalewayProject)-[:RESOURCE]->(m:ScalewayMongoDBInstance)
+    WHERE m.is_public = true
+    RETURN
+        m.id AS id,
+        m.public_endpoint_dns AS host,
+        'MongoDB' + coalesce(' ' + m.version, '') AS engine,
+        m.public_endpoint_port AS port,
+        m.region AS region,
+        null AS encrypted
+    """,
+    cypher_visual_query="""
+    MATCH p=(prj:ScalewayProject)-[:RESOURCE]->(m:ScalewayMongoDBInstance)
+    WHERE m.is_public = true
+    RETURN *
+    """,
+    cypher_count_query="""
+    MATCH (m:ScalewayMongoDBInstance)
+    RETURN COUNT(m) AS count
+    """,
+    asset_id_field="id",
+    identity_fields=("id",),
+    module=Module.SCALEWAY,
     maturity=Maturity.EXPERIMENTAL,
 )
 
@@ -202,6 +314,9 @@ database_instance_exposed = Rule(
         _azure_sql_internet_exposed,
         _azure_cosmosdb_public_access,
         _gcp_cloud_sql_public_access,
+        _scaleway_rdb_public_access,
+        _scaleway_redis_public_access,
+        _scaleway_mongodb_public_access,
     ),
     tags=(
         "infrastructure",

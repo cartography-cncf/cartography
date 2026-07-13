@@ -37,6 +37,8 @@ def _extract_pod_containers(pod: V1Pod, node_arch: str | None = None) -> dict[st
             "added_capabilities": [],
             "dropped_capabilities": [],
             "host_ports": [],
+            "container_ports": json.dumps([]),
+            "container_port_numbers": [],
         }
 
         security_context = getattr(container, "security_context", None)
@@ -68,6 +70,34 @@ def _extract_pod_containers(pod: V1Pod, node_arch: str | None = None) -> dict[st
         if ports:
             containers[container.name]["host_ports"] = sorted(
                 [port.host_port for port in ports if port.host_port is not None]
+            )
+
+            # The containerPorts a container *declares* (as opposed to the
+            # rarely-used host_ports). containerPort is optional in the pod spec,
+            # so an empty list means "declares no ports", NOT a guarantee that the
+            # container listens on nothing; a process can bind ports it never
+            # declared. Consumers should treat these as declared ports, not proof
+            # of the full listening set. Retain the full structured spec as JSON,
+            # plus a flat list of TCP/UDP port numbers for querying without parsing
+            # JSON. A protocol of None defaults to TCP per the Kubernetes API.
+            containers[container.name]["container_ports"] = json.dumps(
+                [
+                    {
+                        "container_port": port.container_port,
+                        "protocol": port.protocol,
+                        "name": port.name,
+                    }
+                    for port in ports
+                    if port.container_port is not None
+                ]
+            )
+            containers[container.name]["container_port_numbers"] = sorted(
+                {
+                    port.container_port
+                    for port in ports
+                    if port.container_port is not None
+                    and (port.protocol or "TCP") in ("TCP", "UDP")
+                }
             )
 
         # Extract resource requests and limits
@@ -254,12 +284,22 @@ def load_pods(
     normalized_pods = []
     for pod in pods:
         service_account_name = pod.get("service_account_name") or "default"
+        # Partition the secret ids into disjoint sets so the canonical USES_SECRET
+        # edge carries the correct mount_method even when the same secret is used
+        # both as a volume and via env (otherwise one method would overwrite the
+        # other on the single MERGEd edge). Derived here so the data is correct
+        # regardless of how the pod dict was produced.
+        volume_set = set(pod.get("secret_volume_ids") or [])
+        env_set = set(pod.get("secret_env_ids") or [])
         normalized_pods.append(
             {
                 **pod,
                 "service_account_name": service_account_name,
                 "service_account_id": pod.get("service_account_id")
                 or f"{cluster_name}/{pod['namespace']}/{service_account_name}",
+                "secret_uses_volume_only_ids": sorted(volume_set - env_set),
+                "secret_uses_env_only_ids": sorted(env_set - volume_set),
+                "secret_uses_both_ids": sorted(volume_set & env_set),
             },
         )
 
@@ -270,6 +310,12 @@ def load_pods(
         lastupdated=update_tag,
         CLUSTER_ID=cluster_id,
         CLUSTER_NAME=cluster_name,
+        # Mount method carried by the canonical USES_SECRET edges. The three
+        # source id lists are disjoint, so each (pod, secret) edge is written by
+        # exactly one loader and mount_method is never overwritten.
+        secret_mount_volume="volume",
+        secret_mount_env="env",
+        secret_mount_both="volume,env",
     )
 
 

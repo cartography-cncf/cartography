@@ -35,6 +35,20 @@ from .util.credentials import Credentials
 logger = logging.getLogger(__name__)
 
 
+def _get_properties(data: dict[str, Any]) -> dict[str, Any]:
+    return data.get("properties") or {}
+
+
+def _get_value(data: dict[str, Any], *keys: str) -> Any:
+    properties = _get_properties(data)
+    for key in keys:
+        if key in data:
+            return data[key]
+        if key in properties:
+            return properties[key]
+    return None
+
+
 def _get_resource_group_from_id(resource_id: str) -> str:
     """
     Helper function to parse the resource group name from a full resource ID string.
@@ -89,17 +103,17 @@ def get_network_interfaces(client: NetworkManagementClient) -> list[dict]:
 def transform_virtual_networks(vnets: list[dict]) -> list[dict]:
     transformed: list[dict[str, Any]] = []
     for vnet in vnets:
-        # Azure SDK as_dict() may return properties nested or flattened
-        provisioning_state = vnet.get("properties", {}).get(
-            "provisioning_state"
-        ) or vnet.get("provisioning_state")
         transformed.append(
             {
                 "id": vnet.get("id"),
                 "name": vnet.get("name"),
                 "location": vnet.get("location"),
                 "tags": vnet.get("tags"),
-                "provisioning_state": provisioning_state,
+                "provisioning_state": _get_value(
+                    vnet,
+                    "provisioning_state",
+                    "provisioningState",
+                ),
             }
         )
     return transformed
@@ -109,20 +123,23 @@ def transform_subnets(subnets: list[dict]) -> list[dict]:
     transformed: list[dict[str, Any]] = []
     for subnet in subnets:
         nsg_id = None
-        network_security_group = subnet.get("network_security_group")
+        network_security_group = _get_value(
+            subnet,
+            "network_security_group",
+            "networkSecurityGroup",
+        )
         if network_security_group:
             nsg_id = network_security_group.get("id")
-
-        # Azure SDK as_dict() may return properties nested or flattened
-        address_prefix = subnet.get("properties", {}).get(
-            "address_prefix"
-        ) or subnet.get("address_prefix")
 
         transformed.append(
             {
                 "id": subnet.get("id"),
                 "name": subnet.get("name"),
-                "address_prefix": address_prefix,
+                "address_prefix": _get_value(
+                    subnet,
+                    "address_prefix",
+                    "addressPrefix",
+                ),
                 "nsg_id": nsg_id,
             }
         )
@@ -151,16 +168,10 @@ def transform_network_security_rules(nsgs: list[dict]) -> list[dict]:
     transformed: list[dict[str, Any]] = []
     for nsg in nsgs:
         nsg_id = nsg.get("id")
-        # Azure SDK as_dict() may flatten or nest under "properties"
-        nsg_props = nsg.get("properties", {})
 
         rule_collections = (
-            (nsg.get("security_rules") or nsg_props.get("security_rules") or []),
-            (
-                nsg.get("default_security_rules")
-                or nsg_props.get("default_security_rules")
-                or []
-            ),
+            (_get_value(nsg, "security_rules", "securityRules") or []),
+            (_get_value(nsg, "default_security_rules", "defaultSecurityRules") or []),
         )
         is_default_flags = (False, True)
 
@@ -178,22 +189,26 @@ def transform_network_security_rules(nsgs: list[dict]) -> list[dict]:
                         "direction": merged.get("direction"),
                         "access": merged.get("access"),
                         "priority": merged.get("priority"),
-                        "source_port_range": merged.get("source_port_range"),
-                        "source_port_ranges": merged.get("source_port_ranges"),
-                        "destination_port_range": merged.get("destination_port_range"),
-                        "destination_port_ranges": merged.get(
-                            "destination_port_ranges"
-                        ),
-                        "source_address_prefix": merged.get("source_address_prefix"),
-                        "source_address_prefixes": merged.get(
-                            "source_address_prefixes"
-                        ),
+                        "source_port_range": merged.get("source_port_range")
+                        or merged.get("sourcePortRange"),
+                        "source_port_ranges": merged.get("source_port_ranges")
+                        or merged.get("sourcePortRanges"),
+                        "destination_port_range": merged.get("destination_port_range")
+                        or merged.get("destinationPortRange"),
+                        "destination_port_ranges": merged.get("destination_port_ranges")
+                        or merged.get("destinationPortRanges"),
+                        "source_address_prefix": merged.get("source_address_prefix")
+                        or merged.get("sourceAddressPrefix"),
+                        "source_address_prefixes": merged.get("source_address_prefixes")
+                        or merged.get("sourceAddressPrefixes"),
                         "destination_address_prefix": merged.get(
                             "destination_address_prefix"
-                        ),
+                        )
+                        or merged.get("destinationAddressPrefix"),
                         "destination_address_prefixes": merged.get(
                             "destination_address_prefixes"
-                        ),
+                        )
+                        or merged.get("destinationAddressPrefixes"),
                         "is_default": is_default,
                     }
                 )
@@ -203,19 +218,17 @@ def transform_network_security_rules(nsgs: list[dict]) -> list[dict]:
 def transform_public_ip_addresses(public_ips: list[dict]) -> list[dict]:
     transformed: list[dict[str, Any]] = []
     for public_ip in public_ips:
-        # Azure SDK as_dict() may return properties nested or flattened
-        properties = public_ip.get("properties", {})
-        ip_address = properties.get("ip_address") or public_ip.get("ip_address")
-        allocation_method = properties.get(
-            "public_ip_allocation_method"
-        ) or public_ip.get("public_ip_allocation_method")
         transformed.append(
             {
                 "id": public_ip.get("id"),
                 "name": public_ip.get("name"),
                 "location": public_ip.get("location"),
-                "ip_address": ip_address,
-                "public_ip_allocation_method": allocation_method,
+                "ip_address": _get_value(public_ip, "ip_address", "ipAddress"),
+                "public_ip_allocation_method": _get_value(
+                    public_ip,
+                    "public_ip_allocation_method",
+                    "publicIPAllocationMethod",
+                ),
             }
         )
     return transformed
@@ -228,7 +241,14 @@ def transform_network_interfaces(network_interfaces: list[dict]) -> list[dict]:
         public_ip_ids: list[str] = []
         private_ips: list[str] = []
 
-        for ip_config in interface.get("ip_configurations", []):
+        for ip_config in (
+            _get_value(
+                interface,
+                "ip_configurations",
+                "ipConfigurations",
+            )
+            or []
+        ):
             # Azure SDK as_dict() may return properties nested or flattened
             # Try nested first (properties wrapper), then flattened (direct access)
             ip_config_props = ip_config.get("properties", {})
@@ -241,8 +261,11 @@ def transform_network_interfaces(network_interfaces: list[dict]) -> list[dict]:
                     subnet_ids.append(subnet_id)
 
             # Get public IP ID - try nested then flattened
-            public_ip_ref = ip_config_props.get("public_ip_address") or ip_config.get(
-                "public_ip_address"
+            public_ip_ref = (
+                ip_config_props.get("public_ip_address")
+                or ip_config_props.get("publicIPAddress")
+                or ip_config.get("public_ip_address")
+                or ip_config.get("publicIPAddress")
             )
             if public_ip_ref and isinstance(public_ip_ref, dict):
                 public_ip_id = public_ip_ref.get("id")
@@ -250,8 +273,11 @@ def transform_network_interfaces(network_interfaces: list[dict]) -> list[dict]:
                     public_ip_ids.append(public_ip_id)
 
             # Get private IP - try nested then flattened
-            private_ip = ip_config_props.get("private_ip_address") or ip_config.get(
-                "private_ip_address"
+            private_ip = (
+                ip_config_props.get("private_ip_address")
+                or ip_config_props.get("privateIPAddress")
+                or ip_config.get("private_ip_address")
+                or ip_config.get("privateIPAddress")
             )
             if private_ip:
                 private_ips.append(private_ip)
@@ -259,12 +285,12 @@ def transform_network_interfaces(network_interfaces: list[dict]) -> list[dict]:
         # Handle case where virtual_machine can be None (unattached NIC)
         # Lowercase the VM ID to match the normalized VM node id (Azure APIs
         # return inconsistent casing for resource group names across services)
-        vm_ref = interface.get("virtual_machine")
+        vm_ref = _get_value(interface, "virtual_machine", "virtualMachine")
         vm_id = vm_ref.get("id").lower() if vm_ref and vm_ref.get("id") else None
 
-        nsg_ref = interface.get("network_security_group") or interface.get(
-            "properties", {}
-        ).get("network_security_group")
+        nsg_ref = _get_value(
+            interface, "network_security_group", "networkSecurityGroup"
+        )
         nsg_id = nsg_ref.get("id") if nsg_ref and isinstance(nsg_ref, dict) else None
 
         transformed.append(

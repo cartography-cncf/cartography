@@ -7,6 +7,7 @@ from . import acm
 from . import apigateway
 from . import apigatewayv2
 from . import bedrock
+from . import cloudformation
 from . import cloudfront
 from . import cloudtrail
 from . import cloudtrail_management_events
@@ -17,6 +18,7 @@ from . import config
 from . import dynamodb
 from . import ecr
 from . import ecr_image_layers
+from . import ecr_pull_through_cache_rules
 from . import ecs
 from . import efs
 from . import eks
@@ -76,10 +78,11 @@ RESOURCE_FUNCTIONS: OrderedDict[str, Callable[..., None]] = OrderedDict(
     {
         "iam": iam.sync,
         "iaminstanceprofiles": sync_iam_instance_profiles,
-        "s3": s3.sync,
-        # `kms` must run before `dynamodb` since DynamoDB SSE KMS encryption creates
-        # relationships to existing KMSKey nodes using KMSMasterKeyArn.
+        # `kms` must run before the resources that create canonical ENCRYPTED_BY
+        # edges to existing KMSKey nodes by matching on the key ARN: `s3`, `rds`,
+        # `efs`, `dynamodb`, and the Secrets Manager / SSM secret syncs.
         "kms": kms.sync,
+        "s3": s3.sync,
         "dynamodb": dynamodb.sync,
         "ec2:launch_templates": sync_ec2_launch_templates,
         "ec2:autoscalinggroup": sync_ec2_auto_scaling_groups,
@@ -126,6 +129,9 @@ RESOURCE_FUNCTIONS: OrderedDict[str, Callable[..., None]] = OrderedDict(
         "redshift": redshift.sync,
         "route53": route53.sync,
         "elasticsearch": elasticsearch.sync,
+        # `cloudformation` must run before `permission_relationships` so that CloudFormationStack
+        # nodes exist when CAN_EXEC edges are evaluated.
+        "cloudformation": cloudformation.sync,
         "permission_relationships": permission_relationships.sync,
         "resourcegroupstaggingapi": resourcegroupstaggingapi.sync,
         "apigateway": apigateway.sync,
@@ -133,6 +139,7 @@ RESOURCE_FUNCTIONS: OrderedDict[str, Callable[..., None]] = OrderedDict(
         "bedrock": bedrock.sync,
         "cloudfront": cloudfront.sync,
         "secretsmanager": secretsmanager.sync,
+        "ecr:pull_through_cache_rules": ecr_pull_through_cache_rules.sync,
         "securityhub": securityhub.sync,
         "s3accountpublicaccessblock": s3accountpublicaccessblock.sync,
         "sagemaker": sagemaker.sync,

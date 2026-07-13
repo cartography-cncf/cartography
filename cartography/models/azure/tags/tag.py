@@ -13,7 +13,7 @@ from cartography.models.core.relationships import TargetNodeMatcher
 class AzureTagProperties(CartographyNodeProperties):
     # The ID is a string: "{subscription_id}|{key}:{value}"
     id: PropertyRef = PropertyRef("id")
-    key: PropertyRef = PropertyRef("key")
+    key: PropertyRef = PropertyRef("key", extra_index=True)
     value: PropertyRef = PropertyRef("value")
     subscription_id: PropertyRef = PropertyRef("subscription_id")
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)

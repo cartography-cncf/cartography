@@ -16,6 +16,7 @@ St -- CONTAINS --> St2(SpaceliftStack)
 WP -- CONTAINS --> W2(SpaceliftWorker)
 
 St -- GENERATES --> R
+St -- ASSUMES --> Role(AWSRole)
 U -- TRIGGERED --> R
 W -- EXECUTES --> R
 C -- COMMITTED --> R
@@ -151,6 +152,7 @@ Representation of the fundamental building block of Spacelift infrastructure man
 | project_root | Directory in repo containing infrastructure code |
 | space_id | ID of the space this stack belongs to |
 | spacelift_account_id | ID of the Spacelift account this stack belongs to |
+| aws_role_arn | ARN of the AWS IAM role the stack assumes at runtime (from its AWS integration), if any |
 
 #### Relationships
 
@@ -170,6 +172,12 @@ Representation of the fundamental building block of Spacelift infrastructure man
 
     ```
     (SpaceliftStack)-[GENERATED]->(SpaceliftRun)
+    ```
+
+- SpaceliftStacks assume an AWS IAM role at runtime:
+
+    ```
+    (SpaceliftStack)-[ASSUMES]->(AWSRole)
     ```
 
 ### SpaceliftWorkerPool

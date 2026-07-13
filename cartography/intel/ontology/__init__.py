@@ -9,6 +9,9 @@ import cartography.intel.ontology.packages
 import cartography.intel.ontology.publicips
 import cartography.intel.ontology.users
 from cartography.config import Config
+from cartography.intel.ontology.deprecated_indexes import (
+    drop_deprecated_ontology_indexes,
+)
 from cartography.util import run_analysis_job
 from cartography.util import timeit
 
@@ -20,6 +23,10 @@ def run(neo4j_session: neo4j.Session, config: Config) -> None:
     common_job_parameters = {
         "UPDATE_TAG": config.update_tag,
     }
+
+    # DEPRECATED: drop _ont_ RANGE indexes left over from before the indexed=False opt-out (#2845)
+    # on graphs synced with older cartography versions. Remove in v1.0.0.
+    drop_deprecated_ontology_indexes(neo4j_session)
 
     # Get source of truth from config
     if config.ontology_users_source:
@@ -65,6 +72,13 @@ def run(neo4j_session: neo4j.Session, config: Config) -> None:
     cartography.intel.ontology.publicips.sync(
         neo4j_session,
         config.update_tag,
+        common_job_parameters,
+    )
+    # Link Tailscale endpoint devices to the cloud compute instances they identify as.
+    # Runs after provider syncs so EC2/GCP ComputeInstance nodes are available.
+    run_analysis_job(
+        "tailscale_device_instance_linking.json",
+        neo4j_session,
         common_job_parameters,
     )
     # Create RESOLVED_IMAGE edges from :Container to the concrete single-platform :Image they are running.

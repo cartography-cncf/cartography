@@ -5,12 +5,15 @@ import logging
 import time
 from collections import defaultdict
 from collections import namedtuple
+from collections.abc import Callable
+from dataclasses import dataclass
 from typing import Any
 from typing import cast
 from typing import Dict
 from typing import List
 from typing import Optional
 from urllib.parse import quote
+from urllib.parse import urlsplit
 
 import neo4j
 import requests
@@ -21,14 +24,19 @@ from packaging.utils import canonicalize_name
 from cartography.client.core.tx import load as load_data
 from cartography.graph.job import GraphJob
 from cartography.helpers import backoff_handler
+from cartography.intel.github.codeowners import normalize_repo_relative_path
+from cartography.intel.github.lockfiles import parse_npm_lock
+from cartography.intel.github.lockfiles import parse_uv_lock
 from cartography.intel.github.util import call_github_rest_api
 from cartography.intel.github.util import fetch_all
 from cartography.intel.github.util import fetch_all_rest_api_pages
 from cartography.intel.github.util import fetch_page
+from cartography.intel.github.util import get_file_content
 from cartography.intel.github.util import handle_rate_limit_sleep
 from cartography.intel.github.util import PaginatedGraphqlData
 from cartography.intel.github.util import rest_api_base_url
 from cartography.intel.trivy.util import make_normalized_package_id
+from cartography.intel.trivy.util import normalize_package_name
 from cartography.intel.trivy.util import parse_purl
 from cartography.models.github.branch_protection_rules import (
     GitHubBranchProtectionRuleSchema,
@@ -62,6 +70,13 @@ UserAffiliationAndRepoPermission = namedtuple(
         "affiliation",  # 'OUTSIDE', 'DIRECT'
     ],
 )
+
+
+@dataclass(frozen=True)
+class GitHubRepoSyncResult:
+    repos: list[dict[str, Any]]
+    manifests: list[dict[str, Any]]
+    manifests_cleanup_safe: bool
 
 
 GITHUB_ORG_REPOS_PAGINATED_GRAPHQL = """
@@ -311,7 +326,7 @@ def _get_repo_dep_manifests(
     api_url: str,
     organization: str,
     repo: str,
-) -> list[dict[str, Any]]:
+) -> tuple[list[dict[str, Any]], bool]:
     """
     Retrieve dependency graph manifests for a single repository.
     Fetches one manifest at a time, and paginates dependencies within each manifest.
@@ -321,11 +336,13 @@ def _get_repo_dep_manifests(
     :param api_url: The Github v4 API endpoint as string.
     :param organization: The name of the target Github organization as string.
     :param repo: The name of the target Github repository as string.
-    :return: A list of manifest node dicts with all their dependencies collected.
+    :return: A tuple of manifest node dicts with all their dependencies collected
+        and whether manifest cleanup is safe.
     """
     manifest_cursor: str | None = None
     has_next_manifest = True
     manifests: list[dict[str, Any]] = []
+    cleanup_safe = True
 
     while has_next_manifest:
         # Save cursor before this manifest so we can re-query the same position
@@ -346,7 +363,7 @@ def _get_repo_dep_manifests(
                 repo,
                 len(manifests),
             )
-            return manifests
+            return manifests, False
 
         repository = resp["data"]["organization"].get("repository")
         dep_manifests = (
@@ -360,7 +377,7 @@ def _get_repo_dep_manifests(
                 repo,
                 len(manifests),
             )
-            return manifests
+            return manifests, False
 
         manifest_page_info = dep_manifests.get("pageInfo", {})
         manifest_cursor = manifest_page_info.get("endCursor")
@@ -371,6 +388,16 @@ def _get_repo_dep_manifests(
             continue
 
         manifest = manifest_nodes[0]
+        if manifest is None:
+            cleanup_safe = False
+            logger.warning(
+                "GitHub returned inaccessible/null dependency manifest node for "
+                "repo %s at manifest cursor %s; skipping manifest page.",
+                repo,
+                prev_manifest_cursor,
+            )
+            continue
+
         blob_path = manifest.get("blobPath", "?")
 
         # Paginate dependencies within this manifest
@@ -391,6 +418,7 @@ def _get_repo_dep_manifests(
             )
 
             if dep_resp is None or "data" not in dep_resp:
+                cleanup_safe = False
                 logger.warning(
                     "Failed to fetch dependency page for %s in repo %s; "
                     "keeping %d deps already fetched for this manifest.",
@@ -407,6 +435,7 @@ def _get_repo_dep_manifests(
                 else None
             )
             if dep_dep_manifests is None:
+                cleanup_safe = False
                 logger.warning(
                     "GitHub API timeout on dependency page for %s in repo %s; "
                     "keeping %d deps already fetched for this manifest.",
@@ -420,7 +449,20 @@ def _get_repo_dep_manifests(
             if not dep_nodes_list:
                 break
 
-            inner_deps = dep_nodes_list[0].get("dependencies") or {}
+            dep_manifest = dep_nodes_list[0]
+            if dep_manifest is None:
+                cleanup_safe = False
+                logger.warning(
+                    "GitHub returned inaccessible/null dependency manifest node "
+                    "on dependency page for %s in repo %s; keeping %d deps "
+                    "already fetched for this manifest.",
+                    blob_path,
+                    repo,
+                    len(all_dep_nodes),
+                )
+                break
+
+            inner_deps = dep_manifest.get("dependencies") or {}
             all_dep_nodes.extend(inner_deps.get("nodes") or [])
             deps_page_info = inner_deps.get("pageInfo", {})
 
@@ -434,7 +476,7 @@ def _get_repo_dep_manifests(
             len(all_dep_nodes),
         )
 
-    return manifests
+    return manifests, cleanup_safe
 
 
 def _get_dep_manifests_for_repos(
@@ -442,7 +484,7 @@ def _get_dep_manifests_for_repos(
     org: str,
     api_url: str,
     token: str,
-) -> dict[str, dict[str, Any]]:
+) -> tuple[dict[str, dict[str, Any]], bool]:
     """
     For every repo in the given list, retrieve its dependency graph manifests individually.
     Fetches one manifest at a time so that a timeout on a single heavy manifest (e.g.
@@ -451,7 +493,8 @@ def _get_dep_manifests_for_repos(
     :param org: The name of the target Github organization as string.
     :param api_url: The Github v4 API endpoint as string.
     :param token: The Github API token as string.
-    :return: A dict mapping repo URL to its dependencyGraphManifests structure.
+    :return: A tuple of repo URL to dependencyGraphManifests structure and
+        whether manifest cleanup is safe.
     """
     logger.info(
         "Fetching dependency graph manifests for %d repos in org %s.",
@@ -459,6 +502,8 @@ def _get_dep_manifests_for_repos(
         org,
     )
     result: dict[str, dict[str, Any]] = {}
+    failed_count = 0
+    cleanup_safe = True
 
     for repo in repo_raw_data:
         if repo is None:
@@ -469,7 +514,13 @@ def _get_dep_manifests_for_repos(
             continue
 
         try:
-            manifests = _get_repo_dep_manifests(token, api_url, org, repo_name)
+            manifests, repo_cleanup_safe = _get_repo_dep_manifests(
+                token,
+                api_url,
+                org,
+                repo_name,
+            )
+            cleanup_safe = cleanup_safe and repo_cleanup_safe
             if manifests:
                 result[repo_url] = {"nodes": manifests}
                 logger.debug(
@@ -478,14 +529,23 @@ def _get_dep_manifests_for_repos(
                     repo_name,
                 )
         except requests.exceptions.RequestException:
+            failed_count += 1
+            cleanup_safe = False
             logger.warning(
                 "Failed to fetch dependency manifests for repo %s; skipping.",
                 repo_name,
                 exc_info=True,
             )
 
+    if failed_count > 0:
+        logger.warning(
+            "Skipped dependency manifests for %d of %d repos in org %s due to fetch errors.",
+            failed_count,
+            len(repo_raw_data),
+            org,
+        )
     logger.debug("Fetched dependency manifests for %d repos.", len(result))
-    return result
+    return result, cleanup_safe
 
 
 def _get_repo_collaborators_inner_func(
@@ -1029,6 +1089,11 @@ def transform(
             dependency_manifests,
             repo_url,
             transformed_manifests,
+            (
+                repo_object["defaultBranchRef"]["name"]
+                if repo_object["defaultBranchRef"]
+                else None
+            ),
         )
         _transform_dependency_graph(
             dependency_manifests,
@@ -1256,6 +1321,7 @@ def _transform_dependency_manifests(
     dependency_manifests: Optional[Dict],
     repo_url: str,
     out_manifests_list: List[Dict],
+    default_branch: Optional[str] = None,
 ) -> None:
     """
     Transform GitHub dependency graph manifests into cartography manifest format.
@@ -1288,6 +1354,11 @@ def _transform_dependency_manifests(
             {
                 "id": manifest_id,
                 "blob_path": blob_path,
+                "repo_relative_path": normalize_repo_relative_path(
+                    blob_path,
+                    repo_url,
+                    default_branch,
+                ),
                 "filename": filename,
                 "dependencies_count": dependencies_count,
                 "repo_url": repo_url,
@@ -1316,6 +1387,9 @@ def _transform_dependency_graph(
         return
 
     dependencies_added = 0
+    exact_version_count = 0
+    normalized_id_count = 0
+    purl_count = 0
 
     for manifest in dependency_manifests["nodes"]:
         dependencies = manifest.get("dependencies", {})
@@ -1362,6 +1436,17 @@ def _transform_dependency_graph(
             dep_type = parsed["type"] if parsed else None
             dep_normalized_id = make_normalized_package_id(purl=dep_purl)
 
+            # Provenance: where the version came from and how confident we are
+            # in it. The lockfile fallback flips `source` to "lockfile" when it
+            # upgrades a range-only dep to an exact version.
+            dep_source = "dependency_graph"
+            if dep_version is not None:
+                dep_version_confidence = "exact"
+            elif normalized_requirements:
+                dep_version_confidence = "range"
+            else:
+                dep_version_confidence = "unknown"
+
             out_dependencies_list.append(
                 {
                     "id": dependency_id,
@@ -1380,13 +1465,275 @@ def _transform_dependency_graph(
                     "type": dep_type,
                     "purl": dep_purl,
                     "normalized_id": dep_normalized_id,
+                    "source": dep_source,
+                    "version_confidence": dep_version_confidence,
                 }
             )
             dependencies_added += 1
+            if dep_version is not None:
+                exact_version_count += 1
+            if dep_normalized_id is not None:
+                normalized_id_count += 1
+            if dep_purl is not None:
+                purl_count += 1
 
     if dependencies_added > 0:
         repo_name = repo_url.split("/")[-1] if repo_url else "repository"
-        logger.info(f"Found {dependencies_added} dependencies in {repo_name}")
+        # Integer-percentage coverage so normalization quality is observable per repo.
+        exact_pct = (exact_version_count * 100) // dependencies_added
+        normalized_pct = (normalized_id_count * 100) // dependencies_added
+        logger.info(
+            "Found %d dependencies in %s: %d exact (%d%%), %d normalized_id (%d%%), %d with purl.",
+            dependencies_added,
+            repo_name,
+            exact_version_count,
+            exact_pct,
+            normalized_id_count,
+            normalized_pct,
+            purl_count,
+        )
+
+
+# Ecosystems for which we can recover exact versions from a parseable lockfile.
+# Maps the dependency-graph ecosystem to the lockfile we fetch, the PURL type
+# used to build the normalized_id, and the parser for that lockfile.
+_LOCKFILE_BY_ECOSYSTEM: dict[str, tuple[str, str, Callable[[str], dict[str, str]]]] = {
+    "pip": ("uv.lock", "pypi", parse_uv_lock),
+    "npm": ("package-lock.json", "npm", parse_npm_lock),
+}
+
+
+def _split_owner_repo(repo_url: str) -> Optional[tuple[str, str]]:
+    """Extract (owner, repo) from a GitHub repo URL, or None if it cannot be parsed."""
+    path_parts = [p for p in urlsplit(repo_url).path.split("/") if p]
+    if len(path_parts) < 2:
+        return None
+    return path_parts[-2], path_parts[-1]
+
+
+def _lockfile_path_in_dir(manifest_dir: str, lockfile_name: str) -> str:
+    """
+    Return the repo-relative path of a lockfile in the given manifest directory.
+
+    The lockfile must live in the same directory as the manifest it locks, so a
+    manifest under `services/api/` looks for `services/api/package-lock.json`,
+    never the repo-root lockfile. This prevents attaching the root lockfile's
+    versions to a different project's dependency in a monorepo.
+    """
+    normalized_dir = manifest_dir.strip("/")
+    if not normalized_dir:
+        return lockfile_name
+    return f"{normalized_dir}/{lockfile_name}"
+
+
+def enrich_dependencies_with_lockfile_versions(
+    dependencies: List[Dict],
+    token: str,
+    api_url: str,
+) -> None:
+    """
+    Recover exact versions for range-only dependencies using repo lockfiles.
+
+    GitHub's dependency graph reports some dependencies with only a version range
+    (no exact version), so they have no `normalized_id` and cannot be projected
+    into the Package ontology. For ecosystems we can parse a lockfile for (uv.lock
+    for pip, package-lock.json for npm), fetch the lockfile that sits next to the
+    dependency's manifest and, where it pins an exact version for a range-only
+    dependency, fill in `version`, `type`, and `normalized_id`, and mark the
+    dependency as sourced from the lockfile (`source="lockfile"`,
+    `version_confidence="exact"`).
+
+    The lockfile is required to be co-located with the manifest: a manifest under
+    `services/api/package.json` only uses `services/api/package-lock.json`, never
+    the repo-root lockfile. This avoids attaching one project's versions to
+    another project's dependency in a monorepo. When no co-located lockfile
+    exists, the range-only dependency is left untouched.
+
+    A Dependency node is keyed by `{name}|{requirements}`, not by version, so the
+    same `name|requirements` referenced from several manifests loads into a single
+    shared node. If two manifests pin that same `name|requirements` to different
+    exact versions, the shared node can only hold one of them, so the enrichment
+    is declined for that id (left unresolved) rather than letting the last write
+    win and corrupt the node.
+
+    Mutates `dependencies` in place. Lockfiles are fetched at most once per
+    (repo, ecosystem, manifest directory), and only for manifests that actually
+    have range-only deps. Network and parse errors are logged and skipped.
+
+    :param dependencies: Transformed dependency dicts (mutated in place).
+    :param token: The GitHub API token.
+    :param api_url: The configured GitHub API URL (GraphQL or REST).
+    """
+    base_url = rest_api_base_url(api_url)
+
+    # Group range-only deps by (repo_url, ecosystem, manifest_dir) so each group
+    # maps to exactly one co-located lockfile. While iterating, also record the
+    # exact (type, version) already known for each shared Dependency id: a row
+    # that is already exact (e.g. another manifest pinned the same
+    # `name|requirements`) constrains what the lockfile may safely assign, since
+    # all rows with that id merge into a single node.
+    targets: dict[tuple[str, str, str], list[dict]] = defaultdict(list)
+    existing_exact: dict[str, set[tuple[str, str]]] = defaultdict(set)
+    for dep in dependencies:
+        if dep.get("version") is not None:
+            if dep.get("id") and dep.get("type"):
+                existing_exact[dep["id"]].add((dep["type"], dep["version"]))
+            continue
+        ecosystem = dep.get("ecosystem")
+        repo_url = dep.get("repo_url")
+        if ecosystem not in _LOCKFILE_BY_ECOSYSTEM or not repo_url:
+            continue
+        manifest_path = dep.get("manifest_path") or ""
+        manifest_dir = manifest_path.rsplit("/", 1)[0] if "/" in manifest_path else ""
+        targets[(repo_url, ecosystem, manifest_dir)].append(dep)
+
+    # Phase 1: resolve a candidate (type, version) for each range-only dep from
+    # its co-located lockfile, accumulating candidates per shared Dependency id.
+    candidates: dict[str, dict[str, Any]] = {}
+    for (repo_url, ecosystem, manifest_dir), range_deps in targets.items():
+        owner_repo = _split_owner_repo(repo_url)
+        if owner_repo is None:
+            continue
+        owner, repo = owner_repo
+        lockfile_name, purl_type, parse_lockfile = _LOCKFILE_BY_ECOSYSTEM[ecosystem]
+        lockfile_path = _lockfile_path_in_dir(manifest_dir, lockfile_name)
+
+        try:
+            content = get_file_content(
+                token, owner, repo, lockfile_path, base_url=base_url
+            )
+        except requests.exceptions.RequestException:
+            logger.warning(
+                "Failed to fetch %s for repo %s/%s; skipping lockfile fallback.",
+                lockfile_path,
+                owner,
+                repo,
+                exc_info=True,
+            )
+            continue
+
+        if not content:
+            continue
+
+        raw_versions = parse_lockfile(content)
+        if not raw_versions:
+            continue
+
+        # Normalize lockfile names into the same key space as our dependency names.
+        normalized_versions = {
+            normalize_package_name(name, purl_type): version
+            for name, version in raw_versions.items()
+        }
+
+        for dep in range_deps:
+            dep_name = dep.get("name") or dep.get("original_name")
+            if not dep_name:
+                continue
+            version = normalized_versions.get(
+                normalize_package_name(dep_name, purl_type)
+            )
+            if not version:
+                continue
+            entry = candidates.setdefault(
+                dep["id"], {"pairs": set(), "deps": [], "name": dep_name}
+            )
+            entry["pairs"].add((purl_type, version))
+            entry["deps"].append(dep)
+
+    # Phase 2: apply only when a shared Dependency id resolves to a single
+    # (type, version) across both the lockfile candidates and any exact version
+    # already attached to that id. Conflicting resolutions are declined to avoid
+    # corrupting the shared node.
+    upgraded = 0
+    for dep_id, entry in candidates.items():
+        resolved_pairs = entry["pairs"] | existing_exact.get(dep_id, set())
+        if len(resolved_pairs) != 1:
+            logger.warning(
+                "Lockfile fallback found conflicting versions %s for dependency '%s'; "
+                "leaving it unresolved to avoid corrupting the shared node.",
+                sorted(resolved_pairs),
+                dep_id,
+            )
+            continue
+        purl_type, version = next(iter(resolved_pairs))
+        normalized_id = make_normalized_package_id(
+            name=entry["name"],
+            version=version,
+            pkg_type=purl_type,
+        )
+        for dep in entry["deps"]:
+            dep["version"] = version
+            dep["type"] = purl_type
+            dep["normalized_id"] = normalized_id
+            dep["source"] = "lockfile"
+            dep["version_confidence"] = "exact"
+            upgraded += 1
+
+    if upgraded > 0:
+        logger.info(
+            "Recovered exact versions for %d range-only dependencies from lockfiles.",
+            upgraded,
+        )
+
+
+def reconcile_dependency_version_conflicts(dependencies: List[Dict]) -> None:
+    """
+    Clear exact versions on Dependency rows that disagree across a shared id.
+
+    A Dependency node is keyed by `{name}|{requirements}`, so every row with the
+    same id merges into one node and the last write wins. When the same id
+    resolves to more than one exact `(type, version)` (for example two manifests
+    whose dependency graph returns `pkg:npm/lodash@4.17.21` and
+    `pkg:npm/lodash@3.10.1` for the same `lodash|^4.0.0`), the merged node can
+    only hold one version and the Package ontology projection would point at the
+    wrong one for at least one manifest.
+
+    This is the final, source-agnostic guard: it runs after the dependency-graph
+    transform and the lockfile fallback, so it catches conflicts from either
+    source. For each id with conflicting exact versions, the version-derived
+    fields are cleared on every row of that id (`version`, `type`, `purl`,
+    `normalized_id` set to None; `version_confidence="unknown"`) so the shared
+    node carries no `normalized_id` and is simply not projected, rather than
+    being projected with a wrong version.
+
+    Mutates `dependencies` in place.
+
+    :param dependencies: Transformed dependency dicts (mutated in place).
+    """
+    pairs_by_id: dict[str, set[tuple[str, str]]] = defaultdict(set)
+    rows_by_id: dict[str, list[dict]] = defaultdict(list)
+    for dep in dependencies:
+        dep_id = dep.get("id")
+        if not dep_id:
+            continue
+        rows_by_id[dep_id].append(dep)
+        if dep.get("version") is not None and dep.get("type"):
+            pairs_by_id[dep_id].add((dep["type"], dep["version"]))
+
+    cleared = 0
+    for dep_id, pairs in pairs_by_id.items():
+        if len(pairs) <= 1:
+            continue
+        logger.warning(
+            "Dependency '%s' resolves to conflicting versions %s across manifests; "
+            "clearing its exact version so the shared node is not projected with a "
+            "wrong version.",
+            dep_id,
+            sorted(pairs),
+        )
+        for dep in rows_by_id[dep_id]:
+            dep["version"] = None
+            dep["type"] = None
+            dep["purl"] = None
+            dep["normalized_id"] = None
+            dep["version_confidence"] = "unknown"
+            cleared += 1
+
+    if cleared > 0:
+        logger.info(
+            "Cleared exact versions on %d dependency rows due to shared-id version conflicts.",
+            cleared,
+        )
 
 
 def _canonicalize_dependency_name(name: str, package_manager: Optional[str]) -> str:
@@ -1836,6 +2183,11 @@ def load_github_dependencies(
     """
     if not dependencies:
         return
+    # Final guard before load: rows sharing a Dependency id merge into one node,
+    # so clear any exact version that disagrees across that shared id (from the
+    # dependency graph or the lockfile fallback) to avoid projecting a wrong
+    # version into the Package ontology.
+    reconcile_dependency_version_conflicts(dependencies)
     load_data(
         neo4j_session,
         GitHubDependencySchema(),
@@ -2138,6 +2490,11 @@ def load(
         common_job_parameters["UPDATE_TAG"],
         repo_data["python_requirements"],
     )
+    load_github_dependencies(
+        neo4j_session,
+        common_job_parameters["UPDATE_TAG"],
+        repo_data["dependencies"],
+    )
     owner_org_id = next(
         (
             repo["owner_org_id"]
@@ -2145,11 +2502,6 @@ def load(
             if repo.get("owner_org_id")
         ),
         None,
-    )
-    load_github_dependencies(
-        neo4j_session,
-        common_job_parameters["UPDATE_TAG"],
-        repo_data["dependencies"],
     )
     if owner_org_id is not None:
         load_github_dependency_manifests(
@@ -2179,7 +2531,7 @@ def sync(
     github_api_key: str,
     github_url: str,
     organization: str,
-) -> None:
+) -> GitHubRepoSyncResult:
     """
     Performs the sequential tasks to collect, transform, and sync github data
     :param neo4j_session: Neo4J session for database interface
@@ -2187,7 +2539,7 @@ def sync(
     :param github_api_key: The API key to access the GitHub v4 API
     :param github_url: The URL for the GitHub v4 endpoint to use
     :param organization: The organization to query GitHub for
-    :return: Nothing
+    :return: Repository and dependency manifest data fetched for this org.
     """
     logger.info("Syncing GitHub repos")
     repos_json = get(github_api_key, github_url, organization)
@@ -2250,7 +2602,7 @@ def sync(
         )
 
     # Fetch dependency graph manifests per-repo to avoid 502s from heavy inline queries
-    dep_manifests_by_url = _get_dep_manifests_for_repos(
+    dep_manifests_by_url, dep_manifests_cleanup_safe = _get_dep_manifests_for_repos(
         repos_json,
         organization,
         github_url,
@@ -2261,6 +2613,11 @@ def sync(
             repo["dependencyGraphManifests"] = dep_manifests_by_url[repo["url"]]
 
     repo_data = transform(repos_json, direct_collabs, outside_collabs)
+    enrich_dependencies_with_lockfile_versions(
+        repo_data["dependencies"],
+        github_api_key,
+        github_url,
+    )
     load(neo4j_session, common_job_parameters, repo_data)
     owner_org_id = next(
         (
@@ -2288,7 +2645,14 @@ def sync(
         neo4j_session,
         migration_params,
     )
-    cleanup_github_manifests(neo4j_session, common_job_parameters, owner_org_id)
+    if dep_manifests_cleanup_safe:
+        cleanup_github_manifests(neo4j_session, common_job_parameters, owner_org_id)
+    else:
+        logger.warning(
+            "Skipping GitHub dependency manifest cleanup for org %s because "
+            "GitHub returned incomplete dependency manifest data.",
+            organization,
+        )
     cleanup_branch_protection_rules(neo4j_session, common_job_parameters, owner_org_id)
     if rulesets_cleanup_safe:
         cleanup_rulesets(neo4j_session, common_job_parameters, owner_org_id)
@@ -2297,3 +2661,9 @@ def sync(
             "Skipping GitHub ruleset cleanup for org %s because ruleset fetch failed.",
             organization,
         )
+
+    return GitHubRepoSyncResult(
+        repos=repo_data["repos"],
+        manifests=repo_data["manifests"],
+        manifests_cleanup_safe=dep_manifests_cleanup_safe,
+    )

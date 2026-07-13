@@ -18,6 +18,7 @@ from cartography.graph.querybuilder import build_conditional_label_queries
 from cartography.graph.querybuilder import build_create_index_queries
 from cartography.graph.querybuilder import build_create_index_queries_for_matchlink
 from cartography.graph.querybuilder import build_ingestion_query
+from cartography.graph.querybuilder import build_matchlink_cartesian_product_query
 from cartography.graph.querybuilder import build_matchlink_query
 from cartography.helpers import backoff_handler
 from cartography.helpers import batch
@@ -615,6 +616,25 @@ def write_list_of_dicts_tx(
     tx.run(query, kwargs).consume()
 
 
+def write_matchlink_cartesian_product_tx(
+    tx: neo4j.Transaction,
+    query: str,
+    **kwargs: Any,
+) -> int:
+    """
+    Execute a MatchLink Cartesian product write and return matched relationships.
+
+    The generated query returns ``count(r)`` so callers can log actual matched
+    relationships, which may differ from attempted pairs when endpoint nodes
+    are missing or matcher properties are not unique.
+    """
+    result: neo4j.BoltStatementResult = tx.run(query, kwargs)
+    record = result.single()
+    rel_count = int(record["rel_count"]) if record else 0
+    result.consume()
+    return rel_count
+
+
 def load_graph_data(
     neo4j_session: neo4j.Session,
     query: str,
@@ -905,3 +925,155 @@ def load_matchlinks(
         rel_schema.rel_label,
         rel_schema.target_node_label,
     )
+
+
+def load_matchlinks_cartesian_product(
+    neo4j_session: neo4j.Session,
+    rel_schema: CartographyRelSchema,
+    source_values: list[Any],
+    target_values: list[Any],
+    source_batch_size: int = 100,
+    target_batch_size: int = 1000,
+    progress_description: str | None = None,
+    **kwargs: Any,
+) -> int:
+    """
+    Create every relationship between two batches of existing nodes.
+
+    Use this when the input means "each source should link to each target" and
+    all relationship properties are constant kwargs. For row-specific mappings
+    or relationship properties, use ``load_matchlinks()`` instead.
+
+    The function keeps writes serial and splits the source and target value sets
+    into bounded chunks, avoiding a large Python-side list of relationship rows.
+    The defaults cap each transaction at up to 100,000 input pairs; tune them
+    down if Neo4j transaction latency or memory pressure is high, and tune them
+    up only after confirming the target database handles larger writes well.
+    Accurate pair accounting assumes each matcher value resolves to at most one
+    source node and at most one target node.
+
+    Args:
+        neo4j_session: The Neo4j session for database operations.
+        rel_schema: A simple MatchLink schema with one source matcher key and
+            one target matcher key.
+        source_values: Values for the source matcher property.
+        target_values: Values for the target matcher property.
+        source_batch_size: Number of source values per write transaction.
+        target_batch_size: Number of target values per write transaction.
+        progress_description: Optional text used in per-batch progress logs.
+        **kwargs: Query kwargs for relationship properties. Must include
+            ``_sub_resource_label`` and ``_sub_resource_id`` for cleanup.
+
+    Returns:
+        The actual number of relationships matched and merged by Neo4j.
+    """
+    if source_batch_size <= 0:
+        raise ValueError(
+            f"source_batch_size must be greater than 0, got {source_batch_size}"
+        )
+    if target_batch_size <= 0:
+        raise ValueError(
+            f"target_batch_size must be greater than 0, got {target_batch_size}"
+        )
+
+    # Preserve input order for predictable batching while avoiding repeated
+    # attempts for duplicated source or target values.
+    unique_source_values = list(dict.fromkeys(source_values))
+    unique_target_values = list(dict.fromkeys(target_values))
+    if len(unique_source_values) == 0 or len(unique_target_values) == 0:
+        return 0
+
+    # MatchLink cleanup is scoped by these relationship properties via
+    # GraphJob.from_matchlink(), so loaders must always populate them.
+    if "_sub_resource_label" not in kwargs:
+        raise ValueError(
+            f"Required kwarg '_sub_resource_label' not provided for {rel_schema.rel_label}. "
+            "This is needed for cleanup queries."
+        )
+    if "_sub_resource_id" not in kwargs:
+        raise ValueError(
+            f"Required kwarg '_sub_resource_id' not provided for {rel_schema.rel_label}. "
+            "This is needed for cleanup queries."
+        )
+
+    ensure_indexes_for_matchlinks(neo4j_session, rel_schema)
+    matchlink_query = build_matchlink_cartesian_product_query(rel_schema)
+    logger.debug(f"Matchlink Cartesian product query: {matchlink_query}")
+
+    # Bound both sides of the Cartesian product. This keeps each write transaction
+    # controlled without parallelizing Neo4j writes.
+    source_batches = list(batch(unique_source_values, size=source_batch_size))
+    target_batches = list(batch(unique_target_values, size=target_batch_size))
+    total_batches = len(source_batches) * len(target_batches)
+    total_attempted_pairs = len(unique_source_values) * len(unique_target_values)
+    description = (
+        progress_description
+        or f"{rel_schema.source_node_label} {rel_schema.rel_label} {rel_schema.target_node_label}"
+    )
+
+    relationships_loaded = 0
+    attempted_pairs = 0
+    batch_number = 0
+    for source_batch in source_batches:
+        for target_batch in target_batches:
+            batch_number += 1
+            batch_attempted_pairs = len(source_batch) * len(target_batch)
+            started_at = time.monotonic()
+            rel_count = execute_write_with_retry(
+                neo4j_session,
+                write_matchlink_cartesian_product_tx,
+                matchlink_query,
+                SourceValues=source_batch,
+                TargetValues=target_batch,
+                **kwargs,
+            )
+            relationships_loaded += rel_count
+            attempted_pairs += batch_attempted_pairs
+            logger.info(
+                "Loaded %s batch %d/%d: source_batch_size=%d target_batch_size=%d "
+                "matched_relationships=%d attempted_pairs=%d elapsed=%.2fs "
+                "cumulative_relationships=%d cumulative_attempted_pairs=%d/%d.",
+                description,
+                batch_number,
+                total_batches,
+                len(source_batch),
+                len(target_batch),
+                rel_count,
+                batch_attempted_pairs,
+                time.monotonic() - started_at,
+                relationships_loaded,
+                attempted_pairs,
+                total_attempted_pairs,
+            )
+
+    if relationships_loaded < total_attempted_pairs:
+        logger.warning(
+            "Loaded %d relationships for %d attempted %s pairs. Some source or target "
+            "nodes were not matched.",
+            relationships_loaded,
+            total_attempted_pairs,
+            description,
+        )
+    elif relationships_loaded > total_attempted_pairs:
+        logger.warning(
+            "Loaded %d relationships for only %d attempted %s pairs. A matcher key "
+            "likely resolved to multiple nodes; relationship counts are unreliable.",
+            relationships_loaded,
+            total_attempted_pairs,
+            description,
+        )
+
+    src_label = (rel_schema.source_node_label or "unknown").lower()
+    tgt_label = rel_schema.target_node_label.lower()
+    stat_handler.incr(
+        f"relationship.{src_label}.{rel_schema.rel_label.lower()}.{tgt_label}.loaded",
+        relationships_loaded,
+    )
+    logger.info(
+        "Loaded %d (%s)-[%s]->(%s) relationships",
+        relationships_loaded,
+        rel_schema.source_node_label,
+        rel_schema.rel_label,
+        rel_schema.target_node_label,
+    )
+    return relationships_loaded

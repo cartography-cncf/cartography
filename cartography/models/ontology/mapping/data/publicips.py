@@ -38,7 +38,7 @@ azure_pip_mapping = OntologyMapping(
 )
 
 
-# Scaleway - ScalewayFlexibleIp
+# Scaleway - ScalewayFlexibleIp (instances) and ScalewayElasticMetalFlexibleIp (bare metal)
 scaleway_fip_mapping = OntologyMapping(
     module_name="scaleway",
     nodes=[
@@ -47,6 +47,14 @@ scaleway_fip_mapping = OntologyMapping(
             fields=[
                 OntologyFieldMapping(
                     ontology_field="ip_address", node_field="address", required=True
+                ),
+            ],
+        ),
+        OntologyNodeMapping(
+            node_label="ScalewayElasticMetalFlexibleIp",
+            fields=[
+                OntologyFieldMapping(
+                    ontology_field="ip_address", node_field="ip_address", required=True
                 ),
             ],
         ),

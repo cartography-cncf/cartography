@@ -43,6 +43,7 @@ _aws_s3_public = Fact(
     MATCH (b:S3Bucket)
     RETURN COUNT(b) AS count
     """,
+    identity_fields=("id",),
     module=Module.AWS,
     maturity=Maturity.EXPERIMENTAL,
 )
@@ -84,6 +85,7 @@ _gcp_bucket_public = Fact(
     MATCH (b:GCPBucket)
     RETURN COUNT(b) AS count
     """,
+    identity_fields=("id",),
     module=Module.GCP,
     maturity=Maturity.EXPERIMENTAL,
 )
@@ -120,7 +122,42 @@ _azure_storage_public_blob_access = Fact(
     MATCH (bc:AzureStorageBlobContainer)
     RETURN COUNT(bc) AS count
     """,
+    identity_fields=("id",),
     module=Module.AZURE,
+    maturity=Maturity.EXPERIMENTAL,
+)
+
+
+# Scaleway Facts
+_scaleway_bucket_public = Fact(
+    id="scaleway_bucket_public",
+    name="Internet-Accessible Scaleway Object Storage Attack Surface",
+    description=(
+        "Scaleway Object Storage buckets accessible from the internet, either "
+        "through a bucket policy granting anonymous access or an ACL granting "
+        "AllUsers / AuthenticatedUsers."
+    ),
+    cypher_query="""
+    MATCH (b:ScalewayObjectStorageBucket)
+    WHERE b.public = true
+    RETURN
+        b.id AS id,
+        b.name AS name,
+        b.region AS region,
+        b.public AS public_access,
+        b.anonymous_actions AS public_actions
+    """,
+    cypher_visual_query="""
+    MATCH p=(b:ScalewayObjectStorageBucket)<-[:RESOURCE]-(prj:ScalewayProject)
+    WHERE b.public = true
+    RETURN *
+    """,
+    cypher_count_query="""
+    MATCH (b:ScalewayObjectStorageBucket)
+    RETURN COUNT(b) AS count
+    """,
+    identity_fields=("id",),
+    module=Module.SCALEWAY,
     maturity=Maturity.EXPERIMENTAL,
 )
 
@@ -140,13 +177,15 @@ object_storage_public = Rule(
     name="Public Object Storage Attack Surface",
     description=(
         "Publicly accessible object storage services such as AWS S3 buckets, "
-        "Azure Storage Blob Containers, and GCS buckets"
+        "Azure Storage Blob Containers, GCS buckets, and Scaleway Object "
+        "Storage buckets"
     ),
     output_model=ObjectStoragePublic,
     facts=(
         _aws_s3_public,
         _azure_storage_public_blob_access,
         _gcp_bucket_public,
+        _scaleway_bucket_public,
     ),
     tags=(
         "infrastructure",

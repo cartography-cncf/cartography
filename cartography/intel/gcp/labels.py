@@ -7,6 +7,7 @@ from cartography.client.core.tx import load
 from cartography.client.core.tx import run_write_query
 from cartography.models.gcp.labels.label import GCPBigtableInstanceGCPLabelSchema
 from cartography.models.gcp.labels.label import GCPBucketGCPLabelSchema
+from cartography.models.gcp.labels.label import GCPCloudFunctionGCPLabelSchema
 from cartography.models.gcp.labels.label import GCPCloudRunJobGCPLabelSchema
 from cartography.models.gcp.labels.label import GCPCloudRunServiceGCPLabelSchema
 from cartography.models.gcp.labels.label import GCPCloudSQLInstanceGCPLabelSchema
@@ -68,6 +69,12 @@ LABEL_RESOURCE_TYPE_MAPPINGS: dict[str, dict[str, Any]] = {
         "labels_field": "labels",
         "id_field": "id",
         "schema": GCPCloudRunJobGCPLabelSchema(),
+    },
+    "cloud_function": {
+        "labels_field": "labels",
+        # GCPCloudFunction.id is the function's full resource name.
+        "id_field": "name",
+        "schema": GCPCloudFunctionGCPLabelSchema(),
     },
 }
 

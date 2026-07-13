@@ -7,9 +7,11 @@ from cartography.rules.spec.model import Rule
 
 
 class DeviceSecurityPostureGapOutput(Finding):
+    device_name: str | None = None
     provider: str | None = None
     device_id: str | None = None
-    device_name: str | None = None
+    # Tailnet that owns the device; only the Tailscale fact sets it (used in identity).
+    tailnet_id: str | None = None
     user: str | None = None
     platform: str | None = None
     issue: str | None = None
@@ -83,6 +85,7 @@ _duo_endpoint_posture_gaps = Fact(
     RETURN COUNT(endpoint) AS count
     """,
     asset_id_field="device_id",
+    identity_fields=("device_id", "issue"),
     module=Module.DUO,
     maturity=Maturity.EXPERIMENTAL,
 )
@@ -130,6 +133,7 @@ _duo_phone_posture_gaps = Fact(
     RETURN COUNT(phone) AS count
     """,
     asset_id_field="device_id",
+    identity_fields=("device_id", "issue"),
     module=Module.DUO,
     maturity=Maturity.EXPERIMENTAL,
 )
@@ -197,6 +201,7 @@ _jamf_computer_posture_gaps = Fact(
     RETURN COUNT(computer) AS count
     """,
     asset_id_field="device_id",
+    identity_fields=("device_id", "issue"),
     module=Module.JAMF,
     maturity=Maturity.EXPERIMENTAL,
 )
@@ -250,6 +255,7 @@ _jamf_mobile_device_posture_gaps = Fact(
     RETURN COUNT(device) AS count
     """,
     asset_id_field="device_id",
+    identity_fields=("device_id", "issue"),
     module=Module.JAMF,
     maturity=Maturity.EXPERIMENTAL,
 )
@@ -263,9 +269,9 @@ _tailscale_device_posture_gaps = Fact(
         "EDR, MDM, or compliance posture failures from Tailscale device posture data."
     ),
     cypher_query="""
-    MATCH (device:TailscaleDevice)
+    MATCH (tailnet:TailscaleTailnet)-[:RESOURCE]->(device:TailscaleDevice)
     OPTIONAL MATCH (user:TailscaleUser)-[:OWNS]->(device)
-    WITH device, user,
+    WITH tailnet, device, user,
         [
             issue IN [
                 CASE WHEN device.update_available = true THEN ['tailscale_update_available', toString(device.update_available)] END,
@@ -297,6 +303,7 @@ _tailscale_device_posture_gaps = Fact(
     UNWIND issues AS issue
     RETURN
         'tailscale' AS provider,
+        tailnet.id AS tailnet_id,
         device.id AS device_id,
         coalesce(device.hostname, device.name, device.id) AS device_name,
         coalesce(user.email, user.login_name) AS user,
@@ -334,6 +341,10 @@ _tailscale_device_posture_gaps = Fact(
     RETURN COUNT(device) AS count
     """,
     asset_id_field="device_id",
+    # Key on tailnet + stable hostname, not device.id: Tailscale ephemeral nodes get
+    # a fresh device.id on every reconnect, which would re-create the same finding.
+    # tailnet_id keeps the identity unique across tailnets that reuse a hostname.
+    identity_fields=("tailnet_id", "device_name", "issue"),
     module=Module.TAILSCALE,
     maturity=Maturity.EXPERIMENTAL,
 )
@@ -356,7 +367,7 @@ device_security_posture_gaps = Rule(
         _tailscale_device_posture_gaps,
     ),
     tags=("device", "endpoint", "compliance", "vulnerability", "stride:tampering"),
-    version="0.1.0",
+    version="0.2.0",
     frameworks=(
         iso27001_annex_a("8.1"),
         iso27001_annex_a("8.8"),

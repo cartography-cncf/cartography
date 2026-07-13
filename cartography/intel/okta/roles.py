@@ -6,11 +6,13 @@ from typing import List
 
 import neo4j
 from okta.framework.ApiClient import ApiClient
+from okta.framework.OktaError import OktaError
 
 from cartography.client.core.tx import run_write_query
 from cartography.intel.okta.sync_state import OktaSyncState
 from cartography.intel.okta.utils import check_rate_limit
 from cartography.intel.okta.utils import create_api_client
+from cartography.intel.okta.utils import is_resource_not_found_error
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
@@ -199,14 +201,38 @@ def sync_roles(
 
     if sync_state.users:
         for user_id in sync_state.users:
-            user_roles_data = _get_user_roles(api_client, user_id, okta_org_id)
+            try:
+                user_roles_data = _get_user_roles(api_client, user_id, okta_org_id)
+            except OktaError as e:
+                # A user can be deleted between listing users and fetching its
+                # roles. Skip it instead of failing the whole sync.
+                if is_resource_not_found_error(e):
+                    logger.warning(
+                        "Okta user %s no longer exists (likely deleted during "
+                        "the sync); skipping its roles.",
+                        user_id,
+                    )
+                    continue
+                raise
             user_roles = transform_user_roles_data(user_roles_data, okta_org_id)
             if len(user_roles) > 0:
                 _load_user_role(neo4j_session, user_id, user_roles, okta_update_tag)
 
     if sync_state.groups:
         for group_id in sync_state.groups:
-            group_roles_data = _get_group_roles(api_client, group_id, okta_org_id)
+            try:
+                group_roles_data = _get_group_roles(api_client, group_id, okta_org_id)
+            except OktaError as e:
+                # A group can be deleted between listing groups and fetching its
+                # roles. Skip it instead of failing the whole sync.
+                if is_resource_not_found_error(e):
+                    logger.warning(
+                        "Okta group %s no longer exists (likely deleted during "
+                        "the sync); skipping its roles.",
+                        group_id,
+                    )
+                    continue
+                raise
             group_roles = transform_group_roles_data(group_roles_data, okta_org_id)
             if len(group_roles) > 0:
                 _load_group_role(neo4j_session, group_id, group_roles, okta_update_tag)

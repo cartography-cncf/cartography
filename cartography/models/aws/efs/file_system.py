@@ -8,6 +8,7 @@ from cartography.models.core.relationships import CartographyRelProperties
 from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
+from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import TargetNodeMatcher
 
 
@@ -53,10 +54,36 @@ class EfsFileSystemToAWSAccountRel(CartographyRelSchema):
 
 
 @dataclass(frozen=True)
+class EfsFileSystemToKMSKeyRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+# Canonical ontology edge: (:FileStorage)-[:ENCRYPTED_BY]->(:EncryptionKey).
+# Only created when the file system has a customer-managed KMS key (KmsKeyId is
+# the key ARN).
+class EfsFileSystemToKMSKeyRel(CartographyRelSchema):
+    target_node_label: str = "KMSKey"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"arn": PropertyRef("KmsKeyId")},
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "ENCRYPTED_BY"
+    properties: EfsFileSystemToKMSKeyRelProperties = (
+        EfsFileSystemToKMSKeyRelProperties()
+    )
+
+
+@dataclass(frozen=True)
 class EfsFileSystemSchema(CartographyNodeSchema):
     label: str = "EfsFileSystem"
     properties: EfsFileSystemNodeProperties = EfsFileSystemNodeProperties()
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["FileStorage"])
     sub_resource_relationship: EfsFileSystemToAWSAccountRel = (
         EfsFileSystemToAWSAccountRel()
+    )
+    other_relationships: OtherRelationships = OtherRelationships(
+        [
+            EfsFileSystemToKMSKeyRel(),
+        ]
     )

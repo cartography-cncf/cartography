@@ -2,8 +2,11 @@ from unittest.mock import MagicMock
 from unittest.mock import patch
 
 import pytest
+from google.api_core.exceptions import BadGateway
 from google.api_core.exceptions import DeadlineExceeded
+from google.api_core.exceptions import GatewayTimeout
 from google.api_core.exceptions import GoogleAPICallError
+from google.api_core.exceptions import InternalServerError
 from google.api_core.exceptions import PermissionDenied
 from googleapiclient.errors import HttpError
 
@@ -65,7 +68,8 @@ def test_discover_cloud_run_locations_prefers_provided_credentials_and_sorts():
     mock_get_gcp_credentials.assert_not_called()
 
 
-def test_discover_cloud_run_locations_returns_none_on_api_disabled():
+@pytest.mark.parametrize("category", ["api_disabled", "billing_disabled"])
+def test_discover_cloud_run_locations_returns_none_on_non_fatal_403(category):
     mock_v1_client = MagicMock()
     mock_request = MagicMock()
     mock_request.execute.side_effect = _http_error(403)
@@ -79,14 +83,43 @@ def test_discover_cloud_run_locations_returns_none_on_api_disabled():
             return_value=mock_v1_client,
         ),
         patch(
-            "cartography.intel.gcp.cloudrun.util.is_api_disabled_error",
-            return_value=True,
+            "cartography.intel.gcp.cloudrun.util.classify_gcp_http_error",
+            return_value=category,
         ),
     ):
         result = discover_cloud_run_locations(
             client=MagicMock(),
             project_id="test-project",
             credentials=MagicMock(),
+        )
+
+    assert result is None
+
+
+def test_discover_cloud_run_locations_service_fallback_returns_none_on_billing_disabled():
+    mock_client = MagicMock()
+    mock_services_request = MagicMock()
+    mock_services_request.execute.side_effect = _http_error(403)
+    services = (
+        mock_client.projects.return_value.locations.return_value.services.return_value
+    )
+    services.list.return_value = mock_services_request
+
+    with (
+        patch(
+            "cartography.intel.gcp.cloudrun.util.build_client",
+            side_effect=RuntimeError(
+                "GCP credentials are not available; cannot build client."
+            ),
+        ),
+        patch(
+            "cartography.intel.gcp.cloudrun.util.classify_gcp_http_error",
+            return_value="billing_disabled",
+        ),
+    ):
+        result = discover_cloud_run_locations(
+            client=mock_client,
+            project_id="test-project",
         )
 
     assert result is None
@@ -246,6 +279,19 @@ def test_build_cloud_run_resource_retry_retries_deadline_exceeded(mocker):
 
     assert result == [{"id": "service-1"}]
     assert calls == 2
+
+
+def test_build_cloud_run_resource_retry_predicate_matches_transient_5xx():
+    retry = build_cloud_run_resource_retry(
+        resource_type="jobs",
+        location="projects/p/locations/us",
+        project_id="p",
+    )
+
+    assert retry._predicate(InternalServerError("500 Internal error"))
+    assert retry._predicate(BadGateway("502 bad gateway"))
+    assert retry._predicate(GatewayTimeout("504 gateway timeout"))
+    assert not retry._predicate(PermissionDenied("403 forbidden"))
 
 
 def test_list_cloud_run_resources_for_location_uses_retry_for_deadline_exceeded(

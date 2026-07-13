@@ -1,4 +1,3 @@
-from cartography.rules.data.frameworks.subimage import subimage_coverage
 from cartography.rules.spec.model import Fact
 from cartography.rules.spec.model import Finding
 from cartography.rules.spec.model import Maturity
@@ -23,7 +22,7 @@ _subimage_module_not_configured_fact = Fact(
     WHERE m.is_configured = false
     MATCH (app:ThirdPartyApp)
     WHERE toLower(app._ont_name) = toLower(m.id)
-    RETURN m.name AS module_name, app.name AS app_name, app.source AS app_source
+    RETURN m.name AS module_name, app._ont_name AS app_name, app._ont_source AS app_source
     ORDER BY m.name
     """,
     cypher_visual_query="""
@@ -40,6 +39,7 @@ _subimage_module_not_configured_fact = Fact(
     WHERE toLower(app._ont_name) = toLower(m.id)
     RETURN count(m) AS count
     """,
+    identity_fields=("module_name", "app_name", "app_source"),
     module=Module.SUBIMAGE,
     maturity=Maturity.EXPERIMENTAL,
 )
@@ -67,7 +67,6 @@ subimage_module_not_configured = Rule(
     ),
     facts=(_subimage_module_not_configured_fact,),
     version="0.1.0",
-    frameworks=(subimage_coverage("1.1"),),
 )
 
 # =============================================================================
@@ -104,6 +103,7 @@ _subimage_framework_disabled_module_enabled_fact = Fact(
     WHERE m.is_configured = true AND f.scope = m.id
     RETURN count(f) AS count
     """,
+    identity_fields=("framework_name", "framework_scope"),
     module=Module.SUBIMAGE,
     maturity=Maturity.EXPERIMENTAL,
 )
@@ -120,17 +120,16 @@ subimage_framework_disabled_module_enabled = Rule(
     name="SubImage Framework Disabled While Module Enabled",
     description=(
         "Detects SubImage frameworks that are disabled while their corresponding "
-        "module is configured and active, indicating a compliance framework gap."
+        "module is configured and active, indicating a coverage gap."
     ),
     output_model=SubImageFrameworkDisabledModuleEnabledOutput,
     tags=(
         "subimage",
         "coverage",
-        "compliance",
+        "misconfiguration",
     ),
     facts=(_subimage_framework_disabled_module_enabled_fact,),
     version="0.1.0",
-    frameworks=(subimage_coverage("1.2"),),
 )
 
 # =============================================================================
@@ -150,9 +149,13 @@ _container_image_not_found_fact = Fact(
     WHERE NOT (c)-[:RESOLVED_IMAGE]->(:Image)
       AND NOT coalesce(c.image, '') CONTAINS 'amazon/cloudwatch-agent'
       AND NOT coalesce(c.name, '') STARTS WITH 'aws-guardduty-agent'
+      // Kubernetes system namespaces run vendor images that are never published
+      // to customer registries, so an unresolved image there is expected, not a gap.
+      AND NOT coalesce(c.namespace, '') IN ['kube-system', 'calico-system', 'tigera-operator']
     OPTIONAL MATCH (c)<-[:HAS_CONTAINER]-(cluster)
     RETURN c.name AS container_name, c.id AS container_id,
-           c.image AS image, cluster.name AS cluster_name
+           c.image AS image, cluster.name AS cluster_name,
+           c._ont_source AS source
     ORDER BY c.name
     """,
     cypher_visual_query="""
@@ -160,6 +163,9 @@ _container_image_not_found_fact = Fact(
     WHERE NOT (c)-[:RESOLVED_IMAGE]->(:Image)
       AND NOT coalesce(c.image, '') CONTAINS 'amazon/cloudwatch-agent'
       AND NOT coalesce(c.name, '') STARTS WITH 'aws-guardduty-agent'
+      // Kubernetes system namespaces run vendor images that are never published
+      // to customer registries, so an unresolved image there is expected, not a gap.
+      AND NOT coalesce(c.namespace, '') IN ['kube-system', 'calico-system', 'tigera-operator']
     OPTIONAL MATCH (c)<-[:HAS_CONTAINER]-(cluster)
     RETURN *
     """,
@@ -168,8 +174,12 @@ _container_image_not_found_fact = Fact(
     WHERE NOT (c)-[:RESOLVED_IMAGE]->(:Image)
       AND NOT coalesce(c.image, '') CONTAINS 'amazon/cloudwatch-agent'
       AND NOT coalesce(c.name, '') STARTS WITH 'aws-guardduty-agent'
+      // Kubernetes system namespaces run vendor images that are never published
+      // to customer registries, so an unresolved image there is expected, not a gap.
+      AND NOT coalesce(c.namespace, '') IN ['kube-system', 'calico-system', 'tigera-operator']
     RETURN count(c) AS count
     """,
+    identity_fields=("container_id",),
     module=Module.CROSS_CLOUD,
     maturity=Maturity.EXPERIMENTAL,
 )
@@ -192,13 +202,13 @@ container_image_not_found = Rule(
     ),
     output_model=ContainerImageNotFoundOutput,
     tags=(
+        "subimage",
         "container",
         "coverage",
         "infrastructure",
     ),
     facts=(_container_image_not_found_fact,),
-    version="0.1.0",
-    frameworks=(subimage_coverage("2.1"),),
+    version="0.2.0",
 )
 
 # =============================================================================
@@ -217,7 +227,11 @@ _aws_account_not_synced_fact = Fact(
     MATCH (a:AWSAccount)
     OPTIONAL MATCH (a)-[:RESOURCE]->(n)
     WITH a, count(n) AS resource_count
-    WHERE resource_count <= 1
+    // <= 1 (not 0): every configured account carries an AWSRootPrincipal RESOURCE
+    // edge, so a root-principal-only account is the "discovered but not ingested"
+    // case. The inscope filter drops out-of-scope org stubs (0 resources, not synced
+    // by design) that previously produced false positives.
+    WHERE resource_count <= 1 AND coalesce(a.inscope, false) = true
     RETURN a.id AS account_id, a.name AS account_name, resource_count
     ORDER BY a.name
     """,
@@ -225,24 +239,33 @@ _aws_account_not_synced_fact = Fact(
     MATCH (a:AWSAccount)
     OPTIONAL MATCH (a)-[:RESOURCE]->(n)
     WITH a, count(n) AS resource_count
-    WHERE resource_count <= 1
+    // <= 1 (not 0): every configured account carries an AWSRootPrincipal RESOURCE
+    // edge, so a root-principal-only account is the "discovered but not ingested"
+    // case. The inscope filter drops out-of-scope org stubs (0 resources, not synced
+    // by design) that previously produced false positives.
+    WHERE resource_count <= 1 AND coalesce(a.inscope, false) = true
     RETURN a
     """,
     cypher_count_query="""
     MATCH (a:AWSAccount)
     OPTIONAL MATCH (a)-[:RESOURCE]->(n)
     WITH a, count(n) AS resource_count
-    WHERE resource_count <= 1
+    // <= 1 (not 0): every configured account carries an AWSRootPrincipal RESOURCE
+    // edge, so a root-principal-only account is the "discovered but not ingested"
+    // case. The inscope filter drops out-of-scope org stubs (0 resources, not synced
+    // by design) that previously produced false positives.
+    WHERE resource_count <= 1 AND coalesce(a.inscope, false) = true
     RETURN count(a) AS count
     """,
+    identity_fields=("account_id",),
     module=Module.AWS,
     maturity=Maturity.EXPERIMENTAL,
 )
 
 
 class AWSAccountNotSyncedOutput(Finding):
-    account_id: str | None = None
     account_name: str | None = None
+    account_id: str | None = None
     resource_count: int | None = None
 
 
@@ -257,13 +280,14 @@ aws_account_not_synced = Rule(
     ),
     output_model=AWSAccountNotSyncedOutput,
     tags=(
+        "subimage",
         "aws",
+        "coverage",
         "infrastructure",
         "misconfiguration",
     ),
     facts=(_aws_account_not_synced_fact,),
-    version="0.1.0",
-    frameworks=(subimage_coverage("2.2"),),
+    version="0.2.0",
 )
 
 # =============================================================================
@@ -301,14 +325,15 @@ _repository_without_slsa_provenance_fact = Fact(
     WHERE r.match_method <> 'provenance'
     RETURN count(DISTINCT repo) AS count
     """,
+    identity_fields=("repo_id",),
     module=Module.SUBIMAGE,
     maturity=Maturity.EXPERIMENTAL,
 )
 
 
 class RepositoryWithoutSLSAProvenanceOutput(Finding):
-    repo_id: str | None = None
     repo_name: str | None = None
+    repo_id: str | None = None
     repo_kind: str | None = None
     image_count: int | None = None
     match_methods: list[str] | None = None
@@ -332,5 +357,4 @@ repository_without_slsa_provenance = Rule(
     ),
     facts=(_repository_without_slsa_provenance_fact,),
     version="0.1.0",
-    frameworks=(subimage_coverage("3.1"),),
 )
