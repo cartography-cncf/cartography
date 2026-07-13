@@ -45,6 +45,9 @@
 ```{include} ../modules/bigfix/schema.md
 ```
 
+```{include} ../modules/circleci/schema.md
+```
+
 ```{include} ../modules/cloudflare/schema.md
 ```
 
@@ -97,6 +100,9 @@
 ```
 
 ```{include} ../modules/keycloak/schema.md
+```
+
+```{include} ../modules/salesforce/schema.md
 ```
 
 ```{include} ../modules/kubernetes/schema.md

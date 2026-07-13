@@ -1,3 +1,47 @@
+import logging
+
+logger = logging.getLogger(__name__)
+
+
+def _resolve_microsoft_credentials_config(
+    *,
+    microsoft_tenant_id: str | None,
+    microsoft_client_id: str | None,
+    microsoft_client_secret: str | None,
+    entra_tenant_id: str | None,
+    entra_client_id: str | None,
+    entra_client_secret: str | None,
+) -> tuple[str | None, str | None, str | None]:
+    microsoft_values = (
+        microsoft_tenant_id,
+        microsoft_client_id,
+        microsoft_client_secret,
+    )
+    entra_values = (entra_tenant_id, entra_client_id, entra_client_secret)
+
+    has_microsoft_values = any(value is not None for value in microsoft_values)
+    has_entra_values = any(value is not None for value in entra_values)
+    if has_microsoft_values and has_entra_values:
+        raise ValueError(
+            "Cannot mix Microsoft credential config fields "
+            "(`microsoft_tenant_id`, `microsoft_client_id`, "
+            "`microsoft_client_secret`) with deprecated Entra credential "
+            "config fields (`entra_tenant_id`, `entra_client_id`, "
+            "`entra_client_secret`). Use the Microsoft fields instead.",
+        )
+
+    if has_entra_values:
+        logger.warning(
+            "DEPRECATED: `entra_tenant_id`/`entra_client_id`/"
+            "`entra_client_secret` will be removed in Cartography v1.0.0; "
+            "use `microsoft_tenant_id`/`microsoft_client_id`/"
+            "`microsoft_client_secret` instead.",
+        )
+        return entra_values
+
+    return microsoft_values
+
+
 def _resolve_report_source_config(
     *,
     module: str,
@@ -92,12 +136,21 @@ class Config:
     :param azure_client_secret: Client Secret for connecting in a Service Principal Authentication approach. Optional.
     :type azure_subscription_id: str | None
     :param azure_subscription_id: The Azure Subscription ID to sync.
+    :type microsoft_tenant_id: str
+    :param microsoft_tenant_id: Tenant Id for connecting to Microsoft Graph via Service Principal Authentication. Optional.
+    :type microsoft_client_id: str
+    :param microsoft_client_id: Client Id for connecting to Microsoft Graph via Service Principal Authentication. Optional.
+    :type microsoft_client_secret: str
+    :param microsoft_client_secret: Client Secret for connecting to Microsoft Graph via Service Principal Authentication. Optional.
     :type entra_tenant_id: str
-    :param entra_tenant_id: Tenant Id for connecting in a Service Principal Authentication approach. Optional.
+    :param entra_tenant_id: DEPRECATED compatibility alias for microsoft_tenant_id. Optional.
     :type entra_client_id: str
-    :param entra_client_id: Client Id for connecting in a Service Principal Authentication approach. Optional.
+    :param entra_client_id: DEPRECATED compatibility alias for microsoft_client_id. Optional.
     :type entra_client_secret: str
-    :param entra_client_secret: Client Secret for connecting in a Service Principal Authentication approach. Optional.
+    :param entra_client_secret: DEPRECATED compatibility alias for microsoft_client_secret. Optional.
+        Entra compatibility fields are resolved only when ``Config`` is constructed;
+        assigning to an ``entra_*`` attribute later does not update the canonical
+        ``microsoft_*`` attribute used by ingestion.
     :type aws_requested_syncs: str
     :param aws_requested_syncs: Comma-separated list of AWS resources to sync. Optional.
     :type aws_guardduty_severity_threshold: str
@@ -228,6 +281,13 @@ class Config:
     :param vercel_team_id: Vercel team ID to sync. Optional.
     :type vercel_base_url: str
     :param vercel_base_url: Vercel API base URL. Optional.
+    :type circleci_token: str
+    :param circleci_token: CircleCI personal API token. Optional.
+    :type circleci_base_url: str
+    :param circleci_base_url: CircleCI API v2 base URL. Optional.
+    :type circleci_project_slugs: list
+    :param circleci_project_slugs: CircleCI project slugs to sync (project-scoped
+        resources cannot be enumerated via API v2). Optional.
     :type cloudflare_token: string
     :param cloudflare_token: Cloudflare API key. Optional.
     :type openai_apikey: string
@@ -252,6 +312,14 @@ class Config:
     :param databricks_client_id: Databricks OAuth M2M client ID. Optional.
     :type databricks_client_secret: str
     :param databricks_client_secret: Databricks OAuth M2M client secret. Optional.
+    :type databricks_account_id: str
+    :param databricks_account_id: Databricks account ID (AWS / GCP account console). Optional.
+    :type databricks_account_host: str
+    :param databricks_account_host: Databricks account API host, e.g. https://accounts.cloud.databricks.com. Optional.
+    :type databricks_account_client_id: str
+    :param databricks_account_client_id: Databricks account-level OAuth M2M client ID. Optional.
+    :type databricks_account_client_secret: str
+    :param databricks_account_client_secret: Databricks account-level OAuth M2M client secret. Optional.
     :type docker_scout_results_dir: str
     :param docker_scout_results_dir: Local directory containing Docker Scout recommendation text reports. Optional.
     :type docker_scout_source: str
@@ -311,6 +379,16 @@ class Config:
     :param keycloak_realm: Keycloak realm for authentication (all realms will be synced). Optional.
     :type keycloak_url: str
     :param keycloak_url: Keycloak base URL, e.g. https://keycloak.example.com. Optional.
+    :type salesforce_login_url: str
+    :param salesforce_login_url: Salesforce OAuth login URL (e.g. https://login.salesforce.com or a My Domain URL). Optional.
+    :type salesforce_client_id: str
+    :param salesforce_client_id: Salesforce connected app consumer key. Optional.
+    :type salesforce_client_secret: str
+    :param salesforce_client_secret: Salesforce connected app consumer secret, for the client credentials flow. Optional.
+    :type salesforce_username: str
+    :param salesforce_username: Salesforce username to impersonate, for the JWT bearer flow. Optional.
+    :type salesforce_private_key: str
+    :param salesforce_private_key: PEM-encoded private key, for the JWT bearer flow. Optional.
     :type slack_token: str
     :param slack_token: Slack API token. Optional.
     :type slack_teams: list[str]
@@ -446,6 +524,9 @@ class Config:
         vercel_token=None,
         vercel_team_id=None,
         vercel_base_url=None,
+        circleci_token=None,
+        circleci_base_url=None,
+        circleci_project_slugs=None,
         cloudflare_token=None,
         openai_apikey=None,
         openai_org_id=None,
@@ -461,6 +542,10 @@ class Config:
         databricks_token=None,
         databricks_client_id=None,
         databricks_client_secret=None,
+        databricks_account_id=None,
+        databricks_account_host=None,
+        databricks_account_client_id=None,
+        databricks_account_client_secret=None,
         docker_scout_source=None,
         docker_scout_results_dir=None,
         docker_scout_s3_bucket=None,
@@ -494,6 +579,11 @@ class Config:
         keycloak_client_secret=None,
         keycloak_realm=None,
         keycloak_url=None,
+        salesforce_login_url="https://login.salesforce.com",
+        salesforce_client_id=None,
+        salesforce_client_secret=None,
+        salesforce_username=None,
+        salesforce_private_key=None,
         slack_token=None,
         slack_teams=None,
         slack_channels_memberships=False,
@@ -522,6 +612,9 @@ class Config:
         neo4j_connection_acquisition_timeout=None,
         _warn_on_legacy_report_source=True,
         aws_organization_account_ids=None,
+        microsoft_tenant_id=None,
+        microsoft_client_id=None,
+        microsoft_client_secret=None,
     ):
         self.neo4j_uri = neo4j_uri
         self.neo4j_user = neo4j_user
@@ -551,9 +644,24 @@ class Config:
         self.azure_client_id = azure_client_id
         self.azure_client_secret = azure_client_secret
         self.azure_subscription_id = azure_subscription_id
-        self.entra_tenant_id = entra_tenant_id
-        self.entra_client_id = entra_client_id
-        self.entra_client_secret = entra_client_secret
+        (
+            self.microsoft_tenant_id,
+            self.microsoft_client_id,
+            self.microsoft_client_secret,
+        ) = _resolve_microsoft_credentials_config(
+            microsoft_tenant_id=microsoft_tenant_id,
+            microsoft_client_id=microsoft_client_id,
+            microsoft_client_secret=microsoft_client_secret,
+            entra_tenant_id=entra_tenant_id,
+            entra_client_id=entra_client_id,
+            entra_client_secret=entra_client_secret,
+        )
+        # DEPRECATED: constructor-time compatibility snapshots for legacy Entra
+        # config names. Later assignments do not propagate to microsoft_*.
+        # Remove in v1.0.0.
+        self.entra_tenant_id = self.microsoft_tenant_id
+        self.entra_client_id = self.microsoft_client_id
+        self.entra_client_secret = self.microsoft_client_secret
         self.aws_requested_syncs = aws_requested_syncs
         self.aws_guardduty_severity_threshold = aws_guardduty_severity_threshold
         self.analysis_job_directory = analysis_job_directory
@@ -624,6 +732,9 @@ class Config:
         self.vercel_token = vercel_token
         self.vercel_team_id = vercel_team_id
         self.vercel_base_url = vercel_base_url
+        self.circleci_token = circleci_token
+        self.circleci_base_url = circleci_base_url
+        self.circleci_project_slugs = circleci_project_slugs
         self.cloudflare_token = cloudflare_token
         self.openai_apikey = openai_apikey
         self.openai_org_id = openai_org_id
@@ -639,6 +750,10 @@ class Config:
         self.databricks_token = databricks_token
         self.databricks_client_id = databricks_client_id
         self.databricks_client_secret = databricks_client_secret
+        self.databricks_account_id = databricks_account_id
+        self.databricks_account_host = databricks_account_host
+        self.databricks_account_client_id = databricks_account_client_id
+        self.databricks_account_client_secret = databricks_account_client_secret
         # DEPRECATED: `*_results_dir` and `*_s3_*` compat shims; removed in Cartography v1.0.0.
         self.docker_scout_source = _resolve_report_source_config(
             module="docker_scout",
@@ -687,6 +802,11 @@ class Config:
         self.keycloak_client_secret = keycloak_client_secret
         self.keycloak_realm = keycloak_realm
         self.keycloak_url = keycloak_url
+        self.salesforce_login_url = salesforce_login_url
+        self.salesforce_client_id = salesforce_client_id
+        self.salesforce_client_secret = salesforce_client_secret
+        self.salesforce_username = salesforce_username
+        self.salesforce_private_key = salesforce_private_key
         self.slack_token = slack_token
         self.slack_teams = slack_teams
         self.slack_channels_memberships = slack_channels_memberships

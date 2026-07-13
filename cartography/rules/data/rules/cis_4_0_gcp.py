@@ -691,9 +691,9 @@ _gcp_subnet_flow_logs_disabled = Fact(
     MATCH (project:GCPProject)-[:RESOURCE]->(subnet:GCPSubnet)
     WHERE coalesce(subnet.purpose, 'PRIVATE') = 'PRIVATE'
       AND (
-        coalesce(subnet.flow_logs_enabled, false) = false
+        subnet.flow_logs_enabled = false
         OR subnet.flow_logs_aggregation_interval <> 'INTERVAL_5_SEC'
-        OR coalesce(subnet.flow_logs_sampling, 0.0) <> 1.0
+        OR subnet.flow_logs_sampling <> 1.0
         OR subnet.flow_logs_metadata <> 'INCLUDE_ALL_METADATA'
         OR subnet.flow_logs_filter_expr IS NOT NULL
       )
@@ -717,9 +717,9 @@ _gcp_subnet_flow_logs_disabled = Fact(
     MATCH p=(project:GCPProject)-[:RESOURCE]->(subnet:GCPSubnet)
     WHERE coalesce(subnet.purpose, 'PRIVATE') = 'PRIVATE'
       AND (
-        coalesce(subnet.flow_logs_enabled, false) = false
+        subnet.flow_logs_enabled = false
         OR subnet.flow_logs_aggregation_interval <> 'INTERVAL_5_SEC'
-        OR coalesce(subnet.flow_logs_sampling, 0.0) <> 1.0
+        OR subnet.flow_logs_sampling <> 1.0
         OR subnet.flow_logs_metadata <> 'INCLUDE_ALL_METADATA'
         OR subnet.flow_logs_filter_expr IS NOT NULL
       )
@@ -743,7 +743,7 @@ gcp_subnets_without_compliant_vpc_flow_logs = Rule(
     output_model=SubnetFlowLogsDisabledOutput,
     facts=(_gcp_subnet_flow_logs_disabled,),
     tags=("networking", "subnet", "flow-logs", "logging"),
-    version="1.0.0",
+    version="1.0.1",
     references=CIS_REFERENCES,
     frameworks=(
         cis_gcp("3.8"),

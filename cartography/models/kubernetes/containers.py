@@ -39,6 +39,10 @@ class KubernetesContainerNodeProperties(CartographyNodeProperties):
     added_capabilities: PropertyRef = PropertyRef("added_capabilities")
     dropped_capabilities: PropertyRef = PropertyRef("dropped_capabilities")
     host_ports: PropertyRef = PropertyRef("host_ports")
+    container_ports: PropertyRef = PropertyRef("container_ports")
+    container_port_numbers: PropertyRef = PropertyRef(
+        "container_port_numbers", extra_index=True
+    )
     architecture_normalized: PropertyRef = PropertyRef("architecture_normalized")
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 

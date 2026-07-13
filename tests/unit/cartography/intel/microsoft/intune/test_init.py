@@ -10,9 +10,9 @@ from cartography.intel.microsoft.intune.reports import IntuneReportExportError
 
 def _build_config() -> MagicMock:
     config = MagicMock()
-    config.entra_tenant_id = "tenant-id"
-    config.entra_client_id = "client-id"
-    config.entra_client_secret = "client-secret"
+    config.microsoft_tenant_id = "tenant-id"
+    config.microsoft_client_id = "client-id"
+    config.microsoft_client_secret = "client-secret"
     config.update_tag = 1234567890
     return config
 

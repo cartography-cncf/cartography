@@ -24,6 +24,13 @@ KUBERNETES_CONTAINER_DATA = [
         "cpu_request": "100m",
         "memory_limit": "256Mi",
         "cpu_limit": "500m",
+        "host_ports": [],
+        "container_ports": json.dumps(
+            [
+                {"container_port": 8080, "protocol": "TCP", "name": "http"},
+            ]
+        ),
+        "container_port_numbers": [8080],
     },
     {
         "name": "my-service-pod-container",
@@ -41,6 +48,9 @@ KUBERNETES_CONTAINER_DATA = [
         "cpu_request": "50m",
         "memory_limit": "128Mi",
         "cpu_limit": "200m",
+        "host_ports": [],
+        "container_ports": json.dumps([]),
+        "container_port_numbers": [],
     },
 ]
 

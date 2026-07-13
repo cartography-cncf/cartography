@@ -1,16 +1,15 @@
-# Microsoft Entra (formerly Azure AD)
+---
+orphan: true
+---
 
+# Microsoft Entra Compatibility Page
 
-```{toctree}
-config
-schema
-examples
-```
+The `microsoft` module is now the canonical top-level module for Microsoft Graph ingestion. Entra ID is documented as a Microsoft submodule.
 
+Use the Microsoft docs for current configuration, schema, and examples:
 
-Microsoft Entra (formerly Azure Active Directory) is Microsoft's cloud-based identity and access management service. Cartography can ingest data from Entra to provide visibility into users, groups, applications, service principals, and tenants in your organization.
+- [Microsoft configuration](../microsoft/config.md)
+- [Microsoft schema](../microsoft/schema.md)
+- [Microsoft examples](../microsoft/examples.md)
 
-This module also includes Microsoft Intune support, ingesting managed devices, detected apps, and compliance policies. Intune uses the same Entra credentials and requires the following additional Microsoft Graph API permissions:
-
-- `DeviceManagementManagedDevices.Read.All` — for managed devices and detected apps
-- `DeviceManagementConfiguration.Read.All` — for compliance policies
+The legacy `entra` module selector and `--entra-*` credential flags remain accepted as deprecated compatibility aliases until Cartography v1.0.0.

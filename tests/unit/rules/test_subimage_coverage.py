@@ -22,7 +22,10 @@ SUBIMAGE_COVERAGE_RULES = (
 
 
 def test_subimage_coverage_rules_registered_without_frameworks():
-    expected_versions = {"container_image_not_found": "0.2.0"}
+    expected_versions = {
+        "container_image_not_found": "0.2.0",
+        "aws_account_not_synced": "0.2.0",
+    }
     for rule in SUBIMAGE_COVERAGE_RULES:
         assert rule.id in RULES
         assert RULES[rule.id] is rule

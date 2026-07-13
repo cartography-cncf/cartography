@@ -430,6 +430,23 @@ socketdev_mapping = OntologyMapping(
     ],
 )
 
+# Salesforce
+salesforce_mapping = OntologyMapping(
+    module_name="salesforce",
+    nodes=[
+        OntologyNodeMapping(
+            node_label="SalesforceOrganization",
+            fields=[
+                OntologyFieldMapping(
+                    ontology_field="name", node_field="name", required=True
+                ),
+                # status: Not available
+                # domain: Not available
+            ],
+        ),
+    ],
+)
+
 # Vercel
 vercel_mapping = OntologyMapping(
     module_name="vercel",
@@ -447,9 +464,24 @@ vercel_mapping = OntologyMapping(
     ],
 )
 
+circleci_mapping = OntologyMapping(
+    module_name="circleci",
+    nodes=[
+        OntologyNodeMapping(
+            node_label="CircleCIOrganization",
+            fields=[
+                OntologyFieldMapping(
+                    ontology_field="name", node_field="name", required=True
+                ),
+            ],
+        ),
+    ],
+)
+
 TENANTS_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     "airbyte": airbyte_mapping,
     "aws": aws_mapping,
+    "circleci": circleci_mapping,
     "azure": azure_mapping,
     "cloudflare": cloudflare_mapping,
     "crowdstrike": crowdstrike_mapping,
@@ -459,6 +491,7 @@ TENANTS_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     "github": github_mapping,
     "googleworkspace": googleworkspace_mapping,
     "keycloak": keycloak_mapping,
+    "salesforce": salesforce_mapping,
     "okta": okta_mapping,
     "openai": openai_mapping,
     "scaleway": scaleway_mapping,
@@ -479,6 +512,15 @@ TENANTS_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
                 fields=[
                     OntologyFieldMapping(
                         ontology_field="name", node_field="host", required=True
+                    ),
+                    OntologyFieldMapping(ontology_field="domain", node_field="host"),
+                ],
+            ),
+            OntologyNodeMapping(
+                node_label="DatabricksAccount",
+                fields=[
+                    OntologyFieldMapping(
+                        ontology_field="name", node_field="account_id", required=True
                     ),
                     OntologyFieldMapping(ontology_field="domain", node_field="host"),
                 ],
