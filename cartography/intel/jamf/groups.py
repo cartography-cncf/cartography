@@ -136,7 +136,7 @@ def cleanup(
         common_job_parameters,
     ).run(neo4j_session)
 
-    # DEPRECATED: remove orphaned pre-migration computer groups without RESOURCE rel.
+    # DEPRECATED: orphaned pre-migration computer group cleanup will be removed in v1.0.0.
     run_write_query(
         neo4j_session,
         """
