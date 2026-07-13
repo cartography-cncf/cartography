@@ -454,6 +454,25 @@ def test_s3_sns_relationship(neo4j_session):
         ("bucket-1", "arn:aws:sns:us-east-1:123456789012:test-topic"),
     }
 
+    cartography.intel.aws.s3._cleanup_s3_notifications(
+        neo4j_session,
+        "bucket-1",
+        TEST_UPDATE_TAG + 1,
+    )
+
+    assert (
+        check_rels(
+            neo4j_session,
+            "S3Bucket",
+            "id",
+            "SNSTopic",
+            "arn",
+            "NOTIFIES",
+            rel_direction_right=True,
+        )
+        == set()
+    )
+
 
 def test_load_s3_bucket_logging(neo4j_session):
     """
