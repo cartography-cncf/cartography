@@ -13,6 +13,7 @@ import botocore.exceptions
 import neo4j
 
 from cartography.config import Config
+from cartography.intel.aws.label_migrations import migrate_legacy_aws_labels
 from cartography.intel.aws.util.botocore_config import create_boto3_client
 from cartography.intel.aws.util.common import parse_and_validate_aws_account_ids
 from cartography.intel.aws.util.common import parse_and_validate_aws_regions
@@ -95,6 +96,8 @@ def _sync_one_account(
 ) -> None:
     if aioboto3_session is None:
         aioboto3_session = aioboto3.Session()
+
+    migrate_legacy_aws_labels(neo4j_session, current_aws_account_id)
 
     # Autodiscover the regions supported by the account unless the user has specified the regions to sync.
     if not regions:

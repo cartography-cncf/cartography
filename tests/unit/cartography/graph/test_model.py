@@ -6,9 +6,11 @@ from typing import Set
 import pytest
 
 import cartography.models
+from cartography.intel.aws.label_migrations import AWS_LABEL_MIGRATIONS
 from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeProperties
 from cartography.models.core.nodes import CartographyNodeSchema
+from cartography.models.core.nodes import ConditionalNodeLabel
 from cartography.models.core.relationships import CartographyRelProperties
 from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
@@ -17,6 +19,22 @@ from cartography.models.core.relationships import MatchLinkSubResource
 from tests.utils import load_models
 
 logger = logging.getLogger(__name__)
+
+AWS_LEGACY_PRIMARY_NODE_LABELS: Set[str] = {
+    migration.old_label for migration in AWS_LABEL_MIGRATIONS
+}
+
+# Relationship endpoints that are intentionally supplied by legacy loaders,
+# dynamic permission nodes, or optional modules rather than node schemas.
+RELATION_ONLY_NODE_LABELS: Set[str] = {
+    "AWSVpnGateway",
+    "AzureResource",
+    "AzureVirtualHub",
+    "EntraPrincipal",
+    "GCPResource",
+    "OktaGroup",
+    "OktaUser",
+}
 
 
 def test_model_objects_naming_convention():
@@ -46,6 +64,61 @@ def test_model_objects_naming_convention():
                     f"Relationship properties {element.__name__}: name must end with 'RelProperties' or 'MatchLinkProperties'."
                 )
     assert not errors, "Naming convention violations:\n  - " + "\n  - ".join(errors)
+
+
+def test_aws_primary_node_labels_use_provider_prefix():
+    errors: List[str] = []
+    for module_name, element in load_models(cartography.models):
+        if module_name != "cartography.models.aws":
+            continue
+        if not issubclass(element, CartographyNodeSchema):
+            continue
+        if element.label.startswith("AWS"):
+            continue
+        if element.label in AWS_LEGACY_PRIMARY_NODE_LABELS:
+            continue
+        errors.append(
+            f"{element.__name__} uses unprefixed AWS label {element.label!r}.",
+        )
+
+    assert not errors, "AWS node label prefix violations:\n  - " + "\n  - ".join(errors)
+
+
+def test_relationship_endpoint_labels_are_registered():
+    model_objects = list(load_models(cartography.models))
+    registered_labels: Set[str] = set(RELATION_ONLY_NODE_LABELS)
+
+    for _, element in model_objects:
+        if not issubclass(element, CartographyNodeSchema):
+            continue
+        node_schema = element()
+        registered_labels.add(node_schema.label)
+        if node_schema.extra_node_labels is None:
+            continue
+        for extra_label in node_schema.extra_node_labels.labels:
+            if isinstance(extra_label, ConditionalNodeLabel):
+                registered_labels.add(extra_label.label)
+            else:
+                registered_labels.add(extra_label)
+
+    errors: List[str] = []
+    for module_name, element in model_objects:
+        if not issubclass(element, CartographyRelSchema):
+            continue
+        rel_schema = element()
+        for endpoint_name, label in (
+            ("source", rel_schema.source_node_label),
+            ("target", rel_schema.target_node_label),
+        ):
+            if label is not None and label not in registered_labels:
+                errors.append(
+                    f"{module_name}.{element.__name__} has unknown "
+                    f"{endpoint_name} label {label!r}.",
+                )
+
+    assert not errors, "Unknown relationship endpoint labels:\n  - " + "\n  - ".join(
+        errors
+    )
 
 
 # Node labels whose sub_resource_relationship intentionally uses a non-RESOURCE
