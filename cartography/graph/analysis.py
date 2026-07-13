@@ -78,6 +78,15 @@ class SetRelationshipProperty:
 
 
 @dataclass(frozen=True)
+class SetRelationshipPropertyIfMissing:
+    """Set one relationship property only when the match already excludes existing values."""
+
+    rel: str
+    property: str
+    value: CypherValue
+
+
+@dataclass(frozen=True)
 class AddToSet:
     """Append a value to a list-like node property if it is not already present."""
 
@@ -152,6 +161,7 @@ StatementEffect = (
     SetProperty
     | SetProperties
     | SetRelationshipProperty
+    | SetRelationshipPropertyIfMissing
     | AddToSet
     | AddValuesToSet
     | AddRelationship

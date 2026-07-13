@@ -1,8 +1,13 @@
 import json
+import pkgutil
+import re
 from pathlib import Path
+from types import ModuleType
+from typing import Iterator
 
 import pytest
 
+import cartography.analysis
 from cartography.graph.analysis import AddRelationship
 from cartography.graph.analysis import AddToSet
 from cartography.graph.analysis import AddValuesToSet
@@ -16,12 +21,67 @@ from cartography.graph.analysis import RelationshipEffect
 from cartography.graph.analysis import RelationshipPropertyEffect
 from cartography.graph.analysis import SetProperty
 from cartography.graph.analysis import SetRelationshipProperty
+from cartography.graph.analysis import SetRelationshipPropertyIfMissing
 from cartography.graph.analysisbuilder import compile_query
 from cartography.graph.analysisbuilder import properties_set
 from cartography.graph.analysisbuilder import relationships_added
 from cartography.graph.analysisbuilder import to_graph_job
 from cartography.graph.job import GraphJob
 from tests.unit.cartography.graph.helpers import clean_query_list
+
+MUTATING_CYPHER_RE = re.compile(
+    r"\b(CREATE|DELETE|DETACH|MERGE|REMOVE|SET)\b",
+    re.IGNORECASE,
+)
+
+
+def _analysis_modules() -> Iterator[ModuleType]:
+    for module_info in pkgutil.walk_packages(
+        cartography.analysis.__path__,
+        prefix=f"{cartography.analysis.__name__}.",
+    ):
+        if module_info.ispkg:
+            continue
+        module = __import__(module_info.name, fromlist=["_"])
+        yield module
+
+
+def _analysis_jobs() -> Iterator[AnalysisJob]:
+    seen: set[int] = set()
+    for module in _analysis_modules():
+        for value in vars(module).values():
+            jobs: tuple[AnalysisJob, ...]
+            if isinstance(value, AnalysisJob):
+                jobs = (value,)
+            elif isinstance(value, tuple) and all(
+                isinstance(item, AnalysisJob) for item in value
+            ):
+                jobs = value
+            else:
+                continue
+
+            for job in jobs:
+                if id(job) in seen:
+                    continue
+                seen.add(id(job))
+                yield job
+
+
+def test_typed_analysis_jobs_declare_effects_and_keep_match_queries_read_only():
+    for job in _analysis_jobs():
+        for index, statement in enumerate(job.statements):
+            assert statement.query is None, (
+                f"{job.short_name or job.name} statement {index} uses raw query; "
+                "write/cleanup-only analysis must stay as JSON."
+            )
+            assert (
+                statement.effects
+            ), f"{job.short_name or job.name} statement {index} has no effects."
+            assert statement.match is not None
+            assert not MUTATING_CYPHER_RE.search(statement.match), (
+                f"{job.short_name or job.name} statement {index} has a mutating "
+                "match query; mutations must be declared as effects."
+            )
 
 
 def test_relationship_job_appends_cleanup_statement():
@@ -412,7 +472,7 @@ def test_relationship_property_effect_requires_properties():
         RelationshipPropertyEffect("Image", "PACKAGED_FROM", ())
 
 
-def test_supply_chain_source_file_does_not_cleanup_coowned_dockerfile_path():
+def test_relationship_property_if_missing_does_not_claim_cleanup_ownership():
     # Arrange
     from cartography.analysis.ontology.analysis import SUPPLY_CHAIN_SOURCE_FILE
 
@@ -420,9 +480,32 @@ def test_supply_chain_source_file_does_not_cleanup_coowned_dockerfile_path():
     graph_job = to_graph_job(SUPPLY_CHAIN_SOURCE_FILE)
 
     # Assert
+    assert properties_set(SUPPLY_CHAIN_SOURCE_FILE) == ()
     assert len(graph_job.statements) == 1
+    assert graph_job.statements[0].query == (
+        "MATCH (i:Image)-[r:PACKAGED_FROM]->() "
+        "WHERE r.dockerfile_path IS NULL AND i.source_file IS NOT NULL\n"
+        "SET r.dockerfile_path = i.source_file"
+    )
     assert "REMOVE r.dockerfile_path" not in graph_job.statements[0].query
-    assert "WHERE r.dockerfile_path IS NULL" in graph_job.statements[0].query
+
+
+def test_statement_compiles_relationship_property_if_missing_effect():
+    statement = AnalysisStatement(
+        match="MATCH (i:Image)-[r:PACKAGED_FROM]->() WHERE r.dockerfile_path IS NULL",
+        effects=(
+            SetRelationshipPropertyIfMissing(
+                "r",
+                "dockerfile_path",
+                RawCypher("i.source_file"),
+            ),
+        ),
+    )
+
+    assert compile_query(statement) == (
+        "MATCH (i:Image)-[r:PACKAGED_FROM]->() WHERE r.dockerfile_path IS NULL\n"
+        "SET r.dockerfile_path = i.source_file"
+    )
 
 
 def test_analysis_job_requires_statements():

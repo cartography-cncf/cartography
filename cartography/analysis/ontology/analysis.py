@@ -3,6 +3,8 @@ from cartography.graph.analysis import AnalysisJob
 from cartography.graph.analysis import AnalysisStatement
 from cartography.graph.analysis import RawCypher
 from cartography.graph.analysis import SetProperty
+from cartography.graph.analysis import SetRelationshipPropertyIfMissing
+from cartography.graph.analysis import Var
 
 AWS_USER_PROJECTION = AnalysisJob(
     name="Ontology - AWS user projection",
@@ -153,15 +155,6 @@ DEVICE_LINKING_JOBS = (
     DEVICE_AFFECTS_S1_FINDING,
     DEVICE_AFFECTS_CROWDSTRIKE_FINDING,
 )
-DNS_RECORD_GCP_RECORD_SET_ONT_VALUE_CLEANUP = AnalysisJob(
-    name="Ontology - GCPRecordSet stale _ont_value cleanup",
-    short_name="ontology_dnsrecords_gcp_record_set_ont_value_cleanup",
-    statements=(
-        AnalysisStatement(
-            query="MATCH (n:GCPRecordSet) WHERE n._ont_value IS NOT NULL REMOVE n._ont_value",
-        ),
-    ),
-)
 DNS_RECORD_TO_KUBERNETES_INGRESS = AnalysisJob(
     name="Ontology - DNSRecord to KubernetesIngress linking",
     short_name="ontology_dnsrecords_kubernetes_ingress",
@@ -205,10 +198,7 @@ DNS_RECORD_TARGETS = (
     ("AzureAppService", "default_host_name", "AND NOT dns:GCPRecordSet", ""),
     ("AzureFunctionApp", "default_host_name", "AND NOT dns:GCPRecordSet", ""),
 )
-DNS_RECORD_LINKING_JOBS = (
-    DNS_RECORD_GCP_RECORD_SET_ONT_VALUE_CLEANUP,
-    DNS_RECORD_TO_KUBERNETES_INGRESS,
-) + tuple(
+DNS_RECORD_LINKING_JOBS = (DNS_RECORD_TO_KUBERNETES_INGRESS,) + tuple(
     (
         AnalysisJob(
             name=f"Ontology - DNSRecord to {target_label} linking",
@@ -398,6 +388,72 @@ PUBLIC_IP_POINTS_TO_DEVICE = AnalysisJob(
         ),
     ),
 )
+TAILSCALE_DEVICE_INSTANCE_LINKING = AnalysisJob(
+    name="Tailscale device to cloud instance linking",
+    short_name="tailscale_device_instance_linking",
+    cleanup_iterationsize=1000,
+    statements=(
+        AnalysisStatement(
+            comment="Create IS_INSTANCE edges from one-to-one TailscaleDevice and cloud ComputeInstance candidates.",
+            match=(
+                "CALL { "
+                "MATCH (instance:ComputeInstance) "
+                "WHERE instance:EC2Instance OR instance:GCPInstance "
+                "WITH instance, [instance.hostname, instance.instancename, instance.publicdnsname] AS raw_keys "
+                "UNWIND raw_keys AS raw_key "
+                "WITH instance, raw_key "
+                "WHERE raw_key IS NOT NULL AND trim(toString(raw_key)) <> '' "
+                "WITH instance, toLower(trim(toString(raw_key))) AS full_key "
+                "WITH instance, [full_key, split(full_key, '.')[0]] AS keys "
+                "UNWIND keys AS instance_key "
+                "WITH instance, instance_key "
+                "WHERE instance_key <> '' "
+                "MATCH (device:TailscaleDevice) "
+                "WITH instance_key, instance, device, [device.hostname, device.name] AS raw_device_keys "
+                "UNWIND raw_device_keys AS raw_device_key "
+                "WITH instance_key, instance, device, raw_device_key "
+                "WHERE raw_device_key IS NOT NULL AND trim(toString(raw_device_key)) <> '' "
+                "WITH instance_key, instance, device, toLower(trim(toString(raw_device_key))) AS full_device_key "
+                "WITH instance_key, instance, device, [full_device_key, split(full_device_key, '.')[0]] AS device_keys "
+                "UNWIND device_keys AS device_key "
+                "WITH device, instance "
+                "WHERE device_key = instance_key "
+                "RETURN DISTINCT device, instance "
+                "UNION "
+                "MATCH (device:TailscaleDevice) "
+                "WHERE device.client_connectivity_endpoints IS NOT NULL "
+                "UNWIND device.client_connectivity_endpoints AS endpoint "
+                "WITH device, endpoint "
+                "WHERE endpoint =~ '^\\\\d+\\\\.\\\\d+\\\\.\\\\d+\\\\.\\\\d+:\\\\d+$' "
+                "WITH device, split(endpoint, ':')[0] AS ip "
+                "WHERE ip <> '' "
+                "MATCH (instance:ComputeInstance) "
+                "WHERE instance:EC2Instance OR instance:GCPInstance "
+                "WITH device, ip, instance, [instance.publicipaddress, instance.privateipaddress, instance.public_ip, instance.private_ip] AS raw_ips "
+                "UNWIND raw_ips AS raw_ip "
+                "WITH device, instance, ip, raw_ip "
+                "WHERE raw_ip IS NOT NULL AND trim(toString(raw_ip)) = ip "
+                "RETURN DISTINCT device, instance "
+                "} "
+                "WITH device, collect(DISTINCT instance) AS candidate_instances "
+                "WHERE size(candidate_instances) = 1 "
+                "WITH device, candidate_instances[0] AS instance "
+                "WITH instance, collect(DISTINCT device) AS candidate_devices "
+                "WHERE size(candidate_devices) = 1 "
+                "WITH candidate_devices[0] AS device, instance"
+            ),
+            effects=(
+                AddRelationship(
+                    "device",
+                    "IS_INSTANCE",
+                    "instance",
+                    source_label="TailscaleDevice",
+                    target_label="ComputeInstance",
+                ),
+            ),
+        ),
+    ),
+)
 USER_HAS_AWS_SSO_ACCOUNT = AnalysisJob(
     name="Ontology - AWSSSOUser HAS_ACCOUNT User linking",
     short_name="ontology_users_aws_sso",
@@ -553,7 +609,14 @@ SUPPLY_CHAIN_SOURCE_FILE = AnalysisJob(
     short_name="supply_chain_source_file",
     statements=(
         AnalysisStatement(
-            query="MATCH (i:Image)-[r:PACKAGED_FROM]->() WHERE r.dockerfile_path IS NULL AND i.source_file IS NOT NULL SET r.dockerfile_path = i.source_file",
+            match="MATCH (i:Image)-[r:PACKAGED_FROM]->() WHERE r.dockerfile_path IS NULL AND i.source_file IS NOT NULL",
+            effects=(
+                SetRelationshipPropertyIfMissing(
+                    "r",
+                    "dockerfile_path",
+                    Var("i.source_file"),
+                ),
+            ),
         ),
     ),
 )

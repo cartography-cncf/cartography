@@ -22,6 +22,7 @@ from cartography.graph.analysis import RelationshipPropertyEffect
 from cartography.graph.analysis import SetProperties
 from cartography.graph.analysis import SetProperty
 from cartography.graph.analysis import SetRelationshipProperty
+from cartography.graph.analysis import SetRelationshipPropertyIfMissing
 from cartography.graph.analysis import StatementEffect
 from cartography.graph.analysis import Var
 from cartography.graph.job import GraphJob
@@ -111,7 +112,7 @@ def _cleanup_effects(job: AnalysisJob) -> tuple[AnalysisEffect, ...]:
     cleanups: list[AnalysisEffect] = []
     for effect in _effects(job):
         cleanup = _cleanup_effect(effect)
-        if cleanup not in cleanups:
+        if cleanup and cleanup not in cleanups:
             cleanups.append(cleanup)
     return tuple(cleanups)
 
@@ -162,6 +163,11 @@ def _(effect: SetProperties) -> str:
 
 @_compile_effect.register
 def _(effect: SetRelationshipProperty) -> str:
+    return f"SET {effect.rel}.{effect.property} = {_cypher_literal(effect.value)}"
+
+
+@_compile_effect.register
+def _(effect: SetRelationshipPropertyIfMissing) -> str:
     return f"SET {effect.rel}.{effect.property} = {_cypher_literal(effect.value)}"
 
 
@@ -266,7 +272,7 @@ def _(effect: SetRelationshipProperty) -> RelationshipPropertyEffect:
 
 
 @singledispatch
-def _cleanup_effect(effect: StatementEffect) -> AnalysisEffect:
+def _cleanup_effect(effect: StatementEffect) -> AnalysisEffect | None:
     raise TypeError(f"Unsupported analysis effect: {effect!r}")
 
 
@@ -293,6 +299,11 @@ def _(effect: AddValuesToSet) -> PropertyEffect:
 @_cleanup_effect.register
 def _(effect: SetRelationshipProperty) -> RelationshipPropertyEffect:
     return cast(RelationshipPropertyEffect, _property_effect(effect))
+
+
+@_cleanup_effect.register
+def _(_: SetRelationshipPropertyIfMissing) -> None:
+    return None
 
 
 @_cleanup_effect.register

@@ -10,6 +10,7 @@ import cartography.intel.ontology.publicips
 import cartography.intel.ontology.users
 from cartography.analysis.aibom.analysis import AIBOM_RUNS_ON_CONTAINER
 from cartography.analysis.ontology.analysis import RESOLVED_IMAGE_JOBS
+from cartography.analysis.ontology.analysis import TAILSCALE_DEVICE_INSTANCE_LINKING
 from cartography.config import Config
 from cartography.intel.ontology.deprecated_indexes import (
     drop_deprecated_ontology_indexes,
@@ -78,8 +79,8 @@ def run(neo4j_session: neo4j.Session, config: Config) -> None:
     )
     # Link Tailscale endpoint devices to the cloud compute instances they identify as.
     # Runs after provider syncs so EC2/GCP ComputeInstance nodes are available.
-    run_analysis_job(
-        "tailscale_device_instance_linking.json",
+    run_typed_analysis_job(
+        TAILSCALE_DEVICE_INSTANCE_LINKING,
         neo4j_session,
         common_job_parameters,
     )
