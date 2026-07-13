@@ -18,7 +18,7 @@ class ElasticIPAddressNodeProperties(CartographyNodeProperties):
     region: PropertyRef = PropertyRef("Region", set_in_kwargs=True)
     public_ip: PropertyRef = PropertyRef("PublicIp", extra_index=True)
     instance_id: PropertyRef = PropertyRef("InstanceId")
-    allocation_id: PropertyRef = PropertyRef("AllocationId")
+    allocation_id: PropertyRef = PropertyRef("AllocationId", extra_index=True)
     association_id: PropertyRef = PropertyRef("AssociationId")
     domain: PropertyRef = PropertyRef("Domain")
     network_interface_id: PropertyRef = PropertyRef("NetworkInterfaceId")

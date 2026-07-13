@@ -43,6 +43,7 @@ def test_sync_elastic_ip_addresses(mock_get_elastic_ip_addresses, neo4j_session)
         ["id", "public_ip", "private_ip_address", "region"],
     ) == {
         ("192.168.1.1", "192.168.1.1", "192.168.1.2", "us-east-1"),
+        ("192.168.1.101", "192.168.1.101", "192.168.1.102", "us-east-1"),
     }
 
     # Assert - Relationships (AWSAccount)-[RESOURCE]->(ElasticIPAddress)
@@ -56,4 +57,5 @@ def test_sync_elastic_ip_addresses(mock_get_elastic_ip_addresses, neo4j_session)
         rel_direction_right=True,
     ) == {
         (TEST_ACCOUNT_ID, "192.168.1.1"),
+        (TEST_ACCOUNT_ID, "192.168.1.101"),
     }
