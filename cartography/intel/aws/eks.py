@@ -83,6 +83,7 @@ def _list_access_entry_principal_arns(client: Any, cluster_name: str) -> list[st
 
 
 @timeit
+@aws_handle_regions
 def get_eks_access_entries(
     boto3_session: boto3.session.Session,
     region: str,
@@ -331,10 +332,7 @@ def transform_access_entries(
     transformed_entries = []
     for entry in access_entries:
         transformed_entry = entry.copy()
-        transformed_entry["id"] = entry.get(
-            "accessEntryArn",
-            f"{cluster_arn}/access-entry/{entry['principalArn']}",
-        )
+        transformed_entry["id"] = f"{cluster_arn}/access-entry/{entry['principalArn']}"
         transformed_entry["cluster_arn"] = cluster_arn
         transformed_entries.append(transformed_entry)
     return transformed_entries

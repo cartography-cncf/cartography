@@ -80,9 +80,11 @@ def test_sync_eks_clusters(
     assert check_nodes(
         neo4j_session,
         "EKSAccessEntry",
-        ["id", "principal_arn", "username", "type"],
+        ["id", "arn", "principal_arn", "username", "type"],
     ) == {
         (
+            "arn:aws:eks:eu-west-1:111111111111:cluster/cluster_1/"
+            "access-entry/arn:aws:iam::111111111111:role/EKSAdminRole",
             "arn:aws:eks:eu-west-1:111111111111:access-entry/"
             "cluster_1/role/111111111111/EKSAdminRole/ae-12345",
             "arn:aws:iam::111111111111:role/EKSAdminRole",
@@ -92,6 +94,7 @@ def test_sync_eks_clusters(
         (
             "arn:aws:eks:eu-west-1:111111111111:cluster/cluster_1/"
             "access-entry/arn:aws:iam::111111111111:role/EKSListOnlyRole",
+            None,
             "arn:aws:iam::111111111111:role/EKSListOnlyRole",
             None,
             None,
@@ -103,8 +106,8 @@ def test_sync_eks_clusters(
         RETURN entry.kubernetes_groups AS groups
         """,
         id=(
-            "arn:aws:eks:eu-west-1:111111111111:access-entry/"
-            "cluster_1/role/111111111111/EKSAdminRole/ae-12345"
+            "arn:aws:eks:eu-west-1:111111111111:cluster/cluster_1/"
+            "access-entry/arn:aws:iam::111111111111:role/EKSAdminRole"
         ),
     )
     assert groups_result.single()["groups"] == ["system:masters"]
@@ -154,8 +157,8 @@ def test_sync_eks_clusters(
         rel_direction_right=False,
     ) == {
         (
-            "arn:aws:eks:eu-west-1:111111111111:access-entry/"
-            "cluster_1/role/111111111111/EKSAdminRole/ae-12345",
+            "arn:aws:eks:eu-west-1:111111111111:cluster/cluster_1/"
+            "access-entry/arn:aws:iam::111111111111:role/EKSAdminRole",
             "000000000000",
         ),
         (
@@ -174,8 +177,8 @@ def test_sync_eks_clusters(
     ) == {
         (
             "arn:aws:eks:eu-west-1:111111111111:cluster/cluster_1",
-            "arn:aws:eks:eu-west-1:111111111111:access-entry/"
-            "cluster_1/role/111111111111/EKSAdminRole/ae-12345",
+            "arn:aws:eks:eu-west-1:111111111111:cluster/cluster_1/"
+            "access-entry/arn:aws:iam::111111111111:role/EKSAdminRole",
         ),
         (
             "arn:aws:eks:eu-west-1:111111111111:cluster/cluster_1",
@@ -193,8 +196,8 @@ def test_sync_eks_clusters(
     ) == {
         (
             "arn:aws:iam::111111111111:role/EKSAdminRole",
-            "arn:aws:eks:eu-west-1:111111111111:access-entry/"
-            "cluster_1/role/111111111111/EKSAdminRole/ae-12345",
+            "arn:aws:eks:eu-west-1:111111111111:cluster/cluster_1/"
+            "access-entry/arn:aws:iam::111111111111:role/EKSAdminRole",
         ),
         (
             "arn:aws:iam::111111111111:role/EKSListOnlyRole",

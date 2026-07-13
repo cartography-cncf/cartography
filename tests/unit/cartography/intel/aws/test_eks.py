@@ -125,6 +125,7 @@ def test_transform_eks_clusters_access_config_authentication_mode():
 
 
 def test_transform_access_entries_adds_id_and_cluster_arn():
+    # Arrange
     access_entries = [
         {
             "clusterName": "prod-cluster",
@@ -139,16 +140,18 @@ def test_transform_access_entries_adds_id_and_cluster_arn():
         },
     ]
 
+    # Act
     transformed = eks.transform_access_entries(
         access_entries,
         "arn:aws:eks:us-east-1:123456789012:cluster/prod-cluster",
     )
 
+    # Assert
     assert transformed == [
         {
             "id": (
-                "arn:aws:eks:us-east-1:123456789012:access-entry/"
-                "prod-cluster/role/123456789012/EKSAdmin/ae-12345"
+                "arn:aws:eks:us-east-1:123456789012:cluster/prod-cluster/"
+                "access-entry/arn:aws:iam::123456789012:role/EKSAdmin"
             ),
             "cluster_arn": "arn:aws:eks:us-east-1:123456789012:cluster/prod-cluster",
             "clusterName": "prod-cluster",
@@ -165,6 +168,7 @@ def test_transform_access_entries_adds_id_and_cluster_arn():
 
 
 def test_transform_access_entries_uses_stable_id_when_detail_is_missing():
+    # Arrange
     access_entries = [
         {
             "clusterName": "prod-cluster",
@@ -172,11 +176,13 @@ def test_transform_access_entries_uses_stable_id_when_detail_is_missing():
         },
     ]
 
+    # Act
     transformed = eks.transform_access_entries(
         access_entries,
         "arn:aws:eks:us-east-1:123456789012:cluster/prod-cluster",
     )
 
+    # Assert
     assert transformed == [
         {
             "id": (
@@ -240,6 +246,40 @@ def test_get_eks_access_entries_uses_list_output_when_describe_is_denied(
         }
     ]
     assert "loading minimal access entry data" in caplog.text
+
+
+@patch("cartography.intel.aws.eks.create_boto3_client")
+def test_get_eks_access_entries_skips_regional_access_error(
+    mock_create_client,
+    caplog,
+):
+    # Arrange
+    client = MagicMock()
+    paginator = MagicMock()
+    paginator.paginate.side_effect = ClientError(
+        {
+            "Error": {
+                "Code": "AuthFailure",
+                "Message": "AWS was not able to validate the provided credentials",
+            }
+        },
+        "ListAccessEntries",
+    )
+    client.get_paginator.return_value = paginator
+    mock_create_client.return_value = client
+
+    # Act
+    with caplog.at_level("WARNING"):
+        result = eks.get_eks_access_entries(
+            MagicMock(),
+            "us-east-1",
+            "prod-cluster",
+            "API_AND_CONFIG_MAP",
+        )
+
+    # Assert
+    assert result == []
+    assert "Skipping" in caplog.text
 
 
 def test_transform_eks_clusters_valid_pem_certificate_authority_data():
