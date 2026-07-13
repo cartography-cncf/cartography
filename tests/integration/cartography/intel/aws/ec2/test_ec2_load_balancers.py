@@ -4,6 +4,7 @@ from unittest.mock import patch
 import cartography.intel.aws.ec2
 import tests.data.aws.ec2.load_balancers
 from cartography.intel.aws.ec2.instances import sync_ec2_instances
+from cartography.intel.aws.ec2.load_balancers import _migrate_legacy_loadbalancer_labels
 from cartography.intel.aws.ec2.load_balancers import sync_load_balancers
 from tests.data.aws.ec2.instances import DESCRIBE_INSTANCES
 from tests.data.aws.ec2.load_balancers import DESCRIBE_LOAD_BALANCERS
@@ -609,3 +610,55 @@ def test_load_balancer_v2s_skips_missing_dnsname(neo4j_session, *args):
     actual = check_nodes(neo4j_session, "AWSLoadBalancerV2", ["id"])
     assert valid_lb_id in actual
     assert invalid_lb_id not in actual
+
+
+def test_migrate_legacy_loadbalancer_labels_is_scoped_and_idempotent(
+    neo4j_session,
+):
+    # Arrange
+    other_account_id = "111111111111"
+    record = neo4j_session.run(
+        """
+        CREATE (account:AWSAccount{id: $account_id})
+        CREATE (other:AWSAccount{id: $other_account_id})
+        CREATE (lb:LoadBalancer{id: 'legacy-classic'})
+        CREATE (other_lb:LoadBalancer{id: 'other-legacy-classic'})
+        CREATE (listener:ELBListener{id: 'legacy-listener'})
+        CREATE (account)-[:RESOURCE]->(lb)
+        CREATE (other)-[:RESOURCE]->(other_lb)
+        CREATE (lb)-[:ELB_LISTENER]->(listener)
+        RETURN elementId(lb) AS element_id
+        """,
+        account_id=TEST_ACCOUNT_ID,
+        other_account_id=other_account_id,
+    ).single()
+    original_element_id = record["element_id"]
+
+    # Act
+    _migrate_legacy_loadbalancer_labels(neo4j_session, TEST_ACCOUNT_ID)
+    _migrate_legacy_loadbalancer_labels(neo4j_session, TEST_ACCOUNT_ID)
+
+    # Assert
+    migrated = neo4j_session.run(
+        """
+        MATCH (:AWSAccount{id: $account_id})-[:RESOURCE]->(lb{id: 'legacy-classic'})
+        RETURN elementId(lb) AS element_id,
+               lb:AWSLoadBalancer AS has_aws_label,
+               lb:LoadBalancer AS has_semantic_label,
+               count { (lb)-[:ELB_LISTENER]->(:ELBListener) } AS listener_count
+        """,
+        account_id=TEST_ACCOUNT_ID,
+    ).single()
+    assert migrated["element_id"] == original_element_id
+    assert migrated["has_aws_label"] is True
+    assert migrated["has_semantic_label"] is True
+    assert migrated["listener_count"] == 1
+
+    other_migrated = neo4j_session.run(
+        """
+        MATCH (:AWSAccount{id: $account_id})-[:RESOURCE]->(lb{id: 'other-legacy-classic'})
+        RETURN lb:AWSLoadBalancer AS has_aws_label
+        """,
+        account_id=other_account_id,
+    ).single()
+    assert other_migrated["has_aws_label"] is False

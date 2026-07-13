@@ -13,6 +13,7 @@ from botocore.exceptions import ReadTimeoutError
 
 from cartography.client.core.tx import load
 from cartography.client.core.tx import load_matchlinks
+from cartography.client.core.tx import run_write_query
 from cartography.graph.job import GraphJob
 from cartography.intel.aws.util.botocore_config import create_boto3_client
 from cartography.intel.aws.util.botocore_config import get_botocore_config
@@ -68,29 +69,21 @@ def _is_retryable_elbv2_client_error(error: ClientError) -> bool:
     )
 
 
-# DEPRECATED: Remove this migration function when releasing v1
-def _migrate_legacy_loadbalancerv2_labels(neo4j_session: neo4j.Session) -> None:
-    """One-time migration: relabel LoadBalancerV2 → AWSLoadBalancerV2."""
-    check_query = """
-    MATCH (:AWSAccount)-[:RESOURCE]->(n:LoadBalancerV2)
-    WHERE NOT n:AWSLoadBalancerV2 AND NOT n:LoadBalancer
-    RETURN count(n) as legacy_count
-    """
-    result = neo4j_session.run(check_query)
-    legacy_count = result.single()["legacy_count"]
-
-    if legacy_count == 0:
-        return
-
-    logger.info(f"Migrating {legacy_count} legacy LoadBalancerV2 nodes...")
-    migration_query = """
-    MATCH (:AWSAccount)-[:RESOURCE]->(n:LoadBalancerV2)
-    WHERE NOT n:AWSLoadBalancerV2 AND NOT n:LoadBalancer
-    SET n:AWSLoadBalancerV2
-    RETURN count(n) as migrated
-    """
-    result = neo4j_session.run(migration_query)
-    logger.info(f"Migrated {result.single()['migrated']} nodes")
+# DEPRECATED: This compatibility migration will be removed in v1.0.0.
+def _migrate_legacy_loadbalancerv2_labels(
+    neo4j_session: neo4j.Session,
+    current_aws_account_id: str,
+) -> None:
+    """Add AWS and semantic labels to legacy ELBv2 nodes in this account."""
+    run_write_query(
+        neo4j_session,
+        """
+        MATCH (:AWSAccount{id: $AWS_ID})-[:RESOURCE]->(n:LoadBalancerV2)
+        WHERE NOT n:AWSLoadBalancerV2 OR NOT n:LoadBalancer
+        SET n:AWSLoadBalancerV2:LoadBalancer
+        """,
+        AWS_ID=current_aws_account_id,
+    )
 
 
 @timeit
@@ -550,7 +543,10 @@ def sync_load_balancer_v2s(
     IP target MatchLinks are deferred to sync_load_balancer_v2_expose (Phase 2)
     so that EC2PrivateIp nodes created by ec2:network_interface exist first.
     """
-    _migrate_legacy_loadbalancerv2_labels(neo4j_session)
+    _migrate_legacy_loadbalancerv2_labels(
+        neo4j_session,
+        current_aws_account_id,
+    )
     cleanup_safe = True
 
     for region in regions:

@@ -198,7 +198,8 @@ class LoadBalancerV2Schema(CartographyNodeSchema):
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
         [
             "LoadBalancer",  # Ontology node label
-            "LoadBalancerV2",  # DEPRECATED: for backwards compatibility
+            # DEPRECATED: LoadBalancerV2 will be removed in v1.0.0.
+            "LoadBalancerV2",
         ]
     )
     sub_resource_relationship: LoadBalancerV2ToAWSAccountRel = (
