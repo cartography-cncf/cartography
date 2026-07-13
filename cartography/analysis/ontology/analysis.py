@@ -416,7 +416,7 @@ TAILSCALE_DEVICE_INSTANCE_LINKING = AnalysisJob(
                 "WITH instance_key, instance, device, toLower(trim(toString(raw_device_key))) AS full_device_key "
                 "WITH instance_key, instance, device, [full_device_key, split(full_device_key, '.')[0]] AS device_keys "
                 "UNWIND device_keys AS device_key "
-                "WITH device, instance "
+                "WITH device_key, instance_key, device, instance "
                 "WHERE device_key = instance_key "
                 "RETURN DISTINCT device, instance "
                 "UNION "
