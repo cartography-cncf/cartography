@@ -12,23 +12,58 @@ from cartography.models.core.relationships import TargetNodeMatcher
 
 @dataclass(frozen=True)
 class VercelProjectNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("id")
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
-    name: PropertyRef = PropertyRef("name", extra_index=True)
-    framework: PropertyRef = PropertyRef("framework")
-    node_version: PropertyRef = PropertyRef("nodeVersion")
-    build_command: PropertyRef = PropertyRef("buildCommand")
-    dev_command: PropertyRef = PropertyRef("devCommand")
-    install_command: PropertyRef = PropertyRef("installCommand")
-    output_directory: PropertyRef = PropertyRef("outputDirectory")
-    public_source: PropertyRef = PropertyRef("publicSource")
-    serverless_function_region: PropertyRef = PropertyRef("serverlessFunctionRegion")
-    created_at: PropertyRef = PropertyRef("createdAt")
-    updated_at: PropertyRef = PropertyRef("updatedAt")
-    auto_expose_system_envs: PropertyRef = PropertyRef("autoExposeSystemEnvs")
-    root_directory: PropertyRef = PropertyRef("rootDirectory")
-    git_fork_protection: PropertyRef = PropertyRef("gitForkProtection")
-    skew_protection_max_age: PropertyRef = PropertyRef("skewProtectionMaxAge")
+    id: PropertyRef = PropertyRef("id", description="Project ID.")
+    lastupdated: PropertyRef = PropertyRef(
+        "lastupdated", set_in_kwargs=True, description="Timestamp of the last update."
+    )
+    name: PropertyRef = PropertyRef(
+        "name", extra_index=True, description="Project name."
+    )
+    framework: PropertyRef = PropertyRef(
+        "framework", description="Framework preset used by the project."
+    )
+    node_version: PropertyRef = PropertyRef(
+        "nodeVersion", description="Node.js version used by the project."
+    )
+    build_command: PropertyRef = PropertyRef(
+        "buildCommand", description="Build command override."
+    )
+    dev_command: PropertyRef = PropertyRef(
+        "devCommand", description="Development command override."
+    )
+    install_command: PropertyRef = PropertyRef(
+        "installCommand", description="Install command override."
+    )
+    output_directory: PropertyRef = PropertyRef(
+        "outputDirectory", description="Build output directory."
+    )
+    public_source: PropertyRef = PropertyRef(
+        "publicSource", description="Whether the project source is publicly viewable."
+    )
+    serverless_function_region: PropertyRef = PropertyRef(
+        "serverlessFunctionRegion", description="Region where serverless functions run."
+    )
+    created_at: PropertyRef = PropertyRef(
+        "createdAt", description="Timestamp when the project was created."
+    )
+    updated_at: PropertyRef = PropertyRef(
+        "updatedAt", description="Timestamp when the project was last updated."
+    )
+    auto_expose_system_envs: PropertyRef = PropertyRef(
+        "autoExposeSystemEnvs",
+        description="Whether system environment variables are exposed automatically.",
+    )
+    root_directory: PropertyRef = PropertyRef(
+        "rootDirectory", description="Root directory of the project."
+    )
+    git_fork_protection: PropertyRef = PropertyRef(
+        "gitForkProtection",
+        description="Whether fork protection is enabled for Git deployments.",
+    )
+    skew_protection_max_age: PropertyRef = PropertyRef(
+        "skewProtectionMaxAge",
+        description="Maximum deployment age retained for skew protection.",
+    )
 
 
 @dataclass(frozen=True)
@@ -39,6 +74,8 @@ class VercelProjectToTeamRelProperties(CartographyRelProperties):
 @dataclass(frozen=True)
 # (:VercelTeam)-[:RESOURCE]->(:VercelProject)
 class VercelProjectToTeamRel(CartographyRelSchema):
+    """The Vercel team contains this project as a resource."""
+
     target_node_label: str = "VercelTeam"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("TEAM_ID", set_in_kwargs=True)},
@@ -50,6 +87,8 @@ class VercelProjectToTeamRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class VercelProjectSchema(CartographyNodeSchema):
+    """A project managed by Vercel."""
+
     label: str = "VercelProject"
     properties: VercelProjectNodeProperties = VercelProjectNodeProperties()
     sub_resource_relationship: VercelProjectToTeamRel = VercelProjectToTeamRel()

@@ -14,12 +14,22 @@ from cartography.models.core.relationships import TargetNodeMatcher
 
 @dataclass(frozen=True)
 class VercelSecureComputeNetworkNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("id")
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
-    name: PropertyRef = PropertyRef("name", extra_index=True)
-    region: PropertyRef = PropertyRef("region")
-    status: PropertyRef = PropertyRef("status")
-    created_at: PropertyRef = PropertyRef("createdAt")
+    id: PropertyRef = PropertyRef("id", description="Secure compute network ID.")
+    lastupdated: PropertyRef = PropertyRef(
+        "lastupdated", set_in_kwargs=True, description="Timestamp of the last update."
+    )
+    name: PropertyRef = PropertyRef(
+        "name", extra_index=True, description="Secure compute network name."
+    )
+    region: PropertyRef = PropertyRef(
+        "region", description="Cloud region containing the network."
+    )
+    status: PropertyRef = PropertyRef(
+        "status", description="Secure compute network status."
+    )
+    created_at: PropertyRef = PropertyRef(
+        "createdAt", description="Timestamp when the network was created."
+    )
 
 
 @dataclass(frozen=True)
@@ -30,6 +40,8 @@ class VercelNetworkToTeamRelProperties(CartographyRelProperties):
 @dataclass(frozen=True)
 # (:VercelTeam)-[:RESOURCE]->(:VercelSecureComputeNetwork)
 class VercelNetworkToTeamRel(CartographyRelSchema):
+    """The Vercel team contains this secure compute network as a resource."""
+
     target_node_label: str = "VercelTeam"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("TEAM_ID", set_in_kwargs=True)},
@@ -53,6 +65,8 @@ class VercelNetworkToProjectRelProperties(CartographyRelProperties):
 @dataclass(frozen=True)
 # (:VercelSecureComputeNetwork)-[:CONNECTS {environments, passive_environments}]->(:VercelProject)
 class VercelNetworkToProjectRel(CartographyRelSchema):
+    """The Vercel secure compute network connects to this project by environment."""
+
     target_node_label: str = "VercelProject"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("projectId")},
@@ -70,6 +84,8 @@ class VercelNetworkToProjectRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class VercelSecureComputeNetworkSchema(CartographyNodeSchema):
+    """A Vercel secure compute network for private connectivity."""
+
     label: str = "VercelSecureComputeNetwork"
     properties: VercelSecureComputeNetworkNodeProperties = (
         VercelSecureComputeNetworkNodeProperties()

@@ -22,6 +22,7 @@ import cartography.models.slack as slack_models
 import cartography.models.snipeit as snipeit_models
 import cartography.models.spacelift as spacelift_models
 import cartography.models.subimage as subimage_models
+import cartography.models.vercel as vercel_models
 import cartography.models.workday as workday_models
 import cartography.models.workos as workos_models
 from cartography.models.introspection import DataModel
@@ -249,6 +250,22 @@ def test_workos_schema_doc_is_generated_from_introspected_model():
     assert "| **slug** | Unique role slug. |" in generated
     assert "role_id" not in generated
     assert "(:WorkOSOrganizationMembership)-[:WITH_ROLE]->(:WorkOSRole)" in generated
+    assert "No description provided." not in generated
+
+
+def test_vercel_schema_doc_is_generated_from_introspected_model():
+    # Arrange
+    model = inspect_data_model(vercel_models)
+
+    # Act
+    generated = render_module_schema(model, "vercel")
+
+    # Assert
+    assert not Path("docs/root/modules/vercel/schema.md").exists()
+    assert len(model.nodes) == 18
+    assert len(model.relationships) == 32
+    assert "| action | Action performed by the bypass rule. |" in generated
+    assert "(:VercelFirewallBypassRule)-[:CREATED_BY]->(:VercelUser)" in generated
     assert "No description provided." not in generated
 
 

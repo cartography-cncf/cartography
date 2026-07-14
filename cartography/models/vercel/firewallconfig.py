@@ -12,10 +12,17 @@ from cartography.models.core.relationships import TargetNodeMatcher
 
 @dataclass(frozen=True)
 class VercelFirewallConfigNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("id")
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
-    enabled: PropertyRef = PropertyRef("firewallEnabled")
-    updated_at: PropertyRef = PropertyRef("updatedAt")
+    id: PropertyRef = PropertyRef("id", description="Firewall configuration ID.")
+    lastupdated: PropertyRef = PropertyRef(
+        "lastupdated", set_in_kwargs=True, description="Timestamp of the last update."
+    )
+    enabled: PropertyRef = PropertyRef(
+        "firewallEnabled", description="Whether the firewall is enabled."
+    )
+    updated_at: PropertyRef = PropertyRef(
+        "updatedAt",
+        description="Timestamp when the firewall configuration was last updated.",
+    )
 
 
 @dataclass(frozen=True)
@@ -26,6 +33,8 @@ class VercelFirewallConfigToProjectRelProperties(CartographyRelProperties):
 @dataclass(frozen=True)
 # (:VercelProject)-[:RESOURCE]->(:VercelFirewallConfig)
 class VercelFirewallConfigToProjectRel(CartographyRelSchema):
+    """The Vercel project contains this firewall configuration as a resource."""
+
     target_node_label: str = "VercelProject"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("project_id", set_in_kwargs=True)},
@@ -39,6 +48,8 @@ class VercelFirewallConfigToProjectRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class VercelFirewallConfigSchema(CartographyNodeSchema):
+    """The Vercel firewall configuration for a project."""
+
     label: str = "VercelFirewallConfig"
     properties: VercelFirewallConfigNodeProperties = (
         VercelFirewallConfigNodeProperties()

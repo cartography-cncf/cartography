@@ -13,13 +13,25 @@ from cartography.models.core.relationships import TargetNodeMatcher
 
 @dataclass(frozen=True)
 class VercelWebhookNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("id")
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
-    url: PropertyRef = PropertyRef("url", extra_index=True)
-    events: PropertyRef = PropertyRef("events")
-    project_ids: PropertyRef = PropertyRef("projectIds")
-    created_at: PropertyRef = PropertyRef("createdAt")
-    updated_at: PropertyRef = PropertyRef("updatedAt")
+    id: PropertyRef = PropertyRef("id", description="Webhook ID.")
+    lastupdated: PropertyRef = PropertyRef(
+        "lastupdated", set_in_kwargs=True, description="Timestamp of the last update."
+    )
+    url: PropertyRef = PropertyRef(
+        "url", extra_index=True, description="Webhook destination URL."
+    )
+    events: PropertyRef = PropertyRef(
+        "events", description="Event types subscribed to by the webhook."
+    )
+    project_ids: PropertyRef = PropertyRef(
+        "projectIds", description="IDs of projects watched by the webhook."
+    )
+    created_at: PropertyRef = PropertyRef(
+        "createdAt", description="Timestamp when the webhook was created."
+    )
+    updated_at: PropertyRef = PropertyRef(
+        "updatedAt", description="Timestamp when the webhook was last updated."
+    )
 
 
 @dataclass(frozen=True)
@@ -30,6 +42,8 @@ class VercelWebhookToTeamRelProperties(CartographyRelProperties):
 @dataclass(frozen=True)
 # (:VercelTeam)-[:RESOURCE]->(:VercelWebhook)
 class VercelWebhookToTeamRel(CartographyRelSchema):
+    """The Vercel team contains this webhook as a resource."""
+
     target_node_label: str = "VercelTeam"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("TEAM_ID", set_in_kwargs=True)},
@@ -47,6 +61,8 @@ class VercelWebhookToProjectRelProperties(CartographyRelProperties):
 @dataclass(frozen=True)
 # (:VercelWebhook)-[:WATCHES]->(:VercelProject)
 class VercelWebhookToProjectRel(CartographyRelSchema):
+    """The Vercel webhook watches this project."""
+
     target_node_label: str = "VercelProject"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("projectIds", one_to_many=True)},
@@ -60,6 +76,8 @@ class VercelWebhookToProjectRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class VercelWebhookSchema(CartographyNodeSchema):
+    """A webhook endpoint configured for a Vercel team."""
+
     label: str = "VercelWebhook"
     properties: VercelWebhookNodeProperties = VercelWebhookNodeProperties()
     sub_resource_relationship: VercelWebhookToTeamRel = VercelWebhookToTeamRel()
