@@ -2,6 +2,7 @@ from pathlib import Path
 
 import cartography.models.anthropic as anthropic_models
 import cartography.models.bigfix as bigfix_models
+import cartography.models.cloudflare as cloudflare_models
 import cartography.models.gsuite as gsuite_models
 import cartography.models.jumpcloud as jumpcloud_models
 import cartography.models.kandji as kandji_models
@@ -204,6 +205,23 @@ def test_anthropic_schema_doc_is_generated_from_introspected_model():
     assert "| display_color | Hex color representing the workspace" in generated
     assert "(:AnthropicOrganization)-[:RESOURCE]->(:AnthropicUser)" in generated
     assert "Deprecated compatibility edge for a user that owns an API key." in generated
+    assert "No description provided." not in generated
+
+
+def test_cloudflare_schema_doc_is_generated_from_introspected_model():
+    # Arrange
+    model = inspect_data_model(cloudflare_models)
+
+    # Act
+    generated = render_module_schema(model, "cloudflare")
+
+    # Assert
+    assert not Path("docs/root/modules/cloudflare/schema.md").exists()
+    assert len(model.nodes) == 5
+    assert len(model.relationships) == 5
+    assert "A DNS zone managed by Cloudflare." in generated
+    assert "| **name** | DNS record name. |" in generated
+    assert "(:CloudflareMember)-[:HAS_ROLE]->(:CloudflareRole)" in generated
     assert "No description provided." not in generated
 
 

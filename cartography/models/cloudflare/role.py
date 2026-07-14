@@ -13,10 +13,17 @@ from cartography.models.core.relationships import TargetNodeMatcher
 
 @dataclass(frozen=True)
 class CloudflareRoleNodeProperties(CartographyNodeProperties):
-    description: PropertyRef = PropertyRef("description")
-    name: PropertyRef = PropertyRef("name")
-    id: PropertyRef = PropertyRef("id")
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    description: PropertyRef = PropertyRef(
+        "description",
+        description="Description of the role's permissions.",
+    )
+    name: PropertyRef = PropertyRef("name", description="Role name.")
+    id: PropertyRef = PropertyRef("id", description="Role ID.")
+    lastupdated: PropertyRef = PropertyRef(
+        "lastupdated",
+        set_in_kwargs=True,
+        description="Timestamp of the last update.",
+    )
 
 
 @dataclass(frozen=True)
@@ -27,6 +34,8 @@ class CloudflareRoleToAccountRelProperties(CartographyRelProperties):
 @dataclass(frozen=True)
 # (:CloudflareRole)<-[:RESOURCE]-(:CloudflareAccount)
 class CloudflareRoleToAccountRel(CartographyRelSchema):
+    """The account contains the role."""
+
     target_node_label: str = "CloudflareAccount"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("account_id", set_in_kwargs=True)},
@@ -40,6 +49,8 @@ class CloudflareRoleToAccountRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class CloudflareRoleSchema(CartographyNodeSchema):
+    """A permission role in Cloudflare."""
+
     label: str = "CloudflareRole"
     properties: CloudflareRoleNodeProperties = CloudflareRoleNodeProperties()
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["PermissionRole"])
