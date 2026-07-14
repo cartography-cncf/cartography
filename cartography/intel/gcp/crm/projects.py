@@ -4,7 +4,6 @@ from typing import List
 from typing import Optional
 
 import neo4j
-from google.api_core.exceptions import Forbidden
 from google.api_core.exceptions import NotFound
 from google.api_core.exceptions import PermissionDenied
 from google.auth.credentials import Credentials as GoogleCredentials
@@ -190,10 +189,13 @@ def get_gcp_projects_by_ids(
     for project_id in project_ids:
         try:
             proj = client.get_project(name=f"projects/{project_id}")
-        except (NotFound, PermissionDenied, Forbidden) as e:
-            # A single bad ID (misspelled, non-existent, or inaccessible) should not
-            # abort the entire sync: log it and continue so the remaining projects
-            # still load. Transient errors are intentionally not caught here.
+        except (NotFound, PermissionDenied) as e:
+            # A single bad ID (misspelled/non-existent -> NotFound, or the identity
+            # lacks access -> PermissionDenied) should not abort the entire sync: log
+            # it and continue so the remaining projects still load. We deliberately do
+            # NOT catch the broader Forbidden parent class: other 403s (e.g. the
+            # Resource Manager API or billing being disabled) are environment-level
+            # problems that should fail loudly, not be silently skipped per project.
             logger.warning(
                 "Skipping GCP project %s: could not fetch it (%s). "
                 "Verify the project ID exists and the identity has access.",
@@ -268,9 +270,11 @@ def sync_gcp_projects_by_ids(
     handled per-project by the individual resource modules, scoped by PROJECT_ID.
 
     :param project_ids: List of GCP project IDs to sync.
-    :return: List of projects synced. An inaccessible or non-existent project ID raises
-        (fail loud), but projects that exist in a non-ACTIVE lifecycle state are skipped,
-        so the returned list may be shorter than project_ids.
+    :return: List of projects synced. Individual IDs may be dropped: an inaccessible or
+        non-existent project ID (NotFound / PermissionDenied) is logged and skipped, and a
+        project in a non-ACTIVE lifecycle state is likewise skipped, so the returned list
+        may be shorter than project_ids. Other errors (e.g. a 403 from a disabled API or
+        billing) still propagate and fail the sync.
     """
     logger.debug("Syncing GCP projects by id: %s", project_ids)
     projects = get_gcp_projects_by_ids(project_ids, credentials=credentials)
