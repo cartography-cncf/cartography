@@ -216,7 +216,7 @@ def test_statement_compiles_incremental_node_and_relationship_matches():
     # Assert
     assert query.startswith(
         "MATCH (d:Device {lastupdated: $UPDATE_TAG})\n"
-        "MATCH ()-[obs:OBSERVED_AS {lastupdated: $UPDATE_TAG}]-()\n"
+        "MATCH ()-[obs:OBSERVED_AS {lastupdated: $UPDATE_TAG}]->()\n"
         "MATCH (d:Device)-[obs:OBSERVED_AS]->(:Agent)"
     )
 

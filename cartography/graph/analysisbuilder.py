@@ -219,7 +219,7 @@ def _incremental_matches(statement: AnalysisStatement) -> tuple[str, ...]:
             rel_type = _relationship_type_for_alias(statement.match, variable)
             rel_label = f":{rel_type}" if rel_type else ""
             matches.append(
-                f"MATCH ()-[{variable}{rel_label} " "{lastupdated: $UPDATE_TAG}]-()"
+                f"MATCH ()-[{variable}{rel_label} " "{lastupdated: $UPDATE_TAG}]->()"
             )
         else:
             label = _node_label_for_alias(statement.match, variable)
