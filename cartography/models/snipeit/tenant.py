@@ -8,12 +8,18 @@ from cartography.models.core.nodes import ExtraNodeLabels
 
 @dataclass(frozen=True)
 class SnipeitTenantNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("id")
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    id: PropertyRef = PropertyRef("id", description="Snipe-IT tenant ID.")
+    lastupdated: PropertyRef = PropertyRef(
+        "lastupdated",
+        set_in_kwargs=True,
+        description="Timestamp of the last update.",
+    )
 
 
 @dataclass(frozen=True)
 class SnipeitTenantSchema(CartographyNodeSchema):
+    """A Snipe-IT tenant containing users and assets."""
+
     label: str = "SnipeitTenant"  # The label of the node
     properties: SnipeitTenantNodeProperties = (
         SnipeitTenantNodeProperties()

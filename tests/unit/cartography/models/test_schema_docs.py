@@ -3,6 +3,8 @@ from pathlib import Path
 import cartography.models.gsuite as gsuite_models
 import cartography.models.keycloak as keycloak_models
 import cartography.models.lastpass as lastpass_models
+import cartography.models.snipeit as snipeit_models
+import cartography.models.workday as workday_models
 from cartography.models.introspection import DataModel
 from cartography.models.introspection import inspect_data_model
 from cartography.models.introspection import Node
@@ -96,6 +98,40 @@ def test_keycloak_schema_doc_is_generated_from_introspected_model():
     assert "(:KeycloakAuthenticationFlow)-[:NEXT_STEP]->" in generated
     assert "Deprecated compatibility edge linking a subgroup" in generated
     assert "Deprecated compatibility edge for a role assumed by a user." in generated
+
+
+def test_workday_schema_doc_is_generated_from_introspected_model():
+    # Arrange
+    model = inspect_data_model(workday_models)
+
+    # Act
+    generated = render_module_schema(model, "workday")
+
+    # Assert
+    assert not Path("docs/root/modules/workday/schema.md").exists()
+    assert len(model.nodes) == 2
+    assert len(model.relationships) == 2
+    assert "A person in Workday with the Human label" in generated
+    assert "| **email** | Work email address indexed" in generated
+    assert "(:WorkdayHuman)-[:REPORTS_TO]->(:WorkdayHuman)" in generated
+    assert "No description provided." not in generated
+
+
+def test_snipeit_schema_doc_is_generated_from_introspected_model():
+    # Arrange
+    model = inspect_data_model(snipeit_models)
+
+    # Act
+    generated = render_module_schema(model, "snipeit")
+
+    # Assert
+    assert not Path("docs/root/modules/snipeit/schema.md").exists()
+    assert len(model.nodes) == 3
+    assert len(model.relationships) == 5
+    assert "A device asset managed by Snipe-IT." in generated
+    assert "| **serial** | Asset serial number. |" in generated
+    assert "Deprecated compatibility edge linking a tenant to its asset." in generated
+    assert "No description provided." not in generated
 
 
 def test_write_module_schema_docs_preserves_manual_pages(
