@@ -1,5 +1,6 @@
 from pathlib import Path
 
+import cartography.models.anthropic as anthropic_models
 import cartography.models.bigfix as bigfix_models
 import cartography.models.gsuite as gsuite_models
 import cartography.models.jumpcloud as jumpcloud_models
@@ -185,6 +186,24 @@ def test_jumpcloud_schema_doc_is_generated_from_introspected_model():
     assert "A user account in JumpCloud." in generated
     assert "| **jc_system_id** | JumpCloud system ID" in generated
     assert "(:JumpCloudUser)-[:USES]->(:JumpCloudSaaSApplication)" in generated
+    assert "No description provided." not in generated
+
+
+def test_anthropic_schema_doc_is_generated_from_introspected_model():
+    # Arrange
+    model = inspect_data_model(anthropic_models)
+
+    # Act
+    generated = render_module_schema(model, "anthropic")
+
+    # Assert
+    assert not Path("docs/root/modules/anthropic/schema.md").exists()
+    assert len(model.nodes) == 4
+    assert len(model.relationships) == 8
+    assert "A user account in an Anthropic organization." in generated
+    assert "| display_color | Hex color representing the workspace" in generated
+    assert "(:AnthropicOrganization)-[:RESOURCE]->(:AnthropicUser)" in generated
+    assert "Deprecated compatibility edge for a user that owns an API key." in generated
     assert "No description provided." not in generated
 
 
