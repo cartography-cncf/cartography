@@ -198,3 +198,53 @@ def test_cleanup_drops_orphan_crowdstrike_cves(
     assert check_nodes(neo4j_session, "CrowdstrikeFinding", ["id"]) == set()
     assert check_nodes(neo4j_session, "CVE", ["id"]) == set()
     assert check_nodes(neo4j_session, "SpotlightVulnerability", ["id"]) == set()
+
+
+def test_cleanup_removes_legacy_unscoped_spotlight_data(neo4j_session):
+    # Arrange
+    neo4j_session.run(
+        """
+        MERGE (host:CrowdstrikeHost {id: "legacy-host"})
+        SET host.lastupdated = $update_tag
+        MERGE (stale:SpotlightVulnerability {id: "legacy-stale"})
+        SET stale.lastupdated = $old_update_tag
+        MERGE (current:SpotlightVulnerability {id: "legacy-current"})
+        SET current.lastupdated = $update_tag
+        MERGE (surviving:SpotlightVulnerability {id: "legacy-surviving"})
+        SET surviving.lastupdated = $update_tag
+        MERGE (host)-[stale_rel:HAS_VULNERABILITY]->(current)
+        SET stale_rel.lastupdated = $old_update_tag
+        MERGE (host)-[current_rel:HAS_VULNERABILITY]->(surviving)
+        SET current_rel.lastupdated = $update_tag
+        """,
+        update_tag=TEST_UPDATE_TAG,
+        old_update_tag=TEST_UPDATE_TAG - 1,
+    )
+
+    # Act
+    cartography.intel.crowdstrike.cleanup(
+        neo4j_session,
+        {"UPDATE_TAG": TEST_UPDATE_TAG},
+    )
+
+    # Assert
+    remaining_vulnerabilities = {
+        row["id"]
+        for row in neo4j_session.run(
+            """
+            MATCH (v:SpotlightVulnerability)
+            WHERE v.id STARTS WITH "legacy-"
+            RETURN v.id AS id
+            """,
+        )
+    }
+    assert remaining_vulnerabilities == {"legacy-current", "legacy-surviving"}
+    assert check_rels(
+        neo4j_session,
+        "CrowdstrikeHost",
+        "id",
+        "SpotlightVulnerability",
+        "id",
+        "HAS_VULNERABILITY",
+        rel_direction_right=True,
+    ) == {("legacy-host", "legacy-surviving")}

@@ -21,6 +21,13 @@ from cartography.util import timeit
 logger = logging.getLogger(__name__)
 
 
+def _is_internet_exposed(domain: Dict) -> bool:
+    if not domain.get("Endpoint") or not domain.get("AccessPolicies"):
+        return False
+    policy = Policy(json.loads(domain["AccessPolicies"]))
+    return policy.is_internet_accessible()
+
+
 @timeit
 @aws_handle_regions
 def _get_es_domains(client: botocore.client.BaseClient) -> List[Dict]:
@@ -93,6 +100,7 @@ def _transform_es_domains(domain_list: List[Dict]) -> List[Dict]:
             "Endpoint": domain.get("Endpoint"),
             "ElasticsearchVersion": domain.get("ElasticsearchVersion"),
             "Engine": engine,
+            "exposed_internet": _is_internet_exposed(domain),
             # Cluster config
             "ElasticsearchClusterConfigInstanceType": cluster_config.get(
                 "InstanceType"
@@ -181,12 +189,11 @@ def _load_es_domains(
         AWS_ID=aws_account_id,
     )
 
-    # Process DNS and access policies (kept separate per plan)
+    # DNS records are loaded separately because they are shared graph resources.
     for domain in domain_list:
         original = domain.get("_original", {})
         domain_id = domain["DomainId"]
         _link_es_domains_to_dns(neo4j_session, domain_id, original, aws_update_tag)
-        _process_access_policy(neo4j_session, domain_id, original)
 
 
 @timeit
@@ -216,39 +223,6 @@ def _link_es_domains_to_dns(
         )
     else:
         logger.debug(f"No es endpoint data for domain id {domain_id}")
-
-
-@timeit
-def _process_access_policy(
-    neo4j_session: neo4j.Session,
-    domain_id: str,
-    domain_data: Dict,
-) -> None:
-    """
-    Link the ES domain to its DNS FQDN endpoint and create associated nodes in the graph
-    if needed
-
-    :param neo4j_session: Neo4j session object
-    :param domain_id: ES domain id
-    :param domain_data: domain data
-    """
-    tag_es = (
-        "MATCH (es:ESDomain{id: $DomainId}) SET es.exposed_internet = $InternetExposed"
-    )
-
-    exposed_internet = False
-
-    if domain_data.get("Endpoint") and domain_data.get("AccessPolicies"):
-        policy = Policy(json.loads(domain_data["AccessPolicies"]))
-        if policy.is_internet_accessible():
-            exposed_internet = True
-
-    run_write_query(
-        neo4j_session,
-        tag_es,
-        DomainId=domain_id,
-        InternetExposed=exposed_internet,
-    )
 
 
 @timeit

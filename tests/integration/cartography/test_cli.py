@@ -39,6 +39,29 @@ def test_cli_neo4j_liveness_check_timeout():
     assert config.neo4j_liveness_check_timeout == 60
 
 
+def test_cli_aws_ssm_public_parameter_prefix_allowlist_sets_config():
+    # Arrange
+    sync = unittest.mock.MagicMock()
+    cli = cartography.cli.CLI(sync, "test")
+
+    # Act
+    cli.main(
+        [
+            "--neo4j-uri",
+            settings.get("NEO4J_URL"),
+            "--aws-ssm-public-parameter-prefix-allowlist",
+            "/aws/service/bottlerocket/",
+        ],
+    )
+
+    # Assert
+    sync.run.assert_called_once()
+    config = sync.run.call_args[0][1]
+    assert (
+        config.aws_ssm_public_parameter_prefix_allowlist == "/aws/service/bottlerocket/"
+    )
+
+
 def test_cli_microsoft_credentials_set_config():
     # Arrange
     sync = unittest.mock.MagicMock()

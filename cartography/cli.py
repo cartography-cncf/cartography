@@ -598,6 +598,18 @@ class CLI:
                     hidden=PANEL_AWS not in visible_panels,
                 ),
             ] = 1000,
+            aws_ssm_public_parameter_prefix_allowlist: Annotated[
+                str | None,
+                typer.Option(
+                    "--aws-ssm-public-parameter-prefix-allowlist",
+                    help=(
+                        "Comma-separated AWS-managed public SSM parameter prefixes to ingest. "
+                        "Set to an empty string to disable public parameter ingestion."
+                    ),
+                    rich_help_panel=PANEL_AWS,
+                    hidden=PANEL_AWS not in visible_panels,
+                ),
+            ] = None,
             permission_relationships_file: Annotated[
                 str,
                 typer.Option(
@@ -2933,6 +2945,7 @@ class CLI:
                 aws_cloudtrail_management_events_lookback_hours=aws_cloudtrail_management_events_lookback_hours,
                 experimental_aws_inspector_batch=experimental_aws_inspector_batch,
                 aws_tagging_api_cleanup_batch=aws_tagging_api_cleanup_batch,
+                aws_ssm_public_parameter_prefix_allowlist=aws_ssm_public_parameter_prefix_allowlist,
                 azure_sync_all_subscriptions=azure_sync_all_subscriptions,
                 azure_sp_auth=azure_sp_auth,
                 azure_tenant_id=azure_tenant_id,

@@ -1,10 +1,12 @@
 import inspect
+import os
 from typing import Any
 from typing import Callable
 from typing import Dict
 from typing import List
 from unittest import mock
 
+import botocore.exceptions
 import neo4j
 from moto import mock_aws
 from pytest import raises
@@ -30,6 +32,132 @@ AWS_RESOURCE_FUNCTIONS_STUB: Dict[str, Callable] = {
     sync_name: mock.MagicMock()
     for sync_name in cartography.intel.aws.resources.RESOURCE_FUNCTIONS.keys()
 }
+
+
+@mock.patch.object(cartography.intel.aws.ssm_intel, "sync_public_parameters")
+@mock.patch.object(cartography.intel.aws, "_autodiscover_account_regions")
+@mock.patch.object(cartography.intel.aws, "_get_boto3_session_for_profile")
+def test_sync_shared_public_ssm_parameters_unions_profile_regions(
+    mock_get_session,
+    mock_autodiscover_regions,
+    mock_sync_public_parameters,
+    neo4j_session,
+):
+    # Arrange
+    first_session = mock.MagicMock(name="first_session")
+    second_session = mock.MagicMock(name="second_session")
+    mock_get_session.side_effect = [first_session, second_session]
+    mock_autodiscover_regions.side_effect = [
+        ["us-east-1", "us-west-2"],
+        ["us-west-2", "eu-west-1"],
+    ]
+    common_job_parameters = {"UPDATE_TAG": TEST_UPDATE_TAG}
+
+    # Act
+    cartography.intel.aws._sync_shared_public_ssm_parameters(
+        neo4j_session,
+        mock.MagicMock(),
+        {"first": "111111111111", "second": "222222222222"},
+        ["ssm"],
+        common_job_parameters,
+        configured_regions=None,
+        aws_best_effort_mode=False,
+    )
+
+    # Assert
+    region_session_candidates = mock_sync_public_parameters.call_args.args[1]
+    assert list(region_session_candidates) == [
+        "us-east-1",
+        "us-west-2",
+        "eu-west-1",
+    ]
+    assert region_session_candidates["us-east-1"] == [first_session]
+    assert region_session_candidates["us-west-2"] == [
+        first_session,
+        second_session,
+    ]
+    assert region_session_candidates["eu-west-1"] == [second_session]
+    assert mock_sync_public_parameters.call_args.kwargs["cleanup_allowed"] is True
+
+
+@mock.patch.object(cartography.intel.aws.ssm_intel, "sync_public_parameters")
+@mock.patch.object(cartography.intel.aws, "_autodiscover_account_regions")
+@mock.patch.object(cartography.intel.aws, "_get_boto3_session_for_profile")
+def test_sync_shared_public_ssm_parameters_best_effort_skips_profile_setup_failure(
+    mock_get_session,
+    mock_autodiscover_regions,
+    mock_sync_public_parameters,
+    neo4j_session,
+):
+    # Arrange
+    working_session = mock.MagicMock(name="working_session")
+    mock_get_session.side_effect = [
+        botocore.exceptions.ProfileNotFound(profile="broken"),
+        working_session,
+    ]
+    mock_autodiscover_regions.return_value = ["us-west-2"]
+
+    # Act
+    cartography.intel.aws._sync_shared_public_ssm_parameters(
+        neo4j_session,
+        mock.MagicMock(),
+        {"broken": "111111111111", "working": "222222222222"},
+        ["ssm"],
+        {"UPDATE_TAG": TEST_UPDATE_TAG},
+        configured_regions=None,
+        aws_best_effort_mode=True,
+    )
+
+    # Assert
+    assert mock_sync_public_parameters.call_args.args[1] == {
+        "us-west-2": [working_session]
+    }
+    assert mock_sync_public_parameters.call_args.kwargs["cleanup_allowed"] is False
+
+
+@mock.patch.object(cartography.intel.aws, "_get_boto3_session_for_profile")
+def test_sync_shared_public_ssm_parameters_fails_loudly_on_profile_setup_error(
+    mock_get_session,
+    neo4j_session,
+):
+    # Arrange
+    mock_get_session.side_effect = botocore.exceptions.ProfileNotFound(profile="broken")
+
+    # Act and assert
+    with raises(botocore.exceptions.ProfileNotFound):
+        cartography.intel.aws._sync_shared_public_ssm_parameters(
+            neo4j_session,
+            mock.MagicMock(),
+            {"broken": "111111111111"},
+            ["ssm"],
+            {"UPDATE_TAG": TEST_UPDATE_TAG},
+            configured_regions=None,
+            aws_best_effort_mode=False,
+        )
+
+
+@mock.patch.object(
+    cartography.intel.aws.ssm_intel,
+    "sync_public_parameters",
+    side_effect=RuntimeError("load failed"),
+)
+def test_sync_shared_public_ssm_parameters_does_not_mask_unexpected_errors(
+    mock_sync_public_parameters,
+    neo4j_session,
+):
+    # Act and assert
+    with raises(RuntimeError, match="load failed"):
+        cartography.intel.aws._sync_shared_public_ssm_parameters(
+            neo4j_session,
+            mock.MagicMock(),
+            {"default": "111111111111"},
+            ["ssm"],
+            {"UPDATE_TAG": TEST_UPDATE_TAG},
+            configured_regions=["us-east-1"],
+            aws_best_effort_mode=True,
+        )
+
+    mock_sync_public_parameters.assert_called_once()
 
 
 def make_aws_sync_test_kwargs(
@@ -648,9 +776,15 @@ def test_sync_multiple_accounts_profile_session_is_usable(
 @mock.patch("cartography.intel.aws.boto3.Session")
 @mock.patch("cartography.intel.aws.organizations")
 @mock.patch.object(cartography.intel.aws, "_sync_multiple_accounts", return_value=True)
+@mock.patch.object(
+    cartography.intel.aws,
+    "_sync_shared_public_ssm_parameters",
+    return_value=None,
+)
 @mock.patch.object(cartography.intel.aws, "_perform_aws_analysis", return_value=None)
 def test_start_aws_ingestion(
     mock_perform_analysis,
+    mock_sync_shared_public_ssm_parameters,
     mock_sync_multiple,
     mock_orgs,
     mock_boto3,
@@ -682,8 +816,87 @@ def test_start_aws_ingestion(
             "aws_cloudtrail_management_events_lookback_hours": test_config.aws_cloudtrail_management_events_lookback_hours,
             "experimental_aws_inspector_batch": test_config.experimental_aws_inspector_batch,
             "aws_tagging_api_cleanup_batch": test_config.aws_tagging_api_cleanup_batch,
+            "aws_ssm_public_parameter_prefix_allowlist": (
+                cartography.intel.aws.ssm_intel.DEFAULT_PUBLIC_PARAMETER_PREFIX_ALLOWLIST
+            ),
         },
     )
+    mock_sync_shared_public_ssm_parameters.assert_called_once()
+    shared_call_args = mock_sync_shared_public_ssm_parameters.call_args.args
+    assert shared_call_args[0] is neo4j_session
+    assert shared_call_args[3] == list(RESOURCE_FUNCTIONS.keys())
+    assert shared_call_args[4]["aws_ssm_public_parameter_prefix_allowlist"] == (
+        cartography.intel.aws.ssm_intel.DEFAULT_PUBLIC_PARAMETER_PREFIX_ALLOWLIST
+    )
+    assert shared_call_args[6] == test_config.aws_best_effort_mode
+
+
+@mock.patch.dict(os.environ, {}, clear=False)
+@mock.patch("cartography.intel.aws.aioboto3.Session")
+@mock.patch("cartography.intel.aws.boto3.Session")
+@mock.patch("cartography.intel.aws.organizations")
+@mock.patch.object(cartography.intel.aws, "_sync_multiple_accounts", return_value=True)
+@mock.patch.object(
+    cartography.intel.aws,
+    "_sync_shared_public_ssm_parameters",
+    return_value=None,
+)
+@mock.patch.object(cartography.intel.aws, "_perform_aws_analysis", return_value=None)
+def test_start_aws_ingestion_defaults_public_ssm_allowlist_when_unset(
+    mock_perform_analysis,
+    mock_sync_shared_public_ssm_parameters,
+    mock_sync_multiple,
+    mock_orgs,
+    mock_boto3,
+    mock_aioboto3,
+    neo4j_session,
+):
+    test_config = cartography.config.Config(
+        neo4j_uri="bolt://localhost:7687",
+        update_tag=TEST_UPDATE_TAG,
+        aws_sync_all_profiles=True,
+        aws_ssm_public_parameter_prefix_allowlist=None,
+    )
+
+    cartography.intel.aws.start_aws_ingestion(neo4j_session, test_config)
+
+    common_job_parameters = mock_perform_analysis.call_args.args[2]
+    assert (
+        common_job_parameters["aws_ssm_public_parameter_prefix_allowlist"]
+        == cartography.intel.aws.ssm_intel.DEFAULT_PUBLIC_PARAMETER_PREFIX_ALLOWLIST
+    )
+
+
+@mock.patch("cartography.intel.aws.aioboto3.Session")
+@mock.patch("cartography.intel.aws.boto3.Session")
+@mock.patch("cartography.intel.aws.organizations")
+@mock.patch.object(cartography.intel.aws, "_sync_multiple_accounts", return_value=True)
+@mock.patch.object(
+    cartography.intel.aws,
+    "_sync_shared_public_ssm_parameters",
+    return_value=None,
+)
+@mock.patch.object(cartography.intel.aws, "_perform_aws_analysis", return_value=None)
+def test_start_aws_ingestion_allows_disabling_public_ssm_allowlist_with_empty_string(
+    mock_perform_analysis,
+    mock_sync_shared_public_ssm_parameters,
+    mock_sync_multiple,
+    mock_orgs,
+    mock_boto3,
+    mock_aioboto3,
+    neo4j_session,
+):
+    test_config = cartography.config.Config(
+        neo4j_uri="bolt://localhost:7687",
+        update_tag=TEST_UPDATE_TAG,
+        aws_sync_all_profiles=True,
+        aws_ssm_public_parameter_prefix_allowlist="",
+    )
+
+    cartography.intel.aws.start_aws_ingestion(neo4j_session, test_config)
+
+    common_job_parameters = mock_perform_analysis.call_args.args[2]
+    assert common_job_parameters["aws_ssm_public_parameter_prefix_allowlist"] == ""
 
 
 def test_kms_syncs_before_kms_dependent_resources():

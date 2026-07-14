@@ -11,11 +11,13 @@ from cartography.intel.crowdstrike.spotlight import sync_vulnerabilities
 from cartography.intel.crowdstrike.util import get_authorization
 from cartography.models.crowdstrike.hosts import CrowdstrikeHostSchema
 from cartography.models.crowdstrike.spotlight import CrowdstrikeCVESchema
+from cartography.models.crowdstrike.spotlight import (
+    LegacyUnscopedSpotlightVulnerabilityCleanupSchema,
+)
 from cartography.models.crowdstrike.spotlight import SpotlightVulnerabilitySchema
 from cartography.stats import get_stats_client
 from cartography.util import merge_module_sync_metadata
 from cartography.util import run_analysis_job
-from cartography.util import run_cleanup_job
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
@@ -111,13 +113,9 @@ def cleanup(
         neo4j_session
     )
 
-    # Cleanup other crowdstrike assets not handled by the data model.
-    # CrowdstrikeTenant nodes themselves are not auto-deleted: they follow the
-    # same convention as other tenant roots (AWSAccount, GitHubOrganization,
-    # ...), which stay in the graph even when no longer surfaced by the API
-    # so the operator decides when to remove them.
-    run_cleanup_job(
-        "crowdstrike_import_cleanup.json",
-        neo4j_session,
+    # DEPRECATED: compatibility cleanup for unscoped Spotlight data will be removed in v1.0.0.
+    GraphJob.from_node_schema(
+        LegacyUnscopedSpotlightVulnerabilityCleanupSchema(),
         common_job_parameters,
-    )
+        iterationsize=100,
+    ).run(neo4j_session)
