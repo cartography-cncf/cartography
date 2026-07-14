@@ -1,7 +1,26 @@
 from datetime import timezone
 
+from cartography.intel.databricks.util import DatabricksWorkspaceClient
 from cartography.intel.databricks.util import iso_to_datetime
 from cartography.intel.databricks.util import parse_storage_url
+
+
+def test_client_retries_transient_get_failures():
+    # Arrange
+    client = DatabricksWorkspaceClient(
+        "https://example.cloud.databricks.com",
+        token="test-token",
+    )
+
+    # Act
+    retry_policy = client._session.adapters["https://"].max_retries
+
+    # Assert
+    assert retry_policy.total == 5
+    assert retry_policy.backoff_factor == 1
+    assert retry_policy.status_forcelist == (429, 500, 502, 503, 504)
+    assert retry_policy.allowed_methods == frozenset({"GET"})
+    assert retry_policy.respect_retry_after_header is True
 
 
 def test_iso_to_datetime():
