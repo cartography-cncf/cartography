@@ -2359,7 +2359,7 @@ def cleanup_github_branches(
     GraphJob.from_node_schema(GitHubBranchSchema(), cleanup_params).run(neo4j_session)
 
 
-# DEPRECATED: Remove this migration function when releasing v1
+# DEPRECATED: orphaned branch migration cleanup will be removed in v1.0.0.
 def cleanup_orphaned_github_branches(
     neo4j_session: neo4j.Session,
     common_job_parameters: Dict[str, Any],

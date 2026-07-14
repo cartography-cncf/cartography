@@ -13,6 +13,33 @@ TEST_REGION = "us-east-1"
 TEST_UPDATE_TAG = 123456789
 
 
+def test_transform_es_domains_calculates_internet_exposure():
+    domains = [
+        {
+            "DomainId": "public-domain",
+            "Endpoint": "search-public.example.com",
+            "AccessPolicies": (
+                '{"Version":"2012-10-17","Statement":[{"Effect":"Allow",'
+                '"Principal":"*","Action":"es:*","Resource":"*"}]}'
+            ),
+        },
+        {
+            "DomainId": "private-domain",
+            "Endpoint": "search-private.example.com",
+            "AccessPolicies": '{"Version":"2012-10-17","Statement":[]}',
+        },
+    ]
+
+    transformed = cartography.intel.aws.elasticsearch._transform_es_domains(domains)
+
+    assert {
+        domain["DomainId"]: domain["exposed_internet"] for domain in transformed
+    } == {
+        "public-domain": True,
+        "private-domain": False,
+    }
+
+
 def _create_test_subnets_and_security_groups(neo4j_session):
     """Create test subnets and security groups for relationship testing."""
     neo4j_session.run(
@@ -67,10 +94,10 @@ def test_sync_elasticsearch(mock_get_es_domains, mock_dns_ingest, neo4j_session)
     assert check_nodes(
         neo4j_session,
         "ESDomain",
-        ["id", "elasticsearch_version"],
+        ["id", "elasticsearch_version", "exposed_internet"],
     ) == {
-        ("000000000000/test-es-domain-1", "7.10"),
-        ("000000000000/test-es-domain-2", "6.8"),
+        ("000000000000/test-es-domain-1", "7.10", False),
+        ("000000000000/test-es-domain-2", "6.8", False),
     }
 
     # Assert - Relationships (AWSAccount)-[RESOURCE]->(ESDomain)

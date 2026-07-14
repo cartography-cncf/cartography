@@ -21,7 +21,7 @@ from policyuniverse.policy import Policy
 
 from cartography.analysis.aws.s3.analysis import AWS_S3ACL_ANALYSIS
 from cartography.client.core.tx import load
-from cartography.client.core.tx import run_write_query
+from cartography.client.core.tx import load_matchlinks
 from cartography.graph.job import GraphJob
 from cartography.intel.aws.util.botocore_config import create_boto3_client
 from cartography.intel.aws.util.botocore_config import get_botocore_config
@@ -33,6 +33,7 @@ from cartography.models.aws.s3.bucket import S3BucketPolicySchema
 from cartography.models.aws.s3.bucket import S3BucketPublicAccessBlockSchema
 from cartography.models.aws.s3.bucket import S3BucketSchema
 from cartography.models.aws.s3.bucket import S3BucketVersioningSchema
+from cartography.models.aws.s3.notification import S3BucketToSNSTopicRel
 from cartography.models.aws.s3.policy_statement import S3PolicyStatementSchema
 from cartography.stats import get_stats_client
 from cartography.util import aws_handle_regions
@@ -1113,20 +1114,34 @@ def _load_s3_notifications(
     """
     Ingest S3 bucket to SNS topic notification relationships into neo4j.
     """
-    ingest_notifications = """
-    UNWIND $notifications AS notification
-    MATCH (bucket:S3Bucket{name: notification.bucket})
-    MATCH (topic:SNSTopic{arn: notification.TopicArn})
-    MERGE (bucket)-[r:NOTIFIES]->(topic)
-    ON CREATE SET r.firstseen = timestamp()
-    SET r.lastupdated = $UpdateTag
-    """
-    run_write_query(
-        neo4j_session,
-        ingest_notifications,
-        notifications=notifications,
-        UpdateTag=update_tag,
-    )
+    notifications_by_bucket: dict[str, list[Dict]] = {}
+    for notification in notifications:
+        notifications_by_bucket.setdefault(notification["bucket"], []).append(
+            notification,
+        )
+
+    for bucket_name, bucket_notifications in notifications_by_bucket.items():
+        load_matchlinks(
+            neo4j_session,
+            S3BucketToSNSTopicRel(),
+            bucket_notifications,
+            lastupdated=update_tag,
+            _sub_resource_label="S3Bucket",
+            _sub_resource_id=bucket_name,
+        )
+
+
+def _cleanup_s3_notifications(
+    neo4j_session: neo4j.Session,
+    bucket_name: str,
+    update_tag: int,
+) -> None:
+    GraphJob.from_matchlink(
+        S3BucketToSNSTopicRel(),
+        "S3Bucket",
+        bucket_name,
+        update_tag,
+    ).run(neo4j_session)
 
 
 def _transform_bucket_data(data: Dict) -> List[Dict]:
@@ -1300,7 +1315,6 @@ def _sync_s3_notifications(
         "s3",
         config=get_botocore_config(max_pool_connections=BUCKET_BATCH_SIZE),
     )
-    notifications = []
 
     for bucket in bucket_data["Buckets"]:
         try:
@@ -1310,7 +1324,16 @@ def _sync_s3_notifications(
             parsed_notifications = parse_notification_configuration(
                 bucket["Name"], notification_config
             )
-            notifications.extend(parsed_notifications)
+            _load_s3_notifications(
+                neo4j_session,
+                parsed_notifications,
+                update_tag,
+            )
+            _cleanup_s3_notifications(
+                neo4j_session,
+                bucket["Name"],
+                update_tag,
+            )
             logger.debug(
                 f"Found {len(parsed_notifications)} notifications for bucket {bucket['Name']}"
             )
@@ -1319,8 +1342,6 @@ def _sync_s3_notifications(
                 f"Failed to retrieve notification configuration for bucket {bucket['Name']}: {e}"
             )
             continue
-
-    _load_s3_notifications(neo4j_session, notifications, update_tag)
 
 
 @timeit

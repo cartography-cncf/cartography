@@ -35,6 +35,37 @@ class KeycloakUserInheritedMemberOfGroupMatchLink(CartographyRelSchema):
     properties: KeycloakMatchLinkRelProperties = KeycloakMatchLinkRelProperties()
 
 
+# DEPRECATED: ASSUME_ROLE compatibility relationships will be removed in v1.0.0.
+@dataclass(frozen=True)
+class KeycloakUserAssumeRoleMatchLink(CartographyRelSchema):
+    target_node_label: str = "KeycloakRole"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"id": PropertyRef("role_id")},
+    )
+    source_node_label: str = "KeycloakUser"
+    source_node_matcher: SourceNodeMatcher = make_source_node_matcher(
+        {"id": PropertyRef("user_id")},
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "ASSUME_ROLE"
+    properties: KeycloakMatchLinkRelProperties = KeycloakMatchLinkRelProperties()
+
+
+@dataclass(frozen=True)
+class KeycloakUserHasRoleMatchLink(CartographyRelSchema):
+    target_node_label: str = "KeycloakRole"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"id": PropertyRef("role_id")},
+    )
+    source_node_label: str = "KeycloakUser"
+    source_node_matcher: SourceNodeMatcher = make_source_node_matcher(
+        {"id": PropertyRef("user_id")},
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "HAS_ROLE"
+    properties: KeycloakMatchLinkRelProperties = KeycloakMatchLinkRelProperties()
+
+
 @dataclass(frozen=True)
 class KeycloakRoleIndirectGrantsScopeMatchLink(CartographyRelSchema):
     target_node_label: str = "KeycloakScope"
