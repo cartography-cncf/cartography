@@ -30,6 +30,8 @@ from cartography.models.introspection import iter_model_classes
 from cartography.models.introspection import iter_permission_relationships
 from cartography.models.introspection import PermissionRelationshipDefinition
 from cartography.models.jamf.computer import JamfComputerSchema
+from cartography.models.semgrep.dependencies import SemgrepGoLibrarySchema
+from cartography.models.semgrep.dependencies import SemgrepNpmLibrarySchema
 
 
 @dataclass(frozen=True)
@@ -307,6 +309,17 @@ def test_build_data_model_distinguishes_canonical_ontology_projections():
     assert node is not None
     assert node.ontology_projections == ("Device",)
     assert not any(prop.name.startswith("_ont_") for prop in node.properties)
+
+
+def test_build_data_model_projects_nodes_through_additional_labels():
+    # Act
+    model = build_data_model([SemgrepGoLibrarySchema, SemgrepNpmLibrarySchema])
+
+    # Assert
+    for node_label in ("GoLibrary", "NpmLibrary"):
+        node = model.get_node(node_label)
+        assert node is not None
+        assert node.ontology_projections == ("Package",)
 
 
 def test_iter_model_classes_discovers_each_defined_model_once():

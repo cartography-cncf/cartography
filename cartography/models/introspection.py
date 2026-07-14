@@ -640,9 +640,18 @@ def _add_ontology_properties(
         projection_label = ontology_model().label
         for ontology_mapping in mappings_by_module.values():
             for node_mapping in ontology_mapping.nodes:
-                node_entry = node_entries.get(node_mapping.node_label)
-                if node_entry is not None:
-                    node_entry["ontology_projections"].add(projection_label)
+                for node_label, node_entry in node_entries.items():
+                    is_primary_label = node_label == node_mapping.node_label
+                    additional_labels = {
+                        *node_entry["extra_labels"],
+                        *(label.label for label in node_entry["conditional_labels"]),
+                    }
+                    is_module_additional_label = (
+                        ontology_mapping.module_name in node_entry["modules"]
+                        and node_mapping.node_label in additional_labels
+                    )
+                    if is_primary_label or is_module_additional_label:
+                        node_entry["ontology_projections"].add(projection_label)
 
 
 def _ontology_labels_for_mapping_group(

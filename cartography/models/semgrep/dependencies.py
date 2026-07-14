@@ -15,13 +15,32 @@ from cartography.models.core.relationships import TargetNodeMatcher
 
 @dataclass(frozen=True)
 class SemgrepDependencyNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("id")
+    id: PropertyRef = PropertyRef(
+        "id",
+        description="Unique identifier formed from the dependency name and version.",
+    )
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
-    name: PropertyRef = PropertyRef("name")
-    ecosystem: PropertyRef = PropertyRef("ecosystem")
-    version: PropertyRef = PropertyRef("version")
-    type: PropertyRef = PropertyRef("type")
-    normalized_id: PropertyRef = PropertyRef("normalized_id", extra_index=True)
+    name: PropertyRef = PropertyRef(
+        "name",
+        description="Dependency name.",
+    )
+    ecosystem: PropertyRef = PropertyRef(
+        "ecosystem",
+        description="Package ecosystem reported by Semgrep.",
+    )
+    version: PropertyRef = PropertyRef(
+        "version",
+        description="Dependency version.",
+    )
+    type: PropertyRef = PropertyRef(
+        "type",
+        description="Canonical package type derived from the ecosystem.",
+    )
+    normalized_id: PropertyRef = PropertyRef(
+        "normalized_id",
+        extra_index=True,
+        description="Cross-tool package identifier used to create a canonical Package node.",
+    )
 
 
 @dataclass(frozen=True)
@@ -32,6 +51,8 @@ class SemgrepDependencyToSemgrepDeploymentRelProperties(CartographyRelProperties
 @dataclass(frozen=True)
 # (:SemgrepDependency)<-[:RESOURCE]-(:SemgrepDeployment)
 class SemgrepDependencyToSemgrepDeploymentRel(CartographyRelSchema):
+    """Connects a Semgrep deployment to one of its dependencies."""
+
     target_node_label: str = "SemgrepDeployment"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("DEPLOYMENT_ID", set_in_kwargs=True)},
@@ -46,14 +67,25 @@ class SemgrepDependencyToSemgrepDeploymentRel(CartographyRelSchema):
 @dataclass(frozen=True)
 class SemgrepDependencyToGithubRepoRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
-    specifier: PropertyRef = PropertyRef("specifier")
-    transitivity: PropertyRef = PropertyRef("transitivity")
-    url: PropertyRef = PropertyRef("url")
+    specifier: PropertyRef = PropertyRef(
+        "specifier",
+        description="Version specifier required by the repository.",
+    )
+    transitivity: PropertyRef = PropertyRef(
+        "transitivity",
+        description="Whether the dependency is direct or transitive.",
+    )
+    url: PropertyRef = PropertyRef(
+        "url",
+        description="URL of the manifest location declaring the dependency.",
+    )
 
 
 @dataclass(frozen=True)
 # (:SemgrepDependency)<-[:REQUIRES]-(:GitHubRepository)
 class SemgrepDependencyToGithubRepoRel(CartographyRelSchema):
+    """Links a GitHub repository to a dependency it requires."""
+
     target_node_label: str = "GitHubRepository"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("repo_url")},
@@ -68,14 +100,25 @@ class SemgrepDependencyToGithubRepoRel(CartographyRelSchema):
 @dataclass(frozen=True)
 class SemgrepDependencyToGitLabProjectRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
-    specifier: PropertyRef = PropertyRef("specifier")
-    transitivity: PropertyRef = PropertyRef("transitivity")
-    url: PropertyRef = PropertyRef("url")
+    specifier: PropertyRef = PropertyRef(
+        "specifier",
+        description="Version specifier required by the repository.",
+    )
+    transitivity: PropertyRef = PropertyRef(
+        "transitivity",
+        description="Whether the dependency is direct or transitive.",
+    )
+    url: PropertyRef = PropertyRef(
+        "url",
+        description="URL of the manifest location declaring the dependency.",
+    )
 
 
 @dataclass(frozen=True)
 # (:SemgrepDependency)<-[:REQUIRES]-(:GitLabProject)
 class SemgrepDependencyToGitLabProjectRel(CartographyRelSchema):
+    """Links a GitLab project to a dependency it requires."""
+
     target_node_label: str = "GitLabProject"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"web_url": PropertyRef("repo_url")},
@@ -94,6 +137,8 @@ class SemgrepSCAFindngToDependencyRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class SemgrepGoLibrarySchema(CartographyNodeSchema):
+    """A Go library dependency reported by Semgrep."""
+
     label: str = "GoLibrary"
     extra_node_labels: Optional[ExtraNodeLabels] = ExtraNodeLabels(
         ["Dependency", "SemgrepDependency"],
@@ -112,6 +157,8 @@ class SemgrepGoLibrarySchema(CartographyNodeSchema):
 
 @dataclass(frozen=True)
 class SemgrepNpmLibrarySchema(CartographyNodeSchema):
+    """An npm library dependency reported by Semgrep."""
+
     label: str = "NpmLibrary"
     extra_node_labels: Optional[ExtraNodeLabels] = ExtraNodeLabels(
         ["Dependency", "SemgrepDependency"],

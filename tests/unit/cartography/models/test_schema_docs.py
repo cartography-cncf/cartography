@@ -802,6 +802,42 @@ def test_sentry_schema_doc_is_generated_from_introspected_model():
     assert "No description provided." not in generated
 
 
+def test_semgrep_schema_doc_is_generated_from_introspected_model():
+    # Arrange
+    complete_model = inspect_data_model()
+    semgrep_model = complete_model.for_module("semgrep")
+
+    # Act
+    generated = render_module_schema(complete_model, "semgrep")
+
+    # Assert
+    assert not Path("docs/root/modules/semgrep/schema.md").exists()
+    assert len(semgrep_model.nodes) == 8
+    assert len(semgrep_model.relationships) == 22
+    assert (
+        "A code-level security issue reported by Semgrep Cloud or Semgrep OSS."
+        in generated
+    )
+    assert (
+        "| repository_url |  | Full URL of the repository where the finding was discovered. |"
+        in generated
+    )
+    assert (
+        "> **Ontology Projection**: `GoLibrary` contributes data "
+        "to canonical `Package` nodes." in generated
+    )
+    assert (
+        "> **Ontology Projection**: `NpmLibrary` contributes data "
+        "to canonical `Package` nodes." in generated
+    )
+    assert "(:Package)-[:DETECTED_AS]->(:SemgrepDependency)" in generated
+    assert "(:SemgrepSCAFinding)-[:AFFECTS]->(:Package)" in generated
+    assert (
+        "    | specifier | Version specifier required by the repository. |" in generated
+    )
+    assert "No description provided." not in generated
+
+
 def test_slack_schema_doc_is_generated_from_introspected_model():
     # Arrange
     model = inspect_data_model(slack_models)
