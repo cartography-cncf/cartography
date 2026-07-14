@@ -53,7 +53,7 @@ _malicious_npm_dependencies_shai_hulud_sept_2025_github = Fact(
         { name: 'rxnt-authentication', version: '0.0.4' }
     ] AS vulnerable
     UNWIND vulnerable AS v
-    MATCH (d:Dependency {ecosystem: 'npm', name: v.name})--(manifest:DependencyGraphManifest)--(r:GitHubRepository)
+    MATCH (d:Dependency {ecosystem: 'npm', name: v.name})--(manifest:GitHubDependencyGraphManifest)--(r:GitHubRepository)
     WHERE REPLACE(d.requirements, "= ", "") = v.version
       AND coalesce(r.archived, false) = false
       AND coalesce(r.disabled, false) = false
@@ -102,7 +102,7 @@ _malicious_npm_dependencies_shai_hulud_sept_2025_github = Fact(
     ] AS vulnerable
     UNWIND vulnerable AS v
         MATCH path = (d:Dependency {ecosystem: 'npm', name: v.name})
-                    --(manifest:DependencyGraphManifest)--(r:GitHubRepository)
+                    --(manifest:GitHubDependencyGraphManifest)--(r:GitHubRepository)
         WHERE REPLACE(d.requirements, "= ", "") = v.version
           AND coalesce(r.archived, false) = false
           AND coalesce(r.disabled, false) = false
@@ -1149,7 +1149,7 @@ _malicious_npm_dependencies_shai_hulud_nov_2025_github = Fact(
         { name: 'create-kinvey-flex-service', version: '0.2.1' }
     ] AS vulnerable
     UNWIND vulnerable AS v
-    MATCH (d:Dependency {ecosystem: 'npm', name: v.name})--(manifest:DependencyGraphManifest)--(r:GitHubRepository)
+    MATCH (d:Dependency {ecosystem: 'npm', name: v.name})--(manifest:GitHubDependencyGraphManifest)--(r:GitHubRepository)
     WHERE REPLACE(d.requirements, "= ", "") = v.version
       AND coalesce(r.archived, false) = false
       AND coalesce(r.disabled, false) = false
@@ -2160,7 +2160,7 @@ _malicious_npm_dependencies_shai_hulud_nov_2025_github = Fact(
     ] AS vulnerable
     UNWIND vulnerable AS v
         MATCH path = (d:Dependency {ecosystem: 'npm', name: v.name})
-                    --(manifest:DependencyGraphManifest)--(r:GitHubRepository)
+                    --(manifest:GitHubDependencyGraphManifest)--(r:GitHubRepository)
         WHERE REPLACE(d.requirements, "= ", "") = v.version
           AND coalesce(r.archived, false) = false
           AND coalesce(r.disabled, false) = false
@@ -2616,7 +2616,7 @@ _malicious_npm_dependencies_shai_hulud_mini_2026_github = Fact(
         { name: 'wot-api', version: '0.8.4' }
     ] AS vulnerable
     UNWIND vulnerable AS v
-    MATCH (d:Dependency {ecosystem: 'npm', name: v.name})--(manifest:DependencyGraphManifest)--(r:GitHubRepository)
+    MATCH (d:Dependency {ecosystem: 'npm', name: v.name})--(manifest:GitHubDependencyGraphManifest)--(r:GitHubRepository)
     WHERE REPLACE(d.requirements, "= ", "") = v.version
       AND coalesce(r.archived, false) = false
       AND coalesce(r.disabled, false) = false
@@ -3036,7 +3036,7 @@ _malicious_npm_dependencies_shai_hulud_mini_2026_github = Fact(
     ] AS vulnerable
     UNWIND vulnerable AS v
         MATCH path = (d:Dependency {ecosystem: 'npm', name: v.name})
-                    --(manifest:DependencyGraphManifest)--(r:GitHubRepository)
+                    --(manifest:GitHubDependencyGraphManifest)--(r:GitHubRepository)
         WHERE REPLACE(d.requirements, "= ", "") = v.version
           AND coalesce(r.archived, false) = false
           AND coalesce(r.disabled, false) = false

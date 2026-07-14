@@ -62,7 +62,7 @@ class AzureFunctionAppToECRImageRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class AzureFunctionAppToECRImageRel(CartographyRelSchema):
-    target_node_label: str = "ECRImage"
+    target_node_label: str = "AWSECRImage"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"digest": PropertyRef("image_digest")},
     )

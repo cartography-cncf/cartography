@@ -50,9 +50,9 @@ class DatabricksStorageConfigToS3RelProperties(CartographyRelProperties):
 
 
 @dataclass(frozen=True)
-# (:DatabricksStorageConfig)-[:BACKED_BY]->(:S3Bucket)
+# (:DatabricksStorageConfig)-[:BACKED_BY]->(:AWSS3Bucket)
 class DatabricksStorageConfigToS3Rel(CartographyRelSchema):
-    target_node_label: str = "S3Bucket"
+    target_node_label: str = "AWSS3Bucket"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"name": PropertyRef("root_bucket_name")},
     )

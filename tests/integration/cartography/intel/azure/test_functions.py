@@ -130,7 +130,7 @@ def test_sync_function_apps(mock_get, mock_fetch_configs, neo4j_session):
 def test_container_function_app_has_image_and_resolved_image(
     mock_get, mock_fetch_configs, neo4j_session
 ):
-    """A container-deployed Function App should get HAS_IMAGE to ECRImage
+    """A container-deployed Function App should get HAS_IMAGE to AWSECRImage
     (matched on digest) and a RESOLVED_IMAGE edge via the Function analysis pass."""
     mock_get.return_value = MOCK_FUNCTION_APPS
     mock_fetch_configs.return_value = MOCK_FUNCTION_APP_CONFIGS
@@ -142,7 +142,7 @@ def test_container_function_app_has_image_and_resolved_image(
     )
     neo4j_session.run(
         """
-        MERGE (i:Image:ECRImage {id: $digest})
+        MERGE (i:Image:AWSECRImage {id: $digest})
         SET i.digest = $digest, i.lastupdated = $tag
         """,
         digest=TEST_FUNCTIONAPP_IMAGE_DIGEST,
@@ -164,7 +164,7 @@ def test_container_function_app_has_image_and_resolved_image(
         neo4j_session,
         "AzureFunctionApp",
         "id",
-        "ECRImage",
+        "AWSECRImage",
         "digest",
         "HAS_IMAGE",
     ) == {(TEST_FUNCTIONAPP_CONTAINER_ID, TEST_FUNCTIONAPP_IMAGE_DIGEST)}

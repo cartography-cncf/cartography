@@ -36,7 +36,7 @@ def test_sync_inspector_network_findings(mock_get, neo4j_session):
     # Add some fake instances
     neo4j_session.run(
         """
-        MERGE (:EC2Instance{id: 'i-instanceid', instanceid: 'i-instanceid'})
+        MERGE (:AWSEC2Instance{id: 'i-instanceid', instanceid: 'i-instanceid'})
         """,
     )
 
@@ -50,12 +50,12 @@ def test_sync_inspector_network_findings(mock_get, neo4j_session):
         {"UPDATE_TAG": TEST_UPDATE_TAG, "AWS_ID": TEST_ACC_ID_1},
     )
 
-    # Assert Finding to EC2Instance exists
+    # Assert Finding to AWSEC2Instance exists
     assert check_rels(
         neo4j_session,
         "AWSInspectorFinding",
         "id",
-        "EC2Instance",
+        "AWSEC2Instance",
         "id",
         "AFFECTS",
         rel_direction_right=True,
@@ -109,8 +109,8 @@ def test_sync_inspector_ec2_package_findings(mock_get, neo4j_session):
     # Add some fake instances
     neo4j_session.run(
         """
-        MERGE (:EC2Instance{id: 'i-88503981029833100', instanceid: 'i-88503981029833100'})
-        MERGE (:EC2Instance{id: 'i-88503981029833101', instanceid: 'i-88503981029833101'})
+        MERGE (:AWSEC2Instance{id: 'i-88503981029833100', instanceid: 'i-88503981029833100'})
+        MERGE (:AWSEC2Instance{id: 'i-88503981029833101', instanceid: 'i-88503981029833101'})
         """,
     )
 
@@ -129,7 +129,7 @@ def test_sync_inspector_ec2_package_findings(mock_get, neo4j_session):
         neo4j_session,
         "AWSInspectorFinding",
         "id",
-        "EC2Instance",
+        "AWSEC2Instance",
         "id",
         "AFFECTS",
         rel_direction_right=True,

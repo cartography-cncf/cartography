@@ -68,7 +68,7 @@ def _seed_codeowners_prerequisites(neo4j_session) -> None:
         MERGE (mixed_case_user:GitHubUser {id: $mixed_case_user_url})
         SET mixed_case_user.username = "MixedCaseUser"
 
-        MERGE (package_manifest:DependencyGraphManifest {id: $package_manifest_id})
+        MERGE (package_manifest:GitHubDependencyGraphManifest {id: $package_manifest_id})
         SET package_manifest.blob_path = "/package.json",
             package_manifest.repo_relative_path = "package.json",
             package_manifest.filename = "package.json",
@@ -76,7 +76,7 @@ def _seed_codeowners_prerequisites(neo4j_session) -> None:
         MERGE (org)-[:RESOURCE {lastupdated: $update_tag}]->(package_manifest)
         MERGE (repo)-[:HAS_MANIFEST {lastupdated: $update_tag}]->(package_manifest)
 
-        MERGE (js_manifest:DependencyGraphManifest {id: $js_manifest_id})
+        MERGE (js_manifest:GitHubDependencyGraphManifest {id: $js_manifest_id})
         SET js_manifest.blob_path = "/src/index.js",
             js_manifest.repo_relative_path = "src/index.js",
             js_manifest.filename = "index.js",
@@ -192,7 +192,7 @@ def test_sync_codeowners_loads_rules_owner_relationships_and_manifest_matches(
 
     matched_manifests = neo4j_session.run(
         """
-        MATCH (m:DependencyGraphManifest)-[r:MATCHES_CODEOWNER_RULE]->(rule:GitHubCodeOwnerRule)
+        MATCH (m:GitHubDependencyGraphManifest)-[r:MATCHES_CODEOWNER_RULE]->(rule:GitHubCodeOwnerRule)
         RETURN m.repo_relative_path AS manifest_path,
                rule.pattern AS pattern,
                r.match_pattern AS match_pattern,
@@ -246,7 +246,7 @@ def test_sync_codeowners_successful_resync_cleans_stale_rules_and_matches(
     }
     stale_match_count = neo4j_session.run(
         """
-        MATCH (:DependencyGraphManifest)-[r:MATCHES_CODEOWNER_RULE]->(:GitHubCodeOwnerRule)
+        MATCH (:GitHubDependencyGraphManifest)-[r:MATCHES_CODEOWNER_RULE]->(:GitHubCodeOwnerRule)
         RETURN count(r) AS count
         """
     ).single()["count"]
@@ -315,7 +315,7 @@ def test_sync_codeowners_preserves_manifest_matches_when_manifest_fetch_incomple
     # Assert
     rows = neo4j_session.run(
         """
-        MATCH (m:DependencyGraphManifest)-[r:MATCHES_CODEOWNER_RULE]->(rule:GitHubCodeOwnerRule)
+        MATCH (m:GitHubDependencyGraphManifest)-[r:MATCHES_CODEOWNER_RULE]->(rule:GitHubCodeOwnerRule)
         RETURN m.repo_relative_path AS manifest_path,
                rule.pattern AS pattern,
                r.lastupdated AS lastupdated

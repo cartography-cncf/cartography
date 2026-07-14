@@ -85,7 +85,7 @@ class AWSSageMakerTrainingJobToS3BucketReadFromRelProperties(CartographyRelPrope
 
 @dataclass(frozen=True)
 class AWSSageMakerTrainingJobToS3BucketReadFromRel(CartographyRelSchema):
-    target_node_label: str = "S3Bucket"
+    target_node_label: str = "AWSS3Bucket"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("InputDataS3BucketId")}
     )
@@ -105,7 +105,7 @@ class AWSSageMakerTrainingJobToS3BucketProducedModelRelProperties(
 
 @dataclass(frozen=True)
 class AWSSageMakerTrainingJobToS3BucketProducedModelRel(CartographyRelSchema):
-    target_node_label: str = "S3Bucket"
+    target_node_label: str = "AWSS3Bucket"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("OutputDataS3BucketId")}
     )

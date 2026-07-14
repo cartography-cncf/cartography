@@ -15,7 +15,7 @@ aws_mapping = OntologyMapping(
     module_name="aws",
     nodes=[
         OntologyNodeMapping(
-            node_label="RDSInstance",
+            node_label="AWSRDSInstance",
             fields=[
                 OntologyFieldMapping(
                     ontology_field="name",
@@ -37,7 +37,7 @@ aws_mapping = OntologyMapping(
             ],
         ),
         OntologyNodeMapping(
-            node_label="ESDomain",
+            node_label="AWSESDomain",
             fields=[
                 OntologyFieldMapping(
                     ontology_field="name", node_field="name", required=True
@@ -56,11 +56,11 @@ aws_mapping = OntologyMapping(
                     node_field="encryption_at_rest_options_enabled",
                 ),
                 # _ont_db_port: Not applicable (HTTPS API)
-                # _ont_db_location: Region is not currently stored on the ESDomain node.
+                # _ont_db_location: Region is not currently stored on the AWSESDomain node.
             ],
         ),
         OntologyNodeMapping(
-            node_label="DynamoDBTable",
+            node_label="AWSDynamoDBTable",
             fields=[
                 OntologyFieldMapping(
                     ontology_field="name", node_field="name", required=True

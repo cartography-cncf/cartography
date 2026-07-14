@@ -89,7 +89,7 @@ class AWSBedrockCustomModelToFoundationModelRel(CartographyRelSchema):
 @dataclass(frozen=True)
 class AWSBedrockCustomModelToS3BucketRelProperties(CartographyRelProperties):
     """
-    Properties for the relationship between AWSBedrockCustomModel and S3Bucket.
+    Properties for the relationship between AWSBedrockCustomModel and AWSS3Bucket.
     """
 
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
@@ -98,10 +98,10 @@ class AWSBedrockCustomModelToS3BucketRelProperties(CartographyRelProperties):
 @dataclass(frozen=True)
 class AWSBedrockCustomModelToS3BucketRel(CartographyRelSchema):
     """
-    Defines the relationship from AWSBedrockCustomModel to S3Bucket (training data source).
+    Defines the relationship from AWSBedrockCustomModel to AWSS3Bucket (training data source).
     """
 
-    target_node_label: str = "S3Bucket"
+    target_node_label: str = "AWSS3Bucket"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"name": PropertyRef("training_data_bucket_name")},
     )

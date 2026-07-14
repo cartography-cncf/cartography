@@ -746,7 +746,7 @@ def test_link_ontology_device_affected_by_crowdstrike_finding(neo4j_session):
             serial_number: 'SN-CROWDSTRIKE-AFFECTS',
             lastupdated: $update_tag
         })
-        CREATE (v:SpotlightVulnerability {id: 'spotlight-vuln-1', lastupdated: $update_tag})
+        CREATE (v:CrowdstrikeSpotlightVulnerability {id: 'spotlight-vuln-1', lastupdated: $update_tag})
         CREATE (f:CrowdstrikeFinding {id: 'CVE-2024-0002', lastupdated: $update_tag})
         MERGE (h)-[hv:HAS_VULNERABILITY]->(v)
         SET hv.lastupdated = $update_tag

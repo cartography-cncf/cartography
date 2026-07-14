@@ -60,7 +60,7 @@ Representation of a DigitalOcean [Project](https://developers.digitalocean.com/d
 ### DODroplet
 Representation of a DigitalOcean [Droplet](https://developers.digitalocean.com/documentation/v2/#droplets) object.
 
-> **Ontology Mapping**: This node has the extra label `ComputeInstance` to enable cross-platform queries for compute instances across different systems (e.g., EC2Instance, ScalewayInstance).
+> **Ontology Mapping**: This node has the extra label `ComputeInstance` to enable cross-platform queries for compute instances across different systems (e.g., AWSEC2Instance, ScalewayInstance).
 
 | Field | Description |
 | ----- | ----------- |

@@ -46,7 +46,7 @@ class IpRuleToSecurityGroupRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class IpRuleToSecurityGroupRel(CartographyRelSchema):
-    target_node_label: str = "EC2SecurityGroup"
+    target_node_label: str = "AWSEC2SecurityGroup"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"groupid": PropertyRef("GroupId")}
     )

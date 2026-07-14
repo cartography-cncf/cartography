@@ -73,7 +73,7 @@ class AWSSageMakerModelPackageToS3BucketRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class AWSSageMakerModelPackageToS3BucketRel(CartographyRelSchema):
-    target_node_label: str = "S3Bucket"
+    target_node_label: str = "AWSS3Bucket"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("ModelArtifactsS3BucketId")}
     )

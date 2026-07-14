@@ -628,25 +628,25 @@ def test_build_target_precondition_clause_empty():
 def test_build_target_precondition_clause_outgoing():
     clause = permission_relationships.build_target_precondition_clause(
         {
-            "related_label": "SSMInstanceInformation",
+            "related_label": "AWSSSMInstanceInformation",
             "relationship": "HAS_INFORMATION",
             "direction": "outgoing",
         },
     )
     assert (
         clause
-        == "AND EXISTS { MATCH (resource)-[:HAS_INFORMATION]->(:SSMInstanceInformation) }"
+        == "AND EXISTS { MATCH (resource)-[:HAS_INFORMATION]->(:AWSSSMInstanceInformation) }"
     )
 
 
 def test_build_target_precondition_clause_defaults_to_outgoing():
     clause = permission_relationships.build_target_precondition_clause(
         {
-            "related_label": "SSMInstanceInformation",
+            "related_label": "AWSSSMInstanceInformation",
             "relationship": "HAS_INFORMATION",
         },
     )
-    assert "(resource)-[:HAS_INFORMATION]->(:SSMInstanceInformation)" in clause
+    assert "(resource)-[:HAS_INFORMATION]->(:AWSSSMInstanceInformation)" in clause
 
 
 def test_build_target_precondition_clause_incoming():
@@ -664,7 +664,7 @@ def test_build_target_precondition_clause_rejects_invalid_direction():
     with pytest.raises(ValueError, match="direction must be"):
         permission_relationships.build_target_precondition_clause(
             {
-                "related_label": "SSMInstanceInformation",
+                "related_label": "AWSSSMInstanceInformation",
                 "relationship": "HAS_INFORMATION",
                 "direction": "sideways",
             },
@@ -676,9 +676,9 @@ def test_is_valid_rpr_accepts_valid_precondition():
         {
             "permissions": ["ssm:StartSession"],
             "relationship_name": "CAN_START_SESSION",
-            "target_label": "EC2Instance",
+            "target_label": "AWSEC2Instance",
             "target_precondition": {
-                "related_label": "SSMInstanceInformation",
+                "related_label": "AWSSSMInstanceInformation",
                 "relationship": "HAS_INFORMATION",
             },
         },
@@ -690,15 +690,15 @@ def test_is_valid_rpr_rejects_malformed_precondition():
         {
             "permissions": ["ssm:StartSession"],
             "relationship_name": "CAN_START_SESSION",
-            "target_label": "EC2Instance",
-            "target_precondition": {"related_label": "SSMInstanceInformation"},
+            "target_label": "AWSEC2Instance",
+            "target_precondition": {"related_label": "AWSSSMInstanceInformation"},
         },
     )
     assert not permission_relationships.is_valid_rpr(
         {
             "permissions": ["ssm:StartSession"],
             "relationship_name": "CAN_START_SESSION",
-            "target_label": "EC2Instance",
+            "target_label": "AWSEC2Instance",
             "target_precondition": "not-a-dict",
         },
     )
