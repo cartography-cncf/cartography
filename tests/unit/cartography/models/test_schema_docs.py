@@ -26,6 +26,7 @@ import cartography.models.snipeit as snipeit_models
 import cartography.models.spacelift as spacelift_models
 import cartography.models.subimage as subimage_models
 import cartography.models.syft as syft_models
+import cartography.models.tailscale as tailscale_models
 import cartography.models.vercel as vercel_models
 import cartography.models.workday as workday_models
 import cartography.models.workos as workos_models
@@ -148,6 +149,23 @@ def test_crowdstrike_schema_doc_is_generated_from_introspected_model():
         "(:CrowdstrikeHost)-[:HAS_VULNERABILITY]->(:SpotlightVulnerability)"
         in generated
     )
+    assert "No description provided." not in generated
+
+
+def test_tailscale_schema_doc_is_generated_from_introspected_model():
+    # Arrange
+    model = inspect_data_model(tailscale_models)
+    complete_model = inspect_data_model()
+
+    # Act
+    generated = render_module_schema(complete_model, "tailscale")
+
+    # Assert
+    assert not Path("docs/root/modules/tailscale/schema.md").exists()
+    assert len(model.nodes) == 10
+    assert len(model.relationships) == 30
+    assert "(:TailscaleUser)-[:CAN_ACCESS]->(:TailscaleDevice)" in generated
+    assert "(:TailscaleDevice)-[:IS_INSTANCE]->(:ComputeInstance)" in generated
     assert "No description provided." not in generated
 
 

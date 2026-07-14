@@ -13,29 +13,64 @@ from cartography.models.core.relationships import TargetNodeMatcher
 
 @dataclass(frozen=True)
 class TailscaleUserNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("id")
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
-    display_name: PropertyRef = PropertyRef("displayName")
-    login_name: PropertyRef = PropertyRef("loginName")
-    email: PropertyRef = PropertyRef("loginName", extra_index=True)
-    profile_pic_url: PropertyRef = PropertyRef("profilePicUrl")
-    created: PropertyRef = PropertyRef("created")
-    type: PropertyRef = PropertyRef("type")
-    role: PropertyRef = PropertyRef("role")
-    status: PropertyRef = PropertyRef("status")
-    device_count: PropertyRef = PropertyRef("deviceCount")
-    last_seen: PropertyRef = PropertyRef("lastSeen")
-    currently_connected: PropertyRef = PropertyRef("currentlyConnected")
+    id: PropertyRef = PropertyRef(
+        "id", description="The unique identifier for the user."
+    )
+    lastupdated: PropertyRef = PropertyRef(
+        "lastupdated",
+        set_in_kwargs=True,
+        description="Timestamp of the last time the node was updated.",
+    )
+    display_name: PropertyRef = PropertyRef(
+        "displayName", description="The name of the user."
+    )
+    login_name: PropertyRef = PropertyRef(
+        "loginName", description="The emailish login name of the user."
+    )
+    email: PropertyRef = PropertyRef(
+        "loginName", extra_index=True, description="The email of the user."
+    )
+    profile_pic_url: PropertyRef = PropertyRef(
+        "profilePicUrl", description="The profile pic URL for the user."
+    )
+    created: PropertyRef = PropertyRef(
+        "created", description="The time the user joined their tailnet."
+    )
+    type: PropertyRef = PropertyRef(
+        "type",
+        description="The type of relation this user has to the tailnet associated with the request.",
+    )
+    role: PropertyRef = PropertyRef(
+        "role", description="The role of the user. Learn more about user roles."
+    )
+    status: PropertyRef = PropertyRef("status", description="The status of the user.")
+    device_count: PropertyRef = PropertyRef(
+        "deviceCount", description="Number of devices the user owns."
+    )
+    last_seen: PropertyRef = PropertyRef(
+        "lastSeen",
+        description="The later of either: - The last time any of the user's nodes were connected to the network. - The last time the user authenticated to any tailscale service, including the admin panel.",
+    )
+    currently_connected: PropertyRef = PropertyRef(
+        "currentlyConnected",
+        description="`true` when the user has a node currently connected to the control server.",
+    )
 
 
 @dataclass(frozen=True)
 class TailscaleUserToTailnetRelProperties(CartographyRelProperties):
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    lastupdated: PropertyRef = PropertyRef(
+        "lastupdated",
+        set_in_kwargs=True,
+        description="Timestamp of the last Cartography update.",
+    )
 
 
 @dataclass(frozen=True)
 # (:TailscaleTailnet)-[:RESOURCE]->(:TailscaleUser)
 class TailscaleUserToTailnetRel(CartographyRelSchema):
+    """Defines the RESOURCE relationship to TailscaleTailnet nodes."""
+
     target_node_label: str = "TailscaleTailnet"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("org", set_in_kwargs=True)},
@@ -49,6 +84,8 @@ class TailscaleUserToTailnetRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class TailscaleUserSchema(CartographyNodeSchema):
+    """Representation of a user within a tailnet."""
+
     label: str = "TailscaleUser"
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
         ["UserAccount"]

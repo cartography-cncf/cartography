@@ -16,19 +16,33 @@ from cartography.models.core.relationships import TargetNodeMatcher
 
 @dataclass(frozen=True)
 class TailscaleGroupNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("id")
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
-    name: PropertyRef = PropertyRef("name")
+    id: PropertyRef = PropertyRef(
+        "id", description="Group ID (eg. `group:example` or `autogroup:admin`)."
+    )
+    lastupdated: PropertyRef = PropertyRef(
+        "lastupdated",
+        set_in_kwargs=True,
+        description="Timestamp of the last time the node was updated.",
+    )
+    name: PropertyRef = PropertyRef(
+        "name", description="The group name (eg. `example`)."
+    )
 
 
 @dataclass(frozen=True)
 class TailscaleGroupToTailnetRelProperties(CartographyRelProperties):
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    lastupdated: PropertyRef = PropertyRef(
+        "lastupdated",
+        set_in_kwargs=True,
+        description="Timestamp of the last Cartography update.",
+    )
 
 
 @dataclass(frozen=True)
 # (:TailscaleTailnet)-[:RESOURCE]->(:TailscaleGroup)
 class TailscaleGroupToTailnetRel(CartographyRelSchema):
+    """Defines the RESOURCE relationship to TailscaleTailnet nodes."""
+
     target_node_label: str = "TailscaleTailnet"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("org", set_in_kwargs=True)},
@@ -42,12 +56,18 @@ class TailscaleGroupToTailnetRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class TailscaleGroupToUserRelProperties(CartographyRelProperties):
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    lastupdated: PropertyRef = PropertyRef(
+        "lastupdated",
+        set_in_kwargs=True,
+        description="Timestamp of the last Cartography update.",
+    )
 
 
 @dataclass(frozen=True)
 # (:TailscaleUser)-[:MEMBER_OF]->(:TailscaleGroup)
 class TailscaleGroupToUserRel(CartographyRelSchema):
+    """Defines the MEMBER_OF relationship to TailscaleUser nodes."""
+
     target_node_label: str = "TailscaleUser"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"login_name": PropertyRef("members", one_to_many=True)},
@@ -59,12 +79,18 @@ class TailscaleGroupToUserRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class TailscaleGroupToGroupRelProperties(CartographyRelProperties):
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    lastupdated: PropertyRef = PropertyRef(
+        "lastupdated",
+        set_in_kwargs=True,
+        description="Timestamp of the last Cartography update.",
+    )
 
 
 @dataclass(frozen=True)
 # (:TailscaleGroup)-[:MEMBER_OF]->(:TailscaleGroup)
 class TailscaleGroupToGroupRel(CartographyRelSchema):
+    """Defines the MEMBER_OF relationship to TailscaleGroup nodes."""
+
     target_node_label: str = "TailscaleGroup"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("sub_groups", one_to_many=True)},
@@ -78,6 +104,8 @@ class TailscaleGroupToGroupRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class TailscaleGroupSchema(CartographyNodeSchema):
+    """A group in Tailscale (either `group` or `autogroup`)."""
+
     label: str = "TailscaleGroup"
     properties: TailscaleGroupNodeProperties = TailscaleGroupNodeProperties()
     sub_resource_relationship: TailscaleGroupToTailnetRel = TailscaleGroupToTailnetRel()
@@ -97,12 +125,21 @@ class TailscaleGroupSchema(CartographyNodeSchema):
 
 @dataclass(frozen=True)
 class TailscaleUserInheritedMemberRelProperties(CartographyRelProperties):
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    lastupdated: PropertyRef = PropertyRef(
+        "lastupdated",
+        set_in_kwargs=True,
+        description="Timestamp of the last Cartography update.",
+    )
     _sub_resource_label: PropertyRef = PropertyRef(
         "_sub_resource_label",
         set_in_kwargs=True,
+        description="Label used to scope relationship cleanup.",
     )
-    _sub_resource_id: PropertyRef = PropertyRef("_sub_resource_id", set_in_kwargs=True)
+    _sub_resource_id: PropertyRef = PropertyRef(
+        "_sub_resource_id",
+        set_in_kwargs=True,
+        description="Identifier used to scope relationship cleanup.",
+    )
 
 
 @dataclass(frozen=True)
