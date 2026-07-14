@@ -17,53 +17,119 @@ class GoogleWorkspaceDeviceNodeProperties(CartographyNodeProperties):
     Google Workspace device node properties
     """
 
-    id: PropertyRef = PropertyRef("deviceId")
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
-    hostname: PropertyRef = PropertyRef("hostname", extra_index=True)
+    id: PropertyRef = PropertyRef(
+        "deviceId", description="Unique Google Workspace device ID."
+    )
+    lastupdated: PropertyRef = PropertyRef(
+        "lastupdated",
+        set_in_kwargs=True,
+        description="Timestamp of the last update.",
+    )
+    hostname: PropertyRef = PropertyRef(
+        "hostname", extra_index=True, description="Hostname of the device."
+    )
 
     # Device information
-    model: PropertyRef = PropertyRef("model")
-    manufacturer: PropertyRef = PropertyRef("manufacturer")
-    release_version: PropertyRef = PropertyRef("releaseVersion")
-    brand: PropertyRef = PropertyRef("brand")
-    build_number: PropertyRef = PropertyRef("buildNumber")
-    kernel_version: PropertyRef = PropertyRef("kernelVersion")
-    baseband_version: PropertyRef = PropertyRef("basebandVersion")
-    device_type: PropertyRef = PropertyRef("deviceType")
-    os_version: PropertyRef = PropertyRef("osVersion")
-    owner_type: PropertyRef = PropertyRef("ownerType")
-    serial_number: PropertyRef = PropertyRef("serialNumber")
-    asset_tag: PropertyRef = PropertyRef("assetTag")
-    imei: PropertyRef = PropertyRef("imei")
-    meid: PropertyRef = PropertyRef("meid")
-    wifi_mac_addresses: PropertyRef = PropertyRef("wifiMacAddresses")
-    network_operator: PropertyRef = PropertyRef("networkOperator")
+    model: PropertyRef = PropertyRef("model", description="Model of the device.")
+    manufacturer: PropertyRef = PropertyRef(
+        "manufacturer", description="Manufacturer of the device."
+    )
+    release_version: PropertyRef = PropertyRef(
+        "releaseVersion", description="Release version reported by the device."
+    )
+    brand: PropertyRef = PropertyRef("brand", description="Brand of the device.")
+    build_number: PropertyRef = PropertyRef(
+        "buildNumber", description="Operating system build number."
+    )
+    kernel_version: PropertyRef = PropertyRef(
+        "kernelVersion", description="Operating system kernel version."
+    )
+    baseband_version: PropertyRef = PropertyRef(
+        "basebandVersion", description="Mobile baseband version."
+    )
+    device_type: PropertyRef = PropertyRef(
+        "deviceType", description="Type of the device."
+    )
+    os_version: PropertyRef = PropertyRef(
+        "osVersion", description="Operating system version."
+    )
+    owner_type: PropertyRef = PropertyRef(
+        "ownerType", description="Ownership classification of the device."
+    )
+    serial_number: PropertyRef = PropertyRef(
+        "serialNumber", description="Serial number of the device."
+    )
+    asset_tag: PropertyRef = PropertyRef(
+        "assetTag", description="Asset tag assigned to the device."
+    )
+    imei: PropertyRef = PropertyRef(
+        "imei", description="International Mobile Equipment Identity."
+    )
+    meid: PropertyRef = PropertyRef("meid", description="Mobile Equipment Identifier.")
+    wifi_mac_addresses: PropertyRef = PropertyRef(
+        "wifiMacAddresses", description="Wi-Fi MAC addresses of the device."
+    )
+    network_operator: PropertyRef = PropertyRef(
+        "networkOperator", description="Mobile network operator."
+    )
 
     # Security and state
-    encryption_state: PropertyRef = PropertyRef("encryptionState")
-    compromised_state: PropertyRef = PropertyRef("compromisedState")
-    management_state: PropertyRef = PropertyRef("managementState")
+    encryption_state: PropertyRef = PropertyRef(
+        "encryptionState", description="Encryption state of the device."
+    )
+    compromised_state: PropertyRef = PropertyRef(
+        "compromisedState", description="Security compromise state of the device."
+    )
+    management_state: PropertyRef = PropertyRef(
+        "managementState", description="Management state of the device."
+    )
 
     # Timestamps
-    create_time: PropertyRef = PropertyRef("createTime")
-    last_sync_time: PropertyRef = PropertyRef("lastSyncTime")
-    security_patch_time: PropertyRef = PropertyRef("securityPatchTime")
+    create_time: PropertyRef = PropertyRef(
+        "createTime", description="Time when the device record was created."
+    )
+    last_sync_time: PropertyRef = PropertyRef(
+        "lastSyncTime", description="Time when the device last synchronized."
+    )
+    security_patch_time: PropertyRef = PropertyRef(
+        "securityPatchTime", description="Time of the installed security patch."
+    )
 
     # Android specific
-    android_specific_attributes: PropertyRef = PropertyRef("androidSpecificAttributes")
-    enabled_developer_options: PropertyRef = PropertyRef("enabledDeveloperOptions")
-    enabled_usb_debugging: PropertyRef = PropertyRef("enabledUsbDebugging")
-    bootloader_version: PropertyRef = PropertyRef("bootloaderVersion")
-    other_accounts: PropertyRef = PropertyRef("otherAccounts")
+    android_specific_attributes: PropertyRef = PropertyRef(
+        "androidSpecificAttributes",
+        description="Android-specific attributes reported for the device.",
+    )
+    enabled_developer_options: PropertyRef = PropertyRef(
+        "enabledDeveloperOptions",
+        description="Whether Android developer options are enabled.",
+    )
+    enabled_usb_debugging: PropertyRef = PropertyRef(
+        "enabledUsbDebugging",
+        description="Whether Android USB debugging is enabled.",
+    )
+    bootloader_version: PropertyRef = PropertyRef(
+        "bootloaderVersion", description="Android bootloader version."
+    )
+    other_accounts: PropertyRef = PropertyRef(
+        "otherAccounts", description="Other accounts present on the device."
+    )
 
     # Additional identifiers
-    unified_device_id: PropertyRef = PropertyRef("unifiedDeviceId")
+    unified_device_id: PropertyRef = PropertyRef(
+        "unifiedDeviceId", description="Unified identifier for the device."
+    )
     endpoint_verification_specific_attributes: PropertyRef = PropertyRef(
-        "endpointVerificationSpecificAttributes"
+        "endpointVerificationSpecificAttributes",
+        description="Endpoint Verification attributes reported for the device.",
     )
 
     # Tenant relationship
-    customer_id: PropertyRef = PropertyRef("CUSTOMER_ID", set_in_kwargs=True)
+    customer_id: PropertyRef = PropertyRef(
+        "CUSTOMER_ID",
+        set_in_kwargs=True,
+        description="ID of the Google Workspace tenant that contains the device.",
+    )
 
 
 @dataclass(frozen=True)
@@ -73,9 +139,7 @@ class GoogleWorkspaceDeviceToTenantRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class GoogleWorkspaceDeviceToTenantRel(CartographyRelSchema):
-    """
-    Relationship from Google Workspace device to Google Workspace tenant
-    """
+    """A Google Workspace tenant contains a managed device."""
 
     target_node_label: str = "GoogleWorkspaceTenant"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
@@ -99,6 +163,8 @@ class GoogleWorkspaceUserToDeviceRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class GoogleWorkspaceUserToDeviceRel(CartographyRelSchema):
+    """A Google Workspace user directly owns a managed device."""
+
     target_node_label: str = "GoogleWorkspaceUser"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {
@@ -114,9 +180,7 @@ class GoogleWorkspaceUserToDeviceRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class GoogleWorkspaceDeviceSchema(CartographyNodeSchema):
-    """
-    Google Workspace device node schema
-    """
+    """A device managed by Google Workspace."""
 
     label: str = "GoogleWorkspaceDevice"
     properties: GoogleWorkspaceDeviceNodeProperties = (

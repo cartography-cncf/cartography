@@ -12,17 +12,26 @@ class GoogleWorkspaceTenantNodeProperties(CartographyNodeProperties):
     Google Workspace tenant (domain/customer) node properties
     """
 
-    id: PropertyRef = PropertyRef("id")
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
-    domain: PropertyRef = PropertyRef("customerDomain")
-    name: PropertyRef = PropertyRef("postalAddress.organizationName")
+    id: PropertyRef = PropertyRef(
+        "id", description="Unique Google Workspace customer ID."
+    )
+    lastupdated: PropertyRef = PropertyRef(
+        "lastupdated",
+        set_in_kwargs=True,
+        description="Timestamp of the last update.",
+    )
+    domain: PropertyRef = PropertyRef(
+        "customerDomain", description="Primary domain of the customer account."
+    )
+    name: PropertyRef = PropertyRef(
+        "postalAddress.organizationName",
+        description="Organization name from the customer postal address.",
+    )
 
 
 @dataclass(frozen=True)
 class GoogleWorkspaceTenantSchema(CartographyNodeSchema):
-    """
-    Google Workspace tenant (domain/customer) schema
-    """
+    """A Google Workspace customer account with the canonical Tenant label."""
 
     label: str = "GoogleWorkspaceTenant"
     properties: GoogleWorkspaceTenantNodeProperties = (

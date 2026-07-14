@@ -6,6 +6,7 @@ import cartography.models.bigfix as bigfix_models
 import cartography.models.cloudflare as cloudflare_models
 import cartography.models.cve_metadata as cve_metadata_models
 import cartography.models.digitalocean as digitalocean_models
+import cartography.models.googleworkspace as googleworkspace_models
 import cartography.models.gsuite as gsuite_models
 import cartography.models.jumpcloud as jumpcloud_models
 import cartography.models.kandji as kandji_models
@@ -114,6 +115,26 @@ def test_gsuite_schema_doc_is_generated_from_introspected_model():
     assert (
         "Deprecated compatibility edge linking a member group to its parent group."
         in generated
+    )
+    assert "No description provided." not in generated
+
+
+def test_googleworkspace_schema_doc_is_generated_from_introspected_model():
+    # Arrange
+    model = inspect_data_model(googleworkspace_models)
+
+    # Act
+    generated = render_module_schema(model, "googleworkspace")
+
+    # Assert
+    assert not Path("docs/root/modules/googleworkspace/schema.md").exists()
+    assert len(model.nodes) == 5
+    assert len(model.relationships) == 14
+    assert "| display_name | Display name of the group. |" in generated
+    assert "(:GoogleWorkspaceGroup)-[:MEMBER_OF]->(:GoogleWorkspaceGroup)" in generated
+    assert (
+        "(:GoogleWorkspaceUser)-[:INHERITED_MEMBER_OF]->"
+        "(:GoogleWorkspaceGroup)" in generated
     )
     assert "No description provided." not in generated
 
