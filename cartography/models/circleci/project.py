@@ -13,16 +13,34 @@ from cartography.models.core.relationships import TargetNodeMatcher
 
 @dataclass(frozen=True)
 class CircleCIProjectNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("id")
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
-    slug: PropertyRef = PropertyRef("slug", extra_index=True)
-    name: PropertyRef = PropertyRef("name")
-    organization_name: PropertyRef = PropertyRef("organization_name")
-    organization_slug: PropertyRef = PropertyRef("organization_slug")
-    organization_id: PropertyRef = PropertyRef("organization_id")
-    vcs_url: PropertyRef = PropertyRef("vcs_url")
-    vcs_provider: PropertyRef = PropertyRef("vcs_provider")
-    default_branch: PropertyRef = PropertyRef("default_branch")
+    id: PropertyRef = PropertyRef("id", description="CircleCI project ID.")
+    lastupdated: PropertyRef = PropertyRef(
+        "lastupdated",
+        set_in_kwargs=True,
+        description="Timestamp of the last update.",
+    )
+    slug: PropertyRef = PropertyRef(
+        "slug", extra_index=True, description="CircleCI project slug."
+    )
+    name: PropertyRef = PropertyRef("name", description="Project name.")
+    organization_name: PropertyRef = PropertyRef(
+        "organization_name", description="Owning organization name."
+    )
+    organization_slug: PropertyRef = PropertyRef(
+        "organization_slug", description="Owning organization slug."
+    )
+    organization_id: PropertyRef = PropertyRef(
+        "organization_id", description="Owning organization ID."
+    )
+    vcs_url: PropertyRef = PropertyRef(
+        "vcs_url", description="Version control repository URL."
+    )
+    vcs_provider: PropertyRef = PropertyRef(
+        "vcs_provider", description="Version control provider."
+    )
+    default_branch: PropertyRef = PropertyRef(
+        "default_branch", description="Default repository branch."
+    )
 
 
 @dataclass(frozen=True)
@@ -33,6 +51,8 @@ class CircleCIProjectToOrganizationRelProperties(CartographyRelProperties):
 @dataclass(frozen=True)
 # (:CircleCIOrganization)-[:RESOURCE]->(:CircleCIProject)
 class CircleCIProjectToOrganizationRel(CartographyRelSchema):
+    """The CircleCI organization contains the project."""
+
     target_node_label: str = "CircleCIOrganization"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("ORG_ID", set_in_kwargs=True)},
@@ -53,6 +73,8 @@ class CircleCIProjectToRepoRelProperties(CartographyRelProperties):
 # (:CircleCIProject)-[:BUILDS]->(:GitHubRepository), joined on the repo URL.
 # Best-effort: only created if the GitHub repo was ingested (OPTIONAL MATCH).
 class CircleCIProjectToGitHubRepoRel(CartographyRelSchema):
+    """The CircleCI project builds a matching GitHub repository."""
+
     target_node_label: str = "GitHubRepository"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"url": PropertyRef("vcs_url")},
@@ -67,6 +89,8 @@ class CircleCIProjectToGitHubRepoRel(CartographyRelSchema):
 @dataclass(frozen=True)
 # (:CircleCIProject)-[:BUILDS]->(:GitLabProject), joined on the repo URL.
 class CircleCIProjectToGitLabProjectRel(CartographyRelSchema):
+    """The CircleCI project builds a matching GitLab project."""
+
     target_node_label: str = "GitLabProject"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"web_url": PropertyRef("vcs_url")},
@@ -80,6 +104,8 @@ class CircleCIProjectToGitLabProjectRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class CircleCIProjectSchema(CartographyNodeSchema):
+    """A CircleCI project linked to its external source repository."""
+
     label: str = "CircleCIProject"
     properties: CircleCIProjectNodeProperties = CircleCIProjectNodeProperties()
     sub_resource_relationship: CircleCIProjectToOrganizationRel = (

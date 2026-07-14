@@ -3,6 +3,7 @@ from pathlib import Path
 import cartography.models.airbyte as airbyte_models
 import cartography.models.anthropic as anthropic_models
 import cartography.models.bigfix as bigfix_models
+import cartography.models.circleci as circleci_models
 import cartography.models.cloudflare as cloudflare_models
 import cartography.models.cve_metadata as cve_metadata_models
 import cartography.models.digitalocean as digitalocean_models
@@ -45,6 +46,27 @@ def test_airbyte_schema_doc_is_generated_from_introspected_model():
     assert "An Airbyte connection that synchronizes source data" in generated
     assert "| config_host | Configured source host. |" in generated
     assert "(:AirbyteConnection)-[:SYNC_FROM]->(:AirbyteSource)" in generated
+    assert "No description provided." not in generated
+
+
+def test_circleci_schema_doc_is_generated_from_introspected_model():
+    # Arrange
+    model = inspect_data_model(circleci_models)
+
+    # Act
+    generated = render_module_schema(model, "circleci")
+
+    # Assert
+    assert not Path("docs/root/modules/circleci/schema.md").exists()
+    assert len(model.nodes) == 15
+    assert len(model.relationships) == 21
+    assert (
+        "| vcs_login | GitHub organization login derived from the CircleCI slug. |"
+        in generated
+    )
+    assert (
+        "(:CircleCIOrganization)-[:ASSOCIATED_WITH]->(:GitHubOrganization)" in generated
+    )
     assert "No description provided." not in generated
 
 

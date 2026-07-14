@@ -12,13 +12,27 @@ from cartography.models.core.relationships import TargetNodeMatcher
 
 @dataclass(frozen=True)
 class CircleCIEnvironmentNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("id")
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
-    name: PropertyRef = PropertyRef("name", extra_index=True)
-    description: PropertyRef = PropertyRef("description")
-    labels: PropertyRef = PropertyRef("labels")
-    created_at: PropertyRef = PropertyRef("created_at")
-    updated_at: PropertyRef = PropertyRef("updated_at")
+    id: PropertyRef = PropertyRef("id", description="CircleCI environment ID.")
+    lastupdated: PropertyRef = PropertyRef(
+        "lastupdated",
+        set_in_kwargs=True,
+        description="Timestamp of the last update.",
+    )
+    name: PropertyRef = PropertyRef(
+        "name", extra_index=True, description="Environment name."
+    )
+    description: PropertyRef = PropertyRef(
+        "description", description="Environment description."
+    )
+    labels: PropertyRef = PropertyRef(
+        "labels", description="Labels assigned to the environment."
+    )
+    created_at: PropertyRef = PropertyRef(
+        "created_at", description="Environment creation timestamp."
+    )
+    updated_at: PropertyRef = PropertyRef(
+        "updated_at", description="Environment update timestamp."
+    )
 
 
 @dataclass(frozen=True)
@@ -29,6 +43,8 @@ class CircleCIEnvironmentToOrganizationRelProperties(CartographyRelProperties):
 @dataclass(frozen=True)
 # (:CircleCIOrganization)-[:RESOURCE]->(:CircleCIEnvironment)
 class CircleCIEnvironmentToOrganizationRel(CartographyRelSchema):
+    """The CircleCI organization contains the deploy environment."""
+
     target_node_label: str = "CircleCIOrganization"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("ORG_ID", set_in_kwargs=True)},
@@ -42,6 +58,8 @@ class CircleCIEnvironmentToOrganizationRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class CircleCIEnvironmentSchema(CartographyNodeSchema):
+    """A deploy environment in a CircleCI organization."""
+
     label: str = "CircleCIEnvironment"
     properties: CircleCIEnvironmentNodeProperties = CircleCIEnvironmentNodeProperties()
     sub_resource_relationship: CircleCIEnvironmentToOrganizationRel = (
