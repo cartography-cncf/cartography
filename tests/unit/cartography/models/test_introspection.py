@@ -29,6 +29,7 @@ from cartography.models.introspection import iter_analysis_jobs
 from cartography.models.introspection import iter_model_classes
 from cartography.models.introspection import iter_permission_relationships
 from cartography.models.introspection import PermissionRelationshipDefinition
+from cartography.models.jamf.computer import JamfComputerSchema
 
 
 @dataclass(frozen=True)
@@ -264,6 +265,17 @@ def test_build_data_model_adds_generated_ontology_properties():
     assert ontology_source.ontology
     assert ontology_source.generated_by == ("ontology",)
     assert node.ontology_labels == ("ComputeInstance",)
+
+
+def test_build_data_model_distinguishes_canonical_ontology_projections():
+    # Act
+    model = build_data_model([JamfComputerSchema])
+
+    # Assert
+    node = model.get_node("JamfComputer")
+    assert node is not None
+    assert node.ontology_projections == ("Device",)
+    assert not any(prop.name.startswith("_ont_") for prop in node.properties)
 
 
 def test_iter_model_classes_discovers_each_defined_model_once():

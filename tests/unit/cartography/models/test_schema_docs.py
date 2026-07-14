@@ -270,6 +270,37 @@ def test_googleworkspace_schema_doc_is_generated_from_introspected_model():
     assert "No description provided." not in generated
 
 
+def test_jamf_schema_doc_is_generated_from_introspected_model():
+    # Arrange
+    model = inspect_data_model()
+
+    # Act
+    generated = render_module_schema(model, "jamf")
+
+    # Assert
+    assert not Path("docs/root/modules/jamf/schema.md").exists()
+    assert len(tuple(node for node in model.nodes if "jamf" in node.modules)) == 5
+    assert (
+        "**Ontology Projection**: `JamfComputer` contributes data to canonical "
+        "`Device` nodes." in generated
+    )
+    assert (
+        "**Ontology Projection**: `JamfMobileDevice` contributes data to canonical "
+        "`Device` nodes." in generated
+    )
+    assert "**Additional Labels**: This node also uses `Tenant`." in generated
+    assert "(:Device)-[:OBSERVED_AS]->(:JamfComputer)" in generated
+    assert "(:User)-[:OWNS]->(:Device)" not in generated
+    assert "_ont_hostname" not in generated
+    assert "_ont_source" not in generated
+    computer_group_section = generated.split("### JamfComputerGroup", 1)[1].split(
+        "### ",
+        1,
+    )[0]
+    assert "No relationships." not in computer_group_section
+    assert "No description provided." not in generated
+
+
 def test_undirected_analysis_relationships_are_rendered_without_arrows():
     # Arrange
     node = Node(

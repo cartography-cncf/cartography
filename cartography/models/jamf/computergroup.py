@@ -12,12 +12,28 @@ from cartography.models.core.relationships import TargetNodeMatcher
 
 @dataclass(frozen=True)
 class JamfComputerGroupNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("id")
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
-    name: PropertyRef = PropertyRef("name")
-    description: PropertyRef = PropertyRef("description")
-    membership_count: PropertyRef = PropertyRef("membership_count")
-    is_smart: PropertyRef = PropertyRef("is_smart")
+    id: PropertyRef = PropertyRef("id", description="Jamf computer group ID.")
+    lastupdated: PropertyRef = PropertyRef(
+        "lastupdated",
+        set_in_kwargs=True,
+        description="Timestamp of the last time the node was updated.",
+    )
+    name: PropertyRef = PropertyRef(
+        "name",
+        description="Friendly name of the group.",
+    )
+    description: PropertyRef = PropertyRef(
+        "description",
+        description="Group description.",
+    )
+    membership_count: PropertyRef = PropertyRef(
+        "membership_count",
+        description="Number of members reported by Jamf.",
+    )
+    is_smart: PropertyRef = PropertyRef(
+        "is_smart",
+        description="Whether this is a smart group.",
+    )
 
 
 @dataclass(frozen=True)
@@ -27,9 +43,7 @@ class JamfTenantToComputerGroupRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class JamfTenantToComputerGroupRel(CartographyRelSchema):
-    """
-    (:JamfTenant)-[:RESOURCE]->(:JamfComputerGroup)
-    """
+    """Links a Jamf tenant to one of its computer groups."""
 
     target_node_label: str = "JamfTenant"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
@@ -44,6 +58,8 @@ class JamfTenantToComputerGroupRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class JamfComputerGroupSchema(CartographyNodeSchema):
+    """A group of computers managed by Jamf."""
+
     label: str = "JamfComputerGroup"
     properties: JamfComputerGroupNodeProperties = JamfComputerGroupNodeProperties()
     sub_resource_relationship: JamfTenantToComputerGroupRel = (

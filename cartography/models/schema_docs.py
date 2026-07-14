@@ -133,6 +133,14 @@ def _render_node(
                 f"> - `{conditional_label.label}`{ontology_note} when {conditions}."
             )
         lines.append("")
+    for projection_label in node.ontology_projections:
+        lines.extend(
+            [
+                f"> **Ontology Projection**: `{node.label}` contributes data "
+                f"to canonical `{projection_label}` nodes.",
+                "",
+            ]
+        )
 
     if any(prop.ontology for prop in node.properties):
         lines.extend(
@@ -247,12 +255,17 @@ def _assign_relationships(
     assigned: dict[str, list[Relationship]] = {}
     nodes_by_label = {node.label: node for node in nodes}
     for relationship in relationships:
-        owners: tuple[str, ...]
-        if relationship.source_label in nodes_by_label:
-            owners = (relationship.source_label,)
-        elif relationship.target_label in nodes_by_label:
-            owners = (relationship.target_label,)
-        else:
+        owners = tuple(
+            dict.fromkeys(
+                label
+                for label in (
+                    relationship.source_label,
+                    relationship.target_label,
+                )
+                if label in nodes_by_label
+            )
+        )
+        if not owners:
             owners = tuple(
                 node.label
                 for node in nodes

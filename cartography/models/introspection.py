@@ -33,6 +33,7 @@ from cartography.models.core.relationships import CartographyRelProperties
 from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import OtherRelationships
+from cartography.models.ontology.mapping import ONTOLOGY_MODELS
 from cartography.models.ontology.mapping import ONTOLOGY_NODES_MAPPING
 from cartography.models.ontology.mapping import SEMANTIC_LABELS_MAPPING
 
@@ -115,6 +116,7 @@ class Node:
     modules: tuple[str, ...]
     schemas: tuple[CartographyNodeSchema, ...]
     ontology_labels: tuple[str, ...] = ()
+    ontology_projections: tuple[str, ...] = ()
 
     def get_property(self, name: str) -> Property | None:
         return next((prop for prop in self.properties if prop.name == name), None)
@@ -419,6 +421,7 @@ def _new_node_entry() -> dict[str, Any]:
         "extra_labels": set(),
         "conditional_labels": [],
         "ontology_labels": set(),
+        "ontology_projections": set(),
         "properties": {},
         "modules": set(),
         "schemas": [],
@@ -561,35 +564,42 @@ def _add_generated_property(
 def _add_ontology_properties(
     node_entries: dict[str, dict[str, Any]],
 ) -> None:
-    for mapping_groups in (
-        ONTOLOGY_NODES_MAPPING,
-        SEMANTIC_LABELS_MAPPING,
-    ):
-        for mapping_group, mappings_by_module in mapping_groups.items():
-            for ontology_mapping in mappings_by_module.values():
-                for node_mapping in ontology_mapping.nodes:
-                    node_entry = node_entries.get(node_mapping.node_label)
-                    if node_entry is None:
-                        continue
-                    node_entry["ontology_labels"].update(
-                        _ontology_labels_for_mapping_group(mapping_group, node_entry)
-                    )
-                    properties = node_entry["properties"]
+    for mapping_group, mappings_by_module in SEMANTIC_LABELS_MAPPING.items():
+        for ontology_mapping in mappings_by_module.values():
+            for node_mapping in ontology_mapping.nodes:
+                node_entry = node_entries.get(node_mapping.node_label)
+                if node_entry is None:
+                    continue
+                node_entry["ontology_labels"].update(
+                    _ontology_labels_for_mapping_group(mapping_group, node_entry)
+                )
+                properties = node_entry["properties"]
+                _add_generated_property(
+                    properties,
+                    "_ont_source",
+                    "ontology",
+                    ontology=True,
+                )
+                for field_mapping in node_mapping.fields:
                     _add_generated_property(
                         properties,
-                        "_ont_source",
+                        f"_ont_{field_mapping.ontology_field}",
                         "ontology",
+                        indexed=field_mapping.indexed,
                         ontology=True,
+                        source_name=field_mapping.node_field,
                     )
-                    for field_mapping in node_mapping.fields:
-                        _add_generated_property(
-                            properties,
-                            f"_ont_{field_mapping.ontology_field}",
-                            "ontology",
-                            indexed=field_mapping.indexed,
-                            ontology=True,
-                            source_name=field_mapping.node_field,
-                        )
+
+    for mapping_group, mappings_by_module in ONTOLOGY_NODES_MAPPING.items():
+        ontology_model = ONTOLOGY_MODELS[mapping_group]
+        if ontology_model is None:
+            continue
+        projection_label = ontology_model().label
+        for ontology_mapping in mappings_by_module.values():
+            for node_mapping in ontology_mapping.nodes:
+                node_entry = node_entries.get(node_mapping.node_label)
+                if node_entry is not None:
+                    node_entry["ontology_projections"].add(projection_label)
 
 
 def _ontology_labels_for_mapping_group(
@@ -842,6 +852,7 @@ def _build_node(label: str, entry: dict[str, Any]) -> Node:
         modules=tuple(sorted(entry["modules"])),
         schemas=tuple(entry["schemas"]),
         ontology_labels=tuple(sorted(entry["ontology_labels"])),
+        ontology_projections=tuple(sorted(entry["ontology_projections"])),
     )
 
 
