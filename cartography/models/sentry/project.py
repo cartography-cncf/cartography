@@ -13,13 +13,30 @@ from cartography.models.core.relationships import TargetNodeMatcher
 
 @dataclass(frozen=True)
 class SentryProjectNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("id")
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
-    name: PropertyRef = PropertyRef("name")
-    slug: PropertyRef = PropertyRef("slug", extra_index=True)
-    platform: PropertyRef = PropertyRef("platform")
-    date_created: PropertyRef = PropertyRef("date_created")
-    first_event: PropertyRef = PropertyRef("first_event")
+    id: PropertyRef = PropertyRef("id", description="Sentry project ID.")
+    lastupdated: PropertyRef = PropertyRef(
+        "lastupdated",
+        set_in_kwargs=True,
+        description="Timestamp of the last update.",
+    )
+    name: PropertyRef = PropertyRef("name", description="Project name.")
+    slug: PropertyRef = PropertyRef(
+        "slug",
+        extra_index=True,
+        description="URL-friendly project identifier.",
+    )
+    platform: PropertyRef = PropertyRef(
+        "platform",
+        description="Primary project platform.",
+    )
+    date_created: PropertyRef = PropertyRef(
+        "date_created",
+        description="ISO 8601 timestamp when the project was created.",
+    )
+    first_event: PropertyRef = PropertyRef(
+        "first_event",
+        description="ISO 8601 timestamp when the first event was received.",
+    )
 
 
 @dataclass(frozen=True)
@@ -30,6 +47,8 @@ class SentryOrganizationToProjectRelProperties(CartographyRelProperties):
 # (:SentryOrganization)-[:RESOURCE]->(:SentryProject)
 @dataclass(frozen=True)
 class SentryOrganizationToProjectRel(CartographyRelSchema):
+    """The organization contains the project."""
+
     target_node_label: str = "SentryOrganization"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("ORG_ID", set_in_kwargs=True)},
@@ -49,6 +68,8 @@ class SentryProjectToTeamRelProperties(CartographyRelProperties):
 # (:SentryProject)-[:HAS_TEAM]->(:SentryTeam)
 @dataclass(frozen=True)
 class SentryProjectToTeamRel(CartographyRelSchema):
+    """The project is assigned to the team."""
+
     target_node_label: str = "SentryTeam"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("team_ids", one_to_many=True)},
@@ -60,6 +81,8 @@ class SentryProjectToTeamRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class SentryProjectSchema(CartographyNodeSchema):
+    """A project in a Sentry organization."""
+
     label: str = "SentryProject"
     properties: SentryProjectNodeProperties = SentryProjectNodeProperties()
     sub_resource_relationship: SentryOrganizationToProjectRel = (

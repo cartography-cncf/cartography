@@ -8,6 +8,7 @@ import cartography.models.jumpcloud as jumpcloud_models
 import cartography.models.kandji as kandji_models
 import cartography.models.keycloak as keycloak_models
 import cartography.models.lastpass as lastpass_models
+import cartography.models.sentry as sentry_models
 import cartography.models.snipeit as snipeit_models
 import cartography.models.subimage as subimage_models
 import cartography.models.workday as workday_models
@@ -240,6 +241,23 @@ def test_subimage_schema_doc_is_generated_from_introspected_model():
     assert "A team member in a SubImage tenant." in generated
     assert "| **email** | Team member email address. |" in generated
     assert "(:SubImageTenant)-[:RESOURCE]->(:SubImageFramework)" in generated
+    assert "No description provided." not in generated
+
+
+def test_sentry_schema_doc_is_generated_from_introspected_model():
+    # Arrange
+    model = inspect_data_model(sentry_models)
+
+    # Act
+    generated = render_module_schema(model, "sentry")
+
+    # Assert
+    assert not Path("docs/root/modules/sentry/schema.md").exists()
+    assert len(model.nodes) == 6
+    assert len(model.relationships) == 9
+    assert "An issue alert rule configured on a Sentry project." in generated
+    assert "| **require_2fa** | Whether the organization requires" in generated
+    assert "(:SentryUser)-[:ADMIN_OF]->(:SentryTeam)" in generated
     assert "No description provided." not in generated
 
 
