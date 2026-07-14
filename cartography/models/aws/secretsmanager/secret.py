@@ -78,7 +78,7 @@ class SecretsManagerSecretToKMSKeyRel(CartographyRelSchema):
     Only created when kms_key_id is present
     """
 
-    target_node_label: str = "KMSKey"
+    target_node_label: str = "AWSKMSKey"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"arn": PropertyRef("KmsKeyId")},
     )
@@ -93,9 +93,13 @@ class SecretsManagerSecretSchema(CartographyNodeSchema):
     Schema for AWS Secrets Manager Secret
     """
 
-    label: str = "SecretsManagerSecret"
+    label: str = "AWSSecretsManagerSecret"
+    # DEPRECATED: legacy SecretsManagerSecret node label will be removed in v1.0.0.
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
-        ["Secret"]
+        [
+            "SecretsManagerSecret",
+            "Secret",
+        ]
     )  # Secret label is used for ontology mapping
     properties: SecretsManagerSecretNodeProperties = (
         SecretsManagerSecretNodeProperties()

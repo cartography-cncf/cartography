@@ -118,7 +118,7 @@ def sync(
         neo4j_session,
         group_type="AWSAccount",
         group_id=current_aws_account_id,
-        synced_type="ACMCertificate",
+        synced_type="AWSACMCertificate",
         update_tag=update_tag,
         stat_handler=stat_handler,
     )

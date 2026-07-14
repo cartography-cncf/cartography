@@ -65,16 +65,18 @@ CLEANUP_CASES = [
     ),
     pytest.param(
         PropertyEffect(
-            "AutoScalingGroup", ("exposed_internet", "exposed_internet_type")
+            "AWSAutoScalingGroup", ("exposed_internet", "exposed_internet_type")
         ),
         None,
-        _prop_cleanup("AutoScalingGroup", "exposed_internet", "exposed_internet_type"),
+        _prop_cleanup(
+            "AWSAutoScalingGroup", "exposed_internet", "exposed_internet_type"
+        ),
         id="aws_ec2_asset_exposure_asg",
     ),
     pytest.param(
-        PropertyEffect("EC2Instance", ("exposed_internet", "exposed_internet_type")),
+        PropertyEffect("AWSEC2Instance", ("exposed_internet", "exposed_internet_type")),
         None,
-        _prop_cleanup("EC2Instance", "exposed_internet", "exposed_internet_type"),
+        _prop_cleanup("AWSEC2Instance", "exposed_internet", "exposed_internet_type"),
         id="aws_ec2_asset_exposure_instance",
     ),
     pytest.param(
@@ -94,27 +96,29 @@ CLEANUP_CASES = [
         id="aws_ec2_asset_exposure_elbv2",
     ),
     pytest.param(
-        PropertyEffect("EC2KeyPair", ("user_uploaded", "duplicate_keyfingerprint")),
+        PropertyEffect("AWSEC2KeyPair", ("user_uploaded", "duplicate_keyfingerprint")),
         None,
-        _prop_cleanup("EC2KeyPair", "user_uploaded", "duplicate_keyfingerprint"),
+        _prop_cleanup("AWSEC2KeyPair", "user_uploaded", "duplicate_keyfingerprint"),
         id="aws_ec2_keypair_analysis_props",
     ),
     pytest.param(
-        RelationshipEffect("EC2KeyPair", "MATCHING_FINGERPRINT", "EC2KeyPair"),
+        RelationshipEffect("AWSEC2KeyPair", "MATCHING_FINGERPRINT", "AWSEC2KeyPair"),
         None,
-        _rel_cleanup("EC2KeyPair", "MATCHING_FINGERPRINT", "EC2KeyPair"),
+        _rel_cleanup("AWSEC2KeyPair", "MATCHING_FINGERPRINT", "AWSEC2KeyPair"),
         id="aws_ec2_keypair_analysis_rel",
     ),
     pytest.param(
-        PropertyEffect("ECSContainer", ("exposed_internet", "exposed_internet_type")),
+        PropertyEffect(
+            "AWSECSContainer", ("exposed_internet", "exposed_internet_type")
+        ),
         None,
-        _prop_cleanup("ECSContainer", "exposed_internet", "exposed_internet_type"),
+        _prop_cleanup("AWSECSContainer", "exposed_internet", "exposed_internet_type"),
         id="aws_ecs_asset_exposure",
     ),
     pytest.param(
-        PropertyEffect("EKSCluster", ("exposed_internet",)),
+        PropertyEffect("AWSEKSCluster", ("exposed_internet",)),
         None,
-        _prop_cleanup("EKSCluster", "exposed_internet"),
+        _prop_cleanup("AWSEKSCluster", "exposed_internet"),
         id="aws_eks_asset_exposure",
     ),
     pytest.param(
@@ -124,9 +128,9 @@ CLEANUP_CASES = [
         id="aws_foreign_accounts",
     ),
     pytest.param(
-        RelationshipEffect("AWSLambda", "HAS", "ECRImage"),
+        RelationshipEffect("AWSLambda", "HAS", "AWSECRImage"),
         None,
-        _rel_cleanup("AWSLambda", "HAS", "ECRImage"),
+        _rel_cleanup("AWSLambda", "HAS", "AWSECRImage"),
         id="aws_lambda_ecr",
     ),
     pytest.param(
@@ -230,27 +234,29 @@ CLEANUP_CASES = [
         id="ontology_gcp_recordset_to_aws_elb",
     ),
     pytest.param(
-        RelationshipEffect("DNSRecord", "DNS_POINTS_TO", "CloudFrontDistribution"),
+        RelationshipEffect("DNSRecord", "DNS_POINTS_TO", "AWSCloudFrontDistribution"),
         None,
-        _rel_cleanup("DNSRecord", "DNS_POINTS_TO", "CloudFrontDistribution"),
+        _rel_cleanup("DNSRecord", "DNS_POINTS_TO", "AWSCloudFrontDistribution"),
         id="ontology_dnsrecords_to_cloudfront",
     ),
     pytest.param(
-        RelationshipEffect("GCPRecordSet", "DNS_POINTS_TO", "CloudFrontDistribution"),
+        RelationshipEffect(
+            "GCPRecordSet", "DNS_POINTS_TO", "AWSCloudFrontDistribution"
+        ),
         None,
-        _rel_cleanup("GCPRecordSet", "DNS_POINTS_TO", "CloudFrontDistribution"),
+        _rel_cleanup("GCPRecordSet", "DNS_POINTS_TO", "AWSCloudFrontDistribution"),
         id="ontology_gcp_recordset_to_cloudfront",
     ),
     pytest.param(
-        RelationshipEffect("DNSRecord", "DNS_POINTS_TO", "EC2Instance"),
+        RelationshipEffect("DNSRecord", "DNS_POINTS_TO", "AWSEC2Instance"),
         None,
-        _rel_cleanup("DNSRecord", "DNS_POINTS_TO", "EC2Instance"),
+        _rel_cleanup("DNSRecord", "DNS_POINTS_TO", "AWSEC2Instance"),
         id="ontology_dnsrecords_to_ec2",
     ),
     pytest.param(
-        RelationshipEffect("GCPRecordSet", "DNS_POINTS_TO", "EC2Instance"),
+        RelationshipEffect("GCPRecordSet", "DNS_POINTS_TO", "AWSEC2Instance"),
         None,
-        _rel_cleanup("GCPRecordSet", "DNS_POINTS_TO", "EC2Instance"),
+        _rel_cleanup("GCPRecordSet", "DNS_POINTS_TO", "AWSEC2Instance"),
         id="ontology_gcp_recordset_to_ec2",
     ),
     pytest.param(
@@ -368,24 +374,24 @@ CLEANUP_CASES = [
         id="resolved_image_function",
     ),
     pytest.param(
-        RelationshipEffect("EC2Instance", "STS_ASSUMEROLE_ALLOW", "AWSRole"),
+        RelationshipEffect("AWSEC2Instance", "STS_ASSUMEROLE_ALLOW", "AWSRole"),
         AWS,
-        _rel_cleanup("EC2Instance", "STS_ASSUMEROLE_ALLOW", "AWSRole", scope=AWS),
+        _rel_cleanup("AWSEC2Instance", "STS_ASSUMEROLE_ALLOW", "AWSRole", scope=AWS),
         id="aws_ec2_iaminstanceprofile",
     ),
     pytest.param(
-        RelationshipEffect("AWSLoadBalancerV2", "EXPOSE", "ECSContainer"),
+        RelationshipEffect("AWSLoadBalancerV2", "EXPOSE", "AWSECSContainer"),
         AWS,
-        _rel_cleanup("AWSLoadBalancerV2", "EXPOSE", "ECSContainer", scope=AWS),
+        _rel_cleanup("AWSLoadBalancerV2", "EXPOSE", "AWSECSContainer", scope=AWS),
         id="aws_lb_container_exposure",
     ),
     pytest.param(
         RelationshipEffect(
-            "EC2NetworkAcl", "PROTECTS", "AWSLoadBalancerV2", scoped_to="target"
+            "AWSEC2NetworkAcl", "PROTECTS", "AWSLoadBalancerV2", scoped_to="target"
         ),
         AWS,
         _rel_cleanup(
-            "EC2NetworkAcl",
+            "AWSEC2NetworkAcl",
             "PROTECTS",
             "AWSLoadBalancerV2",
             scope=AWS,
@@ -394,15 +400,15 @@ CLEANUP_CASES = [
         id="aws_lb_nacl_direct",
     ),
     pytest.param(
-        PropertyEffect("S3Bucket", ("anonymous_access",)),
+        PropertyEffect("AWSS3Bucket", ("anonymous_access",)),
         AWS,
-        _prop_cleanup("S3Bucket", "anonymous_access", scope=AWS),
+        _prop_cleanup("AWSS3Bucket", "anonymous_access", scope=AWS),
         id="aws_s3acl_analysis_access",
     ),
     pytest.param(
-        PropertyEffect("S3Bucket", ("anonymous_actions",)),
+        PropertyEffect("AWSS3Bucket", ("anonymous_actions",)),
         AWS,
-        _prop_cleanup("S3Bucket", "anonymous_actions", scope=AWS),
+        _prop_cleanup("AWSS3Bucket", "anonymous_actions", scope=AWS),
         id="aws_s3acl_analysis_actions",
     ),
     pytest.param(

@@ -38,5 +38,5 @@ The exact set depends on the semantic label. See the schema docs at `docs/root/m
 ## Tips
 
 - Filter on `_ont_source` when a fact must only consider data from specific providers.
-- Cross-cloud detections become trivial: a single `MATCH (:Database)` covers `RDSInstance`, `DynamoDBTable`, `BigQueryDataset`, etc., once those modules opt into the `Database` label.
+- Cross-cloud detections become trivial: a single `MATCH (:Database)` covers `AWSRDSInstance`, `AWSDynamoDBTable`, `BigQueryDataset`, etc., once those modules opt into the `Database` label.
 - Pair ontology facts with provider-specific facts in the same `Rule` to give operators both the unified view and the per-provider drill-down.

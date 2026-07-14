@@ -76,9 +76,9 @@ class DatabricksVolumeToS3RelProperties(CartographyRelProperties):
 
 
 @dataclass(frozen=True)
-# (:DatabricksVolume)-[:BACKED_BY]->(:S3Bucket)
+# (:DatabricksVolume)-[:BACKED_BY]->(:AWSS3Bucket)
 class DatabricksVolumeToS3Rel(CartographyRelSchema):
-    target_node_label: str = "S3Bucket"
+    target_node_label: str = "AWSS3Bucket"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"name": PropertyRef("s3_bucket")},
     )

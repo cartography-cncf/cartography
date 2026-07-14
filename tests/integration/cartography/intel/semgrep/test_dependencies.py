@@ -127,7 +127,7 @@ def test_sync_dependencies(mock_get_dependencies, mock_get_deployment, neo4j_ses
 
     assert check_nodes(
         neo4j_session,
-        "GoLibrary",
+        "SemgrepGoLibrary",
         [
             "id",
             "lastupdated",
@@ -154,7 +154,7 @@ def test_sync_dependencies(mock_get_dependencies, mock_get_deployment, neo4j_ses
 
     assert check_nodes(
         neo4j_session,
-        "NpmLibrary",
+        "SemgrepNpmLibrary",
         [
             "id",
             "lastupdated",

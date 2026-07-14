@@ -60,7 +60,7 @@ def test_sync_nodes_and_runs_on(neo4j_session, monkeypatch):
     # Arrange: the backing EC2 instance must already exist for the IS_INSTANCE
     # link to be created when the node is loaded.
     neo4j_session.run(
-        "MERGE (i:EC2Instance {id: 'i-0123456789abcdef0'}) "
+        "MERGE (i:AWSEC2Instance {id: 'i-0123456789abcdef0'}) "
         "SET i.instanceid = 'i-0123456789abcdef0'"
     )
 
@@ -101,7 +101,7 @@ def test_sync_nodes_and_runs_on(neo4j_session, monkeypatch):
         neo4j_session,
         "KubernetesNode",
         "name",
-        "EC2Instance",
+        "AWSEC2Instance",
         "id",
         "IS_INSTANCE",
     ) == {

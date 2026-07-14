@@ -37,7 +37,7 @@ def test_sync_ebs_volumes(mock_get_vols, neo4j_session):
     )
 
     # Assert
-    assert check_nodes(neo4j_session, "EBSVolume", ["arn"]) == {
+    assert check_nodes(neo4j_session, "AWSEBSVolume", ["arn"]) == {
         ("arn:aws:ec2:eu-west-1:000000000000:volume/vol-03",),
         ("arn:aws:ec2:eu-west-1:000000000000:volume/vol-0df",),
     }
@@ -47,7 +47,7 @@ def test_sync_ebs_volumes(mock_get_vols, neo4j_session):
         neo4j_session,
         "AWSAccount",
         "id",
-        "EBSVolume",
+        "AWSEBSVolume",
         "volumeid",
         "RESOURCE",
         rel_direction_right=True,
@@ -86,7 +86,7 @@ def test_sync_ebs_volumes_e2e(mock_get_vols, mock_get_instances, neo4j_session):
     # Assert that deleteontermination is set by sync_ec2_instances. The encrypted property isn't returned by this API.
     assert check_nodes(
         neo4j_session,
-        "EBSVolume",
+        "AWSEBSVolume",
         ["id", "deleteontermination", "encrypted"],
     ) == {
         ("vol-03", True, None),
@@ -98,9 +98,9 @@ def test_sync_ebs_volumes_e2e(mock_get_vols, mock_get_instances, neo4j_session):
     # Assert that they are attached to the instances
     assert check_rels(
         neo4j_session,
-        "EC2Instance",
+        "AWSEC2Instance",
         "instanceid",
-        "EBSVolume",
+        "AWSEBSVolume",
         "volumeid",
         "ATTACHED_TO",
         rel_direction_right=False,
@@ -116,7 +116,7 @@ def test_sync_ebs_volumes_e2e(mock_get_vols, mock_get_instances, neo4j_session):
         neo4j_session,
         "AWSAccount",
         "id",
-        "EBSVolume",
+        "AWSEBSVolume",
         "volumeid",
         "RESOURCE",
         rel_direction_right=True,
@@ -141,7 +141,7 @@ def test_sync_ebs_volumes_e2e(mock_get_vols, mock_get_instances, neo4j_session):
     # deleteontermination has not been overwritten with None by sync_ebs_volumes()
     assert check_nodes(
         neo4j_session,
-        "EBSVolume",
+        "AWSEBSVolume",
         ["id", "deleteontermination", "encrypted"],
     ) == {
         # Attached to the instances initially
@@ -155,9 +155,9 @@ def test_sync_ebs_volumes_e2e(mock_get_vols, mock_get_instances, neo4j_session):
     # Assert that they are still attached to the instances
     assert check_rels(
         neo4j_session,
-        "EC2Instance",
+        "AWSEC2Instance",
         "instanceid",
-        "EBSVolume",
+        "AWSEBSVolume",
         "volumeid",
         "ATTACHED_TO",
         rel_direction_right=False,
@@ -173,7 +173,7 @@ def test_sync_ebs_volumes_e2e(mock_get_vols, mock_get_instances, neo4j_session):
         neo4j_session,
         "AWSAccount",
         "id",
-        "EBSVolume",
+        "AWSEBSVolume",
         "volumeid",
         "RESOURCE",
         rel_direction_right=True,

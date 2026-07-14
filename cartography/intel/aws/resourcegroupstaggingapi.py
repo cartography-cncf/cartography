@@ -109,10 +109,10 @@ def get_resource_type_from_arn(arn: str) -> str:
 # cross-tagged.
 # TODO - we should make EC2 and S3 assets query-able by their full ARN so that we don't need this workaround.
 TAG_RESOURCE_TYPE_MAPPINGS: Dict = {
-    "autoscaling:autoScalingGroup": {"label": "AutoScalingGroup", "property": "arn"},
-    "dynamodb:table": {"label": "DynamoDBTable", "property": "id"},
+    "autoscaling:autoScalingGroup": {"label": "AWSAutoScalingGroup", "property": "arn"},
+    "dynamodb:table": {"label": "AWSDynamoDBTable", "property": "id"},
     "ec2:instance": {
-        "label": "EC2Instance",
+        "label": "AWSEC2Instance",
         "property": "id",
         "id_func": get_short_id_from_ec2_arn,
     },
@@ -121,20 +121,20 @@ TAG_RESOURCE_TYPE_MAPPINGS: Dict = {
         "property": "id",
         "id_func": get_short_id_from_ec2_arn,
     },
-    "ec2:key-pair": {"label": "EC2KeyPair", "property": "id"},
+    "ec2:key-pair": {"label": "AWSEC2KeyPair", "property": "id"},
     "ec2:network-interface": {
-        "label": "NetworkInterface",
+        "label": "AWSNetworkInterface",
         "property": "id",
         "id_func": get_short_id_from_ec2_arn,
     },
-    "ecr:repository": {"label": "ECRRepository", "property": "id"},
+    "ecr:repository": {"label": "AWSECRRepository", "property": "id"},
     "ec2:security-group": {
-        "label": "EC2SecurityGroup",
+        "label": "AWSEC2SecurityGroup",
         "property": "id",
         "id_func": get_short_id_from_ec2_arn,
     },
     "ec2:subnet": {
-        "label": "EC2Subnet",
+        "label": "AWSEC2Subnet",
         "property": "subnetid",
         "id_func": get_short_id_from_ec2_arn,
     },
@@ -149,22 +149,22 @@ TAG_RESOURCE_TYPE_MAPPINGS: Dict = {
         "id_func": get_short_id_from_ec2_arn,
     },
     "ec2:volume": {
-        "label": "EBSVolume",
+        "label": "AWSEBSVolume",
         "property": "id",
         "id_func": get_short_id_from_ec2_arn,
     },
     "ec2:elastic-ip-address": {
-        "label": "ElasticIPAddress",
+        "label": "AWSElasticIPAddress",
         "property": "id",
         "id_func": get_short_id_from_ec2_arn,
     },
-    "ecs:cluster": {"label": "ECSCluster", "property": "id"},
-    "ecs:container": {"label": "ECSContainer", "property": "id"},
-    "ecs:container-instance": {"label": "ECSContainerInstance", "property": "id"},
-    "ecs:task": {"label": "ECSTask", "property": "id"},
-    "ecs:task-definition": {"label": "ECSTaskDefinition", "property": "id"},
-    "eks:cluster": {"label": "EKSCluster", "property": "id"},
-    "elasticache:cluster": {"label": "ElasticacheCluster", "property": "arn"},
+    "ecs:cluster": {"label": "AWSECSCluster", "property": "id"},
+    "ecs:container": {"label": "AWSECSContainer", "property": "id"},
+    "ecs:container-instance": {"label": "AWSECSContainerInstance", "property": "id"},
+    "ecs:task": {"label": "AWSECSTask", "property": "id"},
+    "ecs:task-definition": {"label": "AWSECSTaskDefinition", "property": "id"},
+    "eks:cluster": {"label": "AWSEKSCluster", "property": "id"},
+    "elasticache:cluster": {"label": "AWSElasticacheCluster", "property": "arn"},
     # Match on the classic ELB's own label (AWSLoadBalancer), not the shared
     # "LoadBalancer" ontology label, which is also attached to AWSLoadBalancerV2
     # nodes. Otherwise a classic ELB tag would bleed onto an ALB/NLB of the same
@@ -187,21 +187,25 @@ TAG_RESOURCE_TYPE_MAPPINGS: Dict = {
         "id_func": get_short_id_from_lb2_arn,
         "region_property": "region",
     },
-    "elasticmapreduce:cluster": {"label": "EMRCluster", "property": "arn"},
-    "es:domain": {"label": "ESDomain", "property": "arn"},
-    "kms:key": {"label": "KMSKey", "property": "arn"},
+    "elasticmapreduce:cluster": {"label": "AWSEMRCluster", "property": "arn"},
+    "es:domain": {"label": "AWSESDomain", "property": "arn"},
+    "kms:key": {"label": "AWSKMSKey", "property": "arn"},
     "iam:role": {"label": "AWSRole", "property": "arn"},
     "iam:user": {"label": "AWSUser", "property": "arn"},
     "lambda:function": {"label": "AWSLambda", "property": "id"},
-    "redshift:cluster": {"label": "RedshiftCluster", "property": "id"},
-    "rds:db": {"label": "RDSInstance", "property": "id"},
-    "rds:subgrp": {"label": "DBSubnetGroup", "property": "id"},
-    "rds:cluster": {"label": "RDSCluster", "property": "id"},
-    "rds:snapshot": {"label": "RDSSnapshot", "property": "id"},
+    "redshift:cluster": {"label": "AWSRedshiftCluster", "property": "id"},
+    "rds:db": {"label": "AWSRDSInstance", "property": "id"},
+    "rds:subgrp": {"label": "AWSDBSubnetGroup", "property": "id"},
+    "rds:cluster": {"label": "AWSRDSCluster", "property": "id"},
+    "rds:snapshot": {"label": "AWSRDSSnapshot", "property": "id"},
     # Buckets are the only objects in the S3 service: https://docs.aws.amazon.com/AmazonS3/latest/dev/s3-arn-format.html
-    "s3": {"label": "S3Bucket", "property": "id", "id_func": get_bucket_name_from_arn},
-    "secretsmanager:secret": {"label": "SecretsManagerSecret", "property": "id"},
-    "sqs": {"label": "SQSQueue", "property": "id"},
+    "s3": {
+        "label": "AWSS3Bucket",
+        "property": "id",
+        "id_func": get_bucket_name_from_arn,
+    },
+    "secretsmanager:secret": {"label": "AWSSecretsManagerSecret", "property": "id"},
+    "sqs": {"label": "AWSSQSQueue", "property": "id"},
 }
 
 
@@ -357,52 +361,52 @@ def _group_tag_data_by_resource_type(
 # Mapping of resource labels to their path to AWSAccount for cleanup
 # Most resources have a direct RESOURCE relationship, but some require traversal
 _RESOURCE_CLEANUP_PATHS: Dict[str, str] = {
-    "EC2Instance": "(:EC2Instance)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})",
-    "NetworkInterface": (
-        "(:NetworkInterface)-[:PART_OF_SUBNET]->"
-        "(:EC2Subnet)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})"
+    "AWSEC2Instance": "(:AWSEC2Instance)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})",
+    "AWSNetworkInterface": (
+        "(:AWSNetworkInterface)-[:PART_OF_SUBNET]->"
+        "(:AWSEC2Subnet)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})"
     ),
-    "EC2SecurityGroup": "(:EC2SecurityGroup)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})",
-    "EC2Subnet": "(:EC2Subnet)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})",
+    "AWSEC2SecurityGroup": "(:AWSEC2SecurityGroup)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})",
+    "AWSEC2Subnet": "(:AWSEC2Subnet)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})",
     "AWSVpc": "(:AWSVpc)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})",
-    "ESDomain": "(:ESDomain)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})",
-    "RedshiftCluster": "(:RedshiftCluster)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})",
-    "RDSCluster": "(:RDSCluster)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})",
-    "RDSInstance": "(:RDSInstance)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})",
-    "RDSSnapshot": "(:RDSSnapshot)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})",
-    "DBSubnetGroup": "(:DBSubnetGroup)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})",
-    "S3Bucket": "(:S3Bucket)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})",
+    "AWSESDomain": "(:AWSESDomain)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})",
+    "AWSRedshiftCluster": "(:AWSRedshiftCluster)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})",
+    "AWSRDSCluster": "(:AWSRDSCluster)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})",
+    "AWSRDSInstance": "(:AWSRDSInstance)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})",
+    "AWSRDSSnapshot": "(:AWSRDSSnapshot)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})",
+    "AWSDBSubnetGroup": "(:AWSDBSubnetGroup)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})",
+    "AWSS3Bucket": "(:AWSS3Bucket)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})",
     "AWSRole": "(:AWSRole)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})",
     "AWSUser": "(:AWSUser)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})",
     "AWSGroup": "(:AWSGroup)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})",
-    "KMSKey": "(:KMSKey)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})",
+    "AWSKMSKey": "(:AWSKMSKey)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})",
     "AWSLambda": "(:AWSLambda)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})",
-    "DynamoDBTable": "(:DynamoDBTable)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})",
-    "AutoScalingGroup": "(:AutoScalingGroup)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})",
-    "EC2KeyPair": "(:EC2KeyPair)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})",
-    "ECRRepository": "(:ECRRepository)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})",
+    "AWSDynamoDBTable": "(:AWSDynamoDBTable)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})",
+    "AWSAutoScalingGroup": "(:AWSAutoScalingGroup)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})",
+    "AWSEC2KeyPair": "(:AWSEC2KeyPair)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})",
+    "AWSECRRepository": "(:AWSECRRepository)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})",
     "AWSTransitGateway": "(:AWSTransitGateway)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})",
     "AWSTransitGatewayAttachment": (
         "(:AWSTransitGatewayAttachment)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})"
     ),
-    "EBSVolume": "(:EBSVolume)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})",
-    "ElasticIPAddress": "(:ElasticIPAddress)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})",
-    "ECSCluster": "(:ECSCluster)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})",
-    "ECSContainer": "(:ECSContainer)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})",
-    "ECSContainerInstance": (
-        "(:ECSContainerInstance)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})"
+    "AWSEBSVolume": "(:AWSEBSVolume)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})",
+    "AWSElasticIPAddress": "(:AWSElasticIPAddress)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})",
+    "AWSECSCluster": "(:AWSECSCluster)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})",
+    "AWSECSContainer": "(:AWSECSContainer)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})",
+    "AWSECSContainerInstance": (
+        "(:AWSECSContainerInstance)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})"
     ),
-    "ECSTask": "(:ECSTask)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})",
-    "ECSTaskDefinition": "(:ECSTaskDefinition)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})",
-    "EKSCluster": "(:EKSCluster)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})",
-    "ElasticacheCluster": "(:ElasticacheCluster)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})",
-    "LoadBalancer": "(:LoadBalancer)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})",
+    "AWSECSTask": "(:AWSECSTask)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})",
+    "AWSECSTaskDefinition": "(:AWSECSTaskDefinition)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})",
+    "AWSEKSCluster": "(:AWSEKSCluster)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})",
+    "AWSElasticacheCluster": "(:AWSElasticacheCluster)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})",
+    "AWSLoadBalancer": ("(:AWSLoadBalancer)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})"),
     "AWSLoadBalancerV2": "(:AWSLoadBalancerV2)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})",
-    "EMRCluster": "(:EMRCluster)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})",
-    "SecretsManagerSecret": (
-        "(:SecretsManagerSecret)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})"
+    "AWSEMRCluster": "(:AWSEMRCluster)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})",
+    "AWSSecretsManagerSecret": (
+        "(:AWSSecretsManagerSecret)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})"
     ),
-    "SQSQueue": "(:SQSQueue)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})",
+    "AWSSQSQueue": "(:AWSSQSQueue)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})",
     "AWSInternetGateway": (
         "(:AWSInternetGateway)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})"
     ),

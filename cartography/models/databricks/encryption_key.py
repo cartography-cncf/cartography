@@ -49,9 +49,9 @@ class DatabricksEncryptionKeyToKMSKeyRelProperties(CartographyRelProperties):
 
 
 @dataclass(frozen=True)
-# (:DatabricksEncryptionKey)-[:REFERENCES_KEY]->(:KMSKey)
+# (:DatabricksEncryptionKey)-[:REFERENCES_KEY]->(:AWSKMSKey)
 class DatabricksEncryptionKeyToKMSKeyRel(CartographyRelSchema):
-    target_node_label: str = "KMSKey"
+    target_node_label: str = "AWSKMSKey"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"arn": PropertyRef("aws_key_arn")},
     )

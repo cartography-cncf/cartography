@@ -138,9 +138,9 @@ _aws_rds_public_access = Fact(
         "not expose the TCP DB port."
     ),
     cypher_query="""
-    MATCH (rds:RDSInstance {publicly_accessible: true})
+    MATCH (rds:AWSRDSInstance {publicly_accessible: true})
     WHERE rds.endpoint_port IS NOT NULL
-    MATCH (rds)-[:MEMBER_OF_EC2_SECURITY_GROUP]->(sg:EC2SecurityGroup)
+    MATCH (rds)-[:MEMBER_OF_EC2_SECURITY_GROUP]->(sg:AWSEC2SecurityGroup)
         <-[:MEMBER_OF_EC2_SECURITY_GROUP]-(rule:AWSIpPermissionInbound)
     MATCH (rule)<-[:MEMBER_OF_IP_RULE]-(:AWSIpRange {range: '0.0.0.0/0'})
     WHERE coalesce(rule.protocol, '') IN ['tcp', '-1', 'all']
@@ -161,8 +161,8 @@ _aws_rds_public_access = Fact(
         rds.storage_encrypted AS encrypted
     """,
     cypher_visual_query="""
-    MATCH p1=(rds:RDSInstance {publicly_accessible: true})
-    MATCH p2=(rds)-[:MEMBER_OF_EC2_SECURITY_GROUP]->(sg:EC2SecurityGroup)
+    MATCH p1=(rds:AWSRDSInstance {publicly_accessible: true})
+    MATCH p2=(rds)-[:MEMBER_OF_EC2_SECURITY_GROUP]->(sg:AWSEC2SecurityGroup)
         <-[:MEMBER_OF_EC2_SECURITY_GROUP]-(rule:AWSIpPermissionInbound:AWSIpRule)
     MATCH p3=(rule)<-[:MEMBER_OF_IP_RULE]-(ip:AWSIpRange {range: '0.0.0.0/0'})
     WHERE rds.endpoint_port IS NOT NULL
@@ -177,7 +177,7 @@ _aws_rds_public_access = Fact(
     RETURN *
     """,
     cypher_count_query="""
-    MATCH (rds:RDSInstance)
+    MATCH (rds:AWSRDSInstance)
     RETURN COUNT(rds) AS count
     """,
     identity_fields=("id",),

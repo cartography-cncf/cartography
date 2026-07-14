@@ -3,6 +3,7 @@ from dataclasses import dataclass
 from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeProperties
 from cartography.models.core.nodes import CartographyNodeSchema
+from cartography.models.core.nodes import ExtraNodeLabels
 from cartography.models.core.relationships import CartographyRelProperties
 from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
@@ -34,7 +35,7 @@ class APIGatewayRestAPIToAWSAccountRelRelProperties(CartographyRelProperties):
 
 
 @dataclass(frozen=True)
-# (:APIGatewayRestAPI)<-[:RESOURCE]-(:AWSAccount)
+# (:AWSAPIGatewayRestAPI)<-[:RESOURCE]-(:AWSAccount)
 class APIGatewayRestAPIToAWSAccountRel(CartographyRelSchema):
     target_node_label: str = "AWSAccount"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
@@ -49,7 +50,9 @@ class APIGatewayRestAPIToAWSAccountRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class APIGatewayRestAPISchema(CartographyNodeSchema):
-    label: str = "APIGatewayRestAPI"
+    label: str = "AWSAPIGatewayRestAPI"
+    # DEPRECATED: legacy APIGatewayRestAPI node label will be removed in v1.0.0.
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["APIGatewayRestAPI"])
     properties: APIGatewayRestAPINodeProperties = APIGatewayRestAPINodeProperties()
     sub_resource_relationship: APIGatewayRestAPIToAWSAccountRel = (
         APIGatewayRestAPIToAWSAccountRel()

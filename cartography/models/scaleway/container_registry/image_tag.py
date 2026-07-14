@@ -61,7 +61,7 @@ class ScalewayContainerRegistryImageTagToNamespaceRelProperties(
 @dataclass(frozen=True)
 # (:ScalewayContainerRegistryNamespace)-[:REPO_IMAGE]->(:ScalewayContainerRegistryImageTag)
 # REPO_IMAGE is the canonical cross-provider registry -> tag edge (mirrors
-# ECRRepository / GCPArtifactRegistryRepository), consumed by the supply-chain
+# AWSECRRepository / GCPArtifactRegistryRepository), consumed by the supply-chain
 # code-to-cloud matchers.
 class ScalewayContainerRegistryImageTagToNamespaceRel(CartographyRelSchema):
     target_node_label: str = "ScalewayContainerRegistryNamespace"

@@ -29,7 +29,7 @@ AWS_USER_PROJECTION = AnalysisJob(
                     "u",
                     "_ont_active",
                     RawCypher(
-                        "CASE WHEN (u.passwordlastused_dt IS NOT NULL) OR EXISTS((u)-[:AWS_ACCESS_KEY]->(:AccountAccessKey {status: 'Active'})) THEN true ELSE NULL END"
+                        "CASE WHEN (u.passwordlastused_dt IS NOT NULL) OR EXISTS((u)-[:AWS_ACCESS_KEY]->(:AWSAccountAccessKey {status: 'Active'})) THEN true ELSE NULL END"
                     ),
                     label="AWSUser",
                 ),
@@ -152,7 +152,7 @@ DEVICE_AFFECTS_CROWDSTRIKE_FINDING = AnalysisJob(
     short_name="ontology_devices_crowdstrike_finding_affects",
     statements=(
         AnalysisStatement(
-            match="MATCH (d:Device)-[obs:OBSERVED_AS]->(:CrowdstrikeHost)-[:HAS_VULNERABILITY]->(:SpotlightVulnerability)-[:HAS_CVE]->(f:CrowdstrikeFinding)",
+            match="MATCH (d:Device)-[obs:OBSERVED_AS]->(:CrowdstrikeHost)-[:HAS_VULNERABILITY]->(:CrowdstrikeSpotlightVulnerability)-[:HAS_CVE]->(f:CrowdstrikeFinding)",
             effects=(
                 AddRelationship(
                     "f",
@@ -203,9 +203,9 @@ DNS_RECORD_TARGETS = (
         "AND NOT dns:AWSDNSRecord AND NOT dns:GCPRecordSet",
         "NOT source:AWSDNSRecord",
     ),
-    ("CloudFrontDistribution", "domain_name", "AND NOT dns:GCPRecordSet", ""),
+    ("AWSCloudFrontDistribution", "domain_name", "AND NOT dns:GCPRecordSet", ""),
     (
-        "EC2Instance",
+        "AWSEC2Instance",
         "publicdnsname",
         "AND NOT dns:AWSDNSRecord AND NOT dns:GCPRecordSet",
         "NOT source:AWSDNSRecord",
@@ -256,7 +256,7 @@ LOADBALANCER_EXPOSE_CONTAINER = AnalysisJob(
     short_name="ontology_loadbalancers_linking",
     statements=(
         AnalysisStatement(
-            match="MATCH (lb:LoadBalancer)-[:EXPOSE]->(ip:EC2PrivateIp)<-[:PRIVATE_IP_ADDRESS]-(ni:NetworkInterface)<-[:NETWORK_INTERFACE]-(task:ECSTask)-[:HAS_CONTAINER]->(c:Container)",
+            match="MATCH (lb:LoadBalancer)-[:EXPOSE]->(ip:AWSEC2PrivateIp)<-[:PRIVATE_IP_ADDRESS]-(ni:AWSNetworkInterface)<-[:NETWORK_INTERFACE]-(task:AWSECSTask)-[:HAS_CONTAINER]->(c:Container)",
             effects=(
                 AddRelationship(
                     "lb",
@@ -416,7 +416,7 @@ TAILSCALE_DEVICE_INSTANCE_LINKING = AnalysisJob(
             match=(
                 "CALL { "
                 "MATCH (instance:ComputeInstance) "
-                "WHERE instance:EC2Instance OR instance:GCPInstance "
+                "WHERE instance:AWSEC2Instance OR instance:GCPInstance "
                 "WITH instance, [instance.hostname, instance.instancename, instance.publicdnsname] AS raw_keys "
                 "UNWIND raw_keys AS raw_key "
                 "WITH instance, raw_key "
@@ -446,7 +446,7 @@ TAILSCALE_DEVICE_INSTANCE_LINKING = AnalysisJob(
                 "WITH device, split(endpoint, ':')[0] AS ip "
                 "WHERE ip <> '' "
                 "MATCH (instance:ComputeInstance) "
-                "WHERE instance:EC2Instance OR instance:GCPInstance "
+                "WHERE instance:AWSEC2Instance OR instance:GCPInstance "
                 "WITH device, ip, instance, [instance.publicipaddress, instance.privateipaddress, instance.public_ip, instance.private_ip] AS raw_ips "
                 "UNWIND raw_ips AS raw_ip "
                 "WITH device, instance, ip, raw_ip "

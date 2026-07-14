@@ -40,7 +40,7 @@ RM -- HAS_VERSION --> MV(DatabricksModelVersion)
 SC -- ASSUMES_ROLE --> AWS(AWSPrincipal)
 SC -- IMPERSONATES --> GSA(GCPServiceAccount)
 EL -- USES_CREDENTIAL --> SC
-EL -- BACKED_BY --> BKT(S3Bucket / GCPBucket)
+EL -- BACKED_BY --> BKT(AWSS3Bucket / GCPBucket)
 TB -- BACKED_BY --> BKT
 VOL -- BACKED_BY --> BKT
 U -- HAS_PRIVILEGE --> DS(DatabricksSecurable)
@@ -115,10 +115,10 @@ CC -- ASSUMES_ROLE --> AWS
 CC -- IN_ACCOUNT --> AWSACC(AWSAccount)
 STC -- BACKED_BY --> BKT
 NC -- USES_VPC --> VPC(AWSVpc)
-NC -- USES_SUBNET --> SUB(EC2Subnet)
-NC -- USES_SECURITY_GROUP --> SG(EC2SecurityGroup)
+NC -- USES_SUBNET --> SUB(AWSEC2Subnet)
+NC -- USES_SECURITY_GROUP --> SG(AWSEC2SecurityGroup)
 VE -- POINTS_TO --> AWSVE(AWSVpcEndpoint)
-EK -- REFERENCES_KEY --> KEY(KMSKey / GCPCryptoKey)
+EK -- REFERENCES_KEY --> KEY(AWSKMSKey / GCPCryptoKey)
 LD -- DELIVERS_TO --> BKT
 U -- HAS_PERMISSION --> ACLO(DatabricksAclObject)
 G -- HAS_PERMISSION --> ACLO
@@ -533,7 +533,7 @@ A named external storage location governed by Unity Catalog.
     (:DatabricksWorkspace)-[:RESOURCE]->(:DatabricksExternalLocation)
     (:DatabricksMetastore)-[:CONTAINS]->(:DatabricksExternalLocation)
     (:DatabricksExternalLocation)-[:USES_CREDENTIAL]->(:DatabricksStorageCredential)
-    (:DatabricksExternalLocation)-[:BACKED_BY]->(:S3Bucket)
+    (:DatabricksExternalLocation)-[:BACKED_BY]->(:AWSS3Bucket)
     (:DatabricksExternalLocation)-[:BACKED_BY]->(:GCPBucket)
     ```
 
@@ -614,7 +614,7 @@ A UC table or view. Carries the shared `DatabricksSecurable` label.
 ```
 (:DatabricksWorkspace)-[:RESOURCE]->(:DatabricksTable)
 (:DatabricksSchema)-[:CONTAINS]->(:DatabricksTable)
-(:DatabricksTable)-[:BACKED_BY]->(:S3Bucket | :GCPBucket)
+(:DatabricksTable)-[:BACKED_BY]->(:AWSS3Bucket | :GCPBucket)
 ```
 
 ### DatabricksVolume
@@ -640,7 +640,7 @@ A UC volume (managed or external file storage). Carries the shared
 ```
 (:DatabricksWorkspace)-[:RESOURCE]->(:DatabricksVolume)
 (:DatabricksSchema)-[:CONTAINS]->(:DatabricksVolume)
-(:DatabricksVolume)-[:BACKED_BY]->(:S3Bucket | :GCPBucket)
+(:DatabricksVolume)-[:BACKED_BY]->(:AWSS3Bucket | :GCPBucket)
 ```
 
 ### DatabricksFunction
@@ -1598,7 +1598,7 @@ An account-level workspace root storage configuration (AWS S3). Owned by the `Da
 #### Relationships
 ```
 (:DatabricksAccount)-[:RESOURCE]->(:DatabricksStorageConfig)
-(:DatabricksStorageConfig)-[:BACKED_BY]->(:S3Bucket)
+(:DatabricksStorageConfig)-[:BACKED_BY]->(:AWSS3Bucket)
 ```
 
 ### DatabricksNetworkConfig
@@ -1620,8 +1620,8 @@ An account-level customer-managed VPC network configuration. Owned by the `Datab
 ```
 (:DatabricksAccount)-[:RESOURCE]->(:DatabricksNetworkConfig)
 (:DatabricksNetworkConfig)-[:USES_VPC]->(:AWSVpc)
-(:DatabricksNetworkConfig)-[:USES_SUBNET]->(:EC2Subnet)
-(:DatabricksNetworkConfig)-[:USES_SECURITY_GROUP]->(:EC2SecurityGroup)
+(:DatabricksNetworkConfig)-[:USES_SUBNET]->(:AWSEC2Subnet)
+(:DatabricksNetworkConfig)-[:USES_SECURITY_GROUP]->(:AWSEC2SecurityGroup)
 ```
 
 ### DatabricksPrivateAccessSettings
@@ -1680,7 +1680,7 @@ An account-level customer-managed encryption key (AWS KMS / GCP KMS). Owned by t
 #### Relationships
 ```
 (:DatabricksAccount)-[:RESOURCE]->(:DatabricksEncryptionKey)
-(:DatabricksEncryptionKey)-[:REFERENCES_KEY]->(:KMSKey)
+(:DatabricksEncryptionKey)-[:REFERENCES_KEY]->(:AWSKMSKey)
 (:DatabricksEncryptionKey)-[:REFERENCES_KEY]->(:GCPCryptoKey)
 ```
 
@@ -1721,7 +1721,7 @@ An account-level log delivery configuration (billable usage / audit logs to S3).
 #### Relationships
 ```
 (:DatabricksAccount)-[:RESOURCE]->(:DatabricksLogDelivery)
-(:DatabricksLogDelivery)-[:DELIVERS_TO]->(:S3Bucket)
+(:DatabricksLogDelivery)-[:DELIVERS_TO]->(:AWSS3Bucket)
 ```
 
 ### DatabricksBudget

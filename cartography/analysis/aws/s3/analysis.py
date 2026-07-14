@@ -11,12 +11,12 @@ AWS_S3ACL_ANALYSIS = AnalysisJob(
     statements=(
         AnalysisStatement(
             match="""
-            MATCH (acl:S3Acl)-[:APPLIES_TO]->(bucket:S3Bucket)
+            MATCH (acl:AWSS3Acl)-[:APPLIES_TO]->(bucket:AWSS3Bucket)
             WHERE acl.uri IN ['http://acs.amazonaws.com/groups/global/AllUsers', 'http://acs.amazonaws.com/groups/global/AuthenticatedUsers']
             AND acl.permission = 'READ'
             """,
             effects=(
-                SetProperty("bucket", "anonymous_access", True, label="S3Bucket"),
+                SetProperty("bucket", "anonymous_access", True, label="AWSS3Bucket"),
                 AddValuesToSet(
                     "bucket",
                     "anonymous_actions",
@@ -25,66 +25,66 @@ AWS_S3ACL_ANALYSIS = AnalysisJob(
                         "s3:ListBucketVersions",
                         "s3:ListBucketMultipartUploads",
                     ),
-                    label="S3Bucket",
+                    label="AWSS3Bucket",
                 ),
             ),
         ),
         AnalysisStatement(
             match="""
-            MATCH (acl:S3Acl)-[:APPLIES_TO]->(bucket:S3Bucket)
+            MATCH (acl:AWSS3Acl)-[:APPLIES_TO]->(bucket:AWSS3Bucket)
             WHERE acl.uri IN ['http://acs.amazonaws.com/groups/global/AllUsers', 'http://acs.amazonaws.com/groups/global/AuthenticatedUsers']
             AND acl.permission = 'WRITE'
             """,
             effects=(
-                SetProperty("bucket", "anonymous_access", True, label="S3Bucket"),
+                SetProperty("bucket", "anonymous_access", True, label="AWSS3Bucket"),
                 AddValuesToSet(
                     "bucket",
                     "anonymous_actions",
                     ("s3:PutObject",),
-                    label="S3Bucket",
+                    label="AWSS3Bucket",
                 ),
             ),
         ),
         AnalysisStatement(
             match="""
-            MATCH (acl:S3Acl)-[:APPLIES_TO]->(bucket:S3Bucket)
+            MATCH (acl:AWSS3Acl)-[:APPLIES_TO]->(bucket:AWSS3Bucket)
             WHERE acl.uri IN ['http://acs.amazonaws.com/groups/global/AllUsers', 'http://acs.amazonaws.com/groups/global/AuthenticatedUsers']
             AND acl.permission = 'READ_ACP'
             """,
             effects=(
-                SetProperty("bucket", "anonymous_access", True, label="S3Bucket"),
+                SetProperty("bucket", "anonymous_access", True, label="AWSS3Bucket"),
                 AddValuesToSet(
                     "bucket",
                     "anonymous_actions",
                     ("s3:GetBucketAcl",),
-                    label="S3Bucket",
+                    label="AWSS3Bucket",
                 ),
             ),
         ),
         AnalysisStatement(
             match="""
-            MATCH (acl:S3Acl)-[:APPLIES_TO]->(bucket:S3Bucket)
+            MATCH (acl:AWSS3Acl)-[:APPLIES_TO]->(bucket:AWSS3Bucket)
             WHERE acl.uri IN ['http://acs.amazonaws.com/groups/global/AllUsers', 'http://acs.amazonaws.com/groups/global/AuthenticatedUsers']
             AND acl.permission = 'WRITE_ACP'
             """,
             effects=(
-                SetProperty("bucket", "anonymous_access", True, label="S3Bucket"),
+                SetProperty("bucket", "anonymous_access", True, label="AWSS3Bucket"),
                 AddValuesToSet(
                     "bucket",
                     "anonymous_actions",
                     ("s3:PutBucketAcl",),
-                    label="S3Bucket",
+                    label="AWSS3Bucket",
                 ),
             ),
         ),
         AnalysisStatement(
             match="""
-            MATCH (acl:S3Acl)-[:APPLIES_TO]->(bucket:S3Bucket)
+            MATCH (acl:AWSS3Acl)-[:APPLIES_TO]->(bucket:AWSS3Bucket)
             WHERE acl.uri IN ['http://acs.amazonaws.com/groups/global/AllUsers', 'http://acs.amazonaws.com/groups/global/AuthenticatedUsers']
             AND acl.permission = 'FULL_CONTROL'
             """,
             effects=(
-                SetProperty("bucket", "anonymous_access", True, label="S3Bucket"),
+                SetProperty("bucket", "anonymous_access", True, label="AWSS3Bucket"),
                 AddValuesToSet(
                     "bucket",
                     "anonymous_actions",
@@ -97,7 +97,7 @@ AWS_S3ACL_ANALYSIS = AnalysisJob(
                         "s3:DeleteObjectVersion",
                         "s3:PutBucketAcl",
                     ),
-                    label="S3Bucket",
+                    label="AWSS3Bucket",
                 ),
             ),
         ),

@@ -48,7 +48,7 @@ class ECRRepositoryToRepositoryImageRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class ECRRepositoryToRepositoryImageRel(CartographyRelSchema):
-    target_node_label: str = "ECRRepositoryImage"
+    target_node_label: str = "AWSECRRepositoryImage"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("id")}
     )
@@ -61,8 +61,11 @@ class ECRRepositoryToRepositoryImageRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class ECRRepositorySchema(CartographyNodeSchema):
-    label: str = "ECRRepository"
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["ContainerRegistry"])
+    label: str = "AWSECRRepository"
+    # DEPRECATED: legacy ECRRepository node label will be removed in v1.0.0.
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
+        ["ECRRepository", "ContainerRegistry"]
+    )
     properties: ECRRepositoryNodeProperties = ECRRepositoryNodeProperties()
     sub_resource_relationship: ECRRepositoryToAWSAccountRel = (
         ECRRepositoryToAWSAccountRel()

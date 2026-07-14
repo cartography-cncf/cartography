@@ -57,7 +57,7 @@ class DependencyGraphManifestToDependencyRelProperties(CartographyRelProperties)
 
 @dataclass(frozen=True)
 class DependencyGraphManifestToDependencyRel(CartographyRelSchema):
-    target_node_label: str = "DependencyGraphManifest"
+    target_node_label: str = "GitHubDependencyGraphManifest"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("manifest_id")}
     )

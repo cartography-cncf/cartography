@@ -25,7 +25,7 @@ def test_load_ecs_clusters(neo4j_session, *args):
 
     assert check_nodes(
         neo4j_session,
-        "ECSCluster",
+        "AWSECSCluster",
         ["id", "name", "status"],
     ) == {
         (
@@ -44,10 +44,10 @@ def test_load_ecs_container_instances(neo4j_session, *args):
         TEST_ACCOUNT_ID,
         TEST_UPDATE_TAG,
     )
-    # Create EC2Instance node so the IS_INSTANCE relationship can be created
+    # Create AWSEC2Instance node so the IS_INSTANCE relationship can be created
     neo4j_session.run(
         """
-        MERGE (i:EC2Instance{id: $InstanceId})
+        MERGE (i:AWSEC2Instance{id: $InstanceId})
         ON CREATE SET i.firstseen = timestamp()
         SET i.lastupdated = $aws_update_tag
         """,
@@ -66,7 +66,7 @@ def test_load_ecs_container_instances(neo4j_session, *args):
 
     assert check_nodes(
         neo4j_session,
-        "ECSContainerInstance",
+        "AWSECSContainerInstance",
         ["id", "ec2_instance_id", "status", "version"],
     ) == {
         (
@@ -79,9 +79,9 @@ def test_load_ecs_container_instances(neo4j_session, *args):
 
     assert check_rels(
         neo4j_session,
-        "ECSCluster",
+        "AWSECSCluster",
         "id",
-        "ECSContainerInstance",
+        "AWSECSContainerInstance",
         "id",
         "HAS_CONTAINER_INSTANCE",
         rel_direction_right=True,
@@ -94,9 +94,9 @@ def test_load_ecs_container_instances(neo4j_session, *args):
 
     assert check_rels(
         neo4j_session,
-        "ECSContainerInstance",
+        "AWSECSContainerInstance",
         "id",
-        "EC2Instance",
+        "AWSEC2Instance",
         "id",
         "IS_INSTANCE",
         rel_direction_right=True,
@@ -128,7 +128,7 @@ def test_load_ecs_services(neo4j_session, *args):
 
     assert check_nodes(
         neo4j_session,
-        "ECSService",
+        "AWSECSService",
         ["id", "name", "cluster_arn", "status"],
     ) == {
         (
@@ -141,9 +141,9 @@ def test_load_ecs_services(neo4j_session, *args):
 
     assert check_rels(
         neo4j_session,
-        "ECSCluster",
+        "AWSECSCluster",
         "id",
-        "ECSService",
+        "AWSECSService",
         "id",
         "HAS_SERVICE",
         rel_direction_right=True,
@@ -174,11 +174,11 @@ def test_load_ecs_services_target_group_registrations(neo4j_session, *args):
         TEST_UPDATE_TAG,
     )
 
-    # Seed an ELBV2TargetGroup node matching the ARN in GET_ECS_SERVICES fixture
+    # Seed an AWSELBV2TargetGroup node matching the ARN in GET_ECS_SERVICES fixture
     tg_arn = "arn:aws:elasticloadbalancing:us-east-1:000000000000:targetgroup/test_group/0000000000090000"
     neo4j_session.run(
         """
-        MERGE (tg:ELBV2TargetGroup{id: $tg_arn})
+        MERGE (tg:AWSELBV2TargetGroup{id: $tg_arn})
         ON CREATE SET tg.firstseen = timestamp()
         SET tg.lastupdated = $update_tag
         """,
@@ -186,7 +186,7 @@ def test_load_ecs_services_target_group_registrations(neo4j_session, *args):
         update_tag=TEST_UPDATE_TAG,
     )
 
-    # Load ECS services (this also loads the TG→ECSService matchlinks)
+    # Load ECS services (this also loads the TG→AWSECSService matchlinks)
     cartography.intel.aws.ecs.load_ecs_services(
         neo4j_session,
         CLUSTER_ARN,
@@ -199,7 +199,7 @@ def test_load_ecs_services_target_group_registrations(neo4j_session, *args):
     # Assert the TARGETS edge exists with the right properties
     result = neo4j_session.run(
         """
-        MATCH (tg:ELBV2TargetGroup {id: $tg_arn})-[r:TARGETS]->(svc:ECSService)
+        MATCH (tg:AWSELBV2TargetGroup {id: $tg_arn})-[r:TARGETS]->(svc:AWSECSService)
         RETURN svc.id AS svc_id, r.container_name AS container_name, r.container_port AS container_port
         """,
         tg_arn=tg_arn,
@@ -240,7 +240,7 @@ def test_load_ecs_tasks(neo4j_session, *args):
     # Assert
     assert check_nodes(
         neo4j_session,
-        "ECSTask",
+        "AWSECSTask",
         ["id", "task_definition_arn", "cluster_arn", "group"],
     ) == {
         (
@@ -253,7 +253,7 @@ def test_load_ecs_tasks(neo4j_session, *args):
 
     assert check_nodes(
         neo4j_session,
-        "ECSContainer",
+        "AWSECSContainer",
         ["id", "name", "image", "image_digest"],
     ) == {
         (
@@ -266,9 +266,9 @@ def test_load_ecs_tasks(neo4j_session, *args):
 
     assert check_rels(
         neo4j_session,
-        "ECSTask",
+        "AWSECSTask",
         "id",
-        "ECSContainer",
+        "AWSECSContainer",
         "id",
         "HAS_CONTAINER",
         rel_direction_right=True,
@@ -281,7 +281,7 @@ def test_load_ecs_tasks(neo4j_session, *args):
 
     assert check_nodes(
         neo4j_session,
-        "ECSContainer",
+        "AWSECSContainer",
         [
             "id",
             "architecture",
@@ -377,7 +377,7 @@ def test_load_ecs_tasks_with_live_redacted_payload(neo4j_session):
 
         assert check_nodes(
             neo4j_session,
-            "ECSTask",
+            "AWSECSTask",
             ["id", "service_name", "network_interface_id"],
         ) == {
             (
@@ -389,7 +389,7 @@ def test_load_ecs_tasks_with_live_redacted_payload(neo4j_session):
 
         assert check_nodes(
             neo4j_session,
-            "ECSContainer",
+            "AWSECSContainer",
             ["name", "architecture", "architecture_normalized", "architecture_source"],
         ) == {
             ("sublime", "x86_64", "amd64", "runtime_api_exact"),
@@ -453,7 +453,7 @@ def test_ecs_container_architecture_fallback_from_task_definition(neo4j_session)
         )
     assert check_nodes(
         neo4j_session,
-        "ECSContainer",
+        "AWSECSContainer",
         [
             "id",
             "architecture",
@@ -475,7 +475,7 @@ def test_transform_ecs_tasks(neo4j_session):
     # Arrange
     neo4j_session.run(
         """
-        MERGE (ni:NetworkInterface{id: $NetworkInterfaceId})
+        MERGE (ni:AWSNetworkInterface{id: $NetworkInterfaceId})
         ON CREATE SET ni.firstseen = timestamp()
         SET ni.lastupdated = $aws_update_tag
         """,
@@ -499,9 +499,9 @@ def test_transform_ecs_tasks(neo4j_session):
     # Assert
     assert check_rels(
         neo4j_session,
-        "ECSTask",
+        "AWSECSTask",
         "id",
-        "NetworkInterface",
+        "AWSNetworkInterface",
         "id",
         "NETWORK_INTERFACE",
     ) == {
@@ -538,7 +538,7 @@ def test_load_ecs_task_definitions(neo4j_session, *args):
     # Assert
     assert check_nodes(
         neo4j_session,
-        "ECSTaskDefinition",
+        "AWSECSTaskDefinition",
         ["id", "family", "status", "revision"],
     ) == {
         (
@@ -551,7 +551,7 @@ def test_load_ecs_task_definitions(neo4j_session, *args):
 
     assert check_nodes(
         neo4j_session,
-        "ECSContainerDefinition",
+        "AWSECSContainerDefinition",
         ["id", "name", "image"],
     ) == {
         (
@@ -563,9 +563,9 @@ def test_load_ecs_task_definitions(neo4j_session, *args):
 
     assert check_rels(
         neo4j_session,
-        "ECSTaskDefinition",
+        "AWSECSTaskDefinition",
         "id",
-        "ECSContainerDefinition",
+        "AWSECSContainerDefinition",
         "id",
         "HAS_CONTAINER_DEFINITION",
         rel_direction_right=True,
@@ -643,10 +643,10 @@ def test_sync_ecs_comprehensive(
         aws_update_tag=TEST_UPDATE_TAG,
     )
 
-    # Create EC2Instance node for container instance relationship
+    # Create AWSEC2Instance node for container instance relationship
     neo4j_session.run(
         """
-        MERGE (i:EC2Instance{id: $InstanceId})
+        MERGE (i:AWSEC2Instance{id: $InstanceId})
         ON CREATE SET i.firstseen = timestamp()
         SET i.lastupdated = $aws_update_tag
         """,
@@ -654,10 +654,10 @@ def test_sync_ecs_comprehensive(
         aws_update_tag=TEST_UPDATE_TAG,
     )
 
-    # Create ECRImage node for the container image
+    # Create AWSECRImage node for the container image
     neo4j_session.run(
         """
-        MERGE (img:ECRImage{id: $ImageDigest})
+        MERGE (img:AWSECRImage{id: $ImageDigest})
         ON CREATE SET img.firstseen = timestamp()
         SET img.lastupdated = $aws_update_tag, img.digest = $ImageDigest
         """,
@@ -680,9 +680,9 @@ def test_sync_ecs_comprehensive(
     # 1. ECSTasks attached to ECSContainers
     assert check_rels(
         neo4j_session,
-        "ECSTask",
+        "AWSECSTask",
         "id",
-        "ECSContainer",
+        "AWSECSContainer",
         "id",
         "HAS_CONTAINER",
         rel_direction_right=True,
@@ -696,9 +696,9 @@ def test_sync_ecs_comprehensive(
     # 2. ECSTasks to ECSTaskDefinitions
     assert check_rels(
         neo4j_session,
-        "ECSTask",
+        "AWSECSTask",
         "id",
-        "ECSTaskDefinition",
+        "AWSECSTaskDefinition",
         "id",
         "HAS_TASK_DEFINITION",
         rel_direction_right=True,
@@ -712,9 +712,9 @@ def test_sync_ecs_comprehensive(
     # 3. ECSTasks to ECSContainerInstances
     assert check_rels(
         neo4j_session,
-        "ECSContainerInstance",
+        "AWSECSContainerInstance",
         "id",
-        "ECSTask",
+        "AWSECSTask",
         "id",
         "HAS_TASK",
         rel_direction_right=True,
@@ -728,9 +728,9 @@ def test_sync_ecs_comprehensive(
     # 4. ECSTaskDefinitions attached to ECSContainerDefinitions
     assert check_rels(
         neo4j_session,
-        "ECSTaskDefinition",
+        "AWSECSTaskDefinition",
         "id",
-        "ECSContainerDefinition",
+        "AWSECSContainerDefinition",
         "id",
         "HAS_CONTAINER_DEFINITION",
         rel_direction_right=True,
@@ -744,9 +744,9 @@ def test_sync_ecs_comprehensive(
     # 5. ECSContainerInstances to ECSClusters
     assert check_rels(
         neo4j_session,
-        "ECSCluster",
+        "AWSECSCluster",
         "id",
-        "ECSContainerInstance",
+        "AWSECSContainerInstance",
         "id",
         "HAS_CONTAINER_INSTANCE",
         rel_direction_right=True,
@@ -760,9 +760,9 @@ def test_sync_ecs_comprehensive(
     # 6. ECSContainers to ECSTasks
     assert check_rels(
         neo4j_session,
-        "ECSTask",
+        "AWSECSTask",
         "id",
-        "ECSContainer",
+        "AWSECSContainer",
         "id",
         "HAS_CONTAINER",
         rel_direction_right=True,
@@ -773,12 +773,12 @@ def test_sync_ecs_comprehensive(
         ),
     }, "ECSContainers to ECSTasks"
 
-    # # 7. ECSService to ECSTaskDefinitions
+    # # 7. AWSECSService to ECSTaskDefinitions
     assert check_rels(
         neo4j_session,
-        "ECSService",
+        "AWSECSService",
         "id",
-        "ECSTaskDefinition",
+        "AWSECSTaskDefinition",
         "id",
         "HAS_TASK_DEFINITION",
         rel_direction_right=True,
@@ -787,14 +787,14 @@ def test_sync_ecs_comprehensive(
             "arn:aws:ecs:us-east-1:000000000000:service/test_instance/test_service",
             "arn:aws:ecs:us-east-1:000000000000:task-definition/test_definition:0",
         ),
-    }, "ECSService to ECSTaskDefinitions"
+    }, "AWSECSService to ECSTaskDefinitions"
 
     # 8. ECSTasks to ECSClusters (sub-resource relationship)
     assert check_rels(
         neo4j_session,
-        "ECSCluster",
+        "AWSECSCluster",
         "id",
-        "ECSTask",
+        "AWSECSTask",
         "id",
         "HAS_TASK",
         rel_direction_right=True,
@@ -808,9 +808,9 @@ def test_sync_ecs_comprehensive(
     # 9. ECSServices to ECSClusters (sub-resource relationship)
     assert check_rels(
         neo4j_session,
-        "ECSCluster",
+        "AWSECSCluster",
         "id",
-        "ECSService",
+        "AWSECSService",
         "id",
         "HAS_SERVICE",
         rel_direction_right=True,
@@ -826,7 +826,7 @@ def test_sync_ecs_comprehensive(
         neo4j_session,
         "AWSAccount",
         "id",
-        "ECSCluster",
+        "AWSECSCluster",
         "id",
         "RESOURCE",
         rel_direction_right=True,
@@ -839,7 +839,7 @@ def test_sync_ecs_comprehensive(
         neo4j_session,
         "AWSAccount",
         "id",
-        "ECSTaskDefinition",
+        "AWSECSTaskDefinition",
         "id",
         "RESOURCE",
         rel_direction_right=True,
@@ -855,7 +855,7 @@ def test_sync_ecs_comprehensive(
         neo4j_session,
         "AWSAccount",
         "id",
-        "ECSContainerDefinition",
+        "AWSECSContainerDefinition",
         "id",
         "RESOURCE",
         rel_direction_right=True,
@@ -871,7 +871,7 @@ def test_sync_ecs_comprehensive(
         neo4j_session,
         "AWSAccount",
         "id",
-        "ECSContainer",
+        "AWSECSContainer",
         "id",
         "RESOURCE",
         rel_direction_right=True,
@@ -887,7 +887,7 @@ def test_sync_ecs_comprehensive(
         neo4j_session,
         "AWSAccount",
         "id",
-        "ECSContainerInstance",
+        "AWSECSContainerInstance",
         "id",
         "RESOURCE",
         rel_direction_right=True,
@@ -898,12 +898,12 @@ def test_sync_ecs_comprehensive(
         ),
     }, "ECSContainerInstances to AWSAccount"
 
-    # 15. ECSContainerInstances to EC2Instance (IS_INSTANCE relationship)
+    # 15. ECSContainerInstances to AWSEC2Instance (IS_INSTANCE relationship)
     assert check_rels(
         neo4j_session,
-        "ECSContainerInstance",
+        "AWSECSContainerInstance",
         "id",
-        "EC2Instance",
+        "AWSEC2Instance",
         "id",
         "IS_INSTANCE",
         rel_direction_right=True,
@@ -912,14 +912,14 @@ def test_sync_ecs_comprehensive(
             "arn:aws:ecs:us-east-1:000000000000:container-instance/test_instance/a0000000000000000000000000000000",
             "i-00000000000000000",
         ),
-    }, "ECSContainerInstances to EC2Instance"
+    }, "ECSContainerInstances to AWSEC2Instance"
 
     # 16. ECSServices to AWSAccount (sub-resource relationship)
     assert check_rels(
         neo4j_session,
         "AWSAccount",
         "id",
-        "ECSService",
+        "AWSECSService",
         "id",
         "RESOURCE",
         rel_direction_right=True,
@@ -933,7 +933,7 @@ def test_sync_ecs_comprehensive(
     # 16. ECSTaskDefinitions to AWSRole (HAS_TASK_ROLE relationship)
     assert check_rels(
         neo4j_session,
-        "ECSTaskDefinition",
+        "AWSECSTaskDefinition",
         "id",
         "AWSRole",
         "arn",
@@ -949,7 +949,7 @@ def test_sync_ecs_comprehensive(
     # 17. ECSTaskDefinitions to AWSRole (HAS_EXECUTION_ROLE relationship)
     assert check_rels(
         neo4j_session,
-        "ECSTaskDefinition",
+        "AWSECSTaskDefinition",
         "id",
         "AWSRole",
         "arn",
@@ -962,12 +962,12 @@ def test_sync_ecs_comprehensive(
         ),
     }, "ECSTaskDefinitions to AWSRole (HAS_EXECUTION_ROLE)"
 
-    # 18. ECSContainers to ECRImage (HAS_IMAGE relationship)
+    # 18. ECSContainers to AWSECRImage (HAS_IMAGE relationship)
     assert check_rels(
         neo4j_session,
-        "ECSContainer",
+        "AWSECSContainer",
         "id",
-        "ECRImage",
+        "AWSECRImage",
         "id",
         "HAS_IMAGE",
         rel_direction_right=True,
@@ -976,14 +976,14 @@ def test_sync_ecs_comprehensive(
             "arn:aws:ecs:us-east-1:000000000000:container/test_instance/00000000000000000000000000000000/00000000-0000-0000-0000-000000000000",
             "sha256:0000000000000000000000000000000000000000000000000000000000000000",
         ),
-    }, "ECSContainers to ECRImage (HAS_IMAGE)"
+    }, "ECSContainers to AWSECRImage (HAS_IMAGE)"
 
-    # ECSService to ECSTasks
+    # AWSECSService to ECSTasks
     assert check_rels(
         neo4j_session,
-        "ECSService",
+        "AWSECSService",
         "id",
-        "ECSTask",
+        "AWSECSTask",
         "id",
         "HAS_TASK",
         rel_direction_right=True,
@@ -992,12 +992,12 @@ def test_sync_ecs_comprehensive(
             "arn:aws:ecs:us-east-1:000000000000:service/test_instance/test_service",
             "arn:aws:ecs:us-east-1:000000000000:task/test_task/00000000000000000000000000000000",
         ),
-    }, "ECSService to ECSTasks"
+    }, "AWSECSService to ECSTasks"
 
     # Verify that all expected nodes were created
     assert check_nodes(
         neo4j_session,
-        "ECSCluster",
+        "AWSECSCluster",
         ["id", "name", "status"],
     ) == {
         (
@@ -1009,7 +1009,7 @@ def test_sync_ecs_comprehensive(
 
     assert check_nodes(
         neo4j_session,
-        "ECSTask",
+        "AWSECSTask",
         ["id", "task_definition_arn", "cluster_arn"],
     ) == {
         (
@@ -1021,7 +1021,7 @@ def test_sync_ecs_comprehensive(
 
     assert check_nodes(
         neo4j_session,
-        "ECSTaskDefinition",
+        "AWSECSTaskDefinition",
         ["id", "family", "status"],
     ) == {
         (
@@ -1033,7 +1033,7 @@ def test_sync_ecs_comprehensive(
 
     assert check_nodes(
         neo4j_session,
-        "ECSContainer",
+        "AWSECSContainer",
         ["id", "name", "image"],
     ) == {
         (
@@ -1045,7 +1045,7 @@ def test_sync_ecs_comprehensive(
 
     assert check_nodes(
         neo4j_session,
-        "ECSContainerDefinition",
+        "AWSECSContainerDefinition",
         ["id", "name", "image"],
     ) == {
         (
@@ -1057,7 +1057,7 @@ def test_sync_ecs_comprehensive(
 
     assert check_nodes(
         neo4j_session,
-        "ECSContainerInstance",
+        "AWSECSContainerInstance",
         ["id", "ec2_instance_id", "status"],
     ) == {
         (
@@ -1069,7 +1069,7 @@ def test_sync_ecs_comprehensive(
 
     assert check_nodes(
         neo4j_session,
-        "ECSService",
+        "AWSECSService",
         ["id", "name", "cluster_arn"],
     ) == {
         (
