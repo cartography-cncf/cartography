@@ -126,7 +126,7 @@ class LoadBalancerV2NodeProperties(CartographyNodeProperties):
     scheme: PropertyRef = PropertyRef("Scheme")
     exposed_internet: PropertyRef = PropertyRef(
         "exposed_internet", extra_index=True
-    )  # Populated by aws_ec2_asset_exposure.json.
+    )  # Populated by AWS_EC2_ASSET_EXPOSURE_JOBS.
     arn: PropertyRef = PropertyRef("LoadBalancerArn", extra_index=True)
     createdtime: PropertyRef = PropertyRef("CreatedTime")
 

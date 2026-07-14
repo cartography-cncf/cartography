@@ -12,6 +12,12 @@ from google.cloud.asset_v1 import AssetServiceClient
 from googleapiclient.discovery import HttpError
 from googleapiclient.discovery import Resource
 
+from cartography.analysis.gcp.analysis import GCP_BUCKET_PUBLIC_PROJECTION
+from cartography.analysis.gcp.analysis import GCP_COMPUTE_EXPOSURE_JOBS
+from cartography.analysis.gcp.analysis import GCP_COMPUTE_INSTANCE_VPC_ANALYSIS
+from cartography.analysis.gcp.analysis import GCP_GKE_ASSET_EXPOSURE
+from cartography.analysis.gcp.analysis import GCP_GKE_BASIC_AUTH
+from cartography.analysis.gcp.analysis import GCP_LB_EXPOSURE
 from cartography.config import Config
 from cartography.graph.job import GraphJob
 from cartography.intel.gcp import apikeys
@@ -67,7 +73,7 @@ from cartography.models.gcp.crm.folders import GCPFolderSchema
 from cartography.models.gcp.crm.organizations import GCPOrganizationSchema
 from cartography.models.gcp.crm.projects import GCPProjectSchema
 from cartography.util import run_analysis_job
-from cartography.util import run_scoped_analysis_job
+from cartography.util import run_typed_analysis_job
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
@@ -784,13 +790,10 @@ def _sync_project_resources(
         # `gcp_lb_exposure` materializes EXPOSE edges for traversal/explanations.
         # We keep them split because they serve different outputs and cleanup scopes.
         if requested_syncs is None or "compute" in requested_syncs:
-            run_scoped_analysis_job(
-                "gcp_compute_exposure.json",
-                neo4j_session,
-                common_job_parameters,
-            )
-            run_scoped_analysis_job(
-                "gcp_lb_exposure.json",
+            for job in GCP_COMPUTE_EXPOSURE_JOBS:
+                run_typed_analysis_job(job, neo4j_session, common_job_parameters)
+            run_typed_analysis_job(
+                GCP_LB_EXPOSURE,
                 neo4j_session,
                 common_job_parameters,
             )
@@ -1036,8 +1039,8 @@ def start_gcp_ingestion(
             common_job_parameters,
         )
 
-        run_analysis_job(
-            "gcp_compute_instance_vpc_analysis.json",
+        run_typed_analysis_job(
+            GCP_COMPUTE_INSTANCE_VPC_ANALYSIS,
             neo4j_session,
             common_job_parameters,
         )
@@ -1059,14 +1062,14 @@ def start_gcp_ingestion(
         )
 
     if requested_syncs is None or "gke" in requested_syncs:
-        run_analysis_job(
-            "gcp_gke_asset_exposure.json",
+        run_typed_analysis_job(
+            GCP_GKE_ASSET_EXPOSURE,
             neo4j_session,
             common_job_parameters,
         )
 
-        run_analysis_job(
-            "gcp_gke_basic_auth.json",
+        run_typed_analysis_job(
+            GCP_GKE_BASIC_AUTH,
             neo4j_session,
             common_job_parameters,
         )
@@ -1084,8 +1087,8 @@ def start_gcp_ingestion(
         any_policy_bindings_synced and not policy_bindings_sync_failed
     )
     if storage_requested and policy_bindings_requested and policy_bindings_fully_synced:
-        run_analysis_job(
-            "gcp_bucket_public_projection.json",
+        run_typed_analysis_job(
+            GCP_BUCKET_PUBLIC_PROJECTION,
             neo4j_session,
             common_job_parameters,
         )

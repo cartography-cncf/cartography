@@ -3,6 +3,8 @@ import logging
 import boto3
 from neo4j import Session
 
+from cartography.analysis.kubernetes.analysis import K8S_COMPUTE_ASSET_EXPOSURE_JOBS
+from cartography.analysis.kubernetes.analysis import K8S_LB_EXPOSURE_JOBS
 from cartography.config import Config
 from cartography.intel.kubernetes.clusters import sync_kubernetes_cluster
 from cartography.intel.kubernetes.eks import sync as sync_eks
@@ -16,7 +18,7 @@ from cartography.intel.kubernetes.rbac import sync_kubernetes_rbac
 from cartography.intel.kubernetes.secrets import sync_secrets
 from cartography.intel.kubernetes.services import sync_services
 from cartography.intel.kubernetes.util import get_k8s_clients
-from cartography.util import run_scoped_analysis_job
+from cartography.util import run_typed_analysis_job
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
@@ -113,16 +115,10 @@ def start_k8s_ingestion(session: Session, config: Config) -> None:
             sync_gateway_api(session, client, config.update_tag, common_job_parameters)
             sync_ingress(session, client, config.update_tag, common_job_parameters)
 
-            run_scoped_analysis_job(
-                "k8s_compute_asset_exposure.json",
-                session,
-                common_job_parameters,
-            )
-            run_scoped_analysis_job(
-                "k8s_lb_exposure.json",
-                session,
-                common_job_parameters,
-            )
+            for job in K8S_COMPUTE_ASSET_EXPOSURE_JOBS:
+                run_typed_analysis_job(job, session, common_job_parameters)
+            for job in K8S_LB_EXPOSURE_JOBS:
+                run_typed_analysis_job(job, session, common_job_parameters)
         except Exception:
             logger.exception(f"Failed to sync data for k8s cluster {client.name}...")
             raise

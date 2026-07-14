@@ -1,6 +1,7 @@
 import json
 import logging
 import re
+from collections.abc import Iterable
 from typing import Any
 from typing import Dict
 from typing import List
@@ -14,12 +15,41 @@ from cartography.graph.job import GraphJob
 from cartography.intel.aws.util.botocore_config import create_boto3_client
 from cartography.models.aws.ssm.instance_information import SSMInstanceInformationSchema
 from cartography.models.aws.ssm.instance_patch import SSMInstancePatchSchema
+from cartography.models.aws.ssm.parameters import PublicSSMParameterSchema
 from cartography.models.aws.ssm.parameters import SSMParameterSchema
 from cartography.util import aws_handle_regions
 from cartography.util import dict_date_to_epoch
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
+
+DEFAULT_PUBLIC_PARAMETER_PREFIX_ALLOWLIST = (
+    "/aws/service/bottlerocket/,/aws/service/eks/optimized-ami/"
+)
+
+
+def _normalize_allowlisted_prefixes(raw_prefixes: str | None) -> list[str]:
+    if not raw_prefixes:
+        return []
+    prefixes = [prefix.strip() for prefix in raw_prefixes.split(",")]
+    prefixes = [prefix for prefix in prefixes if prefix]
+    normalized_prefixes: list[str] = []
+    for prefix in prefixes:
+        normalized_prefix = prefix if prefix.endswith("/") else f"{prefix}/"
+        if normalized_prefix not in normalized_prefixes:
+            normalized_prefixes.append(normalized_prefix)
+    return normalized_prefixes
+
+
+def _minimize_allowlisted_prefixes(prefixes: Iterable[str]) -> list[str]:
+    minimized_prefixes: list[str] = []
+    for prefix in sorted(prefixes, key=len):
+        if any(
+            prefix.startswith(existing_prefix) for existing_prefix in minimized_prefixes
+        ):
+            continue
+        minimized_prefixes.append(prefix)
+    return minimized_prefixes
 
 
 @timeit
@@ -123,6 +153,40 @@ def get_ssm_parameters(
     return ssm_parameters_data
 
 
+@timeit
+@aws_handle_regions
+def get_public_ssm_parameters_by_path(
+    boto3_session: boto3.session.Session,
+    region: str,
+    allowlist_prefixes: list[str],
+) -> List[Dict[str, Any]]:
+    if not allowlist_prefixes:
+        return []
+
+    client = create_boto3_client(boto3_session, "ssm", region_name=region)
+    paginator = client.get_paginator("get_parameters_by_path")
+    ssm_parameters_data: List[Dict[str, Any]] = []
+    for prefix in allowlist_prefixes:
+        prefix_parameter_count = 0
+        for page in paginator.paginate(
+            Path=prefix,
+            Recursive=True,
+            WithDecryption=False,
+            # 10 is the AWS API maximum for GetParametersByPath.
+            PaginationConfig={"PageSize": 10},
+        ):
+            for parameter in page.get("Parameters", []):
+                ssm_parameters_data.append(parameter)
+                prefix_parameter_count += 1
+        logger.info(
+            "Fetched %d allowlisted public SSM parameters for prefix '%s' in region '%s'.",
+            prefix_parameter_count,
+            prefix,
+            region,
+        )
+    return ssm_parameters_data
+
+
 def transform_ssm_parameters(
     raw_parameters_data: List[Dict[str, Any]],
 ) -> List[Dict[str, Any]]:
@@ -200,6 +264,22 @@ def load_ssm_parameters(
 
 
 @timeit
+def load_public_ssm_parameters(
+    neo4j_session: neo4j.Session,
+    data: List[Dict[str, Any]],
+    region: str,
+    aws_update_tag: int,
+) -> None:
+    load(
+        neo4j_session,
+        PublicSSMParameterSchema(),
+        data,
+        lastupdated=aws_update_tag,
+        Region=region,
+    )
+
+
+@timeit
 def cleanup_ssm(
     neo4j_session: neo4j.Session,
     common_job_parameters: Dict[str, Any],
@@ -215,6 +295,17 @@ def cleanup_ssm(
     GraphJob.from_node_schema(SSMParameterSchema(), common_job_parameters).run(
         neo4j_session,
     )
+
+
+@timeit
+def cleanup_public_ssm_parameters(
+    neo4j_session: neo4j.Session,
+    common_job_parameters: Dict[str, Any],
+) -> None:
+    GraphJob.from_node_schema(
+        PublicSSMParameterSchema(),
+        common_job_parameters,
+    ).run(neo4j_session)
 
 
 @timeit
@@ -264,3 +355,61 @@ def sync(
         )
 
     cleanup_ssm(neo4j_session, common_job_parameters)
+
+
+@timeit
+def sync_public_parameters(
+    neo4j_session: neo4j.Session,
+    region_session_candidates: dict[str, list[boto3.session.Session]],
+    update_tag: int,
+    common_job_parameters: Dict[str, Any],
+    cleanup_allowed: bool = True,
+) -> None:
+    allowlist_prefixes = _minimize_allowlisted_prefixes(
+        _normalize_allowlisted_prefixes(
+            common_job_parameters.get("aws_ssm_public_parameter_prefix_allowlist"),
+        )
+    )
+    if not allowlist_prefixes:
+        logger.info(
+            "Skipping AWS-managed public SSM parameter sync because the allowlist is empty."
+        )
+        cleanup_public_ssm_parameters(neo4j_session, common_job_parameters)
+        return
+
+    all_regions_complete = cleanup_allowed and bool(region_session_candidates)
+    for region, boto3_sessions in region_session_candidates.items():
+        logger.info(
+            "Syncing shared public SSM parameters for region '%s'.",
+            region,
+        )
+        data: list[dict[str, Any]] = []
+        for boto3_session in boto3_sessions:
+            data = get_public_ssm_parameters_by_path(
+                boto3_session,
+                region,
+                allowlist_prefixes,
+            )
+            if data:
+                break
+        if not data:
+            all_regions_complete = False
+            logger.warning(
+                "No configured AWS profile could read allowlisted public SSM parameters in region '%s'; preserving previously ingested public parameters.",
+                region,
+            )
+            continue
+        data = transform_ssm_parameters(data)
+        load_public_ssm_parameters(
+            neo4j_session,
+            data,
+            region,
+            update_tag,
+        )
+
+    if all_regions_complete:
+        cleanup_public_ssm_parameters(neo4j_session, common_job_parameters)
+    else:
+        logger.warning(
+            "Shared public SSM parameter sync was incomplete; skipping cleanup to preserve data from regions that could not be read."
+        )
