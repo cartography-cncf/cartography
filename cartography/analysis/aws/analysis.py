@@ -2,18 +2,18 @@ from cartography.graph.analysis import AddRelationship
 from cartography.graph.analysis import AddToSet
 from cartography.graph.analysis import AnalysisJob
 from cartography.graph.analysis import AnalysisStatement
-from cartography.graph.analysis import CleanupScopedTo
 from cartography.graph.analysis import Param
+from cartography.graph.analysis import ScopeById
 from cartography.graph.analysis import SetProperty
 from cartography.graph.analysis import Var
 
 AWS_EC2_IAM_INSTANCE_PROFILE = AnalysisJob(
     name="EC2 Instances assume IAM roles",
     short_name="aws_ec2_iaminstanceprofile",
-    scope=CleanupScopedTo("AWSAccount", "AWS_ID"),
+    scope=ScopeById("AWSAccount", "AWS_ID", scope_on="i"),
     statements=(
         AnalysisStatement(
-            match="MATCH (aa:AWSAccount{id: $AWS_ID})-[:RESOURCE]->(i:AWSEC2Instance)-[:INSTANCE_PROFILE]->(p:AWSInstanceProfile)-[:ASSOCIATED_WITH]->(r:AWSRole)",
+            match="MATCH (i:AWSEC2Instance)-[:INSTANCE_PROFILE]->(p:AWSInstanceProfile)-[:ASSOCIATED_WITH]->(r:AWSRole)",
             effects=(
                 AddRelationship(
                     "i",
@@ -52,10 +52,10 @@ AWS_LAMBDA_ECR = AnalysisJob(
 AWS_LB_CONTAINER_EXPOSURE = AnalysisJob(
     name="AWS LoadBalancer to ECS Container direct relationship",
     short_name="aws_lb_container_exposure",
-    scope=CleanupScopedTo("AWSAccount", "AWS_ID"),
+    scope=ScopeById("AWSAccount", "AWS_ID", scope_on="lb"),
     statements=(
         AnalysisStatement(
-            match="MATCH (aa:AWSAccount{id: $AWS_ID})-[:RESOURCE]->(lb:AWSLoadBalancerV2 {scheme: 'internet-facing'})-[:EXPOSE]->(ip:AWSEC2PrivateIp)<-[:PRIVATE_IP_ADDRESS]-(ni:AWSNetworkInterface)<-[:NETWORK_INTERFACE]-(task:AWSECSTask)-[:HAS_CONTAINER]->(c:AWSECSContainer) WHERE ip.public_ip IS NULL",
+            match="MATCH (lb:AWSLoadBalancerV2 {scheme: 'internet-facing'})-[:EXPOSE]->(ip:AWSEC2PrivateIp)<-[:PRIVATE_IP_ADDRESS]-(ni:AWSNetworkInterface)<-[:NETWORK_INTERFACE]-(task:AWSECSTask)-[:HAS_CONTAINER]->(c:AWSECSContainer) WHERE ip.public_ip IS NULL",
             effects=(
                 AddRelationship(
                     "lb",
@@ -72,10 +72,10 @@ AWS_LB_CONTAINER_EXPOSURE = AnalysisJob(
 AWS_LB_NACL_DIRECT = AnalysisJob(
     name="AWS LoadBalancer to NACL direct relationship",
     short_name="aws_lb_nacl_direct",
-    scope=CleanupScopedTo("AWSAccount", "AWS_ID"),
+    scope=ScopeById("AWSAccount", "AWS_ID", scope_on="lb"),
     statements=(
         AnalysisStatement(
-            match="MATCH (aa:AWSAccount{id: $AWS_ID})-[:RESOURCE]->(lb:AWSLoadBalancerV2)-[:SUBNET]->(subnet:AWSEC2Subnet)<-[:PART_OF_SUBNET]-(nacl:AWSEC2NetworkAcl)",
+            match="MATCH (lb:AWSLoadBalancerV2)-[:SUBNET]->(subnet:AWSEC2Subnet)<-[:PART_OF_SUBNET]-(nacl:AWSEC2NetworkAcl)",
             effects=(
                 AddRelationship(
                     "nacl",
