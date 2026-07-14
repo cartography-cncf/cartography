@@ -14,12 +14,21 @@ from cartography.models.core.relationships import TargetNodeMatcher
 
 @dataclass(frozen=True)
 class PackageNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("normalized_id")
+    id: PropertyRef = PropertyRef(
+        "normalized_id",
+        description="Canonical normalized package identifier.",
+    )
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
-    name: PropertyRef = PropertyRef("name")
-    version: PropertyRef = PropertyRef("version")
-    type: PropertyRef = PropertyRef("type")
-    purl: PropertyRef = PropertyRef("purl")
+    name: PropertyRef = PropertyRef("name", description="Package name.")
+    version: PropertyRef = PropertyRef("version", description="Package version.")
+    type: PropertyRef = PropertyRef(
+        "type",
+        description="Package ecosystem or type.",
+    )
+    purl: PropertyRef = PropertyRef(
+        "purl",
+        description="Package URL identifying the package.",
+    )
 
 
 @dataclass(frozen=True)
@@ -162,6 +171,8 @@ class TrivyImageFindingToPackageRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class PackageSchema(CartographyNodeSchema):
+    """A canonical software package aggregated across inventory sources."""
+
     label: str = "Package"
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["Ontology"])
     properties: PackageNodeProperties = PackageNodeProperties()

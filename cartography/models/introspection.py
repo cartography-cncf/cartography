@@ -33,9 +33,14 @@ from cartography.models.core.relationships import CartographyRelProperties
 from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import OtherRelationships
+from cartography.models.ontology.constraints import ONTOLOGY_REL_CONSTRAINTS
 from cartography.models.ontology.mapping import ONTOLOGY_MODELS
 from cartography.models.ontology.mapping import ONTOLOGY_NODES_MAPPING
+from cartography.models.ontology.mapping import SEMANTIC_LABELS_BY_MAPPING_GROUP
 from cartography.models.ontology.mapping import SEMANTIC_LABELS_MAPPING
+from cartography.models.ontology.mapping import (
+    SEMANTIC_LABELS_WITHOUT_NORMALIZED_FIELDS,
+)
 
 ModelClass = type[
     CartographyNodeSchema
@@ -140,6 +145,25 @@ class Relationship:
 
 
 @dataclass(frozen=True)
+class OntologySemanticLabel:
+    """A semantic ontology label aggregated from every provider mapping."""
+
+    label: str
+    mapping_group: str | None
+    properties: tuple[Property, ...]
+    concrete_node_labels: tuple[str, ...]
+
+
+@dataclass(frozen=True)
+class OntologyRelationshipConstraint:
+    """A canonical relationship name validated between two ontology labels."""
+
+    source_label: str
+    label: str
+    target_label: str
+
+
+@dataclass(frozen=True)
 class DataModel:
     """Runtime view of Cartography's complete declarative graph model."""
 
@@ -147,6 +171,8 @@ class DataModel:
     relationships: tuple[Relationship, ...]
     analysis_jobs: tuple[AnalysisJobDefinition, ...] = ()
     permission_relationships: tuple[PermissionRelationshipDefinition, ...] = ()
+    ontology_semantic_labels: tuple[OntologySemanticLabel, ...] = ()
+    ontology_relationship_constraints: tuple[OntologyRelationshipConstraint, ...] = ()
     diagnostics: tuple[str, ...] = ()
 
     def get_node(self, label: str) -> Node | None:
@@ -169,6 +195,12 @@ class DataModel:
                 definition
                 for definition in self.permission_relationships
                 if definition.provider == module
+            ),
+            ontology_semantic_labels=(
+                self.ontology_semantic_labels if module == "ontology" else ()
+            ),
+            ontology_relationship_constraints=(
+                self.ontology_relationship_constraints if module == "ontology" else ()
             ),
             diagnostics=self.diagnostics,
         )
@@ -394,11 +426,22 @@ def build_data_model(
             key=lambda item: _relationship_sort_key(item[0]),
         )
     )
+    ontology_semantic_labels = _build_ontology_semantic_labels(nodes)
+    ontology_relationship_constraints = tuple(
+        OntologyRelationshipConstraint(
+            source_label=constraint.src,
+            label=constraint.label,
+            target_label=constraint.dst,
+        )
+        for constraint in ONTOLOGY_REL_CONSTRAINTS
+    )
     return DataModel(
         nodes=nodes,
         relationships=relationships,
         analysis_jobs=analysis_job_definitions,
         permission_relationships=permission_relationship_definitions,
+        ontology_semantic_labels=ontology_semantic_labels,
+        ontology_relationship_constraints=ontology_relationship_constraints,
         diagnostics=tuple(sorted(diagnostics)),
     )
 
@@ -607,31 +650,84 @@ def _ontology_labels_for_mapping_group(
     node_entry: dict[str, Any],
 ) -> set[str]:
     """Identify the ontology label already declared by a mapped node schema."""
-    singular_group = (
-        f"{mapping_group[:-3]}y"
-        if mapping_group.endswith("ies")
-        else mapping_group[:-1] if mapping_group.endswith("s") else mapping_group
-    )
-    normalized_candidates = {
-        singular_group,
-        {
-            "device": "deviceinstance",
-            "firewall": "networkaccesscontrol",
-            "group": "usergroup",
-            "role": "permissionrole",
-            "user": "useraccount",
-            "vpc": "virtualnetwork",
-        }.get(singular_group, singular_group),
-    }
+    expected_label = SEMANTIC_LABELS_BY_MAPPING_GROUP[mapping_group]
     labels = {
         *node_entry["extra_labels"],
         *(label.label for label in node_entry["conditional_labels"]),
     }
-    return {
-        label
-        for label in labels
-        if label.lower().replace("_", "") in normalized_candidates
-    }
+    return {expected_label} if expected_label in labels else set()
+
+
+def _build_ontology_semantic_labels(
+    nodes: tuple[Node, ...],
+) -> tuple[OntologySemanticLabel, ...]:
+    """Aggregate semantic labels and normalized fields across provider mappings."""
+    known_node_labels = {node.label for node in nodes}
+    nodes_by_extra_label: dict[str, set[str]] = {}
+    for node in nodes:
+        for label in (
+            *node.extra_labels,
+            *node.ontology_labels,
+            *(conditional.label for conditional in node.conditional_labels),
+        ):
+            nodes_by_extra_label.setdefault(label, set()).add(node.label)
+
+    semantic_labels: list[OntologySemanticLabel] = []
+    for mapping_group, label in sorted(SEMANTIC_LABELS_BY_MAPPING_GROUP.items()):
+        property_entries: dict[str, dict[str, Any]] = {}
+        _add_generated_property(
+            property_entries,
+            "_ont_source",
+            "ontology",
+            ontology=True,
+        )
+        property_entries["_ont_source"]["descriptions"].add(
+            "Module that populated this node's ontology fields."
+        )
+        concrete_node_labels = set(nodes_by_extra_label.get(label, set()))
+        for ontology_mapping in SEMANTIC_LABELS_MAPPING[mapping_group].values():
+            for node_mapping in ontology_mapping.nodes:
+                if node_mapping.node_label in known_node_labels:
+                    concrete_node_labels.add(node_mapping.node_label)
+                for field_mapping in node_mapping.fields:
+                    property_name = f"_ont_{field_mapping.ontology_field}"
+                    _add_generated_property(
+                        property_entries,
+                        property_name,
+                        "ontology",
+                        indexed=field_mapping.indexed,
+                        ontology=True,
+                    )
+                    readable_name = field_mapping.ontology_field.replace("_", " ")
+                    property_entries[property_name]["descriptions"].add(
+                        f"Normalized {readable_name} for nodes carrying `{label}`."
+                    )
+        semantic_labels.append(
+            OntologySemanticLabel(
+                label=label,
+                mapping_group=mapping_group,
+                properties=tuple(
+                    _build_property(name, entry)
+                    for name, entry in sorted(property_entries.items())
+                ),
+                concrete_node_labels=tuple(sorted(concrete_node_labels)),
+            )
+        )
+
+    for label in SEMANTIC_LABELS_WITHOUT_NORMALIZED_FIELDS:
+        semantic_labels.append(
+            OntologySemanticLabel(
+                label=label,
+                mapping_group=None,
+                properties=(),
+                concrete_node_labels=tuple(
+                    sorted(nodes_by_extra_label.get(label, set()))
+                ),
+            )
+        )
+    return tuple(
+        sorted(semantic_labels, key=lambda semantic_label: semantic_label.label)
+    )
 
 
 def _add_permission_relationships(

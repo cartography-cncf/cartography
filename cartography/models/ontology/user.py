@@ -14,13 +14,26 @@ from cartography.models.core.relationships import TargetNodeMatcher
 
 @dataclass(frozen=True)
 class UserNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("email")
+    id: PropertyRef = PropertyRef("email", description="Canonical user identifier.")
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
-    email: PropertyRef = PropertyRef("email", extra_index=True)
-    fullname: PropertyRef = PropertyRef("fullname")
-    firstname: PropertyRef = PropertyRef("firstname")
-    lastname: PropertyRef = PropertyRef("lastname")
-    active: PropertyRef = PropertyRef("active")
+    email: PropertyRef = PropertyRef(
+        "email",
+        extra_index=True,
+        description="User's primary email address.",
+    )
+    fullname: PropertyRef = PropertyRef("fullname", description="User's full name.")
+    firstname: PropertyRef = PropertyRef(
+        "firstname",
+        description="User's first name.",
+    )
+    lastname: PropertyRef = PropertyRef(
+        "lastname",
+        description="User's last name.",
+    )
+    active: PropertyRef = PropertyRef(
+        "active",
+        description="Whether the user is active, or null when unknown.",
+    )
 
 
 @dataclass(frozen=True)
@@ -97,6 +110,8 @@ class UserToThirdPartyAppAuthorizedRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class UserSchema(CartographyNodeSchema):
+    """A canonical person or agent aggregated across provider user accounts."""
+
     label: str = "User"
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["Ontology"])
     properties: UserNodeProperties = UserNodeProperties()

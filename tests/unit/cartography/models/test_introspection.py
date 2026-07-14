@@ -267,6 +267,37 @@ def test_build_data_model_adds_generated_ontology_properties():
     assert node.ontology_labels == ("ComputeInstance",)
 
 
+def test_build_data_model_exposes_ontology_catalog_metadata():
+    # Act
+    model = build_data_model([EC2InstanceSchema])
+
+    # Assert
+    semantic_labels = {
+        semantic_label.label: semantic_label
+        for semantic_label in model.ontology_semantic_labels
+    }
+    compute_instance = semantic_labels["ComputeInstance"]
+    assert "EC2Instance" in compute_instance.concrete_node_labels
+    assert {prop.name for prop in compute_instance.properties} >= {
+        "_ont_name",
+        "_ont_public_ip_address",
+        "_ont_source",
+    }
+    assert semantic_labels["ImageTag"].mapping_group is None
+
+    constraints = {
+        (
+            constraint.source_label,
+            constraint.label,
+            constraint.target_label,
+        )
+        for constraint in model.ontology_relationship_constraints
+    }
+    assert len(constraints) == 36
+    assert ("ComputePod", "USES_SECRET", "Secret") in constraints
+    assert ("Container", "RESOLVED_IMAGE", "Image") in constraints
+
+
 def test_build_data_model_distinguishes_canonical_ontology_projections():
     # Act
     model = build_data_model([JamfComputerSchema])

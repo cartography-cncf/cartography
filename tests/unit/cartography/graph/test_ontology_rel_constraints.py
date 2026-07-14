@@ -5,8 +5,8 @@ from cartography.models.core.nodes import ExtraNodeLabels
 from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import OtherRelationships
-from cartography.models.ontology.constraints import LEGACY_REL_WHITELIST
 from cartography.models.ontology.constraints import ONTOLOGY_REL_CONSTRAINTS
+from cartography.models.ontology.constraints_whitelist import LEGACY_REL_WHITELIST
 from tests.utils import load_models
 
 

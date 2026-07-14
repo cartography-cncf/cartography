@@ -21,7 +21,7 @@ For more background and design rationale, see:
 ## How Ontology Works in Cartography
 
 The `intel.ontology` module in Cartography manages ontology logic. It allows:
-- Loading ontology definitions from JSON files
+- Loading ontology definitions from typed Python models
 - Validating the consistency of entities and relationships
 - Ensuring mapping between collected data and the defined semantic model
 
@@ -163,6 +163,19 @@ your_service_mapping = OntologyMapping(
 Ontology relationship linking queries are defined in typed analysis jobs under `cartography/analysis/ontology/analysis.py`.
 
 This structure allows Cartography to flexibly describe how to map and relate entities from specific integrations into the unified ontology graph.
+
+## Ontology Relationships
+
+Ontology relationships can come from abstract ontology node schemas, typed
+analysis jobs, or provider schemas connecting nodes that carry semantic labels.
+Canonical relationship names between ontology labels are declared as
+`RelConstraint` entries in
+`cartography/models/ontology/constraints.py`.
+
+A constraint validates the name and direction of an existing relationship. It
+does not create that relationship. The generated schema catalog distinguishes
+these validation constraints from the schemas and analysis jobs that materialize
+relationships.
 
 ```{toctree}
 config

@@ -16,16 +16,39 @@ from cartography.models.core.relationships import TargetNodeMatcher
 
 @dataclass(frozen=True)
 class DeviceNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("serial_number")
+    id: PropertyRef = PropertyRef(
+        "serial_number",
+        description="Canonical device identifier.",
+    )
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
-    hostname: PropertyRef = PropertyRef("hostname", extra_index=True)
-    instance_id: PropertyRef = PropertyRef("instance_id")
-    manufacturer: PropertyRef = PropertyRef("manufacturer")
-    os: PropertyRef = PropertyRef("os")
-    os_version: PropertyRef = PropertyRef("os_version")
-    model: PropertyRef = PropertyRef("model")
-    platform: PropertyRef = PropertyRef("platform")
-    serial_number: PropertyRef = PropertyRef("serial_number", extra_index=True)
+    hostname: PropertyRef = PropertyRef(
+        "hostname",
+        extra_index=True,
+        description="Device hostname.",
+    )
+    instance_id: PropertyRef = PropertyRef(
+        "instance_id",
+        description="Provider-specific instance identifier when available.",
+    )
+    manufacturer: PropertyRef = PropertyRef(
+        "manufacturer",
+        description="Device manufacturer.",
+    )
+    os: PropertyRef = PropertyRef("os", description="Operating system name.")
+    os_version: PropertyRef = PropertyRef(
+        "os_version",
+        description="Operating system version.",
+    )
+    model: PropertyRef = PropertyRef("model", description="Device model.")
+    platform: PropertyRef = PropertyRef(
+        "platform",
+        description="Platform or device family reported by the source.",
+    )
+    serial_number: PropertyRef = PropertyRef(
+        "serial_number",
+        extra_index=True,
+        description="Device serial number.",
+    )
 
 
 @dataclass(frozen=True)
@@ -208,6 +231,8 @@ class DeviceToJamfMobileDeviceBySerialRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class DeviceSchema(CartographyNodeSchema):
+    """A canonical physical or virtual device aggregated across providers."""
+
     label: str = "Device"
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["Ontology"])
     properties: DeviceNodeProperties = DeviceNodeProperties()

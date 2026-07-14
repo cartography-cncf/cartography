@@ -558,6 +558,41 @@ def test_ontology_and_cross_module_relationships_are_duplicated_in_module_docs()
     assert "(:Human)-[:IDENTITY_LASTPASS]->(:LastpassUser)" in generated
 
 
+def test_ontology_schema_doc_is_generated_from_introspected_catalog():
+    # Arrange
+    model = inspect_data_model()
+
+    # Act
+    generated = render_module_schema(model, "ontology")
+
+    # Assert
+    assert not Path("docs/root/modules/ontology/schema.md").exists()
+    assert "### User" in generated
+    assert "### Device" in generated
+    assert "### PublicIP" in generated
+    assert "### Package" in generated
+    assert "### UserAccount" in generated
+    assert "### ImageTag" in generated
+    assert "**Abstract Ontology Node**" in generated
+    assert "**Semantic Label**" in generated
+    assert (
+        "| *_ont_active* | Yes | Normalized active for nodes carrying "
+        "`UserAccount`. |" in generated
+    )
+    assert "No normalized properties are defined for this semantic label." in generated
+    for constraint in model.ontology_relationship_constraints:
+        assert (
+            f"(:{constraint.source_label})-[:{constraint.label}]->"
+            f"(:{constraint.target_label})"
+        ) in generated
+    assert (
+        "This constraint validates existing relationships and does not create them."
+        in generated
+    )
+    assert "ontology relationship constraint (validation only)" in generated
+    assert "No description provided." not in generated
+
+
 def test_keycloak_schema_doc_is_generated_from_introspected_model():
     # Arrange
     model = inspect_data_model(keycloak_models)
