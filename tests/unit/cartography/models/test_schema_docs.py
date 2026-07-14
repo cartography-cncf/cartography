@@ -1,5 +1,6 @@
 from pathlib import Path
 
+import cartography.models.airbyte as airbyte_models
 import cartography.models.anthropic as anthropic_models
 import cartography.models.bigfix as bigfix_models
 import cartography.models.cloudflare as cloudflare_models
@@ -21,6 +22,23 @@ from cartography.models.introspection import Relationship
 from cartography.models.schema_docs import GENERATED_NOTICE
 from cartography.models.schema_docs import render_module_schema
 from cartography.models.schema_docs import write_module_schema_docs
+
+
+def test_airbyte_schema_doc_is_generated_from_introspected_model():
+    # Arrange
+    model = inspect_data_model(airbyte_models)
+
+    # Act
+    generated = render_module_schema(model, "airbyte")
+
+    # Assert
+    assert not Path("docs/root/modules/airbyte/schema.md").exists()
+    assert len(model.nodes) == 8
+    assert len(model.relationships) == 18
+    assert "An Airbyte connection that synchronizes source data" in generated
+    assert "| config_host | Configured source host. |" in generated
+    assert "(:AirbyteConnection)-[:SYNC_FROM]->(:AirbyteSource)" in generated
+    assert "No description provided." not in generated
 
 
 def test_lastpass_schema_doc_is_generated_from_introspected_model():

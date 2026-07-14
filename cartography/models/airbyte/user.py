@@ -14,10 +14,16 @@ from cartography.models.core.relationships import TargetNodeMatcher
 
 @dataclass(frozen=True)
 class AirbyteUserNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("id")
-    name: PropertyRef = PropertyRef("name")
-    email: PropertyRef = PropertyRef("email", extra_index=True)
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    id: PropertyRef = PropertyRef("id", description="Airbyte user ID.")
+    name: PropertyRef = PropertyRef("name", description="User name.")
+    email: PropertyRef = PropertyRef(
+        "email", extra_index=True, description="User email address."
+    )
+    lastupdated: PropertyRef = PropertyRef(
+        "lastupdated",
+        set_in_kwargs=True,
+        description="Timestamp of the last update.",
+    )
 
 
 @dataclass(frozen=True)
@@ -28,6 +34,8 @@ class AirbyteUserToOrganizationRelProperties(CartographyRelProperties):
 @dataclass(frozen=True)
 # (:AirbyteOrganization)-[:RESOURCE]->(:AirbyteUser)
 class AirbyteUserToOrganizationRel(CartographyRelSchema):
+    """Links an organization to one of its users."""
+
     target_node_label: str = "AirbyteOrganization"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("ORG_ID", set_in_kwargs=True)},
@@ -47,6 +55,8 @@ class AirbyteUserToOrganizationAdminRelProperties(CartographyRelProperties):
 @dataclass(frozen=True)
 # (:AirbyteOrganization)<-[:ADMIN_OF]-(:AirbyteUser)
 class AirbyteUserToOrganizationAdminRel(CartographyRelSchema):
+    """Links a user to an organization they administer."""
+
     target_node_label: str = "AirbyteOrganization"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("adminOfOrganization", one_to_many=True)},
@@ -66,6 +76,8 @@ class AirbyteUserToWorkspaceAdminRelProperties(CartographyRelProperties):
 @dataclass(frozen=True)
 # (:AirbyteWorkspace)<-[:ADMIN_OF]-(:AirbyteUser)
 class AirbyteUserToWorkspaceAdminRel(CartographyRelSchema):
+    """Links a user to a workspace they administer."""
+
     target_node_label: str = "AirbyteWorkspace"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("adminOfWorkspace", one_to_many=True)},
@@ -85,6 +97,8 @@ class AirbyteUserToWorkspaceMemberRelProperties(CartographyRelProperties):
 @dataclass(frozen=True)
 # (:AirbyteWorkspace)<-[:MEMBER_OF]-(:AirbyteUser)
 class AirbyteUserToWorkspaceMemberRel(CartographyRelSchema):
+    """Links a user to a workspace where they are a member."""
+
     target_node_label: str = "AirbyteWorkspace"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("memberOfWorkspace", one_to_many=True)},
@@ -98,6 +112,8 @@ class AirbyteUserToWorkspaceMemberRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class AirbyteUserSchema(CartographyNodeSchema):
+    """An Airbyte user account with the UserAccount label."""
+
     label: str = "AirbyteUser"
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
         ["UserAccount"]

@@ -13,16 +13,32 @@ from cartography.models.core.relationships import TargetNodeMatcher
 
 @dataclass(frozen=True)
 class AirbyteSourceNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("sourceId")
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
-    name: PropertyRef = PropertyRef("name")
-    type: PropertyRef = PropertyRef("sourceType")
-    config_host: PropertyRef = PropertyRef("configuration.host")
-    config_port: PropertyRef = PropertyRef("configuration.port")
-    config_name: PropertyRef = PropertyRef("configuration.name")
-    config_region: PropertyRef = PropertyRef("configuration.region")
-    config_endpoint: PropertyRef = PropertyRef("configuration.endpoint")
-    config_account: PropertyRef = PropertyRef("configuration.account")
+    id: PropertyRef = PropertyRef("sourceId", description="Source UUID.")
+    lastupdated: PropertyRef = PropertyRef(
+        "lastupdated",
+        set_in_kwargs=True,
+        description="Timestamp of the last update.",
+    )
+    name: PropertyRef = PropertyRef("name", description="Source name.")
+    type: PropertyRef = PropertyRef("sourceType", description="Source connector type.")
+    config_host: PropertyRef = PropertyRef(
+        "configuration.host", description="Configured source host."
+    )
+    config_port: PropertyRef = PropertyRef(
+        "configuration.port", description="Configured source port."
+    )
+    config_name: PropertyRef = PropertyRef(
+        "configuration.name", description="Configured source resource name."
+    )
+    config_region: PropertyRef = PropertyRef(
+        "configuration.region", description="Configured source region."
+    )
+    config_endpoint: PropertyRef = PropertyRef(
+        "configuration.endpoint", description="Configured source endpoint."
+    )
+    config_account: PropertyRef = PropertyRef(
+        "configuration.account", description="Configured source account."
+    )
 
 
 @dataclass(frozen=True)
@@ -33,6 +49,8 @@ class AirbyteSourceToOrganizationRelProperties(CartographyRelProperties):
 @dataclass(frozen=True)
 # (:AirbyteOrganization)-[:RESOURCE]->(:AirbyteSource)
 class AirbyteSourceToOrganizationRel(CartographyRelSchema):
+    """Links an organization to a source it owns."""
+
     target_node_label: str = "AirbyteOrganization"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("ORG_ID", set_in_kwargs=True)},
@@ -52,6 +70,8 @@ class AirbyteSourceToWorkspaceRelProperties(CartographyRelProperties):
 @dataclass(frozen=True)
 # (:AirbyteWorkspace)-[:CONTAINS]->(:AirbyteSource)
 class AirbyteSourceToWorkspaceRel(CartographyRelSchema):
+    """Links a workspace to a source it contains."""
+
     target_node_label: str = "AirbyteWorkspace"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("workspaceId")},
@@ -65,6 +85,8 @@ class AirbyteSourceToWorkspaceRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class AirbyteSourceSchema(CartographyNodeSchema):
+    """A data source configured in Airbyte."""
+
     label: str = "AirbyteSource"
     properties: AirbyteSourceNodeProperties = AirbyteSourceNodeProperties()
     sub_resource_relationship: AirbyteSourceToOrganizationRel = (

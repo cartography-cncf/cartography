@@ -13,17 +13,32 @@ from cartography.models.core.relationships import TargetNodeMatcher
 
 @dataclass(frozen=True)
 class AirbyteConnectionNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("connectionId")
-    name: PropertyRef = PropertyRef("name")
-    namespace_format: PropertyRef = PropertyRef("namespaceFormat")
-    prefix: PropertyRef = PropertyRef("prefix")
-    status: PropertyRef = PropertyRef("status")
-    data_residency: PropertyRef = PropertyRef("dataResidency")
-    non_breaking_schema_updates_behavior: PropertyRef = PropertyRef(
-        "nonBreakingSchemaUpdatesBehavior"
+    id: PropertyRef = PropertyRef("connectionId", description="Connection UUID.")
+    name: PropertyRef = PropertyRef("name", description="Connection name.")
+    namespace_format: PropertyRef = PropertyRef(
+        "namespaceFormat", description="Format used for destination namespaces."
     )
-    namespace_definition: PropertyRef = PropertyRef("namespaceDefinition")
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    prefix: PropertyRef = PropertyRef(
+        "prefix", description="Prefix added to destination stream names."
+    )
+    status: PropertyRef = PropertyRef("status", description="Connection status.")
+    data_residency: PropertyRef = PropertyRef(
+        "dataResidency",
+        description="Geographic location where connection data resides.",
+    )
+    non_breaking_schema_updates_behavior: PropertyRef = PropertyRef(
+        "nonBreakingSchemaUpdatesBehavior",
+        description="Behavior when a non-breaking source schema change is detected.",
+    )
+    namespace_definition: PropertyRef = PropertyRef(
+        "namespaceDefinition",
+        description="Method used to define the destination namespace.",
+    )
+    lastupdated: PropertyRef = PropertyRef(
+        "lastupdated",
+        set_in_kwargs=True,
+        description="Timestamp of the last update.",
+    )
 
 
 @dataclass(frozen=True)
@@ -34,6 +49,8 @@ class AirbyteConnectionToOrganizationRelProperties(CartographyRelProperties):
 @dataclass(frozen=True)
 # (:AirbyteOrganization)-[:RESOURCE]->(:AirbyteConnection)
 class AirbyteConnectionToOrganizationRel(CartographyRelSchema):
+    """Links an organization to a connection it owns."""
+
     target_node_label: str = "AirbyteOrganization"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("ORG_ID", set_in_kwargs=True)},
@@ -53,6 +70,8 @@ class AirbyteConnectionToWorkspaceRelProperties(CartographyRelProperties):
 @dataclass(frozen=True)
 # (:AirbyteWorkspace)-[:CONTAINS]->(:AirbyteConnection)
 class AirbyteConnectionToWorkspaceRel(CartographyRelSchema):
+    """Links a workspace to a connection it contains."""
+
     target_node_label: str = "AirbyteWorkspace"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("workspaceId")},
@@ -72,6 +91,8 @@ class AirbyteConnectionToSourceRelProperties(CartographyRelProperties):
 @dataclass(frozen=True)
 # (:AirbyteSource)<-[:SYNC_FROM]-(:AirbyteConnection)
 class AirbyteConnectionToSourceRel(CartographyRelSchema):
+    """Links a connection to the source it synchronizes from."""
+
     target_node_label: str = "AirbyteSource"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("sourceId")},
@@ -91,6 +112,8 @@ class AirbyteConnectionToDestinationRelProperties(CartographyRelProperties):
 @dataclass(frozen=True)
 # (:AirbyteDestination)<-[:SYNC_TO]-(:AirbyteConnection)
 class AirbyteConnectionToDestinationRel(CartographyRelSchema):
+    """Links a connection to the destination it synchronizes to."""
+
     target_node_label: str = "AirbyteDestination"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("destinationId")},
@@ -110,6 +133,8 @@ class AirbyteConnectionToTagRelProperties(CartographyRelProperties):
 @dataclass(frozen=True)
 # (:AirbyteTag)<-[:TAGGED]-(:AirbyteConnection)
 class AirbyteConnectionToTagRel(CartographyRelSchema):
+    """Links a connection to each tag applied to it."""
+
     target_node_label: str = "AirbyteTag"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("tags_ids", one_to_many=True)},
@@ -123,6 +148,8 @@ class AirbyteConnectionToTagRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class AirbyteConnectionSchema(CartographyNodeSchema):
+    """An Airbyte connection that synchronizes source data to a destination."""
+
     label: str = "AirbyteConnection"
     properties: AirbyteConnectionNodeProperties = AirbyteConnectionNodeProperties()
     sub_resource_relationship: AirbyteConnectionToOrganizationRel = (
