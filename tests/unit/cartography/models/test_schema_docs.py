@@ -9,6 +9,7 @@ import cartography.models.kandji as kandji_models
 import cartography.models.keycloak as keycloak_models
 import cartography.models.lastpass as lastpass_models
 import cartography.models.snipeit as snipeit_models
+import cartography.models.subimage as subimage_models
 import cartography.models.workday as workday_models
 from cartography.models.introspection import DataModel
 from cartography.models.introspection import inspect_data_model
@@ -222,6 +223,23 @@ def test_cloudflare_schema_doc_is_generated_from_introspected_model():
     assert "A DNS zone managed by Cloudflare." in generated
     assert "| **name** | DNS record name. |" in generated
     assert "(:CloudflareMember)-[:HAS_ROLE]->(:CloudflareRole)" in generated
+    assert "No description provided." not in generated
+
+
+def test_subimage_schema_doc_is_generated_from_introspected_model():
+    # Arrange
+    model = inspect_data_model(subimage_models)
+
+    # Act
+    generated = render_module_schema(model, "subimage")
+
+    # Assert
+    assert not Path("docs/root/modules/subimage/schema.md").exists()
+    assert len(model.nodes) == 6
+    assert len(model.relationships) == 5
+    assert "A team member in a SubImage tenant." in generated
+    assert "| **email** | Team member email address. |" in generated
+    assert "(:SubImageTenant)-[:RESOURCE]->(:SubImageFramework)" in generated
     assert "No description provided." not in generated
 
 
