@@ -8,6 +8,7 @@ from cartography.models.introspection import Property
 from cartography.models.introspection import Relationship
 
 GENERATED_NOTICE = "<!-- Generated from the data model. Do not edit manually. -->"
+_STANDARD_RELATIONSHIP_PROPERTIES = frozenset({"firstseen", "lastupdated"})
 
 
 def render_module_schema(model: DataModel, module: str) -> str:
@@ -135,6 +136,29 @@ def _render_node(
         permissions = _relationship_permissions(relationship)
         if permissions:
             detail_lines.append(f"  - Evaluated permissions: {permissions}")
+        relationship_properties = tuple(
+            prop
+            for prop in relationship.properties
+            if not _is_standard_relationship_property(prop)
+        )
+        if relationship_properties:
+            detail_lines.extend(
+                [
+                    "  - Properties:",
+                    "",
+                    "    | Field | Description |",
+                    "    |-------|-------------|",
+                    *(
+                        "    | "
+                        f"{prop.name} | "
+                        f"{_escape_table_cell(_relationship_property_description(prop))} |"
+                        for prop in sorted(
+                            relationship_properties,
+                            key=_property_sort_key,
+                        )
+                    ),
+                ]
+            )
         lines.extend(
             [
                 *detail_lines,
@@ -146,6 +170,18 @@ def _render_node(
             ]
         )
     return lines
+
+
+def _is_standard_relationship_property(prop: Property) -> bool:
+    return prop.name in _STANDARD_RELATIONSHIP_PROPERTIES or prop.name.startswith("_")
+
+
+def _relationship_property_description(prop: Property) -> str:
+    description = _property_description(prop)
+    if description != "No description provided." or not prop.source_names:
+        return description
+    source_fields = ", ".join(f"`{name}`" for name in prop.source_names)
+    return f"Value sourced from {source_fields}."
 
 
 def _module_relationships(

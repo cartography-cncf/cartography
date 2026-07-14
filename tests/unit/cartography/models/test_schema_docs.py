@@ -9,6 +9,7 @@ import cartography.models.crowdstrike as crowdstrike_models
 import cartography.models.cve as cve_models
 import cartography.models.cve_metadata as cve_metadata_models
 import cartography.models.digitalocean as digitalocean_models
+import cartography.models.docker_scout as docker_scout_models
 import cartography.models.duo as duo_models
 import cartography.models.googleworkspace as googleworkspace_models
 import cartography.models.gsuite as gsuite_models
@@ -622,6 +623,32 @@ def test_digitalocean_schema_doc_is_generated_from_introspected_model():
     assert (
         "Deprecated compatibility edge linking a Droplet to its project." in generated
     )
+    assert "No description provided." not in generated
+
+
+def test_docker_scout_schema_doc_is_generated_from_introspected_model():
+    # Arrange
+    model = inspect_data_model(docker_scout_models)
+
+    # Act
+    generated = render_module_schema(model, "docker_scout")
+
+    # Assert
+    assert not Path("docs/root/modules/docker_scout/schema.md").exists()
+    assert len(model.nodes) == 2
+    assert len(model.relationships) == 3
+    assert "current public base image identified by a Docker Scout report" in generated
+    assert "(:Image)-[:BUILT_ON]->(:DockerScoutPublicImage)" in generated
+    assert (
+        "    | benefits | Recommendation benefits reported as a bullet list. |"
+        in generated
+    )
+    assert (
+        "    | fix_critical | Number of critical vulnerabilities fixed by the update. |"
+        in generated
+    )
+    assert "    | lastupdated |" not in generated
+    assert "    | _sub_resource_label |" not in generated
     assert "No description provided." not in generated
 
 

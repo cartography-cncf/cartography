@@ -14,17 +14,35 @@ from cartography.models.core.relationships import TargetNodeMatcher
 
 @dataclass(frozen=True)
 class DockerScoutPublicImageNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("id")
-    name: PropertyRef = PropertyRef("name")
-    tag: PropertyRef = PropertyRef("tag")
-    alternative_tags: PropertyRef = PropertyRef("alternative_tags")
-    version: PropertyRef = PropertyRef("version")
-    digest: PropertyRef = PropertyRef("digest")
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    id: PropertyRef = PropertyRef(
+        "id",
+        description="Unique identifier for the public image in `name:tag` format.",
+    )
+    name: PropertyRef = PropertyRef("name", description="Name of the public image.")
+    tag: PropertyRef = PropertyRef("tag", description="Tag of the public image.")
+    alternative_tags: PropertyRef = PropertyRef(
+        "alternative_tags",
+        description="Alternative tags reported for the current public image.",
+    )
+    version: PropertyRef = PropertyRef(
+        "version",
+        description="Runtime version reported by Docker Scout when available.",
+    )
+    digest: PropertyRef = PropertyRef(
+        "digest",
+        description="Digest of the current public image.",
+    )
+    lastupdated: PropertyRef = PropertyRef(
+        "lastupdated",
+        set_in_kwargs=True,
+        description="Timestamp of the last time the node was updated.",
+    )
 
 
 @dataclass(frozen=True)
 class DockerScoutPublicImageSchema(CartographyNodeSchema):
+    """The current public base image identified by a Docker Scout report."""
+
     label: str = "DockerScoutPublicImage"
     scoped_cleanup: bool = False
     properties: DockerScoutPublicImageNodeProperties = (
@@ -49,6 +67,8 @@ class DockerScoutImageBuiltOnRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class DockerScoutImageBuiltOnMatchLink(CartographyRelSchema):
+    """Links an Image to its Docker Scout public base image by resolved digest."""
+
     target_node_label: str = "DockerScoutPublicImage"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("public_image_id")},
