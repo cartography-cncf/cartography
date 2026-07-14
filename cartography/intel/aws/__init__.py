@@ -1,11 +1,13 @@
 import datetime
 import logging
+import os
 import traceback
 from dataclasses import dataclass
 from typing import Any
 from typing import Dict
 from typing import Iterable
 from typing import List
+from typing import Mapping
 
 import aioboto3
 import boto3
@@ -36,6 +38,7 @@ from cartography.util import timeit
 
 from . import ec2
 from . import organizations
+from . import ssm as ssm_intel
 from .resources import RESOURCE_FUNCTIONS
 
 stat_handler = get_stats_client(__name__)
@@ -246,6 +249,72 @@ def _autodiscover_account_regions(
         )
         raise
     return regions
+
+
+def _resolve_aws_ssm_public_parameter_prefix_allowlist(
+    config_value: str | None,
+    env_value: str | None,
+) -> str:
+    if config_value is not None:
+        return config_value
+    if env_value is not None:
+        return env_value
+    return ssm_intel.DEFAULT_PUBLIC_PARAMETER_PREFIX_ALLOWLIST
+
+
+def _get_boto3_session_for_profile(
+    default_boto3_session: boto3.Session,
+    profile_name: str | None,
+) -> boto3.Session:
+    if profile_name in {None, "default"}:
+        return default_boto3_session
+    return boto3.Session(profile_name=profile_name)
+
+
+def _sync_shared_public_ssm_parameters(
+    neo4j_session: neo4j.Session,
+    default_boto3_session: boto3.Session,
+    aws_accounts: Mapping[str, str],
+    requested_syncs: List[str],
+    common_job_parameters: Dict[str, Any],
+    configured_regions: list[str] | None,
+    aws_best_effort_mode: bool,
+) -> None:
+    if "ssm" not in requested_syncs:
+        return
+
+    region_session_candidates: dict[str, list[boto3.Session]] = {}
+    all_profiles_prepared = True
+    for profile_name, account_id in aws_accounts.items():
+        try:
+            boto3_session = _get_boto3_session_for_profile(
+                default_boto3_session,
+                profile_name,
+            )
+            profile_regions = configured_regions or _autodiscover_account_regions(
+                boto3_session,
+                account_id,
+            )
+        except (botocore.exceptions.BotoCoreError, botocore.exceptions.ClientError):
+            if not aws_best_effort_mode:
+                raise
+            logger.warning(
+                "Unable to prepare an AWS profile for shared public SSM parameter sync; continuing because aws-best-effort-mode is on.",
+                exc_info=True,
+            )
+            all_profiles_prepared = False
+            continue
+
+        for region in profile_regions:
+            region_session_candidates.setdefault(region, []).append(boto3_session)
+
+    ssm_intel.sync_public_parameters(
+        neo4j_session,
+        region_session_candidates,
+        common_job_parameters["UPDATE_TAG"],
+        common_job_parameters,
+        cleanup_allowed=all_profiles_prepared,
+    )
 
 
 def _sync_aws_organization_for_account(
@@ -671,6 +740,12 @@ def _perform_aws_analysis(
 
 @timeit
 def start_aws_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
+    aws_ssm_public_parameter_prefix_allowlist = (
+        _resolve_aws_ssm_public_parameter_prefix_allowlist(
+            config.aws_ssm_public_parameter_prefix_allowlist,
+            os.getenv("AWS_SSM_PUBLIC_PARAMETER_PREFIX_ALLOWLIST"),
+        )
+    )
     common_job_parameters = {
         "UPDATE_TAG": config.update_tag,
         "permission_relationships_file": config.permission_relationships_file,
@@ -678,6 +753,7 @@ def start_aws_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
         "aws_cloudtrail_management_events_lookback_hours": config.aws_cloudtrail_management_events_lookback_hours,
         "experimental_aws_inspector_batch": config.experimental_aws_inspector_batch,
         "aws_tagging_api_cleanup_batch": config.aws_tagging_api_cleanup_batch,
+        "aws_ssm_public_parameter_prefix_allowlist": aws_ssm_public_parameter_prefix_allowlist,
     }
     try:
         boto3_session = boto3.Session()
@@ -747,4 +823,13 @@ def start_aws_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
     )
 
     if sync_successful:
+        _sync_shared_public_ssm_parameters(
+            neo4j_session,
+            boto3_session,
+            aws_accounts,
+            requested_syncs,
+            common_job_parameters,
+            regions,
+            config.aws_best_effort_mode,
+        )
         _perform_aws_analysis(requested_syncs, neo4j_session, common_job_parameters)

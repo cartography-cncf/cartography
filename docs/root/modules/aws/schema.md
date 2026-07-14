@@ -5732,10 +5732,11 @@ Representation of an AWS Systems Manager Parameter as returned by the [`describe
 |-------|-------------|
 | **firstseen**| Timestamp of when a sync job first discovered this node  |
 | lastupdated |  Timestamp of the last time the node was updated |
-| **id** | The ARN of the parameter |
+| **id** | The AWS parameter ARN. |
 | region | The region of the parameter. |
 | **arn** | The Amazon Resource Name (ARN) of the parameter. |
 | name | The parameter name. |
+| value | The parameter value for AWS-managed public parameters fetched with `GetParametersByPath`. Private parameters discovered with `DescribeParameters` have no value. |
 | description | Description of the parameter actions. |
 | type | The type of parameter. Valid parameter types include String, StringList, and SecureString. |
 | keyid | The alias or ARN of the Key Management Service (KMS) key used to encrypt the parameter. Applies to SecureString parameters only. |
@@ -5750,12 +5751,14 @@ Representation of an AWS Systems Manager Parameter as returned by the [`describe
 
 #### Relationships
 
-- SSMParameter is a resource under the AWS Account.
+- Private SSMParameters discovered from `describe_parameters` are resources under the AWS Account.
     ```
     (AWSAccount)-[RESOURCE]->(SSMParameter)
     ```
 
-- SecureString SSMParameters may be encrypted by an AWS KMS Key.
+- AWS-managed public SSMParameters discovered from allowlisted `/aws/service/...` paths are shared regional nodes and are not attached to an AWSAccount.
+
+- Private SecureString SSMParameters may be encrypted by an AWS KMS Key.
     ```
     (SSMParameter)-[ENCRYPTED_BY]->(KMSKey)
     ```

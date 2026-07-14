@@ -83,6 +83,9 @@ GLOBAL_NODE_LABELS: Set[str] = {
     # AWS-owned / cross-account resources.
     "AWSCidrBlock",
     "AWSManagedPolicy",
+    # AWS-managed public SSM parameters are regional catalog data shared by
+    # every account, so they must not be owned or cleaned up per AWSAccount.
+    "PublicSSMParameter",
     "AWSServicePrincipal",
     "AWSTag",
     # CVE records ingested by CrowdStrike are public CVEs shared across tenants;
