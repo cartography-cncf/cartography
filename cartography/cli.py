@@ -888,6 +888,35 @@ class CLI:
                     hidden=PANEL_GITLAB not in visible_panels,
                 ),
             ] = 90,
+            gitlab_requested_syncs: Annotated[
+                str | None,
+                typer.Option(
+                    "--gitlab-requested-syncs",
+                    help=(
+                        "Comma-separated list of GitLab resource types to sync. "
+                        "Valid values: organizations, groups, projects, users, runners, "
+                        "ci_variables, environments, ci_config, container_repositories, "
+                        "branches, dependencies, terraform_states. "
+                        "Defaults to all resource types."
+                    ),
+                    rich_help_panel=PANEL_GITLAB,
+                    hidden=PANEL_GITLAB not in visible_panels,
+                ),
+            ] = None,
+            gitlab_group_paths: Annotated[
+                str | None,
+                typer.Option(
+                    "--gitlab-group-paths",
+                    help=(
+                        "Comma-separated list of group full_path values to limit the sync scope. "
+                        "Only groups and projects under these paths are synced. "
+                        'Example: "myorg/platform,myorg/security". '
+                        "Defaults to all groups and projects."
+                    ),
+                    rich_help_panel=PANEL_GITLAB,
+                    hidden=PANEL_GITLAB not in visible_panels,
+                ),
+            ] = None,
             # =================================================================
             # DigitalOcean Options
             # =================================================================
@@ -3014,6 +3043,8 @@ class CLI:
                 gitlab_token=gitlab_token,
                 gitlab_organization_id=gitlab_organization_id,
                 gitlab_commits_since_days=gitlab_commits_since_days,
+                gitlab_requested_syncs=gitlab_requested_syncs,
+                gitlab_group_paths=gitlab_group_paths,
                 semgrep_app_token=semgrep_app_token,
                 semgrep_dependency_ecosystems=semgrep_dependency_ecosystems,
                 semgrep_oss_source=semgrep_oss_source,
