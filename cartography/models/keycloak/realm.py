@@ -8,168 +8,330 @@ from cartography.models.core.nodes import ExtraNodeLabels
 
 @dataclass(frozen=True)
 class KeycloakRealmNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("id")
-    # We need to index realm name as Keycloak use this slug instead of ID in all queries
-    name: PropertyRef = PropertyRef("realm", extra_index=True)
-    display_name: PropertyRef = PropertyRef("displayName")
-    enabled: PropertyRef = PropertyRef("enabled")
-    not_before: PropertyRef = PropertyRef("notBefore")
-    default_signature_algorithm: PropertyRef = PropertyRef("defaultSignatureAlgorithm")
-    revoke_refresh_token: PropertyRef = PropertyRef("revokeRefreshToken")
-    refresh_token_max_reuse: PropertyRef = PropertyRef("refreshTokenMaxReuse")
-    access_token_lifespan: PropertyRef = PropertyRef("accessTokenLifespan")
-    access_token_lifespan_for_implicit_flow: PropertyRef = PropertyRef(
-        "accessTokenLifespanForImplicitFlow"
+    id: PropertyRef = PropertyRef(
+        "id", description="The unique identifier of the realm"
     )
-    sso_session_idle_timeout: PropertyRef = PropertyRef("ssoSessionIdleTimeout")
-    sso_session_max_lifespan: PropertyRef = PropertyRef("ssoSessionMaxLifespan")
+    # We need to index realm name as Keycloak use this slug instead of ID in all queries
+    name: PropertyRef = PropertyRef(
+        "realm", extra_index=True, description="The realm name (indexed for queries)"
+    )
+    display_name: PropertyRef = PropertyRef(
+        "displayName", description="The display name of the realm"
+    )
+    enabled: PropertyRef = PropertyRef(
+        "enabled", description="Whether the realm is enabled"
+    )
+    not_before: PropertyRef = PropertyRef(
+        "notBefore", description="Not before timestamp for security"
+    )
+    default_signature_algorithm: PropertyRef = PropertyRef(
+        "defaultSignatureAlgorithm",
+        description="Default signature algorithm for the realm",
+    )
+    revoke_refresh_token: PropertyRef = PropertyRef(
+        "revokeRefreshToken", description="Whether refresh tokens should be revoked"
+    )
+    refresh_token_max_reuse: PropertyRef = PropertyRef(
+        "refreshTokenMaxReuse", description="Maximum reuse count for refresh tokens"
+    )
+    access_token_lifespan: PropertyRef = PropertyRef(
+        "accessTokenLifespan", description="Lifespan of access tokens in seconds"
+    )
+    access_token_lifespan_for_implicit_flow: PropertyRef = PropertyRef(
+        "accessTokenLifespanForImplicitFlow",
+        description="Access token lifespan for implicit flow",
+    )
+    sso_session_idle_timeout: PropertyRef = PropertyRef(
+        "ssoSessionIdleTimeout", description="SSO session idle timeout in seconds"
+    )
+    sso_session_max_lifespan: PropertyRef = PropertyRef(
+        "ssoSessionMaxLifespan", description="Maximum SSO session lifespan in seconds"
+    )
     sso_session_idle_timeout_remember_me: PropertyRef = PropertyRef(
-        "ssoSessionIdleTimeoutRememberMe"
+        "ssoSessionIdleTimeoutRememberMe",
+        description="SSO session idle timeout when remember me is enabled",
     )
     sso_session_max_lifespan_remember_me: PropertyRef = PropertyRef(
-        "ssoSessionMaxLifespanRememberMe"
+        "ssoSessionMaxLifespanRememberMe",
+        description="Maximum SSO session lifespan when remember me is enabled",
     )
-    offline_session_idle_timeout: PropertyRef = PropertyRef("offlineSessionIdleTimeout")
+    offline_session_idle_timeout: PropertyRef = PropertyRef(
+        "offlineSessionIdleTimeout",
+        description="Offline session idle timeout in seconds",
+    )
     offline_session_max_lifespan_enabled: PropertyRef = PropertyRef(
-        "offlineSessionMaxLifespanEnabled"
+        "offlineSessionMaxLifespanEnabled",
+        description="Whether offline session max lifespan is enabled",
     )
-    offline_session_max_lifespan: PropertyRef = PropertyRef("offlineSessionMaxLifespan")
-    client_session_idle_timeout: PropertyRef = PropertyRef("clientSessionIdleTimeout")
-    client_session_max_lifespan: PropertyRef = PropertyRef("clientSessionMaxLifespan")
+    offline_session_max_lifespan: PropertyRef = PropertyRef(
+        "offlineSessionMaxLifespan",
+        description="Maximum offline session lifespan in seconds",
+    )
+    client_session_idle_timeout: PropertyRef = PropertyRef(
+        "clientSessionIdleTimeout", description="Client session idle timeout in seconds"
+    )
+    client_session_max_lifespan: PropertyRef = PropertyRef(
+        "clientSessionMaxLifespan",
+        description="Maximum client session lifespan in seconds",
+    )
     client_offline_session_idle_timeout: PropertyRef = PropertyRef(
-        "clientOfflineSessionIdleTimeout"
+        "clientOfflineSessionIdleTimeout",
+        description="Client offline session idle timeout in seconds",
     )
     client_offline_session_max_lifespan: PropertyRef = PropertyRef(
-        "clientOfflineSessionMaxLifespan"
+        "clientOfflineSessionMaxLifespan",
+        description="Maximum client offline session lifespan in seconds",
     )
-    access_code_lifespan: PropertyRef = PropertyRef("accessCodeLifespan")
+    access_code_lifespan: PropertyRef = PropertyRef(
+        "accessCodeLifespan", description="Access code lifespan in seconds"
+    )
     access_code_lifespan_user_action: PropertyRef = PropertyRef(
-        "accessCodeLifespanUserAction"
+        "accessCodeLifespanUserAction",
+        description="Access code lifespan for user actions in seconds",
     )
-    access_code_lifespan_login: PropertyRef = PropertyRef("accessCodeLifespanLogin")
+    access_code_lifespan_login: PropertyRef = PropertyRef(
+        "accessCodeLifespanLogin",
+        description="Access code lifespan for login in seconds",
+    )
     action_token_generated_by_admin_lifespan: PropertyRef = PropertyRef(
-        "actionTokenGeneratedByAdminLifespan"
+        "actionTokenGeneratedByAdminLifespan",
+        description="Action token lifespan when generated by admin",
     )
     action_token_generated_by_user_lifespan: PropertyRef = PropertyRef(
-        "actionTokenGeneratedByUserLifespan"
+        "actionTokenGeneratedByUserLifespan",
+        description="Action token lifespan when generated by user",
     )
-    oauth2_device_code_lifespan: PropertyRef = PropertyRef("oauth2DeviceCodeLifespan")
+    oauth2_device_code_lifespan: PropertyRef = PropertyRef(
+        "oauth2DeviceCodeLifespan", description="OAuth2 device code lifespan in seconds"
+    )
     oauth2_device_polling_interval: PropertyRef = PropertyRef(
-        "oauth2DevicePollingInterval"
+        "oauth2DevicePollingInterval",
+        description="OAuth2 device polling interval in seconds",
     )
-    ssl_required: PropertyRef = PropertyRef("sslRequired")
+    ssl_required: PropertyRef = PropertyRef(
+        "sslRequired", description="SSL requirement level for the realm"
+    )
     password_credential_grant_allowed: PropertyRef = PropertyRef(
-        "passwordCredentialGrantAllowed"
+        "passwordCredentialGrantAllowed",
+        description="Whether password credential grant is allowed",
     )
-    registration_allowed: PropertyRef = PropertyRef("registrationAllowed")
+    registration_allowed: PropertyRef = PropertyRef(
+        "registrationAllowed", description="Whether user registration is allowed"
+    )
     registration_email_as_username: PropertyRef = PropertyRef(
-        "registrationEmailAsUsername"
+        "registrationEmailAsUsername",
+        description="Whether email is used as username during registration",
     )
-    remember_me: PropertyRef = PropertyRef("rememberMe")
-    verify_email: PropertyRef = PropertyRef("verifyEmail")
-    login_with_email_allowed: PropertyRef = PropertyRef("loginWithEmailAllowed")
-    duplicate_emails_allowed: PropertyRef = PropertyRef("duplicateEmailsAllowed")
-    reset_password_allowed: PropertyRef = PropertyRef("resetPasswordAllowed")
-    edit_username_allowed: PropertyRef = PropertyRef("editUsernameAllowed")
-    user_cache_enabled: PropertyRef = PropertyRef("userCacheEnabled")
-    realm_cache_enabled: PropertyRef = PropertyRef("realmCacheEnabled")
-    brute_force_protected: PropertyRef = PropertyRef("bruteForceProtected")
-    permanent_lockout: PropertyRef = PropertyRef("permanentLockout")
-    max_temporary_lockouts: PropertyRef = PropertyRef("maxTemporaryLockouts")
-    max_failure_wait_seconds: PropertyRef = PropertyRef("maxFailureWaitSeconds")
+    remember_me: PropertyRef = PropertyRef(
+        "rememberMe", description="Whether remember me functionality is enabled"
+    )
+    verify_email: PropertyRef = PropertyRef(
+        "verifyEmail", description="Whether email verification is required"
+    )
+    login_with_email_allowed: PropertyRef = PropertyRef(
+        "loginWithEmailAllowed", description="Whether login with email is allowed"
+    )
+    duplicate_emails_allowed: PropertyRef = PropertyRef(
+        "duplicateEmailsAllowed", description="Whether duplicate emails are allowed"
+    )
+    reset_password_allowed: PropertyRef = PropertyRef(
+        "resetPasswordAllowed", description="Whether password reset is allowed"
+    )
+    edit_username_allowed: PropertyRef = PropertyRef(
+        "editUsernameAllowed", description="Whether username editing is allowed"
+    )
+    user_cache_enabled: PropertyRef = PropertyRef(
+        "userCacheEnabled", description="Whether user cache is enabled"
+    )
+    realm_cache_enabled: PropertyRef = PropertyRef(
+        "realmCacheEnabled", description="Whether realm cache is enabled"
+    )
+    brute_force_protected: PropertyRef = PropertyRef(
+        "bruteForceProtected", description="Whether brute force protection is enabled"
+    )
+    permanent_lockout: PropertyRef = PropertyRef(
+        "permanentLockout", description="Whether permanent lockout is enabled"
+    )
+    max_temporary_lockouts: PropertyRef = PropertyRef(
+        "maxTemporaryLockouts", description="Maximum number of temporary lockouts"
+    )
+    max_failure_wait_seconds: PropertyRef = PropertyRef(
+        "maxFailureWaitSeconds", description="Maximum failure wait time in seconds"
+    )
     minimum_quick_login_wait_seconds: PropertyRef = PropertyRef(
-        "minimumQuickLoginWaitSeconds"
+        "minimumQuickLoginWaitSeconds",
+        description="Minimum quick login wait time in seconds",
     )
-    wait_increment_seconds: PropertyRef = PropertyRef("waitIncrementSeconds")
+    wait_increment_seconds: PropertyRef = PropertyRef(
+        "waitIncrementSeconds", description="Wait increment in seconds"
+    )
     quick_login_check_milli_seconds: PropertyRef = PropertyRef(
-        "quickLoginCheckMilliSeconds"
+        "quickLoginCheckMilliSeconds",
+        description="Quick login check time in milliseconds",
     )
-    max_delta_time_seconds: PropertyRef = PropertyRef("maxDeltaTimeSeconds")
-    failure_factor: PropertyRef = PropertyRef("failureFactor")
-    events_enabled: PropertyRef = PropertyRef("eventsEnabled")
-    events_expiration: PropertyRef = PropertyRef("eventsExpiration")
-    admin_events_enabled: PropertyRef = PropertyRef("adminEventsEnabled")
-    admin_events_details_enabled: PropertyRef = PropertyRef("adminEventsDetailsEnabled")
+    max_delta_time_seconds: PropertyRef = PropertyRef(
+        "maxDeltaTimeSeconds", description="Maximum delta time in seconds"
+    )
+    failure_factor: PropertyRef = PropertyRef(
+        "failureFactor", description="Failure factor for brute force protection"
+    )
+    events_enabled: PropertyRef = PropertyRef(
+        "eventsEnabled", description="Whether events are enabled"
+    )
+    events_expiration: PropertyRef = PropertyRef(
+        "eventsExpiration", description="Events expiration time"
+    )
+    admin_events_enabled: PropertyRef = PropertyRef(
+        "adminEventsEnabled", description="Whether admin events are enabled"
+    )
+    admin_events_details_enabled: PropertyRef = PropertyRef(
+        "adminEventsDetailsEnabled",
+        description="Whether admin event details are enabled",
+    )
     internationalization_enabled: PropertyRef = PropertyRef(
-        "internationalizationEnabled"
+        "internationalizationEnabled",
+        description="Whether internationalization is enabled",
     )
-    default_locale: PropertyRef = PropertyRef("defaultLocale")
-    password_policy: PropertyRef = PropertyRef("passwordPolicy")
-    otp_policy_type: PropertyRef = PropertyRef("otpPolicyType")
-    otp_policy_algorithm: PropertyRef = PropertyRef("otpPolicyAlgorithm")
-    otp_policy_initial_counter: PropertyRef = PropertyRef("otpPolicyInitialCounter")
-    otp_policy_digits: PropertyRef = PropertyRef("otpPolicyDigits")
-    otp_policy_look_ahead_window: PropertyRef = PropertyRef("otpPolicyLookAheadWindow")
-    otp_policy_period: PropertyRef = PropertyRef("otpPolicyPeriod")
-    otp_policy_code_reusable: PropertyRef = PropertyRef("otpPolicyCodeReusable")
+    default_locale: PropertyRef = PropertyRef(
+        "defaultLocale", description="Default locale for the realm"
+    )
+    password_policy: PropertyRef = PropertyRef(
+        "passwordPolicy", description="Password policy configuration"
+    )
+    otp_policy_type: PropertyRef = PropertyRef(
+        "otpPolicyType", description="OTP policy type"
+    )
+    otp_policy_algorithm: PropertyRef = PropertyRef(
+        "otpPolicyAlgorithm", description="OTP policy algorithm"
+    )
+    otp_policy_initial_counter: PropertyRef = PropertyRef(
+        "otpPolicyInitialCounter", description="OTP policy initial counter"
+    )
+    otp_policy_digits: PropertyRef = PropertyRef(
+        "otpPolicyDigits", description="Number of digits in OTP"
+    )
+    otp_policy_look_ahead_window: PropertyRef = PropertyRef(
+        "otpPolicyLookAheadWindow", description="OTP policy look ahead window"
+    )
+    otp_policy_period: PropertyRef = PropertyRef(
+        "otpPolicyPeriod", description="OTP policy period"
+    )
+    otp_policy_code_reusable: PropertyRef = PropertyRef(
+        "otpPolicyCodeReusable", description="Whether OTP codes are reusable"
+    )
     web_authn_policy_rp_entity_name: PropertyRef = PropertyRef(
-        "webAuthnPolicyRpEntityName"
+        "webAuthnPolicyRpEntityName", description="WebAuthn relying party entity name"
     )
-    web_authn_policy_rp_id: PropertyRef = PropertyRef("webAuthnPolicyRpId")
+    web_authn_policy_rp_id: PropertyRef = PropertyRef(
+        "webAuthnPolicyRpId", description="WebAuthn relying party ID"
+    )
     web_authn_policy_attestation_conveyance_preference: PropertyRef = PropertyRef(
-        "webAuthnPolicyAttestationConveyancePreference"
+        "webAuthnPolicyAttestationConveyancePreference",
+        description="WebAuthn attestation conveyance preference",
     )
     web_authn_policy_authenticator_attachment: PropertyRef = PropertyRef(
-        "webAuthnPolicyAuthenticatorAttachment"
+        "webAuthnPolicyAuthenticatorAttachment",
+        description="WebAuthn authenticator attachment",
     )
     web_authn_policy_require_resident_key: PropertyRef = PropertyRef(
-        "webAuthnPolicyRequireResidentKey"
+        "webAuthnPolicyRequireResidentKey",
+        description="Whether WebAuthn requires resident key",
     )
     web_authn_policy_user_verification_requirement: PropertyRef = PropertyRef(
-        "webAuthnPolicyUserVerificationRequirement"
+        "webAuthnPolicyUserVerificationRequirement",
+        description="WebAuthn user verification requirement",
     )
     web_authn_policy_create_timeout: PropertyRef = PropertyRef(
-        "webAuthnPolicyCreateTimeout"
+        "webAuthnPolicyCreateTimeout", description="WebAuthn create timeout"
     )
     web_authn_policy_avoid_same_authenticator_register: PropertyRef = PropertyRef(
-        "webAuthnPolicyAvoidSameAuthenticatorRegister"
+        "webAuthnPolicyAvoidSameAuthenticatorRegister",
+        description="Whether to avoid same authenticator registration",
     )
     web_authn_policy_passwordless_rp_entity_name: PropertyRef = PropertyRef(
-        "webAuthnPolicyPasswordlessRpEntityName"
+        "webAuthnPolicyPasswordlessRpEntityName",
+        description="WebAuthn passwordless relying party entity name",
     )
     web_authn_policy_passwordless_rp_id: PropertyRef = PropertyRef(
-        "webAuthnPolicyPasswordlessRpId"
+        "webAuthnPolicyPasswordlessRpId",
+        description="WebAuthn passwordless relying party ID",
     )
     web_authn_policy_passwordless_attestation_conveyance_preference: PropertyRef = (
-        PropertyRef("webAuthnPolicyPasswordlessAttestationConveyancePreference")
+        PropertyRef(
+            "webAuthnPolicyPasswordlessAttestationConveyancePreference",
+            description="WebAuthn passwordless attestation conveyance preference",
+        )
     )
     web_authn_policy_passwordless_authenticator_attachment: PropertyRef = PropertyRef(
-        "webAuthnPolicyPasswordlessAuthenticatorAttachment"
+        "webAuthnPolicyPasswordlessAuthenticatorAttachment",
+        description="WebAuthn passwordless authenticator attachment",
     )
     web_authn_policy_passwordless_require_resident_key: PropertyRef = PropertyRef(
-        "webAuthnPolicyPasswordlessRequireResidentKey"
+        "webAuthnPolicyPasswordlessRequireResidentKey",
+        description="Whether WebAuthn passwordless requires resident key",
     )
     web_authn_policy_passwordless_user_verification_requirement: PropertyRef = (
-        PropertyRef("webAuthnPolicyPasswordlessUserVerificationRequirement")
+        PropertyRef(
+            "webAuthnPolicyPasswordlessUserVerificationRequirement",
+            description="WebAuthn passwordless user verification requirement",
+        )
     )
     web_authn_policy_passwordless_create_timeout: PropertyRef = PropertyRef(
-        "webAuthnPolicyPasswordlessCreateTimeout"
+        "webAuthnPolicyPasswordlessCreateTimeout",
+        description="WebAuthn passwordless create timeout",
     )
     web_authn_policy_passwordless_avoid_same_authenticator_register: PropertyRef = (
-        PropertyRef("webAuthnPolicyPasswordlessAvoidSameAuthenticatorRegister")
+        PropertyRef(
+            "webAuthnPolicyPasswordlessAvoidSameAuthenticatorRegister",
+            description="Whether to avoid same authenticator registration for passwordless",
+        )
     )
-    keycloak_version: PropertyRef = PropertyRef("keycloakVersion")
-    user_managed_access_allowed: PropertyRef = PropertyRef("userManagedAccessAllowed")
-    organizations_enabled: PropertyRef = PropertyRef("organizationsEnabled")
+    keycloak_version: PropertyRef = PropertyRef(
+        "keycloakVersion", description="Version of Keycloak"
+    )
+    user_managed_access_allowed: PropertyRef = PropertyRef(
+        "userManagedAccessAllowed", description="Whether user managed access is allowed"
+    )
+    organizations_enabled: PropertyRef = PropertyRef(
+        "organizationsEnabled", description="Whether organizations are enabled"
+    )
     verifiable_credentials_enabled: PropertyRef = PropertyRef(
-        "verifiableCredentialsEnabled"
+        "verifiableCredentialsEnabled",
+        description="Whether verifiable credentials are enabled",
     )
-    admin_permissions_enabled: PropertyRef = PropertyRef("adminPermissionsEnabled")
-    social: PropertyRef = PropertyRef("social")
+    admin_permissions_enabled: PropertyRef = PropertyRef(
+        "adminPermissionsEnabled", description="Whether admin permissions are enabled"
+    )
+    social: PropertyRef = PropertyRef(
+        "social", description="Social login configuration"
+    )
     update_profile_on_initial_social_login: PropertyRef = PropertyRef(
-        "updateProfileOnInitialSocialLogin"
+        "updateProfileOnInitialSocialLogin",
+        description="Whether to update profile on initial social login",
     )
-    o_auth2_device_code_lifespan: PropertyRef = PropertyRef("oAuth2DeviceCodeLifespan")
+    o_auth2_device_code_lifespan: PropertyRef = PropertyRef(
+        "oAuth2DeviceCodeLifespan", description="OAuth2 device code lifespan"
+    )
     o_auth2_device_polling_interval: PropertyRef = PropertyRef(
-        "oAuth2DevicePollingInterval"
+        "oAuth2DevicePollingInterval", description="OAuth2 device polling interval"
     )
-    bruteForceStrategy: PropertyRef = PropertyRef("bruteForceStrategy")
-    default_role_id: PropertyRef = PropertyRef("defaultRole.id")
-    lastupdated: PropertyRef = PropertyRef("LASTUPDATED", set_in_kwargs=True)
+    bruteForceStrategy: PropertyRef = PropertyRef(
+        "bruteForceStrategy", description="Brute force protection strategy"
+    )
+    default_role_id: PropertyRef = PropertyRef(
+        "defaultRole.id", description="ID of the default role"
+    )
+    lastupdated: PropertyRef = PropertyRef(
+        "LASTUPDATED",
+        set_in_kwargs=True,
+        description="Timestamp of the last time the node was updated",
+    )
 
 
 @dataclass(frozen=True)
 class KeycloakRealmSchema(CartographyNodeSchema):
+    """Represents a Keycloak realm, which is a security domain where users, groups, roles, and other entities are managed."""
+
     label: str = "KeycloakRealm"
     properties: KeycloakRealmNodeProperties = KeycloakRealmNodeProperties()
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["Tenant"])

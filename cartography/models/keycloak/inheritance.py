@@ -22,6 +22,8 @@ class KeycloakMatchLinkRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class KeycloakUserInheritedMemberOfGroupMatchLink(CartographyRelSchema):
+    """A user inherits membership in the parent groups of its direct groups."""
+
     target_node_label: str = "KeycloakGroup"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("group_id")},
@@ -37,6 +39,8 @@ class KeycloakUserInheritedMemberOfGroupMatchLink(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class KeycloakRoleIndirectGrantsScopeMatchLink(CartographyRelSchema):
+    """A composite role inherits scopes granted by the roles it includes."""
+
     target_node_label: str = "KeycloakScope"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("scope_id")},
@@ -52,6 +56,8 @@ class KeycloakRoleIndirectGrantsScopeMatchLink(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class KeycloakUserAssumeScopeMatchLink(CartographyRelSchema):
+    """A user can assume scopes granted by its direct or inherited roles."""
+
     target_node_label: str = "KeycloakScope"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("scope_id")},

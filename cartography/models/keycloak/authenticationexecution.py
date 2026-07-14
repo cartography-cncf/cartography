@@ -15,19 +15,51 @@ from cartography.models.core.relationships import TargetNodeMatcher
 
 @dataclass(frozen=True)
 class KeycloakAuthenticationExecutionNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("id")
-    display_name: PropertyRef = PropertyRef("displayName")
-    requirement: PropertyRef = PropertyRef("requirement")
-    description: PropertyRef = PropertyRef("description")
-    configurable: PropertyRef = PropertyRef("configurable")
-    authentication_flow: PropertyRef = PropertyRef("authenticationFlow")
-    provider_id: PropertyRef = PropertyRef("providerId")
-    flow_id: PropertyRef = PropertyRef("flowId")
-    level: PropertyRef = PropertyRef("level")
-    index: PropertyRef = PropertyRef("index")
-    priority: PropertyRef = PropertyRef("priority")
-    is_terminal_step: PropertyRef = PropertyRef("is_terminal_step")
-    lastupdated: PropertyRef = PropertyRef("LASTUPDATED", set_in_kwargs=True)
+    id: PropertyRef = PropertyRef(
+        "id", description="The unique identifier of the authentication execution"
+    )
+    display_name: PropertyRef = PropertyRef(
+        "displayName", description="The display name of the authentication execution"
+    )
+    requirement: PropertyRef = PropertyRef(
+        "requirement",
+        description="The requirement level (REQUIRED, OPTIONAL, ALTERNATIVE, DISABLED)",
+    )
+    description: PropertyRef = PropertyRef(
+        "description", description="The description of the authentication execution"
+    )
+    configurable: PropertyRef = PropertyRef(
+        "configurable", description="Whether this execution is configurable"
+    )
+    authentication_flow: PropertyRef = PropertyRef(
+        "authenticationFlow",
+        description="Whether this execution references an authentication flow",
+    )
+    provider_id: PropertyRef = PropertyRef(
+        "providerId",
+        description="The provider identifier for the authentication execution",
+    )
+    flow_id: PropertyRef = PropertyRef(
+        "flowId", description="The flow identifier if this execution references a flow"
+    )
+    level: PropertyRef = PropertyRef(
+        "level", description="The nesting level of the execution"
+    )
+    index: PropertyRef = PropertyRef(
+        "index", description="The index position within the flow"
+    )
+    priority: PropertyRef = PropertyRef(
+        "priority", description="The priority order of the execution"
+    )
+    is_terminal_step: PropertyRef = PropertyRef(
+        "is_terminal_step",
+        description="Whether the execution can be a terminal workflow step (inferred by Cartography)",
+    )
+    lastupdated: PropertyRef = PropertyRef(
+        "LASTUPDATED",
+        set_in_kwargs=True,
+        description="Timestamp of the last time the node was updated",
+    )
 
 
 @dataclass(frozen=True)
@@ -38,6 +70,8 @@ class KeycloakAuthenticationExecutionToRealmRelProperties(CartographyRelProperti
 @dataclass(frozen=True)
 # (:KeycloakAuthenticationExecution)<-[:RESOURCE]-(:KeycloakRealm)
 class KeycloakAuthenticationExecutionToRealmRel(CartographyRelSchema):
+    """The realm contains the authentication execution."""
+
     target_node_label: str = "KeycloakRealm"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"name": PropertyRef("REALM", set_in_kwargs=True)},
@@ -57,6 +91,8 @@ class ExecutionToFlowRelProperties(CartographyRelProperties):
 @dataclass(frozen=True)
 # (:KeycloakAuthenticationExecution)<-[:HAS_STEP]-(:KeycloakAuthenticationFlow)
 class ExecutionToFlowRel(CartographyRelSchema):
+    """The authentication flow contains the execution as a step."""
+
     target_node_label: str = "KeycloakAuthenticationFlow"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {
@@ -77,6 +113,8 @@ class ExecutionToExecutionRelProperties(CartographyRelProperties):
 @dataclass(frozen=True)
 # (:KeycloakAuthenticationExecution)<-[:HAS_STEP]-(:KeycloakAuthenticationExecution)
 class ExecutionToExecutionRel(CartographyRelSchema):
+    """The parent execution contains the subflow execution as a step."""
+
     target_node_label: str = "KeycloakAuthenticationExecution"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("_parent_subflow")},
@@ -88,6 +126,8 @@ class ExecutionToExecutionRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class KeycloakAuthenticationExecutionSchema(CartographyNodeSchema):
+    """Represents an individual authentication execution step within a Keycloak authentication flow. Authentication executions define specific authentication mechanisms, requirements, and their order within an authentication flow."""
+
     label: str = "KeycloakAuthenticationExecution"
     properties: KeycloakAuthenticationExecutionNodeProperties = (
         KeycloakAuthenticationExecutionNodeProperties()
@@ -114,6 +154,8 @@ class ExecutionToExecutionStepRelProperties(CartographyRelProperties):
 @dataclass(frozen=True)
 # (:KeycloakAuthenticationExecution)-[:NEXT_STEP]->(:KeycloakAuthenticationExecution)
 class ExecutionToExecutionMatchLink(CartographyRelSchema):
+    """The execution can continue to the next execution."""
+
     source_node_label: str = "KeycloakAuthenticationExecution"
     source_node_matcher: SourceNodeMatcher = make_source_node_matcher(
         {"id": PropertyRef("source")},
@@ -142,6 +184,8 @@ class ExecutionToFlowStepRelProperties(CartographyRelProperties):
 @dataclass(frozen=True)
 # (:KeycloakAuthenticationFlow)-[:NEXT_STEP]->(:KeycloakAuthenticationExecution)
 class ExecutionToFlowMatchLink(CartographyRelSchema):
+    """The authentication flow starts with the execution."""
+
     source_node_label: str = "KeycloakAuthenticationExecution"
     source_node_matcher: SourceNodeMatcher = make_source_node_matcher(
         {"id": PropertyRef("execution_id")},

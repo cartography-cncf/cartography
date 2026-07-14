@@ -84,6 +84,9 @@ class SetRelationshipPropertyIfMissing:
     rel: str
     property: str
     value: CypherValue
+    source_label: str | None = None
+    rel_label: str | None = None
+    target_label: str | None = None
 
 
 @dataclass(frozen=True)

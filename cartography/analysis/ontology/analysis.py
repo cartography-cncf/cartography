@@ -615,6 +615,8 @@ SUPPLY_CHAIN_SOURCE_FILE = AnalysisJob(
                     "r",
                     "dockerfile_path",
                     Var("i.source_file"),
+                    source_label="Image",
+                    rel_label="PACKAGED_FROM",
                 ),
             ),
         ),
