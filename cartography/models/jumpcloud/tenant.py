@@ -8,12 +8,18 @@ from cartography.models.core.nodes import ExtraNodeLabels
 
 @dataclass(frozen=True)
 class JumpCloudTenantNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("id")
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    id: PropertyRef = PropertyRef("id", description="JumpCloud organization ID.")
+    lastupdated: PropertyRef = PropertyRef(
+        "lastupdated",
+        set_in_kwargs=True,
+        description="Timestamp of the last update.",
+    )
 
 
 @dataclass(frozen=True)
 class JumpCloudTenantSchema(CartographyNodeSchema):
+    """A JumpCloud organization containing managed resources."""
+
     label: str = "JumpCloudTenant"
     properties: JumpCloudTenantNodeProperties = JumpCloudTenantNodeProperties()
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["Tenant"])

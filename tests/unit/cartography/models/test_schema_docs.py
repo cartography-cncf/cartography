@@ -2,6 +2,7 @@ from pathlib import Path
 
 import cartography.models.bigfix as bigfix_models
 import cartography.models.gsuite as gsuite_models
+import cartography.models.jumpcloud as jumpcloud_models
 import cartography.models.kandji as kandji_models
 import cartography.models.keycloak as keycloak_models
 import cartography.models.lastpass as lastpass_models
@@ -167,6 +168,23 @@ def test_kandji_schema_doc_is_generated_from_introspected_model():
     assert "A device managed by Kandji." in generated
     assert "| **serial_number** | Device serial number. |" in generated
     assert "Deprecated compatibility edge linking a device to its tenant." in generated
+    assert "No description provided." not in generated
+
+
+def test_jumpcloud_schema_doc_is_generated_from_introspected_model():
+    # Arrange
+    model = inspect_data_model(jumpcloud_models)
+
+    # Act
+    generated = render_module_schema(model, "jumpcloud")
+
+    # Assert
+    assert not Path("docs/root/modules/jumpcloud/schema.md").exists()
+    assert len(model.nodes) == 4
+    assert len(model.relationships) == 5
+    assert "A user account in JumpCloud." in generated
+    assert "| **jc_system_id** | JumpCloud system ID" in generated
+    assert "(:JumpCloudUser)-[:USES]->(:JumpCloudSaaSApplication)" in generated
     assert "No description provided." not in generated
 
 
