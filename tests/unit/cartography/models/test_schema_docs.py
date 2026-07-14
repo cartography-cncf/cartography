@@ -1,5 +1,6 @@
 from pathlib import Path
 
+import cartography.models.bigfix as bigfix_models
 import cartography.models.gsuite as gsuite_models
 import cartography.models.keycloak as keycloak_models
 import cartography.models.lastpass as lastpass_models
@@ -131,6 +132,23 @@ def test_snipeit_schema_doc_is_generated_from_introspected_model():
     assert "A device asset managed by Snipe-IT." in generated
     assert "| **serial** | Asset serial number. |" in generated
     assert "Deprecated compatibility edge linking a tenant to its asset." in generated
+    assert "No description provided." not in generated
+
+
+def test_bigfix_schema_doc_is_generated_from_introspected_model():
+    # Arrange
+    model = inspect_data_model(bigfix_models)
+
+    # Act
+    generated = render_module_schema(model, "bigfix")
+
+    # Assert
+    assert not Path("docs/root/modules/bigfix/schema.md").exists()
+    assert len(model.nodes) == 2
+    assert len(model.relationships) == 1
+    assert "A computer tracked by BigFix." in generated
+    assert "| **computername** | Computer name. |" in generated
+    assert "(:BigfixRoot)-[:RESOURCE]->(:BigfixComputer)" in generated
     assert "No description provided." not in generated
 
 
