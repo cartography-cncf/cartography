@@ -1,10 +1,16 @@
 ## Trivy Configuration
 
-[Trivy](https://aquasecurity.github.io/trivy/latest/) is a vulnerability scanner that can be used to scan images for vulnerabilities.
+[Trivy](https://aquasecurity.github.io/trivy/latest/) is a vulnerability scanner that can be used to scan container images for vulnerabilities.
 
-Currently, Cartography allows you to use Trivy to scan the following resources:
+Cartography currently matches Trivy scan reports to canonical ontology `Image`
+nodes created from these registry resources:
 
-- [ECRImage](https://cartography-cncf.github.io/cartography/modules/aws/schema.html#ecrimage) (note that you scan ECRRepositoryImages but findings attach to their underlying ECRImage nodes)
+- AWS ECR images
+- Google Artifact Registry images
+- GitLab Container Registry images
+
+Matching uses the image digest, so Trivy findings and packages attach to the
+underlying canonical `Image` node rather than a provider-specific image node.
 
 
 To use Trivy with Cartography,
@@ -27,11 +33,11 @@ To use Trivy with Cartography,
     **Optional Trivy parameters to consider**:
 
     - `--ignore-unfixed`: if you want to ignore vulnerabilities that do not have a fixed version.
-    - `--list-all-pkgs`: when present, Trivy will list all packages in the image, not just the ones that have vulnerabilities. This is useful for getting a complete inventory of packages in the image. Cartography will then attach all packages to the ECRImage node.
+    - `--list-all-pkgs`: when present, Trivy will list all packages in the image, not just the ones that have vulnerabilities. This is useful for getting a complete inventory of packages in the image. Cartography will then attach all packages to the canonical `Image` node.
 
     **Naming conventions**:
 
-    - JSON files can be named using any convention. Cartography determines which ECR image each scan belongs to by inspecting the scan content (see below), not the filename.
+    - JSON files can be named using any convention. Cartography determines which image each scan belongs to by inspecting the scan content (see below), not the filename.
 
     - You can use an object prefix to organize cloud results. For example if your bucket is `s3://my-bucket/` and you want to put the results in a folder called `trivy-scans/`, the full S3 object key could be `trivy-scans/123456789012.dkr.ecr.us-east-1.amazonaws.com/test-app:v1.2.3.json` or `trivy-scans/scan-12345.json`.
 
@@ -41,7 +47,7 @@ To use Trivy with Cartography,
 
     - This enables scanning of multi-architecture images where each platform (amd64, arm64, etc.) has its own digest.
 
-    - Cartography matches scans to ECR images by inspecting the `ArtifactName`, `Metadata.RepoTags`, and `Metadata.RepoDigests` fields in the Trivy JSON output.
+    - Cartography matches scans to canonical images by digest from `Metadata.RepoDigests` in the Trivy JSON output.
 
 1. Configure Cartography to use the Trivy module.
 
@@ -59,7 +65,7 @@ To use Trivy with Cartography,
     cartography --selected-modules trivy --trivy-source /path/to/trivy-results
     ```
 
-    Cartography will ingest every `.json` file under the provided directory. Each scan is matched to an ECR image by inspecting the `ArtifactName`, `Metadata.RepoTags`, and `Metadata.RepoDigests` fields, so file names may contain any characters.
+    Cartography will ingest every `.json` file under the provided directory. Each scan is matched to a canonical image using `Metadata.RepoDigests`, so file names may contain any characters.
 
     Deprecated local and S3 report-source flags remain accepted until Cartography v1.0.0 and emit warnings when used. New configurations should use `--trivy-source`.
 
@@ -77,9 +83,10 @@ To use Trivy with Cartography,
 - Refer to the [official Trivy installation guide](https://aquasecurity.github.io/trivy/latest/getting-started/installation/) for your operating system and for additional documentation.
 
 
-### Required cloud permissions
+### AWS ECR permissions
 
-Ensure that the machine running Trivy has the necessary permissions to scan your desired resources.
+When scanning AWS ECR, ensure that the machine running Trivy has the necessary
+permissions:
 
 
 | Cartography Node label | Cloud permissions required to scan with Trivy |

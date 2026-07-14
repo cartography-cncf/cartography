@@ -1,4 +1,4 @@
-## SentinelOne Configuration
+# SentinelOne Configuration
 
 Follow these steps to analyze SentinelOne objects with Cartography.
 
@@ -22,7 +22,7 @@ The default **Viewer** role is sufficient for Cartography.
 1. Optionally, pass specific account IDs to sync using the `--sentinelone-account-ids` CLI arg (comma-separated).
 1. Optionally, pass specific site IDs to sync using the `--sentinelone-site-ids` CLI arg (comma-separated).
 
-## MSSP And Site-Scoped Deployments
+## MSSP and site-scoped deployments
 
 Some SentinelOne MSSP deployments issue API tokens for site-scoped users. Those
 tokens can query site, agent, application inventory, and risk endpoints but
@@ -42,3 +42,22 @@ In that fallback mode:
 If you know you are using a site-scoped token, prefer
 `--sentinelone-site-ids` over `--sentinelone-account-ids`. If you do not pass
 explicit site IDs, Cartography will sync all sites visible to that token.
+
+## Canonical Device projection
+
+SentinelOne agent records can contribute to canonical ontology `Device` nodes
+using endpoint serial numbers. To use SentinelOne as a device source of truth,
+include it in `--ontology-devices-source` and run the ontology module:
+
+```bash
+export SENTINELONE_API_TOKEN="<token>"
+
+cartography \
+  --selected-modules sentinelone,ontology \
+  --sentinelone-api-url https://example.sentinelone.net \
+  --sentinelone-api-token-env-var SENTINELONE_API_TOKEN \
+  --ontology-devices-source sentinelone
+```
+
+Multiple device sources can be provided as a comma-separated list, for example
+`--ontology-devices-source sentinelone,jamf`.

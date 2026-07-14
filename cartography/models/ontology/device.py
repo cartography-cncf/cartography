@@ -56,6 +56,8 @@ class DeviceOwnedByUserRel(CartographyRelSchema):
 # (:S1AppFinding)-[:AFFECTS]->(:Device)
 @dataclass(frozen=True)
 class DeviceAffectedByS1AppFindingRel(CartographyRelSchema):
+    """Links a SentinelOne finding to the canonical device it affects."""
+
     target_node_label: str = "S1AppFinding"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("_cleanup_finding_id")},
@@ -159,6 +161,8 @@ class DeviceToGoogleWorkspaceDeviceBySerialRel(CartographyRelSchema):
 # (:Device)-[:OBSERVED_AS]->(:S1Agent) via serial_number
 @dataclass(frozen=True)
 class DeviceToS1AgentBySerialRel(CartographyRelSchema):
+    """Links a canonical device to its SentinelOne agent observation."""
+
     target_node_label: str = "S1Agent"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"serial_number": PropertyRef("serial_number")},
@@ -380,6 +384,8 @@ class DeviceToGoogleWorkspaceDeviceHostnameMatchLink(CartographyRelSchema):
 # (:Device)-[:OBSERVED_AS]->(:S1Agent) via hostname
 @dataclass(frozen=True)
 class DeviceToS1AgentHostnameMatchLink(CartographyRelSchema):
+    """Links a canonical device to its SentinelOne agent observation."""
+
     target_node_label: str = "S1Agent"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"computer_name": PropertyRef("hostname")},

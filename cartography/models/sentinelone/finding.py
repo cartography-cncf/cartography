@@ -14,34 +14,89 @@ from cartography.models.core.relationships import TargetNodeMatcher
 
 @dataclass(frozen=True)
 class S1AppFindingNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("id", extra_index=True)
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
-
-    # CVE specific
-    cve_id: PropertyRef = PropertyRef("cve_id", extra_index=True)
-    severity: PropertyRef = PropertyRef("severity")
-
-    # Instance specific (Finding)
-    days_detected: PropertyRef = PropertyRef("days_detected")
-    detection_date: PropertyRef = PropertyRef("detection_date")
-    last_scan_date: PropertyRef = PropertyRef("last_scan_date")
-    last_scan_result: PropertyRef = PropertyRef("last_scan_result")
-    status: PropertyRef = PropertyRef("status")
-    mitigation_status: PropertyRef = PropertyRef("mitigation_status")
-    mitigation_status_reason: PropertyRef = PropertyRef("mitigation_status_reason")
+    id: PropertyRef = PropertyRef(
+        "id",
+        extra_index=True,
+        description="SentinelOne application vulnerability finding ID.",
+    )
+    lastupdated: PropertyRef = PropertyRef(
+        "lastupdated",
+        set_in_kwargs=True,
+        description="Timestamp of the last time the node was updated.",
+    )
+    cve_id: PropertyRef = PropertyRef(
+        "cve_id",
+        extra_index=True,
+        description="CVE identifier associated with the finding.",
+    )
+    severity: PropertyRef = PropertyRef(
+        "severity",
+        description="Finding severity.",
+    )
+    days_detected: PropertyRef = PropertyRef(
+        "days_detected",
+        description="Number of days since the vulnerability was detected.",
+    )
+    detection_date: PropertyRef = PropertyRef(
+        "detection_date",
+        description="Vulnerability detection timestamp.",
+    )
+    last_scan_date: PropertyRef = PropertyRef(
+        "last_scan_date",
+        description="Timestamp of the latest vulnerability scan.",
+    )
+    last_scan_result: PropertyRef = PropertyRef(
+        "last_scan_result",
+        description="Result of the latest vulnerability scan.",
+    )
+    status: PropertyRef = PropertyRef(
+        "status",
+        description="Current finding status.",
+    )
+    mitigation_status: PropertyRef = PropertyRef(
+        "mitigation_status",
+        description="Current mitigation status.",
+    )
+    mitigation_status_reason: PropertyRef = PropertyRef(
+        "mitigation_status_reason",
+        description="Reason for the mitigation status.",
+    )
     mitigation_status_changed_by: PropertyRef = PropertyRef(
-        "mitigation_status_changed_by"
+        "mitigation_status_changed_by",
+        description="User who last changed the mitigation status.",
     )
     mitigation_status_change_time: PropertyRef = PropertyRef(
-        "mitigation_status_change_time"
+        "mitigation_status_change_time",
+        description="Timestamp of the latest mitigation status change.",
     )
-    marked_by: PropertyRef = PropertyRef("marked_by")
-    marked_date: PropertyRef = PropertyRef("marked_date")
-    mark_type_description: PropertyRef = PropertyRef("mark_type_description")
-    reason: PropertyRef = PropertyRef("reason")
-    remediation_level: PropertyRef = PropertyRef("remediation_level")
-    risk_score: PropertyRef = PropertyRef("risk_score")
-    report_confidence: PropertyRef = PropertyRef("report_confidence")
+    marked_by: PropertyRef = PropertyRef(
+        "marked_by",
+        description="User who marked the finding.",
+    )
+    marked_date: PropertyRef = PropertyRef(
+        "marked_date",
+        description="Timestamp when the finding was marked.",
+    )
+    mark_type_description: PropertyRef = PropertyRef(
+        "mark_type_description",
+        description="Description of the mark applied to the finding.",
+    )
+    reason: PropertyRef = PropertyRef(
+        "reason",
+        description="Reason recorded for the finding.",
+    )
+    remediation_level: PropertyRef = PropertyRef(
+        "remediation_level",
+        description="Required remediation level.",
+    )
+    risk_score: PropertyRef = PropertyRef(
+        "risk_score",
+        description="SentinelOne risk score.",
+    )
+    report_confidence: PropertyRef = PropertyRef(
+        "report_confidence",
+        description="Confidence level of the finding report.",
+    )
 
 
 @dataclass(frozen=True)
@@ -50,8 +105,9 @@ class S1AppFindingToAccountRelProperties(CartographyRelProperties):
 
 
 @dataclass(frozen=True)
-# (:S1AppFinding)<-[:RESOURCE]-(:S1Account)
 class S1AppFindingToAccountRel(CartographyRelSchema):
+    """Links a SentinelOne account to one of its application findings."""
+
     target_node_label: str = "S1Account"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("S1_ACCOUNT_ID", set_in_kwargs=True)},
@@ -69,8 +125,9 @@ class S1AppFindingToApplicationVersionRelProperties(CartographyRelProperties):
 
 
 @dataclass(frozen=True)
-# (:S1AppFinding)-[:AFFECTS]->(:S1ApplicationVersion)
 class S1AppFindingToApplicationVersionRel(CartographyRelSchema):
+    """Links a finding to the application version it affects."""
+
     target_node_label: str = "S1ApplicationVersion"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("application_version_id")},
@@ -88,8 +145,9 @@ class S1AppFindingToAgentRelProperties(CartographyRelProperties):
 
 
 @dataclass(frozen=True)
-# (:S1AppFinding)-[:AFFECTS]->(:S1Agent)
 class S1AppFindingToAgentRel(CartographyRelSchema):
+    """Links a finding to the endpoint agent it affects."""
+
     target_node_label: str = "S1Agent"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("endpoint_id")},
@@ -105,8 +163,9 @@ class S1AppFindingToCVERelProperties(CartographyRelProperties):
 
 
 @dataclass(frozen=True)
-# (:S1AppFinding)-[:LINKED_TO]->(:CVE)
 class S1AppFindingToCVERel(CartographyRelSchema):
+    """Links a SentinelOne finding to its generic CVE definition."""
+
     target_node_label: str = "CVE"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("cve_id")},
@@ -118,6 +177,8 @@ class S1AppFindingToCVERel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class S1AppFindingSchema(CartographyNodeSchema):
+    """A vulnerability finding for software on a SentinelOne endpoint."""
+
     label: str = "S1AppFinding"
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["S1Finding", "Risk", "CVE"])
     properties: S1AppFindingNodeProperties = S1AppFindingNodeProperties()

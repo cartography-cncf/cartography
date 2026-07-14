@@ -30,6 +30,8 @@ class PackageToNodeRelProperties(CartographyRelProperties):
 # (:Package)-[:DETECTED_AS]->(:TrivyPackage)
 @dataclass(frozen=True)
 class PackageToTrivyPackageRel(CartographyRelSchema):
+    """Links a canonical package to its matching Trivy package observation."""
+
     target_node_label: str = "TrivyPackage"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"normalized_id": PropertyRef("normalized_id")},
@@ -54,6 +56,8 @@ class PackageToSyftPackageRel(CartographyRelSchema):
 # (:Package)-[:DETECTED_AS]->(:SocketDevDependency)
 @dataclass(frozen=True)
 class PackageToSocketDevDependencyRel(CartographyRelSchema):
+    """Links a canonical package to its matching Socket.dev dependency."""
+
     target_node_label: str = "SocketDevDependency"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"normalized_id": PropertyRef("normalized_id")},
@@ -121,6 +125,8 @@ class PackageToOntologyImageRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class PackageToTrivyFixRel(CartographyRelSchema):
+    """Links a canonical package to an available Trivy fix."""
+
     target_node_label: str = "TrivyFix"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("id")},
@@ -143,6 +149,8 @@ class PackageToPackageDependsOnRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class TrivyImageFindingToPackageRel(CartographyRelSchema):
+    """Links a Trivy finding to the canonical package it affects."""
+
     target_node_label: str = "TrivyImageFinding"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("id")},

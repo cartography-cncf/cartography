@@ -236,15 +236,21 @@ def _module_relationships(
     nodes: tuple[Node, ...],
     module: str,
 ) -> tuple[Relationship, ...]:
-    relevant_labels = {
-        label for node in nodes for label in (node.label, *node.ontology_labels)
-    }
+    node_labels = {node.label for node in nodes}
+    ontology_labels = {label for node in nodes for label in node.ontology_labels}
     return tuple(
         relationship
         for relationship in relationships
         if module in relationship.modules
-        or relationship.source_label in relevant_labels
-        or relationship.target_label in relevant_labels
+        or relationship.source_label in node_labels
+        or relationship.target_label in node_labels
+        or (
+            "ontology" in relationship.modules
+            and (
+                relationship.source_label in ontology_labels
+                or relationship.target_label in ontology_labels
+            )
+        )
     )
 
 
@@ -413,7 +419,12 @@ def _mermaid_relationship(relationship: Relationship) -> str:
 
 
 def _module_title(module: str) -> str:
-    return {"aibom": "AIBOM"}.get(module, module.replace("_", " ").title())
+    title_overrides = {
+        "aibom": "AIBOM",
+        "sentinelone": "SentinelOne",
+        "socketdev": "Socket.dev",
+    }
+    return title_overrides.get(module, module.replace("_", " ").title())
 
 
 def _model_modules(model: DataModel) -> list[str]:

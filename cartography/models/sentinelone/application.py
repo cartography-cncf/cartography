@@ -12,10 +12,23 @@ from cartography.models.core.relationships import TargetNodeMatcher
 
 @dataclass(frozen=True)
 class S1ApplicationNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("id")
-    name: PropertyRef = PropertyRef("name")
-    vendor: PropertyRef = PropertyRef("vendor")
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    id: PropertyRef = PropertyRef(
+        "id",
+        description="Normalized vendor and application name.",
+    )
+    name: PropertyRef = PropertyRef(
+        "name",
+        description="Application name.",
+    )
+    vendor: PropertyRef = PropertyRef(
+        "vendor",
+        description="Application vendor.",
+    )
+    lastupdated: PropertyRef = PropertyRef(
+        "lastupdated",
+        set_in_kwargs=True,
+        description="Timestamp of the last time the node was updated.",
+    )
 
 
 @dataclass(frozen=True)
@@ -24,8 +37,9 @@ class S1ApplicationToAccountRelProperties(CartographyRelProperties):
 
 
 @dataclass(frozen=True)
-# (:S1Application)<-[:RESOURCE]-(:S1Account)
 class S1ApplicationToAccountRel(CartographyRelSchema):
+    """Links a SentinelOne account to an application in its inventory."""
+
     target_node_label: str = "S1Account"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("S1_ACCOUNT_ID", set_in_kwargs=True)},
@@ -39,6 +53,8 @@ class S1ApplicationToAccountRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class S1ApplicationSchema(CartographyNodeSchema):
+    """An application observed in SentinelOne inventory."""
+
     label: str = "S1Application"
     properties: S1ApplicationNodeProperties = S1ApplicationNodeProperties()
     sub_resource_relationship: S1ApplicationToAccountRel = S1ApplicationToAccountRel()

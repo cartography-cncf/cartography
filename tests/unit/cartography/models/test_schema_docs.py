@@ -22,13 +22,17 @@ import cartography.models.oci as oci_models
 import cartography.models.openai as openai_models
 import cartography.models.pagerduty as pagerduty_models
 import cartography.models.salesforce as salesforce_models
+import cartography.models.sentinelone as sentinelone_models
 import cartography.models.sentry as sentry_models
 import cartography.models.slack as slack_models
 import cartography.models.snipeit as snipeit_models
+import cartography.models.socketdev as socketdev_models
 import cartography.models.spacelift as spacelift_models
 import cartography.models.subimage as subimage_models
 import cartography.models.syft as syft_models
 import cartography.models.tailscale as tailscale_models
+import cartography.models.tenable as tenable_models
+import cartography.models.trivy as trivy_models
 import cartography.models.vercel as vercel_models
 import cartography.models.workday as workday_models
 import cartography.models.workos as workos_models
@@ -174,6 +178,92 @@ def test_crowdstrike_schema_doc_is_generated_from_introspected_model():
         "(:CrowdstrikeHost)-[:HAS_VULNERABILITY]->(:SpotlightVulnerability)"
         in generated
     )
+    assert "No description provided." not in generated
+
+
+def test_trivy_schema_doc_is_generated_from_introspected_model():
+    # Arrange
+    model = inspect_data_model(trivy_models)
+    complete_model = inspect_data_model()
+
+    # Act
+    generated = render_module_schema(complete_model, "trivy")
+
+    # Assert
+    assert not Path("docs/root/modules/trivy/schema.md").exists()
+    assert len(model.nodes) == 3
+    assert len(model.relationships) == 5
+    assert "(:Package)-[:DETECTED_AS]->(:TrivyPackage)" in generated
+    assert "(:Package)-[:SHOULD_UPDATE_TO]->(:TrivyFix)" in generated
+    assert "(:TrivyImageFinding)-[:AFFECTS]->(:Package)" in generated
+    assert (
+        "    | version | Package version that fixes the vulnerability. |" in generated
+    )
+    assert "(:S1AppFinding)-[:LINKED_TO]->(:CVE)" not in generated
+    assert "No description provided." not in generated
+
+
+def test_socketdev_schema_doc_is_generated_from_introspected_model():
+    # Arrange
+    model = inspect_data_model(socketdev_models)
+    complete_model = inspect_data_model()
+
+    # Act
+    generated = render_module_schema(complete_model, "socketdev")
+
+    # Assert
+    assert not Path("docs/root/modules/socketdev/schema.md").exists()
+    assert len(model.nodes) == 5
+    assert len(model.relationships) == 9
+    assert "## Socket.dev Schema" in generated
+    assert "(:Package)-[:DETECTED_AS]->(:SocketDevDependency)" in generated
+    assert "(:SocketDevRepository)-[:MONITORS]->(:CodeRepository)" in generated
+    assert "| ghsa_id | Yes | GitHub Security Advisory identifier. |" in generated
+    assert "No description provided." not in generated
+
+
+def test_sentinelone_schema_doc_is_generated_from_introspected_model():
+    # Arrange
+    model = inspect_data_model(sentinelone_models)
+    complete_model = inspect_data_model()
+
+    # Act
+    generated = render_module_schema(complete_model, "sentinelone")
+
+    # Assert
+    assert not Path("docs/root/modules/sentinelone/schema.md").exists()
+    assert len(model.nodes) == 5
+    assert len(model.relationships) == 9
+    assert "## SentinelOne Schema" in generated
+    assert "(:Device)-[:OBSERVED_AS]->(:S1Agent)" in generated
+    assert "(:S1AppFinding)-[:AFFECTS]->(:Device)" in generated
+    assert (
+        "    | installeddatetime | Timestamp when the application version was "
+        "installed. |" in generated
+    )
+    assert (
+        "    | installationpath | File system path where the application version "
+        "is installed. |" in generated
+    )
+    assert "(:CVE)-[:LINKED_TO]->(:SemgrepSCAFinding)" not in generated
+    assert "No description provided." not in generated
+
+
+def test_tenable_schema_doc_is_generated_from_introspected_model():
+    # Arrange
+    model = inspect_data_model(tenable_models)
+
+    # Act
+    generated = render_module_schema(model, "tenable")
+
+    # Assert
+    assert not Path("docs/root/modules/tenable/schema.md").exists()
+    assert len(model.nodes) == 11
+    assert len(model.relationships) == 20
+    assert "`CVE` when `has_cve` equals `true`." in generated
+    assert "| cve_list | Yes | CVE IDs associated with the finding. |" in generated
+    assert "Deprecated compatibility edge" in generated
+    assert "(:TenableFinding)-[:DETECTED_BY]->(:TenablePlugin)" in generated
     assert "No description provided." not in generated
 
 
