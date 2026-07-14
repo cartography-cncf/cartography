@@ -1,5 +1,6 @@
 from pathlib import Path
 
+import cartography.models.aibom as aibom_models
 import cartography.models.airbyte as airbyte_models
 import cartography.models.anthropic as anthropic_models
 import cartography.models.bigfix as bigfix_models
@@ -40,6 +41,28 @@ from cartography.models.introspection import Relationship
 from cartography.models.schema_docs import GENERATED_NOTICE
 from cartography.models.schema_docs import render_module_schema
 from cartography.models.schema_docs import write_module_schema_docs
+
+
+def test_aibom_schema_doc_is_generated_from_introspected_model():
+    # Arrange
+    model = inspect_data_model(aibom_models)
+
+    # Act
+    generated = render_module_schema(model, "aibom")
+
+    # Assert
+    assert not Path("docs/root/modules/aibom/schema.md").exists()
+    assert len(model.nodes) == 2
+    assert len(model.relationships) == 12
+    assert "## AIBOM Schema" in generated
+    assert "`AIAgent` when `category` equals `agent`." in generated
+    assert "`AIModel` (ontology label) when `category` equals `model`." in generated
+    assert (
+        "| *_ont_source* |  | Module that populated this node's ontology fields. |"
+        in generated
+    )
+    assert "(:AIBOMSource)-[:RUNS_ON]->(:Container)" in generated
+    assert "No description provided." not in generated
 
 
 def test_airbyte_schema_doc_is_generated_from_introspected_model():

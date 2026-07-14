@@ -88,22 +88,61 @@ def _render_node(
         or f"Representation of a `{node.label}` node.",
         "",
     ]
-    ontology_labels = node.ontology_labels
-    if ontology_labels:
-        formatted_labels = ", ".join(f"`{label}`" for label in ontology_labels)
+    conditional_label_names = {
+        conditional_label.label for conditional_label in node.conditional_labels
+    }
+    unconditional_ontology_labels = tuple(
+        label for label in node.ontology_labels if label not in conditional_label_names
+    )
+    if unconditional_ontology_labels:
+        formatted_labels = ", ".join(
+            f"`{label}`" for label in unconditional_ontology_labels
+        )
         lines.extend(
             [
                 f"> **Ontology Mapping**: This node uses the ontology "
-                f"{'label' if len(ontology_labels) == 1 else 'labels'} "
+                f"{'label' if len(unconditional_ontology_labels) == 1 else 'labels'} "
                 f"{formatted_labels}.",
                 "",
             ]
         )
+    additional_labels = tuple(
+        label for label in node.extra_labels if label not in node.ontology_labels
+    )
+    if additional_labels:
+        formatted_labels = ", ".join(f"`{label}`" for label in additional_labels)
+        lines.extend(
+            [
+                f"> **Additional Labels**: This node also uses " f"{formatted_labels}.",
+                "",
+            ]
+        )
+    if node.conditional_labels:
+        lines.extend(["> **Conditional Labels**:", ">"])
+        for conditional_label in node.conditional_labels:
+            ontology_note = (
+                " (ontology label)"
+                if conditional_label.label in node.ontology_labels
+                else ""
+            )
+            conditions = " and ".join(
+                f"`{field}` equals `{value}`"
+                for field, value in sorted(conditional_label.conditions.items())
+            )
+            lines.append(
+                f"> - `{conditional_label.label}`{ontology_note} when {conditions}."
+            )
+        lines.append("")
 
+    if any(prop.ontology for prop in node.properties):
+        lines.extend(
+            [
+                "Ontology-generated fields are shown in *italics*.",
+                "",
+            ]
+        )
     lines.extend(
         [
-            "Ontology-generated fields are shown in *italics*.",
-            "",
             "| Field | Index | Description |",
             "|-------|-------|-------------|",
         ]
@@ -253,6 +292,8 @@ def _property_description(prop: Property) -> str:
         return description
     if prop.name == "firstseen":
         return "Timestamp when a sync job first created this node."
+    if prop.name == "_ont_source":
+        return "Module that populated this node's ontology fields."
     if prop.ontology:
         if prop.source_names:
             source_fields = ", ".join(f"`{name}`" for name in prop.source_names)
@@ -359,7 +400,7 @@ def _mermaid_relationship(relationship: Relationship) -> str:
 
 
 def _module_title(module: str) -> str:
-    return module.replace("_", " ").title()
+    return {"aibom": "AIBOM"}.get(module, module.replace("_", " ").title())
 
 
 def _model_modules(model: DataModel) -> list[str]:

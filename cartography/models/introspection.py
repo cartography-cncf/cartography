@@ -575,6 +575,12 @@ def _add_ontology_properties(
                         _ontology_labels_for_mapping_group(mapping_group, node_entry)
                     )
                     properties = node_entry["properties"]
+                    _add_generated_property(
+                        properties,
+                        "_ont_source",
+                        "ontology",
+                        ontology=True,
+                    )
                     for field_mapping in node_mapping.fields:
                         _add_generated_property(
                             properties,

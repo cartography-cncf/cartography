@@ -259,6 +259,10 @@ def test_build_data_model_adds_generated_ontology_properties():
     assert ontology_name.generated_by == ("ontology",)
     assert ontology_name.indexed
     assert ontology_name.source_names == ("instanceid",)
+    ontology_source = node.get_property("_ont_source")
+    assert ontology_source is not None
+    assert ontology_source.ontology
+    assert ontology_source.generated_by == ("ontology",)
     assert node.ontology_labels == ("ComputeInstance",)
 
 
