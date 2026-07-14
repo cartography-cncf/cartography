@@ -13,13 +13,27 @@ from cartography.models.core.relationships import TargetNodeMatcher
 
 @dataclass(frozen=True)
 class WorkOSDirectoryGroupNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("id")
-    idp_id: PropertyRef = PropertyRef("idp_id", extra_index=True)
-    name: PropertyRef = PropertyRef("name")
-    created_at: PropertyRef = PropertyRef("created_at")
-    updated_at: PropertyRef = PropertyRef("updated_at")
-    raw_attributes: PropertyRef = PropertyRef("raw_attributes")
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    id: PropertyRef = PropertyRef("id", description="WorkOS directory group ID.")
+    idp_id: PropertyRef = PropertyRef(
+        "idp_id",
+        extra_index=True,
+        description="Group ID assigned by the identity provider.",
+    )
+    name: PropertyRef = PropertyRef("name", description="Directory group name.")
+    created_at: PropertyRef = PropertyRef(
+        "created_at",
+        description="RFC 3339 timestamp when the directory group was created.",
+    )
+    updated_at: PropertyRef = PropertyRef(
+        "updated_at",
+        description="RFC 3339 timestamp when the directory group was updated.",
+    )
+    raw_attributes: PropertyRef = PropertyRef(
+        "raw_attributes", description="Raw group attributes from the identity provider."
+    )
+    lastupdated: PropertyRef = PropertyRef(
+        "lastupdated", set_in_kwargs=True, description="Timestamp of the last update."
+    )
 
 
 @dataclass(frozen=True)
@@ -30,6 +44,8 @@ class WorkOSDirectoryGroupToEnvironmentRelProperties(CartographyRelProperties):
 @dataclass(frozen=True)
 # (:WorkOSEnvironment)-[:RESOURCE]->(:WorkOSDirectoryGroup)
 class WorkOSDirectoryGroupToEnvironmentRel(CartographyRelSchema):
+    """The WorkOS environment contains this directory group as a resource."""
+
     target_node_label: str = "WorkOSEnvironment"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("WORKOS_CLIENT_ID", set_in_kwargs=True)},
@@ -49,6 +65,8 @@ class WorkOSDirectoryGroupToDirectoryRelProperties(CartographyRelProperties):
 @dataclass(frozen=True)
 # (:WorkOSDirectory)-[:HAS]->(:WorkOSDirectoryGroup)
 class WorkOSDirectoryGroupToDirectoryRel(CartographyRelSchema):
+    """The WorkOS directory contains this directory group."""
+
     target_node_label: str = "WorkOSDirectory"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("directory_id")},
@@ -68,6 +86,8 @@ class WorkOSDirectoryGroupToOrganizationRelProperties(CartographyRelProperties):
 @dataclass(frozen=True)
 # (:WorkOSDirectoryGroup)-[:BELONGS_TO]->(:WorkOSOrganization)
 class WorkOSDirectoryGroupToOrganizationRel(CartographyRelSchema):
+    """The WorkOS directory group belongs to its organization."""
+
     target_node_label: str = "WorkOSOrganization"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("organization_id")},
@@ -81,6 +101,8 @@ class WorkOSDirectoryGroupToOrganizationRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class WorkOSDirectoryGroupSchema(CartographyNodeSchema):
+    """A group synchronized from an external identity provider through WorkOS."""
+
     label: str = "WorkOSDirectoryGroup"
     properties: WorkOSDirectoryGroupNodeProperties = (
         WorkOSDirectoryGroupNodeProperties()

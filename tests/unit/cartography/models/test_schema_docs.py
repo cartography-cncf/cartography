@@ -23,6 +23,7 @@ import cartography.models.snipeit as snipeit_models
 import cartography.models.spacelift as spacelift_models
 import cartography.models.subimage as subimage_models
 import cartography.models.workday as workday_models
+import cartography.models.workos as workos_models
 from cartography.models.introspection import DataModel
 from cartography.models.introspection import inspect_data_model
 from cartography.models.introspection import Node
@@ -231,6 +232,23 @@ def test_workday_schema_doc_is_generated_from_introspected_model():
     assert "A person in Workday with the Human label" in generated
     assert "| **email** | Work email address indexed" in generated
     assert "(:WorkdayHuman)-[:REPORTS_TO]->(:WorkdayHuman)" in generated
+    assert "No description provided." not in generated
+
+
+def test_workos_schema_doc_is_generated_from_introspected_model():
+    # Arrange
+    model = inspect_data_model(workos_models)
+
+    # Act
+    generated = render_module_schema(model, "workos")
+
+    # Assert
+    assert not Path("docs/root/modules/workos/schema.md").exists()
+    assert len(model.nodes) == 13
+    assert len(model.relationships) == 29
+    assert "| **slug** | Unique role slug. |" in generated
+    assert "role_id" not in generated
+    assert "(:WorkOSOrganizationMembership)-[:WITH_ROLE]->(:WorkOSRole)" in generated
     assert "No description provided." not in generated
 
 

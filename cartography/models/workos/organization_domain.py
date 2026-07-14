@@ -13,13 +13,21 @@ from cartography.models.core.relationships import TargetNodeMatcher
 
 @dataclass(frozen=True)
 class WorkOSOrganizationDomainNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("id")
-    domain: PropertyRef = PropertyRef("domain")
-    organization_id: PropertyRef = PropertyRef("organization_id")
-    state: PropertyRef = PropertyRef("state")
-    verification_strategy: PropertyRef = PropertyRef("verification_strategy")
-    verification_token: PropertyRef = PropertyRef("verification_token")
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    id: PropertyRef = PropertyRef("id", description="WorkOS organization domain ID.")
+    domain: PropertyRef = PropertyRef("domain", description="Organization domain name.")
+    organization_id: PropertyRef = PropertyRef(
+        "organization_id", description="ID of the organization that owns the domain."
+    )
+    state: PropertyRef = PropertyRef("state", description="Domain verification state.")
+    verification_strategy: PropertyRef = PropertyRef(
+        "verification_strategy", description="Strategy used to verify the domain."
+    )
+    verification_token: PropertyRef = PropertyRef(
+        "verification_token", description="Token used to verify the domain."
+    )
+    lastupdated: PropertyRef = PropertyRef(
+        "lastupdated", set_in_kwargs=True, description="Timestamp of the last update."
+    )
 
 
 @dataclass(frozen=True)
@@ -30,6 +38,8 @@ class WorkOSOrganizationDomainToEnvironmentRelProperties(CartographyRelPropertie
 @dataclass(frozen=True)
 # (:WorkOSEnvironment)-[:RESOURCE]->(:WorkOSOrganizationDomain)
 class WorkOSOrganizationDomainToEnvironmentRel(CartographyRelSchema):
+    """The WorkOS environment contains this organization domain as a resource."""
+
     target_node_label: str = "WorkOSEnvironment"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("WORKOS_CLIENT_ID", set_in_kwargs=True)},
@@ -49,6 +59,8 @@ class WorkOSOrganizationDomainToOrganizationRelProperties(CartographyRelProperti
 @dataclass(frozen=True)
 # (:WorkOSOrganizationDomain)-[:DOMAIN_OF]->(:WorkOSOrganization)
 class WorkOSOrganizationDomainToOrganizationRel(CartographyRelSchema):
+    """The WorkOS organization domain belongs to its organization."""
+
     target_node_label: str = "WorkOSOrganization"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("organization_id")},
@@ -62,6 +74,8 @@ class WorkOSOrganizationDomainToOrganizationRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class WorkOSOrganizationDomainSchema(CartographyNodeSchema):
+    """A domain associated with a WorkOS organization."""
+
     label: str = "WorkOSOrganizationDomain"
     properties: WorkOSOrganizationDomainNodeProperties = (
         WorkOSOrganizationDomainNodeProperties()
