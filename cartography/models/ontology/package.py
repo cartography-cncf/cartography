@@ -106,7 +106,7 @@ class PackageToOntologyImageRel(CartographyRelSchema):
 
     The target matcher is intentionally irrelevant here: GraphJob unscoped cleanup
     only needs the relationship label and target node label to delete stale
-    DEPLOYED edges. Relationship creation happens via ontology_packages_linking.json
+    DEPLOYED edges. Relationship creation happens via the ontology package analysis jobs
     which traverses the scanner package path (Package -> DETECTED_AS -> TrivyPackage/SyftPackage -> DEPLOYED -> Image).
     """
 

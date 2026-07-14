@@ -151,7 +151,7 @@ If you want to learn more in depth about Neo4j and Cypher queries you can look a
 ### Data Enrichment
 
 
-Cartography adds custom attributes to nodes and relationships to point out security-related items of interest. Data augmentation jobs meant to apply to the whole graph and run at the end of a sync are stored in `cartography/data/jobs/analysis`. Here is a summary of all of Cartography's custom attributes.
+Cartography adds custom attributes to nodes and relationships to point out security-related items of interest. Built-in data augmentation jobs are typed analysis jobs under `cartography/analysis/*/analysis.py`. Here is a summary of all of Cartography's custom attributes.
 
 - `exposed_internet` indicates whether the asset is accessible to the public internet.
 

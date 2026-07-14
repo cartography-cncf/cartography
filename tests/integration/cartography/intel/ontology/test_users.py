@@ -2,7 +2,9 @@ from unittest.mock import patch
 
 import cartography.intel.ontology.users
 import tests.data.duo.users
+from cartography.analysis.ontology.analysis import USER_AUTHORIZED_THIRD_PARTY_APP
 from cartography.intel.duo.users import _transform_users
+from cartography.util import run_typed_analysis_job
 from tests.integration.cartography.intel.duo.test_users import (
     _ensure_local_neo4j_has_test_users as _ensure_local_neo4j_has_test_duo_users,
 )
@@ -223,3 +225,37 @@ def test_cleanup_removes_stale_custom_user_relationships(neo4j_session):
         """
     ).single()["count"]
     assert fresh_useraccount_rel_count == 1
+
+
+def test_okta_group_authorization_does_not_overwrite_direct_scopes(neo4j_session):
+    neo4j_session.run("MATCH (n) DETACH DELETE n;")
+    neo4j_session.run(
+        """
+        MERGE (u:User {id: 'user-1'})
+        MERGE (acct:UserAccount {id: 'acct-1'})
+        MERGE (u)-[:HAS_ACCOUNT]->(acct)
+        MERGE (app:ThirdPartyApp {id: 'app-1'})
+        MERGE (acct)-[authr:AUTHORIZED]->(app)
+        SET authr.scopes = ['email', 'profile']
+
+        MERGE (okta:OktaUser {id: 'okta-1'})
+        MERGE (u)-[:HAS_ACCOUNT]->(okta)
+        MERGE (group:OktaGroup {id: 'group-1'})
+        MERGE (okta)-[:MEMBER_OF_OKTA_GROUP]->(group)
+        MERGE (group)-[:APPLICATION]->(app)
+        """
+    )
+
+    run_typed_analysis_job(
+        USER_AUTHORIZED_THIRD_PARTY_APP,
+        neo4j_session,
+        {"UPDATE_TAG": TEST_UPDATE_TAG},
+    )
+
+    scopes = neo4j_session.run(
+        """
+        MATCH (:User {id: 'user-1'})-[r:AUTHORIZED]->(:ThirdPartyApp {id: 'app-1'})
+        RETURN r.scopes AS scopes
+        """
+    ).single()["scopes"]
+    assert scopes == ["email", "profile"]

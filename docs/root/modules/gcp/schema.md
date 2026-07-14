@@ -317,8 +317,9 @@ Representation of a GCP [Instance](https://cloud.google.com/compute/docs/referen
     (GCPInstance)-[:MEMBER_OF_GCP_VPC]->(GCPVpc)
     ```
 
-    This relationship is created by an [analysis job](../../dev/writing-analysis-jobs.html)
-    defined at `cartography/data/jobs/analysis/gcp_compute_instance_vpc_analysis.json`.
+    This relationship is created by the `GCP_COMPUTE_INSTANCE_VPC_ANALYSIS`
+    [analysis job](../../dev/writing-analysis-jobs.html) defined in
+    `cartography/analysis/gcp/analysis.py`.
 
     Also note that this relationship is a shortcut for:
 
@@ -2252,7 +2253,7 @@ Representation of an individual container spec from a [Cloud Run Job](https://cl
     (GCPCloudRunJobContainer)-[:HAS_IMAGE]->(GCPArtifactRegistryImage)
     (GCPCloudRunJobContainer)-[:HAS_IMAGE]->(GitHubContainerImage)
     ```
-  - GCPCloudRunJobContainers are connected to the concrete single platform `Image` they actually ran via `RESOLVED_IMAGE`, produced by the `resolved_image_analysis.json` analysis job when the target can be deterministically identified. See [Container](../../ontology/schema.md#container) for the full semantics.
+  - GCPCloudRunJobContainers are connected to the concrete single platform `Image` they actually ran via `RESOLVED_IMAGE`, produced by `RESOLVED_IMAGE_JOBS` in `cartography/analysis/ontology/analysis.py` when the target can be deterministically identified. See [Container](../../ontology/schema.md#container) for the full semantics.
     ```
     (GCPCloudRunJobContainer)-[:RESOLVED_IMAGE]->(Image)
     ```
@@ -2294,7 +2295,7 @@ Representation of an individual container spec from a [Cloud Run Service](https:
     (GCPCloudRunServiceContainer)-[:HAS_IMAGE]->(GCPArtifactRegistryImage)
     (GCPCloudRunServiceContainer)-[:HAS_IMAGE]->(GitHubContainerImage)
     ```
-  - GCPCloudRunServiceContainers are connected to the concrete single platform `Image` they actually ran via `RESOLVED_IMAGE`, produced by the `resolved_image_analysis.json` analysis job when the target can be deterministically identified. See [Container](../../ontology/schema.md#container) for the full semantics.
+  - GCPCloudRunServiceContainers are connected to the concrete single platform `Image` they actually ran via `RESOLVED_IMAGE`, produced by `RESOLVED_IMAGE_JOBS` in `cartography/analysis/ontology/analysis.py` when the target can be deterministically identified. See [Container](../../ontology/schema.md#container) for the full semantics.
     ```
     (GCPCloudRunServiceContainer)-[:RESOLVED_IMAGE]->(Image)
     ```

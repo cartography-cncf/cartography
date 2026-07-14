@@ -54,7 +54,7 @@ class EC2InstanceNodeProperties(CartographyNodeProperties):
     imdsv2required: PropertyRef = PropertyRef("ImdsV2Required")
     exposed_internet: PropertyRef = PropertyRef(
         "exposed_internet", extra_index=True
-    )  # Populated by aws_ec2_asset_exposure.json.
+    )  # Populated by AWS_EC2_ASSET_EXPOSURE_JOBS.
     eks_cluster_name: PropertyRef = PropertyRef("EksClusterName")
     ipv6address: PropertyRef = PropertyRef("IPv6Address")
 

@@ -111,6 +111,7 @@ AWS_LABEL_MIGRATIONS: tuple[AWSLabelMigration, ...] = tuple(
         "RDSInstance",
         "RDSSnapshot",
         "RedshiftCluster",
+        "PublicSSMParameter",
         "S3AccountPublicAccessBlock",
         "S3Acl",
         "S3Bucket",
@@ -165,4 +166,19 @@ def migrate_legacy_aws_labels(
         neo4j_session,
         build_aws_label_migration_query(),
         AWS_ID=current_aws_account_id,
+    )
+
+
+# DEPRECATED: PublicSSMParameter compatibility support will be removed in v1.0.0.
+def migrate_legacy_public_ssm_parameter_label(
+    neo4j_session: neo4j.Session,
+) -> None:
+    """Migrate global AWS-managed SSM parameters, which have no account edge."""
+    run_write_query(
+        neo4j_session,
+        """
+        MATCH (parameter:PublicSSMParameter)
+        WHERE NOT parameter:AWSPublicSSMParameter
+        SET parameter:AWSPublicSSMParameter
+        """,
     )

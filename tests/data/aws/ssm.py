@@ -178,3 +178,25 @@ SSM_PARAMETERS_DATA = [
         ],
     },
 ]
+
+
+PUBLIC_SSM_PARAMETERS_DATA = [
+    {
+        "Name": "/aws/service/bottlerocket/aws-k8s-1.30/x86_64/latest/image_id",
+        "ARN": "arn:aws:ssm:us-east-1::parameter/aws/service/bottlerocket/aws-k8s-1.30/x86_64/latest/image_id",
+        "Type": "String",
+        "Value": "ami-0abc123def4567890",
+        "Version": 7,
+        "LastModifiedDate": datetime.datetime(2025, 1, 2, 12, 0, 0, tzinfo=tz.utc),
+        "DataType": "text",
+    },
+    {
+        "Name": "/aws/service/bottlerocket/aws-k8s-1.30/x86_64/latest/image_version",
+        "ARN": "arn:aws:ssm:us-east-1::parameter/aws/service/bottlerocket/aws-k8s-1.30/x86_64/latest/image_version",
+        "Type": "String",
+        "Value": "1.30.0",
+        "Version": 7,
+        "LastModifiedDate": datetime.datetime(2025, 1, 2, 12, 0, 1, tzinfo=tz.utc),
+        "DataType": "text",
+    },
+]

@@ -13,7 +13,7 @@ def test_aws_label_migration_registry_is_complete_and_unique():
         migration.new_label for migration in label_migrations.AWS_LABEL_MIGRATIONS
     ]
 
-    assert len(old_labels) == 102
+    assert len(old_labels) == 103
     assert len(old_labels) == len(set(old_labels))
     assert len(new_labels) == len(set(new_labels))
     assert all(new == f"AWS{old}" for old, new in zip(old_labels, new_labels))
@@ -49,3 +49,19 @@ def test_migrate_legacy_aws_labels_uses_one_scoped_write(mocker):
     assert "WHEN n:EC2Instance AND NOT n:AWSEC2Instance" in args[1]
     assert "SET n:AWSEC2Instance" in args[1]
     assert kwargs == {"AWS_ID": "123456789012"}
+
+
+def test_migrate_legacy_public_ssm_parameter_label_uses_global_write(mocker):
+    neo4j_session = MagicMock()
+    run_write_query = mocker.patch(
+        "cartography.intel.aws.label_migrations.run_write_query"
+    )
+
+    label_migrations.migrate_legacy_public_ssm_parameter_label(neo4j_session)
+
+    run_write_query.assert_called_once()
+    args, kwargs = run_write_query.call_args
+    assert args[0] is neo4j_session
+    assert "MATCH (parameter:PublicSSMParameter)" in args[1]
+    assert "SET parameter:AWSPublicSSMParameter" in args[1]
+    assert kwargs == {}

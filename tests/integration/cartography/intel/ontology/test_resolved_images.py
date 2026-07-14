@@ -8,7 +8,8 @@ from unittest.mock import patch
 import cartography.intel.gcp.cloudrun.job as cloudrun_job
 import cartography.intel.gcp.cloudrun.revision as cloudrun_revision
 import cartography.intel.gcp.cloudrun.service as cloudrun_service
-from cartography.util import run_analysis_job
+from cartography.analysis.ontology.analysis import RESOLVED_IMAGE_JOBS
+from cartography.util import run_typed_analysis_job
 from tests.data.gcp.cloudrun import MOCK_JOB_WITH_DIGEST
 from tests.data.gcp.cloudrun import MOCK_REVISION_WITH_DIGEST
 from tests.data.gcp.cloudrun import MOCK_SERVICE_WITH_DIGEST
@@ -25,6 +26,11 @@ TEST_CLOUD_RUN_LOCATIONS = [
     "projects/test-project/locations/us-central1",
     "projects/test-project/locations/us-west1",
 ]
+
+
+def _run_resolved_image_analysis(neo4j_session):
+    for job in RESOLVED_IMAGE_JOBS:
+        run_typed_analysis_job(job, neo4j_session, {"UPDATE_TAG": TEST_UPDATE_TAG})
 
 
 def test_resolved_image_analysis_creates_rel_via_has_image(neo4j_session):
@@ -46,11 +52,7 @@ def test_resolved_image_analysis_creates_rel_via_has_image(neo4j_session):
         update_tag=TEST_UPDATE_TAG,
     )
 
-    run_analysis_job(
-        "resolved_image_analysis.json",
-        neo4j_session,
-        {"UPDATE_TAG": TEST_UPDATE_TAG},
-    )
+    _run_resolved_image_analysis(neo4j_session)
 
     assert check_rels(
         neo4j_session,
@@ -150,11 +152,7 @@ def test_resolved_image_analysis_creates_rel_for_cloud_run(
     )
 
     # Act: run the RESOLVED_IMAGE analysis job
-    run_analysis_job(
-        "resolved_image_analysis.json",
-        neo4j_session,
-        {"UPDATE_TAG": TEST_UPDATE_TAG},
-    )
+    _run_resolved_image_analysis(neo4j_session)
 
     # Assert: no :Function RESOLVED_IMAGE — Service no longer carries :Function.
     assert (
@@ -256,11 +254,7 @@ def test_resolved_image_analysis_creates_rel_via_manifest_list(neo4j_session):
         update_tag=TEST_UPDATE_TAG,
     )
 
-    run_analysis_job(
-        "resolved_image_analysis.json",
-        neo4j_session,
-        {"UPDATE_TAG": TEST_UPDATE_TAG},
-    )
+    _run_resolved_image_analysis(neo4j_session)
 
     assert check_rels(
         neo4j_session,
@@ -312,11 +306,7 @@ def test_resolved_image_analysis_creates_rel_for_gcp_artifact_registry_manifest_
         update_tag=TEST_UPDATE_TAG,
     )
 
-    run_analysis_job(
-        "resolved_image_analysis.json",
-        neo4j_session,
-        {"UPDATE_TAG": TEST_UPDATE_TAG},
-    )
+    _run_resolved_image_analysis(neo4j_session)
 
     assert check_rels(
         neo4j_session,

@@ -134,17 +134,18 @@ OntologyNodeMapping(
 
 ### Step 6 — Cross-entity relationships (e.g. user owns device)
 
-For services that link users to devices, add a statement to the appropriate ontology analysis JSON file (e.g. `cartography/data/jobs/analysis/ontology_devices_linking.json`):
+For services that link users to devices, add a typed analysis statement to `cartography/analysis/ontology/analysis.py`:
 
-```json
-{
-  "__comment": "Connect users to their devices via YourService",
-  "query": "MATCH (u:User)-[:HAS_ACCOUNT]->(:YourServiceUser)-[:OWNS]->(:YourServiceDevice)<-[:OBSERVED_AS]-(d:Device) MERGE (u)-[r:OWNS]->(d) ON CREATE SET r.firstseen = timestamp() SET r.lastupdated = $UPDATE_TAG",
-  "iterative": false
-}
+```python
+AnalysisStatement(
+    match="MATCH (u:User)-[:HAS_ACCOUNT]->(:YourServiceUser)-[:OWNS]->(:YourServiceDevice)<-[:OBSERVED_AS]-(d:Device)",
+    effects=(
+        AddRelationship("u", "OWNS", "d", source_label="User", target_label="Device"),
+    ),
+)
 ```
 
-See the `analysis-jobs` skill for the JSON job format.
+See the `analysis-jobs` skill for typed analysis job syntax.
 
 ### Step 7 — Test
 
