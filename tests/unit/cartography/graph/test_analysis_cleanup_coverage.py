@@ -1,16 +1,16 @@
 import pytest
 
-from cartography.graph.analysis import CleanupScopedTo
 from cartography.graph.analysis import PropertyEffect
 from cartography.graph.analysis import RelationshipEffect
+from cartography.graph.analysis import ScopeById
 from cartography.graph.analysisbuilder import cleanup_query
 
-AWS = CleanupScopedTo("AWSAccount", "AWS_ID")
-AZURE = CleanupScopedTo("AzureSubscription", "AZURE_SUBSCRIPTION_ID")
-ENTRA = CleanupScopedTo("EntraTenant", "TENANT_ID")
-GCP = CleanupScopedTo("GCPProject", "PROJECT_ID")
-K8S = CleanupScopedTo("KubernetesCluster", "CLUSTER_ID")
-SEMGREP = CleanupScopedTo("SemgrepDeployment", "DEPLOYMENT_ID")
+AWS = ScopeById("AWSAccount", "AWS_ID")
+AZURE = ScopeById("AzureSubscription", "AZURE_SUBSCRIPTION_ID")
+ENTRA = ScopeById("EntraTenant", "TENANT_ID")
+GCP = ScopeById("GCPProject", "PROJECT_ID")
+K8S = ScopeById("KubernetesCluster", "CLUSTER_ID")
+SEMGREP = ScopeById("SemgrepDeployment", "DEPLOYMENT_ID")
 
 
 def _rel_cleanup(
@@ -18,7 +18,7 @@ def _rel_cleanup(
     rel: str,
     target: str,
     *,
-    scope: CleanupScopedTo | None = None,
+    scope: ScopeById | None = None,
     scoped_to: str = "source",
 ) -> str:
     match = f"MATCH (source:{source})-[r:{rel}]->(target:{target})"
@@ -39,7 +39,7 @@ def _rel_cleanup(
 def _prop_cleanup(
     label: str,
     *props: str,
-    scope: CleanupScopedTo | None = None,
+    scope: ScopeById | None = None,
 ) -> str:
     node = f"(node:{label})"
     match = f"MATCH {node}"

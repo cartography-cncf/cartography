@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from functools import singledispatch
 from typing import Any
 from typing import cast
@@ -13,12 +14,14 @@ from cartography.graph.analysis import AnalysisEffect
 from cartography.graph.analysis import AnalysisJob
 from cartography.graph.analysis import AnalysisStatement
 from cartography.graph.analysis import Case
-from cartography.graph.analysis import CleanupScopedTo
+from cartography.graph.analysis import IncrementalMatch
+from cartography.graph.analysis import IncrementalTarget
 from cartography.graph.analysis import Param
 from cartography.graph.analysis import PropertyEffect
 from cartography.graph.analysis import RawCypher
 from cartography.graph.analysis import RelationshipEffect
 from cartography.graph.analysis import RelationshipPropertyEffect
+from cartography.graph.analysis import ScopeById
 from cartography.graph.analysis import SetProperties
 from cartography.graph.analysis import SetProperty
 from cartography.graph.analysis import SetRelationshipProperty
@@ -30,15 +33,30 @@ from cartography.graph.statement import GraphStatement
 from cartography.models.core.relationships import LinkDirection
 
 
-def compile_query(statement: AnalysisStatement) -> str:
+def compile_query(
+    statement: AnalysisStatement,
+    *,
+    scope: ScopeById | None = None,
+    scope_index: int = 0,
+) -> str:
     if statement.query:
+        if scope or statement.incremental_on:
+            raise ValueError("Raw analysis queries do not support structural scoping.")
         return statement.query
     if statement.match is None:
         raise ValueError("AnalysisStatement requires match or query.")
     for effect in statement.effects:
         _cleanup_effect(effect)
+    prefixes: list[str] = []
+    if scope:
+        prefixes.append(_declared_scope_match(scope, scope_index))
+    prefixes.extend(_incremental_matches(statement))
     return "\n".join(
-        (statement.match.strip(), *(_compile_effect(e) for e in statement.effects))
+        (
+            *prefixes,
+            statement.match.strip(),
+            *(_compile_effect(e) for e in statement.effects),
+        )
     )
 
 
@@ -46,9 +64,12 @@ def to_graph_statement(
     statement: AnalysisStatement,
     parent_job_name: str,
     sequence_num: int,
+    *,
+    scope: ScopeById | None = None,
+    scope_index: int = 0,
 ) -> GraphStatement:
     return GraphStatement(
-        compile_query(statement),
+        compile_query(statement, scope=scope, scope_index=scope_index),
         iterative=statement.iterative,
         iterationsize=statement.iterationsize,
         parent_job_name=parent_job_name,
@@ -88,8 +109,16 @@ def to_graph_job(job: AnalysisJob) -> GraphJob:
                 _cleanup_statement(job, effect, parent_name, len(statements) + 1)
             )
 
-    for offset, statement in enumerate(job.statements, start=len(statements) + 1):
-        statements.append(to_graph_statement(statement, parent_name, offset))
+    for scope_index, statement in enumerate(job.statements):
+        statements.append(
+            to_graph_statement(
+                statement,
+                parent_name,
+                len(statements) + 1,
+                scope=job.scope,
+                scope_index=scope_index,
+            )
+        )
 
     for effect in cleanup_effects:
         if not effect.cleanup_before_statements:
@@ -100,7 +129,7 @@ def to_graph_job(job: AnalysisJob) -> GraphJob:
     return GraphJob(job.name, statements, job.short_name)
 
 
-def cleanup_query(effect: AnalysisEffect, scope: CleanupScopedTo | None) -> str:
+def cleanup_query(effect: AnalysisEffect, scope: ScopeById | None) -> str:
     return _cleanup_query(effect, scope)
 
 
@@ -132,13 +161,94 @@ def _cleanup_statement(
     )
 
 
+_CYPHER_IDENTIFIER = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
+
+
+def _validate_identifier(value: str, description: str) -> str:
+    if not _CYPHER_IDENTIFIER.fullmatch(value):
+        raise ValueError(f"Invalid Cypher {description}: {value!r}")
+    return value
+
+
+def _declared_scope_match(
+    scope: ScopeById,
+    scope_index: int,
+) -> str:
+    if scope.scope_on is None:
+        raise ValueError("ScopeById requires scope_on for analysis queries.")
+    alias = (
+        scope.scope_on
+        if isinstance(scope.scope_on, str)
+        else scope.scope_on[scope_index]
+    )
+    scope_label = _validate_identifier(scope.label, "scope label")
+    id_property = _validate_identifier(scope.id_property, "scope ID property")
+    id_param = _validate_identifier(scope.id_param, "scope ID parameter")
+    rel_label = _validate_identifier(scope.rel_label, "scope relationship label")
+    _validate_identifier(alias, "scope variable")
+    return (
+        f"MATCH (scope:{scope_label} "
+        f"{{{id_property}: ${id_param}}})-[:{rel_label}]->({alias})"
+    )
+
+
+def _incremental_targets(
+    statement: AnalysisStatement,
+) -> tuple[IncrementalMatch, ...]:
+    incremental_on = statement.incremental_on
+    if incremental_on is None:
+        return ()
+    targets: tuple[IncrementalTarget, ...]
+    if isinstance(incremental_on, (str, IncrementalMatch)):
+        targets = (incremental_on,)
+    else:
+        targets = tuple(incremental_on)
+    return tuple(
+        target if isinstance(target, IncrementalMatch) else IncrementalMatch(target)
+        for target in targets
+    )
+
+
+def _incremental_matches(statement: AnalysisStatement) -> tuple[str, ...]:
+    if statement.match is None:
+        return ()
+    matches: list[str] = []
+    for target in _incremental_targets(statement):
+        variable = _validate_identifier(target.variable, "incremental variable")
+        if target.relationship:
+            rel_type = _relationship_type_for_alias(statement.match, variable)
+            rel_label = f":{rel_type}" if rel_type else ""
+            matches.append(
+                f"MATCH ()-[{variable}{rel_label} " "{lastupdated: $UPDATE_TAG}]->()"
+            )
+        else:
+            label = _node_label_for_alias(statement.match, variable)
+            node_label = f":{label}" if label else ""
+            matches.append(
+                f"MATCH ({variable}{node_label} " "{lastupdated: $UPDATE_TAG})"
+            )
+    return tuple(matches)
+
+
+def _node_label_for_alias(match: str, alias: str) -> str | None:
+    pattern = re.compile(rf"\(\s*{re.escape(alias)}\s*:\s*([A-Za-z_][A-Za-z0-9_]*)")
+    found = pattern.search(match)
+    return found.group(1) if found else None
+
+
+def _relationship_type_for_alias(match: str, alias: str) -> str | None:
+    pattern = re.compile(rf"\[\s*{re.escape(alias)}\s*:\s*([A-Za-z_][A-Za-z0-9_]*)")
+    found = pattern.search(match)
+    return found.group(1) if found else None
+
+
 def _require_label(label: str | None) -> str:
     if not label:
         raise ValueError("Property effects require label for cleanup.")
     return label
 
 
-def _scope_match(scope: CleanupScopedTo, alias: str) -> str:
+def _scope_match(scope: ScopeById, alias: str) -> str:
     return f"({alias}:{scope.label} {{{scope.id_property}: ${scope.id_param}}})"
 
 
@@ -312,12 +422,12 @@ def _(effect: AddRelationship) -> RelationshipEffect:
 
 
 @singledispatch
-def _cleanup_query(effect: AnalysisEffect, scope: CleanupScopedTo | None) -> str:
+def _cleanup_query(effect: AnalysisEffect, scope: ScopeById | None) -> str:
     raise TypeError(f"Unsupported cleanup effect: {effect!r}")
 
 
 @_cleanup_query.register
-def _(effect: RelationshipEffect, scope: CleanupScopedTo | None) -> str:
+def _(effect: RelationshipEffect, scope: ScopeById | None) -> str:
     source = f"(source:{effect.source_label})"
     target = f"(target:{effect.target_label})"
     rel = f"[r:{effect.rel_label}]"
@@ -349,7 +459,7 @@ def _(effect: RelationshipEffect, scope: CleanupScopedTo | None) -> str:
 
 
 @_cleanup_query.register
-def _(effect: PropertyEffect, scope: CleanupScopedTo | None) -> str:
+def _(effect: PropertyEffect, scope: ScopeById | None) -> str:
     node = f"(node:{effect.node_label})"
     match = f"MATCH {node}"
     if scope:
@@ -360,7 +470,7 @@ def _(effect: PropertyEffect, scope: CleanupScopedTo | None) -> str:
 
 
 @_cleanup_query.register
-def _(effect: RelationshipPropertyEffect, scope: CleanupScopedTo | None) -> str:
+def _(effect: RelationshipPropertyEffect, scope: ScopeById | None) -> str:
     source = f"(source:{effect.source_label})"
     target = f"(target:{effect.target_label})" if effect.target_label else "(target)"
     rel = f"[r:{effect.rel_label}]"
