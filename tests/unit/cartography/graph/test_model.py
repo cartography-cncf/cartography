@@ -86,6 +86,30 @@ def test_model_objects_naming_convention():
     assert not errors, "Naming convention violations:\n  - " + "\n  - ".join(errors)
 
 
+def test_microsoft_tenant_relationships_target_azure_tenant():
+    """Ensure model introspection uses one canonical Microsoft tenant vertex."""
+    errors: list[str] = []
+    for module_name, element in load_models(cartography.models):
+        if not module_name.startswith("cartography.models.microsoft"):
+            continue
+        if not issubclass(element, CartographyRelSchema):
+            continue
+
+        relationship = element()
+        if relationship.target_node_label == "EntraTenant":
+            errors.append(f"{module_name}.{element.__name__}.target_node_label")
+
+        for scope_name in ("source_node_sub_resource", "target_node_sub_resource"):
+            scope = getattr(relationship, scope_name, None)
+            if scope and scope.target_node_label == "EntraTenant":
+                errors.append(f"{module_name}.{element.__name__}.{scope_name}")
+
+    assert not errors, (
+        "Microsoft relationships must target the canonical AzureTenant label:\n  - "
+        + "\n  - ".join(errors)
+    )
+
+
 def test_aws_primary_node_labels_use_provider_prefix():
     errors: List[str] = []
     for module_name, element in load_models(cartography.models):

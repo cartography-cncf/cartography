@@ -37,7 +37,7 @@ def _ensure_local_neo4j_has_test_users(neo4j_session):
     """
     neo4j_session.run(
         """
-        MATCH (t:EntraTenant {id: $tenant_id})
+        MATCH (t:AzureTenant {id: $tenant_id})
         CREATE (u1:EntraUser {id: 'ae4ac864-4433-4ba6-96a6-20f8cffdadcb', display_name: 'Test User 1', user_principal_name: 'test.user1@example.com'})
         CREATE (u2:EntraUser {id: '11dca63b-cb03-4e53-bb75-fa8060285550', display_name: 'Test User 2'})
         CREATE (g1:EntraGroup {id: '11111111-2222-3333-4444-555555555555', display_name: 'Finance Team'})
@@ -232,7 +232,7 @@ async def test_sync_entra_applications(
             neo4j_session,
             "EntraApplication",
             "id",
-            "EntraTenant",
+            "AzureTenant",
             "id",
             "RESOURCE",
             rel_direction_right=False,
@@ -437,7 +437,7 @@ async def test_sync_entra_applications(
         """
         MATCH (app:EntraApplication {display_name: 'Finance Tracker'})
         WITH app
-        CREATE (t2:EntraTenant {id: 'other-tenant-id'})
+        CREATE (t2:AzureTenant:EntraTenant {id: 'other-tenant-id'})
         CREATE (sp2:EntraServicePrincipal {
             id: 'sp-foreign-finance',
             app_id: app.app_id,

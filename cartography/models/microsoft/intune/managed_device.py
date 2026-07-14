@@ -58,10 +58,10 @@ class IntuneManagedDeviceToTenantRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
-# (:IntuneManagedDevice)<-[:RESOURCE]-(:EntraTenant)
+# (:IntuneManagedDevice)<-[:RESOURCE]-(:AzureTenant)
 @dataclass(frozen=True)
 class IntuneManagedDeviceToTenantRel(CartographyRelSchema):
-    target_node_label: str = "EntraTenant"
+    target_node_label: str = "AzureTenant"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("TENANT_ID", set_in_kwargs=True)},
     )
