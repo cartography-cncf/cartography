@@ -20,31 +20,57 @@ class GitLabOrganizationNodeProperties(CartographyNodeProperties):
     Organizations are top-level groups in GitLab's hierarchy.
     """
 
-    id: PropertyRef = PropertyRef("id")  # Stable numeric GitLab group ID
-    name: PropertyRef = PropertyRef("name", extra_index=True)  # Display name
-    path: PropertyRef = PropertyRef("path", extra_index=True)  # URL path slug
+    id: PropertyRef = PropertyRef(
+        "id",
+        description="Numeric GitLab ID of the top-level group.",
+    )
+    name: PropertyRef = PropertyRef(
+        "name",
+        extra_index=True,
+        description="Display name of the organization.",
+    )
+    path: PropertyRef = PropertyRef(
+        "path",
+        extra_index=True,
+        description="URL path slug of the organization.",
+    )
     full_path: PropertyRef = PropertyRef(
-        "full_path", extra_index=True
-    )  # Full hierarchy path
-    web_url: PropertyRef = PropertyRef("web_url", extra_index=True)
-    description: PropertyRef = PropertyRef("description")
-    visibility: PropertyRef = PropertyRef("visibility")  # private, internal, public
-    created_at: PropertyRef = PropertyRef("created_at")
+        "full_path",
+        extra_index=True,
+        description="Full path of the top-level group.",
+    )
+    web_url: PropertyRef = PropertyRef(
+        "web_url",
+        extra_index=True,
+        description="URL for viewing the organization in GitLab.",
+    )
+    description: PropertyRef = PropertyRef(
+        "description",
+        description="Human-readable description of the organization.",
+    )
+    visibility: PropertyRef = PropertyRef(
+        "visibility",
+        description="Organization visibility: private, internal, or public.",
+    )
+    created_at: PropertyRef = PropertyRef(
+        "created_at",
+        description="Timestamp when GitLab created the top-level group.",
+    )
     gitlab_url: PropertyRef = PropertyRef(
-        "gitlab_url", extra_index=True
-    )  # GitLab instance URL for scoped cleanup
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+        "gitlab_url",
+        extra_index=True,
+        description="URL of the GitLab instance.",
+    )
+    lastupdated: PropertyRef = PropertyRef(
+        "lastupdated",
+        set_in_kwargs=True,
+        description="Timestamp of the last time the node was updated.",
+    )
 
 
 @dataclass(frozen=True)
 class GitLabOrganizationSchema(CartographyNodeSchema):
-    """
-    Schema for GitLab Organization nodes.
-
-    Organizations are top-level groups (parent_id is null) that serve as the root
-    of GitLab's organizational hierarchy. They are top-level resources with no parent,
-    so they have no sub_resource_relationship.
-    """
+    """A configured GitLab top-level group that scopes an organization sync."""
 
     label: str = "GitLabOrganization"
     properties: GitLabOrganizationNodeProperties = GitLabOrganizationNodeProperties()

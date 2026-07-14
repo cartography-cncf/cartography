@@ -12,6 +12,7 @@ import cartography.models.cve_metadata as cve_metadata_models
 import cartography.models.digitalocean as digitalocean_models
 import cartography.models.docker_scout as docker_scout_models
 import cartography.models.duo as duo_models
+import cartography.models.gitlab as gitlab_models
 import cartography.models.googleworkspace as googleworkspace_models
 import cartography.models.gsuite as gsuite_models
 import cartography.models.jumpcloud as jumpcloud_models
@@ -196,6 +197,7 @@ def test_trivy_schema_doc_is_generated_from_introspected_model():
     assert "(:Package)-[:DETECTED_AS]->(:TrivyPackage)" in generated
     assert "(:Package)-[:SHOULD_UPDATE_TO]->(:TrivyFix)" in generated
     assert "(:TrivyImageFinding)-[:AFFECTS]->(:Package)" in generated
+    assert "(:CVEMetadata)-[:ENRICHES]->(:CVE)" in generated
     assert (
         "    | version | Package version that fixes the vulnerability. |" in generated
     )
@@ -237,6 +239,7 @@ def test_sentinelone_schema_doc_is_generated_from_introspected_model():
     assert "## SentinelOne Schema" in generated
     assert "(:Device)-[:OBSERVED_AS]->(:S1Agent)" in generated
     assert "(:S1AppFinding)-[:AFFECTS]->(:Device)" in generated
+    assert "(:CVEMetadata)-[:ENRICHES]->(:CVE)" in generated
     assert (
         "    | installeddatetime | Timestamp when the application version was "
         "installed. |" in generated
@@ -252,18 +255,50 @@ def test_sentinelone_schema_doc_is_generated_from_introspected_model():
 def test_tenable_schema_doc_is_generated_from_introspected_model():
     # Arrange
     model = inspect_data_model(tenable_models)
+    complete_model = inspect_data_model()
 
     # Act
-    generated = render_module_schema(model, "tenable")
+    generated = render_module_schema(complete_model, "tenable")
 
     # Assert
     assert not Path("docs/root/modules/tenable/schema.md").exists()
     assert len(model.nodes) == 11
     assert len(model.relationships) == 20
     assert "`CVE` when `has_cve` equals `true`." in generated
+    assert "(:CVEMetadata)-[:ENRICHES]->(:CVE)" in generated
     assert "| cve_list | Yes | CVE IDs associated with the finding. |" in generated
     assert "Deprecated compatibility edge" in generated
     assert "(:TenableFinding)-[:DETECTED_BY]->(:TenablePlugin)" in generated
+    assert "No description provided." not in generated
+
+
+def test_gitlab_schema_doc_is_generated_from_introspected_model():
+    # Arrange
+    model = inspect_data_model(gitlab_models)
+    complete_model = inspect_data_model()
+
+    # Act
+    generated = render_module_schema(complete_model, "gitlab")
+    mermaid_graph = generated.split("graph LR", 1)[1].split("```", 1)[0]
+
+    # Assert
+    assert not Path("docs/root/modules/gitlab/schema.md").exists()
+    assert len(model.nodes) == 17
+    assert len(model.relationships) == 46
+    assert mermaid_graph.count("-->") == 75
+    assert "(:TrivyImageFinding)-[:AFFECTS]->(:Image)" in generated
+    assert "(:SyftPackage)-[:DEPLOYED]->(:Image)" in generated
+    assert "(:Image)-[:PACKAGED_FROM]->(:GitHubRepository)" in generated
+    assert "(:SocketDevRepository)-[:MONITORS]->(:CodeRepository)" in generated
+    assert "(:Image)-[:PACKAGED_BY]->(:GitHubWorkflow)" not in generated
+    assert (
+        "| masked_and_hidden |  | Whether the value is masked and cannot be "
+        "retrieved after creation. |" in generated
+    )
+    assert (
+        "    | command_similarity | Similarity score between image build commands "
+        "and Dockerfile commands. |" in generated
+    )
     assert "No description provided." not in generated
 
 

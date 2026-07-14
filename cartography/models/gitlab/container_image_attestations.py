@@ -24,16 +24,50 @@ from cartography.models.core.relationships import TargetNodeMatcher
 
 @dataclass(frozen=True)
 class GitLabContainerImageAttestationNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("digest")
-    digest: PropertyRef = PropertyRef("digest", extra_index=True)
-    media_type: PropertyRef = PropertyRef("media_type")
-    attestation_type: PropertyRef = PropertyRef("attestation_type", extra_index=True)
-    predicate_type: PropertyRef = PropertyRef("predicate_type")
-    attests_digest: PropertyRef = PropertyRef("attests_digest", extra_index=True)
-    source_uri: PropertyRef = PropertyRef("source_uri")
-    source_revision: PropertyRef = PropertyRef("source_revision")
-    source_file: PropertyRef = PropertyRef("source_file")
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    id: PropertyRef = PropertyRef(
+        "digest",
+        description="Attestation manifest digest.",
+    )
+    digest: PropertyRef = PropertyRef(
+        "digest",
+        extra_index=True,
+        description="Attestation manifest digest.",
+    )
+    media_type: PropertyRef = PropertyRef(
+        "media_type",
+        description="OCI media type of the attestation manifest.",
+    )
+    attestation_type: PropertyRef = PropertyRef(
+        "attestation_type",
+        extra_index=True,
+        description="Discovery type: sig, att, or buildx.",
+    )
+    predicate_type: PropertyRef = PropertyRef(
+        "predicate_type",
+        description="In-toto predicate type reported by the attestation manifest.",
+    )
+    attests_digest: PropertyRef = PropertyRef(
+        "attests_digest",
+        extra_index=True,
+        description="Digest of the container image attested by this manifest.",
+    )
+    source_uri: PropertyRef = PropertyRef(
+        "source_uri",
+        description="Normalized source repository URL extracted from provenance.",
+    )
+    source_revision: PropertyRef = PropertyRef(
+        "source_revision",
+        description="Source revision extracted from provenance.",
+    )
+    source_file: PropertyRef = PropertyRef(
+        "source_file",
+        description="Source definition file extracted from provenance.",
+    )
+    lastupdated: PropertyRef = PropertyRef(
+        "lastupdated",
+        set_in_kwargs=True,
+        description="Timestamp of the last time the node was updated.",
+    )
 
 
 @dataclass(frozen=True)

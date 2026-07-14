@@ -1,7 +1,11 @@
 from __future__ import annotations
 
+from dataclasses import fields as dataclass_fields
 from pathlib import Path
 
+from cartography.models.core.relationships import CartographyRelSchema
+from cartography.models.core.relationships import SourceNodeMatcher
+from cartography.models.core.relationships import TargetNodeMatcher
 from cartography.models.introspection import DataModel
 from cartography.models.introspection import Node
 from cartography.models.introspection import Property
@@ -21,10 +25,12 @@ def render_module_schema(model: DataModel, module: str) -> str:
         model.relationships,
         module_nodes,
         module,
+        model.nodes,
     )
     assigned_relationships = _assign_relationships(
         module_relationships,
         module_nodes,
+        model.nodes,
     )
     lines = [
         GENERATED_NOTICE,
@@ -235,21 +241,19 @@ def _module_relationships(
     relationships: tuple[Relationship, ...],
     nodes: tuple[Node, ...],
     module: str,
+    all_nodes: tuple[Node, ...],
 ) -> tuple[Relationship, ...]:
     node_labels = {node.label for node in nodes}
-    ontology_labels = {label for node in nodes for label in node.ontology_labels}
+    primary_labels = {node.label for node in all_nodes}
     return tuple(
         relationship
         for relationship in relationships
         if module in relationship.modules
         or relationship.source_label in node_labels
         or relationship.target_label in node_labels
-        or (
-            "ontology" in relationship.modules
-            and (
-                relationship.source_label in ontology_labels
-                or relationship.target_label in ontology_labels
-            )
+        or any(
+            _relationship_matches_broad_node(relationship, node, primary_labels)
+            for node in nodes
         )
     )
 
@@ -257,9 +261,11 @@ def _module_relationships(
 def _assign_relationships(
     relationships: tuple[Relationship, ...],
     nodes: tuple[Node, ...],
+    all_nodes: tuple[Node, ...],
 ) -> dict[str, tuple[Relationship, ...]]:
     assigned: dict[str, list[Relationship]] = {}
     nodes_by_label = {node.label: node for node in nodes}
+    primary_labels = {node.label for node in all_nodes}
     for relationship in relationships:
         owners = tuple(
             dict.fromkeys(
@@ -275,8 +281,11 @@ def _assign_relationships(
             owners = tuple(
                 node.label
                 for node in nodes
-                if relationship.source_label in node.ontology_labels
-                or relationship.target_label in node.ontology_labels
+                if _relationship_matches_broad_node(
+                    relationship,
+                    node,
+                    primary_labels,
+                )
             )
         for owner in owners:
             assigned.setdefault(owner, []).append(relationship)
@@ -294,6 +303,71 @@ def _assign_relationships(
         )
         for label, values in assigned.items()
     }
+
+
+def _relationship_matches_broad_node(
+    relationship: Relationship,
+    node: Node,
+    primary_labels: set[str],
+) -> bool:
+    broad_labels = {
+        *node.extra_labels,
+        *node.ontology_labels,
+        *(label.label for label in node.conditional_labels),
+    }
+    if not broad_labels:
+        return False
+
+    if relationship.schemas:
+        return any(
+            _schema_matches_broad_node(schema, node, broad_labels, primary_labels)
+            for schema in relationship.schemas
+        )
+
+    return any(
+        endpoint in broad_labels and endpoint not in primary_labels
+        for endpoint in (relationship.source_label, relationship.target_label)
+    )
+
+
+def _schema_matches_broad_node(
+    schema: CartographyRelSchema,
+    node: Node,
+    broad_labels: set[str],
+    primary_labels: set[str],
+) -> bool:
+    target_matches_extra_labels = (
+        schema.target_node_label not in primary_labels
+        or schema.match_target_extra_labels
+    )
+    if (
+        target_matches_extra_labels
+        and schema.target_node_label in broad_labels
+        and _matcher_fits_node(schema.target_node_matcher, node)
+    ):
+        return True
+
+    source_label = schema.source_node_label
+    source_matcher = schema.source_node_matcher
+    source_matches_extra_labels = bool(
+        source_label
+        and (source_label not in primary_labels or schema.match_source_extra_labels)
+    )
+    return bool(
+        source_matches_extra_labels
+        and source_label in broad_labels
+        and source_matcher is not None
+        and _matcher_fits_node(source_matcher, node)
+    )
+
+
+def _matcher_fits_node(
+    matcher: SourceNodeMatcher | TargetNodeMatcher,
+    node: Node,
+) -> bool:
+    matcher_keys = {field.name for field in dataclass_fields(matcher)}
+    node_properties = {prop.name for prop in node.properties}
+    return matcher_keys <= node_properties
 
 
 def _single_description(

@@ -29,15 +29,45 @@ class GitLabCIIncludeNodeProperties(CartographyNodeProperties):
     at pipeline runtime.
     """
 
-    # Composite: f"{project_id}:{include_type}:{location}:{ref or 'none'}"
-    id: PropertyRef = PropertyRef("id")
-    include_type: PropertyRef = PropertyRef("include_type", extra_index=True)
-    location: PropertyRef = PropertyRef("location", extra_index=True)
-    ref: PropertyRef = PropertyRef("ref")
-    is_pinned: PropertyRef = PropertyRef("is_pinned")
-    is_local: PropertyRef = PropertyRef("is_local")
-    gitlab_url: PropertyRef = PropertyRef("gitlab_url", extra_index=True)
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    id: PropertyRef = PropertyRef(
+        "id",
+        description=(
+            "Composite identifier formed from the project ID, include type, location, "
+            "and ref."
+        ),
+    )
+    include_type: PropertyRef = PropertyRef(
+        "include_type",
+        extra_index=True,
+        description="Include type: local, project, remote, template, or component.",
+    )
+    location: PropertyRef = PropertyRef(
+        "location",
+        extra_index=True,
+        description="Included path, project path, URL, template name, or component identifier.",
+    )
+    ref: PropertyRef = PropertyRef(
+        "ref",
+        description="Commit SHA, tag, or branch used by a project include.",
+    )
+    is_pinned: PropertyRef = PropertyRef(
+        "is_pinned",
+        description="Whether the include resolves to an immutable target.",
+    )
+    is_local: PropertyRef = PropertyRef(
+        "is_local",
+        description="Whether the include references a file in the same repository.",
+    )
+    gitlab_url: PropertyRef = PropertyRef(
+        "gitlab_url",
+        extra_index=True,
+        description="URL of the GitLab instance.",
+    )
+    lastupdated: PropertyRef = PropertyRef(
+        "lastupdated",
+        set_in_kwargs=True,
+        description="Timestamp of the last time the node was updated.",
+    )
 
 
 @dataclass(frozen=True)
@@ -88,6 +118,8 @@ class GitLabCIIncludeToProjectRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class GitLabCIIncludeSchema(CartographyNodeSchema):
+    """An include entry referenced by a GitLab CI/CD configuration."""
+
     label: str = "GitLabCIInclude"
     properties: GitLabCIIncludeNodeProperties = GitLabCIIncludeNodeProperties()
     sub_resource_relationship: GitLabCIIncludeToProjectRel = (

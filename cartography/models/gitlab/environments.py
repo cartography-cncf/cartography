@@ -30,18 +30,57 @@ from cartography.models.core.relationships import TargetNodeMatcher
 
 @dataclass(frozen=True)
 class GitLabEnvironmentNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("id")  # Composite: f"{project_id}:{gitlab_env_id}"
-    gitlab_id: PropertyRef = PropertyRef("gitlab_id")
-    name: PropertyRef = PropertyRef("name", extra_index=True)
-    slug: PropertyRef = PropertyRef("slug")
-    external_url: PropertyRef = PropertyRef("external_url")
-    state: PropertyRef = PropertyRef("state")
-    tier: PropertyRef = PropertyRef("tier")
-    created_at: PropertyRef = PropertyRef("created_at")
-    updated_at: PropertyRef = PropertyRef("updated_at")
-    auto_stop_at: PropertyRef = PropertyRef("auto_stop_at")
-    gitlab_url: PropertyRef = PropertyRef("gitlab_url", extra_index=True)
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    id: PropertyRef = PropertyRef(
+        "id",
+        description="Composite identifier formed from the project ID and GitLab environment ID.",
+    )
+    gitlab_id: PropertyRef = PropertyRef(
+        "gitlab_id",
+        description="Numeric GitLab environment ID, unique within its project.",
+    )
+    name: PropertyRef = PropertyRef(
+        "name",
+        extra_index=True,
+        description="Deployment environment name.",
+    )
+    slug: PropertyRef = PropertyRef(
+        "slug",
+        description="URL-safe deployment environment slug.",
+    )
+    external_url: PropertyRef = PropertyRef(
+        "external_url",
+        description="URL where the deployment environment is reachable.",
+    )
+    state: PropertyRef = PropertyRef(
+        "state",
+        description="Deployment environment state: available or stopped.",
+    )
+    tier: PropertyRef = PropertyRef(
+        "tier",
+        description="Deployment tier: production, staging, testing, development, or other.",
+    )
+    created_at: PropertyRef = PropertyRef(
+        "created_at",
+        description="Timestamp when GitLab created the environment.",
+    )
+    updated_at: PropertyRef = PropertyRef(
+        "updated_at",
+        description="Timestamp when GitLab last updated the environment.",
+    )
+    auto_stop_at: PropertyRef = PropertyRef(
+        "auto_stop_at",
+        description="Timestamp when GitLab is scheduled to stop the environment automatically.",
+    )
+    gitlab_url: PropertyRef = PropertyRef(
+        "gitlab_url",
+        extra_index=True,
+        description="URL of the GitLab instance.",
+    )
+    lastupdated: PropertyRef = PropertyRef(
+        "lastupdated",
+        set_in_kwargs=True,
+        description="Timestamp of the last time the node was updated.",
+    )
 
 
 # =============================================================================
@@ -133,6 +172,8 @@ class GitLabEnvironmentToCIVariableRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class GitLabEnvironmentSchema(CartographyNodeSchema):
+    """A deployment environment defined within a GitLab project."""
+
     label: str = "GitLabEnvironment"
     properties: GitLabEnvironmentNodeProperties = GitLabEnvironmentNodeProperties()
     sub_resource_relationship: GitLabEnvironmentToProjectRel = (

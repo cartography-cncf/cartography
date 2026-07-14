@@ -151,6 +151,7 @@ class CVEMetadataToCVERelProperties(CartographyRelProperties):
 class CVEMetadataToCVERel(CartographyRelSchema):
     """CVE metadata enriches its corresponding CVE."""
 
+    match_target_extra_labels: bool = True
     target_node_label: str = "CVE"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"cve_id": PropertyRef("id")},

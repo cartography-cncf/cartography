@@ -26,17 +26,37 @@ class GitLabDependencyFileNodeProperties(CartographyNodeProperties):
     Represents manifest files that declare dependencies.
     """
 
-    id: PropertyRef = PropertyRef("id")  # Unique identifier
+    id: PropertyRef = PropertyRef(
+        "id",
+        description="Unique identifier formed from the project URL and file path.",
+    )
     path: PropertyRef = PropertyRef(
-        "path"
-    )  # Path to file in repository (e.g., "src/package.json")
+        "path",
+        description="Path to the dependency file in the repository.",
+    )
     filename: PropertyRef = PropertyRef(
-        "filename", extra_index=True
-    )  # File name (e.g., "package.json")
-    project_id: PropertyRef = PropertyRef("project_id")
-    project_url: PropertyRef = PropertyRef("project_url")  # Parent project URL
-    gitlab_url: PropertyRef = PropertyRef("gitlab_url", extra_index=True)
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+        "filename",
+        extra_index=True,
+        description="Dependency file name.",
+    )
+    project_id: PropertyRef = PropertyRef(
+        "project_id",
+        description="Numeric ID of the parent GitLab project.",
+    )
+    project_url: PropertyRef = PropertyRef(
+        "project_url",
+        description="URL of the parent GitLab project.",
+    )
+    gitlab_url: PropertyRef = PropertyRef(
+        "gitlab_url",
+        extra_index=True,
+        description="URL of the GitLab instance.",
+    )
+    lastupdated: PropertyRef = PropertyRef(
+        "lastupdated",
+        set_in_kwargs=True,
+        description="Timestamp of the last time the node was updated.",
+    )
 
 
 @dataclass(frozen=True)
@@ -100,13 +120,7 @@ class GitLabDependencyFileToProjectRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class GitLabDependencyFileSchema(CartographyNodeSchema):
-    """
-    Schema for GitLab Dependency File nodes.
-
-    Dependency files belong to projects and have two relationships:
-    - RESOURCE: Sub-resource relationship for cleanup scoping (DependencyFile -> Project)
-    - HAS_DEPENDENCY_FILE: Semantic relationship showing project ownership (Project -> DependencyFile)
-    """
+    """A dependency manifest file found in a GitLab project."""
 
     label: str = "GitLabDependencyFile"
     properties: GitLabDependencyFileNodeProperties = (

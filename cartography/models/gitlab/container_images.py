@@ -25,26 +25,88 @@ from cartography.models.core.relationships import TargetNodeMatcher
 
 @dataclass(frozen=True)
 class GitLabContainerImageNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("digest")
-    digest: PropertyRef = PropertyRef("digest", extra_index=True)
-    uri: PropertyRef = PropertyRef("uri", extra_index=True)
-    media_type: PropertyRef = PropertyRef("media_type")
-    schema_version: PropertyRef = PropertyRef("schema_version")
-    type: PropertyRef = PropertyRef("type", extra_index=True)
-    architecture: PropertyRef = PropertyRef("architecture")
-    os: PropertyRef = PropertyRef("os")
-    variant: PropertyRef = PropertyRef("variant")
-    source_uri: PropertyRef = PropertyRef("source_uri", extra_index=True)
-    source_revision: PropertyRef = PropertyRef("source_revision")
-    source_file: PropertyRef = PropertyRef("source_file")
-    parent_image_uri: PropertyRef = PropertyRef("parent_image_uri")
-    parent_image_digest: PropertyRef = PropertyRef("parent_image_digest")
-    child_image_digests: PropertyRef = PropertyRef("child_image_digests")
+    id: PropertyRef = PropertyRef(
+        "digest",
+        description="Content-addressable container image digest.",
+    )
+    digest: PropertyRef = PropertyRef(
+        "digest",
+        extra_index=True,
+        description="Content-addressable container image digest.",
+    )
+    uri: PropertyRef = PropertyRef(
+        "uri",
+        extra_index=True,
+        description="Container registry repository URI without a tag or digest.",
+    )
+    media_type: PropertyRef = PropertyRef(
+        "media_type",
+        description="OCI or Docker media type of the image manifest.",
+    )
+    schema_version: PropertyRef = PropertyRef(
+        "schema_version",
+        description="Container image manifest schema version.",
+    )
+    type: PropertyRef = PropertyRef(
+        "type",
+        extra_index=True,
+        description="Image type: image or manifest_list.",
+    )
+    architecture: PropertyRef = PropertyRef(
+        "architecture",
+        description="CPU architecture from the image config.",
+    )
+    os: PropertyRef = PropertyRef(
+        "os",
+        description="Operating system from the image config.",
+    )
+    variant: PropertyRef = PropertyRef(
+        "variant",
+        description="CPU architecture variant from the image config.",
+    )
+    source_uri: PropertyRef = PropertyRef(
+        "source_uri",
+        extra_index=True,
+        description="Normalized source repository URL extracted from image provenance.",
+    )
+    source_revision: PropertyRef = PropertyRef(
+        "source_revision",
+        description="Source revision extracted from image provenance.",
+    )
+    source_file: PropertyRef = PropertyRef(
+        "source_file",
+        description="Source definition file extracted from image provenance.",
+    )
+    parent_image_uri: PropertyRef = PropertyRef(
+        "parent_image_uri",
+        description="Parent image reference extracted from image provenance.",
+    )
+    parent_image_digest: PropertyRef = PropertyRef(
+        "parent_image_digest",
+        description="Parent image digest extracted from image provenance.",
+    )
+    child_image_digests: PropertyRef = PropertyRef(
+        "child_image_digests",
+        description="Digests of platform-specific images contained by a manifest list.",
+    )
     # Layer diff IDs from the image config (used for Dockerfile matching and layer relationships)
-    layer_diff_ids: PropertyRef = PropertyRef("layer_diff_ids")
-    head_layer_diff_id: PropertyRef = PropertyRef("head_layer_diff_id")
-    tail_layer_diff_id: PropertyRef = PropertyRef("tail_layer_diff_id")
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    layer_diff_ids: PropertyRef = PropertyRef(
+        "layer_diff_ids",
+        description="Ordered uncompressed layer digests that compose the image.",
+    )
+    head_layer_diff_id: PropertyRef = PropertyRef(
+        "head_layer_diff_id",
+        description="Uncompressed digest of the first base layer.",
+    )
+    tail_layer_diff_id: PropertyRef = PropertyRef(
+        "tail_layer_diff_id",
+        description="Uncompressed digest of the final topmost layer.",
+    )
+    lastupdated: PropertyRef = PropertyRef(
+        "lastupdated",
+        set_in_kwargs=True,
+        description="Timestamp of the last time the node was updated.",
+    )
 
 
 @dataclass(frozen=True)
@@ -169,9 +231,18 @@ class GitLabContainerImageToTailLayerRel(CartographyRelSchema):
 @dataclass(frozen=True)
 class GitLabContainerImageToParentImageRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
-    from_attestation: PropertyRef = PropertyRef("from_attestation")
-    parent_image_uri: PropertyRef = PropertyRef("parent_image_uri")
-    confidence: PropertyRef = PropertyRef("confidence")
+    from_attestation: PropertyRef = PropertyRef(
+        "from_attestation",
+        description="Whether the parent image was identified from an attestation.",
+    )
+    parent_image_uri: PropertyRef = PropertyRef(
+        "parent_image_uri",
+        description="Parent image reference reported by provenance.",
+    )
+    confidence: PropertyRef = PropertyRef(
+        "confidence",
+        description="Confidence score for the parent image match.",
+    )
 
 
 @dataclass(frozen=True)
@@ -193,18 +264,7 @@ class GitLabContainerImageToParentImageRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class GitLabContainerImageSchema(CartographyNodeSchema):
-    """
-    Schema for GitLab Container Image nodes.
-
-    Relationships:
-    - RESOURCE: Sub-resource to GitLabOrganization for cleanup
-    - CONTAINS_IMAGE: From manifest lists to platform-specific images
-    - HAS_LAYER: From images to their constituent layers
-
-    Extra labels:
-    - Image: Applied to regular container images (type="image")
-    - ImageManifestList: Applied to manifest lists (type="manifest_list")
-    """
+    """A digest-addressed container image or multi-architecture manifest list."""
 
     label: str = "GitLabContainerImage"
     properties: GitLabContainerImageNodeProperties = (
@@ -243,20 +303,41 @@ class GitLabContainerImageProvenanceNodeProperties(CartographyNodeProperties):
     Minimal property set for provenance-only updates on existing GitLabContainerImage nodes.
     """
 
-    id: PropertyRef = PropertyRef("digest")
-    source_uri: PropertyRef = PropertyRef("source_uri", extra_index=True)
-    source_revision: PropertyRef = PropertyRef("source_revision")
-    source_file: PropertyRef = PropertyRef("source_file")
-    parent_image_uri: PropertyRef = PropertyRef("parent_image_uri")
-    parent_image_digest: PropertyRef = PropertyRef("parent_image_digest")
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    id: PropertyRef = PropertyRef(
+        "digest",
+        description="Content-addressable container image digest.",
+    )
+    source_uri: PropertyRef = PropertyRef(
+        "source_uri",
+        extra_index=True,
+        description="Normalized source repository URL extracted from image provenance.",
+    )
+    source_revision: PropertyRef = PropertyRef(
+        "source_revision",
+        description="Source revision extracted from image provenance.",
+    )
+    source_file: PropertyRef = PropertyRef(
+        "source_file",
+        description="Source definition file extracted from image provenance.",
+    )
+    parent_image_uri: PropertyRef = PropertyRef(
+        "parent_image_uri",
+        description="Parent image reference extracted from image provenance.",
+    )
+    parent_image_digest: PropertyRef = PropertyRef(
+        "parent_image_digest",
+        description="Parent image digest extracted from image provenance.",
+    )
+    lastupdated: PropertyRef = PropertyRef(
+        "lastupdated",
+        set_in_kwargs=True,
+        description="Timestamp of the last time the node was updated.",
+    )
 
 
 @dataclass(frozen=True)
 class GitLabContainerImageProvenanceSchema(CartographyNodeSchema):
-    """
-    Schema for provenance-only enrichment of GitLabContainerImage nodes.
-    """
+    """A digest-addressed container image or multi-architecture manifest list."""
 
     label: str = "GitLabContainerImage"
     properties: GitLabContainerImageProvenanceNodeProperties = (

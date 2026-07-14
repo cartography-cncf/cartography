@@ -32,25 +32,86 @@ class GitLabRunnerNodeProperties(CartographyNodeProperties):
     any project that can reach it, including from non-protected branches.
     """
 
-    id: PropertyRef = PropertyRef("id")  # Numeric GitLab runner ID
-    description: PropertyRef = PropertyRef("description")
-    runner_type: PropertyRef = PropertyRef("runner_type", extra_index=True)
-    is_shared: PropertyRef = PropertyRef("is_shared")
-    active: PropertyRef = PropertyRef("active")
-    paused: PropertyRef = PropertyRef("paused")
-    online: PropertyRef = PropertyRef("online")
-    status: PropertyRef = PropertyRef("status", extra_index=True)
-    ip_address: PropertyRef = PropertyRef("ip_address")
-    architecture: PropertyRef = PropertyRef("architecture")
-    platform: PropertyRef = PropertyRef("platform")
-    contacted_at: PropertyRef = PropertyRef("contacted_at")
-    tag_list: PropertyRef = PropertyRef("tag_list")
-    run_untagged: PropertyRef = PropertyRef("run_untagged")
-    locked: PropertyRef = PropertyRef("locked")
-    access_level: PropertyRef = PropertyRef("access_level")
-    maximum_timeout: PropertyRef = PropertyRef("maximum_timeout")
-    gitlab_url: PropertyRef = PropertyRef("gitlab_url", extra_index=True)
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    id: PropertyRef = PropertyRef(
+        "id",
+        description="Numeric GitLab runner ID.",
+    )
+    description: PropertyRef = PropertyRef(
+        "description",
+        description="Human-readable runner description.",
+    )
+    runner_type: PropertyRef = PropertyRef(
+        "runner_type",
+        extra_index=True,
+        description="Runner scope: instance_type, group_type, or project_type.",
+    )
+    is_shared: PropertyRef = PropertyRef(
+        "is_shared",
+        description="Whether the runner is shared across the GitLab instance.",
+    )
+    active: PropertyRef = PropertyRef(
+        "active",
+        description="Whether the runner is enabled.",
+    )
+    paused: PropertyRef = PropertyRef(
+        "paused",
+        description="Whether the runner is paused from accepting new jobs.",
+    )
+    online: PropertyRef = PropertyRef(
+        "online",
+        description="Whether the runner has contacted GitLab recently.",
+    )
+    status: PropertyRef = PropertyRef(
+        "status",
+        extra_index=True,
+        description="Current GitLab runner status.",
+    )
+    ip_address: PropertyRef = PropertyRef(
+        "ip_address",
+        description="Last known IP address of the runner.",
+    )
+    architecture: PropertyRef = PropertyRef(
+        "architecture",
+        description="CPU architecture reported by the runner.",
+    )
+    platform: PropertyRef = PropertyRef(
+        "platform",
+        description="Operating system platform reported by the runner.",
+    )
+    contacted_at: PropertyRef = PropertyRef(
+        "contacted_at",
+        description="Timestamp when the runner last contacted GitLab.",
+    )
+    tag_list: PropertyRef = PropertyRef(
+        "tag_list",
+        description="Tags used to route CI/CD jobs to the runner.",
+    )
+    run_untagged: PropertyRef = PropertyRef(
+        "run_untagged",
+        description="Whether the runner accepts jobs without matching tags.",
+    )
+    locked: PropertyRef = PropertyRef(
+        "locked",
+        description="Whether the runner is locked from assignment to additional projects.",
+    )
+    access_level: PropertyRef = PropertyRef(
+        "access_level",
+        description="Ref protection level required for jobs assigned to the runner.",
+    )
+    maximum_timeout: PropertyRef = PropertyRef(
+        "maximum_timeout",
+        description="Maximum job timeout enforced by the runner, in seconds.",
+    )
+    gitlab_url: PropertyRef = PropertyRef(
+        "gitlab_url",
+        extra_index=True,
+        description="URL of the GitLab instance.",
+    )
+    lastupdated: PropertyRef = PropertyRef(
+        "lastupdated",
+        set_in_kwargs=True,
+        description="Timestamp of the last time the node was updated.",
+    )
 
 
 # =============================================================================
@@ -83,7 +144,7 @@ class GitLabInstanceRunnerToOrganizationRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class GitLabInstanceRunnerSchema(CartographyNodeSchema):
-    """Schema for instance-level GitLab runners."""
+    """A GitLab CI/CD runner at instance, group, or project scope."""
 
     label: str = "GitLabRunner"
     properties: GitLabRunnerNodeProperties = GitLabRunnerNodeProperties()
@@ -122,7 +183,7 @@ class GitLabGroupRunnerToGroupRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class GitLabGroupRunnerSchema(CartographyNodeSchema):
-    """Schema for group-level GitLab runners."""
+    """A GitLab CI/CD runner at instance, group, or project scope."""
 
     label: str = "GitLabRunner"
     properties: GitLabRunnerNodeProperties = GitLabRunnerNodeProperties()
@@ -161,7 +222,7 @@ class GitLabProjectRunnerToProjectRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class GitLabProjectRunnerSchema(CartographyNodeSchema):
-    """Schema for project-level GitLab runners."""
+    """A GitLab CI/CD runner at instance, group, or project scope."""
 
     label: str = "GitLabRunner"
     properties: GitLabRunnerNodeProperties = GitLabRunnerNodeProperties()

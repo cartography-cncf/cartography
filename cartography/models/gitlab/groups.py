@@ -27,21 +27,56 @@ class GitLabGroupNodeProperties(CartographyNodeProperties):
     Groups are nested within a GitLab organization and can contain other groups and projects.
     """
 
-    id: PropertyRef = PropertyRef("id")  # Stable numeric GitLab group ID
-    name: PropertyRef = PropertyRef("name", extra_index=True)  # Display name
-    path: PropertyRef = PropertyRef("path", extra_index=True)  # URL path slug
+    id: PropertyRef = PropertyRef(
+        "id",
+        description="Numeric GitLab group ID.",
+    )
+    name: PropertyRef = PropertyRef(
+        "name",
+        extra_index=True,
+        description="Display name of the group.",
+    )
+    path: PropertyRef = PropertyRef(
+        "path",
+        extra_index=True,
+        description="URL path slug of the group.",
+    )
     full_path: PropertyRef = PropertyRef(
-        "full_path", extra_index=True
-    )  # Full hierarchy path
-    web_url: PropertyRef = PropertyRef("web_url", extra_index=True)
-    gitlab_url: PropertyRef = PropertyRef("gitlab_url", extra_index=True)
-    description: PropertyRef = PropertyRef("description")
-    visibility: PropertyRef = PropertyRef("visibility")  # private, internal, public
+        "full_path",
+        extra_index=True,
+        description="Full group path including parent groups.",
+    )
+    web_url: PropertyRef = PropertyRef(
+        "web_url",
+        extra_index=True,
+        description="URL for viewing the group in GitLab.",
+    )
+    gitlab_url: PropertyRef = PropertyRef(
+        "gitlab_url",
+        extra_index=True,
+        description="URL of the GitLab instance.",
+    )
+    description: PropertyRef = PropertyRef(
+        "description",
+        description="Human-readable description of the group.",
+    )
+    visibility: PropertyRef = PropertyRef(
+        "visibility",
+        description="Group visibility: private, internal, or public.",
+    )
     parent_id: PropertyRef = PropertyRef(
-        "parent_id"
-    )  # ID of parent group (null if direct child of org)
-    created_at: PropertyRef = PropertyRef("created_at")
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+        "parent_id",
+        description="Numeric ID of the immediate parent group.",
+    )
+    created_at: PropertyRef = PropertyRef(
+        "created_at",
+        description="Timestamp when GitLab created the group.",
+    )
+    lastupdated: PropertyRef = PropertyRef(
+        "lastupdated",
+        set_in_kwargs=True,
+        description="Timestamp of the last time the node was updated.",
+    )
 
 
 @dataclass(frozen=True)
@@ -106,13 +141,7 @@ class GitLabGroupToOrganizationRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class GitLabGroupSchema(CartographyNodeSchema):
-    """
-    Schema for GitLab Group nodes.
-
-    Groups are nested within a GitLab organization and can contain other groups and projects.
-    Groups always have a RESOURCE relationship to their parent GitLabOrganization (used for cleanup scoping).
-    Groups may have a MEMBER_OF relationship to a parent GitLabGroup (for nested hierarchies).
-    """
+    """A nested GitLab group within the configured top-level organization."""
 
     label: str = "GitLabGroup"
     properties: GitLabGroupNodeProperties = GitLabGroupNodeProperties()

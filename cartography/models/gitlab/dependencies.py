@@ -24,18 +24,50 @@ class GitLabDependencyNodeProperties(CartographyNodeProperties):
     Properties for a GitLab Dependency node.
     """
 
-    id: PropertyRef = PropertyRef("id")  # Unique identifier
-    name: PropertyRef = PropertyRef("name", extra_index=True)  # Package/library name
-    version: PropertyRef = PropertyRef("version")  # Version requirement
+    id: PropertyRef = PropertyRef(
+        "id",
+        description="Unique dependency identifier within the GitLab project.",
+    )
+    name: PropertyRef = PropertyRef(
+        "name",
+        extra_index=True,
+        description="Dependency package name.",
+    )
+    version: PropertyRef = PropertyRef(
+        "version",
+        description="Dependency package version.",
+    )
     package_manager: PropertyRef = PropertyRef(
-        "package_manager"
-    )  # npm, pip, bundler, maven, etc.
-    project_id: PropertyRef = PropertyRef("project_id")
-    gitlab_url: PropertyRef = PropertyRef("gitlab_url", extra_index=True)
-    type: PropertyRef = PropertyRef("type")
-    purl: PropertyRef = PropertyRef("purl")
-    normalized_id: PropertyRef = PropertyRef("normalized_id", extra_index=True)
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+        "package_manager",
+        description="Package manager reported by the dependency scanning artifact.",
+    )
+    project_id: PropertyRef = PropertyRef(
+        "project_id",
+        description="Numeric ID of the GitLab project where the dependency was detected.",
+    )
+    gitlab_url: PropertyRef = PropertyRef(
+        "gitlab_url",
+        extra_index=True,
+        description="URL of the GitLab instance.",
+    )
+    type: PropertyRef = PropertyRef(
+        "type",
+        description="Package type derived from the package URL.",
+    )
+    purl: PropertyRef = PropertyRef(
+        "purl",
+        description="Package URL identifying the dependency.",
+    )
+    normalized_id: PropertyRef = PropertyRef(
+        "normalized_id",
+        extra_index=True,
+        description="Normalized cross-tool package identifier.",
+    )
+    lastupdated: PropertyRef = PropertyRef(
+        "lastupdated",
+        set_in_kwargs=True,
+        description="Timestamp of the last time the node was updated.",
+    )
 
 
 @dataclass(frozen=True)
@@ -125,9 +157,7 @@ class GitLabDependencyFileHasDependencyRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class GitLabDependencySchema(CartographyNodeSchema):
-    """
-    Schema for GitLab Dependency nodes.
-    """
+    """A package dependency reported by a GitLab dependency scanning artifact."""
 
     label: str = "GitLabDependency"
     properties: GitLabDependencyNodeProperties = GitLabDependencyNodeProperties()
