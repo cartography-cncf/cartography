@@ -11,6 +11,7 @@ import cartography.models.jumpcloud as jumpcloud_models
 import cartography.models.kandji as kandji_models
 import cartography.models.keycloak as keycloak_models
 import cartography.models.lastpass as lastpass_models
+import cartography.models.oci as oci_models
 import cartography.models.openai as openai_models
 import cartography.models.salesforce as salesforce_models
 import cartography.models.sentry as sentry_models
@@ -378,6 +379,22 @@ def test_openai_schema_doc_is_generated_from_introspected_model():
     assert "| **email** | User email address. |" in generated
     assert "(:OpenAIOrganization)-[:RESOURCE]->(:OpenAIUser)" in generated
     assert "Deprecated compatibility edge for a service account" in generated
+    assert "No description provided." not in generated
+
+
+def test_oci_schema_doc_is_generated_from_introspected_model():
+    # Arrange
+    model = inspect_data_model(oci_models)
+
+    # Act
+    generated = render_module_schema(model, "oci")
+
+    # Assert
+    assert not Path("docs/root/modules/oci/schema.md").exists()
+    assert len(model.nodes) == 6
+    assert len(model.relationships) == 15
+    assert "| **email** | User email address. |" in generated
+    assert "(:OCIPolicy)-[:OCI_POLICY_REFERENCE]->(:OCIGroup)" in generated
     assert "No description provided." not in generated
 
 

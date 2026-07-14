@@ -13,13 +13,27 @@ from cartography.models.core.relationships import TargetNodeMatcher
 
 @dataclass(frozen=True)
 class OCICompartmentNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("id")
-    ocid: PropertyRef = PropertyRef("id", extra_index=True)
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
-    name: PropertyRef = PropertyRef("name", extra_index=True)
-    description: PropertyRef = PropertyRef("description")
-    compartmentid: PropertyRef = PropertyRef("compartment_id")
-    createdate: PropertyRef = PropertyRef("time_created")
+    id: PropertyRef = PropertyRef("id", description="OCI compartment OCID.")
+    ocid: PropertyRef = PropertyRef(
+        "id", extra_index=True, description="OCI compartment OCID."
+    )
+    lastupdated: PropertyRef = PropertyRef(
+        "lastupdated",
+        set_in_kwargs=True,
+        description="Timestamp of the last update.",
+    )
+    name: PropertyRef = PropertyRef(
+        "name", extra_index=True, description="Compartment name."
+    )
+    description: PropertyRef = PropertyRef(
+        "description", description="Compartment description."
+    )
+    compartmentid: PropertyRef = PropertyRef(
+        "compartment_id", description="OCID of the parent compartment or tenancy."
+    )
+    createdate: PropertyRef = PropertyRef(
+        "time_created", description="Date and time when the compartment was created."
+    )
 
 
 @dataclass(frozen=True)
@@ -29,6 +43,8 @@ class OCICompartmentToOCITenancyRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class OCICompartmentToOCITenancyRel(CartographyRelSchema):
+    """An OCI tenancy contains a compartment as a managed resource."""
+
     target_node_label: str = "OCITenancy"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"ocid": PropertyRef("OCI_TENANCY_ID", set_in_kwargs=True)},
@@ -48,6 +64,8 @@ class OCICompartmentToParentCompartmentRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class OCICompartmentToParentCompartmentRel(CartographyRelSchema):
+    """An OCI compartment points to its parent compartment."""
+
     target_node_label: str = "OCICompartment"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"ocid": PropertyRef("compartment_id")},
@@ -68,11 +86,7 @@ class OCICompartmentToParentRelProperties(CartographyRelProperties):
 # Deprecated: OCI_COMPARTMENT relationship for backward compatibility (tenancy)
 @dataclass(frozen=True)
 class OCICompartmentToTenancyParentRel(CartographyRelSchema):
-    """
-    Deprecated: This relationship is kept for backward compatibility.
-    Links root compartments to tenancy via compartment_id.
-    For parent-child compartment traversal, use the PARENT relationship instead.
-    """
+    """Deprecated compatibility edge from an OCI tenancy to a root compartment."""
 
     target_node_label: str = "OCITenancy"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
@@ -88,9 +102,7 @@ class OCICompartmentToTenancyParentRel(CartographyRelSchema):
 # OCI_COMPARTMENT relationship to parent compartment
 @dataclass(frozen=True)
 class OCICompartmentToCompartmentParentRel(CartographyRelSchema):
-    """
-    Links nested compartments to parent compartment via compartment_id.
-    """
+    """Compatibility edge from a parent OCI compartment to a nested compartment."""
 
     target_node_label: str = "OCICompartment"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
@@ -105,6 +117,8 @@ class OCICompartmentToCompartmentParentRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class OCICompartmentSchema(CartographyNodeSchema):
+    """An OCI compartment linked to its tenancy and parent hierarchy."""
+
     label: str = "OCICompartment"
     properties: OCICompartmentNodeProperties = OCICompartmentNodeProperties()
     sub_resource_relationship: OCICompartmentToOCITenancyRel = (
