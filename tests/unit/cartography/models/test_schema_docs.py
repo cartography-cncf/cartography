@@ -4,6 +4,7 @@ import cartography.models.airbyte as airbyte_models
 import cartography.models.anthropic as anthropic_models
 import cartography.models.bigfix as bigfix_models
 import cartography.models.cloudflare as cloudflare_models
+import cartography.models.cve_metadata as cve_metadata_models
 import cartography.models.digitalocean as digitalocean_models
 import cartography.models.gsuite as gsuite_models
 import cartography.models.jumpcloud as jumpcloud_models
@@ -41,6 +42,28 @@ def test_airbyte_schema_doc_is_generated_from_introspected_model():
     assert "An Airbyte connection that synchronizes source data" in generated
     assert "| config_host | Configured source host. |" in generated
     assert "(:AirbyteConnection)-[:SYNC_FROM]->(:AirbyteSource)" in generated
+    assert "No description provided." not in generated
+
+
+def test_cve_metadata_schema_doc_is_generated_from_introspected_model():
+    # Arrange
+    model = inspect_data_model(cve_metadata_models)
+
+    # Act
+    generated = render_module_schema(model, "cve_metadata")
+
+    # Assert
+    assert not Path("docs/root/modules/cve_metadata/schema.md").exists()
+    assert len(model.nodes) == 2
+    assert len(model.relationships) == 2
+    assert (
+        "| effect_tags | Controlled technical effects derived from mapped CWEs when "
+        "available, otherwise from high CVSS confidentiality, integrity, and "
+        "availability impacts plus the network straight-shot rule. Values are "
+        "execute-code, gain-privileges, access-credentials, bypass-control, "
+        "disclose-data, tamper-data, and deny-service. |"
+    ) in generated
+    assert "(:CVEMetadata)-[:ENRICHES]->(:CVE)" in generated
     assert "No description provided." not in generated
 
 
