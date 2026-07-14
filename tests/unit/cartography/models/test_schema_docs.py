@@ -75,6 +75,25 @@ def test_typed_analysis_jobs_are_rendered_from_introspected_model():
     ) in generated
 
 
+def test_gsuite_schema_doc_is_generated_from_introspected_model():
+    # Arrange
+    model = inspect_data_model(gsuite_models)
+
+    # Act
+    generated = render_module_schema(model, "gsuite")
+
+    # Assert
+    assert not Path("docs/root/modules/gsuite/schema.md").exists()
+    assert len(model.nodes) == 3
+    assert len(model.relationships) == 9
+    assert "| **email** | Primary email address of the user. |" in generated
+    assert (
+        "Deprecated compatibility edge linking a member group to its parent group."
+        in generated
+    )
+    assert "No description provided." not in generated
+
+
 def test_undirected_analysis_relationships_are_rendered_without_arrows():
     # Arrange
     node = Node(
