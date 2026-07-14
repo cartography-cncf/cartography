@@ -16,6 +16,7 @@ import cartography.models.keycloak as keycloak_models
 import cartography.models.lastpass as lastpass_models
 import cartography.models.oci as oci_models
 import cartography.models.openai as openai_models
+import cartography.models.pagerduty as pagerduty_models
 import cartography.models.salesforce as salesforce_models
 import cartography.models.sentry as sentry_models
 import cartography.models.slack as slack_models
@@ -490,6 +491,22 @@ def test_oci_schema_doc_is_generated_from_introspected_model():
     assert len(model.relationships) == 15
     assert "| **email** | User email address. |" in generated
     assert "(:OCIPolicy)-[:OCI_POLICY_REFERENCE]->(:OCIGroup)" in generated
+    assert "No description provided." not in generated
+
+
+def test_pagerduty_schema_doc_is_generated_from_introspected_model():
+    # Arrange
+    model = inspect_data_model(pagerduty_models)
+
+    # Act
+    generated = render_module_schema(model, "pagerduty")
+
+    # Assert
+    assert not Path("docs/root/modules/pagerduty/schema.md").exists()
+    assert len(model.nodes) == 9
+    assert len(model.relationships) == 12
+    assert "| support_hours_days_of_week | Days of the week included" in generated
+    assert "(:PagerDutyUser)-[:MEMBER_OF]->(:PagerDutyTeam)" in generated
     assert "No description provided." not in generated
 
 

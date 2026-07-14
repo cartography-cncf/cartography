@@ -13,13 +13,25 @@ from cartography.models.core.relationships import TargetNodeMatcher
 
 @dataclass(frozen=True)
 class PagerDutyIntegrationProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("id")
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
-    html_url: PropertyRef = PropertyRef("html_url")
-    type: PropertyRef = PropertyRef("type")
-    summary: PropertyRef = PropertyRef("summary")
-    name: PropertyRef = PropertyRef("name", extra_index=True)
-    created_at: PropertyRef = PropertyRef("created_at")
+    id: PropertyRef = PropertyRef("id", description="Integration ID.")
+    lastupdated: PropertyRef = PropertyRef(
+        "lastupdated", set_in_kwargs=True, description="Timestamp of the last update."
+    )
+    html_url: PropertyRef = PropertyRef(
+        "html_url", description="PagerDuty web URL for the integration."
+    )
+    type: PropertyRef = PropertyRef(
+        "type", description="PagerDuty object type for the integration."
+    )
+    summary: PropertyRef = PropertyRef(
+        "summary", description="Short summary of the integration."
+    )
+    name: PropertyRef = PropertyRef(
+        "name", extra_index=True, description="Integration name."
+    )
+    created_at: PropertyRef = PropertyRef(
+        "created_at", description="Timestamp when the integration was created."
+    )
 
 
 @dataclass(frozen=True)
@@ -30,6 +42,8 @@ class PagerDutyIntegrationToVendorRelProperties(CartographyRelProperties):
 @dataclass(frozen=True)
 # (:PagerDutyVendor)<-[:HAS_VENDOR]-(:PagerDutyIntegration)
 class PagerDutyIntegrationToVendorRel(CartographyRelSchema):
+    """The vendor provided by an integration."""
+
     target_node_label: str = "PagerDutyVendor"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("vendor.id")},
@@ -49,6 +63,8 @@ class PagerDutyIntegrationToServiceRelProperties(CartographyRelProperties):
 @dataclass(frozen=True)
 # (:PagerDutyService)-[:HAS_INTEGRATION]->(:PagerDutyIntegration)
 class PagerDutyIntegrationToServiceRel(CartographyRelSchema):
+    """The service that contains an integration."""
+
     target_node_label: str = "PagerDutyService"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("service.id")},
@@ -62,6 +78,8 @@ class PagerDutyIntegrationToServiceRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class PagerDutyIntegrationSchema(CartographyNodeSchema):
+    """A PagerDuty integration configured on a service."""
+
     label: str = "PagerDutyIntegration"
     properties: PagerDutyIntegrationProperties = PagerDutyIntegrationProperties()
     scoped_cleanup: bool = False
