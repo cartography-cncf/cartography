@@ -13,13 +13,27 @@ from cartography.models.core.relationships import TargetNodeMatcher
 
 @dataclass(frozen=True)
 class SalesforceUserRoleNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("Id")
-    name: PropertyRef = PropertyRef("Name", extra_index=True)
-    developer_name: PropertyRef = PropertyRef("DeveloperName")
-    parent_role_id: PropertyRef = PropertyRef("ParentRoleId")
-    rollup_description: PropertyRef = PropertyRef("RollupDescription")
-    portal_type: PropertyRef = PropertyRef("PortalType")
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    id: PropertyRef = PropertyRef("Id", description="Salesforce user role ID.")
+    name: PropertyRef = PropertyRef(
+        "Name", extra_index=True, description="User role name."
+    )
+    developer_name: PropertyRef = PropertyRef(
+        "DeveloperName", description="User role API developer name."
+    )
+    parent_role_id: PropertyRef = PropertyRef(
+        "ParentRoleId", description="ID of the parent role."
+    )
+    rollup_description: PropertyRef = PropertyRef(
+        "RollupDescription", description="Role hierarchy rollup description."
+    )
+    portal_type: PropertyRef = PropertyRef(
+        "PortalType", description="Portal type associated with the role."
+    )
+    lastupdated: PropertyRef = PropertyRef(
+        "lastupdated",
+        set_in_kwargs=True,
+        description="Timestamp of the last update.",
+    )
 
 
 @dataclass(frozen=True)
@@ -30,6 +44,8 @@ class SalesforceUserRoleToOrganizationRelProperties(CartographyRelProperties):
 @dataclass(frozen=True)
 # (:SalesforceUserRole)<-[:RESOURCE]-(:SalesforceOrganization)
 class SalesforceUserRoleToOrganizationRel(CartographyRelSchema):
+    """A Salesforce organization contains a user role."""
+
     target_node_label: str = "SalesforceOrganization"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("ORG_ID", set_in_kwargs=True)},
@@ -50,6 +66,8 @@ class SalesforceUserRoleToParentRelProperties(CartographyRelProperties):
 # Salesforce role hierarchy: a role reports up to its parent role.
 # (:SalesforceUserRole)-[:MEMBER_OF]->(:SalesforceUserRole)
 class SalesforceUserRoleToParentRel(CartographyRelSchema):
+    """A Salesforce user role is a member of its parent role."""
+
     target_node_label: str = "SalesforceUserRole"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("ParentRoleId")},
@@ -63,6 +81,8 @@ class SalesforceUserRoleToParentRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class SalesforceUserRoleSchema(CartographyNodeSchema):
+    """A role in the Salesforce record-sharing hierarchy."""
+
     label: str = "SalesforceUserRole"
     properties: SalesforceUserRoleNodeProperties = SalesforceUserRoleNodeProperties()
     sub_resource_relationship: SalesforceUserRoleToOrganizationRel = (
