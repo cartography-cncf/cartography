@@ -128,9 +128,16 @@ def _render_node(
                 f"{relationship.label}->{relationship.target_label}"
             ),
         )
+        detail_lines = [
+            f"- {description or _default_relationship_description(relationship)}",
+            f"  - Source: {_relationship_provenance(relationship)}",
+        ]
+        permissions = _relationship_permissions(relationship)
+        if permissions:
+            detail_lines.append(f"  - Evaluated permissions: {permissions}")
         lines.extend(
             [
-                f"- {description or _default_relationship_description(relationship)}",
+                *detail_lines,
                 "",
                 "    ```cypher",
                 f"    {_relationship_pattern(relationship)}",
@@ -245,6 +252,56 @@ def _default_relationship_description(relationship: Relationship) -> str:
         f"`{relationship.source_label}` connects to "
         f"`{relationship.target_label}` through `{relationship.label}`."
     )
+
+
+def _relationship_provenance(relationship: Relationship) -> str:
+    sources: list[str] = []
+    schema_names = ", ".join(
+        f"`{type(schema).__name__}`"
+        for schema in sorted(
+            relationship.schemas,
+            key=lambda schema: type(schema).__name__,
+        )
+    )
+    schema_suffix = f" ({schema_names})" if schema_names else ""
+    origin_labels = {
+        "node_schema": "node schema relationship",
+        "sub_resource": "sub-resource relationship",
+        "matchlink": "MatchLink",
+    }
+    for origin in ("node_schema", "sub_resource", "matchlink"):
+        if origin in relationship.origins:
+            sources.append(f"{origin_labels[origin]}{schema_suffix}")
+    sources.extend(
+        f"analysis job `{definition.job.name}`"
+        for definition in relationship.analysis_jobs
+    )
+    if "analysis" in relationship.origins and not relationship.analysis_jobs:
+        sources.append("analysis job")
+    sources.extend(
+        (
+            f"{definition.provider.upper()} permission evaluation "
+            f"from `{definition.config_path}`"
+        )
+        for definition in relationship.permission_relationships
+    )
+    if (
+        "permission_evaluation" in relationship.origins
+        and not relationship.permission_relationships
+    ):
+        sources.append("permission evaluation")
+    return "; ".join(sources) or "unknown"
+
+
+def _relationship_permissions(relationship: Relationship) -> str | None:
+    permissions = sorted(
+        {
+            permission
+            for definition in relationship.permission_relationships
+            for permission in definition.permissions
+        }
+    )
+    return ", ".join(f"`{permission}`" for permission in permissions) or None
 
 
 def _relationship_pattern(relationship: Relationship) -> str:

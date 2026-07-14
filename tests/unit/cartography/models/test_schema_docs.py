@@ -34,6 +34,7 @@ from cartography.models.core.relationships import LinkDirection
 from cartography.models.introspection import DataModel
 from cartography.models.introspection import inspect_data_model
 from cartography.models.introspection import Node
+from cartography.models.introspection import PermissionRelationshipDefinition
 from cartography.models.introspection import Relationship
 from cartography.models.schema_docs import GENERATED_NOTICE
 from cartography.models.schema_docs import render_module_schema
@@ -276,6 +277,57 @@ def test_undirected_analysis_relationships_are_rendered_without_arrows():
     # Assert
     assert "EC2KeyPair ---|MATCHING_FINGERPRINT| EC2KeyPair" in generated
     assert "(:EC2KeyPair)-[:MATCHING_FINGERPRINT]-(:EC2KeyPair)" in generated
+    assert "Source: analysis job" in generated
+
+
+def test_permission_evaluation_relationships_render_source_and_permissions():
+    # Arrange
+    definition = PermissionRelationshipDefinition(
+        provider="aws",
+        source_label="AWSPrincipal",
+        target_label="S3Bucket",
+        relationship_name="CAN_READ",
+        permissions=("S3:GetObject",),
+        config_path="cartography/data/permission_relationships.yaml",
+    )
+    node = Node(
+        label="S3Bucket",
+        descriptions=(),
+        extra_labels=(),
+        conditional_labels=(),
+        properties=(),
+        modules=("aws",),
+        schemas=(),
+    )
+    relationship = Relationship(
+        source_label="AWSPrincipal",
+        label="CAN_READ",
+        target_label="S3Bucket",
+        direction=LinkDirection.OUTWARD,
+        descriptions=(),
+        properties=(),
+        modules=("aws",),
+        origins=("permission_evaluation",),
+        schemas=(),
+        analysis_jobs=(),
+        permission_relationships=(definition,),
+    )
+    model = DataModel(
+        nodes=(node,),
+        relationships=(relationship,),
+        permission_relationships=(definition,),
+    )
+
+    # Act
+    generated = render_module_schema(model, "aws")
+
+    # Assert
+    assert "(:AWSPrincipal)-[:CAN_READ]->(:S3Bucket)" in generated
+    assert (
+        "Source: AWS permission evaluation from "
+        "`cartography/data/permission_relationships.yaml`" in generated
+    )
+    assert "Evaluated permissions: `S3:GetObject`" in generated
 
 
 def test_ontology_and_cross_module_relationships_are_duplicated_in_module_docs():

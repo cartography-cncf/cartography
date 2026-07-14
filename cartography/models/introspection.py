@@ -6,11 +6,14 @@ from collections.abc import Iterable
 from collections.abc import Iterator
 from dataclasses import dataclass
 from dataclasses import fields as dataclass_fields
+from pathlib import Path
 from pkgutil import walk_packages
 from types import ModuleType
 from typing import Any
 from typing import cast
 from typing import TypeVar
+
+import yaml
 
 import cartography.analysis
 import cartography.models
@@ -48,6 +51,21 @@ _MODEL_BASE_CLASSES = (
 )
 Schema = TypeVar("Schema", CartographyNodeSchema, CartographyRelSchema)
 RelationshipKey = tuple[str, str, str, LinkDirection | None]
+_REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
+_PERMISSION_RELATIONSHIP_FILES = {
+    "aws": (
+        Path("cartography/data/permission_relationships.yaml"),
+        ("AWSPrincipal",),
+    ),
+    "gcp": (
+        Path("cartography/data/gcp_permission_relationships.yaml"),
+        ("GCPPrincipal",),
+    ),
+    "azure": (
+        Path("cartography/data/azure_permission_relationships.yaml"),
+        ("EntraUser", "EntraGroup", "EntraServicePrincipal"),
+    ),
+}
 
 
 @dataclass(frozen=True)
@@ -57,6 +75,18 @@ class AnalysisJobDefinition:
     job: AnalysisJob
     module: str
     qualified_name: str
+
+
+@dataclass(frozen=True)
+class PermissionRelationshipDefinition:
+    """A relationship generated from a provider permission evaluation file."""
+
+    provider: str
+    source_label: str
+    target_label: str
+    relationship_name: str
+    permissions: tuple[str, ...]
+    config_path: str
 
 
 @dataclass(frozen=True)
@@ -104,6 +134,7 @@ class Relationship:
     origins: tuple[str, ...]
     schemas: tuple[CartographyRelSchema, ...]
     analysis_jobs: tuple[AnalysisJobDefinition, ...]
+    permission_relationships: tuple[PermissionRelationshipDefinition, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -113,6 +144,7 @@ class DataModel:
     nodes: tuple[Node, ...]
     relationships: tuple[Relationship, ...]
     analysis_jobs: tuple[AnalysisJobDefinition, ...] = ()
+    permission_relationships: tuple[PermissionRelationshipDefinition, ...] = ()
     diagnostics: tuple[str, ...] = ()
 
     def get_node(self, label: str) -> Node | None:
@@ -130,6 +162,11 @@ class DataModel:
                 definition
                 for definition in self.analysis_jobs
                 if definition.module == module
+            ),
+            permission_relationships=tuple(
+                definition
+                for definition in self.permission_relationships
+                if definition.provider == module
             ),
             diagnostics=self.diagnostics,
         )
@@ -203,22 +240,85 @@ def iter_analysis_jobs(
     )
 
 
+def iter_permission_relationships() -> Iterator[PermissionRelationshipDefinition]:
+    """Yield concrete relationships from bundled permission evaluation files."""
+    definitions: list[PermissionRelationshipDefinition] = []
+    for provider, (relative_path, source_labels) in sorted(
+        _PERMISSION_RELATIONSHIP_FILES.items()
+    ):
+        raw_definitions = yaml.safe_load((_REPOSITORY_ROOT / relative_path).read_text())
+        if not isinstance(raw_definitions, list):
+            raise ValueError(
+                f"Permission relationship file {relative_path} must contain a list."
+            )
+        for raw_definition in raw_definitions:
+            if not isinstance(raw_definition, dict):
+                raise ValueError(
+                    f"Permission relationship file {relative_path} contains "
+                    "a non-mapping entry."
+                )
+            target_label = raw_definition.get("target_label")
+            relationship_name = raw_definition.get("relationship_name")
+            permissions = raw_definition.get("permissions")
+            if (
+                not isinstance(target_label, str)
+                or not isinstance(relationship_name, str)
+                or not isinstance(permissions, list)
+                or not all(isinstance(permission, str) for permission in permissions)
+            ):
+                raise ValueError(
+                    f"Permission relationship file {relative_path} contains "
+                    f"an invalid entry: {raw_definition!r}."
+                )
+            for source_label in source_labels:
+                definitions.append(
+                    PermissionRelationshipDefinition(
+                        provider=provider,
+                        source_label=source_label,
+                        target_label=target_label,
+                        relationship_name=relationship_name,
+                        permissions=tuple(permissions),
+                        config_path=relative_path.as_posix(),
+                    )
+                )
+    yield from sorted(
+        definitions,
+        key=lambda definition: (
+            definition.provider,
+            definition.source_label,
+            definition.relationship_name,
+            definition.target_label,
+        ),
+    )
+
+
 def inspect_data_model(
     package: ModuleType = cartography.models,
 ) -> DataModel:
     """Discover model classes and build a normalized runtime graph view."""
     analysis_jobs = iter_analysis_jobs()
+    permission_relationships = iter_permission_relationships()
     if package is not cartography.models:
         module = _model_package_name(package)
         analysis_jobs = (
             definition for definition in analysis_jobs if definition.module == module
         )
-    return build_data_model(iter_model_classes(package), analysis_jobs)
+        permission_relationships = (
+            definition
+            for definition in permission_relationships
+            if definition.provider == module
+        )
+    return build_data_model(
+        iter_model_classes(package),
+        analysis_jobs,
+        permission_relationships,
+    )
 
 
 def build_data_model(
     model_classes: Iterable[ModelClass],
     analysis_jobs: Iterable[AnalysisJobDefinition] = (),
+    permission_relationships: Iterable[PermissionRelationshipDefinition] = (),
 ) -> DataModel:
     """Build a data model from discovered classes without duplicating declarations."""
     node_entries: dict[str, dict[str, Any]] = {}
@@ -266,6 +366,21 @@ def build_data_model(
         analysis_job_definitions,
         diagnostics,
     )
+    permission_relationship_definitions = tuple(
+        sorted(
+            permission_relationships,
+            key=lambda definition: (
+                definition.provider,
+                definition.source_label,
+                definition.relationship_name,
+                definition.target_label,
+            ),
+        )
+    )
+    _add_permission_relationships(
+        relationship_entries,
+        permission_relationship_definitions,
+    )
 
     nodes = tuple(
         _build_node(label, entry) for label, entry in sorted(node_entries.items())
@@ -281,6 +396,7 @@ def build_data_model(
         nodes=nodes,
         relationships=relationships,
         analysis_jobs=analysis_job_definitions,
+        permission_relationships=permission_relationship_definitions,
         diagnostics=tuple(sorted(diagnostics)),
     )
 
@@ -317,6 +433,7 @@ def _new_relationship_entry() -> dict[str, Any]:
         "origins": set(),
         "schemas": [],
         "analysis_jobs": {},
+        "permission_relationships": {},
     }
 
 
@@ -499,6 +616,44 @@ def _ontology_labels_for_mapping_group(
         for label in labels
         if label.lower().replace("_", "") in normalized_candidates
     }
+
+
+def _add_permission_relationships(
+    relationship_entries: dict[RelationshipKey, dict[str, Any]],
+    definitions: tuple[PermissionRelationshipDefinition, ...],
+) -> None:
+    provider_properties = {
+        "aws": ("lastupdated", "has_condition", "condition_keys", "conditions"),
+        "gcp": (
+            "firstseen",
+            "lastupdated",
+            "has_condition",
+            "condition_title",
+            "condition_expression",
+        ),
+        "azure": ("firstseen", "lastupdated"),
+    }
+    for definition in definitions:
+        key = (
+            definition.source_label,
+            definition.relationship_name,
+            definition.target_label,
+            LinkDirection.OUTWARD,
+        )
+        entry = relationship_entries.setdefault(key, _new_relationship_entry())
+        entry["modules"].add(definition.provider)
+        entry["origins"].add("permission_evaluation")
+        definition_key = (
+            f"{definition.provider}:{definition.source_label}:"
+            f"{definition.relationship_name}:{definition.target_label}"
+        )
+        entry["permission_relationships"][definition_key] = definition
+        for property_name in provider_properties[definition.provider]:
+            _add_generated_property(
+                entry["properties"],
+                property_name,
+                f"permission_evaluation:{definition.provider}",
+            )
 
 
 def _add_analysis_jobs(
@@ -705,6 +860,10 @@ def _build_relationship(
         schemas=tuple(entry["schemas"]),
         analysis_jobs=tuple(
             entry["analysis_jobs"][name] for name in sorted(entry["analysis_jobs"])
+        ),
+        permission_relationships=tuple(
+            entry["permission_relationships"][name]
+            for name in sorted(entry["permission_relationships"])
         ),
     )
 

@@ -27,6 +27,8 @@ from cartography.models.introspection import AnalysisJobDefinition
 from cartography.models.introspection import build_data_model
 from cartography.models.introspection import iter_analysis_jobs
 from cartography.models.introspection import iter_model_classes
+from cartography.models.introspection import iter_permission_relationships
+from cartography.models.introspection import PermissionRelationshipDefinition
 
 
 @dataclass(frozen=True)
@@ -294,3 +296,66 @@ def test_iter_analysis_jobs_discovers_jobs_stored_in_tuples():
     discovered_job_ids = {id(definition.job) for definition in definitions}
     assert {id(job) for job in DNS_RECORD_LINKING_JOBS} <= discovered_job_ids
     assert len(discovered_job_ids) == len(definitions)
+
+
+def test_iter_permission_relationships_discovers_provider_yaml_definitions():
+    # Act
+    definitions = list(iter_permission_relationships())
+
+    # Assert
+    assert (
+        PermissionRelationshipDefinition(
+            provider="aws",
+            source_label="AWSPrincipal",
+            target_label="S3Bucket",
+            relationship_name="CAN_READ",
+            permissions=("S3:GetObject",),
+            config_path="cartography/data/permission_relationships.yaml",
+        )
+        in definitions
+    )
+    azure_sql_sources = {
+        definition.source_label
+        for definition in definitions
+        if definition.provider == "azure"
+        and definition.target_label == "AzureSQLServer"
+        and definition.relationship_name == "CAN_READ"
+    }
+    assert azure_sql_sources == {
+        "EntraUser",
+        "EntraGroup",
+        "EntraServicePrincipal",
+    }
+
+
+def test_build_data_model_adds_permission_evaluation_relationships():
+    # Arrange
+    definition = PermissionRelationshipDefinition(
+        provider="gcp",
+        source_label="GCPPrincipal",
+        target_label="GCPBucket",
+        relationship_name="CAN_READ",
+        permissions=("storage.objects.get",),
+        config_path="cartography/data/gcp_permission_relationships.yaml",
+    )
+
+    # Act
+    model = build_data_model([], permission_relationships=(definition,))
+
+    # Assert
+    relationship = model.relationships[0]
+    assert relationship.source_label == "GCPPrincipal"
+    assert relationship.target_label == "GCPBucket"
+    assert relationship.label == "CAN_READ"
+    assert relationship.direction is LinkDirection.OUTWARD
+    assert relationship.modules == ("gcp",)
+    assert relationship.origins == ("permission_evaluation",)
+    assert relationship.permission_relationships == (definition,)
+    assert {prop.name for prop in relationship.properties} == {
+        "firstseen",
+        "lastupdated",
+        "has_condition",
+        "condition_title",
+        "condition_expression",
+    }
+    assert model.permission_relationships == (definition,)
