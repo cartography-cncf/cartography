@@ -2,17 +2,27 @@ import logging
 
 import neo4j
 
+import cartography.intel.databricks.account
+import cartography.intel.databricks.account_groups
+import cartography.intel.databricks.account_service_principals
+import cartography.intel.databricks.account_settings
+import cartography.intel.databricks.account_users
+import cartography.intel.databricks.account_workspaces
 import cartography.intel.databricks.alerts
 import cartography.intel.databricks.apps
 import cartography.intel.databricks.artifact_allowlists
+import cartography.intel.databricks.budgets
 import cartography.intel.databricks.catalogs
 import cartography.intel.databricks.clean_rooms
 import cartography.intel.databricks.cluster_policies
 import cartography.intel.databricks.clusters
 import cartography.intel.databricks.connections
+import cartography.intel.databricks.credential_configs
 import cartography.intel.databricks.dashboards
 import cartography.intel.databricks.data_sources
+import cartography.intel.databricks.encryption_keys
 import cartography.intel.databricks.external_locations
+import cartography.intel.databricks.federation_policies
 import cartography.intel.databricks.functions
 import cartography.intel.databricks.genie_spaces
 import cartography.intel.databricks.git_credentials
@@ -21,10 +31,15 @@ import cartography.intel.databricks.groups
 import cartography.intel.databricks.instance_pools
 import cartography.intel.databricks.ip_access_lists
 import cartography.intel.databricks.jobs
+import cartography.intel.databricks.log_delivery
 import cartography.intel.databricks.metastores
+import cartography.intel.databricks.network_configs
+import cartography.intel.databricks.network_connectivity_configs
 import cartography.intel.databricks.notebooks
 import cartography.intel.databricks.online_tables
+import cartography.intel.databricks.permissions
 import cartography.intel.databricks.pipelines
+import cartography.intel.databricks.private_access_settings
 import cartography.intel.databricks.providers
 import cartography.intel.databricks.queries
 import cartography.intel.databricks.recipients
@@ -36,14 +51,18 @@ import cartography.intel.databricks.service_principals
 import cartography.intel.databricks.serving_endpoints
 import cartography.intel.databricks.shares
 import cartography.intel.databricks.sql_warehouses
+import cartography.intel.databricks.storage_configs
 import cartography.intel.databricks.storage_credentials
 import cartography.intel.databricks.tables
 import cartography.intel.databricks.tokens
 import cartography.intel.databricks.users
 import cartography.intel.databricks.vector_search
 import cartography.intel.databricks.volumes
+import cartography.intel.databricks.vpc_endpoints
+import cartography.intel.databricks.workspace_assignments
 import cartography.intel.databricks.workspaces
 from cartography.config import Config
+from cartography.intel.databricks.util import DatabricksAccountClient
 from cartography.intel.databricks.util import DatabricksWorkspaceClient
 from cartography.util import timeit
 
@@ -145,15 +164,90 @@ def _sync_workflows(
     )
 
 
+def _sync_account_details(
+    neo4j_session: neo4j.Session,
+    account_client: DatabricksAccountClient,
+    account_id: str,
+    update_tag: int,
+) -> None:
+    """Sync the account-level surface (AWS / GCP) below the account node.
+
+    Covers the Databricks Account API, which does not exist on Azure: account
+    SCIM (groups first so member edges land, then users + service principals),
+    the account's workspaces (so workspace permission assignments can key off
+    the numeric workspace id), account-to-workspace permission assignments,
+    federation policies, and the workspace cloud configurations (credentials /
+    storage / network / encryption / ...).
+
+    Runs AFTER the workspace-API workspace sync so that account_workspaces
+    enriches (rather than gets clobbered by) the DatabricksWorkspace node. The
+    ``DatabricksAccount`` node itself is synced earlier, before the workspace, so
+    the workspace's account RESOURCE edge can form. Each account resource is
+    scoped to ``DatabricksAccount`` for cleanup, so ``ACCOUNT_ID`` rides in the
+    common job parameters.
+    """
+    account_job_parameters = {"UPDATE_TAG": update_tag, "ACCOUNT_ID": account_id}
+
+    cartography.intel.databricks.account_groups.sync(
+        neo4j_session, account_client, account_id, account_job_parameters
+    )
+    cartography.intel.databricks.account_users.sync(
+        neo4j_session, account_client, account_id, account_job_parameters
+    )
+    cartography.intel.databricks.account_service_principals.sync(
+        neo4j_session, account_client, account_id, account_job_parameters
+    )
+
+    # Account workspaces create/enrich the DatabricksWorkspace nodes (numeric
+    # workspace id + account RESOURCE edge) and return the numeric-id -> node-id
+    # map the permission-assignment sweep needs.
+    workspace_node_ids = cartography.intel.databricks.account_workspaces.sync(
+        neo4j_session, account_client, account_id, account_job_parameters
+    )
+    cartography.intel.databricks.workspace_assignments.sync(
+        neo4j_session,
+        account_client,
+        account_id,
+        workspace_node_ids,
+        account_job_parameters,
+    )
+
+    # Federation policies read the account service principals from the graph.
+    cartography.intel.databricks.federation_policies.sync(
+        neo4j_session, account_client, account_id, account_job_parameters
+    )
+
+    # Workspace cloud configurations. Each links back to the AWS / GCP nodes
+    # already in the graph where they exist.
+    for module in (
+        cartography.intel.databricks.credential_configs,
+        cartography.intel.databricks.storage_configs,
+        cartography.intel.databricks.network_configs,
+        cartography.intel.databricks.private_access_settings,
+        cartography.intel.databricks.vpc_endpoints,
+        cartography.intel.databricks.encryption_keys,
+        cartography.intel.databricks.network_connectivity_configs,
+        cartography.intel.databricks.log_delivery,
+        cartography.intel.databricks.budgets,
+        cartography.intel.databricks.account_settings,
+    ):
+        module.sync(neo4j_session, account_client, account_id, account_job_parameters)
+
+
 @timeit
 def start_databricks_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
     """
     If this module is configured, perform ingestion of Databricks data. Otherwise warn and exit.
 
-    Authentication supports either:
+    Workspace authentication supports either:
       - Personal Access Token (PAT) via ``--databricks-token-env-var``
       - OAuth M2M (workspace-level service principal) via
         ``--databricks-client-id`` + ``--databricks-client-secret-env-var``
+
+    The account-level surface (AWS / GCP only) is additionally enabled by
+    ``--databricks-account-id`` + ``--databricks-account-client-id`` +
+    ``--databricks-account-client-secret-env-var``; when unset the module runs
+    workspace-only.
 
     :param neo4j_session: Neo4J session for database interface
     :param config: A cartography.config object
@@ -188,6 +282,45 @@ def start_databricks_ingestion(neo4j_session: neo4j.Session, config: Config) -> 
         )
         return
 
+    # Account API (AWS / GCP only; Azure has no Databricks account API). All
+    # three flags are required together: OAuth M2M against the account host
+    # needs the account id + a client id/secret pair. A partial set is an
+    # operator mistake, so fail loudly rather than silently skipping the
+    # account-level surface. When none are set, the workspace-only path runs
+    # unchanged.
+    has_account_id = bool(config.databricks_account_id)
+    has_account_client_id = bool(config.databricks_account_client_id)
+    has_account_client_secret = bool(config.databricks_account_client_secret)
+    account_configured = (
+        has_account_id or has_account_client_id or has_account_client_secret
+    )
+    if account_configured and not (
+        has_account_id and has_account_client_id and has_account_client_secret
+    ):
+        raise ValueError(
+            "Databricks account API is partially configured: "
+            "--databricks-account-id, --databricks-account-client-id and "
+            "--databricks-account-client-secret-env-var must be set together.",
+        )
+
+    # Sync the DatabricksAccount node first (before the workspace) so the
+    # workspace's account RESOURCE edge can match it. The rest of the account
+    # surface runs after the workspace sync below, so account_workspaces enriches
+    # the DatabricksWorkspace node instead of being clobbered by the workspace
+    # sync (which does not carry the numeric id / deployment fields).
+    account_id: str | None = None
+    account_client: DatabricksAccountClient | None = None
+    if account_configured:
+        account_client = DatabricksAccountClient(
+            host=config.databricks_account_host,
+            account_id=config.databricks_account_id,
+            client_id=config.databricks_account_client_id,
+            client_secret=config.databricks_account_client_secret,
+        )
+        account_id = cartography.intel.databricks.account.sync(
+            neo4j_session, account_client, {"UPDATE_TAG": config.update_tag}
+        )
+
     api_client = DatabricksWorkspaceClient(
         host=config.databricks_workspace_url,
         token=config.databricks_token,
@@ -199,12 +332,21 @@ def start_databricks_ingestion(neo4j_session: neo4j.Session, config: Config) -> 
         neo4j_session,
         api_client,
         {"UPDATE_TAG": config.update_tag},
+        account_id,
     )
     workspace_id = workspace["id"]
     common_job_parameters = {
         "UPDATE_TAG": config.update_tag,
         "WORKSPACE_ID": workspace_id,
     }
+
+    # Account-level surface (SCIM, workspaces, assignments, federation, cloud
+    # configs). Runs after the workspace sync so account_workspaces enriches the
+    # existing workspace node rather than being overwritten by it.
+    if account_client is not None and account_id is not None:
+        _sync_account_details(
+            neo4j_session, account_client, account_id, config.update_tag
+        )
 
     # Groups must be synced before users + service principals so the
     # User/SP -[:MEMBER_OF]-> Group MATCH lands the relationship.
@@ -370,6 +512,17 @@ def start_databricks_ingestion(neo4j_session: neo4j.Session, config: Config) -> 
         _sync_workflows(
             neo4j_session, api_client, workspace_id, None, common_job_parameters
         )
+        # Object ACLs (principal -> workspace-object HAS_PERMISSION) are
+        # workspace-level, so materialise them even without Unity Catalog. Runs
+        # last so every ACL-bearing object (clusters, jobs, pipelines, secret
+        # scopes, ...) is already in the graph. Self-contained: it runs its own
+        # scoped MatchLink cleanup.
+        cartography.intel.databricks.permissions.sync(
+            neo4j_session,
+            api_client,
+            workspace_id,
+            common_job_parameters,
+        )
         return
 
     # Storage credentials + external locations first so catalogs / tables /
@@ -512,6 +665,17 @@ def start_databricks_ingestion(neo4j_session: neo4j.Session, config: Config) -> 
     # Grants last: materialises principal -> securable HAS_PRIVILEGE edges by
     # reading every securable already loaded for the workspace.
     cartography.intel.databricks.grants.sync(
+        neo4j_session,
+        api_client,
+        workspace_id,
+        common_job_parameters,
+    )
+
+    # Object ACLs (principal -> workspace-object HAS_PERMISSION). Workspace-level
+    # like grants, so it runs on both the UC and no-UC paths; here it runs after
+    # every ACL-bearing object is loaded. Self-contained: runs its own scoped
+    # MatchLink cleanup, so it is not part of _cleanup_unity_catalog.
+    cartography.intel.databricks.permissions.sync(
         neo4j_session,
         api_client,
         workspace_id,

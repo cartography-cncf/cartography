@@ -3,6 +3,7 @@ from dataclasses import dataclass
 from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeProperties
 from cartography.models.core.nodes import CartographyNodeSchema
+from cartography.models.core.nodes import ExtraNodeLabels
 from cartography.models.core.relationships import CartographyRelProperties
 from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
@@ -49,10 +50,9 @@ class DatabricksIpAccessListSchema(CartographyNodeSchema):
     properties: DatabricksIpAccessListNodeProperties = (
         DatabricksIpAccessListNodeProperties()
     )
-    # ponytail: NetworkAccessControl ontology label + mapping land in PR 9
-    # alongside the rest of the Databricks ontology wiring; surfacing the
-    # label here without the mapping would expose a NAC node with no `name`
-    # field to cross-cloud queries.
+    # NetworkAccessControl: ontology label for cross-provider network access
+    # control queries (mapping in models/ontology/mapping/data/firewalls.py).
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["NetworkAccessControl"])
     sub_resource_relationship: DatabricksIpAccessListToWorkspaceRel = (
         DatabricksIpAccessListToWorkspaceRel()
     )

@@ -19,6 +19,7 @@ class SSMParameterNodeProperties(CartographyNodeProperties):
     arn: PropertyRef = PropertyRef("ARN", extra_index=True)
     id: PropertyRef = PropertyRef("ARN")
     name: PropertyRef = PropertyRef("Name")
+    value: PropertyRef = PropertyRef("Value")
     description: PropertyRef = PropertyRef("Description")
     type: PropertyRef = PropertyRef("Type")
     keyid: PropertyRef = PropertyRef("KeyId")
@@ -93,3 +94,14 @@ class SSMParameterSchema(CartographyNodeSchema):
             SSMParameterToKMSKeyRel(),
         ],
     )
+
+
+@dataclass(frozen=True)
+class PublicSSMParameterSchema(CartographyNodeSchema):
+
+    label: str = "PublicSSMParameter"
+    properties: SSMParameterNodeProperties = SSMParameterNodeProperties()
+    # AWS-managed public parameters are shared regional data, not account resources.
+    sub_resource_relationship: None = None
+    scoped_cleanup: bool = False
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["SSMParameter"])

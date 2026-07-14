@@ -15,10 +15,12 @@ from google.oauth2.credentials import Credentials as OAuth2Credentials
 from google.oauth2.service_account import Credentials as ServiceAccountCredentials
 from googleapiclient.discovery import Resource
 
+from cartography.analysis.gsuite.analysis import GSUITE_HUMAN_LINK
 from cartography.config import Config
 from cartography.intel.gsuite import groups
 from cartography.intel.gsuite import users
 from cartography.util import run_analysis_job
+from cartography.util import run_typed_analysis_job
 from cartography.util import timeit
 
 OAUTH_SCOPES = [
@@ -178,8 +180,8 @@ def start_gsuite_ingestion(neo4j_session: neo4j.Session, config: Config) -> None
     )
 
     # Link GSuite users to Human nodes if they exist
-    run_analysis_job(
-        "gsuite_human_link.json",
+    run_typed_analysis_job(
+        GSUITE_HUMAN_LINK,
         neo4j_session,
         common_job_parameters,
     )

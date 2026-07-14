@@ -38,6 +38,7 @@ Representation of a [Kubernetes Cluster.](https://kubernetes.io/docs/concepts/ov
                                        :KubernetesService,
                                        :KubernetesSecret,
                                        :KubernetesIngress,
+                                       :KubernetesNetworkPolicy,
                                        :KubernetesUser,
                                        :KubernetesGroup,
                                        :KubernetesServiceAccount,
@@ -118,6 +119,7 @@ Representation of a [Kubernetes Namespace.](https://kubernetes.io/docs/concepts/
     (:KubernetesNamespace)-[:CONTAINS]->(:KubernetesService,
                                          :KubernetesSecret,
                                          :KubernetesIngress,
+                                         :KubernetesNetworkPolicy,
                                          :KubernetesServiceAccount,
                                          :KubernetesRole,
                                          :KubernetesRoleBinding,
@@ -209,6 +211,8 @@ Representation of a [Kubernetes Container.](https://kubernetes.io/docs/concepts/
 | added\_capabilities | Linux capabilities explicitly added to the container. Derived from `container.security_context.capabilities.add`. |
 | dropped\_capabilities | Linux capabilities explicitly dropped by the container. Derived from `container.security_context.capabilities.drop`. |
 | host\_ports | List of host ports exposed by the container. Derived from `container.ports[].host_port`. |
+| container\_ports | The ports the container *declares* in its pod spec. Derived from `container.ports[]`, stored as a JSON-encoded list of `{container_port, protocol, name}`. `containerPort` is optional in Kubernetes, so this reflects declared ports only, not necessarily every port the process listens on. |
+| container\_port\_numbers | Flat, queryable list of the declared TCP/UDP `containerPort` numbers. Derived from `container.ports[].container_port`. An empty list means the container *declares* no ports; it is not proof that the container listens on nothing, since a process can bind ports it never declared. |
 | architecture\_normalized | Canonical CPU architecture derived from the scheduled node when available (e.g. `amd64`, `arm64`). |
 | exposed\_internet | Set by analysis job. `true` if this container is reachable from an internet-facing load balancer. |
 | exposed\_internet\_type | Set by analysis job. List of exposure types (e.g. `['lb']`). |
@@ -269,6 +273,42 @@ Representation of a [Kubernetes Service.](https://kubernetes.io/docs/concepts/se
 - `KubernetesService` of type `LoadBalancer` uses an AWS `AWSLoadBalancerV2` (NLB/ALB). The relationship is matched by DNS hostname from the Kubernetes service's `status.loadBalancer.ingress[].hostname` field to the `AWSLoadBalancerV2.dnsname` property. This allows linking EKS services to their backing AWS load balancers.
     ```
     (:KubernetesService)-[:USES_LOAD_BALANCER]->(:AWSLoadBalancerV2)
+    ```
+
+### KubernetesNetworkPolicy
+Representation of a [Kubernetes NetworkPolicy.](https://kubernetes.io/docs/concepts/services-networking/network-policies/) A NetworkPolicy declares how the pods it selects are allowed to communicate; a pod selected by an ingress-restricting policy is default-deny for ingress except for the traffic the policy admits. This lets consumers distinguish a segmented namespace from a flat one.
+
+| Field | Description |
+|-------|-------------|
+| **id** | UID of the network policy |
+| **name** | Name of the network policy |
+| **namespace** | The Kubernetes namespace where this network policy is defined |
+| creation\_timestamp | Timestamp of the creation time of the network policy |
+| deletion\_timestamp | Timestamp of the deletion time of the network policy |
+| pod\_selector | The `spec.podSelector` selecting the pods this policy applies to, stored as a JSON-encoded `{match_labels, match_expressions}`. An empty selector selects every pod in the namespace. |
+| policy\_types | List of policy types the policy governs, e.g. `['Ingress']`, `['Ingress', 'Egress']`. |
+| ingress\_rules | The `spec.ingress` rule set (from-peers and ports), stored as a JSON-encoded string. |
+| egress\_rules | The `spec.egress` rule set (to-peers and ports), stored as a JSON-encoded string. |
+| restricts\_ingress | `true` when `Ingress` is in `policy_types`: the selected pods are default-deny for ingress except for what `ingress_rules` admit. |
+| restricts\_egress | `true` when `Egress` is in `policy_types`: the selected pods are default-deny for egress except for what `egress_rules` admit. |
+| **cluster\_name** | Name of the Kubernetes cluster where this network policy is defined |
+| firstseen | Timestamp of when a sync job first discovered this node |
+| **lastupdated** | Timestamp of the last time the node was updated |
+
+#### Relationships
+- `KubernetesNetworkPolicy` belongs to a `KubernetesCluster`.
+    ```
+    (:KubernetesCluster)-[:RESOURCE]->(:KubernetesNetworkPolicy)
+    ```
+
+- `KubernetesNetworkPolicy` is contained in a `KubernetesNamespace`.
+    ```
+    (:KubernetesNamespace)-[:CONTAINS]->(:KubernetesNetworkPolicy)
+    ```
+
+- `KubernetesNetworkPolicy` applies to the `KubernetesPod` resources selected by its `podSelector` (resolved at ingest; an empty selector applies to every pod in the namespace). Both equality-based `matchLabels` and set-based `matchExpressions` (`In`, `NotIn`, `Exists`, `DoesNotExist`) are evaluated.
+    ```
+    (:KubernetesNetworkPolicy)-[:APPLIES_TO]->(:KubernetesPod)
     ```
 
 ### KubernetesIngress

@@ -5,6 +5,7 @@ from typing import Any
 import neo4j
 import requests
 
+from cartography.analysis.ontology.analysis import SUPPLY_CHAIN_SOURCE_FILE
 from cartography.client.core.tx import load_matchlinks
 from cartography.graph.job import GraphJob
 from cartography.intel.github.util import call_github_rest_api
@@ -27,7 +28,7 @@ from cartography.models.github.packaged_matchlink import (
 from cartography.models.github.packaged_matchlink import (
     ImagePackagedByWorkflowMatchLink,
 )
-from cartography.util import run_analysis_job
+from cartography.util import run_typed_analysis_job
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
@@ -609,8 +610,8 @@ def sync(
     ).run(neo4j_session)
 
     # 7. Enrich PACKAGED_FROM with source_file from Image provenance
-    run_analysis_job(
-        "supply_chain_source_file.json",
+    run_typed_analysis_job(
+        SUPPLY_CHAIN_SOURCE_FILE,
         neo4j_session,
         common_job_parameters,
     )

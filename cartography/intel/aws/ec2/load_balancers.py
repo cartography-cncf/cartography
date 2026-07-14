@@ -52,7 +52,7 @@ def _is_retryable_elb_client_error(error: ClientError) -> bool:
     )
 
 
-# DEPRECATED: Remove this migration function when releasing v1
+# DEPRECATED: legacy LoadBalancer label migration will be removed in v1.0.0.
 def _migrate_legacy_loadbalancer_labels(neo4j_session: neo4j.Session) -> None:
     """One-time migration: relabel LoadBalancer → AWSLoadBalancer."""
     check_query = """

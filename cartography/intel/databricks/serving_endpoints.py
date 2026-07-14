@@ -59,6 +59,9 @@ def transform_endpoints(
             {
                 "id": scoped_id(workspace_id, name),
                 "name": name,
+                # The endpoint's system id is what the Permissions API keys off
+                # (/permissions/serving-endpoints/{id}); the name is not accepted.
+                "endpoint_id": e.get("id"),
                 "endpoint_type": e.get("endpoint_type"),
                 "task": e.get("task"),
                 "state_ready": state.get("ready"),

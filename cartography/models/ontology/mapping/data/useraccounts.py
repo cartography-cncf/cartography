@@ -675,6 +675,18 @@ USERACCOUNTS_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
                     OntologyFieldMapping(ontology_field="active", node_field="active"),
                 ],
             ),
+            OntologyNodeMapping(
+                node_label="DatabricksAccountUser",
+                fields=[
+                    OntologyFieldMapping(
+                        ontology_field="email", node_field="email", required=True
+                    ),
+                    OntologyFieldMapping(
+                        ontology_field="fullname", node_field="display_name"
+                    ),
+                    OntologyFieldMapping(ontology_field="active", node_field="active"),
+                ],
+            ),
         ],
     ),
 }

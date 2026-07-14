@@ -45,6 +45,9 @@
 ```{include} ../modules/bigfix/schema.md
 ```
 
+```{include} ../modules/circleci/schema.md
+```
+
 ```{include} ../modules/cloudflare/schema.md
 ```
 
