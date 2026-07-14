@@ -7,7 +7,7 @@ from cartography.graph.analysis import SetProperty
 AWS_S3ACL_ANALYSIS = AnalysisJob(
     name="AWS S3 Acl exposure analysis",
     short_name="aws_s3acl_analysis",
-    scope=ScopeById("AWSAccount", "AWS_ID"),
+    scope=ScopeById("AWSAccount", "AWS_ID", scope_on="bucket"),
     statements=(
         AnalysisStatement(
             match="""
@@ -28,7 +28,6 @@ AWS_S3ACL_ANALYSIS = AnalysisJob(
                     label="S3Bucket",
                 ),
             ),
-            scope_on="bucket",
         ),
         AnalysisStatement(
             match="""
@@ -45,7 +44,6 @@ AWS_S3ACL_ANALYSIS = AnalysisJob(
                     label="S3Bucket",
                 ),
             ),
-            scope_on="bucket",
         ),
         AnalysisStatement(
             match="""
@@ -62,7 +60,6 @@ AWS_S3ACL_ANALYSIS = AnalysisJob(
                     label="S3Bucket",
                 ),
             ),
-            scope_on="bucket",
         ),
         AnalysisStatement(
             match="""
@@ -79,7 +76,6 @@ AWS_S3ACL_ANALYSIS = AnalysisJob(
                     label="S3Bucket",
                 ),
             ),
-            scope_on="bucket",
         ),
         AnalysisStatement(
             match="""
@@ -104,7 +100,6 @@ AWS_S3ACL_ANALYSIS = AnalysisJob(
                     label="S3Bucket",
                 ),
             ),
-            scope_on="bucket",
         ),
     ),
 )

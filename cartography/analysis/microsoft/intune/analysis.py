@@ -7,7 +7,7 @@ from cartography.graph.analysis import ScopeById
 INTUNE_COMPLIANCE_POLICY_DEVICE = AnalysisJob(
     name="Intune compliance policy to device resolution",
     short_name="intune_compliance_policy_device",
-    scope=ScopeById("EntraTenant", "TENANT_ID"),
+    scope=ScopeById("EntraTenant", "TENANT_ID", scope_on="policy"),
     cleanup_iterationsize=1000,
     statements=(
         AnalysisStatement(
@@ -22,7 +22,6 @@ INTUNE_COMPLIANCE_POLICY_DEVICE = AnalysisJob(
                     target_label="IntuneManagedDevice",
                 ),
             ),
-            scope_on="policy",
             incremental_on=("policy", "device"),
         ),
         AnalysisStatement(
@@ -37,7 +36,6 @@ INTUNE_COMPLIANCE_POLICY_DEVICE = AnalysisJob(
                     target_label="IntuneManagedDevice",
                 ),
             ),
-            scope_on="policy",
             incremental_on=("policy", "device"),
         ),
         AnalysisStatement(
@@ -52,7 +50,6 @@ INTUNE_COMPLIANCE_POLICY_DEVICE = AnalysisJob(
                     target_label="IntuneManagedDevice",
                 ),
             ),
-            scope_on="policy",
             incremental_on=("policy", "device"),
         ),
     ),

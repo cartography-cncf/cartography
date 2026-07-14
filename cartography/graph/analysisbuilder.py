@@ -37,9 +37,10 @@ def compile_query(
     statement: AnalysisStatement,
     *,
     scope: ScopeById | None = None,
+    scope_index: int = 0,
 ) -> str:
     if statement.query:
-        if statement.scope_on or statement.incremental_on:
+        if scope or statement.incremental_on:
             raise ValueError("Raw analysis queries do not support structural scoping.")
         return statement.query
     if statement.match is None:
@@ -48,7 +49,7 @@ def compile_query(
         _cleanup_effect(effect)
     prefixes: list[str] = []
     if scope:
-        prefixes.extend(_declared_scope_matches(statement, scope))
+        prefixes.append(_declared_scope_match(scope, scope_index))
     prefixes.extend(_incremental_matches(statement))
     return "\n".join(
         (
@@ -65,9 +66,10 @@ def to_graph_statement(
     sequence_num: int,
     *,
     scope: ScopeById | None = None,
+    scope_index: int = 0,
 ) -> GraphStatement:
     return GraphStatement(
-        compile_query(statement, scope=scope),
+        compile_query(statement, scope=scope, scope_index=scope_index),
         iterative=statement.iterative,
         iterationsize=statement.iterationsize,
         parent_job_name=parent_job_name,
@@ -107,13 +109,14 @@ def to_graph_job(job: AnalysisJob) -> GraphJob:
                 _cleanup_statement(job, effect, parent_name, len(statements) + 1)
             )
 
-    for offset, statement in enumerate(job.statements, start=len(statements) + 1):
+    for scope_index, statement in enumerate(job.statements):
         statements.append(
             to_graph_statement(
                 statement,
                 parent_name,
-                offset,
+                len(statements) + 1,
                 scope=job.scope,
+                scope_index=scope_index,
             )
         )
 
@@ -167,31 +170,26 @@ def _validate_identifier(value: str, description: str) -> str:
     return value
 
 
-def _declared_scope_matches(
-    statement: AnalysisStatement,
+def _declared_scope_match(
     scope: ScopeById,
-) -> tuple[str, ...]:
-    if statement.scope_on is None:
-        return ()
-    aliases = (
-        (statement.scope_on,)
-        if isinstance(statement.scope_on, str)
-        else tuple(dict.fromkeys(statement.scope_on))
+    scope_index: int,
+) -> str:
+    if scope.scope_on is None:
+        raise ValueError("ScopeById requires scope_on for analysis queries.")
+    alias = (
+        scope.scope_on
+        if isinstance(scope.scope_on, str)
+        else scope.scope_on[scope_index]
     )
-
     scope_label = _validate_identifier(scope.label, "scope label")
     id_property = _validate_identifier(scope.id_property, "scope ID property")
     id_param = _validate_identifier(scope.id_param, "scope ID parameter")
     rel_label = _validate_identifier(scope.rel_label, "scope relationship label")
-    matches: list[str] = []
-    for index, alias in enumerate(aliases):
-        _validate_identifier(alias, "scope variable")
-        scope_alias = "scope" if index == 0 else f"scope{index + 1}"
-        matches.append(
-            f"MATCH ({scope_alias}:{scope_label} "
-            f"{{{id_property}: ${id_param}}})-[:{rel_label}]->({alias})"
-        )
-    return tuple(matches)
+    _validate_identifier(alias, "scope variable")
+    return (
+        f"MATCH (scope:{scope_label} "
+        f"{{{id_property}: ${id_param}}})-[:{rel_label}]->({alias})"
+    )
 
 
 def _incremental_targets(

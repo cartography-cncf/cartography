@@ -10,16 +10,18 @@ from cartography.models.core.relationships import LinkDirection
 
 @dataclass(frozen=True)
 class ScopeById:
-    """Restrict analysis and generated cleanup to a scoped resource."""
+    """
+    Restrict analysis and generated cleanup to a scoped resource.
+
+    scope_on is either the variable anchored in every statement or one variable
+    per statement in declaration order.
+    """
 
     label: str
     id_param: str
     id_property: str = "id"
     rel_label: str = "RESOURCE"
-
-
-# DEPRECATED: CleanupScopedTo compatibility alias will be removed in v1.0.0.
-CleanupScopedTo = ScopeById
+    scope_on: str | Sequence[str] | None = None
 
 
 @dataclass(frozen=True)
@@ -44,7 +46,6 @@ class AnalysisStatement:
     only to this statement's write query; generated cleanup statements are
     iterative separately and use AnalysisJob.cleanup_iterationsize.
 
-    scope_on names variables directly attached to AnalysisJob.scope.
     incremental_on names node or relationship variables whose lastupdated value
     must match $UPDATE_TAG during a stock sync run.
     """
@@ -55,7 +56,6 @@ class AnalysisStatement:
     effects: Sequence[StatementEffect] = ()
     iterative: bool = False
     iterationsize: int = 0
-    scope_on: str | Sequence[str] | None = None
     incremental_on: IncrementalTarget | Sequence[IncrementalTarget] | None = None
 
     def __post_init__(self) -> None:
@@ -250,3 +250,12 @@ class AnalysisJob:
     def __post_init__(self) -> None:
         if not self.statements:
             raise ValueError("AnalysisJob requires at least one statement.")
+        if self.scope:
+            if self.scope.scope_on is None:
+                raise ValueError("Scoped AnalysisJob requires ScopeById.scope_on.")
+            if not isinstance(self.scope.scope_on, str) and len(
+                self.scope.scope_on
+            ) != len(self.statements):
+                raise ValueError(
+                    "ScopeById.scope_on must contain one variable per statement."
+                )

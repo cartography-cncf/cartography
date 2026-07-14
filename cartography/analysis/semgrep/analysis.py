@@ -7,14 +7,13 @@ from cartography.graph.analysis import Var
 SEMGREP_SAST_RISK_ANALYSIS = AnalysisJob(
     name="Semgrep SAST findings risk analysis based on severity and repository archive status.",
     short_name="semgrep_sast_risk_analysis",
-    scope=ScopeById("SemgrepDeployment", "DEPLOYMENT_ID"),
+    scope=ScopeById("SemgrepDeployment", "DEPLOYMENT_ID", scope_on="s"),
     statements=(
         AnalysisStatement(
             match="MATCH (g:GitHubRepository{archived:true})<-[:FOUND_IN]-(s:SemgrepSASTFinding)",
             effects=(
                 SetProperty("s", "risk_severity", "INFO", label="SemgrepSASTFinding"),
             ),
-            scope_on="s",
             incremental_on="s",
         ),
         AnalysisStatement(
@@ -24,7 +23,6 @@ SEMGREP_SAST_RISK_ANALYSIS = AnalysisJob(
                     "s", "risk_severity", Var("s.severity"), label="SemgrepSASTFinding"
                 ),
             ),
-            scope_on="s",
             incremental_on="s",
         ),
     ),
@@ -32,7 +30,7 @@ SEMGREP_SAST_RISK_ANALYSIS = AnalysisJob(
 SEMGREP_SCA_RISK_ANALYSIS = AnalysisJob(
     name="Semgrep SCA findings reachability risk analysis based on likelihood and impact. Impact = Severity, Likelihood = reachability + reachability_check",
     short_name="semgrep_sca_risk_analysis",
-    scope=ScopeById("SemgrepDeployment", "DEPLOYMENT_ID"),
+    scope=ScopeById("SemgrepDeployment", "DEPLOYMENT_ID", scope_on="s"),
     statements=(
         AnalysisStatement(
             match="MATCH (g:GitHubRepository{archived:true})<-[:FOUND_IN]-(s:SemgrepSCAFinding)",
@@ -41,7 +39,6 @@ SEMGREP_SCA_RISK_ANALYSIS = AnalysisJob(
                     "s", "reachability_risk", "INFO", label="SemgrepSCAFinding"
                 ),
             ),
-            scope_on="s",
             incremental_on="s",
         ),
         AnalysisStatement(
@@ -51,7 +48,6 @@ SEMGREP_SCA_RISK_ANALYSIS = AnalysisJob(
                     "s", "reachability_risk", "INFO", label="SemgrepSCAFinding"
                 ),
             ),
-            scope_on="s",
             incremental_on="s",
         ),
         AnalysisStatement(
@@ -61,7 +57,6 @@ SEMGREP_SCA_RISK_ANALYSIS = AnalysisJob(
                     "s", "reachability_risk", "INFO", label="SemgrepSCAFinding"
                 ),
             ),
-            scope_on="s",
             incremental_on="s",
         ),
         AnalysisStatement(
@@ -69,7 +64,6 @@ SEMGREP_SCA_RISK_ANALYSIS = AnalysisJob(
             effects=(
                 SetProperty("s", "reachability_risk", "LOW", label="SemgrepSCAFinding"),
             ),
-            scope_on="s",
             incremental_on="s",
         ),
         AnalysisStatement(
@@ -77,7 +71,6 @@ SEMGREP_SCA_RISK_ANALYSIS = AnalysisJob(
             effects=(
                 SetProperty("s", "reachability_risk", "LOW", label="SemgrepSCAFinding"),
             ),
-            scope_on="s",
             incremental_on="s",
         ),
         AnalysisStatement(
@@ -87,7 +80,6 @@ SEMGREP_SCA_RISK_ANALYSIS = AnalysisJob(
                     "s", "reachability_risk", "MEDIUM", label="SemgrepSCAFinding"
                 ),
             ),
-            scope_on="s",
             incremental_on="s",
         ),
         AnalysisStatement(
@@ -97,7 +89,6 @@ SEMGREP_SCA_RISK_ANALYSIS = AnalysisJob(
                     "s", "reachability_risk", "HIGH", label="SemgrepSCAFinding"
                 ),
             ),
-            scope_on="s",
             incremental_on="s",
         ),
         AnalysisStatement(
@@ -105,7 +96,6 @@ SEMGREP_SCA_RISK_ANALYSIS = AnalysisJob(
             effects=(
                 SetProperty("s", "reachability_risk", "LOW", label="SemgrepSCAFinding"),
             ),
-            scope_on="s",
             incremental_on="s",
         ),
         AnalysisStatement(
@@ -115,7 +105,6 @@ SEMGREP_SCA_RISK_ANALYSIS = AnalysisJob(
                     "s", "reachability_risk", "MEDIUM", label="SemgrepSCAFinding"
                 ),
             ),
-            scope_on="s",
             incremental_on="s",
         ),
         AnalysisStatement(
@@ -125,7 +114,6 @@ SEMGREP_SCA_RISK_ANALYSIS = AnalysisJob(
                     "s", "reachability_risk", "CRITICAL", label="SemgrepSCAFinding"
                 ),
             ),
-            scope_on="s",
             incremental_on="s",
         ),
         AnalysisStatement(
@@ -138,7 +126,6 @@ SEMGREP_SCA_RISK_ANALYSIS = AnalysisJob(
                     label="SemgrepSCAFinding",
                 ),
             ),
-            scope_on="s",
             incremental_on="s",
         ),
     ),

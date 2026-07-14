@@ -10,7 +10,7 @@ from cartography.graph.analysis import Var
 AWS_EC2_IAM_INSTANCE_PROFILE = AnalysisJob(
     name="EC2 Instances assume IAM roles",
     short_name="aws_ec2_iaminstanceprofile",
-    scope=ScopeById("AWSAccount", "AWS_ID"),
+    scope=ScopeById("AWSAccount", "AWS_ID", scope_on="i"),
     statements=(
         AnalysisStatement(
             match="MATCH (i:EC2Instance)-[:INSTANCE_PROFILE]->(p:AWSInstanceProfile)-[:ASSOCIATED_WITH]->(r:AWSRole)",
@@ -24,7 +24,6 @@ AWS_EC2_IAM_INSTANCE_PROFILE = AnalysisJob(
                     target_label="AWSRole",
                 ),
             ),
-            scope_on="i",
         ),
     ),
 )
@@ -53,7 +52,7 @@ AWS_LAMBDA_ECR = AnalysisJob(
 AWS_LB_CONTAINER_EXPOSURE = AnalysisJob(
     name="AWS LoadBalancer to ECS Container direct relationship",
     short_name="aws_lb_container_exposure",
-    scope=ScopeById("AWSAccount", "AWS_ID"),
+    scope=ScopeById("AWSAccount", "AWS_ID", scope_on="lb"),
     statements=(
         AnalysisStatement(
             match="MATCH (lb:AWSLoadBalancerV2 {scheme: 'internet-facing'})-[:EXPOSE]->(ip:EC2PrivateIp)<-[:PRIVATE_IP_ADDRESS]-(ni:NetworkInterface)<-[:NETWORK_INTERFACE]-(task:ECSTask)-[:HAS_CONTAINER]->(c:ECSContainer) WHERE ip.public_ip IS NULL",
@@ -67,14 +66,13 @@ AWS_LB_CONTAINER_EXPOSURE = AnalysisJob(
                     target_label="ECSContainer",
                 ),
             ),
-            scope_on="lb",
         ),
     ),
 )
 AWS_LB_NACL_DIRECT = AnalysisJob(
     name="AWS LoadBalancer to NACL direct relationship",
     short_name="aws_lb_nacl_direct",
-    scope=ScopeById("AWSAccount", "AWS_ID"),
+    scope=ScopeById("AWSAccount", "AWS_ID", scope_on="lb"),
     statements=(
         AnalysisStatement(
             match="MATCH (lb:AWSLoadBalancerV2)-[:SUBNET]->(subnet:EC2Subnet)<-[:PART_OF_SUBNET]-(nacl:EC2NetworkAcl)",
@@ -88,7 +86,6 @@ AWS_LB_NACL_DIRECT = AnalysisJob(
                     scoped_to="target",
                 ),
             ),
-            scope_on="lb",
         ),
     ),
 )

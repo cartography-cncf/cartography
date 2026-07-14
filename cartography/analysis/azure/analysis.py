@@ -95,7 +95,11 @@ AZURE_COMPUTE_ASSET_EXPOSURE_JOBS = (
 AZURE_LB_EXPOSURE = AnalysisJob(
     name="Azure LB EXPOSE relationships",
     short_name="azure_lb_exposure",
-    scope=ScopeById("AzureSubscription", "AZURE_SUBSCRIPTION_ID"),
+    scope=ScopeById(
+        "AzureSubscription",
+        "AZURE_SUBSCRIPTION_ID",
+        scope_on="lb",
+    ),
     statements=(
         AnalysisStatement(
             match="MATCH (lb:AzureLoadBalancer{exposed_internet: true})-[:CONTAINS]->(:AzureLoadBalancerBackendPool)-[:ROUTES_TO]->(nic:AzureNetworkInterface)-[:ATTACHED_TO]->(vm:AzureVirtualMachine) WHERE NOT (nic)-[:ASSOCIATED_WITH]->(:AzurePublicIPAddress)",
@@ -109,14 +113,17 @@ AZURE_LB_EXPOSURE = AnalysisJob(
                     target_label="AzureVirtualMachine",
                 ),
             ),
-            scope_on="lb",
         ),
     ),
 )
 AZURE_FIREWALL_LB_PROTECTION = AnalysisJob(
     name="Azure Firewall PROTECTS LB relationships",
     short_name="azure_firewall_lb_protection",
-    scope=ScopeById("AzureSubscription", "AZURE_SUBSCRIPTION_ID"),
+    scope=ScopeById(
+        "AzureSubscription",
+        "AZURE_SUBSCRIPTION_ID",
+        scope_on="fw",
+    ),
     statements=(
         AnalysisStatement(
             match="MATCH (fw:AzureFirewall)-[:MEMBER_OF]->(vnet:AzureVirtualNetwork)-[:CONTAINS]->(subnet:AzureSubnet)<-[:ATTACHED_TO]-(nic:AzureNetworkInterface)<-[:ROUTES_TO]-(:AzureLoadBalancerBackendPool)<-[:CONTAINS]-(lb:AzureLoadBalancer)",
@@ -129,7 +136,6 @@ AZURE_FIREWALL_LB_PROTECTION = AnalysisJob(
                     target_label="AzureLoadBalancer",
                 ),
             ),
-            scope_on="fw",
         ),
     ),
 )

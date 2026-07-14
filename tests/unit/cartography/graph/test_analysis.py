@@ -14,7 +14,6 @@ from cartography.graph.analysis import AddValuesToSet
 from cartography.graph.analysis import AnalysisJob
 from cartography.graph.analysis import AnalysisStatement
 from cartography.graph.analysis import Case
-from cartography.graph.analysis import CleanupScopedTo
 from cartography.graph.analysis import IncrementalMatch
 from cartography.graph.analysis import PropertyEffect
 from cartography.graph.analysis import RawCypher
@@ -89,10 +88,7 @@ def test_typed_analysis_jobs_declare_effects_and_keep_match_queries_read_only():
                 "freshness filter; use incremental_on."
             )
             if job.scope:
-                assert statement.scope_on, (
-                    f"{job.short_name or job.name} statement {index} does not "
-                    "declare its structural scope anchor."
-                )
+                assert job.scope.scope_on
                 assert f"${job.scope.id_param}" not in statement.match, (
                     f"{job.short_name or job.name} statement {index} inlines "
                     "its declared scope."
@@ -340,7 +336,7 @@ def test_scoped_relationship_cleanup_targets_source_by_default():
     job = AnalysisJob(
         name="GCP LB exposure",
         short_name="gcp_lb_exposure",
-        scope=ScopeById("GCPProject", "PROJECT_ID"),
+        scope=ScopeById("GCPProject", "PROJECT_ID", scope_on="bs"),
         statements=(
             AnalysisStatement(
                 match="MATCH (bs:GCPBackendService)-[:ROUTES_TO]->(:GCPInstanceGroup)"
@@ -354,7 +350,6 @@ def test_scoped_relationship_cleanup_targets_source_by_default():
                         target_label="GCPInstance",
                     ),
                 ),
-                scope_on="bs",
             ),
         ),
     )
@@ -425,7 +420,7 @@ def test_property_job_prepends_cleanup_statement():
     job = AnalysisJob(
         name="Semgrep SAST risk analysis",
         short_name="semgrep_sast_risk_analysis",
-        scope=ScopeById("SemgrepDeployment", "DEPLOYMENT_ID"),
+        scope=ScopeById("SemgrepDeployment", "DEPLOYMENT_ID", scope_on="s"),
         statements=(
             AnalysisStatement(
                 match="MATCH (g:GitHubRepository{archived:true})"
@@ -438,7 +433,6 @@ def test_property_job_prepends_cleanup_statement():
                         label="SemgrepSASTFinding",
                     ),
                 ),
-                scope_on="s",
             ),
         ),
     )
@@ -559,8 +553,18 @@ def test_analysis_job_requires_statements():
         )
 
 
-def test_cleanup_scoped_to_remains_a_scope_by_id_alias():
-    assert CleanupScopedTo is ScopeById
+def test_scope_by_id_requires_one_anchor_per_statement():
+    statement = AnalysisStatement(
+        match="MATCH (n:Node)",
+        effects=(SetProperty("n", "flag", True, label="Node"),),
+    )
+
+    with pytest.raises(ValueError, match="one variable per statement"):
+        AnalysisJob(
+            name="invalid scope",
+            statements=(statement, statement),
+            scope=ScopeById("Tenant", "TENANT_ID", scope_on=("n",)),
+        )
 
 
 @pytest.mark.parametrize(
