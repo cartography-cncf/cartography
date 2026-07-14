@@ -13,6 +13,7 @@ import cartography.models.lastpass as lastpass_models
 import cartography.models.openai as openai_models
 import cartography.models.salesforce as salesforce_models
 import cartography.models.sentry as sentry_models
+import cartography.models.slack as slack_models
 import cartography.models.snipeit as snipeit_models
 import cartography.models.spacelift as spacelift_models
 import cartography.models.subimage as subimage_models
@@ -280,6 +281,24 @@ def test_sentry_schema_doc_is_generated_from_introspected_model():
     assert "An issue alert rule configured on a Sentry project." in generated
     assert "| **require_2fa** | Whether the organization requires" in generated
     assert "(:SentryUser)-[:ADMIN_OF]->(:SentryTeam)" in generated
+    assert "No description provided." not in generated
+
+
+def test_slack_schema_doc_is_generated_from_introspected_model():
+    # Arrange
+    model = inspect_data_model(slack_models)
+
+    # Act
+    generated = render_module_schema(model, "slack")
+
+    # Assert
+    assert not Path("docs/root/modules/slack/schema.md").exists()
+    assert len(model.nodes) == 5
+    assert len(model.relationships) == 13
+    assert (
+        "| created_by | ID of the account that created the user group. |" in generated
+    )
+    assert "(:SlackGroup)-[:MEMBER_OF]->(:SlackChannel)" in generated
     assert "No description provided." not in generated
 
 
