@@ -42,7 +42,7 @@ class EC2ReservationToAWSAccountRel(CartographyRelSchema):
 @dataclass(frozen=True)
 class EC2ReservationSchema(CartographyNodeSchema):
     label: str = "AWSEC2Reservation"
-    # DEPRECATED: EC2Reservation will be removed in v1.0.0.
+    # DEPRECATED: legacy EC2Reservation node label will be removed in v1.0.0.
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["EC2Reservation"])
     properties: EC2ReservationNodeProperties = EC2ReservationNodeProperties()
     sub_resource_relationship: EC2ReservationToAWSAccountRel = (

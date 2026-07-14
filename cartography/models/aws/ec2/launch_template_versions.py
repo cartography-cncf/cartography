@@ -79,7 +79,7 @@ class LaunchTemplateVersionToLTRel(CartographyRelSchema):
 @dataclass(frozen=True)
 class LaunchTemplateVersionSchema(CartographyNodeSchema):
     label: str = "AWSLaunchTemplateVersion"
-    # DEPRECATED: LaunchTemplateVersion will be removed in v1.0.0.
+    # DEPRECATED: legacy LaunchTemplateVersion node label will be removed in v1.0.0.
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["LaunchTemplateVersion"])
     properties: LaunchTemplateVersionNodeProperties = (
         LaunchTemplateVersionNodeProperties()

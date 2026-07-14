@@ -70,7 +70,7 @@ class CloudFormationStackToRoleRel(CartographyRelSchema):
 @dataclass(frozen=True)
 class CloudFormationStackSchema(CartographyNodeSchema):
     label: str = "AWSCloudFormationStack"
-    # DEPRECATED: CloudFormationStack will be removed in v1.0.0.
+    # DEPRECATED: legacy CloudFormationStack node label will be removed in v1.0.0.
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["CloudFormationStack"])
     properties: CloudFormationStackNodeProperties = CloudFormationStackNodeProperties()
     sub_resource_relationship: CloudFormationStackToAWSAccountRel = (

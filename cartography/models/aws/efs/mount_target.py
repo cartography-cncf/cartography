@@ -69,7 +69,7 @@ class EfsMountTargetToEfsFileSystemRel(CartographyRelSchema):
 @dataclass(frozen=True)
 class EfsMountTargetSchema(CartographyNodeSchema):
     label: str = "AWSEfsMountTarget"
-    # DEPRECATED: EfsMountTarget will be removed in v1.0.0.
+    # DEPRECATED: legacy EfsMountTarget node label will be removed in v1.0.0.
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["EfsMountTarget"])
     properties: EfsMountTargetNodeProperties = EfsMountTargetNodeProperties()
     sub_resource_relationship: EfsMountTargetToAWSAccountRel = (

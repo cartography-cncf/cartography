@@ -86,7 +86,7 @@ class RDSClusterToAWSAccountRel(CartographyRelSchema):
 @dataclass(frozen=True)
 class RDSClusterSchema(CartographyNodeSchema):
     label: str = "AWSRDSCluster"
-    # DEPRECATED: RDSCluster will be removed in v1.0.0.
+    # DEPRECATED: legacy RDSCluster node label will be removed in v1.0.0.
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["RDSCluster"])
     properties: RDSClusterNodeProperties = RDSClusterNodeProperties()
     sub_resource_relationship: RDSClusterToAWSAccountRel = RDSClusterToAWSAccountRel()

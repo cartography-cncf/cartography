@@ -78,7 +78,7 @@ class KMSAliasSchema(CartographyNodeSchema):
     """
 
     label: str = "AWSKMSAlias"
-    # DEPRECATED: KMSAlias will be removed in v1.0.0.
+    # DEPRECATED: legacy KMSAlias node label will be removed in v1.0.0.
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["KMSAlias"])
     properties: KMSAliasNodeProperties = KMSAliasNodeProperties()
     sub_resource_relationship: KMSAliasToAWSAccountRel = KMSAliasToAWSAccountRel()

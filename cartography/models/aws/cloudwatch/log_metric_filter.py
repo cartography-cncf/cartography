@@ -67,7 +67,7 @@ class CloudWatchLogMetricFilterToCloudWatchLogGroupRel(CartographyRelSchema):
 @dataclass(frozen=True)
 class CloudWatchLogMetricFilterSchema(CartographyNodeSchema):
     label: str = "AWSCloudWatchLogMetricFilter"
-    # DEPRECATED: CloudWatchLogMetricFilter will be removed in v1.0.0.
+    # DEPRECATED: legacy CloudWatchLogMetricFilter node label will be removed in v1.0.0.
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["CloudWatchLogMetricFilter"])
     properties: CloudWatchLogMetricFilterNodeProperties = (
         CloudWatchLogMetricFilterNodeProperties()

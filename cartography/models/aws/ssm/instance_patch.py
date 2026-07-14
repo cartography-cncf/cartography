@@ -66,7 +66,7 @@ class SSMInstancePatchToEC2InstanceRel(CartographyRelSchema):
 @dataclass(frozen=True)
 class SSMInstancePatchSchema(CartographyNodeSchema):
     label: str = "AWSSSMInstancePatch"
-    # DEPRECATED: SSMInstancePatch will be removed in v1.0.0.
+    # DEPRECATED: legacy SSMInstancePatch node label will be removed in v1.0.0.
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["SSMInstancePatch"])
     properties: SSMInstancePatchNodeProperties = SSMInstancePatchNodeProperties()
     sub_resource_relationship: SSMInstancePatchToAWSAccountRel = (

@@ -46,7 +46,7 @@ class CodeBuildProjectToAWSAccountRel(CartographyRelSchema):
 class CodeBuildProjectSchema(CartographyNodeSchema):
     label: str = "AWSCodeBuildProject"
     properties: CodeBuildProjectNodeProperties = CodeBuildProjectNodeProperties()
-    # DEPRECATED: CodeBuildProject will be removed in v1.0.0.
+    # DEPRECATED: legacy CodeBuildProject node label will be removed in v1.0.0.
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
         ["CodeBuildProject", "CICDPipeline"]
     )

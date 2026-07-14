@@ -102,7 +102,7 @@ class RDSSnapshotToRDSInstanceRel(CartographyRelSchema):
 class RDSSnapshotSchema(CartographyNodeSchema):
     label: str = "AWSRDSSnapshot"
     properties: RDSSnapshotNodeProperties = RDSSnapshotNodeProperties()
-    # DEPRECATED: RDSSnapshot will be removed in v1.0.0.
+    # DEPRECATED: legacy RDSSnapshot node label will be removed in v1.0.0.
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["RDSSnapshot", "Snapshot"])
     sub_resource_relationship: RDSSnapshotToAWSAccountRel = RDSSnapshotToAWSAccountRel()
     other_relationships: OtherRelationships = OtherRelationships(

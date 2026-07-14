@@ -44,7 +44,7 @@ class S3AccountPublicAccessBlockToAWSAccountRel(CartographyRelSchema):
 @dataclass(frozen=True)
 class S3AccountPublicAccessBlockSchema(CartographyNodeSchema):
     label: str = "AWSS3AccountPublicAccessBlock"
-    # DEPRECATED: S3AccountPublicAccessBlock will be removed in v1.0.0.
+    # DEPRECATED: legacy S3AccountPublicAccessBlock node label will be removed in v1.0.0.
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["S3AccountPublicAccessBlock"])
     properties: S3AccountPublicAccessBlockNodeProperties = (
         S3AccountPublicAccessBlockNodeProperties()

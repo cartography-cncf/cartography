@@ -60,7 +60,7 @@ class CognitoIdentityPoolToAWSRoleRel(CartographyRelSchema):
 @dataclass(frozen=True)
 class CognitoIdentityPoolSchema(CartographyNodeSchema):
     label: str = "AWSCognitoIdentityPool"
-    # DEPRECATED: CognitoIdentityPool will be removed in v1.0.0.
+    # DEPRECATED: legacy CognitoIdentityPool node label will be removed in v1.0.0.
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["CognitoIdentityPool"])
     properties: CognitoIdentityPoolNodeProperties = CognitoIdentityPoolNodeProperties()
     sub_resource_relationship: CognitoIdentityPoolToAWSAccountRel = (

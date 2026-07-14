@@ -94,7 +94,7 @@ class ECRRepositoryImageSchema(CartographyNodeSchema):
             ECRRepositoryImageToECRImageRel(),
         ]
     )
-    # DEPRECATED: ECRRepositoryImage will be removed in v1.0.0.
+    # DEPRECATED: legacy ECRRepositoryImage node label will be removed in v1.0.0.
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
         ["ECRRepositoryImage", "ImageTag"]
     )

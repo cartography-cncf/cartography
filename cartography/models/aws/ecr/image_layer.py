@@ -105,7 +105,7 @@ class ECRImageLayerSchema(CartographyNodeSchema):
             ECRImageLayerTailOfImageRel(),
         ]
     )
-    # DEPRECATED: ECRImageLayer will be removed in v1.0.0.
+    # DEPRECATED: legacy ECRImageLayer node label will be removed in v1.0.0.
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
         ["ECRImageLayer", "ImageLayer"]
     )
@@ -120,7 +120,7 @@ class ECRImageLayerNodeSchema(CartographyNodeSchema):
     sub_resource_relationship: ECRImageLayerToAWSAccountRel = (
         ECRImageLayerToAWSAccountRel()
     )
-    # DEPRECATED: ECRImageLayer will be removed in v1.0.0.
+    # DEPRECATED: legacy ECRImageLayer node label will be removed in v1.0.0.
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
         ["ECRImageLayer", "ImageLayer"]
     )
@@ -138,7 +138,7 @@ class ECRImageLayerNextRelSchema(CartographyNodeSchema):
     """Load bounded NEXT relationship rows without reloading layer metadata."""
 
     label: str = "AWSECRImageLayer"
-    # DEPRECATED: ECRImageLayer will be removed in v1.0.0.
+    # DEPRECATED: legacy ECRImageLayer node label will be removed in v1.0.0.
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["ECRImageLayer"])
     properties: ECRImageLayerRelLoadProperties = ECRImageLayerRelLoadProperties()
     other_relationships: OtherRelationships = OtherRelationships(
@@ -151,7 +151,7 @@ class ECRImageLayerHeadRelSchema(CartographyNodeSchema):
     """Load bounded HEAD relationship rows without reloading layer metadata."""
 
     label: str = "AWSECRImageLayer"
-    # DEPRECATED: ECRImageLayer will be removed in v1.0.0.
+    # DEPRECATED: legacy ECRImageLayer node label will be removed in v1.0.0.
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["ECRImageLayer"])
     properties: ECRImageLayerRelLoadProperties = ECRImageLayerRelLoadProperties()
     other_relationships: OtherRelationships = OtherRelationships(
@@ -164,7 +164,7 @@ class ECRImageLayerTailRelSchema(CartographyNodeSchema):
     """Load bounded TAIL relationship rows without reloading layer metadata."""
 
     label: str = "AWSECRImageLayer"
-    # DEPRECATED: ECRImageLayer will be removed in v1.0.0.
+    # DEPRECATED: legacy ECRImageLayer node label will be removed in v1.0.0.
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["ECRImageLayer"])
     properties: ECRImageLayerRelLoadProperties = ECRImageLayerRelLoadProperties()
     other_relationships: OtherRelationships = OtherRelationships(

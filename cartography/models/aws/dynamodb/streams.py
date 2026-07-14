@@ -61,7 +61,7 @@ class DynamoDBStreamToTableRel(CartographyRelSchema):
 @dataclass(frozen=True)
 class DynamoDBStreamSchema(CartographyNodeSchema):
     label: str = "AWSDynamoDBStream"
-    # DEPRECATED: DynamoDBStream will be removed in v1.0.0.
+    # DEPRECATED: legacy DynamoDBStream node label will be removed in v1.0.0.
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["DynamoDBStream"])
     properties: DynamoDBStreamNodeProperties = DynamoDBStreamNodeProperties()
     sub_resource_relationship: DynamoDBStreamToAWSAccountRel = (

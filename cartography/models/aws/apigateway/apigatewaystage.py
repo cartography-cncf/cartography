@@ -67,7 +67,7 @@ class APIGatewayStageToAWSAccountRel(CartographyRelSchema):
 @dataclass(frozen=True)
 class APIGatewayStageSchema(CartographyNodeSchema):
     label: str = "AWSAPIGatewayStage"
-    # DEPRECATED: APIGatewayStage will be removed in v1.0.0.
+    # DEPRECATED: legacy APIGatewayStage node label will be removed in v1.0.0.
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["APIGatewayStage"])
     properties: APIGatewayStageNodeProperties = APIGatewayStageNodeProperties()
     sub_resource_relationship: APIGatewayStageToAWSAccountRel = (

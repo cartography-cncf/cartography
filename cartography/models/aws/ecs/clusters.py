@@ -61,7 +61,7 @@ class ECSClusterToAWSAccountRel(CartographyRelSchema):
 @dataclass(frozen=True)
 class ECSClusterSchema(CartographyNodeSchema):
     label: str = "AWSECSCluster"
-    # DEPRECATED: ECSCluster will be removed in v1.0.0.
+    # DEPRECATED: legacy ECSCluster node label will be removed in v1.0.0.
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
         ["ECSCluster", "ComputeCluster"]
     )

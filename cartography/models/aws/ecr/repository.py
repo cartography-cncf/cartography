@@ -62,7 +62,7 @@ class ECRRepositoryToRepositoryImageRel(CartographyRelSchema):
 @dataclass(frozen=True)
 class ECRRepositorySchema(CartographyNodeSchema):
     label: str = "AWSECRRepository"
-    # DEPRECATED: ECRRepository will be removed in v1.0.0.
+    # DEPRECATED: legacy ECRRepository node label will be removed in v1.0.0.
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
         ["ECRRepository", "ContainerRegistry"]
     )

@@ -82,7 +82,7 @@ class DynamoDBSSEDescriptionToKMSKeyRel(CartographyRelSchema):
 @dataclass(frozen=True)
 class DynamoDBSSEDescriptionSchema(CartographyNodeSchema):
     label: str = "AWSDynamoDBSSEDescription"
-    # DEPRECATED: DynamoDBSSEDescription will be removed in v1.0.0.
+    # DEPRECATED: legacy DynamoDBSSEDescription node label will be removed in v1.0.0.
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["DynamoDBSSEDescription"])
     properties: DynamoDBSSEDescriptionNodeProperties = (
         DynamoDBSSEDescriptionNodeProperties()

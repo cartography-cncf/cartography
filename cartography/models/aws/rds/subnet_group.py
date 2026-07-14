@@ -90,7 +90,7 @@ class DBSubnetGroupSchema(CartographyNodeSchema):
     """
 
     label: str = "AWSDBSubnetGroup"
-    # DEPRECATED: DBSubnetGroup will be removed in v1.0.0.
+    # DEPRECATED: legacy DBSubnetGroup node label will be removed in v1.0.0.
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["DBSubnetGroup"])
     properties: DBSubnetGroupNodeProperties = DBSubnetGroupNodeProperties()
     sub_resource_relationship: DBSubnetGroupToAWSAccountRel = (

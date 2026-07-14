@@ -68,7 +68,7 @@ class ELBV2TargetGroupToLoadBalancerV2Rel(CartographyRelSchema):
 @dataclass(frozen=True)
 class ELBV2TargetGroupSchema(CartographyNodeSchema):
     label: str = "AWSELBV2TargetGroup"
-    # DEPRECATED: ELBV2TargetGroup will be removed in v1.0.0.
+    # DEPRECATED: legacy ELBV2TargetGroup node label will be removed in v1.0.0.
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["ELBV2TargetGroup"])
     properties: ELBV2TargetGroupNodeProperties = ELBV2TargetGroupNodeProperties()
     sub_resource_relationship: ELBV2TargetGroupToAWSAccountRel = (
@@ -200,7 +200,7 @@ class LoadBalancerV2Schema(CartographyNodeSchema):
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
         [
             "LoadBalancer",  # Ontology node label
-            # DEPRECATED: LoadBalancerV2 will be removed in v1.0.0.
+            # DEPRECATED: legacy LoadBalancerV2 node label will be removed in v1.0.0.
             "LoadBalancerV2",
         ]
     )
@@ -375,7 +375,7 @@ class ELBV2ListenerSchema(CartographyNodeSchema):
     """
 
     label: str = "AWSELBV2Listener"
-    # DEPRECATED: ELBV2Listener will be removed in v1.0.0.
+    # DEPRECATED: legacy ELBV2Listener node label will be removed in v1.0.0.
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["ELBV2Listener", "Endpoint"])
     properties: ELBV2ListenerNodeProperties = ELBV2ListenerNodeProperties()
     sub_resource_relationship: ELBV2ListenerToAWSAccountRel = (

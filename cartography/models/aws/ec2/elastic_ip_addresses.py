@@ -89,7 +89,7 @@ class ElasticIPAddressToNetworkInterfaceRel(CartographyRelSchema):
 @dataclass(frozen=True)
 class ElasticIPAddressSchema(CartographyNodeSchema):
     label: str = "AWSElasticIPAddress"
-    # DEPRECATED: ElasticIPAddress will be removed in v1.0.0.
+    # DEPRECATED: legacy ElasticIPAddress node label will be removed in v1.0.0.
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["ElasticIPAddress"])
     properties: ElasticIPAddressNodeProperties = ElasticIPAddressNodeProperties()
     sub_resource_relationship: ElasticIPAddressToAWSAccountRel = (

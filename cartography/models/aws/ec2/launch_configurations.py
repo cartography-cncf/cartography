@@ -54,7 +54,7 @@ class LaunchConfigurationToAwsAccountRel(CartographyRelSchema):
 @dataclass(frozen=True)
 class LaunchConfigurationSchema(CartographyNodeSchema):
     label: str = "AWSLaunchConfiguration"
-    # DEPRECATED: LaunchConfiguration will be removed in v1.0.0.
+    # DEPRECATED: legacy LaunchConfiguration node label will be removed in v1.0.0.
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["LaunchConfiguration"])
     properties: LaunchConfigurationNodeProperties = LaunchConfigurationNodeProperties()
     sub_resource_relationship: LaunchConfigurationToAwsAccountRel = (

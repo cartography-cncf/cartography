@@ -94,7 +94,7 @@ class SecretsManagerSecretSchema(CartographyNodeSchema):
     """
 
     label: str = "AWSSecretsManagerSecret"
-    # DEPRECATED: SecretsManagerSecret will be removed in v1.0.0.
+    # DEPRECATED: legacy SecretsManagerSecret node label will be removed in v1.0.0.
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
         [
             "SecretsManagerSecret",

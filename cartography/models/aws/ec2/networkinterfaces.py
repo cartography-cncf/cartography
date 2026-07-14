@@ -95,7 +95,7 @@ class EC2NetworkInterfaceSchema(CartographyNodeSchema):
     """
 
     label: str = "AWSNetworkInterface"
-    # DEPRECATED: NetworkInterface will be removed in v1.0.0.
+    # DEPRECATED: legacy NetworkInterface node label will be removed in v1.0.0.
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["NetworkInterface"])
     properties: EC2NetworkInterfaceNodeProperties = EC2NetworkInterfaceNodeProperties()
     sub_resource_relationship: EC2NetworkInterfaceToAWSAccountRel = (

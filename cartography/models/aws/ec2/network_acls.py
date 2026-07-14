@@ -84,7 +84,7 @@ class EC2NetworkAclSchema(CartographyNodeSchema):
     """
 
     label: str = "AWSEC2NetworkAcl"
-    # DEPRECATED: EC2NetworkAcl will be removed in v1.0.0.
+    # DEPRECATED: legacy EC2NetworkAcl node label will be removed in v1.0.0.
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["EC2NetworkAcl"])
     properties: EC2NetworkAclNodeProperties = EC2NetworkAclNodeProperties()
     sub_resource_relationship: EC2NetworkAclToAWSAccountRel = (

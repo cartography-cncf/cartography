@@ -59,7 +59,7 @@ class ElasticacheTopicToElasticacheClusterRel(CartographyRelSchema):
 @dataclass(frozen=True)
 class ElasticacheTopicSchema(CartographyNodeSchema):
     label: str = "AWSElasticacheTopic"
-    # DEPRECATED: ElasticacheTopic will be removed in v1.0.0.
+    # DEPRECATED: legacy ElasticacheTopic node label will be removed in v1.0.0.
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["ElasticacheTopic"])
     properties: ElasticacheTopicNodeProperties = ElasticacheTopicNodeProperties()
     sub_resource_relationship: ElasticacheTopicToAWSAccountRel = (

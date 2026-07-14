@@ -47,7 +47,7 @@ class SESEmailIdentityToAWSAccountRel(CartographyRelSchema):
 @dataclass(frozen=True)
 class SESEmailIdentitySchema(CartographyNodeSchema):
     label: str = "AWSSESEmailIdentity"
-    # DEPRECATED: SESEmailIdentity will be removed in v1.0.0.
+    # DEPRECATED: legacy SESEmailIdentity node label will be removed in v1.0.0.
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["SESEmailIdentity"])
     properties: SESEmailIdentityNodeProperties = SESEmailIdentityNodeProperties()
     sub_resource_relationship: SESEmailIdentityToAWSAccountRel = (

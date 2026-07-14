@@ -41,7 +41,7 @@ class SecurityHubToAWSAccountRel(CartographyRelSchema):
 @dataclass(frozen=True)
 class SecurityHubSchema(CartographyNodeSchema):
     label: str = "AWSSecurityHub"
-    # DEPRECATED: SecurityHub will be removed in v1.0.0.
+    # DEPRECATED: legacy SecurityHub node label will be removed in v1.0.0.
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["SecurityHub"])
     properties: SecurityHubNodeProperties = SecurityHubNodeProperties()
     sub_resource_relationship: SecurityHubToAWSAccountRel = SecurityHubToAWSAccountRel()

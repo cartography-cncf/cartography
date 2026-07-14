@@ -80,7 +80,7 @@ class EC2SecurityGroupToSourceGroupRel(CartographyRelSchema):
 class EC2SecurityGroupSchema(CartographyNodeSchema):
     label: str = "AWSEC2SecurityGroup"
     properties: EC2SecurityGroupNodeProperties = EC2SecurityGroupNodeProperties()
-    # DEPRECATED: EC2SecurityGroup will be removed in v1.0.0.
+    # DEPRECATED: legacy EC2SecurityGroup node label will be removed in v1.0.0.
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
         ["EC2SecurityGroup", "NetworkAccessControl"]
     )

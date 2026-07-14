@@ -62,7 +62,7 @@ class APIGatewayDeploymentToRestAPIRel(CartographyRelSchema):
 @dataclass(frozen=True)
 class APIGatewayDeploymentSchema(CartographyNodeSchema):
     label: str = "AWSAPIGatewayDeployment"
-    # DEPRECATED: APIGatewayDeployment will be removed in v1.0.0.
+    # DEPRECATED: legacy APIGatewayDeployment node label will be removed in v1.0.0.
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["APIGatewayDeployment"])
     properties: APIGatewayDeploymentNodeProperties = (
         APIGatewayDeploymentNodeProperties()

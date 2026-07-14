@@ -174,7 +174,7 @@ class ECSTaskToNetworkInterfaceRel(CartographyRelSchema):
 @dataclass(frozen=True)
 class ECSTaskSchema(CartographyNodeSchema):
     label: str = "AWSECSTask"
-    # DEPRECATED: ECSTask will be removed in v1.0.0.
+    # DEPRECATED: legacy ECSTask node label will be removed in v1.0.0.
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["ECSTask", "ComputePod"])
     properties: ECSTaskNodeProperties = ECSTaskNodeProperties()
     sub_resource_relationship: ECSTaskToAWSAccountRel = ECSTaskToAWSAccountRel()

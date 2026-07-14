@@ -95,7 +95,7 @@ class EBSVolumeSchema(CartographyNodeSchema):
 
     label: str = "AWSEBSVolume"
     properties: EBSVolumeNodeProperties = EBSVolumeNodeProperties()
-    # DEPRECATED: EBSVolume will be removed in v1.0.0.
+    # DEPRECATED: legacy EBSVolume node label will be removed in v1.0.0.
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["EBSVolume", "BlockStorage"])
     sub_resource_relationship: EBSVolumeToAWSAccountRel = EBSVolumeToAWSAccountRel()
     other_relationships: OtherRelationships = OtherRelationships(
@@ -128,7 +128,7 @@ class EBSVolumeInstanceSchema(CartographyNodeSchema):
 
     label: str = "AWSEBSVolume"
     properties: EBSVolumeInstanceProperties = EBSVolumeInstanceProperties()
-    # DEPRECATED: EBSVolume will be removed in v1.0.0.
+    # DEPRECATED: legacy EBSVolume node label will be removed in v1.0.0.
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["EBSVolume", "BlockStorage"])
     sub_resource_relationship: EBSVolumeToAWSAccountRel = EBSVolumeToAWSAccountRel()
     other_relationships: OtherRelationships = OtherRelationships(

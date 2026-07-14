@@ -81,7 +81,7 @@ class ECSContainerDefinitionToTaskDefinitionRel(CartographyRelSchema):
 @dataclass(frozen=True)
 class ECSContainerDefinitionSchema(CartographyNodeSchema):
     label: str = "AWSECSContainerDefinition"
-    # DEPRECATED: ECSContainerDefinition will be removed in v1.0.0.
+    # DEPRECATED: legacy ECSContainerDefinition node label will be removed in v1.0.0.
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["ECSContainerDefinition"])
     properties: ECSContainerDefinitionNodeProperties = (
         ECSContainerDefinitionNodeProperties()

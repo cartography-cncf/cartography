@@ -84,7 +84,7 @@ class KMSKeySchema(CartographyNodeSchema):
     """
 
     label: str = "AWSKMSKey"
-    # DEPRECATED: KMSKey will be removed in v1.0.0.
+    # DEPRECATED: legacy KMSKey node label will be removed in v1.0.0.
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["KMSKey", "EncryptionKey"])
     properties: KMSKeyNodeProperties = KMSKeyNodeProperties()
     sub_resource_relationship: KMSKeyToAWSAccountRel = KMSKeyToAWSAccountRel()

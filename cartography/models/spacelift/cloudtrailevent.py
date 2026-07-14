@@ -107,7 +107,7 @@ class CloudTrailSpaceliftEventSchema(CartographyNodeSchema):
     """
 
     label: str = "SpaceliftCloudTrailEvent"
-    # DEPRECATED: CloudTrailSpaceliftEvent will be removed in v1.0.0.
+    # DEPRECATED: legacy CloudTrailSpaceliftEvent node label will be removed in v1.0.0.
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["CloudTrailSpaceliftEvent"])
     properties: CloudTrailSpaceliftEventNodeProperties = (
         CloudTrailSpaceliftEventNodeProperties()

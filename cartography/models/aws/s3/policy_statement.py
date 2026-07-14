@@ -66,7 +66,7 @@ class S3PolicyStatementToS3BucketRel(CartographyRelSchema):
 @dataclass(frozen=True)
 class S3PolicyStatementSchema(CartographyNodeSchema):
     label: str = "AWSS3PolicyStatement"
-    # DEPRECATED: S3PolicyStatement will be removed in v1.0.0.
+    # DEPRECATED: legacy S3PolicyStatement node label will be removed in v1.0.0.
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["S3PolicyStatement"])
     properties: S3PolicyStatementNodeProperties = S3PolicyStatementNodeProperties()
     sub_resource_relationship: S3PolicyStatementToAWSAccountRel = (

@@ -67,7 +67,7 @@ class EventBridgeRuleToAWSRoleRel(CartographyRelSchema):
 @dataclass(frozen=True)
 class EventBridgeRuleSchema(CartographyNodeSchema):
     label: str = "AWSEventBridgeRule"
-    # DEPRECATED: EventBridgeRule will be removed in v1.0.0.
+    # DEPRECATED: legacy EventBridgeRule node label will be removed in v1.0.0.
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["EventBridgeRule"])
     properties: EventBridgeRuleNodeProperties = EventBridgeRuleNodeProperties()
     sub_resource_relationship: EventBridgeRuleToAWSAccountRel = (

@@ -62,7 +62,7 @@ class APIGatewayClientCertificateToAWSAccountRel(CartographyRelSchema):
 @dataclass(frozen=True)
 class APIGatewayClientCertificateSchema(CartographyNodeSchema):
     label: str = "AWSAPIGatewayClientCertificate"
-    # DEPRECATED: APIGatewayClientCertificate will be removed in v1.0.0.
+    # DEPRECATED: legacy APIGatewayClientCertificate node label will be removed in v1.0.0.
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
         ["APIGatewayClientCertificate"]
     )

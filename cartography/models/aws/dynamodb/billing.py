@@ -61,7 +61,7 @@ class DynamoDBBillingModeSummaryToTableRel(CartographyRelSchema):
 @dataclass(frozen=True)
 class DynamoDBBillingModeSummarySchema(CartographyNodeSchema):
     label: str = "AWSDynamoDBBillingModeSummary"
-    # DEPRECATED: DynamoDBBillingModeSummary will be removed in v1.0.0.
+    # DEPRECATED: legacy DynamoDBBillingModeSummary node label will be removed in v1.0.0.
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["DynamoDBBillingModeSummary"])
     properties: DynamoDBBillingModeSummaryNodeProperties = (
         DynamoDBBillingModeSummaryNodeProperties()

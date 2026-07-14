@@ -59,7 +59,7 @@ class KMSGrantToAWSAccountRel(CartographyRelSchema):
 @dataclass(frozen=True)
 class KMSGrantSchema(CartographyNodeSchema):
     label: str = "AWSKMSGrant"
-    # DEPRECATED: KMSGrant will be removed in v1.0.0.
+    # DEPRECATED: legacy KMSGrant node label will be removed in v1.0.0.
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["KMSGrant"])
     properties: KMSGrantNodeProperties = KMSGrantNodeProperties()
     sub_resource_relationship: KMSGrantToAWSAccountRel = KMSGrantToAWSAccountRel()

@@ -113,7 +113,7 @@ class RedshiftClusterToAWSVpcRel(CartographyRelSchema):
 @dataclass(frozen=True)
 class RedshiftClusterSchema(CartographyNodeSchema):
     label: str = "AWSRedshiftCluster"
-    # DEPRECATED: RedshiftCluster will be removed in v1.0.0.
+    # DEPRECATED: legacy RedshiftCluster node label will be removed in v1.0.0.
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["RedshiftCluster"])
     properties: RedshiftClusterNodeProperties = RedshiftClusterNodeProperties()
     sub_resource_relationship: RedshiftClusterToAWSAccountRel = (

@@ -84,7 +84,7 @@ class RouteTableAssociationToIgwRel(CartographyRelSchema):
 @dataclass(frozen=True)
 class RouteTableAssociationSchema(CartographyNodeSchema):
     label: str = "AWSEC2RouteTableAssociation"
-    # DEPRECATED: EC2RouteTableAssociation will be removed in v1.0.0.
+    # DEPRECATED: legacy EC2RouteTableAssociation node label will be removed in v1.0.0.
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["EC2RouteTableAssociation"])
     properties: RouteTableAssociationNodeProperties = (
         RouteTableAssociationNodeProperties()

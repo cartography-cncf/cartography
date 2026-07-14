@@ -69,7 +69,7 @@ class EC2NetworkAclInboundRuleSchema(CartographyNodeSchema):
     """
 
     label: str = "AWSEC2NetworkAclRule"
-    # DEPRECATED: EC2NetworkAclRule will be removed in v1.0.0.
+    # DEPRECATED: legacy EC2NetworkAclRule node label will be removed in v1.0.0.
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
         ["EC2NetworkAclRule", "IpPermissionInbound"],
     )
@@ -91,7 +91,7 @@ class EC2NetworkAclEgressRuleSchema(CartographyNodeSchema):
     """
 
     label: str = "AWSEC2NetworkAclRule"
-    # DEPRECATED: EC2NetworkAclRule will be removed in v1.0.0.
+    # DEPRECATED: legacy EC2NetworkAclRule node label will be removed in v1.0.0.
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
         [
             "EC2NetworkAclRule",

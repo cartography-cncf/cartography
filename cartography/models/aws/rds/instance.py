@@ -163,7 +163,7 @@ class RDSInstanceToKMSKeyRel(CartographyRelSchema):
 @dataclass(frozen=True)
 class RDSInstanceSchema(CartographyNodeSchema):
     label: str = "AWSRDSInstance"
-    # DEPRECATED: RDSInstance will be removed in v1.0.0.
+    # DEPRECATED: legacy RDSInstance node label will be removed in v1.0.0.
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["RDSInstance", "Database"])
     properties: RDSInstanceNodeProperties = RDSInstanceNodeProperties()
     sub_resource_relationship: RDSInstanceToAWSAccountRel = RDSInstanceToAWSAccountRel()

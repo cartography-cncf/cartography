@@ -62,7 +62,7 @@ class EC2ImageToAWSAccountRel(CartographyRelSchema):
 @dataclass(frozen=True)
 class EC2ImageSchema(CartographyNodeSchema):
     label: str = "AWSEC2Image"
-    # DEPRECATED: EC2Image will be removed in v1.0.0.
+    # DEPRECATED: legacy EC2Image node label will be removed in v1.0.0.
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["EC2Image"])
     properties: EC2ImageNodeProperties = EC2ImageNodeProperties()
     sub_resource_relationship: EC2ImageToAWSAccountRel = EC2ImageToAWSAccountRel()

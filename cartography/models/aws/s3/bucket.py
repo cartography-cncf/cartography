@@ -57,7 +57,7 @@ class S3BucketSchema(CartographyNodeSchema):
 
     label: str = "AWSS3Bucket"
     properties: S3BucketNodeProperties = S3BucketNodeProperties()
-    # DEPRECATED: S3Bucket will be removed in v1.0.0.
+    # DEPRECATED: legacy S3Bucket node label will be removed in v1.0.0.
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["S3Bucket", "ObjectStorage"])
     sub_resource_relationship: S3BucketToAWSAccountRel = S3BucketToAWSAccountRel()
 
@@ -86,7 +86,7 @@ class S3BucketPolicySchema(CartographyNodeSchema):
     """Composite schema for S3 bucket policy-derived properties."""
 
     label: str = "AWSS3Bucket"
-    # DEPRECATED: S3Bucket will be removed in v1.0.0.
+    # DEPRECATED: legacy S3Bucket node label will be removed in v1.0.0.
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["S3Bucket"])
     properties: S3BucketPolicyProperties = S3BucketPolicyProperties()
     sub_resource_relationship: Optional[CartographyRelSchema] = None
@@ -144,7 +144,7 @@ class S3BucketEncryptionSchema(CartographyNodeSchema):
     """Composite schema for S3 bucket encryption properties."""
 
     label: str = "AWSS3Bucket"
-    # DEPRECATED: S3Bucket will be removed in v1.0.0.
+    # DEPRECATED: legacy S3Bucket node label will be removed in v1.0.0.
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["S3Bucket"])
     properties: S3BucketEncryptionProperties = S3BucketEncryptionProperties()
     sub_resource_relationship: Optional[CartographyRelSchema] = None
@@ -171,7 +171,7 @@ class S3BucketVersioningSchema(CartographyNodeSchema):
     """Composite schema for S3 bucket versioning properties."""
 
     label: str = "AWSS3Bucket"
-    # DEPRECATED: S3Bucket will be removed in v1.0.0.
+    # DEPRECATED: legacy S3Bucket node label will be removed in v1.0.0.
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["S3Bucket"])
     properties: S3BucketVersioningProperties = S3BucketVersioningProperties()
     sub_resource_relationship: Optional[CartographyRelSchema] = None
@@ -194,7 +194,7 @@ class S3BucketPublicAccessBlockSchema(CartographyNodeSchema):
     """Composite schema for S3 bucket public access block properties."""
 
     label: str = "AWSS3Bucket"
-    # DEPRECATED: S3Bucket will be removed in v1.0.0.
+    # DEPRECATED: legacy S3Bucket node label will be removed in v1.0.0.
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["S3Bucket"])
     properties: S3BucketPublicAccessBlockProperties = (
         S3BucketPublicAccessBlockProperties()
@@ -216,7 +216,7 @@ class S3BucketOwnershipSchema(CartographyNodeSchema):
     """Composite schema for S3 bucket ownership properties."""
 
     label: str = "AWSS3Bucket"
-    # DEPRECATED: S3Bucket will be removed in v1.0.0.
+    # DEPRECATED: legacy S3Bucket node label will be removed in v1.0.0.
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["S3Bucket"])
     properties: S3BucketOwnershipProperties = S3BucketOwnershipProperties()
     sub_resource_relationship: Optional[CartographyRelSchema] = None
@@ -237,7 +237,7 @@ class S3BucketLoggingSchema(CartographyNodeSchema):
     """Composite schema for S3 bucket logging properties."""
 
     label: str = "AWSS3Bucket"
-    # DEPRECATED: S3Bucket will be removed in v1.0.0.
+    # DEPRECATED: legacy S3Bucket node label will be removed in v1.0.0.
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["S3Bucket"])
     properties: S3BucketLoggingProperties = S3BucketLoggingProperties()
     sub_resource_relationship: Optional[CartographyRelSchema] = None

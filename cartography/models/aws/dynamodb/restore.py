@@ -97,7 +97,7 @@ class DynamoDBRestoreSummaryToSourceTableRel(CartographyRelSchema):
 @dataclass(frozen=True)
 class DynamoDBRestoreSummarySchema(CartographyNodeSchema):
     label: str = "AWSDynamoDBRestoreSummary"
-    # DEPRECATED: DynamoDBRestoreSummary will be removed in v1.0.0.
+    # DEPRECATED: legacy DynamoDBRestoreSummary node label will be removed in v1.0.0.
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["DynamoDBRestoreSummary"])
     properties: DynamoDBRestoreSummaryNodeProperties = (
         DynamoDBRestoreSummaryNodeProperties()

@@ -148,7 +148,7 @@ class ECSServiceToECSTaskRel(CartographyRelSchema):
 @dataclass(frozen=True)
 class ECSServiceSchema(CartographyNodeSchema):
     label: str = "AWSECSService"
-    # DEPRECATED: ECSService will be removed in v1.0.0.
+    # DEPRECATED: legacy ECSService node label will be removed in v1.0.0.
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
         ["ECSService", "ComputeService"]
     )

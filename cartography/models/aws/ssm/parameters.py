@@ -77,7 +77,7 @@ class SSMParameterSchema(CartographyNodeSchema):
     label: str = "AWSSSMParameter"
     properties: SSMParameterNodeProperties = SSMParameterNodeProperties()
     # Only SecureString parameters are secrets (String/StringList are plaintext config).
-    # DEPRECATED: SSMParameter will be removed in v1.0.0.
+    # DEPRECATED: legacy SSMParameter node label will be removed in v1.0.0.
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
         [
             "SSMParameter",
@@ -106,7 +106,7 @@ class PublicSSMParameterSchema(CartographyNodeSchema):
     # AWS-managed public parameters are shared regional data, not account resources.
     sub_resource_relationship: None = None
     scoped_cleanup: bool = False
-    # DEPRECATED: PublicSSMParameter will be removed in v1.0.0.
+    # DEPRECATED: legacy PublicSSMParameter node label will be removed in v1.0.0.
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
         ["PublicSSMParameter", "SSMParameter"]
     )

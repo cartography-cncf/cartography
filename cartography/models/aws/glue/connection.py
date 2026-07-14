@@ -46,7 +46,7 @@ class GlueConnectionToAWSAccountRel(CartographyRelSchema):
 @dataclass(frozen=True)
 class GlueConnectionSchema(CartographyNodeSchema):
     label: str = "AWSGlueConnection"
-    # DEPRECATED: GlueConnection will be removed in v1.0.0.
+    # DEPRECATED: legacy GlueConnection node label will be removed in v1.0.0.
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["GlueConnection"])
     properties: GlueConnectionNodeProperties = GlueConnectionNodeProperties()
     sub_resource_relationship: GlueConnectionToAWSAccountRel = (

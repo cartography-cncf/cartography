@@ -45,7 +45,7 @@ class GuardDutyDetectorToAWSAccountRel(CartographyRelSchema):
 @dataclass(frozen=True)
 class GuardDutyDetectorSchema(CartographyNodeSchema):
     label: str = "AWSGuardDutyDetector"
-    # DEPRECATED: GuardDutyDetector will be removed in v1.0.0.
+    # DEPRECATED: legacy GuardDutyDetector node label will be removed in v1.0.0.
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["GuardDutyDetector"])
     properties: GuardDutyDetectorNodeProperties = GuardDutyDetectorNodeProperties()
     sub_resource_relationship: GuardDutyDetectorToAWSAccountRel = (

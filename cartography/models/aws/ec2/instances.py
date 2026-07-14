@@ -136,7 +136,7 @@ class EC2InstanceToEKSClusterRel(CartographyRelSchema):
 @dataclass(frozen=True)
 class EC2InstanceSchema(CartographyNodeSchema):
     label: str = "AWSEC2Instance"
-    # DEPRECATED: EC2Instance will be removed in v1.0.0.
+    # DEPRECATED: legacy EC2Instance node label will be removed in v1.0.0.
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
         ["EC2Instance", "ComputeInstance"]
     )

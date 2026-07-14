@@ -63,7 +63,7 @@ class EC2Ipv6AddressSchema(CartographyNodeSchema):
     label: str = "AWSEC2Ipv6Address"
     # The Ip extra label allows AWSDNSRecord AAAA records to reach this node
     # via the existing DNS_POINTS_TO -> Ip relationship, matching on id (the IPv6 address).
-    # DEPRECATED: EC2Ipv6Address will be removed in v1.0.0.
+    # DEPRECATED: legacy EC2Ipv6Address node label will be removed in v1.0.0.
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["EC2Ipv6Address", "Ip"])
     properties: EC2Ipv6AddressNodeProperties = EC2Ipv6AddressNodeProperties()
     sub_resource_relationship: EC2Ipv6AddressToAWSAccountRel = (

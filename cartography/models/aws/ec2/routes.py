@@ -96,7 +96,7 @@ class RouteToVPCEndpointRel(CartographyRelSchema):
 @dataclass(frozen=True)
 class RouteSchema(CartographyNodeSchema):
     label: str = "AWSEC2Route"
-    # DEPRECATED: EC2Route will be removed in v1.0.0.
+    # DEPRECATED: legacy EC2Route node label will be removed in v1.0.0.
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["EC2Route"])
     properties: RouteNodeProperties = RouteNodeProperties()
     sub_resource_relationship: RouteToAWSAccountRel = RouteToAWSAccountRel()

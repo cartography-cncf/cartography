@@ -42,7 +42,7 @@ class CognitoUserPoolToAWSAccountRel(CartographyRelSchema):
 @dataclass(frozen=True)
 class CognitoUserPoolSchema(CartographyNodeSchema):
     label: str = "AWSCognitoUserPool"
-    # DEPRECATED: CognitoUserPool will be removed in v1.0.0.
+    # DEPRECATED: legacy CognitoUserPool node label will be removed in v1.0.0.
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["CognitoUserPool"])
     properties: CognitoUserPoolNodeProperties = CognitoUserPoolNodeProperties()
     sub_resource_relationship: CognitoUserPoolToAWSAccountRel = (

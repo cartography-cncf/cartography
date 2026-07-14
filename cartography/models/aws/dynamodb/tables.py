@@ -56,7 +56,7 @@ class DynamoDBTableToAWSAccountRel(CartographyRelSchema):
 @dataclass(frozen=True)
 class DynamoDBTableSchema(CartographyNodeSchema):
     label: str = "AWSDynamoDBTable"
-    # DEPRECATED: DynamoDBTable will be removed in v1.0.0.
+    # DEPRECATED: legacy DynamoDBTable node label will be removed in v1.0.0.
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["DynamoDBTable", "Database"])
     properties: DynamoDBTableNodeProperties = DynamoDBTableNodeProperties()
     sub_resource_relationship: DynamoDBTableToAWSAccountRel = (

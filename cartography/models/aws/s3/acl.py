@@ -60,7 +60,7 @@ class S3AclToS3BucketRel(CartographyRelSchema):
 @dataclass(frozen=True)
 class S3AclSchema(CartographyNodeSchema):
     label: str = "AWSS3Acl"
-    # DEPRECATED: S3Acl will be removed in v1.0.0.
+    # DEPRECATED: legacy S3Acl node label will be removed in v1.0.0.
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["S3Acl"])
     properties: S3AclNodeProperties = S3AclNodeProperties()
     sub_resource_relationship: S3AclToAWSAccountRel = S3AclToAWSAccountRel()

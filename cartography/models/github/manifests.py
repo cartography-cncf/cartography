@@ -70,7 +70,7 @@ class DependencyGraphManifestToRepositoryRel(CartographyRelSchema):
 @dataclass(frozen=True)
 class DependencyGraphManifestSchema(CartographyNodeSchema):
     label: str = "GitHubDependencyGraphManifest"
-    # DEPRECATED: DependencyGraphManifest will be removed in v1.0.0.
+    # DEPRECATED: legacy DependencyGraphManifest node label will be removed in v1.0.0.
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["DependencyGraphManifest"])
     properties: DependencyGraphManifestNodeProperties = (
         DependencyGraphManifestNodeProperties()

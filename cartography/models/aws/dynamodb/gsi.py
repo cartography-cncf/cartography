@@ -68,7 +68,7 @@ class DynamoDBGSIToDynamoDBTableRel(CartographyRelSchema):
 @dataclass(frozen=True)
 class DynamoDBGSISchema(CartographyNodeSchema):
     label: str = "AWSDynamoDBGlobalSecondaryIndex"
-    # DEPRECATED: DynamoDBGlobalSecondaryIndex will be removed in v1.0.0.
+    # DEPRECATED: legacy DynamoDBGlobalSecondaryIndex node label will be removed in v1.0.0.
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
         ["DynamoDBGlobalSecondaryIndex"]
     )

@@ -86,7 +86,7 @@ class EC2InstanceAutoScalingGroupProperties(CartographyNodeProperties):
 @dataclass(frozen=True)
 class EC2InstanceAutoScalingGroupSchema(CartographyNodeSchema):
     label: str = "AWSEC2Instance"
-    # DEPRECATED: EC2Instance will be removed in v1.0.0.
+    # DEPRECATED: legacy EC2Instance node label will be removed in v1.0.0.
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["EC2Instance"])
     properties: EC2InstanceAutoScalingGroupProperties = (
         EC2InstanceAutoScalingGroupProperties()
@@ -149,7 +149,7 @@ class EC2SubnetAutoScalingGroupSchema(CartographyNodeSchema):
     properties: EC2SubnetAutoScalingGroupNodeProperties = (
         EC2SubnetAutoScalingGroupNodeProperties()
     )
-    # DEPRECATED: EC2Subnet will be removed in v1.0.0.
+    # DEPRECATED: legacy EC2Subnet node label will be removed in v1.0.0.
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["EC2Subnet", "Subnet"])
     sub_resource_relationship: EC2SubnetToAWSAccountRel = EC2SubnetToAWSAccountRel()
     other_relationships: OtherRelationships = OtherRelationships(
@@ -217,7 +217,7 @@ class AutoScalingGroupToLaunchConfigurationRel(CartographyRelSchema):
 @dataclass(frozen=True)
 class AutoScalingGroupSchema(CartographyNodeSchema):
     label: str = "AWSAutoScalingGroup"
-    # DEPRECATED: AutoScalingGroup will be removed in v1.0.0.
+    # DEPRECATED: legacy AutoScalingGroup node label will be removed in v1.0.0.
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["AutoScalingGroup"])
     properties: AutoScalingGroupNodeProperties = AutoScalingGroupNodeProperties()
     sub_resource_relationship: AutoScalingGroupToAWSAccountRel = (

@@ -70,7 +70,7 @@ class SpotlightVulnerabilityToCrowdstrikeHostRel(CartographyRelSchema):
 @dataclass(frozen=True)
 class SpotlightVulnerabilitySchema(CartographyNodeSchema):
     label: str = "CrowdstrikeSpotlightVulnerability"
-    # DEPRECATED: SpotlightVulnerability will be removed in v1.0.0.
+    # DEPRECATED: legacy SpotlightVulnerability node label will be removed in v1.0.0.
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["SpotlightVulnerability"])
     properties: SpotlightVulnerabilityNodeProperties = (
         SpotlightVulnerabilityNodeProperties()

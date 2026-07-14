@@ -49,7 +49,7 @@ class CloudWatchToAWSAccountRel(CartographyRelSchema):
 @dataclass(frozen=True)
 class CloudWatchLogGroupSchema(CartographyNodeSchema):
     label: str = "AWSCloudWatchLogGroup"
-    # DEPRECATED: CloudWatchLogGroup will be removed in v1.0.0.
+    # DEPRECATED: legacy CloudWatchLogGroup node label will be removed in v1.0.0.
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["CloudWatchLogGroup"])
     properties: CloudWatchLogGroupNodeProperties = CloudWatchLogGroupNodeProperties()
     sub_resource_relationship: CloudWatchToAWSAccountRel = CloudWatchToAWSAccountRel()

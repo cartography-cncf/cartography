@@ -77,7 +77,7 @@ class ECRPullThroughCacheRuleToAWSRoleRel(CartographyRelSchema):
 @dataclass(frozen=True)
 class ECRPullThroughCacheRuleSchema(CartographyNodeSchema):
     label: str = "AWSECRPullThroughCacheRule"
-    # DEPRECATED: ECRPullThroughCacheRule will be removed in v1.0.0.
+    # DEPRECATED: legacy ECRPullThroughCacheRule node label will be removed in v1.0.0.
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["ECRPullThroughCacheRule"])
     properties: ECRPullThroughCacheRuleNodeProperties = (
         ECRPullThroughCacheRuleNodeProperties()

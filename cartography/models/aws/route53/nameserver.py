@@ -57,7 +57,7 @@ class NameServerToAWSAccountRel(CartographyRelSchema):
 @dataclass(frozen=True)
 class NameServerSchema(CartographyNodeSchema):
     label: str = "AWSNameServer"
-    # DEPRECATED: NameServer will be removed in v1.0.0.
+    # DEPRECATED: legacy NameServer node label will be removed in v1.0.0.
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["NameServer"])
     properties: NameServerNodeProperties = NameServerNodeProperties()
     sub_resource_relationship: NameServerToAWSAccountRel = NameServerToAWSAccountRel()

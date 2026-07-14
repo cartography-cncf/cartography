@@ -117,7 +117,7 @@ class RouteTableToVpnGatewayRel(CartographyRelSchema):
 @dataclass(frozen=True)
 class RouteTableSchema(CartographyNodeSchema):
     label: str = "AWSEC2RouteTable"
-    # DEPRECATED: EC2RouteTable will be removed in v1.0.0.
+    # DEPRECATED: legacy EC2RouteTable node label will be removed in v1.0.0.
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["EC2RouteTable"])
     properties: RouteTableNodeProperties = RouteTableNodeProperties()
     sub_resource_relationship: RouteTableToAWSAccountRel = RouteTableToAWSAccountRel()

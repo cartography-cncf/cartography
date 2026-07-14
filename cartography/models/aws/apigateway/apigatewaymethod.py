@@ -66,7 +66,7 @@ class APIGatewayMethodToAWSAccountRel(CartographyRelSchema):
 @dataclass(frozen=True)
 class APIGatewayMethodSchema(CartographyNodeSchema):
     label: str = "AWSAPIGatewayMethod"
-    # DEPRECATED: APIGatewayMethod will be removed in v1.0.0.
+    # DEPRECATED: legacy APIGatewayMethod node label will be removed in v1.0.0.
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["APIGatewayMethod"])
     properties: APIGatewayMethodNodeProperties = APIGatewayMethodNodeProperties()
     sub_resource_relationship: APIGatewayMethodToAWSAccountRel = (

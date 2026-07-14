@@ -61,7 +61,7 @@ class GlueJobToGlueConnectionRel(CartographyRelSchema):
 @dataclass(frozen=True)
 class GlueJobSchema(CartographyNodeSchema):
     label: str = "AWSGlueJob"
-    # DEPRECATED: GlueJob will be removed in v1.0.0.
+    # DEPRECATED: legacy GlueJob node label will be removed in v1.0.0.
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["GlueJob"])
     properties: GlueJobNodeProperties = GlueJobNodeProperties()
     sub_resource_relationship: GlueJobToAWSAccountRel = GlueJobToAWSAccountRel()

@@ -47,7 +47,7 @@ class SNSTopicToAWSAccountRel(CartographyRelSchema):
 @dataclass(frozen=True)
 class SNSTopicSchema(CartographyNodeSchema):
     label: str = "AWSSNSTopic"
-    # DEPRECATED: SNSTopic will be removed in v1.0.0.
+    # DEPRECATED: legacy SNSTopic node label will be removed in v1.0.0.
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["SNSTopic"])
     properties: SNSTopicNodeProperties = SNSTopicNodeProperties()
     sub_resource_relationship: SNSTopicToAWSAccountRel = SNSTopicToAWSAccountRel()

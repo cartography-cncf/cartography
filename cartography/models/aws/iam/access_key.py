@@ -99,7 +99,7 @@ class AccountAccessKeyToAWSAccountRel(CartographyRelSchema):
 @dataclass(frozen=True)
 class AccountAccessKeySchema(CartographyNodeSchema):
     label: str = "AWSAccountAccessKey"
-    # DEPRECATED: AccountAccessKey will be removed in v1.0.0.
+    # DEPRECATED: legacy AccountAccessKey node label will be removed in v1.0.0.
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["AccountAccessKey", "APIKey"])
     properties: AccountAccessKeyNodeProperties = AccountAccessKeyNodeProperties()
     sub_resource_relationship: AccountAccessKeyToAWSAccountRel = (

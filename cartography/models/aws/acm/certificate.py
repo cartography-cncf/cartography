@@ -67,7 +67,7 @@ class ACMCertificateToELBV2ListenerRel(CartographyRelSchema):
 @dataclass(frozen=True)
 class ACMCertificateSchema(CartographyNodeSchema):
     label: str = "AWSACMCertificate"
-    # DEPRECATED: ACMCertificate will be removed in v1.0.0.
+    # DEPRECATED: legacy ACMCertificate node label will be removed in v1.0.0.
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
         ["ACMCertificate", "Certificate"]
     )

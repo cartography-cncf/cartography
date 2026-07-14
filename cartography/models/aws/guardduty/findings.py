@@ -230,7 +230,7 @@ class GuardDutyFindingToAWSRoleRel(CartographyRelSchema):
 class GuardDutyFindingSchema(CartographyNodeSchema):
     label: str = "AWSGuardDutyFinding"
     properties: GuardDutyFindingNodeProperties = GuardDutyFindingNodeProperties()
-    # DEPRECATED: GuardDutyFinding will be removed in v1.0.0.
+    # DEPRECATED: legacy GuardDutyFinding node label will be removed in v1.0.0.
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
         ["GuardDutyFinding", "Risk", "SecurityIssue"]
     )

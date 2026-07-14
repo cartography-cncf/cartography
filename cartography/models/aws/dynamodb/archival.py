@@ -78,7 +78,7 @@ class DynamoDBArchivalSummaryToBackupRel(CartographyRelSchema):
 @dataclass(frozen=True)
 class DynamoDBArchivalSummarySchema(CartographyNodeSchema):
     label: str = "AWSDynamoDBArchivalSummary"
-    # DEPRECATED: DynamoDBArchivalSummary will be removed in v1.0.0.
+    # DEPRECATED: legacy DynamoDBArchivalSummary node label will be removed in v1.0.0.
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["DynamoDBArchivalSummary"])
     properties: DynamoDBArchivalSummaryNodeProperties = (
         DynamoDBArchivalSummaryNodeProperties()

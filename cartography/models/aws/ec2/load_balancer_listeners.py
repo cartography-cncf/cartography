@@ -63,7 +63,7 @@ class ELBListenerToAWSAccountRel(CartographyRelSchema):
 class ELBListenerSchema(CartographyNodeSchema):
     label: str = "AWSELBListener"
     properties: ELBListenerNodeProperties = ELBListenerNodeProperties()
-    # DEPRECATED: ELBListener will be removed in v1.0.0.
+    # DEPRECATED: legacy ELBListener node label will be removed in v1.0.0.
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["ELBListener", "Endpoint"])
     sub_resource_relationship: ELBListenerToAWSAccountRel = ELBListenerToAWSAccountRel()
     other_relationships: OtherRelationships = OtherRelationships(

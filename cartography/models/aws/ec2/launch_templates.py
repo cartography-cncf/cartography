@@ -45,7 +45,7 @@ class LaunchTemplateToAWSAccountRel(CartographyRelSchema):
 @dataclass(frozen=True)
 class LaunchTemplateSchema(CartographyNodeSchema):
     label: str = "AWSLaunchTemplate"
-    # DEPRECATED: LaunchTemplate will be removed in v1.0.0.
+    # DEPRECATED: legacy LaunchTemplate node label will be removed in v1.0.0.
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["LaunchTemplate"])
     properties: LaunchTemplateNodeProperties = LaunchTemplateNodeProperties()
     sub_resource_relationship: LaunchTemplateToAWSAccountRel = (

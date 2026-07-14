@@ -64,7 +64,7 @@ class EC2KeyPairInstanceSchema(CartographyNodeSchema):
     """
 
     label: str = "AWSEC2KeyPair"
-    # DEPRECATED: EC2KeyPair will be removed in v1.0.0.
+    # DEPRECATED: legacy EC2KeyPair node label will be removed in v1.0.0.
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["EC2KeyPair", "KeyPair"])
     properties: EC2KeyPairInstanceNodeProperties = EC2KeyPairInstanceNodeProperties()
     sub_resource_relationship: EC2KeyPairInstanceToAWSAccountRel = (

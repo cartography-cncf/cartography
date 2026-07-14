@@ -57,7 +57,7 @@ class EBSSnapshotToAWSAccountRel(CartographyRelSchema):
 class EBSSnapshotSchema(CartographyNodeSchema):
     label: str = "AWSEBSSnapshot"
     properties: EBSSnapshotNodeProperties = EBSSnapshotNodeProperties()
-    # DEPRECATED: EBSSnapshot will be removed in v1.0.0.
+    # DEPRECATED: legacy EBSSnapshot node label will be removed in v1.0.0.
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["EBSSnapshot", "Snapshot"])
     sub_resource_relationship: EBSSnapshotToAWSAccountRel = EBSSnapshotToAWSAccountRel()
     other_relationships: OtherRelationships = OtherRelationships([])

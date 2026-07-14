@@ -99,7 +99,7 @@ class CloudTrailTrailToCloudWatchLogGroupRel(CartographyRelSchema):
 @dataclass(frozen=True)
 class CloudTrailTrailSchema(CartographyNodeSchema):
     label: str = "AWSCloudTrailTrail"
-    # DEPRECATED: CloudTrailTrail will be removed in v1.0.0.
+    # DEPRECATED: legacy CloudTrailTrail node label will be removed in v1.0.0.
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["CloudTrailTrail"])
     properties: CloudTrailTrailNodeProperties = CloudTrailTrailNodeProperties()
     sub_resource_relationship: CloudTrailToAWSAccountRel = CloudTrailToAWSAccountRel()

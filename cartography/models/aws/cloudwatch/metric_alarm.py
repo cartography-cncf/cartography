@@ -46,7 +46,7 @@ class CloudWatchMetricAlarmToAWSAccountRel(CartographyRelSchema):
 @dataclass(frozen=True)
 class CloudWatchMetricAlarmSchema(CartographyNodeSchema):
     label: str = "AWSCloudWatchMetricAlarm"
-    # DEPRECATED: CloudWatchMetricAlarm will be removed in v1.0.0.
+    # DEPRECATED: legacy CloudWatchMetricAlarm node label will be removed in v1.0.0.
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["CloudWatchMetricAlarm"])
     properties: CloudWatchMetricAlarmNodeProperties = (
         CloudWatchMetricAlarmNodeProperties()

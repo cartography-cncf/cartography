@@ -70,7 +70,7 @@ class EC2PrivateIpNetworkInterfaceSchema(CartographyNodeSchema):
     """
 
     label: str = "AWSEC2PrivateIp"
-    # DEPRECATED: EC2PrivateIp will be removed in v1.0.0.
+    # DEPRECATED: legacy EC2PrivateIp node label will be removed in v1.0.0.
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["EC2PrivateIp"])
     properties: EC2PrivateIpNetworkInterfaceNodeProperties = (
         EC2PrivateIpNetworkInterfaceNodeProperties()

@@ -131,7 +131,7 @@ class RDSEventSubscriptionToRDSSnapshotRel(CartographyRelSchema):
 @dataclass(frozen=True)
 class RDSEventSubscriptionSchema(CartographyNodeSchema):
     label: str = "AWSRDSEventSubscription"
-    # DEPRECATED: RDSEventSubscription will be removed in v1.0.0.
+    # DEPRECATED: legacy RDSEventSubscription node label will be removed in v1.0.0.
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["RDSEventSubscription"])
     properties: RDSEventSubscriptionNodeProperties = (
         RDSEventSubscriptionNodeProperties()

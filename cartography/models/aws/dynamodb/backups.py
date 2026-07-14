@@ -43,7 +43,7 @@ class DynamoDBBackupToAWSAccountRel(CartographyRelSchema):
 @dataclass(frozen=True)
 class DynamoDBBackupSchema(CartographyNodeSchema):
     label: str = "AWSDynamoDBBackup"
-    # DEPRECATED: DynamoDBBackup will be removed in v1.0.0.
+    # DEPRECATED: legacy DynamoDBBackup node label will be removed in v1.0.0.
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["DynamoDBBackup"])
     properties: DynamoDBBackupNodeProperties = DynamoDBBackupNodeProperties()
     sub_resource_relationship: DynamoDBBackupToAWSAccountRel = (

@@ -83,7 +83,7 @@ class SQSQueueToDeadLetterQueueRel(CartographyRelSchema):
 @dataclass(frozen=True)
 class SQSQueueSchema(CartographyNodeSchema):
     label: str = "AWSSQSQueue"
-    # DEPRECATED: SQSQueue will be removed in v1.0.0.
+    # DEPRECATED: legacy SQSQueue node label will be removed in v1.0.0.
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["SQSQueue"])
     properties: SQSQueueNodeProperties = SQSQueueNodeProperties()
     sub_resource_relationship: SQSQueueToAWSAccountRel = SQSQueueToAWSAccountRel()

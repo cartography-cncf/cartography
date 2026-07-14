@@ -67,7 +67,7 @@ class EfsAccessPointToEfsFileSystemRel(CartographyRelSchema):
 @dataclass(frozen=True)
 class EfsAccessPointSchema(CartographyNodeSchema):
     label: str = "AWSEfsAccessPoint"
-    # DEPRECATED: EfsAccessPoint will be removed in v1.0.0.
+    # DEPRECATED: legacy EfsAccessPoint node label will be removed in v1.0.0.
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["EfsAccessPoint"])
     properties: EfsAccessPointNodeProperties = EfsAccessPointNodeProperties()
     sub_resource_relationship: EfsAccessPointToAWSAccountRel = (

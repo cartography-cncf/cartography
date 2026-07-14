@@ -189,7 +189,7 @@ class CloudFrontDistributionSchema(CartographyNodeSchema):
     """Schema for AWS CloudFront Distribution nodes."""
 
     label: str = "AWSCloudFrontDistribution"
-    # DEPRECATED: CloudFrontDistribution will be removed in v1.0.0.
+    # DEPRECATED: legacy CloudFrontDistribution node label will be removed in v1.0.0.
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["CloudFrontDistribution"])
     properties: CloudFrontDistributionNodeProperties = (
         CloudFrontDistributionNodeProperties()

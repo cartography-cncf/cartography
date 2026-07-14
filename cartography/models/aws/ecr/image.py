@@ -183,7 +183,7 @@ class ECRImageBaseSchema(CartographyNodeSchema):
             ECRImageAttestsRel(),
         ],
     )
-    # DEPRECATED: ECRImage will be removed in v1.0.0.
+    # DEPRECATED: legacy ECRImage node label will be removed in v1.0.0.
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
         [
             "ECRImage",
@@ -221,7 +221,7 @@ class ECRImageSchema(CartographyNodeSchema):
             ECRImageAttestsRel(),
         ],
     )
-    # DEPRECATED: ECRImage will be removed in v1.0.0.
+    # DEPRECATED: legacy ECRImage node label will be removed in v1.0.0.
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
         [
             "ECRImage",
@@ -255,7 +255,7 @@ class ECRImageLayerEnrichmentSchema(CartographyNodeSchema):
             ECRImageAttestsRel(),
         ],
     )
-    # DEPRECATED: ECRImage will be removed in v1.0.0.
+    # DEPRECATED: legacy ECRImage node label will be removed in v1.0.0.
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
         [
             "ECRImage",
@@ -287,7 +287,7 @@ class ECRImageHasLayerRelSchema(CartographyNodeSchema):
     """Load bounded HAS_LAYER relationship rows without reloading image metadata."""
 
     label: str = "AWSECRImage"
-    # DEPRECATED: ECRImage will be removed in v1.0.0.
+    # DEPRECATED: legacy ECRImage node label will be removed in v1.0.0.
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["ECRImage"])
     properties: ECRImageHasLayerRelLoadProperties = ECRImageHasLayerRelLoadProperties()
     other_relationships: OtherRelationships = OtherRelationships(

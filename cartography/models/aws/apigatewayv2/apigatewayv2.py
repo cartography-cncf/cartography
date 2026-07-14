@@ -48,7 +48,7 @@ class APIGatewayV2APIToAWSAccountRel(CartographyRelSchema):
 @dataclass(frozen=True)
 class APIGatewayV2APISchema(CartographyNodeSchema):
     label: str = "AWSAPIGatewayV2API"
-    # DEPRECATED: APIGatewayV2API will be removed in v1.0.0.
+    # DEPRECATED: legacy APIGatewayV2API node label will be removed in v1.0.0.
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["APIGatewayV2API"])
     properties: APIGatewayV2APINodeProperties = APIGatewayV2APINodeProperties()
     sub_resource_relationship: APIGatewayV2APIToAWSAccountRel = (

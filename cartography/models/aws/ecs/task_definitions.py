@@ -123,7 +123,7 @@ class ECSTaskDefinitionToExecutionRoleRel(CartographyRelSchema):
 @dataclass(frozen=True)
 class ECSTaskDefinitionSchema(CartographyNodeSchema):
     label: str = "AWSECSTaskDefinition"
-    # DEPRECATED: ECSTaskDefinition will be removed in v1.0.0.
+    # DEPRECATED: legacy ECSTaskDefinition node label will be removed in v1.0.0.
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["ECSTaskDefinition"])
     properties: ECSTaskDefinitionNodeProperties = ECSTaskDefinitionNodeProperties()
     sub_resource_relationship: ECSTaskDefinitionToAWSAccountRel = (

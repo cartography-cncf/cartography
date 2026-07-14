@@ -178,7 +178,7 @@ class ECSContainerToGitHubContainerImageRel(CartographyRelSchema):
 @dataclass(frozen=True)
 class ECSContainerSchema(CartographyNodeSchema):
     label: str = "AWSECSContainer"
-    # DEPRECATED: ECSContainer will be removed in v1.0.0.
+    # DEPRECATED: legacy ECSContainer node label will be removed in v1.0.0.
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["ECSContainer", "Container"])
     properties: ECSContainerNodeProperties = ECSContainerNodeProperties()
     sub_resource_relationship: ECSContainerToAWSAccountRel = (

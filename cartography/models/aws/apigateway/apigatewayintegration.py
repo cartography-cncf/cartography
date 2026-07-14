@@ -69,7 +69,7 @@ class APIGatewayIntegrationToAWSAccountRel(CartographyRelSchema):
 @dataclass(frozen=True)
 class APIGatewayIntegrationSchema(CartographyNodeSchema):
     label: str = "AWSAPIGatewayIntegration"
-    # DEPRECATED: APIGatewayIntegration will be removed in v1.0.0.
+    # DEPRECATED: legacy APIGatewayIntegration node label will be removed in v1.0.0.
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["APIGatewayIntegration"])
     properties: APIGatewayIntegrationNodeProperties = (
         APIGatewayIntegrationNodeProperties()

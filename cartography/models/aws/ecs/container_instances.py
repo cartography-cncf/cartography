@@ -90,7 +90,7 @@ class ECSContainerInstanceToEC2InstanceRel(CartographyRelSchema):
 @dataclass(frozen=True)
 class ECSContainerInstanceSchema(CartographyNodeSchema):
     label: str = "AWSECSContainerInstance"
-    # DEPRECATED: ECSContainerInstance will be removed in v1.0.0.
+    # DEPRECATED: legacy ECSContainerInstance node label will be removed in v1.0.0.
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["ECSContainerInstance"])
     properties: ECSContainerInstanceNodeProperties = (
         ECSContainerInstanceNodeProperties()

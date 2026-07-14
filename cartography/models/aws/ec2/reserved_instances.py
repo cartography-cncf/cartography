@@ -53,7 +53,7 @@ class EC2ReservedInstanceToAWSAccountRel(CartographyRelSchema):
 @dataclass(frozen=True)
 class EC2ReservedInstanceSchema(CartographyNodeSchema):
     label: str = "AWSEC2ReservedInstance"
-    # DEPRECATED: EC2ReservedInstance will be removed in v1.0.0.
+    # DEPRECATED: legacy EC2ReservedInstance node label will be removed in v1.0.0.
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["EC2ReservedInstance"])
     properties: EC2ReservedInstanceNodeProperties = EC2ReservedInstanceNodeProperties()
     sub_resource_relationship: EC2ReservedInstanceToAWSAccountRel = (

@@ -82,7 +82,7 @@ class SSMInstanceInformationToEC2InstanceRel(CartographyRelSchema):
 @dataclass(frozen=True)
 class SSMInstanceInformationSchema(CartographyNodeSchema):
     label: str = "AWSSSMInstanceInformation"
-    # DEPRECATED: SSMInstanceInformation will be removed in v1.0.0.
+    # DEPRECATED: legacy SSMInstanceInformation node label will be removed in v1.0.0.
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["SSMInstanceInformation"])
     properties: SSMInstanceInformationNodeProperties = (
         SSMInstanceInformationNodeProperties()

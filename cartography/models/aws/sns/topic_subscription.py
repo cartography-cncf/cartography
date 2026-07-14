@@ -62,7 +62,7 @@ class SNSTopicSubscriptionToSNSTopicRel(CartographyRelSchema):
 @dataclass(frozen=True)
 class SNSTopicSubscriptionSchema(CartographyNodeSchema):
     label: str = "AWSSNSTopicSubscription"
-    # DEPRECATED: SNSTopicSubscription will be removed in v1.0.0.
+    # DEPRECATED: legacy SNSTopicSubscription node label will be removed in v1.0.0.
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["SNSTopicSubscription"])
     properties: SNSTopicSubscriptionNodeProperties = (
         SNSTopicSubscriptionNodeProperties()
