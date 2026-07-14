@@ -13,15 +13,39 @@ from cartography.models.core.relationships import TargetNodeMatcher
 
 @dataclass(frozen=True)
 class KandjiDeviceNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("id")
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
-    device_id: PropertyRef = PropertyRef("device_id")
-    device_name: PropertyRef = PropertyRef("device_name", extra_index=True)
-    last_check_in: PropertyRef = PropertyRef("last_check_in")
-    model: PropertyRef = PropertyRef("model")
-    os_version: PropertyRef = PropertyRef("os_version")
-    platform: PropertyRef = PropertyRef("platform")
-    serial_number: PropertyRef = PropertyRef("serial_number", extra_index=True)
+    id: PropertyRef = PropertyRef("id", description="Kandji device ID.")
+    lastupdated: PropertyRef = PropertyRef(
+        "lastupdated",
+        set_in_kwargs=True,
+        description="Timestamp of the last update.",
+    )
+    device_id: PropertyRef = PropertyRef(
+        "device_id",
+        description="Kandji device ID.",
+    )
+    device_name: PropertyRef = PropertyRef(
+        "device_name",
+        extra_index=True,
+        description="Friendly device name.",
+    )
+    last_check_in: PropertyRef = PropertyRef(
+        "last_check_in",
+        description="Timestamp of the device's last Kandji check-in.",
+    )
+    model: PropertyRef = PropertyRef("model", description="Device model.")
+    os_version: PropertyRef = PropertyRef(
+        "os_version",
+        description="Operating system version.",
+    )
+    platform: PropertyRef = PropertyRef(
+        "platform",
+        description="Device platform.",
+    )
+    serial_number: PropertyRef = PropertyRef(
+        "serial_number",
+        extra_index=True,
+        description="Device serial number.",
+    )
 
 
 @dataclass(frozen=True)
@@ -32,6 +56,8 @@ class KandjiTenantToKandjiDeviceRelProperties(CartographyRelProperties):
 @dataclass(frozen=True)
 # (:KandjiDevice)<-[:RESOURCE]-(:KandjiTenant)
 class KandjiTenantToKandjiDeviceRel(CartographyRelSchema):
+    """The tenant contains the enrolled device."""
+
     target_node_label: str = "KandjiTenant"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("TENANT_ID", set_in_kwargs=True)},
@@ -46,6 +72,8 @@ class KandjiTenantToKandjiDeviceRel(CartographyRelSchema):
 @dataclass(frozen=True)
 # (:KandjiDevice)-[:ENROLLED_TO]->(:KandjiTenant) - Backwards compatibility
 class KandjiDeviceToTenantDeprecatedRel(CartographyRelSchema):
+    """Deprecated compatibility edge linking a device to its tenant."""
+
     target_node_label: str = "KandjiTenant"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("TENANT_ID", set_in_kwargs=True)},
@@ -59,6 +87,8 @@ class KandjiDeviceToTenantDeprecatedRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class KandjiDeviceSchema(CartographyNodeSchema):
+    """A device managed by Kandji."""
+
     label: str = "KandjiDevice"  # The label of the node
     properties: KandjiDeviceNodeProperties = (
         KandjiDeviceNodeProperties()
