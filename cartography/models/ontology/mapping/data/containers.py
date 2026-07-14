@@ -6,7 +6,7 @@ aws_ecs_container_mapping = OntologyMapping(
     module_name="aws",
     nodes=[
         OntologyNodeMapping(
-            node_label="ECSContainer",
+            node_label="AWSECSContainer",
             fields=[
                 OntologyFieldMapping(ontology_field="name", node_field="name"),
                 OntologyFieldMapping(ontology_field="image", node_field="image"),

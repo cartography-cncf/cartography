@@ -84,7 +84,10 @@ class EKSClusterToAWSAccountRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class EKSClusterSchema(CartographyNodeSchema):
-    label: str = "EKSCluster"
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["ComputeCluster"])
+    label: str = "AWSEKSCluster"
+    # DEPRECATED: legacy EKSCluster node label will be removed in v1.0.0.
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
+        ["EKSCluster", "ComputeCluster"]
+    )
     properties: EKSClusterNodeProperties = EKSClusterNodeProperties()
     sub_resource_relationship: EKSClusterToAWSAccountRel = EKSClusterToAWSAccountRel()

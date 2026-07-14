@@ -47,7 +47,7 @@ def test_load_databricks_external_locations(mock_get, neo4j_session):
     _ensure_local_neo4j_has_test_metastore(neo4j_session)
     _seed_storage_credentials(neo4j_session)
     neo4j_session.run(
-        "MERGE (b:S3Bucket {name: $name}) SET b.lastupdated = $tag",
+        "MERGE (b:AWSS3Bucket {name: $name}) SET b.lastupdated = $tag",
         name=DATABRICKS_EXTERNAL_LOCATION_S3_BUCKET,
         tag=TEST_UPDATE_TAG,
     )
@@ -81,12 +81,12 @@ def test_load_databricks_external_locations(mock_get, neo4j_session):
         rel_direction_right=True,
     ) == {("managed_storage_location", "aws-uc-storage-cred")}
 
-    # ExternalLocation -> S3Bucket BACKED_BY (parsed from the s3:// url)
+    # ExternalLocation -> AWSS3Bucket BACKED_BY (parsed from the s3:// url)
     assert check_rels(
         neo4j_session,
         "DatabricksExternalLocation",
         "name",
-        "S3Bucket",
+        "AWSS3Bucket",
         "name",
         "BACKED_BY",
         rel_direction_right=True,

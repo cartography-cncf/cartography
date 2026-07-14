@@ -35,7 +35,7 @@ def test_sync_cloudwatch(mocker, neo4j_session):
     )
 
     # Assert
-    assert check_nodes(neo4j_session, "CodeBuildProject", ["arn"]) == {
+    assert check_nodes(neo4j_session, "AWSCodeBuildProject", ["arn"]) == {
         ("arn:aws:codebuild:eu-west-1:123456789012:project/frontend-build",),
         ("arn:aws:codebuild:eu-west-1:123456789012:project/backend-deploy",),
     }
@@ -45,7 +45,7 @@ def test_sync_cloudwatch(mocker, neo4j_session):
         neo4j_session,
         "AWSAccount",
         "id",
-        "CodeBuildProject",
+        "AWSCodeBuildProject",
         "arn",
         "RESOURCE",
         rel_direction_right=True,

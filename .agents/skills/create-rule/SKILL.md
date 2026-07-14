@@ -54,17 +54,17 @@ _aws_public_databases = Fact(
     name="Publicly accessible AWS RDS instances",
     description="AWS RDS databases exposed to the internet",
     cypher_query="""
-    MATCH (db:RDSInstance)
+    MATCH (db:AWSRDSInstance)
     WHERE db.publicly_accessible = true
     RETURN db.id AS id, db.db_instance_identifier AS name, db.region AS region
     """,
     cypher_visual_query="""
-    MATCH (db:RDSInstance)
+    MATCH (db:AWSRDSInstance)
     WHERE db.publicly_accessible = true
     RETURN db
     """,
     cypher_count_query="""
-    MATCH (db:RDSInstance)
+    MATCH (db:AWSRDSInstance)
     RETURN COUNT(db) AS count
     """,
     identity_fields=("id",),
@@ -203,7 +203,7 @@ Group facts from different cloud providers under one rule. Each fact's `cypher_q
 _aws_unencrypted_storage = Fact(
     id="aws-s3-unencrypted",
     cypher_query="""
-    MATCH (b:S3Bucket) WHERE b.default_encryption IS NULL
+    MATCH (b:AWSS3Bucket) WHERE b.default_encryption IS NULL
     RETURN b.id AS id, b.name AS name, 'aws' AS provider
     """,
     # ...

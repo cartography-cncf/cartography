@@ -11,24 +11,24 @@ aws_guard_duty_detector_disabled = Fact(
     name="GuardDuty Detector Disabled",
     description="Finds regions where GuardDuty Detector is disabled.",
     cypher_query="""
-    MATCH (a:AWSAccount)-[:RESOURCE]-(r:EC2Instance|EKSCluster|AWSLambda|ECSCluster|RDSInstance|RDSCluster)
+    MATCH (a:AWSAccount)-[:RESOURCE]-(r:AWSEC2Instance|AWSEKSCluster|AWSLambda|AWSECSCluster|AWSRDSInstance|AWSRDSCluster)
     WHERE NOT EXISTS {
-        MATCH (a)-[:RESOURCE]->(d:GuardDutyDetector{status: "ENABLED"})
+        MATCH (a)-[:RESOURCE]->(d:AWSGuardDutyDetector{status: "ENABLED"})
         WHERE d.region = r.region
     }
     RETURN DISTINCT r.region AS region, a.name AS account_name, a.id AS account_id
     ORDER BY r.region, a.name
     """,
     cypher_visual_query="""
-    MATCH (a:AWSAccount)-[:RESOURCE]-(r:EC2Instance|EKSCluster|AWSLambda|ECSCluster|RDSInstance|RDSCluster)
+    MATCH (a:AWSAccount)-[:RESOURCE]-(r:AWSEC2Instance|AWSEKSCluster|AWSLambda|AWSECSCluster|AWSRDSInstance|AWSRDSCluster)
     WHERE NOT EXISTS {
-        MATCH (a)-[:RESOURCE]->(d:GuardDutyDetector{status: "ENABLED"})
+        MATCH (a)-[:RESOURCE]->(d:AWSGuardDutyDetector{status: "ENABLED"})
         WHERE d.region = r.region
     }
     RETURN *
     """,
     cypher_count_query="""
-    MATCH (a:AWSAccount)-[:RESOURCE]-(r:EC2Instance|EKSCluster|AWSLambda|ECSCluster|RDSInstance|RDSCluster)
+    MATCH (a:AWSAccount)-[:RESOURCE]-(r:AWSEC2Instance|AWSEKSCluster|AWSLambda|AWSECSCluster|AWSRDSInstance|AWSRDSCluster)
     WITH DISTINCT a, r.region AS region
     RETURN COUNT(*) AS count
     """,

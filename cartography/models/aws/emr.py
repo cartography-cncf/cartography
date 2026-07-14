@@ -43,7 +43,7 @@ class EMRClusterToAWSAccountRelRelProperties(CartographyRelProperties):
 
 
 @dataclass(frozen=True)
-# (:EMRCluster)<-[:RESOURCE]-(:AWSAccount)
+# (:AWSEMRCluster)<-[:RESOURCE]-(:AWSAccount)
 class EMRClusterToAWSAccountRel(CartographyRelSchema):
     target_node_label: str = "AWSAccount"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
@@ -58,7 +58,10 @@ class EMRClusterToAWSAccountRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class EMRClusterSchema(CartographyNodeSchema):
-    label: str = "EMRCluster"
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["ComputeCluster"])
+    label: str = "AWSEMRCluster"
+    # DEPRECATED: legacy EMRCluster node label will be removed in v1.0.0.
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
+        ["EMRCluster", "ComputeCluster"]
+    )
     properties: EMRClusterNodeProperties = EMRClusterNodeProperties()
     sub_resource_relationship: EMRClusterToAWSAccountRel = EMRClusterToAWSAccountRel()

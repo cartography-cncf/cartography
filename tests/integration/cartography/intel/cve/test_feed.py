@@ -11,7 +11,7 @@ API_KEY = "nvd_api_key"
 def _create_spotlight_nodes(neo4j_session):
     neo4j_session.run(
         """
-        MERGE (v:SpotlightVulnerability{id: $spotlight_id})
+        MERGE (v:CrowdstrikeSpotlightVulnerability{id: $spotlight_id})
         ON CREATE SET v.firstseen = timestamp()
         """,
         spotlight_id="CVE-2023-41782",
@@ -131,7 +131,7 @@ def test_sync(neo4j_session):
 
     assert check_rels(
         neo4j_session,
-        "SpotlightVulnerability",
+        "CrowdstrikeSpotlightVulnerability",
         "id",
         "CVE",
         "id",

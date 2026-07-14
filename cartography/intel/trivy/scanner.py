@@ -402,7 +402,7 @@ def cleanup(neo4j_session: Session, common_job_parameters: dict[str, Any]) -> No
     )
 
 
-# DEPRECATED: Remove this migration function when releasing v1
+# DEPRECATED: legacy Package label migration will be removed in v1.0.0.
 def _migrate_legacy_package_labels(neo4j_session: Session) -> None:
     """One-time migration: relabel legacy Package → TrivyPackage for nodes created before the rename."""
     # Package is reserved as the canonical ontology primary label.

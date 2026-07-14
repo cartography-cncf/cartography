@@ -49,7 +49,7 @@ class ScalewayContainerRegistryImageLayerToProjectRel(CartographyRelSchema):
 class ScalewayContainerRegistryImageLayerSchema(CartographyNodeSchema):
     label: str = "ScalewayContainerRegistryImageLayer"
     # `ImageLayer` is the cross-provider label the supply-chain dockerfile
-    # matcher looks up by diff_id (mirrors ECRImageLayer / GCPArtifactRegistryImageLayer).
+    # matcher looks up by diff_id (mirrors AWSECRImageLayer / GCPArtifactRegistryImageLayer).
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["ImageLayer"])
     properties: ScalewayContainerRegistryImageLayerNodeProperties = (
         ScalewayContainerRegistryImageLayerNodeProperties()

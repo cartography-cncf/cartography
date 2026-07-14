@@ -28,7 +28,7 @@ The quickest way to get started using drift-detection is through an example. We 
 	```
 	{
 	  "name": "Internet Exposed EC2 Instances",
-	  "validation_query": "match (n:EC2Instance) where n.exposed_internet = True return n.instancetype, n.privateipaddress, n.publicdnsname, n.exposed_internet_type"
+	  "validation_query": "match (n:AWSEC2Instance) where n.exposed_internet = True return n.instancetype, n.privateipaddress, n.publicdnsname, n.exposed_internet_type"
 	  "properties": [],
 	  "results": []
 	}
@@ -76,7 +76,7 @@ All set 👍
 	```
 	{
 	  "name": "Internet Exposed EC2 Instances",
-	  "validation_query": "match (n:EC2Instance) where n.exposed_internet = True return n.instancetype, n.privateipaddress, n.publicdnsname, n.exposed_internet_type"
+	  "validation_query": "match (n:AWSEC2Instance) where n.exposed_internet = True return n.instancetype, n.privateipaddress, n.publicdnsname, n.exposed_internet_type"
 	  "properties": ["n.instancetype", "n.privateipaddress", "n.publicdnsname", "n.exposed_internet_type"],
 	  "results": [
 	    ["c4.large", "10.255.255.251", "ec2.1.compute.amazonaws.com", "direct"],
@@ -96,7 +96,7 @@ All set 👍
 	```
 	{
 	  "name": "Internet Exposed EC2 Instances",
-	  "validation_query": "match (n:EC2Instance) where n.exposed_internet = True return n.instancetype, n.privateipaddress, n.publicdnsname, n.exposed_internet_type""
+	  "validation_query": "match (n:AWSEC2Instance) where n.exposed_internet = True return n.instancetype, n.privateipaddress, n.publicdnsname, n.exposed_internet_type""
 	  "properties": ["n.instancetype", "n.privateipaddress", "n.publicdnsname", "n.exposed_internet_type"],
 	  "results": [
 	    ["t2.micro", "10.255.255.250", "ec2.0.compute.amazonaws.com", "direct"],

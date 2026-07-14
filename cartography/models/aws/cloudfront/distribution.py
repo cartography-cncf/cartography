@@ -13,6 +13,7 @@ from dataclasses import dataclass
 from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeProperties
 from cartography.models.core.nodes import CartographyNodeSchema
+from cartography.models.core.nodes import ExtraNodeLabels
 from cartography.models.core.relationships import CartographyRelProperties
 from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
@@ -74,7 +75,7 @@ class CloudFrontDistributionNodeProperties(CartographyNodeProperties):
 
 @dataclass(frozen=True)
 class CloudFrontDistributionToAWSAccountRelProperties(CartographyRelProperties):
-    """Properties for the relationship between CloudFrontDistribution and AWSAccount."""
+    """Properties for the relationship between AWSCloudFrontDistribution and AWSAccount."""
 
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
@@ -82,9 +83,9 @@ class CloudFrontDistributionToAWSAccountRelProperties(CartographyRelProperties):
 @dataclass(frozen=True)
 class CloudFrontDistributionToAWSAccountRel(CartographyRelSchema):
     """
-    Defines the relationship from CloudFrontDistribution to AWSAccount.
+    Defines the relationship from AWSCloudFrontDistribution to AWSAccount.
 
-    (:AWSAccount)-[:RESOURCE]->(:CloudFrontDistribution)
+    (:AWSAccount)-[:RESOURCE]->(:AWSCloudFrontDistribution)
     """
 
     target_node_label: str = "AWSAccount"
@@ -100,7 +101,7 @@ class CloudFrontDistributionToAWSAccountRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class CloudFrontDistributionToS3BucketRelProperties(CartographyRelProperties):
-    """Properties for the relationship between CloudFrontDistribution and S3Bucket."""
+    """Properties for the relationship between AWSCloudFrontDistribution and AWSS3Bucket."""
 
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
@@ -108,13 +109,13 @@ class CloudFrontDistributionToS3BucketRelProperties(CartographyRelProperties):
 @dataclass(frozen=True)
 class CloudFrontDistributionToS3BucketRel(CartographyRelSchema):
     """
-    Defines the relationship from CloudFrontDistribution to S3Bucket.
+    Defines the relationship from AWSCloudFrontDistribution to AWSS3Bucket.
 
     Created when a CloudFront distribution has S3 bucket origins.
-    (:CloudFrontDistribution)-[:SERVES_FROM]->(:S3Bucket)
+    (:AWSCloudFrontDistribution)-[:SERVES_FROM]->(:AWSS3Bucket)
     """
 
-    target_node_label: str = "S3Bucket"
+    target_node_label: str = "AWSS3Bucket"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"name": PropertyRef("s3_origin_bucket_names", one_to_many=True)},
     )
@@ -128,7 +129,7 @@ class CloudFrontDistributionToS3BucketRel(CartographyRelSchema):
 @dataclass(frozen=True)
 class CloudFrontDistributionToACMCertificateRelProperties(CartographyRelProperties):
     """
-    Properties for the relationship between CloudFrontDistribution and ACMCertificate.
+    Properties for the relationship between AWSCloudFrontDistribution and AWSACMCertificate.
     """
 
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
@@ -137,13 +138,13 @@ class CloudFrontDistributionToACMCertificateRelProperties(CartographyRelProperti
 @dataclass(frozen=True)
 class CloudFrontDistributionToACMCertificateRel(CartographyRelSchema):
     """
-    Defines the relationship from CloudFrontDistribution to ACMCertificate.
+    Defines the relationship from AWSCloudFrontDistribution to AWSACMCertificate.
 
     Created when a CloudFront distribution uses an ACM certificate for HTTPS.
-    (:CloudFrontDistribution)-[:USES_CERTIFICATE]->(:ACMCertificate)
+    (:AWSCloudFrontDistribution)-[:USES_CERTIFICATE]->(:AWSACMCertificate)
     """
 
-    target_node_label: str = "ACMCertificate"
+    target_node_label: str = "AWSACMCertificate"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"arn": PropertyRef("ACMCertificateArn")},
     )
@@ -157,7 +158,7 @@ class CloudFrontDistributionToACMCertificateRel(CartographyRelSchema):
 @dataclass(frozen=True)
 class CloudFrontDistributionToLambdaRelProperties(CartographyRelProperties):
     """
-    Properties for the relationship between CloudFrontDistribution and AWSLambda.
+    Properties for the relationship between AWSCloudFrontDistribution and AWSLambda.
     """
 
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
@@ -166,10 +167,10 @@ class CloudFrontDistributionToLambdaRelProperties(CartographyRelProperties):
 @dataclass(frozen=True)
 class CloudFrontDistributionToLambdaRel(CartographyRelSchema):
     """
-    Defines the relationship from CloudFrontDistribution to AWSLambda.
+    Defines the relationship from AWSCloudFrontDistribution to AWSLambda.
 
     Created when a CloudFront distribution has Lambda@Edge function associations.
-    (:CloudFrontDistribution)-[:USES_LAMBDA_EDGE]->(:AWSLambda)
+    (:AWSCloudFrontDistribution)-[:USES_LAMBDA_EDGE]->(:AWSLambda)
     """
 
     target_node_label: str = "AWSLambda"
@@ -187,7 +188,9 @@ class CloudFrontDistributionToLambdaRel(CartographyRelSchema):
 class CloudFrontDistributionSchema(CartographyNodeSchema):
     """Schema for AWS CloudFront Distribution nodes."""
 
-    label: str = "CloudFrontDistribution"
+    label: str = "AWSCloudFrontDistribution"
+    # DEPRECATED: legacy CloudFrontDistribution node label will be removed in v1.0.0.
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["CloudFrontDistribution"])
     properties: CloudFrontDistributionNodeProperties = (
         CloudFrontDistributionNodeProperties()
     )

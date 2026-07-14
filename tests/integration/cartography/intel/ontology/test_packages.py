@@ -19,7 +19,7 @@ def _setup_trivy_graph(neo4j_session):
         SET p.normalized_id = 'npm|express|4.18.2',
             p.name = 'express', p.version = '4.18.2',
             p.type = 'npm'
-        MERGE (img:ECRImage {id: 'sha256:abc123'})
+        MERGE (img:AWSECRImage {id: 'sha256:abc123'})
         MERGE (p)-[:DEPLOYED]->(img)
         MERGE (ont_img:Image {id: 'ont-img-abc123'})
         SET ont_img._ont_digest = 'sha256:abc123'

@@ -6,12 +6,12 @@ from cartography.models.ontology.mapping.specs import OntologyNodeMapping
 # Node Mappings - Create PublicIP nodes from provider-specific IP resources
 # =============================================================================
 
-# AWS - ElasticIPAddress
+# AWS - AWSElasticIPAddress
 aws_eip_mapping = OntologyMapping(
     module_name="aws",
     nodes=[
         OntologyNodeMapping(
-            node_label="ElasticIPAddress",
+            node_label="AWSElasticIPAddress",
             fields=[
                 OntologyFieldMapping(
                     ontology_field="ip_address", node_field="public_ip", required=True

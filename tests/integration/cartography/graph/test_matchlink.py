@@ -46,13 +46,13 @@ def _setup_test_data(neo4j_session: neo4j.Session, update_tag: int) -> None:
         MERGE (p2:AWSPrincipal {principal_arn: $p2_arn, lastupdated: $update_tag})
         MERGE (acc)-[res2:RESOURCE]->(p2)
 
-        MERGE (b1:S3Bucket {name: $b1_name, lastupdated: $update_tag})
+        MERGE (b1:AWSS3Bucket {name: $b1_name, lastupdated: $update_tag})
         MERGE (acc)-[res3:RESOURCE]->(b1)
 
-        MERGE (b2:S3Bucket {name: $b2_name, lastupdated: $update_tag})
+        MERGE (b2:AWSS3Bucket {name: $b2_name, lastupdated: $update_tag})
         MERGE (acc)-[res4:RESOURCE]->(b2)
 
-        MERGE (b3:S3Bucket {name: $b3_name, lastupdated: $update_tag})
+        MERGE (b3:AWSS3Bucket {name: $b3_name, lastupdated: $update_tag})
         MERGE (acc)-[res5:RESOURCE]->(b3)
         SET res1.lastupdated = $update_tag, res2.lastupdated = $update_tag,
             res3.lastupdated = $update_tag, res4.lastupdated = $update_tag, res5.lastupdated = $update_tag
@@ -75,7 +75,7 @@ def _setup_test_data(neo4j_session: neo4j.Session, update_tag: int) -> None:
         MERGE (p3:AWSPrincipal {principal_arn: $p3_arn, lastupdated: $update_tag})
         MERGE (acc2)-[res5:RESOURCE]->(p3)
 
-        MERGE (b4:S3Bucket {name: $b4_name, lastupdated: $update_tag})
+        MERGE (b4:AWSS3Bucket {name: $b4_name, lastupdated: $update_tag})
         MERGE (acc2)-[res6:RESOURCE]->(b4)
         SET res5.lastupdated = $update_tag, res6.lastupdated = $update_tag
         """,
@@ -101,13 +101,13 @@ def _setup_duplicate_matchlink_test_data(
         """
         CREATE (acc1:AWSAccount {id: $account_1, lastupdated: $update_tag})
         CREATE (p1:AWSPrincipal {principal_arn: $principal_arn, lastupdated: $update_tag})
-        CREATE (b1:S3Bucket {name: $bucket_name, lastupdated: $update_tag})
+        CREATE (b1:AWSS3Bucket {name: $bucket_name, lastupdated: $update_tag})
         CREATE (acc1)-[:RESOURCE {lastupdated: $update_tag}]->(p1)
         CREATE (acc1)-[:RESOURCE {lastupdated: $update_tag}]->(b1)
 
         CREATE (acc2:AWSAccount {id: $account_2, lastupdated: $update_tag})
         CREATE (p2:AWSPrincipal {principal_arn: $principal_arn, lastupdated: $update_tag})
-        CREATE (b2:S3Bucket {name: $bucket_name, lastupdated: $update_tag})
+        CREATE (b2:AWSS3Bucket {name: $bucket_name, lastupdated: $update_tag})
         CREATE (acc2)-[:RESOURCE {lastupdated: $update_tag}]->(p2)
         CREATE (acc2)-[:RESOURCE {lastupdated: $update_tag}]->(b2)
         """,
@@ -164,7 +164,7 @@ def test_load_rels_and_cleanup_integration(neo4j_session):
         neo4j_session,
         "AWSPrincipal",
         "principal_arn",
-        "S3Bucket",
+        "AWSS3Bucket",
         "name",
         "CAN_ACCESS",
         rel_direction_right=True,
@@ -196,7 +196,7 @@ def test_load_rels_and_cleanup_integration(neo4j_session):
         neo4j_session,
         "AWSPrincipal",
         "principal_arn",
-        "S3Bucket",
+        "AWSS3Bucket",
         "name",
         "CAN_ACCESS",
         rel_direction_right=True,
@@ -241,7 +241,7 @@ def test_load_rels_and_cleanup_integration(neo4j_session):
         neo4j_session,
         "AWSPrincipal",
         "principal_arn",
-        "S3Bucket",
+        "AWSS3Bucket",
         "name",
         "CAN_ACCESS",
         rel_direction_right=True,
@@ -303,7 +303,7 @@ def test_load_matchlinks_cartesian_product_and_cleanup_integration(neo4j_session
         neo4j_session,
         "AWSPrincipal",
         "principal_arn",
-        "S3Bucket",
+        "AWSS3Bucket",
         "name",
         "CAN_BULK_ACCESS",
         rel_direction_right=True,
@@ -338,7 +338,7 @@ def test_load_matchlinks_cartesian_product_and_cleanup_integration(neo4j_session
         neo4j_session,
         "AWSPrincipal",
         "principal_arn",
-        "S3Bucket",
+        "AWSS3Bucket",
         "name",
         "CAN_BULK_ACCESS",
         rel_direction_right=True,
@@ -370,7 +370,7 @@ def test_scoped_matchlinks_do_not_cross_sub_resources(neo4j_session):
         """
         MATCH (account:AWSAccount)-[:RESOURCE]->(principal:AWSPrincipal)
         WHERE account.id IN $account_ids
-        MATCH (account)-[:RESOURCE]->(bucket:S3Bucket)
+        MATCH (account)-[:RESOURCE]->(bucket:AWSS3Bucket)
         OPTIONAL MATCH (principal)-[r:CAN_ACCESS]->(bucket)
         RETURN account.id AS account_id, count(r) AS rel_count
         ORDER BY account_id
@@ -386,7 +386,7 @@ def test_scoped_matchlinks_do_not_cross_sub_resources(neo4j_session):
     cross_scope_count = neo4j_session.run(
         """
         MATCH (source_account:AWSAccount)-[:RESOURCE]->(principal:AWSPrincipal)
-        MATCH (target_account:AWSAccount)-[:RESOURCE]->(bucket:S3Bucket)
+        MATCH (target_account:AWSAccount)-[:RESOURCE]->(bucket:AWSS3Bucket)
         MATCH (principal)-[r:CAN_ACCESS]->(bucket)
         WHERE source_account.id IN $account_ids
             AND target_account.id IN $account_ids

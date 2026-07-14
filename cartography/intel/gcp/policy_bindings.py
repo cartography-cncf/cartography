@@ -23,8 +23,8 @@ from google.protobuf.json_format import MessageToDict
 
 from cartography.client.core.tx import load
 from cartography.client.core.tx import load_matchlinks
+from cartography.client.core.tx import read_list_of_values_tx
 from cartography.graph.job import GraphJob
-from cartography.graph.statement import GraphStatement
 from cartography.intel.gcp.permission_relationships import (
     build_principals_from_policy_bindings,
 )
@@ -844,27 +844,31 @@ def _cleanup_applies_to_relationships(
     sub_resource_id: str,
     update_tag: int,
 ) -> None:
-    # APPLIES_TO can point at several resource labels. Clean up by relationship
-    # scope directly instead of running the same stale-edge cleanup once per
-    # possible target label.
-    GraphStatement(
+    target_labels = neo4j_session.execute_read(
+        read_list_of_values_tx,
         """
-        MATCH (:GCPPolicyBinding)-[r:APPLIES_TO]->()
+        MATCH (:GCPPolicyBinding)-[r:APPLIES_TO]->(target)
         WHERE r.lastupdated <> $UPDATE_TAG
-            AND r._sub_resource_label = $_sub_resource_label
-            AND r._sub_resource_id = $_sub_resource_id
-        WITH r LIMIT $LIMIT_SIZE
-        DELETE r;
+          AND r._sub_resource_label = $_sub_resource_label
+          AND r._sub_resource_id = $_sub_resource_id
+        UNWIND labels(target) AS target_label
+        RETURN DISTINCT target_label
         """,
-        parameters={
-            "UPDATE_TAG": update_tag,
-            "_sub_resource_label": sub_resource_label,
-            "_sub_resource_id": sub_resource_id,
-        },
-        iterative=True,
-        iterationsize=GCP_POLICY_BINDINGS_CLEANUP_ITERATION_SIZE,
-        parent_job_name="APPLIES_TO",
-    ).run(neo4j_session)
+        UPDATE_TAG=update_tag,
+        _sub_resource_label=sub_resource_label,
+        _sub_resource_id=sub_resource_id,
+    )
+    for target_label in target_labels:
+        GraphJob.from_matchlink(
+            make_policy_binding_applies_to_matchlink(
+                target_label,
+                sub_resource_label,
+            ),
+            sub_resource_label,
+            sub_resource_id,
+            update_tag,
+            iterationsize=GCP_POLICY_BINDINGS_CLEANUP_ITERATION_SIZE,
+        ).run(neo4j_session)
 
 
 @timeit

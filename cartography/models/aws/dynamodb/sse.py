@@ -3,6 +3,7 @@ from dataclasses import dataclass
 from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeProperties
 from cartography.models.core.nodes import CartographyNodeSchema
+from cartography.models.core.nodes import ExtraNodeLabels
 from cartography.models.core.relationships import CartographyRelProperties
 from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
@@ -45,7 +46,7 @@ class DynamoDBSSEDescriptionToTableRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class DynamoDBSSEDescriptionToTableRel(CartographyRelSchema):
-    target_node_label: str = "DynamoDBTable"
+    target_node_label: str = "AWSDynamoDBTable"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("TableArn")},
     )
@@ -64,10 +65,10 @@ class DynamoDBSSEDescriptionToKMSKeyRelProperties(CartographyRelProperties):
 @dataclass(frozen=True)
 class DynamoDBSSEDescriptionToKMSKeyRel(CartographyRelSchema):
     """
-    Relationship to KMSKey. Only created when SSEType is "KMS" and KMSMasterKeyArn exists.
+    Relationship to AWSKMSKey. Only created when SSEType is "KMS" and KMSMasterKeyArn exists.
     """
 
-    target_node_label: str = "KMSKey"
+    target_node_label: str = "AWSKMSKey"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"arn": PropertyRef("KMSMasterKeyArn")},
     )
@@ -80,7 +81,9 @@ class DynamoDBSSEDescriptionToKMSKeyRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class DynamoDBSSEDescriptionSchema(CartographyNodeSchema):
-    label: str = "DynamoDBSSEDescription"
+    label: str = "AWSDynamoDBSSEDescription"
+    # DEPRECATED: legacy DynamoDBSSEDescription node label will be removed in v1.0.0.
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["DynamoDBSSEDescription"])
     properties: DynamoDBSSEDescriptionNodeProperties = (
         DynamoDBSSEDescriptionNodeProperties()
     )
