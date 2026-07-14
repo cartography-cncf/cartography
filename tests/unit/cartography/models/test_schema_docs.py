@@ -9,6 +9,7 @@ import cartography.models.jumpcloud as jumpcloud_models
 import cartography.models.kandji as kandji_models
 import cartography.models.keycloak as keycloak_models
 import cartography.models.lastpass as lastpass_models
+import cartography.models.openai as openai_models
 import cartography.models.sentry as sentry_models
 import cartography.models.snipeit as snipeit_models
 import cartography.models.subimage as subimage_models
@@ -278,6 +279,24 @@ def test_digitalocean_schema_doc_is_generated_from_introspected_model():
     assert (
         "Deprecated compatibility edge linking a Droplet to its project." in generated
     )
+    assert "No description provided." not in generated
+
+
+def test_openai_schema_doc_is_generated_from_introspected_model():
+    # Arrange
+    model = inspect_data_model(openai_models)
+
+    # Act
+    generated = render_module_schema(model, "openai")
+
+    # Assert
+    assert not Path("docs/root/modules/openai/schema.md").exists()
+    assert len(model.nodes) == 6
+    assert len(model.relationships) == 15
+    assert "An admin API key in an OpenAI organization." in generated
+    assert "| **email** | User email address. |" in generated
+    assert "(:OpenAIOrganization)-[:RESOURCE]->(:OpenAIUser)" in generated
+    assert "Deprecated compatibility edge for a service account" in generated
     assert "No description provided." not in generated
 
 
