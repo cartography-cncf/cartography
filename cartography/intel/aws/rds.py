@@ -323,8 +323,8 @@ def transform_rds_instances(
             ]
 
         # Handle subnet group data for the relationship
-        if instance.get("AWSDBSubnetGroup"):
-            db_subnet_group = instance["AWSDBSubnetGroup"]
+        if instance.get("DBSubnetGroup"):
+            db_subnet_group = instance["DBSubnetGroup"]
             transformed_instance["db_subnet_group_arn"] = _get_db_subnet_group_arn(
                 region, current_aws_account_id, db_subnet_group["DBSubnetGroupName"]
             )
@@ -379,8 +379,8 @@ def transform_rds_subnet_groups(
     subnet_groups_dict = {}
 
     for instance in data:
-        if instance.get("AWSDBSubnetGroup"):
-            db_subnet_group = instance["AWSDBSubnetGroup"]
+        if instance.get("DBSubnetGroup"):
+            db_subnet_group = instance["DBSubnetGroup"]
             db_subnet_group_arn = _get_db_subnet_group_arn(
                 region, current_aws_account_id, db_subnet_group["DBSubnetGroupName"]
             )

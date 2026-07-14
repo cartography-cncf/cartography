@@ -114,15 +114,13 @@ def transform_auto_scaling_groups(groups: list[dict[str, Any]]) -> AsgData:
                 "HealthCheckGracePeriod": group.get("HealthCheckGracePeriod"),
                 "HealthCheckType": group.get("HealthCheckType"),
                 "LaunchConfigurationName": group.get("LaunchConfigurationName"),
-                "LaunchTemplateName": group.get("AWSLaunchTemplate", {}).get(
+                "LaunchTemplateName": group.get("LaunchTemplate", {}).get(
                     "LaunchTemplateName",
                 ),
-                "LaunchTemplateId": group.get("AWSLaunchTemplate", {}).get(
+                "LaunchTemplateId": group.get("LaunchTemplate", {}).get(
                     "LaunchTemplateId",
                 ),
-                "AWSLaunchTemplateVersion": group.get("AWSLaunchTemplate", {}).get(
-                    "Version"
-                ),
+                "LaunchTemplateVersion": group.get("LaunchTemplate", {}).get("Version"),
                 "MaxInstanceLifetime": group.get("MaxInstanceLifetime"),
                 "MaxSize": group.get("MaxSize"),
                 "MinSize": group.get("MinSize"),

@@ -185,8 +185,8 @@ def test_sync_guardduty_findings(
         ("74b1234567890abcdef1234567890abcdef", 8.0, "Instance"),
         ("96d3456789012cdef3456789012cdef01", 7.5, "AccessKey"),
         ("a7e4567890123def4567890123def45670", 7.8, "AccessKey"),
-        ("b8f5678901234abcdef5678901234abcdef", 8.5, "AWSEKSCluster"),
-        # Note: AWSS3Bucket finding with severity 5.0 excluded by HIGH threshold
+        ("b8f5678901234abcdef5678901234abcdef", 8.5, "EKSCluster"),
+        # Note: S3Bucket finding with severity 5.0 excluded by HIGH threshold
     }
 
     # Assert - Check that finding date fields were populated from the expected API paths

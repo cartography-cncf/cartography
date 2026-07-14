@@ -25,7 +25,7 @@ class AutoScalingGroupNodeProperties(CartographyNodeProperties):
     launchconfigurationname: PropertyRef = PropertyRef("LaunchConfigurationName")
     launchtemplatename: PropertyRef = PropertyRef("LaunchTemplateName")
     launchtemplateid: PropertyRef = PropertyRef("LaunchTemplateId")
-    launchtemplateversion: PropertyRef = PropertyRef("AWSLaunchTemplateVersion")
+    launchtemplateversion: PropertyRef = PropertyRef("LaunchTemplateVersion")
     maxinstancelifetime: PropertyRef = PropertyRef("MaxInstanceLifetime")
     maxsize: PropertyRef = PropertyRef("MaxSize")
     minsize: PropertyRef = PropertyRef("MinSize")

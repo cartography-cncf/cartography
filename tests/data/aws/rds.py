@@ -12,7 +12,7 @@ DESCRIBE_DBCLUSTERS_RESPONSE = {
             "DatabaseName": "prodprodDB",
             "DBClusterIdentifier": "some-prod-db-iad",
             "DBClusterParameterGroup": "some-param-group",
-            "AWSDBSubnetGroup": "subnet-group-1",
+            "DBSubnetGroup": "subnet-group-1",
             "Status": "available",
             "PercentProgress": "10",
             "EarliestRestorableTime": "2021-06-10 00:05:53.316000+00:00",
@@ -85,7 +85,7 @@ DESCRIBE_DBINSTANCES_RESPONSE = {
                 },
             ],
             "DBSecurityGroups": [],
-            "AWSDBSubnetGroup": {
+            "DBSubnetGroup": {
                 "DBSubnetGroupDescription": "subnet-group-1",
                 "DBSubnetGroupName": "subnet-group-1",
                 "SubnetGroupStatus": "Complete",

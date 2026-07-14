@@ -143,7 +143,7 @@ GET_FINDINGS = {
             "DetectorId": "12abc34d56e78f901234567890abcdef",
             "Archived": False,
             "Resource": {
-                "ResourceType": "AWSS3Bucket",
+                "ResourceType": "S3Bucket",
                 "S3BucketDetails": [
                     {
                         "Arn": "arn:aws:s3:::test-bucket",
@@ -333,7 +333,7 @@ GET_FINDINGS = {
             "DetectorId": "12abc34d56e78f901234567890abcdef",
             "Archived": False,
             "Resource": {
-                "ResourceType": "AWSEKSCluster",
+                "ResourceType": "EKSCluster",
                 "EksClusterDetails": {
                     "Name": "test-cluster",
                     "Arn": "arn:aws:eks:us-east-1:123456789012:cluster/test-cluster",
@@ -398,7 +398,7 @@ GET_AWS_API_CALL_FINDINGS = {
             "DetectorId": "12abc34d56e78f901234567890abcdef",
             "Archived": False,
             "Resource": {
-                "ResourceType": "AWSS3Bucket",
+                "ResourceType": "S3Bucket",
                 "S3BucketDetails": [
                     {
                         "Arn": "arn:aws:s3:::test-bucket",
@@ -698,7 +698,7 @@ SAMPLE_FINDINGS = [
         "Severity": 5.0,
         "Archived": False,
         "Resource": {
-            "ResourceType": "AWSS3Bucket",
+            "ResourceType": "S3Bucket",
             "S3BucketDetails": [{"Name": "sample-test-bucket"}],
         },
     },
@@ -781,7 +781,7 @@ EXPECTED_TRANSFORM_RESULTS = [
         "detectorid": "12abc34d56e78f901234567890abcdef",
         "archived": False,
         "sample": None,
-        "resource_type": "AWSS3Bucket",
+        "resource_type": "S3Bucket",
         "resource_id": "test-bucket",
         "eks_cluster_arn": None,
         "access_key_id": None,
@@ -910,7 +910,7 @@ EXPECTED_TRANSFORM_RESULTS = [
         "detectorid": "12abc34d56e78f901234567890abcdef",
         "archived": False,
         "sample": None,
-        "resource_type": "AWSEKSCluster",
+        "resource_type": "EKSCluster",
         "resource_id": None,
         "eks_cluster_arn": "arn:aws:eks:us-east-1:123456789012:cluster/test-cluster",
         "access_key_id": None,
