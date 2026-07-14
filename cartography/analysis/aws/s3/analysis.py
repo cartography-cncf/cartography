@@ -1,17 +1,17 @@
 from cartography.graph.analysis import AddValuesToSet
 from cartography.graph.analysis import AnalysisJob
 from cartography.graph.analysis import AnalysisStatement
-from cartography.graph.analysis import CleanupScopedTo
+from cartography.graph.analysis import ScopeById
 from cartography.graph.analysis import SetProperty
 
 AWS_S3ACL_ANALYSIS = AnalysisJob(
     name="AWS S3 Acl exposure analysis",
     short_name="aws_s3acl_analysis",
-    scope=CleanupScopedTo("AWSAccount", "AWS_ID"),
+    scope=ScopeById("AWSAccount", "AWS_ID"),
     statements=(
         AnalysisStatement(
             match="""
-            MATCH (acl:S3Acl)-[:APPLIES_TO]->(bucket:S3Bucket)<-[:RESOURCE]-(aws:AWSAccount{id: $AWS_ID})
+            MATCH (acl:S3Acl)-[:APPLIES_TO]->(bucket:S3Bucket)
             WHERE acl.uri IN ['http://acs.amazonaws.com/groups/global/AllUsers', 'http://acs.amazonaws.com/groups/global/AuthenticatedUsers']
             AND acl.permission = 'READ'
             """,
@@ -28,10 +28,11 @@ AWS_S3ACL_ANALYSIS = AnalysisJob(
                     label="S3Bucket",
                 ),
             ),
+            scope_on="bucket",
         ),
         AnalysisStatement(
             match="""
-            MATCH (acl:S3Acl)-[:APPLIES_TO]->(bucket:S3Bucket)<-[:RESOURCE]-(aws:AWSAccount{id: $AWS_ID})
+            MATCH (acl:S3Acl)-[:APPLIES_TO]->(bucket:S3Bucket)
             WHERE acl.uri IN ['http://acs.amazonaws.com/groups/global/AllUsers', 'http://acs.amazonaws.com/groups/global/AuthenticatedUsers']
             AND acl.permission = 'WRITE'
             """,
@@ -44,10 +45,11 @@ AWS_S3ACL_ANALYSIS = AnalysisJob(
                     label="S3Bucket",
                 ),
             ),
+            scope_on="bucket",
         ),
         AnalysisStatement(
             match="""
-            MATCH (acl:S3Acl)-[:APPLIES_TO]->(bucket:S3Bucket)<-[:RESOURCE]-(aws:AWSAccount{id: $AWS_ID})
+            MATCH (acl:S3Acl)-[:APPLIES_TO]->(bucket:S3Bucket)
             WHERE acl.uri IN ['http://acs.amazonaws.com/groups/global/AllUsers', 'http://acs.amazonaws.com/groups/global/AuthenticatedUsers']
             AND acl.permission = 'READ_ACP'
             """,
@@ -60,10 +62,11 @@ AWS_S3ACL_ANALYSIS = AnalysisJob(
                     label="S3Bucket",
                 ),
             ),
+            scope_on="bucket",
         ),
         AnalysisStatement(
             match="""
-            MATCH (acl:S3Acl)-[:APPLIES_TO]->(bucket:S3Bucket)<-[:RESOURCE]-(aws:AWSAccount{id: $AWS_ID})
+            MATCH (acl:S3Acl)-[:APPLIES_TO]->(bucket:S3Bucket)
             WHERE acl.uri IN ['http://acs.amazonaws.com/groups/global/AllUsers', 'http://acs.amazonaws.com/groups/global/AuthenticatedUsers']
             AND acl.permission = 'WRITE_ACP'
             """,
@@ -76,10 +79,11 @@ AWS_S3ACL_ANALYSIS = AnalysisJob(
                     label="S3Bucket",
                 ),
             ),
+            scope_on="bucket",
         ),
         AnalysisStatement(
             match="""
-            MATCH (acl:S3Acl)-[:APPLIES_TO]->(bucket:S3Bucket)<-[:RESOURCE]-(aws:AWSAccount{id: $AWS_ID})
+            MATCH (acl:S3Acl)-[:APPLIES_TO]->(bucket:S3Bucket)
             WHERE acl.uri IN ['http://acs.amazonaws.com/groups/global/AllUsers', 'http://acs.amazonaws.com/groups/global/AuthenticatedUsers']
             AND acl.permission = 'FULL_CONTROL'
             """,
@@ -100,6 +104,7 @@ AWS_S3ACL_ANALYSIS = AnalysisJob(
                     label="S3Bucket",
                 ),
             ),
+            scope_on="bucket",
         ),
     ),
 )

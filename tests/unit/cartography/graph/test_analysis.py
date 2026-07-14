@@ -15,10 +15,12 @@ from cartography.graph.analysis import AnalysisJob
 from cartography.graph.analysis import AnalysisStatement
 from cartography.graph.analysis import Case
 from cartography.graph.analysis import CleanupScopedTo
+from cartography.graph.analysis import IncrementalMatch
 from cartography.graph.analysis import PropertyEffect
 from cartography.graph.analysis import RawCypher
 from cartography.graph.analysis import RelationshipEffect
 from cartography.graph.analysis import RelationshipPropertyEffect
+from cartography.graph.analysis import ScopeById
 from cartography.graph.analysis import SetProperty
 from cartography.graph.analysis import SetRelationshipProperty
 from cartography.graph.analysis import SetRelationshipPropertyIfMissing
@@ -82,6 +84,19 @@ def test_typed_analysis_jobs_declare_effects_and_keep_match_queries_read_only():
                 f"{job.short_name or job.name} statement {index} has a mutating "
                 "match query; mutations must be declared as effects."
             )
+            assert "$UPDATE_TAG" not in statement.match, (
+                f"{job.short_name or job.name} statement {index} inlines its "
+                "freshness filter; use incremental_on."
+            )
+            if job.scope:
+                assert statement.scope_on, (
+                    f"{job.short_name or job.name} statement {index} does not "
+                    "declare its structural scope anchor."
+                )
+                assert f"${job.scope.id_param}" not in statement.match, (
+                    f"{job.short_name or job.name} statement {index} inlines "
+                    "its declared scope."
+                )
 
 
 def test_relationship_job_appends_cleanup_statement():
@@ -188,6 +203,25 @@ def test_statement_compiles_add_relationship_effect():
             SET r.lastupdated = $UPDATE_TAG
             """
         ]
+    )
+
+
+def test_statement_compiles_incremental_node_and_relationship_matches():
+    # Arrange
+    statement = AnalysisStatement(
+        match="MATCH (d:Device)-[obs:OBSERVED_AS]->(:Agent)",
+        effects=(SetProperty("d", "linked", True, label="Device"),),
+        incremental_on=("d", IncrementalMatch("obs", relationship=True)),
+    )
+
+    # Act
+    query = compile_query(statement)
+
+    # Assert
+    assert query.startswith(
+        "MATCH (d:Device {lastupdated: $UPDATE_TAG})\n"
+        "MATCH ()-[obs:OBSERVED_AS {lastupdated: $UPDATE_TAG}]-()\n"
+        "MATCH (d:Device)-[obs:OBSERVED_AS]->(:Agent)"
     )
 
 
@@ -306,11 +340,10 @@ def test_scoped_relationship_cleanup_targets_source_by_default():
     job = AnalysisJob(
         name="GCP LB exposure",
         short_name="gcp_lb_exposure",
-        scope=CleanupScopedTo("GCPProject", "PROJECT_ID"),
+        scope=ScopeById("GCPProject", "PROJECT_ID"),
         statements=(
             AnalysisStatement(
-                match="MATCH (p:GCPProject{id: $PROJECT_ID})-[:RESOURCE]->"
-                "(bs:GCPBackendService)-[:ROUTES_TO]->(:GCPInstanceGroup)"
+                match="MATCH (bs:GCPBackendService)-[:ROUTES_TO]->(:GCPInstanceGroup)"
                 "-[:HAS_MEMBER]->(i:GCPInstance)",
                 effects=(
                     AddRelationship(
@@ -321,6 +354,7 @@ def test_scoped_relationship_cleanup_targets_source_by_default():
                         target_label="GCPInstance",
                     ),
                 ),
+                scope_on="bs",
             ),
         ),
     )
@@ -335,6 +369,10 @@ def test_scoped_relationship_cleanup_targets_source_by_default():
         "WHERE r.lastupdated <> $UPDATE_TAG\n"
         "WITH r LIMIT $LIMIT_SIZE\n"
         "DELETE r"
+    )
+    assert graph_job.statements[0].query.startswith(
+        "MATCH (scope:GCPProject {id: $PROJECT_ID})-[:RESOURCE]->(bs)\n"
+        "MATCH (bs:GCPBackendService)"
     )
 
 
@@ -387,12 +425,11 @@ def test_property_job_prepends_cleanup_statement():
     job = AnalysisJob(
         name="Semgrep SAST risk analysis",
         short_name="semgrep_sast_risk_analysis",
-        scope=CleanupScopedTo("SemgrepDeployment", "DEPLOYMENT_ID"),
+        scope=ScopeById("SemgrepDeployment", "DEPLOYMENT_ID"),
         statements=(
             AnalysisStatement(
                 match="MATCH (g:GitHubRepository{archived:true})"
-                "<-[:FOUND_IN]-(s:SemgrepSASTFinding)"
-                "<-[:RESOURCE]-(:SemgrepDeployment{id:$DEPLOYMENT_ID})",
+                "<-[:FOUND_IN]-(s:SemgrepSASTFinding)",
                 effects=(
                     SetProperty(
                         "s",
@@ -401,6 +438,7 @@ def test_property_job_prepends_cleanup_statement():
                         label="SemgrepSASTFinding",
                     ),
                 ),
+                scope_on="s",
             ),
         ),
     )
@@ -420,7 +458,11 @@ def test_property_job_prepends_cleanup_statement():
         "WITH node LIMIT $LIMIT_SIZE\n"
         "REMOVE node.risk_severity"
     )
-    assert graph_job.statements[1].query.startswith("MATCH (g:GitHubRepository")
+    assert graph_job.statements[1].query.startswith(
+        "MATCH (scope:SemgrepDeployment {id: $DEPLOYMENT_ID})"
+        "-[:RESOURCE]->(s)\n"
+        "MATCH (g:GitHubRepository"
+    )
 
 
 def test_property_effect_requires_properties():
@@ -515,6 +557,10 @@ def test_analysis_job_requires_statements():
             name="empty",
             statements=(),
         )
+
+
+def test_cleanup_scoped_to_remains_a_scope_by_id_alias():
+    assert CleanupScopedTo is ScopeById
 
 
 @pytest.mark.parametrize(

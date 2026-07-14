@@ -1,6 +1,7 @@
 from cartography.graph.analysis import AddRelationship
 from cartography.graph.analysis import AnalysisJob
 from cartography.graph.analysis import AnalysisStatement
+from cartography.graph.analysis import IncrementalMatch
 from cartography.graph.analysis import RawCypher
 from cartography.graph.analysis import SetProperty
 from cartography.graph.analysis import SetRelationshipPropertyIfMissing
@@ -41,76 +42,89 @@ DEVICE_OWNS_LINKING = AnalysisJob(
     short_name="ontology_devices_linking",
     statements=(
         AnalysisStatement(
-            match="MATCH (host:CrowdstrikeHost)<-[obs:OBSERVED_AS]-(d:Device) WHERE host.email IS NOT NULL AND trim(host.email) <> '' AND obs.lastupdated = $UPDATE_TAG AND d.lastupdated = $UPDATE_TAG WITH d, toLower(trim(host.email)) AS host_email MATCH (u:User) WHERE u.email IS NOT NULL AND trim(u.email) <> '' AND toLower(trim(u.email)) = host_email",
+            match="MATCH (host:CrowdstrikeHost)<-[obs:OBSERVED_AS]-(d:Device) WHERE host.email IS NOT NULL AND trim(host.email) <> '' WITH d, toLower(trim(host.email)) AS host_email MATCH (u:User) WHERE u.email IS NOT NULL AND trim(u.email) <> '' AND toLower(trim(u.email)) = host_email",
             effects=(
                 AddRelationship(
                     "u", "OWNS", "d", source_label="User", target_label="Device"
                 ),
+            ),
+            incremental_on=("d", IncrementalMatch("obs", relationship=True)),
+        ),
+        AnalysisStatement(
+            match="MATCH (u:User)-[:HAS_ACCOUNT]->(:DuoUser)-[:HAS_DUO_PHONE]-(:DuoPhone)<-[obs:OBSERVED_AS]-(d:Device)",
+            effects=(
+                AddRelationship(
+                    "u", "OWNS", "d", source_label="User", target_label="Device"
+                ),
+            ),
+            incremental_on=("d", IncrementalMatch("obs", relationship=True)),
+        ),
+        AnalysisStatement(
+            match="MATCH (u:User)-[:HAS_ACCOUNT]->(:DuoUser)-[:HAS_DUO_ENDPOINT]-(:DuoEndpoint)<-[obs:OBSERVED_AS]-(d:Device)",
+            effects=(
+                AddRelationship(
+                    "u", "OWNS", "d", source_label="User", target_label="Device"
+                ),
+            ),
+            incremental_on=("d", IncrementalMatch("obs", relationship=True)),
+        ),
+        AnalysisStatement(
+            match="MATCH (u:User)-[:HAS_ACCOUNT]->(:SnipeitUser)-[:HAS_CHECKED_OUT]-(:SnipeitAsset)<-[obs:OBSERVED_AS]-(d:Device)",
+            effects=(
+                AddRelationship(
+                    "u", "OWNS", "d", source_label="User", target_label="Device"
+                ),
+            ),
+            incremental_on=("d", IncrementalMatch("obs", relationship=True)),
+        ),
+        AnalysisStatement(
+            match="MATCH (u:User)-[:HAS_ACCOUNT]->(:TailscaleUser)-[:OWNS]-(:TailscaleDevice)<-[obs:OBSERVED_AS]-(d:Device)",
+            effects=(
+                AddRelationship(
+                    "u", "OWNS", "d", source_label="User", target_label="Device"
+                ),
+            ),
+            incremental_on=("d", IncrementalMatch("obs", relationship=True)),
+        ),
+        AnalysisStatement(
+            match="MATCH (u:User)-[:HAS_ACCOUNT]->(:GoogleWorkspaceUser)-[:OWNS]-(:GoogleWorkspaceDevice)<-[obs:OBSERVED_AS]-(d:Device)",
+            effects=(
+                AddRelationship(
+                    "u", "OWNS", "d", source_label="User", target_label="Device"
+                ),
+            ),
+            incremental_on=("d", IncrementalMatch("obs", relationship=True)),
+        ),
+        AnalysisStatement(
+            match="MATCH (j)<-[obs:OBSERVED_AS]-(d:Device) WHERE (j:JamfComputer OR j:JamfMobileDevice) AND j.email IS NOT NULL AND trim(j.email) <> '' WITH d, toLower(trim(j.email)) AS jamf_email MATCH (u:User) WHERE u.email IS NOT NULL AND trim(u.email) <> '' AND toLower(trim(u.email)) = jamf_email",
+            effects=(
+                AddRelationship(
+                    "u", "OWNS", "d", source_label="User", target_label="Device"
+                ),
+            ),
+            incremental_on=("d", IncrementalMatch("obs", relationship=True)),
+        ),
+        AnalysisStatement(
+            match="MATCH (u:User)-[:HAS_ACCOUNT]->(:EntraUser)-[:ENROLLED_TO]->(device:IntuneManagedDevice)<-[obs:OBSERVED_AS]-(d:Device)",
+            effects=(
+                AddRelationship(
+                    "u", "OWNS", "d", source_label="User", target_label="Device"
+                ),
+            ),
+            incremental_on=(
+                "d",
+                "device",
+                IncrementalMatch("obs", relationship=True),
             ),
         ),
         AnalysisStatement(
-            match="MATCH (u:User)-[:HAS_ACCOUNT]->(:DuoUser)-[:HAS_DUO_PHONE]-(:DuoPhone)<-[obs:OBSERVED_AS]-(d:Device) WHERE obs.lastupdated = $UPDATE_TAG AND d.lastupdated = $UPDATE_TAG",
+            match="MATCH (u:User)-[:HAS_ACCOUNT]->(:JumpCloudUser)-[:OWNS]->(:JumpCloudSystem)<-[obs:OBSERVED_AS]-(d:Device)",
             effects=(
                 AddRelationship(
                     "u", "OWNS", "d", source_label="User", target_label="Device"
                 ),
             ),
-        ),
-        AnalysisStatement(
-            match="MATCH (u:User)-[:HAS_ACCOUNT]->(:DuoUser)-[:HAS_DUO_ENDPOINT]-(:DuoEndpoint)<-[obs:OBSERVED_AS]-(d:Device) WHERE obs.lastupdated = $UPDATE_TAG AND d.lastupdated = $UPDATE_TAG",
-            effects=(
-                AddRelationship(
-                    "u", "OWNS", "d", source_label="User", target_label="Device"
-                ),
-            ),
-        ),
-        AnalysisStatement(
-            match="MATCH (u:User)-[:HAS_ACCOUNT]->(:SnipeitUser)-[:HAS_CHECKED_OUT]-(:SnipeitAsset)<-[obs:OBSERVED_AS]-(d:Device) WHERE obs.lastupdated = $UPDATE_TAG AND d.lastupdated = $UPDATE_TAG",
-            effects=(
-                AddRelationship(
-                    "u", "OWNS", "d", source_label="User", target_label="Device"
-                ),
-            ),
-        ),
-        AnalysisStatement(
-            match="MATCH (u:User)-[:HAS_ACCOUNT]->(:TailscaleUser)-[:OWNS]-(:TailscaleDevice)<-[obs:OBSERVED_AS]-(d:Device) WHERE obs.lastupdated = $UPDATE_TAG AND d.lastupdated = $UPDATE_TAG",
-            effects=(
-                AddRelationship(
-                    "u", "OWNS", "d", source_label="User", target_label="Device"
-                ),
-            ),
-        ),
-        AnalysisStatement(
-            match="MATCH (u:User)-[:HAS_ACCOUNT]->(:GoogleWorkspaceUser)-[:OWNS]-(:GoogleWorkspaceDevice)<-[obs:OBSERVED_AS]-(d:Device) WHERE obs.lastupdated = $UPDATE_TAG AND d.lastupdated = $UPDATE_TAG",
-            effects=(
-                AddRelationship(
-                    "u", "OWNS", "d", source_label="User", target_label="Device"
-                ),
-            ),
-        ),
-        AnalysisStatement(
-            match="MATCH (j)<-[obs:OBSERVED_AS]-(d:Device) WHERE (j:JamfComputer OR j:JamfMobileDevice) AND j.email IS NOT NULL AND trim(j.email) <> '' AND obs.lastupdated = $UPDATE_TAG AND d.lastupdated = $UPDATE_TAG WITH d, toLower(trim(j.email)) AS jamf_email MATCH (u:User) WHERE u.email IS NOT NULL AND trim(u.email) <> '' AND toLower(trim(u.email)) = jamf_email",
-            effects=(
-                AddRelationship(
-                    "u", "OWNS", "d", source_label="User", target_label="Device"
-                ),
-            ),
-        ),
-        AnalysisStatement(
-            match="MATCH (u:User)-[:HAS_ACCOUNT]->(:EntraUser)-[:ENROLLED_TO]->(device:IntuneManagedDevice)<-[obs:OBSERVED_AS]-(d:Device) WHERE obs.lastupdated = $UPDATE_TAG AND d.lastupdated = $UPDATE_TAG AND device.lastupdated = $UPDATE_TAG",
-            effects=(
-                AddRelationship(
-                    "u", "OWNS", "d", source_label="User", target_label="Device"
-                ),
-            ),
-        ),
-        AnalysisStatement(
-            match="MATCH (u:User)-[:HAS_ACCOUNT]->(:JumpCloudUser)-[:OWNS]->(:JumpCloudSystem)<-[obs:OBSERVED_AS]-(d:Device) WHERE obs.lastupdated = $UPDATE_TAG AND d.lastupdated = $UPDATE_TAG",
-            effects=(
-                AddRelationship(
-                    "u", "OWNS", "d", source_label="User", target_label="Device"
-                ),
-            ),
+            incremental_on=("d", IncrementalMatch("obs", relationship=True)),
         ),
     ),
 )
@@ -119,7 +133,7 @@ DEVICE_AFFECTS_S1_FINDING = AnalysisJob(
     short_name="ontology_devices_s1_app_finding_affects",
     statements=(
         AnalysisStatement(
-            match="MATCH (d:Device)-[obs:OBSERVED_AS]->(:S1Agent)<-[:AFFECTS]-(f:S1AppFinding) WHERE obs.lastupdated = $UPDATE_TAG AND d.lastupdated = $UPDATE_TAG",
+            match="MATCH (d:Device)-[obs:OBSERVED_AS]->(:S1Agent)<-[:AFFECTS]-(f:S1AppFinding)",
             effects=(
                 AddRelationship(
                     "f",
@@ -129,6 +143,7 @@ DEVICE_AFFECTS_S1_FINDING = AnalysisJob(
                     target_label="Device",
                 ),
             ),
+            incremental_on=("d", IncrementalMatch("obs", relationship=True)),
         ),
     ),
 )
@@ -137,7 +152,7 @@ DEVICE_AFFECTS_CROWDSTRIKE_FINDING = AnalysisJob(
     short_name="ontology_devices_crowdstrike_finding_affects",
     statements=(
         AnalysisStatement(
-            match="MATCH (d:Device)-[obs:OBSERVED_AS]->(:CrowdstrikeHost)-[:HAS_VULNERABILITY]->(:SpotlightVulnerability)-[:HAS_CVE]->(f:CrowdstrikeFinding) WHERE obs.lastupdated = $UPDATE_TAG AND d.lastupdated = $UPDATE_TAG",
+            match="MATCH (d:Device)-[obs:OBSERVED_AS]->(:CrowdstrikeHost)-[:HAS_VULNERABILITY]->(:SpotlightVulnerability)-[:HAS_CVE]->(f:CrowdstrikeFinding)",
             effects=(
                 AddRelationship(
                     "f",
@@ -147,6 +162,7 @@ DEVICE_AFFECTS_CROWDSTRIKE_FINDING = AnalysisJob(
                     target_label="Device",
                 ),
             ),
+            incremental_on=("d", IncrementalMatch("obs", relationship=True)),
         ),
     ),
 )
@@ -240,7 +256,7 @@ LOADBALANCER_EXPOSE_CONTAINER = AnalysisJob(
     short_name="ontology_loadbalancers_linking",
     statements=(
         AnalysisStatement(
-            match="MATCH (lb:LoadBalancer {lastupdated: $UPDATE_TAG})-[:EXPOSE]->(ip:EC2PrivateIp)<-[:PRIVATE_IP_ADDRESS]-(ni:NetworkInterface)<-[:NETWORK_INTERFACE]-(task:ECSTask)-[:HAS_CONTAINER]->(c:Container)",
+            match="MATCH (lb:LoadBalancer)-[:EXPOSE]->(ip:EC2PrivateIp)<-[:PRIVATE_IP_ADDRESS]-(ni:NetworkInterface)<-[:NETWORK_INTERFACE]-(task:ECSTask)-[:HAS_CONTAINER]->(c:Container)",
             effects=(
                 AddRelationship(
                     "lb",
@@ -250,6 +266,7 @@ LOADBALANCER_EXPOSE_CONTAINER = AnalysisJob(
                     target_label="Container",
                 ),
             ),
+            incremental_on="lb",
         ),
     ),
 )
@@ -375,7 +392,7 @@ PUBLIC_IP_POINTS_TO_DEVICE = AnalysisJob(
     short_name="ontology_publicips_linking",
     statements=(
         AnalysisStatement(
-            match="MATCH (p:PublicIP), (host:CrowdstrikeHost)<-[:OBSERVED_AS]-(d:Device) WHERE p.lastupdated = $UPDATE_TAG AND host.lastupdated = $UPDATE_TAG AND d.lastupdated = $UPDATE_TAG AND host.external_ip = p.ip_address",
+            match="MATCH (p:PublicIP), (host:CrowdstrikeHost)<-[:OBSERVED_AS]-(d:Device) WHERE host.external_ip = p.ip_address",
             effects=(
                 AddRelationship(
                     "p",
@@ -385,6 +402,7 @@ PUBLIC_IP_POINTS_TO_DEVICE = AnalysisJob(
                     target_label="Device",
                 ),
             ),
+            incremental_on=("p", "host", "d"),
         ),
     ),
 )

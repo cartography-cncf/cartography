@@ -9,13 +9,28 @@ from cartography.models.core.relationships import LinkDirection
 
 
 @dataclass(frozen=True)
-class CleanupScopedTo:
-    """Restrict generated cleanup to nodes attached to a scoped resource."""
+class ScopeById:
+    """Restrict analysis and generated cleanup to a scoped resource."""
 
     label: str
     id_param: str
     id_property: str = "id"
     rel_label: str = "RESOURCE"
+
+
+# DEPRECATED: CleanupScopedTo compatibility alias will be removed in v1.0.0.
+CleanupScopedTo = ScopeById
+
+
+@dataclass(frozen=True)
+class IncrementalMatch:
+    """Gate a node or relationship variable on the current update tag."""
+
+    variable: str
+    relationship: bool = False
+
+
+IncrementalTarget: TypeAlias = str | IncrementalMatch
 
 
 @dataclass(frozen=True)
@@ -28,6 +43,10 @@ class AnalysisStatement:
     operations and generated cleanup coverage. iterative and iterationsize apply
     only to this statement's write query; generated cleanup statements are
     iterative separately and use AnalysisJob.cleanup_iterationsize.
+
+    scope_on names variables directly attached to AnalysisJob.scope.
+    incremental_on names node or relationship variables whose lastupdated value
+    must match $UPDATE_TAG during a stock sync run.
     """
 
     query: str | None = None
@@ -36,6 +55,8 @@ class AnalysisStatement:
     effects: Sequence[StatementEffect] = ()
     iterative: bool = False
     iterationsize: int = 0
+    scope_on: str | Sequence[str] | None = None
+    incremental_on: IncrementalTarget | Sequence[IncrementalTarget] | None = None
 
     def __post_init__(self) -> None:
         if self.query and (self.match or self.effects):
@@ -222,7 +243,7 @@ class AnalysisJob:
 
     name: str
     statements: Sequence[AnalysisStatement]
-    scope: CleanupScopedTo | None = None
+    scope: ScopeById | None = None
     short_name: str | None = None
     cleanup_iterationsize: int = 10000
 
