@@ -14,6 +14,7 @@ import cartography.models.openai as openai_models
 import cartography.models.salesforce as salesforce_models
 import cartography.models.sentry as sentry_models
 import cartography.models.snipeit as snipeit_models
+import cartography.models.spacelift as spacelift_models
 import cartography.models.subimage as subimage_models
 import cartography.models.workday as workday_models
 from cartography.models.introspection import DataModel
@@ -333,6 +334,25 @@ def test_salesforce_schema_doc_is_generated_from_introspected_model():
     assert "A Salesforce user account with the UserAccount label." in generated
     assert "| **email** | User email address. |" in generated
     assert "(:SalesforceUser)-[:HAS_ROLE]->(:SalesforceProfile)" in generated
+    assert "No description provided." not in generated
+
+
+def test_spacelift_schema_doc_is_generated_from_introspected_model():
+    # Arrange
+    model = inspect_data_model(spacelift_models)
+
+    # Act
+    generated = render_module_schema(model, "spacelift")
+
+    # Assert
+    assert not Path("docs/root/modules/spacelift/schema.md").exists()
+    assert len(model.nodes) == 9
+    assert len(model.relationships) == 22
+    assert (
+        "A CloudTrail event from a Spacelift run that interacted with EC2." in generated
+    )
+    assert "| event_name | AWS API action recorded by CloudTrail. |" in generated
+    assert "(:CloudTrailSpaceliftEvent)-[:AFFECTED]->(:EC2Instance)" in generated
     assert "No description provided." not in generated
 
 
