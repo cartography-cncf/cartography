@@ -15,6 +15,7 @@ from unittest.mock import patch
 
 import cartography.intel.github.supply_chain as github_supply_chain
 import cartography.intel.scaleway.container_registry.supply_chain as sc_supply_chain
+from cartography.analysis.ontology.analysis import RESOLVED_IMAGE_JOBS
 from cartography.client.core.tx import load
 from cartography.models.scaleway.container_registry.image import (
     ScalewayContainerRegistryImageSchema,
@@ -28,7 +29,7 @@ from cartography.models.scaleway.container_registry.namespace import (
 from cartography.models.scaleway.serverless.container import (
     ScalewayServerlessContainerSchema,
 )
-from cartography.util import run_analysis_job
+from cartography.util import run_typed_analysis_job
 from tests.integration.cartography.intel.scaleway.test_projects import (
     _ensure_local_neo4j_has_test_projects_and_orgs,
 )
@@ -159,9 +160,8 @@ def test_full_code_to_cloud_chain(_mock_sc_get, _mock_dockerfiles, neo4j_session
     )
 
     # 5. Shared ontology analysis: (:Container)-[:HAS_IMAGE]->(:Image) => RESOLVED_IMAGE.
-    run_analysis_job(
-        "resolved_image_analysis.json", neo4j_session, common_job_parameters
-    )
+    for job in RESOLVED_IMAGE_JOBS:
+        run_typed_analysis_job(job, neo4j_session, common_job_parameters)
 
     # Assert the entire chain resolves in a single traversal.
     record = neo4j_session.run(

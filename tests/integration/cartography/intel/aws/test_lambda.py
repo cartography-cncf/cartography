@@ -3,7 +3,8 @@ from unittest.mock import patch
 
 import cartography.intel.aws.lambda_function
 import tests.data.aws.lambda_function
-from cartography.util import run_analysis_job
+from cartography.analysis.ontology.analysis import RESOLVED_IMAGE_JOBS
+from cartography.util import run_typed_analysis_job
 from tests.data.aws.lambda_function import LIST_LAMBDA_FUNCTIONS_CONTAINER_IMAGE
 from tests.data.aws.lambda_function import mock_get_event_source_mappings_for_sync_test
 from tests.data.aws.lambda_function import mock_get_function_aliases_for_sync_test
@@ -16,6 +17,11 @@ from tests.integration.util import check_rels
 TEST_ACCOUNT_ID = "000000000000"
 TEST_REGION = "us-west-2"
 TEST_UPDATE_TAG = 123456789
+
+
+def _run_resolved_image_analysis(neo4j_session):
+    for job in RESOLVED_IMAGE_JOBS:
+        run_typed_analysis_job(job, neo4j_session, {"UPDATE_TAG": TEST_UPDATE_TAG})
 
 
 @patch.object(
@@ -866,11 +872,7 @@ def test_container_image_lambda_has_image_and_resolved_image(
         "HAS_IMAGE",
     ) == {(TEST_CONTAINER_LAMBDA_ARN, TEST_LAMBDA_IMAGE_DIGEST)}
 
-    run_analysis_job(
-        "resolved_image_analysis.json",
-        neo4j_session,
-        {"UPDATE_TAG": TEST_UPDATE_TAG},
-    )
+    _run_resolved_image_analysis(neo4j_session)
 
     assert check_rels(
         neo4j_session,

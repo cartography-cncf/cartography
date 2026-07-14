@@ -133,6 +133,7 @@ from cartography.models.gsuite.group import GSuiteGroupToMemberRel
 from cartography.models.gsuite.group import GSuiteGroupToOwnerRel
 from cartography.models.keycloak.group import KeycloakGroupToGroupRel
 from cartography.models.keycloak.group import KeycloakGroupToRoleRel
+from cartography.models.keycloak.inheritance import KeycloakUserAssumeRoleMatchLink
 from cartography.models.keycloak.inheritance import (
     KeycloakUserInheritedMemberOfGroupMatchLink,
 )
@@ -288,6 +289,7 @@ LEGACY_REL_WHITELIST: frozenset[type] = frozenset(
         # DEPRECATED: replaced by HAS_ROLE, will be removed in v1.0.0.
         AWSSSOUserToPermissionSetRel,
         KeycloakRoleToUserRel,
+        KeycloakUserAssumeRoleMatchLink,
         AWSSSOGroupToPermissionSetRel,
         KeycloakGroupToRoleRel,
         # ALLOWED_BY is a distinct "this role is assumable by that SSO user"
