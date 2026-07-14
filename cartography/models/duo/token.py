@@ -13,13 +13,25 @@ from cartography.models.core.relationships import TargetNodeMatcher
 
 @dataclass(frozen=True)
 class DuoTokenNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("token_id")
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
-    admins: PropertyRef = PropertyRef("admins")
-    serial: PropertyRef = PropertyRef("serial", extra_index=True)
-    token_id: PropertyRef = PropertyRef("token_id", extra_index=True)
-    totp_step: PropertyRef = PropertyRef("totp_step")
-    type: PropertyRef = PropertyRef("type")
+    id: PropertyRef = PropertyRef("token_id", description="Duo hardware token ID.")
+    lastupdated: PropertyRef = PropertyRef(
+        "lastupdated",
+        set_in_kwargs=True,
+        description="Timestamp of the last update.",
+    )
+    admins: PropertyRef = PropertyRef(
+        "admins", description="Administrators associated with the hardware token."
+    )
+    serial: PropertyRef = PropertyRef(
+        "serial", extra_index=True, description="Hardware token serial number."
+    )
+    token_id: PropertyRef = PropertyRef(
+        "token_id", extra_index=True, description="Duo hardware token ID."
+    )
+    totp_step: PropertyRef = PropertyRef(
+        "totp_step", description="TOTP step value, which is null for supported tokens."
+    )
+    type: PropertyRef = PropertyRef("type", description="Hardware token type.")
 
 
 @dataclass(frozen=True)
@@ -29,6 +41,8 @@ class DuoTokenToDuoApiHostRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class DuoTokenToDuoApiHostRel(CartographyRelSchema):
+    """The Duo API host contains the hardware token."""
+
     target_node_label: str = "DuoApiHost"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("DUO_API_HOSTNAME", set_in_kwargs=True)},
@@ -44,6 +58,8 @@ class DuoTokenToDuoUserRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class DuoTokenToDuoUserRel(CartographyRelSchema):
+    """The Duo user has the hardware token."""
+
     target_node_label: str = "DuoUser"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"user_id": PropertyRef("user_id")},
@@ -55,6 +71,8 @@ class DuoTokenToDuoUserRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class DuoTokenSchema(CartographyNodeSchema):
+    """A hardware token registered in Duo."""
+
     label: str = "DuoToken"
     properties: DuoTokenNodeProperties = DuoTokenNodeProperties()
     sub_resource_relationship: DuoTokenToDuoApiHostRel = DuoTokenToDuoApiHostRel()

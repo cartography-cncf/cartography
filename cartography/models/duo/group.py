@@ -13,16 +13,36 @@ from cartography.models.core.relationships import TargetNodeMatcher
 
 @dataclass(frozen=True)
 class DuoGroupNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("group_id")
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
-    desc: PropertyRef = PropertyRef("desc")
-    group_id: PropertyRef = PropertyRef("group_id", extra_index=True)
-    mobile_otp_enabled: PropertyRef = PropertyRef("mobile_otp_enabled")
-    name: PropertyRef = PropertyRef("name", extra_index=True)
-    push_enabled: PropertyRef = PropertyRef("push_enabled")
-    sms_enabled: PropertyRef = PropertyRef("sms_enabled")
-    status: PropertyRef = PropertyRef("status")
-    voice_enabled: PropertyRef = PropertyRef("voice_enabled")
+    id: PropertyRef = PropertyRef("group_id", description="Duo group ID.")
+    lastupdated: PropertyRef = PropertyRef(
+        "lastupdated",
+        set_in_kwargs=True,
+        description="Timestamp of the last update.",
+    )
+    desc: PropertyRef = PropertyRef("desc", description="Group description.")
+    group_id: PropertyRef = PropertyRef(
+        "group_id", extra_index=True, description="Duo group ID."
+    )
+    mobile_otp_enabled: PropertyRef = PropertyRef(
+        "mobile_otp_enabled",
+        description="Legacy mobile OTP setting, which is always false.",
+    )
+    name: PropertyRef = PropertyRef("name", extra_index=True, description="Group name.")
+    push_enabled: PropertyRef = PropertyRef(
+        "push_enabled",
+        description="Legacy push setting, which is always false.",
+    )
+    sms_enabled: PropertyRef = PropertyRef(
+        "sms_enabled",
+        description="Legacy SMS setting, which is always false.",
+    )
+    status: PropertyRef = PropertyRef(
+        "status", description="Group authentication status."
+    )
+    voice_enabled: PropertyRef = PropertyRef(
+        "voice_enabled",
+        description="Legacy voice setting, which is always false.",
+    )
 
 
 @dataclass(frozen=True)
@@ -32,6 +52,8 @@ class DuoGroupToDuoApiHostRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class DuoGroupToDuoApiHostRel(CartographyRelSchema):
+    """The Duo API host contains the group."""
+
     target_node_label: str = "DuoApiHost"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("DUO_API_HOSTNAME", set_in_kwargs=True)},
@@ -43,6 +65,8 @@ class DuoGroupToDuoApiHostRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class DuoGroupSchema(CartographyNodeSchema):
+    """A user group in Duo."""
+
     label: str = "DuoGroup"
     properties: DuoGroupNodeProperties = DuoGroupNodeProperties()
     sub_resource_relationship: DuoGroupToDuoApiHostRel = DuoGroupToDuoApiHostRel()

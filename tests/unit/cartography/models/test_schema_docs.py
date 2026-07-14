@@ -6,6 +6,7 @@ import cartography.models.bigfix as bigfix_models
 import cartography.models.cloudflare as cloudflare_models
 import cartography.models.cve_metadata as cve_metadata_models
 import cartography.models.digitalocean as digitalocean_models
+import cartography.models.duo as duo_models
 import cartography.models.googleworkspace as googleworkspace_models
 import cartography.models.gsuite as gsuite_models
 import cartography.models.jumpcloud as jumpcloud_models
@@ -382,6 +383,22 @@ def test_digitalocean_schema_doc_is_generated_from_introspected_model():
     assert (
         "Deprecated compatibility edge linking a Droplet to its project." in generated
     )
+    assert "No description provided." not in generated
+
+
+def test_duo_schema_doc_is_generated_from_introspected_model():
+    # Arrange
+    model = inspect_data_model(duo_models)
+
+    # Act
+    generated = render_module_schema(model, "duo")
+
+    # Assert
+    assert not Path("docs/root/modules/duo/schema.md").exists()
+    assert len(model.nodes) == 7
+    assert len(model.relationships) == 13
+    assert "| desktoptokens | Desktop tokens available to the user. |" in generated
+    assert "(:Human)-[:IDENTITY_DUO]->(:DuoUser)" in generated
     assert "No description provided." not in generated
 
 
