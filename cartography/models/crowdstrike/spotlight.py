@@ -85,6 +85,22 @@ class SpotlightVulnerabilitySchema(CartographyNodeSchema):
     )
 
 
+# DEPRECATED: compatibility cleanup for unscoped Spotlight data will be removed in v1.0.0.
+@dataclass(frozen=True)
+class LegacyUnscopedSpotlightVulnerabilityCleanupSchema(CartographyNodeSchema):
+    label: str = "CrowdstrikeSpotlightVulnerability"
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["SpotlightVulnerability"])
+    scoped_cleanup: bool = False
+    properties: SpotlightVulnerabilityNodeProperties = (
+        SpotlightVulnerabilityNodeProperties()
+    )
+    other_relationships: OtherRelationships = OtherRelationships(
+        [
+            SpotlightVulnerabilityToCrowdstrikeHostRel(),
+        ]
+    )
+
+
 # =============================================================================
 # CVE (CrowdstrikeFinding)
 # =============================================================================
