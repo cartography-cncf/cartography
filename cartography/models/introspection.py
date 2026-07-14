@@ -84,6 +84,7 @@ class Node:
     properties: tuple[Property, ...]
     modules: tuple[str, ...]
     schemas: tuple[CartographyNodeSchema, ...]
+    ontology_labels: tuple[str, ...] = ()
 
     def get_property(self, name: str) -> Property | None:
         return next((prop for prop in self.properties if prop.name == name), None)
@@ -301,6 +302,7 @@ def _new_node_entry() -> dict[str, Any]:
         "descriptions": set(),
         "extra_labels": set(),
         "conditional_labels": [],
+        "ontology_labels": set(),
         "properties": {},
         "modules": set(),
         "schemas": [],
@@ -427,8 +429,11 @@ def _add_generated_property(
     indexed: bool = False,
     ontology: bool = False,
     analysis_job: AnalysisJobDefinition | None = None,
+    source_name: str | None = None,
 ) -> None:
     entry = entries.setdefault(name, _new_property_entry())
+    if source_name:
+        entry["source_names"].add(source_name)
     entry["indexed"] = bool(entry["indexed"] or indexed)
     entry["ontology"] = bool(entry["ontology"] or ontology)
     entry["generated_by"].add(generated_by)
@@ -443,12 +448,15 @@ def _add_ontology_properties(
         ONTOLOGY_NODES_MAPPING,
         SEMANTIC_LABELS_MAPPING,
     ):
-        for mappings_by_module in mapping_groups.values():
+        for mapping_group, mappings_by_module in mapping_groups.items():
             for ontology_mapping in mappings_by_module.values():
                 for node_mapping in ontology_mapping.nodes:
                     node_entry = node_entries.get(node_mapping.node_label)
                     if node_entry is None:
                         continue
+                    node_entry["ontology_labels"].update(
+                        _ontology_labels_for_mapping_group(mapping_group, node_entry)
+                    )
                     properties = node_entry["properties"]
                     for field_mapping in node_mapping.fields:
                         _add_generated_property(
@@ -457,7 +465,40 @@ def _add_ontology_properties(
                             "ontology",
                             indexed=field_mapping.indexed,
                             ontology=True,
+                            source_name=field_mapping.node_field,
                         )
+
+
+def _ontology_labels_for_mapping_group(
+    mapping_group: str,
+    node_entry: dict[str, Any],
+) -> set[str]:
+    """Identify the ontology label already declared by a mapped node schema."""
+    singular_group = (
+        f"{mapping_group[:-3]}y"
+        if mapping_group.endswith("ies")
+        else mapping_group[:-1] if mapping_group.endswith("s") else mapping_group
+    )
+    normalized_candidates = {
+        singular_group,
+        {
+            "device": "deviceinstance",
+            "firewall": "networkaccesscontrol",
+            "group": "usergroup",
+            "role": "permissionrole",
+            "user": "useraccount",
+            "vpc": "virtualnetwork",
+        }.get(singular_group, singular_group),
+    }
+    labels = {
+        *node_entry["extra_labels"],
+        *(label.label for label in node_entry["conditional_labels"]),
+    }
+    return {
+        label
+        for label in labels
+        if label.lower().replace("_", "") in normalized_candidates
+    }
 
 
 def _add_analysis_jobs(
@@ -639,6 +680,7 @@ def _build_node(label: str, entry: dict[str, Any]) -> Node:
         ),
         modules=tuple(sorted(entry["modules"])),
         schemas=tuple(entry["schemas"]),
+        ontology_labels=tuple(sorted(entry["ontology_labels"])),
     )
 
 

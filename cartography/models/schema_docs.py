@@ -12,14 +12,18 @@ GENERATED_NOTICE = "<!-- Generated from the data model. Do not edit manually. --
 
 def render_module_schema(model: DataModel, module: str) -> str:
     """Render one module's introspected data model as schema Markdown."""
-    module_model = model.for_module(module)
-    if not module_model.nodes:
+    module_nodes = tuple(node for node in model.nodes if module in node.modules)
+    if not module_nodes:
         raise ValueError(f'No nodes found for module "{module}".')
 
-    owned_labels = {node.label for node in module_model.nodes}
+    module_relationships = _module_relationships(
+        model.relationships,
+        module_nodes,
+        module,
+    )
     assigned_relationships = _assign_relationships(
-        module_model.relationships,
-        owned_labels,
+        module_relationships,
+        module_nodes,
     )
     lines = [
         GENERATED_NOTICE,
@@ -31,11 +35,11 @@ def render_module_schema(model: DataModel, module: str) -> str:
     ]
     lines.extend(
         f"    {_mermaid_relationship(relationship)}"
-        for relationship in module_model.relationships
+        for relationship in module_relationships
     )
     lines.extend(["```", ""])
 
-    for node in module_model.nodes:
+    for node in module_nodes:
         lines.extend(_render_node(node, assigned_relationships.get(node.label, ())))
 
     return "\n".join(lines).rstrip() + "\n"
@@ -83,15 +87,12 @@ def _render_node(
         or f"Representation of a `{node.label}` node.",
         "",
     ]
-    ontology_labels = (
-        *node.extra_labels,
-        *(conditional.label for conditional in node.conditional_labels),
-    )
+    ontology_labels = node.ontology_labels
     if ontology_labels:
         formatted_labels = ", ".join(f"`{label}`" for label in ontology_labels)
         lines.extend(
             [
-                f"> **Ontology Mapping**: This node has the extra "
+                f"> **Ontology Mapping**: This node uses the ontology "
                 f"{'label' if len(ontology_labels) == 1 else 'labels'} "
                 f"{formatted_labels}.",
                 "",
@@ -100,14 +101,18 @@ def _render_node(
 
     lines.extend(
         [
-            "| Field | Description |",
-            "|-------|-------------|",
+            "Ontology-generated fields are shown in *italics*.",
+            "",
+            "| Field | Index | Description |",
+            "|-------|-------|-------------|",
         ]
     )
     for prop in sorted(node.properties, key=_property_sort_key):
-        field_name = f"**{prop.name}**" if prop.indexed else prop.name
+        field_name = f"*{prop.name}*" if prop.ontology else prop.name
+        index = "Yes" if prop.indexed else ""
         lines.append(
-            f"| {field_name} | {_escape_table_cell(_property_description(prop))} |"
+            f"| {field_name} | {index} | "
+            f"{_escape_table_cell(_property_description(prop))} |"
         )
 
     lines.extend(["", "#### Relationships", ""])
@@ -136,19 +141,44 @@ def _render_node(
     return lines
 
 
+def _module_relationships(
+    relationships: tuple[Relationship, ...],
+    nodes: tuple[Node, ...],
+    module: str,
+) -> tuple[Relationship, ...]:
+    relevant_labels = {
+        label for node in nodes for label in (node.label, *node.ontology_labels)
+    }
+    return tuple(
+        relationship
+        for relationship in relationships
+        if module in relationship.modules
+        or relationship.source_label in relevant_labels
+        or relationship.target_label in relevant_labels
+    )
+
+
 def _assign_relationships(
     relationships: tuple[Relationship, ...],
-    owned_labels: set[str],
+    nodes: tuple[Node, ...],
 ) -> dict[str, tuple[Relationship, ...]]:
     assigned: dict[str, list[Relationship]] = {}
+    nodes_by_label = {node.label: node for node in nodes}
     for relationship in relationships:
-        if relationship.source_label in owned_labels:
-            owner = relationship.source_label
-        elif relationship.target_label in owned_labels:
-            owner = relationship.target_label
+        owners: tuple[str, ...]
+        if relationship.source_label in nodes_by_label:
+            owners = (relationship.source_label,)
+        elif relationship.target_label in nodes_by_label:
+            owners = (relationship.target_label,)
         else:
-            continue
-        assigned.setdefault(owner, []).append(relationship)
+            owners = tuple(
+                node.label
+                for node in nodes
+                if relationship.source_label in node.ontology_labels
+                or relationship.target_label in node.ontology_labels
+            )
+        for owner in owners:
+            assigned.setdefault(owner, []).append(relationship)
     return {
         label: tuple(
             sorted(
@@ -181,6 +211,9 @@ def _property_description(prop: Property) -> str:
     if prop.name == "firstseen":
         return "Timestamp when a sync job first created this node."
     if prop.ontology:
+        if prop.source_names:
+            source_fields = ", ".join(f"`{name}`" for name in prop.source_names)
+            return f"Normalized field sourced from {source_fields}."
         return "Property generated by the ontology mapping."
     if prop.analysis_jobs:
         jobs = ", ".join(

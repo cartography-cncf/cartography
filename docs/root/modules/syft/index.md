@@ -44,6 +44,27 @@ MATCH (upstream:SyftPackage)-[:DEPENDS_ON*1..10]->(dep:SyftPackage {name: 'lodas
 RETURN DISTINCT upstream.name
 ```
 
+### Distinguish root and nested packages
+
+Dependency position is represented by the graph structure rather than a stored
+property. A package with no incoming `DEPENDS_ON` relationship is a root in the
+scanned dependency graph:
+
+```cypher
+MATCH (p:SyftPackage)
+WHERE NOT exists((p)<-[:DEPENDS_ON]-())
+RETURN p.name
+```
+
+A package with an incoming `DEPENDS_ON` relationship is nested below at least
+one other package:
+
+```cypher
+MATCH (p:SyftPackage)
+WHERE exists((p)<-[:DEPENDS_ON]-())
+RETURN p.name
+```
+
 ## Schema
 
 See [schema.md](schema.md) for details on created nodes and relationships.

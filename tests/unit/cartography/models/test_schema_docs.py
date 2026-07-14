@@ -5,6 +5,8 @@ import cartography.models.anthropic as anthropic_models
 import cartography.models.bigfix as bigfix_models
 import cartography.models.circleci as circleci_models
 import cartography.models.cloudflare as cloudflare_models
+import cartography.models.crowdstrike as crowdstrike_models
+import cartography.models.cve as cve_models
 import cartography.models.cve_metadata as cve_metadata_models
 import cartography.models.digitalocean as digitalocean_models
 import cartography.models.duo as duo_models
@@ -23,9 +25,11 @@ import cartography.models.slack as slack_models
 import cartography.models.snipeit as snipeit_models
 import cartography.models.spacelift as spacelift_models
 import cartography.models.subimage as subimage_models
+import cartography.models.syft as syft_models
 import cartography.models.vercel as vercel_models
 import cartography.models.workday as workday_models
 import cartography.models.workos as workos_models
+from cartography.models.core.relationships import LinkDirection
 from cartography.models.introspection import DataModel
 from cartography.models.introspection import inspect_data_model
 from cartography.models.introspection import Node
@@ -47,7 +51,7 @@ def test_airbyte_schema_doc_is_generated_from_introspected_model():
     assert len(model.nodes) == 8
     assert len(model.relationships) == 18
     assert "An Airbyte connection that synchronizes source data" in generated
-    assert "| config_host | Configured source host. |" in generated
+    assert "| config_host |  | Configured source host. |" in generated
     assert "(:AirbyteConnection)-[:SYNC_FROM]->(:AirbyteSource)" in generated
     assert "No description provided." not in generated
 
@@ -64,7 +68,7 @@ def test_circleci_schema_doc_is_generated_from_introspected_model():
     assert len(model.nodes) == 15
     assert len(model.relationships) == 21
     assert (
-        "| vcs_login | GitHub organization login derived from the CircleCI slug. |"
+        "| vcs_login |  | GitHub organization login derived from the CircleCI slug. |"
         in generated
     )
     assert (
@@ -85,13 +89,65 @@ def test_cve_metadata_schema_doc_is_generated_from_introspected_model():
     assert len(model.nodes) == 2
     assert len(model.relationships) == 2
     assert (
-        "| effect_tags | Controlled technical effects derived from mapped CWEs when "
+        "| effect_tags |  | Controlled technical effects derived from mapped CWEs when "
         "available, otherwise from high CVSS confidentiality, integrity, and "
         "availability impacts plus the network straight-shot rule. Values are "
         "execute-code, gain-privileges, access-credentials, bypass-control, "
         "disclose-data, tamper-data, and deny-service. |"
     ) in generated
     assert "(:CVEMetadata)-[:ENRICHES]->(:CVE)" in generated
+    assert "No description provided." not in generated
+
+
+def test_cve_schema_doc_is_generated_from_introspected_model():
+    # Arrange
+    model = inspect_data_model(cve_models)
+
+    # Act
+    generated = render_module_schema(model, "cve")
+
+    # Assert
+    assert not Path("docs/root/modules/cve/schema.md").exists()
+    assert len(model.nodes) == 2
+    assert len(model.relationships) == 2
+    assert (
+        "| cve_id | Yes | CVE identifier indexed for cross-module correlation. |"
+        in generated
+    )
+    assert "(:SpotlightVulnerability)-[:HAS_CVE]->(:CVE)" in generated
+    assert "No description provided." not in generated
+
+
+def test_syft_schema_doc_is_generated_from_introspected_model():
+    # Arrange
+    model = inspect_data_model(syft_models)
+
+    # Act
+    generated = render_module_schema(model, "syft")
+
+    # Assert
+    assert not Path("docs/root/modules/syft/schema.md").exists()
+    assert len(model.nodes) == 1
+    assert len(model.relationships) == 2
+    assert "(:SyftPackage)-[:DEPENDS_ON]->(:SyftPackage)" in generated
+    assert "No description provided." not in generated
+
+
+def test_crowdstrike_schema_doc_is_generated_from_introspected_model():
+    # Arrange
+    model = inspect_data_model(crowdstrike_models)
+
+    # Act
+    generated = render_module_schema(model, "crowdstrike")
+
+    # Assert
+    assert not Path("docs/root/modules/crowdstrike/schema.md").exists()
+    assert len(model.nodes) == 4
+    assert len(model.relationships) == 4
+    assert (
+        "(:CrowdstrikeHost)-[:HAS_VULNERABILITY]->(:SpotlightVulnerability)"
+        in generated
+    )
     assert "No description provided." not in generated
 
 
@@ -105,11 +161,17 @@ def test_lastpass_schema_doc_is_generated_from_introspected_model():
     # Assert
     assert not Path("docs/root/modules/lastpass/schema.md").exists()
     assert generated.startswith(GENERATED_NOTICE)
-    assert "| **email** | Email address of the user. |" in generated
+    assert "| email | Yes | Email address of the user. |" in generated
     assert "(:Human)-[:IDENTITY_LASTPASS]->(:LastpassUser)" in generated
     assert (
-        "| **_ont_email** | Property generated by the ontology mapping. |" in generated
+        "> **Ontology Mapping**: This node uses the ontology label `UserAccount`."
+        in generated
     )
+    assert (
+        "| *_ont_email* | Yes | Normalized field sourced from `email`. |" in generated
+    )
+    assert generated.index("| multifactor |") < generated.index("| *_ont_email* |")
+    assert "| Field | Index | Description |" in generated
 
 
 def test_typed_analysis_jobs_are_rendered_from_introspected_model():
@@ -137,7 +199,7 @@ def test_gsuite_schema_doc_is_generated_from_introspected_model():
     assert not Path("docs/root/modules/gsuite/schema.md").exists()
     assert len(model.nodes) == 3
     assert len(model.relationships) == 9
-    assert "| **email** | Primary email address of the user. |" in generated
+    assert "| email | Yes | Primary email address of the user. |" in generated
     assert (
         "Deprecated compatibility edge linking a member group to its parent group."
         in generated
@@ -156,7 +218,7 @@ def test_googleworkspace_schema_doc_is_generated_from_introspected_model():
     assert not Path("docs/root/modules/googleworkspace/schema.md").exists()
     assert len(model.nodes) == 5
     assert len(model.relationships) == 14
-    assert "| display_name | Display name of the group. |" in generated
+    assert "| display_name |  | Display name of the group. |" in generated
     assert "(:GoogleWorkspaceGroup)-[:MEMBER_OF]->(:GoogleWorkspaceGroup)" in generated
     assert (
         "(:GoogleWorkspaceUser)-[:INHERITED_MEMBER_OF]->"
@@ -198,6 +260,54 @@ def test_undirected_analysis_relationships_are_rendered_without_arrows():
     assert "(:EC2KeyPair)-[:MATCHING_FINGERPRINT]-(:EC2KeyPair)" in generated
 
 
+def test_ontology_and_cross_module_relationships_are_duplicated_in_module_docs():
+    # Arrange
+    node = Node(
+        label="LastpassUser",
+        descriptions=(),
+        extra_labels=("UserAccount",),
+        conditional_labels=(),
+        properties=(),
+        modules=("lastpass",),
+        schemas=(),
+        ontology_labels=("UserAccount",),
+    )
+    relationships = (
+        Relationship(
+            source_label="User",
+            label="HAS_ACCOUNT",
+            target_label="UserAccount",
+            direction=LinkDirection.OUTWARD,
+            descriptions=(),
+            properties=(),
+            modules=("ontology",),
+            origins=("node_schema",),
+            schemas=(),
+            analysis_jobs=(),
+        ),
+        Relationship(
+            source_label="Human",
+            label="IDENTITY_LASTPASS",
+            target_label="LastpassUser",
+            direction=LinkDirection.OUTWARD,
+            descriptions=(),
+            properties=(),
+            modules=("analysis",),
+            origins=("analysis",),
+            schemas=(),
+            analysis_jobs=(),
+        ),
+    )
+    model = DataModel(nodes=(node,), relationships=relationships)
+
+    # Act
+    generated = render_module_schema(model, "lastpass")
+
+    # Assert
+    assert "(:User)-[:HAS_ACCOUNT]->(:UserAccount)" in generated
+    assert "(:Human)-[:IDENTITY_LASTPASS]->(:LastpassUser)" in generated
+
+
 def test_keycloak_schema_doc_is_generated_from_introspected_model():
     # Arrange
     model = inspect_data_model(keycloak_models)
@@ -209,7 +319,7 @@ def test_keycloak_schema_doc_is_generated_from_introspected_model():
     assert not Path("docs/root/modules/keycloak/schema.md").exists()
     assert len(model.relationships) == 36
     assert "Represents a Keycloak realm, which is a security domain" in generated
-    assert "| **name** | The realm name (indexed for queries) |" in generated
+    assert "| name | Yes | The realm name (indexed for queries) |" in generated
     assert (
         "A user inherits membership in the parent groups of its direct groups."
         in generated
@@ -232,7 +342,7 @@ def test_workday_schema_doc_is_generated_from_introspected_model():
     assert len(model.nodes) == 2
     assert len(model.relationships) == 2
     assert "A person in Workday with the Human label" in generated
-    assert "| **email** | Work email address indexed" in generated
+    assert "| email | Yes | Work email address indexed" in generated
     assert "(:WorkdayHuman)-[:REPORTS_TO]->(:WorkdayHuman)" in generated
     assert "No description provided." not in generated
 
@@ -248,7 +358,7 @@ def test_workos_schema_doc_is_generated_from_introspected_model():
     assert not Path("docs/root/modules/workos/schema.md").exists()
     assert len(model.nodes) == 13
     assert len(model.relationships) == 29
-    assert "| **slug** | Unique role slug. |" in generated
+    assert "| slug | Yes | Unique role slug. |" in generated
     assert "role_id" not in generated
     assert "(:WorkOSOrganizationMembership)-[:WITH_ROLE]->(:WorkOSRole)" in generated
     assert "No description provided." not in generated
@@ -265,7 +375,7 @@ def test_vercel_schema_doc_is_generated_from_introspected_model():
     assert not Path("docs/root/modules/vercel/schema.md").exists()
     assert len(model.nodes) == 18
     assert len(model.relationships) == 32
-    assert "| action | Action performed by the bypass rule. |" in generated
+    assert "| action |  | Action performed by the bypass rule. |" in generated
     assert "(:VercelFirewallBypassRule)-[:CREATED_BY]->(:VercelUser)" in generated
     assert "No description provided." not in generated
 
@@ -282,7 +392,7 @@ def test_snipeit_schema_doc_is_generated_from_introspected_model():
     assert len(model.nodes) == 3
     assert len(model.relationships) == 5
     assert "A device asset managed by Snipe-IT." in generated
-    assert "| **serial** | Asset serial number. |" in generated
+    assert "| serial | Yes | Asset serial number. |" in generated
     assert "Deprecated compatibility edge linking a tenant to its asset." in generated
     assert "No description provided." not in generated
 
@@ -299,7 +409,7 @@ def test_bigfix_schema_doc_is_generated_from_introspected_model():
     assert len(model.nodes) == 2
     assert len(model.relationships) == 1
     assert "A computer tracked by BigFix." in generated
-    assert "| **computername** | Computer name. |" in generated
+    assert "| computername | Yes | Computer name. |" in generated
     assert "(:BigfixRoot)-[:RESOURCE]->(:BigfixComputer)" in generated
     assert "No description provided." not in generated
 
@@ -316,7 +426,7 @@ def test_kandji_schema_doc_is_generated_from_introspected_model():
     assert len(model.nodes) == 2
     assert len(model.relationships) == 2
     assert "A device managed by Kandji." in generated
-    assert "| **serial_number** | Device serial number. |" in generated
+    assert "| serial_number | Yes | Device serial number. |" in generated
     assert "Deprecated compatibility edge linking a device to its tenant." in generated
     assert "No description provided." not in generated
 
@@ -333,7 +443,7 @@ def test_jumpcloud_schema_doc_is_generated_from_introspected_model():
     assert len(model.nodes) == 4
     assert len(model.relationships) == 5
     assert "A user account in JumpCloud." in generated
-    assert "| **jc_system_id** | JumpCloud system ID" in generated
+    assert "| jc_system_id | Yes | JumpCloud system ID" in generated
     assert "(:JumpCloudUser)-[:USES]->(:JumpCloudSaaSApplication)" in generated
     assert "No description provided." not in generated
 
@@ -350,7 +460,7 @@ def test_anthropic_schema_doc_is_generated_from_introspected_model():
     assert len(model.nodes) == 4
     assert len(model.relationships) == 8
     assert "A user account in an Anthropic organization." in generated
-    assert "| display_color | Hex color representing the workspace" in generated
+    assert "| display_color |  | Hex color representing the workspace" in generated
     assert "(:AnthropicOrganization)-[:RESOURCE]->(:AnthropicUser)" in generated
     assert "Deprecated compatibility edge for a user that owns an API key." in generated
     assert "No description provided." not in generated
@@ -368,7 +478,7 @@ def test_cloudflare_schema_doc_is_generated_from_introspected_model():
     assert len(model.nodes) == 5
     assert len(model.relationships) == 5
     assert "A DNS zone managed by Cloudflare." in generated
-    assert "| **name** | DNS record name. |" in generated
+    assert "| name | Yes | DNS record name. |" in generated
     assert "(:CloudflareMember)-[:HAS_ROLE]->(:CloudflareRole)" in generated
     assert "No description provided." not in generated
 
@@ -385,7 +495,7 @@ def test_subimage_schema_doc_is_generated_from_introspected_model():
     assert len(model.nodes) == 6
     assert len(model.relationships) == 5
     assert "A team member in a SubImage tenant." in generated
-    assert "| **email** | Team member email address. |" in generated
+    assert "| email | Yes | Team member email address. |" in generated
     assert "(:SubImageTenant)-[:RESOURCE]->(:SubImageFramework)" in generated
     assert "No description provided." not in generated
 
@@ -402,7 +512,7 @@ def test_sentry_schema_doc_is_generated_from_introspected_model():
     assert len(model.nodes) == 6
     assert len(model.relationships) == 9
     assert "An issue alert rule configured on a Sentry project." in generated
-    assert "| **require_2fa** | Whether the organization requires" in generated
+    assert "| require_2fa | Yes | Whether the organization requires" in generated
     assert "(:SentryUser)-[:ADMIN_OF]->(:SentryTeam)" in generated
     assert "No description provided." not in generated
 
@@ -419,7 +529,8 @@ def test_slack_schema_doc_is_generated_from_introspected_model():
     assert len(model.nodes) == 5
     assert len(model.relationships) == 13
     assert (
-        "| created_by | ID of the account that created the user group. |" in generated
+        "| created_by |  | ID of the account that created the user group. |"
+        in generated
     )
     assert "(:SlackGroup)-[:MEMBER_OF]->(:SlackChannel)" in generated
     assert "No description provided." not in generated
@@ -437,7 +548,7 @@ def test_digitalocean_schema_doc_is_generated_from_introspected_model():
     assert len(model.nodes) == 3
     assert len(model.relationships) == 4
     assert "A compute instance in a DigitalOcean project." in generated
-    assert "| vpc_uuid | UUID of the Droplet's VPC. |" in generated
+    assert "| vpc_uuid |  | UUID of the Droplet's VPC. |" in generated
     assert (
         "Deprecated compatibility edge linking a Droplet to its project." in generated
     )
@@ -455,7 +566,7 @@ def test_duo_schema_doc_is_generated_from_introspected_model():
     assert not Path("docs/root/modules/duo/schema.md").exists()
     assert len(model.nodes) == 7
     assert len(model.relationships) == 13
-    assert "| desktoptokens | Desktop tokens available to the user. |" in generated
+    assert "| desktoptokens |  | Desktop tokens available to the user. |" in generated
     assert "(:Human)-[:IDENTITY_DUO]->(:DuoUser)" in generated
     assert "No description provided." not in generated
 
@@ -472,7 +583,7 @@ def test_openai_schema_doc_is_generated_from_introspected_model():
     assert len(model.nodes) == 6
     assert len(model.relationships) == 15
     assert "An admin API key in an OpenAI organization." in generated
-    assert "| **email** | User email address. |" in generated
+    assert "| email | Yes | User email address. |" in generated
     assert "(:OpenAIOrganization)-[:RESOURCE]->(:OpenAIUser)" in generated
     assert "Deprecated compatibility edge for a service account" in generated
     assert "No description provided." not in generated
@@ -489,7 +600,7 @@ def test_oci_schema_doc_is_generated_from_introspected_model():
     assert not Path("docs/root/modules/oci/schema.md").exists()
     assert len(model.nodes) == 6
     assert len(model.relationships) == 15
-    assert "| **email** | User email address. |" in generated
+    assert "| email | Yes | User email address. |" in generated
     assert "(:OCIPolicy)-[:OCI_POLICY_REFERENCE]->(:OCIGroup)" in generated
     assert "No description provided." not in generated
 
@@ -505,7 +616,7 @@ def test_pagerduty_schema_doc_is_generated_from_introspected_model():
     assert not Path("docs/root/modules/pagerduty/schema.md").exists()
     assert len(model.nodes) == 9
     assert len(model.relationships) == 12
-    assert "| support_hours_days_of_week | Days of the week included" in generated
+    assert "| support_hours_days_of_week |  | Days of the week included" in generated
     assert "(:PagerDutyUser)-[:MEMBER_OF]->(:PagerDutyTeam)" in generated
     assert "No description provided." not in generated
 
@@ -522,7 +633,7 @@ def test_salesforce_schema_doc_is_generated_from_introspected_model():
     assert len(model.nodes) == 7
     assert len(model.relationships) == 13
     assert "A Salesforce user account with the UserAccount label." in generated
-    assert "| **email** | User email address. |" in generated
+    assert "| email | Yes | User email address. |" in generated
     assert "(:SalesforceUser)-[:HAS_ROLE]->(:SalesforceProfile)" in generated
     assert "No description provided." not in generated
 
@@ -541,7 +652,7 @@ def test_spacelift_schema_doc_is_generated_from_introspected_model():
     assert (
         "A CloudTrail event from a Spacelift run that interacted with EC2." in generated
     )
-    assert "| event_name | AWS API action recorded by CloudTrail. |" in generated
+    assert "| event_name |  | AWS API action recorded by CloudTrail. |" in generated
     assert "(:CloudTrailSpaceliftEvent)-[:AFFECTED]->(:EC2Instance)" in generated
     assert "No description provided." not in generated
 
