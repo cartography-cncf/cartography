@@ -4,6 +4,9 @@ from typing import List
 from typing import Optional
 
 import neo4j
+from google.api_core.exceptions import Forbidden
+from google.api_core.exceptions import NotFound
+from google.api_core.exceptions import PermissionDenied
 from google.auth.credentials import Credentials as GoogleCredentials
 from google.cloud import resourcemanager_v3
 
@@ -164,16 +167,19 @@ def get_gcp_projects_by_ids(
 
     Unlike get_gcp_projects(), which lists projects under an organization hierarchy,
     this uses get_project() so it works for any project the caller can access -
-    including projects that do not belong to a GCP Organization. This raises if a
-    requested project cannot be fetched (e.g. it does not exist or the identity lacks
-    access), so that misconfigured project IDs surface loudly rather than being
-    silently skipped.
+    including projects that do not belong to a GCP Organization.
+
+    A single inaccessible or misspelled project ID does not abort the whole run: it is
+    logged and skipped so the remaining projects still sync. (Transient errors are not
+    caught here and still propagate.)
 
     Note that get_project() returns a project in any lifecycle state, whereas the
     org-based path relies on list_projects() returning only ACTIVE projects. To keep
     the two paths consistent, non-ACTIVE projects (e.g. DELETE_REQUESTED) are skipped
-    with a warning rather than ingested as live GCPProjects, so the returned list may
-    be shorter than project_ids.
+    with a warning rather than ingested as live GCPProjects.
+
+    Because both inaccessible/missing IDs and non-ACTIVE projects are skipped, the
+    returned list may be shorter than project_ids.
 
     :param project_ids: List of GCP project IDs (e.g. ["my-project-1", "my-project-2"]).
     :param credentials: GCP credentials to use for API calls.
@@ -182,7 +188,19 @@ def get_gcp_projects_by_ids(
     client = resourcemanager_v3.ProjectsClient(credentials=credentials)
     results: List[Dict] = []
     for project_id in project_ids:
-        proj = client.get_project(name=f"projects/{project_id}")
+        try:
+            proj = client.get_project(name=f"projects/{project_id}")
+        except (NotFound, PermissionDenied, Forbidden) as e:
+            # A single bad ID (misspelled, non-existent, or inaccessible) should not
+            # abort the entire sync: log it and continue so the remaining projects
+            # still load. Transient errors are intentionally not caught here.
+            logger.warning(
+                "Skipping GCP project %s: could not fetch it (%s). "
+                "Verify the project ID exists and the identity has access.",
+                project_id,
+                e.__class__.__name__,
+            )
+            continue
         lifecycle_state = proj.state.name
         # Match org-path semantics (list_projects() only returns ACTIVE): skip
         # projects that are pending deletion or otherwise not ACTIVE so they are

@@ -509,3 +509,43 @@ def test_standalone_predefined_role_enables_grants_role_edge(neo4j_session) -> N
         "GRANTS_ROLE",
         rel_direction_right=True,
     ) == {("standalone-project/roles/owner", "roles/owner")}
+
+
+@patch.object(
+    cartography.intel.gcp.crm.projects,
+    "get_gcp_projects_by_ids",
+    return_value=tests.data.gcp.crm.GCP_STANDALONE_PROJECTS_WITH_ORG_PARENT,
+)
+def test_sync_gcp_projects_by_ids_absent_parent_creates_no_edge(
+    _mock_get_projects, neo4j_session
+) -> None:
+    """
+    A standalone project whose parent references an org/folder that is not in the graph
+    creates no PARENT edge, locking in the "skipped otherwise" matchlink behavior.
+    """
+    neo4j_session.run("MATCH (n) DETACH DELETE n")
+
+    # The parent org (organizations/1337) is intentionally NOT synced, so it is absent.
+    cartography.intel.gcp.crm.projects.sync_gcp_projects_by_ids(
+        neo4j_session,
+        ["standalone-project"],
+        TEST_UPDATE_TAG,
+    )
+
+    # The project loads regardless of the missing parent.
+    assert check_nodes(neo4j_session, "GCPProject", ["id"]) == {("standalone-project",)}
+
+    # The referenced parent node does not exist, so no parent node and no PARENT edge.
+    assert check_nodes(neo4j_session, "GCPOrganization", ["id"]) == set()
+    assert (
+        check_rels(
+            neo4j_session,
+            "GCPProject",
+            "id",
+            "GCPOrganization",
+            "id",
+            "PARENT",
+            rel_direction_right=True,
+        )
+        == set()
+    )

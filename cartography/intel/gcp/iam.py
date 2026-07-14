@@ -366,8 +366,17 @@ def sync_standalone_predefined_roles(
        roles/editor, ...) would resolve to no permissions.
 
     Unlike sync_org_iam, the loaded nodes have no organization sub-resource and are not
-    cleaned up; see GCPStandalonePredefinedRoleSchema. Organization-level *custom* roles
-    are not synced here — they require organization access.
+    cleaned up; see GCPStandalonePredefinedRoleSchema. This intentionally follows the same
+    convention Cartography uses for other global, cross-scope reference nodes — e.g. AWS
+    managed policies (see cartography/intel/aws/iam.py::cleanup_iam), which are also not
+    node-cleaned because they are shared and deleting them for one scope would erroneously
+    remove them for another. Here the predefined GCPRole nodes are shared with the
+    organization-based path (both MERGE on the role name), so a global GCPRole cleanup run
+    from the standalone path would erroneously delete role nodes the org path owns in a
+    mixed deployment. The catalog is bounded (~1.5k Google-managed roles) and MERGE'd, so
+    it does not grow without bound; the org path already loads the same full catalog via
+    load_org_roles. Organization-level *custom* roles are not synced here — they require
+    organization access.
 
     :param neo4j_session: The Neo4j session.
     :param iam_client: The IAM resource object created by googleapiclient.discovery.build().

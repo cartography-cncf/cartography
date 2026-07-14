@@ -156,7 +156,11 @@ class GCPStandalonePredefinedRoleSchema(CartographyNodeSchema):
     - No ``sub_resource_relationship``: predefined roles are global, not owned by an org.
     - ``scoped_cleanup`` is False: the standalone path intentionally runs no cleanup for
       these nodes. A global GCPRole cleanup would delete role nodes synced by the
-      organization-based path. The flag exists only to satisfy the data model's rule that
+      organization-based path (both paths MERGE on the role name). This mirrors how
+      Cartography treats other global, cross-scope reference nodes — e.g. AWS managed
+      policies (cartography/intel/aws/iam.py::cleanup_iam) are also not node-cleaned
+      because they are shared and deleting them for one scope would remove them for
+      another. The flag exists only to satisfy the data model's rule that
       ``sub_resource_relationship`` may be None only when ``scoped_cleanup`` is False.
     """
 

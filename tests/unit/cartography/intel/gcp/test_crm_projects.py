@@ -4,6 +4,8 @@ from unittest.mock import call
 from unittest.mock import MagicMock
 from unittest.mock import patch
 
+from google.api_core.exceptions import NotFound
+
 from cartography.intel.gcp.crm.folders import get_default_apps_script_folder_names
 from cartography.intel.gcp.crm.projects import get_gcp_projects
 from cartography.intel.gcp.crm.projects import get_gcp_projects_by_ids
@@ -227,6 +229,45 @@ def test_transform_gcp_projects_standalone_silent_on_missing_parent(caplog):
     assert data[0]["parent_org"] is None
     assert data[0]["parent_folder"] is None
     assert not any("has no parent" in record.message for record in caplog.records)
+
+
+def test_get_gcp_projects_by_ids_skips_inaccessible_ids():
+    """A single inaccessible/missing project ID is skipped, not fatal; the rest sync."""
+    good = SimpleNamespace(
+        name="projects/1001",
+        project_id="good-project",
+        display_name="Good Project",
+        state=SimpleNamespace(name="ACTIVE"),
+        parent="",
+    )
+
+    def fake_get_project(*, name):
+        if name == "projects/missing-project":
+            raise NotFound("project not found")
+        return good
+
+    mock_client = MagicMock()
+    mock_client.get_project.side_effect = fake_get_project
+
+    with patch(
+        "cartography.intel.gcp.crm.projects.resourcemanager_v3.ProjectsClient",
+        return_value=mock_client,
+    ):
+        projects = get_gcp_projects_by_ids(["missing-project", "good-project"])
+
+    # Both IDs are attempted, but only the accessible one ends up in the result.
+    assert {
+        fetched.kwargs["name"] for fetched in mock_client.get_project.call_args_list
+    } == {"projects/missing-project", "projects/good-project"}
+    assert projects == [
+        {
+            "projectId": "good-project",
+            "projectNumber": "1001",
+            "name": "Good Project",
+            "lifecycleState": "ACTIVE",
+            "parent": "",
+        },
+    ]
 
 
 def test_get_gcp_projects_by_ids_skips_non_active_projects():

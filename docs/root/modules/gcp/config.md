@@ -60,7 +60,7 @@ When `--gcp-project-ids` is set, Cartography:
 
 Notes and limitations of this mode:
 
-- All requested project IDs must be accessible to the identity; an inaccessible or non-existent project ID will fail the sync loudly. Projects that exist but are not `ACTIVE` (for example, pending deletion) are skipped with a warning rather than ingested.
+- An inaccessible or non-existent project ID is logged and skipped rather than aborting the whole run, so the remaining project IDs still sync. Projects that exist but are not `ACTIVE` (for example, pending deletion) are likewise skipped with a warning rather than ingested. (Transient API errors are not skipped and will still fail the sync.)
 - Organization-level data is **not** synced: GCP Organizations, Folders, and inherited (org/folder) policy bindings are skipped. Project-level resources and bindings are synced normally.
 - Google **predefined** roles (`roles/owner`, `roles/editor`, ...) are synced: they are global and need no organization access, so their `GCPRole` nodes are loaded (letting `(:GCPPolicyBinding)-[:GRANTS_ROLE]->(:GCPRole)` edges form) and their permissions expand into permission relationships. These predefined `GCPRole` nodes are not cleaned up in this mode (a global cleanup would delete role nodes synced by the org-based path). Organization-level **custom** roles, however, are **not** synced in this mode (they require organization access), so any policy binding that references an org custom role will not link to a role node or expand into permission relationships.
 - The `GCPProject` node is not cleaned up by this mode (there is no organization to scope a cleanup against). Resources within each synced project are still cleaned up normally, scoped to the project.
