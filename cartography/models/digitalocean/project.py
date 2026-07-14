@@ -14,16 +14,42 @@ from cartography.models.core.relationships import TargetNodeMatcher
 
 @dataclass(frozen=True)
 class DOProjectNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("id")
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
-    account_id: PropertyRef = PropertyRef("ACCOUNT_ID", set_in_kwargs=True)
-    name: PropertyRef = PropertyRef("name")
-    owner_uuid: PropertyRef = PropertyRef("owner_uuid")
-    description: PropertyRef = PropertyRef("description")
-    environment: PropertyRef = PropertyRef("environment")
-    is_default: PropertyRef = PropertyRef("is_default")
-    created_at: PropertyRef = PropertyRef("created_at")
-    updated_at: PropertyRef = PropertyRef("updated_at")
+    id: PropertyRef = PropertyRef("id", description="DigitalOcean project UUID.")
+    lastupdated: PropertyRef = PropertyRef(
+        "lastupdated",
+        set_in_kwargs=True,
+        description="Timestamp of the last update.",
+    )
+    account_id: PropertyRef = PropertyRef(
+        "ACCOUNT_ID",
+        set_in_kwargs=True,
+        description="ID of the account that owns the project.",
+    )
+    name: PropertyRef = PropertyRef("name", description="Project name.")
+    owner_uuid: PropertyRef = PropertyRef(
+        "owner_uuid",
+        description="UUID of the project owner.",
+    )
+    description: PropertyRef = PropertyRef(
+        "description",
+        description="Project description.",
+    )
+    environment: PropertyRef = PropertyRef(
+        "environment",
+        description="Environment classification of project resources.",
+    )
+    is_default: PropertyRef = PropertyRef(
+        "is_default",
+        description="Whether unspecified resources default to this project.",
+    )
+    created_at: PropertyRef = PropertyRef(
+        "created_at",
+        description="Project creation timestamp.",
+    )
+    updated_at: PropertyRef = PropertyRef(
+        "updated_at",
+        description="Project update timestamp.",
+    )
 
 
 @dataclass(frozen=True)
@@ -34,6 +60,8 @@ class DOProjectToAccountRelProperties(CartographyRelProperties):
 @dataclass(frozen=True)
 # (:DOAccount)-[:RESOURCE]->(:DOProject)
 class DOProjectToAccountRel(CartographyRelSchema):
+    """The account contains the project."""
+
     target_node_label: str = "DOAccount"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("ACCOUNT_ID", set_in_kwargs=True)},
@@ -46,6 +74,8 @@ class DOProjectToAccountRel(CartographyRelSchema):
 @dataclass(frozen=True)
 # (:DOAccount)<-[:RESOURCE]-(:DOProject) - Backwards compatibility
 class DOProjectToAccountDeprecatedRel(CartographyRelSchema):
+    """Deprecated compatibility edge linking a project to its account."""
+
     target_node_label: str = "DOAccount"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("ACCOUNT_ID", set_in_kwargs=True)},
@@ -57,6 +87,8 @@ class DOProjectToAccountDeprecatedRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class DOProjectSchema(CartographyNodeSchema):
+    """A project in a DigitalOcean account."""
+
     label: str = "DOProject"
     properties: DOProjectNodeProperties = DOProjectNodeProperties()
     sub_resource_relationship: DOProjectToAccountRel = DOProjectToAccountRel()

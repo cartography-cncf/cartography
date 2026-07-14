@@ -3,6 +3,7 @@ from pathlib import Path
 import cartography.models.anthropic as anthropic_models
 import cartography.models.bigfix as bigfix_models
 import cartography.models.cloudflare as cloudflare_models
+import cartography.models.digitalocean as digitalocean_models
 import cartography.models.gsuite as gsuite_models
 import cartography.models.jumpcloud as jumpcloud_models
 import cartography.models.kandji as kandji_models
@@ -258,6 +259,25 @@ def test_sentry_schema_doc_is_generated_from_introspected_model():
     assert "An issue alert rule configured on a Sentry project." in generated
     assert "| **require_2fa** | Whether the organization requires" in generated
     assert "(:SentryUser)-[:ADMIN_OF]->(:SentryTeam)" in generated
+    assert "No description provided." not in generated
+
+
+def test_digitalocean_schema_doc_is_generated_from_introspected_model():
+    # Arrange
+    model = inspect_data_model(digitalocean_models)
+
+    # Act
+    generated = render_module_schema(model, "digitalocean")
+
+    # Assert
+    assert not Path("docs/root/modules/digitalocean/schema.md").exists()
+    assert len(model.nodes) == 3
+    assert len(model.relationships) == 4
+    assert "A compute instance in a DigitalOcean project." in generated
+    assert "| vpc_uuid | UUID of the Droplet's VPC. |" in generated
+    assert (
+        "Deprecated compatibility edge linking a Droplet to its project." in generated
+    )
     assert "No description provided." not in generated
 
 
