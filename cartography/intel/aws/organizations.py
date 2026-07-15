@@ -563,6 +563,7 @@ def cleanup_stale_aws_account_organization_metadata(
         SET account.arn = null,
             account.email = null,
             account.state = null,
+            account.status = null,
             account.joined_method = null,
             account.joined_timestamp = null,
             account.org_id = null,
