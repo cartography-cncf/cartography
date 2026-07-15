@@ -3,6 +3,7 @@ from dataclasses import dataclass
 from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeProperties
 from cartography.models.core.nodes import CartographyNodeSchema
+from cartography.models.core.nodes import ExtraNodeLabels
 from cartography.models.core.relationships import CartographyRelProperties
 from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
@@ -72,7 +73,7 @@ class ECSTaskDefinitionToECSTaskRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class ECSTaskDefinitionToECSTaskRel(CartographyRelSchema):
-    target_node_label: str = "ECSTask"
+    target_node_label: str = "AWSECSTask"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"task_definition_arn": PropertyRef("taskDefinitionArn")}
     )
@@ -121,7 +122,9 @@ class ECSTaskDefinitionToExecutionRoleRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class ECSTaskDefinitionSchema(CartographyNodeSchema):
-    label: str = "ECSTaskDefinition"
+    label: str = "AWSECSTaskDefinition"
+    # DEPRECATED: legacy ECSTaskDefinition node label will be removed in v1.0.0.
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["ECSTaskDefinition"])
     properties: ECSTaskDefinitionNodeProperties = ECSTaskDefinitionNodeProperties()
     sub_resource_relationship: ECSTaskDefinitionToAWSAccountRel = (
         ECSTaskDefinitionToAWSAccountRel()

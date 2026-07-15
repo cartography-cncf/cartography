@@ -35,28 +35,28 @@ RETURN *
 
 ### What [RDS](https://aws.amazon.com/rds/) instances are installed in my [AWS](https://aws.amazon.com/) accounts?
 ```cypher
-MATCH (aws:AWSAccount)-[r:RESOURCE]->(rds:RDSInstance)
+MATCH (aws:AWSAccount)-[r:RESOURCE]->(rds:AWSRDSInstance)
 RETURN *
 ```
 [test it locally](http://localhost:7474/browser/?preselectAuthMethod=NO_AUTH&db=neo4j&connectURL=bolt://neo4j:neo4j@localhost:7474&cmd=edit&arg=MATCH%20%28aws%3AAWSAccount%29-%5Br%3ARESOURCE%5D-%3E%28rds%3ARDSInstance%29%0ARETURN%20%2A)
 
 ### Which RDS instances have [encryption](https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/Overview.Encryption.html) turned off?
 ```cypher
-MATCH (a:AWSAccount)-[:RESOURCE]->(rds:RDSInstance{storage_encrypted:false})
+MATCH (a:AWSAccount)-[:RESOURCE]->(rds:AWSRDSInstance{storage_encrypted:false})
 RETURN a.name, rds.id
 ```
 [test it locally](http://localhost:7474/browser/?preselectAuthMethod=NO_AUTH&db=neo4j&connectURL=bolt://neo4j:neo4j@localhost:7474&cmd=edit&arg=MATCH%20%28a%3AAWSAccount%29-%5B%3ARESOURCE%5D-%3E%28rds%3ARDSInstance%7Bstorage_encrypted%3Afalse%7D%29%0ARETURN%20a.name%2C%20rds.id)
 
 ### Which [EC2](https://aws.amazon.com/ec2/) instances are exposed (directly or indirectly) to the internet?
 ```cypher
-MATCH (instance:EC2Instance{exposed_internet: true})
+MATCH (instance:AWSEC2Instance{exposed_internet: true})
 RETURN instance.instanceid, instance.publicdnsname
 ```
 [test it locally](http://localhost:7474/browser/?preselectAuthMethod=NO_AUTH&db=neo4j&connectURL=bolt://neo4j:neo4j@localhost:7474&cmd=edit&arg=MATCH%20%28instance%3AEC2Instance%7Bexposed_internet%3A%20true%7D%29%0ARETURN%20instance.instanceid%2C%20instance.publicdnsname)
 
 ### Which open ports are internet accesible from [SecurityGroups](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-security-groups.html)
 ```cypher
-    MATCH (open)-[:MEMBER_OF_EC2_SECURITY_GROUP]->(sg:EC2SecurityGroup)
+    MATCH (open)-[:MEMBER_OF_EC2_SECURITY_GROUP]->(sg:AWSEC2SecurityGroup)
     MATCH (sg)<-[:MEMBER_OF_EC2_SECURITY_GROUP]-(ipi:IpPermissionInbound)
     MATCH (ipi)<--(ir:IpRange)
     WHERE ir.range = "0.0.0.0/0"
@@ -68,7 +68,7 @@ RETURN instance.instanceid, instance.publicdnsname
 
 ### Which [ELB](https://aws.amazon.com/elasticloadbalancing/) LoadBalancers are internet accessible?
 ```cypher
-MATCH (elb:LoadBalancer{exposed_internet: true})—->(listener:ELBListener)
+MATCH (elb:LoadBalancer{exposed_internet: true})—->(listener:AWSELBListener)
 RETURN elb.dnsname, listener.port
 ORDER by elb.dnsname, listener.port
 ```
@@ -76,7 +76,7 @@ ORDER by elb.dnsname, listener.port
 
 ### Which [ELBv2](https://aws.amazon.com/elasticloadbalancing/) AWSLoadBalancerV2s (Application Load Balancers) are internet accessible?
 ```cypher
-MATCH (elbv2:AWSLoadBalancerV2{exposed_internet: true})—->(listener:ELBV2Listener)
+MATCH (elbv2:AWSLoadBalancerV2{exposed_internet: true})—->(listener:AWSELBV2Listener)
 RETURN elbv2.dnsname, listener.port
 ORDER by elbv2.dnsname, listener.port
 ```
@@ -84,10 +84,10 @@ ORDER by elbv2.dnsname, listener.port
 
 ### Which open ports are internet accesible from ELB or ELBv2?
 ```cypher
-    MATCH (elb:LoadBalancer{exposed_internet: true})—->(listener:ELBListener)
+    MATCH (elb:LoadBalancer{exposed_internet: true})—->(listener:AWSELBListener)
     RETURN DISTINCT elb.dnsname as dnsname, listener.port as port
     UNION
-    MATCH (lb:AWSLoadBalancerV2)-[:ELBV2_LISTENER]->(l:ELBV2Listener)
+    MATCH (lb:AWSLoadBalancerV2)-[:ELBV2_LISTENER]->(l:AWSELBV2Listener)
     WHERE lb.scheme = "internet-facing"
     RETURN DISTINCT lb.dnsname as dnsname, l.port as port
 ```
@@ -95,19 +95,19 @@ ORDER by elbv2.dnsname, listener.port
 
 ### Find everything about an IP Address
 ```cypher
-MATCH (n:EC2PrivateIp)-[r]-(n2)
+MATCH (n:AWSEC2PrivateIp)-[r]-(n2)
 WHERE n.public_ip = $neodash_ip
 RETURN n, r, n2
 
-UNION MATCH(n:EC2Instance)-[r]-(n2)
+UNION MATCH(n:AWSEC2Instance)-[r]-(n2)
 WHERE n.publicipaddress = $neodash_ip
 RETURN  n, r, n2
 
-UNION MATCH(n:NetworkInterface)-[r]-(n2)
+UNION MATCH(n:AWSNetworkInterface)-[r]-(n2)
 WHERE n.public_ip = $neodash_ip
 RETURN n, r, n2
 
-UNION MATCH(n:ElasticIPAddress)-[r]-(n2)
+UNION MATCH(n:AWSElasticIPAddress)-[r]-(n2)
 WHERE n.public_ip = $neodash_ip
 RETURN n, r, n2
 ```
@@ -115,7 +115,7 @@ RETURN n, r, n2
 
 ### Which [S3](https://aws.amazon.com/s3/) buckets have a policy granting any level of anonymous access to the bucket?
 ```cypher
-MATCH (s:S3Bucket)
+MATCH (s:AWSS3Bucket)
 WHERE s.anonymous_access = true
 RETURN s
 ```
@@ -124,7 +124,7 @@ RETURN s
 ### How many unencrypted RDS instances do I have in all my AWS accounts?
 
 ```cypher
-MATCH (a:AWSAccount)-[:RESOURCE]->(rds:RDSInstance)
+MATCH (a:AWSAccount)-[:RESOURCE]->(rds:AWSRDSInstance)
 WHERE rds.storage_encrypted = false
 RETURN a.name as AWSAccount, count(rds) as UnencryptedInstances
 ```

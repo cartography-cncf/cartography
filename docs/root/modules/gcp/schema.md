@@ -125,7 +125,7 @@ Representation of a GCP [Organization](https://cloud.google.com/resource-manager
 ### GCPBucket
 Representation of a GCP [Storage Bucket](https://cloud.google.com/storage/docs/json_api/v1/buckets).
 
-> **Ontology Mapping**: This node has the extra label `ObjectStorage` to enable cross-platform queries for object storage across different systems (e.g., S3Bucket, AzureStorageBlobContainer).
+> **Ontology Mapping**: This node has the extra label `ObjectStorage` to enable cross-platform queries for object storage across different systems (e.g., AWSS3Bucket, AzureStorageBlobContainer).
 
 | Field                         | Description                                                                                                                                                                                                                                         |
 | ----------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -269,7 +269,7 @@ Each resource type has its own declarative schema (e.g., `GCPBucketGCPLabelSchem
 
 Representation of a GCP [Instance](https://cloud.google.com/compute/docs/reference/rest/v1/instances).  Additional references can be found in the [official documentation]( https://cloud.google.com/compute/docs/concepts).
 
-> **Ontology Mapping**: This node has the extra label `ComputeInstance` to enable cross-platform queries for compute instances across different systems (e.g., EC2Instance, AzureVirtualMachine, DODroplet).
+> **Ontology Mapping**: This node has the extra label `ComputeInstance` to enable cross-platform queries for compute instances across different systems (e.g., AWSEC2Instance, AzureVirtualMachine, DODroplet).
 
 | Field            | Description |
 | ---------------- | ----------- |
@@ -535,7 +535,7 @@ Representation of a GCP [Resource Record Set](https://cloud.google.com/dns/docs/
 
 Representation of a GCP [Subnetwork](https://cloud.google.com/compute/docs/reference/rest/v1/subnetworks).
 
-> **Ontology Mapping**: This node has the extra label `Subnet` and normalized `_ont_*` properties to enable cross-platform queries for network subnets across different systems (e.g., EC2Subnet, AzureSubnet).
+> **Ontology Mapping**: This node has the extra label `Subnet` and normalized `_ont_*` properties to enable cross-platform queries for network subnets across different systems (e.g., AWSEC2Subnet, AzureSubnet).
 
 | Field                    | Description                                                                                                                                                                                        |
 | ------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -583,7 +583,7 @@ Representation of a GCP [Subnetwork](https://cloud.google.com/compute/docs/refer
 
 Representation of a GCP [Firewall](https://cloud.google.com/compute/docs/reference/rest/v1/firewalls/list).
 
-> **Ontology Mapping**: This node has the extra label `NetworkAccessControl` to enable cross-platform queries for security groups and firewall rules across different systems (e.g., EC2SecurityGroup, GCPFirewall, AzureNetworkSecurityGroup).
+> **Ontology Mapping**: This node has the extra label `NetworkAccessControl` to enable cross-platform queries for security groups and firewall rules across different systems (e.g., AWSEC2SecurityGroup, GCPFirewall, AzureNetworkSecurityGroup).
 
 | Field                       | Description |
 | --------------------------- | ----------- |
@@ -686,7 +686,7 @@ Representation of GCP [Forwarding Rules](https://cloud.google.com/compute/docs/r
 
 Representation of a GCP [GKE Cluster](https://cloud.google.com/kubernetes-engine/docs/reference/rest/v1/).
 
-> **Ontology Mapping**: This node has the extra label `ComputeCluster` to enable cross-platform queries for compute clusters across different systems (e.g., EKSCluster, ECSCluster, AzureKubernetesCluster, KubernetesCluster).
+> **Ontology Mapping**: This node has the extra label `ComputeCluster` to enable cross-platform queries for compute clusters across different systems (e.g., AWSEKSCluster, AWSECSCluster, AzureKubernetesCluster, KubernetesCluster).
 
 | Field                      | Description                                                                                                                                                                                                       |
 | -------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -827,7 +827,7 @@ Representation of a GCP [Service Account](https://cloud.google.com/iam/docs/refe
 
 Representation of a user-managed GCP [Service Account Key](https://cloud.google.com/iam/docs/reference/rest/v1/projects.serviceAccounts.keys). System-managed keys (rotated automatically by Google) are not ingested.
 
-> **Ontology Mapping**: This node has the extra label `APIKey` to enable cross-platform queries for long-lived API credentials across different systems (e.g., AccountAccessKey, ScalewayApiKey).
+> **Ontology Mapping**: This node has the extra label `APIKey` to enable cross-platform queries for long-lived API credentials across different systems (e.g., AWSAccountAccessKey, ScalewayApiKey).
 
 | Field                | Description                                                                                            |
 | -------------------- | ------------------------------------------------------------------------------------------------------ |
@@ -860,7 +860,7 @@ Representation of a user-managed GCP [Service Account Key](https://cloud.google.
 
 Representation of a GCP [API Key](https://cloud.google.com/api-keys/docs/reference/rest/v2/projects.locations.keys) (`apikeys.googleapis.com`). These are the encrypted-string keys used to authenticate to public Google APIs, distinct from `GCPServiceAccountKey`. The secret key material (`keyString`) is never ingested.
 
-> **Ontology Mapping**: This node has the extra label `APIKey` to enable cross-platform queries for long-lived API credentials across different systems (e.g., AccountAccessKey, ScalewayApiKey).
+> **Ontology Mapping**: This node has the extra label `APIKey` to enable cross-platform queries for long-lived API credentials across different systems (e.g., AWSAccountAccessKey, ScalewayApiKey).
 
 | Field        | Description                                                                                   |
 | ------------ | --------------------------------------------------------------------------------------------- |
@@ -957,7 +957,7 @@ Representation of a GCP [Key Ring](https://cloud.google.com/kms/docs/reference/r
 
 Representation of a GCP [Crypto Key](https://cloud.google.com/kms/docs/reference/rest/v1/projects.locations.keyRings.cryptoKeys).
 
-> **Ontology Mapping**: This node has the extra label `EncryptionKey` to enable cross-platform queries for encryption keys across different systems (e.g., KMSKey, GCPCryptoKey, AzureKeyVaultKey).
+> **Ontology Mapping**: This node has the extra label `EncryptionKey` to enable cross-platform queries for encryption keys across different systems (e.g., AWSKMSKey, GCPCryptoKey, AzureKeyVaultKey).
 
 | Field | Description |
 |---|---|
@@ -1129,7 +1129,7 @@ Representation of a GCP [Workload Identity Pool Provider](https://cloud.google.c
 
 Representation of a GCP [Bigtable Instance](https://cloud.google.com/bigtable/docs/reference/admin/rest/v2/projects.instances).
 
-> **Ontology Mapping**: This node has the extra label `Database` to enable cross-platform queries for database instances across different systems (e.g., RDSInstance, DynamoDBTable, AzureSQLDatabase).
+> **Ontology Mapping**: This node has the extra label `Database` to enable cross-platform queries for database instances across different systems (e.g., AWSRDSInstance, AWSDynamoDBTable, AzureSQLDatabase).
 
 | Field | Description |
 |---|---|
@@ -1495,7 +1495,7 @@ Representation of a GCP [Vertex AI Dataset](https://cloud.google.com/vertex-ai/d
 
 Representation of a GCP [Cloud SQL Instance](https://cloud.google.com/sql/docs/mysql/admin-api/rest/v1beta4/instances).
 
-> **Ontology Mapping**: This node has the extra label `Database` to enable cross-platform queries for database instances across different systems (e.g., RDSInstance, AzureSQLDatabase, GCPBigtableInstance).
+> **Ontology Mapping**: This node has the extra label `Database` to enable cross-platform queries for database instances across different systems (e.g., AWSRDSInstance, AzureSQLDatabase, GCPBigtableInstance).
 
 | Field | Description |
 |---|---|
@@ -1792,7 +1792,7 @@ graph LR
 
 Representation of a GCP [Artifact Registry Repository](https://cloud.google.com/artifact-registry/docs/reference/rest/v1/projects.locations.repositories).
 
-> **Ontology Mapping**: This node has the extra label `ContainerRegistry` to enable cross-platform queries for container registries across different systems (e.g., ECRRepository, GCPArtifactRegistryRepository, GitLabContainerRepository).
+> **Ontology Mapping**: This node has the extra label `ContainerRegistry` to enable cross-platform queries for container registries across different systems (e.g., AWSECRRepository, GCPArtifactRegistryRepository, GitLabContainerRepository).
 
 | Field | Description |
 |-------|-------------|
@@ -1955,7 +1955,7 @@ Representation of digest-scoped GCP Artifact Registry image content. Multiple `G
 
 Representation of a container image filesystem layer extracted from the OCI image config. Layer nodes enable Dockerfile analysis matching for code-to-cloud tracing.
 
-> **Ontology Mapping**: This node has the extra label `ImageLayer` to enable cross-platform queries for image layers across different systems (e.g., ECRImageLayer, GCPArtifactRegistryImageLayer).
+> **Ontology Mapping**: This node has the extra label `ImageLayer` to enable cross-platform queries for image layers across different systems (e.g., AWSECRImageLayer, GCPArtifactRegistryImageLayer).
 
 | Field | Description |
 |-------|-------------|
@@ -2121,7 +2121,7 @@ graph LR
 
 Representation of a GCP [Cloud Run Service](https://cloud.google.com/run/docs/reference/rest/v2/projects.locations.services).
 
-> **Ontology Mapping**: This node has the extra label `ComputeService` to enable cross-platform queries for compute orchestrators across different systems (e.g., `ECSService`, `GCPCloudRunJob`). Its child `GCPCloudRunServiceContainer` nodes carry `:Container` and `HAS_IMAGE`.
+> **Ontology Mapping**: This node has the extra label `ComputeService` to enable cross-platform queries for compute orchestrators across different systems (e.g., `AWSECSService`, `GCPCloudRunJob`). Its child `GCPCloudRunServiceContainer` nodes carry `:Container` and `HAS_IMAGE`.
 
 | Field | Description |
 |---|---|
@@ -2138,7 +2138,7 @@ Representation of a GCP [Cloud Run Service](https://cloud.google.com/run/docs/re
 | exposed_internet | Set to `true` if `ingress` is `INGRESS_TRAFFIC_ALL`. Set to `false` if `ingress` is `INGRESS_TRAFFIC_INTERNAL_ONLY` or `INGRESS_TRAFFIC_NONE`. Other values are currently left unset because they may still be internet-reachable via load balancers. |
 | exposed_internet_type | Set to `'direct'` when the service allows all ingress traffic. |
 
-Cloud Run Service is treated as an orchestrator (analogous to `ECSService`) and carries the `:ComputeService` semantic label. The container specs from the `latestReadyRevision` (returned inline in `service.template.containers`) are materialized as child `GCPCloudRunServiceContainer` nodes that carry `:Container` and `HAS_IMAGE`. Older revisions are tracked as pure metadata via `GCPCloudRunRevision`, with no image data attached.
+Cloud Run Service is treated as an orchestrator (analogous to `AWSECSService`) and carries the `:ComputeService` semantic label. The container specs from the `latestReadyRevision` (returned inline in `service.template.containers`) are materialized as child `GCPCloudRunServiceContainer` nodes that carry `:Container` and `HAS_IMAGE`. Older revisions are tracked as pure metadata via `GCPCloudRunRevision`, with no image data attached.
 
 #### Relationships
 
@@ -2187,9 +2187,9 @@ Representation of a GCP [Cloud Run Revision](https://cloud.google.com/run/docs/r
 
 ### GCPCloudRunJob
 
-Representation of a GCP [Cloud Run Job](https://cloud.google.com/run/docs/reference/rest/v2/projects.locations.jobs). The Job is a pure grouping node: image references, digests, architecture and the `:Container` ontology label live on the child [GCPCloudRunJobContainer](#gcpcloudrunjobcontainer) nodes, analogous to `ECSTask` / `ECSContainer` in AWS.
+Representation of a GCP [Cloud Run Job](https://cloud.google.com/run/docs/reference/rest/v2/projects.locations.jobs). The Job is a pure grouping node: image references, digests, architecture and the `:Container` ontology label live on the child [GCPCloudRunJobContainer](#gcpcloudrunjobcontainer) nodes, analogous to `AWSECSTask` / `AWSECSContainer` in AWS.
 
-> **Ontology Mapping**: This node has the extra label `ComputeService` to enable cross-platform queries for compute orchestrators across different systems (e.g., `ECSService`, `GCPCloudRunService`).
+> **Ontology Mapping**: This node has the extra label `ComputeService` to enable cross-platform queries for compute orchestrators across different systems (e.g., `AWSECSService`, `GCPCloudRunService`).
 
 | Field | Description |
 |---|---|
@@ -2220,7 +2220,7 @@ Representation of a GCP [Cloud Run Job](https://cloud.google.com/run/docs/refere
 
 Representation of an individual container spec from a [Cloud Run Job](https://cloud.google.com/run/docs/reference/rest/v2/projects.locations.jobs) (sourced from `job.template.template.containers`). One node is created per container spec (including sidecars).
 
-> **Ontology Mapping**: This node has the extra label `Container` to enable cross-platform queries across container runtimes (e.g., `ECSContainer`, `KubernetesContainer`, `AzureContainerInstance`, `GCPCloudRunServiceContainer`).
+> **Ontology Mapping**: This node has the extra label `Container` to enable cross-platform queries across container runtimes (e.g., `AWSECSContainer`, `KubernetesContainer`, `AzureContainerInstance`, `GCPCloudRunServiceContainer`).
 
 | Field | Description |
 |---|---|
@@ -2248,7 +2248,7 @@ Representation of an individual container spec from a [Cloud Run Job](https://cl
     ```
   - GCPCloudRunJobContainers link to the image they run when the image is pinned by digest.
     ```
-    (GCPCloudRunJobContainer)-[:HAS_IMAGE]->(ECRImage)
+    (GCPCloudRunJobContainer)-[:HAS_IMAGE]->(AWSECRImage)
     (GCPCloudRunJobContainer)-[:HAS_IMAGE]->(GitLabContainerImage)
     (GCPCloudRunJobContainer)-[:HAS_IMAGE]->(GCPArtifactRegistryImage)
     (GCPCloudRunJobContainer)-[:HAS_IMAGE]->(GitHubContainerImage)
@@ -2262,7 +2262,7 @@ Representation of an individual container spec from a [Cloud Run Job](https://cl
 
 Representation of an individual container spec from a [Cloud Run Service](https://cloud.google.com/run/docs/reference/rest/v2/projects.locations.services) (sourced from `service.template.containers`, i.e. the `latestReadyRevision` exposed inline by the v2 API). One node is created per container spec (including sidecars). Older revisions' container specs are not modeled — only the latest ready spec is materialized.
 
-> **Ontology Mapping**: This node has the extra label `Container` to enable cross-platform queries across container runtimes (e.g., `ECSContainer`, `KubernetesContainer`, `AzureContainerInstance`, `GCPCloudRunJobContainer`).
+> **Ontology Mapping**: This node has the extra label `Container` to enable cross-platform queries across container runtimes (e.g., `AWSECSContainer`, `KubernetesContainer`, `AzureContainerInstance`, `GCPCloudRunJobContainer`).
 
 | Field | Description |
 |---|---|
@@ -2290,7 +2290,7 @@ Representation of an individual container spec from a [Cloud Run Service](https:
     ```
   - GCPCloudRunServiceContainers link to the image they run when the image is pinned by digest.
     ```
-    (GCPCloudRunServiceContainer)-[:HAS_IMAGE]->(ECRImage)
+    (GCPCloudRunServiceContainer)-[:HAS_IMAGE]->(AWSECRImage)
     (GCPCloudRunServiceContainer)-[:HAS_IMAGE]->(GitLabContainerImage)
     (GCPCloudRunServiceContainer)-[:HAS_IMAGE]->(GCPArtifactRegistryImage)
     (GCPCloudRunServiceContainer)-[:HAS_IMAGE]->(GitHubContainerImage)
@@ -2409,7 +2409,7 @@ Representation of a GCP [Instance Group](https://cloud.google.com/compute/docs/r
 
 Representation of a GCP [Cloud Armor Security Policy](https://cloud.google.com/compute/docs/reference/rest/v1/securityPolicies). Cloud Armor policies provide DDoS protection and WAF capabilities for backend services.
 
-> **Ontology Mapping**: This node has the extra label `NetworkAccessControl` to enable cross-platform queries for security groups and firewall rules across different systems (e.g., EC2SecurityGroup, GCPFirewall, AzureNetworkSecurityGroup).
+> **Ontology Mapping**: This node has the extra label `NetworkAccessControl` to enable cross-platform queries for security groups and firewall rules across different systems (e.g., AWSEC2SecurityGroup, GCPFirewall, AzureNetworkSecurityGroup).
 
 | Field | Description |
 |---|---|

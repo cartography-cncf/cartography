@@ -179,14 +179,14 @@ def get_ecr_repository_images(
 
                 all_image_details.append(detail)
 
-    # Second pass: Only add images that should have ECRRepositoryImage nodes
+    # Second pass: Only add images that should have AWSECRRepositoryImage nodes
     ecr_repository_images: List[Dict] = []
     for detail in all_image_details:
         tags = detail.get("imageTags") or []
         digest = detail.get("imageDigest")
 
         if tags:
-            # Tagged images always get ECRRepositoryImage nodes (one per tag)
+            # Tagged images always get AWSECRRepositoryImage nodes (one per tag)
             for tag in tags:
                 image_detail = {**detail, "imageTag": tag}
                 image_detail.pop("imageTags", None)
@@ -226,8 +226,8 @@ def transform_ecr_repository_images(repo_data: Dict) -> tuple[List[Dict], List[D
     For manifest lists, creates ECR images for manifest list, platform-specific images, and attestations.
 
     Returns:
-        - repo_images_list: List of ECRRepositoryImage nodes with imageDigests field (one-to-many)
-        - ecr_images_list: List of ECRImage nodes with type, architecture, os, variant fields
+        - repo_images_list: List of AWSECRRepositoryImage nodes with imageDigests field (one-to-many)
+        - ecr_images_list: List of AWSECRImage nodes with type, architecture, os, variant fields
     """
     repo_images_list = []
     ecr_images_dict: Dict[str, Dict] = {}  # Deduplicate by digest
@@ -248,7 +248,7 @@ def transform_ecr_repository_images(repo_data: Dict) -> tuple[List[Dict], List[D
             tag = img.get("imageTag")
             uri = repo_uri + (f":{tag}" if tag else "")
 
-            # Build ECRRepositoryImage node
+            # Build AWSECRRepositoryImage node
             repo_image = {
                 **img,
                 "repo_uri": repo_uri,
@@ -263,7 +263,7 @@ def transform_ecr_repository_images(repo_data: Dict) -> tuple[List[Dict], List[D
                 all_digests = [digest] + [m["digest"] for m in manifest_images]
                 repo_image["imageDigests"] = all_digests
 
-                # Create ECRImage for the manifest list itself
+                # Create AWSECRImage for the manifest list itself
                 if digest not in ecr_images_dict:
                     # Extract child image digests (excluding attestations for CONTAINS_IMAGE relationship)
                     child_digests = [
@@ -280,7 +280,7 @@ def transform_ecr_repository_images(repo_data: Dict) -> tuple[List[Dict], List[D
                         "child_image_digests": child_digests if child_digests else None,
                     }
 
-                # Create ECRImage nodes for each image in the manifest list
+                # Create AWSECRImage nodes for each image in the manifest list
                 for manifest_img in manifest_images:
                     manifest_digest = manifest_img["digest"]
                     if manifest_digest not in ecr_images_dict:
@@ -305,7 +305,7 @@ def transform_ecr_repository_images(repo_data: Dict) -> tuple[List[Dict], List[D
                 # Regular image: single digest
                 repo_image["imageDigests"] = [digest]
 
-                # Create ECRImage for regular image
+                # Create AWSECRImage for regular image
                 if digest not in ecr_images_dict:
                     ecr_images_dict[digest] = {
                         "imageDigest": digest,

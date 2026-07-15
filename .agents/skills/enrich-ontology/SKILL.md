@@ -193,9 +193,9 @@ Standard phrases by semantic label:
 | `UserAccount`     | This node has the extra label `UserAccount` to enable cross-platform queries for user accounts across different systems (e.g., OktaUser, EntraUser, GSuiteUser).                         |
 | `DeviceInstance`  | This node has the extra label `DeviceInstance` to enable cross-platform queries for device instances across different systems (e.g., CrowdStrikeDevice, KandjiDevice, JamfComputer).     |
 | `Tenant`          | This node has the extra label `Tenant` to enable cross-platform queries for organizational tenants across different systems (e.g., OktaOrganization, AzureTenant, GCPOrganization).      |
-| `Database`        | This node has the extra label `Database` to enable cross-platform queries for databases across different systems (e.g., RDSInstance, DynamoDBTable, BigQueryDataset).                    |
-| `ObjectStorage`   | This node has the extra label `ObjectStorage` to enable cross-platform queries for object storage across different systems (e.g., S3Bucket, GCPBucket, AzureStorageBlobContainer).       |
-| `FileStorage`     | This node has the extra label `FileStorage` to enable cross-platform queries for network file systems and shares across different systems (e.g., EfsFileSystem, AzureStorageFileShare).  |
+| `Database`        | This node has the extra label `Database` to enable cross-platform queries for databases across different systems (e.g., AWSRDSInstance, AWSDynamoDBTable, BigQueryDataset).                    |
+| `ObjectStorage`   | This node has the extra label `ObjectStorage` to enable cross-platform queries for object storage across different systems (e.g., AWSS3Bucket, GCPBucket, AzureStorageBlobContainer).       |
+| `FileStorage`     | This node has the extra label `FileStorage` to enable cross-platform queries for network file systems and shares across different systems (e.g., AWSEfsFileSystem, AzureStorageFileShare).  |
 
 ## `special_handling` quick reference
 

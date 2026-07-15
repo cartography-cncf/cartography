@@ -3,6 +3,7 @@ from dataclasses import dataclass
 from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeProperties
 from cartography.models.core.nodes import CartographyNodeSchema
+from cartography.models.core.nodes import ExtraNodeLabels
 from cartography.models.core.relationships import CartographyRelProperties
 from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
@@ -47,7 +48,7 @@ class SNSTopicSubscriptionToSNSTopicRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class SNSTopicSubscriptionToSNSTopicRel(CartographyRelSchema):
-    target_node_label: str = "SNSTopic"
+    target_node_label: str = "AWSSNSTopic"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("TopicArn")},
     )
@@ -60,7 +61,9 @@ class SNSTopicSubscriptionToSNSTopicRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class SNSTopicSubscriptionSchema(CartographyNodeSchema):
-    label: str = "SNSTopicSubscription"
+    label: str = "AWSSNSTopicSubscription"
+    # DEPRECATED: legacy SNSTopicSubscription node label will be removed in v1.0.0.
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["SNSTopicSubscription"])
     properties: SNSTopicSubscriptionNodeProperties = (
         SNSTopicSubscriptionNodeProperties()
     )

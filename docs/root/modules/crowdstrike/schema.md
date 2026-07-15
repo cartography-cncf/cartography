@@ -3,7 +3,7 @@
 ### CrowdstrikeTenant
 
 Representation of a CrowdStrike customer tenant. The `id` field is the
-customer's CID (Customer ID); CrowdstrikeHost and SpotlightVulnerability
+customer's CID (Customer ID); CrowdstrikeHost and CrowdstrikeSpotlightVulnerability
 nodes belonging to that tenant are linked via `RESOURCE` and cleaned up
 together when stale. The node also carries the shared `:Tenant` label so
 cross-module queries that match `(:Tenant)` discover this organizational
@@ -18,10 +18,10 @@ boundary, mirroring the convention used by other tenant roots such as
 
 #### Relationships
 
-- CrowdstrikeTenant owns CrowdstrikeHost and SpotlightVulnerability for cleanup scoping.
+- CrowdstrikeTenant owns CrowdstrikeHost and CrowdstrikeSpotlightVulnerability for cleanup scoping.
     ```
     (CrowdstrikeTenant)-[:RESOURCE]->(CrowdstrikeHost)
-    (CrowdstrikeTenant)-[:RESOURCE]->(SpotlightVulnerability)
+    (CrowdstrikeTenant)-[:RESOURCE]->(CrowdstrikeSpotlightVulnerability)
     ```
 
 ### CrowdstrikeHost
@@ -70,9 +70,9 @@ Representation of a Crowdstrike Host
 
 #### Relationships
 
-- CrowdstrikeHost has SpotlightVulnerability
+- CrowdstrikeHost has CrowdstrikeSpotlightVulnerability
     ```
-    (CrowdstrikeHost)-[HAS_VULNERABILITY]->(SpotlightVulnerability)
+    (CrowdstrikeHost)-[HAS_VULNERABILITY]->(CrowdstrikeSpotlightVulnerability)
     ```
 
 - CrowdstrikeHost belongs to a CrowdstrikeTenant
@@ -80,9 +80,11 @@ Representation of a Crowdstrike Host
     (CrowdstrikeTenant)-[:RESOURCE]->(CrowdstrikeHost)
     ```
 
-### SpotlightVulnerability
+### CrowdstrikeSpotlightVulnerability
 
 Representation of a Crowdstrike Vulnerability
+The legacy `SpotlightVulnerability` label remains attached for compatibility
+until v1.0.0.
 
 | Field | Description |
 |-------|-------------|
@@ -102,19 +104,19 @@ Representation of a Crowdstrike Vulnerability
 
 #### Relationships
 
-- CrowdstrikeHost has SpotlightVulnerability
+- CrowdstrikeHost has CrowdstrikeSpotlightVulnerability
     ```
-    (CrowdstrikeHost)-[HAS_VULNERABILITY]->(SpotlightVulnerability)
-    ```
-
-- SpotlightVulnerability has CVE
-    ```
-    (SpotlightVulnerability)-[HAS_CVE]->(CVE)
+    (CrowdstrikeHost)-[HAS_VULNERABILITY]->(CrowdstrikeSpotlightVulnerability)
     ```
 
-- SpotlightVulnerability belongs to a CrowdstrikeTenant
+- CrowdstrikeSpotlightVulnerability has CVE
     ```
-    (CrowdstrikeTenant)-[:RESOURCE]->(SpotlightVulnerability)
+    (CrowdstrikeSpotlightVulnerability)-[HAS_CVE]->(CVE)
+    ```
+
+- CrowdstrikeSpotlightVulnerability belongs to a CrowdstrikeTenant
+    ```
+    (CrowdstrikeTenant)-[:RESOURCE]->(CrowdstrikeSpotlightVulnerability)
     ```
 
 ### CrowdstrikeFinding::CVE
@@ -132,7 +134,7 @@ Representation of a CVE
 
 #### Relationships
 
-- SpotlightVulnerability has CVE
+- CrowdstrikeSpotlightVulnerability has CVE
     ```
-    (SpotlightVulnerability)-[HAS_CVE]->(CVE)
+    (CrowdstrikeSpotlightVulnerability)-[HAS_CVE]->(CVE)
     ```

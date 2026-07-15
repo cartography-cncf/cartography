@@ -157,7 +157,7 @@ def test_sync_route53(mock_get_zones, neo4j_session):
         ("/hostedzone/HOSTED_ZONE/ipv6.example.com/AAAA", "/hostedzone/HOSTED_ZONE"),
     }, "DNS records aren't connected to DNS zones"
 
-    assert check_nodes(neo4j_session, "NameServer", ["id", "name"]) == {
+    assert check_nodes(neo4j_session, "AWSNameServer", ["id", "name"]) == {
         (
             "ec2-1-2-3-4.us-east-2.compute.amazonaws.com",
             "ec2-1-2-3-4.us-east-2.compute.amazonaws.com",
@@ -169,7 +169,7 @@ def test_sync_route53(mock_get_zones, neo4j_session):
         neo4j_session,
         "AWSDNSRecord",
         "id",
-        "NameServer",
+        "AWSNameServer",
         "id",
         "DNS_POINTS_TO",
         rel_direction_right=True,
@@ -185,7 +185,7 @@ def test_sync_route53(mock_get_zones, neo4j_session):
         neo4j_session,
         "AWSDNSZone",
         "zoneid",
-        "NameServer",
+        "AWSNameServer",
         "id",
         "NAMESERVER",
         rel_direction_right=True,
@@ -257,7 +257,7 @@ def test_sync_route53_with_existing_resources(mock_get_zones, neo4j_session):
     )
     neo4j_session.run(
         """
-        MERGE (ec2:EC2Instance {id: "i-1234567890abcdef0", publicdnsname: "hello.what.example.com"})
+        MERGE (ec2:AWSEC2Instance {id: "i-1234567890abcdef0", publicdnsname: "hello.what.example.com"})
         SET ec2.lastupdated = $update_tag
         """,
         update_tag=TEST_UPDATE_TAG,
@@ -295,7 +295,7 @@ def test_sync_route53_with_existing_resources(mock_get_zones, neo4j_session):
         neo4j_session,
         "AWSDNSRecord",
         "id",
-        "EC2Instance",
+        "AWSEC2Instance",
         "id",
         "DNS_POINTS_TO",
         rel_direction_right=True,

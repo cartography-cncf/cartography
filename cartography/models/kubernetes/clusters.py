@@ -51,9 +51,9 @@ class KubernetesClusterToEKSClusterRelProperties(CartographyRelProperties):
 
 
 @dataclass(frozen=True)
-# (:EKSCluster)-[:MAPS_TO]->(:KubernetesCluster)
+# (:AWSEKSCluster)-[:MAPS_TO]->(:KubernetesCluster)
 class KubernetesClusterToEKSClusterRel(CartographyRelSchema):
-    target_node_label: str = "EKSCluster"
+    target_node_label: str = "AWSEKSCluster"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"arn": PropertyRef("external_id")}
     )

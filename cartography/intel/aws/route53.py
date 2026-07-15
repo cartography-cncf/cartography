@@ -447,7 +447,7 @@ def link_sub_zones(
     query = """
     MATCH (:AWSAccount{id: $AWS_ID})-[:RESOURCE]->(z:AWSDNSZone)
         <-[:MEMBER_OF_DNS_ZONE]-(record:DNSRecord{type:"NS"})
-        -[:DNS_POINTS_TO]->(ns:NameServer)<-[:NAMESERVER]-(z2:AWSDNSZone)
+        -[:DNS_POINTS_TO]->(ns:AWSNameServer)<-[:NAMESERVER]-(z2:AWSDNSZone)
         WHERE record.name = z2.name AND
         z2.name ENDS WITH '.' + z.name AND
         NOT z = z2

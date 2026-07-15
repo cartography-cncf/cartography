@@ -87,7 +87,7 @@ class PackageToGitHubDependencyRel(CartographyRelSchema):
     properties: PackageToNodeRelProperties = PackageToNodeRelProperties()
 
 
-# (:Package)-[:DETECTED_AS]->(:SemgrepDependency) (GoLibrary / NpmLibrary)
+# (:Package)-[:DETECTED_AS]->(:SemgrepDependency) (SemgrepGoLibrary / SemgrepNpmLibrary)
 @dataclass(frozen=True)
 class PackageToSemgrepDependencyRel(CartographyRelSchema):
     target_node_label: str = "SemgrepDependency"

@@ -3,6 +3,7 @@ from dataclasses import dataclass
 from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeProperties
 from cartography.models.core.nodes import CartographyNodeSchema
+from cartography.models.core.nodes import ExtraNodeLabels
 from cartography.models.core.relationships import CartographyRelProperties
 from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
@@ -67,7 +68,7 @@ class RouteTableToRouteRelRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class RouteTableToRouteRel(CartographyRelSchema):
-    target_node_label: str = "EC2Route"
+    target_node_label: str = "AWSEC2Route"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("RouteIds", one_to_many=True)},
     )
@@ -83,7 +84,7 @@ class RouteTableToAssociationRelRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class RouteTableToAssociationRel(CartographyRelSchema):
-    target_node_label: str = "EC2RouteTableAssociation"
+    target_node_label: str = "AWSEC2RouteTableAssociation"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("RouteTableAssociationIds", one_to_many=True)},
     )
@@ -115,7 +116,9 @@ class RouteTableToVpnGatewayRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class RouteTableSchema(CartographyNodeSchema):
-    label: str = "EC2RouteTable"
+    label: str = "AWSEC2RouteTable"
+    # DEPRECATED: legacy EC2RouteTable node label will be removed in v1.0.0.
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["EC2RouteTable"])
     properties: RouteTableNodeProperties = RouteTableNodeProperties()
     sub_resource_relationship: RouteTableToAWSAccountRel = RouteTableToAWSAccountRel()
     other_relationships: OtherRelationships = OtherRelationships(

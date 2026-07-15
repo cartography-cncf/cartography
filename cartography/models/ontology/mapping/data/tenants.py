@@ -125,7 +125,7 @@ entra_mapping = OntologyMapping(
     module_name="microsoft",
     nodes=[
         OntologyNodeMapping(
-            node_label="EntraTenant",
+            node_label="AzureTenant",
             fields=[
                 OntologyFieldMapping(
                     ontology_field="name", node_field="display_name", required=True

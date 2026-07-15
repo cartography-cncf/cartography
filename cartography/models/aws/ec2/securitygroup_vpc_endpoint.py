@@ -6,6 +6,7 @@ from cartography.models.aws.ec2.securitygroup_instance import (
 from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeProperties
 from cartography.models.core.nodes import CartographyNodeSchema
+from cartography.models.core.nodes import ExtraNodeLabels
 from cartography.models.core.relationships import CartographyRelProperties
 from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
@@ -47,7 +48,9 @@ class EC2SecurityGroupVPCEndpointSchema(CartographyNodeSchema):
     Creates stub security group nodes and MEMBER_OF_SECURITY_GROUP relationships from VPC endpoints.
     """
 
-    label: str = "EC2SecurityGroup"
+    label: str = "AWSEC2SecurityGroup"
+    # DEPRECATED: legacy EC2SecurityGroup node label will be removed in v1.0.0.
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["EC2SecurityGroup"])
     properties: EC2SecurityGroupVPCEndpointNodeProperties = (
         EC2SecurityGroupVPCEndpointNodeProperties()
     )

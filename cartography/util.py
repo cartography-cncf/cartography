@@ -378,7 +378,7 @@ def merge_module_sync_metadata(
         neo4j_session: Active Neo4j session for executing the metadata update.
         group_type: The parent module's node label (e.g., 'AWSAccount').
         group_id: The unique identifier of the parent module instance.
-        synced_type: The sub-module's node label that was synced (e.g., 'S3Bucket').
+        synced_type: The sub-module's node label that was synced (e.g., 'AWSS3Bucket').
         update_tag: Timestamp used to determine data freshness.
         stat_handler: StatsD client for sending metrics about the sync operation.
 
@@ -388,7 +388,7 @@ def merge_module_sync_metadata(
         ...     neo4j_session,
         ...     group_type="AWSAccount",
         ...     group_id="123456789012",
-        ...     synced_type="S3Bucket",
+        ...     synced_type="AWSS3Bucket",
         ...     update_tag=1234567890,
         ...     stat_handler=stats_client
         ... )

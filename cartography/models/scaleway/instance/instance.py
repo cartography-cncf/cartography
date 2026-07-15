@@ -120,5 +120,6 @@ class ScalewayInstanceSchema(CartographyNodeSchema):
     other_relationships: OtherRelationships = OtherRelationships(
         [
             ScalewayInstanceToVolumeRel(),
+            ScalewayInstanceToFlexibleIpRel(),
         ]
     )

@@ -53,7 +53,7 @@ def test_sync_ec2_key_pairs(mock_key_pairs, neo4j_session):
 
     nodes = neo4j_session.run(
         """
-        MATCH (k:EC2KeyPair) return k.arn, k.keyfingerprint
+        MATCH (k:AWSEC2KeyPair) return k.arn, k.keyfingerprint
         """,
     )
     actual_nodes = {
@@ -97,7 +97,7 @@ def test_ec2_key_pairs_analysis_job(mock_key_pairs, neo4j_session):
     }
     nodes = neo4j_session.run(
         """
-        MATCH (k:EC2KeyPair) WHERE k.user_uploaded = true RETURN k.arn, k.keyfingerprint, k.user_uploaded
+        MATCH (k:AWSEC2KeyPair) WHERE k.user_uploaded = true RETURN k.arn, k.keyfingerprint, k.user_uploaded
         """,
     )
     actual_nodes = {

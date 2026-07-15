@@ -42,7 +42,7 @@ def test_resolved_image_analysis_creates_rel_via_has_image(neo4j_session):
         SET c._ont_image_digest = 'sha256:deadbeef',
             c.lastupdated = $update_tag
 
-        MERGE (i:Image:ECRImage {id: 'sha256:deadbeef'})
+        MERGE (i:Image:AWSECRImage {id: 'sha256:deadbeef'})
         SET i._ont_digest = 'sha256:deadbeef',
             i.lastupdated = $update_tag
 
@@ -101,7 +101,7 @@ def test_resolved_image_analysis_creates_rel_for_cloud_run(
     # Arrange: image nodes that HAS_IMAGE will match (need :Image label for the analysis job)
     neo4j_session.run(
         """
-        MERGE (i:Image:ECRImage {id: $digest})
+        MERGE (i:Image:AWSECRImage {id: $digest})
         SET i.digest = $digest, i.lastupdated = $tag
         """,
         digest=TEST_REVISION_PRIMARY_DIGEST,
@@ -109,7 +109,7 @@ def test_resolved_image_analysis_creates_rel_for_cloud_run(
     )
     neo4j_session.run(
         """
-        MERGE (i:Image:ECRImage {id: $digest})
+        MERGE (i:Image:AWSECRImage {id: $digest})
         SET i.digest = $digest, i.lastupdated = $tag
         """,
         digest=TEST_JOB_PRIMARY_DIGEST,
@@ -227,18 +227,18 @@ def test_resolved_image_analysis_creates_rel_via_manifest_list(neo4j_session):
     neo4j_session.run("MATCH (n) DETACH DELETE n")
     neo4j_session.run(
         """
-        MERGE (c:Container:ECSContainer {id: 'container-ml-1'})
+        MERGE (c:Container:AWSECSContainer {id: 'container-ml-1'})
         SET c.architecture_normalized = 'amd64',
             c.lastupdated = $update_tag
 
-        MERGE (ml:ECRImage:ImageManifestList {id: 'sha256:manifestlist'})
+        MERGE (ml:AWSECRImage:ImageManifestList {id: 'sha256:manifestlist'})
         SET ml.lastupdated = $update_tag
 
-        MERGE (child_amd64:Image:ECRImage {id: 'sha256:childamd64'})
+        MERGE (child_amd64:Image:AWSECRImage {id: 'sha256:childamd64'})
         SET child_amd64._ont_architecture = 'amd64',
             child_amd64.lastupdated = $update_tag
 
-        MERGE (child_arm64:Image:ECRImage {id: 'sha256:childarm64'})
+        MERGE (child_arm64:Image:AWSECRImage {id: 'sha256:childarm64'})
         SET child_arm64._ont_architecture = 'arm64',
             child_arm64.lastupdated = $update_tag
 
