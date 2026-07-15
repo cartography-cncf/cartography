@@ -1,17 +1,9 @@
-## Okta Schema
+# Okta Schema
 
-> **Note on Schema Introspection**: OktaUser and other Okta nodes do not have formal `CartographyNodeSchema` models and use legacy Cypher query-based ingestion. This means schema introspection APIs may return empty results for Okta nodes. Refer to this documentation for complete schema information including node properties and relationships.
+## Cross-Platform Integration: Okta to AWS
 
-Okta integrates with AWS through SAML federation, allowing Okta users to access AWS resources. The complete relationship path is:
-
-```cypher
-(:OktaUser)-[:CAN_ASSUME_IDENTITY]->(:AWSSSOUser)-[:ASSUMED_ROLE_WITH_SAML]->(:AWSRole)
-```
-
-**How it works:**
-1. **OktaUser to AWSSSOUser**: When Okta is configured as a SAML identity provider for AWS Identity Center (formerly AWS SSO), OktaUsers can assume AWSSSOUser identities. The link is established by matching the `AWSSSOUser.external_id` with the `OktaUser.id`.
-2. **AWSSSOUser to AWSRole**: When users actually assume roles through AWS Identity Center, CloudTrail management events record these assumptions as `ASSUMED_ROLE_WITH_SAML` relationships.
-
+See the [Okta module overview](index.md) for the complete cross-platform access
+path.
 
 ### OktaOrganization
 

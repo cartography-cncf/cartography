@@ -1,20 +1,82 @@
-## Databricks Configuration
+# Databricks Configuration
 
-Follow these steps to analyze Databricks objects with Cartography.
+## Authentication
 
-1. Pass your workspace URL via `--databricks-workspace-url`, e.g. `https://dbc-xxxx.cloud.databricks.com`.
-1. Provide credentials with one of the following:
-    - **OAuth M2M (recommended)**: create a dedicated workspace service principal with a client ID and OAuth secret, then pass `--databricks-client-id` and the env var name holding the secret via `--databricks-client-secret-env-var`. Cartography requests the `all-apis` OAuth scope automatically.
-    - **Personal Access Token (PAT)**: when generating the PAT, select **Other APIs** and **all APIs (not recommended)**. Populate an environment variable with the PAT and pass its name via `--databricks-token-env-var`. Prefer a short lifetime and revoke the token after testing.
-1. Grant the user or service principal the workspace admin role. Full ingestion requires workspace admin privileges to enumerate SCIM users, groups, service principals, and the token management API.
+Choose one workspace authentication method:
 
-Cartography's inventory requests use read-only `GET` operations. The credential itself is not read-only: Databricks API scopes authorize families of operations that can include both reads and mutations, and `all-apis` does not override the principal's permissions. See the [Databricks API scope reference](https://docs.databricks.com/api/workspace/api/scopes).
+### OAuth M2M
 
-### Account-level coverage (AWS / GCP)
+Create a dedicated workspace service principal with a client ID and OAuth
+secret. Store the secret in an environment variable. Cartography requests the
+`all-apis` OAuth scope automatically.
 
-The Databricks Account API (`accounts.cloud.databricks.com` on AWS, `accounts.gcp.databricks.com` on GCP) is enabled separately. Azure has its own account API (`accounts.azuredatabricks.net`), but it is not yet wired into this module: on Azure the workspace resource is provisioned through Azure Resource Manager and covered by the `azure` module, and account-level identity federates through Entra. So the `--databricks-account-*` flags below apply to AWS and GCP today.
+### Personal Access Token
 
-1. Create an account-level service principal with an OAuth secret and grant it the account admin role.
-1. Pass `--databricks-account-id`, `--databricks-account-client-id`, and the env var name holding the secret via `--databricks-account-client-secret-env-var`. The account host defaults to `https://accounts.cloud.databricks.com`; override it with `--databricks-account-host` (e.g. `https://accounts.gcp.databricks.com`).
+When generating the personal access token, select **Other APIs** and
+**all APIs (not recommended)**. Store the token in an environment variable,
+prefer a short lifetime, and revoke it after testing.
 
-When the account flags are set, Cartography also ingests account SCIM users / groups / service principals, workspace assignments, federation policies, and the workspace cloud configurations (credentials, storage, network, encryption keys, VPC endpoints, log delivery, budgets), linking them to the AWS / GCP resources already in the graph. All three account flags must be provided together; when none are set the module runs workspace-only.
+## Required Permissions
+
+Grant the workspace user or service principal the workspace admin role. Full
+ingestion requires workspace admin privileges to enumerate SCIM users, groups,
+service principals, and the token management API.
+
+Cartography inventory requests use read-only `GET` operations. Databricks API
+scopes can authorize both reads and mutations, and `all-apis` does not override
+the principal's permissions.
+
+## Configure Cartography
+
+Pass the workspace URL with `--databricks-workspace-url`.
+
+For OAuth M2M, pass the client ID with `--databricks-client-id` and the secret
+environment variable name with `--databricks-client-secret-env-var`.
+
+For a personal access token, pass its environment variable name with
+`--databricks-token-env-var`.
+
+## Run Cartography
+
+Run with OAuth M2M:
+
+```bash
+cartography \
+  --selected-modules databricks \
+  --databricks-workspace-url "$DATABRICKS_WORKSPACE_URL" \
+  --databricks-client-id "$DATABRICKS_CLIENT_ID" \
+  --databricks-client-secret-env-var DATABRICKS_CLIENT_SECRET
+```
+
+Run with a personal access token:
+
+```bash
+cartography \
+  --selected-modules databricks \
+  --databricks-workspace-url "$DATABRICKS_WORKSPACE_URL" \
+  --databricks-token-env-var DATABRICKS_TOKEN
+```
+
+## Advanced Configuration
+
+### Account-Level Coverage
+
+Account API coverage is available for AWS and GCP. Create an account-level
+service principal with an OAuth secret and grant it the account admin role.
+
+Pass `--databricks-account-id`, `--databricks-account-client-id`, and the
+secret environment variable name with
+`--databricks-account-client-secret-env-var`. All three options must be
+provided together.
+
+The account host defaults to `https://accounts.cloud.databricks.com`. Override
+it with `--databricks-account-host`, for example
+`https://accounts.gcp.databricks.com`.
+
+The Azure Account API is not currently wired into this module. Azure workspace
+resources are covered by the `azure` module, and account-level identity
+federates through Entra.
+
+## References
+
+- [Databricks API scope reference](https://docs.databricks.com/api/workspace/api/scopes)

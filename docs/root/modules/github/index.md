@@ -14,6 +14,9 @@ authentication and the organization `Personal access tokens: Read` permission.
 Classic PAT metadata is available only through SAML SSO credential
 authorizations for SAML-enabled organizations. Cartography stores token metadata
 only. It never stores token values, prefixes, or token fragments.
+When GitHub returns authorization or availability errors for either inventory
+endpoint, Cartography skips cleanup so previously synced token metadata is
+preserved.
 
 Repository ruleset bypass actors are intentionally unavailable. GitHub returns
 them only to callers with write access to the ruleset, while Cartography is

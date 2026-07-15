@@ -11,18 +11,16 @@ repository mapping file because Semgrep OSS reports do not contain repository
 identity. See [Configuration](config.md) for authentication, report mapping, and
 repository matching requirements.
 
-## Finding analysis
+Each Semgrep OSS repository entry represents the intended snapshot for that
+repository in the current run. After all listed reports are processed
+successfully, Cartography removes stale OSS findings scoped to that repository
+URL. If any report cannot be resolved or parsed, or does not have the expected
+Semgrep shape, Cartography skips cleanup for that repository to avoid deleting
+findings from an incomplete snapshot.
 
-Semgrep Cloud SAST findings receive a `risk_severity` property from
-post-ingestion analysis. Findings in archived GitHub repositories are assigned
-`INFO`; otherwise, the value follows the finding severity.
-
-Semgrep SCA findings receive a `reachability_risk` property based on severity,
-reachability, and the reachability check. Findings in archived repositories or
-findings confirmed as unreachable are assigned `INFO`. Other combinations use
-the risk levels defined by `SEMGREP_SCA_RISK_ANALYSIS`, based on the likelihood
-and impact approach from NIST SP 800-30 Revision 1 and Semgrep reachability
-exposure guidance.
+For OSS findings, `FOUND_IN` relationships require an existing
+`GitHubRepository` or `GitLabProject`. GitHub repositories match the mapping
+file's `url` to node `id`; GitLab projects match it to `web_url`.
 
 Cloud-only SAST data includes `line_of_code_url`, `state`, `fix_status`,
 `triage_status`, `opened_at`, `risk_severity`, and Semgrep Assistant
@@ -31,4 +29,5 @@ relationships.
 ```{toctree}
 config
 schema
+analysis
 ```

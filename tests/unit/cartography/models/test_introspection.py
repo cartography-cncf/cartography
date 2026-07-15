@@ -572,10 +572,7 @@ def test_aws_tagging_catalog_exposes_concrete_runtime_relationships():
     assert model.get_node("AWSTag") is None
     rendered = render_module_schema(model, "aws")
     assert "(:AWSEC2Instance)-[:TAGGED]->(:AWSTag)" in rendered
-    assert (
-        "runtime relationship catalog "
-        "`cartography.models.aws_tagging.AWS_TAGGABLE_RESOURCES`"
-    ) in rendered
+    assert "Source:" not in rendered
     assert len(
         {
             definition.source_label

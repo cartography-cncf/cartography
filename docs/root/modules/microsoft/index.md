@@ -5,6 +5,7 @@
 config
 schema
 examples
+analysis
 ```
 
 
@@ -17,4 +18,4 @@ The `microsoft` module is the top-level umbrella for Microsoft tenant, SaaS, and
 
 Microsoft and Azure ingestion share `AzureTenant` as the primary tenant node. Microsoft Graph ingestion also adds the `EntraTenant` compatibility label to that node.
 
-See the [configuration docs](config.md), [schema](schema.md), and [example queries](examples.md) for details.
+See the [configuration docs](config.md), [schema](schema.md), [example queries](examples.md), and [analysis behavior](analysis.md) for details.

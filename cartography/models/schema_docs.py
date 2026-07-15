@@ -23,7 +23,14 @@ def render_module_schema(model: DataModel, module: str) -> str:
         return _render_ontology_schema(model)
 
     module_nodes = tuple(
-        _node_for_module(node, module) for node in model.nodes if module in node.modules
+        sorted(
+            (
+                _node_for_module(node, module)
+                for node in model.nodes
+                if module in node.modules
+            ),
+            key=_node_sort_key,
+        )
     )
     if not module_nodes:
         raise ValueError(f'No nodes found for module "{module}".')
@@ -101,6 +108,10 @@ def _node_for_module(node: Node, module: str) -> Node:
     )
 
 
+def _node_sort_key(node: Node) -> tuple[str, str]:
+    return node.label.casefold(), node.label
+
+
 def _render_ontology_schema(model: DataModel) -> str:
     """Render the cross-module ontology catalog."""
     canonical_nodes = tuple(node for node in model.nodes if "ontology" in node.modules)
@@ -155,21 +166,15 @@ def _render_ontology_schema(model: DataModel) -> str:
     )
     lines.extend(["```", ""])
 
-    for node in canonical_nodes:
+    canonical_labels = {node.label for node in canonical_nodes}
+    for node in sorted(catalog_nodes, key=_node_sort_key):
+        ontology_kind = "abstract" if node.label in canonical_labels else "semantic"
         lines.extend(
             _render_node(
                 node,
                 assigned_relationships.get(node.label, ()),
-                ontology_kind="abstract",
-            )
-        )
-    for node in semantic_nodes:
-        lines.extend(
-            _render_node(
-                node,
-                assigned_relationships.get(node.label, ()),
-                ontology_kind="semantic",
-                concrete_node_labels=implementations_by_label[node.label],
+                ontology_kind=ontology_kind,
+                concrete_node_labels=implementations_by_label.get(node.label, ()),
             )
         )
     return "\n".join(lines).rstrip() + "\n"
@@ -460,7 +465,7 @@ def _render_node(
     )
     if universal_ontology_labels:
         formatted_labels = ", ".join(
-            f"`{label}`" for label in universal_ontology_labels
+            _ontology_label_link(label) for label in universal_ontology_labels
         )
         lines.extend(
             [
@@ -471,7 +476,9 @@ def _render_node(
             ]
         )
     if partial_ontology_labels:
-        formatted_labels = ", ".join(f"`{label}`" for label in partial_ontology_labels)
+        formatted_labels = ", ".join(
+            _ontology_label_link(label) for label in partial_ontology_labels
+        )
         lines.extend(
             [
                 f"> **Ontology Mapping**: Some schema variants may also use the "
@@ -524,15 +531,18 @@ def _render_node(
                 f"`{field}` equals `{value}`"
                 for field, value in sorted(conditional_label.conditions.items())
             )
-            lines.append(
-                f"> - `{conditional_label.label}`{ontology_note} when {conditions}."
+            formatted_label = (
+                _ontology_label_link(conditional_label.label)
+                if conditional_label.label in node.ontology_labels
+                else f"`{conditional_label.label}`"
             )
+            lines.append(f"> - {formatted_label}{ontology_note} when {conditions}.")
         lines.append("")
     for projection_label in node.ontology_projections:
         lines.extend(
             [
                 f"> **Ontology Projection**: `{node.label}` contributes data "
-                f"to canonical `{projection_label}` nodes.",
+                f"to canonical {_ontology_label_link(projection_label)} nodes.",
                 "",
             ]
         )
@@ -581,7 +591,6 @@ def _render_node(
         )
         detail_lines = [
             f"- {description or _default_relationship_description(relationship)}",
-            f"  - Source: {_relationship_provenance(relationship)}",
         ]
         permissions = _relationship_permissions(relationship)
         if permissions:
@@ -623,6 +632,10 @@ def _render_node(
             ]
         )
     return lines
+
+
+def _ontology_label_link(label: str) -> str:
+    return f"[`{label}`](../ontology/schema.html#{label.lower()})"
 
 
 def _is_standard_relationship_property(prop: Property) -> bool:
@@ -865,57 +878,6 @@ def _default_relationship_description(relationship: Relationship) -> str:
         f"`{relationship.source_label}` connects to "
         f"`{relationship.target_label}` through `{relationship.label}`."
     )
-
-
-def _relationship_provenance(relationship: Relationship) -> str:
-    sources: list[str] = []
-    schema_names = ", ".join(
-        f"`{type(schema).__name__}`"
-        for schema in sorted(
-            relationship.schemas,
-            key=lambda schema: type(schema).__name__,
-        )
-    )
-    schema_suffix = f" ({schema_names})" if schema_names else ""
-    origin_labels = {
-        "node_schema": "node schema relationship",
-        "sub_resource": "sub-resource relationship",
-        "matchlink": "MatchLink",
-        "ontology_aggregation": "ontology label aggregation",
-        "ontology_constraint": "ontology relationship constraint (validation only)",
-    }
-    for origin in (
-        "node_schema",
-        "sub_resource",
-        "matchlink",
-        "ontology_aggregation",
-        "ontology_constraint",
-    ):
-        if origin in relationship.origins:
-            sources.append(f"{origin_labels[origin]}{schema_suffix}")
-    sources.extend(
-        f"analysis job `{definition.job.name}`"
-        for definition in relationship.analysis_jobs
-    )
-    if "analysis" in relationship.origins and not relationship.analysis_jobs:
-        sources.append("analysis job")
-    sources.extend(
-        (
-            f"{definition.provider.upper()} permission evaluation "
-            f"from `{definition.config_path}`"
-        )
-        for definition in relationship.permission_relationships
-    )
-    sources.extend(
-        f"runtime relationship catalog `{definition.catalog_path}`"
-        for definition in relationship.catalog_relationships
-    )
-    if (
-        "permission_evaluation" in relationship.origins
-        and not relationship.permission_relationships
-    ):
-        sources.append("permission evaluation")
-    return "; ".join(sources) or "unknown"
 
 
 def _relationship_permissions(relationship: Relationship) -> str | None:

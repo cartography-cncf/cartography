@@ -1,10 +1,10 @@
-## Keycloak Built-In Analysis
+# Keycloak Built-In Analysis
 
 Cartography computes inheritance and derived permissions after synchronizing all
 Keycloak realms. Each analysis is scoped to one realm. The implementation lives
 in `cartography/intel/keycloak/inheritance.py`.
 
-### Group membership inheritance
+## Group membership inheritance
 
 Users inherit membership in parent groups up to five levels above a directly
 assigned group. Both the canonical `MEMBER_OF` edge and the deprecated
@@ -20,7 +20,7 @@ graph LR
 The computed `INHERITED_MEMBER_OF` edges are loaded and cleaned as scoped
 MatchLinks.
 
-### Group-based role assignment
+## Group-based role assignment
 
 Users receive roles granted to their direct or inherited groups. Cartography
 creates the canonical `HAS_ROLE` edge and the deprecated `ASSUME_ROLE`
@@ -33,7 +33,7 @@ graph LR
     U == HAS_ROLE ==> R
 ```
 
-### Composite role scope propagation
+## Composite role scope propagation
 
 A composite role indirectly grants scopes granted by roles that it includes,
 up to five levels deep.
@@ -48,7 +48,7 @@ graph LR
 The computed `INDIRECT_GRANTS` edges are loaded and cleaned as scoped
 MatchLinks.
 
-### User scope assignment
+## User scope assignment
 
 A user can assume scopes granted by any direct or inherited role. Cartography
 also grants every user in the realm an orphan scope that has no role mapping,
@@ -63,7 +63,7 @@ graph LR
 
 The computed `ASSUME_SCOPE` edges are loaded and cleaned as scoped MatchLinks.
 
-### Authentication flow modeling
+## Authentication flow modeling
 
 Only root flows are represented by `KeycloakAuthenticationFlow` nodes.
 Keycloak subflows are represented by `KeycloakAuthenticationExecution` nodes,

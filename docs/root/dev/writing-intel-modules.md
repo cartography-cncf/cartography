@@ -21,6 +21,85 @@ If you need to supply an API key or other credential to your Cartography module,
 
 Note that it is your module's responsibility to validate arguments that you introduce. For example with the Okta module, we [validate](https://github.com/cartography-cncf/cartography/blob/811990606c22a42791d213c7ca845b15f87e47f1/cartography/intel/okta/__init__.py#L37) that `config.okta_api_key` has been defined before attempting to continue.
 
+### Documenting module configuration
+
+Every intel module must provide `docs/root/modules/<module>/config.md`. Keep the
+page focused on the steps required to run the module and use the following
+canonical structure. Omit optional sections that do not apply instead of
+leaving empty headings.
+
+```markdown
+# <Module> Configuration
+
+<!-- Briefly state what must be configured before this module can run. -->
+
+## Prerequisites
+
+<!-- Optional. List provider-side resources or tools that must already exist. -->
+
+## Authentication
+
+<!-- Required for API-backed modules. Explain how to create and supply credentials. -->
+
+### <Authentication method>
+
+<!-- Optional. Use subsections only when the module supports multiple methods. -->
+
+## Required Permissions
+
+<!-- Optional. Prefer a table for permissions. -->
+
+## Optional Permissions
+
+<!-- Optional. State which feature each permission enables. -->
+
+## Configure Cartography
+
+<!-- Required. Document environment variables, CLI options, and accepted values. -->
+
+## Run Cartography
+
+<!-- Required. Include at least one directly runnable command. -->
+
+## Input Artifacts
+
+<!-- Optional for report- or file-backed modules. -->
+
+### Generate Input Artifacts
+
+<!-- Optional. Explain how to create the artifacts Cartography consumes. -->
+
+### Input Format
+
+<!-- Optional. Document only setup-relevant format requirements. -->
+
+## Advanced Configuration
+
+<!-- Optional. Cover multi-account, multi-tenant, filtering, or alternate modes. -->
+
+## Troubleshooting
+
+<!-- Optional. Include only configuration-specific failures and remedies. -->
+
+## References
+
+<!-- Optional. Link to authoritative provider and Cartography documentation. -->
+```
+
+Use one H1 page title and start sections at H2. Order setup as prerequisites,
+authentication, permissions, Cartography configuration, and a runnable command.
+Store secrets in environment variables and clearly document `*-env-var`
+indirection. Prefer tables for permissions or when documenting three or more
+configuration options. Distinguish required permissions from optional
+permissions and explain any graceful degradation.
+
+Put module purpose, feature inventories, architecture, broad ingestion
+behavior, and ontology integration in `index.md`. Put Cypher investigations in
+`queries.md` or `examples.md`, and put post-ingestion analysis behavior in
+`analysis.md`. Node, relationship, and property documentation belongs in model
+docstrings and `PropertyRef.description`, which Sphinx uses to generate
+`schema.md`.
+
 ## Sync = Get, Transform, Load, Cleanup
 
 A cartography intel module consists of one `sync` function. `sync` should call `get`, then `load`, and finally `cleanup`.
@@ -598,10 +677,13 @@ Older intel modules still do this process with hand-written cleanup jobs that wo
 
 - Only catch exceptions when your code can resolve the issue. Otherwise, allow exceptions to bubble up.
 
-## Schema
+## Schema documentation
 
-- Update the [schema](https://github.com/cartography-cncf/cartography/tree/8d60311a10156cd8aa16de7e1fe3e109cc3eca0f/docs/schema)
-with every change!
+Do not create or edit a module's `schema.md` manually. Sphinx generates schema
+pages from the declarative data model. Add a docstring to every node and
+relationship schema, and add a human-readable `description=` to every displayed
+`PropertyRef`. Update these model definitions whenever the graph schema
+changes.
 
 ## Making tests
 

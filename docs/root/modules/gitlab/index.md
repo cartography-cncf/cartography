@@ -21,7 +21,19 @@ Container images are keyed by digest and layers by their uncompressed
 attestations and Dockerfile command analysis can link ontology `Image` nodes to
 the GitLab projects that packaged them.
 
-See [configuration](config.md) for access requirements and ingestion behavior,
+## Multi-instance behavior
+
+Cartography can sync multiple GitLab instances. Repository and group IDs are
+prefixed with the GitLab instance URL, so the same numeric ID from gitlab.com
+and a self-hosted instance can coexist in Neo4j.
+
+Language statistics are fetched for all projects with 10 concurrent requests
+by default and stored as JSON on each project. As a reference point, fetching
+languages for approximately 3000 projects can take 5-7 minutes. GitLab.com
+limits authenticated clients to 2000 requests per minute; self-hosted limits
+may differ.
+
+See [configuration](config.md) for access requirements and setup,
 [example queries](queries.md) for common investigations, and the generated
 [schema](schema.md) for fields and relationships.
 

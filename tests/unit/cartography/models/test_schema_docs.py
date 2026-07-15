@@ -67,7 +67,10 @@ def test_aibom_schema_doc_is_generated_from_introspected_model():
     assert len(model.relationships) == 12
     assert "## AIBOM Schema" in generated
     assert "`AIAgent` when `category` equals `agent`." in generated
-    assert "`AIModel` (ontology label) when `category` equals `model`." in generated
+    assert (
+        "[`AIModel`](../ontology/schema.html#aimodel) (ontology label) "
+        "when `category` equals `model`." in generated
+    )
     assert (
         "| *_ont_source* |  | Module that populated this node's ontology fields. |"
         in generated
@@ -82,11 +85,17 @@ def test_airbyte_schema_doc_is_generated_from_introspected_model():
 
     # Act
     generated = render_module_schema(model, "airbyte")
+    node_headings = [
+        line.removeprefix("### ")
+        for line in generated.splitlines()
+        if line.startswith("### ")
+    ]
 
     # Assert
     assert not Path("docs/root/modules/airbyte/schema.md").exists()
     assert len(model.nodes) == 8
     assert len(model.relationships) == 18
+    assert node_headings == sorted(node_headings, key=str.casefold)
     assert "An Airbyte connection that synchronizes source data" in generated
     assert "| config_host |  | Configured source host. |" in generated
     assert "(:AirbyteConnection)-[:SYNC_FROM]->(:AirbyteSource)" in generated
@@ -386,15 +395,21 @@ def test_github_schema_doc_is_generated_from_full_introspected_model():
         "A digest-addressed container image or manifest list stored in GitHub "
         "Container Registry." in generated
     )
-    assert "`Image` (ontology label) when `type` equals `image`." in generated
     assert (
-        "`ImageManifestList` (ontology label) when `type` equals `manifest_list`."
-        in generated
+        "[`Image`](../ontology/schema.html#image) (ontology label) "
+        "when `type` equals `image`." in generated
     )
-    assert "`CVE` (ontology label) when `has_cve` equals `true`." in generated
+    assert (
+        "[`ImageManifestList`](../ontology/schema.html#imagemanifestlist) "
+        "(ontology label) when `type` equals `manifest_list`." in generated
+    )
+    assert (
+        "[`CVE`](../ontology/schema.html#cve) (ontology label) "
+        "when `has_cve` equals `true`." in generated
+    )
     assert (
         "**Ontology Projection**: `Dependency` contributes data to canonical "
-        "`Package` nodes." in generated
+        "[`Package`](../ontology/schema.html#package) nodes." in generated
     )
     assert "(:AWSLambda)-[:HAS_IMAGE]->(:GitHubContainerImage)" in generated
     assert "(:KubernetesContainer)-[:HAS_IMAGE]->(:GitHubContainerImage)" in generated
@@ -468,7 +483,7 @@ def test_gcp_schema_doc_is_generated_from_full_introspected_model():
     )
     assert (
         "> **Ontology Mapping**: Some schema variants may also use the ontology "
-        "label `Tag`." in generated
+        "label [`Tag`](../ontology/schema.html#tag)." in generated
     )
     assert (
         "> **Additional Labels**: Some schema variants may also use "
@@ -476,19 +491,19 @@ def test_gcp_schema_doc_is_generated_from_full_introspected_model():
     )
     assert (
         "> **Ontology Mapping**: Some schema variants may also use the ontology "
-        "label `Subnet`." in generated
+        "label [`Subnet`](../ontology/schema.html#subnet)." in generated
     )
     assert (
-        "> **Ontology Mapping**: This node uses the ontology label `ImageLayer`."
-        in generated
+        "> **Ontology Mapping**: This node uses the ontology label "
+        "[`ImageLayer`](../ontology/schema.html#imagelayer)." in generated
     )
     assert (
-        "`ImageAttestation` (ontology label) when `type` equals `attestation`."
-        in generated
+        "[`ImageAttestation`](../ontology/schema.html#imageattestation) "
+        "(ontology label) when `type` equals `attestation`." in generated
     )
     assert (
-        "`ImageManifestList` (ontology label) when `type` equals `manifest_list`."
-        in generated
+        "[`ImageManifestList`](../ontology/schema.html#imagemanifestlist) "
+        "(ontology label) when `type` equals `manifest_list`." in generated
     )
     assert (
         "| machine_type |  | The instance machine type short name, "
@@ -554,8 +569,8 @@ def test_lastpass_schema_doc_is_generated_from_introspected_model():
     assert "| email | Yes | Email address of the user. |" in generated
     assert "(:Human)-[:IDENTITY_LASTPASS]->(:LastpassUser)" in generated
     assert (
-        "> **Ontology Mapping**: This node uses the ontology label `UserAccount`."
-        in generated
+        "> **Ontology Mapping**: This node uses the ontology label "
+        "[`UserAccount`](../ontology/schema.html#useraccount)." in generated
     )
     assert (
         "| *_ont_email* | Yes | Normalized field sourced from `email`. |" in generated
@@ -629,11 +644,11 @@ def test_jamf_schema_doc_is_generated_from_introspected_model():
     assert len(tuple(node for node in model.nodes if "jamf" in node.modules)) == 5
     assert (
         "**Ontology Projection**: `JamfComputer` contributes data to canonical "
-        "`Device` nodes." in generated
+        "[`Device`](../ontology/schema.html#device) nodes." in generated
     )
     assert (
         "**Ontology Projection**: `JamfMobileDevice` contributes data to canonical "
-        "`Device` nodes." in generated
+        "[`Device`](../ontology/schema.html#device) nodes." in generated
     )
     assert "**Additional Labels**: This node also uses `Tenant`." in generated
     assert "(:Device)-[:OBSERVED_AS]->(:JamfComputer)" in generated
@@ -670,7 +685,7 @@ def test_microsoft_schema_doc_is_generated_from_full_introspected_model():
     assert "| device_name | Yes | Name of the managed device. |" in generated
     assert (
         "**Ontology Projection**: `IntuneManagedDevice` contributes data "
-        "to canonical `Device` nodes." in generated
+        "to canonical [`Device`](../ontology/schema.html#device) nodes." in generated
     )
     assert "(:Device)-[:OBSERVED_AS]->(:IntuneManagedDevice)" in generated
     assert (
@@ -678,10 +693,7 @@ def test_microsoft_schema_doc_is_generated_from_full_introspected_model():
         "`(:IntuneCompliancePolicy)-[:APPLIES_TO]->(:IntuneManagedDevice)`."
         in generated
     )
-    assert (
-        "Source: AZURE permission evaluation from "
-        "`cartography/data/azure_permission_relationships.yaml`" in generated
-    )
+    assert "Source:" not in generated
     assert "(:EntraUser)-[:CAN_READ]->(:AzureSQLServer)" in generated
     assert "(:EntraUser)-[:CAN_SIGN_ON_TO]->(:AWSSSOUser)" in generated
     assert (
@@ -762,10 +774,10 @@ def test_undirected_analysis_relationships_are_rendered_without_arrows():
     # Assert
     assert "EC2KeyPair ---|MATCHING_FINGERPRINT| EC2KeyPair" in generated
     assert "(:EC2KeyPair)-[:MATCHING_FINGERPRINT]-(:EC2KeyPair)" in generated
-    assert "Source: analysis job" in generated
+    assert "Source:" not in generated
 
 
-def test_permission_evaluation_relationships_render_source_and_permissions():
+def test_permission_evaluation_relationships_render_permissions_without_source():
     # Arrange
     definition = PermissionRelationshipDefinition(
         provider="aws",
@@ -789,7 +801,7 @@ def test_permission_evaluation_relationships_render_source_and_permissions():
         label="CAN_READ",
         target_label="S3Bucket",
         direction=LinkDirection.OUTWARD,
-        descriptions=(),
+        descriptions=("Allows an AWS principal to read objects from an S3 bucket.",),
         properties=(),
         modules=("aws",),
         origins=("permission_evaluation",),
@@ -807,11 +819,9 @@ def test_permission_evaluation_relationships_render_source_and_permissions():
     generated = render_module_schema(model, "aws")
 
     # Assert
+    assert "Allows an AWS principal to read objects from an S3 bucket." in generated
     assert "(:AWSPrincipal)-[:CAN_READ]->(:S3Bucket)" in generated
-    assert (
-        "Source: AWS permission evaluation from "
-        "`cartography/data/permission_relationships.yaml`" in generated
-    )
+    assert "Source:" not in generated
     assert "Evaluated permissions: `S3:GetObject`" in generated
 
 
@@ -869,6 +879,11 @@ def test_ontology_schema_doc_is_generated_from_introspected_catalog():
 
     # Act
     generated = render_module_schema(model, "ontology")
+    node_headings = [
+        line.removeprefix("### ")
+        for line in generated.splitlines()
+        if line.startswith("### ")
+    ]
 
     # Assert
     assert not Path("docs/root/modules/ontology/schema.md").exists()
@@ -878,6 +893,7 @@ def test_ontology_schema_doc_is_generated_from_introspected_catalog():
     assert "### Package" in generated
     assert "### UserAccount" in generated
     assert "### ImageTag" in generated
+    assert node_headings == sorted(node_headings, key=str.casefold)
     assert "**Abstract Ontology Node**" in generated
     assert "**Semantic Label**" in generated
     assert (
@@ -890,11 +906,7 @@ def test_ontology_schema_doc_is_generated_from_introspected_catalog():
             f"(:{constraint.source_label})-[:{constraint.label}]->"
             f"(:{constraint.target_label})"
         ) in generated
-    assert (
-        "This constraint validates existing relationships and does not create them."
-        in generated
-    )
-    assert "ontology relationship constraint (validation only)" in generated
+    assert "Source:" not in generated
     assert "No description provided." not in generated
 
 
@@ -1129,11 +1141,11 @@ def test_semgrep_schema_doc_is_generated_from_introspected_model():
     )
     assert (
         "> **Ontology Projection**: `SemgrepGoLibrary` contributes data "
-        "to canonical `Package` nodes." in generated
+        "to canonical [`Package`](../ontology/schema.html#package) nodes." in generated
     )
     assert (
         "> **Ontology Projection**: `SemgrepNpmLibrary` contributes data "
-        "to canonical `Package` nodes." in generated
+        "to canonical [`Package`](../ontology/schema.html#package) nodes." in generated
     )
     assert "(:Package)-[:DETECTED_AS]->(:SemgrepDependency)" in generated
     assert "(:SemgrepSCAFinding)-[:AFFECTS]->(:Package)" in generated

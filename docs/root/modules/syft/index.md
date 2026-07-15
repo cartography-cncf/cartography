@@ -1,70 +1,26 @@
-# Syft Module
+# Syft
 
-The Syft module creates `SyftPackage` nodes with `DEPENDS_ON` dependency relationships from [Syft](https://github.com/anchore/syft).
+The Syft module creates `SyftPackage` nodes with `DEPENDS_ON` dependency
+relationships from [Syft](https://github.com/anchore/syft).
 
 ## Purpose
 
-While Trivy provides vulnerability scanning and creates `TrivyPackage` nodes with CVE findings, it lacks dependency relationship information. Syft complements Trivy by creating `SyftPackage` nodes with `DEPENDS_ON` relationships between them.
+While Trivy provides vulnerability scanning and creates `TrivyPackage` nodes
+with CVE findings, it lacks dependency relationship information. Syft
+complements Trivy by creating `SyftPackage` nodes with `DEPENDS_ON`
+relationships between them.
 
-This enables powerful queries like browsing the dependency tree and identifying direct vs transitive dependencies.
-
-## Usage
-
-### Generate Syft Output
-
-```bash
-# Generate Syft JSON for an image
-syft nginx:latest -o syft-json=nginx-syft.json
-```
-
-### Run Cartography
-
-```bash
-# With local files
-cartography --syft-source ./results
-
-# With S3
-cartography --syft-source s3://my-bucket/syft/
-```
-
-## Key Queries
-
-### Browse the SyftPackage dependency tree
-
-```cypher
-MATCH path = (p:SyftPackage)-[:DEPENDS_ON*1..5]->(dep:SyftPackage)
-WHERE NOT exists((p)<-[:DEPENDS_ON]-())
-RETURN path
-```
-
-### Find all SyftPackages that depend on a specific package
-
-```cypher
-MATCH (upstream:SyftPackage)-[:DEPENDS_ON*1..10]->(dep:SyftPackage {name: 'lodash'})
-RETURN DISTINCT upstream.name
-```
-
-### Distinguish root and nested packages
-
-Dependency position is represented by the graph structure rather than a stored
+Dependency position is represented by graph structure rather than a stored
 property. A package with no incoming `DEPENDS_ON` relationship is a root in the
-scanned dependency graph:
+scanned dependency graph. A package with an incoming `DEPENDS_ON` relationship
+is nested below at least one other package.
 
-```cypher
-MATCH (p:SyftPackage)
-WHERE NOT exists((p)<-[:DEPENDS_ON]-())
-RETURN p.name
+See [configuration](config.md) for report generation and source options,
+[queries](queries.md) for dependency query examples, and the generated
+[schema](schema.md) for fields and relationships.
+
+```{toctree}
+config
+schema
+queries
 ```
-
-A package with an incoming `DEPENDS_ON` relationship is nested below at least
-one other package:
-
-```cypher
-MATCH (p:SyftPackage)
-WHERE exists((p)<-[:DEPENDS_ON]-())
-RETURN p.name
-```
-
-## Schema
-
-See [schema.md](schema.md) for details on created nodes and relationships.

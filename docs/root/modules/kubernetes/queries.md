@@ -1,8 +1,8 @@
-## Kubernetes Queries
+# Kubernetes Queries
 
 These examples show how to inspect Kubernetes data after a successful sync.
 
-### Inspect kubeconfig TLS posture
+## Inspect kubeconfig TLS posture
 
 Use the TLS posture fields on each cluster to find kubeconfig contexts that skip
 verification or lack certificate authority material:
