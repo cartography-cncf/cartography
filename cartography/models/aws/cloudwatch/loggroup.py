@@ -1,8 +1,10 @@
 from dataclasses import dataclass
 
+from cartography.models.aws.extra_labels import LegacyCloudWatchLogGroupLabel
 from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeProperties
 from cartography.models.core.nodes import CartographyNodeSchema
+from cartography.models.core.nodes import ExtraNodeLabels
 from cartography.models.core.relationships import CartographyRelProperties
 from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
@@ -47,6 +49,10 @@ class CloudWatchToAWSAccountRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class CloudWatchLogGroupSchema(CartographyNodeSchema):
-    label: str = "CloudWatchLogGroup"
+    label: str = "AWSCloudWatchLogGroup"
+    # DEPRECATED: legacy CloudWatchLogGroup node label will be removed in v1.0.0.
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
+        [LegacyCloudWatchLogGroupLabel()]
+    )
     properties: CloudWatchLogGroupNodeProperties = CloudWatchLogGroupNodeProperties()
     sub_resource_relationship: CloudWatchToAWSAccountRel = CloudWatchToAWSAccountRel()

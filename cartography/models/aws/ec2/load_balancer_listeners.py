@@ -1,6 +1,7 @@
 from dataclasses import dataclass
 
 from cartography.models.aws.extra_labels import EndpointLabel
+from cartography.models.aws.extra_labels import LegacyELBListenerLabel
 from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeProperties
 from cartography.models.core.nodes import CartographyNodeSchema
@@ -62,9 +63,12 @@ class ELBListenerToAWSAccountRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class ELBListenerSchema(CartographyNodeSchema):
-    label: str = "ELBListener"
+    label: str = "AWSELBListener"
     properties: ELBListenerNodeProperties = ELBListenerNodeProperties()
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([EndpointLabel()])
+    # DEPRECATED: legacy ELBListener node label will be removed in v1.0.0.
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
+        [LegacyELBListenerLabel(), EndpointLabel()]
+    )
     sub_resource_relationship: ELBListenerToAWSAccountRel = ELBListenerToAWSAccountRel()
     other_relationships: OtherRelationships = OtherRelationships(
         [

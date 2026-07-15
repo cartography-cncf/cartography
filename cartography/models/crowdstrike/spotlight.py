@@ -10,10 +10,13 @@ from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import TargetNodeMatcher
+from cartography.models.crowdstrike.extra_labels import (
+    LegacySpotlightVulnerabilityLabel,
+)
 from cartography.models.ontology.labels import CVEOntologyLabel
 
 # =============================================================================
-# SpotlightVulnerability
+# CrowdstrikeSpotlightVulnerability
 # =============================================================================
 
 
@@ -40,7 +43,7 @@ class SpotlightVulnerabilityRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
-# (:CrowdstrikeTenant)-[:RESOURCE]->(:SpotlightVulnerability)
+# (:CrowdstrikeTenant)-[:RESOURCE]->(:CrowdstrikeSpotlightVulnerability)
 @dataclass(frozen=True)
 class SpotlightVulnerabilityToCrowdstrikeTenantRel(CartographyRelSchema):
     target_node_label: str = "CrowdstrikeTenant"
@@ -54,7 +57,7 @@ class SpotlightVulnerabilityToCrowdstrikeTenantRel(CartographyRelSchema):
     )
 
 
-# (:CrowdstrikeHost)-[:HAS_VULNERABILITY]->(:SpotlightVulnerability)
+# (:CrowdstrikeHost)-[:HAS_VULNERABILITY]->(:CrowdstrikeSpotlightVulnerability)
 @dataclass(frozen=True)
 class SpotlightVulnerabilityToCrowdstrikeHostRel(CartographyRelSchema):
     target_node_label: str = "CrowdstrikeHost"
@@ -70,7 +73,11 @@ class SpotlightVulnerabilityToCrowdstrikeHostRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class SpotlightVulnerabilitySchema(CartographyNodeSchema):
-    label: str = "SpotlightVulnerability"
+    label: str = "CrowdstrikeSpotlightVulnerability"
+    # DEPRECATED: legacy SpotlightVulnerability node label will be removed in v1.0.0.
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
+        [LegacySpotlightVulnerabilityLabel()]
+    )
     properties: SpotlightVulnerabilityNodeProperties = (
         SpotlightVulnerabilityNodeProperties()
     )
@@ -87,7 +94,10 @@ class SpotlightVulnerabilitySchema(CartographyNodeSchema):
 # DEPRECATED: compatibility cleanup for unscoped Spotlight data will be removed in v1.0.0.
 @dataclass(frozen=True)
 class LegacyUnscopedSpotlightVulnerabilityCleanupSchema(CartographyNodeSchema):
-    label: str = "SpotlightVulnerability"
+    label: str = "CrowdstrikeSpotlightVulnerability"
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
+        [LegacySpotlightVulnerabilityLabel()]
+    )
     scoped_cleanup: bool = False
     properties: SpotlightVulnerabilityNodeProperties = (
         SpotlightVulnerabilityNodeProperties()
@@ -114,10 +124,10 @@ class CrowdstrikeCVENodeProperties(CartographyNodeProperties):
     exploitability_score: PropertyRef = PropertyRef("exploit_status")
 
 
-# (:SpotlightVulnerability)-[:HAS_CVE]->(:CVE)
+# (:CrowdstrikeSpotlightVulnerability)-[:HAS_CVE]->(:CVE)
 @dataclass(frozen=True)
 class CrowdstrikeCVEToSpotlightVulnerabilityRel(CartographyRelSchema):
-    target_node_label: str = "SpotlightVulnerability"
+    target_node_label: str = "CrowdstrikeSpotlightVulnerability"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("vuln_id")},
     )

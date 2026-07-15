@@ -2,6 +2,7 @@ from dataclasses import dataclass
 
 from cartography.models.aws.ec2.subnet_instance import EC2SubnetToAWSAccountRel
 from cartography.models.aws.ec2.subnet_instance import EC2SubnetToEC2InstanceRel
+from cartography.models.aws.extra_labels import LegacyEC2SubnetLabel
 from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeProperties
 from cartography.models.core.nodes import CartographyNodeSchema
@@ -32,7 +33,7 @@ class EC2SubnetToNetworkInterfaceRelRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class EC2SubnetToNetworkInterfaceRel(CartographyRelSchema):
-    target_node_label: str = "NetworkInterface"
+    target_node_label: str = "AWSNetworkInterface"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("NetworkInterfaceId")},
     )
@@ -85,11 +86,14 @@ class EC2SubnetNetworkInterfaceSchema(CartographyNodeSchema):
     Subnet as known by describe-network-interfaces
     """
 
-    label: str = "EC2Subnet"
+    label: str = "AWSEC2Subnet"
     properties: EC2SubnetNetworkInterfaceNodeProperties = (
         EC2SubnetNetworkInterfaceNodeProperties()
     )
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([SubnetOntologyLabel()])
+    # DEPRECATED: legacy EC2Subnet node label will be removed in v1.0.0.
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
+        [LegacyEC2SubnetLabel(), SubnetOntologyLabel()]
+    )
     sub_resource_relationship: EC2SubnetToAWSAccountRel = EC2SubnetToAWSAccountRel()
     other_relationships: OtherRelationships = OtherRelationships(
         [

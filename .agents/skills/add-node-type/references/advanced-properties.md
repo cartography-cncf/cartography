@@ -21,7 +21,7 @@ from cartography.models.ontology.labels import ImageManifestListOntologyLabel
 
 @dataclass(frozen=True)
 class ECRImageSchema(CartographyNodeSchema):
-    label: str = "ECRImage"
+    label: str = "AWSECRImage"
     properties: ECRImageNodeProperties = ECRImageNodeProperties()
     sub_resource_relationship: ECRImageToAccountRel = ECRImageToAccountRel()
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([
@@ -41,7 +41,7 @@ ECR (and other container registries) store different artifact kinds with the sam
 | `IMAGE_ATTESTATION`  | `ImageAttestation`   | SLSA / Sigstore attestation  |
 | `IMAGE_MANIFEST_LIST`| `ImageManifestList`  | Multi-arch manifest list     |
 
-Without conditional labels, an `ECRImage` of type `IMAGE_ATTESTATION` would still get the generic `Image` ontology label.
+Without conditional labels, an `AWSECRImage` of type `IMAGE_ATTESTATION` would still get the generic `Image` ontology label.
 
 ### How it works
 
@@ -117,8 +117,8 @@ The `sub_resource_relationship` always refers to a tenant-like node representing
 - GitHub resources -> `GitHubOrganization`
 
 **Incorrect:**
-- Pointing to a parent resource that is not tenant-like (e.g. `ECSTaskDefinition -> ECSTask`).
-- Pointing to infrastructure components (e.g. `ECSContainer -> ECSTask`).
+- Pointing to a parent resource that is not tenant-like (e.g. `AWSECSTaskDefinition -> AWSECSTask`).
+- Pointing to infrastructure components (e.g. `AWSECSContainer -> AWSECSTask`).
 - Pointing to logical groupings that are not organisational boundaries.
 
 ### Why it matters
@@ -134,7 +134,7 @@ The `sub_resource_relationship` always refers to a tenant-like node representing
 # CORRECT — sub-resource is the AWS account, business edge is the task definition.
 @dataclass(frozen=True)
 class ECSContainerDefinitionSchema(CartographyNodeSchema):
-    label: str = "ECSContainerDefinition"
+    label: str = "AWSECSContainerDefinition"
     properties: ECSContainerDefinitionNodeProperties = ECSContainerDefinitionNodeProperties()
     sub_resource_relationship: ECSContainerDefinitionToAWSAccountRel = ECSContainerDefinitionToAWSAccountRel()
     other_relationships: OtherRelationships = OtherRelationships([
@@ -155,7 +155,7 @@ class ECSContainerDefinitionToAWSAccountRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class ECSContainerDefinitionToTaskDefinitionRel(CartographyRelSchema):
-    target_node_label: str = "ECSTaskDefinition"
+    target_node_label: str = "AWSECSTaskDefinition"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher({
         "id": PropertyRef("_taskDefinitionArn"),
     })

@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 
+from cartography.models.aws.extra_labels import LegacyECRRepositoryImageLabel
 from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeProperties
 from cartography.models.core.nodes import CartographyNodeSchema
@@ -53,7 +54,7 @@ class ECRRepositoryImageToECRRepositoryRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class ECRRepositoryImageToECRRepositoryRel(CartographyRelSchema):
-    target_node_label: str = "ECRRepository"
+    target_node_label: str = "AWSECRRepository"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"uri": PropertyRef("repo_uri")}
     )
@@ -71,7 +72,7 @@ class ECRRepositoryImageToECRImageRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class ECRRepositoryImageToECRImageRel(CartographyRelSchema):
-    target_node_label: str = "ECRImage"
+    target_node_label: str = "AWSECRImage"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("imageDigests", one_to_many=True)}
     )
@@ -84,7 +85,7 @@ class ECRRepositoryImageToECRImageRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class ECRRepositoryImageSchema(CartographyNodeSchema):
-    label: str = "ECRRepositoryImage"
+    label: str = "AWSECRRepositoryImage"
     properties: ECRRepositoryImageNodeProperties = ECRRepositoryImageNodeProperties()
     sub_resource_relationship: ECRRepositoryImageToAWSAccountRel = (
         ECRRepositoryImageToAWSAccountRel()
@@ -95,4 +96,7 @@ class ECRRepositoryImageSchema(CartographyNodeSchema):
             ECRRepositoryImageToECRImageRel(),
         ]
     )
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([ImageTagOntologyLabel()])
+    # DEPRECATED: legacy ECRRepositoryImage node label will be removed in v1.0.0.
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
+        [LegacyECRRepositoryImageLabel(), ImageTagOntologyLabel()]
+    )

@@ -1,8 +1,10 @@
 from dataclasses import dataclass
 
+from cartography.models.aws.extra_labels import LegacyEC2NetworkAclLabel
 from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeProperties
 from cartography.models.core.nodes import CartographyNodeSchema
+from cartography.models.core.nodes import ExtraNodeLabels
 from cartography.models.core.relationships import CartographyRelProperties
 from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
@@ -47,7 +49,7 @@ class EC2NetworkAclToSubnetRelRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class EC2NetworkAclToSubnetRel(CartographyRelSchema):
-    target_node_label: str = "EC2Subnet"
+    target_node_label: str = "AWSEC2Subnet"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"subnetid": PropertyRef("SubnetId")},
     )
@@ -82,7 +84,9 @@ class EC2NetworkAclSchema(CartographyNodeSchema):
     Network interface as known by describe-network-interfaces.
     """
 
-    label: str = "EC2NetworkAcl"
+    label: str = "AWSEC2NetworkAcl"
+    # DEPRECATED: legacy EC2NetworkAcl node label will be removed in v1.0.0.
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([LegacyEC2NetworkAclLabel()])
     properties: EC2NetworkAclNodeProperties = EC2NetworkAclNodeProperties()
     sub_resource_relationship: EC2NetworkAclToAWSAccountRel = (
         EC2NetworkAclToAWSAccountRel()

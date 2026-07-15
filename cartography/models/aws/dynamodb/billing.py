@@ -1,8 +1,10 @@
 from dataclasses import dataclass
 
+from cartography.models.aws.extra_labels import LegacyDynamoDBBillingModeSummaryLabel
 from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeProperties
 from cartography.models.core.nodes import CartographyNodeSchema
+from cartography.models.core.nodes import ExtraNodeLabels
 from cartography.models.core.relationships import CartographyRelProperties
 from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
@@ -46,7 +48,7 @@ class DynamoDBBillingModeSummaryToTableRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class DynamoDBBillingModeSummaryToTableRel(CartographyRelSchema):
-    target_node_label: str = "DynamoDBTable"
+    target_node_label: str = "AWSDynamoDBTable"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("TableArn")},
     )
@@ -59,7 +61,11 @@ class DynamoDBBillingModeSummaryToTableRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class DynamoDBBillingModeSummarySchema(CartographyNodeSchema):
-    label: str = "DynamoDBBillingModeSummary"
+    label: str = "AWSDynamoDBBillingModeSummary"
+    # DEPRECATED: legacy DynamoDBBillingModeSummary node label will be removed in v1.0.0.
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
+        [LegacyDynamoDBBillingModeSummaryLabel()]
+    )
     properties: DynamoDBBillingModeSummaryNodeProperties = (
         DynamoDBBillingModeSummaryNodeProperties()
     )

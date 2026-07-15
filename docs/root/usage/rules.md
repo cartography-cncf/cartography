@@ -439,10 +439,10 @@ RETURN m
 
 Or with relationships:
 ```cypher
-MATCH (b:S3Bucket)
+MATCH (b:AWSS3Bucket)
 WHERE b.anonymous_access = true
 WITH b
-OPTIONAL MATCH p=(b)-[:POLICY_STATEMENT]->(:S3PolicyStatement)
+OPTIONAL MATCH p=(b)-[:POLICY_STATEMENT]->(:AWSS3PolicyStatement)
 RETURN *
 ```
 
@@ -460,7 +460,7 @@ RETURN COUNT(m) AS count
 
 Or for S3 buckets:
 ```cypher
-MATCH (b:S3Bucket)
+MATCH (b:AWSS3Bucket)
 RETURN COUNT(b) AS count
 ```
 

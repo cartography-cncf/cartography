@@ -1,8 +1,10 @@
 from dataclasses import dataclass
 
+from cartography.models.aws.extra_labels import LegacyS3AccountPublicAccessBlockLabel
 from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeProperties
 from cartography.models.core.nodes import CartographyNodeSchema
+from cartography.models.core.nodes import ExtraNodeLabels
 from cartography.models.core.relationships import CartographyRelProperties
 from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
@@ -42,7 +44,11 @@ class S3AccountPublicAccessBlockToAWSAccountRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class S3AccountPublicAccessBlockSchema(CartographyNodeSchema):
-    label: str = "S3AccountPublicAccessBlock"
+    label: str = "AWSS3AccountPublicAccessBlock"
+    # DEPRECATED: legacy S3AccountPublicAccessBlock node label will be removed in v1.0.0.
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
+        [LegacyS3AccountPublicAccessBlockLabel()]
+    )
     properties: S3AccountPublicAccessBlockNodeProperties = (
         S3AccountPublicAccessBlockNodeProperties()
     )

@@ -52,7 +52,7 @@ def test_load_sqs_queues(neo4j_session, *args):
 
     nodes = neo4j_session.run(
         """
-        MATCH (q:SQSQueue)
+        MATCH (q:AWSSQSQueue)
         RETURN q.name, q.id, q.arn, q.created_timestamp, q.last_modified_timestamp,
         q.redrive_policy_dead_letter_target_arn, q.redrive_policy_max_receive_count,
         q.visibility_timeout
@@ -81,7 +81,7 @@ def test_load_sqs_queues(neo4j_session, *args):
     }
     relation = neo4j_session.run(
         """
-        MATCH (q1:SQSQueue)-[:HAS_DEADLETTER_QUEUE]->(q2:SQSQueue)
+        MATCH (q1:AWSSQSQueue)-[:HAS_DEADLETTER_QUEUE]->(q2:AWSSQSQueue)
         RETURN q1.name, q2.name
         """,
     )
@@ -120,7 +120,7 @@ def test_sync_sqs(mock_get_attrs, mock_get_list, neo4j_session):
 
     assert check_nodes(
         neo4j_session,
-        "SQSQueue",
+        "AWSSQSQueue",
         ["arn"],
     ) == {
         ("arn:aws:secretsmanager:us-east-1:000000000000:test-queue-1",),
@@ -131,7 +131,7 @@ def test_sync_sqs(mock_get_attrs, mock_get_list, neo4j_session):
         neo4j_session,
         "AWSAccount",
         "id",
-        "SQSQueue",
+        "AWSSQSQueue",
         "arn",
         "RESOURCE",
         rel_direction_right=True,
@@ -148,9 +148,9 @@ def test_sync_sqs(mock_get_attrs, mock_get_list, neo4j_session):
 
     assert check_rels(
         neo4j_session,
-        "SQSQueue",
+        "AWSSQSQueue",
         "arn",
-        "SQSQueue",
+        "AWSSQSQueue",
         "arn",
         "HAS_DEADLETTER_QUEUE",
         rel_direction_right=True,

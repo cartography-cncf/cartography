@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 
+from cartography.models.aws.extra_labels import LegacyDynamoDBTableLabel
 from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeProperties
 from cartography.models.core.nodes import CartographyNodeSchema
@@ -41,7 +42,7 @@ class DynamoDBTableToAWSAccountRelRelProperties(CartographyRelProperties):
 
 
 @dataclass(frozen=True)
-# (:DynamoDBTable)<-[:RESOURCE]-(:AWSAccount)
+# (:AWSDynamoDBTable)<-[:RESOURCE]-(:AWSAccount)
 class DynamoDBTableToAWSAccountRel(CartographyRelSchema):
     target_node_label: str = "AWSAccount"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
@@ -56,8 +57,11 @@ class DynamoDBTableToAWSAccountRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class DynamoDBTableSchema(CartographyNodeSchema):
-    label: str = "DynamoDBTable"
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([DatabaseOntologyLabel()])
+    label: str = "AWSDynamoDBTable"
+    # DEPRECATED: legacy DynamoDBTable node label will be removed in v1.0.0.
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
+        [LegacyDynamoDBTableLabel(), DatabaseOntologyLabel()]
+    )
     properties: DynamoDBTableNodeProperties = DynamoDBTableNodeProperties()
     sub_resource_relationship: DynamoDBTableToAWSAccountRel = (
         DynamoDBTableToAWSAccountRel()

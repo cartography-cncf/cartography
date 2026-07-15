@@ -1,8 +1,10 @@
 from dataclasses import dataclass
 
+from cartography.models.aws.extra_labels import LegacyEventBridgeTargetLabel
 from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeProperties
 from cartography.models.core.nodes import CartographyNodeSchema
+from cartography.models.core.nodes import ExtraNodeLabels
 from cartography.models.core.relationships import CartographyRelProperties
 from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
@@ -46,7 +48,7 @@ class EventBridgeTargetToEventBridgeRuleRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class EventBridgeTargetToEventBridgeRuleRel(CartographyRelSchema):
-    target_node_label: str = "EventBridgeRule"
+    target_node_label: str = "AWSEventBridgeRule"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"arn": PropertyRef("RuleArn")},
     )
@@ -59,7 +61,11 @@ class EventBridgeTargetToEventBridgeRuleRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class EventBridgeTargetSchema(CartographyNodeSchema):
-    label: str = "EventBridgeTarget"
+    label: str = "AWSEventBridgeTarget"
+    # DEPRECATED: legacy EventBridgeTarget node label will be removed in v1.0.0.
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
+        [LegacyEventBridgeTargetLabel()]
+    )
     properties: EventBridgeTargetNodeProperties = EventBridgeTargetNodeProperties()
     sub_resource_relationship: EventBridgeTargetToAWSAccountRel = (
         EventBridgeTargetToAWSAccountRel()

@@ -597,7 +597,7 @@ def transform_ecr_image_layers(
     :param image_digest_map: Map of image URI to image digest
     :param history_by_diff_id: Map of diff_id to history command (created_by)
     :param image_attestation_map: Map of image URI to provenance data
-    :param existing_properties_map: Map of image digest to existing ECRImage properties (type, architecture, etc.)
+    :param existing_properties_map: Map of image digest to existing AWSECRImage properties (type, architecture, etc.)
     :return: List of layer objects ready for ingestion
     """
     if history_by_diff_id is None:
@@ -661,7 +661,7 @@ def transform_ecr_image_layers(
                 "layer_diff_ids": ordered_layers_for_image,
             }
 
-            # Preserve existing ECRImage properties (type, architecture, os, variant, etc.)
+            # Preserve existing AWSECRImage properties (type, architecture, os, variant, etc.)
             if image_digest in existing_properties_map:
                 membership.update(existing_properties_map[image_digest])
                 if not membership.get("architecture"):
@@ -870,7 +870,7 @@ def load_ecr_image_layer_memberships(
     """
     Load image layer memberships into Neo4j.
 
-    Load ECRImage layer metadata separately from HAS_LAYER relationships so
+    Load AWSECRImage layer metadata separately from HAS_LAYER relationships so
     each transaction handles a bounded amount of node or relationship data.
     """
     load(
@@ -1312,7 +1312,7 @@ def sync(
 
         # Query for ECR images with all their existing properties to preserve during layer sync
         query = """
-        MATCH (img:ECRImage)<-[:IMAGE]-(repo_img:ECRRepositoryImage)<-[:REPO_IMAGE]-(repo:ECRRepository)
+        MATCH (img:AWSECRImage)<-[:IMAGE]-(repo_img:AWSECRRepositoryImage)<-[:REPO_IMAGE]-(repo:AWSECRRepository)
         MATCH (repo)<-[:RESOURCE]-(:AWSAccount {id: $AWS_ID})
         WHERE repo.region = $Region
         RETURN DISTINCT

@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 
+from cartography.models.aws.extra_labels import LegacyGuardDutyFindingLabel
 from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeProperties
 from cartography.models.core.nodes import CartographyNodeSchema
@@ -91,7 +92,7 @@ class GuardDutyFindingToEC2InstanceRelRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class GuardDutyFindingToEC2InstanceRel(CartographyRelSchema):
-    target_node_label: str = "EC2Instance"
+    target_node_label: str = "AWSEC2Instance"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("resource_id")},
     )
@@ -109,7 +110,7 @@ class GuardDutyFindingToGuardDutyDetectorRelRelProperties(CartographyRelProperti
 
 @dataclass(frozen=True)
 class GuardDutyFindingToGuardDutyDetectorRel(CartographyRelSchema):
-    target_node_label: str = "GuardDutyDetector"
+    target_node_label: str = "AWSGuardDutyDetector"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("detectorid")},
     )
@@ -145,7 +146,7 @@ class GuardDutyFindingToEKSClusterRelRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class GuardDutyFindingToEKSClusterRel(CartographyRelSchema):
-    target_node_label: str = "EKSCluster"
+    target_node_label: str = "AWSEKSCluster"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("eks_cluster_arn")},
     )
@@ -163,7 +164,7 @@ class GuardDutyFindingToS3BucketRelRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class GuardDutyFindingToS3BucketRel(CartographyRelSchema):
-    target_node_label: str = "S3Bucket"
+    target_node_label: str = "AWSS3Bucket"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("resource_id")},
     )
@@ -181,7 +182,7 @@ class GuardDutyFindingToAccountAccessKeyRelRelProperties(CartographyRelPropertie
 
 @dataclass(frozen=True)
 class GuardDutyFindingToAccountAccessKeyRel(CartographyRelSchema):
-    target_node_label: str = "AccountAccessKey"
+    target_node_label: str = "AWSAccountAccessKey"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("access_key_id")},
     )
@@ -230,10 +231,11 @@ class GuardDutyFindingToAWSRoleRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class GuardDutyFindingSchema(CartographyNodeSchema):
-    label: str = "GuardDutyFinding"
+    label: str = "AWSGuardDutyFinding"
     properties: GuardDutyFindingNodeProperties = GuardDutyFindingNodeProperties()
+    # DEPRECATED: legacy GuardDutyFinding node label will be removed in v1.0.0.
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
-        [RiskLabel(), SecurityIssueOntologyLabel()]
+        [LegacyGuardDutyFindingLabel(), RiskLabel(), SecurityIssueOntologyLabel()]
     )
     sub_resource_relationship: GuardDutyFindingToAWSAccountRel = (
         GuardDutyFindingToAWSAccountRel()

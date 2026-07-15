@@ -3,9 +3,11 @@ from dataclasses import dataclass
 from cartography.models.aws.ec2.securitygroup_instance import (
     EC2SecurityGroupToAWSAccountRel,
 )
+from cartography.models.aws.extra_labels import LegacyEC2SecurityGroupLabel
 from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeProperties
 from cartography.models.core.nodes import CartographyNodeSchema
+from cartography.models.core.nodes import ExtraNodeLabels
 from cartography.models.core.relationships import CartographyRelProperties
 from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
@@ -30,7 +32,7 @@ class EC2SubnetToNetworkInterfaceRelRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class EC2SecurityGroupToNetworkInterfaceRel(CartographyRelSchema):
-    target_node_label: str = "NetworkInterface"
+    target_node_label: str = "AWSNetworkInterface"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("NetworkInterfaceId")},
     )
@@ -47,7 +49,11 @@ class EC2SecurityGroupNetworkInterfaceSchema(CartographyNodeSchema):
     Security groups as known by describe-network-interfaces.
     """
 
-    label: str = "EC2SecurityGroup"
+    label: str = "AWSEC2SecurityGroup"
+    # DEPRECATED: legacy EC2SecurityGroup node label will be removed in v1.0.0.
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
+        [LegacyEC2SecurityGroupLabel()]
+    )
     properties: EC2SecurityGroupNetworkInterfaceNodeProperties = (
         EC2SecurityGroupNetworkInterfaceNodeProperties()
     )

@@ -51,7 +51,7 @@ class LoadBalancerToSecurityGroupRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class LoadBalancerToSourceSecurityGroupRel(CartographyRelSchema):
-    target_node_label: str = "EC2SecurityGroup"
+    target_node_label: str = "AWSEC2SecurityGroup"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"name": PropertyRef("GROUP_NAME")},
     )
@@ -69,7 +69,7 @@ class LoadBalancerToEC2SecurityGroupRelRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class LoadBalancerToEC2SecurityGroupRel(CartographyRelSchema):
-    target_node_label: str = "EC2SecurityGroup"
+    target_node_label: str = "AWSEC2SecurityGroup"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"groupid": PropertyRef("GROUP_IDS", one_to_many=True)},
     )
@@ -87,7 +87,7 @@ class LoadBalancerToEC2InstanceRelRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class LoadBalancerToEC2InstanceRel(CartographyRelSchema):
-    target_node_label: str = "EC2Instance"
+    target_node_label: str = "AWSEC2Instance"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"instanceid": PropertyRef("INSTANCE_IDS", one_to_many=True)},
     )

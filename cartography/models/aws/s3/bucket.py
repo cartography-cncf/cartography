@@ -1,6 +1,7 @@
 from dataclasses import dataclass
 from typing import Optional
 
+from cartography.models.aws.extra_labels import LegacyS3BucketLabel
 from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeProperties
 from cartography.models.core.nodes import CartographyNodeSchema
@@ -14,13 +15,13 @@ from cartography.models.core.relationships import TargetNodeMatcher
 from cartography.models.ontology.labels import ObjectStorageOntologyLabel
 
 # ============================================================================
-# Base S3Bucket Schema - Core properties only
+# Base AWSS3Bucket Schema - Core properties only
 # ============================================================================
 
 
 @dataclass(frozen=True)
 class S3BucketNodeProperties(CartographyNodeProperties):
-    """Base properties for S3Bucket nodes."""
+    """Base properties for AWSS3Bucket nodes."""
 
     id: PropertyRef = PropertyRef("Name")
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
@@ -49,23 +50,26 @@ class S3BucketToAWSAccountRel(CartographyRelSchema):
 @dataclass(frozen=True)
 class S3BucketSchema(CartographyNodeSchema):
     """
-    Base schema for S3Bucket nodes with core properties.
+    Base schema for AWSS3Bucket nodes with core properties.
 
-    This is the primary schema that creates the S3Bucket node and its
+    This is the primary schema that creates the AWSS3Bucket node and its
     relationship to the AWSAccount. Use composite schemas below to add
     additional properties without overwriting existing ones.
     """
 
-    label: str = "S3Bucket"
+    label: str = "AWSS3Bucket"
     properties: S3BucketNodeProperties = S3BucketNodeProperties()
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([ObjectStorageOntologyLabel()])
+    # DEPRECATED: legacy S3Bucket node label will be removed in v1.0.0.
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
+        [LegacyS3BucketLabel(), ObjectStorageOntologyLabel()]
+    )
     sub_resource_relationship: S3BucketToAWSAccountRel = S3BucketToAWSAccountRel()
 
 
 # ============================================================================
-# Composite Schemas - Additional properties that merge onto existing S3Bucket
+# Composite Schemas - Additional properties that merge onto existing AWSS3Bucket
 # ============================================================================
-# These schemas use the Composite Node Pattern to add properties to S3Bucket
+# These schemas use the Composite Node Pattern to add properties to AWSS3Bucket
 # nodes without affecting other properties. When a fetch fails, we simply
 # don't call load() for that composite schema, preserving existing values.
 # ============================================================================
@@ -85,7 +89,9 @@ class S3BucketPolicyProperties(CartographyNodeProperties):
 class S3BucketPolicySchema(CartographyNodeSchema):
     """Composite schema for S3 bucket policy-derived properties."""
 
-    label: str = "S3Bucket"
+    label: str = "AWSS3Bucket"
+    # DEPRECATED: legacy S3Bucket node label will be removed in v1.0.0.
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([LegacyS3BucketLabel()])
     properties: S3BucketPolicyProperties = S3BucketPolicyProperties()
     sub_resource_relationship: Optional[CartographyRelSchema] = None
 
@@ -112,7 +118,7 @@ class S3BucketToKMSKeyRelProperties(CartographyRelProperties):
 # Created when default encryption uses a customer-managed KMS key and
 # `KMSMasterKeyID` is reported as the key ARN.
 class S3BucketToKMSKeyRel(CartographyRelSchema):
-    target_node_label: str = "KMSKey"
+    target_node_label: str = "AWSKMSKey"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"arn": PropertyRef("encryption_key_id")},
     )
@@ -126,9 +132,9 @@ class S3BucketToKMSKeyRel(CartographyRelSchema):
 # a bare key id rather than a full ARN (S3 returns either form depending on how
 # the bucket policy was configured). The two matchers are mutually exclusive, so
 # a bucket gets at most one ENCRYPTED_BY edge. Alias references (alias/<name>)
-# are not resolved here as they point at a KMSAlias node, not a KMSKey.
+# are not resolved here as they point at a AWSKMSAlias node, not a AWSKMSKey.
 class S3BucketToKMSKeyByIdRel(CartographyRelSchema):
-    target_node_label: str = "KMSKey"
+    target_node_label: str = "AWSKMSKey"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("encryption_key_id")},
     )
@@ -141,7 +147,9 @@ class S3BucketToKMSKeyByIdRel(CartographyRelSchema):
 class S3BucketEncryptionSchema(CartographyNodeSchema):
     """Composite schema for S3 bucket encryption properties."""
 
-    label: str = "S3Bucket"
+    label: str = "AWSS3Bucket"
+    # DEPRECATED: legacy S3Bucket node label will be removed in v1.0.0.
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([LegacyS3BucketLabel()])
     properties: S3BucketEncryptionProperties = S3BucketEncryptionProperties()
     sub_resource_relationship: Optional[CartographyRelSchema] = None
     other_relationships: OtherRelationships = OtherRelationships(
@@ -166,7 +174,9 @@ class S3BucketVersioningProperties(CartographyNodeProperties):
 class S3BucketVersioningSchema(CartographyNodeSchema):
     """Composite schema for S3 bucket versioning properties."""
 
-    label: str = "S3Bucket"
+    label: str = "AWSS3Bucket"
+    # DEPRECATED: legacy S3Bucket node label will be removed in v1.0.0.
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([LegacyS3BucketLabel()])
     properties: S3BucketVersioningProperties = S3BucketVersioningProperties()
     sub_resource_relationship: Optional[CartographyRelSchema] = None
 
@@ -187,7 +197,9 @@ class S3BucketPublicAccessBlockProperties(CartographyNodeProperties):
 class S3BucketPublicAccessBlockSchema(CartographyNodeSchema):
     """Composite schema for S3 bucket public access block properties."""
 
-    label: str = "S3Bucket"
+    label: str = "AWSS3Bucket"
+    # DEPRECATED: legacy S3Bucket node label will be removed in v1.0.0.
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([LegacyS3BucketLabel()])
     properties: S3BucketPublicAccessBlockProperties = (
         S3BucketPublicAccessBlockProperties()
     )
@@ -207,7 +219,9 @@ class S3BucketOwnershipProperties(CartographyNodeProperties):
 class S3BucketOwnershipSchema(CartographyNodeSchema):
     """Composite schema for S3 bucket ownership properties."""
 
-    label: str = "S3Bucket"
+    label: str = "AWSS3Bucket"
+    # DEPRECATED: legacy S3Bucket node label will be removed in v1.0.0.
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([LegacyS3BucketLabel()])
     properties: S3BucketOwnershipProperties = S3BucketOwnershipProperties()
     sub_resource_relationship: Optional[CartographyRelSchema] = None
 
@@ -226,6 +240,8 @@ class S3BucketLoggingProperties(CartographyNodeProperties):
 class S3BucketLoggingSchema(CartographyNodeSchema):
     """Composite schema for S3 bucket logging properties."""
 
-    label: str = "S3Bucket"
+    label: str = "AWSS3Bucket"
+    # DEPRECATED: legacy S3Bucket node label will be removed in v1.0.0.
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([LegacyS3BucketLabel()])
     properties: S3BucketLoggingProperties = S3BucketLoggingProperties()
     sub_resource_relationship: Optional[CartographyRelSchema] = None

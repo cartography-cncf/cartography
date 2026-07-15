@@ -22,3 +22,10 @@ class GitHubFineGrainedPersonalAccessTokenLabel(ExtraNodeLabel):
     """A github node participating in the shared GitHubFineGrainedPersonalAccessToken graph interface."""
 
     label: str = "GitHubFineGrainedPersonalAccessToken"
+
+
+@dataclass(frozen=True)
+class LegacyDependencyGraphManifestLabel(ExtraNodeLabel):
+    """Compatibility label for the deprecated `DependencyGraphManifest` github node label."""
+
+    label: str = "DependencyGraphManifest"

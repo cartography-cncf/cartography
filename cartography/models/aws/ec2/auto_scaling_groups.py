@@ -1,5 +1,8 @@
 from dataclasses import dataclass
 
+from cartography.models.aws.extra_labels import LegacyAutoScalingGroupLabel
+from cartography.models.aws.extra_labels import LegacyEC2InstanceLabel
+from cartography.models.aws.extra_labels import LegacyEC2SubnetLabel
 from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeProperties
 from cartography.models.core.nodes import CartographyNodeSchema
@@ -39,7 +42,7 @@ class AutoScalingGroupNodeProperties(CartographyNodeProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
-# EC2 to AutoScalingGroup
+# EC2 to AWSAutoScalingGroup
 @dataclass(frozen=True)
 class EC2InstanceToAWSAccountRelRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
@@ -65,7 +68,7 @@ class EC2InstanceToAutoScalingGroupRelRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class EC2InstanceToAutoScalingGroupRel(CartographyRelSchema):
-    target_node_label: str = "AutoScalingGroup"
+    target_node_label: str = "AWSAutoScalingGroup"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("AutoScalingGroupARN")},
     )
@@ -86,7 +89,9 @@ class EC2InstanceAutoScalingGroupProperties(CartographyNodeProperties):
 
 @dataclass(frozen=True)
 class EC2InstanceAutoScalingGroupSchema(CartographyNodeSchema):
-    label: str = "EC2Instance"
+    label: str = "AWSEC2Instance"
+    # DEPRECATED: legacy EC2Instance node label will be removed in v1.0.0.
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([LegacyEC2InstanceLabel()])
     properties: EC2InstanceAutoScalingGroupProperties = (
         EC2InstanceAutoScalingGroupProperties()
     )
@@ -98,7 +103,7 @@ class EC2InstanceAutoScalingGroupSchema(CartographyNodeSchema):
     )
 
 
-# EC2Subnet to AutoScalingGroup
+# AWSEC2Subnet to AWSAutoScalingGroup
 @dataclass(frozen=True)
 class EC2SubnetToAWSAccountRelRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
@@ -124,7 +129,7 @@ class EC2SubnetToAutoScalingGroupRelRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class EC2SubnetToAutoScalingGroupRel(CartographyRelSchema):
-    target_node_label: str = "AutoScalingGroup"
+    target_node_label: str = "AWSAutoScalingGroup"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("AutoScalingGroupARN")},
     )
@@ -144,11 +149,14 @@ class EC2SubnetAutoScalingGroupNodeProperties(CartographyNodeProperties):
 
 @dataclass(frozen=True)
 class EC2SubnetAutoScalingGroupSchema(CartographyNodeSchema):
-    label: str = "EC2Subnet"
+    label: str = "AWSEC2Subnet"
     properties: EC2SubnetAutoScalingGroupNodeProperties = (
         EC2SubnetAutoScalingGroupNodeProperties()
     )
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([SubnetOntologyLabel()])
+    # DEPRECATED: legacy EC2Subnet node label will be removed in v1.0.0.
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
+        [LegacyEC2SubnetLabel(), SubnetOntologyLabel()]
+    )
     sub_resource_relationship: EC2SubnetToAWSAccountRel = EC2SubnetToAWSAccountRel()
     other_relationships: OtherRelationships = OtherRelationships(
         [
@@ -157,7 +165,7 @@ class EC2SubnetAutoScalingGroupSchema(CartographyNodeSchema):
     )
 
 
-# AutoScalingGroup
+# AWSAutoScalingGroup
 @dataclass(frozen=True)
 class AutoScalingGroupToAWSAccountRelRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
@@ -183,7 +191,7 @@ class AutoScalingGroupToLaunchTemplateRelRelProperties(CartographyRelProperties)
 
 @dataclass(frozen=True)
 class AutoScalingGroupToLaunchTemplateRel(CartographyRelSchema):
-    target_node_label: str = "LaunchTemplate"
+    target_node_label: str = "AWSLaunchTemplate"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("LaunchTemplateId")},
     )
@@ -201,7 +209,7 @@ class AutoScalingGroupToLaunchConfigurationRelRelProperties(CartographyRelProper
 
 @dataclass(frozen=True)
 class AutoScalingGroupToLaunchConfigurationRel(CartographyRelSchema):
-    target_node_label: str = "LaunchConfiguration"
+    target_node_label: str = "AWSLaunchConfiguration"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"name": PropertyRef("LaunchConfigurationName")},
     )
@@ -214,7 +222,11 @@ class AutoScalingGroupToLaunchConfigurationRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class AutoScalingGroupSchema(CartographyNodeSchema):
-    label: str = "AutoScalingGroup"
+    label: str = "AWSAutoScalingGroup"
+    # DEPRECATED: legacy AutoScalingGroup node label will be removed in v1.0.0.
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
+        [LegacyAutoScalingGroupLabel()]
+    )
     properties: AutoScalingGroupNodeProperties = AutoScalingGroupNodeProperties()
     sub_resource_relationship: AutoScalingGroupToAWSAccountRel = (
         AutoScalingGroupToAWSAccountRel()

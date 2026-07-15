@@ -9,13 +9,30 @@ from cartography.models.core.relationships import LinkDirection
 
 
 @dataclass(frozen=True)
-class CleanupScopedTo:
-    """Restrict generated cleanup to nodes attached to a scoped resource."""
+class ScopeById:
+    """
+    Restrict analysis and generated cleanup to a scoped resource.
+
+    scope_on is either the variable anchored in every statement or one variable
+    per statement in declaration order.
+    """
 
     label: str
     id_param: str
     id_property: str = "id"
     rel_label: str = "RESOURCE"
+    scope_on: str | Sequence[str] | None = None
+
+
+@dataclass(frozen=True)
+class IncrementalMatch:
+    """Gate a node or relationship variable on the current update tag."""
+
+    variable: str
+    relationship: bool = False
+
+
+IncrementalTarget: TypeAlias = str | IncrementalMatch
 
 
 @dataclass(frozen=True)
@@ -28,6 +45,9 @@ class AnalysisStatement:
     operations and generated cleanup coverage. iterative and iterationsize apply
     only to this statement's write query; generated cleanup statements are
     iterative separately and use AnalysisJob.cleanup_iterationsize.
+
+    incremental_on names node or relationship variables whose lastupdated value
+    must match $UPDATE_TAG during a stock sync run.
     """
 
     query: str | None = None
@@ -36,6 +56,7 @@ class AnalysisStatement:
     effects: Sequence[StatementEffect] = ()
     iterative: bool = False
     iterationsize: int = 0
+    incremental_on: IncrementalTarget | Sequence[IncrementalTarget] | None = None
 
     def __post_init__(self) -> None:
         if self.query and (self.match or self.effects):
@@ -222,10 +243,19 @@ class AnalysisJob:
 
     name: str
     statements: Sequence[AnalysisStatement]
-    scope: CleanupScopedTo | None = None
+    scope: ScopeById | None = None
     short_name: str | None = None
     cleanup_iterationsize: int = 10000
 
     def __post_init__(self) -> None:
         if not self.statements:
             raise ValueError("AnalysisJob requires at least one statement.")
+        if self.scope:
+            if self.scope.scope_on is None:
+                raise ValueError("Scoped AnalysisJob requires ScopeById.scope_on.")
+            if not isinstance(self.scope.scope_on, str) and len(
+                self.scope.scope_on
+            ) != len(self.statements):
+                raise ValueError(
+                    "ScopeById.scope_on must contain one variable per statement."
+                )

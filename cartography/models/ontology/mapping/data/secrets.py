@@ -12,7 +12,7 @@ aws_mapping = OntologyMapping(
     module_name="aws",
     nodes=[
         OntologyNodeMapping(
-            node_label="SecretsManagerSecret",
+            node_label="AWSSecretsManagerSecret",
             fields=[
                 OntologyFieldMapping(
                     ontology_field="name", node_field="name", required=True
@@ -29,7 +29,7 @@ aws_mapping = OntologyMapping(
             ],
         ),
         OntologyNodeMapping(
-            node_label="SSMParameter",
+            node_label="AWSSSMParameter",
             fields=[
                 OntologyFieldMapping(
                     ontology_field="name", node_field="name", required=True

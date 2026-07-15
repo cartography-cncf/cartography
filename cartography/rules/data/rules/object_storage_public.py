@@ -11,11 +11,11 @@ _aws_s3_public = Fact(
     name="Internet-Accessible S3 Storage Attack Surface",
     description=("AWS S3 buckets accessible from the internet"),
     cypher_query="""
-    MATCH (b:S3Bucket)
+    MATCH (b:AWSS3Bucket)
     WHERE b.anonymous_access = true
     OR (b.anonymous_actions IS NOT NULL AND size(b.anonymous_actions) > 0)
     OR EXISTS {
-        MATCH (b)-[:POLICY_STATEMENT]->(stmt:S3PolicyStatement)
+        MATCH (b)-[:POLICY_STATEMENT]->(stmt:AWSS3PolicyStatement)
         WHERE stmt.effect = 'Allow'
         AND (stmt.principal = '*' OR stmt.principal CONTAINS 'AllUsers')
     }
@@ -27,20 +27,20 @@ _aws_s3_public = Fact(
         b.anonymous_actions AS public_actions
     """,
     cypher_visual_query="""
-    MATCH (b:S3Bucket)
+    MATCH (b:AWSS3Bucket)
     WHERE b.anonymous_access = true
     OR (b.anonymous_actions IS NOT NULL AND size(b.anonymous_actions) > 0)
     OR EXISTS {
-        MATCH (b)-[:POLICY_STATEMENT]->(stmt:S3PolicyStatement)
+        MATCH (b)-[:POLICY_STATEMENT]->(stmt:AWSS3PolicyStatement)
         WHERE stmt.effect = 'Allow'
         AND (stmt.principal = '*' OR stmt.principal CONTAINS 'AllUsers')
     }
     WITH b
-    OPTIONAL MATCH p=(b)-[:POLICY_STATEMENT]->(:S3PolicyStatement)
+    OPTIONAL MATCH p=(b)-[:POLICY_STATEMENT]->(:AWSS3PolicyStatement)
     RETURN *
     """,
     cypher_count_query="""
-    MATCH (b:S3Bucket)
+    MATCH (b:AWSS3Bucket)
     RETURN COUNT(b) AS count
     """,
     identity_fields=("id",),

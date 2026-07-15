@@ -13,9 +13,9 @@ aws_mapping = OntologyMapping(
     module_name="aws",
     nodes=[
         OntologyNodeMapping(
-            node_label="EBSVolume",
+            node_label="AWSEBSVolume",
             fields=[
-                # EBSVolume has no display name; the VolumeId (`id`) is the canonical identifier.
+                # AWSEBSVolume has no display name; the VolumeId (`id`) is the canonical identifier.
                 OntologyFieldMapping(
                     ontology_field="name", node_field="id", required=True
                 ),

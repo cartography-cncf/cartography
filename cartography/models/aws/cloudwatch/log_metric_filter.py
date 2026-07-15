@@ -1,8 +1,10 @@
 from dataclasses import dataclass
 
+from cartography.models.aws.extra_labels import LegacyCloudWatchLogMetricFilterLabel
 from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeProperties
 from cartography.models.core.nodes import CartographyNodeSchema
+from cartography.models.core.nodes import ExtraNodeLabels
 from cartography.models.core.relationships import CartographyRelProperties
 from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
@@ -52,7 +54,7 @@ class CloudWatchLogMetricFilterToCloudWatchLogGroupRelProperties(
 
 @dataclass(frozen=True)
 class CloudWatchLogMetricFilterToCloudWatchLogGroupRel(CartographyRelSchema):
-    target_node_label: str = "CloudWatchLogGroup"
+    target_node_label: str = "AWSCloudWatchLogGroup"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"log_group_name": PropertyRef("logGroupName")},
     )
@@ -65,7 +67,11 @@ class CloudWatchLogMetricFilterToCloudWatchLogGroupRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class CloudWatchLogMetricFilterSchema(CartographyNodeSchema):
-    label: str = "CloudWatchLogMetricFilter"
+    label: str = "AWSCloudWatchLogMetricFilter"
+    # DEPRECATED: legacy CloudWatchLogMetricFilter node label will be removed in v1.0.0.
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
+        [LegacyCloudWatchLogMetricFilterLabel()]
+    )
     properties: CloudWatchLogMetricFilterNodeProperties = (
         CloudWatchLogMetricFilterNodeProperties()
     )

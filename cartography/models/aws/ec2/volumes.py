@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 
+from cartography.models.aws.extra_labels import LegacyEBSVolumeLabel
 from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeProperties
 from cartography.models.core.nodes import CartographyNodeSchema
@@ -59,7 +60,7 @@ class EBSVolumeToEC2InstanceRelRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class EBSVolumeToEC2InstanceRel(CartographyRelSchema):
-    target_node_label: str = "EC2Instance"
+    target_node_label: str = "AWSEC2Instance"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("InstanceId")},
     )
@@ -77,7 +78,7 @@ class EBSVolumeToEBSSnapshotRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class EBSVolumeToEBSSnapshotRel(CartographyRelSchema):
-    target_node_label: str = "EBSSnapshot"
+    target_node_label: str = "AWSEBSSnapshot"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("SnapshotId")},
     )
@@ -94,9 +95,12 @@ class EBSVolumeSchema(CartographyNodeSchema):
     EBS Volume properties as returned from the EBS Volume API response
     """
 
-    label: str = "EBSVolume"
+    label: str = "AWSEBSVolume"
     properties: EBSVolumeNodeProperties = EBSVolumeNodeProperties()
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([BlockStorageOntologyLabel()])
+    # DEPRECATED: legacy EBSVolume node label will be removed in v1.0.0.
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
+        [LegacyEBSVolumeLabel(), BlockStorageOntologyLabel()]
+    )
     sub_resource_relationship: EBSVolumeToAWSAccountRel = EBSVolumeToAWSAccountRel()
     other_relationships: OtherRelationships = OtherRelationships(
         [
@@ -126,9 +130,12 @@ class EBSVolumeInstanceSchema(CartographyNodeSchema):
     EBS Volume from EC2 Instance API response. This is separate from `EBSVolumeSchema` to prevent issue #1210.
     """
 
-    label: str = "EBSVolume"
+    label: str = "AWSEBSVolume"
     properties: EBSVolumeInstanceProperties = EBSVolumeInstanceProperties()
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([BlockStorageOntologyLabel()])
+    # DEPRECATED: legacy EBSVolume node label will be removed in v1.0.0.
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
+        [LegacyEBSVolumeLabel(), BlockStorageOntologyLabel()]
+    )
     sub_resource_relationship: EBSVolumeToAWSAccountRel = EBSVolumeToAWSAccountRel()
     other_relationships: OtherRelationships = OtherRelationships(
         [

@@ -69,11 +69,11 @@ def test_sync_cognito(
     )
 
     # Assert
-    assert check_nodes(neo4j_session, "CognitoIdentityPool", ["arn"]) == {
+    assert check_nodes(neo4j_session, "AWSCognitoIdentityPool", ["arn"]) == {
         ("us-east-1:abcd1234-5678-90ef-ghij-klmnopqrstuv",)
     }
 
-    assert check_nodes(neo4j_session, "CognitoUserPool", ["arn"]) == {
+    assert check_nodes(neo4j_session, "AWSCognitoUserPool", ["arn"]) == {
         ("us-east-1_abc123",),
         ("us-west-2_xyz789",),
     }
@@ -83,7 +83,7 @@ def test_sync_cognito(
         neo4j_session,
         "AWSAccount",
         "id",
-        "CognitoIdentityPool",
+        "AWSCognitoIdentityPool",
         "arn",
         "RESOURCE",
         rel_direction_right=True,
@@ -96,7 +96,7 @@ def test_sync_cognito(
 
     assert check_rels(
         neo4j_session,
-        "CognitoIdentityPool",
+        "AWSCognitoIdentityPool",
         "arn",
         "AWSRole",
         "arn",
@@ -117,7 +117,7 @@ def test_sync_cognito(
         neo4j_session,
         "AWSAccount",
         "id",
-        "CognitoUserPool",
+        "AWSCognitoUserPool",
         "arn",
         "RESOURCE",
         rel_direction_right=True,

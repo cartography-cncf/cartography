@@ -274,7 +274,7 @@ def transform_findings(findings: list[dict[str, Any]]) -> list[dict[str, Any]]:
             if buckets:
                 item["resource_id"] = buckets[0].get("Name")
         elif item["resource_type"] == "EKSCluster":
-            # EKS/Kubernetes findings target a cluster. EKSCluster.id is the
+            # EKS/Kubernetes findings target a cluster. AWSEKSCluster.id is the
             # cluster ARN, so match on the Arn from EksClusterDetails.
             details = resource.get("EksClusterDetails", {})
             item["eks_cluster_arn"] = details.get("Arn")
@@ -521,7 +521,7 @@ def sync(
         neo4j_session,
         group_type="AWSAccount",
         group_id=current_aws_account_id,
-        synced_type="GuardDutyDetector",
+        synced_type="AWSGuardDutyDetector",
         update_tag=update_tag,
         stat_handler=stat_handler,
     )
@@ -529,7 +529,7 @@ def sync(
         neo4j_session,
         group_type="AWSAccount",
         group_id=current_aws_account_id,
-        synced_type="GuardDutyFinding",
+        synced_type="AWSGuardDutyFinding",
         update_tag=update_tag,
         stat_handler=stat_handler,
     )

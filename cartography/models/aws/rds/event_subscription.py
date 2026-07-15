@@ -1,8 +1,10 @@
 from dataclasses import dataclass
 
+from cartography.models.aws.extra_labels import LegacyRDSEventSubscriptionLabel
 from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeProperties
 from cartography.models.core.nodes import CartographyNodeSchema
+from cartography.models.core.nodes import ExtraNodeLabels
 from cartography.models.core.relationships import CartographyRelProperties
 from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
@@ -54,7 +56,7 @@ class RDSEventSubscriptionToSNSTopicRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class RDSEventSubscriptionToSNSTopicRel(CartographyRelSchema):
-    target_node_label: str = "SNSTopic"
+    target_node_label: str = "AWSSNSTopic"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {
             "arn": PropertyRef("SnsTopicArn"),
@@ -74,7 +76,7 @@ class RDSEventSubscriptionToRDSInstanceRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class RDSEventSubscriptionToRDSInstanceRel(CartographyRelSchema):
-    target_node_label: str = "RDSInstance"
+    target_node_label: str = "AWSRDSInstance"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {
             "db_instance_identifier": PropertyRef("source_ids", one_to_many=True),
@@ -94,7 +96,7 @@ class RDSEventSubscriptionToRDSClusterRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class RDSEventSubscriptionToRDSClusterRel(CartographyRelSchema):
-    target_node_label: str = "RDSCluster"
+    target_node_label: str = "AWSRDSCluster"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {
             "db_cluster_identifier": PropertyRef("source_ids", one_to_many=True),
@@ -114,7 +116,7 @@ class RDSEventSubscriptionToRDSSnapshotRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class RDSEventSubscriptionToRDSSnapshotRel(CartographyRelSchema):
-    target_node_label: str = "RDSSnapshot"
+    target_node_label: str = "AWSRDSSnapshot"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {
             "db_snapshot_identifier": PropertyRef("source_ids", one_to_many=True),
@@ -129,7 +131,11 @@ class RDSEventSubscriptionToRDSSnapshotRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class RDSEventSubscriptionSchema(CartographyNodeSchema):
-    label: str = "RDSEventSubscription"
+    label: str = "AWSRDSEventSubscription"
+    # DEPRECATED: legacy RDSEventSubscription node label will be removed in v1.0.0.
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
+        [LegacyRDSEventSubscriptionLabel()]
+    )
     properties: RDSEventSubscriptionNodeProperties = (
         RDSEventSubscriptionNodeProperties()
     )

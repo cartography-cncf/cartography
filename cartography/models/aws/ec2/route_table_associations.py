@@ -1,8 +1,10 @@
 from dataclasses import dataclass
 
+from cartography.models.aws.extra_labels import LegacyEC2RouteTableAssociationLabel
 from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeProperties
 from cartography.models.core.nodes import CartographyNodeSchema
+from cartography.models.core.nodes import ExtraNodeLabels
 from cartography.models.core.relationships import CartographyRelProperties
 from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
@@ -51,7 +53,7 @@ class RouteTableAssociationToSubnetRelRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class RouteTableAssociationToSubnetRel(CartographyRelSchema):
-    target_node_label: str = "EC2Subnet"
+    target_node_label: str = "AWSEC2Subnet"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"subnetid": PropertyRef("subnet_id")},
     )
@@ -82,7 +84,11 @@ class RouteTableAssociationToIgwRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class RouteTableAssociationSchema(CartographyNodeSchema):
-    label: str = "EC2RouteTableAssociation"
+    label: str = "AWSEC2RouteTableAssociation"
+    # DEPRECATED: legacy EC2RouteTableAssociation node label will be removed in v1.0.0.
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
+        [LegacyEC2RouteTableAssociationLabel()]
+    )
     properties: RouteTableAssociationNodeProperties = (
         RouteTableAssociationNodeProperties()
     )

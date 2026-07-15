@@ -7,7 +7,7 @@ import tests.data.aws.resourcegroupstaggingapi as test_data
 
 def test_compute_resource_id():
     """
-    Test that the id_func function pointer behaves as expected and returns the instanceid from an EC2Instance's ARN.
+    Test that the id_func function pointer behaves as expected and returns the instanceid from an AWSEC2Instance's ARN.
     """
     tag_mapping = {
         "ResourceARN": "arn:aws:ec2:us-east-1:1234:instance/i-abcd",

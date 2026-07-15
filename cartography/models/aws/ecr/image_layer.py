@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 
+from cartography.models.aws.extra_labels import LegacyECRImageLayerLabel
 from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeProperties
 from cartography.models.core.nodes import CartographyNodeSchema
@@ -47,7 +48,7 @@ class ECRImageLayerToNextRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class ECRImageLayerToNextRel(CartographyRelSchema):
-    target_node_label: str = "ECRImageLayer"
+    target_node_label: str = "AWSECRImageLayer"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"diff_id": PropertyRef("next_diff_ids", one_to_many=True)}
     )
@@ -63,7 +64,7 @@ class ECRImageLayerHeadOfImageRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class ECRImageLayerHeadOfImageRel(CartographyRelSchema):
-    target_node_label: str = "ECRImage"
+    target_node_label: str = "AWSECRImage"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("head_image_ids", one_to_many=True)}
     )
@@ -81,7 +82,7 @@ class ECRImageLayerTailOfImageRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class ECRImageLayerTailOfImageRel(CartographyRelSchema):
-    target_node_label: str = "ECRImage"
+    target_node_label: str = "AWSECRImage"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("tail_image_ids", one_to_many=True)}
     )
@@ -94,7 +95,7 @@ class ECRImageLayerTailOfImageRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class ECRImageLayerSchema(CartographyNodeSchema):
-    label: str = "ECRImageLayer"
+    label: str = "AWSECRImageLayer"
     properties: ECRImageLayerNodeProperties = ECRImageLayerNodeProperties()
     sub_resource_relationship: ECRImageLayerToAWSAccountRel = (
         ECRImageLayerToAWSAccountRel()
@@ -106,19 +107,25 @@ class ECRImageLayerSchema(CartographyNodeSchema):
             ECRImageLayerTailOfImageRel(),
         ]
     )
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([ImageLayerOntologyLabel()])
+    # DEPRECATED: legacy ECRImageLayer node label will be removed in v1.0.0.
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
+        [LegacyECRImageLayerLabel(), ImageLayerOntologyLabel()]
+    )
 
 
 @dataclass(frozen=True)
 class ECRImageLayerNodeSchema(CartographyNodeSchema):
-    """Load ECRImageLayer nodes without high-fanout one-to-many relationships."""
+    """Load AWSECRImageLayer nodes without high-fanout one-to-many relationships."""
 
-    label: str = "ECRImageLayer"
+    label: str = "AWSECRImageLayer"
     properties: ECRImageLayerNodeProperties = ECRImageLayerNodeProperties()
     sub_resource_relationship: ECRImageLayerToAWSAccountRel = (
         ECRImageLayerToAWSAccountRel()
     )
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([ImageLayerOntologyLabel()])
+    # DEPRECATED: legacy ECRImageLayer node label will be removed in v1.0.0.
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
+        [LegacyECRImageLayerLabel(), ImageLayerOntologyLabel()]
+    )
 
 
 @dataclass(frozen=True)
@@ -132,7 +139,9 @@ class ECRImageLayerRelLoadProperties(CartographyNodeProperties):
 class ECRImageLayerNextRelSchema(CartographyNodeSchema):
     """Load bounded NEXT relationship rows without reloading layer metadata."""
 
-    label: str = "ECRImageLayer"
+    label: str = "AWSECRImageLayer"
+    # DEPRECATED: legacy ECRImageLayer node label will be removed in v1.0.0.
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([LegacyECRImageLayerLabel()])
     properties: ECRImageLayerRelLoadProperties = ECRImageLayerRelLoadProperties()
     other_relationships: OtherRelationships = OtherRelationships(
         [ECRImageLayerToNextRel()],
@@ -143,7 +152,9 @@ class ECRImageLayerNextRelSchema(CartographyNodeSchema):
 class ECRImageLayerHeadRelSchema(CartographyNodeSchema):
     """Load bounded HEAD relationship rows without reloading layer metadata."""
 
-    label: str = "ECRImageLayer"
+    label: str = "AWSECRImageLayer"
+    # DEPRECATED: legacy ECRImageLayer node label will be removed in v1.0.0.
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([LegacyECRImageLayerLabel()])
     properties: ECRImageLayerRelLoadProperties = ECRImageLayerRelLoadProperties()
     other_relationships: OtherRelationships = OtherRelationships(
         [ECRImageLayerHeadOfImageRel()],
@@ -154,7 +165,9 @@ class ECRImageLayerHeadRelSchema(CartographyNodeSchema):
 class ECRImageLayerTailRelSchema(CartographyNodeSchema):
     """Load bounded TAIL relationship rows without reloading layer metadata."""
 
-    label: str = "ECRImageLayer"
+    label: str = "AWSECRImageLayer"
+    # DEPRECATED: legacy ECRImageLayer node label will be removed in v1.0.0.
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([LegacyECRImageLayerLabel()])
     properties: ECRImageLayerRelLoadProperties = ECRImageLayerRelLoadProperties()
     other_relationships: OtherRelationships = OtherRelationships(
         [ECRImageLayerTailOfImageRel()],

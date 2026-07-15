@@ -818,14 +818,14 @@ def test_container_image_lambda_has_image_and_resolved_image(
     neo4j_session,
 ):
     """A PackageType=Image Lambda should get image_uri/image_digest populated,
-    a HAS_IMAGE edge to ECRImage (matched on digest) and a RESOLVED_IMAGE edge
+    a HAS_IMAGE edge to AWSECRImage (matched on digest) and a RESOLVED_IMAGE edge
     produced by the Function-scoped analysis pass."""
     # Isolate from Lambdas/state left by the shared-session sync test above.
     neo4j_session.run("MATCH (n) DETACH DELETE n")
     create_test_account(neo4j_session, TEST_ACCOUNT_ID, TEST_UPDATE_TAG)
     neo4j_session.run(
         """
-        MERGE (i:Image:ECRImage {id: $digest})
+        MERGE (i:Image:AWSECRImage {id: $digest})
         SET i.digest = $digest, i.lastupdated = $tag
         """,
         digest=TEST_LAMBDA_IMAGE_DIGEST,
@@ -867,7 +867,7 @@ def test_container_image_lambda_has_image_and_resolved_image(
         neo4j_session,
         "AWSLambda",
         "id",
-        "ECRImage",
+        "AWSECRImage",
         "digest",
         "HAS_IMAGE",
     ) == {(TEST_CONTAINER_LAMBDA_ARN, TEST_LAMBDA_IMAGE_DIGEST)}

@@ -12,6 +12,8 @@ from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import TargetNodeMatcher
 from cartography.models.extra_labels import DependencyLabel
+from cartography.models.semgrep.extra_labels import LegacyGoLibraryLabel
+from cartography.models.semgrep.extra_labels import LegacyNpmLibraryLabel
 from cartography.models.semgrep.extra_labels import SemgrepDependencyLabel
 
 
@@ -96,9 +98,10 @@ class SemgrepSCAFindngToDependencyRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class SemgrepGoLibrarySchema(CartographyNodeSchema):
-    label: str = "GoLibrary"
+    label: str = "SemgrepGoLibrary"
+    # DEPRECATED: legacy GoLibrary node label will be removed in v1.0.0.
     extra_node_labels: Optional[ExtraNodeLabels] = ExtraNodeLabels(
-        [DependencyLabel(), SemgrepDependencyLabel()],
+        [LegacyGoLibraryLabel(), DependencyLabel(), SemgrepDependencyLabel()],
     )
     properties: SemgrepDependencyNodeProperties = SemgrepDependencyNodeProperties()
     sub_resource_relationship: SemgrepDependencyToSemgrepDeploymentRel = (
@@ -114,9 +117,10 @@ class SemgrepGoLibrarySchema(CartographyNodeSchema):
 
 @dataclass(frozen=True)
 class SemgrepNpmLibrarySchema(CartographyNodeSchema):
-    label: str = "NpmLibrary"
+    label: str = "SemgrepNpmLibrary"
+    # DEPRECATED: legacy NpmLibrary node label will be removed in v1.0.0.
     extra_node_labels: Optional[ExtraNodeLabels] = ExtraNodeLabels(
-        [DependencyLabel(), SemgrepDependencyLabel()],
+        [LegacyNpmLibraryLabel(), DependencyLabel(), SemgrepDependencyLabel()],
     )
     properties: SemgrepDependencyNodeProperties = SemgrepDependencyNodeProperties()
     sub_resource_relationship: SemgrepDependencyToSemgrepDeploymentRel = (

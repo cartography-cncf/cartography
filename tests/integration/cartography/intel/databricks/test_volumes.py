@@ -44,7 +44,7 @@ def test_load_databricks_volumes(mock_get, neo4j_session):
     _ensure_local_neo4j_has_test_catalogs(neo4j_session)
     _ensure_local_neo4j_has_test_schemas(neo4j_session)
     neo4j_session.run(
-        "MERGE (b:S3Bucket {name: $name}) SET b.lastupdated = $tag",
+        "MERGE (b:AWSS3Bucket {name: $name}) SET b.lastupdated = $tag",
         name=DATABRICKS_VOLUME_S3_BUCKET,
         tag=TEST_UPDATE_TAG,
     )
@@ -74,12 +74,12 @@ def test_load_databricks_volumes(mock_get, neo4j_session):
         rel_direction_right=True,
     ) == {(_uc_id("prod.finance"), _uc_id("prod.finance.landing"))}
 
-    # Volume -> S3Bucket BACKED_BY
+    # Volume -> AWSS3Bucket BACKED_BY
     assert check_rels(
         neo4j_session,
         "DatabricksVolume",
         "id",
-        "S3Bucket",
+        "AWSS3Bucket",
         "name",
         "BACKED_BY",
         rel_direction_right=True,

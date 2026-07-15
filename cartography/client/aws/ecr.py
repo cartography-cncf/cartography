@@ -39,11 +39,11 @@ def get_ecr_images(
     """
     # See https://community.neo4j.com/t/extract-list-of-nodes-and-labels-from-path/13665/4
     query = """
-MATCH (e1:ECRRepositoryImage)<-[:REPO_IMAGE]-(repo:ECRRepository)
+MATCH (e1:AWSECRRepositoryImage)<-[:REPO_IMAGE]-(repo:AWSECRRepository)
 MATCH (repo)<-[:RESOURCE]-(:AWSAccount {id: $AWS_ID})
 
 // OPTIONAL traversal of parent hierarchy
-OPTIONAL MATCH path = (e1)-[:PARENT*1..]->(ancestor:ECRRepositoryImage)
+OPTIONAL MATCH path = (e1)-[:PARENT*1..]->(ancestor:AWSECRRepositoryImage)
 WITH e1,
      CASE
          WHEN path IS NULL THEN [e1]
@@ -55,7 +55,7 @@ UNWIND repo_img_collection_unflattened AS repo_img
 WITH DISTINCT repo_img
 
 // Match image metadata
-MATCH (er:ECRRepository)-[:REPO_IMAGE]->(repo_img)-[:IMAGE]->(img:ECRImage)
+MATCH (er:AWSECRRepository)-[:REPO_IMAGE]->(repo_img)-[:IMAGE]->(img:AWSECRImage)
 
 RETURN DISTINCT
     er.region AS region,

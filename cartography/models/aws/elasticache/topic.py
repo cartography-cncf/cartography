@@ -1,8 +1,10 @@
 from dataclasses import dataclass
 
+from cartography.models.aws.extra_labels import LegacyElasticacheTopicLabel
 from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeProperties
 from cartography.models.core.nodes import CartographyNodeSchema
+from cartography.models.core.nodes import ExtraNodeLabels
 from cartography.models.core.relationships import CartographyRelProperties
 from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
@@ -44,7 +46,7 @@ class ElasticacheTopicToElasticacheClusterRelProperties(CartographyRelProperties
 
 @dataclass(frozen=True)
 class ElasticacheTopicToElasticacheClusterRel(CartographyRelSchema):
-    target_node_label: str = "ElasticacheCluster"
+    target_node_label: str = "AWSElasticacheCluster"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("cluster_arns", one_to_many=True)}
     )
@@ -57,7 +59,11 @@ class ElasticacheTopicToElasticacheClusterRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class ElasticacheTopicSchema(CartographyNodeSchema):
-    label: str = "ElasticacheTopic"
+    label: str = "AWSElasticacheTopic"
+    # DEPRECATED: legacy ElasticacheTopic node label will be removed in v1.0.0.
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
+        [LegacyElasticacheTopicLabel()]
+    )
     properties: ElasticacheTopicNodeProperties = ElasticacheTopicNodeProperties()
     sub_resource_relationship: ElasticacheTopicToAWSAccountRel = (
         ElasticacheTopicToAWSAccountRel()

@@ -73,7 +73,7 @@ class AWSBedrockKnowledgeBaseToAWSAccountRel(CartographyRelSchema):
 @dataclass(frozen=True)
 class AWSBedrockKnowledgeBaseToS3BucketRelProperties(CartographyRelProperties):
     """
-    Properties for the relationship between AWSBedrockKnowledgeBase and S3Bucket.
+    Properties for the relationship between AWSBedrockKnowledgeBase and AWSS3Bucket.
     """
 
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
@@ -82,10 +82,10 @@ class AWSBedrockKnowledgeBaseToS3BucketRelProperties(CartographyRelProperties):
 @dataclass(frozen=True)
 class AWSBedrockKnowledgeBaseToS3BucketRel(CartographyRelSchema):
     """
-    Defines the relationship from AWSBedrockKnowledgeBase to S3Bucket.
+    Defines the relationship from AWSBedrockKnowledgeBase to AWSS3Bucket.
     """
 
-    target_node_label: str = "S3Bucket"
+    target_node_label: str = "AWSS3Bucket"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"name": PropertyRef("data_source_bucket_names", one_to_many=True)},
     )

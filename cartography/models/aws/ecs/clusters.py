@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 
+from cartography.models.aws.extra_labels import LegacyECSClusterLabel
 from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeProperties
 from cartography.models.core.nodes import CartographyNodeSchema
@@ -61,9 +62,10 @@ class ECSClusterToAWSAccountRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class ECSClusterSchema(CartographyNodeSchema):
-    label: str = "ECSCluster"
+    label: str = "AWSECSCluster"
+    # DEPRECATED: legacy ECSCluster node label will be removed in v1.0.0.
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
-        [ComputeClusterOntologyLabel()]
+        [LegacyECSClusterLabel(), ComputeClusterOntologyLabel()]
     )
     properties: ECSClusterNodeProperties = ECSClusterNodeProperties()
     sub_resource_relationship: ECSClusterToAWSAccountRel = ECSClusterToAWSAccountRel()

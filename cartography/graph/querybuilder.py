@@ -960,8 +960,8 @@ def _build_attach_relationships_statement(
 
     Note:
         Subqueries allow the ingestion query to continue even if we only have data
-        for some relationships. For example, if an EC2Instance has attachments to
-        NetworkInterfaces and AWSAccounts, but data only includes EC2Instance to
+        for some relationships. For example, if an AWSEC2Instance has attachments to
+        NetworkInterfaces and AWSAccounts, but data only includes AWSEC2Instance to
         AWSAccount information, the query will ignore null relationships and continue
         to MERGE the existing ones.
     """
@@ -1067,7 +1067,7 @@ def filter_selected_relationships(
 
     Examples:
         >>> node_schema = CartographyNodeSchema(
-        ...     label='EC2Instance',
+        ...     label='AWSEC2Instance',
         ...     sub_resource_relationship=account_rel,
         ...     other_relationships=OtherRelationships([vpc_rel, subnet_rel])
         ... )
@@ -1145,7 +1145,7 @@ def build_ingestion_query(
     Examples:
         >>> # Basic node schema with relationships
         >>> node_schema = CartographyNodeSchema(
-        ...     label='EC2Instance',
+        ...     label='AWSEC2Instance',
         ...     properties=EC2InstanceProperties(),
         ...     sub_resource_relationship=account_rel,
         ...     other_relationships=OtherRelationships([vpc_rel, subnet_rel])

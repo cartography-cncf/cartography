@@ -1,6 +1,7 @@
 from dataclasses import dataclass
 
 from cartography.models.aws.ec2.auto_scaling_groups import EC2SubnetToAWSAccountRel
+from cartography.models.aws.extra_labels import LegacyEC2SubnetLabel
 from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeProperties
 from cartography.models.core.nodes import CartographyNodeSchema
@@ -57,9 +58,12 @@ class EC2SubnetToVpcRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class EC2SubnetSchema(CartographyNodeSchema):
-    label: str = "EC2Subnet"
+    label: str = "AWSEC2Subnet"
     properties: EC2SubnetNodeProperties = EC2SubnetNodeProperties()
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([SubnetOntologyLabel()])
+    # DEPRECATED: legacy EC2Subnet node label will be removed in v1.0.0.
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
+        [LegacyEC2SubnetLabel(), SubnetOntologyLabel()]
+    )
     sub_resource_relationship: EC2SubnetToAWSAccountRel = EC2SubnetToAWSAccountRel()
     other_relationships: OtherRelationships = OtherRelationships(
         [
