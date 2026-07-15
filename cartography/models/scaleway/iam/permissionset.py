@@ -9,7 +9,7 @@ from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import TargetNodeMatcher
-from cartography.models.ontology.labels import PermissionRoleLabel
+from cartography.models.ontology.labels import PermissionRoleOntologyLabel
 
 
 @dataclass(frozen=True)
@@ -47,7 +47,9 @@ class ScalewayPermissionSetSchema(CartographyNodeSchema):
     properties: ScalewayPermissionSetNodeProperties = (
         ScalewayPermissionSetNodeProperties()
     )
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([PermissionRoleLabel()])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
+        [PermissionRoleOntologyLabel()]
+    )
     sub_resource_relationship: ScalewayPermissionSetToOrganizationRel = (
         ScalewayPermissionSetToOrganizationRel()
     )

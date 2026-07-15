@@ -10,7 +10,7 @@ from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import TargetNodeMatcher
-from cartography.models.ontology.labels import UserAccountLabel
+from cartography.models.ontology.labels import UserAccountOntologyLabel
 
 
 @dataclass(frozen=True)
@@ -90,7 +90,7 @@ class LastpassUserToTenantDeprecatedRel(CartographyRelSchema):
 class LastpassUserSchema(CartographyNodeSchema):
     label: str = "LastpassUser"
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
-        [UserAccountLabel()]
+        [UserAccountOntologyLabel()]
     )  # UserAccount label is used for ontology mapping
     properties: LastpassUserNodeProperties = LastpassUserNodeProperties()
     other_relationships: OtherRelationships = OtherRelationships(

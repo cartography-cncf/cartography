@@ -10,7 +10,7 @@ from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import TargetNodeMatcher
-from cartography.models.ontology.labels import UserGroupLabel
+from cartography.models.ontology.labels import UserGroupOntologyLabel
 
 
 @dataclass(frozen=True)
@@ -150,7 +150,7 @@ class SlackGroupToBotCreatorRel(CartographyRelSchema):
 class SlackGroupSchema(CartographyNodeSchema):
     label: str = "SlackGroup"
     properties: SlackGroupNodeProperties = SlackGroupNodeProperties()
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([UserGroupLabel()])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([UserGroupOntologyLabel()])
     other_relationships: OtherRelationships = OtherRelationships(
         rels=[
             SlackGroupToUserRel(),

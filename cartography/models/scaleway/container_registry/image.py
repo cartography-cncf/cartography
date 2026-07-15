@@ -10,7 +10,7 @@ from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import TargetNodeMatcher
-from cartography.models.ontology.labels import ImageLabel
+from cartography.models.ontology.labels import ImageOntologyLabel
 
 
 @dataclass(frozen=True)
@@ -100,7 +100,7 @@ class ScalewayContainerRegistryImageSchema(CartographyNodeSchema):
     label: str = "ScalewayContainerRegistryImage"
     # Ontology `Image`: the digest-addressed content, the join target for
     # (:Container|:Function)-[:HAS_IMAGE]->(:Image) and RESOLVED_IMAGE.
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([ImageLabel()])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([ImageOntologyLabel()])
     properties: ScalewayContainerRegistryImageProperties = (
         ScalewayContainerRegistryImageProperties()
     )
@@ -115,7 +115,7 @@ class ScalewayContainerRegistryImageEnrichmentSchema(CartographyNodeSchema):
     fields and the HAS_LAYER relationship without disturbing base inventory."""
 
     label: str = "ScalewayContainerRegistryImage"
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([ImageLabel()])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([ImageOntologyLabel()])
     properties: ScalewayContainerRegistryImageEnrichmentProperties = (
         ScalewayContainerRegistryImageEnrichmentProperties()
     )

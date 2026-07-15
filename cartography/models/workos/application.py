@@ -10,7 +10,7 @@ from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import TargetNodeMatcher
-from cartography.models.ontology.labels import ThirdPartyAppLabel
+from cartography.models.ontology.labels import ThirdPartyAppOntologyLabel
 
 
 @dataclass(frozen=True)
@@ -67,7 +67,7 @@ class WorkOSApplicationToOrganizationRel(CartographyRelSchema):
 @dataclass(frozen=True)
 class WorkOSApplicationSchema(CartographyNodeSchema):
     label: str = "WorkOSApplication"
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([ThirdPartyAppLabel()])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([ThirdPartyAppOntologyLabel()])
     properties: WorkOSApplicationNodeProperties = WorkOSApplicationNodeProperties()
     sub_resource_relationship: WorkOSApplicationToEnvironmentRel = (
         WorkOSApplicationToEnvironmentRel()

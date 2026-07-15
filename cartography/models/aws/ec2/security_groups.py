@@ -10,7 +10,7 @@ from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import TargetNodeMatcher
-from cartography.models.ontology.labels import NetworkAccessControlLabel
+from cartography.models.ontology.labels import NetworkAccessControlOntologyLabel
 
 
 @dataclass(frozen=True)
@@ -81,7 +81,9 @@ class EC2SecurityGroupToSourceGroupRel(CartographyRelSchema):
 class EC2SecurityGroupSchema(CartographyNodeSchema):
     label: str = "EC2SecurityGroup"
     properties: EC2SecurityGroupNodeProperties = EC2SecurityGroupNodeProperties()
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([NetworkAccessControlLabel()])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
+        [NetworkAccessControlOntologyLabel()]
+    )
     sub_resource_relationship: EC2SecurityGroupToAWSAccountRel = (
         EC2SecurityGroupToAWSAccountRel()
     )

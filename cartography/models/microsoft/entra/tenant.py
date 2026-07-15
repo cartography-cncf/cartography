@@ -5,7 +5,7 @@ from cartography.models.core.nodes import CartographyNodeProperties
 from cartography.models.core.nodes import CartographyNodeSchema
 from cartography.models.core.nodes import ExtraNodeLabels
 from cartography.models.microsoft.extra_labels import EntraTenantLabel
-from cartography.models.ontology.labels import TenantLabel
+from cartography.models.ontology.labels import TenantOntologyLabel
 
 
 @dataclass(frozen=True)
@@ -39,5 +39,5 @@ class EntraTenantSchema(CartographyNodeSchema):
     label: str = "AzureTenant"
     properties: EntraTenantNodeProperties = EntraTenantNodeProperties()
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
-        [EntraTenantLabel(), TenantLabel()]
+        [EntraTenantLabel(), TenantOntologyLabel()]
     )

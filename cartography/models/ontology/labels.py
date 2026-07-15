@@ -4,7 +4,7 @@ from cartography.models.core.nodes import ExtraNodeLabel
 
 
 @dataclass(frozen=True)
-class AIModelLabel(ExtraNodeLabel):
+class AIModelOntologyLabel(ExtraNodeLabel):
     """A cross-provider AIModel resource in Cartography's ontology."""
 
     label: str = "AIModel"
@@ -12,7 +12,7 @@ class AIModelLabel(ExtraNodeLabel):
 
 
 @dataclass(frozen=True)
-class APIKeyLabel(ExtraNodeLabel):
+class APIKeyOntologyLabel(ExtraNodeLabel):
     """A cross-provider APIKey resource in Cartography's ontology."""
 
     label: str = "APIKey"
@@ -20,7 +20,7 @@ class APIKeyLabel(ExtraNodeLabel):
 
 
 @dataclass(frozen=True)
-class BlockStorageLabel(ExtraNodeLabel):
+class BlockStorageOntologyLabel(ExtraNodeLabel):
     """A cross-provider BlockStorage resource in Cartography's ontology."""
 
     label: str = "BlockStorage"
@@ -28,7 +28,7 @@ class BlockStorageLabel(ExtraNodeLabel):
 
 
 @dataclass(frozen=True)
-class CICDPipelineLabel(ExtraNodeLabel):
+class CICDPipelineOntologyLabel(ExtraNodeLabel):
     """A cross-provider CICDPipeline resource in Cartography's ontology."""
 
     label: str = "CICDPipeline"
@@ -36,7 +36,7 @@ class CICDPipelineLabel(ExtraNodeLabel):
 
 
 @dataclass(frozen=True)
-class CVELabel(ExtraNodeLabel):
+class CVEOntologyLabel(ExtraNodeLabel):
     """A cross-provider CVE resource in Cartography's ontology."""
 
     label: str = "CVE"
@@ -44,7 +44,7 @@ class CVELabel(ExtraNodeLabel):
 
 
 @dataclass(frozen=True)
-class CertificateLabel(ExtraNodeLabel):
+class CertificateOntologyLabel(ExtraNodeLabel):
     """A cross-provider Certificate resource in Cartography's ontology."""
 
     label: str = "Certificate"
@@ -52,7 +52,7 @@ class CertificateLabel(ExtraNodeLabel):
 
 
 @dataclass(frozen=True)
-class CodeRepositoryLabel(ExtraNodeLabel):
+class CodeRepositoryOntologyLabel(ExtraNodeLabel):
     """A cross-provider CodeRepository resource in Cartography's ontology."""
 
     label: str = "CodeRepository"
@@ -60,7 +60,7 @@ class CodeRepositoryLabel(ExtraNodeLabel):
 
 
 @dataclass(frozen=True)
-class ComputeClusterLabel(ExtraNodeLabel):
+class ComputeClusterOntologyLabel(ExtraNodeLabel):
     """A cross-provider ComputeCluster resource in Cartography's ontology."""
 
     label: str = "ComputeCluster"
@@ -68,7 +68,7 @@ class ComputeClusterLabel(ExtraNodeLabel):
 
 
 @dataclass(frozen=True)
-class ComputeInstanceLabel(ExtraNodeLabel):
+class ComputeInstanceOntologyLabel(ExtraNodeLabel):
     """A cross-provider ComputeInstance resource in Cartography's ontology."""
 
     label: str = "ComputeInstance"
@@ -76,7 +76,7 @@ class ComputeInstanceLabel(ExtraNodeLabel):
 
 
 @dataclass(frozen=True)
-class ComputeNamespaceLabel(ExtraNodeLabel):
+class ComputeNamespaceOntologyLabel(ExtraNodeLabel):
     """A cross-provider ComputeNamespace resource in Cartography's ontology."""
 
     label: str = "ComputeNamespace"
@@ -84,7 +84,7 @@ class ComputeNamespaceLabel(ExtraNodeLabel):
 
 
 @dataclass(frozen=True)
-class ComputePodLabel(ExtraNodeLabel):
+class ComputePodOntologyLabel(ExtraNodeLabel):
     """A cross-provider ComputePod resource in Cartography's ontology."""
 
     label: str = "ComputePod"
@@ -92,7 +92,7 @@ class ComputePodLabel(ExtraNodeLabel):
 
 
 @dataclass(frozen=True)
-class ComputeServiceLabel(ExtraNodeLabel):
+class ComputeServiceOntologyLabel(ExtraNodeLabel):
     """A cross-provider ComputeService resource in Cartography's ontology."""
 
     label: str = "ComputeService"
@@ -100,7 +100,7 @@ class ComputeServiceLabel(ExtraNodeLabel):
 
 
 @dataclass(frozen=True)
-class ContainerLabel(ExtraNodeLabel):
+class ContainerOntologyLabel(ExtraNodeLabel):
     """A cross-provider Container resource in Cartography's ontology."""
 
     label: str = "Container"
@@ -108,7 +108,7 @@ class ContainerLabel(ExtraNodeLabel):
 
 
 @dataclass(frozen=True)
-class ContainerRegistryLabel(ExtraNodeLabel):
+class ContainerRegistryOntologyLabel(ExtraNodeLabel):
     """A cross-provider ContainerRegistry resource in Cartography's ontology."""
 
     label: str = "ContainerRegistry"
@@ -116,7 +116,7 @@ class ContainerRegistryLabel(ExtraNodeLabel):
 
 
 @dataclass(frozen=True)
-class DNSRecordLabel(ExtraNodeLabel):
+class DNSRecordOntologyLabel(ExtraNodeLabel):
     """A cross-provider DNSRecord resource in Cartography's ontology."""
 
     label: str = "DNSRecord"
@@ -124,7 +124,7 @@ class DNSRecordLabel(ExtraNodeLabel):
 
 
 @dataclass(frozen=True)
-class DNSZoneLabel(ExtraNodeLabel):
+class DNSZoneOntologyLabel(ExtraNodeLabel):
     """A cross-provider DNSZone resource in Cartography's ontology."""
 
     label: str = "DNSZone"
@@ -132,7 +132,7 @@ class DNSZoneLabel(ExtraNodeLabel):
 
 
 @dataclass(frozen=True)
-class DatabaseLabel(ExtraNodeLabel):
+class DatabaseOntologyLabel(ExtraNodeLabel):
     """A cross-provider Database resource in Cartography's ontology."""
 
     label: str = "Database"
@@ -140,7 +140,7 @@ class DatabaseLabel(ExtraNodeLabel):
 
 
 @dataclass(frozen=True)
-class EncryptionKeyLabel(ExtraNodeLabel):
+class EncryptionKeyOntologyLabel(ExtraNodeLabel):
     """A cross-provider EncryptionKey resource in Cartography's ontology."""
 
     label: str = "EncryptionKey"
@@ -148,7 +148,7 @@ class EncryptionKeyLabel(ExtraNodeLabel):
 
 
 @dataclass(frozen=True)
-class FileStorageLabel(ExtraNodeLabel):
+class FileStorageOntologyLabel(ExtraNodeLabel):
     """A cross-provider FileStorage resource in Cartography's ontology."""
 
     label: str = "FileStorage"
@@ -156,7 +156,7 @@ class FileStorageLabel(ExtraNodeLabel):
 
 
 @dataclass(frozen=True)
-class FunctionLabel(ExtraNodeLabel):
+class FunctionOntologyLabel(ExtraNodeLabel):
     """A cross-provider Function resource in Cartography's ontology."""
 
     label: str = "Function"
@@ -164,7 +164,7 @@ class FunctionLabel(ExtraNodeLabel):
 
 
 @dataclass(frozen=True)
-class IdentityProviderLabel(ExtraNodeLabel):
+class IdentityProviderOntologyLabel(ExtraNodeLabel):
     """A cross-provider IdentityProvider resource in Cartography's ontology."""
 
     label: str = "IdentityProvider"
@@ -172,7 +172,7 @@ class IdentityProviderLabel(ExtraNodeLabel):
 
 
 @dataclass(frozen=True)
-class ImageLabel(ExtraNodeLabel):
+class ImageOntologyLabel(ExtraNodeLabel):
     """A concrete single-platform container image."""
 
     label: str = "Image"
@@ -180,7 +180,7 @@ class ImageLabel(ExtraNodeLabel):
 
 
 @dataclass(frozen=True)
-class ImageAttestationLabel(ExtraNodeLabel):
+class ImageAttestationOntologyLabel(ExtraNodeLabel):
     """A cross-provider ImageAttestation resource in Cartography's ontology."""
 
     label: str = "ImageAttestation"
@@ -188,7 +188,7 @@ class ImageAttestationLabel(ExtraNodeLabel):
 
 
 @dataclass(frozen=True)
-class ImageLayerLabel(ExtraNodeLabel):
+class ImageLayerOntologyLabel(ExtraNodeLabel):
     """A cross-provider ImageLayer resource in Cartography's ontology."""
 
     label: str = "ImageLayer"
@@ -196,7 +196,7 @@ class ImageLayerLabel(ExtraNodeLabel):
 
 
 @dataclass(frozen=True)
-class ImageManifestListLabel(ExtraNodeLabel):
+class ImageManifestListOntologyLabel(ExtraNodeLabel):
     """A cross-provider ImageManifestList resource in Cartography's ontology."""
 
     label: str = "ImageManifestList"
@@ -204,7 +204,7 @@ class ImageManifestListLabel(ExtraNodeLabel):
 
 
 @dataclass(frozen=True)
-class ImageTagLabel(ExtraNodeLabel):
+class ImageTagOntologyLabel(ExtraNodeLabel):
     """A cross-provider ImageTag resource in Cartography's ontology."""
 
     label: str = "ImageTag"
@@ -212,7 +212,7 @@ class ImageTagLabel(ExtraNodeLabel):
 
 
 @dataclass(frozen=True)
-class LoadBalancerLabel(ExtraNodeLabel):
+class LoadBalancerOntologyLabel(ExtraNodeLabel):
     """A cross-provider LoadBalancer resource in Cartography's ontology."""
 
     label: str = "LoadBalancer"
@@ -220,7 +220,7 @@ class LoadBalancerLabel(ExtraNodeLabel):
 
 
 @dataclass(frozen=True)
-class NetworkAccessControlLabel(ExtraNodeLabel):
+class NetworkAccessControlOntologyLabel(ExtraNodeLabel):
     """A cross-provider NetworkAccessControl resource in Cartography's ontology."""
 
     label: str = "NetworkAccessControl"
@@ -228,7 +228,7 @@ class NetworkAccessControlLabel(ExtraNodeLabel):
 
 
 @dataclass(frozen=True)
-class ObjectStorageLabel(ExtraNodeLabel):
+class ObjectStorageOntologyLabel(ExtraNodeLabel):
     """A cross-provider ObjectStorage resource in Cartography's ontology."""
 
     label: str = "ObjectStorage"
@@ -236,7 +236,7 @@ class ObjectStorageLabel(ExtraNodeLabel):
 
 
 @dataclass(frozen=True)
-class OntologyLabel(ExtraNodeLabel):
+class CanonicalOntologyLabel(ExtraNodeLabel):
     """A canonical node managed by Cartography's cross-provider ontology."""
 
     label: str = "Ontology"
@@ -244,7 +244,7 @@ class OntologyLabel(ExtraNodeLabel):
 
 
 @dataclass(frozen=True)
-class PermissionRoleLabel(ExtraNodeLabel):
+class PermissionRoleOntologyLabel(ExtraNodeLabel):
     """A cross-provider PermissionRole resource in Cartography's ontology."""
 
     label: str = "PermissionRole"
@@ -252,7 +252,7 @@ class PermissionRoleLabel(ExtraNodeLabel):
 
 
 @dataclass(frozen=True)
-class SecretLabel(ExtraNodeLabel):
+class SecretOntologyLabel(ExtraNodeLabel):
     """A cross-provider Secret resource in Cartography's ontology."""
 
     label: str = "Secret"
@@ -260,7 +260,7 @@ class SecretLabel(ExtraNodeLabel):
 
 
 @dataclass(frozen=True)
-class SecurityIssueLabel(ExtraNodeLabel):
+class SecurityIssueOntologyLabel(ExtraNodeLabel):
     """A cross-provider SecurityIssue resource in Cartography's ontology."""
 
     label: str = "SecurityIssue"
@@ -268,7 +268,7 @@ class SecurityIssueLabel(ExtraNodeLabel):
 
 
 @dataclass(frozen=True)
-class ServiceAccountLabel(ExtraNodeLabel):
+class ServiceAccountOntologyLabel(ExtraNodeLabel):
     """A cross-provider ServiceAccount resource in Cartography's ontology."""
 
     label: str = "ServiceAccount"
@@ -276,7 +276,7 @@ class ServiceAccountLabel(ExtraNodeLabel):
 
 
 @dataclass(frozen=True)
-class SnapshotLabel(ExtraNodeLabel):
+class SnapshotOntologyLabel(ExtraNodeLabel):
     """A cross-provider Snapshot resource in Cartography's ontology."""
 
     label: str = "Snapshot"
@@ -284,7 +284,7 @@ class SnapshotLabel(ExtraNodeLabel):
 
 
 @dataclass(frozen=True)
-class SubnetLabel(ExtraNodeLabel):
+class SubnetOntologyLabel(ExtraNodeLabel):
     """A cross-provider Subnet resource in Cartography's ontology."""
 
     label: str = "Subnet"
@@ -292,7 +292,7 @@ class SubnetLabel(ExtraNodeLabel):
 
 
 @dataclass(frozen=True)
-class TagLabel(ExtraNodeLabel):
+class TagOntologyLabel(ExtraNodeLabel):
     """A cross-provider Tag resource in Cartography's ontology."""
 
     label: str = "Tag"
@@ -300,7 +300,7 @@ class TagLabel(ExtraNodeLabel):
 
 
 @dataclass(frozen=True)
-class TenantLabel(ExtraNodeLabel):
+class TenantOntologyLabel(ExtraNodeLabel):
     """A cross-provider Tenant resource in Cartography's ontology."""
 
     label: str = "Tenant"
@@ -308,7 +308,7 @@ class TenantLabel(ExtraNodeLabel):
 
 
 @dataclass(frozen=True)
-class ThirdPartyAppLabel(ExtraNodeLabel):
+class ThirdPartyAppOntologyLabel(ExtraNodeLabel):
     """A cross-provider ThirdPartyApp resource in Cartography's ontology."""
 
     label: str = "ThirdPartyApp"
@@ -316,7 +316,7 @@ class ThirdPartyAppLabel(ExtraNodeLabel):
 
 
 @dataclass(frozen=True)
-class UserAccountLabel(ExtraNodeLabel):
+class UserAccountOntologyLabel(ExtraNodeLabel):
     """An identity on a specific system or service."""
 
     label: str = "UserAccount"
@@ -324,7 +324,7 @@ class UserAccountLabel(ExtraNodeLabel):
 
 
 @dataclass(frozen=True)
-class UserGroupLabel(ExtraNodeLabel):
+class UserGroupOntologyLabel(ExtraNodeLabel):
     """A cross-provider UserGroup resource in Cartography's ontology."""
 
     label: str = "UserGroup"
@@ -332,7 +332,7 @@ class UserGroupLabel(ExtraNodeLabel):
 
 
 @dataclass(frozen=True)
-class VirtualNetworkLabel(ExtraNodeLabel):
+class VirtualNetworkOntologyLabel(ExtraNodeLabel):
     """A cross-provider VirtualNetwork resource in Cartography's ontology."""
 
     label: str = "VirtualNetwork"

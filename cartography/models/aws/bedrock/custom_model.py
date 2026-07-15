@@ -10,7 +10,7 @@ from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import TargetNodeMatcher
-from cartography.models.ontology.labels import AIModelLabel
+from cartography.models.ontology.labels import AIModelOntologyLabel
 
 
 @dataclass(frozen=True)
@@ -120,7 +120,7 @@ class AWSBedrockCustomModelSchema(CartographyNodeSchema):
     """
 
     label: str = "AWSBedrockCustomModel"
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([AIModelLabel()])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([AIModelOntologyLabel()])
     properties: AWSBedrockCustomModelNodeProperties = (
         AWSBedrockCustomModelNodeProperties()
     )

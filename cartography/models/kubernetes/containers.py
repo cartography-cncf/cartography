@@ -10,7 +10,7 @@ from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import TargetNodeMatcher
-from cartography.models.ontology.labels import ContainerLabel
+from cartography.models.ontology.labels import ContainerOntologyLabel
 
 
 @dataclass(frozen=True)
@@ -228,7 +228,7 @@ class KubernetesContainerToGitHubContainerImageRel(CartographyRelSchema):
 @dataclass(frozen=True)
 class KubernetesContainerSchema(CartographyNodeSchema):
     label: str = "KubernetesContainer"
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([ContainerLabel()])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([ContainerOntologyLabel()])
     properties: KubernetesContainerNodeProperties = KubernetesContainerNodeProperties()
     sub_resource_relationship: KubernetesContainerToKubernetesClusterRel = (
         KubernetesContainerToKubernetesClusterRel()

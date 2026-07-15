@@ -12,7 +12,7 @@ from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import SourceNodeMatcher
 from cartography.models.core.relationships import TargetNodeMatcher
-from cartography.models.ontology.labels import ComputeInstanceLabel
+from cartography.models.ontology.labels import ComputeInstanceOntologyLabel
 
 
 @dataclass(frozen=True)
@@ -137,7 +137,9 @@ class EC2InstanceToEKSClusterRel(CartographyRelSchema):
 @dataclass(frozen=True)
 class EC2InstanceSchema(CartographyNodeSchema):
     label: str = "EC2Instance"
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([ComputeInstanceLabel()])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
+        [ComputeInstanceOntologyLabel()]
+    )
     properties: EC2InstanceNodeProperties = EC2InstanceNodeProperties()
     sub_resource_relationship: EC2InstanceToAWSAccountRel = EC2InstanceToAWSAccountRel()
     other_relationships: OtherRelationships = OtherRelationships(

@@ -11,7 +11,7 @@ from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import TargetNodeMatcher
 from cartography.models.microsoft.extra_labels import EntraIdentityLabel
-from cartography.models.ontology.labels import UserGroupLabel
+from cartography.models.ontology.labels import UserGroupOntologyLabel
 
 
 @dataclass(frozen=True)
@@ -115,6 +115,6 @@ class EntraGroupSchema(CartographyNodeSchema):
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
         [
             EntraIdentityLabel(),
-            UserGroupLabel(),
+            UserGroupOntologyLabel(),
         ]
     )

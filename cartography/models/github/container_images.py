@@ -21,8 +21,8 @@ from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import TargetNodeMatcher
-from cartography.models.ontology.labels import ImageLabel
-from cartography.models.ontology.labels import ImageManifestListLabel
+from cartography.models.ontology.labels import ImageManifestListOntologyLabel
+from cartography.models.ontology.labels import ImageOntologyLabel
 
 
 @dataclass(frozen=True)
@@ -200,10 +200,10 @@ class GitHubContainerImageSchema(CartographyNodeSchema):
     )
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
         [
-            ImageLabel(
+            ImageOntologyLabel(
                 conditions={"type": "image"},
             ),
-            ImageManifestListLabel(
+            ImageManifestListOntologyLabel(
                 conditions={"type": "manifest_list"},
             ),
         ],

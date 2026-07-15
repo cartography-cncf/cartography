@@ -9,7 +9,7 @@ from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import TargetNodeMatcher
-from cartography.models.ontology.labels import NetworkAccessControlLabel
+from cartography.models.ontology.labels import NetworkAccessControlOntologyLabel
 
 
 @dataclass(frozen=True)
@@ -53,7 +53,9 @@ class DatabricksIpAccessListSchema(CartographyNodeSchema):
     )
     # NetworkAccessControl: ontology label for cross-provider network access
     # control queries (mapping in models/ontology/mapping/data/firewalls.py).
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([NetworkAccessControlLabel()])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
+        [NetworkAccessControlOntologyLabel()]
+    )
     sub_resource_relationship: DatabricksIpAccessListToWorkspaceRel = (
         DatabricksIpAccessListToWorkspaceRel()
     )

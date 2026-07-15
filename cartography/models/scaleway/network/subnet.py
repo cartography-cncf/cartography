@@ -10,7 +10,7 @@ from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import TargetNodeMatcher
-from cartography.models.ontology.labels import SubnetLabel
+from cartography.models.ontology.labels import SubnetOntologyLabel
 
 
 @dataclass(frozen=True)
@@ -66,7 +66,7 @@ class ScalewaySubnetToPrivateNetworkRel(CartographyRelSchema):
 @dataclass(frozen=True)
 class ScalewaySubnetSchema(CartographyNodeSchema):
     label: str = "ScalewaySubnet"
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([SubnetLabel()])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([SubnetOntologyLabel()])
     properties: ScalewaySubnetProperties = ScalewaySubnetProperties()
     sub_resource_relationship: ScalewaySubnetToProjectRel = ScalewaySubnetToProjectRel()
     other_relationships: OtherRelationships = OtherRelationships(

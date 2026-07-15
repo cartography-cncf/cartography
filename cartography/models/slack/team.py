@@ -4,7 +4,7 @@ from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeProperties
 from cartography.models.core.nodes import CartographyNodeSchema
 from cartography.models.core.nodes import ExtraNodeLabels
-from cartography.models.ontology.labels import TenantLabel
+from cartography.models.ontology.labels import TenantOntologyLabel
 
 
 @dataclass(frozen=True)
@@ -21,5 +21,5 @@ class SlackTeamNodeProperties(CartographyNodeProperties):
 @dataclass(frozen=True)
 class SlackTeamSchema(CartographyNodeSchema):
     label: str = "SlackTeam"
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([TenantLabel()])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([TenantOntologyLabel()])
     properties: SlackTeamNodeProperties = SlackTeamNodeProperties()

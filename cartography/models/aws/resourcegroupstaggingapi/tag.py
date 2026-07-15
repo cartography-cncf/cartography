@@ -4,7 +4,7 @@ from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeProperties
 from cartography.models.core.nodes import CartographyNodeSchema
 from cartography.models.core.nodes import ExtraNodeLabels
-from cartography.models.ontology.labels import TagLabel
+from cartography.models.ontology.labels import TagOntologyLabel
 
 
 @dataclass(frozen=True)
@@ -38,6 +38,6 @@ class AWSTagSchema(CartographyNodeSchema):
     """
 
     label: str = "AWSTag"
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([TagLabel()])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([TagOntologyLabel()])
     properties: AWSTagNodeProperties = AWSTagNodeProperties()
     sub_resource_relationship: None = None

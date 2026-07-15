@@ -10,7 +10,7 @@ from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import TargetNodeMatcher
-from cartography.models.ontology.labels import FunctionLabel
+from cartography.models.ontology.labels import FunctionOntologyLabel
 
 
 @dataclass(frozen=True)
@@ -98,7 +98,7 @@ class ScalewayServerlessFunctionToPrivateNetworkRel(CartographyRelSchema):
 @dataclass(frozen=True)
 class ScalewayServerlessFunctionSchema(CartographyNodeSchema):
     label: str = "ScalewayServerlessFunction"
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([FunctionLabel()])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([FunctionOntologyLabel()])
     properties: ScalewayServerlessFunctionProperties = (
         ScalewayServerlessFunctionProperties()
     )

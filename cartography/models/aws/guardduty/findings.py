@@ -11,7 +11,7 @@ from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import TargetNodeMatcher
 from cartography.models.extra_labels import RiskLabel
-from cartography.models.ontology.labels import SecurityIssueLabel
+from cartography.models.ontology.labels import SecurityIssueOntologyLabel
 
 
 @dataclass(frozen=True)
@@ -233,7 +233,7 @@ class GuardDutyFindingSchema(CartographyNodeSchema):
     label: str = "GuardDutyFinding"
     properties: GuardDutyFindingNodeProperties = GuardDutyFindingNodeProperties()
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
-        [RiskLabel(), SecurityIssueLabel()]
+        [RiskLabel(), SecurityIssueOntologyLabel()]
     )
     sub_resource_relationship: GuardDutyFindingToAWSAccountRel = (
         GuardDutyFindingToAWSAccountRel()

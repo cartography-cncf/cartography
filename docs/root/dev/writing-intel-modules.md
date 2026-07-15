@@ -194,9 +194,9 @@ the same declarative label class and provide its `conditions`:
 
 ```python
 from cartography.models.core.nodes import ExtraNodeLabels
-from cartography.models.ontology.labels import ImageAttestationLabel
-from cartography.models.ontology.labels import ImageLabel
-from cartography.models.ontology.labels import ImageManifestListLabel
+from cartography.models.ontology.labels import ImageAttestationOntologyLabel
+from cartography.models.ontology.labels import ImageOntologyLabel
+from cartography.models.ontology.labels import ImageManifestListOntologyLabel
 
 @dataclass(frozen=True)
 class ECRImageSchema(CartographyNodeSchema):
@@ -206,13 +206,13 @@ class ECRImageSchema(CartographyNodeSchema):
 
     # Apply different ontology labels based on the image type
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([
-        ImageLabel(
+        ImageOntologyLabel(
             conditions={"type": "IMAGE"}
         ),
-        ImageAttestationLabel(
+        ImageAttestationOntologyLabel(
             conditions={"type": "IMAGE_ATTESTATION"}
         ),
-        ImageManifestListLabel(
+        ImageManifestListOntologyLabel(
             conditions={"type": "IMAGE_MANIFEST_LIST"}
         ),
     ])

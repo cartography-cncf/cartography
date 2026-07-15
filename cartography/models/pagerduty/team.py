@@ -4,7 +4,7 @@ from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeProperties
 from cartography.models.core.nodes import CartographyNodeSchema
 from cartography.models.core.nodes import ExtraNodeLabels
-from cartography.models.ontology.labels import UserGroupLabel
+from cartography.models.ontology.labels import UserGroupOntologyLabel
 
 
 @dataclass(frozen=True)
@@ -23,7 +23,7 @@ class PagerDutyTeamProperties(CartographyNodeProperties):
 class PagerDutyTeamSchema(CartographyNodeSchema):
     label: str = "PagerDutyTeam"
     properties: PagerDutyTeamProperties = PagerDutyTeamProperties()
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([UserGroupLabel()])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([UserGroupOntologyLabel()])
     # Cleanup is disabled because the MEMBER_OF relationship with role property
     # is loaded separately via Cypher query, not through the datamodel.
     # See https://github.com/cartography-cncf/cartography/issues/1589

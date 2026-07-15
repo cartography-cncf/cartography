@@ -9,7 +9,7 @@ from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import TargetNodeMatcher
-from cartography.models.ontology.labels import SnapshotLabel
+from cartography.models.ontology.labels import SnapshotOntologyLabel
 
 
 @dataclass(frozen=True)
@@ -53,7 +53,7 @@ class AzureSnapshotToSubscriptionRel(CartographyRelSchema):
 class AzureSnapshotSchema(CartographyNodeSchema):
     label: str = "AzureSnapshot"
     properties: AzureSnapshotProperties = AzureSnapshotProperties()
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([SnapshotLabel()])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([SnapshotOntologyLabel()])
     sub_resource_relationship: AzureSnapshotToSubscriptionRel = (
         AzureSnapshotToSubscriptionRel()
     )

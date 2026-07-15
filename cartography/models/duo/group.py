@@ -9,7 +9,7 @@ from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import TargetNodeMatcher
-from cartography.models.ontology.labels import UserGroupLabel
+from cartography.models.ontology.labels import UserGroupOntologyLabel
 
 
 @dataclass(frozen=True)
@@ -47,4 +47,4 @@ class DuoGroupSchema(CartographyNodeSchema):
     label: str = "DuoGroup"
     properties: DuoGroupNodeProperties = DuoGroupNodeProperties()
     sub_resource_relationship: DuoGroupToDuoApiHostRel = DuoGroupToDuoApiHostRel()
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([UserGroupLabel()])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([UserGroupOntologyLabel()])

@@ -10,7 +10,7 @@ from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import TargetNodeMatcher
-from cartography.models.ontology.labels import ImageLayerLabel
+from cartography.models.ontology.labels import ImageLayerOntologyLabel
 
 
 @dataclass(frozen=True)
@@ -106,7 +106,7 @@ class ECRImageLayerSchema(CartographyNodeSchema):
             ECRImageLayerTailOfImageRel(),
         ]
     )
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([ImageLayerLabel()])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([ImageLayerOntologyLabel()])
 
 
 @dataclass(frozen=True)
@@ -118,7 +118,7 @@ class ECRImageLayerNodeSchema(CartographyNodeSchema):
     sub_resource_relationship: ECRImageLayerToAWSAccountRel = (
         ECRImageLayerToAWSAccountRel()
     )
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([ImageLayerLabel()])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([ImageLayerOntologyLabel()])
 
 
 @dataclass(frozen=True)

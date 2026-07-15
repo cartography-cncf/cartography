@@ -10,7 +10,7 @@ from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import TargetNodeMatcher
-from cartography.models.ontology.labels import TagLabel
+from cartography.models.ontology.labels import TagOntologyLabel
 
 
 @dataclass(frozen=True)
@@ -88,7 +88,7 @@ class TenableAssetTagToAssetTaggedRel(CartographyRelSchema):
 @dataclass(frozen=True)
 class TenableAssetTagSchema(CartographyNodeSchema):
     label: str = "TenableAssetTag"
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([TagLabel()])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([TagOntologyLabel()])
     properties: TenableAssetTagNodeProperties = TenableAssetTagNodeProperties()
     sub_resource_relationship: TenableAssetTagToTenantRel = TenableAssetTagToTenantRel()
     other_relationships: OtherRelationships = OtherRelationships(

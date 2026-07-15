@@ -10,7 +10,7 @@ from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import TargetNodeMatcher
-from cartography.models.ontology.labels import APIKeyLabel
+from cartography.models.ontology.labels import APIKeyOntologyLabel
 
 
 @dataclass(frozen=True)
@@ -124,7 +124,7 @@ class OpenAIApiKeyToSAOwnedByRel(CartographyRelSchema):
 class OpenAIApiKeySchema(CartographyNodeSchema):
     label: str = "OpenAIApiKey"
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
-        [APIKeyLabel()]
+        [APIKeyOntologyLabel()]
     )  # APIKey label is used for ontology mapping
     properties: OpenAIApiKeyNodeProperties = OpenAIApiKeyNodeProperties()
     sub_resource_relationship: OpenAIApiKeyToProjectRel = OpenAIApiKeyToProjectRel()

@@ -11,7 +11,7 @@ from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import TargetNodeMatcher
-from cartography.models.ontology.labels import SecretLabel
+from cartography.models.ontology.labels import SecretOntologyLabel
 
 
 @dataclass(frozen=True)
@@ -80,7 +80,7 @@ class SSMParameterSchema(CartographyNodeSchema):
     # Only SecureString parameters are secrets (String/StringList are plaintext config).
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
         [
-            SecretLabel(
+            SecretOntologyLabel(
                 conditions={"type": "SecureString"},
             ),
         ],

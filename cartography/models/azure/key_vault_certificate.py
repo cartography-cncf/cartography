@@ -11,7 +11,7 @@ from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import TargetNodeMatcher
-from cartography.models.ontology.labels import CertificateLabel
+from cartography.models.ontology.labels import CertificateOntologyLabel
 
 logger = logging.getLogger(__name__)
 
@@ -69,7 +69,7 @@ class AzureKeyVaultCertificateToSubscriptionRel(CartographyRelSchema):
 @dataclass(frozen=True)
 class AzureKeyVaultCertificateSchema(CartographyNodeSchema):
     label: str = "AzureKeyVaultCertificate"
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([CertificateLabel()])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([CertificateOntologyLabel()])
     properties: AzureKeyVaultCertificateProperties = (
         AzureKeyVaultCertificateProperties()
     )

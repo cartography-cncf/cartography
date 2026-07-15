@@ -9,7 +9,7 @@ from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import TargetNodeMatcher
-from cartography.models.ontology.labels import TenantLabel
+from cartography.models.ontology.labels import TenantOntologyLabel
 
 
 @dataclass(frozen=True)
@@ -48,4 +48,4 @@ class ScalewayProjectSchema(CartographyNodeSchema):
     sub_resource_relationship: ScalewayProjectToOrganizationRel = (
         ScalewayProjectToOrganizationRel()
     )
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([TenantLabel()])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([TenantOntologyLabel()])

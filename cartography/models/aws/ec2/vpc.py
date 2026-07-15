@@ -9,7 +9,7 @@ from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import TargetNodeMatcher
-from cartography.models.ontology.labels import VirtualNetworkLabel
+from cartography.models.ontology.labels import VirtualNetworkOntologyLabel
 
 
 @dataclass(frozen=True)
@@ -45,5 +45,7 @@ class VPCToAWSAccountRel(CartographyRelSchema):
 class AWSVpcSchema(CartographyNodeSchema):
     label: str = "AWSVpc"
     properties: VPCNodeProperties = VPCNodeProperties()
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([VirtualNetworkLabel()])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
+        [VirtualNetworkOntologyLabel()]
+    )
     sub_resource_relationship: VPCToAWSAccountRel = VPCToAWSAccountRel()

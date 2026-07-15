@@ -11,9 +11,9 @@ from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import TargetNodeMatcher
 from cartography.models.extra_labels import DependencyLabel
-from cartography.models.ontology.labels import CodeRepositoryLabel
-from cartography.models.ontology.labels import TenantLabel
-from cartography.models.ontology.labels import UserAccountLabel
+from cartography.models.ontology.labels import CodeRepositoryOntologyLabel
+from cartography.models.ontology.labels import TenantOntologyLabel
+from cartography.models.ontology.labels import UserAccountOntologyLabel
 
 
 @dataclass(frozen=True)
@@ -69,7 +69,9 @@ class GitHubRepositoryToOwnerUserRel(CartographyRelSchema):
 class GitHubRepositorySchema(CartographyNodeSchema):
     label: str = "GitHubRepository"
     properties: GitHubRepositoryNodeProperties = GitHubRepositoryNodeProperties()
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([CodeRepositoryLabel()])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
+        [CodeRepositoryOntologyLabel()]
+    )
     other_relationships: OtherRelationships = OtherRelationships(
         [
             GitHubRepositoryToOwnerOrganizationRel(),
@@ -185,7 +187,7 @@ class GitHubOwnerOrganizationSchema(CartographyNodeSchema):
     properties: GitHubOwnerOrganizationNodeProperties = (
         GitHubOwnerOrganizationNodeProperties()
     )
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([TenantLabel()])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([TenantOntologyLabel()])
     other_relationships: OtherRelationships = OtherRelationships(
         [GitHubOwnerToRepositoryRel()],
     )
@@ -195,7 +197,7 @@ class GitHubOwnerOrganizationSchema(CartographyNodeSchema):
 class GitHubOwnerUserSchema(CartographyNodeSchema):
     label: str = "GitHubUser"
     properties: GitHubOwnerUserNodeProperties = GitHubOwnerUserNodeProperties()
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([UserAccountLabel()])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([UserAccountOntologyLabel()])
     other_relationships: OtherRelationships = OtherRelationships(
         [GitHubOwnerToRepositoryRel()],
     )
@@ -227,7 +229,7 @@ class GitHubCollaboratorToRepositoryRel(CartographyRelSchema):
 class _GitHubCollaboratorSchema(CartographyNodeSchema):
     label: str = "GitHubUser"
     properties: GitHubCollaboratorNodeProperties = GitHubCollaboratorNodeProperties()
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([UserAccountLabel()])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([UserAccountOntologyLabel()])
     rel_label: str = "DIRECT_COLLAB_ADMIN"
 
     @property

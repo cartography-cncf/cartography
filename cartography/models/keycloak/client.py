@@ -12,7 +12,7 @@ from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import SourceNodeMatcher
 from cartography.models.core.relationships import TargetNodeMatcher
-from cartography.models.ontology.labels import ThirdPartyAppLabel
+from cartography.models.ontology.labels import ThirdPartyAppOntologyLabel
 
 
 @dataclass(frozen=True)
@@ -139,7 +139,7 @@ class KeycloakClientToServiceAccountRel(CartographyRelSchema):
 @dataclass(frozen=True)
 class KeycloakClientSchema(CartographyNodeSchema):
     label: str = "KeycloakClient"
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([ThirdPartyAppLabel()])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([ThirdPartyAppOntologyLabel()])
     properties: KeycloakClientNodeProperties = KeycloakClientNodeProperties()
     sub_resource_relationship: KeycloakClientToRealmRel = KeycloakClientToRealmRel()
     other_relationships: OtherRelationships = OtherRelationships(

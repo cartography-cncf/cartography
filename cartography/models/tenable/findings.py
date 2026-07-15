@@ -10,7 +10,7 @@ from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import TargetNodeMatcher
-from cartography.models.ontology.labels import CVELabel
+from cartography.models.ontology.labels import CVEOntologyLabel
 
 
 @dataclass(frozen=True)
@@ -116,7 +116,7 @@ class TenableFindingToScanRel(CartographyRelSchema):
 class TenableFindingSchema(CartographyNodeSchema):
     label: str = "TenableFinding"
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
-        [CVELabel(conditions={"has_cve": "true"})]
+        [CVEOntologyLabel(conditions={"has_cve": "true"})]
     )
     properties: TenableFindingNodeProperties = TenableFindingNodeProperties()
     sub_resource_relationship: TenableFindingToTenantRel = TenableFindingToTenantRel()

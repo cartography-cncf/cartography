@@ -14,9 +14,9 @@ Apply a label only when the record matches certain conditions:
 
 ```python
 from cartography.models.core.nodes import ExtraNodeLabels
-from cartography.models.ontology.labels import ImageAttestationLabel
-from cartography.models.ontology.labels import ImageLabel
-from cartography.models.ontology.labels import ImageManifestListLabel
+from cartography.models.ontology.labels import ImageAttestationOntologyLabel
+from cartography.models.ontology.labels import ImageOntologyLabel
+from cartography.models.ontology.labels import ImageManifestListOntologyLabel
 
 
 @dataclass(frozen=True)
@@ -25,9 +25,9 @@ class ECRImageSchema(CartographyNodeSchema):
     properties: ECRImageNodeProperties = ECRImageNodeProperties()
     sub_resource_relationship: ECRImageToAccountRel = ECRImageToAccountRel()
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([
-        ImageLabel(conditions={"type": "IMAGE"}),
-        ImageAttestationLabel(conditions={"type": "IMAGE_ATTESTATION"}),
-        ImageManifestListLabel(conditions={"type": "IMAGE_MANIFEST_LIST"}),
+        ImageOntologyLabel(conditions={"type": "IMAGE"}),
+        ImageAttestationOntologyLabel(conditions={"type": "IMAGE_ATTESTATION"}),
+        ImageManifestListOntologyLabel(conditions={"type": "IMAGE_MANIFEST_LIST"}),
     ])
 ```
 

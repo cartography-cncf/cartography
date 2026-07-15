@@ -10,7 +10,7 @@ from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import TargetNodeMatcher
-from cartography.models.ontology.labels import ServiceAccountLabel
+from cartography.models.ontology.labels import ServiceAccountOntologyLabel
 
 
 @dataclass(frozen=True)
@@ -98,7 +98,9 @@ class EntraServicePrincipalSchema(CartographyNodeSchema):
     properties: EntraServicePrincipalNodeProperties = (
         EntraServicePrincipalNodeProperties()
     )
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([ServiceAccountLabel()])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
+        [ServiceAccountOntologyLabel()]
+    )
     sub_resource_relationship: EntraServicePrincipalToTenantRel = (
         EntraServicePrincipalToTenantRel()
     )

@@ -9,7 +9,7 @@ from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import TargetNodeMatcher
-from cartography.models.ontology.labels import ComputeInstanceLabel
+from cartography.models.ontology.labels import ComputeInstanceOntologyLabel
 
 
 @dataclass(frozen=True)
@@ -53,7 +53,9 @@ class ScalewayAppleSiliconServerToProjectRel(CartographyRelSchema):
 @dataclass(frozen=True)
 class ScalewayAppleSiliconServerSchema(CartographyNodeSchema):
     label: str = "ScalewayAppleSiliconServer"
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([ComputeInstanceLabel()])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
+        [ComputeInstanceOntologyLabel()]
+    )
     properties: ScalewayAppleSiliconServerProperties = (
         ScalewayAppleSiliconServerProperties()
     )

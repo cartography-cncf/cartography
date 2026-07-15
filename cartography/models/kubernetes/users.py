@@ -10,7 +10,7 @@ from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import TargetNodeMatcher
-from cartography.models.ontology.labels import UserAccountLabel
+from cartography.models.ontology.labels import UserAccountOntologyLabel
 
 
 @dataclass(frozen=True)
@@ -114,7 +114,7 @@ class KubernetesUserToAWSRootPrincipalRel(CartographyRelSchema):
 @dataclass(frozen=True)
 class KubernetesUserSchema(CartographyNodeSchema):
     label: str = "KubernetesUser"
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([UserAccountLabel()])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([UserAccountOntologyLabel()])
     properties: KubernetesUserNodeProperties = KubernetesUserNodeProperties()
     sub_resource_relationship: KubernetesUserToClusterRel = KubernetesUserToClusterRel()
     other_relationships: OtherRelationships = OtherRelationships(

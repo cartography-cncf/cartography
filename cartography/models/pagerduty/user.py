@@ -4,7 +4,7 @@ from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeProperties
 from cartography.models.core.nodes import CartographyNodeSchema
 from cartography.models.core.nodes import ExtraNodeLabels
-from cartography.models.ontology.labels import UserAccountLabel
+from cartography.models.ontology.labels import UserAccountOntologyLabel
 
 
 @dataclass(frozen=True)
@@ -28,6 +28,6 @@ class PagerDutyUserProperties(CartographyNodeProperties):
 @dataclass(frozen=True)
 class PagerDutyUserSchema(CartographyNodeSchema):
     label: str = "PagerDutyUser"
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([UserAccountLabel()])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([UserAccountOntologyLabel()])
     properties: PagerDutyUserProperties = PagerDutyUserProperties()
     scoped_cleanup: bool = False

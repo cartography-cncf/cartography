@@ -10,7 +10,7 @@ from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import TargetNodeMatcher
-from cartography.models.ontology.labels import AIModelLabel
+from cartography.models.ontology.labels import AIModelOntologyLabel
 
 
 @dataclass(frozen=True)
@@ -77,7 +77,7 @@ class GCPVertexAIModelToGCSBucketRel(CartographyRelSchema):
 @dataclass(frozen=True)
 class GCPVertexAIModelSchema(CartographyNodeSchema):
     label: str = "GCPVertexAIModel"
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([AIModelLabel()])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([AIModelOntologyLabel()])
     properties: GCPVertexAIModelNodeProperties = GCPVertexAIModelNodeProperties()
     sub_resource_relationship: GCPVertexAIModelToProjectRel = (
         GCPVertexAIModelToProjectRel()

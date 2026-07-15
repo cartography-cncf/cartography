@@ -12,7 +12,7 @@ from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import SourceNodeMatcher
 from cartography.models.core.relationships import TargetNodeMatcher
-from cartography.models.ontology.labels import ImageTagLabel
+from cartography.models.ontology.labels import ImageTagOntologyLabel
 
 
 @dataclass(frozen=True)
@@ -202,4 +202,4 @@ class GCPArtifactRegistryRepositoryImageSchema(CartographyNodeSchema):
             GCPArtifactRegistryRepositoryImageToImageRel(),
         ]
     )
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([ImageTagLabel()])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([ImageTagOntologyLabel()])

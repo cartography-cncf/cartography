@@ -20,11 +20,11 @@ def test_extra_node_label_must_be_subclassed() -> None:
         ExtraNodeLabel()
 
 
-@pytest.mark.parametrize("invalid_label", ["Test", object()])
-def test_extra_node_labels_rejects_invalid_entries(invalid_label: object) -> None:
-    with pytest.raises(TypeError, match="accepts only ExtraNodeLabel instances"):
-        # Intentionally violate the annotation to verify runtime rejection.
-        ExtraNodeLabels([invalid_label])  # type: ignore[list-item]
+def test_extra_node_labels_rejects_invalid_entries() -> None:
+    for invalid_label in ["Test", object()]:
+        with pytest.raises(TypeError, match="accepts only ExtraNodeLabel instances"):
+            # Intentionally violate the annotation to verify runtime rejection.
+            ExtraNodeLabels([invalid_label])  # type: ignore[list-item]
 
 
 def test_extra_node_labels_accepts_declarative_labels() -> None:

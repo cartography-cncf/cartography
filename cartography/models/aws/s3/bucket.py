@@ -11,7 +11,7 @@ from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import TargetNodeMatcher
-from cartography.models.ontology.labels import ObjectStorageLabel
+from cartography.models.ontology.labels import ObjectStorageOntologyLabel
 
 # ============================================================================
 # Base S3Bucket Schema - Core properties only
@@ -58,7 +58,7 @@ class S3BucketSchema(CartographyNodeSchema):
 
     label: str = "S3Bucket"
     properties: S3BucketNodeProperties = S3BucketNodeProperties()
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([ObjectStorageLabel()])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([ObjectStorageOntologyLabel()])
     sub_resource_relationship: S3BucketToAWSAccountRel = S3BucketToAWSAccountRel()
 
 

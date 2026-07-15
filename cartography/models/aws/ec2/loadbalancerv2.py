@@ -14,7 +14,7 @@ from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import SourceNodeMatcher
 from cartography.models.core.relationships import TargetNodeMatcher
-from cartography.models.ontology.labels import LoadBalancerLabel
+from cartography.models.ontology.labels import LoadBalancerOntologyLabel
 
 # ELBV2TargetGroup Schema
 
@@ -200,7 +200,7 @@ class LoadBalancerV2Schema(CartographyNodeSchema):
     properties: LoadBalancerV2NodeProperties = LoadBalancerV2NodeProperties()
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
         [
-            LoadBalancerLabel(),  # Ontology node label
+            LoadBalancerOntologyLabel(),  # Ontology node label
             LoadBalancerV2Label(),  # DEPRECATED: for backwards compatibility
         ]
     )

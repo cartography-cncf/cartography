@@ -11,7 +11,7 @@ from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import TargetNodeMatcher
 from cartography.models.databricks.extra_labels import DatabricksSecurableLabel
-from cartography.models.ontology.labels import DatabaseLabel
+from cartography.models.ontology.labels import DatabaseOntologyLabel
 
 
 @dataclass(frozen=True)
@@ -77,7 +77,7 @@ class DatabricksSchemaSchema(CartographyNodeSchema):
     # DatabricksSecurable: shared UC-grant target label. Database: ontology
     # label for cross-provider data store queries.
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
-        [DatabricksSecurableLabel(), DatabaseLabel()]
+        [DatabricksSecurableLabel(), DatabaseOntologyLabel()]
     )
     sub_resource_relationship: DatabricksSchemaToWorkspaceRel = (
         DatabricksSchemaToWorkspaceRel()

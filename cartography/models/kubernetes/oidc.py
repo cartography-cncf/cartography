@@ -10,7 +10,7 @@ from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import TargetNodeMatcher
-from cartography.models.ontology.labels import IdentityProviderLabel
+from cartography.models.ontology.labels import IdentityProviderOntologyLabel
 
 
 @dataclass(frozen=True)
@@ -82,7 +82,9 @@ class KubernetesOIDCProviderSchema(CartographyNodeSchema):
     properties: KubernetesOIDCProviderNodeProperties = (
         KubernetesOIDCProviderNodeProperties()
     )
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([IdentityProviderLabel()])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
+        [IdentityProviderOntologyLabel()]
+    )
     sub_resource_relationship: KubernetesOIDCProviderToClusterRel = (
         KubernetesOIDCProviderToClusterRel()
     )

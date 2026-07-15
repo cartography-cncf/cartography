@@ -10,7 +10,7 @@ from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import TargetNodeMatcher
-from cartography.models.ontology.labels import DNSRecordLabel
+from cartography.models.ontology.labels import DNSRecordOntologyLabel
 
 
 @dataclass(frozen=True)
@@ -67,7 +67,7 @@ class VercelDNSRecordToDomainRel(CartographyRelSchema):
 class VercelDNSRecordSchema(CartographyNodeSchema):
     label: str = "VercelDNSRecord"
     properties: VercelDNSRecordNodeProperties = VercelDNSRecordNodeProperties()
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([DNSRecordLabel()])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([DNSRecordOntologyLabel()])
     sub_resource_relationship: VercelDNSRecordToTeamRel = VercelDNSRecordToTeamRel()
     other_relationships: OtherRelationships = OtherRelationships(
         [VercelDNSRecordToDomainRel()],

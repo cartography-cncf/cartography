@@ -4,7 +4,7 @@ from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeProperties
 from cartography.models.core.nodes import CartographyNodeSchema
 from cartography.models.core.nodes import ExtraNodeLabels
-from cartography.models.ontology.labels import TenantLabel
+from cartography.models.ontology.labels import TenantOntologyLabel
 
 
 @dataclass(frozen=True)
@@ -23,4 +23,4 @@ class SocketDevOrganizationSchema(CartographyNodeSchema):
     properties: SocketDevOrganizationNodeProperties = (
         SocketDevOrganizationNodeProperties()
     )
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([TenantLabel()])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([TenantOntologyLabel()])

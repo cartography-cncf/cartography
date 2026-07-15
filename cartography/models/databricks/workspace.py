@@ -10,7 +10,7 @@ from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import TargetNodeMatcher
-from cartography.models.ontology.labels import TenantLabel
+from cartography.models.ontology.labels import TenantOntologyLabel
 
 
 @dataclass(frozen=True)
@@ -53,7 +53,7 @@ class DatabricksWorkspaceSchema(CartographyNodeSchema):
     label: str = "DatabricksWorkspace"
     properties: DatabricksWorkspaceNodeProperties = DatabricksWorkspaceNodeProperties()
     # `Tenant` is the ontology label for the top-level resource container.
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([TenantLabel()])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([TenantOntologyLabel()])
     # The account owns the workspace. Modelled as a plain relationship (not the
     # sub-resource relationship) so the workspace-only path keeps working: when
     # no account creds are configured, ACCOUNT_ID is None, the account node is

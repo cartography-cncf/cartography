@@ -10,7 +10,7 @@ from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import TargetNodeMatcher
-from cartography.models.ontology.labels import UserGroupLabel
+from cartography.models.ontology.labels import UserGroupOntologyLabel
 
 
 @dataclass(frozen=True)
@@ -84,7 +84,7 @@ class SalesforceGroupToGroupRel(CartographyRelSchema):
 class SalesforceGroupSchema(CartographyNodeSchema):
     label: str = "SalesforceGroup"
     # UserGroup label is used for ontology mapping
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([UserGroupLabel()])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([UserGroupOntologyLabel()])
     properties: SalesforceGroupNodeProperties = SalesforceGroupNodeProperties()
     sub_resource_relationship: SalesforceGroupToOrganizationRel = (
         SalesforceGroupToOrganizationRel()

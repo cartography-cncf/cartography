@@ -9,7 +9,7 @@ from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import TargetNodeMatcher
-from cartography.models.ontology.labels import BlockStorageLabel
+from cartography.models.ontology.labels import BlockStorageOntologyLabel
 
 
 @dataclass(frozen=True)
@@ -51,5 +51,5 @@ class ScalewayVolumeToProjectRel(CartographyRelSchema):
 class ScalewayVolumeSchema(CartographyNodeSchema):
     label: str = "ScalewayVolume"
     properties: ScalewayVolumeNodeProperties = ScalewayVolumeNodeProperties()
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([BlockStorageLabel()])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([BlockStorageOntologyLabel()])
     sub_resource_relationship: ScalewayVolumeToProjectRel = ScalewayVolumeToProjectRel()

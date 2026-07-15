@@ -13,7 +13,7 @@ from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import SourceNodeMatcher
 from cartography.models.core.relationships import TargetNodeMatcher
 from cartography.models.extra_labels import GCPPrincipalLabel
-from cartography.models.ontology.labels import UserGroupLabel
+from cartography.models.ontology.labels import UserGroupOntologyLabel
 
 
 @dataclass(frozen=True)
@@ -159,7 +159,7 @@ class GSuiteGroupSchema(CartographyNodeSchema):
     properties: GSuiteGroupNodeProperties = GSuiteGroupNodeProperties()
     sub_resource_relationship: GSuiteGroupToTenantRel = GSuiteGroupToTenantRel()
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
-        [GCPPrincipalLabel(), UserGroupLabel()]
+        [GCPPrincipalLabel(), UserGroupOntologyLabel()]
     )
     other_relationships = OtherRelationships(
         [

@@ -5,7 +5,7 @@ from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeProperties
 from cartography.models.core.nodes import CartographyNodeSchema
 from cartography.models.core.nodes import ExtraNodeLabels
-from cartography.models.ontology.labels import ServiceAccountLabel
+from cartography.models.ontology.labels import ServiceAccountOntologyLabel
 
 
 @dataclass(frozen=True)
@@ -29,6 +29,6 @@ class AWSServicePrincipalSchema(CartographyNodeSchema):
 
     label: str = "AWSServicePrincipal"
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
-        [AWSPrincipalLabel(), ServiceAccountLabel()]
+        [AWSPrincipalLabel(), ServiceAccountOntologyLabel()]
     )
     properties: AWSServicePrincipalNodeProperties = AWSServicePrincipalNodeProperties()

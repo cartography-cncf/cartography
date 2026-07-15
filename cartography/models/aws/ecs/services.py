@@ -10,7 +10,7 @@ from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import TargetNodeMatcher
-from cartography.models.ontology.labels import ComputeServiceLabel
+from cartography.models.ontology.labels import ComputeServiceOntologyLabel
 
 
 @dataclass(frozen=True)
@@ -149,7 +149,9 @@ class ECSServiceToECSTaskRel(CartographyRelSchema):
 @dataclass(frozen=True)
 class ECSServiceSchema(CartographyNodeSchema):
     label: str = "ECSService"
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([ComputeServiceLabel()])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
+        [ComputeServiceOntologyLabel()]
+    )
     properties: ECSServiceNodeProperties = ECSServiceNodeProperties()
     sub_resource_relationship: ECSServiceToAWSAccountRel = ECSServiceToAWSAccountRel()
     other_relationships: OtherRelationships = OtherRelationships(

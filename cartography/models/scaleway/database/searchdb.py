@@ -9,7 +9,7 @@ from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import TargetNodeMatcher
-from cartography.models.ontology.labels import DatabaseLabel
+from cartography.models.ontology.labels import DatabaseOntologyLabel
 
 
 @dataclass(frozen=True)
@@ -51,7 +51,7 @@ class ScalewaySearchDeploymentToProjectRel(CartographyRelSchema):
 @dataclass(frozen=True)
 class ScalewaySearchDeploymentSchema(CartographyNodeSchema):
     label: str = "ScalewaySearchDeployment"
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([DatabaseLabel()])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([DatabaseOntologyLabel()])
     properties: ScalewaySearchDeploymentProperties = (
         ScalewaySearchDeploymentProperties()
     )

@@ -10,7 +10,7 @@ from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import TargetNodeMatcher
-from cartography.models.ontology.labels import ComputeServiceLabel
+from cartography.models.ontology.labels import ComputeServiceOntologyLabel
 
 
 @dataclass(frozen=True)
@@ -82,7 +82,9 @@ class CloudRunJobToServiceAccountRunsAsRel(CartographyRelSchema):
 @dataclass(frozen=True)
 class GCPCloudRunJobSchema(CartographyNodeSchema):
     label: str = "GCPCloudRunJob"
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([ComputeServiceLabel()])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
+        [ComputeServiceOntologyLabel()]
+    )
     properties: GCPCloudRunJobProperties = GCPCloudRunJobProperties()
     sub_resource_relationship: ProjectToCloudRunJobRel = ProjectToCloudRunJobRel()
     other_relationships: OtherRelationships = OtherRelationships(

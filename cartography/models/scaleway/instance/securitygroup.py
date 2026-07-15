@@ -13,7 +13,7 @@ from cartography.models.core.relationships import TargetNodeMatcher
 from cartography.models.extra_labels import IpPermissionEgressLabel
 from cartography.models.extra_labels import IpPermissionInboundLabel
 from cartography.models.extra_labels import IpRuleLabel
-from cartography.models.ontology.labels import NetworkAccessControlLabel
+from cartography.models.ontology.labels import NetworkAccessControlOntologyLabel
 
 
 @dataclass(frozen=True)
@@ -76,7 +76,9 @@ class ScalewaySecurityGroupToInstanceRel(CartographyRelSchema):
 @dataclass(frozen=True)
 class ScalewaySecurityGroupSchema(CartographyNodeSchema):
     label: str = "ScalewaySecurityGroup"
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([NetworkAccessControlLabel()])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
+        [NetworkAccessControlOntologyLabel()]
+    )
     properties: ScalewaySecurityGroupProperties = ScalewaySecurityGroupProperties()
     sub_resource_relationship: ScalewaySecurityGroupToProjectRel = (
         ScalewaySecurityGroupToProjectRel()

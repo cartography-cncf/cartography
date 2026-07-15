@@ -9,7 +9,7 @@ from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import TargetNodeMatcher
-from cartography.models.ontology.labels import PermissionRoleLabel
+from cartography.models.ontology.labels import PermissionRoleOntologyLabel
 
 
 @dataclass(frozen=True)
@@ -49,7 +49,9 @@ class SalesforceProfileToOrganizationRel(CartographyRelSchema):
 class SalesforceProfileSchema(CartographyNodeSchema):
     label: str = "SalesforceProfile"
     # PermissionRole label is used for ontology mapping
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([PermissionRoleLabel()])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
+        [PermissionRoleOntologyLabel()]
+    )
     properties: SalesforceProfileNodeProperties = SalesforceProfileNodeProperties()
     sub_resource_relationship: SalesforceProfileToOrganizationRel = (
         SalesforceProfileToOrganizationRel()

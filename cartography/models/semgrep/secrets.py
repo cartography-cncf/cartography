@@ -10,7 +10,7 @@ from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import TargetNodeMatcher
-from cartography.models.ontology.labels import SecurityIssueLabel
+from cartography.models.ontology.labels import SecurityIssueOntologyLabel
 
 
 @dataclass(frozen=True)
@@ -96,7 +96,7 @@ class SemgrepSecretsFindingToGitLabProjectRel(CartographyRelSchema):
 @dataclass(frozen=True)
 class SemgrepSecretsFindingSchema(CartographyNodeSchema):
     label: str = "SemgrepSecretsFinding"
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([SecurityIssueLabel()])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([SecurityIssueOntologyLabel()])
     properties: SemgrepSecretsFindingNodeProperties = (
         SemgrepSecretsFindingNodeProperties()
     )

@@ -9,7 +9,7 @@ from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import TargetNodeMatcher
-from cartography.models.ontology.labels import ComputeClusterLabel
+from cartography.models.ontology.labels import ComputeClusterOntologyLabel
 
 
 @dataclass(frozen=True)
@@ -62,6 +62,8 @@ class ECSClusterToAWSAccountRel(CartographyRelSchema):
 @dataclass(frozen=True)
 class ECSClusterSchema(CartographyNodeSchema):
     label: str = "ECSCluster"
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([ComputeClusterLabel()])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
+        [ComputeClusterOntologyLabel()]
+    )
     properties: ECSClusterNodeProperties = ECSClusterNodeProperties()
     sub_resource_relationship: ECSClusterToAWSAccountRel = ECSClusterToAWSAccountRel()

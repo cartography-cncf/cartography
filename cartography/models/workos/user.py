@@ -9,7 +9,7 @@ from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import TargetNodeMatcher
-from cartography.models.ontology.labels import UserAccountLabel
+from cartography.models.ontology.labels import UserAccountOntologyLabel
 
 
 @dataclass(frozen=True)
@@ -48,6 +48,6 @@ class WorkOSUserToEnvironmentRel(CartographyRelSchema):
 @dataclass(frozen=True)
 class WorkOSUserSchema(CartographyNodeSchema):
     label: str = "WorkOSUser"
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([UserAccountLabel()])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([UserAccountOntologyLabel()])
     properties: WorkOSUserNodeProperties = WorkOSUserNodeProperties()
     sub_resource_relationship: WorkOSUserToEnvironmentRel = WorkOSUserToEnvironmentRel()

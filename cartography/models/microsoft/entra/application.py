@@ -9,7 +9,7 @@ from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import TargetNodeMatcher
-from cartography.models.ontology.labels import ThirdPartyAppLabel
+from cartography.models.ontology.labels import ThirdPartyAppOntologyLabel
 
 
 @dataclass(frozen=True)
@@ -43,7 +43,7 @@ class EntraApplicationToTenantRel(CartographyRelSchema):
 @dataclass(frozen=True)
 class EntraApplicationSchema(CartographyNodeSchema):
     label: str = "EntraApplication"
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([ThirdPartyAppLabel()])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([ThirdPartyAppOntologyLabel()])
     properties: EntraApplicationNodeProperties = EntraApplicationNodeProperties()
     sub_resource_relationship: EntraApplicationToTenantRel = (
         EntraApplicationToTenantRel()

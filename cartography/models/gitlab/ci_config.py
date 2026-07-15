@@ -21,7 +21,7 @@ from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import TargetNodeMatcher
-from cartography.models.ontology.labels import CICDPipelineLabel
+from cartography.models.ontology.labels import CICDPipelineOntologyLabel
 
 
 @dataclass(frozen=True)
@@ -114,7 +114,7 @@ class GitLabCIConfigToCIVariableRel(CartographyRelSchema):
 class GitLabCIConfigSchema(CartographyNodeSchema):
     label: str = "GitLabCIConfig"
     properties: GitLabCIConfigNodeProperties = GitLabCIConfigNodeProperties()
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([CICDPipelineLabel()])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([CICDPipelineOntologyLabel()])
     sub_resource_relationship: GitLabCIConfigToProjectRel = GitLabCIConfigToProjectRel()
     other_relationships: OtherRelationships = OtherRelationships(
         [GitLabCIConfigToCIVariableRel()],

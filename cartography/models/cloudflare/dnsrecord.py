@@ -9,7 +9,7 @@ from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import TargetNodeMatcher
-from cartography.models.ontology.labels import DNSRecordLabel
+from cartography.models.ontology.labels import DNSRecordOntologyLabel
 
 
 @dataclass(frozen=True)
@@ -50,7 +50,7 @@ class CloudflareDNSRecordToZoneRel(CartographyRelSchema):
 class CloudflareDNSRecordSchema(CartographyNodeSchema):
     label: str = "CloudflareDNSRecord"
     properties: CloudflareDNSRecordNodeProperties = CloudflareDNSRecordNodeProperties()
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([DNSRecordLabel()])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([DNSRecordOntologyLabel()])
     sub_resource_relationship: CloudflareDNSRecordToZoneRel = (
         CloudflareDNSRecordToZoneRel()
     )

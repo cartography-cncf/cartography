@@ -11,7 +11,7 @@ from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import TargetNodeMatcher
-from cartography.models.ontology.labels import SecurityIssueLabel
+from cartography.models.ontology.labels import SecurityIssueOntologyLabel
 
 logger = logging.getLogger(__name__)
 
@@ -61,7 +61,7 @@ class AzureSubscriptionToAssessmentDeprecatedRel(CartographyRelSchema):
 @dataclass(frozen=True)
 class AzureSecurityAssessmentSchema(CartographyNodeSchema):
     label: str = "AzureSecurityAssessment"
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([SecurityIssueLabel()])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([SecurityIssueOntologyLabel()])
     properties: AzureSecurityAssessmentProperties = AzureSecurityAssessmentProperties()
     sub_resource_relationship: AzureSubscriptionToAssessmentRel = (
         AzureSubscriptionToAssessmentRel()

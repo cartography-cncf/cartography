@@ -13,8 +13,8 @@ from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import SourceNodeMatcher
 from cartography.models.core.relationships import TargetNodeMatcher
 from cartography.models.extra_labels import RiskLabel
-from cartography.models.ontology.labels import CVELabel
-from cartography.models.ontology.labels import SecurityIssueLabel
+from cartography.models.ontology.labels import CVEOntologyLabel
+from cartography.models.ontology.labels import SecurityIssueOntologyLabel
 
 
 @dataclass(frozen=True)
@@ -188,10 +188,10 @@ class AWSInspectorFindingSchema(CartographyNodeSchema):
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
         [
             RiskLabel(),
-            CVELabel(
+            CVEOntologyLabel(
                 conditions={"type": "PACKAGE_VULNERABILITY"},
             ),
-            SecurityIssueLabel(
+            SecurityIssueOntologyLabel(
                 conditions={"type": "NETWORK_REACHABILITY"},
             ),
         ],

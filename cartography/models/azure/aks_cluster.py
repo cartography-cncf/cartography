@@ -10,7 +10,7 @@ from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import TargetNodeMatcher
-from cartography.models.ontology.labels import ComputeClusterLabel
+from cartography.models.ontology.labels import ComputeClusterOntologyLabel
 
 logger = logging.getLogger(__name__)
 
@@ -51,7 +51,9 @@ class AzureKubernetesClusterToSubscriptionRel(CartographyRelSchema):
 @dataclass(frozen=True)
 class AzureKubernetesClusterSchema(CartographyNodeSchema):
     label: str = "AzureKubernetesCluster"
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([ComputeClusterLabel()])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
+        [ComputeClusterOntologyLabel()]
+    )
     properties: AzureKubernetesClusterProperties = AzureKubernetesClusterProperties()
     sub_resource_relationship: AzureKubernetesClusterToSubscriptionRel = (
         AzureKubernetesClusterToSubscriptionRel()

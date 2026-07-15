@@ -14,7 +14,7 @@ from cartography.models.github.extra_labels import GitHubClassicPersonalAccessTo
 from cartography.models.github.extra_labels import (
     GitHubFineGrainedPersonalAccessTokenLabel,
 )
-from cartography.models.ontology.labels import APIKeyLabel
+from cartography.models.ontology.labels import APIKeyOntologyLabel
 
 
 @dataclass(frozen=True)
@@ -102,7 +102,7 @@ class GitHubPersonalAccessTokenSchema(CartographyNodeSchema):
     label: str = "GitHubPersonalAccessToken"
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
         [
-            APIKeyLabel(),
+            APIKeyOntologyLabel(),
             GitHubFineGrainedPersonalAccessTokenLabel(
                 conditions={"token_kind": "fine_grained"},
             ),

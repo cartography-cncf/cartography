@@ -12,7 +12,7 @@ from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import TargetNodeMatcher
 from cartography.models.gcp.extra_labels import GCPBucketLabelLabel
 from cartography.models.gcp.extra_labels import LabelLabel
-from cartography.models.ontology.labels import TagLabel
+from cartography.models.ontology.labels import TagOntologyLabel
 
 # --- Shared properties ---
 
@@ -103,7 +103,7 @@ class GCPBucketGCPLabelSchema(CartographyNodeSchema):
 
     label: str = "GCPLabel"
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
-        [LabelLabel(), GCPBucketLabelLabel(), TagLabel()]
+        [LabelLabel(), GCPBucketLabelLabel(), TagOntologyLabel()]
     )
     properties: GCPLabelNodeProperties = GCPLabelNodeProperties()
     sub_resource_relationship: GCPLabelToProjectRel = GCPLabelToProjectRel()
@@ -161,7 +161,9 @@ class GCPInstanceGCPLabelSchema(CartographyNodeSchema):
     """
 
     label: str = "GCPLabel"
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([LabelLabel(), TagLabel()])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
+        [LabelLabel(), TagOntologyLabel()]
+    )
     properties: GCPLabelNodeProperties = GCPLabelNodeProperties()
     sub_resource_relationship: GCPLabelToProjectRel = GCPLabelToProjectRel()
     other_relationships: OtherRelationships = OtherRelationships(
@@ -218,7 +220,9 @@ class GKEClusterGCPLabelSchema(CartographyNodeSchema):
     """
 
     label: str = "GCPLabel"
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([LabelLabel(), TagLabel()])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
+        [LabelLabel(), TagOntologyLabel()]
+    )
     properties: GCPLabelNodeProperties = GCPLabelNodeProperties()
     sub_resource_relationship: GCPLabelToProjectRel = GCPLabelToProjectRel()
     other_relationships: OtherRelationships = OtherRelationships(
@@ -277,7 +281,9 @@ class GCPCloudSQLInstanceGCPLabelSchema(CartographyNodeSchema):
     """
 
     label: str = "GCPLabel"
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([LabelLabel(), TagLabel()])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
+        [LabelLabel(), TagOntologyLabel()]
+    )
     properties: GCPLabelNodeProperties = GCPLabelNodeProperties()
     sub_resource_relationship: GCPLabelToProjectRel = GCPLabelToProjectRel()
     other_relationships: OtherRelationships = OtherRelationships(
@@ -336,7 +342,9 @@ class GCPBigtableInstanceGCPLabelSchema(CartographyNodeSchema):
     """
 
     label: str = "GCPLabel"
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([LabelLabel(), TagLabel()])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
+        [LabelLabel(), TagOntologyLabel()]
+    )
     properties: GCPLabelNodeProperties = GCPLabelNodeProperties()
     sub_resource_relationship: GCPLabelToProjectRel = GCPLabelToProjectRel()
     other_relationships: OtherRelationships = OtherRelationships(
@@ -393,7 +401,9 @@ class GCPDNSZoneGCPLabelSchema(CartographyNodeSchema):
     """
 
     label: str = "GCPLabel"
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([LabelLabel(), TagLabel()])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
+        [LabelLabel(), TagOntologyLabel()]
+    )
     properties: GCPLabelNodeProperties = GCPLabelNodeProperties()
     sub_resource_relationship: GCPLabelToProjectRel = GCPLabelToProjectRel()
     other_relationships: OtherRelationships = OtherRelationships(
@@ -452,7 +462,9 @@ class GCPSecretManagerSecretGCPLabelSchema(CartographyNodeSchema):
     """
 
     label: str = "GCPLabel"
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([LabelLabel(), TagLabel()])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
+        [LabelLabel(), TagOntologyLabel()]
+    )
     properties: GCPLabelNodeProperties = GCPLabelNodeProperties()
     sub_resource_relationship: GCPLabelToProjectRel = GCPLabelToProjectRel()
     other_relationships: OtherRelationships = OtherRelationships(
@@ -511,7 +523,9 @@ class GCPCloudRunServiceGCPLabelSchema(CartographyNodeSchema):
     """
 
     label: str = "GCPLabel"
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([LabelLabel(), TagLabel()])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
+        [LabelLabel(), TagOntologyLabel()]
+    )
     properties: GCPLabelNodeProperties = GCPLabelNodeProperties()
     sub_resource_relationship: GCPLabelToProjectRel = GCPLabelToProjectRel()
     other_relationships: OtherRelationships = OtherRelationships(
@@ -570,7 +584,9 @@ class GCPCloudRunJobGCPLabelSchema(CartographyNodeSchema):
     """
 
     label: str = "GCPLabel"
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([LabelLabel(), TagLabel()])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
+        [LabelLabel(), TagOntologyLabel()]
+    )
     properties: GCPLabelNodeProperties = GCPLabelNodeProperties()
     sub_resource_relationship: GCPLabelToProjectRel = GCPLabelToProjectRel()
     other_relationships: OtherRelationships = OtherRelationships(

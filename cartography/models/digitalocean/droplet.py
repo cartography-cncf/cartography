@@ -10,7 +10,7 @@ from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import TargetNodeMatcher
-from cartography.models.ontology.labels import ComputeInstanceLabel
+from cartography.models.ontology.labels import ComputeInstanceOntologyLabel
 
 
 @dataclass(frozen=True)
@@ -67,7 +67,9 @@ class DODropletToProjectDeprecatedRel(CartographyRelSchema):
 @dataclass(frozen=True)
 class DODropletSchema(CartographyNodeSchema):
     label: str = "DODroplet"
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([ComputeInstanceLabel()])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
+        [ComputeInstanceOntologyLabel()]
+    )
     properties: DODropletNodeProperties = DODropletNodeProperties()
     sub_resource_relationship: DODropletToAccountRel = DODropletToAccountRel()
     # DEPRECATED: for backward compatibility, will be removed in v1.0.0

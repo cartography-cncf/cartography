@@ -11,7 +11,7 @@ from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import TargetNodeMatcher
 from cartography.models.extra_labels import RiskLabel
-from cartography.models.ontology.labels import CVELabel
+from cartography.models.ontology.labels import CVEOntologyLabel
 from cartography.models.sentinelone.extra_labels import S1FindingLabel
 
 
@@ -123,7 +123,7 @@ class S1AppFindingToCVERel(CartographyRelSchema):
 class S1AppFindingSchema(CartographyNodeSchema):
     label: str = "S1AppFinding"
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
-        [S1FindingLabel(), RiskLabel(), CVELabel()]
+        [S1FindingLabel(), RiskLabel(), CVEOntologyLabel()]
     )
     properties: S1AppFindingNodeProperties = S1AppFindingNodeProperties()
     sub_resource_relationship: S1AppFindingToAccountRel = S1AppFindingToAccountRel()

@@ -10,7 +10,7 @@ from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import TargetNodeMatcher
-from cartography.models.ontology.labels import UserAccountLabel
+from cartography.models.ontology.labels import UserAccountOntologyLabel
 
 
 @dataclass(frozen=True)
@@ -78,7 +78,7 @@ class SentryUserToTeamAdminOfRel(CartographyRelSchema):
 class SentryUserSchema(CartographyNodeSchema):
     label: str = "SentryUser"
     properties: SentryUserNodeProperties = SentryUserNodeProperties()
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([UserAccountLabel()])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([UserAccountOntologyLabel()])
     sub_resource_relationship: SentryOrganizationToUserRel = (
         SentryOrganizationToUserRel()
     )

@@ -32,7 +32,7 @@ class ResourceLabel(ExtraNodeLabel):
 
 
 @dataclass(frozen=True)
-class ImageLabel(ExtraNodeLabel):
+class ImageOntologyLabel(ExtraNodeLabel):
     """A container image used in query-builder tests."""
 
     label: str = "Image"
@@ -40,7 +40,7 @@ class ImageLabel(ExtraNodeLabel):
 
 
 @dataclass(frozen=True)
-class ImageAttestationLabel(ExtraNodeLabel):
+class ImageAttestationOntologyLabel(ExtraNodeLabel):
     """A container-image attestation used in query-builder tests."""
 
     label: str = "ImageAttestation"
@@ -48,7 +48,7 @@ class ImageAttestationLabel(ExtraNodeLabel):
 
 
 @dataclass(frozen=True)
-class ImageManifestListLabel(ExtraNodeLabel):
+class ImageManifestListOntologyLabel(ExtraNodeLabel):
     """A multi-platform image manifest used in query-builder tests."""
 
     label: str = "ImageManifestList"
@@ -112,13 +112,13 @@ class ContainerImageSchema(CartographyNodeSchema):
     extra_node_labels: Optional[ExtraNodeLabels] = ExtraNodeLabels(
         [
             ResourceLabel(),
-            ImageLabel(
+            ImageOntologyLabel(
                 conditions={"image_type": "IMAGE"},
             ),
-            ImageAttestationLabel(
+            ImageAttestationOntologyLabel(
                 conditions={"image_type": "IMAGE_ATTESTATION"},
             ),
-            ImageManifestListLabel(
+            ImageManifestListOntologyLabel(
                 conditions={"image_type": "IMAGE_MANIFEST_LIST"},
             ),
         ],
@@ -137,10 +137,10 @@ class ContainerImageSchemaNoSubResource(CartographyNodeSchema):
     extra_node_labels: Optional[ExtraNodeLabels] = ExtraNodeLabels(
         [
             ResourceLabel(),
-            ImageLabel(
+            ImageOntologyLabel(
                 conditions={"image_type": "IMAGE"},
             ),
-            ImageAttestationLabel(
+            ImageAttestationOntologyLabel(
                 conditions={"image_type": "IMAGE_ATTESTATION"},
             ),
         ],
