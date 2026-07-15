@@ -18,28 +18,67 @@ class GCPVertexAITrainingPipelineNodeProperties(CartographyNodeProperties):
     See: https://cloud.google.com/vertex-ai/docs/reference/rest/v1/projects.locations.trainingPipelines
     """
 
-    id: PropertyRef = PropertyRef("id", extra_index=True)  # Full resource name
-    name: PropertyRef = PropertyRef("name")  # Resource name (same as id)
-    display_name: PropertyRef = PropertyRef("display_name")
-    create_time: PropertyRef = PropertyRef("create_time")
-    update_time: PropertyRef = PropertyRef("update_time")
-    start_time: PropertyRef = PropertyRef("start_time")
-    end_time: PropertyRef = PropertyRef("end_time")
-    state: PropertyRef = PropertyRef("state")
-    error: PropertyRef = PropertyRef("error")
-    model_to_upload: PropertyRef = PropertyRef("model_to_upload")  # Model produced
-    training_task_definition: PropertyRef = PropertyRef("training_task_definition")
+    id: PropertyRef = PropertyRef(
+        "id", extra_index=True, description="Stable identifier for this resource."
+    )  # Full resource name
+    name: PropertyRef = PropertyRef(
+        "name", description="Same as `id`."
+    )  # Resource name (same as id)
+    display_name: PropertyRef = PropertyRef(
+        "display_name",
+        description="User-provided display name of the training pipeline.",
+    )
+    create_time: PropertyRef = PropertyRef(
+        "create_time", description="Timestamp when the pipeline was created."
+    )
+    update_time: PropertyRef = PropertyRef(
+        "update_time", description="Timestamp when the pipeline was last updated."
+    )
+    start_time: PropertyRef = PropertyRef(
+        "start_time", description="Timestamp when the pipeline started running."
+    )
+    end_time: PropertyRef = PropertyRef(
+        "end_time", description="Timestamp when the pipeline finished."
+    )
+    state: PropertyRef = PropertyRef(
+        "state",
+        description="The state of the pipeline (e.g., `PIPELINE_STATE_SUCCEEDED`).",
+    )
+    error: PropertyRef = PropertyRef(
+        "error",
+        description="JSON string with error information if the pipeline failed.",
+    )
+    model_to_upload: PropertyRef = PropertyRef(
+        "model_to_upload",
+        description="JSON string describing the model that was uploaded.",
+    )  # Model produced
+    training_task_definition: PropertyRef = PropertyRef(
+        "training_task_definition",
+        description="The training task definition schema URI.",
+    )
     # Relationship matcher properties
     dataset_id: PropertyRef = PropertyRef(
-        "dataset_id"
+        "dataset_id",
+        description="Full resource name of the Dataset used for training (used for relationships).",
     )  # For READS_FROM Dataset relationship
-    model_id: PropertyRef = PropertyRef("model_id")  # For PRODUCES Model relationship
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    model_id: PropertyRef = PropertyRef(
+        "model_id",
+        description="Full resource name of the Model produced by training (used for relationships).",
+    )  # For PRODUCES Model relationship
+    lastupdated: PropertyRef = PropertyRef(
+        "lastupdated",
+        set_in_kwargs=True,
+        description="Timestamp of the last time the node was updated.",
+    )
 
 
 @dataclass(frozen=True)
 class GCPVertexAITrainingPipelineToProjectRelProperties(CartographyRelProperties):
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    lastupdated: PropertyRef = PropertyRef(
+        "lastupdated",
+        set_in_kwargs=True,
+        description="Timestamp of the last sync that observed this data.",
+    )
 
 
 @dataclass(frozen=True)
@@ -58,7 +97,11 @@ class GCPVertexAITrainingPipelineToProjectRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class GCPVertexAITrainingPipelineToDatasetRelProperties(CartographyRelProperties):
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    lastupdated: PropertyRef = PropertyRef(
+        "lastupdated",
+        set_in_kwargs=True,
+        description="Timestamp of the last sync that observed this data.",
+    )
 
 
 @dataclass(frozen=True)
@@ -77,7 +120,11 @@ class GCPVertexAITrainingPipelineToDatasetRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class GCPVertexAITrainingPipelineToModelRelProperties(CartographyRelProperties):
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    lastupdated: PropertyRef = PropertyRef(
+        "lastupdated",
+        set_in_kwargs=True,
+        description="Timestamp of the last sync that observed this data.",
+    )
 
 
 @dataclass(frozen=True)
@@ -96,6 +143,8 @@ class GCPVertexAITrainingPipelineToModelRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class GCPVertexAITrainingPipelineSchema(CartographyNodeSchema):
+    """Representation of a GCP [Vertex AI Training Pipeline](https://cloud.google.com/vertex-ai/docs/reference/rest/v1/projects.locations.trainingPipelines)."""
+
     label: str = "GCPVertexAITrainingPipeline"
     properties: GCPVertexAITrainingPipelineNodeProperties = (
         GCPVertexAITrainingPipelineNodeProperties()

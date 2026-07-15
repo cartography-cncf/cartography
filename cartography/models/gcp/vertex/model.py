@@ -19,25 +19,63 @@ class GCPVertexAIModelNodeProperties(CartographyNodeProperties):
     See: https://cloud.google.com/vertex-ai/docs/reference/rest/v1/projects.locations.models
     """
 
-    id: PropertyRef = PropertyRef("id", extra_index=True)  # Full resource name
-    name: PropertyRef = PropertyRef("name")  # Resource name (same as id)
-    display_name: PropertyRef = PropertyRef("display_name")
-    description: PropertyRef = PropertyRef("description")
-    version_id: PropertyRef = PropertyRef("version_id")
-    version_create_time: PropertyRef = PropertyRef("version_create_time")
-    version_update_time: PropertyRef = PropertyRef("version_update_time")
-    create_time: PropertyRef = PropertyRef("create_time")
-    update_time: PropertyRef = PropertyRef("update_time")
-    artifact_uri: PropertyRef = PropertyRef("artifact_uri")  # GCS location
-    etag: PropertyRef = PropertyRef("etag")
-    labels: PropertyRef = PropertyRef("labels")
-    training_pipeline: PropertyRef = PropertyRef("training_pipeline")
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    id: PropertyRef = PropertyRef(
+        "id", extra_index=True, description="Stable identifier for this resource."
+    )  # Full resource name
+    name: PropertyRef = PropertyRef(
+        "name", description="Same as `id`."
+    )  # Resource name (same as id)
+    display_name: PropertyRef = PropertyRef(
+        "display_name", description="User-provided display name of the model."
+    )
+    description: PropertyRef = PropertyRef(
+        "description", description="Description of the model."
+    )
+    version_id: PropertyRef = PropertyRef(
+        "version_id", description="The version ID of the model."
+    )
+    version_create_time: PropertyRef = PropertyRef(
+        "version_create_time",
+        description="Timestamp when this model version was created.",
+    )
+    version_update_time: PropertyRef = PropertyRef(
+        "version_update_time",
+        description="Timestamp when this model version was last updated.",
+    )
+    create_time: PropertyRef = PropertyRef(
+        "create_time", description="Timestamp when the model was originally created."
+    )
+    update_time: PropertyRef = PropertyRef(
+        "update_time", description="Timestamp when the model was last updated."
+    )
+    artifact_uri: PropertyRef = PropertyRef(
+        "artifact_uri",
+        description="The path to the directory containing the Model artifact and supporting files (GCS URI).",
+    )  # GCS location
+    etag: PropertyRef = PropertyRef(
+        "etag", description="Used to perform consistent read-modify-write updates."
+    )
+    labels: PropertyRef = PropertyRef(
+        "labels", description="JSON string of user-defined labels."
+    )
+    training_pipeline: PropertyRef = PropertyRef(
+        "training_pipeline",
+        description="Resource name of the Training Pipeline that created this model.",
+    )
+    lastupdated: PropertyRef = PropertyRef(
+        "lastupdated",
+        set_in_kwargs=True,
+        description="Timestamp of the last time the node was updated.",
+    )
 
 
 @dataclass(frozen=True)
 class GCPVertexAIModelToProjectRelProperties(CartographyRelProperties):
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    lastupdated: PropertyRef = PropertyRef(
+        "lastupdated",
+        set_in_kwargs=True,
+        description="Timestamp of the last sync that observed this data.",
+    )
 
 
 @dataclass(frozen=True)
@@ -56,7 +94,11 @@ class GCPVertexAIModelToProjectRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class GCPVertexAIModelToGCSBucketRelProperties(CartographyRelProperties):
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    lastupdated: PropertyRef = PropertyRef(
+        "lastupdated",
+        set_in_kwargs=True,
+        description="Timestamp of the last sync that observed this data.",
+    )
 
 
 @dataclass(frozen=True)
@@ -75,6 +117,8 @@ class GCPVertexAIModelToGCSBucketRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class GCPVertexAIModelSchema(CartographyNodeSchema):
+    """Representation of a GCP [Vertex AI Model](https://cloud.google.com/vertex-ai/docs/reference/rest/v1/projects.locations.models)."""
+
     label: str = "GCPVertexAIModel"
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["AIModel"])
     properties: GCPVertexAIModelNodeProperties = GCPVertexAIModelNodeProperties()

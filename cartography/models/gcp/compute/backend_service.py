@@ -13,26 +13,64 @@ from cartography.models.core.relationships import TargetNodeMatcher
 
 @dataclass(frozen=True)
 class GCPBackendServiceNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("partial_uri")
-    partial_uri: PropertyRef = PropertyRef("partial_uri")
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
-    name: PropertyRef = PropertyRef("name", extra_index=True)
-    self_link: PropertyRef = PropertyRef("self_link")
-    project_id: PropertyRef = PropertyRef("project_id")
-    region: PropertyRef = PropertyRef("region")
-    description: PropertyRef = PropertyRef("description")
-    load_balancing_scheme: PropertyRef = PropertyRef("load_balancing_scheme")
-    protocol: PropertyRef = PropertyRef("protocol")
-    port: PropertyRef = PropertyRef("port")
-    port_name: PropertyRef = PropertyRef("port_name")
-    timeout_sec: PropertyRef = PropertyRef("timeout_sec")
-    security_policy: PropertyRef = PropertyRef("security_policy")
-    creation_timestamp: PropertyRef = PropertyRef("creation_timestamp")
+    id: PropertyRef = PropertyRef(
+        "partial_uri", description="Stable identifier for this resource."
+    )
+    partial_uri: PropertyRef = PropertyRef("partial_uri", description="Same as `id`.")
+    lastupdated: PropertyRef = PropertyRef(
+        "lastupdated",
+        set_in_kwargs=True,
+        description="Timestamp of the last time the node was updated.",
+    )
+    name: PropertyRef = PropertyRef(
+        "name", extra_index=True, description="The name of the backend service."
+    )
+    self_link: PropertyRef = PropertyRef(
+        "self_link", description="Server-defined URL for the resource."
+    )
+    project_id: PropertyRef = PropertyRef(
+        "project_id", description="The project ID that this backend service belongs to."
+    )
+    region: PropertyRef = PropertyRef(
+        "region",
+        description="The region of this backend service, or `null` for global backend services.",
+    )
+    description: PropertyRef = PropertyRef(
+        "description", description="An optional description of this backend service."
+    )
+    load_balancing_scheme: PropertyRef = PropertyRef(
+        "load_balancing_scheme",
+        description="The load balancing scheme (e.g., `EXTERNAL`, `EXTERNAL_MANAGED`, `INTERNAL`, `INTERNAL_MANAGED`).",
+    )
+    protocol: PropertyRef = PropertyRef(
+        "protocol",
+        description="The protocol this backend service uses (e.g., `HTTP`, `HTTPS`, `TCP`, `SSL`).",
+    )
+    port: PropertyRef = PropertyRef(
+        "port", description="The port for the backend service."
+    )
+    port_name: PropertyRef = PropertyRef(
+        "port_name", description="A named port on a backend instance group."
+    )
+    timeout_sec: PropertyRef = PropertyRef(
+        "timeout_sec", description="Backend service timeout in seconds."
+    )
+    security_policy: PropertyRef = PropertyRef(
+        "security_policy",
+        description="The full URL of the Cloud Armor security policy attached to this backend service.",
+    )
+    creation_timestamp: PropertyRef = PropertyRef(
+        "creation_timestamp", description="Creation timestamp of the resource."
+    )
 
 
 @dataclass(frozen=True)
 class GCPBackendServiceToProjectRelProperties(CartographyRelProperties):
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    lastupdated: PropertyRef = PropertyRef(
+        "lastupdated",
+        set_in_kwargs=True,
+        description="Timestamp of the last sync that observed this data.",
+    )
 
 
 @dataclass(frozen=True)
@@ -52,7 +90,11 @@ class GCPBackendServiceToProjectRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class GCPBackendServiceToInstanceGroupRelProperties(CartographyRelProperties):
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    lastupdated: PropertyRef = PropertyRef(
+        "lastupdated",
+        set_in_kwargs=True,
+        description="Timestamp of the last sync that observed this data.",
+    )
 
 
 @dataclass(frozen=True)
@@ -72,7 +114,11 @@ class GCPBackendServiceToInstanceGroupRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class GCPCloudArmorPolicyToBackendServiceRelProperties(CartographyRelProperties):
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    lastupdated: PropertyRef = PropertyRef(
+        "lastupdated",
+        set_in_kwargs=True,
+        description="Timestamp of the last sync that observed this data.",
+    )
 
 
 @dataclass(frozen=True)
@@ -92,6 +138,8 @@ class GCPCloudArmorPolicyToBackendServiceRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class GCPBackendServiceSchema(CartographyNodeSchema):
+    """A Google Cloud Backend Service resource."""
+
     label: str = "GCPBackendService"
     properties: GCPBackendServiceNodeProperties = GCPBackendServiceNodeProperties()
     sub_resource_relationship: GCPBackendServiceToProjectRel = (

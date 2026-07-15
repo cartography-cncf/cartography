@@ -1,7 +1,9 @@
 from dataclasses import dataclass
+from typing import ClassVar
 
 import cartography.analysis.gsuite as gsuite_analysis
 import cartography.analysis.ontology as ontology_analysis
+import cartography.models.gcp as gcp_models
 import cartography.models.github as github_models
 import cartography.models.lastpass as lastpass_models
 from cartography.analysis.ontology.analysis import DNS_RECORD_LINKING_JOBS
@@ -24,8 +26,18 @@ from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import SourceNodeMatcher
 from cartography.models.core.relationships import TargetNodeMatcher
+from cartography.models.gcp.artifact_registry.image import (
+    GCPArtifactRegistryImageSchema,
+)
+from cartography.models.gcp.artifact_registry.image_layer import (
+    GCPArtifactRegistryImageLayerSchema,
+)
+from cartography.models.gcp.artifact_registry.repository_image import (
+    GCPArtifactRegistryRepositoryImageSchema,
+)
 from cartography.models.introspection import AnalysisJobDefinition
 from cartography.models.introspection import build_data_model
+from cartography.models.introspection import inspect_data_model
 from cartography.models.introspection import iter_analysis_jobs
 from cartography.models.introspection import iter_model_classes
 from cartography.models.introspection import iter_permission_relationships
@@ -93,6 +105,15 @@ class SampleNodeSchema(CartographyNodeSchema):
     other_relationships: OtherRelationships = OtherRelationships(
         [SampleNodeToTargetRel()]
     )
+
+
+@dataclass(frozen=True)
+class IntrospectionExcludedSampleSchema(CartographyNodeSchema):
+    """A runtime-only schema template."""
+
+    __cartography_introspection_exclude__: ClassVar[bool] = True
+    label: str = "ExcludedSample"
+    properties: SampleNodeProperties = SampleNodeProperties()
 
 
 @dataclass(frozen=True)
@@ -205,6 +226,46 @@ def test_build_data_model_introspects_nodes_properties_and_relationships():
     assert relationships[("SampleNode", "PEERS_WITH", "SamplePeer")].origins == (
         "matchlink",
     )
+
+
+def test_build_data_model_skips_runtime_only_schema_templates():
+    model = build_data_model([SampleNodeSchema, IntrospectionExcludedSampleSchema])
+
+    assert model.get_node("SampleNode") is not None
+    assert model.get_node("ExcludedSample") is None
+
+
+def test_build_data_model_classifies_semantic_labels_without_normalized_fields():
+    model = build_data_model(
+        [
+            GCPArtifactRegistryImageSchema,
+            GCPArtifactRegistryImageLayerSchema,
+            GCPArtifactRegistryRepositoryImageSchema,
+        ]
+    )
+
+    image = model.get_node("GCPArtifactRegistryImage")
+    layer = model.get_node("GCPArtifactRegistryImageLayer")
+    tag = model.get_node("GCPArtifactRegistryRepositoryImage")
+    assert image is not None
+    assert layer is not None
+    assert tag is not None
+    assert {"ImageAttestation", "ImageManifestList"} <= set(image.ontology_labels)
+    assert "ImageLayer" in layer.ontology_labels
+    assert "ImageTag" in tag.ontology_labels
+
+
+def test_gcp_composite_nodes_preserve_partial_label_provenance():
+    model = inspect_data_model(gcp_models)
+
+    label = model.get_node("GCPLabel")
+    subnet = model.get_node("GCPSubnet")
+    assert label is not None
+    assert subnet is not None
+    assert label.extra_labels == ("GCPBucketLabel", "Label", "Tag")
+    assert label.partial_extra_labels == ("GCPBucketLabel", "Tag")
+    assert subnet.extra_labels == ("Subnet",)
+    assert subnet.partial_extra_labels == ("Subnet",)
 
 
 def test_build_data_model_introspects_typed_analysis_effects():

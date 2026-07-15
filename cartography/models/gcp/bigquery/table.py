@@ -13,25 +13,60 @@ from cartography.models.core.relationships import TargetNodeMatcher
 
 @dataclass(frozen=True)
 class GCPBigQueryTableProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("id")
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
-    table_id: PropertyRef = PropertyRef("table_id")
-    dataset_id: PropertyRef = PropertyRef("dataset_id")
-    type: PropertyRef = PropertyRef("type")
-    creation_time: PropertyRef = PropertyRef("creation_time")
-    expiration_time: PropertyRef = PropertyRef("expiration_time")
-    num_bytes: PropertyRef = PropertyRef("num_bytes")
-    num_long_term_bytes: PropertyRef = PropertyRef("num_long_term_bytes")
-    num_rows: PropertyRef = PropertyRef("num_rows")
-    description: PropertyRef = PropertyRef("description")
-    friendly_name: PropertyRef = PropertyRef("friendly_name")
-    connection_id: PropertyRef = PropertyRef("connection_id")
-    kms_key_name: PropertyRef = PropertyRef("kms_key_name")
+    id: PropertyRef = PropertyRef(
+        "id", description="Stable identifier for this resource."
+    )
+    lastupdated: PropertyRef = PropertyRef(
+        "lastupdated",
+        set_in_kwargs=True,
+        description="Timestamp of the last time the node was updated.",
+    )
+    table_id: PropertyRef = PropertyRef("table_id", description="The short table ID.")
+    dataset_id: PropertyRef = PropertyRef(
+        "dataset_id",
+        description="The parent dataset identifier in `project_id:dataset_id` format.",
+    )
+    type: PropertyRef = PropertyRef(
+        "type", description="Table type: TABLE, VIEW, MATERIALIZED_VIEW, or EXTERNAL."
+    )
+    creation_time: PropertyRef = PropertyRef(
+        "creation_time", description="Creation time of the table."
+    )
+    expiration_time: PropertyRef = PropertyRef(
+        "expiration_time", description="Expiration time of the table, if set."
+    )
+    num_bytes: PropertyRef = PropertyRef(
+        "num_bytes", description="Size of the table in bytes."
+    )
+    num_long_term_bytes: PropertyRef = PropertyRef(
+        "num_long_term_bytes", description="Size of long-term storage in bytes."
+    )
+    num_rows: PropertyRef = PropertyRef(
+        "num_rows", description="Number of rows in the table."
+    )
+    description: PropertyRef = PropertyRef(
+        "description", description="Description of the table."
+    )
+    friendly_name: PropertyRef = PropertyRef(
+        "friendly_name", description="User-friendly name for the table."
+    )
+    connection_id: PropertyRef = PropertyRef(
+        "connection_id",
+        description="The BigQuery connection resource name used by external tables.",
+    )
+    kms_key_name: PropertyRef = PropertyRef(
+        "kms_key_name",
+        description="Customer-managed encryption key configured on the table, when present.",
+    )
 
 
 @dataclass(frozen=True)
 class ProjectToTableRelProperties(CartographyRelProperties):
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    lastupdated: PropertyRef = PropertyRef(
+        "lastupdated",
+        set_in_kwargs=True,
+        description="Timestamp of the last sync that observed this data.",
+    )
 
 
 @dataclass(frozen=True)
@@ -47,7 +82,11 @@ class ProjectToTableRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class DatasetToTableRelProperties(CartographyRelProperties):
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    lastupdated: PropertyRef = PropertyRef(
+        "lastupdated",
+        set_in_kwargs=True,
+        description="Timestamp of the last sync that observed this data.",
+    )
 
 
 @dataclass(frozen=True)
@@ -63,7 +102,11 @@ class DatasetToTableRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class TableToConnectionRelProperties(CartographyRelProperties):
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    lastupdated: PropertyRef = PropertyRef(
+        "lastupdated",
+        set_in_kwargs=True,
+        description="Timestamp of the last sync that observed this data.",
+    )
 
 
 @dataclass(frozen=True)
@@ -79,6 +122,8 @@ class TableToConnectionRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class GCPBigQueryTableSchema(CartographyNodeSchema):
+    """Represents a GCP BigQuery Table, View, or Materialized View."""
+
     label: str = "GCPBigQueryTable"
     properties: GCPBigQueryTableProperties = GCPBigQueryTableProperties()
     sub_resource_relationship: ProjectToTableRel = ProjectToTableRel()

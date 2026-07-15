@@ -17,5 +17,7 @@ Cartography supports ingesting Google Cloud Platform resources, including:
 
 ```{toctree}
 config
+artifact-registry
+cloud-run
 schema
 ```

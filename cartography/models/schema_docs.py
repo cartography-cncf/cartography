@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import fields as dataclass_fields
+from dataclasses import replace
 from pathlib import Path
 
 from cartography.models.core.relationships import CartographyRelSchema
@@ -21,7 +22,9 @@ def render_module_schema(model: DataModel, module: str) -> str:
     if module == "ontology":
         return _render_ontology_schema(model)
 
-    module_nodes = tuple(node for node in model.nodes if module in node.modules)
+    module_nodes = tuple(
+        _node_for_module(node, module) for node in model.nodes if module in node.modules
+    )
     if not module_nodes:
         raise ValueError(f'No nodes found for module "{module}".')
 
@@ -54,6 +57,48 @@ def render_module_schema(model: DataModel, module: str) -> str:
         lines.extend(_render_node(node, assigned_relationships.get(node.label, ())))
 
     return "\n".join(lines).rstrip() + "\n"
+
+
+def _node_for_module(node: Node, module: str) -> Node:
+    """Scope aggregated labels to schemas owned by the rendered module."""
+    provenance = tuple(item for item in node.label_provenance if item.module == module)
+    if not provenance:
+        return node
+
+    label_sets = [set(item.extra_labels) for item in provenance]
+    extra_labels = set().union(*label_sets)
+    universal_labels = set.intersection(*label_sets) if label_sets else set()
+    partial_labels = extra_labels - universal_labels
+    conditional_labels = {
+        (
+            conditional.label,
+            tuple(sorted(conditional.conditions.items())),
+        ): conditional
+        for item in provenance
+        for conditional in item.conditional_labels
+    }
+    scoped_conditional_labels = tuple(
+        sorted(
+            conditional_labels.values(),
+            key=lambda conditional: (
+                conditional.label,
+                tuple(sorted(conditional.conditions.items())),
+            ),
+        )
+    )
+    declared_labels = {
+        *extra_labels,
+        *(conditional.label for conditional in scoped_conditional_labels),
+    }
+    return replace(
+        node,
+        extra_labels=tuple(sorted(extra_labels)),
+        partial_extra_labels=tuple(sorted(partial_labels)),
+        conditional_labels=scoped_conditional_labels,
+        ontology_labels=tuple(
+            label for label in node.ontology_labels if label in declared_labels
+        ),
+    )
 
 
 def _render_ontology_schema(model: DataModel) -> str:
@@ -391,26 +436,67 @@ def _render_node(
     unconditional_ontology_labels = tuple(
         label for label in node.ontology_labels if label not in conditional_label_names
     )
-    if unconditional_ontology_labels:
+    universal_ontology_labels = tuple(
+        label
+        for label in unconditional_ontology_labels
+        if label not in node.partial_extra_labels
+    )
+    partial_ontology_labels = tuple(
+        label
+        for label in unconditional_ontology_labels
+        if label in node.partial_extra_labels
+    )
+    if universal_ontology_labels:
         formatted_labels = ", ".join(
-            f"`{label}`" for label in unconditional_ontology_labels
+            f"`{label}`" for label in universal_ontology_labels
         )
         lines.extend(
             [
                 f"> **Ontology Mapping**: This node uses the ontology "
-                f"{'label' if len(unconditional_ontology_labels) == 1 else 'labels'} "
+                f"{'label' if len(universal_ontology_labels) == 1 else 'labels'} "
                 f"{formatted_labels}.",
                 "",
             ]
         )
-    additional_labels = tuple(
-        label for label in node.extra_labels if label not in node.ontology_labels
+    if partial_ontology_labels:
+        formatted_labels = ", ".join(f"`{label}`" for label in partial_ontology_labels)
+        lines.extend(
+            [
+                f"> **Ontology Mapping**: Some schema variants may also use the "
+                f"ontology "
+                f"{'label' if len(partial_ontology_labels) == 1 else 'labels'} "
+                f"{formatted_labels}.",
+                "",
+            ]
+        )
+    universal_additional_labels = tuple(
+        label
+        for label in node.extra_labels
+        if label not in node.ontology_labels and label not in node.partial_extra_labels
     )
-    if additional_labels:
-        formatted_labels = ", ".join(f"`{label}`" for label in additional_labels)
+    partial_additional_labels = tuple(
+        label
+        for label in node.extra_labels
+        if label not in node.ontology_labels and label in node.partial_extra_labels
+    )
+    if universal_additional_labels:
+        formatted_labels = ", ".join(
+            f"`{label}`" for label in universal_additional_labels
+        )
         lines.extend(
             [
                 f"> **Additional Labels**: This node also uses " f"{formatted_labels}.",
+                "",
+            ]
+        )
+    if partial_additional_labels:
+        formatted_labels = ", ".join(
+            f"`{label}`" for label in partial_additional_labels
+        )
+        lines.extend(
+            [
+                f"> **Additional Labels**: Some schema variants may also use "
+                f"{formatted_labels}.",
                 "",
             ]
         )
@@ -820,6 +906,7 @@ def _mermaid_relationship(relationship: Relationship) -> str:
 def _module_title(module: str) -> str:
     title_overrides = {
         "aibom": "AIBOM",
+        "gcp": "GCP",
         "sentinelone": "SentinelOne",
         "socketdev": "Socket.dev",
     }

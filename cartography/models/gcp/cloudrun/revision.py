@@ -13,18 +13,37 @@ from cartography.models.core.relationships import TargetNodeMatcher
 
 @dataclass(frozen=True)
 class GCPCloudRunRevisionProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("id")
-    name: PropertyRef = PropertyRef("name")
-    service: PropertyRef = PropertyRef("service")
-    service_account_email: PropertyRef = PropertyRef("service_account_email")
-    log_uri: PropertyRef = PropertyRef("log_uri")
-    project_id: PropertyRef = PropertyRef("project_id")
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    id: PropertyRef = PropertyRef(
+        "id", description="Stable identifier for this resource."
+    )
+    name: PropertyRef = PropertyRef("name", description="Short name of the revision.")
+    service: PropertyRef = PropertyRef(
+        "service", description="Full resource name of the parent service."
+    )
+    service_account_email: PropertyRef = PropertyRef(
+        "service_account_email",
+        description="The email of the service account used by this revision.",
+    )
+    log_uri: PropertyRef = PropertyRef(
+        "log_uri", description="URI to Cloud Logging for this revision."
+    )
+    project_id: PropertyRef = PropertyRef(
+        "project_id", description="The GCP project ID this revision belongs to."
+    )
+    lastupdated: PropertyRef = PropertyRef(
+        "lastupdated",
+        set_in_kwargs=True,
+        description="Timestamp of the last time the node was updated.",
+    )
 
 
 @dataclass(frozen=True)
 class ProjectToCloudRunRevisionRelProperties(CartographyRelProperties):
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    lastupdated: PropertyRef = PropertyRef(
+        "lastupdated",
+        set_in_kwargs=True,
+        description="Timestamp of the last sync that observed this data.",
+    )
 
 
 @dataclass(frozen=True)
@@ -42,7 +61,11 @@ class ProjectToCloudRunRevisionRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class CloudRunServiceToRevisionRelProperties(CartographyRelProperties):
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    lastupdated: PropertyRef = PropertyRef(
+        "lastupdated",
+        set_in_kwargs=True,
+        description="Timestamp of the last sync that observed this data.",
+    )
 
 
 @dataclass(frozen=True)
@@ -60,7 +83,11 @@ class CloudRunServiceToRevisionRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class CloudRunRevisionToServiceAccountRelProperties(CartographyRelProperties):
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    lastupdated: PropertyRef = PropertyRef(
+        "lastupdated",
+        set_in_kwargs=True,
+        description="Timestamp of the last sync that observed this data.",
+    )
 
 
 @dataclass(frozen=True)
@@ -78,6 +105,8 @@ class CloudRunRevisionToServiceAccountRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class GCPCloudRunRevisionSchema(CartographyNodeSchema):
+    """A Google Cloud Cloud Run Revision resource."""
+
     label: str = "GCPCloudRunRevision"
     properties: GCPCloudRunRevisionProperties = GCPCloudRunRevisionProperties()
     sub_resource_relationship: ProjectToCloudRunRevisionRel = (

@@ -17,20 +17,40 @@ class GCPSecretManagerSecretVersionNodeProperties(CartographyNodeProperties):
     Properties for GCP Secret Manager Secret Version
     """
 
-    id: PropertyRef = PropertyRef("id")
-    secret_id: PropertyRef = PropertyRef("secret_id")
-    version: PropertyRef = PropertyRef("version")
-    state: PropertyRef = PropertyRef("state")
+    id: PropertyRef = PropertyRef(
+        "id", description="Stable identifier for this resource."
+    )
+    secret_id: PropertyRef = PropertyRef(
+        "secret_id", description="Full resource name of the parent secret."
+    )
+    version: PropertyRef = PropertyRef(
+        "version", description='The version number (e.g., "1", "2").'
+    )
+    state: PropertyRef = PropertyRef(
+        "state",
+        description="The current state of the version: `ENABLED`, `DISABLED`, or `DESTROYED`.",
+    )
 
     # Date properties (epoch timestamps)
-    created_date: PropertyRef = PropertyRef("created_date")
-    destroy_time: PropertyRef = PropertyRef("destroy_time")
+    created_date: PropertyRef = PropertyRef(
+        "created_date", description="Epoch timestamp when the version was created."
+    )
+    destroy_time: PropertyRef = PropertyRef(
+        "destroy_time",
+        description="Epoch timestamp when the version was destroyed (only present if state is `DESTROYED`).",
+    )
 
     # Other properties
-    etag: PropertyRef = PropertyRef("etag")
+    etag: PropertyRef = PropertyRef(
+        "etag", description="Used to perform consistent read-modify-write updates."
+    )
 
     # Standard cartography properties
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    lastupdated: PropertyRef = PropertyRef(
+        "lastupdated",
+        set_in_kwargs=True,
+        description="Timestamp of the last time the node was updated.",
+    )
 
 
 @dataclass(frozen=True)
@@ -39,7 +59,11 @@ class GCPSecretManagerSecretVersionRelProperties(CartographyRelProperties):
     Properties for relationships between Secret Version and other nodes
     """
 
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    lastupdated: PropertyRef = PropertyRef(
+        "lastupdated",
+        set_in_kwargs=True,
+        description="Timestamp of the last sync that observed this data.",
+    )
 
 
 @dataclass(frozen=True)
@@ -80,9 +104,7 @@ class GCPSecretManagerSecretVersionToSecretRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class GCPSecretManagerSecretVersionSchema(CartographyNodeSchema):
-    """
-    Schema for GCP Secret Manager Secret Version
-    """
+    """Representation of a GCP [Secret Manager Secret Version](https://cloud.google.com/secret-manager/docs/reference/rest/v1/projects.secrets.versions). A SecretVersion stores a specific version of secret data within a Secret."""
 
     label: str = "GCPSecretManagerSecretVersion"
     properties: GCPSecretManagerSecretVersionNodeProperties = (

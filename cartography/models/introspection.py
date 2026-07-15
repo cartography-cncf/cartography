@@ -112,6 +112,16 @@ class Property:
 
 
 @dataclass(frozen=True)
+class NodeLabelProvenance:
+    """Labels contributed by one node schema."""
+
+    module: str
+    schema: str
+    extra_labels: tuple[str, ...]
+    conditional_labels: tuple[ConditionalNodeLabel, ...]
+
+
+@dataclass(frozen=True)
 class Node:
     """A graph node computed from every schema contributing to one label."""
 
@@ -124,6 +134,8 @@ class Node:
     schemas: tuple[CartographyNodeSchema, ...]
     ontology_labels: tuple[str, ...] = ()
     ontology_projections: tuple[str, ...] = ()
+    partial_extra_labels: tuple[str, ...] = ()
+    label_provenance: tuple[NodeLabelProvenance, ...] = ()
 
     def get_property(self, name: str) -> Property | None:
         return next((prop for prop in self.properties if prop.name == name), None)
@@ -227,6 +239,8 @@ def iter_model_classes(
             if not inspect.isclass(value):
                 continue
             if value.__name__.startswith("_"):
+                continue
+            if value.__dict__.get("__cartography_introspection_exclude__", False):
                 continue
             if value in _MODEL_BASE_CLASSES or value.__module__ != module.__name__:
                 continue
@@ -374,6 +388,8 @@ def build_data_model(
     relationship_classes: list[type[CartographyRelSchema]] = []
 
     for model_class in classes:
+        if model_class.__dict__.get("__cartography_introspection_exclude__", False):
+            continue
         if inspect.isabstract(model_class):
             continue
         if CartographyNodeSchema in model_class.__mro__:
@@ -467,6 +483,8 @@ def _new_node_entry() -> dict[str, Any]:
     return {
         "descriptions": set(),
         "extra_labels": set(),
+        "schema_extra_labels": [],
+        "label_provenance": [],
         "conditional_labels": [],
         "ontology_labels": set(),
         "ontology_projections": set(),
@@ -502,12 +520,25 @@ def _add_node_schema(
         entry["descriptions"].add(description)
 
     extra_labels = schema.extra_node_labels
+    schema_extra_labels: set[str] = set()
+    schema_conditional_labels: list[ConditionalNodeLabel] = []
     if isinstance(extra_labels, ExtraNodeLabels):
         for label in extra_labels.labels:
             if isinstance(label, ConditionalNodeLabel):
                 entry["conditional_labels"].append(label)
+                schema_conditional_labels.append(label)
             else:
                 entry["extra_labels"].add(label)
+                schema_extra_labels.add(label)
+    entry["schema_extra_labels"].append(schema_extra_labels)
+    entry["label_provenance"].append(
+        NodeLabelProvenance(
+            module=_module_name(type(schema)),
+            schema=f"{type(schema).__module__}.{type(schema).__qualname__}",
+            extra_labels=tuple(sorted(schema_extra_labels)),
+            conditional_labels=tuple(schema_conditional_labels),
+        )
+    )
 
     properties = entry["properties"]
     _add_properties(properties, schema.properties, _module_name(type(schema)))
@@ -599,10 +630,13 @@ def _add_generated_property(
     ontology: bool = False,
     analysis_job: AnalysisJobDefinition | None = None,
     source_name: str | None = None,
+    description: str | None = None,
 ) -> None:
     entry = entries.setdefault(name, _new_property_entry())
     if source_name:
         entry["source_names"].add(source_name)
+    if description:
+        entry["descriptions"].add(description)
     entry["indexed"] = bool(entry["indexed"] or indexed)
     entry["ontology"] = bool(entry["ontology"] or ontology)
     entry["generated_by"].add(generated_by)
@@ -658,6 +692,15 @@ def _add_ontology_properties(
                     )
                     if is_primary_label or is_module_additional_label:
                         node_entry["ontology_projections"].add(projection_label)
+
+    for node_entry in node_entries.values():
+        declared_labels = {
+            *node_entry["extra_labels"],
+            *(label.label for label in node_entry["conditional_labels"]),
+        }
+        node_entry["ontology_labels"].update(
+            declared_labels.intersection(SEMANTIC_LABELS_WITHOUT_NORMALIZED_FIELDS)
+        )
 
 
 def _ontology_labels_for_mapping_group(
@@ -760,6 +803,15 @@ def _add_permission_relationships(
         ),
         "azure": ("firstseen", "lastupdated"),
     }
+    property_descriptions = {
+        "has_condition": "Whether an IAM condition restricts this permission.",
+        "condition_keys": "IAM condition context keys used by the permission.",
+        "conditions": "IAM conditions that restrict this permission.",
+        "condition_title": "Title of the IAM condition that restricts this permission.",
+        "condition_expression": (
+            "CEL expression that must be satisfied for this permission."
+        ),
+    }
     for definition in definitions:
         key = (
             definition.source_label,
@@ -770,6 +822,12 @@ def _add_permission_relationships(
         entry = relationship_entries.setdefault(key, _new_relationship_entry())
         entry["modules"].add(definition.provider)
         entry["origins"].add("permission_evaluation")
+        entry["descriptions"].add(
+            f"`{definition.source_label}` receives evaluated "
+            f"`{definition.relationship_name}` access to "
+            f"`{definition.target_label}` from "
+            f"{definition.provider.upper()} IAM policies."
+        )
         definition_key = (
             f"{definition.provider}:{definition.source_label}:"
             f"{definition.relationship_name}:{definition.target_label}"
@@ -780,6 +838,7 @@ def _add_permission_relationships(
                 entry["properties"],
                 property_name,
                 f"permission_evaluation:{definition.provider}",
+                description=property_descriptions.get(property_name),
             )
 
 
@@ -1015,6 +1074,11 @@ def _build_node(label: str, entry: dict[str, Any]) -> Node:
         ): conditional
         for conditional in entry["conditional_labels"]
     }
+    schema_extra_labels = entry["schema_extra_labels"]
+    universal_extra_labels = (
+        set.intersection(*schema_extra_labels) if schema_extra_labels else set()
+    )
+    partial_extra_labels = entry["extra_labels"] - universal_extra_labels
     return Node(
         label=label,
         descriptions=tuple(sorted(entry["descriptions"])),
@@ -1036,6 +1100,13 @@ def _build_node(label: str, entry: dict[str, Any]) -> Node:
         schemas=tuple(entry["schemas"]),
         ontology_labels=tuple(sorted(entry["ontology_labels"])),
         ontology_projections=tuple(sorted(entry["ontology_projections"])),
+        partial_extra_labels=tuple(sorted(partial_extra_labels)),
+        label_provenance=tuple(
+            sorted(
+                entry["label_provenance"],
+                key=lambda provenance: (provenance.module, provenance.schema),
+            )
+        ),
     )
 
 

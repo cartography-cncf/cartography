@@ -21,28 +21,53 @@ class GCPVertexAIFeatureGroupNodeProperties(CartographyNodeProperties):
     sources and provide feature serving capabilities.
     """
 
-    id: PropertyRef = PropertyRef("id", extra_index=True)  # Full resource name
-    name: PropertyRef = PropertyRef("name")  # Resource name (same as id)
-    description: PropertyRef = PropertyRef("description")
-    labels: PropertyRef = PropertyRef("labels")
-    create_time: PropertyRef = PropertyRef("create_time")
-    update_time: PropertyRef = PropertyRef("update_time")
-    etag: PropertyRef = PropertyRef("etag")
+    id: PropertyRef = PropertyRef(
+        "id", extra_index=True, description="Stable identifier for this resource."
+    )  # Full resource name
+    name: PropertyRef = PropertyRef(
+        "name", description="Same as `id`."
+    )  # Resource name (same as id)
+    description: PropertyRef = PropertyRef(
+        "description", description="Description configured for this resource."
+    )
+    labels: PropertyRef = PropertyRef(
+        "labels", description="Key-value labels attached to this resource."
+    )
+    create_time: PropertyRef = PropertyRef(
+        "create_time", description="Timestamp when the feature group was created."
+    )
+    update_time: PropertyRef = PropertyRef(
+        "update_time", description="Timestamp when the feature group was last updated."
+    )
+    etag: PropertyRef = PropertyRef(
+        "etag", description="Used to perform consistent read-modify-write updates."
+    )
     bigquery_source_uri: PropertyRef = PropertyRef(
-        "bigquery_source_uri"
+        "bigquery_source_uri",
+        description="The BigQuery source URI for the feature group.",
     )  # From bigQuery.bigQuerySource.inputUri
     entity_id_columns: PropertyRef = PropertyRef(
-        "entity_id_columns"
+        "entity_id_columns",
+        description="JSON array of entity ID column names.",
     )  # JSON array of entity ID column names
     timestamp_column: PropertyRef = PropertyRef(
-        "timestamp_column"
+        "timestamp_column",
+        description="The timestamp column name (for time series features).",
     )  # From bigQuery.timeSeries.timestampColumn
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    lastupdated: PropertyRef = PropertyRef(
+        "lastupdated",
+        set_in_kwargs=True,
+        description="Timestamp of the last time the node was updated.",
+    )
 
 
 @dataclass(frozen=True)
 class GCPVertexAIFeatureGroupToProjectRelProperties(CartographyRelProperties):
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    lastupdated: PropertyRef = PropertyRef(
+        "lastupdated",
+        set_in_kwargs=True,
+        description="Timestamp of the last sync that observed this data.",
+    )
 
 
 @dataclass(frozen=True)
@@ -61,6 +86,8 @@ class GCPVertexAIFeatureGroupToProjectRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class GCPVertexAIFeatureGroupSchema(CartographyNodeSchema):
+    """Representation of a GCP [Vertex AI Feature Group](https://cloud.google.com/vertex-ai/docs/reference/rest/v1/projects.locations.featureGroups). Feature Groups are the new architecture for Vertex AI Feature Store."""
+
     label: str = "GCPVertexAIFeatureGroup"
     properties: GCPVertexAIFeatureGroupNodeProperties = (
         GCPVertexAIFeatureGroupNodeProperties()

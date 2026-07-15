@@ -13,22 +13,49 @@ from cartography.models.core.relationships import TargetNodeMatcher
 
 @dataclass(frozen=True)
 class GCPVpcNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("partial_uri", extra_index=True)
-    lastupdated: PropertyRef = PropertyRef("LASTUPDATED", set_in_kwargs=True)
-    partial_uri: PropertyRef = PropertyRef("partial_uri")
-    self_link: PropertyRef = PropertyRef("self_link")
-    name: PropertyRef = PropertyRef("name", extra_index=True)
-    project_id: PropertyRef = PropertyRef("PROJECT_ID", set_in_kwargs=True)
-    auto_create_subnetworks: PropertyRef = PropertyRef("auto_create_subnetworks")
-    routing_config_routing_mode: PropertyRef = PropertyRef(
-        "routing_config_routing_mode"
+    id: PropertyRef = PropertyRef(
+        "partial_uri",
+        extra_index=True,
+        description="The partial resource URI representing this VPC.  Has the form `projects/{project_name}/global/networks/{vpc name}`.",
     )
-    description: PropertyRef = PropertyRef("description")
+    lastupdated: PropertyRef = PropertyRef(
+        "LASTUPDATED",
+        set_in_kwargs=True,
+        description="Timestamp of the last time the node was updated.",
+    )
+    partial_uri: PropertyRef = PropertyRef("partial_uri", description="Same as `id`.")
+    self_link: PropertyRef = PropertyRef(
+        "self_link",
+        description="The full resource URI representing this VPC. Has the form `https://www.googleapis.com/compute/v1/{partial_uri}`.",
+    )
+    name: PropertyRef = PropertyRef(
+        "name", extra_index=True, description="The name of the VPC."
+    )
+    project_id: PropertyRef = PropertyRef(
+        "PROJECT_ID",
+        set_in_kwargs=True,
+        description="The project ID that this VPC belongs to.",
+    )
+    auto_create_subnetworks: PropertyRef = PropertyRef(
+        "auto_create_subnetworks",
+        description='When set to true, the VPC network is created in "auto" mode. When set to false, the VPC network is created in "custom" mode.  An auto mode VPC network starts with one subnet per region. Each subnet has a predetermined range as described in [Auto mode VPC network IP ranges](https://cloud.google.com/vpc/docs/vpc#ip-ranges).',
+    )
+    routing_config_routing_mode: PropertyRef = PropertyRef(
+        "routing_config_routing_mode",
+        description="VPC dynamic routing mode, either REGIONAL or GLOBAL.",
+    )
+    description: PropertyRef = PropertyRef(
+        "description", description="A description for the VPC."
+    )
 
 
 @dataclass(frozen=True)
 class GCPVpcToProjectRelProperties(CartographyRelProperties):
-    lastupdated: PropertyRef = PropertyRef("LASTUPDATED", set_in_kwargs=True)
+    lastupdated: PropertyRef = PropertyRef(
+        "LASTUPDATED",
+        set_in_kwargs=True,
+        description="Timestamp of the last sync that observed this data.",
+    )
 
 
 @dataclass(frozen=True)
@@ -46,6 +73,8 @@ class GCPVpcToProjectRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class GCPVpcSchema(CartographyNodeSchema):
+    """Representation of a GCP [VPC](https://cloud.google.com/compute/docs/reference/rest/v1/networks/).  In GCP documentation this is also known simply as a "Network" object."""
+
     label: str = "GCPVpc"
     properties: GCPVpcNodeProperties = GCPVpcNodeProperties()
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["VirtualNetwork"])

@@ -16,18 +16,41 @@ logger = logging.getLogger(__name__)
 
 @dataclass(frozen=True)
 class GCPBigtableClusterProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("name")
-    name: PropertyRef = PropertyRef("name")
-    location: PropertyRef = PropertyRef("location")
-    state: PropertyRef = PropertyRef("state")
-    default_storage_type: PropertyRef = PropertyRef("defaultStorageType")
-    instance_id: PropertyRef = PropertyRef("instance_id")
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    id: PropertyRef = PropertyRef(
+        "name", description="Stable identifier for this resource."
+    )
+    name: PropertyRef = PropertyRef(
+        "name", description="The full resource name of the Bigtable Cluster."
+    )
+    location: PropertyRef = PropertyRef(
+        "location",
+        description="The GCP location where this cluster resides (e.g., `projects/.../locations/us-central1-b`).",
+    )
+    state: PropertyRef = PropertyRef(
+        "state", description="The current state of the cluster (e.g., `READY`)."
+    )
+    default_storage_type: PropertyRef = PropertyRef(
+        "defaultStorageType",
+        description="Default Bigtable storage medium, such as SSD or HDD.",
+    )
+    instance_id: PropertyRef = PropertyRef(
+        "instance_id",
+        description="Identifier of the parent service instance.",
+    )
+    lastupdated: PropertyRef = PropertyRef(
+        "lastupdated",
+        set_in_kwargs=True,
+        description="Timestamp of the last time the node was updated.",
+    )
 
 
 @dataclass(frozen=True)
 class ProjectToBigtableClusterRelProperties(CartographyRelProperties):
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    lastupdated: PropertyRef = PropertyRef(
+        "lastupdated",
+        set_in_kwargs=True,
+        description="Timestamp of the last sync that observed this data.",
+    )
 
 
 @dataclass(frozen=True)
@@ -45,7 +68,11 @@ class ProjectToBigtableClusterRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class ClusterToInstanceRelProperties(CartographyRelProperties):
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    lastupdated: PropertyRef = PropertyRef(
+        "lastupdated",
+        set_in_kwargs=True,
+        description="Timestamp of the last sync that observed this data.",
+    )
 
 
 @dataclass(frozen=True)
@@ -61,6 +88,8 @@ class ClusterToInstanceRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class GCPBigtableClusterSchema(CartographyNodeSchema):
+    """Representation of a GCP [Bigtable Cluster](https://cloud.google.com/bigtable/docs/reference/admin/rest/v2/projects.instances.clusters)."""
+
     label: str = "GCPBigtableCluster"
     properties: GCPBigtableClusterProperties = GCPBigtableClusterProperties()
     sub_resource_relationship: ProjectToBigtableClusterRel = (

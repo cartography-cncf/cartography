@@ -18,20 +18,49 @@ class GCPVertexAIDeployedModelNodeProperties(CartographyNodeProperties):
     See: https://cloud.google.com/vertex-ai/docs/reference/rest/v1/projects.locations.endpoints#DeployedModel
     """
 
-    id: PropertyRef = PropertyRef("id", extra_index=True)
-    deployed_model_id: PropertyRef = PropertyRef("deployed_model_id")
-    model: PropertyRef = PropertyRef("model")  # Reference to the model resource name
-    display_name: PropertyRef = PropertyRef("display_name")
-    create_time: PropertyRef = PropertyRef("create_time")
-    service_account: PropertyRef = PropertyRef("service_account")
-    enable_access_logging: PropertyRef = PropertyRef("enable_access_logging")
-    endpoint_id: PropertyRef = PropertyRef("endpoint_id")  # For SERVES relationship
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    id: PropertyRef = PropertyRef(
+        "id", extra_index=True, description="Stable identifier for this resource."
+    )
+    deployed_model_id: PropertyRef = PropertyRef(
+        "deployed_model_id",
+        description="The ID of the DeployedModel (unique within the endpoint).",
+    )
+    model: PropertyRef = PropertyRef(
+        "model",
+        description="Full resource name of the Model that this DeployedModel is serving.",
+    )  # Reference to the model resource name
+    display_name: PropertyRef = PropertyRef(
+        "display_name", description="User-provided display name of the deployed model."
+    )
+    create_time: PropertyRef = PropertyRef(
+        "create_time", description="Timestamp when the deployed model was created."
+    )
+    service_account: PropertyRef = PropertyRef(
+        "service_account",
+        description="Service account identity configured for this Vertex AI resource.",
+    )
+    enable_access_logging: PropertyRef = PropertyRef(
+        "enable_access_logging",
+        description="Whether access logging is enabled for this deployed model.",
+    )
+    endpoint_id: PropertyRef = PropertyRef(
+        "endpoint_id",
+        description="Identifier of the Vertex AI endpoint hosting this deployment.",
+    )  # For SERVES relationship
+    lastupdated: PropertyRef = PropertyRef(
+        "lastupdated",
+        set_in_kwargs=True,
+        description="Timestamp of the last time the node was updated.",
+    )
 
 
 @dataclass(frozen=True)
 class GCPVertexAIDeployedModelToProjectRelProperties(CartographyRelProperties):
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    lastupdated: PropertyRef = PropertyRef(
+        "lastupdated",
+        set_in_kwargs=True,
+        description="Timestamp of the last sync that observed this data.",
+    )
 
 
 @dataclass(frozen=True)
@@ -50,7 +79,11 @@ class GCPVertexAIDeployedModelToProjectRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class GCPVertexAIDeployedModelToEndpointRelProperties(CartographyRelProperties):
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    lastupdated: PropertyRef = PropertyRef(
+        "lastupdated",
+        set_in_kwargs=True,
+        description="Timestamp of the last sync that observed this data.",
+    )
 
 
 @dataclass(frozen=True)
@@ -69,7 +102,11 @@ class GCPVertexAIDeployedModelToEndpointRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class GCPVertexAIDeployedModelToModelRelProperties(CartographyRelProperties):
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    lastupdated: PropertyRef = PropertyRef(
+        "lastupdated",
+        set_in_kwargs=True,
+        description="Timestamp of the last sync that observed this data.",
+    )
 
 
 @dataclass(frozen=True)
@@ -88,6 +125,8 @@ class GCPVertexAIDeployedModelToModelRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class GCPVertexAIDeployedModelSchema(CartographyNodeSchema):
+    """Representation of a deployed model on a Vertex AI Endpoint. This is derived from the [deployedModels field](https://cloud.google.com/vertex-ai/docs/reference/rest/v1/projects.locations.endpoints#DeployedModel) on an Endpoint."""
+
     label: str = "GCPVertexAIDeployedModel"
     properties: GCPVertexAIDeployedModelNodeProperties = (
         GCPVertexAIDeployedModelNodeProperties()

@@ -17,34 +17,107 @@ logger = logging.getLogger(__name__)
 
 @dataclass(frozen=True)
 class GCPSqlInstanceProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("selfLink")
-    name: PropertyRef = PropertyRef("name")
-    database_version: PropertyRef = PropertyRef("databaseVersion")
-    database_engine: PropertyRef = PropertyRef("database_engine")
-    region: PropertyRef = PropertyRef("region")
-    gce_zone: PropertyRef = PropertyRef("gceZone")
-    state: PropertyRef = PropertyRef("state")
-    backend_type: PropertyRef = PropertyRef("backendType")
-    network_id: PropertyRef = PropertyRef("network_id")
-    service_account_email: PropertyRef = PropertyRef("service_account_email")
-    connection_name: PropertyRef = PropertyRef("connectionName")
-    tier: PropertyRef = PropertyRef("tier")
-    disk_size_gb: PropertyRef = PropertyRef("disk_size_gb")
-    disk_type: PropertyRef = PropertyRef("disk_type")
-    availability_type: PropertyRef = PropertyRef("availability_type")
-    backup_enabled: PropertyRef = PropertyRef("backup_enabled")
-    require_ssl: PropertyRef = PropertyRef("require_ssl")
-    ssl_mode: PropertyRef = PropertyRef("ssl_mode")
-    ip_addresses: PropertyRef = PropertyRef("ip_addresses")
-    authorized_networks: PropertyRef = PropertyRef("authorized_networks")
-    backup_configuration: PropertyRef = PropertyRef("backup_configuration")
-    database_flags: PropertyRef = PropertyRef("database_flags")
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    id: PropertyRef = PropertyRef(
+        "selfLink",
+        description="Canonical Cloud SQL instance selfLink used as the node ID.",
+    )
+    name: PropertyRef = PropertyRef(
+        "name", description="The user-assigned name of the instance."
+    )
+    database_version: PropertyRef = PropertyRef(
+        "databaseVersion",
+        description="Cloud SQL database engine and major version reported by the API.",
+    )
+    database_engine: PropertyRef = PropertyRef(
+        "database_engine",
+        description="Database engine family derived from database_version, such as MYSQL, POSTGRES, or SQLSERVER.",
+    )
+    region: PropertyRef = PropertyRef(
+        "region", description="The GCP region the instance lives in."
+    )
+    gce_zone: PropertyRef = PropertyRef(
+        "gceZone",
+        description="Compute Engine zone hosting the primary Cloud SQL instance, when zonal.",
+    )
+    state: PropertyRef = PropertyRef(
+        "state", description="The current state of the instance (e.g., `RUNNABLE`)."
+    )
+    backend_type: PropertyRef = PropertyRef(
+        "backendType",
+        description="Cloud SQL backend type reported for the instance.",
+    )
+    network_id: PropertyRef = PropertyRef(
+        "network_id",
+        description="Project-relative URI of the private VPC network attached to the instance.",
+    )
+    service_account_email: PropertyRef = PropertyRef(
+        "service_account_email",
+        description="Google-managed service account used by the Cloud SQL instance.",
+    )
+    connection_name: PropertyRef = PropertyRef(
+        "connectionName",
+        description="Cloud SQL connection name in project:region:instance form.",
+    )
+    tier: PropertyRef = PropertyRef(
+        "tier", description="The machine type tier (e.g., `db-custom-1-3840`)."
+    )
+    disk_size_gb: PropertyRef = PropertyRef(
+        "disk_size_gb",
+        description=(
+            "Provisioned data disk capacity in gigabytes, derived from "
+            "settings.dataDiskSizeGb."
+        ),
+    )
+    disk_type: PropertyRef = PropertyRef(
+        "disk_type",
+        description="Cloud SQL data disk type, such as PD_SSD or PD_HDD.",
+    )
+    availability_type: PropertyRef = PropertyRef(
+        "availability_type",
+        description="Instance availability topology, such as ZONAL or REGIONAL.",
+    )
+    backup_enabled: PropertyRef = PropertyRef(
+        "backup_enabled",
+        description="Whether automated backups are enabled in the instance settings.",
+    )
+    require_ssl: PropertyRef = PropertyRef(
+        "require_ssl",
+        description="Whether the instance rejects unencrypted client connections.",
+    )
+    ssl_mode: PropertyRef = PropertyRef(
+        "ssl_mode",
+        description="Configured Cloud SQL transport-encryption policy.",
+    )
+    ip_addresses: PropertyRef = PropertyRef(
+        "ip_addresses",
+        description="Instance IP assignments encoded as JSON, including address and assignment type.",
+    )
+    authorized_networks: PropertyRef = PropertyRef(
+        "authorized_networks",
+        description="Authorized client network entries encoded as JSON from ipConfiguration.authorizedNetworks.",
+    )
+    backup_configuration: PropertyRef = PropertyRef(
+        "backup_configuration",
+        description="Cloud SQL backup configuration encoded as JSON.",
+    )
+    database_flags: PropertyRef = PropertyRef(
+        "database_flags",
+        description="Configured database flags encoded as JSON name-value entries.",
+    )
+    lastupdated: PropertyRef = PropertyRef(
+        "lastupdated",
+        set_in_kwargs=True,
+        description="Timestamp of the last time the node was updated.",
+    )
 
 
 @dataclass(frozen=True)
 class ProjectToSqlInstanceRelProperties(CartographyRelProperties):
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    lastupdated: PropertyRef = PropertyRef(
+        "lastupdated",
+        set_in_kwargs=True,
+        description="Timestamp of the last sync that observed this data.",
+    )
 
 
 @dataclass(frozen=True)
@@ -60,7 +133,11 @@ class ProjectToSqlInstanceRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class SqlInstanceToVpcRelProperties(CartographyRelProperties):
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    lastupdated: PropertyRef = PropertyRef(
+        "lastupdated",
+        set_in_kwargs=True,
+        description="Timestamp of the last sync that observed this data.",
+    )
 
 
 @dataclass(frozen=True)
@@ -76,7 +153,11 @@ class SqlInstanceToVpcRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class SqlInstanceToServiceAccountRelProperties(CartographyRelProperties):
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    lastupdated: PropertyRef = PropertyRef(
+        "lastupdated",
+        set_in_kwargs=True,
+        description="Timestamp of the last sync that observed this data.",
+    )
 
 
 @dataclass(frozen=True)
@@ -94,6 +175,8 @@ class SqlInstanceToServiceAccountRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class GCPSqlInstanceSchema(CartographyNodeSchema):
+    """Representation of a GCP [Cloud SQL Instance](https://cloud.google.com/sql/docs/mysql/admin-api/rest/v1beta4/instances)."""
+
     label: str = "GCPCloudSQLInstance"
     properties: GCPSqlInstanceProperties = GCPSqlInstanceProperties()
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["Database"])

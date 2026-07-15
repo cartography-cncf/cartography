@@ -14,27 +14,70 @@ from cartography.models.core.relationships import TargetNodeMatcher
 
 @dataclass(frozen=True)
 class GCPForwardingRuleNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("partial_uri")
-    partial_uri: PropertyRef = PropertyRef("partial_uri")
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
-    ip_address: PropertyRef = PropertyRef("ip_address")
-    ip_protocol: PropertyRef = PropertyRef("ip_protocol")
-    load_balancing_scheme: PropertyRef = PropertyRef("load_balancing_scheme")
-    lb_type: PropertyRef = PropertyRef("lb_type")
-    name: PropertyRef = PropertyRef("name", extra_index=True)
-    network: PropertyRef = PropertyRef("network_partial_uri")
-    port_range: PropertyRef = PropertyRef("port_range")
-    ports: PropertyRef = PropertyRef("ports")
-    project_id: PropertyRef = PropertyRef("project_id")
-    region: PropertyRef = PropertyRef("region")
-    self_link: PropertyRef = PropertyRef("self_link")
-    subnetwork: PropertyRef = PropertyRef("subnetwork_partial_uri")
-    target: PropertyRef = PropertyRef("target")
+    id: PropertyRef = PropertyRef(
+        "partial_uri",
+        description="A partial resource URI representing this Forwarding Rule.",
+    )
+    partial_uri: PropertyRef = PropertyRef("partial_uri", description="Same as `id`.")
+    lastupdated: PropertyRef = PropertyRef(
+        "lastupdated",
+        set_in_kwargs=True,
+        description="Timestamp of the last time the node was updated.",
+    )
+    ip_address: PropertyRef = PropertyRef(
+        "ip_address", description="IP address that this Forwarding Rule serves."
+    )
+    ip_protocol: PropertyRef = PropertyRef(
+        "ip_protocol", description="IP protocol to which this rule applies."
+    )
+    load_balancing_scheme: PropertyRef = PropertyRef(
+        "load_balancing_scheme", description="Specifies the Forwarding Rule type."
+    )
+    lb_type: PropertyRef = PropertyRef(
+        "lb_type",
+        description="Normalised load-balancer family derived from the target proxy collection (`http`, `https`, `tcp`, `ssl`, `grpc`, `network`, `vpn`).",
+    )
+    name: PropertyRef = PropertyRef(
+        "name", extra_index=True, description="Name of the Forwarding Rule."
+    )
+    network: PropertyRef = PropertyRef(
+        "network_partial_uri",
+        description="A partial resource URI of the network this Forwarding Rule belongs to.",
+    )
+    port_range: PropertyRef = PropertyRef(
+        "port_range",
+        description="Port range used in conjunction with a target resource. Only packets addressed to ports in the specified range will be forwarded to target configured.",
+    )
+    ports: PropertyRef = PropertyRef(
+        "ports",
+        description="Ports to forward to a backend service. Only packets addressed to these ports are forwarded to the backend services configured.",
+    )
+    project_id: PropertyRef = PropertyRef(
+        "project_id", description="The project ID that this Forwarding Rule belongs to."
+    )
+    region: PropertyRef = PropertyRef(
+        "region", description="The region of this Forwarding Rule."
+    )
+    self_link: PropertyRef = PropertyRef(
+        "self_link", description="Server-defined URL for the resource."
+    )
+    subnetwork: PropertyRef = PropertyRef(
+        "subnetwork_partial_uri",
+        description="A partial resource URI of the subnetwork this Forwarding Rule belongs to.",
+    )
+    target: PropertyRef = PropertyRef(
+        "target",
+        description="A partial resource URI of the target resource to receive the traffic.",
+    )
 
 
 @dataclass(frozen=True)
 class GCPForwardingRuleToProjectRelProperties(CartographyRelProperties):
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    lastupdated: PropertyRef = PropertyRef(
+        "lastupdated",
+        set_in_kwargs=True,
+        description="Timestamp of the last sync that observed this data.",
+    )
 
 
 @dataclass(frozen=True)
@@ -54,7 +97,11 @@ class GCPForwardingRuleToProjectRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class GCPForwardingRuleToSubnetRelProperties(CartographyRelProperties):
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    lastupdated: PropertyRef = PropertyRef(
+        "lastupdated",
+        set_in_kwargs=True,
+        description="Timestamp of the last sync that observed this data.",
+    )
 
 
 @dataclass(frozen=True)
@@ -74,7 +121,11 @@ class GCPForwardingRuleToSubnetRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class GCPForwardingRuleToVpcRelProperties(CartographyRelProperties):
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    lastupdated: PropertyRef = PropertyRef(
+        "lastupdated",
+        set_in_kwargs=True,
+        description="Timestamp of the last sync that observed this data.",
+    )
 
 
 @dataclass(frozen=True)
@@ -94,11 +145,7 @@ class GCPForwardingRuleToVpcRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class GCPForwardingRuleSchema(CartographyNodeSchema):
-    """
-    Schema for GCP Forwarding Rules.
-    Note: The relationships to subnet and VPC are handled separately in intel code
-    because only one of them should be created based on whether the rule has a subnetwork or network.
-    """
+    """A Google Cloud forwarding rule that directs traffic to a load balancer target."""
 
     label: str = "GCPForwardingRule"
     properties: GCPForwardingRuleNodeProperties = GCPForwardingRuleNodeProperties()
@@ -111,9 +158,7 @@ class GCPForwardingRuleSchema(CartographyNodeSchema):
 # TODO: I don't think we need this schema
 @dataclass(frozen=True)
 class GCPForwardingRuleWithSubnetSchema(CartographyNodeSchema):
-    """
-    Schema for GCP Forwarding Rules that have a subnetwork (INTERNAL load balancing).
-    """
+    """A Google Cloud forwarding rule that directs traffic to a load balancer target."""
 
     label: str = "GCPForwardingRule"
     properties: GCPForwardingRuleNodeProperties = GCPForwardingRuleNodeProperties()
@@ -130,6 +175,8 @@ class GCPForwardingRuleWithSubnetSchema(CartographyNodeSchema):
 
 @dataclass(frozen=True)
 class GCPForwardingRuleWithVpcSchema(CartographyNodeSchema):
+    """A Google Cloud forwarding rule that directs traffic to a load balancer target."""
+
     label: str = "GCPForwardingRule"
     properties: GCPForwardingRuleNodeProperties = GCPForwardingRuleNodeProperties()
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["LoadBalancer"])

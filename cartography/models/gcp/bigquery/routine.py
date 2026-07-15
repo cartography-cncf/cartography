@@ -13,20 +13,47 @@ from cartography.models.core.relationships import TargetNodeMatcher
 
 @dataclass(frozen=True)
 class GCPBigQueryRoutineProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("id")
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
-    routine_id: PropertyRef = PropertyRef("routine_id")
-    dataset_id: PropertyRef = PropertyRef("dataset_id")
-    routine_type: PropertyRef = PropertyRef("routine_type")
-    language: PropertyRef = PropertyRef("language")
-    creation_time: PropertyRef = PropertyRef("creation_time")
-    last_modified_time: PropertyRef = PropertyRef("last_modified_time")
-    connection_id: PropertyRef = PropertyRef("connection_id")
+    id: PropertyRef = PropertyRef(
+        "id", description="Stable identifier for this resource."
+    )
+    lastupdated: PropertyRef = PropertyRef(
+        "lastupdated",
+        set_in_kwargs=True,
+        description="Timestamp of the last time the node was updated.",
+    )
+    routine_id: PropertyRef = PropertyRef(
+        "routine_id", description="The short routine ID."
+    )
+    dataset_id: PropertyRef = PropertyRef(
+        "dataset_id",
+        description="The parent dataset identifier in `project_id:dataset_id` format.",
+    )
+    routine_type: PropertyRef = PropertyRef(
+        "routine_type",
+        description="Type: SCALAR_FUNCTION, PROCEDURE, or TABLE_VALUED_FUNCTION.",
+    )
+    language: PropertyRef = PropertyRef(
+        "language", description="Language of the routine (e.g., SQL, JAVASCRIPT)."
+    )
+    creation_time: PropertyRef = PropertyRef(
+        "creation_time", description="Creation time of the routine."
+    )
+    last_modified_time: PropertyRef = PropertyRef(
+        "last_modified_time", description="Last modification time of the routine."
+    )
+    connection_id: PropertyRef = PropertyRef(
+        "connection_id",
+        description="The BigQuery connection resource name used by remote functions.",
+    )
 
 
 @dataclass(frozen=True)
 class ProjectToRoutineRelProperties(CartographyRelProperties):
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    lastupdated: PropertyRef = PropertyRef(
+        "lastupdated",
+        set_in_kwargs=True,
+        description="Timestamp of the last sync that observed this data.",
+    )
 
 
 @dataclass(frozen=True)
@@ -42,7 +69,11 @@ class ProjectToRoutineRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class DatasetToRoutineRelProperties(CartographyRelProperties):
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    lastupdated: PropertyRef = PropertyRef(
+        "lastupdated",
+        set_in_kwargs=True,
+        description="Timestamp of the last sync that observed this data.",
+    )
 
 
 @dataclass(frozen=True)
@@ -58,7 +89,11 @@ class DatasetToRoutineRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class RoutineToConnectionRelProperties(CartographyRelProperties):
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    lastupdated: PropertyRef = PropertyRef(
+        "lastupdated",
+        set_in_kwargs=True,
+        description="Timestamp of the last sync that observed this data.",
+    )
 
 
 @dataclass(frozen=True)
@@ -74,6 +109,8 @@ class RoutineToConnectionRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class GCPBigQueryRoutineSchema(CartographyNodeSchema):
+    """Represents a GCP BigQuery Routine (stored procedure, UDF, or table-valued function)."""
+
     label: str = "GCPBigQueryRoutine"
     properties: GCPBigQueryRoutineProperties = GCPBigQueryRoutineProperties()
     sub_resource_relationship: ProjectToRoutineRel = ProjectToRoutineRel()

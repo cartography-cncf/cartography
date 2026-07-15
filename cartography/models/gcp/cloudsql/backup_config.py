@@ -16,25 +16,55 @@ logger = logging.getLogger(__name__)
 
 @dataclass(frozen=True)
 class GCPSqlBackupConfigProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("id")
-    enabled: PropertyRef = PropertyRef("enabled")
-    start_time: PropertyRef = PropertyRef("start_time")
-    location: PropertyRef = PropertyRef("location")
+    id: PropertyRef = PropertyRef(
+        "id",
+        description="Synthetic `{instance_self_link}/backupConfig` identifier.",
+    )
+    enabled: PropertyRef = PropertyRef(
+        "enabled",
+        description="Boolean indicating whether automated backups are enabled.",
+    )
+    start_time: PropertyRef = PropertyRef(
+        "start_time",
+        description="Configured backup window start time or operation start timestamp.",
+    )
+    location: PropertyRef = PropertyRef(
+        "location", description="The location where backups are stored."
+    )
     point_in_time_recovery_enabled: PropertyRef = PropertyRef(
-        "point_in_time_recovery_enabled"
+        "point_in_time_recovery_enabled",
+        description="Whether Cloud SQL point-in-time recovery is enabled.",
     )
     transaction_log_retention_days: PropertyRef = PropertyRef(
-        "transaction_log_retention_days"
+        "transaction_log_retention_days",
+        description="Number of days Cloud SQL retains transaction logs for point-in-time recovery.",
     )
-    backup_retention_settings: PropertyRef = PropertyRef("backup_retention_settings")
-    binary_log_enabled: PropertyRef = PropertyRef("binary_log_enabled")
-    instance_id: PropertyRef = PropertyRef("instance_id")
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    backup_retention_settings: PropertyRef = PropertyRef(
+        "backup_retention_settings",
+        description="Cloud SQL retained-backup configuration encoded as JSON.",
+    )
+    binary_log_enabled: PropertyRef = PropertyRef(
+        "binary_log_enabled",
+        description="Whether MySQL binary logging is enabled for recovery and replication.",
+    )
+    instance_id: PropertyRef = PropertyRef(
+        "instance_id",
+        description="Identifier of the parent service instance.",
+    )
+    lastupdated: PropertyRef = PropertyRef(
+        "lastupdated",
+        set_in_kwargs=True,
+        description="Timestamp of the last time the node was updated.",
+    )
 
 
 @dataclass(frozen=True)
 class ProjectToBackupConfigRelProperties(CartographyRelProperties):
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    lastupdated: PropertyRef = PropertyRef(
+        "lastupdated",
+        set_in_kwargs=True,
+        description="Timestamp of the last sync that observed this data.",
+    )
 
 
 @dataclass(frozen=True)
@@ -52,7 +82,11 @@ class ProjectToBackupConfigRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class InstanceToBackupConfigRelProperties(CartographyRelProperties):
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    lastupdated: PropertyRef = PropertyRef(
+        "lastupdated",
+        set_in_kwargs=True,
+        description="Timestamp of the last sync that observed this data.",
+    )
 
 
 @dataclass(frozen=True)
@@ -70,6 +104,8 @@ class InstanceToBackupConfigRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class GCPSqlBackupConfigSchema(CartographyNodeSchema):
+    """Representation of a GCP [Cloud SQL Backup Configuration](https://cloud.google.com/sql/docs/mysql/admin-api/rest/v1beta4/instances#backupconfiguration). This node captures the backup settings for a Cloud SQL instance."""
+
     label: str = "GCPCloudSQLBackupConfiguration"
     properties: GCPSqlBackupConfigProperties = GCPSqlBackupConfigProperties()
     sub_resource_relationship: ProjectToBackupConfigRel = ProjectToBackupConfigRel()

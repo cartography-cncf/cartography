@@ -17,21 +17,48 @@ class GCPVertexAIEndpointNodeProperties(CartographyNodeProperties):
     See: https://cloud.google.com/vertex-ai/docs/reference/rest/v1/projects.locations.endpoints
     """
 
-    id: PropertyRef = PropertyRef("id", extra_index=True)  # Full resource name
-    name: PropertyRef = PropertyRef("name")  # Resource name (same as id)
-    display_name: PropertyRef = PropertyRef("display_name")
-    description: PropertyRef = PropertyRef("description")
-    create_time: PropertyRef = PropertyRef("create_time")
-    update_time: PropertyRef = PropertyRef("update_time")
-    etag: PropertyRef = PropertyRef("etag")
-    labels: PropertyRef = PropertyRef("labels")
-    network: PropertyRef = PropertyRef("network")  # VPC network
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    id: PropertyRef = PropertyRef(
+        "id", extra_index=True, description="Stable identifier for this resource."
+    )  # Full resource name
+    name: PropertyRef = PropertyRef(
+        "name", description="Same as `id`."
+    )  # Resource name (same as id)
+    display_name: PropertyRef = PropertyRef(
+        "display_name", description="User-provided display name of the endpoint."
+    )
+    description: PropertyRef = PropertyRef(
+        "description", description="Description of the endpoint."
+    )
+    create_time: PropertyRef = PropertyRef(
+        "create_time", description="Timestamp when the endpoint was created."
+    )
+    update_time: PropertyRef = PropertyRef(
+        "update_time", description="Timestamp when the endpoint was last updated."
+    )
+    etag: PropertyRef = PropertyRef(
+        "etag", description="Used to perform consistent read-modify-write updates."
+    )
+    labels: PropertyRef = PropertyRef(
+        "labels", description="Key-value labels attached to this resource."
+    )
+    network: PropertyRef = PropertyRef(
+        "network",
+        description="The full name of the Google Compute Engine network to which the endpoint should be peered.",
+    )  # VPC network
+    lastupdated: PropertyRef = PropertyRef(
+        "lastupdated",
+        set_in_kwargs=True,
+        description="Timestamp of the last time the node was updated.",
+    )
 
 
 @dataclass(frozen=True)
 class GCPVertexAIEndpointToProjectRelProperties(CartographyRelProperties):
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    lastupdated: PropertyRef = PropertyRef(
+        "lastupdated",
+        set_in_kwargs=True,
+        description="Timestamp of the last sync that observed this data.",
+    )
 
 
 @dataclass(frozen=True)
@@ -50,6 +77,8 @@ class GCPVertexAIEndpointToProjectRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class GCPVertexAIEndpointSchema(CartographyNodeSchema):
+    """Representation of a GCP [Vertex AI Endpoint](https://cloud.google.com/vertex-ai/docs/reference/rest/v1/projects.locations.endpoints)."""
+
     label: str = "GCPVertexAIEndpoint"
     properties: GCPVertexAIEndpointNodeProperties = GCPVertexAIEndpointNodeProperties()
     sub_resource_relationship: GCPVertexAIEndpointToProjectRel = (

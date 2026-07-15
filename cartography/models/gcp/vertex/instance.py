@@ -23,33 +23,59 @@ class GCPVertexAIWorkbenchInstanceNodeProperties(CartographyNodeProperties):
     but will be null for all Workbench instances.
     """
 
-    id: PropertyRef = PropertyRef("id", extra_index=True)  # Full resource name
-    name: PropertyRef = PropertyRef("name")  # Resource name (same as id)
+    id: PropertyRef = PropertyRef(
+        "id", extra_index=True, description="Stable identifier for this resource."
+    )  # Full resource name
+    name: PropertyRef = PropertyRef(
+        "name", description="Same as `id`."
+    )  # Resource name (same as id)
     display_name: PropertyRef = PropertyRef(
-        "display_name"
+        "display_name",
+        description="Human-readable name shown for this resource.",
     )  # None for Workbench Instances
     description: PropertyRef = PropertyRef(
-        "description"
+        "description",
+        description="Description configured for this resource.",
     )  # None for Workbench Instances
     runtime_user: PropertyRef = PropertyRef(
-        "runtime_user"
+        "runtime_user",
+        description="User identity configured to run the Vertex AI Workbench instance.",
     )  # From creator field (v2 API)
     notebook_runtime_type: PropertyRef = PropertyRef(
-        "notebook_runtime_type"
+        "notebook_runtime_type",
+        description="Workbench runtime type reported by the Notebooks API.",
     )  # None for Workbench Instances
-    create_time: PropertyRef = PropertyRef("create_time")
-    update_time: PropertyRef = PropertyRef("update_time")
-    state: PropertyRef = PropertyRef("state")
-    health_state: PropertyRef = PropertyRef("health_state")
+    create_time: PropertyRef = PropertyRef(
+        "create_time", description="Timestamp when the instance was created."
+    )
+    update_time: PropertyRef = PropertyRef(
+        "update_time", description="Timestamp when the instance was last updated."
+    )
+    state: PropertyRef = PropertyRef(
+        "state", description="The state of the instance (e.g., `ACTIVE`, `STOPPED`)."
+    )
+    health_state: PropertyRef = PropertyRef(
+        "health_state",
+        description="The health state of the instance (e.g., `HEALTHY`).",
+    )
     service_account: PropertyRef = PropertyRef(
-        "service_account"
+        "service_account",
+        description="Service account identity configured for this Vertex AI resource.",
     )  # From gceSetup.serviceAccounts
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    lastupdated: PropertyRef = PropertyRef(
+        "lastupdated",
+        set_in_kwargs=True,
+        description="Timestamp of the last time the node was updated.",
+    )
 
 
 @dataclass(frozen=True)
 class GCPVertexAIWorkbenchInstanceToProjectRelProperties(CartographyRelProperties):
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    lastupdated: PropertyRef = PropertyRef(
+        "lastupdated",
+        set_in_kwargs=True,
+        description="Timestamp of the last sync that observed this data.",
+    )
 
 
 @dataclass(frozen=True)
@@ -70,7 +96,11 @@ class GCPVertexAIWorkbenchInstanceToProjectRel(CartographyRelSchema):
 class GCPVertexAIWorkbenchInstanceToServiceAccountRelProperties(
     CartographyRelProperties
 ):
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    lastupdated: PropertyRef = PropertyRef(
+        "lastupdated",
+        set_in_kwargs=True,
+        description="Timestamp of the last sync that observed this data.",
+    )
 
 
 @dataclass(frozen=True)
@@ -89,6 +119,8 @@ class GCPVertexAIWorkbenchInstanceToServiceAccountRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class GCPVertexAIWorkbenchInstanceSchema(CartographyNodeSchema):
+    """Representation of a GCP [Vertex AI Workbench Instance](https://cloud.google.com/vertex-ai/docs/workbench/reference/rest/v2/projects.locations.instances) (v2 API)."""
+
     label: str = "GCPVertexAIWorkbenchInstance"
     properties: GCPVertexAIWorkbenchInstanceNodeProperties = (
         GCPVertexAIWorkbenchInstanceNodeProperties()

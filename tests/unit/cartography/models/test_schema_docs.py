@@ -38,6 +38,7 @@ import cartography.models.vercel as vercel_models
 import cartography.models.workday as workday_models
 import cartography.models.workos as workos_models
 from cartography.models.core.relationships import LinkDirection
+from cartography.models.gcp.resource_catalog import GCP_POLICY_BINDING_TARGET_LABELS
 from cartography.models.github.repos import _GitHubCollaboratorSchema
 from cartography.models.github.repos import GITHUB_COLLABORATOR_SCHEMA_TYPES
 from cartography.models.github.repos import make_github_collaborator_schema
@@ -46,6 +47,7 @@ from cartography.models.introspection import inspect_data_model
 from cartography.models.introspection import Node
 from cartography.models.introspection import PermissionRelationshipDefinition
 from cartography.models.introspection import Relationship
+from cartography.models.schema_docs import _node_for_module
 from cartography.models.schema_docs import GENERATED_NOTICE
 from cartography.models.schema_docs import render_module_schema
 from cartography.models.schema_docs import write_module_schema_docs
@@ -384,7 +386,10 @@ def test_github_schema_doc_is_generated_from_full_introspected_model():
         "Container Registry." in generated
     )
     assert "`Image` (ontology label) when `type` equals `image`." in generated
-    assert "`ImageManifestList` when `type` equals `manifest_list`." in generated
+    assert (
+        "`ImageManifestList` (ontology label) when `type` equals `manifest_list`."
+        in generated
+    )
     assert "`CVE` (ontology label) when `has_cve` equals `true`." in generated
     assert (
         "**Ontology Projection**: `Dependency` contributes data to canonical "
@@ -400,6 +405,122 @@ def test_github_schema_doc_is_generated_from_full_introspected_model():
         "and Dockerfile commands. |" in generated
     )
     assert "No description provided." not in generated
+
+
+def test_gcp_schema_doc_is_generated_from_full_introspected_model():
+    complete_model = inspect_data_model()
+    gcp_model = complete_model.for_module("gcp")
+    artifact_registry_guide = Path(
+        "docs/root/modules/gcp/artifact-registry.md"
+    ).read_text()
+    cloud_run_guide = Path("docs/root/modules/gcp/cloud-run.md").read_text()
+    module_index = Path("docs/root/modules/gcp/index.md").read_text()
+
+    generated = render_module_schema(complete_model, "gcp")
+    relationship_shapes = {
+        (
+            relationship.source_label,
+            relationship.label,
+            relationship.target_label,
+        )
+        for relationship in gcp_model.relationships
+    }
+    permission_relationships = tuple(
+        relationship
+        for relationship in gcp_model.relationships
+        if relationship.permission_relationships
+    )
+
+    assert not Path("docs/root/modules/gcp/schema.md").exists()
+    assert artifact_registry_guide.count("```cypher") == 3
+    assert "Image -->|CONTAINS| ImageLayer" not in artifact_registry_guide
+    assert "expanded into one" in artifact_registry_guide
+    assert "repository-scoped, pullable image identity" in artifact_registry_guide
+    assert "Google Cloud Run is a serverless compute platform" in cloud_run_guide
+    assert "Service -->|CONTAINS| ServiceContainer" in cloud_run_guide
+    assert "Service -->|WORKLOAD_PARENT| ServiceContainer" in cloud_run_guide
+    assert "Job -->|CONTAINS| JobContainer" in cloud_run_guide
+    assert "Job -->|WORKLOAD_PARENT| JobContainer" in cloud_run_guide
+    assert "HAS_CONTAINER" not in cloud_run_guide
+    assert "artifact-registry" in module_index
+    assert "cloud-run" in module_index
+    assert len(gcp_model.nodes) == 68
+    assert len(gcp_model.relationships) == 209
+    assert not any(
+        "GCPResource" in (source_label, target_label)
+        for source_label, _, target_label in relationship_shapes
+    )
+    assert {
+        target_label
+        for source_label, relationship_label, target_label in relationship_shapes
+        if source_label == "GCPPolicyBinding" and relationship_label == "APPLIES_TO"
+    } == set(GCP_POLICY_BINDING_TARGET_LABELS)
+    assert len(permission_relationships) == 15
+    assert all(
+        {
+            "has_condition",
+            "condition_title",
+            "condition_expression",
+        }
+        <= {prop.name for prop in relationship.properties}
+        for relationship in permission_relationships
+    )
+    assert (
+        "> **Ontology Mapping**: Some schema variants may also use the ontology "
+        "label `Tag`." in generated
+    )
+    assert (
+        "> **Additional Labels**: Some schema variants may also use "
+        "`GCPBucketLabel`." in generated
+    )
+    assert (
+        "> **Ontology Mapping**: Some schema variants may also use the ontology "
+        "label `Subnet`." in generated
+    )
+    assert (
+        "> **Ontology Mapping**: This node uses the ontology label `ImageLayer`."
+        in generated
+    )
+    assert (
+        "`ImageAttestation` (ontology label) when `type` equals `attestation`."
+        in generated
+    )
+    assert (
+        "`ImageManifestList` (ontology label) when `type` equals `manifest_list`."
+        in generated
+    )
+    assert (
+        "| machine_type |  | The instance machine type short name, "
+        "e.g. `n2d-standard-4`. |" in generated
+    )
+    assert (
+        "| database_engine |  | Database engine family derived from "
+        "database_version, such as MYSQL, POSTGRES, or SQLSERVER. |" in generated
+    )
+    assert (
+        "| disk_size_gb |  | Provisioned data disk capacity in gigabytes, "
+        "derived from settings.dataDiskSizeGb. |" in generated
+    )
+    assert (
+        "| diff_id |  | Uncompressed OCI layer digest from rootfs.diff_ids; "
+        "compressed manifest digest and size are not stored. |" in generated
+    )
+    assert (
+        "Parent-image evidence strength; digest-verified SBOM matches use "
+        "`explicit`." in generated
+    )
+    assert (
+        "Binding identifier in `{resource}_{role}` form. Conditional bindings "
+        "append `_{hash}`" in generated
+    )
+    assert "(:TrivyImageFinding)-[:AFFECTS]->(:Image)" in generated
+    assert "(:Package)-[:DEPLOYED]->(:Image)" in generated
+    assert "(:GCPVpc)-[:RESOURCE]->(:GCPSubnet)" not in generated
+    assert "No description provided." not in generated
+    assert not any(
+        "Value reported by the Google Cloud API for this resource." in path.read_text()
+        for path in Path("cartography/models/gcp").rglob("*.py")
+    )
 
 
 def test_tailscale_schema_doc_is_generated_from_introspected_model():
@@ -533,6 +654,7 @@ def test_microsoft_schema_doc_is_generated_from_full_introspected_model():
 
     # Act
     generated = render_module_schema(complete_model, "microsoft")
+    azure_tenant = complete_model.get_node("AzureTenant")
 
     # Assert
     assert not Path("docs/root/modules/microsoft/schema.md").exists()
@@ -541,6 +663,8 @@ def test_microsoft_schema_doc_is_generated_from_full_introspected_model():
     assert "### AzureTenant" in generated
     assert "**Additional Labels**: This node also uses `EntraTenant`." in generated
     assert "### EntraTenant" not in generated
+    assert azure_tenant is not None
+    assert "EntraTenant" not in _node_for_module(azure_tenant, "azure").extra_labels
     assert "| id | Yes | Microsoft tenant ID. |" in generated
     assert "| device_name | Yes | Name of the managed device. |" in generated
     assert (
