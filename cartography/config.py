@@ -298,6 +298,12 @@ class Config:
     :param openai_apikey: OpenAI API key. Optional.
     :type openai_org_id: string
     :param openai_org_id: OpenAI organization id. Optional.
+    :type portkey_apikey: string
+    :param portkey_apikey: Portkey Admin API key. Optional.
+    :type portkey_org_id: string
+    :param portkey_org_id: Portkey organization id. Optional.
+    :type portkey_base_url: string
+    :param portkey_base_url: Portkey Admin API base URL. Optional.
     :type anthropic_apikey: string
     :param anthropic_apikey: Anthropic API key. Optional.
     :type socketdev_token: str
@@ -535,6 +541,9 @@ class Config:
         cloudflare_token=None,
         openai_apikey=None,
         openai_org_id=None,
+        portkey_apikey=None,
+        portkey_org_id=None,
+        portkey_base_url="https://api.portkey.ai/v1",
         anthropic_apikey=None,
         subimage_client_id=None,
         subimage_client_secret=None,
@@ -746,6 +755,9 @@ class Config:
         self.cloudflare_token = cloudflare_token
         self.openai_apikey = openai_apikey
         self.openai_org_id = openai_org_id
+        self.portkey_apikey = portkey_apikey
+        self.portkey_org_id = portkey_org_id
+        self.portkey_base_url = portkey_base_url
         self.anthropic_apikey = anthropic_apikey
         self.subimage_client_id = subimage_client_id
         self.subimage_client_secret = subimage_client_secret
