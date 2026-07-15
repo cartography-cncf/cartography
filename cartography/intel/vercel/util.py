@@ -18,6 +18,7 @@ def paginated_get(
     team_id: str,
     params: dict[str, Any] | None = None,
     limit: int = 100,
+    pagination_param: str = "until",
 ) -> list[dict[str, Any]]:
     """
     Fetch all pages from a paginated Vercel API endpoint.
@@ -29,6 +30,12 @@ def paginated_get(
     :param team_id: Vercel team ID for teamId query param
     :param params: Additional query parameters
     :param limit: Page size
+    :param pagination_param: Query parameter used to request the next page, set to the
+        value of ``pagination.next``. Vercel is inconsistent here: timestamp-cursor
+        endpoints (e.g. deployments) use ``until``, while continuation-cursor endpoints
+        (e.g. access-groups and their members/projects) use ``next``. Sending the wrong
+        parameter name leaves the cursor unapplied, so the API keeps returning the first
+        page and this loop never terminates. See https://vercel.com/docs/rest-api/reference.
     :return: Combined list of all results across all pages
     """
     all_results: list[dict[str, Any]] = []
@@ -65,6 +72,6 @@ def paginated_get(
         if not next_cursor or len(results) == 0:
             break
 
-        request_params["until"] = next_cursor
+        request_params[pagination_param] = next_cursor
 
     return all_results

@@ -440,10 +440,16 @@ def run_cmd(
         password = typer.prompt("Neo4j password", hide_input=True)
     elif neo4j_password_env_var:
         password = os.environ.get(neo4j_password_env_var)
+        if not password:
+            typer.secho(
+                f"Error: environment variable '{neo4j_password_env_var}' is not set or is empty. "
+                "Set it to the Neo4j password or use --neo4j-password-prompt.",
+                fg=typer.colors.RED,
+                err=True,
+            )
+            raise typer.Exit(1)
     else:
         password = os.getenv("NEO4J_PASSWORD")
-        if not password:
-            password = typer.prompt("Neo4j password", hide_input=True)
 
     # Determine rules to run
     if rule == "all":

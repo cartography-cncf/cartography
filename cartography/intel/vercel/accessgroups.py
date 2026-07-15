@@ -53,6 +53,7 @@ def get(
         f"{base_url}/v1/access-groups",
         "accessGroups",
         team_id,
+        pagination_param="next",
     )
 
     for group in groups:
@@ -62,6 +63,7 @@ def get(
             f"{base_url}/v1/access-groups/{group_id}/members",
             "members",
             team_id,
+            pagination_param="next",
         )
         group["members"] = members
 
@@ -70,6 +72,7 @@ def get(
             f"{base_url}/v1/access-groups/{group_id}/projects",
             "projects",
             team_id,
+            pagination_param="next",
         )
         group["projects"] = projects
 
