@@ -20,32 +20,84 @@ from cartography.models.core.relationships import TargetNodeMatcher
 
 @dataclass(frozen=True)
 class GitHubWorkflowNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("id")
+    id: PropertyRef = PropertyRef("id", description="GitHub workflow ID.")
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
-    name: PropertyRef = PropertyRef("name", extra_index=True)
-    path: PropertyRef = PropertyRef("path", extra_index=True)
-    state: PropertyRef = PropertyRef("state")
-    created_at: PropertyRef = PropertyRef("created_at")
-    updated_at: PropertyRef = PropertyRef("updated_at")
-    repo_url: PropertyRef = PropertyRef("repo_url", extra_index=True)
-    # Parsed fields from workflow YAML
-    trigger_events: PropertyRef = PropertyRef("trigger_events")
-    permissions_actions: PropertyRef = PropertyRef("permissions_actions")
-    permissions_contents: PropertyRef = PropertyRef("permissions_contents")
-    permissions_packages: PropertyRef = PropertyRef("permissions_packages")
-    permissions_pull_requests: PropertyRef = PropertyRef("permissions_pull_requests")
-    permissions_issues: PropertyRef = PropertyRef("permissions_issues")
-    permissions_deployments: PropertyRef = PropertyRef("permissions_deployments")
-    permissions_statuses: PropertyRef = PropertyRef("permissions_statuses")
-    permissions_checks: PropertyRef = PropertyRef("permissions_checks")
-    permissions_id_token: PropertyRef = PropertyRef("permissions_id_token")
-    permissions_security_events: PropertyRef = PropertyRef(
-        "permissions_security_events"
+    name: PropertyRef = PropertyRef(
+        "name", extra_index=True, description="Workflow name."
     )
-    env_vars: PropertyRef = PropertyRef("env_vars")
-    job_count: PropertyRef = PropertyRef("job_count")
+    path: PropertyRef = PropertyRef(
+        "path", extra_index=True, description="Repository-relative workflow file path."
+    )
+    state: PropertyRef = PropertyRef(
+        "state",
+        description=(
+            "Workflow state, such as `active`, `disabled_manually`, or "
+            "`disabled_inactivity`."
+        ),
+    )
+    created_at: PropertyRef = PropertyRef(
+        "created_at", description="Timestamp when the resource was created."
+    )
+    updated_at: PropertyRef = PropertyRef(
+        "updated_at", description="Timestamp when the resource was last updated."
+    )
+    repo_url: PropertyRef = PropertyRef(
+        "repo_url", extra_index=True, description="URL of the containing repository."
+    )
+    # Parsed fields from workflow YAML
+    trigger_events: PropertyRef = PropertyRef(
+        "trigger_events", description="Trigger event names parsed from workflow YAML."
+    )
+    permissions_actions: PropertyRef = PropertyRef(
+        "permissions_actions",
+        description="Actions permission level parsed from workflow YAML.",
+    )
+    permissions_contents: PropertyRef = PropertyRef(
+        "permissions_contents",
+        description="Contents permission level parsed from workflow YAML.",
+    )
+    permissions_packages: PropertyRef = PropertyRef(
+        "permissions_packages",
+        description="Packages permission level parsed from workflow YAML.",
+    )
+    permissions_pull_requests: PropertyRef = PropertyRef(
+        "permissions_pull_requests",
+        description="Pull requests permission level parsed from workflow YAML.",
+    )
+    permissions_issues: PropertyRef = PropertyRef(
+        "permissions_issues",
+        description="Issues permission level parsed from workflow YAML.",
+    )
+    permissions_deployments: PropertyRef = PropertyRef(
+        "permissions_deployments",
+        description="Deployments permission level parsed from workflow YAML.",
+    )
+    permissions_statuses: PropertyRef = PropertyRef(
+        "permissions_statuses",
+        description="Statuses permission level parsed from workflow YAML.",
+    )
+    permissions_checks: PropertyRef = PropertyRef(
+        "permissions_checks",
+        description="Checks permission level parsed from workflow YAML.",
+    )
+    permissions_id_token: PropertyRef = PropertyRef(
+        "permissions_id_token",
+        description="ID token permission level parsed from workflow YAML.",
+    )
+    permissions_security_events: PropertyRef = PropertyRef(
+        "permissions_security_events",
+        description="Security events permission level parsed from workflow YAML.",
+    )
+    env_vars: PropertyRef = PropertyRef(
+        "env_vars",
+        description="Top-level environment variable names parsed from workflow YAML.",
+    )
+    job_count: PropertyRef = PropertyRef(
+        "job_count", description="Number of jobs parsed from workflow YAML."
+    )
     has_reusable_workflow_calls: PropertyRef = PropertyRef(
-        "has_reusable_workflow_calls"
+        "has_reusable_workflow_calls",
+        description="Whether parsed workflow YAML calls a reusable workflow.",
     )
 
 

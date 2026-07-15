@@ -14,14 +14,26 @@ from cartography.models.core.relationships import TargetNodeMatcher
 
 @dataclass(frozen=True)
 class DependencyGraphManifestNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("id")
-    blob_path: PropertyRef = PropertyRef("blob_path")
-    repo_relative_path: PropertyRef = PropertyRef(
-        "repo_relative_path", extra_index=True
+    id: PropertyRef = PropertyRef(
+        "id", description="Identifier composed from repository URL and manifest path."
     )
-    filename: PropertyRef = PropertyRef("filename")
-    dependencies_count: PropertyRef = PropertyRef("dependencies_count")
-    repo_url: PropertyRef = PropertyRef("repo_url")
+    blob_path: PropertyRef = PropertyRef(
+        "blob_path",
+        description="Manifest path returned by the GitHub dependency graph.",
+    )
+    repo_relative_path: PropertyRef = PropertyRef(
+        "repo_relative_path",
+        extra_index=True,
+        description="Normalized repository-relative manifest path.",
+    )
+    filename: PropertyRef = PropertyRef("filename", description="Manifest file name.")
+    dependencies_count: PropertyRef = PropertyRef(
+        "dependencies_count",
+        description="Number of dependencies reported for the manifest.",
+    )
+    repo_url: PropertyRef = PropertyRef(
+        "repo_url", description="URL of the containing repository."
+    )
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
@@ -56,6 +68,8 @@ class DependencyGraphManifestToRepositoryRelProperties(CartographyRelProperties)
 
 @dataclass(frozen=True)
 class DependencyGraphManifestToRepositoryRel(CartographyRelSchema):
+    """Defines the `HAS_MANIFEST` relationship between GitHub resources."""
+
     target_node_label: str = "GitHubRepository"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("repo_url")}
@@ -69,6 +83,8 @@ class DependencyGraphManifestToRepositoryRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class DependencyGraphManifestSchema(CartographyNodeSchema):
+    """A dependency manifest reported by the GitHub dependency graph."""
+
     label: str = "GitHubDependencyGraphManifest"
     # DEPRECATED: legacy DependencyGraphManifest node label will be removed in v1.0.0.
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["DependencyGraphManifest"])

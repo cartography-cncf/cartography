@@ -38,6 +38,9 @@ import cartography.models.vercel as vercel_models
 import cartography.models.workday as workday_models
 import cartography.models.workos as workos_models
 from cartography.models.core.relationships import LinkDirection
+from cartography.models.github.repos import _GitHubCollaboratorSchema
+from cartography.models.github.repos import GITHUB_COLLABORATOR_SCHEMA_TYPES
+from cartography.models.github.repos import make_github_collaborator_schema
 from cartography.models.introspection import DataModel
 from cartography.models.introspection import inspect_data_model
 from cartography.models.introspection import Node
@@ -295,6 +298,103 @@ def test_gitlab_schema_doc_is_generated_from_introspected_model():
         "| masked_and_hidden |  | Whether the value is masked and cannot be "
         "retrieved after creation. |" in generated
     )
+    assert (
+        "    | command_similarity | Similarity score between image build commands "
+        "and Dockerfile commands. |" in generated
+    )
+    assert "No description provided." not in generated
+
+
+def test_github_schema_doc_is_generated_from_full_introspected_model():
+    # Arrange
+    complete_model = inspect_data_model()
+    github_model = complete_model.for_module("github")
+    collaborator_labels = {
+        f"{affiliation}_COLLAB_{permission}"
+        for affiliation in ("DIRECT", "OUTSIDE")
+        for permission in ("ADMIN", "MAINTAIN", "READ", "TRIAGE", "WRITE")
+    }
+
+    # Act
+    generated = render_module_schema(complete_model, "github")
+    runtime_collaborator_schemas = {
+        label: make_github_collaborator_schema(label) for label in collaborator_labels
+    }
+    fallback_schema = make_github_collaborator_schema("CUSTOM_COLLAB_ROLE")
+
+    # Assert
+    assert not Path("docs/root/modules/github/schema.md").exists()
+    assert len(github_model.nodes) == 25
+    assert len(github_model.relationships) == 85
+    assert set(GITHUB_COLLABORATOR_SCHEMA_TYPES) == collaborator_labels
+    assert all(
+        type(runtime_collaborator_schemas[label])
+        is GITHUB_COLLABORATOR_SCHEMA_TYPES[label]
+        for label in collaborator_labels
+    )
+    assert {
+        schema.other_relationships.rels[0].rel_label
+        for schema in runtime_collaborator_schemas.values()
+    } == collaborator_labels
+    assert type(fallback_schema) is _GitHubCollaboratorSchema
+    assert fallback_schema.rel_label == "CUSTOM_COLLAB_ROLE"
+    assert fallback_schema.other_relationships.rels[0].rel_label == "CUSTOM_COLLAB_ROLE"
+    assert collaborator_labels <= {
+        relationship.label for relationship in github_model.relationships
+    }
+    assert "A source code repository hosted in GitHub." in generated
+    assert "| defaultbranch |  | Default branch name. |" in generated
+    assert (
+        "| source |  | Version source: `dependency_graph` for GitHub data or "
+        "`lockfile` for lockfile fallback. |" in generated
+    )
+    assert (
+        "| trigger_events |  | Trigger event names parsed from workflow YAML. |"
+        in generated
+    )
+    assert (
+        "| permissions |  | Fine-grained PAT permission details encoded as JSON. |"
+        in generated
+    )
+    assert (
+        "| diff_id | Yes | Uncompressed layer content digest used for "
+        "deduplication. |" in generated
+    )
+    assert (
+        "    | confidence | Parent image match confidence from 0.0 (lowest) "
+        "to 1.0 (highest). |" in generated
+    )
+    assert "| parameters |  | Complete rule parameters encoded as JSON. |" in generated
+    assert (
+        "| owner_logins |  | GitHub user logins parsed from `@user` owners. |"
+        in generated
+    )
+    assert (
+        "    | commit_count | Number of commits observed in the last 30 days. |"
+        in generated
+    )
+    assert "Links a GitHub repository to an Actions secret." in generated
+    assert "Links a GitHub repository to an Actions variable." in generated
+    assert (
+        "A GitHub Actions secret at organization, repository, or environment scope."
+        in generated
+    )
+    assert (
+        "A digest-addressed container image or manifest list stored in GitHub "
+        "Container Registry." in generated
+    )
+    assert "`Image` (ontology label) when `type` equals `image`." in generated
+    assert "`ImageManifestList` when `type` equals `manifest_list`." in generated
+    assert "`CVE` (ontology label) when `has_cve` equals `true`." in generated
+    assert (
+        "**Ontology Projection**: `Dependency` contributes data to canonical "
+        "`Package` nodes." in generated
+    )
+    assert "(:AWSLambda)-[:HAS_IMAGE]->(:GitHubContainerImage)" in generated
+    assert "(:KubernetesContainer)-[:HAS_IMAGE]->(:GitHubContainerImage)" in generated
+    assert "(:Image)-[:PACKAGED_FROM]->(:GitHubRepository)" in generated
+    assert "(:SocketDevRepository)-[:MONITORS]->(:CodeRepository)" in generated
+    assert "(:S1AppFinding)-[:LINKED_TO]->(:CVE)" not in generated
     assert (
         "    | command_similarity | Similarity score between image build commands "
         "and Dockerfile commands. |" in generated

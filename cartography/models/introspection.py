@@ -226,6 +226,8 @@ def iter_model_classes(
         for value in vars(module).values():
             if not inspect.isclass(value):
                 continue
+            if value.__name__.startswith("_"):
+                continue
             if value in _MODEL_BASE_CLASSES or value.__module__ != module.__name__:
                 continue
             if not any(base in value.__mro__ for base in _MODEL_BASE_CLASSES):

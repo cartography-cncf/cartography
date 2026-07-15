@@ -2,6 +2,7 @@ from dataclasses import dataclass
 
 import cartography.analysis.gsuite as gsuite_analysis
 import cartography.analysis.ontology as ontology_analysis
+import cartography.models.github as github_models
 import cartography.models.lastpass as lastpass_models
 from cartography.analysis.ontology.analysis import DNS_RECORD_LINKING_JOBS
 from cartography.graph.analysis import AddRelationship
@@ -335,6 +336,18 @@ def test_iter_model_classes_discovers_each_defined_model_once():
     assert any(
         model_class.__name__ == "LastpassUserSchema" for model_class in model_classes
     )
+
+
+def test_iter_model_classes_skips_private_bases_and_discovers_public_subclasses():
+    # Act
+    model_class_names = {
+        model_class.__name__ for model_class in iter_model_classes(github_models)
+    }
+
+    # Assert
+    assert "_GitHubCollaboratorSchema" not in model_class_names
+    assert "GitHubDirectCollaboratorAdminSchema" in model_class_names
+    assert "GitHubOutsideCollaboratorWriteSchema" in model_class_names
 
 
 def test_iter_analysis_jobs_discovers_each_defined_job_once():
