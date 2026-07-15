@@ -13,12 +13,20 @@ from cartography.models.core.relationships import TargetNodeMatcher
 
 @dataclass(frozen=True)
 class ScalewayProjectNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("id")
-    name: PropertyRef = PropertyRef("name")
-    created_at: PropertyRef = PropertyRef("created_at")
-    updated_at: PropertyRef = PropertyRef("updated_at")
-    description: PropertyRef = PropertyRef("description")
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    id: PropertyRef = PropertyRef("id", description="ID of the Scaleway Project")
+    name: PropertyRef = PropertyRef("name", description="Name of the project")
+    created_at: PropertyRef = PropertyRef(
+        "created_at", description="Creation timestamp"
+    )
+    updated_at: PropertyRef = PropertyRef(
+        "updated_at", description="Last update timestamp"
+    )
+    description: PropertyRef = PropertyRef(
+        "description", description="Project description"
+    )
+    lastupdated: PropertyRef = PropertyRef(
+        "lastupdated", set_in_kwargs=True, description="Timestamp of the last update"
+    )
 
 
 @dataclass(frozen=True)
@@ -29,6 +37,8 @@ class ScalewayProjectToOrganizationRelProperties(CartographyRelProperties):
 @dataclass(frozen=True)
 # (:ScalewayOrganization)-[:RESOURCE]->(:ScalewayProject)
 class ScalewayProjectToOrganizationRel(CartographyRelSchema):
+    """Connects `ScalewayOrganization` to `ScalewayProject` through `RESOURCE`."""
+
     target_node_label: str = "ScalewayOrganization"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("ORG_ID", set_in_kwargs=True)},
@@ -42,6 +52,8 @@ class ScalewayProjectToOrganizationRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class ScalewayProjectSchema(CartographyNodeSchema):
+    """Represents a Project in Scaleway. Projects are groupings of Scaleway resources."""
+
     label: str = "ScalewayProject"
     properties: ScalewayProjectNodeProperties = ScalewayProjectNodeProperties()
     sub_resource_relationship: ScalewayProjectToOrganizationRel = (

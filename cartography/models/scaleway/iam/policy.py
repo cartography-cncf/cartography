@@ -14,20 +14,44 @@ from cartography.models.core.relationships import TargetNodeMatcher
 
 @dataclass(frozen=True)
 class ScalewayPolicyNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("id")
-    name: PropertyRef = PropertyRef("name")
-    description: PropertyRef = PropertyRef("description")
-    created_at: PropertyRef = PropertyRef("created_at")
-    updated_at: PropertyRef = PropertyRef("updated_at")
-    editable: PropertyRef = PropertyRef("editable")
-    deletable: PropertyRef = PropertyRef("deletable")
-    managed: PropertyRef = PropertyRef("managed")
-    tags: PropertyRef = PropertyRef("tags")
-    nb_rules: PropertyRef = PropertyRef("nb_rules")
-    nb_scopes: PropertyRef = PropertyRef("nb_scopes")
-    nb_permission_sets: PropertyRef = PropertyRef("nb_permission_sets")
-    no_principal: PropertyRef = PropertyRef("no_principal")
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    id: PropertyRef = PropertyRef("id", description="ID of the policy.")
+    name: PropertyRef = PropertyRef("name", description="Name of the policy.")
+    description: PropertyRef = PropertyRef(
+        "description", description="Description of the policy."
+    )
+    created_at: PropertyRef = PropertyRef(
+        "created_at", description="Date and time of policy creation."
+    )
+    updated_at: PropertyRef = PropertyRef(
+        "updated_at", description="Date and time of last policy update."
+    )
+    editable: PropertyRef = PropertyRef(
+        "editable", description="Defines whether or not the policy is editable."
+    )
+    deletable: PropertyRef = PropertyRef(
+        "deletable", description="Defines whether or not the policy is deletable."
+    )
+    managed: PropertyRef = PropertyRef(
+        "managed", description="Defines whether or not the policy is managed."
+    )
+    tags: PropertyRef = PropertyRef(
+        "tags", description="Tags associated with the policy."
+    )
+    nb_rules: PropertyRef = PropertyRef(
+        "nb_rules", description="Number of rules in the policy."
+    )
+    nb_scopes: PropertyRef = PropertyRef(
+        "nb_scopes", description="Number of scopes in the policy."
+    )
+    nb_permission_sets: PropertyRef = PropertyRef(
+        "nb_permission_sets", description="Number of permission sets in the policy."
+    )
+    no_principal: PropertyRef = PropertyRef(
+        "no_principal", description="True if the policy has no principal attached."
+    )
+    lastupdated: PropertyRef = PropertyRef(
+        "lastupdated", set_in_kwargs=True, description="Timestamp of the last update"
+    )
 
 
 @dataclass(frozen=True)
@@ -38,6 +62,8 @@ class ScalewayPolicyToOrganizationRelProperties(CartographyRelProperties):
 @dataclass(frozen=True)
 # (:ScalewayOrganization)-[:RESOURCE]->(:ScalewayPolicy)
 class ScalewayPolicyToOrganizationRel(CartographyRelSchema):
+    """Connects `ScalewayOrganization` to `ScalewayPolicy` through `RESOURCE`."""
+
     target_node_label: str = "ScalewayOrganization"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("ORG_ID", set_in_kwargs=True)},
@@ -57,6 +83,8 @@ class ScalewayPolicyToUserRelProperties(CartographyRelProperties):
 @dataclass(frozen=True)
 # (:ScalewayPolicy)-[:APPLIES_TO]->(:ScalewayUser)
 class ScalewayPolicyToUserRel(CartographyRelSchema):
+    """Connects `ScalewayPolicy` to `ScalewayUser` through `APPLIES_TO`."""
+
     target_node_label: str = "ScalewayUser"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("user_id")},
@@ -74,6 +102,8 @@ class ScalewayPolicyToGroupRelProperties(CartographyRelProperties):
 @dataclass(frozen=True)
 # (:ScalewayPolicy)-[:APPLIES_TO]->(:ScalewayGroup)
 class ScalewayPolicyToGroupRel(CartographyRelSchema):
+    """Connects `ScalewayPolicy` to `ScalewayGroup` through `APPLIES_TO`."""
+
     target_node_label: str = "ScalewayGroup"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("group_id")},
@@ -93,6 +123,8 @@ class ScalewayPolicyToApplicationRelProperties(CartographyRelProperties):
 @dataclass(frozen=True)
 # (:ScalewayPolicy)-[:APPLIES_TO]->(:ScalewayApplication)
 class ScalewayPolicyToApplicationRel(CartographyRelSchema):
+    """Connects `ScalewayPolicy` to `ScalewayApplication` through `APPLIES_TO`."""
+
     target_node_label: str = "ScalewayApplication"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("application_id")},
@@ -106,6 +138,10 @@ class ScalewayPolicyToApplicationRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class ScalewayPolicySchema(CartographyNodeSchema):
+    """Represents an IAM Policy in Scaleway. Policies define permissions for users, groups,
+    or applications.
+    """
+
     label: str = "ScalewayPolicy"
     properties: ScalewayPolicyNodeProperties = ScalewayPolicyNodeProperties()
     sub_resource_relationship: ScalewayPolicyToOrganizationRel = (

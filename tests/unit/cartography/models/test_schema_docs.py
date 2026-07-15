@@ -426,6 +426,86 @@ def test_jamf_schema_doc_is_generated_from_introspected_model():
     assert "No description provided." not in generated
 
 
+def test_microsoft_schema_doc_is_generated_from_full_introspected_model():
+    # Arrange
+    complete_model = inspect_data_model()
+    microsoft_model = complete_model.for_module("microsoft")
+
+    # Act
+    generated = render_module_schema(complete_model, "microsoft")
+
+    # Assert
+    assert not Path("docs/root/modules/microsoft/schema.md").exists()
+    assert len(microsoft_model.nodes) == 12
+    assert len(microsoft_model.relationships) == 29
+    assert "### AzureTenant" in generated
+    assert "**Additional Labels**: This node also uses `EntraTenant`." in generated
+    assert "### EntraTenant" not in generated
+    assert "| id | Yes | Microsoft tenant ID. |" in generated
+    assert "| device_name | Yes | Name of the managed device. |" in generated
+    assert (
+        "**Ontology Projection**: `IntuneManagedDevice` contributes data "
+        "to canonical `Device` nodes." in generated
+    )
+    assert "(:Device)-[:OBSERVED_AS]->(:IntuneManagedDevice)" in generated
+    assert (
+        "Analysis job `Intune compliance policy to device resolution` generates "
+        "`(:IntuneCompliancePolicy)-[:APPLIES_TO]->(:IntuneManagedDevice)`."
+        in generated
+    )
+    assert (
+        "Source: AZURE permission evaluation from "
+        "`cartography/data/azure_permission_relationships.yaml`" in generated
+    )
+    assert "(:EntraUser)-[:CAN_READ]->(:AzureSQLServer)" in generated
+    assert "(:EntraUser)-[:CAN_SIGN_ON_TO]->(:AWSSSOUser)" in generated
+    assert (
+        "(:GCPBigQueryConnection)-[:CONNECTS_WITH]->(:EntraServicePrincipal)"
+        in generated
+    )
+    assert "No description provided." not in generated
+
+
+def test_scaleway_schema_doc_is_generated_from_full_introspected_model():
+    # Arrange
+    complete_model = inspect_data_model()
+    scaleway_model = complete_model.for_module("scaleway")
+
+    # Act
+    generated = render_module_schema(complete_model, "scaleway")
+    security_group_rule = scaleway_model.get_node("ScalewaySecurityGroupRule")
+
+    # Assert
+    assert not Path("docs/root/modules/scaleway/schema.md").exists()
+    assert len(scaleway_model.nodes) == 55
+    assert len(scaleway_model.relationships) == 105
+    assert "Represents the digest-addressed image content" in generated
+    assert "| source_uri | Yes | Source VCS repository URL" in generated
+    assert (
+        "Connects `ScalewayFlexibleIp` to `ScalewayInstance` through `IDENTIFIES`."
+        in generated
+    )
+    assert "(:ScalewayFlexibleIp)-[:IDENTIFIES]->(:ScalewayInstance)" in generated
+    assert security_group_rule is not None
+    assert security_group_rule.extra_labels == ("IpRule",)
+    assert {
+        (label.label, tuple(sorted(label.conditions.items())))
+        for label in security_group_rule.conditional_labels
+    } == {
+        ("IpPermissionEgress", (("direction", "outbound"),)),
+        ("IpPermissionInbound", (("direction", "inbound"),)),
+    }
+    assert "(:Container)-[:RESOLVED_IMAGE]->(:Image)" in generated
+    assert "(:Image)-[:PACKAGED_FROM]->(:GitHubRepository)" in generated
+    assert "(:PublicIP)-[:RESERVED_BY]->(:ScalewayFlexibleIp)" in generated
+    assert (
+        "(:AzureApplicationGatewayBackendPool)-[:ROUTES_TO]->(:DNSRecord)" in generated
+    )
+    assert "(:LoadBalancer)-[:EXPOSE]->(:Container)" not in generated
+    assert "(:Image)-[:PACKAGED_BY]->(:GitHubWorkflow)" not in generated
+    assert "No description provided." not in generated
+
+
 def test_undirected_analysis_relationships_are_rendered_without_arrows():
     # Arrange
     node = Node(

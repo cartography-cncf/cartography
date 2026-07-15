@@ -14,14 +14,25 @@ from cartography.models.core.relationships import TargetNodeMatcher
 
 @dataclass(frozen=True)
 class ScalewaySubnetProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("id")
+    id: PropertyRef = PropertyRef("id", description="Subnet unique ID.")
     # The CIDR block (Scaleway names this field `subnet`).
-    subnet: PropertyRef = PropertyRef("subnet")
-    private_network_id: PropertyRef = PropertyRef("private_network_id")
-    vpc_id: PropertyRef = PropertyRef("vpc_id")
-    created_at: PropertyRef = PropertyRef("created_at")
-    updated_at: PropertyRef = PropertyRef("updated_at")
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    subnet: PropertyRef = PropertyRef("subnet", description="CIDR block of the subnet.")
+    private_network_id: PropertyRef = PropertyRef(
+        "private_network_id",
+        description="ID of the Private Network the subnet belongs to.",
+    )
+    vpc_id: PropertyRef = PropertyRef(
+        "vpc_id", description="ID of the VPC the subnet belongs to."
+    )
+    created_at: PropertyRef = PropertyRef(
+        "created_at", description="Subnet creation date."
+    )
+    updated_at: PropertyRef = PropertyRef(
+        "updated_at", description="Subnet last update date."
+    )
+    lastupdated: PropertyRef = PropertyRef(
+        "lastupdated", set_in_kwargs=True, description="Timestamp of the last update"
+    )
 
 
 @dataclass(frozen=True)
@@ -32,6 +43,8 @@ class ScalewaySubnetToProjectRelProperties(CartographyRelProperties):
 @dataclass(frozen=True)
 # (:ScalewayProject)-[:RESOURCE]->(:ScalewaySubnet)
 class ScalewaySubnetToProjectRel(CartographyRelSchema):
+    """Connects `ScalewayProject` to `ScalewaySubnet` through `RESOURCE`."""
+
     target_node_label: str = "ScalewayProject"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("PROJECT_ID", set_in_kwargs=True)},
@@ -51,6 +64,8 @@ class ScalewaySubnetToPrivateNetworkRelProperties(CartographyRelProperties):
 @dataclass(frozen=True)
 # (:ScalewayPrivateNetwork)-[:HAS]->(:ScalewaySubnet)
 class ScalewaySubnetToPrivateNetworkRel(CartographyRelSchema):
+    """Connects `ScalewayPrivateNetwork` to `ScalewaySubnet` through `HAS`."""
+
     target_node_label: str = "ScalewayPrivateNetwork"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("private_network_id")},
@@ -64,6 +79,8 @@ class ScalewaySubnetToPrivateNetworkRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class ScalewaySubnetSchema(CartographyNodeSchema):
+    """A Subnet is a CIDR block (IPv4 or IPv6) belonging to a Private Network."""
+
     label: str = "ScalewaySubnet"
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["Subnet"])
     properties: ScalewaySubnetProperties = ScalewaySubnetProperties()

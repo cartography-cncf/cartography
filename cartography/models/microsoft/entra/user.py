@@ -18,29 +18,69 @@ from cartography.models.core.relationships import TargetNodeMatcher
 
 @dataclass(frozen=True)
 class EntraUserNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("id")
-    user_principal_name: PropertyRef = PropertyRef("user_principal_name")
-    display_name: PropertyRef = PropertyRef("display_name")
-    given_name: PropertyRef = PropertyRef("given_name")
-    surname: PropertyRef = PropertyRef("surname")
+    id: PropertyRef = PropertyRef("id", description="Entra user ID.")
+    user_principal_name: PropertyRef = PropertyRef(
+        "user_principal_name", description="User principal name."
+    )
+    display_name: PropertyRef = PropertyRef(
+        "display_name", description="Display name of the user."
+    )
+    given_name: PropertyRef = PropertyRef(
+        "given_name", description="Given name of the user."
+    )
+    surname: PropertyRef = PropertyRef("surname", description="Surname of the user.")
     # The SDK calls this `mail`; we surface it as `email` like the rest of Cartography
-    email: PropertyRef = PropertyRef("mail", extra_index=True)
-    mobile_phone: PropertyRef = PropertyRef("mobile_phone")
-    business_phones: PropertyRef = PropertyRef("business_phones")
-    job_title: PropertyRef = PropertyRef("job_title")
-    department: PropertyRef = PropertyRef("department")
-    company_name: PropertyRef = PropertyRef("company_name")
-    office_location: PropertyRef = PropertyRef("office_location")
-    employee_id: PropertyRef = PropertyRef("employee_id")
-    employee_type: PropertyRef = PropertyRef("employee_type")
-    city: PropertyRef = PropertyRef("city")
-    state: PropertyRef = PropertyRef("state")
-    country: PropertyRef = PropertyRef("country")
-    preferred_language: PropertyRef = PropertyRef("preferred_language")
-    account_enabled: PropertyRef = PropertyRef("account_enabled")
-    age_group: PropertyRef = PropertyRef("age_group")
-    manager_id: PropertyRef = PropertyRef("manager_id")
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    email: PropertyRef = PropertyRef(
+        "mail", extra_index=True, description="Primary email address of the user."
+    )
+    mobile_phone: PropertyRef = PropertyRef(
+        "mobile_phone", description="Mobile phone number of the user."
+    )
+    business_phones: PropertyRef = PropertyRef(
+        "business_phones", description="Business phone numbers of the user."
+    )
+    job_title: PropertyRef = PropertyRef(
+        "job_title", description="Job title of the user."
+    )
+    department: PropertyRef = PropertyRef(
+        "department", description="Department of the user."
+    )
+    company_name: PropertyRef = PropertyRef(
+        "company_name", description="Company name associated with the user."
+    )
+    office_location: PropertyRef = PropertyRef(
+        "office_location", description="Office location of the user."
+    )
+    employee_id: PropertyRef = PropertyRef(
+        "employee_id", description="Employee identifier of the user."
+    )
+    employee_type: PropertyRef = PropertyRef(
+        "employee_type", description="Employment type of the user."
+    )
+    city: PropertyRef = PropertyRef("city", description="City in the user's address.")
+    state: PropertyRef = PropertyRef(
+        "state", description="State or province in the user's address."
+    )
+    country: PropertyRef = PropertyRef(
+        "country", description="Country or region in the user's address."
+    )
+    preferred_language: PropertyRef = PropertyRef(
+        "preferred_language", description="Preferred language of the user."
+    )
+    account_enabled: PropertyRef = PropertyRef(
+        "account_enabled", description="Whether the user account is enabled."
+    )
+    age_group: PropertyRef = PropertyRef(
+        "age_group", description="Age group classification of the user."
+    )
+    manager_id: PropertyRef = PropertyRef(
+        "manager_id", description="Entra user ID of the user's manager."
+    )
+    lastupdated: PropertyRef = PropertyRef(
+        "lastupdated",
+        set_in_kwargs=True,
+        description="Timestamp of the latest Cartography update.",
+    )
 
 
 @dataclass(frozen=True)
@@ -51,6 +91,8 @@ class EntraTenantToUserRelProperties(CartographyRelProperties):
 @dataclass(frozen=True)
 # (:EntraUser)-[:REPORTS_TO]->(:EntraUser)
 class EntraUserReportsToRel(CartographyRelSchema):
+    """Links an Entra user to their manager."""
+
     target_node_label: str = "EntraUser"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("manager_id")},
@@ -63,6 +105,8 @@ class EntraUserReportsToRel(CartographyRelSchema):
 @dataclass(frozen=True)
 # (:EntraUser)<-[:RESOURCE]-(:AzureTenant)
 class EntraUserToTenantRel(CartographyRelSchema):
+    """Links a Microsoft tenant to one of its Entra users."""
+
     target_node_label: str = "AzureTenant"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("TENANT_ID", set_in_kwargs=True)},
@@ -74,6 +118,8 @@ class EntraUserToTenantRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class EntraUserSchema(CartographyNodeSchema):
+    """A user account in Microsoft Entra ID."""
+
     label: str = "EntraUser"
     properties: EntraUserNodeProperties = EntraUserNodeProperties()
     sub_resource_relationship: EntraUserToTenantRel = EntraUserToTenantRel()

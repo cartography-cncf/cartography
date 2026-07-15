@@ -13,14 +13,28 @@ from cartography.models.core.relationships import TargetNodeMatcher
 
 @dataclass(frozen=True)
 class EntraRoleAssignmentNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("id")
+    id: PropertyRef = PropertyRef("id", description="Entra role assignment ID.")
     role_definition_id: PropertyRef = PropertyRef(
-        "role_definition_id", extra_index=True
+        "role_definition_id",
+        extra_index=True,
+        description="ID of the assigned role definition.",
     )
-    principal_id: PropertyRef = PropertyRef("principal_id", extra_index=True)
-    directory_scope_id: PropertyRef = PropertyRef("directory_scope_id")
-    app_scope_id: PropertyRef = PropertyRef("app_scope_id")
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    principal_id: PropertyRef = PropertyRef(
+        "principal_id",
+        extra_index=True,
+        description="ID of the principal granted the role.",
+    )
+    directory_scope_id: PropertyRef = PropertyRef(
+        "directory_scope_id", description="Directory scope of the assignment."
+    )
+    app_scope_id: PropertyRef = PropertyRef(
+        "app_scope_id", description="Application-specific scope of the assignment."
+    )
+    lastupdated: PropertyRef = PropertyRef(
+        "lastupdated",
+        set_in_kwargs=True,
+        description="Timestamp of the latest Cartography update.",
+    )
 
 
 @dataclass(frozen=True)
@@ -31,6 +45,8 @@ class EntraRoleAssignmentToTenantRelProperties(CartographyRelProperties):
 @dataclass(frozen=True)
 # (:EntraRoleAssignment)<-[:RESOURCE]-(:AzureTenant)
 class EntraRoleAssignmentToTenantRel(CartographyRelSchema):
+    """Links a Microsoft tenant to one of its directory role assignments."""
+
     target_node_label: str = "AzureTenant"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("TENANT_ID", set_in_kwargs=True)},
@@ -50,6 +66,8 @@ class EntraRoleAssignmentToRoleDefinitionRelProperties(CartographyRelProperties)
 @dataclass(frozen=True)
 # (:EntraRoleAssignment)-[:ASSIGNED_TO]->(:EntraRoleDefinition)
 class EntraRoleAssignmentToRoleDefinitionRel(CartographyRelSchema):
+    """Links a role assignment to the directory role it grants."""
+
     target_node_label: str = "EntraRoleDefinition"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("role_definition_id")},
@@ -69,6 +87,8 @@ class EntraRoleAssignmentToUserRelProperties(CartographyRelProperties):
 @dataclass(frozen=True)
 # (:EntraUser)-[:HAS_ROLE]->(:EntraRoleAssignment)
 class EntraRoleAssignmentToUserRel(CartographyRelSchema):
+    """Links an Entra user to a directory role assignment they hold."""
+
     target_node_label: str = "EntraUser"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("principal_id")},
@@ -88,6 +108,8 @@ class EntraRoleAssignmentToGroupRelProperties(CartographyRelProperties):
 @dataclass(frozen=True)
 # (:EntraGroup)-[:HAS_ROLE]->(:EntraRoleAssignment)
 class EntraRoleAssignmentToGroupRel(CartographyRelSchema):
+    """Links an Entra group to a directory role assignment it holds."""
+
     target_node_label: str = "EntraGroup"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("principal_id")},
@@ -107,6 +129,8 @@ class EntraRoleAssignmentToServicePrincipalRelProperties(CartographyRelPropertie
 @dataclass(frozen=True)
 # (:EntraServicePrincipal)-[:HAS_ROLE]->(:EntraRoleAssignment)
 class EntraRoleAssignmentToServicePrincipalRel(CartographyRelSchema):
+    """Links a service principal to a directory role assignment it holds."""
+
     target_node_label: str = "EntraServicePrincipal"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("principal_id")},
@@ -120,6 +144,8 @@ class EntraRoleAssignmentToServicePrincipalRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class EntraRoleAssignmentSchema(CartographyNodeSchema):
+    """A directory role assignment in Microsoft Entra ID."""
+
     label: str = "EntraRoleAssignment"
     properties: EntraRoleAssignmentNodeProperties = EntraRoleAssignmentNodeProperties()
     sub_resource_relationship: EntraRoleAssignmentToTenantRel = (

@@ -13,16 +13,37 @@ from cartography.models.core.relationships import TargetNodeMatcher
 
 @dataclass(frozen=True)
 class EntraAppRoleAssignmentNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("id")
-    app_role_id: PropertyRef = PropertyRef("app_role_id")
-    created_date_time: PropertyRef = PropertyRef("created_date_time")
-    principal_id: PropertyRef = PropertyRef("principal_id")
-    principal_display_name: PropertyRef = PropertyRef("principal_display_name")
-    principal_type: PropertyRef = PropertyRef("principal_type")
-    resource_display_name: PropertyRef = PropertyRef("resource_display_name")
-    resource_id: PropertyRef = PropertyRef("resource_id")
-    application_app_id: PropertyRef = PropertyRef("application_app_id")
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    id: PropertyRef = PropertyRef("id", description="Entra app role assignment ID.")
+    app_role_id: PropertyRef = PropertyRef(
+        "app_role_id", description="ID of the assigned application role."
+    )
+    created_date_time: PropertyRef = PropertyRef(
+        "created_date_time", description="Timestamp when the assignment was created."
+    )
+    principal_id: PropertyRef = PropertyRef(
+        "principal_id", description="ID of the principal receiving the role."
+    )
+    principal_display_name: PropertyRef = PropertyRef(
+        "principal_display_name", description="Display name of the assigned principal."
+    )
+    principal_type: PropertyRef = PropertyRef(
+        "principal_type", description="Type of the assigned principal."
+    )
+    resource_display_name: PropertyRef = PropertyRef(
+        "resource_display_name",
+        description="Display name of the resource service principal.",
+    )
+    resource_id: PropertyRef = PropertyRef(
+        "resource_id", description="ID of the resource service principal."
+    )
+    application_app_id: PropertyRef = PropertyRef(
+        "application_app_id", description="Client ID of the assigned application."
+    )
+    lastupdated: PropertyRef = PropertyRef(
+        "lastupdated",
+        set_in_kwargs=True,
+        description="Timestamp of the latest Cartography update.",
+    )
 
 
 @dataclass(frozen=True)
@@ -32,6 +53,8 @@ class EntraAppRoleAssignmentToTenantRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class EntraAppRoleAssignmentToTenantRel(CartographyRelSchema):
+    """Links a Microsoft tenant to one of its app role assignments."""
+
     target_node_label: str = "AzureTenant"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("TENANT_ID", set_in_kwargs=True)},
@@ -50,6 +73,8 @@ class EntraAppRoleAssignmentToApplicationRelProperties(CartographyRelProperties)
 
 @dataclass(frozen=True)
 class EntraAppRoleAssignmentToApplicationRel(CartographyRelSchema):
+    """Links an app role assignment to its Entra application."""
+
     target_node_label: str = "EntraApplication"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"app_id": PropertyRef("application_app_id")},
@@ -68,6 +93,8 @@ class EntraAppRoleAssignmentToUserRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class EntraAppRoleAssignmentToUserRel(CartographyRelSchema):
+    """Links an Entra user to an app role assignment they hold."""
+
     target_node_label: str = "EntraUser"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("principal_id")},
@@ -86,6 +113,8 @@ class EntraAppRoleAssignmentToGroupRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class EntraAppRoleAssignmentToGroupRel(CartographyRelSchema):
+    """Links an Entra group to an app role assignment it holds."""
+
     target_node_label: str = "EntraGroup"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("principal_id")},
@@ -99,6 +128,8 @@ class EntraAppRoleAssignmentToGroupRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class EntraAppRoleAssignmentSchema(CartographyNodeSchema):
+    """An application role assignment in Microsoft Entra ID."""
+
     label: str = "EntraAppRoleAssignment"
     properties: EntraAppRoleAssignmentNodeProperties = (
         EntraAppRoleAssignmentNodeProperties()

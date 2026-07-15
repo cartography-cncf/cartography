@@ -8,12 +8,16 @@ from cartography.models.core.nodes import ExtraNodeLabels
 
 @dataclass(frozen=True)
 class ScalewayOrganizationNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("id")
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    id: PropertyRef = PropertyRef("id", description="ID of the Scaleway Organization")
+    lastupdated: PropertyRef = PropertyRef(
+        "lastupdated", set_in_kwargs=True, description="Timestamp of the last update"
+    )
 
 
 @dataclass(frozen=True)
 class ScalewayOrganizationSchema(CartographyNodeSchema):
+    """Represents an Organization in Scaleway."""
+
     label: str = "ScalewayOrganization"
     properties: ScalewayOrganizationNodeProperties = (
         ScalewayOrganizationNodeProperties()

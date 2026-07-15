@@ -13,12 +13,23 @@ from cartography.models.core.relationships import TargetNodeMatcher
 
 @dataclass(frozen=True)
 class EntraApplicationNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("id")
-    app_id: PropertyRef = PropertyRef("app_id")
-    display_name: PropertyRef = PropertyRef("display_name")
-    publisher_domain: PropertyRef = PropertyRef("publisher_domain")
-    sign_in_audience: PropertyRef = PropertyRef("sign_in_audience")
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    id: PropertyRef = PropertyRef("id", description="Entra application object ID.")
+    app_id: PropertyRef = PropertyRef("app_id", description="Application client ID.")
+    display_name: PropertyRef = PropertyRef(
+        "display_name", description="Display name of the application."
+    )
+    publisher_domain: PropertyRef = PropertyRef(
+        "publisher_domain", description="Verified publisher domain of the application."
+    )
+    sign_in_audience: PropertyRef = PropertyRef(
+        "sign_in_audience",
+        description="Accounts allowed to sign in to the application.",
+    )
+    lastupdated: PropertyRef = PropertyRef(
+        "lastupdated",
+        set_in_kwargs=True,
+        description="Timestamp of the latest Cartography update.",
+    )
 
 
 @dataclass(frozen=True)
@@ -28,6 +39,8 @@ class EntraApplicationToTenantRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class EntraApplicationToTenantRel(CartographyRelSchema):
+    """Links a Microsoft tenant to one of its Entra applications."""
+
     target_node_label: str = "AzureTenant"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("TENANT_ID", set_in_kwargs=True)},
@@ -41,6 +54,8 @@ class EntraApplicationToTenantRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class EntraApplicationSchema(CartographyNodeSchema):
+    """An application registration in Microsoft Entra ID."""
+
     label: str = "EntraApplication"
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["ThirdPartyApp"])
     properties: EntraApplicationNodeProperties = EntraApplicationNodeProperties()

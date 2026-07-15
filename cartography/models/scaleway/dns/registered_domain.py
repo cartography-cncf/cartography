@@ -13,24 +13,41 @@ from cartography.models.core.relationships import TargetNodeMatcher
 
 @dataclass(frozen=True)
 class ScalewayRegisteredDomainProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("id")
-    name: PropertyRef = PropertyRef("name")
-    status: PropertyRef = PropertyRef("status")
-    registrar: PropertyRef = PropertyRef("registrar")
-    is_external: PropertyRef = PropertyRef("is_external")
-    epp_code: PropertyRef = PropertyRef("epp_code")
-    auto_renew_status: PropertyRef = PropertyRef("auto_renew_status")
-    dnssec_status: PropertyRef = PropertyRef("dnssec_status")
+    id: PropertyRef = PropertyRef("id", description="Domain name (unique id).")
+    name: PropertyRef = PropertyRef("name", description="Domain name.")
+    status: PropertyRef = PropertyRef("status", description="Status of the domain.")
+    registrar: PropertyRef = PropertyRef(
+        "registrar", description="Registrar of the domain."
+    )
+    is_external: PropertyRef = PropertyRef(
+        "is_external", description="Whether the domain is external."
+    )
+    epp_code: PropertyRef = PropertyRef("epp_code", description="EPP status codes.")
+    auto_renew_status: PropertyRef = PropertyRef(
+        "auto_renew_status", description="Auto-renewal status."
+    )
+    dnssec_status: PropertyRef = PropertyRef(
+        "dnssec_status", description="DNSSEC status."
+    )
     external_domain_registration_status: PropertyRef = PropertyRef(
-        "external_domain_registration_status"
+        "external_domain_registration_status",
+        description="External registration status.",
     )
     transfer_registration_status: PropertyRef = PropertyRef(
-        "transfer_registration_status"
+        "transfer_registration_status", description="Transfer registration status."
     )
-    expired_at: PropertyRef = PropertyRef("expired_at")
-    created_at: PropertyRef = PropertyRef("created_at")
-    updated_at: PropertyRef = PropertyRef("updated_at")
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    expired_at: PropertyRef = PropertyRef(
+        "expired_at", description="Expiration timestamp."
+    )
+    created_at: PropertyRef = PropertyRef(
+        "created_at", description="Creation timestamp."
+    )
+    updated_at: PropertyRef = PropertyRef(
+        "updated_at", description="Last update timestamp."
+    )
+    lastupdated: PropertyRef = PropertyRef(
+        "lastupdated", set_in_kwargs=True, description="Timestamp of the last update"
+    )
 
 
 @dataclass(frozen=True)
@@ -41,6 +58,8 @@ class ScalewayRegisteredDomainToOrganizationRelProperties(CartographyRelProperti
 @dataclass(frozen=True)
 # (:ScalewayOrganization)-[:RESOURCE]->(:ScalewayRegisteredDomain)
 class ScalewayRegisteredDomainToOrganizationRel(CartographyRelSchema):
+    """Connects `ScalewayOrganization` to `ScalewayRegisteredDomain` through `RESOURCE`."""
+
     target_node_label: str = "ScalewayOrganization"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("ORG_ID", set_in_kwargs=True)},
@@ -60,6 +79,8 @@ class ScalewayRegisteredDomainToProjectRelProperties(CartographyRelProperties):
 @dataclass(frozen=True)
 # (:ScalewayProject)-[:RESOURCE]->(:ScalewayRegisteredDomain)
 class ScalewayRegisteredDomainToProjectRel(CartographyRelSchema):
+    """Connects `ScalewayProject` to `ScalewayRegisteredDomain` through `RESOURCE`."""
+
     target_node_label: str = "ScalewayProject"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("project_id")},
@@ -73,6 +94,8 @@ class ScalewayRegisteredDomainToProjectRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class ScalewayRegisteredDomainSchema(CartographyNodeSchema):
+    """Represents a domain registered with the Scaleway registrar."""
+
     label: str = "ScalewayRegisteredDomain"
     properties: ScalewayRegisteredDomainProperties = (
         ScalewayRegisteredDomainProperties()
