@@ -14,13 +14,33 @@ from cartography.models.core.relationships import TargetNodeMatcher
 
 @dataclass(frozen=True)
 class EC2NetworkAclNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("Arn")
-    arn: PropertyRef = PropertyRef("Arn")
-    network_acl_id: PropertyRef = PropertyRef("Id")
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
-    is_default: PropertyRef = PropertyRef("IsDefault")
-    region: PropertyRef = PropertyRef("Region", set_in_kwargs=True)
-    vpc_id: PropertyRef = PropertyRef("VpcId")
+    id: PropertyRef = PropertyRef(
+        "Arn", description="Unique identifier for this `AWSEC2NetworkAcl` node."
+    )
+    arn: PropertyRef = PropertyRef(
+        "Arn", description="Amazon Resource Name (ARN) of this `AWSEC2NetworkAcl` node."
+    )
+    network_acl_id: PropertyRef = PropertyRef(
+        "Id",
+        description="Identifier of the network ACL linked to this `AWSEC2NetworkAcl` node.",
+    )
+    lastupdated: PropertyRef = PropertyRef(
+        "lastupdated",
+        set_in_kwargs=True,
+        description="Timestamp of the last sync that updated this `AWSEC2NetworkAcl` node.",
+    )
+    is_default: PropertyRef = PropertyRef(
+        "IsDefault", description="Whether this `AWSEC2NetworkAcl` node default."
+    )
+    region: PropertyRef = PropertyRef(
+        "Region",
+        set_in_kwargs=True,
+        description="AWS Region containing this `AWSEC2NetworkAcl` node.",
+    )
+    vpc_id: PropertyRef = PropertyRef(
+        "VpcId",
+        description="Identifier of the VPC linked to this `AWSEC2NetworkAcl` node.",
+    )
 
 
 @dataclass(frozen=True)
@@ -30,6 +50,8 @@ class EC2NetworkAclToVpcRelRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class EC2NetworkAclToVpcRel(CartographyRelSchema):
+    "Represents a `MEMBER_OF_AWS_VPC` relationship from `AWSEC2NetworkAcl` to `AWSVpc`."
+
     target_node_label: str = "AWSVpc"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"vpcid": PropertyRef("VpcId")},
@@ -48,6 +70,8 @@ class EC2NetworkAclToSubnetRelRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class EC2NetworkAclToSubnetRel(CartographyRelSchema):
+    "Represents a `PART_OF_SUBNET` relationship from `AWSEC2NetworkAcl` to `AWSEC2Subnet`."
+
     target_node_label: str = "AWSEC2Subnet"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"subnetid": PropertyRef("SubnetId")},
@@ -66,6 +90,8 @@ class EC2NetworkAclToAWSAccountRelRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class EC2NetworkAclToAWSAccountRel(CartographyRelSchema):
+    "Represents a `RESOURCE` relationship from `AWSAccount` to `AWSEC2NetworkAcl`."
+
     target_node_label: str = "AWSAccount"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("AWS_ID", set_in_kwargs=True)},

@@ -14,14 +14,26 @@ from cartography.models.core.relationships import TargetNodeMatcher
 @dataclass(frozen=True)
 class AWSFederatedPrincipalNodeProperties(CartographyNodeProperties):
     # Required unique identifier
-    id: PropertyRef = PropertyRef("arn")
-    arn: PropertyRef = PropertyRef("arn", extra_index=True)
+    id: PropertyRef = PropertyRef(
+        "arn", description="Unique identifier for this `AWSFederatedPrincipal` node."
+    )
+    arn: PropertyRef = PropertyRef(
+        "arn",
+        extra_index=True,
+        description="Amazon Resource Name (ARN) of this `AWSFederatedPrincipal` node.",
+    )
 
     # Automatic fields (set by cartography)
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    lastupdated: PropertyRef = PropertyRef(
+        "lastupdated",
+        set_in_kwargs=True,
+        description="Timestamp of the last sync that updated this `AWSFederatedPrincipal` node.",
+    )
 
     # Business fields from AWS IAM federated principals
-    type: PropertyRef = PropertyRef("type")
+    type: PropertyRef = PropertyRef(
+        "type", description="Type of this `AWSFederatedPrincipal` node."
+    )
 
 
 @dataclass(frozen=True)
@@ -31,6 +43,8 @@ class AWSFederatedPrincipalToAWSAccountRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class AWSFederatedPrincipalToAWSAccountRel(CartographyRelSchema):
+    "Represents a `RESOURCE` relationship from `AWSAccount` to `AWSFederatedPrincipal`."
+
     target_node_label: str = "AWSAccount"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {

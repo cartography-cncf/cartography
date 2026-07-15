@@ -37,12 +37,18 @@ from cartography.models.gcp.artifact_registry.repository_image import (
 )
 from cartography.models.introspection import AnalysisJobDefinition
 from cartography.models.introspection import build_data_model
+from cartography.models.introspection import DataModel
 from cartography.models.introspection import inspect_data_model
 from cartography.models.introspection import iter_analysis_jobs
 from cartography.models.introspection import iter_model_classes
 from cartography.models.introspection import iter_permission_relationships
+from cartography.models.introspection import iter_relationship_catalog
+from cartography.models.introspection import Node
 from cartography.models.introspection import PermissionRelationshipDefinition
+from cartography.models.introspection import Relationship
+from cartography.models.introspection import TargetPreconditionDefinition
 from cartography.models.jamf.computer import JamfComputerSchema
+from cartography.models.schema_docs import render_module_schema
 from cartography.models.semgrep.dependencies import SemgrepGoLibrarySchema
 from cartography.models.semgrep.dependencies import SemgrepNpmLibrarySchema
 
@@ -131,6 +137,26 @@ class SampleMatchLink(CartographyRelSchema):
     direction: LinkDirection = LinkDirection.OUTWARD
     rel_label: str = "PEERS_WITH"
     properties: SampleRelProperties = SampleRelProperties()
+
+
+@dataclass(frozen=True)
+class BroadTargetMatchLink(CartographyRelSchema):
+    source_node_label: str = "OtherConcreteSource"
+    source_node_matcher: SourceNodeMatcher = make_source_node_matcher(
+        {"id": PropertyRef("SourceId")}
+    )
+    target_node_label: str = "SharedOntologyLabel"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher({})
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "CROSS_PROVIDER"
+    properties: SampleRelProperties = SampleRelProperties()
+
+
+@dataclass(frozen=True)
+class ExplicitBroadTargetMatchLink(BroadTargetMatchLink):
+    @property
+    def match_target_extra_labels(self) -> bool:
+        return True
 
 
 SAMPLE_ANALYSIS_JOB = AnalysisJob(
@@ -493,3 +519,160 @@ def test_build_data_model_adds_permission_evaluation_relationships():
         "condition_expression",
     }
     assert model.permission_relationships == (definition,)
+
+
+def test_permission_relationships_preserve_and_render_target_preconditions():
+    definitions = list(iter_permission_relationships())
+    definition = next(
+        item
+        for item in definitions
+        if item.provider == "aws" and item.relationship_name == "CAN_START_SESSION"
+    )
+
+    assert definition.target_precondition == TargetPreconditionDefinition(
+        related_label="AWSSSMInstanceInformation",
+        relationship="HAS_INFORMATION",
+        direction="outgoing",
+    )
+
+    model = build_data_model(
+        [EC2InstanceSchema],
+        permission_relationships=(definition,),
+    )
+    rendered = render_module_schema(model, "aws")
+    assert (
+        "Target precondition: "
+        "`(:AWSEC2Instance)-[:HAS_INFORMATION]->"
+        "(:AWSSSMInstanceInformation)` must exist"
+    ) in rendered
+
+
+def test_aws_tagging_catalog_exposes_concrete_runtime_relationships():
+    catalog = tuple(iter_relationship_catalog())
+
+    model = build_data_model(
+        [EC2InstanceSchema],
+        catalog_relationships=catalog,
+    )
+    relationship = next(
+        item
+        for item in model.relationships
+        if item.source_label == "AWSEC2Instance"
+        and item.label == "TAGGED"
+        and item.target_label == "AWSTag"
+    )
+
+    assert relationship.modules == ("aws",)
+    assert relationship.origins == ("runtime_catalog",)
+    assert {prop.name for prop in relationship.properties} == {
+        "firstseen",
+        "lastupdated",
+    }
+    assert relationship.catalog_relationships
+    assert model.get_node("AWSTag") is None
+    rendered = render_module_schema(model, "aws")
+    assert "(:AWSEC2Instance)-[:TAGGED]->(:AWSTag)" in rendered
+    assert (
+        "runtime relationship catalog "
+        "`cartography.models.aws_tagging.AWS_TAGGABLE_RESOURCES`"
+    ) in rendered
+    assert len(
+        {
+            definition.source_label
+            for definition in catalog
+            if definition.relationship_name == "TAGGED"
+        }
+    ) == len(catalog)
+
+
+def test_aws_rendering_excludes_unscoped_cross_module_broad_relationships():
+    aws_node = Node(
+        label="AWSConcreteNode",
+        descriptions=(),
+        extra_labels=("SharedOntologyLabel",),
+        conditional_labels=(),
+        properties=(),
+        modules=("aws",),
+        schemas=(),
+    )
+    relationship = Relationship(
+        source_label="OtherConcreteSource",
+        label="CROSS_PROVIDER",
+        target_label="SharedOntologyLabel",
+        direction=LinkDirection.OUTWARD,
+        descriptions=(),
+        properties=(),
+        modules=("other",),
+        origins=("matchlink",),
+        schemas=(BroadTargetMatchLink(),),
+        analysis_jobs=(),
+    )
+
+    rendered = render_module_schema(
+        DataModel(nodes=(aws_node,), relationships=(relationship,)),
+        "aws",
+    )
+
+    assert "CROSS_PROVIDER" not in rendered
+
+
+def test_aws_rendering_keeps_explicit_extra_label_relationships():
+    aws_node = Node(
+        label="AWSConcreteNode",
+        descriptions=(),
+        extra_labels=("SharedOntologyLabel",),
+        conditional_labels=(),
+        properties=(),
+        modules=("aws",),
+        schemas=(),
+    )
+    relationship = Relationship(
+        source_label="OtherConcreteSource",
+        label="CROSS_PROVIDER",
+        target_label="SharedOntologyLabel",
+        direction=LinkDirection.OUTWARD,
+        descriptions=(),
+        properties=(),
+        modules=("other",),
+        origins=("matchlink",),
+        schemas=(ExplicitBroadTargetMatchLink(),),
+        analysis_jobs=(),
+    )
+
+    rendered = render_module_schema(
+        DataModel(nodes=(aws_node,), relationships=(relationship,)),
+        "aws",
+    )
+
+    assert "CROSS_PROVIDER" in rendered
+
+
+def test_aws_rendering_keeps_cross_module_relationships_with_concrete_endpoint():
+    aws_node = Node(
+        label="AWSConcreteNode",
+        descriptions=(),
+        extra_labels=("SharedOntologyLabel",),
+        conditional_labels=(),
+        properties=(),
+        modules=("aws",),
+        schemas=(),
+    )
+    relationship = Relationship(
+        source_label="OtherConcreteSource",
+        label="CONNECTS_TO_AWS",
+        target_label="AWSConcreteNode",
+        direction=LinkDirection.OUTWARD,
+        descriptions=(),
+        properties=(),
+        modules=("other",),
+        origins=("analysis",),
+        schemas=(),
+        analysis_jobs=(),
+    )
+
+    rendered = render_module_schema(
+        DataModel(nodes=(aws_node,), relationships=(relationship,)),
+        "aws",
+    )
+
+    assert "CONNECTS_TO_AWS" in rendered

@@ -18,19 +18,52 @@ class AWSBedrockGuardrailNodeProperties(CartographyNodeProperties):
     Based on AWS Bedrock list_guardrails and get_guardrail API responses.
     """
 
-    id: PropertyRef = PropertyRef("guardrailArn")
-    arn: PropertyRef = PropertyRef("guardrailArn", extra_index=True)
-    guardrail_id: PropertyRef = PropertyRef("guardrailId", extra_index=True)
-    name: PropertyRef = PropertyRef("name")
-    description: PropertyRef = PropertyRef("description")
-    version: PropertyRef = PropertyRef("version")
-    status: PropertyRef = PropertyRef("status")
-    blocked_input_messaging: PropertyRef = PropertyRef("blockedInputMessaging")
-    blocked_outputs_messaging: PropertyRef = PropertyRef("blockedOutputsMessaging")
-    created_at: PropertyRef = PropertyRef("createdAt")
-    updated_at: PropertyRef = PropertyRef("updatedAt")
-    region: PropertyRef = PropertyRef("Region", set_in_kwargs=True)
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    id: PropertyRef = PropertyRef(
+        "guardrailArn", description="The ARN of the guardrail"
+    )
+    arn: PropertyRef = PropertyRef(
+        "guardrailArn", extra_index=True, description="The ARN of the guardrail"
+    )
+    guardrail_id: PropertyRef = PropertyRef(
+        "guardrailId",
+        extra_index=True,
+        description="The unique identifier of the guardrail",
+    )
+    name: PropertyRef = PropertyRef("name", description="The name of the guardrail")
+    description: PropertyRef = PropertyRef(
+        "description", description="The description of the guardrail"
+    )
+    version: PropertyRef = PropertyRef(
+        "version", description="The version of the guardrail"
+    )
+    status: PropertyRef = PropertyRef(
+        "status",
+        description='The status of the guardrail (e.g., "CREATING", "READY", "FAILED")',
+    )
+    blocked_input_messaging: PropertyRef = PropertyRef(
+        "blockedInputMessaging",
+        description="The message returned when input is blocked",
+    )
+    blocked_outputs_messaging: PropertyRef = PropertyRef(
+        "blockedOutputsMessaging",
+        description="The message returned when output is blocked",
+    )
+    created_at: PropertyRef = PropertyRef(
+        "createdAt", description="The timestamp when the guardrail was created"
+    )
+    updated_at: PropertyRef = PropertyRef(
+        "updatedAt", description="The timestamp when the guardrail was last updated"
+    )
+    region: PropertyRef = PropertyRef(
+        "Region",
+        set_in_kwargs=True,
+        description="The AWS region where the guardrail exists",
+    )
+    lastupdated: PropertyRef = PropertyRef(
+        "lastupdated",
+        set_in_kwargs=True,
+        description="Timestamp of the last time the node was updated",
+    )
 
 
 @dataclass(frozen=True)

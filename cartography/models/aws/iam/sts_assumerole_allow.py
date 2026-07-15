@@ -21,6 +21,8 @@ class STSAssumeRoleAllowRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class STSAssumeRoleAllowMatchLink(CartographyRelSchema):
+    "Represents a `STS_ASSUMEROLE_ALLOW` relationship from `AWSPrincipal` to `AWSRole`."
+
     rel_label: str = "STS_ASSUMEROLE_ALLOW"
     direction: LinkDirection = LinkDirection.OUTWARD
     properties: STSAssumeRoleAllowRelProperties = STSAssumeRoleAllowRelProperties()

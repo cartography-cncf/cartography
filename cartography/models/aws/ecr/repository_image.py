@@ -14,17 +14,45 @@ from cartography.models.core.relationships import TargetNodeMatcher
 
 @dataclass(frozen=True)
 class ECRRepositoryImageNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("id")
-    tag: PropertyRef = PropertyRef("imageTag")
-    uri: PropertyRef = PropertyRef("uri")
-    repo_uri: PropertyRef = PropertyRef("repo_uri")
-    image_size_bytes: PropertyRef = PropertyRef("imageSizeInBytes")
-    image_pushed_at: PropertyRef = PropertyRef("imagePushedAt")
-    image_manifest_media_type: PropertyRef = PropertyRef("imageManifestMediaType")
-    artifact_media_type: PropertyRef = PropertyRef("artifactMediaType")
-    last_recorded_pull_time: PropertyRef = PropertyRef("lastRecordedPullTime")
-    region: PropertyRef = PropertyRef("Region", set_in_kwargs=True)
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    id: PropertyRef = PropertyRef("id", description="same as uri")
+    tag: PropertyRef = PropertyRef(
+        "imageTag", description='The tag applied to the repository image, e.g. "latest"'
+    )
+    uri: PropertyRef = PropertyRef(
+        "uri", description="The URI where the repository image is stored"
+    )
+    repo_uri: PropertyRef = PropertyRef(
+        "repo_uri",
+        description="URI of the ECR repository containing the image.",
+    )
+    image_size_bytes: PropertyRef = PropertyRef(
+        "imageSizeInBytes", description="The size of the image in bytes"
+    )
+    image_pushed_at: PropertyRef = PropertyRef(
+        "imagePushedAt",
+        description="The date and time the image was pushed to the repository",
+    )
+    image_manifest_media_type: PropertyRef = PropertyRef(
+        "imageManifestMediaType",
+        description="The media type of the image manifest, see [opencontainers image spec](https://github.com/opencontainers/image-spec/blob/main/media-types.md)",
+    )
+    artifact_media_type: PropertyRef = PropertyRef(
+        "artifactMediaType", description="The media type of the image artifact"
+    )
+    last_recorded_pull_time: PropertyRef = PropertyRef(
+        "lastRecordedPullTime",
+        description="The date and time the image was last pulled",
+    )
+    region: PropertyRef = PropertyRef(
+        "Region",
+        set_in_kwargs=True,
+        description="AWS Region containing this `AWSECRRepositoryImage` node.",
+    )
+    lastupdated: PropertyRef = PropertyRef(
+        "lastupdated",
+        set_in_kwargs=True,
+        description="Timestamp of the last sync that updated this `AWSECRRepositoryImage` node.",
+    )
 
 
 @dataclass(frozen=True)
@@ -34,6 +62,8 @@ class ECRRepositoryImageToAWSAccountRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class ECRRepositoryImageToAWSAccountRel(CartographyRelSchema):
+    "Represents a `RESOURCE` relationship from `AWSAccount` to `AWSECRRepositoryImage`."
+
     target_node_label: str = "AWSAccount"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("AWS_ID", set_in_kwargs=True)}
@@ -52,6 +82,8 @@ class ECRRepositoryImageToECRRepositoryRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class ECRRepositoryImageToECRRepositoryRel(CartographyRelSchema):
+    "Represents a `REPO_IMAGE` relationship from `AWSECRRepository` to `AWSECRRepositoryImage`."
+
     target_node_label: str = "AWSECRRepository"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"uri": PropertyRef("repo_uri")}
@@ -70,6 +102,8 @@ class ECRRepositoryImageToECRImageRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class ECRRepositoryImageToECRImageRel(CartographyRelSchema):
+    "Represents a `IMAGE` relationship from `AWSECRRepositoryImage` to `AWSECRImage`."
+
     target_node_label: str = "AWSECRImage"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("imageDigests", one_to_many=True)}
@@ -83,6 +117,8 @@ class ECRRepositoryImageToECRImageRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class ECRRepositoryImageSchema(CartographyNodeSchema):
+    "Represents an `AWSECRRepositoryImage` node in the AWS graph."
+
     label: str = "AWSECRRepositoryImage"
     properties: ECRRepositoryImageNodeProperties = ECRRepositoryImageNodeProperties()
     sub_resource_relationship: ECRRepositoryImageToAWSAccountRel = (

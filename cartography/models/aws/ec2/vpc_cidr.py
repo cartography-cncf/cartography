@@ -14,13 +14,33 @@ from cartography.models.core.relationships import TargetNodeMatcher
 
 @dataclass(frozen=True)
 class AWSIPv4CidrBlockNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("Id")
-    vpcid: PropertyRef = PropertyRef("VpcId")
-    association_id: PropertyRef = PropertyRef("AssociationId")
-    cidr_block: PropertyRef = PropertyRef("CidrBlock")
-    block_state: PropertyRef = PropertyRef("BlockState")
-    block_state_message: PropertyRef = PropertyRef("BlockStateMessage")
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    id: PropertyRef = PropertyRef(
+        "Id", description="Unique identifier for this `AWSCidrBlock` node."
+    )
+    vpcid: PropertyRef = PropertyRef(
+        "VpcId",
+        description="Identifier of the VPC linked to this `AWSCidrBlock` node.",
+    )
+    association_id: PropertyRef = PropertyRef(
+        "AssociationId",
+        description="Identifier of the association linked to this `AWSCidrBlock` node.",
+    )
+    cidr_block: PropertyRef = PropertyRef(
+        "CidrBlock", description="IPv4 or IPv6 CIDR range associated with the VPC."
+    )
+    block_state: PropertyRef = PropertyRef(
+        "BlockState",
+        description="Whether this `AWSCidrBlock` node is configured to block state.",
+    )
+    block_state_message: PropertyRef = PropertyRef(
+        "BlockStateMessage",
+        description="Whether this `AWSCidrBlock` node is configured to block state message.",
+    )
+    lastupdated: PropertyRef = PropertyRef(
+        "lastupdated",
+        set_in_kwargs=True,
+        description="Timestamp of the last sync that updated this `AWSCidrBlock` node.",
+    )
 
 
 @dataclass(frozen=True)
@@ -30,6 +50,8 @@ class AWSIPv4CidrBlockToAWSVpcRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class AWSIPv4CidrBlockToAWSVpcRel(CartographyRelSchema):
+    "Represents a `BLOCK_ASSOCIATION` relationship from `AWSVpc` to `AWSCidrBlock`."
+
     target_node_label: str = "AWSVpc"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("VpcId")}
@@ -59,13 +81,33 @@ class AWSIPv4CidrBlockSchema(CartographyNodeSchema):
 
 @dataclass(frozen=True)
 class AWSIPv6CidrBlockNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("Id")
-    vpcid: PropertyRef = PropertyRef("VpcId")
-    association_id: PropertyRef = PropertyRef("AssociationId")
-    cidr_block: PropertyRef = PropertyRef("CidrBlock")
-    block_state: PropertyRef = PropertyRef("BlockState")
-    block_state_message: PropertyRef = PropertyRef("BlockStateMessage")
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    id: PropertyRef = PropertyRef(
+        "Id", description="Unique identifier for this `AWSCidrBlock` node."
+    )
+    vpcid: PropertyRef = PropertyRef(
+        "VpcId",
+        description="Identifier of the VPC linked to this `AWSCidrBlock` node.",
+    )
+    association_id: PropertyRef = PropertyRef(
+        "AssociationId",
+        description="Identifier of the association linked to this `AWSCidrBlock` node.",
+    )
+    cidr_block: PropertyRef = PropertyRef(
+        "CidrBlock", description="IPv4 or IPv6 CIDR range associated with the VPC."
+    )
+    block_state: PropertyRef = PropertyRef(
+        "BlockState",
+        description="Whether this `AWSCidrBlock` node is configured to block state.",
+    )
+    block_state_message: PropertyRef = PropertyRef(
+        "BlockStateMessage",
+        description="Whether this `AWSCidrBlock` node is configured to block state message.",
+    )
+    lastupdated: PropertyRef = PropertyRef(
+        "lastupdated",
+        set_in_kwargs=True,
+        description="Timestamp of the last sync that updated this `AWSCidrBlock` node.",
+    )
 
 
 @dataclass(frozen=True)
@@ -75,6 +117,8 @@ class AWSIPv6CidrBlockToAWSVpcRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class AWSIPv6CidrBlockToAWSVpcRel(CartographyRelSchema):
+    "Represents a `BLOCK_ASSOCIATION` relationship from `AWSVpc` to `AWSCidrBlock`."
+
     target_node_label: str = "AWSVpc"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("VpcId")}

@@ -17,12 +17,28 @@ class EC2KeyPairNodeProperties(CartographyNodeProperties):
     Properties for EC2 keypairs from describe-key-pairs
     """
 
-    id: PropertyRef = PropertyRef("KeyPairArn")
-    arn: PropertyRef = PropertyRef("KeyPairArn", extra_index=True)
-    keyname: PropertyRef = PropertyRef("KeyName")
-    keyfingerprint: PropertyRef = PropertyRef("KeyFingerprint", extra_index=True)
-    region: PropertyRef = PropertyRef("Region", set_in_kwargs=True)
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    id: PropertyRef = PropertyRef("KeyPairArn", description="same as `arn`")
+    arn: PropertyRef = PropertyRef(
+        "KeyPairArn",
+        extra_index=True,
+        description="AWS-unique identifier for this object",
+    )
+    keyname: PropertyRef = PropertyRef(
+        "KeyName", description="The name of the key pair"
+    )
+    keyfingerprint: PropertyRef = PropertyRef(
+        "KeyFingerprint",
+        extra_index=True,
+        description="The fingerprint of the public key",
+    )
+    region: PropertyRef = PropertyRef(
+        "Region", set_in_kwargs=True, description="The AWS region"
+    )
+    lastupdated: PropertyRef = PropertyRef(
+        "lastupdated",
+        set_in_kwargs=True,
+        description="Timestamp of the last time the node was updated",
+    )
 
 
 @dataclass(frozen=True)
@@ -32,9 +48,7 @@ class EC2KeyPairToAWSAccountRelRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class EC2KeyPairToAWSAccountRel(CartographyRelSchema):
-    """
-    Relationship schema for EC2 keypairs to AWS Accounts
-    """
+    "Represents a `RESOURCE` relationship from `AWSAccount` to `AWSEC2KeyPair`."
 
     target_node_label: str = "AWSAccount"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
@@ -49,9 +63,10 @@ class EC2KeyPairToAWSAccountRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class EC2KeyPairSchema(CartographyNodeSchema):
-    """
-    Schema for EC2 keypairs from describe-key-pairs
-    """
+    "Represents an Amazon EC2 key pair."
+
+    # Implementation note:
+    # Schema for EC2 keypairs from describe-key-pairs
 
     label: str = "AWSEC2KeyPair"
     # DEPRECATED: legacy EC2KeyPair node label will be removed in v1.0.0.

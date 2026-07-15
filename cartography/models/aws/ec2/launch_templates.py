@@ -13,15 +13,38 @@ from cartography.models.core.relationships import TargetNodeMatcher
 
 @dataclass(frozen=True)
 class LaunchTemplateNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("LaunchTemplateId")
-    launch_template_id: PropertyRef = PropertyRef("LaunchTemplateId")
-    name: PropertyRef = PropertyRef("LaunchTemplateName")
-    create_time: PropertyRef = PropertyRef("CreateTime")
-    created_by: PropertyRef = PropertyRef("CreatedBy")
-    default_version_number: PropertyRef = PropertyRef("DefaultVersionNumber")
-    latest_version_number: PropertyRef = PropertyRef("LatestVersionNumber")
-    region: PropertyRef = PropertyRef("Region", set_in_kwargs=True)
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    id: PropertyRef = PropertyRef(
+        "LaunchTemplateId",
+        description="The ID of the launch template (same as launch_template_id)",
+    )
+    launch_template_id: PropertyRef = PropertyRef(
+        "LaunchTemplateId", description="The ID of the launch template"
+    )
+    name: PropertyRef = PropertyRef(
+        "LaunchTemplateName", description="The name of the launch template."
+    )
+    create_time: PropertyRef = PropertyRef(
+        "CreateTime", description="The time launch template was created."
+    )
+    created_by: PropertyRef = PropertyRef(
+        "CreatedBy", description="The principal that created the launch template."
+    )
+    default_version_number: PropertyRef = PropertyRef(
+        "DefaultVersionNumber",
+        description="The version number of the default version of the launch template.",
+    )
+    latest_version_number: PropertyRef = PropertyRef(
+        "LatestVersionNumber",
+        description="The version number of the latest version of the launch template.",
+    )
+    region: PropertyRef = PropertyRef(
+        "Region", set_in_kwargs=True, description="The region of the launch template."
+    )
+    lastupdated: PropertyRef = PropertyRef(
+        "lastupdated",
+        set_in_kwargs=True,
+        description="Timestamp of the last time the node was updated",
+    )
 
 
 @dataclass(frozen=True)
@@ -31,6 +54,8 @@ class LaunchTemplateToAWSAccountRelRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class LaunchTemplateToAWSAccountRel(CartographyRelSchema):
+    "Represents a `RESOURCE` relationship from `AWSAccount` to `AWSLaunchTemplate`."
+
     target_node_label: str = "AWSAccount"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("AWS_ID", set_in_kwargs=True)},
@@ -44,6 +69,8 @@ class LaunchTemplateToAWSAccountRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class LaunchTemplateSchema(CartographyNodeSchema):
+    "Represents an `AWSLaunchTemplate` node in the AWS graph."
+
     label: str = "AWSLaunchTemplate"
     # DEPRECATED: legacy LaunchTemplate node label will be removed in v1.0.0.
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["LaunchTemplate"])

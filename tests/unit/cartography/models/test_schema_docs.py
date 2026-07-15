@@ -37,6 +37,7 @@ import cartography.models.trivy as trivy_models
 import cartography.models.vercel as vercel_models
 import cartography.models.workday as workday_models
 import cartography.models.workos as workos_models
+from cartography.models.aws_tagging import AWS_TAGGABLE_RESOURCES
 from cartography.models.core.relationships import LinkDirection
 from cartography.models.gcp.resource_catalog import GCP_POLICY_BINDING_TARGET_LABELS
 from cartography.models.github.repos import _GitHubCollaboratorSchema
@@ -1315,6 +1316,63 @@ def test_salesforce_schema_doc_is_generated_from_introspected_model():
     assert "A Salesforce user account with the UserAccount label." in generated
     assert "| email | Yes | User email address. |" in generated
     assert "(:SalesforceUser)-[:HAS_ROLE]->(:SalesforceProfile)" in generated
+    assert "No description provided." not in generated
+
+
+def test_aws_schema_doc_groundwork_is_complete_while_manual_page_is_preserved():
+    complete_model = inspect_data_model()
+    aws_model = complete_model.for_module("aws")
+    module_index = Path("docs/root/modules/aws/index.md").read_text()
+
+    generated = render_module_schema(complete_model, "aws")
+    relationship_shapes = {
+        (
+            relationship.source_label,
+            relationship.label,
+            relationship.target_label,
+        )
+        for relationship in aws_model.relationships
+    }
+    tagging_sources = {
+        relationship.source_label
+        for relationship in aws_model.relationships
+        if relationship.label == "TAGGED" and relationship.target_label == "AWSTag"
+    }
+    permission_relationships = tuple(
+        relationship
+        for relationship in aws_model.relationships
+        if relationship.permission_relationships
+    )
+
+    assert Path("docs/root/modules/aws/schema.md").exists()
+    assert {
+        "organizations",
+        "infrastructure-investigations",
+        "container-images",
+        "identity-access",
+        "tagging-and-labels",
+    } <= set(module_index.splitlines())
+    assert len(aws_model.nodes) == 166
+    assert len(aws_model.relationships) == 469
+    assert tagging_sources == {resource.label for resource in AWS_TAGGABLE_RESOURCES}
+    assert len(permission_relationships) == 12
+    assert (
+        "AWSPrincipal",
+        "CAN_START_SESSION",
+        "AWSEC2Instance",
+    ) in relationship_shapes
+    assert not any("AWSVpnGateway" in shape for shape in relationship_shapes)
+    assert (
+        "Target precondition: "
+        "`(:AWSEC2Instance)-[:HAS_INFORMATION]->"
+        "(:AWSSSMInstanceInformation)` must exist"
+    ) in generated
+    assert "(:DNSRecord)-[:DNS_POINTS_TO]->(:AWSEC2Instance)" in generated
+    assert "(:LoadBalancer)-[:EXPOSE]->(:Container)" in generated
+    assert "(:AzureContainerInstance)-[:HAS_IMAGE]->(:AWSECRImage)" in generated
+    assert "(:DNSRecord)-[:DNS_POINTS_TO]->(:AzureFunctionApp)" not in generated
+    assert "(:Image)-[:PACKAGED_FROM]->(:GitHubRepository)" not in generated
+    assert "(:TailscaleDevice)-[:IS_INSTANCE]->(:ComputeInstance)" not in generated
     assert "No description provided." not in generated
 
 

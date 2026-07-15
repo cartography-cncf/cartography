@@ -14,12 +14,30 @@ from cartography.models.core.relationships import TargetNodeMatcher
 
 @dataclass(frozen=True)
 class DynamoDBRestoreSummaryNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("Id")
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
-    restore_date_time: PropertyRef = PropertyRef("RestoreDateTime")
-    restore_in_progress: PropertyRef = PropertyRef("RestoreInProgress")
-    source_backup_arn: PropertyRef = PropertyRef("SourceBackupArn")
-    source_table_arn: PropertyRef = PropertyRef("SourceTableArn")
+    id: PropertyRef = PropertyRef(
+        "Id", description='Unique identifier (table ARN + "/restore")'
+    )
+    lastupdated: PropertyRef = PropertyRef(
+        "lastupdated",
+        set_in_kwargs=True,
+        description="Timestamp of the last time the node was updated",
+    )
+    restore_date_time: PropertyRef = PropertyRef(
+        "RestoreDateTime",
+        description="Point in time or source backup time for the restore",
+    )
+    restore_in_progress: PropertyRef = PropertyRef(
+        "RestoreInProgress",
+        description="Indicates whether a restore is currently in progress",
+    )
+    source_backup_arn: PropertyRef = PropertyRef(
+        "SourceBackupArn",
+        description="The ARN of the backup from which the table was restored",
+    )
+    source_table_arn: PropertyRef = PropertyRef(
+        "SourceTableArn",
+        description="The ARN of the source table from which the table was restored",
+    )
 
 
 @dataclass(frozen=True)
@@ -29,6 +47,8 @@ class DynamoDBRestoreSummaryToAWSAccountRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class DynamoDBRestoreSummaryToAWSAccountRel(CartographyRelSchema):
+    "Represents a `RESOURCE` relationship from `AWSAccount` to `AWSDynamoDBRestoreSummary`."
+
     target_node_label: str = "AWSAccount"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("AWS_ID", set_in_kwargs=True)},
@@ -47,6 +67,8 @@ class DynamoDBRestoreSummaryToTableRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class DynamoDBRestoreSummaryToTableRel(CartographyRelSchema):
+    "Represents a `HAS_RESTORE` relationship from `AWSDynamoDBTable` to `AWSDynamoDBRestoreSummary`."
+
     target_node_label: str = "AWSDynamoDBTable"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("TableArn")},
@@ -65,6 +87,8 @@ class DynamoDBRestoreSummaryToBackupRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class DynamoDBRestoreSummaryToBackupRel(CartographyRelSchema):
+    "Represents a `RESTORED_FROM_BACKUP` relationship from `AWSDynamoDBRestoreSummary` to `AWSDynamoDBBackup`."
+
     target_node_label: str = "AWSDynamoDBBackup"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("SourceBackupArn")},
@@ -83,6 +107,8 @@ class DynamoDBRestoreSummaryToSourceTableRelProperties(CartographyRelProperties)
 
 @dataclass(frozen=True)
 class DynamoDBRestoreSummaryToSourceTableRel(CartographyRelSchema):
+    "Represents a `RESTORED_FROM_TABLE` relationship from `AWSDynamoDBRestoreSummary` to `AWSDynamoDBTable`."
+
     target_node_label: str = "AWSDynamoDBTable"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("SourceTableArn")},
@@ -96,6 +122,8 @@ class DynamoDBRestoreSummaryToSourceTableRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class DynamoDBRestoreSummarySchema(CartographyNodeSchema):
+    "Represents an `AWSDynamoDBRestoreSummary` node in the AWS graph."
+
     label: str = "AWSDynamoDBRestoreSummary"
     # DEPRECATED: legacy DynamoDBRestoreSummary node label will be removed in v1.0.0.
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["DynamoDBRestoreSummary"])

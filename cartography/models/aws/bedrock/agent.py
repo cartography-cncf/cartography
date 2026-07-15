@@ -20,21 +20,57 @@ class AWSBedrockAgentNodeProperties(CartographyNodeProperties):
     Based on AWS Bedrock list_agents and get_agent API responses.
     """
 
-    id: PropertyRef = PropertyRef("agentArn")
-    arn: PropertyRef = PropertyRef("agentArn", extra_index=True)
-    agent_id: PropertyRef = PropertyRef("agentId", extra_index=True)
-    agent_name: PropertyRef = PropertyRef("agentName")
-    agent_status: PropertyRef = PropertyRef("agentStatus")
-    description: PropertyRef = PropertyRef("description")
-    instruction: PropertyRef = PropertyRef("instruction")
-    foundation_model: PropertyRef = PropertyRef("foundationModel")
-    agent_resource_role_arn: PropertyRef = PropertyRef("agentResourceRoleArn")
-    idle_session_ttl_in_seconds: PropertyRef = PropertyRef("idleSessionTTLInSeconds")
-    created_at: PropertyRef = PropertyRef("createdAt")
-    updated_at: PropertyRef = PropertyRef("updatedAt")
-    prepared_at: PropertyRef = PropertyRef("preparedAt")
-    region: PropertyRef = PropertyRef("Region", set_in_kwargs=True)
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    id: PropertyRef = PropertyRef("agentArn", description="The ARN of the agent")
+    arn: PropertyRef = PropertyRef(
+        "agentArn", extra_index=True, description="The ARN of the agent"
+    )
+    agent_id: PropertyRef = PropertyRef(
+        "agentId", extra_index=True, description="The unique identifier of the agent"
+    )
+    agent_name: PropertyRef = PropertyRef(
+        "agentName", description="The name of the agent"
+    )
+    agent_status: PropertyRef = PropertyRef(
+        "agentStatus",
+        description='The status of the agent (e.g., "CREATING", "PREPARED", "FAILED")',
+    )
+    description: PropertyRef = PropertyRef(
+        "description", description="The description of the agent"
+    )
+    instruction: PropertyRef = PropertyRef(
+        "instruction", description="The instructions that guide the agent's behavior"
+    )
+    foundation_model: PropertyRef = PropertyRef(
+        "foundationModel",
+        description="The ARN of the foundation or custom model the agent uses",
+    )
+    agent_resource_role_arn: PropertyRef = PropertyRef(
+        "agentResourceRoleArn",
+        description="The ARN of the IAM role that the agent assumes",
+    )
+    idle_session_ttl_in_seconds: PropertyRef = PropertyRef(
+        "idleSessionTTLInSeconds",
+        description="The time in seconds before idle sessions expire",
+    )
+    created_at: PropertyRef = PropertyRef(
+        "createdAt", description="The timestamp when the agent was created"
+    )
+    updated_at: PropertyRef = PropertyRef(
+        "updatedAt", description="The timestamp when the agent was last updated"
+    )
+    prepared_at: PropertyRef = PropertyRef(
+        "preparedAt", description="The timestamp when the agent was last prepared"
+    )
+    region: PropertyRef = PropertyRef(
+        "Region",
+        set_in_kwargs=True,
+        description="The AWS region where the agent exists",
+    )
+    lastupdated: PropertyRef = PropertyRef(
+        "lastupdated",
+        set_in_kwargs=True,
+        description="Timestamp of the last time the node was updated",
+    )
 
 
 @dataclass(frozen=True)

@@ -12,6 +12,7 @@ from cartography.helpers import batch
 from cartography.intel.aws.iam import get_role_tags
 from cartography.intel.aws.iam import get_user_tags
 from cartography.intel.aws.util.botocore_config import create_boto3_client
+from cartography.models.aws_tagging import AWS_TAGGABLE_RESOURCES
 from cartography.stats import get_stats_client
 from cartography.util import aws_handle_regions
 from cartography.util import timeit
@@ -98,115 +99,32 @@ def get_resource_type_from_arn(arn: str) -> str:
     return f"{service}:{resource_type}" if resource_type else service
 
 
-# We maintain a mapping from AWS resource types to their associated labels and unique identifiers.
-# label: the node label used in cartography for this resource type
-# property: the field of this node that uniquely identified this resource type
-# id_func: [optional] - EC2 instances and S3 buckets in cartography currently use non-ARNs as their primary identifiers
-# so we need to supply a function pointer to translate the ARN returned by the resourcegroupstaggingapi to the form that
-# cartography uses.
-# region_property: [optional] - the node property holding the resource's region. When present, the tag MATCH is scoped to
-# the synced region so that same-named resources in different regions (e.g. load balancers keyed by name) are not
-# cross-tagged.
-# TODO - we should make EC2 and S3 assets query-able by their full ARN so that we don't need this workaround.
-TAG_RESOURCE_TYPE_MAPPINGS: Dict = {
-    "autoscaling:autoScalingGroup": {"label": "AWSAutoScalingGroup", "property": "arn"},
-    "dynamodb:table": {"label": "AWSDynamoDBTable", "property": "id"},
-    "ec2:instance": {
-        "label": "AWSEC2Instance",
-        "property": "id",
-        "id_func": get_short_id_from_ec2_arn,
-    },
-    "ec2:internet-gateway": {
-        "label": "AWSInternetGateway",
-        "property": "id",
-        "id_func": get_short_id_from_ec2_arn,
-    },
-    "ec2:key-pair": {"label": "AWSEC2KeyPair", "property": "id"},
-    "ec2:network-interface": {
-        "label": "AWSNetworkInterface",
-        "property": "id",
-        "id_func": get_short_id_from_ec2_arn,
-    },
-    "ecr:repository": {"label": "AWSECRRepository", "property": "id"},
-    "ec2:security-group": {
-        "label": "AWSEC2SecurityGroup",
-        "property": "id",
-        "id_func": get_short_id_from_ec2_arn,
-    },
-    "ec2:subnet": {
-        "label": "AWSEC2Subnet",
-        "property": "subnetid",
-        "id_func": get_short_id_from_ec2_arn,
-    },
-    "ec2:transit-gateway": {"label": "AWSTransitGateway", "property": "id"},
-    "ec2:transit-gateway-attachment": {
-        "label": "AWSTransitGatewayAttachment",
-        "property": "id",
-    },
-    "ec2:vpc": {
-        "label": "AWSVpc",
-        "property": "id",
-        "id_func": get_short_id_from_ec2_arn,
-    },
-    "ec2:volume": {
-        "label": "AWSEBSVolume",
-        "property": "id",
-        "id_func": get_short_id_from_ec2_arn,
-    },
-    "ec2:elastic-ip-address": {
-        "label": "AWSElasticIPAddress",
-        "property": "id",
-        "id_func": get_short_id_from_ec2_arn,
-    },
-    "ecs:cluster": {"label": "AWSECSCluster", "property": "id"},
-    "ecs:container": {"label": "AWSECSContainer", "property": "id"},
-    "ecs:container-instance": {"label": "AWSECSContainerInstance", "property": "id"},
-    "ecs:task": {"label": "AWSECSTask", "property": "id"},
-    "ecs:task-definition": {"label": "AWSECSTaskDefinition", "property": "id"},
-    "eks:cluster": {"label": "AWSEKSCluster", "property": "id"},
-    "elasticache:cluster": {"label": "AWSElasticacheCluster", "property": "arn"},
-    # Match on the classic ELB's own label (AWSLoadBalancer), not the shared
-    # "LoadBalancer" ontology label, which is also attached to AWSLoadBalancerV2
-    # nodes. Otherwise a classic ELB tag would bleed onto an ALB/NLB of the same
-    # name in the same region.
-    "elasticloadbalancing:loadbalancer": {
-        "label": "AWSLoadBalancer",
-        "property": "name",
-        "id_func": get_short_id_from_elb_arn,
-        "region_property": "region",
-    },
-    "elasticloadbalancing:loadbalancer/app": {
-        "label": "AWSLoadBalancerV2",
-        "property": "name",
-        "id_func": get_short_id_from_lb2_arn,
-        "region_property": "region",
-    },
-    "elasticloadbalancing:loadbalancer/net": {
-        "label": "AWSLoadBalancerV2",
-        "property": "name",
-        "id_func": get_short_id_from_lb2_arn,
-        "region_property": "region",
-    },
-    "elasticmapreduce:cluster": {"label": "AWSEMRCluster", "property": "arn"},
-    "es:domain": {"label": "AWSESDomain", "property": "arn"},
-    "kms:key": {"label": "AWSKMSKey", "property": "arn"},
-    "iam:role": {"label": "AWSRole", "property": "arn"},
-    "iam:user": {"label": "AWSUser", "property": "arn"},
-    "lambda:function": {"label": "AWSLambda", "property": "id"},
-    "redshift:cluster": {"label": "AWSRedshiftCluster", "property": "id"},
-    "rds:db": {"label": "AWSRDSInstance", "property": "id"},
-    "rds:subgrp": {"label": "AWSDBSubnetGroup", "property": "id"},
-    "rds:cluster": {"label": "AWSRDSCluster", "property": "id"},
-    "rds:snapshot": {"label": "AWSRDSSnapshot", "property": "id"},
-    # Buckets are the only objects in the S3 service: https://docs.aws.amazon.com/AmazonS3/latest/dev/s3-arn-format.html
-    "s3": {
-        "label": "AWSS3Bucket",
-        "property": "id",
-        "id_func": get_bucket_name_from_arn,
-    },
-    "secretsmanager:secret": {"label": "AWSSecretsManagerSecret", "property": "id"},
-    "sqs": {"label": "AWSSQSQueue", "property": "id"},
+_TAG_ID_PARSERS = {
+    "ec2_short_id": get_short_id_from_ec2_arn,
+    "elb_short_id": get_short_id_from_elb_arn,
+    "lb2_short_id": get_short_id_from_lb2_arn,
+    "s3_bucket_name": get_bucket_name_from_arn,
 }
+
+
+def _tag_resource_type_mappings() -> dict[str, dict[str, Any]]:
+    """Build the legacy runtime mapping from the shared declarative catalog."""
+    mappings: dict[str, dict[str, Any]] = {}
+    for resource in AWS_TAGGABLE_RESOURCES:
+        mapping: dict[str, Any] = {
+            "label": resource.label,
+            "property": resource.property,
+        }
+        if resource.id_parser:
+            mapping["id_func"] = _TAG_ID_PARSERS[resource.id_parser]
+        if resource.region_property:
+            mapping["region_property"] = resource.region_property
+        mappings[resource.resource_type] = mapping
+    return mappings
+
+
+# Keep this public mapping backward compatible for callers that customize tag sync.
+TAG_RESOURCE_TYPE_MAPPINGS: dict[str, dict[str, Any]] = _tag_resource_type_mappings()
 
 
 @timeit

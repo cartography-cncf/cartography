@@ -14,11 +14,25 @@ from cartography.models.core.relationships import TargetNodeMatcher
 
 @dataclass(frozen=True)
 class DynamoDBArchivalSummaryNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("Id")
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
-    archival_date_time: PropertyRef = PropertyRef("ArchivalDateTime")
-    archival_reason: PropertyRef = PropertyRef("ArchivalReason")
-    archival_backup_arn: PropertyRef = PropertyRef("ArchivalBackupArn")
+    id: PropertyRef = PropertyRef(
+        "Id", description='Unique identifier (table ARN + "/archival")'
+    )
+    lastupdated: PropertyRef = PropertyRef(
+        "lastupdated",
+        set_in_kwargs=True,
+        description="Timestamp of the last time the node was updated",
+    )
+    archival_date_time: PropertyRef = PropertyRef(
+        "ArchivalDateTime",
+        description="The date and time when table archival was initiated",
+    )
+    archival_reason: PropertyRef = PropertyRef(
+        "ArchivalReason", description="The reason for archiving the table"
+    )
+    archival_backup_arn: PropertyRef = PropertyRef(
+        "ArchivalBackupArn",
+        description="The ARN of the backup created when the table was archived",
+    )
 
 
 @dataclass(frozen=True)
@@ -28,6 +42,8 @@ class DynamoDBArchivalSummaryToAWSAccountRelProperties(CartographyRelProperties)
 
 @dataclass(frozen=True)
 class DynamoDBArchivalSummaryToAWSAccountRel(CartographyRelSchema):
+    "Represents a `RESOURCE` relationship from `AWSAccount` to `AWSDynamoDBArchivalSummary`."
+
     target_node_label: str = "AWSAccount"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("AWS_ID", set_in_kwargs=True)},
@@ -46,6 +62,8 @@ class DynamoDBArchivalSummaryToTableRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class DynamoDBArchivalSummaryToTableRel(CartographyRelSchema):
+    "Represents a `HAS_ARCHIVAL` relationship from `AWSDynamoDBTable` to `AWSDynamoDBArchivalSummary`."
+
     target_node_label: str = "AWSDynamoDBTable"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("TableArn")},
@@ -64,6 +82,8 @@ class DynamoDBArchivalSummaryToBackupRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class DynamoDBArchivalSummaryToBackupRel(CartographyRelSchema):
+    "Represents a `ARCHIVED_TO_BACKUP` relationship from `AWSDynamoDBArchivalSummary` to `AWSDynamoDBBackup`."
+
     target_node_label: str = "AWSDynamoDBBackup"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("ArchivalBackupArn")},
@@ -77,6 +97,8 @@ class DynamoDBArchivalSummaryToBackupRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class DynamoDBArchivalSummarySchema(CartographyNodeSchema):
+    "Represents an `AWSDynamoDBArchivalSummary` node in the AWS graph."
+
     label: str = "AWSDynamoDBArchivalSummary"
     # DEPRECATED: legacy DynamoDBArchivalSummary node label will be removed in v1.0.0.
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["DynamoDBArchivalSummary"])

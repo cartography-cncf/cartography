@@ -14,18 +14,48 @@ from cartography.models.core.relationships import TargetNodeMatcher
 
 @dataclass(frozen=True)
 class EventBridgeRuleNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("Arn")
-    arn: PropertyRef = PropertyRef("Arn", extra_index=True)
-    name: PropertyRef = PropertyRef("Name")
-    region: PropertyRef = PropertyRef("Region", set_in_kwargs=True)
-    event_pattern: PropertyRef = PropertyRef("EventPattern")
-    state: PropertyRef = PropertyRef("State")
-    description: PropertyRef = PropertyRef("Description")
-    schedule_expression: PropertyRef = PropertyRef("ScheduleExpression")
-    role_arn: PropertyRef = PropertyRef("RoleArn")
-    managed_by: PropertyRef = PropertyRef("ManagedBy")
-    event_bus_name: PropertyRef = PropertyRef("EventBusName")
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    id: PropertyRef = PropertyRef(
+        "Arn", description="System-assigned eventbridge rule ID"
+    )
+    arn: PropertyRef = PropertyRef(
+        "Arn",
+        extra_index=True,
+        description="The Amazon Resource Name (ARN) of the rule",
+    )
+    name: PropertyRef = PropertyRef("Name", description="The name of the rule")
+    region: PropertyRef = PropertyRef(
+        "Region", set_in_kwargs=True, description="The region of the rule"
+    )
+    event_pattern: PropertyRef = PropertyRef(
+        "EventPattern", description="The event pattern of the rule"
+    )
+    state: PropertyRef = PropertyRef(
+        "State",
+        description="The state of the rule, Valid Values: ENABLED, DISABLED, ENABLED_WITH_ALL_CLOUDTRAIL_MANAGEMENT_EVENTS",
+    )
+    description: PropertyRef = PropertyRef(
+        "Description", description="The description of the rule"
+    )
+    schedule_expression: PropertyRef = PropertyRef(
+        "ScheduleExpression", description="The scheduling expression"
+    )
+    role_arn: PropertyRef = PropertyRef(
+        "RoleArn",
+        description="The Amazon Resource Name (ARN) of the role that is used for target invocation",
+    )
+    managed_by: PropertyRef = PropertyRef(
+        "ManagedBy",
+        description="If the rule was created on behalf of your account by an AWS service, this field displays the principal name of the service that created the rule",
+    )
+    event_bus_name: PropertyRef = PropertyRef(
+        "EventBusName",
+        description="The name or ARN of the event bus associated with the rule",
+    )
+    lastupdated: PropertyRef = PropertyRef(
+        "lastupdated",
+        set_in_kwargs=True,
+        description="Timestamp of the last time the node was updated",
+    )
 
 
 @dataclass(frozen=True)
@@ -35,6 +65,8 @@ class EventBridgeRuleToAwsAccountRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class EventBridgeRuleToAWSAccountRel(CartographyRelSchema):
+    "Represents a `RESOURCE` relationship from `AWSAccount` to `AWSEventBridgeRule`."
+
     target_node_label: str = "AWSAccount"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("AWS_ID", set_in_kwargs=True)},
@@ -53,6 +85,8 @@ class EventBridgeRuleToAWSRoleRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class EventBridgeRuleToAWSRoleRel(CartographyRelSchema):
+    "Represents a `ASSOCIATED_WITH` relationship from `AWSEventBridgeRule` to `AWSRole`."
+
     target_node_label: str = "AWSRole"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"arn": PropertyRef("RoleArn")},
@@ -66,6 +100,8 @@ class EventBridgeRuleToAWSRoleRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class EventBridgeRuleSchema(CartographyNodeSchema):
+    "Represents an `AWSEventBridgeRule` node in the AWS graph."
+
     label: str = "AWSEventBridgeRule"
     # DEPRECATED: legacy EventBridgeRule node label will be removed in v1.0.0.
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["EventBridgeRule"])

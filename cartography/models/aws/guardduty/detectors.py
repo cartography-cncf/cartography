@@ -13,15 +13,38 @@ from cartography.models.core.relationships import TargetNodeMatcher
 
 @dataclass(frozen=True)
 class GuardDutyDetectorNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("id")
-    accountid: PropertyRef = PropertyRef("accountid")
-    region: PropertyRef = PropertyRef("Region", set_in_kwargs=True)
-    status: PropertyRef = PropertyRef("status")
-    findingpublishingfrequency: PropertyRef = PropertyRef("findingpublishingfrequency")
-    service_role: PropertyRef = PropertyRef("service_role")
-    createdat: PropertyRef = PropertyRef("createdat")
-    updatedat: PropertyRef = PropertyRef("updatedat")
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    id: PropertyRef = PropertyRef(
+        "id", description="The unique identifier for the GuardDuty detector"
+    )
+    accountid: PropertyRef = PropertyRef(
+        "accountid", description="The AWS Account ID the detector belongs to"
+    )
+    region: PropertyRef = PropertyRef(
+        "Region",
+        set_in_kwargs=True,
+        description="The AWS Region where the detector is deployed",
+    )
+    status: PropertyRef = PropertyRef(
+        "status", description="Whether the detector is enabled or disabled"
+    )
+    findingpublishingfrequency: PropertyRef = PropertyRef(
+        "findingpublishingfrequency",
+        description="Frequency with which GuardDuty publishes findings",
+    )
+    service_role: PropertyRef = PropertyRef(
+        "service_role", description="IAM service role used by GuardDuty"
+    )
+    createdat: PropertyRef = PropertyRef(
+        "createdat", description="Timestamp when the detector was created"
+    )
+    updatedat: PropertyRef = PropertyRef(
+        "updatedat", description="Timestamp when the detector was last updated"
+    )
+    lastupdated: PropertyRef = PropertyRef(
+        "lastupdated",
+        set_in_kwargs=True,
+        description="Timestamp of the last time the node was updated",
+    )
 
 
 @dataclass(frozen=True)
@@ -31,6 +54,8 @@ class GuardDutyDetectorToAWSAccountRelRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class GuardDutyDetectorToAWSAccountRel(CartographyRelSchema):
+    "Represents a `RESOURCE` relationship from `AWSAccount` to `AWSGuardDutyDetector`."
+
     target_node_label: str = "AWSAccount"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("AWS_ID", set_in_kwargs=True)},
@@ -44,6 +69,8 @@ class GuardDutyDetectorToAWSAccountRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class GuardDutyDetectorSchema(CartographyNodeSchema):
+    "Represents an `AWSGuardDutyDetector` node in the AWS graph."
+
     label: str = "AWSGuardDutyDetector"
     # DEPRECATED: legacy GuardDutyDetector node label will be removed in v1.0.0.
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["GuardDutyDetector"])

@@ -26,6 +26,7 @@ from cartography.graph.analysis import RelationshipPropertyEffect
 from cartography.graph.analysis import SetRelationshipPropertyIfMissing
 from cartography.graph.analysisbuilder import properties_set
 from cartography.graph.analysisbuilder import relationships_added
+from cartography.models.aws_tagging import AWS_TAGGABLE_RESOURCES
 from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeProperties
 from cartography.models.core.nodes import CartographyNodeSchema
@@ -86,6 +87,15 @@ class AnalysisJobDefinition:
 
 
 @dataclass(frozen=True)
+class TargetPreconditionDefinition:
+    """Graph state required on a permission relationship target."""
+
+    related_label: str
+    relationship: str
+    direction: str = "outgoing"
+
+
+@dataclass(frozen=True)
 class PermissionRelationshipDefinition:
     """A relationship generated from a provider permission evaluation file."""
 
@@ -95,6 +105,20 @@ class PermissionRelationshipDefinition:
     relationship_name: str
     permissions: tuple[str, ...]
     config_path: str
+    target_precondition: TargetPreconditionDefinition | None = None
+
+
+@dataclass(frozen=True)
+class RelationshipCatalogDefinition:
+    """A runtime-created relationship declared for model introspection."""
+
+    module: str
+    source_label: str
+    target_label: str
+    relationship_name: str
+    description: str
+    properties: tuple[str, ...]
+    catalog_path: str
 
 
 @dataclass(frozen=True)
@@ -157,6 +181,7 @@ class Relationship:
     analysis_jobs: tuple[AnalysisJobDefinition, ...]
     analysis_context_modules: tuple[tuple[str, ...], ...] = ()
     permission_relationships: tuple[PermissionRelationshipDefinition, ...] = ()
+    catalog_relationships: tuple[RelationshipCatalogDefinition, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -189,6 +214,7 @@ class DataModel:
     ontology_semantic_labels: tuple[OntologySemanticLabel, ...] = ()
     ontology_relationship_constraints: tuple[OntologyRelationshipConstraint, ...] = ()
     diagnostics: tuple[str, ...] = ()
+    catalog_relationships: tuple[RelationshipCatalogDefinition, ...] = ()
 
     def get_node(self, label: str) -> Node | None:
         return next((node for node in self.nodes if node.label == label), None)
@@ -210,6 +236,11 @@ class DataModel:
                 definition
                 for definition in self.permission_relationships
                 if definition.provider == module
+            ),
+            catalog_relationships=tuple(
+                definition
+                for definition in self.catalog_relationships
+                if definition.module == module
             ),
             ontology_semantic_labels=(
                 self.ontology_semantic_labels if module == "ontology" else ()
@@ -313,6 +344,11 @@ def iter_permission_relationships() -> Iterator[PermissionRelationshipDefinition
             target_label = raw_definition.get("target_label")
             relationship_name = raw_definition.get("relationship_name")
             permissions = raw_definition.get("permissions")
+            target_precondition = _parse_target_precondition(
+                raw_definition.get("target_precondition"),
+                relative_path,
+                raw_definition,
+            )
             if (
                 not isinstance(target_label, str)
                 or not isinstance(relationship_name, str)
@@ -332,6 +368,7 @@ def iter_permission_relationships() -> Iterator[PermissionRelationshipDefinition
                         relationship_name=relationship_name,
                         permissions=tuple(permissions),
                         config_path=relative_path.as_posix(),
+                        target_precondition=target_precondition,
                     )
                 )
     yield from sorted(
@@ -345,12 +382,65 @@ def iter_permission_relationships() -> Iterator[PermissionRelationshipDefinition
     )
 
 
+def _parse_target_precondition(
+    value: object,
+    relative_path: Path,
+    raw_definition: dict[str, object],
+) -> TargetPreconditionDefinition | None:
+    if value is None:
+        return None
+    if not isinstance(value, dict):
+        raise ValueError(
+            f"Permission relationship file {relative_path} contains "
+            f"an invalid target_precondition: {raw_definition!r}."
+        )
+    related_label = value.get("related_label")
+    relationship = value.get("relationship")
+    direction = value.get("direction", "outgoing")
+    if (
+        not isinstance(related_label, str)
+        or not isinstance(relationship, str)
+        or not isinstance(direction, str)
+        or direction.lower() not in {"incoming", "outgoing"}
+    ):
+        raise ValueError(
+            f"Permission relationship file {relative_path} contains "
+            f"an invalid target_precondition: {raw_definition!r}."
+        )
+    return TargetPreconditionDefinition(
+        related_label=related_label,
+        relationship=relationship,
+        direction=direction.lower(),
+    )
+
+
+def iter_relationship_catalog() -> Iterator[RelationshipCatalogDefinition]:
+    """Yield relationships created by runtime paths outside declarative schemas."""
+    definitions = {
+        resource.label: RelationshipCatalogDefinition(
+            module="aws",
+            source_label=resource.label,
+            target_label="AWSTag",
+            relationship_name="TAGGED",
+            description=(
+                f"`{resource.label}` is tagged with an `AWSTag` discovered by "
+                "the AWS Resource Groups Tagging API."
+            ),
+            properties=("firstseen", "lastupdated"),
+            catalog_path="cartography.models.aws_tagging.AWS_TAGGABLE_RESOURCES",
+        )
+        for resource in AWS_TAGGABLE_RESOURCES
+    }
+    yield from (definitions[label] for label in sorted(definitions))
+
+
 def inspect_data_model(
     package: ModuleType = cartography.models,
 ) -> DataModel:
     """Discover model classes and build a normalized runtime graph view."""
     analysis_jobs = iter_analysis_jobs()
     permission_relationships = iter_permission_relationships()
+    catalog_relationships = iter_relationship_catalog()
     if package is not cartography.models:
         module = _model_package_name(package)
         analysis_jobs = (
@@ -361,10 +451,16 @@ def inspect_data_model(
             for definition in permission_relationships
             if definition.provider == module
         )
+        catalog_relationships = (
+            definition
+            for definition in catalog_relationships
+            if definition.module == module
+        )
     return build_data_model(
         iter_model_classes(package),
         analysis_jobs,
         permission_relationships,
+        catalog_relationships,
     )
 
 
@@ -372,6 +468,7 @@ def build_data_model(
     model_classes: Iterable[ModelClass],
     analysis_jobs: Iterable[AnalysisJobDefinition] = (),
     permission_relationships: Iterable[PermissionRelationshipDefinition] = (),
+    catalog_relationships: Iterable[RelationshipCatalogDefinition] = (),
 ) -> DataModel:
     """Build a data model from discovered classes without duplicating declarations."""
     node_entries: dict[str, dict[str, Any]] = {}
@@ -436,6 +533,21 @@ def build_data_model(
         relationship_entries,
         permission_relationship_definitions,
     )
+    catalog_relationship_definitions = tuple(
+        sorted(
+            catalog_relationships,
+            key=lambda definition: (
+                definition.module,
+                definition.source_label,
+                definition.relationship_name,
+                definition.target_label,
+            ),
+        )
+    )
+    _add_catalog_relationships(
+        relationship_entries,
+        catalog_relationship_definitions,
+    )
 
     nodes = tuple(
         _build_node(label, entry) for label, entry in sorted(node_entries.items())
@@ -461,6 +573,7 @@ def build_data_model(
         relationships=relationships,
         analysis_jobs=analysis_job_definitions,
         permission_relationships=permission_relationship_definitions,
+        catalog_relationships=catalog_relationship_definitions,
         ontology_semantic_labels=ontology_semantic_labels,
         ontology_relationship_constraints=ontology_relationship_constraints,
         diagnostics=tuple(sorted(diagnostics)),
@@ -504,6 +617,7 @@ def _new_relationship_entry() -> dict[str, Any]:
         "analysis_jobs": {},
         "analysis_context_modules": set(),
         "permission_relationships": {},
+        "catalog_relationships": {},
     }
 
 
@@ -567,6 +681,8 @@ def _add_relationship(
     schema: CartographyRelSchema,
     origin: str,
 ) -> None:
+    if getattr(type(schema), "__cartography_introspection_exclude__", False):
+        return
     source_label, target_label = _directed_labels(owner_label, schema)
     key = (source_label, schema.rel_label, target_label, LinkDirection.OUTWARD)
     entry = relationship_entries.setdefault(key, _new_relationship_entry())
@@ -839,6 +955,34 @@ def _add_permission_relationships(
                 property_name,
                 f"permission_evaluation:{definition.provider}",
                 description=property_descriptions.get(property_name),
+            )
+
+
+def _add_catalog_relationships(
+    relationship_entries: dict[RelationshipKey, dict[str, Any]],
+    definitions: tuple[RelationshipCatalogDefinition, ...],
+) -> None:
+    for definition in definitions:
+        key = (
+            definition.source_label,
+            definition.relationship_name,
+            definition.target_label,
+            LinkDirection.OUTWARD,
+        )
+        entry = relationship_entries.setdefault(key, _new_relationship_entry())
+        entry["modules"].add(definition.module)
+        entry["origins"].add("runtime_catalog")
+        entry["descriptions"].add(definition.description)
+        definition_key = (
+            f"{definition.module}:{definition.source_label}:"
+            f"{definition.relationship_name}:{definition.target_label}"
+        )
+        entry["catalog_relationships"][definition_key] = definition
+        for property_name in definition.properties:
+            _add_generated_property(
+                entry["properties"],
+                property_name,
+                f"runtime_catalog:{definition.module}",
             )
 
 
@@ -1136,6 +1280,10 @@ def _build_relationship(
         permission_relationships=tuple(
             entry["permission_relationships"][name]
             for name in sorted(entry["permission_relationships"])
+        ),
+        catalog_relationships=tuple(
+            entry["catalog_relationships"][name]
+            for name in sorted(entry["catalog_relationships"])
         ),
     )
 

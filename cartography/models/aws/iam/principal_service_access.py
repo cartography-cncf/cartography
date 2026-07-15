@@ -18,20 +18,41 @@ class AWSPrincipalServiceAccessNodeProperties(CartographyNodeProperties):
     """
 
     # Required unique identifier - matches existing principals by ARN
-    id: PropertyRef = PropertyRef("arn")
-    arn: PropertyRef = PropertyRef("arn", extra_index=True)
+    id: PropertyRef = PropertyRef(
+        "arn", description="Unique identifier for this `AWSPrincipal` node."
+    )
+    arn: PropertyRef = PropertyRef(
+        "arn", extra_index=True, description="AWS-unique identifier for this object"
+    )
 
     # Automatic fields (set by cartography)
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    lastupdated: PropertyRef = PropertyRef(
+        "lastupdated",
+        set_in_kwargs=True,
+        description="Timestamp of the last time the node was updated",
+    )
 
     # Service last accessed fields
-    last_accessed_service_name: PropertyRef = PropertyRef("last_accessed_service_name")
-    last_accessed_service_namespace: PropertyRef = PropertyRef(
-        "last_accessed_service_namespace"
+    last_accessed_service_name: PropertyRef = PropertyRef(
+        "last_accessed_service_name",
+        description="Display name of the AWS service most recently accessed by the principal.",
     )
-    last_authenticated: PropertyRef = PropertyRef("last_authenticated")
-    last_authenticated_entity: PropertyRef = PropertyRef("last_authenticated_entity")
-    last_authenticated_region: PropertyRef = PropertyRef("last_authenticated_region")
+    last_accessed_service_namespace: PropertyRef = PropertyRef(
+        "last_accessed_service_namespace",
+        description="Namespace of the AWS service most recently accessed by the principal.",
+    )
+    last_authenticated: PropertyRef = PropertyRef(
+        "last_authenticated",
+        description="Timestamp when the principal last authenticated to the service.",
+    )
+    last_authenticated_entity: PropertyRef = PropertyRef(
+        "last_authenticated_entity",
+        description="ARN of the principal entity that last authenticated to the service.",
+    )
+    last_authenticated_region: PropertyRef = PropertyRef(
+        "last_authenticated_region",
+        description="AWS Region in which the principal last authenticated to the service.",
+    )
 
 
 @dataclass(frozen=True)
@@ -41,6 +62,8 @@ class AWSPrincipalServiceAccessToAWSAccountRelProperties(CartographyRelPropertie
 
 @dataclass(frozen=True)
 class AWSPrincipalServiceAccessToAWSAccountRel(CartographyRelSchema):
+    "Represents a `RESOURCE` relationship from `AWSAccount` to `AWSPrincipal`."
+
     target_node_label: str = "AWSAccount"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {

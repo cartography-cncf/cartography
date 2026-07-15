@@ -14,10 +14,22 @@ from cartography.models.core.relationships import TargetNodeMatcher
 
 @dataclass(frozen=True)
 class APIGatewayClientCertificateNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("clientCertificateId")
-    createddate: PropertyRef = PropertyRef("createdDate")
-    expirationdate: PropertyRef = PropertyRef("expirationDate")
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    id: PropertyRef = PropertyRef(
+        "clientCertificateId", description="The identifier of the client certificate"
+    )
+    createddate: PropertyRef = PropertyRef(
+        "createdDate",
+        description="The timestamp when the client certificate was created",
+    )
+    expirationdate: PropertyRef = PropertyRef(
+        "expirationDate",
+        description="The timestamp when the client certificate will expire",
+    )
+    lastupdated: PropertyRef = PropertyRef(
+        "lastupdated",
+        set_in_kwargs=True,
+        description="Timestamp of the last time the node was updated",
+    )
 
 
 @dataclass(frozen=True)
@@ -33,6 +45,8 @@ class CertToStageRelProperties(CartographyRelProperties):
 @dataclass(frozen=True)
 # (:AWSAPIGatewayStage)-[:HAS_CERTIFICATE]->(:AWSAPIGatewayClientCertificate)
 class APIGatewayClientCertificateToStageRel(CartographyRelSchema):
+    "Represents a `HAS_CERTIFICATE` relationship from `AWSAPIGatewayStage` to `AWSAPIGatewayClientCertificate`."
+
     target_node_label: str = "AWSAPIGatewayStage"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("stageArn")},
@@ -50,6 +64,8 @@ class CertToAccountRelProperties(CartographyRelProperties):
 @dataclass(frozen=True)
 # (:AWSAPIGatewayClientCertificate)<-[:RESOURCE]-(:AWSAccount)
 class APIGatewayClientCertificateToAWSAccountRel(CartographyRelSchema):
+    "Represents a `RESOURCE` relationship from `AWSAccount` to `AWSAPIGatewayClientCertificate`."
+
     target_node_label: str = "AWSAccount"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("AWS_ID", set_in_kwargs=True)},
@@ -61,6 +77,8 @@ class APIGatewayClientCertificateToAWSAccountRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class APIGatewayClientCertificateSchema(CartographyNodeSchema):
+    "Represents an `AWSAPIGatewayClientCertificate` node in the AWS graph."
+
     label: str = "AWSAPIGatewayClientCertificate"
     # DEPRECATED: legacy APIGatewayClientCertificate node label will be removed in v1.0.0.
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(

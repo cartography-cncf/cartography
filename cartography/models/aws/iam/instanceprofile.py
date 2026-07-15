@@ -17,13 +17,27 @@ class InstanceProfileNodeProperties(CartographyNodeProperties):
     Schema describing a InstanceProfile.
     """
 
-    arn: PropertyRef = PropertyRef("Arn")
-    createdate: PropertyRef = PropertyRef("CreateDate")
-    id: PropertyRef = PropertyRef("Arn")
-    instance_profile_id: PropertyRef = PropertyRef("InstanceProfileId")
-    instance_profile_name: PropertyRef = PropertyRef("InstanceProfileName")
-    path: PropertyRef = PropertyRef("Path")
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    arn: PropertyRef = PropertyRef("Arn", description="The arn")
+    createdate: PropertyRef = PropertyRef(
+        "CreateDate",
+        description="Timestamp when the IAM instance profile was created.",
+    )
+    id: PropertyRef = PropertyRef("Arn", description="The arn")
+    instance_profile_id: PropertyRef = PropertyRef(
+        "InstanceProfileId", description="The instance profile id"
+    )
+    instance_profile_name: PropertyRef = PropertyRef(
+        "InstanceProfileName", description="The instance profile name"
+    )
+    path: PropertyRef = PropertyRef(
+        "Path",
+        description="IAM path under which the IAM instance profile is organized.",
+    )
+    lastupdated: PropertyRef = PropertyRef(
+        "lastupdated",
+        set_in_kwargs=True,
+        description="Timestamp of the last time the node was updated",
+    )
 
 
 @dataclass(frozen=True)
@@ -33,6 +47,8 @@ class InstanceProfileToAWSAccountRelRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class InstanceProfileToAWSAccountRel(CartographyRelSchema):
+    "Represents a `RESOURCE` relationship from `AWSAccount` to `AWSInstanceProfile`."
+
     target_node_label: str = "AWSAccount"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("AWS_ID", set_in_kwargs=True)},
@@ -51,6 +67,8 @@ class InstanceProfileToAWSRoleRelRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class InstanceProfileToAWSRoleRel(CartographyRelSchema):
+    "Represents a `ASSOCIATED_WITH` relationship from `AWSInstanceProfile` to `AWSRole`."
+
     target_node_label: str = "AWSRole"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"arn": PropertyRef("Roles", one_to_many=True)},
@@ -64,6 +82,8 @@ class InstanceProfileToAWSRoleRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class InstanceProfileSchema(CartographyNodeSchema):
+    "Represents an `AWSInstanceProfile` node in the AWS graph."
+
     label: str = "AWSInstanceProfile"
     properties: InstanceProfileNodeProperties = InstanceProfileNodeProperties()
     sub_resource_relationship: InstanceProfileToAWSAccountRel = (

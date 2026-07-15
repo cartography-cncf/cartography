@@ -19,17 +19,42 @@ class SecretsManagerSecretVersionNodeProperties(CartographyNodeProperties):
     """
 
     # Align property names with the actual keys in the data
-    id: PropertyRef = PropertyRef("ARN")
-    arn: PropertyRef = PropertyRef("ARN", extra_index=True)
-    secret_id: PropertyRef = PropertyRef("SecretId")
-    version_id: PropertyRef = PropertyRef("VersionId")
-    version_stages: PropertyRef = PropertyRef("VersionStages")
-    created_date: PropertyRef = PropertyRef("CreatedDate")
-    region: PropertyRef = PropertyRef("Region", set_in_kwargs=True)
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    id: PropertyRef = PropertyRef("ARN", description="The ARN of the secret version.")
+    arn: PropertyRef = PropertyRef(
+        "ARN", extra_index=True, description="The ARN of the secret version."
+    )
+    secret_id: PropertyRef = PropertyRef(
+        "SecretId", description="The ARN of the secret that this version belongs to."
+    )
+    version_id: PropertyRef = PropertyRef(
+        "VersionId", description="The unique identifier of this version of the secret."
+    )
+    version_stages: PropertyRef = PropertyRef(
+        "VersionStages",
+        description="A list of staging labels that are currently attached to this version of the secret.",
+    )
+    created_date: PropertyRef = PropertyRef(
+        "CreatedDate",
+        description="The date and time that this version of the secret was created.",
+    )
+    region: PropertyRef = PropertyRef(
+        "Region",
+        set_in_kwargs=True,
+        description="The AWS region where the secret version exists.",
+    )
+    lastupdated: PropertyRef = PropertyRef(
+        "lastupdated",
+        set_in_kwargs=True,
+        description="Timestamp of the last time the node was updated",
+    )
     # Make KMS and tags properties without required=False parameter
-    kms_key_ids: PropertyRef = PropertyRef("kms_key_ids")
-    tags: PropertyRef = PropertyRef("Tags")
+    kms_key_ids: PropertyRef = PropertyRef(
+        "kms_key_ids",
+        description="A list of IDs of the AWS KMS keys used to encrypt the secret version.",
+    )
+    tags: PropertyRef = PropertyRef(
+        "Tags", description="A list of tags attached to this secret version."
+    )
 
 
 @dataclass(frozen=True)

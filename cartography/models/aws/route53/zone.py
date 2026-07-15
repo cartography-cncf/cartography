@@ -13,12 +13,28 @@ from cartography.models.core.relationships import TargetNodeMatcher
 
 @dataclass(frozen=True)
 class AWSDNSZoneNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("zoneid")
-    zoneid: PropertyRef = PropertyRef("zoneid")
-    name: PropertyRef = PropertyRef("name", extra_index=True)
-    comment: PropertyRef = PropertyRef("comment")
-    privatezone: PropertyRef = PropertyRef("privatezone")
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    id: PropertyRef = PropertyRef(
+        "zoneid", description="Unique identifier for this `AWSDNSZone` node."
+    )
+    zoneid: PropertyRef = PropertyRef(
+        "zoneid",
+        description="Identifier of the zoneid linked to this `AWSDNSZone` node.",
+    )
+    name: PropertyRef = PropertyRef(
+        "name", extra_index=True, description="Name of this `AWSDNSZone` node."
+    )
+    comment: PropertyRef = PropertyRef(
+        "comment", description="Comment attached to the Route 53 hosted zone."
+    )
+    privatezone: PropertyRef = PropertyRef(
+        "privatezone",
+        description="Whether the hosted zone is private and associated with one or more VPCs.",
+    )
+    lastupdated: PropertyRef = PropertyRef(
+        "lastupdated",
+        set_in_kwargs=True,
+        description="Timestamp of the last sync that updated this `AWSDNSZone` node.",
+    )
 
 
 @dataclass(frozen=True)
@@ -28,6 +44,8 @@ class AWSDNSZoneToAWSAccountRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class AWSDNSZoneToAWSAccountRel(CartographyRelSchema):
+    "Represents a `RESOURCE` relationship from `AWSAccount` to `AWSDNSZone`."
+
     target_node_label: str = "AWSAccount"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("AWS_ID", set_in_kwargs=True)}
@@ -41,6 +59,8 @@ class AWSDNSZoneToAWSAccountRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class AWSDNSZoneSchema(CartographyNodeSchema):
+    "Represents an `AWSDNSZone` node in the AWS graph."
+
     label: str = "AWSDNSZone"
     properties: AWSDNSZoneNodeProperties = AWSDNSZoneNodeProperties()
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["DNSZone"])

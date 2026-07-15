@@ -14,13 +14,27 @@ from cartography.models.core.relationships import TargetNodeMatcher
 
 @dataclass(frozen=True)
 class ECRRepositoryNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("repositoryArn")
-    arn: PropertyRef = PropertyRef("repositoryArn", extra_index=True)
-    name: PropertyRef = PropertyRef("repositoryName", extra_index=True)
-    uri: PropertyRef = PropertyRef("repositoryUri", extra_index=True)
-    created_at: PropertyRef = PropertyRef("createdAt")
-    region: PropertyRef = PropertyRef("Region", set_in_kwargs=True)
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    id: PropertyRef = PropertyRef("repositoryArn", description="Same as ARN")
+    arn: PropertyRef = PropertyRef(
+        "repositoryArn", extra_index=True, description="The ARN of the repository"
+    )
+    name: PropertyRef = PropertyRef(
+        "repositoryName", extra_index=True, description="The name of the repository"
+    )
+    uri: PropertyRef = PropertyRef(
+        "repositoryUri", extra_index=True, description="The URI of the repository"
+    )
+    created_at: PropertyRef = PropertyRef(
+        "createdAt", description="Date and time when the repository was created"
+    )
+    region: PropertyRef = PropertyRef(
+        "Region", set_in_kwargs=True, description="The region of the repository"
+    )
+    lastupdated: PropertyRef = PropertyRef(
+        "lastupdated",
+        set_in_kwargs=True,
+        description="Timestamp of the last time the node was updated",
+    )
 
 
 @dataclass(frozen=True)
@@ -30,6 +44,8 @@ class ECRRepositoryToAWSAccountRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class ECRRepositoryToAWSAccountRel(CartographyRelSchema):
+    "Represents a `RESOURCE` relationship from `AWSAccount` to `AWSECRRepository`."
+
     target_node_label: str = "AWSAccount"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("AWS_ID", set_in_kwargs=True)}
@@ -48,6 +64,8 @@ class ECRRepositoryToRepositoryImageRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class ECRRepositoryToRepositoryImageRel(CartographyRelSchema):
+    "Represents a `REPO_IMAGE` relationship from `AWSECRRepository` to `AWSECRRepositoryImage`."
+
     target_node_label: str = "AWSECRRepositoryImage"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("id")}
@@ -61,6 +79,8 @@ class ECRRepositoryToRepositoryImageRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class ECRRepositorySchema(CartographyNodeSchema):
+    "Represents an `AWSECRRepository` node in the AWS graph."
+
     label: str = "AWSECRRepository"
     # DEPRECATED: legacy ECRRepository node label will be removed in v1.0.0.
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(

@@ -14,11 +14,27 @@ from cartography.models.core.relationships import TargetNodeMatcher
 
 @dataclass(frozen=True)
 class CognitoIdentityPoolNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("IdentityPoolId")
-    arn: PropertyRef = PropertyRef("IdentityPoolId", extra_index=True)
-    region: PropertyRef = PropertyRef("Region", set_in_kwargs=True)
-    roles: PropertyRef = PropertyRef("Roles")
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    id: PropertyRef = PropertyRef(
+        "IdentityPoolId", description="The id of Cognito Identity Pool"
+    )
+    arn: PropertyRef = PropertyRef(
+        "IdentityPoolId",
+        extra_index=True,
+        description="The Amazon Resource Name (ARN) of the Cognito Identity Pool",
+    )
+    region: PropertyRef = PropertyRef(
+        "Region",
+        set_in_kwargs=True,
+        description="The region of the Cognito Identity Pool",
+    )
+    roles: PropertyRef = PropertyRef(
+        "Roles", description="list of aws roles associated with Cognito Identity Pool"
+    )
+    lastupdated: PropertyRef = PropertyRef(
+        "lastupdated",
+        set_in_kwargs=True,
+        description="Timestamp of the last time the node was updated",
+    )
 
 
 @dataclass(frozen=True)
@@ -28,6 +44,8 @@ class CognitoIdentityPoolToAwsAccountRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class CognitoIdentityPoolToAWSAccountRel(CartographyRelSchema):
+    "Represents a `RESOURCE` relationship from `AWSAccount` to `AWSCognitoIdentityPool`."
+
     target_node_label: str = "AWSAccount"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("AWS_ID", set_in_kwargs=True)},
@@ -46,6 +64,8 @@ class CognitoIdentityPoolToAWSRoleRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class CognitoIdentityPoolToAWSRoleRel(CartographyRelSchema):
+    "Represents a `ASSOCIATED_WITH` relationship from `AWSCognitoIdentityPool` to `AWSRole`."
+
     target_node_label: str = "AWSRole"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"arn": PropertyRef("Roles", one_to_many=True)},
@@ -59,6 +79,8 @@ class CognitoIdentityPoolToAWSRoleRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class CognitoIdentityPoolSchema(CartographyNodeSchema):
+    "Represents an `AWSCognitoIdentityPool` node in the AWS graph."
+
     label: str = "AWSCognitoIdentityPool"
     # DEPRECATED: legacy CognitoIdentityPool node label will be removed in v1.0.0.
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["CognitoIdentityPool"])

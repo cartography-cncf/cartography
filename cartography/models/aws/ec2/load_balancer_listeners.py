@@ -14,13 +14,33 @@ from cartography.models.core.relationships import TargetNodeMatcher
 
 @dataclass(frozen=True)
 class ELBListenerNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("id")
-    port: PropertyRef = PropertyRef("port")
-    protocol: PropertyRef = PropertyRef("protocol")
-    instance_port: PropertyRef = PropertyRef("instance_port")
-    instance_protocol: PropertyRef = PropertyRef("instance_protocol")
-    policy_names: PropertyRef = PropertyRef("policy_names")
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    id: PropertyRef = PropertyRef(
+        "id", description="Unique identifier for this `AWSELBListener` node."
+    )
+    port: PropertyRef = PropertyRef(
+        "port",
+        description="Load balancer port on which the listener accepts connections.",
+    )
+    protocol: PropertyRef = PropertyRef(
+        "protocol", description="Protocol used by the load balancer listener."
+    )
+    instance_port: PropertyRef = PropertyRef(
+        "instance_port",
+        description="Backend instance port to which the listener forwards traffic.",
+    )
+    instance_protocol: PropertyRef = PropertyRef(
+        "instance_protocol",
+        description="Protocol used to forward listener traffic to backend instances.",
+    )
+    policy_names: PropertyRef = PropertyRef(
+        "policy_names",
+        description="Names of load balancer policies enabled on the listener.",
+    )
+    lastupdated: PropertyRef = PropertyRef(
+        "lastupdated",
+        set_in_kwargs=True,
+        description="Timestamp of the last sync that updated this `AWSELBListener` node.",
+    )
 
 
 @dataclass(frozen=True)
@@ -30,6 +50,8 @@ class ELBListenerToLoadBalancerRelRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class ELBListenerToLoadBalancerRel(CartographyRelSchema):
+    "Represents a `ELB_LISTENER` relationship from `AWSLoadBalancer` to `AWSELBListener`."
+
     target_node_label: str = "AWSLoadBalancer"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("LoadBalancerId")},
@@ -48,6 +70,8 @@ class ELBListenerToAWSAccountRelRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class ELBListenerToAWSAccountRel(CartographyRelSchema):
+    "Represents a `RESOURCE` relationship from `AWSAccount` to `AWSELBListener`."
+
     target_node_label: str = "AWSAccount"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("AWS_ID", set_in_kwargs=True)},
@@ -61,6 +85,8 @@ class ELBListenerToAWSAccountRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class ELBListenerSchema(CartographyNodeSchema):
+    "Represents an `AWSELBListener` node in the AWS graph."
+
     label: str = "AWSELBListener"
     properties: ELBListenerNodeProperties = ELBListenerNodeProperties()
     # DEPRECATED: legacy ELBListener node label will be removed in v1.0.0.

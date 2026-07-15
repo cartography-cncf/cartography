@@ -13,16 +13,40 @@ from cartography.models.core.relationships import TargetNodeMatcher
 
 @dataclass(frozen=True)
 class AWSSageMakerUserProfileNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("UserProfileArn")
-    arn: PropertyRef = PropertyRef("UserProfileArn", extra_index=True)
-    user_profile_name: PropertyRef = PropertyRef("UserProfileName")
-    domain_id: PropertyRef = PropertyRef("DomainId")
-    status: PropertyRef = PropertyRef("Status")
-    creation_time: PropertyRef = PropertyRef("CreationTime")
-    last_modified_time: PropertyRef = PropertyRef("LastModifiedTime")
-    execution_role: PropertyRef = PropertyRef("ExecutionRole")
-    region: PropertyRef = PropertyRef("Region", set_in_kwargs=True)
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    id: PropertyRef = PropertyRef(
+        "UserProfileArn", description="The ARN of the User Profile"
+    )
+    arn: PropertyRef = PropertyRef(
+        "UserProfileArn", extra_index=True, description="The ARN of the User Profile"
+    )
+    user_profile_name: PropertyRef = PropertyRef(
+        "UserProfileName", description="The name of the User Profile"
+    )
+    domain_id: PropertyRef = PropertyRef(
+        "DomainId", description="The Domain ID that this profile belongs to"
+    )
+    status: PropertyRef = PropertyRef(
+        "Status", description="The status of the User Profile"
+    )
+    creation_time: PropertyRef = PropertyRef(
+        "CreationTime", description="When the User Profile was created"
+    )
+    last_modified_time: PropertyRef = PropertyRef(
+        "LastModifiedTime", description="When the User Profile was last modified"
+    )
+    execution_role: PropertyRef = PropertyRef(
+        "ExecutionRole", description="The IAM execution role ARN for the user"
+    )
+    region: PropertyRef = PropertyRef(
+        "Region",
+        set_in_kwargs=True,
+        description="The AWS region where the User Profile exists",
+    )
+    lastupdated: PropertyRef = PropertyRef(
+        "lastupdated",
+        set_in_kwargs=True,
+        description="Timestamp of the last time the node was updated",
+    )
 
 
 @dataclass(frozen=True)
@@ -32,6 +56,8 @@ class AWSSageMakerUserProfileToAWSAccountRelProperties(CartographyRelProperties)
 
 @dataclass(frozen=True)
 class AWSSageMakerUserProfileToAWSAccountRel(CartographyRelSchema):
+    "Represents a `RESOURCE` relationship from `AWSAccount` to `AWSSageMakerUserProfile`."
+
     target_node_label: str = "AWSAccount"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("AWS_ID", set_in_kwargs=True)}
@@ -50,6 +76,8 @@ class AWSSageMakerUserProfileToRoleRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class AWSSageMakerUserProfileToRoleRel(CartographyRelSchema):
+    "Represents a `HAS_EXECUTION_ROLE` relationship from `AWSSageMakerUserProfile` to `AWSRole`."
+
     target_node_label: str = "AWSRole"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"arn": PropertyRef("ExecutionRole")}
@@ -70,6 +98,8 @@ class AWSSageMakerUserProfileToAWSSageMakerDomainRelProperties(
 
 @dataclass(frozen=True)
 class AWSSageMakerUserProfileToAWSSageMakerDomainRel(CartographyRelSchema):
+    "Represents a `CONTAINS` relationship from `AWSSageMakerDomain` to `AWSSageMakerUserProfile`."
+
     target_node_label: str = "AWSSageMakerDomain"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"domain_id": PropertyRef("DomainId")}
@@ -83,6 +113,8 @@ class AWSSageMakerUserProfileToAWSSageMakerDomainRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class AWSSageMakerUserProfileSchema(CartographyNodeSchema):
+    "Represents an `AWSSageMakerUserProfile` node in the AWS graph."
+
     label: str = "AWSSageMakerUserProfile"
     properties: AWSSageMakerUserProfileNodeProperties = (
         AWSSageMakerUserProfileNodeProperties()

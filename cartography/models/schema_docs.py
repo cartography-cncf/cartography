@@ -359,6 +359,18 @@ def _build_ontology_catalog_relationship(
                 for definition in relationship.permission_relationships
             }.values()
         ),
+        catalog_relationships=tuple(
+            {
+                (
+                    definition.module,
+                    definition.source_label,
+                    definition.relationship_name,
+                    definition.target_label,
+                ): definition
+                for relationship in typed_implementations
+                for definition in relationship.catalog_relationships
+            }.values()
+        ),
     )
 
 
@@ -574,6 +586,9 @@ def _render_node(
         permissions = _relationship_permissions(relationship)
         if permissions:
             detail_lines.append(f"  - Evaluated permissions: {permissions}")
+        target_preconditions = _relationship_target_preconditions(relationship)
+        if target_preconditions:
+            detail_lines.append(f"  - Target precondition: {target_preconditions}")
         relationship_properties = tuple(
             prop
             for prop in relationship.properties
@@ -637,7 +652,12 @@ def _module_relationships(
         or relationship.source_label in node_labels
         or relationship.target_label in node_labels
         or any(
-            _relationship_matches_broad_node(relationship, node, primary_labels)
+            _relationship_matches_broad_node(
+                relationship,
+                node,
+                primary_labels,
+                require_explicit_match=module == "aws",
+            )
             for node in nodes
         )
     )
@@ -694,6 +714,7 @@ def _relationship_matches_broad_node(
     relationship: Relationship,
     node: Node,
     primary_labels: set[str],
+    require_explicit_match: bool = False,
 ) -> bool:
     broad_labels = {
         *node.extra_labels,
@@ -705,16 +726,27 @@ def _relationship_matches_broad_node(
 
     if relationship.schemas:
         return any(
-            _schema_matches_broad_node(schema, node, broad_labels, primary_labels)
+            _schema_matches_broad_node(
+                schema,
+                node,
+                broad_labels,
+                primary_labels,
+                require_explicit_match,
+            )
             for schema in relationship.schemas
         )
 
-    if relationship.analysis_jobs and not _analysis_context_matches_node(
-        relationship, node
-    ):
-        return False
+    if relationship.analysis_jobs:
+        return _analysis_context_matches_node(
+            relationship,
+            node,
+            require_explicit_match,
+        ) and any(
+            endpoint in broad_labels and endpoint not in primary_labels
+            for endpoint in (relationship.source_label, relationship.target_label)
+        )
 
-    return any(
+    return not require_explicit_match and any(
         endpoint in broad_labels and endpoint not in primary_labels
         for endpoint in (relationship.source_label, relationship.target_label)
     )
@@ -723,10 +755,13 @@ def _relationship_matches_broad_node(
 def _analysis_context_matches_node(
     relationship: Relationship,
     node: Node,
+    require_explicit_match: bool = False,
 ) -> bool:
     contexts = relationship.analysis_context_modules
-    if not contexts or () in contexts:
+    if not contexts:
         return True
+    if () in contexts:
+        return not require_explicit_match
     node_modules = set(node.modules)
     return any(node_modules.intersection(context) for context in contexts)
 
@@ -736,9 +771,11 @@ def _schema_matches_broad_node(
     node: Node,
     broad_labels: set[str],
     primary_labels: set[str],
+    require_explicit_match: bool = False,
 ) -> bool:
     target_matches_extra_labels = (
-        schema.target_node_label not in primary_labels
+        not require_explicit_match
+        and schema.target_node_label not in primary_labels
         or schema.match_target_extra_labels
     )
     if (
@@ -752,7 +789,10 @@ def _schema_matches_broad_node(
     source_matcher = schema.source_node_matcher
     source_matches_extra_labels = bool(
         source_label
-        and (source_label not in primary_labels or schema.match_source_extra_labels)
+        and (
+            (not require_explicit_match and source_label not in primary_labels)
+            or schema.match_source_extra_labels
+        )
     )
     return bool(
         source_matches_extra_labels
@@ -866,6 +906,10 @@ def _relationship_provenance(relationship: Relationship) -> str:
         )
         for definition in relationship.permission_relationships
     )
+    sources.extend(
+        f"runtime relationship catalog `{definition.catalog_path}`"
+        for definition in relationship.catalog_relationships
+    )
     if (
         "permission_evaluation" in relationship.origins
         and not relationship.permission_relationships
@@ -883,6 +927,37 @@ def _relationship_permissions(relationship: Relationship) -> str | None:
         }
     )
     return ", ".join(f"`{permission}`" for permission in permissions) or None
+
+
+def _relationship_target_preconditions(relationship: Relationship) -> str | None:
+    preconditions = {
+        definition.target_precondition
+        for definition in relationship.permission_relationships
+        if definition.target_precondition is not None
+    }
+    patterns = []
+    for precondition in sorted(
+        preconditions,
+        key=lambda item: (
+            item.related_label,
+            item.relationship,
+            item.direction,
+        ),
+    ):
+        if precondition.direction == "incoming":
+            pattern = (
+                f"(:{relationship.target_label})"
+                f"<-[:{precondition.relationship}]-"
+                f"(:{precondition.related_label})"
+            )
+        else:
+            pattern = (
+                f"(:{relationship.target_label})"
+                f"-[:{precondition.relationship}]->"
+                f"(:{precondition.related_label})"
+            )
+        patterns.append(f"`{pattern}` must exist")
+    return "; ".join(patterns) or None
 
 
 def _relationship_pattern(relationship: Relationship) -> str:

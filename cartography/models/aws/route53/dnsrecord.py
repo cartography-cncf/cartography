@@ -14,11 +14,23 @@ from cartography.models.core.relationships import TargetNodeMatcher
 
 @dataclass(frozen=True)
 class AWSDNSRecordNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("id")
-    name: PropertyRef = PropertyRef("name", extra_index=True)
-    type: PropertyRef = PropertyRef("type")
-    value: PropertyRef = PropertyRef("value")
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    id: PropertyRef = PropertyRef(
+        "id", description="Unique identifier for this `AWSDNSRecord` node."
+    )
+    name: PropertyRef = PropertyRef(
+        "name", extra_index=True, description="Name of this `AWSDNSRecord` node."
+    )
+    type: PropertyRef = PropertyRef(
+        "type", description="Type of this `AWSDNSRecord` node."
+    )
+    value: PropertyRef = PropertyRef(
+        "value", description="DNS record value returned for the record name and type."
+    )
+    lastupdated: PropertyRef = PropertyRef(
+        "lastupdated",
+        set_in_kwargs=True,
+        description="Timestamp of the last sync that updated this `AWSDNSRecord` node.",
+    )
 
 
 @dataclass(frozen=True)
@@ -28,6 +40,8 @@ class AWSDNSRecordToZoneRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class AWSDNSRecordToZoneRel(CartographyRelSchema):
+    "Represents a `MEMBER_OF_DNS_ZONE` relationship from `AWSDNSRecord` to `AWSDNSZone`."
+
     target_node_label: str = "AWSDNSZone"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"zoneid": PropertyRef("zoneid")}
@@ -44,6 +58,8 @@ class AWSDNSRecordToAWSAccountRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class AWSDNSRecordToAWSAccountRel(CartographyRelSchema):
+    "Represents a `RESOURCE` relationship from `AWSAccount` to `AWSDNSRecord`."
+
     target_node_label: str = "AWSAccount"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("AWS_ID", set_in_kwargs=True)}
@@ -62,6 +78,8 @@ class AWSDNSRecordToNameServerRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class AWSDNSRecordToNameServerRel(CartographyRelSchema):
+    "Represents a `DNS_POINTS_TO` relationship from `AWSDNSRecord` to `AWSNameServer`."
+
     target_node_label: str = "AWSNameServer"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {
@@ -82,6 +100,8 @@ class AWSDNSRecordToEC2InstanceRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class AWSDNSRecordToEC2InstanceRel(CartographyRelSchema):
+    "Represents a `DNS_POINTS_TO` relationship from `AWSDNSRecord` to `AWSEC2Instance`."
+
     target_node_label: str = "AWSEC2Instance"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {
@@ -102,6 +122,8 @@ class AWSDNSRecordToLoadBalancerRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class AWSDNSRecordToLoadBalancerRel(CartographyRelSchema):
+    "Represents a `DNS_POINTS_TO` relationship from `AWSDNSRecord` to `AWSLoadBalancer`."
+
     target_node_label: str = "AWSLoadBalancer"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {
@@ -122,6 +144,8 @@ class AWSDNSRecordToLoadBalancerV2RelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class AWSDNSRecordToLoadBalancerV2Rel(CartographyRelSchema):
+    "Represents a `DNS_POINTS_TO` relationship from `AWSDNSRecord` to `AWSLoadBalancerV2`."
+
     target_node_label: str = "AWSLoadBalancerV2"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {
@@ -142,6 +166,8 @@ class AWSDNSRecordToESDomainRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class AWSDNSRecordToESDomainRel(CartographyRelSchema):
+    "Represents a `DNS_POINTS_TO` relationship from `AWSDNSRecord` to `AWSESDomain`."
+
     target_node_label: str = "AWSESDomain"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {
@@ -162,6 +188,8 @@ class AWSDNSRecordToDNSRecordRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class AWSDNSRecordToDNSRecordRel(CartographyRelSchema):
+    "Represents a `DNS_POINTS_TO` relationship from `AWSDNSRecord` to `AWSDNSRecord`."
+
     target_node_label: str = "AWSDNSRecord"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {
@@ -182,6 +210,8 @@ class AWSDNSRecordToIpRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class AWSDNSRecordToIpRel(CartographyRelSchema):
+    "Represents a `DNS_POINTS_TO` relationship from `AWSDNSRecord` to `Ip`."
+
     target_node_label: str = "Ip"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {
@@ -200,6 +230,8 @@ class AWSDNSRecordToElasticIPAddressRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class AWSDNSRecordToElasticIPAddressRel(CartographyRelSchema):
+    "Represents a `DNS_POINTS_TO` relationship from `AWSDNSRecord` to `AWSElasticIPAddress`."
+
     target_node_label: str = "AWSElasticIPAddress"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {
@@ -214,6 +246,8 @@ class AWSDNSRecordToElasticIPAddressRel(CartographyRelSchema):
 
 
 class AWSDNSRecordSchema(CartographyNodeSchema):
+    "Represents an `AWSDNSRecord` node in the AWS graph."
+
     label: str = "AWSDNSRecord"
     properties: AWSDNSRecordNodeProperties = AWSDNSRecordNodeProperties()
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["DNSRecord"])

@@ -14,72 +14,130 @@ from cartography.models.core.relationships import TargetNodeMatcher
 
 @dataclass(frozen=True)
 class ESDomainNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("DomainId")
-    domainid: PropertyRef = PropertyRef("DomainId", extra_index=True)
-    arn: PropertyRef = PropertyRef("ARN", extra_index=True)
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
-    deleted: PropertyRef = PropertyRef("Deleted")
-    created: PropertyRef = PropertyRef("Created")
-    endpoint: PropertyRef = PropertyRef("Endpoint")
-    name: PropertyRef = PropertyRef("DomainName", extra_index=True)
-    elasticsearch_version: PropertyRef = PropertyRef("ElasticsearchVersion")
-    engine: PropertyRef = PropertyRef("Engine")
-    exposed_internet: PropertyRef = PropertyRef("exposed_internet")
+    id: PropertyRef = PropertyRef(
+        "DomainId", description="Unique identifier for this `AWSESDomain` node."
+    )
+    domainid: PropertyRef = PropertyRef(
+        "DomainId",
+        extra_index=True,
+        description="Identifier of the domain linked to this `AWSESDomain` node.",
+    )
+    arn: PropertyRef = PropertyRef(
+        "ARN",
+        extra_index=True,
+        description="Amazon Resource Name (ARN) of this `AWSESDomain` node.",
+    )
+    lastupdated: PropertyRef = PropertyRef(
+        "lastupdated",
+        set_in_kwargs=True,
+        description="Timestamp of the last sync that updated this `AWSESDomain` node.",
+    )
+    deleted: PropertyRef = PropertyRef(
+        "Deleted", description="Whether this `AWSESDomain` node is marked as deleted."
+    )
+    created: PropertyRef = PropertyRef(
+        "Created", description="Whether this `AWSESDomain` node has been created."
+    )
+    endpoint: PropertyRef = PropertyRef(
+        "Endpoint", description="Network endpoint used to access the search domain."
+    )
+    name: PropertyRef = PropertyRef(
+        "DomainName", extra_index=True, description="Name of this `AWSESDomain` node."
+    )
+    elasticsearch_version: PropertyRef = PropertyRef(
+        "ElasticsearchVersion",
+        description="Elasticsearch engine version running on the domain.",
+    )
+    engine: PropertyRef = PropertyRef(
+        "Engine", description="Search engine family running on the domain."
+    )
+    exposed_internet: PropertyRef = PropertyRef(
+        "exposed_internet",
+        description="Whether this `AWSESDomain` node is exposed to the public internet.",
+    )
     # Cluster config properties (flattened)
     elasticsearch_cluster_config_instancetype: PropertyRef = PropertyRef(
-        "ElasticsearchClusterConfigInstanceType"
+        "ElasticsearchClusterConfigInstanceType",
+        description="EC2 instance type used by data nodes in the search cluster.",
     )
     elasticsearch_cluster_config_instancecount: PropertyRef = PropertyRef(
-        "ElasticsearchClusterConfigInstanceCount"
+        "ElasticsearchClusterConfigInstanceCount",
+        description="Number of data-node instances in the search cluster.",
     )
     elasticsearch_cluster_config_dedicatedmasterenabled: PropertyRef = PropertyRef(
-        "ElasticsearchClusterConfigDedicatedMasterEnabled"
+        "ElasticsearchClusterConfigDedicatedMasterEnabled",
+        description="Whether elasticsearch cluster config dedicated master is enabled for this `AWSESDomain` node.",
     )
     elasticsearch_cluster_config_zoneawarenessenabled: PropertyRef = PropertyRef(
-        "ElasticsearchClusterConfigZoneAwarenessEnabled"
+        "ElasticsearchClusterConfigZoneAwarenessEnabled",
+        description="Whether elasticsearch cluster config zone awareness is enabled for this `AWSESDomain` node.",
     )
     elasticsearch_cluster_config_dedicatedmastertype: PropertyRef = PropertyRef(
-        "ElasticsearchClusterConfigDedicatedMasterType"
+        "ElasticsearchClusterConfigDedicatedMasterType",
+        description="EC2 instance type used by dedicated master nodes.",
     )
     elasticsearch_cluster_config_dedicatedmastercount: PropertyRef = PropertyRef(
-        "ElasticsearchClusterConfigDedicatedMasterCount"
+        "ElasticsearchClusterConfigDedicatedMasterCount",
+        description="Number of dedicated master nodes in the search cluster.",
     )
     # EBS options (flattened)
-    ebs_options_ebsenabled: PropertyRef = PropertyRef("EBSOptionsEBSEnabled")
-    ebs_options_volumetype: PropertyRef = PropertyRef("EBSOptionsVolumeType")
-    ebs_options_volumesize: PropertyRef = PropertyRef("EBSOptionsVolumeSize")
-    ebs_options_iops: PropertyRef = PropertyRef("EBSOptionsIops")
+    ebs_options_ebsenabled: PropertyRef = PropertyRef(
+        "EBSOptionsEBSEnabled",
+        description="Whether ebs options ebs is enabled for this `AWSESDomain` node.",
+    )
+    ebs_options_volumetype: PropertyRef = PropertyRef(
+        "EBSOptionsVolumeType",
+        description="EBS volume type attached to each search data node.",
+    )
+    ebs_options_volumesize: PropertyRef = PropertyRef(
+        "EBSOptionsVolumeSize",
+        description="EBS storage size in GiB allocated to each search data node.",
+    )
+    ebs_options_iops: PropertyRef = PropertyRef(
+        "EBSOptionsIops",
+        description="Provisioned IOPS configured for each search data-node volume.",
+    )
     # Encryption options (flattened)
     encryption_at_rest_options_enabled: PropertyRef = PropertyRef(
-        "EncryptionAtRestOptionsEnabled"
+        "EncryptionAtRestOptionsEnabled",
+        description="Whether encryption at rest options is enabled for this `AWSESDomain` node.",
     )
     encryption_at_rest_options_kms_key_id: PropertyRef = PropertyRef(
-        "EncryptionAtRestOptionsKmsKeyId"
+        "EncryptionAtRestOptionsKmsKeyId",
+        description="Identifier of the encryption at rest options KMS key linked to this `AWSESDomain` node.",
     )
     # Log publishing options (per log type)
     log_publishing_index_slow_logs_enabled: PropertyRef = PropertyRef(
-        "LogPublishingIndexSlowLogsEnabled"
+        "LogPublishingIndexSlowLogsEnabled",
+        description="Whether log publishing index slow logs is enabled for this `AWSESDomain` node.",
     )
     log_publishing_index_slow_logs_arn: PropertyRef = PropertyRef(
-        "LogPublishingIndexSlowLogsArn"
+        "LogPublishingIndexSlowLogsArn",
+        description="ARN of the log publishing index slow logs linked to this `AWSESDomain` node.",
     )
     log_publishing_search_slow_logs_enabled: PropertyRef = PropertyRef(
-        "LogPublishingSearchSlowLogsEnabled"
+        "LogPublishingSearchSlowLogsEnabled",
+        description="Whether log publishing search slow logs is enabled for this `AWSESDomain` node.",
     )
     log_publishing_search_slow_logs_arn: PropertyRef = PropertyRef(
-        "LogPublishingSearchSlowLogsArn"
+        "LogPublishingSearchSlowLogsArn",
+        description="ARN of the log publishing search slow logs linked to this `AWSESDomain` node.",
     )
     log_publishing_es_application_logs_enabled: PropertyRef = PropertyRef(
-        "LogPublishingEsApplicationLogsEnabled"
+        "LogPublishingEsApplicationLogsEnabled",
+        description="Whether log publishing elasticsearch application logs is enabled for this `AWSESDomain` node.",
     )
     log_publishing_es_application_logs_arn: PropertyRef = PropertyRef(
-        "LogPublishingEsApplicationLogsArn"
+        "LogPublishingEsApplicationLogsArn",
+        description="ARN of the log publishing Elasticsearch application logs linked to this `AWSESDomain` node.",
     )
     log_publishing_audit_logs_enabled: PropertyRef = PropertyRef(
-        "LogPublishingAuditLogsEnabled"
+        "LogPublishingAuditLogsEnabled",
+        description="Whether log publishing audit logs is enabled for this `AWSESDomain` node.",
     )
     log_publishing_audit_logs_arn: PropertyRef = PropertyRef(
-        "LogPublishingAuditLogsArn"
+        "LogPublishingAuditLogsArn",
+        description="ARN of the log publishing audit logs linked to this `AWSESDomain` node.",
     )
 
 
@@ -90,6 +148,8 @@ class ESDomainToAWSAccountRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class ESDomainToAWSAccountRel(CartographyRelSchema):
+    "Represents a `RESOURCE` relationship from `AWSAccount` to `AWSESDomain`."
+
     target_node_label: str = "AWSAccount"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("AWS_ID", set_in_kwargs=True)},
@@ -106,6 +166,8 @@ class ESDomainToEC2SubnetRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class ESDomainToEC2SubnetRel(CartographyRelSchema):
+    "Represents a `PART_OF_SUBNET` relationship from `AWSESDomain` to `AWSEC2Subnet`."
+
     target_node_label: str = "AWSEC2Subnet"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("SubnetIds", one_to_many=True)},
@@ -122,6 +184,8 @@ class ESDomainToEC2SecurityGroupRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class ESDomainToEC2SecurityGroupRel(CartographyRelSchema):
+    "Represents a `MEMBER_OF_EC2_SECURITY_GROUP` relationship from `AWSESDomain` to `AWSEC2SecurityGroup`."
+
     target_node_label: str = "AWSEC2SecurityGroup"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("SecurityGroupIds", one_to_many=True)},
