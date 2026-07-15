@@ -3,6 +3,7 @@ from dataclasses import dataclass
 from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeProperties
 from cartography.models.core.nodes import CartographyNodeSchema
+from cartography.models.core.nodes import ExtraNodeLabels
 from cartography.models.core.relationships import CartographyRelProperties
 from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
@@ -64,7 +65,7 @@ class CloudTrailTrailToS3BucketRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class CloudTrailTrailToS3BucketRel(CartographyRelSchema):
-    target_node_label: str = "S3Bucket"
+    target_node_label: str = "AWSS3Bucket"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"name": PropertyRef("S3BucketName")},
     )
@@ -82,7 +83,7 @@ class CloudTrailTrailToCloudWatchLogGroupRelProperties(CartographyRelProperties)
 
 @dataclass(frozen=True)
 class CloudTrailTrailToCloudWatchLogGroupRel(CartographyRelSchema):
-    target_node_label: str = "CloudWatchLogGroup"
+    target_node_label: str = "AWSCloudWatchLogGroup"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {
             "id": PropertyRef("CloudWatchLogsLogGroupArn"),
@@ -97,7 +98,9 @@ class CloudTrailTrailToCloudWatchLogGroupRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class CloudTrailTrailSchema(CartographyNodeSchema):
-    label: str = "CloudTrailTrail"
+    label: str = "AWSCloudTrailTrail"
+    # DEPRECATED: legacy CloudTrailTrail node label will be removed in v1.0.0.
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["CloudTrailTrail"])
     properties: CloudTrailTrailNodeProperties = CloudTrailTrailNodeProperties()
     sub_resource_relationship: CloudTrailToAWSAccountRel = CloudTrailToAWSAccountRel()
     other_relationships: OtherRelationships = OtherRelationships(

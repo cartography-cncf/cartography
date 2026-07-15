@@ -3,6 +3,7 @@ from dataclasses import dataclass
 from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeProperties
 from cartography.models.core.nodes import CartographyNodeSchema
+from cartography.models.core.nodes import ExtraNodeLabels
 from cartography.models.core.relationships import CartographyRelProperties
 from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
@@ -45,7 +46,7 @@ class DynamoDBArchivalSummaryToTableRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class DynamoDBArchivalSummaryToTableRel(CartographyRelSchema):
-    target_node_label: str = "DynamoDBTable"
+    target_node_label: str = "AWSDynamoDBTable"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("TableArn")},
     )
@@ -63,7 +64,7 @@ class DynamoDBArchivalSummaryToBackupRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class DynamoDBArchivalSummaryToBackupRel(CartographyRelSchema):
-    target_node_label: str = "DynamoDBBackup"
+    target_node_label: str = "AWSDynamoDBBackup"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("ArchivalBackupArn")},
     )
@@ -76,7 +77,9 @@ class DynamoDBArchivalSummaryToBackupRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class DynamoDBArchivalSummarySchema(CartographyNodeSchema):
-    label: str = "DynamoDBArchivalSummary"
+    label: str = "AWSDynamoDBArchivalSummary"
+    # DEPRECATED: legacy DynamoDBArchivalSummary node label will be removed in v1.0.0.
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["DynamoDBArchivalSummary"])
     properties: DynamoDBArchivalSummaryNodeProperties = (
         DynamoDBArchivalSummaryNodeProperties()
     )

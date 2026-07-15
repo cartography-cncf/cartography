@@ -26,6 +26,13 @@ def _ensure_local_neo4j_has_test_instances(neo4j_session):
     )
 
 
+def _ensure_local_neo4j_has_test_flexible_ip(neo4j_session):
+    neo4j_session.run(
+        "MERGE (:ScalewayFlexibleIp {id: $id})",
+        id=tests.data.scaleway.instances.TEST_FLEXIBLE_IP_ID,
+    )
+
+
 @patch.object(
     cartography.intel.scaleway.instances.instances,
     "get",
@@ -40,6 +47,7 @@ def test_load_scaleway_instances(_mock_get, neo4j_session):
     }
     _ensure_local_neo4j_has_test_projects_and_orgs(neo4j_session)
     _ensure_local_neo4j_has_test_volumes(neo4j_session)
+    _ensure_local_neo4j_has_test_flexible_ip(neo4j_session)
 
     # Act
     cartography.intel.scaleway.instances.instances.sync(
@@ -103,4 +111,24 @@ def test_load_scaleway_instances(_mock_get, neo4j_session):
             rel_direction_right=True,
         )
         == expected_volume_rels
+    )
+
+    # Assert Flexible IPs identify their attached instances
+    expected_flexible_ip_rels = {
+        (
+            tests.data.scaleway.instances.TEST_FLEXIBLE_IP_ID,
+            "345627e9-18ff-47e0-b73d-3f38fddb4390",
+        ),
+    }
+    assert (
+        check_rels(
+            neo4j_session,
+            "ScalewayFlexibleIp",
+            "id",
+            "ScalewayInstance",
+            "id",
+            "IDENTIFIES",
+            rel_direction_right=True,
+        )
+        == expected_flexible_ip_rels
     )

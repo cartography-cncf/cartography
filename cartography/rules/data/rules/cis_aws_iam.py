@@ -40,7 +40,7 @@ CIS_REFERENCES = [
 
 # =============================================================================
 # CIS AWS 2.13: Access keys not rotated in 90 days
-# Main node: AccountAccessKey
+# Main node: AWSAccountAccessKey
 # =============================================================================
 class AccessKeyNotRotatedOutput(Finding):
     """Output model for access key rotation check."""
@@ -63,7 +63,7 @@ _aws_access_key_not_rotated = Fact(
         "compromised keys to be used maliciously."
     ),
     cypher_query="""
-    MATCH (a:AWSAccount)-[:RESOURCE]->(user:AWSUser)-[:AWS_ACCESS_KEY]->(key:AccountAccessKey)
+    MATCH (a:AWSAccount)-[:RESOURCE]->(user:AWSUser)-[:AWS_ACCESS_KEY]->(key:AWSAccountAccessKey)
     WHERE key.status = 'Active'
       AND key.createdate_dt IS NOT NULL
       AND date(datetime(key.createdate_dt)) < date() - duration('P90D')
@@ -77,14 +77,14 @@ _aws_access_key_not_rotated = Fact(
         a.name AS account
     """,
     cypher_visual_query="""
-    MATCH p=(a:AWSAccount)-[:RESOURCE]->(user:AWSUser)-[:AWS_ACCESS_KEY]->(key:AccountAccessKey)
+    MATCH p=(a:AWSAccount)-[:RESOURCE]->(user:AWSUser)-[:AWS_ACCESS_KEY]->(key:AWSAccountAccessKey)
     WHERE key.status = 'Active'
       AND key.createdate_dt IS NOT NULL
       AND date(datetime(key.createdate_dt)) < date() - duration('P90D')
     RETURN *
     """,
     cypher_count_query="""
-    MATCH (key:AccountAccessKey)
+    MATCH (key:AWSAccountAccessKey)
     RETURN COUNT(key) AS count
     """,
     identity_fields=("access_key_id",),
@@ -113,7 +113,7 @@ aws_access_keys_not_rotated = Rule(
 
 # =============================================================================
 # CIS AWS 2.11: Credentials unused for 45 days or more
-# Main node: AccountAccessKey
+# Main node: AWSAccountAccessKey
 # =============================================================================
 class UnusedCredentialsOutput(Finding):
     """Output model for unused credentials check."""
@@ -135,7 +135,7 @@ _aws_unused_credentials = Fact(
         "Unused credentials should be disabled to reduce the attack surface."
     ),
     cypher_query="""
-    MATCH (a:AWSAccount)-[:RESOURCE]->(user:AWSUser)-[:AWS_ACCESS_KEY]->(key:AccountAccessKey)
+    MATCH (a:AWSAccount)-[:RESOURCE]->(user:AWSUser)-[:AWS_ACCESS_KEY]->(key:AWSAccountAccessKey)
     WHERE key.status = 'Active'
     WITH a, user, key
     WHERE (key.lastuseddate_dt IS NOT NULL AND date(datetime(key.lastuseddate_dt)) < date() - duration('P45D'))
@@ -151,7 +151,7 @@ _aws_unused_credentials = Fact(
         a.name AS account
     """,
     cypher_visual_query="""
-    MATCH p=(a:AWSAccount)-[:RESOURCE]->(user:AWSUser)-[:AWS_ACCESS_KEY]->(key:AccountAccessKey)
+    MATCH p=(a:AWSAccount)-[:RESOURCE]->(user:AWSUser)-[:AWS_ACCESS_KEY]->(key:AWSAccountAccessKey)
     WHERE key.status = 'Active'
     WITH p, a, user, key
     WHERE (key.lastuseddate_dt IS NOT NULL AND date(datetime(key.lastuseddate_dt)) < date() - duration('P45D'))
@@ -160,7 +160,7 @@ _aws_unused_credentials = Fact(
     RETURN *
     """,
     cypher_count_query="""
-    MATCH (key:AccountAccessKey)
+    MATCH (key:AWSAccountAccessKey)
     RETURN COUNT(key) AS count
     """,
     identity_fields=("access_key_id",),
@@ -286,7 +286,7 @@ _aws_multiple_access_keys = Fact(
         "active keys increases the attack surface and makes key rotation more complex."
     ),
     cypher_query="""
-    MATCH (a:AWSAccount)-[:RESOURCE]->(user:AWSUser)-[:AWS_ACCESS_KEY]->(key:AccountAccessKey)
+    MATCH (a:AWSAccount)-[:RESOURCE]->(user:AWSUser)-[:AWS_ACCESS_KEY]->(key:AWSAccountAccessKey)
     WHERE key.status = 'Active'
     WITH a, user, collect(key) AS keys
     WHERE size(keys) > 1
@@ -299,7 +299,7 @@ _aws_multiple_access_keys = Fact(
         a.name AS account
     """,
     cypher_visual_query="""
-    MATCH p=(a:AWSAccount)-[:RESOURCE]->(user:AWSUser)-[:AWS_ACCESS_KEY]->(key:AccountAccessKey)
+    MATCH p=(a:AWSAccount)-[:RESOURCE]->(user:AWSUser)-[:AWS_ACCESS_KEY]->(key:AWSAccountAccessKey)
     WHERE key.status = 'Active'
     WITH a, user, collect(key) AS keys, collect(p) AS paths
     WHERE size(keys) > 1
@@ -336,7 +336,7 @@ aws_users_with_multiple_active_access_keys = Rule(
 
 # =============================================================================
 # CIS AWS 2.18: Expired SSL/TLS certificates
-# Main node: ACMCertificate
+# Main node: AWSACMCertificate
 # =============================================================================
 class ExpiredCertificatesOutput(Finding):
     """Output model for expired certificates check."""
@@ -359,7 +359,7 @@ _aws_expired_certificates = Fact(
         "with valid certificates."
     ),
     cypher_query="""
-    MATCH (a:AWSAccount)-[:RESOURCE]->(cert:ACMCertificate)
+    MATCH (a:AWSAccount)-[:RESOURCE]->(cert:AWSACMCertificate)
     WHERE cert.not_after IS NOT NULL
       AND date(cert.not_after) < date()
     RETURN
@@ -372,13 +372,13 @@ _aws_expired_certificates = Fact(
         a.name AS account
     """,
     cypher_visual_query="""
-    MATCH p=(a:AWSAccount)-[:RESOURCE]->(cert:ACMCertificate)
+    MATCH p=(a:AWSAccount)-[:RESOURCE]->(cert:AWSACMCertificate)
     WHERE cert.not_after IS NOT NULL
       AND date(cert.not_after) < date()
     RETURN *
     """,
     cypher_count_query="""
-    MATCH (cert:ACMCertificate)
+    MATCH (cert:AWSACMCertificate)
     RETURN COUNT(cert) AS count
     """,
     identity_fields=("certificate_arn",),

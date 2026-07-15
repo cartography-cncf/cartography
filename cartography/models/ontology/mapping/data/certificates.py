@@ -12,7 +12,7 @@ aws_mapping = OntologyMapping(
     module_name="aws",
     nodes=[
         OntologyNodeMapping(
-            node_label="ACMCertificate",
+            node_label="AWSACMCertificate",
             fields=[
                 OntologyFieldMapping(
                     ontology_field="domain", node_field="domainname", required=True

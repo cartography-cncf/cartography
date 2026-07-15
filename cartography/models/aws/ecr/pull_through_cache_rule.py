@@ -3,6 +3,7 @@ from dataclasses import dataclass
 from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeProperties
 from cartography.models.core.nodes import CartographyNodeSchema
+from cartography.models.core.nodes import ExtraNodeLabels
 from cartography.models.core.relationships import CartographyRelProperties
 from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
@@ -49,7 +50,7 @@ class ECRPullThroughCacheRuleToAWSAccountRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class ECRPullThroughCacheRuleToSecretsManagerSecretRel(CartographyRelSchema):
-    target_node_label: str = "SecretsManagerSecret"
+    target_node_label: str = "AWSSecretsManagerSecret"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"arn": PropertyRef("credential_arn")}
     )
@@ -75,7 +76,9 @@ class ECRPullThroughCacheRuleToAWSRoleRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class ECRPullThroughCacheRuleSchema(CartographyNodeSchema):
-    label: str = "ECRPullThroughCacheRule"
+    label: str = "AWSECRPullThroughCacheRule"
+    # DEPRECATED: legacy ECRPullThroughCacheRule node label will be removed in v1.0.0.
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["ECRPullThroughCacheRule"])
     properties: ECRPullThroughCacheRuleNodeProperties = (
         ECRPullThroughCacheRuleNodeProperties()
     )

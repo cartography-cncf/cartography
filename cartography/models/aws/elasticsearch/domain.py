@@ -24,6 +24,7 @@ class ESDomainNodeProperties(CartographyNodeProperties):
     name: PropertyRef = PropertyRef("DomainName", extra_index=True)
     elasticsearch_version: PropertyRef = PropertyRef("ElasticsearchVersion")
     engine: PropertyRef = PropertyRef("Engine")
+    exposed_internet: PropertyRef = PropertyRef("exposed_internet")
     # Cluster config properties (flattened)
     elasticsearch_cluster_config_instancetype: PropertyRef = PropertyRef(
         "ElasticsearchClusterConfigInstanceType"
@@ -105,7 +106,7 @@ class ESDomainToEC2SubnetRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class ESDomainToEC2SubnetRel(CartographyRelSchema):
-    target_node_label: str = "EC2Subnet"
+    target_node_label: str = "AWSEC2Subnet"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("SubnetIds", one_to_many=True)},
     )
@@ -121,7 +122,7 @@ class ESDomainToEC2SecurityGroupRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class ESDomainToEC2SecurityGroupRel(CartographyRelSchema):
-    target_node_label: str = "EC2SecurityGroup"
+    target_node_label: str = "AWSEC2SecurityGroup"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("SecurityGroupIds", one_to_many=True)},
     )
@@ -141,7 +142,7 @@ class ESDomainSchema(CartographyNodeSchema):
     flattened so each combination is a separate row.
     """
 
-    label: str = "ESDomain"
+    label: str = "AWSESDomain"
     properties: ESDomainNodeProperties = ESDomainNodeProperties()
     sub_resource_relationship: ESDomainToAWSAccountRel = ESDomainToAWSAccountRel()
     other_relationships: OtherRelationships = OtherRelationships(
@@ -150,4 +151,5 @@ class ESDomainSchema(CartographyNodeSchema):
             ESDomainToEC2SecurityGroupRel(),
         ],
     )
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["Database"])
+    # DEPRECATED: legacy ESDomain node label will be removed in v1.0.0.
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["ESDomain", "Database"])

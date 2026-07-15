@@ -7,15 +7,20 @@ from cartography.client.core.tx import read_list_of_values_tx
 from cartography.config import Config
 from cartography.graph.job import GraphJob
 from cartography.intel.crowdstrike.endpoints import sync_hosts
+from cartography.intel.crowdstrike.label_migrations import (
+    migrate_spotlight_vulnerability_label,
+)
 from cartography.intel.crowdstrike.spotlight import sync_vulnerabilities
 from cartography.intel.crowdstrike.util import get_authorization
 from cartography.models.crowdstrike.hosts import CrowdstrikeHostSchema
 from cartography.models.crowdstrike.spotlight import CrowdstrikeCVESchema
+from cartography.models.crowdstrike.spotlight import (
+    LegacyUnscopedSpotlightVulnerabilityCleanupSchema,
+)
 from cartography.models.crowdstrike.spotlight import SpotlightVulnerabilitySchema
 from cartography.stats import get_stats_client
 from cartography.util import merge_module_sync_metadata
 from cartography.util import run_analysis_job
-from cartography.util import run_cleanup_job
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
@@ -45,6 +50,7 @@ def start_crowdstrike_ingestion(
         config.crowdstrike_client_secret,
         config.crowdstrike_api_url,
     )
+    migrate_spotlight_vulnerability_label(neo4j_session)
     sync_hosts(
         neo4j_session,
         config.update_tag,
@@ -86,7 +92,7 @@ def cleanup(
 ) -> None:
     logger.info("Running Crowdstrike cleanup")
     # DEPRECATED: compatibility migration to backfill CrowdstrikeTenant nodes
-    # and the RESOURCE edges scoping CrowdstrikeHost / SpotlightVulnerability
+    # and the RESOURCE edges scoping CrowdstrikeHost / CrowdstrikeSpotlightVulnerability
     # to them. Remove in v1.0.0.
     run_analysis_job(
         "crowdstrike_tenant_resource_edge_migration.json",
@@ -111,13 +117,9 @@ def cleanup(
         neo4j_session
     )
 
-    # Cleanup other crowdstrike assets not handled by the data model.
-    # CrowdstrikeTenant nodes themselves are not auto-deleted: they follow the
-    # same convention as other tenant roots (AWSAccount, GitHubOrganization,
-    # ...), which stay in the graph even when no longer surfaced by the API
-    # so the operator decides when to remove them.
-    run_cleanup_job(
-        "crowdstrike_import_cleanup.json",
-        neo4j_session,
+    # DEPRECATED: compatibility cleanup for unscoped Spotlight data will be removed in v1.0.0.
+    GraphJob.from_node_schema(
+        LegacyUnscopedSpotlightVulnerabilityCleanupSchema(),
         common_job_parameters,
-    )
+        iterationsize=100,
+    ).run(neo4j_session)

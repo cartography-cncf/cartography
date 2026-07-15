@@ -3,6 +3,7 @@ from dataclasses import dataclass
 from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeProperties
 from cartography.models.core.nodes import CartographyNodeSchema
+from cartography.models.core.nodes import ExtraNodeLabels
 from cartography.models.core.relationships import CartographyRelProperties
 from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
@@ -38,7 +39,7 @@ class RedshiftClusterToAWSAccountRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
-# (:AWSAccount)-[:RESOURCE]->(:RedshiftCluster)
+# (:AWSAccount)-[:RESOURCE]->(:AWSRedshiftCluster)
 @dataclass(frozen=True)
 class RedshiftClusterToAWSAccountRel(CartographyRelSchema):
     target_node_label: str = "AWSAccount"
@@ -57,10 +58,10 @@ class RedshiftClusterToEC2SecurityGroupRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
-# (:RedshiftCluster)-[:MEMBER_OF_EC2_SECURITY_GROUP]->(:EC2SecurityGroup)
+# (:AWSRedshiftCluster)-[:MEMBER_OF_EC2_SECURITY_GROUP]->(:AWSEC2SecurityGroup)
 @dataclass(frozen=True)
 class RedshiftClusterToEC2SecurityGroupRel(CartographyRelSchema):
-    target_node_label: str = "EC2SecurityGroup"
+    target_node_label: str = "AWSEC2SecurityGroup"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("_security_group_ids", one_to_many=True)},
     )
@@ -76,7 +77,7 @@ class RedshiftClusterToAWSPrincipalRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
-# (:RedshiftCluster)-[:STS_ASSUMEROLE_ALLOW]->(:AWSPrincipal)
+# (:AWSRedshiftCluster)-[:STS_ASSUMEROLE_ALLOW]->(:AWSPrincipal)
 @dataclass(frozen=True)
 class RedshiftClusterToAWSPrincipalRel(CartographyRelSchema):
     target_node_label: str = "AWSPrincipal"
@@ -95,7 +96,7 @@ class RedshiftClusterToAWSVpcRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
-# (:RedshiftCluster)-[:MEMBER_OF_AWS_VPC]->(:AWSVpc)
+# (:AWSRedshiftCluster)-[:MEMBER_OF_AWS_VPC]->(:AWSVpc)
 @dataclass(frozen=True)
 class RedshiftClusterToAWSVpcRel(CartographyRelSchema):
     target_node_label: str = "AWSVpc"
@@ -111,7 +112,9 @@ class RedshiftClusterToAWSVpcRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class RedshiftClusterSchema(CartographyNodeSchema):
-    label: str = "RedshiftCluster"
+    label: str = "AWSRedshiftCluster"
+    # DEPRECATED: legacy RedshiftCluster node label will be removed in v1.0.0.
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["RedshiftCluster"])
     properties: RedshiftClusterNodeProperties = RedshiftClusterNodeProperties()
     sub_resource_relationship: RedshiftClusterToAWSAccountRel = (
         RedshiftClusterToAWSAccountRel()

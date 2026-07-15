@@ -11,7 +11,7 @@ aws_mapping = OntologyMapping(
     module_name="aws",
     nodes=[
         OntologyNodeMapping(
-            node_label="EfsFileSystem",
+            node_label="AWSEfsFileSystem",
             fields=[
                 OntologyFieldMapping(
                     ontology_field="name", node_field="name", required=True

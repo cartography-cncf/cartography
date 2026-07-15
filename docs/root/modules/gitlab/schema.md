@@ -378,7 +378,7 @@ Representation of a software dependency from GitLab's dependency scanning artifa
 
 Representation of a GitLab container registry repository. Each project can have multiple container repositories at different paths (e.g., project root, /app, /worker).
 
-> **Ontology Mapping**: This node has the extra label `ContainerRegistry` to enable cross-platform queries for container registries across different systems (e.g., ECRRepository, GCPArtifactRegistryRepository, GitLabContainerRepository).
+> **Ontology Mapping**: This node has the extra label `ContainerRegistry` to enable cross-platform queries for container registries across different systems (e.g., AWSECRRepository, GCPArtifactRegistryRepository, GitLabContainerRepository).
 
 | Field | Description |
 |-------|--------------|
@@ -419,7 +419,7 @@ Representation of a GitLab container registry repository. Each project can have 
 
 Representation of a tag within a GitLab container repository. Tags are human-readable pointers to container images.
 
-> **Ontology Mapping**: This node has the extra label `ImageTag` to enable cross-platform queries for container image tags across different registries (e.g., ECRRepositoryImage).
+> **Ontology Mapping**: This node has the extra label `ImageTag` to enable cross-platform queries for container image tags across different registries (e.g., AWSECRRepositoryImage).
 
 | Field | Description |
 |-------|--------------|
@@ -465,7 +465,7 @@ Representation of a tag within a GitLab container repository. Tags are human-rea
 
 Representation of a container image identified by its digest. Images are content-addressable and can be referenced by multiple tags. Manifest lists (multi-architecture images) contain references to platform-specific child images.
 
-> **Ontology Mapping**: This node has conditional extra labels based on the image type: `Image` for single-platform images (`type="image"`), or `ImageManifestList` for multi-architecture manifest lists (`type="manifest_list"`). These labels enable cross-platform queries for container images across different systems (e.g., ECRImage, GCPArtifactRegistryImage).
+> **Ontology Mapping**: This node has conditional extra labels based on the image type: `Image` for single-platform images (`type="image"`), or `ImageManifestList` for multi-architecture manifest lists (`type="manifest_list"`). These labels enable cross-platform queries for container images across different systems (e.g., AWSECRImage, GCPArtifactRegistryImage).
 
 | Field | Description |
 |-------|--------------|
@@ -542,7 +542,7 @@ Representation of a container image identified by its digest. Images are content
 
 Representation of a container image layer. Layers are the building blocks of container images, identified by their uncompressed content hash (`diff_id`). Multiple images can share the same layers through Docker's layer deduplication mechanism.
 
-> **Ontology Mapping**: This node has the extra label `ImageLayer` to enable cross-provider queries for container image layers across different systems (e.g., ECRImageLayer). This enables identifying shared layers and vulnerabilities across multiple container registries.
+> **Ontology Mapping**: This node has the extra label `ImageLayer` to enable cross-provider queries for container image layers across different systems (e.g., AWSECRImageLayer). This enables identifying shared layers and vulnerabilities across multiple container registries.
 
 **Note**: Layers are keyed by `diff_id` (uncompressed layer digest from the image config) rather than `digest` (compressed layer digest from the manifest). This ensures consistent cross-provider layer deduplication, as the same layer content may have different compressed digests but will always have the same uncompressed diff_id.
 
@@ -680,7 +680,7 @@ Find layers shared between GitLab and ECR:
 MATCH (layer:ImageLayer)
 WITH layer
 MATCH (gitlab_img:GitLabContainerImage)-[:HAS_LAYER]->(layer)
-MATCH (ecr_img:ECRImage)-[:HAS_LAYER]->(layer)
+MATCH (ecr_img:AWSECRImage)-[:HAS_LAYER]->(layer)
 RETURN layer.diff_id,
        count(DISTINCT gitlab_img) AS gitlab_images,
        count(DISTINCT ecr_img) AS ecr_images
@@ -920,7 +920,7 @@ YAML (all `include:` references expanded by GitLab); otherwise the raw
 `.gitlab-ci.yml` is parsed as a fallback. The `is_merged` flag distinguishes
 the two cases.
 
-> **Ontology Mapping**: This node has the extra label `CICDPipeline` to enable cross-platform queries for CI/CD pipeline definitions across different systems (e.g., CodeBuildProject, GitHubWorkflow, SpaceliftStack).
+> **Ontology Mapping**: This node has the extra label `CICDPipeline` to enable cross-platform queries for CI/CD pipeline definitions across different systems (e.g., AWSCodeBuildProject, GitHubWorkflow, SpaceliftStack).
 
 | Field | Description |
 |-------|-------------|

@@ -44,7 +44,7 @@ def test_load_databricks_tables(mock_get, neo4j_session):
     _ensure_local_neo4j_has_test_catalogs(neo4j_session)
     _ensure_local_neo4j_has_test_schemas(neo4j_session)
     neo4j_session.run(
-        "MERGE (b:S3Bucket {name: $name}) SET b.lastupdated = $tag",
+        "MERGE (b:AWSS3Bucket {name: $name}) SET b.lastupdated = $tag",
         name=DATABRICKS_TABLE_S3_BUCKET,
         tag=TEST_UPDATE_TAG,
     )
@@ -80,12 +80,12 @@ def test_load_databricks_tables(mock_get, neo4j_session):
         (_uc_id("prod.finance"), _uc_id("prod.finance.revenue_view")),
     }
 
-    # External table -> S3Bucket BACKED_BY (parsed from storage_location)
+    # External table -> AWSS3Bucket BACKED_BY (parsed from storage_location)
     assert check_rels(
         neo4j_session,
         "DatabricksTable",
         "id",
-        "S3Bucket",
+        "AWSS3Bucket",
         "name",
         "BACKED_BY",
         rel_direction_right=True,

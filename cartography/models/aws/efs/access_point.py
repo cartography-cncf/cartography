@@ -3,6 +3,7 @@ from dataclasses import dataclass
 from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeProperties
 from cartography.models.core.nodes import CartographyNodeSchema
+from cartography.models.core.nodes import ExtraNodeLabels
 from cartography.models.core.relationships import CartographyRelProperties
 from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
@@ -52,7 +53,7 @@ class EfsAccessPointToEfsFileSystemRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class EfsAccessPointToEfsFileSystemRel(CartographyRelSchema):
-    target_node_label: str = "EfsFileSystem"
+    target_node_label: str = "AWSEfsFileSystem"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("FileSystemId")},
     )
@@ -65,7 +66,9 @@ class EfsAccessPointToEfsFileSystemRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class EfsAccessPointSchema(CartographyNodeSchema):
-    label: str = "EfsAccessPoint"
+    label: str = "AWSEfsAccessPoint"
+    # DEPRECATED: legacy EfsAccessPoint node label will be removed in v1.0.0.
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["EfsAccessPoint"])
     properties: EfsAccessPointNodeProperties = EfsAccessPointNodeProperties()
     sub_resource_relationship: EfsAccessPointToAWSAccountRel = (
         EfsAccessPointToAWSAccountRel()

@@ -86,7 +86,7 @@ semgrep_mapping = OntologyMapping(
     module_name="semgrep",
     nodes=[
         OntologyNodeMapping(
-            # Both GoLibrary and NpmLibrary carry the :SemgrepDependency label.
+            # Both SemgrepGoLibrary and SemgrepNpmLibrary carry the :SemgrepDependency label.
             node_label="SemgrepDependency",
             fields=[
                 OntologyFieldMapping(

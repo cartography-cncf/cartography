@@ -26,8 +26,8 @@ def test_load_subnets(neo4j_session):
         TEST_ACCOUNT_ID,
         TEST_UPDATE_TAG,
     )
-    # Assert that we create EC2Subnet nodes and correctly include their subnetid field
-    assert check_nodes(neo4j_session, "EC2Subnet", ["subnetid", "subnet_arn"]) == {
+    # Assert that we create AWSEC2Subnet nodes and correctly include their subnetid field
+    assert check_nodes(neo4j_session, "AWSEC2Subnet", ["subnetid", "subnet_arn"]) == {
         (
             "subnet-020b2f3928f190ce8",
             "arn:aws:ec2:eu-north-1:000000000000:subnet/subnet-020b2f3928f190ce8",
@@ -82,7 +82,7 @@ def test_load_subnet_relationships(neo4j_session):
     # Fetch relationships
     result = neo4j_session.run(
         """
-        MATCH (n1:AWSAccount)-[:RESOURCE]->(n2:EC2Subnet) RETURN n1.id, n2.subnet_arn;
+        MATCH (n1:AWSAccount)-[:RESOURCE]->(n2:AWSEC2Subnet) RETURN n1.id, n2.subnet_arn;
         """,
     )
     actual = {(r["n1.id"], r["n2.subnet_arn"]) for r in result}
@@ -104,9 +104,9 @@ def test_detect_inconsistent_subnet_property_naming(
     mock_get_instances, mock_get_network_interfaces, neo4j_session
 ):
     """
-    Test to detect inconsistent property naming in EC2Subnet nodes.
+    Test to detect inconsistent property naming in AWSEC2Subnet nodes.
 
-    This test should FAIL when there are EC2Subnet nodes with inconsistent
+    This test should FAIL when there are AWSEC2Subnet nodes with inconsistent
     property naming (some with 'subnetid', others with 'subnet_id').
     The test should PASS when all nodes use consistent property naming.
     """
@@ -143,7 +143,7 @@ def test_detect_inconsistent_subnet_property_naming(
     # Assert: Check for nodes with subnetid but no subnet_id
     result_subnetid_only = neo4j_session.run(
         """
-        MATCH (s:EC2Subnet)
+        MATCH (s:AWSEC2Subnet)
         WHERE s.subnetid IS NOT NULL AND s.subnet_id IS NULL
         RETURN count(s) as count
         """
@@ -153,7 +153,7 @@ def test_detect_inconsistent_subnet_property_naming(
     # Check for nodes with subnet_id but no subnetid
     result_subnet_id_only = neo4j_session.run(
         """
-        MATCH (s:EC2Subnet)
+        MATCH (s:AWSEC2Subnet)
         WHERE s.subnet_id IS NOT NULL AND s.subnetid IS NULL
         RETURN count(s) as count
         """
@@ -163,7 +163,7 @@ def test_detect_inconsistent_subnet_property_naming(
     # The test should FAIL if we have both types of nodes (inconsistent state)
     # This indicates the bug exists
     assert subnetid_only_count == 0 or subnet_id_only_count == 0, (
-        f"Found inconsistent EC2Subnet property naming: "
+        f"Found inconsistent AWSEC2Subnet property naming: "
         f"{subnetid_only_count} nodes with 'subnetid' only, "
         f"{subnet_id_only_count} nodes with 'subnet_id' only. "
         f"All nodes should use consistent property naming."
@@ -216,14 +216,14 @@ def test_sync_subnets(mock_get_subnets, neo4j_session):
     )
 
     # Assert - Test outcomes: verify data is written to the graph as expected
-    # Check that EC2Subnet nodes are created with correct properties
+    # Check that AWSEC2Subnet nodes are created with correct properties
     expected_subnet_nodes = {
         ("subnet-020b2f3928f190ce8", "10.1.2.0/24"),
         ("subnet-0773409557644dca4", "10.1.1.0/24"),
         ("subnet-0fa9c8fa7cb241479", "10.2.1.0/24"),
     }
     assert (
-        check_nodes(neo4j_session, "EC2Subnet", ["subnetid", "cidr_block"])
+        check_nodes(neo4j_session, "AWSEC2Subnet", ["subnetid", "cidr_block"])
         == expected_subnet_nodes
     )
 
@@ -238,7 +238,7 @@ def test_sync_subnets(mock_get_subnets, neo4j_session):
             neo4j_session,
             "AWSAccount",
             "id",
-            "EC2Subnet",
+            "AWSEC2Subnet",
             "subnetid",
             "RESOURCE",
             rel_direction_right=True,
@@ -255,7 +255,7 @@ def test_sync_subnets(mock_get_subnets, neo4j_session):
     assert (
         check_rels(
             neo4j_session,
-            "EC2Subnet",
+            "AWSEC2Subnet",
             "subnetid",
             "AWSVpc",
             "id",
@@ -268,7 +268,7 @@ def test_sync_subnets(mock_get_subnets, neo4j_session):
     # Verify subnet properties are set correctly using check_nodes()
     all_subnet_props = check_nodes(
         neo4j_session,
-        "EC2Subnet",
+        "AWSEC2Subnet",
         ["subnetid", "availability_zone", "state", "available_ip_address_count"],
     )
     assert (
@@ -291,7 +291,7 @@ def test_subnet_ontology_labels(neo4j_session):
         TEST_UPDATE_TAG,
     )
 
-    # Assert: every EC2Subnet carries the Subnet semantic label with normalized
+    # Assert: every AWSEC2Subnet carries the Subnet semantic label with normalized
     # _ont_* properties populated.
     assert check_nodes(
         neo4j_session,

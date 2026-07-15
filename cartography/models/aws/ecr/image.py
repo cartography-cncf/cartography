@@ -34,7 +34,7 @@ class ECRImageBaseNodeProperties(CartographyNodeProperties):
 
 @dataclass(frozen=True)
 class ECRImageNodeProperties(CartographyNodeProperties):
-    """All ECRImage properties including layer/provenance fields managed by ecr_image_layers."""
+    """All AWSECRImage properties including layer/provenance fields managed by ecr_image_layers."""
 
     id: PropertyRef = PropertyRef("imageDigest")
     digest: PropertyRef = PropertyRef("imageDigest", extra_index=True)
@@ -86,7 +86,7 @@ class ECRImageHasLayerRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class ECRImageHasLayerRel(CartographyRelSchema):
-    target_node_label: str = "ECRImageLayer"
+    target_node_label: str = "AWSECRImageLayer"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"diff_id": PropertyRef("layer_diff_ids", one_to_many=True)},
     )
@@ -106,11 +106,11 @@ class ECRImageToParentImageRelProperties(CartographyRelProperties):
 @dataclass(frozen=True)
 class ECRImageToParentImageRel(CartographyRelSchema):
     """
-    Relationship from an ECRImage to its parent ECRImage (BUILT_FROM).
+    Relationship from an AWSECRImage to its parent AWSECRImage (BUILT_FROM).
     This relationship is created when provenance attestations explicitly specify the parent image.
     """
 
-    target_node_label: str = "ECRImage"
+    target_node_label: str = "AWSECRImage"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"digest": PropertyRef("parent_image_digest")},
     )
@@ -129,11 +129,11 @@ class ECRImageContainsImageRelProperties(CartographyRelProperties):
 @dataclass(frozen=True)
 class ECRImageContainsImageRel(CartographyRelSchema):
     """
-    Relationship from a manifest list ECRImage to platform-specific ECRImages it contains.
-    Only applies to ECRImage nodes with type="manifest_list".
+    Relationship from a manifest list AWSECRImage to platform-specific ECRImages it contains.
+    Only applies to AWSECRImage nodes with type="manifest_list".
     """
 
-    target_node_label: str = "ECRImage"
+    target_node_label: str = "AWSECRImage"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"digest": PropertyRef("child_image_digests", one_to_many=True)},
     )
@@ -152,11 +152,11 @@ class ECRImageAttestsRelProperties(CartographyRelProperties):
 @dataclass(frozen=True)
 class ECRImageAttestsRel(CartographyRelSchema):
     """
-    Relationship from an attestation ECRImage to the ECRImage it attests/validates.
-    Only applies to ECRImage nodes with type="attestation".
+    Relationship from an attestation AWSECRImage to the AWSECRImage it attests/validates.
+    Only applies to AWSECRImage nodes with type="attestation".
     """
 
-    target_node_label: str = "ECRImage"
+    target_node_label: str = "AWSECRImage"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"digest": PropertyRef("attests_digest")},
     )
@@ -174,7 +174,7 @@ class ECRImageBaseSchema(CartographyNodeSchema):
     DescribeImages doesn't clear values set by ecr_image_layers.
     """
 
-    label: str = "ECRImage"
+    label: str = "AWSECRImage"
     properties: ECRImageBaseNodeProperties = ECRImageBaseNodeProperties()
     sub_resource_relationship: ECRImageToAWSAccountRel = ECRImageToAWSAccountRel()
     other_relationships: OtherRelationships = OtherRelationships(
@@ -183,8 +183,10 @@ class ECRImageBaseSchema(CartographyNodeSchema):
             ECRImageAttestsRel(),
         ],
     )
+    # DEPRECATED: legacy ECRImage node label will be removed in v1.0.0.
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
         [
+            "ECRImage",
             ConditionalNodeLabel(
                 label="Image",
                 conditions={"type": "image"},
@@ -203,12 +205,12 @@ class ECRImageBaseSchema(CartographyNodeSchema):
 
 @dataclass(frozen=True)
 class ECRImageSchema(CartographyNodeSchema):
-    """Full schema used by ecr_image_layers to enrich ECRImage nodes with layer and provenance data.
+    """Full schema used by ecr_image_layers to enrich AWSECRImage nodes with layer and provenance data.
 
     Also used for cleanup in ecr.py to handle all relationship types (HAS_LAYER, BUILT_FROM, etc.).
     """
 
-    label: str = "ECRImage"
+    label: str = "AWSECRImage"
     properties: ECRImageNodeProperties = ECRImageNodeProperties()
     sub_resource_relationship: ECRImageToAWSAccountRel = ECRImageToAWSAccountRel()
     other_relationships: OtherRelationships = OtherRelationships(
@@ -219,8 +221,10 @@ class ECRImageSchema(CartographyNodeSchema):
             ECRImageAttestsRel(),
         ],
     )
+    # DEPRECATED: legacy ECRImage node label will be removed in v1.0.0.
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
         [
+            "ECRImage",
             ConditionalNodeLabel(
                 label="Image",
                 conditions={"type": "image"},
@@ -239,9 +243,9 @@ class ECRImageSchema(CartographyNodeSchema):
 
 @dataclass(frozen=True)
 class ECRImageLayerEnrichmentSchema(CartographyNodeSchema):
-    """Load ECRImage layer/provenance properties without fan-out HAS_LAYER edges."""
+    """Load AWSECRImage layer/provenance properties without fan-out HAS_LAYER edges."""
 
-    label: str = "ECRImage"
+    label: str = "AWSECRImage"
     properties: ECRImageNodeProperties = ECRImageNodeProperties()
     sub_resource_relationship: ECRImageToAWSAccountRel = ECRImageToAWSAccountRel()
     other_relationships: OtherRelationships = OtherRelationships(
@@ -251,8 +255,10 @@ class ECRImageLayerEnrichmentSchema(CartographyNodeSchema):
             ECRImageAttestsRel(),
         ],
     )
+    # DEPRECATED: legacy ECRImage node label will be removed in v1.0.0.
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
         [
+            "ECRImage",
             ConditionalNodeLabel(
                 label="Image",
                 conditions={"type": "image"},
@@ -280,7 +286,9 @@ class ECRImageHasLayerRelLoadProperties(CartographyNodeProperties):
 class ECRImageHasLayerRelSchema(CartographyNodeSchema):
     """Load bounded HAS_LAYER relationship rows without reloading image metadata."""
 
-    label: str = "ECRImage"
+    label: str = "AWSECRImage"
+    # DEPRECATED: legacy ECRImage node label will be removed in v1.0.0.
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["ECRImage"])
     properties: ECRImageHasLayerRelLoadProperties = ECRImageHasLayerRelLoadProperties()
     other_relationships: OtherRelationships = OtherRelationships(
         [ECRImageHasLayerRel()],

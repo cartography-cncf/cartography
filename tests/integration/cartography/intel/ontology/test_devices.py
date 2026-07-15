@@ -8,7 +8,8 @@ import pytest
 
 import cartography.intel.ontology.devices
 import tests.data.snipeit.tenants
-from cartography.util import run_analysis_job
+from cartography.analysis.ontology.analysis import DEVICE_OWNS_LINKING
+from cartography.util import run_typed_analysis_job
 from tests.integration.cartography.intel.snipeit.test_snipeit_assets import (
     _ensure_local_neo4j_has_test_snipeit_assets,
 )
@@ -272,8 +273,8 @@ def test_link_ontology_devices_ignores_stale_observed_as_relationships(neo4j_ses
         stale_tag=TEST_UPDATE_TAG - 1,
     )
 
-    run_analysis_job(
-        "ontology_devices_linking.json",
+    run_typed_analysis_job(
+        DEVICE_OWNS_LINKING,
         neo4j_session,
         {"UPDATE_TAG": TEST_UPDATE_TAG},
     )
@@ -745,7 +746,7 @@ def test_link_ontology_device_affected_by_crowdstrike_finding(neo4j_session):
             serial_number: 'SN-CROWDSTRIKE-AFFECTS',
             lastupdated: $update_tag
         })
-        CREATE (v:SpotlightVulnerability {id: 'spotlight-vuln-1', lastupdated: $update_tag})
+        CREATE (v:CrowdstrikeSpotlightVulnerability {id: 'spotlight-vuln-1', lastupdated: $update_tag})
         CREATE (f:CrowdstrikeFinding {id: 'CVE-2024-0002', lastupdated: $update_tag})
         MERGE (h)-[hv:HAS_VULNERABILITY]->(v)
         SET hv.lastupdated = $update_tag

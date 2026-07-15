@@ -1,18 +1,30 @@
 import datetime
 import logging
+import os
 import traceback
 from dataclasses import dataclass
 from typing import Any
 from typing import Dict
 from typing import Iterable
 from typing import List
+from typing import Mapping
 
 import aioboto3
 import boto3
 import botocore.exceptions
 import neo4j
 
+from cartography.analysis.aws.analysis import AWS_EC2_ASSET_EXPOSURE_JOBS
+from cartography.analysis.aws.analysis import AWS_EC2_IAM_INSTANCE_PROFILE
+from cartography.analysis.aws.analysis import AWS_EC2_KEYPAIR_ANALYSIS_JOBS
+from cartography.analysis.aws.analysis import AWS_ECS_ASSET_EXPOSURE
+from cartography.analysis.aws.analysis import AWS_EKS_ASSET_EXPOSURE
+from cartography.analysis.aws.analysis import AWS_FOREIGN_ACCOUNTS
+from cartography.analysis.aws.analysis import AWS_LAMBDA_ECR
+from cartography.analysis.aws.analysis import AWS_LB_CONTAINER_EXPOSURE
+from cartography.analysis.aws.analysis import AWS_LB_NACL_DIRECT
 from cartography.config import Config
+from cartography.intel.aws.label_migrations import migrate_legacy_aws_labels
 from cartography.intel.aws.util.botocore_config import create_boto3_client
 from cartography.intel.aws.util.common import parse_and_validate_aws_account_ids
 from cartography.intel.aws.util.common import parse_and_validate_aws_regions
@@ -20,13 +32,14 @@ from cartography.intel.aws.util.common import parse_and_validate_aws_requested_s
 from cartography.stats import get_stats_client
 from cartography.util import merge_module_sync_metadata
 from cartography.util import run_analysis_and_ensure_deps
-from cartography.util import run_analysis_job
 from cartography.util import run_cleanup_job
-from cartography.util import run_scoped_analysis_job
+from cartography.util import run_typed_analysis_and_ensure_deps
+from cartography.util import run_typed_analysis_job
 from cartography.util import timeit
 
 from . import ec2
 from . import organizations
+from . import ssm as ssm_intel
 from .resources import RESOURCE_FUNCTIONS
 
 stat_handler = get_stats_client(__name__)
@@ -96,6 +109,8 @@ def _sync_one_account(
     if aioboto3_session is None:
         aioboto3_session = aioboto3.Session()
 
+    migrate_legacy_aws_labels(neo4j_session, current_aws_account_id)
+
     # Autodiscover the regions supported by the account unless the user has specified the regions to sync.
     if not regions:
         regions = _autodiscover_account_regions(boto3_session, current_aws_account_id)
@@ -131,12 +146,12 @@ def _sync_one_account(
             "ec2:network_interface",
         ],
         "ec2:route_table": ["ec2:vpc_endpoint"],
-        # `ecs` creates IS_INSTANCE rels (ECSContainerInstance→EC2Instance) and
-        # TARGETS matchlinks (ELBV2TargetGroup→ECSService)
+        # `ecs` creates IS_INSTANCE rels (AWSECSContainerInstance→AWSEC2Instance) and
+        # TARGETS matchlinks (AWSELBV2TargetGroup→AWSECSService)
         "ecs": ["ec2:instance", "ec2:load_balancer_v2"],
         "dynamodb": ["kms"],
-        # s3/rds/efs create canonical (:...)-[:ENCRYPTED_BY]->(:KMSKey) edges by
-        # matching existing KMSKey nodes on their ARN, so kms must sync first.
+        # s3/rds/efs create canonical (:...)-[:ENCRYPTED_BY]->(:AWSKMSKey) edges by
+        # matching existing AWSKMSKey nodes on their ARN, so kms must sync first.
         "s3": ["kms"],
         "rds": ["kms"],
         "efs": ["kms"],
@@ -181,14 +196,14 @@ def _sync_one_account(
     if "resourcegroupstaggingapi" in aws_requested_syncs:
         RESOURCE_FUNCTIONS["resourcegroupstaggingapi"](**sync_args)
 
-    run_scoped_analysis_job(
-        "aws_ec2_iaminstanceprofile.json",
+    run_typed_analysis_job(
+        AWS_EC2_IAM_INSTANCE_PROFILE,
         neo4j_session,
         common_job_parameters,
     )
 
-    run_analysis_job(
-        "aws_lambda_ecr.json",
+    run_typed_analysis_job(
+        AWS_LAMBDA_ECR,
         neo4j_session,
         common_job_parameters,
     )
@@ -196,15 +211,15 @@ def _sync_one_account(
     if {"ecs", "ec2:load_balancer_v2", "ec2:load_balancer_v2:expose"}.issubset(
         requested_syncs_set
     ):
-        run_scoped_analysis_job(
-            "aws_lb_container_exposure.json",
+        run_typed_analysis_job(
+            AWS_LB_CONTAINER_EXPOSURE,
             neo4j_session,
             common_job_parameters,
         )
 
     if {"ec2:network_acls", "ec2:load_balancer_v2"}.issubset(requested_syncs_set):
-        run_scoped_analysis_job(
-            "aws_lb_nacl_direct.json",
+        run_typed_analysis_job(
+            AWS_LB_NACL_DIRECT,
             neo4j_session,
             common_job_parameters,
         )
@@ -237,6 +252,72 @@ def _autodiscover_account_regions(
         )
         raise
     return regions
+
+
+def _resolve_aws_ssm_public_parameter_prefix_allowlist(
+    config_value: str | None,
+    env_value: str | None,
+) -> str:
+    if config_value is not None:
+        return config_value
+    if env_value is not None:
+        return env_value
+    return ssm_intel.DEFAULT_PUBLIC_PARAMETER_PREFIX_ALLOWLIST
+
+
+def _get_boto3_session_for_profile(
+    default_boto3_session: boto3.Session,
+    profile_name: str | None,
+) -> boto3.Session:
+    if profile_name in {None, "default"}:
+        return default_boto3_session
+    return boto3.Session(profile_name=profile_name)
+
+
+def _sync_shared_public_ssm_parameters(
+    neo4j_session: neo4j.Session,
+    default_boto3_session: boto3.Session,
+    aws_accounts: Mapping[str, str],
+    requested_syncs: List[str],
+    common_job_parameters: Dict[str, Any],
+    configured_regions: list[str] | None,
+    aws_best_effort_mode: bool,
+) -> None:
+    if "ssm" not in requested_syncs:
+        return
+
+    region_session_candidates: dict[str, list[boto3.Session]] = {}
+    all_profiles_prepared = True
+    for profile_name, account_id in aws_accounts.items():
+        try:
+            boto3_session = _get_boto3_session_for_profile(
+                default_boto3_session,
+                profile_name,
+            )
+            profile_regions = configured_regions or _autodiscover_account_regions(
+                boto3_session,
+                account_id,
+            )
+        except (botocore.exceptions.BotoCoreError, botocore.exceptions.ClientError):
+            if not aws_best_effort_mode:
+                raise
+            logger.warning(
+                "Unable to prepare an AWS profile for shared public SSM parameter sync; continuing because aws-best-effort-mode is on.",
+                exc_info=True,
+            )
+            all_profiles_prepared = False
+            continue
+
+        for region in profile_regions:
+            region_session_candidates.setdefault(region, []).append(boto3_session)
+
+    ssm_intel.sync_public_parameters(
+        neo4j_session,
+        region_session_candidates,
+        common_job_parameters["UPDATE_TAG"],
+        common_job_parameters,
+        cleanup_allowed=all_profiles_prepared,
+    )
 
 
 def _sync_aws_organization_for_account(
@@ -612,46 +693,47 @@ def _perform_aws_analysis(
         neo4j_session,
     )
 
-    ec2_asset_exposure_requirements = {
-        "ec2:instance",
-        "ec2:security_group",
-        "ec2:load_balancer",
-        "ec2:load_balancer_v2",
-    }
-    run_analysis_and_ensure_deps(
-        "aws_ec2_asset_exposure.json",
-        ec2_asset_exposure_requirements,
-        requested_syncs_as_set,
-        common_job_parameters,
-        neo4j_session,
-    )
+    for job in AWS_EC2_ASSET_EXPOSURE_JOBS:
+        run_typed_analysis_and_ensure_deps(
+            job,
+            {
+                "ec2:instance",
+                "ec2:security_group",
+                "ec2:load_balancer",
+                "ec2:load_balancer_v2",
+            },
+            requested_syncs_as_set,
+            common_job_parameters,
+            neo4j_session,
+        )
 
-    run_analysis_and_ensure_deps(
-        "aws_ec2_keypair_analysis.json",
-        {"ec2:keypair"},
-        requested_syncs_as_set,
-        common_job_parameters,
-        neo4j_session,
-    )
+    for job in AWS_EC2_KEYPAIR_ANALYSIS_JOBS:
+        run_typed_analysis_and_ensure_deps(
+            job,
+            {"ec2:keypair"},
+            requested_syncs_as_set,
+            common_job_parameters,
+            neo4j_session,
+        )
 
-    run_analysis_and_ensure_deps(
-        "aws_eks_asset_exposure.json",
+    run_typed_analysis_and_ensure_deps(
+        AWS_EKS_ASSET_EXPOSURE,
         {"eks"},
         requested_syncs_as_set,
         common_job_parameters,
         neo4j_session,
     )
 
-    run_analysis_and_ensure_deps(
-        "aws_foreign_accounts.json",
+    run_typed_analysis_and_ensure_deps(
+        AWS_FOREIGN_ACCOUNTS,
         set(),  # This job has no requirements
         requested_syncs_as_set,
         common_job_parameters,
         neo4j_session,
     )
 
-    run_analysis_and_ensure_deps(
-        "aws_ecs_asset_exposure.json",
+    run_typed_analysis_and_ensure_deps(
+        AWS_ECS_ASSET_EXPOSURE,
         {"ecs", "ec2:load_balancer_v2", "ec2:load_balancer_v2:expose"},
         requested_syncs_as_set,
         common_job_parameters,
@@ -661,6 +743,12 @@ def _perform_aws_analysis(
 
 @timeit
 def start_aws_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
+    aws_ssm_public_parameter_prefix_allowlist = (
+        _resolve_aws_ssm_public_parameter_prefix_allowlist(
+            config.aws_ssm_public_parameter_prefix_allowlist,
+            os.getenv("AWS_SSM_PUBLIC_PARAMETER_PREFIX_ALLOWLIST"),
+        )
+    )
     common_job_parameters = {
         "UPDATE_TAG": config.update_tag,
         "permission_relationships_file": config.permission_relationships_file,
@@ -668,6 +756,7 @@ def start_aws_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
         "aws_cloudtrail_management_events_lookback_hours": config.aws_cloudtrail_management_events_lookback_hours,
         "experimental_aws_inspector_batch": config.experimental_aws_inspector_batch,
         "aws_tagging_api_cleanup_batch": config.aws_tagging_api_cleanup_batch,
+        "aws_ssm_public_parameter_prefix_allowlist": aws_ssm_public_parameter_prefix_allowlist,
     }
     try:
         boto3_session = boto3.Session()
@@ -737,4 +826,13 @@ def start_aws_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
     )
 
     if sync_successful:
+        _sync_shared_public_ssm_parameters(
+            neo4j_session,
+            boto3_session,
+            aws_accounts,
+            requested_syncs,
+            common_job_parameters,
+            regions,
+            config.aws_best_effort_mode,
+        )
         _perform_aws_analysis(requested_syncs, neo4j_session, common_job_parameters)

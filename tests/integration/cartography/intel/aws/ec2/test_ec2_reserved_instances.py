@@ -38,18 +38,18 @@ def test_sync_ec2_reserved_instances(mock_get_reserved_instances, neo4j_session)
 
     # Assert - Nodes
     assert check_nodes(
-        neo4j_session, "EC2ReservedInstance", ["id", "type", "state"]
+        neo4j_session, "AWSEC2ReservedInstance", ["id", "type", "state"]
     ) == {
         ("res-01", "t1.micro", "active"),
         ("res-02", "t2.large", "active"),
     }
 
-    # Assert - Relationships (AWSAccount)-[RESOURCE]->(EC2ReservedInstance)
+    # Assert - Relationships (AWSAccount)-[RESOURCE]->(AWSEC2ReservedInstance)
     assert check_rels(
         neo4j_session,
         "AWSAccount",
         "id",
-        "EC2ReservedInstance",
+        "AWSEC2ReservedInstance",
         "id",
         "RESOURCE",
         rel_direction_right=True,

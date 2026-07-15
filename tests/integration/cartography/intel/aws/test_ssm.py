@@ -75,7 +75,7 @@ def test_load_instance_information(mock_get_instances, neo4j_session):
 
     nodes = neo4j_session.run(
         """
-        MATCH (:AWSAccount{id: "000000000000"})-[:RESOURCE]->(n:SSMInstanceInformation)
+        MATCH (:AWSAccount{id: "000000000000"})-[:RESOURCE]->(n:AWSSSMInstanceInformation)
         RETURN n.id,
                n.last_ping_date_time,
                n.last_association_execution_date,
@@ -95,7 +95,7 @@ def test_load_instance_information(mock_get_instances, neo4j_session):
 
     nodes = neo4j_session.run(
         """
-        MATCH (:EC2Instance{id: "i-01"})-[:HAS_INFORMATION]->(n:SSMInstanceInformation)
+        MATCH (:AWSEC2Instance{id: "i-01"})-[:HAS_INFORMATION]->(n:AWSSSMInstanceInformation)
         RETURN n.id
         """,
     )
@@ -104,7 +104,7 @@ def test_load_instance_information(mock_get_instances, neo4j_session):
 
     nodes = neo4j_session.run(
         """
-        MATCH (:EC2Instance{id: "i-02"})-[:HAS_INFORMATION]->(n:SSMInstanceInformation)
+        MATCH (:AWSEC2Instance{id: "i-02"})-[:HAS_INFORMATION]->(n:AWSSSMInstanceInformation)
         RETURN n.id
         """,
     )
@@ -149,7 +149,7 @@ def test_load_instance_patches(mock_get_instances, neo4j_session):
     }
     nodes = neo4j_session.run(
         """
-        MATCH (:AWSAccount{id: "000000000000"})-[:RESOURCE]->(n:SSMInstancePatch)
+        MATCH (:AWSAccount{id: "000000000000"})-[:RESOURCE]->(n:AWSSSMInstancePatch)
         RETURN n.id,
                n.installed_time,
                n.cve_ids
@@ -168,7 +168,7 @@ def test_load_instance_patches(mock_get_instances, neo4j_session):
     # Assert
     nodes = neo4j_session.run(
         """
-        MATCH (:EC2Instance{id: "i-01"})-[:HAS_PATCH]->(n:SSMInstancePatch)
+        MATCH (:AWSEC2Instance{id: "i-01"})-[:HAS_PATCH]->(n:AWSSSMInstancePatch)
         RETURN n.id
         """,
     )
@@ -178,7 +178,7 @@ def test_load_instance_patches(mock_get_instances, neo4j_session):
     # Assert
     nodes = neo4j_session.run(
         """
-        MATCH (:EC2Instance{id: "i-02"})-[:HAS_PATCH]->(n:SSMInstancePatch)
+        MATCH (:AWSEC2Instance{id: "i-02"})-[:HAS_PATCH]->(n:AWSSSMInstancePatch)
         RETURN n.id
         """,
     )
@@ -221,7 +221,7 @@ def test_load_ssm_parameters(
         common_params,
     )
 
-    # Assert: Check SSMParameter nodes and their properties
+    # Assert: Check AWSSSMParameter nodes and their properties
     expected_ssm_parameter_data = {
         (
             "arn:aws:ssm:eu-west-1:000000000000:parameter/my/app/config/db-host",
@@ -265,7 +265,7 @@ def test_load_ssm_parameters(
 
     actual_ssm_parameter_data = check_nodes(
         neo4j_session,
-        "SSMParameter",
+        "AWSSSMParameter",
         [
             "id",
             "name",
@@ -280,7 +280,7 @@ def test_load_ssm_parameters(
     )
     assert actual_ssm_parameter_data == expected_ssm_parameter_data
 
-    # Assert: Check SSMParameter to AWSAccount relationships (RESOURCE)
+    # Assert: Check AWSSSMParameter to AWSAccount relationships (RESOURCE)
     expected_rels_account_to_ssm = {
         (
             TEST_ACCOUNT_ID,
@@ -295,14 +295,14 @@ def test_load_ssm_parameters(
         neo4j_session,
         "AWSAccount",
         "id",
-        "SSMParameter",
+        "AWSSSMParameter",
         "id",
         "RESOURCE",
         True,
     )
     assert actual_rels_account_to_ssm == expected_rels_account_to_ssm
 
-    # Assert: Check SSMParameter to KMSKey relationships (ENCRYPTED_BY)
+    # Assert: Check AWSSSMParameter to AWSKMSKey relationships (ENCRYPTED_BY)
     expected_rels_ssm_to_kms = {
         (
             "arn:aws:ssm:eu-west-1:000000000000:parameter/my/app/config/db-host",
@@ -315,11 +315,140 @@ def test_load_ssm_parameters(
     }
     actual_rels_ssm_to_kms = check_rels(
         neo4j_session,
-        "SSMParameter",
+        "AWSSSMParameter",
         "id",
-        "KMSKey",
+        "AWSKMSKey",
         "id",
         "ENCRYPTED_BY",
         True,
     )
     assert actual_rels_ssm_to_kms == expected_rels_ssm_to_kms
+
+
+@patch.object(cartography.intel.aws.ssm, "get_instance_ids", return_value=[])
+@patch.object(cartography.intel.aws.ssm, "get_instance_information", return_value=[])
+@patch.object(cartography.intel.aws.ssm, "get_instance_patches", return_value=[])
+@patch.object(cartography.intel.aws.ssm, "get_ssm_parameters", return_value=[])
+def test_private_ssm_sync_does_not_load_public_parameters(
+    mock_get_ssm_parameters,
+    mock_get_instance_patches,
+    mock_get_instance_information,
+    mock_get_instance_ids,
+    neo4j_session,
+):
+    # Arrange
+    create_test_account(neo4j_session, TEST_ACCOUNT_ID, TEST_UPDATE_TAG)
+
+    # Act
+    mock_boto3_session = MagicMock()
+    common_params = {
+        "UPDATE_TAG": TEST_UPDATE_TAG,
+        "AWS_ID": TEST_ACCOUNT_ID,
+        "aws_ssm_public_parameter_prefix_allowlist": "/aws/service/bottlerocket/",
+    }
+    cartography.intel.aws.ssm.sync(
+        neo4j_session,
+        mock_boto3_session,
+        [TEST_REGION],
+        TEST_ACCOUNT_ID,
+        TEST_UPDATE_TAG,
+        common_params,
+    )
+
+    actual_public_parameter_count = neo4j_session.run(
+        """
+        MATCH (n:SSMParameter)
+        WHERE n.region = $Region
+          AND n.name STARTS WITH '/aws/service/bottlerocket/'
+        RETURN count(n) AS count
+        """,
+        Region=TEST_REGION,
+    ).single()["count"]
+    assert actual_public_parameter_count == 0
+
+
+@patch.object(
+    cartography.intel.aws.ssm,
+    "get_public_ssm_parameters_by_path",
+    return_value=tests.data.aws.ssm.PUBLIC_SSM_PARAMETERS_DATA,
+)
+def test_load_shared_public_ssm_parameters(
+    mock_get_public_ssm_parameters_by_path,
+    neo4j_session,
+):
+    common_params = {
+        "UPDATE_TAG": TEST_UPDATE_TAG,
+        "aws_ssm_public_parameter_prefix_allowlist": "/aws/service/bottlerocket/",
+    }
+    mock_boto3_session = MagicMock()
+
+    cartography.intel.aws.ssm.sync_public_parameters(
+        neo4j_session,
+        {TEST_REGION: [mock_boto3_session]},
+        TEST_UPDATE_TAG,
+        common_params,
+    )
+
+    expected_ssm_parameter_data = {
+        (
+            "arn:aws:ssm:us-east-1::parameter/aws/service/bottlerocket/aws-k8s-1.30/x86_64/latest/image_id",
+            "/aws/service/bottlerocket/aws-k8s-1.30/x86_64/latest/image_id",
+            "ami-0abc123def4567890",
+            "String",
+            TEST_REGION,
+        ),
+        (
+            "arn:aws:ssm:us-east-1::parameter/aws/service/bottlerocket/aws-k8s-1.30/x86_64/latest/image_version",
+            "/aws/service/bottlerocket/aws-k8s-1.30/x86_64/latest/image_version",
+            "1.30.0",
+            "String",
+            TEST_REGION,
+        ),
+    }
+    actual_ssm_parameter_data = {
+        (
+            record["n.id"],
+            record["n.name"],
+            record["n.value"],
+            record["n.type"],
+            record["n.region"],
+        )
+        for record in neo4j_session.run(
+            """
+            MATCH (n:SSMParameter)
+            WHERE n.region = $Region
+              AND n.name STARTS WITH '/aws/service/bottlerocket/'
+            RETURN n.id, n.name, n.value, n.type, n.region
+            """,
+            Region=TEST_REGION,
+        )
+    }
+    assert actual_ssm_parameter_data == expected_ssm_parameter_data
+
+    public_kms_relationship_count = neo4j_session.run(
+        """
+        MATCH (:AWSPublicSSMParameter)-[r:ENCRYPTED_BY]->(:AWSKMSKey)
+        RETURN count(r) AS count
+        """
+    ).single()["count"]
+    assert public_kms_relationship_count == 0
+
+    actual_rels_account_to_ssm = {
+        (record["a.id"], record["p.id"])
+        for record in neo4j_session.run(
+            """
+            MATCH (a:AWSAccount)-[:RESOURCE]->(p:SSMParameter)
+            WHERE p.region = $Region
+              AND p.name STARTS WITH '/aws/service/bottlerocket/'
+            RETURN a.id, p.id
+            """,
+            Region=TEST_REGION,
+        )
+    }
+    assert actual_rels_account_to_ssm == set()
+
+    mock_get_public_ssm_parameters_by_path.assert_called_once_with(
+        mock_boto3_session,
+        TEST_REGION,
+        ["/aws/service/bottlerocket/"],
+    )

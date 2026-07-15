@@ -17,7 +17,7 @@ TEST_UPDATE_TAG = 123456789
 
 def _seed_cloud_keys(neo4j_session):
     neo4j_session.run(
-        "MERGE (k:KMSKey {arn: $arn}) SET k.lastupdated = $tag",
+        "MERGE (k:AWSKMSKey {arn: $arn}) SET k.lastupdated = $tag",
         arn=DATABRICKS_ENCRYPTION_KEY_AWS_ARN,
         tag=TEST_UPDATE_TAG,
     )
@@ -74,12 +74,12 @@ def test_load_databricks_encryption_keys(mock_get, neo4j_session):
         ("cmk-def-456", DATABRICKS_ACCOUNT_ID),
     }
 
-    # EncryptionKey -> KMSKey REFERENCES_KEY
+    # EncryptionKey -> AWSKMSKey REFERENCES_KEY
     assert check_rels(
         neo4j_session,
         "DatabricksEncryptionKey",
         "customer_managed_key_id",
-        "KMSKey",
+        "AWSKMSKey",
         "arn",
         "REFERENCES_KEY",
         rel_direction_right=True,

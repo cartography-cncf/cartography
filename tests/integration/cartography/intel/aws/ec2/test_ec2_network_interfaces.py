@@ -34,26 +34,26 @@ def test_load_network_interfaces(mock_get_network_interfaces, neo4j_session):
     )
 
     # Assert NetworkInterfaces were created
-    assert check_nodes(neo4j_session, "NetworkInterface", ["id"]) == {
+    assert check_nodes(neo4j_session, "AWSNetworkInterface", ["id"]) == {
         ("eni-0e106a07c15ff7d14",),
         ("eni-0d9877f559c240362",),
         ("eni-04b4289e1be7634e4",),
     }
 
     # Assert EC2PrivateIps were created
-    assert check_nodes(neo4j_session, "EC2PrivateIp", ["id"]) == {
+    assert check_nodes(neo4j_session, "AWSEC2PrivateIp", ["id"]) == {
         ("eni-0e106a07c15ff7d14:10.0.4.180",),
         ("eni-0d9877f559c240362:10.0.4.96",),
         ("eni-04b4289e1be7634e4:10.0.4.5",),
         ("eni-04b4289e1be7634e4:10.0.4.12",),
     }
 
-    # Assert NetworkInterface to PrivateIp rels exist
+    # Assert AWSNetworkInterface to PrivateIp rels exist
     assert check_rels(
         neo4j_session,
-        "NetworkInterface",
+        "AWSNetworkInterface",
         "id",
-        "EC2PrivateIp",
+        "AWSEC2PrivateIp",
         "id",
         "PRIVATE_IP_ADDRESS",
         rel_direction_right=True,
@@ -64,10 +64,10 @@ def test_load_network_interfaces(mock_get_network_interfaces, neo4j_session):
         ("eni-04b4289e1be7634e4", "eni-04b4289e1be7634e4:10.0.4.12"),
     }
 
-    # Assert NetworkInterface to AWSAccount rels exist
+    # Assert AWSNetworkInterface to AWSAccount rels exist
     assert check_rels(
         neo4j_session,
-        "NetworkInterface",
+        "AWSNetworkInterface",
         "id",
         "AWSAccount",
         "id",
@@ -80,12 +80,12 @@ def test_load_network_interfaces(mock_get_network_interfaces, neo4j_session):
         ("eni-04b4289e1be7634e4", TEST_ACCOUNT_ID),
     }
 
-    # Assert NetworkInterface to Subnet rels exist
+    # Assert AWSNetworkInterface to Subnet rels exist
     assert check_rels(
         neo4j_session,
-        "NetworkInterface",
+        "AWSNetworkInterface",
         "id",
-        "EC2Subnet",
+        "AWSEC2Subnet",
         "id",
         "PART_OF_SUBNET",
         rel_direction_right=True,
@@ -95,12 +95,12 @@ def test_load_network_interfaces(mock_get_network_interfaces, neo4j_session):
         ("eni-0e106a07c15ff7d14", "subnet-0fa10e76eeb24dbe7"),
     }
 
-    # Assert NetworkInterface to security group rels exist
+    # Assert AWSNetworkInterface to security group rels exist
     assert check_rels(
         neo4j_session,
-        "NetworkInterface",
+        "AWSNetworkInterface",
         "id",
-        "EC2SecurityGroup",
+        "AWSEC2SecurityGroup",
         "id",
         "MEMBER_OF_EC2_SECURITY_GROUP",
         rel_direction_right=True,
@@ -110,16 +110,18 @@ def test_load_network_interfaces(mock_get_network_interfaces, neo4j_session):
         ("eni-0e106a07c15ff7d14", "sg-0e866e64db0c84705"),
     }
 
-    # Assert NetworkInterface attach_time property is set correctly
-    assert check_nodes(neo4j_session, "NetworkInterface", ["id", "attach_time"]) == {
+    # Assert AWSNetworkInterface attach_time property is set correctly
+    assert check_nodes(neo4j_session, "AWSNetworkInterface", ["id", "attach_time"]) == {
         ("eni-0e106a07c15ff7d14", "2020-10-09 06:51:30+00:00"),
         ("eni-0d9877f559c240362", "2020-10-09 06:47:06+00:00"),
         ("eni-04b4289e1be7634e4", "2020-10-09 06:46:17+00:00"),
     }
 
-    # Assert NetworkInterface device_index property is set correctly
+    # Assert AWSNetworkInterface device_index property is set correctly
     # DeviceIndex 0 indicates the primary network interface
-    assert check_nodes(neo4j_session, "NetworkInterface", ["id", "device_index"]) == {
+    assert check_nodes(
+        neo4j_session, "AWSNetworkInterface", ["id", "device_index"]
+    ) == {
         ("eni-0e106a07c15ff7d14", 0),  # Primary interface
         ("eni-0d9877f559c240362", 1),  # Secondary interface
         ("eni-04b4289e1be7634e4", 0),  # Primary interface
