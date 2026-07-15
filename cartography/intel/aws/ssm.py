@@ -12,6 +12,9 @@ import neo4j
 from cartography.client.core.tx import load
 from cartography.client.core.tx import read_list_of_values_tx
 from cartography.graph.job import GraphJob
+from cartography.intel.aws.label_migrations import (
+    migrate_legacy_public_ssm_parameter_label,
+)
 from cartography.intel.aws.util.botocore_config import create_boto3_client
 from cartography.models.aws.ssm.instance_information import SSMInstanceInformationSchema
 from cartography.models.aws.ssm.instance_patch import SSMInstancePatchSchema
@@ -59,7 +62,7 @@ def get_instance_ids(
     current_aws_account_id: str,
 ) -> List[str]:
     get_instances_query = """
-    MATCH (:AWSAccount{id: $AWS_ACCOUNT_ID})-[:RESOURCE]->(i:EC2Instance)
+    MATCH (:AWSAccount{id: $AWS_ACCOUNT_ID})-[:RESOURCE]->(i:AWSEC2Instance)
     WHERE i.region = $Region
     RETURN i.id
     """
@@ -194,7 +197,7 @@ def transform_ssm_parameters(
     for param in raw_parameters_data:
         param["LastModifiedDate"] = dict_date_to_epoch(param, "LastModifiedDate")
         param["PoliciesJson"] = json.dumps(param.get("Policies", []))
-        # KMSKey uses shorter UUID as their primary id
+        # AWSKMSKey uses shorter UUID as their primary id
         # SSM Parameters, when encrypted, reference KMS keys using their full ARNs in the KeyId field
         # Adding a param to match on the id property of the target node
         if param.get("Type") == "SecureString" and param.get("KeyId") is not None:
@@ -365,6 +368,7 @@ def sync_public_parameters(
     common_job_parameters: Dict[str, Any],
     cleanup_allowed: bool = True,
 ) -> None:
+    migrate_legacy_public_ssm_parameter_label(neo4j_session)
     allowlist_prefixes = _minimize_allowlisted_prefixes(
         _normalize_allowlisted_prefixes(
             common_job_parameters.get("aws_ssm_public_parameter_prefix_allowlist"),

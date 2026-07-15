@@ -3,6 +3,7 @@ from dataclasses import dataclass
 from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeProperties
 from cartography.models.core.nodes import CartographyNodeSchema
+from cartography.models.core.nodes import ExtraNodeLabels
 from cartography.models.core.relationships import CartographyRelProperties
 from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
@@ -47,7 +48,7 @@ class DBSubnetGroupToRDSInstanceRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class DBSubnetGroupToRDSInstanceRel(CartographyRelSchema):
-    target_node_label: str = "RDSInstance"
+    target_node_label: str = "AWSRDSInstance"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {
             "db_instance_identifier": PropertyRef(
@@ -69,7 +70,7 @@ class DBSubnetGroupToEC2SubnetRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class DBSubnetGroupToEC2SubnetRel(CartographyRelSchema):
-    target_node_label: str = "EC2Subnet"
+    target_node_label: str = "AWSEC2Subnet"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {
             "subnetid": PropertyRef("subnet_ids", one_to_many=True),
@@ -88,7 +89,9 @@ class DBSubnetGroupSchema(CartographyNodeSchema):
     DB Subnet Group schema
     """
 
-    label: str = "DBSubnetGroup"
+    label: str = "AWSDBSubnetGroup"
+    # DEPRECATED: legacy DBSubnetGroup node label will be removed in v1.0.0.
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["DBSubnetGroup"])
     properties: DBSubnetGroupNodeProperties = DBSubnetGroupNodeProperties()
     sub_resource_relationship: DBSubnetGroupToAWSAccountRel = (
         DBSubnetGroupToAWSAccountRel()

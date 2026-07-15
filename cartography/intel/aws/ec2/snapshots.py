@@ -37,7 +37,7 @@ def get_snapshots_in_use(
     current_aws_account_id: str,
 ) -> List[str]:
     query = """
-    MATCH (:AWSAccount{id: $AWS_ACCOUNT_ID})-[:RESOURCE]->(v:EBSVolume)
+    MATCH (:AWSAccount{id: $AWS_ACCOUNT_ID})-[:RESOURCE]->(v:AWSEBSVolume)
     WHERE v.region = $Region
     RETURN v.snapshotid as snapshot
     """

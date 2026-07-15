@@ -1126,7 +1126,7 @@ def _load_s3_notifications(
             S3BucketToSNSTopicRel(),
             bucket_notifications,
             lastupdated=update_tag,
-            _sub_resource_label="S3Bucket",
+            _sub_resource_label="AWSS3Bucket",
             _sub_resource_id=bucket_name,
         )
 
@@ -1138,7 +1138,7 @@ def _cleanup_s3_notifications(
 ) -> None:
     GraphJob.from_matchlink(
         S3BucketToSNSTopicRel(),
-        "S3Bucket",
+        "AWSS3Bucket",
         bucket_name,
         update_tag,
     ).run(neo4j_session)
@@ -1279,7 +1279,7 @@ def cleanup_s3_buckets(
         neo4j_session
     )
     # S3BucketEncryptionSchema has no sub_resource_relationship, so this cleans up
-    # only stale (:S3Bucket)-[:ENCRYPTED_BY]->(:KMSKey) edges (no node deletion),
+    # only stale (:AWSS3Bucket)-[:ENCRYPTED_BY]->(:AWSKMSKey) edges (no node deletion),
     # e.g. when a bucket rotates its key or disables default KMS encryption.
     GraphJob.from_node_schema(S3BucketEncryptionSchema(), common_job_parameters).run(
         neo4j_session
@@ -1291,7 +1291,7 @@ def cleanup_s3_bucket_acl_and_policy(
     neo4j_session: neo4j.Session,
     common_job_parameters: Dict,
 ) -> None:
-    """Clean up stale S3Acl and S3PolicyStatement nodes."""
+    """Clean up stale AWSS3Acl and AWSS3PolicyStatement nodes."""
     GraphJob.from_node_schema(S3AclSchema(), common_job_parameters).run(neo4j_session)
     GraphJob.from_node_schema(S3PolicyStatementSchema(), common_job_parameters).run(
         neo4j_session
@@ -1382,7 +1382,7 @@ def sync(
         neo4j_session,
         group_type="AWSAccount",
         group_id=current_aws_account_id,
-        synced_type="S3Bucket",
+        synced_type="AWSS3Bucket",
         update_tag=update_tag,
         stat_handler=stat_handler,
     )

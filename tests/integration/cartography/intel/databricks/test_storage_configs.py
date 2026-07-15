@@ -16,7 +16,7 @@ TEST_UPDATE_TAG = 123456789
 
 def _seed_s3_bucket(neo4j_session):
     neo4j_session.run(
-        "MERGE (b:S3Bucket {name: $name}) SET b.lastupdated = $tag",
+        "MERGE (b:AWSS3Bucket {name: $name}) SET b.lastupdated = $tag",
         name=DATABRICKS_STORAGE_CONFIG_BUCKET,
         tag=TEST_UPDATE_TAG,
     )
@@ -66,12 +66,12 @@ def test_load_databricks_storage_configs(mock_get, neo4j_session):
         ("stg-def-456", DATABRICKS_ACCOUNT_ID),
     }
 
-    # StorageConfig -> S3Bucket BACKED_BY (only forms for the seeded bucket)
+    # StorageConfig -> AWSS3Bucket BACKED_BY (only forms for the seeded bucket)
     assert check_rels(
         neo4j_session,
         "DatabricksStorageConfig",
         "storage_configuration_id",
-        "S3Bucket",
+        "AWSS3Bucket",
         "name",
         "BACKED_BY",
         rel_direction_right=True,

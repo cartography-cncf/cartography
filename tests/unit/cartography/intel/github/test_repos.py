@@ -1299,6 +1299,10 @@ def test_build_branch_data_includes_owner_org_id():
     ]
 
 
+@patch.object(
+    cartography.intel.github.repos,
+    "migrate_dependency_graph_manifest_label",
+)
 @patch.object(cartography.intel.github.repos, "run_analysis_job")
 @patch.object(cartography.intel.github.repos, "cleanup_rulesets")
 @patch.object(cartography.intel.github.repos, "cleanup_branch_protection_rules")
@@ -1338,6 +1342,7 @@ def test_sync_cleans_up_branches_when_org_has_no_repos(
     mock_cleanup_branch_protection_rules,
     mock_cleanup_rulesets,
     mock_run_analysis_job,
+    mock_migrate_dependency_graph_manifest_label,
 ):
     cartography.intel.github.repos.sync(
         None,
@@ -1375,8 +1380,16 @@ def test_sync_cleans_up_branches_when_org_has_no_repos(
         {"UPDATE_TAG": TEST_UPDATE_TAG},
         "https://github.com/example-org",
     )
+    mock_migrate_dependency_graph_manifest_label.assert_called_once_with(
+        None,
+        "https://github.com/example-org",
+    )
 
 
+@patch.object(
+    cartography.intel.github.repos,
+    "migrate_dependency_graph_manifest_label",
+)
 @patch.object(cartography.intel.github.repos, "run_analysis_job")
 @patch.object(cartography.intel.github.repos, "cleanup_rulesets")
 @patch.object(cartography.intel.github.repos, "cleanup_branch_protection_rules")
@@ -1404,6 +1417,7 @@ def test_sync_skips_manifest_cleanup_when_dependency_manifest_fetch_is_incomplet
     mock_cleanup_branch_protection_rules,
     mock_cleanup_rulesets,
     mock_run_analysis_job,
+    mock_migrate_dependency_graph_manifest_label,
 ):
     cartography.intel.github.repos.sync(
         None,
@@ -1417,12 +1431,20 @@ def test_sync_skips_manifest_cleanup_when_dependency_manifest_fetch_is_incomplet
     mock_cleanup_github_manifests.assert_not_called()
     mock_cleanup_branch_protection_rules.assert_called_once()
     mock_cleanup_rulesets.assert_called_once()
+    mock_migrate_dependency_graph_manifest_label.assert_called_once_with(
+        None,
+        "https://github.com/example-org",
+    )
 
 
 @patch.object(
     cartography.intel.github.repos,
     "get_repo_privileged_details_by_url",
     side_effect=ValueError("privileged fetch failed"),
+)
+@patch.object(
+    cartography.intel.github.repos,
+    "migrate_dependency_graph_manifest_label",
 )
 @patch.object(cartography.intel.github.repos, "run_analysis_job")
 @patch.object(cartography.intel.github.repos, "cleanup_rulesets")
@@ -1463,6 +1485,7 @@ def test_sync_continues_when_privileged_fetch_fails(
     mock_cleanup_branch_protection_rules,
     mock_cleanup_rulesets,
     mock_run_analysis_job,
+    mock_migrate_dependency_graph_manifest_label,
     mock_get_privileged,
 ):
     repo = deepcopy(GET_REPOS[0])
@@ -1499,3 +1522,7 @@ def test_sync_continues_when_privileged_fetch_fails(
     mock_cleanup_github_manifests.assert_called_once()
     mock_cleanup_branch_protection_rules.assert_called_once()
     mock_cleanup_rulesets.assert_not_called()
+    mock_migrate_dependency_graph_manifest_label.assert_called_once_with(
+        None,
+        "https://github.com/simpsoncorp",
+    )

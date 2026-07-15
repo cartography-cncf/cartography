@@ -13,7 +13,7 @@ aws_mapping = OntologyMapping(
     module_name="aws",
     nodes=[
         OntologyNodeMapping(
-            node_label="S3Bucket",
+            node_label="AWSS3Bucket",
             fields=[
                 OntologyFieldMapping(
                     ontology_field="name",

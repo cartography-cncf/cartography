@@ -66,7 +66,7 @@ Flatten target IDs in `transform()` and use `one_to_many=True`:
 # rel
 @dataclass(frozen=True)
 class RouteTableToSubnetRel(CartographyRelSchema):
-    target_node_label: str = "EC2Subnet"
+    target_node_label: str = "AWSEC2Subnet"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher({
         "subnet_id": PropertyRef("subnet_ids", one_to_many=True),
     })

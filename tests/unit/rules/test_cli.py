@@ -1,4 +1,5 @@
 from unittest.mock import MagicMock
+from unittest.mock import patch
 
 from typer.testing import CliRunner
 
@@ -96,6 +97,84 @@ def test_run_command_all_with_filters_fails():
         "Cannot filter by fact" in result.stdout
         or "Cannot filter by fact" in result.stderr
     )
+
+
+@patch("cartography.rules.cli.run_rules", return_value=0)
+def test_run_command_without_credentials_does_not_prompt(mock_run_rules, monkeypatch):
+    monkeypatch.delenv("NEO4J_PASSWORD", raising=False)
+
+    result = runner.invoke(app, ["run", "mfa-missing"])
+
+    assert result.exit_code == 0
+    assert "Neo4j password" not in result.output
+    assert mock_run_rules.call_args.args[3] is None
+
+
+@patch("cartography.rules.cli.run_rules", return_value=0)
+def test_run_command_uses_default_password_environment_variable(
+    mock_run_rules, monkeypatch
+):
+    monkeypatch.setenv("NEO4J_PASSWORD", "default-password")
+
+    result = runner.invoke(app, ["run", "mfa-missing"])
+
+    assert result.exit_code == 0
+    assert mock_run_rules.call_args.args[3] == "default-password"
+
+
+@patch("cartography.rules.cli.run_rules", return_value=0)
+def test_run_command_uses_named_password_environment_variable(
+    mock_run_rules, monkeypatch
+):
+    monkeypatch.setenv("CUSTOM_NEO4J_PASSWORD", "custom-password")
+
+    result = runner.invoke(
+        app,
+        [
+            "run",
+            "mfa-missing",
+            "--neo4j-password-env-var",
+            "CUSTOM_NEO4J_PASSWORD",
+        ],
+    )
+
+    assert result.exit_code == 0
+    assert mock_run_rules.call_args.args[3] == "custom-password"
+
+
+@patch("cartography.rules.cli.run_rules")
+def test_run_command_fails_when_named_password_environment_variable_is_missing(
+    mock_run_rules, monkeypatch
+):
+    monkeypatch.delenv("MISSING_NEO4J_PASSWORD", raising=False)
+
+    result = runner.invoke(
+        app,
+        [
+            "run",
+            "mfa-missing",
+            "--neo4j-password-env-var",
+            "MISSING_NEO4J_PASSWORD",
+        ],
+    )
+
+    assert result.exit_code == 1
+    assert "MISSING_NEO4J_PASSWORD" in result.stderr
+    assert "not set or is empty" in result.stderr
+    mock_run_rules.assert_not_called()
+
+
+@patch("cartography.rules.cli.run_rules", return_value=0)
+def test_run_command_prompts_only_when_explicitly_requested(mock_run_rules):
+    result = runner.invoke(
+        app,
+        ["run", "mfa-missing", "--neo4j-password-prompt"],
+        input="prompt-password\n",
+    )
+
+    assert result.exit_code == 0
+    assert "Neo4j password" in result.output
+    assert mock_run_rules.call_args.args[3] == "prompt-password"
 
 
 def test_complete_facts_needs_valid_rule():

@@ -11,7 +11,7 @@ _aws_eks_control_plane_exposed = Fact(
     description=(
         "EKS clusters whose Kubernetes API server is reachable from the "
         "public internet. The ontology normalizes "
-        "EKSCluster.endpoint_public_access into "
+        "AWSEKSCluster.endpoint_public_access into "
         "_ont_control_plane_public_access, and the AWS EKS asset-exposure "
         "analysis job further marks the cluster with exposed_internet=true. "
         "Both conditions are required to keep parity with the existing "
@@ -20,7 +20,7 @@ _aws_eks_control_plane_exposed = Fact(
         "'Public' endpoint mode."
     ),
     cypher_query="""
-    MATCH (c:EKSCluster)
+    MATCH (c:AWSEKSCluster)
     WHERE c._ont_control_plane_public_access = true
       AND c.exposed_internet = true
     RETURN
@@ -31,13 +31,13 @@ _aws_eks_control_plane_exposed = Fact(
         'aws' AS cloud
     """,
     cypher_visual_query="""
-    MATCH p=(acc:AWSAccount)-[:RESOURCE]->(c:EKSCluster)
+    MATCH p=(acc:AWSAccount)-[:RESOURCE]->(c:AWSEKSCluster)
     WHERE c._ont_control_plane_public_access = true
       AND c.exposed_internet = true
     RETURN *
     """,
     cypher_count_query="""
-    MATCH (c:EKSCluster)
+    MATCH (c:AWSEKSCluster)
     RETURN COUNT(c) AS count
     """,
     asset_id_field="id",

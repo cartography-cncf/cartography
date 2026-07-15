@@ -22,7 +22,7 @@ def _seed_relationship_targets(neo4j_session):
     role_arn = tests.data.aws.ecr.PULL_THROUGH_CACHE_ROLE_ARN
     neo4j_session.run(
         """
-        MERGE (secret:SecretsManagerSecret {id: $secret_arn})
+        MERGE (secret:AWSSecretsManagerSecret {id: $secret_arn})
         SET secret.arn = $secret_arn, secret.name = "dockerhub"
         """,
         secret_arn=secret_arn,
@@ -64,7 +64,7 @@ def test_sync_pull_through_cache_rules(mock_get_rules, neo4j_session):
     # Assert
     assert check_nodes(
         neo4j_session,
-        "ECRPullThroughCacheRule",
+        "AWSECRPullThroughCacheRule",
         [
             "id",
             "registry_id",
@@ -102,7 +102,7 @@ def test_sync_pull_through_cache_rules(mock_get_rules, neo4j_session):
     }
     assert check_rels(
         neo4j_session,
-        "ECRPullThroughCacheRule",
+        "AWSECRPullThroughCacheRule",
         "id",
         "AWSAccount",
         "id",
@@ -114,9 +114,9 @@ def test_sync_pull_through_cache_rules(mock_get_rules, neo4j_session):
     }
     assert check_rels(
         neo4j_session,
-        "ECRPullThroughCacheRule",
+        "AWSECRPullThroughCacheRule",
         "id",
-        "SecretsManagerSecret",
+        "AWSSecretsManagerSecret",
         "arn",
         "USES_SECRET",
         rel_direction_right=True,
@@ -128,7 +128,7 @@ def test_sync_pull_through_cache_rules(mock_get_rules, neo4j_session):
     }
     assert check_rels(
         neo4j_session,
-        "ECRPullThroughCacheRule",
+        "AWSECRPullThroughCacheRule",
         "id",
         "AWSRole",
         "arn",
@@ -154,7 +154,7 @@ def test_sync_pull_through_cache_rules(mock_get_rules, neo4j_session):
     # Assert
     assert check_nodes(
         neo4j_session,
-        "ECRPullThroughCacheRule",
+        "AWSECRPullThroughCacheRule",
         ["id", "lastupdated"],
     ) == {
         (f"{TEST_ACCOUNT_ID}:{TEST_REGION}:ROOT", TEST_UPDATE_TAG_2),
@@ -162,9 +162,9 @@ def test_sync_pull_through_cache_rules(mock_get_rules, neo4j_session):
     assert (
         check_rels(
             neo4j_session,
-            "ECRPullThroughCacheRule",
+            "AWSECRPullThroughCacheRule",
             "id",
-            "SecretsManagerSecret",
+            "AWSSecretsManagerSecret",
             "arn",
             "USES_SECRET",
             rel_direction_right=True,

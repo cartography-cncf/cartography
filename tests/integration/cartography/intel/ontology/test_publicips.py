@@ -18,7 +18,7 @@ def test_cleanup_removes_stale_publicip_points_to_device_relationships(neo4j_ses
         SET device.serial_number = 'device-1',
             device.lastupdated = $update_tag
 
-        MERGE (eip:ElasticIPAddress {id: 'eip-1'})
+        MERGE (eip:AWSElasticIPAddress {id: 'eip-1'})
         SET eip.public_ip = '203.0.113.10'
 
         MERGE (ip)-[stale_points_to:POINTS_TO]->(device)
@@ -46,7 +46,7 @@ def test_cleanup_removes_stale_publicip_points_to_device_relationships(neo4j_ses
 
     fresh_reserved_by_count = neo4j_session.run(
         """
-        MATCH (:PublicIP {id: '203.0.113.10'})-[r:RESERVED_BY]->(:ElasticIPAddress {id: 'eip-1'})
+        MATCH (:PublicIP {id: '203.0.113.10'})-[r:RESERVED_BY]->(:AWSElasticIPAddress {id: 'eip-1'})
         RETURN count(r) AS count
         """
     ).single()["count"]

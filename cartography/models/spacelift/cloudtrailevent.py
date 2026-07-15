@@ -3,6 +3,7 @@ from dataclasses import dataclass
 from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeProperties
 from cartography.models.core.nodes import CartographyNodeSchema
+from cartography.models.core.nodes import ExtraNodeLabels
 from cartography.models.core.relationships import CartographyRelProperties
 from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
@@ -14,7 +15,7 @@ from cartography.models.core.relationships import TargetNodeMatcher
 @dataclass(frozen=True)
 class CloudTrailSpaceliftEventNodeProperties(CartographyNodeProperties):
     """
-    Properties for a CloudTrail Spacelift Event node.
+    Properties for a Spacelift CloudTrail Event node.
     Represents a single CloudTrail event from a Spacelift run.
     One event can affect multiple EC2 instances (e.g., RunInstances creating multiple instances).
     """
@@ -55,8 +56,8 @@ class CloudTrailSpaceliftEventToRunRelProperties(CartographyRelProperties):
 @dataclass(frozen=True)
 class CloudTrailSpaceliftEventToRunRel(CartographyRelSchema):
     """
-    FROM_RUN relationship from a CloudTrailSpaceliftEvent to the SpaceliftRun that generated it.
-    (:CloudTrailSpaceliftEvent)-[:FROM_RUN]->(:SpaceliftRun)
+    FROM_RUN relationship from a SpaceliftCloudTrailEvent to the SpaceliftRun that generated it.
+    (:SpaceliftCloudTrailEvent)-[:FROM_RUN]->(:SpaceliftRun)
     """
 
     target_node_label: str = "SpaceliftRun"
@@ -80,13 +81,13 @@ class CloudTrailSpaceliftEventToEC2InstanceRelProperties(CartographyRelPropertie
 @dataclass(frozen=True)
 class CloudTrailSpaceliftEventToEC2InstanceRel(CartographyRelSchema):
     """
-    AFFECTED relationship from a CloudTrailSpaceliftEvent to EC2Instances it affected.
-    (:CloudTrailSpaceliftEvent)-[:AFFECTED]->(:EC2Instance)
+    AFFECTED relationship from a SpaceliftCloudTrailEvent to EC2Instances it affected.
+    (:SpaceliftCloudTrailEvent)-[:AFFECTED]->(:AWSEC2Instance)
 
     Uses one-to-many relationship since a single CloudTrail event can affect multiple instances.
     """
 
-    target_node_label: str = "EC2Instance"
+    target_node_label: str = "AWSEC2Instance"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {
             "instanceid": PropertyRef("instance_ids", one_to_many=True),
@@ -105,7 +106,9 @@ class CloudTrailSpaceliftEventSchema(CartographyNodeSchema):
     Represents CloudTrail events from Spacelift runs interacting with EC2 instances.
     """
 
-    label: str = "CloudTrailSpaceliftEvent"
+    label: str = "SpaceliftCloudTrailEvent"
+    # DEPRECATED: legacy CloudTrailSpaceliftEvent node label will be removed in v1.0.0.
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["CloudTrailSpaceliftEvent"])
     properties: CloudTrailSpaceliftEventNodeProperties = (
         CloudTrailSpaceliftEventNodeProperties()
     )

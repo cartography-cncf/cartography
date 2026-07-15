@@ -11,7 +11,7 @@
       "iterative": false
     },
     {
-      "__comment__": "GCPCloudRunService no longer carries :Function. It is now treated as an orchestrator (analogous to ECSService); its child GCPCloudRunServiceContainer nodes carry :Container. Idempotent.",
+      "__comment__": "GCPCloudRunService no longer carries :Function. It is now treated as an orchestrator (analogous to AWSECSService); its child GCPCloudRunServiceContainer nodes carry :Container. Idempotent.",
       "query": "MATCH (n:GCPCloudRunService:Function) REMOVE n:Function",
       "iterative": false
     }

@@ -6,7 +6,7 @@ aws_mapping = OntologyMapping(
     module_name="aws",
     nodes=[
         OntologyNodeMapping(
-            node_label="EC2Instance",
+            node_label="AWSEC2Instance",
             fields=[
                 OntologyFieldMapping(
                     ontology_field="name", node_field="instanceid", required=True

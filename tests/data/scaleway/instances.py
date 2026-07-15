@@ -10,6 +10,8 @@ from scaleway.instance.v1 import ServerSummary
 from scaleway.instance.v1 import VolumeServer
 from scaleway.instance.v1 import VolumeSummary
 
+TEST_FLEXIBLE_IP_ID = "7b37f45d-9871-4ae6-bd5a-a926102fb5c9"
+
 SCALEWAY_INSTANCES = [
     Server(
         id="345627e9-18ff-47e0-b73d-3f38fddb4390",
@@ -49,7 +51,7 @@ SCALEWAY_INSTANCES = [
         ),
         private_ip=None,
         public_ip=ServerIp(
-            id="",
+            id=TEST_FLEXIBLE_IP_ID,
             address="51.1.2.8",
             gateway="62.210.0.1",
             netmask="32",
@@ -62,7 +64,7 @@ SCALEWAY_INSTANCES = [
         ),
         public_ips=[
             ServerIp(
-                id="",
+                id=TEST_FLEXIBLE_IP_ID,
                 address="51.1.2.8",
                 gateway="62.210.0.1",
                 netmask="32",

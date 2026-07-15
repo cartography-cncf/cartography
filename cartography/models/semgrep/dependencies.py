@@ -94,9 +94,10 @@ class SemgrepSCAFindngToDependencyRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class SemgrepGoLibrarySchema(CartographyNodeSchema):
-    label: str = "GoLibrary"
+    label: str = "SemgrepGoLibrary"
+    # DEPRECATED: legacy GoLibrary node label will be removed in v1.0.0.
     extra_node_labels: Optional[ExtraNodeLabels] = ExtraNodeLabels(
-        ["Dependency", "SemgrepDependency"],
+        ["GoLibrary", "Dependency", "SemgrepDependency"],
     )
     properties: SemgrepDependencyNodeProperties = SemgrepDependencyNodeProperties()
     sub_resource_relationship: SemgrepDependencyToSemgrepDeploymentRel = (
@@ -112,9 +113,10 @@ class SemgrepGoLibrarySchema(CartographyNodeSchema):
 
 @dataclass(frozen=True)
 class SemgrepNpmLibrarySchema(CartographyNodeSchema):
-    label: str = "NpmLibrary"
+    label: str = "SemgrepNpmLibrary"
+    # DEPRECATED: legacy NpmLibrary node label will be removed in v1.0.0.
     extra_node_labels: Optional[ExtraNodeLabels] = ExtraNodeLabels(
-        ["Dependency", "SemgrepDependency"],
+        ["NpmLibrary", "Dependency", "SemgrepDependency"],
     )
     properties: SemgrepDependencyNodeProperties = SemgrepDependencyNodeProperties()
     sub_resource_relationship: SemgrepDependencyToSemgrepDeploymentRel = (

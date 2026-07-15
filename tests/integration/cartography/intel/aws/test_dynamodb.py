@@ -37,10 +37,10 @@ def test_sync_dynamodb_nodes_and_relationships(mock_get_tables, neo4j_session):
         {"UPDATE_TAG": TEST_UPDATE_TAG, "AWS_ID": TEST_ACCOUNT_ID},
     )
 
-    # Assert: DynamoDBTable nodes
+    # Assert: AWSDynamoDBTable nodes
     assert check_nodes(
         neo4j_session,
-        "DynamoDBTable",
+        "AWSDynamoDBTable",
         ["id", "rows", "size", "table_status"],
     ) == {
         (
@@ -88,7 +88,7 @@ def test_sync_dynamodb_nodes_and_relationships(mock_get_tables, neo4j_session):
     }
 
     # Assert: GSIs
-    assert check_nodes(neo4j_session, "DynamoDBGlobalSecondaryIndex", ["id"]) == {
+    assert check_nodes(neo4j_session, "AWSDynamoDBGlobalSecondaryIndex", ["id"]) == {
         ("arn:aws:dynamodb:us-east-1:table/example-table/index/sample_1-index",),
         ("arn:aws:dynamodb:us-east-1:table/example-table/index/sample_2-index",),
         ("arn:aws:dynamodb:us-east-1:table/sample-table/index/sample_1-index",),
@@ -101,7 +101,7 @@ def test_sync_dynamodb_nodes_and_relationships(mock_get_tables, neo4j_session):
 
     # Assert: Billing entities
     billing_nodes = check_nodes(
-        neo4j_session, "DynamoDBBillingModeSummary", ["id", "billing_mode"]
+        neo4j_session, "AWSDynamoDBBillingModeSummary", ["id", "billing_mode"]
     )
     assert billing_nodes == {
         (
@@ -128,7 +128,7 @@ def test_sync_dynamodb_nodes_and_relationships(mock_get_tables, neo4j_session):
 
     # Assert: Stream entities
     stream_nodes = check_nodes(
-        neo4j_session, "DynamoDBStream", ["id", "stream_enabled", "stream_view_type"]
+        neo4j_session, "AWSDynamoDBStream", ["id", "stream_enabled", "stream_view_type"]
     )
     assert stream_nodes == {
         (
@@ -151,7 +151,7 @@ def test_sync_dynamodb_nodes_and_relationships(mock_get_tables, neo4j_session):
     # Assert: SSE entities
     sse_nodes = check_nodes(
         neo4j_session,
-        "DynamoDBSSEDescription",
+        "AWSDynamoDBSSEDescription",
         ["id", "sse_status", "sse_type", "kms_master_key_arn"],
     )
     assert sse_nodes == {
@@ -177,7 +177,7 @@ def test_sync_dynamodb_nodes_and_relationships(mock_get_tables, neo4j_session):
 
     # Assert: Archival entities
     archival_nodes = check_nodes(
-        neo4j_session, "DynamoDBArchivalSummary", ["id", "archival_reason"]
+        neo4j_session, "AWSDynamoDBArchivalSummary", ["id", "archival_reason"]
     )
     assert archival_nodes == {
         (
@@ -188,7 +188,7 @@ def test_sync_dynamodb_nodes_and_relationships(mock_get_tables, neo4j_session):
 
     # Assert: Restore entities
     restore_nodes = check_nodes(
-        neo4j_session, "DynamoDBRestoreSummary", ["id", "restore_in_progress"]
+        neo4j_session, "AWSDynamoDBRestoreSummary", ["id", "restore_in_progress"]
     )
     assert restore_nodes == {
         ("arn:aws:dynamodb:us-east-1:000000000000:table/model-table/restore", False),
@@ -196,7 +196,7 @@ def test_sync_dynamodb_nodes_and_relationships(mock_get_tables, neo4j_session):
     }
 
     # Assert: Backup stubs
-    backup_nodes = check_nodes(neo4j_session, "DynamoDBBackup", ["id"])
+    backup_nodes = check_nodes(neo4j_session, "AWSDynamoDBBackup", ["id"])
     assert backup_nodes == {
         (
             "arn:aws:dynamodb:us-east-1:000000000000:table/archived-table/backup/archived-backup-123",
@@ -209,10 +209,10 @@ def test_sync_dynamodb_nodes_and_relationships(mock_get_tables, neo4j_session):
         ),
     }
 
-    # Assert: AWSAccount -> DynamoDBTable
+    # Assert: AWSAccount -> AWSDynamoDBTable
     assert check_rels(
         neo4j_session,
-        "DynamoDBTable",
+        "AWSDynamoDBTable",
         "id",
         "AWSAccount",
         "id",
@@ -237,12 +237,12 @@ def test_sync_dynamodb_nodes_and_relationships(mock_get_tables, neo4j_session):
         ),
     }
 
-    # Assert AWSAccount -> DynamoDBGlobalSecondaryIndex
+    # Assert AWSAccount -> AWSDynamoDBGlobalSecondaryIndex
     assert check_rels(
         neo4j_session,
         "AWSAccount",
         "id",
-        "DynamoDBGlobalSecondaryIndex",
+        "AWSDynamoDBGlobalSecondaryIndex",
         "id",
         "RESOURCE",
         rel_direction_right=True,
@@ -281,12 +281,12 @@ def test_sync_dynamodb_nodes_and_relationships(mock_get_tables, neo4j_session):
         ),
     }
 
-    # Assert DynamoDBTable -> DynamoDBGlobalSecondaryIndex
+    # Assert AWSDynamoDBTable -> AWSDynamoDBGlobalSecondaryIndex
     assert check_rels(
         neo4j_session,
-        "DynamoDBTable",
+        "AWSDynamoDBTable",
         "id",
-        "DynamoDBGlobalSecondaryIndex",
+        "AWSDynamoDBGlobalSecondaryIndex",
         "id",
         "GLOBAL_SECONDARY_INDEX",
         rel_direction_right=True,
@@ -328,9 +328,9 @@ def test_sync_dynamodb_nodes_and_relationships(mock_get_tables, neo4j_session):
     # Assert: Billing relationships
     billing_rels = check_rels(
         neo4j_session,
-        "DynamoDBTable",
+        "AWSDynamoDBTable",
         "id",
-        "DynamoDBBillingModeSummary",
+        "AWSDynamoDBBillingModeSummary",
         "id",
         "HAS_BILLING",
         rel_direction_right=True,
@@ -361,9 +361,9 @@ def test_sync_dynamodb_nodes_and_relationships(mock_get_tables, neo4j_session):
     # Assert: Stream relationships
     stream_rels = check_rels(
         neo4j_session,
-        "DynamoDBTable",
+        "AWSDynamoDBTable",
         "id",
-        "DynamoDBStream",
+        "AWSDynamoDBStream",
         "id",
         "LATEST_STREAM",
         rel_direction_right=True,
@@ -386,9 +386,9 @@ def test_sync_dynamodb_nodes_and_relationships(mock_get_tables, neo4j_session):
     # Assert: SSE relationships
     sse_rels = check_rels(
         neo4j_session,
-        "DynamoDBTable",
+        "AWSDynamoDBTable",
         "id",
-        "DynamoDBSSEDescription",
+        "AWSDynamoDBSSEDescription",
         "id",
         "HAS_SSE",
         rel_direction_right=True,
@@ -411,9 +411,9 @@ def test_sync_dynamodb_nodes_and_relationships(mock_get_tables, neo4j_session):
     # Assert: Archival relationships
     archival_rels = check_rels(
         neo4j_session,
-        "DynamoDBTable",
+        "AWSDynamoDBTable",
         "id",
-        "DynamoDBArchivalSummary",
+        "AWSDynamoDBArchivalSummary",
         "id",
         "HAS_ARCHIVAL",
         rel_direction_right=True,
@@ -428,9 +428,9 @@ def test_sync_dynamodb_nodes_and_relationships(mock_get_tables, neo4j_session):
     # Assert: Restore relationships
     restore_rels = check_rels(
         neo4j_session,
-        "DynamoDBTable",
+        "AWSDynamoDBTable",
         "id",
-        "DynamoDBRestoreSummary",
+        "AWSDynamoDBRestoreSummary",
         "id",
         "HAS_RESTORE",
         rel_direction_right=True,
@@ -449,9 +449,9 @@ def test_sync_dynamodb_nodes_and_relationships(mock_get_tables, neo4j_session):
     # Archival -> Backup
     archival_backup_rels = check_rels(
         neo4j_session,
-        "DynamoDBArchivalSummary",
+        "AWSDynamoDBArchivalSummary",
         "id",
-        "DynamoDBBackup",
+        "AWSDynamoDBBackup",
         "id",
         "ARCHIVED_TO_BACKUP",
         rel_direction_right=True,
@@ -466,9 +466,9 @@ def test_sync_dynamodb_nodes_and_relationships(mock_get_tables, neo4j_session):
     # Restore -> Backup
     restore_backup_rels = check_rels(
         neo4j_session,
-        "DynamoDBRestoreSummary",
+        "AWSDynamoDBRestoreSummary",
         "id",
-        "DynamoDBBackup",
+        "AWSDynamoDBBackup",
         "id",
         "RESTORED_FROM_BACKUP",
         rel_direction_right=True,
@@ -486,7 +486,7 @@ def test_sync_dynamodb_nodes_and_relationships(mock_get_tables, neo4j_session):
 
     neo4j_session.run(
         """
-        MERGE (i:EC2Instance{id:1234, lastupdated: $lastupdated})<-[r:RESOURCE]-(:AWSAccount{id: $aws_account_id})
+        MERGE (i:AWSEC2Instance{id:1234, lastupdated: $lastupdated})<-[r:RESOURCE]-(:AWSAccount{id: $aws_account_id})
         SET r.lastupdated = $lastupdated
         """,
         aws_account_id=TEST_ACCOUNT_ID,
@@ -498,7 +498,7 @@ def test_sync_dynamodb_nodes_and_relationships(mock_get_tables, neo4j_session):
         neo4j_session,
         "AWSAccount",
         "id",
-        "EC2Instance",
+        "AWSEC2Instance",
         "id",
         "RESOURCE",
         rel_direction_right=True,
@@ -521,21 +521,23 @@ def test_sync_dynamodb_nodes_and_relationships(mock_get_tables, neo4j_session):
     )
 
     # Assert: All DynamoDB nodes should be cleaned up (because they have the OLD update tag)
-    assert check_nodes(neo4j_session, "DynamoDBTable", ["id"]) == set()
-    assert check_nodes(neo4j_session, "DynamoDBGlobalSecondaryIndex", ["id"]) == set()
-    assert check_nodes(neo4j_session, "DynamoDBBillingModeSummary", ["id"]) == set()
-    assert check_nodes(neo4j_session, "DynamoDBStream", ["id"]) == set()
-    assert check_nodes(neo4j_session, "DynamoDBSSEDescription", ["id"]) == set()
-    assert check_nodes(neo4j_session, "DynamoDBArchivalSummary", ["id"]) == set()
-    assert check_nodes(neo4j_session, "DynamoDBRestoreSummary", ["id"]) == set()
-    assert check_nodes(neo4j_session, "DynamoDBBackup", ["id"]) == set()
+    assert check_nodes(neo4j_session, "AWSDynamoDBTable", ["id"]) == set()
+    assert (
+        check_nodes(neo4j_session, "AWSDynamoDBGlobalSecondaryIndex", ["id"]) == set()
+    )
+    assert check_nodes(neo4j_session, "AWSDynamoDBBillingModeSummary", ["id"]) == set()
+    assert check_nodes(neo4j_session, "AWSDynamoDBStream", ["id"]) == set()
+    assert check_nodes(neo4j_session, "AWSDynamoDBSSEDescription", ["id"]) == set()
+    assert check_nodes(neo4j_session, "AWSDynamoDBArchivalSummary", ["id"]) == set()
+    assert check_nodes(neo4j_session, "AWSDynamoDBRestoreSummary", ["id"]) == set()
+    assert check_nodes(neo4j_session, "AWSDynamoDBBackup", ["id"]) == set()
 
     # Assert: The unrelated EC2 instance should STILL EXIST
     assert check_rels(
         neo4j_session,
         "AWSAccount",
         "id",
-        "EC2Instance",
+        "AWSEC2Instance",
         "id",
         "RESOURCE",
         rel_direction_right=True,

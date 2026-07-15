@@ -19,7 +19,7 @@ TEST_UPDATE_TAG = 123456789
 )
 def test_sync_hub(mock_get_hub, neo4j_session):
     """
-    Ensure that sync() creates SecurityHub nodes and links them to the AWS account.
+    Ensure that sync() creates AWSSecurityHub nodes and links them to the AWS account.
     """
     boto3_session = MagicMock()
     create_test_account(neo4j_session, TEST_ACCOUNT_ID, TEST_UPDATE_TAG)
@@ -35,7 +35,7 @@ def test_sync_hub(mock_get_hub, neo4j_session):
 
     assert check_nodes(
         neo4j_session,
-        "SecurityHub",
+        "AWSSecurityHub",
         ["id", "subscribed_at", "auto_enable_controls"],
     ) == {
         (
@@ -49,7 +49,7 @@ def test_sync_hub(mock_get_hub, neo4j_session):
         neo4j_session,
         "AWSAccount",
         "id",
-        "SecurityHub",
+        "AWSSecurityHub",
         "id",
         "RESOURCE",
         rel_direction_right=True,

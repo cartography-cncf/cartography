@@ -41,10 +41,10 @@ class IntuneManagedDeviceHasAppRelProperties(CartographyRelProperties):
     _sub_resource_id: PropertyRef = PropertyRef("_sub_resource_id", set_in_kwargs=True)
 
 
-# (:IntuneDetectedApp)<-[:RESOURCE]-(:EntraTenant)
+# (:IntuneDetectedApp)<-[:RESOURCE]-(:AzureTenant)
 @dataclass(frozen=True)
 class IntuneDetectedAppToTenantRel(CartographyRelSchema):
-    target_node_label: str = "EntraTenant"
+    target_node_label: str = "AzureTenant"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("TENANT_ID", set_in_kwargs=True)},
     )
@@ -70,7 +70,7 @@ class IntuneManagedDeviceToDetectedAppMatchLink(CartographyRelSchema):
         IntuneManagedDeviceHasAppRelProperties()
     )
     source_node_sub_resource: MatchLinkSubResource = MatchLinkSubResource(
-        target_node_label="EntraTenant",
+        target_node_label="AzureTenant",
         target_node_matcher=make_target_node_matcher(
             {"id": PropertyRef("_sub_resource_id", set_in_kwargs=True)},
         ),
@@ -78,7 +78,7 @@ class IntuneManagedDeviceToDetectedAppMatchLink(CartographyRelSchema):
         rel_label="RESOURCE",
     )
     target_node_sub_resource: MatchLinkSubResource = MatchLinkSubResource(
-        target_node_label="EntraTenant",
+        target_node_label="AzureTenant",
         target_node_matcher=make_target_node_matcher(
             {"id": PropertyRef("_sub_resource_id", set_in_kwargs=True)},
         ),

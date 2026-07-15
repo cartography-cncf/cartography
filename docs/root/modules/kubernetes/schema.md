@@ -3,7 +3,7 @@
 ### KubernetesCluster
 Representation of a [Kubernetes Cluster.](https://kubernetes.io/docs/concepts/overview/what-is-kubernetes/)
 
-> **Ontology Mapping**: This node has the extra label `ComputeCluster` to enable cross-platform queries for compute clusters across different systems (e.g., EKSCluster, ECSCluster, AzureKubernetesCluster, GKECluster).
+> **Ontology Mapping**: This node has the extra label `ComputeCluster` to enable cross-platform queries for compute clusters across different systems (e.g., AWSEKSCluster, AWSECSCluster, AzureKubernetesCluster, GKECluster).
 
 | Field | Description |
 |-------|-------------|
@@ -56,9 +56,9 @@ Representation of a [Kubernetes Cluster.](https://kubernetes.io/docs/concepts/ov
     (:KubernetesCluster)-[:RESOURCE]->(:KubernetesPod)
     ```
 
-- A `KubernetesCluster` maps to the `EKSCluster` that hosts it when its `external_id` is an EKS cluster ARN.
+- A `KubernetesCluster` maps to the `AWSEKSCluster` that hosts it when its `external_id` is an EKS cluster ARN.
     ```
-    (:EKSCluster)-[:MAPS_TO]->(:KubernetesCluster)
+    (:AWSEKSCluster)-[:MAPS_TO]->(:KubernetesCluster)
     ```
 
 ### KubernetesNode
@@ -92,9 +92,9 @@ Representation of a [Kubernetes Node.](https://kubernetes.io/docs/concepts/archi
     (:KubernetesPod)-[:RUNS_ON]->(:KubernetesNode)
     ```
 
-- An EKS `KubernetesNode` is backed by an `EC2Instance`. Only created when the node's `spec.providerID` resolves to an EC2 instance id.
+- An EKS `KubernetesNode` is backed by an `AWSEC2Instance`. Only created when the node's `spec.providerID` resolves to an EC2 instance id.
     ```
-    (:KubernetesNode)-[:IS_INSTANCE]->(:EC2Instance)
+    (:KubernetesNode)-[:IS_INSTANCE]->(:AWSEC2Instance)
     ```
 
 ### KubernetesNamespace
@@ -135,7 +135,7 @@ Representation of a [Kubernetes Namespace.](https://kubernetes.io/docs/concepts/
 ### KubernetesPod
 Representation of a [Kubernetes Pod.](https://kubernetes.io/docs/concepts/workloads/pods/)
 
-> **Ontology Mapping**: This node has the extra label `ComputePod` to enable cross-platform queries for the smallest schedulable workload unit across different systems (e.g., ECSTask, AzureGroupContainer).
+> **Ontology Mapping**: This node has the extra label `ComputePod` to enable cross-platform queries for the smallest schedulable workload unit across different systems (e.g., AWSECSTask, AzureGroupContainer).
 
 | Field | Description |
 |-------|-------------|
@@ -185,7 +185,7 @@ Representation of a [Kubernetes Pod.](https://kubernetes.io/docs/concepts/worklo
 ### KubernetesContainer
 Representation of a [Kubernetes Container.](https://kubernetes.io/docs/concepts/workloads/pods/#how-pods-manage-multiple-containers)
 
-> **Ontology Mapping**: This node has the extra label `Container` to enable cross-platform queries for containers across different systems (e.g., ECSContainer, AzureContainerInstance).
+> **Ontology Mapping**: This node has the extra label `Container` to enable cross-platform queries for containers across different systems (e.g., AWSECSContainer, AzureContainerInstance).
 
 | Field | Description |
 |-------|-------------|
@@ -231,7 +231,7 @@ Representation of a [Kubernetes Container.](https://kubernetes.io/docs/concepts/
   For GCP Artifact Registry, the relationship points at the canonical digest-scoped `GCPArtifactRegistryImage`, not the scoped `GCPArtifactRegistryRepositoryImage`.
   Runtime fields like `status_image_id` and `status_image_sha` remain on the container for later exact-image resolution work.
     ```
-    (:KubernetesContainer)-[:HAS_IMAGE]->(:ECRImage)
+    (:KubernetesContainer)-[:HAS_IMAGE]->(:AWSECRImage)
     (:KubernetesContainer)-[:HAS_IMAGE]->(:GitLabContainerImage)
     (:KubernetesContainer)-[:HAS_IMAGE]->(:GCPArtifactRegistryImage)
     (:KubernetesContainer)-[:HAS_IMAGE]->(:GitHubContainerImage)

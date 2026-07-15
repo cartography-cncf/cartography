@@ -33,7 +33,7 @@ aws_guardduty_active_threat = Fact(
         "compromise or attacker activity rather than reconnaissance."
     ),
     cypher_query=f"""
-    MATCH (a:AWSAccount)-[:RESOURCE]->(f:GuardDutyFinding)
+    MATCH (a:AWSAccount)-[:RESOURCE]->(f:AWSGuardDutyFinding)
     WHERE f.severity >= 7
       AND coalesce(f.archived, false) = false
       AND coalesce(f.sample, false) = false
@@ -52,19 +52,19 @@ aws_guardduty_active_threat = Fact(
     ORDER BY f.severity DESC, f.eventlastseen DESC
     """,
     cypher_visual_query=f"""
-    MATCH (a:AWSAccount)-[:RESOURCE]->(f:GuardDutyFinding)
+    MATCH (a:AWSAccount)-[:RESOURCE]->(f:AWSGuardDutyFinding)
     WHERE f.severity >= 7
       AND coalesce(f.archived, false) = false
       AND coalesce(f.sample, false) = false
       AND ({_ACTIVE_THREAT_WHERE})
     RETURN *
     """,
-    # Denominator: all live GuardDutyFinding nodes (unarchived, non-sample). The
+    # Denominator: all live AWSGuardDutyFinding nodes (unarchived, non-sample). The
     # runner computes `passing = total - failing`, so this must count the full
     # evaluated population, not the failing subset. Sample findings are excluded
     # here too so they never count toward the pass rate.
     cypher_count_query="""
-    MATCH (:AWSAccount)-[:RESOURCE]->(f:GuardDutyFinding)
+    MATCH (:AWSAccount)-[:RESOURCE]->(f:AWSGuardDutyFinding)
     WHERE coalesce(f.archived, false) = false
       AND coalesce(f.sample, false) = false
     RETURN COUNT(f) AS count

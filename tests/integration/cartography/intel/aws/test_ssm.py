@@ -75,7 +75,7 @@ def test_load_instance_information(mock_get_instances, neo4j_session):
 
     nodes = neo4j_session.run(
         """
-        MATCH (:AWSAccount{id: "000000000000"})-[:RESOURCE]->(n:SSMInstanceInformation)
+        MATCH (:AWSAccount{id: "000000000000"})-[:RESOURCE]->(n:AWSSSMInstanceInformation)
         RETURN n.id,
                n.last_ping_date_time,
                n.last_association_execution_date,
@@ -95,7 +95,7 @@ def test_load_instance_information(mock_get_instances, neo4j_session):
 
     nodes = neo4j_session.run(
         """
-        MATCH (:EC2Instance{id: "i-01"})-[:HAS_INFORMATION]->(n:SSMInstanceInformation)
+        MATCH (:AWSEC2Instance{id: "i-01"})-[:HAS_INFORMATION]->(n:AWSSSMInstanceInformation)
         RETURN n.id
         """,
     )
@@ -104,7 +104,7 @@ def test_load_instance_information(mock_get_instances, neo4j_session):
 
     nodes = neo4j_session.run(
         """
-        MATCH (:EC2Instance{id: "i-02"})-[:HAS_INFORMATION]->(n:SSMInstanceInformation)
+        MATCH (:AWSEC2Instance{id: "i-02"})-[:HAS_INFORMATION]->(n:AWSSSMInstanceInformation)
         RETURN n.id
         """,
     )
@@ -149,7 +149,7 @@ def test_load_instance_patches(mock_get_instances, neo4j_session):
     }
     nodes = neo4j_session.run(
         """
-        MATCH (:AWSAccount{id: "000000000000"})-[:RESOURCE]->(n:SSMInstancePatch)
+        MATCH (:AWSAccount{id: "000000000000"})-[:RESOURCE]->(n:AWSSSMInstancePatch)
         RETURN n.id,
                n.installed_time,
                n.cve_ids
@@ -168,7 +168,7 @@ def test_load_instance_patches(mock_get_instances, neo4j_session):
     # Assert
     nodes = neo4j_session.run(
         """
-        MATCH (:EC2Instance{id: "i-01"})-[:HAS_PATCH]->(n:SSMInstancePatch)
+        MATCH (:AWSEC2Instance{id: "i-01"})-[:HAS_PATCH]->(n:AWSSSMInstancePatch)
         RETURN n.id
         """,
     )
@@ -178,7 +178,7 @@ def test_load_instance_patches(mock_get_instances, neo4j_session):
     # Assert
     nodes = neo4j_session.run(
         """
-        MATCH (:EC2Instance{id: "i-02"})-[:HAS_PATCH]->(n:SSMInstancePatch)
+        MATCH (:AWSEC2Instance{id: "i-02"})-[:HAS_PATCH]->(n:AWSSSMInstancePatch)
         RETURN n.id
         """,
     )
@@ -221,7 +221,7 @@ def test_load_ssm_parameters(
         common_params,
     )
 
-    # Assert: Check SSMParameter nodes and their properties
+    # Assert: Check AWSSSMParameter nodes and their properties
     expected_ssm_parameter_data = {
         (
             "arn:aws:ssm:eu-west-1:000000000000:parameter/my/app/config/db-host",
@@ -265,7 +265,7 @@ def test_load_ssm_parameters(
 
     actual_ssm_parameter_data = check_nodes(
         neo4j_session,
-        "SSMParameter",
+        "AWSSSMParameter",
         [
             "id",
             "name",
@@ -280,7 +280,7 @@ def test_load_ssm_parameters(
     )
     assert actual_ssm_parameter_data == expected_ssm_parameter_data
 
-    # Assert: Check SSMParameter to AWSAccount relationships (RESOURCE)
+    # Assert: Check AWSSSMParameter to AWSAccount relationships (RESOURCE)
     expected_rels_account_to_ssm = {
         (
             TEST_ACCOUNT_ID,
@@ -295,14 +295,14 @@ def test_load_ssm_parameters(
         neo4j_session,
         "AWSAccount",
         "id",
-        "SSMParameter",
+        "AWSSSMParameter",
         "id",
         "RESOURCE",
         True,
     )
     assert actual_rels_account_to_ssm == expected_rels_account_to_ssm
 
-    # Assert: Check SSMParameter to KMSKey relationships (ENCRYPTED_BY)
+    # Assert: Check AWSSSMParameter to AWSKMSKey relationships (ENCRYPTED_BY)
     expected_rels_ssm_to_kms = {
         (
             "arn:aws:ssm:eu-west-1:000000000000:parameter/my/app/config/db-host",
@@ -315,9 +315,9 @@ def test_load_ssm_parameters(
     }
     actual_rels_ssm_to_kms = check_rels(
         neo4j_session,
-        "SSMParameter",
+        "AWSSSMParameter",
         "id",
-        "KMSKey",
+        "AWSKMSKey",
         "id",
         "ENCRYPTED_BY",
         True,
@@ -427,7 +427,7 @@ def test_load_shared_public_ssm_parameters(
 
     public_kms_relationship_count = neo4j_session.run(
         """
-        MATCH (:PublicSSMParameter)-[r:ENCRYPTED_BY]->(:KMSKey)
+        MATCH (:AWSPublicSSMParameter)-[r:ENCRYPTED_BY]->(:AWSKMSKey)
         RETURN count(r) AS count
         """
     ).single()["count"]

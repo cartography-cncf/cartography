@@ -38,7 +38,7 @@ class PrincipalToS3BucketCartesianProductRel(CartographyRelSchema):
     source_node_matcher: SourceNodeMatcher = make_source_node_matcher(
         {"principal_arn": PropertyRef("principal_arn")},
     )
-    target_node_label: str = "S3Bucket"
+    target_node_label: str = "AWSS3Bucket"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"name": PropertyRef("BucketName")},
     )
@@ -442,7 +442,7 @@ def test_load_matchlinks_cartesian_product_batches_and_records_metrics(caplog):
         "bucket-3",
     ]
     mock_stat_handler.incr.assert_called_once_with(
-        "relationship.awsprincipal.can_bulk_access.s3bucket.loaded",
+        "relationship.awsprincipal.can_bulk_access.awss3bucket.loaded",
         12,
     )
     assert any(
@@ -1018,7 +1018,7 @@ def test_load_matchlinks_emits_metrics_and_logs(
     mock_session = MagicMock()
     mock_rel_schema = MagicMock()
     mock_rel_schema.rel_label = "CONNECTED_TO"
-    mock_rel_schema.source_node_label = "EC2Instance"
+    mock_rel_schema.source_node_label = "AWSEC2Instance"
     mock_rel_schema.target_node_label = "AWSVpc"
     mock_build_query.return_value = "UNWIND ..."
 
@@ -1038,14 +1038,14 @@ def test_load_matchlinks_emits_metrics_and_logs(
 
     # Verify metric includes source and target labels for disambiguation
     mock_stat_handler.incr.assert_called_once_with(
-        "relationship.ec2instance.connected_to.awsvpc.loaded", 2
+        "relationship.awsec2instance.connected_to.awsvpc.loaded", 2
     )
 
     # Verify info log was emitted
     mock_logger.info.assert_called_once_with(
         "Loaded %d (%s)-[%s]->(%s) relationships",
         2,
-        "EC2Instance",
+        "AWSEC2Instance",
         "CONNECTED_TO",
         "AWSVpc",
     )

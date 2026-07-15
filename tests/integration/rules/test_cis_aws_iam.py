@@ -34,19 +34,19 @@ def test_access_key_rules_parse_iso_datetime_strings_with_z(neo4j_session) -> No
             arn: 'arn:aws:iam::111111111111:user/never-used',
             name: 'never-used'
         })
-        CREATE (rotated_key:AccountAccessKey {
+        CREATE (rotated_key:AWSAccountAccessKey {
             accesskeyid: 'AKIAOLDROTATION',
             status: 'Active',
             createdate_dt: '2020-02-17T22:57:02Z',
             lastuseddate_dt: '2999-02-17T22:57:02Z'
         })
-        CREATE (used_key:AccountAccessKey {
+        CREATE (used_key:AWSAccountAccessKey {
             accesskeyid: 'AKIAOLDLASTUSED',
             status: 'Active',
             createdate_dt: '2020-02-17T22:57:02Z',
             lastuseddate_dt: '2020-03-17T22:57:02Z'
         })
-        CREATE (never_used_key:AccountAccessKey {
+        CREATE (never_used_key:AWSAccountAccessKey {
             accesskeyid: 'AKIANEVERUSED',
             status: 'Active',
             createdate_dt: '2020-04-17T22:57:02Z'

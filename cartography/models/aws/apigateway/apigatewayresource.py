@@ -3,6 +3,7 @@ from dataclasses import dataclass
 from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeProperties
 from cartography.models.core.nodes import CartographyNodeSchema
+from cartography.models.core.nodes import ExtraNodeLabels
 from cartography.models.core.relationships import CartographyRelProperties
 from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
@@ -26,9 +27,9 @@ class APIGatewayResourceToRestAPIRelRelProperties(CartographyRelProperties):
 
 
 @dataclass(frozen=True)
-# (:APIGatewayResource)<-[:RESOURCE]-(:APIGatewayRestAPI)
+# (:AWSAPIGatewayResource)<-[:RESOURCE]-(:AWSAPIGatewayRestAPI)
 class APIGatewayResourceToRestAPIRel(CartographyRelSchema):
-    target_node_label: str = "APIGatewayRestAPI"
+    target_node_label: str = "AWSAPIGatewayRestAPI"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("apiId")},
     )
@@ -45,7 +46,7 @@ class APIGatewayResourceToAWSAccountRelRelProperties(CartographyRelProperties):
 
 
 @dataclass(frozen=True)
-# (:APIGatewayResource)<-[:RESOURCE]-(:AWSAccount)
+# (:AWSAPIGatewayResource)<-[:RESOURCE]-(:AWSAccount)
 class APIGatewayResourceToAWSAccountRel(CartographyRelSchema):
     target_node_label: str = "AWSAccount"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
@@ -60,7 +61,9 @@ class APIGatewayResourceToAWSAccountRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class APIGatewayResourceSchema(CartographyNodeSchema):
-    label: str = "APIGatewayResource"
+    label: str = "AWSAPIGatewayResource"
+    # DEPRECATED: legacy APIGatewayResource node label will be removed in v1.0.0.
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["APIGatewayResource"])
     properties: APIGatewayResourceNodeProperties = APIGatewayResourceNodeProperties()
     sub_resource_relationship: APIGatewayResourceToAWSAccountRel = (
         APIGatewayResourceToAWSAccountRel()

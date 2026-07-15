@@ -4,7 +4,7 @@
 
 Currently, Cartography allows you to use Trivy to scan the following resources:
 
-- [ECRImage](https://cartography-cncf.github.io/cartography/modules/aws/schema.html#ecrimage) (note that you scan ECRRepositoryImages but findings attach to their underlying ECRImage nodes)
+- [AWSECRImage](https://cartography-cncf.github.io/cartography/modules/aws/schema.html#ecrimage) (note that you scan ECRRepositoryImages but findings attach to their underlying AWSECRImage nodes)
 
 
 To use Trivy with Cartography,
@@ -27,7 +27,7 @@ To use Trivy with Cartography,
     **Optional Trivy parameters to consider**:
 
     - `--ignore-unfixed`: if you want to ignore vulnerabilities that do not have a fixed version.
-    - `--list-all-pkgs`: when present, Trivy will list all packages in the image, not just the ones that have vulnerabilities. This is useful for getting a complete inventory of packages in the image. Cartography will then attach all packages to the ECRImage node.
+    - `--list-all-pkgs`: when present, Trivy will list all packages in the image, not just the ones that have vulnerabilities. This is useful for getting a complete inventory of packages in the image. Cartography will then attach all packages to the AWSECRImage node.
 
     **Naming conventions**:
 
@@ -84,4 +84,4 @@ Ensure that the machine running Trivy has the necessary permissions to scan your
 
 | Cartography Node label | Cloud permissions required to scan with Trivy |
 |---|---|
-| [ECRRepositoryImage](https://cartography-cncf.github.io/cartography/modules/aws/schema.html#ecrrepositoryimage) | `ecr:GetAuthorizationToken`, `ecr:BatchGetImage`, `ecr:GetDownloadUrlForLayer` |
+| [AWSECRRepositoryImage](https://cartography-cncf.github.io/cartography/modules/aws/schema.html#ecrrepositoryimage) | `ecr:GetAuthorizationToken`, `ecr:BatchGetImage`, `ecr:GetDownloadUrlForLayer` |

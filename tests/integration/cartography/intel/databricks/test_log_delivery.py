@@ -16,7 +16,7 @@ TEST_UPDATE_TAG = 123456789
 
 def _seed_s3_bucket(neo4j_session):
     neo4j_session.run(
-        "MERGE (b:S3Bucket {name: $name}) SET b.lastupdated = $tag",
+        "MERGE (b:AWSS3Bucket {name: $name}) SET b.lastupdated = $tag",
         name=DATABRICKS_LOG_DELIVERY_BUCKET,
         tag=TEST_UPDATE_TAG,
     )
@@ -66,12 +66,12 @@ def test_load_databricks_log_delivery(mock_get, neo4j_session):
         ("log-def-456", DATABRICKS_ACCOUNT_ID),
     }
 
-    # LogDelivery -> S3Bucket DELIVERS_TO (only forms when the bucket is known)
+    # LogDelivery -> AWSS3Bucket DELIVERS_TO (only forms when the bucket is known)
     assert check_rels(
         neo4j_session,
         "DatabricksLogDelivery",
         "config_id",
-        "S3Bucket",
+        "AWSS3Bucket",
         "name",
         "DELIVERS_TO",
         rel_direction_right=True,

@@ -67,7 +67,7 @@ class DeviceAffectedByS1AppFindingRel(CartographyRelSchema):
 
 # Cleanup-only relationship.
 # Created by the devices linking query (walking OBSERVED_AS -> CrowdstrikeHost ->
-# SpotlightVulnerability -> CrowdstrikeFinding), not by load(DeviceSchema()).
+# CrowdstrikeSpotlightVulnerability -> CrowdstrikeFinding), not by load(DeviceSchema()).
 # (:CrowdstrikeFinding)-[:AFFECTS]->(:Device)
 @dataclass(frozen=True)
 class DeviceAffectedByCrowdstrikeFindingRel(CartographyRelSchema):

@@ -53,7 +53,7 @@ class ACMCertificateToELBV2ListenerRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class ACMCertificateToELBV2ListenerRel(CartographyRelSchema):
-    target_node_label: str = "ELBV2Listener"
+    target_node_label: str = "AWSELBV2Listener"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("ELBV2ListenerArns", one_to_many=True)}
     )
@@ -66,8 +66,11 @@ class ACMCertificateToELBV2ListenerRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class ACMCertificateSchema(CartographyNodeSchema):
-    label: str = "ACMCertificate"
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["Certificate"])
+    label: str = "AWSACMCertificate"
+    # DEPRECATED: legacy ACMCertificate node label will be removed in v1.0.0.
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
+        ["ACMCertificate", "Certificate"]
+    )
     properties: ACMCertificateNodeProperties = ACMCertificateNodeProperties()
     sub_resource_relationship: ACMCertificateToAWSAccountRel = (
         ACMCertificateToAWSAccountRel()

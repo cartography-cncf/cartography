@@ -35,13 +35,13 @@ def ingest_dns_record_by_fqdn(
 
     Example usage in ElasticSearch sync:
     ingest_dns_record_by_fqdn(neo4j_session, aws_update_tag, fqdn, node_id_of_the_ESDomain,
-                              dns_node_additional_label="ESDomain")
+                              dns_node_additional_label="AWSESDomain")
 
     :param neo4j_session: Neo4j session object
     :param update_tag: Update tag to set the node with and childs
     :param fqdn: the fqdn record to add
     :param points_to_record: parent record to set DNS_POINTS_TO relationship to. Can be None
-    :param record_label: the label of the node to attach to a DNS record, e.g. "ESDomain"
+    :param record_label: the label of the node to attach to a DNS record, e.g. "AWSESDomain"
     :param dns_node_additional_label: The specific label of the DNSRecord, e.g. AWSDNSRecord.
     :return: the graph node id for the new/merged record
     """

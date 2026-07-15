@@ -215,7 +215,7 @@ _aws_ec2_instance_internet_exposed = Fact(
         "TCP management ports. Aligned with the GCP and Azure facts."
     ),
     cypher_query="""
-    MATCH (a:AWSAccount)-[:RESOURCE]->(ec2:EC2Instance)-[:MEMBER_OF_EC2_SECURITY_GROUP]->(sg:EC2SecurityGroup)<-[:MEMBER_OF_EC2_SECURITY_GROUP]-(rule:AWSIpPermissionInbound)
+    MATCH (a:AWSAccount)-[:RESOURCE]->(ec2:AWSEC2Instance)-[:MEMBER_OF_EC2_SECURITY_GROUP]->(sg:AWSEC2SecurityGroup)<-[:MEMBER_OF_EC2_SECURITY_GROUP]-(rule:AWSIpPermissionInbound)
     MATCH (rule)<-[:MEMBER_OF_IP_RULE]-(ip:AWSIpRange{range:'0.0.0.0/0'})
     WHERE coalesce(rule.protocol, '') IN ['tcp', '-1', 'all']
       AND NOT coalesce(ec2.state, 'running') IN ['terminated', 'shutting-down']
@@ -235,7 +235,7 @@ _aws_ec2_instance_internet_exposed = Fact(
     ORDER BY account, instance_id, port, security_group
     """,
     cypher_visual_query="""
-    MATCH p=(a:AWSAccount)-[:RESOURCE]->(ec2:EC2Instance)-[:MEMBER_OF_EC2_SECURITY_GROUP]->(sg:EC2SecurityGroup)<-[:MEMBER_OF_EC2_SECURITY_GROUP]-(rule:AWSIpPermissionInbound)
+    MATCH p=(a:AWSAccount)-[:RESOURCE]->(ec2:AWSEC2Instance)-[:MEMBER_OF_EC2_SECURITY_GROUP]->(sg:AWSEC2SecurityGroup)<-[:MEMBER_OF_EC2_SECURITY_GROUP]-(rule:AWSIpPermissionInbound)
     MATCH p2=(rule)<-[:MEMBER_OF_IP_RULE]-(ip:AWSIpRange{range:'0.0.0.0/0'})
     WHERE coalesce(rule.protocol, '') IN ['tcp', '-1', 'all']
       AND NOT coalesce(ec2.state, 'running') IN ['terminated', 'shutting-down']
@@ -248,7 +248,7 @@ _aws_ec2_instance_internet_exposed = Fact(
     RETURN *
     """,
     cypher_count_query="""
-    MATCH (ec2:EC2Instance)
+    MATCH (ec2:AWSEC2Instance)
     WHERE NOT coalesce(ec2.state, 'running') IN ['terminated', 'shutting-down']
     RETURN COUNT(ec2) AS count
     """,
