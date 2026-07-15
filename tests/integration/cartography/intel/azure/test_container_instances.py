@@ -28,7 +28,7 @@ def test_has_image_rel(mock_get, neo4j_session):
         tag=TEST_UPDATE_TAG,
     )
     neo4j_session.run(
-        "MERGE (img:ECRImage {id: $digest, digest: $digest}) SET img.lastupdated = $tag",
+        "MERGE (img:AWSECRImage {id: $digest, digest: $digest}) SET img.lastupdated = $tag",
         digest=TEST_GROUP_CONTAINER_DIGEST,
         tag=TEST_UPDATE_TAG,
     )
@@ -55,7 +55,7 @@ def test_has_image_rel(mock_get, neo4j_session):
         neo4j_session,
         "AzureContainerInstance",
         "id",
-        "ECRImage",
+        "AWSECRImage",
         "digest",
         "HAS_IMAGE",
     ) == {(TEST_CONTAINER_ID, TEST_GROUP_CONTAINER_DIGEST)}

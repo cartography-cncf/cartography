@@ -86,7 +86,7 @@ def test_packages_end_to_end_from_trivy_syft_to_ontology(
         """
         MATCH (n)
         WHERE n:Package OR n:TrivyPackage OR n:SyftPackage OR n:TrivyFix
-           OR n:TrivyImageFinding OR n:ECRImage OR n:ECRRepositoryImage OR n:ECRRepository
+           OR n:TrivyImageFinding OR n:AWSECRImage OR n:AWSECRRepositoryImage OR n:AWSECRRepository
         DETACH DELETE n
         """,
     )

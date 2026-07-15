@@ -46,10 +46,10 @@ class PublicIPToDeviceRel(CartographyRelSchema):
 # =============================================================================
 
 
-# (:PublicIP)-[:RESERVED_BY]->(:ElasticIPAddress)
+# (:PublicIP)-[:RESERVED_BY]->(:AWSElasticIPAddress)
 @dataclass(frozen=True)
 class PublicIPToElasticIPAddressRel(CartographyRelSchema):
-    target_node_label: str = "ElasticIPAddress"
+    target_node_label: str = "AWSElasticIPAddress"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"public_ip": PropertyRef("ip_address")},
     )

@@ -24,13 +24,13 @@ def _seed_aws_network_nodes(neo4j_session):
     )
     for subnet_id in DATABRICKS_NETWORK_SUBNET_IDS:
         neo4j_session.run(
-            "MERGE (s:EC2Subnet {id: $id}) SET s.lastupdated = $tag",
+            "MERGE (s:AWSEC2Subnet {id: $id}) SET s.lastupdated = $tag",
             id=subnet_id,
             tag=TEST_UPDATE_TAG,
         )
     for sg_id in DATABRICKS_NETWORK_SG_IDS:
         neo4j_session.run(
-            "MERGE (g:EC2SecurityGroup {id: $id}) SET g.lastupdated = $tag",
+            "MERGE (g:AWSEC2SecurityGroup {id: $id}) SET g.lastupdated = $tag",
             id=sg_id,
             tag=TEST_UPDATE_TAG,
         )
@@ -85,23 +85,23 @@ def test_load_databricks_network_configs(mock_get, neo4j_session):
         rel_direction_right=True,
     ) == {("net-abc-123", DATABRICKS_NETWORK_VPC_ID)}
 
-    # NetworkConfig -> EC2Subnet USES_SUBNET
+    # NetworkConfig -> AWSEC2Subnet USES_SUBNET
     assert check_rels(
         neo4j_session,
         "DatabricksNetworkConfig",
         "network_id",
-        "EC2Subnet",
+        "AWSEC2Subnet",
         "id",
         "USES_SUBNET",
         rel_direction_right=True,
     ) == {("net-abc-123", s) for s in DATABRICKS_NETWORK_SUBNET_IDS}
 
-    # NetworkConfig -> EC2SecurityGroup USES_SECURITY_GROUP
+    # NetworkConfig -> AWSEC2SecurityGroup USES_SECURITY_GROUP
     assert check_rels(
         neo4j_session,
         "DatabricksNetworkConfig",
         "network_id",
-        "EC2SecurityGroup",
+        "AWSEC2SecurityGroup",
         "id",
         "USES_SECURITY_GROUP",
         rel_direction_right=True,

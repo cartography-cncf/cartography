@@ -62,7 +62,7 @@ Represents a [Semgrep SAST](https://semgrep.dev/docs/semgrep-code/getting-starte
 
 > **Cloud-only fields**: `line_of_code_url`, `state`, `fix_status`, `triage_status`, `opened_at`, `risk_severity`, and the `HAS_ASSISTANT` relationship are only populated for Semgrep Cloud findings.
 
-> **Ontology Mapping**: This node has the extra label `SecurityIssue` to enable cross-scanner queries for non-CVE security issues across different tools (e.g., GuardDutyFinding, SemgrepSecretsFinding, AzureSecurityAssessment).
+> **Ontology Mapping**: This node has the extra label `SecurityIssue` to enable cross-scanner queries for non-CVE security issues across different tools (e.g., AWSGuardDutyFinding, SemgrepSecretsFinding, AzureSecurityAssessment).
 
 | Field | Description |
 |-------|--------------|
@@ -116,7 +116,7 @@ Represents a [Semgrep SAST](https://semgrep.dev/docs/semgrep-code/getting-starte
 
 Represents a [Semgrep Secrets](https://semgrep.dev/docs/semgrep-secrets/conceptual-overview/) finding. This is a hardcoded secret (e.g. API key, token, credential) discovered by Semgrep scanning source code. Before ingesting this node, make sure you have run Semgrep CI and that it's connected to Semgrep Cloud Platform [Running Semgrep CI with Semgrep Cloud Platform](https://semgrep.dev/docs/semgrep-ci/running-semgrep-ci-with-semgrep-cloud-platform/). The API called to retrieve this information is documented at https://semgrep.dev/api/v1/docs/#tag/SecretsService.
 
-> **Ontology Mapping**: This node has the extra label `SecurityIssue` to enable cross-scanner queries for non-CVE security issues across different tools (e.g., GuardDutyFinding, SemgrepSASTFinding, SecurityAssessment).
+> **Ontology Mapping**: This node has the extra label `SecurityIssue` to enable cross-scanner queries for non-CVE security issues across different tools (e.g., AWSGuardDutyFinding, SemgrepSASTFinding, SecurityAssessment).
 
 | Field | Description |
 |-------|--------------|
@@ -294,16 +294,18 @@ Represents a dependency of a repository as returned by the Semgrep
 | normalized_id | Cross-tool package identifier (`{type}\|{name}\|{version}`) used to dedup into the `Package` ontology node. |
 
 
-### GoLibrary
+### SemgrepGoLibrary
 
 Represents a Go library dependency as listed in a go.mod file.
-All GoLibrary nodes are also SemgrepDependency nodes.
+All SemgrepGoLibrary nodes are also SemgrepDependency nodes.
+The legacy `GoLibrary` label remains attached for compatibility until v1.0.0.
 See [SemgrepDependency](#semgrepdependency) for details.
 
-### NpmLibrary
+### SemgrepNpmLibrary
 
 Represents a NPM library dependency as listed in a package-lock.json file.
-All NpmLibrary nodes are also SemgrepDependency nodes.
+All SemgrepNpmLibrary nodes are also SemgrepDependency nodes.
+The legacy `NpmLibrary` label remains attached for compatibility until v1.0.0.
 See [SemgrepDependency](#semgrepdependency) for details.
 
 

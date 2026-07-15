@@ -75,7 +75,7 @@ def evaluate_resource_clause(clause: str, resource_arn: str) -> bool:
     "<bucket-arn>/<key>", so a policy granting "s3:GetObject" on any object
     pattern under the bucket -- "arn:aws:s3:::my-bucket/*",
     "arn:aws:s3:::my-bucket/logs/*", "arn:aws:s3:::my-bucket/key" -- should
-    still draw an edge to the S3Bucket node "arn:aws:s3:::my-bucket". To do so
+    still draw an edge to the AWSS3Bucket node "arn:aws:s3:::my-bucket". To do so
     we compare the *bucket portion* of the clause (everything before the first
     key separator) against the bucket ARN. This handles arbitrary key prefixes,
     not just "<bucket>/*". See

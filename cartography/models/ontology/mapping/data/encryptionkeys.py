@@ -12,7 +12,7 @@ aws_mapping = OntologyMapping(
     module_name="aws",
     nodes=[
         OntologyNodeMapping(
-            node_label="KMSKey",
+            node_label="AWSKMSKey",
             fields=[
                 OntologyFieldMapping(
                     ontology_field="name",

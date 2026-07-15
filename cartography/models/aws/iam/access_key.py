@@ -40,7 +40,7 @@ class AccountAccessKeyToAWSUserRelProperties(CartographyRelProperties):
 # DEPRECATED: replaced by the canonical (:APIKey)-[:OWNED_BY]->(:UserAccount)
 # edge (AccountAccessKeyToAWSUserOwnedByRel). Kept for backward compatibility,
 # will be removed in v1.0.0.
-# (:AWSUser)-[:AWS_ACCESS_KEY]->(:AccountAccessKey)
+# (:AWSUser)-[:AWS_ACCESS_KEY]->(:AWSAccountAccessKey)
 class AccountAccessKeyToAWSUserRel(CartographyRelSchema):
     target_node_label: str = "AWSUser"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
@@ -98,8 +98,9 @@ class AccountAccessKeyToAWSAccountRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class AccountAccessKeySchema(CartographyNodeSchema):
-    label: str = "AccountAccessKey"
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["APIKey"])
+    label: str = "AWSAccountAccessKey"
+    # DEPRECATED: legacy AccountAccessKey node label will be removed in v1.0.0.
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["AccountAccessKey", "APIKey"])
     properties: AccountAccessKeyNodeProperties = AccountAccessKeyNodeProperties()
     sub_resource_relationship: AccountAccessKeyToAWSAccountRel = (
         AccountAccessKeyToAWSAccountRel()

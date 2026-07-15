@@ -900,7 +900,7 @@ def test_start_aws_ingestion_allows_disabling_public_ssm_allowlist_with_empty_st
 
 
 def test_kms_syncs_before_kms_dependent_resources():
-    """Resources that wire ENCRYPTED_BY edges by matching existing KMSKey nodes
+    """Resources that wire ENCRYPTED_BY edges by matching existing AWSKMSKey nodes
     (s3, rds, efs, dynamodb) must sync after kms, otherwise the edges are silently
     missed on a full sync."""
     order = list(RESOURCE_FUNCTIONS.keys())
@@ -908,7 +908,7 @@ def test_kms_syncs_before_kms_dependent_resources():
     for dependent in ("s3", "rds", "efs", "dynamodb"):
         assert kms_index < order.index(dependent), (
             f"'kms' must sync before '{dependent}' so the ENCRYPTED_BY edge can "
-            f"match existing KMSKey nodes"
+            f"match existing AWSKMSKey nodes"
         )
 
 

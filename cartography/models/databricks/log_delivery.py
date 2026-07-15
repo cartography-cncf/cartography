@@ -49,9 +49,9 @@ class DatabricksLogDeliveryToS3RelProperties(CartographyRelProperties):
 
 
 @dataclass(frozen=True)
-# (:DatabricksLogDelivery)-[:DELIVERS_TO]->(:S3Bucket)
+# (:DatabricksLogDelivery)-[:DELIVERS_TO]->(:AWSS3Bucket)
 class DatabricksLogDeliveryToS3Rel(CartographyRelSchema):
-    target_node_label: str = "S3Bucket"
+    target_node_label: str = "AWSS3Bucket"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"name": PropertyRef("s3_bucket_name")},
     )

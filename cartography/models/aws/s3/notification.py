@@ -25,11 +25,11 @@ class S3BucketToSNSTopicRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class S3BucketToSNSTopicRel(CartographyRelSchema):
-    target_node_label: str = "SNSTopic"
+    target_node_label: str = "AWSSNSTopic"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"arn": PropertyRef("TopicArn")},
     )
-    source_node_label: str = "S3Bucket"
+    source_node_label: str = "AWSS3Bucket"
     source_node_matcher: SourceNodeMatcher = make_source_node_matcher(
         {"name": PropertyRef("bucket")},
     )

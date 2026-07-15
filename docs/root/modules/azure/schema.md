@@ -10,7 +10,7 @@ S -- RESOURCE --> Snapshot
 S -- RESOURCE --> SQL(SQLServer)
 S -- RESOURCE --> SA(StorageAccount)
 S -- RESOURCE --> CA(CosmosDBAccount)
-S -- RESOURCE --> NIC(NetworkInterface)
+S -- RESOURCE --> NIC(AWSNetworkInterface)
 S -- RESOURCE --> PIP(PublicIPAddress)
 S -- RESOURCE --> FW(Firewall)
 S -- RESOURCE --> FWP(FirewallPolicy)
@@ -322,7 +322,7 @@ Representation of the permissions within an Azure Role Definition. Each permissi
 
 Representation of an [Azure Virtual Machine](https://docs.microsoft.com/en-us/rest/api/compute/virtualmachines).
 
-> **Ontology Mapping**: This node has the extra label `ComputeInstance` to enable cross-platform queries for compute instances across different systems (e.g., EC2Instance, GCPInstance, DODroplet).
+> **Ontology Mapping**: This node has the extra label `ComputeInstance` to enable cross-platform queries for compute instances across different systems (e.g., AWSEC2Instance, GCPInstance, DODroplet).
 
 | Field | Description |
 |-------|-------------|
@@ -402,7 +402,7 @@ Representation of an [Azure Data Disk](https://docs.microsoft.com/en-us/rest/api
 
 Representation of an [Azure Disk](https://docs.microsoft.com/en-us/rest/api/compute/disks).
 
-> **Ontology Mapping**: This node has the extra label `BlockStorage` to enable cross-platform queries for block storage volumes across different systems (e.g., EBSVolume, ScalewayVolume).
+> **Ontology Mapping**: This node has the extra label `BlockStorage` to enable cross-platform queries for block storage volumes across different systems (e.g., AWSEBSVolume, ScalewayVolume).
 
 | Field | Description |
 |-------|-------------|
@@ -434,7 +434,7 @@ Representation of an [Azure Disk](https://docs.microsoft.com/en-us/rest/api/comp
 
 Representation of an [Azure Snapshot](https://docs.microsoft.com/en-us/rest/api/compute/snapshots).
 
-> **Ontology Mapping**: This node has the extra label `Snapshot` and normalized `_ont_*` properties to enable cross-platform queries for volume/database snapshots across different systems (e.g., EBSSnapshot, RDSSnapshot, ScalewayVolumeSnapshot).
+> **Ontology Mapping**: This node has the extra label `Snapshot` and normalized `_ont_*` properties to enable cross-platform queries for volume/database snapshots across different systems (e.g., AWSEBSSnapshot, AWSRDSSnapshot, ScalewayVolumeSnapshot).
 
 | Field | Description |
 |-------|-------------|
@@ -710,7 +710,7 @@ Two distinct cases are worth calling out and should NOT be conflated by downstre
 - **Public-internet exposure**: a rule whose range covers public IP space (for example `start_ip_address = 0.0.0.0` / `end_ip_address = 255.255.255.255`, or any rule whose range overlaps the public internet) lets arbitrary clients on the public internet reach the server.
 - **Allow Azure services**: the special `start_ip_address = 0.0.0.0` / `end_ip_address = 0.0.0.0` row (also exposed via the SQL Server's `public_network_access` + the "Allow Azure services and resources to access this server" toggle) allows traffic from Azure-hosted services / resources only, not arbitrary public IPs. It is a different exposure class and should be flagged separately.
 
-> **Ontology Mapping**: This node carries the extra labels `IpPermissionInbound` and `IpRule` so it can be matched alongside `EC2NetworkAclRule:IpPermissionInbound`, `AWSIpRule`, `GCPIpRule`, and other inbound rule nodes via cross-cloud queries.
+> **Ontology Mapping**: This node carries the extra labels `IpPermissionInbound` and `IpRule` so it can be matched alongside `AWSEC2NetworkAclRule:IpPermissionInbound`, `AWSIpRule`, `GCPIpRule`, and other inbound rule nodes via cross-cloud queries.
 
 | Field | Description |
 |-------|-------------|
@@ -736,7 +736,7 @@ Two distinct cases are worth calling out and should NOT be conflated by downstre
 
 Representation of an [AzureSQLDatabase](https://docs.microsoft.com/en-us/rest/api/sql/databases).
 
-> **Ontology Mapping**: This node has the extra label `Database` to enable cross-platform queries for database instances across different systems (e.g., RDSInstance, DynamoDBTable, GCPBigtableInstance).
+> **Ontology Mapping**: This node has the extra label `Database` to enable cross-platform queries for database instances across different systems (e.g., AWSRDSInstance, AWSDynamoDBTable, GCPBigtableInstance).
 
 | Field | Description |
 |-------|-------------|
@@ -1143,7 +1143,7 @@ Representation of an [AzureStorageFileShare](https://docs.microsoft.com/en-us/re
 
 Representation of an [AzureStorageBlobContainer](https://docs.microsoft.com/en-us/rest/api/storagerp/blobcontainers).
 
-> **Ontology Mapping**: This node has the extra label `ObjectStorage` to enable cross-platform queries for object storage across different systems (e.g., S3Bucket, GCPBucket).
+> **Ontology Mapping**: This node has the extra label `ObjectStorage` to enable cross-platform queries for object storage across different systems (e.g., AWSS3Bucket, GCPBucket).
 
 | Field | Description |
 |-------|-------------|
@@ -1386,7 +1386,7 @@ Representation of an Azure Cosmos DB [Virtual Network Rule](https://docs.microso
 
 Representation of an [AzureCosmosDBSqlDatabase](https://docs.microsoft.com/en-us/rest/api/cosmos-db-resource-provider/).
 
-> **Ontology Mapping**: This node has the extra label `Database` to enable cross-platform queries for database instances across different systems (e.g., RDSInstance, DynamoDBTable, GCPBigtableInstance).
+> **Ontology Mapping**: This node has the extra label `Database` to enable cross-platform queries for database instances across different systems (e.g., AWSRDSInstance, AWSDynamoDBTable, GCPBigtableInstance).
 
 | Field | Description |
 |-------|-------------|
@@ -1418,7 +1418,7 @@ Representation of an [AzureCosmosDBSqlDatabase](https://docs.microsoft.com/en-us
 
 Representation of an [AzureCosmosDBCassandraKeyspace](https://docs.microsoft.com/en-us/rest/api/cosmos-db-resource-provider/).
 
-> **Ontology Mapping**: This node has the extra label `Database` to enable cross-platform queries for database instances across different systems (e.g., RDSInstance, DynamoDBTable, GCPBigtableInstance).
+> **Ontology Mapping**: This node has the extra label `Database` to enable cross-platform queries for database instances across different systems (e.g., AWSRDSInstance, AWSDynamoDBTable, GCPBigtableInstance).
 
 | Field | Description |
 |-------|-------------|
@@ -1450,7 +1450,7 @@ Representation of an [AzureCosmosDBCassandraKeyspace](https://docs.microsoft.com
 
 Representation of an [AzureCosmosDBMongoDBDatabase](https://docs.microsoft.com/en-us/rest/api/cosmos-db-resource-provider/).
 
-> **Ontology Mapping**: This node has the extra label `Database` to enable cross-platform queries for database instances across different systems (e.g., RDSInstance, DynamoDBTable, GCPBigtableInstance).
+> **Ontology Mapping**: This node has the extra label `Database` to enable cross-platform queries for database instances across different systems (e.g., AWSRDSInstance, AWSDynamoDBTable, GCPBigtableInstance).
 
 | Field | Description |
 |-------|-------------|
@@ -1640,7 +1640,7 @@ Representation of an [Azure Function App](https://learn.microsoft.com/en-us/rest
 
 - Container-deployed Function Apps are linked to the image they run via `HAS_IMAGE` (matched on `image_digest`):
     ```cypher
-    (AzureFunctionApp)-[:HAS_IMAGE]->(:ECRImage)
+    (AzureFunctionApp)-[:HAS_IMAGE]->(:AWSECRImage)
     (AzureFunctionApp)-[:HAS_IMAGE]->(:GitLabContainerImage)
     (AzureFunctionApp)-[:HAS_IMAGE]->(:GCPArtifactRegistryImage)
     (AzureFunctionApp)-[:HAS_IMAGE]->(:GitHubContainerImage)
@@ -1924,7 +1924,7 @@ Representation of a [Secret within an Azure Key Vault](https://learn.microsoft.c
 
 Representation of a [Key within an Azure Key Vault](https://learn.microsoft.com/en-us/rest/api/keyvault/keys/get-keys/get-keys).
 
-> **Ontology Mapping**: This node has the extra label `EncryptionKey` to enable cross-platform queries for encryption keys across different systems (e.g., KMSKey, GCPCryptoKey, AzureKeyVaultKey).
+> **Ontology Mapping**: This node has the extra label `EncryptionKey` to enable cross-platform queries for encryption keys across different systems (e.g., AWSKMSKey, GCPCryptoKey, AzureKeyVaultKey).
 
 | Field | Description |
 |---|---|
@@ -1952,7 +1952,7 @@ Representation of a [Key within an Azure Key Vault](https://learn.microsoft.com/
 
 Representation of a [Certificate within an Azure Key Vault](https://learn.microsoft.com/en-us/rest/api/keyvault/certificates/get-certificates).
 
-> **Ontology Mapping**: This node has the extra label `Certificate` to enable cross-platform queries for managed certificates across different systems (e.g., ACMCertificate, AWSServerCertificate).
+> **Ontology Mapping**: This node has the extra label `Certificate` to enable cross-platform queries for managed certificates across different systems (e.g., AWSACMCertificate, AWSServerCertificate).
 
 | Field | Description |
 |---|---|
@@ -1981,7 +1981,7 @@ Representation of a [Certificate within an Azure Key Vault](https://learn.micros
 
 Representation of an [Azure Kubernetes Service Cluster](https://learn.microsoft.com/en-us/rest/api/aks/managed-clusters/get).
 
-> **Ontology Mapping**: This node has the extra label `ComputeCluster` to enable cross-platform queries for compute clusters across different systems (e.g., EKSCluster, ECSCluster, GKECluster, KubernetesCluster).
+> **Ontology Mapping**: This node has the extra label `ComputeCluster` to enable cross-platform queries for compute clusters across different systems (e.g., AWSEKSCluster, AWSECSCluster, GKECluster, KubernetesCluster).
 
 | Field | Description |
 |---|---|
@@ -2033,7 +2033,7 @@ Representation of an [Azure Kubernetes Service Agent Pool](https://learn.microso
 
 Representation of an [Azure Container Group](https://learn.microsoft.com/en-us/rest/api/container-instances/container-groups/get). In Azure's API this resource is a *container group* that holds one or more individual containers (modeled as [AzureContainerInstance](#azurecontainerinstance)) — analogous to an ECS Task or Kubernetes Pod rather than an individual container.
 
-> **Ontology Mapping**: This node has the extra label `ComputePod` to enable cross-platform queries for the smallest schedulable workload unit (a co-scheduled, co-located group of containers sharing network and storage) across different systems (e.g., `KubernetesPod`, `ECSTask`). An ACI container group matches Kubernetes Pod semantics, not those of a service / orchestrator.
+> **Ontology Mapping**: This node has the extra label `ComputePod` to enable cross-platform queries for the smallest schedulable workload unit (a co-scheduled, co-located group of containers sharing network and storage) across different systems (e.g., `KubernetesPod`, `AWSECSTask`). An ACI container group matches Kubernetes Pod semantics, not those of a service / orchestrator.
 
 |**id**| The full resource ID of the Container Group. |
 |name| The name of the Container Group. |
@@ -2063,7 +2063,7 @@ Representation of an [Azure Container Group](https://learn.microsoft.com/en-us/r
 
 Representation of an individual container within an [Azure Container Group](https://learn.microsoft.com/en-us/rest/api/container-instances/container-groups/get). A container group may run one or more containers — this node models each container separately to enable per-container image tracking.
 
-> **Ontology Mapping**: This node has the extra label `Container` to enable cross-platform queries across container runtimes (e.g., KubernetesContainer, ECSContainer).
+> **Ontology Mapping**: This node has the extra label `Container` to enable cross-platform queries across container runtimes (e.g., KubernetesContainer, AWSECSContainer).
 > **Note**: ACI does not expose host architecture via its API; all workloads are assumed to run on `amd64`. `HAS_IMAGE` resolves only when the image is referenced by digest (`image@sha256:...`); tag-based references produce no relationship.
 
 | Field | Description |
@@ -2095,7 +2095,7 @@ Representation of an individual container within an [Azure Container Group](http
     ```
 - AzureContainerInstances are linked to the image they run when the image is pinned by digest.
     ```cypher
-    (:AzureContainerInstance)-[:HAS_IMAGE]->(:ECRImage)
+    (:AzureContainerInstance)-[:HAS_IMAGE]->(:AWSECRImage)
     (:AzureContainerInstance)-[:HAS_IMAGE]->(:GitLabContainerImage)
     (:AzureContainerInstance)-[:HAS_IMAGE]->(:GCPArtifactRegistryImage)
     (:AzureContainerInstance)-[:HAS_IMAGE]->(:GitHubContainerImage)
@@ -2419,7 +2419,7 @@ Representation of an [Azure Virtual Network](https://learn.microsoft.com/en-us/r
 
 Representation of a [Subnet within an Azure Virtual Network](https://learn.microsoft.com/en-us/rest/api/virtualnetwork/subnets/get).
 
-> **Ontology Mapping**: This node has the extra label `Subnet` and normalized `_ont_*` properties to enable cross-platform queries for network subnets across different systems (e.g., EC2Subnet, GCPSubnet).
+> **Ontology Mapping**: This node has the extra label `Subnet` and normalized `_ont_*` properties to enable cross-platform queries for network subnets across different systems (e.g., AWSEC2Subnet, GCPSubnet).
 
 | Field          | Description                                         |
 | -------------- | --------------------------------------------------- |
@@ -2440,7 +2440,7 @@ Representation of a [Subnet within an Azure Virtual Network](https://learn.micro
 
 Representation of an [Azure Network Security Group (NSG)](https://learn.microsoft.com/en-us/rest/api/virtualnetwork/network-security-groups/get).
 
-> **Ontology Mapping**: This node has the extra label `NetworkAccessControl` to enable cross-platform queries for security groups and firewall rules across different systems (e.g., EC2SecurityGroup, GCPFirewall, AzureNetworkSecurityGroup).
+> **Ontology Mapping**: This node has the extra label `NetworkAccessControl` to enable cross-platform queries for security groups and firewall rules across different systems (e.g., AWSEC2SecurityGroup, GCPFirewall, AzureNetworkSecurityGroup).
 
 | Field       | Description                                           |
 | ----------- | ----------------------------------------------------- |
@@ -2472,7 +2472,7 @@ Representation of an [Azure Network Security Group (NSG)](https://learn.microsof
 
 Representation of a single rule inside an [Azure Network Security Group](https://learn.microsoft.com/en-us/rest/api/virtualnetwork/security-rules/get). Both user-defined rules and the platform default rules are ingested. Rules with `direction = Inbound`, `access = Allow`, and a wildcard source (`*`, `Internet`, or `0.0.0.0/0`) covering management ports (22, 3389, 1433, 3306, 5432, 6379, etc.) make the associated workloads internet-reachable.
 
-> **Ontology Mapping**: This node carries the extra label `IpRule` plus either `IpPermissionInbound` (for `direction = Inbound` rules) or `IpPermissionEgress` (for `direction = Outbound` rules), so cross-cloud queries can match it alongside AWS `EC2NetworkAclRule` / `AWSIpRule` and GCP `GCPIpRule`.
+> **Ontology Mapping**: This node carries the extra label `IpRule` plus either `IpPermissionInbound` (for `direction = Inbound` rules) or `IpPermissionEgress` (for `direction = Outbound` rules), so cross-cloud queries can match it alongside AWS `AWSEC2NetworkAclRule` / `AWSIpRule` and GCP `GCPIpRule`.
 
 | Field | Description |
 |-------|-------------|
@@ -2512,7 +2512,7 @@ Representation of an [Azure Firewall](https://learn.microsoft.com/en-us/rest/api
 
 Azure Firewall is a cloud-native network security service that provides threat protection for cloud workloads running in Azure. It's a fully stateful firewall as a service with built-in high availability and unrestricted cloud scalability.
 
-> **Ontology Mapping**: This node has the extra label `NetworkAccessControl` to enable cross-platform queries for security groups and firewall rules across different systems (e.g., EC2SecurityGroup, GCPFirewall, AzureNetworkSecurityGroup).
+> **Ontology Mapping**: This node has the extra label `NetworkAccessControl` to enable cross-platform queries for security groups and firewall rules across different systems (e.g., AWSEC2SecurityGroup, GCPFirewall, AzureNetworkSecurityGroup).
 
 | Field       | Description                                           |
 | ----------- | ----------------------------------------------------- |
@@ -2894,7 +2894,7 @@ Representation of an Azure Synapse [Managed Private Endpoint](https://learn.micr
 
 Representation of an Azure Security [Assessment](https://learn.microsoft.com/en-us/rest/api/defenderforcloud/assessments/get).
 
-> **Ontology Mapping**: This node has the extra label `SecurityIssue` to enable cross-scanner queries for non-CVE security issues across different tools (e.g., GuardDutyFinding, SemgrepSASTFinding, SemgrepSecretsFinding).
+> **Ontology Mapping**: This node has the extra label `SecurityIssue` to enable cross-scanner queries for non-CVE security issues across different tools (e.g., AWSGuardDutyFinding, SemgrepSASTFinding, SemgrepSecretsFinding).
 
 | Field | Description |
 |---|---|

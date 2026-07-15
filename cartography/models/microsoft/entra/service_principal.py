@@ -44,7 +44,7 @@ class EntraServicePrincipalToTenantRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class EntraServicePrincipalToTenantRel(CartographyRelSchema):
-    target_node_label: str = "EntraTenant"
+    target_node_label: str = "AzureTenant"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("TENANT_ID", set_in_kwargs=True)},
     )

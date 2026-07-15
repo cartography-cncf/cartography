@@ -91,7 +91,7 @@ class InspectorFindingToEC2InstanceRelRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class InspectorFindingToEC2InstanceRel(CartographyRelSchema):
-    target_node_label: str = "EC2Instance"
+    target_node_label: str = "AWSEC2Instance"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("instanceid")},
     )
@@ -109,7 +109,7 @@ class InspectorFindingToECRRepositoryRelRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class InspectorFindingToECRRepositoryRel(CartographyRelSchema):
-    target_node_label: str = "ECRRepository"
+    target_node_label: str = "AWSECRRepository"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("ecrrepositoryid")},
     )
@@ -127,7 +127,7 @@ class InspectorFindingToECRImageRelRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class InspectorFindingToECRImageRel(CartographyRelSchema):
-    target_node_label: str = "ECRImage"
+    target_node_label: str = "AWSECRImage"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("ecrimageid")},
     )
@@ -202,7 +202,7 @@ class AWSInspectorFindingSchema(CartographyNodeSchema):
     other_relationships: OtherRelationships = OtherRelationships(
         [
             InspectorFindingToEC2InstanceRel(),
-            # TODO: Fix ECRRepository and ECRImage relationships
+            # TODO: Fix AWSECRRepository and AWSECRImage relationships
             InspectorFindingToECRRepositoryRel(),
             InspectorFindingToECRImageRel(),
             InspectorFindingToAWSAccountRelDelegateRel(),

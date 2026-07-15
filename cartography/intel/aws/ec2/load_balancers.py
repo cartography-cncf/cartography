@@ -8,6 +8,7 @@ from botocore.exceptions import EndpointConnectionError
 from botocore.exceptions import ReadTimeoutError
 
 from cartography.client.core.tx import load
+from cartography.client.core.tx import run_write_query
 from cartography.graph.job import GraphJob
 from cartography.intel.aws.util.botocore_config import create_boto3_client
 from cartography.intel.aws.util.botocore_config import get_botocore_config
@@ -52,29 +53,23 @@ def _is_retryable_elb_client_error(error: ClientError) -> bool:
     )
 
 
-# DEPRECATED: legacy LoadBalancer label migration will be removed in v1.0.0.
-def _migrate_legacy_loadbalancer_labels(neo4j_session: neo4j.Session) -> None:
-    """One-time migration: relabel LoadBalancer → AWSLoadBalancer."""
-    check_query = """
-    MATCH (:AWSAccount)-[:RESOURCE]->(n:LoadBalancer)
-    WHERE NOT n:AWSLoadBalancer AND NOT n:LoadBalancerV2
-    RETURN count(n) as legacy_count
-    """
-    result = neo4j_session.run(check_query)
-    legacy_count = result.single()["legacy_count"]
-
-    if legacy_count == 0:
-        return
-
-    logger.info(f"Migrating {legacy_count} legacy LoadBalancer nodes...")
-    migration_query = """
-    MATCH (:AWSAccount)-[:RESOURCE]->(n:LoadBalancer)
-    WHERE NOT n:AWSLoadBalancer AND NOT n:LoadBalancerV2
-    SET n:AWSLoadBalancer
-    RETURN count(n) as migrated
-    """
-    result = neo4j_session.run(migration_query)
-    logger.info(f"Migrated {result.single()['migrated']} nodes")
+# DEPRECATED: This compatibility migration will be removed in v1.0.0.
+def _migrate_legacy_loadbalancer_labels(
+    neo4j_session: neo4j.Session,
+    current_aws_account_id: str,
+) -> None:
+    """Add AWSLoadBalancer to legacy Classic ELBs in the current account."""
+    run_write_query(
+        neo4j_session,
+        """
+        MATCH (:AWSAccount{id: $AWS_ID})-[:RESOURCE]->(n:LoadBalancer)
+        WHERE NOT n:AWSLoadBalancer
+          AND NOT n:LoadBalancerV2
+          AND NOT n:AWSLoadBalancerV2
+        SET n:AWSLoadBalancer
+        """,
+        AWS_ID=current_aws_account_id,
+    )
 
 
 def _get_listener_id(load_balancer_id: str, port: int, protocol: str) -> str:
@@ -256,7 +251,7 @@ def sync_load_balancers(
     update_tag: int,
     common_job_parameters: dict,
 ) -> None:
-    _migrate_legacy_loadbalancer_labels(neo4j_session)
+    _migrate_legacy_loadbalancer_labels(neo4j_session, current_aws_account_id)
     cleanup_safe = True
 
     for region in regions:

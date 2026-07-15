@@ -29,7 +29,7 @@ class AWSTagSchema(CartographyNodeSchema):
 
     Note: This schema is for documentation purposes. The actual node creation uses
     template-based queries because AWSTag has dynamic TAGGED relationships to many
-    different resource types (EC2Instance, S3Bucket, etc.). The cleanup is also
+    different resource types (AWSEC2Instance, AWSS3Bucket, etc.). The cleanup is also
     handled manually due to this dynamic nature.
 
     The TAGGED relationship goes FROM the resource TO the AWSTag:
