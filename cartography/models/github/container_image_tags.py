@@ -68,12 +68,7 @@ class GitHubContainerImageTagToOrgRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class GitHubContainerImageTagToImageRel(CartographyRelSchema):
-    """
-    Generic cross-registry edge from ImageTag to Image. The supply-chain
-    matcher in cartography/intel/github/supply_chain.py traverses this edge
-    via the (:Image)<-[:IMAGE]-(:ImageTag)<-[:REPO_IMAGE]-(:ContainerRegistry)
-    pattern, so the relationship label and direction must match GitLab/AWS.
-    """
+    """Links a GitHub container image tag to the image it identifies."""
 
     target_node_label: str = "GitHubContainerImage"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(

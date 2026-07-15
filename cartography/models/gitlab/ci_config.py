@@ -134,15 +134,7 @@ class GitLabCIConfigToCIVariableRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class GitLabCIConfigToCIVariableRel(CartographyRelSchema):
-    """
-    `(:GitLabCIConfig)-[:REFERENCES_VARIABLE]->(:GitLabCIVariable)`
-
-    Each config record carries a ``referenced_variable_ids`` list — the IDs
-    of project variables whose ``key`` appears in the parsed pipeline. The
-    matcher is ``one_to_many=True`` so a single config record creates one
-    rel per referenced variable. Loaded as part of GitLabCIConfigSchema's
-    other_relationships, so the rel's lifecycle follows the config node.
-    """
+    """Links a GitLab CI configuration to the CI variables it references."""
 
     target_node_label: str = "GitLabCIVariable"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(

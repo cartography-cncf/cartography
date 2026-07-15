@@ -131,7 +131,7 @@ class GitLabGroupHasCIVariableRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class GitLabGroupHasCIVariableRel(CartographyRelSchema):
-    """`(:GitLabGroup)-[:HAS_CI_VARIABLE]->(:GitLabCIVariable)` — semantic edge."""
+    """Links a GitLab group to a CI variable it defines."""
 
     target_node_label: str = "GitLabGroup"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
@@ -196,7 +196,7 @@ class GitLabProjectHasCIVariableRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class GitLabProjectHasCIVariableRel(CartographyRelSchema):
-    """`(:GitLabProject)-[:HAS_CI_VARIABLE]->(:GitLabCIVariable)` — semantic edge."""
+    """Links a GitLab project to a CI variable it defines."""
 
     target_node_label: str = "GitLabProject"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(

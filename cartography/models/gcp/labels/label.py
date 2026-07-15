@@ -52,7 +52,7 @@ class GCPLabelToProjectRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class GCPLabelToProjectRel(CartographyRelSchema):
-    """(:GCPProject)-[:RESOURCE]->(:GCPLabel)"""
+    """Indicates that a GCP project contains this label as a resource."""
 
     target_node_label: str = "GCPProject"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
@@ -75,7 +75,7 @@ class GCPLabelToBucketRelProperties(CartographyRelProperties):
 # DEPRECATED: replaced by :TAGGED, will be removed in v1.0.0
 @dataclass(frozen=True)
 class GCPLabelToBucketRel(CartographyRelSchema):
-    """(:GCPBucket)-[:LABELED]->(:GCPLabel)"""
+    """Indicates that a GCP bucket has this legacy label."""
 
     target_node_label: str = "GCPBucket"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
@@ -97,7 +97,7 @@ class GCPLabelToBucketTaggedRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class GCPLabelToBucketTaggedRel(CartographyRelSchema):
-    """(:GCPBucket)-[:TAGGED]->(:GCPLabel)"""
+    """Indicates that a GCP bucket is tagged with this label."""
 
     target_node_label: str = "GCPBucket"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
@@ -143,7 +143,7 @@ class GCPLabelToInstanceRelProperties(CartographyRelProperties):
 # DEPRECATED: replaced by :TAGGED, will be removed in v1.0.0
 @dataclass(frozen=True)
 class GCPLabelToInstanceRel(CartographyRelSchema):
-    """(:GCPInstance)-[:LABELED]->(:GCPLabel)"""
+    """Indicates that a GCP instance has this legacy label."""
 
     target_node_label: str = "GCPInstance"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
@@ -165,7 +165,7 @@ class GCPLabelToInstanceTaggedRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class GCPLabelToInstanceTaggedRel(CartographyRelSchema):
-    """(:GCPInstance)-[:TAGGED]->(:GCPLabel)"""
+    """Indicates that a GCP instance is tagged with this label."""
 
     target_node_label: str = "GCPInstance"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
@@ -206,7 +206,7 @@ class GCPLabelToGKEClusterRelProperties(CartographyRelProperties):
 # DEPRECATED: replaced by :TAGGED, will be removed in v1.0.0
 @dataclass(frozen=True)
 class GCPLabelToGKEClusterRel(CartographyRelSchema):
-    """(:GKECluster)-[:LABELED]->(:GCPLabel)"""
+    """Indicates that a GKE cluster has this legacy label."""
 
     target_node_label: str = "GKECluster"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
@@ -228,7 +228,7 @@ class GCPLabelToGKEClusterTaggedRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class GCPLabelToGKEClusterTaggedRel(CartographyRelSchema):
-    """(:GKECluster)-[:TAGGED]->(:GCPLabel)"""
+    """Indicates that a GKE cluster is tagged with this label."""
 
     target_node_label: str = "GKECluster"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
@@ -269,7 +269,7 @@ class GCPLabelToCloudSQLInstanceRelProperties(CartographyRelProperties):
 # DEPRECATED: replaced by :TAGGED, will be removed in v1.0.0
 @dataclass(frozen=True)
 class GCPLabelToCloudSQLInstanceRel(CartographyRelSchema):
-    """(:GCPCloudSQLInstance)-[:LABELED]->(:GCPLabel)"""
+    """Indicates that a GCP Cloud SQL instance has this legacy label."""
 
     target_node_label: str = "GCPCloudSQLInstance"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
@@ -293,7 +293,7 @@ class GCPLabelToCloudSQLInstanceTaggedRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class GCPLabelToCloudSQLInstanceTaggedRel(CartographyRelSchema):
-    """(:GCPCloudSQLInstance)-[:TAGGED]->(:GCPLabel)"""
+    """Indicates that a GCP Cloud SQL instance is tagged with this label."""
 
     target_node_label: str = "GCPCloudSQLInstance"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
@@ -334,7 +334,7 @@ class GCPLabelToBigtableInstanceRelProperties(CartographyRelProperties):
 # DEPRECATED: replaced by :TAGGED, will be removed in v1.0.0
 @dataclass(frozen=True)
 class GCPLabelToBigtableInstanceRel(CartographyRelSchema):
-    """(:GCPBigtableInstance)-[:LABELED]->(:GCPLabel)"""
+    """Indicates that a GCP Bigtable instance has this legacy label."""
 
     target_node_label: str = "GCPBigtableInstance"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
@@ -358,7 +358,7 @@ class GCPLabelToBigtableInstanceTaggedRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class GCPLabelToBigtableInstanceTaggedRel(CartographyRelSchema):
-    """(:GCPBigtableInstance)-[:TAGGED]->(:GCPLabel)"""
+    """Indicates that a GCP Bigtable instance is tagged with this label."""
 
     target_node_label: str = "GCPBigtableInstance"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
@@ -399,7 +399,7 @@ class GCPLabelToDNSZoneRelProperties(CartographyRelProperties):
 # DEPRECATED: replaced by :TAGGED, will be removed in v1.0.0
 @dataclass(frozen=True)
 class GCPLabelToDNSZoneRel(CartographyRelSchema):
-    """(:GCPDNSZone)-[:LABELED]->(:GCPLabel)"""
+    """Indicates that a GCP DNS zone has this legacy label."""
 
     target_node_label: str = "GCPDNSZone"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
@@ -421,7 +421,7 @@ class GCPLabelToDNSZoneTaggedRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class GCPLabelToDNSZoneTaggedRel(CartographyRelSchema):
-    """(:GCPDNSZone)-[:TAGGED]->(:GCPLabel)"""
+    """Indicates that a GCP DNS zone is tagged with this label."""
 
     target_node_label: str = "GCPDNSZone"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
@@ -462,7 +462,7 @@ class GCPLabelToSecretManagerSecretRelProperties(CartographyRelProperties):
 # DEPRECATED: replaced by :TAGGED, will be removed in v1.0.0
 @dataclass(frozen=True)
 class GCPLabelToSecretManagerSecretRel(CartographyRelSchema):
-    """(:GCPSecretManagerSecret)-[:LABELED]->(:GCPLabel)"""
+    """Indicates that a GCP Secret Manager secret has this legacy label."""
 
     target_node_label: str = "GCPSecretManagerSecret"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
@@ -486,7 +486,7 @@ class GCPLabelToSecretManagerSecretTaggedRelProperties(CartographyRelProperties)
 
 @dataclass(frozen=True)
 class GCPLabelToSecretManagerSecretTaggedRel(CartographyRelSchema):
-    """(:GCPSecretManagerSecret)-[:TAGGED]->(:GCPLabel)"""
+    """Indicates that a GCP Secret Manager secret is tagged with this label."""
 
     target_node_label: str = "GCPSecretManagerSecret"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
@@ -527,7 +527,7 @@ class GCPLabelToCloudRunServiceRelProperties(CartographyRelProperties):
 # DEPRECATED: replaced by :TAGGED, will be removed in v1.0.0
 @dataclass(frozen=True)
 class GCPLabelToCloudRunServiceRel(CartographyRelSchema):
-    """(:GCPCloudRunService)-[:LABELED]->(:GCPLabel)"""
+    """Indicates that a GCP Cloud Run service has this legacy label."""
 
     target_node_label: str = "GCPCloudRunService"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
@@ -551,7 +551,7 @@ class GCPLabelToCloudRunServiceTaggedRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class GCPLabelToCloudRunServiceTaggedRel(CartographyRelSchema):
-    """(:GCPCloudRunService)-[:TAGGED]->(:GCPLabel)"""
+    """Indicates that a GCP Cloud Run service is tagged with this label."""
 
     target_node_label: str = "GCPCloudRunService"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
@@ -592,7 +592,7 @@ class GCPLabelToCloudRunJobRelProperties(CartographyRelProperties):
 # DEPRECATED: replaced by :TAGGED, will be removed in v1.0.0
 @dataclass(frozen=True)
 class GCPLabelToCloudRunJobRel(CartographyRelSchema):
-    """(:GCPCloudRunJob)-[:LABELED]->(:GCPLabel)"""
+    """Indicates that a GCP Cloud Run job has this legacy label."""
 
     target_node_label: str = "GCPCloudRunJob"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
@@ -616,7 +616,7 @@ class GCPLabelToCloudRunJobTaggedRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class GCPLabelToCloudRunJobTaggedRel(CartographyRelSchema):
-    """(:GCPCloudRunJob)-[:TAGGED]->(:GCPLabel)"""
+    """Indicates that a GCP Cloud Run job is tagged with this label."""
 
     target_node_label: str = "GCPCloudRunJob"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
@@ -656,7 +656,7 @@ class GCPLabelToCloudFunctionRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class GCPLabelToCloudFunctionRel(CartographyRelSchema):
-    """(:GCPCloudFunction)-[:LABELED]->(:GCPLabel)"""
+    """Indicates that a GCP Cloud Function has this legacy label."""
 
     target_node_label: str = "GCPCloudFunction"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(

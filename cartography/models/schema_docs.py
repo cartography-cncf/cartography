@@ -547,6 +547,7 @@ def _render_node(
             ]
         )
 
+    lines.extend(["#### Properties", ""])
     if any(prop.ontology for prop in node.properties):
         lines.extend(
             [

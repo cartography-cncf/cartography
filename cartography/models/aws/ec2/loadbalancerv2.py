@@ -136,7 +136,7 @@ class ELBV2TargetGroupToECSServiceRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class ELBV2TargetGroupToECSServiceMatchLink(CartographyRelSchema):
-    """(:AWSELBV2TargetGroup)-[:TARGETS]->(:AWSECSService)"""
+    """Indicates that the target group routes traffic to an ECS service."""
 
     target_node_label: str = "AWSECSService"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
@@ -316,7 +316,7 @@ class LoadBalancerV2ToTargetRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class LoadBalancerV2ToEC2InstanceMatchLink(CartographyRelSchema):
-    """(:LoadBalancerV2)-[:EXPOSE]->(:AWSEC2Instance)"""
+    """Indicates that the load balancer exposes an EC2 instance as a traffic target."""
 
     target_node_label: str = "AWSEC2Instance"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
@@ -335,7 +335,7 @@ class LoadBalancerV2ToEC2InstanceMatchLink(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class LoadBalancerV2ToEC2PrivateIpMatchLink(CartographyRelSchema):
-    """(:LoadBalancerV2)-[:EXPOSE]->(:AWSEC2PrivateIp)"""
+    """Indicates that the load balancer exposes a private IP address as a traffic target."""
 
     target_node_label: str = "AWSEC2PrivateIp"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
@@ -354,7 +354,7 @@ class LoadBalancerV2ToEC2PrivateIpMatchLink(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class LoadBalancerV2ToAWSLambdaMatchLink(CartographyRelSchema):
-    """(:LoadBalancerV2)-[:EXPOSE]->(:AWSLambda)"""
+    """Indicates that the load balancer exposes a Lambda function as a traffic target."""
 
     target_node_label: str = "AWSLambda"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
@@ -373,7 +373,7 @@ class LoadBalancerV2ToAWSLambdaMatchLink(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class LoadBalancerV2ToLoadBalancerV2MatchLink(CartographyRelSchema):
-    """(:LoadBalancerV2)-[:EXPOSE]->(:LoadBalancerV2) for ALB targets"""
+    """Indicates that the load balancer exposes another load balancer as a traffic target."""
 
     target_node_label: str = "AWSLoadBalancerV2"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(

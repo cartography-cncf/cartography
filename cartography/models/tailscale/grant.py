@@ -218,10 +218,7 @@ class TailscaleGrantAccessRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class TailscaleUserToDeviceAccessMatchLink(CartographyRelSchema):
-    """MatchLink: (:TailscaleUser)-[:CAN_ACCESS]->(:TailscaleDevice)
-
-    Represents resolved effective access from a user to a device via a grant.
-    """
+    """Indicates that a Tailscale user has effective access to a device through a grant."""
 
     source_node_label: str = "TailscaleUser"
     source_node_matcher: SourceNodeMatcher = make_source_node_matcher(
@@ -238,10 +235,7 @@ class TailscaleUserToDeviceAccessMatchLink(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class TailscaleGroupToDeviceAccessMatchLink(CartographyRelSchema):
-    """MatchLink: (:TailscaleGroup)-[:CAN_ACCESS]->(:TailscaleDevice)
-
-    Represents resolved effective access from a group to a device via a grant.
-    """
+    """Indicates that a Tailscale group has effective access to a device through a grant."""
 
     source_node_label: str = "TailscaleGroup"
     source_node_matcher: SourceNodeMatcher = make_source_node_matcher(
@@ -258,11 +252,7 @@ class TailscaleGroupToDeviceAccessMatchLink(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class TailscaleDeviceToDeviceAccessMatchLink(CartographyRelSchema):
-    """MatchLink: (:TailscaleDevice)-[:CAN_ACCESS]->(:TailscaleDevice)
-
-    Represents resolved effective access from a tagged device (source) to
-    another device (destination) via a grant where the source is a tag.
-    """
+    """Indicates that a tagged Tailscale device has effective access to another device through a grant."""
 
     source_node_label: str = "TailscaleDevice"
     source_node_matcher: SourceNodeMatcher = make_source_node_matcher(
@@ -279,10 +269,7 @@ class TailscaleDeviceToDeviceAccessMatchLink(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class TailscaleUserToServiceAccessMatchLink(CartographyRelSchema):
-    """MatchLink: (:TailscaleUser)-[:CAN_ACCESS]->(:TailscaleService)
-
-    Represents resolved effective access from a user to a service via a grant.
-    """
+    """Indicates that a Tailscale user has effective access to a service through a grant."""
 
     source_node_label: str = "TailscaleUser"
     source_node_matcher: SourceNodeMatcher = make_source_node_matcher(
@@ -299,10 +286,7 @@ class TailscaleUserToServiceAccessMatchLink(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class TailscaleGroupToServiceAccessMatchLink(CartographyRelSchema):
-    """MatchLink: (:TailscaleGroup)-[:CAN_ACCESS]->(:TailscaleService)
-
-    Represents resolved effective access from a group to a service via a grant.
-    """
+    """Indicates that a Tailscale group has effective access to a service through a grant."""
 
     source_node_label: str = "TailscaleGroup"
     source_node_matcher: SourceNodeMatcher = make_source_node_matcher(

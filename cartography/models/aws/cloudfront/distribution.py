@@ -144,11 +144,7 @@ class CloudFrontDistributionToAWSAccountRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class CloudFrontDistributionToAWSAccountRel(CartographyRelSchema):
-    """
-    Defines the relationship from AWSCloudFrontDistribution to AWSAccount.
-
-    (:AWSAccount)-[:RESOURCE]->(:AWSCloudFrontDistribution)
-    """
+    """Indicates that an AWS account contains the CloudFront distribution."""
 
     target_node_label: str = "AWSAccount"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
@@ -170,12 +166,7 @@ class CloudFrontDistributionToS3BucketRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class CloudFrontDistributionToS3BucketRel(CartographyRelSchema):
-    """
-    Defines the relationship from AWSCloudFrontDistribution to AWSS3Bucket.
-
-    Created when a CloudFront distribution has S3 bucket origins.
-    (:AWSCloudFrontDistribution)-[:SERVES_FROM]->(:AWSS3Bucket)
-    """
+    """Indicates that the CloudFront distribution serves content from an S3 bucket origin."""
 
     target_node_label: str = "AWSS3Bucket"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
@@ -199,12 +190,7 @@ class CloudFrontDistributionToACMCertificateRelProperties(CartographyRelProperti
 
 @dataclass(frozen=True)
 class CloudFrontDistributionToACMCertificateRel(CartographyRelSchema):
-    """
-    Defines the relationship from AWSCloudFrontDistribution to AWSACMCertificate.
-
-    Created when a CloudFront distribution uses an ACM certificate for HTTPS.
-    (:AWSCloudFrontDistribution)-[:USES_CERTIFICATE]->(:AWSACMCertificate)
-    """
+    """Indicates that the CloudFront distribution uses an ACM certificate for HTTPS."""
 
     target_node_label: str = "AWSACMCertificate"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
@@ -228,12 +214,7 @@ class CloudFrontDistributionToLambdaRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class CloudFrontDistributionToLambdaRel(CartographyRelSchema):
-    """
-    Defines the relationship from AWSCloudFrontDistribution to AWSLambda.
-
-    Created when a CloudFront distribution has Lambda@Edge function associations.
-    (:AWSCloudFrontDistribution)-[:USES_LAMBDA_EDGE]->(:AWSLambda)
-    """
+    """Indicates that the CloudFront distribution uses a Lambda function for Lambda@Edge processing."""
 
     target_node_label: str = "AWSLambda"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(

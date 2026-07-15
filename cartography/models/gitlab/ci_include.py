@@ -77,7 +77,7 @@ class GitLabCIConfigUsesIncludeRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class GitLabCIConfigUsesIncludeRel(CartographyRelSchema):
-    """`(:GitLabCIConfig)-[:USES_INCLUDE]->(:GitLabCIInclude)`."""
+    """Links a GitLab CI configuration to an include it uses."""
 
     target_node_label: str = "GitLabCIConfig"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(

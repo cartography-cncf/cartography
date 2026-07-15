@@ -144,12 +144,7 @@ class TailscaleUserInheritedMemberRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class TailscaleUserToGroupInheritedMemberMatchLink(CartographyRelSchema):
-    """MatchLink: (:TailscaleUser)-[:INHERITED_MEMBER_OF]->(:TailscaleGroup)
-
-    Represents transitive group membership resolved from the graph:
-    User -[:MEMBER_OF]-> SubGroup -[:MEMBER_OF*1..]-> ParentGroup
-    creates: User -[:INHERITED_MEMBER_OF]-> ParentGroup
-    """
+    """Indicates that a Tailscale user belongs to a parent group through nested group membership."""
 
     source_node_label: str = "TailscaleUser"
     source_node_matcher: SourceNodeMatcher = make_source_node_matcher(

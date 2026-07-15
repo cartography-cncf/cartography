@@ -137,12 +137,7 @@ class ImagePackagedByWorkflowMatchLinkProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class ImagePackagedByWorkflowMatchLink(CartographyRelSchema):
-    """
-    MatchLink: (Image)-[:PACKAGED_BY]->(GitHubWorkflow).
-
-    Matches Image.invocation_uri + Image.invocation_workflow to
-    GitHubWorkflow.repo_url + GitHubWorkflow.path.
-    """
+    """Links an image to the GitHub workflow that packaged it."""
 
     target_node_label: str = "GitHubWorkflow"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(

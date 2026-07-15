@@ -126,12 +126,7 @@ class GitHubWorkflowToSecretRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class GitHubWorkflowToSecretRel(CartographyRelSchema):
-    """
-    Relationship from workflow to secrets it references.
-
-    Uses one_to_many to support workflows that reference multiple secrets.
-    The secret_ids field should contain a list of GitHubActionsSecret IDs.
-    """
+    """Links a GitHub workflow to the secrets it references."""
 
     target_node_label: str = "GitHubActionsSecret"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(

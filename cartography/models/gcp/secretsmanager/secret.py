@@ -85,10 +85,7 @@ class GCPSecretManagerSecretRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class GCPSecretManagerSecretToProjectRel(CartographyRelSchema):
-    """
-    Relationship between Secret and GCP Project
-    (:GCPProject)-[:RESOURCE]->(:GCPSecretManagerSecret)
-    """
+    """Indicates that a GCP project contains this Secret Manager secret as a resource."""
 
     target_node_label: str = "GCPProject"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(

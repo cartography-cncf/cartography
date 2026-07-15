@@ -68,10 +68,7 @@ class GCPSecretManagerSecretVersionRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class GCPSecretManagerSecretVersionToProjectRel(CartographyRelSchema):
-    """
-    Relationship between Secret Version and GCP Project
-    (:GCPProject)-[:RESOURCE]->(:GCPSecretManagerSecretVersion)
-    """
+    """Indicates that a GCP project contains this Secret Manager secret version as a resource."""
 
     target_node_label: str = "GCPProject"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
@@ -86,10 +83,7 @@ class GCPSecretManagerSecretVersionToProjectRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class GCPSecretManagerSecretVersionToSecretRel(CartographyRelSchema):
-    """
-    Relationship between Secret Version and its parent Secret
-    (:GCPSecretManagerSecretVersion)-[:VERSION_OF]->(:GCPSecretManagerSecret)
-    """
+    """Indicates that this Secret Manager secret version is a version of its parent secret."""
 
     target_node_label: str = "GCPSecretManagerSecret"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(

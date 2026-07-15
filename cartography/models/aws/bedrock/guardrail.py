@@ -77,10 +77,7 @@ class AWSBedrockGuardrailToAWSAccountRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class AWSBedrockGuardrailToAWSAccountRel(CartographyRelSchema):
-    """
-    Defines the relationship from AWSBedrockGuardrail to AWSAccount.
-    Direction is INWARD: (:AWSBedrockGuardrail)<-[:RESOURCE]-(:AWSAccount)
-    """
+    """Indicates that an AWS account contains the Bedrock guardrail."""
 
     target_node_label: str = "AWSAccount"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(

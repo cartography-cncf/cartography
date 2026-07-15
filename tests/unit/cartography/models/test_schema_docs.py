@@ -1,3 +1,4 @@
+import inspect
 from pathlib import Path
 
 import cartography.models.aibom as aibom_models
@@ -54,6 +55,56 @@ from cartography.models.schema_docs import render_module_schema
 from cartography.models.schema_docs import write_module_schema_docs
 
 
+def test_relationship_docstrings_are_user_facing_descriptions():
+    # Arrange
+    model = inspect_data_model()
+    # DEPRECATED: Ubuntu schemas will be removed in v1.0.0.
+    deprecated_module_marker = ".models.ubuntu."
+    relationship_schema_types = {
+        type(schema)
+        for relationship in model.relationships
+        for schema in relationship.schemas
+        if deprecated_module_marker not in type(schema).__module__
+    }
+    forbidden_markers = (
+        "(:",
+        "```",
+        "one_to_many",
+        "other_relationships",
+        "target_node_matcher",
+        "source_node_matcher",
+        "matchlink:",
+        "loaded as",
+        "lifecycle follows",
+    )
+
+    # Act
+    violations = []
+    for schema_type in sorted(
+        relationship_schema_types,
+        key=lambda item: (item.__module__, item.__name__),
+    ):
+        raw_docstring = schema_type.__doc__
+        if not raw_docstring or raw_docstring.lstrip().startswith(
+            f"{schema_type.__name__}(",
+        ):
+            continue
+        docstring = inspect.cleandoc(raw_docstring)
+        matched_markers = tuple(
+            marker
+            for marker in forbidden_markers
+            if marker.casefold() in docstring.casefold()
+        )
+        if matched_markers:
+            violations.append(
+                f"{schema_type.__module__}.{schema_type.__name__}: "
+                f"{', '.join(matched_markers)}",
+            )
+
+    # Assert
+    assert not violations, "\n".join(violations)
+
+
 def test_aibom_schema_doc_is_generated_from_introspected_model():
     # Arrange
     model = inspect_data_model(aibom_models)
@@ -96,6 +147,12 @@ def test_airbyte_schema_doc_is_generated_from_introspected_model():
     assert len(model.nodes) == 8
     assert len(model.relationships) == 18
     assert node_headings == sorted(node_headings, key=str.casefold)
+    assert generated.count("#### Properties") == len(model.nodes)
+    assert (
+        generated.index("#### Properties")
+        < generated.index("| Field | Index | Description |")
+        < generated.index("#### Relationships")
+    )
     assert "An Airbyte connection that synchronizes source data" in generated
     assert "| config_host |  | Configured source host. |" in generated
     assert "(:AirbyteConnection)-[:SYNC_FROM]->(:AirbyteSource)" in generated
@@ -295,6 +352,10 @@ def test_gitlab_schema_doc_is_generated_from_introspected_model():
     # Act
     generated = render_module_schema(complete_model, "gitlab")
     mermaid_graph = generated.split("graph LR", 1)[1].split("```", 1)[0]
+    environment_section = generated.split("### GitLabEnvironment\n", 1)[1].split(
+        "\n### ",
+        1,
+    )[0]
 
     # Assert
     assert not Path("docs/root/modules/gitlab/schema.md").exists()
@@ -314,6 +375,24 @@ def test_gitlab_schema_doc_is_generated_from_introspected_model():
         "    | command_similarity | Similarity score between image build commands "
         "and Dockerfile commands. |" in generated
     )
+    assert (
+        environment_section.count(
+            "(:GitLabEnvironment)-[:HAS_CI_VARIABLE]->(:GitLabCIVariable)",
+        )
+        == 1
+    )
+    assert (
+        environment_section.count(
+            "(:GitLabProject)-[:HAS_ENVIRONMENT]->(:GitLabEnvironment)",
+        )
+        == 1
+    )
+    assert (
+        "An environment uses each project CI variable whose scope applies to it."
+        in environment_section
+    )
+    assert "A GitLab project contains a deployment environment." in environment_section
+    assert "linked_variable_ids" not in environment_section
     assert "No description provided." not in generated
 
 

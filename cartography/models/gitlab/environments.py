@@ -95,7 +95,7 @@ class GitLabProjectHasEnvironmentRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class GitLabProjectHasEnvironmentRel(CartographyRelSchema):
-    """`(:GitLabProject)-[:HAS_ENVIRONMENT]->(:GitLabEnvironment)`."""
+    """A GitLab project contains a deployment environment."""
 
     target_node_label: str = "GitLabProject"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
@@ -118,7 +118,7 @@ class GitLabEnvironmentToProjectRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class GitLabEnvironmentToProjectRel(CartographyRelSchema):
-    """Sub-resource relationship — scoped to GitLabProject."""
+    """A GitLab project owns the environment as a sub-resource."""
 
     target_node_label: str = "GitLabProject"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
@@ -146,18 +146,7 @@ class GitLabEnvironmentToCIVariableRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class GitLabEnvironmentToCIVariableRel(CartographyRelSchema):
-    """
-    `(:GitLabEnvironment)-[:HAS_CI_VARIABLE]->(:GitLabCIVariable)`
-
-    Each environment record carries a ``linked_variable_ids`` list of
-    variable IDs whose ``environment_scope`` matches this environment
-    (exact name OR wildcard ``*``). The matcher is ``one_to_many=True`` so
-    a single environment record creates one rel per matching variable.
-
-    Loaded as part of GitLabEnvironmentSchema's other_relationships, which
-    means the rel's lifecycle follows the environment node — when a stale
-    environment is cleaned up, its variable rels are removed automatically.
-    """
+    """An environment uses each project CI variable whose scope applies to it."""
 
     target_node_label: str = "GitLabCIVariable"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(

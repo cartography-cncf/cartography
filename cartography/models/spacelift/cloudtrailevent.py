@@ -73,11 +73,7 @@ class CloudTrailSpaceliftEventToRunRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class CloudTrailSpaceliftEventToRunRel(CartographyRelSchema):
-    """
-    A CloudTrail Spacelift event comes from the Spacelift run that generated it.
-
-    (:SpaceliftCloudTrailEvent)-[:FROM_RUN]->(:SpaceliftRun)
-    """
+    """Links a CloudTrail event to the Spacelift run that generated it."""
 
     target_node_label: str = "SpaceliftRun"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
@@ -99,14 +95,7 @@ class CloudTrailSpaceliftEventToEC2InstanceRelProperties(CartographyRelPropertie
 
 @dataclass(frozen=True)
 class CloudTrailSpaceliftEventToEC2InstanceRel(CartographyRelSchema):
-    """
-    A CloudTrail Spacelift event affected one or more EC2 instances.
-
-    (:SpaceliftCloudTrailEvent)-[:AFFECTED]->(:AWSEC2Instance)
-
-    Uses a one-to-many relationship because a single event can affect multiple
-    instances.
-    """
+    """Links a CloudTrail event to the EC2 instances it affected."""
 
     target_node_label: str = "AWSEC2Instance"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
