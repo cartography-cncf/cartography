@@ -49,6 +49,9 @@ For the complete list, see:
 When you opt into canonical nodes, define the schema and the relationship between canonical and source nodes:
 
 ```python
+from cartography.models.ontology.labels import OntologyLabel
+
+
 @dataclass(frozen=True)
 class UserNodeProperties(CartographyNodeProperties):
     id: PropertyRef = PropertyRef("email")
@@ -81,7 +84,7 @@ class UserToUserAccountRel(CartographyRelSchema):
 @dataclass(frozen=True)
 class UserSchema(CartographyNodeSchema):
     label: str = "User"
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["Ontology"])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([OntologyLabel()])
     properties: UserNodeProperties = UserNodeProperties()
     scoped_cleanup: bool = False
     other_relationships: OtherRelationships = OtherRelationships(

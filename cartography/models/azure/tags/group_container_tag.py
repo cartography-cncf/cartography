@@ -11,6 +11,7 @@ from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import TargetNodeMatcher
+from cartography.models.ontology.labels import TagLabel
 
 
 @dataclass(frozen=True)
@@ -32,7 +33,7 @@ class GroupContainerToTagRel(CartographyRelSchema):
 @dataclass(frozen=True)
 class AzureGroupContainerTagsSchema(CartographyNodeSchema):
     label: str = "AzureTag"
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["Tag"])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([TagLabel()])
     properties: AzureTagProperties = AzureTagProperties()
     sub_resource_relationship: AzureTagToSubscriptionRel = AzureTagToSubscriptionRel()
     other_relationships: OtherRelationships = OtherRelationships(

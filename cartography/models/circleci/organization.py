@@ -10,6 +10,7 @@ from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import TargetNodeMatcher
+from cartography.models.ontology.labels import TenantLabel
 
 
 @dataclass(frozen=True)
@@ -51,7 +52,7 @@ class CircleCIOrganizationSchema(CartographyNodeSchema):
     properties: CircleCIOrganizationNodeProperties = (
         CircleCIOrganizationNodeProperties()
     )
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["Tenant"])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([TenantLabel()])
     other_relationships: OtherRelationships = OtherRelationships(
         [CircleCIOrgToGitHubOrgRel()],
     )

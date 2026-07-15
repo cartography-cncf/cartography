@@ -10,6 +10,7 @@ from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import TargetNodeMatcher
+from cartography.models.ontology.labels import APIKeyLabel
 
 
 @dataclass(frozen=True)
@@ -63,7 +64,7 @@ class WorkOSApplicationClientSecretToApplicationRel(CartographyRelSchema):
 @dataclass(frozen=True)
 class WorkOSApplicationClientSecretSchema(CartographyNodeSchema):
     label: str = "WorkOSApplicationClientSecret"
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["APIKey"])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([APIKeyLabel()])
     properties: WorkOSApplicationClientSecretNodeProperties = (
         WorkOSApplicationClientSecretNodeProperties()
     )

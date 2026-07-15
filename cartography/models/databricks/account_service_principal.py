@@ -10,6 +10,7 @@ from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import TargetNodeMatcher
+from cartography.models.ontology.labels import ServiceAccountLabel
 
 
 @dataclass(frozen=True)
@@ -69,7 +70,7 @@ class DatabricksAccountServicePrincipalSchema(CartographyNodeSchema):
     )
     # `ServiceAccount` matches the workspace-level DatabricksServicePrincipal so
     # both surface under the same ontology label for cross-provider queries.
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["ServiceAccount"])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([ServiceAccountLabel()])
     sub_resource_relationship: DatabricksAccountServicePrincipalToAccountRel = (
         DatabricksAccountServicePrincipalToAccountRel()
     )

@@ -12,6 +12,8 @@ from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import SourceNodeMatcher
 from cartography.models.core.relationships import TargetNodeMatcher
+from cartography.models.extra_labels import GCPPrincipalLabel
+from cartography.models.ontology.labels import UserGroupLabel
 
 
 @dataclass(frozen=True)
@@ -156,7 +158,9 @@ class GSuiteGroupSchema(CartographyNodeSchema):
     label: str = "GSuiteGroup"
     properties: GSuiteGroupNodeProperties = GSuiteGroupNodeProperties()
     sub_resource_relationship: GSuiteGroupToTenantRel = GSuiteGroupToTenantRel()
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["GCPPrincipal", "UserGroup"])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
+        [GCPPrincipalLabel(), UserGroupLabel()]
+    )
     other_relationships = OtherRelationships(
         [
             GSuiteGroupToMemberRel(),

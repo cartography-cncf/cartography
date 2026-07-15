@@ -10,6 +10,7 @@ from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import TargetNodeMatcher
+from cartography.models.ontology.labels import APIKeyLabel
 
 
 @dataclass(frozen=True)
@@ -99,7 +100,7 @@ class AccountAccessKeyToAWSAccountRel(CartographyRelSchema):
 @dataclass(frozen=True)
 class AccountAccessKeySchema(CartographyNodeSchema):
     label: str = "AccountAccessKey"
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["APIKey"])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([APIKeyLabel()])
     properties: AccountAccessKeyNodeProperties = AccountAccessKeyNodeProperties()
     sub_resource_relationship: AccountAccessKeyToAWSAccountRel = (
         AccountAccessKeyToAWSAccountRel()

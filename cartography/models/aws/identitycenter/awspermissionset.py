@@ -12,6 +12,7 @@ from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import SourceNodeMatcher
 from cartography.models.core.relationships import TargetNodeMatcher
+from cartography.models.ontology.labels import PermissionRoleLabel
 
 
 @dataclass(frozen=True)
@@ -158,7 +159,7 @@ class AWSRoleToSSOGroupMatchLink(CartographyRelSchema):
 class AWSPermissionSetSchema(CartographyNodeSchema):
     label: str = "AWSPermissionSet"
     properties: PermissionSetProperties = PermissionSetProperties()
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["PermissionRole"])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([PermissionRoleLabel()])
     sub_resource_relationship: AWSPermissionSetToAWSAccountRel = (
         AWSPermissionSetToAWSAccountRel()
     )

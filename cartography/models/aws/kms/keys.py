@@ -10,6 +10,7 @@ from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import TargetNodeMatcher
+from cartography.models.ontology.labels import EncryptionKeyLabel
 
 
 @dataclass(frozen=True)
@@ -84,7 +85,7 @@ class KMSKeySchema(CartographyNodeSchema):
     """
 
     label: str = "KMSKey"
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["EncryptionKey"])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([EncryptionKeyLabel()])
     properties: KMSKeyNodeProperties = KMSKeyNodeProperties()
     sub_resource_relationship: KMSKeyToAWSAccountRel = KMSKeyToAWSAccountRel()
     other_relationships: OtherRelationships = OtherRelationships([])

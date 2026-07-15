@@ -10,6 +10,7 @@ from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import TargetNodeMatcher
+from cartography.models.ontology.labels import ContainerLabel
 
 
 @dataclass(frozen=True)
@@ -178,7 +179,7 @@ class ECSContainerToGitHubContainerImageRel(CartographyRelSchema):
 @dataclass(frozen=True)
 class ECSContainerSchema(CartographyNodeSchema):
     label: str = "ECSContainer"
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["Container"])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([ContainerLabel()])
     properties: ECSContainerNodeProperties = ECSContainerNodeProperties()
     sub_resource_relationship: ECSContainerToAWSAccountRel = (
         ECSContainerToAWSAccountRel()

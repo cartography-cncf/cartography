@@ -9,6 +9,7 @@ from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import TargetNodeMatcher
+from cartography.models.ontology.labels import UserAccountLabel
 
 
 @dataclass(frozen=True)
@@ -50,6 +51,6 @@ class JumpCloudTenantToUserRel(CartographyRelSchema):
 @dataclass(frozen=True)
 class JumpCloudUserSchema(CartographyNodeSchema):
     label: str = "JumpCloudUser"
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["UserAccount"])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([UserAccountLabel()])
     properties: JumpCloudUserNodeProperties = JumpCloudUserNodeProperties()
     sub_resource_relationship: JumpCloudTenantToUserRel = JumpCloudTenantToUserRel()

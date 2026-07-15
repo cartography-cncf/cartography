@@ -13,7 +13,10 @@
 Apply a label only when the record matches certain conditions:
 
 ```python
-from cartography.models.core.nodes import ConditionalNodeLabel, ExtraNodeLabels
+from cartography.models.core.nodes import ExtraNodeLabels
+from cartography.models.ontology.labels import ImageAttestationLabel
+from cartography.models.ontology.labels import ImageLabel
+from cartography.models.ontology.labels import ImageManifestListLabel
 
 
 @dataclass(frozen=True)
@@ -22,9 +25,9 @@ class ECRImageSchema(CartographyNodeSchema):
     properties: ECRImageNodeProperties = ECRImageNodeProperties()
     sub_resource_relationship: ECRImageToAccountRel = ECRImageToAccountRel()
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([
-        ConditionalNodeLabel(label="Image",              conditions={"type": "IMAGE"}),
-        ConditionalNodeLabel(label="ImageAttestation",   conditions={"type": "IMAGE_ATTESTATION"}),
-        ConditionalNodeLabel(label="ImageManifestList",  conditions={"type": "IMAGE_MANIFEST_LIST"}),
+        ImageLabel(conditions={"type": "IMAGE"}),
+        ImageAttestationLabel(conditions={"type": "IMAGE_ATTESTATION"}),
+        ImageManifestListLabel(conditions={"type": "IMAGE_MANIFEST_LIST"}),
     ])
 ```
 
@@ -42,8 +45,8 @@ Without conditional labels, an `ECRImage` of type `IMAGE_ATTESTATION` would stil
 
 ### How it works
 
-- String labels (e.g. `"SecurityFinding"`) are applied unconditionally during ingestion.
-- `ConditionalNodeLabel` labels are applied in a separate query after ingestion, only on nodes matching all specified conditions.
+- Declarative labels with empty conditions are applied unconditionally during ingestion.
+- Labels with conditions are applied in a separate query after ingestion, only on nodes matching all specified conditions.
 - Conditions use **exact string equality** and combine with **AND** logic.
 - Indexes are created automatically for conditional labels and their condition fields.
 - When conditions change, labels are added or removed on subsequent syncs.

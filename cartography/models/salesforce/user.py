@@ -10,6 +10,7 @@ from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import TargetNodeMatcher
+from cartography.models.ontology.labels import UserAccountLabel
 
 
 @dataclass(frozen=True)
@@ -97,7 +98,7 @@ class SalesforceUserToUserRoleRel(CartographyRelSchema):
 class SalesforceUserSchema(CartographyNodeSchema):
     label: str = "SalesforceUser"
     # UserAccount label is used for ontology mapping
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["UserAccount"])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([UserAccountLabel()])
     properties: SalesforceUserNodeProperties = SalesforceUserNodeProperties()
     sub_resource_relationship: SalesforceUserToOrganizationRel = (
         SalesforceUserToOrganizationRel()

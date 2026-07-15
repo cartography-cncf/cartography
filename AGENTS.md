@@ -46,7 +46,12 @@ Procedures for building and extending Cartography intel modules ship as Claude s
 import logging
 from dataclasses import dataclass
 from cartography.models.core.common import PropertyRef
-from cartography.models.core.nodes import CartographyNodeProperties, CartographyNodeSchema, ExtraNodeLabels
+from cartography.models.core.nodes import (
+    CartographyNodeProperties,
+    CartographyNodeSchema,
+    ExtraNodeLabel,
+    ExtraNodeLabels,
+)
 from cartography.models.core.relationships import (
     CartographyRelProperties, CartographyRelSchema, LinkDirection,
     make_target_node_matcher, TargetNodeMatcher, OtherRelationships,
@@ -178,6 +183,24 @@ class YourNodeProperties(CartographyNodeProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)  # REQUIRED
     # Your business properties here...
 ```
+
+### Extra Node Labels
+
+```python
+@dataclass(frozen=True)
+class SharedResourceLabel(ExtraNodeLabel):
+    """A provider-local interface shared by several concrete resource types."""
+
+    label: str = "SharedResource"
+
+
+extra_node_labels = ExtraNodeLabels([SharedResourceLabel()])
+```
+
+Use reusable classes from `cartography.models.ontology.labels` for ontology
+labels. Raw strings are not accepted. Pass a nonempty `conditions` dictionary
+to apply a label conditionally; every condition key must be a declared node
+property.
 
 ### Relationship Direction
 

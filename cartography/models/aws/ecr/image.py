@@ -3,7 +3,6 @@ from dataclasses import dataclass
 from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeProperties
 from cartography.models.core.nodes import CartographyNodeSchema
-from cartography.models.core.nodes import ConditionalNodeLabel
 from cartography.models.core.nodes import ExtraNodeLabels
 from cartography.models.core.relationships import CartographyRelProperties
 from cartography.models.core.relationships import CartographyRelSchema
@@ -11,6 +10,9 @@ from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import TargetNodeMatcher
+from cartography.models.ontology.labels import ImageAttestationLabel
+from cartography.models.ontology.labels import ImageLabel
+from cartography.models.ontology.labels import ImageManifestListLabel
 
 
 @dataclass(frozen=True)
@@ -185,16 +187,13 @@ class ECRImageBaseSchema(CartographyNodeSchema):
     )
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
         [
-            ConditionalNodeLabel(
-                label="Image",
+            ImageLabel(
                 conditions={"type": "image"},
             ),
-            ConditionalNodeLabel(
-                label="ImageAttestation",
+            ImageAttestationLabel(
                 conditions={"type": "attestation"},
             ),
-            ConditionalNodeLabel(
-                label="ImageManifestList",
+            ImageManifestListLabel(
                 conditions={"type": "manifest_list"},
             ),
         ],
@@ -221,16 +220,13 @@ class ECRImageSchema(CartographyNodeSchema):
     )
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
         [
-            ConditionalNodeLabel(
-                label="Image",
+            ImageLabel(
                 conditions={"type": "image"},
             ),
-            ConditionalNodeLabel(
-                label="ImageAttestation",
+            ImageAttestationLabel(
                 conditions={"type": "attestation"},
             ),
-            ConditionalNodeLabel(
-                label="ImageManifestList",
+            ImageManifestListLabel(
                 conditions={"type": "manifest_list"},
             ),
         ],
@@ -253,16 +249,13 @@ class ECRImageLayerEnrichmentSchema(CartographyNodeSchema):
     )
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
         [
-            ConditionalNodeLabel(
-                label="Image",
+            ImageLabel(
                 conditions={"type": "image"},
             ),
-            ConditionalNodeLabel(
-                label="ImageAttestation",
+            ImageAttestationLabel(
                 conditions={"type": "attestation"},
             ),
-            ConditionalNodeLabel(
-                label="ImageManifestList",
+            ImageManifestListLabel(
                 conditions={"type": "manifest_list"},
             ),
         ],

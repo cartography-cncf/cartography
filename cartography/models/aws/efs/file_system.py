@@ -10,6 +10,7 @@ from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import TargetNodeMatcher
+from cartography.models.ontology.labels import FileStorageLabel
 
 
 @dataclass(frozen=True)
@@ -78,7 +79,7 @@ class EfsFileSystemToKMSKeyRel(CartographyRelSchema):
 class EfsFileSystemSchema(CartographyNodeSchema):
     label: str = "EfsFileSystem"
     properties: EfsFileSystemNodeProperties = EfsFileSystemNodeProperties()
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["FileStorage"])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([FileStorageLabel()])
     sub_resource_relationship: EfsFileSystemToAWSAccountRel = (
         EfsFileSystemToAWSAccountRel()
     )

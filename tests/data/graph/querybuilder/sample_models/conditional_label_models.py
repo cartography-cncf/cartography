@@ -4,7 +4,7 @@ from typing import Optional
 from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeProperties
 from cartography.models.core.nodes import CartographyNodeSchema
-from cartography.models.core.nodes import ConditionalNodeLabel
+from cartography.models.core.nodes import ExtraNodeLabel
 from cartography.models.core.nodes import ExtraNodeLabels
 from cartography.models.core.relationships import CartographyRelProperties
 from cartography.models.core.relationships import CartographyRelSchema
@@ -22,6 +22,58 @@ class ContainerImageProperties(CartographyNodeProperties):
     digest: PropertyRef = PropertyRef("digest")
     image_type: PropertyRef = PropertyRef("image_type")
     repository: PropertyRef = PropertyRef("repository")
+
+
+@dataclass(frozen=True)
+class ResourceLabel(ExtraNodeLabel):
+    """A generic resource used in query-builder tests."""
+
+    label: str = "Resource"
+
+
+@dataclass(frozen=True)
+class ImageLabel(ExtraNodeLabel):
+    """A container image used in query-builder tests."""
+
+    label: str = "Image"
+    ontology: bool = True
+
+
+@dataclass(frozen=True)
+class ImageAttestationLabel(ExtraNodeLabel):
+    """A container-image attestation used in query-builder tests."""
+
+    label: str = "ImageAttestation"
+    ontology: bool = True
+
+
+@dataclass(frozen=True)
+class ImageManifestListLabel(ExtraNodeLabel):
+    """A multi-platform image manifest used in query-builder tests."""
+
+    label: str = "ImageManifestList"
+    ontology: bool = True
+
+
+@dataclass(frozen=True)
+class SecurityFindingLabel(ExtraNodeLabel):
+    """A generic security finding used in query-builder tests."""
+
+    label: str = "SecurityFinding"
+
+
+@dataclass(frozen=True)
+class CriticalLabel(ExtraNodeLabel):
+    """A critical finding used in query-builder tests."""
+
+    label: str = "Critical"
+
+
+@dataclass(frozen=True)
+class UrgentLabel(ExtraNodeLabel):
+    """An urgent finding used in query-builder tests."""
+
+    label: str = "Urgent"
 
 
 @dataclass(frozen=True)
@@ -59,17 +111,14 @@ class ContainerImageSchema(CartographyNodeSchema):
     )
     extra_node_labels: Optional[ExtraNodeLabels] = ExtraNodeLabels(
         [
-            "Resource",  # Unconditional label applied to all nodes
-            ConditionalNodeLabel(
-                label="Image",
+            ResourceLabel(),
+            ImageLabel(
                 conditions={"image_type": "IMAGE"},
             ),
-            ConditionalNodeLabel(
-                label="ImageAttestation",
+            ImageAttestationLabel(
                 conditions={"image_type": "IMAGE_ATTESTATION"},
             ),
-            ConditionalNodeLabel(
-                label="ImageManifestList",
+            ImageManifestListLabel(
                 conditions={"image_type": "IMAGE_MANIFEST_LIST"},
             ),
         ],
@@ -87,13 +136,11 @@ class ContainerImageSchemaNoSubResource(CartographyNodeSchema):
     properties: ContainerImageProperties = ContainerImageProperties()
     extra_node_labels: Optional[ExtraNodeLabels] = ExtraNodeLabels(
         [
-            "Resource",
-            ConditionalNodeLabel(
-                label="Image",
+            ResourceLabel(),
+            ImageLabel(
                 conditions={"image_type": "IMAGE"},
             ),
-            ConditionalNodeLabel(
-                label="ImageAttestation",
+            ImageAttestationLabel(
                 conditions={"image_type": "IMAGE_ATTESTATION"},
             ),
         ],
@@ -122,13 +169,11 @@ class VulnerabilitySchema(CartographyNodeSchema):
     properties: VulnerabilityProperties = VulnerabilityProperties()
     extra_node_labels: Optional[ExtraNodeLabels] = ExtraNodeLabels(
         [
-            "SecurityFinding",  # Unconditional label
-            ConditionalNodeLabel(
-                label="Critical",
+            SecurityFindingLabel(),
+            CriticalLabel(
                 conditions={"severity": "critical"},
             ),
-            ConditionalNodeLabel(
-                label="Urgent",
+            UrgentLabel(
                 conditions={"severity": "critical", "is_exploitable": "true"},
             ),
         ],

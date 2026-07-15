@@ -10,6 +10,7 @@ from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import TargetNodeMatcher
+from cartography.models.ontology.labels import SnapshotLabel
 
 
 @dataclass(frozen=True)
@@ -57,6 +58,6 @@ class EBSSnapshotToAWSAccountRel(CartographyRelSchema):
 class EBSSnapshotSchema(CartographyNodeSchema):
     label: str = "EBSSnapshot"
     properties: EBSSnapshotNodeProperties = EBSSnapshotNodeProperties()
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["Snapshot"])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([SnapshotLabel()])
     sub_resource_relationship: EBSSnapshotToAWSAccountRel = EBSSnapshotToAWSAccountRel()
     other_relationships: OtherRelationships = OtherRelationships([])

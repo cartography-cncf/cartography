@@ -11,6 +11,7 @@ from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import TargetNodeMatcher
+from cartography.models.ontology.labels import ComputePodLabel
 
 logger = logging.getLogger(__name__)
 
@@ -67,7 +68,7 @@ class AzureGroupContainerToSubnetRel(CartographyRelSchema):
 @dataclass(frozen=True)
 class AzureGroupContainerSchema(CartographyNodeSchema):
     label: str = "AzureGroupContainer"
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["ComputePod"])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([ComputePodLabel()])
     properties: AzureGroupContainerNodeProperties = AzureGroupContainerNodeProperties()
     sub_resource_relationship: AzureGroupContainerToSubscriptionRel = (
         AzureGroupContainerToSubscriptionRel()

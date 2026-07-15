@@ -10,6 +10,8 @@ from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import TargetNodeMatcher
+from cartography.models.databricks.extra_labels import DatabricksSecurableLabel
+from cartography.models.ontology.labels import DatabaseLabel
 
 
 @dataclass(frozen=True)
@@ -81,7 +83,7 @@ class DatabricksCatalogSchema(CartographyNodeSchema):
     # securable by one label. Database: ontology label for cross-provider data
     # store queries.
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
-        ["DatabricksSecurable", "Database"]
+        [DatabricksSecurableLabel(), DatabaseLabel()]
     )
     sub_resource_relationship: DatabricksCatalogToWorkspaceRel = (
         DatabricksCatalogToWorkspaceRel()

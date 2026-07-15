@@ -10,6 +10,7 @@ from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import TargetNodeMatcher
+from cartography.models.ontology.labels import SecretLabel
 
 
 @dataclass(frozen=True)
@@ -95,7 +96,7 @@ class SecretsManagerSecretSchema(CartographyNodeSchema):
 
     label: str = "SecretsManagerSecret"
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
-        ["Secret"]
+        [SecretLabel()]
     )  # Secret label is used for ontology mapping
     properties: SecretsManagerSecretNodeProperties = (
         SecretsManagerSecretNodeProperties()

@@ -10,6 +10,7 @@ from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import TargetNodeMatcher
+from cartography.models.ontology.labels import NetworkAccessControlLabel
 
 
 @dataclass(frozen=True)
@@ -66,7 +67,7 @@ class GCPFirewallToProjectRel(CartographyRelSchema):
 class GCPFirewallSchema(CartographyNodeSchema):
     label: str = "GCPFirewall"
     properties: GCPFirewallNodeProperties = GCPFirewallNodeProperties()
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["NetworkAccessControl"])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([NetworkAccessControlLabel()])
     sub_resource_relationship: GCPFirewallToProjectRel = GCPFirewallToProjectRel()
     other_relationships: OtherRelationships = OtherRelationships(
         [

@@ -10,6 +10,7 @@ from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import TargetNodeMatcher
+from cartography.models.ontology.labels import SubnetLabel
 
 
 @dataclass(frozen=True)
@@ -75,7 +76,7 @@ class GCPSubnetToVpcRel(CartographyRelSchema):
 class GCPSubnetSchema(CartographyNodeSchema):
     label: str = "GCPSubnet"
     properties: GCPSubnetNodeProperties = GCPSubnetNodeProperties()
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["Subnet"])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([SubnetLabel()])
     sub_resource_relationship: GCPSubnetToProjectRel = GCPSubnetToProjectRel()
     other_relationships: OtherRelationships = OtherRelationships(
         [

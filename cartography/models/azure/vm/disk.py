@@ -9,6 +9,7 @@ from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import TargetNodeMatcher
+from cartography.models.ontology.labels import BlockStorageLabel
 
 
 @dataclass(frozen=True)
@@ -54,5 +55,5 @@ class AzureDiskToSubscriptionRel(CartographyRelSchema):
 class AzureDiskSchema(CartographyNodeSchema):
     label: str = "AzureDisk"
     properties: AzureDiskProperties = AzureDiskProperties()
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["BlockStorage"])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([BlockStorageLabel()])
     sub_resource_relationship: AzureDiskToSubscriptionRel = AzureDiskToSubscriptionRel()

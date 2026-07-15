@@ -10,6 +10,8 @@ from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import TargetNodeMatcher
+from cartography.models.extra_labels import IpPermissionInboundLabel
+from cartography.models.extra_labels import IpRuleLabel
 
 
 @dataclass(frozen=True)
@@ -66,7 +68,7 @@ class AzureSQLServerFirewallRuleSchema(CartographyNodeSchema):
 
     label: str = "AzureSQLServerFirewallRule"
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
-        ["IpPermissionInbound", "IpRule"]
+        [IpPermissionInboundLabel(), IpRuleLabel()]
     )
     properties: AzureSQLServerFirewallRuleProperties = (
         AzureSQLServerFirewallRuleProperties()

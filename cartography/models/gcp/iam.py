@@ -10,6 +10,9 @@ from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import TargetNodeMatcher
+from cartography.models.extra_labels import GCPPrincipalLabel
+from cartography.models.ontology.labels import PermissionRoleLabel
+from cartography.models.ontology.labels import ServiceAccountLabel
 
 logger = logging.getLogger(__name__)
 
@@ -50,7 +53,7 @@ class GCPServiceAccountSchema(CartographyNodeSchema):
     sub_resource_relationship: GCPPrincipalToProjectRel = GCPPrincipalToProjectRel()
     # Service accounts are principals; add shared label for cross-module queries
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
-        ["GCPPrincipal", "ServiceAccount"]
+        [GCPPrincipalLabel(), ServiceAccountLabel()]
     )
 
 
@@ -111,7 +114,7 @@ class GCPOrgRoleSchema(CartographyNodeSchema):
 
     label: str = "GCPRole"
     properties: GCPOrgRoleNodeProperties = GCPOrgRoleNodeProperties()
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["PermissionRole"])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([PermissionRoleLabel()])
     sub_resource_relationship: GCPOrgRoleToOrganizationRel = (
         GCPOrgRoleToOrganizationRel()
     )
@@ -170,5 +173,5 @@ class GCPProjectRoleSchema(CartographyNodeSchema):
 
     label: str = "GCPRole"
     properties: GCPProjectRoleNodeProperties = GCPProjectRoleNodeProperties()
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["PermissionRole"])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([PermissionRoleLabel()])
     sub_resource_relationship: GCPProjectRoleToProjectRel = GCPProjectRoleToProjectRel()

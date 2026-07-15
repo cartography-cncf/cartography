@@ -10,6 +10,7 @@ from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import TargetNodeMatcher
+from cartography.models.extra_labels import FixLabel
 
 
 @dataclass(frozen=True)
@@ -80,7 +81,7 @@ class SocketDevFixToDependencyRel(CartographyRelSchema):
 class SocketDevFixSchema(CartographyNodeSchema):
     label: str = "SocketDevFix"
     properties: SocketDevFixNodeProperties = SocketDevFixNodeProperties()
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["Fix"])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([FixLabel()])
     sub_resource_relationship: SocketDevOrgToFixRel = SocketDevOrgToFixRel()
     other_relationships: OtherRelationships = OtherRelationships(
         rels=[

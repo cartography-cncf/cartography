@@ -11,6 +11,8 @@ from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import TargetNodeMatcher
+from cartography.models.extra_labels import DependencyLabel
+from cartography.models.semgrep.extra_labels import SemgrepDependencyLabel
 
 
 @dataclass(frozen=True)
@@ -96,7 +98,7 @@ class SemgrepSCAFindngToDependencyRelProperties(CartographyRelProperties):
 class SemgrepGoLibrarySchema(CartographyNodeSchema):
     label: str = "GoLibrary"
     extra_node_labels: Optional[ExtraNodeLabels] = ExtraNodeLabels(
-        ["Dependency", "SemgrepDependency"],
+        [DependencyLabel(), SemgrepDependencyLabel()],
     )
     properties: SemgrepDependencyNodeProperties = SemgrepDependencyNodeProperties()
     sub_resource_relationship: SemgrepDependencyToSemgrepDeploymentRel = (
@@ -114,7 +116,7 @@ class SemgrepGoLibrarySchema(CartographyNodeSchema):
 class SemgrepNpmLibrarySchema(CartographyNodeSchema):
     label: str = "NpmLibrary"
     extra_node_labels: Optional[ExtraNodeLabels] = ExtraNodeLabels(
-        ["Dependency", "SemgrepDependency"],
+        [DependencyLabel(), SemgrepDependencyLabel()],
     )
     properties: SemgrepDependencyNodeProperties = SemgrepDependencyNodeProperties()
     sub_resource_relationship: SemgrepDependencyToSemgrepDeploymentRel = (

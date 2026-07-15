@@ -34,7 +34,7 @@ Whichever you pick, the canonical label/direction must match the `RelConstraint`
 
 ## Critical rules
 
-1. **The guard reads labels from the node *schema*** (`label` + `extra_node_labels`, including `ConditionalNodeLabel`), not from the runtime graph. An edge is only constrained when **both** endpoints carry an ontology label in their schema. Edges through intermediate binding nodes (e.g. `GCPPolicyBinding`, `KubernetesRoleBinding`, `AzureRoleAssignment`) are NOT direct and are not affected by a rename.
+1. **The guard reads labels from the node *schema*** (`label` + declarative `extra_node_labels`, including labels with conditions), not from the runtime graph. An edge is only constrained when **both** endpoints carry an ontology label in their schema. Edges through intermediate binding nodes (e.g. `GCPPolicyBinding`, `KubernetesRoleBinding`, `AzureRoleAssignment`) are NOT direct and are not affected by a rename.
 2. **Pick the canonical verb to fit the abstraction, not one provider.** The label applies to the abstract semantic pair (e.g. `UserAccount -> PermissionRole`), which spans many providers. Prefer a neutral verb (`HAS_ROLE`, not `ASSUME_ROLE`, when the target generalises IAM roles, permission sets, and SaaS roles). Reserve action verbs (`ASSUMES`) for workload-identity/runtime semantics.
 3. **Backward compatibility is mandatory.** Never rename in place. The old edge keeps being created (whitelisted) until v1.0.0 so existing queries/rules keep working.
 4. **Run the guard test to discover collisions**: do not assume you found every edge by reading code. `test_ontology_rel_constraints.py` will list every offending rel (wrong label or reverse direction). Decide per edge: migrate (parallel + deprecate) or whitelist (distinct semantic).
@@ -50,7 +50,7 @@ Decide the abstract pair and verb, e.g. `UserAccount -[:HAS_ROLE]-> PermissionRo
 
 ### Step 2: Find which provider nodes carry each ontology label
 
-The semantic label is applied via `extra_node_labels` on the node schema (sometimes a `ConditionalNodeLabel`). The ontology mapping files under `cartography/models/ontology/mapping/data/<category>.py` list which provider node labels belong to a category. Build the set of node labels carrying `src` and `dst`.
+The semantic label is applied via a named `ExtraNodeLabel` subclass on the node schema, sometimes with nonempty conditions. The ontology mapping files under `cartography/models/ontology/mapping/data/<category>.py` list which provider node labels belong to a category. Build the set of node labels carrying `src` and `dst`.
 
 ```bash
 # which schemas declare the semantic labels

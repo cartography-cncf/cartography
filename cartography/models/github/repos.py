@@ -10,6 +10,10 @@ from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import TargetNodeMatcher
+from cartography.models.extra_labels import DependencyLabel
+from cartography.models.ontology.labels import CodeRepositoryLabel
+from cartography.models.ontology.labels import TenantLabel
+from cartography.models.ontology.labels import UserAccountLabel
 
 
 @dataclass(frozen=True)
@@ -65,7 +69,7 @@ class GitHubRepositoryToOwnerUserRel(CartographyRelSchema):
 class GitHubRepositorySchema(CartographyNodeSchema):
     label: str = "GitHubRepository"
     properties: GitHubRepositoryNodeProperties = GitHubRepositoryNodeProperties()
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["CodeRepository"])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([CodeRepositoryLabel()])
     other_relationships: OtherRelationships = OtherRelationships(
         [
             GitHubRepositoryToOwnerOrganizationRel(),
@@ -181,7 +185,7 @@ class GitHubOwnerOrganizationSchema(CartographyNodeSchema):
     properties: GitHubOwnerOrganizationNodeProperties = (
         GitHubOwnerOrganizationNodeProperties()
     )
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["Tenant"])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([TenantLabel()])
     other_relationships: OtherRelationships = OtherRelationships(
         [GitHubOwnerToRepositoryRel()],
     )
@@ -191,7 +195,7 @@ class GitHubOwnerOrganizationSchema(CartographyNodeSchema):
 class GitHubOwnerUserSchema(CartographyNodeSchema):
     label: str = "GitHubUser"
     properties: GitHubOwnerUserNodeProperties = GitHubOwnerUserNodeProperties()
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["UserAccount"])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([UserAccountLabel()])
     other_relationships: OtherRelationships = OtherRelationships(
         [GitHubOwnerToRepositoryRel()],
     )
@@ -223,7 +227,7 @@ class GitHubCollaboratorToRepositoryRel(CartographyRelSchema):
 class _GitHubCollaboratorSchema(CartographyNodeSchema):
     label: str = "GitHubUser"
     properties: GitHubCollaboratorNodeProperties = GitHubCollaboratorNodeProperties()
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["UserAccount"])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([UserAccountLabel()])
     rel_label: str = "DIRECT_COLLAB_ADMIN"
 
     @property
@@ -264,7 +268,7 @@ class GitHubPythonLibraryToRepositoryRel(CartographyRelSchema):
 @dataclass(frozen=True)
 class GitHubPythonLibrarySchema(CartographyNodeSchema):
     label: str = "PythonLibrary"
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["Dependency"])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([DependencyLabel()])
     properties: GitHubPythonLibraryNodeProperties = GitHubPythonLibraryNodeProperties()
     other_relationships: OtherRelationships = OtherRelationships(
         [GitHubPythonLibraryToRepositoryRel()],

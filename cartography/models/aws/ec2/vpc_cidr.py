@@ -1,5 +1,7 @@
 from dataclasses import dataclass
 
+from cartography.models.aws.extra_labels import AWSIpv4CidrBlockLabel
+from cartography.models.aws.extra_labels import AWSIpv6CidrBlockLabel
 from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeProperties
 from cartography.models.core.nodes import CartographyNodeSchema
@@ -54,7 +56,7 @@ class AWSIPv4CidrBlockSchema(CartographyNodeSchema):
     other_relationships: OtherRelationships = OtherRelationships(
         [AWSIPv4CidrBlockToAWSVpcRel()]
     )
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["AWSIpv4CidrBlock"])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([AWSIpv4CidrBlockLabel()])
 
 
 @dataclass(frozen=True)
@@ -99,4 +101,4 @@ class AWSIPv6CidrBlockSchema(CartographyNodeSchema):
     other_relationships: OtherRelationships = OtherRelationships(
         [AWSIPv6CidrBlockToAWSVpcRel()]
     )
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["AWSIpv6CidrBlock"])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([AWSIpv6CidrBlockLabel()])

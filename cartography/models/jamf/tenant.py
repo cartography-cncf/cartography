@@ -4,6 +4,7 @@ from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeProperties
 from cartography.models.core.nodes import CartographyNodeSchema
 from cartography.models.core.nodes import ExtraNodeLabels
+from cartography.models.ontology.labels import TenantLabel
 
 
 @dataclass(frozen=True)
@@ -16,4 +17,4 @@ class JamfTenantNodeProperties(CartographyNodeProperties):
 class JamfTenantSchema(CartographyNodeSchema):
     label: str = "JamfTenant"
     properties: JamfTenantNodeProperties = JamfTenantNodeProperties()
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["Tenant"])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([TenantLabel()])

@@ -10,6 +10,7 @@ from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import TargetNodeMatcher
+from cartography.models.ontology.labels import ComputeClusterLabel
 
 
 @dataclass(frozen=True)
@@ -79,7 +80,7 @@ class ScalewayKapsuleClusterToPrivateNetworkRel(CartographyRelSchema):
 @dataclass(frozen=True)
 class ScalewayKapsuleClusterSchema(CartographyNodeSchema):
     label: str = "ScalewayKapsuleCluster"
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["ComputeCluster"])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([ComputeClusterLabel()])
     properties: ScalewayKapsuleClusterProperties = ScalewayKapsuleClusterProperties()
     sub_resource_relationship: ScalewayKapsuleClusterToProjectRel = (
         ScalewayKapsuleClusterToProjectRel()

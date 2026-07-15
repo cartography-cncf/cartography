@@ -10,6 +10,8 @@ from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import TargetNodeMatcher
+from cartography.models.extra_labels import IpPermissionEgressLabel
+from cartography.models.extra_labels import IpPermissionInboundLabel
 
 
 @dataclass(frozen=True)
@@ -70,7 +72,7 @@ class EC2NetworkAclInboundRuleSchema(CartographyNodeSchema):
 
     label: str = "EC2NetworkAclRule"
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
-        ["IpPermissionInbound"],
+        [IpPermissionInboundLabel()],
     )
     properties: EC2NetworkAclRuleNodeProperties = EC2NetworkAclRuleNodeProperties()
     sub_resource_relationship: EC2NetworkAclRuleToAWSAccountRel = (
@@ -92,7 +94,7 @@ class EC2NetworkAclEgressRuleSchema(CartographyNodeSchema):
     label: str = "EC2NetworkAclRule"
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
         [
-            "IpPermissionEgress",
+            IpPermissionEgressLabel(),
         ],
     )
     properties: EC2NetworkAclRuleNodeProperties = EC2NetworkAclRuleNodeProperties()

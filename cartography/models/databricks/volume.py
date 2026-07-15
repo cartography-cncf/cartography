@@ -10,6 +10,8 @@ from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import TargetNodeMatcher
+from cartography.models.databricks.extra_labels import DatabricksSecurableLabel
+from cartography.models.ontology.labels import ObjectStorageLabel
 
 
 @dataclass(frozen=True)
@@ -113,7 +115,7 @@ class DatabricksVolumeSchema(CartographyNodeSchema):
     # DatabricksSecurable: shared UC-grant target label. ObjectStorage: ontology
     # label; a UC volume is object/file storage backed by cloud storage.
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
-        ["DatabricksSecurable", "ObjectStorage"]
+        [DatabricksSecurableLabel(), ObjectStorageLabel()]
     )
     sub_resource_relationship: DatabricksVolumeToWorkspaceRel = (
         DatabricksVolumeToWorkspaceRel()

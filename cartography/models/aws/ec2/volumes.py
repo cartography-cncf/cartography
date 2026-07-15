@@ -10,6 +10,7 @@ from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import TargetNodeMatcher
+from cartography.models.ontology.labels import BlockStorageLabel
 
 
 @dataclass(frozen=True)
@@ -95,7 +96,7 @@ class EBSVolumeSchema(CartographyNodeSchema):
 
     label: str = "EBSVolume"
     properties: EBSVolumeNodeProperties = EBSVolumeNodeProperties()
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["BlockStorage"])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([BlockStorageLabel()])
     sub_resource_relationship: EBSVolumeToAWSAccountRel = EBSVolumeToAWSAccountRel()
     other_relationships: OtherRelationships = OtherRelationships(
         [
@@ -127,7 +128,7 @@ class EBSVolumeInstanceSchema(CartographyNodeSchema):
 
     label: str = "EBSVolume"
     properties: EBSVolumeInstanceProperties = EBSVolumeInstanceProperties()
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["BlockStorage"])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([BlockStorageLabel()])
     sub_resource_relationship: EBSVolumeToAWSAccountRel = EBSVolumeToAWSAccountRel()
     other_relationships: OtherRelationships = OtherRelationships(
         [

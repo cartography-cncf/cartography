@@ -10,6 +10,7 @@ from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import TargetNodeMatcher
+from cartography.models.ontology.labels import ComputePodLabel
 
 
 @dataclass(frozen=True)
@@ -293,7 +294,7 @@ class KubernetesPodToServiceAccountRunsAsRel(CartographyRelSchema):
 @dataclass(frozen=True)
 class KubernetesPodSchema(CartographyNodeSchema):
     label: str = "KubernetesPod"
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["ComputePod"])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([ComputePodLabel()])
     properties: KubernetesPodNodeProperties = KubernetesPodNodeProperties()
     sub_resource_relationship: KubernetesPodToKubernetesClusterRel = (
         KubernetesPodToKubernetesClusterRel()

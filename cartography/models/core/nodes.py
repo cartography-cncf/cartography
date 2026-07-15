@@ -2,7 +2,6 @@ import abc
 from dataclasses import dataclass
 from dataclasses import field
 from typing import Optional
-from typing import Union
 
 from cartography.models.core.common import PropertyRef
 from cartography.models.core.relationships import CartographyRelSchema
@@ -69,40 +68,27 @@ class CartographyNodeProperties(abc.ABC):
 
 
 @dataclass(frozen=True)
-class ConditionalNodeLabel:
+class ExtraNodeLabel(abc.ABC):
     """
-    A conditional label that is applied to nodes only when specific field conditions are met.
+    Declarative additional label applied to a Cartography node.
 
-    Conditional labels allow you to dynamically apply labels to nodes based on their property values.
-    During ingestion, after the main node creation/update, a separate query is run to match nodes
-    that meet the specified conditions and apply the label.
+    Define a frozen dataclass subclass with a class docstring for each additional
+    label. Empty conditions apply the label unconditionally; nonempty conditions
+    require every named node property to equal its configured value.
 
     Attributes:
-        label (str): The label to apply to matching nodes.
-        conditions (Dict[str, str]): A dictionary of field_name -> value pairs that must all match
-            for the label to be applied. All conditions must be satisfied (AND logic).
-
-    Examples:
-        >>> # Apply 'Critical' label to nodes where severity is 'high'
-        >>> conditional = ConditionalNodeLabel(
-        ...     label='Critical',
-        ...     conditions={'severity': 'high'}
-        ... )
-
-        >>> # Apply 'PublicResource' label to nodes matching multiple conditions
-        >>> conditional = ConditionalNodeLabel(
-        ...     label='PublicResource',
-        ...     conditions={'is_public': 'true', 'exposed_to_internet': 'true'}
-        ... )
-
-    Note:
-        - The conditions are matched using exact string equality
-        - All conditions must be met for the label to be applied (AND logic)
-        - The query generated is: MATCH (n:<primary_label> {field: value, ...}) SET n:<conditional_label>
+        label: The Neo4j label name.
+        conditions: Node property names and exact string values that must match.
+        ontology: Whether this is a cross-provider ontology label.
     """
 
-    label: str
-    conditions: dict[str, str]
+    label: str = field(init=False)
+    conditions: dict[str, str] = field(default_factory=dict)
+    ontology: bool = False
+
+    def __post_init__(self) -> None:
+        if type(self) is ExtraNodeLabel:
+            raise TypeError("ExtraNodeLabel must be subclassed.")
 
 
 @dataclass(frozen=True)
@@ -113,28 +99,19 @@ class ExtraNodeLabels:
     This wrapper class is used to ensure dataclass immutability for the CartographyNodeSchema
     while providing additional Neo4j labels beyond the primary node label.
 
-    Labels can be either:
-    - Simple strings: Applied unconditionally to all nodes
-    - ConditionalNodeLabel objects: Applied only to nodes matching specific conditions
-
     Attributes:
-        labels (List[Union[str, ConditionalNodeLabel]]): A list of labels to be applied to the node.
-            String labels are applied unconditionally, ConditionalNodeLabel objects are applied
-            only when their conditions are met.
-
-    Examples:
-        >>> # Simple string labels (applied to all nodes)
-        >>> extra_labels = ExtraNodeLabels(['Resource', 'AWSResource'])
-
-        >>> # Mix of simple and conditional labels
-        >>> extra_labels = ExtraNodeLabels([
-        ...     'Resource',
-        ...     'AWSResource',
-        ...     ConditionalNodeLabel(label='Critical', conditions={'severity': 'high'}),
-        ... ])
+        labels: Declarative labels to apply to the node.
     """
 
-    labels: list[Union[str, ConditionalNodeLabel]]
+    labels: list[ExtraNodeLabel]
+
+    def __post_init__(self) -> None:
+        for label in self.labels:
+            if not isinstance(label, ExtraNodeLabel):
+                raise TypeError(
+                    "ExtraNodeLabels accepts only ExtraNodeLabel instances; "
+                    f"got {type(label).__name__}."
+                )
 
 
 @dataclass(frozen=True)

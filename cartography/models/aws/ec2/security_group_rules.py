@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 
+from cartography.models.aws.extra_labels import AWSIpRuleLabel
 from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeProperties
 from cartography.models.core.nodes import CartographyNodeSchema
@@ -10,6 +11,9 @@ from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import TargetNodeMatcher
+from cartography.models.extra_labels import IpPermissionInboundLabel
+from cartography.models.extra_labels import IpRangeLabel
+from cartography.models.extra_labels import IpRuleLabel
 
 
 @dataclass(frozen=True)
@@ -83,7 +87,7 @@ class IpRangeToIpRuleRel(CartographyRelSchema):
 @dataclass(frozen=True)
 class IpRuleSchema(CartographyNodeSchema):
     label: str = "AWSIpRule"
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["IpRule"])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([IpRuleLabel()])
     properties: IpRuleNodeProperties = IpRuleNodeProperties()
     sub_resource_relationship: IpRuleToAWSAccountRel = IpRuleToAWSAccountRel()
     other_relationships: OtherRelationships = OtherRelationships(
@@ -97,7 +101,7 @@ class IpPermissionInboundSchema(CartographyNodeSchema):
     # Keep AWSIpRule as an extra label so inbound rules are still queryable as
     # the broader AWSIpRule type while preserving a provider-specific primary label.
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
-        ["IpPermissionInbound", "IpRule", "AWSIpRule"]
+        [IpPermissionInboundLabel(), IpRuleLabel(), AWSIpRuleLabel()]
     )
     properties: IpRuleNodeProperties = IpRuleNodeProperties()
     sub_resource_relationship: IpRuleToAWSAccountRel = IpRuleToAWSAccountRel()
@@ -109,7 +113,7 @@ class IpPermissionInboundSchema(CartographyNodeSchema):
 @dataclass(frozen=True)
 class IpRangeSchema(CartographyNodeSchema):
     label: str = "AWSIpRange"
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["IpRange"])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([IpRangeLabel()])
     properties: IpRangeNodeProperties = IpRangeNodeProperties()
     sub_resource_relationship: IpRuleToAWSAccountRel = IpRuleToAWSAccountRel()
     other_relationships: OtherRelationships = OtherRelationships([IpRangeToIpRuleRel()])

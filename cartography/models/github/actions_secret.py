@@ -21,6 +21,7 @@ from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import TargetNodeMatcher
+from cartography.models.ontology.labels import SecretLabel
 
 
 @dataclass(frozen=True)
@@ -63,7 +64,7 @@ class GitHubOrgActionsSecretSchema(CartographyNodeSchema):
 
     label: str = "GitHubActionsSecret"
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
-        ["Secret"]
+        [SecretLabel()]
     )  # Secret label is used for ontology mapping
     properties: GitHubActionsSecretNodeProperties = GitHubActionsSecretNodeProperties()
     sub_resource_relationship: GitHubActionsSecretToOrgRel = (
@@ -106,7 +107,7 @@ class GitHubRepoActionsSecretSchema(CartographyNodeSchema):
 
     label: str = "GitHubActionsSecret"
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
-        ["Secret"]
+        [SecretLabel()]
     )  # Secret label is used for ontology mapping
     properties: GitHubActionsSecretNodeProperties = GitHubActionsSecretNodeProperties()
     sub_resource_relationship: GitHubActionsSecretToOrgRel = (
@@ -179,7 +180,7 @@ class GitHubEnvActionsSecretSchema(CartographyNodeSchema):
 
     label: str = "GitHubActionsSecret"
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
-        ["Secret"]
+        [SecretLabel()]
     )  # Secret label is used for ontology mapping
     properties: GitHubActionsSecretNodeProperties = GitHubActionsSecretNodeProperties()
     sub_resource_relationship: GitHubEnvActionsSecretToOrgRel = (

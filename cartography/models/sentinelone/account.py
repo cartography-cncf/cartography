@@ -4,6 +4,7 @@ from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeProperties
 from cartography.models.core.nodes import CartographyNodeSchema
 from cartography.models.core.nodes import ExtraNodeLabels
+from cartography.models.ontology.labels import TenantLabel
 
 
 @dataclass(frozen=True)
@@ -39,4 +40,4 @@ class S1AccountSchema(CartographyNodeSchema):
 
     # S1Account is a top-level tenant-like entity, so no sub_resource_relationship
     sub_resource_relationship: None = None
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["Tenant"])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([TenantLabel()])

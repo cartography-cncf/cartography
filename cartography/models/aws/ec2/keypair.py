@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 
+from cartography.models.aws.extra_labels import KeyPairLabel
 from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeProperties
 from cartography.models.core.nodes import CartographyNodeSchema
@@ -54,6 +55,6 @@ class EC2KeyPairSchema(CartographyNodeSchema):
     """
 
     label: str = "EC2KeyPair"
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["KeyPair"])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([KeyPairLabel()])
     properties: EC2KeyPairNodeProperties = EC2KeyPairNodeProperties()
     sub_resource_relationship: EC2KeyPairToAWSAccountRel = EC2KeyPairToAWSAccountRel()

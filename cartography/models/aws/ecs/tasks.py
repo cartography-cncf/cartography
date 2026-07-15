@@ -10,6 +10,7 @@ from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import TargetNodeMatcher
+from cartography.models.ontology.labels import ComputePodLabel
 
 
 @dataclass(frozen=True)
@@ -174,7 +175,7 @@ class ECSTaskToNetworkInterfaceRel(CartographyRelSchema):
 @dataclass(frozen=True)
 class ECSTaskSchema(CartographyNodeSchema):
     label: str = "ECSTask"
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["ComputePod"])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([ComputePodLabel()])
     properties: ECSTaskNodeProperties = ECSTaskNodeProperties()
     sub_resource_relationship: ECSTaskToAWSAccountRel = ECSTaskToAWSAccountRel()
     other_relationships: OtherRelationships = OtherRelationships(

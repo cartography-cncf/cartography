@@ -3,7 +3,6 @@ from dataclasses import dataclass
 from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeProperties
 from cartography.models.core.nodes import CartographyNodeSchema
-from cartography.models.core.nodes import ConditionalNodeLabel
 from cartography.models.core.nodes import ExtraNodeLabels
 from cartography.models.core.relationships import CartographyRelProperties
 from cartography.models.core.relationships import CartographyRelSchema
@@ -13,6 +12,9 @@ from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import SourceNodeMatcher
 from cartography.models.core.relationships import TargetNodeMatcher
+from cartography.models.extra_labels import RiskLabel
+from cartography.models.ontology.labels import CVELabel
+from cartography.models.ontology.labels import SecurityIssueLabel
 
 
 @dataclass(frozen=True)
@@ -185,13 +187,11 @@ class AWSInspectorFindingSchema(CartographyNodeSchema):
     # now; give it its own distinct label if/when it needs one.
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
         [
-            "Risk",
-            ConditionalNodeLabel(
-                label="CVE",
+            RiskLabel(),
+            CVELabel(
                 conditions={"type": "PACKAGE_VULNERABILITY"},
             ),
-            ConditionalNodeLabel(
-                label="SecurityIssue",
+            SecurityIssueLabel(
                 conditions={"type": "NETWORK_REACHABILITY"},
             ),
         ],

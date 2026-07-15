@@ -10,6 +10,7 @@ from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import TargetNodeMatcher
+from cartography.models.ontology.labels import CertificateLabel
 
 
 @dataclass(frozen=True)
@@ -67,7 +68,7 @@ class ACMCertificateToELBV2ListenerRel(CartographyRelSchema):
 @dataclass(frozen=True)
 class ACMCertificateSchema(CartographyNodeSchema):
     label: str = "ACMCertificate"
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["Certificate"])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([CertificateLabel()])
     properties: ACMCertificateNodeProperties = ACMCertificateNodeProperties()
     sub_resource_relationship: ACMCertificateToAWSAccountRel = (
         ACMCertificateToAWSAccountRel()

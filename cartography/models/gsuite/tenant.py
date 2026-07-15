@@ -4,6 +4,7 @@ from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeProperties
 from cartography.models.core.nodes import CartographyNodeSchema
 from cartography.models.core.nodes import ExtraNodeLabels
+from cartography.models.ontology.labels import TenantLabel
 
 
 @dataclass(frozen=True)
@@ -28,4 +29,4 @@ class GSuiteTenantSchema(CartographyNodeSchema):
     label: str = "GSuiteTenant"
     properties: GSuiteTenantNodeProperties = GSuiteTenantNodeProperties()
     sub_resource_relationship: None = None  # Tenant is the root level
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["Tenant"])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([TenantLabel()])

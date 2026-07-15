@@ -10,6 +10,8 @@ from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import TargetNodeMatcher
+from cartography.models.databricks.extra_labels import DatabricksSecurableLabel
+from cartography.models.ontology.labels import ObjectStorageLabel
 
 
 @dataclass(frozen=True)
@@ -137,7 +139,7 @@ class DatabricksExternalLocationSchema(CartographyNodeSchema):
     # DatabricksSecurable: grantable UC securable. ObjectStorage: ontology label;
     # an external location points at a cloud storage path.
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
-        ["DatabricksSecurable", "ObjectStorage"]
+        [DatabricksSecurableLabel(), ObjectStorageLabel()]
     )
     sub_resource_relationship: DatabricksExternalLocationToWorkspaceRel = (
         DatabricksExternalLocationToWorkspaceRel()

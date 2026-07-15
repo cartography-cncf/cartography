@@ -10,6 +10,7 @@ from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import TargetNodeMatcher
+from cartography.models.ontology.labels import SnapshotLabel
 
 
 @dataclass(frozen=True)
@@ -102,7 +103,7 @@ class RDSSnapshotToRDSInstanceRel(CartographyRelSchema):
 class RDSSnapshotSchema(CartographyNodeSchema):
     label: str = "RDSSnapshot"
     properties: RDSSnapshotNodeProperties = RDSSnapshotNodeProperties()
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["Snapshot"])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([SnapshotLabel()])
     sub_resource_relationship: RDSSnapshotToAWSAccountRel = RDSSnapshotToAWSAccountRel()
     other_relationships: OtherRelationships = OtherRelationships(
         [

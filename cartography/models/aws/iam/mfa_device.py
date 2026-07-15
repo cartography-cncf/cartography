@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 
+from cartography.models.aws.extra_labels import MfaDeviceLabel
 from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeProperties
 from cartography.models.core.nodes import CartographyNodeSchema
@@ -80,4 +81,4 @@ class AWSMfaDeviceSchema(CartographyNodeSchema):
             AWSMfaDeviceToAWSUserRel(),
         ]
     )
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["MfaDevice"])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([MfaDeviceLabel()])

@@ -10,6 +10,7 @@ from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import TargetNodeMatcher
+from cartography.models.ontology.labels import CVELabel
 
 # =============================================================================
 # SpotlightVulnerability
@@ -131,7 +132,7 @@ class CrowdstrikeCVEToSpotlightVulnerabilityRel(CartographyRelSchema):
 class CrowdstrikeCVESchema(CartographyNodeSchema):
     label: str = "CrowdstrikeFinding"
     scoped_cleanup: bool = False
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["CVE"])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([CVELabel()])
     properties: CrowdstrikeCVENodeProperties = CrowdstrikeCVENodeProperties()
     other_relationships: OtherRelationships = OtherRelationships(
         [

@@ -67,9 +67,26 @@ class YourServiceUserSchema(CartographyNodeSchema):
 Add additional Neo4j labels with `ExtraNodeLabels`:
 
 ```python
+from dataclasses import dataclass
+
+from cartography.models.core.nodes import ExtraNodeLabel
 from cartography.models.core.nodes import ExtraNodeLabels
 
-extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["Identity", "Asset"])
+
+@dataclass(frozen=True)
+class IdentityLabel(ExtraNodeLabel):
+    """An identity represented by this provider."""
+
+    label: str = "Identity"
+
+
+@dataclass(frozen=True)
+class AssetLabel(ExtraNodeLabel):
+    """An asset represented by this provider."""
+
+    label: str = "Asset"
+
+extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([IdentityLabel(), AssetLabel()])
 ```
 
 Produces `(:YourServiceUser:Identity:Asset)`. For ontology-driven labels (`UserAccount`, `Tenant`, `Database`, ...) see the `enrich-ontology` skill.

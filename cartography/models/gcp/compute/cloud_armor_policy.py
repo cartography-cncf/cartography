@@ -9,6 +9,7 @@ from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import TargetNodeMatcher
+from cartography.models.ontology.labels import NetworkAccessControlLabel
 
 
 @dataclass(frozen=True)
@@ -48,7 +49,7 @@ class GCPCloudArmorPolicyToProjectRel(CartographyRelSchema):
 class GCPCloudArmorPolicySchema(CartographyNodeSchema):
     label: str = "GCPCloudArmorPolicy"
     properties: GCPCloudArmorPolicyNodeProperties = GCPCloudArmorPolicyNodeProperties()
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["NetworkAccessControl"])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([NetworkAccessControlLabel()])
     sub_resource_relationship: GCPCloudArmorPolicyToProjectRel = (
         GCPCloudArmorPolicyToProjectRel()
     )

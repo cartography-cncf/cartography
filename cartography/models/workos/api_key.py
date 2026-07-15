@@ -10,6 +10,7 @@ from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import TargetNodeMatcher
+from cartography.models.ontology.labels import APIKeyLabel
 
 
 @dataclass(frozen=True)
@@ -65,7 +66,7 @@ class WorkOSAPIKeyToOrganizationRel(CartographyRelSchema):
 @dataclass(frozen=True)
 class WorkOSAPIKeySchema(CartographyNodeSchema):
     label: str = "WorkOSAPIKey"
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["APIKey"])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([APIKeyLabel()])
     properties: WorkOSAPIKeyNodeProperties = WorkOSAPIKeyNodeProperties()
     sub_resource_relationship: WorkOSAPIKeyToEnvironmentRel = (
         WorkOSAPIKeyToEnvironmentRel()

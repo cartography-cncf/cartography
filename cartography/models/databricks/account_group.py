@@ -10,6 +10,7 @@ from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import TargetNodeMatcher
+from cartography.models.ontology.labels import UserGroupLabel
 
 
 @dataclass(frozen=True)
@@ -68,7 +69,7 @@ class DatabricksAccountGroupSchema(CartographyNodeSchema):
     # `UserGroup` matches the workspace-level DatabricksGroup and satisfies the
     # ontology MEMBER_OF constraints (UserAccount/ServiceAccount/UserGroup ->
     # UserGroup) for account principals nested into account groups.
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["UserGroup"])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([UserGroupLabel()])
     sub_resource_relationship: DatabricksAccountGroupToAccountRel = (
         DatabricksAccountGroupToAccountRel()
     )

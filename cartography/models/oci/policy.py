@@ -10,6 +10,7 @@ from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import TargetNodeMatcher
+from cartography.models.ontology.labels import PermissionRoleLabel
 
 
 @dataclass(frozen=True)
@@ -145,7 +146,7 @@ class OCIPolicyToCompartmentRefRel(CartographyRelSchema):
 class OCIPolicySchema(CartographyNodeSchema):
     label: str = "OCIPolicy"
     properties: OCIPolicyNodeProperties = OCIPolicyNodeProperties()
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["PermissionRole"])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([PermissionRoleLabel()])
     sub_resource_relationship: OCIPolicyToOCITenancyRel = OCIPolicyToOCITenancyRel()
     other_relationships: OtherRelationships = OtherRelationships(
         [
@@ -165,7 +166,7 @@ class OCIPolicyWithReferencesSchema(CartographyNodeSchema):
 
     label: str = "OCIPolicy"
     properties: OCIPolicyRefNodeProperties = OCIPolicyRefNodeProperties()
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["PermissionRole"])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([PermissionRoleLabel()])
     sub_resource_relationship: OCIPolicyToOCITenancyRel = OCIPolicyToOCITenancyRel()
     other_relationships: OtherRelationships = OtherRelationships(
         [

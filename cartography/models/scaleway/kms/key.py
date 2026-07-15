@@ -9,6 +9,7 @@ from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import TargetNodeMatcher
+from cartography.models.ontology.labels import EncryptionKeyLabel
 
 
 @dataclass(frozen=True)
@@ -55,6 +56,6 @@ class ScalewayKeyToProjectRel(CartographyRelSchema):
 @dataclass(frozen=True)
 class ScalewayKeySchema(CartographyNodeSchema):
     label: str = "ScalewayKey"
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["EncryptionKey"])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([EncryptionKeyLabel()])
     properties: ScalewayKeyProperties = ScalewayKeyProperties()
     sub_resource_relationship: ScalewayKeyToProjectRel = ScalewayKeyToProjectRel()

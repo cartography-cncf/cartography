@@ -10,6 +10,7 @@ from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import TargetNodeMatcher
+from cartography.models.ontology.labels import ContainerLabel
 
 
 @dataclass(frozen=True)
@@ -159,7 +160,7 @@ class CloudRunJobContainerToGitHubContainerImageRel(CartographyRelSchema):
 @dataclass(frozen=True)
 class GCPCloudRunJobContainerSchema(CartographyNodeSchema):
     label: str = "GCPCloudRunJobContainer"
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["Container"])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([ContainerLabel()])
     properties: GCPCloudRunJobContainerProperties = GCPCloudRunJobContainerProperties()
     sub_resource_relationship: ProjectToCloudRunJobContainerRel = (
         ProjectToCloudRunJobContainerRel()

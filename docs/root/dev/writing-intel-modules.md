@@ -147,10 +147,22 @@ See [below](#indexescypher) for more information on indexes.
 
 #### Extra node labels
 
-You can add additional Neo4j labels to your nodes using `ExtraNodeLabels`:
+Additional Neo4j labels are declared as frozen `ExtraNodeLabel` subclasses.
+The class docstring describes the shared label for introspection and generated
+documentation:
 
 ```python
-from cartography.models.core.nodes import ExtraNodeLabels
+from dataclasses import dataclass
+
+from cartography.models.core.nodes import ExtraNodeLabel, ExtraNodeLabels
+
+
+@dataclass(frozen=True)
+class AWSResourceLabel(ExtraNodeLabel):
+    """A resource managed within an AWS account."""
+
+    label: str = "AWSResource"
+
 
 @dataclass(frozen=True)
 class EMRClusterSchema(CartographyNodeSchema):
@@ -159,13 +171,17 @@ class EMRClusterSchema(CartographyNodeSchema):
     sub_resource_relationship: EMRClusterToAWSAccountRel = EMRClusterToAWSAccountRel()
 
     # Add extra labels to the node
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(['Resource', 'AWSResource'])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([AWSResourceLabel()])
 ```
 
-This creates nodes with multiple labels: `(:EMRCluster:Resource:AWSResource)`. Extra labels are useful for:
+This creates nodes with multiple labels: `(:EMRCluster:AWSResource)`. Extra labels are useful for:
 - Creating taxonomies (e.g., all AWS resources share an `AWSResource` label)
 - Enabling cross-module queries (e.g., find all `Resource` nodes regardless of specific type)
 - Ontology mapping
+
+Raw strings are not accepted. Cross-provider ontology label classes live in
+`cartography.models.ontology.labels` and set `ontology=True`; provider-local
+interface labels should remain near their provider models.
 
 #### Conditional node labels
 
@@ -173,10 +189,14 @@ This creates nodes with multiple labels: `(:EMRCluster:Resource:AWSResource)`. E
 Conditional labels are a specialized feature primarily used for ontology mapping scenarios where a single data source produces records that map to different semantic types. Most intel modules do not need this feature.
 ```
 
-Sometimes you want to apply labels only when certain conditions are met. Use `ConditionalNodeLabel` for this:
+Sometimes you want to apply labels only when certain conditions are met. Use
+the same declarative label class and provide its `conditions`:
 
 ```python
-from cartography.models.core.nodes import ConditionalNodeLabel, ExtraNodeLabels
+from cartography.models.core.nodes import ExtraNodeLabels
+from cartography.models.ontology.labels import ImageAttestationLabel
+from cartography.models.ontology.labels import ImageLabel
+from cartography.models.ontology.labels import ImageManifestListLabel
 
 @dataclass(frozen=True)
 class ECRImageSchema(CartographyNodeSchema):
@@ -186,16 +206,13 @@ class ECRImageSchema(CartographyNodeSchema):
 
     # Apply different ontology labels based on the image type
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([
-        ConditionalNodeLabel(
-            label="Image",
+        ImageLabel(
             conditions={"type": "IMAGE"}
         ),
-        ConditionalNodeLabel(
-            label="ImageAttestation",
+        ImageAttestationLabel(
             conditions={"type": "IMAGE_ATTESTATION"}
         ),
-        ConditionalNodeLabel(
-            label="ImageManifestList",
+        ImageManifestListLabel(
             conditions={"type": "IMAGE_MANIFEST_LIST"}
         ),
     ])
@@ -214,13 +231,14 @@ ECR (and other container registries) store different types of artifacts that sha
 Without conditional labels, we cannot accurately map these to distinct ontology types. An `ECRImage` node with `type: "IMAGE_ATTESTATION"` should be labeled as `ImageAttestation` in the ontology, not just generic `Image`.
 
 **How it works:**
-- String labels are applied unconditionally to all nodes during ingestion
-- `ConditionalNodeLabel` labels are applied in a separate query after ingestion, only to nodes matching all specified conditions
+- Labels with empty `conditions` are applied unconditionally during ingestion
+- Labels with nonempty `conditions` are applied in a separate query after ingestion, only to nodes matching all specified conditions
 - Conditions use exact string equality and are combined with AND logic
 - When conditions change, labels are automatically added or removed on subsequent syncs
 
 **Important notes:**
 - Condition values must be strings (e.g., `"true"` not `True`)
+- Condition field names must exist on the concrete node's properties schema
 - All conditions must match for the label to be applied (AND logic)
 - Indexes are automatically created for conditional labels and their condition fields
 

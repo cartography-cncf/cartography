@@ -1,5 +1,7 @@
 from dataclasses import dataclass
 
+from cartography.models.aws.extra_labels import EndpointLabel
+from cartography.models.aws.extra_labels import LoadBalancerV2Label
 from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeProperties
 from cartography.models.core.nodes import CartographyNodeSchema
@@ -12,6 +14,7 @@ from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import SourceNodeMatcher
 from cartography.models.core.relationships import TargetNodeMatcher
+from cartography.models.ontology.labels import LoadBalancerLabel
 
 # ELBV2TargetGroup Schema
 
@@ -197,8 +200,8 @@ class LoadBalancerV2Schema(CartographyNodeSchema):
     properties: LoadBalancerV2NodeProperties = LoadBalancerV2NodeProperties()
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
         [
-            "LoadBalancer",  # Ontology node label
-            "LoadBalancerV2",  # DEPRECATED: for backwards compatibility
+            LoadBalancerLabel(),  # Ontology node label
+            LoadBalancerV2Label(),  # DEPRECATED: for backwards compatibility
         ]
     )
     sub_resource_relationship: LoadBalancerV2ToAWSAccountRel = (
@@ -372,7 +375,7 @@ class ELBV2ListenerSchema(CartographyNodeSchema):
     """
 
     label: str = "ELBV2Listener"
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["Endpoint"])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([EndpointLabel()])
     properties: ELBV2ListenerNodeProperties = ELBV2ListenerNodeProperties()
     sub_resource_relationship: ELBV2ListenerToAWSAccountRel = (
         ELBV2ListenerToAWSAccountRel()
