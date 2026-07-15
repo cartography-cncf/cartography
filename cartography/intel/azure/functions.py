@@ -9,6 +9,7 @@ from azure.mgmt.web import WebSiteManagementClient
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
+from cartography.intel.azure.util.common import extract_identity_principal_ids
 from cartography.intel.azure.util.tag import transform_tags
 from cartography.intel.container_arch import normalize_architecture
 from cartography.intel.container_image import parse_image_uri
@@ -124,6 +125,7 @@ def transform_function_apps(
         # We only want to ingest resources that are explicitly function apps.
         if "functionapp" in app.get("kind", ""):
             app_id = app.get("id")
+            properties = app.get("properties", {}) or {}
             # Distinguish "config fetched and has no DOCKER| marker" (genuine code
             # deployment) from "config fetch failed" (unknown). Silently defaulting
             # to "code" on a transient Azure error would misclassify container apps.
@@ -131,9 +133,8 @@ def transform_function_apps(
                 configurations.get(app_id) if isinstance(app_id, str) else None
             )
             if site_config is not None:
-                linux_fx_version = site_config.get(
-                    "linux_fx_version"
-                ) or site_config.get("linuxFxVersion")
+                config_properties = site_config.get("properties", {}) or {}
+                linux_fx_version = config_properties.get("linuxFxVersion")
                 is_container: bool | None = _linux_fx_version_is_container(
                     linux_fx_version
                 )
@@ -158,15 +159,18 @@ def transform_function_apps(
                 "name": app.get("name"),
                 "kind": app.get("kind"),
                 "location": app.get("location"),
-                "state": app.get("state"),
-                "default_host_name": app.get("default_host_name"),
-                "https_only": app.get("https_only"),
+                "state": properties.get("state"),
+                "default_host_name": properties.get("defaultHostName"),
+                "https_only": properties.get("httpsOnly"),
                 "is_container": is_container,
                 "deployment_type": deployment_type,
                 "image_uri": image_uri,
                 "image_digest": image_digest,
                 "architecture_normalized": architecture_normalized,
                 "tags": app.get("tags"),
+                "identity_principal_ids": extract_identity_principal_ids(
+                    app.get("identity"),
+                ),
             }
             transformed_apps.append(transformed_app)
     return transformed_apps

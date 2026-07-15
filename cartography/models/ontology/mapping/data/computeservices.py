@@ -11,7 +11,7 @@ aws_ecs_mapping = OntologyMapping(
     module_name="aws",
     nodes=[
         OntologyNodeMapping(
-            node_label="ECSService",
+            node_label="AWSECSService",
             fields=[
                 OntologyFieldMapping(ontology_field="name", node_field="name"),
                 OntologyFieldMapping(ontology_field="region", node_field="region"),
@@ -51,8 +51,23 @@ gcp_cloudrun_job_mapping = OntologyMapping(
     ],
 )
 
+scaleway_mapping = OntologyMapping(
+    module_name="scaleway",
+    nodes=[
+        OntologyNodeMapping(
+            node_label="ScalewayServerlessContainer",
+            fields=[
+                OntologyFieldMapping(ontology_field="name", node_field="name"),
+                OntologyFieldMapping(ontology_field="region", node_field="region"),
+                OntologyFieldMapping(ontology_field="status", node_field="status"),
+            ],
+        ),
+    ],
+)
+
 COMPUTESERVICES_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     "aws_ecs": aws_ecs_mapping,
     "gcp_cloudrun_service": gcp_cloudrun_service_mapping,
     "gcp_cloudrun_job": gcp_cloudrun_job_mapping,
+    "scaleway": scaleway_mapping,
 }

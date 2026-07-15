@@ -2,10 +2,11 @@ from unittest.mock import MagicMock
 from unittest.mock import patch
 
 import cartography.intel.aws.iam_instance_profiles
+from cartography.analysis.aws.analysis import AWS_EC2_IAM_INSTANCE_PROFILE
 from cartography.intel.aws.ec2.instances import sync_ec2_instances
 from cartography.intel.aws.iam import sync_role_assumptions
 from cartography.intel.aws.iam_instance_profiles import sync_iam_instance_profiles
-from cartography.util import run_scoped_analysis_job
+from cartography.util import run_typed_analysis_job
 from tests.data.aws.ec2.instances import INSTANCE_WITH_IAM_PROFILE
 from tests.data.aws.iam.instance_profiles import INSTANCE_PROFILES
 from tests.data.aws.iam.roles import ROLES
@@ -109,7 +110,7 @@ def test_sync_iam_instance_profiles(
     # Assert EC2 Instance to Instance Profile relationship
     assert check_rels(
         neo4j_session,
-        "EC2Instance",
+        "AWSEC2Instance",
         "id",
         "AWSInstanceProfile",
         "arn",
@@ -119,9 +120,23 @@ def test_sync_iam_instance_profiles(
         ("i-00bd", "arn:aws:iam::1234:instance-profile/cartography-service"),
     }
 
+    # Assert canonical AWSEC2Instance -[:ASSUMES]-> AWSRole edge (assembled from the
+    # instance-profile binding chain by sync_ec2_instances).
+    assert check_rels(
+        neo4j_session,
+        "AWSEC2Instance",
+        "id",
+        "AWSRole",
+        "arn",
+        "ASSUMES",
+        rel_direction_right=True,
+    ) == {
+        ("i-00bd", "arn:aws:iam::1234:role/cartography-service"),
+    }
+
     # Act
-    run_scoped_analysis_job(
-        "aws_ec2_iaminstanceprofile.json",
+    run_typed_analysis_job(
+        AWS_EC2_IAM_INSTANCE_PROFILE,
         neo4j_session,
         common_job_parameters,
     )
@@ -129,7 +144,7 @@ def test_sync_iam_instance_profiles(
     # Assert
     assert check_rels(
         neo4j_session,
-        "EC2Instance",
+        "AWSEC2Instance",
         "id",
         "AWSRole",
         "arn",

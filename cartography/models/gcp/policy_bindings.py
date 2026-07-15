@@ -22,6 +22,9 @@ class GCPPolicyBindingNodeProperties(CartographyNodeProperties):
     resource_type: PropertyRef = PropertyRef("resource_type")
     members: PropertyRef = PropertyRef("members")
     wif_pools: PropertyRef = PropertyRef("wif_pools")
+    # Domain-scoped grants (domain:{domain}). These don't resolve to a single
+    # GCPPrincipal node, but are retained for visibility (e.g. broad-access audits).
+    domains: PropertyRef = PropertyRef("domains")
     is_public: PropertyRef = PropertyRef("is_public", extra_index=True)
     has_condition: PropertyRef = PropertyRef("has_condition", extra_index=True)
     condition_title: PropertyRef = PropertyRef("condition_title")

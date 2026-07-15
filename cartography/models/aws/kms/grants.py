@@ -3,6 +3,7 @@ from dataclasses import dataclass
 from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeProperties
 from cartography.models.core.nodes import CartographyNodeSchema
+from cartography.models.core.nodes import ExtraNodeLabels
 from cartography.models.core.relationships import CartographyRelProperties
 from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
@@ -31,7 +32,7 @@ class KMSGrantRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class KMSGrantToKMSKeyRel(CartographyRelSchema):
-    target_node_label: str = "KMSKey"
+    target_node_label: str = "AWSKMSKey"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"arn": PropertyRef("KeyId")}
     )
@@ -43,7 +44,7 @@ class KMSGrantToKMSKeyRel(CartographyRelSchema):
 @dataclass(frozen=True)
 class KMSGrantToAWSAccountRel(CartographyRelSchema):
     """
-    Relationship between KMSGrant and AWS Account
+    Relationship between AWSKMSGrant and AWS Account
     """
 
     target_node_label: str = "AWSAccount"
@@ -57,7 +58,9 @@ class KMSGrantToAWSAccountRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class KMSGrantSchema(CartographyNodeSchema):
-    label: str = "KMSGrant"
+    label: str = "AWSKMSGrant"
+    # DEPRECATED: legacy KMSGrant node label will be removed in v1.0.0.
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["KMSGrant"])
     properties: KMSGrantNodeProperties = KMSGrantNodeProperties()
     sub_resource_relationship: KMSGrantToAWSAccountRel = KMSGrantToAWSAccountRel()
     other_relationships: OtherRelationships = OtherRelationships(

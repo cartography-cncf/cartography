@@ -62,7 +62,7 @@ Represents a [Semgrep SAST](https://semgrep.dev/docs/semgrep-code/getting-starte
 
 > **Cloud-only fields**: `line_of_code_url`, `state`, `fix_status`, `triage_status`, `opened_at`, `risk_severity`, and the `HAS_ASSISTANT` relationship are only populated for Semgrep Cloud findings.
 
-> **Ontology Mapping**: This node has the extra label `SecurityIssue` to enable cross-scanner queries for non-CVE security issues across different tools (e.g., GuardDutyFinding, SemgrepSecretsFinding, AzureSecurityAssessment).
+> **Ontology Mapping**: This node has the extra label `SecurityIssue` to enable cross-scanner queries for non-CVE security issues across different tools (e.g., AWSGuardDutyFinding, SemgrepSecretsFinding, AzureSecurityAssessment).
 
 | Field | Description |
 |-------|--------------|
@@ -90,7 +90,7 @@ Represents a [Semgrep SAST](https://semgrep.dev/docs/semgrep-code/getting-starte
 | fix_status | Fix status based on triage (e.g. open, fixed, ignored). Cloud only |
 | triage_status | Triage status of the finding (e.g. untriaged, ignored, reopened). Cloud only |
 | opened_at | Date and time when the finding was first seen in UTC. Cloud only |
-| risk_severity | Risk level computed by post-ingestion analysis. INFO for archived repos, otherwise equals severity. See [semgrep_sast_risk_analysis.json](https://github.com/cartography-cncf/cartography/blob/master/cartography/data/jobs/scoped_analysis/semgrep_sast_risk_analysis.json) for further details. Cloud only |
+| risk_severity | Risk level computed by post-ingestion analysis. INFO for archived repos, otherwise equals severity. See `SEMGREP_SAST_RISK_ANALYSIS` in [cartography/analysis/semgrep/analysis.py](https://github.com/cartography-cncf/cartography/blob/master/cartography/analysis/semgrep/analysis.py) for further details. Cloud only |
 
 #### Relationships
 
@@ -116,7 +116,7 @@ Represents a [Semgrep SAST](https://semgrep.dev/docs/semgrep-code/getting-starte
 
 Represents a [Semgrep Secrets](https://semgrep.dev/docs/semgrep-secrets/conceptual-overview/) finding. This is a hardcoded secret (e.g. API key, token, credential) discovered by Semgrep scanning source code. Before ingesting this node, make sure you have run Semgrep CI and that it's connected to Semgrep Cloud Platform [Running Semgrep CI with Semgrep Cloud Platform](https://semgrep.dev/docs/semgrep-ci/running-semgrep-ci-with-semgrep-cloud-platform/). The API called to retrieve this information is documented at https://semgrep.dev/api/v1/docs/#tag/SecretsService.
 
-> **Ontology Mapping**: This node has the extra label `SecurityIssue` to enable cross-scanner queries for non-CVE security issues across different tools (e.g., GuardDutyFinding, SemgrepSASTFinding, SecurityAssessment).
+> **Ontology Mapping**: This node has the extra label `SecurityIssue` to enable cross-scanner queries for non-CVE security issues across different tools (e.g., AWSGuardDutyFinding, SemgrepSASTFinding, SecurityAssessment).
 
 | Field | Description |
 |-------|--------------|
@@ -161,7 +161,7 @@ Represents a [Semgrep Secrets](https://semgrep.dev/docs/semgrep-secrets/conceptu
     (SemgrepSecretsFinding)-[FOUND_IN]->(GitLabProject)
     ```
 
-### SemgrepSCAFinding
+### SemgrepSCAFinding::SecurityIssue
 
 Represents a [Semgrep Supply Chain](https://semgrep.dev/docs/semgrep-supply-chain/overview/) finding. This is, a vulnerability in a dependency of a project discovered by Semgrep performing software composition analysis (SCA) and code reachability analysis. Before ingesting this node, make sure you have run Semgrep CI and that it's connected to Semgrep Cloud Platform [Running Semgrep CI with Semgrep Cloud Platform](https://semgrep.dev/docs/semgrep-ci/running-semgrep-ci-with-semgrep-cloud-platform/). The API called to retrieve this information is documented at https://semgrep.dev/api/v1/docs/#tag/SupplyChainService.
 
@@ -181,7 +181,7 @@ Represents a [Semgrep Supply Chain](https://semgrep.dev/docs/semgrep-supply-chai
 | reachability_check | Whether the vulnerability reachability is confirmed, not confirmed or needs to be manually confirmed |
 | reachability_condition | Description of the reachability condition (e.g. reachable if code is used in X way) |
 | reachability | Whether the vulnerability is reachable or not |
-| reachability_risk | Risk of the vulnerability (e.g. CRITICAL, HIGH, MEDIUM, LOW) based on severity and likelihod, the latter given by reachability status and reachability check. Risk calculation was based on [NIST 800-30r1](https://nvlpubs.nist.gov/nistpubs/legacy/sp/nistspecialpublication800-30r1.pdf) Appendix I - Riks Determination and the [reachability exposure](https://semgrep.dev/docs/semgrep-supply-chain/triage-and-remediation/#exposure-filters). See [semgrep_sca_risk_analysis.json](https://github.com/cartography-cncf/cartography/blob/master/cartography/data/jobs/scoped_analysis/semgrep_sca_risk_analysis.json) for further details |
+| reachability_risk | Risk of the vulnerability (e.g. CRITICAL, HIGH, MEDIUM, LOW) based on severity and likelihod, the latter given by reachability status and reachability check. Risk calculation was based on [NIST 800-30r1](https://nvlpubs.nist.gov/nistpubs/legacy/sp/nistspecialpublication800-30r1.pdf) Appendix I - Riks Determination and the [reachability exposure](https://semgrep.dev/docs/semgrep-supply-chain/triage-and-remediation/#exposure-filters). See `SEMGREP_SCA_RISK_ANALYSIS` in [cartography/analysis/semgrep/analysis.py](https://github.com/cartography-cncf/cartography/blob/master/cartography/analysis/semgrep/analysis.py) for further details |
 | transitivity | Whether the vulnerability is transitive or not (e.g. dependency, transitive) |
 | dependency | Dependency where the finding was discovered. Includes dependency name and version |
 | dependency_fix | Dependency version that fixes the vulnerability |
@@ -290,18 +290,22 @@ Represents a dependency of a repository as returned by the Semgrep
 | name | Name of the dependency |
 | version | Version of the dependency |
 | ecosystem | Ecosystem of the dependency, e.g. "gomod" for dependencies defined in go.mod files. (see [API docs](https://semgrep.dev/api/v1/docs/#tag/SupplyChainService/operation/semgrep_app.products.sca.handlers.dependency.list_dependencies_conexxion) for full list of options) |
+| type | Canonical package type derived from the ecosystem (e.g. `golang`, `npm`), used to build the `normalized_id`. |
+| normalized_id | Cross-tool package identifier (`{type}\|{name}\|{version}`) used to dedup into the `Package` ontology node. |
 
 
-### GoLibrary
+### SemgrepGoLibrary
 
 Represents a Go library dependency as listed in a go.mod file.
-All GoLibrary nodes are also SemgrepDependency nodes.
+All SemgrepGoLibrary nodes are also SemgrepDependency nodes.
+The legacy `GoLibrary` label remains attached for compatibility until v1.0.0.
 See [SemgrepDependency](#semgrepdependency) for details.
 
-### NpmLibrary
+### SemgrepNpmLibrary
 
 Represents a NPM library dependency as listed in a package-lock.json file.
-All NpmLibrary nodes are also SemgrepDependency nodes.
+All SemgrepNpmLibrary nodes are also SemgrepDependency nodes.
+The legacy `NpmLibrary` label remains attached for compatibility until v1.0.0.
 See [SemgrepDependency](#semgrepdependency) for details.
 
 
@@ -322,3 +326,9 @@ See [SemgrepDependency](#semgrepdependency) for details.
     - specifier: A string describing the library version required by the repo (e.g. "==1.0.2")
     - transitivity: A string describing whether the dependency is direct or [transitive](https://en.wikipedia.org/wiki/Transitive_dependency) (e.g. direct, transitive)
     - url: The URL where the dependency is defined (e.g. `https://github.com/org/repo/blob/00000000000000000000000000000000/go.mod#L6`)
+
+- A canonical Package (ontology) is detected as a SemgrepDependency.
+
+    ```
+    (:Package)-[:DETECTED_AS]->(:SemgrepDependency)
+    ```

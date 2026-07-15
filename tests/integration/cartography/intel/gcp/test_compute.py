@@ -4,7 +4,8 @@ from unittest.mock import patch
 import cartography.intel.gcp.compute
 import cartography.intel.gcp.iam
 import tests.data.gcp.compute
-from cartography.graph.job import GraphJob
+from cartography.analysis.gcp.analysis import GCP_COMPUTE_INSTANCE_VPC_ANALYSIS
+from cartography.util import run_typed_analysis_job
 from tests.integration.util import check_nodes
 from tests.integration.util import check_rels
 
@@ -57,6 +58,47 @@ def _create_test_service_account(
         Email=email,
         gcp_update_tag=update_tag,
     )
+
+
+def test_update_gcp_project_compute_metadata_preserves_existing_properties(
+    neo4j_session,
+):
+    neo4j_session.run("MATCH (n) DETACH DELETE n")
+    _create_test_project(neo4j_session, TEST_PROJECT_ID, TEST_UPDATE_TAG - 1)
+    neo4j_session.run(
+        """
+        MATCH (p:GCPProject {id: $project_id})
+        SET p.displayname = "Existing project",
+            p.projectnumber = "123456"
+        """,
+        project_id=TEST_PROJECT_ID,
+    )
+
+    cartography.intel.gcp.compute.update_gcp_project_compute_metadata(
+        neo4j_session,
+        TEST_PROJECT_ID,
+        {
+            "commonInstanceMetadata": {
+                "items": [{"key": "enable-oslogin", "value": "TRUE"}],
+            },
+        },
+        TEST_UPDATE_TAG,
+    )
+
+    project = neo4j_session.run(
+        """
+        MATCH (p:GCPProject {id: $project_id})
+        RETURN p.compute_project_enable_oslogin AS enable_oslogin,
+               p.displayname AS displayname,
+               p.projectnumber AS projectnumber,
+               p.lastupdated AS lastupdated
+        """,
+        project_id=TEST_PROJECT_ID,
+    ).single()
+    assert project["enable_oslogin"] == "TRUE"
+    assert project["displayname"] == "Existing project"
+    assert project["projectnumber"] == "123456"
+    assert project["lastupdated"] == TEST_UPDATE_TAG
 
 
 @patch.object(
@@ -672,8 +714,8 @@ def test_sync_gcp_instances_with_vpc_relationship(
     )
 
     # Run the analysis job to create MEMBER_OF_GCP_VPC relationships
-    GraphJob.run_from_json_file(
-        "cartography/data/jobs/analysis/gcp_compute_instance_vpc_analysis.json",
+    run_typed_analysis_job(
+        GCP_COMPUTE_INSTANCE_VPC_ANALYSIS,
         neo4j_session,
         common_job_parameters,
     )

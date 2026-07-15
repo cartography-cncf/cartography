@@ -130,7 +130,7 @@ aws_mapping = OntologyMapping(
     module_name="aws",
     nodes=[
         OntologyNodeMapping(
-            node_label="AccountAccessKey",
+            node_label="AWSAccountAccessKey",
             fields=[
                 OntologyFieldMapping(
                     ontology_field="name", node_field="accesskeyid", required=True
@@ -163,6 +163,26 @@ gcp_mapping = OntologyMapping(
                 ),
             ],
         ),
+        OntologyNodeMapping(
+            node_label="GCPApiKey",
+            fields=[
+                # display_name is optional upstream; fall back to the resource
+                # name so _ont_name is always populated.
+                OntologyFieldMapping(
+                    ontology_field="name",
+                    node_field="display_name",
+                    required=True,
+                    special_handling="coalesce",
+                    extra={"fields": ["name"]},
+                ),
+                OntologyFieldMapping(
+                    ontology_field="created_at", node_field="create_time"
+                ),
+                OntologyFieldMapping(
+                    ontology_field="updated_at", node_field="update_time"
+                ),
+            ],
+        ),
     ],
 )
 
@@ -176,18 +196,20 @@ github_mapping = OntologyMapping(
                     ontology_field="name", node_field="token_name", required=True
                 ),
                 OntologyFieldMapping(ontology_field="type", node_field="token_kind"),
-                # created_at maps to access_granted_at, populated for fine-grained
-                # PATs. Classic SAML credential authorizations populate
-                # credential_authorized_at instead; the mapping supports one
-                # node_field per ontology_field, so classic PATs get a null here.
                 OntologyFieldMapping(
-                    ontology_field="created_at", node_field="access_granted_at"
+                    ontology_field="created_at",
+                    node_field="access_granted_at",
+                    special_handling="coalesce",
+                    extra={"fields": ["credential_authorized_at"]},
                 ),
                 OntologyFieldMapping(
                     ontology_field="expires_at", node_field="expires_at"
                 ),
                 OntologyFieldMapping(
-                    ontology_field="last_used_at", node_field="last_used_at"
+                    ontology_field="last_used_at",
+                    node_field="last_used_at",
+                    special_handling="coalesce",
+                    extra={"fields": ["credential_accessed_at"]},
                 ),
             ],
         ),

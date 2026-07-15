@@ -706,7 +706,7 @@ class TestClassifyGcpHttpError:
     # ------------------------------------------------------------------
     @pytest.mark.parametrize(
         "reason",
-        ["invalid", "badRequest"],
+        ["invalid", "badRequest", "invalidQuery"],
     )
     def test_invalid_400_matching_reasons(self, reason):
         e = _make_http_error(

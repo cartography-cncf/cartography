@@ -3,6 +3,7 @@ from dataclasses import dataclass
 from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeProperties
 from cartography.models.core.nodes import CartographyNodeSchema
+from cartography.models.core.nodes import ExtraNodeLabels
 from cartography.models.core.relationships import CartographyRelProperties
 from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
@@ -68,7 +69,9 @@ class CloudFormationStackToRoleRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class CloudFormationStackSchema(CartographyNodeSchema):
-    label: str = "CloudFormationStack"
+    label: str = "AWSCloudFormationStack"
+    # DEPRECATED: legacy CloudFormationStack node label will be removed in v1.0.0.
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["CloudFormationStack"])
     properties: CloudFormationStackNodeProperties = CloudFormationStackNodeProperties()
     sub_resource_relationship: CloudFormationStackToAWSAccountRel = (
         CloudFormationStackToAWSAccountRel()

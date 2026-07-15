@@ -6,6 +6,7 @@ import time
 from collections import defaultdict
 from collections import namedtuple
 from collections.abc import Callable
+from dataclasses import dataclass
 from typing import Any
 from typing import cast
 from typing import Dict
@@ -23,6 +24,10 @@ from packaging.utils import canonicalize_name
 from cartography.client.core.tx import load as load_data
 from cartography.graph.job import GraphJob
 from cartography.helpers import backoff_handler
+from cartography.intel.github.codeowners import normalize_repo_relative_path
+from cartography.intel.github.label_migrations import (
+    migrate_dependency_graph_manifest_label,
+)
 from cartography.intel.github.lockfiles import parse_npm_lock
 from cartography.intel.github.lockfiles import parse_uv_lock
 from cartography.intel.github.util import call_github_rest_api
@@ -68,6 +73,13 @@ UserAffiliationAndRepoPermission = namedtuple(
         "affiliation",  # 'OUTSIDE', 'DIRECT'
     ],
 )
+
+
+@dataclass(frozen=True)
+class GitHubRepoSyncResult:
+    repos: list[dict[str, Any]]
+    manifests: list[dict[str, Any]]
+    manifests_cleanup_safe: bool
 
 
 GITHUB_ORG_REPOS_PAGINATED_GRAPHQL = """
@@ -1080,6 +1092,11 @@ def transform(
             dependency_manifests,
             repo_url,
             transformed_manifests,
+            (
+                repo_object["defaultBranchRef"]["name"]
+                if repo_object["defaultBranchRef"]
+                else None
+            ),
         )
         _transform_dependency_graph(
             dependency_manifests,
@@ -1307,6 +1324,7 @@ def _transform_dependency_manifests(
     dependency_manifests: Optional[Dict],
     repo_url: str,
     out_manifests_list: List[Dict],
+    default_branch: Optional[str] = None,
 ) -> None:
     """
     Transform GitHub dependency graph manifests into cartography manifest format.
@@ -1339,6 +1357,11 @@ def _transform_dependency_manifests(
             {
                 "id": manifest_id,
                 "blob_path": blob_path,
+                "repo_relative_path": normalize_repo_relative_path(
+                    blob_path,
+                    repo_url,
+                    default_branch,
+                ),
                 "filename": filename,
                 "dependencies_count": dependencies_count,
                 "repo_url": repo_url,
@@ -2339,7 +2362,7 @@ def cleanup_github_branches(
     GraphJob.from_node_schema(GitHubBranchSchema(), cleanup_params).run(neo4j_session)
 
 
-# DEPRECATED: Remove this migration function when releasing v1
+# DEPRECATED: orphaned branch migration cleanup will be removed in v1.0.0.
 def cleanup_orphaned_github_branches(
     neo4j_session: neo4j.Session,
     common_job_parameters: Dict[str, Any],
@@ -2470,6 +2493,11 @@ def load(
         common_job_parameters["UPDATE_TAG"],
         repo_data["python_requirements"],
     )
+    load_github_dependencies(
+        neo4j_session,
+        common_job_parameters["UPDATE_TAG"],
+        repo_data["dependencies"],
+    )
     owner_org_id = next(
         (
             repo["owner_org_id"]
@@ -2477,11 +2505,6 @@ def load(
             if repo.get("owner_org_id")
         ),
         None,
-    )
-    load_github_dependencies(
-        neo4j_session,
-        common_job_parameters["UPDATE_TAG"],
-        repo_data["dependencies"],
     )
     if owner_org_id is not None:
         load_github_dependency_manifests(
@@ -2511,7 +2534,7 @@ def sync(
     github_api_key: str,
     github_url: str,
     organization: str,
-) -> None:
+) -> GitHubRepoSyncResult:
     """
     Performs the sequential tasks to collect, transform, and sync github data
     :param neo4j_session: Neo4J session for database interface
@@ -2519,7 +2542,7 @@ def sync(
     :param github_api_key: The API key to access the GitHub v4 API
     :param github_url: The URL for the GitHub v4 endpoint to use
     :param organization: The organization to query GitHub for
-    :return: Nothing
+    :return: Repository and dependency manifest data fetched for this org.
     """
     logger.info("Syncing GitHub repos")
     repos_json = get(github_api_key, github_url, organization)
@@ -2598,7 +2621,6 @@ def sync(
         github_api_key,
         github_url,
     )
-    load(neo4j_session, common_job_parameters, repo_data)
     owner_org_id = next(
         (
             repo["owner_org_id"]
@@ -2607,11 +2629,13 @@ def sync(
         ),
         f"https://github.com/{organization}",
     )
+    migrate_dependency_graph_manifest_label(neo4j_session, owner_org_id)
+    load(neo4j_session, common_job_parameters, repo_data)
     cleanup_github_branches(neo4j_session, common_job_parameters, owner_org_id)
 
     # DEPRECATED: compatibility migrations to backfill the RESOURCE edge from
     # GitHubOrganization to GitHubBranchProtectionRule and
-    # DependencyGraphManifest. Scoped to the current org so a multi-org sync
+    # GitHubDependencyGraphManifest. Scoped to the current org so a multi-org sync
     # doesn't replay the same global Cypher per organization. Remove in
     # v1.0.0.
     migration_params = {**common_job_parameters, "owner_org_id": owner_org_id}
@@ -2641,3 +2665,9 @@ def sync(
             "Skipping GitHub ruleset cleanup for org %s because ruleset fetch failed.",
             organization,
         )
+
+    return GitHubRepoSyncResult(
+        repos=repo_data["repos"],
+        manifests=repo_data["manifests"],
+        manifests_cleanup_safe=dep_manifests_cleanup_safe,
+    )

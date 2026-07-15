@@ -3,6 +3,7 @@ from dataclasses import dataclass
 from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeProperties
 from cartography.models.core.nodes import CartographyNodeSchema
+from cartography.models.core.nodes import ConditionalNodeLabel
 from cartography.models.core.nodes import ExtraNodeLabels
 from cartography.models.core.relationships import CartographyRelProperties
 from cartography.models.core.relationships import CartographyRelSchema
@@ -90,7 +91,7 @@ class InspectorFindingToEC2InstanceRelRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class InspectorFindingToEC2InstanceRel(CartographyRelSchema):
-    target_node_label: str = "EC2Instance"
+    target_node_label: str = "AWSEC2Instance"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("instanceid")},
     )
@@ -108,7 +109,7 @@ class InspectorFindingToECRRepositoryRelRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class InspectorFindingToECRRepositoryRel(CartographyRelSchema):
-    target_node_label: str = "ECRRepository"
+    target_node_label: str = "AWSECRRepository"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("ecrrepositoryid")},
     )
@@ -126,7 +127,7 @@ class InspectorFindingToECRImageRelRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class InspectorFindingToECRImageRel(CartographyRelSchema):
-    target_node_label: str = "ECRImage"
+    target_node_label: str = "AWSECRImage"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("ecrimageid")},
     )
@@ -175,14 +176,33 @@ class InspectorFindingToPackageMatchLink(CartographyRelSchema):
 class AWSInspectorFindingSchema(CartographyNodeSchema):
     label: str = "AWSInspectorFinding"
     properties: AWSInspectorNodeProperties = AWSInspectorNodeProperties()
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["Risk"])
+    # Inspector findings are mixed: package vulnerabilities are CVE-backed while
+    # network-reachability findings are configuration security issues. Label them
+    # by type so each shows up in the right ontology finding family.
+    # NOTE: the conditional-label mechanism removes-then-sets per entry, so a label
+    # can only be driven by a single condition (two entries sharing a label would
+    # clobber each other). CODE_VULNERABILITY is intentionally left unlabeled for
+    # now; give it its own distinct label if/when it needs one.
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
+        [
+            "Risk",
+            ConditionalNodeLabel(
+                label="CVE",
+                conditions={"type": "PACKAGE_VULNERABILITY"},
+            ),
+            ConditionalNodeLabel(
+                label="SecurityIssue",
+                conditions={"type": "NETWORK_REACHABILITY"},
+            ),
+        ],
+    )
     sub_resource_relationship: InspectorFindingToAWSAccountRel = (
         InspectorFindingToAWSAccountRel()
     )
     other_relationships: OtherRelationships = OtherRelationships(
         [
             InspectorFindingToEC2InstanceRel(),
-            # TODO: Fix ECRRepository and ECRImage relationships
+            # TODO: Fix AWSECRRepository and AWSECRImage relationships
             InspectorFindingToECRRepositoryRel(),
             InspectorFindingToECRImageRel(),
             InspectorFindingToAWSAccountRelDelegateRel(),

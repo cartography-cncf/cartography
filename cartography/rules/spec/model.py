@@ -40,6 +40,9 @@ class Module(str, Enum):
     CROWDSTRIKE = "CrowdStrike"
     """CrowdStrike endpoint security"""
 
+    DATABRICKS = "Databricks"
+    """Databricks lakehouse platform"""
+
     DIGITALOCEAN = "DigitalOcean"
     """DigitalOcean cloud services"""
 
@@ -138,6 +141,7 @@ MODULE_TO_CARTOGRAPHY_INTEL = {
     Module.BIGFIX: "bigfix",
     Module.CLOUDFLARE: "cloudflare",
     Module.CROWDSTRIKE: "crowdstrike",
+    Module.DATABRICKS: "databricks",
     Module.DIGITALOCEAN: "digitalocean",
     Module.DUO: "duo",
     Module.MICROSOFT: "microsoft",

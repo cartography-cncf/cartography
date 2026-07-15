@@ -36,7 +36,7 @@ def test_sync_inspector_network_findings(mock_get, neo4j_session):
     # Add some fake instances
     neo4j_session.run(
         """
-        MERGE (:EC2Instance{id: 'i-instanceid', instanceid: 'i-instanceid'})
+        MERGE (:AWSEC2Instance{id: 'i-instanceid', instanceid: 'i-instanceid'})
         """,
     )
 
@@ -50,12 +50,12 @@ def test_sync_inspector_network_findings(mock_get, neo4j_session):
         {"UPDATE_TAG": TEST_UPDATE_TAG, "AWS_ID": TEST_ACC_ID_1},
     )
 
-    # Assert Finding to EC2Instance exists
+    # Assert Finding to AWSEC2Instance exists
     assert check_rels(
         neo4j_session,
         "AWSInspectorFinding",
         "id",
-        "EC2Instance",
+        "AWSEC2Instance",
         "id",
         "AFFECTS",
         rel_direction_right=True,
@@ -75,6 +75,14 @@ def test_sync_inspector_network_findings(mock_get, neo4j_session):
     ) == {
         ("123456789011", "arn:aws:test123"),
     }
+
+    # Network-reachability findings are labeled as configuration security issues,
+    # not CVEs.
+    labels = neo4j_session.run(
+        "MATCH (f:AWSInspectorFinding {id: 'arn:aws:test123'}) RETURN labels(f) AS labels",
+    ).single()["labels"]
+    assert "SecurityIssue" in labels
+    assert "CVE" not in labels
 
 
 @patch.object(
@@ -101,8 +109,8 @@ def test_sync_inspector_ec2_package_findings(mock_get, neo4j_session):
     # Add some fake instances
     neo4j_session.run(
         """
-        MERGE (:EC2Instance{id: 'i-88503981029833100', instanceid: 'i-88503981029833100'})
-        MERGE (:EC2Instance{id: 'i-88503981029833101', instanceid: 'i-88503981029833101'})
+        MERGE (:AWSEC2Instance{id: 'i-88503981029833100', instanceid: 'i-88503981029833100'})
+        MERGE (:AWSEC2Instance{id: 'i-88503981029833101', instanceid: 'i-88503981029833101'})
         """,
     )
 
@@ -121,7 +129,7 @@ def test_sync_inspector_ec2_package_findings(mock_get, neo4j_session):
         neo4j_session,
         "AWSInspectorFinding",
         "id",
-        "EC2Instance",
+        "AWSEC2Instance",
         "id",
         "AFFECTS",
         rel_direction_right=True,
@@ -186,6 +194,13 @@ def test_sync_inspector_ec2_package_findings(mock_get, neo4j_session):
         ("123456789012", "kernel|0:4.9.17-6.29.amzn1.X86_64"),
         ("123456789012", "openssl|0:1.0.2k-1.amzn2.X86_64"),
     }
+
+    # Package-vulnerability findings are CVE-backed and labeled as such.
+    labels = neo4j_session.run(
+        "MATCH (f:AWSInspectorFinding {id: 'arn:aws:test456'}) RETURN labels(f) AS labels",
+    ).single()["labels"]
+    assert "CVE" in labels
+    assert "SecurityIssue" not in labels
 
 
 @patch.object(

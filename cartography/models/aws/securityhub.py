@@ -3,6 +3,7 @@ from dataclasses import dataclass
 from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeProperties
 from cartography.models.core.nodes import CartographyNodeSchema
+from cartography.models.core.nodes import ExtraNodeLabels
 from cartography.models.core.relationships import CartographyRelProperties
 from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
@@ -24,7 +25,7 @@ class SecurityHubToAWSAccountRelProperties(CartographyRelProperties):
 
 
 @dataclass(frozen=True)
-# (:AWSAccount)-[:RESOURCE]->(:SecurityHub)
+# (:AWSAccount)-[:RESOURCE]->(:AWSSecurityHub)
 class SecurityHubToAWSAccountRel(CartographyRelSchema):
     target_node_label: str = "AWSAccount"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
@@ -39,6 +40,8 @@ class SecurityHubToAWSAccountRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class SecurityHubSchema(CartographyNodeSchema):
-    label: str = "SecurityHub"
+    label: str = "AWSSecurityHub"
+    # DEPRECATED: legacy SecurityHub node label will be removed in v1.0.0.
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["SecurityHub"])
     properties: SecurityHubNodeProperties = SecurityHubNodeProperties()
     sub_resource_relationship: SecurityHubToAWSAccountRel = SecurityHubToAWSAccountRel()

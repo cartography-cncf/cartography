@@ -7,15 +7,17 @@ from cartography.models.core.nodes import ExtraNodeLabels
 from cartography.models.core.relationships import CartographyRelProperties
 from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
+from cartography.models.core.relationships import make_source_node_matcher
 from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import OtherRelationships
+from cartography.models.core.relationships import SourceNodeMatcher
 from cartography.models.core.relationships import TargetNodeMatcher
 
 
 @dataclass(frozen=True)
 class EC2InstanceNodeProperties(CartographyNodeProperties):
-    # TODO arn: PropertyRef = PropertyRef('Arn', extra_index=True)
     id: PropertyRef = PropertyRef("InstanceId")
+    arn: PropertyRef = PropertyRef("Arn", extra_index=True)
     instanceid: PropertyRef = PropertyRef("InstanceId", extra_index=True)
     publicdnsname: PropertyRef = PropertyRef("PublicDnsName", extra_index=True)
     privateipaddress: PropertyRef = PropertyRef("PrivateIpAddress")
@@ -52,7 +54,7 @@ class EC2InstanceNodeProperties(CartographyNodeProperties):
     imdsv2required: PropertyRef = PropertyRef("ImdsV2Required")
     exposed_internet: PropertyRef = PropertyRef(
         "exposed_internet", extra_index=True
-    )  # Populated by aws_ec2_asset_exposure.json.
+    )  # Populated by AWS_EC2_ASSET_EXPOSURE_JOBS.
     eks_cluster_name: PropertyRef = PropertyRef("EksClusterName")
     ipv6address: PropertyRef = PropertyRef("IPv6Address")
 
@@ -82,7 +84,7 @@ class EC2InstanceToEC2ReservationRelRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class EC2InstanceToEC2ReservationRel(CartographyRelSchema):
-    target_node_label: str = "EC2Reservation"
+    target_node_label: str = "AWSEC2Reservation"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"reservationid": PropertyRef("ReservationId")},
     )
@@ -118,7 +120,7 @@ class EC2InstanceToEKSClusterRelRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class EC2InstanceToEKSClusterRel(CartographyRelSchema):
-    target_node_label: str = "EKSCluster"
+    target_node_label: str = "AWSEKSCluster"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {
             "name": PropertyRef("EksClusterName"),
@@ -133,8 +135,11 @@ class EC2InstanceToEKSClusterRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class EC2InstanceSchema(CartographyNodeSchema):
-    label: str = "EC2Instance"
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["ComputeInstance"])
+    label: str = "AWSEC2Instance"
+    # DEPRECATED: legacy EC2Instance node label will be removed in v1.0.0.
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
+        ["EC2Instance", "ComputeInstance"]
+    )
     properties: EC2InstanceNodeProperties = EC2InstanceNodeProperties()
     sub_resource_relationship: EC2InstanceToAWSAccountRel = EC2InstanceToAWSAccountRel()
     other_relationships: OtherRelationships = OtherRelationships(
@@ -143,4 +148,36 @@ class EC2InstanceSchema(CartographyNodeSchema):
             EC2InstanceToInstanceProfileRel(),
             EC2InstanceToEKSClusterRel(),
         ],
+    )
+
+
+@dataclass(frozen=True)
+class EC2InstanceToRoleAssumesRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    _sub_resource_label: PropertyRef = PropertyRef(
+        "_sub_resource_label", set_in_kwargs=True
+    )
+    _sub_resource_id: PropertyRef = PropertyRef("_sub_resource_id", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+# Canonical ontology edge: (:AWSEC2Instance)-[:ASSUMES]->(:AWSRole).
+# The instance runs with the permissions of the role attached through its
+# instance profile: AWSEC2Instance-[:INSTANCE_PROFILE]->AWSInstanceProfile
+# -[:ASSOCIATED_WITH]->AWSRole. There is no direct instance->role edge in the
+# AWS API, so the pairs are assembled from that binding chain and loaded as a
+# MatchLink.
+class EC2InstanceToRoleAssumesMatchLink(CartographyRelSchema):
+    rel_label: str = "ASSUMES"
+    direction: LinkDirection = LinkDirection.OUTWARD
+    properties: EC2InstanceToRoleAssumesRelProperties = (
+        EC2InstanceToRoleAssumesRelProperties()
+    )
+    target_node_label: str = "AWSRole"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"arn": PropertyRef("role_arn")},
+    )
+    source_node_label: str = "AWSEC2Instance"
+    source_node_matcher: SourceNodeMatcher = make_source_node_matcher(
+        {"id": PropertyRef("instance_id")},
     )

@@ -6,6 +6,7 @@ from typing import cast
 import neo4j
 import requests
 
+from cartography.analysis.ontology.analysis import SUPPLY_CHAIN_SOURCE_FILE
 from cartography.client.core.tx import load_matchlinks
 from cartography.graph.job import GraphJob
 from cartography.intel.gitlab.util import get_paginated
@@ -13,6 +14,7 @@ from cartography.intel.gitlab.util import get_single
 from cartography.intel.supply_chain import ContainerImage
 from cartography.intel.supply_chain import convert_layer_history_records
 from cartography.intel.supply_chain import get_unmatched_gcp_images_with_history
+from cartography.intel.supply_chain import get_unmatched_scaleway_images_with_history
 from cartography.intel.supply_chain import match_images_to_dockerfiles
 from cartography.intel.supply_chain import parse_dockerfile_info
 from cartography.intel.supply_chain import transform_matches_for_matchlink
@@ -22,7 +24,7 @@ from cartography.models.gitlab.packaged_matchlink import (
 from cartography.models.gitlab.packaged_matchlink import (
     GitLabProjectProvenancePackagedFromMatchLink,
 )
-from cartography.util import run_analysis_job
+from cartography.util import run_typed_analysis_job
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
@@ -439,6 +441,17 @@ def sync(
             update_tag=update_tag,
             limit=remaining_limit,
         )
+    remaining_limit = (
+        None if image_limit is None else max(image_limit - len(unmatched), 0)
+    )
+    if remaining_limit != 0:
+        unmatched += get_unmatched_scaleway_images_with_history(
+            neo4j_session,
+            sub_resource_label="GitLabOrganization",
+            sub_resource_id=organization_id,
+            update_tag=update_tag,
+            limit=remaining_limit,
+        )
 
     # 3. Dockerfile analysis (only for unmatched images)
     if unmatched:
@@ -494,8 +507,8 @@ def sync(
     ).run(neo4j_session)
 
     # 5. Enrich PACKAGED_FROM with source_file from Image provenance
-    run_analysis_job(
-        "supply_chain_source_file.json",
+    run_typed_analysis_job(
+        SUPPLY_CHAIN_SOURCE_FILE,
         neo4j_session,
         common_job_parameters,
     )

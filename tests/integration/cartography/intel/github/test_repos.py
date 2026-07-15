@@ -657,7 +657,7 @@ def test_sync_github_manifests(
         TEST_GITHUB_ORG,
     )
 
-    # Assert - Verify DependencyGraphManifest nodes
+    # Assert - Verify GitHubDependencyGraphManifest nodes
     repo_url = "https://github.com/cartography-cncf/cartography"
     package_json_id = f"{repo_url}#/package.json"
     requirements_txt_id = f"{repo_url}#/requirements.txt"
@@ -670,7 +670,7 @@ def test_sync_github_manifests(
     }
     actual_manifest_nodes = check_nodes(
         neo4j_session,
-        "DependencyGraphManifest",
+        "GitHubDependencyGraphManifest",
         ["id", "blob_path", "filename", "dependencies_count", "repo_url"],
     )
     assert expected_manifest_nodes.issubset(actual_manifest_nodes)
@@ -685,7 +685,7 @@ def test_sync_github_manifests(
         neo4j_session,
         "GitHubRepository",
         "id",
-        "DependencyGraphManifest",
+        "GitHubDependencyGraphManifest",
         "id",
         "HAS_MANIFEST",
     )
@@ -707,7 +707,7 @@ def test_sync_github_manifests(
     }
     actual_manifest_dependency_relationships = check_rels(
         neo4j_session,
-        "DependencyGraphManifest",
+        "GitHubDependencyGraphManifest",
         "id",
         "Dependency",
         "id",

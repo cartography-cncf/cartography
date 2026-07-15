@@ -112,7 +112,7 @@ def test_group_member_list_transform():
     assert ("May", "OKTA_USER_ID_2") in last_names
 
 
-@mock.patch("cartography.intel.okta.groups.time.sleep", return_value=None)
+@mock.patch("cartography.intel.okta.utils.time.sleep", return_value=None)
 def test_get_okta_group_members_retries_non_json_sdk_error(
     mock_sleep: mock.MagicMock,
 ) -> None:
@@ -130,7 +130,7 @@ def test_get_okta_group_members_retries_non_json_sdk_error(
     mock_sleep.assert_called_once_with(1)
 
 
-@mock.patch("cartography.intel.okta.groups.time.sleep", return_value=None)
+@mock.patch("cartography.intel.okta.utils.time.sleep", return_value=None)
 def test_get_okta_group_members_raises_after_non_json_sdk_retries(
     mock_sleep: mock.MagicMock,
 ) -> None:

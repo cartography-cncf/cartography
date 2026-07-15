@@ -75,7 +75,7 @@ Cloud-provider details live in the `TenableAssetAWS`, `TenableAssetAzure`, and `
 (:TenableAsset)-[:HAS_AZURE_INFO]->(:TenableAssetAzure)
 (:TenableAsset)-[:HAS_GCP_INFO]->(:TenableAssetGCP)
 (:TenableAsset)-[:HAS_SOURCE]->(:TenableAssetSource)
-(:TenableAsset)-[:HAS_TAG]->(:TenableAssetTag)
+(:TenableAsset)-[:TAGGED]->(:TenableAssetTag)
 ```
 
 ### TenableAssetAWS
@@ -175,15 +175,17 @@ A data source that has observed a Tenable asset (e.g. `NESSUS_AGENT`, `NESSUS_SC
 (:TenableAsset)-[:HAS_SOURCE]->(:TenableAssetSource)
 ```
 
-### TenableAssetTag
+### Tag::TenableAssetTag
 
-A key/value tag applied to a Tenable asset. The `id` is the Tenable tag UUID.
+A key/value tag applied to a Tenable asset. The `id` is the Tenable tag UUID. Also carries the cross-provider `:Tag` label so `(:Tag {key, value})` matches it alongside AWS/Azure/GCP tags.
 
 | Field | Description |
 |---|---|
 | **id** | Tag UUID |
-| tag_key | Tag category/key (e.g. `Environment`) |
-| tag_value | Tag value (e.g. `Production`) |
+| key | Tag category/key (e.g. `Environment`) |
+| value | Tag value (e.g. `Production`) |
+| tag_key | DEPRECATED, will be removed in v1.0.0: mirror of `key`. |
+| tag_value | DEPRECATED, will be removed in v1.0.0: mirror of `value`. |
 | added_by | User who applied the tag |
 | added_at | Timestamp when the tag was applied |
 | lastupdated | Timestamp of the last sync run |
@@ -192,8 +194,10 @@ A key/value tag applied to a Tenable asset. The `id` is the Tenable tag UUID.
 
 ```
 (:TenableTenant)-[:RESOURCE]->(:TenableAssetTag)
-(:TenableAsset)-[:HAS_TAG]->(:TenableAssetTag)
+(:TenableAsset)-[:TAGGED]->(:TenableAssetTag)
 ```
+
+The legacy `(:TenableAsset)-[:HAS_TAG]->(:TenableAssetTag)` edge is still written in parallel and will be removed in v1.0.0.
 
 ### TenableFinding
 

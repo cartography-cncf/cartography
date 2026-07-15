@@ -8,7 +8,8 @@ from unittest.mock import patch
 import cartography.intel.gcp.cloudrun.job as cloudrun_job
 import cartography.intel.gcp.cloudrun.revision as cloudrun_revision
 import cartography.intel.gcp.cloudrun.service as cloudrun_service
-from cartography.util import run_analysis_job
+from cartography.analysis.ontology.analysis import RESOLVED_IMAGE_JOBS
+from cartography.util import run_typed_analysis_job
 from tests.data.gcp.cloudrun import MOCK_JOB_WITH_DIGEST
 from tests.data.gcp.cloudrun import MOCK_REVISION_WITH_DIGEST
 from tests.data.gcp.cloudrun import MOCK_SERVICE_WITH_DIGEST
@@ -27,6 +28,11 @@ TEST_CLOUD_RUN_LOCATIONS = [
 ]
 
 
+def _run_resolved_image_analysis(neo4j_session):
+    for job in RESOLVED_IMAGE_JOBS:
+        run_typed_analysis_job(job, neo4j_session, {"UPDATE_TAG": TEST_UPDATE_TAG})
+
+
 def test_resolved_image_analysis_creates_rel_via_has_image(neo4j_session):
     """The analysis job should create RESOLVED_IMAGE from :Container to :Image over an existing HAS_IMAGE edge."""
     neo4j_session.run("MATCH (n) DETACH DELETE n")
@@ -36,7 +42,7 @@ def test_resolved_image_analysis_creates_rel_via_has_image(neo4j_session):
         SET c._ont_image_digest = 'sha256:deadbeef',
             c.lastupdated = $update_tag
 
-        MERGE (i:Image:ECRImage {id: 'sha256:deadbeef'})
+        MERGE (i:Image:AWSECRImage {id: 'sha256:deadbeef'})
         SET i._ont_digest = 'sha256:deadbeef',
             i.lastupdated = $update_tag
 
@@ -46,11 +52,7 @@ def test_resolved_image_analysis_creates_rel_via_has_image(neo4j_session):
         update_tag=TEST_UPDATE_TAG,
     )
 
-    run_analysis_job(
-        "resolved_image_analysis.json",
-        neo4j_session,
-        {"UPDATE_TAG": TEST_UPDATE_TAG},
-    )
+    _run_resolved_image_analysis(neo4j_session)
 
     assert check_rels(
         neo4j_session,
@@ -99,7 +101,7 @@ def test_resolved_image_analysis_creates_rel_for_cloud_run(
     # Arrange: image nodes that HAS_IMAGE will match (need :Image label for the analysis job)
     neo4j_session.run(
         """
-        MERGE (i:Image:ECRImage {id: $digest})
+        MERGE (i:Image:AWSECRImage {id: $digest})
         SET i.digest = $digest, i.lastupdated = $tag
         """,
         digest=TEST_REVISION_PRIMARY_DIGEST,
@@ -107,7 +109,7 @@ def test_resolved_image_analysis_creates_rel_for_cloud_run(
     )
     neo4j_session.run(
         """
-        MERGE (i:Image:ECRImage {id: $digest})
+        MERGE (i:Image:AWSECRImage {id: $digest})
         SET i.digest = $digest, i.lastupdated = $tag
         """,
         digest=TEST_JOB_PRIMARY_DIGEST,
@@ -150,11 +152,7 @@ def test_resolved_image_analysis_creates_rel_for_cloud_run(
     )
 
     # Act: run the RESOLVED_IMAGE analysis job
-    run_analysis_job(
-        "resolved_image_analysis.json",
-        neo4j_session,
-        {"UPDATE_TAG": TEST_UPDATE_TAG},
-    )
+    _run_resolved_image_analysis(neo4j_session)
 
     # Assert: no :Function RESOLVED_IMAGE — Service no longer carries :Function.
     assert (
@@ -229,18 +227,18 @@ def test_resolved_image_analysis_creates_rel_via_manifest_list(neo4j_session):
     neo4j_session.run("MATCH (n) DETACH DELETE n")
     neo4j_session.run(
         """
-        MERGE (c:Container:ECSContainer {id: 'container-ml-1'})
+        MERGE (c:Container:AWSECSContainer {id: 'container-ml-1'})
         SET c.architecture_normalized = 'amd64',
             c.lastupdated = $update_tag
 
-        MERGE (ml:ECRImage:ImageManifestList {id: 'sha256:manifestlist'})
+        MERGE (ml:AWSECRImage:ImageManifestList {id: 'sha256:manifestlist'})
         SET ml.lastupdated = $update_tag
 
-        MERGE (child_amd64:Image:ECRImage {id: 'sha256:childamd64'})
+        MERGE (child_amd64:Image:AWSECRImage {id: 'sha256:childamd64'})
         SET child_amd64._ont_architecture = 'amd64',
             child_amd64.lastupdated = $update_tag
 
-        MERGE (child_arm64:Image:ECRImage {id: 'sha256:childarm64'})
+        MERGE (child_arm64:Image:AWSECRImage {id: 'sha256:childarm64'})
         SET child_arm64._ont_architecture = 'arm64',
             child_arm64.lastupdated = $update_tag
 
@@ -256,11 +254,7 @@ def test_resolved_image_analysis_creates_rel_via_manifest_list(neo4j_session):
         update_tag=TEST_UPDATE_TAG,
     )
 
-    run_analysis_job(
-        "resolved_image_analysis.json",
-        neo4j_session,
-        {"UPDATE_TAG": TEST_UPDATE_TAG},
-    )
+    _run_resolved_image_analysis(neo4j_session)
 
     assert check_rels(
         neo4j_session,
@@ -312,11 +306,7 @@ def test_resolved_image_analysis_creates_rel_for_gcp_artifact_registry_manifest_
         update_tag=TEST_UPDATE_TAG,
     )
 
-    run_analysis_job(
-        "resolved_image_analysis.json",
-        neo4j_session,
-        {"UPDATE_TAG": TEST_UPDATE_TAG},
-    )
+    _run_resolved_image_analysis(neo4j_session)
 
     assert check_rels(
         neo4j_session,

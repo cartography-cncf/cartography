@@ -64,7 +64,7 @@ def test_sync_ecr(mock_get_images, mock_get_repos, neo4j_session):
     )
 
     # Assert ECR repositories exist
-    assert check_nodes(neo4j_session, "ECRRepository", ["id", "name"]) == {
+    assert check_nodes(neo4j_session, "AWSECRRepository", ["id", "name"]) == {
         (
             "arn:aws:ecr:us-east-1:000000000000:repository/example-repository",
             "example-repository",
@@ -80,7 +80,7 @@ def test_sync_ecr(mock_get_images, mock_get_repos, neo4j_session):
     }
 
     # Assert ECR images exist (excluding those without digests)
-    assert check_nodes(neo4j_session, "ECRImage", ["id", "digest"]) == {
+    assert check_nodes(neo4j_session, "AWSECRImage", ["id", "digest"]) == {
         (
             "sha256:0000000000000000000000000000000000000000000000000000000000000000",
             "sha256:0000000000000000000000000000000000000000000000000000000000000000",
@@ -106,7 +106,7 @@ def test_sync_ecr(mock_get_images, mock_get_repos, neo4j_session):
     # Assert ECR repository images exist
     assert check_nodes(
         neo4j_session,
-        "ECRRepositoryImage",
+        "AWSECRRepositoryImage",
         ["id", "tag", "image_size_bytes", "image_pushed_at"],
     ) == {
         (
@@ -162,7 +162,7 @@ def test_sync_ecr(mock_get_images, mock_get_repos, neo4j_session):
     # Assert repository to AWS account relationship
     assert check_rels(
         neo4j_session,
-        "ECRRepository",
+        "AWSECRRepository",
         "id",
         "AWSAccount",
         "id",
@@ -186,9 +186,9 @@ def test_sync_ecr(mock_get_images, mock_get_repos, neo4j_session):
     # Assert repository to repository image relationship
     assert check_rels(
         neo4j_session,
-        "ECRRepository",
+        "AWSECRRepository",
         "uri",
-        "ECRRepositoryImage",
+        "AWSECRRepositoryImage",
         "id",
         "REPO_IMAGE",
         rel_direction_right=True,
@@ -230,9 +230,9 @@ def test_sync_ecr(mock_get_images, mock_get_repos, neo4j_session):
     # Assert repository image to image relationship
     assert check_rels(
         neo4j_session,
-        "ECRRepositoryImage",
+        "AWSECRRepositoryImage",
         "id",
-        "ECRImage",
+        "AWSECRImage",
         "id",
         "IMAGE",
         rel_direction_right=True,
@@ -286,7 +286,7 @@ def test_load_ecr_repositories(neo4j_session):
 
     nodes = neo4j_session.run(
         """
-        MATCH (r:ECRRepository) RETURN r.arn;
+        MATCH (r:AWSECRRepository) RETURN r.arn;
         """,
     )
     actual_nodes = {n["r.arn"] for n in nodes}
@@ -295,7 +295,7 @@ def test_load_ecr_repositories(neo4j_session):
 
 def test_cleanup_repositories(neo4j_session):
     """
-    Ensure that after the cleanup job runs, all ECRRepository nodes
+    Ensure that after the cleanup job runs, all AWSECRRepository nodes
     with a different UPDATE_TAG are removed from the AWSAccount node.
     """
     # Arrange
@@ -316,7 +316,7 @@ def test_cleanup_repositories(neo4j_session):
     }
     nodes = neo4j_session.run(
         f"""
-        MATCH (a:AWSAccount{{id:'{TEST_ACCOUNT_ID}'}})--(repo:ECRRepository)
+        MATCH (a:AWSAccount{{id:'{TEST_ACCOUNT_ID}'}})--(repo:AWSECRRepository)
         RETURN count(repo)
         """,
     )
@@ -354,7 +354,7 @@ def test_cleanup_repositories(neo4j_session):
     cartography.intel.aws.ecr.cleanup(neo4j_session, common_job_params)
     nodes = neo4j_session.run(
         f"""
-        MATCH (a:AWSAccount{{id:'{TEST_ACCOUNT_ID}'}})--(repo:ECRRepository)
+        MATCH (a:AWSAccount{{id:'{TEST_ACCOUNT_ID}'}})--(repo:AWSECRRepository)
         RETURN repo.arn, repo.lastupdated
         """,
     )
@@ -373,7 +373,7 @@ def test_cleanup_repositories(neo4j_session):
 
 def test_load_ecr_repository_images(neo4j_session):
     """
-    Ensure the connection (:ECRRepository)-[:REPO_IMAGE]->(:ECRRepositoryImage) exists.
+    Ensure the connection (:AWSECRRepository)-[:REPO_IMAGE]->(:AWSECRRepositoryImage) exists.
     """
     _ensure_local_neo4j_has_test_ecr_repo_data(neo4j_session)
 
@@ -408,8 +408,8 @@ def test_load_ecr_repository_images(neo4j_session):
 
     nodes = neo4j_session.run(
         """
-        MATCH (repo:ECRRepository{id:"arn:aws:ecr:us-east-1:000000000000:repository/example-repository"})
-        -[:REPO_IMAGE]->(image:ECRRepositoryImage)
+        MATCH (repo:AWSECRRepository{id:"arn:aws:ecr:us-east-1:000000000000:repository/example-repository"})
+        -[:REPO_IMAGE]->(image:AWSECRRepositoryImage)
         RETURN repo.arn, image.tag;
         """,
     )
@@ -419,8 +419,8 @@ def test_load_ecr_repository_images(neo4j_session):
 
 def test_load_ecr_images(neo4j_session):
     """
-    Ensure the connection (:ECRRepositoryImage)-[:IMAGE]->(:ECRImage) exists.
-    A single ECRImage may be referenced by many ECRRepositoryImages.
+    Ensure the connection (:AWSECRRepositoryImage)-[:IMAGE]->(:AWSECRImage) exists.
+    A single AWSECRImage may be referenced by many ECRRepositoryImages.
     """
     _ensure_local_neo4j_has_test_ecr_repo_data(neo4j_session)
 
@@ -459,8 +459,8 @@ def test_load_ecr_images(neo4j_session):
 
     nodes = neo4j_session.run(
         """
-        MATCH (repo_image:ECRRepositoryImage)-[:IMAGE]->
-        (image:ECRImage{digest:"sha256:0000000000000000000000000000000000000000000000000000000000000000"})
+        MATCH (repo_image:AWSECRRepositoryImage)-[:IMAGE]->
+        (image:AWSECRImage{digest:"sha256:0000000000000000000000000000000000000000000000000000000000000000"})
         RETURN repo_image.id, image.digest;
         """,
     )
@@ -484,8 +484,8 @@ def test_load_ecr_images(neo4j_session):
 def test_sync_manifest_list(mock_get_repos, neo4j_session):
     """
     Ensure that manifest lists are properly handled:
-    - ECRRepositoryImage points to manifest list, platform-specific, and attestation ECRImages
-    - ECRImage nodes have correct type, architecture, os, variant fields
+    - AWSECRRepositoryImage points to manifest list, platform-specific, and attestation ECRImages
+    - AWSECRImage nodes have correct type, architecture, os, variant fields
     - Attestations are included as type="attestation"
     """
 
@@ -546,10 +546,10 @@ def test_sync_manifest_list(mock_get_repos, neo4j_session):
         {"UPDATE_TAG": TEST_UPDATE_TAG, "AWS_ID": TEST_ACCOUNT_ID},
     )
 
-    # Assert - Check that 4 ECRImage nodes were created (manifest list + 2 platform-specific + 1 attestation for the AMD64 image)
+    # Assert - Check that 4 AWSECRImage nodes were created (manifest list + 2 platform-specific + 1 attestation for the AMD64 image)
     ecr_images = neo4j_session.run(
         """
-        MATCH (img:ECRImage)
+        MATCH (img:AWSECRImage)
         RETURN img.digest AS digest, img.type AS type, img.architecture AS architecture,
                img.os AS os, img.variant AS variant, img.attestation_type AS attestation_type,
                img.attests_digest AS attests_digest, img.media_type AS media_type,
@@ -612,12 +612,12 @@ def test_sync_manifest_list(mock_get_repos, neo4j_session):
     )
     assert attestation_img["media_type"] == "application/vnd.oci.image.manifest.v1+json"
 
-    # Assert - Check that ECRRepositoryImage has relationships to all 4 images
+    # Assert - Check that AWSECRRepositoryImage has relationships to all 4 images
     all_rels = check_rels(
         neo4j_session,
-        "ECRRepositoryImage",
+        "AWSECRRepositoryImage",
         "id",
-        "ECRImage",
+        "AWSECRImage",
         "digest",
         "IMAGE",
         rel_direction_right=True,
@@ -642,9 +642,9 @@ def test_sync_manifest_list(mock_get_repos, neo4j_session):
     # Assert - Check that manifest list has CONTAINS_IMAGE relationships to platform images (not attestations)
     contains_rels = check_rels(
         neo4j_session,
-        "ECRImage",
+        "AWSECRImage",
         "digest",
-        "ECRImage",
+        "AWSECRImage",
         "digest",
         "CONTAINS_IMAGE",
         rel_direction_right=True,
@@ -665,9 +665,9 @@ def test_sync_manifest_list(mock_get_repos, neo4j_session):
     # Assert - Check that attestation has ATTESTS relationship to the image it validates
     attests_rels = check_rels(
         neo4j_session,
-        "ECRImage",
+        "AWSECRImage",
         "digest",
-        "ECRImage",
+        "AWSECRImage",
         "digest",
         "ATTESTS",
         rel_direction_right=True,
@@ -770,7 +770,7 @@ def test_sync_single_platform_image_marked_as_manifest_list(
     # Assert - Check that the image was created as a regular single-platform image
     ecr_images = neo4j_session.run(
         """
-        MATCH (img:ECRImage)
+        MATCH (img:AWSECRImage)
         RETURN img.digest AS digest, img.type AS type, img.architecture AS architecture,
                img.os AS os, img.variant AS variant
         ORDER BY img.digest
@@ -792,10 +792,10 @@ def test_sync_single_platform_image_marked_as_manifest_list(
     assert single_platform_img["os"] is None
     assert single_platform_img["variant"] is None
 
-    # Assert - Check that ECRRepositoryImage was created and points to the image
+    # Assert - Check that AWSECRRepositoryImage was created and points to the image
     repo_images = neo4j_session.run(
         """
-        MATCH (repo_img:ECRRepositoryImage)
+        MATCH (repo_img:AWSECRRepositoryImage)
         RETURN repo_img.id AS id, repo_img.uri AS uri
         """
     ).data()
@@ -805,12 +805,12 @@ def test_sync_single_platform_image_marked_as_manifest_list(
         "000000000000.dkr.ecr.us-east-1.amazonaws.com/single-platform-repository:latest"
     )
 
-    # Assert - Check that ECRRepositoryImage has IMAGE relationship to ECRImage
+    # Assert - Check that AWSECRRepositoryImage has IMAGE relationship to AWSECRImage
     all_rels = check_rels(
         neo4j_session,
-        "ECRRepositoryImage",
+        "AWSECRRepositoryImage",
         "id",
-        "ECRImage",
+        "AWSECRImage",
         "digest",
         "IMAGE",
         rel_direction_right=True,

@@ -16,7 +16,7 @@ Most modules only need semantic labels.
 
 1. **Mark primary identifiers `required=True`** in `OntologyFieldMapping` (e.g. `email` for `User`, `hostname` for `Device`). Records missing these are excluded from ontology node creation.
 2. **For semantic labels, just add `ExtraNodeLabels(["UserAccount"])`** to your node schema. The ontology system handles the `_ont_*` properties automatically.
-3. **`special_handling` values are strings**: `invert_boolean`, `to_boolean`, `or_boolean`, `nor_boolean`, `equal_boolean`, `static_value`. Boolean conditions inside `extra={"values": ...}` must also be strings (`"true"`, not `True`).
+3. **`special_handling` values are strings**: `invert_boolean`, `to_boolean`, `or_boolean`, `nor_boolean`, `equal_boolean`, `static_value`, `coalesce`. Boolean conditions inside `extra={"values": ...}` must also be strings (`"true"`, not `True`).
 4. **Document ontology mapping** in your schema doc using the standard blockquote phrase.
 5. **Module name `microsoft`** is the canonical source for Microsoft Graph. `entra` is still accepted as a backward-compatible alias during migration.
 
@@ -134,17 +134,18 @@ OntologyNodeMapping(
 
 ### Step 6 — Cross-entity relationships (e.g. user owns device)
 
-For services that link users to devices, add a statement to the appropriate ontology analysis JSON file (e.g. `cartography/data/jobs/analysis/ontology_devices_linking.json`):
+For services that link users to devices, add a typed analysis statement to `cartography/analysis/ontology/analysis.py`:
 
-```json
-{
-  "__comment": "Connect users to their devices via YourService",
-  "query": "MATCH (u:User)-[:HAS_ACCOUNT]->(:YourServiceUser)-[:OWNS]->(:YourServiceDevice)<-[:OBSERVED_AS]-(d:Device) MERGE (u)-[r:OWNS]->(d) ON CREATE SET r.firstseen = timestamp() SET r.lastupdated = $UPDATE_TAG",
-  "iterative": false
-}
+```python
+AnalysisStatement(
+    match="MATCH (u:User)-[:HAS_ACCOUNT]->(:YourServiceUser)-[:OWNS]->(:YourServiceDevice)<-[:OBSERVED_AS]-(d:Device)",
+    effects=(
+        AddRelationship("u", "OWNS", "d", source_label="User", target_label="Device"),
+    ),
+)
 ```
 
-See the `analysis-jobs` skill for the JSON job format.
+See the `analysis-jobs` skill for typed analysis job syntax.
 
 ### Step 7 — Test
 
@@ -192,9 +193,9 @@ Standard phrases by semantic label:
 | `UserAccount`     | This node has the extra label `UserAccount` to enable cross-platform queries for user accounts across different systems (e.g., OktaUser, EntraUser, GSuiteUser).                         |
 | `DeviceInstance`  | This node has the extra label `DeviceInstance` to enable cross-platform queries for device instances across different systems (e.g., CrowdStrikeDevice, KandjiDevice, JamfComputer).     |
 | `Tenant`          | This node has the extra label `Tenant` to enable cross-platform queries for organizational tenants across different systems (e.g., OktaOrganization, AzureTenant, GCPOrganization).      |
-| `Database`        | This node has the extra label `Database` to enable cross-platform queries for databases across different systems (e.g., RDSInstance, DynamoDBTable, BigQueryDataset).                    |
-| `ObjectStorage`   | This node has the extra label `ObjectStorage` to enable cross-platform queries for object storage across different systems (e.g., S3Bucket, GCPBucket, AzureStorageBlobContainer).       |
-| `FileStorage`     | This node has the extra label `FileStorage` to enable cross-platform queries for network file systems and shares across different systems (e.g., EfsFileSystem, AzureStorageFileShare).  |
+| `Database`        | This node has the extra label `Database` to enable cross-platform queries for databases across different systems (e.g., AWSRDSInstance, AWSDynamoDBTable, BigQueryDataset).                    |
+| `ObjectStorage`   | This node has the extra label `ObjectStorage` to enable cross-platform queries for object storage across different systems (e.g., AWSS3Bucket, GCPBucket, AzureStorageBlobContainer).       |
+| `FileStorage`     | This node has the extra label `FileStorage` to enable cross-platform queries for network file systems and shares across different systems (e.g., AWSEfsFileSystem, AzureStorageFileShare).  |
 
 ## `special_handling` quick reference
 
@@ -206,6 +207,7 @@ Standard phrases by semantic label:
 | `nor_boolean`     | Logical NOR over multiple boolean fields                   | `extra={"fields": [...]}`                 |
 | `equal_boolean`   | `true` if value matches any of the specified strings       | `extra={"values": ["active", "bypass"]}`  |
 | `static_value`    | Sets a static value, ignoring `node_field`                 | `extra={"value": "dynamodb"}`             |
+| `coalesce`        | Sets the first non-null value from multiple fields         | `extra={"fields": [...]}`                 |
 
 ## Canonical node configuration (CLI)
 

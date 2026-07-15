@@ -32,6 +32,8 @@ _gcp_instance_internet_exposed = Fact(
     WITH project, instance, nic, ac, fw, rule, managed_port
     WHERE ac.type = 'ONE_TO_ONE_NAT'
       AND ac.public_ip IS NOT NULL
+      // Terminated instances are not a live attack surface
+      AND coalesce(instance.status, '') <> 'TERMINATED'
       AND coalesce(fw.disabled, false) = false
       AND fw.direction = 'INGRESS'
       AND (
@@ -59,6 +61,8 @@ _gcp_instance_internet_exposed = Fact(
     MATCH p6=(rule)<-[:MEMBER_OF_IP_RULE]-(ip:GCPIpRange{range:'0.0.0.0/0'})
     WHERE ac.type = 'ONE_TO_ONE_NAT'
       AND ac.public_ip IS NOT NULL
+      // Terminated instances are not a live attack surface
+      AND coalesce(instance.status, '') <> 'TERMINATED'
       AND coalesce(fw.disabled, false) = false
       AND fw.direction = 'INGRESS'
       AND (
@@ -76,6 +80,7 @@ _gcp_instance_internet_exposed = Fact(
     """,
     cypher_count_query="""
     MATCH (instance:GCPInstance)
+    WHERE coalesce(instance.status, '') <> 'TERMINATED'
     RETURN COUNT(instance) AS count
     """,
     asset_id_field="instance_id",
@@ -210,9 +215,10 @@ _aws_ec2_instance_internet_exposed = Fact(
         "TCP management ports. Aligned with the GCP and Azure facts."
     ),
     cypher_query="""
-    MATCH (a:AWSAccount)-[:RESOURCE]->(ec2:EC2Instance)-[:MEMBER_OF_EC2_SECURITY_GROUP]->(sg:EC2SecurityGroup)<-[:MEMBER_OF_EC2_SECURITY_GROUP]-(rule:AWSIpPermissionInbound)
+    MATCH (a:AWSAccount)-[:RESOURCE]->(ec2:AWSEC2Instance)-[:MEMBER_OF_EC2_SECURITY_GROUP]->(sg:AWSEC2SecurityGroup)<-[:MEMBER_OF_EC2_SECURITY_GROUP]-(rule:AWSIpPermissionInbound)
     MATCH (rule)<-[:MEMBER_OF_IP_RULE]-(ip:AWSIpRange{range:'0.0.0.0/0'})
     WHERE coalesce(rule.protocol, '') IN ['tcp', '-1', 'all']
+      AND NOT coalesce(ec2.state, 'running') IN ['terminated', 'shutting-down']
     UNWIND [22, 3389, 3306, 5432, 6379, 9200, 27017] AS managed_port
     WITH a, ec2, sg, rule, managed_port
     WHERE rule.fromport IS NULL
@@ -229,9 +235,10 @@ _aws_ec2_instance_internet_exposed = Fact(
     ORDER BY account, instance_id, port, security_group
     """,
     cypher_visual_query="""
-    MATCH p=(a:AWSAccount)-[:RESOURCE]->(ec2:EC2Instance)-[:MEMBER_OF_EC2_SECURITY_GROUP]->(sg:EC2SecurityGroup)<-[:MEMBER_OF_EC2_SECURITY_GROUP]-(rule:AWSIpPermissionInbound)
+    MATCH p=(a:AWSAccount)-[:RESOURCE]->(ec2:AWSEC2Instance)-[:MEMBER_OF_EC2_SECURITY_GROUP]->(sg:AWSEC2SecurityGroup)<-[:MEMBER_OF_EC2_SECURITY_GROUP]-(rule:AWSIpPermissionInbound)
     MATCH p2=(rule)<-[:MEMBER_OF_IP_RULE]-(ip:AWSIpRange{range:'0.0.0.0/0'})
     WHERE coalesce(rule.protocol, '') IN ['tcp', '-1', 'all']
+      AND NOT coalesce(ec2.state, 'running') IN ['terminated', 'shutting-down']
       AND (
         rule.fromport IS NULL
         OR ANY(managed_port IN [22, 3389, 3306, 5432, 6379, 9200, 27017]
@@ -241,12 +248,133 @@ _aws_ec2_instance_internet_exposed = Fact(
     RETURN *
     """,
     cypher_count_query="""
-    MATCH (ec2:EC2Instance)
+    MATCH (ec2:AWSEC2Instance)
+    WHERE NOT coalesce(ec2.state, 'running') IN ['terminated', 'shutting-down']
     RETURN COUNT(ec2) AS count
     """,
     asset_id_field="instance_id",
     identity_fields=("instance_id", "port", "security_group"),
     module=Module.AWS,
+    maturity=Maturity.EXPERIMENTAL,
+)
+
+
+# Scaleway Facts
+_scaleway_instance_internet_exposed = Fact(
+    id="scaleway_instance_internet_exposed",
+    name="Internet-Exposed Scaleway Instances on Common Management Ports",
+    description=(
+        "Scaleway Instances with at least one public IP attached whose "
+        "attached Security Group has an inbound rule accepting traffic from "
+        "0.0.0.0/0 over TCP (or `any` protocol) on a management port (22, "
+        "3389, 3306, 5432, 6379, 9200, 27017). Port ranges "
+        "(dest_port_from/dest_port_to) covering a management port are "
+        "detected, including all-port rules (dest_port_from IS NULL). Stopped "
+        "instances are excluded as they are not a live attack surface. The "
+        "public-IP signal comes from the instance's retained public_ips id "
+        "list; the SG default inbound policy is not evaluated here, only "
+        "explicit accept rules."
+    ),
+    cypher_query="""
+    MATCH (prj:ScalewayProject)-[:RESOURCE]->(instance:ScalewayInstance)-[:MEMBER_OF_SCALEWAY_SECURITY_GROUP]->(sg:ScalewaySecurityGroup)<-[:MEMBER_OF_SCALEWAY_SECURITY_GROUP]-(rule:ScalewaySecurityGroupRule)
+    WHERE size(coalesce(instance.public_ips, [])) > 0
+      AND NOT coalesce(instance.state, 'running') IN ['stopped', 'stopped_in_place']
+      AND rule.direction = 'inbound'
+      AND rule.action = 'accept'
+      AND rule.ip_range = '0.0.0.0/0'
+      AND coalesce(rule.protocol, '') IN ['tcp', 'any']
+    UNWIND [22, 3389, 3306, 5432, 6379, 9200, 27017] AS managed_port
+    WITH prj, instance, sg, rule, managed_port
+    WHERE rule.dest_port_from IS NULL
+       OR (
+         coalesce(rule.dest_port_from, 0) <= managed_port
+         AND coalesce(rule.dest_port_to, rule.dest_port_from, 0) >= managed_port
+       )
+    RETURN DISTINCT
+        prj.id AS account_id,
+        prj.id AS account,
+        instance.id AS instance_id,
+        instance.name AS instance,
+        managed_port AS port,
+        sg.id AS security_group
+    ORDER BY account, instance_id, port, security_group
+    """,
+    cypher_visual_query="""
+    MATCH p=(prj:ScalewayProject)-[:RESOURCE]->(instance:ScalewayInstance)-[:MEMBER_OF_SCALEWAY_SECURITY_GROUP]->(sg:ScalewaySecurityGroup)<-[:MEMBER_OF_SCALEWAY_SECURITY_GROUP]-(rule:ScalewaySecurityGroupRule)
+    WHERE size(coalesce(instance.public_ips, [])) > 0
+      AND NOT coalesce(instance.state, 'running') IN ['stopped', 'stopped_in_place']
+      AND rule.direction = 'inbound'
+      AND rule.action = 'accept'
+      AND rule.ip_range = '0.0.0.0/0'
+      AND coalesce(rule.protocol, '') IN ['tcp', 'any']
+      AND (
+        rule.dest_port_from IS NULL
+        OR ANY(managed_port IN [22, 3389, 3306, 5432, 6379, 9200, 27017]
+               WHERE coalesce(rule.dest_port_from, 0) <= managed_port
+                 AND coalesce(rule.dest_port_to, rule.dest_port_from, 0) >= managed_port)
+      )
+    RETURN *
+    """,
+    cypher_count_query="""
+    MATCH (instance:ScalewayInstance)
+    WHERE NOT coalesce(instance.state, 'running') IN ['stopped', 'stopped_in_place']
+    RETURN COUNT(instance) AS count
+    """,
+    asset_id_field="instance_id",
+    identity_fields=("instance_id", "port", "security_group"),
+    module=Module.SCALEWAY,
+    maturity=Maturity.EXPERIMENTAL,
+)
+
+
+_scaleway_instance_pat_exposed = Fact(
+    id="scaleway_instance_pat_exposed",
+    name="Scaleway Instances Exposed via Public Gateway PAT on Common Management Ports",
+    description=(
+        "Scaleway Instances reachable from the internet through a Public "
+        "Gateway PAT rule that forwards a public port to the instance's "
+        "private IP on a management port (22, 3389, 3306, 5432, 6379, 9200, "
+        "27017) over TCP (or `both`). This covers private instances that have "
+        "no direct public IP but are still exposed via the gateway. Matching "
+        "is by private IP within the project; in the rare case of overlapping "
+        "private IPs across private networks this can over-match, as the "
+        "instance <-> private-network membership is not modelled."
+    ),
+    cypher_query="""
+    MATCH (prj:ScalewayProject)-[:RESOURCE]->(gw:ScalewayPublicGateway)-[:HAS]->(pat:ScalewayPublicGatewayPatRule)
+    MATCH (prj)-[:RESOURCE]->(instance:ScalewayInstance)
+    WHERE instance.private_ip IS NOT NULL
+      AND instance.private_ip = pat.private_ip
+      AND NOT coalesce(instance.state, 'running') IN ['stopped', 'stopped_in_place']
+      AND coalesce(pat.protocol, '') IN ['tcp', 'both']
+      AND pat.private_port IN [22, 3389, 3306, 5432, 6379, 9200, 27017]
+    RETURN DISTINCT
+        prj.id AS account_id,
+        prj.id AS account,
+        instance.id AS instance_id,
+        instance.name AS instance,
+        pat.private_port AS port,
+        gw.id AS security_group
+    ORDER BY account, instance_id, port, security_group
+    """,
+    cypher_visual_query="""
+    MATCH p=(prj:ScalewayProject)-[:RESOURCE]->(gw:ScalewayPublicGateway)-[:HAS]->(pat:ScalewayPublicGatewayPatRule)
+    MATCH p2=(prj)-[:RESOURCE]->(instance:ScalewayInstance)
+    WHERE instance.private_ip IS NOT NULL
+      AND instance.private_ip = pat.private_ip
+      AND NOT coalesce(instance.state, 'running') IN ['stopped', 'stopped_in_place']
+      AND coalesce(pat.protocol, '') IN ['tcp', 'both']
+      AND pat.private_port IN [22, 3389, 3306, 5432, 6379, 9200, 27017]
+    RETURN *
+    """,
+    cypher_count_query="""
+    MATCH (instance:ScalewayInstance)
+    WHERE NOT coalesce(instance.state, 'running') IN ['stopped', 'stopped_in_place']
+    RETURN COUNT(instance) AS count
+    """,
+    asset_id_field="instance_id",
+    identity_fields=("instance_id", "port", "security_group"),
+    module=Module.SCALEWAY,
     maturity=Maturity.EXPERIMENTAL,
 )
 
@@ -273,6 +401,8 @@ compute_instance_exposed = Rule(
         _aws_ec2_instance_internet_exposed,
         _azure_vm_internet_exposed,
         _gcp_instance_internet_exposed,
+        _scaleway_instance_internet_exposed,
+        _scaleway_instance_pat_exposed,
     ),
     tags=(
         "infrastructure",
@@ -281,6 +411,6 @@ compute_instance_exposed = Rule(
         "stride:information_disclosure",
         "stride:elevation_of_privilege",
     ),
-    version="0.1.0",
+    version="0.2.0",
     frameworks=(iso27001_annex_a("8.20"),),
 )

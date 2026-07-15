@@ -11,11 +11,11 @@ _aws_s3_public = Fact(
     name="Internet-Accessible S3 Storage Attack Surface",
     description=("AWS S3 buckets accessible from the internet"),
     cypher_query="""
-    MATCH (b:S3Bucket)
+    MATCH (b:AWSS3Bucket)
     WHERE b.anonymous_access = true
     OR (b.anonymous_actions IS NOT NULL AND size(b.anonymous_actions) > 0)
     OR EXISTS {
-        MATCH (b)-[:POLICY_STATEMENT]->(stmt:S3PolicyStatement)
+        MATCH (b)-[:POLICY_STATEMENT]->(stmt:AWSS3PolicyStatement)
         WHERE stmt.effect = 'Allow'
         AND (stmt.principal = '*' OR stmt.principal CONTAINS 'AllUsers')
     }
@@ -27,20 +27,20 @@ _aws_s3_public = Fact(
         b.anonymous_actions AS public_actions
     """,
     cypher_visual_query="""
-    MATCH (b:S3Bucket)
+    MATCH (b:AWSS3Bucket)
     WHERE b.anonymous_access = true
     OR (b.anonymous_actions IS NOT NULL AND size(b.anonymous_actions) > 0)
     OR EXISTS {
-        MATCH (b)-[:POLICY_STATEMENT]->(stmt:S3PolicyStatement)
+        MATCH (b)-[:POLICY_STATEMENT]->(stmt:AWSS3PolicyStatement)
         WHERE stmt.effect = 'Allow'
         AND (stmt.principal = '*' OR stmt.principal CONTAINS 'AllUsers')
     }
     WITH b
-    OPTIONAL MATCH p=(b)-[:POLICY_STATEMENT]->(:S3PolicyStatement)
+    OPTIONAL MATCH p=(b)-[:POLICY_STATEMENT]->(:AWSS3PolicyStatement)
     RETURN *
     """,
     cypher_count_query="""
-    MATCH (b:S3Bucket)
+    MATCH (b:AWSS3Bucket)
     RETURN COUNT(b) AS count
     """,
     identity_fields=("id",),
@@ -128,6 +128,40 @@ _azure_storage_public_blob_access = Fact(
 )
 
 
+# Scaleway Facts
+_scaleway_bucket_public = Fact(
+    id="scaleway_bucket_public",
+    name="Internet-Accessible Scaleway Object Storage Attack Surface",
+    description=(
+        "Scaleway Object Storage buckets accessible from the internet, either "
+        "through a bucket policy granting anonymous access or an ACL granting "
+        "AllUsers / AuthenticatedUsers."
+    ),
+    cypher_query="""
+    MATCH (b:ScalewayObjectStorageBucket)
+    WHERE b.public = true
+    RETURN
+        b.id AS id,
+        b.name AS name,
+        b.region AS region,
+        b.public AS public_access,
+        b.anonymous_actions AS public_actions
+    """,
+    cypher_visual_query="""
+    MATCH p=(b:ScalewayObjectStorageBucket)<-[:RESOURCE]-(prj:ScalewayProject)
+    WHERE b.public = true
+    RETURN *
+    """,
+    cypher_count_query="""
+    MATCH (b:ScalewayObjectStorageBucket)
+    RETURN COUNT(b) AS count
+    """,
+    identity_fields=("id",),
+    module=Module.SCALEWAY,
+    maturity=Maturity.EXPERIMENTAL,
+)
+
+
 # Rule
 class ObjectStoragePublic(Finding):
     name: str | None = None
@@ -143,13 +177,15 @@ object_storage_public = Rule(
     name="Public Object Storage Attack Surface",
     description=(
         "Publicly accessible object storage services such as AWS S3 buckets, "
-        "Azure Storage Blob Containers, and GCS buckets"
+        "Azure Storage Blob Containers, GCS buckets, and Scaleway Object "
+        "Storage buckets"
     ),
     output_model=ObjectStoragePublic,
     facts=(
         _aws_s3_public,
         _azure_storage_public_blob_access,
         _gcp_bucket_public,
+        _scaleway_bucket_public,
     ),
     tags=(
         "infrastructure",

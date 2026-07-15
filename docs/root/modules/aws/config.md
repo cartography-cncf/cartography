@@ -16,6 +16,7 @@ Cartography supports single-account AWS syncs and multi-account AWS syncs. For A
 
 1. Set up an AWS identity (user, group, or role) for Cartography to use. Ensure that this identity has the built-in AWS [SecurityAudit policy](https://docs.aws.amazon.com/IAM/latest/UserGuide/access_policies_job-functions.html#jf_security-auditor) (arn:aws:iam::aws:policy/SecurityAudit) attached. This policy grants access to read security config metadata.
    1. If you want to use AWS Inspector, the SecurityAudit policy does not yet contain permissions for `inspector2`, so you will also need the [AmazonInspector2ReadOnlyAccess policy](https://docs.aws.amazon.com/inspector/latest/user/security-iam-awsmanpol.html#security-iam-awsmanpol-AmazonInspector2ReadOnlyAccess).
+   1. If you want to ingest allowlisted AWS-managed public SSM parameters, grant `ssm:GetParametersByPath` for the allowed `/aws/service/...` paths. The SecurityAudit policy does not include this permission.
 1. Set up AWS credentials to this identity on your server, using a `config` and `credential` file.  For details, see AWS' [official guide](https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-files.html).
 1. [Optional] Configure Cartography's shared AWS client retry behavior with these environment variables:
    - `CARTOGRAPHY_AWS_RETRY_MODE`: Retry mode for Cartography-managed AWS clients. Valid values are `standard`, `adaptive`, and `legacy`. Default: `standard`.
@@ -47,7 +48,8 @@ In this example, we will assume that you are going to run Cartography on an EC2 
 
 2. **Set up the IAM roles**: Create an IAM role named `cartography-read-only` on _all_ of your accounts.  Configure the role on all accounts as follows:
 	1. Attach the built-in AWS [SecurityAudit IAM policy](https://docs.aws.amazon.com/IAM/latest/UserGuide/access_policies_job-functions.html#jf_security-auditor) (arn:aws:iam::aws:policy/SecurityAudit) to the role.  This grants access to read security config metadata.
-	2. Set up a trust relationship so that the Spoke accounts will allow the Hub account to assume the `cartography-read-only` role.  The resulting trust relationship should look something like this:
+	2. If you want to ingest allowlisted AWS-managed public SSM parameters, grant `ssm:GetParametersByPath` for the allowed `/aws/service/...` paths. The SecurityAudit policy does not include this permission.
+	3. Set up a trust relationship so that the Spoke accounts will allow the Hub account to assume the `cartography-read-only` role.  The resulting trust relationship should look something like this:
 
 		```
 		{
@@ -63,7 +65,7 @@ In this example, we will assume that you are going to run Cartography on an EC2 
 		  ]
 		}
 		```
-	3. Allow a role in the Hub account to **assume the `cartography-read-only` role** on your Spoke account(s).
+	4. Allow a role in the Hub account to **assume the `cartography-read-only` role** on your Spoke account(s).
 
 		- On the Hub account, create a role called `cartography-service`.
 		- On this new `cartography-service` role, add an inline policy with the following JSON:

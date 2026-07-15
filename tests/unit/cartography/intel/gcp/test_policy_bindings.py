@@ -20,6 +20,53 @@ COMMON_JOB_PARAMS = {
 }
 
 
+def _policy_results_with_members(members: list[str]) -> dict:
+    return {
+        "project_id": TEST_PROJECT_ID,
+        "policy_results": [
+            {
+                "policies": [
+                    {
+                        "attached_resource": f"//cloudresourcemanager.googleapis.com/projects/{TEST_PROJECT_ID}",
+                        "policy": {
+                            "bindings": [
+                                {"role": "roles/viewer", "members": members},
+                            ],
+                        },
+                    },
+                ],
+            },
+        ],
+    }
+
+
+def test_transform_bindings_retains_domain_members():
+    data = _policy_results_with_members(
+        [
+            "user:alice@example.com",
+            "domain:example.com",
+        ],
+    )
+
+    bindings = policy_bindings.transform_bindings(data)
+
+    assert len(bindings) == 1
+    binding = bindings[0]
+    assert binding["members"] == ["alice@example.com"]
+    assert binding["domains"] == ["example.com"]
+
+
+def test_transform_bindings_keeps_domain_only_binding():
+    # A binding whose only principal is a domain must not be dropped.
+    data = _policy_results_with_members(["domain:example.com"])
+
+    bindings = policy_bindings.transform_bindings(data)
+
+    assert len(bindings) == 1
+    assert bindings[0]["members"] == []
+    assert bindings[0]["domains"] == ["example.com"]
+
+
 @pytest.mark.parametrize(
     "full_name, expected",
     [
@@ -414,17 +461,19 @@ def test_load_inherited_bindings_uses_owner_scope(mock_load, mock_load_matchlink
     )
 
 
-@patch.object(policy_bindings, "GraphStatement")
+@patch("cartography.intel.gcp.policy_bindings.GraphJob.from_matchlink")
 @patch("cartography.intel.gcp.policy_bindings.GraphJob.from_node_schema")
-def test_cleanup_uses_one_generic_applies_to_cleanup(
+def test_cleanup_uses_matchlink_cleanup_for_each_target_label(
     mock_from_node_schema,
-    mock_graph_statement,
+    mock_from_matchlink,
 ):
     neo4j_session = MagicMock()
     cleanup_job = MagicMock()
     mock_from_node_schema.return_value = cleanup_job
     applies_to_cleanup = MagicMock()
-    mock_graph_statement.return_value = applies_to_cleanup
+    mock_from_matchlink.return_value = applies_to_cleanup
+    expected_target_labels = {"GCPProject", "LegacyGCPResource"}
+    neo4j_session.execute_read.return_value = sorted(expected_target_labels)
 
     policy_bindings.cleanup(neo4j_session, COMMON_JOB_PARAMS)
 
@@ -433,26 +482,33 @@ def test_cleanup_uses_one_generic_applies_to_cleanup(
         == policy_bindings.GCP_POLICY_BINDINGS_CLEANUP_ITERATION_SIZE
     )
     cleanup_job.run.assert_called_once_with(neo4j_session)
-    mock_graph_statement.assert_called_once()
-    query = mock_graph_statement.call_args.args[0]
-    assert "MATCH (:GCPPolicyBinding)-[r:APPLIES_TO]->()" in query
-    assert "r._sub_resource_id = $_sub_resource_id" in query
-    assert (
-        mock_graph_statement.call_args.kwargs["iterationsize"]
-        == policy_bindings.GCP_POLICY_BINDINGS_CLEANUP_ITERATION_SIZE
-    )
-    applies_to_cleanup.run.assert_called_once_with(neo4j_session)
+    assert mock_from_matchlink.call_count == len(expected_target_labels)
+    assert {
+        call.args[0].target_node_label for call in mock_from_matchlink.call_args_list
+    } == expected_target_labels
+    for call in mock_from_matchlink.call_args_list:
+        assert call.args[1:] == (
+            "GCPProject",
+            TEST_PROJECT_ID,
+            TEST_UPDATE_TAG,
+        )
+        assert (
+            call.kwargs["iterationsize"]
+            == policy_bindings.GCP_POLICY_BINDINGS_CLEANUP_ITERATION_SIZE
+        )
+    assert applies_to_cleanup.run.call_count == len(expected_target_labels)
 
 
-@patch.object(policy_bindings, "GraphStatement")
+@patch("cartography.intel.gcp.policy_bindings.GraphJob.from_matchlink")
 @patch("cartography.intel.gcp.policy_bindings.GraphJob.from_node_schema")
 def test_cleanup_inherited_policy_bindings_cleans_org_and_folders(
     mock_from_node_schema,
-    mock_graph_statement,
+    mock_from_matchlink,
 ):
     neo4j_session = MagicMock()
     mock_from_node_schema.return_value = MagicMock()
-    mock_graph_statement.return_value = MagicMock()
+    mock_from_matchlink.return_value = MagicMock()
+    neo4j_session.execute_read.return_value = ["LegacyGCPResource"]
 
     policy_bindings.cleanup_inherited_policy_bindings(
         neo4j_session,
@@ -461,27 +517,14 @@ def test_cleanup_inherited_policy_bindings_cleans_org_and_folders(
     )
 
     assert mock_from_node_schema.call_count == 2
-    assert mock_graph_statement.call_count == 2
-    assert (
-        mock_graph_statement.call_args_list[0].kwargs["parameters"][
-            "_sub_resource_label"
-        ]
-        == "GCPOrganization"
-    )
-    assert (
-        mock_graph_statement.call_args_list[0].kwargs["parameters"]["_sub_resource_id"]
-        == "organizations/1337"
-    )
-    assert (
-        mock_graph_statement.call_args_list[1].kwargs["parameters"][
-            "_sub_resource_label"
-        ]
-        == "GCPFolder"
-    )
-    assert (
-        mock_graph_statement.call_args_list[1].kwargs["parameters"]["_sub_resource_id"]
-        == "folders/1414"
-    )
+    assert mock_from_matchlink.call_count == 2
+    cleanup_scopes = {
+        (call.args[1], call.args[2]) for call in mock_from_matchlink.call_args_list
+    }
+    assert cleanup_scopes == {
+        ("GCPOrganization", "organizations/1337"),
+        ("GCPFolder", "folders/1414"),
+    }
 
 
 @patch.object(policy_bindings, "cleanup")

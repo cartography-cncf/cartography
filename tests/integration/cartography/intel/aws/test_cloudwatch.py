@@ -51,19 +51,19 @@ def test_sync_cloudwatch(
     )
 
     # Assert
-    assert check_nodes(neo4j_session, "CloudWatchLogGroup", ["arn"]) == {
+    assert check_nodes(neo4j_session, "AWSCloudWatchLogGroup", ["arn"]) == {
         ("arn:aws:logs:eu-west-1:123456789012:log-group:/aws/lambda/process-orders",),
         (
             "arn:aws:logs:eu-west-1:123456789012:log-group:/aws/codebuild/sample-project",
         ),
     }
 
-    assert check_nodes(neo4j_session, "CloudWatchLogMetricFilter", ["id"]) == {
+    assert check_nodes(neo4j_session, "AWSCloudWatchLogMetricFilter", ["id"]) == {
         ("/aws/lambda/process-orders:HighErrorRate",),
         ("/aws/codebuild/sample-project:AuthFailures",),
     }
 
-    assert check_nodes(neo4j_session, "CloudWatchMetricAlarm", ["arn"]) == {
+    assert check_nodes(neo4j_session, "AWSCloudWatchMetricAlarm", ["arn"]) == {
         ("arn:aws:cloudwatch:us-east-1:123456789012:alarm:HighErrorCountAlarm",),
         ("arn:aws:cloudwatch:us-east-1:123456789012:alarm:CompositeErrorRateAlarm",),
     }
@@ -73,7 +73,7 @@ def test_sync_cloudwatch(
         neo4j_session,
         "AWSAccount",
         "id",
-        "CloudWatchLogGroup",
+        "AWSCloudWatchLogGroup",
         "arn",
         "RESOURCE",
         rel_direction_right=True,
@@ -92,7 +92,7 @@ def test_sync_cloudwatch(
         neo4j_session,
         "AWSAccount",
         "id",
-        "CloudWatchLogMetricFilter",
+        "AWSCloudWatchLogMetricFilter",
         "id",
         "RESOURCE",
         rel_direction_right=True,
@@ -103,9 +103,9 @@ def test_sync_cloudwatch(
 
     assert check_rels(
         neo4j_session,
-        "CloudWatchLogMetricFilter",
+        "AWSCloudWatchLogMetricFilter",
         "id",
-        "CloudWatchLogGroup",
+        "AWSCloudWatchLogGroup",
         "log_group_name",
         "METRIC_FILTER_OF",
         rel_direction_right=True,
@@ -124,7 +124,7 @@ def test_sync_cloudwatch(
         neo4j_session,
         "AWSAccount",
         "id",
-        "CloudWatchMetricAlarm",
+        "AWSCloudWatchMetricAlarm",
         "arn",
         "RESOURCE",
         rel_direction_right=True,

@@ -13,7 +13,7 @@ Example: an RDS instance refers to EC2 security groups by ID. The RDS API doesn'
 ```python
 @dataclass(frozen=True)
 class RDSInstanceToSecurityGroupRel(CartographyRelSchema):
-    target_node_label: str = "EC2SecurityGroup"
+    target_node_label: str = "AWSEC2SecurityGroup"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher({
         "id": PropertyRef("SecurityGroupId"),  # ID only
     })
@@ -39,7 +39,7 @@ class EBSVolumeInstanceProperties(CartographyNodeProperties):
 
 @dataclass(frozen=True)
 class EBSVolumeInstanceSchema(CartographyNodeSchema):
-    label: str = "EBSVolume"  # same label as EBSVolumeSchema
+    label: str = "AWSEBSVolume"  # same label as EBSVolumeSchema
     properties: EBSVolumeInstanceProperties = EBSVolumeInstanceProperties()
     sub_resource_relationship: EBSVolumeToAWSAccountRel = EBSVolumeToAWSAccountRel()
     # ... other relationships

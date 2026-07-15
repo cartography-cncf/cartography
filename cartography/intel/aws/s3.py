@@ -19,8 +19,9 @@ from botocore.exceptions import EndpointConnectionError
 from botocore.exceptions import ReadTimeoutError
 from policyuniverse.policy import Policy
 
+from cartography.analysis.aws.s3.analysis import AWS_S3ACL_ANALYSIS
 from cartography.client.core.tx import load
-from cartography.client.core.tx import run_write_query
+from cartography.client.core.tx import load_matchlinks
 from cartography.graph.job import GraphJob
 from cartography.intel.aws.util.botocore_config import create_boto3_client
 from cartography.intel.aws.util.botocore_config import get_botocore_config
@@ -32,12 +33,13 @@ from cartography.models.aws.s3.bucket import S3BucketPolicySchema
 from cartography.models.aws.s3.bucket import S3BucketPublicAccessBlockSchema
 from cartography.models.aws.s3.bucket import S3BucketSchema
 from cartography.models.aws.s3.bucket import S3BucketVersioningSchema
+from cartography.models.aws.s3.notification import S3BucketToSNSTopicRel
 from cartography.models.aws.s3.policy_statement import S3PolicyStatementSchema
 from cartography.stats import get_stats_client
 from cartography.util import aws_handle_regions
 from cartography.util import merge_module_sync_metadata
-from cartography.util import run_analysis_job
 from cartography.util import run_cleanup_job
+from cartography.util import run_typed_analysis_job
 from cartography.util import timeit
 from cartography.util import to_asynchronous
 from cartography.util import to_synchronous
@@ -436,11 +438,13 @@ def _load_s3_acls(
 
     # implement the acl permission
     # https://docs.aws.amazon.com/AmazonS3/latest/dev/acl-overview.html#permissions
-    run_analysis_job(
-        "aws_s3acl_analysis.json",
+    run_typed_analysis_job(
+        AWS_S3ACL_ANALYSIS,
         neo4j_session,
-        {"AWS_ID": aws_account_id},
-        package="cartography.data.jobs.scoped_analysis",
+        {
+            "AWS_ID": aws_account_id,
+            "UPDATE_TAG": update_tag,
+        },
     )
 
 
@@ -1110,20 +1114,34 @@ def _load_s3_notifications(
     """
     Ingest S3 bucket to SNS topic notification relationships into neo4j.
     """
-    ingest_notifications = """
-    UNWIND $notifications AS notification
-    MATCH (bucket:S3Bucket{name: notification.bucket})
-    MATCH (topic:SNSTopic{arn: notification.TopicArn})
-    MERGE (bucket)-[r:NOTIFIES]->(topic)
-    ON CREATE SET r.firstseen = timestamp()
-    SET r.lastupdated = $UpdateTag
-    """
-    run_write_query(
-        neo4j_session,
-        ingest_notifications,
-        notifications=notifications,
-        UpdateTag=update_tag,
-    )
+    notifications_by_bucket: dict[str, list[Dict]] = {}
+    for notification in notifications:
+        notifications_by_bucket.setdefault(notification["bucket"], []).append(
+            notification,
+        )
+
+    for bucket_name, bucket_notifications in notifications_by_bucket.items():
+        load_matchlinks(
+            neo4j_session,
+            S3BucketToSNSTopicRel(),
+            bucket_notifications,
+            lastupdated=update_tag,
+            _sub_resource_label="AWSS3Bucket",
+            _sub_resource_id=bucket_name,
+        )
+
+
+def _cleanup_s3_notifications(
+    neo4j_session: neo4j.Session,
+    bucket_name: str,
+    update_tag: int,
+) -> None:
+    GraphJob.from_matchlink(
+        S3BucketToSNSTopicRel(),
+        "AWSS3Bucket",
+        bucket_name,
+        update_tag,
+    ).run(neo4j_session)
 
 
 def _transform_bucket_data(data: Dict) -> List[Dict]:
@@ -1261,7 +1279,7 @@ def cleanup_s3_buckets(
         neo4j_session
     )
     # S3BucketEncryptionSchema has no sub_resource_relationship, so this cleans up
-    # only stale (:S3Bucket)-[:ENCRYPTED_BY]->(:KMSKey) edges (no node deletion),
+    # only stale (:AWSS3Bucket)-[:ENCRYPTED_BY]->(:AWSKMSKey) edges (no node deletion),
     # e.g. when a bucket rotates its key or disables default KMS encryption.
     GraphJob.from_node_schema(S3BucketEncryptionSchema(), common_job_parameters).run(
         neo4j_session
@@ -1273,7 +1291,7 @@ def cleanup_s3_bucket_acl_and_policy(
     neo4j_session: neo4j.Session,
     common_job_parameters: Dict,
 ) -> None:
-    """Clean up stale S3Acl and S3PolicyStatement nodes."""
+    """Clean up stale AWSS3Acl and AWSS3PolicyStatement nodes."""
     GraphJob.from_node_schema(S3AclSchema(), common_job_parameters).run(neo4j_session)
     GraphJob.from_node_schema(S3PolicyStatementSchema(), common_job_parameters).run(
         neo4j_session
@@ -1297,7 +1315,6 @@ def _sync_s3_notifications(
         "s3",
         config=get_botocore_config(max_pool_connections=BUCKET_BATCH_SIZE),
     )
-    notifications = []
 
     for bucket in bucket_data["Buckets"]:
         try:
@@ -1307,7 +1324,16 @@ def _sync_s3_notifications(
             parsed_notifications = parse_notification_configuration(
                 bucket["Name"], notification_config
             )
-            notifications.extend(parsed_notifications)
+            _load_s3_notifications(
+                neo4j_session,
+                parsed_notifications,
+                update_tag,
+            )
+            _cleanup_s3_notifications(
+                neo4j_session,
+                bucket["Name"],
+                update_tag,
+            )
             logger.debug(
                 f"Found {len(parsed_notifications)} notifications for bucket {bucket['Name']}"
             )
@@ -1316,8 +1342,6 @@ def _sync_s3_notifications(
                 f"Failed to retrieve notification configuration for bucket {bucket['Name']}: {e}"
             )
             continue
-
-    _load_s3_notifications(neo4j_session, notifications, update_tag)
 
 
 @timeit
@@ -1358,7 +1382,7 @@ def sync(
         neo4j_session,
         group_type="AWSAccount",
         group_id=current_aws_account_id,
-        synced_type="S3Bucket",
+        synced_type="AWSS3Bucket",
         update_tag=update_tag,
         stat_handler=stat_handler,
     )

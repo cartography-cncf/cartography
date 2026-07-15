@@ -46,10 +46,10 @@ class PublicIPToDeviceRel(CartographyRelSchema):
 # =============================================================================
 
 
-# (:PublicIP)-[:RESERVED_BY]->(:ElasticIPAddress)
+# (:PublicIP)-[:RESERVED_BY]->(:AWSElasticIPAddress)
 @dataclass(frozen=True)
 class PublicIPToElasticIPAddressRel(CartographyRelSchema):
-    target_node_label: str = "ElasticIPAddress"
+    target_node_label: str = "AWSElasticIPAddress"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"public_ip": PropertyRef("ip_address")},
     )
@@ -76,6 +76,18 @@ class PublicIPToScalewayFlexibleIpRel(CartographyRelSchema):
     target_node_label: str = "ScalewayFlexibleIp"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"address": PropertyRef("ip_address")},
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "RESERVED_BY"
+    properties: PublicIPToNodeRelProperties = PublicIPToNodeRelProperties()
+
+
+# (:PublicIP)-[:RESERVED_BY]->(:ScalewayElasticMetalFlexibleIp)
+@dataclass(frozen=True)
+class PublicIPToScalewayElasticMetalFlexibleIpRel(CartographyRelSchema):
+    target_node_label: str = "ScalewayElasticMetalFlexibleIp"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"ip_address": PropertyRef("ip_address")},
     )
     direction: LinkDirection = LinkDirection.OUTWARD
     rel_label: str = "RESERVED_BY"
@@ -136,6 +148,7 @@ class PublicIPSchema(CartographyNodeSchema):
             PublicIPToElasticIPAddressRel(),
             PublicIPToAzurePublicIPAddressRel(),
             PublicIPToScalewayFlexibleIpRel(),
+            PublicIPToScalewayElasticMetalFlexibleIpRel(),
             PublicIPToGCPNicAccessConfigRel(),
             # POINTS_TO - Ontology semantic labels
             PublicIPToDeviceRel(),

@@ -79,7 +79,7 @@ RESOURCE_FUNCTIONS: OrderedDict[str, Callable[..., None]] = OrderedDict(
         "iam": iam.sync,
         "iaminstanceprofiles": sync_iam_instance_profiles,
         # `kms` must run before the resources that create canonical ENCRYPTED_BY
-        # edges to existing KMSKey nodes by matching on the key ARN: `s3`, `rds`,
+        # edges to existing AWSKMSKey nodes by matching on the key ARN: `s3`, `rds`,
         # `efs`, `dynamodb`, and the Secrets Manager / SSM secret syncs.
         "kms": kms.sync,
         "s3": s3.sync,
@@ -87,22 +87,22 @@ RESOURCE_FUNCTIONS: OrderedDict[str, Callable[..., None]] = OrderedDict(
         "ec2:launch_templates": sync_ec2_launch_templates,
         "ec2:autoscalinggroup": sync_ec2_auto_scaling_groups,
         # `ec2:instance` must be included before `ssm` and `ec2:images`,
-        # they rely on EC2Instance data provided by this module.
+        # they rely on AWSEC2Instance data provided by this module.
         "ec2:instance": sync_ec2_instances,
         "ec2:images": sync_ec2_images,
         "ec2:keypair": sync_ec2_key_pairs,
         # `ec2:security_group` must run before load balancers and network interfaces
-        # so that EC2SecurityGroup nodes exist for MEMBER_OF_EC2_SECURITY_GROUP edges.
+        # so that AWSEC2SecurityGroup nodes exist for MEMBER_OF_EC2_SECURITY_GROUP edges.
         "ec2:security_group": sync_ec2_security_groupinfo,
         # `ec2:subnet` and `ec2:instance` must be synced before `ec2:load_balancer` and `ec2:load_balancer_v2`
-        # so that EC2Subnet and EC2Instance nodes exist when load balancers create relationships.
+        # so that AWSEC2Subnet and AWSEC2Instance nodes exist when load balancers create relationships.
         "ec2:subnet": sync_subnets,
         "ec2:load_balancer": sync_load_balancers,
         "ec2:load_balancer_v2": sync_load_balancer_v2s,
         "ec2:network_acls": sync_network_acls,
         "ec2:network_interface": sync_network_interfaces,
         # `ec2:load_balancer_v2:expose` must run after `ec2:network_interface` so that
-        # EC2PrivateIp nodes exist when IP target MatchLinks are created.
+        # AWSEC2PrivateIp nodes exist when IP target MatchLinks are created.
         "ec2:load_balancer_v2:expose": sync_load_balancer_v2_expose,
         "ec2:tgw": sync_transit_gateways,
         "ec2:vpc": sync_vpc,
@@ -117,8 +117,8 @@ RESOURCE_FUNCTIONS: OrderedDict[str, Callable[..., None]] = OrderedDict(
         "ec2:snapshots": sync_ebs_snapshots,
         "ecr": ecr.sync,
         "ecr:image_layers": ecr_image_layers.sync,
-        # `ec2:instance` must be synced before `ecs` so that EC2Instance nodes exist
-        # when ECSContainerInstance creates IS_INSTANCE relationships.
+        # `ec2:instance` must be synced before `ecs` so that AWSEC2Instance nodes exist
+        # when AWSECSContainerInstance creates IS_INSTANCE relationships.
         "ecs": ecs.sync,
         "eks": eks.sync,
         "elasticache": elasticache.sync,
@@ -129,7 +129,7 @@ RESOURCE_FUNCTIONS: OrderedDict[str, Callable[..., None]] = OrderedDict(
         "redshift": redshift.sync,
         "route53": route53.sync,
         "elasticsearch": elasticsearch.sync,
-        # `cloudformation` must run before `permission_relationships` so that CloudFormationStack
+        # `cloudformation` must run before `permission_relationships` so that AWSCloudFormationStack
         # nodes exist when CAN_EXEC edges are evaluated.
         "cloudformation": cloudformation.sync,
         "permission_relationships": permission_relationships.sync,

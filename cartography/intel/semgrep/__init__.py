@@ -6,6 +6,7 @@ from cartography.config import Config
 from cartography.intel.semgrep.dependencies import sync_dependencies
 from cartography.intel.semgrep.deployment import sync_deployment
 from cartography.intel.semgrep.findings import sync_findings
+from cartography.intel.semgrep.label_migrations import migrate_dependency_labels
 from cartography.intel.semgrep.ossfindings import sync_oss_semgrep_sast_findings
 from cartography.intel.semgrep.secrets import sync_secrets
 from cartography.util import timeit
@@ -35,6 +36,10 @@ def start_semgrep_ingestion(
             config.semgrep_app_token,
             config.update_tag,
             common_job_parameters,
+        )
+        migrate_dependency_labels(
+            neo4j_session,
+            common_job_parameters["DEPLOYMENT_ID"],
         )
         sync_dependencies(
             neo4j_session,

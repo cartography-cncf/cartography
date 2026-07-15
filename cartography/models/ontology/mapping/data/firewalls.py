@@ -11,7 +11,7 @@ aws_mapping = OntologyMapping(
     module_name="aws",
     nodes=[
         OntologyNodeMapping(
-            node_label="EC2SecurityGroup",
+            node_label="AWSEC2SecurityGroup",
             fields=[
                 OntologyFieldMapping(
                     ontology_field="name", node_field="name", required=True
@@ -80,8 +80,25 @@ azure_mapping = OntologyMapping(
     ],
 )
 
+# Databricks IP access lists are the workspace network access control.
+databricks_mapping = OntologyMapping(
+    module_name="databricks",
+    nodes=[
+        OntologyNodeMapping(
+            node_label="DatabricksIpAccessList",
+            fields=[
+                OntologyFieldMapping(
+                    ontology_field="name", node_field="label", required=True
+                ),
+                # direction: Not applicable (allow/block list, not directional)
+            ],
+        ),
+    ],
+)
+
 FIREWALLS_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     "aws": aws_mapping,
     "gcp": gcp_mapping,
     "azure": azure_mapping,
+    "databricks": databricks_mapping,
 }

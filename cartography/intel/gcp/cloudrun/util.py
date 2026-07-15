@@ -8,12 +8,11 @@ from collections.abc import Iterable
 from concurrent.futures import as_completed
 from concurrent.futures import ThreadPoolExecutor
 
-from google.api_core.exceptions import DeadlineExceeded
 from google.api_core.exceptions import GoogleAPICallError
 from google.api_core.exceptions import NotFound
 from google.api_core.exceptions import PermissionDenied
 from google.api_core.exceptions import ResourceExhausted
-from google.api_core.exceptions import ServiceUnavailable
+from google.api_core.exceptions import ServerError
 from google.api_core.retry import if_exception_type
 from google.api_core.retry import Retry
 from google.auth.credentials import Credentials as GoogleCredentials
@@ -66,9 +65,10 @@ def build_cloud_run_resource_retry(
 
     return Retry(
         predicate=if_exception_type(
-            DeadlineExceeded,
+            # ServerError is the base for all transient 5xx (500/502/503/504,
+            # incl. DeadlineExceeded via GatewayTimeout); ResourceExhausted is a 429.
             ResourceExhausted,
-            ServiceUnavailable,
+            ServerError,
         ),
         initial=CLOUD_RUN_LIST_RETRY_INITIAL,
         maximum=CLOUD_RUN_LIST_RETRY_MAX,

@@ -35,7 +35,7 @@ class EC2NetworkAclRuleAclRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class EC2NetworkAclRuleToAclRel(CartographyRelSchema):
-    target_node_label: str = "EC2NetworkAcl"
+    target_node_label: str = "AWSEC2NetworkAcl"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"network_acl_id": PropertyRef("NetworkAclId")},
     )
@@ -68,9 +68,10 @@ class EC2NetworkAclInboundRuleSchema(CartographyNodeSchema):
     Network interface as known by describe-network-interfaces.
     """
 
-    label: str = "EC2NetworkAclRule"
+    label: str = "AWSEC2NetworkAclRule"
+    # DEPRECATED: legacy EC2NetworkAclRule node label will be removed in v1.0.0.
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
-        ["IpPermissionInbound"],
+        ["EC2NetworkAclRule", "IpPermissionInbound"],
     )
     properties: EC2NetworkAclRuleNodeProperties = EC2NetworkAclRuleNodeProperties()
     sub_resource_relationship: EC2NetworkAclRuleToAWSAccountRel = (
@@ -89,9 +90,11 @@ class EC2NetworkAclEgressRuleSchema(CartographyNodeSchema):
     Network interface as known by describe-network-interfaces.
     """
 
-    label: str = "EC2NetworkAclRule"
+    label: str = "AWSEC2NetworkAclRule"
+    # DEPRECATED: legacy EC2NetworkAclRule node label will be removed in v1.0.0.
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
         [
+            "EC2NetworkAclRule",
             "IpPermissionEgress",
         ],
     )

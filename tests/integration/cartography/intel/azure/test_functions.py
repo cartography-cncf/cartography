@@ -2,7 +2,8 @@ from unittest.mock import MagicMock
 from unittest.mock import patch
 
 import cartography.intel.azure.functions as functions
-from cartography.util import run_analysis_job
+from cartography.analysis.ontology.analysis import RESOLVED_IMAGE_JOBS
+from cartography.util import run_typed_analysis_job
 from tests.data.azure.functions import MOCK_FUNCTION_APP_CONFIGS
 from tests.data.azure.functions import MOCK_FUNCTION_APPS
 from tests.data.azure.functions import TEST_FUNCTIONAPP_CODE_ID
@@ -14,6 +15,11 @@ from tests.integration.util import check_rels
 
 TEST_SUBSCRIPTION_ID = "00-00-00-00"
 TEST_UPDATE_TAG = 123456789
+
+
+def _run_resolved_image_analysis(neo4j_session):
+    for job in RESOLVED_IMAGE_JOBS:
+        run_typed_analysis_job(job, neo4j_session, {"UPDATE_TAG": TEST_UPDATE_TAG})
 
 
 @patch("cartography.intel.azure.functions.fetch_function_app_configurations")
@@ -57,6 +63,24 @@ def test_sync_function_apps(mock_get, mock_fetch_configs, neo4j_session):
     }
     actual_nodes = check_nodes(neo4j_session, "AzureFunctionApp", ["id", "name"])
     assert actual_nodes == expected_nodes
+    assert check_nodes(
+        neo4j_session,
+        "AzureFunctionApp",
+        ["id", "state", "default_host_name", "https_only"],
+    ) == {
+        (
+            TEST_FUNCTIONAPP_CODE_ID,
+            "Running",
+            "my-test-func-app.azurewebsites.net",
+            True,
+        ),
+        (
+            TEST_FUNCTIONAPP_CONTAINER_ID,
+            "Running",
+            "my-container-func-app.azurewebsites.net",
+            True,
+        ),
+    }
 
     # Assert: container-based function app has image fields populated,
     # and the Function ontology sees deployment_type correctly ("container" vs "code").
@@ -106,7 +130,7 @@ def test_sync_function_apps(mock_get, mock_fetch_configs, neo4j_session):
 def test_container_function_app_has_image_and_resolved_image(
     mock_get, mock_fetch_configs, neo4j_session
 ):
-    """A container-deployed Function App should get HAS_IMAGE to ECRImage
+    """A container-deployed Function App should get HAS_IMAGE to AWSECRImage
     (matched on digest) and a RESOLVED_IMAGE edge via the Function analysis pass."""
     mock_get.return_value = MOCK_FUNCTION_APPS
     mock_fetch_configs.return_value = MOCK_FUNCTION_APP_CONFIGS
@@ -118,7 +142,7 @@ def test_container_function_app_has_image_and_resolved_image(
     )
     neo4j_session.run(
         """
-        MERGE (i:Image:ECRImage {id: $digest})
+        MERGE (i:Image:AWSECRImage {id: $digest})
         SET i.digest = $digest, i.lastupdated = $tag
         """,
         digest=TEST_FUNCTIONAPP_IMAGE_DIGEST,
@@ -140,16 +164,12 @@ def test_container_function_app_has_image_and_resolved_image(
         neo4j_session,
         "AzureFunctionApp",
         "id",
-        "ECRImage",
+        "AWSECRImage",
         "digest",
         "HAS_IMAGE",
     ) == {(TEST_FUNCTIONAPP_CONTAINER_ID, TEST_FUNCTIONAPP_IMAGE_DIGEST)}
 
-    run_analysis_job(
-        "resolved_image_analysis.json",
-        neo4j_session,
-        {"UPDATE_TAG": TEST_UPDATE_TAG},
-    )
+    _run_resolved_image_analysis(neo4j_session)
 
     assert check_rels(
         neo4j_session,

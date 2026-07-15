@@ -17,7 +17,7 @@ aws_mapping = OntologyMapping(
     module_name="aws",
     nodes=[
         OntologyNodeMapping(
-            node_label="GuardDutyFinding",
+            node_label="AWSGuardDutyFinding",
             fields=[
                 OntologyFieldMapping(
                     ontology_field="title",
@@ -63,6 +63,28 @@ semgrep_mapping = OntologyMapping(
                 OntologyFieldMapping(
                     ontology_field="first_seen",
                     node_field="opened_at",
+                ),
+            ],
+        ),
+        OntologyNodeMapping(
+            node_label="SemgrepSCAFinding",
+            fields=[
+                OntologyFieldMapping(
+                    ontology_field="title",
+                    node_field="summary",
+                    required=True,
+                ),
+                OntologyFieldMapping(
+                    ontology_field="severity",
+                    node_field="severity",
+                ),
+                OntologyFieldMapping(
+                    ontology_field="status",
+                    node_field="triage_status",
+                ),
+                OntologyFieldMapping(
+                    ontology_field="first_seen",
+                    node_field="scan_time",
                 ),
             ],
         ),

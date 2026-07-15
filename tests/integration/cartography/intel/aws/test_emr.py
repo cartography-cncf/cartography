@@ -38,7 +38,7 @@ def test_load_emr_clusters_nodes(neo4j_session):
         ("arn:aws:elasticmapreduce:us-east-1:190000000000:cluster/j-awesome",),
         ("arn:aws:elasticmapreduce:us-east-1:190000000000:cluster/j-meh",),
     }
-    assert check_nodes(neo4j_session, "EMRCluster", ["arn"]) == expected_nodes
+    assert check_nodes(neo4j_session, "AWSEMRCluster", ["arn"]) == expected_nodes
 
 
 def test_load_emr_clusters_relationships(neo4j_session):
@@ -70,7 +70,7 @@ def test_load_emr_clusters_relationships(neo4j_session):
             neo4j_session,
             "AWSAccount",
             "id",
-            "EMRCluster",
+            "AWSEMRCluster",
             "arn",
             "RESOURCE",
         )
@@ -92,7 +92,7 @@ def test_cleanup_emr(neo4j_session):
     # Arrange: load in an unrelated EC2 instance. This should not be affected by the EMR module's cleanup job.
     neo4j_session.run(
         """
-        MERGE (i:EC2Instance{id:1234, lastupdated: $lastupdated})<-[r:RESOURCE]-(:AWSAccount{id: $aws_account_id})
+        MERGE (i:AWSEC2Instance{id:1234, lastupdated: $lastupdated})<-[r:RESOURCE]-(:AWSAccount{id: $aws_account_id})
         SET r.lastupdated = $lastupdated
         """,
         aws_account_id=TEST_ACCOUNT_ID,
@@ -100,7 +100,7 @@ def test_cleanup_emr(neo4j_session):
     )
 
     # [Pre-test] Assert that the EMR clusters exist
-    assert check_nodes(neo4j_session, "EMRCluster", ["arn"]) == {
+    assert check_nodes(neo4j_session, "AWSEMRCluster", ["arn"]) == {
         ("arn:aws:elasticmapreduce:us-east-1:190000000000:cluster/j-awesome",),
         ("arn:aws:elasticmapreduce:us-east-1:190000000000:cluster/j-meh",),
     }
@@ -109,7 +109,7 @@ def test_cleanup_emr(neo4j_session):
         neo4j_session,
         "AWSAccount",
         "id",
-        "EC2Instance",
+        "AWSEC2Instance",
         "id",
         "RESOURCE",
     ) == {
@@ -129,13 +129,13 @@ def test_cleanup_emr(neo4j_session):
     cleanup(neo4j_session, common_job_parameters)
 
     # Assert: Expect no EMR clusters in the graph now
-    assert check_nodes(neo4j_session, "EMRCluster", ["arn"]) == set()
+    assert check_nodes(neo4j_session, "AWSEMRCluster", ["arn"]) == set()
     # Assert: Expect that the unrelated EC2 instance was not touched by the cleanup job
     assert check_rels(
         neo4j_session,
         "AWSAccount",
         "id",
-        "EC2Instance",
+        "AWSEC2Instance",
         "id",
         "RESOURCE",
     ) == {

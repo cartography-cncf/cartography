@@ -6,7 +6,7 @@ aws_mapping = OntologyMapping(
     module_name="aws",
     nodes=[
         OntologyNodeMapping(
-            node_label="EC2Instance",
+            node_label="AWSEC2Instance",
             fields=[
                 OntologyFieldMapping(
                     ontology_field="name", node_field="instanceid", required=True
@@ -47,6 +47,57 @@ scaleway_mapping = OntologyMapping(
                 ),
                 OntologyFieldMapping(
                     ontology_field="created_at", node_field="creation_date"
+                ),
+            ],
+        ),
+        OntologyNodeMapping(
+            node_label="ScalewayElasticMetalServer",
+            fields=[
+                OntologyFieldMapping(
+                    ontology_field="name", node_field="name", required=True
+                ),
+                OntologyFieldMapping(ontology_field="region", node_field="zone"),
+                OntologyFieldMapping(
+                    ontology_field="public_ip_address", node_field="public_ip"
+                ),
+                OntologyFieldMapping(ontology_field="state", node_field="status"),
+                OntologyFieldMapping(ontology_field="type", node_field="offer_name"),
+                OntologyFieldMapping(
+                    ontology_field="created_at", node_field="created_at"
+                ),
+            ],
+        ),
+        OntologyNodeMapping(
+            node_label="ScalewayAppleSiliconServer",
+            fields=[
+                OntologyFieldMapping(
+                    ontology_field="name", node_field="name", required=True
+                ),
+                OntologyFieldMapping(ontology_field="region", node_field="zone"),
+                OntologyFieldMapping(
+                    ontology_field="public_ip_address", node_field="ip"
+                ),
+                OntologyFieldMapping(ontology_field="state", node_field="status"),
+                OntologyFieldMapping(ontology_field="type", node_field="type"),
+                OntologyFieldMapping(
+                    ontology_field="created_at", node_field="created_at"
+                ),
+            ],
+        ),
+        OntologyNodeMapping(
+            node_label="ScalewayDediboxServer",
+            fields=[
+                OntologyFieldMapping(
+                    ontology_field="name", node_field="hostname", required=True
+                ),
+                OntologyFieldMapping(ontology_field="region", node_field="zone"),
+                OntologyFieldMapping(
+                    ontology_field="public_ip_address", node_field="public_ip"
+                ),
+                OntologyFieldMapping(ontology_field="state", node_field="status"),
+                OntologyFieldMapping(ontology_field="type", node_field="offer_name"),
+                OntologyFieldMapping(
+                    ontology_field="created_at", node_field="created_at"
                 ),
             ],
         ),

@@ -2,9 +2,12 @@ import logging
 
 import neo4j
 
+from cartography.analysis.azure.analysis import AZURE_COMPUTE_ASSET_EXPOSURE_JOBS
+from cartography.analysis.azure.analysis import AZURE_FIREWALL_LB_PROTECTION
+from cartography.analysis.azure.analysis import AZURE_LB_EXPOSURE
 from cartography.config import Config
 from cartography.util import run_analysis_job
-from cartography.util import run_scoped_analysis_job
+from cartography.util import run_typed_analysis_job
 from cartography.util import timeit
 
 from . import aks
@@ -39,6 +42,7 @@ from . import storage
 from . import subscription
 from . import synapse
 from . import tenant
+from . import workload_identity
 from .data_factory_util import AzureDataFactoryTransientError
 from .util.credentials import Authenticator
 from .util.credentials import Credentials
@@ -154,6 +158,13 @@ def _sync_one_subscription(
         subscription_id,
         update_tag,
         common_job_parameters,
+    )
+    # Runs after compute/functions (identity principal ids) and rbac (role
+    # assignments) so it can join them into the canonical ASSUMES edges.
+    workload_identity.sync(
+        neo4j_session,
+        subscription_id,
+        update_tag,
     )
     sql.sync(
         neo4j_session,
@@ -461,11 +472,8 @@ def start_azure_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
                 cascade_delete=True,
             )
 
-        run_analysis_job(
-            "azure_compute_asset_exposure.json",
-            neo4j_session,
-            common_job_parameters,
-        )
+        for job in AZURE_COMPUTE_ASSET_EXPOSURE_JOBS:
+            run_typed_analysis_job(job, neo4j_session, common_job_parameters)
 
         # DEPRECATED: compatibility migration that swaps the AzureContainerInstance
         # and AzureGroupContainer labels so AzureContainerInstance now labels the
@@ -480,13 +488,13 @@ def start_azure_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
         try:
             for sub in subscriptions:
                 common_job_parameters["AZURE_SUBSCRIPTION_ID"] = sub["subscriptionId"]
-                run_scoped_analysis_job(
-                    "azure_lb_exposure.json",
+                run_typed_analysis_job(
+                    AZURE_LB_EXPOSURE,
                     neo4j_session,
                     common_job_parameters,
                 )
-                run_scoped_analysis_job(
-                    "azure_firewall_lb_protection.json",
+                run_typed_analysis_job(
+                    AZURE_FIREWALL_LB_PROTECTION,
                     neo4j_session,
                     common_job_parameters,
                 )
