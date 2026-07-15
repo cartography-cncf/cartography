@@ -9,14 +9,13 @@ from googleapiclient.discovery import Resource
 
 from cartography.client.core.tx import load
 from cartography.intel.gcp.util import determine_role_type_and_scope
+from cartography.intel.gcp.util import gcp_api_execute_with_retry
 from cartography.models.gcp.iam import GCPProjectRoleSchema
 from cartography.models.gcp.iam import GCPServiceAccountSchema
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
 
-# Maximum number of retries for Google API requests (handles transient errors and rate limiting)
-GOOGLE_API_NUM_RETRIES = 5
 # Delay between CAI API calls to avoid hitting rate limits (100 requests/min per project)
 CAI_CALL_DELAY_SECONDS = 1
 
@@ -39,7 +38,7 @@ def get_gcp_service_accounts_cai(
         contentType="RESOURCE",  # Request full resource data, not just metadata
     )
     while request is not None:
-        response = request.execute(num_retries=GOOGLE_API_NUM_RETRIES)
+        response = gcp_api_execute_with_retry(request)
         if "assets" in response:
             # Extract the actual service account data from CAI response
             for asset in response["assets"]:
@@ -76,7 +75,7 @@ def get_gcp_roles_cai(cai_client: Resource, project_id: str) -> List[Dict]:
         contentType="RESOURCE",  # Request full resource data, not just metadata
     )
     while custom_request is not None:
-        resp = custom_request.execute(num_retries=GOOGLE_API_NUM_RETRIES)
+        resp = gcp_api_execute_with_retry(custom_request)
         if "assets" in resp:
             for asset in resp["assets"]:
                 if "resource" in asset and "data" in asset["resource"]:
