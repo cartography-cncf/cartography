@@ -3519,6 +3519,40 @@ Represents a classic [AWS Elastic Load Balancer](https://docs.aws.amazon.com/ela
     (AWSDNSRecord, DNSRecord)-[DNS_POINTS_TO]->(LoadBalancer)
     ```
 
+### AWSELBV2TargetGroup
+
+Representation of an AWS Elastic Load Balancing v2 [Target Group](https://docs.aws.amazon.com/elasticloadbalancing/latest/APIReference/API_TargetGroup.html).
+
+| Field | Description |
+|-------|-------------|
+| firstseen | Timestamp of when a sync job first discovered this node |
+| lastupdated | Timestamp of the last time the node was updated |
+| **id** | The ARN of the target group |
+| **arn** | The ARN of the target group |
+| name | The name of the target group |
+| target_type | The target type, such as `instance`, `ip`, `lambda`, or `alb` |
+| protocol | The protocol used to route traffic to the targets |
+| port | The port used to route traffic to the targets |
+| vpc_id | The ID of the VPC for the target group |
+| region | The AWS region of the target group |
+
+#### Relationships
+
+- Target groups are resources under an AWS Account.
+    ```
+    (AWSAccount)-[RESOURCE]->(AWSELBV2TargetGroup)
+    ```
+
+- Target groups belong to an AWS Load Balancer v2.
+    ```
+    (AWSLoadBalancerV2)-[ELBV2_TARGET_GROUP]->(AWSELBV2TargetGroup)
+    ```
+
+- Target groups can target ECS services.
+    ```
+    (AWSELBV2TargetGroup)-[TARGETS]->(AWSECSService)
+    ```
+
 ### AWSLoadBalancerV2
 
 ```{important}
@@ -4209,7 +4243,7 @@ Representation of an AWS S3 [Bucket Policy Statements](https://docs.aws.amazon.c
 | lastupdated |  Timestamp of the last time the node was updated |
 | policy_id | Optional string "Id" for the bucket's policy |
 | policy_version| Version of the bucket's policy |
-| **id** | The unique identifier for a bucket policy statement. <br>If the statement has an Sid the id will be calculated as _S3Bucket.id_/policy_statement/_index of statement in statement_/_Sid_. <br>If the statement has no Sid the id will be calculated as  _S3Bucket.id_/policy_statement/_index of statement in statement_/  |
+| **id** | The unique identifier for a bucket policy statement. <br>If the statement has an Sid the id will be calculated as _AWSS3Bucket.id_/policy_statement/_index of statement in statement_/_Sid_. <br>If the statement has no Sid the id will be calculated as  _AWSS3Bucket.id_/policy_statement/_index of statement in statement_/  |
 | effect | Specifies "Deny" or "Allow" for the policy statement |
 | action | Specifies permissions that policy statement applies to, as defined [here](https://docs.aws.amazon.com/AmazonS3/latest/userguide/using-with-s3-actions.html) |
 | resource | Specifies the resource the bucket policy statement is based on |
@@ -6101,6 +6135,30 @@ Representation of an AWS [Secrets Manager Secret Version](https://docs.aws.amazo
     ```
     (AWSSecretsManagerSecretVersion)-[ENCRYPTED_BY]->(AWSKMSKey)
     ```
+
+### AWSPublicSSMParameter
+
+Representation of an AWS-managed public [Systems Manager Parameter Store parameter](https://docs.aws.amazon.com/systems-manager/latest/userguide/parameter-store-public-parameters.html). These parameters are shared regional catalog data and are not owned by an individual AWS Account.
+
+| Field | Description |
+|-------|-------------|
+| firstseen | Timestamp of when a sync job first discovered this node |
+| lastupdated | Timestamp of the last time the node was updated |
+| **id** | The ARN of the parameter |
+| **arn** | The ARN of the parameter |
+| name | The name of the parameter |
+| value | The parameter value |
+| description | The parameter description |
+| type | The parameter type |
+| version | The parameter version |
+| lastmodifieddate | The date and time when the parameter was last modified |
+| tier | The parameter tier |
+| datatype | The data type of the parameter |
+| region | The AWS region of the parameter |
+
+#### Relationships
+
+Public SSM parameters are global AWS-managed data. They intentionally have no `RESOURCE` relationship to an `AWSAccount`.
 
 ### AWSBedrockFoundationModel
 

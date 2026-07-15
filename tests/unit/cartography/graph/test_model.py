@@ -56,6 +56,18 @@ MIGRATED_PROVIDER_LABELS: Dict[str, Dict[str, str]] = {
     },
 }
 
+PREEXISTING_AWS_LABEL_MIGRATIONS: set[tuple[str, str]] = {
+    ("DNSRecord", "AWSDNSRecord"),
+    ("DNSZone", "AWSDNSZone"),
+    ("IpPermissionInbound", "AWSIpPermissionInbound"),
+    ("IpRange", "AWSIpRange"),
+    ("IpRule", "AWSIpRule"),
+    ("LoadBalancer", "AWSLoadBalancer"),
+    ("LoadBalancerV2", "AWSLoadBalancerV2"),
+    ("MfaDevice", "AWSMfaDevice"),
+    ("Tag", "AWSTag"),
+}
+
 
 def test_model_objects_naming_convention():
     """Test that all model objects follow the naming convention."""
@@ -157,6 +169,34 @@ def test_migrated_aws_labels_keep_legacy_alias_until_v1():
     )
 
 
+def test_aws_label_migration_registry_matches_model_aliases():
+    registered_pairs = {
+        (migration.old_label, migration.new_label) for migration in AWS_LABEL_MIGRATIONS
+    }
+    discovered_pairs: set[tuple[str, str]] = set()
+
+    for module_name, element in load_models(cartography.models):
+        if module_name != "cartography.models.aws":
+            continue
+        if not issubclass(element, CartographyNodeSchema):
+            continue
+
+        node_schema = element()
+        extra_labels = (
+            node_schema.extra_node_labels.labels
+            if node_schema.extra_node_labels is not None
+            else []
+        )
+        for extra_label in extra_labels:
+            if (
+                isinstance(extra_label, str)
+                and node_schema.label == f"AWS{extra_label}"
+            ):
+                discovered_pairs.add((extra_label, node_schema.label))
+
+    assert discovered_pairs == registered_pairs | PREEXISTING_AWS_LABEL_MIGRATIONS
+
+
 @pytest.mark.parametrize(
     ("module_name", "prefix"),
     [
@@ -243,6 +283,37 @@ def test_relationship_endpoint_labels_are_registered():
                 )
 
     assert not errors, "Unknown relationship endpoint labels:\n  - " + "\n  - ".join(
+        errors
+    )
+
+
+def test_relationship_endpoints_do_not_use_migrated_aws_labels():
+    legacy_labels = {migration.old_label for migration in AWS_LABEL_MIGRATIONS}
+    errors: list[str] = []
+
+    for module_name, element in load_models(cartography.models):
+        if not issubclass(element, CartographyRelSchema):
+            continue
+        relationship = element()
+        for endpoint_name, label in (
+            ("source", relationship.source_node_label),
+            ("target", relationship.target_node_label),
+        ):
+            if label in legacy_labels:
+                errors.append(
+                    f"{module_name}.{element.__name__} uses legacy "
+                    f"{endpoint_name} label {label!r}.",
+                )
+
+        for scope_name in ("source_node_sub_resource", "target_node_sub_resource"):
+            scope = getattr(relationship, scope_name, None)
+            if scope and scope.target_node_label in legacy_labels:
+                errors.append(
+                    f"{module_name}.{element.__name__}.{scope_name} uses legacy "
+                    f"label {scope.target_node_label!r}.",
+                )
+
+    assert not errors, "Legacy AWS relationship endpoint labels:\n  - " + "\n  - ".join(
         errors
     )
 

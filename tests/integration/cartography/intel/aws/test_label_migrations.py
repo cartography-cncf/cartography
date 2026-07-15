@@ -1,8 +1,16 @@
 from cartography.intel.aws.label_migrations import AWS_LABEL_MIGRATIONS
 from cartography.intel.aws.label_migrations import migrate_legacy_aws_labels
+from cartography.intel.aws.label_migrations import (
+    migrate_legacy_public_ssm_parameter_label,
+)
 
 TEST_ACCOUNT_ID = "000000000000"
 OTHER_ACCOUNT_ID = "111111111111"
+ACCOUNT_SCOPED_MIGRATIONS = tuple(
+    migration
+    for migration in AWS_LABEL_MIGRATIONS
+    if migration.old_label != "PublicSSMParameter"
+)
 
 
 def test_migrate_legacy_aws_labels_is_scoped_and_idempotent(neo4j_session):
@@ -16,7 +24,7 @@ def test_migrate_legacy_aws_labels_is_scoped_and_idempotent(neo4j_session):
         other_account_id=OTHER_ACCOUNT_ID,
     ).consume()
     original_element_ids = {}
-    for index, migration in enumerate(AWS_LABEL_MIGRATIONS):
+    for index, migration in enumerate(ACCOUNT_SCOPED_MIGRATIONS):
         resource_id = f"legacy-{index}"
         record = neo4j_session.run(
             f"""
@@ -54,9 +62,9 @@ def test_migrate_legacy_aws_labels_is_scoped_and_idempotent(neo4j_session):
         account_id=TEST_ACCOUNT_ID,
     )
     migrated_resources = {record["id"]: record for record in records}
-    assert len(migrated_resources) == len(AWS_LABEL_MIGRATIONS)
+    assert len(migrated_resources) == len(ACCOUNT_SCOPED_MIGRATIONS)
 
-    for index, migration in enumerate(AWS_LABEL_MIGRATIONS):
+    for index, migration in enumerate(ACCOUNT_SCOPED_MIGRATIONS):
         resource_id = f"legacy-{index}"
         record = migrated_resources[resource_id]
         assert record["element_id"] == original_element_ids[resource_id]
@@ -71,3 +79,43 @@ def test_migrate_legacy_aws_labels_is_scoped_and_idempotent(neo4j_session):
         account_id=OTHER_ACCOUNT_ID,
     ).single()
     assert other_account_record["migrated"] is False
+
+
+def test_migrate_legacy_public_ssm_parameter_label_is_global_and_idempotent(
+    neo4j_session,
+):
+    # Arrange: public parameters are global and intentionally have no account edge.
+    record = neo4j_session.run(
+        """
+        CREATE (:AWSAccount{id: $account_id})
+        CREATE (parameter:PublicSSMParameter{id: 'public-parameter'})
+        RETURN elementId(parameter) AS element_id
+        """,
+        account_id=TEST_ACCOUNT_ID,
+    ).single()
+    original_element_id = record["element_id"]
+
+    # Act
+    migrate_legacy_public_ssm_parameter_label(neo4j_session)
+    migrate_legacy_public_ssm_parameter_label(neo4j_session)
+
+    # Assert
+    migrated_record = neo4j_session.run(
+        """
+        MATCH (parameter:AWSPublicSSMParameter{id: 'public-parameter'})
+        RETURN elementId(parameter) AS element_id, labels(parameter) AS labels
+        """
+    ).single()
+    assert migrated_record["element_id"] == original_element_id
+    assert "PublicSSMParameter" in migrated_record["labels"]
+    assert "AWSPublicSSMParameter" in migrated_record["labels"]
+
+    account_edge_count = neo4j_session.run(
+        """
+        MATCH (:AWSAccount)-[:RESOURCE]->(
+            :AWSPublicSSMParameter{id: 'public-parameter'}
+        )
+        RETURN count(*) AS count
+        """
+    ).single()["count"]
+    assert account_edge_count == 0

@@ -463,9 +463,9 @@ def test_s3_sns_relationship(neo4j_session):
     assert (
         check_rels(
             neo4j_session,
-            "S3Bucket",
+            "AWSS3Bucket",
             "id",
-            "SNSTopic",
+            "AWSSNSTopic",
             "arn",
             "NOTIFIES",
             rel_direction_right=True,
