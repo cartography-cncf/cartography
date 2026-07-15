@@ -143,7 +143,7 @@ class _BaseDatabricksClient:
             total=5,
             backoff_factor=1,
             status_forcelist=_RETRYABLE_STATUS_CODES,
-            allowed_methods=frozenset({"GET"}),
+            allowed_methods=frozenset({"GET", "POST"}),
             respect_retry_after_header=True,
         )
         self._session.mount("https://", HTTPAdapter(max_retries=retry_policy))
