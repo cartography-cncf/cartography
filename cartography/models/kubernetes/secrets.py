@@ -14,18 +14,46 @@ from cartography.models.core.relationships import TargetNodeMatcher
 
 @dataclass(frozen=True)
 class KubernetesSecretNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("uid")
-    composite_id: PropertyRef = PropertyRef("composite_id", extra_index=True)
-    name: PropertyRef = PropertyRef("name", extra_index=True)
-    creation_timestamp: PropertyRef = PropertyRef("creation_timestamp")
-    deletion_timestamp: PropertyRef = PropertyRef("deletion_timestamp")
-    namespace: PropertyRef = PropertyRef("namespace", extra_index=True)
-    owner_references: PropertyRef = PropertyRef("owner_references")
-    type: PropertyRef = PropertyRef("type")
-    cluster_name: PropertyRef = PropertyRef(
-        "CLUSTER_NAME", set_in_kwargs=True, extra_index=True
+    id: PropertyRef = PropertyRef("uid", description="UID of the kubernetes secret.")
+    composite_id: PropertyRef = PropertyRef(
+        "composite_id",
+        extra_index=True,
+        description="Cluster, namespace, and name identifier used for matching.",
     )
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    name: PropertyRef = PropertyRef(
+        "name", extra_index=True, description="Name of the kubernetes secret."
+    )
+    creation_timestamp: PropertyRef = PropertyRef(
+        "creation_timestamp",
+        description="Timestamp of the creation time of the kubernetes secret.",
+    )
+    deletion_timestamp: PropertyRef = PropertyRef(
+        "deletion_timestamp",
+        description="Timestamp of the deletion time of the kubernetes secret.",
+    )
+    namespace: PropertyRef = PropertyRef(
+        "namespace",
+        extra_index=True,
+        description="The Kubernetes namespace where this secret is deployed.",
+    )
+    owner_references: PropertyRef = PropertyRef(
+        "owner_references",
+        description="References to objects that own this secret. Useful if a secret is an `ExternalSecret`. Fetched from `secret.metadata.owner_references`. Stored as a JSON-encoded string.",
+    )
+    type: PropertyRef = PropertyRef(
+        "type", description="Type of kubernetes secret (e.g. `Opaque`)."
+    )
+    cluster_name: PropertyRef = PropertyRef(
+        "CLUSTER_NAME",
+        set_in_kwargs=True,
+        extra_index=True,
+        description="Name of the Kubernetes cluster where this secret is deployed.",
+    )
+    lastupdated: PropertyRef = PropertyRef(
+        "lastupdated",
+        set_in_kwargs=True,
+        description="Timestamp of the last time the node was updated.",
+    )
 
 
 @dataclass(frozen=True)
@@ -36,6 +64,8 @@ class KubernetesSecretToKubernetesNamespaceRelProperties(CartographyRelPropertie
 @dataclass(frozen=True)
 # (:KubernetesSecret)<-[:CONTAINS]-(:KubernetesNamespace)
 class KubernetesSecretToKubernetesNamespaceRel(CartographyRelSchema):
+    "Links `KubernetesNamespace` to `KubernetesSecret` with `CONTAINS`."
+
     target_node_label: str = "KubernetesNamespace"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {
@@ -58,6 +88,8 @@ class KubernetesSecretToKubernetesClusterRelProperties(CartographyRelProperties)
 @dataclass(frozen=True)
 # (:KubernetesSecret)<-[:RESOURCE]-(:KubernetesCluster)
 class KubernetesSecretToKubernetesClusterRel(CartographyRelSchema):
+    "Links `KubernetesCluster` to `KubernetesSecret` with `RESOURCE`."
+
     target_node_label: str = "KubernetesCluster"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("CLUSTER_ID", set_in_kwargs=True)}
@@ -71,6 +103,8 @@ class KubernetesSecretToKubernetesClusterRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class KubernetesSecretSchema(CartographyNodeSchema):
+    "Metadata for a Kubernetes secret without its secret content."
+
     label: str = "KubernetesSecret"
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
         ["Secret"]

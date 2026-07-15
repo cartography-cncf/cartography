@@ -838,6 +838,35 @@ def test_semgrep_schema_doc_is_generated_from_introspected_model():
     assert "No description provided." not in generated
 
 
+def test_kubernetes_schema_doc_is_generated_from_full_introspected_model():
+    # Arrange
+    complete_model = inspect_data_model()
+    kubernetes_model = complete_model.for_module("kubernetes")
+
+    # Act
+    generated = render_module_schema(complete_model, "kubernetes")
+
+    # Assert
+    assert not Path("docs/root/modules/kubernetes/schema.md").exists()
+    assert len(kubernetes_model.nodes) == 19
+    assert len(kubernetes_model.relationships) == 72
+    assert "A Kubernetes pod and its workload security configuration." in generated
+    assert (
+        "| kubeconfig_tls_configuration_status |  | "
+        "Derived kubeconfig TLS posture (`valid_config`, `insecure_skip_tls`, "
+        "`missing_ca_material`, `unknown`). |"
+    ) in generated
+    assert (
+        "    | mount_method | How the pod consumes the secret: volume, "
+        "environment, or both. |"
+    ) in generated
+    assert "(:KubernetesPod)-[:USES_SECRET]->(:KubernetesSecret)" in generated
+    assert "(:AIBOMSource)-[:RUNS_ON]->(:Container)" in generated
+    assert "(:Container)-[:RESOLVED_IMAGE]->(:Image)" in generated
+    assert "(:LoadBalancer)-[:EXPOSE]->(:Container)" not in generated
+    assert "No description provided." not in generated
+
+
 def test_slack_schema_doc_is_generated_from_introspected_model():
     # Arrange
     model = inspect_data_model(slack_models)

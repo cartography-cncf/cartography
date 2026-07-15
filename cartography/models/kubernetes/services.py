@@ -13,21 +13,60 @@ from cartography.models.core.relationships import TargetNodeMatcher
 
 @dataclass(frozen=True)
 class KubernetesServiceNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("uid")
-    name: PropertyRef = PropertyRef("name", extra_index=True)
-    qualified_name: PropertyRef = PropertyRef("qualified_name", extra_index=True)
-    creation_timestamp: PropertyRef = PropertyRef("creation_timestamp")
-    deletion_timestamp: PropertyRef = PropertyRef("deletion_timestamp")
-    namespace: PropertyRef = PropertyRef("namespace", extra_index=True)
-    selector: PropertyRef = PropertyRef("selector")
-    type: PropertyRef = PropertyRef("type", extra_index=True)
-    cluster_ip: PropertyRef = PropertyRef("cluster_ip")
-    load_balancer_ip: PropertyRef = PropertyRef("load_balancer_ip")
-    load_balancer_ingress: PropertyRef = PropertyRef("load_balancer_ingress")
-    cluster_name: PropertyRef = PropertyRef(
-        "CLUSTER_NAME", set_in_kwargs=True, extra_index=True
+    id: PropertyRef = PropertyRef("uid", description="UID of the kubernetes service.")
+    name: PropertyRef = PropertyRef(
+        "name", extra_index=True, description="Name of the kubernetes service."
     )
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    qualified_name: PropertyRef = PropertyRef(
+        "qualified_name",
+        extra_index=True,
+        description="`<namespace>/<name>` identifier used to match the service from cross-namespace references such as `HTTPRoute.spec.rules[].backendRefs`.",
+    )
+    creation_timestamp: PropertyRef = PropertyRef(
+        "creation_timestamp",
+        description="Timestamp of the creation time of the kubernetes service.",
+    )
+    deletion_timestamp: PropertyRef = PropertyRef(
+        "deletion_timestamp",
+        description="Timestamp of the deletion time of the kubernetes service.",
+    )
+    namespace: PropertyRef = PropertyRef(
+        "namespace",
+        extra_index=True,
+        description="The Kubernetes namespace where this service is deployed.",
+    )
+    selector: PropertyRef = PropertyRef(
+        "selector",
+        description="Labels used by the service to select pods. Fetched from `service.spec.selector`. Stored as a JSON-encoded string.",
+    )
+    type: PropertyRef = PropertyRef(
+        "type",
+        extra_index=True,
+        description="Type of kubernetes service e.g. `ClusterIP`.",
+    )
+    cluster_ip: PropertyRef = PropertyRef(
+        "cluster_ip",
+        description="The internal IP address assigned to the Kubernetes service within the cluster.",
+    )
+    load_balancer_ip: PropertyRef = PropertyRef(
+        "load_balancer_ip",
+        description="IP of the load balancer when service type is `LoadBalancer`.",
+    )
+    load_balancer_ingress: PropertyRef = PropertyRef(
+        "load_balancer_ingress",
+        description="The list of load balancer ingress points, typically containing the hostname and IP. Stored as a JSON-encoded string.",
+    )
+    cluster_name: PropertyRef = PropertyRef(
+        "CLUSTER_NAME",
+        set_in_kwargs=True,
+        extra_index=True,
+        description="Name of the Kubernetes cluster where this service is deployed.",
+    )
+    lastupdated: PropertyRef = PropertyRef(
+        "lastupdated",
+        set_in_kwargs=True,
+        description="Timestamp of the last time the node was updated.",
+    )
 
 
 @dataclass(frozen=True)
@@ -38,12 +77,7 @@ class KubernetesServiceToLoadBalancerV2RelProperties(CartographyRelProperties):
 @dataclass(frozen=True)
 # (:KubernetesService)-[:USES_LOAD_BALANCER]->(:LoadBalancerV2)
 class KubernetesServiceToLoadBalancerV2Rel(CartographyRelSchema):
-    """
-    Relationship linking a KubernetesService of type LoadBalancer to the AWS
-    LoadBalancerV2 (NLB/ALB) that backs it. Matching is done by the DNS hostname
-    from the Kubernetes service's status.loadBalancer.ingress[].hostname field
-    to the LoadBalancerV2.dnsname property.
-    """
+    "Links `KubernetesService` to `AWSLoadBalancerV2` with `USES_LOAD_BALANCER`."
 
     target_node_label: str = "AWSLoadBalancerV2"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
@@ -64,6 +98,8 @@ class KubernetesServiceToKubernetesClusterRelProperties(CartographyRelProperties
 @dataclass(frozen=True)
 # (:KubernetesService)<-[:RESOURCE]-(:KubernetesCluster)
 class KubernetesServiceToKubernetesClusterRel(CartographyRelSchema):
+    "Links `KubernetesCluster` to `KubernetesService` with `RESOURCE`."
+
     target_node_label: str = "KubernetesCluster"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("CLUSTER_ID", set_in_kwargs=True)}
@@ -83,6 +119,8 @@ class KubernetesServiceToKubernetesNamespaceRelProperties(CartographyRelProperti
 @dataclass(frozen=True)
 # (:KubernetesService)<-[:CONTAINS]-(:KubernetesNamespace)
 class KubernetesServiceToKubernetesNamespaceRel(CartographyRelSchema):
+    "Links `KubernetesNamespace` to `KubernetesService` with `CONTAINS`."
+
     target_node_label: str = "KubernetesNamespace"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {
@@ -105,6 +143,8 @@ class KubernetesServiceToKubernetesPodRelProperties(CartographyRelProperties):
 @dataclass(frozen=True)
 # (:KubernetesService)-[:TARGET]->(:KubernetesPod)
 class KubernetesServiceToKubernetesPodRel(CartographyRelSchema):
+    "Links `KubernetesService` to `KubernetesPod` with `TARGETS`."
+
     target_node_label: str = "KubernetesPod"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {
@@ -122,6 +162,8 @@ class KubernetesServiceToKubernetesPodRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class KubernetesServiceSchema(CartographyNodeSchema):
+    "A Kubernetes service that exposes a set of pods."
+
     label: str = "KubernetesService"
     properties: KubernetesServiceNodeProperties = KubernetesServiceNodeProperties()
     sub_resource_relationship: KubernetesServiceToKubernetesClusterRel = (

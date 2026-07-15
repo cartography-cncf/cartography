@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import importlib
 import inspect
+import re
 from collections.abc import Iterable
 from collections.abc import Iterator
 from dataclasses import dataclass
@@ -17,6 +18,7 @@ import yaml
 
 import cartography.analysis
 import cartography.models
+from cartography.graph.analysis import AddRelationship
 from cartography.graph.analysis import AnalysisJob
 from cartography.graph.analysis import PropertyEffect
 from cartography.graph.analysis import RelationshipEffect
@@ -141,6 +143,7 @@ class Relationship:
     origins: tuple[str, ...]
     schemas: tuple[CartographyRelSchema, ...]
     analysis_jobs: tuple[AnalysisJobDefinition, ...]
+    analysis_context_modules: tuple[tuple[str, ...], ...] = ()
     permission_relationships: tuple[PermissionRelationshipDefinition, ...] = ()
 
 
@@ -479,6 +482,7 @@ def _new_relationship_entry() -> dict[str, Any]:
         "origins": set(),
         "schemas": [],
         "analysis_jobs": {},
+        "analysis_context_modules": set(),
         "permission_relationships": {},
     }
 
@@ -801,6 +805,7 @@ def _add_analysis_jobs(
 
         for relationship_effect in relationship_effects:
             _add_analysis_relationship(
+                node_entries,
                 relationship_entries,
                 relationship_effect,
                 definition,
@@ -850,6 +855,7 @@ def _add_analysis_jobs(
 
 
 def _add_analysis_relationship(
+    node_entries: dict[str, dict[str, Any]],
     relationship_entries: dict[RelationshipKey, dict[str, Any]],
     effect: RelationshipEffect,
     definition: AnalysisJobDefinition,
@@ -872,6 +878,13 @@ def _add_analysis_relationship(
     entry["modules"].add(definition.module)
     entry["origins"].add("analysis")
     entry["analysis_jobs"][definition.qualified_name] = definition
+    entry["analysis_context_modules"].update(
+        _analysis_relationship_context_modules(
+            node_entries,
+            definition.job,
+            effect,
+        )
+    )
     properties = entry["properties"]
     for property_name in ("firstseen", "lastupdated", *effect.properties):
         _add_generated_property(
@@ -880,6 +893,69 @@ def _add_analysis_relationship(
             generated_by,
             analysis_job=definition,
         )
+
+
+def _analysis_relationship_context_modules(
+    node_entries: dict[str, dict[str, Any]],
+    job: AnalysisJob,
+    relationship_effect: RelationshipEffect,
+) -> set[tuple[str, ...]]:
+    """Return provider-module contexts constraining an analysis relationship."""
+    broad_labels = {
+        label
+        for entry in node_entries.values()
+        for label in (
+            *entry["extra_labels"],
+            *(conditional.label for conditional in entry["conditional_labels"]),
+        )
+    }
+    contexts: set[tuple[str, ...]] = set()
+    for statement in job.statements:
+        if statement.match is None:
+            continue
+        for effect in statement.effects:
+            if not _add_relationship_matches_effect(effect, relationship_effect):
+                continue
+            endpoint_labels = {
+                relationship_effect.source_label,
+                relationship_effect.target_label,
+            }
+            concrete_context_labels = (
+                _node_labels_from_match(statement.match)
+                - endpoint_labels
+                - broad_labels
+            )
+            context_modules = {
+                module
+                for label in concrete_context_labels
+                for module in node_entries.get(label, {}).get("modules", ())
+            }
+            contexts.add(tuple(sorted(context_modules)))
+    return contexts or {()}
+
+
+def _add_relationship_matches_effect(
+    effect: object,
+    relationship_effect: RelationshipEffect,
+) -> bool:
+    if not isinstance(effect, AddRelationship):
+        return False
+    direction = LinkDirection.OUTWARD if not effect.undirected else None
+    return (
+        effect.source_label == relationship_effect.source_label
+        and effect.rel == relationship_effect.rel_label
+        and effect.target_label == relationship_effect.target_label
+        and direction == relationship_effect.direction
+    )
+
+
+def _node_labels_from_match(match: str) -> set[str]:
+    """Extract node labels from a typed analysis MATCH clause."""
+    labels: set[str] = set()
+    for node_pattern in re.findall(r"\(([^()]*)\)", match):
+        declaration = node_pattern.split("{", maxsplit=1)[0]
+        labels.update(re.findall(r":\s*`?([A-Za-z_][A-Za-z0-9_]*)`?", declaration))
+    return labels
 
 
 def _add_analysis_relationship_properties(
@@ -983,6 +1059,7 @@ def _build_relationship(
         analysis_jobs=tuple(
             entry["analysis_jobs"][name] for name in sorted(entry["analysis_jobs"])
         ),
+        analysis_context_modules=tuple(sorted(entry["analysis_context_modules"])),
         permission_relationships=tuple(
             entry["permission_relationships"][name]
             for name in sorted(entry["permission_relationships"])

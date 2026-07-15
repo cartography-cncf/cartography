@@ -26,10 +26,10 @@ Cartography's Kubernetes module requires read-only access to the following Kuber
 
 These permissions are recommended but Cartography degrades gracefully if they are withheld: it logs a warning and skips the corresponding step. See each bullet for the precise behavior, since the trade-off differs per resource.
 
-- `list gateways` and `list httproutes` in the `gateway.networking.k8s.io` group — enables ingestion of `KubernetesGateway` and `KubernetesHTTPRoute` and the `Gateway -[:ROUTES]-> HTTPRoute -[:TARGETS]-> Service` traffic path. The Gateway API CRDs are not installed on most clusters out of the box; if the CRDs are absent Cartography logs an info message and treats Gateway API as empty for the current sync, so previously synced `KubernetesGateway`/`KubernetesHTTPRoute` nodes for that cluster are cleaned up as stale. If the CRDs are present but the verbs are not granted, Cartography logs a warning, skips Gateway API ingestion, skips Gateway API cleanup, and continues with the rest of the cluster sync, preserving any previously synced `KubernetesGateway`/`KubernetesHTTPRoute` nodes.
-- `list networkpolicies` in the `networking.k8s.io` group — enables ingestion of `KubernetesNetworkPolicy` and the `(:KubernetesNetworkPolicy)-[:APPLIES_TO]->(:KubernetesPod)` edges used to reason about namespace segmentation. It is included in the recommended ClusterRole below. If the verb is not granted, Cartography logs a warning, skips NetworkPolicy ingestion, and skips its cleanup step, so previously synced `KubernetesNetworkPolicy` nodes are preserved rather than being wiped and every namespace silently modeled as unsegmented.
-- `list secrets` — enables ingestion of `KubernetesSecret` metadata (name, namespace, type, owner references). Kubernetes RBAC has no verb that exposes secret metadata without also exposing the content: granting `list secrets` also authorizes reading the base64-encoded `data` field of every secret in scope. Cartography never reads or stores secret content, but any identity with this permission can. Operators who prefer not to grant cluster-wide read access to secret content can omit this verb. When omitted, Cartography skips `sync_secrets` entirely — including the cleanup step — so previously synced `KubernetesSecret` nodes are preserved.
-- `get configmaps` (EKS only) — enables ingestion of legacy IAM identity mappings from the `aws-auth` ConfigMap in `kube-system`. Cartography processes the `mapRoles`, `mapUsers`, and `mapAccounts` fields. For `mapAccounts`, every IAM principal already synced from a listed AWS account (users, roles, and the account root principal) is mapped to a `KubernetesUser` named after the principal ARN (with no Kubernetes groups), so the AWS account must be synced for these mappings to resolve. This is optional because:
+- `list gateways` and `list httproutes` in the `gateway.networking.k8s.io` group: enables ingestion of `KubernetesGateway` and `KubernetesHTTPRoute` and the `Gateway -[:ROUTES]-> HTTPRoute -[:TARGETS]-> Service` traffic path. The Gateway API CRDs are not installed on most clusters out of the box; if the CRDs are absent Cartography logs an info message and treats Gateway API as empty for the current sync, so previously synced `KubernetesGateway`/`KubernetesHTTPRoute` nodes for that cluster are cleaned up as stale. If the CRDs are present but the verbs are not granted, Cartography logs a warning, skips Gateway API ingestion, skips Gateway API cleanup, and continues with the rest of the cluster sync, preserving any previously synced `KubernetesGateway`/`KubernetesHTTPRoute` nodes.
+- `list networkpolicies` in the `networking.k8s.io` group: enables ingestion of `KubernetesNetworkPolicy` and the `(:KubernetesNetworkPolicy)-[:APPLIES_TO]->(:KubernetesPod)` edges used to reason about namespace segmentation. It is included in the recommended ClusterRole below. If the verb is not granted, Cartography logs a warning, skips NetworkPolicy ingestion, and skips its cleanup step, so previously synced `KubernetesNetworkPolicy` nodes are preserved rather than being wiped and every namespace silently modeled as unsegmented.
+- `list secrets`: enables ingestion of `KubernetesSecret` metadata (name, namespace, type, owner references). Kubernetes RBAC has no verb that exposes secret metadata without also exposing the content: granting `list secrets` also authorizes reading the base64-encoded `data` field of every secret in scope. Cartography never reads or stores secret content, but any identity with this permission can. Operators who prefer not to grant cluster-wide read access to secret content can omit this verb. When omitted, Cartography skips `sync_secrets` entirely: including the cleanup step: so previously synced `KubernetesSecret` nodes are preserved.
+- `get configmaps` (EKS only): enables ingestion of legacy IAM identity mappings from the `aws-auth` ConfigMap in `kube-system`. Cartography processes the `mapRoles`, `mapUsers`, and `mapAccounts` fields. For `mapAccounts`, every IAM principal already synced from a listed AWS account (users, roles, and the account root principal) is mapped to a `KubernetesUser` named after the principal ARN (with no Kubernetes groups), so the AWS account must be synced for these mappings to resolve. This is optional because:
   - Clusters that use [EKS Access Entries](https://docs.aws.amazon.com/eks/latest/userguide/access-entries.html) exclusively may not have an `aws-auth` ConfigMap at all.
   - Some operators prefer not to grant `get` on all ConfigMaps just to read `aws-auth`.
 
@@ -56,7 +56,7 @@ rules:
     - services
     - serviceaccounts
   verbs: ["list"]
-# Secrets (optional) — omit if you don't want to grant cluster-wide read access
+# Secrets (optional): omit if you don't want to grant cluster-wide read access
 # to secret contents. Kubernetes RBAC has no metadata-only verb: `list secrets`
 # also exposes the base64 `data` field. Cartography ingests metadata only, but any
 # identity with this permission can read the content. See the Optional Permissions
@@ -79,7 +79,7 @@ rules:
     - ingresses
     - networkpolicies
   verbs: ["list"]
-# Gateway API resources (optional) — only useful when the Gateway API CRDs are
+# Gateway API resources (optional): only useful when the Gateway API CRDs are
 # installed in the cluster. Cartography skips ingestion gracefully if the CRDs
 # are absent or the verbs are not granted. See the Optional Permissions section
 # above for behavior when these verbs are withheld.
@@ -88,7 +88,7 @@ rules:
     - gateways
     - httproutes
   verbs: ["list"]
-# ConfigMaps (EKS only, optional) — only used to read the aws-auth ConfigMap for
+# ConfigMaps (EKS only, optional): only used to read the aws-auth ConfigMap for
 # legacy IAM identity mappings. Omit if your cluster uses EKS Access Entries
 # exclusively or if you don't want to grant `get` on all ConfigMaps.
 - apiGroups: [""]
@@ -97,7 +97,7 @@ rules:
   verbs: ["get"]
 ```
 
-The `/version` endpoint (used to detect the cluster version) requires no additional RBAC — it is accessible by default via the `system:public-info-viewer` ClusterRole.
+The `/version` endpoint (used to detect the cluster version) requires no additional RBAC: it is accessible by default via the `system:public-info-viewer` ClusterRole.
 
 ### Additional AWS Permissions for EKS
 
@@ -148,16 +148,3 @@ kubectl get --raw=/version
 Pay attention to contexts where:
 - `insecure-skip-tls-verify=true`
 - neither `certificate-authority` nor `certificate-authority-data` is set
-
-#### Graph query for TLS posture
-
-```cypher
-MATCH (k:KubernetesCluster)
-RETURN k.name, k.api_server_url, k.kubeconfig_tls_configuration_status,
-       k.kubeconfig_insecure_skip_tls_verify,
-       k.kubeconfig_has_certificate_authority_data,
-       k.kubeconfig_has_certificate_authority_file,
-       k.kubeconfig_has_client_certificate,
-       k.kubeconfig_has_client_key
-ORDER BY k.name;
-```

@@ -14,10 +14,16 @@ from cartography.models.core.relationships import TargetNodeMatcher
 
 @dataclass(frozen=True)
 class KubernetesGroupNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("id")
-    name: PropertyRef = PropertyRef("name")
-    cluster_name: PropertyRef = PropertyRef("cluster_name")
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    id: PropertyRef = PropertyRef("id", description="Identifier for the group.")
+    name: PropertyRef = PropertyRef("name", description="Name of the Kubernetes group.")
+    cluster_name: PropertyRef = PropertyRef(
+        "cluster_name", description="Name of the cluster this group belongs to."
+    )
+    lastupdated: PropertyRef = PropertyRef(
+        "lastupdated",
+        set_in_kwargs=True,
+        description="Timestamp of the last time the node was updated.",
+    )
 
 
 @dataclass(frozen=True)
@@ -27,6 +33,8 @@ class KubernetesGroupToClusterRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class KubernetesGroupToClusterRel(CartographyRelSchema):
+    "Links `KubernetesCluster` to `KubernetesGroup` with `RESOURCE`."
+
     target_node_label: str = "KubernetesCluster"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("CLUSTER_ID", set_in_kwargs=True)}
@@ -55,6 +63,8 @@ class KubernetesGroupToAWSUserRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class KubernetesGroupToOktaGroupRel(CartographyRelSchema):
+    "Links `OktaGroup` to `KubernetesGroup` with `MAPS_TO`."
+
     target_node_label: str = "OktaGroup"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"name": PropertyRef("name")}
@@ -68,6 +78,8 @@ class KubernetesGroupToOktaGroupRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class KubernetesGroupToAWSRoleRel(CartographyRelSchema):
+    "Links `AWSRole` to `KubernetesGroup` with `MAPS_TO`."
+
     target_node_label: str = "AWSRole"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"arn": PropertyRef("aws_role_arn")}
@@ -81,6 +93,8 @@ class KubernetesGroupToAWSRoleRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class KubernetesGroupToAWSUserRel(CartographyRelSchema):
+    "Links `AWSUser` to `KubernetesGroup` with `MAPS_TO`."
+
     target_node_label: str = "AWSUser"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"arn": PropertyRef("aws_user_arn")}
@@ -94,6 +108,8 @@ class KubernetesGroupToAWSUserRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class KubernetesGroupSchema(CartographyNodeSchema):
+    "A group identity referenced by Kubernetes RBAC."
+
     label: str = "KubernetesGroup"
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["UserGroup"])
     properties: KubernetesGroupNodeProperties = KubernetesGroupNodeProperties()

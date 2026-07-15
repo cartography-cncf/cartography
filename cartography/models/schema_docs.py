@@ -623,10 +623,26 @@ def _relationship_matches_broad_node(
             for schema in relationship.schemas
         )
 
+    if relationship.analysis_jobs and not _analysis_context_matches_node(
+        relationship, node
+    ):
+        return False
+
     return any(
         endpoint in broad_labels and endpoint not in primary_labels
         for endpoint in (relationship.source_label, relationship.target_label)
     )
+
+
+def _analysis_context_matches_node(
+    relationship: Relationship,
+    node: Node,
+) -> bool:
+    contexts = relationship.analysis_context_modules
+    if not contexts or () in contexts:
+        return True
+    node_modules = set(node.modules)
+    return any(node_modules.intersection(context) for context in contexts)
 
 
 def _schema_matches_broad_node(
