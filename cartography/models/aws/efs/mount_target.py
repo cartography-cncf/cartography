@@ -3,6 +3,7 @@ from dataclasses import dataclass
 from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeProperties
 from cartography.models.core.nodes import CartographyNodeSchema
+from cartography.models.core.nodes import ExtraNodeLabels
 from cartography.models.core.relationships import CartographyRelProperties
 from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
@@ -54,7 +55,7 @@ class EfsMountTargetToEfsFileSystemRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class EfsMountTargetToEfsFileSystemRel(CartographyRelSchema):
-    target_node_label: str = "EfsFileSystem"
+    target_node_label: str = "AWSEfsFileSystem"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("FileSystemId")},
     )
@@ -67,7 +68,9 @@ class EfsMountTargetToEfsFileSystemRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class EfsMountTargetSchema(CartographyNodeSchema):
-    label: str = "EfsMountTarget"
+    label: str = "AWSEfsMountTarget"
+    # DEPRECATED: legacy EfsMountTarget node label will be removed in v1.0.0.
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["EfsMountTarget"])
     properties: EfsMountTargetNodeProperties = EfsMountTargetNodeProperties()
     sub_resource_relationship: EfsMountTargetToAWSAccountRel = (
         EfsMountTargetToAWSAccountRel()

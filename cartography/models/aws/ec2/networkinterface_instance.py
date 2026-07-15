@@ -3,6 +3,7 @@ from dataclasses import dataclass
 from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeProperties
 from cartography.models.core.nodes import CartographyNodeSchema
+from cartography.models.core.nodes import ExtraNodeLabels
 from cartography.models.core.relationships import CartographyRelProperties
 from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
@@ -53,7 +54,7 @@ class EC2NetworkInterfaceToEC2InstanceRelRelProperties(CartographyRelProperties)
 
 @dataclass(frozen=True)
 class EC2NetworkInterfaceToEC2InstanceRel(CartographyRelSchema):
-    target_node_label: str = "EC2Instance"
+    target_node_label: str = "AWSEC2Instance"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("InstanceId")},
     )
@@ -71,7 +72,7 @@ class EC2NetworkInterfaceToEC2SubnetRelRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class EC2NetworkInterfaceToEC2SubnetRel(CartographyRelSchema):
-    target_node_label: str = "EC2Subnet"
+    target_node_label: str = "AWSEC2Subnet"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("SubnetId")},
     )
@@ -89,7 +90,7 @@ class EC2NetworkInterfaceToEC2SecurityGroupRelRelProperties(CartographyRelProper
 
 @dataclass(frozen=True)
 class EC2NetworkInterfaceToEC2SecurityGroupRel(CartographyRelSchema):
-    target_node_label: str = "EC2SecurityGroup"
+    target_node_label: str = "AWSEC2SecurityGroup"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("GroupId")},
     )
@@ -106,7 +107,9 @@ class EC2NetworkInterfaceInstanceSchema(CartographyNodeSchema):
     Network interface as known by an EC2 instance
     """
 
-    label: str = "NetworkInterface"
+    label: str = "AWSNetworkInterface"
+    # DEPRECATED: legacy NetworkInterface node label will be removed in v1.0.0.
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["NetworkInterface"])
     properties: EC2NetworkInterfaceInstanceNodeProperties = (
         EC2NetworkInterfaceInstanceNodeProperties()
     )

@@ -56,7 +56,7 @@ class KMSKeyNodeProperties(CartographyNodeProperties):
 @dataclass(frozen=True)
 class KMSKeyRelProperties(CartographyRelProperties):
     """
-    Properties for relationships between KMSKey and other nodes
+    Properties for relationships between AWSKMSKey and other nodes
     """
 
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
@@ -65,7 +65,7 @@ class KMSKeyRelProperties(CartographyRelProperties):
 @dataclass(frozen=True)
 class KMSKeyToAWSAccountRel(CartographyRelSchema):
     """
-    Relationship between KMSKey and AWS Account
+    Relationship between AWSKMSKey and AWS Account
     """
 
     target_node_label: str = "AWSAccount"
@@ -83,8 +83,9 @@ class KMSKeySchema(CartographyNodeSchema):
     Schema for AWS KMS Key
     """
 
-    label: str = "KMSKey"
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["EncryptionKey"])
+    label: str = "AWSKMSKey"
+    # DEPRECATED: legacy KMSKey node label will be removed in v1.0.0.
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["KMSKey", "EncryptionKey"])
     properties: KMSKeyNodeProperties = KMSKeyNodeProperties()
     sub_resource_relationship: KMSKeyToAWSAccountRel = KMSKeyToAWSAccountRel()
     other_relationships: OtherRelationships = OtherRelationships([])

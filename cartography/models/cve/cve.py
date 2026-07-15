@@ -139,11 +139,11 @@ class CVEToSpotlightVulnerabilityRelProperties(CartographyRelProperties):
 
 
 @dataclass(frozen=True)
-# (:CVE)<-[:HAS_CVE]-(:SpotlightVulnerability)
+# (:CVE)<-[:HAS_CVE]-(:CrowdstrikeSpotlightVulnerability)
 class CVEToSpotlightVulnerabilityRel(CartographyRelSchema):
     """A CrowdStrike Spotlight vulnerability references this CVE."""
 
-    target_node_label: str = "SpotlightVulnerability"
+    target_node_label: str = "CrowdstrikeSpotlightVulnerability"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("id")},
     )

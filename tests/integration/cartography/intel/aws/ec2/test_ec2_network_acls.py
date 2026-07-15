@@ -93,9 +93,9 @@ def test_sync_ec2_network_acls(
     # Assert that ACLs are connected to their expected rules
     assert check_rels(
         neo4j_session,
-        "EC2NetworkAcl",
+        "AWSEC2NetworkAcl",
         "network_acl_id",
-        "EC2NetworkAclRule",
+        "AWSEC2NetworkAclRule",
         "id",
         "MEMBER_OF_NACL",
         rel_direction_right=False,
@@ -109,9 +109,9 @@ def test_sync_ec2_network_acls(
     # Assert that ACL is attached to expected subnet
     assert check_rels(
         neo4j_session,
-        "EC2NetworkAcl",
+        "AWSEC2NetworkAcl",
         "network_acl_id",
-        "EC2Subnet",
+        "AWSEC2Subnet",
         "subnetid",
         "PART_OF_SUBNET",
         rel_direction_right=True,
@@ -122,7 +122,7 @@ def test_sync_ec2_network_acls(
     # Assert that ACL is attached to account
     assert check_rels(
         neo4j_session,
-        "EC2NetworkAcl",
+        "AWSEC2NetworkAcl",
         "network_acl_id",
         "AWSAccount",
         "id",
@@ -135,7 +135,7 @@ def test_sync_ec2_network_acls(
     # Assert that ACL rule is attached to account
     assert check_rels(
         neo4j_session,
-        "EC2NetworkAclRule",
+        "AWSEC2NetworkAclRule",
         "id",
         "AWSAccount",
         "id",

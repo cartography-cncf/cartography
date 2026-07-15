@@ -56,9 +56,10 @@ class EC2SubnetToVpcRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class EC2SubnetSchema(CartographyNodeSchema):
-    label: str = "EC2Subnet"
+    label: str = "AWSEC2Subnet"
     properties: EC2SubnetNodeProperties = EC2SubnetNodeProperties()
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["Subnet"])
+    # DEPRECATED: legacy EC2Subnet node label will be removed in v1.0.0.
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["EC2Subnet", "Subnet"])
     sub_resource_relationship: EC2SubnetToAWSAccountRel = EC2SubnetToAWSAccountRel()
     other_relationships: OtherRelationships = OtherRelationships(
         [

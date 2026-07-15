@@ -39,7 +39,7 @@ def test_load_security_groups(neo4j_session):
 
     nodes = neo4j_session.run(
         """
-        MATCH (s:EC2SecurityGroup) RETURN s.id;
+        MATCH (s:AWSEC2SecurityGroup) RETURN s.id;
         """,
     )
     actual_nodes = {n["s.id"] for n in nodes}
@@ -96,7 +96,7 @@ def test_load_security_groups_relationships(neo4j_session):
     # Fetch relationships
     result = neo4j_session.run(
         """
-        MATCH (s:EC2SecurityGroup)-[]-(r:IpRule) RETURN s.id,r.ruleid;
+        MATCH (s:AWSEC2SecurityGroup)-[]-(r:IpRule) RETURN s.id,r.ruleid;
         """,
     )
     actual = {(r["s.id"], r["r.ruleid"]) for r in result}
@@ -128,7 +128,7 @@ def test_sync_ec2_security_groupinfo(mock_get_security_groups, neo4j_session):
     )
 
     # Assert EC2 security groups exist
-    assert check_nodes(neo4j_session, "EC2SecurityGroup", ["id", "groupid"]) == {
+    assert check_nodes(neo4j_session, "AWSEC2SecurityGroup", ["id", "groupid"]) == {
         ("sg-028e2522c72719996", "sg-028e2522c72719996"),
         ("sg-053dba35430032a0d", "sg-053dba35430032a0d"),
         ("sg-06c795c66be8937be", "sg-06c795c66be8937be"),
@@ -139,7 +139,7 @@ def test_sync_ec2_security_groupinfo(mock_get_security_groups, neo4j_session):
     # Assert security groups are connected to AWS account
     assert check_rels(
         neo4j_session,
-        "EC2SecurityGroup",
+        "AWSEC2SecurityGroup",
         "id",
         "AWSAccount",
         "id",
@@ -224,9 +224,9 @@ def test_sync_ec2_security_groupinfo(mock_get_security_groups, neo4j_session):
 
     assert check_rels(
         neo4j_session,
-        "EC2SecurityGroup",
+        "AWSEC2SecurityGroup",
         "id",
-        "EC2SecurityGroup",
+        "AWSEC2SecurityGroup",
         "id",
         "ALLOWS_TRAFFIC_FROM",
         rel_direction_right=True,

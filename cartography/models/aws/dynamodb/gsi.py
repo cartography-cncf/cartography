@@ -3,6 +3,7 @@ from dataclasses import dataclass
 from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeProperties
 from cartography.models.core.nodes import CartographyNodeSchema
+from cartography.models.core.nodes import ExtraNodeLabels
 from cartography.models.core.relationships import CartographyRelProperties
 from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
@@ -32,7 +33,7 @@ class DynamoDBGSIToAWSAccountRelRelProperties(CartographyRelProperties):
 
 
 @dataclass(frozen=True)
-# (:DynamoDBGlobalSecondaryIndex)<-[:RESOURCE]-(:AWSAccount)
+# (:AWSDynamoDBGlobalSecondaryIndex)<-[:RESOURCE]-(:AWSAccount)
 class DynamoDBGSIToAWSAccountRel(CartographyRelSchema):
     target_node_label: str = "AWSAccount"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
@@ -51,9 +52,9 @@ class DynamoDBGSIToDynamoDBTableRelRelProperties(CartographyRelProperties):
 
 
 @dataclass(frozen=True)
-# (:DynamoDBGlobalSecondaryIndex)<-[:GLOBAL_SECONDARY_INDEX]-(:DynamoDBTable)
+# (:AWSDynamoDBGlobalSecondaryIndex)<-[:GLOBAL_SECONDARY_INDEX]-(:AWSDynamoDBTable)
 class DynamoDBGSIToDynamoDBTableRel(CartographyRelSchema):
-    target_node_label: str = "DynamoDBTable"
+    target_node_label: str = "AWSDynamoDBTable"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"arn": PropertyRef("TableArn")},
     )
@@ -66,7 +67,11 @@ class DynamoDBGSIToDynamoDBTableRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class DynamoDBGSISchema(CartographyNodeSchema):
-    label: str = "DynamoDBGlobalSecondaryIndex"
+    label: str = "AWSDynamoDBGlobalSecondaryIndex"
+    # DEPRECATED: legacy DynamoDBGlobalSecondaryIndex node label will be removed in v1.0.0.
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
+        ["DynamoDBGlobalSecondaryIndex"]
+    )
     properties: DynamoDBGSINodeProperties = DynamoDBGSINodeProperties()
     sub_resource_relationship: DynamoDBGSIToAWSAccountRel = DynamoDBGSIToAWSAccountRel()
     other_relationships: OtherRelationships = OtherRelationships(

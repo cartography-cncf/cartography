@@ -70,7 +70,7 @@ async def test_sync_entra_ous(mock_get_ous, neo4j_session):
             neo4j_session,
             "EntraOU",
             "id",
-            "EntraTenant",
+            "AzureTenant",
             "id",
             "RESOURCE",
             rel_direction_right=False,

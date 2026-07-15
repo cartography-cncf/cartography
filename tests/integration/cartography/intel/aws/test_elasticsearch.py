@@ -44,21 +44,21 @@ def _create_test_subnets_and_security_groups(neo4j_session):
     """Create test subnets and security groups for relationship testing."""
     neo4j_session.run(
         """
-        MERGE (s:EC2Subnet{id: 'subnet-11111111'})
+        MERGE (s:AWSEC2Subnet{id: 'subnet-11111111'})
         SET s.lastupdated = $update_tag
         """,
         update_tag=TEST_UPDATE_TAG,
     )
     neo4j_session.run(
         """
-        MERGE (s:EC2Subnet{id: 'subnet-22222222'})
+        MERGE (s:AWSEC2Subnet{id: 'subnet-22222222'})
         SET s.lastupdated = $update_tag
         """,
         update_tag=TEST_UPDATE_TAG,
     )
     neo4j_session.run(
         """
-        MERGE (sg:EC2SecurityGroup{id: 'sg-12345678'})
+        MERGE (sg:AWSEC2SecurityGroup{id: 'sg-12345678'})
         SET sg.lastupdated = $update_tag
         """,
         update_tag=TEST_UPDATE_TAG,
@@ -90,22 +90,22 @@ def test_sync_elasticsearch(mock_get_es_domains, mock_dns_ingest, neo4j_session)
         {"UPDATE_TAG": TEST_UPDATE_TAG, "AWS_ID": TEST_ACCOUNT_ID},
     )
 
-    # Assert - ESDomain nodes exist with key properties
+    # Assert - AWSESDomain nodes exist with key properties
     assert check_nodes(
         neo4j_session,
-        "ESDomain",
+        "AWSESDomain",
         ["id", "elasticsearch_version", "exposed_internet"],
     ) == {
         ("000000000000/test-es-domain-1", "7.10", False),
         ("000000000000/test-es-domain-2", "6.8", False),
     }
 
-    # Assert - Relationships (AWSAccount)-[RESOURCE]->(ESDomain)
+    # Assert - Relationships (AWSAccount)-[RESOURCE]->(AWSESDomain)
     assert check_rels(
         neo4j_session,
         "AWSAccount",
         "id",
-        "ESDomain",
+        "AWSESDomain",
         "id",
         "RESOURCE",
         rel_direction_right=True,
@@ -114,13 +114,13 @@ def test_sync_elasticsearch(mock_get_es_domains, mock_dns_ingest, neo4j_session)
         (TEST_ACCOUNT_ID, "000000000000/test-es-domain-2"),
     }
 
-    # Assert - Relationships (ESDomain)-[PART_OF_SUBNET]->(EC2Subnet)
+    # Assert - Relationships (AWSESDomain)-[PART_OF_SUBNET]->(AWSEC2Subnet)
     # Only domain-1 has VPCOptions with subnets
     assert check_rels(
         neo4j_session,
-        "ESDomain",
+        "AWSESDomain",
         "id",
-        "EC2Subnet",
+        "AWSEC2Subnet",
         "id",
         "PART_OF_SUBNET",
         rel_direction_right=True,
@@ -129,13 +129,13 @@ def test_sync_elasticsearch(mock_get_es_domains, mock_dns_ingest, neo4j_session)
         ("000000000000/test-es-domain-1", "subnet-22222222"),
     }
 
-    # Assert - Relationships (ESDomain)-[MEMBER_OF_EC2_SECURITY_GROUP]->(EC2SecurityGroup)
+    # Assert - Relationships (AWSESDomain)-[MEMBER_OF_EC2_SECURITY_GROUP]->(AWSEC2SecurityGroup)
     # Only domain-1 has VPCOptions with security groups
     assert check_rels(
         neo4j_session,
-        "ESDomain",
+        "AWSESDomain",
         "id",
-        "EC2SecurityGroup",
+        "AWSEC2SecurityGroup",
         "id",
         "MEMBER_OF_EC2_SECURITY_GROUP",
         rel_direction_right=True,

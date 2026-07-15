@@ -3,6 +3,7 @@ from dataclasses import dataclass
 from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeProperties
 from cartography.models.core.nodes import CartographyNodeSchema
+from cartography.models.core.nodes import ExtraNodeLabels
 from cartography.models.core.relationships import CartographyRelProperties
 from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
@@ -51,7 +52,7 @@ class EC2NetworkInterfaceToPrivateIpRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class EC2PrivateIpToNetworkInterfaceRel(CartographyRelSchema):
-    target_node_label: str = "NetworkInterface"
+    target_node_label: str = "AWSNetworkInterface"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("NetworkInterfaceId")},
     )
@@ -68,7 +69,9 @@ class EC2PrivateIpNetworkInterfaceSchema(CartographyNodeSchema):
     PrivateIp as known by a Network Interface
     """
 
-    label: str = "EC2PrivateIp"
+    label: str = "AWSEC2PrivateIp"
+    # DEPRECATED: legacy EC2PrivateIp node label will be removed in v1.0.0.
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["EC2PrivateIp"])
     properties: EC2PrivateIpNetworkInterfaceNodeProperties = (
         EC2PrivateIpNetworkInterfaceNodeProperties()
     )

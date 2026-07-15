@@ -17,7 +17,7 @@ aws_mapping = OntologyMapping(
     module_name="aws",
     nodes=[
         OntologyNodeMapping(
-            node_label="EC2Subnet",
+            node_label="AWSEC2Subnet",
             fields=[
                 # EC2 subnets have no display name; the SubnetId (`id`) is the
                 # canonical identifier (the `name` property holds the CIDR block).

@@ -17,7 +17,7 @@ aws_mapping = OntologyMapping(
     module_name="aws",
     nodes=[
         OntologyNodeMapping(
-            node_label="GuardDutyFinding",
+            node_label="AWSGuardDutyFinding",
             fields=[
                 OntologyFieldMapping(
                     ontology_field="title",

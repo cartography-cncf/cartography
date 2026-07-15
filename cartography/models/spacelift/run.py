@@ -141,9 +141,13 @@ class SpaceliftRunToEC2InstanceSimpleRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class SpaceliftRunToEC2InstanceSimpleRel(CartographyRelSchema):
-    """A Spacelift run affected EC2 instances reported by the entities API."""
+    """
+    A Spacelift run affected EC2 instances reported by the entities API.
 
-    target_node_label: str = "EC2Instance"
+    (:SpaceliftRun)-[:AFFECTED]->(:AWSEC2Instance)
+    """
+
+    target_node_label: str = "AWSEC2Instance"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"instanceid": PropertyRef("affected_instance_ids", one_to_many=True)},
     )

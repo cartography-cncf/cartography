@@ -13,7 +13,7 @@ from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import SourceNodeMatcher
 from cartography.models.core.relationships import TargetNodeMatcher
 
-# ELBV2TargetGroup Schema
+# AWSELBV2TargetGroup Schema
 
 
 @dataclass(frozen=True)
@@ -67,7 +67,9 @@ class ELBV2TargetGroupToLoadBalancerV2Rel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class ELBV2TargetGroupSchema(CartographyNodeSchema):
-    label: str = "ELBV2TargetGroup"
+    label: str = "AWSELBV2TargetGroup"
+    # DEPRECATED: legacy ELBV2TargetGroup node label will be removed in v1.0.0.
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["ELBV2TargetGroup"])
     properties: ELBV2TargetGroupNodeProperties = ELBV2TargetGroupNodeProperties()
     sub_resource_relationship: ELBV2TargetGroupToAWSAccountRel = (
         ELBV2TargetGroupToAWSAccountRel()
@@ -77,7 +79,7 @@ class ELBV2TargetGroupSchema(CartographyNodeSchema):
     )
 
 
-# ELBV2TargetGroup -> ECSService MatchLink
+# AWSELBV2TargetGroup -> AWSECSService MatchLink
 
 
 @dataclass(frozen=True)
@@ -94,13 +96,13 @@ class ELBV2TargetGroupToECSServiceRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class ELBV2TargetGroupToECSServiceMatchLink(CartographyRelSchema):
-    """(:ELBV2TargetGroup)-[:TARGETS]->(:ECSService)"""
+    """(:AWSELBV2TargetGroup)-[:TARGETS]->(:AWSECSService)"""
 
-    target_node_label: str = "ECSService"
+    target_node_label: str = "AWSECSService"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("ServiceArn")},
     )
-    source_node_label: str = "ELBV2TargetGroup"
+    source_node_label: str = "AWSELBV2TargetGroup"
     source_node_matcher: SourceNodeMatcher = make_source_node_matcher(
         {"id": PropertyRef("TargetGroupArn")},
     )
@@ -156,7 +158,7 @@ class LoadBalancerV2ToEC2SecurityGroupRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class LoadBalancerV2ToEC2SecurityGroupRel(CartographyRelSchema):
-    target_node_label: str = "EC2SecurityGroup"
+    target_node_label: str = "AWSEC2SecurityGroup"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"groupid": PropertyRef("SecurityGroupIds", one_to_many=True)},
     )
@@ -174,7 +176,7 @@ class LoadBalancerV2ToEC2SubnetRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class LoadBalancerV2ToEC2SubnetRel(CartographyRelSchema):
-    target_node_label: str = "EC2Subnet"
+    target_node_label: str = "AWSEC2Subnet"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"subnetid": PropertyRef("SubnetIds", one_to_many=True)},
     )
@@ -198,7 +200,8 @@ class LoadBalancerV2Schema(CartographyNodeSchema):
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
         [
             "LoadBalancer",  # Ontology node label
-            "LoadBalancerV2",  # DEPRECATED: for backwards compatibility
+            # DEPRECATED: legacy LoadBalancerV2 node label will be removed in v1.0.0.
+            "LoadBalancerV2",
         ]
     )
     sub_resource_relationship: LoadBalancerV2ToAWSAccountRel = (
@@ -231,9 +234,9 @@ class LoadBalancerV2ToTargetRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class LoadBalancerV2ToEC2InstanceMatchLink(CartographyRelSchema):
-    """(:LoadBalancerV2)-[:EXPOSE]->(:EC2Instance)"""
+    """(:LoadBalancerV2)-[:EXPOSE]->(:AWSEC2Instance)"""
 
-    target_node_label: str = "EC2Instance"
+    target_node_label: str = "AWSEC2Instance"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"instanceid": PropertyRef("TargetId")},
     )
@@ -250,9 +253,9 @@ class LoadBalancerV2ToEC2InstanceMatchLink(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class LoadBalancerV2ToEC2PrivateIpMatchLink(CartographyRelSchema):
-    """(:LoadBalancerV2)-[:EXPOSE]->(:EC2PrivateIp)"""
+    """(:LoadBalancerV2)-[:EXPOSE]->(:AWSEC2PrivateIp)"""
 
-    target_node_label: str = "EC2PrivateIp"
+    target_node_label: str = "AWSEC2PrivateIp"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"private_ip_address": PropertyRef("TargetId")},
     )
@@ -305,7 +308,7 @@ class LoadBalancerV2ToLoadBalancerV2MatchLink(CartographyRelSchema):
     )
 
 
-# ELBV2Listener Schema
+# AWSELBV2Listener Schema
 
 
 @dataclass(frozen=True)
@@ -368,11 +371,12 @@ class ELBV2ListenerToLoadBalancerV2Rel(CartographyRelSchema):
 @dataclass(frozen=True)
 class ELBV2ListenerSchema(CartographyNodeSchema):
     """
-    ELBV2Listener schema for load balancer listeners.
+    AWSELBV2Listener schema for load balancer listeners.
     """
 
-    label: str = "ELBV2Listener"
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["Endpoint"])
+    label: str = "AWSELBV2Listener"
+    # DEPRECATED: legacy ELBV2Listener node label will be removed in v1.0.0.
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["ELBV2Listener", "Endpoint"])
     properties: ELBV2ListenerNodeProperties = ELBV2ListenerNodeProperties()
     sub_resource_relationship: ELBV2ListenerToAWSAccountRel = (
         ELBV2ListenerToAWSAccountRel()

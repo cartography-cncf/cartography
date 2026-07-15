@@ -235,9 +235,9 @@ class KubernetesContainerToECRImageRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class KubernetesContainerToECRImageRel(CartographyRelSchema):
-    "Links `KubernetesContainer` to `ECRImage` with `HAS_IMAGE`."
+    "Links `KubernetesContainer` to `AWSECRImage` with `HAS_IMAGE`."
 
-    target_node_label: str = "ECRImage"
+    target_node_label: str = "AWSECRImage"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"digest": PropertyRef("status_image_sha")}
     )

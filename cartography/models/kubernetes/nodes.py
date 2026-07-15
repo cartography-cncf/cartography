@@ -97,12 +97,12 @@ class KubernetesNodeToEC2InstanceRelProperties(CartographyRelProperties):
 
 
 @dataclass(frozen=True)
-# (:KubernetesNode)-[:IS_INSTANCE]->(:EC2Instance)
+# (:KubernetesNode)-[:IS_INSTANCE]->(:AWSEC2Instance)
 # Only created for EKS nodes whose providerID resolves to an EC2 instance id.
 class KubernetesNodeToEC2InstanceRel(CartographyRelSchema):
-    "Links `KubernetesNode` to `EC2Instance` with `IS_INSTANCE`."
+    "Links `KubernetesNode` to `AWSEC2Instance` with `IS_INSTANCE`."
 
-    target_node_label: str = "EC2Instance"
+    target_node_label: str = "AWSEC2Instance"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("instance_id")},
     )

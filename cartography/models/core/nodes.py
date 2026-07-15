@@ -161,7 +161,7 @@ class CartographyNodeSchema(abc.ABC):
         of this type. It's used in the MERGE clause during ingestion.
 
         Returns:
-            The primary label for the node (e.g., 'AWSUser', 'EC2Instance').
+            The primary label for the node (e.g., 'AWSUser', 'AWSEC2Instance').
         """
 
     @property

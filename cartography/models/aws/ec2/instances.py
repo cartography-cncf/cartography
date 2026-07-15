@@ -84,7 +84,7 @@ class EC2InstanceToEC2ReservationRelRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class EC2InstanceToEC2ReservationRel(CartographyRelSchema):
-    target_node_label: str = "EC2Reservation"
+    target_node_label: str = "AWSEC2Reservation"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"reservationid": PropertyRef("ReservationId")},
     )
@@ -120,7 +120,7 @@ class EC2InstanceToEKSClusterRelRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class EC2InstanceToEKSClusterRel(CartographyRelSchema):
-    target_node_label: str = "EKSCluster"
+    target_node_label: str = "AWSEKSCluster"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {
             "name": PropertyRef("EksClusterName"),
@@ -135,8 +135,11 @@ class EC2InstanceToEKSClusterRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class EC2InstanceSchema(CartographyNodeSchema):
-    label: str = "EC2Instance"
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["ComputeInstance"])
+    label: str = "AWSEC2Instance"
+    # DEPRECATED: legacy EC2Instance node label will be removed in v1.0.0.
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
+        ["EC2Instance", "ComputeInstance"]
+    )
     properties: EC2InstanceNodeProperties = EC2InstanceNodeProperties()
     sub_resource_relationship: EC2InstanceToAWSAccountRel = EC2InstanceToAWSAccountRel()
     other_relationships: OtherRelationships = OtherRelationships(
@@ -158,9 +161,9 @@ class EC2InstanceToRoleAssumesRelProperties(CartographyRelProperties):
 
 
 @dataclass(frozen=True)
-# Canonical ontology edge: (:EC2Instance)-[:ASSUMES]->(:AWSRole).
+# Canonical ontology edge: (:AWSEC2Instance)-[:ASSUMES]->(:AWSRole).
 # The instance runs with the permissions of the role attached through its
-# instance profile: EC2Instance-[:INSTANCE_PROFILE]->AWSInstanceProfile
+# instance profile: AWSEC2Instance-[:INSTANCE_PROFILE]->AWSInstanceProfile
 # -[:ASSOCIATED_WITH]->AWSRole. There is no direct instance->role edge in the
 # AWS API, so the pairs are assembled from that binding chain and loaded as a
 # MatchLink.
@@ -174,7 +177,7 @@ class EC2InstanceToRoleAssumesMatchLink(CartographyRelSchema):
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"arn": PropertyRef("role_arn")},
     )
-    source_node_label: str = "EC2Instance"
+    source_node_label: str = "AWSEC2Instance"
     source_node_matcher: SourceNodeMatcher = make_source_node_matcher(
         {"id": PropertyRef("instance_id")},
     )

@@ -189,7 +189,7 @@ def test_cleanup_removes_stale_custom_user_relationships(neo4j_session):
         MERGE (u)-[stale_github:HAS_ACCOUNT]->(gh)
         SET stale_github.lastupdated = $stale_tag
 
-        MERGE (key:AccountAccessKey:APIKey {id: 'key-1'})
+        MERGE (key:AWSAccountAccessKey:APIKey {id: 'key-1'})
         MERGE (u)-[stale_key:OWNS]->(key)
         SET stale_key.lastupdated = $stale_tag
 

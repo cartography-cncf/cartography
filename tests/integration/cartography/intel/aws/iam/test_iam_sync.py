@@ -364,7 +364,7 @@ def test_sync_iam(
     # Assert: Check that access key nodes were created
     assert check_nodes(
         neo4j_session,
-        "AccountAccessKey",
+        "AWSAccountAccessKey",
         ["accesskeyid", "id"],
     ) == {
         ("AKIAIOSFODNN7EXAMPLE", "AKIAIOSFODNN7EXAMPLE"),
@@ -376,7 +376,7 @@ def test_sync_iam(
     # Assert: Check that relationships were created between access keys and users
     assert check_rels(
         neo4j_session,
-        "AccountAccessKey",
+        "AWSAccountAccessKey",
         "accesskeyid",
         "AWSUser",
         "arn",
@@ -392,7 +392,7 @@ def test_sync_iam(
     # Canonical ontology edge: (:APIKey)-[:OWNED_BY]->(:UserAccount)
     assert check_rels(
         neo4j_session,
-        "AccountAccessKey",
+        "AWSAccountAccessKey",
         "accesskeyid",
         "AWSUser",
         "arn",

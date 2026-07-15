@@ -63,9 +63,9 @@ def test_sync_spotlight_vulnerabilities(
         ("00000000000000000000000000000000",),
     }
 
-    # Verify SpotlightVulnerability nodes
+    # Verify CrowdstrikeSpotlightVulnerability nodes
     assert check_nodes(
-        neo4j_session, "SpotlightVulnerability", ["id", "cve_id", "status"]
+        neo4j_session, "CrowdstrikeSpotlightVulnerability", ["id", "cve_id", "status"]
     ) == {
         (
             "00000000000000000000000000000000_00000000000000000000000000000000",
@@ -99,12 +99,12 @@ def test_sync_spotlight_vulnerabilities(
         ),
     }
 
-    # Verify CrowdstrikeHost -[:HAS_VULNERABILITY]-> SpotlightVulnerability
+    # Verify CrowdstrikeHost -[:HAS_VULNERABILITY]-> CrowdstrikeSpotlightVulnerability
     assert check_rels(
         neo4j_session,
         "CrowdstrikeHost",
         "id",
-        "SpotlightVulnerability",
+        "CrowdstrikeSpotlightVulnerability",
         "id",
         "HAS_VULNERABILITY",
         rel_direction_right=True,
@@ -115,10 +115,10 @@ def test_sync_spotlight_vulnerabilities(
         ),
     }
 
-    # Verify SpotlightVulnerability -[:HAS_CVE]-> CVE
+    # Verify CrowdstrikeSpotlightVulnerability -[:HAS_CVE]-> CVE
     assert check_rels(
         neo4j_session,
-        "SpotlightVulnerability",
+        "CrowdstrikeSpotlightVulnerability",
         "id",
         "CVE",
         "id",
@@ -197,7 +197,9 @@ def test_cleanup_drops_orphan_crowdstrike_cves(
 
     assert check_nodes(neo4j_session, "CrowdstrikeFinding", ["id"]) == set()
     assert check_nodes(neo4j_session, "CVE", ["id"]) == set()
-    assert check_nodes(neo4j_session, "SpotlightVulnerability", ["id"]) == set()
+    assert (
+        check_nodes(neo4j_session, "CrowdstrikeSpotlightVulnerability", ["id"]) == set()
+    )
 
 
 def test_cleanup_removes_legacy_unscoped_spotlight_data(neo4j_session):
@@ -206,11 +208,11 @@ def test_cleanup_removes_legacy_unscoped_spotlight_data(neo4j_session):
         """
         MERGE (host:CrowdstrikeHost {id: "legacy-host"})
         SET host.lastupdated = $update_tag
-        MERGE (stale:SpotlightVulnerability {id: "legacy-stale"})
+        MERGE (stale:CrowdstrikeSpotlightVulnerability:SpotlightVulnerability {id: "legacy-stale"})
         SET stale.lastupdated = $old_update_tag
-        MERGE (current:SpotlightVulnerability {id: "legacy-current"})
+        MERGE (current:CrowdstrikeSpotlightVulnerability:SpotlightVulnerability {id: "legacy-current"})
         SET current.lastupdated = $update_tag
-        MERGE (surviving:SpotlightVulnerability {id: "legacy-surviving"})
+        MERGE (surviving:CrowdstrikeSpotlightVulnerability:SpotlightVulnerability {id: "legacy-surviving"})
         SET surviving.lastupdated = $update_tag
         MERGE (host)-[stale_rel:HAS_VULNERABILITY]->(current)
         SET stale_rel.lastupdated = $old_update_tag
@@ -232,7 +234,7 @@ def test_cleanup_removes_legacy_unscoped_spotlight_data(neo4j_session):
         row["id"]
         for row in neo4j_session.run(
             """
-            MATCH (v:SpotlightVulnerability)
+            MATCH (v:CrowdstrikeSpotlightVulnerability)
             WHERE v.id STARTS WITH "legacy-"
             RETURN v.id AS id
             """,
@@ -243,7 +245,7 @@ def test_cleanup_removes_legacy_unscoped_spotlight_data(neo4j_session):
         neo4j_session,
         "CrowdstrikeHost",
         "id",
-        "SpotlightVulnerability",
+        "CrowdstrikeSpotlightVulnerability",
         "id",
         "HAS_VULNERABILITY",
         rel_direction_right=True,

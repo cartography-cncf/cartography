@@ -254,7 +254,7 @@ def test_build_data_model_adds_generated_ontology_properties():
     model = build_data_model([EC2InstanceSchema])
 
     # Assert
-    node = model.get_node("EC2Instance")
+    node = model.get_node("AWSEC2Instance")
     assert node is not None
     ontology_name = node.get_property("_ont_name")
     assert ontology_name is not None
@@ -279,7 +279,7 @@ def test_build_data_model_exposes_ontology_catalog_metadata():
         for semantic_label in model.ontology_semantic_labels
     }
     compute_instance = semantic_labels["ComputeInstance"]
-    assert "EC2Instance" in compute_instance.concrete_node_labels
+    assert "AWSEC2Instance" in compute_instance.concrete_node_labels
     assert {prop.name for prop in compute_instance.properties} >= {
         "_ont_name",
         "_ont_public_ip_address",
@@ -316,7 +316,7 @@ def test_build_data_model_projects_nodes_through_additional_labels():
     model = build_data_model([SemgrepGoLibrarySchema, SemgrepNpmLibrarySchema])
 
     # Assert
-    for node_label in ("GoLibrary", "NpmLibrary"):
+    for node_label in ("SemgrepGoLibrary", "SemgrepNpmLibrary"):
         node = model.get_node(node_label)
         assert node is not None
         assert node.ontology_projections == ("Package",)
@@ -367,7 +367,7 @@ def test_iter_permission_relationships_discovers_provider_yaml_definitions():
         PermissionRelationshipDefinition(
             provider="aws",
             source_label="AWSPrincipal",
-            target_label="S3Bucket",
+            target_label="AWSS3Bucket",
             relationship_name="CAN_READ",
             permissions=("S3:GetObject",),
             config_path="cartography/data/permission_relationships.yaml",

@@ -5,7 +5,9 @@
 Cartography currently matches Trivy scan reports to canonical ontology `Image`
 nodes created from these registry resources:
 
-- AWS ECR images
+- AWS ECR images. You scan `AWSECRRepositoryImage` resources, but findings
+  attach to their underlying `AWSECRImage` nodes before mapping to canonical
+  `Image` nodes.
 - Google Artifact Registry images
 - GitLab Container Registry images
 
@@ -91,4 +93,4 @@ permissions:
 
 | Cartography Node label | Cloud permissions required to scan with Trivy |
 |---|---|
-| [ECRRepositoryImage](https://cartography-cncf.github.io/cartography/modules/aws/schema.html#ecrrepositoryimage) | `ecr:GetAuthorizationToken`, `ecr:BatchGetImage`, `ecr:GetDownloadUrlForLayer` |
+| [AWSECRRepositoryImage](https://cartography-cncf.github.io/cartography/modules/aws/schema.html#ecrrepositoryimage) | `ecr:GetAuthorizationToken`, `ecr:BatchGetImage`, `ecr:GetDownloadUrlForLayer` |

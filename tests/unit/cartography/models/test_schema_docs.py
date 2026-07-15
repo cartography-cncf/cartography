@@ -145,7 +145,7 @@ def test_cve_schema_doc_is_generated_from_introspected_model():
         "| cve_id | Yes | CVE identifier indexed for cross-module correlation. |"
         in generated
     )
-    assert "(:SpotlightVulnerability)-[:HAS_CVE]->(:CVE)" in generated
+    assert "(:CrowdstrikeSpotlightVulnerability)-[:HAS_CVE]->(:CVE)" in generated
     assert "No description provided." not in generated
 
 
@@ -176,8 +176,8 @@ def test_crowdstrike_schema_doc_is_generated_from_introspected_model():
     assert len(model.nodes) == 4
     assert len(model.relationships) == 4
     assert (
-        "(:CrowdstrikeHost)-[:HAS_VULNERABILITY]->(:SpotlightVulnerability)"
-        in generated
+        "(:CrowdstrikeHost)-[:HAS_VULNERABILITY]->"
+        "(:CrowdstrikeSpotlightVulnerability)" in generated
     )
     assert "No description provided." not in generated
 
@@ -823,11 +823,11 @@ def test_semgrep_schema_doc_is_generated_from_introspected_model():
         in generated
     )
     assert (
-        "> **Ontology Projection**: `GoLibrary` contributes data "
+        "> **Ontology Projection**: `SemgrepGoLibrary` contributes data "
         "to canonical `Package` nodes." in generated
     )
     assert (
-        "> **Ontology Projection**: `NpmLibrary` contributes data "
+        "> **Ontology Projection**: `SemgrepNpmLibrary` contributes data "
         "to canonical `Package` nodes." in generated
     )
     assert "(:Package)-[:DETECTED_AS]->(:SemgrepDependency)" in generated
@@ -1029,7 +1029,7 @@ def test_spacelift_schema_doc_is_generated_from_introspected_model():
         "A CloudTrail event from a Spacelift run that interacted with EC2." in generated
     )
     assert "| event_name |  | AWS API action recorded by CloudTrail. |" in generated
-    assert "(:CloudTrailSpaceliftEvent)-[:AFFECTED]->(:EC2Instance)" in generated
+    assert "(:SpaceliftCloudTrailEvent)-[:AFFECTED]->(:AWSEC2Instance)" in generated
     assert "No description provided." not in generated
 
 

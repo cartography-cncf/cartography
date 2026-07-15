@@ -83,7 +83,7 @@ def test_permission_relationships_with_iam_integration(neo4j_session):
     neo4j_session.run(
         """
         MATCH (aws:AWSAccount{id: $AccountId})
-        MERGE (s3:S3Bucket{arn: 'arn:aws:s3:::test-bucket'})<-[:RESOURCE]-(aws)
+        MERGE (s3:AWSS3Bucket{arn: 'arn:aws:s3:::test-bucket'})<-[:RESOURCE]-(aws)
         SET s3.lastupdated = $UpdateTag
         """,
         AccountId=TEST_ACCOUNT_ID,
@@ -140,7 +140,7 @@ def test_permission_relationships_with_iam_integration(neo4j_session):
         neo4j_session,
         "AWSRole",
         "arn",
-        "S3Bucket",
+        "AWSS3Bucket",
         "arn",
         "CAN_READ",
     )
@@ -236,7 +236,7 @@ def test_permission_relationships_ssm_precondition(neo4j_session):
     """
     A principal with ssm:StartSession should only get a CAN_START_SESSION edge to an
     EC2 instance that is actually managed by SSM (i.e. has a HAS_INFORMATION edge to an
-    SSMInstanceInformation node). See issue #1643.
+    AWSSSMInstanceInformation node). See issue #1643.
     """
     create_test_account(neo4j_session, TEST_ACCOUNT_ID, TEST_UPDATE_TAG)
 
@@ -244,12 +244,12 @@ def test_permission_relationships_ssm_precondition(neo4j_session):
     neo4j_session.run(
         """
         MATCH (aws:AWSAccount{id: $AccountId})
-        MERGE (managed:EC2Instance{id: 'i-managed'})<-[:RESOURCE]-(aws)
+        MERGE (managed:AWSEC2Instance{id: 'i-managed'})<-[:RESOURCE]-(aws)
         SET managed.arn = 'arn:aws:ec2:us-east-1:000000000000:instance/i-managed',
             managed.lastupdated = $UpdateTag
-        MERGE (ssm:SSMInstanceInformation{id: 'i-managed'})
+        MERGE (ssm:AWSSSMInstanceInformation{id: 'i-managed'})
         MERGE (managed)-[:HAS_INFORMATION]->(ssm)
-        MERGE (unmanaged:EC2Instance{id: 'i-unmanaged'})<-[:RESOURCE]-(aws)
+        MERGE (unmanaged:AWSEC2Instance{id: 'i-unmanaged'})<-[:RESOURCE]-(aws)
         SET unmanaged.arn = 'arn:aws:ec2:us-east-1:000000000000:instance/i-unmanaged',
             unmanaged.lastupdated = $UpdateTag
         """,
@@ -273,11 +273,11 @@ def test_permission_relationships_ssm_precondition(neo4j_session):
             "cartography.intel.aws.permission_relationships.parse_permission_relationships_file",
             return_value=[
                 {
-                    "target_label": "EC2Instance",
+                    "target_label": "AWSEC2Instance",
                     "permissions": ["ssm:StartSession"],
                     "relationship_name": "CAN_START_SESSION",
                     "target_precondition": {
-                        "related_label": "SSMInstanceInformation",
+                        "related_label": "AWSSSMInstanceInformation",
                         "relationship": "HAS_INFORMATION",
                         "direction": "outgoing",
                     },
@@ -309,7 +309,7 @@ def test_permission_relationships_ssm_precondition(neo4j_session):
         neo4j_session,
         "AWSRole",
         "arn",
-        "EC2Instance",
+        "AWSEC2Instance",
         "id",
         "CAN_START_SESSION",
     )
@@ -323,12 +323,12 @@ def test_permission_relationships_ssm_precondition(neo4j_session):
     # (the neo4j_session fixture only wipes the DB at module teardown).
     neo4j_session.run(
         """
-        MATCH (e:EC2Instance) WHERE e.id IN ['i-managed', 'i-unmanaged'] DETACH DELETE e
+        MATCH (e:AWSEC2Instance) WHERE e.id IN ['i-managed', 'i-unmanaged'] DETACH DELETE e
         """,
     )
     neo4j_session.run(
         """
-        MATCH (s:SSMInstanceInformation{id: 'i-managed'}) DETACH DELETE s
+        MATCH (s:AWSSSMInstanceInformation{id: 'i-managed'}) DETACH DELETE s
         """,
     )
 
@@ -339,7 +339,7 @@ def test_permission_relationships_skips_resources_without_arn(neo4j_session):
     neo4j_session.run(
         """
         MATCH (aws:AWSAccount{id: $AccountId})
-        MERGE (ec2:EC2Instance{id: 'i-1234567890abcdef0'})<-[:RESOURCE]-(aws)
+        MERGE (ec2:AWSEC2Instance{id: 'i-1234567890abcdef0'})<-[:RESOURCE]-(aws)
         SET ec2.lastupdated = $UpdateTag
         """,
         AccountId=TEST_ACCOUNT_ID,
@@ -362,7 +362,7 @@ def test_permission_relationships_skips_resources_without_arn(neo4j_session):
             "cartography.intel.aws.permission_relationships.parse_permission_relationships_file",
             return_value=[
                 {
-                    "target_label": "EC2Instance",
+                    "target_label": "AWSEC2Instance",
                     "permissions": ["ssm:StartSession"],
                     "relationship_name": "SSM_FULL_ACCESS",
                 },
@@ -393,7 +393,7 @@ def test_permission_relationships_skips_resources_without_arn(neo4j_session):
         neo4j_session,
         "AWSRole",
         "arn",
-        "EC2Instance",
+        "AWSEC2Instance",
         "id",
         "SSM_FULL_ACCESS",
     )
