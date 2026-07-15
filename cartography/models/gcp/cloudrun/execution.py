@@ -13,19 +13,39 @@ from cartography.models.core.relationships import TargetNodeMatcher
 
 @dataclass(frozen=True)
 class GCPCloudRunExecutionProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("id")
-    name: PropertyRef = PropertyRef("name")
-    job: PropertyRef = PropertyRef("job")
-    cancelled_count: PropertyRef = PropertyRef("cancelled_count")
-    failed_count: PropertyRef = PropertyRef("failed_count")
-    succeeded_count: PropertyRef = PropertyRef("succeeded_count")
-    project_id: PropertyRef = PropertyRef("project_id")
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    id: PropertyRef = PropertyRef(
+        "id", description="Stable identifier for this resource."
+    )
+    name: PropertyRef = PropertyRef("name", description="Short name of the execution.")
+    job: PropertyRef = PropertyRef(
+        "job", description="Full resource name of the parent job."
+    )
+    cancelled_count: PropertyRef = PropertyRef(
+        "cancelled_count", description="Number of tasks that were cancelled."
+    )
+    failed_count: PropertyRef = PropertyRef(
+        "failed_count", description="Number of tasks that failed."
+    )
+    succeeded_count: PropertyRef = PropertyRef(
+        "succeeded_count", description="Number of tasks that succeeded."
+    )
+    project_id: PropertyRef = PropertyRef(
+        "project_id", description="Google Cloud project that owns this resource."
+    )
+    lastupdated: PropertyRef = PropertyRef(
+        "lastupdated",
+        set_in_kwargs=True,
+        description="Timestamp of the last time the node was updated.",
+    )
 
 
 @dataclass(frozen=True)
 class ProjectToCloudRunExecutionRelProperties(CartographyRelProperties):
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    lastupdated: PropertyRef = PropertyRef(
+        "lastupdated",
+        set_in_kwargs=True,
+        description="Timestamp of the last sync that observed this data.",
+    )
 
 
 @dataclass(frozen=True)
@@ -43,7 +63,11 @@ class ProjectToCloudRunExecutionRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class CloudRunJobToExecutionRelProperties(CartographyRelProperties):
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    lastupdated: PropertyRef = PropertyRef(
+        "lastupdated",
+        set_in_kwargs=True,
+        description="Timestamp of the last sync that observed this data.",
+    )
 
 
 @dataclass(frozen=True)
@@ -61,6 +85,8 @@ class CloudRunJobToExecutionRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class GCPCloudRunExecutionSchema(CartographyNodeSchema):
+    """Representation of a GCP [Cloud Run Execution](https://cloud.google.com/run/docs/reference/rest/v2/projects.locations.jobs.executions)."""
+
     label: str = "GCPCloudRunExecution"
     properties: GCPCloudRunExecutionProperties = GCPCloudRunExecutionProperties()
     sub_resource_relationship: ProjectToCloudRunExecutionRel = (

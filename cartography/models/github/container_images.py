@@ -26,24 +26,67 @@ from cartography.models.core.relationships import TargetNodeMatcher
 
 @dataclass(frozen=True)
 class GitHubContainerImageNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("digest")
-    digest: PropertyRef = PropertyRef("digest", extra_index=True)
-    uri: PropertyRef = PropertyRef("uri", extra_index=True)
-    media_type: PropertyRef = PropertyRef("media_type")
-    schema_version: PropertyRef = PropertyRef("schema_version")
-    type: PropertyRef = PropertyRef("type", extra_index=True)
-    architecture: PropertyRef = PropertyRef("architecture")
-    os: PropertyRef = PropertyRef("os")
-    variant: PropertyRef = PropertyRef("variant")
-    source_uri: PropertyRef = PropertyRef("source_uri", extra_index=True)
-    source_revision: PropertyRef = PropertyRef("source_revision")
-    source_file: PropertyRef = PropertyRef("source_file")
-    parent_image_uri: PropertyRef = PropertyRef("parent_image_uri")
-    parent_image_digest: PropertyRef = PropertyRef("parent_image_digest")
-    child_image_digests: PropertyRef = PropertyRef("child_image_digests")
-    layer_diff_ids: PropertyRef = PropertyRef("layer_diff_ids")
-    head_layer_diff_id: PropertyRef = PropertyRef("head_layer_diff_id")
-    tail_layer_diff_id: PropertyRef = PropertyRef("tail_layer_diff_id")
+    id: PropertyRef = PropertyRef(
+        "digest", description="Container image digest used as the stable identifier."
+    )
+    digest: PropertyRef = PropertyRef(
+        "digest", extra_index=True, description="Container image manifest digest."
+    )
+    uri: PropertyRef = PropertyRef(
+        "uri", extra_index=True, description="Digest-qualified pullable image URI."
+    )
+    media_type: PropertyRef = PropertyRef(
+        "media_type", description="OCI or Docker manifest media type."
+    )
+    schema_version: PropertyRef = PropertyRef(
+        "schema_version", description="Container manifest schema version."
+    )
+    type: PropertyRef = PropertyRef(
+        "type", extra_index=True, description="Image kind: `image` or `manifest_list`."
+    )
+    architecture: PropertyRef = PropertyRef(
+        "architecture", description="CPU architecture for a single-platform image."
+    )
+    os: PropertyRef = PropertyRef(
+        "os", description="Operating system for a single-platform image."
+    )
+    variant: PropertyRef = PropertyRef(
+        "variant", description="Architecture variant for a single-platform image."
+    )
+    source_uri: PropertyRef = PropertyRef(
+        "source_uri",
+        extra_index=True,
+        description="Normalized source repository URI extracted from provenance.",
+    )
+    source_revision: PropertyRef = PropertyRef(
+        "source_revision",
+        description="Source commit revision extracted from provenance.",
+    )
+    source_file: PropertyRef = PropertyRef(
+        "source_file", description="Source definition file extracted from provenance."
+    )
+    parent_image_uri: PropertyRef = PropertyRef(
+        "parent_image_uri",
+        description="Parent image URI derived from provenance or image history.",
+    )
+    parent_image_digest: PropertyRef = PropertyRef(
+        "parent_image_digest",
+        description="Parent image digest resolved from provenance or image history.",
+    )
+    child_image_digests: PropertyRef = PropertyRef(
+        "child_image_digests",
+        description="Platform image digests referenced by a manifest list.",
+    )
+    layer_diff_ids: PropertyRef = PropertyRef(
+        "layer_diff_ids",
+        description="Ordered uncompressed layer digests for the image.",
+    )
+    head_layer_diff_id: PropertyRef = PropertyRef(
+        "head_layer_diff_id", description="Uncompressed digest of the base layer."
+    )
+    tail_layer_diff_id: PropertyRef = PropertyRef(
+        "tail_layer_diff_id", description="Uncompressed digest of the topmost layer."
+    )
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
@@ -103,6 +146,8 @@ class GitHubContainerImageToLayerRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class GitHubContainerImageToHeadLayerRel(CartographyRelSchema):
+    """Links a container image to its base layer."""
+
     target_node_label: str = "GitHubContainerImageLayer"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"diff_id": PropertyRef("head_layer_diff_id")},
@@ -114,6 +159,8 @@ class GitHubContainerImageToHeadLayerRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class GitHubContainerImageToTailLayerRel(CartographyRelSchema):
+    """Links a container image to its topmost layer."""
+
     target_node_label: str = "GitHubContainerImageLayer"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"diff_id": PropertyRef("tail_layer_diff_id")},
@@ -126,9 +173,17 @@ class GitHubContainerImageToTailLayerRel(CartographyRelSchema):
 @dataclass(frozen=True)
 class GitHubContainerImageToParentImageRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
-    from_attestation: PropertyRef = PropertyRef("from_attestation")
-    parent_image_uri: PropertyRef = PropertyRef("parent_image_uri")
-    confidence: PropertyRef = PropertyRef("confidence")
+    from_attestation: PropertyRef = PropertyRef(
+        "from_attestation",
+        description="Whether the parent image match was derived from an attestation.",
+    )
+    parent_image_uri: PropertyRef = PropertyRef(
+        "parent_image_uri", description="Parent image URI."
+    )
+    confidence: PropertyRef = PropertyRef(
+        "confidence",
+        description="Parent image match confidence from 0.0 (lowest) to 1.0 (highest).",
+    )
 
 
 @dataclass(frozen=True)
@@ -165,20 +220,7 @@ class GitHubContainerImageToPackageRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class GitHubContainerImageSchema(CartographyNodeSchema):
-    """
-    Schema for GitHub Container Image nodes.
-
-    Relationships:
-    - RESOURCE: Sub-resource to GitHubOrganization for cleanup
-    - CONTAINS_IMAGE: From manifest lists to platform-specific images
-    - HAS_LAYER / HEAD / TAIL: Image layer structure
-    - BUILT_FROM: Parent/base image
-    - HAS_IMAGE: Inverse of (GitHubPackage)-[:HAS_IMAGE]->(image)
-
-    Extra labels:
-    - Image: Applied to single image manifests (type="image")
-    - ImageManifestList: Applied to manifest lists (type="manifest_list")
-    """
+    """A digest-addressed container image or manifest list stored in GitHub Container Registry."""
 
     label: str = "GitHubContainerImage"
     properties: GitHubContainerImageNodeProperties = (
@@ -219,20 +261,35 @@ class GitHubContainerImageProvenanceNodeProperties(CartographyNodeProperties):
     base manifest fields don't get nulled out on re-load.
     """
 
-    id: PropertyRef = PropertyRef("digest")
-    source_uri: PropertyRef = PropertyRef("source_uri", extra_index=True)
-    source_revision: PropertyRef = PropertyRef("source_revision")
-    source_file: PropertyRef = PropertyRef("source_file")
-    parent_image_uri: PropertyRef = PropertyRef("parent_image_uri")
-    parent_image_digest: PropertyRef = PropertyRef("parent_image_digest")
+    id: PropertyRef = PropertyRef(
+        "digest", description="Container image digest used as the stable identifier."
+    )
+    source_uri: PropertyRef = PropertyRef(
+        "source_uri",
+        extra_index=True,
+        description="Normalized source repository URI extracted from provenance.",
+    )
+    source_revision: PropertyRef = PropertyRef(
+        "source_revision",
+        description="Source commit revision extracted from provenance.",
+    )
+    source_file: PropertyRef = PropertyRef(
+        "source_file", description="Source definition file extracted from provenance."
+    )
+    parent_image_uri: PropertyRef = PropertyRef(
+        "parent_image_uri",
+        description="Parent image URI derived from provenance or image history.",
+    )
+    parent_image_digest: PropertyRef = PropertyRef(
+        "parent_image_digest",
+        description="Parent image digest resolved from provenance or image history.",
+    )
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
 class GitHubContainerImageProvenanceSchema(CartographyNodeSchema):
-    """
-    Schema for provenance-only enrichment of GitHubContainerImage nodes.
-    """
+    """A digest-addressed container image or manifest list stored in GitHub Container Registry."""
 
     label: str = "GitHubContainerImage"
     properties: GitHubContainerImageProvenanceNodeProperties = (

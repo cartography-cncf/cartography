@@ -13,13 +13,29 @@ from cartography.models.core.relationships import TargetNodeMatcher
 
 @dataclass(frozen=True)
 class WorkOSOrganizationMembershipNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("id")
-    user_id: PropertyRef = PropertyRef("user_id", extra_index=True)
-    organization_id: PropertyRef = PropertyRef("organization_id", extra_index=True)
-    status: PropertyRef = PropertyRef("status")
-    created_at: PropertyRef = PropertyRef("created_at")
-    updated_at: PropertyRef = PropertyRef("updated_at")
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    id: PropertyRef = PropertyRef(
+        "id", description="WorkOS organization membership ID."
+    )
+    user_id: PropertyRef = PropertyRef(
+        "user_id", extra_index=True, description="ID of the member user."
+    )
+    organization_id: PropertyRef = PropertyRef(
+        "organization_id",
+        extra_index=True,
+        description="ID of the organization containing the membership.",
+    )
+    status: PropertyRef = PropertyRef(
+        "status", description="Organization membership status."
+    )
+    created_at: PropertyRef = PropertyRef(
+        "created_at", description="RFC 3339 timestamp when the membership was created."
+    )
+    updated_at: PropertyRef = PropertyRef(
+        "updated_at", description="RFC 3339 timestamp when the membership was updated."
+    )
+    lastupdated: PropertyRef = PropertyRef(
+        "lastupdated", set_in_kwargs=True, description="Timestamp of the last update."
+    )
 
 
 @dataclass(frozen=True)
@@ -30,6 +46,8 @@ class WorkOSOrganizationMembershipToEnvironmentRelProperties(CartographyRelPrope
 @dataclass(frozen=True)
 # (:WorkOSEnvironment)-[:RESOURCE]->(:WorkOSOrganizationMembership)
 class WorkOSOrganizationMembershipToEnvironmentRel(CartographyRelSchema):
+    """The WorkOS environment contains this organization membership as a resource."""
+
     target_node_label: str = "WorkOSEnvironment"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("WORKOS_CLIENT_ID", set_in_kwargs=True)},
@@ -49,6 +67,8 @@ class WorkOSOrganizationMembershipToUserRelProperties(CartographyRelProperties):
 @dataclass(frozen=True)
 # (:WorkOSOrganizationMembership)<-[:MEMBER_OF]-(:WorkOSUser)
 class WorkOSOrganizationMembershipToUserRel(CartographyRelSchema):
+    """The WorkOS user is a member through this organization membership."""
+
     target_node_label: str = "WorkOSUser"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("user_id")},
@@ -68,6 +88,8 @@ class WorkOSOrganizationMembershipToOrganizationRelProperties(CartographyRelProp
 @dataclass(frozen=True)
 # (:WorkOSOrganizationMembership)-[:IN]->(:WorkOSOrganization)
 class WorkOSOrganizationMembershipToOrganizationRel(CartographyRelSchema):
+    """The WorkOS organization membership is in its organization."""
+
     target_node_label: str = "WorkOSOrganization"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("organization_id")},
@@ -87,6 +109,8 @@ class WorkOSOrganizationMembershipToRoleRelProperties(CartographyRelProperties):
 @dataclass(frozen=True)
 # (:WorkOSOrganizationMembership)-[:WITH_ROLE]->(:WorkOSRole)
 class WorkOSOrganizationMembershipToRoleRel(CartographyRelSchema):
+    """The WorkOS organization membership has each role identified by its role slug list."""
+
     target_node_label: str = "WorkOSRole"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"slug": PropertyRef("roles", one_to_many=True)},
@@ -100,6 +124,8 @@ class WorkOSOrganizationMembershipToRoleRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class WorkOSOrganizationMembershipSchema(CartographyNodeSchema):
+    """A WorkOS user's membership in an organization."""
+
     label: str = "WorkOSOrganizationMembership"
     properties: WorkOSOrganizationMembershipNodeProperties = (
         WorkOSOrganizationMembershipNodeProperties()

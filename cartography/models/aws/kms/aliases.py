@@ -18,18 +18,36 @@ class KMSAliasNodeProperties(CartographyNodeProperties):
     Properties for AWS KMS Alias
     """
 
-    id: PropertyRef = PropertyRef("AliasArn")
-    arn: PropertyRef = PropertyRef("AliasArn", extra_index=True)
-    alias_name: PropertyRef = PropertyRef("AliasName", extra_index=True)
-    target_key_id: PropertyRef = PropertyRef("TargetKeyId")
+    id: PropertyRef = PropertyRef("AliasArn", description="The ARN of the alias")
+    arn: PropertyRef = PropertyRef(
+        "AliasArn", extra_index=True, description="The ARN of the alias"
+    )
+    alias_name: PropertyRef = PropertyRef(
+        "AliasName", extra_index=True, description="The name of the alias"
+    )
+    target_key_id: PropertyRef = PropertyRef(
+        "TargetKeyId", description="The KMS key id associated via this alias"
+    )
 
     # Date properties (will be converted to epoch timestamps)
-    creation_date: PropertyRef = PropertyRef("CreationDate")
-    last_updated_date: PropertyRef = PropertyRef("LastUpdatedDate")
+    creation_date: PropertyRef = PropertyRef(
+        "CreationDate", description="The date the alias was created"
+    )
+    last_updated_date: PropertyRef = PropertyRef(
+        "LastUpdatedDate", description="The date the alias was last updated by AWS"
+    )
 
     # Standard cartography properties
-    region: PropertyRef = PropertyRef("Region", set_in_kwargs=True)
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    region: PropertyRef = PropertyRef(
+        "Region",
+        set_in_kwargs=True,
+        description="The AWS region where the alias is located",
+    )
+    lastupdated: PropertyRef = PropertyRef(
+        "lastupdated",
+        set_in_kwargs=True,
+        description="Timestamp of the last time the node was updated by Cartography",
+    )
 
 
 @dataclass(frozen=True)

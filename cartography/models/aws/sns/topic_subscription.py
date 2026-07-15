@@ -14,13 +14,29 @@ from cartography.models.core.relationships import TargetNodeMatcher
 
 @dataclass(frozen=True)
 class SNSTopicSubscriptionNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("SubscriptionArn")
-    arn: PropertyRef = PropertyRef("SubscriptionArn", extra_index=True)
-    topic_arn: PropertyRef = PropertyRef("TopicArn")
-    endpoint: PropertyRef = PropertyRef("Endpoint")
-    owner: PropertyRef = PropertyRef("Owner")
-    protocol: PropertyRef = PropertyRef("Protocol")
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    id: PropertyRef = PropertyRef(
+        "SubscriptionArn", description="The ARN of the SNS topic subscription"
+    )
+    arn: PropertyRef = PropertyRef(
+        "SubscriptionArn",
+        extra_index=True,
+        description="The Amazon Resource Name (ARN) of the topic subscription",
+    )
+    topic_arn: PropertyRef = PropertyRef(
+        "TopicArn", description="The topic ARN that the subscription is associated with"
+    )
+    endpoint: PropertyRef = PropertyRef(
+        "Endpoint", description="The subscription's endpoint"
+    )
+    owner: PropertyRef = PropertyRef("Owner", description="The subscription's owner")
+    protocol: PropertyRef = PropertyRef(
+        "Protocol", description="The subscription's protocol for messages"
+    )
+    lastupdated: PropertyRef = PropertyRef(
+        "lastupdated",
+        set_in_kwargs=True,
+        description="Timestamp of the last time the node was updated",
+    )
 
 
 @dataclass(frozen=True)
@@ -30,6 +46,8 @@ class SNSTopicSubscriptionToAwsAccountRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class SNSTopicSubscriptionToAWSAccountRel(CartographyRelSchema):
+    "Represents a `RESOURCE` relationship from `AWSAccount` to `AWSSNSTopicSubscription`."
+
     target_node_label: str = "AWSAccount"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("AWS_ID", set_in_kwargs=True)},
@@ -48,6 +66,8 @@ class SNSTopicSubscriptionToSNSTopicRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class SNSTopicSubscriptionToSNSTopicRel(CartographyRelSchema):
+    "Represents a `HAS_SUBSCRIPTION` relationship from `AWSSNSTopicSubscription` to `AWSSNSTopic`."
+
     target_node_label: str = "AWSSNSTopic"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("TopicArn")},
@@ -61,6 +81,8 @@ class SNSTopicSubscriptionToSNSTopicRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class SNSTopicSubscriptionSchema(CartographyNodeSchema):
+    "Represents an `AWSSNSTopicSubscription` node in the AWS graph."
+
     label: str = "AWSSNSTopicSubscription"
     # DEPRECATED: legacy SNSTopicSubscription node label will be removed in v1.0.0.
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["SNSTopicSubscription"])

@@ -15,15 +15,35 @@ from cartography.models.core.relationships import TargetNodeMatcher
 
 @dataclass(frozen=True)
 class GCPArtifactRegistryImageLayerNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("diff_id")
-    diff_id: PropertyRef = PropertyRef("diff_id")
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
-    history: PropertyRef = PropertyRef("history")
+    id: PropertyRef = PropertyRef(
+        "diff_id",
+        description=(
+            "Uncompressed OCI layer digest used as the node ID; compressed "
+            "manifest digest and size are not stored."
+        ),
+    )
+    diff_id: PropertyRef = PropertyRef(
+        "diff_id",
+        description="Uncompressed OCI layer digest from rootfs.diff_ids; compressed manifest digest and size are not stored.",
+    )
+    lastupdated: PropertyRef = PropertyRef(
+        "lastupdated",
+        set_in_kwargs=True,
+        description="Timestamp of the last sync that observed this data.",
+    )
+    history: PropertyRef = PropertyRef(
+        "history",
+        description="OCI created_by command aligned to this diff ID after empty-layer history entries are skipped.",
+    )
 
 
 @dataclass(frozen=True)
 class GCPArtifactRegistryImageLayerToProjectRelProperties(CartographyRelProperties):
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    lastupdated: PropertyRef = PropertyRef(
+        "lastupdated",
+        set_in_kwargs=True,
+        description="Timestamp of the last sync that observed this data.",
+    )
 
 
 @dataclass(frozen=True)
@@ -41,11 +61,19 @@ class GCPArtifactRegistryImageLayerToProjectRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class GCPArtifactRegistryImageLayerMatchLinkProperties(CartographyRelProperties):
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
-    _sub_resource_label: PropertyRef = PropertyRef(
-        "_sub_resource_label", set_in_kwargs=True
+    lastupdated: PropertyRef = PropertyRef(
+        "lastupdated",
+        set_in_kwargs=True,
+        description="Timestamp of the last sync that observed this data.",
     )
-    _sub_resource_id: PropertyRef = PropertyRef("_sub_resource_id", set_in_kwargs=True)
+    _sub_resource_label: PropertyRef = PropertyRef(
+        "_sub_resource_label",
+        set_in_kwargs=True,
+    )
+    _sub_resource_id: PropertyRef = PropertyRef(
+        "_sub_resource_id",
+        set_in_kwargs=True,
+    )
 
 
 @dataclass(frozen=True)
@@ -69,6 +97,8 @@ class GCPArtifactRegistryProjectToImageLayerRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class GCPArtifactRegistryImageLayerSchema(CartographyNodeSchema):
+    """A Google Cloud Artifact Registry Image Layer resource."""
+
     label: str = "GCPArtifactRegistryImageLayer"
     properties: GCPArtifactRegistryImageLayerNodeProperties = (
         GCPArtifactRegistryImageLayerNodeProperties()

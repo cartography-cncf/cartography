@@ -13,13 +13,25 @@ from cartography.models.core.relationships import TargetNodeMatcher
 
 @dataclass(frozen=True)
 class SlackBotNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("id")
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
-    name: PropertyRef = PropertyRef("name", extra_index=True)
-    real_name: PropertyRef = PropertyRef("real_name")
-    deleted: PropertyRef = PropertyRef("deleted")
-    is_bot: PropertyRef = PropertyRef("is_bot")
-    is_app_user: PropertyRef = PropertyRef("is_app_user")
+    id: PropertyRef = PropertyRef("id", description="Slack bot ID.")
+    lastupdated: PropertyRef = PropertyRef(
+        "lastupdated",
+        set_in_kwargs=True,
+        description="Timestamp of the last update.",
+    )
+    name: PropertyRef = PropertyRef(
+        "name", extra_index=True, description="Slack bot name."
+    )
+    real_name: PropertyRef = PropertyRef("real_name", description="Bot display name.")
+    deleted: PropertyRef = PropertyRef(
+        "deleted", description="Whether the bot is deleted."
+    )
+    is_bot: PropertyRef = PropertyRef(
+        "is_bot", description="Whether the account is a bot."
+    )
+    is_app_user: PropertyRef = PropertyRef(
+        "is_app_user", description="Whether the bot is an application user."
+    )
 
 
 @dataclass(frozen=True)
@@ -30,6 +42,8 @@ class SlackTeamToSlackBotRelProperties(CartographyRelProperties):
 @dataclass(frozen=True)
 # (:SlackTeam)-[:RESOURCE]->(:SlackBot)
 class SlackTeamToBotRel(CartographyRelSchema):
+    """A Slack workspace contains a bot account."""
+
     target_node_label: str = "SlackTeam"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("TEAM_ID", set_in_kwargs=True)},
@@ -41,6 +55,8 @@ class SlackTeamToBotRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class SlackBotSchema(CartographyNodeSchema):
+    """A Slack bot with ThirdPartyApp and compatibility SlackUser labels."""
+
     label: str = "SlackBot"
     properties: SlackBotNodeProperties = SlackBotNodeProperties()
     sub_resource_relationship: SlackTeamToBotRel = SlackTeamToBotRel()

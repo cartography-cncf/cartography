@@ -25,13 +25,32 @@ from cartography.models.core.relationships import TargetNodeMatcher
 
 @dataclass(frozen=True)
 class GitHubContainerImageLayerNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("diff_id")
-    diff_id: PropertyRef = PropertyRef("diff_id", extra_index=True)
-    digest: PropertyRef = PropertyRef("digest", extra_index=True)
-    media_type: PropertyRef = PropertyRef("media_type")
-    size: PropertyRef = PropertyRef("size")
-    is_empty: PropertyRef = PropertyRef("is_empty")
-    history: PropertyRef = PropertyRef("history")
+    id: PropertyRef = PropertyRef(
+        "diff_id",
+        description="Uncompressed layer diff ID used as the stable identifier.",
+    )
+    diff_id: PropertyRef = PropertyRef(
+        "diff_id",
+        extra_index=True,
+        description="Uncompressed layer content digest used for deduplication.",
+    )
+    digest: PropertyRef = PropertyRef(
+        "digest",
+        extra_index=True,
+        description="Compressed layer digest from the image manifest.",
+    )
+    media_type: PropertyRef = PropertyRef(
+        "media_type", description="OCI or Docker media type of the compressed layer."
+    )
+    size: PropertyRef = PropertyRef(
+        "size", description="Compressed layer size in bytes."
+    )
+    is_empty: PropertyRef = PropertyRef(
+        "is_empty", description="Whether the layer makes no filesystem changes."
+    )
+    history: PropertyRef = PropertyRef(
+        "history", description="Image configuration history entry for the layer."
+    )
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
@@ -77,6 +96,8 @@ class GitHubContainerImageLayerToNextRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class GitHubContainerImageLayerSchema(CartographyNodeSchema):
+    """An uncompressed container image layer identified by its diff ID."""
+
     label: str = "GitHubContainerImageLayer"
     properties: GitHubContainerImageLayerNodeProperties = (
         GitHubContainerImageLayerNodeProperties()

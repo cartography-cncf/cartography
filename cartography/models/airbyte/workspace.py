@@ -12,10 +12,16 @@ from cartography.models.core.relationships import TargetNodeMatcher
 
 @dataclass(frozen=True)
 class AirbyteWorkspaceNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("workspaceId")
-    name: PropertyRef = PropertyRef("name")
-    data_residency: PropertyRef = PropertyRef("dataResidency")
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    id: PropertyRef = PropertyRef("workspaceId", description="Workspace UUID.")
+    name: PropertyRef = PropertyRef("name", description="Workspace name.")
+    data_residency: PropertyRef = PropertyRef(
+        "dataResidency", description="Geographic location where workspace data resides."
+    )
+    lastupdated: PropertyRef = PropertyRef(
+        "lastupdated",
+        set_in_kwargs=True,
+        description="Timestamp of the last update.",
+    )
 
 
 @dataclass(frozen=True)
@@ -26,6 +32,8 @@ class AirbyteWorkspaceToOrganizationRelProperties(CartographyRelProperties):
 @dataclass(frozen=True)
 # (:AirbyteOrganization)-[:RESOURCE]->(:AirbyteWorkspace)
 class AirbyteWorkspaceToOrganizationRel(CartographyRelSchema):
+    """Links an organization to a workspace it owns."""
+
     target_node_label: str = "AirbyteOrganization"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("ORG_ID", set_in_kwargs=True)},
@@ -39,6 +47,8 @@ class AirbyteWorkspaceToOrganizationRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class AirbyteWorkspaceSchema(CartographyNodeSchema):
+    """An Airbyte workspace within an organization."""
+
     label: str = "AirbyteWorkspace"
     properties: AirbyteWorkspaceNodeProperties = AirbyteWorkspaceNodeProperties()
     sub_resource_relationship: AirbyteWorkspaceToOrganizationRel = (

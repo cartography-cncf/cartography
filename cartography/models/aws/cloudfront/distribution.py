@@ -31,46 +31,108 @@ class CloudFrontDistributionNodeProperties(CartographyNodeProperties):
     """
 
     # Core identifiers
-    id: PropertyRef = PropertyRef("ARN")
-    arn: PropertyRef = PropertyRef("ARN", extra_index=True)
-    distribution_id: PropertyRef = PropertyRef("Id", extra_index=True)
-    etag: PropertyRef = PropertyRef("ETag")
+    id: PropertyRef = PropertyRef(
+        "ARN", description="The ARN of the CloudFront distribution"
+    )
+    arn: PropertyRef = PropertyRef(
+        "ARN", extra_index=True, description="The ARN of the CloudFront distribution"
+    )
+    distribution_id: PropertyRef = PropertyRef(
+        "Id",
+        extra_index=True,
+        description="The unique identifier for the distribution (e.g., E1A2B3C4D5E6F7)",
+    )
+    etag: PropertyRef = PropertyRef(
+        "ETag", description="The entity tag for the distribution configuration"
+    )
 
     # Domain and naming
-    domain_name: PropertyRef = PropertyRef("DomainName")
-    aliases: PropertyRef = PropertyRef("Aliases")
-    comment: PropertyRef = PropertyRef("Comment")
+    domain_name: PropertyRef = PropertyRef(
+        "DomainName",
+        description="The CloudFront domain name (e.g., d1234567890abc.cloudfront.net)",
+    )
+    aliases: PropertyRef = PropertyRef(
+        "Aliases",
+        description="List of CNAMEs (alternate domain names) for the distribution",
+    )
+    comment: PropertyRef = PropertyRef(
+        "Comment", description="Optional comment describing the distribution"
+    )
 
     # Status and configuration
-    status: PropertyRef = PropertyRef("Status")
-    enabled: PropertyRef = PropertyRef("Enabled")
-    price_class: PropertyRef = PropertyRef("PriceClass")
-    http_version: PropertyRef = PropertyRef("HttpVersion")
-    is_ipv6_enabled: PropertyRef = PropertyRef("IsIPV6Enabled")
-    staging: PropertyRef = PropertyRef("Staging")
-    last_modified_time: PropertyRef = PropertyRef("LastModifiedTime")
+    status: PropertyRef = PropertyRef(
+        "Status",
+        description="The current status of the distribution (e.g., Deployed, InProgress)",
+    )
+    enabled: PropertyRef = PropertyRef(
+        "Enabled", description="Whether the distribution is enabled"
+    )
+    price_class: PropertyRef = PropertyRef(
+        "PriceClass",
+        description="The price class for the distribution (e.g., PriceClass_100, PriceClass_All)",
+    )
+    http_version: PropertyRef = PropertyRef(
+        "HttpVersion", description="The HTTP version supported (e.g., http2, http2and3)"
+    )
+    is_ipv6_enabled: PropertyRef = PropertyRef(
+        "IsIPV6Enabled", description="Whether IPv6 is enabled for the distribution"
+    )
+    staging: PropertyRef = PropertyRef(
+        "Staging", description="Whether this is a staging distribution"
+    )
+    last_modified_time: PropertyRef = PropertyRef(
+        "LastModifiedTime",
+        description="Timestamp when the CloudFront distribution configuration was last modified.",
+    )
 
     # Cache behavior configuration
-    viewer_protocol_policy: PropertyRef = PropertyRef("ViewerProtocolPolicy")
+    viewer_protocol_policy: PropertyRef = PropertyRef(
+        "ViewerProtocolPolicy",
+        description="The viewer protocol policy from the default cache behavior",
+    )
 
     # SSL/TLS configuration (from ViewerCertificate)
-    acm_certificate_arn: PropertyRef = PropertyRef("ACMCertificateArn")
+    acm_certificate_arn: PropertyRef = PropertyRef(
+        "ACMCertificateArn", description="The ARN of the ACM certificate for HTTPS"
+    )
     cloudfront_default_certificate: PropertyRef = PropertyRef(
         "CloudFrontDefaultCertificate",
+        description="Whether the default CloudFront certificate is used",
     )
-    minimum_protocol_version: PropertyRef = PropertyRef("MinimumProtocolVersion")
-    ssl_support_method: PropertyRef = PropertyRef("SSLSupportMethod")
-    iam_certificate_id: PropertyRef = PropertyRef("IAMCertificateId")
+    minimum_protocol_version: PropertyRef = PropertyRef(
+        "MinimumProtocolVersion",
+        description="The minimum TLS protocol version (e.g., TLSv1.2_2021)",
+    )
+    ssl_support_method: PropertyRef = PropertyRef(
+        "SSLSupportMethod", description="The SSL/TLS support method (e.g., sni-only)"
+    )
+    iam_certificate_id: PropertyRef = PropertyRef(
+        "IAMCertificateId",
+        description="The IAM certificate ID if using IAM certificates",
+    )
 
     # Geographic restrictions (from Restrictions.GeoRestriction)
-    geo_restriction_type: PropertyRef = PropertyRef("GeoRestrictionType")
-    geo_restriction_locations: PropertyRef = PropertyRef("GeoRestrictionLocations")
+    geo_restriction_type: PropertyRef = PropertyRef(
+        "GeoRestrictionType",
+        description="The type of geo restriction (none, whitelist, blacklist)",
+    )
+    geo_restriction_locations: PropertyRef = PropertyRef(
+        "GeoRestrictionLocations",
+        description="List of country codes for geo restrictions",
+    )
 
     # WAF integration
-    web_acl_id: PropertyRef = PropertyRef("WebACLId")
+    web_acl_id: PropertyRef = PropertyRef(
+        "WebACLId",
+        description="The AWS WAF Web ACL ID associated with the distribution",
+    )
 
     # Cartography standard fields
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    lastupdated: PropertyRef = PropertyRef(
+        "lastupdated",
+        set_in_kwargs=True,
+        description="Timestamp of the last time the node was updated",
+    )
 
 
 @dataclass(frozen=True)
@@ -82,11 +144,7 @@ class CloudFrontDistributionToAWSAccountRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class CloudFrontDistributionToAWSAccountRel(CartographyRelSchema):
-    """
-    Defines the relationship from AWSCloudFrontDistribution to AWSAccount.
-
-    (:AWSAccount)-[:RESOURCE]->(:AWSCloudFrontDistribution)
-    """
+    """Indicates that an AWS account contains the CloudFront distribution."""
 
     target_node_label: str = "AWSAccount"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
@@ -108,12 +166,7 @@ class CloudFrontDistributionToS3BucketRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class CloudFrontDistributionToS3BucketRel(CartographyRelSchema):
-    """
-    Defines the relationship from AWSCloudFrontDistribution to AWSS3Bucket.
-
-    Created when a CloudFront distribution has S3 bucket origins.
-    (:AWSCloudFrontDistribution)-[:SERVES_FROM]->(:AWSS3Bucket)
-    """
+    """Indicates that the CloudFront distribution serves content from an S3 bucket origin."""
 
     target_node_label: str = "AWSS3Bucket"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
@@ -137,12 +190,7 @@ class CloudFrontDistributionToACMCertificateRelProperties(CartographyRelProperti
 
 @dataclass(frozen=True)
 class CloudFrontDistributionToACMCertificateRel(CartographyRelSchema):
-    """
-    Defines the relationship from AWSCloudFrontDistribution to AWSACMCertificate.
-
-    Created when a CloudFront distribution uses an ACM certificate for HTTPS.
-    (:AWSCloudFrontDistribution)-[:USES_CERTIFICATE]->(:AWSACMCertificate)
-    """
+    """Indicates that the CloudFront distribution uses an ACM certificate for HTTPS."""
 
     target_node_label: str = "AWSACMCertificate"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
@@ -166,12 +214,7 @@ class CloudFrontDistributionToLambdaRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class CloudFrontDistributionToLambdaRel(CartographyRelSchema):
-    """
-    Defines the relationship from AWSCloudFrontDistribution to AWSLambda.
-
-    Created when a CloudFront distribution has Lambda@Edge function associations.
-    (:AWSCloudFrontDistribution)-[:USES_LAMBDA_EDGE]->(:AWSLambda)
-    """
+    """Indicates that the CloudFront distribution uses a Lambda function for Lambda@Edge processing."""
 
     target_node_label: str = "AWSLambda"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(

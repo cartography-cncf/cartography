@@ -19,12 +19,20 @@ from cartography.models.core.relationships import TargetNodeMatcher
 
 @dataclass(frozen=True)
 class GitHubEnvironmentNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("id")
+    id: PropertyRef = PropertyRef("id", description="GitHub deployment environment ID.")
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
-    name: PropertyRef = PropertyRef("name", extra_index=True)
-    html_url: PropertyRef = PropertyRef("html_url")
-    created_at: PropertyRef = PropertyRef("created_at")
-    updated_at: PropertyRef = PropertyRef("updated_at")
+    name: PropertyRef = PropertyRef(
+        "name", extra_index=True, description="Deployment environment name."
+    )
+    html_url: PropertyRef = PropertyRef(
+        "html_url", description="Web URL for the environment settings."
+    )
+    created_at: PropertyRef = PropertyRef(
+        "created_at", description="Timestamp when the environment was created."
+    )
+    updated_at: PropertyRef = PropertyRef(
+        "updated_at", description="Timestamp when the environment was last updated."
+    )
 
 
 @dataclass(frozen=True)

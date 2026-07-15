@@ -14,18 +14,55 @@ from cartography.models.core.relationships import TargetNodeMatcher
 
 @dataclass(frozen=True)
 class EC2NetworkAclRuleNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("Id")
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
-    network_acl_id: PropertyRef = PropertyRef("NetworkAclId")
-    protocol: PropertyRef = PropertyRef("Protocol")
-    fromport: PropertyRef = PropertyRef("FromPort")
-    toport: PropertyRef = PropertyRef("ToPort")
-    cidrblock: PropertyRef = PropertyRef("CidrBlock")
-    ipv6cidrblock: PropertyRef = PropertyRef("Ipv6CidrBlock")
-    egress: PropertyRef = PropertyRef("Egress")
-    rulenumber: PropertyRef = PropertyRef("RuleNumber")
-    ruleaction: PropertyRef = PropertyRef("RuleAction")
-    region: PropertyRef = PropertyRef("Region", set_in_kwargs=True)
+    id: PropertyRef = PropertyRef(
+        "Id", description="Unique identifier for this `AWSEC2NetworkAclRule` node."
+    )
+    lastupdated: PropertyRef = PropertyRef(
+        "lastupdated",
+        set_in_kwargs=True,
+        description="Timestamp of the last sync that updated this `AWSEC2NetworkAclRule` node.",
+    )
+    network_acl_id: PropertyRef = PropertyRef(
+        "NetworkAclId",
+        description="Identifier of the network ACL linked to this `AWSEC2NetworkAclRule` node.",
+    )
+    protocol: PropertyRef = PropertyRef(
+        "Protocol",
+        description="IP protocol number matched by the network ACL rule.",
+    )
+    fromport: PropertyRef = PropertyRef(
+        "FromPort",
+        description="Lowest transport-layer port matched by the network ACL rule.",
+    )
+    toport: PropertyRef = PropertyRef(
+        "ToPort",
+        description="Highest transport-layer port matched by the network ACL rule.",
+    )
+    cidrblock: PropertyRef = PropertyRef(
+        "CidrBlock",
+        description="IPv4 CIDR range matched by the network ACL rule.",
+    )
+    ipv6cidrblock: PropertyRef = PropertyRef(
+        "Ipv6CidrBlock",
+        description="IPv6 CIDR range matched by the network ACL rule.",
+    )
+    egress: PropertyRef = PropertyRef(
+        "Egress",
+        description="Whether this `AWSEC2NetworkAclRule` node applies to outbound traffic.",
+    )
+    rulenumber: PropertyRef = PropertyRef(
+        "RuleNumber",
+        description="Evaluation order of the network ACL rule.",
+    )
+    ruleaction: PropertyRef = PropertyRef(
+        "RuleAction",
+        description="Whether matching traffic is allowed or denied.",
+    )
+    region: PropertyRef = PropertyRef(
+        "Region",
+        set_in_kwargs=True,
+        description="AWS Region containing this `AWSEC2NetworkAclRule` node.",
+    )
 
 
 @dataclass(frozen=True)
@@ -35,6 +72,8 @@ class EC2NetworkAclRuleAclRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class EC2NetworkAclRuleToAclRel(CartographyRelSchema):
+    "Represents a `MEMBER_OF_NACL` relationship from `AWSEC2NetworkAclRule` to `AWSEC2NetworkAcl`."
+
     target_node_label: str = "AWSEC2NetworkAcl"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"network_acl_id": PropertyRef("NetworkAclId")},
@@ -51,6 +90,8 @@ class EC2NetworkAclRuleToAWSAccountRelRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class EC2NetworkAclRuleToAWSAccountRel(CartographyRelSchema):
+    "Represents a `RESOURCE` relationship from `AWSAccount` to `AWSEC2NetworkAclRule`."
+
     target_node_label: str = "AWSAccount"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("AWS_ID", set_in_kwargs=True)},

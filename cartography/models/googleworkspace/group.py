@@ -21,23 +21,49 @@ class GoogleWorkspaceGroupNodeProperties(CartographyNodeProperties):
     Compatible with Cloud Identity API response structure
     """
 
-    id: PropertyRef = PropertyRef("name")
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    id: PropertyRef = PropertyRef(
+        "name", description="Unique Cloud Identity resource name of the group."
+    )
+    lastupdated: PropertyRef = PropertyRef(
+        "lastupdated",
+        set_in_kwargs=True,
+        description="Timestamp of the last update.",
+    )
 
     # Group identifiers and basic info
-    email: PropertyRef = PropertyRef("email", extra_index=True)
-    description: PropertyRef = PropertyRef("description")
+    email: PropertyRef = PropertyRef(
+        "email", extra_index=True, description="Email address of the group."
+    )
+    description: PropertyRef = PropertyRef(
+        "description", description="Description of the group."
+    )
 
     # Cloud Identity API fields
-    name: PropertyRef = PropertyRef("name")
-    display_name: PropertyRef = PropertyRef("displayName")
-    parent: PropertyRef = PropertyRef("parent")
-    create_time: PropertyRef = PropertyRef("createTime")
-    update_time: PropertyRef = PropertyRef("updateTime")
-    labels: PropertyRef = PropertyRef("labels")
+    name: PropertyRef = PropertyRef(
+        "name", description="Cloud Identity resource name of the group."
+    )
+    display_name: PropertyRef = PropertyRef(
+        "displayName", description="Display name of the group."
+    )
+    parent: PropertyRef = PropertyRef(
+        "parent", description="Cloud Identity parent resource of the group."
+    )
+    create_time: PropertyRef = PropertyRef(
+        "createTime", description="Time when the group was created."
+    )
+    update_time: PropertyRef = PropertyRef(
+        "updateTime", description="Time when the group was last updated."
+    )
+    labels: PropertyRef = PropertyRef(
+        "labels", description="Serialized Cloud Identity labels on the group."
+    )
 
     # Tenant relationship
-    customer_id: PropertyRef = PropertyRef("CUSTOMER_ID", set_in_kwargs=True)
+    customer_id: PropertyRef = PropertyRef(
+        "CUSTOMER_ID",
+        set_in_kwargs=True,
+        description="ID of the Google Workspace tenant that contains the group.",
+    )
 
 
 @dataclass(frozen=True)
@@ -51,9 +77,7 @@ class GoogleWorkspaceGroupToTenantRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class GoogleWorkspaceGroupToTenantRel(CartographyRelSchema):
-    """
-    Relationship from Google Workspace group to Google Workspace tenant
-    """
+    """A Google Workspace tenant contains a group."""
 
     target_node_label: str = "GoogleWorkspaceTenant"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
@@ -79,9 +103,7 @@ class GoogleWorkspaceGroupToMemberRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class GoogleWorkspaceGroupToMemberRel(CartographyRelSchema):
-    """
-    Relationship from Google Workspace group to its members (users or groups)
-    """
+    """A Google Workspace user is a direct member of a group."""
 
     target_node_label: str = (
         "GoogleWorkspaceUser"  # or GoogleWorkspaceGroup for subgroup relationships
@@ -109,9 +131,7 @@ class GoogleWorkspaceGroupToOwnerRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class GoogleWorkspaceGroupToOwnerRel(CartographyRelSchema):
-    """
-    Relationship from Google Workspace group to its owners (users)
-    """
+    """A Google Workspace user directly owns a group."""
 
     target_node_label: str = "GoogleWorkspaceUser"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
@@ -128,9 +148,7 @@ class GoogleWorkspaceGroupToOwnerRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class GoogleWorkspaceGroupSchema(CartographyNodeSchema):
-    """
-    Google Workspace group node schema
-    """
+    """A Google Workspace group with canonical UserGroup and GCPPrincipal labels."""
 
     label: str = "GoogleWorkspaceGroup"
     properties: GoogleWorkspaceGroupNodeProperties = (
@@ -167,9 +185,7 @@ class GoogleWorkspaceGroupToGroupMemberRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class GoogleWorkspaceGroupToGroupMemberRel(CartographyRelSchema):
-    """
-    MatchLink relationship from Google Workspace parent group to member group
-    """
+    """A member group has direct MEMBER_OF membership in its parent group."""
 
     target_node_label: str = "GoogleWorkspaceGroup"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
@@ -206,9 +222,7 @@ class GoogleWorkspaceGroupToGroupOwnerRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class GoogleWorkspaceGroupToGroupOwnerRel(CartographyRelSchema):
-    """
-    MatchLink relationship from Google Workspace parent group to owner group
-    """
+    """An owner group directly owns its parent group."""
 
     target_node_label: str = "GoogleWorkspaceGroup"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
@@ -245,13 +259,7 @@ class GoogleWorkspaceUserToGroupInheritedMemberRelProperties(CartographyRelPrope
 
 @dataclass(frozen=True)
 class GoogleWorkspaceUserToGroupInheritedMemberRel(CartographyRelSchema):
-    """
-    MatchLink that creates INHERITED_MEMBER_OF relationships from users to groups
-    they are indirectly members of through group hierarchy.
-
-    Example: User -> MEMBER_OF -> SubGroup -> MEMBER_OF -> ParentGroup
-    This creates: User -> INHERITED_MEMBER_OF -> ParentGroup
-    """
+    """A user inherits membership in ancestors of a directly joined group."""
 
     target_node_label: str = "GoogleWorkspaceGroup"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
@@ -283,13 +291,7 @@ class GoogleWorkspaceUserToGroupInheritedOwnerRelProperties(CartographyRelProper
 
 @dataclass(frozen=True)
 class GoogleWorkspaceUserToGroupInheritedOwnerRel(CartographyRelSchema):
-    """
-    MatchLink that creates INHERITED_OWNER_OF relationships from users to groups
-    they are indirectly owners of through group hierarchy.
-
-    Example: User -> OWNER_OF -> SubGroup -> MEMBER_OF -> ParentGroup
-    This creates: User -> INHERITED_OWNER_OF -> ParentGroup
-    """
+    """A user inherits ownership of ancestors of a directly owned group."""
 
     target_node_label: str = "GoogleWorkspaceGroup"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
@@ -321,13 +323,7 @@ class GoogleWorkspaceGroupToGroupInheritedMemberRelProperties(CartographyRelProp
 
 @dataclass(frozen=True)
 class GoogleWorkspaceGroupToGroupInheritedMemberRel(CartographyRelSchema):
-    """
-    MatchLink that creates INHERITED_MEMBER_OF relationships from groups to groups
-    they are indirectly members of through group hierarchy.
-
-    Example: SubGroup1 -> MEMBER_OF -> SubGroup2 -> MEMBER_OF -> ParentGroup
-    This creates: SubGroup1 -> INHERITED_MEMBER_OF -> ParentGroup
-    """
+    """A group inherits membership in ancestors above its direct parent group."""
 
     target_node_label: str = "GoogleWorkspaceGroup"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
@@ -359,13 +355,7 @@ class GoogleWorkspaceGroupToGroupInheritedOwnerRelProperties(CartographyRelPrope
 
 @dataclass(frozen=True)
 class GoogleWorkspaceGroupToGroupInheritedOwnerRel(CartographyRelSchema):
-    """
-    MatchLink that creates INHERITED_OWNER_OF relationships from groups to groups
-    they are indirectly owners of through group hierarchy.
-
-    Example: SubGroup1 -> OWNER_OF -> SubGroup2 -> MEMBER_OF -> ParentGroup
-    This creates: SubGroup1 -> INHERITED_OWNER_OF -> ParentGroup
-    """
+    """A group inherits ownership of ancestors of a directly owned group."""
 
     target_node_label: str = "GoogleWorkspaceGroup"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(

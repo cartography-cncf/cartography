@@ -14,10 +14,16 @@ from cartography.models.core.relationships import TargetNodeMatcher
 
 @dataclass(frozen=True)
 class KubernetesUserNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("id")
-    name: PropertyRef = PropertyRef("name")
-    cluster_name: PropertyRef = PropertyRef("cluster_name")
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    id: PropertyRef = PropertyRef("id", description="Identifier for the user.")
+    name: PropertyRef = PropertyRef("name", description="Name of the Kubernetes user.")
+    cluster_name: PropertyRef = PropertyRef(
+        "cluster_name", description="Name of the cluster this user belongs to."
+    )
+    lastupdated: PropertyRef = PropertyRef(
+        "lastupdated",
+        set_in_kwargs=True,
+        description="Timestamp of the last time the node was updated.",
+    )
 
 
 @dataclass(frozen=True)
@@ -27,6 +33,8 @@ class KubernetesUserToClusterRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class KubernetesUserToClusterRel(CartographyRelSchema):
+    "Links `KubernetesCluster` to `KubernetesUser` with `RESOURCE`."
+
     target_node_label: str = "KubernetesCluster"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("CLUSTER_ID", set_in_kwargs=True)}
@@ -60,6 +68,8 @@ class KubernetesUserToAWSRootPrincipalRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class KubernetesUserToOktaUserRel(CartographyRelSchema):
+    "Links `OktaUser` to `KubernetesUser` with `MAPS_TO`."
+
     target_node_label: str = "OktaUser"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"email": PropertyRef("name")}
@@ -73,6 +83,8 @@ class KubernetesUserToOktaUserRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class KubernetesUserToAWSRoleRel(CartographyRelSchema):
+    "Links `AWSRole` to `KubernetesUser` with `MAPS_TO`."
+
     target_node_label: str = "AWSRole"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"arn": PropertyRef("aws_role_arn")}
@@ -86,6 +98,8 @@ class KubernetesUserToAWSRoleRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class KubernetesUserToAWSUserRel(CartographyRelSchema):
+    "Links `AWSUser` to `KubernetesUser` with `MAPS_TO`."
+
     target_node_label: str = "AWSUser"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"arn": PropertyRef("aws_user_arn")}
@@ -99,6 +113,8 @@ class KubernetesUserToAWSUserRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class KubernetesUserToAWSRootPrincipalRel(CartographyRelSchema):
+    "Links `AWSRootPrincipal` to `KubernetesUser` with `MAPS_TO`."
+
     target_node_label: str = "AWSRootPrincipal"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"arn": PropertyRef("aws_root_principal_arn")}
@@ -112,6 +128,8 @@ class KubernetesUserToAWSRootPrincipalRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class KubernetesUserSchema(CartographyNodeSchema):
+    "A user identity referenced by Kubernetes RBAC."
+
     label: str = "KubernetesUser"
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["UserAccount"])
     properties: KubernetesUserNodeProperties = KubernetesUserNodeProperties()

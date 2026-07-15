@@ -16,12 +16,24 @@ from cartography.models.core.relationships import TargetNodeMatcher
 
 @dataclass(frozen=True)
 class EC2SubnetNetworkInterfaceNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("SubnetId")
+    id: PropertyRef = PropertyRef("SubnetId", description="same as subnetid")
     # TODO: remove subnetid once we have migrated to subnet_id
-    subnetid: PropertyRef = PropertyRef("SubnetId", extra_index=True)
-    subnet_id: PropertyRef = PropertyRef("SubnetId", extra_index=True)
-    region: PropertyRef = PropertyRef("Region", set_in_kwargs=True)
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    subnetid: PropertyRef = PropertyRef(
+        "SubnetId", extra_index=True, description="The ID of the subnet"
+    )
+    subnet_id: PropertyRef = PropertyRef(
+        "SubnetId", extra_index=True, description="The ID of the subnet"
+    )
+    region: PropertyRef = PropertyRef(
+        "Region",
+        set_in_kwargs=True,
+        description="The AWS region the subnet is installed on",
+    )
+    lastupdated: PropertyRef = PropertyRef(
+        "lastupdated",
+        set_in_kwargs=True,
+        description="Timestamp of the last time the node was updated",
+    )
 
 
 @dataclass(frozen=True)
@@ -31,6 +43,8 @@ class EC2SubnetToNetworkInterfaceRelRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class EC2SubnetToNetworkInterfaceRel(CartographyRelSchema):
+    "Represents a `PART_OF_SUBNET` relationship from `AWSNetworkInterface` to `AWSEC2Subnet`."
+
     target_node_label: str = "AWSNetworkInterface"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("NetworkInterfaceId")},
@@ -49,6 +63,8 @@ class EC2SubnetToLoadBalancerRelRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class EC2SubnetToLoadBalancerRel(CartographyRelSchema):
+    "Represents a `PART_OF_SUBNET` relationship from `AWSLoadBalancer` to `AWSEC2Subnet`."
+
     target_node_label: str = "AWSLoadBalancer"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("ElbV1Id")},
@@ -67,6 +83,8 @@ class EC2SubnetToLoadBalancerV2RelRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class EC2SubnetToLoadBalancerV2Rel(CartographyRelSchema):
+    "Represents a `PART_OF_SUBNET` relationship from `AWSLoadBalancerV2` to `AWSEC2Subnet`."
+
     target_node_label: str = "AWSLoadBalancerV2"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("ElbV2Id")},
@@ -80,9 +98,10 @@ class EC2SubnetToLoadBalancerV2Rel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class EC2SubnetNetworkInterfaceSchema(CartographyNodeSchema):
-    """
-    Subnet as known by describe-network-interfaces
-    """
+    "Represents a subnet in an Amazon EC2 virtual private cloud."
+
+    # Implementation note:
+    # Subnet as known by describe-network-interfaces
 
     label: str = "AWSEC2Subnet"
     properties: EC2SubnetNetworkInterfaceNodeProperties = (

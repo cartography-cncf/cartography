@@ -13,14 +13,23 @@ from cartography.models.core.relationships import TargetNodeMatcher
 
 @dataclass(frozen=True)
 class WorkOSOrganizationNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("id")
-    name: PropertyRef = PropertyRef("name")
-    created_at: PropertyRef = PropertyRef("created_at")
-    updated_at: PropertyRef = PropertyRef("updated_at")
-    allow_profiles_outside_organization: PropertyRef = PropertyRef(
-        "allow_profiles_outside_organization"
+    id: PropertyRef = PropertyRef("id", description="WorkOS organization ID.")
+    name: PropertyRef = PropertyRef("name", description="Organization name.")
+    created_at: PropertyRef = PropertyRef(
+        "created_at",
+        description="RFC 3339 timestamp when the organization was created.",
     )
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    updated_at: PropertyRef = PropertyRef(
+        "updated_at",
+        description="RFC 3339 timestamp when the organization was updated.",
+    )
+    allow_profiles_outside_organization: PropertyRef = PropertyRef(
+        "allow_profiles_outside_organization",
+        description="Whether profiles outside the organization are allowed.",
+    )
+    lastupdated: PropertyRef = PropertyRef(
+        "lastupdated", set_in_kwargs=True, description="Timestamp of the last update."
+    )
 
 
 @dataclass(frozen=True)
@@ -31,6 +40,8 @@ class WorkOSOrganizationToEnvironmentRelProperties(CartographyRelProperties):
 @dataclass(frozen=True)
 # (:WorkOSEnvironment)-[:RESOURCE]->(:WorkOSOrganization)
 class WorkOSOrganizationToEnvironmentRel(CartographyRelSchema):
+    """The WorkOS environment contains this organization as a resource."""
+
     target_node_label: str = "WorkOSEnvironment"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("WORKOS_CLIENT_ID", set_in_kwargs=True)},
@@ -44,6 +55,8 @@ class WorkOSOrganizationToEnvironmentRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class WorkOSOrganizationSchema(CartographyNodeSchema):
+    """A WorkOS organization with the canonical Tenant label."""
+
     label: str = "WorkOSOrganization"
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["Tenant"])
     properties: WorkOSOrganizationNodeProperties = WorkOSOrganizationNodeProperties()

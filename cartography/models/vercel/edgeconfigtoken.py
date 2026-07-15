@@ -13,11 +13,17 @@ from cartography.models.core.relationships import TargetNodeMatcher
 
 @dataclass(frozen=True)
 class VercelEdgeConfigTokenNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("id")
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
-    label: PropertyRef = PropertyRef("label", extra_index=True)
-    created_at: PropertyRef = PropertyRef("createdAt")
-    # NOTE: token value is intentionally omitted — never store secrets
+    id: PropertyRef = PropertyRef("id", description="Edge Config token ID.")
+    lastupdated: PropertyRef = PropertyRef(
+        "lastupdated", set_in_kwargs=True, description="Timestamp of the last update."
+    )
+    label: PropertyRef = PropertyRef(
+        "label", extra_index=True, description="Edge Config token label."
+    )
+    created_at: PropertyRef = PropertyRef(
+        "createdAt", description="Timestamp when the Edge Config token was created."
+    )
+    # NOTE: The token value is intentionally omitted to avoid storing secrets.
 
 
 @dataclass(frozen=True)
@@ -28,6 +34,8 @@ class VercelEdgeConfigTokenToTeamRelProperties(CartographyRelProperties):
 @dataclass(frozen=True)
 # (:VercelTeam)-[:RESOURCE]->(:VercelEdgeConfigToken)
 class VercelEdgeConfigTokenToTeamRel(CartographyRelSchema):
+    """The Vercel team contains this Edge Config token as a resource."""
+
     target_node_label: str = "VercelTeam"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("TEAM_ID", set_in_kwargs=True)},
@@ -47,6 +55,8 @@ class VercelEdgeConfigTokenToEdgeConfigRelProperties(CartographyRelProperties):
 @dataclass(frozen=True)
 # (:VercelEdgeConfig)-[:HAS_TOKEN]->(:VercelEdgeConfigToken)
 class VercelEdgeConfigTokenToEdgeConfigRel(CartographyRelSchema):
+    """The Vercel Edge Config exposes this access token."""
+
     target_node_label: str = "VercelEdgeConfig"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("edge_config_id", set_in_kwargs=True)},
@@ -60,6 +70,8 @@ class VercelEdgeConfigTokenToEdgeConfigRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class VercelEdgeConfigTokenSchema(CartographyNodeSchema):
+    """A Vercel read token that grants access to an Edge Config."""
+
     label: str = "VercelEdgeConfigToken"
     properties: VercelEdgeConfigTokenNodeProperties = (
         VercelEdgeConfigTokenNodeProperties()

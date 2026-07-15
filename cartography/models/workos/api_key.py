@@ -14,14 +14,26 @@ from cartography.models.core.relationships import TargetNodeMatcher
 
 @dataclass(frozen=True)
 class WorkOSAPIKeyNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("id")
-    name: PropertyRef = PropertyRef("name")
-    obfuscated_value: PropertyRef = PropertyRef("obfuscated_value")
-    permissions: PropertyRef = PropertyRef("permissions")
-    created_at: PropertyRef = PropertyRef("created_at")
-    updated_at: PropertyRef = PropertyRef("updated_at")
-    last_used_at: PropertyRef = PropertyRef("last_used_at")
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    id: PropertyRef = PropertyRef("id", description="WorkOS API key ID.")
+    name: PropertyRef = PropertyRef("name", description="API key name.")
+    obfuscated_value: PropertyRef = PropertyRef(
+        "obfuscated_value", description="Obfuscated API key value."
+    )
+    permissions: PropertyRef = PropertyRef(
+        "permissions", description="Permissions granted to the API key."
+    )
+    created_at: PropertyRef = PropertyRef(
+        "created_at", description="RFC 3339 timestamp when the API key was created."
+    )
+    updated_at: PropertyRef = PropertyRef(
+        "updated_at", description="RFC 3339 timestamp when the API key was updated."
+    )
+    last_used_at: PropertyRef = PropertyRef(
+        "last_used_at", description="RFC 3339 timestamp when the API key was last used."
+    )
+    lastupdated: PropertyRef = PropertyRef(
+        "lastupdated", set_in_kwargs=True, description="Timestamp of the last update."
+    )
 
 
 @dataclass(frozen=True)
@@ -32,6 +44,8 @@ class WorkOSAPIKeyToEnvironmentRelProperties(CartographyRelProperties):
 @dataclass(frozen=True)
 # (:WorkOSEnvironment)-[:RESOURCE]->(:WorkOSAPIKey)
 class WorkOSAPIKeyToEnvironmentRel(CartographyRelSchema):
+    """The WorkOS environment contains this API key as a resource."""
+
     target_node_label: str = "WorkOSEnvironment"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("WORKOS_CLIENT_ID", set_in_kwargs=True)},
@@ -51,6 +65,8 @@ class WorkOSAPIKeyToOrganizationRelProperties(CartographyRelProperties):
 @dataclass(frozen=True)
 # (:WorkOSOrganization)-[:OWNS]->(:WorkOSAPIKey)
 class WorkOSAPIKeyToOrganizationRel(CartographyRelSchema):
+    """The WorkOS organization owns this API key."""
+
     target_node_label: str = "WorkOSOrganization"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("org_owner_id")},
@@ -64,6 +80,8 @@ class WorkOSAPIKeyToOrganizationRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class WorkOSAPIKeySchema(CartographyNodeSchema):
+    """A WorkOS API key with the canonical APIKey label."""
+
     label: str = "WorkOSAPIKey"
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["APIKey"])
     properties: WorkOSAPIKeyNodeProperties = WorkOSAPIKeyNodeProperties()

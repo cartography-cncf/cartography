@@ -3,6 +3,7 @@ GCP permission relationship MatchLink schemas.
 """
 
 from dataclasses import dataclass
+from typing import ClassVar
 
 from cartography.models.core.common import PropertyRef
 from cartography.models.core.relationships import CartographyRelProperties
@@ -21,19 +22,37 @@ class GCPPermissionRelProperties(CartographyRelProperties):
     """
 
     # Required fields for MatchLinks
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    lastupdated: PropertyRef = PropertyRef(
+        "lastupdated",
+        set_in_kwargs=True,
+        description="Timestamp of the last sync that observed this data.",
+    )
     # Constant condition fields (always unconditional on the bulk path). Set so a
     # conditional -> unconditional transition clears stale metadata left by a prior
     # sync that wrote the same edge via the row-by-row conditional schema.
-    has_condition: PropertyRef = PropertyRef("has_condition", set_in_kwargs=True)
-    condition_title: PropertyRef = PropertyRef("condition_title", set_in_kwargs=True)
+    has_condition: PropertyRef = PropertyRef(
+        "has_condition",
+        set_in_kwargs=True,
+        description="Whether an IAM condition restricts this grant.",
+    )
+    condition_title: PropertyRef = PropertyRef(
+        "condition_title",
+        set_in_kwargs=True,
+        description="Human-readable title of the IAM condition.",
+    )
     condition_expression: PropertyRef = PropertyRef(
-        "condition_expression", set_in_kwargs=True
+        "condition_expression",
+        set_in_kwargs=True,
+        description="CEL expression that controls the IAM condition.",
     )
     _sub_resource_label: PropertyRef = PropertyRef(
-        "_sub_resource_label", set_in_kwargs=True
+        "_sub_resource_label",
+        set_in_kwargs=True,
     )
-    _sub_resource_id: PropertyRef = PropertyRef("_sub_resource_id", set_in_kwargs=True)
+    _sub_resource_id: PropertyRef = PropertyRef(
+        "_sub_resource_id",
+        set_in_kwargs=True,
+    )
 
 
 @dataclass(frozen=True)
@@ -51,6 +70,7 @@ class GCPPermissionMatchLink(CartographyRelSchema):
     - GCPGroup (from GSuite)
     """
 
+    __cartography_introspection_exclude__: ClassVar[bool] = True
     source_node_label: str = "GCPPrincipal"
     source_node_matcher: SourceNodeMatcher = make_source_node_matcher(
         {"email": PropertyRef("principal_email")},
@@ -84,14 +104,29 @@ class GCPConditionalPermissionRelProperties(CartographyRelProperties):
     so broad unconditional grants keep using GCPPermissionMatchLink.
     """
 
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
-    has_condition: PropertyRef = PropertyRef("has_condition")
-    condition_title: PropertyRef = PropertyRef("condition_title")
-    condition_expression: PropertyRef = PropertyRef("condition_expression")
-    _sub_resource_label: PropertyRef = PropertyRef(
-        "_sub_resource_label", set_in_kwargs=True
+    lastupdated: PropertyRef = PropertyRef(
+        "lastupdated",
+        set_in_kwargs=True,
+        description="Timestamp of the last sync that observed this data.",
     )
-    _sub_resource_id: PropertyRef = PropertyRef("_sub_resource_id", set_in_kwargs=True)
+    has_condition: PropertyRef = PropertyRef(
+        "has_condition", description="Whether an IAM condition restricts this grant."
+    )
+    condition_title: PropertyRef = PropertyRef(
+        "condition_title", description="Human-readable title of the IAM condition."
+    )
+    condition_expression: PropertyRef = PropertyRef(
+        "condition_expression",
+        description="CEL expression that controls the IAM condition.",
+    )
+    _sub_resource_label: PropertyRef = PropertyRef(
+        "_sub_resource_label",
+        set_in_kwargs=True,
+    )
+    _sub_resource_id: PropertyRef = PropertyRef(
+        "_sub_resource_id",
+        set_in_kwargs=True,
+    )
 
 
 @dataclass(frozen=True)
@@ -104,6 +139,7 @@ class GCPConditionalPermissionMatchLink(CartographyRelSchema):
     cleanup by rel_label + sub-resource covers edges written by either schema.
     """
 
+    __cartography_introspection_exclude__: ClassVar[bool] = True
     source_node_label: str = "GCPPrincipal"
     source_node_matcher: SourceNodeMatcher = make_source_node_matcher(
         {"email": PropertyRef("principal_email")},

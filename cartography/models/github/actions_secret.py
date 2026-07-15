@@ -25,13 +25,27 @@ from cartography.models.core.relationships import TargetNodeMatcher
 
 @dataclass(frozen=True)
 class GitHubActionsSecretNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("id")
+    id: PropertyRef = PropertyRef(
+        "id", description="Scope-qualified GitHub Actions secret identifier."
+    )
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
-    name: PropertyRef = PropertyRef("name", extra_index=True)
-    created_at: PropertyRef = PropertyRef("created_at")
-    updated_at: PropertyRef = PropertyRef("updated_at")
-    visibility: PropertyRef = PropertyRef("visibility")
-    level: PropertyRef = PropertyRef("level")
+    name: PropertyRef = PropertyRef(
+        "name", extra_index=True, description="Secret name."
+    )
+    created_at: PropertyRef = PropertyRef(
+        "created_at", description="Timestamp when the secret metadata was created."
+    )
+    updated_at: PropertyRef = PropertyRef(
+        "updated_at", description="Timestamp when the secret metadata was last updated."
+    )
+    visibility: PropertyRef = PropertyRef(
+        "visibility",
+        description="Organization secret visibility: `all`, `private`, or `selected`.",
+    )
+    level: PropertyRef = PropertyRef(
+        "level",
+        description="Secret scope: `organization`, `repository`, or `environment`.",
+    )
 
 
 # =============================================================================
@@ -46,6 +60,8 @@ class GitHubActionsSecretToOrgRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class GitHubActionsSecretToOrgRel(CartographyRelSchema):
+    """Scopes a GitHub resource to its organization."""
+
     target_node_label: str = "GitHubOrganization"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("org_url", set_in_kwargs=True)},
@@ -59,7 +75,10 @@ class GitHubActionsSecretToOrgRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class GitHubOrgActionsSecretSchema(CartographyNodeSchema):
-    """Schema for organization-level secrets."""
+    """A GitHub Actions secret at organization, repository, or environment scope.
+
+    GitHub exposes metadata but never the secret value.
+    """
 
     label: str = "GitHubActionsSecret"
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
@@ -83,6 +102,8 @@ class GitHubActionsSecretToRepoRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class GitHubActionsSecretToRepoRel(CartographyRelSchema):
+    """Links a GitHub repository to an Actions secret."""
+
     target_node_label: str = "GitHubRepository"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("repo_url")},
@@ -96,12 +117,9 @@ class GitHubActionsSecretToRepoRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class GitHubRepoActionsSecretSchema(CartographyNodeSchema):
-    """
-    Schema for repository-level secrets.
+    """A GitHub Actions secret at organization, repository, or environment scope.
 
-    Uses GitHubOrganization as the sub-resource for cleanup scoping so a single
-    GraphJob run cleans up secrets from every repo in the org. The HAS_SECRET
-    edge to the owning repository is kept as an other_relationship.
+    GitHub exposes metadata but never the secret value.
     """
 
     label: str = "GitHubActionsSecret"
@@ -149,13 +167,7 @@ class GitHubEnvActionsSecretToOrgRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class GitHubEnvActionsSecretToOrgRel(CartographyRelSchema):
-    """
-    Sub-resource relationship from environment-level secret to organization.
-
-    This uses org as the sub-resource (instead of environment) so that cleanup
-    is scoped to the organization. This ensures env-level secrets/variables are
-    properly cleaned up even when their parent environment is deleted.
-    """
+    """Scopes a GitHub resource to its organization."""
 
     target_node_label: str = "GitHubOrganization"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
@@ -170,11 +182,9 @@ class GitHubEnvActionsSecretToOrgRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class GitHubEnvActionsSecretSchema(CartographyNodeSchema):
-    """
-    Schema for environment-level secrets.
+    """A GitHub Actions secret at organization, repository, or environment scope.
 
-    Uses GitHubOrganization as the sub-resource for cleanup scoping.
-    The relationship to GitHubEnvironment is in other_relationships.
+    GitHub exposes metadata but never the secret value.
     """
 
     label: str = "GitHubActionsSecret"

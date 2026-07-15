@@ -23,6 +23,8 @@ class AWSDNSZoneSubzoneRelProperties(CartographyRelProperties):
 # MatchLink for creating SUBZONE relationships between DNS zones
 @dataclass(frozen=True)
 class AWSDNSZoneSubzoneMatchLink(CartographyRelSchema):
+    "Represents a `SUBZONE` relationship from `AWSDNSZone` to `AWSDNSZone`."
+
     target_node_label: str = "AWSDNSZone"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {

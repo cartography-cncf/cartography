@@ -18,30 +18,73 @@ from cartography.models.core.relationships import TargetNodeMatcher
 
 @dataclass(frozen=True)
 class SpotlightVulnerabilityNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("id")
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
-    aid: PropertyRef = PropertyRef("aid")
-    cid: PropertyRef = PropertyRef("cid")
-    status: PropertyRef = PropertyRef("status")
-    created_timestamp: PropertyRef = PropertyRef("created_timestamp")
-    closed_timestamp: PropertyRef = PropertyRef("closed_timestamp")
-    updated_timestamp: PropertyRef = PropertyRef("updated_timestamp")
-    cve_id: PropertyRef = PropertyRef("cve_id", extra_index=True)
-    host_info_local_ip: PropertyRef = PropertyRef(
-        "host_info_local_ip", extra_index=True
+    id: PropertyRef = PropertyRef(
+        "id",
+        description="Unique Spotlight vulnerability ID.",
     )
-    remediation_ids: PropertyRef = PropertyRef("remediation_ids")
-    app_product_name_version: PropertyRef = PropertyRef("app_product_name_version")
+    lastupdated: PropertyRef = PropertyRef(
+        "lastupdated",
+        set_in_kwargs=True,
+        description="Timestamp of the last Cartography update.",
+    )
+    aid: PropertyRef = PropertyRef(
+        "aid",
+        description="Agent ID of the host on which the vulnerability was detected.",
+    )
+    cid: PropertyRef = PropertyRef(
+        "cid",
+        description="CrowdStrike customer ID.",
+    )
+    status: PropertyRef = PropertyRef(
+        "status",
+        description="Current Spotlight vulnerability status.",
+    )
+    created_timestamp: PropertyRef = PropertyRef(
+        "created_timestamp",
+        description="Timestamp when Spotlight created the vulnerability record.",
+    )
+    closed_timestamp: PropertyRef = PropertyRef(
+        "closed_timestamp",
+        description="Timestamp when the vulnerability was closed.",
+    )
+    updated_timestamp: PropertyRef = PropertyRef(
+        "updated_timestamp",
+        description="Timestamp when Spotlight last updated the vulnerability.",
+    )
+    cve_id: PropertyRef = PropertyRef(
+        "cve_id",
+        extra_index=True,
+        description="CVE identifier associated with the vulnerability.",
+    )
+    host_info_local_ip: PropertyRef = PropertyRef(
+        "host_info_local_ip",
+        extra_index=True,
+        description="Local IP address of the affected host.",
+    )
+    remediation_ids: PropertyRef = PropertyRef(
+        "remediation_ids",
+        description="Identifiers of available remediation actions.",
+    )
+    app_product_name_version: PropertyRef = PropertyRef(
+        "app_product_name_version",
+        description="Affected application product name and version.",
+    )
 
 
 @dataclass(frozen=True)
 class SpotlightVulnerabilityRelProperties(CartographyRelProperties):
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    lastupdated: PropertyRef = PropertyRef(
+        "lastupdated",
+        set_in_kwargs=True,
+        description="Timestamp of the last Cartography update.",
+    )
 
 
 # (:CrowdstrikeTenant)-[:RESOURCE]->(:CrowdstrikeSpotlightVulnerability)
 @dataclass(frozen=True)
 class SpotlightVulnerabilityToCrowdstrikeTenantRel(CartographyRelSchema):
+    """The CrowdStrike tenant contains this vulnerability as a managed resource."""
+
     target_node_label: str = "CrowdstrikeTenant"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("CID", set_in_kwargs=True)},
@@ -56,6 +99,8 @@ class SpotlightVulnerabilityToCrowdstrikeTenantRel(CartographyRelSchema):
 # (:CrowdstrikeHost)-[:HAS_VULNERABILITY]->(:CrowdstrikeSpotlightVulnerability)
 @dataclass(frozen=True)
 class SpotlightVulnerabilityToCrowdstrikeHostRel(CartographyRelSchema):
+    """Links a CrowdStrike host to a vulnerability detected on that host."""
+
     target_node_label: str = "CrowdstrikeHost"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("aid")},
@@ -69,6 +114,8 @@ class SpotlightVulnerabilityToCrowdstrikeHostRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class SpotlightVulnerabilitySchema(CartographyNodeSchema):
+    """A vulnerability detection reported by CrowdStrike Spotlight."""
+
     label: str = "CrowdstrikeSpotlightVulnerability"
     # DEPRECATED: legacy SpotlightVulnerability node label will be removed in v1.0.0.
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["SpotlightVulnerability"])
@@ -108,17 +155,36 @@ class LegacyUnscopedSpotlightVulnerabilityCleanupSchema(CartographyNodeSchema):
 
 @dataclass(frozen=True)
 class CrowdstrikeCVENodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("id")
-    cve_id: PropertyRef = PropertyRef("id", extra_index=True)
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
-    base_score: PropertyRef = PropertyRef("base_score")
-    base_severity: PropertyRef = PropertyRef("severity")
-    exploitability_score: PropertyRef = PropertyRef("exploit_status")
+    id: PropertyRef = PropertyRef("id", description="CVE identifier.")
+    cve_id: PropertyRef = PropertyRef(
+        "id",
+        extra_index=True,
+        description="CVE identifier indexed for cross-module correlation.",
+    )
+    lastupdated: PropertyRef = PropertyRef(
+        "lastupdated",
+        set_in_kwargs=True,
+        description="Timestamp of the last Cartography update.",
+    )
+    base_score: PropertyRef = PropertyRef(
+        "base_score",
+        description="CVSS base score for the CVE.",
+    )
+    base_severity: PropertyRef = PropertyRef(
+        "severity",
+        description="Severity assigned to the CVE.",
+    )
+    exploitability_score: PropertyRef = PropertyRef(
+        "exploit_status",
+        description="Numeric score describing known exploit availability.",
+    )
 
 
 # (:CrowdstrikeSpotlightVulnerability)-[:HAS_CVE]->(:CVE)
 @dataclass(frozen=True)
 class CrowdstrikeCVEToSpotlightVulnerabilityRel(CartographyRelSchema):
+    """Links a Spotlight vulnerability detection to its CVE."""
+
     target_node_label: str = "CrowdstrikeSpotlightVulnerability"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("vuln_id")},
@@ -132,6 +198,8 @@ class CrowdstrikeCVEToSpotlightVulnerabilityRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class CrowdstrikeCVESchema(CartographyNodeSchema):
+    """A CVE definition derived from CrowdStrike Spotlight data."""
+
     label: str = "CrowdstrikeFinding"
     scoped_cleanup: bool = False
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["CVE"])

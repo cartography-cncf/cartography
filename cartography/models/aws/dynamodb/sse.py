@@ -14,11 +14,26 @@ from cartography.models.core.relationships import TargetNodeMatcher
 
 @dataclass(frozen=True)
 class DynamoDBSSEDescriptionNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("Id")
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
-    sse_status: PropertyRef = PropertyRef("SSEStatus", extra_index=True)
-    sse_type: PropertyRef = PropertyRef("SSEType")
-    kms_master_key_arn: PropertyRef = PropertyRef("KMSMasterKeyArn")
+    id: PropertyRef = PropertyRef(
+        "Id", description='Unique identifier (table ARN + "/sse")'
+    )
+    lastupdated: PropertyRef = PropertyRef(
+        "lastupdated",
+        set_in_kwargs=True,
+        description="Timestamp of the last time the node was updated",
+    )
+    sse_status: PropertyRef = PropertyRef(
+        "SSEStatus",
+        extra_index=True,
+        description="The current state of SSE (e.g., ENABLED, DISABLED)",
+    )
+    sse_type: PropertyRef = PropertyRef(
+        "SSEType", description="The server-side encryption type (AES256 or KMS)"
+    )
+    kms_master_key_arn: PropertyRef = PropertyRef(
+        "KMSMasterKeyArn",
+        description="The ARN of the KMS key used for encryption (if SSE type is KMS)",
+    )
 
 
 @dataclass(frozen=True)
@@ -28,6 +43,8 @@ class DynamoDBSSEDescriptionToAWSAccountRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class DynamoDBSSEDescriptionToAWSAccountRel(CartographyRelSchema):
+    "Represents a `RESOURCE` relationship from `AWSAccount` to `AWSDynamoDBSSEDescription`."
+
     target_node_label: str = "AWSAccount"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("AWS_ID", set_in_kwargs=True)},
@@ -46,6 +63,8 @@ class DynamoDBSSEDescriptionToTableRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class DynamoDBSSEDescriptionToTableRel(CartographyRelSchema):
+    "Represents a `HAS_SSE` relationship from `AWSDynamoDBTable` to `AWSDynamoDBSSEDescription`."
+
     target_node_label: str = "AWSDynamoDBTable"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("TableArn")},
@@ -81,6 +100,8 @@ class DynamoDBSSEDescriptionToKMSKeyRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class DynamoDBSSEDescriptionSchema(CartographyNodeSchema):
+    "Represents an `AWSDynamoDBSSEDescription` node in the AWS graph."
+
     label: str = "AWSDynamoDBSSEDescription"
     # DEPRECATED: legacy DynamoDBSSEDescription node label will be removed in v1.0.0.
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["DynamoDBSSEDescription"])

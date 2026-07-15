@@ -1,29 +1,40 @@
-## Slack Configuration
+# Slack Configuration
 
-.. _slack_config:
+## Authentication
 
-Follow these steps to analyze Slack objects with Cartography.
+1. Create an app at [Slack API Apps](https://api.slack.com/apps/).
+1. Add the required bot scopes under **OAuth & Permissions**.
+1. Install the app in the Slack workspace.
+1. Copy the **Bot User OAuth Token** into an environment variable.
 
-1. Create a Slack integration
-    1. Go to `https://api.slack.com/apps/` and create a new integration
-    1. Add bot permissions in `OAuth & Permissions`
-        - channels:read
-        - groups:read
-        - team.preferences:read
-        - team:read
-        - usergroups:read
-        - users.profile:read
-        - users:read
-        - users:read.email
-    1. Install the App on your Slack Workspace
-    1. Get "Bot User OAuth Token" and store it into an env var
-    1. Provide env var name with `--slack-token-env-var ENV_VAR_NAME` parameter
+## Required Permissions
 
-```{note}
-By default, Cartography will ingest data from the Slack workspaces associated with the provided token. You can optionally specify particular Slack Team IDs to limit the ingestion scope.
+Add these bot scopes:
+
+- `channels:read`
+- `groups:read`
+- `team.preferences:read`
+- `team:read`
+- `usergroups:read`
+- `users.profile:read`
+- `users:read`
+- `users:read.email`
+
+## Configure Cartography
+
+Use `--slack-token-env-var` to provide the name of the environment variable containing the bot token.
+
+## Run Cartography
+
+```bash
+export SLACK_BOT_TOKEN='<bot-user-oauth-token>'
+cartography \
+  --selected-modules slack \
+  --slack-token-env-var SLACK_BOT_TOKEN
 ```
 
-2. Get your Slack Team ID (Optional)
-    1. In a web-browser go to `https://<your-team>.slack.com`
-    1. You will be redirected to `https://app.slack.com/client/<your-team-id>`
-    1. Use `--slack-teams <your-team-id>` parameter (you can provide multiple teams id comma separated)
+## Advanced Configuration
+
+By default, Cartography ingests every Slack workspace associated with the token. To limit ingestion, use `--slack-teams` with a comma-separated list of team IDs.
+
+To find a team ID, open `https://<your-team>.slack.com` in a browser. Slack redirects to a URL in the form `https://app.slack.com/client/<your-team-id>`.

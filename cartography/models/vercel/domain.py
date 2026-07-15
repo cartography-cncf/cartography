@@ -15,15 +15,33 @@ from cartography.models.core.relationships import TargetNodeMatcher
 
 @dataclass(frozen=True)
 class VercelDomainNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("name")
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
-    name: PropertyRef = PropertyRef("name", extra_index=True)
-    service_type: PropertyRef = PropertyRef("serviceType")
-    verified: PropertyRef = PropertyRef("verified")
-    created_at: PropertyRef = PropertyRef("createdAt")
-    expires_at: PropertyRef = PropertyRef("expiresAt")
-    cdn_enabled: PropertyRef = PropertyRef("cdnEnabled")
-    bought_at: PropertyRef = PropertyRef("boughtAt")
+    id: PropertyRef = PropertyRef(
+        "name", description="Domain name used as the domain ID."
+    )
+    lastupdated: PropertyRef = PropertyRef(
+        "lastupdated", set_in_kwargs=True, description="Timestamp of the last update."
+    )
+    name: PropertyRef = PropertyRef(
+        "name", extra_index=True, description="Domain name."
+    )
+    service_type: PropertyRef = PropertyRef(
+        "serviceType", description="Service type managing the domain."
+    )
+    verified: PropertyRef = PropertyRef(
+        "verified", description="Whether the domain is verified."
+    )
+    created_at: PropertyRef = PropertyRef(
+        "createdAt", description="Timestamp when the domain was created."
+    )
+    expires_at: PropertyRef = PropertyRef(
+        "expiresAt", description="Timestamp when the domain registration expires."
+    )
+    cdn_enabled: PropertyRef = PropertyRef(
+        "cdnEnabled", description="Whether the CDN is enabled for the domain."
+    )
+    bought_at: PropertyRef = PropertyRef(
+        "boughtAt", description="Timestamp when the domain was purchased."
+    )
 
 
 @dataclass(frozen=True)
@@ -34,6 +52,8 @@ class VercelDomainToTeamRelProperties(CartographyRelProperties):
 @dataclass(frozen=True)
 # (:VercelTeam)-[:RESOURCE]->(:VercelDomain)
 class VercelDomainToTeamRel(CartographyRelSchema):
+    """The Vercel team contains this domain as a resource."""
+
     target_node_label: str = "VercelTeam"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("TEAM_ID", set_in_kwargs=True)},
@@ -45,6 +65,8 @@ class VercelDomainToTeamRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class VercelDomainSchema(CartographyNodeSchema):
+    """A domain configured in Vercel."""
+
     label: str = "VercelDomain"
     properties: VercelDomainNodeProperties = VercelDomainNodeProperties()
     sub_resource_relationship: VercelDomainToTeamRel = VercelDomainToTeamRel()
@@ -56,13 +78,21 @@ class VercelDomainSchema(CartographyNodeSchema):
 # same domain is also present in /v5/domains.
 @dataclass(frozen=True)
 class VercelDomainFromProjectProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("name")
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
-    name: PropertyRef = PropertyRef("name", extra_index=True)
+    id: PropertyRef = PropertyRef(
+        "name", description="Domain name used as the domain ID."
+    )
+    lastupdated: PropertyRef = PropertyRef(
+        "lastupdated", set_in_kwargs=True, description="Timestamp of the last update."
+    )
+    name: PropertyRef = PropertyRef(
+        "name", extra_index=True, description="Domain name."
+    )
 
 
 @dataclass(frozen=True)
 class VercelDomainFromProjectSchema(CartographyNodeSchema):
+    """A domain configured in Vercel."""
+
     label: str = "VercelDomain"
     properties: VercelDomainFromProjectProperties = VercelDomainFromProjectProperties()
     sub_resource_relationship: Optional[CartographyRelSchema] = None
@@ -87,6 +117,8 @@ class VercelProjectToDomainRelProperties(CartographyRelProperties):
 @dataclass(frozen=True)
 # (:VercelProject)-[:HAS_DOMAIN]->(:VercelDomain)
 class VercelProjectToDomainRel(CartographyRelSchema):
+    """The Vercel project uses this domain with project-specific configuration."""
+
     target_node_label: str = "VercelDomain"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("name")},

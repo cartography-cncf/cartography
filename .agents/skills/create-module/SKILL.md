@@ -129,9 +129,21 @@ If you hand-write a Cypher write query during prototyping, use `run_write_query(
 
 In `tests/integration/cartography/intel/your_service/test_users.py`, patch only `get()` and call `sync()` end-to-end. Assert outcomes (nodes + relationships) using `tests.integration.util.check_nodes` / `check_rels`. Do not assert on mock call counts or internal parameters. See `references/testing.md` for a full template and the test boundary policy.
 
-### Step 8 — Schema documentation
+### Step 8 — Module documentation
 
-Add a page at `docs/root/modules/your_service/schema.md`. Use `###` for node names, `####` for the "Relationships" subsection, **bold** indexed/primary fields. If the node has a semantic label, add the standard ontology mapping blockquote (see the `enrich-ontology` skill).
+Create `docs/root/modules/your_service/index.md` and
+`docs/root/modules/your_service/config.md`, then add `config` and `schema` to
+the module's toctree. Follow `references/config-docs.md` exactly for the
+canonical `config.md` structure and content-placement rules.
+
+Do not create or hand-edit `schema.md`. Sphinx generates it from the
+declarative data model. Write human-readable schema documentation in the model
+itself:
+
+- Add a docstring to every node and relationship schema.
+- Add `description=` to every displayed `PropertyRef`.
+- Use the `enrich-ontology` skill when adding semantic labels or canonical
+  ontology projections.
 
 ### Step 9 — Optional: analysis jobs
 
@@ -158,7 +170,9 @@ Sign every commit: `git commit -s -m "..."`. Update the PR description to match 
 - [ ] Required fields use `data["x"]`, optional use `data.get("x")` with `None` default
 - [ ] `extra_index=True` set on frequently queried fields
 - [ ] Integration test exercises `sync()`, asserts nodes + rels with `check_nodes` / `check_rels`
-- [ ] Schema doc added under `docs/root/modules/your_service/schema.md`
+- [ ] `index.md` and canonical `config.md` added with a `config` / `schema` toctree
+- [ ] Schema classes have docstrings and displayed `PropertyRef` values have descriptions
+- [ ] No hand-written `schema.md` was added
 - [ ] `make lint` clean, `git commit -s` used
 
 ## Common issues
@@ -171,3 +185,4 @@ See the `troubleshooting` skill for `ModuleNotFoundError`, `PropertyRef validati
 - `references/data-model.md` — node properties, schema, sub-resource relationships, loading, ECS example.
 - `references/testing.md` — integration test template, `check_nodes` / `check_rels`, mocking policy, integration test boundary.
 - `references/coding-conventions.md` — error handling, type hints, logging levels and format, deprecation conventions.
+- `references/config-docs.md` — canonical module `config.md` template and content-placement rules.

@@ -18,16 +18,34 @@ class AWSSAMLProviderNodeProperties(CartographyNodeProperties):
     """
 
     # Unique identifiers
-    id: PropertyRef = PropertyRef("Arn")
-    arn: PropertyRef = PropertyRef("Arn", extra_index=True)
+    id: PropertyRef = PropertyRef(
+        "Arn", description="Unique identifier for this `AWSSAMLProvider` node."
+    )
+    arn: PropertyRef = PropertyRef(
+        "Arn",
+        extra_index=True,
+        description="Amazon Resource Name (ARN) of this `AWSSAMLProvider` node.",
+    )
 
     # Business properties
-    name: PropertyRef = PropertyRef("Name", extra_index=True)
-    create_date: PropertyRef = PropertyRef("CreateDate")
-    valid_until: PropertyRef = PropertyRef("ValidUntil")
+    name: PropertyRef = PropertyRef(
+        "Name", extra_index=True, description="Name of this `AWSSAMLProvider` node."
+    )
+    create_date: PropertyRef = PropertyRef(
+        "CreateDate",
+        description="Timestamp when the IAM SAML provider was created.",
+    )
+    valid_until: PropertyRef = PropertyRef(
+        "ValidUntil",
+        description="Timestamp when the SAML provider metadata expires.",
+    )
 
     # Common
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    lastupdated: PropertyRef = PropertyRef(
+        "lastupdated",
+        set_in_kwargs=True,
+        description="Timestamp of the last sync that updated this `AWSSAMLProvider` node.",
+    )
 
 
 @dataclass(frozen=True)
@@ -37,6 +55,8 @@ class AWSSAMLProviderToAWSAccountRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class AWSSAMLProviderToAWSAccountRel(CartographyRelSchema):
+    "Represents a `RESOURCE` relationship from `AWSAccount` to `AWSSAMLProvider`."
+
     target_node_label: str = "AWSAccount"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("AWS_ID", set_in_kwargs=True)},
@@ -50,6 +70,8 @@ class AWSSAMLProviderToAWSAccountRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class AWSSAMLProviderSchema(CartographyNodeSchema):
+    "Represents an `AWSSAMLProvider` node in the AWS graph."
+
     label: str = "AWSSAMLProvider"
     properties: AWSSAMLProviderNodeProperties = AWSSAMLProviderNodeProperties()
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["IdentityProvider"])

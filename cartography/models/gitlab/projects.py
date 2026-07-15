@@ -26,24 +26,69 @@ class GitLabProjectNodeProperties(CartographyNodeProperties):
     Projects are GitLab's equivalent of repositories.
     """
 
-    id: PropertyRef = PropertyRef("id")  # Stable numeric GitLab project ID
-    name: PropertyRef = PropertyRef("name", extra_index=True)  # Project name
-    path: PropertyRef = PropertyRef("path", extra_index=True)  # URL path slug
+    id: PropertyRef = PropertyRef(
+        "id",
+        description="Numeric GitLab project ID.",
+    )
+    name: PropertyRef = PropertyRef(
+        "name",
+        extra_index=True,
+        description="Project name.",
+    )
+    path: PropertyRef = PropertyRef(
+        "path",
+        extra_index=True,
+        description="URL path slug of the project.",
+    )
     path_with_namespace: PropertyRef = PropertyRef(
-        "path_with_namespace", extra_index=True
-    )  # Full path
-    web_url: PropertyRef = PropertyRef("web_url", extra_index=True)
-    gitlab_url: PropertyRef = PropertyRef("gitlab_url", extra_index=True)
-    description: PropertyRef = PropertyRef("description")
-    visibility: PropertyRef = PropertyRef("visibility")  # private, internal, public
-    default_branch: PropertyRef = PropertyRef("default_branch")  # Default branch name
-    archived: PropertyRef = PropertyRef("archived")  # Is project archived
-    created_at: PropertyRef = PropertyRef("created_at")
-    last_activity_at: PropertyRef = PropertyRef("last_activity_at")
+        "path_with_namespace",
+        extra_index=True,
+        description="Full project path including its namespace.",
+    )
+    web_url: PropertyRef = PropertyRef(
+        "web_url",
+        extra_index=True,
+        description="URL for viewing the project in GitLab.",
+    )
+    gitlab_url: PropertyRef = PropertyRef(
+        "gitlab_url",
+        extra_index=True,
+        description="URL of the GitLab instance.",
+    )
+    description: PropertyRef = PropertyRef(
+        "description",
+        description="Human-readable description of the project.",
+    )
+    visibility: PropertyRef = PropertyRef(
+        "visibility",
+        description="Project visibility: private, internal, or public.",
+    )
+    default_branch: PropertyRef = PropertyRef(
+        "default_branch",
+        description="Name of the project's default branch.",
+    )
+    archived: PropertyRef = PropertyRef(
+        "archived",
+        description="Whether the project is archived.",
+    )
+    created_at: PropertyRef = PropertyRef(
+        "created_at",
+        description="Timestamp when GitLab created the project.",
+    )
+    last_activity_at: PropertyRef = PropertyRef(
+        "last_activity_at",
+        description="Timestamp of the project's most recent activity.",
+    )
     languages: PropertyRef = PropertyRef(
-        "languages", extra_index=True
-    )  # JSON dict of language name -> percentage
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+        "languages",
+        extra_index=True,
+        description="JSON object mapping detected programming languages to percentages.",
+    )
+    lastupdated: PropertyRef = PropertyRef(
+        "lastupdated",
+        set_in_kwargs=True,
+        description="Timestamp of the last time the node was updated.",
+    )
 
 
 @dataclass(frozen=True)
@@ -55,7 +100,10 @@ class GitLabGroupCanAccessProjectRelProperties(CartographyRelProperties):
     """
 
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
-    access_level: PropertyRef = PropertyRef("access_level")  # 50, 40, 30, 20, 10
+    access_level: PropertyRef = PropertyRef(
+        "access_level",
+        description="Numeric GitLab access level granted to the group.",
+    )
 
 
 @dataclass(frozen=True)
@@ -141,13 +189,7 @@ class GitLabProjectToOrganizationRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class GitLabProjectSchema(CartographyNodeSchema):
-    """
-    Schema for GitLab Project nodes.
-
-    Projects are repositories/codebases that belong to an organization.
-    They may also have a RESOURCE relationship to a GitLabGroup (for projects in nested groups).
-    They can have group access permissions, branches, and dependency files.
-    """
+    """A GitLab project containing a source code repository."""
 
     label: str = "GitLabProject"
     properties: GitLabProjectNodeProperties = GitLabProjectNodeProperties()

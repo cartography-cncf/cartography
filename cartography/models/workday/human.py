@@ -14,22 +14,61 @@ from cartography.models.core.relationships import TargetNodeMatcher
 
 @dataclass(frozen=True)
 class WorkdayHumanNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("Employee_ID")
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
-    employee_id: PropertyRef = PropertyRef("Employee_ID", extra_index=True)
-    title: PropertyRef = PropertyRef("businessTitle")
-    name: PropertyRef = PropertyRef("Name")
-    worker_type: PropertyRef = PropertyRef("Worker_Type")
-    location: PropertyRef = PropertyRef("location")
-    country: PropertyRef = PropertyRef("country")
-    email: PropertyRef = PropertyRef("email", extra_index=True)
-    cost_center: PropertyRef = PropertyRef("cost_center")
-    function: PropertyRef = PropertyRef("function")
-    sub_function: PropertyRef = PropertyRef("sub_function")
-    team: PropertyRef = PropertyRef("Team")
-    sub_team: PropertyRef = PropertyRef("Sub_Team")
-    company: PropertyRef = PropertyRef("Company")
-    source: PropertyRef = PropertyRef("source")
+    id: PropertyRef = PropertyRef("Employee_ID", description="Employee ID.")
+    lastupdated: PropertyRef = PropertyRef(
+        "lastupdated",
+        set_in_kwargs=True,
+        description="Timestamp of the last update.",
+    )
+    employee_id: PropertyRef = PropertyRef(
+        "Employee_ID",
+        extra_index=True,
+        description="Employee ID indexed for lookups.",
+    )
+    title: PropertyRef = PropertyRef(
+        "businessTitle",
+        description="Job or business title.",
+    )
+    name: PropertyRef = PropertyRef("Name", description="Full name.")
+    worker_type: PropertyRef = PropertyRef(
+        "Worker_Type",
+        description="Type of worker, such as employee or contractor.",
+    )
+    location: PropertyRef = PropertyRef(
+        "location",
+        description="Office or work location.",
+    )
+    country: PropertyRef = PropertyRef(
+        "country",
+        description="Country from the work address.",
+    )
+    email: PropertyRef = PropertyRef(
+        "email",
+        extra_index=True,
+        description="Work email address indexed for cross-module relationships.",
+    )
+    cost_center: PropertyRef = PropertyRef(
+        "cost_center",
+        description="Cost center code.",
+    )
+    function: PropertyRef = PropertyRef(
+        "function",
+        description="Functional area.",
+    )
+    sub_function: PropertyRef = PropertyRef(
+        "sub_function",
+        description="Sub-functional area.",
+    )
+    team: PropertyRef = PropertyRef("Team", description="Team name.")
+    sub_team: PropertyRef = PropertyRef("Sub_Team", description="Sub-team name.")
+    company: PropertyRef = PropertyRef(
+        "Company",
+        description="Company or legal entity name.",
+    )
+    source: PropertyRef = PropertyRef(
+        "source",
+        description='Data source, always "WORKDAY".',
+    )
 
 
 @dataclass(frozen=True)
@@ -39,6 +78,8 @@ class WorkdayHumanToOrganizationRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class WorkdayHumanToOrganizationRel(CartographyRelSchema):
+    """A Workday person is a member of a supervisory organization."""
+
     target_node_label: str = "WorkdayOrganization"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("Supervisory_Organization")},
@@ -57,6 +98,8 @@ class WorkdayHumanToManagerRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class WorkdayHumanToManagerRel(CartographyRelSchema):
+    """A Workday person reports to another Workday person."""
+
     target_node_label: str = "WorkdayHuman"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("Manager_ID")},
@@ -70,6 +113,8 @@ class WorkdayHumanToManagerRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class WorkdayHumanSchema(CartographyNodeSchema):
+    """A person in Workday with the Human label for identity integration."""
+
     label: str = "WorkdayHuman"
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["Human"])
     properties: WorkdayHumanNodeProperties = WorkdayHumanNodeProperties()

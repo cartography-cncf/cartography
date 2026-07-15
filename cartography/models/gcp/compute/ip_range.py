@@ -14,14 +14,29 @@ from cartography.models.core.relationships import TargetNodeMatcher
 
 @dataclass(frozen=True)
 class IpRangeNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("range")
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
-    range: PropertyRef = PropertyRef("range", extra_index=True)
+    id: PropertyRef = PropertyRef(
+        "range",
+        description='CIDR notation for the IP range. E.g. "0.0.0.0/0" for the whole internet.',
+    )
+    lastupdated: PropertyRef = PropertyRef(
+        "lastupdated",
+        set_in_kwargs=True,
+        description="Timestamp of the last time the node was updated.",
+    )
+    range: PropertyRef = PropertyRef(
+        "range",
+        extra_index=True,
+        description="CIDR range governed by this firewall rule.",
+    )
 
 
 @dataclass(frozen=True)
 class IpRangeToIpRuleRelProperties(CartographyRelProperties):
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    lastupdated: PropertyRef = PropertyRef(
+        "lastupdated",
+        set_in_kwargs=True,
+        description="Timestamp of the last sync that observed this data.",
+    )
 
 
 @dataclass(frozen=True)
@@ -39,7 +54,11 @@ class IpRangeToIpRuleRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class IpRangeToProjectRelProperties(CartographyRelProperties):
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    lastupdated: PropertyRef = PropertyRef(
+        "lastupdated",
+        set_in_kwargs=True,
+        description="Timestamp of the last sync that observed this data.",
+    )
 
 
 @dataclass(frozen=True)
@@ -57,6 +76,8 @@ class IpRangeToProjectRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class IpRangeSchema(CartographyNodeSchema):
+    """Representation of an IP range or subnet."""
+
     label: str = "GCPIpRange"
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["IpRange"])
     properties: IpRangeNodeProperties = IpRangeNodeProperties()

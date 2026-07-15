@@ -56,6 +56,7 @@ modules/spacelift/index
 modules/subimage/index
 modules/syft/index
 modules/tailscale/index
+modules/tenable/index
 modules/trivy/index
 modules/vercel/index
 modules/workday/index

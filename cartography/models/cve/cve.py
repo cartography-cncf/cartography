@@ -17,39 +17,109 @@ from cartography.models.core.relationships import TargetNodeMatcher
 # mirrors that field so that queries on CVE.cve_id are indexed consistently.
 @dataclass(frozen=True)
 class CVENodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("id")
-    cve_id: PropertyRef = PropertyRef("id", extra_index=True)
-    assigner: PropertyRef = PropertyRef("sourceIdentifier")
-    description: PropertyRef = PropertyRef("descriptions_en")
-    references: PropertyRef = PropertyRef("references_urls")
-    problem_types: PropertyRef = PropertyRef("weaknesses")
-    vector_string: PropertyRef = PropertyRef("vectorString")
-    attack_vector: PropertyRef = PropertyRef("attackVector")
-    attack_complexity: PropertyRef = PropertyRef("attackComplexity")
-    privileges_required: PropertyRef = PropertyRef("privilegesRequired")
-    user_interaction: PropertyRef = PropertyRef("userInteraction")
-    scope: PropertyRef = PropertyRef("scope")
-    confidentiality_impact: PropertyRef = PropertyRef("confidentialityImpact")
-    integrity_impact: PropertyRef = PropertyRef("integrityImpact")
-    availability_impact: PropertyRef = PropertyRef("availabilityImpact")
-    base_score: PropertyRef = PropertyRef("baseScore")
-    base_severity: PropertyRef = PropertyRef("baseSeverity")
-    exploitability_score: PropertyRef = PropertyRef("exploitabilityScore")
-    impact_score: PropertyRef = PropertyRef("impactScore")
-    published_date: PropertyRef = PropertyRef("published")
-    last_modified_date: PropertyRef = PropertyRef("lastModified")
-    vuln_status: PropertyRef = PropertyRef("vulnStatus")
-    lastupdated: PropertyRef = PropertyRef("lastupdated")
+    id: PropertyRef = PropertyRef("id", description="CVE identifier.")
+    cve_id: PropertyRef = PropertyRef(
+        "id",
+        extra_index=True,
+        description="CVE identifier indexed for cross-module correlation.",
+    )
+    assigner: PropertyRef = PropertyRef(
+        "sourceIdentifier",
+        description="Organization or authority that assigned the CVE.",
+    )
+    description: PropertyRef = PropertyRef(
+        "descriptions_en",
+        description="English description of the vulnerability.",
+    )
+    references: PropertyRef = PropertyRef(
+        "references_urls",
+        description="Reference URLs for the vulnerability.",
+    )
+    problem_types: PropertyRef = PropertyRef(
+        "weaknesses",
+        description="CWE identifiers associated with the vulnerability.",
+    )
+    vector_string: PropertyRef = PropertyRef(
+        "vectorString",
+        description="CVSS vector string.",
+    )
+    attack_vector: PropertyRef = PropertyRef(
+        "attackVector",
+        description="CVSS attack vector.",
+    )
+    attack_complexity: PropertyRef = PropertyRef(
+        "attackComplexity",
+        description="CVSS attack complexity.",
+    )
+    privileges_required: PropertyRef = PropertyRef(
+        "privilegesRequired",
+        description="CVSS privileges required.",
+    )
+    user_interaction: PropertyRef = PropertyRef(
+        "userInteraction",
+        description="CVSS user interaction requirement.",
+    )
+    scope: PropertyRef = PropertyRef("scope", description="CVSS scope.")
+    confidentiality_impact: PropertyRef = PropertyRef(
+        "confidentialityImpact",
+        description="CVSS confidentiality impact.",
+    )
+    integrity_impact: PropertyRef = PropertyRef(
+        "integrityImpact",
+        description="CVSS integrity impact.",
+    )
+    availability_impact: PropertyRef = PropertyRef(
+        "availabilityImpact",
+        description="CVSS availability impact.",
+    )
+    base_score: PropertyRef = PropertyRef(
+        "baseScore",
+        description="CVSS base score.",
+    )
+    base_severity: PropertyRef = PropertyRef(
+        "baseSeverity",
+        description="CVSS base severity.",
+    )
+    exploitability_score: PropertyRef = PropertyRef(
+        "exploitabilityScore",
+        description="CVSS exploitability score.",
+    )
+    impact_score: PropertyRef = PropertyRef(
+        "impactScore",
+        description="CVSS impact score.",
+    )
+    published_date: PropertyRef = PropertyRef(
+        "published",
+        description="Timestamp when the CVE was published.",
+    )
+    last_modified_date: PropertyRef = PropertyRef(
+        "lastModified",
+        description="Timestamp when the CVE was last modified.",
+    )
+    vuln_status: PropertyRef = PropertyRef(
+        "vulnStatus",
+        description="Current status assigned to the vulnerability.",
+    )
+    lastupdated: PropertyRef = PropertyRef(
+        "lastupdated",
+        description="Timestamp of the last Cartography update.",
+    )
 
 
 @dataclass(frozen=True)
 class CVEtoCVEFeedRelProperties(CartographyRelProperties):
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    lastupdated: PropertyRef = PropertyRef(
+        "lastupdated",
+        set_in_kwargs=True,
+        description="Timestamp of the last Cartography update.",
+    )
 
 
 @dataclass(frozen=True)
 # (:CVE)<-[:RESOURCE]-(:CVEFeed)
 class CVEtoCVEFeedRel(CartographyRelSchema):
+    """A CVE feed contains the CVEs imported from that feed."""
+
     target_node_label: str = "CVEFeed"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("FEED_ID", set_in_kwargs=True)},
@@ -61,12 +131,18 @@ class CVEtoCVEFeedRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class CVEToSpotlightVulnerabilityRelProperties(CartographyRelProperties):
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    lastupdated: PropertyRef = PropertyRef(
+        "lastupdated",
+        set_in_kwargs=True,
+        description="Timestamp of the last Cartography update.",
+    )
 
 
 @dataclass(frozen=True)
 # (:CVE)<-[:HAS_CVE]-(:CrowdstrikeSpotlightVulnerability)
 class CVEToSpotlightVulnerabilityRel(CartographyRelSchema):
+    """A CrowdStrike Spotlight vulnerability references this CVE."""
+
     target_node_label: str = "CrowdstrikeSpotlightVulnerability"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("id")},
@@ -80,6 +156,8 @@ class CVEToSpotlightVulnerabilityRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class CVESchema(CartographyNodeSchema):
+    """A published Common Vulnerabilities and Exposures record."""
+
     label: str = "CVE"
     properties: CVENodeProperties = CVENodeProperties()
     sub_resource_relationship: CVEtoCVEFeedRel = CVEtoCVEFeedRel()

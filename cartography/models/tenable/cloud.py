@@ -16,18 +16,34 @@ from cartography.models.core.relationships import TargetNodeMatcher
 
 @dataclass(frozen=True)
 class TenableAssetAWSNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("id")
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
-    ec2_instance_ami_id: PropertyRef = PropertyRef("ec2_instance_ami_id")
-    owner_id: PropertyRef = PropertyRef("owner_id")
-    availability_zone: PropertyRef = PropertyRef("availability_zone")
-    region: PropertyRef = PropertyRef("region")
-    vpc_id: PropertyRef = PropertyRef("vpc_id")
-    subnet_id: PropertyRef = PropertyRef("subnet_id")
-    ec2_instance_type: PropertyRef = PropertyRef("ec2_instance_type")
-    ec2_instance_state_name: PropertyRef = PropertyRef("ec2_instance_state_name")
-    ec2_instance_group_name: PropertyRef = PropertyRef("ec2_instance_group_name")
-    ec2_name: PropertyRef = PropertyRef("ec2_name")
+    id: PropertyRef = PropertyRef("id", description="AWS EC2 instance ID.")
+    lastupdated: PropertyRef = PropertyRef(
+        "lastupdated",
+        set_in_kwargs=True,
+        description="Timestamp of the last time the node was updated.",
+    )
+    ec2_instance_ami_id: PropertyRef = PropertyRef(
+        "ec2_instance_ami_id", description="AMI ID used to launch the instance."
+    )
+    owner_id: PropertyRef = PropertyRef("owner_id", description="AWS account ID.")
+    availability_zone: PropertyRef = PropertyRef(
+        "availability_zone", description="AWS availability zone."
+    )
+    region: PropertyRef = PropertyRef("region", description="AWS region.")
+    vpc_id: PropertyRef = PropertyRef("vpc_id", description="AWS VPC ID.")
+    subnet_id: PropertyRef = PropertyRef("subnet_id", description="AWS subnet ID.")
+    ec2_instance_type: PropertyRef = PropertyRef(
+        "ec2_instance_type", description="EC2 instance type."
+    )
+    ec2_instance_state_name: PropertyRef = PropertyRef(
+        "ec2_instance_state_name", description="EC2 instance state."
+    )
+    ec2_instance_group_name: PropertyRef = PropertyRef(
+        "ec2_instance_group_name", description="EC2 security group name."
+    )
+    ec2_name: PropertyRef = PropertyRef(
+        "ec2_name", description="Value of the EC2 Name tag."
+    )
 
 
 @dataclass(frozen=True)
@@ -38,6 +54,8 @@ class TenableAssetAWSToTenantRelProperties(CartographyRelProperties):
 # (:TenableTenant)-[:RESOURCE]->(:TenableAssetAWS)
 @dataclass(frozen=True)
 class TenableAssetAWSToTenantRel(CartographyRelSchema):
+    """Links a Tenable tenant to AWS details for an asset."""
+
     target_node_label: str = "TenableTenant"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("TENABLE_TENANT_ID", set_in_kwargs=True)},
@@ -51,6 +69,8 @@ class TenableAssetAWSToTenantRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class TenableAssetAWSSchema(CartographyNodeSchema):
+    """AWS cloud details associated with a Tenable asset."""
+
     label: str = "TenableAssetAWS"
     properties: TenableAssetAWSNodeProperties = TenableAssetAWSNodeProperties()
     sub_resource_relationship: TenableAssetAWSToTenantRel = TenableAssetAWSToTenantRel()
@@ -63,9 +83,17 @@ class TenableAssetAWSSchema(CartographyNodeSchema):
 
 @dataclass(frozen=True)
 class TenableAssetAzureNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("id")
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
-    resource_id: PropertyRef = PropertyRef("resource_id", extra_index=True)
+    id: PropertyRef = PropertyRef("id", description="Azure virtual machine ID.")
+    lastupdated: PropertyRef = PropertyRef(
+        "lastupdated",
+        set_in_kwargs=True,
+        description="Timestamp of the last time the node was updated.",
+    )
+    resource_id: PropertyRef = PropertyRef(
+        "resource_id",
+        extra_index=True,
+        description="Azure Resource Manager resource ID.",
+    )
 
 
 @dataclass(frozen=True)
@@ -76,6 +104,8 @@ class TenableAssetAzureToTenantRelProperties(CartographyRelProperties):
 # (:TenableTenant)-[:RESOURCE]->(:TenableAssetAzure)
 @dataclass(frozen=True)
 class TenableAssetAzureToTenantRel(CartographyRelSchema):
+    """Links a Tenable tenant to Azure details for an asset."""
+
     target_node_label: str = "TenableTenant"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("TENABLE_TENANT_ID", set_in_kwargs=True)},
@@ -89,6 +119,8 @@ class TenableAssetAzureToTenantRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class TenableAssetAzureSchema(CartographyNodeSchema):
+    """Azure cloud details associated with a Tenable asset."""
+
     label: str = "TenableAssetAzure"
     properties: TenableAssetAzureNodeProperties = TenableAssetAzureNodeProperties()
     sub_resource_relationship: TenableAssetAzureToTenantRel = (
@@ -103,10 +135,14 @@ class TenableAssetAzureSchema(CartographyNodeSchema):
 
 @dataclass(frozen=True)
 class TenableAssetGCPNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("id")
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
-    project_id: PropertyRef = PropertyRef("project_id")
-    zone: PropertyRef = PropertyRef("zone")
+    id: PropertyRef = PropertyRef("id", description="GCP instance ID.")
+    lastupdated: PropertyRef = PropertyRef(
+        "lastupdated",
+        set_in_kwargs=True,
+        description="Timestamp of the last time the node was updated.",
+    )
+    project_id: PropertyRef = PropertyRef("project_id", description="GCP project ID.")
+    zone: PropertyRef = PropertyRef("zone", description="GCP zone.")
 
 
 @dataclass(frozen=True)
@@ -117,6 +153,8 @@ class TenableAssetGCPToTenantRelProperties(CartographyRelProperties):
 # (:TenableTenant)-[:RESOURCE]->(:TenableAssetGCP)
 @dataclass(frozen=True)
 class TenableAssetGCPToTenantRel(CartographyRelSchema):
+    """Links a Tenable tenant to GCP details for an asset."""
+
     target_node_label: str = "TenableTenant"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("TENABLE_TENANT_ID", set_in_kwargs=True)},
@@ -130,6 +168,8 @@ class TenableAssetGCPToTenantRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class TenableAssetGCPSchema(CartographyNodeSchema):
+    """GCP cloud details associated with a Tenable asset."""
+
     label: str = "TenableAssetGCP"
     properties: TenableAssetGCPNodeProperties = TenableAssetGCPNodeProperties()
     sub_resource_relationship: TenableAssetGCPToTenantRel = TenableAssetGCPToTenantRel()

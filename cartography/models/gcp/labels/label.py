@@ -22,21 +22,37 @@ class GCPLabelNodeProperties(CartographyNodeProperties):
     The id is computed as "{resource_id}:{key}:{value}" during ingestion.
     """
 
-    id: PropertyRef = PropertyRef("id")
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
-    key: PropertyRef = PropertyRef("key", extra_index=True)
-    value: PropertyRef = PropertyRef("value")
-    resource_type: PropertyRef = PropertyRef("resource_type")
+    id: PropertyRef = PropertyRef(
+        "id",
+        description="The ID of the label. Takes the form `{resource_id}:{key}:{value}`.",
+    )
+    lastupdated: PropertyRef = PropertyRef(
+        "lastupdated",
+        set_in_kwargs=True,
+        description="Timestamp of the last time the node was updated.",
+    )
+    key: PropertyRef = PropertyRef(
+        "key", extra_index=True, description="The key of the label."
+    )
+    value: PropertyRef = PropertyRef("value", description="The value of the label.")
+    resource_type: PropertyRef = PropertyRef(
+        "resource_type",
+        description="The Cartography node label of the resource this label is attached to (e.g. `GCPBucket`, `GCPInstance`).",
+    )
 
 
 @dataclass(frozen=True)
 class GCPLabelToProjectRelProperties(CartographyRelProperties):
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    lastupdated: PropertyRef = PropertyRef(
+        "lastupdated",
+        set_in_kwargs=True,
+        description="Timestamp of the last sync that observed this data.",
+    )
 
 
 @dataclass(frozen=True)
 class GCPLabelToProjectRel(CartographyRelSchema):
-    """(:GCPProject)-[:RESOURCE]->(:GCPLabel)"""
+    """Indicates that a GCP project contains this label as a resource."""
 
     target_node_label: str = "GCPProject"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
@@ -49,13 +65,17 @@ class GCPLabelToProjectRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class GCPLabelToBucketRelProperties(CartographyRelProperties):
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    lastupdated: PropertyRef = PropertyRef(
+        "lastupdated",
+        set_in_kwargs=True,
+        description="Timestamp of the last sync that observed this data.",
+    )
 
 
 # DEPRECATED: replaced by :TAGGED, will be removed in v1.0.0
 @dataclass(frozen=True)
 class GCPLabelToBucketRel(CartographyRelSchema):
-    """(:GCPBucket)-[:LABELED]->(:GCPLabel)"""
+    """Indicates that a GCP bucket has this legacy label."""
 
     target_node_label: str = "GCPBucket"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
@@ -68,12 +88,16 @@ class GCPLabelToBucketRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class GCPLabelToBucketTaggedRelProperties(CartographyRelProperties):
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    lastupdated: PropertyRef = PropertyRef(
+        "lastupdated",
+        set_in_kwargs=True,
+        description="Timestamp of the last sync that observed this data.",
+    )
 
 
 @dataclass(frozen=True)
 class GCPLabelToBucketTaggedRel(CartographyRelSchema):
-    """(:GCPBucket)-[:TAGGED]->(:GCPLabel)"""
+    """Indicates that a GCP bucket is tagged with this label."""
 
     target_node_label: str = "GCPBucket"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
@@ -91,12 +115,7 @@ class GCPLabelToBucketTaggedRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class GCPBucketGCPLabelSchema(CartographyNodeSchema):
-    """
-    GCPLabel nodes sourced from GCPBucket resources.
-
-    Carries the extra label GCPBucketLabel for backward compatibility with the
-    legacy per-resource label schema.
-    """
+    """A key-value label attached to a supported Google Cloud resource."""
 
     label: str = "GCPLabel"
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
@@ -114,13 +133,17 @@ class GCPBucketGCPLabelSchema(CartographyNodeSchema):
 
 @dataclass(frozen=True)
 class GCPLabelToInstanceRelProperties(CartographyRelProperties):
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    lastupdated: PropertyRef = PropertyRef(
+        "lastupdated",
+        set_in_kwargs=True,
+        description="Timestamp of the last sync that observed this data.",
+    )
 
 
 # DEPRECATED: replaced by :TAGGED, will be removed in v1.0.0
 @dataclass(frozen=True)
 class GCPLabelToInstanceRel(CartographyRelSchema):
-    """(:GCPInstance)-[:LABELED]->(:GCPLabel)"""
+    """Indicates that a GCP instance has this legacy label."""
 
     target_node_label: str = "GCPInstance"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
@@ -133,12 +156,16 @@ class GCPLabelToInstanceRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class GCPLabelToInstanceTaggedRelProperties(CartographyRelProperties):
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    lastupdated: PropertyRef = PropertyRef(
+        "lastupdated",
+        set_in_kwargs=True,
+        description="Timestamp of the last sync that observed this data.",
+    )
 
 
 @dataclass(frozen=True)
 class GCPLabelToInstanceTaggedRel(CartographyRelSchema):
-    """(:GCPInstance)-[:TAGGED]->(:GCPLabel)"""
+    """Indicates that a GCP instance is tagged with this label."""
 
     target_node_label: str = "GCPInstance"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
@@ -153,9 +180,7 @@ class GCPLabelToInstanceTaggedRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class GCPInstanceGCPLabelSchema(CartographyNodeSchema):
-    """
-    GCPLabel nodes sourced from GCPInstance resources.
-    """
+    """A key-value label attached to a supported Google Cloud resource."""
 
     label: str = "GCPLabel"
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["Label", "Tag"])
@@ -171,13 +196,17 @@ class GCPInstanceGCPLabelSchema(CartographyNodeSchema):
 
 @dataclass(frozen=True)
 class GCPLabelToGKEClusterRelProperties(CartographyRelProperties):
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    lastupdated: PropertyRef = PropertyRef(
+        "lastupdated",
+        set_in_kwargs=True,
+        description="Timestamp of the last sync that observed this data.",
+    )
 
 
 # DEPRECATED: replaced by :TAGGED, will be removed in v1.0.0
 @dataclass(frozen=True)
 class GCPLabelToGKEClusterRel(CartographyRelSchema):
-    """(:GKECluster)-[:LABELED]->(:GCPLabel)"""
+    """Indicates that a GKE cluster has this legacy label."""
 
     target_node_label: str = "GKECluster"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
@@ -190,12 +219,16 @@ class GCPLabelToGKEClusterRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class GCPLabelToGKEClusterTaggedRelProperties(CartographyRelProperties):
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    lastupdated: PropertyRef = PropertyRef(
+        "lastupdated",
+        set_in_kwargs=True,
+        description="Timestamp of the last sync that observed this data.",
+    )
 
 
 @dataclass(frozen=True)
 class GCPLabelToGKEClusterTaggedRel(CartographyRelSchema):
-    """(:GKECluster)-[:TAGGED]->(:GCPLabel)"""
+    """Indicates that a GKE cluster is tagged with this label."""
 
     target_node_label: str = "GKECluster"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
@@ -210,9 +243,7 @@ class GCPLabelToGKEClusterTaggedRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class GKEClusterGCPLabelSchema(CartographyNodeSchema):
-    """
-    GCPLabel nodes sourced from GKECluster resources.
-    """
+    """A key-value label attached to a supported Google Cloud resource."""
 
     label: str = "GCPLabel"
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["Label", "Tag"])
@@ -228,13 +259,17 @@ class GKEClusterGCPLabelSchema(CartographyNodeSchema):
 
 @dataclass(frozen=True)
 class GCPLabelToCloudSQLInstanceRelProperties(CartographyRelProperties):
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    lastupdated: PropertyRef = PropertyRef(
+        "lastupdated",
+        set_in_kwargs=True,
+        description="Timestamp of the last sync that observed this data.",
+    )
 
 
 # DEPRECATED: replaced by :TAGGED, will be removed in v1.0.0
 @dataclass(frozen=True)
 class GCPLabelToCloudSQLInstanceRel(CartographyRelSchema):
-    """(:GCPCloudSQLInstance)-[:LABELED]->(:GCPLabel)"""
+    """Indicates that a GCP Cloud SQL instance has this legacy label."""
 
     target_node_label: str = "GCPCloudSQLInstance"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
@@ -249,12 +284,16 @@ class GCPLabelToCloudSQLInstanceRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class GCPLabelToCloudSQLInstanceTaggedRelProperties(CartographyRelProperties):
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    lastupdated: PropertyRef = PropertyRef(
+        "lastupdated",
+        set_in_kwargs=True,
+        description="Timestamp of the last sync that observed this data.",
+    )
 
 
 @dataclass(frozen=True)
 class GCPLabelToCloudSQLInstanceTaggedRel(CartographyRelSchema):
-    """(:GCPCloudSQLInstance)-[:TAGGED]->(:GCPLabel)"""
+    """Indicates that a GCP Cloud SQL instance is tagged with this label."""
 
     target_node_label: str = "GCPCloudSQLInstance"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
@@ -269,9 +308,7 @@ class GCPLabelToCloudSQLInstanceTaggedRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class GCPCloudSQLInstanceGCPLabelSchema(CartographyNodeSchema):
-    """
-    GCPLabel nodes sourced from GCPCloudSQLInstance resources.
-    """
+    """A key-value label attached to a supported Google Cloud resource."""
 
     label: str = "GCPLabel"
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["Label", "Tag"])
@@ -287,13 +324,17 @@ class GCPCloudSQLInstanceGCPLabelSchema(CartographyNodeSchema):
 
 @dataclass(frozen=True)
 class GCPLabelToBigtableInstanceRelProperties(CartographyRelProperties):
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    lastupdated: PropertyRef = PropertyRef(
+        "lastupdated",
+        set_in_kwargs=True,
+        description="Timestamp of the last sync that observed this data.",
+    )
 
 
 # DEPRECATED: replaced by :TAGGED, will be removed in v1.0.0
 @dataclass(frozen=True)
 class GCPLabelToBigtableInstanceRel(CartographyRelSchema):
-    """(:GCPBigtableInstance)-[:LABELED]->(:GCPLabel)"""
+    """Indicates that a GCP Bigtable instance has this legacy label."""
 
     target_node_label: str = "GCPBigtableInstance"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
@@ -308,12 +349,16 @@ class GCPLabelToBigtableInstanceRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class GCPLabelToBigtableInstanceTaggedRelProperties(CartographyRelProperties):
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    lastupdated: PropertyRef = PropertyRef(
+        "lastupdated",
+        set_in_kwargs=True,
+        description="Timestamp of the last sync that observed this data.",
+    )
 
 
 @dataclass(frozen=True)
 class GCPLabelToBigtableInstanceTaggedRel(CartographyRelSchema):
-    """(:GCPBigtableInstance)-[:TAGGED]->(:GCPLabel)"""
+    """Indicates that a GCP Bigtable instance is tagged with this label."""
 
     target_node_label: str = "GCPBigtableInstance"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
@@ -328,9 +373,7 @@ class GCPLabelToBigtableInstanceTaggedRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class GCPBigtableInstanceGCPLabelSchema(CartographyNodeSchema):
-    """
-    GCPLabel nodes sourced from GCPBigtableInstance resources.
-    """
+    """A key-value label attached to a supported Google Cloud resource."""
 
     label: str = "GCPLabel"
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["Label", "Tag"])
@@ -346,13 +389,17 @@ class GCPBigtableInstanceGCPLabelSchema(CartographyNodeSchema):
 
 @dataclass(frozen=True)
 class GCPLabelToDNSZoneRelProperties(CartographyRelProperties):
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    lastupdated: PropertyRef = PropertyRef(
+        "lastupdated",
+        set_in_kwargs=True,
+        description="Timestamp of the last sync that observed this data.",
+    )
 
 
 # DEPRECATED: replaced by :TAGGED, will be removed in v1.0.0
 @dataclass(frozen=True)
 class GCPLabelToDNSZoneRel(CartographyRelSchema):
-    """(:GCPDNSZone)-[:LABELED]->(:GCPLabel)"""
+    """Indicates that a GCP DNS zone has this legacy label."""
 
     target_node_label: str = "GCPDNSZone"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
@@ -365,12 +412,16 @@ class GCPLabelToDNSZoneRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class GCPLabelToDNSZoneTaggedRelProperties(CartographyRelProperties):
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    lastupdated: PropertyRef = PropertyRef(
+        "lastupdated",
+        set_in_kwargs=True,
+        description="Timestamp of the last sync that observed this data.",
+    )
 
 
 @dataclass(frozen=True)
 class GCPLabelToDNSZoneTaggedRel(CartographyRelSchema):
-    """(:GCPDNSZone)-[:TAGGED]->(:GCPLabel)"""
+    """Indicates that a GCP DNS zone is tagged with this label."""
 
     target_node_label: str = "GCPDNSZone"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
@@ -385,9 +436,7 @@ class GCPLabelToDNSZoneTaggedRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class GCPDNSZoneGCPLabelSchema(CartographyNodeSchema):
-    """
-    GCPLabel nodes sourced from GCPDNSZone resources.
-    """
+    """A key-value label attached to a supported Google Cloud resource."""
 
     label: str = "GCPLabel"
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["Label", "Tag"])
@@ -403,13 +452,17 @@ class GCPDNSZoneGCPLabelSchema(CartographyNodeSchema):
 
 @dataclass(frozen=True)
 class GCPLabelToSecretManagerSecretRelProperties(CartographyRelProperties):
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    lastupdated: PropertyRef = PropertyRef(
+        "lastupdated",
+        set_in_kwargs=True,
+        description="Timestamp of the last sync that observed this data.",
+    )
 
 
 # DEPRECATED: replaced by :TAGGED, will be removed in v1.0.0
 @dataclass(frozen=True)
 class GCPLabelToSecretManagerSecretRel(CartographyRelSchema):
-    """(:GCPSecretManagerSecret)-[:LABELED]->(:GCPLabel)"""
+    """Indicates that a GCP Secret Manager secret has this legacy label."""
 
     target_node_label: str = "GCPSecretManagerSecret"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
@@ -424,12 +477,16 @@ class GCPLabelToSecretManagerSecretRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class GCPLabelToSecretManagerSecretTaggedRelProperties(CartographyRelProperties):
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    lastupdated: PropertyRef = PropertyRef(
+        "lastupdated",
+        set_in_kwargs=True,
+        description="Timestamp of the last sync that observed this data.",
+    )
 
 
 @dataclass(frozen=True)
 class GCPLabelToSecretManagerSecretTaggedRel(CartographyRelSchema):
-    """(:GCPSecretManagerSecret)-[:TAGGED]->(:GCPLabel)"""
+    """Indicates that a GCP Secret Manager secret is tagged with this label."""
 
     target_node_label: str = "GCPSecretManagerSecret"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
@@ -444,9 +501,7 @@ class GCPLabelToSecretManagerSecretTaggedRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class GCPSecretManagerSecretGCPLabelSchema(CartographyNodeSchema):
-    """
-    GCPLabel nodes sourced from GCPSecretManagerSecret resources.
-    """
+    """A key-value label attached to a supported Google Cloud resource."""
 
     label: str = "GCPLabel"
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["Label", "Tag"])
@@ -462,13 +517,17 @@ class GCPSecretManagerSecretGCPLabelSchema(CartographyNodeSchema):
 
 @dataclass(frozen=True)
 class GCPLabelToCloudRunServiceRelProperties(CartographyRelProperties):
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    lastupdated: PropertyRef = PropertyRef(
+        "lastupdated",
+        set_in_kwargs=True,
+        description="Timestamp of the last sync that observed this data.",
+    )
 
 
 # DEPRECATED: replaced by :TAGGED, will be removed in v1.0.0
 @dataclass(frozen=True)
 class GCPLabelToCloudRunServiceRel(CartographyRelSchema):
-    """(:GCPCloudRunService)-[:LABELED]->(:GCPLabel)"""
+    """Indicates that a GCP Cloud Run service has this legacy label."""
 
     target_node_label: str = "GCPCloudRunService"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
@@ -483,12 +542,16 @@ class GCPLabelToCloudRunServiceRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class GCPLabelToCloudRunServiceTaggedRelProperties(CartographyRelProperties):
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    lastupdated: PropertyRef = PropertyRef(
+        "lastupdated",
+        set_in_kwargs=True,
+        description="Timestamp of the last sync that observed this data.",
+    )
 
 
 @dataclass(frozen=True)
 class GCPLabelToCloudRunServiceTaggedRel(CartographyRelSchema):
-    """(:GCPCloudRunService)-[:TAGGED]->(:GCPLabel)"""
+    """Indicates that a GCP Cloud Run service is tagged with this label."""
 
     target_node_label: str = "GCPCloudRunService"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
@@ -503,9 +566,7 @@ class GCPLabelToCloudRunServiceTaggedRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class GCPCloudRunServiceGCPLabelSchema(CartographyNodeSchema):
-    """
-    GCPLabel nodes sourced from GCPCloudRunService resources.
-    """
+    """A key-value label attached to a supported Google Cloud resource."""
 
     label: str = "GCPLabel"
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["Label", "Tag"])
@@ -521,13 +582,17 @@ class GCPCloudRunServiceGCPLabelSchema(CartographyNodeSchema):
 
 @dataclass(frozen=True)
 class GCPLabelToCloudRunJobRelProperties(CartographyRelProperties):
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    lastupdated: PropertyRef = PropertyRef(
+        "lastupdated",
+        set_in_kwargs=True,
+        description="Timestamp of the last sync that observed this data.",
+    )
 
 
 # DEPRECATED: replaced by :TAGGED, will be removed in v1.0.0
 @dataclass(frozen=True)
 class GCPLabelToCloudRunJobRel(CartographyRelSchema):
-    """(:GCPCloudRunJob)-[:LABELED]->(:GCPLabel)"""
+    """Indicates that a GCP Cloud Run job has this legacy label."""
 
     target_node_label: str = "GCPCloudRunJob"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
@@ -542,12 +607,16 @@ class GCPLabelToCloudRunJobRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class GCPLabelToCloudRunJobTaggedRelProperties(CartographyRelProperties):
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    lastupdated: PropertyRef = PropertyRef(
+        "lastupdated",
+        set_in_kwargs=True,
+        description="Timestamp of the last sync that observed this data.",
+    )
 
 
 @dataclass(frozen=True)
 class GCPLabelToCloudRunJobTaggedRel(CartographyRelSchema):
-    """(:GCPCloudRunJob)-[:TAGGED]->(:GCPLabel)"""
+    """Indicates that a GCP Cloud Run job is tagged with this label."""
 
     target_node_label: str = "GCPCloudRunJob"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
@@ -562,9 +631,7 @@ class GCPLabelToCloudRunJobTaggedRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class GCPCloudRunJobGCPLabelSchema(CartographyNodeSchema):
-    """
-    GCPLabel nodes sourced from GCPCloudRunJob resources.
-    """
+    """A key-value label attached to a supported Google Cloud resource."""
 
     label: str = "GCPLabel"
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["Label", "Tag"])
@@ -580,12 +647,16 @@ class GCPCloudRunJobGCPLabelSchema(CartographyNodeSchema):
 
 @dataclass(frozen=True)
 class GCPLabelToCloudFunctionRelProperties(CartographyRelProperties):
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    lastupdated: PropertyRef = PropertyRef(
+        "lastupdated",
+        set_in_kwargs=True,
+        description="Timestamp of the last sync that observed this data.",
+    )
 
 
 @dataclass(frozen=True)
 class GCPLabelToCloudFunctionRel(CartographyRelSchema):
-    """(:GCPCloudFunction)-[:LABELED]->(:GCPLabel)"""
+    """Indicates that a GCP Cloud Function has this legacy label."""
 
     target_node_label: str = "GCPCloudFunction"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
@@ -600,9 +671,7 @@ class GCPLabelToCloudFunctionRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class GCPCloudFunctionGCPLabelSchema(CartographyNodeSchema):
-    """
-    GCPLabel nodes sourced from GCPCloudFunction resources.
-    """
+    """A key-value label attached to a supported Google Cloud resource."""
 
     label: str = "GCPLabel"
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["Label"])

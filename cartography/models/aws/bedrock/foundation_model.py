@@ -17,21 +17,58 @@ class AWSBedrockFoundationModelNodeProperties(CartographyNodeProperties):
     Properties for AWS Bedrock Foundation Model nodes.
     """
 
-    id: PropertyRef = PropertyRef("modelArn")
-    arn: PropertyRef = PropertyRef("modelArn", extra_index=True)
-    model_id: PropertyRef = PropertyRef("modelId", extra_index=True)
-    model_name: PropertyRef = PropertyRef("modelName")
-    provider_name: PropertyRef = PropertyRef("providerName")
-    input_modalities: PropertyRef = PropertyRef("inputModalities")
-    output_modalities: PropertyRef = PropertyRef("outputModalities")
-    response_streaming_supported: PropertyRef = PropertyRef(
-        "responseStreamingSupported"
+    id: PropertyRef = PropertyRef(
+        "modelArn", description="The ARN of the foundation model"
     )
-    customizations_supported: PropertyRef = PropertyRef("customizationsSupported")
-    inference_types_supported: PropertyRef = PropertyRef("inferenceTypesSupported")
-    model_lifecycle_status: PropertyRef = PropertyRef("modelLifecycle.status")
-    region: PropertyRef = PropertyRef("Region", set_in_kwargs=True)
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    arn: PropertyRef = PropertyRef(
+        "modelArn", extra_index=True, description="The ARN of the foundation model"
+    )
+    model_id: PropertyRef = PropertyRef(
+        "modelId",
+        extra_index=True,
+        description='The model identifier (e.g., "anthropic.claude-3-5-sonnet-20240620-v1:0")',
+    )
+    model_name: PropertyRef = PropertyRef(
+        "modelName", description="The human-readable name of the model"
+    )
+    provider_name: PropertyRef = PropertyRef(
+        "providerName",
+        description='The provider of the model (e.g., "Anthropic", "Amazon", "Meta")',
+    )
+    input_modalities: PropertyRef = PropertyRef(
+        "inputModalities",
+        description='List of input modalities the model supports (e.g., ["TEXT", "IMAGE"])',
+    )
+    output_modalities: PropertyRef = PropertyRef(
+        "outputModalities",
+        description='List of output modalities the model supports (e.g., ["TEXT"])',
+    )
+    response_streaming_supported: PropertyRef = PropertyRef(
+        "responseStreamingSupported",
+        description="Whether the model supports streaming responses",
+    )
+    customizations_supported: PropertyRef = PropertyRef(
+        "customizationsSupported",
+        description='List of customization types supported (e.g., ["FINE_TUNING"])',
+    )
+    inference_types_supported: PropertyRef = PropertyRef(
+        "inferenceTypesSupported",
+        description='List of inference types supported (e.g., ["ON_DEMAND", "PROVISIONED"])',
+    )
+    model_lifecycle_status: PropertyRef = PropertyRef(
+        "modelLifecycle.status",
+        description='The lifecycle status of the model (e.g., "ACTIVE", "LEGACY")',
+    )
+    region: PropertyRef = PropertyRef(
+        "Region",
+        set_in_kwargs=True,
+        description="The AWS region where the model is available",
+    )
+    lastupdated: PropertyRef = PropertyRef(
+        "lastupdated",
+        set_in_kwargs=True,
+        description="Timestamp of the last time the node was updated",
+    )
 
 
 @dataclass(frozen=True)

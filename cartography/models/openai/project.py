@@ -14,13 +14,32 @@ from cartography.models.core.relationships import TargetNodeMatcher
 
 @dataclass(frozen=True)
 class OpenAIProjectNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("id")
-    object: PropertyRef = PropertyRef("object")
-    name: PropertyRef = PropertyRef("name")
-    created_at: PropertyRef = PropertyRef("created_at")
-    archived_at: PropertyRef = PropertyRef("archived_at")
-    status: PropertyRef = PropertyRef("status")
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    id: PropertyRef = PropertyRef("id", description="OpenAI project ID.")
+    object: PropertyRef = PropertyRef(
+        "object",
+        description='Object type, always "organization.project".',
+    )
+    name: PropertyRef = PropertyRef(
+        "name",
+        description="Project name displayed in reporting.",
+    )
+    created_at: PropertyRef = PropertyRef(
+        "created_at",
+        description="Unix timestamp when the project was created.",
+    )
+    archived_at: PropertyRef = PropertyRef(
+        "archived_at",
+        description="Unix timestamp when the project was archived.",
+    )
+    status: PropertyRef = PropertyRef(
+        "status",
+        description="Project status: active or archived.",
+    )
+    lastupdated: PropertyRef = PropertyRef(
+        "lastupdated",
+        set_in_kwargs=True,
+        description="Timestamp of the last update.",
+    )
 
 
 @dataclass(frozen=True)
@@ -31,6 +50,8 @@ class OpenAIProjectToOrganizationRelProperties(CartographyRelProperties):
 @dataclass(frozen=True)
 # (:OpenAIOrganization)-[:RESOURCE]->(:OpenAIProject)
 class OpenAIProjectToOrganizationRel(CartographyRelSchema):
+    """The organization contains the project."""
+
     target_node_label: str = "OpenAIOrganization"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("ORG_ID", set_in_kwargs=True)},
@@ -50,6 +71,8 @@ class OpenAIProjectToUserRelProperties(CartographyRelProperties):
 @dataclass(frozen=True)
 # (:OpenAIUser)-[:MEMBER_OF]->(:OpenAIProject)
 class OpenAIProjectToUserRel(CartographyRelSchema):
+    """A user is a member of the project."""
+
     target_node_label: str = "OpenAIUser"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("users", one_to_many=True)},
@@ -67,6 +90,8 @@ class OpenAIProjectToUserAdminRelProperties(CartographyRelProperties):
 @dataclass(frozen=True)
 # (:OpenAIUser)-[:ADMIN_OF]->(:OpenAIProject)
 class OpenAIProjectToUserAdminRel(CartographyRelSchema):
+    """A user administers the project."""
+
     target_node_label: str = "OpenAIUser"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("admins", one_to_many=True)},
@@ -80,6 +105,8 @@ class OpenAIProjectToUserAdminRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class OpenAIProjectSchema(CartographyNodeSchema):
+    """A project in an OpenAI organization."""
+
     label: str = "OpenAIProject"
     properties: OpenAIProjectNodeProperties = OpenAIProjectNodeProperties()
     sub_resource_relationship: OpenAIProjectToOrganizationRel = (

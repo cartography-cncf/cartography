@@ -21,6 +21,8 @@ class EntraUserToAWSSSOUserRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class EntraUserToAWSSSOUserMatchLink(CartographyRelSchema):
+    """Links an Entra user to their federated AWS Identity Center user."""
+
     target_node_label: str = "AWSSSOUser"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {

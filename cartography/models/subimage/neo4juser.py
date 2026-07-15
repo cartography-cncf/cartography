@@ -12,8 +12,12 @@ from cartography.models.core.relationships import TargetNodeMatcher
 
 @dataclass(frozen=True)
 class SubImageNeo4jUserNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("username")
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    id: PropertyRef = PropertyRef("username", description="Neo4j username.")
+    lastupdated: PropertyRef = PropertyRef(
+        "lastupdated",
+        set_in_kwargs=True,
+        description="Timestamp of the last update.",
+    )
 
 
 @dataclass(frozen=True)
@@ -24,6 +28,8 @@ class SubImageNeo4jUserToTenantRelProperties(CartographyRelProperties):
 @dataclass(frozen=True)
 # (:SubImageTenant)-[:RESOURCE]->(:SubImageNeo4jUser)
 class SubImageNeo4jUserToTenantRel(CartographyRelSchema):
+    """The tenant contains the Neo4j user."""
+
     target_node_label: str = "SubImageTenant"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("TENANT_ID", set_in_kwargs=True)},
@@ -37,6 +43,8 @@ class SubImageNeo4jUserToTenantRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class SubImageNeo4jUserSchema(CartographyNodeSchema):
+    """A Neo4j database user configured in SubImage."""
+
     label: str = "SubImageNeo4jUser"
     properties: SubImageNeo4jUserNodeProperties = SubImageNeo4jUserNodeProperties()
     sub_resource_relationship: SubImageNeo4jUserToTenantRel = (

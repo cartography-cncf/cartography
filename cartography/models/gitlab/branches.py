@@ -25,12 +25,32 @@ class GitLabBranchNodeProperties(CartographyNodeProperties):
     Properties for a GitLab Branch node.
     """
 
-    id: PropertyRef = PropertyRef("id")  # Unique identifier (project_id + branch_name)
-    name: PropertyRef = PropertyRef("name", extra_index=True)  # Branch name
-    protected: PropertyRef = PropertyRef("protected")  # Is branch protected
-    default: PropertyRef = PropertyRef("default")  # Is default branch
-    web_url: PropertyRef = PropertyRef("web_url")  # Web URL to branch
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    id: PropertyRef = PropertyRef(
+        "id",
+        description="Unique branch identifier formed from the project URL and branch name.",
+    )
+    name: PropertyRef = PropertyRef(
+        "name",
+        extra_index=True,
+        description="Branch name.",
+    )
+    protected: PropertyRef = PropertyRef(
+        "protected",
+        description="Whether the branch is protected.",
+    )
+    default: PropertyRef = PropertyRef(
+        "default",
+        description="Whether this is the project's default branch.",
+    )
+    web_url: PropertyRef = PropertyRef(
+        "web_url",
+        description="URL for viewing the branch in GitLab.",
+    )
+    lastupdated: PropertyRef = PropertyRef(
+        "lastupdated",
+        set_in_kwargs=True,
+        description="Timestamp of the last time the node was updated.",
+    )
 
 
 @dataclass(frozen=True)

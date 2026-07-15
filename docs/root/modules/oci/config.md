@@ -1,14 +1,13 @@
-## OCI Configuration
+# OCI Configuration
 
-Follow these steps to analyze Oracle Cloud Infrastructure (OCI) assets with Cartography.
+## Authentication
 
-### 1. Create an OCI Identity
+Create an OCI user and API signing key for Cartography. See the
+[OCI API key authentication guide](https://docs.oracle.com/en-us/iaas/Content/API/Concepts/apisigningkey.htm).
 
-Create a User Account or API Key for Cartography to use. See the [OCI documentation on API Key authentication](https://docs.oracle.com/en-us/iaas/Content/API/Concepts/apisigningkey.htm).
+## Required Permissions
 
-### 2. Grant Required Policies
-
-Grant the following IAM policies to the identity. These policies should be applied at the **tenancy level** to allow Cartography to read all resources.
+Apply these IAM policies to the Cartography identity at the tenancy level:
 
 ```
 Allow group CartographyGroup to inspect all-resources in tenancy
@@ -19,11 +18,12 @@ Allow group CartographyGroup to read groups in tenancy
 Allow group CartographyGroup to read tenancies in tenancy
 ```
 
-For more information on OCI policies, see the [OCI Common Policies documentation](https://docs.cloud.oracle.com/iaas/Content/Identity/Concepts/commonpolicies.htm).
+Replace `CartographyGroup` with the group that contains the Cartography user.
 
-### 3. Configure OCI Credentials
+## Configure Cartography
 
-Cartography uses the standard OCI SDK configuration file. Create or update your OCI config file at `~/.oci/config`:
+Cartography uses the standard OCI SDK configuration file. Create or update
+`~/.oci/config`:
 
 ```ini
 [DEFAULT]
@@ -34,4 +34,13 @@ region=us-ashburn-1
 key_file=~/.oci/oci_api_key.pem
 ```
 
-For detailed instructions on setting up the config file, see the [OCI SDK Configuration documentation](https://docs.oracle.com/en-us/iaas/Content/API/Concepts/sdkconfig.htm).
+## Run Cartography
+
+```bash
+cartography --selected-modules oci
+```
+
+## References
+
+- [OCI common policies](https://docs.cloud.oracle.com/iaas/Content/Identity/Concepts/commonpolicies.htm)
+- [OCI SDK configuration](https://docs.oracle.com/en-us/iaas/Content/API/Concepts/sdkconfig.htm)

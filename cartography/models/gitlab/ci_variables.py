@@ -38,18 +38,62 @@ class GitLabCIVariableNodeProperties(CartographyNodeProperties):
     that is `masked=False` can be echoed in build logs.
     """
 
-    id: PropertyRef = PropertyRef("id")  # Composite: scope_type:scope_id:key:env_scope
-    key: PropertyRef = PropertyRef("key", extra_index=True)
-    variable_type: PropertyRef = PropertyRef("variable_type")
-    protected: PropertyRef = PropertyRef("protected", extra_index=True)
-    masked: PropertyRef = PropertyRef("masked")
-    masked_and_hidden: PropertyRef = PropertyRef("masked_and_hidden")
-    raw: PropertyRef = PropertyRef("raw")
-    environment_scope: PropertyRef = PropertyRef("environment_scope", extra_index=True)
-    description: PropertyRef = PropertyRef("description")
-    scope_type: PropertyRef = PropertyRef("scope_type")
-    gitlab_url: PropertyRef = PropertyRef("gitlab_url", extra_index=True)
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    id: PropertyRef = PropertyRef(
+        "id",
+        description=(
+            "Composite identifier formed from scope type, scope ID, key, and "
+            "environment scope."
+        ),
+    )
+    key: PropertyRef = PropertyRef(
+        "key",
+        extra_index=True,
+        description="Variable key exposed to CI/CD jobs.",
+    )
+    variable_type: PropertyRef = PropertyRef(
+        "variable_type",
+        description="GitLab variable type: env_var or file.",
+    )
+    protected: PropertyRef = PropertyRef(
+        "protected",
+        extra_index=True,
+        description="Whether the variable is exposed only to pipelines on protected refs.",
+    )
+    masked: PropertyRef = PropertyRef(
+        "masked",
+        description="Whether GitLab attempts to mask the variable value in job logs.",
+    )
+    masked_and_hidden: PropertyRef = PropertyRef(
+        "masked_and_hidden",
+        description="Whether the value is masked and cannot be retrieved after creation.",
+    )
+    raw: PropertyRef = PropertyRef(
+        "raw",
+        description="Whether GitLab skips variable expansion for the value.",
+    )
+    environment_scope: PropertyRef = PropertyRef(
+        "environment_scope",
+        extra_index=True,
+        description="Environment name or glob that controls where the variable is available.",
+    )
+    description: PropertyRef = PropertyRef(
+        "description",
+        description="Human-readable description of the variable.",
+    )
+    scope_type: PropertyRef = PropertyRef(
+        "scope_type",
+        description="Variable ownership scope: group or project.",
+    )
+    gitlab_url: PropertyRef = PropertyRef(
+        "gitlab_url",
+        extra_index=True,
+        description="URL of the GitLab instance.",
+    )
+    lastupdated: PropertyRef = PropertyRef(
+        "lastupdated",
+        set_in_kwargs=True,
+        description="Timestamp of the last time the node was updated.",
+    )
 
 
 # =============================================================================
@@ -87,7 +131,7 @@ class GitLabGroupHasCIVariableRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class GitLabGroupHasCIVariableRel(CartographyRelSchema):
-    """`(:GitLabGroup)-[:HAS_CI_VARIABLE]->(:GitLabCIVariable)` — semantic edge."""
+    """Links a GitLab group to a CI variable it defines."""
 
     target_node_label: str = "GitLabGroup"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
@@ -105,12 +149,7 @@ class GitLabGroupHasCIVariableRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class GitLabGroupCIVariableSchema(CartographyNodeSchema):
-    """Schema for group-level CI/CD variables.
-
-    Two relationships to the parent group:
-    - ``RESOURCE`` — used by the framework for cleanup scoping (convention).
-    - ``HAS_CI_VARIABLE`` — semantic edge for graph queries.
-    """
+    """A GitLab CI/CD variable defined at group or project scope."""
 
     label: str = "GitLabCIVariable"
     properties: GitLabCIVariableNodeProperties = GitLabCIVariableNodeProperties()
@@ -157,7 +196,7 @@ class GitLabProjectHasCIVariableRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class GitLabProjectHasCIVariableRel(CartographyRelSchema):
-    """`(:GitLabProject)-[:HAS_CI_VARIABLE]->(:GitLabCIVariable)` — semantic edge."""
+    """Links a GitLab project to a CI variable it defines."""
 
     target_node_label: str = "GitLabProject"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
@@ -175,11 +214,7 @@ class GitLabProjectHasCIVariableRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class GitLabProjectCIVariableSchema(CartographyNodeSchema):
-    """Schema for project-level CI/CD variables.
-
-    See :class:`GitLabGroupCIVariableSchema` for the rationale on why both
-    ``RESOURCE`` and ``HAS_CI_VARIABLE`` edges exist.
-    """
+    """A GitLab CI/CD variable defined at group or project scope."""
 
     label: str = "GitLabCIVariable"
     properties: GitLabCIVariableNodeProperties = GitLabCIVariableNodeProperties()

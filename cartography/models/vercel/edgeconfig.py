@@ -12,14 +12,28 @@ from cartography.models.core.relationships import TargetNodeMatcher
 
 @dataclass(frozen=True)
 class VercelEdgeConfigNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("id")
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
-    slug: PropertyRef = PropertyRef("slug", extra_index=True)
-    created_at: PropertyRef = PropertyRef("createdAt")
-    updated_at: PropertyRef = PropertyRef("updatedAt")
-    item_count: PropertyRef = PropertyRef("itemCount")
-    size_in_bytes: PropertyRef = PropertyRef("sizeInBytes")
-    digest: PropertyRef = PropertyRef("digest")
+    id: PropertyRef = PropertyRef("id", description="Edge Config ID.")
+    lastupdated: PropertyRef = PropertyRef(
+        "lastupdated", set_in_kwargs=True, description="Timestamp of the last update."
+    )
+    slug: PropertyRef = PropertyRef(
+        "slug", extra_index=True, description="Edge Config slug."
+    )
+    created_at: PropertyRef = PropertyRef(
+        "createdAt", description="Timestamp when the Edge Config was created."
+    )
+    updated_at: PropertyRef = PropertyRef(
+        "updatedAt", description="Timestamp when the Edge Config was last updated."
+    )
+    item_count: PropertyRef = PropertyRef(
+        "itemCount", description="Number of items in the Edge Config."
+    )
+    size_in_bytes: PropertyRef = PropertyRef(
+        "sizeInBytes", description="Size of the Edge Config in bytes."
+    )
+    digest: PropertyRef = PropertyRef(
+        "digest", description="Content digest of the Edge Config."
+    )
 
 
 @dataclass(frozen=True)
@@ -30,6 +44,8 @@ class VercelEdgeConfigToTeamRelProperties(CartographyRelProperties):
 @dataclass(frozen=True)
 # (:VercelTeam)-[:RESOURCE]->(:VercelEdgeConfig)
 class VercelEdgeConfigToTeamRel(CartographyRelSchema):
+    """The Vercel team contains this Edge Config as a resource."""
+
     target_node_label: str = "VercelTeam"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("TEAM_ID", set_in_kwargs=True)},
@@ -43,6 +59,8 @@ class VercelEdgeConfigToTeamRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class VercelEdgeConfigSchema(CartographyNodeSchema):
+    """A Vercel Edge Config that serves runtime data from the edge."""
+
     label: str = "VercelEdgeConfig"
     properties: VercelEdgeConfigNodeProperties = VercelEdgeConfigNodeProperties()
     sub_resource_relationship: VercelEdgeConfigToTeamRel = VercelEdgeConfigToTeamRel()

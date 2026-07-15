@@ -14,11 +14,25 @@ from cartography.models.core.relationships import TargetNodeMatcher
 
 @dataclass(frozen=True)
 class AWSInlinePolicyNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("id")
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
-    name: PropertyRef = PropertyRef("name")
-    type: PropertyRef = PropertyRef("type")
-    arn: PropertyRef = PropertyRef("arn", extra_index=True)
+    id: PropertyRef = PropertyRef(
+        "id", description="Unique identifier for this `AWSInlinePolicy` node."
+    )
+    lastupdated: PropertyRef = PropertyRef(
+        "lastupdated",
+        set_in_kwargs=True,
+        description="Timestamp of the last sync that updated this `AWSInlinePolicy` node.",
+    )
+    name: PropertyRef = PropertyRef(
+        "name", description="Name of this `AWSInlinePolicy` node."
+    )
+    type: PropertyRef = PropertyRef(
+        "type", description="Type of this `AWSInlinePolicy` node."
+    )
+    arn: PropertyRef = PropertyRef(
+        "arn",
+        extra_index=True,
+        description="Amazon Resource Name (ARN) of this `AWSInlinePolicy` node.",
+    )
 
 
 @dataclass(frozen=True)
@@ -28,6 +42,8 @@ class AWSInlinePolicyToAWSPrincipalRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class AWSInlinePolicyToAWSPrincipalRel(CartographyRelSchema):
+    "Represents a `POLICY` relationship from `AWSPrincipal` to `AWSInlinePolicy`."
+
     target_node_label: str = "AWSPrincipal"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {
@@ -48,6 +64,8 @@ class AWSInlinePolicyToAWSAccountRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class AWSInlinePolicyToAWSAccountRel(CartographyRelSchema):
+    "Represents a `RESOURCE` relationship from `AWSAccount` to `AWSInlinePolicy`."
+
     target_node_label: str = "AWSAccount"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {

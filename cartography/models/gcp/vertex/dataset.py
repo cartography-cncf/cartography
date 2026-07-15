@@ -17,24 +17,56 @@ class GCPVertexAIDatasetNodeProperties(CartographyNodeProperties):
     See: https://cloud.google.com/vertex-ai/docs/reference/rest/v1/projects.locations.datasets
     """
 
-    id: PropertyRef = PropertyRef("id", extra_index=True)  # Full resource name
-    name: PropertyRef = PropertyRef("name")  # Resource name (same as id)
-    display_name: PropertyRef = PropertyRef("display_name")
-    description: PropertyRef = PropertyRef("description")
-    labels: PropertyRef = PropertyRef("labels")
-    create_time: PropertyRef = PropertyRef("create_time")
-    update_time: PropertyRef = PropertyRef("update_time")
-    etag: PropertyRef = PropertyRef("etag")
-    data_item_count: PropertyRef = PropertyRef("data_item_count")
-    metadata_schema_uri: PropertyRef = PropertyRef("metadata_schema_uri")
-    metadata: PropertyRef = PropertyRef("metadata")
-    encryption_spec: PropertyRef = PropertyRef("encryption_spec")
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    id: PropertyRef = PropertyRef(
+        "id", extra_index=True, description="Stable identifier for this resource."
+    )  # Full resource name
+    name: PropertyRef = PropertyRef(
+        "name", description="Same as `id`."
+    )  # Resource name (same as id)
+    display_name: PropertyRef = PropertyRef(
+        "display_name", description="User-provided display name of the dataset."
+    )
+    description: PropertyRef = PropertyRef(
+        "description", description="Description configured for this resource."
+    )
+    labels: PropertyRef = PropertyRef(
+        "labels", description="Key-value labels attached to this resource."
+    )
+    create_time: PropertyRef = PropertyRef(
+        "create_time", description="Timestamp when the dataset was created."
+    )
+    update_time: PropertyRef = PropertyRef(
+        "update_time", description="Timestamp when the dataset was last updated."
+    )
+    etag: PropertyRef = PropertyRef(
+        "etag", description="Used to perform consistent read-modify-write updates."
+    )
+    data_item_count: PropertyRef = PropertyRef(
+        "data_item_count", description="The number of data items in the dataset."
+    )
+    metadata_schema_uri: PropertyRef = PropertyRef(
+        "metadata_schema_uri", description="The metadata schema URI for the dataset."
+    )
+    metadata: PropertyRef = PropertyRef(
+        "metadata", description="JSON string with dataset metadata."
+    )
+    encryption_spec: PropertyRef = PropertyRef(
+        "encryption_spec", description="JSON string with encryption configuration."
+    )
+    lastupdated: PropertyRef = PropertyRef(
+        "lastupdated",
+        set_in_kwargs=True,
+        description="Timestamp of the last time the node was updated.",
+    )
 
 
 @dataclass(frozen=True)
 class GCPVertexAIDatasetToProjectRelProperties(CartographyRelProperties):
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    lastupdated: PropertyRef = PropertyRef(
+        "lastupdated",
+        set_in_kwargs=True,
+        description="Timestamp of the last sync that observed this data.",
+    )
 
 
 @dataclass(frozen=True)
@@ -53,6 +85,8 @@ class GCPVertexAIDatasetToProjectRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class GCPVertexAIDatasetSchema(CartographyNodeSchema):
+    """Representation of a GCP [Vertex AI Dataset](https://cloud.google.com/vertex-ai/docs/reference/rest/v1/projects.locations.datasets)."""
+
     label: str = "GCPVertexAIDataset"
     properties: GCPVertexAIDatasetNodeProperties = GCPVertexAIDatasetNodeProperties()
     sub_resource_relationship: GCPVertexAIDatasetToProjectRel = (

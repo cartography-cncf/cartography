@@ -13,13 +13,30 @@ from cartography.models.core.relationships import TargetNodeMatcher
 
 @dataclass(frozen=True)
 class OpenAIUserNodeProperties(CartographyNodeProperties):
-    object: PropertyRef = PropertyRef("object")
-    id: PropertyRef = PropertyRef("id")
-    name: PropertyRef = PropertyRef("name")
-    email: PropertyRef = PropertyRef("email", extra_index=True)
-    role: PropertyRef = PropertyRef("role")
-    added_at: PropertyRef = PropertyRef("added_at")
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    object: PropertyRef = PropertyRef(
+        "object",
+        description='Object type, always "organization.user".',
+    )
+    id: PropertyRef = PropertyRef("id", description="OpenAI user ID.")
+    name: PropertyRef = PropertyRef("name", description="User name.")
+    email: PropertyRef = PropertyRef(
+        "email",
+        extra_index=True,
+        description="User email address.",
+    )
+    role: PropertyRef = PropertyRef(
+        "role",
+        description="Organization role: owner or reader.",
+    )
+    added_at: PropertyRef = PropertyRef(
+        "added_at",
+        description="Unix timestamp when the user was added.",
+    )
+    lastupdated: PropertyRef = PropertyRef(
+        "lastupdated",
+        set_in_kwargs=True,
+        description="Timestamp of the last update.",
+    )
 
 
 @dataclass(frozen=True)
@@ -30,6 +47,8 @@ class OpenAIUserToOrganizationRelProperties(CartographyRelProperties):
 @dataclass(frozen=True)
 # (:OpenAIOrganization)-[:RESOURCE]->(:OpenAIUser)
 class OpenAIUserToOrganizationRel(CartographyRelSchema):
+    """The organization contains the user."""
+
     target_node_label: str = "OpenAIOrganization"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("ORG_ID", set_in_kwargs=True)},
@@ -43,6 +62,8 @@ class OpenAIUserToOrganizationRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class OpenAIUserSchema(CartographyNodeSchema):
+    """A user account in an OpenAI organization."""
+
     label: str = "OpenAIUser"
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
         ["UserAccount"]

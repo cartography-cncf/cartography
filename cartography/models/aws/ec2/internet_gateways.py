@@ -13,11 +13,29 @@ from cartography.models.core.relationships import TargetNodeMatcher
 
 @dataclass(frozen=True)
 class AWSInternetGatewayNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("InternetGatewayId")
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
-    region: PropertyRef = PropertyRef("Region", set_in_kwargs=True)
-    ownerid: PropertyRef = PropertyRef("OwnerId")
-    arn: PropertyRef = PropertyRef("Arn", extra_index=True)
+    id: PropertyRef = PropertyRef(
+        "InternetGatewayId",
+        description="Unique identifier for this `AWSInternetGateway` node.",
+    )
+    lastupdated: PropertyRef = PropertyRef(
+        "lastupdated",
+        set_in_kwargs=True,
+        description="Timestamp of the last sync that updated this `AWSInternetGateway` node.",
+    )
+    region: PropertyRef = PropertyRef(
+        "Region",
+        set_in_kwargs=True,
+        description="AWS Region containing this `AWSInternetGateway` node.",
+    )
+    ownerid: PropertyRef = PropertyRef(
+        "OwnerId",
+        description="Identifier of the owner linked to this `AWSInternetGateway` node.",
+    )
+    arn: PropertyRef = PropertyRef(
+        "Arn",
+        extra_index=True,
+        description="Amazon Resource Name (ARN) of this `AWSInternetGateway` node.",
+    )
 
 
 @dataclass(frozen=True)
@@ -27,6 +45,8 @@ class AWSInternetGatewayToAWSAccountRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class AWSInternetGatewayToAWSAccountRel(CartographyRelSchema):
+    "Represents a `RESOURCE` relationship from `AWSAccount` to `AWSInternetGateway`."
+
     target_node_label: str = "AWSAccount"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("AWS_ID", set_in_kwargs=True)},
@@ -45,6 +65,8 @@ class AWSInternetGatewayToAWSVpcRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class AWSInternetGatewayToAWSVpcRel(CartographyRelSchema):
+    "Represents a `ATTACHED_TO` relationship from `AWSInternetGateway` to `AWSVpc`."
+
     target_node_label: str = "AWSVpc"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("VpcId")},
@@ -58,6 +80,8 @@ class AWSInternetGatewayToAWSVpcRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class AWSInternetGatewaySchema(CartographyNodeSchema):
+    "Represents an `AWSInternetGateway` node in the AWS graph."
+
     label: str = "AWSInternetGateway"
     properties: AWSInternetGatewayNodeProperties = AWSInternetGatewayNodeProperties()
     sub_resource_relationship: AWSInternetGatewayToAWSAccountRel = (

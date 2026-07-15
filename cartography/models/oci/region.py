@@ -13,10 +13,18 @@ from cartography.models.core.relationships import TargetNodeMatcher
 
 @dataclass(frozen=True)
 class OCIRegionNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("region_key")
-    key: PropertyRef = PropertyRef("region_key", extra_index=True)
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
-    name: PropertyRef = PropertyRef("region_name", extra_index=True)
+    id: PropertyRef = PropertyRef("region_key", description="OCI region key.")
+    key: PropertyRef = PropertyRef(
+        "region_key", extra_index=True, description="OCI region key."
+    )
+    lastupdated: PropertyRef = PropertyRef(
+        "lastupdated",
+        set_in_kwargs=True,
+        description="Timestamp of the last update.",
+    )
+    name: PropertyRef = PropertyRef(
+        "region_name", extra_index=True, description="OCI region name."
+    )
 
 
 @dataclass(frozen=True)
@@ -26,6 +34,8 @@ class OCIRegionToOCITenancyRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class OCIRegionToOCITenancyRel(CartographyRelSchema):
+    """An OCI tenancy contains a subscribed region as a managed resource."""
+
     target_node_label: str = "OCITenancy"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"ocid": PropertyRef("OCI_TENANCY_ID", set_in_kwargs=True)},
@@ -46,9 +56,7 @@ class OCIRegionSubscriptionRelProperties(CartographyRelProperties):
 # DEPRECATED: OCI_REGION_SUBSCRIPTION relationship for backward compatibility
 @dataclass(frozen=True)
 class OCIRegionSubscriptionRel(CartographyRelSchema):
-    """
-    Deprecated: This relationship is kept for backward compatibility.
-    """
+    """Deprecated compatibility edge from an OCI tenancy to a subscribed region."""
 
     target_node_label: str = "OCITenancy"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
@@ -63,6 +71,8 @@ class OCIRegionSubscriptionRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class OCIRegionSchema(CartographyNodeSchema):
+    """An OCI region subscribed by a tenancy."""
+
     label: str = "OCIRegion"
     properties: OCIRegionNodeProperties = OCIRegionNodeProperties()
     sub_resource_relationship: OCIRegionToOCITenancyRel = OCIRegionToOCITenancyRel()

@@ -25,6 +25,8 @@ class S3BucketToSNSTopicRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class S3BucketToSNSTopicRel(CartographyRelSchema):
+    "Represents a `NOTIFIES` relationship from `AWSS3Bucket` to `AWSSNSTopic`."
+
     target_node_label: str = "AWSSNSTopic"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"arn": PropertyRef("TopicArn")},

@@ -16,14 +16,33 @@ from cartography.models.core.relationships import TargetNodeMatcher
 
 @dataclass(frozen=True)
 class IntuneDetectedAppNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("id")
-    application_id: PropertyRef = PropertyRef("application_id")
-    display_name: PropertyRef = PropertyRef("display_name")
-    version: PropertyRef = PropertyRef("version")
-    device_count: PropertyRef = PropertyRef("device_count")
-    publisher: PropertyRef = PropertyRef("publisher")
-    platform: PropertyRef = PropertyRef("platform")
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    id: PropertyRef = PropertyRef(
+        "id", description="Intune report application key for the detected app."
+    )
+    application_id: PropertyRef = PropertyRef(
+        "application_id",
+        description="Application ID reported by Intune when available.",
+    )
+    display_name: PropertyRef = PropertyRef(
+        "display_name", description="Display name of the detected application."
+    )
+    version: PropertyRef = PropertyRef(
+        "version", description="Detected application version."
+    )
+    device_count: PropertyRef = PropertyRef(
+        "device_count", description="Number of devices with the application detected."
+    )
+    publisher: PropertyRef = PropertyRef(
+        "publisher", description="Publisher of the detected application."
+    )
+    platform: PropertyRef = PropertyRef(
+        "platform", description="Platform on which the application was detected."
+    )
+    lastupdated: PropertyRef = PropertyRef(
+        "lastupdated",
+        set_in_kwargs=True,
+        description="Timestamp of the latest Cartography update.",
+    )
 
 
 @dataclass(frozen=True)
@@ -44,6 +63,8 @@ class IntuneManagedDeviceHasAppRelProperties(CartographyRelProperties):
 # (:IntuneDetectedApp)<-[:RESOURCE]-(:AzureTenant)
 @dataclass(frozen=True)
 class IntuneDetectedAppToTenantRel(CartographyRelSchema):
+    """Links a Microsoft tenant to a detected Intune application."""
+
     target_node_label: str = "AzureTenant"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("TENANT_ID", set_in_kwargs=True)},
@@ -56,6 +77,8 @@ class IntuneDetectedAppToTenantRel(CartographyRelSchema):
 # (:IntuneManagedDevice)-[:HAS_APP]->(:IntuneDetectedApp)
 @dataclass(frozen=True)
 class IntuneManagedDeviceToDetectedAppMatchLink(CartographyRelSchema):
+    """Links an Intune managed device to an application detected on it."""
+
     target_node_label: str = "IntuneManagedDevice"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("device_id")},
@@ -89,6 +112,8 @@ class IntuneManagedDeviceToDetectedAppMatchLink(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class IntuneDetectedAppSchema(CartographyNodeSchema):
+    """An application detected on devices managed by Microsoft Intune."""
+
     label: str = "IntuneDetectedApp"
     properties: IntuneDetectedAppNodeProperties = IntuneDetectedAppNodeProperties()
     sub_resource_relationship: IntuneDetectedAppToTenantRel = (

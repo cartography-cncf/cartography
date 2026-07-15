@@ -24,16 +24,49 @@ from cartography.models.core.relationships import TargetNodeMatcher
 
 @dataclass(frozen=True)
 class GitLabContainerRepositoryTagNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("location")
-    name: PropertyRef = PropertyRef("name", extra_index=True)
-    path: PropertyRef = PropertyRef("path")
-    repository_location: PropertyRef = PropertyRef("repository_location")
-    revision: PropertyRef = PropertyRef("revision")
-    short_revision: PropertyRef = PropertyRef("short_revision")
-    digest: PropertyRef = PropertyRef("digest", extra_index=True)
-    created_at: PropertyRef = PropertyRef("created_at")
-    total_size: PropertyRef = PropertyRef("total_size")
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    id: PropertyRef = PropertyRef(
+        "location",
+        description="Full registry location of the tagged image.",
+    )
+    name: PropertyRef = PropertyRef(
+        "name",
+        extra_index=True,
+        description="Container image tag name.",
+    )
+    path: PropertyRef = PropertyRef(
+        "path",
+        description="Container repository path including the tag name.",
+    )
+    repository_location: PropertyRef = PropertyRef(
+        "repository_location",
+        description="Full registry location of the parent container repository.",
+    )
+    revision: PropertyRef = PropertyRef(
+        "revision",
+        description="Full revision reported for the tag.",
+    )
+    short_revision: PropertyRef = PropertyRef(
+        "short_revision",
+        description="Abbreviated revision reported for the tag.",
+    )
+    digest: PropertyRef = PropertyRef(
+        "digest",
+        extra_index=True,
+        description="Digest of the container image referenced by the tag.",
+    )
+    created_at: PropertyRef = PropertyRef(
+        "created_at",
+        description="Timestamp when GitLab created the tag.",
+    )
+    total_size: PropertyRef = PropertyRef(
+        "total_size",
+        description="Total size of the tagged image in bytes.",
+    )
+    lastupdated: PropertyRef = PropertyRef(
+        "lastupdated",
+        set_in_kwargs=True,
+        description="Timestamp of the last time the node was updated.",
+    )
 
 
 @dataclass(frozen=True)
@@ -153,17 +186,7 @@ class GitLabContainerRepositoryTagToGenericRepoRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class GitLabContainerRepositoryTagSchema(CartographyNodeSchema):
-    """
-    Schema for GitLab Container Repository Tag nodes.
-
-    Relationships:
-    - RESOURCE: Sub-resource to GitLabOrganization for cleanup
-    - HAS_TAG: Links from GitLabContainerRepository to this tag
-    - REFERENCES: Links to GitLabContainerImage via digest
-
-    Extra labels:
-    - ImageTag: Generic ontology label for cross-registry querying
-    """
+    """A named tag that points to an image in a GitLab container repository."""
 
     label: str = "GitLabContainerRepositoryTag"
     properties: GitLabContainerRepositoryTagNodeProperties = (

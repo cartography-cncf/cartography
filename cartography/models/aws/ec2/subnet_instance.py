@@ -15,12 +15,24 @@ from cartography.models.core.relationships import TargetNodeMatcher
 @dataclass(frozen=True)
 class EC2SubnetInstanceNodeProperties(CartographyNodeProperties):
     # arn: PropertyRef = PropertyRef('Arn', extra_index=True) TODO use arn; issue #1024
-    id: PropertyRef = PropertyRef("SubnetId")
+    id: PropertyRef = PropertyRef("SubnetId", description="same as subnetid")
     # TODO: remove subnetid once we have migrated to subnet_id
-    subnetid: PropertyRef = PropertyRef("SubnetId", extra_index=True)
-    subnet_id: PropertyRef = PropertyRef("SubnetId", extra_index=True)
-    region: PropertyRef = PropertyRef("Region", set_in_kwargs=True)
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    subnetid: PropertyRef = PropertyRef(
+        "SubnetId", extra_index=True, description="The ID of the subnet"
+    )
+    subnet_id: PropertyRef = PropertyRef(
+        "SubnetId", extra_index=True, description="The ID of the subnet"
+    )
+    region: PropertyRef = PropertyRef(
+        "Region",
+        set_in_kwargs=True,
+        description="The AWS region the subnet is installed on",
+    )
+    lastupdated: PropertyRef = PropertyRef(
+        "lastupdated",
+        set_in_kwargs=True,
+        description="Timestamp of the last time the node was updated",
+    )
 
 
 @dataclass(frozen=True)
@@ -30,6 +42,8 @@ class EC2SubnetToAWSAccountRelRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class EC2SubnetToAWSAccountRel(CartographyRelSchema):
+    "Represents a `RESOURCE` relationship from `AWSAccount` to `AWSEC2Subnet`."
+
     target_node_label: str = "AWSAccount"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("AWS_ID", set_in_kwargs=True)},
@@ -48,6 +62,8 @@ class EC2SubnetToEC2InstanceRelRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class EC2SubnetToEC2InstanceRel(CartographyRelSchema):
+    "Represents a `PART_OF_SUBNET` relationship from `AWSEC2Instance` to `AWSEC2Subnet`."
+
     target_node_label: str = "AWSEC2Instance"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("InstanceId")},
@@ -61,9 +77,10 @@ class EC2SubnetToEC2InstanceRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class EC2SubnetInstanceSchema(CartographyNodeSchema):
-    """
-    EC2 Subnet as known by describe-ec2-instances
-    """
+    "Represents a subnet in an Amazon EC2 virtual private cloud."
+
+    # Implementation note:
+    # EC2 Subnet as known by describe-ec2-instances
 
     label: str = "AWSEC2Subnet"
     properties: EC2SubnetInstanceNodeProperties = EC2SubnetInstanceNodeProperties()

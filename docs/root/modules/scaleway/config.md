@@ -1,17 +1,36 @@
-## Scaleway Configuration
+# Scaleway Configuration
 
-Follow these steps to analyze Scaleway objects with Cartography.
+## Authentication
 
-```{important}
-We strongly advise to use an API Key linked to a dedicated application with restricted permissions (read-only).
+Use an API key linked to a dedicated Scaleway application with read-only permissions:
+
+1. Create a policy in the [Scaleway IAM console](https://console.scaleway.com/iam/policies).
+1. Create an application in the [Scaleway applications console](https://console.scaleway.com/iam/applications) and attach the policy.
+1. Create an API key for that application in the [Scaleway API keys console](https://console.scaleway.com/iam/api-keys).
+1. Store the secret key in an environment variable and note the access key.
+
+## Required Permissions
+
+Configure the read-only policy with:
+
+1. A rule scoped to **Access to Organization features** with `OrganizationReadOnly`, `ProjectReadOnly`, and `IAMReadOnly`.
+1. A rule scoped to **All current and future projects** under **Access to resources**, with `AllProductsReadOnly`.
+
+## Configure Cartography
+
+Provide these options:
+
+- `--scaleway-access-key`: API access key.
+- `--scaleway-secret-key-env-var`: Name of the environment variable containing the API secret key.
+- `--scaleway-org`: Organization name from the [Scaleway organization console](https://console.scaleway.com/organization).
+
+## Run Cartography
+
+```bash
+export SCALEWAY_SECRET_KEY='<secret-key>'
+cartography \
+  --selected-modules scaleway \
+  --scaleway-org '<organization-name>' \
+  --scaleway-access-key '<access-key>' \
+  --scaleway-secret-key-env-var SCALEWAY_SECRET_KEY
 ```
-1. Create a policy in Scaleway
-    1. Create a `read only` policy in [Scaleway console](https://console.scaleway.com/iam/policies)
-    1. Create a first rule with `Access to Organization features` scope, then add following permissions sets `OrganizationReadOnly`, `ProjectReadOnly`, `IAMReadOnly`
-    1. Create a second rule with `Access to resources` set to `All current and future projects`, then add the following permission set `AllProductsReadOnly`
-1. Create an application in [Scaleway console](https://console.scaleway.com/iam/applications) and attach your `read only` policy
-1. Create your Scaleway API Key
-    1. Create an API Key in [Scaleway console](https://console.scaleway.com/iam/api-keys) linked to your application
-    1. Populate an environment variable with the `secret key`. You can pass the environment variable name via CLI with the `--scaleway-secret-key-env-var` parameter.
-    1. Pass the `access key` to the CLI with the `--scaleway-access-key` parameter.
-1. Get your organization name from [Scaleway console](https://console.scaleway.com/organization) and pass it via CLI with the `--scaleway-org` parameter.

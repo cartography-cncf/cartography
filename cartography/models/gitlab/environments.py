@@ -30,18 +30,57 @@ from cartography.models.core.relationships import TargetNodeMatcher
 
 @dataclass(frozen=True)
 class GitLabEnvironmentNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("id")  # Composite: f"{project_id}:{gitlab_env_id}"
-    gitlab_id: PropertyRef = PropertyRef("gitlab_id")
-    name: PropertyRef = PropertyRef("name", extra_index=True)
-    slug: PropertyRef = PropertyRef("slug")
-    external_url: PropertyRef = PropertyRef("external_url")
-    state: PropertyRef = PropertyRef("state")
-    tier: PropertyRef = PropertyRef("tier")
-    created_at: PropertyRef = PropertyRef("created_at")
-    updated_at: PropertyRef = PropertyRef("updated_at")
-    auto_stop_at: PropertyRef = PropertyRef("auto_stop_at")
-    gitlab_url: PropertyRef = PropertyRef("gitlab_url", extra_index=True)
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    id: PropertyRef = PropertyRef(
+        "id",
+        description="Composite identifier formed from the project ID and GitLab environment ID.",
+    )
+    gitlab_id: PropertyRef = PropertyRef(
+        "gitlab_id",
+        description="Numeric GitLab environment ID, unique within its project.",
+    )
+    name: PropertyRef = PropertyRef(
+        "name",
+        extra_index=True,
+        description="Deployment environment name.",
+    )
+    slug: PropertyRef = PropertyRef(
+        "slug",
+        description="URL-safe deployment environment slug.",
+    )
+    external_url: PropertyRef = PropertyRef(
+        "external_url",
+        description="URL where the deployment environment is reachable.",
+    )
+    state: PropertyRef = PropertyRef(
+        "state",
+        description="Deployment environment state: available or stopped.",
+    )
+    tier: PropertyRef = PropertyRef(
+        "tier",
+        description="Deployment tier: production, staging, testing, development, or other.",
+    )
+    created_at: PropertyRef = PropertyRef(
+        "created_at",
+        description="Timestamp when GitLab created the environment.",
+    )
+    updated_at: PropertyRef = PropertyRef(
+        "updated_at",
+        description="Timestamp when GitLab last updated the environment.",
+    )
+    auto_stop_at: PropertyRef = PropertyRef(
+        "auto_stop_at",
+        description="Timestamp when GitLab is scheduled to stop the environment automatically.",
+    )
+    gitlab_url: PropertyRef = PropertyRef(
+        "gitlab_url",
+        extra_index=True,
+        description="URL of the GitLab instance.",
+    )
+    lastupdated: PropertyRef = PropertyRef(
+        "lastupdated",
+        set_in_kwargs=True,
+        description="Timestamp of the last time the node was updated.",
+    )
 
 
 # =============================================================================
@@ -56,7 +95,7 @@ class GitLabProjectHasEnvironmentRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class GitLabProjectHasEnvironmentRel(CartographyRelSchema):
-    """`(:GitLabProject)-[:HAS_ENVIRONMENT]->(:GitLabEnvironment)`."""
+    """A GitLab project contains a deployment environment."""
 
     target_node_label: str = "GitLabProject"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
@@ -79,7 +118,7 @@ class GitLabEnvironmentToProjectRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class GitLabEnvironmentToProjectRel(CartographyRelSchema):
-    """Sub-resource relationship — scoped to GitLabProject."""
+    """A GitLab project owns the environment as a sub-resource."""
 
     target_node_label: str = "GitLabProject"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
@@ -107,18 +146,7 @@ class GitLabEnvironmentToCIVariableRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class GitLabEnvironmentToCIVariableRel(CartographyRelSchema):
-    """
-    `(:GitLabEnvironment)-[:HAS_CI_VARIABLE]->(:GitLabCIVariable)`
-
-    Each environment record carries a ``linked_variable_ids`` list of
-    variable IDs whose ``environment_scope`` matches this environment
-    (exact name OR wildcard ``*``). The matcher is ``one_to_many=True`` so
-    a single environment record creates one rel per matching variable.
-
-    Loaded as part of GitLabEnvironmentSchema's other_relationships, which
-    means the rel's lifecycle follows the environment node — when a stale
-    environment is cleaned up, its variable rels are removed automatically.
-    """
+    """An environment uses each project CI variable whose scope applies to it."""
 
     target_node_label: str = "GitLabCIVariable"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
@@ -133,6 +161,8 @@ class GitLabEnvironmentToCIVariableRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class GitLabEnvironmentSchema(CartographyNodeSchema):
+    """A deployment environment defined within a GitLab project."""
+
     label: str = "GitLabEnvironment"
     properties: GitLabEnvironmentNodeProperties = GitLabEnvironmentNodeProperties()
     sub_resource_relationship: GitLabEnvironmentToProjectRel = (

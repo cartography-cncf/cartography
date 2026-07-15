@@ -14,15 +14,38 @@ from cartography.models.core.relationships import TargetNodeMatcher
 
 @dataclass(frozen=True)
 class SentryUserNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("id")
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
-    email: PropertyRef = PropertyRef("email", extra_index=True)
-    name: PropertyRef = PropertyRef("name")
-    role: PropertyRef = PropertyRef("orgRole")
-    date_created: PropertyRef = PropertyRef("date_created")
-    pending: PropertyRef = PropertyRef("pending")
-    expired: PropertyRef = PropertyRef("expired")
-    has_2fa: PropertyRef = PropertyRef("has2fa")
+    id: PropertyRef = PropertyRef("id", description="Sentry membership ID.")
+    lastupdated: PropertyRef = PropertyRef(
+        "lastupdated",
+        set_in_kwargs=True,
+        description="Timestamp of the last update.",
+    )
+    email: PropertyRef = PropertyRef(
+        "email",
+        extra_index=True,
+        description="Member email address.",
+    )
+    name: PropertyRef = PropertyRef("name", description="Member display name.")
+    role: PropertyRef = PropertyRef(
+        "orgRole",
+        description="Organization role, such as admin, member, or owner.",
+    )
+    date_created: PropertyRef = PropertyRef(
+        "date_created",
+        description="ISO 8601 timestamp when the membership was created.",
+    )
+    pending: PropertyRef = PropertyRef(
+        "pending",
+        description="Whether the invitation is pending.",
+    )
+    expired: PropertyRef = PropertyRef(
+        "expired",
+        description="Whether the invitation has expired.",
+    )
+    has_2fa: PropertyRef = PropertyRef(
+        "has2fa",
+        description="Whether the user has two-factor authentication enabled.",
+    )
 
 
 @dataclass(frozen=True)
@@ -33,6 +56,8 @@ class SentryOrganizationToUserRelProperties(CartographyRelProperties):
 # (:SentryOrganization)-[:RESOURCE]->(:SentryUser)
 @dataclass(frozen=True)
 class SentryOrganizationToUserRel(CartographyRelSchema):
+    """The organization contains the user."""
+
     target_node_label: str = "SentryOrganization"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("ORG_ID", set_in_kwargs=True)},
@@ -52,6 +77,8 @@ class SentryUserToTeamRelProperties(CartographyRelProperties):
 # (:SentryUser)-[:MEMBER_OF]->(:SentryTeam)
 @dataclass(frozen=True)
 class SentryUserToTeamMemberOfRel(CartographyRelSchema):
+    """The user is a member of the team."""
+
     target_node_label: str = "SentryTeam"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("team_ids", one_to_many=True)},
@@ -64,6 +91,8 @@ class SentryUserToTeamMemberOfRel(CartographyRelSchema):
 # (:SentryUser)-[:ADMIN_OF]->(:SentryTeam)
 @dataclass(frozen=True)
 class SentryUserToTeamAdminOfRel(CartographyRelSchema):
+    """The user is an administrator of the team."""
+
     target_node_label: str = "SentryTeam"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("admin_team_ids", one_to_many=True)},
@@ -75,6 +104,8 @@ class SentryUserToTeamAdminOfRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class SentryUserSchema(CartographyNodeSchema):
+    """A member of a Sentry organization."""
+
     label: str = "SentryUser"
     properties: SentryUserNodeProperties = SentryUserNodeProperties()
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["UserAccount"])

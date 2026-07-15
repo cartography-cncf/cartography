@@ -25,20 +25,31 @@ class GitHubRulesetRuleNodeProperties(CartographyNodeProperties):
     Maps to a rule in GitHub's repository ruleset REST response.
     """
 
-    id: PropertyRef = PropertyRef("id")
-    type: PropertyRef = PropertyRef("type")
-    parameters: PropertyRef = PropertyRef("parameters")
+    id: PropertyRef = PropertyRef(
+        "id", description="Deterministic identifier derived from the ruleset and rule."
+    )
+    type: PropertyRef = PropertyRef("type", description="GitHub ruleset rule type.")
+    parameters: PropertyRef = PropertyRef(
+        "parameters", description="Complete rule parameters encoded as JSON."
+    )
     parameters_required_approving_review_count: PropertyRef = PropertyRef(
-        "parameters_required_approving_review_count"
+        "parameters_required_approving_review_count",
+        description="Required approval count extracted from pull request rule parameters.",
     )
     parameters_dismiss_stale_reviews_on_push: PropertyRef = PropertyRef(
-        "parameters_dismiss_stale_reviews_on_push"
+        "parameters_dismiss_stale_reviews_on_push",
+        description="Whether pull request rules dismiss stale reviews after new pushes.",
     )
     parameters_require_code_owner_review: PropertyRef = PropertyRef(
-        "parameters_require_code_owner_review"
+        "parameters_require_code_owner_review",
+        description="Whether pull request rules require a code owner review.",
     )
     parameters_required_status_checks: PropertyRef = PropertyRef(
-        "parameters_required_status_checks"
+        "parameters_required_status_checks",
+        description=(
+            "Required status check contexts extracted from the JSON-encoded "
+            "rule parameters."
+        ),
     )
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
@@ -95,6 +106,8 @@ class GitHubRulesetRuleToOrganizationRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class GitHubRulesetRuleSchema(CartographyNodeSchema):
+    """A rule contained in a GitHub repository ruleset."""
+
     label: str = "GitHubRulesetRule"
     properties: GitHubRulesetRuleNodeProperties = GitHubRulesetRuleNodeProperties()
     sub_resource_relationship: GitHubRulesetRuleToOrganizationRel = (

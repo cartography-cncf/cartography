@@ -14,11 +14,20 @@ from cartography.models.core.relationships import TargetNodeMatcher
 
 @dataclass(frozen=True)
 class ScalewayRuleNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("id")
-    permission_sets_scope_type: PropertyRef = PropertyRef("permission_sets_scope_type")
-    condition: PropertyRef = PropertyRef("condition")
-    permission_set_names: PropertyRef = PropertyRef("permission_set_names")
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    id: PropertyRef = PropertyRef("id", description="ID of the rule.")
+    permission_sets_scope_type: PropertyRef = PropertyRef(
+        "permission_sets_scope_type", description="Scope type of the permission sets."
+    )
+    condition: PropertyRef = PropertyRef(
+        "condition", description="Condition for the rule."
+    )
+    permission_set_names: PropertyRef = PropertyRef(
+        "permission_set_names",
+        description="Names of the permission sets granted by this rule.",
+    )
+    lastupdated: PropertyRef = PropertyRef(
+        "lastupdated", set_in_kwargs=True, description="Timestamp of the last update"
+    )
 
 
 @dataclass(frozen=True)
@@ -29,6 +38,8 @@ class ScalewayRuleToOrganizationRelProperties(CartographyRelProperties):
 @dataclass(frozen=True)
 # (:ScalewayOrganization)-[:RESOURCE]->(:ScalewayRule)
 class ScalewayRuleToOrganizationRel(CartographyRelSchema):
+    """Connects `ScalewayOrganization` to `ScalewayRule` through `RESOURCE`."""
+
     target_node_label: str = "ScalewayOrganization"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("ORG_ID", set_in_kwargs=True)},
@@ -48,6 +59,8 @@ class ScalewayRuleToPolicyRelProperties(CartographyRelProperties):
 @dataclass(frozen=True)
 # (:ScalewayPolicy)-[:HAS]->(:ScalewayRule)
 class ScalewayRuleToPolicyRel(CartographyRelSchema):
+    """Connects `ScalewayPolicy` to `ScalewayRule` through `HAS`."""
+
     target_node_label: str = "ScalewayPolicy"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("policy_id")},
@@ -65,6 +78,8 @@ class ScalewayRuleToProjectRelProperties(CartographyRelProperties):
 @dataclass(frozen=True)
 # (:ScalewayRule)-[:SCOPED_TO]->(:ScalewayProject)
 class ScalewayRuleToProjectRel(CartographyRelSchema):
+    """Connects `ScalewayRule` to `ScalewayProject` through `SCOPED_TO`."""
+
     target_node_label: str = "ScalewayProject"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("project_ids", one_to_many=True)},
@@ -78,6 +93,10 @@ class ScalewayRuleToProjectRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class ScalewayRuleSchema(CartographyNodeSchema):
+    """Represents an IAM Rule within a Policy. Rules define which permission sets apply and
+    to which projects.
+    """
+
     label: str = "ScalewayRule"
     properties: ScalewayRuleNodeProperties = ScalewayRuleNodeProperties()
     sub_resource_relationship: ScalewayRuleToOrganizationRel = (

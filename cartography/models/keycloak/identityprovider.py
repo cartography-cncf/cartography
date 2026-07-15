@@ -14,28 +14,66 @@ from cartography.models.core.relationships import TargetNodeMatcher
 
 @dataclass(frozen=True)
 class KeycloakIdentityProviderNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("internalId")
-    alias: PropertyRef = PropertyRef("alias", extra_index=True)
-    display_name: PropertyRef = PropertyRef("displayName")
-    provider_id: PropertyRef = PropertyRef("providerId")
-    enabled: PropertyRef = PropertyRef("enabled")
+    id: PropertyRef = PropertyRef(
+        "internalId", description="The internal unique identifier"
+    )
+    alias: PropertyRef = PropertyRef(
+        "alias",
+        extra_index=True,
+        description="The alias of the identity provider (indexed for queries)",
+    )
+    display_name: PropertyRef = PropertyRef(
+        "displayName", description="The display name of the identity provider"
+    )
+    provider_id: PropertyRef = PropertyRef(
+        "providerId", description="The provider type identifier"
+    )
+    enabled: PropertyRef = PropertyRef(
+        "enabled", description="Whether the identity provider is enabled"
+    )
     update_profile_first_login_mode: PropertyRef = PropertyRef(
-        "updateProfileFirstLoginMode"
+        "updateProfileFirstLoginMode", description="Profile update mode on first login"
     )
-    trust_email: PropertyRef = PropertyRef("trustEmail")
-    store_token: PropertyRef = PropertyRef("storeToken")
-    add_read_token_role_on_create: PropertyRef = PropertyRef("addReadTokenRoleOnCreate")
-    authenticate_by_default: PropertyRef = PropertyRef("authenticateByDefault")
-    link_only: PropertyRef = PropertyRef("linkOnly")
-    hide_on_login: PropertyRef = PropertyRef("hideOnLogin")
+    trust_email: PropertyRef = PropertyRef(
+        "trustEmail", description="Whether to trust email from the provider"
+    )
+    store_token: PropertyRef = PropertyRef(
+        "storeToken", description="Whether to store tokens from the provider"
+    )
+    add_read_token_role_on_create: PropertyRef = PropertyRef(
+        "addReadTokenRoleOnCreate",
+        description="Whether to add read token role on create",
+    )
+    authenticate_by_default: PropertyRef = PropertyRef(
+        "authenticateByDefault", description="Whether to authenticate by default"
+    )
+    link_only: PropertyRef = PropertyRef(
+        "linkOnly", description="Whether this provider is for linking only"
+    )
+    hide_on_login: PropertyRef = PropertyRef(
+        "hideOnLogin", description="Whether to hide on login page"
+    )
     first_broker_login_flow_alias: PropertyRef = PropertyRef(
-        "firstBrokerLoginFlowAlias"
+        "firstBrokerLoginFlowAlias", description="First broker login flow alias"
     )
-    post_broker_login_flow_alias: PropertyRef = PropertyRef("postBrokerLoginFlowAlias")
-    organization_id: PropertyRef = PropertyRef("organizationId")
-    update_profile_first_login: PropertyRef = PropertyRef("updateProfileFirstLogin")
-    config_sync_mode: PropertyRef = PropertyRef("config.syncMode")
-    lastupdated: PropertyRef = PropertyRef("LASTUPDATED", set_in_kwargs=True)
+    post_broker_login_flow_alias: PropertyRef = PropertyRef(
+        "postBrokerLoginFlowAlias", description="Post broker login flow alias"
+    )
+    organization_id: PropertyRef = PropertyRef(
+        "organizationId", description="Organization ID if applicable"
+    )
+    update_profile_first_login: PropertyRef = PropertyRef(
+        "updateProfileFirstLogin",
+        description="Whether to update profile on first login",
+    )
+    config_sync_mode: PropertyRef = PropertyRef(
+        "config.syncMode", description="Configuration sync mode"
+    )
+    lastupdated: PropertyRef = PropertyRef(
+        "LASTUPDATED",
+        set_in_kwargs=True,
+        description="Timestamp of the last time the node was updated",
+    )
 
 
 @dataclass(frozen=True)
@@ -46,6 +84,8 @@ class KeycloakIdentityProviderToRealmRelProperties(CartographyRelProperties):
 @dataclass(frozen=True)
 # (:KeycloakIdentityProvider)<-[:RESOURCE]-(:KeycloakRealm)
 class KeycloakIdentityProviderToRealmRel(CartographyRelSchema):
+    """The realm contains the identity provider."""
+
     target_node_label: str = "KeycloakRealm"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"name": PropertyRef("REALM", set_in_kwargs=True)},
@@ -65,6 +105,8 @@ class KeycloakIdentityProviderToUserRelProperties(CartographyRelProperties):
 @dataclass(frozen=True)
 # (:KeycloakIdentityProvider)<-[:HAS_IDENTITY]-(:KeycloakUser)
 class KeycloakIdentityProviderToUserRel(CartographyRelSchema):
+    """The user authenticates through the identity provider."""
+
     target_node_label: str = "KeycloakUser"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("_member_ids", one_to_many=True)},
@@ -78,6 +120,8 @@ class KeycloakIdentityProviderToUserRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class KeycloakIdentityProviderSchema(CartographyNodeSchema):
+    """Represents an external identity provider configured in Keycloak for federated authentication."""
+
     label: str = "KeycloakIdentityProvider"
     properties: KeycloakIdentityProviderNodeProperties = (
         KeycloakIdentityProviderNodeProperties()

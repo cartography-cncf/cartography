@@ -13,16 +13,30 @@ from cartography.models.core.relationships import TargetNodeMatcher
 
 @dataclass(frozen=True)
 class ScalewayPublicGatewayPatRuleProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("id", extra_index=True)
+    id: PropertyRef = PropertyRef("id", extra_index=True, description="PAT rule UUID.")
     # Inbound forwarding: public_port on the gateway IP -> private_ip:private_port.
-    public_port: PropertyRef = PropertyRef("public_port")
-    private_ip: PropertyRef = PropertyRef("private_ip", extra_index=True)
-    private_port: PropertyRef = PropertyRef("private_port")
-    protocol: PropertyRef = PropertyRef("protocol")
-    zone: PropertyRef = PropertyRef("zone")
-    created_at: PropertyRef = PropertyRef("created_at")
-    updated_at: PropertyRef = PropertyRef("updated_at")
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    public_port: PropertyRef = PropertyRef(
+        "public_port", description="Public port on the gateway IP."
+    )
+    private_ip: PropertyRef = PropertyRef(
+        "private_ip", extra_index=True, description="Destination private IP."
+    )
+    private_port: PropertyRef = PropertyRef(
+        "private_port", description="Destination private port."
+    )
+    protocol: PropertyRef = PropertyRef(
+        "protocol", description="Forwarded protocol (`tcp`, `udp`, `both`)."
+    )
+    zone: PropertyRef = PropertyRef("zone", description="Zone the rule lives in.")
+    created_at: PropertyRef = PropertyRef(
+        "created_at", description="Creation timestamp."
+    )
+    updated_at: PropertyRef = PropertyRef(
+        "updated_at", description="Last update timestamp."
+    )
+    lastupdated: PropertyRef = PropertyRef(
+        "lastupdated", set_in_kwargs=True, description="Timestamp of the last update"
+    )
 
 
 @dataclass(frozen=True)
@@ -33,6 +47,8 @@ class ScalewayPublicGatewayPatRuleToProjectRelProperties(CartographyRelPropertie
 @dataclass(frozen=True)
 # (:ScalewayProject)-[:RESOURCE]->(:ScalewayPublicGatewayPatRule)
 class ScalewayPublicGatewayPatRuleToProjectRel(CartographyRelSchema):
+    """Connects `ScalewayProject` to `ScalewayPublicGatewayPatRule` through `RESOURCE`."""
+
     target_node_label: str = "ScalewayProject"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("PROJECT_ID", set_in_kwargs=True)},
@@ -52,6 +68,8 @@ class ScalewayPublicGatewayPatRuleToGatewayRelProperties(CartographyRelPropertie
 @dataclass(frozen=True)
 # (:ScalewayPublicGateway)-[:HAS]->(:ScalewayPublicGatewayPatRule)
 class ScalewayPublicGatewayPatRuleToGatewayRel(CartographyRelSchema):
+    """Connects `ScalewayPublicGateway` to `ScalewayPublicGatewayPatRule` through `HAS`."""
+
     target_node_label: str = "ScalewayPublicGateway"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("gateway_id")},
@@ -65,6 +83,11 @@ class ScalewayPublicGatewayPatRuleToGatewayRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class ScalewayPublicGatewayPatRuleSchema(CartographyNodeSchema):
+    """Represents a PAT (Port Address Translation) rule on a Public Gateway: it forwards a
+    public port on the gateway's IP to a private IP/port, exposing an internal service
+    to the internet.
+    """
+
     label: str = "ScalewayPublicGatewayPatRule"
     properties: ScalewayPublicGatewayPatRuleProperties = (
         ScalewayPublicGatewayPatRuleProperties()

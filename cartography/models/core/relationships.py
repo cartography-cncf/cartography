@@ -425,6 +425,26 @@ class CartographyRelSchema(abc.ABC):
         """
         return None
 
+    @property
+    def match_source_extra_labels(self) -> bool:
+        """
+        Whether a MatchLink intentionally matches source nodes through an extra label.
+
+        This metadata makes broad-label relationship intent explicit for model
+        introspection. It does not change query generation.
+        """
+        return False
+
+    @property
+    def match_target_extra_labels(self) -> bool:
+        """
+        Whether this relationship intentionally matches targets through an extra label.
+
+        This metadata is only needed when the target label is also a primary node
+        label elsewhere in the model. It does not change query generation.
+        """
+        return False
+
 
 @dataclass(frozen=True)
 class OtherRelationships:

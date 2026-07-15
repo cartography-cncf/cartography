@@ -17,16 +17,34 @@ logger = logging.getLogger(__name__)
 # --- Node Properties ---
 @dataclass(frozen=True)
 class GCPSqlUserProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("id")
-    name: PropertyRef = PropertyRef("name")
-    host: PropertyRef = PropertyRef("host")
-    instance_id: PropertyRef = PropertyRef("instance_id")
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    id: PropertyRef = PropertyRef(
+        "id",
+        description=(
+            "Synthetic `{instance_self_link}/users/{user_name}@{host}` identifier."
+        ),
+    )
+    name: PropertyRef = PropertyRef("name", description="The name of the user.")
+    host: PropertyRef = PropertyRef(
+        "host", description="The host from which the user is allowed to connect."
+    )
+    instance_id: PropertyRef = PropertyRef(
+        "instance_id",
+        description="Identifier of the parent service instance.",
+    )
+    lastupdated: PropertyRef = PropertyRef(
+        "lastupdated",
+        set_in_kwargs=True,
+        description="Timestamp of the last time the node was updated.",
+    )
 
 
 @dataclass(frozen=True)
 class ProjectToSqlUserRelProperties(CartographyRelProperties):
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    lastupdated: PropertyRef = PropertyRef(
+        "lastupdated",
+        set_in_kwargs=True,
+        description="Timestamp of the last sync that observed this data.",
+    )
 
 
 @dataclass(frozen=True)
@@ -42,7 +60,11 @@ class ProjectToSqlUserRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class InstanceToSqlUserRelProperties(CartographyRelProperties):
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    lastupdated: PropertyRef = PropertyRef(
+        "lastupdated",
+        set_in_kwargs=True,
+        description="Timestamp of the last sync that observed this data.",
+    )
 
 
 @dataclass(frozen=True)
@@ -58,6 +80,8 @@ class InstanceToSqlUserRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class GCPSqlUserSchema(CartographyNodeSchema):
+    """Representation of a GCP [Cloud SQL User](https://cloud.google.com/sql/docs/mysql/admin-api/rest/v1beta4/users)."""
+
     label: str = "GCPCloudSQLUser"
     properties: GCPSqlUserProperties = GCPSqlUserProperties()
     sub_resource_relationship: ProjectToSqlUserRel = ProjectToSqlUserRel()

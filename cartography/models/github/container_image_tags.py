@@ -22,12 +22,27 @@ from cartography.models.core.relationships import TargetNodeMatcher
 
 @dataclass(frozen=True)
 class GitHubContainerImageTagNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("uri")
-    name: PropertyRef = PropertyRef("name", extra_index=True)
-    uri: PropertyRef = PropertyRef("uri", extra_index=True)
-    digest: PropertyRef = PropertyRef("digest", extra_index=True)
-    image_pushed_at: PropertyRef = PropertyRef("image_pushed_at")
-    package_id: PropertyRef = PropertyRef("package_id")
+    id: PropertyRef = PropertyRef(
+        "uri", description="Fully qualified container image tag URI."
+    )
+    name: PropertyRef = PropertyRef(
+        "name", extra_index=True, description="Container image tag name."
+    )
+    uri: PropertyRef = PropertyRef(
+        "uri", extra_index=True, description="Fully qualified pullable tag URI."
+    )
+    digest: PropertyRef = PropertyRef(
+        "digest",
+        extra_index=True,
+        description="Image digest currently referenced by the tag.",
+    )
+    image_pushed_at: PropertyRef = PropertyRef(
+        "image_pushed_at",
+        description="Timestamp when GitHub reports the image was pushed.",
+    )
+    package_id: PropertyRef = PropertyRef(
+        "package_id", description="Identifier of the containing GitHub package."
+    )
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
@@ -38,6 +53,8 @@ class GitHubContainerImageTagRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class GitHubContainerImageTagToOrgRel(CartographyRelSchema):
+    """Scopes a GitHub resource to its organization."""
+
     target_node_label: str = "GitHubOrganization"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("org_url", set_in_kwargs=True)},
@@ -51,12 +68,7 @@ class GitHubContainerImageTagToOrgRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class GitHubContainerImageTagToImageRel(CartographyRelSchema):
-    """
-    Generic cross-registry edge from ImageTag to Image. The supply-chain
-    matcher in cartography/intel/github/supply_chain.py traverses this edge
-    via the (:Image)<-[:IMAGE]-(:ImageTag)<-[:REPO_IMAGE]-(:ContainerRegistry)
-    pattern, so the relationship label and direction must match GitLab/AWS.
-    """
+    """Links a GitHub container image tag to the image it identifies."""
 
     target_node_label: str = "GitHubContainerImage"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
@@ -88,6 +100,8 @@ class GitHubContainerImageTagToPackageRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class GitHubContainerImageTagSchema(CartographyNodeSchema):
+    """A mutable GitHub Container Registry tag that resolves to an image digest."""
+
     label: str = "GitHubContainerImageTag"
     properties: GitHubContainerImageTagNodeProperties = (
         GitHubContainerImageTagNodeProperties()

@@ -16,41 +16,104 @@ from cartography.models.core.relationships import TargetNodeMatcher
 
 @dataclass(frozen=True)
 class KeycloakClientNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("id")
-    client_id: PropertyRef = PropertyRef("clientId")
-    name: PropertyRef = PropertyRef("name")
-    description: PropertyRef = PropertyRef("description")
-    type: PropertyRef = PropertyRef("type")
-    root_url: PropertyRef = PropertyRef("rootUrl")
-    admin_url: PropertyRef = PropertyRef("adminUrl")
-    base_url: PropertyRef = PropertyRef("baseUrl")
-    surrogate_auth_required: PropertyRef = PropertyRef("surrogateAuthRequired")
-    enabled: PropertyRef = PropertyRef("enabled")
-    always_display_in_console: PropertyRef = PropertyRef("alwaysDisplayInConsole")
-    client_authenticator_type: PropertyRef = PropertyRef("clientAuthenticatorType")
-    registration_access_token: PropertyRef = PropertyRef("registrationAccessToken")
-    not_before: PropertyRef = PropertyRef("notBefore")
-    bearer_only: PropertyRef = PropertyRef("bearerOnly")
-    consent_required: PropertyRef = PropertyRef("consentRequired")
-    standard_flow_enabled: PropertyRef = PropertyRef("standardFlowEnabled")
-    implicit_flow_enabled: PropertyRef = PropertyRef("implicitFlowEnabled")
-    direct_access_grants_enabled: PropertyRef = PropertyRef("directAccessGrantsEnabled")
-    service_accounts_enabled: PropertyRef = PropertyRef("serviceAccountsEnabled")
-    authorization_services_enabled: PropertyRef = PropertyRef(
-        "authorizationServicesEnabled"
+    id: PropertyRef = PropertyRef(
+        "id", description="The unique identifier of the client"
     )
-    direct_grants_only: PropertyRef = PropertyRef("directGrantsOnly")
-    public_client: PropertyRef = PropertyRef("publicClient")
-    frontchannel_logout: PropertyRef = PropertyRef("frontchannelLogout")
-    protocol: PropertyRef = PropertyRef("protocol")
-    full_scope_allowed: PropertyRef = PropertyRef("fullScopeAllowed")
-    node_re_registration_timeout: PropertyRef = PropertyRef("nodeReRegistrationTimeout")
-    client_template: PropertyRef = PropertyRef("clientTemplate")
-    use_template_config: PropertyRef = PropertyRef("useTemplateConfig")
-    use_template_scope: PropertyRef = PropertyRef("useTemplateScope")
-    use_template_mappers: PropertyRef = PropertyRef("useTemplateMappers")
-    origin: PropertyRef = PropertyRef("origin")
-    lastupdated: PropertyRef = PropertyRef("LASTUPDATED", set_in_kwargs=True)
+    client_id: PropertyRef = PropertyRef(
+        "clientId", description="The client identifier used in protocols"
+    )
+    name: PropertyRef = PropertyRef("name", description="The name of the client")
+    description: PropertyRef = PropertyRef(
+        "description", description="The description of the client"
+    )
+    type: PropertyRef = PropertyRef("type", description="The type of the client")
+    root_url: PropertyRef = PropertyRef(
+        "rootUrl", description="The root URL of the client"
+    )
+    admin_url: PropertyRef = PropertyRef(
+        "adminUrl", description="The admin URL of the client"
+    )
+    base_url: PropertyRef = PropertyRef(
+        "baseUrl", description="The base URL of the client"
+    )
+    surrogate_auth_required: PropertyRef = PropertyRef(
+        "surrogateAuthRequired",
+        description="Whether surrogate authentication is required",
+    )
+    enabled: PropertyRef = PropertyRef(
+        "enabled", description="Whether the client is enabled"
+    )
+    always_display_in_console: PropertyRef = PropertyRef(
+        "alwaysDisplayInConsole", description="Whether to always display in console"
+    )
+    client_authenticator_type: PropertyRef = PropertyRef(
+        "clientAuthenticatorType", description="The client authenticator type"
+    )
+    registration_access_token: PropertyRef = PropertyRef(
+        "registrationAccessToken", description="Registration access token"
+    )
+    not_before: PropertyRef = PropertyRef(
+        "notBefore", description="Not before timestamp for security"
+    )
+    bearer_only: PropertyRef = PropertyRef(
+        "bearerOnly", description="Whether this is a bearer-only client"
+    )
+    consent_required: PropertyRef = PropertyRef(
+        "consentRequired", description="Whether user consent is required"
+    )
+    standard_flow_enabled: PropertyRef = PropertyRef(
+        "standardFlowEnabled", description="Whether standard flow is enabled"
+    )
+    implicit_flow_enabled: PropertyRef = PropertyRef(
+        "implicitFlowEnabled", description="Whether implicit flow is enabled"
+    )
+    direct_access_grants_enabled: PropertyRef = PropertyRef(
+        "directAccessGrantsEnabled",
+        description="Whether direct access grants are enabled",
+    )
+    service_accounts_enabled: PropertyRef = PropertyRef(
+        "serviceAccountsEnabled", description="Whether service accounts are enabled"
+    )
+    authorization_services_enabled: PropertyRef = PropertyRef(
+        "authorizationServicesEnabled",
+        description="Whether authorization services are enabled",
+    )
+    direct_grants_only: PropertyRef = PropertyRef(
+        "directGrantsOnly", description="Whether only direct grants are allowed"
+    )
+    public_client: PropertyRef = PropertyRef(
+        "publicClient", description="Whether this is a public client"
+    )
+    frontchannel_logout: PropertyRef = PropertyRef(
+        "frontchannelLogout", description="Whether frontchannel logout is enabled"
+    )
+    protocol: PropertyRef = PropertyRef(
+        "protocol", description="The protocol used by the client"
+    )
+    full_scope_allowed: PropertyRef = PropertyRef(
+        "fullScopeAllowed", description="Whether full scope is allowed"
+    )
+    node_re_registration_timeout: PropertyRef = PropertyRef(
+        "nodeReRegistrationTimeout", description="Node re-registration timeout"
+    )
+    client_template: PropertyRef = PropertyRef(
+        "clientTemplate", description="Client template reference"
+    )
+    use_template_config: PropertyRef = PropertyRef(
+        "useTemplateConfig", description="Whether to use template config"
+    )
+    use_template_scope: PropertyRef = PropertyRef(
+        "useTemplateScope", description="Whether to use template scope"
+    )
+    use_template_mappers: PropertyRef = PropertyRef(
+        "useTemplateMappers", description="Whether to use template mappers"
+    )
+    origin: PropertyRef = PropertyRef("origin", description="Origin of the client")
+    lastupdated: PropertyRef = PropertyRef(
+        "LASTUPDATED",
+        set_in_kwargs=True,
+        description="Timestamp of the last time the node was updated",
+    )
 
 
 @dataclass(frozen=True)
@@ -61,6 +124,8 @@ class KeycloakClientToRealmRelProperties(CartographyRelProperties):
 @dataclass(frozen=True)
 # (:KeycloakClient)<-[:RESOURCE]-(:KeycloakRealm)
 class KeycloakClientToRealmRel(CartographyRelSchema):
+    """The realm contains the client."""
+
     target_node_label: str = "KeycloakRealm"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"name": PropertyRef("REALM", set_in_kwargs=True)},
@@ -80,6 +145,8 @@ class KeycloakClientToDefaultScopeRelProperties(CartographyRelProperties):
 @dataclass(frozen=True)
 # (:KeycloakClient)-[:HAS_DEFAULT_SCOPE]->(:KeycloakScope)
 class KeycloakClientToDefaultScopeRel(CartographyRelSchema):
+    """The client uses a default client scope."""
+
     target_node_label: str = "KeycloakScope"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {
@@ -102,6 +169,8 @@ class KeycloakClientToOptionalScopeRelProperties(CartographyRelProperties):
 @dataclass(frozen=True)
 # (:KeycloakClient)-[:HAS_OPTIONAL_SCOPE]->(:KeycloakScope)
 class KeycloakClientToOptionalScopeRel(CartographyRelSchema):
+    """The client can request an optional client scope."""
+
     target_node_label: str = "KeycloakScope"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {
@@ -124,6 +193,8 @@ class KeycloakClientToServiceAccountRelProperties(CartographyRelProperties):
 @dataclass(frozen=True)
 # (:KeycloakClient)-[:HAS_SERVICE_ACCOUNT]->(:KeycloakUser)
 class KeycloakClientToServiceAccountRel(CartographyRelSchema):
+    """The client uses a user as its service account."""
+
     target_node_label: str = "KeycloakUser"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("_service_account_user_id")},
@@ -137,6 +208,8 @@ class KeycloakClientToServiceAccountRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class KeycloakClientSchema(CartographyNodeSchema):
+    """Represents a Keycloak client application that can request authentication and authorization services from the realm."""
+
     label: str = "KeycloakClient"
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["ThirdPartyApp"])
     properties: KeycloakClientNodeProperties = KeycloakClientNodeProperties()
@@ -166,6 +239,8 @@ class KeycloakClientToFlowRelProperties(CartographyRelProperties):
 @dataclass(frozen=True)
 # (:KeycloakClient)-[:USES]->(:KeycloakAuthenticationFlow)
 class KeycloakClientToFlowMatchLink(CartographyRelSchema):
+    """The client uses an authentication flow."""
+
     source_node_label: str = "KeycloakClient"
     source_node_matcher: SourceNodeMatcher = make_source_node_matcher(
         {"id": PropertyRef("client_id")},

@@ -19,6 +19,8 @@ class AWSGroupToAWSUserRelProperties(CartographyRelProperties):
 # removed in v1.0.0.
 class AWSGroupToAWSUserRel(CartographyRelSchema):
     # AWSUser -MEMBER_AWS_GROUP-> AWSGroup
+    "Represents a `MEMBER_AWS_GROUP` relationship from `AWSUser` to `AWSGroup`."
+
     target_node_label: str = "AWSUser"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {
@@ -38,6 +40,8 @@ class AWSGroupToAWSUserMemberOfRelProperties(CartographyRelProperties):
 @dataclass(frozen=True)
 # Canonical ontology edge: (:UserAccount)-[:MEMBER_OF]->(:UserGroup)
 class AWSGroupToAWSUserMemberOfRel(CartographyRelSchema):
+    "Represents a `MEMBER_OF` relationship from `AWSUser` to `AWSGroup`."
+
     target_node_label: str = "AWSUser"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {

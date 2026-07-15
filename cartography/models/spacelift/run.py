@@ -17,17 +17,39 @@ class SpaceliftRunNodeProperties(CartographyNodeProperties):
     Properties for a Spacelift Run node.
     """
 
-    id: PropertyRef = PropertyRef("id")
-    run_type: PropertyRef = PropertyRef("run_type")
-    state: PropertyRef = PropertyRef("state")
-    commit_sha: PropertyRef = PropertyRef("commit_sha")
-    branch: PropertyRef = PropertyRef("branch")
-    created_at: PropertyRef = PropertyRef("created_at")
-    stack_id: PropertyRef = PropertyRef("stack_id")
-    triggered_by_user_id: PropertyRef = PropertyRef("triggered_by_user_id")
-    spacelift_account_id: PropertyRef = PropertyRef("spacelift_account_id")
-    affected_instance_ids: PropertyRef = PropertyRef("affected_instance_ids")
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    id: PropertyRef = PropertyRef("id", description="Spacelift run ID.")
+    run_type: PropertyRef = PropertyRef(
+        "run_type", description="Type of Spacelift run."
+    )
+    state: PropertyRef = PropertyRef("state", description="Current run state.")
+    commit_sha: PropertyRef = PropertyRef(
+        "commit_sha", description="Git commit SHA used by the run."
+    )
+    branch: PropertyRef = PropertyRef(
+        "branch", description="Git branch used by the run."
+    )
+    created_at: PropertyRef = PropertyRef(
+        "created_at", description="Timestamp when the run was created."
+    )
+    stack_id: PropertyRef = PropertyRef(
+        "stack_id", description="ID of the stack that generated the run."
+    )
+    triggered_by_user_id: PropertyRef = PropertyRef(
+        "triggered_by_user_id",
+        description="ID of the user that triggered the run.",
+    )
+    spacelift_account_id: PropertyRef = PropertyRef(
+        "spacelift_account_id", description="ID of the containing Spacelift account."
+    )
+    affected_instance_ids: PropertyRef = PropertyRef(
+        "affected_instance_ids",
+        description="EC2 instance IDs managed by the run.",
+    )
+    lastupdated: PropertyRef = PropertyRef(
+        "lastupdated",
+        set_in_kwargs=True,
+        description="Timestamp of the last update.",
+    )
 
 
 @dataclass(frozen=True)
@@ -41,10 +63,7 @@ class SpaceliftRunToAccountRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class SpaceliftRunToAccountRel(CartographyRelSchema):
-    """
-    RESOURCE relationship from a Run to its Account.
-    (:SpaceliftRun)<-[:RESOURCE]-(:SpaceliftAccount)
-    """
+    """A Spacelift account contains a run."""
 
     target_node_label: str = "SpaceliftAccount"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
@@ -68,10 +87,7 @@ class SpaceliftRunToStackRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class SpaceliftRunToStackRel(CartographyRelSchema):
-    """
-    GENERATED relationship from a Run to its parent Stack.
-    (:SpaceliftRun)<-[:GENERATED]-(:SpaceliftStack)
-    """
+    """A Spacelift stack generated a run."""
 
     target_node_label: str = "SpaceliftStack"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
@@ -93,10 +109,7 @@ class SpaceliftRunToUserRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class SpaceliftRunToUserRel(CartographyRelSchema):
-    """
-    TRIGGERED relationship from a Run to the User who triggered it.
-    (:SpaceliftRun)<-[:TRIGGERED]-(:SpaceliftUser)
-    """
+    """A Spacelift user triggered a run."""
 
     target_node_label: str = "SpaceliftUser"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
@@ -128,10 +141,7 @@ class SpaceliftRunToEC2InstanceSimpleRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class SpaceliftRunToEC2InstanceSimpleRel(CartographyRelSchema):
-    """
-    AFFECTED relationship from a Run to EC2 Instances it manages (from Spacelift entities API).
-    (:SpaceliftRun)-[:AFFECTED]->(:AWSEC2Instance)
-    """
+    """Links a Spacelift run to the EC2 instances it affected."""
 
     target_node_label: str = "AWSEC2Instance"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
@@ -146,9 +156,7 @@ class SpaceliftRunToEC2InstanceSimpleRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class SpaceliftRunSchema(CartographyNodeSchema):
-    """
-    Schema for a Spacelift Run node.
-    """
+    """An execution of a Spacelift stack configuration."""
 
     label: str = "SpaceliftRun"
     properties: SpaceliftRunNodeProperties = SpaceliftRunNodeProperties()

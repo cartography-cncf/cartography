@@ -14,22 +14,43 @@ from cartography.models.core.relationships import TargetNodeMatcher
 
 @dataclass(frozen=True)
 class GCPProjectNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("projectId")
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
-    projectnumber: PropertyRef = PropertyRef("projectNumber", extra_index=True)
-    displayname: PropertyRef = PropertyRef("name")
-    lifecyclestate: PropertyRef = PropertyRef("lifecycleState")
+    id: PropertyRef = PropertyRef(
+        "projectId", description="Stable identifier for this resource."
+    )
+    lastupdated: PropertyRef = PropertyRef(
+        "lastupdated",
+        set_in_kwargs=True,
+        description="Timestamp of the last sync that observed this data.",
+    )
+    projectnumber: PropertyRef = PropertyRef(
+        "projectNumber",
+        extra_index=True,
+        description="Numeric identifier of the owning Google Cloud project.",
+    )
+    displayname: PropertyRef = PropertyRef(
+        "name", description="Human-readable name shown for this resource."
+    )
+    lifecyclestate: PropertyRef = PropertyRef(
+        "lifecycleState",
+        description="Current Resource Manager project lifecycle state.",
+    )
     parent_org: PropertyRef = PropertyRef(
-        "parent_org"
+        "parent_org",
+        description="Parent organization resource name when the project belongs directly to an organization.",
     )  # Will be set to org ID if parent is org
     parent_folder: PropertyRef = PropertyRef(
-        "parent_folder"
+        "parent_folder",
+        description="Parent folder resource name when the project belongs to a folder.",
     )  # Will be set to folder ID if parent is folder
 
 
 @dataclass(frozen=True)
 class GCPProjectToOrgParentRelProperties(CartographyRelProperties):
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    lastupdated: PropertyRef = PropertyRef(
+        "lastupdated",
+        set_in_kwargs=True,
+        description="Timestamp of the last sync that observed this data.",
+    )
 
 
 @dataclass(frozen=True)
@@ -49,7 +70,11 @@ class GCPProjectToOrgParentRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class GCPProjectToFolderParentRelProperties(CartographyRelProperties):
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    lastupdated: PropertyRef = PropertyRef(
+        "lastupdated",
+        set_in_kwargs=True,
+        description="Timestamp of the last sync that observed this data.",
+    )
 
 
 @dataclass(frozen=True)
@@ -69,7 +94,11 @@ class GCPProjectToFolderParentRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class GCPProjectToOrganizationRelProperties(CartographyRelProperties):
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    lastupdated: PropertyRef = PropertyRef(
+        "lastupdated",
+        set_in_kwargs=True,
+        description="Timestamp of the last sync that observed this data.",
+    )
 
 
 @dataclass(frozen=True)
@@ -87,6 +116,8 @@ class GCPProjectToOrganizationRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class GCPProjectSchema(CartographyNodeSchema):
+    """A Google Cloud Project resource."""
+
     label: str = "GCPProject"
     properties: GCPProjectNodeProperties = GCPProjectNodeProperties()
     # Organization owns the project as a resource

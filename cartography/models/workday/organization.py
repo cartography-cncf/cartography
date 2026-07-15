@@ -7,13 +7,25 @@ from cartography.models.core.nodes import CartographyNodeSchema
 
 @dataclass(frozen=True)
 class WorkdayOrganizationNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("Supervisory_Organization")
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
-    name: PropertyRef = PropertyRef("Supervisory_Organization")
+    id: PropertyRef = PropertyRef(
+        "Supervisory_Organization",
+        description="Organization name.",
+    )
+    lastupdated: PropertyRef = PropertyRef(
+        "lastupdated",
+        set_in_kwargs=True,
+        description="Timestamp of the last update.",
+    )
+    name: PropertyRef = PropertyRef(
+        "Supervisory_Organization",
+        description="Organization name.",
+    )
 
 
 @dataclass(frozen=True)
 class WorkdayOrganizationSchema(CartographyNodeSchema):
+    """A supervisory organization or department in Workday."""
+
     label: str = "WorkdayOrganization"
     properties: WorkdayOrganizationNodeProperties = WorkdayOrganizationNodeProperties()
 

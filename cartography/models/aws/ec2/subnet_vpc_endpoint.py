@@ -15,11 +15,23 @@ from cartography.models.core.relationships import TargetNodeMatcher
 
 @dataclass(frozen=True)
 class EC2SubnetVPCEndpointNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("SubnetId")
-    subnetid: PropertyRef = PropertyRef("SubnetId", extra_index=True)
-    subnet_id: PropertyRef = PropertyRef("SubnetId", extra_index=True)
-    region: PropertyRef = PropertyRef("Region", set_in_kwargs=True)
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    id: PropertyRef = PropertyRef("SubnetId", description="same as subnetid")
+    subnetid: PropertyRef = PropertyRef(
+        "SubnetId", extra_index=True, description="The ID of the subnet"
+    )
+    subnet_id: PropertyRef = PropertyRef(
+        "SubnetId", extra_index=True, description="The ID of the subnet"
+    )
+    region: PropertyRef = PropertyRef(
+        "Region",
+        set_in_kwargs=True,
+        description="The AWS region the subnet is installed on",
+    )
+    lastupdated: PropertyRef = PropertyRef(
+        "lastupdated",
+        set_in_kwargs=True,
+        description="Timestamp of the last time the node was updated",
+    )
 
 
 @dataclass(frozen=True)
@@ -29,6 +41,8 @@ class EC2SubnetToVPCEndpointRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class EC2SubnetToVPCEndpointRel(CartographyRelSchema):
+    "Represents a `USES_SUBNET` relationship from `AWSVpcEndpoint` to `AWSEC2Subnet`."
+
     target_node_label: str = "AWSVpcEndpoint"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("VpcEndpointId")},
@@ -42,10 +56,11 @@ class EC2SubnetToVPCEndpointRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class EC2SubnetVPCEndpointSchema(CartographyNodeSchema):
-    """
-    EC2 Subnet as known by describe-vpc-endpoints.
-    Creates stub subnet nodes and USES_SUBNET relationships from VPC endpoints.
-    """
+    "Represents a subnet in an Amazon EC2 virtual private cloud."
+
+    # Implementation note:
+    # EC2 Subnet as known by describe-vpc-endpoints.
+    # Creates stub subnet nodes and USES_SUBNET relationships from VPC endpoints.
 
     label: str = "AWSEC2Subnet"
     properties: EC2SubnetVPCEndpointNodeProperties = (

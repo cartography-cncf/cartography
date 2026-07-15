@@ -14,16 +14,32 @@ from cartography.models.core.relationships import TargetNodeMatcher
 
 @dataclass(frozen=True)
 class ScalewayGroupProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("id")
-    created_at: PropertyRef = PropertyRef("created_at")
-    updated_at: PropertyRef = PropertyRef("updated_at")
-    name: PropertyRef = PropertyRef("name")
-    description: PropertyRef = PropertyRef("description")
-    tags: PropertyRef = PropertyRef("tags", extra_index=True)
-    editable: PropertyRef = PropertyRef("editable")
-    deletable: PropertyRef = PropertyRef("deletable")
-    managed: PropertyRef = PropertyRef("managed")
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    id: PropertyRef = PropertyRef("id", description="ID of the Group")
+    created_at: PropertyRef = PropertyRef(
+        "created_at", description="Date and time of group creation."
+    )
+    updated_at: PropertyRef = PropertyRef(
+        "updated_at", description="Date and time of last group update."
+    )
+    name: PropertyRef = PropertyRef("name", description="Name of the group.")
+    description: PropertyRef = PropertyRef(
+        "description", description="Description of the group."
+    )
+    tags: PropertyRef = PropertyRef(
+        "tags", extra_index=True, description="Tags associated to the group."
+    )
+    editable: PropertyRef = PropertyRef(
+        "editable", description="Defines whether or not the group is editable."
+    )
+    deletable: PropertyRef = PropertyRef(
+        "deletable", description="Defines whether or not the group is deletable."
+    )
+    managed: PropertyRef = PropertyRef(
+        "managed", description="Defines whether or not the group is managed."
+    )
+    lastupdated: PropertyRef = PropertyRef(
+        "lastupdated", set_in_kwargs=True, description="Timestamp of the last update"
+    )
 
 
 @dataclass(frozen=True)
@@ -34,6 +50,8 @@ class ScalewayGroupToUserRelProperties(CartographyRelProperties):
 @dataclass(frozen=True)
 # (:ScalewayUser)-[:MEMBER_OF]->(:ScalewayGroup)
 class ScalewayGroupToUserRel(CartographyRelSchema):
+    """Connects `ScalewayUser` to `ScalewayGroup` through `MEMBER_OF`."""
+
     target_node_label: str = "ScalewayUser"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("user_ids", one_to_many=True)},
@@ -51,6 +69,8 @@ class ScalewayGroupToApplicationRelProperties(CartographyRelProperties):
 @dataclass(frozen=True)
 # (:ScalewayApplication)-[:MEMBER_OF]->(:ScalewayGroup)
 class ScalewayGroupToApplicationRel(CartographyRelSchema):
+    """Connects `ScalewayApplication` to `ScalewayGroup` through `MEMBER_OF`."""
+
     target_node_label: str = "ScalewayApplication"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("application_ids", one_to_many=True)},
@@ -70,6 +90,8 @@ class ScalewayGroupToOrganizationRelProperties(CartographyRelProperties):
 @dataclass(frozen=True)
 # (:ScalewayOrganization)-[:RESOURCE]->(:ScalewayGroup)
 class ScalewayGroupToOrganizationRel(CartographyRelSchema):
+    """Connects `ScalewayOrganization` to `ScalewayGroup` through `RESOURCE`."""
+
     target_node_label: str = "ScalewayOrganization"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("ORG_ID", set_in_kwargs=True)},
@@ -83,6 +105,8 @@ class ScalewayGroupToOrganizationRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class ScalewayGroupSchema(CartographyNodeSchema):
+    """Represents a Group in Scaleway."""
+
     label: str = "ScalewayGroup"
     properties: ScalewayGroupProperties = ScalewayGroupProperties()
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["UserGroup"])

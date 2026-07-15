@@ -18,20 +18,55 @@ class AWSBedrockCustomModelNodeProperties(CartographyNodeProperties):
     Properties for AWS Bedrock Custom Model nodes.
     """
 
-    id: PropertyRef = PropertyRef("modelArn")
-    arn: PropertyRef = PropertyRef("modelArn", extra_index=True)
-    model_name: PropertyRef = PropertyRef("modelName")
-    job_arn: PropertyRef = PropertyRef("jobArn")
-    job_name: PropertyRef = PropertyRef("jobName")
-    base_model_arn: PropertyRef = PropertyRef("baseModelArn")
-    base_model_name: PropertyRef = PropertyRef("baseModelName")
-    customization_type: PropertyRef = PropertyRef("customizationType")
-    status: PropertyRef = PropertyRef("modelStatus")
-    creation_time: PropertyRef = PropertyRef("creationTime")
-    training_data_s3_uri: PropertyRef = PropertyRef("trainingDataConfig.s3Uri")
-    output_data_s3_uri: PropertyRef = PropertyRef("outputDataConfig.s3Uri")
-    region: PropertyRef = PropertyRef("Region", set_in_kwargs=True)
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    id: PropertyRef = PropertyRef("modelArn", description="The ARN of the custom model")
+    arn: PropertyRef = PropertyRef(
+        "modelArn", extra_index=True, description="The ARN of the custom model"
+    )
+    model_name: PropertyRef = PropertyRef(
+        "modelName", description="The name of the custom model"
+    )
+    job_arn: PropertyRef = PropertyRef(
+        "jobArn", description="The ARN of the training job"
+    )
+    job_name: PropertyRef = PropertyRef(
+        "jobName", description="The name of the training job that created this model"
+    )
+    base_model_arn: PropertyRef = PropertyRef(
+        "baseModelArn",
+        description="The ARN of the foundation model this custom model is based on",
+    )
+    base_model_name: PropertyRef = PropertyRef(
+        "baseModelName",
+        description="Name of the foundation model customized to produce this model.",
+    )
+    customization_type: PropertyRef = PropertyRef(
+        "customizationType",
+        description='The type of customization (e.g., "FINE_TUNING", "CONTINUED_PRE_TRAINING")',
+    )
+    status: PropertyRef = PropertyRef(
+        "modelStatus",
+        description="Current status of this `AWSBedrockCustomModel` node.",
+    )
+    creation_time: PropertyRef = PropertyRef(
+        "creationTime", description="The timestamp when the custom model was created"
+    )
+    training_data_s3_uri: PropertyRef = PropertyRef(
+        "trainingDataConfig.s3Uri", description="The S3 URI of the training data"
+    )
+    output_data_s3_uri: PropertyRef = PropertyRef(
+        "outputDataConfig.s3Uri",
+        description="The S3 URI where training output is stored",
+    )
+    region: PropertyRef = PropertyRef(
+        "Region",
+        set_in_kwargs=True,
+        description="The AWS region where the custom model exists",
+    )
+    lastupdated: PropertyRef = PropertyRef(
+        "lastupdated",
+        set_in_kwargs=True,
+        description="Timestamp of the last time the node was updated",
+    )
 
 
 @dataclass(frozen=True)

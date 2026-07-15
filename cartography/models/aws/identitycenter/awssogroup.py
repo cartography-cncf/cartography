@@ -14,13 +14,29 @@ from cartography.models.core.relationships import TargetNodeMatcher
 
 @dataclass(frozen=True)
 class AWSSSOGroupProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("GroupId")
-    display_name: PropertyRef = PropertyRef("DisplayName")
-    description: PropertyRef = PropertyRef("Description")
-    identity_store_id: PropertyRef = PropertyRef("IdentityStoreId")
-    external_id: PropertyRef = PropertyRef("ExternalId", extra_index=True)
-    region: PropertyRef = PropertyRef("Region", set_in_kwargs=True)
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    id: PropertyRef = PropertyRef(
+        "GroupId", description="Unique identifier for the SSO group"
+    )
+    display_name: PropertyRef = PropertyRef(
+        "DisplayName", description="The display name of the SSO group"
+    )
+    description: PropertyRef = PropertyRef(
+        "Description", description="The description of the SSO group"
+    )
+    identity_store_id: PropertyRef = PropertyRef(
+        "IdentityStoreId", description="The identity store ID of the SSO group"
+    )
+    external_id: PropertyRef = PropertyRef(
+        "ExternalId", extra_index=True, description="The external ID of the SSO group"
+    )
+    region: PropertyRef = PropertyRef(
+        "Region", set_in_kwargs=True, description="The AWS region"
+    )
+    lastupdated: PropertyRef = PropertyRef(
+        "lastupdated",
+        set_in_kwargs=True,
+        description="Timestamp of the last time the node was updated",
+    )
 
 
 @dataclass(frozen=True)
@@ -30,6 +46,8 @@ class AWSSSOGroupToAWSAccountRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class AWSSSOGroupToAWSAccountRel(CartographyRelSchema):
+    "Represents a `RESOURCE` relationship from `AWSAccount` to `AWSSSOGroup`."
+
     target_node_label: str = "AWSAccount"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("AWS_ID", set_in_kwargs=True)},
@@ -51,6 +69,8 @@ class AWSSSOGroupToPermissionSetRelProperties(CartographyRelProperties):
 # edge (AWSSSOGroupToPermissionSetHasRoleRel). Kept for backward compatibility,
 # will be removed in v1.0.0.
 class AWSSSOGroupToPermissionSetRel(CartographyRelSchema):
+    "Represents a `HAS_PERMISSION_SET` relationship from `AWSSSOGroup` to `AWSPermissionSet`."
+
     target_node_label: str = "AWSPermissionSet"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"arn": PropertyRef("AssignedPermissionSets", one_to_many=True)},
@@ -70,6 +90,8 @@ class AWSSSOGroupToPermissionSetHasRoleRelProperties(CartographyRelProperties):
 @dataclass(frozen=True)
 # Canonical ontology edge: (:UserGroup)-[:HAS_ROLE]->(:PermissionRole)
 class AWSSSOGroupToPermissionSetHasRoleRel(CartographyRelSchema):
+    "Represents a `HAS_ROLE` relationship from `AWSSSOGroup` to `AWSPermissionSet`."
+
     target_node_label: str = "AWSPermissionSet"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"arn": PropertyRef("AssignedPermissionSets", one_to_many=True)},
@@ -83,6 +105,8 @@ class AWSSSOGroupToPermissionSetHasRoleRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class AWSSSOGroupSchema(CartographyNodeSchema):
+    "Represents an `AWSSSOGroup` node in the AWS graph."
+
     label: str = "AWSSSOGroup"
     properties: AWSSSOGroupProperties = AWSSSOGroupProperties()
     sub_resource_relationship: AWSSSOGroupToAWSAccountRel = AWSSSOGroupToAWSAccountRel()

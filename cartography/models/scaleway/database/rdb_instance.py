@@ -14,31 +14,79 @@ from cartography.models.core.relationships import TargetNodeMatcher
 
 @dataclass(frozen=True)
 class ScalewayRdbInstanceProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("id", extra_index=True)
-    name: PropertyRef = PropertyRef("name", extra_index=True)
-    status: PropertyRef = PropertyRef("status")
-    engine: PropertyRef = PropertyRef("engine")
-    node_type: PropertyRef = PropertyRef("node_type")
-    is_ha_cluster: PropertyRef = PropertyRef("is_ha_cluster")
-    encryption_at_rest_enabled: PropertyRef = PropertyRef("encryption_at_rest_enabled")
-    volume_type: PropertyRef = PropertyRef("volume_type")
-    volume_size: PropertyRef = PropertyRef("volume_size")
-    backup_schedule_disabled: PropertyRef = PropertyRef("backup_schedule_disabled")
-    backup_schedule_retention_days: PropertyRef = PropertyRef(
-        "backup_schedule_retention_days"
+    id: PropertyRef = PropertyRef("id", extra_index=True, description="Instance UUID.")
+    name: PropertyRef = PropertyRef(
+        "name", extra_index=True, description="Instance name."
     )
-    backup_same_region: PropertyRef = PropertyRef("backup_same_region")
-    tags: PropertyRef = PropertyRef("tags")
+    status: PropertyRef = PropertyRef(
+        "status", description="Instance status (`ready`, `provisioning`, ...)."
+    )
+    engine: PropertyRef = PropertyRef(
+        "engine", description="Engine and version (e.g. `PostgreSQL-15`, `MySQL-8`)."
+    )
+    node_type: PropertyRef = PropertyRef(
+        "node_type", description="Commercial node type (e.g. `DB-DEV-S`)."
+    )
+    is_ha_cluster: PropertyRef = PropertyRef(
+        "is_ha_cluster",
+        description="True if the instance runs in high-availability mode.",
+    )
+    encryption_at_rest_enabled: PropertyRef = PropertyRef(
+        "encryption_at_rest_enabled",
+        description="True if encryption at rest is enabled.",
+    )
+    volume_type: PropertyRef = PropertyRef(
+        "volume_type",
+        description="Storage volume type (`lssd`, `bssd`, `sbs_5k`, ...).",
+    )
+    volume_size: PropertyRef = PropertyRef(
+        "volume_size", description="Storage volume size in bytes."
+    )
+    backup_schedule_disabled: PropertyRef = PropertyRef(
+        "backup_schedule_disabled",
+        description="True if automated backups are disabled.",
+    )
+    backup_schedule_retention_days: PropertyRef = PropertyRef(
+        "backup_schedule_retention_days",
+        description="Backup retention in days, when configured.",
+    )
+    backup_same_region: PropertyRef = PropertyRef(
+        "backup_same_region",
+        description="True if backups are stored in the same region as the instance.",
+    )
+    tags: PropertyRef = PropertyRef("tags", description="Instance tags.")
     # Endpoint summary fields (flattened from the endpoints list).
-    is_public: PropertyRef = PropertyRef("is_public")
-    public_endpoint_ip: PropertyRef = PropertyRef("public_endpoint_ip")
-    public_endpoint_hostname: PropertyRef = PropertyRef("public_endpoint_hostname")
-    public_endpoint_port: PropertyRef = PropertyRef("public_endpoint_port")
-    private_endpoint_ip: PropertyRef = PropertyRef("private_endpoint_ip")
-    private_endpoint_port: PropertyRef = PropertyRef("private_endpoint_port")
-    region: PropertyRef = PropertyRef("region")
-    created_at: PropertyRef = PropertyRef("created_at")
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    is_public: PropertyRef = PropertyRef(
+        "is_public",
+        description="True if the instance exposes a publicly reachable endpoint (load balancer or direct access).",
+    )
+    public_endpoint_ip: PropertyRef = PropertyRef(
+        "public_endpoint_ip", description="IP of the public endpoint, if any."
+    )
+    public_endpoint_hostname: PropertyRef = PropertyRef(
+        "public_endpoint_hostname",
+        description="Hostname of the public endpoint, if any.",
+    )
+    public_endpoint_port: PropertyRef = PropertyRef(
+        "public_endpoint_port", description="Port of the public endpoint, if any."
+    )
+    private_endpoint_ip: PropertyRef = PropertyRef(
+        "private_endpoint_ip",
+        description="IP of the first private-network endpoint, if any.",
+    )
+    private_endpoint_port: PropertyRef = PropertyRef(
+        "private_endpoint_port",
+        description="Port of the first private-network endpoint, if any.",
+    )
+    region: PropertyRef = PropertyRef(
+        "region", description="Region the instance lives in."
+    )
+    created_at: PropertyRef = PropertyRef(
+        "created_at", description="Creation timestamp."
+    )
+    lastupdated: PropertyRef = PropertyRef(
+        "lastupdated", set_in_kwargs=True, description="Timestamp of the last update."
+    )
 
 
 @dataclass(frozen=True)
@@ -49,6 +97,8 @@ class ScalewayRdbInstanceToProjectRelProperties(CartographyRelProperties):
 @dataclass(frozen=True)
 # (:ScalewayProject)-[:RESOURCE]->(:ScalewayRdbInstance)
 class ScalewayRdbInstanceToProjectRel(CartographyRelSchema):
+    """Connects `ScalewayProject` to `ScalewayRdbInstance` through `RESOURCE`."""
+
     target_node_label: str = "ScalewayProject"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("PROJECT_ID", set_in_kwargs=True)},
@@ -68,6 +118,8 @@ class ScalewayRdbInstanceToPrivateNetworkRelProperties(CartographyRelProperties)
 @dataclass(frozen=True)
 # (:ScalewayRdbInstance)-[:ATTACHED_TO]->(:ScalewayPrivateNetwork)
 class ScalewayRdbInstanceToPrivateNetworkRel(CartographyRelSchema):
+    """Connects `ScalewayRdbInstance` to `ScalewayPrivateNetwork` through `ATTACHED_TO`."""
+
     target_node_label: str = "ScalewayPrivateNetwork"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("private_network_ids", one_to_many=True)},
@@ -81,6 +133,10 @@ class ScalewayRdbInstanceToPrivateNetworkRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class ScalewayRdbInstanceSchema(CartographyNodeSchema):
+    """Represents a managed PostgreSQL / MySQL database instance (Scaleway "Managed
+    Database for PostgreSQL and MySQL").
+    """
+
     label: str = "ScalewayRdbInstance"
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["Database"])
     properties: ScalewayRdbInstanceProperties = ScalewayRdbInstanceProperties()

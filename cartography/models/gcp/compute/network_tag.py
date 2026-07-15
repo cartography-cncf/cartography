@@ -13,14 +13,27 @@ from cartography.models.core.relationships import TargetNodeMatcher
 
 @dataclass(frozen=True)
 class GCPNetworkTagNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("tag_id")
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
-    value: PropertyRef = PropertyRef("value")
+    id: PropertyRef = PropertyRef(
+        "tag_id",
+        description="GCP doesn't define a resource URI for Tags so we define this as `{instance resource URI}/tags/{tag value}`.",
+    )
+    lastupdated: PropertyRef = PropertyRef(
+        "lastupdated",
+        set_in_kwargs=True,
+        description="Timestamp of the last time the node was updated.",
+    )
+    value: PropertyRef = PropertyRef(
+        "value", description="The actual value of the tag."
+    )
 
 
 @dataclass(frozen=True)
 class GCPNetworkTagToVpcRelProperties(CartographyRelProperties):
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    lastupdated: PropertyRef = PropertyRef(
+        "lastupdated",
+        set_in_kwargs=True,
+        description="Timestamp of the last sync that observed this data.",
+    )
 
 
 @dataclass(frozen=True)
@@ -38,7 +51,11 @@ class GCPNetworkTagToVpcRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class GCPNetworkTagToInstanceRelProperties(CartographyRelProperties):
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    lastupdated: PropertyRef = PropertyRef(
+        "lastupdated",
+        set_in_kwargs=True,
+        description="Timestamp of the last sync that observed this data.",
+    )
 
 
 @dataclass(frozen=True)
@@ -58,7 +75,11 @@ class GCPNetworkTagToInstanceRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class GCPNetworkTagToProjectRelProperties(CartographyRelProperties):
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    lastupdated: PropertyRef = PropertyRef(
+        "lastupdated",
+        set_in_kwargs=True,
+        description="Timestamp of the last sync that observed this data.",
+    )
 
 
 @dataclass(frozen=True)
@@ -78,6 +99,8 @@ class GCPNetworkTagToProjectRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class GCPNetworkTagSchema(CartographyNodeSchema):
+    """A Google Cloud Network Tag resource."""
+
     label: str = "GCPNetworkTag"
     properties: GCPNetworkTagNodeProperties = GCPNetworkTagNodeProperties()
     sub_resource_relationship: GCPNetworkTagToProjectRel = GCPNetworkTagToProjectRel()

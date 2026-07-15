@@ -14,12 +14,28 @@ from cartography.models.core.relationships import TargetNodeMatcher
 
 @dataclass(frozen=True)
 class EC2SecurityGroupNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("GroupId")
-    groupid: PropertyRef = PropertyRef("GroupId", extra_index=True)
-    name: PropertyRef = PropertyRef("GroupName")
-    description: PropertyRef = PropertyRef("Description")
-    region: PropertyRef = PropertyRef("Region", set_in_kwargs=True)
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    id: PropertyRef = PropertyRef("GroupId", description="Same as `groupid`")
+    groupid: PropertyRef = PropertyRef(
+        "GroupId",
+        extra_index=True,
+        description="The ID of the security group. Note that these are globally unique in AWS.",
+    )
+    name: PropertyRef = PropertyRef(
+        "GroupName", description="The name of the security group"
+    )
+    description: PropertyRef = PropertyRef(
+        "Description", description="A description of the security group"
+    )
+    region: PropertyRef = PropertyRef(
+        "Region",
+        set_in_kwargs=True,
+        description="The AWS region this security group is installed in",
+    )
+    lastupdated: PropertyRef = PropertyRef(
+        "lastupdated",
+        set_in_kwargs=True,
+        description="Timestamp of the last time the node was updated",
+    )
 
 
 @dataclass(frozen=True)
@@ -29,6 +45,8 @@ class EC2SecurityGroupToAWSAccountRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class EC2SecurityGroupToAWSAccountRel(CartographyRelSchema):
+    "Represents a `RESOURCE` relationship from `AWSAccount` to `AWSEC2SecurityGroup`."
+
     target_node_label: str = "AWSAccount"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("AWS_ID", set_in_kwargs=True)}
@@ -47,6 +65,8 @@ class EC2SecurityGroupToVpcRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class EC2SecurityGroupToVpcRel(CartographyRelSchema):
+    "Represents a `MEMBER_OF_EC2_SECURITY_GROUP` relationship from `AWSVpc` to `AWSEC2SecurityGroup`."
+
     target_node_label: str = "AWSVpc"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"vpcid": PropertyRef("VpcId")}
@@ -65,6 +85,8 @@ class EC2SecurityGroupToSourceGroupRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class EC2SecurityGroupToSourceGroupRel(CartographyRelSchema):
+    "Represents a `ALLOWS_TRAFFIC_FROM` relationship from `AWSEC2SecurityGroup` to `AWSEC2SecurityGroup`."
+
     target_node_label: str = "AWSEC2SecurityGroup"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"groupid": PropertyRef("SOURCE_GROUP_IDS", one_to_many=True)}
@@ -78,6 +100,8 @@ class EC2SecurityGroupToSourceGroupRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class EC2SecurityGroupSchema(CartographyNodeSchema):
+    "Represents an Amazon EC2 security group."
+
     label: str = "AWSEC2SecurityGroup"
     properties: EC2SecurityGroupNodeProperties = EC2SecurityGroupNodeProperties()
     # DEPRECATED: legacy EC2SecurityGroup node label will be removed in v1.0.0.

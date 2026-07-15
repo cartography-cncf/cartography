@@ -18,19 +18,46 @@ class SnipeitAssetNodeProperties(CartographyNodeProperties):
     """
 
     # Common properties
-    id: PropertyRef = PropertyRef("id")
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    id: PropertyRef = PropertyRef("id", description="Asset ID.")
+    lastupdated: PropertyRef = PropertyRef(
+        "lastupdated",
+        set_in_kwargs=True,
+        description="Timestamp of the last update.",
+    )
 
     # SnipeIT specific properties
-    name: PropertyRef = PropertyRef("name", extra_index=True)
-    asset_tag: PropertyRef = PropertyRef("asset_tag")
-    assigned_to: PropertyRef = PropertyRef("assigned_to.email")
-    category: PropertyRef = PropertyRef("category.name")
-    company: PropertyRef = PropertyRef("company.name")
-    manufacturer: PropertyRef = PropertyRef("manufacturer.name")
-    model: PropertyRef = PropertyRef("model.name")
-    serial: PropertyRef = PropertyRef("serial", extra_index=True)
-    status: PropertyRef = PropertyRef("status_label.name")
+    name: PropertyRef = PropertyRef(
+        "name",
+        extra_index=True,
+        description="Device name.",
+    )
+    asset_tag: PropertyRef = PropertyRef("asset_tag", description="Asset tag.")
+    assigned_to: PropertyRef = PropertyRef(
+        "assigned_to.email",
+        description="Email of the user who checked out the asset.",
+    )
+    category: PropertyRef = PropertyRef(
+        "category.name",
+        description="Asset category.",
+    )
+    company: PropertyRef = PropertyRef(
+        "company.name",
+        description="Company that owns the asset.",
+    )
+    manufacturer: PropertyRef = PropertyRef(
+        "manufacturer.name",
+        description="Asset manufacturer.",
+    )
+    model: PropertyRef = PropertyRef("model.name", description="Device model.")
+    serial: PropertyRef = PropertyRef(
+        "serial",
+        extra_index=True,
+        description="Asset serial number.",
+    )
+    status: PropertyRef = PropertyRef(
+        "status_label.name",
+        description="Asset status label.",
+    )
 
 
 # (:SnipeitAsset)<-[:RESOURCE]-(:SnipeitTenant)
@@ -41,6 +68,8 @@ class SnipeitTenantToSnipeitAssetRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class SnipeitTenantToSnipeitAssetRel(CartographyRelSchema):
+    """The tenant contains the asset."""
+
     target_node_label: str = "SnipeitTenant"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("TENANT_ID", set_in_kwargs=True)},
@@ -60,6 +89,8 @@ class SnipeitUserToSnipeitAssetRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class SnipeitUserToSnipeitAssetRel(CartographyRelSchema):
+    """A user has checked out the asset."""
+
     target_node_label: str = "SnipeitUser"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"email": PropertyRef("assigned_to.email")},
@@ -74,6 +105,8 @@ class SnipeitUserToSnipeitAssetRel(CartographyRelSchema):
 @dataclass(frozen=True)
 # (:SnipeitAsset)<-[:HAS_ASSET]-(:SnipeitTenant) - Backwards compatibility
 class SnipeitTenantToSnipeitAssetDeprecatedRel(CartographyRelSchema):
+    """Deprecated compatibility edge linking a tenant to its asset."""
+
     target_node_label: str = "SnipeitTenant"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("TENANT_ID", set_in_kwargs=True)},
@@ -87,6 +120,8 @@ class SnipeitTenantToSnipeitAssetDeprecatedRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class SnipeitAssetSchema(CartographyNodeSchema):
+    """A device asset managed by Snipe-IT."""
+
     label: str = "SnipeitAsset"  # The label of the node
     properties: SnipeitAssetNodeProperties = (
         SnipeitAssetNodeProperties()

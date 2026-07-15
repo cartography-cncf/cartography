@@ -13,24 +13,52 @@ from cartography.models.core.relationships import TargetNodeMatcher
 
 @dataclass(frozen=True)
 class DuoPhoneNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("phone_id")
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
-    activated: PropertyRef = PropertyRef("activated")
-    capabilities: PropertyRef = PropertyRef("capabilities")
-    encrypted: PropertyRef = PropertyRef("encrypted")
-    extension: PropertyRef = PropertyRef("extension")
-    fingerprint: PropertyRef = PropertyRef("fingerprint")
-    last_seen: PropertyRef = PropertyRef("last_seen")
-    model: PropertyRef = PropertyRef("model")
-    name: PropertyRef = PropertyRef("name", extra_index=True)
-    phone_id: PropertyRef = PropertyRef("phone_id")
-    platform: PropertyRef = PropertyRef("platform")
-    postdelay: PropertyRef = PropertyRef("postdelay")
-    predelay: PropertyRef = PropertyRef("predelay")
-    screenlock: PropertyRef = PropertyRef("screenlock")
-    sms_passcodes_sent: PropertyRef = PropertyRef("sms_passcodes_sent")
-    tampered: PropertyRef = PropertyRef("tampered")
-    type: PropertyRef = PropertyRef("type")
+    id: PropertyRef = PropertyRef("phone_id", description="Duo phone ID.")
+    lastupdated: PropertyRef = PropertyRef(
+        "lastupdated",
+        set_in_kwargs=True,
+        description="Timestamp of the last update.",
+    )
+    activated: PropertyRef = PropertyRef(
+        "activated", description="Whether Duo Mobile is activated."
+    )
+    capabilities: PropertyRef = PropertyRef(
+        "capabilities", description="Authentication factors supported by the phone."
+    )
+    encrypted: PropertyRef = PropertyRef(
+        "encrypted", description="Device file-system encryption status."
+    )
+    extension: PropertyRef = PropertyRef(
+        "extension", description="Telephone extension."
+    )
+    fingerprint: PropertyRef = PropertyRef(
+        "fingerprint", description="Biometric verification status."
+    )
+    last_seen: PropertyRef = PropertyRef(
+        "last_seen", description="Timestamp of the last Duo Mobile contact."
+    )
+    model: PropertyRef = PropertyRef("model", description="Phone model.")
+    name: PropertyRef = PropertyRef(
+        "name", extra_index=True, description="Phone label."
+    )
+    phone_id: PropertyRef = PropertyRef("phone_id", description="Duo phone ID.")
+    platform: PropertyRef = PropertyRef("platform", description="Phone platform.")
+    postdelay: PropertyRef = PropertyRef(
+        "postdelay", description="Delay before speaking the prompt."
+    )
+    predelay: PropertyRef = PropertyRef(
+        "predelay", description="Delay before dialing the extension."
+    )
+    screenlock: PropertyRef = PropertyRef(
+        "screenlock", description="Device screen-lock status."
+    )
+    sms_passcodes_sent: PropertyRef = PropertyRef(
+        "sms_passcodes_sent", description="Whether SMS passcodes were sent."
+    )
+    tampered: PropertyRef = PropertyRef(
+        "tampered", description="Device jailbreak or root status."
+    )
+    type: PropertyRef = PropertyRef("type", description="Phone type.")
 
 
 @dataclass(frozen=True)
@@ -40,6 +68,8 @@ class DuoPhoneToDuoApiHostRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class DuoPhoneToDuoApiHostRel(CartographyRelSchema):
+    """The Duo API host contains the phone."""
+
     target_node_label: str = "DuoApiHost"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("DUO_API_HOSTNAME", set_in_kwargs=True)},
@@ -55,6 +85,8 @@ class DuoPhoneToDuoUserRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class DuoPhoneToDuoUserRel(CartographyRelSchema):
+    """The Duo user has the phone."""
+
     target_node_label: str = "DuoUser"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"user_id": PropertyRef("user_id")},
@@ -66,6 +98,8 @@ class DuoPhoneToDuoUserRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class DuoPhoneSchema(CartographyNodeSchema):
+    """A phone registered in Duo."""
+
     label: str = "DuoPhone"
     properties: DuoPhoneNodeProperties = DuoPhoneNodeProperties()
     sub_resource_relationship: DuoPhoneToDuoApiHostRel = DuoPhoneToDuoApiHostRel()

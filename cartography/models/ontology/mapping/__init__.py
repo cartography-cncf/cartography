@@ -153,6 +153,56 @@ SEMANTIC_LABELS_MAPPING: dict[str, dict[str, OntologyMapping]] = {
     "cves": CVES_ONTOLOGY_MAPPING,
 }
 
+# Explicit names make semantic labels introspectable without relying on pluralization or
+# matching heuristics. Labels without normalized fields are included because they still
+# participate in the ontology relationship catalog.
+SEMANTIC_LABELS_BY_MAPPING_GROUP: dict[str, str] = {
+    "aimodels": "AIModel",
+    "apikeys": "APIKey",
+    "blockstorage": "BlockStorage",
+    "certificates": "Certificate",
+    "cicdpipelines": "CICDPipeline",
+    "coderepositories": "CodeRepository",
+    "computeclusters": "ComputeCluster",
+    "computeinstance": "ComputeInstance",
+    "computenamespaces": "ComputeNamespace",
+    "computepods": "ComputePod",
+    "computeservices": "ComputeService",
+    "containerregistries": "ContainerRegistry",
+    "containers": "Container",
+    "cves": "CVE",
+    "databases": "Database",
+    "dnsrecords": "DNSRecord",
+    "dnszones": "DNSZone",
+    "encryptionkeys": "EncryptionKey",
+    "filestorage": "FileStorage",
+    "firewalls": "NetworkAccessControl",
+    "functions": "Function",
+    "groups": "UserGroup",
+    "identityproviders": "IdentityProvider",
+    "images": "Image",
+    "loadbalancers": "LoadBalancer",
+    "objectstorage": "ObjectStorage",
+    "roles": "PermissionRole",
+    "secrets": "Secret",
+    "securityissues": "SecurityIssue",
+    "serviceaccounts": "ServiceAccount",
+    "snapshots": "Snapshot",
+    "subnets": "Subnet",
+    "tags": "Tag",
+    "tenants": "Tenant",
+    "thirdpartyapps": "ThirdPartyApp",
+    "useraccounts": "UserAccount",
+    "vpcs": "VirtualNetwork",
+}
+
+SEMANTIC_LABELS_WITHOUT_NORMALIZED_FIELDS: tuple[str, ...] = (
+    "ImageAttestation",
+    "ImageLayer",
+    "ImageManifestList",
+    "ImageTag",
+)
+
 ONTOLOGY_MODELS: dict[str, type[CartographyNodeSchema] | None] = {
     "users": UserSchema,
     "devices": DeviceSchema,

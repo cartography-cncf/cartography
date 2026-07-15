@@ -16,10 +16,16 @@ class AWSTagNodeProperties(CartographyNodeProperties):
     The id is computed as "Key:Value" during ingestion.
     """
 
-    id: PropertyRef = PropertyRef("id")
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
-    key: PropertyRef = PropertyRef("key", extra_index=True)
-    value: PropertyRef = PropertyRef("value")
+    id: PropertyRef = PropertyRef(
+        "id", description="Unique identifier for this `AWSTag` node."
+    )
+    lastupdated: PropertyRef = PropertyRef(
+        "lastupdated",
+        set_in_kwargs=True,
+        description="Timestamp of the last sync that updated this `AWSTag` node.",
+    )
+    key: PropertyRef = PropertyRef("key", extra_index=True, description="Tag key.")
+    value: PropertyRef = PropertyRef("value", description="Tag value.")
 
 
 @dataclass(frozen=True)

@@ -13,14 +13,30 @@ from cartography.models.core.relationships import TargetNodeMatcher
 
 @dataclass(frozen=True)
 class CircleCIComponentNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("id")
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
-    name: PropertyRef = PropertyRef("name", extra_index=True)
-    project_id: PropertyRef = PropertyRef("project_id")
-    labels: PropertyRef = PropertyRef("labels")
-    release_count: PropertyRef = PropertyRef("release_count")
-    created_at: PropertyRef = PropertyRef("created_at")
-    updated_at: PropertyRef = PropertyRef("updated_at")
+    id: PropertyRef = PropertyRef("id", description="CircleCI component ID.")
+    lastupdated: PropertyRef = PropertyRef(
+        "lastupdated",
+        set_in_kwargs=True,
+        description="Timestamp of the last update.",
+    )
+    name: PropertyRef = PropertyRef(
+        "name", extra_index=True, description="Component name."
+    )
+    project_id: PropertyRef = PropertyRef(
+        "project_id", description="ID of the associated CircleCI project."
+    )
+    labels: PropertyRef = PropertyRef(
+        "labels", description="Labels assigned to the component."
+    )
+    release_count: PropertyRef = PropertyRef(
+        "release_count", description="Number of component releases."
+    )
+    created_at: PropertyRef = PropertyRef(
+        "created_at", description="Component creation timestamp."
+    )
+    updated_at: PropertyRef = PropertyRef(
+        "updated_at", description="Component update timestamp."
+    )
 
 
 @dataclass(frozen=True)
@@ -31,6 +47,8 @@ class CircleCIComponentToOrganizationRelProperties(CartographyRelProperties):
 @dataclass(frozen=True)
 # (:CircleCIOrganization)-[:RESOURCE]->(:CircleCIComponent)
 class CircleCIComponentToOrganizationRel(CartographyRelSchema):
+    """The CircleCI organization contains the deploy component."""
+
     target_node_label: str = "CircleCIOrganization"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("ORG_ID", set_in_kwargs=True)},
@@ -50,6 +68,8 @@ class CircleCIComponentToProjectRelProperties(CartographyRelProperties):
 @dataclass(frozen=True)
 # (:CircleCIProject)-[:HAS_COMPONENT]->(:CircleCIComponent)
 class CircleCIComponentToProjectRel(CartographyRelSchema):
+    """The CircleCI project has the deploy component."""
+
     target_node_label: str = "CircleCIProject"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("project_id")},
@@ -63,6 +83,8 @@ class CircleCIComponentToProjectRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class CircleCIComponentSchema(CartographyNodeSchema):
+    """A deploy component in a CircleCI organization."""
+
     label: str = "CircleCIComponent"
     properties: CircleCIComponentNodeProperties = CircleCIComponentNodeProperties()
     sub_resource_relationship: CircleCIComponentToOrganizationRel = (

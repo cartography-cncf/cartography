@@ -13,9 +13,19 @@ from cartography.models.core.relationships import TargetNodeMatcher
 
 @dataclass(frozen=True)
 class AWSRootPrincipalNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("arn")
-    arn: PropertyRef = PropertyRef("arn", extra_index=True)
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    id: PropertyRef = PropertyRef(
+        "arn", description="Unique identifier for this `AWSRootPrincipal` node."
+    )
+    arn: PropertyRef = PropertyRef(
+        "arn",
+        extra_index=True,
+        description="Amazon Resource Name (ARN) of this `AWSRootPrincipal` node.",
+    )
+    lastupdated: PropertyRef = PropertyRef(
+        "lastupdated",
+        set_in_kwargs=True,
+        description="Timestamp of the last sync that updated this `AWSRootPrincipal` node.",
+    )
 
 
 @dataclass(frozen=True)
@@ -25,6 +35,8 @@ class AWSRootPrincipalToAWSAccountRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class AWSRootPrincipalToAWSAccountRel(CartographyRelSchema):
+    "Represents a `RESOURCE` relationship from `AWSAccount` to `AWSRootPrincipal`."
+
     target_node_label: str = "AWSAccount"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {

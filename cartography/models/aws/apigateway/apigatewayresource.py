@@ -14,11 +14,22 @@ from cartography.models.core.relationships import TargetNodeMatcher
 
 @dataclass(frozen=True)
 class APIGatewayResourceNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("id")
-    path: PropertyRef = PropertyRef("path")
-    pathpart: PropertyRef = PropertyRef("pathPart")
-    parentid: PropertyRef = PropertyRef("parentId")
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    id: PropertyRef = PropertyRef("id", description="The id of the REST API")
+    path: PropertyRef = PropertyRef(
+        "path", description="The timestamp when the REST API was created"
+    )
+    pathpart: PropertyRef = PropertyRef(
+        "pathPart", description="The version identifier for the API"
+    )
+    parentid: PropertyRef = PropertyRef(
+        "parentId",
+        description="A nullable integer that is used to enable or disable the compression of the REST API",
+    )
+    lastupdated: PropertyRef = PropertyRef(
+        "lastupdated",
+        set_in_kwargs=True,
+        description="Timestamp of the last time the node was updated",
+    )
 
 
 @dataclass(frozen=True)
@@ -29,6 +40,8 @@ class APIGatewayResourceToRestAPIRelRelProperties(CartographyRelProperties):
 @dataclass(frozen=True)
 # (:AWSAPIGatewayResource)<-[:RESOURCE]-(:AWSAPIGatewayRestAPI)
 class APIGatewayResourceToRestAPIRel(CartographyRelSchema):
+    "Represents a `RESOURCE` relationship from `AWSAPIGatewayRestAPI` to `AWSAPIGatewayResource`."
+
     target_node_label: str = "AWSAPIGatewayRestAPI"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("apiId")},
@@ -48,6 +61,8 @@ class APIGatewayResourceToAWSAccountRelRelProperties(CartographyRelProperties):
 @dataclass(frozen=True)
 # (:AWSAPIGatewayResource)<-[:RESOURCE]-(:AWSAccount)
 class APIGatewayResourceToAWSAccountRel(CartographyRelSchema):
+    "Represents a `RESOURCE` relationship from `AWSAccount` to `AWSAPIGatewayResource`."
+
     target_node_label: str = "AWSAccount"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("AWS_ID", set_in_kwargs=True)},
@@ -61,6 +76,8 @@ class APIGatewayResourceToAWSAccountRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class APIGatewayResourceSchema(CartographyNodeSchema):
+    "Represents an `AWSAPIGatewayResource` node in the AWS graph."
+
     label: str = "AWSAPIGatewayResource"
     # DEPRECATED: legacy APIGatewayResource node label will be removed in v1.0.0.
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["APIGatewayResource"])

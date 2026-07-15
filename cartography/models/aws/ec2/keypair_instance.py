@@ -14,11 +14,23 @@ from cartography.models.core.relationships import TargetNodeMatcher
 
 @dataclass(frozen=True)
 class EC2KeyPairInstanceNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("KeyPairArn")
-    arn: PropertyRef = PropertyRef("KeyPairArn", extra_index=True)
-    keyname: PropertyRef = PropertyRef("KeyName")
-    region: PropertyRef = PropertyRef("Region", set_in_kwargs=True)
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    id: PropertyRef = PropertyRef("KeyPairArn", description="same as `arn`")
+    arn: PropertyRef = PropertyRef(
+        "KeyPairArn",
+        extra_index=True,
+        description="AWS-unique identifier for this object",
+    )
+    keyname: PropertyRef = PropertyRef(
+        "KeyName", description="The name of the key pair"
+    )
+    region: PropertyRef = PropertyRef(
+        "Region", set_in_kwargs=True, description="The AWS region"
+    )
+    lastupdated: PropertyRef = PropertyRef(
+        "lastupdated",
+        set_in_kwargs=True,
+        description="Timestamp of the last time the node was updated",
+    )
 
 
 @dataclass(frozen=True)
@@ -28,6 +40,8 @@ class EC2KeyPairInstanceToAWSAccountRelRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class EC2KeyPairInstanceToAWSAccountRel(CartographyRelSchema):
+    "Represents a `RESOURCE` relationship from `AWSAccount` to `AWSEC2KeyPair`."
+
     target_node_label: str = "AWSAccount"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("AWS_ID", set_in_kwargs=True)},
@@ -46,6 +60,8 @@ class EC2KeyPairInstanceToEC2InstanceRelRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class EC2KeyPairInstanceToEC2InstanceRel(CartographyRelSchema):
+    "Represents a `SSH_LOGIN_TO` relationship from `AWSEC2KeyPair` to `AWSEC2Instance`."
+
     target_node_label: str = "AWSEC2Instance"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("InstanceId")},
@@ -59,9 +75,10 @@ class EC2KeyPairInstanceToEC2InstanceRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class EC2KeyPairInstanceSchema(CartographyNodeSchema):
-    """
-    EC2 keypairs as known by describe-instances.
-    """
+    "Represents an Amazon EC2 key pair."
+
+    # Implementation note:
+    # EC2 keypairs as known by describe-instances.
 
     label: str = "AWSEC2KeyPair"
     # DEPRECATED: legacy EC2KeyPair node label will be removed in v1.0.0.

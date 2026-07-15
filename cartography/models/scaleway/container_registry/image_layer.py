@@ -17,11 +17,19 @@ class ScalewayContainerRegistryImageLayerNodeProperties(CartographyNodePropertie
     # across images that reuse the same layer. `history` is the build command
     # (`created_by`) that produced it; the supply-chain dockerfile matcher
     # compares these against repository Dockerfiles.
-    id: PropertyRef = PropertyRef("diff_id")
-    diff_id: PropertyRef = PropertyRef("diff_id", extra_index=True)
-    history: PropertyRef = PropertyRef("history")
-    is_empty: PropertyRef = PropertyRef("is_empty")
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    id: PropertyRef = PropertyRef("diff_id", description="Layer diff_id (sha256).")
+    diff_id: PropertyRef = PropertyRef(
+        "diff_id", extra_index=True, description="Uncompressed layer digest (sha256)."
+    )
+    history: PropertyRef = PropertyRef(
+        "history", description="Build command (`created_by`) that produced the layer."
+    )
+    is_empty: PropertyRef = PropertyRef(
+        "is_empty", description="Whether the layer is an empty (metadata-only) layer."
+    )
+    lastupdated: PropertyRef = PropertyRef(
+        "lastupdated", set_in_kwargs=True, description="Timestamp of the last update"
+    )
 
 
 @dataclass(frozen=True)
@@ -34,6 +42,10 @@ class ScalewayContainerRegistryImageLayerToProjectRelProperties(
 @dataclass(frozen=True)
 # (:ScalewayProject)-[:RESOURCE]->(:ScalewayContainerRegistryImageLayer)
 class ScalewayContainerRegistryImageLayerToProjectRel(CartographyRelSchema):
+    """Connects `ScalewayProject` to `ScalewayContainerRegistryImageLayer` through
+    `RESOURCE`.
+    """
+
     target_node_label: str = "ScalewayProject"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("PROJECT_ID", set_in_kwargs=True)},
@@ -47,6 +59,10 @@ class ScalewayContainerRegistryImageLayerToProjectRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class ScalewayContainerRegistryImageLayerSchema(CartographyNodeSchema):
+    """Represents a filesystem layer of a container image, keyed by its uncompressed digest
+    (`diff_id`) and shared across images that reuse it.
+    """
+
     label: str = "ScalewayContainerRegistryImageLayer"
     # `ImageLayer` is the cross-provider label the supply-chain dockerfile
     # matcher looks up by diff_id (mirrors AWSECRImageLayer / GCPArtifactRegistryImageLayer).

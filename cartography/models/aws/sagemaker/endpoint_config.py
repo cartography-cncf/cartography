@@ -13,14 +13,37 @@ from cartography.models.core.relationships import TargetNodeMatcher
 
 @dataclass(frozen=True)
 class AWSSageMakerEndpointConfigNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("EndpointConfigArn")
-    arn: PropertyRef = PropertyRef("EndpointConfigArn", extra_index=True)
-    endpoint_config_name: PropertyRef = PropertyRef("EndpointConfigName")
-    creation_time: PropertyRef = PropertyRef("CreationTime")
-    model_name: PropertyRef = PropertyRef("ModelName")
-    kms_key_id: PropertyRef = PropertyRef("KmsKeyId")
-    region: PropertyRef = PropertyRef("Region", set_in_kwargs=True)
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    id: PropertyRef = PropertyRef(
+        "EndpointConfigArn", description="The ARN of the Endpoint Config"
+    )
+    arn: PropertyRef = PropertyRef(
+        "EndpointConfigArn",
+        extra_index=True,
+        description="The ARN of the Endpoint Config",
+    )
+    endpoint_config_name: PropertyRef = PropertyRef(
+        "EndpointConfigName", description="The name of the Endpoint Config"
+    )
+    creation_time: PropertyRef = PropertyRef(
+        "CreationTime", description="When the Endpoint Config was created"
+    )
+    model_name: PropertyRef = PropertyRef(
+        "ModelName", description="The name of the model to deploy"
+    )
+    kms_key_id: PropertyRef = PropertyRef(
+        "KmsKeyId",
+        description="Identifier of the KMS key linked to this `AWSSageMakerEndpointConfig` node.",
+    )
+    region: PropertyRef = PropertyRef(
+        "Region",
+        set_in_kwargs=True,
+        description="The AWS region where the Endpoint Config exists",
+    )
+    lastupdated: PropertyRef = PropertyRef(
+        "lastupdated",
+        set_in_kwargs=True,
+        description="Timestamp of the last time the node was updated",
+    )
 
 
 @dataclass(frozen=True)
@@ -30,6 +53,8 @@ class AWSSageMakerEndpointConfigToAWSAccountRelProperties(CartographyRelProperti
 
 @dataclass(frozen=True)
 class AWSSageMakerEndpointConfigToAWSAccountRel(CartographyRelSchema):
+    "Represents a `RESOURCE` relationship from `AWSAccount` to `AWSSageMakerEndpointConfig`."
+
     target_node_label: str = "AWSAccount"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("AWS_ID", set_in_kwargs=True)}
@@ -48,6 +73,8 @@ class AWSSageMakerEndpointConfigToModelRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class AWSSageMakerEndpointConfigToModelRel(CartographyRelSchema):
+    "Represents a `USES` relationship from `AWSSageMakerEndpointConfig` to `AWSSageMakerModel`."
+
     target_node_label: str = "AWSSageMakerModel"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"model_name": PropertyRef("ModelName")}
@@ -61,6 +88,8 @@ class AWSSageMakerEndpointConfigToModelRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class AWSSageMakerEndpointConfigSchema(CartographyNodeSchema):
+    "Represents an `AWSSageMakerEndpointConfig` node in the AWS graph."
+
     label: str = "AWSSageMakerEndpointConfig"
     properties: AWSSageMakerEndpointConfigNodeProperties = (
         AWSSageMakerEndpointConfigNodeProperties()

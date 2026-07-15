@@ -27,15 +27,46 @@ class GitLabUserNodeProperties(CartographyNodeProperties):
     Users can be members of groups and commit to projects.
     """
 
-    id: PropertyRef = PropertyRef("id")  # Stable numeric GitLab user ID
-    username: PropertyRef = PropertyRef("username", extra_index=True)  # GitLab username
-    name: PropertyRef = PropertyRef("name")  # Full name
-    state: PropertyRef = PropertyRef("state")  # User state (active, blocked, etc.)
-    email: PropertyRef = PropertyRef("email")  # Email address (if public)
-    is_admin: PropertyRef = PropertyRef("is_admin")  # Whether user is an admin
-    web_url: PropertyRef = PropertyRef("web_url", extra_index=True)
-    gitlab_url: PropertyRef = PropertyRef("gitlab_url", extra_index=True)
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    id: PropertyRef = PropertyRef(
+        "id",
+        description="Numeric GitLab user ID.",
+    )
+    username: PropertyRef = PropertyRef(
+        "username",
+        extra_index=True,
+        description="GitLab username.",
+    )
+    name: PropertyRef = PropertyRef(
+        "name",
+        description="Full name of the user.",
+    )
+    state: PropertyRef = PropertyRef(
+        "state",
+        description="GitLab account state, such as active or blocked.",
+    )
+    email: PropertyRef = PropertyRef(
+        "email",
+        description="Email address exposed for the user.",
+    )
+    is_admin: PropertyRef = PropertyRef(
+        "is_admin",
+        description="Whether the user is a GitLab administrator.",
+    )
+    web_url: PropertyRef = PropertyRef(
+        "web_url",
+        extra_index=True,
+        description="URL for viewing the user in GitLab.",
+    )
+    gitlab_url: PropertyRef = PropertyRef(
+        "gitlab_url",
+        extra_index=True,
+        description="URL of the GitLab instance.",
+    )
+    lastupdated: PropertyRef = PropertyRef(
+        "lastupdated",
+        set_in_kwargs=True,
+        description="Timestamp of the last time the node was updated.",
+    )
 
 
 @dataclass(frozen=True)
@@ -76,9 +107,13 @@ class GitLabUserToGroupRelProperties(CartographyRelProperties):
 
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
     role: PropertyRef = PropertyRef(
-        "role"
-    )  # owner, maintainer, developer, reporter, guest
-    access_level: PropertyRef = PropertyRef("access_level")  # 50, 40, 30, 20, 10
+        "role",
+        description="GitLab membership role, such as owner, maintainer, or developer.",
+    )
+    access_level: PropertyRef = PropertyRef(
+        "access_level",
+        description="Numeric GitLab access level for the group membership.",
+    )
 
 
 @dataclass(frozen=True)
@@ -108,13 +143,18 @@ class GitLabUserCommittedToProjectRelProperties(CartographyRelProperties):
     """
 
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
-    commit_count: PropertyRef = PropertyRef("commit_count")  # Number of commits
+    commit_count: PropertyRef = PropertyRef(
+        "commit_count",
+        description="Number of commits made by the user to the project.",
+    )
     last_commit_date: PropertyRef = PropertyRef(
-        "last_commit_date"
-    )  # Timestamp of most recent commit
+        "last_commit_date",
+        description="Timestamp of the user's most recent commit to the project.",
+    )
     first_commit_date: PropertyRef = PropertyRef(
-        "first_commit_date"
-    )  # Timestamp of oldest commit
+        "first_commit_date",
+        description="Timestamp of the user's oldest commit to the project.",
+    )
 
 
 @dataclass(frozen=True)
@@ -140,13 +180,7 @@ class GitLabUserCommittedToProjectRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class GitLabUserSchema(CartographyNodeSchema):
-    """
-    Schema for GitLab User nodes.
-
-    Users belong to an organization (for cleanup scoping) and can be members of groups.
-    Users can also have commit activity tracked to projects.
-    The UserAccount label is used for ontology mapping across different platforms.
-    """
+    """A current GitLab organization or group member."""
 
     label: str = "GitLabUser"
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(

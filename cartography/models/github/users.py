@@ -45,23 +45,36 @@ from cartography.models.core.relationships import TargetNodeMatcher
 @dataclass(frozen=True)
 class BaseGitHubUserNodeProperties(CartographyNodeProperties):
     # core properties in all GitHubUser nodes
-    id: PropertyRef = PropertyRef("url")
+    id: PropertyRef = PropertyRef("url", description="GitHub user profile URL.")
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
-    fullname: PropertyRef = PropertyRef("name")
-    username: PropertyRef = PropertyRef("login", extra_index=True)
-    is_site_admin: PropertyRef = PropertyRef("isSiteAdmin")
-    is_enterprise_owner: PropertyRef = PropertyRef("isEnterpriseOwner")
-    email: PropertyRef = PropertyRef("email")
-    company: PropertyRef = PropertyRef("company")
+    fullname: PropertyRef = PropertyRef("name", description="GitHub user display name.")
+    username: PropertyRef = PropertyRef(
+        "login", extra_index=True, description="GitHub user login."
+    )
+    is_site_admin: PropertyRef = PropertyRef(
+        "isSiteAdmin", description="Whether the user is a GitHub site administrator."
+    )
+    is_enterprise_owner: PropertyRef = PropertyRef(
+        "isEnterpriseOwner",
+        description="Whether the user is a GitHub enterprise owner.",
+    )
+    email: PropertyRef = PropertyRef(
+        "email", description="Publicly visible profile email."
+    )
+    company: PropertyRef = PropertyRef("company", description="Public profile company.")
     organization_verified_domain_emails: PropertyRef = PropertyRef(
-        "organizationVerifiedDomainEmails"
+        "organizationVerifiedDomainEmails",
+        description="Email addresses verified against organization domains.",
     )
 
 
 @dataclass(frozen=True)
 class GitHubOrganizationUserNodeProperties(BaseGitHubUserNodeProperties):
     # specified for affiliated users only. The GitHub api does not return this property for unaffiliated users.
-    has_2fa_enabled: PropertyRef = PropertyRef("hasTwoFactorEnabled")
+    has_2fa_enabled: PropertyRef = PropertyRef(
+        "hasTwoFactorEnabled",
+        description="Whether the organization member has two-factor authentication enabled.",
+    )
 
 
 @dataclass(frozen=True)
@@ -77,6 +90,8 @@ class GitHubUserToOrganizationRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class GitHubUserMemberOfOrganizationRel(CartographyRelSchema):
+    """Links a GitHub user or child team to its parent organization or team."""
+
     target_node_label: str = "GitHubOrganization"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("MEMBER_OF")},
@@ -90,6 +105,8 @@ class GitHubUserMemberOfOrganizationRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class GitHubUserAdminOfOrganizationRel(CartographyRelSchema):
+    """Identifies a user as an administrator of a GitHub organization."""
+
     target_node_label: str = "GitHubOrganization"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("ADMIN_OF")},
@@ -103,6 +120,8 @@ class GitHubUserAdminOfOrganizationRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class GitHubUserUnaffiliatedOrganizationRel(CartographyRelSchema):
+    """Links an enterprise owner to an organization where the user is not a member."""
+
     target_node_label: str = "GitHubOrganization"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("UNAFFILIATED")},
@@ -116,6 +135,8 @@ class GitHubUserUnaffiliatedOrganizationRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class GitHubOrganizationUserSchema(CartographyNodeSchema):
+    """A user account in GitHub."""
+
     label: str = "GitHubUser"
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
         ["UserAccount"]
@@ -134,6 +155,8 @@ class GitHubOrganizationUserSchema(CartographyNodeSchema):
 
 @dataclass(frozen=True)
 class GitHubUnaffiliatedUserSchema(CartographyNodeSchema):
+    """A user account in GitHub."""
+
     label: str = "GitHubUser"
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
         ["UserAccount"]

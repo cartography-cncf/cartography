@@ -14,24 +14,66 @@ from cartography.models.core.relationships import TargetNodeMatcher
 
 @dataclass(frozen=True)
 class DODropletNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("id")
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
-    name: PropertyRef = PropertyRef("name")
-    locked: PropertyRef = PropertyRef("locked")
-    status: PropertyRef = PropertyRef("status")
-    region: PropertyRef = PropertyRef("region")
-    created_at: PropertyRef = PropertyRef("created_at")
-    image: PropertyRef = PropertyRef("image")
-    size: PropertyRef = PropertyRef("size")
-    kernel: PropertyRef = PropertyRef("kernel")
-    tags: PropertyRef = PropertyRef("tags")
-    volumes: PropertyRef = PropertyRef("volumes")
-    vpc_uuid: PropertyRef = PropertyRef("vpc_uuid")
-    ip_address: PropertyRef = PropertyRef("ip_address")
-    private_ip_address: PropertyRef = PropertyRef("private_ip_address")
-    ip_v6_address: PropertyRef = PropertyRef("ip_v6_address")
-    account_id: PropertyRef = PropertyRef("ACCOUNT_ID", set_in_kwargs=True)
-    project_id: PropertyRef = PropertyRef("PROJECT_ID", set_in_kwargs=True)
+    id: PropertyRef = PropertyRef("id", description="DigitalOcean Droplet ID.")
+    lastupdated: PropertyRef = PropertyRef(
+        "lastupdated",
+        set_in_kwargs=True,
+        description="Timestamp of the last update.",
+    )
+    name: PropertyRef = PropertyRef("name", description="Droplet name.")
+    locked: PropertyRef = PropertyRef(
+        "locked",
+        description="Whether user actions are blocked.",
+    )
+    status: PropertyRef = PropertyRef(
+        "status",
+        description="Droplet lifecycle status.",
+    )
+    region: PropertyRef = PropertyRef(
+        "region",
+        description="DigitalOcean region slug.",
+    )
+    created_at: PropertyRef = PropertyRef(
+        "created_at",
+        description="Droplet creation timestamp.",
+    )
+    image: PropertyRef = PropertyRef("image", description="Base image slug.")
+    size: PropertyRef = PropertyRef("size", description="Droplet size slug.")
+    kernel: PropertyRef = PropertyRef(
+        "kernel",
+        description="Current kernel information.",
+    )
+    tags: PropertyRef = PropertyRef("tags", description="Tags assigned to the Droplet.")
+    volumes: PropertyRef = PropertyRef(
+        "volumes",
+        description="Attached block-storage volume IDs.",
+    )
+    vpc_uuid: PropertyRef = PropertyRef(
+        "vpc_uuid",
+        description="UUID of the Droplet's VPC.",
+    )
+    ip_address: PropertyRef = PropertyRef(
+        "ip_address",
+        description="Public IPv4 address.",
+    )
+    private_ip_address: PropertyRef = PropertyRef(
+        "private_ip_address",
+        description="Private IPv4 address.",
+    )
+    ip_v6_address: PropertyRef = PropertyRef(
+        "ip_v6_address",
+        description="Public IPv6 address.",
+    )
+    account_id: PropertyRef = PropertyRef(
+        "ACCOUNT_ID",
+        set_in_kwargs=True,
+        description="ID of the owning account.",
+    )
+    project_id: PropertyRef = PropertyRef(
+        "PROJECT_ID",
+        set_in_kwargs=True,
+        description="ID of the containing project.",
+    )
 
 
 @dataclass(frozen=True)
@@ -42,6 +84,8 @@ class DODropletToAccountRelProperties(CartographyRelProperties):
 @dataclass(frozen=True)
 # (:DOProject)-[:RESOURCE]->(:DODroplet)
 class DODropletToAccountRel(CartographyRelSchema):
+    """The project contains the Droplet."""
+
     target_node_label: str = "DOProject"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("PROJECT_ID", set_in_kwargs=True)},
@@ -54,6 +98,8 @@ class DODropletToAccountRel(CartographyRelSchema):
 @dataclass(frozen=True)
 # (:DOProject)<-[:RESOURCE]-(:DODroplet) - Backwards compatibility
 class DODropletToProjectDeprecatedRel(CartographyRelSchema):
+    """Deprecated compatibility edge linking a Droplet to its project."""
+
     target_node_label: str = "DOProject"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("PROJECT_ID", set_in_kwargs=True)},
@@ -65,6 +111,8 @@ class DODropletToProjectDeprecatedRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class DODropletSchema(CartographyNodeSchema):
+    """A compute instance in a DigitalOcean project."""
+
     label: str = "DODroplet"
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["ComputeInstance"])
     properties: DODropletNodeProperties = DODropletNodeProperties()

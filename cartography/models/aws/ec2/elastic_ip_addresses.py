@@ -14,22 +14,63 @@ from cartography.models.core.relationships import TargetNodeMatcher
 
 @dataclass(frozen=True)
 class ElasticIPAddressNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("PublicIp")
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
-    region: PropertyRef = PropertyRef("Region", set_in_kwargs=True)
-    public_ip: PropertyRef = PropertyRef("PublicIp", extra_index=True)
-    instance_id: PropertyRef = PropertyRef("InstanceId")
-    allocation_id: PropertyRef = PropertyRef("AllocationId")
-    association_id: PropertyRef = PropertyRef("AssociationId")
-    domain: PropertyRef = PropertyRef("Domain")
-    network_interface_id: PropertyRef = PropertyRef("NetworkInterfaceId")
-    network_interface_owner_id: PropertyRef = PropertyRef("NetworkInterfaceOwnerId")
-    private_ip_address: PropertyRef = PropertyRef("PrivateIpAddress")
-    public_ipv4_pool: PropertyRef = PropertyRef("PublicIpv4Pool")
-    network_border_group: PropertyRef = PropertyRef("NetworkBorderGroup")
-    customer_owned_ip: PropertyRef = PropertyRef("CustomerOwnedIp")
-    customer_owned_ipv4_pool: PropertyRef = PropertyRef("CustomerOwnedIpv4Pool")
-    carrier_ip: PropertyRef = PropertyRef("CarrierIp")
+    id: PropertyRef = PropertyRef("PublicIp", description="The Elastic IP address")
+    lastupdated: PropertyRef = PropertyRef(
+        "lastupdated",
+        set_in_kwargs=True,
+        description="Timestamp of the last time the node was updated",
+    )
+    region: PropertyRef = PropertyRef(
+        "Region", set_in_kwargs=True, description="The region of the IP."
+    )
+    public_ip: PropertyRef = PropertyRef(
+        "PublicIp", extra_index=True, description="The Elastic IP address."
+    )
+    instance_id: PropertyRef = PropertyRef(
+        "InstanceId",
+        description="The ID of the instance that the address is associated with (if any).",
+    )
+    allocation_id: PropertyRef = PropertyRef(
+        "AllocationId",
+        description="The ID representing the allocation of the address for use with EC2-VPC.",
+    )
+    association_id: PropertyRef = PropertyRef(
+        "AssociationId",
+        description="The ID representing the association of the address with an instance in a VPC.",
+    )
+    domain: PropertyRef = PropertyRef(
+        "Domain",
+        description="Indicates whether this Elastic IP address is for use with instances in EC2-Classic (standard) or instances in a VPC (vpc).",
+    )
+    network_interface_id: PropertyRef = PropertyRef(
+        "NetworkInterfaceId", description="The ID of the network interface."
+    )
+    network_interface_owner_id: PropertyRef = PropertyRef(
+        "NetworkInterfaceOwnerId",
+        description="Identifier of the network interface owner linked to this `AWSElasticIPAddress` node.",
+    )
+    private_ip_address: PropertyRef = PropertyRef(
+        "PrivateIpAddress",
+        description="The private IP address associated with the Elastic IP address.",
+    )
+    public_ipv4_pool: PropertyRef = PropertyRef(
+        "PublicIpv4Pool", description="The ID of an address pool."
+    )
+    network_border_group: PropertyRef = PropertyRef(
+        "NetworkBorderGroup",
+        description="The name of the unique set of Availability Zones, Local Zones, or Wavelength Zones from which AWS advertises IP addresses.",
+    )
+    customer_owned_ip: PropertyRef = PropertyRef(
+        "CustomerOwnedIp", description="The customer-owned IP address."
+    )
+    customer_owned_ipv4_pool: PropertyRef = PropertyRef(
+        "CustomerOwnedIpv4Pool",
+        description="The ID of the customer-owned address pool.",
+    )
+    carrier_ip: PropertyRef = PropertyRef(
+        "CarrierIp",
+        description="The carrier IP address associated. This option is only available for network interfaces which reside in a subnet in a Wavelength Zone (for example an EC2 instance).",
+    )
 
 
 @dataclass(frozen=True)
@@ -39,6 +80,8 @@ class ElasticIPAddressToAWSAccountRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class ElasticIPAddressToAWSAccountRel(CartographyRelSchema):
+    "Represents a `RESOURCE` relationship from `AWSAccount` to `AWSElasticIPAddress`."
+
     target_node_label: str = "AWSAccount"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("AWS_ID", set_in_kwargs=True)},
@@ -57,6 +100,8 @@ class ElasticIPAddressToEC2InstanceRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class ElasticIPAddressToEC2InstanceRel(CartographyRelSchema):
+    "Represents a `ELASTIC_IP_ADDRESS` relationship from `AWSEC2Instance` to `AWSElasticIPAddress`."
+
     target_node_label: str = "AWSEC2Instance"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("InstanceId")},
@@ -75,6 +120,8 @@ class ElasticIPAddressToNetworkInterfaceRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class ElasticIPAddressToNetworkInterfaceRel(CartographyRelSchema):
+    "Represents a `ELASTIC_IP_ADDRESS` relationship from `AWSNetworkInterface` to `AWSElasticIPAddress`."
+
     target_node_label: str = "AWSNetworkInterface"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("NetworkInterfaceId")},
@@ -88,6 +135,8 @@ class ElasticIPAddressToNetworkInterfaceRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class ElasticIPAddressSchema(CartographyNodeSchema):
+    "Represents an `AWSElasticIPAddress` node in the AWS graph."
+
     label: str = "AWSElasticIPAddress"
     # DEPRECATED: legacy ElasticIPAddress node label will be removed in v1.0.0.
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["ElasticIPAddress"])

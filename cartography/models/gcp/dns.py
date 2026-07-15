@@ -14,27 +14,58 @@ from cartography.models.core.relationships import TargetNodeMatcher
 
 @dataclass(frozen=True)
 class GCPDNSZoneNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("id", extra_index=True)
-    name: PropertyRef = PropertyRef("name", extra_index=True)
-    dns_name: PropertyRef = PropertyRef("dns_name")
-    description: PropertyRef = PropertyRef("description")
-    visibility: PropertyRef = PropertyRef("visibility")
-    dnssec_state: PropertyRef = PropertyRef("dnssec_state")
+    id: PropertyRef = PropertyRef(
+        "id", extra_index=True, description="Stable identifier for this resource."
+    )
+    name: PropertyRef = PropertyRef(
+        "name", extra_index=True, description="The name of the zone."
+    )
+    dns_name: PropertyRef = PropertyRef(
+        "dns_name",
+        description='The DNS name of this managed zone, for instance "example.com.".',
+    )
+    description: PropertyRef = PropertyRef(
+        "description", description="An optional description of the zone."
+    )
+    visibility: PropertyRef = PropertyRef(
+        "visibility",
+        description="The zone's visibility: `public` zones are exposed to the Internet, while `private` zones are visible only to Virtual Private Cloud resources.",
+    )
+    dnssec_state: PropertyRef = PropertyRef(
+        "dnssec_state",
+        description="DNSSEC state for the managed zone, e.g. `on` or `off`.",
+    )
     dnssec_key_signing_algorithm: PropertyRef = PropertyRef(
-        "dnssec_key_signing_algorithm"
+        "dnssec_key_signing_algorithm",
+        description="Algorithm configured for the DNSSEC key-signing key, when present.",
     )
     dnssec_zone_signing_algorithm: PropertyRef = PropertyRef(
-        "dnssec_zone_signing_algorithm"
+        "dnssec_zone_signing_algorithm",
+        description="Algorithm configured for the DNSSEC zone-signing key, when present.",
     )
-    kind: PropertyRef = PropertyRef("kind")
-    nameservers: PropertyRef = PropertyRef("nameservers")
-    created_at: PropertyRef = PropertyRef("created_at")
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    kind: PropertyRef = PropertyRef(
+        "kind", description="Google DNS API resource kind identifier."
+    )
+    nameservers: PropertyRef = PropertyRef(
+        "nameservers", description="Virtual name servers the zone is delegated to."
+    )
+    created_at: PropertyRef = PropertyRef(
+        "created_at", description="The date and time the zone was created."
+    )
+    lastupdated: PropertyRef = PropertyRef(
+        "lastupdated",
+        set_in_kwargs=True,
+        description="Timestamp of the last sync that observed this data.",
+    )
 
 
 @dataclass(frozen=True)
 class GCPDNSZoneToProjectRelProperties(CartographyRelProperties):
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    lastupdated: PropertyRef = PropertyRef(
+        "lastupdated",
+        set_in_kwargs=True,
+        description="Timestamp of the last sync that observed this data.",
+    )
 
 
 @dataclass(frozen=True)
@@ -51,6 +82,8 @@ class GCPDNSZoneToProjectRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class GCPDNSZoneSchema(CartographyNodeSchema):
+    """Representation of a GCP [DNS Zone](https://cloud.google.com/dns/docs/reference/v1/)."""
+
     label: str = "GCPDNSZone"
     properties: GCPDNSZoneNodeProperties = GCPDNSZoneNodeProperties()
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["DNSZone"])
@@ -59,17 +92,35 @@ class GCPDNSZoneSchema(CartographyNodeSchema):
 
 @dataclass(frozen=True)
 class GCPRecordSetNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("id", extra_index=True)
-    name: PropertyRef = PropertyRef("name", extra_index=True)
-    type: PropertyRef = PropertyRef("type")
-    ttl: PropertyRef = PropertyRef("ttl")
-    data: PropertyRef = PropertyRef("data")
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    id: PropertyRef = PropertyRef(
+        "id", extra_index=True, description="Stable identifier for this resource."
+    )
+    name: PropertyRef = PropertyRef(
+        "name", extra_index=True, description="The name of the Resource Record Set."
+    )
+    type: PropertyRef = PropertyRef(
+        "type",
+        description="The identifier of a supported record type. See the list of [Supported DNS record types](https://cloud.google.om/dns/docs/overview#supported_dns_record_types).",
+    )
+    ttl: PropertyRef = PropertyRef(
+        "ttl",
+        description="Number of seconds that this ResourceRecordSet can be cached by resolvers.",
+    )
+    data: PropertyRef = PropertyRef("data", description="Data contained in the record.")
+    lastupdated: PropertyRef = PropertyRef(
+        "lastupdated",
+        set_in_kwargs=True,
+        description="Timestamp of the last sync that observed this data.",
+    )
 
 
 @dataclass(frozen=True)
 class GCPRecordSetToProjectRelProperties(CartographyRelProperties):
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    lastupdated: PropertyRef = PropertyRef(
+        "lastupdated",
+        set_in_kwargs=True,
+        description="Timestamp of the last sync that observed this data.",
+    )
 
 
 @dataclass(frozen=True)
@@ -88,7 +139,11 @@ class GCPRecordSetToProjectRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class GCPRecordSetToZoneRelProperties(CartographyRelProperties):
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    lastupdated: PropertyRef = PropertyRef(
+        "lastupdated",
+        set_in_kwargs=True,
+        description="Timestamp of the last sync that observed this data.",
+    )
 
 
 @dataclass(frozen=True)
@@ -105,6 +160,8 @@ class GCPRecordSetToZoneRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class GCPRecordSetSchema(CartographyNodeSchema):
+    """Representation of a GCP [Resource Record Set](https://cloud.google.com/dns/docs/reference/v1/)."""
+
     label: str = "GCPRecordSet"
     properties: GCPRecordSetNodeProperties = GCPRecordSetNodeProperties()
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["DNSRecord"])

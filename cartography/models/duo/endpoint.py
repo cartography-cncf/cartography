@@ -13,37 +13,96 @@ from cartography.models.core.relationships import TargetNodeMatcher
 
 @dataclass(frozen=True)
 class DuoEndpointNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("epkey")
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
-    browsers: PropertyRef = PropertyRef("browsers")
-    computer_sid: PropertyRef = PropertyRef("computer_sid")
-    cpu_id: PropertyRef = PropertyRef("cpu_id")
-    device_id: PropertyRef = PropertyRef("device_id")
-    device_identifier: PropertyRef = PropertyRef("device_identifier")
-    device_identifier_type: PropertyRef = PropertyRef("device_identifier_type")
-    device_name: PropertyRef = PropertyRef("device_name", extra_index=True)
-    device_udid: PropertyRef = PropertyRef("device_udid")
-    device_username: PropertyRef = PropertyRef("device_username")
-    device_username_type: PropertyRef = PropertyRef("device_username_type")
-    disk_encryption_status: PropertyRef = PropertyRef("disk_encryption_status")
-    domain_sid: PropertyRef = PropertyRef("domain_sid")
-    email: PropertyRef = PropertyRef("email", extra_index=True)
-    epkey: PropertyRef = PropertyRef("epkey", extra_index=True)
-    firewall_status: PropertyRef = PropertyRef("firewall_status")
-    hardware_uuid: PropertyRef = PropertyRef("hardware_uuid")
-    health_app_client_version: PropertyRef = PropertyRef("health_app_client_version")
-    health_data_last_collected: PropertyRef = PropertyRef("health_data_last_collected")
-    last_updated: PropertyRef = PropertyRef("last_updated")
-    machine_guid: PropertyRef = PropertyRef("machine_guid")
-    model: PropertyRef = PropertyRef("model")
-    os_build: PropertyRef = PropertyRef("os_build")
-    os_family: PropertyRef = PropertyRef("os_family")
-    os_version: PropertyRef = PropertyRef("os_version")
-    password_status: PropertyRef = PropertyRef("password_status")
-    security_agents: PropertyRef = PropertyRef("security_agents")
-    trusted_endpoint: PropertyRef = PropertyRef("trusted_endpoint")
-    type: PropertyRef = PropertyRef("type")
-    username: PropertyRef = PropertyRef("username", extra_index=True)
+    id: PropertyRef = PropertyRef("epkey", description="Duo endpoint key.")
+    lastupdated: PropertyRef = PropertyRef(
+        "lastupdated",
+        set_in_kwargs=True,
+        description="Timestamp of the last update.",
+    )
+    browsers: PropertyRef = PropertyRef(
+        "browsers", description="Detected browser information."
+    )
+    computer_sid: PropertyRef = PropertyRef(
+        "computer_sid", description="Windows machine security identifier."
+    )
+    cpu_id: PropertyRef = PropertyRef("cpu_id", description="Windows CPU ID.")
+    device_id: PropertyRef = PropertyRef(
+        "device_id", description="Custom Meraki-managed device identifier."
+    )
+    device_identifier: PropertyRef = PropertyRef(
+        "device_identifier", description="Deprecated unique device attribute value."
+    )
+    device_identifier_type: PropertyRef = PropertyRef(
+        "device_identifier_type",
+        description="Deprecated device attribute used to identify the endpoint.",
+    )
+    device_name: PropertyRef = PropertyRef(
+        "device_name", extra_index=True, description="Endpoint hostname."
+    )
+    device_udid: PropertyRef = PropertyRef(
+        "device_udid", description="Managed iOS unique device identifier."
+    )
+    device_username: PropertyRef = PropertyRef(
+        "device_username", description="Associated management-system username."
+    )
+    device_username_type: PropertyRef = PropertyRef(
+        "device_username_type",
+        description="Management-system attribute used to identify the user.",
+    )
+    disk_encryption_status: PropertyRef = PropertyRef(
+        "disk_encryption_status", description="Detected disk encryption status."
+    )
+    domain_sid: PropertyRef = PropertyRef(
+        "domain_sid", description="Active Directory domain security identifier."
+    )
+    email: PropertyRef = PropertyRef(
+        "email", extra_index=True, description="Associated user email address."
+    )
+    epkey: PropertyRef = PropertyRef(
+        "epkey", extra_index=True, description="Duo endpoint key."
+    )
+    firewall_status: PropertyRef = PropertyRef(
+        "firewall_status", description="Detected local firewall status."
+    )
+    hardware_uuid: PropertyRef = PropertyRef(
+        "hardware_uuid", description="Mac hardware UUID."
+    )
+    health_app_client_version: PropertyRef = PropertyRef(
+        "health_app_client_version", description="Duo Device Health app version."
+    )
+    health_data_last_collected: PropertyRef = PropertyRef(
+        "health_data_last_collected",
+        description="Timestamp of the last device health check.",
+    )
+    last_updated: PropertyRef = PropertyRef(
+        "last_updated", description="Timestamp when the endpoint last accessed Duo."
+    )
+    machine_guid: PropertyRef = PropertyRef(
+        "machine_guid", description="Windows machine GUID."
+    )
+    model: PropertyRef = PropertyRef("model", description="Endpoint device model.")
+    os_build: PropertyRef = PropertyRef(
+        "os_build", description="Operating system build number."
+    )
+    os_family: PropertyRef = PropertyRef(
+        "os_family", description="Operating system platform."
+    )
+    os_version: PropertyRef = PropertyRef(
+        "os_version", description="Operating system version."
+    )
+    password_status: PropertyRef = PropertyRef(
+        "password_status", description="Detected local administrator password status."
+    )
+    security_agents: PropertyRef = PropertyRef(
+        "security_agents", description="Detected security agent information."
+    )
+    trusted_endpoint: PropertyRef = PropertyRef(
+        "trusted_endpoint", description="Whether Duo manages the endpoint."
+    )
+    type: PropertyRef = PropertyRef("type", description="Endpoint device class.")
+    username: PropertyRef = PropertyRef(
+        "username", extra_index=True, description="Associated Duo username."
+    )
 
 
 @dataclass(frozen=True)
@@ -53,6 +112,8 @@ class DuoEndpointToDuoApiHostRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class DuoEndpointToDuoApiHostRel(CartographyRelSchema):
+    """The Duo API host contains the endpoint."""
+
     target_node_label: str = "DuoApiHost"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("DUO_API_HOSTNAME", set_in_kwargs=True)},
@@ -70,6 +131,8 @@ class DuoEndpointToDuoUserRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class DuoEndpointToDuoUserRel(CartographyRelSchema):
+    """The Duo user has the endpoint, matched by email address."""
+
     target_node_label: str = "DuoUser"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"email": PropertyRef("email")},
@@ -81,6 +144,8 @@ class DuoEndpointToDuoUserRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class DuoEndpointSchema(CartographyNodeSchema):
+    """An endpoint observed by Duo."""
+
     label: str = "DuoEndpoint"
     properties: DuoEndpointNodeProperties = DuoEndpointNodeProperties()
     sub_resource_relationship: DuoEndpointToDuoApiHostRel = DuoEndpointToDuoApiHostRel()

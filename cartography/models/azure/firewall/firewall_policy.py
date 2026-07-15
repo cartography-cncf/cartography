@@ -115,10 +115,7 @@ class AzureFirewallPolicyToSubscriptionRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class AzureFirewallPolicyToSubscriptionRel(CartographyRelSchema):
-    """
-    Defines the relationship from an Azure Subscription to an Azure Firewall Policy.
-    (:AzureSubscription)-[:RESOURCE]->(:AzureFirewallPolicy)
-    """
+    """Indicates that an Azure subscription contains the firewall policy."""
 
     target_node_label: str = "AzureSubscription"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
@@ -142,14 +139,7 @@ class AzureFirewallPolicyToParentPolicyRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class AzureFirewallPolicyToParentPolicyRel(CartographyRelSchema):
-    """
-    Defines the relationship from a child policy to its parent policy.
-    (:AzureFirewallPolicy)-[:INHERITS_FROM]->(:AzureFirewallPolicy)
-
-    Azure Firewall Policies support inheritance, where a child policy can inherit
-    settings from a parent (base) policy. This allows centralized management of
-    common firewall rules and settings across multiple policies.
-    """
+    """Indicates that the firewall policy inherits settings from a parent policy."""
 
     target_node_label: str = "AzureFirewallPolicy"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(

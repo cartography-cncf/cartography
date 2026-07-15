@@ -8,12 +8,18 @@ from cartography.models.core.nodes import ExtraNodeLabels
 
 @dataclass(frozen=True)
 class DuoApiHostNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("id")
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    id: PropertyRef = PropertyRef("id", description="Duo API hostname.")
+    lastupdated: PropertyRef = PropertyRef(
+        "lastupdated",
+        set_in_kwargs=True,
+        description="Timestamp of the last update.",
+    )
 
 
 @dataclass(frozen=True)
 class DuoApiHostSchema(CartographyNodeSchema):
+    """A Duo API host that contains resources for a Duo tenant."""
+
     label: str = "DuoApiHost"
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["Tenant"])
     properties: DuoApiHostNodeProperties = DuoApiHostNodeProperties()

@@ -13,11 +13,28 @@ from cartography.models.core.relationships import TargetNodeMatcher
 
 @dataclass(frozen=True)
 class S1ApplicationVersionNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("id", extra_index=True)
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
-    application_name: PropertyRef = PropertyRef("application_name")
-    application_vendor: PropertyRef = PropertyRef("application_vendor")
-    version: PropertyRef = PropertyRef("version")
+    id: PropertyRef = PropertyRef(
+        "id",
+        extra_index=True,
+        description="Normalized vendor, application name, and version.",
+    )
+    lastupdated: PropertyRef = PropertyRef(
+        "lastupdated",
+        set_in_kwargs=True,
+        description="Timestamp of the last time the node was updated.",
+    )
+    application_name: PropertyRef = PropertyRef(
+        "application_name",
+        description="Application name.",
+    )
+    application_vendor: PropertyRef = PropertyRef(
+        "application_vendor",
+        description="Application vendor.",
+    )
+    version: PropertyRef = PropertyRef(
+        "version",
+        description="Application version.",
+    )
 
 
 @dataclass(frozen=True)
@@ -26,8 +43,9 @@ class S1ApplicationVersionToAccountRelProperties(CartographyRelProperties):
 
 
 @dataclass(frozen=True)
-# (:S1ApplicationVersion)<-[:RESOURCE]-(:S1Account)
 class S1ApplicationVersionToAccountRel(CartographyRelSchema):
+    """Links a SentinelOne account to an application version in its inventory."""
+
     target_node_label: str = "S1Account"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("S1_ACCOUNT_ID", set_in_kwargs=True)},
@@ -42,13 +60,20 @@ class S1ApplicationVersionToAccountRel(CartographyRelSchema):
 @dataclass(frozen=True)
 class S1AgentToApplicationVersionRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
-    installeddatetime: PropertyRef = PropertyRef("installed_dt")
-    installationpath: PropertyRef = PropertyRef("installation_path")
+    installeddatetime: PropertyRef = PropertyRef(
+        "installed_dt",
+        description="Timestamp when the application version was installed.",
+    )
+    installationpath: PropertyRef = PropertyRef(
+        "installation_path",
+        description="File system path where the application version is installed.",
+    )
 
 
 @dataclass(frozen=True)
-# (:S1Agent)-[:HAS_INSTALLED]->(:S1ApplicationVersion)
 class S1AgentToS1ApplicationVersionRel(CartographyRelSchema):
+    """Links an agent to an application version installed on its endpoint."""
+
     target_node_label: str = "S1Agent"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"uuid": PropertyRef("agent_uuid")},
@@ -66,8 +91,9 @@ class S1ApplicationVersionToApplicationRelProperties(CartographyRelProperties):
 
 
 @dataclass(frozen=True)
-# (:S1ApplicationVersion)<-[:VERSION]-(:S1Application)
 class S1ApplicationVersionToApplicationRel(CartographyRelSchema):
+    """Links an application to one of its observed versions."""
+
     target_node_label: str = "S1Application"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("application_id")},
@@ -81,6 +107,8 @@ class S1ApplicationVersionToApplicationRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class S1ApplicationVersionSchema(CartographyNodeSchema):
+    """A specific application version observed by SentinelOne."""
+
     label: str = "S1ApplicationVersion"
     properties: S1ApplicationVersionNodeProperties = (
         S1ApplicationVersionNodeProperties()

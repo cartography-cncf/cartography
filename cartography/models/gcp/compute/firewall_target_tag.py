@@ -15,15 +15,30 @@ from cartography.models.core.relationships import TargetNodeMatcher
 class GCPFirewallTargetTagNodeProperties(CartographyNodeProperties):
     """Properties for GCPNetworkTag nodes created as firewall target tags."""
 
-    id: PropertyRef = PropertyRef("tag_id")
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
-    tag_id: PropertyRef = PropertyRef("tag_id", extra_index=True)
-    value: PropertyRef = PropertyRef("value")
+    id: PropertyRef = PropertyRef(
+        "tag_id",
+        description="GCP doesn't define a resource URI for Tags so we define this as `{instance resource URI}/tags/{tag value}`.",
+    )
+    lastupdated: PropertyRef = PropertyRef(
+        "lastupdated",
+        set_in_kwargs=True,
+        description="Timestamp of the last time the node was updated.",
+    )
+    tag_id: PropertyRef = PropertyRef(
+        "tag_id", extra_index=True, description="same as `id`."
+    )
+    value: PropertyRef = PropertyRef(
+        "value", description="The actual value of the tag."
+    )
 
 
 @dataclass(frozen=True)
 class GCPFirewallTargetTagToFirewallRelProperties(CartographyRelProperties):
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    lastupdated: PropertyRef = PropertyRef(
+        "lastupdated",
+        set_in_kwargs=True,
+        description="Timestamp of the last sync that observed this data.",
+    )
 
 
 @dataclass(frozen=True)
@@ -43,7 +58,11 @@ class GCPFirewallTargetTagToFirewallRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class GCPFirewallTargetTagToVpcRelProperties(CartographyRelProperties):
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    lastupdated: PropertyRef = PropertyRef(
+        "lastupdated",
+        set_in_kwargs=True,
+        description="Timestamp of the last sync that observed this data.",
+    )
 
 
 @dataclass(frozen=True)
@@ -63,7 +82,11 @@ class GCPFirewallTargetTagToVpcRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class GCPFirewallTargetTagToProjectRelProperties(CartographyRelProperties):
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    lastupdated: PropertyRef = PropertyRef(
+        "lastupdated",
+        set_in_kwargs=True,
+        description="Timestamp of the last sync that observed this data.",
+    )
 
 
 @dataclass(frozen=True)
@@ -83,10 +106,7 @@ class GCPFirewallTargetTagToProjectRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class GCPFirewallTargetTagSchema(CartographyNodeSchema):
-    """
-    Schema for GCPNetworkTag nodes that are target tags of firewalls.
-    This creates the TARGET_TAG relationship from GCPFirewall to GCPNetworkTag.
-    """
+    """A Google Cloud Network Tag resource."""
 
     label: str = "GCPNetworkTag"
     properties: GCPFirewallTargetTagNodeProperties = (

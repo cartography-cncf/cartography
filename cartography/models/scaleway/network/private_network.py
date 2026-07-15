@@ -13,18 +13,33 @@ from cartography.models.core.relationships import TargetNodeMatcher
 
 @dataclass(frozen=True)
 class ScalewayPrivateNetworkProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("id")
-    name: PropertyRef = PropertyRef("name")
-    region: PropertyRef = PropertyRef("region")
-    tags: PropertyRef = PropertyRef("tags")
-    vpc_id: PropertyRef = PropertyRef("vpc_id")
-    dhcp_enabled: PropertyRef = PropertyRef("dhcp_enabled")
-    default_route_propagation_enabled: PropertyRef = PropertyRef(
-        "default_route_propagation_enabled"
+    id: PropertyRef = PropertyRef("id", description="Private Network unique ID.")
+    name: PropertyRef = PropertyRef("name", description="Private Network name.")
+    region: PropertyRef = PropertyRef(
+        "region", description="Region the Private Network lives in."
     )
-    created_at: PropertyRef = PropertyRef("created_at")
-    updated_at: PropertyRef = PropertyRef("updated_at")
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    tags: PropertyRef = PropertyRef(
+        "tags", description="Tags associated with the Private Network."
+    )
+    vpc_id: PropertyRef = PropertyRef(
+        "vpc_id", description="ID of the VPC the Private Network belongs to."
+    )
+    dhcp_enabled: PropertyRef = PropertyRef(
+        "dhcp_enabled", description="True if managed DHCP is enabled."
+    )
+    default_route_propagation_enabled: PropertyRef = PropertyRef(
+        "default_route_propagation_enabled",
+        description="True if the default route is propagated.",
+    )
+    created_at: PropertyRef = PropertyRef(
+        "created_at", description="Private Network creation date."
+    )
+    updated_at: PropertyRef = PropertyRef(
+        "updated_at", description="Private Network last update date."
+    )
+    lastupdated: PropertyRef = PropertyRef(
+        "lastupdated", set_in_kwargs=True, description="Timestamp of the last update"
+    )
 
 
 @dataclass(frozen=True)
@@ -35,6 +50,8 @@ class ScalewayPrivateNetworkToProjectRelProperties(CartographyRelProperties):
 @dataclass(frozen=True)
 # (:ScalewayProject)-[:RESOURCE]->(:ScalewayPrivateNetwork)
 class ScalewayPrivateNetworkToProjectRel(CartographyRelSchema):
+    """Connects `ScalewayProject` to `ScalewayPrivateNetwork` through `RESOURCE`."""
+
     target_node_label: str = "ScalewayProject"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("PROJECT_ID", set_in_kwargs=True)},
@@ -54,6 +71,8 @@ class ScalewayPrivateNetworkToVpcRelProperties(CartographyRelProperties):
 @dataclass(frozen=True)
 # (:ScalewayVpc)-[:HAS]->(:ScalewayPrivateNetwork)
 class ScalewayPrivateNetworkToVpcRel(CartographyRelSchema):
+    """Connects `ScalewayVpc` to `ScalewayPrivateNetwork` through `HAS`."""
+
     target_node_label: str = "ScalewayVpc"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("vpc_id")},
@@ -67,6 +86,10 @@ class ScalewayPrivateNetworkToVpcRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class ScalewayPrivateNetworkSchema(CartographyNodeSchema):
+    """A Private Network is a layer-2 network within a VPC that Instances and other
+    resources attach to.
+    """
+
     label: str = "ScalewayPrivateNetwork"
     properties: ScalewayPrivateNetworkProperties = ScalewayPrivateNetworkProperties()
     sub_resource_relationship: ScalewayPrivateNetworkToProjectRel = (

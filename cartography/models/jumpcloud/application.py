@@ -14,10 +14,21 @@ from cartography.models.core.relationships import TargetNodeMatcher
 
 @dataclass(frozen=True)
 class JumpCloudApplicationNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("id")
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
-    name: PropertyRef = PropertyRef("name", extra_index=True)
-    description: PropertyRef = PropertyRef("description")
+    id: PropertyRef = PropertyRef("id", description="JumpCloud application ID.")
+    lastupdated: PropertyRef = PropertyRef(
+        "lastupdated",
+        set_in_kwargs=True,
+        description="Timestamp of the last update.",
+    )
+    name: PropertyRef = PropertyRef(
+        "name",
+        extra_index=True,
+        description="Application name.",
+    )
+    description: PropertyRef = PropertyRef(
+        "description",
+        description="Application description.",
+    )
 
 
 @dataclass(frozen=True)
@@ -28,6 +39,8 @@ class JumpCloudApplicationToTenantRelProperties(CartographyRelProperties):
 @dataclass(frozen=True)
 # (:JumpCloudTenant)-[:RESOURCE]->(:JumpCloudSaaSApplication)
 class JumpCloudApplicationToTenantRel(CartographyRelSchema):
+    """The tenant contains the SaaS application."""
+
     target_node_label: str = "JumpCloudTenant"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("ORG_ID", set_in_kwargs=True)},
@@ -47,6 +60,8 @@ class JumpCloudApplicationToUserRelProperties(CartographyRelProperties):
 @dataclass(frozen=True)
 # (:JumpCloudUser)-[:USES]->(:JumpCloudSaaSApplication)
 class JumpCloudApplicationToUserRel(CartographyRelSchema):
+    """A user uses the SaaS application."""
+
     target_node_label: str = "JumpCloudUser"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("user_ids", one_to_many=True)},
@@ -60,6 +75,8 @@ class JumpCloudApplicationToUserRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class JumpCloudApplicationSchema(CartographyNodeSchema):
+    """A SaaS application managed in JumpCloud."""
+
     label: str = "JumpCloudSaaSApplication"
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["ThirdPartyApp"])
     properties: JumpCloudApplicationNodeProperties = (

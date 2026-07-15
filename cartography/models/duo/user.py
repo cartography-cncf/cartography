@@ -14,27 +14,51 @@ from cartography.models.core.relationships import TargetNodeMatcher
 
 @dataclass(frozen=True)
 class DuoUserNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("user_id")
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
-    alias1: PropertyRef = PropertyRef("alias1")
-    alias2: PropertyRef = PropertyRef("alias2")
-    alias3: PropertyRef = PropertyRef("alias3")
-    alias4: PropertyRef = PropertyRef("alias4")
-    aliases: PropertyRef = PropertyRef("aliases")
-    created: PropertyRef = PropertyRef("created")
-    desktoptokens: PropertyRef = PropertyRef("desktoptokens")
-    email: PropertyRef = PropertyRef("email", extra_index=True)
-    firstname: PropertyRef = PropertyRef("firstname")
-    is_enrolled: PropertyRef = PropertyRef("is_enrolled")
-    last_directory_sync: PropertyRef = PropertyRef("last_directory_sync")
-    last_login: PropertyRef = PropertyRef("last_login")
-    lastname: PropertyRef = PropertyRef("lastname")
-    notes: PropertyRef = PropertyRef("notes")
-    realname: PropertyRef = PropertyRef("realname")
-    status: PropertyRef = PropertyRef("status")
-    u2ftokens: PropertyRef = PropertyRef("u2ftokens")
-    user_id: PropertyRef = PropertyRef("user_id", extra_index=True)
-    username: PropertyRef = PropertyRef("username", extra_index=True)
+    id: PropertyRef = PropertyRef("user_id", description="Duo user ID.")
+    lastupdated: PropertyRef = PropertyRef(
+        "lastupdated",
+        set_in_kwargs=True,
+        description="Timestamp of the last update.",
+    )
+    alias1: PropertyRef = PropertyRef("alias1", description="First username alias.")
+    alias2: PropertyRef = PropertyRef("alias2", description="Second username alias.")
+    alias3: PropertyRef = PropertyRef("alias3", description="Third username alias.")
+    alias4: PropertyRef = PropertyRef("alias4", description="Fourth username alias.")
+    aliases: PropertyRef = PropertyRef(
+        "aliases", description="Map of username aliases."
+    )
+    created: PropertyRef = PropertyRef(
+        "created", description="User creation timestamp."
+    )
+    desktoptokens: PropertyRef = PropertyRef(
+        "desktoptokens", description="Desktop tokens available to the user."
+    )
+    email: PropertyRef = PropertyRef(
+        "email", extra_index=True, description="User email address."
+    )
+    firstname: PropertyRef = PropertyRef("firstname", description="User given name.")
+    is_enrolled: PropertyRef = PropertyRef(
+        "is_enrolled", description="Whether the user has an authentication method."
+    )
+    last_directory_sync: PropertyRef = PropertyRef(
+        "last_directory_sync", description="Timestamp of the last directory sync."
+    )
+    last_login: PropertyRef = PropertyRef(
+        "last_login", description="Timestamp of the last login."
+    )
+    lastname: PropertyRef = PropertyRef("lastname", description="User surname.")
+    notes: PropertyRef = PropertyRef("notes", description="Administrative user notes.")
+    realname: PropertyRef = PropertyRef("realname", description="User full name.")
+    status: PropertyRef = PropertyRef("status", description="User status.")
+    u2ftokens: PropertyRef = PropertyRef(
+        "u2ftokens", description="U2F tokens available to the user."
+    )
+    user_id: PropertyRef = PropertyRef(
+        "user_id", extra_index=True, description="Duo user ID."
+    )
+    username: PropertyRef = PropertyRef(
+        "username", extra_index=True, description="Duo username."
+    )
 
 
 @dataclass(frozen=True)
@@ -44,6 +68,8 @@ class DuoUserToDuoApiHostRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class DuoUserToDuoApiHostRel(CartographyRelSchema):
+    """The Duo API host contains the user."""
+
     target_node_label: str = "DuoApiHost"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("DUO_API_HOSTNAME", set_in_kwargs=True)},
@@ -59,6 +85,8 @@ class DuoWebAuthnCredentialToDuoUserRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class DuoWebAuthnCredentialToDuoUserRel(CartographyRelSchema):
+    """The Duo user has the WebAuthn credential."""
+
     target_node_label: str = "DuoWebAuthnCredential"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"webauthnkey": PropertyRef("webauthnkey")},
@@ -76,6 +104,8 @@ class DuoTokenToDuoUserRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class DuoTokenToDuoUserRel(CartographyRelSchema):
+    """The Duo user has the hardware token."""
+
     target_node_label: str = "DuoToken"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"token_id": PropertyRef("token_id")},
@@ -91,6 +121,8 @@ class DuoPhoneToDuoUserRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class DuoPhoneToDuoUserRel(CartographyRelSchema):
+    """The Duo user has the phone."""
+
     target_node_label: str = "DuoPhone"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"phone_id": PropertyRef("phone_id")},
@@ -106,6 +138,8 @@ class DuoEndpointToDuoUserRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class DuoEndpointToDuoUserRel(CartographyRelSchema):
+    """The Duo user has the endpoint, matched by email address."""
+
     target_node_label: str = "DuoEndpoint"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"email": PropertyRef("email")},
@@ -124,6 +158,8 @@ class DuoGroupToDuoUserRelProperties(CartographyRelProperties):
 # edge (DuoGroupToDuoUserMemberOfRel). Kept for backward compatibility, will be
 # removed in v1.0.0.
 class DuoGroupToDuoUserRel(CartographyRelSchema):
+    """Deprecated compatibility edge linking a Duo user to a Duo group."""
+
     target_node_label: str = "DuoGroup"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"group_id": PropertyRef("group_id")},
@@ -141,6 +177,8 @@ class DuoGroupToDuoUserMemberOfRelProperties(CartographyRelProperties):
 @dataclass(frozen=True)
 # Canonical ontology edge: (:UserAccount)-[:MEMBER_OF]->(:UserGroup)
 class DuoGroupToDuoUserMemberOfRel(CartographyRelSchema):
+    """The Duo user account is a member of the Duo user group."""
+
     target_node_label: str = "DuoGroup"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"group_id": PropertyRef("group_id")},
@@ -160,6 +198,8 @@ class DuoUserToHumanRelProperties(CartographyRelProperties):
 @dataclass(frozen=True)
 # (:DuoUser)<-[:IDENTITY_DUO]-(:Human)
 class DuoUserToHumanRel(CartographyRelSchema):
+    """A Human has the Duo user as an identity, matched by email address."""
+
     target_node_label: str = "Human"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"email": PropertyRef("email")},
@@ -171,6 +211,8 @@ class DuoUserToHumanRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class DuoUserSchema(CartographyNodeSchema):
+    """A user account in Duo."""
+
     label: str = "DuoUser"
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
         ["UserAccount"]

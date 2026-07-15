@@ -18,13 +18,33 @@ class EC2PrivateIpNetworkInterfaceNodeProperties(CartographyNodeProperties):
     Selection of properties of a private IP as known by an EC2 network interface
     """
 
-    id: PropertyRef = PropertyRef("Id")
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
-    network_interface_id: PropertyRef = PropertyRef("NetworkInterfaceId")
-    primary: PropertyRef = PropertyRef("Primary")
-    private_ip_address: PropertyRef = PropertyRef("PrivateIpAddress")
-    public_ip: PropertyRef = PropertyRef("PublicIp")
-    ip_owner_id: PropertyRef = PropertyRef("IpOwnerId")
+    id: PropertyRef = PropertyRef(
+        "Id", description="Unique identifier for the private IP"
+    )
+    lastupdated: PropertyRef = PropertyRef(
+        "lastupdated",
+        set_in_kwargs=True,
+        description="Timestamp of the last time the node was updated",
+    )
+    network_interface_id: PropertyRef = PropertyRef(
+        "NetworkInterfaceId",
+        description="id of the network interface with which the IP is associated with",
+    )
+    primary: PropertyRef = PropertyRef(
+        "Primary",
+        description="Indicates whether this IPv4 address is the primary private IP address of the network interface.",
+    )
+    private_ip_address: PropertyRef = PropertyRef(
+        "PrivateIpAddress",
+        description="The private IPv4 address of the network interface.",
+    )
+    public_ip: PropertyRef = PropertyRef(
+        "PublicIp",
+        description="The public IP address or Elastic IP address bound to the network interface.",
+    )
+    ip_owner_id: PropertyRef = PropertyRef(
+        "IpOwnerId", description="Id of the owner, e.g. `amazon-elb` for ELBs"
+    )
 
 
 @dataclass(frozen=True)
@@ -34,6 +54,8 @@ class EC2PrivateIpToAWSAccountRelRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class EC2PrivateIpToAWSAccountRel(CartographyRelSchema):
+    "Represents a `RESOURCE` relationship from `AWSAccount` to `AWSEC2PrivateIp`."
+
     target_node_label: str = "AWSAccount"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("AWS_ID", set_in_kwargs=True)},
@@ -52,6 +74,8 @@ class EC2NetworkInterfaceToPrivateIpRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class EC2PrivateIpToNetworkInterfaceRel(CartographyRelSchema):
+    "Represents a `PRIVATE_IP_ADDRESS` relationship from `AWSNetworkInterface` to `AWSEC2PrivateIp`."
+
     target_node_label: str = "AWSNetworkInterface"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("NetworkInterfaceId")},

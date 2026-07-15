@@ -14,21 +14,53 @@ from cartography.models.core.relationships import TargetNodeMatcher
 
 @dataclass(frozen=True)
 class GCPWorkloadIdentityPoolNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("id", extra_index=True)
-    name: PropertyRef = PropertyRef("name", extra_index=True)
-    display_name: PropertyRef = PropertyRef("displayName")
-    description: PropertyRef = PropertyRef("description")
-    state: PropertyRef = PropertyRef("state")
-    disabled: PropertyRef = PropertyRef("disabled")
-    mode: PropertyRef = PropertyRef("mode")
-    session_duration: PropertyRef = PropertyRef("sessionDuration")
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
-    project_id: PropertyRef = PropertyRef("projectId", set_in_kwargs=True)
+    id: PropertyRef = PropertyRef(
+        "id",
+        extra_index=True,
+        description="The full resource name, e.g. `projects/{number}/locations/global/workloadIdentityPools/{pool_id}`.",
+    )
+    name: PropertyRef = PropertyRef(
+        "name", extra_index=True, description="Same as `id`."
+    )
+    display_name: PropertyRef = PropertyRef(
+        "displayName", description="The friendly name of the pool."
+    )
+    description: PropertyRef = PropertyRef(
+        "description", description="A description of the pool."
+    )
+    state: PropertyRef = PropertyRef(
+        "state", description="Pool state (`ACTIVE`, `DELETED`)."
+    )
+    disabled: PropertyRef = PropertyRef(
+        "disabled", description="Whether the pool is disabled."
+    )
+    mode: PropertyRef = PropertyRef(
+        "mode",
+        description="Pool mode. `SYSTEM_TRUST_DOMAIN` indicates a GKE-managed pool (`*.svc.id.goog`) whose providers are managed by Google and not enumerated by Cartography. Otherwise the field is unset or carries a user-managed mode.",
+    )
+    session_duration: PropertyRef = PropertyRef(
+        "sessionDuration",
+        description="Default session duration for federated tokens issued via this pool.",
+    )
+    lastupdated: PropertyRef = PropertyRef(
+        "lastupdated",
+        set_in_kwargs=True,
+        description="Timestamp of the last time the node was updated.",
+    )
+    project_id: PropertyRef = PropertyRef(
+        "projectId",
+        set_in_kwargs=True,
+        description="Google Cloud project that owns this resource.",
+    )
 
 
 @dataclass(frozen=True)
 class GCPWorkloadIdentityPoolToProjectRelProperties(CartographyRelProperties):
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    lastupdated: PropertyRef = PropertyRef(
+        "lastupdated",
+        set_in_kwargs=True,
+        description="Timestamp of the last sync that observed this data.",
+    )
 
 
 @dataclass(frozen=True)
@@ -46,6 +78,8 @@ class GCPWorkloadIdentityPoolToProjectRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class GCPWorkloadIdentityPoolSchema(CartographyNodeSchema):
+    """Representation of a GCP [Workload Identity Pool](https://cloud.google.com/iam/docs/reference/rest/v1/projects.locations.workloadIdentityPools). A pool groups external identities that can impersonate GCP service accounts via federation."""
+
     label: str = "GCPWorkloadIdentityPool"
     properties: GCPWorkloadIdentityPoolNodeProperties = (
         GCPWorkloadIdentityPoolNodeProperties()
@@ -57,27 +91,75 @@ class GCPWorkloadIdentityPoolSchema(CartographyNodeSchema):
 
 @dataclass(frozen=True)
 class GCPWorkloadIdentityProviderNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("id", extra_index=True)
-    name: PropertyRef = PropertyRef("name", extra_index=True)
-    display_name: PropertyRef = PropertyRef("displayName")
-    description: PropertyRef = PropertyRef("description")
-    state: PropertyRef = PropertyRef("state")
-    disabled: PropertyRef = PropertyRef("disabled")
-    enabled: PropertyRef = PropertyRef("enabled")
-    protocol: PropertyRef = PropertyRef("protocol")
-    attribute_condition: PropertyRef = PropertyRef("attributeCondition")
-    oidc_issuer_uri: PropertyRef = PropertyRef("oidcIssuerUri")
-    oidc_allowed_audiences: PropertyRef = PropertyRef("oidcAllowedAudiences")
-    aws_account_id: PropertyRef = PropertyRef("awsAccountId")
-    saml_idp_metadata_xml: PropertyRef = PropertyRef("samlIdpMetadataXml")
-    pool_name: PropertyRef = PropertyRef("poolName")
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
-    project_id: PropertyRef = PropertyRef("projectId", set_in_kwargs=True)
+    id: PropertyRef = PropertyRef(
+        "id", extra_index=True, description="The full provider resource name."
+    )
+    name: PropertyRef = PropertyRef(
+        "name", extra_index=True, description="Same as `id`."
+    )
+    display_name: PropertyRef = PropertyRef(
+        "displayName", description="The friendly name of the provider."
+    )
+    description: PropertyRef = PropertyRef(
+        "description", description="A description of the provider."
+    )
+    state: PropertyRef = PropertyRef(
+        "state", description="Provider state (`ACTIVE`, `DELETED`)."
+    )
+    disabled: PropertyRef = PropertyRef(
+        "disabled", description="Whether the provider is explicitly disabled."
+    )
+    enabled: PropertyRef = PropertyRef(
+        "enabled",
+        description="Effective enabled flag: true only when both the provider and its parent pool are `state == ACTIVE` and not disabled. Used for the `IdentityProvider` ontology mapping.",
+    )
+    protocol: PropertyRef = PropertyRef(
+        "protocol",
+        description="One of `OIDC`, `AWS`, `SAML`, `X509`, depending on which sub-object is populated.",
+    )
+    attribute_condition: PropertyRef = PropertyRef(
+        "attributeCondition",
+        description="CEL expression that gates token claims before federation.",
+    )
+    oidc_issuer_uri: PropertyRef = PropertyRef(
+        "oidcIssuerUri",
+        description="OIDC issuer URI (only set when `protocol = OIDC`).",
+    )
+    oidc_allowed_audiences: PropertyRef = PropertyRef(
+        "oidcAllowedAudiences",
+        description="OIDC allowed audiences (only set when `protocol = OIDC`).",
+    )
+    aws_account_id: PropertyRef = PropertyRef(
+        "awsAccountId",
+        description="AWS account ID this provider trusts (only set when `protocol = AWS`).",
+    )
+    saml_idp_metadata_xml: PropertyRef = PropertyRef(
+        "samlIdpMetadataXml",
+        description="SAML IdP metadata XML (only set when `protocol = SAML`).",
+    )
+    pool_name: PropertyRef = PropertyRef(
+        "poolName",
+        description="The resource name of the parent GCPWorkloadIdentityPool.",
+    )
+    lastupdated: PropertyRef = PropertyRef(
+        "lastupdated",
+        set_in_kwargs=True,
+        description="Timestamp of the last time the node was updated.",
+    )
+    project_id: PropertyRef = PropertyRef(
+        "projectId",
+        set_in_kwargs=True,
+        description="Google Cloud project that owns this resource.",
+    )
 
 
 @dataclass(frozen=True)
 class GCPWorkloadIdentityProviderToProjectRelProperties(CartographyRelProperties):
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    lastupdated: PropertyRef = PropertyRef(
+        "lastupdated",
+        set_in_kwargs=True,
+        description="Timestamp of the last sync that observed this data.",
+    )
 
 
 @dataclass(frozen=True)
@@ -95,7 +177,11 @@ class GCPWorkloadIdentityProviderToProjectRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class GCPWorkloadIdentityProviderToPoolRelProperties(CartographyRelProperties):
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    lastupdated: PropertyRef = PropertyRef(
+        "lastupdated",
+        set_in_kwargs=True,
+        description="Timestamp of the last sync that observed this data.",
+    )
 
 
 @dataclass(frozen=True)
@@ -113,6 +199,8 @@ class GCPWorkloadIdentityProviderToPoolRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class GCPWorkloadIdentityProviderSchema(CartographyNodeSchema):
+    """A Google Cloud Workload Identity Provider resource."""
+
     label: str = "GCPWorkloadIdentityProvider"
     properties: GCPWorkloadIdentityProviderNodeProperties = (
         GCPWorkloadIdentityProviderNodeProperties()

@@ -17,14 +17,28 @@ class SpaceliftGitCommitNodeProperties(CartographyNodeProperties):
     Properties for a Spacelift Git Commit node.
     """
 
-    id: PropertyRef = PropertyRef("sha")  # Use SHA as the unique identifier
-    sha: PropertyRef = PropertyRef("sha", extra_index=True)
-    message: PropertyRef = PropertyRef("message")
-    timestamp: PropertyRef = PropertyRef("timestamp")
-    url: PropertyRef = PropertyRef("url")
-    author_login: PropertyRef = PropertyRef("author_login", extra_index=True)
-    author_name: PropertyRef = PropertyRef("author_name")
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    id: PropertyRef = PropertyRef(
+        "sha", description="Git commit SHA used as the unique ID."
+    )
+    sha: PropertyRef = PropertyRef(
+        "sha", extra_index=True, description="Git commit SHA."
+    )
+    message: PropertyRef = PropertyRef("message", description="Git commit message.")
+    timestamp: PropertyRef = PropertyRef(
+        "timestamp", description="Timestamp when the commit was created."
+    )
+    url: PropertyRef = PropertyRef("url", description="URL of the Git commit.")
+    author_login: PropertyRef = PropertyRef(
+        "author_login", extra_index=True, description="Login of the commit author."
+    )
+    author_name: PropertyRef = PropertyRef(
+        "author_name", description="Display name of the commit author."
+    )
+    lastupdated: PropertyRef = PropertyRef(
+        "lastupdated",
+        set_in_kwargs=True,
+        description="Timestamp of the last update.",
+    )
 
 
 @dataclass(frozen=True)
@@ -38,10 +52,7 @@ class SpaceliftGitCommitToAccountRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class SpaceliftGitCommitToAccountRel(CartographyRelSchema):
-    """
-    RESOURCE relationship from a Spacelift Git Commit to its Account.
-    (:SpaceliftGitCommit)<-[:RESOURCE]-(:SpaceliftAccount)
-    """
+    """A Spacelift account contains a Git commit observed by Spacelift."""
 
     target_node_label: str = "SpaceliftAccount"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
@@ -65,13 +76,7 @@ class SpaceliftGitCommitToAuthorRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class SpaceliftGitCommitToAuthorRel(CartographyRelSchema):
-    """
-    CONFIRMED relationship from a Spacelift Git Commit to the User who authored/confirmed it.
-    (:SpaceliftGitCommit)-[:CONFIRMED]->(:SpaceliftUser)
-
-    This links commits to the human developers who wrote and confirmed the code,
-    even when the deployment was triggered by an automated system (vcs/commit).
-    """
+    """A Spacelift Git commit was confirmed by its Spacelift user author."""
 
     target_node_label: str = "SpaceliftUser"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
@@ -95,9 +100,7 @@ class GitHubUserToSpaceliftGitCommitRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class GitHubUserToSpaceliftGitCommitRel(CartographyRelSchema):
-    """
-    PUSHED relationship from a GitHub User to a Spacelift Git Commit.
-    """
+    """A GitHub user pushed a Spacelift Git commit with a matching author login."""
 
     target_node_label: str = "GitHubUser"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
@@ -121,10 +124,7 @@ class SpaceliftGitCommitToRunRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class SpaceliftGitCommitToRunRel(CartographyRelSchema):
-    """
-    COMMITTED relationship from a Spacelift Git Commit to the Run that uses it.
-    (:SpaceliftGitCommit)-[:COMMITTED]->(:SpaceliftRun)
-    """
+    """A Spacelift Git commit was used by a run."""
 
     target_node_label: str = "SpaceliftRun"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
@@ -139,9 +139,7 @@ class SpaceliftGitCommitToRunRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class SpaceliftGitCommitSchema(CartographyNodeSchema):
-    """
-    Schema for a Spacelift Git Commit node.
-    """
+    """A Git commit used by a Spacelift run."""
 
     label: str = "SpaceliftGitCommit"
     properties: SpaceliftGitCommitNodeProperties = SpaceliftGitCommitNodeProperties()

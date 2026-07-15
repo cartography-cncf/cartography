@@ -27,23 +27,69 @@ from cartography.models.core.relationships import TargetNodeMatcher
 class GitLabCIConfigNodeProperties(CartographyNodeProperties):
     """Properties for a `.gitlab-ci.yml` config node."""
 
-    id: PropertyRef = PropertyRef("id")  # Composite: f"{project_id}:{file_path}"
-    project_id: PropertyRef = PropertyRef("project_id", extra_index=True)
-    file_path: PropertyRef = PropertyRef("file_path")
-    is_valid: PropertyRef = PropertyRef("is_valid")
-    is_merged: PropertyRef = PropertyRef("is_merged")
-    job_count: PropertyRef = PropertyRef("job_count")
-    stages: PropertyRef = PropertyRef("stages")
-    trigger_rules: PropertyRef = PropertyRef("trigger_rules")
-    referenced_variable_keys: PropertyRef = PropertyRef("referenced_variable_keys")
-    referenced_protected_variables: PropertyRef = PropertyRef(
-        "referenced_protected_variables"
+    id: PropertyRef = PropertyRef(
+        "id",
+        description="Composite identifier formed from the project ID and CI config file path.",
     )
-    default_image: PropertyRef = PropertyRef("default_image")
-    has_includes: PropertyRef = PropertyRef("has_includes")
-    include_count: PropertyRef = PropertyRef("include_count")
-    gitlab_url: PropertyRef = PropertyRef("gitlab_url", extra_index=True)
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    project_id: PropertyRef = PropertyRef(
+        "project_id",
+        extra_index=True,
+        description="Numeric ID of the GitLab project that owns the config.",
+    )
+    file_path: PropertyRef = PropertyRef(
+        "file_path",
+        description="Path of the CI config file in the repository.",
+    )
+    is_valid: PropertyRef = PropertyRef(
+        "is_valid",
+        description="Whether GitLab CI lint validated the config, or null when lint was unavailable.",
+    )
+    is_merged: PropertyRef = PropertyRef(
+        "is_merged",
+        description="Whether the parsed YAML was GitLab's merged config with includes expanded.",
+    )
+    job_count: PropertyRef = PropertyRef(
+        "job_count",
+        description="Number of CI jobs detected in the parsed config.",
+    )
+    stages: PropertyRef = PropertyRef(
+        "stages",
+        description="Pipeline stage names declared by the config.",
+    )
+    trigger_rules: PropertyRef = PropertyRef(
+        "trigger_rules",
+        description="Trigger categories heuristically detected in the config.",
+    )
+    referenced_variable_keys: PropertyRef = PropertyRef(
+        "referenced_variable_keys",
+        description="Non-predefined CI/CD variable keys referenced in the config.",
+    )
+    referenced_protected_variables: PropertyRef = PropertyRef(
+        "referenced_protected_variables",
+        description="Referenced variable keys that match protected project variables.",
+    )
+    default_image: PropertyRef = PropertyRef(
+        "default_image",
+        description="Top-level or default container image configured for CI jobs.",
+    )
+    has_includes: PropertyRef = PropertyRef(
+        "has_includes",
+        description="Whether the pipeline has any include entries.",
+    )
+    include_count: PropertyRef = PropertyRef(
+        "include_count",
+        description="Number of resolved CI config include entries.",
+    )
+    gitlab_url: PropertyRef = PropertyRef(
+        "gitlab_url",
+        extra_index=True,
+        description="URL of the GitLab instance.",
+    )
+    lastupdated: PropertyRef = PropertyRef(
+        "lastupdated",
+        set_in_kwargs=True,
+        description="Timestamp of the last time the node was updated.",
+    )
 
 
 # =============================================================================
@@ -88,15 +134,7 @@ class GitLabCIConfigToCIVariableRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class GitLabCIConfigToCIVariableRel(CartographyRelSchema):
-    """
-    `(:GitLabCIConfig)-[:REFERENCES_VARIABLE]->(:GitLabCIVariable)`
-
-    Each config record carries a ``referenced_variable_ids`` list — the IDs
-    of project variables whose ``key`` appears in the parsed pipeline. The
-    matcher is ``one_to_many=True`` so a single config record creates one
-    rel per referenced variable. Loaded as part of GitLabCIConfigSchema's
-    other_relationships, so the rel's lifecycle follows the config node.
-    """
+    """Links a GitLab CI configuration to the CI variables it references."""
 
     target_node_label: str = "GitLabCIVariable"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
@@ -111,6 +149,8 @@ class GitLabCIConfigToCIVariableRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class GitLabCIConfigSchema(CartographyNodeSchema):
+    """A parsed GitLab CI/CD pipeline configuration."""
+
     label: str = "GitLabCIConfig"
     properties: GitLabCIConfigNodeProperties = GitLabCIConfigNodeProperties()
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["CICDPipeline"])

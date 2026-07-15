@@ -14,11 +14,20 @@ from cartography.models.core.relationships import TargetNodeMatcher
 
 @dataclass(frozen=True)
 class DynamoDBBillingModeSummaryNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("Id")
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
-    billing_mode: PropertyRef = PropertyRef("BillingMode")
+    id: PropertyRef = PropertyRef(
+        "Id", description='Unique identifier (table ARN + "/billing")'
+    )
+    lastupdated: PropertyRef = PropertyRef(
+        "lastupdated",
+        set_in_kwargs=True,
+        description="Timestamp of the last time the node was updated",
+    )
+    billing_mode: PropertyRef = PropertyRef(
+        "BillingMode", description="The billing mode (PROVISIONED or PAY_PER_REQUEST)"
+    )
     last_update_to_pay_per_request_date_time: PropertyRef = PropertyRef(
         "LastUpdateToPayPerRequestDateTime",
+        description="When the table was last switched to PAY_PER_REQUEST mode",
     )
 
 
@@ -29,6 +38,8 @@ class DynamoDBBillingModeSummaryToAWSAccountRelProperties(CartographyRelProperti
 
 @dataclass(frozen=True)
 class DynamoDBBillingModeSummaryToAWSAccountRel(CartographyRelSchema):
+    "Represents a `RESOURCE` relationship from `AWSAccount` to `AWSDynamoDBBillingModeSummary`."
+
     target_node_label: str = "AWSAccount"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("AWS_ID", set_in_kwargs=True)},
@@ -47,6 +58,8 @@ class DynamoDBBillingModeSummaryToTableRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class DynamoDBBillingModeSummaryToTableRel(CartographyRelSchema):
+    "Represents a `HAS_BILLING` relationship from `AWSDynamoDBTable` to `AWSDynamoDBBillingModeSummary`."
+
     target_node_label: str = "AWSDynamoDBTable"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("TableArn")},
@@ -60,6 +73,8 @@ class DynamoDBBillingModeSummaryToTableRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class DynamoDBBillingModeSummarySchema(CartographyNodeSchema):
+    "Represents an `AWSDynamoDBBillingModeSummary` node in the AWS graph."
+
     label: str = "AWSDynamoDBBillingModeSummary"
     # DEPRECATED: legacy DynamoDBBillingModeSummary node label will be removed in v1.0.0.
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["DynamoDBBillingModeSummary"])

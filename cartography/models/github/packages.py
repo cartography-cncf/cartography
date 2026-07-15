@@ -22,14 +22,32 @@ from cartography.models.core.relationships import TargetNodeMatcher
 
 @dataclass(frozen=True)
 class GitHubPackageNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("html_url")
-    name: PropertyRef = PropertyRef("name", extra_index=True)
-    package_type: PropertyRef = PropertyRef("package_type", extra_index=True)
-    visibility: PropertyRef = PropertyRef("visibility")
-    uri: PropertyRef = PropertyRef("uri", extra_index=True)
-    html_url: PropertyRef = PropertyRef("html_url", extra_index=True)
-    created_at: PropertyRef = PropertyRef("created_at")
-    updated_at: PropertyRef = PropertyRef("updated_at")
+    id: PropertyRef = PropertyRef("html_url", description="GitHub package web URL.")
+    name: PropertyRef = PropertyRef(
+        "name", extra_index=True, description="GitHub package name."
+    )
+    package_type: PropertyRef = PropertyRef(
+        "package_type",
+        extra_index=True,
+        description="Package type, normally `container` for GHCR.",
+    )
+    visibility: PropertyRef = PropertyRef(
+        "visibility", description="Package visibility: `public` or `private`."
+    )
+    uri: PropertyRef = PropertyRef(
+        "uri",
+        extra_index=True,
+        description="Pullable package URI without a tag or digest.",
+    )
+    html_url: PropertyRef = PropertyRef(
+        "html_url", extra_index=True, description="GitHub web URL for the package."
+    )
+    created_at: PropertyRef = PropertyRef(
+        "created_at", description="Timestamp when the package was created."
+    )
+    updated_at: PropertyRef = PropertyRef(
+        "updated_at", description="Timestamp when the package was last updated."
+    )
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
@@ -71,6 +89,8 @@ class GitHubPackageToRepositoryRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class GitHubPackageSchema(CartographyNodeSchema):
+    """A container package hosted in GitHub Container Registry."""
+
     label: str = "GitHubPackage"
     properties: GitHubPackageNodeProperties = GitHubPackageNodeProperties()
     sub_resource_relationship: GitHubPackageToOrgRel = GitHubPackageToOrgRel()

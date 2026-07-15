@@ -4,8 +4,10 @@ orphan: true
 
 ## Entra Schema
 
-The canonical Microsoft schema docs now live under [Microsoft schema](../microsoft/schema.md). Entra ID remains a Microsoft submodule, and existing Entra graph labels are unchanged.
+The canonical schema documentation now lives under
+[Microsoft schema](../microsoft/schema.md). Entra ID remains a Microsoft
+submodule, and `EntraTenant` remains available as a compatibility label on the
+primary `AzureTenant` node.
 
-```{include} /modules/microsoft/entra-schema.md
-:start-after: <!-- entra-schema-content -->
+```{include} /modules/microsoft/schema.md
 ```

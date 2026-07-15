@@ -21,19 +21,37 @@ class GoogleWorkspaceOAuthAppNodeProperties(CartographyNodeProperties):
     https://developers.google.com/workspace/admin/directory/reference/rest/v1/tokens
     """
 
-    id: PropertyRef = PropertyRef("client_id")
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    id: PropertyRef = PropertyRef(
+        "client_id", description="OAuth client ID used as the unique app ID."
+    )
+    lastupdated: PropertyRef = PropertyRef(
+        "lastupdated",
+        set_in_kwargs=True,
+        description="Timestamp of the last update.",
+    )
 
     # App identifiers
-    client_id: PropertyRef = PropertyRef("client_id", extra_index=True)
-    display_text: PropertyRef = PropertyRef("display_text")
+    client_id: PropertyRef = PropertyRef(
+        "client_id", extra_index=True, description="OAuth client ID of the app."
+    )
+    display_text: PropertyRef = PropertyRef(
+        "display_text", description="Display name of the app."
+    )
 
     # App properties
-    anonymous: PropertyRef = PropertyRef("anonymous")
-    native_app: PropertyRef = PropertyRef("native_app")
+    anonymous: PropertyRef = PropertyRef(
+        "anonymous", description="Whether access was granted anonymously."
+    )
+    native_app: PropertyRef = PropertyRef(
+        "native_app", description="Whether the app is a native application."
+    )
 
     # Tenant relationship
-    customer_id: PropertyRef = PropertyRef("CUSTOMER_ID", set_in_kwargs=True)
+    customer_id: PropertyRef = PropertyRef(
+        "CUSTOMER_ID",
+        set_in_kwargs=True,
+        description="ID of the Google Workspace tenant that contains the app.",
+    )
 
 
 @dataclass(frozen=True)
@@ -56,10 +74,7 @@ class GoogleWorkspaceUserToOAuthAppRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class GoogleWorkspaceUserToOAuthAppRel(CartographyRelSchema):
-    """
-    MatchLink relationship from Google Workspace user to OAuth app
-    Connects existing users to OAuth apps with granted scopes
-    """
+    """A user authorized an OAuth app with the recorded scopes."""
 
     target_node_label: str = "GoogleWorkspaceOAuthApp"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
@@ -91,9 +106,7 @@ class GoogleWorkspaceOAuthAppToTenantRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class GoogleWorkspaceOAuthAppToTenantRel(CartographyRelSchema):
-    """
-    Relationship from Google Workspace OAuth app to Google Workspace tenant
-    """
+    """A Google Workspace tenant contains an authorized OAuth app."""
 
     target_node_label: str = "GoogleWorkspaceTenant"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
@@ -110,9 +123,7 @@ class GoogleWorkspaceOAuthAppToTenantRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class GoogleWorkspaceOAuthAppSchema(CartographyNodeSchema):
-    """
-    Google Workspace OAuth app node schema
-    """
+    """An authorized OAuth app with the canonical ThirdPartyApp label."""
 
     label: str = "GoogleWorkspaceOAuthApp"
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["ThirdPartyApp"])

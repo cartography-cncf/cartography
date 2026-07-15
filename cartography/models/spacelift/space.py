@@ -17,20 +17,31 @@ class SpaceliftSpaceNodeProperties(CartographyNodeProperties):
     Properties for a Spacelift Space node.
     """
 
-    id: PropertyRef = PropertyRef("id")
-    name: PropertyRef = PropertyRef("name", extra_index=True)
-    description: PropertyRef = PropertyRef("description")
-    is_root: PropertyRef = PropertyRef("is_root")
+    id: PropertyRef = PropertyRef("id", description="Spacelift space ID.")
+    name: PropertyRef = PropertyRef("name", extra_index=True, description="Space name.")
+    description: PropertyRef = PropertyRef(
+        "description", description="Space description."
+    )
+    is_root: PropertyRef = PropertyRef(
+        "is_root", description="Whether this is a root space."
+    )
     spacelift_account_id: PropertyRef = PropertyRef(
-        "spacelift_account_id"
+        "spacelift_account_id",
+        description="ID of the containing Spacelift account.",
     )  # spacelift_account_id is set for ALL spaces (root and nested) for RESOURCE relationship
     parent_spacelift_account_id: PropertyRef = PropertyRef(
-        "parent_spacelift_account_id"
+        "parent_spacelift_account_id",
+        description="Account ID used to identify a root space.",
     )  # parent_spacelift_account_id is set ONLY for root spaces (identifies hierarchy root)
     parent_space_id: PropertyRef = PropertyRef(
-        "parent_space_id"
+        "parent_space_id",
+        description="ID of the parent space for a child space.",
     )  # parent_space_id is set ONLY for child spaces (identifies hierarchy parent)
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    lastupdated: PropertyRef = PropertyRef(
+        "lastupdated",
+        set_in_kwargs=True,
+        description="Timestamp of the last update.",
+    )
 
 
 @dataclass(frozen=True)
@@ -44,10 +55,7 @@ class SpaceliftSpaceToAccountRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class SpaceliftSpaceToAccountRel(CartographyRelSchema):
-    """
-    RESOURCE relationship from any Space to its Account.
-    (:SpaceliftSpace)<-[:RESOURCE]-(:SpaceliftAccount)
-    """
+    """A Spacelift account contains a space."""
 
     target_node_label: str = "SpaceliftAccount"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
@@ -71,10 +79,7 @@ class SpaceliftSpaceToSpaceRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class SpaceliftSpaceToSpaceRel(CartographyRelSchema):
-    """
-    CONTAINS relationship from a child Space to its parent Space.
-    (:SpaceliftSpace)<-[:CONTAINS]-(:SpaceliftSpace)
-    """
+    """A parent Spacelift space contains a child space."""
 
     target_node_label: str = "SpaceliftSpace"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
@@ -100,10 +105,7 @@ class SpaceliftUserToSpaceRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class SpaceliftUserToSpaceRel(CartographyRelSchema):
-    """
-    HAS_ROLE_IN relationship from a User to a Space.
-    (:SpaceliftUser)-[:HAS_ROLE_IN]->(:SpaceliftSpace)
-    """
+    """A Spacelift space has a role in another Spacelift space."""
 
     target_node_label: str = "SpaceliftSpace"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
@@ -116,9 +118,7 @@ class SpaceliftUserToSpaceRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class SpaceliftSpaceSchema(CartographyNodeSchema):
-    """
-    Schema for a Spacelift Space node.
-    """
+    """An organizational container in a Spacelift account."""
 
     label: str = "SpaceliftSpace"
     properties: SpaceliftSpaceNodeProperties = SpaceliftSpaceNodeProperties()

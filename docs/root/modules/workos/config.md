@@ -1,8 +1,26 @@
-## WorkOS Configuration
+# WorkOS Configuration
 
-Follow these steps to analyze WorkOS objects with Cartography.
+## Authentication
 
-1. Prepare your WorkOS API credentials.
-    1. Get your WorkOS Client ID from the [WorkOS Dashboard](https://dashboard.workos.com/get-started)
-    1. Create a new API Key in [WorkOS Dashboard](https://dashboard.workos.com/environment_XXXX/api-keys)
-    1. Populate environment variables with the API Key and Client ID. You can pass the environment variable names via CLI with the `--workos-api-key` and `--workos-client-id` parameters.
+Get your WorkOS client ID from the [WorkOS
+Dashboard](https://dashboard.workos.com/get-started) and create an API key on
+the dashboard's API keys page.
+
+Store both values in environment variables.
+
+## Configure Cartography
+
+Pass the name of the API key environment variable with
+`--workos-apikey-env-var` and the client ID with `--workos-client-id`.
+
+## Run Cartography
+
+```bash
+export WORKOS_API_KEY="<api-key>"
+export WORKOS_CLIENT_ID="<client-id>"
+
+cartography \
+  --selected-modules workos \
+  --workos-apikey-env-var WORKOS_API_KEY \
+  --workos-client-id "$WORKOS_CLIENT_ID"
+```

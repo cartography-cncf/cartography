@@ -14,18 +14,40 @@ from cartography.models.core.relationships import TargetNodeMatcher
 
 @dataclass(frozen=True)
 class GCPCryptoKeyProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("id")
-    name: PropertyRef = PropertyRef("name")
-    rotation_period: PropertyRef = PropertyRef("rotation_period")
-    purpose: PropertyRef = PropertyRef("purpose")
-    state: PropertyRef = PropertyRef("state")
-    key_ring_id: PropertyRef = PropertyRef("key_ring_id")
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    id: PropertyRef = PropertyRef(
+        "id", description="The full resource name of the Crypto Key."
+    )
+    name: PropertyRef = PropertyRef(
+        "name", description="The short name of the Crypto Key."
+    )
+    rotation_period: PropertyRef = PropertyRef(
+        "rotation_period",
+        description="Configured automatic Cloud KMS key rotation interval.",
+    )
+    purpose: PropertyRef = PropertyRef(
+        "purpose", description="The key purpose (e.g., `ENCRYPT_DECRYPT`)."
+    )
+    state: PropertyRef = PropertyRef(
+        "state", description="The state of the primary key version (e.g., `ENABLED`)."
+    )
+    key_ring_id: PropertyRef = PropertyRef(
+        "key_ring_id",
+        description="Full resource name of the containing Cloud KMS key ring.",
+    )
+    lastupdated: PropertyRef = PropertyRef(
+        "lastupdated",
+        set_in_kwargs=True,
+        description="The timestamp of the last update.",
+    )
 
 
 @dataclass(frozen=True)
 class GCPCryptoKeyToGCPKeyRingRelProperties(CartographyRelProperties):
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    lastupdated: PropertyRef = PropertyRef(
+        "lastupdated",
+        set_in_kwargs=True,
+        description="Timestamp of the last sync that observed this data.",
+    )
 
 
 @dataclass(frozen=True)
@@ -43,7 +65,11 @@ class GCPCryptoKeyToGCPKeyRingRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class GCPCryptoKeyToGCPProjectRelProperties(CartographyRelProperties):
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    lastupdated: PropertyRef = PropertyRef(
+        "lastupdated",
+        set_in_kwargs=True,
+        description="Timestamp of the last sync that observed this data.",
+    )
 
 
 @dataclass(frozen=True)
@@ -61,6 +87,8 @@ class GCPCryptoKeyToGCPProjectRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class GCPCryptoKeySchema(CartographyNodeSchema):
+    """Representation of a GCP [Crypto Key](https://cloud.google.com/kms/docs/reference/rest/v1/projects.locations.keyRings.cryptoKeys)."""
+
     label: str = "GCPCryptoKey"
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["EncryptionKey"])
     properties: GCPCryptoKeyProperties = GCPCryptoKeyProperties()

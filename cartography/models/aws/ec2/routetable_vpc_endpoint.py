@@ -13,10 +13,24 @@ from cartography.models.core.relationships import TargetNodeMatcher
 
 @dataclass(frozen=True)
 class AWSRouteTableVPCEndpointNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("RouteTableId")
-    route_table_id: PropertyRef = PropertyRef("RouteTableId", extra_index=True)
-    region: PropertyRef = PropertyRef("Region", set_in_kwargs=True)
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    id: PropertyRef = PropertyRef(
+        "RouteTableId", description="Unique identifier for this `AWSRouteTable` node."
+    )
+    route_table_id: PropertyRef = PropertyRef(
+        "RouteTableId",
+        extra_index=True,
+        description="Identifier of the route table linked to this `AWSRouteTable` node.",
+    )
+    region: PropertyRef = PropertyRef(
+        "Region",
+        set_in_kwargs=True,
+        description="AWS Region containing this `AWSRouteTable` node.",
+    )
+    lastupdated: PropertyRef = PropertyRef(
+        "lastupdated",
+        set_in_kwargs=True,
+        description="Timestamp of the last sync that updated this `AWSRouteTable` node.",
+    )
 
 
 @dataclass(frozen=True)
@@ -26,6 +40,8 @@ class AWSRouteTableToAWSAccountRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class AWSRouteTableToAWSAccountRel(CartographyRelSchema):
+    "Represents a `RESOURCE` relationship from `AWSAccount` to `AWSRouteTable`."
+
     target_node_label: str = "AWSAccount"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("AWS_ID", set_in_kwargs=True)},
@@ -44,6 +60,8 @@ class AWSRouteTableToVPCEndpointRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class AWSRouteTableToVPCEndpointRel(CartographyRelSchema):
+    "Represents a `ROUTES_THROUGH` relationship from `AWSVpcEndpoint` to `AWSRouteTable`."
+
     target_node_label: str = "AWSVpcEndpoint"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("VpcEndpointId")},

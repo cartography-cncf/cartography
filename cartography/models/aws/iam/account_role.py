@@ -8,17 +8,22 @@ from cartography.models.core.nodes import CartographyNodeSchema
 @dataclass(frozen=True)
 class AWSAccountAWSRoleNodeProperties(CartographyNodeProperties):
     # Required unique identifier
-    id: PropertyRef = PropertyRef("id")
+    id: PropertyRef = PropertyRef("id", description="The AWS Account ID number")
 
     # Automatic fields (set by cartography)
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    lastupdated: PropertyRef = PropertyRef(
+        "lastupdated",
+        set_in_kwargs=True,
+        description="Timestamp of the last time the node was updated",
+    )
 
 
 @dataclass(frozen=True)
 class AWSAccountAWSRoleSchema(CartographyNodeSchema):
-    """
-    An AWSAccount that was discovered from a trusted principal in an IAM role.
-    """
+    "Represents an AWS account."
+
+    # Implementation note:
+    # An AWSAccount that was discovered from a trusted principal in an IAM role.
 
     label: str = "AWSAccount"
     properties: AWSAccountAWSRoleNodeProperties = AWSAccountAWSRoleNodeProperties()

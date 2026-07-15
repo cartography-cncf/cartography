@@ -15,27 +15,73 @@ from cartography.models.core.relationships import TargetNodeMatcher
 
 @dataclass(frozen=True)
 class TenableFindingNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("id")
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
-    asset_uuid: PropertyRef = PropertyRef("asset_uuid", extra_index=True)
-    severity: PropertyRef = PropertyRef("severity")
-    severity_id: PropertyRef = PropertyRef("severity_id")
-    severity_default_id: PropertyRef = PropertyRef("severity_default_id")
-    severity_modification_type: PropertyRef = PropertyRef("severity_modification_type")
-    state: PropertyRef = PropertyRef("state")
-    first_found: PropertyRef = PropertyRef("first_found")
-    last_found: PropertyRef = PropertyRef("last_found")
-    indexed: PropertyRef = PropertyRef("indexed")
-    source: PropertyRef = PropertyRef("source")
-    output: PropertyRef = PropertyRef("output")
-    resurfaced_date: PropertyRef = PropertyRef("resurfaced_date")
-    time_taken_to_fix: PropertyRef = PropertyRef("time_taken_to_fix")
-    port: PropertyRef = PropertyRef("port")
-    protocol: PropertyRef = PropertyRef("protocol")
-    service: PropertyRef = PropertyRef("service")
-    cve_id: PropertyRef = PropertyRef("cve_id", extra_index=True)
-    cve_list: PropertyRef = PropertyRef("cve_list", extra_index=True)
-    has_cve: PropertyRef = PropertyRef("has_cve")
+    id: PropertyRef = PropertyRef("id", description="Tenable finding UUID.")
+    lastupdated: PropertyRef = PropertyRef(
+        "lastupdated",
+        set_in_kwargs=True,
+        description="Timestamp of the last time the node was updated.",
+    )
+    asset_uuid: PropertyRef = PropertyRef(
+        "asset_uuid",
+        extra_index=True,
+        description="UUID of the affected Tenable asset.",
+    )
+    severity: PropertyRef = PropertyRef(
+        "severity", description="Finding severity name."
+    )
+    severity_id: PropertyRef = PropertyRef(
+        "severity_id", description="Numeric finding severity."
+    )
+    severity_default_id: PropertyRef = PropertyRef(
+        "severity_default_id", description="Default numeric finding severity."
+    )
+    severity_modification_type: PropertyRef = PropertyRef(
+        "severity_modification_type",
+        description="Type of severity adjustment applied.",
+    )
+    state: PropertyRef = PropertyRef("state", description="Finding state.")
+    first_found: PropertyRef = PropertyRef(
+        "first_found", description="Timestamp when the finding was first detected."
+    )
+    last_found: PropertyRef = PropertyRef(
+        "last_found",
+        description="Timestamp when the finding was most recently detected.",
+    )
+    indexed: PropertyRef = PropertyRef(
+        "indexed", description="Timestamp when Tenable indexed the finding."
+    )
+    source: PropertyRef = PropertyRef(
+        "source", description="Scanner source that reported the finding."
+    )
+    output: PropertyRef = PropertyRef("output", description="Raw scanner output.")
+    resurfaced_date: PropertyRef = PropertyRef(
+        "resurfaced_date", description="Timestamp when the finding resurfaced."
+    )
+    time_taken_to_fix: PropertyRef = PropertyRef(
+        "time_taken_to_fix", description="Time taken to remediate the finding."
+    )
+    port: PropertyRef = PropertyRef(
+        "port", description="Network port associated with the finding."
+    )
+    protocol: PropertyRef = PropertyRef(
+        "protocol", description="Network protocol associated with the finding."
+    )
+    service: PropertyRef = PropertyRef(
+        "service", description="Network service associated with the finding."
+    )
+    cve_id: PropertyRef = PropertyRef(
+        "cve_id",
+        extra_index=True,
+        description="First CVE ID associated with the finding.",
+    )
+    cve_list: PropertyRef = PropertyRef(
+        "cve_list",
+        extra_index=True,
+        description="CVE IDs associated with the finding.",
+    )
+    has_cve: PropertyRef = PropertyRef(
+        "has_cve", description='Whether the finding has a CVE ID, as "true" or "false".'
+    )
 
 
 @dataclass(frozen=True)
@@ -46,6 +92,8 @@ class TenableFindingToTenantRelProperties(CartographyRelProperties):
 # (:TenableTenant)-[:RESOURCE]->(:TenableFinding)
 @dataclass(frozen=True)
 class TenableFindingToTenantRel(CartographyRelSchema):
+    """Links a Tenable tenant to one of its findings."""
+
     target_node_label: str = "TenableTenant"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("TENABLE_TENANT_ID", set_in_kwargs=True)},
@@ -65,6 +113,8 @@ class TenableFindingToAssetRelProperties(CartographyRelProperties):
 # (:TenableFinding)-[:AFFECTS]->(:TenableAsset)
 @dataclass(frozen=True)
 class TenableFindingToAssetRel(CartographyRelSchema):
+    """Links a Tenable finding to the affected asset."""
+
     target_node_label: str = "TenableAsset"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("asset_uuid")},
@@ -84,6 +134,8 @@ class TenableFindingToPluginRelProperties(CartographyRelProperties):
 # (:TenableFinding)-[:DETECTED_BY]->(:TenablePlugin)
 @dataclass(frozen=True)
 class TenableFindingToPluginRel(CartographyRelSchema):
+    """Links a Tenable finding to the plugin that detected it."""
+
     target_node_label: str = "TenablePlugin"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("plugin_id")},
@@ -103,6 +155,8 @@ class TenableFindingToScanRelProperties(CartographyRelProperties):
 # (:TenableFinding)-[:PART_OF_SCAN]->(:TenableScan)
 @dataclass(frozen=True)
 class TenableFindingToScanRel(CartographyRelSchema):
+    """Links a Tenable finding to the scan that produced it."""
+
     target_node_label: str = "TenableScan"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("scan_uuid")},
@@ -114,6 +168,8 @@ class TenableFindingToScanRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class TenableFindingSchema(CartographyNodeSchema):
+    """A vulnerability finding detected by Tenable on an asset."""
+
     label: str = "TenableFinding"
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
         [ConditionalNodeLabel(label="CVE", conditions={"has_cve": "true"})]

@@ -18,21 +18,64 @@ class AWSBedrockProvisionedModelThroughputNodeProperties(CartographyNodeProperti
     Represents reserved compute capacity for Bedrock models.
     """
 
-    id: PropertyRef = PropertyRef("provisionedModelArn")
-    arn: PropertyRef = PropertyRef("provisionedModelArn", extra_index=True)
-    provisioned_model_name: PropertyRef = PropertyRef("provisionedModelName")
-    model_arn: PropertyRef = PropertyRef("modelArn")
-    desired_model_arn: PropertyRef = PropertyRef("desiredModelArn")
-    foundation_model_arn: PropertyRef = PropertyRef("foundationModelArn")
-    model_units: PropertyRef = PropertyRef("modelUnits")
-    desired_model_units: PropertyRef = PropertyRef("desiredModelUnits")
-    status: PropertyRef = PropertyRef("status")
-    commitment_duration: PropertyRef = PropertyRef("commitmentDuration")
-    commitment_expiration_time: PropertyRef = PropertyRef("commitmentExpirationTime")
-    creation_time: PropertyRef = PropertyRef("creationTime")
-    last_modified_time: PropertyRef = PropertyRef("lastModifiedTime")
-    region: PropertyRef = PropertyRef("Region", set_in_kwargs=True)
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    id: PropertyRef = PropertyRef(
+        "provisionedModelArn", description="The ARN of the provisioned throughput"
+    )
+    arn: PropertyRef = PropertyRef(
+        "provisionedModelArn",
+        extra_index=True,
+        description="The ARN of the provisioned throughput",
+    )
+    provisioned_model_name: PropertyRef = PropertyRef(
+        "provisionedModelName",
+        description="The name of the provisioned model throughput",
+    )
+    model_arn: PropertyRef = PropertyRef(
+        "modelArn", description="The ARN of the model (foundation or custom)"
+    )
+    desired_model_arn: PropertyRef = PropertyRef(
+        "desiredModelArn", description="The desired model ARN (used during updates)"
+    )
+    foundation_model_arn: PropertyRef = PropertyRef(
+        "foundationModelArn", description="The ARN of the foundation model"
+    )
+    model_units: PropertyRef = PropertyRef(
+        "modelUnits", description="The number of model units allocated"
+    )
+    desired_model_units: PropertyRef = PropertyRef(
+        "desiredModelUnits",
+        description="The desired number of model units (used during updates)",
+    )
+    status: PropertyRef = PropertyRef(
+        "status",
+        description='The status of the provisioned throughput (e.g., "Creating", "InService", "Updating")',
+    )
+    commitment_duration: PropertyRef = PropertyRef(
+        "commitmentDuration",
+        description='The commitment duration for the purchase (e.g., "OneMonth", "SixMonths")',
+    )
+    commitment_expiration_time: PropertyRef = PropertyRef(
+        "commitmentExpirationTime",
+        description="The timestamp when the commitment expires",
+    )
+    creation_time: PropertyRef = PropertyRef(
+        "creationTime",
+        description="The timestamp when the provisioned throughput was created",
+    )
+    last_modified_time: PropertyRef = PropertyRef(
+        "lastModifiedTime",
+        description="The timestamp when the provisioned throughput was last modified",
+    )
+    region: PropertyRef = PropertyRef(
+        "Region",
+        set_in_kwargs=True,
+        description="The AWS region where the provisioned throughput exists",
+    )
+    lastupdated: PropertyRef = PropertyRef(
+        "lastupdated",
+        set_in_kwargs=True,
+        description="Timestamp of the last time the node was updated",
+    )
 
 
 @dataclass(frozen=True)

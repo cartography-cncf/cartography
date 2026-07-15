@@ -12,19 +12,23 @@ class SpaceliftAccountNodeProperties(CartographyNodeProperties):
     Properties for a Spacelift Account node.
     """
 
-    id: PropertyRef = PropertyRef("id")
+    id: PropertyRef = PropertyRef("id", description="Spacelift account ID.")
     spacelift_account_id: PropertyRef = PropertyRef(
-        "spacelift_account_id", extra_index=True
+        "spacelift_account_id",
+        extra_index=True,
+        description="Spacelift account identifier.",
     )
-    name: PropertyRef = PropertyRef("name")
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    name: PropertyRef = PropertyRef("name", description="Account display name.")
+    lastupdated: PropertyRef = PropertyRef(
+        "lastupdated",
+        set_in_kwargs=True,
+        description="Timestamp of the last update.",
+    )
 
 
 @dataclass(frozen=True)
 class SpaceliftAccountSchema(CartographyNodeSchema):
-    """
-    Schema for a Spacelift Account node.
-    """
+    """A Spacelift account that contains the organization's resources."""
 
     label: str = "SpaceliftAccount"
     properties: SpaceliftAccountNodeProperties = SpaceliftAccountNodeProperties()

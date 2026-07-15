@@ -14,11 +14,21 @@ from cartography.models.core.relationships import TargetNodeMatcher
 
 @dataclass(frozen=True)
 class ECRImageLayerNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("diff_id")
-    diff_id: PropertyRef = PropertyRef("diff_id")
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
-    is_empty: PropertyRef = PropertyRef("is_empty")
-    history: PropertyRef = PropertyRef("history")
+    id: PropertyRef = PropertyRef("diff_id", description="Same as `diff_id`")
+    diff_id: PropertyRef = PropertyRef("diff_id", description="Digest of the layer")
+    lastupdated: PropertyRef = PropertyRef(
+        "lastupdated",
+        set_in_kwargs=True,
+        description="Timestamp of the last time the node was updated",
+    )
+    is_empty: PropertyRef = PropertyRef(
+        "is_empty",
+        description="Boolean flag identifying Docker's empty layer (true when the **DiffID** is `sha256:5f70bf18...`).",
+    )
+    history: PropertyRef = PropertyRef(
+        "history",
+        description="The `created_by` command from the image config that created this layer (e.g., `/bin/sh -c pip install flask`). Used for Dockerfile matching.",
+    )
 
 
 @dataclass(frozen=True)
@@ -28,6 +38,8 @@ class ECRImageLayerToAWSAccountRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class ECRImageLayerToAWSAccountRel(CartographyRelSchema):
+    "Represents a `RESOURCE` relationship from `AWSAccount` to `AWSECRImageLayer`."
+
     target_node_label: str = "AWSAccount"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("AWS_ID", set_in_kwargs=True)}
@@ -46,6 +58,8 @@ class ECRImageLayerToNextRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class ECRImageLayerToNextRel(CartographyRelSchema):
+    "Represents a `NEXT` relationship from `AWSECRImageLayer` to `AWSECRImageLayer`."
+
     target_node_label: str = "AWSECRImageLayer"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"diff_id": PropertyRef("next_diff_ids", one_to_many=True)}
@@ -62,6 +76,8 @@ class ECRImageLayerHeadOfImageRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class ECRImageLayerHeadOfImageRel(CartographyRelSchema):
+    "Represents a `HEAD` relationship from `AWSECRImage` to `AWSECRImageLayer`."
+
     target_node_label: str = "AWSECRImage"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("head_image_ids", one_to_many=True)}
@@ -80,6 +96,8 @@ class ECRImageLayerTailOfImageRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class ECRImageLayerTailOfImageRel(CartographyRelSchema):
+    "Represents a `TAIL` relationship from `AWSECRImage` to `AWSECRImageLayer`."
+
     target_node_label: str = "AWSECRImage"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("tail_image_ids", one_to_many=True)}
@@ -93,6 +111,8 @@ class ECRImageLayerTailOfImageRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class ECRImageLayerSchema(CartographyNodeSchema):
+    "Represents a filesystem layer in an Amazon ECR container image."
+
     label: str = "AWSECRImageLayer"
     properties: ECRImageLayerNodeProperties = ECRImageLayerNodeProperties()
     sub_resource_relationship: ECRImageLayerToAWSAccountRel = (
@@ -113,7 +133,10 @@ class ECRImageLayerSchema(CartographyNodeSchema):
 
 @dataclass(frozen=True)
 class ECRImageLayerNodeSchema(CartographyNodeSchema):
-    """Load AWSECRImageLayer nodes without high-fanout one-to-many relationships."""
+    "Represents a filesystem layer in an Amazon ECR container image."
+
+    # Implementation note:
+    # Load AWSECRImageLayer nodes without high-fanout one-to-many relationships.
 
     label: str = "AWSECRImageLayer"
     properties: ECRImageLayerNodeProperties = ECRImageLayerNodeProperties()
@@ -128,14 +151,21 @@ class ECRImageLayerNodeSchema(CartographyNodeSchema):
 
 @dataclass(frozen=True)
 class ECRImageLayerRelLoadProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("diff_id")
-    diff_id: PropertyRef = PropertyRef("diff_id")
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    id: PropertyRef = PropertyRef("diff_id", description="Same as `diff_id`")
+    diff_id: PropertyRef = PropertyRef("diff_id", description="Digest of the layer")
+    lastupdated: PropertyRef = PropertyRef(
+        "lastupdated",
+        set_in_kwargs=True,
+        description="Timestamp of the last time the node was updated",
+    )
 
 
 @dataclass(frozen=True)
 class ECRImageLayerNextRelSchema(CartographyNodeSchema):
-    """Load bounded NEXT relationship rows without reloading layer metadata."""
+    "Represents a filesystem layer in an Amazon ECR container image."
+
+    # Implementation note:
+    # Load bounded NEXT relationship rows without reloading layer metadata.
 
     label: str = "AWSECRImageLayer"
     # DEPRECATED: legacy ECRImageLayer node label will be removed in v1.0.0.
@@ -148,7 +178,10 @@ class ECRImageLayerNextRelSchema(CartographyNodeSchema):
 
 @dataclass(frozen=True)
 class ECRImageLayerHeadRelSchema(CartographyNodeSchema):
-    """Load bounded HEAD relationship rows without reloading layer metadata."""
+    "Represents a filesystem layer in an Amazon ECR container image."
+
+    # Implementation note:
+    # Load bounded HEAD relationship rows without reloading layer metadata.
 
     label: str = "AWSECRImageLayer"
     # DEPRECATED: legacy ECRImageLayer node label will be removed in v1.0.0.
@@ -161,7 +194,10 @@ class ECRImageLayerHeadRelSchema(CartographyNodeSchema):
 
 @dataclass(frozen=True)
 class ECRImageLayerTailRelSchema(CartographyNodeSchema):
-    """Load bounded TAIL relationship rows without reloading layer metadata."""
+    "Represents a filesystem layer in an Amazon ECR container image."
+
+    # Implementation note:
+    # Load bounded TAIL relationship rows without reloading layer metadata.
 
     label: str = "AWSECRImageLayer"
     # DEPRECATED: legacy ECRImageLayer node label will be removed in v1.0.0.
