@@ -16,9 +16,3 @@ LABEL = ExtraNodeLabel(
     label="Label",
     description="A gcp node participating in the shared Label graph interface.",
 )
-
-
-NETWORK_INTERFACE = ExtraNodeLabel(
-    label="NetworkInterface",
-    description="A gcp node participating in the shared NetworkInterface graph interface.",
-)

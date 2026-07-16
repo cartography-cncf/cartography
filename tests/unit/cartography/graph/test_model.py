@@ -187,11 +187,8 @@ def test_aws_label_migration_registry_matches_model_aliases():
             else []
         )
         for extra_label in extra_labels:
-            if (
-                isinstance(extra_label, str)
-                and node_schema.label == f"AWS{extra_label}"
-            ):
-                discovered_pairs.add((extra_label, node_schema.label))
+            if node_schema.label == f"AWS{extra_label.label}":
+                discovered_pairs.add((extra_label.label, node_schema.label))
 
     assert discovered_pairs == registered_pairs | PREEXISTING_AWS_LABEL_MIGRATIONS
 

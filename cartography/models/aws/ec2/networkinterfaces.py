@@ -22,7 +22,7 @@ from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import TargetNodeMatcher
-from cartography.models.gcp.extra_labels import NETWORK_INTERFACE
+from cartography.models.extra_labels import NETWORK_INTERFACE
 
 
 @dataclass(frozen=True)

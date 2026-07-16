@@ -42,6 +42,12 @@ IP_RULE = ExtraNodeLabel(
 )
 
 
+NETWORK_INTERFACE = ExtraNodeLabel(
+    label="NetworkInterface",
+    description="A node participating in the shared NetworkInterface graph interface.",
+)
+
+
 RISK = ExtraNodeLabel(
     label="Risk",
     description="A node participating in the shared Risk graph interface.",

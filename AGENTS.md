@@ -186,9 +186,9 @@ class YourNodeProperties(CartographyNodeProperties):
 ### Extra Node Labels
 
 ```python
-from cartography.models.aws.extra_labels import AWS_RESOURCE
+from cartography.models.aws.extra_labels import AWS_PRINCIPAL
 
-extra_node_labels = ExtraNodeLabels([AWS_RESOURCE])
+extra_node_labels = ExtraNodeLabels([AWS_PRINCIPAL])
 ```
 
 `ExtraNodeLabel` is a single immutable value type. Define and export labels once
