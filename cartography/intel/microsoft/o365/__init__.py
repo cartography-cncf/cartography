@@ -23,22 +23,20 @@ def start_o365_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
     Sync Office 365 licensing data (subscribed SKUs, service plans, and
     per-user license assignments).
 
-    Requires the same Entra credentials used for the main Microsoft module.
-    Needs Organization.Read.All or Directory.Read.All Graph permission for
-    subscribedSkus, and User.Read.All or Directory.Read.All for per-user
-    license details.
+    Requires the same Microsoft Graph credentials used for the main Microsoft
+    module. Needs Organization.Read.All or Directory.Read.All Graph permission
+    for subscribedSkus, and User.Read.All for per-user assigned licenses.
 
     This sync is optional: if the app registration lacks the required Graph
     permissions, a 401/403 is caught and the sync is skipped gracefully.
 
     :param neo4j_session: Neo4j session
-    :param config: Cartography config with Entra credentials
+    :param config: Cartography config with Microsoft credentials
     """
-    if (
-        not config.entra_tenant_id
-        or not config.entra_client_id
-        or not config.entra_client_secret
-    ):
+    tenant_id = config.microsoft_tenant_id
+    client_id = config.microsoft_client_id
+    client_secret = config.microsoft_client_secret
+    if not tenant_id or not client_id or not client_secret:
         logger.info(
             "O365 import is not configured - skipping this module. "
             "See docs to configure.",
@@ -47,14 +45,14 @@ def start_o365_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
 
     common_job_parameters = {
         "UPDATE_TAG": config.update_tag,
-        "TENANT_ID": config.entra_tenant_id,
+        "TENANT_ID": tenant_id,
     }
 
     async def main() -> None:
         credential = ClientSecretCredential(
-            tenant_id=config.entra_tenant_id,
-            client_id=config.entra_client_id,
-            client_secret=config.entra_client_secret,
+            tenant_id=tenant_id,
+            client_id=client_id,
+            client_secret=client_secret,
         )
         o365_client = create_graph_service_client(credential)
 
@@ -63,7 +61,7 @@ def start_o365_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
             await sync_licenses(
                 neo4j_session,
                 o365_client,
-                config.entra_tenant_id,
+                tenant_id,
                 config.update_tag,
                 common_job_parameters,
             )
@@ -83,7 +81,7 @@ def start_o365_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
             has_failures = await sync_user_license_details(
                 neo4j_session,
                 o365_client,
-                config.entra_tenant_id,
+                tenant_id,
                 config.update_tag,
             )
 
@@ -95,7 +93,7 @@ def start_o365_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
             else:
                 cleanup_user_license_assignments(
                     neo4j_session,
-                    config.entra_tenant_id,
+                    tenant_id,
                     config.update_tag,
                 )
         except APIError as e:

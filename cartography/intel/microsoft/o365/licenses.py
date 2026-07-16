@@ -30,6 +30,7 @@ async def get_subscribed_skus(
 
 def transform_licenses(
     skus: list[SubscribedSku],
+    tenant_id: str,
 ) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
     """
     Transform SubscribedSku objects into license dicts and service plan dicts.
@@ -37,9 +38,12 @@ def transform_licenses(
     Returns a tuple of (license_dicts, service_plan_dicts).
     Service plans are deduplicated by service_plan_id and collect all parent
     license sku_ids for one-to-many relationship creation.
+
+    Service plan node IDs are scoped to the tenant (``{tenant_id}-{sp_id}``)
+    to prevent cross-tenant graph corruption during cleanup.
     """
     licenses: list[dict[str, Any]] = []
-    # Keyed by service_plan_id to deduplicate across licenses
+    # Keyed by tenant-scoped ID to deduplicate across licenses
     service_plan_map: dict[str, dict[str, Any]] = {}
 
     for sku in skus:
@@ -65,15 +69,18 @@ def transform_licenses(
             if sp_id is None:
                 continue
 
-            if sp_id in service_plan_map:
+            scoped_id = f"{tenant_id}-{sp_id}"
+
+            if scoped_id in service_plan_map:
                 # Same service plan appears in multiple licenses; collect
                 # all parent license IDs for the one-to-many relationship.
-                existing_ids = service_plan_map[sp_id]["license_ids"]
+                existing_ids = service_plan_map[scoped_id]["license_ids"]
                 if sku.id and sku.id not in existing_ids:
                     existing_ids.append(sku.id)
             else:
-                service_plan_map[sp_id] = {
-                    "id": sp_id,
+                service_plan_map[scoped_id] = {
+                    "id": scoped_id,
+                    "service_plan_id": sp_id,
                     "service_plan_name": sp.service_plan_name,
                     "provisioning_status": sp.provisioning_status,
                     "applies_to": sp.applies_to,
@@ -149,7 +156,7 @@ async def sync_licenses(
     skus = await get_subscribed_skus(client)
     logger.info("Retrieved %d subscribed SKUs", len(skus))
 
-    licenses, service_plans = transform_licenses(skus)
+    licenses, service_plans = transform_licenses(skus, tenant_id)
 
     load_licenses(neo4j_session, licenses, tenant_id, update_tag)
     load_service_plans(neo4j_session, service_plans, tenant_id, update_tag)

@@ -30,9 +30,9 @@ class M365LicenseToTenantRelProperties(CartographyRelProperties):
 
 
 @dataclass(frozen=True)
-# (:M365License)<-[:RESOURCE]-(:EntraTenant)
+# (:M365License)<-[:RESOURCE]-(:AzureTenant)
 class M365LicenseToTenantRel(CartographyRelSchema):
-    target_node_label: str = "EntraTenant"
+    target_node_label: str = "AzureTenant"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("TENANT_ID", set_in_kwargs=True)},
     )

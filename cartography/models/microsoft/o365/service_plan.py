@@ -15,6 +15,7 @@ from cartography.models.core.relationships import TargetNodeMatcher
 class M365ServicePlanNodeProperties(CartographyNodeProperties):
     id: PropertyRef = PropertyRef("id")
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    service_plan_id: PropertyRef = PropertyRef("service_plan_id", extra_index=True)
     service_plan_name: PropertyRef = PropertyRef("service_plan_name", extra_index=True)
     provisioning_status: PropertyRef = PropertyRef("provisioning_status")
     applies_to: PropertyRef = PropertyRef("applies_to")
@@ -26,9 +27,9 @@ class M365ServicePlanToTenantRelProperties(CartographyRelProperties):
 
 
 @dataclass(frozen=True)
-# (:M365ServicePlan)<-[:RESOURCE]-(:EntraTenant)
+# (:M365ServicePlan)<-[:RESOURCE]-(:AzureTenant)
 class M365ServicePlanToTenantRel(CartographyRelSchema):
-    target_node_label: str = "EntraTenant"
+    target_node_label: str = "AzureTenant"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("TENANT_ID", set_in_kwargs=True)},
     )
