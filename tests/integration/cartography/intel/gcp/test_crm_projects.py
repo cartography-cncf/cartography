@@ -549,3 +549,67 @@ def test_sync_gcp_projects_by_ids_absent_parent_creates_no_edge(
         )
         == set()
     )
+
+
+@patch.object(
+    cartography.intel.gcp.crm.orgs,
+    "get_gcp_organizations",
+    return_value=tests.data.gcp.crm.GCP_ORGANIZATIONS,
+)
+@patch.object(cartography.intel.gcp.crm.projects, "get_gcp_projects_by_ids")
+def test_sync_gcp_projects_by_ids_reconciles_stale_parent_edge(
+    mock_get_projects, _mock_get_orgs, neo4j_session
+) -> None:
+    """
+    When a standalone project becomes parentless (or changes parent), its previous PARENT
+    edge is reconciled away on the next sync, even though the standalone schema runs no
+    scoped relationship cleanup of its own.
+    """
+    neo4j_session.run("MATCH (n) DETACH DELETE n")
+
+    # Org node exists so the initial PARENT edge can be created.
+    cartography.intel.gcp.crm.orgs.sync_gcp_organizations(
+        neo4j_session, TEST_UPDATE_TAG, COMMON_JOB_PARAMS
+    )
+
+    # First sync: the project belongs to the org, so a PARENT edge is created.
+    mock_get_projects.return_value = (
+        tests.data.gcp.crm.GCP_STANDALONE_PROJECTS_WITH_ORG_PARENT
+    )
+    cartography.intel.gcp.crm.projects.sync_gcp_projects_by_ids(
+        neo4j_session,
+        ["standalone-project"],
+        TEST_UPDATE_TAG,
+    )
+    assert check_rels(
+        neo4j_session,
+        "GCPProject",
+        "id",
+        "GCPOrganization",
+        "id",
+        "PARENT",
+        rel_direction_right=True,
+    ) == {("standalone-project", "organizations/1337")}
+
+    # Second sync with a newer tag: the project is now parentless. The stale PARENT edge
+    # (still stamped with the old tag) must be reconciled away.
+    mock_get_projects.return_value = tests.data.gcp.crm.GCP_STANDALONE_PROJECTS
+    cartography.intel.gcp.crm.projects.sync_gcp_projects_by_ids(
+        neo4j_session,
+        ["standalone-project"],
+        TEST_UPDATE_TAG + 1,
+    )
+    assert (
+        check_rels(
+            neo4j_session,
+            "GCPProject",
+            "id",
+            "GCPOrganization",
+            "id",
+            "PARENT",
+            rel_direction_right=True,
+        )
+        == set()
+    )
+    # Only the edge was reconciled; the project node itself survives.
+    assert check_nodes(neo4j_session, "GCPProject", ["id"]) == {("standalone-project",)}

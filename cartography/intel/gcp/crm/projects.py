@@ -254,6 +254,43 @@ def load_standalone_gcp_projects(
 
 
 @timeit
+def cleanup_standalone_project_parents(
+    neo4j_session: neo4j.Session,
+    project_ids: List[str],
+    gcp_update_tag: int,
+) -> None:
+    """
+    Remove stale PARENT edges from standalone projects.
+
+    The standalone sync path uses GCPStandaloneProjectSchema, which has no sub-resource
+    and runs no scoped cleanup job, so the automatic relationship reconciliation the
+    org-based path relies on never runs. The load only MERGEs the project's *current*
+    PARENT edge; it never deletes an old one. Without this cleanup, a project that
+    changes parent (or becomes parentless) keeps its previous PARENT edge indefinitely.
+
+    Every load stamps the current PARENT edge's ``lastupdated`` with ``gcp_update_tag``.
+    Any PARENT edge on the given projects whose ``lastupdated`` differs is therefore
+    stale (the parent changed or was removed this run) and is deleted.
+
+    :param project_ids: Project IDs that were actually loaded this run. Scope is limited
+        to these so a project that was skipped (inaccessible/non-ACTIVE) and never
+        refreshed does not have its still-valid PARENT edge deleted.
+    :param gcp_update_tag: The update tag stamped on edges refreshed this run.
+    """
+    if not project_ids:
+        return
+    neo4j_session.run(
+        """
+        MATCH (p:GCPProject)-[r:PARENT]->()
+        WHERE p.id IN $project_ids AND r.lastupdated <> $UPDATE_TAG
+        DELETE r
+        """,
+        project_ids=project_ids,
+        UPDATE_TAG=gcp_update_tag,
+    )
+
+
+@timeit
 def sync_gcp_projects_by_ids(
     neo4j_session: neo4j.Session,
     project_ids: List[str],
@@ -269,6 +306,10 @@ def sync_gcp_projects_by_ids(
     by the organization-based path. Resource-level cleanup (Compute, IAM, etc.) is still
     handled per-project by the individual resource modules, scoped by PROJECT_ID.
 
+    Stale PARENT edges for the synced projects are reconciled explicitly (see
+    ``cleanup_standalone_project_parents``) because the standalone schema runs no scoped
+    relationship cleanup of its own.
+
     :param project_ids: List of GCP project IDs to sync.
     :return: List of projects synced. Individual IDs may be dropped: an inaccessible or
         non-existent project ID (NotFound / PermissionDenied) is logged and skipped, and a
@@ -279,4 +320,13 @@ def sync_gcp_projects_by_ids(
     logger.debug("Syncing GCP projects by id: %s", project_ids)
     projects = get_gcp_projects_by_ids(project_ids, credentials=credentials)
     load_standalone_gcp_projects(neo4j_session, projects, gcp_update_tag)
+    # Reconcile PARENT edges. The standalone schema runs no scoped cleanup, so a project
+    # that changed parent or became parentless would otherwise keep its old PARENT edge.
+    # Scope to the projects we actually loaded (skipped IDs are absent from `projects`)
+    # so a transiently inaccessible project does not lose its still-valid edge.
+    cleanup_standalone_project_parents(
+        neo4j_session,
+        [project["projectId"] for project in projects],
+        gcp_update_tag,
+    )
     return projects
