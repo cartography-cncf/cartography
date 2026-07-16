@@ -251,9 +251,9 @@ def transform_ec2_instances(
 
                 # --- Extract IPv6 addresses for this network interface ---
                 # Each NI can have zero or more IPv6 addresses. We create a
-                # separate EC2Ipv6Address node per address so they can be
+                # separate AWSEC2Ipv6Address node per address so they can be
                 # independently queried and linked to DNS AAAA records via the
-                # Ip label on EC2Ipv6Address and the existing DNS_POINTS_TO rel.
+                # Ip label on AWSEC2Ipv6Address and the existing DNS_POINTS_TO rel.
                 nic_id = network_interface["NetworkInterfaceId"]
                 for ipv6_entry in network_interface.get("Ipv6Addresses", []):
                     ipv6_addr = ipv6_entry.get("Ipv6Address")
@@ -525,7 +525,7 @@ def sync_ec2_instance_assumes_role(
     # the canonical ASSUMES ontology edge. Scoped to the current account so the
     # MatchLink cleanup only touches this account's edges.
     query = """
-    MATCH (:AWSAccount{id: $AccountId})-[:RESOURCE]->(i:EC2Instance)
+    MATCH (:AWSAccount{id: $AccountId})-[:RESOURCE]->(i:AWSEC2Instance)
         -[:INSTANCE_PROFILE]->(:AWSInstanceProfile)-[:ASSOCIATED_WITH]->(r:AWSRole)
     WHERE i.id IS NOT NULL AND r.arn IS NOT NULL
     RETURN i.id AS instance_id, r.arn AS role_arn

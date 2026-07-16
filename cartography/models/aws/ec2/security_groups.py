@@ -65,7 +65,7 @@ class EC2SecurityGroupToSourceGroupRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class EC2SecurityGroupToSourceGroupRel(CartographyRelSchema):
-    target_node_label: str = "EC2SecurityGroup"
+    target_node_label: str = "AWSEC2SecurityGroup"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"groupid": PropertyRef("SOURCE_GROUP_IDS", one_to_many=True)}
     )
@@ -78,9 +78,12 @@ class EC2SecurityGroupToSourceGroupRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class EC2SecurityGroupSchema(CartographyNodeSchema):
-    label: str = "EC2SecurityGroup"
+    label: str = "AWSEC2SecurityGroup"
     properties: EC2SecurityGroupNodeProperties = EC2SecurityGroupNodeProperties()
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["NetworkAccessControl"])
+    # DEPRECATED: legacy EC2SecurityGroup node label will be removed in v1.0.0.
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
+        ["EC2SecurityGroup", "NetworkAccessControl"]
+    )
     sub_resource_relationship: EC2SecurityGroupToAWSAccountRel = (
         EC2SecurityGroupToAWSAccountRel()
     )

@@ -3,6 +3,7 @@ from dataclasses import dataclass
 from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeProperties
 from cartography.models.core.nodes import CartographyNodeSchema
+from cartography.models.core.nodes import ExtraNodeLabels
 from cartography.models.core.relationships import CartographyRelProperties
 from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
@@ -26,7 +27,7 @@ class APIGatewayDeploymentToAWSAccountRelRelProperties(CartographyRelProperties)
 
 
 @dataclass(frozen=True)
-# (:APIGatewayDeployment)<-[:RESOURCE]-(:AWSAccount)
+# (:AWSAPIGatewayDeployment)<-[:RESOURCE]-(:AWSAccount)
 class APIGatewayDeploymentToAWSAccountRel(CartographyRelSchema):
     target_node_label: str = "AWSAccount"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
@@ -45,9 +46,9 @@ class APIGatewayDeploymentToRestAPIRelRelProperties(CartographyRelProperties):
 
 
 @dataclass(frozen=True)
-# (:APIGatewayDeployment)<-[:HAS_DEPLOYMENT]-(:APIGatewayRestAPI)
+# (:AWSAPIGatewayDeployment)<-[:HAS_DEPLOYMENT]-(:AWSAPIGatewayRestAPI)
 class APIGatewayDeploymentToRestAPIRel(CartographyRelSchema):
-    target_node_label: str = "APIGatewayRestAPI"
+    target_node_label: str = "AWSAPIGatewayRestAPI"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("api_id")},
     )
@@ -60,7 +61,9 @@ class APIGatewayDeploymentToRestAPIRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class APIGatewayDeploymentSchema(CartographyNodeSchema):
-    label: str = "APIGatewayDeployment"
+    label: str = "AWSAPIGatewayDeployment"
+    # DEPRECATED: legacy APIGatewayDeployment node label will be removed in v1.0.0.
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["APIGatewayDeployment"])
     properties: APIGatewayDeploymentNodeProperties = (
         APIGatewayDeploymentNodeProperties()
     )

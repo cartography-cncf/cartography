@@ -6,7 +6,7 @@ def create_test_entra_tenant(
 ) -> None:
     neo4j_session.run(
         """
-        MERGE (tenant:EntraTenant{id: $tenant_id})
+        MERGE (tenant:AzureTenant:EntraTenant{id: $tenant_id})
         ON CREATE SET tenant.firstseen = timestamp()
         SET tenant.lastupdated = $update_tag,
             tenant.display_name = $display_name

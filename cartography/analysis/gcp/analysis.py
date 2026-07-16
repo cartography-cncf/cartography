@@ -2,8 +2,8 @@ from cartography.graph.analysis import AddRelationship
 from cartography.graph.analysis import AnalysisJob
 from cartography.graph.analysis import AnalysisStatement
 from cartography.graph.analysis import Case
-from cartography.graph.analysis import CleanupScopedTo
 from cartography.graph.analysis import RawCypher
+from cartography.graph.analysis import ScopeById
 from cartography.graph.analysis import SetProperties
 from cartography.graph.analysis import SetProperty
 
@@ -79,11 +79,11 @@ GCP_BUCKET_PUBLIC_PROJECTION = AnalysisJob(
 GCP_COMPUTE_FORWARDING_RULE_EXPOSURE = AnalysisJob(
     name="GCP ForwardingRule internet exposure",
     short_name="gcp_compute_forwarding_rule_exposure",
-    scope=CleanupScopedTo("GCPProject", "PROJECT_ID"),
+    scope=ScopeById("GCPProject", "PROJECT_ID", scope_on="fr"),
     cleanup_iterationsize=1000,
     statements=(
         AnalysisStatement(
-            match="MATCH (p:GCPProject{id: $PROJECT_ID})-[:RESOURCE]->(fr:GCPForwardingRule) WHERE fr.load_balancing_scheme = 'EXTERNAL' OR fr.load_balancing_scheme = 'EXTERNAL_MANAGED'",
+            match="MATCH (fr:GCPForwardingRule) WHERE fr.load_balancing_scheme = 'EXTERNAL' OR fr.load_balancing_scheme = 'EXTERNAL_MANAGED'",
             effects=(
                 SetProperties(
                     "fr",
@@ -93,7 +93,7 @@ GCP_COMPUTE_FORWARDING_RULE_EXPOSURE = AnalysisJob(
             ),
         ),
         AnalysisStatement(
-            match="MATCH (p:GCPProject{id: $PROJECT_ID})-[:RESOURCE]->(fr:GCPForwardingRule) WHERE fr.exposed_internet IS NULL",
+            match="MATCH (fr:GCPForwardingRule) WHERE fr.exposed_internet IS NULL",
             effects=(
                 SetProperty("fr", "exposed_internet", False, label="GCPForwardingRule"),
             ),
@@ -103,11 +103,11 @@ GCP_COMPUTE_FORWARDING_RULE_EXPOSURE = AnalysisJob(
 GCP_COMPUTE_FIREWALL_INGRESS = AnalysisJob(
     name="GCP firewall ingress to instance analysis",
     short_name="gcp_compute_firewall_ingress",
-    scope=CleanupScopedTo("GCPProject", "PROJECT_ID"),
+    scope=ScopeById("GCPProject", "PROJECT_ID", scope_on="vpc"),
     cleanup_iterationsize=1000,
     statements=(
         AnalysisStatement(
-            match="MATCH (p:GCPProject{id: $PROJECT_ID})-[:RESOURCE]->(vpc:GCPVpc)<-[mem:MEMBER_OF_GCP_VPC]-(inst:GCPInstance)-[t:TAGGED]->(tag:GCPNetworkTag)-[tt:TARGET_TAG]-(fw:GCPFirewall{direction: 'INGRESS'})<-[res:RESOURCE]-(vpc)",
+            match="MATCH (vpc:GCPVpc)<-[mem:MEMBER_OF_GCP_VPC]-(inst:GCPInstance)-[t:TAGGED]->(tag:GCPNetworkTag)-[tt:TARGET_TAG]-(fw:GCPFirewall{direction: 'INGRESS'})<-[res:RESOURCE]-(vpc)",
             effects=(
                 AddRelationship(
                     "fw",
@@ -121,7 +121,7 @@ GCP_COMPUTE_FIREWALL_INGRESS = AnalysisJob(
             ),
         ),
         AnalysisStatement(
-            match="MATCH (fw:GCPFirewall{direction: 'INGRESS', has_target_service_accounts: False}) WHERE NOT (fw)-[:TARGET_TAG]->(:GCPNetworkTag) MATCH (p:GCPProject{id: $PROJECT_ID})-[:RESOURCE]->(vpc:GCPVpc)-[res:RESOURCE]->(fw) MATCH (inst:GCPInstance)-[mem:MEMBER_OF_GCP_VPC]->(vpc)",
+            match="MATCH (fw:GCPFirewall{direction: 'INGRESS', has_target_service_accounts: False}) WHERE NOT (fw)-[:TARGET_TAG]->(:GCPNetworkTag) MATCH (vpc:GCPVpc)-[res:RESOURCE]->(fw) MATCH (inst:GCPInstance)-[mem:MEMBER_OF_GCP_VPC]->(vpc)",
             effects=(
                 AddRelationship(
                     "fw",
@@ -139,11 +139,15 @@ GCP_COMPUTE_FIREWALL_INGRESS = AnalysisJob(
 GCP_COMPUTE_INSTANCE_EXPOSURE = AnalysisJob(
     name="GCP Instance internet exposure",
     short_name="gcp_compute_instance_exposure",
-    scope=CleanupScopedTo("GCPProject", "PROJECT_ID"),
+    scope=ScopeById(
+        "GCPProject",
+        "PROJECT_ID",
+        scope_on=("bs", "n", "n", "n", "i"),
+    ),
     cleanup_iterationsize=1000,
     statements=(
         AnalysisStatement(
-            match="MATCH (p:GCPProject{id: $PROJECT_ID})-[:RESOURCE]->(bs:GCPBackendService)-[:ROUTES_TO]->(ig:GCPInstanceGroup)-[:HAS_MEMBER]->(i:GCPInstance) WHERE bs.load_balancing_scheme = 'EXTERNAL' OR bs.load_balancing_scheme = 'EXTERNAL_MANAGED'",
+            match="MATCH (bs:GCPBackendService)-[:ROUTES_TO]->(ig:GCPInstanceGroup)-[:HAS_MEMBER]->(i:GCPInstance) WHERE bs.load_balancing_scheme = 'EXTERNAL' OR bs.load_balancing_scheme = 'EXTERNAL_MANAGED'",
             effects=(
                 SetProperties(
                     "i",
@@ -153,7 +157,7 @@ GCP_COMPUTE_INSTANCE_EXPOSURE = AnalysisJob(
             ),
         ),
         AnalysisStatement(
-            match="MATCH (p:GCPProject{id: $PROJECT_ID})-[:RESOURCE]->(n:GCPInstance)<-[:FIREWALL_INGRESS]-(firewall_a:GCPFirewall)<-[:ALLOWED_BY]-(allow_rule:GCPIpRule{protocol:'tcp'})<-[:MEMBER_OF_IP_RULE]-(:GCPIpRange{id:\"0.0.0.0/0\"}) MATCH (n)-[:NETWORK_INTERFACE]->(:GCPNetworkInterface)-[:RESOURCE]->(ac:GCPNicAccessConfig) WHERE ac.public_ip IS NOT NULL OPTIONAL MATCH (n)<-[:FIREWALL_INGRESS]-(firewall_b:GCPFirewall)<-[:DENIED_BY]-(deny_rule:GCPIpRule{protocol:'tcp'}) WITH n, firewall_a, allow_rule, deny_rule, firewall_b WHERE deny_rule IS NULL OR firewall_b.priority > firewall_a.priority OR NOT allow_rule.fromport IN RANGE(deny_rule.fromport, deny_rule.toport) OR NOT allow_rule.toport IN RANGE(deny_rule.fromport, deny_rule.toport)",
+            match="MATCH (n:GCPInstance)<-[:FIREWALL_INGRESS]-(firewall_a:GCPFirewall)<-[:ALLOWED_BY]-(allow_rule:GCPIpRule{protocol:'tcp'})<-[:MEMBER_OF_IP_RULE]-(:GCPIpRange{id:\"0.0.0.0/0\"}) MATCH (n)-[:NETWORK_INTERFACE]->(:GCPNetworkInterface)-[:RESOURCE]->(ac:GCPNicAccessConfig) WHERE ac.public_ip IS NOT NULL OPTIONAL MATCH (n)<-[:FIREWALL_INGRESS]-(firewall_b:GCPFirewall)<-[:DENIED_BY]-(deny_rule:GCPIpRule{protocol:'tcp'}) WITH n, firewall_a, allow_rule, deny_rule, firewall_b WHERE deny_rule IS NULL OR firewall_b.priority > firewall_a.priority OR NOT allow_rule.fromport IN RANGE(deny_rule.fromport, deny_rule.toport) OR NOT allow_rule.toport IN RANGE(deny_rule.fromport, deny_rule.toport)",
             effects=(
                 SetProperties(
                     "n",
@@ -163,7 +167,7 @@ GCP_COMPUTE_INSTANCE_EXPOSURE = AnalysisJob(
             ),
         ),
         AnalysisStatement(
-            match="MATCH (p:GCPProject{id: $PROJECT_ID})-[:RESOURCE]->(n:GCPInstance)<-[:FIREWALL_INGRESS]-(firewall_a:GCPFirewall)<-[:ALLOWED_BY]-(allow_rule:GCPIpRule{protocol:'udp'})<-[:MEMBER_OF_IP_RULE]-(:GCPIpRange{id:\"0.0.0.0/0\"}) MATCH (n)-[:NETWORK_INTERFACE]->(:GCPNetworkInterface)-[:RESOURCE]->(ac:GCPNicAccessConfig) WHERE ac.public_ip IS NOT NULL OPTIONAL MATCH (n)<-[:FIREWALL_INGRESS]-(firewall_b:GCPFirewall)<-[:DENIED_BY]-(deny_rule:GCPIpRule{protocol:'udp'}) WITH n, firewall_a, allow_rule, deny_rule, firewall_b WHERE deny_rule IS NULL OR firewall_b.priority > firewall_a.priority OR NOT allow_rule.fromport IN RANGE(deny_rule.fromport, deny_rule.toport) OR NOT allow_rule.toport IN RANGE(deny_rule.fromport, deny_rule.toport)",
+            match="MATCH (n:GCPInstance)<-[:FIREWALL_INGRESS]-(firewall_a:GCPFirewall)<-[:ALLOWED_BY]-(allow_rule:GCPIpRule{protocol:'udp'})<-[:MEMBER_OF_IP_RULE]-(:GCPIpRange{id:\"0.0.0.0/0\"}) MATCH (n)-[:NETWORK_INTERFACE]->(:GCPNetworkInterface)-[:RESOURCE]->(ac:GCPNicAccessConfig) WHERE ac.public_ip IS NOT NULL OPTIONAL MATCH (n)<-[:FIREWALL_INGRESS]-(firewall_b:GCPFirewall)<-[:DENIED_BY]-(deny_rule:GCPIpRule{protocol:'udp'}) WITH n, firewall_a, allow_rule, deny_rule, firewall_b WHERE deny_rule IS NULL OR firewall_b.priority > firewall_a.priority OR NOT allow_rule.fromport IN RANGE(deny_rule.fromport, deny_rule.toport) OR NOT allow_rule.toport IN RANGE(deny_rule.fromport, deny_rule.toport)",
             effects=(
                 SetProperties(
                     "n",
@@ -173,7 +177,7 @@ GCP_COMPUTE_INSTANCE_EXPOSURE = AnalysisJob(
             ),
         ),
         AnalysisStatement(
-            match="MATCH (p:GCPProject{id: $PROJECT_ID})-[:RESOURCE]->(n:GCPInstance)<-[:FIREWALL_INGRESS]-(firewall_a:GCPFirewall)<-[:ALLOWED_BY]-(allow_rule:GCPIpRule{protocol:'all'})<-[:MEMBER_OF_IP_RULE]-(:GCPIpRange{id:\"0.0.0.0/0\"}) MATCH (n)-[:NETWORK_INTERFACE]->(:GCPNetworkInterface)-[:RESOURCE]->(ac:GCPNicAccessConfig) WHERE ac.public_ip IS NOT NULL AND allow_rule.fromport IS NOT NULL AND allow_rule.toport IS NOT NULL OPTIONAL MATCH (n)<-[:FIREWALL_INGRESS]-(firewall_b:GCPFirewall)<-[:DENIED_BY]-(deny_rule:GCPIpRule{protocol:'all'}) WITH n, firewall_a, allow_rule, deny_rule, firewall_b WHERE deny_rule IS NULL OR firewall_b.priority > firewall_a.priority OR NOT allow_rule.fromport IN RANGE(deny_rule.fromport, deny_rule.toport) OR NOT allow_rule.toport IN RANGE(deny_rule.fromport, deny_rule.toport)",
+            match="MATCH (n:GCPInstance)<-[:FIREWALL_INGRESS]-(firewall_a:GCPFirewall)<-[:ALLOWED_BY]-(allow_rule:GCPIpRule{protocol:'all'})<-[:MEMBER_OF_IP_RULE]-(:GCPIpRange{id:\"0.0.0.0/0\"}) MATCH (n)-[:NETWORK_INTERFACE]->(:GCPNetworkInterface)-[:RESOURCE]->(ac:GCPNicAccessConfig) WHERE ac.public_ip IS NOT NULL AND allow_rule.fromport IS NOT NULL AND allow_rule.toport IS NOT NULL OPTIONAL MATCH (n)<-[:FIREWALL_INGRESS]-(firewall_b:GCPFirewall)<-[:DENIED_BY]-(deny_rule:GCPIpRule{protocol:'all'}) WITH n, firewall_a, allow_rule, deny_rule, firewall_b WHERE deny_rule IS NULL OR firewall_b.priority > firewall_a.priority OR NOT allow_rule.fromport IN RANGE(deny_rule.fromport, deny_rule.toport) OR NOT allow_rule.toport IN RANGE(deny_rule.fromport, deny_rule.toport)",
             effects=(
                 SetProperties(
                     "n",
@@ -183,7 +187,7 @@ GCP_COMPUTE_INSTANCE_EXPOSURE = AnalysisJob(
             ),
         ),
         AnalysisStatement(
-            match="MATCH (p:GCPProject{id: $PROJECT_ID})-[:RESOURCE]->(i:GCPInstance) WHERE i.exposed_internet IS NULL",
+            match="MATCH (i:GCPInstance) WHERE i.exposed_internet IS NULL",
             effects=(SetProperty("i", "exposed_internet", False, label="GCPInstance"),),
         ),
     ),
@@ -191,11 +195,11 @@ GCP_COMPUTE_INSTANCE_EXPOSURE = AnalysisJob(
 GCP_COMPUTE_CLOUDRUN_EXPOSURE = AnalysisJob(
     name="GCP CloudRunService internet exposure",
     short_name="gcp_compute_cloudrun_exposure",
-    scope=CleanupScopedTo("GCPProject", "PROJECT_ID"),
+    scope=ScopeById("GCPProject", "PROJECT_ID", scope_on="svc"),
     cleanup_iterationsize=1000,
     statements=(
         AnalysisStatement(
-            match="MATCH (p:GCPProject{id: $PROJECT_ID})-[:RESOURCE]->(svc:GCPCloudRunService) WHERE svc.ingress = 'INGRESS_TRAFFIC_ALL'",
+            match="MATCH (svc:GCPCloudRunService) WHERE svc.ingress = 'INGRESS_TRAFFIC_ALL'",
             effects=(
                 SetProperties(
                     "svc",
@@ -205,7 +209,7 @@ GCP_COMPUTE_CLOUDRUN_EXPOSURE = AnalysisJob(
             ),
         ),
         AnalysisStatement(
-            match="MATCH (p:GCPProject{id: $PROJECT_ID})-[:RESOURCE]->(svc:GCPCloudRunService) WHERE svc.exposed_internet IS NULL AND svc.ingress IN ['INGRESS_TRAFFIC_INTERNAL_ONLY', 'INGRESS_TRAFFIC_NONE']",
+            match="MATCH (svc:GCPCloudRunService) WHERE svc.exposed_internet IS NULL AND svc.ingress IN ['INGRESS_TRAFFIC_INTERNAL_ONLY', 'INGRESS_TRAFFIC_NONE']",
             effects=(
                 SetProperty(
                     "svc", "exposed_internet", False, label="GCPCloudRunService"
@@ -223,11 +227,11 @@ GCP_COMPUTE_EXPOSURE_JOBS = (
 GCP_LB_EXPOSURE = AnalysisJob(
     name="GCP BackendService to Instance EXPOSE relationship (scoped per project)",
     short_name="gcp_lb_exposure",
-    scope=CleanupScopedTo("GCPProject", "PROJECT_ID"),
+    scope=ScopeById("GCPProject", "PROJECT_ID", scope_on="bs"),
     cleanup_iterationsize=1000,
     statements=(
         AnalysisStatement(
-            match="MATCH (p:GCPProject{id: $PROJECT_ID})-[:RESOURCE]->(bs:GCPBackendService)-[:ROUTES_TO]->(ig:GCPInstanceGroup)-[:HAS_MEMBER]->(i:GCPInstance) WHERE bs.load_balancing_scheme = 'EXTERNAL' OR bs.load_balancing_scheme = 'EXTERNAL_MANAGED'",
+            match="MATCH (bs:GCPBackendService)-[:ROUTES_TO]->(ig:GCPInstanceGroup)-[:HAS_MEMBER]->(i:GCPInstance) WHERE bs.load_balancing_scheme = 'EXTERNAL' OR bs.load_balancing_scheme = 'EXTERNAL_MANAGED'",
             effects=(
                 AddRelationship(
                     "bs",

@@ -130,10 +130,10 @@ class SpaceliftRunToEC2InstanceSimpleRelProperties(CartographyRelProperties):
 class SpaceliftRunToEC2InstanceSimpleRel(CartographyRelSchema):
     """
     AFFECTED relationship from a Run to EC2 Instances it manages (from Spacelift entities API).
-    (:SpaceliftRun)-[:AFFECTED]->(:EC2Instance)
+    (:SpaceliftRun)-[:AFFECTED]->(:AWSEC2Instance)
     """
 
-    target_node_label: str = "EC2Instance"
+    target_node_label: str = "AWSEC2Instance"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"instanceid": PropertyRef("affected_instance_ids", one_to_many=True)},
     )

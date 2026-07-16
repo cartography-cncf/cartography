@@ -3,6 +3,7 @@ from dataclasses import dataclass
 from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeProperties
 from cartography.models.core.nodes import CartographyNodeSchema
+from cartography.models.core.nodes import ExtraNodeLabels
 from cartography.models.core.relationships import CartographyRelProperties
 from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
@@ -32,7 +33,7 @@ class DependencyGraphManifestToOrganizationRelProperties(CartographyRelPropertie
 @dataclass(frozen=True)
 class DependencyGraphManifestToOrganizationRel(CartographyRelSchema):
     """
-    Sub-resource relationship: (GitHubOrganization)-[:RESOURCE]->(DependencyGraphManifest).
+    Sub-resource relationship: (GitHubOrganization)-[:RESOURCE]->(GitHubDependencyGraphManifest).
     Manifests are scoped to the organization for cleanup purposes so that a single
     GraphJob run cleans up manifests from every repo in the org.
     """
@@ -68,7 +69,9 @@ class DependencyGraphManifestToRepositoryRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class DependencyGraphManifestSchema(CartographyNodeSchema):
-    label: str = "DependencyGraphManifest"
+    label: str = "GitHubDependencyGraphManifest"
+    # DEPRECATED: legacy DependencyGraphManifest node label will be removed in v1.0.0.
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["DependencyGraphManifest"])
     properties: DependencyGraphManifestNodeProperties = (
         DependencyGraphManifestNodeProperties()
     )

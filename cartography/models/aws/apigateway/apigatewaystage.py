@@ -3,6 +3,7 @@ from dataclasses import dataclass
 from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeProperties
 from cartography.models.core.nodes import CartographyNodeSchema
+from cartography.models.core.nodes import ExtraNodeLabels
 from cartography.models.core.relationships import CartographyRelProperties
 from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
@@ -31,9 +32,9 @@ class APIGatewayStageToRestAPIRelRelProperties(CartographyRelProperties):
 
 
 @dataclass(frozen=True)
-# (:APIGatewayStage)<-[:ASSOCIATED_WITH]-(:APIGatewayRestAPI)
+# (:AWSAPIGatewayStage)<-[:ASSOCIATED_WITH]-(:AWSAPIGatewayRestAPI)
 class APIGatewayStageToRestAPIRel(CartographyRelSchema):
-    target_node_label: str = "APIGatewayRestAPI"
+    target_node_label: str = "AWSAPIGatewayRestAPI"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("apiId")},
     )
@@ -50,7 +51,7 @@ class APIGatewayStageToAWSAccountRelRelProperties(CartographyRelProperties):
 
 
 @dataclass(frozen=True)
-# (:APIGatewayStage)<-[:RESOURCE]-(:AWSAccount)
+# (:AWSAPIGatewayStage)<-[:RESOURCE]-(:AWSAccount)
 class APIGatewayStageToAWSAccountRel(CartographyRelSchema):
     target_node_label: str = "AWSAccount"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
@@ -65,7 +66,9 @@ class APIGatewayStageToAWSAccountRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class APIGatewayStageSchema(CartographyNodeSchema):
-    label: str = "APIGatewayStage"
+    label: str = "AWSAPIGatewayStage"
+    # DEPRECATED: legacy APIGatewayStage node label will be removed in v1.0.0.
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["APIGatewayStage"])
     properties: APIGatewayStageNodeProperties = APIGatewayStageNodeProperties()
     sub_resource_relationship: APIGatewayStageToAWSAccountRel = (
         APIGatewayStageToAWSAccountRel()

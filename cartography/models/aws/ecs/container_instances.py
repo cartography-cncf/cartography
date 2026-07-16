@@ -3,6 +3,7 @@ from dataclasses import dataclass
 from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeProperties
 from cartography.models.core.nodes import CartographyNodeSchema
+from cartography.models.core.nodes import ExtraNodeLabels
 from cartography.models.core.relationships import CartographyRelProperties
 from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
@@ -57,7 +58,7 @@ class ECSContainerInstanceToECSClusterRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class ECSContainerInstanceToECSClusterRel(CartographyRelSchema):
-    target_node_label: str = "ECSCluster"
+    target_node_label: str = "AWSECSCluster"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("ClusterArn", set_in_kwargs=True)}
     )
@@ -75,7 +76,7 @@ class ECSContainerInstanceToEC2InstanceRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class ECSContainerInstanceToEC2InstanceRel(CartographyRelSchema):
-    target_node_label: str = "EC2Instance"
+    target_node_label: str = "AWSEC2Instance"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("ec2InstanceId")},
     )
@@ -88,7 +89,9 @@ class ECSContainerInstanceToEC2InstanceRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class ECSContainerInstanceSchema(CartographyNodeSchema):
-    label: str = "ECSContainerInstance"
+    label: str = "AWSECSContainerInstance"
+    # DEPRECATED: legacy ECSContainerInstance node label will be removed in v1.0.0.
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["ECSContainerInstance"])
     properties: ECSContainerInstanceNodeProperties = (
         ECSContainerInstanceNodeProperties()
     )

@@ -3,6 +3,7 @@ from dataclasses import dataclass
 from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeProperties
 from cartography.models.core.nodes import CartographyNodeSchema
+from cartography.models.core.nodes import ExtraNodeLabels
 from cartography.models.core.relationships import CartographyRelProperties
 from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
@@ -46,7 +47,7 @@ class DynamoDBStreamToTableRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class DynamoDBStreamToTableRel(CartographyRelSchema):
-    target_node_label: str = "DynamoDBTable"
+    target_node_label: str = "AWSDynamoDBTable"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("TableArn")},
     )
@@ -59,7 +60,9 @@ class DynamoDBStreamToTableRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class DynamoDBStreamSchema(CartographyNodeSchema):
-    label: str = "DynamoDBStream"
+    label: str = "AWSDynamoDBStream"
+    # DEPRECATED: legacy DynamoDBStream node label will be removed in v1.0.0.
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["DynamoDBStream"])
     properties: DynamoDBStreamNodeProperties = DynamoDBStreamNodeProperties()
     sub_resource_relationship: DynamoDBStreamToAWSAccountRel = (
         DynamoDBStreamToAWSAccountRel()

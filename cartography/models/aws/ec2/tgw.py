@@ -129,10 +129,10 @@ class AWSTransitGatewayAttachmentToVpcRel(CartographyRelSchema):
     properties: TGWRelProperties = TGWRelProperties()
 
 
-# (:AWSTransitGatewayAttachment)-[:PART_OF_SUBNET]->(:EC2Subnet)
+# (:AWSTransitGatewayAttachment)-[:PART_OF_SUBNET]->(:AWSEC2Subnet)
 @dataclass(frozen=True)
 class AWSTransitGatewayAttachmentToSubnetRel(CartographyRelSchema):
-    target_node_label: str = "EC2Subnet"
+    target_node_label: str = "AWSEC2Subnet"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"subnetid": PropertyRef("SubnetIds", one_to_many=True)},
     )

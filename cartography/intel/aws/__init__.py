@@ -24,6 +24,7 @@ from cartography.analysis.aws.analysis import AWS_LAMBDA_ECR
 from cartography.analysis.aws.analysis import AWS_LB_CONTAINER_EXPOSURE
 from cartography.analysis.aws.analysis import AWS_LB_NACL_DIRECT
 from cartography.config import Config
+from cartography.intel.aws.label_migrations import migrate_legacy_aws_labels
 from cartography.intel.aws.util.botocore_config import create_boto3_client
 from cartography.intel.aws.util.common import parse_and_validate_aws_account_ids
 from cartography.intel.aws.util.common import parse_and_validate_aws_regions
@@ -108,6 +109,8 @@ def _sync_one_account(
     if aioboto3_session is None:
         aioboto3_session = aioboto3.Session()
 
+    migrate_legacy_aws_labels(neo4j_session, current_aws_account_id)
+
     # Autodiscover the regions supported by the account unless the user has specified the regions to sync.
     if not regions:
         regions = _autodiscover_account_regions(boto3_session, current_aws_account_id)
@@ -143,12 +146,12 @@ def _sync_one_account(
             "ec2:network_interface",
         ],
         "ec2:route_table": ["ec2:vpc_endpoint"],
-        # `ecs` creates IS_INSTANCE rels (ECSContainerInstance→EC2Instance) and
-        # TARGETS matchlinks (ELBV2TargetGroup→ECSService)
+        # `ecs` creates IS_INSTANCE rels (AWSECSContainerInstance→AWSEC2Instance) and
+        # TARGETS matchlinks (AWSELBV2TargetGroup→AWSECSService)
         "ecs": ["ec2:instance", "ec2:load_balancer_v2"],
         "dynamodb": ["kms"],
-        # s3/rds/efs create canonical (:...)-[:ENCRYPTED_BY]->(:KMSKey) edges by
-        # matching existing KMSKey nodes on their ARN, so kms must sync first.
+        # s3/rds/efs create canonical (:...)-[:ENCRYPTED_BY]->(:AWSKMSKey) edges by
+        # matching existing AWSKMSKey nodes on their ARN, so kms must sync first.
         "s3": ["kms"],
         "rds": ["kms"],
         "efs": ["kms"],

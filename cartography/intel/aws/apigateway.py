@@ -146,8 +146,6 @@ def get_rest_api_client_certificate(
                     f"Failed to retrieve Client Certificate for Stage {stage['stageName']} - {e}",
                 )
                 raise
-        else:
-            return []
 
     return response
 

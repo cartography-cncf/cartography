@@ -14,11 +14,12 @@ from cartography.graph.analysis import AddValuesToSet
 from cartography.graph.analysis import AnalysisJob
 from cartography.graph.analysis import AnalysisStatement
 from cartography.graph.analysis import Case
-from cartography.graph.analysis import CleanupScopedTo
+from cartography.graph.analysis import IncrementalMatch
 from cartography.graph.analysis import PropertyEffect
 from cartography.graph.analysis import RawCypher
 from cartography.graph.analysis import RelationshipEffect
 from cartography.graph.analysis import RelationshipPropertyEffect
+from cartography.graph.analysis import ScopeById
 from cartography.graph.analysis import SetProperty
 from cartography.graph.analysis import SetRelationshipProperty
 from cartography.graph.analysis import SetRelationshipPropertyIfMissing
@@ -82,6 +83,16 @@ def test_typed_analysis_jobs_declare_effects_and_keep_match_queries_read_only():
                 f"{job.short_name or job.name} statement {index} has a mutating "
                 "match query; mutations must be declared as effects."
             )
+            assert "$UPDATE_TAG" not in statement.match, (
+                f"{job.short_name or job.name} statement {index} inlines its "
+                "freshness filter; use incremental_on."
+            )
+            if job.scope:
+                assert job.scope.scope_on
+                assert f"${job.scope.id_param}" not in statement.match, (
+                    f"{job.short_name or job.name} statement {index} inlines "
+                    "its declared scope."
+                )
 
 
 def test_relationship_job_appends_cleanup_statement():
@@ -92,7 +103,7 @@ def test_relationship_job_appends_cleanup_statement():
         statements=(
             AnalysisStatement(
                 match=(
-                    "MATCH (l:AWSLambda), (e:ECRImage) "
+                    "MATCH (l:AWSLambda), (e:AWSECRImage) "
                     "WHERE e.digest = 'sha256:' + l.codesha256"
                 ),
                 effects=(
@@ -101,7 +112,7 @@ def test_relationship_job_appends_cleanup_statement():
                         "HAS",
                         "e",
                         source_label="AWSLambda",
-                        target_label="ECRImage",
+                        target_label="AWSECRImage",
                     ),
                 ),
             ),
@@ -113,12 +124,12 @@ def test_relationship_job_appends_cleanup_statement():
 
     # Assert
     assert relationships_added(job) == (
-        RelationshipEffect("AWSLambda", "HAS", "ECRImage"),
+        RelationshipEffect("AWSLambda", "HAS", "AWSECRImage"),
     )
     assert properties_set(job) == ()
     assert len(graph_job.statements) == 2
     assert graph_job.statements[1].query == (
-        "MATCH (source:AWSLambda)-[r:HAS]->(target:ECRImage)\n"
+        "MATCH (source:AWSLambda)-[r:HAS]->(target:AWSECRImage)\n"
         "WHERE r.lastupdated <> $UPDATE_TAG\n"
         "WITH r LIMIT $LIMIT_SIZE\n"
         "DELETE r"
@@ -132,14 +143,14 @@ def test_relationship_cleanup_can_keep_provider_owned_edges():
         name="DNS records to EC2 instances",
         statements=(
             AnalysisStatement(
-                match="MATCH (dns:DNSRecord), (i:EC2Instance)",
+                match="MATCH (dns:DNSRecord), (i:AWSEC2Instance)",
                 effects=(
                     AddRelationship(
                         "dns",
                         "DNS_POINTS_TO",
                         "i",
                         source_label="DNSRecord",
-                        target_label="EC2Instance",
+                        target_label="AWSEC2Instance",
                         cleanup_where="NOT source:AWSDNSRecord",
                     ),
                 ),
@@ -150,7 +161,7 @@ def test_relationship_cleanup_can_keep_provider_owned_edges():
     graph_job = to_graph_job(job)
 
     assert graph_job.statements[1].query == (
-        "MATCH (source:DNSRecord)-[r:DNS_POINTS_TO]->(target:EC2Instance)\n"
+        "MATCH (source:DNSRecord)-[r:DNS_POINTS_TO]->(target:AWSEC2Instance)\n"
         "WHERE r.lastupdated <> $UPDATE_TAG AND (NOT source:AWSDNSRecord)\n"
         "WITH r LIMIT $LIMIT_SIZE\n"
         "DELETE r"
@@ -162,7 +173,7 @@ def test_statement_compiles_add_relationship_effect():
     statement = AnalysisStatement(
         match=(
             "MATCH (l:AWSLambda)\n"
-            "MATCH (e:ECRImage)\n"
+            "MATCH (e:AWSECRImage)\n"
             "WHERE e.digest = 'sha256:' + l.codesha256"
         ),
         effects=(
@@ -171,7 +182,7 @@ def test_statement_compiles_add_relationship_effect():
                 "HAS",
                 "e",
                 source_label="AWSLambda",
-                target_label="ECRImage",
+                target_label="AWSECRImage",
             ),
         ),
     )
@@ -181,13 +192,32 @@ def test_statement_compiles_add_relationship_effect():
         [
             """
             MATCH (l:AWSLambda)
-            MATCH (e:ECRImage)
+            MATCH (e:AWSECRImage)
             WHERE e.digest = 'sha256:' + l.codesha256
             MERGE (l)-[r:HAS]->(e)
             ON CREATE SET r.firstseen = timestamp()
             SET r.lastupdated = $UPDATE_TAG
             """
         ]
+    )
+
+
+def test_statement_compiles_incremental_node_and_relationship_matches():
+    # Arrange
+    statement = AnalysisStatement(
+        match="MATCH (d:Device)-[obs:OBSERVED_AS]->(:Agent)",
+        effects=(SetProperty("d", "linked", True, label="Device"),),
+        incremental_on=("d", IncrementalMatch("obs", relationship=True)),
+    )
+
+    # Act
+    query = compile_query(statement)
+
+    # Assert
+    assert query.startswith(
+        "MATCH (d:Device {lastupdated: $UPDATE_TAG})\n"
+        "MATCH ()-[obs:OBSERVED_AS {lastupdated: $UPDATE_TAG}]->()\n"
+        "MATCH (d:Device)-[obs:OBSERVED_AS]->(:Agent)"
     )
 
 
@@ -204,21 +234,21 @@ def test_matching_fingerprint_uses_update_tag_firstseen():
 def test_statement_compiles_property_effects():
     # Arrange
     statement = AnalysisStatement(
-        match="MATCH (instance:EC2Instance) WHERE instance.publicipaddress IS NOT NULL",
+        match="MATCH (instance:AWSEC2Instance) WHERE instance.publicipaddress IS NOT NULL",
         effects=(
             AddToSet(
                 "instance",
                 "exposed_internet_type",
                 "direct",
-                label="EC2Instance",
+                label="AWSEC2Instance",
             ),
-            SetProperty("instance", "exposed_internet", True, label="EC2Instance"),
+            SetProperty("instance", "exposed_internet", True, label="AWSEC2Instance"),
         ),
     )
 
     # Act and assert
     assert compile_query(statement) == (
-        "MATCH (instance:EC2Instance) WHERE instance.publicipaddress IS NOT NULL\n"
+        "MATCH (instance:AWSEC2Instance) WHERE instance.publicipaddress IS NOT NULL\n"
         "SET instance.exposed_internet_type = "
         "CASE WHEN instance.exposed_internet_type IS NULL THEN ['direct'] "
         "WHEN NOT 'direct' IN instance.exposed_internet_type "
@@ -230,19 +260,19 @@ def test_statement_compiles_property_effects():
 
 def test_statement_compiles_multiple_values_to_set():
     statement = AnalysisStatement(
-        match="MATCH (bucket:S3Bucket)",
+        match="MATCH (bucket:AWSS3Bucket)",
         effects=(
             AddValuesToSet(
                 "bucket",
                 "anonymous_actions",
                 ("s3:ListBucket", "s3:GetBucketAcl"),
-                label="S3Bucket",
+                label="AWSS3Bucket",
             ),
         ),
     )
 
     assert compile_query(statement) == (
-        "MATCH (bucket:S3Bucket)\n"
+        "MATCH (bucket:AWSS3Bucket)\n"
         "SET bucket.anonymous_actions = "
         "CASE WHEN bucket.anonymous_actions IS NULL THEN ['s3:ListBucket'] "
         "WHEN NOT 's3:ListBucket' IN bucket.anonymous_actions "
@@ -306,11 +336,10 @@ def test_scoped_relationship_cleanup_targets_source_by_default():
     job = AnalysisJob(
         name="GCP LB exposure",
         short_name="gcp_lb_exposure",
-        scope=CleanupScopedTo("GCPProject", "PROJECT_ID"),
+        scope=ScopeById("GCPProject", "PROJECT_ID", scope_on="bs"),
         statements=(
             AnalysisStatement(
-                match="MATCH (p:GCPProject{id: $PROJECT_ID})-[:RESOURCE]->"
-                "(bs:GCPBackendService)-[:ROUTES_TO]->(:GCPInstanceGroup)"
+                match="MATCH (bs:GCPBackendService)-[:ROUTES_TO]->(:GCPInstanceGroup)"
                 "-[:HAS_MEMBER]->(i:GCPInstance)",
                 effects=(
                     AddRelationship(
@@ -335,6 +364,10 @@ def test_scoped_relationship_cleanup_targets_source_by_default():
         "WHERE r.lastupdated <> $UPDATE_TAG\n"
         "WITH r LIMIT $LIMIT_SIZE\n"
         "DELETE r"
+    )
+    assert graph_job.statements[0].query.startswith(
+        "MATCH (scope:GCPProject {id: $PROJECT_ID})-[:RESOURCE]->(bs)\n"
+        "MATCH (bs:GCPBackendService)"
     )
 
 
@@ -387,12 +420,11 @@ def test_property_job_prepends_cleanup_statement():
     job = AnalysisJob(
         name="Semgrep SAST risk analysis",
         short_name="semgrep_sast_risk_analysis",
-        scope=CleanupScopedTo("SemgrepDeployment", "DEPLOYMENT_ID"),
+        scope=ScopeById("SemgrepDeployment", "DEPLOYMENT_ID", scope_on="s"),
         statements=(
             AnalysisStatement(
                 match="MATCH (g:GitHubRepository{archived:true})"
-                "<-[:FOUND_IN]-(s:SemgrepSASTFinding)"
-                "<-[:RESOURCE]-(:SemgrepDeployment{id:$DEPLOYMENT_ID})",
+                "<-[:FOUND_IN]-(s:SemgrepSASTFinding)",
                 effects=(
                     SetProperty(
                         "s",
@@ -420,13 +452,17 @@ def test_property_job_prepends_cleanup_statement():
         "WITH node LIMIT $LIMIT_SIZE\n"
         "REMOVE node.risk_severity"
     )
-    assert graph_job.statements[1].query.startswith("MATCH (g:GitHubRepository")
+    assert graph_job.statements[1].query.startswith(
+        "MATCH (scope:SemgrepDeployment {id: $DEPLOYMENT_ID})"
+        "-[:RESOURCE]->(s)\n"
+        "MATCH (g:GitHubRepository"
+    )
 
 
 def test_property_effect_requires_properties():
     # Act and assert
     with pytest.raises(ValueError, match="at least one property"):
-        PropertyEffect("EC2KeyPair", ())
+        PropertyEffect("AWSEC2KeyPair", ())
 
 
 def test_relationship_property_job_prepends_cleanup_statement():
@@ -514,6 +550,20 @@ def test_analysis_job_requires_statements():
         AnalysisJob(
             name="empty",
             statements=(),
+        )
+
+
+def test_scope_by_id_requires_one_anchor_per_statement():
+    statement = AnalysisStatement(
+        match="MATCH (n:Node)",
+        effects=(SetProperty("n", "flag", True, label="Node"),),
+    )
+
+    with pytest.raises(ValueError, match="one variable per statement"):
+        AnalysisJob(
+            name="invalid scope",
+            statements=(statement, statement),
+            scope=ScopeById("Tenant", "TENANT_ID", scope_on=("n",)),
         )
 
 

@@ -37,7 +37,7 @@ When you need to store detailed metadata on relationships and it doesn't make se
 
 ## Example
 
-Suppose we have a graph that has AWSPrincipals and S3Buckets. We want to create a relationship between an AWSPrincipal and an S3Bucket if the AWSPrincipal has access to the S3Bucket.
+Suppose we have a graph that has AWSPrincipals and S3Buckets. We want to create a relationship between an AWSPrincipal and an AWSS3Bucket if the AWSPrincipal has access to the AWSS3Bucket.
 
 Let's say we have the following data that maps principals with the S3Buckets they can read from:
 
@@ -57,14 +57,14 @@ Let's say we have the following data that maps principals with the S3Buckets the
     ]
     ```
 
-1. Define the MatchLink relationship between the AWSPrincipal and the S3Bucket
+1. Define the MatchLink relationship between the AWSPrincipal and the AWSS3Bucket
     ```python
     @dataclass(frozen=True)
     class S3AccessMatchLink(CartographyRelSchema):
         rel_label: str = "CAN_ACCESS"
         direction: LinkDirection = LinkDirection.OUTWARD
         properties: S3AccessRelProps = S3AccessRelProps()
-        target_node_label: str = "S3Bucket"
+        target_node_label: str = "AWSS3Bucket"
         target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
             {'name': PropertyRef('bucket_name')},
         )
@@ -164,7 +164,7 @@ class S3AccessMatchLink(CartographyRelSchema):
     rel_label: str = "CAN_ACCESS"
     direction: LinkDirection = LinkDirection.OUTWARD
     properties: S3AccessRelProps = S3AccessRelProps()
-    target_node_label: str = "S3Bucket"
+    target_node_label: str = "AWSS3Bucket"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {'name': PropertyRef('bucket_name')},
     )
@@ -204,10 +204,10 @@ if __name__ == "__main__":
         MERGE (p2:AWSPrincipal {principal_arn: "arn:aws:iam::123456789012:role/Bob", name:"Bob", lastupdated: $update_tag})
         MERGE (acc)-[res2:RESOURCE]->(p2)
 
-        MERGE (b1:S3Bucket {name: "bucket1", lastupdated: $update_tag})
+        MERGE (b1:AWSS3Bucket {name: "bucket1", lastupdated: $update_tag})
         MERGE (acc)-[res3:RESOURCE]->(b1)
 
-        MERGE (b2:S3Bucket {name: "bucket2", lastupdated: $update_tag})
+        MERGE (b2:AWSS3Bucket {name: "bucket2", lastupdated: $update_tag})
         MERGE (acc)-[res4:RESOURCE]->(b2)
         SET res1.lastupdated = $update_tag, res2.lastupdated = $update_tag, res3.lastupdated = $update_tag, res4.lastupdated = $update_tag
         """, update_tag=UPDATE_TAG, account_id=ACCOUNT_ID)

@@ -13,6 +13,7 @@ from botocore.exceptions import ReadTimeoutError
 
 from cartography.client.core.tx import load
 from cartography.client.core.tx import load_matchlinks
+from cartography.client.core.tx import run_write_query
 from cartography.graph.job import GraphJob
 from cartography.intel.aws.util.botocore_config import create_boto3_client
 from cartography.intel.aws.util.botocore_config import get_botocore_config
@@ -68,29 +69,21 @@ def _is_retryable_elbv2_client_error(error: ClientError) -> bool:
     )
 
 
-# DEPRECATED: legacy LoadBalancerV2 label migration will be removed in v1.0.0.
-def _migrate_legacy_loadbalancerv2_labels(neo4j_session: neo4j.Session) -> None:
-    """One-time migration: relabel LoadBalancerV2 → AWSLoadBalancerV2."""
-    check_query = """
-    MATCH (:AWSAccount)-[:RESOURCE]->(n:LoadBalancerV2)
-    WHERE NOT n:AWSLoadBalancerV2 AND NOT n:LoadBalancer
-    RETURN count(n) as legacy_count
-    """
-    result = neo4j_session.run(check_query)
-    legacy_count = result.single()["legacy_count"]
-
-    if legacy_count == 0:
-        return
-
-    logger.info(f"Migrating {legacy_count} legacy LoadBalancerV2 nodes...")
-    migration_query = """
-    MATCH (:AWSAccount)-[:RESOURCE]->(n:LoadBalancerV2)
-    WHERE NOT n:AWSLoadBalancerV2 AND NOT n:LoadBalancer
-    SET n:AWSLoadBalancerV2
-    RETURN count(n) as migrated
-    """
-    result = neo4j_session.run(migration_query)
-    logger.info(f"Migrated {result.single()['migrated']} nodes")
+# DEPRECATED: This compatibility migration will be removed in v1.0.0.
+def _migrate_legacy_loadbalancerv2_labels(
+    neo4j_session: neo4j.Session,
+    current_aws_account_id: str,
+) -> None:
+    """Add AWS and semantic labels to legacy ELBv2 nodes in this account."""
+    run_write_query(
+        neo4j_session,
+        """
+        MATCH (:AWSAccount{id: $AWS_ID})-[:RESOURCE]->(n:LoadBalancerV2)
+        WHERE NOT n:AWSLoadBalancerV2 OR NOT n:LoadBalancer
+        SET n:AWSLoadBalancerV2:LoadBalancer
+        """,
+        AWS_ID=current_aws_account_id,
+    )
 
 
 @timeit
@@ -325,7 +318,7 @@ def load_load_balancer_v2s(
         )
 
     # Load non-IP target relationships (instance, lambda, alb)
-    # IP targets are deferred to sync_load_balancer_v2_expose so that EC2PrivateIp nodes
+    # IP targets are deferred to sync_load_balancer_v2_expose so that AWSEC2PrivateIp nodes
     # created by ec2:network_interface exist first.
     if target_data:
         _load_load_balancer_v2_non_ip_targets(
@@ -384,7 +377,7 @@ def _load_load_balancer_v2_ip_targets(
     current_aws_account_id: str,
     update_tag: int,
 ) -> None:
-    """Load EXPOSE relationships to IP target types (EC2PrivateIp) using MatchLinks."""
+    """Load EXPOSE relationships to IP target types (AWSEC2PrivateIp) using MatchLinks."""
     ip_targets = [t for t in target_data if t["TargetType"] == "ip"]
 
     if ip_targets:
@@ -406,7 +399,7 @@ def load_load_balancer_v2_listeners(
     update_tag: int,
     aws_account_id: str,
 ) -> None:
-    """Load ELBV2Listener nodes and their relationships to LoadBalancerV2."""
+    """Load AWSELBV2Listener nodes and their relationships to LoadBalancerV2."""
     transformed_data = [
         _transform_listener(listener, load_balancer_id) for listener in listener_data
     ]
@@ -428,7 +421,7 @@ def load_load_balancer_v2_target_groups(
     update_tag: int,
     region: str | None = None,
 ) -> None:
-    """Load ELBV2TargetGroup nodes and EXPOSE relationships from LoadBalancerV2 to target resources."""
+    """Load AWSELBV2TargetGroup nodes and EXPOSE relationships from LoadBalancerV2 to target resources."""
     # Load target group nodes
     tg_node_data = []
     for tg in target_groups:
@@ -503,7 +496,7 @@ def cleanup_load_balancer_v2s(
             common_job_parameters["UPDATE_TAG"],
         ).run(neo4j_session)
 
-    # Cleanup ELBV2TargetGroup nodes before LoadBalancerV2 so ELBV2_TARGET_GROUP rels detach first
+    # Cleanup AWSELBV2TargetGroup nodes before LoadBalancerV2 so ELBV2_TARGET_GROUP rels detach first
     GraphJob.from_node_schema(
         ELBV2TargetGroupSchema(),
         common_job_parameters,
@@ -515,7 +508,7 @@ def cleanup_load_balancer_v2s(
         common_job_parameters,
     ).run(neo4j_session)
 
-    # Cleanup ELBV2Listener nodes
+    # Cleanup AWSELBV2Listener nodes
     GraphJob.from_node_schema(
         ELBV2ListenerSchema(),
         common_job_parameters,
@@ -527,7 +520,7 @@ def cleanup_load_balancer_v2_expose(
     neo4j_session: neo4j.Session,
     common_job_parameters: Dict,
 ) -> None:
-    """Cleanup stale IP target MatchLinks (EC2PrivateIp EXPOSE relationships)."""
+    """Cleanup stale IP target MatchLinks (AWSEC2PrivateIp EXPOSE relationships)."""
     GraphJob.from_matchlink(
         LoadBalancerV2ToEC2PrivateIpMatchLink(),
         "AWSAccount",
@@ -548,9 +541,12 @@ def sync_load_balancer_v2s(
     """Phase 1: Sync LBv2 nodes, listeners, and non-IP MatchLinks (instance, lambda, alb).
 
     IP target MatchLinks are deferred to sync_load_balancer_v2_expose (Phase 2)
-    so that EC2PrivateIp nodes created by ec2:network_interface exist first.
+    so that AWSEC2PrivateIp nodes created by ec2:network_interface exist first.
     """
-    _migrate_legacy_loadbalancerv2_labels(neo4j_session)
+    _migrate_legacy_loadbalancerv2_labels(
+        neo4j_session,
+        current_aws_account_id,
+    )
     cleanup_safe = True
 
     for region in regions:
@@ -606,9 +602,9 @@ def sync_load_balancer_v2_expose(
     update_tag: int,
     common_job_parameters: Dict,
 ) -> None:
-    """Phase 2: Sync IP target MatchLinks (LBv2 -> EC2PrivateIp EXPOSE relationships).
+    """Phase 2: Sync IP target MatchLinks (LBv2 -> AWSEC2PrivateIp EXPOSE relationships).
 
-    Runs after ec2:network_interface so that EC2PrivateIp nodes exist.
+    Runs after ec2:network_interface so that AWSEC2PrivateIp nodes exist.
     Re-fetches LBv2 data from AWS API to get target information.
     """
     cleanup_safe = True

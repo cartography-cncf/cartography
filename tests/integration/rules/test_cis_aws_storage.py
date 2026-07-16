@@ -23,10 +23,10 @@ def test_block_public_access_respects_account_level_bpa(neo4j_session) -> None:
         CREATE (partial:AWSAccount {id: '222222222222', name: 'partial'})
         CREATE (uncovered:AWSAccount {id: '333333333333', name: 'uncovered'})
 
-        CREATE (covered_bucket:S3Bucket {id: 'covered-bucket', name: 'covered-bucket', region: 'us-east-1'})
-        CREATE (partial_bucket:S3Bucket {id: 'partial-bucket', name: 'partial-bucket', region: 'us-east-1'})
-        CREATE (uncovered_bucket:S3Bucket {id: 'uncovered-bucket', name: 'uncovered-bucket', region: 'us-east-1'})
-        CREATE (self_blocked_bucket:S3Bucket {
+        CREATE (covered_bucket:AWSS3Bucket {id: 'covered-bucket', name: 'covered-bucket', region: 'us-east-1'})
+        CREATE (partial_bucket:AWSS3Bucket {id: 'partial-bucket', name: 'partial-bucket', region: 'us-east-1'})
+        CREATE (uncovered_bucket:AWSS3Bucket {id: 'uncovered-bucket', name: 'uncovered-bucket', region: 'us-east-1'})
+        CREATE (self_blocked_bucket:AWSS3Bucket {
             id: 'self-blocked-bucket',
             name: 'self-blocked-bucket',
             region: 'us-east-1',
@@ -38,7 +38,7 @@ def test_block_public_access_respects_account_level_bpa(neo4j_session) -> None:
         // Explicit partially-disabling bucket-level config under the fully-enforced
         // account: the bucket does NOT purely inherit account BPA, so it must still
         // be flagged (account-level enforcement must not mask an explicit override).
-        CREATE (override_bucket:S3Bucket {
+        CREATE (override_bucket:AWSS3Bucket {
             id: 'override-bucket',
             name: 'override-bucket',
             region: 'us-east-1',
@@ -47,14 +47,14 @@ def test_block_public_access_respects_account_level_bpa(neo4j_session) -> None:
 
         // Account-level BPA is account-global but stored one node per region; a
         // region with no config (us-west-2) must not defeat the us-east-1 enforcement.
-        CREATE (covered_pab_east:S3AccountPublicAccessBlock {
+        CREATE (covered_pab_east:AWSS3AccountPublicAccessBlock {
             id: '111111111111:us-east-1',
             block_public_acls: true,
             ignore_public_acls: true,
             block_public_policy: true,
             restrict_public_buckets: true
         })
-        CREATE (partial_pab:S3AccountPublicAccessBlock {
+        CREATE (partial_pab:AWSS3AccountPublicAccessBlock {
             id: '222222222222:us-east-1',
             block_public_acls: true,
             ignore_public_acls: true,

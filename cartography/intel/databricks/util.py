@@ -7,6 +7,8 @@ from typing import Any
 import neo4j
 import requests
 from dateutil import parser as dateutil_parser
+from requests.adapters import HTTPAdapter
+from urllib3 import Retry
 
 logger = logging.getLogger(__name__)
 
@@ -94,6 +96,7 @@ def skip_or_raise_http(error: requests.HTTPError, *skippable_statuses: int) -> N
 # Connect and read timeouts of 60 seconds each.
 _TIMEOUT = (60, 60)
 _SCIM_PAGE_SIZE = 100
+_RETRYABLE_STATUS_CODES = (429, 500, 502, 503, 504)
 
 
 def scoped_id(workspace_id: str, scim_id: str) -> str:
@@ -136,6 +139,14 @@ class _BaseDatabricksClient:
         self._client_secret = client_secret
         self._access_token_expiry: float | None = None
         self._session = requests.Session()
+        retry_policy = Retry(
+            total=5,
+            backoff_factor=1,
+            status_forcelist=_RETRYABLE_STATUS_CODES,
+            allowed_methods=frozenset({"GET", "POST"}),
+            respect_retry_after_header=True,
+        )
+        self._session.mount("https://", HTTPAdapter(max_retries=retry_policy))
 
     def _token_url(self) -> str:
         raise NotImplementedError

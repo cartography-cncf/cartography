@@ -7,6 +7,9 @@ from cartography.client.core.tx import read_list_of_values_tx
 from cartography.config import Config
 from cartography.graph.job import GraphJob
 from cartography.intel.crowdstrike.endpoints import sync_hosts
+from cartography.intel.crowdstrike.label_migrations import (
+    migrate_spotlight_vulnerability_label,
+)
 from cartography.intel.crowdstrike.spotlight import sync_vulnerabilities
 from cartography.intel.crowdstrike.util import get_authorization
 from cartography.models.crowdstrike.hosts import CrowdstrikeHostSchema
@@ -47,6 +50,7 @@ def start_crowdstrike_ingestion(
         config.crowdstrike_client_secret,
         config.crowdstrike_api_url,
     )
+    migrate_spotlight_vulnerability_label(neo4j_session)
     sync_hosts(
         neo4j_session,
         config.update_tag,
@@ -88,7 +92,7 @@ def cleanup(
 ) -> None:
     logger.info("Running Crowdstrike cleanup")
     # DEPRECATED: compatibility migration to backfill CrowdstrikeTenant nodes
-    # and the RESOURCE edges scoping CrowdstrikeHost / SpotlightVulnerability
+    # and the RESOURCE edges scoping CrowdstrikeHost / CrowdstrikeSpotlightVulnerability
     # to them. Remove in v1.0.0.
     run_analysis_job(
         "crowdstrike_tenant_resource_edge_migration.json",

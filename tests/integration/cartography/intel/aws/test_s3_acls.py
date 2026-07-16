@@ -28,17 +28,17 @@ def test_load_s3_acls(neo4j_session):
     _load_s3_acls(neo4j_session, parsed_acls, TEST_ACCOUNT_ID, TEST_UPDATE_TAG)
 
     # Assert that the anonymous_access field is set as expected
-    assert check_nodes(neo4j_session, "S3Bucket", ["name", "anonymous_access"]) == {
+    assert check_nodes(neo4j_session, "AWSS3Bucket", ["name", "anonymous_access"]) == {
         ("bucket-1", None),
         ("bucket-3", True),
         ("bucket-2", True),
     }
 
-    # Assert that we properly set anonymous_actions on the S3Bucket based on the attached S3Acls
+    # Assert that we properly set anonymous_actions on the AWSS3Bucket based on the attached S3Acls
     # (Can't use check_nodes() here because anonymous_actions is a list and is non-hashable.)
     actual = neo4j_session.run(
         """
-        MATCH (r:S3Bucket) RETURN r.name, r.anonymous_actions;
+        MATCH (r:AWSS3Bucket) RETURN r.name, r.anonymous_actions;
         """,
     )
     actual_nodes = [

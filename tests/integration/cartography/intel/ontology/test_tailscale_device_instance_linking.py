@@ -17,7 +17,7 @@ def test_link_tailscale_devices_to_cloud_instances(neo4j_session):
             name: 'ip-10-0-0-5.example.ts.net',
             lastupdated: $update_tag
         })
-        CREATE (:EC2Instance:ComputeInstance {
+        CREATE (:AWSEC2Instance:ComputeInstance {
             id: 'i-host-match',
             publicdnsname: 'ip-10-0-0-5.ec2.internal',
             publicipaddress: '198.51.100.10',
@@ -43,7 +43,7 @@ def test_link_tailscale_devices_to_cloud_instances(neo4j_session):
             id: 'ts-stale',
             hostname: 'stale-host',
             lastupdated: $update_tag
-        })-[stale:IS_INSTANCE]->(:EC2Instance:ComputeInstance {
+        })-[stale:IS_INSTANCE]->(:AWSEC2Instance:ComputeInstance {
             id: 'i-stale',
             publicdnsname: 'different-host.ec2.internal',
             lastupdated: $update_tag
@@ -87,7 +87,7 @@ def test_tailscale_device_instance_linking_skips_ambiguous_hostnames(
             hostname: 'shared-host',
             lastupdated: $update_tag
         })
-        CREATE (:EC2Instance:ComputeInstance {
+        CREATE (:AWSEC2Instance:ComputeInstance {
             id: 'i-duplicate-a',
             publicdnsname: 'shared-host.ec2.internal',
             lastupdated: $update_tag
@@ -132,7 +132,7 @@ def test_tailscale_device_instance_linking_requires_one_to_one_final_match(
             name: 'gcp-host.example.ts.net',
             lastupdated: $update_tag
         })
-        CREATE (:EC2Instance:ComputeInstance {
+        CREATE (:AWSEC2Instance:ComputeInstance {
             id: 'i-conflicting',
             publicdnsname: 'ec2-host.ec2.internal',
             lastupdated: $update_tag
@@ -153,7 +153,7 @@ def test_tailscale_device_instance_linking_requires_one_to_one_final_match(
             hostname: 'shared-instance',
             lastupdated: $update_tag
         })
-        CREATE (:EC2Instance:ComputeInstance {
+        CREATE (:AWSEC2Instance:ComputeInstance {
             id: 'i-shared',
             publicdnsname: 'shared-instance.ec2.internal',
             lastupdated: $update_tag
@@ -192,7 +192,7 @@ def test_tailscale_device_instance_linking_matches_ec2_private_ip(
             client_connectivity_endpoints: ['10.0.0.5:41641'],
             lastupdated: $update_tag
         })
-        CREATE (:EC2Instance:ComputeInstance {
+        CREATE (:AWSEC2Instance:ComputeInstance {
             id: 'i-private-ip',
             privateipaddress: '10.0.0.5',
             lastupdated: $update_tag
@@ -211,7 +211,7 @@ def test_tailscale_device_instance_linking_matches_ec2_private_ip(
     # Assert
     result = neo4j_session.run(
         """
-        MATCH (device:TailscaleDevice)-[:IS_INSTANCE]->(instance:EC2Instance)
+        MATCH (device:TailscaleDevice)-[:IS_INSTANCE]->(instance:AWSEC2Instance)
         RETURN device.id AS device_id, instance.id AS instance_id
         """
     ).single()
@@ -232,7 +232,7 @@ def test_tailscale_device_instance_linking_keeps_valid_stale_source_edges(
             id: 'ts-old-source',
             client_connectivity_endpoints: ['10.0.0.6:41641'],
             lastupdated: $stale_tag
-        })-[old_edge:IS_INSTANCE]->(:EC2Instance:ComputeInstance {
+        })-[old_edge:IS_INSTANCE]->(:AWSEC2Instance:ComputeInstance {
             id: 'i-old-source',
             privateipaddress: '10.0.0.6',
             lastupdated: $stale_tag
@@ -254,7 +254,7 @@ def test_tailscale_device_instance_linking_keeps_valid_stale_source_edges(
         """
         MATCH (:TailscaleDevice {id: 'ts-old-source'})
               -[r:IS_INSTANCE]->
-              (:EC2Instance {id: 'i-old-source'})
+              (:AWSEC2Instance {id: 'i-old-source'})
         RETURN r.lastupdated AS lastupdated
         """
     ).single()
@@ -274,7 +274,7 @@ def test_tailscale_device_instance_linking_skips_ambiguous_private_ips(
             client_connectivity_endpoints: ['10.0.0.7:41641'],
             lastupdated: $update_tag
         })
-        CREATE (:EC2Instance:ComputeInstance {
+        CREATE (:AWSEC2Instance:ComputeInstance {
             id: 'i-overlap-a',
             privateipaddress: '10.0.0.7',
             lastupdated: $update_tag

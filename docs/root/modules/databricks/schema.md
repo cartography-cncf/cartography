@@ -40,7 +40,7 @@ RM -- HAS_VERSION --> MV(DatabricksModelVersion)
 SC -- ASSUMES_ROLE --> AWS(AWSPrincipal)
 SC -- IMPERSONATES --> GSA(GCPServiceAccount)
 EL -- USES_CREDENTIAL --> SC
-EL -- BACKED_BY --> BKT(S3Bucket / GCPBucket)
+EL -- BACKED_BY --> BKT(AWSS3Bucket / GCPBucket)
 TB -- BACKED_BY --> BKT
 VOL -- BACKED_BY --> BKT
 U -- HAS_PRIVILEGE --> DS(DatabricksSecurable)
@@ -115,10 +115,10 @@ CC -- ASSUMES_ROLE --> AWS
 CC -- IN_ACCOUNT --> AWSACC(AWSAccount)
 STC -- BACKED_BY --> BKT
 NC -- USES_VPC --> VPC(AWSVpc)
-NC -- USES_SUBNET --> SUB(EC2Subnet)
-NC -- USES_SECURITY_GROUP --> SG(EC2SecurityGroup)
+NC -- USES_SUBNET --> SUB(AWSEC2Subnet)
+NC -- USES_SECURITY_GROUP --> SG(AWSEC2SecurityGroup)
 VE -- POINTS_TO --> AWSVE(AWSVpcEndpoint)
-EK -- REFERENCES_KEY --> KEY(KMSKey / GCPCryptoKey)
+EK -- REFERENCES_KEY --> KEY(AWSKMSKey / GCPCryptoKey)
 LD -- DELIVERS_TO --> BKT
 U -- HAS_PERMISSION --> ACLO(DatabricksAclObject)
 G -- HAS_PERMISSION --> ACLO
@@ -533,7 +533,7 @@ A named external storage location governed by Unity Catalog.
     (:DatabricksWorkspace)-[:RESOURCE]->(:DatabricksExternalLocation)
     (:DatabricksMetastore)-[:CONTAINS]->(:DatabricksExternalLocation)
     (:DatabricksExternalLocation)-[:USES_CREDENTIAL]->(:DatabricksStorageCredential)
-    (:DatabricksExternalLocation)-[:BACKED_BY]->(:S3Bucket)
+    (:DatabricksExternalLocation)-[:BACKED_BY]->(:AWSS3Bucket)
     (:DatabricksExternalLocation)-[:BACKED_BY]->(:GCPBucket)
     ```
 
@@ -614,7 +614,7 @@ A UC table or view. Carries the shared `DatabricksSecurable` label.
 ```
 (:DatabricksWorkspace)-[:RESOURCE]->(:DatabricksTable)
 (:DatabricksSchema)-[:CONTAINS]->(:DatabricksTable)
-(:DatabricksTable)-[:BACKED_BY]->(:S3Bucket | :GCPBucket)
+(:DatabricksTable)-[:BACKED_BY]->(:AWSS3Bucket | :GCPBucket)
 ```
 
 ### DatabricksVolume
@@ -640,7 +640,7 @@ A UC volume (managed or external file storage). Carries the shared
 ```
 (:DatabricksWorkspace)-[:RESOURCE]->(:DatabricksVolume)
 (:DatabricksSchema)-[:CONTAINS]->(:DatabricksVolume)
-(:DatabricksVolume)-[:BACKED_BY]->(:S3Bucket | :GCPBucket)
+(:DatabricksVolume)-[:BACKED_BY]->(:AWSS3Bucket | :GCPBucket)
 ```
 
 ### DatabricksFunction
@@ -1561,21 +1561,199 @@ An account federation policy (account-wide or scoped to a service principal).
 (:DatabricksFederationPolicy)-[:OWNED_BY]->(:DatabricksAccountServicePrincipal)
 ```
 
-### DatabricksCredentialConfig / DatabricksStorageConfig / DatabricksNetworkConfig / DatabricksPrivateAccessSettings / DatabricksVpcEndpoint / DatabricksEncryptionKey / DatabricksNetworkConnectivityConfig / DatabricksLogDelivery / DatabricksBudget / DatabricksAccountSetting
+### DatabricksCredentialConfig
 
-Account-level workspace cloud configurations (AWS / GCP). Each is owned by the `DatabricksAccount` and, where the matching cloud node is already in the graph, links to it:
+An account-level cross-account IAM credential configuration (AWS). Owned by the `DatabricksAccount` and, where the matching cloud node is already in the graph, linked to it.
 
+| Field | Description |
+|-------|-------------|
+| id | `{account_id}/{credentials_id}` |
+| credentials_id | Databricks credential configuration id |
+| credentials_name | Credential configuration name |
+| aws_role_arn | ARN of the cross-account IAM role |
+| aws_account_id | AWS account id the role lives in |
+| created_time | Creation timestamp |
+| lastupdated | Timestamp of the last sync |
+
+#### Relationships
 ```
-(:DatabricksAccount)-[:RESOURCE]->(:DatabricksCredentialConfig)-[:ASSUMES_ROLE]->(:AWSPrincipal)
+(:DatabricksAccount)-[:RESOURCE]->(:DatabricksCredentialConfig)
+(:DatabricksCredentialConfig)-[:ASSUMES_ROLE]->(:AWSPrincipal)
 (:DatabricksCredentialConfig)-[:IN_ACCOUNT]->(:AWSAccount)
-(:DatabricksStorageConfig)-[:BACKED_BY]->(:S3Bucket)
+```
+
+### DatabricksStorageConfig
+
+An account-level workspace root storage configuration (AWS S3). Owned by the `DatabricksAccount` and, where the matching cloud node is already in the graph, linked to it.
+
+| Field | Description |
+|-------|-------------|
+| id | `{account_id}/{storage_configuration_id}` |
+| storage_configuration_id | Databricks storage configuration id |
+| storage_configuration_name | Storage configuration name |
+| root_bucket_name | Name of the workspace root S3 bucket |
+| created_time | Creation timestamp |
+| lastupdated | Timestamp of the last sync |
+
+#### Relationships
+```
+(:DatabricksAccount)-[:RESOURCE]->(:DatabricksStorageConfig)
+(:DatabricksStorageConfig)-[:BACKED_BY]->(:AWSS3Bucket)
+```
+
+### DatabricksNetworkConfig
+
+An account-level customer-managed VPC network configuration. Owned by the `DatabricksAccount` and, where the matching cloud nodes are already in the graph, linked to them.
+
+| Field | Description |
+|-------|-------------|
+| id | `{account_id}/{network_id}` |
+| network_id | Databricks network configuration id |
+| network_name | Network configuration name |
+| vpc_id | AWS VPC id |
+| subnet_ids | List of AWS subnet ids |
+| security_group_ids | List of AWS security group ids |
+| vpc_status | VPC validation status |
+| lastupdated | Timestamp of the last sync |
+
+#### Relationships
+```
+(:DatabricksAccount)-[:RESOURCE]->(:DatabricksNetworkConfig)
 (:DatabricksNetworkConfig)-[:USES_VPC]->(:AWSVpc)
-(:DatabricksNetworkConfig)-[:USES_SUBNET]->(:EC2Subnet)
-(:DatabricksNetworkConfig)-[:USES_SECURITY_GROUP]->(:EC2SecurityGroup)
+(:DatabricksNetworkConfig)-[:USES_SUBNET]->(:AWSEC2Subnet)
+(:DatabricksNetworkConfig)-[:USES_SECURITY_GROUP]->(:AWSEC2SecurityGroup)
+```
+
+### DatabricksPrivateAccessSettings
+
+An account-level private access (PrivateLink) settings object. Owned by the `DatabricksAccount`.
+
+| Field | Description |
+|-------|-------------|
+| id | `{account_id}/{private_access_settings_id}` |
+| private_access_settings_id | Databricks private access settings id |
+| private_access_settings_name | Private access settings name |
+| public_access_enabled | Whether public access is enabled |
+| private_access_level | Private access level |
+| region | AWS region |
+| lastupdated | Timestamp of the last sync |
+
+#### Relationships
+```
+(:DatabricksAccount)-[:RESOURCE]->(:DatabricksPrivateAccessSettings)
+```
+
+### DatabricksVpcEndpoint
+
+An account-level registered VPC endpoint. Owned by the `DatabricksAccount` and, where the matching cloud node is already in the graph, linked to it.
+
+| Field | Description |
+|-------|-------------|
+| id | `{account_id}/{vpc_endpoint_id}` |
+| vpc_endpoint_id | Databricks VPC endpoint id |
+| vpc_endpoint_name | VPC endpoint name |
+| aws_endpoint_service_id | AWS endpoint service id |
+| region | AWS region |
+| aws_vpc_endpoint_id | AWS VPC endpoint id |
+| lastupdated | Timestamp of the last sync |
+
+#### Relationships
+```
+(:DatabricksAccount)-[:RESOURCE]->(:DatabricksVpcEndpoint)
 (:DatabricksVpcEndpoint)-[:POINTS_TO]->(:AWSVpcEndpoint)
-(:DatabricksEncryptionKey)-[:REFERENCES_KEY]->(:KMSKey)
+```
+
+### DatabricksEncryptionKey
+
+An account-level customer-managed encryption key (AWS KMS / GCP KMS). Owned by the `DatabricksAccount` and, where the matching cloud key is already in the graph, linked to it.
+
+| Field | Description |
+|-------|-------------|
+| id | `{account_id}/{customer_managed_key_id}` |
+| customer_managed_key_id | Databricks customer-managed key id |
+| use_cases | List of use cases the key applies to |
+| aws_key_arn | ARN of the AWS KMS key |
+| aws_key_alias | Alias of the AWS KMS key |
+| gcp_kms_key_name | Full GCP KMS key resource name |
+| lastupdated | Timestamp of the last sync |
+
+#### Relationships
+```
+(:DatabricksAccount)-[:RESOURCE]->(:DatabricksEncryptionKey)
+(:DatabricksEncryptionKey)-[:REFERENCES_KEY]->(:AWSKMSKey)
 (:DatabricksEncryptionKey)-[:REFERENCES_KEY]->(:GCPCryptoKey)
-(:DatabricksLogDelivery)-[:DELIVERS_TO]->(:S3Bucket)
+```
+
+### DatabricksNetworkConnectivityConfig
+
+An account-level serverless egress network connectivity configuration. Owned by the `DatabricksAccount`.
+
+| Field | Description |
+|-------|-------------|
+| id | `{account_id}/{network_connectivity_config_id}` |
+| network_connectivity_config_id | Databricks network connectivity configuration id |
+| name | Network connectivity configuration name |
+| region | AWS region |
+| default_rules_target_regions | Target regions of the default egress rules |
+| lastupdated | Timestamp of the last sync |
+
+#### Relationships
+```
+(:DatabricksAccount)-[:RESOURCE]->(:DatabricksNetworkConnectivityConfig)
+```
+
+### DatabricksLogDelivery
+
+An account-level log delivery configuration (billable usage / audit logs to S3). Owned by the `DatabricksAccount` and, where the matching bucket is already in the graph, linked to it.
+
+| Field | Description |
+|-------|-------------|
+| id | `{account_id}/{config_id}` |
+| config_id | Databricks log delivery configuration id |
+| config_name | Log delivery configuration name |
+| log_type | Log type (e.g. billable usage or audit) |
+| output_format | Delivered log output format |
+| status | Configuration status |
+| s3_bucket_name | Destination S3 bucket name |
+| delivery_path_prefix | Delivery path prefix within the bucket |
+| lastupdated | Timestamp of the last sync |
+
+#### Relationships
+```
+(:DatabricksAccount)-[:RESOURCE]->(:DatabricksLogDelivery)
+(:DatabricksLogDelivery)-[:DELIVERS_TO]->(:AWSS3Bucket)
+```
+
+### DatabricksBudget
+
+An account-level budget configuration. Owned by the `DatabricksAccount`.
+
+| Field | Description |
+|-------|-------------|
+| id | `{account_id}/{budget_configuration_id}` |
+| budget_configuration_id | Databricks budget configuration id |
+| display_name | Budget display name |
+| lastupdated | Timestamp of the last sync |
+
+#### Relationships
+```
+(:DatabricksAccount)-[:RESOURCE]->(:DatabricksBudget)
+```
+
+### DatabricksAccountSetting
+
+An account-level setting key/value (e.g. security and workspace defaults). Owned by the `DatabricksAccount`.
+
+| Field | Description |
+|-------|-------------|
+| id | `{account_id}/{setting_name}` |
+| setting_name | Setting name |
+| value | Setting value |
+| lastupdated | Timestamp of the last sync |
+
+#### Relationships
+```
+(:DatabricksAccount)-[:RESOURCE]->(:DatabricksAccountSetting)
 ```
 
 ### DatabricksAclObject
