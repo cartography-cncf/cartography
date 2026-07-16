@@ -50,7 +50,13 @@ Decide the abstract pair and verb, e.g. `UserAccount -[:HAS_ROLE]-> PermissionRo
 
 ### Step 2: Find which provider nodes carry each ontology label
 
-The semantic label is applied via a named `ExtraNodeLabel` subclass on the node schema, sometimes with nonempty conditions. The ontology mapping files under `cartography/models/ontology/mapping/data/<category>.py` list which provider node labels belong to a category. Build the set of node labels carrying `src` and `dst`.
+The semantic label is applied via an exported uppercase `ExtraNodeLabel`
+constant on the node schema, sometimes composed conditionally with
+`CONSTANT.when(field="value")`. Ontology constants have
+`kind=LabelKind.ONTOLOGY`. The ontology mapping files under
+`cartography/models/ontology/mapping/data/<category>.py` list which provider
+node labels belong to a category. Build the set of node labels carrying `src`
+and `dst`.
 
 ```bash
 # which schemas declare the semantic labels

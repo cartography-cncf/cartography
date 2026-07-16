@@ -4,7 +4,7 @@ from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeProperties
 from cartography.models.core.nodes import CartographyNodeSchema
 from cartography.models.core.nodes import ExtraNodeLabels
-from cartography.models.workos.extra_labels import EnvironmentLabel
+from cartography.models.workos.extra_labels import ENVIRONMENT
 
 
 @dataclass(frozen=True)
@@ -17,4 +17,4 @@ class WorkOSEnvironmentNodeProperties(CartographyNodeProperties):
 class WorkOSEnvironmentSchema(CartographyNodeSchema):
     label: str = "WorkOSEnvironment"
     properties: WorkOSEnvironmentNodeProperties = WorkOSEnvironmentNodeProperties()
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([EnvironmentLabel()])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([ENVIRONMENT])

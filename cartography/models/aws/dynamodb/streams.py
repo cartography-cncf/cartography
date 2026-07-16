@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 
-from cartography.models.aws.extra_labels import LegacyDynamoDBStreamLabel
+from cartography.models.aws.extra_labels import LEGACY_DYNAMO_DB_STREAM
 from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeProperties
 from cartography.models.core.nodes import CartographyNodeSchema
@@ -63,7 +63,7 @@ class DynamoDBStreamToTableRel(CartographyRelSchema):
 class DynamoDBStreamSchema(CartographyNodeSchema):
     label: str = "AWSDynamoDBStream"
     # DEPRECATED: legacy DynamoDBStream node label will be removed in v1.0.0.
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([LegacyDynamoDBStreamLabel()])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([LEGACY_DYNAMO_DB_STREAM])
     properties: DynamoDBStreamNodeProperties = DynamoDBStreamNodeProperties()
     sub_resource_relationship: DynamoDBStreamToAWSAccountRel = (
         DynamoDBStreamToAWSAccountRel()

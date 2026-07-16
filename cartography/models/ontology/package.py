@@ -10,7 +10,7 @@ from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import TargetNodeMatcher
-from cartography.models.ontology.labels import CanonicalOntologyLabel
+from cartography.models.ontology.labels import ONTOLOGY
 
 
 @dataclass(frozen=True)
@@ -156,7 +156,7 @@ class TrivyImageFindingToPackageRel(CartographyRelSchema):
 @dataclass(frozen=True)
 class PackageSchema(CartographyNodeSchema):
     label: str = "Package"
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([CanonicalOntologyLabel()])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([ONTOLOGY])
     properties: PackageNodeProperties = PackageNodeProperties()
     scoped_cleanup: bool = False
     # Include propagated relationship types so GraphJob cleanup removes stale

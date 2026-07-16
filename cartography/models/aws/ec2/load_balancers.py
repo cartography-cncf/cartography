@@ -10,7 +10,7 @@ from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import TargetNodeMatcher
-from cartography.models.ontology.labels import LoadBalancerOntologyLabel
+from cartography.models.ontology.labels import LOAD_BALANCER
 
 
 @dataclass(frozen=True)
@@ -101,7 +101,7 @@ class LoadBalancerToEC2InstanceRel(CartographyRelSchema):
 @dataclass(frozen=True)
 class LoadBalancerSchema(CartographyNodeSchema):
     label: str = "AWSLoadBalancer"
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([LoadBalancerOntologyLabel()])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([LOAD_BALANCER])
     properties: LoadBalancerNodeProperties = LoadBalancerNodeProperties()
     sub_resource_relationship: LoadBalancerToAWSAccountRel = (
         LoadBalancerToAWSAccountRel()

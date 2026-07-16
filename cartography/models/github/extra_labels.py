@@ -1,31 +1,27 @@
-from dataclasses import dataclass
-
 from cartography.models.core.nodes import ExtraNodeLabel
+from cartography.models.core.nodes import LabelKind
+
+GIT_HUB_CLASSIC_PERSONAL_ACCESS_TOKEN = ExtraNodeLabel(
+    label="GitHubClassicPersonalAccessToken",
+    description="A github node participating in the shared GitHubClassicPersonalAccessToken graph interface.",
+)
 
 
-@dataclass(frozen=True)
-class GitHubClassicPersonalAccessTokenLabel(ExtraNodeLabel):
-    """A github node participating in the shared GitHubClassicPersonalAccessToken graph interface."""
-
-    label: str = "GitHubClassicPersonalAccessToken"
-
-
-@dataclass(frozen=True)
-class GitHubDependencyLabel(ExtraNodeLabel):
-    """A github node participating in the shared GitHubDependency graph interface."""
-
-    label: str = "GitHubDependency"
+GIT_HUB_DEPENDENCY = ExtraNodeLabel(
+    label="GitHubDependency",
+    description="A github node participating in the shared GitHubDependency graph interface.",
+)
 
 
-@dataclass(frozen=True)
-class GitHubFineGrainedPersonalAccessTokenLabel(ExtraNodeLabel):
-    """A github node participating in the shared GitHubFineGrainedPersonalAccessToken graph interface."""
+GIT_HUB_FINE_GRAINED_PERSONAL_ACCESS_TOKEN = ExtraNodeLabel(
+    label="GitHubFineGrainedPersonalAccessToken",
+    description="A github node participating in the shared GitHubFineGrainedPersonalAccessToken graph interface.",
+)
 
-    label: str = "GitHubFineGrainedPersonalAccessToken"
 
-
-@dataclass(frozen=True)
-class LegacyDependencyGraphManifestLabel(ExtraNodeLabel):
-    """Compatibility label for the deprecated `DependencyGraphManifest` github node label."""
-
-    label: str = "DependencyGraphManifest"
+LEGACY_DEPENDENCY_GRAPH_MANIFEST = ExtraNodeLabel(
+    label="DependencyGraphManifest",
+    description="Compatibility label for the deprecated `DependencyGraphManifest` github node label.",
+    kind=LabelKind.COMPATIBILITY,
+    remove_in="v1.0.0",
+)

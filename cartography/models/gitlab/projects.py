@@ -16,8 +16,8 @@ from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import TargetNodeMatcher
-from cartography.models.gitlab.extra_labels import GitLabRepositoryLabel
-from cartography.models.ontology.labels import CodeRepositoryOntologyLabel
+from cartography.models.gitlab.extra_labels import GIT_LAB_REPOSITORY
+from cartography.models.ontology.labels import CODE_REPOSITORY
 
 
 @dataclass(frozen=True)
@@ -164,5 +164,5 @@ class GitLabProjectSchema(CartographyNodeSchema):
     )
     # Add GitLabRepository for compatibility and CodeRepository for ontology queries.
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
-        [GitLabRepositoryLabel(), CodeRepositoryOntologyLabel()]
+        [GIT_LAB_REPOSITORY, CODE_REPOSITORY]
     )

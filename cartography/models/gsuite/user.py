@@ -9,8 +9,8 @@ from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import TargetNodeMatcher
-from cartography.models.extra_labels import GCPPrincipalLabel
-from cartography.models.ontology.labels import UserAccountOntologyLabel
+from cartography.models.extra_labels import GCP_PRINCIPAL
+from cartography.models.ontology.labels import USER_ACCOUNT
 
 
 @dataclass(frozen=True)
@@ -103,7 +103,7 @@ class GSuiteUserSchema(CartographyNodeSchema):
     sub_resource_relationship: GSuiteUserToTenantRel = GSuiteUserToTenantRel()
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
         [
-            GCPPrincipalLabel(),
-            UserAccountOntologyLabel(),
+            GCP_PRINCIPAL,
+            USER_ACCOUNT,
         ]  # UserAccount label is used for ontology mapping
     )

@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 
-from cartography.models.aws.extra_labels import LegacyEfsAccessPointLabel
+from cartography.models.aws.extra_labels import LEGACY_EFS_ACCESS_POINT
 from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeProperties
 from cartography.models.core.nodes import CartographyNodeSchema
@@ -69,7 +69,7 @@ class EfsAccessPointToEfsFileSystemRel(CartographyRelSchema):
 class EfsAccessPointSchema(CartographyNodeSchema):
     label: str = "AWSEfsAccessPoint"
     # DEPRECATED: legacy EfsAccessPoint node label will be removed in v1.0.0.
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([LegacyEfsAccessPointLabel()])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([LEGACY_EFS_ACCESS_POINT])
     properties: EfsAccessPointNodeProperties = EfsAccessPointNodeProperties()
     sub_resource_relationship: EfsAccessPointToAWSAccountRel = (
         EfsAccessPointToAWSAccountRel()

@@ -4,7 +4,7 @@ from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeProperties
 from cartography.models.core.nodes import CartographyNodeSchema
 from cartography.models.core.nodes import ExtraNodeLabels
-from cartography.models.ontology.labels import TenantOntologyLabel
+from cartography.models.ontology.labels import TENANT
 
 
 @dataclass(frozen=True)
@@ -22,4 +22,4 @@ class DatabricksAccountSchema(CartographyNodeSchema):
     # `Tenant` is the ontology label for the top-level resource container; the
     # account is the parent of every workspace it owns. Top-level node with no
     # sub-resource, like AWSAccount / GCPProject.
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([TenantOntologyLabel()])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([TENANT])

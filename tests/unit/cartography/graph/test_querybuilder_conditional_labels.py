@@ -24,53 +24,46 @@ class SimpleNodeProperties(CartographyNodeProperties):
     is_public: PropertyRef = PropertyRef("is_public")
 
 
-@dataclass(frozen=True)
-class ResourceLabel(ExtraNodeLabel):
-    """A generic test resource."""
-
-    label: str = "Resource"
-
-
-@dataclass(frozen=True)
-class AWSResourceLabel(ExtraNodeLabel):
-    """A generic test AWS resource."""
-
-    label: str = "AWSResource"
+RESOURCE = ExtraNodeLabel(
+    label="Resource",
+    description="A generic test resource.",
+)
 
 
-@dataclass(frozen=True)
-class CriticalLabel(ExtraNodeLabel):
-    """A test resource with critical severity."""
-
-    label: str = "Critical"
-
-
-@dataclass(frozen=True)
-class PublicResourceLabel(ExtraNodeLabel):
-    """A publicly accessible test resource."""
-
-    label: str = "PublicResource"
+AWS_RESOURCE = ExtraNodeLabel(
+    label="AWSResource",
+    description="A generic test AWS resource.",
+)
 
 
-@dataclass(frozen=True)
-class SpecialLabel(ExtraNodeLabel):
-    """A test label with a specially escaped condition."""
-
-    label: str = "Special"
-
-
-@dataclass(frozen=True)
-class EmptyConditionLabel(ExtraNodeLabel):
-    """An unconditional label used to test empty conditions."""
-
-    label: str = "EmptyCondition"
+CRITICAL = ExtraNodeLabel(
+    label="Critical",
+    description="A test resource with critical severity.",
+)
 
 
-@dataclass(frozen=True)
-class ValidConditionLabel(ExtraNodeLabel):
-    """A conditional label paired with an unconditional test label."""
+PUBLIC_RESOURCE = ExtraNodeLabel(
+    label="PublicResource",
+    description="A publicly accessible test resource.",
+)
 
-    label: str = "ValidCondition"
+
+SPECIAL = ExtraNodeLabel(
+    label="Special",
+    description="A test label with a specially escaped condition.",
+)
+
+
+EMPTY_CONDITION = ExtraNodeLabel(
+    label="EmptyCondition",
+    description="An unconditional label used to test empty conditions.",
+)
+
+
+VALID_CONDITION = ExtraNodeLabel(
+    label="ValidCondition",
+    description="A conditional label paired with an unconditional test label.",
+)
 
 
 @dataclass(frozen=True)
@@ -81,8 +74,8 @@ class NodeWithConditionalLabelSchema(CartographyNodeSchema):
     properties: SimpleNodeProperties = SimpleNodeProperties()
     extra_node_labels: Optional[ExtraNodeLabels] = ExtraNodeLabels(
         [
-            ResourceLabel(),
-            CriticalLabel(conditions={"severity": "high"}),
+            RESOURCE,
+            CRITICAL.when(severity="high"),
         ]
     )
 
@@ -95,12 +88,10 @@ class NodeWithMultipleConditionalLabelsSchema(CartographyNodeSchema):
     properties: SimpleNodeProperties = SimpleNodeProperties()
     extra_node_labels: Optional[ExtraNodeLabels] = ExtraNodeLabels(
         [
-            ResourceLabel(),
-            AWSResourceLabel(),
-            CriticalLabel(conditions={"severity": "high"}),
-            PublicResourceLabel(
-                conditions={"is_public": "true", "severity": "high"},
-            ),
+            RESOURCE,
+            AWS_RESOURCE,
+            CRITICAL.when(severity="high"),
+            PUBLIC_RESOURCE.when(is_public="true", severity="high"),
         ]
     )
 
@@ -113,7 +104,7 @@ class NodeWithOnlyConditionalLabelSchema(CartographyNodeSchema):
     properties: SimpleNodeProperties = SimpleNodeProperties()
     extra_node_labels: Optional[ExtraNodeLabels] = ExtraNodeLabels(
         [
-            CriticalLabel(conditions={"severity": "high"}),
+            CRITICAL.when(severity="high"),
         ]
     )
 
@@ -242,8 +233,8 @@ def test_build_conditional_label_queries_only_unconditional_labels():
         properties: SimpleNodeProperties = SimpleNodeProperties()
         extra_node_labels: Optional[ExtraNodeLabels] = ExtraNodeLabels(
             [
-                ResourceLabel(),
-                AWSResourceLabel(),
+                RESOURCE,
+                AWS_RESOURCE,
             ]
         )
 
@@ -262,9 +253,7 @@ def test_build_conditional_label_queries_escapes_special_chars():
         properties: SimpleNodeProperties = SimpleNodeProperties()
         extra_node_labels: Optional[ExtraNodeLabels] = ExtraNodeLabels(
             [
-                SpecialLabel(
-                    conditions={"severity": 'value with "quotes" and \\backslash'},
-                ),
+                SPECIAL.when(severity='value with "quotes" and \\backslash'),
             ]
         )
 
@@ -327,8 +316,8 @@ def test_empty_conditions_apply_label_unconditionally():
         properties: SimpleNodeProperties = SimpleNodeProperties()
         extra_node_labels: Optional[ExtraNodeLabels] = ExtraNodeLabels(
             [
-                EmptyConditionLabel(),
-                ValidConditionLabel(conditions={"severity": "high"}),
+                EMPTY_CONDITION,
+                VALID_CONDITION.when(severity="high"),
             ]
         )
 
@@ -371,8 +360,8 @@ def test_build_conditional_label_queries_scoped_by_sub_resource():
         sub_resource_relationship: TestAssetToAWSAccountRel = TestAssetToAWSAccountRel()
         extra_node_labels: Optional[ExtraNodeLabels] = ExtraNodeLabels(
             [
-                ResourceLabel(),
-                CriticalLabel(conditions={"severity": "high"}),
+                RESOURCE,
+                CRITICAL.when(severity="high"),
             ]
         )
 
@@ -425,7 +414,7 @@ def test_build_conditional_label_queries_scoped_outward_direction():
         sub_resource_relationship: TestAssetToTenantRel = TestAssetToTenantRel()
         extra_node_labels: Optional[ExtraNodeLabels] = ExtraNodeLabels(
             [
-                CriticalLabel(conditions={"severity": "high"}),
+                CRITICAL.when(severity="high"),
             ]
         )
 

@@ -1,6 +1,9 @@
 import abc
+from collections.abc import Iterable
 from dataclasses import dataclass
 from dataclasses import field
+from dataclasses import replace
+from enum import Enum
 from typing import Optional
 
 from cartography.models.core.common import PropertyRef
@@ -67,51 +70,88 @@ class CartographyNodeProperties(abc.ABC):
             )
 
 
-@dataclass(frozen=True)
-class ExtraNodeLabel(abc.ABC):
+class LabelKind(str, Enum):
+    """Semantic role of an additional Cartography node label."""
+
+    STANDARD = "standard"
+    ONTOLOGY = "ontology"
+    COMPATIBILITY = "compatibility"
+
+
+@dataclass(frozen=True, slots=True)
+class ExtraNodeLabel:
     """
     Declarative additional label applied to a Cartography node.
 
-    Define a frozen dataclass subclass with a class docstring for each additional
-    label. Empty conditions apply the label unconditionally; nonempty conditions
-    require every named node property to equal its configured value.
+    Empty conditions apply the label unconditionally; nonempty conditions require
+    every named node property to equal its configured value.
 
     Attributes:
         label: The Neo4j label name.
-        conditions: Node property names and exact string values that must match.
-        ontology: Whether this is a cross-provider ontology label.
+        description: Human-readable documentation for the label.
+        kind: The label's semantic role.
+        conditions: Sorted node property names and exact string values that must match.
+        remove_in: Optional removal version for compatibility labels.
     """
 
-    label: str = field(init=False)
-    conditions: dict[str, str] = field(default_factory=dict)
-    ontology: bool = False
+    label: str
+    description: str
+    kind: LabelKind = LabelKind.STANDARD
+    conditions: tuple[tuple[str, str], ...] = ()
+    remove_in: str | None = None
 
     def __post_init__(self) -> None:
-        if type(self) is ExtraNodeLabel:
-            raise TypeError("ExtraNodeLabel must be subclassed.")
+        if not self.label:
+            raise ValueError("label must not be empty.")
+        if not self.description:
+            raise ValueError("description must not be empty.")
+        if not isinstance(self.kind, LabelKind):
+            raise TypeError("kind must be a LabelKind.")
+        if self.remove_in is not None and self.kind is not LabelKind.COMPATIBILITY:
+            raise ValueError(
+                "remove_in can only be set for compatibility labels.",
+            )
+
+        for condition in self.conditions:
+            if (
+                len(condition) != 2
+                or not isinstance(condition[0], str)
+                or not isinstance(condition[1], str)
+            ):
+                raise TypeError(
+                    "conditions must contain (field_name, value) string pairs.",
+                )
+
+        object.__setattr__(self, "conditions", tuple(sorted(self.conditions)))
+
+    def when(self, **conditions: str) -> "ExtraNodeLabel":
+        """Return this label definition with deterministic matching conditions."""
+        return replace(self, conditions=tuple(sorted(conditions.items())))
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, slots=True, init=False)
 class ExtraNodeLabels:
     """
-    Encapsulates a list of labels for the CartographyNodeSchema.
+    Encapsulates an immutable collection of labels for CartographyNodeSchema.
 
-    This wrapper class is used to ensure dataclass immutability for the CartographyNodeSchema
-    while providing additional Neo4j labels beyond the primary node label.
+    Input iterables are normalized to a tuple while providing additional Neo4j
+    labels beyond the primary node label.
 
     Attributes:
         labels: Declarative labels to apply to the node.
     """
 
-    labels: list[ExtraNodeLabel]
+    labels: tuple[ExtraNodeLabel, ...]
 
-    def __post_init__(self) -> None:
-        for label in self.labels:
+    def __init__(self, labels: Iterable[ExtraNodeLabel]) -> None:
+        immutable_labels = tuple(labels)
+        for label in immutable_labels:
             if not isinstance(label, ExtraNodeLabel):
                 raise TypeError(
                     "ExtraNodeLabels accepts only ExtraNodeLabel instances; "
                     f"got {type(label).__name__}."
                 )
+        object.__setattr__(self, "labels", immutable_labels)
 
 
 @dataclass(frozen=True)

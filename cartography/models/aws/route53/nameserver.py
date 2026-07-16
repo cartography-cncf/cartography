@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 
-from cartography.models.aws.extra_labels import LegacyNameServerLabel
+from cartography.models.aws.extra_labels import LEGACY_NAME_SERVER
 from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeProperties
 from cartography.models.core.nodes import CartographyNodeSchema
@@ -59,7 +59,7 @@ class NameServerToAWSAccountRel(CartographyRelSchema):
 class NameServerSchema(CartographyNodeSchema):
     label: str = "AWSNameServer"
     # DEPRECATED: legacy NameServer node label will be removed in v1.0.0.
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([LegacyNameServerLabel()])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([LEGACY_NAME_SERVER])
     properties: NameServerNodeProperties = NameServerNodeProperties()
     sub_resource_relationship: NameServerToAWSAccountRel = NameServerToAWSAccountRel()
     other_relationships: OtherRelationships = OtherRelationships(

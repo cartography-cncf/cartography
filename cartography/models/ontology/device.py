@@ -12,7 +12,7 @@ from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import SourceNodeMatcher
 from cartography.models.core.relationships import TargetNodeMatcher
-from cartography.models.ontology.labels import CanonicalOntologyLabel
+from cartography.models.ontology.labels import ONTOLOGY
 
 
 @dataclass(frozen=True)
@@ -206,7 +206,7 @@ class DeviceToJamfMobileDeviceBySerialRel(CartographyRelSchema):
 @dataclass(frozen=True)
 class DeviceSchema(CartographyNodeSchema):
     label: str = "Device"
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([CanonicalOntologyLabel()])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([ONTOLOGY])
     properties: DeviceNodeProperties = DeviceNodeProperties()
     scoped_cleanup: bool = False
     other_relationships: OtherRelationships = OtherRelationships(

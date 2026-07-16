@@ -10,7 +10,7 @@ from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import TargetNodeMatcher
-from cartography.models.ontology.labels import DatabaseOntologyLabel
+from cartography.models.ontology.labels import DATABASE
 
 
 @dataclass(frozen=True)
@@ -83,7 +83,7 @@ class ScalewayRdbInstanceToPrivateNetworkRel(CartographyRelSchema):
 @dataclass(frozen=True)
 class ScalewayRdbInstanceSchema(CartographyNodeSchema):
     label: str = "ScalewayRdbInstance"
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([DatabaseOntologyLabel()])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([DATABASE])
     properties: ScalewayRdbInstanceProperties = ScalewayRdbInstanceProperties()
     sub_resource_relationship: ScalewayRdbInstanceToProjectRel = (
         ScalewayRdbInstanceToProjectRel()

@@ -9,7 +9,7 @@ from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import TargetNodeMatcher
-from cartography.models.ontology.labels import UserAccountOntologyLabel
+from cartography.models.ontology.labels import USER_ACCOUNT
 
 
 @dataclass(frozen=True)
@@ -54,4 +54,4 @@ class OCIUserSchema(CartographyNodeSchema):
     label: str = "OCIUser"
     properties: OCIUserNodeProperties = OCIUserNodeProperties()
     sub_resource_relationship: OCIUserToOCITenancyRel = OCIUserToOCITenancyRel()
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([UserAccountOntologyLabel()])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([USER_ACCOUNT])

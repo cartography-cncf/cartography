@@ -1,10 +1,9 @@
-from dataclasses import dataclass
-
 from cartography.models.core.nodes import ExtraNodeLabel
+from cartography.models.core.nodes import LabelKind
 
-
-@dataclass(frozen=True)
-class LegacySpotlightVulnerabilityLabel(ExtraNodeLabel):
-    """Compatibility label for the deprecated `SpotlightVulnerability` crowdstrike node label."""
-
-    label: str = "SpotlightVulnerability"
+LEGACY_SPOTLIGHT_VULNERABILITY = ExtraNodeLabel(
+    label="SpotlightVulnerability",
+    description="Compatibility label for the deprecated `SpotlightVulnerability` crowdstrike node label.",
+    kind=LabelKind.COMPATIBILITY,
+    remove_in="v1.0.0",
+)

@@ -10,8 +10,8 @@ from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import TargetNodeMatcher
-from cartography.models.ontology.labels import DNSRecordOntologyLabel
-from cartography.models.ontology.labels import DNSZoneOntologyLabel
+from cartography.models.ontology.labels import DNS_RECORD
+from cartography.models.ontology.labels import DNS_ZONE
 
 
 @dataclass(frozen=True)
@@ -55,7 +55,7 @@ class GCPDNSZoneToProjectRel(CartographyRelSchema):
 class GCPDNSZoneSchema(CartographyNodeSchema):
     label: str = "GCPDNSZone"
     properties: GCPDNSZoneNodeProperties = GCPDNSZoneNodeProperties()
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([DNSZoneOntologyLabel()])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([DNS_ZONE])
     sub_resource_relationship: GCPDNSZoneToProjectRel = GCPDNSZoneToProjectRel()
 
 
@@ -109,7 +109,7 @@ class GCPRecordSetToZoneRel(CartographyRelSchema):
 class GCPRecordSetSchema(CartographyNodeSchema):
     label: str = "GCPRecordSet"
     properties: GCPRecordSetNodeProperties = GCPRecordSetNodeProperties()
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([DNSRecordOntologyLabel()])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([DNS_RECORD])
     sub_resource_relationship: GCPRecordSetToProjectRel = GCPRecordSetToProjectRel()
     other_relationships: OtherRelationships = OtherRelationships(
         [

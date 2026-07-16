@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 
-from cartography.models.aws.extra_labels import LegacyLaunchTemplateLabel
+from cartography.models.aws.extra_labels import LEGACY_LAUNCH_TEMPLATE
 from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeProperties
 from cartography.models.core.nodes import CartographyNodeSchema
@@ -47,7 +47,7 @@ class LaunchTemplateToAWSAccountRel(CartographyRelSchema):
 class LaunchTemplateSchema(CartographyNodeSchema):
     label: str = "AWSLaunchTemplate"
     # DEPRECATED: legacy LaunchTemplate node label will be removed in v1.0.0.
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([LegacyLaunchTemplateLabel()])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([LEGACY_LAUNCH_TEMPLATE])
     properties: LaunchTemplateNodeProperties = LaunchTemplateNodeProperties()
     sub_resource_relationship: LaunchTemplateToAWSAccountRel = (
         LaunchTemplateToAWSAccountRel()

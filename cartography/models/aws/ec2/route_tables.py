@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 
-from cartography.models.aws.extra_labels import LegacyEC2RouteTableLabel
+from cartography.models.aws.extra_labels import LEGACY_EC2_ROUTE_TABLE
 from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeProperties
 from cartography.models.core.nodes import CartographyNodeSchema
@@ -119,7 +119,7 @@ class RouteTableToVpnGatewayRel(CartographyRelSchema):
 class RouteTableSchema(CartographyNodeSchema):
     label: str = "AWSEC2RouteTable"
     # DEPRECATED: legacy EC2RouteTable node label will be removed in v1.0.0.
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([LegacyEC2RouteTableLabel()])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([LEGACY_EC2_ROUTE_TABLE])
     properties: RouteTableNodeProperties = RouteTableNodeProperties()
     sub_resource_relationship: RouteTableToAWSAccountRel = RouteTableToAWSAccountRel()
     other_relationships: OtherRelationships = OtherRelationships(

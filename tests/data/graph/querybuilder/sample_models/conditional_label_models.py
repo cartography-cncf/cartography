@@ -6,6 +6,7 @@ from cartography.models.core.nodes import CartographyNodeProperties
 from cartography.models.core.nodes import CartographyNodeSchema
 from cartography.models.core.nodes import ExtraNodeLabel
 from cartography.models.core.nodes import ExtraNodeLabels
+from cartography.models.core.nodes import LabelKind
 from cartography.models.core.relationships import CartographyRelProperties
 from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
@@ -24,56 +25,49 @@ class ContainerImageProperties(CartographyNodeProperties):
     repository: PropertyRef = PropertyRef("repository")
 
 
-@dataclass(frozen=True)
-class ResourceLabel(ExtraNodeLabel):
-    """A generic resource used in query-builder tests."""
-
-    label: str = "Resource"
-
-
-@dataclass(frozen=True)
-class ImageOntologyLabel(ExtraNodeLabel):
-    """A container image used in query-builder tests."""
-
-    label: str = "Image"
-    ontology: bool = True
+RESOURCE = ExtraNodeLabel(
+    label="Resource",
+    description="A generic resource used in query-builder tests.",
+)
 
 
-@dataclass(frozen=True)
-class ImageAttestationOntologyLabel(ExtraNodeLabel):
-    """A container-image attestation used in query-builder tests."""
-
-    label: str = "ImageAttestation"
-    ontology: bool = True
-
-
-@dataclass(frozen=True)
-class ImageManifestListOntologyLabel(ExtraNodeLabel):
-    """A multi-platform image manifest used in query-builder tests."""
-
-    label: str = "ImageManifestList"
-    ontology: bool = True
+IMAGE = ExtraNodeLabel(
+    label="Image",
+    description="A container image used in query-builder tests.",
+    kind=LabelKind.ONTOLOGY,
+)
 
 
-@dataclass(frozen=True)
-class SecurityFindingLabel(ExtraNodeLabel):
-    """A generic security finding used in query-builder tests."""
-
-    label: str = "SecurityFinding"
-
-
-@dataclass(frozen=True)
-class CriticalLabel(ExtraNodeLabel):
-    """A critical finding used in query-builder tests."""
-
-    label: str = "Critical"
+IMAGE_ATTESTATION = ExtraNodeLabel(
+    label="ImageAttestation",
+    description="A container-image attestation used in query-builder tests.",
+    kind=LabelKind.ONTOLOGY,
+)
 
 
-@dataclass(frozen=True)
-class UrgentLabel(ExtraNodeLabel):
-    """An urgent finding used in query-builder tests."""
+IMAGE_MANIFEST_LIST = ExtraNodeLabel(
+    label="ImageManifestList",
+    description="A multi-platform image manifest used in query-builder tests.",
+    kind=LabelKind.ONTOLOGY,
+)
 
-    label: str = "Urgent"
+
+SECURITY_FINDING = ExtraNodeLabel(
+    label="SecurityFinding",
+    description="A generic security finding used in query-builder tests.",
+)
+
+
+CRITICAL = ExtraNodeLabel(
+    label="Critical",
+    description="A critical finding used in query-builder tests.",
+)
+
+
+URGENT = ExtraNodeLabel(
+    label="Urgent",
+    description="An urgent finding used in query-builder tests.",
+)
 
 
 @dataclass(frozen=True)
@@ -111,16 +105,10 @@ class ContainerImageSchema(CartographyNodeSchema):
     )
     extra_node_labels: Optional[ExtraNodeLabels] = ExtraNodeLabels(
         [
-            ResourceLabel(),
-            ImageOntologyLabel(
-                conditions={"image_type": "IMAGE"},
-            ),
-            ImageAttestationOntologyLabel(
-                conditions={"image_type": "IMAGE_ATTESTATION"},
-            ),
-            ImageManifestListOntologyLabel(
-                conditions={"image_type": "IMAGE_MANIFEST_LIST"},
-            ),
+            RESOURCE,
+            IMAGE.when(image_type="IMAGE"),
+            IMAGE_ATTESTATION.when(image_type="IMAGE_ATTESTATION"),
+            IMAGE_MANIFEST_LIST.when(image_type="IMAGE_MANIFEST_LIST"),
         ],
     )
 
@@ -136,13 +124,9 @@ class ContainerImageSchemaNoSubResource(CartographyNodeSchema):
     properties: ContainerImageProperties = ContainerImageProperties()
     extra_node_labels: Optional[ExtraNodeLabels] = ExtraNodeLabels(
         [
-            ResourceLabel(),
-            ImageOntologyLabel(
-                conditions={"image_type": "IMAGE"},
-            ),
-            ImageAttestationOntologyLabel(
-                conditions={"image_type": "IMAGE_ATTESTATION"},
-            ),
+            RESOURCE,
+            IMAGE.when(image_type="IMAGE"),
+            IMAGE_ATTESTATION.when(image_type="IMAGE_ATTESTATION"),
         ],
     )
     scoped_cleanup: bool = False
@@ -169,13 +153,9 @@ class VulnerabilitySchema(CartographyNodeSchema):
     properties: VulnerabilityProperties = VulnerabilityProperties()
     extra_node_labels: Optional[ExtraNodeLabels] = ExtraNodeLabels(
         [
-            SecurityFindingLabel(),
-            CriticalLabel(
-                conditions={"severity": "critical"},
-            ),
-            UrgentLabel(
-                conditions={"severity": "critical", "is_exploitable": "true"},
-            ),
+            SECURITY_FINDING,
+            CRITICAL.when(severity="critical"),
+            URGENT.when(severity="critical", is_exploitable="true"),
         ],
     )
     scoped_cleanup: bool = False

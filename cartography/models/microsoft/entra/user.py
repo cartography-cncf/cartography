@@ -10,8 +10,8 @@ from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import TargetNodeMatcher
-from cartography.models.microsoft.extra_labels import EntraIdentityLabel
-from cartography.models.ontology.labels import UserAccountOntologyLabel
+from cartography.models.microsoft.extra_labels import ENTRA_IDENTITY
+from cartography.models.ontology.labels import USER_ACCOUNT
 
 # The user resource in Microsoft Graph exposes hundreds of properties but, in
 # practice, only a small subset is populated in most tenants.  We deliberately
@@ -86,7 +86,7 @@ class EntraUserSchema(CartographyNodeSchema):
     )
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
         [
-            EntraIdentityLabel(),
-            UserAccountOntologyLabel(),
+            ENTRA_IDENTITY,
+            USER_ACCOUNT,
         ]  # UserAccount label is used for ontology mapping
     )

@@ -10,7 +10,7 @@ from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import TargetNodeMatcher
-from cartography.models.ontology.labels import PermissionRoleOntologyLabel
+from cartography.models.ontology.labels import PERMISSION_ROLE
 
 
 # Node Properties - Role Assignment as a Node
@@ -304,9 +304,7 @@ class AzureManagementGroupRoleAssignmentSchema(CartographyNodeSchema):
 class AzureRoleDefinitionSchema(CartographyNodeSchema):
     label: str = "AzureRoleDefinition"
     properties: AzureRoleDefinitionProperties = AzureRoleDefinitionProperties()
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
-        [PermissionRoleOntologyLabel()]
-    )
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([PERMISSION_ROLE])
     sub_resource_relationship: AzureRoleDefinitionToSubscriptionRel = (
         AzureRoleDefinitionToSubscriptionRel()
     )
@@ -323,9 +321,7 @@ class AzureUnscopedRoleDefinitionSchema(CartographyNodeSchema):
     properties: AzureUnscopedRoleDefinitionProperties = (
         AzureUnscopedRoleDefinitionProperties()
     )
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
-        [PermissionRoleOntologyLabel()]
-    )
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([PERMISSION_ROLE])
     other_relationships: OtherRelationships = OtherRelationships(
         [
             AzureRoleDefinitionToPermissionsRel(),

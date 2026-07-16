@@ -1,17 +1,12 @@
-from dataclasses import dataclass
-
 from cartography.models.core.nodes import ExtraNodeLabel
 
-
-@dataclass(frozen=True)
-class DatabricksAclObjectLabel(ExtraNodeLabel):
-    """An object that can receive Databricks workspace permissions."""
-
-    label: str = "DatabricksAclObject"
+DATABRICKS_ACL_OBJECT = ExtraNodeLabel(
+    label="DatabricksAclObject",
+    description="An object that can receive Databricks workspace permissions.",
+)
 
 
-@dataclass(frozen=True)
-class DatabricksSecurableLabel(ExtraNodeLabel):
-    """A Unity Catalog object that can receive Databricks privileges."""
-
-    label: str = "DatabricksSecurable"
+DATABRICKS_SECURABLE = ExtraNodeLabel(
+    label="DatabricksSecurable",
+    description="A Unity Catalog object that can receive Databricks privileges.",
+)

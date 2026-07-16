@@ -10,7 +10,7 @@ from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import TargetNodeMatcher
-from cartography.models.ontology.labels import ServiceAccountOntologyLabel
+from cartography.models.ontology.labels import SERVICE_ACCOUNT
 
 
 @dataclass(frozen=True)
@@ -114,9 +114,7 @@ class KubernetesServiceAccountToGCPServiceAccountRel(CartographyRelSchema):
 @dataclass(frozen=True)
 class KubernetesServiceAccountSchema(CartographyNodeSchema):
     label: str = "KubernetesServiceAccount"
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
-        [ServiceAccountOntologyLabel()]
-    )
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([SERVICE_ACCOUNT])
     properties: KubernetesServiceAccountNodeProperties = (
         KubernetesServiceAccountNodeProperties()
     )

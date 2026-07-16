@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 
-from cartography.models.aws.extra_labels import LegacyEC2NetworkAclRuleLabel
+from cartography.models.aws.extra_labels import LEGACY_EC2_NETWORK_ACL_RULE
 from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeProperties
 from cartography.models.core.nodes import CartographyNodeSchema
@@ -11,8 +11,8 @@ from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import TargetNodeMatcher
-from cartography.models.extra_labels import IpPermissionEgressLabel
-from cartography.models.extra_labels import IpPermissionInboundLabel
+from cartography.models.extra_labels import IP_PERMISSION_EGRESS
+from cartography.models.extra_labels import IP_PERMISSION_INBOUND
 
 
 @dataclass(frozen=True)
@@ -74,7 +74,7 @@ class EC2NetworkAclInboundRuleSchema(CartographyNodeSchema):
     label: str = "AWSEC2NetworkAclRule"
     # DEPRECATED: legacy EC2NetworkAclRule node label will be removed in v1.0.0.
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
-        [LegacyEC2NetworkAclRuleLabel(), IpPermissionInboundLabel()],
+        [LEGACY_EC2_NETWORK_ACL_RULE, IP_PERMISSION_INBOUND],
     )
     properties: EC2NetworkAclRuleNodeProperties = EC2NetworkAclRuleNodeProperties()
     sub_resource_relationship: EC2NetworkAclRuleToAWSAccountRel = (
@@ -97,8 +97,8 @@ class EC2NetworkAclEgressRuleSchema(CartographyNodeSchema):
     # DEPRECATED: legacy EC2NetworkAclRule node label will be removed in v1.0.0.
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
         [
-            LegacyEC2NetworkAclRuleLabel(),
-            IpPermissionEgressLabel(),
+            LEGACY_EC2_NETWORK_ACL_RULE,
+            IP_PERMISSION_EGRESS,
         ],
     )
     properties: EC2NetworkAclRuleNodeProperties = EC2NetworkAclRuleNodeProperties()

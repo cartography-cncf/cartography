@@ -9,7 +9,7 @@ from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import TargetNodeMatcher
-from cartography.models.ontology.labels import ComputeNamespaceOntologyLabel
+from cartography.models.ontology.labels import COMPUTE_NAMESPACE
 
 
 @dataclass(frozen=True)
@@ -54,9 +54,7 @@ class ScalewayServerlessContainerNamespaceToProjectRel(CartographyRelSchema):
 @dataclass(frozen=True)
 class ScalewayServerlessContainerNamespaceSchema(CartographyNodeSchema):
     label: str = "ScalewayServerlessContainerNamespace"
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
-        [ComputeNamespaceOntologyLabel()]
-    )
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([COMPUTE_NAMESPACE])
     properties: ScalewayServerlessContainerNamespaceProperties = (
         ScalewayServerlessContainerNamespaceProperties()
     )

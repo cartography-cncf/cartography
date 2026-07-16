@@ -12,7 +12,7 @@ from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import SourceNodeMatcher
 from cartography.models.core.relationships import TargetNodeMatcher
-from cartography.models.ontology.labels import ComputeInstanceOntologyLabel
+from cartography.models.ontology.labels import COMPUTE_INSTANCE
 
 
 @dataclass(frozen=True)
@@ -81,9 +81,7 @@ class AzureVirtualMachineToServicePrincipalRel(CartographyRelSchema):
 class AzureVirtualMachineSchema(CartographyNodeSchema):
     label: str = "AzureVirtualMachine"
     properties: AzureVirtualMachineProperties = AzureVirtualMachineProperties()
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
-        [ComputeInstanceOntologyLabel()]
-    )
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([COMPUTE_INSTANCE])
     sub_resource_relationship: AzureVirtualMachineToSubscriptionRel = (
         AzureVirtualMachineToSubscriptionRel()
     )

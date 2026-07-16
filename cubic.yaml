@@ -112,7 +112,10 @@ reviews:
         All nodes, properties, and relationships must be documented in docs/root/modules/*/schema.md.
 
         Document ontology mappings:
-        Nodes with ExtraNodeLabels (semantic labels) must be documented in schema.md with a note: > **Ontology Mapping**: ...
+        Nodes with ExtraNodeLabels containing an exported ExtraNodeLabel constant whose kind is LabelKind.ONTOLOGY must be documented in schema.md with a note: > **Ontology Mapping**: ...
+
+        Extra node label API:
+        ExtraNodeLabel is a single immutable value type. Labels must be exported uppercase constants, not one subclass per label, and descriptions are metadata rather than class docstrings. Conditional labels must use CONSTANT.when(field="value"). ECR type matches are case-sensitive and use the exact production values image, attestation, and manifest_list.
 
         Schema documentation format:
         In docs/root/modules/*/schema.md files: use ### (h3) for node names and #### (h4) for the "Relationships" subsection. Indexed fields (primary key id and fields with extra_index=True) must be bold in the table (e.g., |**id**| The unique identifier|). Each node must document all its fields with a description.

@@ -10,8 +10,8 @@ from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import TargetNodeMatcher
-from cartography.models.microsoft.extra_labels import EntraIdentityLabel
-from cartography.models.ontology.labels import UserGroupOntologyLabel
+from cartography.models.microsoft.extra_labels import ENTRA_IDENTITY
+from cartography.models.ontology.labels import USER_GROUP
 
 
 @dataclass(frozen=True)
@@ -114,7 +114,7 @@ class EntraGroupSchema(CartographyNodeSchema):
     )
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
         [
-            EntraIdentityLabel(),
-            UserGroupOntologyLabel(),
+            ENTRA_IDENTITY,
+            USER_GROUP,
         ]
     )

@@ -9,7 +9,7 @@ from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import TargetNodeMatcher
-from cartography.models.ontology.labels import DatabaseOntologyLabel
+from cartography.models.ontology.labels import DATABASE
 
 
 @dataclass(frozen=True)
@@ -51,6 +51,6 @@ class ProjectToDatasetRel(CartographyRelSchema):
 @dataclass(frozen=True)
 class GCPBigQueryDatasetSchema(CartographyNodeSchema):
     label: str = "GCPBigQueryDataset"
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([DatabaseOntologyLabel()])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([DATABASE])
     properties: GCPBigQueryDatasetProperties = GCPBigQueryDatasetProperties()
     sub_resource_relationship: ProjectToDatasetRel = ProjectToDatasetRel()

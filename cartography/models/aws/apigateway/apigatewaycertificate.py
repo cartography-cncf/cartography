@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 
-from cartography.models.aws.extra_labels import LegacyAPIGatewayClientCertificateLabel
+from cartography.models.aws.extra_labels import LEGACY_API_GATEWAY_CLIENT_CERTIFICATE
 from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeProperties
 from cartography.models.core.nodes import CartographyNodeSchema
@@ -65,7 +65,7 @@ class APIGatewayClientCertificateSchema(CartographyNodeSchema):
     label: str = "AWSAPIGatewayClientCertificate"
     # DEPRECATED: legacy APIGatewayClientCertificate node label will be removed in v1.0.0.
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
-        [LegacyAPIGatewayClientCertificateLabel()]
+        [LEGACY_API_GATEWAY_CLIENT_CERTIFICATE]
     )
     properties: APIGatewayClientCertificateNodeProperties = (
         APIGatewayClientCertificateNodeProperties()

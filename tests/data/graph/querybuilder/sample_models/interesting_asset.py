@@ -14,19 +14,16 @@ from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import TargetNodeMatcher
 from tests.data.graph.querybuilder.sample_models.simple_node import SimpleNodeProperties
 
-
-@dataclass(frozen=True)
-class AnotherNodeLabel(ExtraNodeLabel):
-    """An additional label used by the interesting asset test model."""
-
-    label: str = "AnotherNodeLabel"
+ANOTHER_NODE = ExtraNodeLabel(
+    label="AnotherNodeLabel",
+    description="An additional label used by the interesting asset test model.",
+)
 
 
-@dataclass(frozen=True)
-class YetAnotherNodeLabel(ExtraNodeLabel):
-    """A second additional label used by the interesting asset test model."""
-
-    label: str = "YetAnotherNodeLabel"
+YET_ANOTHER_NODE = ExtraNodeLabel(
+    label="YetAnotherNodeLabel",
+    description="A second additional label used by the interesting asset test model.",
+)
 
 
 @dataclass(frozen=True)
@@ -111,7 +108,7 @@ class InterestingAssetToWorldAssetRel(CartographyRelSchema):
 @dataclass(frozen=True)
 class InterestingAssetSchema(CartographyNodeSchema):
     extra_node_labels: Optional[ExtraNodeLabels] = ExtraNodeLabels(
-        [AnotherNodeLabel(), YetAnotherNodeLabel()],
+        [ANOTHER_NODE, YET_ANOTHER_NODE],
     )
     label: str = "InterestingAsset"
     properties: SimpleNodeProperties = SimpleNodeProperties()

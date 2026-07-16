@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 
-from cartography.models.aws.extra_labels import LegacyDynamoDBArchivalSummaryLabel
+from cartography.models.aws.extra_labels import LEGACY_DYNAMO_DB_ARCHIVAL_SUMMARY
 from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeProperties
 from cartography.models.core.nodes import CartographyNodeSchema
@@ -81,7 +81,7 @@ class DynamoDBArchivalSummarySchema(CartographyNodeSchema):
     label: str = "AWSDynamoDBArchivalSummary"
     # DEPRECATED: legacy DynamoDBArchivalSummary node label will be removed in v1.0.0.
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
-        [LegacyDynamoDBArchivalSummaryLabel()]
+        [LEGACY_DYNAMO_DB_ARCHIVAL_SUMMARY]
     )
     properties: DynamoDBArchivalSummaryNodeProperties = (
         DynamoDBArchivalSummaryNodeProperties()

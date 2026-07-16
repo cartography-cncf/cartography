@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 
-from cartography.models.aws.extra_labels import LegacyS3AclLabel
+from cartography.models.aws.extra_labels import LEGACY_S3_ACL
 from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeProperties
 from cartography.models.core.nodes import CartographyNodeSchema
@@ -62,7 +62,7 @@ class S3AclToS3BucketRel(CartographyRelSchema):
 class S3AclSchema(CartographyNodeSchema):
     label: str = "AWSS3Acl"
     # DEPRECATED: legacy S3Acl node label will be removed in v1.0.0.
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([LegacyS3AclLabel()])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([LEGACY_S3_ACL])
     properties: S3AclNodeProperties = S3AclNodeProperties()
     sub_resource_relationship: S3AclToAWSAccountRel = S3AclToAWSAccountRel()
     other_relationships: OtherRelationships = OtherRelationships(

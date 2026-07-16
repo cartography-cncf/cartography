@@ -10,7 +10,7 @@ from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import TargetNodeMatcher
-from cartography.models.ontology.labels import ThirdPartyAppOntologyLabel
+from cartography.models.ontology.labels import THIRD_PARTY_APP
 
 
 @dataclass(frozen=True)
@@ -62,7 +62,7 @@ class JumpCloudApplicationToUserRel(CartographyRelSchema):
 @dataclass(frozen=True)
 class JumpCloudApplicationSchema(CartographyNodeSchema):
     label: str = "JumpCloudSaaSApplication"
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([ThirdPartyAppOntologyLabel()])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([THIRD_PARTY_APP])
     properties: JumpCloudApplicationNodeProperties = (
         JumpCloudApplicationNodeProperties()
     )

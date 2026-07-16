@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 
-from cartography.models.aws.extra_labels import LegacyEC2InstanceLabel
+from cartography.models.aws.extra_labels import LEGACY_EC2_INSTANCE
 from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeProperties
 from cartography.models.core.nodes import CartographyNodeSchema
@@ -13,7 +13,7 @@ from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import SourceNodeMatcher
 from cartography.models.core.relationships import TargetNodeMatcher
-from cartography.models.ontology.labels import ComputeInstanceOntologyLabel
+from cartography.models.ontology.labels import COMPUTE_INSTANCE
 
 
 @dataclass(frozen=True)
@@ -140,7 +140,7 @@ class EC2InstanceSchema(CartographyNodeSchema):
     label: str = "AWSEC2Instance"
     # DEPRECATED: legacy EC2Instance node label will be removed in v1.0.0.
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
-        [LegacyEC2InstanceLabel(), ComputeInstanceOntologyLabel()]
+        [LEGACY_EC2_INSTANCE, COMPUTE_INSTANCE]
     )
     properties: EC2InstanceNodeProperties = EC2InstanceNodeProperties()
     sub_resource_relationship: EC2InstanceToAWSAccountRel = EC2InstanceToAWSAccountRel()

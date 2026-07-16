@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 
-from cartography.models.aws.extra_labels import LegacyLaunchTemplateVersionLabel
+from cartography.models.aws.extra_labels import LEGACY_LAUNCH_TEMPLATE_VERSION
 from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeProperties
 from cartography.models.core.nodes import CartographyNodeSchema
@@ -82,7 +82,7 @@ class LaunchTemplateVersionSchema(CartographyNodeSchema):
     label: str = "AWSLaunchTemplateVersion"
     # DEPRECATED: legacy LaunchTemplateVersion node label will be removed in v1.0.0.
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
-        [LegacyLaunchTemplateVersionLabel()]
+        [LEGACY_LAUNCH_TEMPLATE_VERSION]
     )
     properties: LaunchTemplateVersionNodeProperties = (
         LaunchTemplateVersionNodeProperties()

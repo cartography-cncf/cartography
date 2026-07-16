@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 
-from cartography.models.aws.extra_labels import LegacyElasticIPAddressLabel
+from cartography.models.aws.extra_labels import LEGACY_ELASTIC_IP_ADDRESS
 from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeProperties
 from cartography.models.core.nodes import CartographyNodeSchema
@@ -91,9 +91,7 @@ class ElasticIPAddressToNetworkInterfaceRel(CartographyRelSchema):
 class ElasticIPAddressSchema(CartographyNodeSchema):
     label: str = "AWSElasticIPAddress"
     # DEPRECATED: legacy ElasticIPAddress node label will be removed in v1.0.0.
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
-        [LegacyElasticIPAddressLabel()]
-    )
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([LEGACY_ELASTIC_IP_ADDRESS])
     properties: ElasticIPAddressNodeProperties = ElasticIPAddressNodeProperties()
     sub_resource_relationship: ElasticIPAddressToAWSAccountRel = (
         ElasticIPAddressToAWSAccountRel()

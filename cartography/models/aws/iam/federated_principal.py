@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 
-from cartography.models.aws.extra_labels import AWSPrincipalLabel
+from cartography.models.aws.extra_labels import AWS_PRINCIPAL
 from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeProperties
 from cartography.models.core.nodes import CartographyNodeSchema
@@ -58,4 +58,4 @@ class AWSFederatedPrincipalSchema(CartographyNodeSchema):
     sub_resource_relationship: AWSFederatedPrincipalToAWSAccountRel = (
         AWSFederatedPrincipalToAWSAccountRel()
     )
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([AWSPrincipalLabel()])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([AWS_PRINCIPAL])

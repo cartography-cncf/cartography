@@ -10,7 +10,7 @@ from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import TargetNodeMatcher
-from cartography.models.ontology.labels import CanonicalOntologyLabel
+from cartography.models.ontology.labels import ONTOLOGY
 
 
 @dataclass(frozen=True)
@@ -99,7 +99,7 @@ class UserToThirdPartyAppAuthorizedRel(CartographyRelSchema):
 @dataclass(frozen=True)
 class UserSchema(CartographyNodeSchema):
     label: str = "User"
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([CanonicalOntologyLabel()])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([ONTOLOGY])
     properties: UserNodeProperties = UserNodeProperties()
     scoped_cleanup: bool = False
     other_relationships: OtherRelationships = OtherRelationships(

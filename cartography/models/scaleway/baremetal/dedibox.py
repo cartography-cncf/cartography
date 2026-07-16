@@ -9,7 +9,7 @@ from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import TargetNodeMatcher
-from cartography.models.ontology.labels import ComputeInstanceOntologyLabel
+from cartography.models.ontology.labels import COMPUTE_INSTANCE
 
 
 @dataclass(frozen=True)
@@ -56,9 +56,7 @@ class ScalewayDediboxServerToProjectRel(CartographyRelSchema):
 @dataclass(frozen=True)
 class ScalewayDediboxServerSchema(CartographyNodeSchema):
     label: str = "ScalewayDediboxServer"
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
-        [ComputeInstanceOntologyLabel()]
-    )
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([COMPUTE_INSTANCE])
     properties: ScalewayDediboxServerProperties = ScalewayDediboxServerProperties()
     sub_resource_relationship: ScalewayDediboxServerToProjectRel = (
         ScalewayDediboxServerToProjectRel()

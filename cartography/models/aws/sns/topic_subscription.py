@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 
-from cartography.models.aws.extra_labels import LegacySNSTopicSubscriptionLabel
+from cartography.models.aws.extra_labels import LEGACY_SNS_TOPIC_SUBSCRIPTION
 from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeProperties
 from cartography.models.core.nodes import CartographyNodeSchema
@@ -65,7 +65,7 @@ class SNSTopicSubscriptionSchema(CartographyNodeSchema):
     label: str = "AWSSNSTopicSubscription"
     # DEPRECATED: legacy SNSTopicSubscription node label will be removed in v1.0.0.
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
-        [LegacySNSTopicSubscriptionLabel()]
+        [LEGACY_SNS_TOPIC_SUBSCRIPTION]
     )
     properties: SNSTopicSubscriptionNodeProperties = (
         SNSTopicSubscriptionNodeProperties()

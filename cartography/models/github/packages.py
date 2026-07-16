@@ -18,7 +18,7 @@ from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import TargetNodeMatcher
-from cartography.models.ontology.labels import ContainerRegistryOntologyLabel
+from cartography.models.ontology.labels import CONTAINER_REGISTRY
 
 
 @dataclass(frozen=True)
@@ -78,6 +78,4 @@ class GitHubPackageSchema(CartographyNodeSchema):
     other_relationships: OtherRelationships = OtherRelationships(
         [GitHubPackageToRepositoryRel()],
     )
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
-        [ContainerRegistryOntologyLabel()]
-    )
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([CONTAINER_REGISTRY])

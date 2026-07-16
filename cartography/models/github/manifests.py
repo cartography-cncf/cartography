@@ -10,7 +10,7 @@ from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import TargetNodeMatcher
-from cartography.models.github.extra_labels import LegacyDependencyGraphManifestLabel
+from cartography.models.github.extra_labels import LEGACY_DEPENDENCY_GRAPH_MANIFEST
 
 
 @dataclass(frozen=True)
@@ -73,7 +73,7 @@ class DependencyGraphManifestSchema(CartographyNodeSchema):
     label: str = "GitHubDependencyGraphManifest"
     # DEPRECATED: legacy DependencyGraphManifest node label will be removed in v1.0.0.
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
-        [LegacyDependencyGraphManifestLabel()]
+        [LEGACY_DEPENDENCY_GRAPH_MANIFEST]
     )
     properties: DependencyGraphManifestNodeProperties = (
         DependencyGraphManifestNodeProperties()

@@ -15,7 +15,7 @@ Most modules only need semantic labels.
 ## Critical rules
 
 1. **Mark primary identifiers `required=True`** in `OntologyFieldMapping` (e.g. `email` for `User`, `hostname` for `Device`). Records missing these are excluded from ontology node creation.
-2. **For semantic labels, add the named ontology label class**, for example `ExtraNodeLabels([UserAccountOntologyLabel()])`. The ontology system handles the `_ont_*` properties automatically.
+2. **For semantic labels, add the exported ontology label constant**, for example `ExtraNodeLabels([USER_ACCOUNT])`. Ontology constants are immutable `ExtraNodeLabel` values with `kind=LabelKind.ONTOLOGY`; the ontology system handles the `_ont_*` properties automatically.
 3. **`special_handling` values are strings**: `invert_boolean`, `to_boolean`, `or_boolean`, `nor_boolean`, `equal_boolean`, `static_value`, `coalesce`. Boolean conditions inside `extra={"values": ...}` must also be strings (`"true"`, not `True`).
 4. **Document ontology mapping** in your schema doc using the standard blockquote phrase.
 5. **Module name `microsoft`** is the canonical source for Microsoft Graph. `entra` is still accepted as a backward-compatible alias during migration.
@@ -98,18 +98,21 @@ For semantic labels, the node schema simply gains the extra label — Cartograph
 
 ```python
 from cartography.models.core.nodes import ExtraNodeLabels
-from cartography.models.ontology.labels import UserAccountOntologyLabel
+from cartography.models.ontology.labels import USER_ACCOUNT
 
 
 @dataclass(frozen=True)
 class YourServiceUserSchema(CartographyNodeSchema):
     label: str = "YourServiceUser"
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([UserAccountOntologyLabel()])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([USER_ACCOUNT])
     properties: YourServiceUserNodeProperties = YourServiceUserNodeProperties()
     sub_resource_relationship: YourServiceTenantToUserRel = YourServiceTenantToUserRel()
 ```
 
-For canonical nodes, define a separate schema with `extra_node_labels=ExtraNodeLabels([CanonicalOntologyLabel()])` and a relationship to the semantic-labelled source nodes. See `references/semantic-labels.md` for the full template.
+For canonical nodes, define a separate schema with
+`extra_node_labels=ExtraNodeLabels([ONTOLOGY])` and a relationship to the
+semantic-labeled source nodes. See `references/semantic-labels.md` for the
+full template.
 
 ### Step 5 — `required` and `eligible_for_source`
 

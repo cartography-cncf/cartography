@@ -10,8 +10,8 @@ from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import TargetNodeMatcher
-from cartography.models.gcp.extra_labels import InstanceLabel
-from cartography.models.ontology.labels import ComputeInstanceOntologyLabel
+from cartography.models.gcp.extra_labels import INSTANCE
+from cartography.models.ontology.labels import COMPUTE_INSTANCE
 
 
 @dataclass(frozen=True)
@@ -84,9 +84,7 @@ class GCPInstanceToServiceAccountRel(CartographyRelSchema):
 class GCPInstanceSchema(CartographyNodeSchema):
     label: str = "GCPInstance"
     properties: GCPInstanceNodeProperties = GCPInstanceNodeProperties()
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
-        [InstanceLabel(), ComputeInstanceOntologyLabel()]
-    )
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([INSTANCE, COMPUTE_INSTANCE])
     sub_resource_relationship: GCPInstanceToProjectRel = GCPInstanceToProjectRel()
     other_relationships: OtherRelationships = OtherRelationships(
         [

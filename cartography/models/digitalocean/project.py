@@ -10,7 +10,7 @@ from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import TargetNodeMatcher
-from cartography.models.ontology.labels import TenantOntologyLabel
+from cartography.models.ontology.labels import TENANT
 
 
 @dataclass(frozen=True)
@@ -65,4 +65,4 @@ class DOProjectSchema(CartographyNodeSchema):
     other_relationships: OtherRelationships = OtherRelationships(
         rels=[DOProjectToAccountDeprecatedRel()],
     )
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([TenantOntologyLabel()])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([TENANT])

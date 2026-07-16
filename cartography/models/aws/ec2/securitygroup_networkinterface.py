@@ -3,7 +3,7 @@ from dataclasses import dataclass
 from cartography.models.aws.ec2.securitygroup_instance import (
     EC2SecurityGroupToAWSAccountRel,
 )
-from cartography.models.aws.extra_labels import LegacyEC2SecurityGroupLabel
+from cartography.models.aws.extra_labels import LEGACY_EC2_SECURITY_GROUP
 from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeProperties
 from cartography.models.core.nodes import CartographyNodeSchema
@@ -51,9 +51,7 @@ class EC2SecurityGroupNetworkInterfaceSchema(CartographyNodeSchema):
 
     label: str = "AWSEC2SecurityGroup"
     # DEPRECATED: legacy EC2SecurityGroup node label will be removed in v1.0.0.
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
-        [LegacyEC2SecurityGroupLabel()]
-    )
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([LEGACY_EC2_SECURITY_GROUP])
     properties: EC2SecurityGroupNetworkInterfaceNodeProperties = (
         EC2SecurityGroupNetworkInterfaceNodeProperties()
     )

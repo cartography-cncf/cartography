@@ -10,7 +10,7 @@ from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import TargetNodeMatcher
-from cartography.models.extra_labels import FixLabel
+from cartography.models.extra_labels import FIX
 
 
 @dataclass(frozen=True)
@@ -57,7 +57,7 @@ class TrivyFixToFindingRel(CartographyRelSchema):
 class TrivyFixSchema(CartographyNodeSchema):
     label: str = "TrivyFix"
     scoped_cleanup: bool = False
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([FixLabel()])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([FIX])
     properties: TrivyFixNodeProperties = TrivyFixNodeProperties()
     other_relationships: OtherRelationships = OtherRelationships(
         [

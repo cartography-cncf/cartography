@@ -11,7 +11,7 @@ from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import TargetNodeMatcher
-from cartography.models.ontology.labels import LoadBalancerOntologyLabel
+from cartography.models.ontology.labels import LOAD_BALANCER
 
 logger = logging.getLogger(__name__)
 
@@ -72,7 +72,7 @@ class AzureApplicationGatewayToSubnetRel(CartographyRelSchema):
 class AzureApplicationGatewaySchema(CartographyNodeSchema):
     label: str = "AzureApplicationGateway"
     properties: AzureApplicationGatewayProperties = AzureApplicationGatewayProperties()
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([LoadBalancerOntologyLabel()])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([LOAD_BALANCER])
     sub_resource_relationship: AzureApplicationGatewayToSubscriptionRel = (
         AzureApplicationGatewayToSubscriptionRel()
     )

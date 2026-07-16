@@ -11,7 +11,7 @@ from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import TargetNodeMatcher
-from cartography.models.ontology.labels import EncryptionKeyOntologyLabel
+from cartography.models.ontology.labels import ENCRYPTION_KEY
 
 logger = logging.getLogger(__name__)
 
@@ -68,7 +68,7 @@ class AzureKeyVaultKeyToSubscriptionRel(CartographyRelSchema):
 @dataclass(frozen=True)
 class AzureKeyVaultKeySchema(CartographyNodeSchema):
     label: str = "AzureKeyVaultKey"
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([EncryptionKeyOntologyLabel()])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([ENCRYPTION_KEY])
     properties: AzureKeyVaultKeyProperties = AzureKeyVaultKeyProperties()
     other_relationships: OtherRelationships = OtherRelationships(
         rels=[

@@ -1,31 +1,24 @@
-from dataclasses import dataclass
-
 from cartography.models.core.nodes import ExtraNodeLabel
 
-
-@dataclass(frozen=True)
-class GCPBucketLabelLabel(ExtraNodeLabel):
-    """A gcp node participating in the shared GCPBucketLabel graph interface."""
-
-    label: str = "GCPBucketLabel"
+GCP_BUCKET_LABEL = ExtraNodeLabel(
+    label="GCPBucketLabel",
+    description="A gcp node participating in the shared GCPBucketLabel graph interface.",
+)
 
 
-@dataclass(frozen=True)
-class InstanceLabel(ExtraNodeLabel):
-    """A gcp node participating in the shared Instance graph interface."""
-
-    label: str = "Instance"
-
-
-@dataclass(frozen=True)
-class LabelLabel(ExtraNodeLabel):
-    """A gcp node participating in the shared Label graph interface."""
-
-    label: str = "Label"
+INSTANCE = ExtraNodeLabel(
+    label="Instance",
+    description="A gcp node participating in the shared Instance graph interface.",
+)
 
 
-@dataclass(frozen=True)
-class NetworkInterfaceLabel(ExtraNodeLabel):
-    """A gcp node participating in the shared NetworkInterface graph interface."""
+LABEL = ExtraNodeLabel(
+    label="Label",
+    description="A gcp node participating in the shared Label graph interface.",
+)
 
-    label: str = "NetworkInterface"
+
+NETWORK_INTERFACE = ExtraNodeLabel(
+    label="NetworkInterface",
+    description="A gcp node participating in the shared NetworkInterface graph interface.",
+)

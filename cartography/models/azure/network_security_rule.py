@@ -10,9 +10,9 @@ from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import TargetNodeMatcher
-from cartography.models.extra_labels import IpPermissionEgressLabel
-from cartography.models.extra_labels import IpPermissionInboundLabel
-from cartography.models.extra_labels import IpRuleLabel
+from cartography.models.extra_labels import IP_PERMISSION_EGRESS
+from cartography.models.extra_labels import IP_PERMISSION_INBOUND
+from cartography.models.extra_labels import IP_RULE
 
 
 @dataclass(frozen=True)
@@ -84,7 +84,7 @@ class AzureInboundNetworkSecurityRuleSchema(CartographyNodeSchema):
 
     label: str = "AzureNetworkSecurityRule"
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
-        [IpPermissionInboundLabel(), IpRuleLabel()]
+        [IP_PERMISSION_INBOUND, IP_RULE]
     )
     properties: AzureNetworkSecurityRuleProperties = (
         AzureNetworkSecurityRuleProperties()
@@ -106,7 +106,7 @@ class AzureOutboundNetworkSecurityRuleSchema(CartographyNodeSchema):
 
     label: str = "AzureNetworkSecurityRule"
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
-        [IpPermissionEgressLabel(), IpRuleLabel()]
+        [IP_PERMISSION_EGRESS, IP_RULE]
     )
     properties: AzureNetworkSecurityRuleProperties = (
         AzureNetworkSecurityRuleProperties()

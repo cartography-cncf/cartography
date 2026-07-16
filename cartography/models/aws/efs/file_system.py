@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 
-from cartography.models.aws.extra_labels import LegacyEfsFileSystemLabel
+from cartography.models.aws.extra_labels import LEGACY_EFS_FILE_SYSTEM
 from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeProperties
 from cartography.models.core.nodes import CartographyNodeSchema
@@ -11,7 +11,7 @@ from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import TargetNodeMatcher
-from cartography.models.ontology.labels import FileStorageOntologyLabel
+from cartography.models.ontology.labels import FILE_STORAGE
 
 
 @dataclass(frozen=True)
@@ -82,7 +82,7 @@ class EfsFileSystemSchema(CartographyNodeSchema):
     properties: EfsFileSystemNodeProperties = EfsFileSystemNodeProperties()
     # DEPRECATED: legacy EfsFileSystem node label will be removed in v1.0.0.
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
-        [LegacyEfsFileSystemLabel(), FileStorageOntologyLabel()]
+        [LEGACY_EFS_FILE_SYSTEM, FILE_STORAGE]
     )
     sub_resource_relationship: EfsFileSystemToAWSAccountRel = (
         EfsFileSystemToAWSAccountRel()

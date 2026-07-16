@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 
-from cartography.models.aws.extra_labels import LegacyECRPullThroughCacheRuleLabel
+from cartography.models.aws.extra_labels import LEGACY_ECR_PULL_THROUGH_CACHE_RULE
 from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeProperties
 from cartography.models.core.nodes import CartographyNodeSchema
@@ -80,7 +80,7 @@ class ECRPullThroughCacheRuleSchema(CartographyNodeSchema):
     label: str = "AWSECRPullThroughCacheRule"
     # DEPRECATED: legacy ECRPullThroughCacheRule node label will be removed in v1.0.0.
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
-        [LegacyECRPullThroughCacheRuleLabel()]
+        [LEGACY_ECR_PULL_THROUGH_CACHE_RULE]
     )
     properties: ECRPullThroughCacheRuleNodeProperties = (
         ECRPullThroughCacheRuleNodeProperties()

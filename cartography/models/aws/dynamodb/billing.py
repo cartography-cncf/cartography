@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 
-from cartography.models.aws.extra_labels import LegacyDynamoDBBillingModeSummaryLabel
+from cartography.models.aws.extra_labels import LEGACY_DYNAMO_DB_BILLING_MODE_SUMMARY
 from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeProperties
 from cartography.models.core.nodes import CartographyNodeSchema
@@ -64,7 +64,7 @@ class DynamoDBBillingModeSummarySchema(CartographyNodeSchema):
     label: str = "AWSDynamoDBBillingModeSummary"
     # DEPRECATED: legacy DynamoDBBillingModeSummary node label will be removed in v1.0.0.
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
-        [LegacyDynamoDBBillingModeSummaryLabel()]
+        [LEGACY_DYNAMO_DB_BILLING_MODE_SUMMARY]
     )
     properties: DynamoDBBillingModeSummaryNodeProperties = (
         DynamoDBBillingModeSummaryNodeProperties()

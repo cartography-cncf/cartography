@@ -10,7 +10,7 @@ from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import TargetNodeMatcher
-from cartography.models.databricks.extra_labels import DatabricksSecurableLabel
+from cartography.models.databricks.extra_labels import DATABRICKS_SECURABLE
 
 
 @dataclass(frozen=True)
@@ -80,7 +80,7 @@ class DatabricksFunctionSchema(CartographyNodeSchema):
     label: str = "DatabricksFunction"
     properties: DatabricksFunctionNodeProperties = DatabricksFunctionNodeProperties()
     # Shared label so UC grants can target any grantable securable by one label.
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([DatabricksSecurableLabel()])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([DATABRICKS_SECURABLE])
     sub_resource_relationship: DatabricksFunctionToWorkspaceRel = (
         DatabricksFunctionToWorkspaceRel()
     )

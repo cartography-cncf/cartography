@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 
-from cartography.models.aws.extra_labels import LegacyECSTaskDefinitionLabel
+from cartography.models.aws.extra_labels import LEGACY_ECS_TASK_DEFINITION
 from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeProperties
 from cartography.models.core.nodes import CartographyNodeSchema
@@ -125,9 +125,7 @@ class ECSTaskDefinitionToExecutionRoleRel(CartographyRelSchema):
 class ECSTaskDefinitionSchema(CartographyNodeSchema):
     label: str = "AWSECSTaskDefinition"
     # DEPRECATED: legacy ECSTaskDefinition node label will be removed in v1.0.0.
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
-        [LegacyECSTaskDefinitionLabel()]
-    )
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([LEGACY_ECS_TASK_DEFINITION])
     properties: ECSTaskDefinitionNodeProperties = ECSTaskDefinitionNodeProperties()
     sub_resource_relationship: ECSTaskDefinitionToAWSAccountRel = (
         ECSTaskDefinitionToAWSAccountRel()

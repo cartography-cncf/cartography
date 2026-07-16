@@ -10,7 +10,7 @@ from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import TargetNodeMatcher
-from cartography.models.gcp.extra_labels import NetworkInterfaceLabel
+from cartography.models.gcp.extra_labels import NETWORK_INTERFACE
 
 
 @dataclass(frozen=True)
@@ -110,7 +110,7 @@ class EC2NetworkInterfaceInstanceSchema(CartographyNodeSchema):
 
     label: str = "AWSNetworkInterface"
     # DEPRECATED: legacy NetworkInterface node label will be removed in v1.0.0.
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([NetworkInterfaceLabel()])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([NETWORK_INTERFACE])
     properties: EC2NetworkInterfaceInstanceNodeProperties = (
         EC2NetworkInterfaceInstanceNodeProperties()
     )

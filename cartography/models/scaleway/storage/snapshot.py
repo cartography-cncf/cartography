@@ -10,7 +10,7 @@ from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import TargetNodeMatcher
-from cartography.models.ontology.labels import SnapshotOntologyLabel
+from cartography.models.ontology.labels import SNAPSHOT
 
 
 @dataclass(frozen=True)
@@ -72,7 +72,7 @@ class ScalewayVolumeSnapshotSchema(CartographyNodeSchema):
     properties: ScalewayVolumeSnapshotNodeProperties = (
         ScalewayVolumeSnapshotNodeProperties()
     )
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([SnapshotOntologyLabel()])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([SNAPSHOT])
     sub_resource_relationship: ScalewayVolumeSnapshotToProjectRel = (
         ScalewayVolumeSnapshotToProjectRel()
     )

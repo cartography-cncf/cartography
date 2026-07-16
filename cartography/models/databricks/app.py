@@ -9,7 +9,7 @@ from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import TargetNodeMatcher
-from cartography.models.databricks.extra_labels import DatabricksAclObjectLabel
+from cartography.models.databricks.extra_labels import DATABRICKS_ACL_OBJECT
 
 
 @dataclass(frozen=True)
@@ -61,4 +61,4 @@ class DatabricksAppSchema(CartographyNodeSchema):
         DatabricksAppToWorkspaceRel()
     )
     # ACL-target ontology label so the HAS_PERMISSION MatchLinks can target it.
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([DatabricksAclObjectLabel()])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([DATABRICKS_ACL_OBJECT])

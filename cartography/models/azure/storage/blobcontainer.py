@@ -10,7 +10,7 @@ from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import TargetNodeMatcher
-from cartography.models.ontology.labels import ObjectStorageOntologyLabel
+from cartography.models.ontology.labels import OBJECT_STORAGE
 
 
 @dataclass(frozen=True)
@@ -79,7 +79,7 @@ class AzureStorageBlobContainerSchema(CartographyNodeSchema):
     properties: AzureStorageBlobContainerProperties = (
         AzureStorageBlobContainerProperties()
     )
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([ObjectStorageOntologyLabel()])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([OBJECT_STORAGE])
     sub_resource_relationship: AzureStorageBlobContainerToSubscriptionRel = (
         AzureStorageBlobContainerToSubscriptionRel()
     )

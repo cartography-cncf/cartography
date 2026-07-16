@@ -9,7 +9,7 @@ from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import TargetNodeMatcher
-from cartography.models.ontology.labels import UserAccountOntologyLabel
+from cartography.models.ontology.labels import USER_ACCOUNT
 
 
 @dataclass(frozen=True)
@@ -57,7 +57,7 @@ class ScalewayUserToOrganizationRel(CartographyRelSchema):
 class ScalewayUserSchema(CartographyNodeSchema):
     label: str = "ScalewayUser"
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
-        [UserAccountOntologyLabel()]
+        [USER_ACCOUNT]
     )  # UserAccount label is used for ontology mapping
     properties: ScalewayUserNodeProperties = ScalewayUserNodeProperties()
     sub_resource_relationship: ScalewayUserToOrganizationRel = (

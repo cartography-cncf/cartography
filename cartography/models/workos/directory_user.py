@@ -10,7 +10,7 @@ from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import TargetNodeMatcher
-from cartography.models.ontology.labels import UserAccountOntologyLabel
+from cartography.models.ontology.labels import USER_ACCOUNT
 
 
 @dataclass(frozen=True)
@@ -110,7 +110,7 @@ class WorkOSDirectoryUserToGroupRel(CartographyRelSchema):
 @dataclass(frozen=True)
 class WorkOSDirectoryUserSchema(CartographyNodeSchema):
     label: str = "WorkOSDirectoryUser"
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([UserAccountOntologyLabel()])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([USER_ACCOUNT])
     properties: WorkOSDirectoryUserNodeProperties = WorkOSDirectoryUserNodeProperties()
     sub_resource_relationship: WorkOSDirectoryUserToEnvironmentRel = (
         WorkOSDirectoryUserToEnvironmentRel()

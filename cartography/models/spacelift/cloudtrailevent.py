@@ -10,9 +10,7 @@ from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import TargetNodeMatcher
-from cartography.models.spacelift.extra_labels import (
-    LegacyCloudTrailSpaceliftEventLabel,
-)
+from cartography.models.spacelift.extra_labels import LEGACY_CLOUD_TRAIL_SPACELIFT_EVENT
 
 
 @dataclass(frozen=True)
@@ -112,7 +110,7 @@ class CloudTrailSpaceliftEventSchema(CartographyNodeSchema):
     label: str = "SpaceliftCloudTrailEvent"
     # DEPRECATED: legacy CloudTrailSpaceliftEvent node label will be removed in v1.0.0.
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
-        [LegacyCloudTrailSpaceliftEventLabel()]
+        [LEGACY_CLOUD_TRAIL_SPACELIFT_EVENT]
     )
     properties: CloudTrailSpaceliftEventNodeProperties = (
         CloudTrailSpaceliftEventNodeProperties()

@@ -10,7 +10,7 @@ from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import TargetNodeMatcher
-from cartography.models.ontology.labels import UserGroupOntologyLabel
+from cartography.models.ontology.labels import USER_GROUP
 
 
 @dataclass(frozen=True)
@@ -145,7 +145,7 @@ class KeycloakGroupSchema(CartographyNodeSchema):
     label: str = "KeycloakGroup"
     properties: KeycloakGroupNodeProperties = KeycloakGroupNodeProperties()
     sub_resource_relationship: KeycloakGroupToRealmRel = KeycloakGroupToRealmRel()
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([UserGroupOntologyLabel()])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([USER_GROUP])
     other_relationships: OtherRelationships = OtherRelationships(
         [
             KeycloakGroupToGroupRel(),

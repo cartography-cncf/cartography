@@ -11,7 +11,7 @@ from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import TargetNodeMatcher
-from cartography.models.ontology.labels import DatabaseOntologyLabel
+from cartography.models.ontology.labels import DATABASE
 
 logger = logging.getLogger(__name__)
 
@@ -97,7 +97,7 @@ class SqlInstanceToServiceAccountRel(CartographyRelSchema):
 class GCPSqlInstanceSchema(CartographyNodeSchema):
     label: str = "GCPCloudSQLInstance"
     properties: GCPSqlInstanceProperties = GCPSqlInstanceProperties()
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([DatabaseOntologyLabel()])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([DATABASE])
     sub_resource_relationship: ProjectToSqlInstanceRel = ProjectToSqlInstanceRel()
     other_relationships: OtherRelationships = OtherRelationships(
         [

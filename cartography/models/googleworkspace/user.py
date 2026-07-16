@@ -9,8 +9,8 @@ from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import TargetNodeMatcher
-from cartography.models.extra_labels import GCPPrincipalLabel
-from cartography.models.ontology.labels import UserAccountOntologyLabel
+from cartography.models.extra_labels import GCP_PRINCIPAL
+from cartography.models.ontology.labels import USER_ACCOUNT
 
 
 @dataclass(frozen=True)
@@ -112,6 +112,4 @@ class GoogleWorkspaceUserSchema(CartographyNodeSchema):
     sub_resource_relationship: GoogleWorkspaceUserToTenantRel = (
         GoogleWorkspaceUserToTenantRel()
     )
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
-        [UserAccountOntologyLabel(), GCPPrincipalLabel()]
-    )
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([USER_ACCOUNT, GCP_PRINCIPAL])

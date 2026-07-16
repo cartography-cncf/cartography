@@ -4,7 +4,7 @@ from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeProperties
 from cartography.models.core.nodes import CartographyNodeSchema
 from cartography.models.core.nodes import ExtraNodeLabels
-from cartography.models.ontology.labels import TenantOntologyLabel
+from cartography.models.ontology.labels import TENANT
 
 
 @dataclass(frozen=True)
@@ -19,4 +19,4 @@ class SubImageTenantNodeProperties(CartographyNodeProperties):
 class SubImageTenantSchema(CartographyNodeSchema):
     label: str = "SubImageTenant"
     properties: SubImageTenantNodeProperties = SubImageTenantNodeProperties()
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([TenantOntologyLabel()])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([TENANT])

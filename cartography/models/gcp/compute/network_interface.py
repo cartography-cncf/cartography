@@ -10,7 +10,7 @@ from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import TargetNodeMatcher
-from cartography.models.gcp.extra_labels import NetworkInterfaceLabel
+from cartography.models.gcp.extra_labels import NETWORK_INTERFACE
 
 
 @dataclass(frozen=True)
@@ -85,7 +85,7 @@ class GCPNetworkInterfaceToProjectRel(CartographyRelSchema):
 class GCPNetworkInterfaceSchema(CartographyNodeSchema):
     label: str = "GCPNetworkInterface"
     properties: GCPNetworkInterfaceNodeProperties = GCPNetworkInterfaceNodeProperties()
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([NetworkInterfaceLabel()])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([NETWORK_INTERFACE])
     sub_resource_relationship: GCPNetworkInterfaceToProjectRel = (
         GCPNetworkInterfaceToProjectRel()
     )

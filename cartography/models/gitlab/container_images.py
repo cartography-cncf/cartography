@@ -20,8 +20,8 @@ from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import TargetNodeMatcher
-from cartography.models.ontology.labels import ImageManifestListOntologyLabel
-from cartography.models.ontology.labels import ImageOntologyLabel
+from cartography.models.ontology.labels import IMAGE
+from cartography.models.ontology.labels import IMAGE_MANIFEST_LIST
 
 
 @dataclass(frozen=True)
@@ -226,12 +226,8 @@ class GitLabContainerImageSchema(CartographyNodeSchema):
     # Add generic ontology labels for cross-registry querying
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
         [
-            ImageOntologyLabel(
-                conditions={"type": "image"},
-            ),
-            ImageManifestListOntologyLabel(
-                conditions={"type": "manifest_list"},
-            ),
+            IMAGE.when(type="image"),
+            IMAGE_MANIFEST_LIST.when(type="manifest_list"),
         ],
     )
 

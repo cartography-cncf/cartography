@@ -1,9 +1,9 @@
 from dataclasses import dataclass
 
-from cartography.models.aws.extra_labels import EndpointLabel
-from cartography.models.aws.extra_labels import LegacyELBV2ListenerLabel
-from cartography.models.aws.extra_labels import LegacyELBV2TargetGroupLabel
-from cartography.models.aws.extra_labels import LoadBalancerV2Label
+from cartography.models.aws.extra_labels import ENDPOINT
+from cartography.models.aws.extra_labels import LEGACY_ELBV2_LISTENER
+from cartography.models.aws.extra_labels import LEGACY_ELBV2_TARGET_GROUP
+from cartography.models.aws.extra_labels import LOAD_BALANCER_V2
 from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeProperties
 from cartography.models.core.nodes import CartographyNodeSchema
@@ -16,7 +16,7 @@ from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import SourceNodeMatcher
 from cartography.models.core.relationships import TargetNodeMatcher
-from cartography.models.ontology.labels import LoadBalancerOntologyLabel
+from cartography.models.ontology.labels import LOAD_BALANCER
 
 # AWSELBV2TargetGroup Schema
 
@@ -74,9 +74,7 @@ class ELBV2TargetGroupToLoadBalancerV2Rel(CartographyRelSchema):
 class ELBV2TargetGroupSchema(CartographyNodeSchema):
     label: str = "AWSELBV2TargetGroup"
     # DEPRECATED: legacy ELBV2TargetGroup node label will be removed in v1.0.0.
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
-        [LegacyELBV2TargetGroupLabel()]
-    )
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([LEGACY_ELBV2_TARGET_GROUP])
     properties: ELBV2TargetGroupNodeProperties = ELBV2TargetGroupNodeProperties()
     sub_resource_relationship: ELBV2TargetGroupToAWSAccountRel = (
         ELBV2TargetGroupToAWSAccountRel()
@@ -206,9 +204,9 @@ class LoadBalancerV2Schema(CartographyNodeSchema):
     properties: LoadBalancerV2NodeProperties = LoadBalancerV2NodeProperties()
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
         [
-            LoadBalancerOntologyLabel(),  # Ontology node label
+            LOAD_BALANCER,  # Ontology node label
             # DEPRECATED: legacy LoadBalancerV2 node label will be removed in v1.0.0.
-            LoadBalancerV2Label(),
+            LOAD_BALANCER_V2,
         ]
     )
     sub_resource_relationship: LoadBalancerV2ToAWSAccountRel = (
@@ -384,7 +382,7 @@ class ELBV2ListenerSchema(CartographyNodeSchema):
     label: str = "AWSELBV2Listener"
     # DEPRECATED: legacy ELBV2Listener node label will be removed in v1.0.0.
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
-        [LegacyELBV2ListenerLabel(), EndpointLabel()]
+        [LEGACY_ELBV2_LISTENER, ENDPOINT]
     )
     properties: ELBV2ListenerNodeProperties = ELBV2ListenerNodeProperties()
     sub_resource_relationship: ELBV2ListenerToAWSAccountRel = (

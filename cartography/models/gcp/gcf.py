@@ -10,7 +10,7 @@ from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import TargetNodeMatcher
-from cartography.models.ontology.labels import FunctionOntologyLabel
+from cartography.models.ontology.labels import FUNCTION
 
 
 @dataclass(frozen=True)
@@ -73,7 +73,7 @@ class GCPCloudFunctionToGCPServiceAccountRel(CartographyRelSchema):
 class GCPCloudFunctionSchema(CartographyNodeSchema):
     label: str = "GCPCloudFunction"
     properties: GCPCloudFunctionProperties = GCPCloudFunctionProperties()
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([FunctionOntologyLabel()])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([FUNCTION])
     sub_resource_relationship: GCPCloudFunctionToGCPProjectRel = (
         GCPCloudFunctionToGCPProjectRel()
     )

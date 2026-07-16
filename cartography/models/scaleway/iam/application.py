@@ -9,7 +9,7 @@ from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import TargetNodeMatcher
-from cartography.models.ontology.labels import ServiceAccountOntologyLabel
+from cartography.models.ontology.labels import SERVICE_ACCOUNT
 
 
 @dataclass(frozen=True)
@@ -48,9 +48,7 @@ class ScalewayApplicationToOrganizationRel(CartographyRelSchema):
 @dataclass(frozen=True)
 class ScalewayApplicationSchema(CartographyNodeSchema):
     label: str = "ScalewayApplication"
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
-        [ServiceAccountOntologyLabel()]
-    )
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([SERVICE_ACCOUNT])
     properties: ScalewayApplicationNodeProperties = ScalewayApplicationNodeProperties()
     sub_resource_relationship: ScalewayApplicationToOrganizationRel = (
         ScalewayApplicationToOrganizationRel()

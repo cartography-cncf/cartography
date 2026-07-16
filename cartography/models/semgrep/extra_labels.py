@@ -1,24 +1,23 @@
-from dataclasses import dataclass
-
 from cartography.models.core.nodes import ExtraNodeLabel
+from cartography.models.core.nodes import LabelKind
+
+SEMGREP_DEPENDENCY = ExtraNodeLabel(
+    label="SemgrepDependency",
+    description="A semgrep node participating in the shared SemgrepDependency graph interface.",
+)
 
 
-@dataclass(frozen=True)
-class SemgrepDependencyLabel(ExtraNodeLabel):
-    """A semgrep node participating in the shared SemgrepDependency graph interface."""
-
-    label: str = "SemgrepDependency"
-
-
-@dataclass(frozen=True)
-class LegacyGoLibraryLabel(ExtraNodeLabel):
-    """Compatibility label for the deprecated `GoLibrary` semgrep node label."""
-
-    label: str = "GoLibrary"
+LEGACY_GO_LIBRARY = ExtraNodeLabel(
+    label="GoLibrary",
+    description="Compatibility label for the deprecated `GoLibrary` semgrep node label.",
+    kind=LabelKind.COMPATIBILITY,
+    remove_in="v1.0.0",
+)
 
 
-@dataclass(frozen=True)
-class LegacyNpmLibraryLabel(ExtraNodeLabel):
-    """Compatibility label for the deprecated `NpmLibrary` semgrep node label."""
-
-    label: str = "NpmLibrary"
+LEGACY_NPM_LIBRARY = ExtraNodeLabel(
+    label="NpmLibrary",
+    description="Compatibility label for the deprecated `NpmLibrary` semgrep node label.",
+    kind=LabelKind.COMPATIBILITY,
+    remove_in="v1.0.0",
+)

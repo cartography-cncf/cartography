@@ -10,7 +10,7 @@ from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import TargetNodeMatcher
-from cartography.models.ontology.labels import NetworkAccessControlOntologyLabel
+from cartography.models.ontology.labels import NETWORK_ACCESS_CONTROL
 
 logger = logging.getLogger(__name__)
 
@@ -44,9 +44,7 @@ class AzureNetworkSecurityGroupToSubscriptionRel(CartographyRelSchema):
 @dataclass(frozen=True)
 class AzureNetworkSecurityGroupSchema(CartographyNodeSchema):
     label: str = "AzureNetworkSecurityGroup"
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
-        [NetworkAccessControlOntologyLabel()]
-    )
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([NETWORK_ACCESS_CONTROL])
     properties: AzureNetworkSecurityGroupProperties = (
         AzureNetworkSecurityGroupProperties()
     )

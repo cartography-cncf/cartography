@@ -447,7 +447,7 @@ def _build_node_properties_statement(
         >>> # i.node_prop_2 = $Prop2
         >>> # (note: 'id' is excluded as it's handled by MERGE)
 
-        With `ResourceLabel()` and `CloudAssetLabel()` in `extra_node_labels`,
+        With `RESOURCE` and `CLOUD_ASSET` in `extra_node_labels`,
         the returned property assignments also contain `i:Resource:CloudAsset`.
 
     Note:
@@ -1303,7 +1303,7 @@ def build_conditional_label_queries(
     for cond_label in conditional_labels:
         # Build WHERE clause from conditions
         where_parts = []
-        for field_name, field_value in cond_label.conditions.items():
+        for field_name, field_value in cond_label.conditions:
             # Escape the value for Cypher string literal
             escaped_value = _escape_cypher_string(str(field_value))
             where_parts.append(f'n.{field_name} = "{escaped_value}"')
@@ -1415,7 +1415,7 @@ def build_create_index_queries(node_schema: CartographyNodeSchema) -> list[str]:
             )
             if label.conditions:
                 # Index condition fields on the primary label to speed up matching.
-                for condition_field in label.conditions:
+                for condition_field, _ in label.conditions:
                     result.append(
                         index_template.safe_substitute(
                             TargetNodeLabel=node_schema.label,

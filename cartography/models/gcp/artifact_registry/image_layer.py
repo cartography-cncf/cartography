@@ -11,7 +11,7 @@ from cartography.models.core.relationships import make_source_node_matcher
 from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import SourceNodeMatcher
 from cartography.models.core.relationships import TargetNodeMatcher
-from cartography.models.ontology.labels import ImageLayerOntologyLabel
+from cartography.models.ontology.labels import IMAGE_LAYER
 
 
 @dataclass(frozen=True)
@@ -77,4 +77,4 @@ class GCPArtifactRegistryImageLayerSchema(CartographyNodeSchema):
     sub_resource_relationship: GCPArtifactRegistryImageLayerToProjectRel = (
         GCPArtifactRegistryImageLayerToProjectRel()
     )
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([ImageLayerOntologyLabel()])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([IMAGE_LAYER])

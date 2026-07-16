@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 
-from cartography.models.aws.extra_labels import AWSPrincipalLabel
+from cartography.models.aws.extra_labels import AWS_PRINCIPAL
 from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeProperties
 from cartography.models.core.nodes import CartographyNodeSchema
@@ -10,7 +10,7 @@ from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import TargetNodeMatcher
-from cartography.models.ontology.labels import UserAccountOntologyLabel
+from cartography.models.ontology.labels import USER_ACCOUNT
 
 
 @dataclass(frozen=True)
@@ -57,7 +57,7 @@ class AWSUserSchema(CartographyNodeSchema):
     sub_resource_relationship: AWSUserToAWSAccountRel = AWSUserToAWSAccountRel()
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
         [
-            AWSPrincipalLabel(),
-            UserAccountOntologyLabel(),
+            AWS_PRINCIPAL,
+            USER_ACCOUNT,
         ]  # UserAccount label is used for ontology mapping
     )

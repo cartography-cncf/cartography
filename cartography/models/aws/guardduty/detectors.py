@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 
-from cartography.models.aws.extra_labels import LegacyGuardDutyDetectorLabel
+from cartography.models.aws.extra_labels import LEGACY_GUARD_DUTY_DETECTOR
 from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeProperties
 from cartography.models.core.nodes import CartographyNodeSchema
@@ -47,9 +47,7 @@ class GuardDutyDetectorToAWSAccountRel(CartographyRelSchema):
 class GuardDutyDetectorSchema(CartographyNodeSchema):
     label: str = "AWSGuardDutyDetector"
     # DEPRECATED: legacy GuardDutyDetector node label will be removed in v1.0.0.
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
-        [LegacyGuardDutyDetectorLabel()]
-    )
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([LEGACY_GUARD_DUTY_DETECTOR])
     properties: GuardDutyDetectorNodeProperties = GuardDutyDetectorNodeProperties()
     sub_resource_relationship: GuardDutyDetectorToAWSAccountRel = (
         GuardDutyDetectorToAWSAccountRel()

@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 
-from cartography.models.aws.extra_labels import LegacyECSContainerLabel
+from cartography.models.aws.extra_labels import LEGACY_ECS_CONTAINER
 from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeProperties
 from cartography.models.core.nodes import CartographyNodeSchema
@@ -11,7 +11,7 @@ from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import TargetNodeMatcher
-from cartography.models.ontology.labels import ContainerOntologyLabel
+from cartography.models.ontology.labels import CONTAINER
 
 
 @dataclass(frozen=True)
@@ -182,7 +182,7 @@ class ECSContainerSchema(CartographyNodeSchema):
     label: str = "AWSECSContainer"
     # DEPRECATED: legacy ECSContainer node label will be removed in v1.0.0.
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
-        [LegacyECSContainerLabel(), ContainerOntologyLabel()]
+        [LEGACY_ECS_CONTAINER, CONTAINER]
     )
     properties: ECSContainerNodeProperties = ECSContainerNodeProperties()
     sub_resource_relationship: ECSContainerToAWSAccountRel = (

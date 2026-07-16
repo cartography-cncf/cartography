@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 
-from cartography.models.aws.extra_labels import LegacyECSContainerInstanceLabel
+from cartography.models.aws.extra_labels import LEGACY_ECS_CONTAINER_INSTANCE
 from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeProperties
 from cartography.models.core.nodes import CartographyNodeSchema
@@ -93,7 +93,7 @@ class ECSContainerInstanceSchema(CartographyNodeSchema):
     label: str = "AWSECSContainerInstance"
     # DEPRECATED: legacy ECSContainerInstance node label will be removed in v1.0.0.
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
-        [LegacyECSContainerInstanceLabel()]
+        [LEGACY_ECS_CONTAINER_INSTANCE]
     )
     properties: ECSContainerInstanceNodeProperties = (
         ECSContainerInstanceNodeProperties()

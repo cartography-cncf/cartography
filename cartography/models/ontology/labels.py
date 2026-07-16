@@ -1,339 +1,295 @@
-from dataclasses import dataclass
-
 from cartography.models.core.nodes import ExtraNodeLabel
+from cartography.models.core.nodes import LabelKind
 
+AI_MODEL = ExtraNodeLabel(
+    label="AIModel",
+    description="A cross-provider AIModel resource in Cartography's ontology.",
+    kind=LabelKind.ONTOLOGY,
+)
 
-@dataclass(frozen=True)
-class AIModelOntologyLabel(ExtraNodeLabel):
-    """A cross-provider AIModel resource in Cartography's ontology."""
 
-    label: str = "AIModel"
-    ontology: bool = True
+API_KEY = ExtraNodeLabel(
+    label="APIKey",
+    description="A cross-provider APIKey resource in Cartography's ontology.",
+    kind=LabelKind.ONTOLOGY,
+)
 
 
-@dataclass(frozen=True)
-class APIKeyOntologyLabel(ExtraNodeLabel):
-    """A cross-provider APIKey resource in Cartography's ontology."""
+BLOCK_STORAGE = ExtraNodeLabel(
+    label="BlockStorage",
+    description="A cross-provider BlockStorage resource in Cartography's ontology.",
+    kind=LabelKind.ONTOLOGY,
+)
 
-    label: str = "APIKey"
-    ontology: bool = True
 
+CICD_PIPELINE = ExtraNodeLabel(
+    label="CICDPipeline",
+    description="A cross-provider CICDPipeline resource in Cartography's ontology.",
+    kind=LabelKind.ONTOLOGY,
+)
 
-@dataclass(frozen=True)
-class BlockStorageOntologyLabel(ExtraNodeLabel):
-    """A cross-provider BlockStorage resource in Cartography's ontology."""
 
-    label: str = "BlockStorage"
-    ontology: bool = True
+CVE = ExtraNodeLabel(
+    label="CVE",
+    description="A cross-provider CVE resource in Cartography's ontology.",
+    kind=LabelKind.ONTOLOGY,
+)
 
 
-@dataclass(frozen=True)
-class CICDPipelineOntologyLabel(ExtraNodeLabel):
-    """A cross-provider CICDPipeline resource in Cartography's ontology."""
+CERTIFICATE = ExtraNodeLabel(
+    label="Certificate",
+    description="A cross-provider Certificate resource in Cartography's ontology.",
+    kind=LabelKind.ONTOLOGY,
+)
 
-    label: str = "CICDPipeline"
-    ontology: bool = True
 
+CODE_REPOSITORY = ExtraNodeLabel(
+    label="CodeRepository",
+    description="A cross-provider CodeRepository resource in Cartography's ontology.",
+    kind=LabelKind.ONTOLOGY,
+)
 
-@dataclass(frozen=True)
-class CVEOntologyLabel(ExtraNodeLabel):
-    """A cross-provider CVE resource in Cartography's ontology."""
 
-    label: str = "CVE"
-    ontology: bool = True
+COMPUTE_CLUSTER = ExtraNodeLabel(
+    label="ComputeCluster",
+    description="A cross-provider ComputeCluster resource in Cartography's ontology.",
+    kind=LabelKind.ONTOLOGY,
+)
 
 
-@dataclass(frozen=True)
-class CertificateOntologyLabel(ExtraNodeLabel):
-    """A cross-provider Certificate resource in Cartography's ontology."""
+COMPUTE_INSTANCE = ExtraNodeLabel(
+    label="ComputeInstance",
+    description="A cross-provider ComputeInstance resource in Cartography's ontology.",
+    kind=LabelKind.ONTOLOGY,
+)
 
-    label: str = "Certificate"
-    ontology: bool = True
 
+COMPUTE_NAMESPACE = ExtraNodeLabel(
+    label="ComputeNamespace",
+    description="A cross-provider ComputeNamespace resource in Cartography's ontology.",
+    kind=LabelKind.ONTOLOGY,
+)
 
-@dataclass(frozen=True)
-class CodeRepositoryOntologyLabel(ExtraNodeLabel):
-    """A cross-provider CodeRepository resource in Cartography's ontology."""
 
-    label: str = "CodeRepository"
-    ontology: bool = True
+COMPUTE_POD = ExtraNodeLabel(
+    label="ComputePod",
+    description="A cross-provider ComputePod resource in Cartography's ontology.",
+    kind=LabelKind.ONTOLOGY,
+)
 
 
-@dataclass(frozen=True)
-class ComputeClusterOntologyLabel(ExtraNodeLabel):
-    """A cross-provider ComputeCluster resource in Cartography's ontology."""
+COMPUTE_SERVICE = ExtraNodeLabel(
+    label="ComputeService",
+    description="A cross-provider ComputeService resource in Cartography's ontology.",
+    kind=LabelKind.ONTOLOGY,
+)
 
-    label: str = "ComputeCluster"
-    ontology: bool = True
 
+CONTAINER = ExtraNodeLabel(
+    label="Container",
+    description="A cross-provider Container resource in Cartography's ontology.",
+    kind=LabelKind.ONTOLOGY,
+)
 
-@dataclass(frozen=True)
-class ComputeInstanceOntologyLabel(ExtraNodeLabel):
-    """A cross-provider ComputeInstance resource in Cartography's ontology."""
 
-    label: str = "ComputeInstance"
-    ontology: bool = True
+CONTAINER_REGISTRY = ExtraNodeLabel(
+    label="ContainerRegistry",
+    description="A cross-provider ContainerRegistry resource in Cartography's ontology.",
+    kind=LabelKind.ONTOLOGY,
+)
 
 
-@dataclass(frozen=True)
-class ComputeNamespaceOntologyLabel(ExtraNodeLabel):
-    """A cross-provider ComputeNamespace resource in Cartography's ontology."""
+DNS_RECORD = ExtraNodeLabel(
+    label="DNSRecord",
+    description="A cross-provider DNSRecord resource in Cartography's ontology.",
+    kind=LabelKind.ONTOLOGY,
+)
 
-    label: str = "ComputeNamespace"
-    ontology: bool = True
 
+DNS_ZONE = ExtraNodeLabel(
+    label="DNSZone",
+    description="A cross-provider DNSZone resource in Cartography's ontology.",
+    kind=LabelKind.ONTOLOGY,
+)
 
-@dataclass(frozen=True)
-class ComputePodOntologyLabel(ExtraNodeLabel):
-    """A cross-provider ComputePod resource in Cartography's ontology."""
 
-    label: str = "ComputePod"
-    ontology: bool = True
+DATABASE = ExtraNodeLabel(
+    label="Database",
+    description="A cross-provider Database resource in Cartography's ontology.",
+    kind=LabelKind.ONTOLOGY,
+)
 
 
-@dataclass(frozen=True)
-class ComputeServiceOntologyLabel(ExtraNodeLabel):
-    """A cross-provider ComputeService resource in Cartography's ontology."""
+ENCRYPTION_KEY = ExtraNodeLabel(
+    label="EncryptionKey",
+    description="A cross-provider EncryptionKey resource in Cartography's ontology.",
+    kind=LabelKind.ONTOLOGY,
+)
 
-    label: str = "ComputeService"
-    ontology: bool = True
 
+FILE_STORAGE = ExtraNodeLabel(
+    label="FileStorage",
+    description="A cross-provider FileStorage resource in Cartography's ontology.",
+    kind=LabelKind.ONTOLOGY,
+)
 
-@dataclass(frozen=True)
-class ContainerOntologyLabel(ExtraNodeLabel):
-    """A cross-provider Container resource in Cartography's ontology."""
 
-    label: str = "Container"
-    ontology: bool = True
+FUNCTION = ExtraNodeLabel(
+    label="Function",
+    description="A cross-provider Function resource in Cartography's ontology.",
+    kind=LabelKind.ONTOLOGY,
+)
 
 
-@dataclass(frozen=True)
-class ContainerRegistryOntologyLabel(ExtraNodeLabel):
-    """A cross-provider ContainerRegistry resource in Cartography's ontology."""
+IDENTITY_PROVIDER = ExtraNodeLabel(
+    label="IdentityProvider",
+    description="A cross-provider IdentityProvider resource in Cartography's ontology.",
+    kind=LabelKind.ONTOLOGY,
+)
 
-    label: str = "ContainerRegistry"
-    ontology: bool = True
 
+IMAGE = ExtraNodeLabel(
+    label="Image",
+    description="A concrete single-platform container image.",
+    kind=LabelKind.ONTOLOGY,
+)
 
-@dataclass(frozen=True)
-class DNSRecordOntologyLabel(ExtraNodeLabel):
-    """A cross-provider DNSRecord resource in Cartography's ontology."""
 
-    label: str = "DNSRecord"
-    ontology: bool = True
+IMAGE_ATTESTATION = ExtraNodeLabel(
+    label="ImageAttestation",
+    description="A cross-provider ImageAttestation resource in Cartography's ontology.",
+    kind=LabelKind.ONTOLOGY,
+)
 
 
-@dataclass(frozen=True)
-class DNSZoneOntologyLabel(ExtraNodeLabel):
-    """A cross-provider DNSZone resource in Cartography's ontology."""
+IMAGE_LAYER = ExtraNodeLabel(
+    label="ImageLayer",
+    description="A cross-provider ImageLayer resource in Cartography's ontology.",
+    kind=LabelKind.ONTOLOGY,
+)
 
-    label: str = "DNSZone"
-    ontology: bool = True
 
+IMAGE_MANIFEST_LIST = ExtraNodeLabel(
+    label="ImageManifestList",
+    description="A cross-provider ImageManifestList resource in Cartography's ontology.",
+    kind=LabelKind.ONTOLOGY,
+)
 
-@dataclass(frozen=True)
-class DatabaseOntologyLabel(ExtraNodeLabel):
-    """A cross-provider Database resource in Cartography's ontology."""
 
-    label: str = "Database"
-    ontology: bool = True
+IMAGE_TAG = ExtraNodeLabel(
+    label="ImageTag",
+    description="A cross-provider ImageTag resource in Cartography's ontology.",
+    kind=LabelKind.ONTOLOGY,
+)
 
 
-@dataclass(frozen=True)
-class EncryptionKeyOntologyLabel(ExtraNodeLabel):
-    """A cross-provider EncryptionKey resource in Cartography's ontology."""
+LOAD_BALANCER = ExtraNodeLabel(
+    label="LoadBalancer",
+    description="A cross-provider LoadBalancer resource in Cartography's ontology.",
+    kind=LabelKind.ONTOLOGY,
+)
 
-    label: str = "EncryptionKey"
-    ontology: bool = True
 
+NETWORK_ACCESS_CONTROL = ExtraNodeLabel(
+    label="NetworkAccessControl",
+    description="A cross-provider NetworkAccessControl resource in Cartography's ontology.",
+    kind=LabelKind.ONTOLOGY,
+)
 
-@dataclass(frozen=True)
-class FileStorageOntologyLabel(ExtraNodeLabel):
-    """A cross-provider FileStorage resource in Cartography's ontology."""
 
-    label: str = "FileStorage"
-    ontology: bool = True
+OBJECT_STORAGE = ExtraNodeLabel(
+    label="ObjectStorage",
+    description="A cross-provider ObjectStorage resource in Cartography's ontology.",
+    kind=LabelKind.ONTOLOGY,
+)
 
 
-@dataclass(frozen=True)
-class FunctionOntologyLabel(ExtraNodeLabel):
-    """A cross-provider Function resource in Cartography's ontology."""
+ONTOLOGY = ExtraNodeLabel(
+    label="Ontology",
+    description="A canonical node managed by Cartography's cross-provider ontology.",
+    kind=LabelKind.ONTOLOGY,
+)
 
-    label: str = "Function"
-    ontology: bool = True
 
+PERMISSION_ROLE = ExtraNodeLabel(
+    label="PermissionRole",
+    description="A cross-provider PermissionRole resource in Cartography's ontology.",
+    kind=LabelKind.ONTOLOGY,
+)
 
-@dataclass(frozen=True)
-class IdentityProviderOntologyLabel(ExtraNodeLabel):
-    """A cross-provider IdentityProvider resource in Cartography's ontology."""
 
-    label: str = "IdentityProvider"
-    ontology: bool = True
+SECRET = ExtraNodeLabel(
+    label="Secret",
+    description="A cross-provider Secret resource in Cartography's ontology.",
+    kind=LabelKind.ONTOLOGY,
+)
 
 
-@dataclass(frozen=True)
-class ImageOntologyLabel(ExtraNodeLabel):
-    """A concrete single-platform container image."""
+SECURITY_ISSUE = ExtraNodeLabel(
+    label="SecurityIssue",
+    description="A cross-provider SecurityIssue resource in Cartography's ontology.",
+    kind=LabelKind.ONTOLOGY,
+)
 
-    label: str = "Image"
-    ontology: bool = True
 
+SERVICE_ACCOUNT = ExtraNodeLabel(
+    label="ServiceAccount",
+    description="A cross-provider ServiceAccount resource in Cartography's ontology.",
+    kind=LabelKind.ONTOLOGY,
+)
 
-@dataclass(frozen=True)
-class ImageAttestationOntologyLabel(ExtraNodeLabel):
-    """A cross-provider ImageAttestation resource in Cartography's ontology."""
 
-    label: str = "ImageAttestation"
-    ontology: bool = True
+SNAPSHOT = ExtraNodeLabel(
+    label="Snapshot",
+    description="A cross-provider Snapshot resource in Cartography's ontology.",
+    kind=LabelKind.ONTOLOGY,
+)
 
 
-@dataclass(frozen=True)
-class ImageLayerOntologyLabel(ExtraNodeLabel):
-    """A cross-provider ImageLayer resource in Cartography's ontology."""
+SUBNET = ExtraNodeLabel(
+    label="Subnet",
+    description="A cross-provider Subnet resource in Cartography's ontology.",
+    kind=LabelKind.ONTOLOGY,
+)
 
-    label: str = "ImageLayer"
-    ontology: bool = True
 
+TAG = ExtraNodeLabel(
+    label="Tag",
+    description="A cross-provider Tag resource in Cartography's ontology.",
+    kind=LabelKind.ONTOLOGY,
+)
 
-@dataclass(frozen=True)
-class ImageManifestListOntologyLabel(ExtraNodeLabel):
-    """A cross-provider ImageManifestList resource in Cartography's ontology."""
 
-    label: str = "ImageManifestList"
-    ontology: bool = True
+TENANT = ExtraNodeLabel(
+    label="Tenant",
+    description="A cross-provider Tenant resource in Cartography's ontology.",
+    kind=LabelKind.ONTOLOGY,
+)
 
 
-@dataclass(frozen=True)
-class ImageTagOntologyLabel(ExtraNodeLabel):
-    """A cross-provider ImageTag resource in Cartography's ontology."""
+THIRD_PARTY_APP = ExtraNodeLabel(
+    label="ThirdPartyApp",
+    description="A cross-provider ThirdPartyApp resource in Cartography's ontology.",
+    kind=LabelKind.ONTOLOGY,
+)
 
-    label: str = "ImageTag"
-    ontology: bool = True
 
+USER_ACCOUNT = ExtraNodeLabel(
+    label="UserAccount",
+    description="An identity on a specific system or service.",
+    kind=LabelKind.ONTOLOGY,
+)
 
-@dataclass(frozen=True)
-class LoadBalancerOntologyLabel(ExtraNodeLabel):
-    """A cross-provider LoadBalancer resource in Cartography's ontology."""
 
-    label: str = "LoadBalancer"
-    ontology: bool = True
+USER_GROUP = ExtraNodeLabel(
+    label="UserGroup",
+    description="A cross-provider UserGroup resource in Cartography's ontology.",
+    kind=LabelKind.ONTOLOGY,
+)
 
 
-@dataclass(frozen=True)
-class NetworkAccessControlOntologyLabel(ExtraNodeLabel):
-    """A cross-provider NetworkAccessControl resource in Cartography's ontology."""
-
-    label: str = "NetworkAccessControl"
-    ontology: bool = True
-
-
-@dataclass(frozen=True)
-class ObjectStorageOntologyLabel(ExtraNodeLabel):
-    """A cross-provider ObjectStorage resource in Cartography's ontology."""
-
-    label: str = "ObjectStorage"
-    ontology: bool = True
-
-
-@dataclass(frozen=True)
-class CanonicalOntologyLabel(ExtraNodeLabel):
-    """A canonical node managed by Cartography's cross-provider ontology."""
-
-    label: str = "Ontology"
-    ontology: bool = True
-
-
-@dataclass(frozen=True)
-class PermissionRoleOntologyLabel(ExtraNodeLabel):
-    """A cross-provider PermissionRole resource in Cartography's ontology."""
-
-    label: str = "PermissionRole"
-    ontology: bool = True
-
-
-@dataclass(frozen=True)
-class SecretOntologyLabel(ExtraNodeLabel):
-    """A cross-provider Secret resource in Cartography's ontology."""
-
-    label: str = "Secret"
-    ontology: bool = True
-
-
-@dataclass(frozen=True)
-class SecurityIssueOntologyLabel(ExtraNodeLabel):
-    """A cross-provider SecurityIssue resource in Cartography's ontology."""
-
-    label: str = "SecurityIssue"
-    ontology: bool = True
-
-
-@dataclass(frozen=True)
-class ServiceAccountOntologyLabel(ExtraNodeLabel):
-    """A cross-provider ServiceAccount resource in Cartography's ontology."""
-
-    label: str = "ServiceAccount"
-    ontology: bool = True
-
-
-@dataclass(frozen=True)
-class SnapshotOntologyLabel(ExtraNodeLabel):
-    """A cross-provider Snapshot resource in Cartography's ontology."""
-
-    label: str = "Snapshot"
-    ontology: bool = True
-
-
-@dataclass(frozen=True)
-class SubnetOntologyLabel(ExtraNodeLabel):
-    """A cross-provider Subnet resource in Cartography's ontology."""
-
-    label: str = "Subnet"
-    ontology: bool = True
-
-
-@dataclass(frozen=True)
-class TagOntologyLabel(ExtraNodeLabel):
-    """A cross-provider Tag resource in Cartography's ontology."""
-
-    label: str = "Tag"
-    ontology: bool = True
-
-
-@dataclass(frozen=True)
-class TenantOntologyLabel(ExtraNodeLabel):
-    """A cross-provider Tenant resource in Cartography's ontology."""
-
-    label: str = "Tenant"
-    ontology: bool = True
-
-
-@dataclass(frozen=True)
-class ThirdPartyAppOntologyLabel(ExtraNodeLabel):
-    """A cross-provider ThirdPartyApp resource in Cartography's ontology."""
-
-    label: str = "ThirdPartyApp"
-    ontology: bool = True
-
-
-@dataclass(frozen=True)
-class UserAccountOntologyLabel(ExtraNodeLabel):
-    """An identity on a specific system or service."""
-
-    label: str = "UserAccount"
-    ontology: bool = True
-
-
-@dataclass(frozen=True)
-class UserGroupOntologyLabel(ExtraNodeLabel):
-    """A cross-provider UserGroup resource in Cartography's ontology."""
-
-    label: str = "UserGroup"
-    ontology: bool = True
-
-
-@dataclass(frozen=True)
-class VirtualNetworkOntologyLabel(ExtraNodeLabel):
-    """A cross-provider VirtualNetwork resource in Cartography's ontology."""
-
-    label: str = "VirtualNetwork"
-    ontology: bool = True
+VIRTUAL_NETWORK = ExtraNodeLabel(
+    label="VirtualNetwork",
+    description="A cross-provider VirtualNetwork resource in Cartography's ontology.",
+    kind=LabelKind.ONTOLOGY,
+)

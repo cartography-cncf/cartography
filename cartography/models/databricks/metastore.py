@@ -10,7 +10,7 @@ from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import TargetNodeMatcher
-from cartography.models.databricks.extra_labels import DatabricksSecurableLabel
+from cartography.models.databricks.extra_labels import DATABRICKS_SECURABLE
 
 
 @dataclass(frozen=True)
@@ -81,7 +81,7 @@ class DatabricksMetastoreSchema(CartographyNodeSchema):
     label: str = "DatabricksMetastore"
     properties: DatabricksMetastoreNodeProperties = DatabricksMetastoreNodeProperties()
     # Metastores are grantable UC securables (metastore-level admin privileges).
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([DatabricksSecurableLabel()])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([DATABRICKS_SECURABLE])
     sub_resource_relationship: DatabricksMetastoreToWorkspaceRel = (
         DatabricksMetastoreToWorkspaceRel()
     )

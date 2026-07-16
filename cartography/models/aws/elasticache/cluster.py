@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 
-from cartography.models.aws.extra_labels import LegacyElasticacheClusterLabel
+from cartography.models.aws.extra_labels import LEGACY_ELASTICACHE_CLUSTER
 from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeProperties
 from cartography.models.core.nodes import CartographyNodeSchema
@@ -62,9 +62,7 @@ class ElasticacheClusterToAWSAccountRel(CartographyRelSchema):
 class ElasticacheClusterSchema(CartographyNodeSchema):
     label: str = "AWSElasticacheCluster"
     # DEPRECATED: legacy ElasticacheCluster node label will be removed in v1.0.0.
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
-        [LegacyElasticacheClusterLabel()]
-    )
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([LEGACY_ELASTICACHE_CLUSTER])
     properties: ElasticacheClusterNodeProperties = ElasticacheClusterNodeProperties()
     sub_resource_relationship: ElasticacheClusterToAWSAccountRel = (
         ElasticacheClusterToAWSAccountRel()

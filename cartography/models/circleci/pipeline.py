@@ -9,7 +9,7 @@ from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import TargetNodeMatcher
-from cartography.models.ontology.labels import CICDPipelineOntologyLabel
+from cartography.models.ontology.labels import CICD_PIPELINE
 
 
 @dataclass(frozen=True)
@@ -63,7 +63,7 @@ class CircleCIPipelineSchema(CartographyNodeSchema):
     properties: CircleCIPipelineNodeProperties = CircleCIPipelineNodeProperties()
     # CICDPipeline label maps this node into the ontology alongside other CI/CD
     # pipelines (GitHubWorkflow, GitLab CI, AWS CodeBuild, Spacelift stacks).
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([CICDPipelineOntologyLabel()])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([CICD_PIPELINE])
     sub_resource_relationship: CircleCIPipelineToProjectRel = (
         CircleCIPipelineToProjectRel()
     )

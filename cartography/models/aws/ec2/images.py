@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 
-from cartography.models.aws.extra_labels import LegacyEC2ImageLabel
+from cartography.models.aws.extra_labels import LEGACY_EC2_IMAGE
 from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeProperties
 from cartography.models.core.nodes import CartographyNodeSchema
@@ -64,6 +64,6 @@ class EC2ImageToAWSAccountRel(CartographyRelSchema):
 class EC2ImageSchema(CartographyNodeSchema):
     label: str = "AWSEC2Image"
     # DEPRECATED: legacy EC2Image node label will be removed in v1.0.0.
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([LegacyEC2ImageLabel()])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([LEGACY_EC2_IMAGE])
     properties: EC2ImageNodeProperties = EC2ImageNodeProperties()
     sub_resource_relationship: EC2ImageToAWSAccountRel = EC2ImageToAWSAccountRel()

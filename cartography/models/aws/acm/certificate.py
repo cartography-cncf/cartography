@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 
-from cartography.models.aws.extra_labels import LegacyACMCertificateLabel
+from cartography.models.aws.extra_labels import LEGACY_ACM_CERTIFICATE
 from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeProperties
 from cartography.models.core.nodes import CartographyNodeSchema
@@ -11,7 +11,7 @@ from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import TargetNodeMatcher
-from cartography.models.ontology.labels import CertificateOntologyLabel
+from cartography.models.ontology.labels import CERTIFICATE
 
 
 @dataclass(frozen=True)
@@ -71,7 +71,7 @@ class ACMCertificateSchema(CartographyNodeSchema):
     label: str = "AWSACMCertificate"
     # DEPRECATED: legacy ACMCertificate node label will be removed in v1.0.0.
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
-        [LegacyACMCertificateLabel(), CertificateOntologyLabel()]
+        [LEGACY_ACM_CERTIFICATE, CERTIFICATE]
     )
     properties: ACMCertificateNodeProperties = ACMCertificateNodeProperties()
     sub_resource_relationship: ACMCertificateToAWSAccountRel = (

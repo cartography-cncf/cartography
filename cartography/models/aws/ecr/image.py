@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 
-from cartography.models.aws.extra_labels import LegacyECRImageLabel
+from cartography.models.aws.extra_labels import LEGACY_ECR_IMAGE
 from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeProperties
 from cartography.models.core.nodes import CartographyNodeSchema
@@ -11,9 +11,9 @@ from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import TargetNodeMatcher
-from cartography.models.ontology.labels import ImageAttestationOntologyLabel
-from cartography.models.ontology.labels import ImageManifestListOntologyLabel
-from cartography.models.ontology.labels import ImageOntologyLabel
+from cartography.models.ontology.labels import IMAGE
+from cartography.models.ontology.labels import IMAGE_ATTESTATION
+from cartography.models.ontology.labels import IMAGE_MANIFEST_LIST
 
 
 @dataclass(frozen=True)
@@ -189,10 +189,10 @@ class ECRImageBaseSchema(CartographyNodeSchema):
     # DEPRECATED: legacy ECRImage node label will be removed in v1.0.0.
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
         [
-            LegacyECRImageLabel(),
-            ImageOntologyLabel(conditions={"type": "image"}),
-            ImageAttestationOntologyLabel(conditions={"type": "attestation"}),
-            ImageManifestListOntologyLabel(conditions={"type": "manifest_list"}),
+            LEGACY_ECR_IMAGE,
+            IMAGE.when(type="image"),
+            IMAGE_ATTESTATION.when(type="attestation"),
+            IMAGE_MANIFEST_LIST.when(type="manifest_list"),
         ],
     )
 
@@ -218,10 +218,10 @@ class ECRImageSchema(CartographyNodeSchema):
     # DEPRECATED: legacy ECRImage node label will be removed in v1.0.0.
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
         [
-            LegacyECRImageLabel(),
-            ImageOntologyLabel(conditions={"type": "image"}),
-            ImageAttestationOntologyLabel(conditions={"type": "attestation"}),
-            ImageManifestListOntologyLabel(conditions={"type": "manifest_list"}),
+            LEGACY_ECR_IMAGE,
+            IMAGE.when(type="image"),
+            IMAGE_ATTESTATION.when(type="attestation"),
+            IMAGE_MANIFEST_LIST.when(type="manifest_list"),
         ],
     )
 
@@ -243,10 +243,10 @@ class ECRImageLayerEnrichmentSchema(CartographyNodeSchema):
     # DEPRECATED: legacy ECRImage node label will be removed in v1.0.0.
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
         [
-            LegacyECRImageLabel(),
-            ImageOntologyLabel(conditions={"type": "image"}),
-            ImageAttestationOntologyLabel(conditions={"type": "attestation"}),
-            ImageManifestListOntologyLabel(conditions={"type": "manifest_list"}),
+            LEGACY_ECR_IMAGE,
+            IMAGE.when(type="image"),
+            IMAGE_ATTESTATION.when(type="attestation"),
+            IMAGE_MANIFEST_LIST.when(type="manifest_list"),
         ],
     )
 
@@ -264,7 +264,7 @@ class ECRImageHasLayerRelSchema(CartographyNodeSchema):
 
     label: str = "AWSECRImage"
     # DEPRECATED: legacy ECRImage node label will be removed in v1.0.0.
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([LegacyECRImageLabel()])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([LEGACY_ECR_IMAGE])
     properties: ECRImageHasLayerRelLoadProperties = ECRImageHasLayerRelLoadProperties()
     other_relationships: OtherRelationships = OtherRelationships(
         [ECRImageHasLayerRel()],

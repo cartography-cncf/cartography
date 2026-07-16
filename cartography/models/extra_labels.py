@@ -1,59 +1,48 @@
-from dataclasses import dataclass
-
 from cartography.models.core.nodes import ExtraNodeLabel
 
-
-@dataclass(frozen=True)
-class DependencyLabel(ExtraNodeLabel):
-    """A node participating in the shared Dependency graph interface."""
-
-    label: str = "Dependency"
+DEPENDENCY = ExtraNodeLabel(
+    label="Dependency",
+    description="A node participating in the shared Dependency graph interface.",
+)
 
 
-@dataclass(frozen=True)
-class FixLabel(ExtraNodeLabel):
-    """A node participating in the shared Fix graph interface."""
-
-    label: str = "Fix"
-
-
-@dataclass(frozen=True)
-class GCPPrincipalLabel(ExtraNodeLabel):
-    """A node participating in the shared GCPPrincipal graph interface."""
-
-    label: str = "GCPPrincipal"
+FIX = ExtraNodeLabel(
+    label="Fix",
+    description="A node participating in the shared Fix graph interface.",
+)
 
 
-@dataclass(frozen=True)
-class IpPermissionEgressLabel(ExtraNodeLabel):
-    """A node participating in the shared IpPermissionEgress graph interface."""
-
-    label: str = "IpPermissionEgress"
-
-
-@dataclass(frozen=True)
-class IpPermissionInboundLabel(ExtraNodeLabel):
-    """A node participating in the shared IpPermissionInbound graph interface."""
-
-    label: str = "IpPermissionInbound"
+GCP_PRINCIPAL = ExtraNodeLabel(
+    label="GCPPrincipal",
+    description="A node participating in the shared GCPPrincipal graph interface.",
+)
 
 
-@dataclass(frozen=True)
-class IpRangeLabel(ExtraNodeLabel):
-    """A node participating in the shared IpRange graph interface."""
-
-    label: str = "IpRange"
-
-
-@dataclass(frozen=True)
-class IpRuleLabel(ExtraNodeLabel):
-    """A node participating in the shared IpRule graph interface."""
-
-    label: str = "IpRule"
+IP_PERMISSION_EGRESS = ExtraNodeLabel(
+    label="IpPermissionEgress",
+    description="A node participating in the shared IpPermissionEgress graph interface.",
+)
 
 
-@dataclass(frozen=True)
-class RiskLabel(ExtraNodeLabel):
-    """A node participating in the shared Risk graph interface."""
+IP_PERMISSION_INBOUND = ExtraNodeLabel(
+    label="IpPermissionInbound",
+    description="A node participating in the shared IpPermissionInbound graph interface.",
+)
 
-    label: str = "Risk"
+
+IP_RANGE = ExtraNodeLabel(
+    label="IpRange",
+    description="A node participating in the shared IpRange graph interface.",
+)
+
+
+IP_RULE = ExtraNodeLabel(
+    label="IpRule",
+    description="A node participating in the shared IpRule graph interface.",
+)
+
+
+RISK = ExtraNodeLabel(
+    label="Risk",
+    description="A node participating in the shared Risk graph interface.",
+)

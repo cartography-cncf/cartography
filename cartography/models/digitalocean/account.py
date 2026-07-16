@@ -4,7 +4,7 @@ from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeProperties
 from cartography.models.core.nodes import CartographyNodeSchema
 from cartography.models.core.nodes import ExtraNodeLabels
-from cartography.models.ontology.labels import TenantOntologyLabel
+from cartography.models.ontology.labels import TENANT
 
 
 @dataclass(frozen=True)
@@ -21,4 +21,4 @@ class DOAccountNodeProperties(CartographyNodeProperties):
 class DOAccountSchema(CartographyNodeSchema):
     label: str = "DOAccount"
     properties: DOAccountNodeProperties = DOAccountNodeProperties()
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([TenantOntologyLabel()])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([TENANT])

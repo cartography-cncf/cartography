@@ -9,7 +9,7 @@ from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import TargetNodeMatcher
-from cartography.models.ontology.labels import VirtualNetworkOntologyLabel
+from cartography.models.ontology.labels import VIRTUAL_NETWORK
 
 
 @dataclass(frozen=True)
@@ -49,8 +49,6 @@ class ScalewayVpcToProjectRel(CartographyRelSchema):
 @dataclass(frozen=True)
 class ScalewayVpcSchema(CartographyNodeSchema):
     label: str = "ScalewayVpc"
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
-        [VirtualNetworkOntologyLabel()]
-    )
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([VIRTUAL_NETWORK])
     properties: ScalewayVpcProperties = ScalewayVpcProperties()
     sub_resource_relationship: ScalewayVpcToProjectRel = ScalewayVpcToProjectRel()

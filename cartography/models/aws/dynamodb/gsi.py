@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 
-from cartography.models.aws.extra_labels import LegacyDynamoDBGlobalSecondaryIndexLabel
+from cartography.models.aws.extra_labels import LEGACY_DYNAMO_DB_GLOBAL_SECONDARY_INDEX
 from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeProperties
 from cartography.models.core.nodes import CartographyNodeSchema
@@ -71,7 +71,7 @@ class DynamoDBGSISchema(CartographyNodeSchema):
     label: str = "AWSDynamoDBGlobalSecondaryIndex"
     # DEPRECATED: legacy DynamoDBGlobalSecondaryIndex node label will be removed in v1.0.0.
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
-        [LegacyDynamoDBGlobalSecondaryIndexLabel()]
+        [LEGACY_DYNAMO_DB_GLOBAL_SECONDARY_INDEX]
     )
     properties: DynamoDBGSINodeProperties = DynamoDBGSINodeProperties()
     sub_resource_relationship: DynamoDBGSIToAWSAccountRel = DynamoDBGSIToAWSAccountRel()

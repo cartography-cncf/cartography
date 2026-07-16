@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 
-from cartography.models.aws.extra_labels import LegacyPublicSSMParameterLabel
-from cartography.models.aws.extra_labels import SSMParameterLabel
+from cartography.models.aws.extra_labels import LEGACY_PUBLIC_SSM_PARAMETER
+from cartography.models.aws.extra_labels import SSM_PARAMETER
 from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeProperties
 from cartography.models.core.nodes import CartographyNodeSchema
@@ -12,7 +12,7 @@ from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import TargetNodeMatcher
-from cartography.models.ontology.labels import SecretOntologyLabel
+from cartography.models.ontology.labels import SECRET
 
 
 @dataclass(frozen=True)
@@ -82,8 +82,8 @@ class SSMParameterSchema(CartographyNodeSchema):
     # DEPRECATED: legacy SSMParameter node label will be removed in v1.0.0.
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
         [
-            SSMParameterLabel(),
-            SecretOntologyLabel(conditions={"type": "SecureString"}),
+            SSM_PARAMETER,
+            SECRET.when(type="SecureString"),
         ],
     )
     sub_resource_relationship: SSMParameterToAWSAccountRel = (
@@ -107,5 +107,5 @@ class PublicSSMParameterSchema(CartographyNodeSchema):
     scoped_cleanup: bool = False
     # DEPRECATED: legacy PublicSSMParameter node label will be removed in v1.0.0.
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
-        [LegacyPublicSSMParameterLabel(), SSMParameterLabel()]
+        [LEGACY_PUBLIC_SSM_PARAMETER, SSM_PARAMETER]
     )

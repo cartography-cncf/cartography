@@ -103,7 +103,8 @@ def test_extra_label_condition_fields_exist_on_node_schema() -> None:
             model_field.name for model_field in fields(node_schema.properties)
         }
         for extra_label in node_schema.extra_node_labels.labels:
-            missing_fields = set(extra_label.conditions) - property_names
+            condition_fields = {field_name for field_name, _ in extra_label.conditions}
+            missing_fields = condition_fields - property_names
             if missing_fields:
                 violations.append(
                     f"{node_class.__name__} uses {extra_label.label} conditions "

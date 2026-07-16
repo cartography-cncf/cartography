@@ -10,10 +10,10 @@ from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import TargetNodeMatcher
-from cartography.models.extra_labels import RiskLabel
-from cartography.models.ontology.labels import CVEOntologyLabel
-from cartography.models.ontology.labels import SecurityIssueOntologyLabel
-from cartography.models.ontology.labels import UserAccountOntologyLabel
+from cartography.models.extra_labels import RISK
+from cartography.models.ontology.labels import CVE
+from cartography.models.ontology.labels import SECURITY_ISSUE
+from cartography.models.ontology.labels import USER_ACCOUNT
 
 
 @dataclass(frozen=True)
@@ -133,9 +133,9 @@ class GitHubDependabotAlertSchema(CartographyNodeSchema):
     label: str = "GitHubDependabotAlert"
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
         [
-            RiskLabel(),
-            SecurityIssueOntologyLabel(),
-            CVEOntologyLabel(conditions={"has_cve": "true"}),
+            RISK,
+            SECURITY_ISSUE,
+            CVE.when(has_cve="true"),
         ]
     )
     properties: GitHubDependabotAlertNodeProperties = (
@@ -165,7 +165,7 @@ class GitHubDependabotAlertUserNodeProperties(CartographyNodeProperties):
 @dataclass(frozen=True)
 class GitHubDependabotAlertUserSchema(CartographyNodeSchema):
     label: str = "GitHubUser"
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([UserAccountOntologyLabel()])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([USER_ACCOUNT])
     properties: GitHubDependabotAlertUserNodeProperties = (
         GitHubDependabotAlertUserNodeProperties()
     )

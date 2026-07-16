@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 
-from cartography.models.aws.extra_labels import LegacySQSQueueLabel
+from cartography.models.aws.extra_labels import LEGACY_SQS_QUEUE
 from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeProperties
 from cartography.models.core.nodes import CartographyNodeSchema
@@ -85,7 +85,7 @@ class SQSQueueToDeadLetterQueueRel(CartographyRelSchema):
 class SQSQueueSchema(CartographyNodeSchema):
     label: str = "AWSSQSQueue"
     # DEPRECATED: legacy SQSQueue node label will be removed in v1.0.0.
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([LegacySQSQueueLabel()])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([LEGACY_SQS_QUEUE])
     properties: SQSQueueNodeProperties = SQSQueueNodeProperties()
     sub_resource_relationship: SQSQueueToAWSAccountRel = SQSQueueToAWSAccountRel()
     other_relationships: OtherRelationships = OtherRelationships(

@@ -49,7 +49,6 @@ from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import (
     CartographyNodeProperties,
     CartographyNodeSchema,
-    ExtraNodeLabel,
     ExtraNodeLabels,
 )
 from cartography.models.core.relationships import (
@@ -187,20 +186,23 @@ class YourNodeProperties(CartographyNodeProperties):
 ### Extra Node Labels
 
 ```python
-@dataclass(frozen=True)
-class SharedResourceLabel(ExtraNodeLabel):
-    """A provider-local interface shared by several concrete resource types."""
+from cartography.models.aws.extra_labels import AWS_RESOURCE
 
-    label: str = "SharedResource"
-
-
-extra_node_labels = ExtraNodeLabels([SharedResourceLabel()])
+extra_node_labels = ExtraNodeLabels([AWS_RESOURCE])
 ```
 
-Use reusable classes from `cartography.models.ontology.labels` for ontology
-labels. Raw strings are not accepted. Pass a nonempty `conditions` dictionary
-to apply a label conditionally; every condition key must be a declared node
-property.
+`ExtraNodeLabel` is a single immutable value type. Define and export labels once
+as uppercase constants, then reuse those constants in schemas. Its `description`
+is metadata for introspection and generated documentation, not runtime behavior.
+`LabelKind.STANDARD` is the default; use `LabelKind.ONTOLOGY` for cross-provider
+semantic labels and `LabelKind.COMPATIBILITY` for temporary aliases. Only
+compatibility labels may set `remove_in`.
+
+Use reusable constants from `cartography.models.ontology.labels` for ontology
+labels. Raw strings are not accepted. Compose a conditional label with
+`CONSTANT.when(field="value")`; every condition key must be a declared node
+property. Conditions are stored as immutable, sorted tuples, and
+`ExtraNodeLabels` stores its labels as an immutable tuple.
 
 ### Relationship Direction
 

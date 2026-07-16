@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 
-from cartography.models.aws.extra_labels import LegacySSMInstanceInformationLabel
+from cartography.models.aws.extra_labels import LEGACY_SSM_INSTANCE_INFORMATION
 from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeProperties
 from cartography.models.core.nodes import CartographyNodeSchema
@@ -85,7 +85,7 @@ class SSMInstanceInformationSchema(CartographyNodeSchema):
     label: str = "AWSSSMInstanceInformation"
     # DEPRECATED: legacy SSMInstanceInformation node label will be removed in v1.0.0.
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
-        [LegacySSMInstanceInformationLabel()]
+        [LEGACY_SSM_INSTANCE_INFORMATION]
     )
     properties: SSMInstanceInformationNodeProperties = (
         SSMInstanceInformationNodeProperties()

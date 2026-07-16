@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 
-from cartography.models.aws.extra_labels import LegacyCognitoIdentityPoolLabel
+from cartography.models.aws.extra_labels import LEGACY_COGNITO_IDENTITY_POOL
 from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeProperties
 from cartography.models.core.nodes import CartographyNodeSchema
@@ -62,9 +62,7 @@ class CognitoIdentityPoolToAWSRoleRel(CartographyRelSchema):
 class CognitoIdentityPoolSchema(CartographyNodeSchema):
     label: str = "AWSCognitoIdentityPool"
     # DEPRECATED: legacy CognitoIdentityPool node label will be removed in v1.0.0.
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
-        [LegacyCognitoIdentityPoolLabel()]
-    )
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([LEGACY_COGNITO_IDENTITY_POOL])
     properties: CognitoIdentityPoolNodeProperties = CognitoIdentityPoolNodeProperties()
     sub_resource_relationship: CognitoIdentityPoolToAWSAccountRel = (
         CognitoIdentityPoolToAWSAccountRel()
