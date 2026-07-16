@@ -1,11 +1,9 @@
-import asyncio
 import logging
 from typing import Any
 
 import neo4j
-from kiota_abstractions.api_error import APIError
 from msgraph import GraphServiceClient
-from msgraph.generated.models.license_details import LicenseDetails
+from msgraph.generated.models.assigned_license import AssignedLicense
 
 from cartography.client.core.tx import load_matchlinks
 from cartography.graph.job import GraphJob
@@ -17,65 +15,76 @@ logger = logging.getLogger(__name__)
 
 
 @timeit
-async def get_user_license_details(
+async def get_users_with_assigned_licenses(
     client: GraphServiceClient,
-    user_ids: list[str],
-) -> tuple[dict[str, list[LicenseDetails]], bool]:
+) -> tuple[dict[str, list[AssignedLicense]], bool]:
     """
-    Fetch license details for each user from Microsoft Graph API concurrently.
+    Fetch all users with their assignedLicenses from Microsoft Graph API.
+
+    Uses ``GET /users?$select=id,assignedLicenses`` which is supported with
+    ``User.Read.All`` application permission (unlike ``/users/{id}/licenseDetails``
+    which requires delegated auth).
 
     Returns a tuple of (user_license_map, has_failures).
 
-    https://learn.microsoft.com/en-us/graph/api/user-list-licensedetails
+    https://learn.microsoft.com/en-us/graph/api/user-list
     """
-    user_license_map: dict[str, list[LicenseDetails]] = {}
+    user_license_map: dict[str, list[AssignedLicense]] = {}
     has_failures = False
-    semaphore = asyncio.Semaphore(20)
 
-    async def fetch_for_user(user_id: str) -> None:
-        nonlocal has_failures
-        async with semaphore:
-            try:
-                response = await call_with_retries(
-                    lambda uid=user_id: client.users.by_user_id(
-                        uid
-                    ).license_details.get(),
-                )
-                if response and response.value:
-                    user_license_map[user_id] = response.value
-            except APIError as e:
-                # 404 --> the user was deleted between user-sync and license-sync.
-                # 403 --> insufficient permissions for this specific user.
-                # Both are non-fatal: skip and continue, but mark as failure for cleanup.
-                if e.response_status_code in (403, 404):
-                    logger.debug(
-                        "Skipping license details for user %s: %d %s",
-                        user_id,
-                        e.response_status_code,
-                        e.message,
-                    )
-                    has_failures = True
-                    return
-                raise
+    request_configuration = client.users.UsersRequestBuilderGetRequestConfiguration(
+        query_parameters=client.users.UsersRequestBuilderGetQueryParameters(
+            top=999,
+            select=["id", "assignedLicenses"],
+        ),
+    )
 
-    await asyncio.gather(*(fetch_for_user(uid) for uid in user_ids))
+    try:
+        page = await call_with_retries(
+            lambda: client.users.get(request_configuration=request_configuration),
+        )
+    except Exception:
+        logger.exception("Failed to fetch users with assigned licenses")
+        raise
+
+    while page:
+        if page.value:
+            for user in page.value:
+                if user.assigned_licenses:
+                    user_license_map[user.id] = user.assigned_licenses
+        if not page.odata_next_link:
+            break
+
+        try:
+            page = await call_with_retries(
+                lambda: client.users.with_url(page.odata_next_link).get(),
+            )
+        except Exception as e:
+            logger.error(
+                "Failed to fetch next page of user licenses – "
+                "stopping pagination early: %s",
+                e,
+            )
+            has_failures = True
+            break
+
     return user_license_map, has_failures
 
 
 def transform_user_license_assignments(
-    user_license_map: dict[str, list[LicenseDetails]],
+    user_license_map: dict[str, list[AssignedLicense]],
 ) -> list[dict[str, Any]]:
     """
-    Transform per-user license details into flat assignment records
+    Transform per-user assigned licenses into flat assignment records
     for MatchLink loading.
 
     Returns a list of dicts: [{"user_id": ..., "sku_id": ...}, ...]
     """
     assignments: list[dict[str, Any]] = []
 
-    for user_id, license_details in user_license_map.items():
-        for ld in license_details:
-            sku_id = str(ld.sku_id) if ld.sku_id else None
+    for user_id, assigned_licenses in user_license_map.items():
+        for al in assigned_licenses:
+            sku_id = str(al.sku_id) if al.sku_id else None
             if sku_id is None:
                 continue
             assignments.append(
@@ -102,7 +111,7 @@ def load_user_license_assignments(
         EntraUserToM365LicenseRel(),
         assignments,
         lastupdated=update_tag,
-        _sub_resource_label="EntraTenant",
+        _sub_resource_label="AzureTenant",
         _sub_resource_id=tenant_id,
     )
 
@@ -114,7 +123,7 @@ def cleanup_user_license_assignments(
 ) -> None:
     GraphJob.from_matchlink(
         EntraUserToM365LicenseRel(),
-        "EntraTenant",
+        "AzureTenant",
         tenant_id,
         update_tag,
     ).run(neo4j_session)
@@ -128,53 +137,40 @@ async def sync_user_license_details(
     update_tag: int,
 ) -> bool:
     """
-    Sync per-user license assignments by querying existing EntraUser nodes
-    and fetching their license details from the Graph API.
+    Sync per-user license assignments by querying the users endpoint with
+    ``$select=id,assignedLicenses``.
+
+    This uses the ``User.Read.All`` application permission which is already
+    granted by the Entra sync. Unlike ``/users/{id}/licenseDetails``, this
+    endpoint is supported with application (client credentials) auth.
+
+    Returns True if any failures occurred (indicating cleanup should be skipped).
     """
-    # Query Neo4j for all EntraUser IDs in this tenant
-    result = neo4j_session.run(
-        """
-        MATCH (t:EntraTenant {id: $TENANT_ID})-[:RESOURCE]->(u:EntraUser)
-        RETURN u.id AS user_id
-        """,
-        TENANT_ID=tenant_id,
-    )
-    user_ids = [record["user_id"] for record in result]
     logger.info(
-        "Fetching license details for %d Entra users in tenant %s",
-        len(user_ids),
+        "Fetching user assigned licenses for tenant %s",
         tenant_id,
     )
 
-    if not user_ids:
-        logger.info("No Entra users found; skipping license detail sync")
-        return False
+    user_license_map, has_failures = await get_users_with_assigned_licenses(client)
+    logger.info(
+        "Found assigned licenses for %d users",
+        len(user_license_map),
+    )
 
-    # Fetch license details in batches to control memory
-    batch_size = 200
-    all_assignments: list[dict[str, Any]] = []
-    has_failures = False
+    if not user_license_map:
+        logger.info("No user license assignments found; skipping load")
+        return has_failures
 
-    for i in range(0, len(user_ids), batch_size):
-        batch = user_ids[i : i + batch_size]
-        user_license_map, batch_has_failures = await get_user_license_details(
-            client, batch
-        )
-        if batch_has_failures:
-            has_failures = True
-
-        assignments = transform_user_license_assignments(user_license_map)
-        all_assignments.extend(assignments)
-
+    assignments = transform_user_license_assignments(user_license_map)
     logger.info(
         "Found %d user-license assignments across %d users",
-        len(all_assignments),
-        len(user_ids),
+        len(assignments),
+        len(user_license_map),
     )
 
     load_user_license_assignments(
         neo4j_session,
-        all_assignments,
+        assignments,
         tenant_id,
         update_tag,
     )

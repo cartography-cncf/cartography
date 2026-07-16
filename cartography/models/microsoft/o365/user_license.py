@@ -32,7 +32,7 @@ class EntraUserToM365LicenseRel(CartographyRelSchema):
         {"sku_id": PropertyRef("sku_id")},
     )
     target_node_sub_resource: MatchLinkSubResource = MatchLinkSubResource(
-        target_node_label="EntraTenant",
+        target_node_label="AzureTenant",
         target_node_matcher=make_target_node_matcher(
             {"id": PropertyRef("_sub_resource_id", set_in_kwargs=True)},
         ),
