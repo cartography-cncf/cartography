@@ -9,6 +9,66 @@ With the `cartography-rules` CLI, you can:
 - Build custom queries for your own environment
 
 
+## Quick start
+
+The prerequisite is a reachable Neo4j database that Cartography has already
+populated. Rules query that graph directly; they do not require an input file
+and do not write data.
+
+Configure the connection if it differs from the local defaults:
+
+```bash
+export NEO4J_URI=bolt://localhost:7687
+export NEO4J_USER=neo4j
+export NEO4J_DATABASE=neo4j
+```
+
+If Neo4j was started with `NEO4J_AUTH=none`, no password configuration is
+needed. Then list, inspect, and run a rule:
+
+```bash
+cartography-rules list
+cartography-rules list object_storage_public
+cartography-rules run object_storage_public
+```
+
+For an authenticated Neo4j server, set the default password environment
+variable before running the same commands:
+
+```bash
+set +o history
+export NEO4J_PASSWORD='your-password'
+set -o history
+cartography-rules run object_storage_public
+```
+
+Alternatively, keep the password in a custom environment variable or request
+an explicit interactive prompt:
+
+```bash
+cartography-rules run object_storage_public --neo4j-password-env-var MY_NEO4J_PASSWORD
+cartography-rules run object_storage_public --neo4j-password-prompt
+```
+
+If a named password variable is missing or empty, the command exits with an
+actionable error instead of prompting. A typical text result reports each fact
+and finishes with totals such as:
+
+```text
+EXECUTION SUMMARY
+Total facts: 2
+Total findings: 3
+Rule execution completed with 3 total findings
+```
+
+Text output is intended for interactive review and includes sample findings.
+Use `--output json` for complete, machine-readable results:
+
+```bash
+cartography-rules run object_storage_public --output json
+```
+
+
 ## Architecture
 
 The rules system uses a simple two-level hierarchy:
@@ -213,75 +273,6 @@ object_storage_public = Rule(
 )
 ```
 
-## Setup
-
-Make sure you've run Cartography and have data in Neo4j.
-
-Then configure your Neo4j connection:
-
-
-```bash
-export NEO4J_URI=bolt://localhost:7687 # or your Neo4j URI
-export NEO4J_USER=neo4j # or your username
-export NEO4J_DATABASE=neo4j # or your database name
-
-# Store the Neo4j password in an environment variable. You can name this anything you want.
-
-set +o history # avoid storing the password in the shell history; can also use something like 1password CLI.
-export NEO4J_PASSWORD=password
-set -o history # turn shell history back on
-```
-
-## Quick start
-
-1. List all available rules
-    ```bash
-    cartography-rules list
-    ```
-1. View details of a specific rule
-    ```bash
-    cartography-rules list object_storage_public
-    ```
-1. Run a specific rule
-    ```bash
-    cartography-rules run object_storage_public
-    ```
-    Sample output:
-    ```
-    Executing object_storage_public rule
-    Total facts: 2
-
-    Fact 1/2: Internet-Accessible S3 Storage Attack Surface
-    Rule:     object_storage_public - Public Object Storage Attack Surface
-    Fact ID:     aws_s3_public
-    Description: AWS S3 buckets accessible from the internet
-    Provider:    AWS
-    Neo4j Query: http://localhost:7474/browser/?cmd=play&arg=<encoded-query>
-    Results:     3 item(s) found
-        Sample findings:
-        1. bucket=cdn.example.com, region=us-east-1, anonymous_access=True
-        2. bucket=mybucket.example.com, region=us-east-1, anonymous_actions=['s3:ListBucket', 's3:ListBucketVersions']
-        3. bucket=static.example.com, region=us-east-1, public_access=True
-        ... (use --output json to see all)
-
-    Fact 2/2: Azure Storage Public Blob Access
-    Rule:     object_storage_public - Public Object Storage Attack Surface
-    Fact ID:     azure_storage_public_blob_access
-    Description: Azure Storage accounts with public blob access
-    Provider:    Azure
-    Neo4j Query: http://localhost:7474/browser/?cmd=play&arg=<encoded-query>
-    Results:     No items found
-
-    ============================================================
-    EXECUTION SUMMARY
-    ============================================================
-    Total facts: 2
-    Total findings: 3
-
-    Rule execution completed with 3 total findings
-    ```
-
-
 ## Usage
 
 ### Framework filtering
@@ -374,6 +365,16 @@ cartography-rules run object_storage_public --no-experimental
 ```
 
 ### Authentication Options
+
+With no configured password, the CLI connects using Neo4j's no-auth mode and
+does not prompt. `--neo4j-password-prompt` is the only option that requests
+interactive input.
+
+#### Use the default password environment variable:
+```bash
+export NEO4J_PASSWORD='your-password'
+cartography-rules run mfa-missing
+```
 
 #### Use a custom environment variable for the password:
 ```bash
