@@ -63,13 +63,13 @@ def _recipient_names(
         try:
             data = api_session.get(uri, params=params)
         except requests.HTTPError as e:
-            # A share we can't read permissions on (403) or that vanished
-            # mid-sync (404) is skippable; anything else aborts the sync. On a
-            # skip we carry forward the last-known recipients from the graph:
-            # returning [] here would let this run's cleanup delete SHARED_WITH
-            # edges that are still valid, silently hiding who a share is exposed
-            # to.
-            skip_or_raise_http(e, 403, 404)
+            # A share we can't read permissions on (403), that vanished
+            # mid-sync (404), or that is not eligible for this probe (400) is
+            # skippable; anything else aborts the sync. On a skip we carry
+            # forward the last-known recipients from the graph: returning []
+            # here would let this run's cleanup delete SHARED_WITH edges that are
+            # still valid, silently hiding who a share is exposed to.
+            skip_or_raise_http(e, 400, 403, 404)
             logger.warning(
                 "Could not read permissions for share %s (%s); keeping "
                 "last-known recipients.",
