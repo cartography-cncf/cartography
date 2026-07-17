@@ -7,10 +7,12 @@ modules/anthropic/index
 modules/aws/index
 modules/azure/index
 modules/bigfix/index
+modules/circleci/index
 modules/cloudflare/index
 modules/crowdstrike/index
 modules/cve/index
 modules/cve_metadata/index
+modules/databricks/index
 modules/digitalocean/index
 modules/docker_scout/index
 modules/duo/index
@@ -31,6 +33,7 @@ modules/okta/index
 modules/ontology/index
 modules/openai/index
 modules/pagerduty/index
+modules/salesforce/index
 modules/scaleway/index
 modules/semgrep/index
 modules/sentinelone/index
