@@ -22,6 +22,44 @@ LIST_CLUSTERS = [
     "cluster_2",
 ]
 
+ACCESS_ENTRIES = [
+    [
+        {
+            "clusterName": "cluster_1",
+            "principalArn": "arn:aws:iam::111111111111:role/EKSAdminRole",
+            "kubernetesGroups": ["system:masters"],
+            "accessEntryArn": (
+                "arn:aws:eks:eu-west-1:111111111111:access-entry/"
+                "cluster_1/role/111111111111/EKSAdminRole/ae-12345"
+            ),
+            "createdAt": datetime.datetime(
+                2024,
+                1,
+                15,
+                10,
+                30,
+                tzinfo=datetime.timezone.utc,
+            ),
+            "modifiedAt": datetime.datetime(
+                2024,
+                1,
+                15,
+                10,
+                30,
+                tzinfo=datetime.timezone.utc,
+            ),
+            "tags": {},
+            "username": "eks-admin",
+            "type": "STANDARD",
+        },
+        {
+            "clusterName": "cluster_1",
+            "principalArn": "arn:aws:iam::111111111111:role/EKSListOnlyRole",
+        },
+    ],
+    [],
+]
+
 DESCRIBE_CLUSTERS = [
     {
         "name": "cluster_1",
@@ -31,6 +69,9 @@ DESCRIBE_CLUSTERS = [
         "version": "1.14",
         "platformVersion": "eks.9",
         "roleArn": "arn:aws:iam::111111111111:role/cluster_1",
+        "accessConfig": {
+            "authenticationMode": "API_AND_CONFIG_MAP",
+        },
         "resourcesVpcConfig": {
             "subnetIds": ["subnet-1111", "subnet-2222", "subnet-3333"],
             "securityGroupIds": ["sg-1111"],
@@ -62,6 +103,9 @@ DESCRIBE_CLUSTERS = [
         "version": "1.14",
         "platformVersion": "eks.9",
         "roleArn": "arn:aws:iam::222222222222:role/cluster_2",
+        "accessConfig": {
+            "authenticationMode": "CONFIG_MAP",
+        },
         "resourcesVpcConfig": {
             "subnetIds": ["subnet-1111", "subnet-2222", "subnet-3333"],
             "securityGroupIds": ["sg-1111"],

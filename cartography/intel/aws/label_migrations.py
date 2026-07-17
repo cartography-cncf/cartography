@@ -80,6 +80,7 @@ AWS_LABEL_MIGRATIONS: tuple[AWSLabelMigration, ...] = tuple(
         "ECSService",
         "ECSTask",
         "ECSTaskDefinition",
+        "EKSAccessEntry",
         "EKSCluster",
         "ELBListener",
         "ELBV2Listener",

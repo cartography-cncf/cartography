@@ -523,6 +523,14 @@ LEGACY_ECS_TASK_DEFINITION = ExtraNodeLabel(
 )
 
 
+LEGACY_EKS_ACCESS_ENTRY = ExtraNodeLabel(
+    label="EKSAccessEntry",
+    description="Compatibility label for the deprecated `EKSAccessEntry` aws node label.",
+    kind=LabelKind.COMPATIBILITY,
+    remove_in="v1.0.0",
+)
+
+
 LEGACY_EKS_CLUSTER = ExtraNodeLabel(
     label="EKSCluster",
     description="Compatibility label for the deprecated `EKSCluster` aws node label.",

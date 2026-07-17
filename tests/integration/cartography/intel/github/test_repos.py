@@ -618,6 +618,74 @@ def test_load_dependencies_shared_id_exact_conflict_not_corrupted(neo4j_session)
     assert rows[0]["version"] is None
 
 
+def test_github_dependency_cleanup_spares_other_modules(neo4j_session):
+    """
+    Regression test for #3035. github's Dependency cleanup is unscoped, so it
+    must MATCH on the GitHubDependency primary label and only reap nodes it
+    ingested itself. A Semgrep node carrying the shared `Dependency` extra label
+    with a stale lastupdated must survive github's cleanup, while a stale
+    github-owned dependency must still be deleted.
+    """
+    stale_tag = TEST_UPDATE_TAG - 1
+
+    # A Semgrep-style dependency left over from an older sync cycle. It carries
+    # the shared `Dependency` extra label but no GitHubDependency label.
+    neo4j_session.run(
+        """
+        MERGE (d:SemgrepGoLibrary:GoLibrary:Dependency:SemgrepDependency {id: $id})
+        SET d.lastupdated = $stale_tag
+        """,
+        id="github.com/foo/bar|1.2.3",
+        stale_tag=stale_tag,
+    )
+    # A stale github dependency from an older cycle that github SHOULD reap.
+    neo4j_session.run(
+        """
+        MERGE (d:GitHubDependency:Dependency {id: $id})
+        SET d.lastupdated = $stale_tag
+        """,
+        id="staleghdep|1.0.0",
+        stale_tag=stale_tag,
+    )
+    # A fresh github dependency ingested in the current cycle.
+    dependencies = [
+        {
+            "id": "react|18.2.0",
+            "name": "react",
+            "original_name": "react",
+            "requirements": "18.2.0",
+            "ecosystem": "npm",
+            "package_manager": "NPM",
+            "manifest_file": "package.json",
+            "manifest_path": "/package.json",
+            "manifest_id": "https://github.com/test-org/app#/package.json",
+            "repo_url": "https://github.com/test-org/app",
+            "version": "18.2.0",
+            "type": "npm",
+            "purl": "pkg:npm/react@18.2.0",
+            "normalized_id": "npm|react|18.2.0",
+            "source": "dependency_graph",
+            "version_confidence": "exact",
+        },
+    ]
+    load_github_dependencies(neo4j_session, TEST_UPDATE_TAG, dependencies)
+
+    # Act
+    cartography.intel.github.repos.cleanup_github_dependencies(
+        neo4j_session,
+        {"UPDATE_TAG": TEST_UPDATE_TAG},
+    )
+
+    # The Semgrep node survives github's cleanup (the core #3035 regression).
+    assert check_nodes(neo4j_session, "SemgrepDependency", ["id"]) == {
+        ("github.com/foo/bar|1.2.3",),
+    }
+    # github reaps only its own stale node; the fresh github node survives.
+    github_deps = check_nodes(neo4j_session, "GitHubDependency", ["id"])
+    assert ("react|18.2.0",) in github_deps
+    assert ("staleghdep|1.0.0",) not in github_deps
+
+
 @patch.object(
     cartography.intel.github.repos,
     "_get_dep_manifests_for_repos",

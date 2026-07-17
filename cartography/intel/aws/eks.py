@@ -9,6 +9,7 @@ from typing import List
 
 import boto3
 import neo4j
+from botocore.exceptions import ClientError
 from cryptography import x509
 from cryptography.hazmat.primitives import hashes
 from cryptography.x509.extensions import ExtensionNotFound
@@ -17,11 +18,16 @@ from cryptography.x509.oid import ExtensionOID
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
 from cartography.intel.aws.util.botocore_config import create_boto3_client
+from cartography.models.aws.eks.access_entry import EKSAccessEntrySchema
 from cartography.models.aws.eks.clusters import EKSClusterSchema
 from cartography.util import aws_handle_regions
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
+
+ACCESS_ENTRIES_UNSUPPORTED_AUTH_MODE_MESSAGE = (
+    "authentication mode must be set to one of [API, API_AND_CONFIG_MAP]"
+)
 
 
 @timeit
@@ -46,6 +52,106 @@ def get_eks_describe_cluster(
     return response["cluster"]
 
 
+def _is_access_entries_unsupported_auth_mode_error(error: ClientError) -> bool:
+    error_details = error.response.get("Error", {})
+    error_code = error_details.get("Code")
+    error_message = error_details.get("Message", "")
+    return (
+        error_code == "InvalidRequestException"
+        and ACCESS_ENTRIES_UNSUPPORTED_AUTH_MODE_MESSAGE in error_message
+    )
+
+
+def _list_access_entry_principal_arns(client: Any, cluster_name: str) -> list[str]:
+    principal_arns = []
+
+    try:
+        paginator = client.get_paginator("list_access_entries")
+        for page in paginator.paginate(clusterName=cluster_name):
+            principal_arns.extend(page.get("accessEntries", []))
+    except ClientError as e:
+        if _is_access_entries_unsupported_auth_mode_error(e):
+            logger.info(
+                "EKS Access Entries are unavailable for cluster %s authentication "
+                "mode; skipping Access Entries.",
+                cluster_name,
+            )
+            return []
+        raise
+
+    return principal_arns
+
+
+@timeit
+@aws_handle_regions
+def get_eks_access_entries(
+    boto3_session: boto3.session.Session,
+    region: str,
+    cluster_name: str,
+    authentication_mode: str | None,
+) -> list[dict[str, Any]]:
+    if authentication_mode == "CONFIG_MAP":
+        logger.info(
+            "EKS Access Entries are unavailable for cluster %s authentication mode; "
+            "skipping Access Entries.",
+            cluster_name,
+        )
+        return []
+
+    client = create_boto3_client(boto3_session, "eks", region_name=region)
+    access_entries = []
+    describe_access_entries = True
+
+    principal_arns = _list_access_entry_principal_arns(client, cluster_name)
+    for principal_arn in principal_arns:
+        if not describe_access_entries:
+            access_entries.append(
+                {
+                    "clusterName": cluster_name,
+                    "principalArn": principal_arn,
+                }
+            )
+            continue
+        try:
+            response = client.describe_access_entry(
+                clusterName=cluster_name,
+                principalArn=principal_arn,
+            )
+        except ClientError as e:
+            error_code = e.response["Error"]["Code"]
+            if error_code == "ResourceNotFoundException":
+                logger.warning(
+                    "Access entry lookup failed for principal %s on cluster %s: %s",
+                    principal_arn,
+                    cluster_name,
+                    e,
+                )
+                continue
+            if error_code == "AccessDeniedException":
+                logger.warning(
+                    "Access entry detail lookup denied on cluster %s; loading minimal "
+                    "access entry data from ListAccessEntries for all remaining principals.",
+                    cluster_name,
+                )
+                describe_access_entries = False
+                access_entries.append(
+                    {
+                        "clusterName": cluster_name,
+                        "principalArn": principal_arn,
+                    }
+                )
+                continue
+            raise
+        access_entries.append(response["accessEntry"])
+
+    logger.info(
+        "Retrieved %d EKS Access Entries for cluster %s",
+        len(access_entries),
+        cluster_name,
+    )
+    return access_entries
+
+
 @timeit
 def load_eks_clusters(
     neo4j_session: neo4j.Session,
@@ -59,6 +165,22 @@ def load_eks_clusters(
         EKSClusterSchema(),
         cluster_data,
         Region=region,
+        AWS_ID=current_aws_account_id,
+        lastupdated=aws_update_tag,
+    )
+
+
+@timeit
+def load_eks_access_entries(
+    neo4j_session: neo4j.Session,
+    access_entry_data: list[dict[str, Any]],
+    current_aws_account_id: str,
+    aws_update_tag: int,
+) -> None:
+    load(
+        neo4j_session,
+        EKSAccessEntrySchema(),
+        access_entry_data,
         AWS_ID=current_aws_account_id,
         lastupdated=aws_update_tag,
     )
@@ -202,10 +324,27 @@ def cleanup(
     neo4j_session: neo4j.Session,
     common_job_parameters: Dict[str, Any],
 ) -> None:
+    logger.info("Running EKS access entry cleanup")
+    GraphJob.from_node_schema(EKSAccessEntrySchema(), common_job_parameters).run(
+        neo4j_session,
+    )
     logger.info("Running EKS cluster cleanup")
     GraphJob.from_node_schema(EKSClusterSchema(), common_job_parameters).run(
         neo4j_session,
     )
+
+
+def transform_access_entries(
+    access_entries: list[dict[str, Any]],
+    cluster_arn: str,
+) -> list[dict[str, Any]]:
+    transformed_entries = []
+    for entry in access_entries:
+        transformed_entry = entry.copy()
+        transformed_entry["id"] = f"{cluster_arn}/access-entry/{entry['principalArn']}"
+        transformed_entry["cluster_arn"] = cluster_arn
+        transformed_entries.append(transformed_entry)
+    return transformed_entries
 
 
 def transform(cluster_data: Dict[str, Any]) -> List[Dict[str, Any]]:
@@ -218,6 +357,12 @@ def transform(cluster_data: Dict[str, Any]) -> List[Dict[str, Any]]:
             {},
         ).get(
             "endpointPublicAccess",
+        )
+        transformed_dict["AuthenticationMode"] = transformed_dict.get(
+            "accessConfig",
+            {},
+        ).get(
+            "authenticationMode",
         )
         if "createdAt" in transformed_dict:
             transformed_dict["created_at"] = str(transformed_dict["createdAt"])
@@ -256,6 +401,25 @@ def sync(
             neo4j_session,
             transformed_list,
             region,
+            current_aws_account_id,
+            update_tag,
+        )
+        access_entries: list[dict[str, Any]] = []
+        for cluster in transformed_list:
+            access_entries.extend(
+                transform_access_entries(
+                    get_eks_access_entries(
+                        boto3_session,
+                        region,
+                        cluster["name"],
+                        cluster.get("AuthenticationMode"),
+                    ),
+                    cluster["arn"],
+                )
+            )
+        load_eks_access_entries(
+            neo4j_session,
+            access_entries,
             current_aws_account_id,
             update_tag,
         )

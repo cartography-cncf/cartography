@@ -16,6 +16,7 @@ Cartography supports single-account AWS syncs and multi-account AWS syncs. For A
 
 1. Set up an AWS identity (user, group, or role) for Cartography to use. Ensure that this identity has the built-in AWS [SecurityAudit policy](https://docs.aws.amazon.com/IAM/latest/UserGuide/access_policies_job-functions.html#jf_security-auditor) (arn:aws:iam::aws:policy/SecurityAudit) attached. This policy grants access to read security config metadata.
    1. If you want to use AWS Inspector, the SecurityAudit policy does not yet contain permissions for `inspector2`, so you will also need the [AmazonInspector2ReadOnlyAccess policy](https://docs.aws.amazon.com/inspector/latest/user/security-iam-awsmanpol.html#security-iam-awsmanpol-AmazonInspector2ReadOnlyAccess).
+   1. If you want to ingest EKS Access Entries, ensure the identity can call `eks:ListAccessEntries`. AWS SecurityAudit includes this action. Grant `eks:DescribeAccessEntry` as well to populate detailed entry fields such as access entry ARN, username, type, and Kubernetes groups.
    1. If you want to ingest allowlisted AWS-managed public SSM parameters, grant `ssm:GetParametersByPath` for the allowed `/aws/service/...` paths. The SecurityAudit policy does not include this permission.
 1. Set up AWS credentials to this identity on your server, using a `config` and `credential` file.  For details, see AWS' [official guide](https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-files.html).
 1. [Optional] Configure Cartography's shared AWS client retry behavior with these environment variables:

@@ -65,9 +65,10 @@ def get(
             ot = api_session.get(f"/api/2.0/online-tables/{full_name}")
         except requests.HTTPError as e:
             # 404 = the table has no online-table twin, which is the common
-            # case. Any other error (auth, rate-limit, 5xx) must abort so
-            # cleanup does not run on partial data.
-            skip_or_raise_http(e, 404)
+            # case. 400 = the securable is not online-table-eligible (e.g. the
+            # Databricks-provided `samples` catalog). Any other error (auth,
+            # rate-limit, 5xx) must abort so cleanup does not run on partial data.
+            skip_or_raise_http(e, 400, 404)
             continue
         if ot.get("name"):
             ot["_metastore_id"] = c.get("metastore_id")
