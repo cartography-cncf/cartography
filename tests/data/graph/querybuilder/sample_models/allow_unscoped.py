@@ -3,6 +3,8 @@ from dataclasses import dataclass
 from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeProperties
 from cartography.models.core.nodes import CartographyNodeSchema
+from cartography.models.core.nodes import ConditionalNodeLabel
+from cartography.models.core.nodes import ExtraNodeLabels
 from cartography.models.core.relationships import CartographyRelProperties
 from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
@@ -41,6 +43,32 @@ class UnscopedNodeSchema(CartographyNodeSchema):
     # This node can be cleaned up without being attached as a sub-resource of a parent node.
     scoped_cleanup: bool = False
     # Note that sub-resource relationship is not defined
+    other_relationships: OtherRelationships = OtherRelationships(
+        rels=[
+            UnscopedToSimpleRel(),
+        ]
+    )
+
+
+@dataclass(frozen=True)
+class UnscopedNodeWithExtraLabelsSchema(CartographyNodeSchema):
+    """
+    Same as UnscopedNodeSchema but with extra node labels: one unconditional
+    label that every node of this schema carries, and one conditional label
+    that only some nodes carry. Used to prove that unscoped cleanup matches on
+    the primary label plus all unconditional extra labels, and never on
+    conditional labels.
+    """
+
+    label: str = "SharedCanonicalNode"
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
+        [
+            "UnscopedOwnedNode",
+            ConditionalNodeLabel(label="Critical", conditions={"severity": "high"}),
+        ],
+    )
+    properties: UnscopedNodeProperties = UnscopedNodeProperties()
+    scoped_cleanup: bool = False
     other_relationships: OtherRelationships = OtherRelationships(
         rels=[
             UnscopedToSimpleRel(),

@@ -201,14 +201,30 @@ def _build_match_statement_for_cleanup(node_schema: CartographyNodeSchema) -> st
 
     Note:
         - If no sub resource relationship exists and scoped cleanup is False,
-          returns a simple node match.
+          returns a node match on the schema's primary label plus all of its
+          unconditional extra labels.
         - If a sub resource relationship exists, includes the relationship pattern
           with correct direction and matching clauses for scoped cleanup.
     """
     if not node_schema.sub_resource_relationship and not node_schema.scoped_cleanup:
-        template = Template("MATCH (n:$node_label)")
+        # Unscoped cleanup deletes every stale node that the MATCH statement
+        # touches, so constrain it to ALL of the schema's unconditional labels,
+        # not just the primary one. Canonical labels like `Dependency` are
+        # shared across modules (e.g. GitHub, Semgrep, Socket): matching on the
+        # primary label alone lets one module delete another module's nodes
+        # that carry the shared label as an extra label (see issue #3035).
+        node_labels = [node_schema.label]
+        if node_schema.extra_node_labels:
+            # Filter out ConditionalNodeLabel objects - only include string labels,
+            # since conditional labels are not present on every node of the schema.
+            node_labels.extend(
+                label
+                for label in node_schema.extra_node_labels.labels
+                if isinstance(label, str)
+            )
+        template = Template("MATCH (n:$node_labels)")
         return template.safe_substitute(
-            node_label=node_schema.label,
+            node_labels=":".join(node_labels),
         )
 
     # if it has a sub resource relationship defined, we need to match on the sub resource to make sure we only delete
