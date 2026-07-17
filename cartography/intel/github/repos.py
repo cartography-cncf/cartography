@@ -23,6 +23,7 @@ from packaging.utils import canonicalize_name
 
 from cartography.client.core.tx import load as load_data
 from cartography.graph.job import GraphJob
+from cartography.graph.statement import GraphStatement
 from cartography.helpers import backoff_handler
 from cartography.intel.github.codeowners import normalize_repo_relative_path
 from cartography.intel.github.label_migrations import (
@@ -2220,19 +2221,65 @@ def load_github_dependency_manifests(
     )
 
 
+# Temporary scoping for the Dependency cleanup (#3035). `Dependency` is a shared
+# canonical label: the Semgrep and Socket modules stamp it as an extra label on
+# their own dependency nodes, so the cleanup generated from GitHubDependencySchema
+# (`MATCH (n:Dependency) ...`) would also delete those modules' stale nodes. These
+# queries mirror the generated ones but additionally require the GitHubDependency
+# label so the cleanup only touches nodes this module ingested. Remove once
+# shared-canonical-label ownership is handled by the data model itself.
+_GITHUB_DEPENDENCY_CLEANUP_QUERIES = [
+    """
+    MATCH (n:Dependency:GitHubDependency)
+    WHERE n.lastupdated <> $UPDATE_TAG
+    WITH n LIMIT $LIMIT_SIZE
+    DETACH DELETE n;
+    """,
+    """
+    MATCH (n:Dependency:GitHubDependency)
+    MATCH (n)<-[r:REQUIRES]-(:GitHubRepository)
+    WHERE r.lastupdated <> $UPDATE_TAG
+    WITH r LIMIT $LIMIT_SIZE
+    DELETE r;
+    """,
+    """
+    MATCH (n:Dependency:GitHubDependency)
+    MATCH (n)<-[r:HAS_DEP]-(:GitHubDependencyGraphManifest)
+    WHERE r.lastupdated <> $UPDATE_TAG
+    WITH r LIMIT $LIMIT_SIZE
+    DELETE r;
+    """,
+]
+
+
 @timeit
 def cleanup_github_dependencies(
     neo4j_session: neo4j.Session,
     common_job_parameters: Dict[str, Any],
 ) -> None:
     """
-    Delete stale Dependency nodes and their relationships. Dependency uses
-    unscoped cleanup (see GitHubDependencySchema docstring) so this runs once
-    per sync cycle alongside the other global resources, not per organization.
+    Delete stale GitHub-owned Dependency nodes and their relationships.
+    Dependency uses unscoped cleanup (see GitHubDependencySchema docstring) so
+    this runs once per sync cycle alongside the other global resources, not per
+    organization. The queries are scoped to the GitHubDependency label so other
+    modules' nodes carrying the shared `Dependency` label are not deleted
+    (#3035).
     """
-    GraphJob.from_node_schema(GitHubDependencySchema(), common_job_parameters).run(
-        neo4j_session
-    )
+    GraphJob(
+        "Cleanup Dependency (GitHub-owned)",
+        [
+            GraphStatement(
+                query,
+                parameters=common_job_parameters,
+                iterative=True,
+                iterationsize=10000,
+                parent_job_name="Dependency",
+                parent_job_sequence_num=idx,
+            )
+            for idx, query in enumerate(_GITHUB_DEPENDENCY_CLEANUP_QUERIES, start=1)
+        ],
+        "Dependency",
+    ).run(neo4j_session)
 
 
 @timeit

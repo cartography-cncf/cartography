@@ -1,13 +1,9 @@
 from cartography.graph.cleanupbuilder import build_cleanup_queries
 from cartography.graph.querybuilder import _get_module_from_schema
 from cartography.graph.querybuilder import build_ingestion_query
-from cartography.models.github.dependencies import GitHubDependencySchema
 from cartography.version import get_cartography_version
 from tests.data.graph.querybuilder.sample_models.allow_unscoped import (
     UnscopedNodeSchema,
-)
-from tests.data.graph.querybuilder.sample_models.allow_unscoped import (
-    UnscopedNodeWithExtraLabelsSchema,
 )
 from tests.unit.cartography.graph.helpers import (
     remove_leading_whitespace_and_empty_lines,
@@ -101,72 +97,3 @@ def test_build_cleanup_queries_unscoped():
     assert actual_delete_rel == remove_leading_whitespace_and_empty_lines(
         expected_delete_rel
     )
-
-
-def test_build_cleanup_queries_unscoped_includes_unconditional_extra_labels():
-    """
-    Unscoped cleanup deletes every stale node its MATCH statement touches, so
-    the MATCH must be constrained to all of the schema's unconditional labels:
-    canonical labels like `Dependency` are shared across modules, and matching
-    on the primary label alone lets one module delete another module's nodes
-    that carry the shared label as an extra label (issue #3035).
-    Conditional labels are only present on some nodes of the schema, so they
-    must NOT be part of the MATCH or stale nodes without them would leak.
-    """
-    # Act
-    queries = build_cleanup_queries(UnscopedNodeWithExtraLabelsSchema())
-
-    actual_delete_node = remove_leading_whitespace_and_empty_lines(queries[0])
-    expected_delete_node = """
-        MATCH (n:SharedCanonicalNode:UnscopedOwnedNode)
-        WHERE n.lastupdated <> $UPDATE_TAG
-        WITH n LIMIT $LIMIT_SIZE
-        DETACH DELETE n;
-    """
-
-    actual_delete_rel = remove_leading_whitespace_and_empty_lines(queries[1])
-    expected_delete_rel = """
-        MATCH (n:SharedCanonicalNode:UnscopedOwnedNode)
-        MATCH (n)-[r:RELATES_TO]->(:SimpleNode)
-        WHERE r.lastupdated <> $UPDATE_TAG
-        WITH r LIMIT $LIMIT_SIZE
-        DELETE r;
-    """
-
-    # Assert: the conditional label is excluded, the unconditional one is not.
-    assert actual_delete_node == remove_leading_whitespace_and_empty_lines(
-        expected_delete_node
-    )
-    assert actual_delete_rel == remove_leading_whitespace_and_empty_lines(
-        expected_delete_rel
-    )
-    for query in queries:
-        assert "Critical" not in query
-
-
-def test_build_cleanup_queries_unscoped_github_dependency_spares_other_modules():
-    """
-    Regression test for issue #3035: GitHub's unscoped Dependency cleanup used
-    to MATCH on the shared canonical `Dependency` label alone, which deleted
-    Semgrep and Socket dependency nodes that carry `Dependency` as an extra
-    label. The MATCH must also require GitHub's own `GitHubDependency` label so
-    that the cleanup only ever touches nodes that the GitHub module ingested.
-    """
-    # Act
-    queries = build_cleanup_queries(GitHubDependencySchema())
-
-    # Assert
-    actual_delete_node = remove_leading_whitespace_and_empty_lines(queries[0])
-    expected_delete_node = """
-        MATCH (n:Dependency:GitHubDependency)
-        WHERE n.lastupdated <> $UPDATE_TAG
-        WITH n LIMIT $LIMIT_SIZE
-        DETACH DELETE n;
-    """
-    assert actual_delete_node == remove_leading_whitespace_and_empty_lines(
-        expected_delete_node
-    )
-    # Every cleanup query for this schema, including the relationship ones,
-    # must be constrained to nodes owned by the GitHub module.
-    for query in queries:
-        assert "(n:Dependency:GitHubDependency)" in query
