@@ -135,6 +135,7 @@ doc = [
     "sphinx>=8.1.3",
     "sphinx-autobuild>=2024.10.3",
     "sphinx-copybutton>=0.5.2",
+    "sphinx-sitemap>=2.8.0",
     "sphinxcontrib-mermaid>=1.0.0",
 ]
 

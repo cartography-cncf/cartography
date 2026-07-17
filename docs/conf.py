@@ -35,6 +35,7 @@ extensions = [
     "sphinx.ext.extlinks",
     "sphinx.ext.ifconfig",
     "sphinx.ext.githubpages",
+    "sphinx_sitemap",
     "sphinxcontrib.mermaid",
     "myst_parser",
     "sphinx.ext.napoleon",
@@ -63,7 +64,7 @@ html_sourcelink_suffix = ""
 master_doc = "index"
 
 # General information about the project.
-project = "cartography"
+project = "Cartography"
 copyright = f"2021-{datetime.now().year}, The Linux Foundation"
 author = "cartography Project Authors"
 
@@ -123,6 +124,10 @@ todo_include_todos = False
 
 # -- Options for HTML output ----------------------------------------------
 
+# Canonical public URL used by Sphinx and sphinx-sitemap.
+html_baseurl = "https://docs.cartography.dev/"
+sitemap_url_scheme = "{link}"
+
 # The theme to use for HTML and HTML Help pages.  See the documentation for
 # a list of builtin themes.
 html_theme = "shibuya"
@@ -151,10 +156,10 @@ html_context = {
 
 # The name for this set of Sphinx documents.
 # "<project> v<release> documentation" by default.
-# html_title = "cartography v1.0.0"
+html_title = "Cartography Documentation"
 
 # A shorter title for the navigation bar.  Default is the same as html_title.
-# html_short_title = None
+html_short_title = "Cartography Docs"
 
 # The name of an image file (relative to this directory) to place at the top
 # of the sidebar.
@@ -176,7 +181,7 @@ html_css_files = ["custom.css"]
 # Add any extra paths that contain custom files (such as robots.txt or
 # .htaccess) here, relative to this directory. These files are copied
 # directly to the root of the documentation.
-# html_extra_path = []
+html_extra_path = ["robots.txt", "llms.txt"]
 
 # If not None, a 'Last updated on:' timestamp is inserted at every page
 # bottom, using the given strftime format.
