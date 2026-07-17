@@ -90,10 +90,11 @@ def test_ses_sync_skips_regions_where_sesv2_is_unsupported(mocker) -> None:
     )
     cleanup = mocker.patch("cartography.intel.aws.ses.cleanup")
 
+    # eu-south-2 (Spain) has no SES endpoint, so it must be skipped.
     ses.sync(
         neo4j_session=MagicMock(),
         boto3_session=boto3_session,
-        regions=["us-east-1", "me-south-1"],
+        regions=["us-east-1", "eu-south-2"],
         current_aws_account_id="123456789012",
         update_tag=1,
         common_job_parameters={"UPDATE_TAG": 1, "AWS_ID": "123456789012"},
