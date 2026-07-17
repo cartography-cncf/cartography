@@ -193,24 +193,28 @@ def get(
                 params={"max_results": 0},
             )
         except requests.HTTPError as e:
-            # A securable the caller can't read grants on (403), that vanished
-            # mid-sync (404), or that is not grantable (400, e.g. a Databricks
-            # system-managed `registered_model` under the `system` catalog) is
-            # skippable; any other error must abort so the grant cleanup does not
-            # drop still-valid HAS_PRIVILEGE edges.
-            skip_or_raise_http(e, 400, 403, 404)
-            # Keep the read complete ONLY for a securable known to be
-            # structurally non-grantable (a `system`-catalog registered_model):
-            # it has no HAS_PRIVILEGE edges, so letting cleanup run cannot delete
-            # anything valid, and flagging it would permanently disable grant
-            # cleanup since the ingested `system` catalog 400s on every sync.
-            # Every other skip - a 403/404, or an unexpected 400 on a securable
-            # that may already hold grants - flags the read incomplete so the
-            # caller skips the whole-workspace cleanup rather than deleting
-            # still-valid edges we could not re-read.
             status = e.response.status_code if e.response is not None else None
-            if not (status == 400 and _is_expected_ungrantable(s)):
-                complete = False
+            # A `system`-catalog registered_model (e.g. system.ai.*) is the only
+            # securable observed to reject grant-listing with 400. It is
+            # structurally non-grantable and so has no HAS_PRIVILEGE edges: skip
+            # it and keep the read complete (letting cleanup run cannot delete
+            # anything valid). Any OTHER 400 is a real BAD_REQUEST (a malformed
+            # path or an API-contract change) that would otherwise be swallowed
+            # and silently disable cleanup, so it is not skippable and must
+            # abort. A 403/404 securable may still hold grants we could not read
+            # (403) or vanished mid-sync (404); skip it but flag the read
+            # incomplete so the caller skips the whole-workspace cleanup rather
+            # than deleting still-valid edges.
+            if status == 400 and _is_expected_ungrantable(s):
+                logger.warning(
+                    "Skipping grants for %s %s: %s",
+                    s["securable_type"],
+                    s["full_name"],
+                    e,
+                )
+                continue
+            skip_or_raise_http(e, 403, 404)
+            complete = False
             logger.warning(
                 "Skipping grants for %s %s: %s",
                 s["securable_type"],

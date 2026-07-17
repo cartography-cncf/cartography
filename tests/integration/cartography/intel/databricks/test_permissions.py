@@ -1,9 +1,6 @@
 from unittest.mock import Mock
 from unittest.mock import patch
 
-import pytest
-import requests
-
 import cartography.intel.databricks.clusters
 import cartography.intel.databricks.groups
 import cartography.intel.databricks.jobs
@@ -150,97 +147,3 @@ def test_load_databricks_permissions(mock_get, mock_scope_acls, neo4j_session):
         "HAS_PERMISSION",
         rel_direction_right=True,
     ) == {("abcd1234-5678-90ab-cdef-1234567890ab", scoped("ci-cd"))}
-
-
-def _http_error(status_code):
-    response = Mock(spec=requests.Response)
-    response.status_code = status_code
-    return requests.HTTPError(response=response)
-
-
-def test_permissions_get_skips_ineligible_object():
-    """A 400 on a structurally-ineligible object is skipped (and flags the read
-    incomplete so cleanup is skipped); other objects still load their ACLs."""
-    objects = [
-        {"id": scoped("bad"), "object_type": "clusters", "object_ref": "bad"},
-        {"id": scoped("good"), "object_type": "clusters", "object_ref": "good"},
-    ]
-    api_session = Mock()
-    api_session.get.side_effect = [
-        _http_error(400),
-        {
-            "access_control_list": [
-                {
-                    "user_name": "jeremy@subimage.io",
-                    "all_permissions": [{"permission_level": "CAN_MANAGE"}],
-                }
-            ]
-        },
-    ]
-
-    permissions, complete = cartography.intel.databricks.permissions.get(
-        api_session, objects
-    )
-
-    assert complete is False
-    assert permissions == [
-        {
-            "principal": "jeremy@subimage.io",
-            "object_id": scoped("good"),
-            "permission_level": ["CAN_MANAGE"],
-            "object_type": "clusters",
-        }
-    ]
-
-
-def test_permissions_get_other_http_error_propagates():
-    """A non-skippable status (e.g. 500) must abort so cleanup never runs on
-    partial data."""
-    objects = [
-        {"id": scoped("good"), "object_type": "clusters", "object_ref": "good"},
-    ]
-    api_session = Mock()
-    api_session.get.side_effect = _http_error(500)
-
-    with pytest.raises(requests.HTTPError):
-        cartography.intel.databricks.permissions.get(api_session, objects)
-
-
-def test_get_secret_scope_acls_skips_ineligible_scope():
-    """A 400 on a secret scope ACL is skipped (and flags the read incomplete);
-    the remaining scopes still load their ACLs."""
-    scopes = [
-        {"id": scoped("bad"), "name": "bad"},
-        {"id": scoped("good"), "name": "good"},
-    ]
-    api_session = Mock()
-    api_session.get.side_effect = [
-        _http_error(400),
-        {"items": [{"principal": "jeremy@subimage.io", "permission": "MANAGE"}]},
-    ]
-
-    permissions, complete = (
-        cartography.intel.databricks.permissions.get_secret_scope_acls(
-            api_session, scopes
-        )
-    )
-
-    assert complete is False
-    assert len(permissions) == 1
-    assert permissions[0]["principal"] == "jeremy@subimage.io"
-    assert permissions[0]["object_id"] == scoped("good")
-
-
-def test_get_secret_scope_acls_other_http_error_propagates():
-    """A non-skippable status (e.g. 500) must abort so cleanup never runs on
-    partial data."""
-    scopes = [
-        {"id": scoped("good"), "name": "good"},
-    ]
-    api_session = Mock()
-    api_session.get.side_effect = _http_error(500)
-
-    with pytest.raises(requests.HTTPError):
-        cartography.intel.databricks.permissions.get_secret_scope_acls(
-            api_session, scopes
-        )

@@ -203,11 +203,10 @@ def get(
         try:
             response = api_session.get(uri)
         except requests.HTTPError as e:
-            # An object the caller can't read the ACL on (403), that vanished
-            # mid-sync (404), or that is structurally ineligible for this probe
-            # (400) is skippable; any other error must abort so the permission
-            # cleanup does not drop still-valid HAS_PERMISSION edges.
-            skip_or_raise_http(e, 400, 403, 404)
+            # An object the caller can't read the ACL on (403) or that vanished
+            # mid-sync (404) is skippable; any other error must abort so the
+            # permission cleanup does not drop still-valid HAS_PERMISSION edges.
+            skip_or_raise_http(e, 403, 404)
             complete = False
             logger.warning(
                 "Skipping permissions for %s %s: %s",
@@ -268,10 +267,7 @@ def get_secret_scope_acls(
                 "/api/2.0/secrets/acls/list", params={"scope": scope["name"]}
             )
         except requests.HTTPError as e:
-            # Skip a scope whose ACL is forbidden (403), gone (404), or
-            # structurally ineligible (400); any other error must abort so the
-            # permission cleanup does not drop still-valid HAS_PERMISSION edges.
-            skip_or_raise_http(e, 400, 403, 404)
+            skip_or_raise_http(e, 403, 404)
             complete = False
             logger.warning("Skipping secret scope ACL for %s: %s", scope["name"], e)
             continue

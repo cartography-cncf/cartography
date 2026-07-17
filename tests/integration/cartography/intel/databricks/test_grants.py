@@ -172,38 +172,22 @@ def test_grants_get_skips_system_registered_model_keeps_complete():
     ]
 
 
-def test_grants_get_unexpected_400_flags_incomplete():
+def test_grants_get_unexpected_400_propagates():
     """A 400 on a securable that is NOT the known non-grantable case (e.g. a
-    real catalog that may already hold grants) is skipped but flags the read
-    incomplete, so the caller skips cleanup rather than deleting its edges."""
+    real catalog that may already hold grants) is a genuine BAD_REQUEST: it must
+    abort rather than be swallowed and silently disable cleanup."""
     securables = [
         {
             "id": _uc_id("prod"),
             "full_name": "prod",
             "securable_type": "catalog",
         },
-        {
-            "id": _uc_id("staging"),
-            "full_name": "staging",
-            "securable_type": "catalog",
-        },
     ]
     api_session = Mock()
-    api_session.uc_list.side_effect = [
-        _http_error(400),
-        [{"principal": "jeremy@subimage.io", "privileges": ["USE_CATALOG"]}],
-    ]
+    api_session.uc_list.side_effect = _http_error(400)
 
-    grants, complete = cartography.intel.databricks.grants.get(api_session, securables)
-
-    assert complete is False
-    assert grants == [
-        {
-            "principal": "jeremy@subimage.io",
-            "securable_id": _uc_id("staging"),
-            "privileges": ["USE_CATALOG"],
-        }
-    ]
+    with pytest.raises(requests.HTTPError):
+        cartography.intel.databricks.grants.get(api_session, securables)
 
 
 def test_grants_get_forbidden_securable_flags_incomplete():
