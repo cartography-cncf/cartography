@@ -56,13 +56,13 @@ Open http://localhost:7474 and try:
 
 ```cypher
 // Find unencrypted RDS instances by account
-MATCH (a:AWSAccount)-[:RESOURCE]->(rds:RDSInstance{storage_encrypted:false})
+MATCH (a:AWSAccount)-[:RESOURCE]->(rds:AWSRDSInstance{storage_encrypted:false})
 RETURN a.name, rds.id
 ```
 
 ```cypher
 // Find EC2 instances exposed to the internet
-MATCH (instance:EC2Instance{exposed_internet: true})
+MATCH (instance:AWSEC2Instance{exposed_internet: true})
 RETURN instance.instanceid, instance.publicdnsname
 ```
 
@@ -70,13 +70,18 @@ See the [querying tutorial](https://cartography-cncf.github.io/cartography/usage
 
 ### Run security rules
 
-Check your environment against common security frameworks:
+Once Cartography has populated the reachable Neo4j graph, list, inspect, and run
+security rules. This quickstart uses the no-auth Neo4j container started above,
+so no password is required:
 
 ```bash
-cartography-rules run all
+cartography-rules list
+cartography-rules list object_storage_public
+cartography-rules run object_storage_public
 ```
 
-See [the rules docs](https://cartography-cncf.github.io/cartography/usage/rules.html) for more detail.
+For authenticated Neo4j, set `NEO4J_PASSWORD` or use one of the other secure
+password options in [the rules docs](https://cartography-cncf.github.io/cartography/usage/rules.html).
 
 ## Supported platforms
 

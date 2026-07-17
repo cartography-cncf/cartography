@@ -14,7 +14,7 @@ aws_ecr_mapping = OntologyMapping(
     module_name="aws",
     nodes=[
         OntologyNodeMapping(
-            node_label="ECRImage",
+            node_label="AWSECRImage",
             fields=[
                 OntologyFieldMapping(ontology_field="digest", node_field="digest"),
                 OntologyFieldMapping(

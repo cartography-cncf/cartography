@@ -9,6 +9,8 @@ import requests
 from requests.exceptions import HTTPError
 from requests.exceptions import ReadTimeout
 
+from cartography.analysis.semgrep.analysis import SEMGREP_SAST_RISK_ANALYSIS
+from cartography.analysis.semgrep.analysis import SEMGREP_SCA_RISK_ANALYSIS
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
 from cartography.models.semgrep.assistant import SemgrepFindingAssistantSchema
@@ -17,7 +19,7 @@ from cartography.models.semgrep.locations import SemgrepSCALocationSchema
 from cartography.models.semgrep.sast import SemgrepSASTFindingSchema
 from cartography.stats import get_stats_client
 from cartography.util import merge_module_sync_metadata
-from cartography.util import run_scoped_analysis_job
+from cartography.util import run_typed_analysis_job
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
@@ -438,8 +440,8 @@ def sync_sast_findings(
             deployment_id,
             update_tag,
         )
-        run_scoped_analysis_job(
-            "semgrep_sast_risk_analysis.json",
+        run_typed_analysis_job(
+            SEMGREP_SAST_RISK_ANALYSIS,
             neo4j_session,
             common_job_parameters,
         )
@@ -492,8 +494,8 @@ def sync_sca_findings(
         vulns, usages = transform_sca_vulns(raw_vulns)
         load_semgrep_sca_vulns(neo4j_session, vulns, deployment_id, update_tag)
         load_semgrep_sca_usages(neo4j_session, usages, deployment_id, update_tag)
-        run_scoped_analysis_job(
-            "semgrep_sca_risk_analysis.json",
+        run_typed_analysis_job(
+            SEMGREP_SCA_RISK_ANALYSIS,
             neo4j_session,
             common_job_parameters,
         )

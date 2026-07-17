@@ -17,7 +17,7 @@ def _build_config() -> MagicMock:
     return config
 
 
-@patch("cartography.intel.microsoft.intune.run_scoped_analysis_job")
+@patch("cartography.intel.microsoft.intune.run_typed_analysis_job")
 @patch(
     "cartography.intel.microsoft.intune.sync_compliance_policies",
     new_callable=AsyncMock,
@@ -55,7 +55,7 @@ def test_detected_app_export_failure_does_not_fail_microsoft_sync(
     mock_run_analysis.assert_called_once()
 
 
-@patch("cartography.intel.microsoft.intune.run_scoped_analysis_job")
+@patch("cartography.intel.microsoft.intune.run_typed_analysis_job")
 @patch(
     "cartography.intel.microsoft.intune.sync_compliance_policies",
     new_callable=AsyncMock,

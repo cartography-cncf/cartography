@@ -100,9 +100,18 @@ def get_eks_access_entries(
 
     client = create_boto3_client(boto3_session, "eks", region_name=region)
     access_entries = []
+    describe_access_entries = True
 
     principal_arns = _list_access_entry_principal_arns(client, cluster_name)
     for principal_arn in principal_arns:
+        if not describe_access_entries:
+            access_entries.append(
+                {
+                    "clusterName": cluster_name,
+                    "principalArn": principal_arn,
+                }
+            )
+            continue
         try:
             response = client.describe_access_entry(
                 clusterName=cluster_name,
@@ -120,11 +129,11 @@ def get_eks_access_entries(
                 continue
             if error_code == "AccessDeniedException":
                 logger.warning(
-                    "Access entry detail lookup denied for principal %s on cluster %s; "
-                    "loading minimal access entry data from ListAccessEntries.",
-                    principal_arn,
+                    "Access entry detail lookup denied on cluster %s; loading minimal "
+                    "access entry data from ListAccessEntries for all remaining principals.",
                     cluster_name,
                 )
+                describe_access_entries = False
                 access_entries.append(
                     {
                         "clusterName": cluster_name,

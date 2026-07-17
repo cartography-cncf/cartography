@@ -34,7 +34,7 @@ def test_load_kms_keys(neo4j_session):
         ),
     }
 
-    assert check_nodes(neo4j_session, "KMSKey", ["arn", "key_id"]) == expected_nodes
+    assert check_nodes(neo4j_session, "AWSKMSKey", ["arn", "key_id"]) == expected_nodes
 
 
 def test_load_kms_keys_relationships(neo4j_session):
@@ -80,7 +80,7 @@ def test_load_kms_keys_relationships(neo4j_session):
             neo4j_session,
             "AWSAccount",
             "id",
-            "KMSKey",
+            "AWSKMSKey",
             "arn",
             "RESOURCE",
             rel_direction_right=True,
@@ -106,7 +106,8 @@ def test_load_kms_key_aliases(neo4j_session):
     }
 
     assert (
-        check_nodes(neo4j_session, "KMSAlias", ["arn", "alias_name"]) == expected_nodes
+        check_nodes(neo4j_session, "AWSKMSAlias", ["arn", "alias_name"])
+        == expected_nodes
     )
 
 
@@ -146,9 +147,9 @@ def test_load_kms_key_aliases_relationships(neo4j_session):
     assert (
         check_rels(
             neo4j_session,
-            "KMSAlias",
+            "AWSKMSAlias",
             "arn",
-            "KMSKey",
+            "AWSKMSKey",
             "arn",
             "KNOWN_AS",
             rel_direction_right=True,
@@ -171,7 +172,7 @@ def test_load_kms_key_grants(neo4j_session):
         ("key-consolepolicy-3",),
     }
 
-    assert check_nodes(neo4j_session, "KMSGrant", ["grant_id"]) == expected_nodes
+    assert check_nodes(neo4j_session, "AWSKMSGrant", ["grant_id"]) == expected_nodes
 
 
 def test_load_kms_key_grants_relationships(neo4j_session):
@@ -223,9 +224,9 @@ def test_load_kms_key_grants_relationships(neo4j_session):
     assert (
         check_rels(
             neo4j_session,
-            "KMSGrant",
+            "AWSKMSGrant",
             "grant_id",
-            "KMSKey",
+            "AWSKMSKey",
             "arn",
             "APPLIED_ON",
             rel_direction_right=True,

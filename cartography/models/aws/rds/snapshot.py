@@ -85,7 +85,7 @@ class RDSSnapshotToRDSInstanceRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class RDSSnapshotToRDSInstanceRel(CartographyRelSchema):
-    target_node_label: str = "RDSInstance"
+    target_node_label: str = "AWSRDSInstance"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {
             "db_instance_identifier": PropertyRef("DBInstanceIdentifier"),
@@ -100,9 +100,10 @@ class RDSSnapshotToRDSInstanceRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class RDSSnapshotSchema(CartographyNodeSchema):
-    label: str = "RDSSnapshot"
+    label: str = "AWSRDSSnapshot"
     properties: RDSSnapshotNodeProperties = RDSSnapshotNodeProperties()
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["Snapshot"])
+    # DEPRECATED: legacy RDSSnapshot node label will be removed in v1.0.0.
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["RDSSnapshot", "Snapshot"])
     sub_resource_relationship: RDSSnapshotToAWSAccountRel = RDSSnapshotToAWSAccountRel()
     other_relationships: OtherRelationships = OtherRelationships(
         [

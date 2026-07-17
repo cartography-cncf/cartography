@@ -2,8 +2,11 @@
 Framework and Fact execution logic for Cartography rules.
 """
 
+import sys
+
 from neo4j import Driver
 from neo4j import GraphDatabase
+from neo4j.exceptions import AuthError
 
 from cartography.client.core.tx import read_list_of_dicts_tx
 from cartography.rules.data.rules import RULES
@@ -286,7 +289,7 @@ def run_rules(
     rule_names: list[str],
     uri: str,
     neo4j_user: str,
-    neo4j_password: str,
+    neo4j_password: str | None,
     neo4j_database: str,
     output_format: str = "text",
     fact_filter: str | None = None,
@@ -301,7 +304,8 @@ def run_rules(
         uri (str): The URI of the Neo4j database.
             E.g. "bolt://localhost:7687" or "neo4j+s://tenant123.databases.neo4j.io:7687"
         neo4j_user (str): The username for the Neo4j database.
-        neo4j_password (str): The password for the Neo4j database.
+        neo4j_password (str | None): The password for the Neo4j database. If
+            omitted, connect without authentication.
         neo4j_database (str): The name of the Neo4j database.
         output_format (str): Either "text" or "json". Defaults to "text".
         fact_filter (str | None): Optional fact ID to filter execution (case-insensitive).
@@ -330,9 +334,11 @@ def run_rules(
     # Connect to Neo4j
     if output_format == "text":
         print(f"Connecting to Neo4j at {uri}...")
-    driver = GraphDatabase.driver(uri, auth=(neo4j_user, neo4j_password))
+    auth = (neo4j_user, neo4j_password) if neo4j_password else None
+    driver: Driver | None = None
 
     try:
+        driver = GraphDatabase.driver(uri, auth=auth)
         driver.verify_connectivity()
 
         # Execute rules
@@ -378,5 +384,13 @@ def run_rules(
         )
 
         return 0
+    except AuthError:
+        print(
+            "Neo4j authentication failed. Set NEO4J_PASSWORD, use "
+            "--neo4j-password-env-var NAME, or use --neo4j-password-prompt.",
+            file=sys.stderr,
+        )
+        return 1
     finally:
-        driver.close()
+        if driver is not None:
+            driver.close()

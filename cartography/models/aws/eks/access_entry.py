@@ -3,6 +3,7 @@ from dataclasses import dataclass
 from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeProperties
 from cartography.models.core.nodes import CartographyNodeSchema
+from cartography.models.core.nodes import ExtraNodeLabels
 from cartography.models.core.relationships import CartographyRelProperties
 from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
@@ -50,7 +51,7 @@ class EKSClusterToAccessEntryRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class EKSClusterToAccessEntryRel(CartographyRelSchema):
-    target_node_label: str = "EKSCluster"
+    target_node_label: str = "AWSEKSCluster"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"arn": PropertyRef("cluster_arn")},
     )
@@ -73,7 +74,7 @@ class AWSPrincipalToEKSAccessEntryRel(CartographyRelSchema):
         {"arn": PropertyRef("principalArn")},
     )
     direction: LinkDirection = LinkDirection.INWARD
-    rel_label: str = "HAS_ACCESS_ENTRY"
+    rel_label: str = "GRANTED_ACCESS_TO"
     properties: AWSPrincipalToEKSAccessEntryRelProperties = (
         AWSPrincipalToEKSAccessEntryRelProperties()
     )
@@ -81,7 +82,9 @@ class AWSPrincipalToEKSAccessEntryRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class EKSAccessEntrySchema(CartographyNodeSchema):
-    label: str = "EKSAccessEntry"
+    label: str = "AWSEKSAccessEntry"
+    # DEPRECATED: legacy EKSAccessEntry node label will be removed in v1.0.0.
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["EKSAccessEntry"])
     properties: EKSAccessEntryNodeProperties = EKSAccessEntryNodeProperties()
     sub_resource_relationship: EKSAccessEntryToAWSAccountRel = (
         EKSAccessEntryToAWSAccountRel()

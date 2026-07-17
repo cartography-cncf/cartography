@@ -3,6 +3,7 @@ from dataclasses import dataclass
 from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeProperties
 from cartography.models.core.nodes import CartographyNodeSchema
+from cartography.models.core.nodes import ExtraNodeLabels
 from cartography.models.core.relationships import CartographyRelProperties
 from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
@@ -51,7 +52,7 @@ class SSMInstancePatchToEC2InstanceRelRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class SSMInstancePatchToEC2InstanceRel(CartographyRelSchema):
-    target_node_label: str = "EC2Instance"
+    target_node_label: str = "AWSEC2Instance"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("_instance_id")},
     )
@@ -64,7 +65,9 @@ class SSMInstancePatchToEC2InstanceRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class SSMInstancePatchSchema(CartographyNodeSchema):
-    label: str = "SSMInstancePatch"
+    label: str = "AWSSSMInstancePatch"
+    # DEPRECATED: legacy SSMInstancePatch node label will be removed in v1.0.0.
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["SSMInstancePatch"])
     properties: SSMInstancePatchNodeProperties = SSMInstancePatchNodeProperties()
     sub_resource_relationship: SSMInstancePatchToAWSAccountRel = (
         SSMInstancePatchToAWSAccountRel()

@@ -3,6 +3,7 @@ from dataclasses import dataclass
 from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeProperties
 from cartography.models.core.nodes import CartographyNodeSchema
+from cartography.models.core.nodes import ExtraNodeLabels
 from cartography.models.core.relationships import CartographyRelProperties
 from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
@@ -32,7 +33,7 @@ class APIGatewayMethodToAPIGatewayResourceRelRelProperties(CartographyRelPropert
 
 @dataclass(frozen=True)
 class APIGatewayMethodToAPIGatewayResourceRel(CartographyRelSchema):
-    target_node_label: str = "APIGatewayResource"
+    target_node_label: str = "AWSAPIGatewayResource"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("resourceId")},
     )
@@ -49,7 +50,7 @@ class APIGatewayMethodToAWSAccountRelRelProperties(CartographyRelProperties):
 
 
 @dataclass(frozen=True)
-# (:APIGatewayMethod)<-[:RESOURCE]-(:AWSAccount)
+# (:AWSAPIGatewayMethod)<-[:RESOURCE]-(:AWSAccount)
 class APIGatewayMethodToAWSAccountRel(CartographyRelSchema):
     target_node_label: str = "AWSAccount"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
@@ -64,7 +65,9 @@ class APIGatewayMethodToAWSAccountRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class APIGatewayMethodSchema(CartographyNodeSchema):
-    label: str = "APIGatewayMethod"
+    label: str = "AWSAPIGatewayMethod"
+    # DEPRECATED: legacy APIGatewayMethod node label will be removed in v1.0.0.
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["APIGatewayMethod"])
     properties: APIGatewayMethodNodeProperties = APIGatewayMethodNodeProperties()
     sub_resource_relationship: APIGatewayMethodToAWSAccountRel = (
         APIGatewayMethodToAWSAccountRel()

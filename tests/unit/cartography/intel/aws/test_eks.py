@@ -217,7 +217,12 @@ def test_get_eks_access_entries_uses_list_output_when_describe_is_denied(
     client = MagicMock()
     paginator = MagicMock()
     paginator.paginate.return_value = [
-        {"accessEntries": ["arn:aws:iam::123456789012:role/EKSAdmin"]}
+        {
+            "accessEntries": [
+                "arn:aws:iam::123456789012:role/EKSAdmin",
+                "arn:aws:iam::123456789012:role/EKSDeveloper",
+            ]
+        }
     ]
     client.get_paginator.return_value = paginator
     client.describe_access_entry.side_effect = ClientError(
@@ -243,8 +248,13 @@ def test_get_eks_access_entries_uses_list_output_when_describe_is_denied(
         {
             "clusterName": "prod-cluster",
             "principalArn": "arn:aws:iam::123456789012:role/EKSAdmin",
-        }
+        },
+        {
+            "clusterName": "prod-cluster",
+            "principalArn": "arn:aws:iam::123456789012:role/EKSDeveloper",
+        },
     ]
+    assert client.describe_access_entry.call_count == 1
     assert "loading minimal access entry data" in caplog.text
 
 

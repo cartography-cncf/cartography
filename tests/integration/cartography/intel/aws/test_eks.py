@@ -63,7 +63,7 @@ def test_sync_eks_clusters(
     # Assert
     assert check_nodes(
         neo4j_session,
-        "EKSCluster",
+        "AWSEKSCluster",
         ["id", "platform_version", "authentication_mode"],
     ) == {
         (
@@ -79,7 +79,7 @@ def test_sync_eks_clusters(
     }
     assert check_nodes(
         neo4j_session,
-        "EKSAccessEntry",
+        "AWSEKSAccessEntry",
         ["id", "arn", "principal_arn", "username", "type"],
     ) == {
         (
@@ -102,7 +102,7 @@ def test_sync_eks_clusters(
     }
     groups_result = neo4j_session.run(
         """
-        MATCH (entry:EKSAccessEntry {id: $id})
+        MATCH (entry:AWSEKSAccessEntry {id: $id})
         RETURN entry.kubernetes_groups AS groups
         """,
         id=(
@@ -113,7 +113,7 @@ def test_sync_eks_clusters(
     assert groups_result.single()["groups"] == ["system:masters"]
     assert check_nodes(
         neo4j_session,
-        "EKSCluster",
+        "AWSEKSCluster",
         [
             "id",
             "certificate_authority_data_present",
@@ -137,7 +137,7 @@ def test_sync_eks_clusters(
 
     assert check_rels(
         neo4j_session,
-        "EKSCluster",
+        "AWSEKSCluster",
         "id",
         "AWSAccount",
         "id",
@@ -149,7 +149,7 @@ def test_sync_eks_clusters(
     }
     assert check_rels(
         neo4j_session,
-        "EKSAccessEntry",
+        "AWSEKSAccessEntry",
         "id",
         "AWSAccount",
         "id",
@@ -169,9 +169,9 @@ def test_sync_eks_clusters(
     }
     assert check_rels(
         neo4j_session,
-        "EKSCluster",
+        "AWSEKSCluster",
         "id",
-        "EKSAccessEntry",
+        "AWSEKSAccessEntry",
         "id",
         "HAS_ACCESS_ENTRY",
     ) == {
@@ -190,9 +190,9 @@ def test_sync_eks_clusters(
         neo4j_session,
         "AWSRole",
         "arn",
-        "EKSAccessEntry",
+        "AWSEKSAccessEntry",
         "id",
-        "HAS_ACCESS_ENTRY",
+        "GRANTED_ACCESS_TO",
     ) == {
         (
             "arn:aws:iam::111111111111:role/EKSAdminRole",

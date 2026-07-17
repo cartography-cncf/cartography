@@ -3,6 +3,7 @@ from dataclasses import dataclass
 from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeProperties
 from cartography.models.core.nodes import CartographyNodeSchema
+from cartography.models.core.nodes import ExtraNodeLabels
 from cartography.models.core.relationships import CartographyRelProperties
 from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
@@ -46,7 +47,7 @@ class GlueJobToGlueConnectionRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class GlueJobToGlueConnectionRel(CartographyRelSchema):
-    target_node_label: str = "GlueConnection"
+    target_node_label: str = "AWSGlueConnection"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("Connections", one_to_many=True)},
     )
@@ -59,7 +60,9 @@ class GlueJobToGlueConnectionRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class GlueJobSchema(CartographyNodeSchema):
-    label: str = "GlueJob"
+    label: str = "AWSGlueJob"
+    # DEPRECATED: legacy GlueJob node label will be removed in v1.0.0.
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["GlueJob"])
     properties: GlueJobNodeProperties = GlueJobNodeProperties()
     sub_resource_relationship: GlueJobToAWSAccountRel = GlueJobToAWSAccountRel()
     other_relationships: OtherRelationships = OtherRelationships(

@@ -112,7 +112,7 @@ class DependencyGraphManifestToCodeOwnerRuleMatchLink(CartographyRelSchema):
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("rule_id")}
     )
-    source_node_label: str = "DependencyGraphManifest"
+    source_node_label: str = "GitHubDependencyGraphManifest"
     source_node_matcher: SourceNodeMatcher = make_source_node_matcher(
         {"id": PropertyRef("manifest_id")}
     )

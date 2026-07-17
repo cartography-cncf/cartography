@@ -12,7 +12,7 @@ aws_ecs_mapping = OntologyMapping(
     module_name="aws",
     nodes=[
         OntologyNodeMapping(
-            node_label="ECSTask",
+            node_label="AWSECSTask",
             fields=[
                 # name: ECS tasks have no human-readable name field; the closest
                 # identifier is the task ARN, already exposed as `id` / `arn`.

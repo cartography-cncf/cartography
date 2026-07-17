@@ -47,7 +47,7 @@ class EC2Ipv6AddressToNetworkInterfaceRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class EC2Ipv6AddressToNetworkInterfaceRel(CartographyRelSchema):
-    target_node_label: str = "NetworkInterface"
+    target_node_label: str = "AWSNetworkInterface"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("NetworkInterfaceId")},
     )
@@ -60,10 +60,11 @@ class EC2Ipv6AddressToNetworkInterfaceRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class EC2Ipv6AddressSchema(CartographyNodeSchema):
-    label: str = "EC2Ipv6Address"
+    label: str = "AWSEC2Ipv6Address"
     # The Ip extra label allows AWSDNSRecord AAAA records to reach this node
     # via the existing DNS_POINTS_TO -> Ip relationship, matching on id (the IPv6 address).
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["Ip"])
+    # DEPRECATED: legacy EC2Ipv6Address node label will be removed in v1.0.0.
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["EC2Ipv6Address", "Ip"])
     properties: EC2Ipv6AddressNodeProperties = EC2Ipv6AddressNodeProperties()
     sub_resource_relationship: EC2Ipv6AddressToAWSAccountRel = (
         EC2Ipv6AddressToAWSAccountRel()

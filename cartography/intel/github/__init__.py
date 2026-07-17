@@ -69,7 +69,7 @@ def cleanup_unscoped_github_resources(
         common_job_parameters,
     )
 
-    # DEPRECATED: one-time migration, run once per sync cycle (not per org)
+    # DEPRECATED: one-time orphaned branch migration will be removed in v1.0.0.
     cartography.intel.github.repos.cleanup_orphaned_github_branches(
         neo4j_session,
         common_job_parameters,
