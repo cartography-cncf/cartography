@@ -71,17 +71,23 @@ class DependencyGraphManifestToDependencyRel(CartographyRelSchema):
 @dataclass(frozen=True)
 class GitHubDependencySchema(CartographyNodeSchema):
     """
-    Dependency is a globally shared package node: the same canonical
+    A GitHub dependency is a globally shared package node: the same canonical
     `name|requirements` is referenced by many repositories across many orgs, so
     we cannot scope its node-level cleanup to a single tenant without risking
     cross-tenant deletes (see PythonLibrary for the same pattern). Cleanup is
     therefore unscoped and runs once per sync cycle from
     `cleanup_global_resources`. The links to repositories (REQUIRES) and to
     manifests (HAS_DEP) are modeled as `other_relationships`.
+
+    The primary label is `GitHubDependency` so that this module's unscoped
+    cleanup only ever reaps nodes it ingested itself. `Dependency` is the shared
+    ontology label carried by every dependency producer (Semgrep, SocketDev,
+    ...); it must stay a secondary label here, otherwise github's cleanup would
+    delete other modules' `Dependency` nodes (see issue #3035).
     """
 
-    label: str = "Dependency"
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["GitHubDependency"])
+    label: str = "GitHubDependency"
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["Dependency"])
     properties: GitHubDependencyNodeProperties = GitHubDependencyNodeProperties()
     other_relationships: OtherRelationships = OtherRelationships(
         [

@@ -650,7 +650,7 @@ Represents one supported rule line from the effective GitHub `CODEOWNERS` file f
     (GitHubDependencyGraphManifest)-[:MATCHES_CODEOWNER_RULE]->(GitHubCodeOwnerRule)
     ```
 
-### Dependency
+### GitHubDependency
 https://docs.github.com/en/graphql/reference/objects#dependencygraphdependency
 Represents a software dependency from GitHub's dependency graph manifests. This node contains information about a package dependency within a repository
 
@@ -672,7 +672,7 @@ Represents a software dependency from GitHub's dependency graph manifests. This 
 | source | Provenance of the version: `dependency_graph` from GitHub's dependency graph, or `lockfile` when an exact version was recovered from a lockfile fallback. |
 | version_confidence | Confidence in the version: `exact` (an exact version is known), `range` (only a requirement range is known), or `unknown` (no version or requirement). |
 
-> **Ontology Mapping**: This node also carries the extra label `GitHubDependency`. When `normalized_id` is populated (exact version), a canonical `Package` (ontology) node is detected as this dependency, enabling cross-scanner queries alongside Trivy, Syft, SocketDev, and GitLab packages.
+> **Ontology Mapping**: This node also carries the shared extra label `Dependency`, the ontology label common to every dependency producer (Semgrep, SocketDev, ...). When `normalized_id` is populated (exact version), a canonical `Package` (ontology) node is detected as this dependency, enabling cross-scanner queries alongside Trivy, Syft, SocketDev, and GitLab packages.
 
 > **Lockfile fallback**: GitHub's dependency graph reports some dependencies with only a version range (no exact version), so they have no `normalized_id` and cannot be projected into the Package ontology. For ecosystems with a parseable lockfile (`uv.lock` for pip, `package-lock.json` for npm), the sync fetches the lockfile co-located with the dependency's manifest (e.g. a manifest under `services/api/package.json` uses `services/api/package-lock.json`, never the repo-root lockfile) and, where it pins an exact version for a range-only dependency, fills in `version`, `type`, and `normalized_id` and sets `source` to `lockfile` and `version_confidence` to `exact`. Because a `Dependency` node is shared by `name|requirements` (not by version), if two manifests pin the same `name|requirements` to different exact versions the enrichment is declined for that node to avoid representing the wrong version. Lockfiles are fetched only for manifests that have range-only dependencies in a supported ecosystem.
 

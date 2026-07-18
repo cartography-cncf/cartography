@@ -73,6 +73,7 @@ def _cleanup_unity_catalog(
     neo4j_session: neo4j.Session,
     workspace_id: str,
     common_job_parameters: dict,
+    clean_grants: bool = True,
     clean_artifact_allowlists: bool = True,
     clean_clean_rooms: bool = True,
 ) -> None:
@@ -84,6 +85,9 @@ def _cleanup_unity_catalog(
     detaching hierarchy edges or orphaning child nodes. Also invoked on the
     no-metastore path to purge UC data left over from a previous run.
 
+    ``clean_grants`` is False when a securable that may hold grants was skipped
+    (403/404) during the grants sync, so its HAS_PRIVILEGE cleanup is skipped
+    rather than deleting still-valid edges we could not re-read this run.
     ``clean_artifact_allowlists`` is False when the allowlist fetch was
     incomplete (a 403 on a type), so its cleanup is skipped rather than deleting
     an allowlist node we could not re-read this run. ``clean_clean_rooms`` is
@@ -92,9 +96,10 @@ def _cleanup_unity_catalog(
     """
     # Grants (edges) first, then leaf resources, then up the containment
     # hierarchy, and the metastore last.
-    cartography.intel.databricks.grants.cleanup(
-        neo4j_session, workspace_id, common_job_parameters["UPDATE_TAG"]
-    )
+    if clean_grants:
+        cartography.intel.databricks.grants.cleanup(
+            neo4j_session, workspace_id, common_job_parameters["UPDATE_TAG"]
+        )
     for module in (
         # Delta Sharing: share nodes carry the SHARED_WITH edge, so purge them
         # before recipients. All are metastore-scoped leaves cleaned centrally
@@ -664,7 +669,7 @@ def start_databricks_ingestion(neo4j_session: neo4j.Session, config: Config) -> 
 
     # Grants last: materialises principal -> securable HAS_PRIVILEGE edges by
     # reading every securable already loaded for the workspace.
-    cartography.intel.databricks.grants.sync(
+    grants_complete = cartography.intel.databricks.grants.sync(
         neo4j_session,
         api_client,
         workspace_id,
@@ -690,6 +695,7 @@ def start_databricks_ingestion(neo4j_session: neo4j.Session, config: Config) -> 
         neo4j_session,
         workspace_id,
         common_job_parameters,
+        clean_grants=grants_complete,
         clean_artifact_allowlists=artifact_allowlists_complete,
         clean_clean_rooms=clean_rooms_complete,
     )

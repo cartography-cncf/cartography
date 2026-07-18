@@ -34,7 +34,6 @@ RELATION_ONLY_NODE_LABELS: Set[str] = {
 
 PROVIDER_PREFIX_EXCEPTIONS: Dict[str, Set[str]] = {
     "cartography.models.github": {
-        "Dependency",
         "ProgrammingLanguage",
         "PythonLibrary",
     },
@@ -374,10 +373,10 @@ GLOBAL_NODE_LABELS: Set[str] = {
     # rather than an organization, so neither is anchored to a single tenant.
     "GitHubRepository",
     "GitHubUser",
-    # Shared GitHub nodes (cross-org / cross-repo). Dependency uses a global
-    # `name|requirements` id and is referenced by repos across orgs, so it
-    # uses unscoped cleanup like PythonLibrary.
-    "Dependency",
+    # Shared GitHub nodes (cross-org / cross-repo). GitHubDependency uses a
+    # global `name|requirements` id and is referenced by repos across orgs, so
+    # it uses unscoped cleanup like PythonLibrary.
+    "GitHubDependency",
     "ProgrammingLanguage",
     "PythonLibrary",
     # Workday canonical human (mirrors the ontology pattern).

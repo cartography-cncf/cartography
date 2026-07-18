@@ -30,20 +30,46 @@ _SECURABLE_TYPE_BY_LABEL = {
 }
 
 
+def _is_expected_ungrantable(securable: dict[str, Any]) -> bool:
+    """Return True for a securable known to reject grant-listing with HTTP 400.
+
+    The only structurally non-grantable securable the module ingests is a
+    ``registered_model`` in the Databricks-managed ``system`` catalog (e.g.
+    ``system.ai.*``): it has no HAS_PRIVILEGE edges, so skipping it is safe and
+    does not require blocking grant cleanup. Any other 400 might be a genuinely
+    grantable catalog / schema / table that already holds edges, so it must be
+    treated as an incomplete read instead (see ``get``).
+
+    Its ``full_name`` is the three-level UC name ``catalog.schema.model``, so the
+    catalog is the first dotted component.
+    """
+    if securable["securable_type"] != "registered_model":
+        return False
+    full_name = securable["full_name"] or ""
+    return full_name.split(".", 1)[0] == "system"
+
+
 @timeit
 def sync(
     neo4j_session: neo4j.Session,
     api_session: DatabricksWorkspaceClient,
     workspace_id: str,
     common_job_parameters: dict[str, Any],
-) -> None:
+) -> bool:
+    """Load HAS_PRIVILEGE edges and report whether every securable was read.
+
+    Returns ``complete``: False when a securable that may hold grants was
+    skipped (403/404), so the caller can skip the whole-workspace grant cleanup
+    rather than deleting still-valid edges for the unread securable.
+    """
     securables = get_securables(neo4j_session, workspace_id)
-    grants = get(api_session, securables)
+    grants, complete = get(api_session, securables)
     principals = get_principals(neo4j_session, workspace_id)
     grants = resolve_principals(grants, principals)
     load_grants(
         neo4j_session, grants, workspace_id, common_job_parameters["UPDATE_TAG"]
     )
+    return complete
 
 
 @timeit
@@ -140,14 +166,18 @@ def get_securables(
 @timeit
 def get(
     api_session: DatabricksWorkspaceClient, securables: list[dict[str, Any]]
-) -> list[dict[str, Any]]:
+) -> tuple[list[dict[str, Any]], bool]:
     """Fetch privilege assignments for each securable.
 
-    Returns one row per (principal, securable): the principal string as UC
-    reports it (username / group name / SP application id) plus the securable
-    node id, so a downstream MatchLink resolves it to the right principal node.
+    Returns ``(grants, complete)``. Each grant is one row per (principal,
+    securable): the principal string as UC reports it (username / group name /
+    SP application id) plus the securable node id, so a downstream MatchLink
+    resolves it to the right principal node. ``complete`` is False when a
+    securable that may hold grants was skipped, so the caller can skip the
+    whole-workspace cleanup rather than deleting the unrefreshed edges.
     """
     grants: list[dict[str, Any]] = []
+    complete = True
     for s in securables:
         uri = (
             f"/api/2.1/unity-catalog/permissions/"
@@ -163,10 +193,28 @@ def get(
                 params={"max_results": 0},
             )
         except requests.HTTPError as e:
-            # A securable the caller can't read grants on (403) or that vanished
-            # mid-sync (404) is skippable; any other error must abort so the
-            # grant cleanup does not drop still-valid HAS_PRIVILEGE edges.
+            status = e.response.status_code if e.response is not None else None
+            # A `system`-catalog registered_model (e.g. system.ai.*) is the only
+            # securable observed to reject grant-listing with 400. It is
+            # structurally non-grantable and so has no HAS_PRIVILEGE edges: skip
+            # it and keep the read complete (letting cleanup run cannot delete
+            # anything valid). Any OTHER 400 is a real BAD_REQUEST (a malformed
+            # path or an API-contract change) that would otherwise be swallowed
+            # and silently disable cleanup, so it is not skippable and must
+            # abort. A 403/404 securable may still hold grants we could not read
+            # (403) or vanished mid-sync (404); skip it but flag the read
+            # incomplete so the caller skips the whole-workspace cleanup rather
+            # than deleting still-valid edges.
+            if status == 400 and _is_expected_ungrantable(s):
+                logger.warning(
+                    "Skipping grants for %s %s: %s",
+                    s["securable_type"],
+                    s["full_name"],
+                    e,
+                )
+                continue
             skip_or_raise_http(e, 403, 404)
+            complete = False
             logger.warning(
                 "Skipping grants for %s %s: %s",
                 s["securable_type"],
@@ -186,7 +234,7 @@ def get(
                     "privileges": privileges,
                 }
             )
-    return grants
+    return grants, complete
 
 
 @timeit
