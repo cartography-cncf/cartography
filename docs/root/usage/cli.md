@@ -64,11 +64,12 @@ Core, Neo4j, StatsD, and Analysis panels are always shown regardless of selected
 
 | Option | Description |
 |--------|-------------|
-| `-v, --verbose` | Enable debug logging |
+| `--debug` | Enable verbose logging (`-v, --verbose` is deprecated and will be removed in v1.0.0) |
 | `-q, --quiet` | Only show warnings and errors |
 | `--log-timestamps` | Prepend an ISO-8601 timestamp and level to each log line (off by default so log aggregators that add their own timestamp field don't get a redundant one) |
 | `--selected-modules` | Comma-separated list of modules to sync |
 | `--update-tag` | Custom update tag (default: current timestamp) |
+| `--version` | Show cartography release version and commit revision, then exit |
 
 ### Neo4j Connection
 
@@ -79,6 +80,8 @@ Core, Neo4j, StatsD, and Analysis panels are always shown regardless of selected
 | `--neo4j-password-env-var` | Env var containing password |
 | `--neo4j-password-prompt` | Prompt for password interactively |
 | `--neo4j-database` | Database name |
+| `--neo4j-max-connection-lifetime` | Seconds to consider a TCP connection alive (default: 3600) |
+| `--neo4j-liveness-check-timeout` | Seconds a connection can be idle before a liveness check; helps prevent errors on Aura or clustered Neo4j |
 
 ## Environment Variables
 

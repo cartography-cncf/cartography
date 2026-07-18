@@ -35,3 +35,5 @@ key_file=~/.oci/oci_api_key.pem
 ```
 
 For detailed instructions on setting up the config file, see the [OCI SDK Configuration documentation](https://docs.oracle.com/en-us/iaas/Content/API/Concepts/sdkconfig.htm).
+
+To sync all discovered named profiles in your OCI config file (excluding `DEFAULT`), call cartography with the `--oci-sync-all-profiles` flag.

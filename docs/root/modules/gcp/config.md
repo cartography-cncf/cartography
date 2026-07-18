@@ -119,3 +119,25 @@ When using a service account, CAI API calls are automatically billed against the
 - **IAM Fallback**: Requires the Cloud Asset Inventory API to be enabled on the service account's host project. If the API is not enabled or the identity lacks permissions, Cartography will log a warning and skip the CAI fallback (other sync operations will continue normally). Note: The CAI fallback only syncs service accounts and project-level custom roles. Predefined roles and organization-level custom roles are synced separately at the organization level via the IAM API.
 - **Policy Bindings**: Requires organization-level `roles/cloudasset.viewer`. If this role is missing, Cartography will log a warning and skip policy bindings sync (other sync operations will continue normally).
 - **Permission Relationships**: Depend on policy bindings being refreshed in the same sync run. If CAI is unavailable or `roles/cloudasset.viewer` is missing, permission relationships will not have the policy binding data they need and will be skipped for that project.
+
+### Selective Syncing with `--gcp-requested-syncs`
+
+By default, Cartography syncs all available GCP resource types. If you want to sync only specific GCP resources, you can use the `--gcp-requested-syncs` command-line flag. This accepts a comma-separated list of resource identifiers.
+
+#### Usage Examples
+
+Sync only Compute, IAM, and Storage resources:
+```bash
+cartography --neo4j-uri bolt://localhost:7687 --gcp-requested-syncs "compute,iam,storage"
+```
+
+Sync only GKE and Cloud SQL:
+```bash
+cartography --neo4j-uri bolt://localhost:7687 --gcp-requested-syncs "gke,cloud_sql"
+```
+
+#### Available Resource Identifiers
+
+For a complete and up-to-date list of resource identifiers that can be specified with `--gcp-requested-syncs`, refer to the `RESOURCE_FUNCTIONS` dictionary in `cartography/intel/gcp/resources.py`.
+
+**Note**: `policy_bindings` must be synced in the same run for `permission_relationships` to have the data it needs; see the Cloud Asset Inventory section above.
