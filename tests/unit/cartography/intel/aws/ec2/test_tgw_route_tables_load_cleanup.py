@@ -66,3 +66,60 @@ def test_cleanup_transit_gateway_route_tables_calls_graphjob(monkeypatch):
     assert runs[1] is sess
     assert runs[2] is sess
     assert runs[3] is sess
+
+
+def test_sync_loads_route_tables_before_routes(monkeypatch):
+    """Regression: route tables must load before routes so the
+    (RouteTable)-[:HAS_ROUTE]->(Route) matcher can find its parent on a
+    first-time / empty graph. If routes load first, no HAS_ROUTE edges form."""
+    order = []
+
+    # Stub fetches so no AWS calls happen; return one route table with one route.
+    monkeypatch.setattr(
+        tgw_route_tables,
+        "get_transit_gateway_route_tables",
+        lambda session, region: [
+            {
+                "TransitGatewayRouteTableId": "rtb-1",
+                "TransitGatewayId": "tgw-1",
+                "Routes": [{"DestinationCidrBlock": "10.0.0.0/16", "State": "active"}],
+            }
+        ],
+    )
+    monkeypatch.setattr(
+        tgw_route_tables, "get_transit_gateway_route_table_associations",
+        lambda session, region, rts: [],
+    )
+    monkeypatch.setattr(
+        tgw_route_tables, "get_transit_gateway_route_table_propagations",
+        lambda session, region, rts: [],
+    )
+    # Record the order of the two load calls under test.
+    monkeypatch.setattr(
+        tgw_route_tables, "load_transit_gateway_route_tables",
+        lambda *a, **k: order.append("route_tables"),
+    )
+    monkeypatch.setattr(
+        tgw_route_tables, "load_transit_gateway_routes",
+        lambda *a, **k: order.append("routes"),
+    )
+    monkeypatch.setattr(
+        tgw_route_tables, "load_transit_gateway_route_table_associations",
+        lambda *a, **k: None,
+    )
+    monkeypatch.setattr(
+        tgw_route_tables, "load_transit_gateway_route_table_propagations",
+        lambda *a, **k: None,
+    )
+    monkeypatch.setattr(
+        tgw_route_tables, "cleanup_transit_gateway_route_tables",
+        lambda *a, **k: None,
+    )
+
+    tgw_route_tables.sync_transit_gateway_route_tables(
+        object(), object(), ["us-east-1"], "000000000000", 12345, {"UPDATE_TAG": 12345}
+    )
+
+    assert order == ["route_tables", "routes"], (
+        f"route tables must load before routes; got {order}"
+    )

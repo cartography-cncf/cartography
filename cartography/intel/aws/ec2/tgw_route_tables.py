@@ -214,8 +214,13 @@ def sync_transit_gateway_route_tables(
                         boto3_session, region, rtb_id
                     )
         rtb_data, route_data = transform_tgw_route_tables(rts)
-        load_transit_gateway_routes(neo4j_session, route_data, region, current_aws_account_id, update_tag)
+        # Load route tables BEFORE routes: the (RouteTable)-[:HAS_ROUTE]->(Route)
+        # edge is matched when a route loads by looking up its parent route table
+        # (transit_gateway_route_table_id). If routes load first, on a first-time
+        # / empty graph the parent does not exist yet and no HAS_ROUTE edges are
+        # created. (A warm graph masks this because the tables already exist.)
         load_transit_gateway_route_tables(neo4j_session, rtb_data, region, current_aws_account_id, update_tag)
+        load_transit_gateway_routes(neo4j_session, route_data, region, current_aws_account_id, update_tag)
 
         # Associations and propagations are fetched per route table (scoped to
         # this region's tables only) to avoid the cartesian duplication that
