@@ -15,9 +15,7 @@ from cartography.models.ontology.labels import COMPUTE_SERVICE
 
 @dataclass(frozen=True)
 class ScalewayWebHostingProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef(
-        "id", description="ID of the Web Hosting account."
-    )
+    id: PropertyRef = PropertyRef("id", description="ID of the Web Hosting account.")
     status: PropertyRef = PropertyRef(
         "status", description="Status of the Web Hosting account."
     )
