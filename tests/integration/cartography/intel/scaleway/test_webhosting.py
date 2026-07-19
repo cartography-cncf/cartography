@@ -41,11 +41,13 @@ def _ensure_local_neo4j_has_test_domain_resources(neo4j_session):
     return_value=SCALEWAY_WEBHOSTINGS,
 )
 def test_load_scaleway_webhostings(_mock_get, neo4j_session):
+    # Arrange
     client = Mock()
     common_job_parameters = {"UPDATE_TAG": TEST_UPDATE_TAG, "ORG_ID": TEST_ORG_ID}
     _ensure_local_neo4j_has_test_projects_and_orgs(neo4j_session)
     _ensure_local_neo4j_has_test_domain_resources(neo4j_session)
 
+    # Act
     cartography.intel.scaleway.webhosting.hostings.sync(
         neo4j_session,
         client,
@@ -55,6 +57,7 @@ def test_load_scaleway_webhostings(_mock_get, neo4j_session):
         update_tag=TEST_UPDATE_TAG,
     )
 
+    # Assert
     assert check_nodes(
         neo4j_session,
         "ScalewayWebHosting",
