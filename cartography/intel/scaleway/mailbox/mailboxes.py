@@ -10,6 +10,7 @@ from scaleway.mailbox.v1alpha1 import MailboxV1Alpha1API
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
 from cartography.intel.scaleway.utils import scaleway_obj_to_dict
+from cartography.models.scaleway.mailbox.domain import ScalewayMailboxDomainSchema
 from cartography.models.scaleway.mailbox.mailbox import ScalewayMailboxSchema
 from cartography.util import timeit
 
@@ -109,3 +110,6 @@ def cleanup(
         GraphJob.from_node_schema(ScalewayMailboxSchema(), scoped_job_parameters).run(
             neo4j_session
         )
+        GraphJob.from_node_schema(
+            ScalewayMailboxDomainSchema(), scoped_job_parameters
+        ).run(neo4j_session)

@@ -7,7 +7,6 @@ from scaleway.mailbox.v1alpha1 import Domain
 from scaleway.mailbox.v1alpha1 import MailboxV1Alpha1API
 
 from cartography.client.core.tx import load
-from cartography.graph.job import GraphJob
 from cartography.intel.scaleway.utils import scaleway_obj_to_dict
 from cartography.models.scaleway.mailbox.domain import ScalewayMailboxDomainSchema
 from cartography.util import timeit
@@ -26,7 +25,6 @@ def sync(
     domains = get(client, projects_id)
     domains_by_project = transform_domains(domains)
     load_domains(neo4j_session, domains_by_project, update_tag)
-    cleanup(neo4j_session, projects_id, common_job_parameters)
 
 
 @timeit
@@ -66,17 +64,3 @@ def load_domains(
             lastupdated=update_tag,
             PROJECT_ID=project_id,
         )
-
-
-@timeit
-def cleanup(
-    neo4j_session: neo4j.Session,
-    projects_id: list[str],
-    common_job_parameters: dict[str, Any],
-) -> None:
-    for project_id in projects_id:
-        scoped_job_parameters = common_job_parameters.copy()
-        scoped_job_parameters["PROJECT_ID"] = project_id
-        GraphJob.from_node_schema(
-            ScalewayMailboxDomainSchema(), scoped_job_parameters
-        ).run(neo4j_session)
