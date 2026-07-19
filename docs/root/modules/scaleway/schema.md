@@ -46,6 +46,9 @@ PRJ -- RESOURCE --> SF(ServerlessFunction)
 PRJ -- RESOURCE --> SCN(ServerlessContainerNamespace)
 PRJ -- RESOURCE --> SC(ServerlessContainer)
 PRJ -- RESOURCE --> SJ(ServerlessJobDefinition)
+PRJ -- RESOURCE --> MBD(MailboxDomain)
+PRJ -- RESOURCE --> MB(Mailbox)
+MBD -- RESOURCE --> MB
 INS -- MOUNTS --> VOL
 INS -- MEMBER_OF_SCALEWAY_SECURITY_GROUP --> SG
 SGR -- MEMBER_OF_SCALEWAY_SECURITY_GROUP --> SG
@@ -156,7 +159,9 @@ Represents a Project in Scaleway. Projects are groupings of Scaleway resources.
         :ScalewayIP,
         :ScalewayLoadBalancer,
         :ScalewayLBFrontend,
-        :ScalewayLBBackend
+        :ScalewayLBBackend,
+        :ScalewayMailboxDomain,
+        :ScalewayMailbox
     )
     ```
 
@@ -1964,4 +1969,59 @@ Represents a domain registered with the Scaleway registrar.
 - A `RegisteredDomain` belongs to a `Project`.
     ```
     (:ScalewayProject)-[:RESOURCE]->(:ScalewayRegisteredDomain)
+    ```
+### ScalewayMailboxDomain
+
+Represents a Mailbox domain in Scaleway.
+
+| Field               | Description                              |
+|---------------------|------------------------------------------|
+| id                  | ID of the Mailbox domain.                |
+| name                | Domain name.                             |
+| status              | Status of the Mailbox domain.            |
+| mailbox_total_count | Number of mailboxes for the domain.      |
+| created_at          | Creation timestamp.                      |
+| updated_at          | Last update timestamp.                   |
+| webmail_url         | Webmail URL for the domain.              |
+| imap_url            | IMAP server URL for the domain.          |
+| pop3_url            | POP3 server URL for the domain.          |
+| smtp_url            | SMTP server URL for the domain.          |
+| jmap_url            | JMAP server URL for the domain.          |
+| lastupdated         | Timestamp of the last update.            |
+
+#### Relationships
+- A `MailboxDomain` belongs to a `Project`.
+    ```
+    (:ScalewayProject)-[:RESOURCE]->(:ScalewayMailboxDomain)
+    ```
+
+
+### ScalewayMailbox
+
+Represents a Mailbox in Scaleway.
+
+| Field                              | Description                                      |
+|------------------------------------|--------------------------------------------------|
+| id                                 | ID of the Mailbox.                               |
+| project_id                         | ID of the Scaleway Project.                      |
+| domain_id                          | ID of the Mailbox domain.                        |
+| email                              | Email address of the Mailbox.                    |
+| status                             | Status of the Mailbox.                           |
+| subscription_period                | Current subscription period of the Mailbox.      |
+| subscription_period_started_at     | Start timestamp of the current subscription.     |
+| next_subscription_period           | Next subscription period of the Mailbox.         |
+| next_subscription_period_starts_at | Start timestamp of the next subscription period. |
+| created_at                         | Creation timestamp.                              |
+| updated_at                         | Last update timestamp.                           |
+| deletion_scheduled_at              | Scheduled deletion timestamp, if any.            |
+| lastupdated                        | Timestamp of the last update.                    |
+
+#### Relationships
+- A `Mailbox` belongs to a `Project`.
+    ```
+    (:ScalewayProject)-[:RESOURCE]->(:ScalewayMailbox)
+    ```
+- A `Mailbox` belongs to a `MailboxDomain`.
+    ```
+    (:ScalewayMailboxDomain)-[:RESOURCE]->(:ScalewayMailbox)
     ```
