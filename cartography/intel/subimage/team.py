@@ -27,9 +27,25 @@ def sync(
 
 @timeit
 def get(api_session: requests.Session, base_url: str) -> list[dict[str, Any]]:
-    response = api_session.get(f"{base_url}/api/team/members", timeout=_TIMEOUT)
-    response.raise_for_status()
-    return response.json()
+    # The endpoint returns the paginated Page[T] envelope
+    # ({"items": [...], "total_count": N, "limit": N, "offset": N}). Walk every
+    # page so cleanup does not delete members that live on later pages.
+    members: list[dict[str, Any]] = []
+    offset = 0
+    while True:
+        response = api_session.get(
+            f"{base_url}/api/team/members",
+            params={"offset": offset},
+            timeout=_TIMEOUT,
+        )
+        response.raise_for_status()
+        page = response.json()
+        items = page["items"]
+        members.extend(items)
+        offset += len(items)
+        if not items or offset >= page["total_count"]:
+            break
+    return members
 
 
 def transform(raw_data: list[dict[str, Any]]) -> list[dict[str, Any]]:

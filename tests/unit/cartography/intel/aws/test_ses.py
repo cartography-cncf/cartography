@@ -2,6 +2,7 @@ from unittest.mock import MagicMock
 
 import botocore.exceptions
 
+from cartography.intel.aws import ses
 from cartography.intel.aws.ses import get_ses_email_identities
 
 
@@ -73,3 +74,37 @@ def test_get_ses_email_identities_falls_back_when_not_pageable() -> None:
             "DkimStatus": "PENDING",
         },
     ]
+
+
+def test_ses_sync_skips_regions_where_sesv2_is_unsupported(mocker) -> None:
+    boto3_session = MagicMock()
+    boto3_session.get_partition_for_region.return_value = "aws"
+    boto3_session.get_available_regions.return_value = ["us-east-1"]
+
+    get_identities = mocker.patch(
+        "cartography.intel.aws.ses.get_ses_email_identities",
+        return_value=[],
+    )
+    load_identities = mocker.patch(
+        "cartography.intel.aws.ses.load_ses_email_identities",
+    )
+    cleanup = mocker.patch("cartography.intel.aws.ses.cleanup")
+
+    # eu-south-2 (Spain) has no SES endpoint, so it must be skipped.
+    ses.sync(
+        neo4j_session=MagicMock(),
+        boto3_session=boto3_session,
+        regions=["us-east-1", "eu-south-2"],
+        current_aws_account_id="123456789012",
+        update_tag=1,
+        common_job_parameters={"UPDATE_TAG": 1, "AWS_ID": "123456789012"},
+    )
+
+    boto3_session.get_available_regions.assert_called_once_with(
+        "sesv2",
+        partition_name="aws",
+    )
+    called_regions = [call.args[1] for call in get_identities.call_args_list]
+    assert called_regions == ["us-east-1"]
+    assert load_identities.call_count == 1
+    cleanup.assert_called_once()
