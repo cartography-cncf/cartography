@@ -1,8 +1,8 @@
 """
-Integration test for the ComputeService -> Image RUNS_IMAGE inventory analysis job.
+Integration test for the ComputeService -> Image HAS_RUNTIME_IMAGE inventory analysis job.
 """
 
-from cartography.analysis.ontology.analysis import WORKLOAD_RUNS_IMAGE
+from cartography.analysis.ontology.analysis import WORKLOAD_HAS_RUNTIME_IMAGE
 from cartography.util import run_typed_analysis_job
 from tests.integration.util import check_rels
 
@@ -10,17 +10,17 @@ TEST_UPDATE_TAG = 123456789
 TEST_UPDATE_TAG_2 = 123456790
 
 
-def _run_runs_image_analysis(neo4j_session, update_tag=TEST_UPDATE_TAG):
+def _run_has_runtime_image_analysis(neo4j_session, update_tag=TEST_UPDATE_TAG):
     run_typed_analysis_job(
-        WORKLOAD_RUNS_IMAGE, neo4j_session, {"UPDATE_TAG": update_tag}
+        WORKLOAD_HAS_RUNTIME_IMAGE, neo4j_session, {"UPDATE_TAG": update_tag}
     )
 
 
 def _edge_exposure(neo4j_session, svc_id, img_id):
-    """Return the exposed_internet property of a single RUNS_IMAGE edge."""
+    """Return the exposed_internet property of a single HAS_RUNTIME_IMAGE edge."""
     result = neo4j_session.run(
         """
-        MATCH (svc:ComputeService {id: $svc_id})-[r:RUNS_IMAGE]->(img:Image {id: $img_id})
+        MATCH (svc:ComputeService {id: $svc_id})-[r:HAS_RUNTIME_IMAGE]->(img:Image {id: $img_id})
         RETURN r.exposed_internet AS exposed
         """,
         svc_id=svc_id,
@@ -29,9 +29,9 @@ def _edge_exposure(neo4j_session, svc_id, img_id):
     return [record["exposed"] for record in result]
 
 
-def test_runs_image_collapses_replicas_to_single_edge(neo4j_session):
+def test_has_runtime_image_collapses_replicas_to_single_edge(neo4j_session):
     """Two running container replicas under the same controller, both resolving to the same
-    image, produce exactly one deduped (:ComputeService)-[:RUNS_IMAGE]->(:Image) edge.
+    image, produce exactly one deduped (:ComputeService)-[:HAS_RUNTIME_IMAGE]->(:Image) edge.
     """
     neo4j_session.run("MATCH (n) DETACH DELETE n")
     neo4j_session.run(
@@ -65,7 +65,7 @@ def test_runs_image_collapses_replicas_to_single_edge(neo4j_session):
         tag=TEST_UPDATE_TAG,
     )
 
-    _run_runs_image_analysis(neo4j_session)
+    _run_has_runtime_image_analysis(neo4j_session)
 
     assert check_rels(
         neo4j_session,
@@ -73,12 +73,12 @@ def test_runs_image_collapses_replicas_to_single_edge(neo4j_session):
         "id",
         "Image",
         "id",
-        "RUNS_IMAGE",
+        "HAS_RUNTIME_IMAGE",
     ) == {("deploy-1", "sha256:deadbeef")}
 
 
-def test_runs_image_ignores_non_running_container(neo4j_session):
-    """A non-running container does not contribute a RUNS_IMAGE edge for its image."""
+def test_has_runtime_image_ignores_non_running_container(neo4j_session):
+    """A non-running container does not contribute a HAS_RUNTIME_IMAGE edge for its image."""
     neo4j_session.run("MATCH (n) DETACH DELETE n")
     neo4j_session.run(
         """
@@ -113,7 +113,7 @@ def test_runs_image_ignores_non_running_container(neo4j_session):
         tag=TEST_UPDATE_TAG,
     )
 
-    _run_runs_image_analysis(neo4j_session)
+    _run_has_runtime_image_analysis(neo4j_session)
 
     assert check_rels(
         neo4j_session,
@@ -121,11 +121,11 @@ def test_runs_image_ignores_non_running_container(neo4j_session):
         "id",
         "Image",
         "id",
-        "RUNS_IMAGE",
+        "HAS_RUNTIME_IMAGE",
     ) == {("deploy-1", "sha256:running")}
 
 
-def test_runs_image_denormalizes_exposure(neo4j_session):
+def test_has_runtime_image_denormalizes_exposure(neo4j_session):
     """Exposure is the logical OR across running replicas: an exposed workload's edge is
     true, a non-exposed workload's edge is false."""
     neo4j_session.run("MATCH (n) DETACH DELETE n")
@@ -164,13 +164,13 @@ def test_runs_image_denormalizes_exposure(neo4j_session):
         tag=TEST_UPDATE_TAG,
     )
 
-    _run_runs_image_analysis(neo4j_session)
+    _run_has_runtime_image_analysis(neo4j_session)
 
     assert _edge_exposure(neo4j_session, "deploy-exposed", "sha256:imga") == [True]
     assert _edge_exposure(neo4j_session, "deploy-safe", "sha256:imgb") == [False]
 
 
-def test_runs_image_exposure_from_service_level_signal(neo4j_session):
+def test_has_runtime_image_exposure_from_service_level_signal(neo4j_session):
     """Cloud Run writes exposed_internet on the GCPCloudRunService (the ComputeService),
     not on its container. The edge must still be exposed=true from that service-level signal.
     """
@@ -194,7 +194,7 @@ def test_runs_image_exposure_from_service_level_signal(neo4j_session):
         tag=TEST_UPDATE_TAG,
     )
 
-    _run_runs_image_analysis(neo4j_session)
+    _run_has_runtime_image_analysis(neo4j_session)
 
     assert check_rels(
         neo4j_session,
@@ -202,15 +202,15 @@ def test_runs_image_exposure_from_service_level_signal(neo4j_session):
         "id",
         "Image",
         "id",
-        "RUNS_IMAGE",
+        "HAS_RUNTIME_IMAGE",
     ) == {("cloudrun-svc", "sha256:cloudrun")}
     assert _edge_exposure(neo4j_session, "cloudrun-svc", "sha256:cloudrun") == [True]
 
 
-def test_runs_image_self_service_workload(neo4j_session):
+def test_has_runtime_image_self_service_workload(neo4j_session):
     """A serverless workload that is both :ComputeService and :Container on a single node
     (e.g. ScalewayServerlessContainer), with a direct RESOLVED_IMAGE and no intermediate
-    WORKLOAD_PARENT hop, still gets a RUNS_IMAGE edge (zero-length collapse). Its active
+    WORKLOAD_PARENT hop, still gets a HAS_RUNTIME_IMAGE edge (zero-length collapse). Its active
     state comes from the raw Scaleway status 'ready', not 'running'."""
     neo4j_session.run("MATCH (n) DETACH DELETE n")
     neo4j_session.run(
@@ -227,7 +227,7 @@ def test_runs_image_self_service_workload(neo4j_session):
         tag=TEST_UPDATE_TAG,
     )
 
-    _run_runs_image_analysis(neo4j_session)
+    _run_has_runtime_image_analysis(neo4j_session)
 
     assert check_rels(
         neo4j_session,
@@ -235,13 +235,13 @@ def test_runs_image_self_service_workload(neo4j_session):
         "id",
         "Image",
         "id",
-        "RUNS_IMAGE",
+        "HAS_RUNTIME_IMAGE",
     ) == {("scw-container", "sha256:scaleway")}
     assert _edge_exposure(neo4j_session, "scw-container", "sha256:scaleway") == [True]
 
 
-def test_runs_image_is_idempotent_and_marks_gone(neo4j_session):
-    """Re-running after a workload stops running an image removes the stale RUNS_IMAGE edge,
+def test_has_runtime_image_is_idempotent_and_marks_gone(neo4j_session):
+    """Re-running after a workload stops running an image removes the stale HAS_RUNTIME_IMAGE edge,
     and re-running an unchanged graph does not duplicate edges."""
     neo4j_session.run("MATCH (n) DETACH DELETE n")
     neo4j_session.run(
@@ -261,26 +261,28 @@ def test_runs_image_is_idempotent_and_marks_gone(neo4j_session):
         tag=TEST_UPDATE_TAG,
     )
 
-    _run_runs_image_analysis(neo4j_session, TEST_UPDATE_TAG)
+    _run_has_runtime_image_analysis(neo4j_session, TEST_UPDATE_TAG)
     assert check_rels(
-        neo4j_session, "ComputeService", "id", "Image", "id", "RUNS_IMAGE"
+        neo4j_session, "ComputeService", "id", "Image", "id", "HAS_RUNTIME_IMAGE"
     ) == {("deploy-1", "sha256:deadbeef")}
 
     # The workload stops running the image: drop the RESOLVED_IMAGE basis, then re-run with a
-    # fresh update tag. The stale RUNS_IMAGE edge (not re-stamped) must be cleaned up.
+    # fresh update tag. The stale HAS_RUNTIME_IMAGE edge (not re-stamped) must be cleaned up.
     neo4j_session.run(
         "MATCH (:Container {id: 'container-1'})-[r:RESOLVED_IMAGE]->(:Image) DELETE r"
     )
-    _run_runs_image_analysis(neo4j_session, TEST_UPDATE_TAG_2)
+    _run_has_runtime_image_analysis(neo4j_session, TEST_UPDATE_TAG_2)
 
     assert (
-        check_rels(neo4j_session, "ComputeService", "id", "Image", "id", "RUNS_IMAGE")
+        check_rels(
+            neo4j_session, "ComputeService", "id", "Image", "id", "HAS_RUNTIME_IMAGE"
+        )
         == set()
     )
 
 
-def test_runs_image_no_edge_without_controller(neo4j_session):
-    """A running container with no ComputeService ancestor yields no RUNS_IMAGE edge; that
+def test_has_runtime_image_no_edge_without_controller(neo4j_session):
+    """A running container with no ComputeService ancestor yields no HAS_RUNTIME_IMAGE edge; that
     case stays on the live-collapse fallback path."""
     neo4j_session.run("MATCH (n) DETACH DELETE n")
     neo4j_session.run(
@@ -295,19 +297,21 @@ def test_runs_image_no_edge_without_controller(neo4j_session):
         tag=TEST_UPDATE_TAG,
     )
 
-    _run_runs_image_analysis(neo4j_session)
+    _run_has_runtime_image_analysis(neo4j_session)
 
     assert (
-        check_rels(neo4j_session, "ComputeService", "id", "Image", "id", "RUNS_IMAGE")
+        check_rels(
+            neo4j_session, "ComputeService", "id", "Image", "id", "HAS_RUNTIME_IMAGE"
+        )
         == set()
     )
 
 
-def test_runs_image_standalone_function_gets_no_edge(neo4j_session):
+def test_has_runtime_image_standalone_function_gets_no_edge(neo4j_session):
     """A container-based function (e.g. AWS Lambda) carries only :Function with a direct
     RESOLVED_IMAGE, but has no :ComputeService label and no WORKLOAD_PARENT chain. By design
-    it is NOT materialized into RUNS_IMAGE (it stays on the read-side live-collapse path);
-    RUNS_IMAGE is a ComputeService-anchored fact and a standalone function is not a workload
+    it is NOT materialized into HAS_RUNTIME_IMAGE (it stays on the read-side live-collapse path);
+    HAS_RUNTIME_IMAGE is a ComputeService-anchored fact and a standalone function is not a workload
     controller."""
     neo4j_session.run("MATCH (n) DETACH DELETE n")
     neo4j_session.run(
@@ -322,14 +326,16 @@ def test_runs_image_standalone_function_gets_no_edge(neo4j_session):
         tag=TEST_UPDATE_TAG,
     )
 
-    _run_runs_image_analysis(neo4j_session)
+    _run_has_runtime_image_analysis(neo4j_session)
 
     assert (
-        check_rels(neo4j_session, "ComputeService", "id", "Image", "id", "RUNS_IMAGE")
+        check_rels(
+            neo4j_session, "ComputeService", "id", "Image", "id", "HAS_RUNTIME_IMAGE"
+        )
         == set()
     )
-    # And the function itself is never a RUNS_IMAGE source.
+    # And the function itself is never a HAS_RUNTIME_IMAGE source.
     assert (
-        check_rels(neo4j_session, "Function", "id", "Image", "id", "RUNS_IMAGE")
+        check_rels(neo4j_session, "Function", "id", "Image", "id", "HAS_RUNTIME_IMAGE")
         == set()
     )

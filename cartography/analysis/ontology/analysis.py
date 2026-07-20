@@ -622,9 +622,9 @@ FUNCTION_RESOLVED_IMAGE = AnalysisJob(
     ),
 )
 RESOLVED_IMAGE_JOBS = (CONTAINER_RESOLVED_IMAGE, FUNCTION_RESOLVED_IMAGE)
-WORKLOAD_RUNS_IMAGE = AnalysisJob(
-    name="Workload RUNS_IMAGE inventory analysis",
-    short_name="workload_runs_image_analysis",
+WORKLOAD_HAS_RUNTIME_IMAGE = AnalysisJob(
+    name="Workload HAS_RUNTIME_IMAGE inventory analysis",
+    short_name="workload_has_runtime_image_analysis",
     cleanup_iterationsize=1000,
     statements=(
         AnalysisStatement(
@@ -664,7 +664,7 @@ WORKLOAD_RUNS_IMAGE = AnalysisJob(
             effects=(
                 AddRelationship(
                     "svc",
-                    "RUNS_IMAGE",
+                    "HAS_RUNTIME_IMAGE",
                     "img",
                     source_label="ComputeService",
                     target_label="Image",

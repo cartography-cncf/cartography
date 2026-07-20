@@ -11,7 +11,7 @@ import cartography.intel.ontology.users
 from cartography.analysis.aibom.analysis import AIBOM_RUNS_ON_CONTAINER
 from cartography.analysis.ontology.analysis import RESOLVED_IMAGE_JOBS
 from cartography.analysis.ontology.analysis import TAILSCALE_DEVICE_INSTANCE_LINKING
-from cartography.analysis.ontology.analysis import WORKLOAD_RUNS_IMAGE
+from cartography.analysis.ontology.analysis import WORKLOAD_HAS_RUNTIME_IMAGE
 from cartography.config import Config
 from cartography.intel.ontology.deprecated_indexes import (
     drop_deprecated_ontology_indexes,
@@ -89,12 +89,12 @@ def run(neo4j_session: neo4j.Session, config: Config) -> None:
     # Runs last so the :Container / :Image semantic labels and HAS_IMAGE edges from every provider are in place.
     for job in RESOLVED_IMAGE_JOBS:
         run_typed_analysis_job(job, neo4j_session, common_job_parameters)
-    # Materialize the (:ComputeService)-[:RUNS_IMAGE]->(:Image) runtime inventory by collapsing
+    # Materialize the (:ComputeService)-[:HAS_RUNTIME_IMAGE]->(:Image) runtime inventory by collapsing
     # running containers up the WORKLOAD_PARENT chain to their owning ComputeService controller.
     # Runs after RESOLVED_IMAGE_JOBS (needs the RESOLVED_IMAGE edges) and after the exposure
     # analysis jobs (needs the per-replica exposed_internet property it denormalizes onto the edge).
     run_typed_analysis_job(
-        WORKLOAD_RUNS_IMAGE,
+        WORKLOAD_HAS_RUNTIME_IMAGE,
         neo4j_session,
         common_job_parameters,
     )
