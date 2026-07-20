@@ -35,6 +35,12 @@ Representation of a [Kubernetes Cluster.](https://kubernetes.io/docs/concepts/ov
                                        :KubernetesNode,
                                        :KubernetesPod,
                                        :KubernetesContainer,
+                                       :KubernetesDeployment,
+                                       :KubernetesReplicaSet,
+                                       :KubernetesStatefulSet,
+                                       :KubernetesDaemonSet,
+                                       :KubernetesCronJob,
+                                       :KubernetesJob,
                                        :KubernetesService,
                                        :KubernetesSecret,
                                        :KubernetesIngress,
@@ -167,9 +173,18 @@ Representation of a [Kubernetes Pod.](https://kubernetes.io/docs/concepts/worklo
     (:KubernetesPod)-[:RUNS_AS]->(:KubernetesServiceAccount)
     ```
 
-- `KubernetesPod` points at its parent `KubernetesNamespace` via the unified workload chain.
+- `KubernetesPod` points at its owning workload controller via the unified workload chain. A pod owned by a Deployment collapses through its `KubernetesReplicaSet` straight to the Deployment. A pod with no controller (a bare pod) points at its `KubernetesNamespace` instead.
     ```
+    (:KubernetesPod)-[:WORKLOAD_PARENT]->(:KubernetesDeployment)
+    (:KubernetesPod)-[:WORKLOAD_PARENT]->(:KubernetesStatefulSet)
+    (:KubernetesPod)-[:WORKLOAD_PARENT]->(:KubernetesDaemonSet)
+    (:KubernetesPod)-[:WORKLOAD_PARENT]->(:KubernetesJob)
     (:KubernetesPod)-[:WORKLOAD_PARENT]->(:KubernetesNamespace)
+    ```
+
+- `KubernetesPod` is owned by a `KubernetesReplicaSet` via the raw Kubernetes ownerReference (kept even though the ReplicaSet is collapsed out of the workload chain).
+    ```
+    (:KubernetesPod)-[:OWNED_BY]->(:KubernetesReplicaSet)
     ```
 
 - `KubernetesPod` runs on a `KubernetesNode`. Not created for unscheduled pods.
@@ -240,6 +255,220 @@ Representation of a [Kubernetes Container.](https://kubernetes.io/docs/concepts/
 - An internet-facing `AWSLoadBalancerV2` exposes a `KubernetesContainer`. Created by the `k8s_lb_exposure` analysis job.
     ```
     (:AWSLoadBalancerV2)-[:EXPOSE {exposure_type: 'via_lb_only'}]->(:KubernetesContainer)
+    ```
+
+### KubernetesDeployment
+Representation of a [Kubernetes Deployment.](https://kubernetes.io/docs/concepts/workloads/controllers/deployment/)
+
+> **Ontology Mapping**: This node has the extra label `ComputeService` to enable cross-platform queries for the logical workload / controller unit across different systems (e.g., AWSECSService, GCPCloudRunService).
+
+| Field | Description |
+|-------|-------------|
+| **id** | UID of the Kubernetes deployment |
+| **name** | Name of the Kubernetes deployment |
+| **namespace** | The Kubernetes namespace where this deployment is deployed |
+| creation\_timestamp | Timestamp of the creation time of the Kubernetes deployment |
+| deletion\_timestamp | Timestamp of the deletion time of the Kubernetes deployment |
+| replicas | Desired number of replicas. Derived from `deployment.spec.replicas`. |
+| ready\_replicas | Number of ready replicas. Derived from `deployment.status.ready_replicas`. |
+| available\_replicas | Number of available replicas. Derived from `deployment.status.available_replicas`. |
+| labels | Labels from `deployment.metadata.labels`, stored as a JSON-encoded string. |
+| **cluster\_name** | Name of the Kubernetes cluster where this deployment lives |
+| firstseen | Timestamp of when a sync job first discovered this node |
+| **lastupdated** | Timestamp of the last time the node was updated |
+
+#### Relationships
+- `KubernetesDeployment` belongs to a `KubernetesCluster`.
+    ```
+    (:KubernetesCluster)-[:RESOURCE]->(:KubernetesDeployment)
+    ```
+
+- `KubernetesDeployment` points at its parent `KubernetesNamespace` via the unified workload chain.
+    ```
+    (:KubernetesDeployment)-[:WORKLOAD_PARENT]->(:KubernetesNamespace)
+    ```
+
+- A `KubernetesReplicaSet` is owned by a `KubernetesDeployment`.
+    ```
+    (:KubernetesReplicaSet)-[:OWNED_BY]->(:KubernetesDeployment)
+    ```
+
+### KubernetesReplicaSet
+Representation of a [Kubernetes ReplicaSet.](https://kubernetes.io/docs/concepts/workloads/controllers/replicaset/) The ReplicaSet is an implementation detail of a Deployment: it is modeled so the raw ownerReference chain is preserved, but it carries no ontology label and is collapsed out of the `WORKLOAD_PARENT` chain (a pod's surfaced workload parent is the owning Deployment).
+
+| Field | Description |
+|-------|-------------|
+| **id** | UID of the Kubernetes replica set |
+| **name** | Name of the Kubernetes replica set |
+| **namespace** | The Kubernetes namespace where this replica set is deployed |
+| creation\_timestamp | Timestamp of the creation time of the Kubernetes replica set |
+| deletion\_timestamp | Timestamp of the deletion time of the Kubernetes replica set |
+| replicas | Desired number of replicas. Derived from `replicaset.spec.replicas`. |
+| ready\_replicas | Number of ready replicas. Derived from `replicaset.status.ready_replicas`. |
+| labels | Labels from `replicaset.metadata.labels`, stored as a JSON-encoded string. |
+| **cluster\_name** | Name of the Kubernetes cluster where this replica set lives |
+| firstseen | Timestamp of when a sync job first discovered this node |
+| **lastupdated** | Timestamp of the last time the node was updated |
+
+#### Relationships
+- `KubernetesReplicaSet` belongs to a `KubernetesCluster`.
+    ```
+    (:KubernetesCluster)-[:RESOURCE]->(:KubernetesReplicaSet)
+    ```
+
+- `KubernetesReplicaSet` is owned by a `KubernetesDeployment` (raw ownerReference).
+    ```
+    (:KubernetesReplicaSet)-[:OWNED_BY]->(:KubernetesDeployment)
+    ```
+
+- `KubernetesPod` is owned by a `KubernetesReplicaSet` (raw ownerReference).
+    ```
+    (:KubernetesPod)-[:OWNED_BY]->(:KubernetesReplicaSet)
+    ```
+
+### KubernetesStatefulSet
+Representation of a [Kubernetes StatefulSet.](https://kubernetes.io/docs/concepts/workloads/controllers/statefulset/)
+
+> **Ontology Mapping**: This node has the extra label `ComputeService` to enable cross-platform queries for the logical workload / controller unit across different systems (e.g., AWSECSService, GCPCloudRunService).
+
+| Field | Description |
+|-------|-------------|
+| **id** | UID of the Kubernetes stateful set |
+| **name** | Name of the Kubernetes stateful set |
+| **namespace** | The Kubernetes namespace where this stateful set is deployed |
+| creation\_timestamp | Timestamp of the creation time of the Kubernetes stateful set |
+| deletion\_timestamp | Timestamp of the deletion time of the Kubernetes stateful set |
+| replicas | Desired number of replicas. Derived from `statefulset.spec.replicas`. |
+| ready\_replicas | Number of ready replicas. Derived from `statefulset.status.ready_replicas`. |
+| service\_name | Name of the governing headless service. Derived from `statefulset.spec.service_name`. |
+| labels | Labels from `statefulset.metadata.labels`, stored as a JSON-encoded string. |
+| **cluster\_name** | Name of the Kubernetes cluster where this stateful set lives |
+| firstseen | Timestamp of when a sync job first discovered this node |
+| **lastupdated** | Timestamp of the last time the node was updated |
+
+#### Relationships
+- `KubernetesStatefulSet` belongs to a `KubernetesCluster`.
+    ```
+    (:KubernetesCluster)-[:RESOURCE]->(:KubernetesStatefulSet)
+    ```
+
+- `KubernetesStatefulSet` points at its parent `KubernetesNamespace` via the unified workload chain.
+    ```
+    (:KubernetesStatefulSet)-[:WORKLOAD_PARENT]->(:KubernetesNamespace)
+    ```
+
+- A `KubernetesPod` points at its owning `KubernetesStatefulSet` via the unified workload chain.
+    ```
+    (:KubernetesPod)-[:WORKLOAD_PARENT]->(:KubernetesStatefulSet)
+    ```
+
+### KubernetesDaemonSet
+Representation of a [Kubernetes DaemonSet.](https://kubernetes.io/docs/concepts/workloads/controllers/daemonset/)
+
+> **Ontology Mapping**: This node has the extra label `ComputeService` to enable cross-platform queries for the logical workload / controller unit across different systems (e.g., AWSECSService, GCPCloudRunService).
+
+| Field | Description |
+|-------|-------------|
+| **id** | UID of the Kubernetes daemon set |
+| **name** | Name of the Kubernetes daemon set |
+| **namespace** | The Kubernetes namespace where this daemon set is deployed |
+| creation\_timestamp | Timestamp of the creation time of the Kubernetes daemon set |
+| deletion\_timestamp | Timestamp of the deletion time of the Kubernetes daemon set |
+| desired\_number\_scheduled | Number of nodes that should run the daemon pod. Derived from `daemonset.status.desired_number_scheduled`. |
+| number\_ready | Number of nodes running a ready daemon pod. Derived from `daemonset.status.number_ready`. |
+| labels | Labels from `daemonset.metadata.labels`, stored as a JSON-encoded string. |
+| **cluster\_name** | Name of the Kubernetes cluster where this daemon set lives |
+| firstseen | Timestamp of when a sync job first discovered this node |
+| **lastupdated** | Timestamp of the last time the node was updated |
+
+#### Relationships
+- `KubernetesDaemonSet` belongs to a `KubernetesCluster`.
+    ```
+    (:KubernetesCluster)-[:RESOURCE]->(:KubernetesDaemonSet)
+    ```
+
+- `KubernetesDaemonSet` points at its parent `KubernetesNamespace` via the unified workload chain.
+    ```
+    (:KubernetesDaemonSet)-[:WORKLOAD_PARENT]->(:KubernetesNamespace)
+    ```
+
+- A `KubernetesPod` points at its owning `KubernetesDaemonSet` via the unified workload chain.
+    ```
+    (:KubernetesPod)-[:WORKLOAD_PARENT]->(:KubernetesDaemonSet)
+    ```
+
+### KubernetesCronJob
+Representation of a [Kubernetes CronJob.](https://kubernetes.io/docs/concepts/workloads/controllers/cron-jobs/)
+
+> **Ontology Mapping**: This node has the extra label `ComputeService` to enable cross-platform queries for the logical workload / controller unit across different systems (e.g., AWSECSService, GCPCloudRunService).
+
+| Field | Description |
+|-------|-------------|
+| **id** | UID of the Kubernetes cron job |
+| **name** | Name of the Kubernetes cron job |
+| **namespace** | The Kubernetes namespace where this cron job is deployed |
+| creation\_timestamp | Timestamp of the creation time of the Kubernetes cron job |
+| deletion\_timestamp | Timestamp of the deletion time of the Kubernetes cron job |
+| schedule | Cron schedule the job runs on. Derived from `cronjob.spec.schedule`. |
+| suspend | Whether the cron job is suspended. Derived from `cronjob.spec.suspend`. |
+| labels | Labels from `cronjob.metadata.labels`, stored as a JSON-encoded string. |
+| **cluster\_name** | Name of the Kubernetes cluster where this cron job lives |
+| firstseen | Timestamp of when a sync job first discovered this node |
+| **lastupdated** | Timestamp of the last time the node was updated |
+
+#### Relationships
+- `KubernetesCronJob` belongs to a `KubernetesCluster`.
+    ```
+    (:KubernetesCluster)-[:RESOURCE]->(:KubernetesCronJob)
+    ```
+
+- `KubernetesCronJob` points at its parent `KubernetesNamespace` via the unified workload chain.
+    ```
+    (:KubernetesCronJob)-[:WORKLOAD_PARENT]->(:KubernetesNamespace)
+    ```
+
+- A `KubernetesJob` points at its owning `KubernetesCronJob` via the unified workload chain.
+    ```
+    (:KubernetesJob)-[:WORKLOAD_PARENT]->(:KubernetesCronJob)
+    ```
+
+### KubernetesJob
+Representation of a [Kubernetes Job.](https://kubernetes.io/docs/concepts/workloads/controllers/job/)
+
+> **Ontology Mapping**: This node has the extra label `ComputeService` to enable cross-platform queries for the logical workload / controller unit across different systems (e.g., AWSECSService, GCPCloudRunService).
+
+| Field | Description |
+|-------|-------------|
+| **id** | UID of the Kubernetes job |
+| **name** | Name of the Kubernetes job |
+| **namespace** | The Kubernetes namespace where this job is deployed |
+| creation\_timestamp | Timestamp of the creation time of the Kubernetes job |
+| deletion\_timestamp | Timestamp of the deletion time of the Kubernetes job |
+| completions | Desired number of successful completions. Derived from `job.spec.completions`. |
+| parallelism | Maximum desired parallelism. Derived from `job.spec.parallelism`. |
+| active | Number of actively running pods. Derived from `job.status.active`. |
+| succeeded | Number of pods that reached the Succeeded phase. Derived from `job.status.succeeded`. |
+| failed | Number of pods that reached the Failed phase. Derived from `job.status.failed`. |
+| labels | Labels from `job.metadata.labels`, stored as a JSON-encoded string. |
+| **cluster\_name** | Name of the Kubernetes cluster where this job lives |
+| firstseen | Timestamp of when a sync job first discovered this node |
+| **lastupdated** | Timestamp of the last time the node was updated |
+
+#### Relationships
+- `KubernetesJob` belongs to a `KubernetesCluster`.
+    ```
+    (:KubernetesCluster)-[:RESOURCE]->(:KubernetesJob)
+    ```
+
+- `KubernetesJob` points at its owning `KubernetesCronJob` via the unified workload chain. A standalone Job (no owning CronJob) points at its `KubernetesNamespace` instead.
+    ```
+    (:KubernetesJob)-[:WORKLOAD_PARENT]->(:KubernetesCronJob)
+    (:KubernetesJob)-[:WORKLOAD_PARENT]->(:KubernetesNamespace)
+    ```
+
+- A `KubernetesPod` points at its owning `KubernetesJob` via the unified workload chain.
+    ```
+    (:KubernetesPod)-[:WORKLOAD_PARENT]->(:KubernetesJob)
     ```
 
 ### KubernetesService
