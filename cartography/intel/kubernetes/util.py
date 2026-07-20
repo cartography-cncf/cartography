@@ -284,6 +284,7 @@ def parse_rfc3339(value: str | None) -> datetime | None:
 def k8s_paginate(
     list_func: Callable,
     raise_on_forbidden: bool = False,
+    raise_on_error: bool = False,
     **kwargs: Any,
 ) -> list[dict[str, Any]]:
     """
@@ -293,6 +294,10 @@ def k8s_paginate(
     :param raise_on_forbidden: When True, re-raise ApiException with status 401/403 so the caller
         can handle missing permissions (used for optional RBAC verbs). Other ApiExceptions are still
         logged and swallowed.
+    :param raise_on_error: When True, re-raise *any* ApiException (after logging) instead of
+        swallowing it and returning a partial result. Use when a partial result must not be
+        mistaken for a complete one (e.g. the workload sync, where missing controller nodes would
+        leave pods with unmatched WORKLOAD_PARENT edges and trigger a destructive cleanup).
     :param kwargs: Keyword arguments to pass to the list function (e.g. limit=100)
     :return: A list of all resources returned by the list function
     """
@@ -335,11 +340,17 @@ def k8s_paginate(
                 break
 
         except ApiException as e:
-            if raise_on_forbidden and e.status in (401, 403):
+            is_forbidden = e.status in (401, 403)
+            # 401/403 re-raise quietly so the caller can log a permission-specific
+            # message; other errors are logged here before propagating (or being
+            # swallowed when neither raise flag is set).
+            if is_forbidden and (raise_on_forbidden or raise_on_error):
                 raise
             logger.error(
                 f"Kubernetes API error retrieving {function_name} resources. {e}: {e.status} - {e.reason}"
             )
+            if raise_on_error:
+                raise
             break
 
     logger.debug(

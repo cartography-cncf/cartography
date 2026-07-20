@@ -32,48 +32,47 @@ def _format_labels(labels: dict[str, str] | None) -> str:
     return json.dumps(labels or {})
 
 
-# The workload list calls re-raise on 401/403 so sync_workloads can skip load +
-# cleanup when the operator has not granted the (optional) apps/batch list verbs,
-# preserving previously synced workload nodes instead of wiping them.
+# The workload list calls re-raise on ANY error (raise_on_error) so sync_workloads
+# never mistakes a partial/empty result for a complete one: a missing controller
+# would otherwise leave pods with unmatched WORKLOAD_PARENT edges and trigger a
+# destructive cleanup. sync_workloads turns any failure into a skip (return None).
 @timeit
 def get_deployments(client: K8sClient) -> list[V1Deployment]:
     return k8s_paginate(
-        client.apps.list_deployment_for_all_namespaces, raise_on_forbidden=True
+        client.apps.list_deployment_for_all_namespaces, raise_on_error=True
     )
 
 
 @timeit
 def get_replicasets(client: K8sClient) -> list[V1ReplicaSet]:
     return k8s_paginate(
-        client.apps.list_replica_set_for_all_namespaces, raise_on_forbidden=True
+        client.apps.list_replica_set_for_all_namespaces, raise_on_error=True
     )
 
 
 @timeit
 def get_statefulsets(client: K8sClient) -> list[V1StatefulSet]:
     return k8s_paginate(
-        client.apps.list_stateful_set_for_all_namespaces, raise_on_forbidden=True
+        client.apps.list_stateful_set_for_all_namespaces, raise_on_error=True
     )
 
 
 @timeit
 def get_daemonsets(client: K8sClient) -> list[V1DaemonSet]:
     return k8s_paginate(
-        client.apps.list_daemon_set_for_all_namespaces, raise_on_forbidden=True
+        client.apps.list_daemon_set_for_all_namespaces, raise_on_error=True
     )
 
 
 @timeit
 def get_jobs(client: K8sClient) -> list[V1Job]:
-    return k8s_paginate(
-        client.batch.list_job_for_all_namespaces, raise_on_forbidden=True
-    )
+    return k8s_paginate(client.batch.list_job_for_all_namespaces, raise_on_error=True)
 
 
 @timeit
 def get_cronjobs(client: K8sClient) -> list[V1CronJob]:
     return k8s_paginate(
-        client.batch.list_cron_job_for_all_namespaces, raise_on_forbidden=True
+        client.batch.list_cron_job_for_all_namespaces, raise_on_error=True
     )
 
 
@@ -283,12 +282,14 @@ def sync_workloads(
 
     The map is consumed by the pod sync so a pod owned by a ReplicaSet resolves
     its WORKLOAD_PARENT straight to the owning Deployment (the ReplicaSet is
-    collapsed out of the ontology chain). Returns ``None`` (not ``{}``) when the
-    workload sync was skipped, so the pod sync can tell "controllers ingested,
-    none map to a Deployment" apart from "controllers not ingested at all" and
-    fall back to a namespace WORKLOAD_PARENT for every controller-owned pod.
+    collapsed out of the ontology chain). Returns ``None`` (not ``{}``) whenever
+    the workload sync could not complete every controller list, so the pod sync
+    can tell "controllers ingested, none map to a Deployment" apart from
+    "controllers not fully ingested" and fall back to a namespace WORKLOAD_PARENT
+    for every controller-owned pod (avoiding unmatched edges to missing nodes).
 
-    The apps/batch list verbs are required (see the Kubernetes config docs). The
+    Any list failure skips load and cleanup so existing nodes are preserved. The
+    apps/batch list verbs are required (see the Kubernetes config docs); the
     401/403 grace period below is a temporary migration aid, not an opt-out.
     """
     try:
@@ -301,12 +302,12 @@ def sync_workloads(
         )
         jobs = transform_jobs(get_jobs(client))
     except ApiException as e:
-        # DEPRECATED: transitional grace period. The apps/batch `list` verbs are
-        # required; until v1.0.0 a missing verb is tolerated here (warn + skip
-        # load and cleanup) so existing deployments are not broken or wiped on
-        # upgrade. This except block will be removed in v1.0.0, after which a
-        # 401/403 will fail loudly and propagate like any other required sync.
         if e.status in (401, 403):
+            # DEPRECATED: transitional grace period. The apps/batch `list` verbs
+            # are required; until v1.0.0 a missing verb is tolerated here (warn +
+            # skip load and cleanup) so existing deployments are not broken or
+            # wiped on upgrade. This branch will be removed in v1.0.0, after which
+            # a 401/403 will fail loudly like any other required sync.
             logger.warning(
                 "Cartography lacks permission to list workload controllers on "
                 "cluster %s (status %s). Skipping workload sync and preserving "
@@ -319,7 +320,18 @@ def sync_workloads(
                 e.status,
             )
             return None
-        raise
+        # Any other API error (transient 5xx, timeout surfaced as ApiException,
+        # etc.): skip load + cleanup and signal unavailability. Loading a partial
+        # result would delete controllers absent from it and leave pods pointing
+        # at controller ids that were never ingested.
+        logger.error(
+            "Kubernetes API error listing workload controllers on cluster %s "
+            "(status %s). Skipping workload sync for this run and preserving "
+            "previously synced nodes; pods fall back to a namespace WORKLOAD_PARENT.",
+            client.name,
+            e.status,
+        )
+        return None
 
     load_workloads(
         session=session,

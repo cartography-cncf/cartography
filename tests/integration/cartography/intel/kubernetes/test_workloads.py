@@ -248,6 +248,36 @@ def test_forbidden_workload_list_preserves_nodes(
     assert check_nodes(neo4j_session, "KubernetesReplicaSet", ["name"]) == {("web-rs",)}
 
 
+def test_transient_workload_error_skips_and_preserves(
+    neo4j_session, _create_test_cluster, monkeypatch
+):
+    # A non-permission API error (e.g. 500) on any controller list must not be
+    # mistaken for a successful empty sync: get_* re-raise (raise_on_error) and
+    # sync_workloads returns None, skipping load + cleanup so existing nodes are
+    # preserved and pods fall back to a namespace WORKLOAD_PARENT.
+    _run_sync(neo4j_session, monkeypatch)
+    assert check_nodes(neo4j_session, "KubernetesStatefulSet", ["name"]) == {("db",)}
+
+    client = SimpleNamespace(name=KUBERNETES_CLUSTER_NAMES[0])
+
+    def _server_error(_c):
+        raise ApiException(status=500, reason="ServerError")
+
+    monkeypatch.setattr(workloads, "get_statefulsets", _server_error)
+
+    result = workloads.sync_workloads(
+        neo4j_session,
+        client,
+        TEST_UPDATE_TAG + 1,
+        {"UPDATE_TAG": TEST_UPDATE_TAG + 1, "CLUSTER_ID": KUBERNETES_CLUSTER_IDS[0]},
+    )
+
+    assert result is None
+    # Nodes from the previous successful sync are preserved (no destructive cleanup).
+    assert check_nodes(neo4j_session, "KubernetesDeployment", ["name"]) == {("web",)}
+    assert check_nodes(neo4j_session, "KubernetesStatefulSet", ["name"]) == {("db",)}
+
+
 def test_forbidden_workloads_pods_fall_back_to_namespace(
     neo4j_session, _create_test_cluster, monkeypatch
 ):
