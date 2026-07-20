@@ -3,27 +3,78 @@ from cartography.models.ontology.mapping.specs import OntologyMapping
 from cartography.models.ontology.mapping.specs import OntologyNodeMapping
 
 # CVE fields:
-# cve_id
-# assigner
-# description
-# references
-# problem_types
-# vector_string
-# attack_vector
-# attack_complexity
-# privileges_required
-# user_interaction
-# scope
-# confidentiality_impact
-# integrity_impact
-# availability_impact
-# base_score
-# base_severity
-# exploitability_score
-# impact_score
-# published_date
-# last_modified_date
-# vuln_status
+# cve_id, assigner, description, references, problem_types, vector_string,
+# attack_vector, attack_complexity, privileges_required, user_interaction, scope,
+# confidentiality_impact, integrity_impact, availability_impact, base_score,
+# exploitability_score, impact_score, published_date, last_modified_date
+#
+# Normalized fields:
+# base_severity - canonical severity band: info, low, medium, high, critical.
+# vuln_status - canonical resolution state: open, fixed, rejected,
+#   under_investigation, not_affected, unknown.
+# The raw provider value stays on each source node's own property.
+
+# CVSS v3 baseSeverity (also covers Trivy/Crowdstrike uppercase severity subsets)
+_CVSS_SEVERITY = {
+    "NONE": "info",
+    "LOW": "low",
+    "MEDIUM": "medium",
+    "HIGH": "high",
+    "CRITICAL": "critical",
+}
+
+# GitHub GraphQL severity (uppercase API + lowercase fixture variants)
+_GITHUB_SEVERITY = {
+    "LOW": "low",
+    "MODERATE": "medium",
+    "HIGH": "high",
+    "CRITICAL": "critical",
+    "low": "low",
+    "moderate": "medium",
+    "medium": "medium",
+    "high": "high",
+    "critical": "critical",
+}
+
+# SentinelOne severity (title case)
+_S1_SEVERITY = {
+    "None": "info",
+    "Low": "low",
+    "Medium": "medium",
+    "High": "high",
+    "Critical": "critical",
+}
+
+# NVD vulnStatus -> resolution state. NVD's values are analysis-workflow states; all
+# non-rejected ones mean the record is live, so they collapse to "open".
+_NVD_VULN_STATUS = {
+    "Received": "open",
+    "Awaiting Analysis": "open",
+    "Undergoing Analysis": "open",
+    "Analyzed": "open",
+    "Modified": "open",
+    "Deferred": "open",
+    "Rejected": "rejected",
+}
+
+# Trivy vulnerability Status
+_TRIVY_VULN_STATUS = {
+    "unknown": "unknown",
+    "affected": "open",
+    "fixed": "fixed",
+    "under_investigation": "under_investigation",
+    "will_not_fix": "not_affected",
+    "fix_deferred": "open",
+    "end_of_life": "open",
+    "not_affected": "not_affected",
+}
+
+# Ubuntu CVE tracking status
+_UBUNTU_VULN_STATUS = {
+    "active": "open",
+    "rejected": "rejected",
+    "not-in-ubuntu": "not_affected",
+}
 
 cve_mapping = OntologyMapping(
     module_name="cve",
@@ -88,6 +139,8 @@ cve_mapping = OntologyMapping(
                 OntologyFieldMapping(
                     ontology_field="base_severity",
                     node_field="base_severity",
+                    special_handling="mapping",
+                    extra={"map": _CVSS_SEVERITY},
                 ),
                 OntologyFieldMapping(
                     ontology_field="exploitability_score",
@@ -108,6 +161,8 @@ cve_mapping = OntologyMapping(
                 OntologyFieldMapping(
                     ontology_field="vuln_status",
                     node_field="vuln_status",
+                    special_handling="mapping",
+                    extra={"map": _NVD_VULN_STATUS},
                 ),
             ],
         ),
@@ -147,6 +202,8 @@ trivy_mapping = OntologyMapping(
                 OntologyFieldMapping(
                     ontology_field="base_severity",
                     node_field="severity",
+                    special_handling="mapping",
+                    extra={"map": _CVSS_SEVERITY},
                 ),
                 OntologyFieldMapping(
                     ontology_field="published_date",
@@ -159,6 +216,8 @@ trivy_mapping = OntologyMapping(
                 OntologyFieldMapping(
                     ontology_field="vuln_status",
                     node_field="status",
+                    special_handling="mapping",
+                    extra={"map": _TRIVY_VULN_STATUS},
                 ),
             ],
         ),
@@ -204,6 +263,8 @@ ubuntu_mapping = OntologyMapping(
                 OntologyFieldMapping(
                     ontology_field="base_severity",
                     node_field="base_severity",
+                    special_handling="mapping",
+                    extra={"map": _CVSS_SEVERITY},
                 ),
                 OntologyFieldMapping(
                     ontology_field="published_date",
@@ -216,6 +277,8 @@ ubuntu_mapping = OntologyMapping(
                 OntologyFieldMapping(
                     ontology_field="vuln_status",
                     node_field="status",
+                    special_handling="mapping",
+                    extra={"map": _UBUNTU_VULN_STATUS},
                 ),
             ],
         ),
@@ -236,6 +299,8 @@ crowdstrike_mapping = OntologyMapping(
                 OntologyFieldMapping(
                     ontology_field="base_severity",
                     node_field="base_severity",
+                    special_handling="mapping",
+                    extra={"map": _CVSS_SEVERITY},
                 ),
             ],
         ),
@@ -275,6 +340,8 @@ github_mapping = OntologyMapping(
                 OntologyFieldMapping(
                     ontology_field="base_severity",
                     node_field="severity",
+                    special_handling="mapping",
+                    extra={"map": _GITHUB_SEVERITY},
                 ),
                 OntologyFieldMapping(
                     ontology_field="published_date",
@@ -299,6 +366,8 @@ sentinelone_mapping = OntologyMapping(
                 OntologyFieldMapping(
                     ontology_field="base_severity",
                     node_field="severity",
+                    special_handling="mapping",
+                    extra={"map": _S1_SEVERITY},
                 ),
             ],
         ),
