@@ -31,6 +31,7 @@ def test_start_k8s_ingestion_uses_external_id_for_eks_region(monkeypatch):
     monkeypatch.setattr(
         kubernetes, "sync_kubernetes_rbac", lambda *args, **kwargs: None
     )
+    monkeypatch.setattr(kubernetes, "sync_workloads", lambda *args, **kwargs: {})
     monkeypatch.setattr(kubernetes, "sync_pods", lambda *args, **kwargs: [])
     monkeypatch.setattr(kubernetes, "sync_secrets", lambda *args, **kwargs: None)
     monkeypatch.setattr(kubernetes, "sync_services", lambda *args, **kwargs: None)

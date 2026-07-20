@@ -151,8 +151,18 @@ from cartography.models.kubernetes.containers import (
 from cartography.models.kubernetes.containers import (
     KubernetesContainerToKubernetesPodRel,
 )
+from cartography.models.kubernetes.cronjobs import (
+    KubernetesCronJobToKubernetesClusterRel,
+)
+from cartography.models.kubernetes.daemonsets import (
+    KubernetesDaemonSetToKubernetesClusterRel,
+)
+from cartography.models.kubernetes.deployments import (
+    KubernetesDeploymentToKubernetesClusterRel,
+)
 from cartography.models.kubernetes.groups import KubernetesGroupToAWSRoleRel
 from cartography.models.kubernetes.groups import KubernetesGroupToAWSUserRel
+from cartography.models.kubernetes.jobs import KubernetesJobToKubernetesClusterRel
 from cartography.models.kubernetes.namespaces import (
     KubernetesNamespaceToKubernetesClusterRel,
 )
@@ -163,6 +173,9 @@ from cartography.models.kubernetes.pods import KubernetesPodToSecretVolumeRel
 from cartography.models.kubernetes.pods import KubernetesPodToServiceAccountRel
 from cartography.models.kubernetes.serviceaccounts import (
     KubernetesServiceAccountToAWSRoleRel,
+)
+from cartography.models.kubernetes.statefulsets import (
+    KubernetesStatefulSetToKubernetesClusterRel,
 )
 from cartography.models.kubernetes.users import KubernetesUserToAWSRoleRel
 from cartography.models.oci.group import OCIGroupToOCIUserRel
@@ -175,6 +188,9 @@ from cartography.models.scaleway.iam.apikey import ScalewayApiKeyToApplicationRe
 from cartography.models.scaleway.iam.apikey import ScalewayApiKeyToUserRel
 from cartography.models.scaleway.serverless.container import (
     ScalewayServerlessContainerToImageRel,
+)
+from cartography.models.scaleway.serverless.container import (
+    ScalewayServerlessContainerToNamespaceRel,
 )
 from cartography.models.sentry.member import SentryUserToTeamAdminOfRel
 from cartography.models.slack.group import SlackGroupToCreatorRel
@@ -213,6 +229,13 @@ ONTOLOGY_REL_CONSTRAINTS: tuple[RelConstraint, ...] = (
     RelConstraint(
         src="ComputeNamespace", dst="ComputeCluster", label="WORKLOAD_PARENT"
     ),
+    # A logical workload controller (k8s Deployment / StatefulSet / DaemonSet /
+    # Job / CronJob) lives in a namespace.
+    RelConstraint(
+        src="ComputeService", dst="ComputeNamespace", label="WORKLOAD_PARENT"
+    ),
+    # A batch Job points at its owning CronJob (both are logical workloads).
+    RelConstraint(src="ComputeService", dst="ComputeService", label="WORKLOAD_PARENT"),
     # A user account is granted a role.
     RelConstraint(src="UserAccount", dst="PermissionRole", label="HAS_ROLE"),
     # A service account (workload identity) is granted a role. No provider
@@ -280,12 +303,22 @@ LEGACY_REL_WHITELIST: frozenset[type] = frozenset(
         ECSTaskToECSClusterRel,
         KubernetesContainerToKubernetesPodRel,
         KubernetesPodToKubernetesNamespaceRel,
-        # Kubernetes models its cluster as the tenant, so the pod's and
-        # namespace's sub_resource_relationship uses RESOURCE on a pair that
-        # the ontology also constrains as WORKLOAD_PARENT. Whitelisted until
-        # tenant scoping and the workload chain are reconciled.
+        # Kubernetes models its cluster as the tenant, so the pod's, namespace's
+        # and workload controllers' sub_resource_relationship uses RESOURCE on a
+        # pair that the ontology also constrains as WORKLOAD_PARENT. Whitelisted
+        # until tenant scoping and the workload chain are reconciled.
         KubernetesNamespaceToKubernetesClusterRel,
         KubernetesPodToKubernetesClusterRel,
+        KubernetesDeploymentToKubernetesClusterRel,
+        KubernetesStatefulSetToKubernetesClusterRel,
+        KubernetesDaemonSetToKubernetesClusterRel,
+        KubernetesJobToKubernetesClusterRel,
+        KubernetesCronJobToKubernetesClusterRel,
+        # Scaleway namespace HAS its serverless container: this is downward
+        # containment (:ComputeNamespace)-[:HAS]->(:ComputeService), the reverse
+        # of the ComputeService->ComputeNamespace WORKLOAD_PARENT constraint, so
+        # it is a distinct semantic rather than a workload-parent edge.
+        ScalewayServerlessContainerToNamespaceRel,
         # DEPRECATED: replaced by HAS_ROLE, will be removed in v1.0.0.
         AWSSSOUserToPermissionSetRel,
         KeycloakRoleToUserRel,

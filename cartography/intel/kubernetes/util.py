@@ -6,6 +6,8 @@ from typing import Callable
 from dateutil.parser import isoparse
 from kubernetes import config
 from kubernetes.client import ApiClient
+from kubernetes.client import AppsV1Api
+from kubernetes.client import BatchV1Api
 from kubernetes.client import CoreV1Api
 from kubernetes.client import CustomObjectsApi
 from kubernetes.client import NetworkingV1Api
@@ -96,6 +98,36 @@ class K8RbacApiClient(RbacAuthorizationV1Api):
         super().__init__(api_client=api_client)
 
 
+class K8AppsApiClient(AppsV1Api):
+    def __init__(
+        self,
+        name: str,
+        config_file: str,
+        api_client: ApiClient | None = None,
+    ) -> None:
+        self.name = name
+        if not api_client:
+            api_client = config.new_client_from_config(
+                context=name, config_file=config_file
+            )
+        super().__init__(api_client=api_client)
+
+
+class K8BatchApiClient(BatchV1Api):
+    def __init__(
+        self,
+        name: str,
+        config_file: str,
+        api_client: ApiClient | None = None,
+    ) -> None:
+        self.name = name
+        if not api_client:
+            api_client = config.new_client_from_config(
+                context=name, config_file=config_file
+            )
+        super().__init__(api_client=api_client)
+
+
 class K8sClient:
     def __init__(
         self,
@@ -111,6 +143,8 @@ class K8sClient:
         self.version = K8VersionApiClient(self.name, self.config_file)
         self.rbac = K8RbacApiClient(self.name, self.config_file)
         self.custom = K8CustomObjectsApiClient(self.name, self.config_file)
+        self.apps = K8AppsApiClient(self.name, self.config_file)
+        self.batch = K8BatchApiClient(self.name, self.config_file)
 
 
 def get_k8s_clients(kubeconfig: str) -> list[K8sClient]:
@@ -133,6 +167,20 @@ def get_k8s_clients(kubeconfig: str) -> list[K8sClient]:
 
 def get_qualified_resource_name(namespace: str, name: str) -> str:
     return f"{namespace}/{name}"
+
+
+def get_controller_owner_reference(metadata: Any) -> tuple[str, str] | None:
+    """Return the ``(kind, uid)`` of the controlling ownerReference, if any.
+
+    Kubernetes marks exactly one ownerReference with ``controller=true`` (the
+    object that actually manages this resource, e.g. a ReplicaSet's Deployment,
+    a Job's CronJob, or a pod's ReplicaSet/StatefulSet/DaemonSet/Job).
+    Non-controller owners are ignored.
+    """
+    for owner in getattr(metadata, "owner_references", None) or []:
+        if getattr(owner, "controller", False):
+            return owner.kind, owner.uid
+    return None
 
 
 def _get_kubeconfig_merger(kubeconfig: str) -> KubeConfigMerger:
