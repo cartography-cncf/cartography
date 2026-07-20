@@ -28,6 +28,7 @@ These permissions are recommended but Cartography degrades gracefully if they ar
 
 - `list gateways` and `list httproutes` in the `gateway.networking.k8s.io` group — enables ingestion of `KubernetesGateway` and `KubernetesHTTPRoute` and the `Gateway -[:ROUTES]-> HTTPRoute -[:TARGETS]-> Service` traffic path. The Gateway API CRDs are not installed on most clusters out of the box; if the CRDs are absent Cartography logs an info message and treats Gateway API as empty for the current sync, so previously synced `KubernetesGateway`/`KubernetesHTTPRoute` nodes for that cluster are cleaned up as stale. If the CRDs are present but the verbs are not granted, Cartography logs a warning, skips Gateway API ingestion, skips Gateway API cleanup, and continues with the rest of the cluster sync, preserving any previously synced `KubernetesGateway`/`KubernetesHTTPRoute` nodes.
 - `list networkpolicies` in the `networking.k8s.io` group — enables ingestion of `KubernetesNetworkPolicy` and the `(:KubernetesNetworkPolicy)-[:APPLIES_TO]->(:KubernetesPod)` edges used to reason about namespace segmentation. It is included in the recommended ClusterRole below. If the verb is not granted, Cartography logs a warning, skips NetworkPolicy ingestion, and skips its cleanup step, so previously synced `KubernetesNetworkPolicy` nodes are preserved rather than being wiped and every namespace silently modeled as unsegmented.
+- `list deployments`, `list replicasets`, `list statefulsets`, `list daemonsets` in the `apps` group and `list jobs`, `list cronjobs` in the `batch` group — enables ingestion of the workload controllers (`KubernetesDeployment`, `KubernetesReplicaSet`, `KubernetesStatefulSet`, `KubernetesDaemonSet`, `KubernetesJob`, `KubernetesCronJob`) and the `WORKLOAD_PARENT` chain that climbs from a pod through its controller (`Pod -> Deployment / StatefulSet / DaemonSet / Job -> Namespace`, with the intermediate `ReplicaSet` collapsed and `Job -> CronJob` for batch workloads). If any of these verbs is not granted, Cartography logs a warning, skips the workload sync **and** its cleanup step, and leaves pods pointing `WORKLOAD_PARENT` at their `Namespace` (the pre-controller behavior), so previously synced controller nodes are preserved rather than wiped. Grant the full set to enable the controller workload chain.
 - `list secrets` — enables ingestion of `KubernetesSecret` metadata (name, namespace, type, owner references). Kubernetes RBAC has no verb that exposes secret metadata without also exposing the content: granting `list secrets` also authorizes reading the base64-encoded `data` field of every secret in scope. Cartography never reads or stores secret content, but any identity with this permission can. Operators who prefer not to grant cluster-wide read access to secret content can omit this verb. When omitted, Cartography skips `sync_secrets` entirely — including the cleanup step — so previously synced `KubernetesSecret` nodes are preserved.
 - `get configmaps` (EKS only) — enables ingestion of legacy IAM identity mappings from the `aws-auth` ConfigMap in `kube-system`. Cartography processes the `mapRoles`, `mapUsers`, and `mapAccounts` fields. For `mapAccounts`, every IAM principal already synced from a listed AWS account (users, roles, and the account root principal) is mapped to a `KubernetesUser` named after the principal ARN (with no Kubernetes groups), so the AWS account must be synced for these mappings to resolve. This is optional because:
   - Clusters that use [EKS Access Entries](https://docs.aws.amazon.com/eks/latest/userguide/access-entries.html) exclusively may not have an `aws-auth` ConfigMap at all.
@@ -64,6 +65,22 @@ rules:
 - apiGroups: [""]
   resources:
     - secrets
+  verbs: ["list"]
+# Workload controllers (optional) — enable the WORKLOAD_PARENT chain from a pod
+# up to its owning controller. If these verbs are withheld, Cartography skips the
+# workload sync and its cleanup, and pods fall back to a namespace WORKLOAD_PARENT.
+# See the Optional Permissions section above.
+- apiGroups: ["apps"]
+  resources:
+    - deployments
+    - replicasets
+    - statefulsets
+    - daemonsets
+  verbs: ["list"]
+- apiGroups: ["batch"]
+  resources:
+    - jobs
+    - cronjobs
   verbs: ["list"]
 # RBAC resources
 - apiGroups: ["rbac.authorization.k8s.io"]

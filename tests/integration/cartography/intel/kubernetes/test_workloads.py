@@ -1,6 +1,7 @@
 from types import SimpleNamespace
 
 import pytest
+from kubernetes.client.exceptions import ApiException
 
 import cartography.intel.kubernetes.pods as pods
 import cartography.intel.kubernetes.workloads as workloads
@@ -202,6 +203,36 @@ def test_controller_workload_parent_up_the_chain(
             rel_direction_right=False,
         )
         assert rels, f"expected {label} -> namespace WORKLOAD_PARENT edge"
+
+
+def test_forbidden_workload_list_preserves_nodes(
+    neo4j_session, _create_test_cluster, monkeypatch
+):
+    # First a normal sync populates the controllers.
+    _run_sync(neo4j_session, monkeypatch)
+    assert check_nodes(neo4j_session, "KubernetesDeployment", ["name"]) == {("web",)}
+
+    # A later run where the operator revoked `list deployments` (403) must NOT
+    # wipe the existing workload nodes: sync_workloads skips load + cleanup and
+    # returns an empty map.
+    client = SimpleNamespace(name=KUBERNETES_CLUSTER_NAMES[0])
+
+    def _forbidden(_c):
+        raise ApiException(status=403, reason="Forbidden")
+
+    monkeypatch.setattr(workloads, "get_deployments", _forbidden)
+
+    result = workloads.sync_workloads(
+        neo4j_session,
+        client,
+        TEST_UPDATE_TAG + 1,
+        {"UPDATE_TAG": TEST_UPDATE_TAG + 1, "CLUSTER_ID": KUBERNETES_CLUSTER_IDS[0]},
+    )
+
+    assert result == {}
+    # Nodes from the previous successful sync are preserved.
+    assert check_nodes(neo4j_session, "KubernetesDeployment", ["name"]) == {("web",)}
+    assert check_nodes(neo4j_session, "KubernetesReplicaSet", ["name"]) == {("web-rs",)}
 
 
 def test_bare_pod_still_resolves_to_namespace(

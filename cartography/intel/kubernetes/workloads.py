@@ -3,6 +3,7 @@ import logging
 from typing import Any
 
 import neo4j
+from kubernetes.client.exceptions import ApiException
 from kubernetes.client.models import V1CronJob
 from kubernetes.client.models import V1DaemonSet
 from kubernetes.client.models import V1Deployment
@@ -31,34 +32,49 @@ def _format_labels(labels: dict[str, str] | None) -> str:
     return json.dumps(labels or {})
 
 
+# The workload list calls re-raise on 401/403 so sync_workloads can skip load +
+# cleanup when the operator has not granted the (optional) apps/batch list verbs,
+# preserving previously synced workload nodes instead of wiping them.
 @timeit
 def get_deployments(client: K8sClient) -> list[V1Deployment]:
-    return k8s_paginate(client.apps.list_deployment_for_all_namespaces)
+    return k8s_paginate(
+        client.apps.list_deployment_for_all_namespaces, raise_on_forbidden=True
+    )
 
 
 @timeit
 def get_replicasets(client: K8sClient) -> list[V1ReplicaSet]:
-    return k8s_paginate(client.apps.list_replica_set_for_all_namespaces)
+    return k8s_paginate(
+        client.apps.list_replica_set_for_all_namespaces, raise_on_forbidden=True
+    )
 
 
 @timeit
 def get_statefulsets(client: K8sClient) -> list[V1StatefulSet]:
-    return k8s_paginate(client.apps.list_stateful_set_for_all_namespaces)
+    return k8s_paginate(
+        client.apps.list_stateful_set_for_all_namespaces, raise_on_forbidden=True
+    )
 
 
 @timeit
 def get_daemonsets(client: K8sClient) -> list[V1DaemonSet]:
-    return k8s_paginate(client.apps.list_daemon_set_for_all_namespaces)
+    return k8s_paginate(
+        client.apps.list_daemon_set_for_all_namespaces, raise_on_forbidden=True
+    )
 
 
 @timeit
 def get_jobs(client: K8sClient) -> list[V1Job]:
-    return k8s_paginate(client.batch.list_job_for_all_namespaces)
+    return k8s_paginate(
+        client.batch.list_job_for_all_namespaces, raise_on_forbidden=True
+    )
 
 
 @timeit
 def get_cronjobs(client: K8sClient) -> list[V1CronJob]:
-    return k8s_paginate(client.batch.list_cron_job_for_all_namespaces)
+    return k8s_paginate(
+        client.batch.list_cron_job_for_all_namespaces, raise_on_forbidden=True
+    )
 
 
 def transform_deployments(deployments: list[V1Deployment]) -> list[dict[str, Any]]:
@@ -268,15 +284,38 @@ def sync_workloads(
     The map is consumed by the pod sync so a pod owned by a ReplicaSet resolves
     its WORKLOAD_PARENT straight to the owning Deployment (the ReplicaSet is
     collapsed out of the ontology chain).
+
+    The apps/batch list verbs are optional. If any is not granted, we skip the
+    whole workload sync (load + cleanup) and return an empty map: previously
+    synced workload nodes are preserved and pods fall back to a namespace
+    WORKLOAD_PARENT, exactly like the secrets / network-policy syncs.
     """
-    deployments = transform_deployments(get_deployments(client))
-    statefulsets = transform_statefulsets(get_statefulsets(client))
-    daemonsets = transform_daemonsets(get_daemonsets(client))
-    cronjobs = transform_cronjobs(get_cronjobs(client))
-    replicasets, replicaset_to_deployment = transform_replicasets(
-        get_replicasets(client)
-    )
-    jobs = transform_jobs(get_jobs(client))
+    try:
+        deployments = transform_deployments(get_deployments(client))
+        statefulsets = transform_statefulsets(get_statefulsets(client))
+        daemonsets = transform_daemonsets(get_daemonsets(client))
+        cronjobs = transform_cronjobs(get_cronjobs(client))
+        replicasets, replicaset_to_deployment = transform_replicasets(
+            get_replicasets(client)
+        )
+        jobs = transform_jobs(get_jobs(client))
+    except ApiException as e:
+        if e.status in (401, 403):
+            # Skipping load + cleanup is intentional: cleaning up against an
+            # empty result would wipe the existing workload subgraph for this
+            # cluster. Pods still resolve WORKLOAD_PARENT to their namespace.
+            logger.warning(
+                "Cartography lacks permission to list workload controllers on "
+                "cluster %s (status %s). Skipping workload sync and preserving "
+                "previously synced Deployment/StatefulSet/DaemonSet/ReplicaSet/"
+                "Job/CronJob nodes. Grant `list` on apps/v1 (deployments, "
+                "replicasets, statefulsets, daemonsets) and batch/v1 (jobs, "
+                "cronjobs) to enable the controller workload chain.",
+                client.name,
+                e.status,
+            )
+            return {}
+        raise
 
     load_workloads(
         session=session,
