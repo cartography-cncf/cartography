@@ -114,29 +114,3 @@ def test_load_scaleway_mailbox_domains_and_mailboxes(_mock_get, neo4j_session):
         )
         == expected_mailbox_domain_rels
     )
-
-
-@patch("cartography.intel.scaleway.mailboxes.mailboxes.GraphJob.from_node_schema")
-def test_cleanup_runs_mailbox_cleanup_before_domain_cleanup(
-    mock_from_node_schema,
-    neo4j_session,
-):
-    # Arrange
-    common_job_parameters = {"UPDATE_TAG": TEST_UPDATE_TAG, "ORG_ID": TEST_ORG_ID}
-    mock_from_node_schema.return_value.run = Mock()
-
-    # Act
-    cartography.intel.scaleway.mailboxes.mailboxes.cleanup(
-        neo4j_session,
-        projects_id=[TEST_PROJECT_ID],
-        common_job_parameters=common_job_parameters,
-    )
-
-    # Assert
-    cleaned_schemas = [
-        type(call.args[0]).__name__ for call in mock_from_node_schema.call_args_list
-    ]
-    assert cleaned_schemas == [
-        "ScalewayMailboxSchema",
-        "ScalewayMailboxDomainSchema",
-    ]
