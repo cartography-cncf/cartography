@@ -285,10 +285,8 @@ def sync_workloads(
     its WORKLOAD_PARENT straight to the owning Deployment (the ReplicaSet is
     collapsed out of the ontology chain).
 
-    The apps/batch list verbs are optional. If any is not granted, we skip the
-    whole workload sync (load + cleanup) and return an empty map: previously
-    synced workload nodes are preserved and pods fall back to a namespace
-    WORKLOAD_PARENT, exactly like the secrets / network-policy syncs.
+    The apps/batch list verbs are required (see the Kubernetes config docs). The
+    401/403 grace period below is a temporary migration aid, not an opt-out.
     """
     try:
         deployments = transform_deployments(get_deployments(client))
@@ -300,17 +298,20 @@ def sync_workloads(
         )
         jobs = transform_jobs(get_jobs(client))
     except ApiException as e:
+        # DEPRECATED: transitional grace period. The apps/batch `list` verbs are
+        # required; until v1.0.0 a missing verb is tolerated here (warn + skip
+        # load and cleanup) so existing deployments are not broken or wiped on
+        # upgrade. This except block will be removed in v1.0.0, after which a
+        # 401/403 will fail loudly and propagate like any other required sync.
         if e.status in (401, 403):
-            # Skipping load + cleanup is intentional: cleaning up against an
-            # empty result would wipe the existing workload subgraph for this
-            # cluster. Pods still resolve WORKLOAD_PARENT to their namespace.
             logger.warning(
                 "Cartography lacks permission to list workload controllers on "
                 "cluster %s (status %s). Skipping workload sync and preserving "
                 "previously synced Deployment/StatefulSet/DaemonSet/ReplicaSet/"
-                "Job/CronJob nodes. Grant `list` on apps/v1 (deployments, "
+                "Job/CronJob nodes for now. Grant `list` on apps/v1 (deployments, "
                 "replicasets, statefulsets, daemonsets) and batch/v1 (jobs, "
-                "cronjobs) to enable the controller workload chain.",
+                "cronjobs): this is required and will become a hard failure in "
+                "v1.0.0.",
                 client.name,
                 e.status,
             )
