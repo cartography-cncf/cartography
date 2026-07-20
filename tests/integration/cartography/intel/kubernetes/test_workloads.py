@@ -31,8 +31,21 @@ def _create_test_cluster(neo4j_session):
         KUBERNETES_CLUSTER_IDS[0],
     )
     yield
-    neo4j_session.run("MATCH (n:KubernetesNamespace) DETACH DELETE n")
-    neo4j_session.run("MATCH (n:KubernetesCluster) DETACH DELETE n")
+    # Clear every Kubernetes node so workload/pod state does not leak between
+    # tests (the forbidden-sync tests assert on the absence of controller nodes).
+    for label in (
+        "KubernetesContainer",
+        "KubernetesPod",
+        "KubernetesDeployment",
+        "KubernetesReplicaSet",
+        "KubernetesStatefulSet",
+        "KubernetesDaemonSet",
+        "KubernetesJob",
+        "KubernetesCronJob",
+        "KubernetesNamespace",
+        "KubernetesCluster",
+    ):
+        neo4j_session.run(f"MATCH (n:{label}) DETACH DELETE n")
 
 
 def _run_sync(neo4j_session, monkeypatch):
@@ -214,7 +227,7 @@ def test_forbidden_workload_list_preserves_nodes(
 
     # A later run where the operator revoked `list deployments` (403) must NOT
     # wipe the existing workload nodes: sync_workloads skips load + cleanup and
-    # returns an empty map.
+    # returns None (signalling "workloads unavailable", distinct from {}).
     client = SimpleNamespace(name=KUBERNETES_CLUSTER_NAMES[0])
 
     def _forbidden(_c):
@@ -229,10 +242,62 @@ def test_forbidden_workload_list_preserves_nodes(
         {"UPDATE_TAG": TEST_UPDATE_TAG + 1, "CLUSTER_ID": KUBERNETES_CLUSTER_IDS[0]},
     )
 
-    assert result == {}
+    assert result is None
     # Nodes from the previous successful sync are preserved.
     assert check_nodes(neo4j_session, "KubernetesDeployment", ["name"]) == {("web",)}
     assert check_nodes(neo4j_session, "KubernetesReplicaSet", ["name"]) == {("web-rs",)}
+
+
+def test_forbidden_workloads_pods_fall_back_to_namespace(
+    neo4j_session, _create_test_cluster, monkeypatch
+):
+    # When the workload sync is skipped (403), no controller node is ingested, so
+    # every controller-owned pod (StatefulSet/DaemonSet/Job as well as the
+    # collapsed ReplicaSet case) must fall back to a namespace WORKLOAD_PARENT
+    # rather than being orphaned from the chain.
+    client = SimpleNamespace(name=KUBERNETES_CLUSTER_NAMES[0])
+    common = {"UPDATE_TAG": TEST_UPDATE_TAG, "CLUSTER_ID": KUBERNETES_CLUSTER_IDS[0]}
+
+    def _forbidden(_c):
+        raise ApiException(status=403, reason="Forbidden")
+
+    monkeypatch.setattr(workloads, "get_deployments", _forbidden)
+    monkeypatch.setattr(pods, "get_pods", lambda c: workload_data.get_raw_pods())
+
+    rs_map = workloads.sync_workloads(neo4j_session, client, TEST_UPDATE_TAG, common)
+    assert rs_map is None
+    sync_pods(
+        neo4j_session, client, TEST_UPDATE_TAG, common, replicaset_owner_map=rs_map
+    )
+
+    # No controller nodes were ingested.
+    for label in (
+        "KubernetesDeployment",
+        "KubernetesStatefulSet",
+        "KubernetesDaemonSet",
+        "KubernetesJob",
+        "KubernetesCronJob",
+    ):
+        assert check_nodes(neo4j_session, label, ["name"]) == set()
+
+    ns = workload_data.NAMESPACE
+    # Every pod (RS/StatefulSet/DaemonSet/Job-owned and the bare pod) falls back
+    # to the namespace.
+    assert check_rels(
+        neo4j_session,
+        "KubernetesPod",
+        "name",
+        "KubernetesNamespace",
+        "name",
+        "WORKLOAD_PARENT",
+    ) == {
+        ("web-pod", ns),
+        ("db-pod", ns),
+        ("agent-pod", ns),
+        ("report-pod", ns),
+        ("migrate-pod", ns),
+        ("bare-pod", ns),
+    }
 
 
 def test_bare_pod_still_resolves_to_namespace(

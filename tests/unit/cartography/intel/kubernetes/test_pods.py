@@ -131,6 +131,26 @@ def test_transform_pods_direct_controllers():
     assert job["_workload_parent_job_id"] == "job-uid"
 
 
+def test_transform_pods_unavailable_workloads_fall_back_to_namespace():
+    # When the workload sync was skipped (workloads_available=False), a pod owned
+    # by a StatefulSet/DaemonSet/Job must anchor to its namespace rather than
+    # point at a controller id that was never ingested.
+    ss_pod = _owned_pod("pod-ss", "db-pod", "StatefulSet", "ss-uid")
+    job_pod = _owned_pod("pod-job", "job-pod", "Job", "job-uid")
+
+    ss, job = transform_pods(
+        [ss_pod, job_pod], "my-cluster-1", workloads_available=False
+    )
+
+    for p in (ss, job):
+        assert p["_workload_parent_namespace_name"] == "my-namespace"
+        assert p["_workload_parent_statefulset_id"] is None
+        assert p["_workload_parent_daemonset_id"] is None
+        assert p["_workload_parent_job_id"] is None
+        assert p["_workload_parent_deployment_id"] is None
+        assert p["_owner_replicaset_id"] is None
+
+
 def test_transform_pods_propagates_node_architecture_to_pod_and_container():
     pod = SimpleNamespace(
         metadata=SimpleNamespace(

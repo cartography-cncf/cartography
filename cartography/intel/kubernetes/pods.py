@@ -214,7 +214,9 @@ def _format_pod_labels(labels: dict[str, str]) -> str:
 
 
 def _resolve_pod_workload_parent(
-    pod: V1Pod, replicaset_owner_map: dict[str, str]
+    pod: V1Pod,
+    replicaset_owner_map: dict[str, str],
+    workloads_available: bool = True,
 ) -> dict[str, str | None]:
     """Resolve a pod's single surfaced WORKLOAD_PARENT and its raw ReplicaSet owner.
 
@@ -224,6 +226,11 @@ def _resolve_pod_workload_parent(
     raw ``_owner_replicaset_id`` is kept for the OWNED_BY edge. Pods with no
     controller (or an unrecognised / bare-ReplicaSet controller) fall back to the
     namespace.
+
+    When ``workloads_available`` is False the workload sync was skipped (e.g. the
+    apps/batch list verbs are not granted), so no controller node exists to point
+    at. Every controller-owned pod then falls back to a namespace WORKLOAD_PARENT
+    instead of pointing at a controller id that cannot match.
     """
     parent: dict[str, str | None] = {
         "_workload_parent_deployment_id": None,
@@ -234,7 +241,7 @@ def _resolve_pod_workload_parent(
         "_workload_parent_namespace_name": None,
     }
     owner = get_controller_owner_reference(pod.metadata)
-    if owner is None:
+    if owner is None or not workloads_available:
         parent["_workload_parent_namespace_name"] = pod.metadata.namespace
         return parent
 
@@ -266,6 +273,7 @@ def transform_pods(
     cluster_name: str,
     node_arch_map: dict[str, str] | None = None,
     replicaset_owner_map: dict[str, str] | None = None,
+    workloads_available: bool = True,
 ) -> list[dict[str, Any]]:
     transformed_pods = []
     arch_map = node_arch_map or {}
@@ -276,7 +284,9 @@ def transform_pods(
         containers = _extract_pod_containers(pod, node_arch=node_arch)
         volume_secrets, env_secrets = _extract_pod_secrets(pod, cluster_name)
         service_account_name = pod.spec.service_account_name or "default"
-        workload_parent = _resolve_pod_workload_parent(pod, rs_owner_map)
+        workload_parent = _resolve_pod_workload_parent(
+            pod, rs_owner_map, workloads_available=workloads_available
+        )
         transformed_pods.append(
             {
                 **workload_parent,
@@ -426,11 +436,18 @@ def sync_pods(
 ) -> list[dict[str, Any]]:
     pods = get_pods(client)
 
+    # replicaset_owner_map is None when the workload sync was skipped (e.g. the
+    # apps/batch list verbs are not granted): no controller nodes were ingested,
+    # so controller-owned pods must fall back to a namespace WORKLOAD_PARENT
+    # rather than pointing at a controller id that cannot match.
+    workloads_available = replicaset_owner_map is not None
+
     transformed_pods = transform_pods(
         pods,
         client.name,
         node_arch_map=node_arch_map,
         replicaset_owner_map=replicaset_owner_map,
+        workloads_available=workloads_available,
     )
     load_pods(
         session=session,

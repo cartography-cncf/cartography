@@ -278,12 +278,15 @@ def sync_workloads(
     client: K8sClient,
     update_tag: int,
     common_job_parameters: dict[str, Any],
-) -> dict[str, str]:
+) -> dict[str, str] | None:
     """Sync Kubernetes workload controllers and return the ReplicaSet -> Deployment map.
 
     The map is consumed by the pod sync so a pod owned by a ReplicaSet resolves
     its WORKLOAD_PARENT straight to the owning Deployment (the ReplicaSet is
-    collapsed out of the ontology chain).
+    collapsed out of the ontology chain). Returns ``None`` (not ``{}``) when the
+    workload sync was skipped, so the pod sync can tell "controllers ingested,
+    none map to a Deployment" apart from "controllers not ingested at all" and
+    fall back to a namespace WORKLOAD_PARENT for every controller-owned pod.
 
     The apps/batch list verbs are required (see the Kubernetes config docs). The
     401/403 grace period below is a temporary migration aid, not an opt-out.
@@ -315,7 +318,7 @@ def sync_workloads(
                 client.name,
                 e.status,
             )
-            return {}
+            return None
         raise
 
     load_workloads(
