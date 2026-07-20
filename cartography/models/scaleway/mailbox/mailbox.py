@@ -13,10 +13,8 @@ from cartography.models.core.relationships import TargetNodeMatcher
 
 @dataclass(frozen=True)
 class ScalewayMailboxProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("id")
-    project_id: PropertyRef = PropertyRef("project_id")
-    domain_id: PropertyRef = PropertyRef("domain_id")
-    email: PropertyRef = PropertyRef("email")
+    id: PropertyRef = PropertyRef("id", extra_index=True)
+    email: PropertyRef = PropertyRef("email", extra_index=True)
     status: PropertyRef = PropertyRef("status")
     subscription_period: PropertyRef = PropertyRef("subscription_period")
     subscription_period_started_at: PropertyRef = PropertyRef(
@@ -57,14 +55,14 @@ class ScalewayMailboxToDomainRelProperties(CartographyRelProperties):
 
 
 @dataclass(frozen=True)
-# (:ScalewayMailboxDomain)-[:RESOURCE]->(:ScalewayMailbox)
+# (:ScalewayMailboxDomain)-[:HAS]->(:ScalewayMailbox)
 class ScalewayMailboxToDomainRel(CartographyRelSchema):
     target_node_label: str = "ScalewayMailboxDomain"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("domain_id")},
     )
     direction: LinkDirection = LinkDirection.INWARD
-    rel_label: str = "RESOURCE"
+    rel_label: str = "HAS"
     properties: ScalewayMailboxToDomainRelProperties = (
         ScalewayMailboxToDomainRelProperties()
     )

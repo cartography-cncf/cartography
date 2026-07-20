@@ -48,7 +48,7 @@ PRJ -- RESOURCE --> SC(ServerlessContainer)
 PRJ -- RESOURCE --> SJ(ServerlessJobDefinition)
 PRJ -- RESOURCE --> MBD(MailboxDomain)
 PRJ -- RESOURCE --> MB(Mailbox)
-MBD -- RESOURCE --> MB
+MBD -- HAS --> MB
 INS -- MOUNTS --> VOL
 INS -- MEMBER_OF_SCALEWAY_SECURITY_GROUP --> SG
 SGR -- MEMBER_OF_SCALEWAY_SECURITY_GROUP --> SG
@@ -2023,5 +2023,5 @@ Represents a Mailbox in Scaleway.
     ```
 - A `Mailbox` belongs to a `MailboxDomain`.
     ```
-    (:ScalewayMailboxDomain)-[:RESOURCE]->(:ScalewayMailbox)
+    (:ScalewayMailboxDomain)-[:HAS]->(:ScalewayMailbox)
     ```
