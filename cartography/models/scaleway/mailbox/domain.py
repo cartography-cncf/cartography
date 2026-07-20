@@ -12,8 +12,12 @@ from cartography.models.core.relationships import TargetNodeMatcher
 
 @dataclass(frozen=True)
 class ScalewayMailboxDomainProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("id", description="ID of the Mailbox domain.")
-    name: PropertyRef = PropertyRef("name", description="Domain name.")
+    id: PropertyRef = PropertyRef(
+        "id", extra_index=True, description="ID of the Mailbox domain."
+    )
+    name: PropertyRef = PropertyRef(
+        "name", extra_index=True, description="Domain name."
+    )
     status: PropertyRef = PropertyRef(
         "status", description="Status of the Mailbox domain."
     )

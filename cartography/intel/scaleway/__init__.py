@@ -31,8 +31,7 @@ import cartography.intel.scaleway.instances.securitygroups
 import cartography.intel.scaleway.kapsule.clusters
 import cartography.intel.scaleway.kms.keys
 import cartography.intel.scaleway.loadbalancers.loadbalancers
-import cartography.intel.scaleway.mailbox.domains
-import cartography.intel.scaleway.mailbox.mailboxes
+import cartography.intel.scaleway.mailboxes.mailboxes
 import cartography.intel.scaleway.network.ips
 import cartography.intel.scaleway.network.private_networks
 import cartography.intel.scaleway.network.public_gateways
@@ -301,14 +300,7 @@ def start_scaleway_ingestion(neo4j_session: neo4j.Session, config: Config) -> No
     )
 
     # Mailbox
-    cartography.intel.scaleway.mailbox.domains.sync(
-        neo4j_session,
-        client,
-        common_job_parameters,
-        projects_id=projects_id,
-        update_tag=config.update_tag,
-    )
-    cartography.intel.scaleway.mailbox.mailboxes.sync(
+    cartography.intel.scaleway.mailboxes.mailboxes.sync(
         neo4j_session,
         client,
         common_job_parameters,

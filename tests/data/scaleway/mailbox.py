@@ -2,7 +2,10 @@ from datetime import datetime
 
 from dateutil.tz import tzutc
 from scaleway.mailbox.v1alpha1 import Domain
+from scaleway.mailbox.v1alpha1 import DomainStatus
 from scaleway.mailbox.v1alpha1 import Mailbox
+from scaleway.mailbox.v1alpha1 import MailboxStatus
+from scaleway.mailbox.v1alpha1 import MailboxSubscriptionPeriod
 
 TEST_MAILBOX_DOMAIN_ID = "11111111-1111-1111-1111-111111111111"
 TEST_MAILBOX_ID = "22222222-2222-2222-2222-222222222222"
@@ -16,7 +19,7 @@ SCALEWAY_MAILBOX_DOMAINS = [
         created_at=datetime(2026, 7, 10, 12, 0, 0, tzinfo=tzutc()),
         updated_at=datetime(2026, 7, 10, 12, 30, 0, tzinfo=tzutc()),
         name="example.com",
-        status="ready",
+        status=DomainStatus.READY,
         mailbox_total_count=10,
         webmail_url="https://webmail.example.com",
         imap_url="imap://imap.example.com",
@@ -31,10 +34,10 @@ SCALEWAY_MAILBOXES = [
         id=TEST_MAILBOX_ID,
         domain_id=TEST_MAILBOX_DOMAIN_ID,
         email=TEST_MAILBOX_EMAIL,
-        status="ready",
-        subscription_period="monthly",
+        status=MailboxStatus.READY,
+        subscription_period=MailboxSubscriptionPeriod.MONTHLY,
         subscription_period_started_at=datetime(2026, 7, 10, 12, 0, 0, tzinfo=tzutc()),
-        next_subscription_period="monthly",
+        next_subscription_period=MailboxSubscriptionPeriod.MONTHLY,
         next_subscription_period_starts_at=datetime(
             2026, 8, 10, 12, 0, 0, tzinfo=tzutc()
         ),

@@ -13,15 +13,11 @@ from cartography.models.core.relationships import TargetNodeMatcher
 
 @dataclass(frozen=True)
 class ScalewayMailboxProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("id", description="ID of the Mailbox.")
-    project_id: PropertyRef = PropertyRef(
-        "project_id", description="ID of the Scaleway Project."
-    )
-    domain_id: PropertyRef = PropertyRef(
-        "domain_id", description="ID of the Mailbox domain."
+    id: PropertyRef = PropertyRef(
+        "id", extra_index=True, description="ID of the Mailbox."
     )
     email: PropertyRef = PropertyRef(
-        "email", description="Email address of the Mailbox."
+        "email", extra_index=True, description="Email address of the Mailbox."
     )
     status: PropertyRef = PropertyRef("status", description="Status of the Mailbox.")
     subscription_period: PropertyRef = PropertyRef(
@@ -80,16 +76,16 @@ class ScalewayMailboxToDomainRelProperties(CartographyRelProperties):
 
 
 @dataclass(frozen=True)
-# (:ScalewayMailboxDomain)-[:RESOURCE]->(:ScalewayMailbox)
+# (:ScalewayMailboxDomain)-[:HAS]->(:ScalewayMailbox)
 class ScalewayMailboxToDomainRel(CartographyRelSchema):
-    """Connects `ScalewayMailboxDomain` to `ScalewayMailbox` through `RESOURCE`."""
+    """Connects `ScalewayMailboxDomain` to `ScalewayMailbox` through `HAS`."""
 
     target_node_label: str = "ScalewayMailboxDomain"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("domain_id")},
     )
     direction: LinkDirection = LinkDirection.INWARD
-    rel_label: str = "RESOURCE"
+    rel_label: str = "HAS"
     properties: ScalewayMailboxToDomainRelProperties = (
         ScalewayMailboxToDomainRelProperties()
     )
