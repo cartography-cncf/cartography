@@ -5,5 +5,6 @@ LEGACY_SPOTLIGHT_VULNERABILITY = ExtraNodeLabel(
     label="SpotlightVulnerability",
     description="Compatibility label for the deprecated `SpotlightVulnerability` crowdstrike node label.",
     kind=LabelKind.COMPATIBILITY,
-    remove_in="v1.0.0",
+    replacement_label="CrowdstrikeSpotlightVulnerability",
+    remove_in="1.0.0",
 )

@@ -196,7 +196,7 @@ as uppercase constants, then reuse those constants in schemas. Its `description`
 is metadata for introspection and generated documentation, not runtime behavior.
 `LabelKind.STANDARD` is the default; use `LabelKind.ONTOLOGY` for cross-provider
 semantic labels and `LabelKind.COMPATIBILITY` for temporary aliases. Only
-compatibility labels may set `remove_in`.
+compatibility labels may set `remove_in` and `replacement_label`.
 
 Use reusable constants from `cartography.models.ontology.labels` for ontology
 labels. Raw strings are not accepted. Compose a conditional label with

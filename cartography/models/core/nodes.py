@@ -71,7 +71,14 @@ class CartographyNodeProperties(abc.ABC):
 
 
 class LabelKind(str, Enum):
-    """Semantic role of an additional Cartography node label."""
+    """
+    Semantic role of an additional Cartography node label.
+
+    Attributes:
+        STANDARD: A provider-local or shared graph interface label.
+        ONTOLOGY: A cross-provider semantic label from Cartography's ontology.
+        COMPATIBILITY: A temporary alias retained for backward compatibility.
+    """
 
     STANDARD = "standard"
     ONTOLOGY = "ontology"
@@ -92,6 +99,7 @@ class ExtraNodeLabel:
         kind: The label's semantic role.
         conditions: Sorted node property names and exact string values that must match.
         remove_in: Optional removal version for compatibility labels.
+        replacement_label: Optional replacement for a compatibility label.
     """
 
     label: str
@@ -99,6 +107,7 @@ class ExtraNodeLabel:
     kind: LabelKind = LabelKind.STANDARD
     conditions: tuple[tuple[str, str], ...] = ()
     remove_in: str | None = None
+    replacement_label: str | None = None
 
     def __post_init__(self) -> None:
         if not self.label:
@@ -111,6 +120,15 @@ class ExtraNodeLabel:
             raise ValueError(
                 "remove_in can only be set for compatibility labels.",
             )
+        if (
+            self.replacement_label is not None
+            and self.kind is not LabelKind.COMPATIBILITY
+        ):
+            raise ValueError(
+                "replacement_label can only be set for compatibility labels.",
+            )
+        if self.replacement_label == "":
+            raise ValueError("replacement_label must not be empty.")
 
         for condition in self.conditions:
             if (
@@ -138,7 +156,7 @@ class ExtraNodeLabels:
     labels beyond the primary node label.
 
     Attributes:
-        labels: Declarative labels to apply to the node.
+        labels (tuple[ExtraNodeLabel, ...]): Declarative labels to apply to the node.
     """
 
     labels: tuple[ExtraNodeLabel, ...]

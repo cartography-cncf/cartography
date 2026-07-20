@@ -428,9 +428,9 @@ def _build_node_properties_statement(
 
     Args:
         node_property_map (Dict[str, PropertyRef]): Mapping of node attribute names as str to PropertyRef objects.
-        extra_node_labels (Optional[ExtraNodeLabels], optional): Declarative labels
-            to apply unconditionally when their conditions are empty.
-            Defaults to None.
+        extra_node_labels (Optional[ExtraNodeLabels], optional): Additional labels
+            to include in the SET clause when they have no conditions. For example,
+            `ExtraNodeLabels([RESOURCE])` adds `i:Resource`. Defaults to None.
 
     Returns:
         str: The resulting Neo4j SET clause to set the given attributes on the node.
@@ -442,13 +442,17 @@ def _build_node_properties_statement(
         ...     'node_prop_2': PropertyRef("Prop2", set_in_kwargs=True),
         ... }
         >>> set_clause = _build_node_properties_statement(node_property_map)
-        >>> # Returns:
-        >>> # i.node_prop_1 = item.Prop1,
-        >>> # i.node_prop_2 = $Prop2
+        >>> set_clause
+        'i.node_prop_1 = item.Prop1,\\ni.node_prop_2 = $Prop2'
         >>> # (note: 'id' is excluded as it's handled by MERGE)
 
-        With `RESOURCE` and `CLOUD_ASSET` in `extra_node_labels`,
-        the returned property assignments also contain `i:Resource:CloudAsset`.
+        >>> extra_node_labels = ExtraNodeLabels([RESOURCE, CLOUD_ASSET])
+        >>> set_clause = _build_node_properties_statement(
+        ...     node_property_map,
+        ...     extra_node_labels,
+        ... )
+        >>> set_clause
+        'i.node_prop_1 = item.Prop1,\\ni.node_prop_2 = $Prop2,\\n                i:Resource:CloudAsset'
 
     Note:
         The 'id' field is intentionally excluded from the SET clause as it's already
@@ -469,13 +473,13 @@ def _build_node_properties_statement(
         ],
     )
 
-    # Set unconditional extra labels on the node.
+    # Set extra labels without conditions on the node.
     if extra_node_labels:
-        unconditional_labels = [
+        labels_without_conditions = [
             label.label for label in extra_node_labels.labels if not label.conditions
         ]
-        if unconditional_labels:
-            extra_labels = ":".join(unconditional_labels)
+        if labels_without_conditions:
+            extra_labels = ":".join(labels_without_conditions)
             set_clause += f",\n                i:{extra_labels}"
     return set_clause
 
@@ -1222,10 +1226,6 @@ def build_conditional_label_queries(
 ) -> list[str]:
     """
     Generate Neo4j queries to apply conditional labels to nodes.
-
-    Conditional labels are labels that are only applied to nodes matching specific conditions.
-    This function generates remove and set queries for each extra label with
-    nonempty conditions.
 
     Args:
         node_schema (CartographyNodeSchema): The CartographyNodeSchema object containing

@@ -67,17 +67,17 @@ def test_remove_in_is_limited_to_compatibility_labels() -> None:
         ExtraNodeLabel(
             label="Invalid",
             description="A noncompatibility label with removal metadata.",
-            remove_in="v1.0.0",
+            remove_in="1.0.0",
         )
 
     compatibility_label = ExtraNodeLabel(
         label="Legacy",
         description="A compatibility label.",
         kind=LabelKind.COMPATIBILITY,
-        remove_in="v1.0.0",
+        remove_in="1.0.0",
     )
 
-    assert compatibility_label.remove_in == "v1.0.0"
+    assert compatibility_label.remove_in == "1.0.0"
 
 
 def test_ontology_label_constants_are_explicit_and_documented() -> None:

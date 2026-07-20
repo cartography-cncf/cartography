@@ -5,5 +5,6 @@ LEGACY_CLOUD_TRAIL_SPACELIFT_EVENT = ExtraNodeLabel(
     label="CloudTrailSpaceliftEvent",
     description="Compatibility label for the deprecated `CloudTrailSpaceliftEvent` spacelift node label.",
     kind=LabelKind.COMPATIBILITY,
-    remove_in="v1.0.0",
+    replacement_label="SpaceliftCloudTrailEvent",
+    remove_in="1.0.0",
 )

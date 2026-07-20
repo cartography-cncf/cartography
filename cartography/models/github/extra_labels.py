@@ -23,5 +23,6 @@ LEGACY_DEPENDENCY_GRAPH_MANIFEST = ExtraNodeLabel(
     label="DependencyGraphManifest",
     description="Compatibility label for the deprecated `DependencyGraphManifest` github node label.",
     kind=LabelKind.COMPATIBILITY,
-    remove_in="v1.0.0",
+    replacement_label="GitHubDependencyGraphManifest",
+    remove_in="1.0.0",
 )

@@ -11,7 +11,8 @@ LEGACY_GO_LIBRARY = ExtraNodeLabel(
     label="GoLibrary",
     description="Compatibility label for the deprecated `GoLibrary` semgrep node label.",
     kind=LabelKind.COMPATIBILITY,
-    remove_in="v1.0.0",
+    replacement_label="SemgrepGoLibrary",
+    remove_in="1.0.0",
 )
 
 
@@ -19,5 +20,6 @@ LEGACY_NPM_LIBRARY = ExtraNodeLabel(
     label="NpmLibrary",
     description="Compatibility label for the deprecated `NpmLibrary` semgrep node label.",
     kind=LabelKind.COMPATIBILITY,
-    remove_in="v1.0.0",
+    replacement_label="SemgrepNpmLibrary",
+    remove_in="1.0.0",
 )
