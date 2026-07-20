@@ -123,6 +123,18 @@ def test_deprecated_cve_feed_cleanup(neo4j_session):
 def test_sync(mock_nvd, mock_epss, neo4j_session):
     # Arrange
     _create_cve_nodes(neo4j_session)
+    # A finding node carrying the :CVE semantic label should also be enriched by
+    # CVEMetadata, not just the deprecated standalone CVE node (issue #3049).
+    neo4j_session.run(
+        """
+        CREATE (:AWSInspectorFinding:CVE {
+            id: 'inspector-finding-1',
+            cve_id: 'CVE-2023-41782',
+            lastupdated: $update_tag
+        })
+        """,
+        update_tag=TEST_UPDATE_TAG,
+    )
     config = Config(
         neo4j_uri="bolt://localhost:7687",
         update_tag=TEST_UPDATE_TAG,
@@ -195,6 +207,18 @@ def test_sync(mock_nvd, mock_epss, neo4j_session):
     ) == {
         ("CVE-2023-41782", "CVE-2023-41782"),
         ("CVE-2024-22075", "CVE-2024-22075"),
+    }
+
+    # Assert - ENRICHES also reaches finding nodes carrying the :CVE label
+    assert check_rels(
+        neo4j_session,
+        "CVEMetadata",
+        "id",
+        "AWSInspectorFinding",
+        "id",
+        "ENRICHES",
+    ) == {
+        ("CVE-2023-41782", "inspector-finding-1"),
     }
 
 

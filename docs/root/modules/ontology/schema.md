@@ -1064,6 +1064,42 @@ Package nodes are deduplicated by their `id`, which uses the format `{type}|{nam
     (:Package)-[:DEPENDS_ON]->(:Package)
     ```
 
+### CVE
+
+```{note}
+CVE is a semantic label.
+```
+
+A CVE represents a specific, publicly disclosed vulnerability (a CVE identifier) as detected by a
+scanner or vulnerability feed. Unlike the abstract nodes, `CVE` is a semantic label applied directly
+to the concrete finding nodes that reference a CVE, so cross-scanner queries can select every
+CVE-backed finding with `MATCH (c:CVE)`.
+
+Contributing module nodes (each carries `:CVE` unconditionally or via a conditional label): the
+deprecated `CVE` node, `UbuntuCVE`, `TrivyImageFinding`, `CrowdstrikeFinding`, `GitHubDependabotAlert`,
+`S1AppFinding`, `SemgrepSCAFinding` (when `has_cve` is true), and `AWSInspectorFinding` (when
+`type = PACKAGE_VULNERABILITY`).
+
+| Field | Description |
+|-------|-------------|
+| _ont_cve_id | The CVE identifier (e.g. `CVE-2022-31129`). |
+| _ont_description | Human-readable description of the vulnerability. |
+| _ont_references | Reference URLs for the vulnerability. |
+| _ont_base_score | CVSS base score. |
+| _ont_base_severity | CVSS base severity (e.g. `LOW`, `MEDIUM`, `HIGH`, `CRITICAL`). |
+| _ont_source | Source module of the data. |
+
+Not every contributing node populates every field; scanners expose different subsets (see the
+per-module mappings in `cartography/models/ontology/mapping/data/cves.py`).
+
+#### Relationships
+
+- A `CVE`-labelled node is enriched with normalized NVD / EPSS / CISA KEV metadata by the `CVEMetadata`
+  node (matched on the CVE identifier):
+    ```
+    (:CVEMetadata)-[:ENRICHES]->(:CVE)
+    ```
+
 ### ContainerRegistry
 
 ```{note}

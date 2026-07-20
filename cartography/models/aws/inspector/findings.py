@@ -35,6 +35,9 @@ class AWSInspectorNodeProperties(CartographyNodeProperties):
     portrangebegin: PropertyRef = PropertyRef("portrangebegin")
     portrangeend: PropertyRef = PropertyRef("portrangeend")
     vulnerabilityid: PropertyRef = PropertyRef("vulnerabilityid")
+    # Normalized CVE id, populated only for PACKAGE_VULNERABILITY findings; feeds
+    # the :CVE ontology label's _ont_cve_id and the CVEMetadata ENRICHES edge.
+    cve_id: PropertyRef = PropertyRef("cve_id", extra_index=True)
     referenceurls: PropertyRef = PropertyRef("referenceurls")
     relatedvulnerabilities: PropertyRef = PropertyRef("relatedvulnerabilities")
     source: PropertyRef = PropertyRef("source")

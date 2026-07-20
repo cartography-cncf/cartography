@@ -202,6 +202,17 @@ def test_sync_inspector_ec2_package_findings(mock_get, neo4j_session):
     assert "CVE" in labels
     assert "SecurityIssue" not in labels
 
+    # Package-vulnerability findings expose the CVE id via the normalized cve_id
+    # property so they participate in the :CVE ontology and CVEMetadata enrichment.
+    assert check_nodes(
+        neo4j_session,
+        "AWSInspectorFinding",
+        ["id", "cve_id"],
+    ) == {
+        ("arn:aws:test456", "CVE-2017-9059"),
+        ("arn:aws:test789", "CVE-2023-1234"),
+    }
+
 
 @patch.object(
     cartography.intel.aws.inspector,
