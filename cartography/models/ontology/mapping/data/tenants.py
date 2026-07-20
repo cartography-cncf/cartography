@@ -34,9 +34,9 @@ _DO_ACCOUNT_STATUS = {
     "locked": "suspended",
 }
 
-# GCP CRM lifecycleState
+# GCP CRM state (v3 SDK emits State.<member>.name, e.g. "STATE_UNSPECIFIED")
 _GCP_LIFECYCLE_STATUS = {
-    "LIFECYCLE_STATE_UNSPECIFIED": "unknown",
+    "STATE_UNSPECIFIED": "unknown",
     "ACTIVE": "active",
     "DELETE_REQUESTED": "pending_deletion",
     "DELETE_IN_PROGRESS": "pending_deletion",

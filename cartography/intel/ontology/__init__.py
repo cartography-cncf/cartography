@@ -15,6 +15,7 @@ from cartography.config import Config
 from cartography.intel.ontology.deprecated_indexes import (
     drop_deprecated_ontology_indexes,
 )
+from cartography.util import run_analysis_job
 from cartography.util import run_typed_analysis_job
 from cartography.util import timeit
 
@@ -92,6 +93,14 @@ def run(neo4j_session: neo4j.Session, config: Config) -> None:
     # Runs after resolved_image_analysis so all semantic labels and HAS_IMAGE edges are in place.
     run_typed_analysis_job(
         AIBOM_RUNS_ON_CONTAINER,
+        neo4j_session,
+        common_job_parameters,
+    )
+    # Strip stale _ont_status values left on nodes whose status mapping was
+    # de-scoped (SpaceliftStack run-phase, AzureTenant geographic state). The
+    # load statement no longer sets them, but existing values persist until removed.
+    run_analysis_job(
+        "ontology_removed_status_cleanup.json",
         neo4j_session,
         common_job_parameters,
     )

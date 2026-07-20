@@ -20,6 +20,7 @@ _AWS_ECS_TASK_STATUS = {
     "STOPPING": "stopping",
     "DEPROVISIONING": "stopping",
     "STOPPED": "stopped",
+    "DELETED": "stopped",
 }
 
 # Kubernetes PodPhase (fixtures also use lowercase "running")
@@ -30,16 +31,6 @@ _K8S_POD_STATUS = {
     "Succeeded": "succeeded",
     "Failed": "failed",
     "Unknown": "unknown",
-}
-
-# Azure Container Instance group provisioning state (ARM)
-_AZURE_ACI_GROUP_STATUS = {
-    "Creating": "pending",
-    "Updating": "pending",
-    "Succeeded": "running",
-    "Deleting": "stopping",
-    "Failed": "failed",
-    "Canceled": "failed",
 }
 
 aws_ecs_mapping = OntologyMapping(
@@ -93,12 +84,11 @@ azure_aci_mapping = OntologyMapping(
             node_label="AzureGroupContainer",
             fields=[
                 OntologyFieldMapping(ontology_field="name", node_field="name"),
-                OntologyFieldMapping(
-                    ontology_field="status",
-                    node_field="provisioning_state",
-                    special_handling="mapping",
-                    extra={"map": _AZURE_ACI_GROUP_STATUS},
-                ),
+                # status: intentionally not mapped. The group node only exposes
+                # provisioning_state (an ARM deployment status: a stopped/completed
+                # group is still "Succeeded"), which is not the runtime pod phase
+                # this field models. Per-container runtime state lives on
+                # AzureContainerInstance._ont_state instead.
                 # namespace: Not applicable for Azure Container Instances.
                 # node: ACI does not surface a node / host identifier.
             ],

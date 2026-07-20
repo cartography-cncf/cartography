@@ -5,7 +5,8 @@ from cartography.models.ontology.mapping.specs import OntologyNodeMapping
 # EncryptionKey fields:
 # name - Key name or identifier (required)
 # key_type - Key purpose/usage, normalized to the shared canonical set:
-#   encrypt_decrypt, sign_verify, asymmetric_sign, asymmetric_decrypt, mac, key_agreement.
+#   encrypt_decrypt, sign_verify, asymmetric_sign, asymmetric_decrypt, mac,
+#   key_agreement, key_encapsulation.
 #   The raw provider value stays on the source node's own key_usage/purpose/usage_type property.
 # enabled - Whether the key is enabled
 # rotation_enabled - Whether automatic rotation is configured
@@ -25,6 +26,7 @@ _GCP_CRYPTOKEY_TYPE = {
     "ASYMMETRIC_SIGN": "asymmetric_sign",
     "ASYMMETRIC_DECRYPT": "asymmetric_decrypt",
     "MAC": "mac",
+    "KEY_ENCAPSULATION": "key_encapsulation",
 }
 
 # Scaleway KMS key usage (one-of holder field name)
