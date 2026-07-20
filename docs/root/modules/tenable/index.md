@@ -1,7 +1,5 @@
 # Tenable
 
 ```{toctree}
-:glob: true
-
-*
+schema
 ```

@@ -1,7 +1,5 @@
 # Ubuntu Security
 
 ```{toctree}
-:glob: true
-
-*
+schema
 ```
