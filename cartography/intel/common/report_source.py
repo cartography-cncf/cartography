@@ -64,8 +64,19 @@ class AzureBlobReportSource:
         )
 
 
+@dataclass(frozen=True)
+class HttpReportSource:
+    """A single Terraform state file reachable via HTTP/HTTPS (e.g. GitLab HTTP backend)."""
+
+    url: str
+
+    @property
+    def uri(self) -> str:
+        return self.url
+
+
 CloudReportSource = S3ReportSource | GCSReportSource | AzureBlobReportSource
-ReportSource = LocalReportSource | CloudReportSource
+ReportSource = LocalReportSource | CloudReportSource | HttpReportSource
 
 
 def _normalize_cloud_prefix(provider: str, prefix: str | None = None) -> str:
@@ -148,9 +159,12 @@ def parse_report_source(raw_source: str) -> ReportSource:
             prefix=_normalize_cloud_prefix("Azure Blob", prefix),
         )
 
+    if scheme in ("http", "https"):
+        return HttpReportSource(url=source)
+
     raise ValueError(
         f"Unsupported report source scheme '{scheme}'. "
-        "Supported schemes are s3://, gs://, and azblob://. "
+        "Supported schemes are s3://, gs://, azblob://, http://, and https://. "
         "Use a plain filesystem path for local sources.",
     )
 
