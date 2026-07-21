@@ -2003,8 +2003,6 @@ Represents a Mailbox in Scaleway.
 | Field                              | Description                                      |
 |------------------------------------|--------------------------------------------------|
 | id                                 | ID of the Mailbox.                               |
-| project_id                         | ID of the Scaleway Project.                      |
-| domain_id                          | ID of the Mailbox domain.                        |
 | email                              | Email address of the Mailbox.                    |
 | status                             | Status of the Mailbox.                           |
 | subscription_period                | Current subscription period of the Mailbox.      |
@@ -2021,7 +2019,9 @@ Represents a Mailbox in Scaleway.
     ```
     (:ScalewayProject)-[:RESOURCE]->(:ScalewayMailbox)
     ```
+    The project is used as the scoped load parent; it is not persisted as a `ScalewayMailbox` node property.
 - A `Mailbox` belongs to a `MailboxDomain`.
     ```
     (:ScalewayMailboxDomain)-[:HAS]->(:ScalewayMailbox)
     ```
+    The Mailbox API `domain_id` is used to match the parent `ScalewayMailboxDomain`; it is not persisted as a `ScalewayMailbox` node property.
