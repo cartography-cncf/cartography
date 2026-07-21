@@ -19,19 +19,22 @@ DIGEST = "sha256:" + "1" * 64
 NAMESPACE_DIGEST = "sha256:" + "2" * 64
 
 
-def _seed_image(neo4j_session, digest, tag_name, uri):
+def _seed_image(neo4j_session, digest, tag_name, image_uri=None, tag_uri=None):
+    # image_uri=None mirrors ECR (AWSECRImage has no uri); the namespace must then be
+    # recovered from the ImageTag uri.
     neo4j_session.run(
         """
         MERGE (reg:ContainerRegistry {id: 'reg-1'})
         MERGE (img:Image {digest: $digest})
-          SET img.id = $digest, img.uri = $uri, img.lastupdated = $tag
+          SET img.id = $digest, img.uri = $image_uri, img.lastupdated = $tag
         MERGE (t:ImageTag {id: $tag_id})
-          SET t.name = $tag_name, t.lastupdated = $tag
+          SET t.name = $tag_name, t.uri = $tag_uri, t.lastupdated = $tag
         MERGE (reg)-[:REPO_IMAGE]->(t)
         MERGE (t)-[:IMAGE]->(img)
         """,
         digest=digest,
-        uri=uri,
+        image_uri=image_uri,
+        tag_uri=tag_uri,
         tag_id=f"{digest}:{tag_name}",
         tag_name=tag_name,
         tag=TEST_UPDATE_TAG,
@@ -178,7 +181,8 @@ def test_cross_provider_gating_excludes_already_matched_image(neo4j_session):
 def test_config_binding_packaged_from(neo4j_session):
     # Arrange: an image with a non-SHA tag under a namespace bound by the config.
     _cleanup(neo4j_session)
-    _seed_image(neo4j_session, NAMESPACE_DIGEST, "latest", "myns/app:latest")
+    # ECR-style: image node has no uri; namespace comes from the ImageTag uri.
+    _seed_image(neo4j_session, NAMESPACE_DIGEST, "latest", tag_uri="myns/app:latest")
     _seed_repo_and_project(neo4j_session)
 
     run = {
