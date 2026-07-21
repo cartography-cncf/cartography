@@ -145,8 +145,15 @@ def get_unmatched_circleci_candidate_images(
                   _sub_resource_id: $org_id
               }]->())
           )
-        WITH img, coalesce(img.uri, img.digest) AS uri, collect(DISTINCT t.name) AS tags
-        RETURN img.digest AS digest, uri, tags
+        WITH img,
+             [u IN collect(DISTINCT t.uri) WHERE u IS NOT NULL] AS tag_uris,
+             collect(DISTINCT t.name) AS tags
+        // Prefer the image's own uri, else a tag reference. ECR images (AWSECRImage) carry
+        // no uri, so the ImageTag uri is what lets _registry_namespace recover the registry
+        // namespace for the config-binding rung.
+        RETURN img.digest AS digest,
+               coalesce(img.uri, head(tag_uris), img.digest) AS uri,
+               tags
     """
     if limit:
         query += f" LIMIT {limit}"
@@ -478,9 +485,10 @@ def sync(
 
     Two fallback rungs, appended below the SLSA-provenance / Dockerfile-analysis ladder for
     no-attestation / no-layer-history environments:
-      1. circleci_tag_revision (medium): an ImageTag name equals a build revision SHA that
-         resolves to a single repo. Resolves a specific image, so a partial feed only
-         causes misses, never wrong edges.
+      1. circleci_tag_revision (medium): an ImageTag name equals (or is a 7+ char hex
+         prefix of) a build revision SHA that resolves to a single repo. Resolves a
+         specific image; a partial feed usually only causes misses, though a repo outside
+         the window that shares the revision/prefix can still mis-attribute (rare).
       2. circleci_config_binding (low): a registry namespace parsed from the pipeline
          config binds to a repo. Namespace-wide and only applied to images rung 1 did not
          resolve. It relies on a time-bounded, partial /pipeline feed, so it can mis-bind a

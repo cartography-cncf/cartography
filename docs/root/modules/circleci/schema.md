@@ -245,19 +245,22 @@ supply-chain matcher adds low-confidence fallback `PACKAGED_FROM` edges from an 
 its code repository. Pipeline runs and config are read transiently from the CircleCI API
 and are never stored as nodes; only the edges are written.
 
-Every edge carries `match_method` and `confidence` so consumers can filter at their own
-threshold. These rungs run below the provenance / Dockerfile / package-owner ladder:
+The fallback `PACKAGED_FROM` edges carry `match_method` and `confidence` so consumers can
+filter at their own threshold (the `PACKAGED_BY` edge carries only `match_method`). These
+rungs run below the provenance / Dockerfile / package-owner ladder:
 
 | match_method | Signal | Confidence |
 |--------------|--------|------------|
-| `circleci_tag_revision` | An `ImageTag` name equals a `/pipeline`-feed run's `vcs.revision` (git SHA) that resolves to a single repo; that run names the repo. | medium (`0.5`) |
+| `circleci_tag_revision` | An `ImageTag` name exactly matches, or is a 7+ character hexadecimal prefix of, a `/pipeline`-feed run's `vcs.revision` (git SHA) that resolves to a single repo; that run names the repo. | medium (`0.5`) |
 | `circleci_config_binding` | A registry namespace parsed from `/pipeline/{id}/config` binds to a repo; images under that namespace inherit it. | low (`0.25`) |
 
 The `/pipeline` feed is time-bounded (runs from roughly the last 30 days, newest-first),
 not a complete inventory: CircleCI API v2 has no list-projects endpoint. `circleci_tag_revision`
-resolves a specific image, so a partial feed only causes misses. `circleci_config_binding`
-is namespace-wide and, on a partial feed, can bind a namespace shared by a project outside
-the window to the wrong repo; this is an accepted tradeoff, reflected in its low confidence.
+resolves a specific image, so a partial feed usually only causes misses; a repo outside the
+window that shares the same revision (or short-SHA prefix) can still cause an incorrect
+edge, though this is rare. `circleci_config_binding` is namespace-wide and, on a partial
+feed, can bind a namespace shared by a project outside the window to the wrong repo. Both
+residual risks are accepted tradeoffs, reflected in the low/medium confidence.
 
 ```
 (:Image)-[:PACKAGED_FROM]->(:GitHubRepository)
