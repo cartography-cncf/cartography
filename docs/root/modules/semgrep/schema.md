@@ -161,9 +161,11 @@ Represents a [Semgrep Secrets](https://semgrep.dev/docs/semgrep-secrets/conceptu
     (SemgrepSecretsFinding)-[FOUND_IN]->(GitLabProject)
     ```
 
-### SemgrepSCAFinding::SecurityIssue
+### SemgrepSCAFinding::CVE / ::SecurityIssue
 
 Represents a [Semgrep Supply Chain](https://semgrep.dev/docs/semgrep-supply-chain/overview/) finding. This is, a vulnerability in a dependency of a project discovered by Semgrep performing software composition analysis (SCA) and code reachability analysis. Before ingesting this node, make sure you have run Semgrep CI and that it's connected to Semgrep Cloud Platform [Running Semgrep CI with Semgrep Cloud Platform](https://semgrep.dev/docs/semgrep-ci/running-semgrep-ci-with-semgrep-cloud-platform/). The API called to retrieve this information is documented at https://semgrep.dev/api/v1/docs/#tag/SupplyChainService.
+
+> **Ontology Mapping**: An SCA finding is either CVE-backed or an advisory-only security issue, never both. It carries the extra label `CVE` when `has_cve` is true (see the [CVE ontology](../ontology/schema.md#cve)), and `SecurityIssue` otherwise.
 
 | Field | Description |
 |-------|--------------|
@@ -177,7 +179,9 @@ Represents a [Semgrep Supply Chain](https://semgrep.dev/docs/semgrep-supply-chai
 | description | Description of the vulnerability. |
 | package_manager | The ecosystem of the dependency where the finding was discovered (e.g. pypi, npm, maven) |
 | severity | Severity of the finding based on Semgrep analysis (e.g. CRITICAL, HIGH, MEDIUM, LOW) |
-| cve_id | CVE id of the vulnerability from NVD. Check [cve_schema](../cve/schema.md) |
+| cve_id | CVE id of the vulnerability from NVD, set only when the finding references a real CVE (null otherwise). Check [cve_schema](../cve/schema.md) |
+| ghsa_id | GitHub Security Advisory (GHSA) id, set when the finding references a GHSA advisory instead of a CVE |
+| has_cve | `"true"` when `cve_id` is a real CVE id (drives the conditional `CVE` / `SecurityIssue` label), `"false"` for advisory-only findings |
 | reachability_check | Whether the vulnerability reachability is confirmed, not confirmed or needs to be manually confirmed |
 | reachability_condition | Description of the reachability condition (e.g. reachable if code is used in X way) |
 | reachability | Whether the vulnerability is reachable or not |
@@ -221,10 +225,16 @@ Represents a [Semgrep Supply Chain](https://semgrep.dev/docs/semgrep-supply-chai
     (:SemgrepSCAFinding)-[:AFFECTS]->(:Dependency)
     ```
 
-- A SemgrepSCAFinding linked to a CVE (optional)
+- A SemgrepSCAFinding linked to a CVE (optional, deprecated shim kept for backward compatibility)
 
     ```
     (:SemgrepSCAFinding)<-[:LINKED_TO]-(:CVE)
+    ```
+
+- A CVE-backed SemgrepSCAFinding is enriched by CVEMetadata via the `CVE` label (optional)
+
+    ```
+    (:CVEMetadata)-[:ENRICHES]->(:SemgrepSCAFinding:CVE)
     ```
 
 - A SemgrepSCAFinding has a SemgrepFindingAssistant (optional)

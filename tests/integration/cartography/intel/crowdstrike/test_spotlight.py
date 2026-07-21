@@ -94,7 +94,7 @@ def test_sync_spotlight_vulnerabilities(
             "MEDIUM",
             "CVE-2019-5094",
             6.7,
-            "MEDIUM",
+            "medium",
             "crowdstrike",
         ),
     }

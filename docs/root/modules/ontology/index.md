@@ -118,6 +118,61 @@ OntologyFieldMapping(
 # inactive=True if status is "disabled", "locked out", or "pending deletion"
 ```
 
+#### `nor_boolean`
+Combines multiple boolean fields using logical NOR (true only when every field is falsy):
+```python
+OntologyFieldMapping(
+    ontology_field="active",
+    node_field="suspended",
+    special_handling="nor_boolean",
+    extra={"fields": ["archived"]},
+)
+# active = NOT (suspended OR archived)
+```
+
+#### `mapping`
+Normalizes provider-specific values into a shared ontology vocabulary. Providers often use
+different strings for the same concept (e.g. instance state `RUNNING` vs `running` vs
+`READY`); `mapping` translates each raw value to a canonical one so cross-provider queries
+can filter on a single stable value. Values not present in the `map` become `NULL`. The raw
+value remains available on the source node's own property.
+```python
+OntologyFieldMapping(
+    ontology_field="type",
+    node_field="role_type",
+    special_handling="mapping",
+    extra={"map": {"BASIC": "builtin", "PREDEFINED": "builtin", "CUSTOM": "custom"}},
+)
+# role_type="PREDEFINED" becomes type="builtin"; an unmapped value becomes NULL
+```
+
+The `map` is defined per node mapping, so each semantic-label family can normalize to the
+vocabulary that fits it (e.g. a `:Cluster` status map differs from a `:SecurityIssue` one).
+
+#### `static_value`
+Sets a constant value, ignoring `node_field` - useful when a provider's semantics are fixed:
+```python
+OntologyFieldMapping(
+    ontology_field="deployment_type",
+    node_field="",
+    special_handling="static_value",
+    extra={"value": "code"},
+)
+# deployment_type is always "code" (e.g. a source-only serverless provider)
+```
+
+#### `coalesce`
+Sets the first non-null value from `node_field` then each entry in `extra["fields"]`:
+```python
+OntologyFieldMapping(
+    ontology_field="endpoint",
+    node_field="public_endpoint",
+    special_handling="coalesce",
+    extra={"fields": ["private_endpoint"]},
+)
+# endpoint = public_endpoint if set, otherwise private_endpoint
+```
+
 ### Node Eligibility
 
 The `eligible_for_source` parameter in `OntologyNodeMapping` controls whether a node mapping can create new ontology nodes (default: `True`).

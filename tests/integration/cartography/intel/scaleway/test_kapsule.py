@@ -66,7 +66,7 @@ def test_load_scaleway_kapsule(_mock_get, neo4j_session):
         neo4j_session,
         "ComputeCluster",
         ["_ont_name", "_ont_region", "_ont_version", "_ont_status", "_ont_source"],
-    ) == {("demo-cluster", "fr-par", "1.30.2", "ready", "scaleway")}
+    ) == {("demo-cluster", "fr-par", "1.30.2", "active", "scaleway")}
 
     # Project ownership.
     for label in (

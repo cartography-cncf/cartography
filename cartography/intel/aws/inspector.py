@@ -200,6 +200,10 @@ def transform_inspector_findings(
             finding["vulnerabilityid"] = f["packageVulnerabilityDetails"][
                 "vulnerabilityId"
             ]
+            # Package-vulnerability findings are CVE-backed; expose the id under a
+            # normalized cve_id so it feeds the :CVE ontology label's _ont_cve_id.
+            # Network/code findings never enter this block, so their cve_id stays null.
+            finding["cve_id"] = f["packageVulnerabilityDetails"]["vulnerabilityId"]
             finding["referenceurls"] = f["packageVulnerabilityDetails"].get(
                 "referenceUrls",
             )

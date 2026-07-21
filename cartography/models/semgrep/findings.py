@@ -10,6 +10,7 @@ from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import TargetNodeMatcher
+from cartography.models.ontology.labels import CVE
 from cartography.models.ontology.labels import SECURITY_ISSUE
 
 
@@ -25,7 +26,13 @@ class SemgrepSCAFindingNodeProperties(CartographyNodeProperties):
     description: PropertyRef = PropertyRef("description")
     package_manager: PropertyRef = PropertyRef("ecosystem")
     severity: PropertyRef = PropertyRef("severity")
+    # Populated only when the finding's identifier is a real CVE; null for GHSA/other
+    # advisories, so _ont_cve_id stays a genuine CVE identifier.
     cve_id: PropertyRef = PropertyRef("cveId", extra_index=True)
+    # GHSA advisory identifier, when the finding references one instead of a CVE.
+    ghsa_id: PropertyRef = PropertyRef("ghsaId", extra_index=True)
+    # Drives the conditional :CVE label; "true" only when cve_id is a real CVE id.
+    has_cve: PropertyRef = PropertyRef("has_cve")
     reachability_check: PropertyRef = PropertyRef("reachability")
     reachability_condition: PropertyRef = PropertyRef("reachableIf")
     reachability: PropertyRef = PropertyRef("exposureType")
@@ -164,7 +171,16 @@ class SemgrepSCAFindingToAssistantRel(CartographyRelSchema):
 @dataclass(frozen=True)
 class SemgrepSCAFindingSchema(CartographyNodeSchema):
     label: str = "SemgrepSCAFinding"
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([SECURITY_ISSUE])
+    # An SCA finding is either CVE-backed or an advisory-only security issue, never
+    # both, so both labels are conditional and mutually exclusive on has_cve. This
+    # mirrors AWSInspectorFinding (PACKAGE_VULNERABILITY -> CVE vs
+    # NETWORK_REACHABILITY -> SecurityIssue).
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
+        [
+            SECURITY_ISSUE.when(has_cve="false"),
+            CVE.when(has_cve="true"),
+        ],
+    )
     properties: SemgrepSCAFindingNodeProperties = SemgrepSCAFindingNodeProperties()
     sub_resource_relationship: SemgrepSCAFindingToSemgrepDeploymentRel = (
         SemgrepSCAFindingToSemgrepDeploymentRel()
