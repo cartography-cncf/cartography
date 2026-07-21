@@ -79,6 +79,7 @@ IM -- HAS_LAYER --> IL{{ImageLayer}}
 CT -- HAS_IMAGE --> IM
 CT -- HAS_IMAGE --> IML
 CT -- RESOLVED_IMAGE --> IM
+CS -- HAS_RUNTIME_IMAGE --> IM
 ```
 
 :::{note}
@@ -88,7 +89,7 @@ In this schema, `squares` represent `Abstract Nodes` and `hexagons` represent `S
 ### Where ontology relationships come from
 
 1. The abstract ontology node schemas (`User`, `Device`, `PublicIP`, `Package`) declare the edges they own to module nodes (e.g. `(:User)-[:HAS_ACCOUNT]->(:UserAccount)`).
-2. Ontology analysis jobs derive cross-module edges after sync (e.g. `USER_LINKING_JOBS` builds the `User`/`UserAccount` graph; `RESOLVED_IMAGE_JOBS` connects `Container` and `Function` to a single-platform `Image`).
+2. Ontology analysis jobs derive cross-module edges after sync (e.g. `USER_LINKING_JOBS` builds the `User`/`UserAccount` graph; `RESOLVED_IMAGE_JOBS` connects `Container` and `Function` to a single-platform `Image`; `WORKLOAD_HAS_RUNTIME_IMAGE` collapses running containers up the `WORKLOAD_PARENT` chain to record `(:ComputeService)-[:HAS_RUNTIME_IMAGE]->(:Image)` for each workload).
 3. Sync modules wire edges between two ontology-labelled nodes themselves (e.g. ECS adding `(:AWSECSContainer:Container)-[:WORKLOAD_PARENT]->(:AWSECSTask:ComputePod)`). For this last source, canonical `(src, dst, label)` triples are encoded as `RelConstraint` entries in [`cartography/models/ontology/constraints.py`](https://github.com/cartography-cncf/cartography/blob/master/cartography/models/ontology/constraints.py); a unit test rejects any module rel between those two ontology labels that uses a different name or direction.
 
 ### Ontology Properties on Nodes
@@ -479,6 +480,11 @@ It generalizes concepts like AWS ECS services and GCP Cloud Run services and job
     (:ComputePod)-[:WORKLOAD_PARENT]->(:ComputeService)
     (:Container)-[:WORKLOAD_PARENT]->(:ComputeService)
     ```
+- `ComputeService` has a runtime `Image`: the runtime image inventory (composition) of the logical workload. This edge is produced by `WORKLOAD_HAS_RUNTIME_IMAGE` in `cartography/analysis/ontology/analysis.py`, which collapses each running container up the `WORKLOAD_PARENT` chain to its owning controller and dedups to one edge per `(workload, image)` pair. The collapse is zero-or-more hops, so serverless workloads that are both `ComputeService` and `Container` on a single node (e.g. `ScalewayServerlessContainer`) are covered too. The edge carries an `exposed_internet` boolean: the OR of the service-level exposure signal (`svc.exposed_internet`, e.g. GCP Cloud Run ingress) and any running replica's signal (`rt.exposed_internet`, e.g. AWS ECS / Kubernetes), so a workload's runtime composition and exposure can be read without fanning back out to individual replicas.
+    ```
+    (:ComputeService)-[:HAS_RUNTIME_IMAGE]->(:Image)
+    ```
+    Standalone runtimes with no `ComputeService` controller are not materialized here and are served by the read-side live-collapse path instead: bare pods, and functions (`AWS Lambda`, `GCP Cloud Functions`, `Azure Function Apps`, `Scaleway serverless functions`) which carry only `:Function`.
 
 
 ### ComputeNamespace

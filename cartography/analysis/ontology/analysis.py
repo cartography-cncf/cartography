@@ -622,6 +622,58 @@ FUNCTION_RESOLVED_IMAGE = AnalysisJob(
     ),
 )
 RESOLVED_IMAGE_JOBS = (CONTAINER_RESOLVED_IMAGE, FUNCTION_RESOLVED_IMAGE)
+WORKLOAD_HAS_RUNTIME_IMAGE = AnalysisJob(
+    name="Workload HAS_RUNTIME_IMAGE inventory analysis",
+    short_name="workload_has_runtime_image_analysis",
+    cleanup_iterationsize=1000,
+    statements=(
+        AnalysisStatement(
+            comment=(
+                "Materialize the runtime image inventory of each ComputeService "
+                "workload, deduped per (workload, image), with workload-level internet "
+                "exposure denormalized onto the edge. Anchoring on ComputeService means "
+                "this covers workloads that run containers: ECS services, Cloud Run "
+                "services/jobs, Kubernetes controllers, and Scaleway serverless "
+                "containers. Standalone runtimes with no ComputeService controller "
+                "(bare pods, and functions such as AWS Lambda / GCP Cloud Functions / "
+                "Azure Function Apps / Scaleway serverless functions, which carry only "
+                ":Function) are intentionally NOT materialized here; they are per-instance "
+                "and low cardinality, and stay on the read-side live-collapse path. The "
+                "rt:Function branch therefore matches nothing today and exists only to "
+                "cover a future serverless function that is itself modeled as a "
+                "ComputeService (the symmetric case of Scaleway serverless containers). "
+                "The *0..6 lower bound of 0 covers serverless workloads "
+                "(e.g. ScalewayServerlessContainer) that carry both :ComputeService and "
+                ":Container on a single node with no intermediate WORKLOAD_PARENT hop. "
+                "Exposure is the OR of the service-level signal (svc.exposed_internet, "
+                "where GCP writes Cloud Run ingress exposure) and any running replica's "
+                "signal (rt.exposed_internet, where AWS ECS / Kubernetes write it). "
+                "The active-state filter accepts both 'running' (AWS ECS RUNNING, "
+                "Kubernetes running, Azure Running, GCP Cloud Run) and 'ready' (Scaleway "
+                "serverless ContainerStatus.READY) because _ont_state carries the raw "
+                "per-provider status string and providers use different words for a "
+                "container that is actively serving."
+            ),
+            match="""
+            MATCH (svc:ComputeService)<-[:WORKLOAD_PARENT*0..6]-(rt)-[:RESOLVED_IMAGE]->(img:Image)
+            WHERE (rt:Container OR rt:Function)
+              AND (NOT rt:Container OR toLower(rt._ont_state) IN ['running', 'ready'])
+            WITH svc, img, collect(coalesce(rt.exposed_internet, false)) AS rt_flags
+            WITH svc, img, (coalesce(svc.exposed_internet, false) OR true IN rt_flags) AS exposed
+            """,
+            effects=(
+                AddRelationship(
+                    "svc",
+                    "HAS_RUNTIME_IMAGE",
+                    "img",
+                    source_label="ComputeService",
+                    target_label="Image",
+                    properties={"exposed_internet": Var("exposed")},
+                ),
+            ),
+        ),
+    ),
+)
 SUPPLY_CHAIN_SOURCE_FILE = AnalysisJob(
     name="Enrich PACKAGED_FROM with source_file from Image provenance",
     short_name="supply_chain_source_file",
