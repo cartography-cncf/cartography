@@ -114,3 +114,73 @@ def test_load_scaleway_mailbox_domains_and_mailboxes(_mock_get, neo4j_session):
         )
         == expected_mailbox_domain_rels
     )
+
+
+@patch.object(cartography.intel.scaleway.mailboxes.mailboxes, "get")
+def test_stale_mailboxes_and_domains_are_cleaned_up(mock_get, neo4j_session):
+    # Arrange
+    client = Mock()
+    common_job_parameters = {"UPDATE_TAG": TEST_UPDATE_TAG, "ORG_ID": TEST_ORG_ID}
+    _ensure_local_neo4j_has_test_projects_and_orgs(neo4j_session)
+
+    # Act: initial sync loads a domain and its mailbox
+    mock_get.return_value = (SCALEWAY_MAILBOX_DOMAINS, SCALEWAY_MAILBOXES)
+    cartography.intel.scaleway.mailboxes.mailboxes.sync(
+        neo4j_session,
+        client,
+        common_job_parameters,
+        projects_id=[TEST_PROJECT_ID],
+        update_tag=TEST_UPDATE_TAG,
+    )
+
+    # Act: second sync with a new update tag and no domains/mailboxes returned,
+    # simulating the domain (and its mailbox) being removed upstream
+    next_update_tag = TEST_UPDATE_TAG + 1
+    mock_get.return_value = ([], [])
+    cartography.intel.scaleway.mailboxes.mailboxes.sync(
+        neo4j_session,
+        client,
+        {**common_job_parameters, "UPDATE_TAG": next_update_tag},
+        projects_id=[TEST_PROJECT_ID],
+        update_tag=next_update_tag,
+    )
+
+    # Assert stale mailboxes and domains (and their relationships) were removed
+    assert check_nodes(neo4j_session, "ScalewayMailboxDomain", ["id"]) == set()
+    assert check_nodes(neo4j_session, "ScalewayMailbox", ["id"]) == set()
+    assert (
+        check_rels(
+            neo4j_session,
+            "ScalewayMailbox",
+            "id",
+            "ScalewayMailboxDomain",
+            "id",
+            "HAS",
+            rel_direction_right=False,
+        )
+        == set()
+    )
+    assert (
+        check_rels(
+            neo4j_session,
+            "ScalewayMailboxDomain",
+            "id",
+            "ScalewayProject",
+            "id",
+            "RESOURCE",
+            rel_direction_right=False,
+        )
+        == set()
+    )
+    assert (
+        check_rels(
+            neo4j_session,
+            "ScalewayMailbox",
+            "id",
+            "ScalewayProject",
+            "id",
+            "RESOURCE",
+            rel_direction_right=False,
+        )
+        == set()
+    )

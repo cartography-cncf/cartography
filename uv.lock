@@ -1055,7 +1055,7 @@ requires-dist = [
     { name = "python-digitalocean", specifier = ">=1.16.0" },
     { name = "pyyaml", specifier = ">=5.3.1" },
     { name = "requests", specifier = ">=2.22.0" },
-    { name = "scaleway", specifier = ">=2.10.0" },
+    { name = "scaleway", specifier = ">=2.11.0" },
     { name = "slack-sdk", specifier = ">=3.37.0" },
     { name = "statsd", specifier = ">=4.0.0" },
     { name = "tomli", marker = "python_full_version < '3.11'", specifier = ">=2.0.0" },
