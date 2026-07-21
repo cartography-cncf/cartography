@@ -120,7 +120,7 @@ Representation of a tenant-level license subscription (subscribedSku) from Micro
 
 #### Relationships
 
-- `EntraTenant -[:RESOURCE]-> M365License`
+- `AzureTenant -[:RESOURCE]-> M365License`
 - `M365License -[:HAS_SERVICE_PLAN]-> M365ServicePlan`
 - `EntraUser -[:ASSIGNED_LICENSE]-> M365License`
 
@@ -130,7 +130,8 @@ Representation of an individual service plan within an M365 license. Service pla
 
 | Field | Description |
 |-------|-------------|
-| id | Service plan identifier (GUID) |
+| id | Tenant-scoped service plan identifier (`{tenant_id}-{service_plan_id}`) |
+| service_plan_id | Original service plan GUID, shared across tenants |
 | service_plan_name | Name of the service plan (e.g., `EXCHANGE_S_ENTERPRISE`, `TEAMS1`) |
 | provisioning_status | Provisioning status (`Success`, `Disabled`, `PendingProvisioning`) |
 | applies_to | Whether the plan applies to `User` or `Company` |
@@ -139,5 +140,5 @@ Representation of an individual service plan within an M365 license. Service pla
 
 #### Relationships
 
-- `EntraTenant -[:RESOURCE]-> M365ServicePlan`
+- `AzureTenant -[:RESOURCE]-> M365ServicePlan`
 - `M365License -[:HAS_SERVICE_PLAN]-> M365ServicePlan`
