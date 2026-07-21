@@ -1,25 +1,28 @@
+from unittest.mock import AsyncMock
 from unittest.mock import patch
 
 import pytest
+from kiota_abstractions.api_error import APIError
 
 import cartography.intel.microsoft.entra.users
+import cartography.intel.microsoft.o365.license_details
+import cartography.intel.microsoft.o365.licenses
 from cartography.intel.microsoft.entra.users import load_tenant
 from cartography.intel.microsoft.entra.users import sync_entra_users
 from cartography.intel.microsoft.o365.license_details import (
-    load_user_license_assignments,
+    cleanup_user_license_assignments,
 )
-from cartography.intel.microsoft.o365.license_details import (
-    transform_user_license_assignments,
-)
+from cartography.intel.microsoft.o365.license_details import sync_user_license_details
 from cartography.intel.microsoft.o365.licenses import cleanup_licenses
 from cartography.intel.microsoft.o365.licenses import cleanup_service_plans
-from cartography.intel.microsoft.o365.licenses import load_licenses
-from cartography.intel.microsoft.o365.licenses import load_service_plans
+from cartography.intel.microsoft.o365.licenses import sync_licenses
 from cartography.intel.microsoft.o365.licenses import transform_licenses
-from tests.data.microsoft.entra.users import MOCK_ENTRA_USERS
 from tests.data.microsoft.entra.users import TEST_TENANT_ID
+from tests.data.microsoft.o365.licenses import make_subscribed_skus
 from tests.data.microsoft.o365.licenses import MOCK_SUBSCRIBED_SKUS
 from tests.data.microsoft.o365.licenses import MOCK_USER_ASSIGNED_LICENSES
+from tests.data.microsoft.o365.licenses import SKU_ID_E5
+from tests.data.microsoft.o365.licenses import SKU_ID_EMS
 from tests.data.microsoft.o365.licenses import SP_EXCHANGE
 from tests.data.microsoft.o365.licenses import SP_INTUNE
 from tests.data.microsoft.o365.licenses import SP_SHAREPOINT
@@ -35,73 +38,54 @@ TEST_TENANT_ID_B = "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"
 
 
 async def _mock_get_users(client):
-    """Mock async generator for get_users"""
+    """Mock async generator for get_users."""
+    from tests.data.microsoft.entra.users import MOCK_ENTRA_USERS
+
     for user in MOCK_ENTRA_USERS:
         yield user
 
 
-def _setup_prerequisites(neo4j_session):
-    """Load the AzureTenant node as a prerequisite."""
-    load_tenant(neo4j_session, {"id": TEST_TENANT_ID}, TEST_UPDATE_TAG)
+def _setup_tenant_and_users(neo4j_session, tenant_id=TEST_TENANT_ID):
+    """Load AzureTenant + EntraUser nodes as prerequisites."""
+    load_tenant(neo4j_session, {"id": tenant_id}, TEST_UPDATE_TAG)
 
 
-def _do_full_sync(neo4j_session, tenant_id, update_tag, common_job_parameters):
-    """
-    Run complete sync cycle: transform, load, cleanup.
-    """
-    # Transform and load licenses + service plans
-    licenses, service_plans = transform_licenses(MOCK_SUBSCRIBED_SKUS, tenant_id)
-    load_licenses(neo4j_session, licenses, tenant_id, update_tag)
-    load_service_plans(neo4j_session, service_plans, tenant_id, update_tag)
-
-    # Transform and load user-license assignments
-    assignments = transform_user_license_assignments(MOCK_USER_ASSIGNED_LICENSES)
-    load_user_license_assignments(neo4j_session, assignments, tenant_id, update_tag)
-
-    # Run cleanup jobs
-    cleanup_licenses(neo4j_session, common_job_parameters)
-    cleanup_service_plans(neo4j_session, common_job_parameters)
+# ── Pure-transform tests (no Neo4j) ──────────────────────────────
 
 
 def test_transform_licenses():
-    """
-    Ensure transform_licenses flattens SKUs and scopes SP IDs.
-    """
+    """Ensure transform_licenses flattens SKUs and scopes SP IDs."""
     licenses, service_plans = transform_licenses(MOCK_SUBSCRIBED_SKUS, TEST_TENANT_ID)
 
-    # Two subscribedSkus → two license dicts
     assert len(licenses) == 2
     assert {lic["sku_part_number"] for lic in licenses} == {
         "ENTERPRISEPREMIUM",
         "EMS",
     }
 
-    # EXCHANGE_S_ENTERPRISE appears in both SKUs but should be deduplicated
-    # into one service plan with two license_ids
-    assert len(service_plans) == 4  # EXCHANGE, SHAREPOINT, TEAMS, INTUNE
+    # EXCHANGE appears in both SKUs but is deduplicated
+    assert len(service_plans) == 4
     exchange_plan = next(
         sp for sp in service_plans if sp["service_plan_name"] == "EXCHANGE_S_ENTERPRISE"
     )
     assert len(exchange_plan["license_ids"]) == 2
 
-    # Verify that service plan IDs are scoped to tenant
+    # Service plan IDs are scoped to tenant
     for sp in service_plans:
         assert sp["id"].startswith(f"{TEST_TENANT_ID}-")
-        assert sp["service_plan_id"]  # Original UUID preserved
+        assert sp["service_plan_id"]
 
 
-def test_transform_user_license_assignments():
-    """
-    Ensure assignments are flattened correctly.
-    """
-    assignments = transform_user_license_assignments(MOCK_USER_ASSIGNED_LICENSES)
+def test_transform_licenses_tenant_scoped_sku_ids():
+    """Ensure factory-generated SKU IDs follow {tenantId}_{skuId} format."""
+    skus = make_subscribed_skus("tenant-aaa")
+    licenses, _ = transform_licenses(skus, "tenant-aaa")
 
-    # Homer has 2 licenses, User 1 has 1 → 3 total assignments
-    assert len(assignments) == 3
-    homer_assignments = [
-        a for a in assignments if a["user_id"] == "ae4ac864-4433-4ba6-96a6-20f8cffdadcb"
-    ]
-    assert len(homer_assignments) == 2
+    for lic in licenses:
+        assert lic["id"].startswith("tenant-aaa_")
+
+
+# ── Sync-level tests (drive actual sync_licenses / sync_user_license_details) ─
 
 
 @patch.object(
@@ -109,13 +93,27 @@ def test_transform_user_license_assignments():
     "get_users",
     side_effect=_mock_get_users,
 )
+@patch.object(
+    cartography.intel.microsoft.o365.licenses,
+    "get_subscribed_skus",
+    new_callable=AsyncMock,
+    return_value=MOCK_SUBSCRIBED_SKUS,
+)
+@patch.object(
+    cartography.intel.microsoft.o365.license_details,
+    "get_users_with_assigned_licenses",
+    new_callable=AsyncMock,
+    return_value=(MOCK_USER_ASSIGNED_LICENSES, False),
+)
 @pytest.mark.asyncio
-async def test_sync_o365_licenses(mock_get_users, neo4j_session):
-    """
-    End-to-end sync test verifying nodes and relationships.
-    """
-    # Arrange: Load tenant and users as prerequisites
-    _setup_prerequisites(neo4j_session)
+async def test_sync_o365_licenses(
+    mock_get_user_licenses,
+    mock_get_skus,
+    mock_get_users,
+    neo4j_session,
+):
+    """End-to-end sync test driving the real sync_* functions."""
+    _setup_tenant_and_users(neo4j_session)
     await sync_entra_users(
         neo4j_session,
         TEST_TENANT_ID,
@@ -130,13 +128,24 @@ async def test_sync_o365_licenses(mock_get_users, neo4j_session):
         "TENANT_ID": TEST_TENANT_ID,
     }
 
-    # Act: Run full sync cycle
-    _do_full_sync(neo4j_session, TEST_TENANT_ID, TEST_UPDATE_TAG, common_job_parameters)
+    # Drive the actual sync_licenses function (GET→TRANSFORM→LOAD→CLEANUP)
+    await sync_licenses(
+        neo4j_session, None, TEST_TENANT_ID, TEST_UPDATE_TAG, common_job_parameters,
+    )
 
-    # Assert: M365License nodes exist with correct properties
+    # Drive the actual sync_user_license_details function
+    has_failures = await sync_user_license_details(
+        neo4j_session, None, TEST_TENANT_ID, TEST_UPDATE_TAG,
+    )
+    assert not has_failures
+
+    # Cleanup should run because has_failures is False
+    cleanup_user_license_assignments(neo4j_session, TEST_TENANT_ID, TEST_UPDATE_TAG)
+
+    # Assert: M365License nodes with tenant-scoped IDs
     expected_licenses = {
-        ("tenant-sku-e5", "ENTERPRISEPREMIUM", "Enabled", 2, 25),
-        ("tenant-sku-ems", "EMS", "Enabled", 1, 10),
+        (f"{TEST_TENANT_ID}_{SKU_ID_E5}", "ENTERPRISEPREMIUM", "Enabled", 2, 25),
+        (f"{TEST_TENANT_ID}_{SKU_ID_EMS}", "EMS", "Enabled", 1, 10),
     }
     assert (
         check_nodes(
@@ -153,7 +162,7 @@ async def test_sync_o365_licenses(mock_get_users, neo4j_session):
         == expected_licenses
     )
 
-    # Assert: M365ServicePlan nodes exist (deduplicated) with tenant-scoped IDs
+    # Assert: M365ServicePlan nodes (deduplicated) with tenant-scoped IDs
     expected_service_plans = {
         (f"{TEST_TENANT_ID}-{SP_EXCHANGE}", "EXCHANGE_S_ENTERPRISE"),
         (f"{TEST_TENANT_ID}-{SP_SHAREPOINT}", "SHAREPOINTENTERPRISE"),
@@ -169,10 +178,10 @@ async def test_sync_o365_licenses(mock_get_users, neo4j_session):
         == expected_service_plans
     )
 
-    # Assert: M365License -> AzureTenant RESOURCE relationship
+    # Assert: M365License -> AzureTenant RESOURCE
     expected_license_tenant_rels = {
-        ("tenant-sku-e5", TEST_TENANT_ID),
-        ("tenant-sku-ems", TEST_TENANT_ID),
+        (f"{TEST_TENANT_ID}_{SKU_ID_E5}", TEST_TENANT_ID),
+        (f"{TEST_TENANT_ID}_{SKU_ID_EMS}", TEST_TENANT_ID),
     }
     assert (
         check_rels(
@@ -187,14 +196,13 @@ async def test_sync_o365_licenses(mock_get_users, neo4j_session):
         == expected_license_tenant_rels
     )
 
-    # Assert: M365License -> M365ServicePlan HAS_SERVICE_PLAN relationship
-    # E5 license has 3 service plans, EMS has 2 (Exchange is shared)
+    # Assert: M365License -> M365ServicePlan HAS_SERVICE_PLAN
     expected_has_sp_rels = {
-        ("tenant-sku-e5", f"{TEST_TENANT_ID}-{SP_EXCHANGE}"),
-        ("tenant-sku-e5", f"{TEST_TENANT_ID}-{SP_SHAREPOINT}"),
-        ("tenant-sku-e5", f"{TEST_TENANT_ID}-{SP_TEAMS}"),
-        ("tenant-sku-ems", f"{TEST_TENANT_ID}-{SP_INTUNE}"),
-        ("tenant-sku-ems", f"{TEST_TENANT_ID}-{SP_EXCHANGE}"),
+        (f"{TEST_TENANT_ID}_{SKU_ID_E5}", f"{TEST_TENANT_ID}-{SP_EXCHANGE}"),
+        (f"{TEST_TENANT_ID}_{SKU_ID_E5}", f"{TEST_TENANT_ID}-{SP_SHAREPOINT}"),
+        (f"{TEST_TENANT_ID}_{SKU_ID_E5}", f"{TEST_TENANT_ID}-{SP_TEAMS}"),
+        (f"{TEST_TENANT_ID}_{SKU_ID_EMS}", f"{TEST_TENANT_ID}-{SP_INTUNE}"),
+        (f"{TEST_TENANT_ID}_{SKU_ID_EMS}", f"{TEST_TENANT_ID}-{SP_EXCHANGE}"),
     }
     assert (
         check_rels(
@@ -208,14 +216,11 @@ async def test_sync_o365_licenses(mock_get_users, neo4j_session):
         == expected_has_sp_rels
     )
 
-    # Assert: EntraUser -> M365License ASSIGNED_LICENSE relationship
+    # Assert: EntraUser -> M365License ASSIGNED_LICENSE
     expected_user_license_rels = {
-        # Homer -> E5
-        ("ae4ac864-4433-4ba6-96a6-20f8cffdadcb", str(MOCK_SUBSCRIBED_SKUS[0].sku_id)),
-        # Homer -> EMS
-        ("ae4ac864-4433-4ba6-96a6-20f8cffdadcb", str(MOCK_SUBSCRIBED_SKUS[1].sku_id)),
-        # User 1 -> E5
-        ("11dca63b-cb03-4e53-bb75-fa8060285550", str(MOCK_SUBSCRIBED_SKUS[0].sku_id)),
+        ("ae4ac864-4433-4ba6-96a6-20f8cffdadcb", str(SKU_ID_E5)),
+        ("ae4ac864-4433-4ba6-96a6-20f8cffdadcb", str(SKU_ID_EMS)),
+        ("11dca63b-cb03-4e53-bb75-fa8060285550", str(SKU_ID_E5)),
     }
     assert (
         check_rels(
@@ -231,82 +236,37 @@ async def test_sync_o365_licenses(mock_get_users, neo4j_session):
 
 
 @patch.object(
-    cartography.intel.microsoft.entra.users,
-    "get_users",
-    side_effect=_mock_get_users,
+    cartography.intel.microsoft.o365.licenses,
+    "get_subscribed_skus",
+    new_callable=AsyncMock,
 )
 @pytest.mark.asyncio
-async def test_multi_tenant_cleanup_isolation(mock_get_users, neo4j_session):
-    """
-    Verify cleanup of Tenant A does not delete Tenant B nodes.
-    """
-    # --- Arrange: Sync data for Tenant A ---
-    _setup_prerequisites(neo4j_session)
-    await sync_entra_users(
-        neo4j_session,
-        TEST_TENANT_ID,
-        "test-client-id",
-        "test-client-secret",
-        TEST_UPDATE_TAG,
-        {"UPDATE_TAG": TEST_UPDATE_TAG, "TENANT_ID": TEST_TENANT_ID},
-    )
+async def test_sync_licenses_403_skips_gracefully(mock_get_skus, neo4j_session):
+    """A 403 from get_subscribed_skus raises APIError; orchestrator catches it."""
+    # Snapshot nodes before (shared session may have data from earlier tests)
+    nodes_before = check_nodes(neo4j_session, "M365License", ["id"])
 
-    common_job_params_a = {
-        "UPDATE_TAG": TEST_UPDATE_TAG,
-        "TENANT_ID": TEST_TENANT_ID,
-    }
-    _do_full_sync(
-        neo4j_session,
-        TEST_TENANT_ID,
-        TEST_UPDATE_TAG,
-        common_job_params_a,
-    )
+    err = APIError("forbidden")
+    err.response_status_code = 403
+    mock_get_skus.side_effect = err
 
-    # --- Arrange: Sync data for Tenant B ---
-    load_tenant(neo4j_session, {"id": TEST_TENANT_ID_B}, TEST_UPDATE_TAG)
+    _setup_tenant_and_users(neo4j_session)
 
-    licenses_b, service_plans_b = transform_licenses(
-        MOCK_SUBSCRIBED_SKUS,
-        TEST_TENANT_ID_B,
-    )
-    load_licenses(neo4j_session, licenses_b, TEST_TENANT_ID_B, TEST_UPDATE_TAG)
-    load_service_plans(
-        neo4j_session,
-        service_plans_b,
-        TEST_TENANT_ID_B,
-        TEST_UPDATE_TAG,
-    )
+    # sync_licenses itself does not catch the 403 — the orchestrator does.
+    # Verify the error propagates so the orchestrator can handle it.
+    with pytest.raises(APIError) as exc_info:
+        await sync_licenses(
+            neo4j_session,
+            None,
+            TEST_TENANT_ID,
+            TEST_UPDATE_TAG,
+            {"UPDATE_TAG": TEST_UPDATE_TAG, "TENANT_ID": TEST_TENANT_ID},
+        )
+    assert exc_info.value.response_status_code == 403
 
-    # Verify both tenants' service plans exist before cleanup
-    all_sp_ids = check_nodes(neo4j_session, "M365ServicePlan", ["id"])
-    tenant_a_plans = {sp for sp in all_sp_ids if TEST_TENANT_ID in next(iter(sp))}
-    tenant_b_plans = {sp for sp in all_sp_ids if TEST_TENANT_ID_B in next(iter(sp))}
-    assert len(tenant_a_plans) == 4
-    assert len(tenant_b_plans) == 4
-
-    # --- Act: Run cleanup for Tenant A with a NEW update tag ---
-    # This simulates a new sync cycle for Tenant A that produced no data,
-    # so all of Tenant A's old nodes should be cleaned up.
-    common_job_params_a_new = {
-        "UPDATE_TAG": TEST_UPDATE_TAG_2,
-        "TENANT_ID": TEST_TENANT_ID,
-    }
-    cleanup_licenses(neo4j_session, common_job_params_a_new)
-    cleanup_service_plans(neo4j_session, common_job_params_a_new)
-
-    # --- Assert: Tenant A's nodes are gone, Tenant B's survive ---
-    remaining_sp_ids = check_nodes(neo4j_session, "M365ServicePlan", ["id"])
-    remaining_a = {sp for sp in remaining_sp_ids if TEST_TENANT_ID in next(iter(sp))}
-    remaining_b = {sp for sp in remaining_sp_ids if TEST_TENANT_ID_B in next(iter(sp))}
-
-    # Tenant A's service plans should have been cleaned up
-    assert (
-        len(remaining_a) == 0
-    ), f"Expected Tenant A service plans to be cleaned up, but found: {remaining_a}"
-    # Tenant B's service plans should be untouched
-    assert (
-        len(remaining_b) == 4
-    ), f"Tenant B service plans should survive cleanup of Tenant A, found: {remaining_b}"
+    # No new license nodes should have been created
+    nodes_after = check_nodes(neo4j_session, "M365License", ["id"])
+    assert nodes_after == nodes_before
 
 
 @patch.object(
@@ -314,13 +274,26 @@ async def test_multi_tenant_cleanup_isolation(mock_get_users, neo4j_session):
     "get_users",
     side_effect=_mock_get_users,
 )
+@patch.object(
+    cartography.intel.microsoft.o365.licenses,
+    "get_subscribed_skus",
+    new_callable=AsyncMock,
+    return_value=MOCK_SUBSCRIBED_SKUS,
+)
+@patch.object(
+    cartography.intel.microsoft.o365.license_details,
+    "get_users_with_assigned_licenses",
+    new_callable=AsyncMock,
+)
 @pytest.mark.asyncio
-async def test_stale_data_preserved_on_failure(mock_get_users, neo4j_session):
-    """
-    Verify old data is preserved when sync fails (cleanup skipped).
-    """
-    # --- Arrange: Successful first sync cycle ---
-    _setup_prerequisites(neo4j_session)
+async def test_sync_user_license_details_pagination_failure_skips_cleanup(
+    mock_get_user_licenses,
+    mock_get_skus,
+    mock_get_users,
+    neo4j_session,
+):
+    """When pagination fails, has_failures=True and cleanup is skipped."""
+    _setup_tenant_and_users(neo4j_session)
     await sync_entra_users(
         neo4j_session,
         TEST_TENANT_ID,
@@ -334,34 +307,129 @@ async def test_stale_data_preserved_on_failure(mock_get_users, neo4j_session):
         "UPDATE_TAG": TEST_UPDATE_TAG,
         "TENANT_ID": TEST_TENANT_ID,
     }
-    _do_full_sync(
+
+    # -- Cycle 1: successful sync --
+    mock_get_user_licenses.return_value = (MOCK_USER_ASSIGNED_LICENSES, False)
+    await sync_licenses(
+        neo4j_session, None, TEST_TENANT_ID, TEST_UPDATE_TAG, common_job_parameters,
+    )
+    has_failures = await sync_user_license_details(
+        neo4j_session, None, TEST_TENANT_ID, TEST_UPDATE_TAG,
+    )
+    assert not has_failures
+    cleanup_user_license_assignments(neo4j_session, TEST_TENANT_ID, TEST_UPDATE_TAG)
+
+    assignments_before = check_rels(
+        neo4j_session, "EntraUser", "id", "M365License", "sku_id", "ASSIGNED_LICENSE",
+    )
+    assert len(assignments_before) == 3
+
+    # -- Cycle 2: pagination failure → has_failures=True --
+    # Return partial data + failure flag
+    partial_data = {
+        "ae4ac864-4433-4ba6-96a6-20f8cffdadcb": MOCK_USER_ASSIGNED_LICENSES[
+            "ae4ac864-4433-4ba6-96a6-20f8cffdadcb"
+        ],
+    }
+    mock_get_user_licenses.return_value = (partial_data, True)
+
+    has_failures = await sync_user_license_details(
+        neo4j_session, None, TEST_TENANT_ID, TEST_UPDATE_TAG_2,
+    )
+    assert has_failures
+
+    # Orchestrator skips cleanup when has_failures is True.
+    # Do NOT call cleanup_user_license_assignments here.
+
+    # All 3 original assignments survive (stale data preserved)
+    assignments_after = check_rels(
+        neo4j_session, "EntraUser", "id", "M365License", "sku_id", "ASSIGNED_LICENSE",
+    )
+    assert assignments_after == assignments_before
+
+
+@patch.object(
+    cartography.intel.microsoft.entra.users,
+    "get_users",
+    side_effect=_mock_get_users,
+)
+@pytest.mark.asyncio
+async def test_multi_tenant_cleanup_isolation(mock_get_users, neo4j_session):
+    """Cleanup of Tenant A does not delete Tenant B's licenses or service plans."""
+    # -- Tenant A setup --
+    _setup_tenant_and_users(neo4j_session, TEST_TENANT_ID)
+    await sync_entra_users(
         neo4j_session,
         TEST_TENANT_ID,
+        "test-client-id",
+        "test-client-secret",
         TEST_UPDATE_TAG,
-        common_job_parameters,
+        {"UPDATE_TAG": TEST_UPDATE_TAG, "TENANT_ID": TEST_TENANT_ID},
     )
 
-    # Verify initial data is loaded
-    licenses_before = check_nodes(neo4j_session, "M365License", ["id"])
-    assert len(licenses_before) == 2
+    skus_a = make_subscribed_skus(TEST_TENANT_ID)
+    common_a = {"UPDATE_TAG": TEST_UPDATE_TAG, "TENANT_ID": TEST_TENANT_ID}
 
-    # --- Act: Simulate failed second sync cycle ---
-    # Don't load any new data, but DON'T run cleanup either (simulating
-    # the orchestrator aborting before cleanup on API error).
-    # This is the correct behavior: no cleanup = stale data preserved.
+    with patch.object(
+        cartography.intel.microsoft.o365.licenses,
+        "get_subscribed_skus",
+        new_callable=AsyncMock,
+        return_value=skus_a,
+    ):
+        await sync_licenses(
+            neo4j_session, None, TEST_TENANT_ID, TEST_UPDATE_TAG, common_a,
+        )
 
-    # --- Assert: Old data still intact ---
-    licenses_after = check_nodes(neo4j_session, "M365License", ["id"])
-    assert (
-        licenses_after == licenses_before
-    ), "License nodes should be preserved when sync fails before cleanup"
+    # -- Tenant B setup --
+    _setup_tenant_and_users(neo4j_session, TEST_TENANT_ID_B)
 
-    service_plans_after = check_nodes(neo4j_session, "M365ServicePlan", ["id"])
-    # Filter to only this tenant's service plans (other tests may have
-    # loaded additional tenants into the shared Neo4j session).
-    tenant_plans_after = {
-        sp for sp in service_plans_after if TEST_TENANT_ID in next(iter(sp))
+    skus_b = make_subscribed_skus(TEST_TENANT_ID_B)
+    common_b = {"UPDATE_TAG": TEST_UPDATE_TAG, "TENANT_ID": TEST_TENANT_ID_B}
+
+    with patch.object(
+        cartography.intel.microsoft.o365.licenses,
+        "get_subscribed_skus",
+        new_callable=AsyncMock,
+        return_value=skus_b,
+    ):
+        await sync_licenses(
+            neo4j_session, None, TEST_TENANT_ID_B, TEST_UPDATE_TAG, common_b,
+        )
+
+    # Verify both tenants have distinct nodes
+    all_license_ids = check_nodes(neo4j_session, "M365License", ["id"])
+    a_licenses = {n for n in all_license_ids if TEST_TENANT_ID in next(iter(n))}
+    b_licenses = {n for n in all_license_ids if TEST_TENANT_ID_B in next(iter(n))}
+    assert len(a_licenses) == 2
+    assert len(b_licenses) == 2
+
+    all_sp_ids = check_nodes(neo4j_session, "M365ServicePlan", ["id"])
+    a_plans = {n for n in all_sp_ids if TEST_TENANT_ID in next(iter(n))}
+    b_plans = {n for n in all_sp_ids if TEST_TENANT_ID_B in next(iter(n))}
+    assert len(a_plans) == 4
+    assert len(b_plans) == 4
+
+    # -- Cleanup Tenant A with new update tag (empty sync cycle) --
+    common_a_new = {"UPDATE_TAG": TEST_UPDATE_TAG_2, "TENANT_ID": TEST_TENANT_ID}
+    cleanup_licenses(neo4j_session, common_a_new)
+    cleanup_service_plans(neo4j_session, common_a_new)
+
+    # Tenant A's nodes are gone
+    remaining_licenses = check_nodes(neo4j_session, "M365License", ["id"])
+    remaining_a_lic = {
+        n for n in remaining_licenses if TEST_TENANT_ID in next(iter(n))
     }
-    assert (
-        len(tenant_plans_after) == 4
-    ), "Service plan nodes should be preserved when sync fails before cleanup"
+    assert len(remaining_a_lic) == 0, f"Expected 0, got: {remaining_a_lic}"
+
+    remaining_sps = check_nodes(neo4j_session, "M365ServicePlan", ["id"])
+    remaining_a_sp = {n for n in remaining_sps if TEST_TENANT_ID in next(iter(n))}
+    assert len(remaining_a_sp) == 0, f"Expected 0, got: {remaining_a_sp}"
+
+    # Tenant B's nodes survive
+    remaining_b_lic = {
+        n for n in remaining_licenses if TEST_TENANT_ID_B in next(iter(n))
+    }
+    assert len(remaining_b_lic) == 2, f"Expected 2, got: {remaining_b_lic}"
+
+    remaining_b_sp = {n for n in remaining_sps if TEST_TENANT_ID_B in next(iter(n))}
+    assert len(remaining_b_sp) == 4, f"Expected 4, got: {remaining_b_sp}"
