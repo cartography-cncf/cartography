@@ -22,22 +22,29 @@ import cartography.intel.github.users
 from cartography.client.core.tx import read_list_of_values_tx
 from cartography.config import Config
 from cartography.intel.github.app_auth import make_credential
+from cartography.intel.github.repos import _write_synced_pushedat
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
 
 
-def _get_repos_from_graph(neo4j_session: neo4j.Session, organization: str) -> list[str]:
+def _get_repos_from_graph(
+    neo4j_session: neo4j.Session,
+    organization: str,
+    skip_archived: bool = False,
+) -> list[str]:
     """
     Get repository names for an organization from the graph instead of making an API call.
 
     :param neo4j_session: Neo4j session for database interface
     :param organization: GitHub organization name
+    :param skip_archived: If True, exclude archived/disabled repos.
     :return: List of repository names
     """
     org_url = f"https://github.com/{organization}"
     query = """
     MATCH (org:GitHubOrganization {id: $org_url})<-[:OWNER]-(repo:GitHubRepository)
+    WHERE NOT $skip_archived OR (repo.archived = false AND repo.disabled = false)
     RETURN repo.name
     ORDER BY repo.name
     """
@@ -47,6 +54,7 @@ def _get_repos_from_graph(neo4j_session: neo4j.Session, organization: str) -> li
             read_list_of_values_tx,
             query,
             org_url=org_url,
+            skip_archived=skip_archived,
         ),
     )
 
@@ -84,7 +92,7 @@ def start_github_ingestion(
     skip_unscoped_cleanup: bool = False,
 ) -> None:
     """
-    If this module is configured, perform ingestion of Github  data. Otherwise warn and exit
+    If this module is configured, perform ingestion of Github  data. Otherwise warn and exit.
     :param neo4j_session: Neo4J session for database interface
     :param config: A cartography.config object
     :param skip_unscoped_cleanup: Skip cleanup of GitHub resources that are not
@@ -127,6 +135,8 @@ def start_github_ingestion(
             token,
             api_url,
             org_name,
+            parallel_workers=config.github_parallel_workers,
+            incremental_sync=config.github_incremental_sync,
         )
         cartography.intel.github.personal_access_tokens.sync(
             neo4j_session,
@@ -142,6 +152,7 @@ def start_github_ingestion(
             api_url,
             org_name,
         )
+
         github_teams = cartography.intel.github.teams.sync_github_teams(
             neo4j_session,
             common_job_parameters,
@@ -169,12 +180,18 @@ def start_github_ingestion(
             token,
             api_url,
             org_name,
+            parallel_workers=config.github_parallel_workers,
+            skip_archived_repos=config.github_incremental_sync,
+            skip_unchanged_repos=config.github_incremental_sync,
         )
 
-        # Sync commit relationships for the configured lookback period
-        # Get repo names from the graph instead of making another API call
-        repo_names = _get_repos_from_graph(neo4j_session, org_name)
-
+        # Sync commit relationships for the configured lookback period.
+        # Get repo names from the graph instead of making another API call.
+        repo_names = _get_repos_from_graph(
+            neo4j_session,
+            org_name,
+            skip_archived=config.github_incremental_sync,
+        )
         cartography.intel.github.commits.sync_github_commits(
             neo4j_session,
             token,
@@ -183,6 +200,7 @@ def start_github_ingestion(
             repo_names,
             common_job_parameters["UPDATE_TAG"],
             config.github_commit_lookback_days,
+            skip_stale_repos=config.github_incremental_sync,
         )
 
         repos_json = cartography.intel.github.repos.get(
@@ -251,6 +269,14 @@ def start_github_ingestion(
                 common_job_parameters,
                 valid_repos,
                 workflows=all_workflows,
+            )
+
+        # Write synced_pushedat now that all downstream stages have completed.
+        # This ensures the bookmark reflects the previous run's pushedat when
+        # the next run's skip comparisons read it, not the current run's value.
+        if config.github_incremental_sync:
+            _write_synced_pushedat(
+                neo4j_session, repo_sync_result.repo_pushedat_updates
             )
 
         processed_any_org = True
