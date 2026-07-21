@@ -230,6 +230,39 @@ Represents a CircleCI project (`GET /project/{project-slug}`). Synced for projec
     ```
     (:CircleCIContext)-[:RESTRICTED_TO]->(:CircleCIProject)
     ```
+- A container image was packaged by (built in) a CircleCI project. Produced by the
+  supply-chain matcher as a fallback code-to-cloud signal; see below.
+    ```
+    (:Image)-[:PACKAGED_BY]->(:CircleCIProject)
+    ```
+
+### CircleCI supply-chain code-to-cloud edges
+
+For environments where a container image carries neither SLSA provenance nor layer
+history (so the existing `provenance` / `dockerfile_analysis` match methods cannot fire)
+and lives on a generic registry (no GHCR-style package ownership), the CircleCI
+supply-chain matcher adds low-confidence fallback `PACKAGED_FROM` edges from an `Image` to
+its code repository. Pipeline runs and config are read transiently from the CircleCI API
+and are never stored as nodes; only the edges are written.
+
+Every edge carries `match_method` and `confidence` so consumers can filter at their own
+threshold. These rungs run below the provenance / Dockerfile / package-owner ladder:
+
+| match_method | Signal | Confidence |
+|--------------|--------|------------|
+| `circleci_tag_revision` | An `ImageTag` name equals a `/pipeline`-feed run's `vcs.revision` (git SHA) that resolves to a single repo; that run names the repo. | medium (`0.5`) |
+| `circleci_config_binding` | A registry namespace parsed from `/pipeline/{id}/config` binds to a repo; images under that namespace inherit it. | low (`0.25`) |
+
+The `/pipeline` feed is time-bounded (runs from roughly the last 30 days, newest-first),
+not a complete inventory: CircleCI API v2 has no list-projects endpoint. `circleci_tag_revision`
+resolves a specific image, so a partial feed only causes misses. `circleci_config_binding`
+is namespace-wide and, on a partial feed, can bind a namespace shared by a project outside
+the window to the wrong repo; this is an accepted tradeoff, reflected in its low confidence.
+
+```
+(:Image)-[:PACKAGED_FROM]->(:GitHubRepository)
+(:Image)-[:PACKAGED_FROM]->(:GitLabProject)
+```
 
 ### CircleCIProjectEnvVar
 
