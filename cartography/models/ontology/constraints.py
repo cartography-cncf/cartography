@@ -279,6 +279,10 @@ ONTOLOGY_REL_CONSTRAINTS: tuple[RelConstraint, ...] = (
     # references (which are whitelisted below as a distinct semantic).
     RelConstraint(src="Container", dst="Image", label="RESOLVED_IMAGE"),
     RelConstraint(src="Function", dst="Image", label="RESOLVED_IMAGE"),
+    # A logical workload (ComputeService controller) runs an image. Materialized
+    # by workload_has_runtime_image_analysis, which collapses running containers/functions
+    # up the WORKLOAD_PARENT chain to the owning controller.
+    RelConstraint(src="ComputeService", dst="Image", label="HAS_RUNTIME_IMAGE"),
     # An image/function is built from a source code repository (CI provenance).
     RelConstraint(src="Image", dst="CodeRepository", label="PACKAGED_FROM"),
     # NOTE: no UserAccount->CodeRepository constraint. Several distinct edges
