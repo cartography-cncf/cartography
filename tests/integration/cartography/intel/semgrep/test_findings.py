@@ -445,7 +445,8 @@ def test_sync_findings(
         (
             tests.data.semgrep.sca.VULN_ID,
             "moment:Denial-of-Service (DoS)",
-            "HIGH",
+            # _ont_severity is normalized to a canonical band (HIGH -> high).
+            "high",
             "CVE-2022-31129",
         ),
         (
@@ -453,7 +454,7 @@ def test_sync_findings(
             # _ont_cve_id is null because UNKNOWN-* is not a real CVE.
             tests.data.semgrep.sca.VULN_ID_UNKNOWN,
             "moment:Denial-of-Service (DoS)",
-            "HIGH",
+            "high",
             None,
         ),
     }
