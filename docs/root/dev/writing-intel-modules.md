@@ -220,6 +220,7 @@ LEGACY_CLOUD_WATCH_LOG_GROUP = ExtraNodeLabel(
 @dataclass(frozen=True)
 class CloudWatchLogGroupSchema(CartographyNodeSchema):
     label: str = "AWSCloudWatchLogGroup"
+    properties: CloudWatchLogGroupNodeProperties = CloudWatchLogGroupNodeProperties()
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
         [LEGACY_CLOUD_WATCH_LOG_GROUP]
     )

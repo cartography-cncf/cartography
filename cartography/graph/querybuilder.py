@@ -428,9 +428,8 @@ def _build_node_properties_statement(
 
     Args:
         node_property_map (Dict[str, PropertyRef]): Mapping of node attribute names as str to PropertyRef objects.
-        extra_node_labels (Optional[ExtraNodeLabels], optional): Additional labels
-            to include in the SET clause when they have no conditions. For example,
-            `ExtraNodeLabels([RESOURCE])` adds `i:Resource`. Defaults to None.
+        extra_node_labels (ExtraNodeLabels | None): Extra labels to add to the node.
+            Defaults to None.
 
     Returns:
         str: The resulting Neo4j SET clause to set the given attributes on the node.
