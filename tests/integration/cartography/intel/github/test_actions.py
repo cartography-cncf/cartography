@@ -37,6 +37,17 @@ def _ensure_repo_exists(neo4j_session):
     )
 
 
+def _set_repo_pushedat(neo4j_session, pushedat, synced_pushedat=None):
+    neo4j_session.run(
+        """
+        MATCH (repo:GitHubRepository{id: "https://github.com/simpsoncorp/sample_repo"})
+        SET repo.pushedat = $pushedat, repo.synced_pushedat = $synced_pushedat
+        """,
+        pushedat=pushedat,
+        synced_pushedat=synced_pushedat,
+    )
+
+
 @patch.object(
     cartography.intel.github.actions,
     "get_org_secrets",
@@ -1078,3 +1089,127 @@ def test_sync_github_actions_workflow_parsing(
         "MATCH (:GitHubWorkflow)-[r:REFERENCES_SECRET]->(:GitHubActionsSecret) RETURN count(r) as count",
     ).single()["count"]
     assert refs_secret_rels >= 1
+
+
+@patch.object(
+    cartography.intel.github.actions,
+    "get_org_secrets",
+    return_value=GET_ORG_SECRETS,
+)
+@patch.object(
+    cartography.intel.github.actions,
+    "get_org_variables",
+    return_value=GET_ORG_VARIABLES,
+)
+@patch.object(
+    cartography.intel.github.actions,
+    "get_repo_workflows",
+    return_value=GET_REPO_WORKFLOWS,
+)
+@patch.object(
+    cartography.intel.github.actions,
+    "get_repo_environments",
+    return_value=GET_REPO_ENVIRONMENTS,
+)
+@patch.object(
+    cartography.intel.github.actions,
+    "get_repo_secrets",
+    return_value=GET_REPO_SECRETS,
+)
+@patch.object(
+    cartography.intel.github.actions,
+    "get_repo_variables",
+    return_value=GET_REPO_VARIABLES,
+)
+@patch.object(
+    cartography.intel.github.actions,
+    "get_env_secrets",
+    side_effect=lambda *args, **kwargs: (
+        GET_ENV_SECRETS_PRODUCTION
+        if args[4] == "production"
+        else GET_ENV_SECRETS_STAGING
+    ),
+)
+@patch.object(
+    cartography.intel.github.actions,
+    "get_env_variables",
+    side_effect=lambda *args, **kwargs: (
+        GET_ENV_VARIABLES_PRODUCTION
+        if args[4] == "production"
+        else GET_ENV_VARIABLES_STAGING
+    ),
+)
+@patch.object(
+    cartography.intel.github.actions,
+    "get_workflow_content",
+    return_value=None,
+)
+def test_sync_github_actions_incremental_skip_preserves_workflows(
+    mock_workflow_content,
+    mock_env_variables,
+    mock_env_secrets,
+    mock_repo_variables,
+    mock_repo_secrets,
+    mock_repo_environments,
+    mock_repo_workflows,
+    mock_org_variables,
+    mock_org_secrets,
+    neo4j_session,
+):
+    """
+    Test that when skip_unchanged_repos is enabled and a repo's pushedat is
+    unchanged since the last successful Actions sync, the workflow fetch is
+    skipped but existing GitHubWorkflow/GitHubAction nodes are preserved
+    (touched, not stale-cleaned) across a new update tag.
+    """
+    # Arrange - repo exists, no prior pushedat/bookmark (first sync should fetch normally)
+    _ensure_repo_exists(neo4j_session)
+    _set_repo_pushedat(neo4j_session, pushedat="2024-01-01T00:00:00Z")
+
+    # Act - first sync populates workflows and records the pushedat bookmark
+    cartography.intel.github.actions.sync(
+        neo4j_session,
+        {"UPDATE_TAG": TEST_UPDATE_TAG},
+        FAKE_API_KEY,
+        TEST_GITHUB_URL,
+        TEST_ORGANIZATION,
+        skip_unchanged_repos=True,
+    )
+
+    # Assert - first sync fetched workflows; synced_pushedat is set externally
+    # (by repos.sync() in a real run) — simulate that by setting it now so the
+    # second sync can use it as the bookmark.
+    assert mock_repo_workflows.call_count == 1
+    assert check_nodes(neo4j_session, "GitHubWorkflow", ["id"]) == {
+        (12345678,),
+        (12345679,),
+        (12345680,),
+    }
+    # Simulate repos.sync() writing synced_pushedat after repos fetch
+    neo4j_session.run(
+        'MATCH (r:GitHubRepository{id: "https://github.com/simpsoncorp/sample_repo"}) '
+        "SET r.synced_pushedat = $pushedat",
+        pushedat="2024-01-01T00:00:00Z",
+    )
+
+    # Act - second sync, pushedat matches synced_pushedat, new update tag
+    second_update_tag = TEST_UPDATE_TAG + 1
+    cartography.intel.github.actions.sync(
+        neo4j_session,
+        {"UPDATE_TAG": second_update_tag},
+        FAKE_API_KEY,
+        TEST_GITHUB_URL,
+        TEST_ORGANIZATION,
+        skip_unchanged_repos=True,
+    )
+
+    # Assert - workflow fetch was NOT called again (still just the 1 call from before)
+    assert mock_repo_workflows.call_count == 1
+
+    # Assert - GitHubWorkflow nodes still exist and were touched to the new update tag,
+    # i.e. NOT deleted by stale-tag cleanup despite not being re-fetched.
+    workflow_rows = neo4j_session.run(
+        "MATCH (w:GitHubWorkflow) RETURN w.id AS id, w.lastupdated AS lastupdated",
+    ).data()
+    assert {row["id"] for row in workflow_rows} == {12345678, 12345679, 12345680}
+    assert all(row["lastupdated"] == second_update_tag for row in workflow_rows)

@@ -122,6 +122,7 @@ def handle_rate_limit_sleep(token: str) -> None:
     response = requests.get(
         "https://api.github.com/rate_limit",
         headers={"Authorization": f"Bearer {_resolve_token(token)}"},
+        timeout=_TIMEOUT,
     )
     response.raise_for_status()
     response_json = response.json()
@@ -235,6 +236,8 @@ def fetch_all(
     data: PaginatedGraphqlData = PaginatedGraphqlData(nodes=[], edges=[])
     retry = 0
     null_resource_retry = 0
+    page_number = 0
+    initial_count = kwargs.get("count")
 
     while has_next_page:
         exc: Any = None
@@ -243,7 +246,11 @@ def fetch_all(
             # But we still need at least one call to the REST endpoint in case the graphql remaining is already 0
             handle_rate_limit_sleep(token)
             resp = fetch_page(token, api_url, organization, query, cursor, **kwargs)
-            retry = 0
+            # Only reset retry counter if the page size has not been degraded by a 502.
+            # If count has been reduced, we keep accumulating retry so persistent errors
+            # at a degraded page size eventually exhaust retries rather than looping forever.
+            if kwargs.get("count") == initial_count:
+                retry = 0
         except requests.exceptions.Timeout as err:
             retry += 1
             exc = err
@@ -271,11 +278,17 @@ def fetch_all(
 
         if retry >= retries:
             logger.error(
-                f"GitHub: Could not retrieve page of resource `{resource_type}` due to HTTP error "
-                f"after {retry} retries. Raising exception.",
+                "GitHub: Could not retrieve page of resource `%s` for org `%s` at cursor `%s` "
+                "after %d retries. Returning partial data collected so far (%d nodes, %d edges).",
+                resource_type,
+                organization,
+                cursor,
+                retry,
+                len(data.nodes),
+                len(data.edges),
                 exc_info=True,
             )
-            raise exc
+            break
         elif retry > 0:
             sleep_seconds = 2**retry
             if isinstance(exc, requests.exceptions.HTTPError):
@@ -351,6 +364,20 @@ def fetch_all(
 
         cursor = resource["pageInfo"]["endCursor"]
         has_next_page = resource["pageInfo"]["hasNextPage"]
+        page_number += 1
+        logger.info(
+            "GitHub: fetched page %d for resource `%s` in org `%s` (page_nodes=%d total_nodes=%d page_edges=%d total_edges=%d count=%s cursor=%s has_next=%s)",
+            page_number,
+            resource_type,
+            organization,
+            len(resource.get("nodes", [])),
+            len(data.nodes),
+            len(resource.get("edges", [])),
+            len(data.edges),
+            kwargs.get("count"),
+            resource.get("pageInfo", {}).get("endCursor"),
+            resource.get("pageInfo", {}).get("hasNextPage"),
+        )
         if not org_data:
             org_data = {
                 "url": resp["data"]["organization"]["url"],
@@ -358,9 +385,13 @@ def fetch_all(
             }
 
     if not org_data:
-        raise ValueError(
-            f"Didn't get any organization data for organization: {organization} and resource_type: {resource_type}",
+        logger.error(
+            "GitHub: No organization data collected for organization: %s, resource_type: %s. "
+            "All requests failed before any page was successfully retrieved.",
+            organization,
+            resource_type,
         )
+        return data, {"url": "", "login": organization}
     return data, org_data
 
 

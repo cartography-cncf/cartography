@@ -7,6 +7,7 @@ from typing import Any
 import neo4j
 
 from cartography.client.core.tx import load_matchlinks
+from cartography.client.core.tx import read_list_of_dicts_tx
 from cartography.graph.job import GraphJob
 from cartography.intel.github.util import fetch_page
 from cartography.models.github.commits import GitHubUserCommittedToRepoRel
@@ -126,6 +127,38 @@ def get_repo_commits(
     return all_commits
 
 
+def _get_repo_pushedat_map(
+    neo4j_session: neo4j.Session,
+    organization: str,
+    repo_names: list[str],
+) -> dict[str, str | None]:
+    """
+    Fetch the current `pushedat` value for the given repos from the graph.
+
+    :param neo4j_session: Neo4j session for database interface.
+    :param organization: The Github organization name.
+    :param repo_names: List of repository names to look up.
+    :return: A dict mapping repo_name to its `pushedat` value (or None if
+        missing/never fetched).
+    """
+    repo_urls = {
+        repo_name: f"https://github.com/{organization}/{repo_name}"
+        for repo_name in repo_names
+    }
+    query = """
+    UNWIND $repo_urls AS url
+    MATCH (r:GitHubRepository {id: url})
+    RETURN r.id AS url, r.pushedat AS pushedat
+    """
+    rows = neo4j_session.execute_read(
+        read_list_of_dicts_tx,
+        query,
+        repo_urls=list(repo_urls.values()),
+    )
+    pushedat_by_url = {row["url"]: row["pushedat"] for row in rows}
+    return {repo_name: pushedat_by_url.get(url) for repo_name, url in repo_urls.items()}
+
+
 def process_repo_commits_batch(
     neo4j_session: neo4j.Session,
     token: str,
@@ -135,6 +168,7 @@ def process_repo_commits_batch(
     update_tag: int,
     lookback_days: int = 30,
     batch_size: int = 10,
+    skip_stale_repos: bool = False,
 ) -> None:
     """
     Process repository commits in batches to save memory and API quota.
@@ -147,9 +181,44 @@ def process_repo_commits_batch(
     :param update_tag: Timestamp used to determine data freshness.
     :param lookback_days: Number of days to look back for commits.
     :param batch_size: Number of repositories to process in each batch.
+    :param skip_stale_repos: If True, skip repos whose `pushedat` (last known
+        push, from a prior GitHub repos sync) is older than the lookback
+        window; such repos cannot have any commits within that window. Repos
+        with no `pushedat` on record (e.g. never seen by a repos sync yet)
+        are never skipped.
     """
     # Calculate lookback date based on configured days
     lookback_date = datetime.now(timezone.utc) - timedelta(days=lookback_days)
+
+    if skip_stale_repos:
+        pushedat_by_repo = _get_repo_pushedat_map(
+            neo4j_session, organization, repo_names
+        )
+        eligible_repo_names = []
+        skipped_count = 0
+        for repo_name in repo_names:
+            pushedat = pushedat_by_repo.get(repo_name)
+            if pushedat is None:
+                eligible_repo_names.append(repo_name)
+                continue
+            try:
+                pushed_dt = datetime.fromisoformat(pushedat.replace("Z", "+00:00"))
+            except (ValueError, AttributeError):
+                eligible_repo_names.append(repo_name)
+                continue
+            if pushed_dt < lookback_date:
+                skipped_count += 1
+            else:
+                eligible_repo_names.append(repo_name)
+        logger.info(
+            "Skipping commits fetch for %d/%d repos in org %s with no push in the "
+            "last %d days.",
+            skipped_count,
+            len(repo_names),
+            organization,
+            lookback_days,
+        )
+        repo_names = eligible_repo_names
 
     logger.info(f"Processing {len(repo_names)} repositories in batches of {batch_size}")
 
@@ -383,6 +452,7 @@ def sync_github_commits(
     repo_names: list[str],
     update_tag: int,
     lookback_days: int = 30,
+    skip_stale_repos: bool = False,
 ) -> None:
     """
     Sync GitHub commit relationships for the specified lookback period.
@@ -395,6 +465,8 @@ def sync_github_commits(
     :param repo_names: List of repository names to sync commits for.
     :param update_tag: Timestamp used to determine data freshness.
     :param lookback_days: Number of days to look back for commits.
+    :param skip_stale_repos: If True, skip repos with no push in the lookback
+        window (see process_repo_commits_batch).
     """
     logger.info(f"Starting GitHub commits sync for organization: {organization}")
 
@@ -408,6 +480,7 @@ def sync_github_commits(
         repo_names,
         update_tag,
         lookback_days=lookback_days,
+        skip_stale_repos=skip_stale_repos,
         batch_size=10,  # Process 10 repos at a time
     )
 
