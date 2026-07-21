@@ -6,6 +6,7 @@ import scaleway
 from scaleway.mailbox.v1alpha1 import Domain
 from scaleway.mailbox.v1alpha1 import Mailbox
 from scaleway.mailbox.v1alpha1 import MailboxV1Alpha1API
+from scaleway_core.api import ScalewayException
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
@@ -25,98 +26,103 @@ def sync(
     projects_id: list[str],
     update_tag: int,
 ) -> None:
-    domains, mailboxes = get(client, projects_id)
-    domains_by_project, mailboxes_by_project = transform(domains, mailboxes)
-    load_mailbox_domains(neo4j_session, domains_by_project, update_tag)
-    load_mailboxes(neo4j_session, mailboxes_by_project, update_tag)
-    cleanup(neo4j_session, projects_id, common_job_parameters)
+    # Only clean up projects we could actually read. Mailbox is private beta;
+    # a project without entitlement is skipped entirely, so its previously
+    # ingested nodes (if any) are not wiped by a cleanup that saw zero
+    # domains/mailboxes.
+    fetched_projects: list[str] = []
+    for project_id in projects_id:
+        result = get(client, project_id)
+        if result is None:
+            continue
+        domains, mailboxes = result
+        formatted_domains, formatted_mailboxes = transform(domains, mailboxes)
+        load_mailbox_domains(neo4j_session, project_id, formatted_domains, update_tag)
+        load_mailboxes(neo4j_session, project_id, formatted_mailboxes, update_tag)
+        fetched_projects.append(project_id)
+    cleanup(neo4j_session, fetched_projects, common_job_parameters)
 
 
 @timeit
 def get(
     client: scaleway.Client,
-    projects_id: list[str],
-) -> tuple[list[Domain], list[Mailbox]]:
+    project_id: str,
+) -> tuple[list[Domain], list[Mailbox]] | None:
+    """Return the project's Mailbox domains and mailboxes, or None if the
+    project cannot be read. None signals the caller to skip load/cleanup for
+    that project rather than treating the error as an authoritative empty
+    set."""
     api = MailboxV1Alpha1API(client)
-    domains: list[Domain] = []
-    for project_id in projects_id:
-        domains.extend(api.list_domains_all(project_id=project_id))
-    mailboxes: list[Mailbox] = [
-        mailbox
-        for domain in domains
-        for mailbox in api.list_mailboxes_all(domain_id=domain.id)
-    ]
-    return domains, mailboxes
+    try:
+        domains = api.list_domains_all(project_id=project_id)
+        mailboxes = [
+            mailbox
+            for domain in domains
+            for mailbox in api.list_mailboxes_all(domain_id=domain.id)
+        ]
+        return domains, mailboxes
+    except ScalewayException as exc:
+        # Mailbox is a private beta product; accounts without entitlement
+        # answer 403 for the whole API. Skip rather than aborting the sync or
+        # wiping existing inventory.
+        if exc.status_code == 403:
+            logger.info(
+                "Scaleway Mailbox not enabled for project %s, skipping.",
+                project_id,
+            )
+            return None
+        raise
 
 
 def transform(
     domains: list[Domain],
     mailboxes: list[Mailbox],
-) -> tuple[dict[str, list[dict[str, Any]]], dict[str, list[dict[str, Any]]]]:
-    domains_by_project: dict[str, list[dict[str, Any]]] = {}
-    project_by_domain_id: dict[str, str] = {}
-    for domain in domains:
-        formatted_domain = scaleway_obj_to_dict(domain)
-        domains_by_project.setdefault(domain.project_id, []).append(formatted_domain)
-        project_by_domain_id[domain.id] = domain.project_id
-
-    mailboxes_by_project: dict[str, list[dict[str, Any]]] = {}
-    for mailbox in mailboxes:
-        project_id = project_by_domain_id.get(mailbox.domain_id)
-        if project_id is None:
-            logger.warning(
-                "Skipping Scaleway Mailbox %s: unknown parent domain %s.",
-                mailbox.id,
-                mailbox.domain_id,
-            )
-            continue
-        formatted_mailbox = scaleway_obj_to_dict(mailbox)
-        formatted_mailbox["project_id"] = project_id
-        mailboxes_by_project.setdefault(project_id, []).append(formatted_mailbox)
-
-    return domains_by_project, mailboxes_by_project
+) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+    formatted_domains = [scaleway_obj_to_dict(domain) for domain in domains]
+    formatted_mailboxes = [scaleway_obj_to_dict(mailbox) for mailbox in mailboxes]
+    return formatted_domains, formatted_mailboxes
 
 
 @timeit
 def load_mailbox_domains(
     neo4j_session: neo4j.Session,
-    data: dict[str, list[dict[str, Any]]],
+    project_id: str,
+    domains: list[dict[str, Any]],
     update_tag: int,
 ) -> None:
-    for project_id, domains in data.items():
-        logger.info(
-            "Loading %d Scaleway Mailbox domains in project '%s' into Neo4j.",
-            len(domains),
-            project_id,
-        )
-        load(
-            neo4j_session,
-            ScalewayMailboxDomainSchema(),
-            domains,
-            lastupdated=update_tag,
-            PROJECT_ID=project_id,
-        )
+    logger.info(
+        "Loading %d Scaleway Mailbox domains in project '%s' into Neo4j.",
+        len(domains),
+        project_id,
+    )
+    load(
+        neo4j_session,
+        ScalewayMailboxDomainSchema(),
+        domains,
+        lastupdated=update_tag,
+        PROJECT_ID=project_id,
+    )
 
 
 @timeit
 def load_mailboxes(
     neo4j_session: neo4j.Session,
-    data: dict[str, list[dict[str, Any]]],
+    project_id: str,
+    mailboxes: list[dict[str, Any]],
     update_tag: int,
 ) -> None:
-    for project_id, mailboxes in data.items():
-        logger.info(
-            "Loading %d Scaleway Mailboxes in project '%s' into Neo4j.",
-            len(mailboxes),
-            project_id,
-        )
-        load(
-            neo4j_session,
-            ScalewayMailboxSchema(),
-            mailboxes,
-            lastupdated=update_tag,
-            PROJECT_ID=project_id,
-        )
+    logger.info(
+        "Loading %d Scaleway Mailboxes in project '%s' into Neo4j.",
+        len(mailboxes),
+        project_id,
+    )
+    load(
+        neo4j_session,
+        ScalewayMailboxSchema(),
+        mailboxes,
+        lastupdated=update_tag,
+        PROJECT_ID=project_id,
+    )
 
 
 @timeit
