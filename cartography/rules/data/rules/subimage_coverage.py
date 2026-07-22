@@ -37,7 +37,7 @@ _subimage_module_not_configured_fact = Fact(
     WHERE m.is_configured = false
     MATCH (app:ThirdPartyApp)
     WHERE toLower(app._ont_name) = toLower(m.id)
-    RETURN count(m) AS count
+    RETURN count(DISTINCT m) AS count
     """,
     asset_label="SubImageModule",
     asset_id_field="module_id",

@@ -29,7 +29,7 @@ aws_guard_duty_detector_disabled = Fact(
     """,
     cypher_count_query="""
     MATCH (a:AWSAccount)-[:RESOURCE]-(r:AWSEC2Instance|AWSEKSCluster|AWSLambda|AWSECSCluster|AWSRDSInstance|AWSRDSCluster)
-    WITH DISTINCT a, r.region AS region
+    WITH DISTINCT a
     RETURN COUNT(*) AS count
     """,
     # Anchor on the AWSAccount node. NOTE: the finding unit is (account, region), so

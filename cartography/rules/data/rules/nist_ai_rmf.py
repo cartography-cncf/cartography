@@ -82,6 +82,7 @@ RISKY_SCOPE_PREFIXES_CYPHER = _as_cypher_list(RISKY_SCOPE_PREFIXES)
 # =============================================================================
 class NistAiAppInventoryOutput(Finding):
     app_name: str | None = None
+    asset_node_id: str | None = None
     app_client_id: str | None = None
     app_source: str | None = None
     match_method: str | None = None
@@ -115,6 +116,7 @@ _cross_cloud_nist_ai_app_inventory = Fact(
     OPTIONAL MATCH (ua:UserAccount)-[auth:AUTHORIZED]->(app)
     RETURN
         coalesce(app._ont_name, app.display_name, app.display_text, app.name) AS app_name,
+        app.id AS asset_node_id,
         coalesce(app._ont_client_id, app.client_id, app.app_id, app.id) AS app_client_id,
         app._ont_source AS app_source,
         app._ont_source AS source,
@@ -147,7 +149,9 @@ _cross_cloud_nist_ai_app_inventory = Fact(
     RETURN COUNT(app) AS count
     """,
     asset_label="ThirdPartyApp",
-    asset_id_field="app_client_id",
+    # app_client_id is the OAuth client id, which differs from the node id for
+    # Entra/Keycloak apps; anchor on the node's real .id instead.
+    asset_id_field="asset_node_id",
     identity_fields=("app_source", "app_client_id"),
     module=Module.CROSS_CLOUD,
     maturity=Maturity.EXPERIMENTAL,
@@ -179,6 +183,7 @@ ai_third_party_app_inventory = Rule(
 # =============================================================================
 class NistAiSensitiveScopesOutput(Finding):
     app_name: str | None = None
+    asset_node_id: str | None = None
     app_client_id: str | None = None
     app_source: str | None = None
     authorized_identity_count: int | None = None
@@ -218,6 +223,7 @@ _cross_cloud_nist_ai_app_sensitive_scopes = Fact(
     UNWIND risky_scopes_for_auth AS risky_scope
     RETURN
         coalesce(app._ont_name, app.display_name, app.display_text, app.name) AS app_name,
+        app.id AS asset_node_id,
         coalesce(app._ont_client_id, app.client_id, app.app_id, app.id) AS app_client_id,
         app._ont_source AS app_source,
         app._ont_source AS source,
@@ -253,7 +259,9 @@ _cross_cloud_nist_ai_app_sensitive_scopes = Fact(
     RETURN COUNT(app) AS count
     """,
     asset_label="ThirdPartyApp",
-    asset_id_field="app_client_id",
+    # app_client_id is the OAuth client id, which differs from the node id for
+    # Entra/Keycloak apps; anchor on the node's real .id instead.
+    asset_id_field="asset_node_id",
     identity_fields=("app_source", "app_client_id"),
     module=Module.CROSS_CLOUD,
     maturity=Maturity.EXPERIMENTAL,
@@ -311,6 +319,7 @@ ai_third_party_app_sensitive_scopes = Rule(
 # =============================================================================
 class NistAiAdminAuthorizationsOutput(Finding):
     app_name: str | None = None
+    asset_node_id: str | None = None
     app_client_id: str | None = None
     app_source: str | None = None
     admin_user_count: int | None = None
@@ -342,6 +351,7 @@ _gw_nist_ai_admin_app_authorizations = Fact(
       )
     RETURN
         coalesce(app._ont_name, app.display_name, app.display_text, app.name) AS app_name,
+        app.id AS asset_node_id,
         coalesce(app._ont_client_id, app.client_id, app.app_id, app.id) AS app_client_id,
         app._ont_source AS app_source,
         count(DISTINCT u) AS admin_user_count,
@@ -385,7 +395,9 @@ _gw_nist_ai_admin_app_authorizations = Fact(
     RETURN COUNT(DISTINCT app) AS count
     """,
     asset_label="ThirdPartyApp",
-    asset_id_field="app_client_id",
+    # app_client_id is the OAuth client id, which differs from the node id for
+    # Entra/Keycloak apps; anchor on the node's real .id instead.
+    asset_id_field="asset_node_id",
     identity_fields=("app_source", "app_client_id"),
     module=Module.GOOGLEWORKSPACE,
     maturity=Maturity.EXPERIMENTAL,
