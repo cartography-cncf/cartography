@@ -180,6 +180,8 @@ from cartography.models.kubernetes.statefulsets import (
 from cartography.models.kubernetes.users import KubernetesUserToAWSRoleRel
 from cartography.models.oci.group import OCIGroupToOCIUserRel
 from cartography.models.oci.policy import OCIPolicyToGroupRefRel
+from cartography.models.ontology.runtime_image import RuntimeImageToContainerRel
+from cartography.models.ontology.runtime_image import RuntimeImageToFunctionRel
 from cartography.models.openai.adminapikey import OpenAIAdminApiKeyToSARel
 from cartography.models.openai.adminapikey import OpenAIAdminApiKeyToUserRel
 from cartography.models.openai.apikey import OpenAIApiKeyToSARel
@@ -463,5 +465,7 @@ LEGACY_REL_WHITELIST: frozenset[type] = frozenset(
         AzureFunctionAppToGitLabContainerImageRel,
         AzureFunctionAppToGCPArtifactRegistryImageRel,
         AzureFunctionAppToGitHubContainerImageRel,
+        RuntimeImageToContainerRel,
+        RuntimeImageToFunctionRel,
     }
 )
