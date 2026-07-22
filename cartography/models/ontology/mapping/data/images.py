@@ -92,10 +92,24 @@ scaleway_mapping = OntologyMapping(
     ],
 )
 
+ontology_mapping = OntologyMapping(
+    module_name="ontology",
+    nodes=[
+        OntologyNodeMapping(
+            node_label="RuntimeImage",
+            fields=[
+                OntologyFieldMapping(ontology_field="digest", node_field="digest"),
+                OntologyFieldMapping(ontology_field="uri", node_field="uri"),
+            ],
+        ),
+    ],
+)
+
 IMAGES_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     "aws": aws_ecr_mapping,
     "gcp": gcp_mapping,
     "github": github_mapping,
     "gitlab": gitlab_mapping,
+    "ontology": ontology_mapping,
     "scaleway": scaleway_mapping,
 }

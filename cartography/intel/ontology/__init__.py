@@ -7,6 +7,7 @@ import cartography.intel.ontology.dnsrecords
 import cartography.intel.ontology.loadbalancers
 import cartography.intel.ontology.packages
 import cartography.intel.ontology.publicips
+import cartography.intel.ontology.runtime_images
 import cartography.intel.ontology.users
 from cartography.analysis.aibom.analysis import AIBOM_RUNS_ON_CONTAINER
 from cartography.analysis.ontology.analysis import RESOLVED_IMAGE_JOBS
@@ -75,6 +76,11 @@ def run(neo4j_session: neo4j.Session, config: Config) -> None:
         common_job_parameters,
     )
     cartography.intel.ontology.publicips.sync(
+        neo4j_session,
+        config.update_tag,
+        common_job_parameters,
+    )
+    cartography.intel.ontology.runtime_images.sync(
         neo4j_session,
         config.update_tag,
         common_job_parameters,

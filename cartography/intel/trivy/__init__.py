@@ -20,6 +20,7 @@ from cartography.intel.common.report_reader_builder import (
     build_report_reader_for_source,
 )
 from cartography.intel.common.report_source import parse_report_source
+from cartography.intel.ontology.runtime_images import _digest_ref
 from cartography.intel.trivy.scanner import cleanup
 from cartography.intel.trivy.scanner import sync_single_image
 from cartography.stats import get_stats_client
@@ -130,12 +131,40 @@ def _get_gitlab_scan_targets_and_aliases(
     return image_uris, digest_aliases
 
 
+def _get_runtime_image_scan_targets_and_aliases(
+    neo4j_session: Session,
+) -> tuple[set[str], dict[str, str]]:
+    image_uris: set[str] = set()
+    digest_aliases: dict[str, str] = {}
+    records = neo4j_session.run(
+        """
+        MATCH (image:RuntimeImage)
+        WHERE image.digest IS NOT NULL
+        RETURN image.digest AS digest,
+               image.uri AS uri,
+               image.runtime_refs AS runtime_refs
+        ORDER BY image.id
+        """,
+    )
+    for record in records:
+        digest = record["digest"]
+        runtime_refs = sorted(set(record["runtime_refs"] or []))
+        image_uris.update(runtime_refs)
+        if record["uri"]:
+            digest_aliases[record["uri"]] = (
+                runtime_refs[0] if runtime_refs else record["uri"]
+            )
+        for runtime_ref in runtime_refs:
+            digest_aliases[_digest_ref(runtime_ref, digest)] = runtime_ref
+    return image_uris, digest_aliases
+
+
 def _get_scan_targets_and_aliases(
     neo4j_session: Session,
     account_ids: list[str] | None = None,
 ) -> tuple[set[str], dict[str, str]]:
     """
-    Return image URIs and digest aliases for ECR, GCP, and GitLab container images.
+    Return image URIs and digest aliases for known and runtime container images.
     """
     # Get ECR targets
     ecr_uris, ecr_aliases = _get_ecr_scan_targets_and_aliases(
@@ -148,9 +177,18 @@ def _get_scan_targets_and_aliases(
     # Get GitLab targets
     gitlab_uris, gitlab_aliases = _get_gitlab_scan_targets_and_aliases(neo4j_session)
 
+    runtime_uris, runtime_aliases = _get_runtime_image_scan_targets_and_aliases(
+        neo4j_session,
+    )
+
     # Merge results
-    image_uris = ecr_uris | gcp_uris | gitlab_uris
-    digest_aliases = {**ecr_aliases, **gcp_aliases, **gitlab_aliases}
+    image_uris = ecr_uris | gcp_uris | gitlab_uris | runtime_uris
+    digest_aliases = {
+        **ecr_aliases,
+        **gcp_aliases,
+        **gitlab_aliases,
+        **runtime_aliases,
+    }
 
     return image_uris, digest_aliases
 
