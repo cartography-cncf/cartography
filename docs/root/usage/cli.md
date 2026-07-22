@@ -64,7 +64,7 @@ Core, Neo4j, StatsD, and Analysis panels are always shown regardless of selected
 
 | Option | Description |
 |--------|-------------|
-| `--debug` | Enable verbose logging (`-v, --verbose` is deprecated and will be removed in v1.0.0) |
+| `-d, --debug` | Enable verbose logging (`-v, --verbose` is deprecated and will be removed in v1.0.0) |
 | `-q, --quiet` | Only show warnings and errors |
 | `--log-timestamps` | Prepend an ISO-8601 timestamp and level to each log line (off by default so log aggregators that add their own timestamp field don't get a redundant one) |
 | `--selected-modules` | Comma-separated list of modules to sync |

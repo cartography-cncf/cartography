@@ -1,6 +1,9 @@
 import re
 from pathlib import Path
 
+import typer
+
+from cartography.cli import CLI
 from cartography.sync import Sync
 
 
@@ -31,37 +34,36 @@ def test_schema_doc():
 def test_cli_doc():
     """Test that every user-visible CLI flag is documented.
 
-    This test checks that each non-hidden CLI flag defined in cartography/cli.py
-    appears somewhere in the docs, ensuring that the documentation is up-to-date
-    with the current CLI surface. Flags declared with `hidden=True` and
-    experimental flags are excluded.
+    Introspect the actual Typer/Click command instead of parsing cli.py
+    source, so the check reflects the real CLI surface (including generated
+    options) and honours each option's real ``hidden`` state. Hidden flags,
+    experimental flags, and Typer's built-in completion/help options are
+    excluded.
     """
-    flag_regex = re.compile(r'"(--[a-z0-9-]+)"')
+    command = typer.main.get_command(CLI()._build_app(set()))
 
-    with open("./cartography/cli.py") as f:
-        cli_source = f.read()
+    # Typer/Click built-ins, not part of cartography's own CLI surface.
+    builtin_flags = {"--help", "--install-completion", "--show-completion"}
 
-    # Map each flag to its typer.Option block (up to the next flag literal) so
-    # we can detect statically hidden flags.
-    matches = list(flag_regex.finditer(cli_source))
-    undocumented = []
     docs_content = ""
     for path in Path("./docs/root").rglob("*.md"):
         docs_content += path.read_text()
 
-    for i, match in enumerate(matches):
-        flag = match.group(1)
-        if flag.startswith("--experimental-"):
+    undocumented = []
+    for param in command.params:
+        if getattr(param, "hidden", False):
             continue
-        block_end = matches[i + 1].start() if i + 1 < len(matches) else len(cli_source)
-        block = cli_source[match.start() : block_end]
-        if "hidden=True" in block:
-            continue
-        if flag not in docs_content:
-            undocumented.append(flag)
+        for opt in param.opts:
+            if not opt.startswith("--"):
+                continue
+            if opt in builtin_flags or opt.startswith("--experimental-"):
+                continue
+            if opt not in docs_content:
+                undocumented.append(opt)
 
     assert not undocumented, (
-        f"The following CLI flags are not documented anywhere under docs/root; "
-        f"please add them to the relevant module config page or docs/root/usage/cli.md: "
+        "The following CLI flags are not documented anywhere under docs/root; "
+        "please add them to the relevant module config page or "
+        "docs/root/usage/cli.md: "
         f"{sorted(set(undocumented))}"
     )
