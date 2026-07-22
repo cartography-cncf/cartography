@@ -3,7 +3,7 @@ from pathlib import Path
 
 import typer
 
-from cartography.cli import CLI
+from cartography.cli import ALWAYS_SHOW_PANELS, CLI, MODULE_PANELS
 from cartography.sync import Sync
 
 
@@ -40,7 +40,11 @@ def test_cli_doc():
     experimental flags, and Typer's built-in completion/help options are
     excluded.
     """
-    command = typer.main.get_command(CLI()._build_app(set()))
+    # Build with every panel visible so module-specific flags are not hidden
+    # (each flag is hidden when its panel is not in visible_panels); otherwise
+    # the test would silently skip all module flags and only check core ones.
+    all_panels = set(MODULE_PANELS.values()) | ALWAYS_SHOW_PANELS
+    command = typer.main.get_command(CLI()._build_app(all_panels))
 
     # Typer/Click built-ins, not part of cartography's own CLI surface.
     builtin_flags = {"--help", "--install-completion", "--show-completion"}
