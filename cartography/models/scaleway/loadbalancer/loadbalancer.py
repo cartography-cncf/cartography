@@ -7,8 +7,10 @@ from cartography.models.core.nodes import ExtraNodeLabels
 from cartography.models.core.relationships import CartographyRelProperties
 from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
+from cartography.models.core.relationships import make_source_node_matcher
 from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import OtherRelationships
+from cartography.models.core.relationships import SourceNodeMatcher
 from cartography.models.core.relationships import TargetNodeMatcher
 
 
@@ -61,6 +63,37 @@ class ScalewayLoadBalancerSchema(CartographyNodeSchema):
     properties: ScalewayLoadBalancerProperties = ScalewayLoadBalancerProperties()
     sub_resource_relationship: ScalewayLoadBalancerToProjectRel = (
         ScalewayLoadBalancerToProjectRel()
+    )
+
+
+@dataclass(frozen=True)
+class ScalewayLoadBalancerToPrivateNetworkRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    _sub_resource_label: PropertyRef = PropertyRef(
+        "_sub_resource_label",
+        set_in_kwargs=True,
+    )
+    _sub_resource_id: PropertyRef = PropertyRef("_sub_resource_id", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+# (:ScalewayLoadBalancer)-[:ATTACHED_TO]->(:ScalewayPrivateNetwork)
+# A MatchLink (not an OtherRelationships entry) because the private network
+# attachment is only known from the Autoscaling API response, which does not
+# own (and must not overwrite) the rest of the LoadBalancer node's properties.
+class ScalewayLoadBalancerToPrivateNetworkMatchLink(CartographyRelSchema):
+    source_node_label: str = "ScalewayLoadBalancer"
+    source_node_matcher: SourceNodeMatcher = make_source_node_matcher(
+        {"id": PropertyRef("loadbalancer_id")},
+    )
+    target_node_label: str = "ScalewayPrivateNetwork"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"id": PropertyRef("private_network_id")},
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "ATTACHED_TO"
+    properties: ScalewayLoadBalancerToPrivateNetworkRelProperties = (
+        ScalewayLoadBalancerToPrivateNetworkRelProperties()
     )
 
 
