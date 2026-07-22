@@ -644,7 +644,9 @@ _aws_admin_policy_attached = Fact(
           OR principal.arn CONTAINS 'stacksets-exec'
           OR principal.arn CONTAINS 'StackSetExecutionRole'
     )
-    WITH DISTINCT a, policy
+    // Dedupe on policy only: an AWS-managed policy shared across accounts is one
+    // asset, matching the policy_id anchor used for the failing count.
+    WITH DISTINCT policy
     RETURN COUNT(*) AS count
     """,
     # asset_label/asset_id_field anchor the finding on the offending AWSPolicy node.

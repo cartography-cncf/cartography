@@ -111,7 +111,7 @@ _k8s_secrets_in_env_vars = Fact(
     UNWIND pod_names_raw AS pod_name
     WITH cluster_name, namespace, secret_names, pod_name ORDER BY pod_name
     WITH cluster_name, namespace, secret_names, collect(pod_name) AS pod_names
-    OPTIONAL MATCH (ns:KubernetesNamespace)
+    MATCH (ns:KubernetesNamespace)
     WHERE ns.name = namespace AND ns.cluster_name = cluster_name
     RETURN
         ns.id AS namespace_id,
@@ -212,7 +212,7 @@ _k8s_service_account_tokens_mounted = Fact(
         namespace,
         service_account_name,
         collect(DISTINCT pod_name) AS pod_names
-    OPTIONAL MATCH (ns:KubernetesNamespace)
+    MATCH (ns:KubernetesNamespace)
     WHERE ns.name = namespace AND ns.cluster_name = cluster_name
     RETURN
         ns.id AS namespace_id,
@@ -264,7 +264,9 @@ _k8s_service_account_tokens_mounted = Fact(
         OR service_account_assumes_aws_role
         OR service_account_assumes_gcp_identity
       )
-    WITH DISTINCT cluster.name AS cluster_name, pod.namespace AS namespace, service_account_name
+    // Count distinct namespaces (matching the KubernetesNamespace anchor / failing unit),
+    // not (namespace, service account) pairs.
+    WITH DISTINCT cluster.name AS cluster_name, pod.namespace AS namespace
     RETURN COUNT(*) AS count
     """,
     asset_label="KubernetesNamespace",
@@ -553,7 +555,7 @@ _k8s_host_path_volumes = Fact(
     UNWIND pod_names_raw AS pod_name
     WITH cluster_name, namespace, host_path_volume_paths, pod_name ORDER BY pod_name
     WITH cluster_name, namespace, host_path_volume_paths, collect(pod_name) AS pod_names
-    OPTIONAL MATCH (ns:KubernetesNamespace)
+    MATCH (ns:KubernetesNamespace)
     WHERE ns.name = namespace AND ns.cluster_name = cluster_name
     RETURN
         ns.id AS namespace_id,

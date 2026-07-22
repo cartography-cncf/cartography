@@ -592,7 +592,7 @@ _k8s_default_sa_used_by_pods = Fact(
     WITH cluster.name AS cluster_name, sa.namespace AS namespace, pod.name AS pod_name
     ORDER BY pod_name
     WITH cluster_name, namespace, collect(DISTINCT pod_name) AS pod_names
-    OPTIONAL MATCH (ns:KubernetesNamespace)
+    MATCH (ns:KubernetesNamespace)
     WHERE ns.name = namespace AND ns.cluster_name = cluster_name
     RETURN
         ns.id AS namespace_id,
