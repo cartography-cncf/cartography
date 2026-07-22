@@ -46,6 +46,7 @@ PRJ -- RESOURCE --> SF(ServerlessFunction)
 PRJ -- RESOURCE --> SCN(ServerlessContainerNamespace)
 PRJ -- RESOURCE --> SC(ServerlessContainer)
 PRJ -- RESOURCE --> SJ(ServerlessJobDefinition)
+PRJ -- RESOURCE --> WH(WebHosting)
 INS -- MOUNTS --> VOL
 INS -- MEMBER_OF_SCALEWAY_SECURITY_GROUP --> SG
 SGR -- MEMBER_OF_SCALEWAY_SECURITY_GROUP --> SG
@@ -156,7 +157,8 @@ Represents a Project in Scaleway. Projects are groupings of Scaleway resources.
         :ScalewayIP,
         :ScalewayLoadBalancer,
         :ScalewayLBFrontend,
-        :ScalewayLBBackend
+        :ScalewayLBBackend,
+        :ScalewayWebHosting
     )
     ```
 
@@ -1964,4 +1966,28 @@ Represents a domain registered with the Scaleway registrar.
 - A `RegisteredDomain` belongs to a `Project`.
     ```
     (:ScalewayProject)-[:RESOURCE]->(:ScalewayRegisteredDomain)
+    ```
+
+### ScalewayWebHosting
+
+Represents a Web Hosting account in Scaleway.
+
+| Field         | Description                            |
+|---------------|----------------------------------------|
+| id            | ID of the Web Hosting account.         |
+| status        | Status of the Web Hosting account.     |
+| offer_name    | Name of the selected Web Hosting offer.|
+| region        | Region the Web Hosting account lives in.|
+| domain        | Primary domain attached to the hosting.|
+| dns_status    | DNS validation status for the domain.  |
+| domain_status | Domain validation status.              |
+| protected     | Whether the hosting is protected.      |
+| created_at    | Creation timestamp.                    |
+| updated_at    | Last update timestamp.                 |
+| lastupdated   | Timestamp of the last update.          |
+
+#### Relationships
+- A `WebHosting` account belongs to a `Project`.
+    ```
+    (:ScalewayProject)-[:RESOURCE]->(:ScalewayWebHosting)
     ```
