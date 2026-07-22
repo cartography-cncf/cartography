@@ -79,6 +79,7 @@ K8S_INFRASTRUCTURE_SERVICE_ACCOUNT_NAMES_CYPHER = _cypher_string_list(
 class SecretsInEnvVarsOutput(Finding):
     """Output model for secrets in environment variables check."""
 
+    namespace_id: str | None = None
     cluster_name: str | None = None
     namespace: str | None = None
     secret_names: list[str] | None = None
@@ -110,7 +111,10 @@ _k8s_secrets_in_env_vars = Fact(
     UNWIND pod_names_raw AS pod_name
     WITH cluster_name, namespace, secret_names, pod_name ORDER BY pod_name
     WITH cluster_name, namespace, secret_names, collect(pod_name) AS pod_names
+    OPTIONAL MATCH (ns:KubernetesNamespace)
+    WHERE ns.name = namespace AND ns.cluster_name = cluster_name
     RETURN
+        ns.id AS namespace_id,
         cluster_name,
         namespace,
         secret_names,
@@ -127,6 +131,8 @@ _k8s_secrets_in_env_vars = Fact(
     MATCH (ns:KubernetesNamespace)
     RETURN COUNT(ns) AS count
     """,
+    asset_label="KubernetesNamespace",
+    asset_id_field="namespace_id",
     identity_fields=("cluster_name", "namespace"),
     module=Module.KUBERNETES,
     maturity=Maturity.EXPERIMENTAL,
@@ -157,6 +163,7 @@ kubernetes_secrets_used_as_environment_variables = Rule(
 # Main node: KubernetesPod
 # =============================================================================
 class ServiceAccountTokenMountOutput(Finding):
+    namespace_id: str | None = None
     cluster_name: str | None = None
     namespace: str | None = None
     service_account_name: str | None = None
@@ -205,7 +212,10 @@ _k8s_service_account_tokens_mounted = Fact(
         namespace,
         service_account_name,
         collect(DISTINCT pod_name) AS pod_names
+    OPTIONAL MATCH (ns:KubernetesNamespace)
+    WHERE ns.name = namespace AND ns.cluster_name = cluster_name
     RETURN
+        ns.id AS namespace_id,
         cluster_name,
         namespace,
         service_account_name AS service_account_name,
@@ -257,6 +267,8 @@ _k8s_service_account_tokens_mounted = Fact(
     WITH DISTINCT cluster.name AS cluster_name, pod.namespace AS namespace, service_account_name
     RETURN COUNT(*) AS count
     """,
+    asset_label="KubernetesNamespace",
+    asset_id_field="namespace_id",
     identity_fields=("cluster_name", "namespace", "service_account_name"),
     module=Module.KUBERNETES,
     maturity=Maturity.EXPERIMENTAL,
@@ -316,6 +328,7 @@ _k8s_host_pid_pods = Fact(
     MATCH (pod:KubernetesPod)
     RETURN COUNT(pod) AS count
     """,
+    asset_label="KubernetesPod",
     asset_id_field="pod_id",
     identity_fields=("pod_id",),
     module=Module.KUBERNETES,
@@ -367,6 +380,7 @@ _k8s_host_ipc_pods = Fact(
     MATCH (pod:KubernetesPod)
     RETURN COUNT(pod) AS count
     """,
+    asset_label="KubernetesPod",
     asset_id_field="pod_id",
     identity_fields=("pod_id",),
     module=Module.KUBERNETES,
@@ -418,6 +432,7 @@ _k8s_host_network_pods = Fact(
     MATCH (pod:KubernetesPod)
     RETURN COUNT(pod) AS count
     """,
+    asset_label="KubernetesPod",
     asset_id_field="pod_id",
     identity_fields=("pod_id",),
     module=Module.KUBERNETES,
@@ -475,6 +490,7 @@ _k8s_allow_privilege_escalation = Fact(
     MATCH (c:KubernetesContainer)
     RETURN COUNT(c) AS count
     """,
+    asset_label="KubernetesContainer",
     asset_id_field="container_id",
     identity_fields=("container_id",),
     module=Module.KUBERNETES,
@@ -507,6 +523,7 @@ kubernetes_containers_allowing_privilege_escalation = Rule(
 # Main node: KubernetesPod
 # =============================================================================
 class HostPathVolumeOutput(Finding):
+    namespace_id: str | None = None
     cluster_name: str | None = None
     namespace: str | None = None
     host_path_volume_paths: list[str] | None = None
@@ -536,7 +553,10 @@ _k8s_host_path_volumes = Fact(
     UNWIND pod_names_raw AS pod_name
     WITH cluster_name, namespace, host_path_volume_paths, pod_name ORDER BY pod_name
     WITH cluster_name, namespace, host_path_volume_paths, collect(pod_name) AS pod_names
+    OPTIONAL MATCH (ns:KubernetesNamespace)
+    WHERE ns.name = namespace AND ns.cluster_name = cluster_name
     RETURN
+        ns.id AS namespace_id,
         cluster_name,
         namespace,
         host_path_volume_paths,
@@ -552,6 +572,8 @@ _k8s_host_path_volumes = Fact(
     MATCH (ns:KubernetesNamespace)
     RETURN COUNT(ns) AS count
     """,
+    asset_label="KubernetesNamespace",
+    asset_id_field="namespace_id",
     identity_fields=("cluster_name", "namespace"),
     module=Module.KUBERNETES,
     maturity=Maturity.EXPERIMENTAL,
@@ -619,6 +641,7 @@ _k8s_host_ports = Fact(
     }
     RETURN COUNT(c) AS count
     """,
+    asset_label="KubernetesContainer",
     asset_id_field="container_id",
     identity_fields=("container_id",),
     module=Module.KUBERNETES,
@@ -698,6 +721,7 @@ _k8s_missing_runtime_default_seccomp = Fact(
     MATCH (pod:KubernetesPod)
     RETURN COUNT(pod) AS count
     """,
+    asset_label="KubernetesPod",
     asset_id_field="pod_id",
     identity_fields=("pod_id",),
     module=Module.KUBERNETES,
@@ -765,6 +789,8 @@ _k8s_pods_in_default_namespace = Fact(
     MATCH (pod:KubernetesPod)
     RETURN COUNT(pod) AS count
     """,
+    asset_label="KubernetesPod",
+    asset_id_field="pod_id",
     identity_fields=("pod_id",),
     module=Module.KUBERNETES,
     maturity=Maturity.EXPERIMENTAL,

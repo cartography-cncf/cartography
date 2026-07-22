@@ -41,6 +41,7 @@ _aws_role_external_account_trust = Fact(
     MATCH (:AWSAccount {inscope: true})-[:RESOURCE]->(role:AWSRole)
     RETURN COUNT(role) AS count
     """,
+    asset_label="AWSRole",
     asset_id_field="role_arn",
     identity_fields=("role_arn", "trusted_principal_arn"),
     module=Module.AWS,

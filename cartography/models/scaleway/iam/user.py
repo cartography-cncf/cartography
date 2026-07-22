@@ -55,8 +55,9 @@ class ScalewayUserToOrganizationRel(CartographyRelSchema):
 @dataclass(frozen=True)
 class ScalewayUserSchema(CartographyNodeSchema):
     label: str = "ScalewayUser"
+    # ScalewayPrincipal: cross-provider IAM principal umbrella, mirroring AWSPrincipal / GCPPrincipal.
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
-        ["UserAccount"]
+        ["UserAccount", "ScalewayPrincipal"]
     )  # UserAccount label is used for ontology mapping
     properties: ScalewayUserNodeProperties = ScalewayUserNodeProperties()
     sub_resource_relationship: ScalewayUserToOrganizationRel = (

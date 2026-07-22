@@ -146,6 +146,7 @@ _cross_cloud_nist_ai_app_inventory = Fact(
     MATCH (app:ThirdPartyApp)
     RETURN COUNT(app) AS count
     """,
+    asset_label="ThirdPartyApp",
     asset_id_field="app_client_id",
     identity_fields=("app_source", "app_client_id"),
     module=Module.CROSS_CLOUD,
@@ -251,6 +252,7 @@ _cross_cloud_nist_ai_app_sensitive_scopes = Fact(
     MATCH (app:ThirdPartyApp)
     RETURN COUNT(app) AS count
     """,
+    asset_label="ThirdPartyApp",
     asset_id_field="app_client_id",
     identity_fields=("app_source", "app_client_id"),
     module=Module.CROSS_CLOUD,
@@ -382,6 +384,7 @@ _gw_nist_ai_admin_app_authorizations = Fact(
         )
     RETURN COUNT(DISTINCT app) AS count
     """,
+    asset_label="ThirdPartyApp",
     asset_id_field="app_client_id",
     identity_fields=("app_source", "app_client_id"),
     module=Module.GOOGLEWORKSPACE,
@@ -538,6 +541,7 @@ _aibom_nist_ai_agent_inventory = Fact(
     MATCH (source)-[:HAS_COMPONENT]->(agent:AIAgent)
     RETURN COUNT(DISTINCT agent) AS count
     """,
+    asset_label="AIAgent",
     asset_id_field="agent_component_id",
     identity_fields=("agent_component_id",),
     module=Module.AIBOM,
@@ -637,6 +641,7 @@ _aibom_nist_ai_coverage_gaps = Fact(
     MATCH (source:AIBOMSource)
     RETURN COUNT(source) AS count
     """,
+    asset_label="AIBOMSource",
     asset_id_field="source_id",
     identity_fields=("source_id",),
     module=Module.AIBOM,
@@ -793,6 +798,9 @@ _openai_nist_ai_stale_or_unowned_api_keys = Fact(
     WHERE k:OpenAIAdminApiKey OR coalesce(project.status, 'active') = 'active'
     RETURN COUNT(k) AS count
     """,
+    # OpenAIApiKey and OpenAIAdminApiKey both carry the shared "APIKey" ontology label,
+    # so it anchors either concrete key type.
+    asset_label="APIKey",
     asset_id_field="api_key_id",
     identity_fields=("provider", "api_key_id"),
     module=Module.OPENAI,
@@ -856,6 +864,7 @@ _anthropic_nist_ai_stale_or_unscoped_api_keys = Fact(
     WHERE k.status = 'active'
     RETURN COUNT(k) AS count
     """,
+    asset_label="AnthropicApiKey",
     asset_id_field="api_key_id",
     identity_fields=("provider", "api_key_id"),
     module=Module.ANTHROPIC,

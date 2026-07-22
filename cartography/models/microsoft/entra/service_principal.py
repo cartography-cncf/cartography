@@ -97,7 +97,10 @@ class EntraServicePrincipalSchema(CartographyNodeSchema):
     properties: EntraServicePrincipalNodeProperties = (
         EntraServicePrincipalNodeProperties()
     )
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["ServiceAccount"])
+    # EntraPrincipal: cross-provider IAM principal umbrella, mirroring AWSPrincipal / GCPPrincipal.
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
+        ["ServiceAccount", "EntraPrincipal"]
+    )
     sub_resource_relationship: EntraServicePrincipalToTenantRel = (
         EntraServicePrincipalToTenantRel()
     )

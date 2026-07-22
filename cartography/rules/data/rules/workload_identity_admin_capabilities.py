@@ -93,6 +93,7 @@ _aws_service_account_manipulation_via_ec2 = Fact(
     MATCH (ec2:AWSEC2Instance)
     RETURN COUNT(ec2) AS count
     """,
+    asset_label="AWSEC2Instance",
     asset_id_field="workload_id",
     identity_fields=("workload_id",),
     module=Module.AWS,
@@ -173,6 +174,7 @@ _aws_service_account_manipulation_via_lambda = Fact(
     MATCH (lambda:AWSLambda)
     RETURN COUNT(lambda) AS count
     """,
+    asset_label="AWSLambda",
     asset_id_field="workload_id",
     identity_fields=("workload_id",),
     module=Module.AWS,

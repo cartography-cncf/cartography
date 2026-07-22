@@ -74,6 +74,8 @@ _gw_user_2sv_not_enforced = Fact(
     MATCH (u:GoogleWorkspaceUser)
     RETURN COUNT(u) AS count
     """,
+    asset_id_field="user_id",
+    asset_label="GoogleWorkspaceUser",
     identity_fields=("user_id",),
     module=Module.GOOGLEWORKSPACE,
     maturity=Maturity.EXPERIMENTAL,
@@ -155,6 +157,8 @@ _gw_admin_2sv_not_enforced = Fact(
     WHERE coalesce(u.is_admin, false) = true OR coalesce(u.is_delegated_admin, false) = true
     RETURN COUNT(u) AS count
     """,
+    asset_id_field="user_id",
+    asset_label="GoogleWorkspaceUser",
     identity_fields=("user_id",),
     module=Module.GOOGLEWORKSPACE,
     maturity=Maturity.EXPERIMENTAL,
@@ -241,6 +245,8 @@ _gw_super_admin_count_too_low = Fact(
     MATCH (t:GoogleWorkspaceTenant)
     RETURN COUNT(t) AS count
     """,
+    asset_id_field="tenant_id",
+    asset_label="GoogleWorkspaceTenant",
     identity_fields=("tenant_id",),
     module=Module.GOOGLEWORKSPACE,
     maturity=Maturity.EXPERIMENTAL,
@@ -300,6 +306,8 @@ _gw_super_admin_count_too_high = Fact(
     MATCH (t:GoogleWorkspaceTenant)
     RETURN COUNT(t) AS count
     """,
+    asset_id_field="tenant_id",
+    asset_label="GoogleWorkspaceTenant",
     identity_fields=("tenant_id",),
     module=Module.GOOGLEWORKSPACE,
     maturity=Maturity.EXPERIMENTAL,
@@ -364,6 +372,8 @@ _gw_super_admin_with_delegated_admin_role = Fact(
     WHERE coalesce(u.is_admin, false) = true
     RETURN COUNT(u) AS count
     """,
+    asset_id_field="user_id",
+    asset_label="GoogleWorkspaceUser",
     identity_fields=("user_id",),
     module=Module.GOOGLEWORKSPACE,
     maturity=Maturity.EXPERIMENTAL,
