@@ -1,0 +1,6 @@
+# BBOT
+
+```{toctree}
+config
+schema
+```

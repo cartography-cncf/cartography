@@ -42,6 +42,9 @@
 ```{include} ../modules/azure/schema.md
 ```
 
+```{include} ../modules/bbot/schema.md
+```
+
 ```{include} ../modules/bigfix/schema.md
 ```
 

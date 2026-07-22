@@ -223,6 +223,7 @@ def test_cli_help_hides_deprecated_report_source_flags(capsys):
     annotations = app.registered_commands[0].callback.__annotations__
 
     for field in (
+        "bbot_source",
         "trivy_source",
         "syft_source",
         "aibom_source",
@@ -297,6 +298,24 @@ def test_cli_trivy_source_sets_config():
     sync.run.assert_called_once()
     config = sync.run.call_args[0][1]
     assert config.trivy_source == "gs://example-bucket/reports/trivy/"
+
+
+def test_cli_bbot_source_sets_config():
+    sync = unittest.mock.MagicMock()
+    cli = cartography.cli.CLI(sync, "test")
+
+    cli.main(
+        [
+            "--neo4j-uri",
+            settings.get("NEO4J_URL"),
+            "--bbot-source",
+            "azblob://example-account/reports/bbot/",
+        ],
+    )
+
+    sync.run.assert_called_once()
+    config = sync.run.call_args[0][1]
+    assert config.bbot_source == "azblob://example-account/reports/bbot/"
 
 
 def test_cli_trivy_legacy_results_dir_sets_source(caplog):
