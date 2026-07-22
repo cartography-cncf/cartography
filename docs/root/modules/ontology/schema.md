@@ -79,6 +79,9 @@ IM -- HAS_LAYER --> IL{{ImageLayer}}
 CT -- HAS_IMAGE --> IM
 CT -- HAS_IMAGE --> IML
 CT -- RESOLVED_IMAGE --> IM
+RI(RuntimeImage) -- BUILT_ON --> DSPI{{DockerScoutPublicImage}}
+CT -- HAS_IMAGE --> RI
+FN -- HAS_IMAGE --> RI
 CS -- HAS_RUNTIME_IMAGE --> IM
 ```
 
@@ -411,6 +414,7 @@ GCP Cloud Run Services, Jobs and Revisions are themselves **not** modeled as `Co
     (:Container)-[:HAS_IMAGE]->(:Image)
     (:Container)-[:HAS_IMAGE]->(:ImageManifestList)
     ```
+  When no provider image node exists for the runtime digest, the ontology sync creates a `RuntimeImage` target instead.
 - `Container` is connected to a concrete single platform `Image` that actually ran via `RESOLVED_IMAGE`. This edge is produced by `RESOLVED_IMAGE_JOBS` in `cartography/analysis/ontology/analysis.py`, which runs after the ontology stage. It is only created when the target can be deterministically identified:
     - When `HAS_IMAGE` already points at an `:Image` (not `:ImageManifestList`), `RESOLVED_IMAGE` is created directly.
     - When `HAS_IMAGE` points at an `:ImageManifestList`, `RESOLVED_IMAGE` is created to the child `:Image` reached via `CONTAINS_IMAGE` whose architecture matches the container's `architecture_normalized`. If zero or more than one child match, no edge is created (determinism guard).
@@ -1188,6 +1192,36 @@ It generalizes concepts like AWS AWSECRImage (type=image), GCP Container Images,
     ```
     (:Package)-[:DEPLOYED]->(:Image)
     ```
+
+
+### RuntimeImage
+
+```{note}
+RuntimeImage is an abstract ontology node with the `Image` semantic label.
+```
+
+A runtime image represents a digest observed on a running container or container-based function when no provider-owned image node exists for that digest. It preserves every declared runtime reference without implying that the image is customer-built or that its base image can be edited.
+
+| Field | Description |
+|-------|-------------|
+| **id** | The unique identifier derived from the image digest. |
+| digest | The content-addressable digest observed on the workload. |
+| uri | A deterministic digest-qualified image reference. |
+| runtime_refs | Sorted declared image references observed for the digest. |
+| lastupdated | Timestamp of the last ontology sync that observed the image. |
+
+#### Relationships
+
+- Running containers and container-based functions reference the runtime image through `HAS_IMAGE`. The existing ontology analysis then derives `RESOLVED_IMAGE` because `RuntimeImage` also carries the `Image` label:
+    ```
+    (:Container)-[:HAS_IMAGE]->(:RuntimeImage:Image)
+    (:Function)-[:HAS_IMAGE]->(:RuntimeImage:Image)
+    ```
+- Docker Scout may attach its existing public-base recommendation without asserting source inheritance:
+    ```
+    (:RuntimeImage)-[:BUILT_ON]->(:DockerScoutPublicImage)
+    ```
+- Runtime image materialization never creates `BUILT_FROM`.
 
 
 ### ImageAttestation
