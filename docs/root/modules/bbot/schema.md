@@ -65,7 +65,9 @@ Finding identity excludes severity, confidence, timestamps, CVEs, and explanator
 | `(:BbotFinding)-[:AFFECTS]->(:BbotURL|BbotOpenTCPPort|BbotStorageBucket|BbotDNSName|BbotIPAddress)` | Asset affected by a finding |
 | `(:BbotIPAddress)-[:ANNOUNCED_BY]->(:BbotASN)` | ASN associated with an observed address |
 | `(:BbotDNSName)-[:MATCHES_DNS_RECORD]->(:DNSRecord)` | Case-insensitive match to a provider DNS record |
-| `(:BbotIPAddress)-[:MATCHES_PUBLIC_IP]->(:PublicIP)` | Exact match to a provider-derived public IP |
+| `(:BbotIPAddress)-[:MATCHES_PUBLIC_IP]->(:PublicIP)` | Exact match to a canonical public IP |
+
+Globally routable `BbotIPAddress` nodes participate as sources for canonical `PublicIP` reconciliation. A `PublicIP` remains in the graph while any BBOT or provider source still observes it.
 
 Every non-scan node has an `OBSERVED_IN` relationship to the selected `BbotScan`. When the parent occurrence can be resolved to a supported concrete node, the child also has a `DISCOVERED_FROM` relationship to that parent. If BBOT's direct parent type is unsupported, Cartography walks the occurrence's parent chain to the nearest supported ancestor.
 

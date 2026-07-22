@@ -1,270 +1,17 @@
 import time
-from typing import Any
 
+import cartography.intel.ontology.publicips
 from cartography.analysis.ontology.analysis import BBOT_DNS_MATCHES_PROVIDER
 from cartography.analysis.ontology.analysis import BBOT_IP_MATCHES_PUBLIC_IP
 from cartography.intel.bbot import sync
 from cartography.util import run_typed_analysis_job
-
-SCAN_ID = "SCAN:stable-synthetic-scan"
-IP_ID = "IP_ADDRESS:stable-google-dns"
-IP_ADDRESS = "8.8.8.8"
-
-
-def _event(
-    event_type: str,
-    event_id: str,
-    uuid: str,
-    data: str | dict,
-    *,
-    timestamp: float,
-    parent_uuid: str | None = None,
-    **properties,
-) -> dict:
-    event = {
-        "type": event_type,
-        "id": event_id,
-        "uuid": uuid,
-        "scan": SCAN_ID,
-        "timestamp": timestamp,
-        "data_json" if isinstance(data, dict) else "data": data,
-        **properties,
-    }
-    if parent_uuid:
-        event["parent_uuid"] = parent_uuid
-    return event
-
-
-def _scan_event(run: int, status: str, timestamp: float) -> dict:
-    data: dict[str, Any] = {
-        "name": "synthetic-scan",
-        "status": status,
-        "started_at": f"2026-01-0{run}T00:00:00Z",
-        "target": {"seeds": ["example.test"]},
-    }
-    if status == "FINISHED":
-        data.update(
-            {
-                "finished_at": f"2026-01-0{run}T00:01:00Z",
-                "duration_seconds": 60,
-            },
-        )
-    return _event(
-        "SCAN",
-        SCAN_ID,
-        f"SCAN:run-{run}-{status.lower()}",
-        data,
-        timestamp=timestamp,
-    )
-
-
-def _events(
-    run: int,
-    *,
-    changed_identities: bool = False,
-    include_email: bool = True,
-) -> list[dict]:
-    host = "api.example.test" if changed_identities else "app.example.test"
-    port = 8443 if changed_identities else 443
-    url = (
-        "https://api.example.test:8443/admin"
-        if changed_identities
-        else "https://app.example.test/admin"
-    )
-    dns_id = "DNS_NAME:api" if changed_identities else "DNS_NAME:app"
-    port_id = (
-        "OPEN_TCP_PORT:api-8443" if changed_identities else "OPEN_TCP_PORT:app-443"
-    )
-    url_id = "URL:api-admin" if changed_identities else "URL:app-admin"
-    technology_id = (
-        "TECHNOLOGY:api-8443-nginx"
-        if changed_identities
-        else "TECHNOLOGY:app-443-nginx"
-    )
-    prefix = f"run-{run}"
-    scan_uuid = f"SCAN:{prefix}-running"
-    dns_uuid = f"DNS_NAME:{prefix}-one"
-    ip_uuid = f"IP_ADDRESS:{prefix}"
-    port_uuid = f"OPEN_TCP_PORT:{prefix}"
-    url_uuid = f"URL:{prefix}"
-
-    events = [
-        _scan_event(run, "RUNNING", run * 100),
-        _event(
-            "DNS_NAME",
-            dns_id,
-            dns_uuid,
-            host,
-            timestamp=run * 100 + 1,
-            parent_uuid=scan_uuid,
-            host=host,
-            resolved_hosts=[IP_ADDRESS],
-            tags=[f"run-{run}", "a-record"],
-            module="dnsresolve",
-            scope_distance=1,
-        ),
-        _event(
-            "DNS_NAME",
-            dns_id,
-            f"DNS_NAME:{prefix}-two",
-            host,
-            timestamp=run * 100 + 2,
-            parent_uuid=scan_uuid,
-            host=host,
-            resolved_hosts=[IP_ADDRESS],
-            tags=["in-scope"],
-            module=f"synthetic-module-{run}",
-            scope_distance=0,
-        ),
-        _event(
-            "IP_ADDRESS",
-            IP_ID,
-            ip_uuid,
-            IP_ADDRESS,
-            timestamp=run * 100 + 3,
-            parent_uuid=dns_uuid,
-            host=IP_ADDRESS,
-            module="dnsresolve",
-        ),
-        _event(
-            "IP_RANGE",
-            "IP_RANGE:stable",
-            f"IP_RANGE:{prefix}",
-            "8.8.8.0/24",
-            timestamp=run * 100 + 4,
-            parent_uuid=ip_uuid,
-            module="speculate",
-        ),
-        _event(
-            "OPEN_TCP_PORT",
-            port_id,
-            port_uuid,
-            f"{host}:{port}",
-            timestamp=run * 100 + 5,
-            parent_uuid=dns_uuid,
-            host=host,
-            port=port,
-            module="portscan",
-        ),
-        _event(
-            "URL",
-            url_id,
-            url_uuid,
-            url,
-            timestamp=run * 100 + 6,
-            parent_uuid=port_uuid,
-            host=host,
-            port=port,
-            module="http",
-        ),
-        _event(
-            "ASN",
-            "ASN:stable-15169",
-            f"ASN:{prefix}",
-            {
-                "asn": 15169,
-                "name": "GOOGLE",
-                "country": "US",
-                "description": "Synthetic ASN fixture",
-                "subnet": "8.8.8.0/24",
-            },
-            timestamp=run * 100 + 7,
-            parent_uuid=ip_uuid,
-            module="asn",
-        ),
-        _event(
-            "TECHNOLOGY",
-            technology_id,
-            f"TECHNOLOGY:{prefix}",
-            {"technology": "nginx", "host": host, "port": port, "url": url},
-            timestamp=run * 100 + 8,
-            parent_uuid=url_uuid,
-            host=host,
-            port=port,
-            module="fingerprintx",
-        ),
-        _event(
-            "ORG_STUB",
-            "ORG_STUB:stable-example",
-            f"ORG_STUB:{prefix}",
-            "Example Organization",
-            timestamp=run * 100 + 9,
-            parent_uuid=dns_uuid,
-            module="speculate",
-        ),
-        _event(
-            "SOCIAL",
-            f"SOCIAL:bbot-{run}",
-            f"SOCIAL:{prefix}",
-            {
-                "platform": "github",
-                "profile_name": "example-security",
-                "url": (
-                    "https://github.com/example-security-new"
-                    if changed_identities
-                    else "https://github.com/example-security"
-                ),
-            },
-            timestamp=run * 100 + 10,
-            parent_uuid=dns_uuid,
-            module="social",
-        ),
-        _event(
-            "STORAGE_BUCKET",
-            f"STORAGE_BUCKET:bbot-{run}",
-            f"STORAGE_BUCKET:{prefix}",
-            (
-                {
-                    "name": "example-bucket-new",
-                    "provider": "gcp",
-                    "url": "https://storage.googleapis.com/example-bucket-new",
-                }
-                if changed_identities
-                else {
-                    "name": "example-bucket",
-                    "provider": "aws",
-                    "url": f"https://example-bucket.s3.us-west-{run}.amazonaws.com",
-                }
-            ),
-            timestamp=run * 100 + 11,
-            parent_uuid=dns_uuid,
-            module="bucket_amazon" if not changed_identities else "bucket_google",
-        ),
-        _event(
-            "FINDING",
-            f"FINDING:bbot-{run}",
-            f"FINDING:{prefix}",
-            {
-                "name": "Exposed admin panel",
-                "description": f"Explanation from run {run}",
-                "severity": "HIGH" if run > 1 else "MEDIUM",
-                "confidence": "CONFIRMED" if run > 1 else "MEDIUM",
-                "host": host,
-                "port": port,
-                "url": url,
-                "cves": [],
-            },
-            timestamp=run * 100 + 12,
-            parent_uuid=url_uuid,
-            host=host,
-            port=port,
-            module="nuclei",
-        ),
-    ]
-    if include_email:
-        events.append(
-            _event(
-                "EMAIL_ADDRESS",
-                "EMAIL_ADDRESS:stable-security",
-                f"EMAIL_ADDRESS:{prefix}",
-                "security@example.test",
-                timestamp=run * 100 + 13,
-                parent_uuid=dns_uuid,
-                module="securitytxt",
-            ),
-        )
-    events.append(_scan_event(run, "FINISHED", run * 100 + 20))
-    return events
+from tests.data.bbot.events import events as make_events
+from tests.data.bbot.events import IP_ADDRESS
+from tests.data.bbot.events import IP_ID
+from tests.data.bbot.events import SCAN_ID
+from tests.data.bbot.events import scan_only_events
+from tests.integration.util import check_nodes
+from tests.integration.util import check_rels
 
 
 def _sync(neo4j_session, events: list[dict], update_tag: int) -> None:
@@ -295,7 +42,7 @@ def test_stable_identities_merge_and_stale_identities_are_cleaned(
 ) -> None:
     # Arrange
     neo4j_session.run("MATCH (n) DETACH DELETE n")
-    first_events = _events(1)
+    first_events = make_events(1)
 
     # Act
     _sync(neo4j_session, first_events, 101)
@@ -360,7 +107,7 @@ def test_stable_identities_merge_and_stale_identities_are_cleaned(
 
     # Act: the second report has new occurrence UUIDs, timestamps, tags, modules,
     # finding text, severity, confidence, and bucket endpoint URL.
-    _sync(neo4j_session, _events(2), 202)
+    _sync(neo4j_session, make_events(2), 202)
 
     # Assert: stable assets and relationships were merged in place.
     assert _node_counts(neo4j_session) == expected_counts
@@ -413,23 +160,46 @@ def test_stable_identities_merge_and_stale_identities_are_cleaned(
     assert second_finding["description"] == "Explanation from run 2"
 
     expected_relationships = {
-        "AFFECTS": ("BbotFinding", "BbotURL"),
-        "ANNOUNCED_BY": ("BbotIPAddress", "BbotASN"),
-        "DETECTED_ON": ("BbotTechnology", "BbotURL"),
-        "HAS_OPEN_PORT": ("BbotDNSName", "BbotOpenTCPPort"),
-        "HOSTED_BY": ("BbotURL", "BbotOpenTCPPort"),
-        "RESOLVES_TO": ("BbotDNSName", "BbotIPAddress"),
+        ("BbotFinding", "BbotURL", "AFFECTS"): {
+            (first_finding["id"], "URL:app-admin"),
+        },
+        ("BbotIPAddress", "BbotASN", "ANNOUNCED_BY"): {
+            (IP_ID, "ASN:stable-15169"),
+        },
+        ("BbotTechnology", "BbotURL", "DETECTED_ON"): {
+            ("TECHNOLOGY:app-443-nginx", "URL:app-admin"),
+        },
+        ("BbotDNSName", "BbotOpenTCPPort", "HAS_OPEN_PORT"): {
+            ("DNS_NAME:app", "OPEN_TCP_PORT:app-443"),
+        },
+        ("BbotURL", "BbotOpenTCPPort", "HOSTED_BY"): {
+            ("URL:app-admin", "OPEN_TCP_PORT:app-443"),
+        },
+        ("BbotDNSName", "BbotIPAddress", "RESOLVES_TO"): {
+            ("DNS_NAME:app", IP_ID),
+        },
     }
-    for relationship, (source_label, target_label) in expected_relationships.items():
-        count = neo4j_session.run(
-            f"MATCH (:{source_label})-[:{relationship}]->(:{target_label}) RETURN count(*) AS count",
-        ).single()["count"]
-        assert count == 1
+    for (
+        source_label,
+        target_label,
+        relationship,
+    ), expected in expected_relationships.items():
+        assert (
+            check_rels(
+                neo4j_session,
+                source_label,
+                "id",
+                target_label,
+                "id",
+                relationship,
+            )
+            == expected
+        )
 
     # Act: true identity components change, and the email disappears.
     _sync(
         neo4j_session,
-        _events(3, changed_identities=True, include_email=False),
+        make_events(3, changed_identities=True, include_email=False),
         303,
     )
 
@@ -469,7 +239,7 @@ def test_stable_identities_merge_and_stale_identities_are_cleaned(
 
     # Act: the missing email reappears in a later report.
     time.sleep(0.01)
-    _sync(neo4j_session, _events(4, changed_identities=True), 404)
+    _sync(neo4j_session, make_events(4, changed_identities=True), 404)
 
     # Assert: it was recreated, with a new firstseen timestamp.
     recreated_email = neo4j_session.run(
@@ -482,27 +252,30 @@ def test_stable_identities_merge_and_stale_identities_are_cleaned(
     assert recreated_email["lastupdated"] == 404
 
 
-def test_bbot_dns_and_ip_correlate_to_provider_ontology_nodes(
+def test_bbot_dns_and_ip_correlate_and_public_ip_lifecycle(
     neo4j_session,
 ) -> None:
     # Arrange
     neo4j_session.run("MATCH (n) DETACH DELETE n")
-    _sync(neo4j_session, _events(1), 101)
+    _sync(neo4j_session, make_events(1), 101)
     neo4j_session.run(
         """
         CREATE (:AWSDNSRecord:DNSRecord {
             id: 'provider-dns-record',
             _ont_name: 'APP.EXAMPLE.TEST'
         })
-        CREATE (:PublicIP {id: $ip, ip_address: $ip})
         """,
-        ip=IP_ADDRESS,
     )
 
     # Act
     run_typed_analysis_job(
         BBOT_DNS_MATCHES_PROVIDER,
         neo4j_session,
+        {"UPDATE_TAG": 101},
+    )
+    cartography.intel.ontology.publicips.sync(
+        neo4j_session,
+        101,
         {"UPDATE_TAG": 101},
     )
     run_typed_analysis_job(
@@ -512,25 +285,79 @@ def test_bbot_dns_and_ip_correlate_to_provider_ontology_nodes(
     )
 
     # Assert
-    assert (
-        neo4j_session.run(
-            """
-            MATCH (:BbotDNSName {id: 'DNS_NAME:app'})
-                  -[:MATCHES_DNS_RECORD]->(:AWSDNSRecord {id: 'provider-dns-record'})
-            RETURN count(*) AS count
-            """,
-        ).single()["count"]
-        == 1
+    assert check_nodes(neo4j_session, "PublicIP", ["id"]) == {(IP_ADDRESS,)}
+    assert check_rels(
+        neo4j_session,
+        "BbotDNSName",
+        "id",
+        "AWSDNSRecord",
+        "id",
+        "MATCHES_DNS_RECORD",
+    ) == {("DNS_NAME:app", "provider-dns-record")}
+    assert check_rels(
+        neo4j_session,
+        "BbotIPAddress",
+        "id",
+        "PublicIP",
+        "id",
+        "MATCHES_PUBLIC_IP",
+    ) == {(IP_ID, IP_ADDRESS)}
+    first_public_ip = neo4j_session.run(
+        """
+        MATCH (ip:PublicIP {id: $ip})
+        RETURN elementId(ip) AS element_id,
+               ip.firstseen AS firstseen,
+               ip.lastupdated AS lastupdated
+        """,
+        ip=IP_ADDRESS,
+    ).single()
+    assert first_public_ip["lastupdated"] == 101
+
+    # Arrange: a provider now observes the same IP, while the next BBOT scan does not.
+    neo4j_session.run(
+        """
+        CREATE (:AWSElasticIPAddress {
+            id: 'provider-eip',
+            public_ip: $ip
+        })
+        """,
+        ip=IP_ADDRESS,
     )
-    assert (
-        neo4j_session.run(
-            """
-            MATCH (:BbotIPAddress {id: $bbot_id})
-                  -[:MATCHES_PUBLIC_IP]->(:PublicIP {id: $ip})
-            RETURN count(*) AS count
-            """,
-            bbot_id=IP_ID,
-            ip=IP_ADDRESS,
-        ).single()["count"]
-        == 1
+
+    # Act
+    _sync(neo4j_session, scan_only_events(2), 202)
+    cartography.intel.ontology.publicips.sync(
+        neo4j_session,
+        202,
+        {"UPDATE_TAG": 202},
     )
+
+    # Assert: canonical identity is preserved while another source still observes it.
+    assert check_nodes(neo4j_session, "BbotIPAddress", ["id"]) == set()
+    second_public_ip = neo4j_session.run(
+        """
+        MATCH (ip:PublicIP {id: $ip})
+        RETURN elementId(ip) AS element_id,
+               ip.firstseen AS firstseen,
+               ip.lastupdated AS lastupdated
+        """,
+        ip=IP_ADDRESS,
+    ).single()
+    assert second_public_ip["element_id"] == first_public_ip["element_id"]
+    assert second_public_ip["firstseen"] == first_public_ip["firstseen"]
+    assert second_public_ip["lastupdated"] == 202
+
+    # Arrange: remove the final source observation.
+    neo4j_session.run(
+        "MATCH (ip:AWSElasticIPAddress {id: 'provider-eip'}) DETACH DELETE ip",
+    )
+
+    # Act
+    cartography.intel.ontology.publicips.sync(
+        neo4j_session,
+        303,
+        {"UPDATE_TAG": 303},
+    )
+
+    # Assert
+    assert check_nodes(neo4j_session, "PublicIP", ["id"]) == set()

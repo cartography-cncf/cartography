@@ -26,6 +26,7 @@ class BbotNodeProperties(CartographyNodeProperties):
     port: PropertyRef = PropertyRef("port")
     url: PropertyRef = PropertyRef("url")
     ip_address: PropertyRef = PropertyRef("ip_address", extra_index=True)
+    public_ip_address: PropertyRef = PropertyRef("public_ip_address")
     is_global: PropertyRef = PropertyRef("is_global")
     network: PropertyRef = PropertyRef("network")
     endpoint: PropertyRef = PropertyRef("endpoint")
@@ -187,9 +188,9 @@ class BbotMatchLinkProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class BbotMatchLink(CartographyRelSchema):
-    _source_label: str
-    _target_label: str
-    _relationship_label: str
+    source_node_label: str = "BbotDNSName"
+    target_node_label: str = "BbotScan"
+    rel_label: str = "OBSERVED_IN"
     source_node_matcher: SourceNodeMatcher = make_source_node_matcher(
         {"id": PropertyRef("source_id")},
     )
@@ -198,18 +199,6 @@ class BbotMatchLink(CartographyRelSchema):
     )
     direction: LinkDirection = LinkDirection.OUTWARD
     properties: BbotMatchLinkProperties = BbotMatchLinkProperties()
-
-    @property
-    def source_node_label(self) -> str:
-        return self._source_label
-
-    @property
-    def target_node_label(self) -> str:
-        return self._target_label
-
-    @property
-    def rel_label(self) -> str:
-        return self._relationship_label
 
 
 @dataclass(frozen=True)
@@ -229,13 +218,9 @@ class BbotCleanupObservedInRel(CartographyRelSchema):
 class BbotCleanupSchema(CartographyNodeSchema):
     """Dynamic cleanup schema for each concrete BBOT node label."""
 
-    _node_label: str = "BbotScan"
+    label: str = "BbotScan"
     scoped_cleanup: bool = False
     properties: BbotNodeProperties = BbotNodeProperties()
     other_relationships: OtherRelationships = OtherRelationships(
         [BbotCleanupObservedInRel()],
     )
-
-    @property
-    def label(self) -> str:
-        return self._node_label

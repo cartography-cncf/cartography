@@ -301,9 +301,11 @@ def test_cli_trivy_source_sets_config():
 
 
 def test_cli_bbot_source_sets_config():
+    # Arrange
     sync = unittest.mock.MagicMock()
     cli = cartography.cli.CLI(sync, "test")
 
+    # Act
     cli.main(
         [
             "--neo4j-uri",
@@ -313,6 +315,7 @@ def test_cli_bbot_source_sets_config():
         ],
     )
 
+    # Assert
     sync.run.assert_called_once()
     config = sync.run.call_args[0][1]
     assert config.bbot_source == "azblob://example-account/reports/bbot/"

@@ -161,6 +161,7 @@ def test_transform_aggregates_occurrences_and_builds_stable_relationships() -> N
 
     # Assert
     dns = nodes["BbotDNSName"][0]
+    ip = nodes["BbotIPAddress"][0]
     assert dns["id"] == "DNS_NAME:example"
     assert dns["occurrence_count"] == 2
     assert dns["occurrence_uuids"] == ["DNS_NAME:first", "DNS_NAME:second"]
@@ -169,6 +170,7 @@ def test_transform_aggregates_occurrences_and_builds_stable_relationships() -> N
     assert dns["scope_distance"] == 0
     assert dns["discovery_contexts"] == ["latest context", "older context"]
     assert dns["observed_at"] == 3
+    assert ip["public_ip_address"] == "8.8.8.8"
     assert relationships[("BbotDNSName", "BbotIPAddress", "RESOLVES_TO")] == [
         {"source_id": "DNS_NAME:example", "target_id": "IP_ADDRESS:google-dns"},
     ]
@@ -178,6 +180,34 @@ def test_transform_aggregates_occurrences_and_builds_stable_relationships() -> N
     assert relationships[("BbotIPAddress", "BbotDNSName", "DISCOVERED_FROM")] == [
         {"source_id": "IP_ADDRESS:google-dns", "target_id": "DNS_NAME:example"},
     ]
+
+
+def test_transform_excludes_private_addresses_from_public_ip_reconciliation() -> None:
+    # Arrange
+    events = [
+        _scan_event("RUNNING", "SCAN:run-start", 1),
+        _event(
+            "IP_ADDRESS",
+            "IP_ADDRESS:private",
+            "IP_ADDRESS:private-occurrence",
+            "10.0.0.1",
+            timestamp=2,
+            host="10.0.0.1",
+        ),
+        _scan_event(
+            "FINISHED",
+            "SCAN:run-finish",
+            3,
+            finished_at="2026-01-01T00:01:00Z",
+        ),
+    ]
+
+    # Act
+    nodes, _ = transform(events, "synthetic.json")
+
+    # Assert
+    assert nodes["BbotIPAddress"][0]["ip_address"] == "10.0.0.1"
+    assert nodes["BbotIPAddress"][0]["public_ip_address"] is None
 
 
 def test_transform_uses_custom_stable_identities() -> None:

@@ -261,7 +261,11 @@ def _event_properties(
     elif event_type == "IP_ADDRESS":
         address = ipaddress.ip_address(str(data))
         result.update(
-            {"ip_address": address.compressed, "is_global": address.is_global}
+            {
+                "ip_address": address.compressed,
+                "public_ip_address": address.compressed if address.is_global else None,
+                "is_global": address.is_global,
+            },
         )
     elif event_type == "IP_RANGE":
         result["network"] = str(ipaddress.ip_network(str(data), strict=False))
