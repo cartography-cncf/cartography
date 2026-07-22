@@ -133,9 +133,10 @@ def _get_gitlab_scan_targets_and_aliases(
 
 def _get_runtime_image_scan_targets_and_aliases(
     neo4j_session: Session,
-) -> tuple[set[str], dict[str, str]]:
+) -> tuple[set[str], dict[str, str], dict[str, set[str]]]:
     image_uris: set[str] = set()
     digest_aliases: dict[str, str] = {}
+    target_digests: dict[str, set[str]] = {}
     records = neo4j_session.run(
         """
         MATCH (image:RuntimeImage)
@@ -151,18 +152,22 @@ def _get_runtime_image_scan_targets_and_aliases(
         runtime_refs = sorted(set(record["runtime_refs"] or []))
         image_uris.update(runtime_refs)
         if record["uri"]:
+            target_digests.setdefault(record["uri"], set()).add(digest)
             digest_aliases[record["uri"]] = (
                 runtime_refs[0] if runtime_refs else record["uri"]
             )
         for runtime_ref in runtime_refs:
-            digest_aliases[_digest_ref(runtime_ref, digest)] = runtime_ref
-    return image_uris, digest_aliases
+            digest_ref = _digest_ref(runtime_ref, digest)
+            digest_aliases[digest_ref] = runtime_ref
+            target_digests.setdefault(runtime_ref, set()).add(digest)
+            target_digests.setdefault(digest_ref, set()).add(digest)
+    return image_uris, digest_aliases, target_digests
 
 
 def _get_scan_targets_and_aliases(
     neo4j_session: Session,
     account_ids: list[str] | None = None,
-) -> tuple[set[str], dict[str, str]]:
+) -> tuple[set[str], dict[str, str], dict[str, set[str]]]:
     """
     Return image URIs and digest aliases for known and runtime container images.
     """
@@ -177,9 +182,11 @@ def _get_scan_targets_and_aliases(
     # Get GitLab targets
     gitlab_uris, gitlab_aliases = _get_gitlab_scan_targets_and_aliases(neo4j_session)
 
-    runtime_uris, runtime_aliases = _get_runtime_image_scan_targets_and_aliases(
-        neo4j_session,
-    )
+    (
+        runtime_uris,
+        runtime_aliases,
+        runtime_target_digests,
+    ) = _get_runtime_image_scan_targets_and_aliases(neo4j_session)
 
     # Merge results
     image_uris = ecr_uris | gcp_uris | gitlab_uris | runtime_uris
@@ -190,7 +197,7 @@ def _get_scan_targets_and_aliases(
         **runtime_aliases,
     }
 
-    return image_uris, digest_aliases
+    return image_uris, digest_aliases, runtime_target_digests
 
 
 @timeit
@@ -201,7 +208,7 @@ def get_scan_targets(
     """
     Return list of ECR images from all accounts in the graph.
     """
-    image_uris, _ = _get_scan_targets_and_aliases(neo4j_session, account_ids)
+    image_uris, _, _ = _get_scan_targets_and_aliases(neo4j_session, account_ids)
     return image_uris
 
 
@@ -209,13 +216,15 @@ def _prepare_trivy_data(
     trivy_data: dict[str, Any],
     image_uris: set[str],
     digest_aliases: dict[str, str],
+    runtime_target_digests: dict[str, set[str]],
     source: str,
-) -> tuple[dict[str, Any], str] | None:
+) -> tuple[dict[str, Any], str, str | None] | None:
     """
     Determine the tag URI that corresponds to this Trivy payload.
 
-    Returns (trivy_data, display_uri) if the payload can be linked to an image present
-    in the graph; otherwise returns None so the caller can skip ingestion.
+    Returns the payload, display URI, and optional runtime target digest when the
+    payload can be linked to an image present in the graph. The override keeps
+    findings attached to the workload digest when Trivy reports a platform digest.
     """
 
     artifact_name = (trivy_data.get("ArtifactName") or "").strip()
@@ -231,9 +240,17 @@ def _prepare_trivy_data(
     candidates.extend(stripped_tags_digests)
 
     display_uri: str | None = None
+    image_digest_override: str | None = None
 
     for candidate in candidates:
         if not candidate:
+            continue
+        target_digests = runtime_target_digests.get(candidate, set())
+        if len(target_digests) == 1:
+            image_digest_override = next(iter(target_digests))
+            display_uri = digest_aliases.get(candidate, candidate)
+            break
+        if len(target_digests) > 1:
             continue
         if candidate in image_uris:
             display_uri = candidate
@@ -250,7 +267,7 @@ def _prepare_trivy_data(
         )
         return None
 
-    return trivy_data, display_uri
+    return trivy_data, display_uri, image_digest_override
 
 
 @timeit
@@ -271,7 +288,11 @@ def sync_trivy_from_report_reader(
     """
     logger.info("Using Trivy scan results from %s", reader.source_uri)
 
-    image_uris, digest_aliases = _get_scan_targets_and_aliases(neo4j_session)
+    (
+        image_uris,
+        digest_aliases,
+        runtime_target_digests,
+    ) = _get_scan_targets_and_aliases(neo4j_session)
     json_files = filter_report_refs(
         reader.list_reports(),
         suffix=".json",
@@ -306,17 +327,19 @@ def sync_trivy_from_report_reader(
             trivy_data,
             image_uris=image_uris,
             digest_aliases=digest_aliases,
+            runtime_target_digests=runtime_target_digests,
             source=ref.uri,
         )
         if prepared is None:
             continue
 
-        prepared_data, display_uri = prepared
+        prepared_data, display_uri, image_digest_override = prepared
         sync_single_image(
             neo4j_session,
             prepared_data,
             display_uri,
             update_tag,
+            image_digest_override=image_digest_override,
         )
         processed_reports += 1
 

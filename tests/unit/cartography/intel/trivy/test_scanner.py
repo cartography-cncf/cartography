@@ -435,6 +435,7 @@ def test_sync_trivy_from_s3_no_matches(
     mock_get_targets_and_aliases.return_value = (
         {"987654321098.dkr.ecr.us-east-1.amazonaws.com/my-repo:4e380d"},
         {},
+        {},
     )
     mock_list_objects.return_value = []  # No scan results available
 
@@ -470,6 +471,7 @@ def test_sync_trivy_from_s3_digest_files(
     mock_get_targets_and_aliases.return_value = (
         {display_uri},
         {digest_uri: display_uri},
+        {},
     )
     mock_list_objects.return_value = [
         ReportRef(
@@ -517,6 +519,7 @@ def test_sync_trivy_from_report_reader_skips_cleanup_after_parse_failure(
     mock_get_targets_and_aliases.return_value = (
         {"123456789012.dkr.ecr.us-west-2.amazonaws.com/app:latest"},
         {},
+        {},
     )
     reader = MagicMock()
     reader.source_uri = "s3://example-bucket/reports/trivy/"
@@ -548,7 +551,7 @@ def test_sync_trivy_skips_cleanup_when_some_reports_succeed_and_some_fail(
 ):
     """If 1 report ingests cleanly but another fails to read, cleanup is skipped to preserve data."""
     image_uri = "123456789012.dkr.ecr.us-west-2.amazonaws.com/app:latest"
-    mock_get_targets_and_aliases.return_value = ({image_uri}, {})
+    mock_get_targets_and_aliases.return_value = ({image_uri}, {}, {})
 
     good_ref = ReportRef(
         uri="s3://example-bucket/reports/trivy/good.json", name="good.json"
@@ -593,6 +596,7 @@ def test_sync_trivy_skips_cleanup_when_no_reports_match_graph(
     """If reads succeed but no reports match an image in the graph, cleanup is skipped."""
     mock_get_targets_and_aliases.return_value = (
         {"some-other-image:tag"},
+        {},
         {},
     )
 

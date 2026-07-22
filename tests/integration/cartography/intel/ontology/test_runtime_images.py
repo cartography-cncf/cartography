@@ -3,6 +3,8 @@ from cartography.analysis.ontology.analysis import RESOLVED_IMAGE_JOBS
 from cartography.intel.docker_scout.scanner import attach_public_image_to_target_image
 from cartography.intel.docker_scout.scanner import load_public_image
 from cartography.intel.trivy import _get_runtime_image_scan_targets_and_aliases
+from cartography.intel.trivy import _prepare_trivy_data
+from cartography.intel.trivy.scanner import sync_single_image
 from cartography.util import run_typed_analysis_job
 from tests.integration.util import check_nodes
 from tests.integration.util import check_rels
@@ -113,7 +115,8 @@ def test_runtime_image_supports_scan_and_scout_without_base_lineage(neo4j_sessio
         ).single()["count"]
         == 0
     )
-    assert _get_runtime_image_scan_targets_and_aliases(neo4j_session) == (
+    runtime_targets = _get_runtime_image_scan_targets_and_aliases(neo4j_session)
+    assert runtime_targets == (
         {
             "ghcr.io/subimagesec/subimage-outpost:latest",
             "ghcr.io/subimagesec/subimage-outpost:v1",
@@ -123,7 +126,69 @@ def test_runtime_image_supports_scan_and_scout_without_base_lineage(neo4j_sessio
                 "ghcr.io/subimagesec/subimage-outpost:v1"
             ),
         },
+        {
+            "ghcr.io/subimagesec/subimage-outpost:latest": {TEST_DIGEST},
+            "ghcr.io/subimagesec/subimage-outpost:v1": {TEST_DIGEST},
+            f"ghcr.io/subimagesec/subimage-outpost@{TEST_DIGEST}": {TEST_DIGEST},
+        },
     )
+
+    platform_digest = "sha256:platform"
+    trivy_data = {
+        "ArtifactName": "ghcr.io/subimagesec/subimage-outpost:latest",
+        "Metadata": {
+            "RepoTags": ["ghcr.io/subimagesec/subimage-outpost:latest"],
+            "RepoDigests": [f"ghcr.io/subimagesec/subimage-outpost@{platform_digest}"],
+        },
+        "Results": [
+            {
+                "Class": "os-pkgs",
+                "Type": "alpine",
+                "Vulnerabilities": [
+                    {
+                        "VulnerabilityID": "CVE-2026-0001",
+                        "PkgName": "libcrypto",
+                        "InstalledVersion": "1.0",
+                        "FixedVersion": "1.1",
+                        "Severity": "HIGH",
+                    },
+                ],
+            },
+        ],
+    }
+    prepared = _prepare_trivy_data(
+        trivy_data,
+        image_uris=runtime_targets[0],
+        digest_aliases=runtime_targets[1],
+        runtime_target_digests=runtime_targets[2],
+        source="runtime-image.json",
+    )
+    assert prepared is not None
+    prepared_data, display_uri, image_digest_override = prepared
+    assert image_digest_override == TEST_DIGEST
+    sync_single_image(
+        neo4j_session,
+        prepared_data,
+        display_uri,
+        TEST_UPDATE_TAG,
+        image_digest_override=image_digest_override,
+    )
+    assert check_rels(
+        neo4j_session,
+        "TrivyPackage",
+        "id",
+        "RuntimeImage",
+        "id",
+        "DEPLOYED",
+    ) == {("1.0|libcrypto", f"runtime-image:{TEST_DIGEST}")}
+    assert check_rels(
+        neo4j_session,
+        "TrivyImageFinding",
+        "id",
+        "RuntimeImage",
+        "id",
+        "AFFECTS",
+    ) == {("TIF|CVE-2026-0001", f"runtime-image:{TEST_DIGEST}")}
 
 
 def test_provider_image_replaces_runtime_image(neo4j_session):

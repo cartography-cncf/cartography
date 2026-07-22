@@ -288,6 +288,7 @@ def sync_single_image(
     trivy_data: dict,
     source: str,
     update_tag: int,
+    image_digest_override: str | None = None,
 ) -> None:
     """
     Sync a single image's Trivy scan results to Neo4j.
@@ -297,9 +298,11 @@ def sync_single_image(
         trivy_data: Raw Trivy JSON data
         source: Source identifier for logging (file path or image URI)
         update_tag: Update tag for tracking
+        image_digest_override: Workload-observed digest to use for image relationships
     """
     try:
-        _, results, image_digest = _parse_trivy_data(trivy_data, source)
+        _, results, parsed_image_digest = _parse_trivy_data(trivy_data, source)
+        image_digest = image_digest_override or parsed_image_digest
 
         # Transform all data in one pass
         findings_list, packages_list, fixes_list = transform_scan_results(
