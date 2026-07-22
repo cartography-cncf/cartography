@@ -25,6 +25,7 @@ import cartography.intel.scaleway.iam.permissionsets
 import cartography.intel.scaleway.iam.policies
 import cartography.intel.scaleway.iam.sshkeys
 import cartography.intel.scaleway.iam.users
+import cartography.intel.scaleway.instances.autoscaling
 import cartography.intel.scaleway.instances.flexibleips
 import cartography.intel.scaleway.instances.instances
 import cartography.intel.scaleway.instances.securitygroups
@@ -273,6 +274,17 @@ def start_scaleway_ingestion(neo4j_session: neo4j.Session, config: Config) -> No
 
     # Load Balancers
     cartography.intel.scaleway.loadbalancers.loadbalancers.sync(
+        neo4j_session,
+        client,
+        common_job_parameters,
+        org_id=config.scaleway_org,
+        projects_id=projects_id,
+        update_tag=config.update_tag,
+    )
+
+    # Instance Autoscaling (loaded after PrivateNetworks and Load Balancers so
+    # the ATTACHED_TO / USES edges resolve).
+    cartography.intel.scaleway.instances.autoscaling.sync(
         neo4j_session,
         client,
         common_job_parameters,
