@@ -29,6 +29,7 @@ def test_secrets_in_env_fact_matches_env_and_dual_use_mount_methods(
     neo4j_session.run(
         """
         CREATE (c:KubernetesCluster {id: 'cluster-1', name: 'cluster-1'})
+        CREATE (ns:KubernetesNamespace {id: 'cluster-1/default', name: 'default', cluster_name: 'cluster-1'})
         CREATE (env_pod:KubernetesPod {id: 'pod-env', name: 'pod-env', namespace: 'default'})
         CREATE (both_pod:KubernetesPod {id: 'pod-both', name: 'pod-both', namespace: 'default'})
         CREATE (vol_pod:KubernetesPod {id: 'pod-vol', name: 'pod-vol', namespace: 'default'})

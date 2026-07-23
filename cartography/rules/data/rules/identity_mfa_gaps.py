@@ -46,6 +46,7 @@ _cloudflare_account_2fa_not_enforced = Fact(
     MATCH (account:CloudflareAccount)
     RETURN COUNT(account) AS count
     """,
+    asset_label="CloudflareAccount",
     asset_id_field="account_id",
     identity_fields=("account_id",),
     module=Module.CLOUDFLARE,
@@ -91,6 +92,7 @@ _lastpass_user_mfa_missing = Fact(
     WHERE coalesce(user.disabled, false) = false
     RETURN COUNT(user) AS count
     """,
+    asset_label="LastpassUser",
     asset_id_field="principal_id",
     identity_fields=("principal_id",),
     module=Module.LASTPASS,
@@ -139,6 +141,7 @@ _jumpcloud_user_mfa_missing = Fact(
       AND coalesce(user.suspended, false) = false
     RETURN COUNT(user) AS count
     """,
+    asset_label="JumpCloudUser",
     asset_id_field="principal_id",
     identity_fields=("principal_id",),
     module=Module.JUMPCLOUD,
@@ -183,6 +186,7 @@ _duo_user_not_enrolled = Fact(
     WHERE coalesce(user.status, 'active') <> 'disabled'
     RETURN COUNT(user) AS count
     """,
+    asset_label="DuoUser",
     asset_id_field="principal_id",
     identity_fields=("principal_id",),
     module=Module.DUO,

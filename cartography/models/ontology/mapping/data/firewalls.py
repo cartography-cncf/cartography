@@ -39,7 +39,10 @@ gcp_mapping = OntologyMapping(
                     ontology_field="name", node_field="name", required=True
                 ),
                 OntologyFieldMapping(
-                    ontology_field="direction", node_field="direction"
+                    ontology_field="direction",
+                    node_field="direction",
+                    special_handling="mapping",
+                    extra={"map": {"INGRESS": "ingress", "EGRESS": "egress"}},
                 ),
             ],
         ),

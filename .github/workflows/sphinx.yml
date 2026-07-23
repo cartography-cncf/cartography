@@ -108,3 +108,4 @@ jobs:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           publish_dir: _gh-pages/
           force_orphan: true
+          cname: docs.cartography.dev

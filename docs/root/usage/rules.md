@@ -153,9 +153,11 @@ _new_attack_surface = Fact(
     id="aws_new_vulnerability_check",
     name="New AWS Vulnerability Pattern",
     description="Recently discovered attack pattern",
-    cypher_query="...",
+    cypher_query="...",  # must RETURN the affected node's id AS id
     cypher_visual_query="...",
     cypher_count_query="...",
+    asset_label="AWSEC2Instance",  # Neo4j label of the affected node
+    asset_id_field="id",           # output field holding that node's .id
     identity_fields=("id",),
     module=Module.AWS,
     maturity=Maturity.EXPERIMENTAL,  # New, needs testing
@@ -178,9 +180,11 @@ _proven_check = Fact(
     id="aws_s3_public",
     name="Internet-Accessible S3 Storage Attack Surface",
     description="AWS S3 buckets accessible from the internet",
-    cypher_query="...",
+    cypher_query="...",  # must RETURN the affected node's id AS id
     cypher_visual_query="...",
     cypher_count_query="...",
+    asset_label="AWSS3Bucket",  # Neo4j label of the affected node
+    asset_id_field="id",        # output field holding that node's .id
     identity_fields=("id",),
     module=Module.AWS,
     maturity=Maturity.STABLE,  # Battle-tested in production
@@ -546,7 +550,8 @@ The field is required (no default), so a fact that omits it fails to construct.
 _aws_user_direct_policies = Fact(
     id="aws_user_direct_policies",
     ...
-    asset_id_field="user_arn",                    # compliance failing-count only
+    asset_label="AWSUser",                        # Neo4j label of the affected node
+    asset_id_field="user_arn",                    # that node's .id + failing-count driver
     identity_fields=("user_arn", "policy_arn"),   # one finding per attachment
 )
 ```
@@ -564,19 +569,32 @@ Guidelines:
 - `identity_fields` is emitted per fact in the `cartography-rules run --output json` output (on each
   fact result, alongside `fact_id`), so JSON consumers get the contract without importing the
   Python rule registry.
-- `identity_fields` is distinct from `asset_id_field`. `asset_id_field` only drives the
-  distinct-asset failing count shown in compliance metrics; it is not a lifecycle-identity contract.
-  The two can differ on purpose: `aws_user_direct_policies` counts distinct users
-  (`asset_id_field="user_arn"`) but treats each user/policy attachment as a separate finding
-  (`identity_fields=("user_arn", "policy_arn")`).
+- Every fact **must** also declare an affected-node anchor: `asset_label` (the Neo4j label of the
+  node the finding is about) and `asset_id_field` (the output-model field holding that node's `.id`).
+  Both are required and, together, form an indexable `(label, id)` anchor so consumers can locate the
+  offending node in the graph. `asset_id_field` must exist on the output model and be returned by the
+  `cypher_query` (`... AS <name>`); `Fact.__post_init__` and a unit test enforce this.
+- `identity_fields` is distinct from `asset_id_field`. `asset_id_field` is the anchor id **and**
+  drives the distinct-asset failing count shown in compliance metrics; it is not the
+  lifecycle-identity contract. The two can differ on purpose: `aws_user_direct_policies` anchors on
+  and counts distinct users (`asset_label="AWSUser"`, `asset_id_field="user_arn"`) but treats each
+  user/policy attachment as a separate finding (`identity_fields=("user_arn", "policy_arn")`).
+- When the affected node has no single id column yet (e.g. a namespace-aggregated query), return one
+  (`... AS namespace_id`) and point `asset_id_field` at it. When the node can be one of several
+  labels, anchor on a shared umbrella label (`AWSPrincipal`, `GCPPrincipal`, `EntraPrincipal`,
+  `ScalewayPrincipal`, `APIKey`, ...) rather than guessing a single subtype.
+- `asset_label` and `asset_id_field` are emitted per fact in the `cartography-rules run --output
+  json` output (alongside `identity_fields`), so JSON consumers get the anchor without importing the
+  Python rule registry.
 
 ### Display field order (finding title)
 
 The **order** in which fields are declared on the output model is a de-facto display contract.
 Downstream consumers derive a finding's title by taking the **first non-empty rule-specific field
 of the output model, in class declaration order**. Declaration order is independent of
-`identity_fields` and `asset_id_field` (those stay whatever the identity contract needs) and of the
-`cypher_query` `RETURN` order (the model is keyed by alias name, not position).
+`identity_fields`, `asset_label`, and `asset_id_field` (those stay whatever the identity and anchor
+contracts need) and of the `cypher_query` `RETURN` order (the model is keyed by alias name, not
+position).
 
 The base `Finding` class declares two inherited fields, `source` and `extra`, before any
 rule-specific field, so `model_fields` / `model_dump()` lists them first. They are metadata, not
@@ -636,6 +654,8 @@ class DatabaseExposedOutput(Finding):
        MATCH (n:SomeNode)
        RETURN COUNT(n) AS count
        """,
+       asset_label="SomeNode",   # Neo4j label of the affected node
+       asset_id_field="id",      # output field holding that node's .id (returned above)
        identity_fields=("id",),
        module=Module.AWS,
        maturity=Maturity.EXPERIMENTAL,
@@ -659,6 +679,8 @@ class DatabaseExposedOutput(Finding):
        MATCH (n:SomeAzureNode)
        RETURN COUNT(n) AS count
        """,
+       asset_label="SomeAzureNode",  # Neo4j label of the affected node
+       asset_id_field="id",          # output field holding that node's .id (returned above)
        identity_fields=("id",),
        module=Module.AZURE,
        maturity=Maturity.EXPERIMENTAL,

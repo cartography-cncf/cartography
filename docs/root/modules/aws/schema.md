@@ -449,7 +449,7 @@ Representation of an AWS [GuardDuty Finding](https://docs.aws.amazon.com/guarddu
 
 Representation of an AWS [Inspector Finding](https://docs.aws.amazon.com/inspector/v2/APIReference/API_Finding.html)
 
-Depending on its `type`, the finding also carries an ontology finding label: `PACKAGE_VULNERABILITY` findings are labeled `:CVE`, and `NETWORK_REACHABILITY` findings are labeled `:SecurityIssue`.
+Depending on its `type`, the finding also carries an ontology finding label: `PACKAGE_VULNERABILITY` findings are labeled `:CVE` (see the [CVE ontology](../ontology/schema.md#cve)), and `NETWORK_REACHABILITY` findings are labeled `:SecurityIssue`.
 
 | Field | Description | Required|
 |-------|-------------|------|
@@ -475,6 +475,7 @@ Depending on its `type`, the finding also carries an ontology finding label: `PA
 |portrangebegin|Beginning of the port range affected for network findings|
 |portrangeend|End of the port range affected for network findings|
 |vulnerabilityid|Vulnerability ID associdated with the finding for package findings|
+|cve_id|Normalized CVE id, populated only for `PACKAGE_VULNERABILITY` findings; feeds the `:CVE` ontology label and CVEMetadata enrichment|
 |referenceurls|Reference URLs for the found vulnerabilities|
 |relatedvulnerabilities|A list of any related vulnerabilities|
 |source|Source for the vulnerability|
@@ -485,6 +486,12 @@ Depending on its `type`, the finding also carries an ontology finding label: `PA
 |vulnerablepackageids|IDs for any related packages|
 
 #### Relationships
+
+- A `PACKAGE_VULNERABILITY` AWSInspectorFinding is enriched by CVEMetadata via the `CVE` label (optional)
+
+    ```cypher
+    (:CVEMetadata)-[:ENRICHES]->(:AWSInspectorFinding:CVE)
+    ```
 
 - AWSInspectorFinding may affect EC2 Instances
 

@@ -7,6 +7,7 @@ from cartography.models.ontology.mapping import get_deprecated_ontology_index_pr
 from cartography.models.ontology.mapping import ONTOLOGY_MODELS
 from cartography.models.ontology.mapping import ONTOLOGY_NODES_MAPPING
 from cartography.models.ontology.mapping import SEMANTIC_LABELS_MAPPING
+from cartography.models.ontology.mapping.data.tenants import TENANTS_ONTOLOGY_MAPPING
 from cartography.sync import TOP_LEVEL_MODULES
 from tests.utils import load_models
 
@@ -329,3 +330,23 @@ def test_ontology_mapping_equal_boolean_fields():
                         f"'values' in mapping field '{mapping_field.node_field}' "
                         f"in node '{node.node_label}' of module '{module_name}' should be a list."
                     )
+
+
+def test_aws_account_status_ontology_map_covers_all_states():
+    """
+    AWSAccount._ont_status must normalize every AWS Organizations account state.
+    Unmapped values become NULL (CASE without ELSE), so a closed or pending
+    account would silently lose its ontology status if omitted.
+    """
+    aws = TENANTS_ONTOLOGY_MAPPING["aws"]
+    account = next(n for n in aws.nodes if n.node_label == "AWSAccount")
+    status = next(f for f in account.fields if f.ontology_field == "status")
+
+    assert status.special_handling == "mapping"
+    assert status.extra["map"] == {
+        "ACTIVE": "active",
+        "PENDING_ACTIVATION": "unknown",
+        "SUSPENDED": "suspended",
+        "PENDING_CLOSURE": "pending_deletion",
+        "CLOSED": "closed",
+    }

@@ -54,6 +54,36 @@ def _get_severity_range_for_threshold(
         return None
 
 
+def _severity_label(severity: Any) -> str | None:
+    """
+    Bucket GuardDuty's numeric severity into a normalized ontology severity label.
+
+    GuardDuty severity is a float in the 1.0-10.0 range; the same Low/Medium/High/
+    Critical bands used by `_get_severity_range_for_threshold` apply here. We store the
+    lowercase label so the :SecurityIssue ontology (_ont_severity) can compare severity
+    across providers whose native scales differ. The raw numeric value stays on the
+    node's `severity` property.
+
+    :param severity: The numeric GuardDuty severity value (or None).
+    :return: One of "low", "medium", "high", "critical", or None if unparseable.
+    """
+    if severity is None:
+        return None
+    try:
+        value = float(severity)
+    except (TypeError, ValueError):
+        return None
+    if value >= 9.0:
+        return "critical"
+    if value >= 7.0:
+        return "high"
+    if value >= 4.0:
+        return "medium"
+    if value >= 1.0:
+        return "low"
+    return None
+
+
 @aws_handle_regions
 def get_detectors(
     boto3_session: boto3.session.Session,
@@ -209,6 +239,7 @@ def transform_findings(findings: list[dict[str, Any]]) -> list[dict[str, Any]]:
             "arn": f.get("Arn"),
             "type": f.get("Type"),
             "severity": f.get("Severity"),
+            "severity_label": _severity_label(f.get("Severity")),
             "title": f.get("Title"),
             "description": f.get("Description"),
             "confidence": f.get("Confidence"),

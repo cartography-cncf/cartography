@@ -4,7 +4,7 @@
 
 Currently, Cartography allows you to use Trivy to scan the following resources:
 
-- [AWSECRImage](https://cartography-cncf.github.io/cartography/modules/aws/schema.html#ecrimage) (note that you scan ECRRepositoryImages but findings attach to their underlying AWSECRImage nodes)
+- [AWSECRImage](https://docs.cartography.dev/modules/aws/schema.html#ecrimage) (note that you scan ECRRepositoryImages but findings attach to their underlying AWSECRImage nodes)
 
 
 To use Trivy with Cartography,
@@ -84,4 +84,4 @@ Ensure that the machine running Trivy has the necessary permissions to scan your
 
 | Cartography Node label | Cloud permissions required to scan with Trivy |
 |---|---|
-| [AWSECRRepositoryImage](https://cartography-cncf.github.io/cartography/modules/aws/schema.html#ecrrepositoryimage) | `ecr:GetAuthorizationToken`, `ecr:BatchGetImage`, `ecr:GetDownloadUrlForLayer` |
+| [AWSECRRepositoryImage](https://docs.cartography.dev/modules/aws/schema.html#ecrrepositoryimage) | `ecr:GetAuthorizationToken`, `ecr:BatchGetImage`, `ecr:GetDownloadUrlForLayer` |

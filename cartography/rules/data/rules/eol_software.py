@@ -143,7 +143,8 @@ def _build_kubernetes_ingress_nginx_eol_query() -> str:
          END AS software_minor
     WITH DISTINCT cluster, namespace, controller_instance,
                   software_version, software_major, software_minor
-    RETURN coalesce(cluster.id, cluster.name, 'unknown-cluster')
+    RETURN cluster.id AS cluster_id,
+           coalesce(cluster.id, cluster.name, 'unknown-cluster')
                + '/namespaces/' + namespace
                + '/ingress-controllers/' + controller_instance
                + '/' + coalesce(software_version, 'unknown') AS asset_id,
@@ -209,6 +210,7 @@ _eks_cluster_kubernetes_version_eol = Fact(
     MATCH (e:AWSEKSCluster)
     RETURN COUNT(e) AS count
     """,
+    asset_label="AWSEKSCluster",
     asset_id_field="asset_id",
     identity_fields=("asset_id",),
     module=Module.AWS,
@@ -261,6 +263,7 @@ _gke_cluster_kubernetes_version_eol = Fact(
     MATCH (g:GKECluster)
     RETURN COUNT(g) AS count
     """,
+    asset_label="GKECluster",
     asset_id_field="asset_id",
     identity_fields=("asset_id",),
     module=Module.GCP,
@@ -319,6 +322,7 @@ _aks_cluster_kubernetes_version_eol = Fact(
     MATCH (a:AzureKubernetesCluster)
     RETURN COUNT(a) AS count
     """,
+    asset_label="AzureKubernetesCluster",
     asset_id_field="asset_id",
     identity_fields=("asset_id",),
     module=Module.AZURE,
@@ -393,6 +397,7 @@ _kubernetes_cluster_kubernetes_version_eol = Fact(
     }
     RETURN COUNT(k) AS count
     """,
+    asset_label="KubernetesCluster",
     asset_id_field="asset_id",
     identity_fields=("asset_id",),
     module=Module.KUBERNETES,
@@ -437,55 +442,18 @@ _kubernetes_ingress_nginx_controller_eol = Fact(
     WHERE has_controller_labels OR has_controller_image
     RETURN cluster, pod, container, resource_path, controller_path
     """,
+    # Denominator is all Kubernetes clusters (the evaluated population), matching the
+    # KubernetesCluster anchor so total, failing (distinct clusters running a retired
+    # controller), and passing all use the same cluster unit.
     cypher_count_query="""
-    MATCH (cluster:KubernetesCluster)-[:RESOURCE]->(pod:KubernetesPod)
-    CALL {
-        WITH pod
-        MATCH (container:KubernetesContainer)-[:WORKLOAD_PARENT]->(pod)
-        RETURN container
-        UNION
-        WITH pod
-        MATCH (pod)-[:CONTAINS]->(container:KubernetesContainer)
-        RETURN container
-    }
-    WITH DISTINCT cluster, pod, container
-    WITH cluster, pod, container,
-         replace(toLower(coalesce(pod.labels, '')), ' ', '') AS labels_compacted,
-         toLower(coalesce(container.image, '')) AS image
-    WITH cluster, pod, container, labels_compacted, image,
-         labels_compacted CONTAINS '"app.kubernetes.io/name":"ingress-nginx"'
-             AND labels_compacted CONTAINS '"app.kubernetes.io/component":"controller"'
-             AS has_controller_labels,
-         image CONTAINS '/ingress-nginx/controller:' AS has_controller_image
-    WHERE has_controller_labels OR has_controller_image
-    WITH cluster, pod, container, labels_compacted, image,
-         CASE
-             WHEN labels_compacted CONTAINS '"app.kubernetes.io/instance":"'
-             THEN split(split(labels_compacted, '"app.kubernetes.io/instance":"')[1], '"')[0]
-             ELSE 'ingress-nginx'
-         END AS controller_instance,
-         CASE
-             WHEN labels_compacted CONTAINS '"app.kubernetes.io/version":"'
-             THEN split(split(labels_compacted, '"app.kubernetes.io/version":"')[1], '"')[0]
-             WHEN image CONTAINS '/ingress-nginx/controller:'
-             THEN split(split(image, '/ingress-nginx/controller:')[1], '@')[0]
-             ELSE NULL
-         END AS software_version_raw
-    WITH DISTINCT coalesce(cluster.id, cluster.name, 'unknown-cluster')
-             + '/namespaces/' + coalesce(pod.namespace, container.namespace, 'default')
-             + '/ingress-controllers/' + controller_instance
-             + '/'
-             + coalesce(
-                 CASE
-                     WHEN software_version_raw STARTS WITH 'v'
-                     THEN substring(software_version_raw, 1)
-                     ELSE software_version_raw
-                 END,
-                 'unknown'
-             ) AS asset_id
-    RETURN COUNT(asset_id) AS count
+    MATCH (cluster:KubernetesCluster)
+    RETURN COUNT(cluster) AS count
     """,
-    asset_id_field="asset_id",
+    # Aggregated per ingress-controller instance (asset_id is a synthetic composite key,
+    # kept as the stable identity). Anchor on the parent KubernetesCluster node, which is
+    # this fact's stated subject ("clusters running retired ingress-nginx controllers").
+    asset_label="KubernetesCluster",
+    asset_id_field="cluster_id",
     identity_fields=("asset_id",),
     module=Module.KUBERNETES,
     maturity=Maturity.EXPERIMENTAL,
@@ -516,6 +484,7 @@ _ec2_instance_amazon_linux_2_eol = Fact(
       AND date() > date('{_AMAZON_LINUX_2_EOL_DATE}')
     RETURN COUNT(ec2) AS count
     """,
+    asset_label="AWSEC2Instance",
     asset_id_field="asset_id",
     identity_fields=("asset_id",),
     module=Module.AWS,
@@ -526,6 +495,9 @@ _ec2_instance_amazon_linux_2_eol = Fact(
 class EOLSoftwareOutput(Finding):
     asset_name: str | None = None
     asset_id: str | None = None
+    # Populated only by the ingress-nginx fact, whose asset_id is a synthetic composite;
+    # cluster_id carries the real KubernetesCluster node id it anchors on.
+    cluster_id: str | None = None
     asset_type: str | None = None
     software_name: str | None = None
     software_version: str | None = None

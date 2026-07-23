@@ -173,6 +173,35 @@ def test_load_pod_relationships(neo4j_session, _create_test_cluster):
     )
 
 
+def test_bare_pod_workload_parent_namespace(neo4j_session, _create_test_cluster):
+    # Act
+    load_pods(
+        neo4j_session,
+        KUBERNETES_PODS_DATA,
+        update_tag=TEST_UPDATE_TAG,
+        cluster_id=KUBERNETES_CLUSTER_IDS[0],
+        cluster_name=KUBERNETES_CLUSTER_NAMES[0],
+    )
+
+    # Assert: bare pods (no controller) still resolve WORKLOAD_PARENT to their
+    # namespace (no regression from the controller work).
+    expected_rels = {
+        ("my-pod", "my-namespace"),
+        ("my-service-pod", "my-namespace"),
+    }
+    assert (
+        check_rels(
+            neo4j_session,
+            "KubernetesPod",
+            "name",
+            "KubernetesNamespace",
+            "name",
+            "WORKLOAD_PARENT",
+        )
+        == expected_rels
+    )
+
+
 def test_load_pod_containers(neo4j_session, _create_test_cluster):
     # Arrange
     load_pods(

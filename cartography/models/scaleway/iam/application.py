@@ -47,7 +47,10 @@ class ScalewayApplicationToOrganizationRel(CartographyRelSchema):
 @dataclass(frozen=True)
 class ScalewayApplicationSchema(CartographyNodeSchema):
     label: str = "ScalewayApplication"
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["ServiceAccount"])
+    # ScalewayPrincipal: cross-provider IAM principal umbrella, mirroring AWSPrincipal / GCPPrincipal.
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
+        ["ServiceAccount", "ScalewayPrincipal"]
+    )
     properties: ScalewayApplicationNodeProperties = ScalewayApplicationNodeProperties()
     sub_resource_relationship: ScalewayApplicationToOrganizationRel = (
         ScalewayApplicationToOrganizationRel()
