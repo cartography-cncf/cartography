@@ -5,15 +5,19 @@ import boto3
 import botocore.exceptions
 import neo4j
 
-from cartography.client.core.tx import load, run_write_query
+from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
 from cartography.intel.aws.util.botocore_config import create_boto3_client
 from cartography.intel.aws.util.botocore_config import get_botocore_config
+from cartography.models.aws.ec2.tgw_route_tables import AWSTransitGatewayRouteSchema
+from cartography.models.aws.ec2.tgw_route_tables import (
+    AWSTransitGatewayRouteTableAssociationSchema,
+)
+from cartography.models.aws.ec2.tgw_route_tables import (
+    AWSTransitGatewayRouteTablePropagationSchema,
+)
 from cartography.models.aws.ec2.tgw_route_tables import (
     AWSTransitGatewayRouteTableSchema,
-    AWSTransitGatewayRouteSchema,
-    AWSTransitGatewayRouteTableAssociationSchema,
-    AWSTransitGatewayRouteTablePropagationSchema,
 )
 from cartography.util import aws_handle_regions
 from cartography.util import timeit
@@ -79,7 +83,9 @@ def get_transit_gateway_routes_for_table(
     return routes
 
 
-def transform_tgw_route_tables(data: list[dict[str, Any]]) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+def transform_tgw_route_tables(
+    data: list[dict[str, Any]],
+) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
     route_tables: list[dict[str, Any]] = []
     routes: list[dict[str, Any]] = []
     for rtb in data:
@@ -104,7 +110,11 @@ def transform_tgw_route_tables(data: list[dict[str, Any]]) -> tuple[list[dict[st
         route_tables.append(rt_entry)
         # Routes may be under 'Routes' key
         for route in rtb.get("Routes", []) if rtb.get("Routes") else []:
-            dest = route.get("DestinationCidrBlock") or route.get("DestinationIpv6CidrBlock") or str(route)
+            dest = (
+                route.get("DestinationCidrBlock")
+                or route.get("DestinationIpv6CidrBlock")
+                or str(route)
+            )
             route_id = f"{rtb_id}|{dest}"
             # The attachment a route points to is nested under
             # TransitGatewayAttachments[]; the search/describe route APIs do not
@@ -174,19 +184,19 @@ def cleanup_transit_gateway_route_tables(
     neo4j_session: neo4j.Session, common_job_parameters: dict[str, Any]
 ) -> None:
     logger.debug("Running TGW route tables cleanup")
-    GraphJob.from_node_schema(AWSTransitGatewayRouteTableSchema(), common_job_parameters).run(
-        neo4j_session
-    )
-    GraphJob.from_node_schema(AWSTransitGatewayRouteSchema(), common_job_parameters).run(
-        neo4j_session
-    )
+    GraphJob.from_node_schema(
+        AWSTransitGatewayRouteTableSchema(), common_job_parameters
+    ).run(neo4j_session)
+    GraphJob.from_node_schema(
+        AWSTransitGatewayRouteSchema(), common_job_parameters
+    ).run(neo4j_session)
     # Cleanup for associations and propagations
-    GraphJob.from_node_schema(AWSTransitGatewayRouteTableAssociationSchema(), common_job_parameters).run(
-        neo4j_session
-    )
-    GraphJob.from_node_schema(AWSTransitGatewayRouteTablePropagationSchema(), common_job_parameters).run(
-        neo4j_session
-    )
+    GraphJob.from_node_schema(
+        AWSTransitGatewayRouteTableAssociationSchema(), common_job_parameters
+    ).run(neo4j_session)
+    GraphJob.from_node_schema(
+        AWSTransitGatewayRouteTablePropagationSchema(), common_job_parameters
+    ).run(neo4j_session)
 
 
 @timeit
@@ -219,8 +229,12 @@ def sync_transit_gateway_route_tables(
         # (transit_gateway_route_table_id). If routes load first, on a first-time
         # / empty graph the parent does not exist yet and no HAS_ROUTE edges are
         # created. (A warm graph masks this because the tables already exist.)
-        load_transit_gateway_route_tables(neo4j_session, rtb_data, region, current_aws_account_id, update_tag)
-        load_transit_gateway_routes(neo4j_session, route_data, region, current_aws_account_id, update_tag)
+        load_transit_gateway_route_tables(
+            neo4j_session, rtb_data, region, current_aws_account_id, update_tag
+        )
+        load_transit_gateway_routes(
+            neo4j_session, route_data, region, current_aws_account_id, update_tag
+        )
 
         # Associations and propagations are fetched per route table (scoped to
         # this region's tables only) to avoid the cartesian duplication that
@@ -242,13 +256,18 @@ def sync_transit_gateway_route_tables(
         )
         transformed_propagations = transform_tgw_route_table_propagations(prop_list)
         load_transit_gateway_route_table_propagations(
-            neo4j_session, transformed_propagations, region, current_aws_account_id, update_tag
+            neo4j_session,
+            transformed_propagations,
+            region,
+            current_aws_account_id,
+            update_tag,
         )
 
     cleanup_transit_gateway_route_tables(neo4j_session, common_job_parameters)
 
 
 # Association/Propagation helpers
+
 
 def get_transit_gateway_route_table_associations(
     boto3_session: boto3.session.Session,
@@ -263,7 +282,9 @@ def get_transit_gateway_route_table_associations(
     route table id, so it is injected here and a stable id is synthesized from
     route_table_id|attachment_id for dedup and relationship matching.
     """
-    client = create_boto3_client(boto3_session, "ec2", region_name=region, config=get_botocore_config())
+    client = create_boto3_client(
+        boto3_session, "ec2", region_name=region, config=get_botocore_config()
+    )
     associations: list[dict[str, Any]] = []
     try:
         # Prefer get_ API names if available (newer service models use get_* instead of describe_*)
@@ -297,7 +318,9 @@ def get_transit_gateway_route_table_associations(
                     # The API does not echo the parent route table id; inject it
                     # and synthesize a stable id for dedup + matching.
                     item.setdefault("TransitGatewayRouteTableId", rtb_id)
-                    attachment = item.get("TransitGatewayAttachmentId") or item.get("ResourceId")
+                    attachment = item.get("TransitGatewayAttachmentId") or item.get(
+                        "ResourceId"
+                    )
                     if not item.get("TransitGatewayRouteTableAssociationId"):
                         item["TransitGatewayRouteTableAssociationId"] = (
                             f"{rtb_id}|{attachment}" if attachment else None
@@ -315,7 +338,6 @@ def get_transit_gateway_route_table_associations(
     return associations
 
 
-
 def get_transit_gateway_route_table_propagations(
     boto3_session: boto3.session.Session,
     region: str,
@@ -326,7 +348,9 @@ def get_transit_gateway_route_table_propagations(
     Iterates only the route tables passed in (already fetched for this region)
     rather than re-enumerating, avoiding per-region cartesian duplication.
     """
-    client = create_boto3_client(boto3_session, "ec2", region_name=region, config=get_botocore_config())
+    client = create_boto3_client(
+        boto3_session, "ec2", region_name=region, config=get_botocore_config()
+    )
     props: list[dict[str, Any]] = []
     try:
         # Prefer get_ API names if available (newer service models use get_* instead of describe_*)
@@ -359,8 +383,12 @@ def get_transit_gateway_route_table_propagations(
                     item.setdefault("TransitGatewayRouteTableId", rtb_id)
                     # prefer existing propagation id, otherwise synthesize one from route-table + attachment
                     if not item.get("TransitGatewayRouteTablePropagationId"):
-                        attachment = item.get("TransitGatewayAttachmentId") or item.get("ResourceId")
-                        item["TransitGatewayRouteTablePropagationId"] = f"{rtb_id}|{attachment}" if attachment else None
+                        attachment = item.get("TransitGatewayAttachmentId") or item.get(
+                            "ResourceId"
+                        )
+                        item["TransitGatewayRouteTablePropagationId"] = (
+                            f"{rtb_id}|{attachment}" if attachment else None
+                        )
                 props.extend(items)
                 next_token = resp.get("NextToken")
                 if not next_token:
@@ -374,12 +402,17 @@ def get_transit_gateway_route_table_propagations(
     return props
 
 
-
-def transform_tgw_route_table_associations(data: list[dict[str, Any]]) -> list[dict[str, Any]]:
+def transform_tgw_route_table_associations(
+    data: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
     transformed: list[dict[str, Any]] = []
     seen: set[str] = set()
     for assoc in data:
         assoc_id = assoc.get("TransitGatewayRouteTableAssociationId")
+        # Skip associations without a usable id (nothing to key on for dedup or
+        # relationship matching).
+        if assoc_id is None:
+            continue
         # Dedup on the synthesized/real id so the same association fetched more
         # than once does not create duplicate nodes/edges.
         if assoc_id in seen:
@@ -403,7 +436,13 @@ def transform_tgw_route_table_associations(data: list[dict[str, Any]]) -> list[d
     return transformed
 
 
-def load_transit_gateway_route_table_associations(neo4j_session: neo4j.Session, data: list[dict[str, Any]], region: str, current_aws_account_id: str, update_tag: int) -> None:
+def load_transit_gateway_route_table_associations(
+    neo4j_session: neo4j.Session,
+    data: list[dict[str, Any]],
+    region: str,
+    current_aws_account_id: str,
+    update_tag: int,
+) -> None:
     # Use model-driven load for associations
     # Filter out items missing id first
     filtered = [item for item in data if item.get("id")]
@@ -419,7 +458,9 @@ def load_transit_gateway_route_table_associations(neo4j_session: neo4j.Session, 
     )
 
 
-def transform_tgw_route_table_propagations(data: list[dict[str, Any]]) -> list[dict[str, Any]]:
+def transform_tgw_route_table_propagations(
+    data: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
     transformed: list[dict[str, Any]] = []
     for p in data:
         transformed.append(
@@ -433,7 +474,13 @@ def transform_tgw_route_table_propagations(data: list[dict[str, Any]]) -> list[d
     return transformed
 
 
-def load_transit_gateway_route_table_propagations(neo4j_session: neo4j.Session, data: list[dict[str, Any]], region: str, current_aws_account_id: str, update_tag: int) -> None:
+def load_transit_gateway_route_table_propagations(
+    neo4j_session: neo4j.Session,
+    data: list[dict[str, Any]],
+    region: str,
+    current_aws_account_id: str,
+    update_tag: int,
+) -> None:
     # Use model-driven load for propagations
     filtered = [item for item in data if item.get("id")]
     if not filtered:

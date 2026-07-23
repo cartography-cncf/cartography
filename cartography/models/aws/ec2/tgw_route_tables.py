@@ -10,7 +10,6 @@ from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import TargetNodeMatcher
 
-
 # =============================================================================
 # Shared rel properties
 # =============================================================================
@@ -87,9 +86,11 @@ class AWSTransitGatewayRouteTableSchema(CartographyNodeSchema):
     )
     # Declared inline (not appended after the class) so the frozen dataclass
     # actually carries the relationship at load time.
-    other_relationships: OtherRelationships = OtherRelationships([
-        AWSTransitGatewayRouteTableToTGWRel(),
-    ])
+    other_relationships: OtherRelationships = OtherRelationships(
+        [
+            AWSTransitGatewayRouteTableToTGWRel(),
+        ]
+    )
 
 
 # =============================================================================
@@ -100,9 +101,13 @@ class AWSTransitGatewayRouteTableSchema(CartographyNodeSchema):
 @dataclass(frozen=True)
 class AWSTransitGatewayRouteNodeProperties(CartographyNodeProperties):
     id: PropertyRef = PropertyRef("id")
-    transit_gateway_route_table_id: PropertyRef = PropertyRef("transit_gateway_route_table_id")
+    transit_gateway_route_table_id: PropertyRef = PropertyRef(
+        "transit_gateway_route_table_id"
+    )
     destination_cidr_block: PropertyRef = PropertyRef("destination_cidr_block")
-    destination_ipv6_cidr_block: PropertyRef = PropertyRef("destination_ipv6_cidr_block")
+    destination_ipv6_cidr_block: PropertyRef = PropertyRef(
+        "destination_ipv6_cidr_block"
+    )
     target: PropertyRef = PropertyRef("target")
     state: PropertyRef = PropertyRef("state")
     origin: PropertyRef = PropertyRef("origin")
@@ -223,7 +228,9 @@ class AWSTransitGatewayRouteTableAssociationNodeProperties(CartographyNodeProper
 
 
 @dataclass(frozen=True)
-class AWSTransitGatewayRouteTableAssociationToRouteTableRelRelProperties(CartographyRelProperties):
+class AWSTransitGatewayRouteTableAssociationToRouteTableRelRelProperties(
+    CartographyRelProperties
+):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
@@ -241,7 +248,9 @@ class AWSTransitGatewayRouteTableAssociationToRouteTableRel(CartographyRelSchema
 
 
 @dataclass(frozen=True)
-class AWSTransitGatewayRouteTableAssociationToAWSAccountRelRelProperties(CartographyRelProperties):
+class AWSTransitGatewayRouteTableAssociationToAWSAccountRelRelProperties(
+    CartographyRelProperties
+):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
@@ -267,9 +276,11 @@ class AWSTransitGatewayRouteTableAssociationSchema(CartographyNodeSchema):
     sub_resource_relationship: AWSTransitGatewayRouteTableAssociationToAWSAccountRel = (
         AWSTransitGatewayRouteTableAssociationToAWSAccountRel()
     )
-    other_relationships: OtherRelationships = OtherRelationships([
-        AWSTransitGatewayRouteTableAssociationToRouteTableRel(),
-    ])
+    other_relationships: OtherRelationships = OtherRelationships(
+        [
+            AWSTransitGatewayRouteTableAssociationToRouteTableRel(),
+        ]
+    )
 
 
 # =============================================================================
@@ -288,7 +299,9 @@ class AWSTransitGatewayRouteTablePropagationNodeProperties(CartographyNodeProper
 
 
 @dataclass(frozen=True)
-class AWSTransitGatewayRouteTablePropagationToRouteTableRelRelProperties(CartographyRelProperties):
+class AWSTransitGatewayRouteTablePropagationToRouteTableRelRelProperties(
+    CartographyRelProperties
+):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
@@ -308,7 +321,9 @@ class AWSTransitGatewayRouteTablePropagationToRouteTableRel(CartographyRelSchema
 
 
 @dataclass(frozen=True)
-class AWSTransitGatewayRouteTablePropagationToAWSAccountRelRelProperties(CartographyRelProperties):
+class AWSTransitGatewayRouteTablePropagationToAWSAccountRelRelProperties(
+    CartographyRelProperties
+):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
@@ -334,6 +349,8 @@ class AWSTransitGatewayRouteTablePropagationSchema(CartographyNodeSchema):
     sub_resource_relationship: AWSTransitGatewayRouteTablePropagationToAWSAccountRel = (
         AWSTransitGatewayRouteTablePropagationToAWSAccountRel()
     )
-    other_relationships: OtherRelationships = OtherRelationships([
-        AWSTransitGatewayRouteTablePropagationToRouteTableRel(),
-    ])
+    other_relationships: OtherRelationships = OtherRelationships(
+        [
+            AWSTransitGatewayRouteTablePropagationToRouteTableRel(),
+        ]
+    )

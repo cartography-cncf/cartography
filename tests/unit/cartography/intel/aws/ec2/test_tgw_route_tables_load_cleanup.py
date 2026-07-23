@@ -1,5 +1,3 @@
-import pytest
-
 from cartography.intel.aws.ec2 import tgw_route_tables
 
 
@@ -52,7 +50,9 @@ def test_cleanup_transit_gateway_route_tables_calls_graphjob(monkeypatch):
 
     # Patch GraphJob.from_node_schema to return a DummyJob instance
     monkeypatch.setattr(
-        tgw_route_tables.GraphJob, "from_node_schema", staticmethod(fake_from_node_schema)
+        tgw_route_tables.GraphJob,
+        "from_node_schema",
+        staticmethod(fake_from_node_schema),
     )
 
     sess = object()
@@ -87,32 +87,39 @@ def test_sync_loads_route_tables_before_routes(monkeypatch):
         ],
     )
     monkeypatch.setattr(
-        tgw_route_tables, "get_transit_gateway_route_table_associations",
+        tgw_route_tables,
+        "get_transit_gateway_route_table_associations",
         lambda session, region, rts: [],
     )
     monkeypatch.setattr(
-        tgw_route_tables, "get_transit_gateway_route_table_propagations",
+        tgw_route_tables,
+        "get_transit_gateway_route_table_propagations",
         lambda session, region, rts: [],
     )
     # Record the order of the two load calls under test.
     monkeypatch.setattr(
-        tgw_route_tables, "load_transit_gateway_route_tables",
+        tgw_route_tables,
+        "load_transit_gateway_route_tables",
         lambda *a, **k: order.append("route_tables"),
     )
     monkeypatch.setattr(
-        tgw_route_tables, "load_transit_gateway_routes",
+        tgw_route_tables,
+        "load_transit_gateway_routes",
         lambda *a, **k: order.append("routes"),
     )
     monkeypatch.setattr(
-        tgw_route_tables, "load_transit_gateway_route_table_associations",
+        tgw_route_tables,
+        "load_transit_gateway_route_table_associations",
         lambda *a, **k: None,
     )
     monkeypatch.setattr(
-        tgw_route_tables, "load_transit_gateway_route_table_propagations",
+        tgw_route_tables,
+        "load_transit_gateway_route_table_propagations",
         lambda *a, **k: None,
     )
     monkeypatch.setattr(
-        tgw_route_tables, "cleanup_transit_gateway_route_tables",
+        tgw_route_tables,
+        "cleanup_transit_gateway_route_tables",
         lambda *a, **k: None,
     )
 
@@ -120,6 +127,7 @@ def test_sync_loads_route_tables_before_routes(monkeypatch):
         object(), object(), ["us-east-1"], "000000000000", 12345, {"UPDATE_TAG": 12345}
     )
 
-    assert order == ["route_tables", "routes"], (
-        f"route tables must load before routes; got {order}"
-    )
+    assert order == [
+        "route_tables",
+        "routes",
+    ], f"route tables must load before routes; got {order}"

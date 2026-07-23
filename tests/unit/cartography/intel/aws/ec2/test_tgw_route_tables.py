@@ -1,8 +1,12 @@
 from cartography.intel.aws.ec2 import tgw_route_tables
+from cartography.models.aws.ec2.tgw_route_tables import AWSTransitGatewayRouteSchema
 from cartography.models.aws.ec2.tgw_route_tables import (
-    AWSTransitGatewayRouteSchema,
     AWSTransitGatewayRouteTableAssociationSchema,
+)
+from cartography.models.aws.ec2.tgw_route_tables import (
     AWSTransitGatewayRouteTablePropagationSchema,
+)
+from cartography.models.aws.ec2.tgw_route_tables import (
     AWSTransitGatewayRouteTableSchema,
 )
 
