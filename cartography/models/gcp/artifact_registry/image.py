@@ -131,6 +131,57 @@ class GCPArtifactRegistryImageContainsImageMatchLink(CartographyRelSchema):
     )
 
 
+@dataclass(frozen=True)
+class GCPArtifactRegistryImageToLayerMatchLink(CartographyRelSchema):
+    source_node_label: str = "GCPArtifactRegistryImage"
+    source_node_matcher: SourceNodeMatcher = make_source_node_matcher(
+        {"digest": PropertyRef("digest")}
+    )
+    target_node_label: str = "GCPArtifactRegistryImageLayer"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"diff_id": PropertyRef("layer_diff_id")}
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "HAS_LAYER"
+    properties: GCPArtifactRegistryImageMatchLinkProperties = (
+        GCPArtifactRegistryImageMatchLinkProperties()
+    )
+
+
+@dataclass(frozen=True)
+class GCPArtifactRegistryImageToHeadLayerMatchLink(CartographyRelSchema):
+    source_node_label: str = "GCPArtifactRegistryImage"
+    source_node_matcher: SourceNodeMatcher = make_source_node_matcher(
+        {"digest": PropertyRef("digest")}
+    )
+    target_node_label: str = "GCPArtifactRegistryImageLayer"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"diff_id": PropertyRef("head_layer_diff_id")}
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "HEAD"
+    properties: GCPArtifactRegistryImageMatchLinkProperties = (
+        GCPArtifactRegistryImageMatchLinkProperties()
+    )
+
+
+@dataclass(frozen=True)
+class GCPArtifactRegistryImageToTailLayerMatchLink(CartographyRelSchema):
+    source_node_label: str = "GCPArtifactRegistryImage"
+    source_node_matcher: SourceNodeMatcher = make_source_node_matcher(
+        {"digest": PropertyRef("digest")}
+    )
+    target_node_label: str = "GCPArtifactRegistryImageLayer"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"diff_id": PropertyRef("tail_layer_diff_id")}
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "TAIL"
+    properties: GCPArtifactRegistryImageMatchLinkProperties = (
+        GCPArtifactRegistryImageMatchLinkProperties()
+    )
+
+
 GCP_IMAGE_EXTRA_LABELS = ExtraNodeLabels(
     [
         ConditionalNodeLabel(label="Image", conditions={"type": "image"}),

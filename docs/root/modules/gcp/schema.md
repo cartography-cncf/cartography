@@ -1784,6 +1784,10 @@ graph LR
     Repository -->|CONTAINS| GenericArtifact
     RepositoryImage -->|IMAGE| Image
     Image -->|CONTAINS_IMAGE| Image
+    Image -->|HAS_LAYER| ImageLayer
+    Image -->|HEAD| ImageLayer
+    Image -->|TAIL| ImageLayer
+    ImageLayer -->|NEXT| ImageLayer
     TrivyFinding -->|AFFECTS| Image
     Package -->|DEPLOYED| Image
 ```
@@ -1936,6 +1940,13 @@ Representation of digest-scoped GCP Artifact Registry image content. Multiple `G
     (GCPArtifactRegistryImage:ImageManifestList)-[:CONTAINS_IMAGE]->(GCPArtifactRegistryImage:Image)
     ```
 
+- Platform-specific GCPArtifactRegistryImages reference all of their filesystem layers, with `HEAD`/`TAIL` shortcuts to the base and topmost layers.
+    ```
+    (GCPArtifactRegistryImage:Image)-[:HAS_LAYER]->(GCPArtifactRegistryImageLayer)
+    (GCPArtifactRegistryImage:Image)-[:HEAD]->(GCPArtifactRegistryImageLayer)
+    (GCPArtifactRegistryImage:Image)-[:TAIL]->(GCPArtifactRegistryImageLayer)
+    ```
+
 - GCPArtifactRegistryImages can point to a parent/base image when SPDX SBOM relationships identify another loaded GAR image digest.
     ```
     (GCPArtifactRegistryImage)-[:BUILT_FROM]->(GCPArtifactRegistryImage)
@@ -1970,6 +1981,18 @@ Representation of a container image filesystem layer extracted from the OCI imag
 - GCPArtifactRegistryImageLayers are resources of GCPProjects.
     ```
     (GCPProject)-[:RESOURCE]->(GCPArtifactRegistryImageLayer)
+    ```
+
+- GCPArtifactRegistryImageLayers form a linked list using `NEXT` relationships from base layer to topmost layer.
+    ```
+    (GCPArtifactRegistryImageLayer)-[:NEXT]->(GCPArtifactRegistryImageLayer)
+    ```
+
+- Platform-specific GCPArtifactRegistryImages are composed of layers.
+    ```
+    (GCPArtifactRegistryImage:Image)-[:HAS_LAYER]->(GCPArtifactRegistryImageLayer)
+    (GCPArtifactRegistryImage:Image)-[:HEAD]->(GCPArtifactRegistryImageLayer)
+    (GCPArtifactRegistryImage:Image)-[:TAIL]->(GCPArtifactRegistryImageLayer)
     ```
 
 #### GCPArtifactRegistryHelmChart

@@ -95,8 +95,7 @@ def test_extract_source_from_spdx_sbom_reads_described_package_golang_purl():
                         "referenceCategory": "PACKAGE-MANAGER",
                         "referenceType": "purl",
                         "referenceLocator": (
-                            "pkg:golang/github.com/example/widgets@v0.0.0"
-                            "?type=module"
+                            "pkg:golang/github.com/example/widgets@v0.0.0?type=module"
                         ),
                     }
                 ],
@@ -511,8 +510,13 @@ def patched_sync(monkeypatch):
         "from_matchlink",
         MagicMock(return_value=fake_job),
     )
-    monkeypatch.setattr(supply_chain, "load_image_provenance", MagicMock())
+    monkeypatch.setattr(
+        supply_chain,
+        "load_image_provenance",
+        MagicMock(side_effect=lambda _session, updates, _project, _tag: updates),
+    )
     monkeypatch.setattr(supply_chain, "load_image_layers", MagicMock())
+    monkeypatch.setattr(supply_chain, "load_image_layer_relationships", MagicMock())
 
     def _set_enrichments(enrichments, fetch_failures=0):
         async def _fake_fetch(*_args, **_kwargs):
@@ -606,6 +610,13 @@ def test_sync_loads_provenance_and_layers_with_split_phases(patched_sync):
         "sha256:b",
     }
     assert layer_call_args[2:] == ("proj", 1)
+    provenance_call_args = supply_chain.load_image_provenance.call_args.args
+    supply_chain.load_image_layer_relationships.assert_called_once_with(
+        neo4j_session,
+        provenance_call_args[1],
+        "proj",
+        1,
+    )
 
 
 def test_load_image_provenance_preserves_existing_values(monkeypatch):
@@ -659,7 +670,9 @@ def test_load_image_provenance_preserves_existing_values(monkeypatch):
         },
     ]
 
-    supply_chain.load_image_provenance(neo4j_session, updates, "proj", 1)
+    merged_updates = supply_chain.load_image_provenance(
+        neo4j_session, updates, "proj", 1
+    )
 
     neo4j_session.execute_read.assert_called_once()
     load_nodes_without_relationships.assert_called_once()
@@ -684,6 +697,7 @@ def test_load_image_provenance_preserves_existing_values(monkeypatch):
             "layer_diff_ids": ["sha256:a"],
         },
     ]
+    assert merged_updates == call.args[2]
     load_matchlinks_with_progress.assert_called_once()
     assert "provenance updates" in call.kwargs["progress_description"]
     assert call.kwargs["lastupdated"] == 1
@@ -729,6 +743,113 @@ def test_load_image_layers_uses_node_and_matchlink_progress_loaders(monkeypatch)
     assert rel_call.kwargs["_sub_resource_id"] == "proj"
 
 
+def test_build_image_layer_relationship_dicts_preserves_order_and_dedupes_next():
+    updates = [
+        {
+            "digest": "sha256:img-1",
+            "type": "image",
+            "layer_diff_ids": ["sha256:a", "sha256:b", "sha256:c"],
+        },
+        {
+            "digest": "sha256:img-2",
+            "type": "image",
+            "layer_diff_ids": ["sha256:a", "sha256:b"],
+        },
+        {
+            "digest": "sha256:index",
+            "type": "manifest_list",
+            "layer_diff_ids": ["sha256:manifest-layer"],
+        },
+    ]
+
+    (
+        has_layer_relationships,
+        head_relationships,
+        tail_relationships,
+        next_relationships,
+    ) = supply_chain._build_image_layer_relationship_dicts(updates)
+
+    assert has_layer_relationships == [
+        {"digest": "sha256:img-1", "layer_diff_id": "sha256:a"},
+        {"digest": "sha256:img-1", "layer_diff_id": "sha256:b"},
+        {"digest": "sha256:img-1", "layer_diff_id": "sha256:c"},
+        {"digest": "sha256:img-2", "layer_diff_id": "sha256:a"},
+        {"digest": "sha256:img-2", "layer_diff_id": "sha256:b"},
+    ]
+    assert head_relationships == [
+        {"digest": "sha256:img-1", "head_layer_diff_id": "sha256:a"},
+        {"digest": "sha256:img-2", "head_layer_diff_id": "sha256:a"},
+    ]
+    assert tail_relationships == [
+        {"digest": "sha256:img-1", "tail_layer_diff_id": "sha256:c"},
+        {"digest": "sha256:img-2", "tail_layer_diff_id": "sha256:b"},
+    ]
+    assert next_relationships == [
+        {"diff_id": "sha256:a", "next_diff_id": "sha256:b"},
+        {"diff_id": "sha256:b", "next_diff_id": "sha256:c"},
+    ]
+
+
+def test_load_image_layer_relationships_uses_matchlink_progress_loaders(monkeypatch):
+    load_matchlinks_with_progress = MagicMock()
+    monkeypatch.setattr(
+        supply_chain,
+        "load_matchlinks_with_progress",
+        load_matchlinks_with_progress,
+    )
+    neo4j_session = MagicMock()
+    updates = [
+        {
+            "digest": "sha256:img-1",
+            "type": "image",
+            "layer_diff_ids": ["sha256:a", "sha256:b"],
+        },
+        {
+            "digest": "sha256:index",
+            "type": "manifest_list",
+            "layer_diff_ids": ["sha256:manifest-layer"],
+        },
+        {
+            "digest": "sha256:img-2",
+            "type": "image",
+            "layer_diff_ids": [],
+        },
+    ]
+
+    supply_chain.load_image_layer_relationships(neo4j_session, updates, "proj", 1)
+
+    assert load_matchlinks_with_progress.call_count == 4
+    schema_names = [
+        call.args[1].__class__.__name__
+        for call in load_matchlinks_with_progress.call_args_list
+    ]
+    assert schema_names == [
+        "GCPArtifactRegistryImageToLayerMatchLink",
+        "GCPArtifactRegistryImageToHeadLayerMatchLink",
+        "GCPArtifactRegistryImageToTailLayerMatchLink",
+        "GCPArtifactRegistryImageLayerToNextMatchLink",
+    ]
+    assert load_matchlinks_with_progress.call_args_list[0].args[2] == [
+        {"digest": "sha256:img-1", "layer_diff_id": "sha256:a"},
+        {"digest": "sha256:img-1", "layer_diff_id": "sha256:b"},
+    ]
+    assert load_matchlinks_with_progress.call_args_list[1].args[2] == [
+        {"digest": "sha256:img-1", "head_layer_diff_id": "sha256:a"}
+    ]
+    assert load_matchlinks_with_progress.call_args_list[2].args[2] == [
+        {"digest": "sha256:img-1", "tail_layer_diff_id": "sha256:b"}
+    ]
+    assert load_matchlinks_with_progress.call_args_list[3].args[2] == [
+        {"diff_id": "sha256:a", "next_diff_id": "sha256:b"}
+    ]
+    for call in load_matchlinks_with_progress.call_args_list:
+        assert call.args[0] == neo4j_session
+        assert call.kwargs["lastupdated"] == 1
+        assert call.kwargs["PROJECT_ID"] == "proj"
+        assert call.kwargs["_sub_resource_label"] == "GCPProject"
+        assert call.kwargs["_sub_resource_id"] == "proj"
+
+
 def test_sync_runs_cleanup_when_safe_and_no_failures(patched_sync):
     set_enrichments, cleanup_runs = patched_sync
     set_enrichments(enrichments=[], fetch_failures=0)
@@ -743,7 +864,7 @@ def test_sync_runs_cleanup_when_safe_and_no_failures(patched_sync):
         cleanup_safe=True,
     )
 
-    assert len(cleanup_runs) == 3
+    assert len(cleanup_runs) == 7
 
 
 def test_sync_skips_cleanup_when_fetch_failures(patched_sync):

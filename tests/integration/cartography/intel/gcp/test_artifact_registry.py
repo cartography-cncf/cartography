@@ -20,6 +20,9 @@ from cartography.intel.gcp.artifact_registry.repository import (
     ArtifactRegistryRepositorySyncResult,
 )
 from cartography.intel.gcp.artifact_registry.supply_chain import _build_layer_dicts
+from cartography.intel.gcp.artifact_registry.supply_chain import (
+    load_image_layer_relationships,
+)
 from cartography.intel.gcp.artifact_registry.supply_chain import load_image_layers
 from cartography.intel.gcp.artifact_registry.supply_chain import load_image_provenance
 from cartography.intel.gcp.artifact_registry.util import (
@@ -38,8 +41,20 @@ from cartography.models.gcp.artifact_registry.image import (
 from cartography.models.gcp.artifact_registry.image import (
     GCPArtifactRegistryImageSchema,
 )
+from cartography.models.gcp.artifact_registry.image import (
+    GCPArtifactRegistryImageToHeadLayerMatchLink,
+)
+from cartography.models.gcp.artifact_registry.image import (
+    GCPArtifactRegistryImageToLayerMatchLink,
+)
+from cartography.models.gcp.artifact_registry.image import (
+    GCPArtifactRegistryImageToTailLayerMatchLink,
+)
 from cartography.models.gcp.artifact_registry.image_layer import (
     GCPArtifactRegistryImageLayerSchema,
+)
+from cartography.models.gcp.artifact_registry.image_layer import (
+    GCPArtifactRegistryImageLayerToNextMatchLink,
 )
 from cartography.models.gcp.artifact_registry.repository_image import (
     GCPArtifactRegistryRepositoryImageSchema,
@@ -817,7 +832,7 @@ def test_load_gar_supply_chain_enrichment_split_phases_are_idempotent_and_cleane
         "history": "RUN stale",
     }
 
-    load_image_provenance(
+    merged_provenance_updates = load_image_provenance(
         neo4j_session,
         provenance_updates,
         project_id,
@@ -826,6 +841,12 @@ def test_load_gar_supply_chain_enrichment_split_phases_are_idempotent_and_cleane
     load_image_layers(
         neo4j_session,
         layer_dicts + [stale_layer],
+        project_id,
+        TEST_UPDATE_TAG,
+    )
+    load_image_layer_relationships(
+        neo4j_session,
+        merged_provenance_updates,
         project_id,
         TEST_UPDATE_TAG,
     )
@@ -902,11 +923,59 @@ def test_load_gar_supply_chain_enrichment_split_phases_are_idempotent_and_cleane
     assert layer_result["rel_sub_resource_label"] == "GCPProject"
     assert layer_result["rel_sub_resource_id"] == project_id
 
+    image_layer_rel_result = neo4j_session.run(
+        """
+        MATCH (image:GCPArtifactRegistryImage {id: $image_id})
+        MATCH (image)-[has_layer_rel:HAS_LAYER]->(layer:GCPArtifactRegistryImageLayer)
+        WITH image, collect({
+            diff_id: layer.diff_id,
+            firstseen: has_layer_rel.firstseen,
+            lastupdated: has_layer_rel.lastupdated
+        }) AS has_layers
+        MATCH (image)-[head_rel:HEAD]->(head:GCPArtifactRegistryImageLayer)
+        MATCH (image)-[tail_rel:TAIL]->(tail:GCPArtifactRegistryImageLayer)
+        MATCH (head)-[next_rel:NEXT]->(tail)
+        RETURN
+            has_layers,
+            head.diff_id AS head_diff_id,
+            tail.diff_id AS tail_diff_id,
+            head_rel.firstseen AS head_rel_firstseen,
+            head_rel.lastupdated AS head_rel_lastupdated,
+            tail_rel.firstseen AS tail_rel_firstseen,
+            tail_rel.lastupdated AS tail_rel_lastupdated,
+            next_rel.firstseen AS next_rel_firstseen,
+            next_rel.lastupdated AS next_rel_lastupdated,
+            head_rel._sub_resource_id AS head_rel_sub_resource_id,
+            next_rel._sub_resource_id AS next_rel_sub_resource_id
+        """,
+        image_id=first_image_id,
+    ).single()
+    has_layers_by_diff_id = {
+        entry["diff_id"]: entry for entry in image_layer_rel_result["has_layers"]
+    }
+    assert set(has_layers_by_diff_id) == {
+        f"sha256:{project_id}-shared",
+        f"sha256:{project_id}-0",
+    }
+    assert image_layer_rel_result["head_diff_id"] == f"sha256:{project_id}-shared"
+    assert image_layer_rel_result["tail_diff_id"] == f"sha256:{project_id}-0"
+    assert image_layer_rel_result["head_rel_lastupdated"] == TEST_UPDATE_TAG
+    assert image_layer_rel_result["tail_rel_lastupdated"] == TEST_UPDATE_TAG
+    assert image_layer_rel_result["next_rel_lastupdated"] == TEST_UPDATE_TAG
+    assert image_layer_rel_result["head_rel_sub_resource_id"] == project_id
+    assert image_layer_rel_result["next_rel_sub_resource_id"] == project_id
+
     image_firstseen = image_result["firstseen"]
     layer_node_firstseen = layer_result["node_firstseen"]
     layer_rel_firstseen = layer_result["rel_firstseen"]
+    head_rel_firstseen = image_layer_rel_result["head_rel_firstseen"]
+    tail_rel_firstseen = image_layer_rel_result["tail_rel_firstseen"]
+    next_rel_firstseen = image_layer_rel_result["next_rel_firstseen"]
+    has_layer_firstseen_by_diff_id = {
+        diff_id: entry["firstseen"] for diff_id, entry in has_layers_by_diff_id.items()
+    }
 
-    load_image_provenance(
+    merged_provenance_updates = load_image_provenance(
         neo4j_session,
         provenance_updates,
         project_id,
@@ -918,36 +987,86 @@ def test_load_gar_supply_chain_enrichment_split_phases_are_idempotent_and_cleane
         project_id,
         TEST_UPDATE_TAG + 1,
     )
+    load_image_layer_relationships(
+        neo4j_session,
+        merged_provenance_updates,
+        project_id,
+        TEST_UPDATE_TAG + 1,
+    )
 
     rerun_result = neo4j_session.run(
         """
         MATCH (:GCPProject {id: $project_id})
         -[r:RESOURCE]->(layer:GCPArtifactRegistryImageLayer {id: $layer_id})
         MATCH (image:GCPArtifactRegistryImage {id: $image_id})
+        MATCH (image)-[has_layer_rel:HAS_LAYER]->(has_layer:GCPArtifactRegistryImageLayer)
+        WITH image, layer, r, collect({
+            diff_id: has_layer.diff_id,
+            firstseen: has_layer_rel.firstseen,
+            lastupdated: has_layer_rel.lastupdated
+        }) AS has_layers
+        MATCH (image)-[head_rel:HEAD]->(head:GCPArtifactRegistryImageLayer)
+        MATCH (image)-[tail_rel:TAIL]->(tail:GCPArtifactRegistryImageLayer)
+        MATCH (head)-[next_rel:NEXT]->(tail)
         RETURN
             image.firstseen AS image_firstseen,
             image.lastupdated AS image_lastupdated,
             layer.firstseen AS layer_firstseen,
             layer.lastupdated AS layer_lastupdated,
             r.firstseen AS rel_firstseen,
-            r.lastupdated AS rel_lastupdated
+            r.lastupdated AS rel_lastupdated,
+            has_layers,
+            head_rel.firstseen AS head_rel_firstseen,
+            head_rel.lastupdated AS head_rel_lastupdated,
+            tail_rel.firstseen AS tail_rel_firstseen,
+            tail_rel.lastupdated AS tail_rel_lastupdated,
+            next_rel.firstseen AS next_rel_firstseen,
+            next_rel.lastupdated AS next_rel_lastupdated
         """,
         project_id=project_id,
         image_id=first_image_id,
         layer_id=f"sha256:{project_id}-shared",
     ).single()
+    rerun_has_layers_by_diff_id = {
+        entry["diff_id"]: entry for entry in rerun_result["has_layers"]
+    }
     assert rerun_result["image_firstseen"] == image_firstseen
     assert rerun_result["image_lastupdated"] == TEST_UPDATE_TAG + 1
     assert rerun_result["layer_firstseen"] == layer_node_firstseen
     assert rerun_result["layer_lastupdated"] == TEST_UPDATE_TAG + 1
     assert rerun_result["rel_firstseen"] == layer_rel_firstseen
     assert rerun_result["rel_lastupdated"] == TEST_UPDATE_TAG + 1
+    assert set(rerun_has_layers_by_diff_id) == set(has_layer_firstseen_by_diff_id)
+    for diff_id, firstseen in has_layer_firstseen_by_diff_id.items():
+        assert rerun_has_layers_by_diff_id[diff_id]["firstseen"] == firstseen
+        assert rerun_has_layers_by_diff_id[diff_id]["lastupdated"] == (
+            TEST_UPDATE_TAG + 1
+        )
+    assert rerun_result["head_rel_firstseen"] == head_rel_firstseen
+    assert rerun_result["head_rel_lastupdated"] == TEST_UPDATE_TAG + 1
+    assert rerun_result["tail_rel_firstseen"] == tail_rel_firstseen
+    assert rerun_result["tail_rel_lastupdated"] == TEST_UPDATE_TAG + 1
+    assert rerun_result["next_rel_firstseen"] == next_rel_firstseen
+    assert rerun_result["next_rel_lastupdated"] == TEST_UPDATE_TAG + 1
 
     GraphJob.from_node_schema(
         GCPArtifactRegistryImageLayerSchema(),
         {"PROJECT_ID": project_id, "UPDATE_TAG": TEST_UPDATE_TAG + 1},
         iterationsize=1,
     ).run(neo4j_session)
+    for matchlink_schema in (
+        GCPArtifactRegistryImageToLayerMatchLink(),
+        GCPArtifactRegistryImageToHeadLayerMatchLink(),
+        GCPArtifactRegistryImageToTailLayerMatchLink(),
+        GCPArtifactRegistryImageLayerToNextMatchLink(),
+    ):
+        GraphJob.from_matchlink(
+            matchlink_schema,
+            "GCPProject",
+            project_id,
+            TEST_UPDATE_TAG + 1,
+            iterationsize=1,
+        ).run(neo4j_session)
 
     assert (
         neo4j_session.run(
@@ -971,6 +1090,18 @@ def test_load_gar_supply_chain_enrichment_split_phases_are_idempotent_and_cleane
             project_id=project_id,
         ).single()["count"]
         == len(layer_dicts)
+    )
+    assert (
+        neo4j_session.run(
+            """
+            MATCH (:GCPArtifactRegistryImage)-[r:HAS_LAYER]->
+            (:GCPArtifactRegistryImageLayer)
+            WHERE r._sub_resource_id = $project_id
+            RETURN count(r) AS count
+            """,
+            project_id=project_id,
+        ).single()["count"]
+        == sum(len(update["layer_diff_ids"]) for update in provenance_updates)
     )
 
 

@@ -33,8 +33,20 @@ from cartography.models.gcp.artifact_registry.image import (
 from cartography.models.gcp.artifact_registry.image import (
     GCPArtifactRegistryImageProvenanceSchema,
 )
+from cartography.models.gcp.artifact_registry.image import (
+    GCPArtifactRegistryImageToHeadLayerMatchLink,
+)
+from cartography.models.gcp.artifact_registry.image import (
+    GCPArtifactRegistryImageToLayerMatchLink,
+)
+from cartography.models.gcp.artifact_registry.image import (
+    GCPArtifactRegistryImageToTailLayerMatchLink,
+)
 from cartography.models.gcp.artifact_registry.image_layer import (
     GCPArtifactRegistryImageLayerSchema,
+)
+from cartography.models.gcp.artifact_registry.image_layer import (
+    GCPArtifactRegistryImageLayerToNextMatchLink,
 )
 from cartography.models.gcp.artifact_registry.image_layer import (
     GCPArtifactRegistryProjectToImageLayerRel,
@@ -1003,6 +1015,51 @@ def _build_layer_dicts(
     return list(layers_by_diff_id.values())
 
 
+def _build_image_layer_relationship_dicts(
+    provenance_updates: list[dict[str, Any]],
+) -> tuple[
+    list[dict[str, Any]],
+    list[dict[str, Any]],
+    list[dict[str, Any]],
+    list[dict[str, Any]],
+]:
+    has_layer_relationships: list[dict[str, Any]] = []
+    head_relationships: list[dict[str, Any]] = []
+    tail_relationships: list[dict[str, Any]] = []
+    next_relationships: list[dict[str, Any]] = []
+    seen_next_relationships: set[tuple[str, str]] = set()
+
+    for update in provenance_updates:
+        digest = update.get("digest")
+        diff_ids = update.get("layer_diff_ids") or []
+        if update.get("type") != "image" or not digest or not diff_ids:
+            continue
+
+        has_layer_relationships.extend(
+            {"digest": digest, "layer_diff_id": diff_id} for diff_id in diff_ids
+        )
+        head_relationships.append({"digest": digest, "head_layer_diff_id": diff_ids[0]})
+        tail_relationships.append(
+            {"digest": digest, "tail_layer_diff_id": diff_ids[-1]}
+        )
+
+        for diff_id, next_diff_id in zip(diff_ids, diff_ids[1:]):
+            pair = (diff_id, next_diff_id)
+            if pair in seen_next_relationships:
+                continue
+            seen_next_relationships.add(pair)
+            next_relationships.append(
+                {"diff_id": diff_id, "next_diff_id": next_diff_id}
+            )
+
+    return (
+        has_layer_relationships,
+        head_relationships,
+        tail_relationships,
+        next_relationships,
+    )
+
+
 PROVENANCE_UPDATE_FIELDS = (
     "type",
     "media_type",
@@ -1098,9 +1155,9 @@ def load_image_provenance(
     provenance_updates: list[dict[str, Any]],
     project_id: str,
     update_tag: int,
-) -> None:
+) -> list[dict[str, Any]]:
     if not provenance_updates:
-        return
+        return []
 
     merged_updates = _merge_existing_image_provenance(
         neo4j_session,
@@ -1141,6 +1198,7 @@ def load_image_provenance(
         _sub_resource_label="GCPProject",
         _sub_resource_id=project_id,
     )
+    return merged_updates
 
 
 @timeit
@@ -1181,6 +1239,76 @@ def load_image_layers(
 
 
 @timeit
+def load_image_layer_relationships(
+    neo4j_session: neo4j.Session,
+    provenance_updates: list[dict[str, Any]],
+    project_id: str,
+    update_tag: int,
+) -> None:
+    (
+        has_layer_relationships,
+        head_relationships,
+        tail_relationships,
+        next_relationships,
+    ) = _build_image_layer_relationship_dicts(provenance_updates)
+    if not has_layer_relationships:
+        return
+
+    load_matchlinks_with_progress(
+        neo4j_session,
+        GCPArtifactRegistryImageToLayerMatchLink(),
+        has_layer_relationships,
+        batch_size=ARTIFACT_REGISTRY_LOAD_BATCH_SIZE,
+        progress_description=(
+            f"Artifact Registry image HAS_LAYER relationships for project {project_id}"
+        ),
+        lastupdated=update_tag,
+        PROJECT_ID=project_id,
+        _sub_resource_label="GCPProject",
+        _sub_resource_id=project_id,
+    )
+    load_matchlinks_with_progress(
+        neo4j_session,
+        GCPArtifactRegistryImageToHeadLayerMatchLink(),
+        head_relationships,
+        batch_size=ARTIFACT_REGISTRY_LOAD_BATCH_SIZE,
+        progress_description=(
+            f"Artifact Registry image HEAD relationships for project {project_id}"
+        ),
+        lastupdated=update_tag,
+        PROJECT_ID=project_id,
+        _sub_resource_label="GCPProject",
+        _sub_resource_id=project_id,
+    )
+    load_matchlinks_with_progress(
+        neo4j_session,
+        GCPArtifactRegistryImageToTailLayerMatchLink(),
+        tail_relationships,
+        batch_size=ARTIFACT_REGISTRY_LOAD_BATCH_SIZE,
+        progress_description=(
+            f"Artifact Registry image TAIL relationships for project {project_id}"
+        ),
+        lastupdated=update_tag,
+        PROJECT_ID=project_id,
+        _sub_resource_label="GCPProject",
+        _sub_resource_id=project_id,
+    )
+    load_matchlinks_with_progress(
+        neo4j_session,
+        GCPArtifactRegistryImageLayerToNextMatchLink(),
+        next_relationships,
+        batch_size=ARTIFACT_REGISTRY_LOAD_BATCH_SIZE,
+        progress_description=(
+            f"Artifact Registry image layer NEXT relationships for project {project_id}"
+        ),
+        lastupdated=update_tag,
+        PROJECT_ID=project_id,
+        _sub_resource_label="GCPProject",
+        _sub_resource_id=project_id,
+    )
+
+
+@timeit
 def sync(
     neo4j_session: neo4j.Session,
     credentials: GoogleCredentials | None,
@@ -1200,6 +1328,7 @@ def sync(
     and Dockerfile analysis.
     """
     logger.info("Starting supply chain sync for GCP project %s", project_id)
+    merged_provenance_updates: list[dict[str, Any]] = []
 
     try:
         loop = asyncio.get_event_loop()
@@ -1231,7 +1360,7 @@ def sync(
             }
             for e in enrichments
         ]
-        load_image_provenance(
+        merged_provenance_updates = load_image_provenance(
             neo4j_session,
             provenance_updates,
             project_id,
@@ -1241,6 +1370,13 @@ def sync(
     layer_dicts = _build_layer_dicts(enrichments)
     if layer_dicts:
         load_image_layers(neo4j_session, layer_dicts, project_id, update_tag)
+    if merged_provenance_updates:
+        load_image_layer_relationships(
+            neo4j_session,
+            merged_provenance_updates,
+            project_id,
+            update_tag,
+        )
 
     # Stale-layer cleanup is only safe when artifact discovery was complete AND
     # the enrichment pass had no fetch failures. Discovery completeness governs
@@ -1279,6 +1415,30 @@ def sync(
         ).run(neo4j_session)
         GraphJob.from_matchlink(
             GCPArtifactRegistryImageBuiltFromMatchLink(),
+            "GCPProject",
+            project_id,
+            update_tag,
+        ).run(neo4j_session)
+        GraphJob.from_matchlink(
+            GCPArtifactRegistryImageToLayerMatchLink(),
+            "GCPProject",
+            project_id,
+            update_tag,
+        ).run(neo4j_session)
+        GraphJob.from_matchlink(
+            GCPArtifactRegistryImageToHeadLayerMatchLink(),
+            "GCPProject",
+            project_id,
+            update_tag,
+        ).run(neo4j_session)
+        GraphJob.from_matchlink(
+            GCPArtifactRegistryImageToTailLayerMatchLink(),
+            "GCPProject",
+            project_id,
+            update_tag,
+        ).run(neo4j_session)
+        GraphJob.from_matchlink(
+            GCPArtifactRegistryImageLayerToNextMatchLink(),
             "GCPProject",
             project_id,
             update_tag,

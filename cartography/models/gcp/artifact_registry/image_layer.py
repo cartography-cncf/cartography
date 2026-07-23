@@ -68,6 +68,23 @@ class GCPArtifactRegistryProjectToImageLayerRel(CartographyRelSchema):
 
 
 @dataclass(frozen=True)
+class GCPArtifactRegistryImageLayerToNextMatchLink(CartographyRelSchema):
+    source_node_label: str = "GCPArtifactRegistryImageLayer"
+    source_node_matcher: SourceNodeMatcher = make_source_node_matcher(
+        {"diff_id": PropertyRef("diff_id")}
+    )
+    target_node_label: str = "GCPArtifactRegistryImageLayer"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"diff_id": PropertyRef("next_diff_id")}
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "NEXT"
+    properties: GCPArtifactRegistryImageLayerMatchLinkProperties = (
+        GCPArtifactRegistryImageLayerMatchLinkProperties()
+    )
+
+
+@dataclass(frozen=True)
 class GCPArtifactRegistryImageLayerSchema(CartographyNodeSchema):
     label: str = "GCPArtifactRegistryImageLayer"
     properties: GCPArtifactRegistryImageLayerNodeProperties = (
