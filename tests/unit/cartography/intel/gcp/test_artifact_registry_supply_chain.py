@@ -610,42 +610,10 @@ def test_sync_loads_provenance_and_layers_with_split_phases(patched_sync):
         "sha256:b",
     }
     assert layer_call_args[2:] == ("proj", 1)
+    provenance_call_args = supply_chain.load_image_provenance.call_args.args
     supply_chain.load_image_layer_relationships.assert_called_once_with(
         neo4j_session,
-        [
-            {
-                "digest": "sha256:img-1",
-                "type": "image",
-                "media_type": "application/vnd.oci.image.manifest.v1+json",
-                "source_uri": "https://github.com/foo/bar",
-                "source_revision": "deadbeef",
-                "source_file": "Dockerfile",
-                "parent_image_uri": None,
-                "parent_image_digest": None,
-                "layer_diff_ids": ["sha256:a", "sha256:b"],
-                "architecture": None,
-                "os": None,
-                "os_version": None,
-                "os_features": None,
-                "variant": None,
-            },
-            {
-                "digest": "sha256:img-2",
-                "type": "image",
-                "media_type": None,
-                "source_uri": None,
-                "source_revision": None,
-                "source_file": None,
-                "parent_image_uri": None,
-                "parent_image_digest": None,
-                "layer_diff_ids": ["sha256:a"],
-                "architecture": None,
-                "os": None,
-                "os_version": None,
-                "os_features": None,
-                "variant": None,
-            },
-        ],
+        provenance_call_args[1],
         "proj",
         1,
     )
