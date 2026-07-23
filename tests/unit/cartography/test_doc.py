@@ -3,7 +3,9 @@ from pathlib import Path
 
 import typer
 
-from cartography.cli import ALWAYS_SHOW_PANELS, CLI, MODULE_PANELS
+from cartography.cli import ALWAYS_SHOW_PANELS
+from cartography.cli import CLI
+from cartography.cli import MODULE_PANELS
 from cartography.sync import Sync
 
 
