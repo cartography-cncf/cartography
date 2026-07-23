@@ -72,6 +72,7 @@ PANEL_OPENAI = "OpenAI Options"
 PANEL_ANTHROPIC = "Anthropic Options"
 PANEL_AIRBYTE = "Airbyte Options"
 PANEL_DATABRICKS = "Databricks Options"
+PANEL_BBOT = "BBOT Options"
 PANEL_DOCKER_SCOUT = "Docker Scout Options"
 PANEL_TRIVY = "Trivy Options"
 PANEL_SYFT = "Syft Options"
@@ -130,6 +131,7 @@ MODULE_PANELS = {
     "anthropic": PANEL_ANTHROPIC,
     "airbyte": PANEL_AIRBYTE,
     "databricks": PANEL_DATABRICKS,
+    "bbot": PANEL_BBOT,
     "docker_scout": PANEL_DOCKER_SCOUT,
     "trivy": PANEL_TRIVY,
     "syft": PANEL_SYFT,
@@ -1641,6 +1643,18 @@ class CLI:
                 ),
             ] = None,
             # =================================================================
+            # BBOT Options
+            # =================================================================
+            bbot_source: Annotated[
+                str | None,
+                typer.Option(
+                    "--bbot-source",
+                    help="BBOT report source. Accepts a local file or directory, s3://bucket/prefix, gs://bucket/prefix, or azblob://account/container/prefix.",
+                    rich_help_panel=PANEL_BBOT,
+                    hidden=PANEL_BBOT not in visible_panels,
+                ),
+            ] = None,
+            # =================================================================
             # Docker Scout Options
             # =================================================================
             docker_scout_source: Annotated[
@@ -2790,6 +2804,13 @@ class CLI:
                     databricks_account_client_secret_env_var,
                 )
 
+            resolved_bbot_source = _resolve_report_source_option(
+                module="bbot",
+                source=bbot_source,
+                local_path=None,
+                s3_bucket=None,
+                s3_prefix=None,
+            )
             resolved_docker_scout_source = _resolve_report_source_option(
                 module="docker_scout",
                 source=docker_scout_source,
@@ -2819,6 +2840,8 @@ class CLI:
                 s3_prefix=aibom_s3_prefix,
             )
 
+            if resolved_bbot_source:
+                logger.debug("BBOT source: %s", resolved_bbot_source)
             if resolved_docker_scout_source:
                 logger.debug("Docker Scout source: %s", resolved_docker_scout_source)
             if resolved_trivy_source:
@@ -2827,7 +2850,6 @@ class CLI:
                 logger.debug("Syft source: %s", resolved_syft_source)
             if resolved_aibom_source:
                 logger.debug("AIBOM source: %s", resolved_aibom_source)
-
             # Read Scaleway secret key
             scaleway_secret_key = None
             if scaleway_secret_key_env_var:
@@ -3088,6 +3110,7 @@ class CLI:
                 databricks_account_host=databricks_account_host,
                 databricks_account_client_id=databricks_account_client_id,
                 databricks_account_client_secret=databricks_account_client_secret,
+                bbot_source=bbot_source,
                 # Forward the user-provided values (not resolved). Config calls
                 # resolve_report_source_with_legacy_fields() internally; the CLI's
                 # _resolve_report_source_option above runs the same logic for early

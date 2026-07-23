@@ -190,6 +190,24 @@ DNS_RECORD_TO_KUBERNETES_INGRESS = AnalysisJob(
         ),
     ),
 )
+BBOT_DNS_MATCHES_PROVIDER = AnalysisJob(
+    name="Ontology - BbotDNSName to provider DNSRecord linking",
+    short_name="ontology_bbot_dns_matches_provider",
+    statements=(
+        AnalysisStatement(
+            match="MATCH (bbot:BbotDNSName), (provider:DNSRecord) WHERE NOT provider:BbotDNSName AND bbot._ont_name IS NOT NULL AND toLower(bbot._ont_name) = toLower(provider._ont_name)",
+            effects=(
+                AddRelationship(
+                    "bbot",
+                    "MATCHES_DNS_RECORD",
+                    "provider",
+                    source_label="BbotDNSName",
+                    target_label="DNSRecord",
+                ),
+            ),
+        ),
+    ),
+)
 DNS_RECORD_TARGETS = (
     (
         "AWSLoadBalancerV2",
@@ -214,7 +232,10 @@ DNS_RECORD_TARGETS = (
     ("AzureAppService", "default_host_name", "AND NOT dns:GCPRecordSet", ""),
     ("AzureFunctionApp", "default_host_name", "AND NOT dns:GCPRecordSet", ""),
 )
-DNS_RECORD_LINKING_JOBS = (DNS_RECORD_TO_KUBERNETES_INGRESS,) + tuple(
+DNS_RECORD_LINKING_JOBS = (
+    DNS_RECORD_TO_KUBERNETES_INGRESS,
+    BBOT_DNS_MATCHES_PROVIDER,
+) + tuple(
     (
         AnalysisJob(
             name=f"Ontology - DNSRecord to {target_label} linking",
@@ -250,6 +271,25 @@ DNS_RECORD_LINKING_JOBS = (DNS_RECORD_TO_KUBERNETES_INGRESS,) + tuple(
         )
         for target_label, target_property, match_filter, cleanup_where in DNS_RECORD_TARGETS
     )
+)
+
+BBOT_IP_MATCHES_PUBLIC_IP = AnalysisJob(
+    name="Ontology - BbotIPAddress to PublicIP linking",
+    short_name="ontology_bbot_ip_matches_public_ip",
+    statements=(
+        AnalysisStatement(
+            match="MATCH (bbot:BbotIPAddress) WHERE bbot.is_global = true AND bbot.ip_address IS NOT NULL WITH bbot MATCH (public_ip:PublicIP {ip_address: bbot.ip_address})",
+            effects=(
+                AddRelationship(
+                    "bbot",
+                    "MATCHES_PUBLIC_IP",
+                    "public_ip",
+                    source_label="BbotIPAddress",
+                    target_label="PublicIP",
+                ),
+            ),
+        ),
+    ),
 )
 LOADBALANCER_EXPOSE_CONTAINER = AnalysisJob(
     name="Ontology - LoadBalancer to Container linking",
