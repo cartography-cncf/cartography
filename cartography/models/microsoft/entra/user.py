@@ -11,6 +11,7 @@ from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import TargetNodeMatcher
 from cartography.models.microsoft.extra_labels import ENTRA_IDENTITY
+from cartography.models.microsoft.extra_labels import ENTRA_PRINCIPAL
 from cartography.models.ontology.labels import USER_ACCOUNT
 
 # The user resource in Microsoft Graph exposes hundreds of properties but, in
@@ -88,5 +89,7 @@ class EntraUserSchema(CartographyNodeSchema):
         [
             ENTRA_IDENTITY,
             USER_ACCOUNT,
+            # Cross-provider IAM principal umbrella, mirroring AWSPrincipal / GCPPrincipal.
+            ENTRA_PRINCIPAL,
         ]  # UserAccount label is used for ontology mapping
     )

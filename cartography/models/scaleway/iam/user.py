@@ -10,6 +10,7 @@ from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import TargetNodeMatcher
 from cartography.models.ontology.labels import USER_ACCOUNT
+from cartography.models.scaleway.extra_labels import SCALEWAY_PRINCIPAL
 
 
 @dataclass(frozen=True)
@@ -56,8 +57,9 @@ class ScalewayUserToOrganizationRel(CartographyRelSchema):
 @dataclass(frozen=True)
 class ScalewayUserSchema(CartographyNodeSchema):
     label: str = "ScalewayUser"
+    # ScalewayPrincipal: cross-provider IAM principal umbrella, mirroring AWSPrincipal / GCPPrincipal.
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
-        [USER_ACCOUNT]
+        [USER_ACCOUNT, SCALEWAY_PRINCIPAL]
     )  # UserAccount label is used for ontology mapping
     properties: ScalewayUserNodeProperties = ScalewayUserNodeProperties()
     sub_resource_relationship: ScalewayUserToOrganizationRel = (

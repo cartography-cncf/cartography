@@ -10,6 +10,7 @@ from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import TargetNodeMatcher
 from cartography.models.ontology.labels import SERVICE_ACCOUNT
+from cartography.models.scaleway.extra_labels import SCALEWAY_PRINCIPAL
 
 
 @dataclass(frozen=True)
@@ -48,7 +49,10 @@ class ScalewayApplicationToOrganizationRel(CartographyRelSchema):
 @dataclass(frozen=True)
 class ScalewayApplicationSchema(CartographyNodeSchema):
     label: str = "ScalewayApplication"
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([SERVICE_ACCOUNT])
+    # ScalewayPrincipal: cross-provider IAM principal umbrella, mirroring AWSPrincipal / GCPPrincipal.
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
+        [SERVICE_ACCOUNT, SCALEWAY_PRINCIPAL]
+    )
     properties: ScalewayApplicationNodeProperties = ScalewayApplicationNodeProperties()
     sub_resource_relationship: ScalewayApplicationToOrganizationRel = (
         ScalewayApplicationToOrganizationRel()

@@ -6,6 +6,12 @@ ENTRA_IDENTITY = ExtraNodeLabel(
 )
 
 
+ENTRA_PRINCIPAL = ExtraNodeLabel(
+    label="EntraPrincipal",
+    description="A Microsoft identity participating in the shared EntraPrincipal graph interface.",
+)
+
+
 ENTRA_TENANT = ExtraNodeLabel(
     label="EntraTenant",
     description="A microsoft node participating in the shared EntraTenant graph interface.",
