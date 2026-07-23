@@ -403,6 +403,8 @@ semgrep_mapping = OntologyMapping(
                 OntologyFieldMapping(
                     ontology_field="base_severity",
                     node_field="severity",
+                    special_handling="mapping",
+                    extra={"map": _CVSS_SEVERITY},
                 ),
                 # SecurityIssue fields (preserved for advisory-only findings)
                 OntologyFieldMapping(
@@ -451,6 +453,8 @@ aws_inspector_mapping = OntologyMapping(
                 OntologyFieldMapping(
                     ontology_field="base_severity",
                     node_field="severity",
+                    special_handling="mapping",
+                    extra={"map": _CVSS_SEVERITY},
                 ),
             ],
         ),
