@@ -208,15 +208,6 @@ def _sync_one_account(
         common_job_parameters,
     )
 
-    if {"ecs", "ec2:load_balancer_v2", "ec2:load_balancer_v2:expose"}.issubset(
-        requested_syncs_set
-    ):
-        run_typed_analysis_job(
-            AWS_LB_CONTAINER_EXPOSURE,
-            neo4j_session,
-            common_job_parameters,
-        )
-
     if {"ec2:network_acls", "ec2:load_balancer_v2"}.issubset(requested_syncs_set):
         run_typed_analysis_job(
             AWS_LB_NACL_DIRECT,
@@ -674,6 +665,26 @@ def _sync_multiple_accounts(
     return False
 
 
+# Resource syncs whose freshly-loaded data the ECS internet-exposure analysis reads. The job is
+# skipped unless every one of them ran this cycle, so a partial sync cannot mark a container exposed
+# from a stale (e.g. since-tightened) security group or ENI still lingering in the graph.
+AWS_ECS_ASSET_EXPOSURE_DEPS = {
+    "ecs",
+    "ec2:load_balancer_v2",
+    "ec2:load_balancer_v2:expose",
+    "ec2:security_group",
+    "ec2:network_interface",
+}
+# The LB->container edge traverses the ENI / private-IP chain (but not security groups directly), so
+# it additionally requires ec2:network_interface on top of the ECS + load-balancer syncs.
+AWS_LB_CONTAINER_EXPOSURE_DEPS = {
+    "ecs",
+    "ec2:load_balancer_v2",
+    "ec2:load_balancer_v2:expose",
+    "ec2:network_interface",
+}
+
+
 @timeit
 def _perform_aws_analysis(
     requested_syncs: List[str],
@@ -732,9 +743,22 @@ def _perform_aws_analysis(
         neo4j_session,
     )
 
+    # Both the ECS container internet-exposure property and the LB->container EXPOSE edge gate on
+    # lb.exposed_internet, so they run here (after AWS_EC2_ASSET_EXPOSURE_JOBS) rather than in the
+    # per-account phase. Their dependency sets include ec2:security_group and ec2:network_interface
+    # because both jobs read security-group inbound rules and/or the ENI chain; without those syncs
+    # this cycle the graph may hold a stale permissive SG or ENI and produce a false exposure.
     run_typed_analysis_and_ensure_deps(
         AWS_ECS_ASSET_EXPOSURE,
-        {"ecs", "ec2:load_balancer_v2", "ec2:load_balancer_v2:expose"},
+        AWS_ECS_ASSET_EXPOSURE_DEPS,
+        requested_syncs_as_set,
+        common_job_parameters,
+        neo4j_session,
+    )
+
+    run_typed_analysis_and_ensure_deps(
+        AWS_LB_CONTAINER_EXPOSURE,
+        AWS_LB_CONTAINER_EXPOSURE_DEPS,
         requested_syncs_as_set,
         common_job_parameters,
         neo4j_session,

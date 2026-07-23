@@ -4,7 +4,6 @@ import neo4j
 
 import cartography.intel.ontology.devices
 import cartography.intel.ontology.dnsrecords
-import cartography.intel.ontology.loadbalancers
 import cartography.intel.ontology.packages
 import cartography.intel.ontology.publicips
 import cartography.intel.ontology.users
@@ -60,11 +59,6 @@ def run(neo4j_session: neo4j.Session, config: Config) -> None:
         common_job_parameters,
     )
     cartography.intel.ontology.dnsrecords.sync(
-        neo4j_session,
-        config.update_tag,
-        common_job_parameters,
-    )
-    cartography.intel.ontology.loadbalancers.sync(
         neo4j_session,
         config.update_tag,
         common_job_parameters,
