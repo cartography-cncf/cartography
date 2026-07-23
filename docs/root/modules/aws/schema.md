@@ -5530,7 +5530,7 @@ Representation of an AWS ECS [Container](https://docs.aws.amazon.com/AmazonECS/l
 | memory\_reservation | The soft limit (in MiB) of memory set for the container. |
 | gpu\_ids | The IDs of each GPU assigned to the container. |
 | exposed\_internet | Set to `True` if this container is reachable from the internet. Set by the `aws_ecs_asset_exposure` analysis job in [cartography/analysis/aws/analysis.py](https://github.com/cartography-cncf/cartography/blob/master/cartography/analysis/aws/analysis.py). |
-| exposed\_internet\_type | List of the ways this container is reachable from the internet: `elbv2` (behind an internet-facing load balancer) and/or `direct` (the Fargate task's network interface has a public IP and a security group allowing inbound from `0.0.0.0/0`). Set by the `aws_ecs_asset_exposure` analysis job. |
+| exposed\_internet\_type | List of the ways this container is reachable from the internet: `elbv2` (behind an internet-facing load balancer) and/or `direct` (the ECS task's network interface has a public IP and a security group allowing inbound from `0.0.0.0/0`). Set by the `aws_ecs_asset_exposure` analysis job. |
 
 #### Relationships
 

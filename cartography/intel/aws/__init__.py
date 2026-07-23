@@ -665,21 +665,26 @@ def _sync_multiple_accounts(
     return False
 
 
-# Resource syncs whose freshly-loaded data the ECS internet-exposure analysis reads. The job is
-# skipped unless every one of them ran this cycle, so a partial sync cannot mark a container exposed
-# from a stale (e.g. since-tightened) security group or ENI still lingering in the graph.
-AWS_ECS_ASSET_EXPOSURE_DEPS = {
-    "ecs",
-    "ec2:load_balancer_v2",
-    "ec2:load_balancer_v2:expose",
+# Resource syncs that feed the `exposed_internet` flag: AWS_EC2_ASSET_EXPOSURE_JOBS (which sets it on
+# load balancers, instances, etc.) only runs when all of these were requested this cycle.
+AWS_EC2_ASSET_EXPOSURE_DEPS = {
+    "ec2:instance",
     "ec2:security_group",
+    "ec2:load_balancer",
+    "ec2:load_balancer_v2",
+}
+# Both the ECS internet-exposure property and the LB->container edge gate on lb.exposed_internet, so
+# they must require the full producer dependency set above: otherwise a partial sync that skips the
+# producer would leave a stale exposed_internet flag and let these consumers label/link containers
+# from it. On top of that they read the ECS graph, the LB EXPOSE edges, and the ENI chain directly
+# (the ECS "direct" statement also reads security-group inbound rules), so add those syncs too.
+AWS_ECS_ASSET_EXPOSURE_DEPS = AWS_EC2_ASSET_EXPOSURE_DEPS | {
+    "ecs",
+    "ec2:load_balancer_v2:expose",
     "ec2:network_interface",
 }
-# The LB->container edge traverses the ENI / private-IP chain (but not security groups directly), so
-# it additionally requires ec2:network_interface on top of the ECS + load-balancer syncs.
-AWS_LB_CONTAINER_EXPOSURE_DEPS = {
+AWS_LB_CONTAINER_EXPOSURE_DEPS = AWS_EC2_ASSET_EXPOSURE_DEPS | {
     "ecs",
-    "ec2:load_balancer_v2",
     "ec2:load_balancer_v2:expose",
     "ec2:network_interface",
 }
@@ -707,12 +712,7 @@ def _perform_aws_analysis(
     for job in AWS_EC2_ASSET_EXPOSURE_JOBS:
         run_typed_analysis_and_ensure_deps(
             job,
-            {
-                "ec2:instance",
-                "ec2:security_group",
-                "ec2:load_balancer",
-                "ec2:load_balancer_v2",
-            },
+            AWS_EC2_ASSET_EXPOSURE_DEPS,
             requested_syncs_as_set,
             common_job_parameters,
             neo4j_session,
@@ -745,9 +745,9 @@ def _perform_aws_analysis(
 
     # Both the ECS container internet-exposure property and the LB->container EXPOSE edge gate on
     # lb.exposed_internet, so they run here (after AWS_EC2_ASSET_EXPOSURE_JOBS) rather than in the
-    # per-account phase. Their dependency sets include ec2:security_group and ec2:network_interface
-    # because both jobs read security-group inbound rules and/or the ENI chain; without those syncs
-    # this cycle the graph may hold a stale permissive SG or ENI and produce a false exposure.
+    # per-account phase. Their dependency sets (see above) require the exposed_internet producer's
+    # syncs plus the ECS / ENI / SG data they read, so a partial sync skips them instead of labelling
+    # containers from a stale exposed_internet flag, security group, or ENI.
     run_typed_analysis_and_ensure_deps(
         AWS_ECS_ASSET_EXPOSURE,
         AWS_ECS_ASSET_EXPOSURE_DEPS,

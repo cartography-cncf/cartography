@@ -1125,8 +1125,8 @@ def _get_container_exposure(neo4j_session, container_id):
 
 def test_ecs_direct_internet_exposure(neo4j_session):
     """
-    aws_ecs_asset_exposure marks a Fargate container as directly internet-exposed when its ENI has a
-    public IP and a security group that allows inbound from 0.0.0.0/0.
+    aws_ecs_asset_exposure marks an ECS container as directly internet-exposed when its task's ENI
+    has a public IP and a security group that allows inbound from 0.0.0.0/0.
     """
     container_id = _build_ecs_direct_exposure_chain(neo4j_session, "direct")
 

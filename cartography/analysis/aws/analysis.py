@@ -305,8 +305,9 @@ AWS_ECS_ASSET_EXPOSURE = AnalysisJob(
                 ),
             ),
         ),
-        # Directly exposed: the Fargate task's ENI has a public IP and a security group that
-        # allows inbound from 0.0.0.0/0. Mirrors the AWSEC2Instance "direct" exposure statement.
+        # Directly exposed: the ECS task's ENI (any awsvpc-networked task, Fargate or EC2 launch
+        # type) has a public IP and a security group that allows inbound from 0.0.0.0/0. Mirrors the
+        # AWSEC2Instance "direct" exposure statement.
         AnalysisStatement(
             match="""
             MATCH (:AWSIpRange {id: '0.0.0.0/0'})-[:MEMBER_OF_IP_RULE]->(:AWSIpPermissionInbound)-[:MEMBER_OF_EC2_SECURITY_GROUP]->(:AWSEC2SecurityGroup)<-[:MEMBER_OF_EC2_SECURITY_GROUP]-(ni:AWSNetworkInterface)<-[:NETWORK_INTERFACE]-(task:AWSECSTask)-[:HAS_CONTAINER]->(container:AWSECSContainer)
