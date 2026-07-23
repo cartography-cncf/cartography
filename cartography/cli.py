@@ -81,6 +81,7 @@ PANEL_ONTOLOGY = "Ontology Options"
 PANEL_SCALEWAY = "Scaleway Options"
 PANEL_SENTINELONE = "SentinelOne Options"
 PANEL_TENABLE = "Tenable Options"
+PANEL_WIZ = "Wiz Options"
 PANEL_KEYCLOAK = "Keycloak Options"
 PANEL_SALESFORCE = "Salesforce Options"
 PANEL_SLACK = "Slack Options"
@@ -140,6 +141,7 @@ MODULE_PANELS = {
     "sentry": PANEL_SENTRY,
     "sentinelone": PANEL_SENTINELONE,
     "tenable": PANEL_TENABLE,
+    "wiz": PANEL_WIZ,
     "keycloak": PANEL_KEYCLOAK,
     "salesforce": PANEL_SALESFORCE,
     "slack": PANEL_SLACK,
@@ -1976,6 +1978,76 @@ class CLI:
                 ),
             ] = 180,
             # =================================================================
+            # Wiz Options
+            # =================================================================
+            wiz_graphql_url: Annotated[
+                str | None,
+                typer.Option(
+                    "--wiz-graphql-url",
+                    help="Wiz GraphQL API endpoint, e.g. https://api.us17.app.wiz.io/graphql.",
+                    rich_help_panel=PANEL_WIZ,
+                    hidden=PANEL_WIZ not in visible_panels,
+                ),
+            ] = None,
+            wiz_auth_url: Annotated[
+                str,
+                typer.Option(
+                    "--wiz-auth-url",
+                    help="Wiz OAuth token endpoint.",
+                    rich_help_panel=PANEL_WIZ,
+                    hidden=PANEL_WIZ not in visible_panels,
+                ),
+            ] = "https://auth.app.wiz.io/oauth/token",
+            wiz_client_id_env_var: Annotated[
+                str,
+                typer.Option(
+                    "--wiz-client-id-env-var",
+                    help="Environment variable name containing the Wiz API client ID.",
+                    rich_help_panel=PANEL_WIZ,
+                    hidden=PANEL_WIZ not in visible_panels,
+                ),
+            ] = "WIZ_CLIENT_ID",
+            wiz_client_secret_env_var: Annotated[
+                str,
+                typer.Option(
+                    "--wiz-client-secret-env-var",
+                    help="Environment variable name containing the Wiz API client secret.",
+                    rich_help_panel=PANEL_WIZ,
+                    hidden=PANEL_WIZ not in visible_panels,
+                ),
+            ] = "WIZ_CLIENT_SECRET",
+            wiz_tenant_id: Annotated[
+                str | None,
+                typer.Option(
+                    "--wiz-tenant-id",
+                    help=(
+                        "Identifier used to scope all Wiz nodes in the graph "
+                        "(the WizTenant node id). Defaults to the hostname of --wiz-graphql-url."
+                    ),
+                    rich_help_panel=PANEL_WIZ,
+                    hidden=PANEL_WIZ not in visible_panels,
+                ),
+            ] = None,
+            wiz_project_ids: Annotated[
+                str | None,
+                typer.Option(
+                    "--wiz-project-ids",
+                    help="Comma-separated list of Wiz project IDs to import when project metadata is present.",
+                    rich_help_panel=PANEL_WIZ,
+                    hidden=PANEL_WIZ not in visible_panels,
+                ),
+            ] = None,
+            wiz_lookback_days: Annotated[
+                int,
+                typer.Option(
+                    "--wiz-lookback-days",
+                    help="Number of days of Wiz resource and finding updates to retrieve on each run. Defaults to 180.",
+                    min=1,
+                    rich_help_panel=PANEL_WIZ,
+                    hidden=PANEL_WIZ not in visible_panels,
+                ),
+            ] = 180,
+            # =================================================================
             # Keycloak Options
             # =================================================================
             keycloak_client_id: Annotated[
@@ -2883,6 +2955,34 @@ class CLI:
                 )
                 tenable_secret_key = os.environ.get(tenable_secret_key_env_var)
 
+            # Read Wiz API credentials
+            wiz_client_id = None
+            if wiz_client_id_env_var:
+                logger.debug(
+                    "Reading Wiz client ID from environment variable %s",
+                    wiz_client_id_env_var,
+                )
+                wiz_client_id = os.environ.get(wiz_client_id_env_var)
+            wiz_client_secret = None
+            if wiz_client_secret_env_var:
+                logger.debug(
+                    "Reading Wiz client secret from environment variable %s",
+                    wiz_client_secret_env_var,
+                )
+                wiz_client_secret = os.environ.get(wiz_client_secret_env_var)
+
+            wiz_project_ids_list = None
+            if wiz_project_ids:
+                wiz_project_ids_list = [
+                    project_id.strip()
+                    for project_id in wiz_project_ids.split(",")
+                    if project_id.strip()
+                ]
+                logger.debug(
+                    "Parsed %d Wiz project IDs to sync",
+                    len(wiz_project_ids_list),
+                )
+
             # Read Keycloak client secret
             keycloak_client_secret = None
             if keycloak_client_secret_env_var:
@@ -3123,6 +3223,13 @@ class CLI:
                 tenable_access_key=tenable_access_key,
                 tenable_secret_key=tenable_secret_key,
                 tenable_findings_lookback_days=tenable_findings_lookback_days,
+                wiz_graphql_url=wiz_graphql_url,
+                wiz_auth_url=wiz_auth_url,
+                wiz_client_id=wiz_client_id,
+                wiz_client_secret=wiz_client_secret,
+                wiz_tenant_id=wiz_tenant_id,
+                wiz_project_ids=wiz_project_ids_list,
+                wiz_lookback_days=wiz_lookback_days,
                 spacelift_api_endpoint=spacelift_api_endpoint_resolved,
                 spacelift_api_token=spacelift_api_token,
                 spacelift_api_key_id=spacelift_api_key_id,
