@@ -23,6 +23,13 @@ _CVSS_SEVERITY = {
     "CRITICAL": "critical",
 }
 
+# AWS Inspector severity: CVSS bands plus INFORMATIONAL. UNTRIAGED is left
+# unmapped so unscored findings keep a null base_severity instead of a fake band.
+_INSPECTOR_SEVERITY = {
+    **_CVSS_SEVERITY,
+    "INFORMATIONAL": "info",
+}
+
 # GitHub GraphQL severity (uppercase API + lowercase fixture variants)
 _GITHUB_SEVERITY = {
     "LOW": "low",
@@ -454,7 +461,7 @@ aws_inspector_mapping = OntologyMapping(
                     ontology_field="base_severity",
                     node_field="severity",
                     special_handling="mapping",
-                    extra={"map": _CVSS_SEVERITY},
+                    extra={"map": _INSPECTOR_SEVERITY},
                 ),
             ],
         ),

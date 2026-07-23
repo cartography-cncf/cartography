@@ -355,19 +355,21 @@ def test_aws_account_status_ontology_map_covers_all_states():
 
 def test_uppercase_provider_cve_severities_are_canonicalized():
     # Arrange
-    provider_nodes = {
-        "aws": "AWSInspectorFinding",
-        "semgrep": "SemgrepSCAFinding",
-    }
-    expected_map = {
+    cvss_map = {
         "NONE": "info",
         "LOW": "low",
         "MEDIUM": "medium",
         "HIGH": "high",
         "CRITICAL": "critical",
     }
+    # AWS Inspector additionally emits INFORMATIONAL (and UNTRIAGED, which is left
+    # unmapped on purpose); Semgrep SCA only emits the CVSS bands.
+    provider_expectations = {
+        "aws": ("AWSInspectorFinding", {**cvss_map, "INFORMATIONAL": "info"}),
+        "semgrep": ("SemgrepSCAFinding", cvss_map),
+    }
 
-    for provider, node_label in provider_nodes.items():
+    for provider, (node_label, expected_map) in provider_expectations.items():
         mapping = CVES_ONTOLOGY_MAPPING[provider]
         node = next(node for node in mapping.nodes if node.node_label == node_label)
         severity = next(
