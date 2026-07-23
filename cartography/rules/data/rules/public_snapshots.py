@@ -37,6 +37,7 @@ _aws_ebs_snapshot_public = Fact(
     MATCH (s:AWSEBSSnapshot)
     RETURN COUNT(s) AS count
     """,
+    asset_label="AWSEBSSnapshot",
     asset_id_field="id",
     identity_fields=("id",),
     module=Module.AWS,
@@ -75,6 +76,7 @@ _aws_rds_snapshot_public = Fact(
     MATCH (s:AWSRDSSnapshot)
     RETURN COUNT(s) AS count
     """,
+    asset_label="AWSRDSSnapshot",
     asset_id_field="arn",
     identity_fields=("arn",),
     module=Module.AWS,
@@ -121,6 +123,7 @@ _aws_ami_public = Fact(
     WHERE i.owner = a.id
     RETURN COUNT(i) AS count
     """,
+    asset_label="AWSEC2Image",
     asset_id_field="id",
     identity_fields=("id",),
     module=Module.AWS,

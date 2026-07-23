@@ -85,7 +85,10 @@ class ScalewayGroupToOrganizationRel(CartographyRelSchema):
 class ScalewayGroupSchema(CartographyNodeSchema):
     label: str = "ScalewayGroup"
     properties: ScalewayGroupProperties = ScalewayGroupProperties()
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["UserGroup"])
+    # ScalewayPrincipal: cross-provider IAM principal umbrella, mirroring AWSPrincipal / GCPPrincipal.
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
+        ["UserGroup", "ScalewayPrincipal"]
+    )
     sub_resource_relationship: ScalewayGroupToOrganizationRel = (
         ScalewayGroupToOrganizationRel()
     )

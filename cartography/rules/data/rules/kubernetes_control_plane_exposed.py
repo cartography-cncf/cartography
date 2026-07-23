@@ -40,6 +40,7 @@ _aws_eks_control_plane_exposed = Fact(
     MATCH (c:AWSEKSCluster)
     RETURN COUNT(c) AS count
     """,
+    asset_label="AWSEKSCluster",
     asset_id_field="id",
     identity_fields=("id",),
     module=Module.AWS,
@@ -79,6 +80,7 @@ _gcp_gke_control_plane_exposed = Fact(
     MATCH (c:GKECluster)
     RETURN COUNT(c) AS count
     """,
+    asset_label="GKECluster",
     asset_id_field="id",
     identity_fields=("id",),
     module=Module.GCP,
@@ -119,6 +121,7 @@ _azure_aks_control_plane_exposed = Fact(
     MATCH (c:AzureKubernetesCluster)
     RETURN COUNT(c) AS count
     """,
+    asset_label="AzureKubernetesCluster",
     asset_id_field="id",
     identity_fields=("id",),
     module=Module.AZURE,
