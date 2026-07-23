@@ -1133,7 +1133,9 @@ def test_sync_one_account_all_sync_functions(
     # Check that the boilerplate functions get called as expected. Brittle, but a good sanity check.
     assert mock_autodiscover.call_count == 0
     assert mock_cleanup.call_count == 0
-    assert mock_analysis.call_count == 4
+    # Per-account typed analysis jobs: AWS_EC2_IAM_INSTANCE_PROFILE, AWS_LAMBDA_ECR, AWS_LB_NACL_DIRECT.
+    # (AWS_LB_CONTAINER_EXPOSURE runs in the cross-account _perform_aws_analysis phase instead.)
+    assert mock_analysis.call_count == 3
 
 
 @mock.patch("cartography.intel.aws.aioboto3.Session")

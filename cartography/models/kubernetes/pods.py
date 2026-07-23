@@ -73,18 +73,110 @@ class KubernetesPodToKubernetesNamespaceWorkloadParentRelProperties(
 
 @dataclass(frozen=True)
 # (:KubernetesPod)-[:WORKLOAD_PARENT]->(:KubernetesNamespace)
+# Fallback parent for bare pods (no owning workload controller). The matcher is
+# gated on `_workload_parent_namespace_name`, which the loader sets only when the
+# pod has no surfaced controller, so controlled pods point at their controller
+# (Deployment / StatefulSet / DaemonSet / Job) instead of the namespace.
 class KubernetesPodToKubernetesNamespaceWorkloadParentRel(CartographyRelSchema):
     target_node_label: str = "KubernetesNamespace"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {
             "cluster_name": PropertyRef("CLUSTER_NAME", set_in_kwargs=True),
-            "name": PropertyRef("namespace"),
+            "name": PropertyRef("_workload_parent_namespace_name"),
         }
     )
     direction: LinkDirection = LinkDirection.OUTWARD
     rel_label: str = "WORKLOAD_PARENT"
     properties: KubernetesPodToKubernetesNamespaceWorkloadParentRelProperties = (
         KubernetesPodToKubernetesNamespaceWorkloadParentRelProperties()
+    )
+
+
+@dataclass(frozen=True)
+class KubernetesPodToWorkloadControllerRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+# (:KubernetesPod)-[:WORKLOAD_PARENT]->(:KubernetesDeployment)
+# The Deployment is resolved through the owning ReplicaSet at ingest, so the
+# ReplicaSet is collapsed out of the chain. Gated on `_workload_parent_deployment_id`.
+class KubernetesPodToDeploymentWorkloadParentRel(CartographyRelSchema):
+    target_node_label: str = "KubernetesDeployment"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"id": PropertyRef("_workload_parent_deployment_id")}
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "WORKLOAD_PARENT"
+    properties: KubernetesPodToWorkloadControllerRelProperties = (
+        KubernetesPodToWorkloadControllerRelProperties()
+    )
+
+
+@dataclass(frozen=True)
+# (:KubernetesPod)-[:WORKLOAD_PARENT]->(:KubernetesStatefulSet)
+# Gated on `_workload_parent_statefulset_id`.
+class KubernetesPodToStatefulSetWorkloadParentRel(CartographyRelSchema):
+    target_node_label: str = "KubernetesStatefulSet"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"id": PropertyRef("_workload_parent_statefulset_id")}
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "WORKLOAD_PARENT"
+    properties: KubernetesPodToWorkloadControllerRelProperties = (
+        KubernetesPodToWorkloadControllerRelProperties()
+    )
+
+
+@dataclass(frozen=True)
+# (:KubernetesPod)-[:WORKLOAD_PARENT]->(:KubernetesDaemonSet)
+# Gated on `_workload_parent_daemonset_id`.
+class KubernetesPodToDaemonSetWorkloadParentRel(CartographyRelSchema):
+    target_node_label: str = "KubernetesDaemonSet"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"id": PropertyRef("_workload_parent_daemonset_id")}
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "WORKLOAD_PARENT"
+    properties: KubernetesPodToWorkloadControllerRelProperties = (
+        KubernetesPodToWorkloadControllerRelProperties()
+    )
+
+
+@dataclass(frozen=True)
+# (:KubernetesPod)-[:WORKLOAD_PARENT]->(:KubernetesJob)
+# Gated on `_workload_parent_job_id`.
+class KubernetesPodToJobWorkloadParentRel(CartographyRelSchema):
+    target_node_label: str = "KubernetesJob"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"id": PropertyRef("_workload_parent_job_id")}
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "WORKLOAD_PARENT"
+    properties: KubernetesPodToWorkloadControllerRelProperties = (
+        KubernetesPodToWorkloadControllerRelProperties()
+    )
+
+
+@dataclass(frozen=True)
+class KubernetesPodToReplicaSetOwnedByRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+# (:KubernetesPod)-[:OWNED_BY]->(:KubernetesReplicaSet)
+# Raw Kubernetes ownerReference. The ReplicaSet stays off the WORKLOAD_PARENT
+# chain (see the Deployment edge above), so this edge preserves the literal
+# ownership hierarchy. Gated on `_owner_replicaset_id`.
+class KubernetesPodToReplicaSetOwnedByRel(CartographyRelSchema):
+    target_node_label: str = "KubernetesReplicaSet"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"id": PropertyRef("_owner_replicaset_id")}
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "OWNED_BY"
+    properties: KubernetesPodToReplicaSetOwnedByRelProperties = (
+        KubernetesPodToReplicaSetOwnedByRelProperties()
     )
 
 
@@ -302,6 +394,11 @@ class KubernetesPodSchema(CartographyNodeSchema):
         [
             KubernetesPodToKubernetesNamespaceRel(),
             KubernetesPodToKubernetesNamespaceWorkloadParentRel(),
+            KubernetesPodToDeploymentWorkloadParentRel(),
+            KubernetesPodToStatefulSetWorkloadParentRel(),
+            KubernetesPodToDaemonSetWorkloadParentRel(),
+            KubernetesPodToJobWorkloadParentRel(),
+            KubernetesPodToReplicaSetOwnedByRel(),
             KubernetesPodToKubernetesNodeRel(),
             KubernetesPodToServiceAccountRel(),
             KubernetesPodToServiceAccountRunsAsRel(),

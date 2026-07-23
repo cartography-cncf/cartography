@@ -86,5 +86,7 @@ class EntraUserSchema(CartographyNodeSchema):
         [
             "EntraIdentity",
             "UserAccount",
+            # Cross-provider IAM principal umbrella, mirroring AWSPrincipal / GCPPrincipal.
+            "EntraPrincipal",
         ]  # UserAccount label is used for ontology mapping
     )

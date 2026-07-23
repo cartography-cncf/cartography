@@ -114,5 +114,7 @@ class EntraGroupSchema(CartographyNodeSchema):
         [
             "EntraIdentity",
             "UserGroup",
+            # Cross-provider IAM principal umbrella, mirroring AWSPrincipal / GCPPrincipal.
+            "EntraPrincipal",
         ]
     )

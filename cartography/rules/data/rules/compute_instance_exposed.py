@@ -83,6 +83,7 @@ _gcp_instance_internet_exposed = Fact(
     WHERE coalesce(instance.status, '') <> 'TERMINATED'
     RETURN COUNT(instance) AS count
     """,
+    asset_label="GCPInstance",
     asset_id_field="instance_id",
     identity_fields=("instance_id", "port", "security_group"),
     module=Module.GCP,
@@ -194,6 +195,7 @@ _azure_vm_internet_exposed = Fact(
     MATCH (vm:AzureVirtualMachine)
     RETURN COUNT(vm) AS count
     """,
+    asset_label="AzureVirtualMachine",
     asset_id_field="instance_id",
     identity_fields=("instance_id", "port", "security_group_id"),
     module=Module.AZURE,
@@ -252,6 +254,7 @@ _aws_ec2_instance_internet_exposed = Fact(
     WHERE NOT coalesce(ec2.state, 'running') IN ['terminated', 'shutting-down']
     RETURN COUNT(ec2) AS count
     """,
+    asset_label="AWSEC2Instance",
     asset_id_field="instance_id",
     identity_fields=("instance_id", "port", "security_group"),
     module=Module.AWS,
@@ -320,6 +323,7 @@ _scaleway_instance_internet_exposed = Fact(
     WHERE NOT coalesce(instance.state, 'running') IN ['stopped', 'stopped_in_place']
     RETURN COUNT(instance) AS count
     """,
+    asset_label="ScalewayInstance",
     asset_id_field="instance_id",
     identity_fields=("instance_id", "port", "security_group"),
     module=Module.SCALEWAY,
@@ -372,6 +376,7 @@ _scaleway_instance_pat_exposed = Fact(
     WHERE NOT coalesce(instance.state, 'running') IN ['stopped', 'stopped_in_place']
     RETURN COUNT(instance) AS count
     """,
+    asset_label="ScalewayInstance",
     asset_id_field="instance_id",
     identity_fields=("instance_id", "port", "security_group"),
     module=Module.SCALEWAY,

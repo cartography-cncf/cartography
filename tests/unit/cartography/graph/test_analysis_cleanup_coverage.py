@@ -302,12 +302,6 @@ CLEANUP_CASES = [
         id="ontology_entra_application_projection",
     ),
     pytest.param(
-        RelationshipEffect("LoadBalancer", "EXPOSE", "Container"),
-        None,
-        _rel_cleanup("LoadBalancer", "EXPOSE", "Container"),
-        id="ontology_loadbalancers_linking",
-    ),
-    pytest.param(
         RelationshipEffect("Package", "DEPLOYED", "Image"),
         None,
         _rel_cleanup("Package", "DEPLOYED", "Image"),
@@ -381,8 +375,8 @@ CLEANUP_CASES = [
     ),
     pytest.param(
         RelationshipEffect("AWSLoadBalancerV2", "EXPOSE", "AWSECSContainer"),
-        AWS,
-        _rel_cleanup("AWSLoadBalancerV2", "EXPOSE", "AWSECSContainer", scope=AWS),
+        None,
+        _rel_cleanup("AWSLoadBalancerV2", "EXPOSE", "AWSECSContainer"),
         id="aws_lb_container_exposure",
     ),
     pytest.param(

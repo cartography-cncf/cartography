@@ -7,6 +7,8 @@ from cartography.models.ontology.mapping import get_deprecated_ontology_index_pr
 from cartography.models.ontology.mapping import ONTOLOGY_MODELS
 from cartography.models.ontology.mapping import ONTOLOGY_NODES_MAPPING
 from cartography.models.ontology.mapping import SEMANTIC_LABELS_MAPPING
+from cartography.models.ontology.mapping.data.cves import CVES_ONTOLOGY_MAPPING
+from cartography.models.ontology.mapping.data.tenants import TENANTS_ONTOLOGY_MAPPING
 from cartography.sync import TOP_LEVEL_MODULES
 from tests.utils import load_models
 
@@ -329,3 +331,51 @@ def test_ontology_mapping_equal_boolean_fields():
                         f"'values' in mapping field '{mapping_field.node_field}' "
                         f"in node '{node.node_label}' of module '{module_name}' should be a list."
                     )
+
+
+def test_aws_account_status_ontology_map_covers_all_states():
+    """
+    AWSAccount._ont_status must normalize every AWS Organizations account state.
+    Unmapped values become NULL (CASE without ELSE), so a closed or pending
+    account would silently lose its ontology status if omitted.
+    """
+    aws = TENANTS_ONTOLOGY_MAPPING["aws"]
+    account = next(n for n in aws.nodes if n.node_label == "AWSAccount")
+    status = next(f for f in account.fields if f.ontology_field == "status")
+
+    assert status.special_handling == "mapping"
+    assert status.extra["map"] == {
+        "ACTIVE": "active",
+        "PENDING_ACTIVATION": "unknown",
+        "SUSPENDED": "suspended",
+        "PENDING_CLOSURE": "pending_deletion",
+        "CLOSED": "closed",
+    }
+
+
+def test_uppercase_provider_cve_severities_are_canonicalized():
+    # Arrange
+    cvss_map = {
+        "NONE": "info",
+        "LOW": "low",
+        "MEDIUM": "medium",
+        "HIGH": "high",
+        "CRITICAL": "critical",
+    }
+    # AWS Inspector additionally emits INFORMATIONAL (and UNTRIAGED, which is left
+    # unmapped on purpose); Semgrep SCA only emits the CVSS bands.
+    provider_expectations = {
+        "aws": ("AWSInspectorFinding", {**cvss_map, "INFORMATIONAL": "info"}),
+        "semgrep": ("SemgrepSCAFinding", cvss_map),
+    }
+
+    for provider, (node_label, expected_map) in provider_expectations.items():
+        mapping = CVES_ONTOLOGY_MAPPING[provider]
+        node = next(node for node in mapping.nodes if node.node_label == node_label)
+        severity = next(
+            field for field in node.fields if field.ontology_field == "base_severity"
+        )
+
+        # Act and assert
+        assert severity.special_handling == "mapping"
+        assert severity.extra["map"] == expected_map

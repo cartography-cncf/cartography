@@ -18,6 +18,7 @@ from cartography.intel.kubernetes.rbac import sync_kubernetes_rbac
 from cartography.intel.kubernetes.secrets import sync_secrets
 from cartography.intel.kubernetes.services import sync_services
 from cartography.intel.kubernetes.util import get_k8s_clients
+from cartography.intel.kubernetes.workloads import sync_workloads
 from cartography.util import run_typed_analysis_job
 from cartography.util import timeit
 
@@ -68,6 +69,11 @@ def start_k8s_ingestion(session: Session, config: Config) -> None:
             sync_kubernetes_rbac(
                 session, client, config.update_tag, common_job_parameters
             )
+            # Sync workload controllers before pods so the pod sync can collapse
+            # Pod -> ReplicaSet -> Deployment using the returned RS->Deployment map.
+            replicaset_owner_map = sync_workloads(
+                session, client, config.update_tag, common_job_parameters
+            )
 
             # Extract region from cluster ARN (works for EKS; None for non-EKS clusters)
             region: str | None = None
@@ -96,6 +102,7 @@ def start_k8s_ingestion(session: Session, config: Config) -> None:
                 common_job_parameters,
                 region=region,
                 node_arch_map=node_arch_map,
+                replicaset_owner_map=replicaset_owner_map,
             )
             sync_secrets(session, client, config.update_tag, common_job_parameters)
             sync_services(

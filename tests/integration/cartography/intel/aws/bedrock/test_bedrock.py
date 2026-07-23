@@ -128,9 +128,9 @@ class TestBedrockAIModelSemanticLabel:
             "AIModel",
             ["_ont_name", "_ont_provider", "_ont_status", "_ont_type", "_ont_source"],
         ) == {
-            ("Claude 3.5 Sonnet", "Anthropic", "ACTIVE", "foundation", "aws"),
-            ("Titan Embeddings G1 - Text", "Amazon", "ACTIVE", "foundation", "aws"),
-            ("Llama 3 70B Instruct", "Meta", "ACTIVE", "foundation", "aws"),
+            ("Claude 3.5 Sonnet", "Anthropic", "active", "foundation", "aws"),
+            ("Titan Embeddings G1 - Text", "Amazon", "active", "foundation", "aws"),
+            ("Llama 3 70B Instruct", "Meta", "active", "foundation", "aws"),
         }
 
     @patch.object(
@@ -184,7 +184,7 @@ class TestBedrockAIModelSemanticLabel:
             {
                 "name": "test-custom-model",
                 "provider": "aws",
-                "status": "Active",
+                "status": "active",
                 "type": "fine-tuned",
                 "source": "aws",
             }

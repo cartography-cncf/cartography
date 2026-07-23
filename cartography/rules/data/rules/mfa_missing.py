@@ -54,6 +54,7 @@ _missing_mfa_ontology = Fact(
       AND NOT COALESCE(a._ont_inactive, false)
     RETURN COUNT(a) AS count
     """,
+    asset_label="UserAccount",
     asset_id_field="id",
     identity_fields=("source", "id"),
     maturity=Maturity.EXPERIMENTAL,
@@ -99,6 +100,7 @@ _missing_mfa_aws = Fact(
     MATCH (user:AWSUser)
     RETURN COUNT(user) AS count
     """,
+    asset_label="AWSUser",
     asset_id_field="id",
     identity_fields=("id",),
     maturity=Maturity.EXPERIMENTAL,

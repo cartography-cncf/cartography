@@ -3,6 +3,10 @@ from unittest.mock import patch
 
 import cartography.intel.aws.ecs
 import tests.data.aws.ecs
+from cartography.analysis.aws.analysis import AWS_ECS_ASSET_EXPOSURE
+from cartography.intel.aws import AWS_ECS_ASSET_EXPOSURE_DEPS
+from cartography.util import run_typed_analysis_and_ensure_deps
+from cartography.util import run_typed_analysis_job
 from tests.integration.cartography.intel.aws.common import create_test_account
 from tests.integration.util import check_nodes
 from tests.integration.util import check_rels
@@ -1078,3 +1082,94 @@ def test_sync_ecs_comprehensive(
             "arn:aws:ecs:us-east-1:000000000000:cluster/test_cluster",
         ),
     }, "ECSServices"
+
+
+def _build_ecs_direct_exposure_chain(neo4j_session, suffix):
+    """
+    Build 0.0.0.0/0 -> IpPermissionInbound -> SecurityGroup <- ENI (public IP) <- Task -> Container
+    with per-test-unique node ids (the module-scoped neo4j_session is shared across tests with no
+    per-test cleanup). Returns the container id.
+    """
+    container_id = (
+        f"arn:aws:ecs:us-east-1:000000000000:container/cluster/task-{suffix}/web"
+    )
+    neo4j_session.run(
+        """
+        MERGE (r:AWSIpRange{id: '0.0.0.0/0'}) SET r.lastupdated = $tag
+        MERGE (perm:AWSIpPermissionInbound{id: 'perm-' + $suffix}) SET perm.lastupdated = $tag
+        MERGE (sg:AWSEC2SecurityGroup{id: 'sg-' + $suffix, groupid: 'sg-' + $suffix}) SET sg.lastupdated = $tag
+        MERGE (ni:AWSNetworkInterface{id: 'eni-' + $suffix}) SET ni.lastupdated = $tag, ni.public_ip = '52.9.8.7'
+        MERGE (task:AWSECSTask{id: 'arn:aws:ecs:us-east-1:000000000000:task/cluster/task-' + $suffix})
+            SET task.lastupdated = $tag
+        MERGE (c:AWSECSContainer{id: $container_id}) SET c.lastupdated = $tag, c.name = 'web'
+        MERGE (r)-[:MEMBER_OF_IP_RULE]->(perm)
+        MERGE (perm)-[:MEMBER_OF_EC2_SECURITY_GROUP]->(sg)
+        MERGE (ni)-[:MEMBER_OF_EC2_SECURITY_GROUP]->(sg)
+        MERGE (task)-[:NETWORK_INTERFACE]->(ni)
+        MERGE (task)-[:HAS_CONTAINER]->(c)
+        """,
+        tag=TEST_UPDATE_TAG,
+        suffix=suffix,
+        container_id=container_id,
+    )
+    return container_id
+
+
+def _get_container_exposure(neo4j_session, container_id):
+    return neo4j_session.run(
+        "MATCH (c:AWSECSContainer{id: $container_id}) "
+        "RETURN c.exposed_internet AS exposed, c.exposed_internet_type AS types",
+        container_id=container_id,
+    ).single()
+
+
+def test_ecs_direct_internet_exposure(neo4j_session):
+    """
+    aws_ecs_asset_exposure marks an ECS container as directly internet-exposed when its task's ENI
+    has a public IP and a security group that allows inbound from 0.0.0.0/0.
+    """
+    container_id = _build_ecs_direct_exposure_chain(neo4j_session, "direct")
+
+    run_typed_analysis_job(
+        AWS_ECS_ASSET_EXPOSURE,
+        neo4j_session,
+        {"UPDATE_TAG": TEST_UPDATE_TAG},
+    )
+
+    result = _get_container_exposure(neo4j_session, container_id)
+    assert result["exposed"] is True
+    assert "direct" in result["types"]
+
+
+def test_ecs_direct_exposure_skipped_when_security_group_not_synced(neo4j_session):
+    """
+    A partial sync that omits ec2:security_group must NOT recompute ECS exposure: the security-group
+    data in the graph may be stale, so the guard skips the job rather than marking a false positive.
+    A subsequent run that does include the security-group sync then marks the container exposed.
+    """
+    container_id = _build_ecs_direct_exposure_chain(neo4j_session, "guard")
+
+    # Partial sync: everything the job needs except ec2:security_group -> job is skipped.
+    partial_syncs = AWS_ECS_ASSET_EXPOSURE_DEPS - {"ec2:security_group"}
+    run_typed_analysis_and_ensure_deps(
+        AWS_ECS_ASSET_EXPOSURE,
+        AWS_ECS_ASSET_EXPOSURE_DEPS,
+        partial_syncs,
+        {"UPDATE_TAG": TEST_UPDATE_TAG},
+        neo4j_session,
+    )
+    skipped = _get_container_exposure(neo4j_session, container_id)
+    assert skipped["exposed"] is None
+    assert skipped["types"] is None
+
+    # Full dependency set present -> job runs and marks the container exposed.
+    run_typed_analysis_and_ensure_deps(
+        AWS_ECS_ASSET_EXPOSURE,
+        AWS_ECS_ASSET_EXPOSURE_DEPS,
+        set(AWS_ECS_ASSET_EXPOSURE_DEPS),
+        {"UPDATE_TAG": TEST_UPDATE_TAG},
+        neo4j_session,
+    )
+    ran = _get_container_exposure(neo4j_session, container_id)
+    assert ran["exposed"] is True
+    assert "direct" in ran["types"]

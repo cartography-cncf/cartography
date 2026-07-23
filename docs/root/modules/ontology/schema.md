@@ -79,6 +79,7 @@ IM -- HAS_LAYER --> IL{{ImageLayer}}
 CT -- HAS_IMAGE --> IM
 CT -- HAS_IMAGE --> IML
 CT -- RESOLVED_IMAGE --> IM
+CS -- HAS_RUNTIME_IMAGE --> IM
 ```
 
 :::{note}
@@ -88,7 +89,7 @@ In this schema, `squares` represent `Abstract Nodes` and `hexagons` represent `S
 ### Where ontology relationships come from
 
 1. The abstract ontology node schemas (`User`, `Device`, `PublicIP`, `Package`) declare the edges they own to module nodes (e.g. `(:User)-[:HAS_ACCOUNT]->(:UserAccount)`).
-2. Ontology analysis jobs derive cross-module edges after sync (e.g. `USER_LINKING_JOBS` builds the `User`/`UserAccount` graph; `RESOLVED_IMAGE_JOBS` connects `Container` and `Function` to a single-platform `Image`).
+2. Ontology analysis jobs derive cross-module edges after sync (e.g. `USER_LINKING_JOBS` builds the `User`/`UserAccount` graph; `RESOLVED_IMAGE_JOBS` connects `Container` and `Function` to a single-platform `Image`; `WORKLOAD_HAS_RUNTIME_IMAGE` collapses running containers up the `WORKLOAD_PARENT` chain to record `(:ComputeService)-[:HAS_RUNTIME_IMAGE]->(:Image)` for each workload).
 3. Sync modules wire edges between two ontology-labelled nodes themselves (e.g. ECS adding `(:AWSECSContainer:Container)-[:WORKLOAD_PARENT]->(:AWSECSTask:ComputePod)`). For this last source, canonical `(src, dst, label)` triples are encoded as `RelConstraint` entries in [`cartography/models/ontology/constraints.py`](https://github.com/cartography-cncf/cartography/blob/master/cartography/models/ontology/constraints.py); a unit test rejects any module rel between those two ontology labels that uses a different name or direction.
 
 ### Ontology Properties on Nodes
@@ -479,6 +480,11 @@ It generalizes concepts like AWS ECS services and GCP Cloud Run services and job
     (:ComputePod)-[:WORKLOAD_PARENT]->(:ComputeService)
     (:Container)-[:WORKLOAD_PARENT]->(:ComputeService)
     ```
+- `ComputeService` has a runtime `Image`: the runtime image inventory (composition) of the logical workload. This edge is produced by `WORKLOAD_HAS_RUNTIME_IMAGE` in `cartography/analysis/ontology/analysis.py`, which collapses each running container up the `WORKLOAD_PARENT` chain to its owning controller and dedups to one edge per `(workload, image)` pair. The collapse is zero-or-more hops, so serverless workloads that are both `ComputeService` and `Container` on a single node (e.g. `ScalewayServerlessContainer`) are covered too. The edge carries an `exposed_internet` boolean: the OR of the service-level exposure signal (`svc.exposed_internet`, e.g. GCP Cloud Run ingress) and any running replica's signal (`rt.exposed_internet`, e.g. AWS ECS / Kubernetes), so a workload's runtime composition and exposure can be read without fanning back out to individual replicas.
+    ```
+    (:ComputeService)-[:HAS_RUNTIME_IMAGE]->(:Image)
+    ```
+    Standalone runtimes with no `ComputeService` controller are not materialized here and are served by the read-side live-collapse path instead: bare pods, and functions (`AWS Lambda`, `GCP Cloud Functions`, `Azure Function Apps`, `Scaleway serverless functions`) which carry only `:Function`.
 
 
 ### ComputeNamespace
@@ -1062,6 +1068,42 @@ Package nodes are deduplicated by their `id`, which uses the format `{type}|{nam
 - `Package` can depend on other packages (propagated from SyftPackage):
     ```
     (:Package)-[:DEPENDS_ON]->(:Package)
+    ```
+
+### CVE
+
+```{note}
+CVE is a semantic label.
+```
+
+A CVE represents a specific, publicly disclosed vulnerability (a CVE identifier) as detected by a
+scanner or vulnerability feed. Unlike the abstract nodes, `CVE` is a semantic label applied directly
+to the concrete finding nodes that reference a CVE, so cross-scanner queries can select every
+CVE-backed finding with `MATCH (c:CVE)`.
+
+Contributing module nodes (each carries `:CVE` unconditionally or via a conditional label): the
+deprecated `CVE` node, `UbuntuCVE`, `TrivyImageFinding`, `CrowdstrikeFinding`, `GitHubDependabotAlert`,
+`S1AppFinding`, `SemgrepSCAFinding` (when `has_cve` is true), and `AWSInspectorFinding` (when
+`type = PACKAGE_VULNERABILITY`).
+
+| Field | Description |
+|-------|-------------|
+| _ont_cve_id | The CVE identifier (e.g. `CVE-2022-31129`). |
+| _ont_description | Human-readable description of the vulnerability. |
+| _ont_references | Reference URLs for the vulnerability. |
+| _ont_base_score | CVSS base score. |
+| _ont_base_severity | CVSS base severity (e.g. `LOW`, `MEDIUM`, `HIGH`, `CRITICAL`). |
+| _ont_source | Source module of the data. |
+
+Not every contributing node populates every field; scanners expose different subsets (see the
+per-module mappings in `cartography/models/ontology/mapping/data/cves.py`).
+
+#### Relationships
+
+- A `CVE`-labelled node is enriched with normalized NVD / EPSS / CISA KEV metadata by the `CVEMetadata`
+  node (matched on the CVE identifier):
+    ```
+    (:CVEMetadata)-[:ENRICHES]->(:CVE)
     ```
 
 ### ContainerRegistry

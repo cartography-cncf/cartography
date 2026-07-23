@@ -20,6 +20,9 @@ class GuardDutyFindingNodeProperties(CartographyNodeProperties):
     description: PropertyRef = PropertyRef("description")
     type: PropertyRef = PropertyRef("type")
     severity: PropertyRef = PropertyRef("severity", extra_index=True)
+    # Normalized Low/Medium/High/Critical label derived from the numeric severity,
+    # feeding the :SecurityIssue ontology's _ont_severity for cross-provider comparison.
+    severity_label: PropertyRef = PropertyRef("severity_label")
     confidence: PropertyRef = PropertyRef("confidence")
     createdat: PropertyRef = PropertyRef("createdat")
     updatedat: PropertyRef = PropertyRef("updatedat")
