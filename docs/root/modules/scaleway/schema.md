@@ -11,6 +11,9 @@ ORG -- RESOURCE --> POL(Policy)
 ORG -- RESOURCE --> RULE(Rule)
 ORG -- RESOURCE --> PS(PermissionSet)
 PRJ -- RESOURCE --> INS(Instance)
+PRJ -- RESOURCE --> IT(InstanceTemplate)
+PRJ -- RESOURCE --> IG(InstanceGroup)
+PRJ -- RESOURCE --> SP(ScalingPolicy)
 PRJ -- RESOURCE --> FIP(FlexibleIp)
 PRJ -- RESOURCE --> VOL(Volume)
 PRJ -- RESOURCE --> SNAP(VolumeSnapshot)
@@ -48,6 +51,11 @@ PRJ -- RESOURCE --> SC(ServerlessContainer)
 PRJ -- RESOURCE --> SJ(ServerlessJobDefinition)
 INS -- MOUNTS --> VOL
 INS -- MEMBER_OF_SCALEWAY_SECURITY_GROUP --> SG
+IT -- ATTACHED_TO --> PN
+IG -- USES --> IT
+IG -- USES --> LB
+LB -- ATTACHED_TO --> PN
+SP -- APPLIES_TO --> IG
 SGR -- MEMBER_OF_SCALEWAY_SECURITY_GROUP --> SG
 FIP -- IDENTIFIES --> INS
 VOL -- HAS --> SNAP
@@ -156,7 +164,10 @@ Represents a Project in Scaleway. Projects are groupings of Scaleway resources.
         :ScalewayIP,
         :ScalewayLoadBalancer,
         :ScalewayLBFrontend,
-        :ScalewayLBBackend
+        :ScalewayLBBackend,
+        :ScalewayInstanceTemplate,
+        :ScalewayInstanceGroup,
+        :ScalewayScalingPolicy
     )
     ```
 
@@ -589,6 +600,111 @@ An Instance is a virtual computing unit that provides resources, such as process
     (:ScalewayInstance)-[:MEMBER_OF_SCALEWAY_SECURITY_GROUP]->(:ScalewaySecurityGroup)
     ```
 
+### ScalewayInstanceTemplate
+
+An Instance Template defines how Instances are created for an autoscaling Instance Group.
+
+| Field      | Description                                  |
+|------------|----------------------------------------------|
+| id         | Instance template unique ID.                 |
+| name       | Instance template name.                      |
+| commercial_type | Instance commercial type.               |
+| image_id   | Image ID used for created Instances.         |
+| security_group_id | Security Group ID applied to created Instances. |
+| placement_group_id | Placement Group ID applied to created Instances. |
+| public_ips_v4_count | Number of IPv4 addresses to attach. |
+| public_ips_v6_count | Number of IPv6 addresses to attach. |
+| private_network_ids | Private Networks to attach to created Instances. |
+| status     | Template status (`ready`, `error`, ...).     |
+| tags       | Tags associated with the template.           |
+| zone       | Zone in which the template is located.       |
+| created_at | Template creation date.                      |
+| updated_at | Template last update date.                   |
+| lastupdated | Timestamp of the last update                 |
+
+#### Relationships
+- An `InstanceTemplate` belongs to a `Project`
+    ```
+    (:ScalewayProject)-[:RESOURCE]->(:ScalewayInstanceTemplate)
+    ```
+- An `InstanceTemplate` attaches created Instances to `PrivateNetwork`
+    ```
+    (:ScalewayInstanceTemplate)-[:ATTACHED_TO]->(:ScalewayPrivateNetwork)
+    ```
+- An `InstanceGroup` uses an `InstanceTemplate`
+    ```
+    (:ScalewayInstanceGroup)-[:USES]->(:ScalewayInstanceTemplate)
+    ```
+
+### ScalewayInstanceGroup
+
+An Instance Group manages a fleet of Instances using an Instance Template, capacity limits, scaling policies, and a Load Balancer backend.
+
+| Field      | Description                                  |
+|------------|----------------------------------------------|
+| id         | Instance group unique ID.                    |
+| name       | Instance group name.                         |
+| tags       | Tags associated with the group.              |
+| instance_template_id | Instance Template used to create Instances. |
+| capacity_max_replicas | Maximum number of Instances in the group. |
+| capacity_min_replicas | Minimum number of Instances in the group. |
+| capacity_cooldown_delay | Cooldown duration between scaling actions. |
+| loadbalancer_id | Load Balancer attached to the group.     |
+| loadbalancer_backend_ids | Load Balancer backends maintained by the group (informational; the `(:ScalewayLoadBalancer)-[:HAS]->(:ScalewayLBBackend)` relationship already covers this). |
+| loadbalancer_private_network_id | Private Network shared with the Load Balancer (informational; see the `ScalewayLoadBalancer` relationship below for the materialized edge). |
+| error_messages | Configuration error messages.             |
+| zone       | Zone in which the group is located.          |
+| created_at | Group creation date.                         |
+| updated_at | Group last update date.                      |
+| lastupdated | Timestamp of the last update                 |
+
+#### Relationships
+- An `InstanceGroup` belongs to a `Project`
+    ```
+    (:ScalewayProject)-[:RESOURCE]->(:ScalewayInstanceGroup)
+    ```
+- An `InstanceGroup` uses an `InstanceTemplate`
+    ```
+    (:ScalewayInstanceGroup)-[:USES]->(:ScalewayInstanceTemplate)
+    ```
+- An `InstanceGroup` uses a `LoadBalancer`
+    ```
+    (:ScalewayInstanceGroup)-[:USES]->(:ScalewayLoadBalancer)
+    ```
+
+### ScalewayScalingPolicy
+
+A Scaling Policy defines a metric condition and scaling action for an autoscaling Instance Group.
+
+| Field      | Description                                  |
+|------------|----------------------------------------------|
+| id         | Scaling policy unique ID.                    |
+| name       | Scaling policy name.                         |
+| action     | Scaling action (`scale_up`, `scale_down`).   |
+| type       | How the `value` is applied to group capacity. |
+| value      | Magnitude of the scaling action.             |
+| priority   | Policy priority; lower values are evaluated first. |
+| instance_group_id | Instance Group the policy applies to. |
+| metric_name | Metric name or description.                 |
+| metric_operator | Operator used to compare the metric to the threshold. |
+| metric_aggregate | Aggregation method for sampled metric values. |
+| metric_sampling_range_min | Sampling window in minutes.     |
+| metric_threshold | Threshold value for the scaling condition. |
+| metric_managed_metric | Scaleway managed metric identifier. |
+| metric_cockpit_metric_name | Custom Cockpit metric name.       |
+| zone       | Zone in which the policy is located.         |
+| lastupdated | Timestamp of the last update                 |
+
+#### Relationships
+- A `ScalingPolicy` belongs to a `Project`
+    ```
+    (:ScalewayProject)-[:RESOURCE]->(:ScalewayScalingPolicy)
+    ```
+- A `ScalingPolicy` applies to an `InstanceGroup`
+    ```
+    (:ScalewayScalingPolicy)-[:APPLIES_TO]->(:ScalewayInstanceGroup)
+    ```
+
 
 ### ScalewaySecurityGroup
 
@@ -1001,6 +1117,10 @@ A Load Balancer distributes incoming traffic across backend servers. Its public 
     ```
     (:ScalewayLoadBalancer)-[:HAS]->(:ScalewayLBFrontend)
     (:ScalewayLoadBalancer)-[:HAS]->(:ScalewayLBBackend)
+    ```
+- A `LoadBalancer` is attached to a `PrivateNetwork`. This edge is a MatchLink populated by the Instance Autoscaling sync (it is currently the only Scaleway module that observes this attachment), so it is only present for Load Balancers used by an autoscaling Instance Group.
+    ```
+    (:ScalewayLoadBalancer)-[:ATTACHED_TO]->(:ScalewayPrivateNetwork)
     ```
 
 ### ScalewayLBFrontend
