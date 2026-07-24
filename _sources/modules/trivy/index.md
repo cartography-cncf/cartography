@@ -1,0 +1,6 @@
+# Trivy
+
+```{toctree}
+config
+schema
+```

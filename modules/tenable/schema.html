@@ -1,0 +1,1209 @@
+<!DOCTYPE html>
+<html lang="en" data-accent-color="cyan" data-content_root="../../">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Tenable Schema - Cartography Documentation</title><link rel="shortcut icon" href="../../_static/logo-vertical.svg"/><link rel="search" title="Search" href="../../search.html" />
+      <link rel="canonical" href="https://docs.cartography.dev/modules/tenable/schema.html" /><script>
+    function setColorMode(t){let e=document.documentElement;e.setAttribute("data-color-mode",t);let a=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches,s=t;"auto"===t&&(s=a?"dark":"light"),"light"===s?(e.classList.remove("dark"),e.classList.add("light")):(e.classList.remove("light"),e.classList.add("dark"))}
+    setColorMode(localStorage._theme||"auto");
+  </script><link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=e1a1ceaf" />
+    <link rel="stylesheet" type="text/css" href="../../_static/shibuya.css?v=70423902" />
+    <link rel="stylesheet" type="text/css" href="../../_static/copybutton.css?v=76b2166b" />
+    <link media="print" rel="stylesheet" type="text/css" href="../../_static/print.css?v=20ff2c19" />
+    <link rel="stylesheet" type="text/css" href="../../_static/custom.css?v=1da16d3f" />
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@600;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --sy-f-heading: 'Inter', var(--sy-f-sys), sans-serif;
+}
+</style>
+    
+  <meta property="og:type" content="website"/>
+  <meta property="og:url" content="https://docs.cartography.dev/modules/tenable/schema.html"/>
+  <meta property="og:title" content="Tenable Schema"/>
+    <meta name="twitter:card" content="summary"/>
+  <meta property="og:site_name" content="Cartography" />
+</head>
+<body><div class="sy-head">
+  <div class="sy-head-blur"></div>
+  <div class="sy-head-inner sy-container mx-auto">
+    <a class="sy-head-brand" href="../../index.html">
+      <img class="light-logo" src="../../_static/logo-vertical.svg" alt="Cartography" height="28" loading="lazy" />
+      <img class="dark-logo" src="../../_static/logo-vertical.svg" alt="Cartography" height="28" loading="lazy" />
+      <strong>Cartography</strong>
+    </a>
+    <div class="sy-head-nav" id="head-nav">
+      <nav class="sy-head-links"></nav>
+      <div class="sy-head-extra flex items-center print:hidden"><form class="searchbox flex items-center" action="../../search.html" method="get">
+  <input type="text" name="q" placeholder="Search" />
+  <kbd>/</kbd>
+</form><div class="sy-head-socials">
+  <a href="https://github.com/cartography-cncf/cartography" aria-label="GitHub">
+    <iconify-icon icon="simple-icons:github"></iconify-icon>
+  </a>
+  <a href="https://communityinviter.com/apps/cloud-native/cncf" aria-label="Slack">
+    <iconify-icon icon="simple-icons:slack"></iconify-icon>
+  </a></div></div>
+    </div>
+    <div class="sy-head-actions flex items-center shrink-0 print:hidden"><button class="js-theme theme-switch flex items-center"
+data-aria-auto="Switch to light color mode"
+data-aria-light="Switch to dark color mode"
+data-aria-dark="Switch to auto color mode">
+<i class="i-lucide theme-icon"></i>
+</button><button class="md:hidden flex items-center js-menu" aria-label="Menu" type="button" aria-controls="head-nav" aria-expanded="false">
+        <div class="hamburger">
+          <span class="hamburger_1"></span>
+          <span class="hamburger_2"></span>
+          <span class="hamburger_3"></span>
+        </div>
+      </button>
+    </div>
+  </div>
+</div>
+<div class="sy-page sy-container flex mx-auto">
+  <aside id="lside" class="sy-lside md:w-72 md:shrink-0 print:hidden">
+    <div class="sy-lside-inner md:sticky">
+      <div class="sy-scrollbar p-6">
+        <div class="globaltoc" data-expand-depth="0"><p class="caption" role="heading" aria-level="3"><span class="caption-text">Basic Use</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../install.html">Quick start: Install and Run Cartography On Test Machine</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../usage/index.html">Usage</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../usage/cli.html">Command Line Interface</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../usage/rules.html">Cartography Rules</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../usage/tutorial.html">Usage Tutorial</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../usage/drift-detect.html">How to use Drift-Detection</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../usage/applications.html">Building around Cartography</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../usage/samplequeries.html">Sample queries</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../usage/schema.html">Cartography Schema</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../usage/schema.html#tenable-schema">Tenable Schema</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../usage/aws-privilege-escalation-queries.html">AWS IAM Privilege Escalation Methods and Mitigation</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../../ops.html">Cartography Production Operations</a></li>
+</ul>
+<p class="caption" role="heading" aria-level="3"><span class="caption-text">Intel Modules</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../aibom/index.html">AIBOM</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../aibom/config.html">AIBOM Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../aibom/schema.html">AIBOM Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../airbyte/index.html">Airbyte</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../airbyte/config.html">Airbyte Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../airbyte/schema.html">Airbyte Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../anthropic/index.html">Anthropic</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../anthropic/config.html">Anthropic Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../anthropic/schema.html">Anthropic Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../aws/index.html">Amazon Web Services (AWS)</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../aws/config.html">AWS Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../aws/permissions-mapping.html">Permissions Mapping</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../aws/schema.html">AWS Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../azure/index.html">Microsoft Azure</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../azure/config.html">Azure Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../azure/schema.html">Azure Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../bigfix/index.html">BigFix</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../bigfix/config.html">BigFix Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../bigfix/schema.html">BigFix Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../circleci/index.html">CircleCI</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../circleci/config.html">CircleCI Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../circleci/schema.html">CircleCI Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../cloudflare/index.html">Cloudflare</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../cloudflare/config.html">Cloudflare Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../cloudflare/schema.html">Cloudflare Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../crowdstrike/index.html">Crowdstrike</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../crowdstrike/config.html">Crowdstrike Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../crowdstrike/schema.html">Crowdstrike Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../cve/index.html">CVE</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../cve/config.html">CVE Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../cve/schema.html">CVE Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../cve_metadata/index.html">CVE Metadata</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../cve_metadata/config.html">CVE Metadata Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../cve_metadata/schema.html">CVE Metadata Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../databricks/index.html">Databricks</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../databricks/config.html">Databricks Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../databricks/schema.html">Databricks Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../digitalocean/index.html">DigitalOcean</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../digitalocean/config.html">Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../digitalocean/schema.html">DigitalOcean Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../docker_scout/index.html">Docker Scout</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../docker_scout/config.html">Docker Scout Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../docker_scout/schema.html">Docker Scout Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../duo/index.html">Duo</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../duo/config.html">Duo Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../duo/schema.html">Duo Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../gcp/index.html">Google Cloud Platform (GCP)</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../gcp/config.html">GCP Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../gcp/schema.html">GCP Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../github/index.html">Github</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../github/config.html">GitHub Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../github/schema.html">Github Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../gitlab/index.html">GitLab</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../gitlab/config.html">GitLab Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../gitlab/schema.html">GitLab Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../googleworkspace/index.html">Google Workspace</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../googleworkspace/config.html">Google Workspace Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../googleworkspace/schema.html">Google Workspace Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../gsuite/index.html">Google GSuite</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../gsuite/config.html">GSuite Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../gsuite/config.html#method-2-using-oauth">Method 2: Using OAuth</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../gsuite/schema.html">GSuite Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../jamf/index.html">Jamf</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../jamf/schema.html">Jamf Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../jumpcloud/index.html">JumpCloud</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../jumpcloud/config.html">JumpCloud Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../jumpcloud/schema.html">JumpCloud Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../kandji/index.html">Kandji</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../kandji/config.html">Kandji Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../kandji/schema.html">Kandji Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../keycloak/index.html">Keycloak</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../keycloak/config.html">Keycloak Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../keycloak/schema.html">Keycloak Schema</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../keycloak/analysis.html">Keycloak Built-In Analysis</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../kubernetes/index.html">Kubernetes</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../kubernetes/config.html">Kubernetes Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../kubernetes/schema.html">Kubernetes Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../lastpass/index.html">Lastpass</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../lastpass/config.html">Lastpass Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../lastpass/schema.html">Lastpass Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../microsoft/index.html">Microsoft</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../microsoft/config.html">Microsoft Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../microsoft/schema.html">Microsoft Schema</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../microsoft/schema.html#entra-schema">Entra Schema</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../microsoft/schema.html#intune-schema">Intune Schema</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../microsoft/examples.html">Microsoft Examples</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../oci/index.html">Oracle Cloud Infrastructure</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../oci/config.html">OCI Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../oci/schema.html">OCI Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../okta/index.html">Okta</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../okta/config.html">Okta Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../okta/schema.html">Okta Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../ontology/index.html">Ontology in Cartography</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../ontology/config.html">Ontology Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../ontology/schema.html">Ontology Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../openai/index.html">OpenAI</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../openai/config.html">OpenAI Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../openai/schema.html">OpenAI Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../pagerduty/index.html">PagerDuty</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../pagerduty/config.html">Pagerduty Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../pagerduty/schema.html">Pagerduty Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../salesforce/index.html">Salesforce</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../salesforce/config.html">Salesforce Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../salesforce/schema.html">Salesforce Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../scaleway/index.html">Scaleway</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../scaleway/config.html">Scaleway Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../scaleway/schema.html">Scaleway Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../semgrep/index.html">Semgrep</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../semgrep/config.html">Semgrep Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../semgrep/config.html#oss-semgrep-configuration">OSS Semgrep Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../semgrep/schema.html">Semgrep Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../sentinelone/index.html">SentinelOne</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../sentinelone/config.html">SentinelOne Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../sentinelone/config.html#mssp-and-site-scoped-deployments">MSSP And Site-Scoped Deployments</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../sentinelone/schema.html">SentinelOne Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../sentry/index.html">Sentry</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../sentry/config.html">Sentry Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../sentry/schema.html">Sentry Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../slack/index.html">Slack</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../slack/config.html">Slack Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../slack/schema.html">Slack Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../snipeit/index.html">SnipeIT</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../snipeit/config.html">SnipeIT Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../snipeit/schema.html">SnipeIT Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../socketdev/index.html">Socket.dev</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../socketdev/config.html">Socket.dev Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../socketdev/schema.html">Socket.dev Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../spacelift/index.html">Spacelift</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../spacelift/config.html">Spacelift Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../spacelift/schema.html">Spacelift Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../subimage/index.html">SubImage</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../subimage/config.html">SubImage Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../subimage/schema.html">SubImage Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../syft/index.html">Syft Module</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../tailscale/index.html">Tailscale</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../tailscale/config.html">Tailscale Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../tailscale/schema.html">Tailscale Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../trivy/index.html">Trivy</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../trivy/config.html">Trivy Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../trivy/config.html#notes-on-running-trivy">Notes on running Trivy</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../trivy/schema.html">Trivy Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../vercel/index.html">Vercel</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../vercel/config.html">Vercel Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../vercel/schema.html">Vercel Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../workday/index.html">Workday</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../workday/config.html">Workday Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../workday/schema.html">Workday Schema</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../workday/examples.html">Sample Cypher Queries</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../workos/index.html">WorkOS</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../workos/config.html">WorkOS Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../workos/schema.html">WorkOS Schema</a></li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading" aria-level="3"><span class="caption-text">Development Docs</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../dev/developer-guide.html">Cartography Developer Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../dev/writing-intel-modules.html">How to write a new intel module</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../dev/writing-analysis-jobs.html">How to extend Cartography with Analysis Jobs</a></li>
+</ul>
+<p class="caption" role="heading" aria-level="3"><span class="caption-text">References</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../references/model.html">Model</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../references/orm.html">ORM</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../references/sync.html">Sync</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../references/aws_client.html">AWS Client</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../references/driftdetect.html">DriftDetect</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../references/rules.html">Rules</a></li>
+</ul>
+<p class="caption" role="heading" aria-level="3"><span class="caption-text">Get In Touch</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../contact.html">Contact</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../contact.html#community-meeting">Community Meeting</a></li>
+</ul>
+
+        </div>
+      </div>
+    </div>
+  </aside>
+  <div class="lside-overlay js-menu" role="button" aria-label="Close left sidebar" aria-controls="lside" aria-expanded="false"></div>
+  <aside id="rside" class="sy-rside pb-3 w-64 shrink-0 order-last">
+    <button class="rside-close js-menu xl:hidden" aria-label="Close Table of Contents" type="button" aria-controls="rside" aria-expanded="false">
+      <i class="i-lucide close"></i>
+    </button>
+    <div class="sy-scrollbar sy-rside-inner px-6 xl:top-16 xl:sticky xl:pl-0 pt-6 pb-4"><div class="localtoc"><h3>On this page</h3><ul>
+<li><a class="reference internal" href="#overview">Overview</a></li>
+<li><a class="reference internal" href="#configuration">Configuration</a></li>
+<li><a class="reference internal" href="#nodes">Nodes</a><ul>
+<li><a class="reference internal" href="#tenabletenant">TenableTenant</a></li>
+<li><a class="reference internal" href="#tenableasset">TenableAsset</a><ul>
+<li><a class="reference internal" href="#relationships">Relationships</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#tenableassetaws">TenableAssetAWS</a><ul>
+<li><a class="reference internal" href="#id1">Relationships</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#tenableassetazure">TenableAssetAzure</a><ul>
+<li><a class="reference internal" href="#id2">Relationships</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#tenableassetgcp">TenableAssetGCP</a><ul>
+<li><a class="reference internal" href="#id3">Relationships</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#tenablenetwork">TenableNetwork</a><ul>
+<li><a class="reference internal" href="#id4">Relationships</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#tenableassetsource">TenableAssetSource</a><ul>
+<li><a class="reference internal" href="#id5">Relationships</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#tag-tenableassettag">Tag::TenableAssetTag</a><ul>
+<li><a class="reference internal" href="#id6">Relationships</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#tenablefinding">TenableFinding</a><ul>
+<li><a class="reference internal" href="#id7">Relationships</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#tenableplugin">TenablePlugin</a><ul>
+<li><a class="reference internal" href="#id8">Relationships</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#tenablescan">TenableScan</a><ul>
+<li><a class="reference internal" href="#id9">Relationships</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</div><a class="js-repo-stats repo-stats flex items-center" href="https://github.com/cartography-cncf/cartography"
+  data-type="github" data-user="cartography-cncf" data-repo="cartography">
+  <span class="w-8 flex items-center justify-around shrink-0 text-3xl">
+    <iconify-icon icon="simple-icons:github"></iconify-icon>
+  </span>
+  <span class="flex-grow px-2 break-all">
+    
+    
+      <span>cartography</span>
+    
+    <span class="flex text-sm repo-stats-count">
+      <span class="flex items-center pr-3">
+        <iconify-icon icon="lucide:star"></iconify-icon>
+        <strong class="js-repo-stars ml-1">0</strong>
+      </span>
+      <span class="flex items-center">
+        <iconify-icon icon="lucide:git-fork"></iconify-icon>
+        <strong class="js-repo-forks ml-1">0</strong>
+      </span>
+    </span>
+  </span>
+</a><div class="edit-this-page">
+  <a href="https://github.com/cartography-cncf/cartography/blob/master/docs/root/modules/tenable/schema.md">Edit this page</a>
+</div><div id="ethical-ad-placement" data-ea-publisher="readthedocs"></div></div>
+  </aside>
+  <div class="rside-overlay js-menu" role="button" aria-label="Close Table of Contents" aria-controls="rside" aria-expanded="false"></div>
+  <main class="sy-main w-full max-sm:max-w-full print:pt-6">
+<div class="sy-breadcrumbs" role="navigation">
+  <div class="sy-breadcrumbs-inner flex items-center">
+    <div class="md:hidden mr-3">
+      <button class="js-menu" aria-label="Menu" type="button" aria-controls="lside" aria-expanded="false">
+        <i class="i-lucide menu"></i>
+      </button>
+    </div>
+    <ol class="flex-1" itemscope itemtype="https://schema.org/BreadcrumbList"><li itemprop="itemListElement" itemscope itemtype="https://schema.org/ListItem">
+        <a itemprop="item" href="../../index.html"><span itemprop="name">Cartography</span></a>
+        <span>/</span>
+        <meta itemprop="position" content="1" />
+      </li><li itemprop="itemListElement" itemscope itemtype="https://schema.org/ListItem">
+        <strong itemprop="name">Tenable Schema</strong>
+        <meta itemprop="position" content="2" />
+      </li></ol>
+    <div class="xl:hidden ml-1">
+      <button class="js-menu" aria-label="Show table of contents" type="button" aria-controls="rside"
+        aria-expanded="false">
+        <i class="i-lucide outdent"></i>
+      </button>
+    </div>
+  </div>
+</div><div class="flex flex-col break-words justify-between">
+      <div class="relative min-w-0 max-w-6xl px-6 pb-6 pt-8 xl:px-12">
+  <div class="copy-page-wrapper relative pb-4 lg:absolute lg:top-8 lg:right-6 xl:right-12">
+  <div id="copy-page-trigger">
+    <button
+      type="button"
+      class="js-copy px-3 py-1 inline-flex items-center gap-1"
+      data-url="https://docs.cartography.dev/_sources/modules/tenable/schema.md"
+    >
+      <i class="i-lucide" data-icon="copy"></i>
+      <span>Copy page</span>
+    </button>
+    <button class="js-menu px-2 py-1" type="button" aria-label="More actions"
+      aria-haspopup="menu" aria-expanded="false" aria-controls="copy-page-content">
+      <i class="i-lucide chevron-down"></i>
+    </button>
+  </div>
+  <div id="copy-page-content" role="menu" aria-orientation="vertical" aria-hidden="true">
+    <div role="presentation">
+      <div class="flex flex-col" role="group">
+        <button class="js-copy" type="button" role="menuitem"
+          data-url="https://docs.cartography.dev/_sources/modules/tenable/schema.md">
+          <span class="iconify-icon">
+            <i class="i-lucide" data-icon="copy"></i>
+          </span>
+          <span>Copy page</span>
+        </button>
+        <a role="menuitem" href="https://docs.cartography.dev/_sources/modules/tenable/schema.md" target="_blank" rel="nofollow"><iconify-icon icon="bi:markdown"></iconify-icon>
+            <span>View as Markdown</span></a><a role="menuitem" href="https://chatgpt.com/?hints=search&q=Read%20https%3A//docs.cartography.dev/_sources/modules/tenable/schema.md%20so%20I%20can%20ask%20questions%20about%20it." target="_blank" rel="nofollow">
+          <iconify-icon icon="bi:openai"></iconify-icon>
+          <span>Open in ChatGPT</span>
+        </a><a role="menuitem" href="https://claude.ai/new?q=Read%20https%3A//docs.cartography.dev/_sources/modules/tenable/schema.md%20so%20I%20can%20ask%20questions%20about%20it." target="_blank" rel="nofollow">
+          <iconify-icon icon="bi:claude"></iconify-icon>
+          <span>Open in Claude</span>
+        </a></div>
+    </div>
+  </div>
+</div><article class="yue" role="main">
+          <section id="tenable-schema">
+<h1>Tenable Schema<a class="headerlink" href="#tenable-schema" title="Link to this heading">#</a></h1>
+<section id="overview">
+<h2>Overview<a class="headerlink" href="#overview" title="Link to this heading">#</a></h2>
+<p>Cartography ingests assets and vulnerability findings from the <a class="reference external" href="https://developer.tenable.com/reference/export-assets-v2">Tenable Export API</a>. The integration uses the async bulk-export workflow (POST to initiate, poll for status, download chunks) to retrieve complete datasets efficiently.</p>
+</section>
+<section id="configuration">
+<h2>Configuration<a class="headerlink" href="#configuration" title="Link to this heading">#</a></h2>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>CLI flag</p></th>
+<th class="head"><p>Default</p></th>
+<th class="head"><p>Required</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">--tenable-access-key-env-var</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">TENABLE_ACCESS_KEY</span></code></p></td>
+<td><p>Yes</p></td>
+<td><p>Environment variable holding the Tenable API access key</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">--tenable-secret-key-env-var</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">TENABLE_SECRET_KEY</span></code></p></td>
+<td><p>Yes</p></td>
+<td><p>Environment variable holding the Tenable API secret key</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">--tenable-url</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">https://cloud.tenable.com</span></code></p></td>
+<td><p>No</p></td>
+<td><p>Base URL of the Tenable API endpoint</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">--tenable-tenant-id</span></code></p></td>
+<td><p>hostname of <code class="docutils literal notranslate"><span class="pre">--tenable-url</span></code></p></td>
+<td><p>No</p></td>
+<td><p>Identifier used to scope all graph nodes for this Tenable instance. Set this to the <strong>container UUID</strong> shown in your Tenable account settings when running multiple tenants or using a custom URL. Defaults to the hostname portion of <code class="docutils literal notranslate"><span class="pre">--tenable-url</span></code> (e.g. <code class="docutils literal notranslate"><span class="pre">cloud.tenable.com</span></code>).</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">--tenable-findings-lookback-days</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">180</span></code></p></td>
+<td><p>No</p></td>
+<td><p>Number of days of vulnerability findings to retrieve on each sync. Tenable’s export API filters on <code class="docutils literal notranslate"><span class="pre">last_found</span> <span class="pre">&gt;=</span> <span class="pre">now</span> <span class="pre">-</span> <span class="pre">lookback_days</span></code>. Stale findings outside this window are removed from the graph by the cleanup job.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="nodes">
+<h2>Nodes<a class="headerlink" href="#nodes" title="Link to this heading">#</a></h2>
+<section id="tenabletenant">
+<h3>TenableTenant<a class="headerlink" href="#tenabletenant" title="Link to this heading">#</a></h3>
+<p>Represents the Tenable instance being synced. All other Tenable nodes are scoped under this node via <code class="docutils literal notranslate"><span class="pre">RESOURCE</span></code> relationships.</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><strong>id</strong></p></td>
+<td><p>The tenant identifier: the container UUID from Tenable account settings when <code class="docutils literal notranslate"><span class="pre">--tenable-tenant-id</span></code> is set, otherwise the hostname of <code class="docutils literal notranslate"><span class="pre">--tenable-url</span></code> (default: <code class="docutils literal notranslate"><span class="pre">cloud.tenable.com</span></code>)</p></td>
+</tr>
+<tr class="row-odd"><td><p>lastupdated</p></td>
+<td><p>Timestamp of the last sync run</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="tenableasset">
+<h3>TenableAsset<a class="headerlink" href="#tenableasset" title="Link to this heading">#</a></h3>
+<p>An asset discovered and tracked by Tenable. Corresponds to a record returned by the <a class="reference external" href="https://developer.tenable.com/reference/export-assets-v2">Assets Export v2 API</a>.</p>
+<p>Cloud-provider details live in the <code class="docutils literal notranslate"><span class="pre">TenableAssetAWS</span></code>, <code class="docutils literal notranslate"><span class="pre">TenableAssetAzure</span></code>, and <code class="docutils literal notranslate"><span class="pre">TenableAssetGCP</span></code> sub-nodes; only the cloud identifier keys are stored here for cross-module indexing.</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><strong>id</strong></p></td>
+<td><p>Asset UUID (Tenable’s <code class="docutils literal notranslate"><span class="pre">id</span></code> field)</p></td>
+</tr>
+<tr class="row-odd"><td><p>has_agent</p></td>
+<td><p>Whether a Tenable agent is installed</p></td>
+</tr>
+<tr class="row-even"><td><p>has_plugin_results</p></td>
+<td><p>Whether plugin scan results exist</p></td>
+</tr>
+<tr class="row-odd"><td><p>is_licensed</p></td>
+<td><p>Whether the asset counts against the license</p></td>
+</tr>
+<tr class="row-even"><td><p>is_public</p></td>
+<td><p>Whether the asset has a public IP</p></td>
+</tr>
+<tr class="row-odd"><td><p>types</p></td>
+<td><p>Asset type list (e.g. <code class="docutils literal notranslate"><span class="pre">[&quot;host&quot;,</span> <span class="pre">&quot;cloud&quot;]</span></code>)</p></td>
+</tr>
+<tr class="row-even"><td><p>system_types</p></td>
+<td><p>System type list (e.g. <code class="docutils literal notranslate"><span class="pre">[&quot;aws-ec2-instance&quot;]</span></code>)</p></td>
+</tr>
+<tr class="row-odd"><td><p>operating_systems</p></td>
+<td><p>List of operating system strings</p></td>
+</tr>
+<tr class="row-even"><td><p>serial_number</p></td>
+<td><p>Hardware serial number (indexed)</p></td>
+</tr>
+<tr class="row-odd"><td><p>tenable_agent_days_since_active</p></td>
+<td><p>Days since the Tenable agent last checked in</p></td>
+</tr>
+<tr class="row-even"><td><p>created_at_timestamps</p></td>
+<td><p>Timestamp when the asset was first created in Tenable</p></td>
+</tr>
+<tr class="row-odd"><td><p>updated_at_timestamps</p></td>
+<td><p>Timestamp of the most recent asset update</p></td>
+</tr>
+<tr class="row-even"><td><p>first_seen_timestamps</p></td>
+<td><p>Timestamp when the asset was first observed</p></td>
+</tr>
+<tr class="row-odd"><td><p>last_seen_timestamps</p></td>
+<td><p>Timestamp when the asset was last observed</p></td>
+</tr>
+<tr class="row-even"><td><p>first_scan_time</p></td>
+<td><p>Timestamp of the first scan</p></td>
+</tr>
+<tr class="row-odd"><td><p>last_scan_time</p></td>
+<td><p>Timestamp of the most recent scan</p></td>
+</tr>
+<tr class="row-even"><td><p>last_authenticated_scan_date</p></td>
+<td><p>Timestamp of the most recent authenticated scan</p></td>
+</tr>
+<tr class="row-odd"><td><p>last_licensed_scan_date</p></td>
+<td><p>Timestamp of the most recent licensed scan</p></td>
+</tr>
+<tr class="row-even"><td><p>last_scan_id</p></td>
+<td><p>ID of the most recent scan</p></td>
+</tr>
+<tr class="row-odd"><td><p>network_id</p></td>
+<td><p>Tenable network container ID</p></td>
+</tr>
+<tr class="row-even"><td><p><strong>fqdn</strong></p></td>
+<td><p>Primary FQDN (first entry of <code class="docutils literal notranslate"><span class="pre">fqdns</span></code>); indexed for cross-module relationship matching</p></td>
+</tr>
+<tr class="row-odd"><td><p>fqdns</p></td>
+<td><p>Full list of FQDNs</p></td>
+</tr>
+<tr class="row-even"><td><p>hostnames</p></td>
+<td><p>List of hostnames</p></td>
+</tr>
+<tr class="row-odd"><td><p>ipv4s</p></td>
+<td><p>List of IPv4 addresses</p></td>
+</tr>
+<tr class="row-even"><td><p>ipv6s</p></td>
+<td><p>List of IPv6 addresses</p></td>
+</tr>
+<tr class="row-odd"><td><p>mac_addresses</p></td>
+<td><p>List of MAC addresses</p></td>
+</tr>
+<tr class="row-even"><td><p><strong>aws_ec2_instance_id</strong></p></td>
+<td><p>AWS EC2 instance ID (indexed)</p></td>
+</tr>
+<tr class="row-odd"><td><p><strong>azure_vm_id</strong></p></td>
+<td><p>Azure VM ID (indexed)</p></td>
+</tr>
+<tr class="row-even"><td><p><strong>gcp_instance_id</strong></p></td>
+<td><p>GCP instance ID (indexed)</p></td>
+</tr>
+<tr class="row-odd"><td><p>acr_score</p></td>
+<td><p>Asset Criticality Rating (0–10)</p></td>
+</tr>
+<tr class="row-even"><td><p>aes_score</p></td>
+<td><p>Asset Exposure Score</p></td>
+</tr>
+<tr class="row-odd"><td><p>lastupdated</p></td>
+<td><p>Timestamp of the last sync run</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<section id="relationships">
+<h4>Relationships<a class="headerlink" href="#relationships" title="Link to this heading">#</a></h4>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="p">(:</span><span class="n">TenableTenant</span><span class="p">)</span><span class="o">-</span><span class="p">[:</span><span class="n">RESOURCE</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(:</span><span class="n">TenableAsset</span><span class="p">)</span>
+</span><span data-line="2"><span class="p">(:</span><span class="n">TenableAsset</span><span class="p">)</span><span class="o">-</span><span class="p">[:</span><span class="n">MEMBER_OF_NETWORK</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(:</span><span class="n">TenableNetwork</span><span class="p">)</span>
+</span><span data-line="3"><span class="p">(:</span><span class="n">TenableAsset</span><span class="p">)</span><span class="o">-</span><span class="p">[:</span><span class="n">HAS_AWS_INFO</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(:</span><span class="n">TenableAssetAWS</span><span class="p">)</span>
+</span><span data-line="4"><span class="p">(:</span><span class="n">TenableAsset</span><span class="p">)</span><span class="o">-</span><span class="p">[:</span><span class="n">HAS_AZURE_INFO</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(:</span><span class="n">TenableAssetAzure</span><span class="p">)</span>
+</span><span data-line="5"><span class="p">(:</span><span class="n">TenableAsset</span><span class="p">)</span><span class="o">-</span><span class="p">[:</span><span class="n">HAS_GCP_INFO</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(:</span><span class="n">TenableAssetGCP</span><span class="p">)</span>
+</span><span data-line="6"><span class="p">(:</span><span class="n">TenableAsset</span><span class="p">)</span><span class="o">-</span><span class="p">[:</span><span class="n">HAS_SOURCE</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(:</span><span class="n">TenableAssetSource</span><span class="p">)</span>
+</span><span data-line="7"><span class="p">(:</span><span class="n">TenableAsset</span><span class="p">)</span><span class="o">-</span><span class="p">[:</span><span class="n">TAGGED</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(:</span><span class="n">TenableAssetTag</span><span class="p">)</span>
+</span></pre></div>
+</div>
+</section>
+</section>
+<section id="tenableassetaws">
+<h3>TenableAssetAWS<a class="headerlink" href="#tenableassetaws" title="Link to this heading">#</a></h3>
+<p>AWS-specific cloud details for a Tenable asset. The <code class="docutils literal notranslate"><span class="pre">id</span></code> is the EC2 instance ID.</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><strong>id</strong></p></td>
+<td><p>EC2 instance ID (<code class="docutils literal notranslate"><span class="pre">ec2_instance_id</span></code> from <code class="docutils literal notranslate"><span class="pre">cloud.aws</span></code>)</p></td>
+</tr>
+<tr class="row-odd"><td><p>ec2_instance_ami_id</p></td>
+<td><p>AMI ID used to launch the instance</p></td>
+</tr>
+<tr class="row-even"><td><p>owner_id</p></td>
+<td><p>AWS account ID</p></td>
+</tr>
+<tr class="row-odd"><td><p>availability_zone</p></td>
+<td><p>AWS availability zone</p></td>
+</tr>
+<tr class="row-even"><td><p>region</p></td>
+<td><p>AWS region</p></td>
+</tr>
+<tr class="row-odd"><td><p>vpc_id</p></td>
+<td><p>VPC ID</p></td>
+</tr>
+<tr class="row-even"><td><p>subnet_id</p></td>
+<td><p>Subnet ID</p></td>
+</tr>
+<tr class="row-odd"><td><p>ec2_instance_type</p></td>
+<td><p>Instance type (e.g. <code class="docutils literal notranslate"><span class="pre">t3.medium</span></code>)</p></td>
+</tr>
+<tr class="row-even"><td><p>ec2_instance_state_name</p></td>
+<td><p>Instance state (e.g. <code class="docutils literal notranslate"><span class="pre">running</span></code>)</p></td>
+</tr>
+<tr class="row-odd"><td><p>ec2_instance_group_name</p></td>
+<td><p>Security group name</p></td>
+</tr>
+<tr class="row-even"><td><p>ec2_name</p></td>
+<td><p>Value of the EC2 <code class="docutils literal notranslate"><span class="pre">Name</span></code> tag</p></td>
+</tr>
+<tr class="row-odd"><td><p>lastupdated</p></td>
+<td><p>Timestamp of the last sync run</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<section id="id1">
+<h4>Relationships<a class="headerlink" href="#id1" title="Link to this heading">#</a></h4>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="p">(:</span><span class="n">TenableTenant</span><span class="p">)</span><span class="o">-</span><span class="p">[:</span><span class="n">RESOURCE</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(:</span><span class="n">TenableAssetAWS</span><span class="p">)</span>
+</span><span data-line="2"><span class="p">(:</span><span class="n">TenableAsset</span><span class="p">)</span><span class="o">-</span><span class="p">[:</span><span class="n">HAS_AWS_INFO</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(:</span><span class="n">TenableAssetAWS</span><span class="p">)</span>
+</span></pre></div>
+</div>
+</section>
+</section>
+<section id="tenableassetazure">
+<h3>TenableAssetAzure<a class="headerlink" href="#tenableassetazure" title="Link to this heading">#</a></h3>
+<p>Azure-specific cloud details for a Tenable asset. The <code class="docutils literal notranslate"><span class="pre">id</span></code> is the Azure VM ID (GUID).</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><strong>id</strong></p></td>
+<td><p>Azure VM ID (<code class="docutils literal notranslate"><span class="pre">vm_id</span></code> from <code class="docutils literal notranslate"><span class="pre">cloud.azure</span></code>)</p></td>
+</tr>
+<tr class="row-odd"><td><p><strong>resource_id</strong></p></td>
+<td><p>Azure Resource Manager resource ID (indexed)</p></td>
+</tr>
+<tr class="row-even"><td><p>lastupdated</p></td>
+<td><p>Timestamp of the last sync run</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<section id="id2">
+<h4>Relationships<a class="headerlink" href="#id2" title="Link to this heading">#</a></h4>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="p">(:</span><span class="n">TenableTenant</span><span class="p">)</span><span class="o">-</span><span class="p">[:</span><span class="n">RESOURCE</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(:</span><span class="n">TenableAssetAzure</span><span class="p">)</span>
+</span><span data-line="2"><span class="p">(:</span><span class="n">TenableAsset</span><span class="p">)</span><span class="o">-</span><span class="p">[:</span><span class="n">HAS_AZURE_INFO</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(:</span><span class="n">TenableAssetAzure</span><span class="p">)</span>
+</span></pre></div>
+</div>
+</section>
+</section>
+<section id="tenableassetgcp">
+<h3>TenableAssetGCP<a class="headerlink" href="#tenableassetgcp" title="Link to this heading">#</a></h3>
+<p>GCP-specific cloud details for a Tenable asset. The <code class="docutils literal notranslate"><span class="pre">id</span></code> is the GCP instance ID.</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><strong>id</strong></p></td>
+<td><p>GCP instance ID (<code class="docutils literal notranslate"><span class="pre">instance_id</span></code> from <code class="docutils literal notranslate"><span class="pre">cloud.gcp</span></code>)</p></td>
+</tr>
+<tr class="row-odd"><td><p>project_id</p></td>
+<td><p>GCP project ID</p></td>
+</tr>
+<tr class="row-even"><td><p>zone</p></td>
+<td><p>GCP zone</p></td>
+</tr>
+<tr class="row-odd"><td><p>lastupdated</p></td>
+<td><p>Timestamp of the last sync run</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<section id="id3">
+<h4>Relationships<a class="headerlink" href="#id3" title="Link to this heading">#</a></h4>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="p">(:</span><span class="n">TenableTenant</span><span class="p">)</span><span class="o">-</span><span class="p">[:</span><span class="n">RESOURCE</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(:</span><span class="n">TenableAssetGCP</span><span class="p">)</span>
+</span><span data-line="2"><span class="p">(:</span><span class="n">TenableAsset</span><span class="p">)</span><span class="o">-</span><span class="p">[:</span><span class="n">HAS_GCP_INFO</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(:</span><span class="n">TenableAssetGCP</span><span class="p">)</span>
+</span></pre></div>
+</div>
+</section>
+</section>
+<section id="tenablenetwork">
+<h3>TenableNetwork<a class="headerlink" href="#tenablenetwork" title="Link to this heading">#</a></h3>
+<p>A Tenable logical network container. Multiple assets can belong to the same network.</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><strong>id</strong></p></td>
+<td><p>Network UUID (<code class="docutils literal notranslate"><span class="pre">network_id</span></code> from the asset export)</p></td>
+</tr>
+<tr class="row-odd"><td><p>name</p></td>
+<td><p>Network name (e.g. <code class="docutils literal notranslate"><span class="pre">Default</span></code>)</p></td>
+</tr>
+<tr class="row-even"><td><p>lastupdated</p></td>
+<td><p>Timestamp of the last sync run</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<section id="id4">
+<h4>Relationships<a class="headerlink" href="#id4" title="Link to this heading">#</a></h4>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="p">(:</span><span class="n">TenableTenant</span><span class="p">)</span><span class="o">-</span><span class="p">[:</span><span class="n">RESOURCE</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(:</span><span class="n">TenableNetwork</span><span class="p">)</span>
+</span><span data-line="2"><span class="p">(:</span><span class="n">TenableAsset</span><span class="p">)</span><span class="o">-</span><span class="p">[:</span><span class="n">MEMBER_OF_NETWORK</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(:</span><span class="n">TenableNetwork</span><span class="p">)</span>
+</span></pre></div>
+</div>
+</section>
+</section>
+<section id="tenableassetsource">
+<h3>TenableAssetSource<a class="headerlink" href="#tenableassetsource" title="Link to this heading">#</a></h3>
+<p>A data source that has observed a Tenable asset (e.g. <code class="docutils literal notranslate"><span class="pre">NESSUS_AGENT</span></code>, <code class="docutils literal notranslate"><span class="pre">NESSUS_SCAN</span></code>, <code class="docutils literal notranslate"><span class="pre">WAS</span></code>). The <code class="docutils literal notranslate"><span class="pre">id</span></code> is scoped to the asset: <code class="docutils literal notranslate"><span class="pre">{asset_uuid}::{source_name}</span></code>.</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><strong>id</strong></p></td>
+<td><p>Composite key: <code class="docutils literal notranslate"><span class="pre">asset_uuid::source_name</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>name</p></td>
+<td><p>Source name (e.g. <code class="docutils literal notranslate"><span class="pre">NESSUS_AGENT</span></code>)</p></td>
+</tr>
+<tr class="row-even"><td><p>source_first_seen</p></td>
+<td><p>Timestamp when this source first observed the asset</p></td>
+</tr>
+<tr class="row-odd"><td><p>source_last_seen</p></td>
+<td><p>Timestamp when this source last observed the asset</p></td>
+</tr>
+<tr class="row-even"><td><p>lastupdated</p></td>
+<td><p>Timestamp of the last sync run</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<section id="id5">
+<h4>Relationships<a class="headerlink" href="#id5" title="Link to this heading">#</a></h4>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="p">(:</span><span class="n">TenableTenant</span><span class="p">)</span><span class="o">-</span><span class="p">[:</span><span class="n">RESOURCE</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(:</span><span class="n">TenableAssetSource</span><span class="p">)</span>
+</span><span data-line="2"><span class="p">(:</span><span class="n">TenableAsset</span><span class="p">)</span><span class="o">-</span><span class="p">[:</span><span class="n">HAS_SOURCE</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(:</span><span class="n">TenableAssetSource</span><span class="p">)</span>
+</span></pre></div>
+</div>
+</section>
+</section>
+<section id="tag-tenableassettag">
+<h3>Tag::TenableAssetTag<a class="headerlink" href="#tag-tenableassettag" title="Link to this heading">#</a></h3>
+<p>A key/value tag applied to a Tenable asset. The <code class="docutils literal notranslate"><span class="pre">id</span></code> is the Tenable tag UUID. Also carries the cross-provider <code class="docutils literal notranslate"><span class="pre">:Tag</span></code> label so <code class="docutils literal notranslate"><span class="pre">(:Tag</span> <span class="pre">{key,</span> <span class="pre">value})</span></code> matches it alongside AWS/Azure/GCP tags.</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><strong>id</strong></p></td>
+<td><p>Tag UUID</p></td>
+</tr>
+<tr class="row-odd"><td><p>key</p></td>
+<td><p>Tag category/key (e.g. <code class="docutils literal notranslate"><span class="pre">Environment</span></code>)</p></td>
+</tr>
+<tr class="row-even"><td><p>value</p></td>
+<td><p>Tag value (e.g. <code class="docutils literal notranslate"><span class="pre">Production</span></code>)</p></td>
+</tr>
+<tr class="row-odd"><td><p>tag_key</p></td>
+<td><p>DEPRECATED, will be removed in v1.0.0: mirror of <code class="docutils literal notranslate"><span class="pre">key</span></code>.</p></td>
+</tr>
+<tr class="row-even"><td><p>tag_value</p></td>
+<td><p>DEPRECATED, will be removed in v1.0.0: mirror of <code class="docutils literal notranslate"><span class="pre">value</span></code>.</p></td>
+</tr>
+<tr class="row-odd"><td><p>added_by</p></td>
+<td><p>User who applied the tag</p></td>
+</tr>
+<tr class="row-even"><td><p>added_at</p></td>
+<td><p>Timestamp when the tag was applied</p></td>
+</tr>
+<tr class="row-odd"><td><p>lastupdated</p></td>
+<td><p>Timestamp of the last sync run</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<section id="id6">
+<h4>Relationships<a class="headerlink" href="#id6" title="Link to this heading">#</a></h4>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="p">(:</span><span class="n">TenableTenant</span><span class="p">)</span><span class="o">-</span><span class="p">[:</span><span class="n">RESOURCE</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(:</span><span class="n">TenableAssetTag</span><span class="p">)</span>
+</span><span data-line="2"><span class="p">(:</span><span class="n">TenableAsset</span><span class="p">)</span><span class="o">-</span><span class="p">[:</span><span class="n">TAGGED</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(:</span><span class="n">TenableAssetTag</span><span class="p">)</span>
+</span></pre></div>
+</div>
+<p>The legacy <code class="docutils literal notranslate"><span class="pre">(:TenableAsset)-[:HAS_TAG]-&gt;(:TenableAssetTag)</span></code> edge is still written in parallel and will be removed in v1.0.0.</p>
+</section>
+</section>
+<section id="tenablefinding">
+<h3>TenableFinding<a class="headerlink" href="#tenablefinding" title="Link to this heading">#</a></h3>
+<p>A vulnerability instance detected by Tenable on a specific asset. Corresponds to a record returned by the <a class="reference external" href="https://developer.tenable.com/reference/exports-vulns-request-export">Vulnerability Export API</a>.</p>
+<p>The <code class="docutils literal notranslate"><span class="pre">id</span></code> is the Tenable finding UUID (<code class="docutils literal notranslate"><span class="pre">finding_id</span></code>). Plugin details live in <code class="docutils literal notranslate"><span class="pre">TenablePlugin</span></code>; scan metadata lives in <code class="docutils literal notranslate"><span class="pre">TenableScan</span></code>.</p>
+<blockquote>
+<div><p><strong>Ontology note:</strong> when <code class="docutils literal notranslate"><span class="pre">has_cve</span></code> is <code class="docutils literal notranslate"><span class="pre">&quot;true&quot;</span></code> the node is also labelled <code class="docutils literal notranslate"><span class="pre">CVE</span></code>, allowing <code class="docutils literal notranslate"><span class="pre">CVEMetadata</span></code> nodes to enrich it automatically via <code class="docutils literal notranslate"><span class="pre">(:CVEMetadata)-[:ENRICHES]-&gt;(:CVE)</span></code> (matched on <code class="docutils literal notranslate"><span class="pre">cve_id</span></code>).</p>
+</div></blockquote>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><strong>id</strong></p></td>
+<td><p>Finding UUID (<code class="docutils literal notranslate"><span class="pre">finding_id</span></code> from the export)</p></td>
+</tr>
+<tr class="row-odd"><td><p><strong>asset_uuid</strong></p></td>
+<td><p>UUID of the asset this finding was detected on (indexed)</p></td>
+</tr>
+<tr class="row-even"><td><p>severity</p></td>
+<td><p>Severity string (<code class="docutils literal notranslate"><span class="pre">info</span></code>, <code class="docutils literal notranslate"><span class="pre">low</span></code>, <code class="docutils literal notranslate"><span class="pre">medium</span></code>, <code class="docutils literal notranslate"><span class="pre">high</span></code>, <code class="docutils literal notranslate"><span class="pre">critical</span></code>)</p></td>
+</tr>
+<tr class="row-odd"><td><p>severity_id</p></td>
+<td><p>Numeric severity (0=info, 1=low, 2=medium, 3=high, 4=critical)</p></td>
+</tr>
+<tr class="row-even"><td><p>severity_default_id</p></td>
+<td><p>Default numeric severity before any overrides</p></td>
+</tr>
+<tr class="row-odd"><td><p>severity_modification_type</p></td>
+<td><p>Whether severity was manually adjusted (e.g. <code class="docutils literal notranslate"><span class="pre">NONE</span></code>)</p></td>
+</tr>
+<tr class="row-even"><td><p>state</p></td>
+<td><p>Finding state (<code class="docutils literal notranslate"><span class="pre">OPEN</span></code>, <code class="docutils literal notranslate"><span class="pre">REOPENED</span></code>, <code class="docutils literal notranslate"><span class="pre">FIXED</span></code>)</p></td>
+</tr>
+<tr class="row-odd"><td><p>first_found</p></td>
+<td><p>Timestamp when the finding was first detected</p></td>
+</tr>
+<tr class="row-even"><td><p>last_found</p></td>
+<td><p>Timestamp when the finding was most recently detected</p></td>
+</tr>
+<tr class="row-odd"><td><p>indexed</p></td>
+<td><p>Timestamp when the finding was indexed in Tenable</p></td>
+</tr>
+<tr class="row-even"><td><p>source</p></td>
+<td><p>Scanner source (e.g. <code class="docutils literal notranslate"><span class="pre">NESSUS</span></code>)</p></td>
+</tr>
+<tr class="row-odd"><td><p>output</p></td>
+<td><p>Raw scanner output text</p></td>
+</tr>
+<tr class="row-even"><td><p>resurfaced_date</p></td>
+<td><p>Timestamp when a previously-fixed finding re-appeared</p></td>
+</tr>
+<tr class="row-odd"><td><p>time_taken_to_fix</p></td>
+<td><p>Seconds between first_found and fix (as a string)</p></td>
+</tr>
+<tr class="row-even"><td><p>port</p></td>
+<td><p>Port number the finding was detected on</p></td>
+</tr>
+<tr class="row-odd"><td><p>protocol</p></td>
+<td><p>Protocol (e.g. <code class="docutils literal notranslate"><span class="pre">TCP</span></code>, <code class="docutils literal notranslate"><span class="pre">UDP</span></code>)</p></td>
+</tr>
+<tr class="row-even"><td><p>service</p></td>
+<td><p>Service name (e.g. <code class="docutils literal notranslate"><span class="pre">www</span></code>, <code class="docutils literal notranslate"><span class="pre">cifs</span></code>)</p></td>
+</tr>
+<tr class="row-odd"><td><p><strong>cve_id</strong></p></td>
+<td><p>First CVE ID from the plugin’s CVE list; used for CVEMetadata ontology matching (indexed)</p></td>
+</tr>
+<tr class="row-even"><td><p>cve_list</p></td>
+<td><p>Full list of CVE IDs associated with this finding</p></td>
+</tr>
+<tr class="row-odd"><td><p>has_cve</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">&quot;true&quot;</span></code> if the plugin has at least one CVE ID, <code class="docutils literal notranslate"><span class="pre">&quot;false&quot;</span></code> otherwise</p></td>
+</tr>
+<tr class="row-even"><td><p>lastupdated</p></td>
+<td><p>Timestamp of the last sync run</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<section id="id7">
+<h4>Relationships<a class="headerlink" href="#id7" title="Link to this heading">#</a></h4>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="p">(:</span><span class="n">TenableTenant</span><span class="p">)</span><span class="o">-</span><span class="p">[:</span><span class="n">RESOURCE</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(:</span><span class="n">TenableFinding</span><span class="p">)</span>
+</span><span data-line="2"><span class="p">(:</span><span class="n">TenableFinding</span><span class="p">)</span><span class="o">-</span><span class="p">[:</span><span class="n">AFFECTS</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(:</span><span class="n">TenableAsset</span><span class="p">)</span>
+</span><span data-line="3"><span class="p">(:</span><span class="n">TenableFinding</span><span class="p">)</span><span class="o">-</span><span class="p">[:</span><span class="n">DETECTED_BY</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(:</span><span class="n">TenablePlugin</span><span class="p">)</span>
+</span><span data-line="4"><span class="p">(:</span><span class="n">TenableFinding</span><span class="p">)</span><span class="o">-</span><span class="p">[:</span><span class="n">PART_OF_SCAN</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(:</span><span class="n">TenableScan</span><span class="p">)</span>
+</span></pre></div>
+</div>
+</section>
+</section>
+<section id="tenableplugin">
+<h3>TenablePlugin<a class="headerlink" href="#tenableplugin" title="Link to this heading">#</a></h3>
+<p>A Tenable plugin that detected one or more findings. Plugins are deduplicated across findings — a single <code class="docutils literal notranslate"><span class="pre">TenablePlugin</span></code> node can be linked to many <code class="docutils literal notranslate"><span class="pre">TenableFinding</span></code> nodes.</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><strong>id</strong></p></td>
+<td><p>Integer plugin ID (e.g. <code class="docutils literal notranslate"><span class="pre">156641</span></code>)</p></td>
+</tr>
+<tr class="row-odd"><td><p>name</p></td>
+<td><p>Human-readable plugin name</p></td>
+</tr>
+<tr class="row-even"><td><p>family</p></td>
+<td><p>Plugin family (e.g. <code class="docutils literal notranslate"><span class="pre">Windows</span> <span class="pre">:</span> <span class="pre">Microsoft</span> <span class="pre">Bulletins</span></code>, <code class="docutils literal notranslate"><span class="pre">CGI</span> <span class="pre">abuses</span></code>)</p></td>
+</tr>
+<tr class="row-odd"><td><p>family_id</p></td>
+<td><p>Numeric family ID</p></td>
+</tr>
+<tr class="row-even"><td><p>description</p></td>
+<td><p>Detailed plugin description</p></td>
+</tr>
+<tr class="row-odd"><td><p>synopsis</p></td>
+<td><p>Short summary of what the plugin checks</p></td>
+</tr>
+<tr class="row-even"><td><p>solution</p></td>
+<td><p>Recommended remediation</p></td>
+</tr>
+<tr class="row-odd"><td><p>risk_factor</p></td>
+<td><p>Qualitative risk (<code class="docutils literal notranslate"><span class="pre">none</span></code>, <code class="docutils literal notranslate"><span class="pre">low</span></code>, <code class="docutils literal notranslate"><span class="pre">medium</span></code>, <code class="docutils literal notranslate"><span class="pre">high</span></code>, <code class="docutils literal notranslate"><span class="pre">critical</span></code>)</p></td>
+</tr>
+<tr class="row-even"><td><p>has_patch</p></td>
+<td><p>Whether a vendor patch is available</p></td>
+</tr>
+<tr class="row-odd"><td><p>has_workaround</p></td>
+<td><p>Whether a workaround exists</p></td>
+</tr>
+<tr class="row-even"><td><p>vendor_unpatched</p></td>
+<td><p>Whether the vendor has declined to patch</p></td>
+</tr>
+<tr class="row-odd"><td><p>vendor_severity</p></td>
+<td><p>Vendor-assigned severity label (e.g. <code class="docutils literal notranslate"><span class="pre">Important</span></code>)</p></td>
+</tr>
+<tr class="row-even"><td><p>exploit_available</p></td>
+<td><p>Whether a known exploit exists</p></td>
+</tr>
+<tr class="row-odd"><td><p>exploitability_ease</p></td>
+<td><p>Ease of exploitation description</p></td>
+</tr>
+<tr class="row-even"><td><p>exploit_framework_metasploit</p></td>
+<td><p>Whether a Metasploit module exists</p></td>
+</tr>
+<tr class="row-odd"><td><p>patch_publication_date</p></td>
+<td><p>Date the patch was published</p></td>
+</tr>
+<tr class="row-even"><td><p>publication_date</p></td>
+<td><p>Date the plugin was published</p></td>
+</tr>
+<tr class="row-odd"><td><p>modification_date</p></td>
+<td><p>Date the plugin was last modified</p></td>
+</tr>
+<tr class="row-even"><td><p>vuln_publication_date</p></td>
+<td><p>Date the vulnerability was disclosed</p></td>
+</tr>
+<tr class="row-odd"><td><p>cvss_base_score</p></td>
+<td><p>CVSS v2 base score</p></td>
+</tr>
+<tr class="row-even"><td><p>cvss_temporal_score</p></td>
+<td><p>CVSS v2 temporal score</p></td>
+</tr>
+<tr class="row-odd"><td><p>cvss3_base_score</p></td>
+<td><p>CVSS v3 base score</p></td>
+</tr>
+<tr class="row-even"><td><p>cvss3_temporal_score</p></td>
+<td><p>CVSS v3 temporal score</p></td>
+</tr>
+<tr class="row-odd"><td><p>cvss4_base_score</p></td>
+<td><p>CVSS v4 base score</p></td>
+</tr>
+<tr class="row-even"><td><p>vpr_score</p></td>
+<td><p>Tenable Vulnerability Priority Rating score</p></td>
+</tr>
+<tr class="row-odd"><td><p>epss_score</p></td>
+<td><p>EPSS probability score</p></td>
+</tr>
+<tr class="row-even"><td><p>cve_list</p></td>
+<td><p>Full list of CVE IDs associated with this plugin</p></td>
+</tr>
+<tr class="row-odd"><td><p>type</p></td>
+<td><p>Scan type (<code class="docutils literal notranslate"><span class="pre">local</span></code>, <code class="docutils literal notranslate"><span class="pre">remote</span></code>, <code class="docutils literal notranslate"><span class="pre">combined</span></code>)</p></td>
+</tr>
+<tr class="row-even"><td><p>lastupdated</p></td>
+<td><p>Timestamp of the last sync run</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<section id="id8">
+<h4>Relationships<a class="headerlink" href="#id8" title="Link to this heading">#</a></h4>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="p">(:</span><span class="n">TenableTenant</span><span class="p">)</span><span class="o">-</span><span class="p">[:</span><span class="n">RESOURCE</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(:</span><span class="n">TenablePlugin</span><span class="p">)</span>
+</span><span data-line="2"><span class="p">(:</span><span class="n">TenableFinding</span><span class="p">)</span><span class="o">-</span><span class="p">[:</span><span class="n">DETECTED_BY</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(:</span><span class="n">TenablePlugin</span><span class="p">)</span>
+</span></pre></div>
+</div>
+</section>
+</section>
+<section id="tenablescan">
+<h3>TenableScan<a class="headerlink" href="#tenablescan" title="Link to this heading">#</a></h3>
+<p>A Tenable scan run that produced one or more findings. Scans are deduplicated — multiple findings from the same scan share one <code class="docutils literal notranslate"><span class="pre">TenableScan</span></code> node.</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><strong>id</strong></p></td>
+<td><p>Scan UUID (<code class="docutils literal notranslate"><span class="pre">scan.uuid</span></code> from the findings export)</p></td>
+</tr>
+<tr class="row-odd"><td><p>schedule_uuid</p></td>
+<td><p>UUID of the scan schedule template</p></td>
+</tr>
+<tr class="row-even"><td><p>started_at</p></td>
+<td><p>Timestamp when the scan started</p></td>
+</tr>
+<tr class="row-odd"><td><p>last_scan_target</p></td>
+<td><p>IP address or hostname that was most recently scanned</p></td>
+</tr>
+<tr class="row-even"><td><p>lastupdated</p></td>
+<td><p>Timestamp of the last sync run</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<section id="id9">
+<h4>Relationships<a class="headerlink" href="#id9" title="Link to this heading">#</a></h4>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="p">(:</span><span class="n">TenableTenant</span><span class="p">)</span><span class="o">-</span><span class="p">[:</span><span class="n">RESOURCE</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(:</span><span class="n">TenableScan</span><span class="p">)</span>
+</span><span data-line="2"><span class="p">(:</span><span class="n">TenableFinding</span><span class="p">)</span><span class="o">-</span><span class="p">[:</span><span class="n">PART_OF_SCAN</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(:</span><span class="n">TenableScan</span><span class="p">)</span>
+</span></pre></div>
+</div>
+</section>
+</section>
+</section>
+</section>
+
+        </article><button class="back-to-top" type="button">
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+    <path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8v12z"></path>
+  </svg>
+  <span>Back to top</span>
+</button><div class="navigation flex print:hidden"></div></div>
+    </div>
+  </main>
+</div>
+<footer class="sy-foot">
+  <div class="sy-foot-inner sy-container mx-auto">
+    <div class="sy-foot-reserved md:flex justify-between items-center">
+      <div class="sy-foot-copyright"><p>2021-2026, The Linux Foundation</p>
+  
+  <p>
+    Made with
+    
+    <a href="https://www.sphinx-doc.org/">Sphinx</a> and
+    
+    <a href="https://shibuya.lepture.com">Shibuya theme</a>.
+  </p>
+</div>
+      <div class="sy-foot-socials">
+  <a href="https://github.com/cartography-cncf/cartography" aria-label="GitHub">
+    <iconify-icon icon="simple-icons:github"></iconify-icon>
+  </a>
+  <a href="https://communityinviter.com/apps/cloud-native/cncf" aria-label="Slack">
+    <iconify-icon icon="simple-icons:slack"></iconify-icon>
+  </a></div>
+    </div>
+  </div>
+</footer>
+      <script src="../../_static/documentation_options.js?v=9eb32ce0"></script>
+      <script src="../../_static/doctools.js?v=fd6eb6e6"></script>
+      <script src="../../_static/sphinx_highlight.js?v=6ffebe34"></script>
+      <script src="../../_static/clipboard.min.js?v=a7894cd8"></script>
+      <script src="../../_static/copybutton.js?v=f281be69"></script>
+      <script src="../../_static/shibuya.js?v=50760d75"></script></body>
+</html>
