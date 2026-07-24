@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 
+from cartography.models.aws.extra_labels import LEGACY_ECR_REPOSITORY_IMAGE
 from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeProperties
 from cartography.models.core.nodes import CartographyNodeSchema
@@ -10,6 +11,7 @@ from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import TargetNodeMatcher
+from cartography.models.ontology.labels import IMAGE_TAG
 
 
 @dataclass(frozen=True)
@@ -96,5 +98,5 @@ class ECRRepositoryImageSchema(CartographyNodeSchema):
     )
     # DEPRECATED: legacy ECRRepositoryImage node label will be removed in v1.0.0.
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
-        ["ECRRepositoryImage", "ImageTag"]
+        [LEGACY_ECR_REPOSITORY_IMAGE, IMAGE_TAG]
     )

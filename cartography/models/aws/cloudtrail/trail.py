@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 
+from cartography.models.aws.extra_labels import LEGACY_CLOUD_TRAIL_TRAIL
 from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeProperties
 from cartography.models.core.nodes import CartographyNodeSchema
@@ -100,7 +101,7 @@ class CloudTrailTrailToCloudWatchLogGroupRel(CartographyRelSchema):
 class CloudTrailTrailSchema(CartographyNodeSchema):
     label: str = "AWSCloudTrailTrail"
     # DEPRECATED: legacy CloudTrailTrail node label will be removed in v1.0.0.
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["CloudTrailTrail"])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([LEGACY_CLOUD_TRAIL_TRAIL])
     properties: CloudTrailTrailNodeProperties = CloudTrailTrailNodeProperties()
     sub_resource_relationship: CloudTrailToAWSAccountRel = CloudTrailToAWSAccountRel()
     other_relationships: OtherRelationships = OtherRelationships(

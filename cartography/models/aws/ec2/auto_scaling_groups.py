@@ -1,5 +1,8 @@
 from dataclasses import dataclass
 
+from cartography.models.aws.extra_labels import LEGACY_AUTO_SCALING_GROUP
+from cartography.models.aws.extra_labels import LEGACY_EC2_INSTANCE
+from cartography.models.aws.extra_labels import LEGACY_EC2_SUBNET
 from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeProperties
 from cartography.models.core.nodes import CartographyNodeSchema
@@ -10,6 +13,7 @@ from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import TargetNodeMatcher
+from cartography.models.ontology.labels import SUBNET
 
 
 @dataclass(frozen=True)
@@ -87,7 +91,7 @@ class EC2InstanceAutoScalingGroupProperties(CartographyNodeProperties):
 class EC2InstanceAutoScalingGroupSchema(CartographyNodeSchema):
     label: str = "AWSEC2Instance"
     # DEPRECATED: legacy EC2Instance node label will be removed in v1.0.0.
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["EC2Instance"])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([LEGACY_EC2_INSTANCE])
     properties: EC2InstanceAutoScalingGroupProperties = (
         EC2InstanceAutoScalingGroupProperties()
     )
@@ -150,7 +154,7 @@ class EC2SubnetAutoScalingGroupSchema(CartographyNodeSchema):
         EC2SubnetAutoScalingGroupNodeProperties()
     )
     # DEPRECATED: legacy EC2Subnet node label will be removed in v1.0.0.
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["EC2Subnet", "Subnet"])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([LEGACY_EC2_SUBNET, SUBNET])
     sub_resource_relationship: EC2SubnetToAWSAccountRel = EC2SubnetToAWSAccountRel()
     other_relationships: OtherRelationships = OtherRelationships(
         [
@@ -218,7 +222,7 @@ class AutoScalingGroupToLaunchConfigurationRel(CartographyRelSchema):
 class AutoScalingGroupSchema(CartographyNodeSchema):
     label: str = "AWSAutoScalingGroup"
     # DEPRECATED: legacy AutoScalingGroup node label will be removed in v1.0.0.
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["AutoScalingGroup"])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([LEGACY_AUTO_SCALING_GROUP])
     properties: AutoScalingGroupNodeProperties = AutoScalingGroupNodeProperties()
     sub_resource_relationship: AutoScalingGroupToAWSAccountRel = (
         AutoScalingGroupToAWSAccountRel()

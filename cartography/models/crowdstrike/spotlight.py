@@ -10,6 +10,8 @@ from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import TargetNodeMatcher
+from cartography.models.crowdstrike.extra_labels import LEGACY_SPOTLIGHT_VULNERABILITY
+from cartography.models.ontology.labels import CVE
 
 # =============================================================================
 # CrowdstrikeSpotlightVulnerability
@@ -71,7 +73,9 @@ class SpotlightVulnerabilityToCrowdstrikeHostRel(CartographyRelSchema):
 class SpotlightVulnerabilitySchema(CartographyNodeSchema):
     label: str = "CrowdstrikeSpotlightVulnerability"
     # DEPRECATED: legacy SpotlightVulnerability node label will be removed in v1.0.0.
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["SpotlightVulnerability"])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
+        [LEGACY_SPOTLIGHT_VULNERABILITY]
+    )
     properties: SpotlightVulnerabilityNodeProperties = (
         SpotlightVulnerabilityNodeProperties()
     )
@@ -89,7 +93,9 @@ class SpotlightVulnerabilitySchema(CartographyNodeSchema):
 @dataclass(frozen=True)
 class LegacyUnscopedSpotlightVulnerabilityCleanupSchema(CartographyNodeSchema):
     label: str = "CrowdstrikeSpotlightVulnerability"
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["SpotlightVulnerability"])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
+        [LEGACY_SPOTLIGHT_VULNERABILITY]
+    )
     scoped_cleanup: bool = False
     properties: SpotlightVulnerabilityNodeProperties = (
         SpotlightVulnerabilityNodeProperties()
@@ -134,7 +140,7 @@ class CrowdstrikeCVEToSpotlightVulnerabilityRel(CartographyRelSchema):
 class CrowdstrikeCVESchema(CartographyNodeSchema):
     label: str = "CrowdstrikeFinding"
     scoped_cleanup: bool = False
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["CVE"])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([CVE])
     properties: CrowdstrikeCVENodeProperties = CrowdstrikeCVENodeProperties()
     other_relationships: OtherRelationships = OtherRelationships(
         [

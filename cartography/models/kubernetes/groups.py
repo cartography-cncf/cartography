@@ -10,6 +10,7 @@ from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import TargetNodeMatcher
+from cartography.models.ontology.labels import USER_GROUP
 
 
 @dataclass(frozen=True)
@@ -95,7 +96,7 @@ class KubernetesGroupToAWSUserRel(CartographyRelSchema):
 @dataclass(frozen=True)
 class KubernetesGroupSchema(CartographyNodeSchema):
     label: str = "KubernetesGroup"
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["UserGroup"])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([USER_GROUP])
     properties: KubernetesGroupNodeProperties = KubernetesGroupNodeProperties()
     sub_resource_relationship: KubernetesGroupToClusterRel = (
         KubernetesGroupToClusterRel()

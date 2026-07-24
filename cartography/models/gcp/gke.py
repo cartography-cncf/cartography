@@ -9,6 +9,7 @@ from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import TargetNodeMatcher
+from cartography.models.ontology.labels import COMPUTE_CLUSTER
 
 
 @dataclass(frozen=True)
@@ -72,6 +73,6 @@ class GCPGKEClusterToProjectRel(CartographyRelSchema):
 @dataclass(frozen=True)
 class GCPGKEClusterSchema(CartographyNodeSchema):
     label: str = "GKECluster"
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["ComputeCluster"])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([COMPUTE_CLUSTER])
     properties: GCPGKEClusterNodeProperties = GCPGKEClusterNodeProperties()
     sub_resource_relationship: GCPGKEClusterToProjectRel = GCPGKEClusterToProjectRel()

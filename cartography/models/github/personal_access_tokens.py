@@ -3,7 +3,6 @@ from dataclasses import dataclass
 from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeProperties
 from cartography.models.core.nodes import CartographyNodeSchema
-from cartography.models.core.nodes import ConditionalNodeLabel
 from cartography.models.core.nodes import ExtraNodeLabels
 from cartography.models.core.relationships import CartographyRelProperties
 from cartography.models.core.relationships import CartographyRelSchema
@@ -11,6 +10,11 @@ from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import TargetNodeMatcher
+from cartography.models.github.extra_labels import GIT_HUB_CLASSIC_PERSONAL_ACCESS_TOKEN
+from cartography.models.github.extra_labels import (
+    GIT_HUB_FINE_GRAINED_PERSONAL_ACCESS_TOKEN,
+)
+from cartography.models.ontology.labels import API_KEY
 
 
 @dataclass(frozen=True)
@@ -98,15 +102,9 @@ class GitHubPersonalAccessTokenSchema(CartographyNodeSchema):
     label: str = "GitHubPersonalAccessToken"
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
         [
-            "APIKey",
-            ConditionalNodeLabel(
-                label="GitHubFineGrainedPersonalAccessToken",
-                conditions={"token_kind": "fine_grained"},
-            ),
-            ConditionalNodeLabel(
-                label="GitHubClassicPersonalAccessToken",
-                conditions={"token_kind": "classic"},
-            ),
+            API_KEY,
+            GIT_HUB_FINE_GRAINED_PERSONAL_ACCESS_TOKEN.when(token_kind="fine_grained"),
+            GIT_HUB_CLASSIC_PERSONAL_ACCESS_TOKEN.when(token_kind="classic"),
         ]
     )
     properties: GitHubPersonalAccessTokenNodeProperties = (

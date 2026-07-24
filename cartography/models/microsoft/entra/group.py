@@ -10,6 +10,9 @@ from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import TargetNodeMatcher
+from cartography.models.microsoft.extra_labels import ENTRA_IDENTITY
+from cartography.models.microsoft.extra_labels import ENTRA_PRINCIPAL
+from cartography.models.ontology.labels import USER_GROUP
 
 
 @dataclass(frozen=True)
@@ -112,9 +115,9 @@ class EntraGroupSchema(CartographyNodeSchema):
     )
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
         [
-            "EntraIdentity",
-            "UserGroup",
+            ENTRA_IDENTITY,
+            USER_GROUP,
             # Cross-provider IAM principal umbrella, mirroring AWSPrincipal / GCPPrincipal.
-            "EntraPrincipal",
+            ENTRA_PRINCIPAL,
         ]
     )

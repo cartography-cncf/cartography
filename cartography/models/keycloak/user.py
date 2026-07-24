@@ -9,6 +9,7 @@ from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import TargetNodeMatcher
+from cartography.models.ontology.labels import USER_ACCOUNT
 
 
 @dataclass(frozen=True)
@@ -49,7 +50,7 @@ class KeycloakUserToRealmRel(CartographyRelSchema):
 class KeycloakUserSchema(CartographyNodeSchema):
     label: str = "KeycloakUser"
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
-        ["UserAccount"]
+        [USER_ACCOUNT]
     )  # UserAccount label is used for ontology mapping
     properties: KeycloakUserNodeProperties = KeycloakUserNodeProperties()
     sub_resource_relationship: KeycloakUserToRealmRel = KeycloakUserToRealmRel()

@@ -46,7 +46,11 @@ Procedures for building and extending Cartography intel modules ship as Claude s
 import logging
 from dataclasses import dataclass
 from cartography.models.core.common import PropertyRef
-from cartography.models.core.nodes import CartographyNodeProperties, CartographyNodeSchema, ExtraNodeLabels
+from cartography.models.core.nodes import (
+    CartographyNodeProperties,
+    CartographyNodeSchema,
+    ExtraNodeLabels,
+)
 from cartography.models.core.relationships import (
     CartographyRelProperties, CartographyRelSchema, LinkDirection,
     make_target_node_matcher, TargetNodeMatcher, OtherRelationships,
@@ -178,6 +182,27 @@ class YourNodeProperties(CartographyNodeProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)  # REQUIRED
     # Your business properties here...
 ```
+
+### Extra Node Labels
+
+```python
+from cartography.models.aws.extra_labels import AWS_PRINCIPAL
+
+extra_node_labels = ExtraNodeLabels([AWS_PRINCIPAL])
+```
+
+`ExtraNodeLabel` is a single immutable value type. Define and export labels once
+as uppercase constants, then reuse those constants in schemas. Its `description`
+is metadata for introspection and generated documentation, not runtime behavior.
+`LabelKind.STANDARD` is the default; use `LabelKind.ONTOLOGY` for cross-provider
+semantic labels and `LabelKind.COMPATIBILITY` for temporary aliases. Only
+compatibility labels may set `remove_in` and `replacement_label`.
+
+Use reusable constants from `cartography.models.ontology.labels` for ontology
+labels. Raw strings are not accepted. Compose a conditional label with
+`CONSTANT.when(field="value")`; every condition key must be a declared node
+property. Conditions are stored as immutable, sorted tuples, and
+`ExtraNodeLabels` stores its labels as an immutable tuple.
 
 ### Relationship Direction
 

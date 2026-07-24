@@ -4,6 +4,7 @@ from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeProperties
 from cartography.models.core.nodes import CartographyNodeSchema
 from cartography.models.core.nodes import ExtraNodeLabels
+from cartography.models.ontology.labels import TENANT
 
 
 @dataclass(frozen=True)
@@ -20,4 +21,4 @@ class GCPOrganizationSchema(CartographyNodeSchema):
     label: str = "GCPOrganization"
     properties: GCPOrganizationNodeProperties = GCPOrganizationNodeProperties()
     # sub_resource_relationship is None by default - Organizations are top-level resources
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["Tenant"])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([TENANT])

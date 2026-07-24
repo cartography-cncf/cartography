@@ -10,6 +10,8 @@ from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import TargetNodeMatcher
+from cartography.models.ontology.labels import USER_GROUP
+from cartography.models.scaleway.extra_labels import SCALEWAY_PRINCIPAL
 
 
 @dataclass(frozen=True)
@@ -87,7 +89,7 @@ class ScalewayGroupSchema(CartographyNodeSchema):
     properties: ScalewayGroupProperties = ScalewayGroupProperties()
     # ScalewayPrincipal: cross-provider IAM principal umbrella, mirroring AWSPrincipal / GCPPrincipal.
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
-        ["UserGroup", "ScalewayPrincipal"]
+        [USER_GROUP, SCALEWAY_PRINCIPAL]
     )
     sub_resource_relationship: ScalewayGroupToOrganizationRel = (
         ScalewayGroupToOrganizationRel()

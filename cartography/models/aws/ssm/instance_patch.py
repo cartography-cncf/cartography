@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 
+from cartography.models.aws.extra_labels import LEGACY_SSM_INSTANCE_PATCH
 from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeProperties
 from cartography.models.core.nodes import CartographyNodeSchema
@@ -67,7 +68,7 @@ class SSMInstancePatchToEC2InstanceRel(CartographyRelSchema):
 class SSMInstancePatchSchema(CartographyNodeSchema):
     label: str = "AWSSSMInstancePatch"
     # DEPRECATED: legacy SSMInstancePatch node label will be removed in v1.0.0.
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["SSMInstancePatch"])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([LEGACY_SSM_INSTANCE_PATCH])
     properties: SSMInstancePatchNodeProperties = SSMInstancePatchNodeProperties()
     sub_resource_relationship: SSMInstancePatchToAWSAccountRel = (
         SSMInstancePatchToAWSAccountRel()

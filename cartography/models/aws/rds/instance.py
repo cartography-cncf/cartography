@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 
+from cartography.models.aws.extra_labels import LEGACY_RDS_INSTANCE
 from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeProperties
 from cartography.models.core.nodes import CartographyNodeSchema
@@ -10,6 +11,7 @@ from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import TargetNodeMatcher
+from cartography.models.ontology.labels import DATABASE
 
 
 @dataclass(frozen=True)
@@ -164,7 +166,9 @@ class RDSInstanceToKMSKeyRel(CartographyRelSchema):
 class RDSInstanceSchema(CartographyNodeSchema):
     label: str = "AWSRDSInstance"
     # DEPRECATED: legacy RDSInstance node label will be removed in v1.0.0.
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["RDSInstance", "Database"])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
+        [LEGACY_RDS_INSTANCE, DATABASE]
+    )
     properties: RDSInstanceNodeProperties = RDSInstanceNodeProperties()
     sub_resource_relationship: RDSInstanceToAWSAccountRel = RDSInstanceToAWSAccountRel()
     other_relationships: OtherRelationships = OtherRelationships(

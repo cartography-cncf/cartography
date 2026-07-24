@@ -10,6 +10,7 @@ from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import TargetNodeMatcher
+from cartography.models.ontology.labels import OBJECT_STORAGE
 
 
 @dataclass(frozen=True)
@@ -65,7 +66,7 @@ class GCPBucketToProjectRel(CartographyRelSchema):
 class GCPBucketSchema(CartographyNodeSchema):
     label: str = "GCPBucket"
     properties: GCPBucketNodeProperties = GCPBucketNodeProperties()
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["ObjectStorage"])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([OBJECT_STORAGE])
     sub_resource_relationship: GCPBucketToProjectRel = GCPBucketToProjectRel()
 
 

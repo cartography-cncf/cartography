@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 
+from cartography.models.aws.extra_labels import LEGACY_CODE_BUILD_PROJECT
 from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeProperties
 from cartography.models.core.nodes import CartographyNodeSchema
@@ -9,6 +10,7 @@ from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import TargetNodeMatcher
+from cartography.models.ontology.labels import CICD_PIPELINE
 
 
 @dataclass(frozen=True)
@@ -48,7 +50,7 @@ class CodeBuildProjectSchema(CartographyNodeSchema):
     properties: CodeBuildProjectNodeProperties = CodeBuildProjectNodeProperties()
     # DEPRECATED: legacy CodeBuildProject node label will be removed in v1.0.0.
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
-        ["CodeBuildProject", "CICDPipeline"]
+        [LEGACY_CODE_BUILD_PROJECT, CICD_PIPELINE]
     )
     sub_resource_relationship: CodeBuildProjectToAWSAccountRel = (
         CodeBuildProjectToAWSAccountRel()

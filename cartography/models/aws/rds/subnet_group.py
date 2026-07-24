@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 
+from cartography.models.aws.extra_labels import LEGACY_DB_SUBNET_GROUP
 from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeProperties
 from cartography.models.core.nodes import CartographyNodeSchema
@@ -91,7 +92,7 @@ class DBSubnetGroupSchema(CartographyNodeSchema):
 
     label: str = "AWSDBSubnetGroup"
     # DEPRECATED: legacy DBSubnetGroup node label will be removed in v1.0.0.
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["DBSubnetGroup"])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([LEGACY_DB_SUBNET_GROUP])
     properties: DBSubnetGroupNodeProperties = DBSubnetGroupNodeProperties()
     sub_resource_relationship: DBSubnetGroupToAWSAccountRel = (
         DBSubnetGroupToAWSAccountRel()

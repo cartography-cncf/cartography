@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 
+from cartography.models.aws.extra_labels import AWS_POLICY
 from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeProperties
 from cartography.models.core.nodes import CartographyNodeSchema
@@ -48,4 +49,4 @@ class AWSManagedPolicySchema(CartographyNodeSchema):
     other_relationships: OtherRelationships = OtherRelationships(
         [AWSManagedPolicyToAWSPrincipalRel()]
     )
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["AWSPolicy"])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([AWS_POLICY])

@@ -10,6 +10,7 @@ from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import TargetNodeMatcher
+from cartography.models.ontology.labels import TENANT
 
 
 @dataclass(frozen=True)
@@ -88,4 +89,4 @@ class OpenAIProjectSchema(CartographyNodeSchema):
     other_relationships: OtherRelationships = OtherRelationships(
         [OpenAIProjectToUserRel(), OpenAIProjectToUserAdminRel()],
     )
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["Tenant"])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([TENANT])

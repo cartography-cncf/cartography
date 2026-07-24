@@ -10,6 +10,8 @@ from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import TargetNodeMatcher
+from cartography.models.microsoft.extra_labels import ENTRA_PRINCIPAL
+from cartography.models.ontology.labels import SERVICE_ACCOUNT
 
 
 @dataclass(frozen=True)
@@ -99,7 +101,7 @@ class EntraServicePrincipalSchema(CartographyNodeSchema):
     )
     # EntraPrincipal: cross-provider IAM principal umbrella, mirroring AWSPrincipal / GCPPrincipal.
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
-        ["ServiceAccount", "EntraPrincipal"]
+        [SERVICE_ACCOUNT, ENTRA_PRINCIPAL]
     )
     sub_resource_relationship: EntraServicePrincipalToTenantRel = (
         EntraServicePrincipalToTenantRel()

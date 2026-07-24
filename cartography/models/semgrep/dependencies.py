@@ -11,6 +11,10 @@ from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import TargetNodeMatcher
+from cartography.models.extra_labels import DEPENDENCY
+from cartography.models.semgrep.extra_labels import LEGACY_GO_LIBRARY
+from cartography.models.semgrep.extra_labels import LEGACY_NPM_LIBRARY
+from cartography.models.semgrep.extra_labels import SEMGREP_DEPENDENCY
 
 
 @dataclass(frozen=True)
@@ -97,7 +101,7 @@ class SemgrepGoLibrarySchema(CartographyNodeSchema):
     label: str = "SemgrepGoLibrary"
     # DEPRECATED: legacy GoLibrary node label will be removed in v1.0.0.
     extra_node_labels: Optional[ExtraNodeLabels] = ExtraNodeLabels(
-        ["GoLibrary", "Dependency", "SemgrepDependency"],
+        [LEGACY_GO_LIBRARY, DEPENDENCY, SEMGREP_DEPENDENCY],
     )
     properties: SemgrepDependencyNodeProperties = SemgrepDependencyNodeProperties()
     sub_resource_relationship: SemgrepDependencyToSemgrepDeploymentRel = (
@@ -116,7 +120,7 @@ class SemgrepNpmLibrarySchema(CartographyNodeSchema):
     label: str = "SemgrepNpmLibrary"
     # DEPRECATED: legacy NpmLibrary node label will be removed in v1.0.0.
     extra_node_labels: Optional[ExtraNodeLabels] = ExtraNodeLabels(
-        ["NpmLibrary", "Dependency", "SemgrepDependency"],
+        [LEGACY_NPM_LIBRARY, DEPENDENCY, SEMGREP_DEPENDENCY],
     )
     properties: SemgrepDependencyNodeProperties = SemgrepDependencyNodeProperties()
     sub_resource_relationship: SemgrepDependencyToSemgrepDeploymentRel = (

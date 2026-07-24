@@ -10,6 +10,7 @@ from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import TargetNodeMatcher
+from cartography.models.ontology.labels import COMPUTE_SERVICE
 
 
 @dataclass(frozen=True)
@@ -75,7 +76,7 @@ class KubernetesDaemonSetToKubernetesNamespaceWorkloadParentRel(CartographyRelSc
 class KubernetesDaemonSetSchema(CartographyNodeSchema):
     label: str = "KubernetesDaemonSet"
     # ComputeService is the cross-provider "logical workload / controller" label.
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["ComputeService"])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([COMPUTE_SERVICE])
     properties: KubernetesDaemonSetNodeProperties = KubernetesDaemonSetNodeProperties()
     sub_resource_relationship: KubernetesDaemonSetToKubernetesClusterRel = (
         KubernetesDaemonSetToKubernetesClusterRel()

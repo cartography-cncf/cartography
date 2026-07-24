@@ -10,6 +10,7 @@ from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import TargetNodeMatcher
+from cartography.models.ontology.labels import LOAD_BALANCER
 
 logger = logging.getLogger(__name__)
 
@@ -45,7 +46,7 @@ class AzureLoadBalancerToSubscriptionRel(CartographyRelSchema):
 class AzureLoadBalancerSchema(CartographyNodeSchema):
     label: str = "AzureLoadBalancer"
     properties: AzureLoadBalancerProperties = AzureLoadBalancerProperties()
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["LoadBalancer"])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([LOAD_BALANCER])
     sub_resource_relationship: AzureLoadBalancerToSubscriptionRel = (
         AzureLoadBalancerToSubscriptionRel()
     )

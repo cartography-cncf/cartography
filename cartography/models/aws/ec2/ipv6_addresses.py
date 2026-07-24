@@ -1,5 +1,7 @@
 from dataclasses import dataclass
 
+from cartography.models.aws.extra_labels import IP
+from cartography.models.aws.extra_labels import LEGACY_EC2_IPV6_ADDRESS
 from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeProperties
 from cartography.models.core.nodes import CartographyNodeSchema
@@ -64,7 +66,7 @@ class EC2Ipv6AddressSchema(CartographyNodeSchema):
     # The Ip extra label allows AWSDNSRecord AAAA records to reach this node
     # via the existing DNS_POINTS_TO -> Ip relationship, matching on id (the IPv6 address).
     # DEPRECATED: legacy EC2Ipv6Address node label will be removed in v1.0.0.
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["EC2Ipv6Address", "Ip"])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([LEGACY_EC2_IPV6_ADDRESS, IP])
     properties: EC2Ipv6AddressNodeProperties = EC2Ipv6AddressNodeProperties()
     sub_resource_relationship: EC2Ipv6AddressToAWSAccountRel = (
         EC2Ipv6AddressToAWSAccountRel()

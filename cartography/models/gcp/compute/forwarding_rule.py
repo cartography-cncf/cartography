@@ -10,6 +10,7 @@ from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import TargetNodeMatcher
+from cartography.models.ontology.labels import LOAD_BALANCER
 
 
 @dataclass(frozen=True)
@@ -102,7 +103,7 @@ class GCPForwardingRuleSchema(CartographyNodeSchema):
 
     label: str = "GCPForwardingRule"
     properties: GCPForwardingRuleNodeProperties = GCPForwardingRuleNodeProperties()
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["LoadBalancer"])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([LOAD_BALANCER])
     sub_resource_relationship: GCPForwardingRuleToProjectRel = (
         GCPForwardingRuleToProjectRel()
     )
@@ -117,7 +118,7 @@ class GCPForwardingRuleWithSubnetSchema(CartographyNodeSchema):
 
     label: str = "GCPForwardingRule"
     properties: GCPForwardingRuleNodeProperties = GCPForwardingRuleNodeProperties()
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["LoadBalancer"])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([LOAD_BALANCER])
     sub_resource_relationship: GCPForwardingRuleToProjectRel = (
         GCPForwardingRuleToProjectRel()
     )
@@ -132,7 +133,7 @@ class GCPForwardingRuleWithSubnetSchema(CartographyNodeSchema):
 class GCPForwardingRuleWithVpcSchema(CartographyNodeSchema):
     label: str = "GCPForwardingRule"
     properties: GCPForwardingRuleNodeProperties = GCPForwardingRuleNodeProperties()
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["LoadBalancer"])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([LOAD_BALANCER])
     sub_resource_relationship: GCPForwardingRuleToProjectRel = (
         GCPForwardingRuleToProjectRel()
     )

@@ -10,6 +10,7 @@ from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import TargetNodeMatcher
+from cartography.models.extra_labels import DEPENDENCY
 
 
 @dataclass(frozen=True)
@@ -87,7 +88,7 @@ class GitHubDependencySchema(CartographyNodeSchema):
     """
 
     label: str = "GitHubDependency"
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["Dependency"])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([DEPENDENCY])
     properties: GitHubDependencyNodeProperties = GitHubDependencyNodeProperties()
     other_relationships: OtherRelationships = OtherRelationships(
         [

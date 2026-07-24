@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 
+from cartography.models.aws.extra_labels import LEGACY_API_GATEWAY_METHOD
 from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeProperties
 from cartography.models.core.nodes import CartographyNodeSchema
@@ -67,7 +68,7 @@ class APIGatewayMethodToAWSAccountRel(CartographyRelSchema):
 class APIGatewayMethodSchema(CartographyNodeSchema):
     label: str = "AWSAPIGatewayMethod"
     # DEPRECATED: legacy APIGatewayMethod node label will be removed in v1.0.0.
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["APIGatewayMethod"])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([LEGACY_API_GATEWAY_METHOD])
     properties: APIGatewayMethodNodeProperties = APIGatewayMethodNodeProperties()
     sub_resource_relationship: APIGatewayMethodToAWSAccountRel = (
         APIGatewayMethodToAWSAccountRel()

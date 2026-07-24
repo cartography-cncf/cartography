@@ -3,7 +3,6 @@ from dataclasses import dataclass
 from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeProperties
 from cartography.models.core.nodes import CartographyNodeSchema
-from cartography.models.core.nodes import ConditionalNodeLabel
 from cartography.models.core.nodes import ExtraNodeLabels
 from cartography.models.core.relationships import CartographyRelProperties
 from cartography.models.core.relationships import CartographyRelSchema
@@ -11,6 +10,10 @@ from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import TargetNodeMatcher
+from cartography.models.extra_labels import RISK
+from cartography.models.ontology.labels import CVE
+from cartography.models.ontology.labels import SECURITY_ISSUE
+from cartography.models.ontology.labels import USER_ACCOUNT
 
 
 @dataclass(frozen=True)
@@ -130,9 +133,9 @@ class GitHubDependabotAlertSchema(CartographyNodeSchema):
     label: str = "GitHubDependabotAlert"
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
         [
-            "Risk",
-            "SecurityIssue",
-            ConditionalNodeLabel(label="CVE", conditions={"has_cve": "true"}),
+            RISK,
+            SECURITY_ISSUE,
+            CVE.when(has_cve="true"),
         ]
     )
     properties: GitHubDependabotAlertNodeProperties = (
@@ -162,7 +165,7 @@ class GitHubDependabotAlertUserNodeProperties(CartographyNodeProperties):
 @dataclass(frozen=True)
 class GitHubDependabotAlertUserSchema(CartographyNodeSchema):
     label: str = "GitHubUser"
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["UserAccount"])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([USER_ACCOUNT])
     properties: GitHubDependabotAlertUserNodeProperties = (
         GitHubDependabotAlertUserNodeProperties()
     )

@@ -4,6 +4,7 @@ from typing import Optional
 from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeProperties
 from cartography.models.core.nodes import CartographyNodeSchema
+from cartography.models.core.nodes import ExtraNodeLabel
 from cartography.models.core.nodes import ExtraNodeLabels
 from cartography.models.core.relationships import CartographyRelProperties
 from cartography.models.core.relationships import CartographyRelSchema
@@ -12,6 +13,17 @@ from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import TargetNodeMatcher
 from tests.data.graph.querybuilder.sample_models.simple_node import SimpleNodeProperties
+
+ANOTHER_NODE = ExtraNodeLabel(
+    label="AnotherNodeLabel",
+    description="An additional label used by the interesting asset test model.",
+)
+
+
+YET_ANOTHER_NODE = ExtraNodeLabel(
+    label="YetAnotherNodeLabel",
+    description="A second additional label used by the interesting asset test model.",
+)
 
 
 @dataclass(frozen=True)
@@ -96,7 +108,7 @@ class InterestingAssetToWorldAssetRel(CartographyRelSchema):
 @dataclass(frozen=True)
 class InterestingAssetSchema(CartographyNodeSchema):
     extra_node_labels: Optional[ExtraNodeLabels] = ExtraNodeLabels(
-        ["AnotherNodeLabel", "YetAnotherNodeLabel"],
+        [ANOTHER_NODE, YET_ANOTHER_NODE],
     )
     label: str = "InterestingAsset"
     properties: SimpleNodeProperties = SimpleNodeProperties()

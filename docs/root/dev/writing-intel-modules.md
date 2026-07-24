@@ -147,25 +147,89 @@ See [below](#indexescypher) for more information on indexes.
 
 #### Extra node labels
 
-You can add additional Neo4j labels to your nodes using `ExtraNodeLabels`:
+You can add additional Neo4j labels to a node with `ExtraNodeLabels`. This lets
+different node types share a query target without changing their primary
+labels. First define an uppercase `ExtraNodeLabel` constant in the appropriate
+label module. Then import that constant into each node schema that needs it.
+
+For example, AWS IAM users, groups, roles, and federated identities all use the
+`AWSPrincipal` label so queries can address them as AWS principals:
 
 ```python
-from cartography.models.core.nodes import ExtraNodeLabels
+from cartography.models.core.nodes import ExtraNodeLabel
 
-@dataclass(frozen=True)
-class EMRClusterSchema(CartographyNodeSchema):
-    label: str = 'AWSEMRCluster'
-    properties: EMRClusterNodeProperties = EMRClusterNodeProperties()
-    sub_resource_relationship: EMRClusterToAWSAccountRel = EMRClusterToAWSAccountRel()
-
-    # Add extra labels to the node
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(['Resource', 'AWSResource'])
+# cartography/models/aws/extra_labels.py
+AWS_PRINCIPAL = ExtraNodeLabel(
+    label="AWSPrincipal",
+    description="An AWS identity that can make authenticated requests.",
+)
 ```
 
-This creates nodes with multiple labels: `(:AWSEMRCluster:Resource:AWSResource)`. Extra labels are useful for:
-- Creating taxonomies (e.g., all AWS resources share an `AWSResource` label)
-- Enabling cross-module queries (e.g., find all `Resource` nodes regardless of specific type)
-- Ontology mapping
+```python
+from cartography.models.aws.extra_labels import AWS_PRINCIPAL
+from cartography.models.core.nodes import ExtraNodeLabels
+from cartography.models.ontology.labels import PERMISSION_ROLE
+
+@dataclass(frozen=True)
+class AWSRoleSchema(CartographyNodeSchema):
+    label: str = "AWSRole"
+    properties: AWSRoleNodeProperties = AWSRoleNodeProperties()
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
+        [AWS_PRINCIPAL, PERMISSION_ROLE]
+    )
+```
+
+This creates nodes with the labels
+`(:AWSRole:AWSPrincipal:PermissionRole)`. The role remains addressable by its
+primary `AWSRole` label and can also participate in queries for AWS principals
+or permission roles.
+
+`LabelKind.STANDARD` is the default for provider-local and shared graph
+interfaces. Use `LabelKind.ONTOLOGY` for cross-provider semantic labels. The
+`description` field provides metadata for introspection and generated
+documentation; it does not change ingestion behavior.
+
+Define each label once and reuse its exported constant. Raw strings are not
+accepted. Cross-provider ontology label constants live in
+`cartography.models.ontology.labels` and use `LabelKind.ONTOLOGY`;
+provider-local interface labels should remain near their provider models.
+`ExtraNodeLabels` accepts an iterable and stores the labels as an immutable
+tuple.
+
+#### Compatibility labels
+
+Use a compatibility label only when renaming a node's primary Neo4j label. It
+temporarily keeps the old label on newly ingested nodes so existing queries
+continue to work during the migration period. The node is still supported
+under its new primary label.
+
+For example, CloudWatch log groups now use `AWSCloudWatchLogGroup` as their
+primary label while retaining `CloudWatchLogGroup` until version 1.0.0:
+
+```python
+from cartography.models.core.nodes import LabelKind
+
+LEGACY_CLOUD_WATCH_LOG_GROUP = ExtraNodeLabel(
+    label="CloudWatchLogGroup",
+    description="Compatibility label for the former CloudWatchLogGroup node label.",
+    kind=LabelKind.COMPATIBILITY,
+    replacement_label="AWSCloudWatchLogGroup",
+    remove_in="1.0.0",
+)
+
+@dataclass(frozen=True)
+class CloudWatchLogGroupSchema(CartographyNodeSchema):
+    label: str = "AWSCloudWatchLogGroup"
+    properties: CloudWatchLogGroupNodeProperties = CloudWatchLogGroupNodeProperties()
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
+        [LEGACY_CLOUD_WATCH_LOG_GROUP]
+    )
+```
+
+`replacement_label` records the new primary label for introspection and
+documentation. `remove_in` records the release in which the compatibility
+label can be removed. Both fields are optional and are valid only when
+`kind=LabelKind.COMPATIBILITY`.
 
 #### Conditional node labels
 
@@ -173,10 +237,23 @@ This creates nodes with multiple labels: `(:AWSEMRCluster:Resource:AWSResource)`
 Conditional labels are a specialized feature primarily used for ontology mapping scenarios where a single data source produces records that map to different semantic types. Most intel modules do not need this feature.
 ```
 
-Sometimes you want to apply labels only when certain conditions are met. Use `ConditionalNodeLabel` for this:
+Sometimes the label depends on values in each data dictionary processed by the
+loader. Compose a conditional value from an exported constant with
+`CONSTANT.when(property_name="value")`. The keyword must name a property in
+the node schema. The loader sets that node property from its `PropertyRef` in
+each input data dictionary before the condition is evaluated.
+
+For example, the ECR transform
+[sets the `type` key on each image](https://github.com/cartography-cncf/cartography/blob/99b77f07d946b38ac2ec720c30287d2a3faac5c5/cartography/intel/aws/ecr.py#L105-L114).
+The
+[ECR image schema uses that key](https://github.com/cartography-cncf/cartography/blob/99b77f07d946b38ac2ec720c30287d2a3faac5c5/cartography/models/aws/ecr/image.py#L190-L196)
+to select the matching ontology label:
 
 ```python
-from cartography.models.core.nodes import ConditionalNodeLabel, ExtraNodeLabels
+from cartography.models.core.nodes import ExtraNodeLabels
+from cartography.models.ontology.labels import IMAGE
+from cartography.models.ontology.labels import IMAGE_ATTESTATION
+from cartography.models.ontology.labels import IMAGE_MANIFEST_LIST
 
 @dataclass(frozen=True)
 class ECRImageSchema(CartographyNodeSchema):
@@ -186,18 +263,9 @@ class ECRImageSchema(CartographyNodeSchema):
 
     # Apply different ontology labels based on the image type
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([
-        ConditionalNodeLabel(
-            label="Image",
-            conditions={"type": "IMAGE"}
-        ),
-        ConditionalNodeLabel(
-            label="ImageAttestation",
-            conditions={"type": "IMAGE_ATTESTATION"}
-        ),
-        ConditionalNodeLabel(
-            label="ImageManifestList",
-            conditions={"type": "IMAGE_MANIFEST_LIST"}
-        ),
+        IMAGE.when(type="image"),
+        IMAGE_ATTESTATION.when(type="attestation"),
+        IMAGE_MANIFEST_LIST.when(type="manifest_list"),
     ])
 ```
 
@@ -207,20 +275,27 @@ ECR (and other container registries) store different types of artifacts that sha
 
 | `type` field value | Ontology Label | Description |
 |-------------------|----------------|-------------|
-| `IMAGE` | `Image` | Standard container image |
-| `IMAGE_ATTESTATION` | `ImageAttestation` | SLSA/Sigstore attestation |
-| `IMAGE_MANIFEST_LIST` | `ImageManifestList` | Multi-arch manifest list |
+| `image` | `Image` | Standard container image |
+| `attestation` | `ImageAttestation` | SLSA/Sigstore attestation |
+| `manifest_list` | `ImageManifestList` | Multi-arch manifest list |
 
-Without conditional labels, we cannot accurately map these to distinct ontology types. An `AWSECRImage` node with `type: "IMAGE_ATTESTATION"` should be labeled as `ImageAttestation` in the ontology, not just generic `Image`.
+Without conditional labels, we cannot accurately map these to distinct ontology
+types. An `AWSECRImage` node with `type: "attestation"` should be labeled as
+`ImageAttestation` in the ontology, not just generic `Image`. Production ECR
+values are `image`, `attestation`, and `manifest_list`. Exact matching is
+case-sensitive, so uppercase variants do not match.
 
 **How it works:**
-- String labels are applied unconditionally to all nodes during ingestion
-- `ConditionalNodeLabel` labels are applied in a separate query after ingestion, only to nodes matching all specified conditions
-- Conditions use exact string equality and are combined with AND logic
+- Labels with empty `conditions` are applied unconditionally during ingestion
+- Labels with nonempty `conditions` are applied in a separate query after ingestion, only to nodes matching all specified conditions
+- `when()` returns a new immutable label value and leaves the exported constant unchanged
+- Conditions are stored as immutable, sorted `(field, value)` tuples
+- Conditions use case-sensitive exact string equality and are combined with AND logic
 - When conditions change, labels are automatically added or removed on subsequent syncs
 
 **Important notes:**
 - Condition values must be strings (e.g., `"true"` not `True`)
+- Condition field names must exist on the concrete node's properties schema
 - All conditions must match for the label to be applied (AND logic)
 - Indexes are automatically created for conditional labels and their condition fields
 

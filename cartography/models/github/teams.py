@@ -10,6 +10,7 @@ from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import TargetNodeMatcher
+from cartography.models.ontology.labels import USER_GROUP
 
 
 @dataclass(frozen=True)
@@ -180,7 +181,7 @@ class GitHubTeamChildTeamMemberOfRel(CartographyRelSchema):
 class GitHubTeamSchema(CartographyNodeSchema):
     label: str = "GitHubTeam"
     properties: GitHubTeamNodeProperties = GitHubTeamNodeProperties()
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["UserGroup"])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([USER_GROUP])
     other_relationships: OtherRelationships = OtherRelationships(
         [
             GitHubTeamAdminRepoRel(),

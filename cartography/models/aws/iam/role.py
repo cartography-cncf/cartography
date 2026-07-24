@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 
+from cartography.models.aws.extra_labels import AWS_PRINCIPAL
 from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeProperties
 from cartography.models.core.nodes import CartographyNodeSchema
@@ -10,6 +11,7 @@ from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import TargetNodeMatcher
+from cartography.models.ontology.labels import PERMISSION_ROLE
 
 
 @dataclass(frozen=True)
@@ -82,5 +84,5 @@ class AWSRoleSchema(CartographyNodeSchema):
         ]
     )
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
-        ["AWSPrincipal", "PermissionRole"]
+        [AWS_PRINCIPAL, PERMISSION_ROLE]
     )
