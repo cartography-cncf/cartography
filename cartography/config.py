@@ -188,6 +188,11 @@ class Config:
     :param azure_permission_relationships_file: File path for the Azure permission relationships file. Optional.
     :type gcp_requested_syncs: str
     :param gcp_requested_syncs: Comma-separated list of GCP resources to sync. Optional.
+    :type gcp_project_ids: str
+    :param gcp_project_ids: Comma-separated list of specific GCP project IDs to sync
+        directly, bypassing organization/folder discovery. Use this to sync one or more
+        projects that may not belong to a GCP Organization, or when only project-scoped
+        credentials are available. Optional.
     :type gcp_permission_relationships_file: str
     :param gcp_permission_relationships_file: File path for the GCP resource permission relationships file. Optional.
     :type jamf_base_uri: string
@@ -473,6 +478,7 @@ class Config:
         permission_relationships_file=None,
         azure_permission_relationships_file=None,
         gcp_requested_syncs=None,
+        gcp_project_ids=None,
         gcp_permission_relationships_file=None,
         jamf_base_uri=None,
         jamf_user=None,
@@ -684,6 +690,7 @@ class Config:
         self.permission_relationships_file = permission_relationships_file
         self.azure_permission_relationships_file = azure_permission_relationships_file
         self.gcp_requested_syncs = gcp_requested_syncs
+        self.gcp_project_ids = gcp_project_ids
         self.gcp_permission_relationships_file = gcp_permission_relationships_file
         self.jamf_base_uri = jamf_base_uri
         self.jamf_user = jamf_user

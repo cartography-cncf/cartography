@@ -414,8 +414,13 @@ def get_policy_bindings(
 
     policies = []
 
-    # Fetch effective policies for project resource (using org scope for inheritance)
-    effective_scope = org_id
+    # Fetch effective policies for the project resource. CAI's
+    # batch_get_effective_iam_policies requires an organization, folder, or project
+    # scope; a None scope is rejected by Google. In the org-based path we scope to the
+    # organization so ancestor (org/folder) bindings are picked up as inherited
+    # policies. In the standalone (--gcp-project-ids) path there is no
+    # ORG_RESOURCE_NAME, so fall back to the project's own scope.
+    effective_scope = org_id or f"projects/{project_id}"
     _wait_for_cai_policy_bindings_slot("batch_get_effective_iam_policies")
     response = client.batch_get_effective_iam_policies(
         request=BatchGetEffectiveIamPoliciesRequest(

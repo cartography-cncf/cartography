@@ -44,6 +44,27 @@ Ensure the machine running Cartography can authenticate to this identity:
 - **Method 1 (Credentials file)**: Set the `GOOGLE_APPLICATION_CREDENTIALS` environment variable to point to a JSON credentials file. Ensure only the Cartography user has read access to this file.
 - **Method 2 (Default service account)**: If running on GCE or another GCP service, use the default service account credentials. See the [official docs](https://cloud.google.com/docs/authentication/production) on Application Default Credentials.
 
+### Syncing specific projects (without an organization)
+
+By default Cartography discovers GCP Organizations the identity can access and syncs every project beneath them. If you only want to sync one or more specific projects — for testing, or because the project does not belong to a GCP Organization, or because you only have project-scoped credentials — pass `--gcp-project-ids` with a comma-separated list of project IDs:
+
+```bash
+cartography --gcp-project-ids my-project-1,my-project-2
+```
+
+When `--gcp-project-ids` is set, Cartography:
+
+- Fetches exactly those projects directly (no organization or folder discovery).
+- Syncs each project's resources (Compute, IAM, Storage, etc.), honouring `--gcp-requested-syncs` if also provided.
+- Creates a `(:GCPProject)-[:PARENT]->(:GCPOrganization|:GCPFolder)` edge only if the parent node already exists in the graph (for example from a prior full org-based sync).
+
+Notes and limitations of this mode:
+
+- An inaccessible or non-existent project ID is logged and skipped rather than aborting the whole run, so the remaining project IDs still sync. Projects that exist but are not `ACTIVE` (for example, pending deletion) are likewise skipped with a warning rather than ingested. (Transient API errors are not skipped and will still fail the sync.)
+- Organization-level data is **not** synced: GCP Organizations, Folders, and inherited (org/folder) policy bindings are skipped. Project-level resources and bindings are synced normally.
+- Google **predefined** roles (`roles/owner`, `roles/editor`, ...) are synced: they are global and need no organization access, so their `GCPRole` nodes are loaded (letting `(:GCPPolicyBinding)-[:GRANTS_ROLE]->(:GCPRole)` edges form) and their permissions expand into permission relationships. These predefined `GCPRole` nodes are not cleaned up in this mode (a global cleanup would delete role nodes synced by the org-based path). Organization-level **custom** roles, however, are **not** synced in this mode (they require organization access), so any policy binding that references an org custom role will not link to a role node or expand into permission relationships.
+- The `GCPProject` node is not cleaned up by this mode (there is no organization to scope a cleanup against). Resources within each synced project are still cleaned up normally, scoped to the project.
+
 ### API Enablement Requirements
 
 Cartography makes API calls that are billed against your service account's **host project** (the project where the service account was created). For Cartography to sync resources, the corresponding APIs must be enabled on this host project.

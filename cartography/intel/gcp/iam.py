@@ -13,6 +13,7 @@ from cartography.intel.gcp.util import gcp_api_execute_with_retry
 from cartography.models.gcp.iam import GCPOrgRoleSchema
 from cartography.models.gcp.iam import GCPProjectRoleSchema
 from cartography.models.gcp.iam import GCPServiceAccountSchema
+from cartography.models.gcp.iam import GCPStandalonePredefinedRoleSchema
 from cartography.models.gcp.iam_keys import GCPServiceAccountKeySchema
 from cartography.util import timeit
 
@@ -315,6 +316,81 @@ def build_role_permissions_by_name(
         if name and permissions:
             role_permissions_by_name[name] = permissions
     return role_permissions_by_name
+
+
+@timeit
+def load_standalone_predefined_roles(
+    neo4j_session: neo4j.Session,
+    roles: List[Dict[str, Any]],
+    gcp_update_tag: int,
+) -> None:
+    """
+    Load global predefined GCP roles (no organization context) into Neo4j.
+
+    Uses GCPStandalonePredefinedRoleSchema, which has no organization sub-resource and
+    is not cleaned up (a global GCPRole cleanup would delete org-path role nodes). Used
+    by the standalone ``--gcp-project-ids`` path.
+
+    :param neo4j_session: The Neo4j session.
+    :param roles: List of transformed role dictionaries.
+    :param gcp_update_tag: The timestamp of the current sync run.
+    """
+    logger.debug("Loading %s standalone predefined roles", len(roles))
+
+    load(
+        neo4j_session,
+        GCPStandalonePredefinedRoleSchema(),
+        roles,
+        lastupdated=gcp_update_tag,
+    )
+
+
+@timeit
+def sync_standalone_predefined_roles(
+    neo4j_session: neo4j.Session,
+    iam_client: Resource,
+    gcp_update_tag: int,
+) -> dict[str, list[str]]:
+    """
+    Sync Google predefined IAM roles in the standalone (``--gcp-project-ids``) path.
+
+    Predefined roles (``roles/*``) are global and require no organization access, so this
+    works even when organization-level IAM discovery (sync_org_iam) is skipped. It does
+    two things:
+
+    1. Loads the predefined roles as GCPRole nodes so that
+       ``(:GCPPolicyBinding)-[:GRANTS_ROLE]->(:GCPRole)`` matchlinks resolve for bindings
+       that reference predefined roles.
+    2. Returns a role-name -> permissions map used to expand those bindings into
+       permission relationships. Without it, bindings to predefined roles (roles/owner,
+       roles/editor, ...) would resolve to no permissions.
+
+    Unlike sync_org_iam, the loaded nodes have no organization sub-resource and are not
+    cleaned up; see GCPStandalonePredefinedRoleSchema. This intentionally follows the same
+    convention Cartography uses for other global, cross-scope reference nodes — e.g. AWS
+    managed policies (see cartography/intel/aws/iam.py::cleanup_iam), which are also not
+    node-cleaned because they are shared and deleting them for one scope would erroneously
+    remove them for another. Here the predefined GCPRole nodes are shared with the
+    organization-based path (both MERGE on the role name), so a global GCPRole cleanup run
+    from the standalone path would erroneously delete role nodes the org path owns in a
+    mixed deployment. The catalog is bounded (~1.5k Google-managed roles) and MERGE'd, so
+    it does not grow without bound; the org path already loads the same full catalog via
+    load_org_roles. Organization-level *custom* roles are not synced here — they require
+    organization access.
+
+    :param neo4j_session: The Neo4j session.
+    :param iam_client: The IAM resource object created by googleapiclient.discovery.build().
+    :param gcp_update_tag: The timestamp of the current sync run.
+    :return: Mapping of predefined role name to its list of included permissions.
+    """
+    predefined_roles_raw = get_gcp_predefined_roles(iam_client)
+    logger.info(
+        "Found %d predefined roles for standalone sync",
+        len(predefined_roles_raw),
+    )
+    roles = transform_org_roles(predefined_roles_raw)
+    load_standalone_predefined_roles(neo4j_session, roles, gcp_update_tag)
+    return build_role_permissions_by_name(predefined_roles_raw)
 
 
 @timeit
