@@ -215,7 +215,7 @@ Without conditional labels, we cannot accurately map these to distinct ontology 
 
 **How it works:**
 - String labels are applied unconditionally to all nodes during ingestion
-- `ConditionalNodeLabel` labels are applied in a separate query after ingestion, only to nodes matching all specified conditions
+- `ConditionalNodeLabel` labels are removed and reapplied during ingestion for each loaded node, only when all specified conditions match
 - Conditions use exact string equality and are combined with AND logic
 - When conditions change, labels are automatically added or removed on subsequent syncs
 

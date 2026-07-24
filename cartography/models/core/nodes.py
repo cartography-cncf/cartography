@@ -74,8 +74,8 @@ class ConditionalNodeLabel:
     A conditional label that is applied to nodes only when specific field conditions are met.
 
     Conditional labels allow you to dynamically apply labels to nodes based on their property values.
-    During ingestion, after the main node creation/update, a separate query is run to match nodes
-    that meet the specified conditions and apply the label.
+    During ingestion, the generated load query removes and reapplies these labels on each
+    loaded node according to the specified conditions.
 
     Attributes:
         label (str): The label to apply to matching nodes.
@@ -98,7 +98,7 @@ class ConditionalNodeLabel:
     Note:
         - The conditions are matched using exact string equality
         - All conditions must be met for the label to be applied (AND logic)
-        - The query generated is: MATCH (n:<primary_label> {field: value, ...}) SET n:<conditional_label>
+        - Conditional labels are applied only to nodes touched by the current load batch
     """
 
     label: str

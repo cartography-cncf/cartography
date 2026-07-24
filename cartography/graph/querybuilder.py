@@ -484,6 +484,64 @@ def _build_node_properties_statement(
     return set_clause
 
 
+def _get_conditional_node_labels(
+    extra_node_labels: ExtraNodeLabels | None,
+) -> list[ConditionalNodeLabel]:
+    if not extra_node_labels:
+        return []
+    return [
+        label
+        for label in extra_node_labels.labels
+        if isinstance(label, ConditionalNodeLabel)
+    ]
+
+
+def _build_conditional_label_where_clause(
+    cond_label: ConditionalNodeLabel,
+    node_var: str,
+) -> str:
+    where_parts = []
+    for field_name, field_value in cond_label.conditions.items():
+        escaped_value = _escape_cypher_string(str(field_value))
+        where_parts.append(f'{node_var}.{field_name} = "{escaped_value}"')
+    return " AND ".join(where_parts)
+
+
+def _build_conditional_node_labels_statement(
+    node_schema: CartographyNodeSchema,
+) -> str:
+    conditional_labels = _get_conditional_node_labels(node_schema.extra_node_labels)
+    if not conditional_labels:
+        return ""
+
+    label_names = []
+    set_clauses = []
+    for cond_label in conditional_labels:
+        if not cond_label.conditions:
+            logger.warning(
+                "ConditionalNodeLabel '%s' on node schema '%s' has empty conditions. "
+                "Skipping. Use a string label instead to apply a label to all nodes.",
+                cond_label.label,
+                node_schema.label,
+            )
+            continue
+
+        label_names.append(cond_label.label)
+        where_clause = _build_conditional_label_where_clause(cond_label, "i")
+        set_clauses.append(
+            f"FOREACH (_ IN CASE WHEN {where_clause} THEN [1] ELSE [] END | SET i:{cond_label.label})"
+        )
+
+    if not set_clauses:
+        return ""
+
+    statements = [
+        f"REMOVE i:{':'.join(label_names)}",
+        *set_clauses,
+    ]
+    return "\n" + "\n".join(f"            {statement}" for statement in statements)
+
+
 def _build_rel_properties_statement(
     rel_var: str,
     rel_property_map: dict[str, PropertyRef] | None = None,
@@ -1128,6 +1186,7 @@ def filter_selected_relationships(
 def build_ingestion_query(
     node_schema: CartographyNodeSchema,
     selected_relationships: set[CartographyRelSchema] | None = None,
+    apply_conditional_labels: bool = True,
 ) -> str:
     """
     Generate a Neo4j query from a CartographyNodeSchema to ingest nodes and relationships.
@@ -1142,6 +1201,8 @@ def build_ingestion_query(
             a query that attaches only the relationships in this set. The RelSchema specified must be
             present in node_schema.sub_resource_relationship or node_schema.other_relationships.
             Defaults to None (uses all relationships). If empty set, creates query with no relationships.
+        apply_conditional_labels (bool): If True, applies ConditionalNodeLabel declarations to each
+            node touched by this ingestion query. Defaults to True.
 
     Returns:
         str: An optimized Neo4j query that can be used to ingest nodes and relationships.
@@ -1170,6 +1231,7 @@ def build_ingestion_query(
         - The resulting query uses the UNWIND + MERGE pattern for batch loading data efficiently
         - The query assumes a list of dicts will be passed via parameter $DictList
         - The query sets `firstseen` attributes on all created nodes and relationships
+        - Conditional labels are removed and reapplied only for nodes in the current load batch
         - The query is intended for use with cartography.core.client.tx.load_graph_data()
     """
     query_template = Template(
@@ -1182,6 +1244,7 @@ def build_ingestion_query(
                 i._module_version = "$module_version",
                 $set_node_properties_statement
                 $set_ontology_node_properties_statement
+            $set_conditional_node_labels_statement
             $attach_relationships_statement
         """,
     )
@@ -1213,6 +1276,11 @@ def build_ingestion_query(
             node_schema,
             node_props_as_dict,
         ),
+        set_conditional_node_labels_statement=(
+            _build_conditional_node_labels_statement(node_schema)
+            if apply_conditional_labels
+            else ""
+        ),
         attach_relationships_statement=_build_attach_relationships_statement(
             sub_resource_rel,
             other_rels,
@@ -1228,17 +1296,18 @@ def build_conditional_label_queries(
     Generate Neo4j queries to apply conditional labels to nodes.
 
     Conditional labels are labels that are only applied to nodes matching specific conditions.
-    This function generates one query per ConditionalNodeLabel defined in the node schema's
+    This function generates two queries per ConditionalNodeLabel defined in the node schema's
     extra_node_labels.
+    Normal ingestion uses build_ingestion_query() to apply conditional labels row-locally;
+    this helper is kept for callers that explicitly need standalone label maintenance queries.
 
     Args:
         node_schema (CartographyNodeSchema): The CartographyNodeSchema object containing
             conditional labels in its extra_node_labels property.
 
     Returns:
-        list[str]: A list of Neo4j queries, one per conditional label. Each query matches
-            nodes of the schema's primary label that satisfy the conditions, and applies
-            the conditional label.
+        list[str]: A list of Neo4j queries. Each conditional label gets one REMOVE query
+            and one SET query.
 
     Examples:
         >>> # Given a schema with a conditional label

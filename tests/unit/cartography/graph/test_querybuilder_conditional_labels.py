@@ -78,45 +78,58 @@ class NodeWithNoExtraLabelsSchema(CartographyNodeSchema):
     properties: SimpleNodeProperties = SimpleNodeProperties()
 
 
-def test_build_ingestion_query_excludes_conditional_labels():
+def test_build_ingestion_query_applies_conditional_labels_to_loaded_node():
     """
-    Test that conditional labels are excluded from the main ingestion query.
-    Only string labels should appear in the SET clause.
+    Test that conditional labels are applied in the main ingestion query.
     """
 
     query = build_ingestion_query(NodeWithConditionalLabelSchema())
 
-    # The query should contain the string label "Resource"
     assert "i:Resource" in query
-    # The query should NOT contain the conditional label "Critical"
-    assert "i:Critical" not in query
-    assert "i:Resource:Critical" not in query
+    assert "REMOVE i:Critical" in query
+    assert (
+        'FOREACH (_ IN CASE WHEN i.severity = "high" THEN [1] ELSE [] END | SET i:Critical)'
+        in query
+    )
 
 
 def test_build_ingestion_query_with_multiple_conditional_labels():
     """
-    Test that only string labels appear in the main query when there are
-    multiple conditional labels mixed with string labels.
+    Test conditional labels mixed with string labels in the main query.
     """
     query = build_ingestion_query(NodeWithMultipleConditionalLabelsSchema())
 
-    # Should contain string labels
     assert "i:Resource:AWSResource" in query
-    # Should NOT contain conditional labels
-    assert "Critical" not in query
-    assert "PublicResource" not in query
+    assert "REMOVE i:Critical:PublicResource" in query
+    assert (
+        'FOREACH (_ IN CASE WHEN i.severity = "high" THEN [1] ELSE [] END | SET i:Critical)'
+        in query
+    )
+    assert (
+        'FOREACH (_ IN CASE WHEN i.is_public = "true" AND i.severity = "high" THEN [1] ELSE [] END | SET i:PublicResource)'
+        in query
+    )
 
 
 def test_build_ingestion_query_with_only_conditional_labels():
     """
-    Test that when all extra labels are conditional, no extra labels
-    appear in the SET clause.
+    Test that when all extra labels are conditional, only conditional label
+    clauses appear.
     """
     query = build_ingestion_query(NodeWithOnlyConditionalLabelSchema())
 
-    # Should NOT contain any extra labels in SET clause
-    # (no "i:SomeLabel" pattern after the property settings)
-    assert "i:Critical" not in query
+    assert "REMOVE i:Critical" in query
+    assert "SET i:Critical" in query
+
+
+def test_build_ingestion_query_can_skip_conditional_labels():
+    query = build_ingestion_query(
+        NodeWithConditionalLabelSchema(),
+        apply_conditional_labels=False,
+    )
+
+    assert "i:Resource" in query
+    assert "Critical" not in query
 
 
 def test_build_conditional_label_queries_single_condition():
