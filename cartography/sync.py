@@ -136,6 +136,7 @@ TOP_LEVEL_MODULES: OrderedDict[str, Callable[..., None]] = OrderedDict(
         "circleci": _LazyStage(
             "cartography.intel.circleci", "start_circleci_ingestion"
         ),
+        "nullify": _LazyStage("cartography.intel.nullify", "start_nullify_ingestion"),
         "ontology": _LazyStage("cartography.intel.ontology", "run"),
         # Analysis should be the last stage
         "analysis": _LazyStage("cartography.intel.analysis", "run"),

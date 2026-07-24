@@ -279,6 +279,13 @@ class Config:
     :type tailscale_oauth_client_secret: str
     :param tailscale_oauth_client_secret: Tailscale OAuth client secret.
         Optional.
+    :type nullify_tenant: str
+    :param nullify_tenant: Nullify tenant slug, used to build the API base URL
+        (``https://api.<tenant>.nullify.ai``). Optional.
+    :type nullify_token: str
+    :param nullify_token: Nullify service-account bearer token. Optional.
+    :type nullify_base_url: str
+    :param nullify_base_url: Nullify API base URL override. Optional.
     :type vercel_token: str
     :param vercel_token: Vercel API token. Optional.
     :type vercel_team_id: str
@@ -526,6 +533,9 @@ class Config:
         tailscale_base_url=None,
         tailscale_oauth_client_id=None,
         tailscale_oauth_client_secret=None,
+        nullify_tenant=None,
+        nullify_token=None,
+        nullify_base_url=None,
         vercel_token=None,
         vercel_team_id=None,
         vercel_base_url=None,
@@ -737,6 +747,9 @@ class Config:
         self.tailscale_base_url = tailscale_base_url
         self.tailscale_oauth_client_id = tailscale_oauth_client_id
         self.tailscale_oauth_client_secret = tailscale_oauth_client_secret
+        self.nullify_tenant = nullify_tenant
+        self.nullify_token = nullify_token
+        self.nullify_base_url = nullify_base_url
         self.vercel_token = vercel_token
         self.vercel_team_id = vercel_team_id
         self.vercel_base_url = vercel_base_url
