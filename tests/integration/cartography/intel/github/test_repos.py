@@ -1192,3 +1192,85 @@ def test_sync_github_python_requirements(
         "REQUIRES",
     )
     assert expected_requires_rels.issubset(actual_requires_rels)
+
+
+@patch.object(
+    cartography.intel.github.repos,
+    "_get_repo_dep_manifests",
+)
+def test_get_dep_manifests_for_repos_incremental_skip_preserves_manifests(
+    mock_get_repo_dep_manifests, neo4j_session
+):
+    """
+    Test that when skip_unchanged_repos is enabled and a repo's pushedAt is
+    unchanged since the last successful manifest sync, the per-repo manifest
+    fetch is skipped, but existing DependencyGraphManifest/Dependency nodes
+    are preserved (touched, not stale-cleaned) across a new update tag.
+    """
+    # Arrange - seed a repo with an existing manifest+dependency and a matching bookmark
+    repo_url = "https://github.com/simpsoncorp/sample_repo"
+    manifest_id = f"{repo_url}#/requirements.txt"
+    neo4j_session.run(
+        """
+        MERGE (org:GitHubOrganization{id: "https://github.com/simpsoncorp"})
+        MERGE (repo:GitHubRepository{id: $repo_url})
+        SET repo.name = "sample_repo", repo.lastupdated = $update_tag,
+            repo.synced_pushedat = "2024-01-01T00:00:00Z"
+        MERGE (repo)-[:OWNER]->(org)
+        MERGE (repo)-[:HAS_MANIFEST]->(m:DependencyGraphManifest{id: $manifest_id})
+        SET m.lastupdated = $update_tag
+        MERGE (m)-[:REQUIRES]->(d:Dependency{id: "django"})
+        SET d.lastupdated = $update_tag
+        """,
+        repo_url=repo_url,
+        manifest_id=manifest_id,
+        update_tag=TEST_UPDATE_TAG,
+    )
+
+    repo_raw_data = [
+        {
+            "name": "sample_repo",
+            "url": repo_url,
+            "pushedAt": "2024-01-01T00:00:00Z",
+            "isArchived": False,
+        }
+    ]
+
+    # Act - run with a new update tag; pushedAt matches the recorded bookmark
+    new_update_tag = TEST_UPDATE_TAG + 1
+    result, cleanup_safe = cartography.intel.github.repos._get_dep_manifests_for_repos(
+        repo_raw_data,
+        TEST_GITHUB_ORG,
+        TEST_GITHUB_URL,
+        FAKE_API_KEY,
+        skip_unchanged_repos=True,
+        neo4j_session=neo4j_session,
+        update_tag=new_update_tag,
+    )
+
+    # Assert - the per-repo fetch was never called (skipped as unchanged)
+    mock_get_repo_dep_manifests.assert_not_called()
+    assert cleanup_safe is True
+    assert result == {}
+
+    # Assert - existing manifest/dependency nodes were touched to the new tag,
+    # not deleted by stale-tag cleanup, despite not being re-fetched.
+    manifest_row = neo4j_session.run(
+        "MATCH (m:DependencyGraphManifest {id: $id}) RETURN m.lastupdated AS lastupdated",
+        id=manifest_id,
+    ).single()
+    assert manifest_row is not None
+    assert manifest_row["lastupdated"] == new_update_tag
+
+    dep_row = neo4j_session.run(
+        'MATCH (d:Dependency {id: "django"}) RETURN d.lastupdated AS lastupdated',
+    ).single()
+    assert dep_row is not None
+    assert dep_row["lastupdated"] == new_update_tag
+
+    # Assert - bookmark unchanged (still valid for next comparison)
+    bookmark_row = neo4j_session.run(
+        "MATCH (r:GitHubRepository {id: $id}) RETURN r.synced_pushedat AS bookmark",
+        id=repo_url,
+    ).single()
+    assert bookmark_row["bookmark"] == "2024-01-01T00:00:00Z"

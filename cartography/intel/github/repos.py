@@ -2,11 +2,15 @@ import configparser
 import hashlib
 import json
 import logging
+import threading
 import time
 from collections import defaultdict
 from collections import namedtuple
 from collections.abc import Callable
+from concurrent.futures import as_completed
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
+from dataclasses import field
 from typing import Any
 from typing import cast
 from typing import Dict
@@ -22,6 +26,8 @@ from packaging.requirements import Requirement
 from packaging.utils import canonicalize_name
 
 from cartography.client.core.tx import load as load_data
+from cartography.client.core.tx import read_list_of_dicts_tx
+from cartography.client.core.tx import run_write_query
 from cartography.graph.job import GraphJob
 from cartography.helpers import backoff_handler
 from cartography.intel.github.codeowners import normalize_repo_relative_path
@@ -58,6 +64,8 @@ from cartography.models.github.rulesets import GitHubRulesetSchema
 from cartography.util import retries_with_backoff
 from cartography.util import run_analysis_job
 from cartography.util import timeit
+from cartography.util import to_asynchronous
+from cartography.util import to_synchronous
 
 logger = logging.getLogger(__name__)
 
@@ -80,6 +88,7 @@ class GitHubRepoSyncResult:
     repos: list[dict[str, Any]]
     manifests: list[dict[str, Any]]
     manifests_cleanup_safe: bool
+    repo_pushedat_updates: list[dict[str, str]] = field(default_factory=list)
 
 
 GITHUB_ORG_REPOS_PAGINATED_GRAPHQL = """
@@ -104,6 +113,7 @@ GITHUB_ORG_REPOS_PAGINATED_GRAPHQL = """
                     createdAt
                     description
                     updatedAt
+                    pushedAt
                     homepageUrl
                     languages(first: 25){
                         totalCount
@@ -294,6 +304,15 @@ def _fetch_manifest_page(
             requests.exceptions.ChunkedEncodingError,
         ):
             if attempt + 1 >= retries:
+                logger.warning(
+                    "Failed to fetch dependency manifest page for repo %s after %d retries "
+                    "(manifest_cursor=%s, dep_cursor=%s).",
+                    repo,
+                    retries,
+                    manifest_cursor,
+                    dep_cursor,
+                    exc_info=True,
+                )
                 return None
             time.sleep(2 ** (attempt + 1))
             continue
@@ -306,9 +325,13 @@ def _fetch_manifest_page(
         if dep_manifests is None and resp.get("errors"):
             if attempt + 1 >= retries:
                 logger.warning(
-                    "GraphQL timeout fetching dependency manifests for repo %s after %d retries.",
+                    "GraphQL timeout fetching dependency manifests for repo %s after %d retries "
+                    "(manifest_cursor=%s, dep_cursor=%s). Errors: %s",
                     repo,
                     retries,
+                    manifest_cursor,
+                    dep_cursor,
+                    resp.get("errors"),
                 )
                 return resp
             logger.debug(
@@ -482,11 +505,179 @@ def _get_repo_dep_manifests(
     return manifests, cleanup_safe
 
 
+def _fetch_manifests_for_repo(
+    repo: dict[str, Any],
+    token: str,
+    api_url: str,
+    org: str,
+    skip_archived_repos: bool,
+    skip_unchanged_repos: bool = False,
+) -> tuple[str, list[Any], bool, str | None]:
+    """
+    Fetch dependency graph manifests for a single repo.
+    Returns (repo_url, manifests, cleanup_safe, skip_reason).
+    skip_reason is one of None (fetched), "archived", or "unchanged".
+    Designed to be called from worker threads via ThreadPoolExecutor.
+    """
+    repo_name = repo.get("name")
+    repo_url = repo.get("url", "")
+    if skip_archived_repos and repo.get("isArchived"):
+        logger.debug(
+            "Skipping dependency manifest fetch for archived repo %s.", repo_name
+        )
+        return repo_url, [], True, "archived"
+
+    pushedat = repo.get("pushedAt")
+    synced_pushedat = repo.get("manifests_synced_pushedat")
+    if (
+        skip_unchanged_repos
+        and pushedat is not None
+        and synced_pushedat is not None
+        and pushedat == synced_pushedat
+    ):
+        logger.debug(
+            "Skipping dependency manifest fetch for unchanged repo %s (pushedat unchanged).",
+            repo_name,
+        )
+        return repo_url, [], True, "unchanged"
+
+    try:
+        manifests, repo_cleanup_safe = _get_repo_dep_manifests(
+            token, api_url, org, str(repo_name)
+        )
+        if manifests:
+            logger.debug(
+                "Fetched %d dependency manifests for repo %s.",
+                len(manifests),
+                repo_name,
+            )
+        return repo_url, manifests, repo_cleanup_safe, None
+    except requests.exceptions.RequestException:
+        logger.warning(
+            "Failed to fetch dependency manifests for repo %s; skipping.",
+            repo_name,
+            exc_info=True,
+        )
+        return repo_url, [], False, None
+
+
+def _touch_skipped_dependency_manifests(
+    neo4j_session: neo4j.Session,
+    skipped_repo_urls: list[str],
+    update_tag: int,
+) -> None:
+    """
+    Refresh `lastupdated` on the existing DependencyGraphManifest/Dependency
+    nodes for repos whose manifest fetch was skipped this run (because
+    pushedat was unchanged), so the end-of-run stale-tag cleanup doesn't
+    delete them.
+    """
+    if not skipped_repo_urls:
+        return
+    run_write_query(
+        neo4j_session,
+        """
+        UNWIND $repo_urls AS repo_url
+        MATCH (:GitHubRepository {id: repo_url})-[:HAS_MANIFEST]->(m:DependencyGraphManifest)
+        SET m.lastupdated = $update_tag
+        """,
+        repo_urls=skipped_repo_urls,
+        update_tag=update_tag,
+    )
+    run_write_query(
+        neo4j_session,
+        """
+        UNWIND $repo_urls AS repo_url
+        MATCH (:GitHubRepository {id: repo_url})-[:HAS_MANIFEST]->(:DependencyGraphManifest)
+              -[:REQUIRES]->(d:Dependency)
+        SET d.lastupdated = $update_tag
+        """,
+        repo_urls=skipped_repo_urls,
+        update_tag=update_tag,
+    )
+
+
+def _update_manifests_synced_bookmarks(
+    neo4j_session: neo4j.Session,
+    synced_bookmarks: list[dict[str, str]],
+) -> None:
+    """
+    Record the `pushedat` value seen at the time of a successful (i.e. not
+    skipped) dependency manifest fetch, so future runs can compare against it
+    to decide whether to skip.
+    """
+    if not synced_bookmarks:
+        return
+    run_write_query(
+        neo4j_session,
+        """
+        UNWIND $updates AS u
+        MATCH (repo:GitHubRepository {id: u.repo_url})
+        SET repo.manifests_synced_pushedat = u.pushedat
+        """,
+        updates=synced_bookmarks,
+    )
+
+
+def _write_synced_pushedat(
+    neo4j_session: neo4j.Session,
+    updates: list[dict[str, str]],
+) -> None:
+    """
+    Write the ``synced_pushedat`` bookmark on each ``GitHubRepository`` node.
+
+    This single bookmark is written once after a successful repos sync and is
+    shared by all downstream incremental-skip stages (Actions, manifests,
+    commits). A stage skips re-fetching a repo when its current ``pushedat``
+    matches ``synced_pushedat``, meaning nothing has been pushed since the last
+    time the repos sync ran.
+    """
+    if not updates:
+        return
+    run_write_query(
+        neo4j_session,
+        """
+        UNWIND $updates AS u
+        MATCH (repo:GitHubRepository {id: u.repo_url})
+        SET repo.synced_pushedat = u.pushedat
+        """,
+        updates=updates,
+    )
+
+
+def _get_manifests_synced_bookmarks(
+    neo4j_session: neo4j.Session,
+    repo_urls: list[str],
+) -> dict[str, str | None]:
+    """
+    Fetch the ``synced_pushedat`` bookmark for the given repo URLs from the
+    graph. This is the value written after the last successful repos sync and
+    is used by the manifests incremental-skip logic.
+    """
+    if not repo_urls:
+        return {}
+    rows = neo4j_session.execute_read(
+        read_list_of_dicts_tx,
+        """
+        UNWIND $repo_urls AS repo_url
+        MATCH (r:GitHubRepository {id: repo_url})
+        RETURN r.id AS url, r.synced_pushedat AS synced_pushedat
+        """,
+        repo_urls=repo_urls,
+    )
+    return {row["url"]: row["synced_pushedat"] for row in rows}
+
+
 def _get_dep_manifests_for_repos(
     repo_raw_data: list[dict[str, Any] | None],
     org: str,
     api_url: str,
     token: str,
+    skip_archived_repos: bool = False,
+    skip_unchanged_repos: bool = False,
+    parallel_workers: int = 1,
+    neo4j_session: neo4j.Session | None = None,
+    update_tag: int | None = None,
 ) -> tuple[dict[str, dict[str, Any]], bool]:
     """
     For every repo in the given list, retrieve its dependency graph manifests individually.
@@ -496,59 +687,161 @@ def _get_dep_manifests_for_repos(
     :param org: The name of the target Github organization as string.
     :param api_url: The Github v4 API endpoint as string.
     :param token: The Github API token as string.
+    :param skip_archived_repos: Skip archived repos if True.
+    :param skip_unchanged_repos: Skip repos whose pushedAt is unchanged since
+        the last successful manifest fetch, if True. Requires neo4j_session.
+    :param parallel_workers: Number of repos to fetch concurrently. Default 1 (sequential).
+    :param neo4j_session: Neo4j session, required when skip_unchanged_repos is True
+        (used to look up prior sync bookmarks and to touch/update them).
     :return: A tuple of repo URL to dependencyGraphManifests structure and
         whether manifest cleanup is safe.
     """
-    logger.info(
-        "Fetching dependency graph manifests for %d repos in org %s.",
-        len(repo_raw_data),
-        org,
-    )
+    non_null_repos = [repo for repo in repo_raw_data if repo is not None]
+    total_repos = len(non_null_repos)
+
+    if skip_unchanged_repos and neo4j_session is not None:
+        bookmarks = _get_manifests_synced_bookmarks(
+            neo4j_session,
+            [repo["url"] for repo in non_null_repos if repo.get("url")],
+        )
+        for repo in non_null_repos:
+            # Store under the key _fetch_manifests_for_repo reads
+            repo["manifests_synced_pushedat"] = bookmarks.get(repo.get("url", ""))
+    if skip_archived_repos:
+        archived_count = sum(1 for repo in non_null_repos if repo.get("isArchived"))
+        logger.info(
+            "Fetching dependency graph manifests for org %s: %d total repos, "
+            "skipping %d archived, fetching for %d (parallel_workers=%d).",
+            org,
+            total_repos,
+            archived_count,
+            total_repos - archived_count,
+            parallel_workers,
+        )
+    else:
+        logger.info(
+            "Fetching dependency graph manifests for %d repos in org %s (parallel_workers=%d).",
+            total_repos,
+            org,
+            parallel_workers,
+        )
+
     result: dict[str, dict[str, Any]] = {}
     failed_count = 0
     cleanup_safe = True
+    skipped_unchanged_repo_urls: list[str] = []
 
-    for repo in repo_raw_data:
-        if repo is None:
-            continue
-        repo_name = repo.get("name")
-        repo_url = repo.get("url")
-        if not repo_name or not repo_url:
-            continue
+    eligible = [
+        repo
+        for repo in non_null_repos
+        if repo.get("name")
+        and repo.get("url")
+        and not (skip_archived_repos and repo.get("isArchived"))
+    ]
+    total = len(eligible)
+    completed = 0
 
-        try:
-            manifests, repo_cleanup_safe = _get_repo_dep_manifests(
+    with ThreadPoolExecutor(max_workers=parallel_workers) as executor:
+        futures = {
+            executor.submit(
+                _fetch_manifests_for_repo,
+                repo,
                 token,
                 api_url,
                 org,
-                repo_name,
-            )
+                skip_archived_repos,
+                skip_unchanged_repos,
+            ): repo
+            for repo in eligible
+        }
+        for f in as_completed(futures):
+            repo_url, manifests, repo_cleanup_safe, skip_reason = f.result()
+            if not repo_cleanup_safe:
+                failed_count += 1
             cleanup_safe = cleanup_safe and repo_cleanup_safe
             if manifests:
                 result[repo_url] = {"nodes": manifests}
-                logger.debug(
-                    "Fetched %d dependency manifests for repo %s.",
-                    len(manifests),
-                    repo_name,
+            if skip_reason == "unchanged":
+                skipped_unchanged_repo_urls.append(repo_url)
+            completed += 1
+            if (
+                completed == 1
+                or completed % max(1, parallel_workers) == 0
+                or completed == total
+            ):
+                logger.info(
+                    "Dep manifests progress for org %s: %d/%d repos completed.",
+                    org,
+                    completed,
+                    total,
                 )
-        except requests.exceptions.RequestException:
-            failed_count += 1
-            cleanup_safe = False
-            logger.warning(
-                "Failed to fetch dependency manifests for repo %s; skipping.",
-                repo_name,
-                exc_info=True,
-            )
+
+    if skip_unchanged_repos and neo4j_session is not None and update_tag is not None:
+        _touch_skipped_dependency_manifests(
+            neo4j_session,
+            skipped_unchanged_repo_urls,
+            update_tag,
+        )
+        logger.info(
+            "Dependency manifest incremental sync for org %s: skipped refetch "
+            "for %d/%d unchanged repos.",
+            org,
+            len(skipped_unchanged_repo_urls),
+            total_repos,
+        )
 
     if failed_count > 0:
         logger.warning(
             "Skipped dependency manifests for %d of %d repos in org %s due to fetch errors.",
             failed_count,
-            len(repo_raw_data),
+            len(eligible),
             org,
         )
     logger.debug("Fetched dependency manifests for %d repos.", len(result))
     return result, cleanup_safe
+
+
+def _fetch_collaborators_for_repo(
+    repo: dict[str, Any],
+    org: str,
+    api_url: str,
+    token: str,
+    affiliation: str,
+) -> tuple[str, list[UserAffiliationAndRepoPermission]]:
+    """
+    Fetch collaborators for a single repo.
+    Returns (repo_url, collabs_list).
+    Designed to be called from worker threads via ThreadPoolExecutor.
+    """
+    repo_name = repo["name"]
+    repo_url = repo["url"]
+
+    direct_info = repo.get("directCollaborators")
+    outside_info = repo.get("outsideCollaborators")
+
+    if affiliation == "OUTSIDE":
+        total_outside = 0 if not outside_info else outside_info.get("totalCount", 0)
+        if total_outside == 0:
+            return repo_url, []
+    else:  # DIRECT
+        total_direct = 0 if not direct_info else direct_info.get("totalCount", 0)
+        if total_direct == 0:
+            return repo_url, []
+
+    logger.info("Loading %s collaborators for repo %s.", affiliation, repo_name)
+    collaborators = _get_repo_collaborators(token, api_url, org, repo_name, affiliation)
+
+    collab_users: list[dict[str, Any]] = []
+    collab_permission: list[str] = []
+    for collab in collaborators.nodes or []:
+        collab_users.append(collab)
+    for perm in collaborators.edges or []:
+        collab_permission.append(perm["permission"])
+
+    return repo_url, [
+        UserAffiliationAndRepoPermission(user, permission, affiliation)
+        for user, permission in zip(collab_users, collab_permission)
+    ]
 
 
 def _get_repo_collaborators_inner_func(
@@ -557,62 +850,63 @@ def _get_repo_collaborators_inner_func(
     token: str,
     repo_raw_data: list[dict[str, Any] | None],
     affiliation: str,
+    parallel_workers: int = 1,
 ) -> dict[str, list[UserAffiliationAndRepoPermission]]:
     result: dict[str, list[UserAffiliationAndRepoPermission]] = {}
 
-    for repo in repo_raw_data:
-        # GitHub can return null repo entries. See issues #1334 and #1404.
-        if repo is None:
-            logger.info(
-                "Skipping null repository entry while fetching %s collaborators.",
-                affiliation,
-            )
-            continue
-        repo_name = repo["name"]
-        repo_url = repo["url"]
-
-        # Guard against None when collaborator fields are not accessible due to permissions.
-        direct_info = repo.get("directCollaborators")
-        outside_info = repo.get("outsideCollaborators")
-
-        if affiliation == "OUTSIDE":
-            total_outside = 0 if not outside_info else outside_info.get("totalCount", 0)
-            if total_outside == 0:
-                # No outside collaborators or not permitted to view; skip API calls for this repo.
-                result[repo_url] = []
-                continue
-        else:  # DIRECT
-            total_direct = 0 if not direct_info else direct_info.get("totalCount", 0)
-            if total_direct == 0:
-                # No direct collaborators or not permitted to view; skip API calls for this repo.
-                result[repo_url] = []
-                continue
-
-        logger.info(f"Loading {affiliation} collaborators for repo {repo_name}.")
-        collaborators = _get_repo_collaborators(
-            token,
-            api_url,
-            org,
-            repo_name,
+    eligible = [
+        repo
+        for repo in repo_raw_data
+        if repo is not None and repo.get("name") and repo.get("url")
+    ]
+    skipped_null = len(repo_raw_data) - len([r for r in repo_raw_data if r is not None])
+    if skipped_null:
+        logger.info(
+            "Skipping %d null repository entries while fetching %s collaborators.",
+            skipped_null,
             affiliation,
         )
 
-        collab_users: List[dict[str, Any]] = []
-        collab_permission: List[str] = []
+    logger.info(
+        "Fetching %s collaborators for %d repos in org %s (parallel_workers=%d).",
+        affiliation,
+        len(eligible),
+        org,
+        parallel_workers,
+    )
 
-        # nodes and edges are expected to always be present given that we only call for them if totalCount is > 0
-        # however sometimes GitHub returns None, as in issue 1334 and 1404.
-        for collab in collaborators.nodes or []:
-            collab_users.append(collab)
+    total = len(eligible)
+    completed = 0
 
-        # The `or []` is because `.edges` can be None.
-        for perm in collaborators.edges or []:
-            collab_permission.append(perm["permission"])
+    with ThreadPoolExecutor(max_workers=parallel_workers) as executor:
+        futures = {
+            executor.submit(
+                _fetch_collaborators_for_repo,
+                repo,
+                org,
+                api_url,
+                token,
+                affiliation,
+            ): repo
+            for repo in eligible
+        }
+        for f in as_completed(futures):
+            repo_url, collabs = f.result()
+            result[repo_url] = collabs
+            completed += 1
+            if (
+                completed == 1
+                or completed % max(1, parallel_workers) == 0
+                or completed == total
+            ):
+                logger.info(
+                    "Collaborators (%s) progress for org %s: %d/%d repos completed.",
+                    affiliation,
+                    org,
+                    completed,
+                    total,
+                )
 
-        result[repo_url] = [
-            UserAffiliationAndRepoPermission(user, permission, affiliation)
-            for user, permission in zip(collab_users, collab_permission)
-        ]
     return result
 
 
@@ -622,6 +916,7 @@ def _get_repo_collaborators_for_multiple_repos(
     org: str,
     api_url: str,
     token: str,
+    parallel_workers: int = 1,
 ) -> dict[str, list[UserAffiliationAndRepoPermission]]:
     """
     For every repo in the given list, retrieve the collaborators.
@@ -631,10 +926,13 @@ def _get_repo_collaborators_for_multiple_repos(
     :param org: The name of the target Github organization as string.
     :param api_url: The Github v4 API endpoint as string.
     :param token: The Github API token as string.
+    :param parallel_workers: Number of repos to fetch concurrently. Default 1 (sequential).
     :return: A dictionary of repo URL to list of UserAffiliationAndRepoPermission
     """
     logger.info(
-        f'Retrieving repo collaborators for affiliation "{affiliation}" on org "{org}".',
+        'Retrieving repo collaborators for affiliation "%s" on org "%s".',
+        affiliation,
+        org,
     )
 
     result: dict[str, list[UserAffiliationAndRepoPermission]] = retries_with_backoff(
@@ -648,6 +946,7 @@ def _get_repo_collaborators_for_multiple_repos(
         token=token,
         repo_raw_data=repo_raw_data,
         affiliation=affiliation,
+        parallel_workers=parallel_workers,
     )
     return result
 
@@ -800,54 +1099,113 @@ def _rest_ruleset_cache_key(ruleset: dict[str, Any]) -> tuple[Any, ...]:
     )
 
 
+def _fetch_rulesets_for_repo(
+    repo: dict[str, Any],
+    token: str,
+    base_url: str,
+    owner: str,
+    cache: dict[tuple[Any, ...], dict[str, Any]],
+    cache_lock: threading.Lock,
+) -> tuple[str, dict[str, Any]]:
+    """
+    Fetch rulesets for a single repo via REST.
+    Returns (repo_url, rulesets_dict).
+    Designed to be called from worker threads via ThreadPoolExecutor.
+    The cache and its lock are shared across workers to de-duplicate org-level ruleset detail fetches.
+    """
+    repo_name = repo.get("name", "")
+    repo_url = repo.get("url", "")
+    encoded_repo_name = quote(repo_name, safe="")
+    endpoint = f"/repos/{owner}/{encoded_repo_name}/rulesets"
+    ruleset_summaries = fetch_all_rest_api_pages(
+        token,
+        base_url,
+        endpoint,
+        result_key="rulesets",
+        raise_on_status=(403, 404),
+        params={"per_page": 100, "includes_parents": "true"},
+    )
+    normalized_rulesets = []
+    for ruleset_summary in ruleset_summaries:
+        cache_key = _rest_ruleset_cache_key(ruleset_summary)
+        with cache_lock:
+            ruleset_detail = cache.get(cache_key)
+        if ruleset_detail is None:
+            ruleset_detail = call_github_rest_api(
+                f"{endpoint}/{ruleset_summary['id']}",
+                token,
+                base_url,
+                params={"includes_parents": "true"},
+            )
+            with cache_lock:
+                cache[cache_key] = ruleset_detail
+        normalized_rulesets.append(_normalize_rest_ruleset(ruleset_detail))
+    return repo_url, {
+        "nodes": normalized_rulesets,
+        "totalCount": len(normalized_rulesets),
+    }
+
+
 def _get_repo_rulesets_by_url(
     token: str,
     api_url: str,
     organization: str,
     repo_raw_data: list[dict[str, Any] | None],
+    parallel_workers: int = 1,
 ) -> dict[str, dict[str, Any]]:
     """
     Retrieve full GitHub repository rulesets through REST for every repo.
+    :param parallel_workers: Number of repos to fetch concurrently. Default 1 (sequential).
     """
     base_url = rest_api_base_url(api_url)
     owner = quote(organization, safe="")
     rulesets_by_url: dict[str, dict[str, Any]] = {}
     ruleset_detail_cache: dict[tuple[Any, ...], dict[str, Any]] = {}
+    cache_lock = threading.Lock()
 
-    for repo in repo_raw_data:
-        if repo is None:
-            continue
-        repo_name = repo.get("name")
-        repo_url = repo.get("url")
-        if not repo_name or not repo_url:
-            continue
-        encoded_repo_name = quote(repo_name, safe="")
-        endpoint = f"/repos/{owner}/{encoded_repo_name}/rulesets"
-        ruleset_summaries = fetch_all_rest_api_pages(
-            token,
-            base_url,
-            endpoint,
-            result_key="rulesets",
-            raise_on_status=(403, 404),
-            params={"per_page": 100, "includes_parents": "true"},
-        )
-        normalized_rulesets = []
-        for ruleset_summary in ruleset_summaries:
-            cache_key = _rest_ruleset_cache_key(ruleset_summary)
-            ruleset_detail = ruleset_detail_cache.get(cache_key)
-            if ruleset_detail is None:
-                ruleset_detail = call_github_rest_api(
-                    f"{endpoint}/{ruleset_summary['id']}",
-                    token,
-                    base_url,
-                    params={"includes_parents": "true"},
-                )
-                ruleset_detail_cache[cache_key] = ruleset_detail
-            normalized_rulesets.append(_normalize_rest_ruleset(ruleset_detail))
-        rulesets_by_url[repo_url] = {
-            "nodes": normalized_rulesets,
-            "totalCount": len(normalized_rulesets),
+    eligible = [
+        repo
+        for repo in repo_raw_data
+        if repo is not None and repo.get("name") and repo.get("url")
+    ]
+    logger.info(
+        "Fetching rulesets for %d repos in org %s (parallel_workers=%d).",
+        len(eligible),
+        organization,
+        parallel_workers,
+    )
+
+    total = len(eligible)
+    completed = 0
+
+    with ThreadPoolExecutor(max_workers=parallel_workers) as executor:
+        futures = {
+            executor.submit(
+                _fetch_rulesets_for_repo,
+                repo,
+                token,
+                base_url,
+                owner,
+                ruleset_detail_cache,
+                cache_lock,
+            ): repo
+            for repo in eligible
         }
+        for f in as_completed(futures):
+            repo_url, rulesets_dict = f.result()
+            rulesets_by_url[repo_url] = rulesets_dict
+            completed += 1
+            if (
+                completed == 1
+                or completed % max(1, parallel_workers) == 0
+                or completed == total
+            ):
+                logger.info(
+                    "Rulesets progress for org %s: %d/%d repos completed.",
+                    organization,
+                    completed,
+                    total,
+                )
 
     return rulesets_by_url
 
@@ -910,6 +1268,7 @@ def get_repo_privileged_details_by_url(
     token: str,
     api_url: str,
     organization: str,
+    parallel_workers: int = 1,
 ) -> Dict[str, Dict[str, Any]]:
     """
     Retrieve collaborator counts, branch protection, and ruleset fields for repositories in an organization.
@@ -929,6 +1288,7 @@ def get_repo_privileged_details_by_url(
         api_url,
         organization,
         privileged_nodes,
+        parallel_workers=parallel_workers,
     )
     for repo in privileged_nodes:
         # GitHub can return null repository entries.
@@ -1199,6 +1559,7 @@ def _transform_repo_objects(input_repo_object: Dict, out_repo_list: List[Dict]) 
             "url": input_repo_object["url"],
             "sshurl": ssh_url,
             "updatedat": input_repo_object["updatedAt"],
+            "pushedat": input_repo_object.get("pushedAt"),
             "owner_org_id": owner["url"] if owner_type == "Organization" else None,
             "owner_user_id": owner["url"] if owner_type == "User" else None,
         },
@@ -2229,10 +2590,19 @@ def cleanup_github_dependencies(
     Delete stale Dependency nodes and their relationships. Dependency uses
     unscoped cleanup (see GitHubDependencySchema docstring) so this runs once
     per sync cycle alongside the other global resources, not per organization.
+
+    Uses a reduced iterationsize because Dependency is a globally shared node:
+    a single stale Dependency can have many REQUIRES (repo) and HAS_DEP
+    (manifest) relationships attached. DETACH DELETE-ing the default 10,000
+    nodes per transaction can pull in enough relationships to exceed Neo4j's
+    dbms.memory.transaction.total.max limit (observed in production as
+    Neo.TransientError.General.MemoryPoolOutOfMemoryError).
     """
-    GraphJob.from_node_schema(GitHubDependencySchema(), common_job_parameters).run(
-        neo4j_session
-    )
+    GraphJob.from_node_schema(
+        GitHubDependencySchema(),
+        common_job_parameters,
+        iterationsize=500,
+    ).run(neo4j_session)
 
 
 @timeit
@@ -2246,11 +2616,20 @@ def cleanup_github_manifests(
     :param neo4j_session: Neo4j session
     :param common_job_parameters: Common job parameters containing UPDATE_TAG
     :param owner_org_id: URL of the owning GitHub organization
+
+    Uses a reduced iterationsize because a single manifest can have hundreds
+    of HAS_DEP relationships to Dependency nodes (some observed manifests in
+    production have 700-800+ dependencies). DETACH DELETE-ing the default
+    10,000 manifests per transaction can pull in millions of relationships,
+    exceeding Neo4j's dbms.memory.transaction.total.max limit (observed in
+    production as Neo.TransientError.General.MemoryPoolOutOfMemoryError).
     """
     cleanup_params = {**common_job_parameters, "owner_org_id": owner_org_id}
-    GraphJob.from_node_schema(DependencyGraphManifestSchema(), cleanup_params).run(
-        neo4j_session
-    )
+    GraphJob.from_node_schema(
+        DependencyGraphManifestSchema(),
+        cleanup_params,
+        iterationsize=500,
+    ).run(neo4j_session)
 
 
 @timeit
@@ -2534,6 +2913,9 @@ def sync(
     github_api_key: str,
     github_url: str,
     organization: str,
+    parallel_workers: int = 1,
+    sync_dep_manifests: bool = True,
+    incremental_sync: bool = False,
 ) -> GitHubRepoSyncResult:
     """
     Performs the sequential tasks to collect, transform, and sync github data
@@ -2542,6 +2924,11 @@ def sync(
     :param github_api_key: The API key to access the GitHub v4 API
     :param github_url: The URL for the GitHub v4 endpoint to use
     :param organization: The organization to query GitHub for
+    :param parallel_workers: Number of parallel workers for per-repo API fetches. Default 1 (sequential).
+    :param sync_dep_manifests: Fetch dependency graph manifests. Set False to skip the slow O(n) manifest
+        phase; use the separate 'dep_manifests' requested-sync value to run it independently.
+    :param incremental_sync: Skip archived/disabled repos and skip re-fetching manifests for repos
+        whose pushedAt is unchanged since the last sync.
     :return: Repository and dependency manifest data fetched for this org.
     """
     logger.info("Syncing GitHub repos")
@@ -2556,6 +2943,7 @@ def sync(
                 github_api_key,
                 github_url,
                 organization,
+                parallel_workers=parallel_workers,
             )
         except (requests.exceptions.RequestException, ValueError):
             rulesets_cleanup_safe = False
@@ -2583,34 +2971,74 @@ def sync(
     direct_collabs: dict[str, list[UserAffiliationAndRepoPermission]] = {}
     outside_collabs: dict[str, list[UserAffiliationAndRepoPermission]] = {}
     try:
-        direct_collabs = _get_repo_collaborators_for_multiple_repos(
-            repos_json,
-            "DIRECT",
-            organization,
-            github_url,
-            github_api_key,
-        )
-        outside_collabs = _get_repo_collaborators_for_multiple_repos(
-            repos_json,
-            "OUTSIDE",
-            organization,
-            github_url,
-            github_api_key,
-        )
-    except TypeError:
-        # due to permission errors or transient network error or some other nonsense
+        if parallel_workers > 1:
+            logger.info(
+                "Fetching DIRECT and OUTSIDE collaborators concurrently for org %s.",
+                organization,
+            )
+            direct_collabs, outside_collabs = to_synchronous(
+                to_asynchronous(
+                    _get_repo_collaborators_for_multiple_repos,
+                    repos_json,
+                    "DIRECT",
+                    organization,
+                    github_url,
+                    github_api_key,
+                    parallel_workers,
+                ),
+                to_asynchronous(
+                    _get_repo_collaborators_for_multiple_repos,
+                    repos_json,
+                    "OUTSIDE",
+                    organization,
+                    github_url,
+                    github_api_key,
+                    parallel_workers,
+                ),
+            )
+        else:
+            direct_collabs = _get_repo_collaborators_for_multiple_repos(
+                repos_json,
+                "DIRECT",
+                organization,
+                github_url,
+                github_api_key,
+            )
+            outside_collabs = _get_repo_collaborators_for_multiple_repos(
+                repos_json,
+                "OUTSIDE",
+                organization,
+                github_url,
+                github_api_key,
+            )
+    except (TypeError, ValueError):
+        # TypeError: permission errors or transient network issues
+        # ValueError: fetch_all raises this when all retries are exhausted (e.g. repeated timeouts)
         logger.warning(
-            "Unable to list repo collaborators due to permission errors; continuing on.",
+            "Unable to list repo collaborators due to permission errors or exhausted retries; continuing on.",
             exc_info=True,
         )
 
     # Fetch dependency graph manifests per-repo to avoid 502s from heavy inline queries
-    dep_manifests_by_url, dep_manifests_cleanup_safe = _get_dep_manifests_for_repos(
-        repos_json,
-        organization,
-        github_url,
-        github_api_key,
-    )
+    dep_manifests_by_url: dict[str, dict[str, Any]] = {}
+    dep_manifests_cleanup_safe = True
+    if sync_dep_manifests:
+        dep_manifests_by_url, dep_manifests_cleanup_safe = _get_dep_manifests_for_repos(
+            repos_json,
+            organization,
+            github_url,
+            github_api_key,
+            skip_archived_repos=incremental_sync,
+            skip_unchanged_repos=incremental_sync,
+            parallel_workers=parallel_workers,
+            neo4j_session=neo4j_session,
+            update_tag=common_job_parameters["UPDATE_TAG"],
+        )
+    else:
+        logger.info(
+            "Skipping dependency manifest fetch for org %s (dep_manifests not in requested syncs).",
+            organization,
+        )
     for repo in repos_json:
         if repo is not None and repo.get("url") in dep_manifests_by_url:
             repo["dependencyGraphManifests"] = dep_manifests_by_url[repo["url"]]
@@ -2621,6 +3049,18 @@ def sync(
         github_api_key,
         github_url,
     )
+    load(neo4j_session, common_job_parameters, repo_data)
+
+    # Build the pushedat update list to be written by the caller (start_github_ingestion)
+    # AFTER all downstream stages (actions, manifests, commits) have completed.
+    # Writing synced_pushedat here would immediately overwrite the bookmark with the
+    # current run's pushedat before the skip comparisons have a chance to use it.
+    repo_pushedat_updates = [
+        {"repo_url": repo["url"], "pushedat": repo["pushedat"]}
+        for repo in repo_data["repos"]
+        if repo.get("pushedat")
+    ]
+
     owner_org_id = next(
         (
             repo["owner_org_id"]
@@ -2630,7 +3070,6 @@ def sync(
         f"https://github.com/{organization}",
     )
     migrate_dependency_graph_manifest_label(neo4j_session, owner_org_id)
-    load(neo4j_session, common_job_parameters, repo_data)
     cleanup_github_branches(neo4j_session, common_job_parameters, owner_org_id)
 
     # DEPRECATED: compatibility migrations to backfill the RESOURCE edge from
@@ -2670,4 +3109,5 @@ def sync(
         repos=repo_data["repos"],
         manifests=repo_data["manifests"],
         manifests_cleanup_safe=dep_manifests_cleanup_safe,
+        repo_pushedat_updates=repo_pushedat_updates,
     )
