@@ -1,0 +1,5 @@
+# Tenable
+
+```{toctree}
+schema
+```
