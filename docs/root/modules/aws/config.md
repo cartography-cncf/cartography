@@ -141,6 +141,17 @@ AWS Organizations sync is separate from per-account resource sync. It models the
 
 AWS's managed `SecurityAudit` policy currently includes `organizations:Describe*` and `organizations:List*`, but the policy alone is not enough for full hierarchy enumeration. AWS Organizations allows `DescribeOrganization` from any member account, while hierarchy APIs such as `ListRoots`, `ListAccountsForParent`, and `ListOrganizationalUnitsForParent` require the management account or a delegated administrator account. Cartography only runs Organizations hierarchy cleanup after a complete hierarchy enumeration.
 
+### Additional AWS Sync Options
+
+| Option | Description |
+|--------|-------------|
+| `--aws-best-effort-mode` | Continue syncing other accounts if one fails, raising exceptions at the end. |
+| `--aws-regions` | [EXPERIMENTAL] Comma-separated list of AWS regions to sync. |
+| `--aws-cloudtrail-management-events-lookback-hours` | Number of hours back to retrieve CloudTrail management events. Not retrieved if not specified. |
+| `--aws-guardduty-severity-threshold` | GuardDuty severity threshold. Valid values: LOW, MEDIUM, HIGH, CRITICAL. |
+| `--aws-ssm-public-parameter-prefix-allowlist` | Comma-separated AWS-managed public SSM parameter prefixes to ingest. Set to an empty string to disable public parameter ingestion. |
+| `--aws-tagging-api-cleanup-batch` | Batch size for Resource Groups Tagging API cleanup (`AWSTag` nodes). Default: 1000. |
+
 ### Selective Syncing with `--aws-requested-syncs`
 
 By default, Cartography syncs all available AWS resource types. If you want to sync only specific AWS resources, you can use the `--aws-requested-syncs` command-line flag. This accepts a comma-separated list of resource identifiers.

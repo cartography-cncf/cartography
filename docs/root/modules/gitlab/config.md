@@ -90,6 +90,7 @@ The organization ID is the numeric ID of the top-level GitLab group you want to 
 | GitLab URL | `--gitlab-url` | N/A | No | `https://gitlab.com` | The GitLab instance URL. Only set for self-hosted instances. |
 | GitLab Token | `--gitlab-token-env-var` | Set by you | Yes | N/A | Name of the environment variable containing your GitLab personal access token |
 | Organization ID | `--gitlab-organization-id` | N/A | Yes | N/A | The numeric ID of the top-level GitLab group (organization) to sync |
+| Commit History | `--gitlab-commits-since-days` | N/A | No | `90` | Number of days of commit history to fetch |
 
 ### Performance Considerations
 

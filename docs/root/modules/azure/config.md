@@ -17,3 +17,4 @@ Follow these steps to analyze Microsoft Azure assets with Cartography:
     --azure-client-id ${AZURE_CLIENT_ID}                \
     --azure-client-secret-env-var AZURE_CLIENT_SECRET
     ```
+1. To sync a single subscription instead of all subscriptions, replace `--azure-sync-all-subscriptions` with `--azure-subscription-id <SUBSCRIPTION_ID>`.

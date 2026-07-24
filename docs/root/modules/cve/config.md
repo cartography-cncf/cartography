@@ -8,3 +8,4 @@ Follow these steps to analyze CVE objects with Cartography.
 
 1. Call cartography with the `--cve-enabled` flag.
 1. If you are mirroring the CVE data, and wish to change the base url, you can pass the base url into the cli with the `--nist-cve-url` flag.
+1. Optionally, to use higher NIST NVD API rate limits, populate an environment variable with an NVD API v2.0 key and pass that env var name with the `--cve-api-key-env-var` flag.

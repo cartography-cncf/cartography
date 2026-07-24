@@ -1,5 +1,11 @@
 import re
+from pathlib import Path
 
+import typer
+
+from cartography.cli import ALWAYS_SHOW_PANELS
+from cartography.cli import CLI
+from cartography.cli import MODULE_PANELS
 from cartography.sync import Sync
 
 
@@ -25,3 +31,45 @@ def test_schema_doc():
         existing_modules.append(m)
 
     assert sorted(included_modules) == sorted(existing_modules)
+
+
+def test_cli_doc():
+    """Test that every user-visible CLI flag is documented.
+
+    Introspect the actual Typer/Click command instead of parsing cli.py
+    source, so the check reflects the real CLI surface (including generated
+    options) and honours each option's real ``hidden`` state. Hidden flags,
+    experimental flags, and Typer's built-in completion/help options are
+    excluded.
+    """
+    # Build with every panel visible so module-specific flags are not hidden
+    # (each flag is hidden when its panel is not in visible_panels); otherwise
+    # the test would silently skip all module flags and only check core ones.
+    all_panels = set(MODULE_PANELS.values()) | ALWAYS_SHOW_PANELS
+    command = typer.main.get_command(CLI()._build_app(all_panels))
+
+    # Typer/Click built-ins, not part of cartography's own CLI surface.
+    builtin_flags = {"--help", "--install-completion", "--show-completion"}
+
+    docs_content = ""
+    for path in Path("./docs/root").rglob("*.md"):
+        docs_content += path.read_text()
+
+    undocumented = []
+    for param in command.params:
+        if getattr(param, "hidden", False):
+            continue
+        for opt in param.opts:
+            if not opt.startswith("--"):
+                continue
+            if opt in builtin_flags or opt.startswith("--experimental-"):
+                continue
+            if opt not in docs_content:
+                undocumented.append(opt)
+
+    assert not undocumented, (
+        "The following CLI flags are not documented anywhere under docs/root; "
+        "please add them to the relevant module config page or "
+        "docs/root/usage/cli.md: "
+        f"{sorted(set(undocumented))}"
+    )

@@ -27,3 +27,6 @@ By default, Cartography will ingest data from the Slack workspaces associated wi
     1. In a web-browser go to `https://<your-team>.slack.com`
     1. You will be redirected to `https://app.slack.com/client/<your-team-id>`
     1. Use `--slack-teams <your-team-id>` parameter (you can provide multiple teams id comma separated)
+
+3. Pull channel memberships (Optional)
+    1. Use the `--slack-channels-memberships` flag to also pull memberships for Slack channels (can be time consuming)
