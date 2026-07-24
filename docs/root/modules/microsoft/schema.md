@@ -4,6 +4,7 @@ The `microsoft` module is the top-level umbrella for Microsoft tenant, SaaS, and
 
 - **entra** — Entra ID identity objects (users, groups, OUs, applications, service principals, app role assignments).
 - **intune** — Intune managed devices, detected apps, and compliance policies (documented below).
+- **o365** — Office 365 licensing (subscribed SKUs, service plans, and per-user license assignments; documented below).
 
 ```{include} /modules/microsoft/entra-schema.md
 ```
@@ -98,3 +99,46 @@ Representation of a device compliance policy in Microsoft Intune.
 
 - `EntraTenant -[:RESOURCE]-> IntuneCompliancePolicy`
 - `IntuneCompliancePolicy -[:ASSIGNED_TO]-> EntraGroup`
+
+### M365License
+
+Representation of a tenant-level license subscription (subscribedSku) from Microsoft Graph. Each license corresponds to a commercial subscription the organization has acquired (e.g., Microsoft 365 E5, EMS).
+
+| Field | Description |
+|-------|-------------|
+| id | Unique identifier for the subscribed SKU |
+| sku_id | SKU identifier (GUID) for the license |
+| sku_part_number | SKU part number (e.g., `ENTERPRISEPREMIUM`, `EMS`) |
+| capability_status | Capability status (`Enabled`, `Suspended`, `Warning`) |
+| applies_to | Whether the license applies to `User` or `Company` |
+| consumed_units | Number of licenses consumed/assigned |
+| prepaid_enabled | Number of prepaid enabled licenses |
+| prepaid_suspended | Number of prepaid suspended licenses |
+| prepaid_warning | Number of prepaid licenses in warning state |
+| lastupdated | Timestamp of the last update to this node |
+| firstseen | Timestamp of when this node was first seen |
+
+#### Relationships
+
+- `AzureTenant -[:RESOURCE]-> M365License`
+- `M365License -[:HAS_SERVICE_PLAN]-> M365ServicePlan`
+- `EntraUser -[:ASSIGNED_LICENSE]-> M365License`
+
+### M365ServicePlan
+
+Representation of an individual service plan within an M365 license. Service plans are the atomic service entitlements (e.g., Exchange Online, SharePoint Online, Microsoft Teams) that make up a license SKU. Plans are deduplicated by `service_plan_id` — the same plan appearing in multiple licenses is represented as a single node.
+
+| Field | Description |
+|-------|-------------|
+| id | Tenant-scoped service plan identifier (`{tenant_id}-{service_plan_id}`) |
+| service_plan_id | Original service plan GUID, shared across tenants |
+| service_plan_name | Name of the service plan (e.g., `EXCHANGE_S_ENTERPRISE`, `TEAMS1`) |
+| provisioning_status | Provisioning status (`Success`, `Disabled`, `PendingProvisioning`) |
+| applies_to | Whether the plan applies to `User` or `Company` |
+| lastupdated | Timestamp of the last update to this node |
+| firstseen | Timestamp of when this node was first seen |
+
+#### Relationships
+
+- `AzureTenant -[:RESOURCE]-> M365ServicePlan`
+- `M365License -[:HAS_SERVICE_PLAN]-> M365ServicePlan`
