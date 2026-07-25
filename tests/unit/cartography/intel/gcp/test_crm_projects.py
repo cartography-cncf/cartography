@@ -1,10 +1,15 @@
+import logging
 from types import SimpleNamespace
 from unittest.mock import call
 from unittest.mock import MagicMock
 from unittest.mock import patch
 
+from google.api_core.exceptions import NotFound
+
 from cartography.intel.gcp.crm.folders import get_default_apps_script_folder_names
 from cartography.intel.gcp.crm.projects import get_gcp_projects
+from cartography.intel.gcp.crm.projects import get_gcp_projects_by_ids
+from cartography.intel.gcp.crm.projects import transform_gcp_projects
 
 
 def test_get_default_apps_script_folder_names_only_matches_documented_lineage():
@@ -149,3 +154,162 @@ def test_get_gcp_projects_skips_default_apps_script_parent_only():
         "business-project",
         "standard-apps-script-project",
     }
+
+
+def test_get_gcp_projects_by_ids_fetches_each_project_directly():
+    """get_gcp_projects_by_ids calls get_project per ID and normalises the result."""
+    projects_by_name = {
+        "projects/standalone-one": SimpleNamespace(
+            name="projects/1001",
+            project_id="standalone-one",
+            display_name="Standalone One",
+            state=SimpleNamespace(name="ACTIVE"),
+            parent="",  # no organization or folder parent
+        ),
+        "projects/standalone-two": SimpleNamespace(
+            name="projects/1002",
+            project_id="standalone-two",
+            display_name="Standalone Two",
+            state=SimpleNamespace(name="ACTIVE"),
+            parent="organizations/1337",
+        ),
+    }
+    mock_client = MagicMock()
+    mock_client.get_project.side_effect = lambda *, name: projects_by_name[name]
+
+    with patch(
+        "cartography.intel.gcp.crm.projects.resourcemanager_v3.ProjectsClient",
+        return_value=mock_client,
+    ):
+        projects = get_gcp_projects_by_ids(["standalone-one", "standalone-two"])
+
+    # Each requested project is fetched directly by resource name.
+    assert {
+        fetched.kwargs["name"] for fetched in mock_client.get_project.call_args_list
+    } == {"projects/standalone-one", "projects/standalone-two"}
+
+    assert projects == [
+        {
+            "projectId": "standalone-one",
+            "projectNumber": "1001",
+            "name": "Standalone One",
+            "lifecycleState": "ACTIVE",
+            "parent": "",
+        },
+        {
+            "projectId": "standalone-two",
+            "projectNumber": "1002",
+            "name": "Standalone Two",
+            "lifecycleState": "ACTIVE",
+            "parent": "organizations/1337",
+        },
+    ]
+
+
+def test_transform_gcp_projects_warns_on_missing_parent_in_org_path(caplog):
+    """The org path warns when a project has no parent (unexpected under an org)."""
+    data = [{"projectId": "orphan-project", "parent": None}]
+    with caplog.at_level(logging.WARNING):
+        transform_gcp_projects(data)
+
+    assert data[0]["parent_org"] is None
+    assert data[0]["parent_folder"] is None
+    assert any(
+        "has no parent" in record.message and "orphan-project" in record.message
+        for record in caplog.records
+    )
+
+
+def test_transform_gcp_projects_standalone_silent_on_missing_parent(caplog):
+    """The standalone path does not warn: a parentless project is expected there."""
+    data = [{"projectId": "standalone-project", "parent": None}]
+    with caplog.at_level(logging.WARNING):
+        transform_gcp_projects(data, warn_on_missing_parent=False)
+
+    assert data[0]["parent_org"] is None
+    assert data[0]["parent_folder"] is None
+    assert not any("has no parent" in record.message for record in caplog.records)
+
+
+def test_get_gcp_projects_by_ids_skips_inaccessible_ids():
+    """A single inaccessible/missing project ID is skipped, not fatal; the rest sync."""
+    good = SimpleNamespace(
+        name="projects/1001",
+        project_id="good-project",
+        display_name="Good Project",
+        state=SimpleNamespace(name="ACTIVE"),
+        parent="",
+    )
+
+    def fake_get_project(*, name):
+        if name == "projects/missing-project":
+            raise NotFound("project not found")
+        return good
+
+    mock_client = MagicMock()
+    mock_client.get_project.side_effect = fake_get_project
+
+    with patch(
+        "cartography.intel.gcp.crm.projects.resourcemanager_v3.ProjectsClient",
+        return_value=mock_client,
+    ):
+        projects = get_gcp_projects_by_ids(["missing-project", "good-project"])
+
+    # Both IDs are attempted, but only the accessible one ends up in the result.
+    assert {
+        fetched.kwargs["name"] for fetched in mock_client.get_project.call_args_list
+    } == {"projects/missing-project", "projects/good-project"}
+    assert projects == [
+        {
+            "projectId": "good-project",
+            "projectNumber": "1001",
+            "name": "Good Project",
+            "lifecycleState": "ACTIVE",
+            "parent": "",
+        },
+    ]
+
+
+def test_get_gcp_projects_by_ids_skips_non_active_projects():
+    """
+    get_project() returns projects in any lifecycle state, but only ACTIVE ones should
+    be ingested (matching the org path's list_projects() ACTIVE-only semantics).
+    """
+    projects_by_name = {
+        "projects/active-project": SimpleNamespace(
+            name="projects/1001",
+            project_id="active-project",
+            display_name="Active Project",
+            state=SimpleNamespace(name="ACTIVE"),
+            parent="",
+        ),
+        "projects/deleting-project": SimpleNamespace(
+            name="projects/1002",
+            project_id="deleting-project",
+            display_name="Deleting Project",
+            state=SimpleNamespace(name="DELETE_REQUESTED"),
+            parent="",
+        ),
+    }
+    mock_client = MagicMock()
+    mock_client.get_project.side_effect = lambda *, name: projects_by_name[name]
+
+    with patch(
+        "cartography.intel.gcp.crm.projects.resourcemanager_v3.ProjectsClient",
+        return_value=mock_client,
+    ):
+        projects = get_gcp_projects_by_ids(["active-project", "deleting-project"])
+
+    # Both projects are fetched, but the non-ACTIVE one is dropped from the result.
+    assert {
+        fetched.kwargs["name"] for fetched in mock_client.get_project.call_args_list
+    } == {"projects/active-project", "projects/deleting-project"}
+    assert projects == [
+        {
+            "projectId": "active-project",
+            "projectNumber": "1001",
+            "name": "Active Project",
+            "lifecycleState": "ACTIVE",
+            "parent": "",
+        },
+    ]

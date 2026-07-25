@@ -324,6 +324,47 @@ def test_get_policy_bindings_passes_custom_retry_to_cai_rpcs(
     assert mock_wait_for_slot.call_count == 2
 
 
+@patch.object(policy_bindings, "_wait_for_cai_policy_bindings_slot")
+@patch.object(policy_bindings, "MessageToDict")
+@pytest.mark.parametrize(
+    "common_job_params, expected_scope",
+    [
+        # Org-based path: scope to the organization so ancestor bindings are inherited.
+        (COMMON_JOB_PARAMS, "organizations/1337"),
+        # Standalone path (--gcp-project-ids): no ORG_RESOURCE_NAME, so CAI's
+        # batch_get_effective_iam_policies must still get a valid scope. A None scope
+        # would be rejected by Google; fall back to the project's own scope.
+        (
+            {"UPDATE_TAG": TEST_UPDATE_TAG, "PROJECT_ID": TEST_PROJECT_ID},
+            f"projects/{TEST_PROJECT_ID}",
+        ),
+    ],
+)
+def test_get_policy_bindings_effective_scope(
+    mock_message_to_dict,
+    mock_wait_for_slot,
+    common_job_params,
+    expected_scope,
+):
+    client = MagicMock()
+    client.batch_get_effective_iam_policies.return_value = MagicMock(_pb=object())
+
+    search_pager = MagicMock()
+    search_pager.pages = []
+    client.search_all_iam_policies.return_value = search_pager
+
+    mock_message_to_dict.return_value = {"policy_results": []}
+
+    policy_bindings.get_policy_bindings(
+        TEST_PROJECT_ID,
+        common_job_params,
+        client,
+    )
+
+    request = client.batch_get_effective_iam_policies.call_args.kwargs["request"]
+    assert request.scope == expected_scope
+
+
 def test_split_bindings_by_graph_scope_keeps_inherited_separate():
     direct_project = {
         "id": "project-binding",
