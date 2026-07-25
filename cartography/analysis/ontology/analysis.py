@@ -251,25 +251,6 @@ DNS_RECORD_LINKING_JOBS = (DNS_RECORD_TO_KUBERNETES_INGRESS,) + tuple(
         for target_label, target_property, match_filter, cleanup_where in DNS_RECORD_TARGETS
     )
 )
-LOADBALANCER_EXPOSE_CONTAINER = AnalysisJob(
-    name="Ontology - LoadBalancer to Container linking",
-    short_name="ontology_loadbalancers_linking",
-    statements=(
-        AnalysisStatement(
-            match="MATCH (lb:LoadBalancer)-[:EXPOSE]->(ip:AWSEC2PrivateIp)<-[:PRIVATE_IP_ADDRESS]-(ni:AWSNetworkInterface)<-[:NETWORK_INTERFACE]-(task:AWSECSTask)-[:HAS_CONTAINER]->(c:Container)",
-            effects=(
-                AddRelationship(
-                    "lb",
-                    "EXPOSE",
-                    "c",
-                    source_label="LoadBalancer",
-                    target_label="Container",
-                ),
-            ),
-            incremental_on="lb",
-        ),
-    ),
-)
 PACKAGE_DEPLOYED_IMAGE_JOBS = (
     AnalysisJob(
         name="Ontology - Trivy Package DEPLOYED Image linking",
