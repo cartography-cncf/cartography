@@ -44,31 +44,11 @@ def test_transform_aws_organization_accounts_preserves_boto3_account_fields():
             "email": "management@example.com",
             "name": "management-account",
             "state": "ACTIVE",
-            "status": "ACTIVE",
             "joined_method": "CREATED",
             "joined_timestamp": datetime(2020, 1, 1, tzinfo=timezone.utc),
             "org_id": "o-exampleorgid",
         },
     ]
-
-
-def test_transform_aws_organization_accounts_falls_back_to_legacy_status():
-    # Arrange
-    account_without_state = {
-        key: value
-        for key, value in TEST_ORGANIZATION_ACCOUNTS[0].items()
-        if key != "State"
-    }
-
-    # Act
-    result = cartography.intel.aws.organizations.transform_aws_organization_accounts(
-        [account_without_state],
-        "o-exampleorgid",
-    )
-
-    # Assert
-    assert result[0]["state"] == "ACTIVE"
-    assert result[0]["status"] == "ACTIVE"
 
 
 def test_transform_aws_organization_accounts_preserves_suspended_state():
@@ -402,10 +382,10 @@ def test_sync_aws_organization_returns_incomplete_when_account_state_is_unknown(
         def describe_organization(self):
             return {"Organization": TEST_ORGANIZATION}
 
-    account_without_state_or_status = {
+    account_without_state = {
         key: value
         for key, value in TEST_ORGANIZATION_ACCOUNTS[0].items()
-        if key not in {"State", "Status"}
+        if key != "State"
     }
 
     with (
@@ -415,7 +395,7 @@ def test_sync_aws_organization_returns_incomplete_when_account_state_is_unknown(
             return_value=(
                 [TEST_ORGANIZATION_ROOTS[0]],
                 [],
-                [account_without_state_or_status],
+                [account_without_state],
             ),
         ),
         mock.patch.object(

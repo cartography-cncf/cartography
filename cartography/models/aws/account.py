@@ -31,7 +31,6 @@ class AWSOrganizationAccountNodeProperties(CartographyNodeProperties):
     arn: PropertyRef = PropertyRef("arn", extra_index=True)
     email: PropertyRef = PropertyRef("email")
     state: PropertyRef = PropertyRef("state")
-    status: PropertyRef = PropertyRef("status")
     joined_method: PropertyRef = PropertyRef("joined_method")
     joined_timestamp: PropertyRef = PropertyRef("joined_timestamp")
     org_id: PropertyRef = PropertyRef("org_id", extra_index=True)
