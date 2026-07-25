@@ -1,3 +1,4 @@
+import asyncio
 import logging
 from typing import Any
 
@@ -19,22 +20,79 @@ import cartography.intel.gitlab.organizations
 import cartography.intel.gitlab.projects
 import cartography.intel.gitlab.runners
 import cartography.intel.gitlab.supply_chain
+import cartography.intel.gitlab.terraform_states
 import cartography.intel.gitlab.users
 from cartography.config import Config
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
 
+VALID_SYNC_RESOURCES = frozenset(
+    [
+        "organizations",
+        "groups",
+        "projects",
+        "users",
+        "runners",
+        "ci_variables",
+        "environments",
+        "ci_config",
+        "container_repositories",
+        "branches",
+        "dependencies",
+        "terraform_states",
+    ]
+)
+
+
+def parse_and_validate_gitlab_requested_syncs(requested_syncs_str: str) -> list[str]:
+    validated: list[str] = []
+    for resource in requested_syncs_str.split(","):
+        resource = resource.strip()
+        if resource in VALID_SYNC_RESOURCES:
+            validated.append(resource)
+        else:
+            valid = ", ".join(sorted(VALID_SYNC_RESOURCES))
+            raise ValueError(
+                f'Error parsing `--gitlab-requested-syncs`. Unknown resource "{resource}". '
+                f"Valid values: {valid}."
+            )
+    return validated
+
+
+def parse_group_paths(group_paths_str: str) -> set[str]:
+    return {p.strip() for p in group_paths_str.split(",") if p.strip()}
+
+
+def _path_matches(full_path: str, allowed_paths: set[str]) -> bool:
+    segments = full_path.split("/")
+    for allowed in allowed_paths:
+        allowed_segments = allowed.split("/")
+        n = len(allowed_segments)
+        for i in range(len(segments) - n + 1):
+            if segments[i : i + n] == allowed_segments:
+                return True
+    return False
+
+
+def _filter_groups_by_paths(
+    groups: list[dict[str, Any]], allowed_paths: set[str]
+) -> list[dict[str, Any]]:
+    return [g for g in groups if _path_matches(g.get("full_path", ""), allowed_paths)]
+
+
+def _filter_projects_by_paths(
+    projects: list[dict[str, Any]], allowed_paths: set[str]
+) -> list[dict[str, Any]]:
+    return [
+        p
+        for p in projects
+        if _path_matches(p.get("path_with_namespace", ""), allowed_paths)
+    ]
+
 
 @timeit
 def start_gitlab_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
-    """
-    If this module is configured, perform ingestion of GitLab data. Otherwise warn and exit.
-
-    :param neo4j_session: Neo4J session for database interface
-    :param config: A cartography.config object
-    :return: None
-    """
     if not all([config.gitlab_token, config.gitlab_organization_id]):
         logger.info(
             "GitLab import is not configured - skipping this module. "
@@ -46,6 +104,20 @@ def start_gitlab_ingestion(neo4j_session: neo4j.Session, config: Config) -> None
     token: str = config.gitlab_token
     organization_id: int = config.gitlab_organization_id
 
+    requested_syncs: set[str] = set(VALID_SYNC_RESOURCES)
+    if config.gitlab_requested_syncs:
+        requested_syncs = set(
+            parse_and_validate_gitlab_requested_syncs(config.gitlab_requested_syncs)
+        )
+        logger.info("GitLab sync scoped to resource types: %s", sorted(requested_syncs))
+
+    allowed_group_paths: set[str] | None = None
+    if config.gitlab_group_paths:
+        allowed_group_paths = parse_group_paths(config.gitlab_group_paths)
+        logger.info(
+            "GitLab sync scoped to group paths: %s", sorted(allowed_group_paths)
+        )
+
     common_job_parameters: dict[str, Any] = {
         "UPDATE_TAG": config.update_tag,
         "ORGANIZATION_ID": organization_id,
@@ -53,97 +125,159 @@ def start_gitlab_ingestion(neo4j_session: neo4j.Session, config: Config) -> None
     }
 
     logger.info(
-        f"Starting GitLab sync for organization {organization_id} at {gitlab_url}"
+        "Starting GitLab sync for organization %s at %s", organization_id, gitlab_url
     )
 
-    # Sync the specified organization (top-level group)
-    try:
-        cartography.intel.gitlab.organizations.sync_gitlab_organizations(
+    if "organizations" in requested_syncs:
+        try:
+            cartography.intel.gitlab.organizations.sync_gitlab_organizations(
+                neo4j_session,
+                gitlab_url,
+                token,
+                config.update_tag,
+                common_job_parameters,
+            )
+        except requests.exceptions.HTTPError as e:
+            if e.response is not None and e.response.status_code == 404:
+                logger.error(
+                    "Organization %s not found at %s. "
+                    "Please verify the organization ID is correct and the token has access.",
+                    organization_id,
+                    gitlab_url,
+                )
+            elif e.response is not None and e.response.status_code == 401:
+                logger.error(
+                    "Authentication failed for GitLab at %s. "
+                    "Please verify the token is valid and has required scopes (read_api).",
+                    gitlab_url,
+                )
+            else:
+                logger.error(
+                    "Failed to fetch organization %s from %s: %s",
+                    organization_id,
+                    gitlab_url,
+                    e,
+                )
+            raise
+
+    common_job_parameters["gitlab_url"] = gitlab_url
+
+    all_groups: list[dict[str, Any]] = []
+    if "groups" in requested_syncs:
+        if allowed_group_paths is not None:
+            raw_groups = cartography.intel.gitlab.groups.get_groups(
+                gitlab_url, token, organization_id
+            )
+            transformed_groups = cartography.intel.gitlab.groups.transform_groups(
+                raw_groups, organization_id, gitlab_url
+            )
+            before = len(transformed_groups)
+            filtered_groups = _filter_groups_by_paths(
+                transformed_groups, allowed_group_paths
+            )
+            logger.info(
+                "Group path filter: %d → %d groups", before, len(filtered_groups)
+            )
+            cartography.intel.gitlab.groups.load_groups(
+                neo4j_session,
+                filtered_groups,
+                organization_id,
+                gitlab_url,
+                config.update_tag,
+            )
+            all_groups = [
+                g
+                for g in raw_groups
+                if any(t["id"] == g.get("id") for t in filtered_groups)
+            ]
+        else:
+            all_groups = cartography.intel.gitlab.groups.sync_gitlab_groups(
+                neo4j_session,
+                gitlab_url,
+                token,
+                config.update_tag,
+                common_job_parameters,
+            )
+
+    all_projects: list[dict[str, Any]] = []
+    _skip_cleanup = False
+    if "projects" in requested_syncs:
+        if allowed_group_paths is not None:
+            raw_projects = cartography.intel.gitlab.projects.get_projects(
+                gitlab_url, token, organization_id
+            )
+            if raw_projects:
+                before = len(raw_projects)
+                filtered_raw_projects = _filter_projects_by_paths(
+                    raw_projects, allowed_group_paths
+                )
+                logger.info(
+                    "Group path filter: %d → %d projects",
+                    before,
+                    len(filtered_raw_projects),
+                )
+                if not filtered_raw_projects:
+                    logger.warning(
+                        "Group path filter matched 0 of %d projects — "
+                        "paths %s may be mistyped. Skipping cleanup to prevent data loss.",
+                        before,
+                        sorted(allowed_group_paths),
+                    )
+                    _skip_cleanup = True
+                if not _skip_cleanup:
+                    org = cartography.intel.gitlab.organizations.get_organization(
+                        gitlab_url, token, organization_id
+                    )
+                    languages_by_project = asyncio.run(
+                        cartography.intel.gitlab.projects._fetch_all_languages(
+                            gitlab_url, token, filtered_raw_projects
+                        )
+                    )
+                    filtered_projects = (
+                        cartography.intel.gitlab.projects.transform_projects(
+                            filtered_raw_projects,
+                            organization_id,
+                            org["web_url"],
+                            gitlab_url,
+                            languages_by_project,
+                        )
+                    )
+                    cartography.intel.gitlab.projects.load_projects(
+                        neo4j_session,
+                        filtered_projects,
+                        organization_id,
+                        gitlab_url,
+                        config.update_tag,
+                    )
+                    all_projects = filtered_raw_projects
+        else:
+            all_projects = cartography.intel.gitlab.projects.sync_gitlab_projects(
+                neo4j_session,
+                gitlab_url,
+                token,
+                config.update_tag,
+                common_job_parameters,
+            )
+
+    if "users" in requested_syncs:
+        cartography.intel.gitlab.users.sync_gitlab_users(
             neo4j_session,
             gitlab_url,
             token,
             config.update_tag,
             common_job_parameters,
+            all_groups,
+            all_projects,
+            config.gitlab_commits_since_days,
         )
-    except requests.exceptions.HTTPError as e:
-        if e.response is not None and e.response.status_code == 404:
-            logger.error(
-                f"Organization {organization_id} not found at {gitlab_url}. "
-                "Please verify the organization ID is correct and the token has access."
-            )
-        elif e.response is not None and e.response.status_code == 401:
-            logger.error(
-                f"Authentication failed for GitLab at {gitlab_url}. "
-                "Please verify the token is valid and has required scopes (read_api)."
-            )
-        else:
-            logger.error(
-                f"Failed to fetch organization {organization_id} from {gitlab_url}: {e}"
-            )
-        raise
 
-    common_job_parameters["gitlab_url"] = gitlab_url
-
-    # Sync groups (nested subgroups within this organization)
-    # Returns the groups list to avoid redundant API calls
-    all_groups = cartography.intel.gitlab.groups.sync_gitlab_groups(
-        neo4j_session,
-        gitlab_url,
-        token,
-        config.update_tag,
-        common_job_parameters,
-    )
-
-    # Sync projects (within this organization and its groups)
-    # Returns the projects list to avoid redundant API calls
-    all_projects = cartography.intel.gitlab.projects.sync_gitlab_projects(
-        neo4j_session,
-        gitlab_url,
-        token,
-        config.update_tag,
-        common_job_parameters,
-    )
-
-    # Sync users (members of organization and groups) with commit activity
-    # Must happen after projects sync since we need projects to fetch commits
-    cartography.intel.gitlab.users.sync_gitlab_users(
-        neo4j_session,
-        gitlab_url,
-        token,
-        config.update_tag,
-        common_job_parameters,
-        all_groups,
-        all_projects,
-        config.gitlab_commits_since_days,
-    )
-
-    # ========================================
-    # CI/CD Phase
-    # Runs before the container/dependency phase: CI/CD only depends on
-    # `all_groups` and `all_projects`, so doing it early means the static
-    # security signals (unpinned includes, unprotected runners, ...) land
-    # in the graph even if the (slower / heavier) container scan fails.
-    # ========================================
-
-    # Sync CI/CD runners at instance, group, and project scopes.
-    # Each scope returns a "skipped" set when a 403 was encountered — those
-    # scopes must be excluded from the cleanup phase to avoid deleting
-    # previously-ingested runners that we simply could not list this time.
-    runners_skipped = cartography.intel.gitlab.runners.sync_gitlab_runners(
-        neo4j_session,
-        gitlab_url,
-        token,
-        config.update_tag,
-        common_job_parameters,
-        all_groups,
-        all_projects,
-    )
-
-    # Sync CI/CD variables at group and project scopes.
-    # Returns a {project_id: [variables]} map and a per-scope "skipped" set
-    # (same data-loss-prevention rationale as runners above).
-    variables_by_project, variables_skipped = (
-        cartography.intel.gitlab.ci_variables.sync_gitlab_ci_variables(
+    runners_skipped: dict[str, Any] = {
+        "projects": set(),
+        "groups": set(),
+        "instance": False,
+    }
+    if "runners" in requested_syncs:
+        runners_skipped = cartography.intel.gitlab.runners.sync_gitlab_runners(
             neo4j_session,
             gitlab_url,
             token,
@@ -152,15 +286,40 @@ def start_gitlab_ingestion(neo4j_session: neo4j.Session, config: Config) -> None
             all_groups,
             all_projects,
         )
-    )
 
-    # Sync environments and link them to CI/CD variables that apply to them
-    # (exact match on environment_scope or wildcard "*"). Projects whose
-    # variables could not be loaded this run are forwarded as `skip_projects`
-    # so we don't refresh env nodes with empty `linked_variable_ids` and let
-    # cleanup wipe HAS_CI_VARIABLE edges that should still be there.
-    environments_skipped = (
-        cartography.intel.gitlab.environments.sync_gitlab_environments(
+    variables_by_project: dict[int, list[dict[str, Any]]] = {}
+    variables_skipped: dict[str, Any] = {"projects": set(), "groups": set()}
+    if "ci_variables" in requested_syncs:
+        variables_by_project, variables_skipped = (
+            cartography.intel.gitlab.ci_variables.sync_gitlab_ci_variables(
+                neo4j_session,
+                gitlab_url,
+                token,
+                config.update_tag,
+                common_job_parameters,
+                all_groups,
+                all_projects,
+            )
+        )
+
+    environments_skipped: set[int] = set()
+    if "environments" in requested_syncs:
+        environments_skipped = (
+            cartography.intel.gitlab.environments.sync_gitlab_environments(
+                neo4j_session,
+                gitlab_url,
+                token,
+                config.update_tag,
+                common_job_parameters,
+                all_projects,
+                variables_by_project,
+                skip_projects=variables_skipped["projects"],
+            )
+        )
+
+    ci_config_skipped: set[int] = set()
+    if "ci_config" in requested_syncs:
+        ci_config_skipped = cartography.intel.gitlab.ci_config.sync_gitlab_ci_config(
             neo4j_session,
             gitlab_url,
             token,
@@ -170,43 +329,57 @@ def start_gitlab_ingestion(neo4j_session: neo4j.Session, config: Config) -> None
             variables_by_project,
             skip_projects=variables_skipped["projects"],
         )
-    )
 
-    # Sync .gitlab-ci.yml configs (parsed pipeline summary + includes) and link
-    # to project-level variables they reference. Same `skip_projects`
-    # forwarding rationale as environments.
-    ci_config_skipped = cartography.intel.gitlab.ci_config.sync_gitlab_ci_config(
-        neo4j_session,
-        gitlab_url,
-        token,
-        config.update_tag,
-        common_job_parameters,
-        all_projects,
-        variables_by_project,
-        skip_projects=variables_skipped["projects"],
-    )
+    all_container_repositories: list[dict[str, Any]] = []
+    if "container_repositories" in requested_syncs:
+        if allowed_group_paths is not None:
+            allowed_project_ids = [p["id"] for p in all_projects]
+            raw_repos = cartography.intel.gitlab.container_repositories.get_container_repositories_for_projects(
+                gitlab_url, token, allowed_project_ids
+            )
+            logger.info(
+                "Container repository per-project fetch: got %d repos for %d projects",
+                len(raw_repos),
+                len(allowed_project_ids),
+            )
+            transformed_repos = cartography.intel.gitlab.container_repositories.transform_container_repositories(
+                raw_repos
+            )
+            cartography.intel.gitlab.container_repositories.load_container_repositories(
+                neo4j_session,
+                transformed_repos,
+                organization_id,
+                gitlab_url,
+                config.update_tag,
+            )
+            cartography.intel.gitlab.container_repositories.cleanup_container_repositories(
+                neo4j_session, common_job_parameters
+            )
+            all_container_repositories = raw_repos
+        else:
+            all_container_repositories = cartography.intel.gitlab.container_repositories.sync_container_repositories(
+                neo4j_session,
+                gitlab_url,
+                token,
+                organization_id,
+                organization_id,
+                config.update_tag,
+                common_job_parameters,
+            )
 
-    # ========================================
-    # Container Registry + Dependencies Phase
-    # ========================================
-
-    # Sync container repositories (includes cleanup since it's org-scoped)
-    all_container_repositories = (
-        cartography.intel.gitlab.container_repositories.sync_container_repositories(
-            neo4j_session,
-            gitlab_url,
-            token,
-            organization_id,
-            organization_id,
-            config.update_tag,
-            common_job_parameters,
+        all_image_manifests, manifest_lists = (
+            cartography.intel.gitlab.container_images.sync_container_images(
+                neo4j_session,
+                gitlab_url,
+                token,
+                organization_id,
+                all_container_repositories,
+                config.update_tag,
+                common_job_parameters,
+            )
         )
-    )
 
-    # Sync container images before tags since tags have REFERENCES relationship to images
-    # Returns raw manifests and manifest lists for downstream attestation sync
-    all_image_manifests, manifest_lists = (
-        cartography.intel.gitlab.container_images.sync_container_images(
+        cartography.intel.gitlab.container_repository_tags.sync_container_repository_tags(
             neo4j_session,
             gitlab_url,
             token,
@@ -215,56 +388,30 @@ def start_gitlab_ingestion(neo4j_session: neo4j.Session, config: Config) -> None
             config.update_tag,
             common_job_parameters,
         )
-    )
 
-    # Sync container repository tags (includes cleanup since it's org-scoped)
-    cartography.intel.gitlab.container_repository_tags.sync_container_repository_tags(
-        neo4j_session,
-        gitlab_url,
-        token,
-        organization_id,
-        all_container_repositories,
-        config.update_tag,
-        common_job_parameters,
-    )
+        cartography.intel.gitlab.container_image_attestations.sync_container_image_attestations(
+            neo4j_session,
+            gitlab_url,
+            token,
+            organization_id,
+            all_image_manifests,
+            manifest_lists,
+            config.update_tag,
+            common_job_parameters,
+        )
 
-    # Sync container image attestations (includes cleanup since it's org-scoped)
-    cartography.intel.gitlab.container_image_attestations.sync_container_image_attestations(
-        neo4j_session,
-        gitlab_url,
-        token,
-        organization_id,
-        all_image_manifests,
-        manifest_lists,
-        config.update_tag,
-        common_job_parameters,
-    )
+        cartography.intel.gitlab.supply_chain.sync(
+            neo4j_session,
+            gitlab_url,
+            token,
+            organization_id,
+            config.update_tag,
+            common_job_parameters,
+            all_projects,
+        )
 
-    # Sync supply chain (dockerfiles, provenance) and match to container images
-    # Must happen after container images and tags are synced
-    cartography.intel.gitlab.supply_chain.sync(
-        neo4j_session,
-        gitlab_url,
-        token,
-        organization_id,
-        config.update_tag,
-        common_job_parameters,
-        all_projects,
-    )
-
-    # Sync branches - pass projects to avoid re-fetching
-    cartography.intel.gitlab.branches.sync_gitlab_branches(
-        neo4j_session,
-        gitlab_url,
-        token,
-        config.update_tag,
-        common_job_parameters,
-        all_projects,
-    )
-
-    # Sync dependency files - returns data to avoid duplicate API calls in dependencies sync
-    dependency_files_by_project = (
-        cartography.intel.gitlab.dependency_files.sync_gitlab_dependency_files(
+    if "branches" in requested_syncs:
+        cartography.intel.gitlab.branches.sync_gitlab_branches(
             neo4j_session,
             gitlab_url,
             token,
@@ -272,54 +419,78 @@ def start_gitlab_ingestion(neo4j_session: neo4j.Session, config: Config) -> None
             common_job_parameters,
             all_projects,
         )
-    )
 
-    # Sync dependencies - pass pre-fetched dependency files to avoid duplicate API calls
-    cartography.intel.gitlab.dependencies.sync_gitlab_dependencies(
-        neo4j_session,
-        gitlab_url,
-        token,
-        config.update_tag,
-        common_job_parameters,
-        all_projects,
-        dependency_files_by_project,
-    )
+    dependency_files_by_project: dict[str, list[dict[str, Any]]] = {}
+    if "dependencies" in requested_syncs:
+        dependency_files_by_project = (
+            cartography.intel.gitlab.dependency_files.sync_gitlab_dependency_files(
+                neo4j_session,
+                gitlab_url,
+                token,
+                config.update_tag,
+                common_job_parameters,
+                all_projects,
+            )
+        )
+
+        cartography.intel.gitlab.dependencies.sync_gitlab_dependencies(
+            neo4j_session,
+            gitlab_url,
+            token,
+            config.update_tag,
+            common_job_parameters,
+            all_projects,
+            dependency_files_by_project,
+        )
+
+    terraform_synced_project_ids: set[int] = set()
+    if "terraform_states" in requested_syncs:
+        synced_ids = (
+            cartography.intel.gitlab.terraform_states.sync_gitlab_terraform_states(
+                neo4j_session,
+                gitlab_url,
+                token,
+                config.update_tag,
+                common_job_parameters,
+                all_projects,
+            )
+        )
+        terraform_synced_project_ids = set(synced_ids)
 
     # ========================================
     # Cleanup Phase - Run in reverse order (leaf to root)
     # ========================================
+    if _skip_cleanup:
+        logger.warning("Skipping cleanup phase: group path filter matched no projects.")
+        return
+
     logger.info("Starting GitLab cleanup phase")
 
-    # Cleanup leaf nodes (dependencies, dependency_files, branches, project runners) for each project
     for project in all_projects:
         project_id: int = project["id"]
 
-        # Cleanup dependencies
-        cartography.intel.gitlab.dependencies.cleanup_dependencies(
-            neo4j_session, common_job_parameters, project_id, gitlab_url
-        )
+        if "dependencies" in requested_syncs:
+            cartography.intel.gitlab.dependencies.cleanup_dependencies(
+                neo4j_session, common_job_parameters, project_id, gitlab_url
+            )
+            cartography.intel.gitlab.dependency_files.cleanup_dependency_files(
+                neo4j_session, common_job_parameters, project_id, gitlab_url
+            )
 
-        # Cleanup dependency files
-        cartography.intel.gitlab.dependency_files.cleanup_dependency_files(
-            neo4j_session, common_job_parameters, project_id, gitlab_url
-        )
+        if "branches" in requested_syncs:
+            cartography.intel.gitlab.branches.cleanup_branches(
+                neo4j_session, common_job_parameters, project_id, gitlab_url
+            )
 
-        # Cleanup branches
-        cartography.intel.gitlab.branches.cleanup_branches(
-            neo4j_session, common_job_parameters, project_id, gitlab_url
-        )
-
-        # Cleanup project-level runners — skip if the scope returned 403,
-        # otherwise we'd delete every previously-ingested runner.
-        if project_id not in runners_skipped["projects"]:
+        if (
+            "runners" in requested_syncs
+            and project_id not in runners_skipped["projects"]
+        ):
             cartography.intel.gitlab.runners.cleanup_project_runners(
                 neo4j_session, common_job_parameters, project_id, gitlab_url
             )
 
-        # Cleanup CI includes first, then the parent CIConfig — but skip if
-        # the project's config was permission-denied this sync, otherwise
-        # we'd delete a previously-ingested config on transient auth fail.
-        if project_id not in ci_config_skipped:
+        if "ci_config" in requested_syncs and project_id not in ci_config_skipped:
             cartography.intel.gitlab.ci_config.cleanup_ci_includes(
                 neo4j_session, common_job_parameters, project_id, gitlab_url
             )
@@ -327,56 +498,66 @@ def start_gitlab_ingestion(neo4j_session: neo4j.Session, config: Config) -> None
                 neo4j_session, common_job_parameters, project_id, gitlab_url
             )
 
-        # Cleanup environments — skip if the scope returned 403.
-        if project_id not in environments_skipped:
+        if "environments" in requested_syncs and project_id not in environments_skipped:
             cartography.intel.gitlab.environments.cleanup_environments(
                 neo4j_session, common_job_parameters, project_id, gitlab_url
             )
 
-        # Cleanup project-level CI/CD variables — skip if the scope returned 403.
-        if project_id not in variables_skipped["projects"]:
+        if (
+            "ci_variables" in requested_syncs
+            and project_id not in variables_skipped["projects"]
+        ):
             cartography.intel.gitlab.ci_variables.cleanup_project_variables(
                 neo4j_session, common_job_parameters, project_id, gitlab_url
             )
 
-    # Cleanup group-level runners and CI/CD variables (one cleanup per group),
-    # skipping any scope that returned 403 during the sync.
-    for group in all_groups:
-        group_id_int = group["id"]
-        if group_id_int not in runners_skipped["groups"]:
-            cartography.intel.gitlab.runners.cleanup_group_runners(
-                neo4j_session, common_job_parameters, group_id_int, gitlab_url
-            )
-        if group_id_int not in variables_skipped["groups"]:
-            cartography.intel.gitlab.ci_variables.cleanup_group_variables(
-                neo4j_session, common_job_parameters, group_id_int, gitlab_url
+        if (
+            "terraform_states" in requested_syncs
+            and project_id in terraform_synced_project_ids
+        ):
+            cartography.intel.gitlab.terraform_states.cleanup_terraform_states(
+                neo4j_session, common_job_parameters, project_id, gitlab_url
             )
 
-    # Cleanup instance-level runners (scoped to the organization).
-    # Skip if the /runners/all endpoint returned 403 (admin scope missing).
-    if not runners_skipped["instance"]:
-        cartography.intel.gitlab.runners.cleanup_instance_runners(
+    if "runners" in requested_syncs:
+        for group in all_groups:
+            group_id_int = group["id"]
+            if group_id_int not in runners_skipped["groups"]:
+                cartography.intel.gitlab.runners.cleanup_group_runners(
+                    neo4j_session, common_job_parameters, group_id_int, gitlab_url
+                )
+
+        if not runners_skipped["instance"]:
+            cartography.intel.gitlab.runners.cleanup_instance_runners(
+                neo4j_session, common_job_parameters, organization_id, gitlab_url
+            )
+
+    if "ci_variables" in requested_syncs:
+        for group in all_groups:
+            group_id_int = group["id"]
+            if group_id_int not in variables_skipped["groups"]:
+                cartography.intel.gitlab.ci_variables.cleanup_group_variables(
+                    neo4j_session, common_job_parameters, group_id_int, gitlab_url
+                )
+
+    if "projects" in requested_syncs:
+        cartography.intel.gitlab.projects.cleanup_projects(
             neo4j_session, common_job_parameters, organization_id, gitlab_url
         )
 
-    # Cleanup projects with cascade delete
-    cartography.intel.gitlab.projects.cleanup_projects(
-        neo4j_session, common_job_parameters, organization_id, gitlab_url
-    )
+    if "users" in requested_syncs:
+        cartography.intel.gitlab.users.cleanup_users(
+            neo4j_session, common_job_parameters, organization_id, gitlab_url
+        )
 
-    # Cleanup users
-    cartography.intel.gitlab.users.cleanup_users(
-        neo4j_session, common_job_parameters, organization_id, gitlab_url
-    )
+    if "groups" in requested_syncs:
+        cartography.intel.gitlab.groups.cleanup_groups(
+            neo4j_session, common_job_parameters, organization_id, gitlab_url
+        )
 
-    # Cleanup groups with cascade delete
-    cartography.intel.gitlab.groups.cleanup_groups(
-        neo4j_session, common_job_parameters, organization_id, gitlab_url
-    )
+    if "organizations" in requested_syncs:
+        cartography.intel.gitlab.organizations.cleanup_organizations(
+            neo4j_session, common_job_parameters, gitlab_url
+        )
 
-    # Cleanup organizations
-    cartography.intel.gitlab.organizations.cleanup_organizations(
-        neo4j_session, common_job_parameters, gitlab_url
-    )
-
-    logger.info(f"GitLab ingestion completed for organization {organization_id}")
+    logger.info("GitLab ingestion completed for organization %s", organization_id)

@@ -109,12 +109,15 @@ def sync_gitlab_groups(
     token: str,
     update_tag: int,
     common_job_parameters: dict[str, Any],
+    groups_to_load: list[dict[str, Any]] | None = None,
 ) -> list[dict[str, Any]]:
     """
-    Sync GitLab groups for a specific organization.
+    Fetch, transform, and load GitLab groups for a specific organization.
 
-    The organization ID should be passed in common_job_parameters["ORGANIZATION_ID"].
-    Returns the raw groups list to avoid redundant API calls in downstream sync functions.
+    If `groups_to_load` is provided, skips fetch+transform and loads that pre-filtered
+    list directly. This allows the caller to apply path filtering before loading.
+
+    Returns the raw (unfiltered) groups list so callers can decide what to pass downstream.
     """
     organization_id = common_job_parameters.get("ORGANIZATION_ID")
     if not organization_id:
@@ -122,27 +125,24 @@ def sync_gitlab_groups(
 
     logger.info(f"Syncing GitLab groups for organization {organization_id}")
 
-    # Fetch the organization to get its URL
     org = get_organization(gitlab_url, token, organization_id)
     org_url: str = org["web_url"]
     org_name: str = org["name"]
 
     logger.info(f"Syncing groups for organization: {org_name} ({org_url})")
 
-    # Fetch groups for this organization
     raw_groups = get_groups(gitlab_url, token, organization_id)
 
     if not raw_groups:
         logger.info(f"No groups found for organization {org_url}")
         return []
 
-    # Transform to match our schema
-    transformed_groups = transform_groups(raw_groups, organization_id, gitlab_url)
+    if groups_to_load is None:
+        groups_to_load = transform_groups(raw_groups, organization_id, gitlab_url)
 
-    # Load into Neo4j
     load_groups(
         neo4j_session,
-        transformed_groups,
+        groups_to_load,
         organization_id,
         gitlab_url,
         update_tag,
