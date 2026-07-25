@@ -6,6 +6,7 @@ import cartography.intel.common.object_store as object_store
 from cartography.intel.common.object_store import ReportReader
 from cartography.intel.common.report_source import AzureBlobReportSource
 from cartography.intel.common.report_source import GCSReportSource
+from cartography.intel.common.report_source import HttpReportSource
 from cartography.intel.common.report_source import LocalReportSource
 from cartography.intel.common.report_source import ReportSource
 from cartography.intel.common.report_source import S3ReportSource
@@ -80,5 +81,9 @@ def build_report_reader_for_source(
             credential=azure_blob_credential,
             source_uri=source.uri,
         )
+
+    if isinstance(source, HttpReportSource):
+        token = config.gitlab_token if config is not None else None
+        return object_store.HttpReportReader(source.url, token=token)
 
     raise ValueError(f"Unsupported report source type: {type(source).__name__}")
