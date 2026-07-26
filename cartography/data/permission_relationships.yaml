@@ -74,6 +74,14 @@
   permissions:
   - cloudformation:UpdateStack
   relationship_name: CAN_EXEC
+# Map principals that can deploy or update App Runner services.
+# iam:PassRole is modeled separately as CAN_PASS_ROLE → AWSRole; combine both
+# edges in queries for the CreateService privilege-escalation path.
+- target_label: AWSAppRunnerService
+  permissions:
+  - apprunner:CreateService
+  - apprunner:UpdateService
+  relationship_name: CAN_EXEC
 # Map principals that can open an SSM Session Manager shell on an EC2 instance.
 # Two conditions must both hold (see issue #1643):
 #   1. the principal has ssm:StartSession on the instance, and

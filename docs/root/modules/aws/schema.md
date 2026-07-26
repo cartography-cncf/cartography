@@ -45,7 +45,8 @@ Configured AWS sync accounts are marked `inscope=true`. Accounts discovered only
 - Many node types belong to an `AWSAccount`.
 
     ```cypher
-    (:AWSAccount)-[:RESOURCE]->(:AWSDNSZone,
+    (:AWSAccount)-[:RESOURCE]->(:AWSAppRunnerService,
+                                :AWSDNSZone,
                                 :AWSGroup,
                                 :AWSInspectorFinding,
                                 :AWSInspectorPackage,
@@ -4679,6 +4680,54 @@ Representation of an AWS [API Gateway v2 API](https://docs.aws.amazon.com/apigat
 - AWS API Gateway v2 APIs are resources in an AWS Account.
     ```
     (:AWSAccount)-[:RESOURCE]->(:AWSAPIGatewayV2API)
+    ```
+
+### AWSAppRunnerService
+
+Representation of an AWS [App Runner service](https://docs.aws.amazon.com/apprunner/latest/api/API_Service.html).
+
+> **Ontology Mapping**: This node has the extra label `AppRunnerService` to enable queries that use the unprefixed App Runner service label alongside the provider-prefixed `AWSAppRunnerService` label.
+
+| Field | Description |
+|-------|-------------|
+| firstseen| Timestamp of when a sync job first discovered this node |
+| lastupdated | Timestamp of the last time the node was updated |
+| **id** | The App Runner service ARN (same as arn) |
+| **arn** | The App Runner service ARN |
+| name | The service name |
+| service\_id | The App Runner service ID |
+| service\_url | The subdomain URL of the service |
+| status | Current service status (e.g. RUNNING) |
+| created\_at | When the service was created |
+| updated\_at | When the service was last updated |
+| image\_identifier | Container image identifier when sourced from an image repository |
+| code\_repository\_url | Source repository URL when sourced from a code repository |
+| auto\_deployments\_enabled | Whether automatic deployments are enabled |
+| access\_role\_arn | IAM role ARN used to access a private ECR image repository |
+| instance\_role\_arn | IAM instance role ARN assumed by the running service |
+| cpu | Configured CPU |
+| memory | Configured memory |
+| egress\_type | Egress configuration type (DEFAULT or VPC) |
+| is\_publicly\_accessible | Whether the service accepts public ingress |
+| region | The AWS region of the service |
+
+#### Relationships
+
+- App Runner services are resources in an AWS Account.
+    ```
+    (:AWSAccount)-[:RESOURCE]->(:AWSAppRunnerService)
+    ```
+- App Runner services may use an access role for private image pulls.
+    ```
+    (:AWSAppRunnerService)-[:USES_ACCESS_ROLE]->(:AWSRole)
+    ```
+- App Runner services may use an instance role at runtime (privesc surface with `iam:PassRole`).
+    ```
+    (:AWSAppRunnerService)-[:USES_INSTANCE_ROLE]->(:AWSRole)
+    ```
+- Principals that can create or update App Runner services.
+    ```
+    (:AWSPrincipal)-[:CAN_EXEC]->(:AWSAppRunnerService)
     ```
 
 ### AWSAutoScalingGroup
