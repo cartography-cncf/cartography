@@ -9,6 +9,7 @@ from cartography.graph.job import GraphJob
 from cartography.models.railway.iam.project_membership import (
     RailwayUserToProjectMatchLink,
 )
+from cartography.models.railway.iam.user import RailwayProjectMemberUserSchema
 from cartography.models.railway.iam.user import RailwayUserSchema
 from cartography.util import timeit
 
@@ -31,10 +32,16 @@ def sync(
     """
     workspace_id = common_job_parameters["WORKSPACE_ID"]
 
-    users = transform_users(workspace, projects)
+    workspace_members, project_only_members = transform_users(workspace, projects)
     memberships = transform_project_memberships(projects)
 
-    load_users(neo4j_session, users, workspace_id, update_tag)
+    load_users(
+        neo4j_session,
+        workspace_members,
+        project_only_members,
+        workspace_id,
+        update_tag,
+    )
     load_project_memberships(neo4j_session, memberships, workspace_id, update_tag)
     cleanup(neo4j_session, common_job_parameters, workspace_id, update_tag)
 
@@ -42,34 +49,41 @@ def sync(
 def transform_users(
     workspace: dict[str, Any],
     projects: list[dict[str, Any]],
-) -> list[dict[str, Any]]:
+) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
     """
-    Merge workspace members with project members.
+    Split members by where Railway reports them.
 
-    On Team plans a project member is not necessarily a workspace member, so both sources
-    are unioned. Workspace records win on conflict: they carry twoFactorAuthEnabled, which
-    the project member payload does not include.
+    On Team plans a project member is not necessarily a workspace member, and the project
+    payload carries neither a workspace role nor a 2FA flag. The two groups are therefore
+    kept apart and loaded through different schemas, so that a project-only member is never
+    asserted to be a member of the workspace.
+
+    :return: (workspace members, members seen only through a project)
     """
-    users: dict[str, dict[str, Any]] = {}
-    for project in projects:
-        for member in project.get("members") or []:
-            users[member["id"]] = {
-                "id": member["id"],
-                "email": member.get("email"),
-                "name": member.get("name"),
-                "twoFactorAuthEnabled": None,
-                # A project role is not a workspace role; it lives on the MatchLink instead.
-                "role": None,
-            }
-    for member in workspace.get("members") or []:
-        users[member["id"]] = {
+    workspace_members = [
+        {
             "id": member["id"],
             "email": member.get("email"),
             "name": member.get("name"),
             "twoFactorAuthEnabled": member.get("twoFactorAuthEnabled"),
             "role": member.get("role"),
         }
-    return list(users.values())
+        for member in workspace.get("members") or []
+    ]
+    workspace_member_ids = {member["id"] for member in workspace_members}
+
+    project_only_members: dict[str, dict[str, Any]] = {}
+    for project in projects:
+        for member in project.get("members") or []:
+            if member["id"] in workspace_member_ids:
+                continue
+            project_only_members[member["id"]] = {
+                "id": member["id"],
+                "email": member.get("email"),
+                "name": member.get("name"),
+            }
+
+    return workspace_members, list(project_only_members.values())
 
 
 def transform_project_memberships(
@@ -91,14 +105,22 @@ def transform_project_memberships(
 @timeit
 def load_users(
     neo4j_session: neo4j.Session,
-    users: list[dict[str, Any]],
+    workspace_members: list[dict[str, Any]],
+    project_only_members: list[dict[str, Any]],
     workspace_id: str,
     update_tag: int,
 ) -> None:
     load(
         neo4j_session,
         RailwayUserSchema(),
-        users,
+        workspace_members,
+        lastupdated=update_tag,
+        WORKSPACE_ID=workspace_id,
+    )
+    load(
+        neo4j_session,
+        RailwayProjectMemberUserSchema(),
+        project_only_members,
         lastupdated=update_tag,
         WORKSPACE_ID=workspace_id,
     )
@@ -134,6 +156,13 @@ def cleanup(
         workspace_id,
         update_tag,
     ).run(neo4j_session)
+    # Neither schema has a sub_resource_relationship, so these jobs remove only the stale
+    # workspace edges. The RailwayUser node itself is deliberately left behind: it is a
+    # shared identity that other workspaces, and other modules, may still reference.
     GraphJob.from_node_schema(RailwayUserSchema(), common_job_parameters).run(
         neo4j_session,
     )
+    GraphJob.from_node_schema(
+        RailwayProjectMemberUserSchema(),
+        common_job_parameters,
+    ).run(neo4j_session)

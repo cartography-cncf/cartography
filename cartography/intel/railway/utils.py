@@ -48,6 +48,16 @@ class RailwayGraphQLError(Exception):
         )
 
 
+class RailwayPaginationError(Exception):
+    """
+    Railway reported another page but gave no usable cursor to reach it.
+
+    Never downgrade this to a warning-and-stop: the cleanup jobs treat whatever they are
+    handed as the exhaustive set, so a silently truncated list deletes every resource past
+    the last page we managed to read.
+    """
+
+
 def _get_retry_after_seconds(response: requests.Response) -> int:
     retry_after = response.headers.get("Retry-After")
     if retry_after:
@@ -184,14 +194,18 @@ def paginated_query(
         page_info = connection["pageInfo"]
         if not page_info["hasNextPage"]:
             break
+
         next_cursor = page_info["endCursor"]
-        if next_cursor == cursor:
-            # Defensive: an unchanged cursor with hasNextPage still true would loop forever.
-            logger.warning(
-                "Railway returned an unchanged cursor for %s; stopping pagination early.",
-                ".".join(connection_path),
+        # A page that claims more results but gives no usable cursor to reach them cannot be
+        # completed. Stopping here would hand a truncated list to a cleanup job that treats
+        # it as exhaustive and deletes everything past this page, and restarting from a null
+        # cursor would loop over page one forever. Fail loudly instead.
+        if not next_cursor or next_cursor == cursor:
+            raise RailwayPaginationError(
+                f"Railway reported more pages for {'.'.join(connection_path)} but returned "
+                f"an unusable endCursor ({next_cursor!r}); refusing to continue with an "
+                f"incomplete result set.",
             )
-            break
         cursor = next_cursor
 
     return results

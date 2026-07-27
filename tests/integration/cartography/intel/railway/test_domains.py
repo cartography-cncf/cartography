@@ -118,7 +118,8 @@ def test_load_railway_custom_domains_flattens_status(neo4j_session):
         ),
     }
 
-    # Both attach to the instance; verification only affects the exposure flag, not the edge.
+    # Only the verified domain is a public entry point. An unverified one does not resolve,
+    # so no EXPOSE edge: exposure traversals must agree with is_publicly_exposed.
     assert check_rels(
         neo4j_session,
         "RailwayServiceInstance",
@@ -129,7 +130,16 @@ def test_load_railway_custom_domains_flattens_status(neo4j_session):
         rel_direction_right=True,
     ) == {
         (WEB_INSTANCE_ID, VERIFIED_CUSTOM_DOMAIN_ID),
-        (WEB_INSTANCE_ID, UNVERIFIED_CUSTOM_DOMAIN_ID),
+    }
+
+    # The unverified domain is still ingested and still records which instance it is meant
+    # for, so nothing is lost by withholding the edge.
+    assert check_nodes(
+        neo4j_session,
+        "RailwayCustomDomain",
+        ["id", "service_id", "environment_id"],
+    ) >= {
+        (UNVERIFIED_CUSTOM_DOMAIN_ID, WEB_SERVICE_ID, PRODUCTION_ENV_ID),
     }
 
 

@@ -142,15 +142,22 @@ It also carries `RailwayPrincipal`, the Railway IAM principal umbrella, mirrorin
 | **id** | ID of the Railway user |
 | **email** | Email address of the user |
 | **name** | Display name of the user |
-| two_factor_auth_enabled | Whether the user has 2FA enabled |
+| two_factor_auth_enabled | Whether the user has 2FA enabled. Only reported for workspace members; absent, rather than null, for someone discovered solely through a project |
 | lastupdated | Timestamp of the last time the node was updated |
+
+A Railway user can belong to several workspaces, and a project member need not be a member
+of the containing workspace at all. The identity is therefore **not** owned by any one
+workspace: cleaning up a workspace removes only its own edges and leaves the user node in
+place, so a person shared with another workspace is never deleted.
 
 #### Relationships
 
-- A user is a member of a workspace and of individual projects, holding a role
-  (`ADMIN`, `MEMBER` or `VIEWER`) on each edge.
+- A user is scoped to every workspace the sync found them in, and is a member of the
+  workspaces and projects they actually belong to, holding a role (`ADMIN`, `MEMBER` or
+  `VIEWER`) on each membership edge. A project-only member gets no workspace `MEMBER_OF`.
 
     ```
+    (:RailwayWorkspace)-[:RESOURCE]->(:RailwayUser)
     (:RailwayUser)-[:MEMBER_OF]->(:RailwayWorkspace)
     (:RailwayUser)-[:MEMBER_OF]->(:RailwayProject)
     ```
@@ -337,8 +344,11 @@ Represents a Railway-generated `*.up.railway.app` domain. These are always inter
 
 ### RailwayCustomDomain
 
-Represents a customer-owned domain pointed at a Railway service. A domain that has not
-passed DNS verification does not resolve yet and is not counted as exposure.
+Represents a customer-owned domain pointed at a Railway service.
+
+A domain that has not passed DNS verification does not resolve yet, so it gets **no**
+`EXPOSE` edge and is not counted as exposure. It is still ingested, and its `service_id` and
+`environment_id` properties still record which instance it is intended for.
 
 | Field | Description |
 |-------|-------------|
@@ -356,11 +366,12 @@ passed DNS verification does not resolve yet and is not counted as exposure.
 
 #### Relationships
 
-- A custom domain belongs to a project and exposes a service instance.
+- A custom domain belongs to a project. Only a verified domain exposes a service instance,
+  so `EXPOSE` traversals agree with `is_publicly_exposed`.
 
     ```
     (:RailwayProject)-[:RESOURCE]->(:RailwayCustomDomain)
-    (:RailwayServiceInstance)-[:EXPOSE]->(:RailwayCustomDomain)
+    (:RailwayServiceInstance)-[:EXPOSE]->(:RailwayCustomDomain)  // verified domains only
     ```
 
 ### RailwayTCPProxy

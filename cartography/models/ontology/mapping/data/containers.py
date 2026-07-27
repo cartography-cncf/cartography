@@ -200,11 +200,13 @@ _RAILWAY_DEPLOYMENT_STATE = {
     "WAITING": "pending",
     "NEEDS_APPROVAL": "pending",
     "SUCCESS": "running",
-    "SLEEPING": "running",
-    "REMOVING": "stopped",
-    "REMOVED": "stopped",
-    "FAILED": "failed",
-    "CRASHED": "failed",
+    # A sleeping deployment is scaled to zero but still configured, which is the same
+    # distinction Scaleway draws with "locked" -> suspended.
+    "SLEEPING": "suspended",
+    "REMOVING": "stopping",
+    "REMOVED": "terminated",
+    "FAILED": "error",
+    "CRASHED": "error",
     "SKIPPED": "unknown",
 }
 

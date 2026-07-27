@@ -56,13 +56,22 @@ def transform(
                 project_service_domains.append({**service_domain, **owner})
             for custom_domain in domains.get("customDomains") or []:
                 status = custom_domain.get("status") or {}
+                verified = bool(status.get("verified"))
                 project_custom_domains.append(
                     {
                         **custom_domain,
                         **owner,
-                        "verified": status.get("verified"),
+                        "verified": verified,
                         "certificate_status": status.get("certificateStatus"),
                         "verification_dns_host": status.get("verificationDnsHost"),
+                        # Null until the domain resolves, so the EXPOSE matcher finds nothing
+                        # and an unverified domain is not counted as a public entry point.
+                        "exposed_service_id": (
+                            owner["service_id"] if verified else None
+                        ),
+                        "exposed_environment_id": (
+                            owner["environment_id"] if verified else None
+                        ),
                     },
                 )
 

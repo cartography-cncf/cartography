@@ -54,12 +54,19 @@ class RailwayCustomDomainToServiceInstanceRelProperties(CartographyRelProperties
 
 @dataclass(frozen=True)
 # (:RailwayServiceInstance)-[:EXPOSE]->(:RailwayCustomDomain)
+#
+# Only for domains that have passed DNS verification. An unverified domain does not resolve,
+# so treating it as a public entry point would make exposure traversals disagree with
+# is_publicly_exposed and over-report the attack surface. The matcher keys off
+# exposed_service_id / exposed_environment_id, which transform() leaves null until the domain
+# is verified, so no edge is created for one that is not. The plain service_id and
+# environment_id properties stay on the node, so the association is still queryable.
 class RailwayCustomDomainToServiceInstanceRel(CartographyRelSchema):
     target_node_label: str = "RailwayServiceInstance"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {
-            "service_id": PropertyRef("service_id"),
-            "environment_id": PropertyRef("environment_id"),
+            "service_id": PropertyRef("exposed_service_id"),
+            "environment_id": PropertyRef("exposed_environment_id"),
         },
     )
     direction: LinkDirection = LinkDirection.INWARD

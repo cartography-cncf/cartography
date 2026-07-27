@@ -8,6 +8,7 @@ from cartography.intel.railway.utils import build_tcp_proxy_batch_query
 from cartography.intel.railway.utils import call_railway_api
 from cartography.intel.railway.utils import paginated_query
 from cartography.intel.railway.utils import RailwayGraphQLError
+from cartography.intel.railway.utils import RailwayPaginationError
 from cartography.intel.railway.utils import unwrap_edges
 
 BASE_URL = "https://backboard.railway.com/graphql/v2"
@@ -126,7 +127,9 @@ def test_paginated_query_walks_every_page():
     )
 
 
-def test_paginated_query_stops_on_unchanged_cursor():
+def test_paginated_query_raises_on_missing_cursor():
+    # A page claiming more results but giving no cursor cannot be completed. Returning what
+    # we have would let a cleanup job treat it as exhaustive and delete the rest.
     stuck_page = {
         "data": {
             "projects": {
@@ -137,10 +140,32 @@ def test_paginated_query_stops_on_unchanged_cursor():
     }
     session = _session(_response(stuck_page), _response(stuck_page))
 
-    results = paginated_query(session, BASE_URL, "query {}", {}, ("projects",))
-
-    assert results == [{"id": "p1"}]
+    with pytest.raises(RailwayPaginationError, match="unusable endCursor"):
+        paginated_query(session, BASE_URL, "query {}", {}, ("projects",))
     assert session.post.call_count == 1
+
+
+def test_paginated_query_raises_on_unchanged_cursor():
+    # Same reasoning: a repeated cursor would loop over page one forever.
+    stuck_page = {
+        "data": {
+            "projects": {
+                "edges": [{"node": {"id": "p1"}}],
+                "pageInfo": {"hasNextPage": True, "endCursor": "cursor-1"},
+            },
+        },
+    }
+    session = _session(_response(stuck_page), _response(stuck_page))
+
+    with pytest.raises(RailwayPaginationError, match="unusable endCursor"):
+        paginated_query(
+            session,
+            BASE_URL,
+            "query {}",
+            {},
+            ("projects",),
+            after="cursor-1",
+        )
 
 
 def test_paginated_query_walks_a_nested_connection_path():

@@ -33,7 +33,11 @@ def _build_api_session(token: str) -> requests.Session:
     retry_policy = Retry(
         total=5,
         backoff_factor=1,
-        status_forcelist=[429, 500, 502, 503, 504],
+        # 429 is deliberately absent: urllib3 honours Retry-After itself, so it would sleep
+        # inside the adapter before call_railway_api() ever sees the response, bypassing the
+        # _MAX_RETRY_AFTER_SECONDS cap and potentially stalling a sync for the better part of
+        # an hour. Rate limiting is handled by the explicit retry loop there instead.
+        status_forcelist=[500, 502, 503, 504],
         # Railway's API is GraphQL over POST, so POST must be retryable. Leaving the urllib3
         # default of idempotent-methods-only would silently disable retries entirely.
         allowed_methods=["POST"],
