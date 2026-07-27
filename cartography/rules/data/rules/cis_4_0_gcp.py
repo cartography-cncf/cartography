@@ -10,6 +10,7 @@ Facts within a Rule are provider-specific implementations of the same concept.
 
 from cartography.rules.data.frameworks.cis import cis_gcp
 from cartography.rules.data.frameworks.iso27001 import iso27001_annex_a
+from cartography.rules.data.frameworks.soc2 import soc2_tsc
 from cartography.rules.spec.model import Fact
 from cartography.rules.spec.model import Finding
 from cartography.rules.spec.model import Maturity
@@ -96,6 +97,8 @@ gcp_default_network_exists = Rule(
         cis_gcp("3.1"),
         iso27001_annex_a("8.20"),
         iso27001_annex_a("8.22"),
+        soc2_tsc("CC6.1"),
+        soc2_tsc("CC6.6"),
     ),
 )
 
@@ -195,6 +198,7 @@ gcp_unrestricted_ssh_access = Rule(
     frameworks=(
         cis_gcp("3.6"),
         iso27001_annex_a("8.20"),
+        soc2_tsc("CC6.6"),
     ),
 )
 
@@ -294,6 +298,7 @@ gcp_unrestricted_rdp_access = Rule(
     frameworks=(
         cis_gcp("3.7"),
         iso27001_annex_a("8.20"),
+        soc2_tsc("CC6.6"),
     ),
 )
 
@@ -373,6 +378,7 @@ gcp_compute_instance_public_ips = Rule(
     frameworks=(
         cis_gcp("4.9"),
         iso27001_annex_a("8.20"),
+        soc2_tsc("CC6.6"),
     ),
 )
 
@@ -460,6 +466,7 @@ gcp_instances_without_confidential_computing_enabled = Rule(
     frameworks=(
         cis_gcp("4.11"),
         iso27001_annex_a("8.24"),
+        soc2_tsc("CC6.1"),
     ),
 )
 
@@ -520,6 +527,7 @@ gcp_cloud_dns_dnssec_disabled = Rule(
     frameworks=(
         cis_gcp("3.3"),
         iso27001_annex_a("8.20"),
+        soc2_tsc("CC6.6"),
     ),
 )
 
@@ -591,6 +599,7 @@ gcp_cloud_dns_dnssec_key_signing_uses_rsasha1 = Rule(
     frameworks=(
         cis_gcp("3.4"),
         iso27001_annex_a("8.24"),
+        soc2_tsc("CC6.6"),
     ),
 )
 
@@ -656,6 +665,7 @@ gcp_cloud_dns_dnssec_zone_signing_uses_rsasha1 = Rule(
     frameworks=(
         cis_gcp("3.5"),
         iso27001_annex_a("8.24"),
+        soc2_tsc("CC6.6"),
     ),
 )
 
@@ -749,6 +759,7 @@ gcp_subnets_without_compliant_vpc_flow_logs = Rule(
         cis_gcp("3.8"),
         iso27001_annex_a("8.15"),
         iso27001_annex_a("8.16"),
+        soc2_tsc("CC7.2"),
     ),
 )
 
@@ -806,6 +817,7 @@ gcp_cloudsql_public_ips = Rule(
     frameworks=(
         cis_gcp("6.6"),
         iso27001_annex_a("8.20"),
+        soc2_tsc("CC6.6"),
     ),
 )
 
@@ -863,8 +875,31 @@ gcp_cloudsql_automated_backups_disabled = Rule(
     frameworks=(
         cis_gcp("6.7"),
         iso27001_annex_a("8.13"),
+        soc2_tsc("A1.2"),
     ),
 )
+
+
+# =============================================================================
+# TODO: SOC 2 A1.2: Partial backup and recovery-infrastructure coverage
+# Covered today: Cloud SQL automated backups only, via
+# gcp_cloudsql_automated_backups_disabled. A report listing A1.2 as mapped
+# therefore overstates coverage: one GCP service stands in for every provider.
+# Missing datamodel or evidence: AWS Backup plans, vaults, protected resources,
+# and recovery points; Azure Recovery Services vaults and protected items; and
+# Google Cloud backup-plan and recovery-point inventories beyond Cloud SQL.
+# Existing service-specific retention properties can support additional rules,
+# but they do not establish centralized backup coverage.
+# =============================================================================
+
+# =============================================================================
+# TODO: SOC 2 A1.3: Recovery testing
+# Missing datamodel: restore-job inventory, which AWS Backup exposes through
+# list_restore_jobs (status, completion timestamps, the recovery point used),
+# plus the Azure and Google Cloud equivalents.
+# Out of reach: measured RTO/RPO results and recovery-test sign-off. Those are
+# process artifacts, not provider state.
+# =============================================================================
 
 
 # =============================================================================
@@ -922,6 +957,7 @@ gcp_bigquery_datasets_publicly_accessible = Rule(
     frameworks=(
         cis_gcp("7.1"),
         iso27001_annex_a("8.3"),
+        soc2_tsc("CC6.1"),
     ),
 )
 
@@ -1017,6 +1053,7 @@ gcp_bigquery_tables_without_cmek = Rule(
     frameworks=(
         cis_gcp("7.2"),
         iso27001_annex_a("8.24"),
+        soc2_tsc("CC6.1"),
     ),
 )
 
@@ -1074,6 +1111,7 @@ gcp_bigquery_datasets_without_default_cmek = Rule(
     frameworks=(
         cis_gcp("7.3"),
         iso27001_annex_a("8.24"),
+        soc2_tsc("CC6.1"),
     ),
 )
 
@@ -1135,6 +1173,7 @@ gcp_cloudsql_ssl_not_enforced = Rule(
     frameworks=(
         cis_gcp("6.4"),
         iso27001_annex_a("8.24"),
+        soc2_tsc("CC6.7"),
     ),
 )
 
@@ -1192,6 +1231,7 @@ gcp_cloudsql_authorized_networks_open_to_internet = Rule(
     frameworks=(
         cis_gcp("6.5"),
         iso27001_annex_a("8.20"),
+        soc2_tsc("CC6.6"),
     ),
 )
 
@@ -1265,6 +1305,7 @@ def _make_cloudsql_flag_rule(
         frameworks=(
             cis_gcp(requirement),
             iso27001_annex_a("8.9"),
+            soc2_tsc("CC7.1"),
         ),
     )
 
@@ -1587,6 +1628,7 @@ gcp_bucket_uniform_access_disabled = Rule(
     frameworks=(
         cis_gcp("5.2"),
         iso27001_annex_a("8.3"),
+        soc2_tsc("CC6.1"),
     ),
 )
 
@@ -1830,6 +1872,7 @@ gcp_instances_using_default_service_account = Rule(
     frameworks=(
         cis_gcp("4.1"),
         iso27001_annex_a("5.16"),
+        soc2_tsc("CC6.1"),
     ),
 )
 
@@ -1898,6 +1941,7 @@ gcp_default_service_account_full_cloud_api_scope = Rule(
         cis_gcp("4.2"),
         iso27001_annex_a("5.18"),
         iso27001_annex_a("8.2"),
+        soc2_tsc("CC6.3"),
     ),
 )
 
@@ -1979,6 +2023,7 @@ gcp_instances_not_blocking_project_wide_ssh_keys = Rule(
     frameworks=(
         cis_gcp("4.3"),
         iso27001_annex_a("8.5"),
+        soc2_tsc("CC6.1"),
     ),
 )
 
@@ -2047,6 +2092,7 @@ gcp_projects_without_effective_os_login = Rule(
     frameworks=(
         cis_gcp("4.4"),
         iso27001_annex_a("8.5"),
+        soc2_tsc("CC6.1"),
     ),
 )
 
@@ -2113,6 +2159,7 @@ gcp_instances_with_ip_forwarding = Rule(
     frameworks=(
         cis_gcp("4.6"),
         iso27001_annex_a("8.20"),
+        soc2_tsc("CC6.6"),
     ),
 )
 
@@ -2189,6 +2236,7 @@ gcp_instances_without_shielded_vm_enabled = Rule(
     frameworks=(
         cis_gcp("4.8"),
         iso27001_annex_a("8.9"),
+        soc2_tsc("CC7.1"),
     ),
 )
 
@@ -2246,6 +2294,7 @@ gcp_instances_with_serial_port_access = Rule(
     frameworks=(
         cis_gcp("4.5"),
         iso27001_annex_a("8.3"),
+        soc2_tsc("CC6.1"),
     ),
 )
 

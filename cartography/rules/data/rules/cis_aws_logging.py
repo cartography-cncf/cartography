@@ -10,6 +10,7 @@ Facts within a Rule are provider-specific implementations of the same concept.
 
 from cartography.rules.data.frameworks.cis import cis_aws
 from cartography.rules.data.frameworks.iso27001 import iso27001_annex_a
+from cartography.rules.data.frameworks.soc2 import soc2_tsc
 from cartography.rules.spec.model import Fact
 from cartography.rules.spec.model import Finding
 from cartography.rules.spec.model import Maturity
@@ -94,6 +95,7 @@ aws_cloudtrail_multi_region = Rule(
         cis_aws("4.1"),
         iso27001_annex_a("8.15"),
         iso27001_annex_a("8.16"),
+        soc2_tsc("CC7.2"),
     ),
 )
 
@@ -162,6 +164,7 @@ aws_cloudtrail_log_file_validation = Rule(
     frameworks=(
         cis_aws("4.2"),
         iso27001_annex_a("8.15"),
+        soc2_tsc("CC7.2"),
     ),
 )
 
@@ -234,6 +237,7 @@ aws_cloudtrail_s3_bucket_access_logging = Rule(
     frameworks=(
         cis_aws("4.4"),
         iso27001_annex_a("8.15"),
+        soc2_tsc("CC7.2"),
     ),
 )
 
@@ -302,6 +306,7 @@ aws_cloudtrail_kms_encryption = Rule(
     frameworks=(
         cis_aws("4.5"),
         iso27001_annex_a("8.24"),
+        soc2_tsc("CC6.1"),
     ),
 )
 

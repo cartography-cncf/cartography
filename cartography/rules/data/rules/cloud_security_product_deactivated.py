@@ -1,4 +1,5 @@
 from cartography.rules.data.frameworks.iso27001 import iso27001_annex_a
+from cartography.rules.data.frameworks.soc2 import soc2_tsc
 from cartography.rules.spec.model import Fact
 from cartography.rules.spec.model import Finding
 from cartography.rules.spec.model import Maturity
@@ -58,5 +59,24 @@ cloud_security_product_deactivated = Rule(
     ),
     facts=(aws_guard_duty_detector_disabled,),
     version="0.1.0",
-    frameworks=(iso27001_annex_a("8.16"),),
+    frameworks=(
+        iso27001_annex_a("8.16"),
+        soc2_tsc("CC7.2"),
+    ),
 )
+
+
+# =============================================================================
+# TODO: SOC 2 CC7.2: Partial anomaly-monitoring coverage
+# Covered today: GuardDuty detector state and active findings, CloudTrail
+# configuration, GCP VPC flow logs and Tailscale network flow logging. That is
+# whether logging and detection are switched on, not whether anomalies are
+# analyzed.
+# Already in the graph but unused by any rule: AWSEventBridgeRule and its targets,
+# AWSConfigurationRecorder, AWSConfigDeliveryChannel, AWSConfigRule,
+# AWSSecurityHub, AWSCloudWatchMetricAlarm, AzureMonitorMetricAlert and
+# AzureSecurityAssessment. Alert-rule and detector configuration for AWS and Azure
+# is therefore queryable today, without new ingestion.
+# Missing datamodel: Google Security Command Center inventory, per-account and
+# per-region log-source coverage, and alert-delivery health.
+# =============================================================================

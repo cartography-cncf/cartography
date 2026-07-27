@@ -8,6 +8,7 @@ certification assertions.
 
 from cartography.rules.data.frameworks.iso27001 import iso27001_annex_a
 from cartography.rules.data.frameworks.nist_ai_rmf import nist_ai_rmf
+from cartography.rules.data.frameworks.soc2 import soc2_tsc
 from cartography.rules.spec.model import Fact
 from cartography.rules.spec.model import Finding
 from cartography.rules.spec.model import Maturity
@@ -168,6 +169,7 @@ ai_third_party_app_inventory = Rule(
         nist_ai_rmf("MAP 1"),
         iso27001_annex_a("5.21"),
         iso27001_annex_a("5.23"),
+        soc2_tsc("CC9.2"),
     ),
 )
 
@@ -274,6 +276,7 @@ ai_third_party_app_sensitive_scopes = Rule(
         nist_ai_rmf("MANAGE 2"),
         iso27001_annex_a("5.15"),
         iso27001_annex_a("8.3"),
+        soc2_tsc("CC6.1"),
     ),
 )
 
@@ -404,6 +407,8 @@ ai_admin_app_authorizations = Rule(
         nist_ai_rmf("GOVERN 5"),
         iso27001_annex_a("5.18"),
         iso27001_annex_a("8.2"),
+        soc2_tsc("CC6.3"),
+        soc2_tsc("CC9.2"),
     ),
 )
 
@@ -561,6 +566,7 @@ aibom_agent_inventory = Rule(
         nist_ai_rmf("GOVERN 1"),
         iso27001_annex_a("5.9"),
         iso27001_annex_a("5.21"),
+        soc2_tsc("CC6.1"),
     ),
 )
 
@@ -660,6 +666,7 @@ aibom_coverage_gaps = Rule(
         nist_ai_rmf("MANAGE 2"),
         iso27001_annex_a("5.9"),
         iso27001_annex_a("5.21"),
+        soc2_tsc("CC6.1"),
     ),
 )
 
@@ -884,6 +891,8 @@ ai_provider_api_key_hygiene = Rule(
         nist_ai_rmf("MANAGE 2"),
         iso27001_annex_a("5.17"),
         iso27001_annex_a("5.18"),
+        soc2_tsc("CC6.1"),
+        soc2_tsc("CC6.3"),
     ),
 )
 

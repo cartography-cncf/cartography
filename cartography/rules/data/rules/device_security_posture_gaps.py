@@ -1,4 +1,5 @@
 from cartography.rules.data.frameworks.iso27001 import iso27001_annex_a
+from cartography.rules.data.frameworks.soc2 import soc2_tsc
 from cartography.rules.spec.model import Fact
 from cartography.rules.spec.model import Finding
 from cartography.rules.spec.model import Maturity
@@ -372,5 +373,16 @@ device_security_posture_gaps = Rule(
         iso27001_annex_a("8.1"),
         iso27001_annex_a("8.8"),
         iso27001_annex_a("8.9"),
+        soc2_tsc("CC6.1"),
+        soc2_tsc("CC6.8"),
+        soc2_tsc("CC7.1"),
     ),
 )
+
+
+# =============================================================================
+# TODO: SOC 2 CC6.5: Secure disposal of physical information assets
+# Missing datamodel or evidence: device retirement and decommission state,
+# remote-wipe or cryptographic-erasure requests, sanitization completion status,
+# and storage-media disposal evidence from MDM and endpoint providers.
+# =============================================================================
