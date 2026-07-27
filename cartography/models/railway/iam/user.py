@@ -1,28 +1,31 @@
 """
-RE: why RailwayUser has no sub_resource_relationship
+RE: why RailwayUser carries no relationships on its node schema
 
-A sub_resource_relationship marks a node as owned by its tenant, and the generated cleanup
-job DETACH DELETEs any stale node hanging off the tenant being synced. A Railway user is not
-owned by one workspace: the same person can belong to several, and when several workspaces
-are synced in one run the first workspace's cleanup would delete a user it no longer sees,
-taking the other workspaces' relationships - and any edge another module added to that
-identity - with it.
+A Railway user is a shared identity. The same person can belong to several workspaces, and a
+project member need not be a member of the containing workspace at all.
 
-So, as with GitHubUser, the workspace relationship is modelled as an ordinary
-other_relationship. Cleanup then removes only the stale workspace edges and leaves the
-shared identity node in place.
+Two things follow, and both are about not letting one workspace's cleanup damage another's
+data:
+
+* No ``sub_resource_relationship``. That would mark the user as owned by the workspace being
+  synced, and the generated cleanup DETACH DELETEs any stale node hanging off it - taking
+  the other workspaces' relationships, and any edge another module added to that identity,
+  with it. GitHubUser has the same property and is modelled the same way.
+
+* No ``other_relationships`` either. Relationship cleanup for a schema without a sub
+  resource is generated as ``MATCH (n:RailwayUser)<-[r:RESOURCE]-(:RailwayWorkspace)`` with
+  no id filter, so syncing one workspace would delete every *other* workspace's stale edges
+  before those workspaces had a chance to refresh them. A workspace whose sync then failed
+  would silently lose its memberships. The workspace edges are therefore MatchLinks, whose
+  cleanup is scoped by ``_sub_resource_id`` to the workspace actually being synced.
 
 RE: two schemas on the same label
 
-Railway exposes members in two places. `workspace.members` are members of the workspace
-itself and carry a workspace role and a 2FA flag. `project.members` may be people with
-access to a single project without being workspace members at all, and that payload carries
-neither field.
-
-Loading both through one schema would assert MEMBER_OF from every project-only member to the
-workspace, which is simply untrue, and would blank two_factor_auth_enabled for a user who is
-a full member of another workspace. Hence a schema per source, as GitHub does for affiliated
-and unaffiliated users.
+Railway reports members in two places. ``workspace.members`` carries a workspace role and a
+2FA flag; ``project.members`` carries neither. Loading a project-only member through the
+workspace schema would blank ``two_factor_auth_enabled`` for someone who is a full member of
+another workspace, so each source gets a schema, as GitHub does for affiliated and
+unaffiliated users.
 """
 
 from dataclasses import dataclass
@@ -34,8 +37,9 @@ from cartography.models.core.nodes import ExtraNodeLabels
 from cartography.models.core.relationships import CartographyRelProperties
 from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
+from cartography.models.core.relationships import make_source_node_matcher
 from cartography.models.core.relationships import make_target_node_matcher
-from cartography.models.core.relationships import OtherRelationships
+from cartography.models.core.relationships import SourceNodeMatcher
 from cartography.models.core.relationships import TargetNodeMatcher
 
 # RailwayPrincipal: cross-provider IAM principal umbrella, mirroring AWSPrincipal /
@@ -55,8 +59,8 @@ class RailwayUserNodeProperties(CartographyNodeProperties):
 @dataclass(frozen=True)
 class RailwayProjectMemberUserNodeProperties(CartographyNodeProperties):
     """
-    Project members without two_factor_auth_enabled: Railway does not report it on the
-    project membership payload, and setting it would blank a value another workspace's sync
+    Project members, without two_factor_auth_enabled: Railway does not report it on the
+    project membership payload, and writing it would blank a value another workspace's sync
     established for the same person.
     """
 
@@ -67,16 +71,48 @@ class RailwayProjectMemberUserNodeProperties(CartographyNodeProperties):
 
 
 @dataclass(frozen=True)
+class RailwayUserSchema(CartographyNodeSchema):
+    """Members of the workspace itself. Relationships are MatchLinks; see the docstring."""
+
+    label: str = "RailwayUser"
+    extra_node_labels: ExtraNodeLabels = _USER_LABELS
+    properties: RailwayUserNodeProperties = RailwayUserNodeProperties()
+    sub_resource_relationship = None
+
+
+@dataclass(frozen=True)
+class RailwayProjectMemberUserSchema(CartographyNodeSchema):
+    """People reachable only through a project's member list."""
+
+    label: str = "RailwayUser"
+    extra_node_labels: ExtraNodeLabels = _USER_LABELS
+    properties: RailwayProjectMemberUserNodeProperties = (
+        RailwayProjectMemberUserNodeProperties()
+    )
+    sub_resource_relationship = None
+
+
+@dataclass(frozen=True)
 class RailwayUserToWorkspaceRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    _sub_resource_label: PropertyRef = PropertyRef(
+        "_sub_resource_label",
+        set_in_kwargs=True,
+    )
+    _sub_resource_id: PropertyRef = PropertyRef("_sub_resource_id", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
 # (:RailwayWorkspace)-[:RESOURCE]->(:RailwayUser)
-class RailwayUserToWorkspaceRel(CartographyRelSchema):
+# Every user the workspace's sync saw, whether a workspace member or only a project member.
+class RailwayUserToWorkspaceMatchLink(CartographyRelSchema):
+    source_node_label: str = "RailwayUser"
+    source_node_matcher: SourceNodeMatcher = make_source_node_matcher(
+        {"id": PropertyRef("user_id")},
+    )
     target_node_label: str = "RailwayWorkspace"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {"id": PropertyRef("WORKSPACE_ID", set_in_kwargs=True)},
+        {"id": PropertyRef("workspace_id")},
     )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "RESOURCE"
@@ -86,62 +122,31 @@ class RailwayUserToWorkspaceRel(CartographyRelSchema):
 
 
 @dataclass(frozen=True)
-class RailwayUserMemberOfWorkspaceRelProperties(CartographyRelProperties):
+class RailwayWorkspaceMembershipRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
     role: PropertyRef = PropertyRef("role")
+    _sub_resource_label: PropertyRef = PropertyRef(
+        "_sub_resource_label",
+        set_in_kwargs=True,
+    )
+    _sub_resource_id: PropertyRef = PropertyRef("_sub_resource_id", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
 # (:RailwayUser)-[:MEMBER_OF]->(:RailwayWorkspace)
-# Only emitted for workspace members. A user's project role is a different thing and rides on
-# the project membership MatchLink instead.
-class RailwayUserMemberOfWorkspaceRel(CartographyRelSchema):
+# Only for actual workspace members. A project-only member gets the RESOURCE edge above but
+# not this one, and their project role rides on the project membership MatchLink instead.
+class RailwayUserMemberOfWorkspaceMatchLink(CartographyRelSchema):
+    source_node_label: str = "RailwayUser"
+    source_node_matcher: SourceNodeMatcher = make_source_node_matcher(
+        {"id": PropertyRef("user_id")},
+    )
     target_node_label: str = "RailwayWorkspace"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {"id": PropertyRef("WORKSPACE_ID", set_in_kwargs=True)},
+        {"id": PropertyRef("workspace_id")},
     )
     direction: LinkDirection = LinkDirection.OUTWARD
     rel_label: str = "MEMBER_OF"
-    properties: RailwayUserMemberOfWorkspaceRelProperties = (
-        RailwayUserMemberOfWorkspaceRelProperties()
-    )
-
-
-@dataclass(frozen=True)
-class RailwayUserSchema(CartographyNodeSchema):
-    """Members of the workspace itself."""
-
-    label: str = "RailwayUser"
-    extra_node_labels: ExtraNodeLabels = _USER_LABELS
-    properties: RailwayUserNodeProperties = RailwayUserNodeProperties()
-    # See the module docstring: a shared identity must not be DETACH DELETEd by one
-    # workspace's cleanup.
-    sub_resource_relationship = None
-    other_relationships: OtherRelationships = OtherRelationships(
-        [
-            RailwayUserToWorkspaceRel(),
-            RailwayUserMemberOfWorkspaceRel(),
-        ],
-    )
-
-
-@dataclass(frozen=True)
-class RailwayProjectMemberUserSchema(CartographyNodeSchema):
-    """
-    People reachable only through a project's member list.
-
-    They get the workspace RESOURCE edge, because that is how the sync discovered them, but
-    no MEMBER_OF: they are not members of the workspace.
-    """
-
-    label: str = "RailwayUser"
-    extra_node_labels: ExtraNodeLabels = _USER_LABELS
-    properties: RailwayProjectMemberUserNodeProperties = (
-        RailwayProjectMemberUserNodeProperties()
-    )
-    sub_resource_relationship = None
-    other_relationships: OtherRelationships = OtherRelationships(
-        [
-            RailwayUserToWorkspaceRel(),
-        ],
+    properties: RailwayWorkspaceMembershipRelProperties = (
+        RailwayWorkspaceMembershipRelProperties()
     )

@@ -10,7 +10,9 @@ from cartography.models.railway.iam.project_membership import (
     RailwayUserToProjectMatchLink,
 )
 from cartography.models.railway.iam.user import RailwayProjectMemberUserSchema
+from cartography.models.railway.iam.user import RailwayUserMemberOfWorkspaceMatchLink
 from cartography.models.railway.iam.user import RailwayUserSchema
+from cartography.models.railway.iam.user import RailwayUserToWorkspaceMatchLink
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
@@ -43,7 +45,7 @@ def sync(
         update_tag,
     )
     load_project_memberships(neo4j_session, memberships, workspace_id, update_tag)
-    cleanup(neo4j_session, common_job_parameters, workspace_id, update_tag)
+    cleanup(neo4j_session, workspace_id, update_tag)
 
 
 def transform_users(
@@ -115,14 +117,42 @@ def load_users(
         RailwayUserSchema(),
         workspace_members,
         lastupdated=update_tag,
-        WORKSPACE_ID=workspace_id,
     )
     load(
         neo4j_session,
         RailwayProjectMemberUserSchema(),
         project_only_members,
         lastupdated=update_tag,
-        WORKSPACE_ID=workspace_id,
+    )
+
+    # Both workspace edges are MatchLinks so their cleanup is scoped to this workspace. A
+    # node-schema relationship cleanup would match every workspace's edges at once.
+    all_members = workspace_members + project_only_members
+    load_matchlinks(
+        neo4j_session,
+        RailwayUserToWorkspaceMatchLink(),
+        [
+            {"user_id": member["id"], "workspace_id": workspace_id}
+            for member in all_members
+        ],
+        lastupdated=update_tag,
+        _sub_resource_label="RailwayWorkspace",
+        _sub_resource_id=workspace_id,
+    )
+    load_matchlinks(
+        neo4j_session,
+        RailwayUserMemberOfWorkspaceMatchLink(),
+        [
+            {
+                "user_id": member["id"],
+                "workspace_id": workspace_id,
+                "role": member.get("role"),
+            }
+            for member in workspace_members
+        ],
+        lastupdated=update_tag,
+        _sub_resource_label="RailwayWorkspace",
+        _sub_resource_id=workspace_id,
     )
 
 
@@ -146,23 +176,21 @@ def load_project_memberships(
 @timeit
 def cleanup(
     neo4j_session: neo4j.Session,
-    common_job_parameters: dict[str, Any],
     workspace_id: str,
     update_tag: int,
 ) -> None:
-    GraphJob.from_matchlink(
+    # Every edge is a MatchLink, so each job deletes only the stale edges belonging to the
+    # workspace being synced and cannot touch another workspace's memberships. The
+    # RailwayUser node itself is never cleaned up: it is a shared identity that other
+    # workspaces, and other modules, may still reference.
+    for matchlink in (
         RailwayUserToProjectMatchLink(),
-        "RailwayWorkspace",
-        workspace_id,
-        update_tag,
-    ).run(neo4j_session)
-    # Neither schema has a sub_resource_relationship, so these jobs remove only the stale
-    # workspace edges. The RailwayUser node itself is deliberately left behind: it is a
-    # shared identity that other workspaces, and other modules, may still reference.
-    GraphJob.from_node_schema(RailwayUserSchema(), common_job_parameters).run(
-        neo4j_session,
-    )
-    GraphJob.from_node_schema(
-        RailwayProjectMemberUserSchema(),
-        common_job_parameters,
-    ).run(neo4j_session)
+        RailwayUserMemberOfWorkspaceMatchLink(),
+        RailwayUserToWorkspaceMatchLink(),
+    ):
+        GraphJob.from_matchlink(
+            matchlink,
+            "RailwayWorkspace",
+            workspace_id,
+            update_tag,
+        ).run(neo4j_session)

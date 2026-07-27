@@ -231,27 +231,39 @@ def test_project_only_member_is_not_a_workspace_member(neo4j_session):
     }
 
 
-def test_user_shared_across_workspaces_survives_removal_from_one(neo4j_session):
-    # A Railway user can belong to several workspaces. Cleaning up the workspace that no
-    # longer lists them must not delete the shared identity node, which would take the other
-    # workspace's edges - and any other module's edges - with it.
+def test_syncing_one_workspace_leaves_another_workspaces_edges_alone(neo4j_session):
+    """
+    A Railway user can belong to several workspaces, and workspaces are synced one after
+    another. Two things must hold when the workspace being synced no longer lists a user:
+
+      * the shared identity node survives, since deleting it would take every other
+        workspace's edges - and any other module's edges - with it; and
+      * the other workspace's edges survive even though they are stale, because that
+        workspace has not been synced yet this run. Deleting them here would silently erase
+        its memberships if its own sync then failed.
+    """
+    neo4j_session.run("MATCH (u:RailwayUser) DETACH DELETE u")
     other_workspace_id = "1a1a1a1a-1a1a-1a1a-1a1a-1a1a1a1a1a1a"
+    # Deliberately stale: written by a previous run, and this run has not reached that
+    # workspace yet.
     neo4j_session.run(
         """
         MERGE (w:RailwayWorkspace {id: $other_workspace_id})
-        SET w.lastupdated = $update_tag
+        SET w.lastupdated = $stale_tag
         MERGE (u:RailwayUser {id: $user_id})
-        SET u.lastupdated = $update_tag
+        SET u.lastupdated = $stale_tag
         MERGE (w)-[r:RESOURCE]->(u)
-        SET r.lastupdated = $update_tag
+        SET r.lastupdated = $stale_tag
+        MERGE (u)-[m:MEMBER_OF]->(w)
+        SET m.lastupdated = $stale_tag, m.role = 'ADMIN'
         """,
         other_workspace_id=other_workspace_id,
         user_id=ALICE_ID,
-        update_tag=TEST_UPDATE_TAG + 1,
+        stale_tag=TEST_UPDATE_TAG,
     )
     _ensure_local_neo4j_has_test_workspace_and_projects(neo4j_session)
 
-    # Act: this workspace no longer lists Alice.
+    # Act: the workspace under sync no longer lists Alice.
     cartography.intel.railway.iam.users.sync(
         neo4j_session,
         _common_job_parameters(TEST_UPDATE_TAG + 1),
@@ -260,7 +272,7 @@ def test_user_shared_across_workspaces_survives_removal_from_one(neo4j_session):
         TEST_UPDATE_TAG + 1,
     )
 
-    # Assert the node and the other workspace's edge survive.
+    # Assert the node survives, and so do the other workspace's stale edges.
     assert (ALICE_ID,) in check_nodes(neo4j_session, "RailwayUser", ["id"])
     assert check_rels(
         neo4j_session,
@@ -272,4 +284,15 @@ def test_user_shared_across_workspaces_survives_removal_from_one(neo4j_session):
         rel_direction_right=True,
     ) == {
         (other_workspace_id, ALICE_ID),
+    }
+    assert check_rels(
+        neo4j_session,
+        "RailwayUser",
+        "id",
+        "RailwayWorkspace",
+        "id",
+        "MEMBER_OF",
+        rel_direction_right=True,
+    ) == {
+        (ALICE_ID, other_workspace_id),
     }
