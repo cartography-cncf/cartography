@@ -191,10 +191,51 @@ scaleway_mapping = OntologyMapping(
     ],
 )
 
+# Railway deployment status; see also _RAILWAY_SERVICE_STATUS in computeservices.py.
+_RAILWAY_DEPLOYMENT_STATE = {
+    "QUEUED": "pending",
+    "INITIALIZING": "pending",
+    "BUILDING": "pending",
+    "DEPLOYING": "pending",
+    "WAITING": "pending",
+    "NEEDS_APPROVAL": "pending",
+    "SUCCESS": "running",
+    "SLEEPING": "running",
+    "REMOVING": "stopped",
+    "REMOVED": "stopped",
+    "FAILED": "failed",
+    "CRASHED": "failed",
+    "SKIPPED": "unknown",
+}
+
+# A Railway deployment is one concrete running revision of a service instance, the same
+# role GCPCloudRunServiceContainer plays for a Cloud Run service. Railway exposes no name,
+# image reference, resource limits or health probe on the deployment itself - the image
+# lives on the parent RailwayServiceInstance - so only the lifecycle state is mapped.
+railway_mapping = OntologyMapping(
+    module_name="railway",
+    nodes=[
+        OntologyNodeMapping(
+            node_label="RailwayDeployment",
+            fields=[
+                OntologyFieldMapping(
+                    ontology_field="state",
+                    node_field="status",
+                    special_handling="mapping",
+                    extra={"map": _RAILWAY_DEPLOYMENT_STATE},
+                ),
+                # name / image / image_digest / cpu / memory / region / health_status:
+                # Not available on Railway's Deployment type.
+            ],
+        ),
+    ],
+)
+
 CONTAINER_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     "aws_ecs_container": aws_ecs_container_mapping,
     "kubernetes": kubernetes_mapping,
     "azure": azure_mapping,
     "gcp": gcp_mapping,
     "scaleway": scaleway_mapping,
+    "railway": railway_mapping,
 }
