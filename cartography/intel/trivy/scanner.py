@@ -73,11 +73,20 @@ def transform_scan_results(
                     data_source_id = result["DataSource"].get("ID")
                     data_source_name = result["DataSource"].get("Name")
 
+                # Trivy reports more than CVEs: GHSA-, DLA-/DSA-, TEMP-, RUSTSEC-, etc.
+                # Only CVE-prefixed ids populate cve_id (which gates the :CVE label);
+                # GHSA-prefixed ids land in ghsa_id. Other schemes populate neither and
+                # remain readable through name/id.
+                vuln_id = result["VulnerabilityID"]
+                is_cve = vuln_id.startswith("CVE-")
+
                 # Transform finding data
                 finding = {
-                    "id": f'TIF|{result["VulnerabilityID"]}',
-                    "VulnerabilityID": result["VulnerabilityID"],
-                    "cve_id": result["VulnerabilityID"],
+                    "id": f"TIF|{vuln_id}",
+                    "VulnerabilityID": vuln_id,
+                    "cve_id": vuln_id if is_cve else None,
+                    "ghsa_id": vuln_id if vuln_id.startswith("GHSA-") else None,
+                    "has_cve": "true" if is_cve else "false",
                     "Description": result.get("Description"),
                     "LastModifiedDate": result.get("LastModifiedDate"),
                     "PrimaryURL": result.get("PrimaryURL"),

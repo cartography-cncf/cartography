@@ -10,6 +10,7 @@ from cartography.intel.trivy import sync_trivy_from_report_reader
 from cartography.intel.trivy import sync_trivy_from_s3
 from cartography.intel.trivy.scanner import get_json_files_in_s3
 from cartography.intel.trivy.scanner import sync_single_image_from_s3
+from cartography.intel.trivy.scanner import transform_scan_results
 
 
 @patch("boto3.Session")
@@ -621,3 +622,67 @@ def test_sync_trivy_skips_cleanup_when_no_reports_match_graph(
 
     mock_sync_single_image.assert_not_called()
     mock_cleanup.assert_not_called()
+
+
+def test_transform_scan_results_only_sets_cve_id_for_cves():
+    """Only CVE-prefixed ids populate cve_id; GHSA ids land in ghsa_id."""
+    # Arrange
+    results = [
+        {
+            "Class": "os-pkgs",
+            "Type": "debian",
+            "Vulnerabilities": [
+                {
+                    "VulnerabilityID": "CVE-2024-11111",
+                    "PkgName": "openssl",
+                    "InstalledVersion": "3.0.15-1~deb12u1",
+                    "Severity": "HIGH",
+                },
+                {
+                    "VulnerabilityID": "GHSA-aaaa-bbbb-cccc",
+                    "PkgName": "h11",
+                    "InstalledVersion": "0.14.0",
+                    "Severity": "MEDIUM",
+                },
+                {
+                    "VulnerabilityID": "TEMP-0000000-ABCDEF",
+                    "PkgName": "liblzma5",
+                    "InstalledVersion": "5.4.1-0.2",
+                    "Severity": "LOW",
+                },
+            ],
+        },
+    ]
+
+    # Act
+    findings_list, _, _ = transform_scan_results(results, "sha256:testdigest")
+
+    # Assert
+    findings_by_id = {finding["id"]: finding for finding in findings_list}
+    assert set(findings_by_id) == {
+        "TIF|CVE-2024-11111",
+        "TIF|GHSA-aaaa-bbbb-cccc",
+        "TIF|TEMP-0000000-ABCDEF",
+    }
+
+    cve = findings_by_id["TIF|CVE-2024-11111"]
+    assert cve["cve_id"] == "CVE-2024-11111"
+    assert cve["ghsa_id"] is None
+    assert cve["has_cve"] == "true"
+
+    ghsa = findings_by_id["TIF|GHSA-aaaa-bbbb-cccc"]
+    assert ghsa["cve_id"] is None
+    assert ghsa["ghsa_id"] == "GHSA-aaaa-bbbb-cccc"
+    assert ghsa["has_cve"] == "false"
+
+    temp = findings_by_id["TIF|TEMP-0000000-ABCDEF"]
+    assert temp["cve_id"] is None
+    assert temp["ghsa_id"] is None
+    assert temp["has_cve"] == "false"
+
+    # The raw identifier stays available on name regardless of its scheme
+    assert {finding["VulnerabilityID"] for finding in findings_list} == {
+        "CVE-2024-11111",
+        "GHSA-aaaa-bbbb-cccc",
+        "TEMP-0000000-ABCDEF",
+    }

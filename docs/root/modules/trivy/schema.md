@@ -1,15 +1,22 @@
 ## Trivy Schema
 
-### TrivyImageFinding::Risk::CVE
+### TrivyImageFinding::Risk / ::CVE
 Representation of a vulnerability finding in a container image.
+
+Trivy reports several identifier schemes: CVEs, but also GitHub advisories (`GHSA-*`), Debian
+advisories (`DLA-*`, `DSA-*`, `TEMP-*`), `RUSTSEC-*`, and others. `:Risk` is applied to every
+finding, but `:CVE` is conditional: it is only set when the finding is CVE-backed
+(`has_cve = "true"`, i.e. `cve_id` is populated).
 
 | Field | Description |
 |-------|-------------|
 | firstseen | Timestamp of when a sync job first discovered this node |
 | lastupdated | Timestamp of the last time the node was updated |
-| **id** | Unique identifier for the finding (format: TIF|CVE-ID) |
-| name | The vulnerability ID (e.g. CVE-2024-1234) |
-| cve_id | The CVE identifier |
+| **id** | Unique identifier for the finding (format: TIF|VULNERABILITY-ID, e.g. `TIF|CVE-2024-1234` or `TIF|GHSA-xxxx-xxxx-xxxx`) |
+| name | The vulnerability ID, whatever its scheme (e.g. CVE-2024-1234, GHSA-xxxx-xxxx-xxxx) |
+| cve_id | The CVE identifier. Set only when the vulnerability ID is a CVE, null otherwise |
+| ghsa_id | The GitHub advisory identifier. Set only when the vulnerability ID is a GHSA, null otherwise |
+| has_cve | `"true"` when the finding is CVE-backed, `"false"` otherwise. Drives the conditional `:CVE` label |
 | description | Description of the vulnerability |
 | last_modified_date | Date when the vulnerability was last modified |
 | primary_url | Primary URL for vulnerability information |
