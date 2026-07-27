@@ -4,6 +4,13 @@ GraphQL documents for the Railway public API.
 Railway's rate limit is per hour (100 requests on the Free plan, 1000 on Hobby, 10000 on
 Pro), so this module deliberately favours a few deeply nested documents over many flat ones.
 See docs/root/modules/railway/config.md for the resulting request budget.
+
+Every Relay connection is capped at `first: $first` per request, so the nested bundle can
+come back truncated. Each nested connection therefore has a matching flat follow-up document
+below, built from the same field selection, which
+cartography.intel.railway.projects.drain_project_bundle uses to fetch the remainder. The
+selections are shared as Python constants rather than duplicated, so a field added to the
+bundle cannot silently go missing from the follow-up.
 """
 
 # Identifies the token holder and the workspaces it can reach. `projects` cannot be queried
@@ -76,196 +83,291 @@ query Projects($workspaceId: String!, $first: Int!, $after: String) {
 }
 """
 
-# Everything hanging off a single project, in one request.
-#
-# SECURITY: the `variables` selection deliberately requests only `name` and `isSealed`.
-# Railway can return variable values, but Cartography must never ingest secret material.
-# Do not add a `value` field here.
-PROJECT_BUNDLE_QUERY = """
-query ProjectBundle($projectId: String!, $first: Int!) {
-  project(id: $projectId) {
-    id
-    environments(first: $first) {
-      edges {
-        node {
-          id
-          name
-          projectId
-          createdAt
-          isEphemeral
-          serviceInstances(first: $first) {
-            edges {
-              node {
-                id
-                serviceId
-                serviceName
-                environmentId
-                createdAt
-                updatedAt
-                source {
-                  image
-                  repo
-                }
-                builder
-                buildCommand
-                startCommand
-                rootDirectory
-                dockerfilePath
-                region
-                numReplicas
-                sleepApplication
-                cronSchedule
-                healthcheckPath
-                restartPolicyType
-                restartPolicyMaxRetries
-                ipv6EgressEnabled
-                latestDeployment {
-                  id
-                  status
-                }
-                domains {
-                  serviceDomains {
-                    id
-                    domain
-                    suffix
-                    targetPort
-                    syncStatus
-                    createdAt
-                  }
-                  customDomains {
-                    id
-                    domain
-                    targetPort
-                    isRailwayDomain
-                    syncStatus
-                    status {
-                      verified
-                      certificateStatus
-                      verificationDnsHost
-                    }
-                  }
-                }
-              }
-            }
-            pageInfo {
-              hasNextPage
-              endCursor
-            }
-          }
-          deployments(first: $first) {
-            edges {
-              node {
-                id
-                status
-                statusUpdatedAt
-                createdAt
-                projectId
-                environmentId
-                serviceId
-                url
-                staticUrl
-                canRedeploy
-              }
-            }
-            pageInfo {
-              hasNextPage
-              endCursor
-            }
-          }
-          volumeInstances(first: $first) {
-            edges {
-              node {
-                id
-                volumeId
-                environmentId
-                serviceId
-                mountPath
-                region
-                sizeMB
-                currentSizeMB
-                state
-                createdAt
-              }
-            }
-            pageInfo {
-              hasNextPage
-              endCursor
-            }
-          }
-          variables(first: $first) {
-            edges {
-              node {
-                id
-                name
-                isSealed
-                serviceId
-                environmentId
-                createdAt
-              }
-            }
-            pageInfo {
-              hasNextPage
-              endCursor
-            }
-          }
-          deploymentTriggers(first: $first) {
-            edges {
-              node {
-                id
-                provider
-                repository
-                branch
-                serviceId
-                environmentId
-              }
-            }
-            pageInfo {
-              hasNextPage
-              endCursor
-            }
-          }
-        }
-      }
-      pageInfo {
-        hasNextPage
-        endCursor
-      }
+# --- Shared field selections -------------------------------------------------------------
+
+_PAGE_INFO = """
+    pageInfo {
+      hasNextPage
+      endCursor
     }
-    services(first: $first) {
-      edges {
-        node {
-          id
-          name
-          icon
-          projectId
-          createdAt
-          updatedAt
-          templateId
-          isRestricted
-        }
-      }
-      pageInfo {
-        hasNextPage
-        endCursor
-      }
-    }
-    volumes(first: $first) {
-      edges {
-        node {
-          id
-          name
-          projectId
-          createdAt
-        }
-      }
-      pageInfo {
-        hasNextPage
-        endCursor
-      }
-    }
-  }
-}
 """
+
+_SERVICE_INSTANCE_FIELDS = """
+    id
+    serviceId
+    serviceName
+    environmentId
+    createdAt
+    updatedAt
+    source {
+      image
+      repo
+    }
+    builder
+    buildCommand
+    startCommand
+    rootDirectory
+    dockerfilePath
+    region
+    numReplicas
+    sleepApplication
+    cronSchedule
+    healthcheckPath
+    restartPolicyType
+    restartPolicyMaxRetries
+    ipv6EgressEnabled
+    latestDeployment {
+      id
+      status
+    }
+    domains {
+      serviceDomains {
+        id
+        domain
+        suffix
+        targetPort
+        syncStatus
+        createdAt
+      }
+      customDomains {
+        id
+        domain
+        targetPort
+        isRailwayDomain
+        syncStatus
+        status {
+          verified
+          certificateStatus
+          verificationDnsHost
+        }
+      }
+    }
+"""
+
+_DEPLOYMENT_FIELDS = """
+    id
+    status
+    statusUpdatedAt
+    createdAt
+    projectId
+    environmentId
+    serviceId
+    url
+    staticUrl
+    canRedeploy
+"""
+
+_VOLUME_INSTANCE_FIELDS = """
+    id
+    volumeId
+    environmentId
+    serviceId
+    mountPath
+    region
+    sizeMB
+    currentSizeMB
+    state
+    createdAt
+"""
+
+# SECURITY: only the variable name and its sealed flag are requested. Railway can return
+# variable values, but Cartography must never ingest secret material. Do not add `value`.
+_VARIABLE_FIELDS = """
+    id
+    name
+    isSealed
+    serviceId
+    environmentId
+    createdAt
+"""
+
+_DEPLOYMENT_TRIGGER_FIELDS = """
+    id
+    provider
+    repository
+    branch
+    serviceId
+    environmentId
+"""
+
+_SERVICE_FIELDS = """
+    id
+    name
+    icon
+    projectId
+    createdAt
+    updatedAt
+    templateId
+    isRestricted
+"""
+
+_VOLUME_FIELDS = """
+    id
+    name
+    projectId
+    createdAt
+"""
+
+# The child connections of an Environment, in the exact shape the transforms expect.
+_ENVIRONMENT_CHILDREN = f"""
+    serviceInstances(first: $first) {{
+      edges {{ node {{ {_SERVICE_INSTANCE_FIELDS} }} }}
+      {_PAGE_INFO}
+    }}
+    deployments(first: $first) {{
+      edges {{ node {{ {_DEPLOYMENT_FIELDS} }} }}
+      {_PAGE_INFO}
+    }}
+    volumeInstances(first: $first) {{
+      edges {{ node {{ {_VOLUME_INSTANCE_FIELDS} }} }}
+      {_PAGE_INFO}
+    }}
+    variables(first: $first) {{
+      edges {{ node {{ {_VARIABLE_FIELDS} }} }}
+      {_PAGE_INFO}
+    }}
+    deploymentTriggers(first: $first) {{
+      edges {{ node {{ {_DEPLOYMENT_TRIGGER_FIELDS} }} }}
+      {_PAGE_INFO}
+    }}
+"""
+
+_ENVIRONMENT_FIELDS = f"""
+    id
+    name
+    projectId
+    createdAt
+    isEphemeral
+    {_ENVIRONMENT_CHILDREN}
+"""
+
+# --- Documents ---------------------------------------------------------------------------
+
+# Everything hanging off a single project, in one request.
+PROJECT_BUNDLE_QUERY = f"""
+query ProjectBundle($projectId: String!, $first: Int!) {{
+  project(id: $projectId) {{
+    id
+    environments(first: $first) {{
+      edges {{ node {{ {_ENVIRONMENT_FIELDS} }} }}
+      {_PAGE_INFO}
+    }}
+    services(first: $first) {{
+      edges {{ node {{ {_SERVICE_FIELDS} }} }}
+      {_PAGE_INFO}
+    }}
+    volumes(first: $first) {{
+      edges {{ node {{ {_VOLUME_FIELDS} }} }}
+      {_PAGE_INFO}
+    }}
+  }}
+}}
+"""
+
+# Follow-up documents, used only when the bundle came back truncated. Each one returns the
+# same node shape as its counterpart inside the bundle.
+PROJECT_ENVIRONMENTS_QUERY = f"""
+query ProjectEnvironments($projectId: String!, $first: Int!, $after: String) {{
+  project(id: $projectId) {{
+    environments(first: $first, after: $after) {{
+      edges {{ node {{ {_ENVIRONMENT_FIELDS} }} }}
+      {_PAGE_INFO}
+    }}
+  }}
+}}
+"""
+
+PROJECT_SERVICES_QUERY = f"""
+query ProjectServices($projectId: String!, $first: Int!, $after: String) {{
+  project(id: $projectId) {{
+    services(first: $first, after: $after) {{
+      edges {{ node {{ {_SERVICE_FIELDS} }} }}
+      {_PAGE_INFO}
+    }}
+  }}
+}}
+"""
+
+PROJECT_VOLUMES_QUERY = f"""
+query ProjectVolumes($projectId: String!, $first: Int!, $after: String) {{
+  project(id: $projectId) {{
+    volumes(first: $first, after: $after) {{
+      edges {{ node {{ {_VOLUME_FIELDS} }} }}
+      {_PAGE_INFO}
+    }}
+  }}
+}}
+"""
+
+ENVIRONMENT_SERVICE_INSTANCES_QUERY = f"""
+query EnvironmentServiceInstances($environmentId: String!, $first: Int!, $after: String) {{
+  environment(id: $environmentId) {{
+    serviceInstances(first: $first, after: $after) {{
+      edges {{ node {{ {_SERVICE_INSTANCE_FIELDS} }} }}
+      {_PAGE_INFO}
+    }}
+  }}
+}}
+"""
+
+ENVIRONMENT_DEPLOYMENTS_QUERY = f"""
+query EnvironmentDeployments($environmentId: String!, $first: Int!, $after: String) {{
+  environment(id: $environmentId) {{
+    deployments(first: $first, after: $after) {{
+      edges {{ node {{ {_DEPLOYMENT_FIELDS} }} }}
+      {_PAGE_INFO}
+    }}
+  }}
+}}
+"""
+
+ENVIRONMENT_VOLUME_INSTANCES_QUERY = f"""
+query EnvironmentVolumeInstances($environmentId: String!, $first: Int!, $after: String) {{
+  environment(id: $environmentId) {{
+    volumeInstances(first: $first, after: $after) {{
+      edges {{ node {{ {_VOLUME_INSTANCE_FIELDS} }} }}
+      {_PAGE_INFO}
+    }}
+  }}
+}}
+"""
+
+ENVIRONMENT_VARIABLES_QUERY = f"""
+query EnvironmentVariables($environmentId: String!, $first: Int!, $after: String) {{
+  environment(id: $environmentId) {{
+    variables(first: $first, after: $after) {{
+      edges {{ node {{ {_VARIABLE_FIELDS} }} }}
+      {_PAGE_INFO}
+    }}
+  }}
+}}
+"""
+
+ENVIRONMENT_DEPLOYMENT_TRIGGERS_QUERY = f"""
+query EnvironmentDeploymentTriggers($environmentId: String!, $first: Int!, $after: String) {{
+  environment(id: $environmentId) {{
+    deploymentTriggers(first: $first, after: $after) {{
+      edges {{ node {{ {_DEPLOYMENT_TRIGGER_FIELDS} }} }}
+      {_PAGE_INFO}
+    }}
+  }}
+}}
+"""
+
+# Connection key on Environment -> the document that pages through it.
+ENVIRONMENT_CHILD_QUERIES = {
+    "serviceInstances": ENVIRONMENT_SERVICE_INSTANCES_QUERY,
+    "deployments": ENVIRONMENT_DEPLOYMENTS_QUERY,
+    "volumeInstances": ENVIRONMENT_VOLUME_INSTANCES_QUERY,
+    "variables": ENVIRONMENT_VARIABLES_QUERY,
+    "deploymentTriggers": ENVIRONMENT_DEPLOYMENT_TRIGGERS_QUERY,
+}
+
+# Connection key on Project -> the document that pages through it.
+PROJECT_CHILD_QUERIES = {
+    "services": PROJECT_SERVICES_QUERY,
+    "volumes": PROJECT_VOLUMES_QUERY,
+}
 
 PROJECT_TOKENS_QUERY = """
 query ProjectTokens($projectId: String!, $first: Int!, $after: String) {

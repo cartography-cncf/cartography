@@ -149,6 +149,7 @@ def paginated_query(
     variables: dict[str, Any],
     connection_path: tuple[str, ...],
     page_size: int = 100,
+    after: str | None = None,
 ) -> list[dict[str, Any]]:
     """
     Walk every page of a Relay-style connection and return the flattened list of nodes.
@@ -160,10 +161,12 @@ def paginated_query(
     :param connection_path: Path of keys from `data` down to the connection object,
         e.g. ``("projects",)`` or ``("project", "services")``.
     :param page_size: Number of items to request per page.
-    :return: Every node across every page.
+    :param after: Cursor to resume from. Used to fetch the remainder of a connection whose
+        first page already arrived inside a larger nested document.
+    :return: Every node from `after` onwards, across every remaining page.
     """
     results: list[dict[str, Any]] = []
-    cursor: str | None = None
+    cursor: str | None = after
 
     while True:
         data = call_railway_api(
