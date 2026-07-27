@@ -6,11 +6,15 @@ import requests
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
+from cartography.intel.railway.queries import ENVIRONMENT_CHILD_QUERIES
 from cartography.intel.railway.queries import PROJECT_BUNDLE_QUERY
+from cartography.intel.railway.queries import PROJECT_CHILD_QUERIES
+from cartography.intel.railway.queries import PROJECT_ENVIRONMENTS_QUERY
 from cartography.intel.railway.queries import PROJECTS_QUERY
 from cartography.intel.railway.queries import WORKSPACE_QUERY
 from cartography.intel.railway.utils import call_railway_api
 from cartography.intel.railway.utils import paginated_query
+from cartography.intel.railway.utils import unwrap_edges
 from cartography.models.railway.project import RailwayProjectSchema
 from cartography.models.railway.workspace import RailwayWorkspaceSchema
 from cartography.util import timeit
@@ -29,11 +33,11 @@ def sync(
     api_session: requests.Session,
     common_job_parameters: dict[str, Any],
     update_tag: int,
-) -> list[dict[str, Any]]:
+) -> tuple[dict[str, Any], list[dict[str, Any]]]:
     """
     Sync the workspace tenant and its projects.
 
-    :return: The list of projects, for the per-project fan-out the caller drives next.
+    :return: The workspace and its projects, for the fan-out the caller drives next.
     """
     workspace_id = common_job_parameters["WORKSPACE_ID"]
     base_url = common_job_parameters["BASE_URL"]
@@ -44,7 +48,7 @@ def sync(
     load_workspace(neo4j_session, workspace, update_tag)
     load_projects(neo4j_session, projects, workspace_id, update_tag)
     cleanup(neo4j_session, common_job_parameters)
-    return projects
+    return workspace, projects
 
 
 @timeit
@@ -85,7 +89,12 @@ def get_project_bundle(
     project_id: str,
 ) -> dict[str, Any]:
     """
-    Fetch every child resource of a single project in one request.
+    Fetch every child resource of a single project.
+
+    The happy path is a single request. Any connection that came back truncated is then
+    drained with a targeted follow-up query, so callers always receive a complete bundle.
+    Returning a truncated one would be worse than failing: the cleanup jobs treat whatever
+    they are given as exhaustive and would delete every resource past the first page.
     """
     data = call_railway_api(
         api_session,
@@ -93,7 +102,93 @@ def get_project_bundle(
         PROJECT_BUNDLE_QUERY,
         {"projectId": project_id, "first": _BUNDLE_PAGE_SIZE},
     )
-    return data["project"]
+    bundle = data["project"]
+    drain_project_bundle(api_session, base_url, bundle)
+    return bundle
+
+
+def _drain_connection(
+    api_session: requests.Session,
+    base_url: str,
+    connection: dict[str, Any],
+    query: str,
+    variables: dict[str, Any],
+    connection_path: tuple[str, ...],
+) -> list[dict[str, Any]]:
+    """
+    Append the remaining pages of an already-started connection, in place.
+
+    :return: The nodes that were appended, so the caller can recurse into them.
+    """
+    page_info = connection["pageInfo"]
+    if not page_info["hasNextPage"]:
+        return []
+
+    logger.debug(
+        "Railway connection %s was truncated at %d items; fetching the remainder.",
+        ".".join(connection_path),
+        len(connection["edges"]),
+    )
+    remainder = paginated_query(
+        api_session,
+        base_url,
+        query,
+        variables,
+        connection_path,
+        page_size=_BUNDLE_PAGE_SIZE,
+        after=page_info["endCursor"],
+    )
+    connection["edges"].extend({"node": node} for node in remainder)
+    # The connection is now complete, so a transform reading pageInfo sees the truth.
+    connection["pageInfo"] = {"hasNextPage": False, "endCursor": None}
+    return remainder
+
+
+@timeit
+def drain_project_bundle(
+    api_session: requests.Session,
+    base_url: str,
+    bundle: dict[str, Any],
+) -> None:
+    """
+    Fetch every page of every connection in a project bundle, mutating it in place.
+
+    Costs no extra requests for projects that fit inside one page, which is the common case.
+    """
+    project_id = bundle["id"]
+
+    for key, query in PROJECT_CHILD_QUERIES.items():
+        _drain_connection(
+            api_session,
+            base_url,
+            bundle[key],
+            query,
+            {"projectId": project_id},
+            ("project", key),
+        )
+
+    # Environments arrive with their own children already populated, and the follow-up query
+    # requests the same selection, so the child-draining loop below covers both the
+    # first-page environments and any fetched here.
+    _drain_connection(
+        api_session,
+        base_url,
+        bundle["environments"],
+        PROJECT_ENVIRONMENTS_QUERY,
+        {"projectId": project_id},
+        ("project", "environments"),
+    )
+
+    for environment in unwrap_edges(bundle["environments"]):
+        for key, query in ENVIRONMENT_CHILD_QUERIES.items():
+            _drain_connection(
+                api_session,
+                base_url,
+                environment[key],
+                query,
+                {"environmentId": environment["id"]},
+                ("environment", key),
+            )
 
 
 @timeit

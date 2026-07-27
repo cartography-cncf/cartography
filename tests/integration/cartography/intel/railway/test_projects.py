@@ -47,7 +47,7 @@ def _ensure_local_neo4j_has_test_workspace_and_projects(neo4j_session):
 )
 def test_load_railway_projects(mock_get_workspace, mock_get_projects, neo4j_session):
     # Act
-    projects = cartography.intel.railway.projects.sync(
+    workspace, projects = cartography.intel.railway.projects.sync(
         neo4j_session,
         Mock(),
         _common_job_parameters(),
@@ -90,7 +90,8 @@ def test_load_railway_projects(mock_get_workspace, mock_get_projects, neo4j_sess
         (TEST_PUBLIC_PROJECT_ID,),
     }
 
-    # sync() hands the project list back for the per-project fan-out
+    # sync() hands the workspace and project list back for the per-project fan-out
+    assert workspace["id"] == TEST_WORKSPACE_ID
     assert [project["id"] for project in projects] == [
         TEST_PROJECT_ID,
         TEST_PUBLIC_PROJECT_ID,
