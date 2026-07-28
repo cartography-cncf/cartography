@@ -132,3 +132,62 @@ def test_railway_project_cleanup_removes_only_stale_projects(
     assert check_nodes(neo4j_session, "RailwayWorkspace", ["id"]) == {
         (TEST_WORKSPACE_ID,),
     }
+
+
+@patch.object(
+    cartography.intel.railway.projects,
+    "get_workspace",
+    return_value=tests.data.railway.workspaces.RAILWAY_WORKSPACE,
+)
+def test_deleting_a_project_takes_its_children_with_it(
+    mock_get_workspace,
+    neo4j_session,
+):
+    """
+    A project deleted upstream must not leave orphaned children behind.
+
+    Every other domain's cleanup iterates the projects the API returned, so a project that
+    has disappeared is never visited and its children are never revisited. Without a
+    cascading delete, removing the project node alone strips their RESOURCE edges and leaves
+    unreachable orphans that no later sync can collect.
+    """
+    neo4j_session.run(
+        "MATCH (n) WHERE any(l IN labels(n) WHERE l STARTS WITH 'Railway') DETACH DELETE n",
+    )
+    _ensure_local_neo4j_has_test_workspace_and_projects(neo4j_session)
+    # A child of each kind hanging off the project that is about to disappear.
+    neo4j_session.run(
+        """
+        MATCH (p:RailwayProject {id: $project_id})
+        UNWIND $children AS child
+        CALL (p, child) {
+            CREATE (c:RailwayEnvironment {id: child, lastupdated: $update_tag})
+            CREATE (p)-[r:RESOURCE]->(c)
+            SET r.lastupdated = $update_tag
+        }
+        """,
+        project_id=TEST_PUBLIC_PROJECT_ID,
+        children=["env-doomed-1", "env-doomed-2"],
+        update_tag=TEST_UPDATE_TAG,
+    )
+    assert check_nodes(neo4j_session, "RailwayEnvironment", ["id"]) == {
+        ("env-doomed-1",),
+        ("env-doomed-2",),
+    }
+
+    # Act: re-sync with a newer tag and the public project gone from the API.
+    with patch.object(
+        cartography.intel.railway.projects,
+        "get_projects",
+        return_value=tests.data.railway.projects.RAILWAY_PROJECTS[:1],
+    ):
+        cartography.intel.railway.projects.sync(
+            neo4j_session,
+            Mock(),
+            _common_job_parameters(TEST_UPDATE_TAG + 1),
+            TEST_UPDATE_TAG + 1,
+        )
+
+    # Assert the children went with the project rather than becoming orphans.
+    assert check_nodes(neo4j_session, "RailwayProject", ["id"]) == {(TEST_PROJECT_ID,)}
+    assert check_nodes(neo4j_session, "RailwayEnvironment", ["id"]) == set()

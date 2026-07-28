@@ -228,6 +228,15 @@ def cleanup(
 ) -> None:
     # Projects are workspace-scoped, so a single job covers them. The workspace itself is a
     # tenant node and is never cleaned up.
-    GraphJob.from_node_schema(RailwayProjectSchema(), common_job_parameters).run(
-        neo4j_session,
-    )
+    #
+    # cascade_delete is required, not an optimisation. Every other domain's cleanup iterates
+    # the projects the API just returned, so a project that has been deleted upstream is not
+    # in that list and its environments, services, instances, deployments, domains, proxies,
+    # volumes and variables would never be visited. Deleting the project node alone would
+    # strip their RESOURCE edges and leave them as unreachable orphans that no later sync can
+    # collect. Cascading from the stale project takes its stale children with it.
+    GraphJob.from_node_schema(
+        RailwayProjectSchema(),
+        common_job_parameters,
+        cascade_delete=True,
+    ).run(neo4j_session)
