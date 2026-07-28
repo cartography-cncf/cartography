@@ -114,7 +114,9 @@ def test_sync_github_commits_skip_stale_repos(mock_get_commits, neo4j_session):
     lookback window are skipped entirely (no commits API call), while repos
     with no known pushedat (never seen by a repos sync) are still processed.
     """
-    # Arrange - repo1 was pushed long ago (outside the lookback window), repo2 recently.
+    # Arrange - wipe state left by earlier tests in this module (the session
+    # fixture is module-scoped), then seed repo1 pushed outside the lookback window.
+    neo4j_session.run("MATCH (n) DETACH DELETE n")
     _ensure_test_users_exist(neo4j_session)
     _ensure_test_repos_exist(neo4j_session)
     neo4j_session.run(
