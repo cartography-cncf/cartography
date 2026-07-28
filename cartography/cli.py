@@ -91,6 +91,7 @@ PANEL_WORKOS = "WorkOS Options"
 PANEL_JUMPCLOUD = "JumpCloud Options"
 PANEL_SOCKETDEV = "Socket.dev Options"
 PANEL_VERCEL = "Vercel Options"
+PANEL_SUPABASE = "Supabase Options"
 PANEL_CIRCLECI = "CircleCI Options"
 PANEL_STATSD = "StatsD Metrics"
 PANEL_ANALYSIS = "Analysis Options"
@@ -147,6 +148,7 @@ MODULE_PANELS = {
     "spacelift": PANEL_SPACELIFT,
     "workos": PANEL_WORKOS,
     "vercel": PANEL_VERCEL,
+    "supabase": PANEL_SUPABASE,
     "circleci": PANEL_CIRCLECI,
     "analysis": PANEL_ANALYSIS,
 }
@@ -2210,6 +2212,39 @@ class CLI:
                 ),
             ] = "https://api.vercel.com",
             # =================================================================
+            # Supabase Options
+            # =================================================================
+            supabase_access_token_env_var: Annotated[
+                str | None,
+                typer.Option(
+                    "--supabase-access-token-env-var",
+                    help="Environment variable name containing a Supabase personal access token.",
+                    rich_help_panel=PANEL_SUPABASE,
+                    hidden=PANEL_SUPABASE not in visible_panels,
+                ),
+            ] = None,
+            supabase_organizations: Annotated[
+                str | None,
+                typer.Option(
+                    "--supabase-organizations",
+                    help=(
+                        "Comma-separated list of Supabase organization slugs to sync. "
+                        "Defaults to every organization the access token can see."
+                    ),
+                    rich_help_panel=PANEL_SUPABASE,
+                    hidden=PANEL_SUPABASE not in visible_panels,
+                ),
+            ] = None,
+            supabase_base_url: Annotated[
+                str,
+                typer.Option(
+                    "--supabase-base-url",
+                    help="Supabase Management API base URL.",
+                    rich_help_panel=PANEL_SUPABASE,
+                    hidden=PANEL_SUPABASE not in visible_panels,
+                ),
+            ] = "https://api.supabase.com",
+            # =================================================================
             # CircleCI Options
             # =================================================================
             circleci_token_env_var: Annotated[
@@ -2679,6 +2714,15 @@ class CLI:
                 )
                 vercel_token = os.environ.get(vercel_token_env_var)
 
+            # Read Supabase access token
+            supabase_access_token = None
+            if supabase_access_token_env_var:
+                logger.debug(
+                    "Reading Supabase access token from environment variable %s",
+                    supabase_access_token_env_var,
+                )
+                supabase_access_token = os.environ.get(supabase_access_token_env_var)
+
             # Read CircleCI token
             circleci_token = None
             if circleci_token_env_var:
@@ -3063,6 +3107,9 @@ class CLI:
                 vercel_token=vercel_token,
                 vercel_team_id=vercel_team_id,
                 vercel_base_url=vercel_base_url,
+                supabase_access_token=supabase_access_token,
+                supabase_organizations=supabase_organizations,
+                supabase_base_url=supabase_base_url,
                 circleci_token=circleci_token,
                 circleci_base_url=circleci_base_url,
                 circleci_project_slugs=circleci_project_slug_list,

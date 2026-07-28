@@ -285,6 +285,15 @@ class Config:
     :param vercel_team_id: Vercel team ID to sync. Optional.
     :type vercel_base_url: str
     :param vercel_base_url: Vercel API base URL. Optional.
+    :type supabase_access_token: str
+    :param supabase_access_token: Supabase personal access token used against the
+        Management API. Optional.
+    :type supabase_organizations: str
+    :param supabase_organizations: Comma-separated list of Supabase organization
+        slugs to restrict the sync to. When unset, every organization the token can
+        see is synced. Optional.
+    :type supabase_base_url: str
+    :param supabase_base_url: Supabase Management API base URL. Optional.
     :type circleci_token: str
     :param circleci_token: CircleCI personal API token. Optional.
     :type circleci_base_url: str
@@ -529,6 +538,9 @@ class Config:
         vercel_token=None,
         vercel_team_id=None,
         vercel_base_url=None,
+        supabase_access_token=None,
+        supabase_organizations=None,
+        supabase_base_url=None,
         circleci_token=None,
         circleci_base_url=None,
         circleci_project_slugs=None,
@@ -740,6 +752,9 @@ class Config:
         self.vercel_token = vercel_token
         self.vercel_team_id = vercel_team_id
         self.vercel_base_url = vercel_base_url
+        self.supabase_access_token = supabase_access_token
+        self.supabase_organizations = supabase_organizations
+        self.supabase_base_url = supabase_base_url
         self.circleci_token = circleci_token
         self.circleci_base_url = circleci_base_url
         self.circleci_project_slugs = circleci_project_slugs

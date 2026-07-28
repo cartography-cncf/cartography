@@ -63,6 +63,26 @@ _OPENAI_PROJECT_STATUS = {
     "archived": "closed",
 }
 
+# Supabase project status. ACTIVE_UNHEALTHY is a degraded but running project, so
+# it still maps to active; the transient lifecycle states map to unknown.
+_SUPABASE_PROJECT_STATUS = {
+    "ACTIVE_HEALTHY": "active",
+    "ACTIVE_UNHEALTHY": "active",
+    "INACTIVE": "suspended",
+    "PAUSING": "suspended",
+    "PAUSE_FAILED": "suspended",
+    "GOING_DOWN": "suspended",
+    "REMOVED": "closed",
+    "COMING_UP": "unknown",
+    "INIT_FAILED": "unknown",
+    "RESTORING": "unknown",
+    "RESTORE_FAILED": "unknown",
+    "RESTARTING": "unknown",
+    "RESIZING": "unknown",
+    "UPGRADING": "unknown",
+    "UNKNOWN": "unknown",
+}
+
 # Airbyte
 airbyte_mapping = OntologyMapping(
     module_name="airbyte",
@@ -559,6 +579,40 @@ vercel_mapping = OntologyMapping(
     ],
 )
 
+supabase_mapping = OntologyMapping(
+    module_name="supabase",
+    nodes=[
+        OntologyNodeMapping(
+            node_label="SupabaseOrganization",
+            fields=[
+                OntologyFieldMapping(
+                    ontology_field="name", node_field="name", required=True
+                ),
+                # status: Not available; the organization endpoints expose a plan
+                # but no lifecycle state.
+                # domain: Not available
+            ],
+        ),
+        OntologyNodeMapping(
+            node_label="SupabaseProject",
+            fields=[
+                OntologyFieldMapping(
+                    ontology_field="name", node_field="name", required=True
+                ),
+                OntologyFieldMapping(
+                    ontology_field="status",
+                    node_field="status",
+                    special_handling="mapping",
+                    extra={"map": _SUPABASE_PROJECT_STATUS},
+                ),
+                # domain: Not available. The project's *.supabase.co endpoint is
+                # modelled on SupabaseDatabase.host, and any custom domain gets
+                # its own SupabaseCustomHostname node.
+            ],
+        ),
+    ],
+)
+
 circleci_mapping = OntologyMapping(
     module_name="circleci",
     nodes=[
@@ -590,6 +644,7 @@ TENANTS_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     "okta": okta_mapping,
     "openai": openai_mapping,
     "scaleway": scaleway_mapping,
+    "supabase": supabase_mapping,
     "sentry": sentry_mapping,
     "sentinelone": sentinelone_mapping,
     "jumpcloud": jumpcloud_mapping,
