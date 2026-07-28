@@ -336,7 +336,10 @@ def test_tenable_schema_doc_is_generated_from_introspected_model():
     assert not Path("docs/root/modules/tenable/schema.md").exists()
     assert len(model.nodes) == 11
     assert len(model.relationships) == 20
-    assert "`CVE` when `has_cve` equals `true`." in generated
+    assert (
+        "[`CVE`](../ontology/schema.html#cve) (ontology label) "
+        "when `has_cve` equals `true`." in generated
+    )
     assert "(:CVEMetadata)-[:ENRICHES]->(:CVE)" in generated
     assert "| cve_list | Yes | CVE IDs associated with the finding. |" in generated
     assert "Deprecated compatibility edge" in generated
@@ -361,7 +364,7 @@ def test_gitlab_schema_doc_is_generated_from_introspected_model():
     assert not Path("docs/root/modules/gitlab/schema.md").exists()
     assert len(model.nodes) == 17
     assert len(model.relationships) == 46
-    assert mermaid_graph.count("-->") == 75
+    assert "GitLabProject -- HAS_ENVIRONMENT --> GitLabEnvironment" in mermaid_graph
     assert "(:TrivyImageFinding)-[:AFFECTS]->(:Image)" in generated
     assert "(:SyftPackage)-[:DEPLOYED]->(:Image)" in generated
     assert "(:Image)-[:PACKAGED_FROM]->(:GitHubRepository)" in generated
@@ -487,7 +490,7 @@ def test_github_schema_doc_is_generated_from_full_introspected_model():
         "when `has_cve` equals `true`." in generated
     )
     assert (
-        "**Ontology Projection**: `Dependency` contributes data to canonical "
+        "**Ontology Projection**: `GitHubDependency` contributes data to canonical "
         "[`Package`](../ontology/schema.html#package) nodes." in generated
     )
     assert "(:AWSLambda)-[:HAS_IMAGE]->(:GitHubContainerImage)" in generated
@@ -729,7 +732,10 @@ def test_jamf_schema_doc_is_generated_from_introspected_model():
         "**Ontology Projection**: `JamfMobileDevice` contributes data to canonical "
         "[`Device`](../ontology/schema.html#device) nodes." in generated
     )
-    assert "**Additional Labels**: This node also uses `Tenant`." in generated
+    assert (
+        "**Ontology Mapping**: This node uses the ontology label "
+        "[`Tenant`](../ontology/schema.html#tenant)." in generated
+    )
     assert "(:Device)-[:OBSERVED_AS]->(:JamfComputer)" in generated
     assert "(:User)-[:OWNS]->(:Device)" not in generated
     assert "_ont_hostname" not in generated
@@ -805,7 +811,7 @@ def test_scaleway_schema_doc_is_generated_from_full_introspected_model():
     assert security_group_rule is not None
     assert security_group_rule.extra_labels == ("IpRule",)
     assert {
-        (label.label, tuple(sorted(label.conditions.items())))
+        (label.label, label.conditions)
         for label in security_group_rule.conditional_labels
     } == {
         ("IpPermissionEgress", (("direction", "outbound"),)),
@@ -1244,8 +1250,9 @@ def test_kubernetes_schema_doc_is_generated_from_full_introspected_model():
 
     # Assert
     assert not Path("docs/root/modules/kubernetes/schema.md").exists()
-    assert len(kubernetes_model.nodes) == 19
-    assert len(kubernetes_model.relationships) == 72
+    assert len(kubernetes_model.nodes) == 25
+    assert len(kubernetes_model.relationships) == 90
+    assert "### KubernetesDeployment" in generated
     assert "A Kubernetes pod and its workload security configuration." in generated
     assert (
         "| kubeconfig_tls_configuration_status |  | "
@@ -1443,8 +1450,8 @@ def test_aws_schema_doc_groundwork_is_complete_while_manual_page_is_preserved():
         "identity-access",
         "tagging-and-labels",
     } <= set(module_index.splitlines())
-    assert len(aws_model.nodes) == 166
-    assert len(aws_model.relationships) == 469
+    assert len(aws_model.nodes) == 167
+    assert len(aws_model.relationships) == 472
     assert tagging_sources == {resource.label for resource in AWS_TAGGABLE_RESOURCES}
     assert len(permission_relationships) == 12
     assert (
@@ -1459,7 +1466,7 @@ def test_aws_schema_doc_groundwork_is_complete_while_manual_page_is_preserved():
         "(:AWSSSMInstanceInformation)` must exist"
     ) in generated
     assert "(:DNSRecord)-[:DNS_POINTS_TO]->(:AWSEC2Instance)" in generated
-    assert "(:LoadBalancer)-[:EXPOSE]->(:Container)" in generated
+    assert "(:AWSLoadBalancerV2)-[:EXPOSE]->(:AWSECSContainer)" in generated
     assert "(:AzureContainerInstance)-[:HAS_IMAGE]->(:AWSECRImage)" in generated
     assert "(:DNSRecord)-[:DNS_POINTS_TO]->(:AzureFunctionApp)" not in generated
     assert "(:Image)-[:PACKAGED_FROM]->(:GitHubRepository)" not in generated

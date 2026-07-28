@@ -13,6 +13,9 @@ from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
 from cartography.intel.aws.util.botocore_config import create_boto3_client
 from cartography.intel.aws.util.botocore_config import get_botocore_config
+from cartography.intel.aws.util.service_regions import (
+    filter_regions_to_supported_service_regions,
+)
 from cartography.models.aws.ses import SESEmailIdentitySchema
 from cartography.util import aws_handle_regions
 from cartography.util import timeit
@@ -156,7 +159,18 @@ def sync(
     update_tag: int,
     common_job_parameters: Dict[str, Any],
 ) -> None:
-    for region in regions:
+    ses_regions, unsupported_regions = filter_regions_to_supported_service_regions(
+        boto3_session,
+        "sesv2",
+        regions,
+    )
+    for region in unsupported_regions:
+        logger.info(
+            "Skipping SES sync for unsupported region '%s'.",
+            region,
+        )
+
+    for region in ses_regions:
         logger.info(
             "Syncing SES for region '%s' in account '%s'.",
             region,

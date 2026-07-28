@@ -9,6 +9,7 @@ from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import TargetNodeMatcher
+from cartography.models.ontology.labels import COMPUTE_INSTANCE
 
 
 @dataclass(frozen=True)
@@ -76,7 +77,7 @@ class ScalewayAppleSiliconServerSchema(CartographyNodeSchema):
     """Represents an Apple silicon (Mac mini) server in Scaleway."""
 
     label: str = "ScalewayAppleSiliconServer"
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["ComputeInstance"])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([COMPUTE_INSTANCE])
     properties: ScalewayAppleSiliconServerProperties = (
         ScalewayAppleSiliconServerProperties()
     )

@@ -79,7 +79,7 @@ def _node_for_module(node: Node, module: str) -> Node:
     conditional_labels = {
         (
             conditional.label,
-            tuple(sorted(conditional.conditions.items())),
+            conditional.conditions,
         ): conditional
         for item in provenance
         for conditional in item.conditional_labels
@@ -89,7 +89,21 @@ def _node_for_module(node: Node, module: str) -> Node:
             conditional_labels.values(),
             key=lambda conditional: (
                 conditional.label,
-                tuple(sorted(conditional.conditions.items())),
+                conditional.conditions,
+            ),
+        )
+    )
+    label_definitions = tuple(
+        sorted(
+            {
+                definition
+                for item in provenance
+                for definition in item.label_definitions
+            },
+            key=lambda definition: (
+                definition.label,
+                definition.conditions,
+                definition.kind.value,
             ),
         )
     )
@@ -105,6 +119,7 @@ def _node_for_module(node: Node, module: str) -> Node:
         ontology_labels=tuple(
             label for label in node.ontology_labels if label in declared_labels
         ),
+        label_definitions=label_definitions,
     )
 
 
@@ -118,7 +133,8 @@ def _render_ontology_schema(model: DataModel) -> str:
     semantic_nodes = tuple(
         Node(
             label=semantic_label.label,
-            descriptions=(
+            descriptions=semantic_label.descriptions
+            or (
                 f"`{semantic_label.label}` is a semantic label applied to "
                 "provider-specific nodes.",
             ),
@@ -529,7 +545,7 @@ def _render_node(
             )
             conditions = " and ".join(
                 f"`{field}` equals `{value}`"
-                for field, value in sorted(conditional_label.conditions.items())
+                for field, value in conditional_label.conditions
             )
             formatted_label = (
                 _ontology_label_link(conditional_label.label)

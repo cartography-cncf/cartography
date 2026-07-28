@@ -3,7 +3,6 @@ from dataclasses import dataclass
 from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeProperties
 from cartography.models.core.nodes import CartographyNodeSchema
-from cartography.models.core.nodes import ConditionalNodeLabel
 from cartography.models.core.nodes import ExtraNodeLabels
 from cartography.models.core.relationships import CartographyRelProperties
 from cartography.models.core.relationships import CartographyRelSchema
@@ -11,6 +10,10 @@ from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import TargetNodeMatcher
+from cartography.models.extra_labels import IP_PERMISSION_EGRESS
+from cartography.models.extra_labels import IP_PERMISSION_INBOUND
+from cartography.models.extra_labels import IP_RULE
+from cartography.models.ontology.labels import NETWORK_ACCESS_CONTROL
 
 
 @dataclass(frozen=True)
@@ -112,7 +115,7 @@ class ScalewaySecurityGroupSchema(CartographyNodeSchema):
     """
 
     label: str = "ScalewaySecurityGroup"
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["NetworkAccessControl"])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([NETWORK_ACCESS_CONTROL])
     properties: ScalewaySecurityGroupProperties = ScalewaySecurityGroupProperties()
     sub_resource_relationship: ScalewaySecurityGroupToProjectRel = (
         ScalewaySecurityGroupToProjectRel()
@@ -213,11 +216,8 @@ class ScalewayInboundSecurityGroupRuleSchema(CartographyNodeSchema):
     label: str = "ScalewaySecurityGroupRule"
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
         [
-            "IpRule",
-            ConditionalNodeLabel(
-                label="IpPermissionInbound",
-                conditions={"direction": "inbound"},
-            ),
+            IP_PERMISSION_INBOUND.when(direction="inbound"),
+            IP_RULE,
         ]
     )
     properties: ScalewaySecurityGroupRuleProperties = (
@@ -242,11 +242,8 @@ class ScalewayOutboundSecurityGroupRuleSchema(CartographyNodeSchema):
     label: str = "ScalewaySecurityGroupRule"
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
         [
-            "IpRule",
-            ConditionalNodeLabel(
-                label="IpPermissionEgress",
-                conditions={"direction": "outbound"},
-            ),
+            IP_PERMISSION_EGRESS.when(direction="outbound"),
+            IP_RULE,
         ]
     )
     properties: ScalewaySecurityGroupRuleProperties = (

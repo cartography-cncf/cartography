@@ -38,21 +38,21 @@ RETURN *
 MATCH (aws:AWSAccount)-[r:RESOURCE]->(rds:AWSRDSInstance)
 RETURN *
 ```
-[test it locally](http://localhost:7474/browser/?preselectAuthMethod=NO_AUTH&db=neo4j&connectURL=bolt://neo4j:neo4j@localhost:7474&cmd=edit&arg=MATCH%20%28aws%3AAWSAccount%29-%5Br%3ARESOURCE%5D-%3E%28rds%3ARDSInstance%29%0ARETURN%20%2A)
+[test it locally](http://localhost:7474/browser/?preselectAuthMethod=NO_AUTH&db=neo4j&connectURL=bolt://neo4j:neo4j@localhost:7474&cmd=edit&arg=MATCH%20%28aws%3AAWSAccount%29-%5Br%3ARESOURCE%5D-%3E%28rds%3AAWSRDSInstance%29%0ARETURN%20%2A)
 
 ### Which RDS instances have [encryption](https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/Overview.Encryption.html) turned off?
 ```cypher
 MATCH (a:AWSAccount)-[:RESOURCE]->(rds:AWSRDSInstance{storage_encrypted:false})
 RETURN a.name, rds.id
 ```
-[test it locally](http://localhost:7474/browser/?preselectAuthMethod=NO_AUTH&db=neo4j&connectURL=bolt://neo4j:neo4j@localhost:7474&cmd=edit&arg=MATCH%20%28a%3AAWSAccount%29-%5B%3ARESOURCE%5D-%3E%28rds%3ARDSInstance%7Bstorage_encrypted%3Afalse%7D%29%0ARETURN%20a.name%2C%20rds.id)
+[test it locally](http://localhost:7474/browser/?preselectAuthMethod=NO_AUTH&db=neo4j&connectURL=bolt://neo4j:neo4j@localhost:7474&cmd=edit&arg=MATCH%20%28a%3AAWSAccount%29-%5B%3ARESOURCE%5D-%3E%28rds%3AAWSRDSInstance%7Bstorage_encrypted%3Afalse%7D%29%0ARETURN%20a.name%2C%20rds.id)
 
 ### Which [EC2](https://aws.amazon.com/ec2/) instances are exposed (directly or indirectly) to the internet?
 ```cypher
 MATCH (instance:AWSEC2Instance{exposed_internet: true})
 RETURN instance.instanceid, instance.publicdnsname
 ```
-[test it locally](http://localhost:7474/browser/?preselectAuthMethod=NO_AUTH&db=neo4j&connectURL=bolt://neo4j:neo4j@localhost:7474&cmd=edit&arg=MATCH%20%28instance%3AEC2Instance%7Bexposed_internet%3A%20true%7D%29%0ARETURN%20instance.instanceid%2C%20instance.publicdnsname)
+[test it locally](http://localhost:7474/browser/?preselectAuthMethod=NO_AUTH&db=neo4j&connectURL=bolt://neo4j:neo4j@localhost:7474&cmd=edit&arg=MATCH%20%28instance%3AAWSEC2Instance%7Bexposed_internet%3A%20true%7D%29%0ARETURN%20instance.instanceid%2C%20instance.publicdnsname)
 
 ### Which open ports are internet accesible from [SecurityGroups](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-security-groups.html)
 ```cypher
@@ -64,7 +64,7 @@ RETURN instance.instanceid, instance.publicdnsname
     WHERE open.scheme = "internet-facing"
     RETURN DISTINCT ipi.toport as port, open.id, sg.id
 ```
-[test it locally](http://localhost:7474/browser/?preselectAuthMethod=NO_AUTH&db=neo4j&connectURL=bolt://neo4j:neo4j@localhost:7474&cmd=edit&arg=MATCH%20%28open%29-%5B%3AMEMBER_OF_EC2_SECURITY_GROUP%5D-%3E%28sg%3AEC2SecurityGroup%29%0A%20%20%20%20MATCH%20%28sg%29%3C-%5B%3AMEMBER_OF_EC2_SECURITY_GROUP%5D-%28ipi%3AIpPermissionInbound%29%0A%20%20%20%20MATCH%20%28ipi%29%3C--%28ir%3AIpRange%29%0A%20%20%20%20WHERE%20ir.range%20%3D%20%220.0.0.0%2F0%22%0A%20%20%20%20OPTIONAL%20MATCH%20%28dns%3AAWSDNSRecord%29-%5B%3ADNS_POINTS_TO%5D-%3E%28lb%29%0A%20%20%20%20WHERE%20open.scheme%20%3D%20%22internet-facing%22%0A%20%20%20%20RETURN%20DISTINCT%20ipi.toport%20as%20port%2C%20open.id%2C%20sg.id)
+[test it locally](http://localhost:7474/browser/?preselectAuthMethod=NO_AUTH&db=neo4j&connectURL=bolt://neo4j:neo4j@localhost:7474&cmd=edit&arg=MATCH%20%28open%29-%5B%3AMEMBER_OF_EC2_SECURITY_GROUP%5D-%3E%28sg%3AAWSEC2SecurityGroup%29%0A%20%20%20%20MATCH%20%28sg%29%3C-%5B%3AMEMBER_OF_EC2_SECURITY_GROUP%5D-%28ipi%3AIpPermissionInbound%29%0A%20%20%20%20MATCH%20%28ipi%29%3C--%28ir%3AIpRange%29%0A%20%20%20%20WHERE%20ir.range%20%3D%20%220.0.0.0%2F0%22%0A%20%20%20%20OPTIONAL%20MATCH%20%28dns%3AAWSDNSRecord%29-%5B%3ADNS_POINTS_TO%5D-%3E%28lb%29%0A%20%20%20%20WHERE%20open.scheme%20%3D%20%22internet-facing%22%0A%20%20%20%20RETURN%20DISTINCT%20ipi.toport%20as%20port%2C%20open.id%2C%20sg.id)
 
 ### Which [ELB](https://aws.amazon.com/elasticloadbalancing/) LoadBalancers are internet accessible?
 ```cypher
@@ -72,7 +72,7 @@ MATCH (elb:LoadBalancer{exposed_internet: true})—->(listener:AWSELBListener)
 RETURN elb.dnsname, listener.port
 ORDER by elb.dnsname, listener.port
 ```
-[test it locally](http://localhost:7474/browser/?preselectAuthMethod=NO_AUTH&db=neo4j&connectURL=bolt://neo4j:neo4j@localhost:7474&cmd=edit&arg=MATCH%20%28elb%3ALoadBalancer%7Bexposed_internet%3A%20true%7D%29%E2%80%94-%3E%28listener%3AELBListener%29%0ARETURN%20elb.dnsname%2C%20listener.port%0AORDER%20by%20elb.dnsname%2C%20listener.port)
+[test it locally](http://localhost:7474/browser/?preselectAuthMethod=NO_AUTH&db=neo4j&connectURL=bolt://neo4j:neo4j@localhost:7474&cmd=edit&arg=MATCH%20%28elb%3ALoadBalancer%7Bexposed_internet%3A%20true%7D%29%E2%80%94-%3E%28listener%3AAWSELBListener%29%0ARETURN%20elb.dnsname%2C%20listener.port%0AORDER%20by%20elb.dnsname%2C%20listener.port)
 
 ### Which [ELBv2](https://aws.amazon.com/elasticloadbalancing/) AWSLoadBalancerV2s (Application Load Balancers) are internet accessible?
 ```cypher
@@ -80,7 +80,7 @@ MATCH (elbv2:AWSLoadBalancerV2{exposed_internet: true})—->(listener:AWSELBV2Li
 RETURN elbv2.dnsname, listener.port
 ORDER by elbv2.dnsname, listener.port
 ```
-[test it locally](http://localhost:7474/browser/?preselectAuthMethod=NO_AUTH&db=neo4j&connectURL=bolt://neo4j:neo4j@localhost:7474&cmd=edit&arg=MATCH%20%28elbv2%3AAWSLoadBalancerV2%7Bexposed_internet%3A%20true%7D%29%E2%80%94-%3E%28listener%3AELBV2Listener%29%0ARETURN%20elbv2.dnsname%2C%20listener.port%0AORDER%20by%20elbv2.dnsname%2C%20listener.port)
+[test it locally](http://localhost:7474/browser/?preselectAuthMethod=NO_AUTH&db=neo4j&connectURL=bolt://neo4j:neo4j@localhost:7474&cmd=edit&arg=MATCH%20%28elbv2%3AAWSLoadBalancerV2%7Bexposed_internet%3A%20true%7D%29%E2%80%94-%3E%28listener%3AAWSELBV2Listener%29%0ARETURN%20elbv2.dnsname%2C%20listener.port%0AORDER%20by%20elbv2.dnsname%2C%20listener.port)
 
 ### Which open ports are internet accesible from ELB or ELBv2?
 ```cypher
@@ -91,7 +91,7 @@ ORDER by elbv2.dnsname, listener.port
     WHERE lb.scheme = "internet-facing"
     RETURN DISTINCT lb.dnsname as dnsname, l.port as port
 ```
-[test it locally](http://localhost:7474/browser/?preselectAuthMethod=NO_AUTH&db=neo4j&connectURL=bolt://neo4j:neo4j@localhost:7474&cmd=edit&arg=MATCH%20%28elb%3ALoadBalancer%7Bexposed_internet%3A%20true%7D%29%E2%80%94-%3E%28listener%3AELBListener%29%0A%20%20%20%20RETURN%20DISTINCT%20elb.dnsname%20as%20dnsname%2C%20listener.port%20as%20port%20%0A%20%20%20%20UNION%0A%20%20%20%20MATCH%20%28lb%3AAWSLoadBalancerV2%29-%5B%3AELBV2_LISTENER%5D-%3E%28l%3AELBV2Listener%29%0A%20%20%20%20WHERE%20lb.scheme%20%3D%20%22internet-facing%22%0A%20%20%20%20RETURN%20DISTINCT%20lb.dnsname%20as%20dnsname%2C%20l.port%20as%20port)
+[test it locally](http://localhost:7474/browser/?preselectAuthMethod=NO_AUTH&db=neo4j&connectURL=bolt://neo4j:neo4j@localhost:7474&cmd=edit&arg=MATCH%20%28elb%3ALoadBalancer%7Bexposed_internet%3A%20true%7D%29%E2%80%94-%3E%28listener%3AAWSELBListener%29%0A%20%20%20%20RETURN%20DISTINCT%20elb.dnsname%20as%20dnsname%2C%20listener.port%20as%20port%20%0A%20%20%20%20UNION%0A%20%20%20%20MATCH%20%28lb%3AAWSLoadBalancerV2%29-%5B%3AELBV2_LISTENER%5D-%3E%28l%3AAWSELBV2Listener%29%0A%20%20%20%20WHERE%20lb.scheme%20%3D%20%22internet-facing%22%0A%20%20%20%20RETURN%20DISTINCT%20lb.dnsname%20as%20dnsname%2C%20l.port%20as%20port)
 
 ### Find everything about an IP Address
 ```cypher
@@ -111,7 +111,7 @@ UNION MATCH(n:AWSElasticIPAddress)-[r]-(n2)
 WHERE n.public_ip = $neodash_ip
 RETURN n, r, n2
 ```
-[test it locally](http://localhost:7474/browser/?preselectAuthMethod=NO_AUTH&db=neo4j&connectURL=bolt://neo4j:neo4j@localhost:7474&cmd=edit&arg=MATCH%20%28n%3AEC2PrivateIp%29-%5Br%5D-%28n2%29%0AWHERE%20n.public_ip%20%3D%20%24neodash_ip%0ARETURN%20n%2C%20r%2C%20n2%0A%0AUNION%20MATCH%28n%3AEC2Instance%29-%5Br%5D-%28n2%29%0AWHERE%20n.publicipaddress%20%3D%20%24neodash_ip%0ARETURN%20%20n%2C%20r%2C%20n2%0A%0AUNION%20MATCH%28n%3ANetworkInterface%29-%5Br%5D-%28n2%29%0AWHERE%20n.public_ip%20%3D%20%24neodash_ip%0ARETURN%20n%2C%20r%2C%20n2%0A%0AUNION%20MATCH%28n%3AElasticIPAddress%29-%5Br%5D-%28n2%29%0AWHERE%20n.public_ip%20%3D%20%24neodash_ip%0ARETURN%20n%2C%20r%2C%20n2)
+[test it locally](http://localhost:7474/browser/?preselectAuthMethod=NO_AUTH&db=neo4j&connectURL=bolt://neo4j:neo4j@localhost:7474&cmd=edit&arg=MATCH%20%28n%3AAWSEC2PrivateIp%29-%5Br%5D-%28n2%29%0AWHERE%20n.public_ip%20%3D%20%24neodash_ip%0ARETURN%20n%2C%20r%2C%20n2%0A%0AUNION%20MATCH%28n%3AAWSEC2Instance%29-%5Br%5D-%28n2%29%0AWHERE%20n.publicipaddress%20%3D%20%24neodash_ip%0ARETURN%20%20n%2C%20r%2C%20n2%0A%0AUNION%20MATCH%28n%3AAWSNetworkInterface%29-%5Br%5D-%28n2%29%0AWHERE%20n.public_ip%20%3D%20%24neodash_ip%0ARETURN%20n%2C%20r%2C%20n2%0A%0AUNION%20MATCH%28n%3AAWSElasticIPAddress%29-%5Br%5D-%28n2%29%0AWHERE%20n.public_ip%20%3D%20%24neodash_ip%0ARETURN%20n%2C%20r%2C%20n2)
 
 ### Which [S3](https://aws.amazon.com/s3/) buckets have a policy granting any level of anonymous access to the bucket?
 ```cypher
@@ -119,7 +119,7 @@ MATCH (s:AWSS3Bucket)
 WHERE s.anonymous_access = true
 RETURN s
 ```
-[test it locally](http://localhost:7474/browser/?preselectAuthMethod=NO_AUTH&db=neo4j&connectURL=bolt://neo4j:neo4j@localhost:7474&cmd=edit&arg=MATCH%20%28s%3AS3Bucket%29%0AWHERE%20s.anonymous_access%20%3D%20true%0ARETURN%20s)
+[test it locally](http://localhost:7474/browser/?preselectAuthMethod=NO_AUTH&db=neo4j&connectURL=bolt://neo4j:neo4j@localhost:7474&cmd=edit&arg=MATCH%20%28s%3AAWSS3Bucket%29%0AWHERE%20s.anonymous_access%20%3D%20true%0ARETURN%20s)
 
 ### How many unencrypted RDS instances do I have in all my AWS accounts?
 
@@ -128,7 +128,7 @@ MATCH (a:AWSAccount)-[:RESOURCE]->(rds:AWSRDSInstance)
 WHERE rds.storage_encrypted = false
 RETURN a.name as AWSAccount, count(rds) as UnencryptedInstances
 ```
-[test it locally](http://localhost:7474/browser/?preselectAuthMethod=NO_AUTH&db=neo4j&connectURL=bolt://neo4j:neo4j@localhost:7474&cmd=edit&arg=MATCH%20%28a%3AAWSAccount%29-%5B%3ARESOURCE%5D-%3E%28rds%3ARDSInstance%29%0AWHERE%20rds.storage_encrypted%20%3D%20false%0ARETURN%20a.name%20as%20AWSAccount%2C%20count%28rds%29%20as%20UnencryptedInstances)
+[test it locally](http://localhost:7474/browser/?preselectAuthMethod=NO_AUTH&db=neo4j&connectURL=bolt://neo4j:neo4j@localhost:7474&cmd=edit&arg=MATCH%20%28a%3AAWSAccount%29-%5B%3ARESOURCE%5D-%3E%28rds%3AAWSRDSInstance%29%0AWHERE%20rds.storage_encrypted%20%3D%20false%0ARETURN%20a.name%20as%20AWSAccount%2C%20count%28rds%29%20as%20UnencryptedInstances)
 
 ### What languages are used in a given GitHub repository?
 ```cypher

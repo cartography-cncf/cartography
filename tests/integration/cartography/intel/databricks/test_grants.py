@@ -1,6 +1,9 @@
 from unittest.mock import Mock
 from unittest.mock import patch
 
+import pytest
+import requests
+
 import cartography.intel.databricks.grants
 import cartography.intel.databricks.groups
 import cartography.intel.databricks.service_principals
@@ -73,7 +76,7 @@ def _seed_tables(neo4j_session):
 @patch.object(
     cartography.intel.databricks.grants,
     "get",
-    return_value=DATABRICKS_GRANTS,
+    return_value=(DATABRICKS_GRANTS, True),
 )
 def test_load_databricks_grants(mock_get, neo4j_session):
     api_session = Mock()
@@ -127,3 +130,112 @@ def test_load_databricks_grants(mock_get, neo4j_session):
         "HAS_PRIVILEGE",
         rel_direction_right=True,
     ) == {("abcd1234-5678-90ab-cdef-1234567890ab", _uc_id("prod.finance"))}
+
+
+def _http_error(status_code):
+    response = Mock(spec=requests.Response)
+    response.status_code = status_code
+    return requests.HTTPError(response=response)
+
+
+def test_grants_get_skips_system_registered_model_keeps_complete():
+    """A 400 on a `system`-catalog registered_model is the known non-grantable
+    case: it is skipped, the remaining securables still load their grants, and
+    the read stays complete (it has no HAS_PRIVILEGE edges, so cleanup may run)."""
+    securables = [
+        {
+            "id": _uc_id("system.ai.model"),
+            "full_name": "system.ai.model",
+            "securable_type": "registered_model",
+        },
+        {
+            "id": _uc_id("prod"),
+            "full_name": "prod",
+            "securable_type": "catalog",
+        },
+    ]
+    api_session = Mock()
+    api_session.uc_list.side_effect = [
+        _http_error(400),
+        [{"principal": "jeremy@subimage.io", "privileges": ["USE_CATALOG"]}],
+    ]
+
+    grants, complete = cartography.intel.databricks.grants.get(api_session, securables)
+
+    assert complete is True
+    assert grants == [
+        {
+            "principal": "jeremy@subimage.io",
+            "securable_id": _uc_id("prod"),
+            "privileges": ["USE_CATALOG"],
+        }
+    ]
+
+
+def test_grants_get_unexpected_400_propagates():
+    """A 400 on a securable that is NOT the known non-grantable case (e.g. a
+    real catalog that may already hold grants) is a genuine BAD_REQUEST: it must
+    abort rather than be swallowed and silently disable cleanup."""
+    securables = [
+        {
+            "id": _uc_id("prod"),
+            "full_name": "prod",
+            "securable_type": "catalog",
+        },
+    ]
+    api_session = Mock()
+    api_session.uc_list.side_effect = _http_error(400)
+
+    with pytest.raises(requests.HTTPError):
+        cartography.intel.databricks.grants.get(api_session, securables)
+
+
+def test_grants_get_forbidden_securable_flags_incomplete():
+    """A 403/404 securable may hold grants we could not read, so the read is
+    flagged incomplete (so the caller skips cleanup) while the remaining
+    securables still load their grants."""
+    securables = [
+        {
+            "id": _uc_id("locked"),
+            "full_name": "locked",
+            "securable_type": "catalog",
+        },
+        {
+            "id": _uc_id("prod"),
+            "full_name": "prod",
+            "securable_type": "catalog",
+        },
+    ]
+    api_session = Mock()
+    api_session.uc_list.side_effect = [
+        _http_error(403),
+        [{"principal": "jeremy@subimage.io", "privileges": ["USE_CATALOG"]}],
+    ]
+
+    grants, complete = cartography.intel.databricks.grants.get(api_session, securables)
+
+    assert complete is False
+    assert grants == [
+        {
+            "principal": "jeremy@subimage.io",
+            "securable_id": _uc_id("prod"),
+            "privileges": ["USE_CATALOG"],
+        }
+    ]
+
+
+def test_grants_get_other_http_error_propagates():
+    """A non-skippable status (e.g. 500) must abort so cleanup never runs on
+    partial data."""
+    securables = [
+        {
+            "id": _uc_id("prod"),
+            "full_name": "prod",
+            "securable_type": "catalog",
+        },
+    ]
+    api_session = Mock()
+    api_session.uc_list.side_effect = _http_error(500)
+
+    with pytest.raises(requests.HTTPError):
+        cartography.intel.databricks.grants.get(api_session, securables)

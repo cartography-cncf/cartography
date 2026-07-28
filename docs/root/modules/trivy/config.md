@@ -11,6 +11,9 @@ running the Trivy module. For AWS ECR:
 cartography --selected-modules aws --aws-requested-syncs ecr
 ```
 
+Trivy scans ECR repository images, while Cartography attaches findings to
+their underlying `AWSECRImage` nodes.
+
 ## Required Permissions
 
 When scanning AWS ECR, the machine running Trivy needs these permissions:

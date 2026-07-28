@@ -10,6 +10,7 @@ from requests import Session
 from requests.exceptions import ChunkedEncodingError
 
 from cartography.intel.cve.feed import _call_cves_api
+from cartography.intel.cve.feed import _get_primary_metric
 from cartography.intel.cve.feed import _map_cve_dict
 from cartography.intel.cve.feed import get_cves_in_batches
 from cartography.intel.cve.feed import get_modified_cves
@@ -256,3 +257,29 @@ def test_get_published_cves_per_year(mock_call_cves_api: Mock, mock_session: Ses
     # Assert
     assert mock_call_cves_api.call_count == 4
     assert cves == expected_cves
+
+
+def test_get_primary_metric_returns_primary_when_present():
+    metrics = [
+        {"type": "Secondary", "source": "a"},
+        {"type": "Primary", "source": "b"},
+    ]
+    assert _get_primary_metric(metrics) == {"type": "Primary", "source": "b"}
+
+
+def test_get_primary_metric_falls_back_to_first_when_no_primary():
+    metrics = [
+        {"type": "Secondary", "source": "a"},
+        {"type": "Secondary", "source": "b"},
+    ]
+    assert _get_primary_metric(metrics) == {"type": "Secondary", "source": "a"}
+
+
+def test_get_primary_metric_returns_none_for_empty_list():
+    # NVD can return a CVSS version key mapped to an empty list; falling back to
+    # metrics[0] would raise IndexError and abort the whole CVE sync.
+    assert _get_primary_metric([]) is None
+
+
+def test_get_primary_metric_returns_none_for_none():
+    assert _get_primary_metric(None) is None

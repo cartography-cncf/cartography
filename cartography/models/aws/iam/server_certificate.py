@@ -9,6 +9,7 @@ from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import TargetNodeMatcher
+from cartography.models.ontology.labels import CERTIFICATE
 
 
 @dataclass(frozen=True)
@@ -70,7 +71,7 @@ class AWSServerCertificateSchema(CartographyNodeSchema):
     "Represents an `AWSServerCertificate` node in the AWS graph."
 
     label: str = "AWSServerCertificate"
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["Certificate"])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([CERTIFICATE])
     properties: AWSServerCertificateNodeProperties = (
         AWSServerCertificateNodeProperties()
     )

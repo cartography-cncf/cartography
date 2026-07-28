@@ -18,10 +18,16 @@ class GCPFullNameMapping:
 # More specific nested resource markers must precede their parents.
 GCP_FULL_NAME_MAPPINGS: tuple[GCPFullNameMapping, ...] = (
     GCPFullNameMapping(
-        "//cloudresourcemanager.googleapis.com/", "projects", "GCPProject", "last_segment"
+        "//cloudresourcemanager.googleapis.com/",
+        "projects",
+        "GCPProject",
+        "last_segment",
     ),
     GCPFullNameMapping(
-        "//cloudresourcemanager.googleapis.com/", "folders", "GCPFolder", "type_prefixed"
+        "//cloudresourcemanager.googleapis.com/",
+        "folders",
+        "GCPFolder",
+        "type_prefixed",
     ),
     GCPFullNameMapping(
         "//cloudresourcemanager.googleapis.com/",

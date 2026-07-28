@@ -10,6 +10,8 @@ from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import TargetNodeMatcher
+from cartography.models.ontology.labels import CVE
+from cartography.models.ontology.labels import SECURITY_ISSUE
 
 
 @dataclass(frozen=True)
@@ -58,6 +60,15 @@ class SemgrepSCAFindingNodeProperties(CartographyNodeProperties):
         "cveId",
         extra_index=True,
         description="CVE identifier associated with the vulnerability.",
+    )
+    ghsa_id: PropertyRef = PropertyRef(
+        "ghsaId",
+        extra_index=True,
+        description="GHSA advisory identifier when the finding is not CVE-backed.",
+    )
+    has_cve: PropertyRef = PropertyRef(
+        "has_cve",
+        description="Whether cve_id contains a valid CVE identifier.",
     )
     reachability_check: PropertyRef = PropertyRef(
         "reachability",
@@ -246,7 +257,16 @@ class SemgrepSCAFindingSchema(CartographyNodeSchema):
     """A dependency vulnerability discovered by Semgrep Supply Chain."""
 
     label: str = "SemgrepSCAFinding"
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["SecurityIssue"])
+    # An SCA finding is either CVE-backed or an advisory-only security issue, never
+    # both, so both labels are conditional and mutually exclusive on has_cve. This
+    # mirrors AWSInspectorFinding (PACKAGE_VULNERABILITY -> CVE vs
+    # NETWORK_REACHABILITY -> SecurityIssue).
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
+        [
+            SECURITY_ISSUE.when(has_cve="false"),
+            CVE.when(has_cve="true"),
+        ],
+    )
     properties: SemgrepSCAFindingNodeProperties = SemgrepSCAFindingNodeProperties()
     sub_resource_relationship: SemgrepSCAFindingToSemgrepDeploymentRel = (
         SemgrepSCAFindingToSemgrepDeploymentRel()

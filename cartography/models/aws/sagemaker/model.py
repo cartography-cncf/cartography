@@ -10,6 +10,7 @@ from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import TargetNodeMatcher
+from cartography.models.ontology.labels import AI_MODEL
 
 
 @dataclass(frozen=True)
@@ -149,7 +150,7 @@ class AWSSageMakerModelSchema(CartographyNodeSchema):
     "Represents an `AWSSageMakerModel` node in the AWS graph."
 
     label: str = "AWSSageMakerModel"
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["AIModel"])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([AI_MODEL])
     properties: AWSSageMakerModelNodeProperties = AWSSageMakerModelNodeProperties()
     sub_resource_relationship: AWSSageMakerModelToAWSAccountRel = (
         AWSSageMakerModelToAWSAccountRel()

@@ -78,7 +78,7 @@ SCALEWAY_DEDIBOX_SERVERS = [
         hostname="dedibox-demo",
         offer_id=678,
         offer_name="Start-1-M-SATA",
-        status="active",
+        status="ready",
         interfaces=[
             NetworkInterface(
                 card_id=1,

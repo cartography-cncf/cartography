@@ -10,6 +10,7 @@ from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import TargetNodeMatcher
+from cartography.models.ontology.labels import DATABASE
 
 
 @dataclass(frozen=True)
@@ -64,7 +65,7 @@ class AzureCosmosDBSqlDatabaseToSubscriptionRel(CartographyRelSchema):
 @dataclass(frozen=True)
 class AzureCosmosDBSqlDatabaseSchema(CartographyNodeSchema):
     label: str = "AzureCosmosDBSqlDatabase"
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["Database"])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([DATABASE])
     properties: AzureCosmosDBSqlDatabaseProperties = (
         AzureCosmosDBSqlDatabaseProperties()
     )

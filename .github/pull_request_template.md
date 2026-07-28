@@ -32,7 +32,7 @@
 ### Checklist
 
 #### General
-- [ ] I have read the [contributing guidelines](https://cartography-cncf.github.io/cartography/dev/developer-guide.html).
+- [ ] I have read the [contributing guidelines](https://docs.cartography.dev/dev/developer-guide.html).
 - [ ] The linter passes locally (`make test_lint`).
 - [ ] I have added/updated tests that prove my fix is effective or my feature works.
 
@@ -56,7 +56,7 @@
 - [ ] Updated the [schema README](https://github.com/cartography-cncf/cartography/blob/master/docs/schema/README.md).
 
 #### If you are implementing a new intel module
-- [ ] Used the NodeSchema [data model](https://cartography-cncf.github.io/cartography/dev/writing-intel-modules.html#defining-a-node).
+- [ ] Used the NodeSchema [data model](https://docs.cartography.dev/dev/writing-intel-modules.html#defining-a-node).
 
 
 ### Notes for reviewers

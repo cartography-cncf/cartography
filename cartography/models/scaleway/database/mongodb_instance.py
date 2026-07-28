@@ -10,6 +10,7 @@ from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import TargetNodeMatcher
+from cartography.models.ontology.labels import DATABASE
 
 
 @dataclass(frozen=True)
@@ -114,7 +115,7 @@ class ScalewayMongoDBInstanceSchema(CartographyNodeSchema):
     """Represents a managed MongoDB instance (Scaleway "Managed Database for MongoDB")."""
 
     label: str = "ScalewayMongoDBInstance"
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["Database"])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([DATABASE])
     properties: ScalewayMongoDBInstanceProperties = ScalewayMongoDBInstanceProperties()
     sub_resource_relationship: ScalewayMongoDBInstanceToProjectRel = (
         ScalewayMongoDBInstanceToProjectRel()

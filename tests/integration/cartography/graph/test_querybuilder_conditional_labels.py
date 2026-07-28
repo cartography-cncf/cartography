@@ -1,5 +1,5 @@
 """
-Integration tests for ConditionalNodeLabel feature.
+Integration tests for conditional ExtraNodeLabel declarations.
 
 These tests verify that conditional labels are correctly applied to nodes
 based on their property values during the load() operation.

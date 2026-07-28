@@ -148,6 +148,11 @@ class CVEMetadataToCVERelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 # (:CVEMetadata)-[:ENRICHES]->(:CVE)
+# Matches every node carrying the :CVE label with a matching cve_id: the deprecated
+# CVE node plus all finding nodes that now carry the :CVE semantic label (e.g.
+# AWSInspectorFinding, SemgrepSCAFinding, TrivyImageFinding). Findings that load
+# after cve_metadata in a given sync are enriched on the next run; stale edges are
+# pruned by lastupdated cleanup.
 class CVEMetadataToCVERel(CartographyRelSchema):
     """CVE metadata enriches its corresponding CVE."""
 

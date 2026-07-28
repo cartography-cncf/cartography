@@ -10,6 +10,7 @@ from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import TargetNodeMatcher
+from cartography.models.ontology.labels import COMPUTE_SERVICE
 
 
 @dataclass(frozen=True)
@@ -124,7 +125,7 @@ class GCPCloudRunServiceSchema(CartographyNodeSchema):
     """Representation of a GCP [Cloud Run Service](https://cloud.google.com/run/docs/reference/rest/v2/projects.locations.services)."""
 
     label: str = "GCPCloudRunService"
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["ComputeService"])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([COMPUTE_SERVICE])
     properties: GCPCloudRunServiceProperties = GCPCloudRunServiceProperties()
     sub_resource_relationship: ProjectToCloudRunServiceRel = (
         ProjectToCloudRunServiceRel()

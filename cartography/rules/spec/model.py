@@ -1,5 +1,6 @@
 import json
 import logging
+import re
 from dataclasses import dataclass
 from dataclasses import field
 from enum import Enum
@@ -276,18 +277,43 @@ class Fact:
     """
     identity_fields: tuple[str, ...]
     """Output-model field(s) forming the stable logical identity of a finding across syncs; must exist on the output model and be returned by ``cypher_query``, and are distinct from volatile display fields and from ``asset_id_field`` (which only drives the compliance failing-count). Required with no default: a Fact that omits it fails to construct, forcing every rule to declare a stable identity explicitly."""
+    asset_label: str
+    """
+    The Neo4j node label of the single asset this Fact is about (e.g. ``KubernetesPod``,
+    ``AWSEC2Instance``). Together with the value of ``asset_id_field`` it forms an indexable
+    ``(label, id)`` anchor on the affected node, letting consumers locate that node in the
+    graph without inferring the label from a field name. Required with no default: a Fact
+    that omits it fails to construct.
+    """
     asset_id_field: str | None = None
     """
-    The field name in the output model that uniquely identifies an asset.
-    When set, failing count is computed as the count of distinct values of this field
-    rather than the total number of finding rows. This is needed when a single asset
-    can produce multiple finding rows (e.g., one security group with multiple violating rules).
+    The output-model field whose value is the ``.id`` of the ``asset_label`` node, i.e. the
+    id half of the ``(label, id)`` anchor. Also drives the compliance failing-count: when set,
+    the failing count is the number of distinct values of this field rather than the total
+    number of finding rows. This matters when a single asset can produce multiple finding
+    rows (e.g., one security group with multiple violating rules). Must be returned by
+    ``cypher_query`` via ``... AS <name>``.
     """
 
     def __post_init__(self) -> None:
         if not self.identity_fields:
             raise ValueError(
                 f"Fact '{self.id}' must declare a non-empty identity_fields tuple."
+            )
+        if not self.asset_label:
+            raise ValueError(f"Fact '{self.id}' must declare a non-empty asset_label.")
+        if not self.asset_id_field:
+            raise ValueError(
+                f"Fact '{self.id}' must declare asset_id_field: it is the id half of "
+                f"the (asset_label, id) anchor."
+            )
+        returned_aliases = set(
+            re.findall(r"\bAS\s+(\w+)", self.cypher_query, re.IGNORECASE)
+        )
+        if self.asset_id_field not in returned_aliases:
+            raise ValueError(
+                f"Fact '{self.id}' asset_id_field '{self.asset_id_field}' is not returned "
+                f"by its cypher_query (expected a '... AS {self.asset_id_field}' alias)."
             )
 
 

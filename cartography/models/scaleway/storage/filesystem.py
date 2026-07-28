@@ -9,6 +9,7 @@ from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import TargetNodeMatcher
+from cartography.models.ontology.labels import FILE_STORAGE
 
 
 @dataclass(frozen=True)
@@ -68,7 +69,7 @@ class ScalewayFileSystemSchema(CartographyNodeSchema):
 
     label: str = "ScalewayFileSystem"
     # FileStorage label is used for cross-provider ontology mapping.
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["FileStorage"])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([FILE_STORAGE])
     properties: ScalewayFileSystemProperties = ScalewayFileSystemProperties()
     sub_resource_relationship: ScalewayFileSystemToProjectRel = (
         ScalewayFileSystemToProjectRel()

@@ -4,8 +4,9 @@ from typing import Optional
 from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeProperties
 from cartography.models.core.nodes import CartographyNodeSchema
-from cartography.models.core.nodes import ConditionalNodeLabel
+from cartography.models.core.nodes import ExtraNodeLabel
 from cartography.models.core.nodes import ExtraNodeLabels
+from cartography.models.core.nodes import LabelKind
 from cartography.models.core.relationships import CartographyRelProperties
 from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
@@ -22,6 +23,51 @@ class ContainerImageProperties(CartographyNodeProperties):
     digest: PropertyRef = PropertyRef("digest")
     image_type: PropertyRef = PropertyRef("image_type")
     repository: PropertyRef = PropertyRef("repository")
+
+
+RESOURCE = ExtraNodeLabel(
+    label="Resource",
+    description="A generic resource used in query-builder tests.",
+)
+
+
+IMAGE = ExtraNodeLabel(
+    label="Image",
+    description="A container image used in query-builder tests.",
+    kind=LabelKind.ONTOLOGY,
+)
+
+
+IMAGE_ATTESTATION = ExtraNodeLabel(
+    label="ImageAttestation",
+    description="A container-image attestation used in query-builder tests.",
+    kind=LabelKind.ONTOLOGY,
+)
+
+
+IMAGE_MANIFEST_LIST = ExtraNodeLabel(
+    label="ImageManifestList",
+    description="A multi-platform image manifest used in query-builder tests.",
+    kind=LabelKind.ONTOLOGY,
+)
+
+
+SECURITY_FINDING = ExtraNodeLabel(
+    label="SecurityFinding",
+    description="A generic security finding used in query-builder tests.",
+)
+
+
+CRITICAL = ExtraNodeLabel(
+    label="Critical",
+    description="A critical finding used in query-builder tests.",
+)
+
+
+URGENT = ExtraNodeLabel(
+    label="Urgent",
+    description="An urgent finding used in query-builder tests.",
+)
 
 
 @dataclass(frozen=True)
@@ -59,19 +105,10 @@ class ContainerImageSchema(CartographyNodeSchema):
     )
     extra_node_labels: Optional[ExtraNodeLabels] = ExtraNodeLabels(
         [
-            "Resource",  # Unconditional label applied to all nodes
-            ConditionalNodeLabel(
-                label="Image",
-                conditions={"image_type": "IMAGE"},
-            ),
-            ConditionalNodeLabel(
-                label="ImageAttestation",
-                conditions={"image_type": "IMAGE_ATTESTATION"},
-            ),
-            ConditionalNodeLabel(
-                label="ImageManifestList",
-                conditions={"image_type": "IMAGE_MANIFEST_LIST"},
-            ),
+            RESOURCE,
+            IMAGE.when(image_type="IMAGE"),
+            IMAGE_ATTESTATION.when(image_type="IMAGE_ATTESTATION"),
+            IMAGE_MANIFEST_LIST.when(image_type="IMAGE_MANIFEST_LIST"),
         ],
     )
 
@@ -87,15 +124,9 @@ class ContainerImageSchemaNoSubResource(CartographyNodeSchema):
     properties: ContainerImageProperties = ContainerImageProperties()
     extra_node_labels: Optional[ExtraNodeLabels] = ExtraNodeLabels(
         [
-            "Resource",
-            ConditionalNodeLabel(
-                label="Image",
-                conditions={"image_type": "IMAGE"},
-            ),
-            ConditionalNodeLabel(
-                label="ImageAttestation",
-                conditions={"image_type": "IMAGE_ATTESTATION"},
-            ),
+            RESOURCE,
+            IMAGE.when(image_type="IMAGE"),
+            IMAGE_ATTESTATION.when(image_type="IMAGE_ATTESTATION"),
         ],
     )
     scoped_cleanup: bool = False
@@ -122,15 +153,9 @@ class VulnerabilitySchema(CartographyNodeSchema):
     properties: VulnerabilityProperties = VulnerabilityProperties()
     extra_node_labels: Optional[ExtraNodeLabels] = ExtraNodeLabels(
         [
-            "SecurityFinding",  # Unconditional label
-            ConditionalNodeLabel(
-                label="Critical",
-                conditions={"severity": "critical"},
-            ),
-            ConditionalNodeLabel(
-                label="Urgent",
-                conditions={"severity": "critical", "is_exploitable": "true"},
-            ),
+            SECURITY_FINDING,
+            CRITICAL.when(severity="critical"),
+            URGENT.when(severity="critical", is_exploitable="true"),
         ],
     )
     scoped_cleanup: bool = False

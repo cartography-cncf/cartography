@@ -10,6 +10,7 @@ from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import TargetNodeMatcher
+from cartography.models.ontology.labels import DATABASE
 
 
 @dataclass(frozen=True)
@@ -111,7 +112,7 @@ class ScalewayRedisClusterSchema(CartographyNodeSchema):
     """Represents a managed Redis cluster (Scaleway "Managed Database for Redis")."""
 
     label: str = "ScalewayRedisCluster"
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["Database"])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([DATABASE])
     properties: ScalewayRedisClusterProperties = ScalewayRedisClusterProperties()
     sub_resource_relationship: ScalewayRedisClusterToProjectRel = (
         ScalewayRedisClusterToProjectRel()

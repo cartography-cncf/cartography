@@ -11,6 +11,7 @@ from cartography.models.core.relationships import make_source_node_matcher
 from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import SourceNodeMatcher
 from cartography.models.core.relationships import TargetNodeMatcher
+from cartography.models.ontology.labels import THIRD_PARTY_APP
 
 
 @dataclass(frozen=True)
@@ -126,7 +127,7 @@ class GoogleWorkspaceOAuthAppSchema(CartographyNodeSchema):
     """An authorized OAuth app with the canonical ThirdPartyApp label."""
 
     label: str = "GoogleWorkspaceOAuthApp"
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["ThirdPartyApp"])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([THIRD_PARTY_APP])
     properties: GoogleWorkspaceOAuthAppNodeProperties = (
         GoogleWorkspaceOAuthAppNodeProperties()
     )

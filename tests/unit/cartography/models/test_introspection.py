@@ -16,7 +16,7 @@ from cartography.models.aws.ec2.instances import EC2InstanceSchema
 from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeProperties
 from cartography.models.core.nodes import CartographyNodeSchema
-from cartography.models.core.nodes import ConditionalNodeLabel
+from cartography.models.core.nodes import ExtraNodeLabel
 from cartography.models.core.nodes import ExtraNodeLabels
 from cartography.models.core.relationships import CartographyRelProperties
 from cartography.models.core.relationships import CartographyRelSchema
@@ -103,8 +103,14 @@ class SampleNodeSchema(CartographyNodeSchema):
     properties: SampleNodeProperties = SampleNodeProperties()
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
         [
-            "Sample",
-            ConditionalNodeLabel("ActiveSample", {"active": "true"}),
+            ExtraNodeLabel(
+                label="Sample",
+                description="A sample shared graph interface.",
+            ),
+            ExtraNodeLabel(
+                label="ActiveSample",
+                description="An active sample shared graph interface.",
+            ).when(active="true"),
         ]
     )
     sub_resource_relationship: SampleNodeToTenantRel = SampleNodeToTenantRel()
@@ -225,6 +231,17 @@ def test_build_data_model_introspects_nodes_properties_and_relationships():
     assert node.descriptions == ("A node used to verify runtime model introspection.",)
     assert node.extra_labels == ("Sample",)
     assert tuple(label.label for label in node.conditional_labels) == ("ActiveSample",)
+    assert {
+        (definition.label, definition.description, definition.conditions)
+        for definition in node.label_definitions
+    } == {
+        ("Sample", "A sample shared graph interface.", ()),
+        (
+            "ActiveSample",
+            "An active sample shared graph interface.",
+            (("active", "true"),),
+        ),
+    }
 
     email = node.get_property("email")
     assert email is not None
@@ -368,6 +385,9 @@ def test_build_data_model_exposes_ontology_catalog_metadata():
     }
     compute_instance = semantic_labels["ComputeInstance"]
     assert "AWSEC2Instance" in compute_instance.concrete_node_labels
+    assert compute_instance.descriptions == (
+        "A cross-provider ComputeInstance resource in Cartography's ontology.",
+    )
     assert {prop.name for prop in compute_instance.properties} >= {
         "_ont_name",
         "_ont_public_ip_address",

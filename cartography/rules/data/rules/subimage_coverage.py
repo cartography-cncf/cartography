@@ -22,7 +22,7 @@ _subimage_module_not_configured_fact = Fact(
     WHERE m.is_configured = false
     MATCH (app:ThirdPartyApp)
     WHERE toLower(app._ont_name) = toLower(m.id)
-    RETURN m.name AS module_name, app._ont_name AS app_name, app._ont_source AS app_source
+    RETURN m.id AS module_id, m.name AS module_name, app._ont_name AS app_name, app._ont_source AS app_source
     ORDER BY m.name
     """,
     cypher_visual_query="""
@@ -37,8 +37,10 @@ _subimage_module_not_configured_fact = Fact(
     WHERE m.is_configured = false
     MATCH (app:ThirdPartyApp)
     WHERE toLower(app._ont_name) = toLower(m.id)
-    RETURN count(m) AS count
+    RETURN count(DISTINCT m) AS count
     """,
+    asset_label="SubImageModule",
+    asset_id_field="module_id",
     identity_fields=("module_name", "app_name", "app_source"),
     module=Module.SUBIMAGE,
     maturity=Maturity.EXPERIMENTAL,
@@ -46,6 +48,7 @@ _subimage_module_not_configured_fact = Fact(
 
 
 class SubImageModuleNotConfiguredOutput(Finding):
+    module_id: str | None = None
     module_name: str | None = None
     app_name: str | None = None
     app_source: str | None = None
@@ -86,7 +89,7 @@ _subimage_framework_disabled_module_enabled_fact = Fact(
     WHERE f.enabled = false
     MATCH (m:SubImageModule)
     WHERE m.is_configured = true AND f.scope = m.id
-    RETURN f.name AS framework_name, f.scope AS framework_scope, m.name AS module_name
+    RETURN f.id AS framework_id, f.name AS framework_name, f.scope AS framework_scope, m.name AS module_name
     ORDER BY f.name
     """,
     cypher_visual_query="""
@@ -103,6 +106,8 @@ _subimage_framework_disabled_module_enabled_fact = Fact(
     WHERE m.is_configured = true AND f.scope = m.id
     RETURN count(f) AS count
     """,
+    asset_label="SubImageFramework",
+    asset_id_field="framework_id",
     identity_fields=("framework_name", "framework_scope"),
     module=Module.SUBIMAGE,
     maturity=Maturity.EXPERIMENTAL,
@@ -110,6 +115,7 @@ _subimage_framework_disabled_module_enabled_fact = Fact(
 
 
 class SubImageFrameworkDisabledModuleEnabledOutput(Finding):
+    framework_id: str | None = None
     framework_name: str | None = None
     framework_scope: str | None = None
     module_name: str | None = None
@@ -179,6 +185,8 @@ _container_image_not_found_fact = Fact(
       AND NOT coalesce(c.namespace, '') IN ['kube-system', 'calico-system', 'tigera-operator']
     RETURN count(c) AS count
     """,
+    asset_label="Container",
+    asset_id_field="container_id",
     identity_fields=("container_id",),
     module=Module.CROSS_CLOUD,
     maturity=Maturity.EXPERIMENTAL,
@@ -257,6 +265,8 @@ _aws_account_not_synced_fact = Fact(
     WHERE resource_count <= 1 AND coalesce(a.inscope, false) = true
     RETURN count(a) AS count
     """,
+    asset_label="AWSAccount",
+    asset_id_field="account_id",
     identity_fields=("account_id",),
     module=Module.AWS,
     maturity=Maturity.EXPERIMENTAL,
@@ -325,6 +335,8 @@ _repository_without_slsa_provenance_fact = Fact(
     WHERE r.match_method <> 'provenance'
     RETURN count(DISTINCT repo) AS count
     """,
+    asset_label="CodeRepository",
+    asset_id_field="repo_id",
     identity_fields=("repo_id",),
     module=Module.SUBIMAGE,
     maturity=Maturity.EXPERIMENTAL,

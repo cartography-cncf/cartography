@@ -1,0 +1,122 @@
+from dataclasses import dataclass
+
+from cartography.models.core.common import PropertyRef
+from cartography.models.core.nodes import CartographyNodeProperties
+from cartography.models.core.nodes import CartographyNodeSchema
+from cartography.models.core.relationships import CartographyRelProperties
+from cartography.models.core.relationships import CartographyRelSchema
+from cartography.models.core.relationships import LinkDirection
+from cartography.models.core.relationships import make_target_node_matcher
+from cartography.models.core.relationships import OtherRelationships
+from cartography.models.core.relationships import TargetNodeMatcher
+
+
+@dataclass(frozen=True)
+class KubernetesReplicaSetNodeProperties(CartographyNodeProperties):
+    id: PropertyRef = PropertyRef(
+        "uid", description="UID of the Kubernetes ReplicaSet."
+    )
+    name: PropertyRef = PropertyRef(
+        "name", extra_index=True, description="Name of the Kubernetes ReplicaSet."
+    )
+    namespace: PropertyRef = PropertyRef(
+        "namespace",
+        extra_index=True,
+        description="Kubernetes namespace containing the ReplicaSet.",
+    )
+    creation_timestamp: PropertyRef = PropertyRef(
+        "creation_timestamp",
+        description="Timestamp when the Kubernetes ReplicaSet was created.",
+    )
+    deletion_timestamp: PropertyRef = PropertyRef(
+        "deletion_timestamp",
+        description="Timestamp when the Kubernetes ReplicaSet was marked for deletion.",
+    )
+    replicas: PropertyRef = PropertyRef(
+        "replicas", description="Number of pod replicas currently maintained."
+    )
+    ready_replicas: PropertyRef = PropertyRef(
+        "ready_replicas", description="Number of pod replicas that are ready."
+    )
+    labels: PropertyRef = PropertyRef(
+        "labels",
+        description="Metadata labels on the ReplicaSet, stored as a JSON-encoded string.",
+    )
+    cluster_name: PropertyRef = PropertyRef(
+        "CLUSTER_NAME",
+        set_in_kwargs=True,
+        extra_index=True,
+        description="Name of the Kubernetes cluster containing the ReplicaSet.",
+    )
+    lastupdated: PropertyRef = PropertyRef(
+        "lastupdated",
+        set_in_kwargs=True,
+        description="Timestamp of the last time the node was updated.",
+    )
+
+
+@dataclass(frozen=True)
+class KubernetesReplicaSetToKubernetesClusterRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+# (:KubernetesReplicaSet)<-[:RESOURCE]-(:KubernetesCluster)
+class KubernetesReplicaSetToKubernetesClusterRel(CartographyRelSchema):
+    "Links `KubernetesCluster` to `KubernetesReplicaSet` with `RESOURCE`."
+
+    target_node_label: str = "KubernetesCluster"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"id": PropertyRef("CLUSTER_ID", set_in_kwargs=True)}
+    )
+    direction: LinkDirection = LinkDirection.INWARD
+    rel_label: str = "RESOURCE"
+    properties: KubernetesReplicaSetToKubernetesClusterRelProperties = (
+        KubernetesReplicaSetToKubernetesClusterRelProperties()
+    )
+
+
+@dataclass(frozen=True)
+class KubernetesReplicaSetToKubernetesDeploymentRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+# (:KubernetesReplicaSet)-[:OWNED_BY]->(:KubernetesDeployment)
+# Raw Kubernetes ownerReference. The ReplicaSet is an implementation detail and
+# is deliberately kept off the WORKLOAD_PARENT chain (it carries no ontology
+# label), so the pod's WORKLOAD_PARENT collapses straight to the Deployment.
+# Only fires when the ReplicaSet is owned by a Deployment (loader sets
+# `_owner_deployment_id`); bare ReplicaSets get no edge.
+class KubernetesReplicaSetToKubernetesDeploymentRel(CartographyRelSchema):
+    "Links `KubernetesReplicaSet` to `KubernetesDeployment` with `OWNED_BY`."
+
+    target_node_label: str = "KubernetesDeployment"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"id": PropertyRef("_owner_deployment_id")}
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "OWNED_BY"
+    properties: KubernetesReplicaSetToKubernetesDeploymentRelProperties = (
+        KubernetesReplicaSetToKubernetesDeploymentRelProperties()
+    )
+
+
+@dataclass(frozen=True)
+class KubernetesReplicaSetSchema(CartographyNodeSchema):
+    "A Kubernetes ReplicaSet that maintains a stable set of pod replicas."
+
+    label: str = "KubernetesReplicaSet"
+    # No ontology label: the ReplicaSet is collapsed out of the WORKLOAD_PARENT
+    # chain, so its owning Deployment is the surfaced workload parent.
+    properties: KubernetesReplicaSetNodeProperties = (
+        KubernetesReplicaSetNodeProperties()
+    )
+    sub_resource_relationship: KubernetesReplicaSetToKubernetesClusterRel = (
+        KubernetesReplicaSetToKubernetesClusterRel()
+    )
+    other_relationships: OtherRelationships = OtherRelationships(
+        [
+            KubernetesReplicaSetToKubernetesDeploymentRel(),
+        ]
+    )

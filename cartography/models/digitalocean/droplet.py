@@ -10,6 +10,7 @@ from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import TargetNodeMatcher
+from cartography.models.ontology.labels import COMPUTE_INSTANCE
 
 
 @dataclass(frozen=True)
@@ -114,7 +115,7 @@ class DODropletSchema(CartographyNodeSchema):
     """A compute instance in a DigitalOcean project."""
 
     label: str = "DODroplet"
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["ComputeInstance"])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([COMPUTE_INSTANCE])
     properties: DODropletNodeProperties = DODropletNodeProperties()
     sub_resource_relationship: DODropletToAccountRel = DODropletToAccountRel()
     # DEPRECATED: for backward compatibility, will be removed in v1.0.0

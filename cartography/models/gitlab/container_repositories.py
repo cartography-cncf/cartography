@@ -19,6 +19,7 @@ from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import TargetNodeMatcher
+from cartography.models.ontology.labels import CONTAINER_REGISTRY
 
 
 @dataclass(frozen=True)
@@ -110,7 +111,7 @@ class GitLabContainerRepositorySchema(CartographyNodeSchema):
     """A container registry repository belonging to a GitLab project."""
 
     label: str = "GitLabContainerRepository"
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["ContainerRegistry"])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([CONTAINER_REGISTRY])
     properties: GitLabContainerRepositoryNodeProperties = (
         GitLabContainerRepositoryNodeProperties()
     )

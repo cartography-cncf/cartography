@@ -135,6 +135,7 @@ doc = [
     "sphinx>=8.1.3",
     "sphinx-autobuild>=2024.10.3",
     "sphinx-copybutton>=0.5.2",
+    "sphinx-sitemap>=2.8.0",
     "sphinxcontrib-mermaid>=1.0.0",
 ]
 
@@ -156,8 +157,8 @@ cartography-rules = "cartography.rules.cli:main"
 "cartography.data.jobs.cleanup" = ["*.json"]
 
 [project.urls]
-Homepage = "https://cartography-cncf.github.io/cartography"
-Documentation = "https://cartography-cncf.github.io/cartography"
+Homepage = "https://docs.cartography.dev"
+Documentation = "https://docs.cartography.dev"
 Repository = "https://github.com/cartography-cncf/cartography"
 Issues = "https://github.com/cartography-cncf/cartography/issues"
 Changelog = "https://github.com/cartography-cncf/cartography/releases"

@@ -29,9 +29,15 @@ aws_guard_duty_detector_disabled = Fact(
     """,
     cypher_count_query="""
     MATCH (a:AWSAccount)-[:RESOURCE]-(r:AWSEC2Instance|AWSEKSCluster|AWSLambda|AWSECSCluster|AWSRDSInstance|AWSRDSCluster)
-    WITH DISTINCT a, r.region AS region
+    WITH DISTINCT a
     RETURN COUNT(*) AS count
     """,
+    # Anchor on the AWSAccount node. NOTE: the finding unit is (account, region), so
+    # account_id driving the failing-count collapses multiple disabled regions of one
+    # account into a single failing asset; the (account_id, region) identity_fields keep
+    # each region's finding distinct.
+    asset_label="AWSAccount",
+    asset_id_field="account_id",
     identity_fields=("account_id", "region"),
     module=Module.AWS,
     maturity=Maturity.EXPERIMENTAL,

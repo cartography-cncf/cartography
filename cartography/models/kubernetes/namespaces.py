@@ -10,6 +10,7 @@ from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import TargetNodeMatcher
+from cartography.models.ontology.labels import COMPUTE_NAMESPACE
 
 
 @dataclass(frozen=True)
@@ -92,7 +93,7 @@ class KubernetesNamespaceSchema(CartographyNodeSchema):
     "A namespace that scopes resources in a Kubernetes cluster."
 
     label: str = "KubernetesNamespace"
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["ComputeNamespace"])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([COMPUTE_NAMESPACE])
     properties: KubernetesNamespaceNodeProperties = KubernetesNamespaceNodeProperties()
     sub_resource_relationship: KubernetesNamespaceToKubernetesClusterRel = (
         KubernetesNamespaceToKubernetesClusterRel()

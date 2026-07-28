@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 
+from cartography.models.aws.extra_labels import LEGACY_GUARD_DUTY_FINDING
 from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeProperties
 from cartography.models.core.nodes import CartographyNodeSchema
@@ -10,6 +11,8 @@ from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import TargetNodeMatcher
+from cartography.models.extra_labels import RISK
+from cartography.models.ontology.labels import SECURITY_ISSUE
 
 
 @dataclass(frozen=True)
@@ -35,6 +38,12 @@ class GuardDutyFindingNodeProperties(CartographyNodeProperties):
         "severity",
         extra_index=True,
         description="GuardDuty finding severity on its numeric severity scale.",
+    )
+    # Normalized Low/Medium/High/Critical label derived from the numeric severity,
+    # feeding the SecurityIssue ontology severity for cross-provider comparison.
+    severity_label: PropertyRef = PropertyRef(
+        "severity_label",
+        description="Normalized severity label derived from the numeric severity.",
     )
     confidence: PropertyRef = PropertyRef(
         "confidence",
@@ -374,7 +383,7 @@ class GuardDutyFindingSchema(CartographyNodeSchema):
     properties: GuardDutyFindingNodeProperties = GuardDutyFindingNodeProperties()
     # DEPRECATED: legacy GuardDutyFinding node label will be removed in v1.0.0.
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
-        ["GuardDutyFinding", "Risk", "SecurityIssue"]
+        [LEGACY_GUARD_DUTY_FINDING, RISK, SECURITY_ISSUE]
     )
     sub_resource_relationship: GuardDutyFindingToAWSAccountRel = (
         GuardDutyFindingToAWSAccountRel()

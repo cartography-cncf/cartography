@@ -10,6 +10,7 @@ from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import TargetNodeMatcher
+from cartography.models.ontology.labels import ENCRYPTION_KEY
 
 
 @dataclass(frozen=True)
@@ -90,7 +91,7 @@ class GCPCryptoKeySchema(CartographyNodeSchema):
     """Representation of a GCP [Crypto Key](https://cloud.google.com/kms/docs/reference/rest/v1/projects.locations.keyRings.cryptoKeys)."""
 
     label: str = "GCPCryptoKey"
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["EncryptionKey"])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([ENCRYPTION_KEY])
     properties: GCPCryptoKeyProperties = GCPCryptoKeyProperties()
     sub_resource_relationship: GCPCryptoKeyToGCPProjectRel = (
         GCPCryptoKeyToGCPProjectRel()

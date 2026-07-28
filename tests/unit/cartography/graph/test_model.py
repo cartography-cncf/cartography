@@ -10,7 +10,6 @@ from cartography.intel.aws.label_migrations import AWS_LABEL_MIGRATIONS
 from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeProperties
 from cartography.models.core.nodes import CartographyNodeSchema
-from cartography.models.core.nodes import ConditionalNodeLabel
 from cartography.models.core.relationships import CartographyRelProperties
 from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
@@ -34,7 +33,6 @@ RELATION_ONLY_NODE_LABELS: Set[str] = {
 
 PROVIDER_PREFIX_EXCEPTIONS: Dict[str, Set[str]] = {
     "cartography.models.github": {
-        "Dependency",
         "ProgrammingLanguage",
         "PythonLibrary",
     },
@@ -54,6 +52,18 @@ MIGRATED_PROVIDER_LABELS: Dict[str, Dict[str, str]] = {
     "cartography.models.spacelift": {
         "SpaceliftCloudTrailEvent": "CloudTrailSpaceliftEvent",
     },
+}
+
+PREEXISTING_AWS_LABEL_MIGRATIONS: set[tuple[str, str]] = {
+    ("DNSRecord", "AWSDNSRecord"),
+    ("DNSZone", "AWSDNSZone"),
+    ("IpPermissionInbound", "AWSIpPermissionInbound"),
+    ("IpRange", "AWSIpRange"),
+    ("IpRule", "AWSIpRule"),
+    ("LoadBalancer", "AWSLoadBalancer"),
+    ("LoadBalancerV2", "AWSLoadBalancerV2"),
+    ("MfaDevice", "AWSMfaDevice"),
+    ("Tag", "AWSTag"),
 }
 
 
@@ -146,7 +156,7 @@ def test_migrated_aws_labels_keep_legacy_alias_until_v1():
             if node_schema.extra_node_labels is not None
             else []
         )
-        if old_label not in extra_labels:
+        if old_label not in {extra_label.label for extra_label in extra_labels}:
             errors.append(
                 f"{element.__name__} must keep {old_label!r} as an alias "
                 "until v1.0.0.",
@@ -155,6 +165,31 @@ def test_migrated_aws_labels_keep_legacy_alias_until_v1():
     assert not errors, "Missing AWS compatibility aliases:\n  - " + "\n  - ".join(
         errors
     )
+
+
+def test_aws_label_migration_registry_matches_model_aliases():
+    registered_pairs = {
+        (migration.old_label, migration.new_label) for migration in AWS_LABEL_MIGRATIONS
+    }
+    discovered_pairs: set[tuple[str, str]] = set()
+
+    for module_name, element in load_models(cartography.models):
+        if module_name != "cartography.models.aws":
+            continue
+        if not issubclass(element, CartographyNodeSchema):
+            continue
+
+        node_schema = element()
+        extra_labels = (
+            node_schema.extra_node_labels.labels
+            if node_schema.extra_node_labels is not None
+            else []
+        )
+        for extra_label in extra_labels:
+            if node_schema.label == f"AWS{extra_label.label}":
+                discovered_pairs.add((extra_label.label, node_schema.label))
+
+    assert discovered_pairs == registered_pairs | PREEXISTING_AWS_LABEL_MIGRATIONS
 
 
 @pytest.mark.parametrize(
@@ -199,7 +234,7 @@ def test_migrated_provider_labels_keep_legacy_alias_until_v1():
             if node_schema.extra_node_labels is not None
             else []
         )
-        if old_label not in extra_labels:
+        if old_label not in {extra_label.label for extra_label in extra_labels}:
             errors.append(
                 f"{element.__name__} must keep {old_label!r} as an alias "
                 "until v1.0.0.",
@@ -222,10 +257,7 @@ def test_relationship_endpoint_labels_are_registered():
         if node_schema.extra_node_labels is None:
             continue
         for extra_label in node_schema.extra_node_labels.labels:
-            if isinstance(extra_label, ConditionalNodeLabel):
-                registered_labels.add(extra_label.label)
-            else:
-                registered_labels.add(extra_label)
+            registered_labels.add(extra_label.label)
 
     errors: List[str] = []
     for module_name, element in model_objects:
@@ -243,6 +275,37 @@ def test_relationship_endpoint_labels_are_registered():
                 )
 
     assert not errors, "Unknown relationship endpoint labels:\n  - " + "\n  - ".join(
+        errors
+    )
+
+
+def test_relationship_endpoints_do_not_use_migrated_aws_labels():
+    legacy_labels = {migration.old_label for migration in AWS_LABEL_MIGRATIONS}
+    errors: list[str] = []
+
+    for module_name, element in load_models(cartography.models):
+        if not issubclass(element, CartographyRelSchema):
+            continue
+        relationship = element()
+        for endpoint_name, label in (
+            ("source", relationship.source_node_label),
+            ("target", relationship.target_node_label),
+        ):
+            if label in legacy_labels:
+                errors.append(
+                    f"{module_name}.{element.__name__} uses legacy "
+                    f"{endpoint_name} label {label!r}.",
+                )
+
+        for scope_name in ("source_node_sub_resource", "target_node_sub_resource"):
+            scope = getattr(relationship, scope_name, None)
+            if scope and scope.target_node_label in legacy_labels:
+                errors.append(
+                    f"{module_name}.{element.__name__}.{scope_name} uses legacy "
+                    f"label {scope.target_node_label!r}.",
+                )
+
+    assert not errors, "Legacy AWS relationship endpoint labels:\n  - " + "\n  - ".join(
         errors
     )
 
@@ -303,10 +366,10 @@ GLOBAL_NODE_LABELS: Set[str] = {
     # rather than an organization, so neither is anchored to a single tenant.
     "GitHubRepository",
     "GitHubUser",
-    # Shared GitHub nodes (cross-org / cross-repo). Dependency uses a global
-    # `name|requirements` id and is referenced by repos across orgs, so it
-    # uses unscoped cleanup like PythonLibrary.
-    "Dependency",
+    # Shared GitHub nodes (cross-org / cross-repo). GitHubDependency uses a
+    # global `name|requirements` id and is referenced by repos across orgs, so
+    # it uses unscoped cleanup like PythonLibrary.
+    "GitHubDependency",
     "ProgrammingLanguage",
     "PythonLibrary",
     # Workday canonical human (mirrors the ontology pattern).

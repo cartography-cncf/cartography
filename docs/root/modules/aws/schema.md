@@ -449,7 +449,7 @@ Representation of an AWS [GuardDuty Finding](https://docs.aws.amazon.com/guarddu
 
 Representation of an AWS [Inspector Finding](https://docs.aws.amazon.com/inspector/v2/APIReference/API_Finding.html)
 
-Depending on its `type`, the finding also carries an ontology finding label: `PACKAGE_VULNERABILITY` findings are labeled `:CVE`, and `NETWORK_REACHABILITY` findings are labeled `:SecurityIssue`.
+Depending on its `type`, the finding also carries an ontology finding label: `PACKAGE_VULNERABILITY` findings are labeled `:CVE` (see the [CVE ontology](../ontology/schema.md#cve)), and `NETWORK_REACHABILITY` findings are labeled `:SecurityIssue`.
 
 | Field | Description | Required|
 |-------|-------------|------|
@@ -475,6 +475,7 @@ Depending on its `type`, the finding also carries an ontology finding label: `PA
 |portrangebegin|Beginning of the port range affected for network findings|
 |portrangeend|End of the port range affected for network findings|
 |vulnerabilityid|Vulnerability ID associdated with the finding for package findings|
+|cve_id|Normalized CVE id, populated only for `PACKAGE_VULNERABILITY` findings; feeds the `:CVE` ontology label and CVEMetadata enrichment|
 |referenceurls|Reference URLs for the found vulnerabilities|
 |relatedvulnerabilities|A list of any related vulnerabilities|
 |source|Source for the vulnerability|
@@ -485,6 +486,12 @@ Depending on its `type`, the finding also carries an ontology finding label: `PA
 |vulnerablepackageids|IDs for any related packages|
 
 #### Relationships
+
+- A `PACKAGE_VULNERABILITY` AWSInspectorFinding is enriched by CVEMetadata via the `CVE` label (optional)
+
+    ```cypher
+    (:CVEMetadata)-[:ENRICHES]->(:AWSInspectorFinding:CVE)
+    ```
 
 - AWSInspectorFinding may affect EC2 Instances
 
@@ -3096,6 +3103,7 @@ Representation of an AWS [EKS Cluster](https://docs.aws.amazon.com/eks/latest/AP
 | rolearn | The ARN of the IAM role that provides permissions for the Kubernetes control plane to make calls to AWS API |
 | version | Kubernetes version running |
 | platform_version | Version of EKS |
+| authentication_mode | Cluster authentication mode. Valid values include `CONFIG_MAP`, `API`, and `API_AND_CONFIG_MAP` |
 | status | Status of the cluster. Valid Values: creating, active, deleting, failed, updating |
 | audit_logging | Whether audit logging is enabled |
 | certificate_authority_data_present | Whether the EKS API server certificate authority data was returned by AWS |
@@ -3144,6 +3152,42 @@ Representation of an AWS [EKS Cluster](https://docs.aws.amazon.com/eks/latest/AP
            c.certificate_authority_parse_error
     ORDER BY c.certificate_authority_parse_status, c.name;
     ```
+
+### AWSEKSAccessEntry
+
+Representation of an AWS [EKS Access Entry](https://docs.aws.amazon.com/eks/latest/userguide/access-entries.html), which grants an IAM principal access to an EKS cluster through the EKS API authentication mode.
+
+| Field | Description |
+|-------|-------------|
+| firstseen | Timestamp of when a sync job first discovered this node |
+| lastupdated | Timestamp of the last time the node was updated |
+| **id** | Stable identifier derived from the cluster ARN and principal ARN |
+| arn | AWS-unique identifier for this access entry. Null when only `eks:ListAccessEntries` is available |
+| cluster_name | Name of the EKS cluster this access entry belongs to |
+| **principal_arn** | ARN of the IAM principal granted cluster access |
+| username | Kubernetes username mapped by the access entry. Requires `eks:DescribeAccessEntry` |
+| type | EKS access entry type, for example `STANDARD`, `EC2_LINUX`, `EC2_WINDOWS`, or `FARGATE_LINUX`. Requires `eks:DescribeAccessEntry` |
+| kubernetes_groups | Kubernetes groups mapped by the access entry. Requires `eks:DescribeAccessEntry` |
+| created_at | The date and time the access entry was created. Requires `eks:DescribeAccessEntry` |
+| modified_at | The date and time the access entry was last modified. Requires `eks:DescribeAccessEntry` |
+
+#### Relationships
+
+- EKS Access Entries belong to AWS Accounts.
+    ```
+    (AWSAccount)-[RESOURCE]->(AWSEKSAccessEntry)
+    ```
+
+- EKS Clusters have EKS Access Entries.
+    ```
+    (AWSEKSCluster)-[HAS_ACCESS_ENTRY]->(AWSEKSAccessEntry)
+    ```
+
+- IAM principals can have EKS Access Entries. This relationship is created when the principal exists in the graph as an `AWSPrincipal` such as an `AWSRole` or `AWSUser`.
+    ```
+    (AWSPrincipal)-[GRANTED_ACCESS_TO]->(AWSEKSAccessEntry)
+    ```
+
 ### AWSEMRCluster
 
 Representation of an AWS [EMR Cluster](https://docs.aws.amazon.com/emr/latest/APIReference/API_Cluster.html).
@@ -3519,6 +3563,40 @@ Represents a classic [AWS Elastic Load Balancer](https://docs.aws.amazon.com/ela
     (AWSDNSRecord, DNSRecord)-[DNS_POINTS_TO]->(LoadBalancer)
     ```
 
+### AWSELBV2TargetGroup
+
+Representation of an AWS Elastic Load Balancing v2 [Target Group](https://docs.aws.amazon.com/elasticloadbalancing/latest/APIReference/API_TargetGroup.html).
+
+| Field | Description |
+|-------|-------------|
+| firstseen | Timestamp of when a sync job first discovered this node |
+| lastupdated | Timestamp of the last time the node was updated |
+| **id** | The ARN of the target group |
+| **arn** | The ARN of the target group |
+| name | The name of the target group |
+| target_type | The target type, such as `instance`, `ip`, `lambda`, or `alb` |
+| protocol | The protocol used to route traffic to the targets |
+| port | The port used to route traffic to the targets |
+| vpc_id | The ID of the VPC for the target group |
+| region | The AWS region of the target group |
+
+#### Relationships
+
+- Target groups are resources under an AWS Account.
+    ```
+    (AWSAccount)-[RESOURCE]->(AWSELBV2TargetGroup)
+    ```
+
+- Target groups belong to an AWS Load Balancer v2.
+    ```
+    (AWSLoadBalancerV2)-[ELBV2_TARGET_GROUP]->(AWSELBV2TargetGroup)
+    ```
+
+- Target groups can target ECS services.
+    ```
+    (AWSELBV2TargetGroup)-[TARGETS]->(AWSECSService)
+    ```
+
 ### AWSLoadBalancerV2
 
 ```{important}
@@ -3595,9 +3673,9 @@ The `EXPOSE` relationship holds the protocol, port and TargetGroupArn the load b
     (AWSLoadBalancerV2)-[ELBV2_LISTENER]->(AWSELBV2Listener)
     ```
 
-- Internet-facing AWSLoadBalancerV2's can expose private ECS containers. Set by an analysis job.
+- Internet-exposed AWSLoadBalancerV2's (those with `exposed_internet` set to `True`) expose their backing ECS containers. Set by the `aws_lb_container_exposure` analysis job.
     ```
-    (AWSLoadBalancerV2)-[EXPOSE]->(AWSECSContainer)
+    (AWSLoadBalancerV2)-[EXPOSE {exposure_type: 'via_lb_only'}]->(AWSECSContainer)
     ```
 
 - Internet-facing AWSLoadBalancerV2's can expose Kubernetes pods and containers. Set by the `k8s_lb_exposure` analysis job.
@@ -4209,7 +4287,7 @@ Representation of an AWS S3 [Bucket Policy Statements](https://docs.aws.amazon.c
 | lastupdated |  Timestamp of the last time the node was updated |
 | policy_id | Optional string "Id" for the bucket's policy |
 | policy_version| Version of the bucket's policy |
-| **id** | The unique identifier for a bucket policy statement. <br>If the statement has an Sid the id will be calculated as _S3Bucket.id_/policy_statement/_index of statement in statement_/_Sid_. <br>If the statement has no Sid the id will be calculated as  _S3Bucket.id_/policy_statement/_index of statement in statement_/  |
+| **id** | The unique identifier for a bucket policy statement. <br>If the statement has an Sid the id will be calculated as _AWSS3Bucket.id_/policy_statement/_index of statement in statement_/_Sid_. <br>If the statement has no Sid the id will be calculated as  _AWSS3Bucket.id_/policy_statement/_index of statement in statement_/  |
 | effect | Specifies "Deny" or "Allow" for the policy statement |
 | action | Specifies permissions that policy statement applies to, as defined [here](https://docs.aws.amazon.com/AmazonS3/latest/userguide/using-with-s3-actions.html) |
 | resource | Specifies the resource the bucket policy statement is based on |
@@ -5451,7 +5529,8 @@ Representation of an AWS ECS [Container](https://docs.aws.amazon.com/AmazonECS/l
 | memory | The hard limit (in MiB) of memory set for the container. |
 | memory\_reservation | The soft limit (in MiB) of memory set for the container. |
 | gpu\_ids | The IDs of each GPU assigned to the container. |
-| exposed\_internet | Set to `True` if this container is exposed to the internet via an internet-facing load balancer. Set by the `AWS_ECS_ASSET_EXPOSURE` analysis job in [cartography/analysis/aws/analysis.py](https://github.com/cartography-cncf/cartography/blob/master/cartography/analysis/aws/analysis.py). |
+| exposed\_internet | Set to `True` if this container is reachable from the internet. Set by the `aws_ecs_asset_exposure` analysis job in [cartography/analysis/aws/analysis.py](https://github.com/cartography-cncf/cartography/blob/master/cartography/analysis/aws/analysis.py). |
+| exposed\_internet\_type | List of the ways this container is reachable from the internet: `elbv2` (behind an internet-facing load balancer) and/or `direct` (the ECS task's network interface has a public IP and a security group allowing inbound from `0.0.0.0/0`). Set by the `aws_ecs_asset_exposure` analysis job. |
 
 #### Relationships
 
@@ -6101,6 +6180,30 @@ Representation of an AWS [Secrets Manager Secret Version](https://docs.aws.amazo
     ```
     (AWSSecretsManagerSecretVersion)-[ENCRYPTED_BY]->(AWSKMSKey)
     ```
+
+### AWSPublicSSMParameter
+
+Representation of an AWS-managed public [Systems Manager Parameter Store parameter](https://docs.aws.amazon.com/systems-manager/latest/userguide/parameter-store-public-parameters.html). These parameters are shared regional catalog data and are not owned by an individual AWS Account.
+
+| Field | Description |
+|-------|-------------|
+| firstseen | Timestamp of when a sync job first discovered this node |
+| lastupdated | Timestamp of the last time the node was updated |
+| **id** | The ARN of the parameter |
+| **arn** | The ARN of the parameter |
+| name | The name of the parameter |
+| value | The parameter value |
+| description | The parameter description |
+| type | The parameter type |
+| version | The parameter version |
+| lastmodifieddate | The date and time when the parameter was last modified |
+| tier | The parameter tier |
+| datatype | The data type of the parameter |
+| region | The AWS region of the parameter |
+
+#### Relationships
+
+Public SSM parameters are global AWS-managed data. They intentionally have no `RESOURCE` relationship to an `AWSAccount`.
 
 ### AWSBedrockFoundationModel
 

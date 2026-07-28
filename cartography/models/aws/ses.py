@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 
+from cartography.models.aws.extra_labels import LEGACY_SES_EMAIL_IDENTITY
 from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeProperties
 from cartography.models.core.nodes import CartographyNodeSchema
@@ -82,7 +83,7 @@ class SESEmailIdentitySchema(CartographyNodeSchema):
 
     label: str = "AWSSESEmailIdentity"
     # DEPRECATED: legacy SESEmailIdentity node label will be removed in v1.0.0.
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["SESEmailIdentity"])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([LEGACY_SES_EMAIL_IDENTITY])
     properties: SESEmailIdentityNodeProperties = SESEmailIdentityNodeProperties()
     sub_resource_relationship: SESEmailIdentityToAWSAccountRel = (
         SESEmailIdentityToAWSAccountRel()

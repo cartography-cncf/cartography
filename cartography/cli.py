@@ -15,6 +15,25 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
+
+def _apply_timestamp_log_format() -> None:
+    """
+    Install a formatter that prepends an ISO-8601 timestamp, level, and logger name
+    to every log line emitted through the root logger's handlers.
+
+    This is opt-in (via --log-timestamps) rather than the default because log
+    aggregators (e.g. Kibana) attach their own timestamp field to each record, and
+    embedding a second timestamp inside the message would be redundant there. See
+    https://github.com/cartography-cncf/cartography/issues/1213 for discussion.
+    """
+    formatter = logging.Formatter(
+        fmt="%(asctime)s %(levelname)s %(name)s: %(message)s",
+        datefmt="%Y-%m-%dT%H:%M:%S%z",
+    )
+    for handler in logging.getLogger().handlers:
+        handler.setFormatter(formatter)
+
+
 # Keep these local to avoid importing cartography.util (and its heavy deps) on --help/--version paths.
 STATUS_SUCCESS = 0
 STATUS_FAILURE = 1
@@ -404,6 +423,19 @@ class CLI:
                     "--quiet",
                     "-q",
                     help="Restrict cartography logging to warnings and errors only.",
+                    rich_help_panel=PANEL_CORE,
+                ),
+            ] = False,
+            log_timestamps: Annotated[
+                bool,
+                typer.Option(
+                    "--log-timestamps",
+                    help=(
+                        "Prepend an ISO-8601 timestamp and level to each log line. "
+                        "Off by default so log aggregators that attach their own "
+                        "timestamp field do not get a redundant one embedded in the "
+                        "message; enable it for interactive/terminal runs."
+                    ),
                     rich_help_panel=PANEL_CORE,
                 ),
             ] = False,
@@ -2272,6 +2304,9 @@ class CLI:
                 logging.getLogger("cartography").setLevel(logging.WARNING)
             else:
                 logging.getLogger("cartography").setLevel(logging.INFO)
+
+            if log_timestamps:
+                _apply_timestamp_log_format()
 
             logger.debug("Launching cartography with CLI configuration")
 

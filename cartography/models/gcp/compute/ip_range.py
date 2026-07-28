@@ -10,6 +10,7 @@ from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import TargetNodeMatcher
+from cartography.models.extra_labels import IP_RANGE
 
 
 @dataclass(frozen=True)
@@ -79,7 +80,7 @@ class IpRangeSchema(CartographyNodeSchema):
     """Representation of an IP range or subnet."""
 
     label: str = "GCPIpRange"
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["IpRange"])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([IP_RANGE])
     properties: IpRangeNodeProperties = IpRangeNodeProperties()
     sub_resource_relationship: IpRangeToProjectRel = IpRangeToProjectRel()
     other_relationships: OtherRelationships = OtherRelationships(

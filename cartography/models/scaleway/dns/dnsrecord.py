@@ -10,6 +10,7 @@ from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import TargetNodeMatcher
+from cartography.models.ontology.labels import DNS_RECORD
 
 
 @dataclass(frozen=True)
@@ -88,7 +89,7 @@ class ScalewayDnsRecordSchema(CartographyNodeSchema):
     """Represents an individual DNS record within a `ScalewayDnsZone`."""
 
     label: str = "ScalewayDnsRecord"
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["DNSRecord"])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([DNS_RECORD])
     properties: ScalewayDnsRecordProperties = ScalewayDnsRecordProperties()
     sub_resource_relationship: ScalewayDnsRecordToProjectRel = (
         ScalewayDnsRecordToProjectRel()

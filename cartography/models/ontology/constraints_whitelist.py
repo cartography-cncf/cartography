@@ -180,7 +180,6 @@ from cartography.models.tailscale.group import (
     TailscaleUserToGroupInheritedMemberMatchLink,
 )
 
-
 # DEPRECATED: pre-V1 rel classes tolerated until they are removed in v1.0.0.
 LEGACY_REL_WHITELIST: frozenset[type] = frozenset(
     {

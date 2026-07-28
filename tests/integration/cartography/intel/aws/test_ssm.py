@@ -357,7 +357,7 @@ def test_private_ssm_sync_does_not_load_public_parameters(
 
     actual_public_parameter_count = neo4j_session.run(
         """
-        MATCH (n:SSMParameter)
+        MATCH (n:AWSSSMParameter)
         WHERE n.region = $Region
           AND n.name STARTS WITH '/aws/service/bottlerocket/'
         RETURN count(n) AS count
@@ -415,7 +415,7 @@ def test_load_shared_public_ssm_parameters(
         )
         for record in neo4j_session.run(
             """
-            MATCH (n:SSMParameter)
+            MATCH (n:AWSPublicSSMParameter)
             WHERE n.region = $Region
               AND n.name STARTS WITH '/aws/service/bottlerocket/'
             RETURN n.id, n.name, n.value, n.type, n.region
@@ -437,7 +437,7 @@ def test_load_shared_public_ssm_parameters(
         (record["a.id"], record["p.id"])
         for record in neo4j_session.run(
             """
-            MATCH (a:AWSAccount)-[:RESOURCE]->(p:SSMParameter)
+            MATCH (a:AWSAccount)-[:RESOURCE]->(p:AWSPublicSSMParameter)
             WHERE p.region = $Region
               AND p.name STARTS WITH '/aws/service/bottlerocket/'
             RETURN a.id, p.id

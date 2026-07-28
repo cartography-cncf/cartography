@@ -10,6 +10,7 @@ from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import TargetNodeMatcher
+from cartography.models.ontology.labels import THIRD_PARTY_APP
 
 
 @dataclass(frozen=True)
@@ -85,7 +86,7 @@ class SalesforceConnectedAppSchema(CartographyNodeSchema):
 
     label: str = "SalesforceConnectedApp"
     # ThirdPartyApp label is used for ontology mapping
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["ThirdPartyApp"])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([THIRD_PARTY_APP])
     properties: SalesforceConnectedAppNodeProperties = (
         SalesforceConnectedAppNodeProperties()
     )

@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 
+from cartography.models.aws.extra_labels import LEGACY_REDSHIFT_CLUSTER
 from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeProperties
 from cartography.models.core.nodes import CartographyNodeSchema
@@ -172,7 +173,7 @@ class RedshiftClusterSchema(CartographyNodeSchema):
 
     label: str = "AWSRedshiftCluster"
     # DEPRECATED: legacy RedshiftCluster node label will be removed in v1.0.0.
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["RedshiftCluster"])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([LEGACY_REDSHIFT_CLUSTER])
     properties: RedshiftClusterNodeProperties = RedshiftClusterNodeProperties()
     sub_resource_relationship: RedshiftClusterToAWSAccountRel = (
         RedshiftClusterToAWSAccountRel()

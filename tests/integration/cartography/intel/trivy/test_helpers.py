@@ -302,12 +302,31 @@ def assert_trivy_finding_extended_fields(neo4j_session: Session) -> None:
         assert (
             row["problem_types"] == row["cwe_ids"]
         ), f"problem_types should mirror cwe_ids for {row['id']}"
+        # _ont_vuln_status / _ont_base_severity are normalized from the raw Trivy
+        # values, so they mirror the normalized form rather than the raw string.
+        expected_vuln_status = {
+            "unknown": "unknown",
+            "affected": "open",
+            "fixed": "fixed",
+            "under_investigation": "under_investigation",
+            "will_not_fix": "not_affected",
+            "fix_deferred": "open",
+            "end_of_life": "open",
+            "not_affected": "not_affected",
+        }.get(row["status"])
         assert (
-            row["vuln_status"] == row["status"]
-        ), f"vuln_status should mirror status for {row['id']}"
+            row["vuln_status"] == expected_vuln_status
+        ), f"vuln_status should be the normalized status for {row['id']}"
+        expected_base_severity = {
+            "NONE": "info",
+            "LOW": "low",
+            "MEDIUM": "medium",
+            "HIGH": "high",
+            "CRITICAL": "critical",
+        }.get(row["severity"])
         assert (
-            row["base_severity"] == row["severity"]
-        ), f"base_severity should mirror severity for {row['id']}"
+            row["base_severity"] == expected_base_severity
+        ), f"base_severity should be the normalized severity for {row['id']}"
         assert row["source"] == "trivy", f"_ont_source should be trivy for {row['id']}"
         assert (
             row["data_source_id"] is not None

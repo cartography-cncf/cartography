@@ -5,7 +5,6 @@ from string import Template
 from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeProperties
 from cartography.models.core.nodes import CartographyNodeSchema
-from cartography.models.core.nodes import ConditionalNodeLabel
 from cartography.models.core.nodes import ExtraNodeLabels
 from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
@@ -429,7 +428,7 @@ def _build_node_properties_statement(
 
     Args:
         node_property_map (Dict[str, PropertyRef]): Mapping of node attribute names as str to PropertyRef objects.
-        extra_node_labels (Optional[ExtraNodeLabels], optional): ExtraNodeLabels object to set on the node as string.
+        extra_node_labels (ExtraNodeLabels | None): Extra labels to add to the node.
             Defaults to None.
 
     Returns:
@@ -442,16 +441,17 @@ def _build_node_properties_statement(
         ...     'node_prop_2': PropertyRef("Prop2", set_in_kwargs=True),
         ... }
         >>> set_clause = _build_node_properties_statement(node_property_map)
-        >>> # Returns:
-        >>> # i.node_prop_1 = item.Prop1,
-        >>> # i.node_prop_2 = $Prop2
+        >>> set_clause
+        'i.node_prop_1 = item.Prop1,\\ni.node_prop_2 = $Prop2'
         >>> # (note: 'id' is excluded as it's handled by MERGE)
 
-        >>> # With extra labels
-        >>> extra_labels = ExtraNodeLabels(['Resource', 'CloudAsset'])
-        >>> set_clause = _build_node_properties_statement(node_property_map, extra_labels)
-        >>> # Returns the property assignments plus:
-        >>> # i:Resource:CloudAsset
+        >>> extra_node_labels = ExtraNodeLabels([RESOURCE, CLOUD_ASSET])
+        >>> set_clause = _build_node_properties_statement(
+        ...     node_property_map,
+        ...     extra_node_labels,
+        ... )
+        >>> set_clause
+        'i.node_prop_1 = item.Prop1,\\ni.node_prop_2 = $Prop2,\\n                i:Resource:CloudAsset'
 
     Note:
         The 'id' field is intentionally excluded from the SET clause as it's already
@@ -472,14 +472,13 @@ def _build_node_properties_statement(
         ],
     )
 
-    # Set extra labels on the node if specified (excluding conditional labels)
+    # Set extra labels without conditions on the node.
     if extra_node_labels:
-        # Filter out ConditionalNodeLabel objects - only include string labels
-        string_labels = [
-            label for label in extra_node_labels.labels if isinstance(label, str)
+        labels_without_conditions = [
+            label.label for label in extra_node_labels.labels if not label.conditions
         ]
-        if string_labels:
-            extra_labels = ":".join(string_labels)
+        if labels_without_conditions:
+            extra_labels = ":".join(labels_without_conditions)
             set_clause += f",\n                i:{extra_labels}"
     return set_clause
 
@@ -1227,10 +1226,6 @@ def build_conditional_label_queries(
     """
     Generate Neo4j queries to apply conditional labels to nodes.
 
-    Conditional labels are labels that are only applied to nodes matching specific conditions.
-    This function generates one query per ConditionalNodeLabel defined in the node schema's
-    extra_node_labels.
-
     Args:
         node_schema (CartographyNodeSchema): The CartographyNodeSchema object containing
             conditional labels in its extra_node_labels property.
@@ -1240,32 +1235,16 @@ def build_conditional_label_queries(
             nodes of the schema's primary label that satisfy the conditions, and applies
             the conditional label.
 
-    Examples:
-        >>> # Given a schema with a conditional label
-        >>> node_schema = CartographyNodeSchema(
-        ...     label='AWSResource',
-        ...     extra_node_labels=ExtraNodeLabels([
-        ...         'Resource',
-        ...         ConditionalNodeLabel(label='Critical', conditions={'severity': 'high'}),
-        ...     ])
-        ... )
-        >>> queries = build_conditional_label_queries(node_schema)
-        >>> # Returns:
-        >>> # ['MATCH (n:AWSResource) WHERE n.severity = "high" SET n:Critical']
-
     Note:
-        - Only ConditionalNodeLabel objects are processed; string labels are ignored
+        - Labels with empty conditions are applied by the ingestion query
         - Returns an empty list if no conditional labels are defined
         - Values are escaped for Cypher string literals
     """
     if not node_schema.extra_node_labels:
         return []
 
-    # Extract only ConditionalNodeLabel objects
     conditional_labels = [
-        label
-        for label in node_schema.extra_node_labels.labels
-        if isinstance(label, ConditionalNodeLabel)
+        label for label in node_schema.extra_node_labels.labels if label.conditions
     ]
 
     if not conditional_labels:
@@ -1321,20 +1300,9 @@ def build_conditional_label_queries(
         )
 
     for cond_label in conditional_labels:
-        # Skip conditional labels with empty conditions - they would apply to all nodes,
-        # which should be done with a regular string label instead
-        if not cond_label.conditions:
-            logger.warning(
-                "ConditionalNodeLabel '%s' on node schema '%s' has empty conditions. "
-                "Skipping. Use a string label instead to apply a label to all nodes.",
-                cond_label.label,
-                node_schema.label,
-            )
-            continue
-
         # Build WHERE clause from conditions
         where_parts = []
-        for field_name, field_value in cond_label.conditions.items():
+        for field_name, field_value in cond_label.conditions:
             # Escape the value for Cypher string literal
             escaped_value = _escape_cypher_string(str(field_value))
             where_parts.append(f'n.{field_name} = "{escaped_value}"')
@@ -1432,37 +1400,21 @@ def build_create_index_queries(node_schema: CartographyNodeSchema) -> list[str]:
     ]
     if node_schema.extra_node_labels:
         for label in node_schema.extra_node_labels.labels:
-            if isinstance(label, str):
-                # Simple string label - create index on id and lastupdated
-                result.append(
-                    index_template.safe_substitute(
-                        TargetNodeLabel=label,
-                        TargetAttribute="id",  # Precondition: 'id' is defined on all cartography node_schema objects.
-                    ),
-                )
-                result.append(
-                    index_template.safe_substitute(
-                        TargetNodeLabel=label,
-                        TargetAttribute="lastupdated",
-                    ),
-                )
-            elif isinstance(label, ConditionalNodeLabel):
-                # Conditional label - create index on the conditional label's id and lastupdated
-                result.append(
-                    index_template.safe_substitute(
-                        TargetNodeLabel=label.label,
-                        TargetAttribute="id",
-                    ),
-                )
-                result.append(
-                    index_template.safe_substitute(
-                        TargetNodeLabel=label.label,
-                        TargetAttribute="lastupdated",
-                    ),
-                )
-                # Also create indexes on the condition fields for the primary node label
-                # to speed up the WHERE clause in the conditional label query
-                for condition_field in label.conditions.keys():
+            result.append(
+                index_template.safe_substitute(
+                    TargetNodeLabel=label.label,
+                    TargetAttribute="id",  # Precondition: 'id' is defined on all cartography node_schema objects.
+                ),
+            )
+            result.append(
+                index_template.safe_substitute(
+                    TargetNodeLabel=label.label,
+                    TargetAttribute="lastupdated",
+                ),
+            )
+            if label.conditions:
+                # Index condition fields on the primary label to speed up matching.
+                for condition_field, _ in label.conditions:
                     result.append(
                         index_template.safe_substitute(
                             TargetNodeLabel=node_schema.label,
@@ -1505,10 +1457,9 @@ def build_create_index_queries(node_schema: CartographyNodeSchema) -> list[str]:
     ontology_mapping = get_semantic_label_mapping_from_node_schema(node_schema)
     if ontology_mapping and node_schema.extra_node_labels:
         for label in node_schema.extra_node_labels.labels:
-            label_name = label if isinstance(label, str) else label.label
             result.append(
                 index_template.safe_substitute(
-                    TargetNodeLabel=label_name,
+                    TargetNodeLabel=label.label,
                     TargetAttribute="_ont_source",
                 ),
             )
@@ -1517,7 +1468,7 @@ def build_create_index_queries(node_schema: CartographyNodeSchema) -> list[str]:
                     continue
                 result.append(
                     index_template.safe_substitute(
-                        TargetNodeLabel=label_name,
+                        TargetNodeLabel=label.label,
                         TargetAttribute=f"_ont_{mapping_field.ontology_field}",
                     ),
                 )

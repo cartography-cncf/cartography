@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 
+from cartography.models.aws.extra_labels import LEGACY_RDS_CLUSTER
 from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeProperties
 from cartography.models.core.nodes import CartographyNodeSchema
@@ -190,6 +191,6 @@ class RDSClusterSchema(CartographyNodeSchema):
 
     label: str = "AWSRDSCluster"
     # DEPRECATED: legacy RDSCluster node label will be removed in v1.0.0.
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["RDSCluster"])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([LEGACY_RDS_CLUSTER])
     properties: RDSClusterNodeProperties = RDSClusterNodeProperties()
     sub_resource_relationship: RDSClusterToAWSAccountRel = RDSClusterToAWSAccountRel()

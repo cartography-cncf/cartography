@@ -4,8 +4,64 @@ from cartography.models.ontology.mapping.specs import OntologyNodeMapping
 
 # Tenant fields:
 # name - Display name or friendly name of the tenant/organization
-# status - Current status/state of the tenant (e.g., active, suspended, archived)
+# status - Tenant lifecycle, normalized to the shared canonical set:
+#   active, suspended, pending_deletion, closed, unknown.
+#   The raw provider value stays on each source node's own state/status property.
 # domain - Primary domain name associated with the tenant
+
+# AWS Organizations account State/Status
+_AWS_ACCOUNT_STATUS = {
+    "ACTIVE": "active",
+    "PENDING_ACTIVATION": "unknown",
+    "SUSPENDED": "suspended",
+    "PENDING_CLOSURE": "pending_deletion",
+    "CLOSED": "closed",
+}
+
+# Azure SubscriptionState
+_AZURE_SUBSCRIPTION_STATUS = {
+    "Enabled": "active",
+    "Warned": "active",
+    "PastDue": "suspended",
+    "Disabled": "suspended",
+    "Deleted": "closed",
+}
+
+# DigitalOcean account status
+_DO_ACCOUNT_STATUS = {
+    "active": "active",
+    "warning": "active",
+    "locked": "suspended",
+}
+
+# GCP CRM state (v3 SDK emits State.<member>.name, e.g. "STATE_UNSPECIFIED")
+_GCP_LIFECYCLE_STATUS = {
+    "STATE_UNSPECIFIED": "unknown",
+    "ACTIVE": "active",
+    "DELETE_REQUESTED": "pending_deletion",
+    "DELETE_IN_PROGRESS": "pending_deletion",
+}
+
+# SentinelOne account state (mixed casing across the API/fixtures)
+_S1_ACCOUNT_STATUS = {
+    "Active": "active",
+    "active": "active",
+    "Expired": "suspended",
+    "Deleted": "closed",
+}
+
+# Sentry organization status (flattened status.name)
+_SENTRY_ORG_STATUS = {
+    "active": "active",
+    "pending_deletion": "pending_deletion",
+    "deletion_in_progress": "pending_deletion",
+}
+
+# OpenAI project status
+_OPENAI_PROJECT_STATUS = {
+    "active": "active",
+    "archived": "closed",
+}
 
 # Airbyte
 airbyte_mapping = OntologyMapping(
@@ -36,7 +92,12 @@ aws_mapping = OntologyMapping(
                 OntologyFieldMapping(
                     ontology_field="name", node_field="name", required=True
                 ),
-                OntologyFieldMapping(ontology_field="status", node_field="state"),
+                OntologyFieldMapping(
+                    ontology_field="status",
+                    node_field="state",
+                    special_handling="mapping",
+                    extra={"map": _AWS_ACCOUNT_STATUS},
+                ),
                 # domain: Not available
             ],
         ),
@@ -68,7 +129,12 @@ azure_mapping = OntologyMapping(
                 OntologyFieldMapping(
                     ontology_field="name", node_field="name", required=True
                 ),
-                OntologyFieldMapping(ontology_field="status", node_field="state"),
+                OntologyFieldMapping(
+                    ontology_field="status",
+                    node_field="state",
+                    special_handling="mapping",
+                    extra={"map": _AZURE_SUBSCRIPTION_STATUS},
+                ),
                 # domain: Not available
             ],
         ),
@@ -103,7 +169,12 @@ digitalocean_mapping = OntologyMapping(
                 OntologyFieldMapping(
                     ontology_field="name", node_field="uuid", required=True
                 ),
-                OntologyFieldMapping(ontology_field="status", node_field="status"),
+                OntologyFieldMapping(
+                    ontology_field="status",
+                    node_field="status",
+                    special_handling="mapping",
+                    extra={"map": _DO_ACCOUNT_STATUS},
+                ),
                 # domain: Not available
             ],
         ),
@@ -130,7 +201,10 @@ entra_mapping = OntologyMapping(
                 OntologyFieldMapping(
                     ontology_field="name", node_field="display_name", required=True
                 ),
-                OntologyFieldMapping(ontology_field="status", node_field="state"),
+                # status: intentionally not mapped. Entra's `state` field is a
+                # geographic province/region (part of the organization address
+                # block), not a tenant lifecycle status, so normalizing it would
+                # populate _ont_status with meaningless location strings.
                 # domain: Not available (multiple domains possible)
             ],
         ),
@@ -148,7 +222,10 @@ gcp_mapping = OntologyMapping(
                     ontology_field="name", node_field="displayname", required=True
                 ),
                 OntologyFieldMapping(
-                    ontology_field="status", node_field="lifecyclestate"
+                    ontology_field="status",
+                    node_field="lifecyclestate",
+                    special_handling="mapping",
+                    extra={"map": _GCP_LIFECYCLE_STATUS},
                 ),
                 # domain: Not available
             ],
@@ -160,7 +237,10 @@ gcp_mapping = OntologyMapping(
                     ontology_field="name", node_field="displayname", required=True
                 ),
                 OntologyFieldMapping(
-                    ontology_field="status", node_field="lifecyclestate"
+                    ontology_field="status",
+                    node_field="lifecyclestate",
+                    special_handling="mapping",
+                    extra={"map": _GCP_LIFECYCLE_STATUS},
                 ),
                 # domain: Not available
             ],
@@ -257,7 +337,12 @@ openai_mapping = OntologyMapping(
                 OntologyFieldMapping(
                     ontology_field="name", node_field="name", required=True
                 ),
-                OntologyFieldMapping(ontology_field="status", node_field="status"),
+                OntologyFieldMapping(
+                    ontology_field="status",
+                    node_field="status",
+                    special_handling="mapping",
+                    extra={"map": _OPENAI_PROJECT_STATUS},
+                ),
                 # domain: Not available
             ],
         ),
@@ -293,7 +378,12 @@ sentry_mapping = OntologyMapping(
                 OntologyFieldMapping(
                     ontology_field="name", node_field="name", required=True
                 ),
-                OntologyFieldMapping(ontology_field="status", node_field="status"),
+                OntologyFieldMapping(
+                    ontology_field="status",
+                    node_field="status",
+                    special_handling="mapping",
+                    extra={"map": _SENTRY_ORG_STATUS},
+                ),
                 # domain: Not available
             ],
         ),
@@ -310,7 +400,12 @@ sentinelone_mapping = OntologyMapping(
                 OntologyFieldMapping(
                     ontology_field="name", node_field="name", required=True
                 ),
-                OntologyFieldMapping(ontology_field="status", node_field="state"),
+                OntologyFieldMapping(
+                    ontology_field="status",
+                    node_field="state",
+                    special_handling="mapping",
+                    extra={"map": _S1_ACCOUNT_STATUS},
+                ),
                 # domain: Not available
             ],
         ),

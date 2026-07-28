@@ -9,6 +9,66 @@ With the `cartography-rules` CLI, you can:
 - Build custom queries for your own environment
 
 
+## Quick start
+
+The prerequisite is a reachable Neo4j database that Cartography has already
+populated. Rules query that graph directly; they do not require an input file
+and do not write data.
+
+Configure the connection if it differs from the local defaults:
+
+```bash
+export NEO4J_URI=bolt://localhost:7687
+export NEO4J_USER=neo4j
+export NEO4J_DATABASE=neo4j
+```
+
+If Neo4j was started with `NEO4J_AUTH=none`, no password configuration is
+needed. Then list, inspect, and run a rule:
+
+```bash
+cartography-rules list
+cartography-rules list object_storage_public
+cartography-rules run object_storage_public
+```
+
+For an authenticated Neo4j server, set the default password environment
+variable before running the same commands:
+
+```bash
+set +o history
+export NEO4J_PASSWORD='your-password'
+set -o history
+cartography-rules run object_storage_public
+```
+
+Alternatively, keep the password in a custom environment variable or request
+an explicit interactive prompt:
+
+```bash
+cartography-rules run object_storage_public --neo4j-password-env-var MY_NEO4J_PASSWORD
+cartography-rules run object_storage_public --neo4j-password-prompt
+```
+
+If a named password variable is missing or empty, the command exits with an
+actionable error instead of prompting. A typical text result reports each fact
+and finishes with totals such as:
+
+```text
+EXECUTION SUMMARY
+Total facts: 2
+Total findings: 3
+Rule execution completed with 3 total findings
+```
+
+Text output is intended for interactive review and includes sample findings.
+Use `--output json` for complete, machine-readable results:
+
+```bash
+cartography-rules run object_storage_public --output json
+```
+
+
 ## Architecture
 
 The rules system uses a simple two-level hierarchy:
@@ -93,9 +153,11 @@ _new_attack_surface = Fact(
     id="aws_new_vulnerability_check",
     name="New AWS Vulnerability Pattern",
     description="Recently discovered attack pattern",
-    cypher_query="...",
+    cypher_query="...",  # must RETURN the affected node's id AS id
     cypher_visual_query="...",
     cypher_count_query="...",
+    asset_label="AWSEC2Instance",  # Neo4j label of the affected node
+    asset_id_field="id",           # output field holding that node's .id
     identity_fields=("id",),
     module=Module.AWS,
     maturity=Maturity.EXPERIMENTAL,  # New, needs testing
@@ -118,9 +180,11 @@ _proven_check = Fact(
     id="aws_s3_public",
     name="Internet-Accessible S3 Storage Attack Surface",
     description="AWS S3 buckets accessible from the internet",
-    cypher_query="...",
+    cypher_query="...",  # must RETURN the affected node's id AS id
     cypher_visual_query="...",
     cypher_count_query="...",
+    asset_label="AWSS3Bucket",  # Neo4j label of the affected node
+    asset_id_field="id",        # output field holding that node's .id
     identity_fields=("id",),
     module=Module.AWS,
     maturity=Maturity.STABLE,  # Battle-tested in production
@@ -212,75 +276,6 @@ object_storage_public = Rule(
     version="1.0.0",
 )
 ```
-
-## Setup
-
-Make sure you've run Cartography and have data in Neo4j.
-
-Then configure your Neo4j connection:
-
-
-```bash
-export NEO4J_URI=bolt://localhost:7687 # or your Neo4j URI
-export NEO4J_USER=neo4j # or your username
-export NEO4J_DATABASE=neo4j # or your database name
-
-# Store the Neo4j password in an environment variable. You can name this anything you want.
-
-set +o history # avoid storing the password in the shell history; can also use something like 1password CLI.
-export NEO4J_PASSWORD=password
-set -o history # turn shell history back on
-```
-
-## Quick start
-
-1. List all available rules
-    ```bash
-    cartography-rules list
-    ```
-1. View details of a specific rule
-    ```bash
-    cartography-rules list object_storage_public
-    ```
-1. Run a specific rule
-    ```bash
-    cartography-rules run object_storage_public
-    ```
-    Sample output:
-    ```
-    Executing object_storage_public rule
-    Total facts: 2
-
-    Fact 1/2: Internet-Accessible S3 Storage Attack Surface
-    Rule:     object_storage_public - Public Object Storage Attack Surface
-    Fact ID:     aws_s3_public
-    Description: AWS S3 buckets accessible from the internet
-    Provider:    AWS
-    Neo4j Query: http://localhost:7474/browser/?cmd=play&arg=<encoded-query>
-    Results:     3 item(s) found
-        Sample findings:
-        1. bucket=cdn.example.com, region=us-east-1, anonymous_access=True
-        2. bucket=mybucket.example.com, region=us-east-1, anonymous_actions=['s3:ListBucket', 's3:ListBucketVersions']
-        3. bucket=static.example.com, region=us-east-1, public_access=True
-        ... (use --output json to see all)
-
-    Fact 2/2: Azure Storage Public Blob Access
-    Rule:     object_storage_public - Public Object Storage Attack Surface
-    Fact ID:     azure_storage_public_blob_access
-    Description: Azure Storage accounts with public blob access
-    Provider:    Azure
-    Neo4j Query: http://localhost:7474/browser/?cmd=play&arg=<encoded-query>
-    Results:     No items found
-
-    ============================================================
-    EXECUTION SUMMARY
-    ============================================================
-    Total facts: 2
-    Total findings: 3
-
-    Rule execution completed with 3 total findings
-    ```
-
 
 ## Usage
 
@@ -374,6 +369,16 @@ cartography-rules run object_storage_public --no-experimental
 ```
 
 ### Authentication Options
+
+With no configured password, the CLI connects using Neo4j's no-auth mode and
+does not prompt. `--neo4j-password-prompt` is the only option that requests
+interactive input.
+
+#### Use the default password environment variable:
+```bash
+export NEO4J_PASSWORD='your-password'
+cartography-rules run mfa-missing
+```
 
 #### Use a custom environment variable for the password:
 ```bash
@@ -545,7 +550,8 @@ The field is required (no default), so a fact that omits it fails to construct.
 _aws_user_direct_policies = Fact(
     id="aws_user_direct_policies",
     ...
-    asset_id_field="user_arn",                    # compliance failing-count only
+    asset_label="AWSUser",                        # Neo4j label of the affected node
+    asset_id_field="user_arn",                    # that node's .id + failing-count driver
     identity_fields=("user_arn", "policy_arn"),   # one finding per attachment
 )
 ```
@@ -563,19 +569,32 @@ Guidelines:
 - `identity_fields` is emitted per fact in the `cartography-rules run --output json` output (on each
   fact result, alongside `fact_id`), so JSON consumers get the contract without importing the
   Python rule registry.
-- `identity_fields` is distinct from `asset_id_field`. `asset_id_field` only drives the
-  distinct-asset failing count shown in compliance metrics; it is not a lifecycle-identity contract.
-  The two can differ on purpose: `aws_user_direct_policies` counts distinct users
-  (`asset_id_field="user_arn"`) but treats each user/policy attachment as a separate finding
-  (`identity_fields=("user_arn", "policy_arn")`).
+- Every fact **must** also declare an affected-node anchor: `asset_label` (the Neo4j label of the
+  node the finding is about) and `asset_id_field` (the output-model field holding that node's `.id`).
+  Both are required and, together, form an indexable `(label, id)` anchor so consumers can locate the
+  offending node in the graph. `asset_id_field` must exist on the output model and be returned by the
+  `cypher_query` (`... AS <name>`); `Fact.__post_init__` and a unit test enforce this.
+- `identity_fields` is distinct from `asset_id_field`. `asset_id_field` is the anchor id **and**
+  drives the distinct-asset failing count shown in compliance metrics; it is not the
+  lifecycle-identity contract. The two can differ on purpose: `aws_user_direct_policies` anchors on
+  and counts distinct users (`asset_label="AWSUser"`, `asset_id_field="user_arn"`) but treats each
+  user/policy attachment as a separate finding (`identity_fields=("user_arn", "policy_arn")`).
+- When the affected node has no single id column yet (e.g. a namespace-aggregated query), return one
+  (`... AS namespace_id`) and point `asset_id_field` at it. When the node can be one of several
+  labels, anchor on a shared umbrella label (`AWSPrincipal`, `GCPPrincipal`, `EntraPrincipal`,
+  `ScalewayPrincipal`, `APIKey`, ...) rather than guessing a single subtype.
+- `asset_label` and `asset_id_field` are emitted per fact in the `cartography-rules run --output
+  json` output (alongside `identity_fields`), so JSON consumers get the anchor without importing the
+  Python rule registry.
 
 ### Display field order (finding title)
 
 The **order** in which fields are declared on the output model is a de-facto display contract.
 Downstream consumers derive a finding's title by taking the **first non-empty rule-specific field
 of the output model, in class declaration order**. Declaration order is independent of
-`identity_fields` and `asset_id_field` (those stay whatever the identity contract needs) and of the
-`cypher_query` `RETURN` order (the model is keyed by alias name, not position).
+`identity_fields`, `asset_label`, and `asset_id_field` (those stay whatever the identity and anchor
+contracts need) and of the `cypher_query` `RETURN` order (the model is keyed by alias name, not
+position).
 
 The base `Finding` class declares two inherited fields, `source` and `extra`, before any
 rule-specific field, so `model_fields` / `model_dump()` lists them first. They are metadata, not
@@ -635,6 +654,8 @@ class DatabaseExposedOutput(Finding):
        MATCH (n:SomeNode)
        RETURN COUNT(n) AS count
        """,
+       asset_label="SomeNode",   # Neo4j label of the affected node
+       asset_id_field="id",      # output field holding that node's .id (returned above)
        identity_fields=("id",),
        module=Module.AWS,
        maturity=Maturity.EXPERIMENTAL,
@@ -658,6 +679,8 @@ class DatabaseExposedOutput(Finding):
        MATCH (n:SomeAzureNode)
        RETURN COUNT(n) AS count
        """,
+       asset_label="SomeAzureNode",  # Neo4j label of the affected node
+       asset_id_field="id",          # output field holding that node's .id (returned above)
        identity_fields=("id",),
        module=Module.AZURE,
        maturity=Maturity.EXPERIMENTAL,

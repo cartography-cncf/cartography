@@ -13,7 +13,10 @@
 Apply a label only when the record matches certain conditions:
 
 ```python
-from cartography.models.core.nodes import ConditionalNodeLabel, ExtraNodeLabels
+from cartography.models.core.nodes import ExtraNodeLabels
+from cartography.models.ontology.labels import IMAGE
+from cartography.models.ontology.labels import IMAGE_ATTESTATION
+from cartography.models.ontology.labels import IMAGE_MANIFEST_LIST
 
 
 @dataclass(frozen=True)
@@ -22,9 +25,9 @@ class ECRImageSchema(CartographyNodeSchema):
     properties: ECRImageNodeProperties = ECRImageNodeProperties()
     sub_resource_relationship: ECRImageToAccountRel = ECRImageToAccountRel()
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([
-        ConditionalNodeLabel(label="Image",              conditions={"type": "IMAGE"}),
-        ConditionalNodeLabel(label="ImageAttestation",   conditions={"type": "IMAGE_ATTESTATION"}),
-        ConditionalNodeLabel(label="ImageManifestList",  conditions={"type": "IMAGE_MANIFEST_LIST"}),
+        IMAGE.when(type="image"),
+        IMAGE_ATTESTATION.when(type="attestation"),
+        IMAGE_MANIFEST_LIST.when(type="manifest_list"),
     ])
 ```
 
@@ -32,19 +35,23 @@ class ECRImageSchema(CartographyNodeSchema):
 
 ECR (and other container registries) store different artifact kinds with the same base schema but different semantic meaning:
 
-| `type` value         | Ontology label       | Description                  |
-| -------------------- | -------------------- | ---------------------------- |
-| `IMAGE`              | `Image`              | Standard container image     |
-| `IMAGE_ATTESTATION`  | `ImageAttestation`   | SLSA / Sigstore attestation  |
-| `IMAGE_MANIFEST_LIST`| `ImageManifestList`  | Multi-arch manifest list     |
+| `type` value    | Ontology label       | Description                 |
+| --------------- | -------------------- | --------------------------- |
+| `image`         | `Image`              | Standard container image    |
+| `attestation`   | `ImageAttestation`   | SLSA / Sigstore attestation |
+| `manifest_list` | `ImageManifestList`  | Multi-arch manifest list    |
 
-Without conditional labels, an `AWSECRImage` of type `IMAGE_ATTESTATION` would still get the generic `Image` ontology label.
+Without conditional labels, an `AWSECRImage` of type `attestation` would still
+get the generic `Image` ontology label. Exact matching is case-sensitive:
+production ECR values are `image`, `attestation`, and `manifest_list`.
 
 ### How it works
 
-- String labels (e.g. `"SecurityFinding"`) are applied unconditionally during ingestion.
-- `ConditionalNodeLabel` labels are applied in a separate query after ingestion, only on nodes matching all specified conditions.
-- Conditions use **exact string equality** and combine with **AND** logic.
+- Declarative labels with empty conditions are applied unconditionally during ingestion.
+- Labels with conditions are applied in a separate query after ingestion, only on nodes matching all specified conditions.
+- Compose conditions with `CONSTANT.when(field="value")`.
+- Conditions use **case-sensitive exact string equality** and combine with **AND** logic.
+- Conditions are stored as immutable, sorted `(field, value)` tuples.
 - Indexes are created automatically for conditional labels and their condition fields.
 - When conditions change, labels are added or removed on subsequent syncs.
 

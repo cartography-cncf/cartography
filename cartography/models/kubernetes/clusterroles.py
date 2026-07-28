@@ -9,6 +9,7 @@ from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import TargetNodeMatcher
+from cartography.models.ontology.labels import PERMISSION_ROLE
 
 
 @dataclass(frozen=True)
@@ -75,7 +76,7 @@ class KubernetesClusterRoleSchema(CartographyNodeSchema):
     "A cluster-scoped Kubernetes RBAC role."
 
     label: str = "KubernetesClusterRole"
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["PermissionRole"])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([PERMISSION_ROLE])
     properties: KubernetesClusterRoleNodeProperties = (
         KubernetesClusterRoleNodeProperties()
     )

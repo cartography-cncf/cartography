@@ -1,5 +1,13 @@
 # Docker Scout Configuration
 
+[Docker Scout](https://docs.docker.com/scout/) is a vulnerability scanner that analyzes container images for security issues in base image packages.
+
+Currently, Cartography allows you to use Docker Scout to scan the following resources:
+
+- [AWSECRImage](https://docs.cartography.dev/modules/aws/schema.html#ecrimage)
+- [GCPArtifactRegistryImage](https://docs.cartography.dev/modules/gcp/schema.html#gcpartifactregistryimage)
+- [GitLabContainerImage](https://docs.cartography.dev/modules/gitlab/schema.html#gitlabcontainerimage)
+
 ## Prerequisites
 
 1. Install the [Docker Scout CLI plugin](https://docs.docker.com/scout/install/).

@@ -30,8 +30,9 @@ from cartography.models.aws_tagging import AWS_TAGGABLE_RESOURCES
 from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeProperties
 from cartography.models.core.nodes import CartographyNodeSchema
-from cartography.models.core.nodes import ConditionalNodeLabel
+from cartography.models.core.nodes import ExtraNodeLabel
 from cartography.models.core.nodes import ExtraNodeLabels
+from cartography.models.core.nodes import LabelKind
 from cartography.models.core.relationships import CartographyRelProperties
 from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
@@ -142,7 +143,8 @@ class NodeLabelProvenance:
     module: str
     schema: str
     extra_labels: tuple[str, ...]
-    conditional_labels: tuple[ConditionalNodeLabel, ...]
+    conditional_labels: tuple[ExtraNodeLabel, ...]
+    label_definitions: tuple[ExtraNodeLabel, ...]
 
 
 @dataclass(frozen=True)
@@ -152,7 +154,7 @@ class Node:
     label: str
     descriptions: tuple[str, ...]
     extra_labels: tuple[str, ...]
-    conditional_labels: tuple[ConditionalNodeLabel, ...]
+    conditional_labels: tuple[ExtraNodeLabel, ...]
     properties: tuple[Property, ...]
     modules: tuple[str, ...]
     schemas: tuple[CartographyNodeSchema, ...]
@@ -160,6 +162,7 @@ class Node:
     ontology_projections: tuple[str, ...] = ()
     partial_extra_labels: tuple[str, ...] = ()
     label_provenance: tuple[NodeLabelProvenance, ...] = ()
+    label_definitions: tuple[ExtraNodeLabel, ...] = ()
 
     def get_property(self, name: str) -> Property | None:
         return next((prop for prop in self.properties if prop.name == name), None)
@@ -190,6 +193,7 @@ class OntologySemanticLabel:
 
     label: str
     mapping_group: str | None
+    descriptions: tuple[str, ...]
     properties: tuple[Property, ...]
     concrete_node_labels: tuple[str, ...]
 
@@ -598,6 +602,7 @@ def _new_node_entry() -> dict[str, Any]:
         "extra_labels": set(),
         "schema_extra_labels": [],
         "label_provenance": [],
+        "label_definitions": [],
         "conditional_labels": [],
         "ontology_labels": set(),
         "ontology_projections": set(),
@@ -635,15 +640,20 @@ def _add_node_schema(
 
     extra_labels = schema.extra_node_labels
     schema_extra_labels: set[str] = set()
-    schema_conditional_labels: list[ConditionalNodeLabel] = []
+    schema_conditional_labels: list[ExtraNodeLabel] = []
+    schema_label_definitions: tuple[ExtraNodeLabel, ...] = ()
     if isinstance(extra_labels, ExtraNodeLabels):
+        schema_label_definitions = extra_labels.labels
         for label in extra_labels.labels:
-            if isinstance(label, ConditionalNodeLabel):
+            entry["label_definitions"].append(label)
+            if label.kind is LabelKind.ONTOLOGY:
+                entry["ontology_labels"].add(label.label)
+            if label.conditions:
                 entry["conditional_labels"].append(label)
                 schema_conditional_labels.append(label)
             else:
-                entry["extra_labels"].add(label)
-                schema_extra_labels.add(label)
+                entry["extra_labels"].add(label.label)
+                schema_extra_labels.add(label.label)
     entry["schema_extra_labels"].append(schema_extra_labels)
     entry["label_provenance"].append(
         NodeLabelProvenance(
@@ -651,6 +661,7 @@ def _add_node_schema(
             schema=f"{type(schema).__module__}.{type(schema).__qualname__}",
             extra_labels=tuple(sorted(schema_extra_labels)),
             conditional_labels=tuple(schema_conditional_labels),
+            label_definitions=schema_label_definitions,
         )
     )
 
@@ -838,7 +849,13 @@ def _build_ontology_semantic_labels(
     """Aggregate semantic labels and normalized fields across provider mappings."""
     known_node_labels = {node.label for node in nodes}
     nodes_by_extra_label: dict[str, set[str]] = {}
+    descriptions_by_label: dict[str, set[str]] = {}
     for node in nodes:
+        for definition in node.label_definitions:
+            if definition.kind is LabelKind.ONTOLOGY:
+                descriptions_by_label.setdefault(definition.label, set()).add(
+                    definition.description
+                )
         for label in (
             *node.extra_labels,
             *node.ontology_labels,
@@ -880,6 +897,7 @@ def _build_ontology_semantic_labels(
             OntologySemanticLabel(
                 label=label,
                 mapping_group=mapping_group,
+                descriptions=tuple(sorted(descriptions_by_label.get(label, set()))),
                 properties=tuple(
                     _build_property(name, entry)
                     for name, entry in sorted(property_entries.items())
@@ -893,6 +911,7 @@ def _build_ontology_semantic_labels(
             OntologySemanticLabel(
                 label=label,
                 mapping_group=None,
+                descriptions=tuple(sorted(descriptions_by_label.get(label, set()))),
                 properties=(),
                 concrete_node_labels=tuple(
                     sorted(nodes_by_extra_label.get(label, set()))
@@ -1214,7 +1233,7 @@ def _build_node(label: str, entry: dict[str, Any]) -> Node:
     conditional_labels = {
         (
             conditional.label,
-            tuple(sorted(conditional.conditions.items())),
+            conditional.conditions,
         ): conditional
         for conditional in entry["conditional_labels"]
     }
@@ -1232,7 +1251,7 @@ def _build_node(label: str, entry: dict[str, Any]) -> Node:
                 conditional_labels.values(),
                 key=lambda conditional: (
                     conditional.label,
-                    tuple(sorted(conditional.conditions.items())),
+                    conditional.conditions,
                 ),
             )
         ),
@@ -1249,6 +1268,16 @@ def _build_node(label: str, entry: dict[str, Any]) -> Node:
             sorted(
                 entry["label_provenance"],
                 key=lambda provenance: (provenance.module, provenance.schema),
+            )
+        ),
+        label_definitions=tuple(
+            sorted(
+                set(entry["label_definitions"]),
+                key=lambda definition: (
+                    definition.label,
+                    definition.conditions,
+                    definition.kind.value,
+                ),
             )
         ),
     )

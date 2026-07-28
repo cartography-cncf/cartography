@@ -72,10 +72,10 @@ def test_sync_ubuntu_cves(mock_api, neo4j_session):
     assert record["n._ont_attack_vector"] == "NETWORK"
     assert record["n._ont_attack_complexity"] == "LOW"
     assert record["n._ont_base_score"] == 8.1
-    assert record["n._ont_base_severity"] == "HIGH"
+    assert record["n._ont_base_severity"] == "high"
     assert record["n._ont_published_date"] == "2024-01-15T10:30:00"
     assert record["n._ont_last_modified_date"] == "2024-02-01T14:22:00"
-    assert record["n._ont_vuln_status"] == "active"
+    assert record["n._ont_vuln_status"] == "open"
     assert record["n._ont_source"] == "ubuntu"
 
     record = neo4j_session.run(

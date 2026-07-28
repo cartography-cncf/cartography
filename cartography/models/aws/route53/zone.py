@@ -9,6 +9,7 @@ from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import TargetNodeMatcher
+from cartography.models.ontology.labels import DNS_ZONE
 
 
 @dataclass(frozen=True)
@@ -63,5 +64,5 @@ class AWSDNSZoneSchema(CartographyNodeSchema):
 
     label: str = "AWSDNSZone"
     properties: AWSDNSZoneNodeProperties = AWSDNSZoneNodeProperties()
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["DNSZone"])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([DNS_ZONE])
     sub_resource_relationship: AWSDNSZoneToAWSAccountRel = AWSDNSZoneToAWSAccountRel()

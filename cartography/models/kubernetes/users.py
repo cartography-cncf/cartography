@@ -10,6 +10,7 @@ from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import TargetNodeMatcher
+from cartography.models.ontology.labels import USER_ACCOUNT
 
 
 @dataclass(frozen=True)
@@ -131,7 +132,7 @@ class KubernetesUserSchema(CartographyNodeSchema):
     "A user identity referenced by Kubernetes RBAC."
 
     label: str = "KubernetesUser"
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["UserAccount"])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([USER_ACCOUNT])
     properties: KubernetesUserNodeProperties = KubernetesUserNodeProperties()
     sub_resource_relationship: KubernetesUserToClusterRel = KubernetesUserToClusterRel()
     other_relationships: OtherRelationships = OtherRelationships(

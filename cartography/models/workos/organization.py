@@ -9,6 +9,7 @@ from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import TargetNodeMatcher
+from cartography.models.ontology.labels import TENANT
 
 
 @dataclass(frozen=True)
@@ -58,7 +59,7 @@ class WorkOSOrganizationSchema(CartographyNodeSchema):
     """A WorkOS organization with the canonical Tenant label."""
 
     label: str = "WorkOSOrganization"
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["Tenant"])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([TENANT])
     properties: WorkOSOrganizationNodeProperties = WorkOSOrganizationNodeProperties()
     sub_resource_relationship: WorkOSOrganizationToEnvironmentRel = (
         WorkOSOrganizationToEnvironmentRel()

@@ -12,6 +12,7 @@ from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import SourceNodeMatcher
 from cartography.models.core.relationships import TargetNodeMatcher
+from cartography.models.ontology.labels import THIRD_PARTY_APP
 
 
 @dataclass(frozen=True)
@@ -211,7 +212,7 @@ class KeycloakClientSchema(CartographyNodeSchema):
     """Represents a Keycloak client application that can request authentication and authorization services from the realm."""
 
     label: str = "KeycloakClient"
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["ThirdPartyApp"])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([THIRD_PARTY_APP])
     properties: KeycloakClientNodeProperties = KeycloakClientNodeProperties()
     sub_resource_relationship: KeycloakClientToRealmRel = KeycloakClientToRealmRel()
     other_relationships: OtherRelationships = OtherRelationships(

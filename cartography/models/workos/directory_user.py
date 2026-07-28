@@ -10,6 +10,7 @@ from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import TargetNodeMatcher
+from cartography.models.ontology.labels import USER_ACCOUNT
 
 
 @dataclass(frozen=True)
@@ -148,7 +149,7 @@ class WorkOSDirectoryUserSchema(CartographyNodeSchema):
     """A directory-synchronized WorkOS user with the canonical UserAccount label."""
 
     label: str = "WorkOSDirectoryUser"
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["UserAccount"])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([USER_ACCOUNT])
     properties: WorkOSDirectoryUserNodeProperties = WorkOSDirectoryUserNodeProperties()
     sub_resource_relationship: WorkOSDirectoryUserToEnvironmentRel = (
         WorkOSDirectoryUserToEnvironmentRel()

@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 
+from cartography.models.aws.extra_labels import LEGACY_EVENT_BRIDGE_TARGET
 from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeProperties
 from cartography.models.core.nodes import CartographyNodeSchema
@@ -85,7 +86,7 @@ class EventBridgeTargetSchema(CartographyNodeSchema):
 
     label: str = "AWSEventBridgeTarget"
     # DEPRECATED: legacy EventBridgeTarget node label will be removed in v1.0.0.
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["EventBridgeTarget"])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([LEGACY_EVENT_BRIDGE_TARGET])
     properties: EventBridgeTargetNodeProperties = EventBridgeTargetNodeProperties()
     sub_resource_relationship: EventBridgeTargetToAWSAccountRel = (
         EventBridgeTargetToAWSAccountRel()

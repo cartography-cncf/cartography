@@ -80,10 +80,15 @@ hierarchy APIs such as `ListRoots`, `ListAccountsForParent`, and
 
 - Inspector ingestion requires the
   [AmazonInspector2ReadOnlyAccess policy](https://docs.aws.amazon.com/inspector/latest/user/security-iam-awsmanpol.html#security-iam-awsmanpol-AmazonInspector2ReadOnlyAccess).
+- EKS Access Entry ingestion requires `eks:ListAccessEntries`, which
+  `SecurityAudit` includes. Grant `eks:DescribeAccessEntry` to populate
+  detailed fields such as the ARN, username, type, and Kubernetes groups.
 - Allowlisted AWS-managed public SSM parameters require
   `ssm:GetParametersByPath` for the applicable `/aws/service/...` paths.
 - The `ecr:pull_through_cache_rules` requested sync requires
   `ecr:DescribePullThroughCacheRules`.
+- AWS Glue connection ingestion requires `glue:GetConnections`, which
+  `SecurityAudit` does not include.
 
 ## Configure Cartography
 

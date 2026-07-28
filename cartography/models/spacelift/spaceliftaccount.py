@@ -4,6 +4,7 @@ from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeProperties
 from cartography.models.core.nodes import CartographyNodeSchema
 from cartography.models.core.nodes import ExtraNodeLabels
+from cartography.models.ontology.labels import TENANT
 
 
 @dataclass(frozen=True)
@@ -34,4 +35,4 @@ class SpaceliftAccountSchema(CartographyNodeSchema):
     properties: SpaceliftAccountNodeProperties = SpaceliftAccountNodeProperties()
     sub_resource_relationship = None
     other_relationships = None
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["Tenant"])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([TENANT])

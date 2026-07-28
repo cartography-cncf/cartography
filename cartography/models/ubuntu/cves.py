@@ -9,6 +9,7 @@ from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import TargetNodeMatcher
+from cartography.models.ontology.labels import CVE
 
 
 @dataclass(frozen=True)
@@ -58,7 +59,7 @@ class UbuntuCVEToUbuntuCVEFeedRel(CartographyRelSchema):
 class UbuntuCVESchema(CartographyNodeSchema):
     label: str = "UbuntuCVE"
     properties: UbuntuCVENodeProperties = UbuntuCVENodeProperties()
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["CVE"])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([CVE])
     sub_resource_relationship: UbuntuCVEToUbuntuCVEFeedRel = (
         UbuntuCVEToUbuntuCVEFeedRel()
     )

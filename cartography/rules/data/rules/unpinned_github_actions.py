@@ -45,6 +45,7 @@ _unpinned_github_actions_fact = Fact(
       AND coalesce(repo.disabled, false) = false
     RETURN COUNT(DISTINCT a) AS count
     """,
+    asset_label="GitHubAction",
     asset_id_field="action_id",
     identity_fields=("repo", "workflow_path", "action_id"),
     module=Module.GITHUB,
