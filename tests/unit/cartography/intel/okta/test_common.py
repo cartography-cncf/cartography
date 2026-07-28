@@ -1,14 +1,39 @@
+import asyncio
 import json
 from copy import deepcopy
+from types import SimpleNamespace
 from typing import Any
 
 from okta.models.application_json_converter import ApplicationJsonConverter
 
 import cartography.intel.okta.common  # noqa: F401
+from cartography.intel.okta.common import collect_paginated
 from tests.data.okta.application import APPLICATION_WITH_REDITECT_URIS
 from tests.data.okta.application import BOOKMARK_APPLICATION_WITHOUT_URL
 from tests.data.okta.application import OIN_BROWSER_PLUGIN_APPLICATION
 from tests.data.okta.application import SAML_APPLICATION_WITH_UNKNOWN_FEATURE
+
+
+def test_collect_paginated_includes_final_page() -> None:
+    # Arrange
+    async def list_users(**kwargs: Any) -> tuple[list[str], SimpleNamespace, None]:
+        if kwargs.get("after") is None:
+            return (
+                ["first-user"],
+                SimpleNamespace(
+                    headers={
+                        "link": '<https://example.okta.com/api/v1/users?after=next>; rel="next"',
+                    },
+                ),
+                None,
+            )
+        return ["last-user"], SimpleNamespace(headers={}), None
+
+    # Act
+    result = asyncio.run(collect_paginated(list_users, limit=200))
+
+    # Assert
+    assert result == ["first-user", "last-user"]
 
 
 def test_saml_application_accepts_omitted_optional_booleans() -> None:
