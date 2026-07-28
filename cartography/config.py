@@ -504,8 +504,6 @@ class Config:
         okta_saml_role_regex=None,
         github_config=None,
         github_commit_lookback_days=30,
-        github_parallel_workers=1,
-        github_incremental_sync=False,
         digitalocean_token=None,
         permission_relationships_file=None,
         azure_permission_relationships_file=None,
@@ -669,6 +667,9 @@ class Config:
         netlify_token=None,
         netlify_account_slug=None,
         netlify_base_url=None,
+        # Appended last to preserve positional-arg compatibility for existing callers.
+        github_parallel_workers=1,
+        github_incremental_sync=False,
     ):
         self.neo4j_uri = neo4j_uri
         self.neo4j_user = neo4j_user
