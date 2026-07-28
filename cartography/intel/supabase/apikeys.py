@@ -54,8 +54,13 @@ def get(
     """
     List the project's API keys.
 
-    NOTE: `reveal` is deliberately never passed. Without it the API omits the
-    `api_key` field, so the key material never reaches this process.
+    NOTE: contrary to what the `reveal` query parameter implies, this endpoint
+    returns the full `api_key` value for every key type even when `reveal` is
+    omitted, including the `service_role` secret. Verified against the live API.
+    `reveal` is still never passed, but the value therefore does reach this
+    process: transform_api_keys() builds a fresh dict from an explicit field list
+    so it is dropped here and never written to the graph, and the node schema has
+    no property to hold it. Do not log this response body.
     """
     return get_json(
         api_session,
@@ -81,11 +86,13 @@ def transform_api_keys(
     api_keys: list[dict[str, Any]] | None,
     project_ref: str,
 ) -> list[dict[str, Any]]:
+    # Only the fields listed below are carried over. In particular the `api_key`
+    # value the endpoint returns is dropped here and never reaches the graph.
     result: list[dict[str, Any]] = []
     for key in api_keys or []:
-        # `id` is nullable for the legacy anon / service_role keys, which predate
-        # per-key identifiers. Fall back to the project ref plus key type so the
-        # node still has a stable identity across syncs.
+        # The spec marks `id` nullable, so fall back to the project ref plus key
+        # type to keep a stable identity. In practice the live API returns "anon"
+        # and "service_role" as the ids of the legacy keys.
         key_id = key.get("id") or f"{project_ref}/{key.get('type') or 'unknown'}"
         result.append(
             {

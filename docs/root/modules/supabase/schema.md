@@ -209,7 +209,7 @@ Represents a custom domain fronting a Supabase project's API endpoint.
 
 ### SupabaseApiKey
 
-Represents a project API key. The key material is never retrieved or stored: Cartography lists keys without the `reveal` parameter, so the API omits the secret value.
+Represents a project API key. The key material is never stored. Cartography lists keys without the `reveal` parameter, though note the endpoint returns the value regardless; it is dropped during transformation and this node has no property to hold it.
 
 > **Ontology Mapping**: This node has the extra label `APIKey` to enable cross-platform queries for API keys across different systems (e.g., AnthropicApiKey, GitHubPersonalAccessToken, AWSAccessKey).
 

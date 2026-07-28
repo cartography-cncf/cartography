@@ -25,9 +25,7 @@ TEST_BASE_URL = "https://api.fake-supabase.com"
 TEST_CLEANUP_UPDATE_TAG = TEST_UPDATE_TAG + 1
 
 _RLS_FINDING_ID = f"{TEST_PROJECT_REF}/rls_disabled_in_public_public_reactor_readings"
-_VIEW_FINDING_ID = (
-    f"{TEST_PROJECT_REF}/security_definer_view_public_employee_summary"
-)
+_VIEW_FINDING_ID = f"{TEST_PROJECT_REF}/security_definer_view_public_employee_summary"
 
 
 def _common_job_parameters():
@@ -92,21 +90,18 @@ def test_load_supabase_security_advisor_findings(mock_get, neo4j_session):
         == expected_nodes
     )
 
-    assert (
-        check_rels(
-            neo4j_session,
-            "SupabaseSecurityAdvisorFinding",
-            "id",
-            "SupabaseProject",
-            "id",
-            "RESOURCE",
-            rel_direction_right=False,
-        )
-        == {
-            (_RLS_FINDING_ID, TEST_PROJECT_REF),
-            (_VIEW_FINDING_ID, TEST_PROJECT_REF),
-        }
-    )
+    assert check_rels(
+        neo4j_session,
+        "SupabaseSecurityAdvisorFinding",
+        "id",
+        "SupabaseProject",
+        "id",
+        "RESOURCE",
+        rel_direction_right=False,
+    ) == {
+        (_RLS_FINDING_ID, TEST_PROJECT_REF),
+        (_VIEW_FINDING_ID, TEST_PROJECT_REF),
+    }
 
 
 @patch.object(
@@ -130,21 +125,18 @@ def test_supabase_advisor_findings_affect_database(mock_get, neo4j_session):
     )
 
     # Assert
-    assert (
-        check_rels(
-            neo4j_session,
-            "SupabaseSecurityAdvisorFinding",
-            "id",
-            "SupabaseDatabase",
-            "id",
-            "AFFECTS",
-            rel_direction_right=True,
-        )
-        == {
-            (_RLS_FINDING_ID, f"{TEST_PROJECT_REF}/postgres"),
-            (_VIEW_FINDING_ID, f"{TEST_PROJECT_REF}/postgres"),
-        }
-    )
+    assert check_rels(
+        neo4j_session,
+        "SupabaseSecurityAdvisorFinding",
+        "id",
+        "SupabaseDatabase",
+        "id",
+        "AFFECTS",
+        rel_direction_right=True,
+    ) == {
+        (_RLS_FINDING_ID, f"{TEST_PROJECT_REF}/postgres"),
+        (_VIEW_FINDING_ID, f"{TEST_PROJECT_REF}/postgres"),
+    }
 
 
 @patch.object(
@@ -216,6 +208,4 @@ def test_supabase_advisors_tolerate_unavailable(mock_get, neo4j_session):
     )
 
     # Assert
-    assert (
-        check_nodes(neo4j_session, "SupabaseSecurityAdvisorFinding", ["id"]) == set()
-    )
+    assert check_nodes(neo4j_session, "SupabaseSecurityAdvisorFinding", ["id"]) == set()

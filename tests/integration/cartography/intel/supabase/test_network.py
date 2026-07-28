@@ -67,53 +67,44 @@ def test_load_supabase_poolers(mock_get, mock_get_hostname, neo4j_session):
     )
 
     # Assert
-    assert (
-        check_nodes(
-            neo4j_session,
-            "SupabasePooler",
-            ["id", "db_host", "db_port", "pool_mode", "is_using_scram_auth"],
-        )
-        == {
-            (
-                f"{TEST_PROJECT_REF}/{TEST_PROJECT_REF}",
-                "aws-0-us-east-2.pooler.supabase.com",
-                6543,
-                "transaction",
-                True,
-            ),
-        }
-    )
+    assert check_nodes(
+        neo4j_session,
+        "SupabasePooler",
+        ["id", "db_host", "db_port", "pool_mode", "is_using_scram_auth"],
+    ) == {
+        (
+            f"{TEST_PROJECT_REF}/{TEST_PROJECT_REF}",
+            "aws-0-us-east-2.pooler.supabase.com",
+            6543,
+            "transaction",
+            True,
+        ),
+    }
 
-    assert (
-        check_rels(
-            neo4j_session,
-            "SupabasePooler",
-            "id",
-            "SupabaseProject",
-            "id",
-            "RESOURCE",
-            rel_direction_right=False,
-        )
-        == {(f"{TEST_PROJECT_REF}/{TEST_PROJECT_REF}", TEST_PROJECT_REF)}
-    )
+    assert check_rels(
+        neo4j_session,
+        "SupabasePooler",
+        "id",
+        "SupabaseProject",
+        "id",
+        "RESOURCE",
+        rel_direction_right=False,
+    ) == {(f"{TEST_PROJECT_REF}/{TEST_PROJECT_REF}", TEST_PROJECT_REF)}
 
-    assert (
-        check_rels(
-            neo4j_session,
-            "SupabasePooler",
-            "id",
-            "SupabaseDatabase",
-            "id",
-            "CONNECTS_TO",
-            rel_direction_right=True,
-        )
-        == {
-            (
-                f"{TEST_PROJECT_REF}/{TEST_PROJECT_REF}",
-                f"{TEST_PROJECT_REF}/postgres",
-            ),
-        }
-    )
+    assert check_rels(
+        neo4j_session,
+        "SupabasePooler",
+        "id",
+        "SupabaseDatabase",
+        "id",
+        "CONNECTS_TO",
+        rel_direction_right=True,
+    ) == {
+        (
+            f"{TEST_PROJECT_REF}/{TEST_PROJECT_REF}",
+            f"{TEST_PROJECT_REF}/postgres",
+        ),
+    }
 
 
 @patch.object(
@@ -184,34 +175,28 @@ def test_load_supabase_custom_hostname(mock_get, mock_get_hostname, neo4j_sessio
     )
 
     # Assert
-    assert (
-        check_nodes(
-            neo4j_session,
-            "SupabaseCustomHostname",
-            ["id", "hostname", "type", "ssl_status"],
-        )
-        == {
-            (
-                f"{TEST_PROJECT_REF}/api.simpson.corp",
-                "api.simpson.corp",
-                "CNAME",
-                "active",
-            ),
-        }
-    )
+    assert check_nodes(
+        neo4j_session,
+        "SupabaseCustomHostname",
+        ["id", "hostname", "type", "ssl_status"],
+    ) == {
+        (
+            f"{TEST_PROJECT_REF}/api.simpson.corp",
+            "api.simpson.corp",
+            "CNAME",
+            "active",
+        ),
+    }
 
-    assert (
-        check_rels(
-            neo4j_session,
-            "SupabaseCustomHostname",
-            "id",
-            "SupabaseProject",
-            "id",
-            "POINTS_TO",
-            rel_direction_right=True,
-        )
-        == {(f"{TEST_PROJECT_REF}/api.simpson.corp", TEST_PROJECT_REF)}
-    )
+    assert check_rels(
+        neo4j_session,
+        "SupabaseCustomHostname",
+        "id",
+        "SupabaseProject",
+        "id",
+        "POINTS_TO",
+        rel_direction_right=True,
+    ) == {(f"{TEST_PROJECT_REF}/api.simpson.corp", TEST_PROJECT_REF)}
 
 
 @patch.object(

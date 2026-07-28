@@ -52,7 +52,5 @@ class SupabaseApiKeyToProjectRel(CartographyRelSchema):
 class SupabaseApiKeySchema(CartographyNodeSchema):
     label: str = "SupabaseApiKey"
     properties: SupabaseApiKeyNodeProperties = SupabaseApiKeyNodeProperties()
-    sub_resource_relationship: SupabaseApiKeyToProjectRel = (
-        SupabaseApiKeyToProjectRel()
-    )
+    sub_resource_relationship: SupabaseApiKeyToProjectRel = SupabaseApiKeyToProjectRel()
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([API_KEY])

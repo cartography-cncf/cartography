@@ -25,6 +25,30 @@ _RETRY_STATUS_FORCELIST = [429, 500, 502, 503, 504]
 # Mirrors the documented 403 exception in cartography/intel/vercel/util.py.
 TOLERATED_STATUSES = (402, 403, 404)
 
+# Plan-gated endpoints do not answer 402 or 403 as one would expect. They answer
+# HTTP 400 with this error code in the body, e.g. /vanity-subdomain and
+# /custom-hostname on a free-tier organization. Matching on the code rather than
+# on the bare 400 keeps genuine bad requests loud.
+_ENTITLEMENT_ERROR_CODE = "entitlement_required"
+
+
+def _is_entitlement_error(response: requests.Response) -> bool:
+    """
+    True when a 400 response is really "your plan does not include this feature".
+    """
+    if response.status_code != 400:
+        return False
+    try:
+        body = response.json()
+    except ValueError:
+        return False
+    if not isinstance(body, dict):
+        return False
+    error = body.get("error")
+    if not isinstance(error, dict):
+        return False
+    return error.get("code") == _ENTITLEMENT_ERROR_CODE
+
 
 def build_session(access_token: str) -> requests.Session:
     """
@@ -55,13 +79,16 @@ def get_json(
     :param url: Full URL of the API endpoint
     :param tolerate: HTTP statuses to treat as "feature unavailable". On one of
         these, log a warning and return None instead of raising. Pass
-        ``TOLERATED_STATUSES`` for plan-gated or beta endpoints.
+        ``TOLERATED_STATUSES`` for plan-gated or beta endpoints. When non-empty,
+        a 400 carrying the ``entitlement_required`` error code is tolerated too.
     :return: Decoded JSON body, or None when a tolerated status was returned.
     """
     response = api_session.get(url, timeout=_TIMEOUT)
-    if response.status_code in tolerate:
+    if tolerate and (
+        response.status_code in tolerate or _is_entitlement_error(response)
+    ):
         logger.warning(
-            "Supabase returned %d for %s - skipping (feature likely unavailable on this plan).",
+            "Supabase returned %d for %s - skipping (feature unavailable on this plan).",
             response.status_code,
             url,
         )

@@ -67,21 +67,18 @@ def test_load_supabase_storage_buckets(mock_get, neo4j_session):
         == expected_nodes
     )
 
-    assert (
-        check_rels(
-            neo4j_session,
-            "SupabaseStorageBucket",
-            "id",
-            "SupabaseProject",
-            "id",
-            "RESOURCE",
-            rel_direction_right=False,
-        )
-        == {
-            (f"{TEST_PROJECT_REF}/avatars", TEST_PROJECT_REF),
-            (f"{TEST_PROJECT_REF}/reactor-logs", TEST_PROJECT_REF),
-        }
-    )
+    assert check_rels(
+        neo4j_session,
+        "SupabaseStorageBucket",
+        "id",
+        "SupabaseProject",
+        "id",
+        "RESOURCE",
+        rel_direction_right=False,
+    ) == {
+        (f"{TEST_PROJECT_REF}/avatars", TEST_PROJECT_REF),
+        (f"{TEST_PROJECT_REF}/reactor-logs", TEST_PROJECT_REF),
+    }
 
 
 @patch.object(

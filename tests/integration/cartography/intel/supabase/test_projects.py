@@ -304,18 +304,15 @@ def test_load_supabase_database(mock_get_posture, neo4j_session):
     assert record["latest_backup_at"].to_native().day == 26
 
     # Assert the database is attached to its project
-    assert (
-        check_rels(
-            neo4j_session,
-            "SupabaseDatabase",
-            "id",
-            "SupabaseProject",
-            "id",
-            "RESOURCE",
-            rel_direction_right=False,
-        )
-        == {(f"{TEST_PROJECT_REF}/postgres", TEST_PROJECT_REF)}
-    )
+    assert check_rels(
+        neo4j_session,
+        "SupabaseDatabase",
+        "id",
+        "SupabaseProject",
+        "id",
+        "RESOURCE",
+        rel_direction_right=False,
+    ) == {(f"{TEST_PROJECT_REF}/postgres", TEST_PROJECT_REF)}
 
 
 @patch.object(

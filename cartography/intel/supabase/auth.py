@@ -173,7 +173,9 @@ def transform_sso_providers(
                 "metadata_url": saml.get("metadata_url"),
                 "name_id_format": saml.get("name_id_format"),
                 "domains": [
-                    d["domain"] for d in provider.get("domains") or [] if d.get("domain")
+                    d["domain"]
+                    for d in provider.get("domains") or []
+                    if d.get("domain")
                 ],
                 "created_at": iso_to_datetime(provider.get("created_at")),
                 "updated_at": iso_to_datetime(provider.get("updated_at")),

@@ -1,7 +1,10 @@
-# GET /v1/projects/{ref}/api-keys. Called without ?reveal, so `api_key` is absent
-# from every entry: the key material never reaches Cartography.
+# GET /v1/projects/{ref}/api-keys. Shaped after the live API: despite `reveal`
+# being omitted, the endpoint returns the full `api_key` value for every key type,
+# including the service_role secret. The values below are dummies and must be
+# dropped in transform, never reaching the graph.
 SUPABASE_API_KEYS = [
     {
+        "api_key": "sb_publishable_dummy_value_that_must_be_dropped",
         "id": "key-publishable-1",
         "type": "publishable",
         "prefix": "sb_publishable_",
@@ -13,6 +16,7 @@ SUPABASE_API_KEYS = [
         "updated_at": "2026-07-01T10:05:00Z",
     },
     {
+        "api_key": "sb_secret_dummy_value_that_must_be_dropped",
         "id": "key-secret-1",
         "type": "secret",
         "prefix": "sb_secret_",
@@ -23,15 +27,29 @@ SUPABASE_API_KEYS = [
         "inserted_at": "2026-07-01T10:06:00Z",
         "updated_at": "2026-07-02T12:00:00Z",
     },
-    # Legacy anon / service_role keys predate per-key ids, so `id` is null and the
-    # transform must synthesise one from the project ref plus type.
+    # The spec marks `id` nullable, so cover the fallback path where the transform
+    # synthesises an id from the project ref plus type. The live API does return
+    # "anon" / "service_role" ids for legacy keys, covered by the entry below.
     {
+        "api_key": "eyJhbGciOiJIUzI1NiJ9.dummy-legacy-jwt-that-must-be-dropped",
         "id": None,
         "type": "legacy",
         "prefix": None,
         "name": "anon",
         "description": None,
         "hash": None,
+        "secret_jwt_template": None,
+        "inserted_at": None,
+        "updated_at": None,
+    },
+    {
+        "api_key": "eyJhbGciOiJIUzI1NiJ9.dummy-service-role-jwt-must-be-dropped",
+        "id": "service_role",
+        "type": "legacy",
+        "prefix": "A3KdY",
+        "name": "service_role",
+        "description": None,
+        "hash": "hash-service-role",
         "secret_jwt_template": None,
         "inserted_at": None,
         "updated_at": None,

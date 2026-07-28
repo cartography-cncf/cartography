@@ -75,9 +75,7 @@ class SupabaseBranchOfProjectRel(CartographyRelSchema):
 class SupabaseBranchSchema(CartographyNodeSchema):
     label: str = "SupabaseBranch"
     properties: SupabaseBranchNodeProperties = SupabaseBranchNodeProperties()
-    sub_resource_relationship: SupabaseBranchToProjectRel = (
-        SupabaseBranchToProjectRel()
-    )
+    sub_resource_relationship: SupabaseBranchToProjectRel = SupabaseBranchToProjectRel()
     other_relationships: OtherRelationships = OtherRelationships(
         [
             SupabaseBranchOfProjectRel(),

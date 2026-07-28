@@ -105,22 +105,21 @@ def test_load_supabase_auth_config(mock_get, mock_sso, mock_tpa, neo4j_session):
     # sign-up mode rather than a federated provider, so it is excluded.
     assert sorted(record["providers"]) == ["email", "github", "google"]
 
-    assert (
-        check_rels(
-            neo4j_session,
-            "SupabaseAuthConfig",
-            "id",
-            "SupabaseProject",
-            "id",
-            "RESOURCE",
-            rel_direction_right=False,
-        )
-        == {(f"{TEST_PROJECT_REF}/auth", TEST_PROJECT_REF)}
-    )
+    assert check_rels(
+        neo4j_session,
+        "SupabaseAuthConfig",
+        "id",
+        "SupabaseProject",
+        "id",
+        "RESOURCE",
+        rel_direction_right=False,
+    ) == {(f"{TEST_PROJECT_REF}/auth", TEST_PROJECT_REF)}
 
 
 @_patch_auth_endpoints
-def test_supabase_auth_config_drops_secrets(mock_get, mock_sso, mock_tpa, neo4j_session):
+def test_supabase_auth_config_drops_secrets(
+    mock_get, mock_sso, mock_tpa, neo4j_session
+):
     """
     Ensure only the curated allowlist is ingested: the captcha secret, SMTP
     password, hook secrets and test OTP present in the response must not land.
@@ -168,10 +167,9 @@ def test_load_supabase_sso_providers(mock_get, mock_sso, mock_tpa, neo4j_session
     )
 
     # Assert
-    assert (
-        check_nodes(neo4j_session, "SupabaseSSOProvider", ["id", "entity_id"])
-        == {("sso-provider-1", "https://idp.simpson.corp/saml/metadata")}
-    )
+    assert check_nodes(neo4j_session, "SupabaseSSOProvider", ["id", "entity_id"]) == {
+        ("sso-provider-1", "https://idp.simpson.corp/saml/metadata")
+    }
 
     record = neo4j_session.run(
         """
@@ -185,18 +183,15 @@ def test_load_supabase_sso_providers(mock_get, mock_sso, mock_tpa, neo4j_session
     ]
     assert record["name_id_format"].endswith("emailAddress")
 
-    assert (
-        check_rels(
-            neo4j_session,
-            "SupabaseSSOProvider",
-            "id",
-            "SupabaseProject",
-            "id",
-            "RESOURCE",
-            rel_direction_right=False,
-        )
-        == {("sso-provider-1", TEST_PROJECT_REF)}
-    )
+    assert check_rels(
+        neo4j_session,
+        "SupabaseSSOProvider",
+        "id",
+        "SupabaseProject",
+        "id",
+        "RESOURCE",
+        rel_direction_right=False,
+    ) == {("sso-provider-1", TEST_PROJECT_REF)}
 
 
 @_patch_auth_endpoints
@@ -217,33 +212,27 @@ def test_load_supabase_third_party_auth(mock_get, mock_sso, mock_tpa, neo4j_sess
     )
 
     # Assert
-    assert (
-        check_nodes(
-            neo4j_session,
-            "SupabaseThirdPartyAuthIntegration",
-            ["id", "type", "oidc_issuer_url"],
-        )
-        == {
-            (
-                "tpa-firebase-1",
-                "firebase",
-                "https://securetoken.google.com/simpson-corp",
-            ),
-        }
-    )
+    assert check_nodes(
+        neo4j_session,
+        "SupabaseThirdPartyAuthIntegration",
+        ["id", "type", "oidc_issuer_url"],
+    ) == {
+        (
+            "tpa-firebase-1",
+            "firebase",
+            "https://securetoken.google.com/simpson-corp",
+        ),
+    }
 
-    assert (
-        check_rels(
-            neo4j_session,
-            "SupabaseThirdPartyAuthIntegration",
-            "id",
-            "SupabaseProject",
-            "id",
-            "RESOURCE",
-            rel_direction_right=False,
-        )
-        == {("tpa-firebase-1", TEST_PROJECT_REF)}
-    )
+    assert check_rels(
+        neo4j_session,
+        "SupabaseThirdPartyAuthIntegration",
+        "id",
+        "SupabaseProject",
+        "id",
+        "RESOURCE",
+        rel_direction_right=False,
+    ) == {("tpa-firebase-1", TEST_PROJECT_REF)}
 
 
 @_patch_auth_endpoints

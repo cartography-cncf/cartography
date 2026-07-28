@@ -63,6 +63,7 @@ def test_load_supabase_api_keys(mock_get, mock_get_signing_keys, neo4j_session):
         ("key-publishable-1", "default publishable", "publishable"),
         ("key-secret-1", "server key", "secret"),
         (f"{TEST_PROJECT_REF}/legacy", "anon", "legacy"),
+        ("service_role", "service_role", "legacy"),
     }
     assert (
         check_nodes(neo4j_session, "SupabaseApiKey", ["id", "name", "type"])
@@ -80,37 +81,32 @@ def test_load_supabase_api_keys(mock_get, mock_get_signing_keys, neo4j_session):
     )
 
     # Assert both are attached to the project
-    assert (
-        check_rels(
-            neo4j_session,
-            "SupabaseApiKey",
-            "id",
-            "SupabaseProject",
-            "id",
-            "RESOURCE",
-            rel_direction_right=False,
-        )
-        == {
-            ("key-publishable-1", TEST_PROJECT_REF),
-            ("key-secret-1", TEST_PROJECT_REF),
-            (f"{TEST_PROJECT_REF}/legacy", TEST_PROJECT_REF),
-        }
-    )
-    assert (
-        check_rels(
-            neo4j_session,
-            "SupabaseSigningKey",
-            "id",
-            "SupabaseProject",
-            "id",
-            "RESOURCE",
-            rel_direction_right=False,
-        )
-        == {
-            ("signing-key-current", TEST_PROJECT_REF),
-            ("signing-key-standby", TEST_PROJECT_REF),
-        }
-    )
+    assert check_rels(
+        neo4j_session,
+        "SupabaseApiKey",
+        "id",
+        "SupabaseProject",
+        "id",
+        "RESOURCE",
+        rel_direction_right=False,
+    ) == {
+        ("key-publishable-1", TEST_PROJECT_REF),
+        ("key-secret-1", TEST_PROJECT_REF),
+        (f"{TEST_PROJECT_REF}/legacy", TEST_PROJECT_REF),
+        ("service_role", TEST_PROJECT_REF),
+    }
+    assert check_rels(
+        neo4j_session,
+        "SupabaseSigningKey",
+        "id",
+        "SupabaseProject",
+        "id",
+        "RESOURCE",
+        rel_direction_right=False,
+    ) == {
+        ("signing-key-current", TEST_PROJECT_REF),
+        ("signing-key-standby", TEST_PROJECT_REF),
+    }
 
 
 @patch.object(
@@ -129,9 +125,11 @@ def test_supabase_api_keys_never_store_key_material(
     neo4j_session,
 ):
     """
-    Ensure no key material lands on the graph. Cartography lists keys without the
-    `reveal` parameter, so `api_key` is never returned, and the node schema has no
-    property for it.
+    Ensure no key material lands on the graph.
+
+    The live endpoint returns the full `api_key` value even without `reveal`, so
+    this is the guarantee that matters: the value is dropped in transform and no
+    property on any node holds it.
     """
     # Arrange
     api_session = requests.Session()
@@ -155,6 +153,19 @@ def test_supabase_api_keys_never_store_key_material(
         """,
     ).single()
     assert record["forbidden"] == []
+
+    # Belt and braces: no property value anywhere in the graph contains any of the
+    # dummy key values from the fixture.
+    leaked = neo4j_session.run(
+        """
+        MATCH (n)
+        UNWIND keys(n) AS k
+        WITH n[k] AS v
+        WHERE valueType(v) STARTS WITH 'STRING' AND v CONTAINS 'must_be_dropped'
+        RETURN count(*) AS leaked
+        """,
+    ).single()
+    assert leaked["leaked"] == 0
 
     # The non-secret prefix and hash are kept, so the key stays identifiable.
     prefix_record = neo4j_session.run(

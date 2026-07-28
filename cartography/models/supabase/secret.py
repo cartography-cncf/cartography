@@ -47,7 +47,5 @@ class SupabaseSecretToProjectRel(CartographyRelSchema):
 class SupabaseSecretSchema(CartographyNodeSchema):
     label: str = "SupabaseSecret"
     properties: SupabaseSecretNodeProperties = SupabaseSecretNodeProperties()
-    sub_resource_relationship: SupabaseSecretToProjectRel = (
-        SupabaseSecretToProjectRel()
-    )
+    sub_resource_relationship: SupabaseSecretToProjectRel = SupabaseSecretToProjectRel()
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([SECRET])

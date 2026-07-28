@@ -69,21 +69,18 @@ def test_load_supabase_edge_functions(mock_get, mock_get_secrets, neo4j_session)
         == expected_nodes
     )
 
-    assert (
-        check_rels(
-            neo4j_session,
-            "SupabaseEdgeFunction",
-            "id",
-            "SupabaseProject",
-            "id",
-            "RESOURCE",
-            rel_direction_right=False,
-        )
-        == {
-            ("fn-meltdown-alert", TEST_PROJECT_REF),
-            ("fn-public-webhook", TEST_PROJECT_REF),
-        }
-    )
+    assert check_rels(
+        neo4j_session,
+        "SupabaseEdgeFunction",
+        "id",
+        "SupabaseProject",
+        "id",
+        "RESOURCE",
+        rel_direction_right=False,
+    ) == {
+        ("fn-meltdown-alert", TEST_PROJECT_REF),
+        ("fn-public-webhook", TEST_PROJECT_REF),
+    }
 
 
 @patch.object(
@@ -176,21 +173,18 @@ def test_load_supabase_secrets(mock_get, mock_get_secrets, neo4j_session):
     ).single()
     assert record["forbidden"] == []
 
-    assert (
-        check_rels(
-            neo4j_session,
-            "SupabaseSecret",
-            "id",
-            "SupabaseProject",
-            "id",
-            "RESOURCE",
-            rel_direction_right=False,
-        )
-        == {
-            (f"{TEST_PROJECT_REF}/SENTRY_DSN", TEST_PROJECT_REF),
-            (f"{TEST_PROJECT_REF}/PLANT_CONTROL_TOKEN", TEST_PROJECT_REF),
-        }
-    )
+    assert check_rels(
+        neo4j_session,
+        "SupabaseSecret",
+        "id",
+        "SupabaseProject",
+        "id",
+        "RESOURCE",
+        rel_direction_right=False,
+    ) == {
+        (f"{TEST_PROJECT_REF}/SENTRY_DSN", TEST_PROJECT_REF),
+        (f"{TEST_PROJECT_REF}/PLANT_CONTROL_TOKEN", TEST_PROJECT_REF),
+    }
 
 
 @patch.object(

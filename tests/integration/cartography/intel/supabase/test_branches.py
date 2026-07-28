@@ -67,21 +67,18 @@ def test_load_supabase_branches(mock_get, neo4j_session):
         == expected_nodes
     )
 
-    assert (
-        check_rels(
-            neo4j_session,
-            "SupabaseBranch",
-            "id",
-            "SupabaseProject",
-            "id",
-            "RESOURCE",
-            rel_direction_right=False,
-        )
-        == {
-            ("branch-main", TEST_PROJECT_REF),
-            ("branch-coolant-fix", TEST_PROJECT_REF),
-        }
-    )
+    assert check_rels(
+        neo4j_session,
+        "SupabaseBranch",
+        "id",
+        "SupabaseProject",
+        "id",
+        "RESOURCE",
+        rel_direction_right=False,
+    ) == {
+        ("branch-main", TEST_PROJECT_REF),
+        ("branch-coolant-fix", TEST_PROJECT_REF),
+    }
 
 
 @patch.object(
@@ -107,21 +104,18 @@ def test_supabase_branch_of_parent_project(mock_get, neo4j_session):
     )
 
     # Assert
-    assert (
-        check_rels(
-            neo4j_session,
-            "SupabaseBranch",
-            "id",
-            "SupabaseProject",
-            "id",
-            "BRANCH_OF",
-            rel_direction_right=True,
-        )
-        == {
-            ("branch-main", TEST_PROJECT_REF),
-            ("branch-coolant-fix", TEST_PROJECT_REF),
-        }
-    )
+    assert check_rels(
+        neo4j_session,
+        "SupabaseBranch",
+        "id",
+        "SupabaseProject",
+        "id",
+        "BRANCH_OF",
+        rel_direction_right=True,
+    ) == {
+        ("branch-main", TEST_PROJECT_REF),
+        ("branch-coolant-fix", TEST_PROJECT_REF),
+    }
 
     # The non-default branch lives in its own ephemeral project.
     record = neo4j_session.run(

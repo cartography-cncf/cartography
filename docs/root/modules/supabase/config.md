@@ -12,14 +12,14 @@ Follow these steps to analyze Supabase objects with Cartography.
 
 Cartography only issues `GET` requests against the [Management API](https://supabase.com/docs/reference/api/introduction) and never fetches secret material:
 
-- Project API keys are listed without the `reveal` parameter, so the key values are never returned. Only the key id, name, type, prefix and server-side hash are stored.
+- Project API keys are listed without the `reveal` parameter. Note that the endpoint returns the full key value anyway, including the `service_role` secret, so the value does pass through Cartography's memory; it is dropped during transformation and only the key id, name, type, prefix and server-side hash are stored.
 - Edge function secrets are stored by name and last-updated timestamp; the values returned by the API are dropped before ingestion.
 - The `jwt_secret` field from the PostgREST config, the pooler connection strings, the auth captcha secret, SMTP credentials and webhook hook secrets are all dropped.
 - The pgsodium root key endpoint and the saved SQL snippets endpoint are never called.
 
 ### Plan-gated endpoints
 
-Several endpoints require a paid plan or a GitHub integration: database branches, custom hostnames, vanity subdomains, network restrictions and point-in-time recovery. When they answer `402`, `403` or `404` the module logs a warning and continues, so a free-tier project syncs cleanly with those properties left unset.
+Several endpoints require a paid plan or a GitHub integration: database branches, custom hostnames, vanity subdomains, network restrictions and point-in-time recovery. When they answer `402`, `403` or `404`, or a `400` carrying the `entitlement_required` error code (which is what the custom-hostname and vanity-subdomain endpoints actually return on a free-tier organization), the module logs a warning and continues, so a free-tier project syncs cleanly with those properties left unset.
 
 ### Rate limits
 

@@ -74,9 +74,7 @@ class SupabasePoolerToDatabaseRel(CartographyRelSchema):
 class SupabasePoolerSchema(CartographyNodeSchema):
     label: str = "SupabasePooler"
     properties: SupabasePoolerNodeProperties = SupabasePoolerNodeProperties()
-    sub_resource_relationship: SupabasePoolerToProjectRel = (
-        SupabasePoolerToProjectRel()
-    )
+    sub_resource_relationship: SupabasePoolerToProjectRel = SupabasePoolerToProjectRel()
     other_relationships: OtherRelationships = OtherRelationships(
         [
             SupabasePoolerToDatabaseRel(),

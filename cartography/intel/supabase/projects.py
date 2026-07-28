@@ -32,7 +32,9 @@ def sync(
     projects = [
         p for p in get(api_session, base_url) if p["organization_slug"] == org_slug
     ]
-    settings = {p["ref"]: get_settings(api_session, base_url, p["ref"]) for p in projects}
+    settings = {
+        p["ref"]: get_settings(api_session, base_url, p["ref"]) for p in projects
+    }
 
     transformed = transform_projects(projects, settings)
     load_projects(
@@ -127,7 +129,9 @@ def transform_projects(
                     "db_extra_search_path",
                 ),
                 "storage_file_size_limit": storage.get("fileSizeLimit"),
-                "storage_s3_protocol_enabled": (storage_features.get("s3Protocol") or {}).get(
+                "storage_s3_protocol_enabled": (
+                    storage_features.get("s3Protocol") or {}
+                ).get(
                     "enabled",
                 ),
                 "realtime_private_only": realtime.get("private_only"),
@@ -248,7 +252,9 @@ def transform_database(
             "postgres_engine": database["postgres_engine"],
             "release_channel": database["release_channel"],
             "region": project["region"],
-            "ssl_enforced": (ssl_enforcement.get("currentConfig") or {}).get("database"),
+            "ssl_enforced": (ssl_enforcement.get("currentConfig") or {}).get(
+                "database"
+            ),
             "network_restrictions_status": network_restrictions.get("status"),
             "db_allowed_cidrs": restrictions_config.get("dbAllowedCidrs"),
             "db_allowed_cidrs_v6": restrictions_config.get("dbAllowedCidrsV6"),
