@@ -9,6 +9,7 @@ from cartography.graph.job import GraphJob
 from cartography.intel.supabase.util import get_json
 from cartography.intel.supabase.util import iso_to_datetime
 from cartography.intel.supabase.util import TOLERATED_STATUSES
+from cartography.intel.supabase.util import warn_unavailable
 from cartography.models.supabase.branch import SupabaseBranchSchema
 from cartography.util import timeit
 
@@ -23,6 +24,9 @@ def sync(
 ) -> None:
     project_ref = common_job_parameters["PROJECT_REF"]
     branches = get(api_session, common_job_parameters["BASE_URL"], project_ref)
+    if branches is None:
+        warn_unavailable("database branches", project_ref)
+        return
     load_branches(
         neo4j_session,
         transform_branches(branches),

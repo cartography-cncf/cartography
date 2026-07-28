@@ -57,13 +57,14 @@ def test_load_supabase_api_keys(mock_get, mock_get_signing_keys, neo4j_session):
         _common_job_parameters(),
     )
 
-    # Assert keys exist. The legacy key has no id in the API response, so its node
-    # id is synthesised from the project ref plus type.
+    # Assert keys exist. Every node id is prefixed with the project ref, because the
+    # legacy key ids the API returns are the same in every project. The "/legacy"
+    # entry covers the fallback for the spec's nullable `id`.
     expected_nodes = {
-        ("key-publishable-1", "default publishable", "publishable"),
-        ("key-secret-1", "server key", "secret"),
+        (f"{TEST_PROJECT_REF}/key-publishable-1", "default publishable", "publishable"),
+        (f"{TEST_PROJECT_REF}/key-secret-1", "server key", "secret"),
         (f"{TEST_PROJECT_REF}/legacy", "anon", "legacy"),
-        ("service_role", "service_role", "legacy"),
+        (f"{TEST_PROJECT_REF}/service_role", "service_role", "legacy"),
     }
     assert (
         check_nodes(neo4j_session, "SupabaseApiKey", ["id", "name", "type"])
@@ -90,10 +91,10 @@ def test_load_supabase_api_keys(mock_get, mock_get_signing_keys, neo4j_session):
         "RESOURCE",
         rel_direction_right=False,
     ) == {
-        ("key-publishable-1", TEST_PROJECT_REF),
-        ("key-secret-1", TEST_PROJECT_REF),
+        (f"{TEST_PROJECT_REF}/key-publishable-1", TEST_PROJECT_REF),
+        (f"{TEST_PROJECT_REF}/key-secret-1", TEST_PROJECT_REF),
         (f"{TEST_PROJECT_REF}/legacy", TEST_PROJECT_REF),
-        ("service_role", TEST_PROJECT_REF),
+        (f"{TEST_PROJECT_REF}/service_role", TEST_PROJECT_REF),
     }
     assert check_rels(
         neo4j_session,
@@ -170,47 +171,65 @@ def test_supabase_api_keys_never_store_key_material(
     # The non-secret prefix and hash are kept, so the key stays identifiable.
     prefix_record = neo4j_session.run(
         """
-        MATCH (k:SupabaseApiKey {id: 'key-secret-1'})
+        MATCH (k:SupabaseApiKey {id: $id})
         RETURN k.prefix AS prefix, k.hash AS hash
         """,
+        id=f"{TEST_PROJECT_REF}/key-secret-1",
     ).single()
     assert prefix_record["prefix"] == "sb_secret_"
     assert prefix_record["hash"] == "hash-secret-1"
 
 
-@patch.object(
-    cartography.intel.supabase.apikeys,
-    "get_signing_keys",
-    return_value=None,
-)
-@patch.object(
-    cartography.intel.supabase.apikeys,
-    "get",
-    return_value=None,
-)
-def test_supabase_api_keys_tolerate_unavailable(
-    mock_get,
-    mock_get_signing_keys,
-    neo4j_session,
-):
+def test_supabase_api_keys_unavailable_keeps_existing_inventory(neo4j_session):
     """
-    Ensure a project whose key endpoints are unavailable syncs without error.
+    A tolerated status must not delete the keys already in the graph.
+
+    "We could not read the key list" is not "this project has no keys". Running
+    cleanup on the former would let a plan downgrade, a revoked token scope or a
+    transient 403 silently wipe a real key inventory.
     """
-    # Arrange
+    # Arrange: a successful sync first, so there is real inventory to protect.
     api_session = requests.Session()
     _ensure_local_neo4j_has_test_organizations(neo4j_session)
     _ensure_local_neo4j_has_test_projects(neo4j_session)
+    with (
+        patch.object(
+            cartography.intel.supabase.apikeys,
+            "get",
+            return_value=tests.data.supabase.apikeys.SUPABASE_API_KEYS,
+        ),
+        patch.object(
+            cartography.intel.supabase.apikeys,
+            "get_signing_keys",
+            return_value=tests.data.supabase.apikeys.SUPABASE_SIGNING_KEYS,
+        ),
+    ):
+        cartography.intel.supabase.apikeys.sync(
+            neo4j_session,
+            api_session,
+            _common_job_parameters(),
+        )
+    before = check_nodes(neo4j_session, "SupabaseApiKey", ["id"])
+    signing_before = check_nodes(neo4j_session, "SupabaseSigningKey", ["id"])
+    assert before, "arrange step should have loaded API keys"
 
-    # Act
-    cartography.intel.supabase.apikeys.sync(
-        neo4j_session,
-        api_session,
-        {**_common_job_parameters(), "UPDATE_TAG": TEST_CLEANUP_UPDATE_TAG},
-    )
+    # Act: both endpoints go unavailable, on a later update tag so a cleanup would
+    # consider every existing node stale and delete it.
+    with (
+        patch.object(cartography.intel.supabase.apikeys, "get", return_value=None),
+        patch.object(
+            cartography.intel.supabase.apikeys, "get_signing_keys", return_value=None
+        ),
+    ):
+        cartography.intel.supabase.apikeys.sync(
+            neo4j_session,
+            api_session,
+            {**_common_job_parameters(), "UPDATE_TAG": TEST_CLEANUP_UPDATE_TAG},
+        )
 
-    # Assert
-    assert check_nodes(neo4j_session, "SupabaseApiKey", ["id"]) == set()
-    assert check_nodes(neo4j_session, "SupabaseSigningKey", ["id"]) == set()
+    # Assert: nothing was deleted.
+    assert check_nodes(neo4j_session, "SupabaseApiKey", ["id"]) == before
+    assert check_nodes(neo4j_session, "SupabaseSigningKey", ["id"]) == signing_before
 
 
 @patch.object(
@@ -246,9 +265,68 @@ def test_supabase_api_key_ontology_labels(
     # Assert
     record = neo4j_session.run(
         """
-        MATCH (k:SupabaseApiKey:APIKey {id: 'key-secret-1'})
+        MATCH (k:SupabaseApiKey:APIKey {id: $id})
         RETURN k._ont_name AS name, k._ont_source AS source
         """,
+        id=f"{TEST_PROJECT_REF}/key-secret-1",
     ).single()
     assert record["name"] == "server key"
     assert record["source"] == "supabase"
+
+
+@patch.object(
+    cartography.intel.supabase.apikeys,
+    "get_signing_keys",
+    return_value=None,
+)
+@patch.object(
+    cartography.intel.supabase.apikeys,
+    "get",
+    return_value=tests.data.supabase.apikeys.SUPABASE_API_KEYS,
+)
+def test_supabase_legacy_api_keys_do_not_merge_across_projects(
+    mock_get,
+    mock_get_signing_keys,
+    neo4j_session,
+):
+    """
+    The API returns "anon" and "service_role" as the ids of the legacy keys, which
+    are identical in every project. Node ids must therefore be scoped to the
+    project, or two projects would collapse onto one node whose metadata each sync
+    overwrites and which both projects point at.
+    """
+    # Arrange: two projects in the same organization, both with legacy keys.
+    api_session = requests.Session()
+    _ensure_local_neo4j_has_test_organizations(neo4j_session)
+    _ensure_local_neo4j_has_test_projects(neo4j_session)
+    other_project_ref = "kwikemartdbbbbbbbbbb"
+
+    # Act
+    for ref in (TEST_PROJECT_REF, other_project_ref):
+        cartography.intel.supabase.apikeys.sync(
+            neo4j_session,
+            api_session,
+            {**_common_job_parameters(), "PROJECT_REF": ref},
+        )
+
+    # Assert each project has its own service_role node.
+    service_role_nodes = {
+        row[0]
+        for row in check_nodes(neo4j_session, "SupabaseApiKey", ["id"])
+        if row[0].endswith("/service_role")
+    }
+    assert service_role_nodes == {
+        f"{TEST_PROJECT_REF}/service_role",
+        f"{other_project_ref}/service_role",
+    }
+
+    # And no key node is shared between the two projects.
+    shared = neo4j_session.run(
+        """
+        MATCH (p:SupabaseProject)-[:RESOURCE]->(k:SupabaseApiKey)
+        WITH k, count(DISTINCT p) AS projects
+        WHERE projects > 1
+        RETURN count(k) AS shared
+        """,
+    ).single()
+    assert shared["shared"] == 0

@@ -14,8 +14,15 @@ from cartography.models.ontology.labels import USER_ACCOUNT
 
 @dataclass(frozen=True)
 class SupabaseOrganizationMemberNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("user_id")
+    # A membership, not a person: synthesised as "<org slug>/<user id>". `role_name`
+    # is per-organization, so keying on user_id alone would make the last
+    # organization synced overwrite the member's role in every other one. A user in
+    # two organizations therefore gets one node per organization, the same way
+    # AWSUser is scoped per account; the canonical `User` ontology node is what
+    # unifies them back into a single person.
+    id: PropertyRef = PropertyRef("id")
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    user_id: PropertyRef = PropertyRef("user_id", extra_index=True)
     email: PropertyRef = PropertyRef("email", extra_index=True)
     user_name: PropertyRef = PropertyRef("user_name")
     role_name: PropertyRef = PropertyRef("role_name")

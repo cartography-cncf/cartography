@@ -8,6 +8,7 @@ from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
 from cartography.intel.supabase.util import get_json
 from cartography.intel.supabase.util import TOLERATED_STATUSES
+from cartography.intel.supabase.util import warn_unavailable
 from cartography.models.supabase.customhostname import SupabaseCustomHostnameSchema
 from cartography.models.supabase.pooler import SupabasePoolerSchema
 from cartography.util import timeit
@@ -26,22 +27,28 @@ def sync(
     update_tag = common_job_parameters["UPDATE_TAG"]
 
     poolers = get(api_session, base_url, project_ref)
-    load_poolers(
-        neo4j_session,
-        transform_poolers(poolers, project_ref),
-        project_ref,
-        update_tag,
-    )
+    if poolers is None:
+        warn_unavailable("connection poolers", project_ref)
+    else:
+        load_poolers(
+            neo4j_session,
+            transform_poolers(poolers, project_ref),
+            project_ref,
+            update_tag,
+        )
+        cleanup_poolers(neo4j_session, common_job_parameters)
 
     custom_hostname = get_custom_hostname(api_session, base_url, project_ref)
-    load_custom_hostnames(
-        neo4j_session,
-        transform_custom_hostname(custom_hostname, project_ref),
-        project_ref,
-        update_tag,
-    )
-
-    cleanup(neo4j_session, common_job_parameters)
+    if custom_hostname is None:
+        warn_unavailable("custom hostname", project_ref)
+    else:
+        load_custom_hostnames(
+            neo4j_session,
+            transform_custom_hostname(custom_hostname, project_ref),
+            project_ref,
+            update_tag,
+        )
+        cleanup_custom_hostnames(neo4j_session, common_job_parameters)
 
 
 @timeit
@@ -158,13 +165,20 @@ def load_custom_hostnames(
 
 
 @timeit
-def cleanup(
+def cleanup_poolers(
     neo4j_session: neo4j.Session,
     common_job_parameters: dict[str, Any],
 ) -> None:
     GraphJob.from_node_schema(SupabasePoolerSchema(), common_job_parameters).run(
         neo4j_session,
     )
+
+
+@timeit
+def cleanup_custom_hostnames(
+    neo4j_session: neo4j.Session,
+    common_job_parameters: dict[str, Any],
+) -> None:
     GraphJob.from_node_schema(
         SupabaseCustomHostnameSchema(),
         common_job_parameters,

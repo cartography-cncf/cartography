@@ -9,6 +9,7 @@ from cartography.graph.job import GraphJob
 from cartography.intel.supabase.util import get_json
 from cartography.intel.supabase.util import iso_to_datetime
 from cartography.intel.supabase.util import TOLERATED_STATUSES
+from cartography.intel.supabase.util import warn_unavailable
 from cartography.models.supabase.apikey import SupabaseApiKeySchema
 from cartography.models.supabase.signingkey import SupabaseSigningKeySchema
 from cartography.util import timeit
@@ -27,22 +28,28 @@ def sync(
     update_tag = common_job_parameters["UPDATE_TAG"]
 
     api_keys = get(api_session, base_url, project_ref)
-    load_api_keys(
-        neo4j_session,
-        transform_api_keys(api_keys, project_ref),
-        project_ref,
-        update_tag,
-    )
+    if api_keys is None:
+        warn_unavailable("API keys", project_ref)
+    else:
+        load_api_keys(
+            neo4j_session,
+            transform_api_keys(api_keys, project_ref),
+            project_ref,
+            update_tag,
+        )
+        cleanup_api_keys(neo4j_session, common_job_parameters)
 
     signing_keys = get_signing_keys(api_session, base_url, project_ref)
-    load_signing_keys(
-        neo4j_session,
-        transform_signing_keys(signing_keys),
-        project_ref,
-        update_tag,
-    )
-
-    cleanup(neo4j_session, common_job_parameters)
+    if signing_keys is None:
+        warn_unavailable("signing keys", project_ref)
+    else:
+        load_signing_keys(
+            neo4j_session,
+            transform_signing_keys(signing_keys),
+            project_ref,
+            update_tag,
+        )
+        cleanup_signing_keys(neo4j_session, common_job_parameters)
 
 
 @timeit
@@ -90,13 +97,16 @@ def transform_api_keys(
     # value the endpoint returns is dropped here and never reaches the graph.
     result: list[dict[str, Any]] = []
     for key in api_keys or []:
-        # The spec marks `id` nullable, so fall back to the project ref plus key
-        # type to keep a stable identity. In practice the live API returns "anon"
-        # and "service_role" as the ids of the legacy keys.
-        key_id = key.get("id") or f"{project_ref}/{key.get('type') or 'unknown'}"
+        # Always prefix with the project ref: the API returns "anon" and
+        # "service_role" as the ids of the legacy keys, which are identical across
+        # every project. Without the prefix two projects would share one node, with
+        # each sync overwriting the other's metadata and both projects' RESOURCE
+        # edges pointing at it. `id` is also nullable in the spec, hence the type
+        # fallback.
+        key_id = key.get("id") or key.get("type") or "unknown"
         result.append(
             {
-                "id": key_id,
+                "id": f"{project_ref}/{key_id}",
                 "name": key["name"],
                 "type": key.get("type"),
                 "prefix": key.get("prefix"),
@@ -157,13 +167,20 @@ def load_signing_keys(
 
 
 @timeit
-def cleanup(
+def cleanup_api_keys(
     neo4j_session: neo4j.Session,
     common_job_parameters: dict[str, Any],
 ) -> None:
     GraphJob.from_node_schema(SupabaseApiKeySchema(), common_job_parameters).run(
         neo4j_session,
     )
+
+
+@timeit
+def cleanup_signing_keys(
+    neo4j_session: neo4j.Session,
+    common_job_parameters: dict[str, Any],
+) -> None:
     GraphJob.from_node_schema(SupabaseSigningKeySchema(), common_job_parameters).run(
         neo4j_session,
     )

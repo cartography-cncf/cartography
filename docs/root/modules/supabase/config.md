@@ -21,6 +21,8 @@ Cartography only issues `GET` requests against the [Management API](https://supa
 
 Several endpoints require a paid plan or a GitHub integration: database branches, custom hostnames, vanity subdomains, network restrictions and point-in-time recovery. When they answer `402`, `403` or `404`, or a `400` carrying the `entitlement_required` error code (which is what the custom-hostname and vanity-subdomain endpoints actually return on a free-tier organization), the module logs a warning and continues, so a free-tier project syncs cleanly with those properties left unset.
 
+An unreadable endpoint never deletes anything. "We could not list this" is treated differently from a `200` returning an empty list: only the latter runs a cleanup. So losing an entitlement, having a token scope revoked or hitting a transient `403` leaves the previously-ingested keys, branches, buckets, secrets and findings in the graph rather than silently erasing them. Stale data is recoverable on the next successful sync; deleted data is not.
+
 ### Rate limits
 
 The Management API allows 120 requests per minute by default. The module issues roughly 20 requests per project plus 2 per organization, and retries `429` responses with exponential backoff.

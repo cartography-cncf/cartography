@@ -82,6 +82,10 @@ def get_json(
         ``TOLERATED_STATUSES`` for plan-gated or beta endpoints. When non-empty,
         a 400 carrying the ``entitlement_required`` error code is tolerated too.
     :return: Decoded JSON body, or None when a tolerated status was returned.
+
+    ``None`` means "we could not read this inventory", which callers must treat
+    differently from a 200 returning an empty list, which means "this inventory is
+    empty". Only the latter may drive a cleanup: see warn_unavailable().
     """
     response = api_session.get(url, timeout=_TIMEOUT)
     if tolerate and (
@@ -95,6 +99,25 @@ def get_json(
         return None
     response.raise_for_status()
     return response.json()
+
+
+def warn_unavailable(resource: str, project_ref: str) -> None:
+    """
+    Log that a resource could not be listed, so its load and cleanup are skipped.
+
+    A tolerated status means "we do not know what exists here", which is not the
+    same as a 200 returning an empty list, which means "nothing exists here".
+    Treating the two alike would let a plan downgrade, a revoked scope or a
+    transient 403 wipe a real inventory of keys, branches, secrets or buckets from
+    the graph. So when the read fails we leave the previous nodes alone: stale data
+    is recoverable on the next successful sync, deleted data is not.
+    """
+    logger.warning(
+        "Supabase %s for project %s could not be listed - leaving any existing "
+        "nodes in place and skipping their cleanup.",
+        resource,
+        project_ref,
+    )
 
 
 def iso_to_datetime(value: Any) -> datetime | None:

@@ -187,25 +187,39 @@ def test_supabase_advisor_finding_ontology_labels(mock_get, neo4j_session):
     assert warn_record["severity"] == "medium"
 
 
-@patch.object(
-    cartography.intel.supabase.advisors,
-    "get",
-    return_value=None,
-)
-def test_supabase_advisors_tolerate_unavailable(mock_get, neo4j_session):
+def test_supabase_advisors_unavailable_keeps_existing_findings(neo4j_session):
     """
-    Ensure a project whose advisor endpoint is unavailable syncs without error.
+    A tolerated status must not delete the findings already in the graph.
+
+    Silently dropping open security findings because the advisor endpoint was
+    briefly unreadable would turn a read failure into a clean bill of health.
     """
-    # Arrange
+    # Arrange: a successful sync first, so there is real inventory to protect.
     api_session = requests.Session()
     _arrange(neo4j_session)
+    with patch.object(
+        cartography.intel.supabase.advisors,
+        "get",
+        return_value=tests.data.supabase.advisors.SUPABASE_SECURITY_ADVISORS,
+    ):
+        cartography.intel.supabase.advisors.sync(
+            neo4j_session,
+            api_session,
+            _common_job_parameters(),
+        )
+    before = check_nodes(neo4j_session, "SupabaseSecurityAdvisorFinding", ["id"])
+    assert before, "arrange step should have loaded findings"
 
-    # Act
-    cartography.intel.supabase.advisors.sync(
-        neo4j_session,
-        api_session,
-        {**_common_job_parameters(), "UPDATE_TAG": TEST_CLEANUP_UPDATE_TAG},
+    # Act: the endpoint goes unavailable, on a later update tag so a cleanup would
+    # consider every existing finding stale and delete it.
+    with patch.object(cartography.intel.supabase.advisors, "get", return_value=None):
+        cartography.intel.supabase.advisors.sync(
+            neo4j_session,
+            api_session,
+            {**_common_job_parameters(), "UPDATE_TAG": TEST_CLEANUP_UPDATE_TAG},
+        )
+
+    # Assert: nothing was deleted.
+    assert (
+        check_nodes(neo4j_session, "SupabaseSecurityAdvisorFinding", ["id"]) == before
     )
-
-    # Assert
-    assert check_nodes(neo4j_session, "SupabaseSecurityAdvisorFinding", ["id"]) == set()

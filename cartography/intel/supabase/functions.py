@@ -10,6 +10,7 @@ from cartography.intel.supabase.util import epoch_ms_to_datetime
 from cartography.intel.supabase.util import get_json
 from cartography.intel.supabase.util import iso_to_datetime
 from cartography.intel.supabase.util import TOLERATED_STATUSES
+from cartography.intel.supabase.util import warn_unavailable
 from cartography.models.supabase.edgefunction import SupabaseEdgeFunctionSchema
 from cartography.models.supabase.secret import SupabaseSecretSchema
 from cartography.util import timeit
@@ -28,22 +29,28 @@ def sync(
     update_tag = common_job_parameters["UPDATE_TAG"]
 
     edge_functions = get(api_session, base_url, project_ref)
-    load_edge_functions(
-        neo4j_session,
-        transform_edge_functions(edge_functions),
-        project_ref,
-        update_tag,
-    )
+    if edge_functions is None:
+        warn_unavailable("edge functions", project_ref)
+    else:
+        load_edge_functions(
+            neo4j_session,
+            transform_edge_functions(edge_functions),
+            project_ref,
+            update_tag,
+        )
+        cleanup_edge_functions(neo4j_session, common_job_parameters)
 
     secrets = get_secrets(api_session, base_url, project_ref)
-    load_secrets(
-        neo4j_session,
-        transform_secrets(secrets, project_ref),
-        project_ref,
-        update_tag,
-    )
-
-    cleanup(neo4j_session, common_job_parameters)
+    if secrets is None:
+        warn_unavailable("function secrets", project_ref)
+    else:
+        load_secrets(
+            neo4j_session,
+            transform_secrets(secrets, project_ref),
+            project_ref,
+            update_tag,
+        )
+        cleanup_secrets(neo4j_session, common_job_parameters)
 
 
 @timeit
@@ -148,7 +155,7 @@ def load_secrets(
 
 
 @timeit
-def cleanup(
+def cleanup_edge_functions(
     neo4j_session: neo4j.Session,
     common_job_parameters: dict[str, Any],
 ) -> None:
@@ -156,6 +163,13 @@ def cleanup(
         SupabaseEdgeFunctionSchema(),
         common_job_parameters,
     ).run(neo4j_session)
+
+
+@timeit
+def cleanup_secrets(
+    neo4j_session: neo4j.Session,
+    common_job_parameters: dict[str, Any],
+) -> None:
     GraphJob.from_node_schema(SupabaseSecretSchema(), common_job_parameters).run(
         neo4j_session,
     )

@@ -103,7 +103,7 @@ def sync_members(
 ) -> None:
     org_slug = common_job_parameters["ORG_SLUG"]
     members = get_members(api_session, common_job_parameters["BASE_URL"], org_slug)
-    transformed = transform_members(members)
+    transformed = transform_members(members, org_slug)
     load_members(
         neo4j_session,
         transformed,
@@ -122,9 +122,15 @@ def get_members(
     return get_json(api_session, f"{base_url}/v1/organizations/{org_slug}/members")
 
 
-def transform_members(members: list[dict[str, Any]]) -> list[dict[str, Any]]:
+def transform_members(
+    members: list[dict[str, Any]],
+    org_slug: str,
+) -> list[dict[str, Any]]:
+    # Scope the node id to the organization: role_name is a per-organization fact,
+    # so a user belonging to several organizations needs one node per membership.
     return [
         {
+            "id": f"{org_slug}/{member['user_id']}",
             "user_id": member["user_id"],
             "email": member.get("email"),
             "user_name": member.get("user_name"),

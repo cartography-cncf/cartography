@@ -277,46 +277,69 @@ def test_supabase_auth_ontology_labels(mock_get, mock_sso, mock_tpa, neo4j_sessi
     assert tpa["issuer"] == "https://securetoken.google.com/simpson-corp"
 
 
-@patch.object(
-    cartography.intel.supabase.auth,
-    "get_third_party_auth",
-    return_value=None,
-)
-@patch.object(
-    cartography.intel.supabase.auth,
-    "get_sso_providers",
-    return_value=None,
-)
-@patch.object(
-    cartography.intel.supabase.auth,
-    "get",
-    return_value=None,
-)
-def test_supabase_auth_tolerates_unavailable(
-    mock_get,
-    mock_sso,
-    mock_tpa,
-    neo4j_session,
-):
+def test_supabase_auth_unavailable_keeps_existing_inventory(neo4j_session):
     """
-    Ensure a project whose auth endpoints are unavailable syncs without error. SSO
-    in particular is a paid feature.
+    A tolerated status must not delete the auth inventory already in the graph.
+
+    SSO is plan-gated, so this is the realistic regression: losing the entitlement
+    must not erase the record of which identity providers a project trusts.
     """
-    # Arrange
+    # Arrange: a successful sync first, so there is real inventory to protect.
     api_session = requests.Session()
     _ensure_local_neo4j_has_test_organizations(neo4j_session)
     _ensure_local_neo4j_has_test_projects(neo4j_session)
-
-    # Act
-    cartography.intel.supabase.auth.sync(
+    with (
+        patch.object(
+            cartography.intel.supabase.auth,
+            "get",
+            return_value=tests.data.supabase.auth.SUPABASE_AUTH_CONFIG,
+        ),
+        patch.object(
+            cartography.intel.supabase.auth,
+            "get_sso_providers",
+            return_value=tests.data.supabase.auth.SUPABASE_SSO_PROVIDERS,
+        ),
+        patch.object(
+            cartography.intel.supabase.auth,
+            "get_third_party_auth",
+            return_value=tests.data.supabase.auth.SUPABASE_THIRD_PARTY_AUTH,
+        ),
+    ):
+        cartography.intel.supabase.auth.sync(
+            neo4j_session,
+            api_session,
+            _common_job_parameters(),
+        )
+    config_before = check_nodes(neo4j_session, "SupabaseAuthConfig", ["id"])
+    sso_before = check_nodes(neo4j_session, "SupabaseSSOProvider", ["id"])
+    tpa_before = check_nodes(
         neo4j_session,
-        api_session,
-        {**_common_job_parameters(), "UPDATE_TAG": TEST_CLEANUP_UPDATE_TAG},
+        "SupabaseThirdPartyAuthIntegration",
+        ["id"],
     )
+    assert config_before and sso_before and tpa_before, "arrange should load all three"
 
-    # Assert
-    assert check_nodes(neo4j_session, "SupabaseAuthConfig", ["id"]) == set()
-    assert check_nodes(neo4j_session, "SupabaseSSOProvider", ["id"]) == set()
+    # Act: all three endpoints go unavailable, on a later update tag so a cleanup
+    # would consider every existing node stale and delete it.
+    with (
+        patch.object(cartography.intel.supabase.auth, "get", return_value=None),
+        patch.object(
+            cartography.intel.supabase.auth, "get_sso_providers", return_value=None
+        ),
+        patch.object(
+            cartography.intel.supabase.auth, "get_third_party_auth", return_value=None
+        ),
+    ):
+        cartography.intel.supabase.auth.sync(
+            neo4j_session,
+            api_session,
+            {**_common_job_parameters(), "UPDATE_TAG": TEST_CLEANUP_UPDATE_TAG},
+        )
+
+    # Assert: nothing was deleted.
+    assert check_nodes(neo4j_session, "SupabaseAuthConfig", ["id"]) == config_before
+    assert check_nodes(neo4j_session, "SupabaseSSOProvider", ["id"]) == sso_before
     assert (
-        check_nodes(neo4j_session, "SupabaseThirdPartyAuthIntegration", ["id"]) == set()
+        check_nodes(neo4j_session, "SupabaseThirdPartyAuthIntegration", ["id"])
+        == tpa_before
     )

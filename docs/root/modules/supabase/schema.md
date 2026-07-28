@@ -56,9 +56,10 @@ Represents a user who is a member of a Supabase organization.
 
 | Field | Description |
 |-------|-------------|
-| **id** | The member's user id |
+| **id** | Synthesised as `<org slug>/<user id>`. This node is a membership, not a person: `role_name` is per-organization, so a user belonging to several organizations gets one node per organization, the same way `AWSUser` is scoped per account |
 | firstseen| Timestamp of when a sync job first created this node |
 | lastupdated | Timestamp of the last time the node was updated |
+| **user_id** | The member's Supabase user id, shared across their memberships |
 | **email** | The member's email address |
 | user_name | The member's username |
 | role_name | The member's role in the organization (Owner, Administrator, Developer, ...) |
@@ -215,7 +216,7 @@ Represents a project API key. The key material is never stored. Cartography list
 
 | Field | Description |
 |-------|-------------|
-| **id** | The key id. Legacy `anon` and `service_role` keys have no id, so theirs is synthesised as `<project ref>/<type>` |
+| **id** | Synthesised as `<project ref>/<key id>`. The prefix is required because the API returns `anon` and `service_role` as the ids of the legacy keys, which are identical in every project; without it two projects would share one node. When the API returns no id at all, the key type is used in its place |
 | firstseen| Timestamp of when a sync job first created this node |
 | lastupdated | Timestamp of the last time the node was updated |
 | **name** | Name of the key |

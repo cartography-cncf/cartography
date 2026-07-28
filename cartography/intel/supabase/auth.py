@@ -9,6 +9,7 @@ from cartography.graph.job import GraphJob
 from cartography.intel.supabase.util import get_json
 from cartography.intel.supabase.util import iso_to_datetime
 from cartography.intel.supabase.util import TOLERATED_STATUSES
+from cartography.intel.supabase.util import warn_unavailable
 from cartography.models.supabase.authconfig import SupabaseAuthConfigSchema
 from cartography.models.supabase.ssoprovider import SupabaseSSOProviderSchema
 from cartography.models.supabase.thirdpartyauth import (
@@ -73,30 +74,40 @@ def sync(
     update_tag = common_job_parameters["UPDATE_TAG"]
 
     auth_config = get(api_session, base_url, project_ref)
-    load_auth_config(
-        neo4j_session,
-        transform_auth_config(auth_config, project_ref),
-        project_ref,
-        update_tag,
-    )
+    if auth_config is None:
+        warn_unavailable("auth configuration", project_ref)
+    else:
+        load_auth_config(
+            neo4j_session,
+            transform_auth_config(auth_config, project_ref),
+            project_ref,
+            update_tag,
+        )
+        cleanup_auth_config(neo4j_session, common_job_parameters)
 
     sso_providers = get_sso_providers(api_session, base_url, project_ref)
-    load_sso_providers(
-        neo4j_session,
-        transform_sso_providers(sso_providers),
-        project_ref,
-        update_tag,
-    )
+    if sso_providers is None:
+        warn_unavailable("SSO providers", project_ref)
+    else:
+        load_sso_providers(
+            neo4j_session,
+            transform_sso_providers(sso_providers),
+            project_ref,
+            update_tag,
+        )
+        cleanup_sso_providers(neo4j_session, common_job_parameters)
 
     third_party = get_third_party_auth(api_session, base_url, project_ref)
-    load_third_party_auth(
-        neo4j_session,
-        transform_third_party_auth(third_party),
-        project_ref,
-        update_tag,
-    )
-
-    cleanup(neo4j_session, common_job_parameters)
+    if third_party is None:
+        warn_unavailable("third-party auth integrations", project_ref)
+    else:
+        load_third_party_auth(
+            neo4j_session,
+            transform_third_party_auth(third_party),
+            project_ref,
+            update_tag,
+        )
+        cleanup_third_party_auth(neo4j_session, common_job_parameters)
 
 
 @timeit
@@ -250,16 +261,30 @@ def load_third_party_auth(
 
 
 @timeit
-def cleanup(
+def cleanup_auth_config(
     neo4j_session: neo4j.Session,
     common_job_parameters: dict[str, Any],
 ) -> None:
     GraphJob.from_node_schema(SupabaseAuthConfigSchema(), common_job_parameters).run(
         neo4j_session,
     )
+
+
+@timeit
+def cleanup_sso_providers(
+    neo4j_session: neo4j.Session,
+    common_job_parameters: dict[str, Any],
+) -> None:
     GraphJob.from_node_schema(SupabaseSSOProviderSchema(), common_job_parameters).run(
         neo4j_session,
     )
+
+
+@timeit
+def cleanup_third_party_auth(
+    neo4j_session: neo4j.Session,
+    common_job_parameters: dict[str, Any],
+) -> None:
     GraphJob.from_node_schema(
         SupabaseThirdPartyAuthIntegrationSchema(),
         common_job_parameters,

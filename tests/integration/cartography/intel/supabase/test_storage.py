@@ -115,26 +115,39 @@ def test_supabase_storage_bucket_ontology_labels(mock_get, neo4j_session):
     assert record["source"] == "supabase"
 
 
-@patch.object(
-    cartography.intel.supabase.storage,
-    "get",
-    return_value=None,
-)
-def test_supabase_storage_tolerates_unavailable(mock_get, neo4j_session):
+def test_supabase_storage_unavailable_keeps_existing_buckets(neo4j_session):
     """
-    Ensure a project whose storage endpoint is unavailable syncs without error.
+    A tolerated status must not delete the buckets already in the graph.
+
+    "We could not list the buckets" is not "this project has no buckets". Cleaning
+    up on the former would let a revoked scope or a transient 403 erase a real
+    bucket inventory, including the public ones that matter most.
     """
-    # Arrange
+    # Arrange: a successful sync first, so there is real inventory to protect.
     api_session = requests.Session()
     _ensure_local_neo4j_has_test_organizations(neo4j_session)
     _ensure_local_neo4j_has_test_projects(neo4j_session)
+    with patch.object(
+        cartography.intel.supabase.storage,
+        "get",
+        return_value=tests.data.supabase.storage.SUPABASE_STORAGE_BUCKETS,
+    ):
+        cartography.intel.supabase.storage.sync(
+            neo4j_session,
+            api_session,
+            _common_job_parameters(),
+        )
+    before = check_nodes(neo4j_session, "SupabaseStorageBucket", ["id"])
+    assert before, "arrange step should have loaded buckets"
 
-    # Act
-    cartography.intel.supabase.storage.sync(
-        neo4j_session,
-        api_session,
-        {**_common_job_parameters(), "UPDATE_TAG": TEST_CLEANUP_UPDATE_TAG},
-    )
+    # Act: the endpoint goes unavailable, on a later update tag so a cleanup would
+    # consider every existing bucket stale and delete it.
+    with patch.object(cartography.intel.supabase.storage, "get", return_value=None):
+        cartography.intel.supabase.storage.sync(
+            neo4j_session,
+            api_session,
+            {**_common_job_parameters(), "UPDATE_TAG": TEST_CLEANUP_UPDATE_TAG},
+        )
 
-    # Assert
-    assert check_nodes(neo4j_session, "SupabaseStorageBucket", ["id"]) == set()
+    # Assert: nothing was deleted.
+    assert check_nodes(neo4j_session, "SupabaseStorageBucket", ["id"]) == before

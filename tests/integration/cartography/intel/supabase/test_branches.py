@@ -131,27 +131,39 @@ def test_supabase_branch_of_parent_project(mock_get, neo4j_session):
     assert record["with_data"] is True
 
 
-@patch.object(
-    cartography.intel.supabase.branches,
-    "get",
-    return_value=None,
-)
-def test_supabase_branches_tolerate_unavailable(mock_get, neo4j_session):
+def test_supabase_branches_unavailable_keeps_existing_branches(neo4j_session):
     """
-    Ensure a project without the paid branching feature syncs cleanly. This is the
-    common case: branching requires a paid plan and the GitHub integration.
+    A tolerated status must not delete the branches already in the graph.
+
+    Branching is plan-gated, so this is the realistic regression: a subscription
+    lapsing must not erase the branch inventory that was recorded while it was
+    active.
     """
-    # Arrange
+    # Arrange: a successful sync first, so there is real inventory to protect.
     api_session = requests.Session()
     _ensure_local_neo4j_has_test_organizations(neo4j_session)
     _ensure_local_neo4j_has_test_projects(neo4j_session)
+    with patch.object(
+        cartography.intel.supabase.branches,
+        "get",
+        return_value=tests.data.supabase.branches.SUPABASE_BRANCHES,
+    ):
+        cartography.intel.supabase.branches.sync(
+            neo4j_session,
+            api_session,
+            _common_job_parameters(),
+        )
+    before = check_nodes(neo4j_session, "SupabaseBranch", ["id"])
+    assert before, "arrange step should have loaded branches"
 
-    # Act
-    cartography.intel.supabase.branches.sync(
-        neo4j_session,
-        api_session,
-        {**_common_job_parameters(), "UPDATE_TAG": TEST_CLEANUP_UPDATE_TAG},
-    )
+    # Act: the endpoint goes unavailable, on a later update tag so a cleanup would
+    # consider every existing branch stale and delete it.
+    with patch.object(cartography.intel.supabase.branches, "get", return_value=None):
+        cartography.intel.supabase.branches.sync(
+            neo4j_session,
+            api_session,
+            {**_common_job_parameters(), "UPDATE_TAG": TEST_CLEANUP_UPDATE_TAG},
+        )
 
-    # Assert
-    assert check_nodes(neo4j_session, "SupabaseBranch", ["id"]) == set()
+    # Assert: nothing was deleted.
+    assert check_nodes(neo4j_session, "SupabaseBranch", ["id"]) == before

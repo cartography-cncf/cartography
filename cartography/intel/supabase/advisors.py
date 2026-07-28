@@ -8,6 +8,7 @@ from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
 from cartography.intel.supabase.util import get_json
 from cartography.intel.supabase.util import TOLERATED_STATUSES
+from cartography.intel.supabase.util import warn_unavailable
 from cartography.models.supabase.advisorfinding import (
     SupabaseSecurityAdvisorFindingSchema,
 )
@@ -24,6 +25,9 @@ def sync(
 ) -> None:
     project_ref = common_job_parameters["PROJECT_REF"]
     advisors = get(api_session, common_job_parameters["BASE_URL"], project_ref)
+    if advisors is None:
+        warn_unavailable("security advisor findings", project_ref)
+        return
     load_findings(
         neo4j_session,
         transform_findings(advisors, project_ref),
