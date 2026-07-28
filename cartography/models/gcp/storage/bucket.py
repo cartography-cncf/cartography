@@ -136,7 +136,7 @@ class GCPBucketSchema(CartographyNodeSchema):
 @dataclass(frozen=True)
 class GCPBucketLabelNodeProperties(CartographyNodeProperties):
     id: PropertyRef = PropertyRef(
-        "id", extra_index=True, description="Stable identifier for this resource."
+        "id", extra_index=True, description="Identifier derived from the label key."
     )
     key: PropertyRef = PropertyRef("key", extra_index=True, description="Label key.")
     value: PropertyRef = PropertyRef("value", description="Label value.")

@@ -101,7 +101,7 @@ class TailscaleDeviceNodeProperties(CartographyNodeProperties):
     )
     posture_identity_disabled: PropertyRef = PropertyRef(
         "postureIdentity.disabled",
-        description="Device posture identification collection enabled.",
+        description="'true' if device posture identification collection is disabled.",
     )
     # Device posture attributes projected from /device/{deviceId}/attributes.
     # Sources:

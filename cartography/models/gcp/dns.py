@@ -102,7 +102,7 @@ class GCPRecordSetNodeProperties(CartographyNodeProperties):
     )
     type: PropertyRef = PropertyRef(
         "type",
-        description="The identifier of a supported record type. See the list of [Supported DNS record types](https://cloud.google.om/dns/docs/overview#supported_dns_record_types).",
+        description="The identifier of a supported record type. See the list of [Supported DNS record types](https://cloud.google.com/dns/docs/overview#supported_dns_record_types).",
     )
     ttl: PropertyRef = PropertyRef(
         "ttl",

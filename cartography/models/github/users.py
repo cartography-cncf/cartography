@@ -91,7 +91,7 @@ class GitHubUserToOrganizationRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class GitHubUserMemberOfOrganizationRel(CartographyRelSchema):
-    """Links a GitHub user or child team to its parent organization or team."""
+    """Links a GitHub user to an organization where the user is a member."""
 
     target_node_label: str = "GitHubOrganization"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(

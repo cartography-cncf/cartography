@@ -161,7 +161,7 @@ class OCIPolicyToCompartmentRefRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class OCIPolicySchema(CartographyNodeSchema):
-    """An OCI policy with the PermissionRole label and compatibility parent edges."""
+    """An OCI PermissionRole policy with references to groups and compartments."""
 
     label: str = "OCIPolicy"
     properties: OCIPolicyNodeProperties = OCIPolicyNodeProperties()
@@ -177,7 +177,7 @@ class OCIPolicySchema(CartographyNodeSchema):
 
 @dataclass(frozen=True)
 class OCIPolicyWithReferencesSchema(CartographyNodeSchema):
-    """An OCI policy with the PermissionRole label and compatibility parent edges."""
+    """An OCI PermissionRole policy with references to groups and compartments."""
 
     label: str = "OCIPolicy"
     properties: OCIPolicyRefNodeProperties = OCIPolicyRefNodeProperties()

@@ -38,7 +38,7 @@ groups. Important security properties include:
 - `rule_groups_detail`, including network, application, and NAT rules
 - `dns_servers` and `dns_enable_proxy`
 - `snat_private_ranges`
-- `tls_certificate_authority_name`
+- `transport_security_ca_name`
 - threat-intelligence IP and FQDN allowlists
 
 These properties support analysis of policy inheritance, traffic inspection,

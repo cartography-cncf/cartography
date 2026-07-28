@@ -103,7 +103,7 @@ class DatabricksJobToRunAsUserRelProperties(CartographyRelProperties):
 @dataclass(frozen=True)
 # (:DatabricksJob)-[:RUN_AS]->(:DatabricksUser)
 class DatabricksJobToRunAsUserRel(CartographyRelSchema):
-    """A Databricks job runs as a Databricks principal."""
+    """A Databricks job runs as a Databricks user."""
 
     target_node_label: str = "DatabricksUser"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
@@ -124,7 +124,7 @@ class DatabricksJobToRunAsSPRelProperties(CartographyRelProperties):
 @dataclass(frozen=True)
 # (:DatabricksJob)-[:RUN_AS]->(:DatabricksServicePrincipal)
 class DatabricksJobToRunAsSPRel(CartographyRelSchema):
-    """A Databricks job runs as a Databricks principal."""
+    """A Databricks job runs as a Databricks service principal."""
 
     target_node_label: str = "DatabricksServicePrincipal"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(

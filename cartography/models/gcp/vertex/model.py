@@ -66,7 +66,7 @@ class GCPVertexAIModelNodeProperties(CartographyNodeProperties):
     lastupdated: PropertyRef = PropertyRef(
         "lastupdated",
         set_in_kwargs=True,
-        description="Timestamp of the last time the node was updated.",
+        description="Timestamp of the last Cartography sync that observed this model.",
     )
 
 

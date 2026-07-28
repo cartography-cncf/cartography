@@ -149,8 +149,18 @@ from cartography.models.kubernetes.containers import (
 from cartography.models.kubernetes.containers import (
     KubernetesContainerToKubernetesPodRel,
 )
+from cartography.models.kubernetes.cronjobs import (
+    KubernetesCronJobToKubernetesClusterRel,
+)
+from cartography.models.kubernetes.daemonsets import (
+    KubernetesDaemonSetToKubernetesClusterRel,
+)
+from cartography.models.kubernetes.deployments import (
+    KubernetesDeploymentToKubernetesClusterRel,
+)
 from cartography.models.kubernetes.groups import KubernetesGroupToAWSRoleRel
 from cartography.models.kubernetes.groups import KubernetesGroupToAWSUserRel
+from cartography.models.kubernetes.jobs import KubernetesJobToKubernetesClusterRel
 from cartography.models.kubernetes.namespaces import (
     KubernetesNamespaceToKubernetesClusterRel,
 )
@@ -161,6 +171,9 @@ from cartography.models.kubernetes.pods import KubernetesPodToSecretVolumeRel
 from cartography.models.kubernetes.pods import KubernetesPodToServiceAccountRel
 from cartography.models.kubernetes.serviceaccounts import (
     KubernetesServiceAccountToAWSRoleRel,
+)
+from cartography.models.kubernetes.statefulsets import (
+    KubernetesStatefulSetToKubernetesClusterRel,
 )
 from cartography.models.kubernetes.users import KubernetesUserToAWSRoleRel
 from cartography.models.oci.group import OCIGroupToOCIUserRel
@@ -193,12 +206,17 @@ LEGACY_REL_WHITELIST: frozenset[type] = frozenset(
         ECSTaskToECSClusterRel,
         KubernetesContainerToKubernetesPodRel,
         KubernetesPodToKubernetesNamespaceRel,
-        # Kubernetes models its cluster as the tenant, so the pod's and
-        # namespace's sub_resource_relationship uses RESOURCE on a pair that
-        # the ontology also constrains as WORKLOAD_PARENT. Whitelisted until
-        # tenant scoping and the workload chain are reconciled.
+        # Kubernetes models its cluster as the tenant, so the pod's, namespace's,
+        # and workload controllers' sub_resource_relationship uses RESOURCE on a
+        # pair that the ontology also constrains as WORKLOAD_PARENT. Whitelisted
+        # until tenant scoping and the workload chain are reconciled.
         KubernetesNamespaceToKubernetesClusterRel,
         KubernetesPodToKubernetesClusterRel,
+        KubernetesDeploymentToKubernetesClusterRel,
+        KubernetesStatefulSetToKubernetesClusterRel,
+        KubernetesDaemonSetToKubernetesClusterRel,
+        KubernetesJobToKubernetesClusterRel,
+        KubernetesCronJobToKubernetesClusterRel,
         # DEPRECATED: replaced by HAS_ROLE, will be removed in v1.0.0.
         AWSSSOUserToPermissionSetRel,
         KeycloakRoleToUserRel,

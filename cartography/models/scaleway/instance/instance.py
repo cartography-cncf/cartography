@@ -61,13 +61,13 @@ class ScalewayInstanceProperties(CartographyNodeProperties):
         "location.cluster_id", description="Instance location, cluster ID"
     )
     location_hypervisor_id: PropertyRef = PropertyRef(
-        "location.hypervisor_id", description="Instance locationm, hypervisor ID"
+        "location.hypervisor_id", description="Instance location, hypervisor ID"
     )
     location_node_id: PropertyRef = PropertyRef(
         "location.node_id", description="Instance location, node ID"
     )
     location_platform_id: PropertyRef = PropertyRef(
-        "location.platform_id", description="Instance location, plateform ID"
+        "location.platform_id", description="Instance location, platform ID"
     )
     ipv6_address: PropertyRef = PropertyRef(
         "ipv6.address", description="Instance IPv6 IP-Address."

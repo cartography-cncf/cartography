@@ -30,7 +30,8 @@ class GCPVertexAIDatasetNodeProperties(CartographyNodeProperties):
         "description", description="Description configured for this resource."
     )
     labels: PropertyRef = PropertyRef(
-        "labels", description="Key-value labels attached to this resource."
+        "labels",
+        description="JSON string of key-value labels attached to this resource.",
     )
     create_time: PropertyRef = PropertyRef(
         "create_time", description="Timestamp when the dataset was created."

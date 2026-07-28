@@ -834,6 +834,8 @@ def _add_ontology_properties(
         projection_label = ontology_model().label
         for ontology_mapping in mappings_by_module.values():
             for node_mapping in ontology_mapping.nodes:
+                if not node_mapping.eligible_for_source:
+                    continue
                 for node_label, node_entry in node_entries.items():
                     is_primary_label = node_label == node_mapping.node_label
                     additional_labels = {

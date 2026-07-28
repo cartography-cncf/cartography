@@ -93,7 +93,7 @@ class GitHubRepositoryToCodeOwnerRuleRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class GitHubCodeOwnerRuleToTeamRel(CartographyRelSchema):
-    """Links a CODEOWNERS rule to a resolved GitHub user or team."""
+    """Links a CODEOWNERS rule to a resolved GitHub team."""
 
     target_node_label: str = "GitHubTeam"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
@@ -106,7 +106,7 @@ class GitHubCodeOwnerRuleToTeamRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class GitHubCodeOwnerRuleToUserRel(CartographyRelSchema):
-    """Links a CODEOWNERS rule to a resolved GitHub user or team."""
+    """Links a CODEOWNERS rule to a resolved GitHub user."""
 
     target_node_label: str = "GitHubUser"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(

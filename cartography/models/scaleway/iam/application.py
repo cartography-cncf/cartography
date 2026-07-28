@@ -36,7 +36,7 @@ class ScalewayApplicationNodeProperties(CartographyNodeProperties):
         "managed", description="Defines whether or not the application is managed."
     )
     tags: PropertyRef = PropertyRef(
-        "tags", description="Tags associated with the user."
+        "tags", description="Tags associated with the application."
     )
     lastupdated: PropertyRef = PropertyRef(
         "lastupdated", set_in_kwargs=True, description="Timestamp of the last update"

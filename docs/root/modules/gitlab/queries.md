@@ -120,7 +120,7 @@ Find layers shared between GitLab Container Registry and Amazon ECR:
 ```cypher
 MATCH (layer:ImageLayer)
 MATCH (gitlab_image:GitLabContainerImage)-[:HAS_LAYER]->(layer)
-MATCH (ecr_image:ECRImage)-[:HAS_LAYER]->(layer)
+MATCH (ecr_image:AWSECRImage)-[:HAS_LAYER]->(layer)
 RETURN layer.diff_id,
        count(DISTINCT gitlab_image) AS gitlab_images,
        count(DISTINCT ecr_image) AS ecr_images

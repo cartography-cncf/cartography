@@ -74,7 +74,7 @@ class GCPApiKeyToProjectRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class GCPApiKeySchema(CartographyNodeSchema):
-    """A Google Cloud Api Key resource."""
+    """A Google Cloud API Key resource."""
 
     label: str = "GCPApiKey"
     # APIKey label is used for ontology mapping. These are the real

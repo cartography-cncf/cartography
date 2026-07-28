@@ -16,12 +16,12 @@ from cartography.models.databricks.extra_labels import DATABRICKS_SECURABLE
 @dataclass(frozen=True)
 class DatabricksMetastoreNodeProperties(CartographyNodeProperties):
     id: PropertyRef = PropertyRef(
-        "id", description="Databricks identifier for the metastore."
+        "id", description="Cartography graph identifier for the metastore."
     )
     metastore_id: PropertyRef = PropertyRef(
         "metastore_id",
         extra_index=True,
-        description="Databricks identifier for the metastore.",
+        description="Native Databricks identifier for the metastore.",
     )
     name: PropertyRef = PropertyRef(
         "name", extra_index=True, description="Name of the metastore."

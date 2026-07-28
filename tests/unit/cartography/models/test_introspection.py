@@ -13,6 +13,7 @@ from cartography.graph.analysis import AnalysisStatement
 from cartography.graph.analysis import SetProperty
 from cartography.graph.analysis import SetRelationshipPropertyIfMissing
 from cartography.models.aws.ec2.instances import EC2InstanceSchema
+from cartography.models.bigfix.bigfix_computer import BigfixComputerSchema
 from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeProperties
 from cartography.models.core.nodes import CartographyNodeSchema
@@ -422,6 +423,17 @@ def test_build_data_model_distinguishes_canonical_ontology_projections():
     assert node is not None
     assert node.ontology_projections == ("Device",)
     assert not any(prop.name.startswith("_ont_") for prop in node.properties)
+
+
+def test_build_data_model_only_projects_eligible_ontology_sources():
+    model = build_data_model([BigfixComputerSchema, JamfComputerSchema])
+
+    eligible_node = model.get_node("JamfComputer")
+    ineligible_node = model.get_node("BigfixComputer")
+    assert eligible_node is not None
+    assert ineligible_node is not None
+    assert eligible_node.ontology_projections == ("Device",)
+    assert ineligible_node.ontology_projections == ()
 
 
 def test_build_data_model_projects_nodes_through_additional_labels():

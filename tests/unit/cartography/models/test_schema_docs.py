@@ -938,7 +938,7 @@ def test_scaleway_schema_doc_is_generated_from_full_introspected_model():
 def test_undirected_analysis_relationships_are_rendered_without_arrows():
     # Arrange
     node = Node(
-        label="EC2KeyPair",
+        label="AWSEC2KeyPair",
         descriptions=(),
         extra_labels=(),
         conditional_labels=(),
@@ -947,9 +947,9 @@ def test_undirected_analysis_relationships_are_rendered_without_arrows():
         schemas=(),
     )
     relationship = Relationship(
-        source_label="EC2KeyPair",
+        source_label="AWSEC2KeyPair",
         label="MATCHING_FINGERPRINT",
-        target_label="EC2KeyPair",
+        target_label="AWSEC2KeyPair",
         direction=None,
         descriptions=(),
         properties=(),
@@ -964,8 +964,8 @@ def test_undirected_analysis_relationships_are_rendered_without_arrows():
     generated = render_module_schema(model, "aws")
 
     # Assert
-    assert "EC2KeyPair ---|MATCHING_FINGERPRINT| EC2KeyPair" in generated
-    assert "(:EC2KeyPair)-[:MATCHING_FINGERPRINT]-(:EC2KeyPair)" in generated
+    assert "AWSEC2KeyPair ---|MATCHING_FINGERPRINT| AWSEC2KeyPair" in generated
+    assert "(:AWSEC2KeyPair)-[:MATCHING_FINGERPRINT]-(:AWSEC2KeyPair)" in generated
     assert "Source:" not in generated
 
 
@@ -974,13 +974,13 @@ def test_permission_evaluation_relationships_render_permissions_without_source()
     definition = PermissionRelationshipDefinition(
         provider="aws",
         source_label="AWSPrincipal",
-        target_label="S3Bucket",
+        target_label="AWSS3Bucket",
         relationship_name="CAN_READ",
         permissions=("S3:GetObject",),
         config_path="cartography/data/permission_relationships.yaml",
     )
     node = Node(
-        label="S3Bucket",
+        label="AWSS3Bucket",
         descriptions=(),
         extra_labels=(),
         conditional_labels=(),
@@ -991,7 +991,7 @@ def test_permission_evaluation_relationships_render_permissions_without_source()
     relationship = Relationship(
         source_label="AWSPrincipal",
         label="CAN_READ",
-        target_label="S3Bucket",
+        target_label="AWSS3Bucket",
         direction=LinkDirection.OUTWARD,
         descriptions=("Allows an AWS principal to read objects from an S3 bucket.",),
         properties=(),
@@ -1012,7 +1012,7 @@ def test_permission_evaluation_relationships_render_permissions_without_source()
 
     # Assert
     assert "Allows an AWS principal to read objects from an S3 bucket." in generated
-    assert "(:AWSPrincipal)-[:CAN_READ]->(:S3Bucket)" in generated
+    assert "(:AWSPrincipal)-[:CAN_READ]->(:AWSS3Bucket)" in generated
     assert "Source:" not in generated
     assert "Evaluated permissions: `S3:GetObject`" in generated
 

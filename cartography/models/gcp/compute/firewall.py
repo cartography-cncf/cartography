@@ -35,7 +35,7 @@ class GCPFirewallNodeProperties(CartographyNodeProperties):
     )
     priority: PropertyRef = PropertyRef(
         "priority",
-        description="The priority of this firewall rule from 1 (apply this first)-65535 (apply this last).",
+        description="The priority of this firewall rule from 0 to 65535; lower values have higher precedence.",
     )
     self_link: PropertyRef = PropertyRef(
         "selfLink", description="The full resource URI to this firewall."

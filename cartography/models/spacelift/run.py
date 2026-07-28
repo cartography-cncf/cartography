@@ -43,7 +43,7 @@ class SpaceliftRunNodeProperties(CartographyNodeProperties):
     )
     affected_instance_ids: PropertyRef = PropertyRef(
         "affected_instance_ids",
-        description="EC2 instance IDs managed by the run.",
+        description="EC2 instance IDs affected by the run.",
     )
     lastupdated: PropertyRef = PropertyRef(
         "lastupdated",

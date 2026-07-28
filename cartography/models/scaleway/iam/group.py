@@ -16,7 +16,7 @@ from cartography.models.scaleway.extra_labels import SCALEWAY_PRINCIPAL
 
 @dataclass(frozen=True)
 class ScalewayGroupProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("id", description="ID of the Group")
+    id: PropertyRef = PropertyRef("id", description="ID of the group.")
     created_at: PropertyRef = PropertyRef(
         "created_at", description="Date and time of group creation."
     )
@@ -40,7 +40,7 @@ class ScalewayGroupProperties(CartographyNodeProperties):
         "managed", description="Defines whether or not the group is managed."
     )
     lastupdated: PropertyRef = PropertyRef(
-        "lastupdated", set_in_kwargs=True, description="Timestamp of the last update"
+        "lastupdated", set_in_kwargs=True, description="Timestamp of the last update."
     )
 
 
