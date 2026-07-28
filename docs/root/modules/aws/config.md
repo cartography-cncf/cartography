@@ -85,6 +85,8 @@ hierarchy APIs such as `ListRoots`, `ListAccountsForParent`, and
   detailed fields such as the ARN, username, type, and Kubernetes groups.
 - Allowlisted AWS-managed public SSM parameters require
   `ssm:GetParametersByPath` for the applicable `/aws/service/...` paths.
+  `AWSPublicSSMParameter` nodes represent shared regional catalog data and are
+  not resources owned by the account performing the sync.
 - The `ecr:pull_through_cache_rules` requested sync requires
   `ecr:DescribePullThroughCacheRules`.
 - AWS Glue connection ingestion requires `glue:GetConnections`, which

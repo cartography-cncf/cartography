@@ -78,6 +78,17 @@ ORDER BY account.name, instance.region, instance.instanceid
 This tests detector presence and status. It does not assert that every optional
 GuardDuty protection plan is enabled.
 
+GuardDuty `AccessKeyDetails` maps long-term IAM access keys to
+`AWSAccountAccessKey`. Temporary credentials whose access-key IDs begin with
+`ASIA` are not ingested as access-key nodes. Findings associated with assumed
+roles instead connect to the relevant `AWSRole`.
+
+### ACM certificate attachments
+
+ACM certificate `in_use_by` data can contain an Elastic Load Balancing ARN
+rather than a listener ARN. Cartography needs the corresponding ELBv2
+inventory to resolve that attachment to the listener using the certificate.
+
 ### EKS certificate diagnostics
 
 `AWSEKSCluster` records whether certificate authority data was returned and
@@ -129,3 +140,10 @@ ORDER BY original_launch
 
 Do not use a secondary interface for this purpose. Its attachment time only
 indicates when that interface was attached.
+
+### SageMaker shared-role inference
+
+`AWSSageMakerNotebookInstance-[:CAN_INVOKE]->AWSSageMakerTrainingJob` is
+inferred when both resources use the same execution role. It indicates a
+potential capability implied by the shared role, not observed invocation
+evidence.

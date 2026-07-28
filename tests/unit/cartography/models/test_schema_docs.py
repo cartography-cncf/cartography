@@ -50,7 +50,10 @@ from cartography.models.introspection import inspect_data_model
 from cartography.models.introspection import Node
 from cartography.models.introspection import PermissionRelationshipDefinition
 from cartography.models.introspection import Relationship
+from cartography.models.schema_docs import _mermaid_relationship
+from cartography.models.schema_docs import _module_relationships
 from cartography.models.schema_docs import _node_for_module
+from cartography.models.schema_docs import _ontology_catalog_relationships
 from cartography.models.schema_docs import GENERATED_NOTICE
 from cartography.models.schema_docs import render_module_schema
 from cartography.models.schema_docs import write_module_schema_docs
@@ -1042,6 +1045,14 @@ def test_ontology_schema_doc_is_generated_from_introspected_catalog():
 
     # Act
     generated = render_module_schema(model, "ontology")
+    mermaid_graph = generated.split("graph LR", 1)[1].split("```", 1)[0]
+    actual_mermaid_lines = {line for line in mermaid_graph.splitlines() if line.strip()}
+    canonical_nodes = tuple(node for node in model.nodes if "ontology" in node.modules)
+    ontology_relationships = _ontology_catalog_relationships(model, canonical_nodes)
+    expected_mermaid_lines = {
+        f"    {_mermaid_relationship(relationship)}"
+        for relationship in ontology_relationships
+    }
     node_headings = [
         line.removeprefix("### ")
         for line in generated.splitlines()
@@ -1059,6 +1070,7 @@ def test_ontology_schema_doc_is_generated_from_introspected_catalog():
     assert node_headings == sorted(node_headings, key=str.casefold)
     assert "**Abstract Ontology Node**" in generated
     assert "**Semantic Label**" in generated
+    assert actual_mermaid_lines == expected_mermaid_lines
     assert (
         "| *_ont_active* | Yes | Normalized active for nodes carrying "
         "`UserAccount`. |" in generated
@@ -1545,12 +1557,32 @@ def test_salesforce_schema_doc_is_generated_from_introspected_model():
     assert "No description provided." not in generated
 
 
-def test_aws_schema_doc_groundwork_is_complete_while_manual_page_is_preserved():
+def test_aws_schema_doc_is_generated_from_full_introspected_model():
     complete_model = inspect_data_model()
     aws_model = complete_model.for_module("aws")
     module_index = Path("docs/root/modules/aws/index.md").read_text()
 
     generated = render_module_schema(complete_model, "aws")
+    mermaid_graph = generated.split("graph LR", 1)[1].split("```", 1)[0]
+    actual_mermaid_lines = {line for line in mermaid_graph.splitlines() if line.strip()}
+    module_nodes = tuple(
+        _node_for_module(node, "aws")
+        for node in complete_model.nodes
+        if "aws" in node.modules
+    )
+    module_node_labels = {node.label for node in module_nodes}
+    selected_relationships = _module_relationships(
+        complete_model.relationships,
+        module_nodes,
+        "aws",
+        complete_model.nodes,
+    )
+    expected_mermaid_lines = {
+        f"    {_mermaid_relationship(relationship)}"
+        for relationship in selected_relationships
+        if relationship.source_label in module_node_labels
+        and relationship.target_label in module_node_labels
+    }
     relationship_shapes = {
         (
             relationship.source_label,
@@ -1570,7 +1602,7 @@ def test_aws_schema_doc_groundwork_is_complete_while_manual_page_is_preserved():
         if relationship.permission_relationships
     )
 
-    assert Path("docs/root/modules/aws/schema.md").exists()
+    assert not Path("docs/root/modules/aws/schema.md").exists()
     assert {
         "organizations",
         "infrastructure-investigations",
@@ -1582,6 +1614,7 @@ def test_aws_schema_doc_groundwork_is_complete_while_manual_page_is_preserved():
     assert len(aws_model.relationships) == 472
     assert tagging_sources == {resource.label for resource in AWS_TAGGABLE_RESOURCES}
     assert len(permission_relationships) == 12
+    assert actual_mermaid_lines == expected_mermaid_lines
     assert (
         "AWSPrincipal",
         "CAN_START_SESSION",
@@ -1593,6 +1626,15 @@ def test_aws_schema_doc_groundwork_is_complete_while_manual_page_is_preserved():
         "`(:AWSEC2Instance)-[:HAS_INFORMATION]->"
         "(:AWSSSMInstanceInformation)` must exist"
     ) in generated
+    assert "AWSAccount -- RESOURCE --> AWSEC2Instance" in mermaid_graph
+    assert (
+        "    DNSRecord -- DNS_POINTS_TO --> AWSEC2Instance"
+        not in mermaid_graph.splitlines()
+    )
+    assert (
+        "    AzureContainerInstance -- HAS_IMAGE --> AWSECRImage"
+        not in mermaid_graph.splitlines()
+    )
     assert "(:DNSRecord)-[:DNS_POINTS_TO]->(:AWSEC2Instance)" in generated
     assert "(:AWSLoadBalancerV2)-[:EXPOSE]->(:AWSECSContainer)" in generated
     assert "(:AzureContainerInstance)-[:HAS_IMAGE]->(:AWSECRImage)" in generated

@@ -268,11 +268,7 @@ class LoadBalancerV2ToEC2SubnetRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class LoadBalancerV2Schema(CartographyNodeSchema):
-    """
-    LoadBalancerV2 schema (Application and Network Load Balancers).
-
-    Target relationships (EXPOSE) are defined as MatchLinks below for introspection.
-    """
+    """An AWS Application or Network Load Balancer that distributes traffic to targets."""
 
     label: str = "AWSLoadBalancerV2"
     properties: LoadBalancerV2NodeProperties = LoadBalancerV2NodeProperties()

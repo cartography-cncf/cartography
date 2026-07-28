@@ -4,6 +4,28 @@ Cartography distinguishes configured permission from observed role use. This
 matters for IAM and AWS Identity Center investigations because a principal can
 be permitted to assume many roles while using only a subset.
 
+### IAM policy scope and federation
+
+Inline policies belong to one IAM principal and are scoped through that
+principal's AWS account. Managed policies are reusable objects and are not
+attached to one `AWSAccount`; follow their attachment relationships to users,
+groups, and roles when account context is required.
+
+Federated principals are discovered from IAM role trust policies. Cartography
+does not create a federated principal solely because it exists in an external
+identity provider.
+
+### CloudFormation execution permissions
+
+`CAN_EXEC` indicates that a principal is permitted to call
+`cloudformation:UpdateStack` on a stack. This can become a privilege-escalation
+path when the stack specifies a `role_arn`, because CloudFormation performs the
+update with that execution role.
+
+When `role_arn` is absent, CloudFormation uses the caller's permissions.
+Treating every `CAN_EXEC` relationship as privilege escalation would therefore
+overstate access.
+
 ### CloudTrail role-assumption evidence
 
 CloudTrail management events produce relationships that summarize observed

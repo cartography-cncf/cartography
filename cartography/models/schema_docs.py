@@ -47,6 +47,13 @@ def render_module_schema(model: DataModel, module: str) -> str:
         module_nodes,
         model.nodes,
     )
+    module_node_labels = {node.label for node in module_nodes}
+    diagram_relationships = tuple(
+        relationship
+        for relationship in module_relationships
+        if relationship.source_label in module_node_labels
+        and relationship.target_label in module_node_labels
+    )
     lines = [
         GENERATED_NOTICE,
         "",
@@ -57,7 +64,7 @@ def render_module_schema(model: DataModel, module: str) -> str:
     ]
     lines.extend(
         f"    {_mermaid_relationship(relationship)}"
-        for relationship in module_relationships
+        for relationship in diagram_relationships
     )
     lines.extend(["```", ""])
 
@@ -1068,6 +1075,7 @@ def _mermaid_relationship(relationship: Relationship) -> str:
 def _module_title(module: str) -> str:
     title_overrides = {
         "aibom": "AIBOM",
+        "aws": "AWS",
         "gcp": "GCP",
         "sentinelone": "SentinelOne",
         "socketdev": "Socket.dev",
