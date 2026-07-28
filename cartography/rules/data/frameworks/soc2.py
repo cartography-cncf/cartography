@@ -89,7 +89,7 @@ SOC2_TSC_TITLES = {
 # "uncovered" means no rule maps to it; "partial" means rules map to it but only
 # reach part of what the criterion asks for.
 #   uncovered: A1.1, A1.3, C1.1, C1.2, CC6.5, CC7.3, CC7.4, CC7.5
-#   partial: A1.2, CC6.7, CC7.2
+#   partial: A1.2, CC6.7, CC6.8, CC7.2
 # tests/unit/rules/test_soc2_mappings.py keeps this index honest.
 
 

@@ -92,6 +92,6 @@ unpinned_github_actions = Rule(
     frameworks=(
         iso27001_annex_a("8.28"),
         iso27001_annex_a("8.32"),
-        soc2_tsc("CC8.1"),
+        soc2_tsc("CC6.8"),
     ),
 )

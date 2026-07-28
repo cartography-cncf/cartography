@@ -79,6 +79,39 @@ _aws_cloudtrail_not_multi_region = Fact(
     maturity=Maturity.STABLE,
 )
 
+_aws_account_without_cloudtrail = Fact(
+    id="aws_account_without_cloudtrail",
+    name="AWS accounts without CloudTrail",
+    description=(
+        "Detects AWS accounts that have no CloudTrail trail and therefore lack "
+        "account-level API activity logging."
+    ),
+    cypher_query="""
+    MATCH (a:AWSAccount)
+    WHERE NOT (a)-[:RESOURCE]->(:AWSCloudTrailTrail)
+    RETURN
+        null AS trail_name,
+        null AS trail_arn,
+        null AS home_region,
+        null AS is_multi_region,
+        a.id AS account_id,
+        a.name AS account
+    """,
+    cypher_visual_query="""
+    MATCH (a:AWSAccount)
+    WHERE NOT (a)-[:RESOURCE]->(:AWSCloudTrailTrail)
+    RETURN a
+    """,
+    cypher_count_query="""
+    MATCH (a:AWSAccount)
+    RETURN COUNT(a) AS count
+    """,
+    asset_id_field="account_id",
+    identity_fields=("account_id",),
+    module=Module.AWS,
+    maturity=Maturity.STABLE,
+)
+
 aws_cloudtrail_multi_region = Rule(
     id="aws_cloudtrail_multi_region",
     name="CloudTrail Multi-Region",
@@ -87,7 +120,10 @@ aws_cloudtrail_multi_region = Rule(
         "into API activity across the entire AWS infrastructure."
     ),
     output_model=CloudTrailMultiRegionOutput,
-    facts=(_aws_cloudtrail_not_multi_region,),
+    facts=(
+        _aws_cloudtrail_not_multi_region,
+        _aws_account_without_cloudtrail,
+    ),
     tags=("logging", "cloudtrail", "stride:repudiation"),
     version="1.0.0",
     references=CIS_REFERENCES,

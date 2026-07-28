@@ -185,7 +185,6 @@ aws_unused_credentials = Rule(
     frameworks=(
         cis_aws("2.11"),
         iso27001_annex_a("5.18"),
-        soc2_tsc("CC6.2"),
     ),
 )
 

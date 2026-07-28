@@ -423,11 +423,14 @@ compute_instance_exposed = Rule(
 # =============================================================================
 # TODO: SOC 2 A1.1: Capacity monitoring and evaluation
 # Already in the graph: AWSCloudWatchMetricAlarm (state_value,
-# comparison_operator, actions_enabled) and AzureMonitorMetricAlert. Whether an
-# alarm exists and is enabled is queryable today, without new ingestion.
+# comparison_operator, actions_enabled), AzureMonitorMetricAlert, and
+# AWSAutoScalingGroup desiredcapacity and maxsize. Whether an alarm exists and
+# whether an autoscaling group has configured headroom are queryable today.
+# Neither proves insufficient capacity without utilization data, service
+# criticality, and organization-defined capacity thresholds.
 # Missing datamodel: alarm threshold, metric name and dimensions, which the
-# CloudWatch model does not carry; autoscaling group inventory, since only launch
-# configurations and templates are modeled; Google Cloud alerting policies.
+# CloudWatch model does not carry; business-service criticality and capacity
+# policies; Google Cloud alerting policies.
 # Out of reach: utilization and saturation time series, and autoscaling event
 # history. Cartography ingests configuration and inventory, not metric streams.
 # =============================================================================

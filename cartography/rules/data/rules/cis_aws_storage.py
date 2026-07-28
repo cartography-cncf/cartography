@@ -99,6 +99,7 @@ aws_s3_bucket_mfa_delete = Rule(
     frameworks=(
         cis_aws("3.1.2"),
         iso27001_annex_a("8.10"),
+        soc2_tsc("CC7.1"),
     ),
 )
 

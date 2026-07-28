@@ -3135,6 +3135,5 @@ malicious_npm_dependencies_shai_hulud = Rule(
         iso27001_annex_a("8.8"),
         soc2_tsc("CC6.8"),
         soc2_tsc("CC7.1"),
-        soc2_tsc("CC9.2"),
     ),
 )

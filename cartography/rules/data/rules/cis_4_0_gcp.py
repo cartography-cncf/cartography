@@ -882,14 +882,17 @@ gcp_cloudsql_automated_backups_disabled = Rule(
 
 # =============================================================================
 # TODO: SOC 2 A1.2: Partial backup and recovery-infrastructure coverage
-# Covered today: Cloud SQL automated backups only, via
-# gcp_cloudsql_automated_backups_disabled. A report listing A1.2 as mapped
-# therefore overstates coverage: one GCP service stands in for every provider.
+# Covered today: Cloud SQL and standalone AWS RDS automated backup settings,
+# via gcp_cloudsql_automated_backups_disabled and
+# aws_rds_automated_backups_disabled. A report listing A1.2 as mapped still
+# overstates coverage because service-level settings do not prove recovery.
 # Missing datamodel or evidence: AWS Backup plans, vaults, protected resources,
 # and recovery points; Azure Recovery Services vaults and protected items; and
 # Google Cloud backup-plan and recovery-point inventories beyond Cloud SQL.
-# Existing service-specific retention properties can support additional rules,
-# but they do not establish centralized backup coverage.
+# RDS multi_az and Cloud SQL availability_type are already ingested, but a
+# provider-wide high-availability rule would overstate A1.2 without an
+# authoritative inventory of business-critical databases and their required
+# recovery-time and recovery-point objectives.
 # =============================================================================
 
 # =============================================================================
@@ -1292,6 +1295,7 @@ def _make_cloudsql_flag_rule(
     description: str,
     requirement: str,
     fact: Fact,
+    soc2_requirement: str = "CC7.1",
 ) -> Rule:
     return Rule(
         id=rule_id,
@@ -1305,7 +1309,7 @@ def _make_cloudsql_flag_rule(
         frameworks=(
             cis_gcp(requirement),
             iso27001_annex_a("8.9"),
-            soc2_tsc("CC7.1"),
+            soc2_tsc(soc2_requirement),
         ),
     )
 
@@ -1368,6 +1372,7 @@ gcp_cloudsql_postgres_log_connections_not_on = _make_cloudsql_flag_rule(
     "Cloud SQL PostgreSQL instances should set log_connections to on.",
     "6.2.2",
     _gcp_cloudsql_postgres_log_connections,
+    "CC7.2",
 )
 
 _gcp_cloudsql_postgres_log_disconnections = _make_cloudsql_flag_fact(
@@ -1383,6 +1388,7 @@ gcp_cloudsql_postgres_log_disconnections_not_on = _make_cloudsql_flag_rule(
     "Cloud SQL PostgreSQL instances should set log_disconnections to on.",
     "6.2.3",
     _gcp_cloudsql_postgres_log_disconnections,
+    "CC7.2",
 )
 
 _gcp_cloudsql_postgres_log_min_messages = _make_cloudsql_flag_fact(
@@ -1445,6 +1451,7 @@ gcp_cloudsql_postgres_pgaudit_not_enabled = _make_cloudsql_flag_rule(
     "Cloud SQL PostgreSQL instances should set cloudsql.enable_pgaudit to on.",
     "6.2.8",
     _gcp_cloudsql_postgres_enable_pgaudit,
+    "CC7.2",
 )
 
 _gcp_cloudsql_sqlserver_external_scripts = _make_cloudsql_flag_fact(
@@ -1677,9 +1684,79 @@ gcp_bucket_uniform_access_disabled = Rule(
 # Missing datamodel or evidence: IAM bindings on individual KMS cryptokeys
 # =============================================================================
 
+
 # =============================================================================
-# TODO: CIS GCP 1.10: KMS encryption keys are rotated within 90 days
-# Missing datamodel or evidence: next_rotation_time on GCPCryptoKey; current model only stores rotation_period
+# CIS GCP 1.10: KMS encryption keys are rotated within 90 days
+# Main node: GCPCryptoKey
+# =============================================================================
+class KMSKeyWithoutRotationPolicyOutput(Finding):
+    key_name: str | None = None
+    key_id: str | None = None
+    project_id: str | None = None
+    project_name: str | None = None
+    key_ring_id: str | None = None
+    purpose: str | None = None
+    rotation_period: str | None = None
+
+
+_gcp_kms_key_without_rotation_policy = Fact(
+    id="gcp_kms_key_without_rotation_policy",
+    name="GCP KMS encryption keys without a rotation policy",
+    description=(
+        "Detects symmetric GCP KMS encryption keys that have no configured "
+        "automatic rotation period."
+    ),
+    cypher_query="""
+    MATCH (project:GCPProject)-[:RESOURCE]->(key:GCPCryptoKey)
+    WHERE key.purpose = 'ENCRYPT_DECRYPT'
+      AND (key.rotation_period IS NULL OR key.rotation_period = '')
+    RETURN
+        key.name AS key_name,
+        key.id AS key_id,
+        project.id AS project_id,
+        project.displayname AS project_name,
+        key.key_ring_id AS key_ring_id,
+        key.purpose AS purpose,
+        key.rotation_period AS rotation_period
+    """,
+    cypher_visual_query="""
+    MATCH p=(project:GCPProject)-[:RESOURCE]->(key:GCPCryptoKey)
+    WHERE key.purpose = 'ENCRYPT_DECRYPT'
+      AND (key.rotation_period IS NULL OR key.rotation_period = '')
+    RETURN *
+    """,
+    cypher_count_query="""
+    MATCH (key:GCPCryptoKey)
+    WHERE key.purpose = 'ENCRYPT_DECRYPT'
+    RETURN COUNT(key) AS count
+    """,
+    asset_id_field="key_id",
+    identity_fields=("key_id",),
+    module=Module.GCP,
+    maturity=Maturity.STABLE,
+)
+
+gcp_kms_keys_without_rotation_policy = Rule(
+    id="gcp_kms_keys_without_rotation_policy",
+    name="GCP KMS Keys Without Rotation Policy",
+    description=(
+        "Symmetric GCP KMS encryption keys should have an automatic rotation "
+        "policy configured."
+    ),
+    output_model=KMSKeyWithoutRotationPolicyOutput,
+    facts=(_gcp_kms_key_without_rotation_policy,),
+    tags=("kms", "encryption", "key_management", "rotation"),
+    version="0.1.0",
+    references=CIS_REFERENCES,
+    frameworks=(
+        cis_gcp("1.10"),
+        iso27001_annex_a("8.24"),
+        soc2_tsc("CC6.1"),
+    ),
+)
+
+# TODO: CIS GCP 1.10 full coverage requires next_rotation_time on GCPCryptoKey
+# to verify that a configured rotation is scheduled within 90 days.
 # =============================================================================
 
 # =============================================================================

@@ -74,9 +74,12 @@ cloud_security_product_deactivated = Rule(
 # analyzed.
 # Already in the graph but unused by any rule: AWSEventBridgeRule and its targets,
 # AWSConfigurationRecorder, AWSConfigDeliveryChannel, AWSConfigRule,
-# AWSSecurityHub, AWSCloudWatchMetricAlarm, AzureMonitorMetricAlert and
-# AzureSecurityAssessment. Alert-rule and detector configuration for AWS and Azure
-# is therefore queryable today, without new ingestion.
+# AWSCloudWatchMetricAlarm, AzureMonitorMetricAlert and AzureSecurityAssessment.
+# Generic enabled and actions-enabled properties are not
+# sufficient SOC 2 evidence because the graph cannot yet classify which alerts
+# monitor security events. A rule over every disabled alert would overstate CC7.2
+# coverage and produce findings for operational or intentionally muted alarms.
 # Missing datamodel: Google Security Command Center inventory, per-account and
-# per-region log-source coverage, and alert-delivery health.
+# per-region log-source coverage, security relevance for AWS and Azure alerts,
+# and alert-delivery health.
 # =============================================================================
