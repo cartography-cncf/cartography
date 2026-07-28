@@ -29,6 +29,9 @@ from tests.data.graph.querybuilder.sample_models.conditional_label_models import
 from tests.data.graph.querybuilder.sample_models.conditional_label_models import (
     VulnerabilitySchema,
 )
+from tests.data.graph.querybuilder.sample_models.conditional_label_models import (
+    VulnerabilitySchemaSharedLabel,
+)
 
 
 @pytest.fixture(autouse=True)
@@ -204,12 +207,13 @@ def test_conditional_labels_not_applied_when_conditions_not_met(neo4j_session):
     assert "Urgent" not in labels
 
 
-def test_conditional_labels_scoped_to_sub_resource(neo4j_session):
+def test_conditional_labels_only_touch_the_loaded_rows(neo4j_session):
     """
-    Test that conditional labels are correctly scoped to the sub-resource.
+    Test that loading one sub-resource's nodes leaves another sub-resource's labels alone.
 
-    When using a schema with sub_resource_relationship, the conditional label
-    queries should only affect nodes within the current sub-resource scope.
+    Conditional labels are applied row by row inside the ingestion query, so only the nodes in the
+    current batch are ever relabeled. Nodes belonging to another sub-resource are untouched because
+    they are not in the batch, not because the label queries are scoped to a tenant.
     """
     # Arrange: Create two container registries
     neo4j_session.run(
@@ -359,3 +363,82 @@ def test_all_labels_present_on_node(neo4j_session):
     # Should NOT have other conditional labels
     assert "ImageAttestation" not in labels
     assert "ImageManifestList" not in labels
+
+
+def test_label_declared_twice_ors_its_conditions(neo4j_session):
+    """
+    Test that two declarations of the same label are ORed rather than clobbering each other.
+
+    VulnerabilitySchemaSharedLabel declares Urgent both for severity="critical" and for
+    is_exploitable="true", so a node matching either condition carries the label.
+    """
+    # Act: Load vulnerabilities
+    load(
+        neo4j_session,
+        VulnerabilitySchemaSharedLabel(),
+        VULNERABILITIES,
+        lastupdated=1,
+    )
+
+    # Assert: Urgent is set on the critical nodes and on the exploitable high-severity one
+    result = neo4j_session.run(
+        "MATCH (n:Vulnerability:Urgent) RETURN n.id AS id ORDER BY n.id"
+    )
+    assert [r["id"] for r in result] == [
+        "CVE-2024-0001",  # critical AND exploitable
+        "CVE-2024-0002",  # critical only
+        "CVE-2024-0003",  # exploitable only
+    ]
+
+    # Assert: the node matching neither condition does not carry the label
+    result = neo4j_session.run(
+        "MATCH (n:Vulnerability{id: 'CVE-2024-0004'}) RETURN labels(n) AS labels"
+    )
+    assert "Urgent" not in set(result.single()["labels"])
+
+
+def test_label_removed_when_neither_shared_condition_holds(neo4j_session):
+    """
+    Test that a label driven by two ORed declarations is removed once neither declaration matches.
+    """
+    # Arrange: load a node that matches on severity
+    load(
+        neo4j_session,
+        VulnerabilitySchemaSharedLabel(),
+        [
+            {
+                "id": "CVE-2024-0001",
+                "severity": "critical",
+                "is_exploitable": "false",
+                "has_fix": "true",
+            },
+        ],
+        lastupdated=1,
+    )
+    result = neo4j_session.run(
+        "MATCH (n:Vulnerability{id: 'CVE-2024-0001'}) RETURN labels(n) AS labels"
+    )
+    assert "Urgent" in set(result.single()["labels"])
+
+    # Act: re-load the same node so that neither declaration matches
+    load(
+        neo4j_session,
+        VulnerabilitySchemaSharedLabel(),
+        [
+            {
+                "id": "CVE-2024-0001",
+                "severity": "low",
+                "is_exploitable": "false",
+                "has_fix": "true",
+            },
+        ],
+        lastupdated=2,
+    )
+
+    # Assert: the label is gone, the unconditional one stays
+    result = neo4j_session.run(
+        "MATCH (n:Vulnerability{id: 'CVE-2024-0001'}) RETURN labels(n) AS labels"
+    )
+    labels = set(result.single()["labels"])
+    assert "Urgent" not in labels
+    assert "SecurityFinding" in labels
