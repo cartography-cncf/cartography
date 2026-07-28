@@ -8,6 +8,35 @@ from tests.data.okta.users import create_test_user
 
 
 @mock.patch("cartography.intel.okta.users.check_rate_limit", return_value=None)
+def test_get_okta_users_includes_last_page(
+    _mock_rate_limit: mock.MagicMock,
+) -> None:
+    """Okta user pagination should include the final page before stopping."""
+    first_page = mock.MagicMock()
+    first_page.result = ["first-user"]
+    first_page.is_last_page.return_value = False
+    first_page.next_url = "https://example.okta.com/api/v1/users?after=first"
+
+    last_page = mock.MagicMock()
+    last_page.result = ["last-user"]
+    last_page.is_last_page.return_value = True
+    last_page.next_url = None
+
+    user_client = mock.MagicMock()
+    user_client.get_paged_users.side_effect = [first_page, last_page]
+
+    result = _get_okta_users(user_client)
+
+    assert result == ["first-user", "last-user"]
+    user_client.get_paged_users.assert_has_calls(
+        [
+            mock.call(),
+            mock.call(url="https://example.okta.com/api/v1/users?after=first"),
+        ],
+    )
+
+
+@mock.patch("cartography.intel.okta.users.check_rate_limit", return_value=None)
 def test_get_okta_users_raises_on_malformed_next_link(
     _mock_rate_limit: mock.MagicMock,
 ) -> None:
