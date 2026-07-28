@@ -286,8 +286,8 @@ values are `image`, `attestation`, and `manifest_list`. Exact matching is
 case-sensitive, so uppercase variants do not match.
 
 **How it works:**
-- Labels with empty `conditions` are applied unconditionally during ingestion
-- Labels with nonempty `conditions` are applied in a separate query after ingestion, only to nodes matching all specified conditions
+- Labels with empty `conditions` are applied unconditionally in the ingestion query's `SET` clause
+- Labels with nonempty `conditions` are applied row by row in the same ingestion query, with a pair of `FOREACH` clauses that add the label when the conditions hold and remove it when they do not
 - `when()` returns a new immutable label value and leaves the exported constant unchanged
 - Conditions are stored as immutable, sorted `(field, value)` tuples
 - Conditions use case-sensitive exact string equality and are combined with AND logic
@@ -296,8 +296,9 @@ case-sensitive, so uppercase variants do not match.
 **Important notes:**
 - Condition values must be strings (e.g., `"true"` not `True`)
 - Condition field names must exist on the concrete node's properties schema
-- All conditions must match for the label to be applied (AND logic)
-- Indexes are automatically created for conditional labels and their condition fields
+- All conditions in one `when()` call must match for the label to be applied (AND logic). Declaring the same label more than once with different conditions is allowed: the label applies if any of the declarations matches (OR logic)
+- Because labels are applied per row, only the nodes in the current batch are relabeled. A node whose conditions no longer hold is corrected the next time it is loaded, or deleted by cleanup if it is no longer reported
+- Indexes are automatically created for conditional labels themselves. Condition fields are not indexed: they are evaluated against the already-bound node of the current row, so there is no lookup for an index to serve
 
 
 #### Defining relationships

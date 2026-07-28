@@ -483,6 +483,98 @@ def _build_node_properties_statement(
     return set_clause
 
 
+def _build_conditional_labels_statement(
+    extra_node_labels: ExtraNodeLabels | None = None,
+) -> str:
+    r"""
+    Generate Neo4j clauses that apply conditional extra labels to the node of the current row.
+
+    Conditional labels are declared with ``ExtraNodeLabel.when(...)``. For each such label we emit a
+    pair of ``FOREACH`` clauses: one that adds the label when the conditions hold, and one that
+    removes it when they do not. ``FOREACH`` over a one-or-zero element list is the standard
+    pure-Cypher conditional-write idiom, so no APOC dependency is needed.
+
+    Applying the label row by row means a sync never has to scan a whole label to keep conditional
+    labels in sync: a node is either re-loaded (and corrected here) or no longer reported (and
+    deleted by cleanup).
+
+    Args:
+        extra_node_labels (ExtraNodeLabels | None): Extra labels declared on the node schema.
+            Defaults to None.
+
+    Returns:
+        str: Neo4j ``FOREACH`` clauses, or an empty string if there are no conditional labels.
+
+    Examples:
+        >>> extra_node_labels = ExtraNodeLabels([IMAGE.when(type="image")])
+        >>> print(_build_conditional_labels_statement(extra_node_labels))
+        FOREACH (_ IN CASE WHEN i.type = "image" THEN [1] ELSE [] END | SET i:Image)
+        FOREACH (_ IN CASE WHEN i.type = "image" THEN [] ELSE [1] END | REMOVE i:Image)
+
+    Note:
+        - The conditions name *node properties*, not source dict keys, so the predicate reads
+          ``i.<property>``. The preceding SET clause has already run for the current row, so the
+          value is up to date. This also keeps the semantics identical for schemas that share a
+          primary label but populate it from different source keys.
+        - Conditions within one label declaration are ANDed; several declarations of the same label
+          are ORed together.
+        - The negative clause inverts the branches of the same positive predicate rather than
+          negating it, so a node whose condition property is missing (``null`` predicate) still has
+          the stale label removed.
+        - A label declared both unconditionally and conditionally is left to the unconditional SET
+          clause; otherwise the negative clause would strip a label that was just applied.
+    """
+    if not extra_node_labels:
+        return ""
+
+    unconditional_labels = {
+        label.label for label in extra_node_labels.labels if not label.conditions
+    }
+
+    # Group condition sets by label name, preserving declaration order.
+    conditions_by_label: dict[str, list[tuple[tuple[str, str], ...]]] = {}
+    for label in extra_node_labels.labels:
+        if not label.conditions or label.label in unconditional_labels:
+            continue
+        conditions_by_label.setdefault(label.label, []).append(label.conditions)
+
+    if not conditions_by_label:
+        return ""
+
+    set_template = Template(
+        "FOREACH (_ IN CASE WHEN $predicate THEN [1] ELSE [] END | SET i:$label)",
+    )
+    remove_template = Template(
+        "FOREACH (_ IN CASE WHEN $predicate THEN [] ELSE [1] END | REMOVE i:$label)",
+    )
+
+    clauses = []
+    for label_name, condition_sets in conditions_by_label.items():
+        predicates = []
+        for conditions in condition_sets:
+            comparisons = [
+                f'i.{field_name} = "{_escape_cypher_string(str(field_value))}"'
+                for field_name, field_value in conditions
+            ]
+            predicates.append(" AND ".join(comparisons))
+
+        if len(predicates) == 1:
+            predicate = predicates[0]
+        else:
+            # Several declarations of the same label: the label applies if any of them matches.
+            predicate = " OR ".join(f"({p})" for p in predicates)
+
+        clauses.append(
+            set_template.safe_substitute(predicate=predicate, label=label_name),
+        )
+        clauses.append(
+            remove_template.safe_substitute(predicate=predicate, label=label_name),
+        )
+
+    # The first clause is indented by the ingestion query template; indent the rest to match.
+    return "\n            ".join(clauses)
+
+
 def _build_rel_properties_statement(
     rel_var: str,
     rel_property_map: dict[str, PropertyRef] | None = None,
@@ -1181,6 +1273,7 @@ def build_ingestion_query(
                 i._module_version = "$module_version",
                 $set_node_properties_statement
                 $set_ontology_node_properties_statement
+            $conditional_labels_statement
             $attach_relationships_statement
         """,
     )
@@ -1212,136 +1305,15 @@ def build_ingestion_query(
             node_schema,
             node_props_as_dict,
         ),
+        conditional_labels_statement=_build_conditional_labels_statement(
+            node_schema.extra_node_labels,
+        ),
         attach_relationships_statement=_build_attach_relationships_statement(
             sub_resource_rel,
             other_rels,
         ),
     )
     return ingest_query
-
-
-def build_conditional_label_queries(
-    node_schema: CartographyNodeSchema,
-) -> list[str]:
-    """
-    Generate Neo4j queries to apply conditional labels to nodes.
-
-    Args:
-        node_schema (CartographyNodeSchema): The CartographyNodeSchema object containing
-            conditional labels in its extra_node_labels property.
-
-    Returns:
-        list[str]: A list of Neo4j queries, one per conditional label. Each query matches
-            nodes of the schema's primary label that satisfy the conditions, and applies
-            the conditional label.
-
-    Note:
-        - Labels with empty conditions are applied by the ingestion query
-        - Returns an empty list if no conditional labels are defined
-        - Values are escaped for Cypher string literals
-    """
-    if not node_schema.extra_node_labels:
-        return []
-
-    conditional_labels = [
-        label for label in node_schema.extra_node_labels.labels if label.conditions
-    ]
-
-    if not conditional_labels:
-        return []
-
-    queries = []
-    sub_rel = node_schema.sub_resource_relationship
-
-    # Build the sub-resource matching clause if a sub_resource_relationship exists
-    # This scopes the queries to the current tenant to avoid affecting other tenants' nodes
-    if sub_rel:
-        # Build the relationship pattern based on direction
-        if sub_rel.direction == LinkDirection.INWARD:
-            # (node)<-[:REL]-(sub_resource)
-            rel_pattern = f"<-[:{sub_rel.rel_label}]-"
-        else:
-            # (node)-[:REL]->(sub_resource)
-            rel_pattern = f"-[:{sub_rel.rel_label}]->"
-
-        # Build the match clause for the sub-resource node
-        sub_match_clause = _build_match_clause(sub_rel.target_node_matcher)
-
-        # Scoped templates that filter by sub-resource
-        remove_template = Template(
-            """
-            MATCH (n:$node_label:$conditional_label)$rel_pattern(sub:$sub_label{$sub_match_clause})
-            REMOVE n:$conditional_label
-            """,
-        )
-
-        set_template = Template(
-            """
-            MATCH (n:$node_label)$rel_pattern(sub:$sub_label{$sub_match_clause})
-            WHERE $where_clause
-            SET n:$conditional_label
-            """,
-        )
-    else:
-        # Unscoped templates for global resources without a tenant relationship
-        remove_template = Template(
-            """
-            MATCH (n:$node_label:$conditional_label)
-            REMOVE n:$conditional_label
-            """,
-        )
-
-        set_template = Template(
-            """
-            MATCH (n:$node_label)
-            WHERE $where_clause
-            SET n:$conditional_label
-            """,
-        )
-
-    for cond_label in conditional_labels:
-        # Build WHERE clause from conditions
-        where_parts = []
-        for field_name, field_value in cond_label.conditions:
-            # Escape the value for Cypher string literal
-            escaped_value = _escape_cypher_string(str(field_value))
-            where_parts.append(f'n.{field_name} = "{escaped_value}"')
-
-        where_clause = " AND ".join(where_parts)
-
-        if sub_rel:
-            # Scoped queries
-            remove_query = remove_template.safe_substitute(
-                node_label=node_schema.label,
-                conditional_label=cond_label.label,
-                rel_pattern=rel_pattern,
-                sub_label=sub_rel.target_node_label,
-                sub_match_clause=sub_match_clause,
-            )
-            set_query = set_template.safe_substitute(
-                node_label=node_schema.label,
-                where_clause=where_clause,
-                conditional_label=cond_label.label,
-                rel_pattern=rel_pattern,
-                sub_label=sub_rel.target_node_label,
-                sub_match_clause=sub_match_clause,
-            )
-        else:
-            # Unscoped queries
-            remove_query = remove_template.safe_substitute(
-                node_label=node_schema.label,
-                conditional_label=cond_label.label,
-            )
-            set_query = set_template.safe_substitute(
-                node_label=node_schema.label,
-                where_clause=where_clause,
-                conditional_label=cond_label.label,
-            )
-
-        queries.append(remove_query)
-        queries.append(set_query)
-
-    return queries
 
 
 def build_create_index_queries(node_schema: CartographyNodeSchema) -> list[str]:
@@ -1412,15 +1384,9 @@ def build_create_index_queries(node_schema: CartographyNodeSchema) -> list[str]:
                     TargetAttribute="lastupdated",
                 ),
             )
-            if label.conditions:
-                # Index condition fields on the primary label to speed up matching.
-                for condition_field, _ in label.conditions:
-                    result.append(
-                        index_template.safe_substitute(
-                            TargetNodeLabel=node_schema.label,
-                            TargetAttribute=condition_field,
-                        ),
-                    )
+            # No index is created for a label's condition fields: the conditions are evaluated
+            # against the already-bound node of the current row in the ingestion query, so there is
+            # no lookup for an index to serve.
 
     # Next, for all relationships possible out of this node, ensure that indexes exist for all target nodes' properties
     # as specified in their TargetNodeMatchers.
