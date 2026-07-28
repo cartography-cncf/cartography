@@ -1,4 +1,5 @@
 import inspect
+import re
 from pathlib import Path
 
 import cartography.models.aibom as aibom_models
@@ -57,6 +58,31 @@ from cartography.models.schema_docs import _ontology_catalog_relationships
 from cartography.models.schema_docs import GENERATED_NOTICE
 from cartography.models.schema_docs import render_module_schema
 from cartography.models.schema_docs import write_module_schema_docs
+
+
+def test_documentation_schema_links_target_generated_headings():
+    model = inspect_data_model()
+    schema_link_pattern = re.compile(
+        r"modules/(?P<module>[^/]+)/schema\.html#(?P<anchor>[a-z0-9_-]+)",
+    )
+    generated_anchors_by_module: dict[str, set[str]] = {}
+    invalid_links: list[str] = []
+
+    for path in Path("docs/root").rglob("*.md"):
+        for match in schema_link_pattern.finditer(path.read_text()):
+            module = match.group("module")
+            if module not in generated_anchors_by_module:
+                generated = render_module_schema(model, module)
+                generated_anchors_by_module[module] = {
+                    heading.lower()
+                    for heading in re.findall(
+                        r"^### ([A-Za-z0-9_-]+)$", generated, re.MULTILINE
+                    )
+                }
+            if match.group("anchor") not in generated_anchors_by_module[module]:
+                invalid_links.append(f"{path}: {match.group(0)}")
+
+    assert invalid_links == []
 
 
 def test_relationship_docstrings_are_user_facing_descriptions():

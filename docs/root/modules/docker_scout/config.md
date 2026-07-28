@@ -4,7 +4,7 @@
 
 Currently, Cartography allows you to use Docker Scout to scan the following resources:
 
-- [AWSECRImage](https://docs.cartography.dev/modules/aws/schema.html#ecrimage)
+- [AWSECRImage](https://docs.cartography.dev/modules/aws/schema.html#awsecrimage)
 - [GCPArtifactRegistryImage](https://docs.cartography.dev/modules/gcp/schema.html#gcpartifactregistryimage)
 - [GitLabContainerImage](https://docs.cartography.dev/modules/gitlab/schema.html#gitlabcontainerimage)
 

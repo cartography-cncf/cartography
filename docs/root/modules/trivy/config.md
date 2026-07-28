@@ -20,7 +20,7 @@ When scanning AWS ECR, the machine running Trivy needs these permissions:
 
 | Cartography node label | Cloud permissions required to scan with Trivy |
 |---|---|
-| [AWSECRRepositoryImage](https://cartography-cncf.github.io/cartography/modules/aws/schema.html#ecrrepositoryimage) | `ecr:GetAuthorizationToken`, `ecr:BatchGetImage`, `ecr:GetDownloadUrlForLayer` |
+| [AWSECRRepositoryImage](https://cartography-cncf.github.io/cartography/modules/aws/schema.html#awsecrrepositoryimage) | `ecr:GetAuthorizationToken`, `ecr:BatchGetImage`, `ecr:GetDownloadUrlForLayer` |
 
 For reports in S3, the role running Cartography needs `s3:ListBucket` on the
 configured bucket and `s3:GetObject` on objects under the configured prefix.
