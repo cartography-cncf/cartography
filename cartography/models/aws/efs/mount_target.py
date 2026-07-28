@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 
+from cartography.models.aws.extra_labels import LEGACY_EFS_MOUNT_TARGET
 from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeProperties
 from cartography.models.core.nodes import CartographyNodeSchema
@@ -70,7 +71,7 @@ class EfsMountTargetToEfsFileSystemRel(CartographyRelSchema):
 class EfsMountTargetSchema(CartographyNodeSchema):
     label: str = "AWSEfsMountTarget"
     # DEPRECATED: legacy EfsMountTarget node label will be removed in v1.0.0.
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["EfsMountTarget"])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([LEGACY_EFS_MOUNT_TARGET])
     properties: EfsMountTargetNodeProperties = EfsMountTargetNodeProperties()
     sub_resource_relationship: EfsMountTargetToAWSAccountRel = (
         EfsMountTargetToAWSAccountRel()

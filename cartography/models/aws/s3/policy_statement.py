@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 
+from cartography.models.aws.extra_labels import LEGACY_S3_POLICY_STATEMENT
 from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeProperties
 from cartography.models.core.nodes import CartographyNodeSchema
@@ -67,7 +68,7 @@ class S3PolicyStatementToS3BucketRel(CartographyRelSchema):
 class S3PolicyStatementSchema(CartographyNodeSchema):
     label: str = "AWSS3PolicyStatement"
     # DEPRECATED: legacy S3PolicyStatement node label will be removed in v1.0.0.
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["S3PolicyStatement"])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([LEGACY_S3_POLICY_STATEMENT])
     properties: S3PolicyStatementNodeProperties = S3PolicyStatementNodeProperties()
     sub_resource_relationship: S3PolicyStatementToAWSAccountRel = (
         S3PolicyStatementToAWSAccountRel()

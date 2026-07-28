@@ -3,7 +3,6 @@ from dataclasses import dataclass
 from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeProperties
 from cartography.models.core.nodes import CartographyNodeSchema
-from cartography.models.core.nodes import ConditionalNodeLabel
 from cartography.models.core.nodes import ExtraNodeLabels
 from cartography.models.core.relationships import CartographyRelProperties
 from cartography.models.core.relationships import CartographyRelSchema
@@ -13,6 +12,9 @@ from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import SourceNodeMatcher
 from cartography.models.core.relationships import TargetNodeMatcher
+from cartography.models.extra_labels import RISK
+from cartography.models.ontology.labels import CVE
+from cartography.models.ontology.labels import SECURITY_ISSUE
 
 
 @dataclass(frozen=True)
@@ -35,6 +37,9 @@ class AWSInspectorNodeProperties(CartographyNodeProperties):
     portrangebegin: PropertyRef = PropertyRef("portrangebegin")
     portrangeend: PropertyRef = PropertyRef("portrangeend")
     vulnerabilityid: PropertyRef = PropertyRef("vulnerabilityid")
+    # Normalized CVE id, populated only for PACKAGE_VULNERABILITY findings; feeds
+    # the :CVE ontology label's _ont_cve_id and the CVEMetadata ENRICHES edge.
+    cve_id: PropertyRef = PropertyRef("cve_id", extra_index=True)
     referenceurls: PropertyRef = PropertyRef("referenceurls")
     relatedvulnerabilities: PropertyRef = PropertyRef("relatedvulnerabilities")
     source: PropertyRef = PropertyRef("source")
@@ -179,21 +184,13 @@ class AWSInspectorFindingSchema(CartographyNodeSchema):
     # Inspector findings are mixed: package vulnerabilities are CVE-backed while
     # network-reachability findings are configuration security issues. Label them
     # by type so each shows up in the right ontology finding family.
-    # NOTE: the conditional-label mechanism removes-then-sets per entry, so a label
-    # can only be driven by a single condition (two entries sharing a label would
-    # clobber each other). CODE_VULNERABILITY is intentionally left unlabeled for
-    # now; give it its own distinct label if/when it needs one.
+    # CODE_VULNERABILITY is intentionally left unlabeled for now; give it its own
+    # distinct label if/when it needs one.
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
         [
-            "Risk",
-            ConditionalNodeLabel(
-                label="CVE",
-                conditions={"type": "PACKAGE_VULNERABILITY"},
-            ),
-            ConditionalNodeLabel(
-                label="SecurityIssue",
-                conditions={"type": "NETWORK_REACHABILITY"},
-            ),
+            RISK,
+            CVE.when(type="PACKAGE_VULNERABILITY"),
+            SECURITY_ISSUE.when(type="NETWORK_REACHABILITY"),
         ],
     )
     sub_resource_relationship: InspectorFindingToAWSAccountRel = (

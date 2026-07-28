@@ -10,6 +10,7 @@ from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import TargetNodeMatcher
+from cartography.models.ontology.labels import ONTOLOGY
 
 
 @dataclass(frozen=True)
@@ -139,7 +140,7 @@ class PublicIPToLoadBalancerRel(CartographyRelSchema):
 @dataclass(frozen=True)
 class PublicIPSchema(CartographyNodeSchema):
     label: str = "PublicIP"
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["Ontology"])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([ONTOLOGY])
     properties: PublicIPNodeProperties = PublicIPNodeProperties()
     scoped_cleanup: bool = False
     other_relationships: OtherRelationships = OtherRelationships(

@@ -172,9 +172,20 @@ def transform_sca_vulns(
                     "file_path"
                 ]
         sca_vuln["transitivity"] = vuln["found_dependency"]["transitivity"].upper()
+        # SCA findings can be advisory-only (e.g. GHSA) with no CVE assigned, so the
+        # :CVE ontology label is applied conditionally on this flag. Default to false
+        # and only flip it for real CVE ids below.
+        sca_vuln["has_cve"] = "false"
         if vuln.get("vulnerability_identifier"):
             vuln_id = vuln["vulnerability_identifier"].upper()
-            sca_vuln["cveId"] = vuln_id
+            # Route the identifier to a typed field so cve_id only ever holds a real
+            # CVE (feeding the :CVE label and _ont_cve_id) while GHSA advisories land
+            # in ghsa_id. Other schemes (e.g. MAL-, UNKNOWN-) populate neither.
+            if vuln_id.startswith("CVE-"):
+                sca_vuln["cveId"] = vuln_id
+                sca_vuln["has_cve"] = "true"
+            elif vuln_id.startswith("GHSA"):
+                sca_vuln["ghsaId"] = vuln_id
             ref_url = _build_vuln_url(vuln_id)
             sca_vuln["ref_urls"] = [ref_url] if ref_url is not None else []
         if vuln.get("fix_recommendations") and len(vuln["fix_recommendations"]) > 0:

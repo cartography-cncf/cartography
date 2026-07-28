@@ -40,6 +40,7 @@ _tailscale_device_approval_disabled = Fact(
     MATCH (tailnet:TailscaleTailnet)
     RETURN COUNT(tailnet) AS count
     """,
+    asset_label="TailscaleTailnet",
     asset_id_field="asset_id",
     identity_fields=("asset_id", "issue"),
     module=Module.TAILSCALE,
@@ -71,6 +72,7 @@ _tailscale_user_approval_disabled = Fact(
     MATCH (tailnet:TailscaleTailnet)
     RETURN COUNT(tailnet) AS count
     """,
+    asset_label="TailscaleTailnet",
     asset_id_field="asset_id",
     identity_fields=("asset_id", "issue"),
     module=Module.TAILSCALE,
@@ -102,6 +104,7 @@ _tailscale_network_flow_logging_disabled = Fact(
     MATCH (tailnet:TailscaleTailnet)
     RETURN COUNT(tailnet) AS count
     """,
+    asset_label="TailscaleTailnet",
     asset_id_field="asset_id",
     identity_fields=("asset_id", "issue"),
     module=Module.TAILSCALE,
@@ -133,6 +136,7 @@ _tailscale_device_auto_updates_disabled = Fact(
     MATCH (tailnet:TailscaleTailnet)
     RETURN COUNT(tailnet) AS count
     """,
+    asset_label="TailscaleTailnet",
     asset_id_field="asset_id",
     identity_fields=("asset_id", "issue"),
     module=Module.TAILSCALE,
@@ -164,6 +168,7 @@ _tailscale_device_key_expiry_disabled = Fact(
     MATCH (device:TailscaleDevice)
     RETURN COUNT(device) AS count
     """,
+    asset_label="TailscaleDevice",
     asset_id_field="asset_id",
     # Key on tailnet + stable hostname, not device.id: Tailscale ephemeral nodes get
     # a fresh device.id on every reconnect, which would re-create the same finding.

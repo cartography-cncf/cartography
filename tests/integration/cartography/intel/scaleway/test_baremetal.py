@@ -118,6 +118,12 @@ def test_load_scaleway_dedibox(_mock_get, neo4j_session):
     assert check_nodes(neo4j_session, "ScalewayDediboxServer", ["id", "hostname"]) == {
         ("12345", "dedibox-demo"),
     }
+    # The raw Dedibox ServerStatus "ready" normalizes to the canonical _ont_state.
+    assert check_nodes(
+        neo4j_session, "ScalewayDediboxServer", ["id", "_ont_state"]
+    ) == {
+        ("12345", "running"),
+    }
     assert check_rels(
         neo4j_session,
         "ScalewayDediboxServer",

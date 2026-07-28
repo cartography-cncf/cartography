@@ -43,6 +43,8 @@ _pat_never_expires = Fact(
     MATCH (t:DatabricksToken)
     RETURN COUNT(t) AS count
     """,
+    asset_label="DatabricksToken",
+    asset_id_field="id",
     identity_fields=("id",),
     module=Module.DATABRICKS,
     maturity=Maturity.EXPERIMENTAL,
@@ -116,6 +118,8 @@ _ip_access_list_allows_all = Fact(
     MATCH (l:DatabricksIpAccessList)
     RETURN COUNT(l) AS count
     """,
+    asset_label="DatabricksIpAccessList",
+    asset_id_field="id",
     identity_fields=("id",),
     module=Module.DATABRICKS,
     maturity=Maturity.EXPERIMENTAL,
@@ -180,6 +184,8 @@ _public_delta_sharing_recipient = Fact(
     MATCH (r:DatabricksRecipient)
     RETURN COUNT(r) AS count
     """,
+    asset_label="DatabricksRecipient",
+    asset_id_field="id",
     identity_fields=("id",),
     module=Module.DATABRICKS,
     maturity=Maturity.EXPERIMENTAL,

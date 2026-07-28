@@ -9,6 +9,8 @@ from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import TargetNodeMatcher
+from cartography.models.ontology.labels import THIRD_PARTY_APP
+from cartography.models.slack.extra_labels import SLACK_USER
 
 
 @dataclass(frozen=True)
@@ -46,7 +48,7 @@ class SlackBotSchema(CartographyNodeSchema):
     sub_resource_relationship: SlackTeamToBotRel = SlackTeamToBotRel()
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
         [
-            "ThirdPartyApp",
-            "SlackUser",  # DEPRECATED: will be deleted in v1
+            THIRD_PARTY_APP,
+            SLACK_USER,  # DEPRECATED: will be deleted in v1
         ],
     )

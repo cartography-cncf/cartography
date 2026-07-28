@@ -44,6 +44,8 @@ _aws_s3_public = Fact(
     MATCH (b:AWSS3Bucket)
     RETURN COUNT(b) AS count
     """,
+    asset_id_field="id",
+    asset_label="AWSS3Bucket",
     identity_fields=("id",),
     module=Module.AWS,
     maturity=Maturity.EXPERIMENTAL,
@@ -86,6 +88,8 @@ _gcp_bucket_public = Fact(
     MATCH (b:GCPBucket)
     RETURN COUNT(b) AS count
     """,
+    asset_id_field="id",
+    asset_label="GCPBucket",
     identity_fields=("id",),
     module=Module.GCP,
     maturity=Maturity.EXPERIMENTAL,
@@ -123,6 +127,8 @@ _azure_storage_public_blob_access = Fact(
     MATCH (bc:AzureStorageBlobContainer)
     RETURN COUNT(bc) AS count
     """,
+    asset_id_field="id",
+    asset_label="AzureStorageBlobContainer",
     identity_fields=("id",),
     module=Module.AZURE,
     maturity=Maturity.EXPERIMENTAL,
@@ -157,6 +163,8 @@ _scaleway_bucket_public = Fact(
     MATCH (b:ScalewayObjectStorageBucket)
     RETURN COUNT(b) AS count
     """,
+    asset_id_field="id",
+    asset_label="ScalewayObjectStorageBucket",
     identity_fields=("id",),
     module=Module.SCALEWAY,
     maturity=Maturity.EXPERIMENTAL,

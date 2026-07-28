@@ -79,6 +79,8 @@ _aws_s3_mfa_delete_disabled = Fact(
     MATCH (bucket:AWSS3Bucket)
     RETURN COUNT(bucket) AS count
     """,
+    asset_id_field="bucket_id",
+    asset_label="AWSS3Bucket",
     identity_fields=("bucket_id",),
     module=Module.AWS,
     maturity=Maturity.STABLE,
@@ -198,6 +200,8 @@ _aws_s3_block_public_access_disabled = Fact(
     MATCH (bucket:AWSS3Bucket)
     RETURN COUNT(bucket) AS count
     """,
+    asset_id_field="bucket_id",
+    asset_label="AWSS3Bucket",
     identity_fields=("bucket_id",),
     module=Module.AWS,
     maturity=Maturity.STABLE,
@@ -272,6 +276,8 @@ _aws_rds_encryption_disabled = Fact(
     MATCH (rds:AWSRDSInstance)
     RETURN COUNT(rds) AS count
     """,
+    asset_id_field="db_arn",
+    asset_label="AWSRDSInstance",
     identity_fields=("db_arn",),
     module=Module.AWS,
     maturity=Maturity.STABLE,

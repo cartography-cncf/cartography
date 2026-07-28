@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 
+from cartography.models.aws.extra_labels import LEGACY_API_GATEWAY_REST_API
 from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeProperties
 from cartography.models.core.nodes import CartographyNodeSchema
@@ -52,7 +53,7 @@ class APIGatewayRestAPIToAWSAccountRel(CartographyRelSchema):
 class APIGatewayRestAPISchema(CartographyNodeSchema):
     label: str = "AWSAPIGatewayRestAPI"
     # DEPRECATED: legacy APIGatewayRestAPI node label will be removed in v1.0.0.
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["APIGatewayRestAPI"])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([LEGACY_API_GATEWAY_REST_API])
     properties: APIGatewayRestAPINodeProperties = APIGatewayRestAPINodeProperties()
     sub_resource_relationship: APIGatewayRestAPIToAWSAccountRel = (
         APIGatewayRestAPIToAWSAccountRel()

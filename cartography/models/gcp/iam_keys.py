@@ -10,6 +10,7 @@ from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import TargetNodeMatcher
+from cartography.models.ontology.labels import API_KEY
 
 
 @dataclass(frozen=True)
@@ -84,7 +85,7 @@ class GCPServiceAccountKeyToServiceAccountOwnedByRel(CartographyRelSchema):
 class GCPServiceAccountKeySchema(CartographyNodeSchema):
     label: str = "GCPServiceAccountKey"
     # APIKey label is used for ontology mapping
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["APIKey"])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([API_KEY])
     properties: GCPServiceAccountKeyNodeProperties = (
         GCPServiceAccountKeyNodeProperties()
     )

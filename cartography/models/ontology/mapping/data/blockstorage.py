@@ -7,7 +7,50 @@ from cartography.models.ontology.mapping.specs import OntologyNodeMapping
 # _ont_size_gb - The size of the volume in gigabytes
 # _ont_encrypted - Whether the volume is encrypted at rest
 # _ont_region - The region/zone where the volume lives
-# _ont_state - The lifecycle state of the volume (e.g., "available", "in-use")
+# _ont_state - Normalized lifecycle state of the volume, mapped from each provider's
+#   vocabulary to the shared canonical set: available, in_use, creating, deleting,
+#   deleted, error, unknown. The raw value stays on the source node's own state property.
+
+# AWS EBS Volume.State
+_AWS_EBS_STATE = {
+    "creating": "creating",
+    "available": "available",
+    "in-use": "in_use",
+    "deleting": "deleting",
+    "deleted": "deleted",
+    "error": "error",
+}
+
+# Azure managed disk DiskState
+_AZURE_DISK_STATE = {
+    "Unattached": "available",
+    "ReadyToUpload": "available",
+    "Attached": "in_use",
+    "Reserved": "in_use",
+    "Frozen": "in_use",
+    "ActiveSAS": "in_use",
+    "ActiveSASFrozen": "in_use",
+    "ActiveUpload": "in_use",
+}
+
+# Scaleway volume state (Block API VolumeStatus and instance VolumeState variants)
+_SCALEWAY_VOLUME_STATE = {
+    "unknown_status": "unknown",
+    "creating": "creating",
+    "fetching": "creating",
+    "available": "available",
+    "saving": "available",
+    "snapshotting": "available",
+    "in_use": "in_use",
+    "attaching": "in_use",
+    "resizing": "in_use",
+    "hotsyncing": "in_use",
+    "updating": "in_use",
+    "locked": "in_use",
+    "deleting": "deleting",
+    "deleted": "deleted",
+    "error": "error",
+}
 
 aws_mapping = OntologyMapping(
     module_name="aws",
@@ -24,7 +67,12 @@ aws_mapping = OntologyMapping(
                     ontology_field="encrypted", node_field="encrypted"
                 ),
                 OntologyFieldMapping(ontology_field="region", node_field="region"),
-                OntologyFieldMapping(ontology_field="state", node_field="state"),
+                OntologyFieldMapping(
+                    ontology_field="state",
+                    node_field="state",
+                    special_handling="mapping",
+                    extra={"map": _AWS_EBS_STATE},
+                ),
             ],
         ),
     ],
@@ -47,7 +95,12 @@ azure_mapping = OntologyMapping(
                 # here would make most disks look unencrypted in cross-cloud posture queries.
                 # Revisit once SSE / disk-encryption-set posture is modelled on AzureDisk.
                 OntologyFieldMapping(ontology_field="region", node_field="location"),
-                OntologyFieldMapping(ontology_field="state", node_field="state"),
+                OntologyFieldMapping(
+                    ontology_field="state",
+                    node_field="state",
+                    special_handling="mapping",
+                    extra={"map": _AZURE_DISK_STATE},
+                ),
             ],
         ),
     ],
@@ -65,7 +118,12 @@ scaleway_mapping = OntologyMapping(
                 OntologyFieldMapping(ontology_field="size_gb", node_field="size_gb"),
                 # _ont_encrypted: Scaleway block volumes do not expose encryption posture in the volume API.
                 OntologyFieldMapping(ontology_field="region", node_field="zone"),
-                OntologyFieldMapping(ontology_field="state", node_field="state"),
+                OntologyFieldMapping(
+                    ontology_field="state",
+                    node_field="state",
+                    special_handling="mapping",
+                    extra={"map": _SCALEWAY_VOLUME_STATE},
+                ),
             ],
         ),
     ],

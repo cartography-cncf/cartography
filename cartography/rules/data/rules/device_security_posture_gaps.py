@@ -86,6 +86,7 @@ _duo_endpoint_posture_gaps = Fact(
     MATCH (endpoint:DuoEndpoint)
     RETURN COUNT(endpoint) AS count
     """,
+    asset_label="DuoEndpoint",
     asset_id_field="device_id",
     identity_fields=("device_id", "issue"),
     module=Module.DUO,
@@ -131,6 +132,7 @@ _duo_phone_posture_gaps = Fact(
     MATCH (phone:DuoPhone)
     RETURN COUNT(phone) AS count
     """,
+    asset_label="DuoPhone",
     asset_id_field="device_id",
     identity_fields=("device_id", "issue"),
     module=Module.DUO,
@@ -172,6 +174,7 @@ _jamf_computer_posture_gaps = Fact(
     MATCH (computer:JamfComputer)
     RETURN COUNT(computer) AS count
     """,
+    asset_label="JamfComputer",
     asset_id_field="device_id",
     identity_fields=("device_id", "issue"),
     module=Module.JAMF,
@@ -219,6 +222,7 @@ _jamf_mobile_device_posture_gaps = Fact(
     MATCH (device:JamfMobileDevice)
     RETURN COUNT(device) AS count
     """,
+    asset_label="JamfMobileDevice",
     asset_id_field="device_id",
     identity_fields=("device_id", "issue"),
     module=Module.JAMF,
@@ -278,6 +282,7 @@ _tailscale_device_posture_gaps = Fact(
     MATCH (device:TailscaleDevice)
     RETURN COUNT(device) AS count
     """,
+    asset_label="TailscaleDevice",
     asset_id_field="device_id",
     # Key on tailnet + stable hostname, not device.id: Tailscale ephemeral nodes get
     # a fresh device.id on every reconnect, which would re-create the same finding.

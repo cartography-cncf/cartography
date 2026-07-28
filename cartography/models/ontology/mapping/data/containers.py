@@ -2,6 +2,48 @@ from cartography.models.ontology.mapping.specs import OntologyFieldMapping
 from cartography.models.ontology.mapping.specs import OntologyMapping
 from cartography.models.ontology.mapping.specs import OntologyNodeMapping
 
+# Container fields:
+# _ont_state - Normalized runtime state of the container, mapped from each provider's
+#   vocabulary to the shared canonical set: running, pending, stopping, stopped,
+#   terminated, suspended, error, unknown. The raw value stays on the source node.
+
+# AWS ECS container lastStatus
+_AWS_ECS_CONTAINER_STATE = {
+    "PROVISIONING": "pending",
+    "PENDING": "pending",
+    "RUNNING": "running",
+    "DEPROVISIONING": "stopping",
+    "STOPPED": "stopped",
+}
+
+# Kubernetes ContainerState
+_K8S_CONTAINER_STATE = {
+    "running": "running",
+    "waiting": "pending",
+    "terminated": "terminated",
+}
+
+# Azure Container Instance currentState.state
+_AZURE_ACI_CONTAINER_STATE = {
+    "Waiting": "pending",
+    "Running": "running",
+    "Terminated": "terminated",
+}
+
+# Scaleway ContainerStatus
+_SCALEWAY_CONTAINER_STATE = {
+    "unknown": "unknown",
+    "creating": "pending",
+    "created": "pending",
+    "pending": "pending",
+    "upgrading": "pending",
+    "ready": "running",
+    "deleting": "terminated",
+    "error": "error",
+    "locking": "suspended",
+    "locked": "suspended",
+}
+
 aws_ecs_container_mapping = OntologyMapping(
     module_name="aws",
     nodes=[
@@ -13,7 +55,12 @@ aws_ecs_container_mapping = OntologyMapping(
                 OntologyFieldMapping(
                     ontology_field="image_digest", node_field="image_digest"
                 ),
-                OntologyFieldMapping(ontology_field="state", node_field="last_status"),
+                OntologyFieldMapping(
+                    ontology_field="state",
+                    node_field="last_status",
+                    special_handling="mapping",
+                    extra={"map": _AWS_ECS_CONTAINER_STATE},
+                ),
                 OntologyFieldMapping(ontology_field="cpu", node_field="cpu"),
                 OntologyFieldMapping(ontology_field="memory", node_field="memory"),
                 OntologyFieldMapping(ontology_field="region", node_field="region"),
@@ -37,7 +84,12 @@ kubernetes_mapping = OntologyMapping(
                 OntologyFieldMapping(
                     ontology_field="image_digest", node_field="status_image_sha"
                 ),
-                OntologyFieldMapping(ontology_field="state", node_field="status_state"),
+                OntologyFieldMapping(
+                    ontology_field="state",
+                    node_field="status_state",
+                    special_handling="mapping",
+                    extra={"map": _K8S_CONTAINER_STATE},
+                ),
                 # cpu: Not exposed as a direct field in KubernetesContainer node
                 # memory: Not exposed as a direct field in KubernetesContainer node
                 OntologyFieldMapping(ontology_field="region", node_field="region"),
@@ -63,7 +115,12 @@ azure_mapping = OntologyMapping(
                 ),
                 # ACI exposes per-container runtime state via instanceView.currentState.state,
                 # distinct from the group's provisioning_state.
-                OntologyFieldMapping(ontology_field="state", node_field="state"),
+                OntologyFieldMapping(
+                    ontology_field="state",
+                    node_field="state",
+                    special_handling="mapping",
+                    extra={"map": _AZURE_ACI_CONTAINER_STATE},
+                ),
                 # cpu: Node exposes cpu_request/cpu_limit rather than a single cpu value; skip to avoid ambiguity
                 # memory: Node exposes memory_request_gb/memory_limit_gb (GB) which does not match the ontology MB unit
                 # region: Not per-container on Azure; location lives on the parent AzureGroupContainer
@@ -122,7 +179,12 @@ scaleway_mapping = OntologyMapping(
                 OntologyFieldMapping(
                     ontology_field="image", node_field="registry_image"
                 ),
-                OntologyFieldMapping(ontology_field="state", node_field="status"),
+                OntologyFieldMapping(
+                    ontology_field="state",
+                    node_field="status",
+                    special_handling="mapping",
+                    extra={"map": _SCALEWAY_CONTAINER_STATE},
+                ),
                 OntologyFieldMapping(ontology_field="region", node_field="region"),
             ],
         ),

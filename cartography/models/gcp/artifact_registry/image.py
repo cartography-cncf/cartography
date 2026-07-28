@@ -3,7 +3,6 @@ from dataclasses import dataclass
 from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeProperties
 from cartography.models.core.nodes import CartographyNodeSchema
-from cartography.models.core.nodes import ConditionalNodeLabel
 from cartography.models.core.nodes import ExtraNodeLabels
 from cartography.models.core.relationships import CartographyRelProperties
 from cartography.models.core.relationships import CartographyRelSchema
@@ -13,6 +12,9 @@ from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import SourceNodeMatcher
 from cartography.models.core.relationships import TargetNodeMatcher
+from cartography.models.ontology.labels import IMAGE
+from cartography.models.ontology.labels import IMAGE_ATTESTATION
+from cartography.models.ontology.labels import IMAGE_MANIFEST_LIST
 
 
 @dataclass(frozen=True)
@@ -133,15 +135,9 @@ class GCPArtifactRegistryImageContainsImageMatchLink(CartographyRelSchema):
 
 GCP_IMAGE_EXTRA_LABELS = ExtraNodeLabels(
     [
-        ConditionalNodeLabel(label="Image", conditions={"type": "image"}),
-        ConditionalNodeLabel(
-            label="ImageAttestation",
-            conditions={"type": "attestation"},
-        ),
-        ConditionalNodeLabel(
-            label="ImageManifestList",
-            conditions={"type": "manifest_list"},
-        ),
+        IMAGE.when(type="image"),
+        IMAGE_ATTESTATION.when(type="attestation"),
+        IMAGE_MANIFEST_LIST.when(type="manifest_list"),
     ],
 )
 

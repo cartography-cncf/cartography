@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 
+from cartography.models.aws.extra_labels import AWS_PRINCIPAL
 from cartography.models.aws.iam.group_membership import AWSGroupToAWSUserMemberOfRel
 from cartography.models.aws.iam.group_membership import AWSGroupToAWSUserRel
 from cartography.models.core.common import PropertyRef
@@ -12,6 +13,7 @@ from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import TargetNodeMatcher
+from cartography.models.ontology.labels import USER_GROUP
 
 
 @dataclass(frozen=True)
@@ -60,4 +62,4 @@ class AWSGroupSchema(CartographyNodeSchema):
             AWSGroupToAWSUserMemberOfRel(),
         ]
     )
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["AWSPrincipal", "UserGroup"])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([AWS_PRINCIPAL, USER_GROUP])

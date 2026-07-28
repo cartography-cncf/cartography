@@ -70,6 +70,7 @@ _gcp_default_network_exists = Fact(
     MATCH (vpc:GCPVpc)
     RETURN COUNT(vpc) AS count
     """,
+    asset_label="GCPVpc",
     asset_id_field="vpc_id",
     identity_fields=("vpc_id",),
     module=Module.GCP,
@@ -171,6 +172,7 @@ _gcp_unrestricted_ssh = Fact(
     MATCH (fw:GCPFirewall)
     RETURN COUNT(fw) AS count
     """,
+    asset_label="GCPFirewall",
     asset_id_field="firewall_id",
     identity_fields=("firewall_id", "firewall_rule_id", "source_range"),
     module=Module.GCP,
@@ -271,6 +273,7 @@ _gcp_unrestricted_rdp = Fact(
     MATCH (fw:GCPFirewall)
     RETURN COUNT(fw) AS count
     """,
+    asset_label="GCPFirewall",
     asset_id_field="firewall_id",
     identity_fields=("firewall_id", "firewall_rule_id", "source_range"),
     module=Module.GCP,
@@ -352,6 +355,7 @@ _gcp_instance_public_ip = Fact(
     WHERE coalesce(instance.status, '') <> 'TERMINATED'
     RETURN COUNT(instance) AS count
     """,
+    asset_label="GCPInstance",
     asset_id_field="instance_id",
     identity_fields=("instance_id",),
     module=Module.GCP,
@@ -441,6 +445,7 @@ _gcp_instance_confidential_compute_disabled = Fact(
       )
     RETURN COUNT(instance) AS count
     """,
+    asset_label="GCPInstance",
     asset_id_field="instance_id",
     identity_fields=("instance_id",),
     module=Module.GCP,
@@ -509,6 +514,7 @@ _gcp_dnssec_disabled = Fact(
     WHERE coalesce(zone.visibility, 'public') = 'public'
     RETURN COUNT(zone) AS count
     """,
+    asset_label="GCPDNSZone",
     asset_id_field="zone_id",
     identity_fields=("zone_id",),
     module=Module.GCP,
@@ -581,6 +587,7 @@ _gcp_dnssec_weak_ksk = Fact(
       AND coalesce(zone.dnssec_state, 'off') = 'on'
     RETURN COUNT(zone) AS count
     """,
+    asset_label="GCPDNSZone",
     asset_id_field="zone_id",
     identity_fields=("zone_id",),
     module=Module.GCP,
@@ -647,6 +654,7 @@ _gcp_dnssec_weak_zsk = Fact(
       AND coalesce(zone.dnssec_state, 'off') = 'on'
     RETURN COUNT(zone) AS count
     """,
+    asset_label="GCPDNSZone",
     asset_id_field="zone_id",
     identity_fields=("zone_id",),
     module=Module.GCP,
@@ -740,6 +748,7 @@ _gcp_subnet_flow_logs_disabled = Fact(
     WHERE coalesce(subnet.purpose, 'PRIVATE') = 'PRIVATE'
     RETURN COUNT(subnet) AS count
     """,
+    asset_label="GCPSubnet",
     asset_id_field="subnet_id",
     identity_fields=("subnet_id",),
     module=Module.GCP,
@@ -799,6 +808,7 @@ _gcp_cloudsql_public_ip = Fact(
     MATCH (instance:GCPCloudSQLInstance)
     RETURN COUNT(instance) AS count
     """,
+    asset_label="GCPCloudSQLInstance",
     asset_id_field="instance_id",
     identity_fields=("instance_id",),
     module=Module.GCP,
@@ -857,6 +867,7 @@ _gcp_cloudsql_backups_disabled = Fact(
     MATCH (instance:GCPCloudSQLInstance)
     RETURN COUNT(instance) AS count
     """,
+    asset_label="GCPCloudSQLInstance",
     asset_id_field="instance_id",
     identity_fields=("instance_id",),
     module=Module.GCP,
@@ -942,6 +953,7 @@ _gcp_bigquery_dataset_public = Fact(
     MATCH (dataset:GCPBigQueryDataset)
     RETURN COUNT(dataset) AS count
     """,
+    asset_label="GCPBigQueryDataset",
     asset_id_field="dataset_id",
     identity_fields=("dataset_id",),
     module=Module.GCP,
@@ -1032,6 +1044,7 @@ _gcp_bigquery_table_cmek_missing = Fact(
       AND (table.type IS NULL OR NOT table.type IN ['VIEW', 'EXTERNAL'])
     RETURN count(DISTINCT table.dataset_id) AS count
     """,
+    asset_label="GCPBigQueryDataset",
     asset_id_field="dataset_id",
     identity_fields=("dataset_id",),
     module=Module.GCP,
@@ -1096,6 +1109,7 @@ _gcp_bigquery_dataset_cmek_missing = Fact(
     MATCH (dataset:GCPBigQueryDataset)
     RETURN COUNT(dataset) AS count
     """,
+    asset_label="GCPBigQueryDataset",
     asset_id_field="dataset_id",
     identity_fields=("dataset_id",),
     module=Module.GCP,
@@ -1158,6 +1172,7 @@ _gcp_cloudsql_ssl_not_enforced = Fact(
     MATCH (instance:GCPCloudSQLInstance)
     RETURN COUNT(instance) AS count
     """,
+    asset_label="GCPCloudSQLInstance",
     asset_id_field="instance_id",
     identity_fields=("instance_id",),
     module=Module.GCP,
@@ -1216,6 +1231,7 @@ _gcp_cloudsql_authorized_networks_open = Fact(
     MATCH (instance:GCPCloudSQLInstance)
     RETURN COUNT(instance) AS count
     """,
+    asset_label="GCPCloudSQLInstance",
     asset_id_field="instance_id",
     identity_fields=("instance_id",),
     module=Module.GCP,
@@ -1282,6 +1298,7 @@ def _make_cloudsql_flag_fact(
         WHERE instance.database_version STARTS WITH '{db_version_filter}'
         RETURN COUNT(instance) AS count
         """,
+        asset_label="GCPCloudSQLInstance",
         asset_id_field="instance_id",
         identity_fields=("instance_id",),
         module=Module.GCP,
@@ -1609,6 +1626,7 @@ _gcp_bucket_uniform_access_disabled = Fact(
     MATCH (bucket:GCPBucket)
     RETURN COUNT(bucket) AS count
     """,
+    asset_label="GCPBucket",
     asset_id_field="bucket_id",
     identity_fields=("bucket_id",),
     module=Module.GCP,
@@ -1931,6 +1949,7 @@ _gcp_instance_default_service_account = Fact(
       AND NOT instance.instancename STARTS WITH 'gke-'
     RETURN COUNT(instance) AS count
     """,
+    asset_label="GCPInstance",
     asset_id_field="instance_id",
     identity_fields=("instance_id",),
     module=Module.GCP,
@@ -1999,6 +2018,7 @@ _gcp_instance_default_service_account_full_api = Fact(
       AND NOT instance.instancename STARTS WITH 'gke-'
     RETURN COUNT(instance) AS count
     """,
+    asset_label="GCPInstance",
     asset_id_field="instance_id",
     identity_fields=("instance_id",),
     module=Module.GCP,
@@ -2082,6 +2102,7 @@ _gcp_instance_project_wide_ssh_keys = Fact(
       AND NOT instance.instancename STARTS WITH 'gke-'
     RETURN COUNT(instance) AS count
     """,
+    asset_label="GCPInstance",
     asset_id_field="instance_id",
     identity_fields=("instance_id",),
     module=Module.GCP,
@@ -2151,6 +2172,7 @@ _gcp_project_oslogin_disabled = Fact(
     MATCH (project:GCPProject)
     RETURN COUNT(project) AS count
     """,
+    asset_label="GCPProject",
     asset_id_field="project_id",
     identity_fields=("project_id",),
     module=Module.GCP,
@@ -2218,6 +2240,7 @@ _gcp_instance_ip_forwarding = Fact(
       AND NOT instance.instancename STARTS WITH 'gke-'
     RETURN COUNT(instance) AS count
     """,
+    asset_label="GCPInstance",
     asset_id_field="instance_id",
     identity_fields=("instance_id",),
     module=Module.GCP,
@@ -2295,6 +2318,7 @@ _gcp_instance_shielded_vm_disabled = Fact(
       AND NOT instance.instancename STARTS WITH 'gke-'
     RETURN COUNT(instance) AS count
     """,
+    asset_label="GCPInstance",
     asset_id_field="instance_id",
     identity_fields=("instance_id",),
     module=Module.GCP,
@@ -2353,6 +2377,7 @@ _gcp_instance_serial_port_enabled = Fact(
     MATCH (instance:GCPInstance)
     RETURN COUNT(instance) AS count
     """,
+    asset_label="GCPInstance",
     asset_id_field="instance_id",
     identity_fields=("instance_id",),
     module=Module.GCP,

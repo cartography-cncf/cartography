@@ -10,6 +10,8 @@ from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import TargetNodeMatcher
+from cartography.models.extra_labels import IP_PERMISSION_INBOUND
+from cartography.models.extra_labels import IP_RULE
 
 
 @dataclass(frozen=True)
@@ -86,7 +88,7 @@ class GCPIpRuleAllowedSchema(CartographyNodeSchema):
     label: str = "GCPIpRule"
     properties: GCPIpRuleNodeProperties = GCPIpRuleNodeProperties()
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
-        ["IpPermissionInbound", "IpRule"]
+        [IP_PERMISSION_INBOUND, IP_RULE]
     )
     sub_resource_relationship: GCPIpRuleToProjectRel = GCPIpRuleToProjectRel()
     other_relationships: OtherRelationships = OtherRelationships(
@@ -103,7 +105,7 @@ class GCPIpRuleDeniedSchema(CartographyNodeSchema):
     label: str = "GCPIpRule"
     properties: GCPIpRuleNodeProperties = GCPIpRuleNodeProperties()
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
-        ["IpPermissionInbound", "IpRule"]
+        [IP_PERMISSION_INBOUND, IP_RULE]
     )
     sub_resource_relationship: GCPIpRuleToProjectRel = GCPIpRuleToProjectRel()
     other_relationships: OtherRelationships = OtherRelationships(

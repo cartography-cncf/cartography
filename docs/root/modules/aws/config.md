@@ -18,6 +18,7 @@ Cartography supports single-account AWS syncs and multi-account AWS syncs. For A
    1. If you want to use AWS Inspector, the SecurityAudit policy does not yet contain permissions for `inspector2`, so you will also need the [AmazonInspector2ReadOnlyAccess policy](https://docs.aws.amazon.com/inspector/latest/user/security-iam-awsmanpol.html#security-iam-awsmanpol-AmazonInspector2ReadOnlyAccess).
    1. If you want to ingest EKS Access Entries, ensure the identity can call `eks:ListAccessEntries`. AWS SecurityAudit includes this action. Grant `eks:DescribeAccessEntry` as well to populate detailed entry fields such as access entry ARN, username, type, and Kubernetes groups.
    1. If you want to ingest allowlisted AWS-managed public SSM parameters, grant `ssm:GetParametersByPath` for the allowed `/aws/service/...` paths. The SecurityAudit policy does not include this permission.
+   1. If you want to ingest AWS Glue connections, grant `glue:GetConnections`. The SecurityAudit policy does not include this permission.
 1. Set up AWS credentials to this identity on your server, using a `config` and `credential` file.  For details, see AWS' [official guide](https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-files.html).
 1. [Optional] Configure Cartography's shared AWS client retry behavior with these environment variables:
    - `CARTOGRAPHY_AWS_RETRY_MODE`: Retry mode for Cartography-managed AWS clients. Valid values are `standard`, `adaptive`, and `legacy`. Default: `standard`.
@@ -170,3 +171,4 @@ For a complete and up-to-date list of resource identifiers that can be specified
 #### Additional Permissions
 
 - `ecr:pull_through_cache_rules` requires `ecr:DescribePullThroughCacheRules`.
+- `glue` requires `glue:GetConnections`, which is not included in the `SecurityAudit` managed policy.

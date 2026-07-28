@@ -449,7 +449,7 @@ Representation of an AWS [GuardDuty Finding](https://docs.aws.amazon.com/guarddu
 
 Representation of an AWS [Inspector Finding](https://docs.aws.amazon.com/inspector/v2/APIReference/API_Finding.html)
 
-Depending on its `type`, the finding also carries an ontology finding label: `PACKAGE_VULNERABILITY` findings are labeled `:CVE`, and `NETWORK_REACHABILITY` findings are labeled `:SecurityIssue`.
+Depending on its `type`, the finding also carries an ontology finding label: `PACKAGE_VULNERABILITY` findings are labeled `:CVE` (see the [CVE ontology](../ontology/schema.md#cve)), and `NETWORK_REACHABILITY` findings are labeled `:SecurityIssue`.
 
 | Field | Description | Required|
 |-------|-------------|------|
@@ -475,6 +475,7 @@ Depending on its `type`, the finding also carries an ontology finding label: `PA
 |portrangebegin|Beginning of the port range affected for network findings|
 |portrangeend|End of the port range affected for network findings|
 |vulnerabilityid|Vulnerability ID associdated with the finding for package findings|
+|cve_id|Normalized CVE id, populated only for `PACKAGE_VULNERABILITY` findings; feeds the `:CVE` ontology label and CVEMetadata enrichment|
 |referenceurls|Reference URLs for the found vulnerabilities|
 |relatedvulnerabilities|A list of any related vulnerabilities|
 |source|Source for the vulnerability|
@@ -485,6 +486,12 @@ Depending on its `type`, the finding also carries an ontology finding label: `PA
 |vulnerablepackageids|IDs for any related packages|
 
 #### Relationships
+
+- A `PACKAGE_VULNERABILITY` AWSInspectorFinding is enriched by CVEMetadata via the `CVE` label (optional)
+
+    ```cypher
+    (:CVEMetadata)-[:ENRICHES]->(:AWSInspectorFinding:CVE)
+    ```
 
 - AWSInspectorFinding may affect EC2 Instances
 
@@ -3666,9 +3673,9 @@ The `EXPOSE` relationship holds the protocol, port and TargetGroupArn the load b
     (AWSLoadBalancerV2)-[ELBV2_LISTENER]->(AWSELBV2Listener)
     ```
 
-- Internet-facing AWSLoadBalancerV2's can expose private ECS containers. Set by an analysis job.
+- Internet-exposed AWSLoadBalancerV2's (those with `exposed_internet` set to `True`) expose their backing ECS containers. Set by the `aws_lb_container_exposure` analysis job.
     ```
-    (AWSLoadBalancerV2)-[EXPOSE]->(AWSECSContainer)
+    (AWSLoadBalancerV2)-[EXPOSE {exposure_type: 'via_lb_only'}]->(AWSECSContainer)
     ```
 
 - Internet-facing AWSLoadBalancerV2's can expose Kubernetes pods and containers. Set by the `k8s_lb_exposure` analysis job.
@@ -5522,7 +5529,8 @@ Representation of an AWS ECS [Container](https://docs.aws.amazon.com/AmazonECS/l
 | memory | The hard limit (in MiB) of memory set for the container. |
 | memory\_reservation | The soft limit (in MiB) of memory set for the container. |
 | gpu\_ids | The IDs of each GPU assigned to the container. |
-| exposed\_internet | Set to `True` if this container is exposed to the internet via an internet-facing load balancer. Set by the `AWS_ECS_ASSET_EXPOSURE` analysis job in [cartography/analysis/aws/analysis.py](https://github.com/cartography-cncf/cartography/blob/master/cartography/analysis/aws/analysis.py). |
+| exposed\_internet | Set to `True` if this container is reachable from the internet. Set by the `aws_ecs_asset_exposure` analysis job in [cartography/analysis/aws/analysis.py](https://github.com/cartography-cncf/cartography/blob/master/cartography/analysis/aws/analysis.py). |
+| exposed\_internet\_type | List of the ways this container is reachable from the internet: `elbv2` (behind an internet-facing load balancer) and/or `direct` (the ECS task's network interface has a public IP and a security group allowing inbound from `0.0.0.0/0`). Set by the `aws_ecs_asset_exposure` analysis job. |
 
 #### Relationships
 

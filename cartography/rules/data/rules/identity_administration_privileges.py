@@ -91,6 +91,7 @@ _aws_account_manipulation_permissions = Fact(
     AND principal.name <> 'OrganizationAccountAccessRole'
     RETURN COUNT(principal) AS count
     """,
+    asset_label="AWSPrincipal",
     asset_id_field="principal_identifier",
     identity_fields=("account_id", "principal_identifier", "policy_id"),
     module=Module.AWS,
@@ -180,6 +181,7 @@ _gcp_account_manipulation_permissions = Fact(
     MATCH (principal:GCPPrincipal)
     RETURN COUNT(principal) AS count
     """,
+    asset_label="GCPPrincipal",
     asset_id_field="principal_identifier",
     identity_fields=("account_id", "principal_identifier", "policy_name"),
     module=Module.GCP,
@@ -291,6 +293,7 @@ _azure_account_manipulation_permissions = Fact(
     MATCH (ra:AzureRoleAssignment)
     RETURN COUNT(ra) AS count
     """,
+    asset_label="EntraPrincipal",
     asset_id_field="principal_identifier",
     identity_fields=("account_id", "principal_identifier", "policy_id"),
     module=Module.AZURE,

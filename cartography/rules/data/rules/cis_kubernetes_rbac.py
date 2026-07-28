@@ -85,6 +85,7 @@ _k8s_cluster_admin_usage = Fact(
     MATCH (crb:KubernetesClusterRoleBinding)
     RETURN COUNT(crb) AS count
     """,
+    asset_label="KubernetesClusterRoleBinding",
     asset_id_field="binding_id",
     identity_fields=("binding_id", "subject_id"),
     module=Module.KUBERNETES,
@@ -159,6 +160,8 @@ _k8s_secret_access_clusterroles = Fact(
     WHERE NOT cr.name STARTS WITH 'system:'
     RETURN COUNT(cr) AS count
     """,
+    asset_label="KubernetesClusterRole",
+    asset_id_field="role_id",
     identity_fields=("role_id",),
     module=Module.KUBERNETES,
     maturity=Maturity.EXPERIMENTAL,
@@ -196,6 +199,8 @@ _k8s_secret_access_roles = Fact(
     WHERE NOT r.name STARTS WITH 'system:'
     RETURN COUNT(r) AS count
     """,
+    asset_label="KubernetesRole",
+    asset_id_field="role_id",
     identity_fields=("role_id",),
     module=Module.KUBERNETES,
     maturity=Maturity.EXPERIMENTAL,
@@ -275,6 +280,8 @@ _k8s_wildcard_clusterroles = Fact(
     WHERE NOT cr.name STARTS WITH 'system:'
     RETURN COUNT(cr) AS count
     """,
+    asset_label="KubernetesClusterRole",
+    asset_id_field="role_id",
     identity_fields=("role_id",),
     module=Module.KUBERNETES,
     maturity=Maturity.EXPERIMENTAL,
@@ -314,6 +321,8 @@ _k8s_wildcard_roles = Fact(
     WHERE NOT r.name STARTS WITH 'system:'
     RETURN COUNT(r) AS count
     """,
+    asset_label="KubernetesRole",
+    asset_id_field="role_id",
     identity_fields=("role_id",),
     module=Module.KUBERNETES,
     maturity=Maturity.EXPERIMENTAL,
@@ -396,6 +405,8 @@ _k8s_pod_create_clusterroles = Fact(
       AND NOT cr.name IN ['aws-node', 'vpc-resource-controller-role']
     RETURN COUNT(cr) AS count
     """,
+    asset_label="KubernetesClusterRole",
+    asset_id_field="role_id",
     identity_fields=("role_id",),
     module=Module.KUBERNETES,
     maturity=Maturity.EXPERIMENTAL,
@@ -440,6 +451,8 @@ _k8s_pod_create_roles = Fact(
       AND NOT r.name IN ['aws-node', 'vpc-resource-controller-role']
     RETURN COUNT(r) AS count
     """,
+    asset_label="KubernetesRole",
+    asset_id_field="role_id",
     identity_fields=("role_id",),
     module=Module.KUBERNETES,
     maturity=Maturity.EXPERIMENTAL,
@@ -478,6 +491,7 @@ kubernetes_roles_grant_pod_creation = Rule(
 class DefaultSaBindingsOutput(Finding):
     """Output model for default service account bindings check."""
 
+    namespace_id: str | None = None
     binding_name: str | None = None
     binding_id: str | None = None
     binding_type: str | None = None
@@ -522,6 +536,7 @@ _k8s_default_sa_cluster_role_bindings = Fact(
     WHERE sa.name = 'default'
     RETURN COUNT(sa) AS count
     """,
+    asset_label="KubernetesClusterRoleBinding",
     asset_id_field="binding_id",
     identity_fields=("binding_id",),
     module=Module.KUBERNETES,
@@ -560,6 +575,7 @@ _k8s_default_sa_role_bindings = Fact(
     WHERE sa.name = 'default'
     RETURN COUNT(sa) AS count
     """,
+    asset_label="KubernetesRoleBinding",
     asset_id_field="binding_id",
     identity_fields=("binding_id",),
     module=Module.KUBERNETES,
@@ -581,7 +597,10 @@ _k8s_default_sa_used_by_pods = Fact(
     WITH cluster.name AS cluster_name, sa.namespace AS namespace, pod.name AS pod_name
     ORDER BY pod_name
     WITH cluster_name, namespace, collect(DISTINCT pod_name) AS pod_names
+    MATCH (ns:KubernetesNamespace)
+    WHERE ns.name = namespace AND ns.cluster_name = cluster_name
     RETURN
+        ns.id AS namespace_id,
         cluster_name + '/' + namespace AS binding_id,
         'PodUsesDefaultServiceAccount' AS binding_type,
         'default' AS service_account_name,
@@ -599,7 +618,8 @@ _k8s_default_sa_used_by_pods = Fact(
     WHERE sa.name = 'default'
     RETURN COUNT(sa) AS count
     """,
-    asset_id_field="binding_id",
+    asset_label="KubernetesNamespace",
+    asset_id_field="namespace_id",
     identity_fields=("cluster_name", "namespace"),
     module=Module.KUBERNETES,
     maturity=Maturity.EXPERIMENTAL,
@@ -637,6 +657,7 @@ _k8s_default_sa_automount_enabled = Fact(
       AND coalesce(sa.automount_service_account_token, true) = true
     RETURN COUNT(sa) AS count
     """,
+    asset_label="KubernetesServiceAccount",
     asset_id_field="binding_id",
     identity_fields=("binding_id",),
     module=Module.KUBERNETES,
@@ -719,6 +740,7 @@ _k8s_system_masters_cluster_role_bindings = Fact(
     MATCH (crb:KubernetesClusterRoleBinding)
     RETURN COUNT(crb) AS count
     """,
+    asset_label="KubernetesClusterRoleBinding",
     asset_id_field="binding_id",
     identity_fields=("binding_id",),
     module=Module.KUBERNETES,
@@ -753,6 +775,7 @@ _k8s_system_masters_role_bindings = Fact(
     MATCH (rb:KubernetesRoleBinding)
     RETURN COUNT(rb) AS count
     """,
+    asset_label="KubernetesRoleBinding",
     asset_id_field="binding_id",
     identity_fields=("binding_id",),
     module=Module.KUBERNETES,
@@ -831,6 +854,8 @@ _k8s_escalation_clusterroles = Fact(
       AND NOT cr.name IN ['cluster-admin', 'admin', 'edit', 'view']
     RETURN COUNT(cr) AS count
     """,
+    asset_label="KubernetesClusterRole",
+    asset_id_field="role_id",
     identity_fields=("role_id",),
     module=Module.KUBERNETES,
     maturity=Maturity.EXPERIMENTAL,
@@ -865,6 +890,8 @@ _k8s_escalation_roles = Fact(
     WHERE NOT r.name STARTS WITH 'system:'
     RETURN COUNT(r) AS count
     """,
+    asset_label="KubernetesRole",
+    asset_id_field="role_id",
     identity_fields=("role_id",),
     module=Module.KUBERNETES,
     maturity=Maturity.EXPERIMENTAL,
@@ -941,6 +968,8 @@ _k8s_pv_create_clusterroles = Fact(
     WHERE NOT cr.name STARTS WITH 'system:'
     RETURN COUNT(cr) AS count
     """,
+    asset_label="KubernetesClusterRole",
+    asset_id_field="role_id",
     identity_fields=("role_id",),
     module=Module.KUBERNETES,
     maturity=Maturity.EXPERIMENTAL,
@@ -977,6 +1006,8 @@ _k8s_pv_create_roles = Fact(
     WHERE NOT r.name STARTS WITH 'system:'
     RETURN COUNT(r) AS count
     """,
+    asset_label="KubernetesRole",
+    asset_id_field="role_id",
     identity_fields=("role_id",),
     module=Module.KUBERNETES,
     maturity=Maturity.EXPERIMENTAL,
@@ -1049,6 +1080,8 @@ _k8s_node_proxy_clusterroles = Fact(
     WHERE NOT cr.name STARTS WITH 'system:'
     RETURN COUNT(cr) AS count
     """,
+    asset_label="KubernetesClusterRole",
+    asset_id_field="role_id",
     identity_fields=("role_id",),
     module=Module.KUBERNETES,
     maturity=Maturity.EXPERIMENTAL,
@@ -1124,6 +1157,8 @@ _k8s_csr_approval_clusterroles = Fact(
     WHERE NOT cr.name STARTS WITH 'system:'
     RETURN COUNT(cr) AS count
     """,
+    asset_label="KubernetesClusterRole",
+    asset_id_field="role_id",
     identity_fields=("role_id",),
     module=Module.KUBERNETES,
     maturity=Maturity.EXPERIMENTAL,
@@ -1211,6 +1246,8 @@ _k8s_webhook_config_clusterroles = Fact(
     WHERE NOT cr.name STARTS WITH 'system:'
     RETURN COUNT(cr) AS count
     """,
+    asset_label="KubernetesClusterRole",
+    asset_id_field="role_id",
     identity_fields=("role_id",),
     module=Module.KUBERNETES,
     maturity=Maturity.EXPERIMENTAL,
@@ -1292,6 +1329,8 @@ _k8s_sa_token_creation_clusterroles = Fact(
       AND NOT cr.name IN ['cluster-admin', 'admin', 'edit', 'view']
     RETURN COUNT(cr) AS count
     """,
+    asset_label="KubernetesClusterRole",
+    asset_id_field="role_id",
     identity_fields=("role_id",),
     module=Module.KUBERNETES,
     maturity=Maturity.EXPERIMENTAL,

@@ -10,6 +10,7 @@ from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import TargetNodeMatcher
+from cartography.models.workday.extra_labels import HUMAN
 
 
 @dataclass(frozen=True)
@@ -71,7 +72,7 @@ class WorkdayHumanToManagerRel(CartographyRelSchema):
 @dataclass(frozen=True)
 class WorkdayHumanSchema(CartographyNodeSchema):
     label: str = "WorkdayHuman"
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["Human"])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([HUMAN])
     properties: WorkdayHumanNodeProperties = WorkdayHumanNodeProperties()
     other_relationships: OtherRelationships = OtherRelationships(
         rels=[

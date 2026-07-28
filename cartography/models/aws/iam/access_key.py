@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 
+from cartography.models.aws.extra_labels import LEGACY_ACCOUNT_ACCESS_KEY
 from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeProperties
 from cartography.models.core.nodes import CartographyNodeSchema
@@ -10,6 +11,7 @@ from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import TargetNodeMatcher
+from cartography.models.ontology.labels import API_KEY
 
 
 @dataclass(frozen=True)
@@ -100,7 +102,9 @@ class AccountAccessKeyToAWSAccountRel(CartographyRelSchema):
 class AccountAccessKeySchema(CartographyNodeSchema):
     label: str = "AWSAccountAccessKey"
     # DEPRECATED: legacy AccountAccessKey node label will be removed in v1.0.0.
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["AccountAccessKey", "APIKey"])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
+        [LEGACY_ACCOUNT_ACCESS_KEY, API_KEY]
+    )
     properties: AccountAccessKeyNodeProperties = AccountAccessKeyNodeProperties()
     sub_resource_relationship: AccountAccessKeyToAWSAccountRel = (
         AccountAccessKeyToAWSAccountRel()

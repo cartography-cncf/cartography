@@ -10,6 +10,8 @@ from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import TargetNodeMatcher
+from cartography.models.extra_labels import RISK
+from cartography.models.ontology.labels import SECURITY_ISSUE
 
 
 @dataclass(frozen=True)
@@ -83,7 +85,7 @@ class SocketDevAlertToRepoRel(CartographyRelSchema):
 class SocketDevAlertSchema(CartographyNodeSchema):
     label: str = "SocketDevAlert"
     properties: SocketDevAlertNodeProperties = SocketDevAlertNodeProperties()
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["Risk", "SecurityIssue"])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([RISK, SECURITY_ISSUE])
     sub_resource_relationship: SocketDevOrgToAlertRel = SocketDevOrgToAlertRel()
     other_relationships: OtherRelationships = OtherRelationships(
         rels=[

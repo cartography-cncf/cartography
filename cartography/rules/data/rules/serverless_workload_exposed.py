@@ -44,6 +44,7 @@ _gcp_cloud_run_public_ingress = Fact(
     MATCH (svc:GCPCloudRunService)
     RETURN COUNT(svc) AS count
     """,
+    asset_label="GCPCloudRunService",
     asset_id_field="id",
     identity_fields=("id",),
     module=Module.GCP,
@@ -96,6 +97,7 @@ _gcp_cloud_function_http_trigger = Fact(
     MATCH (fn:GCPCloudFunction)
     RETURN COUNT(fn) AS count
     """,
+    asset_label="GCPCloudFunction",
     asset_id_field="id",
     identity_fields=("id",),
     module=Module.GCP,
@@ -134,6 +136,7 @@ _aws_lambda_anonymous_access = Fact(
     MATCH (fn:AWSLambda)
     RETURN COUNT(fn) AS count
     """,
+    asset_label="AWSLambda",
     asset_id_field="id",
     identity_fields=("id",),
     module=Module.AWS,
@@ -176,6 +179,7 @@ _scaleway_serverless_function_public = Fact(
     MATCH (fn:ScalewayServerlessFunction)
     RETURN COUNT(fn) AS count
     """,
+    asset_label="ScalewayServerlessFunction",
     asset_id_field="id",
     identity_fields=("id",),
     module=Module.SCALEWAY,
@@ -211,6 +215,7 @@ _scaleway_serverless_container_public = Fact(
     MATCH (c:ScalewayServerlessContainer)
     RETURN COUNT(c) AS count
     """,
+    asset_label="ScalewayServerlessContainer",
     asset_id_field="id",
     identity_fields=("id",),
     module=Module.SCALEWAY,

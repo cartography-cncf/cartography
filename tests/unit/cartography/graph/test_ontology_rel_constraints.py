@@ -1,6 +1,5 @@
 import cartography.models
 from cartography.models.core.nodes import CartographyNodeSchema
-from cartography.models.core.nodes import ConditionalNodeLabel
 from cartography.models.core.nodes import ExtraNodeLabels
 from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
@@ -23,10 +22,7 @@ def _ontology_labels(node_cls: type[CartographyNodeSchema]) -> set[str]:
     extra = getattr(node_cls, "extra_node_labels", None)
     if isinstance(extra, ExtraNodeLabels):
         for entry in extra.labels:
-            if isinstance(entry, str):
-                labels.add(entry)
-            elif isinstance(entry, ConditionalNodeLabel):
-                labels.add(entry.label)
+            labels.add(entry.label)
     return labels
 
 

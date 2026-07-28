@@ -6,8 +6,23 @@ from cartography.models.ontology.mapping.specs import OntologyNodeMapping
 # _ont_name - The name/identifier of the AI/ML model
 # _ont_provider - The vendor (e.g. "Anthropic", "Amazon", "Meta") when known,
 #                 otherwise the cloud provider hosting the model ("aws", "gcp")
-# _ont_status - The lifecycle/operational status of the model
+# _ont_status - Model lifecycle, normalized to the shared canonical set:
+#               active, creating, failed, legacy, unknown. The raw provider value
+#               stays on the source node's own status property.
 # _ont_type - One of "foundation", "custom", "fine-tuned"
+
+# AWS Bedrock ModelStatus (custom models)
+_AWS_BEDROCK_CUSTOM_STATUS = {
+    "Active": "active",
+    "Creating": "creating",
+    "Failed": "failed",
+}
+
+# AWS Bedrock FoundationModelLifecycle status
+_AWS_BEDROCK_FOUNDATION_STATUS = {
+    "ACTIVE": "active",
+    "LEGACY": "legacy",
+}
 
 aws_mapping = OntologyMapping(
     module_name="aws",
@@ -22,7 +37,10 @@ aws_mapping = OntologyMapping(
                     ontology_field="provider", node_field="provider_name"
                 ),
                 OntologyFieldMapping(
-                    ontology_field="status", node_field="model_lifecycle_status"
+                    ontology_field="status",
+                    node_field="model_lifecycle_status",
+                    special_handling="mapping",
+                    extra={"map": _AWS_BEDROCK_FOUNDATION_STATUS},
                 ),
                 OntologyFieldMapping(
                     ontology_field="type",
@@ -44,7 +62,12 @@ aws_mapping = OntologyMapping(
                     special_handling="static_value",
                     extra={"value": "aws"},
                 ),
-                OntologyFieldMapping(ontology_field="status", node_field="status"),
+                OntologyFieldMapping(
+                    ontology_field="status",
+                    node_field="status",
+                    special_handling="mapping",
+                    extra={"map": _AWS_BEDROCK_CUSTOM_STATUS},
+                ),
                 OntologyFieldMapping(
                     ontology_field="type",
                     node_field="customization_type",

@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 
+from cartography.models.aws.extra_labels import LEGACY_SECRETS_MANAGER_SECRET_VERSION
 from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeProperties
 from cartography.models.core.nodes import CartographyNodeSchema
@@ -103,7 +104,7 @@ class SecretsManagerSecretVersionSchema(CartographyNodeSchema):
     label: str = "AWSSecretsManagerSecretVersion"
     # DEPRECATED: legacy SecretsManagerSecretVersion node label will be removed in v1.0.0.
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
-        ["SecretsManagerSecretVersion"]
+        [LEGACY_SECRETS_MANAGER_SECRET_VERSION]
     )
     properties: SecretsManagerSecretVersionNodeProperties = (
         SecretsManagerSecretVersionNodeProperties()

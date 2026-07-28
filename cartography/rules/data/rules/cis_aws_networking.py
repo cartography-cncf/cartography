@@ -81,6 +81,8 @@ _aws_ebs_encryption_disabled = Fact(
     MATCH (volume:AWSEBSVolume)
     RETURN COUNT(volume) AS count
     """,
+    asset_id_field="volume_id",
+    asset_label="AWSEBSVolume",
     identity_fields=("volume_id",),
     module=Module.AWS,
     maturity=Maturity.STABLE,
@@ -170,6 +172,7 @@ _aws_cifs_internet_access = Fact(
     MATCH (sg:AWSEC2SecurityGroup)
     RETURN COUNT(sg) AS count
     """,
+    asset_label="AWSEC2SecurityGroup",
     asset_id_field="security_group_id",
     identity_fields=(
         "security_group_id",
@@ -286,6 +289,7 @@ _aws_remote_admin_ipv4 = Fact(
     MATCH (sg:AWSEC2SecurityGroup)
     RETURN COUNT(sg) AS count
     """,
+    asset_label="AWSEC2SecurityGroup",
     asset_id_field="security_group_id",
     identity_fields=(
         "security_group_id",
@@ -402,6 +406,7 @@ _aws_remote_admin_ipv6 = Fact(
     MATCH (sg:AWSEC2SecurityGroup)
     RETURN COUNT(sg) AS count
     """,
+    asset_label="AWSEC2SecurityGroup",
     asset_id_field="security_group_id",
     identity_fields=(
         "security_group_id",
@@ -501,6 +506,7 @@ _aws_default_sg_allows_traffic = Fact(
     MATCH (sg:AWSEC2SecurityGroup)
     RETURN COUNT(sg) AS count
     """,
+    asset_label="AWSEC2SecurityGroup",
     asset_id_field="security_group_id",
     identity_fields=("security_group_id",),
     module=Module.AWS,
@@ -584,6 +590,7 @@ _aws_ec2_imdsv2_required = Fact(
     WHERE NOT coalesce(ec2.state, 'running') IN ['terminated', 'shutting-down']
     RETURN COUNT(ec2) AS count
     """,
+    asset_label="AWSEC2Instance",
     asset_id_field="instance_id",
     identity_fields=("instance_id",),
     module=Module.AWS,
