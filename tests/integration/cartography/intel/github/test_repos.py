@@ -1219,7 +1219,7 @@ def test_get_dep_manifests_for_repos_incremental_skip_preserves_manifests(
         MERGE (repo)-[:OWNER]->(org)
         MERGE (repo)-[:HAS_MANIFEST]->(m:DependencyGraphManifest{id: $manifest_id})
         SET m.lastupdated = $update_tag
-        MERGE (m)-[:REQUIRES]->(d:Dependency{id: "django"})
+        MERGE (m)-[:HAS_DEP]->(d:Dependency{id: "django"})
         SET d.lastupdated = $update_tag
         """,
         repo_url=repo_url,
