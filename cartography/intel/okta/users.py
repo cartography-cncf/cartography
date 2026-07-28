@@ -47,7 +47,6 @@ def _get_okta_users(user_client: UsersClient) -> List[Dict]:
     user_list: List[Dict] = []
     paged_users = _get_okta_users_page(user_client, None)
 
-    # TODO: Fix bug, we miss last page :(
     while True:
         user_list.extend(paged_users.result)
         check_rate_limit(paged_users.response)
