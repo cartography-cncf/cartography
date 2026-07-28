@@ -298,7 +298,7 @@ case-sensitive, so uppercase variants do not match.
 - Condition field names must exist on the concrete node's properties schema
 - All conditions in one `when()` call must match for the label to be applied (AND logic). Declaring the same label more than once with different conditions is allowed: the label applies if any of the declarations matches (OR logic)
 - Because labels are applied per row, only the nodes in the current batch are relabeled. A node whose conditions no longer hold is corrected the next time it is loaded, or deleted by cleanup if it is no longer reported
-- Indexes are automatically created for conditional labels and their condition fields
+- Indexes are automatically created for conditional labels themselves. Condition fields are not indexed: they are evaluated against the already-bound node of the current row, so there is no lookup for an index to serve
 
 
 #### Defining relationships

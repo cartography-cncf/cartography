@@ -318,8 +318,7 @@ def test_conditional_label_escapes_special_chars():
 
 def test_build_create_index_queries_includes_conditional_label_indexes():
     """
-    Test that index creation includes indexes for conditional labels
-    and their condition fields.
+    Test that index creation covers conditional labels but not their condition fields.
     """
     queries = build_create_index_queries(NodeWithConditionalLabelSchema())
 
@@ -333,8 +332,9 @@ def test_build_create_index_queries_includes_conditional_label_indexes():
     # Should have index for the conditional label
     assert any("Critical" in q and "id" in q for q in queries)
 
-    # Should have index for the condition field on the primary label
-    assert any("TestAsset" in q and "severity" in q for q in queries)
+    # Should NOT index the condition field: conditions are evaluated against the already-bound node
+    # of the current row, so there is no lookup for an index to serve.
+    assert not any("severity" in q for q in queries)
 
 
 def test_build_create_index_queries_with_multiple_conditional_labels():
@@ -347,9 +347,9 @@ def test_build_create_index_queries_with_multiple_conditional_labels():
     assert any("Critical" in q and "id" in q for q in queries)
     assert any("PublicResource" in q and "id" in q for q in queries)
 
-    # Should have indexes for all condition fields
-    assert any("TestAsset" in q and "severity" in q for q in queries)
-    assert any("TestAsset" in q and "is_public" in q for q in queries)
+    # Should NOT index any condition field
+    assert not any("severity" in q for q in queries)
+    assert not any("is_public" in q for q in queries)
 
 
 def test_empty_conditions_apply_label_unconditionally():

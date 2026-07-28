@@ -52,7 +52,7 @@ production ECR values are `image`, `attestation`, and `manifest_list`.
 - Compose conditions with `CONSTANT.when(field="value")`.
 - Conditions use **case-sensitive exact string equality** and combine with **AND** logic.
 - Conditions are stored as immutable, sorted `(field, value)` tuples.
-- Indexes are created automatically for conditional labels and their condition fields.
+- Indexes are created automatically for conditional labels themselves. Condition fields are not indexed: they are evaluated against the already-bound node of the current row, so there is no lookup for an index to serve.
 - When conditions change, labels are added or removed on subsequent syncs.
 
 ### Important notes

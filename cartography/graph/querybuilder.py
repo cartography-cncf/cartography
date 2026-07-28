@@ -1384,15 +1384,9 @@ def build_create_index_queries(node_schema: CartographyNodeSchema) -> list[str]:
                     TargetAttribute="lastupdated",
                 ),
             )
-            if label.conditions:
-                # Index condition fields on the primary label to speed up matching.
-                for condition_field, _ in label.conditions:
-                    result.append(
-                        index_template.safe_substitute(
-                            TargetNodeLabel=node_schema.label,
-                            TargetAttribute=condition_field,
-                        ),
-                    )
+            # No index is created for a label's condition fields: the conditions are evaluated
+            # against the already-bound node of the current row in the ingestion query, so there is
+            # no lookup for an index to serve.
 
     # Next, for all relationships possible out of this node, ensure that indexes exist for all target nodes' properties
     # as specified in their TargetNodeMatchers.
