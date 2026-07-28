@@ -74,19 +74,30 @@ def transform_scan_results(
                     data_source_name = result["DataSource"].get("Name")
 
                 # Trivy reports more than CVEs: GHSA-, DLA-/DSA-, TEMP-, RUSTSEC-, etc.
-                # Only CVE-prefixed ids populate cve_id (which gates the :CVE label);
-                # GHSA-prefixed ids land in ghsa_id. Other schemes populate neither and
-                # remain readable through name/id.
+                # The primary identifier lives in VulnerabilityID, and vendor advisory
+                # ids (e.g. RHSA-, DSA-) in VendorIDs. Classify the union so an
+                # identifier is recognised whichever slot it appears in, rather than
+                # assuming the scheme of the primary id. cve_id gates the :CVE label;
+                # schemes we have no field for populate neither and stay readable
+                # through name/id.
                 vuln_id = result["VulnerabilityID"]
-                is_cve = vuln_id.startswith("CVE-")
+                all_ids = [vuln_id, *(result.get("VendorIDs") or [])]
+                cve_id = next(
+                    (vid for vid in all_ids if vid.startswith("CVE-")),
+                    None,
+                )
+                ghsa_id = next(
+                    (vid for vid in all_ids if vid.startswith("GHSA-")),
+                    None,
+                )
 
                 # Transform finding data
                 finding = {
                     "id": f"TIF|{vuln_id}",
                     "VulnerabilityID": vuln_id,
-                    "cve_id": vuln_id if is_cve else None,
-                    "ghsa_id": vuln_id if vuln_id.startswith("GHSA-") else None,
-                    "has_cve": "true" if is_cve else "false",
+                    "cve_id": cve_id,
+                    "ghsa_id": ghsa_id,
+                    "has_cve": "true" if cve_id else "false",
                     "Description": result.get("Description"),
                     "LastModifiedDate": result.get("LastModifiedDate"),
                     "PrimaryURL": result.get("PrimaryURL"),
