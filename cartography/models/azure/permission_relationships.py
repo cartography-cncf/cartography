@@ -3,6 +3,7 @@ Azure permission relationship MatchLink schemas.
 """
 
 from dataclasses import dataclass
+from typing import ClassVar
 
 from cartography.models.core.common import PropertyRef
 from cartography.models.core.relationships import CartographyRelProperties
@@ -30,13 +31,9 @@ class AzurePermissionRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class AzurePermissionMatchLink(CartographyRelSchema):
-    """
-    MatchLink schema for Azure permission relationships.
-    Creates relationships like: (EntraUser|EntraGroup|EntraServicePrincipal)-[:CAN_READ]->(AzureResource)
+    """Links an Entra principal to an Azure resource through an evaluated permission."""
 
-    This MatchLink handles permission relationships between Azure principals and resources
-    based on RBAC assignments and permission evaluations.
-    """
+    __cartography_introspection_exclude__: ClassVar[bool] = True
 
     # MatchLink-specific fields
     source_node_label: str = (

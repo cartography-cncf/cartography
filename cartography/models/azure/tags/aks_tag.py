@@ -21,6 +21,8 @@ class AKSToTagRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class AKSToTagRel(CartographyRelSchema):
+    """An Azure Kubernetes cluster has the tag."""
+
     target_node_label: str = "AzureKubernetesCluster"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("resource_id")},
@@ -32,6 +34,8 @@ class AKSToTagRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class AKSTagsSchema(CartographyNodeSchema):
+    """An Azure resource tag represented by a subscription-scoped key and value."""
+
     label: str = "AzureTag"
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([TAG])
     properties: AzureTagProperties = AzureTagProperties()

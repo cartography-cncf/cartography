@@ -18,14 +18,33 @@ logger = logging.getLogger(__name__)
 # --- Node Definitions ---
 @dataclass(frozen=True)
 class AzureKubernetesClusterProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("id")
-    name: PropertyRef = PropertyRef("name")
-    location: PropertyRef = PropertyRef("location")
-    provisioning_state: PropertyRef = PropertyRef("provisioning_state")
-    kubernetes_version: PropertyRef = PropertyRef("kubernetes_version")
-    fqdn: PropertyRef = PropertyRef("fqdn")
-    api_server_public_access: PropertyRef = PropertyRef("api_server_public_access")
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    id: PropertyRef = PropertyRef(
+        "id", description="Full Azure resource ID of the AKS cluster."
+    )
+    name: PropertyRef = PropertyRef("name", description="Name of the AKS cluster.")
+    location: PropertyRef = PropertyRef(
+        "location", description="Azure region where the cluster is deployed."
+    )
+    provisioning_state: PropertyRef = PropertyRef(
+        "provisioning_state",
+        description="Current provisioning state of the cluster.",
+    )
+    kubernetes_version: PropertyRef = PropertyRef(
+        "kubernetes_version",
+        description="Kubernetes version running on the cluster.",
+    )
+    fqdn: PropertyRef = PropertyRef(
+        "fqdn", description="Fully qualified domain name of the API server."
+    )
+    api_server_public_access: PropertyRef = PropertyRef(
+        "api_server_public_access",
+        description="Whether the Kubernetes API server is reachable from public networks.",
+    )
+    lastupdated: PropertyRef = PropertyRef(
+        "lastupdated",
+        set_in_kwargs=True,
+        description="Timestamp of the last sync that observed this cluster.",
+    )
 
 
 # --- Relationship Definitions ---
@@ -36,6 +55,8 @@ class AzureKubernetesClusterToSubscriptionRelProperties(CartographyRelProperties
 
 @dataclass(frozen=True)
 class AzureKubernetesClusterToSubscriptionRel(CartographyRelSchema):
+    """An Azure subscription contains the AKS cluster as a resource."""
+
     target_node_label: str = "AzureSubscription"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("AZURE_SUBSCRIPTION_ID", set_in_kwargs=True)},
@@ -50,6 +71,8 @@ class AzureKubernetesClusterToSubscriptionRel(CartographyRelSchema):
 # --- Main Schema ---
 @dataclass(frozen=True)
 class AzureKubernetesClusterSchema(CartographyNodeSchema):
+    """An Azure Kubernetes Service cluster."""
+
     label: str = "AzureKubernetesCluster"
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([COMPUTE_CLUSTER])
     properties: AzureKubernetesClusterProperties = AzureKubernetesClusterProperties()

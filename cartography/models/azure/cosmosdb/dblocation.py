@@ -13,13 +13,35 @@ from cartography.models.core.relationships import TargetNodeMatcher
 
 @dataclass(frozen=True)
 class AzureCosmosDBLocationProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("id")
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
-    locationname: PropertyRef = PropertyRef("location_name")
-    documentendpoint: PropertyRef = PropertyRef("document_endpoint")
-    provisioningstate: PropertyRef = PropertyRef("provisioning_state")
-    failoverpriority: PropertyRef = PropertyRef("failover_priority")
-    iszoneredundant: PropertyRef = PropertyRef("is_zone_redundant")
+    id: PropertyRef = PropertyRef(
+        "id",
+        description="Unique identifier of the regional account location.",
+    )
+    lastupdated: PropertyRef = PropertyRef(
+        "lastupdated",
+        set_in_kwargs=True,
+        description="Timestamp of the last sync that observed this node.",
+    )
+    locationname: PropertyRef = PropertyRef(
+        "location_name",
+        description="Azure region name.",
+    )
+    documentendpoint: PropertyRef = PropertyRef(
+        "document_endpoint",
+        description="Connection endpoint for the account in this region.",
+    )
+    provisioningstate: PropertyRef = PropertyRef(
+        "provisioning_state",
+        description="Provisioning state of the resource.",
+    )
+    failoverpriority: PropertyRef = PropertyRef(
+        "failover_priority",
+        description="Failover priority of the region, where zero is the write region.",
+    )
+    iszoneredundant: PropertyRef = PropertyRef(
+        "is_zone_redundant",
+        description="Whether the regional deployment uses availability zones.",
+    )
 
 
 @dataclass(frozen=True)
@@ -32,6 +54,8 @@ class AzureCosmosDBLocationWriteToAzureCosmosDBAccountRelProperties(
 @dataclass(frozen=True)
 # (:AzureCosmosDBAccount)-[:CAN_WRITE_FROM]->(:AzureCosmosDBLocation)
 class AzureCosmosDBLocationWriteToAzureCosmosDBAccountRel(CartographyRelSchema):
+    """A Cosmos DB account can accept writes in the location."""
+
     target_node_label: str = "AzureCosmosDBAccount"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("db_write_account_id")},
@@ -53,6 +77,8 @@ class AzureCosmosDBLocationReadToAzureCosmosDBAccountRelProperties(
 @dataclass(frozen=True)
 # (:AzureCosmosDBAccount)-[:CAN_READ_FROM]->(:AzureCosmosDBLocation)
 class AzureCosmosDBLocationReadToAzureCosmosDBAccountRel(CartographyRelSchema):
+    """A Cosmos DB account can serve reads from the location."""
+
     target_node_label: str = "AzureCosmosDBAccount"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("db_read_account_id")},
@@ -74,6 +100,8 @@ class AzureCosmosDBLocationAssociatedToAzureCosmosDBAccountRelProperties(
 @dataclass(frozen=True)
 # (:AzureCosmosDBAccount)-[:ASSOCIATED_WITH]->(:AzureCosmosDBLocation)
 class AzureCosmosDBLocationAssociatedToAzureCosmosDBAccountRel(CartographyRelSchema):
+    """A Cosmos DB account is deployed in the associated location."""
+
     target_node_label: str = "AzureCosmosDBAccount"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("db_associated_account_id")},
@@ -93,6 +121,8 @@ class AzureCosmosDBLocationToSubscriptionRelProperties(CartographyRelProperties)
 @dataclass(frozen=True)
 # (:AzureSubscription)-[:RESOURCE]->(:AzureCosmosDBLocation)
 class AzureCosmosDBLocationToSubscriptionRel(CartographyRelSchema):
+    """An Azure subscription contains the Cosmos DB location as a resource."""
+
     target_node_label: str = "AzureSubscription"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("AZURE_SUBSCRIPTION_ID", set_in_kwargs=True)},
@@ -106,6 +136,8 @@ class AzureCosmosDBLocationToSubscriptionRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class AzureCosmosDBLocationSchema(CartographyNodeSchema):
+    """An Azure region associated with a Cosmos DB account deployment."""
+
     label: str = "AzureCosmosDBLocation"
     properties: AzureCosmosDBLocationProperties = AzureCosmosDBLocationProperties()
     sub_resource_relationship: AzureCosmosDBLocationToSubscriptionRel = (

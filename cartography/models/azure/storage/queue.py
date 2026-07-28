@@ -13,10 +13,14 @@ from cartography.models.core.relationships import TargetNodeMatcher
 
 @dataclass(frozen=True)
 class AzureStorageQueueProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("id")
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
-    type: PropertyRef = PropertyRef("type")
-    name: PropertyRef = PropertyRef("name")
+    id: PropertyRef = PropertyRef("id", description="Azure resource ID.")
+    lastupdated: PropertyRef = PropertyRef(
+        "lastupdated",
+        set_in_kwargs=True,
+        description="Timestamp of the last sync that observed this node.",
+    )
+    type: PropertyRef = PropertyRef("type", description="Azure resource type.")
+    name: PropertyRef = PropertyRef("name", description="Azure resource name.")
 
 
 @dataclass(frozen=True)
@@ -27,6 +31,8 @@ class AzureStorageQueueToStorageQueueServiceRelProperties(CartographyRelProperti
 @dataclass(frozen=True)
 # (:AzureStorageQueueService)-[:CONTAINS]->(:AzureStorageQueue)
 class AzureStorageQueueToStorageQueueServiceRel(CartographyRelSchema):
+    """An Azure Queue Storage service contains the queue."""
+
     target_node_label: str = "AzureStorageQueueService"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("service_id")},
@@ -46,6 +52,8 @@ class AzureStorageQueueToSubscriptionRelProperties(CartographyRelProperties):
 @dataclass(frozen=True)
 # (:AzureSubscription)-[:RESOURCE]->(:AzureStorageQueue)
 class AzureStorageQueueToSubscriptionRel(CartographyRelSchema):
+    """An Azure subscription contains the queue as a resource."""
+
     target_node_label: str = "AzureSubscription"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("AZURE_SUBSCRIPTION_ID", set_in_kwargs=True)},
@@ -59,6 +67,8 @@ class AzureStorageQueueToSubscriptionRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class AzureStorageQueueSchema(CartographyNodeSchema):
+    """An Azure Storage queue hosted by a queue service."""
+
     label: str = "AzureStorageQueue"
     properties: AzureStorageQueueProperties = AzureStorageQueueProperties()
     sub_resource_relationship: AzureStorageQueueToSubscriptionRel = (

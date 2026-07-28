@@ -134,6 +134,18 @@ class Property:
     generated_by: tuple[str, ...]
     property_refs: tuple[PropertyRef, ...]
     analysis_jobs: tuple[AnalysisJobDefinition, ...]
+    provenance: tuple[PropertyProvenance, ...]
+
+
+@dataclass(frozen=True)
+class PropertyProvenance:
+    """One module's contribution to an aggregated graph property."""
+
+    module: str
+    source_name: str
+    description: str | None
+    indexed: bool
+    property_ref: PropertyRef
 
 
 @dataclass(frozen=True)
@@ -142,6 +154,7 @@ class NodeLabelProvenance:
 
     module: str
     schema: str
+    description: str | None
     extra_labels: tuple[str, ...]
     conditional_labels: tuple[ExtraNodeLabel, ...]
     label_definitions: tuple[ExtraNodeLabel, ...]
@@ -659,6 +672,7 @@ def _add_node_schema(
         NodeLabelProvenance(
             module=_module_name(type(schema)),
             schema=f"{type(schema).__module__}.{type(schema).__qualname__}",
+            description=description,
             extra_labels=tuple(sorted(schema_extra_labels)),
             conditional_labels=tuple(schema_conditional_labels),
             label_definitions=schema_label_definitions,
@@ -726,6 +740,7 @@ def _new_property_entry() -> dict[str, Any]:
         "generated_by": set(),
         "property_refs": [],
         "analysis_jobs": {},
+        "provenance": [],
     }
 
 
@@ -747,6 +762,18 @@ def _add_properties(
         )
         entry["generated_by"].add(generated_by)
         entry["property_refs"].append(property_ref)
+        entry["provenance"].append(
+            PropertyProvenance(
+                module=generated_by,
+                source_name=property_ref.name,
+                description=property_ref.description,
+                indexed=(
+                    dataclass_field.name in {"id", "lastupdated"}
+                    or property_ref.extra_index
+                ),
+                property_ref=property_ref,
+            )
+        )
 
 
 def _add_generated_property(
@@ -1329,6 +1356,7 @@ def _build_property(name: str, entry: dict[str, Any]) -> Property:
         analysis_jobs=tuple(
             entry["analysis_jobs"][name] for name in sorted(entry["analysis_jobs"])
         ),
+        provenance=tuple(entry["provenance"]),
     )
 
 

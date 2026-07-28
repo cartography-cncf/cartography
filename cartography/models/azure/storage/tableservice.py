@@ -13,10 +13,14 @@ from cartography.models.core.relationships import TargetNodeMatcher
 
 @dataclass(frozen=True)
 class AzureStorageTableServiceProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("id")
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
-    type: PropertyRef = PropertyRef("type")
-    name: PropertyRef = PropertyRef("name")
+    id: PropertyRef = PropertyRef("id", description="Azure resource ID.")
+    lastupdated: PropertyRef = PropertyRef(
+        "lastupdated",
+        set_in_kwargs=True,
+        description="Timestamp of the last sync that observed this node.",
+    )
+    type: PropertyRef = PropertyRef("type", description="Azure resource type.")
+    name: PropertyRef = PropertyRef("name", description="Azure resource name.")
 
 
 @dataclass(frozen=True)
@@ -27,6 +31,8 @@ class AzureStorageTableServiceToStorageAccountRelProperties(CartographyRelProper
 @dataclass(frozen=True)
 # (:AzureStorageAccount)-[:USES]->(:AzureStorageTableService)
 class AzureStorageTableServiceToStorageAccountRel(CartographyRelSchema):
+    """An Azure Storage account uses the table service."""
+
     target_node_label: str = "AzureStorageAccount"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("storage_account_id")},
@@ -46,6 +52,8 @@ class AzureStorageTableServiceToSubscriptionRelProperties(CartographyRelProperti
 @dataclass(frozen=True)
 # (:AzureSubscription)-[:RESOURCE]->(:AzureStorageTableService)
 class AzureStorageTableServiceToSubscriptionRel(CartographyRelSchema):
+    """An Azure subscription contains the table service as a resource."""
+
     target_node_label: str = "AzureSubscription"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("AZURE_SUBSCRIPTION_ID", set_in_kwargs=True)},
@@ -59,6 +67,8 @@ class AzureStorageTableServiceToSubscriptionRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class AzureStorageTableServiceSchema(CartographyNodeSchema):
+    """The Table Storage service of an Azure Storage account."""
+
     label: str = "AzureStorageTableService"
     properties: AzureStorageTableServiceProperties = (
         AzureStorageTableServiceProperties()

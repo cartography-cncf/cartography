@@ -757,6 +757,14 @@ def test_microsoft_schema_doc_is_generated_from_full_introspected_model():
     # Act
     generated = render_module_schema(complete_model, "microsoft")
     azure_tenant = complete_model.get_node("AzureTenant")
+    azure_scoped_tenant = (
+        _node_for_module(azure_tenant, "azure") if azure_tenant is not None else None
+    )
+    microsoft_scoped_tenant = (
+        _node_for_module(azure_tenant, "microsoft")
+        if azure_tenant is not None
+        else None
+    )
 
     # Assert
     assert not Path("docs/root/modules/microsoft/schema.md").exists()
@@ -766,7 +774,11 @@ def test_microsoft_schema_doc_is_generated_from_full_introspected_model():
     assert "**Additional Labels**: This node also uses `EntraTenant`." in generated
     assert "### EntraTenant" not in generated
     assert azure_tenant is not None
-    assert "EntraTenant" not in _node_for_module(azure_tenant, "azure").extra_labels
+    assert azure_scoped_tenant is not None
+    assert microsoft_scoped_tenant is not None
+    assert "EntraTenant" not in azure_scoped_tenant.extra_labels
+    assert azure_scoped_tenant.get_property("display_name") is None
+    assert microsoft_scoped_tenant.get_property("display_name") is not None
     assert "| id | Yes | Microsoft tenant ID. |" in generated
     assert "| device_name | Yes | Name of the managed device. |" in generated
     assert (
@@ -787,6 +799,71 @@ def test_microsoft_schema_doc_is_generated_from_full_introspected_model():
         in generated
     )
     assert "No description provided." not in generated
+
+
+def test_azure_schema_doc_is_generated_from_full_introspected_model():
+    # Arrange
+    complete_model = inspect_data_model()
+    azure_model = complete_model.for_module("azure")
+    azure_tenant = complete_model.get_node("AzureTenant")
+    security_rule = azure_model.get_node("AzureNetworkSecurityRule")
+    permission_shapes = {
+        (
+            relationship.source_label,
+            relationship.label,
+            relationship.target_label,
+        )
+        for relationship in azure_model.relationships
+        if relationship.permission_relationships
+    }
+
+    # Act
+    generated = render_module_schema(complete_model, "azure")
+    scoped_tenant = (
+        _node_for_module(azure_tenant, "azure") if azure_tenant is not None else None
+    )
+
+    # Assert
+    assert not Path("docs/root/modules/azure/schema.md").exists()
+    assert len(azure_model.nodes) == 93
+    assert len(azure_model.relationships) == 236
+    assert len(permission_shapes) == 9
+    assert permission_shapes == {
+        (principal, permission, "AzureSQLServer")
+        for principal in ("EntraUser", "EntraGroup", "EntraServicePrincipal")
+        for permission in ("CAN_MANAGE", "CAN_READ", "CAN_WRITE")
+    }
+    assert not any(
+        endpoint in {"AzureResource", "EntraPrincipal"}
+        for relationship in azure_model.relationships
+        for endpoint in (relationship.source_label, relationship.target_label)
+    )
+    assert scoped_tenant is not None
+    assert scoped_tenant.get_property("display_name") is None
+    assert "EntraTenant" not in scoped_tenant.extra_labels
+    assert security_rule is not None
+    assert "IpRule" in security_rule.extra_labels
+    assert {"IpPermissionInbound", "IpPermissionEgress"} <= set(
+        security_rule.partial_extra_labels
+    )
+    assert "Some schema variants may also use `IpPermissionEgress`" in generated
+    assert "This node also uses `IpRule`." in generated
+    assert "(:EntraUser)-[:CAN_READ]->(:AzureSQLServer)" in generated
+    assert "(:AzureLoadBalancer)-[:EXPOSE]->(:AzureVirtualMachine)" in generated
+    assert "No description provided." not in generated
+    assert "permission-mapping" in Path("docs/root/modules/azure/index.md").read_text()
+    assert (
+        "Azure Container Instances"
+        in Path("docs/root/modules/azure/architecture.md").read_text()
+    )
+    assert (
+        "MATCH (user:EntraUser)-[:HAS_ROLE_ASSIGNMENT]"
+        in Path("docs/root/modules/azure/queries.md").read_text()
+    )
+    assert (
+        "Inbound allow rules with wildcard internet sources"
+        in Path("docs/root/modules/azure/security.md").read_text()
+    )
 
 
 def test_scaleway_schema_doc_is_generated_from_full_introspected_model():

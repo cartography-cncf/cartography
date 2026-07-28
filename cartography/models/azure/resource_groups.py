@@ -16,11 +16,27 @@ logger = logging.getLogger(__name__)
 # --- Node Definitions ---
 @dataclass(frozen=True)
 class AzureResourceGroupProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("id")
-    name: PropertyRef = PropertyRef("name")
-    location: PropertyRef = PropertyRef("location")
-    provisioning_state: PropertyRef = PropertyRef("provisioning_state")
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    id: PropertyRef = PropertyRef(
+        "id",
+        description="Azure Resource Manager ID of the resource group.",
+    )
+    name: PropertyRef = PropertyRef(
+        "name",
+        description="Name of the resource group.",
+    )
+    location: PropertyRef = PropertyRef(
+        "location",
+        description="Azure region where the resource group metadata is stored.",
+    )
+    provisioning_state: PropertyRef = PropertyRef(
+        "provisioning_state",
+        description="Current provisioning state of the resource group.",
+    )
+    lastupdated: PropertyRef = PropertyRef(
+        "lastupdated",
+        set_in_kwargs=True,
+        description="Timestamp of the latest Cartography update.",
+    )
 
 
 # --- Relationship Definitions ---
@@ -31,6 +47,8 @@ class AzureResourceGroupToSubscriptionRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class AzureResourceGroupToSubscriptionRel(CartographyRelSchema):
+    """An Azure subscription contains the resource group as a resource."""
+
     target_node_label: str = "AzureSubscription"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("AZURE_SUBSCRIPTION_ID", set_in_kwargs=True)},
@@ -45,6 +63,8 @@ class AzureResourceGroupToSubscriptionRel(CartographyRelSchema):
 # --- Main Schema ---
 @dataclass(frozen=True)
 class AzureResourceGroupSchema(CartographyNodeSchema):
+    """An Azure resource group that organizes related cloud resources."""
+
     label: str = "AzureResourceGroup"
     properties: AzureResourceGroupProperties = AzureResourceGroupProperties()
     sub_resource_relationship: AzureResourceGroupToSubscriptionRel = (

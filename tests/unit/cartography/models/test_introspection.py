@@ -249,6 +249,11 @@ def test_build_data_model_introspects_nodes_properties_and_relationships():
     assert email.descriptions == ("Primary email address.",)
     assert email.indexed
     assert not email.ontology
+    assert len(email.provenance) == 1
+    assert email.provenance[0].module == (
+        "tests.unit.cartography.models.test_introspection"
+    )
+    assert email.provenance[0].description == "Primary email address."
 
     firstseen = node.get_property("firstseen")
     assert firstseen is not None

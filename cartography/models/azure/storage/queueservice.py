@@ -13,10 +13,14 @@ from cartography.models.core.relationships import TargetNodeMatcher
 
 @dataclass(frozen=True)
 class AzureStorageQueueServiceProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("id")
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
-    type: PropertyRef = PropertyRef("type")
-    name: PropertyRef = PropertyRef("name")
+    id: PropertyRef = PropertyRef("id", description="Azure resource ID.")
+    lastupdated: PropertyRef = PropertyRef(
+        "lastupdated",
+        set_in_kwargs=True,
+        description="Timestamp of the last sync that observed this node.",
+    )
+    type: PropertyRef = PropertyRef("type", description="Azure resource type.")
+    name: PropertyRef = PropertyRef("name", description="Azure resource name.")
 
 
 @dataclass(frozen=True)
@@ -27,6 +31,8 @@ class AzureStorageQueueServiceToStorageAccountRelProperties(CartographyRelProper
 @dataclass(frozen=True)
 # (:AzureStorageAccount)-[:USES]->(:AzureStorageQueueService)
 class AzureStorageQueueServiceToStorageAccountRel(CartographyRelSchema):
+    """An Azure Storage account uses the queue service."""
+
     target_node_label: str = "AzureStorageAccount"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("storage_account_id")},
@@ -46,6 +52,8 @@ class AzureStorageQueueServiceToSubscriptionRelProperties(CartographyRelProperti
 @dataclass(frozen=True)
 # (:AzureSubscription)-[:RESOURCE]->(:AzureStorageQueueService)
 class AzureStorageQueueServiceToSubscriptionRel(CartographyRelSchema):
+    """An Azure subscription contains the queue service as a resource."""
+
     target_node_label: str = "AzureSubscription"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("AZURE_SUBSCRIPTION_ID", set_in_kwargs=True)},
@@ -59,6 +67,8 @@ class AzureStorageQueueServiceToSubscriptionRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class AzureStorageQueueServiceSchema(CartographyNodeSchema):
+    """The Queue Storage service of an Azure Storage account."""
+
     label: str = "AzureStorageQueueService"
     properties: AzureStorageQueueServiceProperties = (
         AzureStorageQueueServiceProperties()

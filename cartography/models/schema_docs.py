@@ -68,7 +68,7 @@ def render_module_schema(model: DataModel, module: str) -> str:
 
 
 def _node_for_module(node: Node, module: str) -> Node:
-    """Scope aggregated labels to schemas owned by the rendered module."""
+    """Scope an aggregated node to schemas and properties owned by one module."""
     provenance = tuple(item for item in node.label_provenance if item.module == module)
     if not provenance:
         return node
@@ -112,16 +112,93 @@ def _node_for_module(node: Node, module: str) -> Node:
         *extra_labels,
         *(conditional.label for conditional in scoped_conditional_labels),
     }
+    properties = tuple(
+        scoped_property
+        for prop in node.properties
+        if (scoped_property := _property_for_module(prop, module)) is not None
+    )
     return replace(
         node,
+        descriptions=tuple(
+            sorted(
+                {
+                    item.description
+                    for item in provenance
+                    if item.description is not None
+                }
+            )
+        ),
         extra_labels=tuple(sorted(extra_labels)),
         partial_extra_labels=tuple(sorted(partial_labels)),
         conditional_labels=scoped_conditional_labels,
+        properties=properties,
+        modules=(module,),
+        schemas=tuple(
+            schema
+            for schema in node.schemas
+            if _schema_module(type(schema).__module__) == module
+        ),
         ontology_labels=tuple(
             label for label in node.ontology_labels if label in declared_labels
         ),
         label_definitions=label_definitions,
     )
+
+
+def _property_for_module(prop: Property, module: str) -> Property | None:
+    """Scope one aggregated property to declarations owned by a module."""
+    if not prop.provenance:
+        return prop
+
+    scoped_provenance = tuple(item for item in prop.provenance if item.module == module)
+    if not scoped_provenance:
+        return None
+
+    declared_modules = {item.module for item in prop.provenance}
+    generated_sources = set(prop.source_names) - {
+        item.source_name for item in prop.provenance
+    }
+    generated_descriptions = set(prop.descriptions) - {
+        item.description for item in prop.provenance if item.description is not None
+    }
+    return replace(
+        prop,
+        source_names=tuple(
+            sorted(
+                generated_sources | {item.source_name for item in scoped_provenance},
+            )
+        ),
+        descriptions=tuple(
+            sorted(
+                generated_descriptions
+                | {
+                    item.description
+                    for item in scoped_provenance
+                    if item.description is not None
+                },
+            )
+        ),
+        indexed=any(item.indexed for item in scoped_provenance),
+        generated_by=tuple(
+            sorted(
+                {module}
+                | {
+                    source
+                    for source in prop.generated_by
+                    if source not in declared_modules
+                },
+            )
+        ),
+        property_refs=tuple(item.property_ref for item in scoped_provenance),
+        provenance=scoped_provenance,
+    )
+
+
+def _schema_module(module_name: str) -> str:
+    parts = module_name.split(".")
+    if len(parts) > 2 and parts[:2] == ["cartography", "models"]:
+        return parts[2]
+    return module_name
 
 
 def _node_sort_key(node: Node) -> tuple[str, str]:
