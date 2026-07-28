@@ -891,6 +891,7 @@ class CLI:
                         "Default: 1 (sequential). Increase conservatively; each worker "
                         "consumes GraphQL/REST quota independently."
                     ),
+                    min=1,
                     rich_help_panel=PANEL_GITHUB,
                     hidden=PANEL_GITHUB not in visible_panels,
                 ),

@@ -381,26 +381,28 @@ def test_fetch_all_handles_retries(
     mock_sleep: Mock,
 ) -> None:
     """
-    Ensures that fetch_all returns partial data when exceeding retry limit
+    Ensures that fetch_all re-reaises the same exceptions when exceeding retry limit
     """
     # Arrange
+    exception = HTTPError
     response = Response()
     response.status_code = 500
-    mock_fetch_page.side_effect = HTTPError("my-error", response=response)
+    mock_fetch_page.side_effect = exception("my-error", response=response)
     retries = 3
     # Act
-    result, _ = fetch_all(
-        "my-token",
-        "my-api_url",
-        "my-org",
-        "my-query",
-        "my-resource",
-        retries=retries,
-    )
+    with pytest.raises(exception) as excinfo:
+        fetch_all(
+            "my-token",
+            "my-api_url",
+            "my-org",
+            "my-query",
+            "my-resource",
+            retries=retries,
+        )
     # Assert
     assert mock_handle_rate_limit_sleep.call_count == retries
     assert mock_fetch_page.call_count == retries
-    assert result.nodes == []
+    assert "my-error" in str(excinfo.value)
 
 
 @patch("cartography.intel.github.util.time.sleep")
@@ -439,15 +441,14 @@ def test_fetch_all_reduces_count_on_502(
 @patch("cartography.intel.github.util.time.sleep")
 @patch("cartography.intel.github.util.handle_rate_limit_sleep")
 @patch("cartography.intel.github.util.fetch_page")
-def test_fetch_all_returns_partial_data_after_exhausting_retries(
+def test_fetch_all_raises_on_partial_data_after_exhausting_retries(
     mock_fetch_page: Mock,
     mock_handle_rate_limit_sleep: Mock,
     mock_sleep: Mock,
 ) -> None:
     """
-    When retries are exhausted mid-pagination, fetch_all should return
-    whatever data was collected so far rather than raising, so the sync
-    can continue with partial data instead of failing entirely.
+    When retries are exhausted mid-pagination, fetch_all must raise rather than
+    return partial data that downstream cleanup would treat as a complete sync.
     """
     response_502 = Response()
     response_502.status_code = 502
@@ -472,16 +473,15 @@ def test_fetch_all_returns_partial_data_after_exhausting_retries(
         HTTPError("bad gateway", response=response_502),
     ]
 
-    result, _ = fetch_all(
-        "token",
-        "api_url",
-        "org",
-        "query",
-        "repositories",
-        retries=retries,
-    )
-
-    assert result.nodes == [{"name": "repo1"}, {"name": "repo2"}]
+    with pytest.raises(HTTPError):
+        fetch_all(
+            "token",
+            "api_url",
+            "org",
+            "query",
+            "repositories",
+            retries=retries,
+        )
 
 
 @patch("cartography.intel.github.util.time.sleep")
@@ -518,26 +518,26 @@ def test_fetch_all_raises_after_persistent_502s_at_degraded_page_size(
     # With the bug, retry resets to 0 on each success so it never accumulates
     # to `retries` and loops forever (StopIteration when mock is exhausted).
     # With the fix, retry is NOT reset on success at degraded page size, so it
-    # reaches `retries` and breaks, returning partial data.
+    # reaches `retries` and raises rather than looping forever.
     mock_fetch_page.side_effect = [
         HTTPError("bad gateway", response=response_502),  # reduces count 2→1
         HTTPError("bad gateway", response=response_502),  # retry=1
         success_with_next,  # retry should NOT reset
         HTTPError("bad gateway", response=response_502),  # retry=2
         success_with_next,  # retry should NOT reset
-        HTTPError("bad gateway", response=response_502),  # retry=3 → break
+        HTTPError("bad gateway", response=response_502),  # retry=3 → raise
     ]
 
-    result, _ = fetch_all(
-        "token",
-        "api_url",
-        "org",
-        "query",
-        "repositories",
-        count=2,
-        retries=retries,
-    )
-    assert result.nodes == []
+    with pytest.raises(HTTPError):
+        fetch_all(
+            "token",
+            "api_url",
+            "org",
+            "query",
+            "repositories",
+            count=2,
+            retries=retries,
+        )
 
 
 @patch("cartography.intel.github.util.time.sleep")
@@ -550,25 +550,26 @@ def test_fetch_all_raises_after_retries_when_502_at_page_size_1(
 ) -> None:
     """
     When page size is already 1 and GitHub keeps returning 502, fetch_all should
-    eventually give up and return partial data rather than looping forever.
+    eventually give up and raise rather than looping forever or returning
+    partial data.
     """
     response_502 = Response()
     response_502.status_code = 502
     retries = 3
     mock_fetch_page.side_effect = HTTPError("bad gateway", response=response_502)
 
-    result, _ = fetch_all(
-        "token",
-        "api_url",
-        "org",
-        "query",
-        "repositories",
-        count=1,
-        retries=retries,
-    )
+    with pytest.raises(HTTPError):
+        fetch_all(
+            "token",
+            "api_url",
+            "org",
+            "query",
+            "repositories",
+            count=1,
+            retries=retries,
+        )
 
     assert mock_fetch_page.call_count == retries
-    assert result.nodes == []
 
 
 @patch("cartography.intel.github.util.time.sleep")

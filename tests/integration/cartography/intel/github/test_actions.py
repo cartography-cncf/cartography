@@ -1142,7 +1142,7 @@ def test_sync_github_actions_workflow_parsing(
 @patch.object(
     cartography.intel.github.actions,
     "get_workflow_content",
-    return_value=None,
+    return_value=WORKFLOW_CI_CONTENT,
 )
 def test_sync_github_actions_incremental_skip_preserves_workflows(
     mock_workflow_content,
@@ -1159,8 +1159,10 @@ def test_sync_github_actions_incremental_skip_preserves_workflows(
     """
     Test that when skip_unchanged_repos is enabled and a repo's pushedat is
     unchanged since the last successful Actions sync, the workflow fetch is
-    skipped but existing GitHubWorkflow/GitHubAction nodes are preserved
-    (touched, not stale-cleaned) across a new update tag.
+    skipped but the existing GitHubWorkflow/GitHubAction subgraph is preserved
+    (nodes AND relationships touched, not stale-cleaned) across a new update tag.
+    Uses WORKFLOW_CI_CONTENT so GitHubAction nodes actually exist and the
+    action-preservation branch is exercised.
     """
     # Arrange - repo exists, no prior pushedat/bookmark (first sync should fetch normally)
     _ensure_repo_exists(neo4j_session)
@@ -1185,6 +1187,13 @@ def test_sync_github_actions_incremental_skip_preserves_workflows(
         (12345679,),
         (12345680,),
     }
+    # WORKFLOW_CI_CONTENT references 2 distinct actions
+    first_action_nodes = check_nodes(neo4j_session, "GitHubAction", ["id"])
+    assert len(first_action_nodes) == 2
+    first_uses_action = neo4j_session.run(
+        "MATCH (:GitHubWorkflow)-[r:USES_ACTION]->(:GitHubAction) RETURN count(r) AS c",
+    ).single()["c"]
+    assert first_uses_action >= 2
     # Simulate repos.sync() writing synced_pushedat after repos fetch
     neo4j_session.run(
         'MATCH (r:GitHubRepository{id: "https://github.com/simpsoncorp/sample_repo"}) '
@@ -1213,3 +1222,18 @@ def test_sync_github_actions_incremental_skip_preserves_workflows(
     ).data()
     assert {row["id"] for row in workflow_rows} == {12345678, 12345679, 12345680}
     assert all(row["lastupdated"] == second_update_tag for row in workflow_rows)
+
+    # Assert - GitHubAction nodes were preserved and touched too
+    action_rows = neo4j_session.run(
+        "MATCH (a:GitHubAction) RETURN a.id AS id, a.lastupdated AS lastupdated",
+    ).data()
+    assert {row["id"] for row in action_rows} == {row[0] for row in first_action_nodes}
+    assert all(row["lastupdated"] == second_update_tag for row in action_rows)
+
+    # Assert - the USES_ACTION relationships were preserved and touched too
+    uses_action_rows = neo4j_session.run(
+        "MATCH (:GitHubWorkflow)-[r:USES_ACTION]->(:GitHubAction) "
+        "RETURN r.lastupdated AS lastupdated",
+    ).data()
+    assert len(uses_action_rows) >= 2
+    assert all(row["lastupdated"] == second_update_tag for row in uses_action_rows)

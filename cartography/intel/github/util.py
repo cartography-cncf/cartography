@@ -278,17 +278,11 @@ def fetch_all(
 
         if retry >= retries:
             logger.error(
-                "GitHub: Could not retrieve page of resource `%s` for org `%s` at cursor `%s` "
-                "after %d retries. Returning partial data collected so far (%d nodes, %d edges).",
-                resource_type,
-                organization,
-                cursor,
-                retry,
-                len(data.nodes),
-                len(data.edges),
+                f"GitHub: Could not retrieve page of resource `{resource_type}` due to HTTP error "
+                f"after {retry} retries. Raising exception.",
                 exc_info=True,
             )
-            break
+            raise exc
         elif retry > 0:
             sleep_seconds = 2**retry
             if isinstance(exc, requests.exceptions.HTTPError):
@@ -365,7 +359,7 @@ def fetch_all(
         cursor = resource["pageInfo"]["endCursor"]
         has_next_page = resource["pageInfo"]["hasNextPage"]
         page_number += 1
-        logger.info(
+        logger.debug(
             "GitHub: fetched page %d for resource `%s` in org `%s` (page_nodes=%d total_nodes=%d page_edges=%d total_edges=%d count=%s cursor=%s has_next=%s)",
             page_number,
             resource_type,
@@ -385,13 +379,9 @@ def fetch_all(
             }
 
     if not org_data:
-        logger.error(
-            "GitHub: No organization data collected for organization: %s, resource_type: %s. "
-            "All requests failed before any page was successfully retrieved.",
-            organization,
-            resource_type,
+        raise ValueError(
+            f"Didn't get any organization data for organization: {organization} and resource_type: {resource_type}",
         )
-        return data, {"url": "", "login": organization}
     return data, org_data
 
 

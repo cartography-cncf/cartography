@@ -521,9 +521,10 @@ def _fetch_manifests_for_repo(
     """
     repo_name = repo.get("name")
     repo_url = repo.get("url", "")
-    if skip_archived_repos and repo.get("isArchived"):
+    if skip_archived_repos and (repo.get("isArchived") or repo.get("isDisabled")):
         logger.debug(
-            "Skipping dependency manifest fetch for archived repo %s.", repo_name
+            "Skipping dependency manifest fetch for archived/disabled repo %s.",
+            repo_name,
         )
         return repo_url, [], True, "archived"
 
@@ -567,10 +568,11 @@ def _touch_skipped_dependency_manifests(
     update_tag: int,
 ) -> None:
     """
-    Refresh `lastupdated` on the existing DependencyGraphManifest/Dependency
-    nodes for repos whose manifest fetch was skipped this run (because
-    pushedat was unchanged), so the end-of-run stale-tag cleanup doesn't
-    delete them.
+    Refresh `lastupdated` on the existing manifest/dependency subgraph for repos
+    whose manifest fetch was skipped this run (pushedat unchanged), so the
+    stale-tag cleanups don't delete it. Cleanup also deletes stale relationships
+    by their own `lastupdated`, so every relationship reaped by the manifest,
+    dependency, and CODEOWNERS-matchlink cleanups is touched too.
     """
     if not skipped_repo_urls:
         return
@@ -578,8 +580,11 @@ def _touch_skipped_dependency_manifests(
         neo4j_session,
         """
         UNWIND $repo_urls AS repo_url
-        MATCH (:GitHubRepository {id: repo_url})-[:HAS_MANIFEST]->(m:DependencyGraphManifest)
-        SET m.lastupdated = $update_tag
+        MATCH (:GitHubRepository {id: repo_url})-[hm:HAS_MANIFEST]->(m:DependencyGraphManifest)
+        SET m.lastupdated = $update_tag, hm.lastupdated = $update_tag
+        WITH DISTINCT m
+        MATCH (:GitHubOrganization)-[res:RESOURCE]->(m)
+        SET res.lastupdated = $update_tag
         """,
         repo_urls=skipped_repo_urls,
         update_tag=update_tag,
@@ -589,8 +594,29 @@ def _touch_skipped_dependency_manifests(
         """
         UNWIND $repo_urls AS repo_url
         MATCH (:GitHubRepository {id: repo_url})-[:HAS_MANIFEST]->(:DependencyGraphManifest)
-              -[:REQUIRES]->(d:Dependency)
-        SET d.lastupdated = $update_tag
+              -[hd:HAS_DEP]->(d:Dependency)
+        SET d.lastupdated = $update_tag, hd.lastupdated = $update_tag
+        """,
+        repo_urls=skipped_repo_urls,
+        update_tag=update_tag,
+    )
+    run_write_query(
+        neo4j_session,
+        """
+        UNWIND $repo_urls AS repo_url
+        MATCH (:GitHubRepository {id: repo_url})-[req:REQUIRES]->(:Dependency)
+        SET req.lastupdated = $update_tag
+        """,
+        repo_urls=skipped_repo_urls,
+        update_tag=update_tag,
+    )
+    run_write_query(
+        neo4j_session,
+        """
+        UNWIND $repo_urls AS repo_url
+        MATCH (:GitHubRepository {id: repo_url})-[:HAS_MANIFEST]->(:DependencyGraphManifest)
+              -[mc:MATCHES_CODEOWNER_RULE]->(:GitHubCodeOwnerRule)
+        SET mc.lastupdated = $update_tag
         """,
         repo_urls=skipped_repo_urls,
         update_tag=update_tag,
@@ -708,10 +734,14 @@ def _get_dep_manifests_for_repos(
             # Store under the key _fetch_manifests_for_repo reads
             repo["manifests_synced_pushedat"] = bookmarks.get(repo.get("url", ""))
     if skip_archived_repos:
-        archived_count = sum(1 for repo in non_null_repos if repo.get("isArchived"))
+        archived_count = sum(
+            1
+            for repo in non_null_repos
+            if repo.get("isArchived") or repo.get("isDisabled")
+        )
         logger.info(
             "Fetching dependency graph manifests for org %s: %d total repos, "
-            "skipping %d archived, fetching for %d (parallel_workers=%d).",
+            "skipping %d archived/disabled, fetching for %d (parallel_workers=%d).",
             org,
             total_repos,
             archived_count,
@@ -736,7 +766,9 @@ def _get_dep_manifests_for_repos(
         for repo in non_null_repos
         if repo.get("name")
         and repo.get("url")
-        and not (skip_archived_repos and repo.get("isArchived"))
+        and not (
+            skip_archived_repos and (repo.get("isArchived") or repo.get("isDisabled"))
+        )
     ]
     total = len(eligible)
     completed = 0
@@ -3035,6 +3067,8 @@ def sync(
             update_tag=common_job_parameters["UPDATE_TAG"],
         )
     else:
+        # Nothing was fetched, so cleanup would delete all previously synced manifests.
+        dep_manifests_cleanup_safe = False
         logger.info(
             "Skipping dependency manifest fetch for org %s (dep_manifests not in requested syncs).",
             organization,

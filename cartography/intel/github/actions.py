@@ -928,9 +928,11 @@ def _touch_skipped_actions_workflows(
     update_tag: int,
 ) -> None:
     """
-    Refresh `lastupdated` on the existing GitHubWorkflow/GitHubAction nodes for
-    repos whose workflow-content fetch was skipped this run (because pushedat
-    was unchanged), so the end-of-run stale-tag cleanup doesn't delete them.
+    Refresh `lastupdated` on the existing GitHubWorkflow/GitHubAction subgraph
+    for repos whose workflow-content fetch was skipped this run (pushedat
+    unchanged), so the stale-tag cleanups don't delete it. Cleanup also deletes
+    stale relationships by their own `lastupdated`, so every relationship reaped
+    by the workflow and action cleanups is touched too.
     """
     if not skipped_repo_urls:
         return
@@ -938,8 +940,11 @@ def _touch_skipped_actions_workflows(
         neo4j_session,
         """
         UNWIND $repo_urls AS repo_url
-        MATCH (:GitHubRepository {id: repo_url})-[:HAS_WORKFLOW]->(wf:GitHubWorkflow)
-        SET wf.lastupdated = $update_tag
+        MATCH (:GitHubRepository {id: repo_url})-[hw:HAS_WORKFLOW]->(wf:GitHubWorkflow)
+        SET wf.lastupdated = $update_tag, hw.lastupdated = $update_tag
+        WITH DISTINCT wf
+        MATCH (:GitHubOrganization)-[res:RESOURCE]->(wf)
+        SET res.lastupdated = $update_tag
         """,
         repo_urls=skipped_repo_urls,
         update_tag=update_tag,
@@ -949,12 +954,50 @@ def _touch_skipped_actions_workflows(
         """
         UNWIND $repo_urls AS repo_url
         MATCH (:GitHubRepository {id: repo_url})-[:HAS_WORKFLOW]->(:GitHubWorkflow)
-              -[:USES_ACTION]->(a:GitHubAction)
-        SET a.lastupdated = $update_tag
+              -[rs:REFERENCES_SECRET]->(:GitHubActionsSecret)
+        SET rs.lastupdated = $update_tag
         """,
         repo_urls=skipped_repo_urls,
         update_tag=update_tag,
     )
+    run_write_query(
+        neo4j_session,
+        """
+        UNWIND $repo_urls AS repo_url
+        MATCH (:GitHubRepository {id: repo_url})-[:HAS_WORKFLOW]->(:GitHubWorkflow)
+              -[ua:USES_ACTION]->(a:GitHubAction)
+        SET a.lastupdated = $update_tag, ua.lastupdated = $update_tag
+        WITH DISTINCT a
+        MATCH (:GitHubOrganization)-[res:RESOURCE]->(a)
+        SET res.lastupdated = $update_tag
+        """,
+        repo_urls=skipped_repo_urls,
+        update_tag=update_tag,
+    )
+
+
+def _get_skipped_repo_workflows(
+    neo4j_session: neo4j.Session,
+    skipped_repo_urls: list[str],
+) -> list[dict[str, Any]]:
+    """
+    Return {repo_url, path} rows for the existing workflows of skipped repos so
+    supply_chain.sync refreshes their PACKAGED_BY matchlinks instead of its
+    cleanup deleting them as stale.
+    """
+    if not skipped_repo_urls:
+        return []
+    rows: list[dict[str, Any]] = neo4j_session.execute_read(
+        read_list_of_dicts_tx,
+        """
+        UNWIND $repo_urls AS repo_url
+        MATCH (:GitHubRepository {id: repo_url})-[:HAS_WORKFLOW]->(wf:GitHubWorkflow)
+        WHERE wf.repo_url IS NOT NULL AND wf.path IS NOT NULL
+        RETURN wf.repo_url AS repo_url, wf.path AS path
+        """,
+        repo_urls=skipped_repo_urls,
+    )
+    return rows
 
 
 def _update_actions_synced_bookmarks(
@@ -1105,6 +1148,9 @@ def sync(
 
     if skip_unchanged_repos:
         _touch_skipped_actions_workflows(neo4j_session, skipped_repo_urls, update_tag)
+        all_workflows.extend(
+            _get_skipped_repo_workflows(neo4j_session, skipped_repo_urls)
+        )
         logger.info(
             "GitHub Actions incremental sync for org %s: skipped workflow refetch "
             "for %d/%d unchanged repos.",

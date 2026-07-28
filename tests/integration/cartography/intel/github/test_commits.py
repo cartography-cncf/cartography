@@ -145,3 +145,17 @@ def test_sync_github_commits_skip_stale_repos(mock_get_commits, neo4j_session):
     # Assert - only repo2 (no pushedat on record) had its commits fetched
     fetched_repos = {call.args[3] for call in mock_get_commits.call_args_list}
     assert fetched_repos == {"repo2"}
+
+    # Assert - only repo2's commit relationship was written to the graph
+    actual_rels = check_rels(
+        neo4j_session,
+        "GitHubUser",
+        "id",
+        "GitHubRepository",
+        "id",
+        "COMMITTED_TO",
+        rel_direction_right=True,
+    )
+    assert actual_rels == {
+        ("https://github.com/bob", "https://github.com/testorg/repo2"),
+    }
