@@ -10,6 +10,7 @@ import cartography.models.cloudflare as cloudflare_models
 import cartography.models.crowdstrike as crowdstrike_models
 import cartography.models.cve as cve_models
 import cartography.models.cve_metadata as cve_metadata_models
+import cartography.models.databricks as databricks_models
 import cartography.models.digitalocean as digitalocean_models
 import cartography.models.docker_scout as docker_scout_models
 import cartography.models.duo as duo_models
@@ -1305,6 +1306,56 @@ def test_digitalocean_schema_doc_is_generated_from_introspected_model():
     assert (
         "Deprecated compatibility edge linking a Droplet to its project." in generated
     )
+    assert "No description provided." not in generated
+
+
+def test_databricks_schema_doc_is_generated_from_full_introspected_model():
+    # Arrange
+    local_model = inspect_data_model(databricks_models)
+    complete_model = inspect_data_model()
+    module_index = Path("docs/root/modules/databricks/index.md").read_text()
+    module_config = Path("docs/root/modules/databricks/config.md").read_text()
+    module_queries = Path("docs/root/modules/databricks/queries.md").read_text()
+
+    # Act
+    generated = render_module_schema(complete_model, "databricks")
+
+    # Assert
+    assert not Path("docs/root/modules/databricks/schema.md").exists()
+    assert len(local_model.nodes) == 59
+    assert len(local_model.relationships) == 134
+    assert local_model.get_node("DatabricksAclObject") is None
+    assert local_model.get_node("DatabricksSecurable") is None
+    assert "### DatabricksAccount" in generated
+    assert "### DatabricksWorkspace" in generated
+    assert "### DatabricksCatalog" in generated
+    assert "### DatabricksServingEndpoint" in generated
+    assert "This node also uses `DatabricksAclObject`." in generated
+    assert "This node also uses `DatabricksSecurable`." in generated
+    assert (
+        "`DatabricksAclObject`: An object that can receive Databricks workspace "
+        "permissions." in generated
+    )
+    assert (
+        "`DatabricksSecurable`: A Unity Catalog object that can receive Databricks "
+        "privileges." in generated
+    )
+    assert "(:DatabricksUser)-[:HAS_PERMISSION]->(:DatabricksAclObject)" in generated
+    assert "(:DatabricksUser)-[:HAS_PRIVILEGE]->(:DatabricksSecurable)" in generated
+    assert "(:DatabricksRepo)-[:SOURCED_FROM]->(:GitHubRepository)" in generated
+    assert "    | privileges |" in generated
+    assert "    | permission_level |" in generated
+    assert "    | permissions |" in generated
+    assert "    | default_catalog_name |" in generated
+    assert "    | workspace_numeric_id |" in generated
+    assert "    | _sub_resource_label |" not in generated
+    assert (
+        "Notebooks are materialized only when referenced by a job task." in module_index
+    )
+    assert (
+        "Cartography lists clean rooms only when the metastore enables" in module_config
+    )
+    assert "MATCH (repo:DatabricksRepo)-[:SOURCED_FROM]" in module_queries
     assert "No description provided." not in generated
 
 

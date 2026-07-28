@@ -4,6 +4,7 @@ from dataclasses import fields as dataclass_fields
 from dataclasses import replace
 from pathlib import Path
 
+from cartography.models.core.nodes import LabelKind
 from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import SourceNodeMatcher
@@ -535,6 +536,33 @@ def _render_node(
                 "",
             ]
         )
+    additional_label_names = {
+        *universal_additional_labels,
+        *partial_additional_labels,
+    }
+    additional_label_definitions = tuple(
+        definition
+        for definition in node.label_definitions
+        if not definition.conditions and definition.label in additional_label_names
+    )
+    if additional_label_definitions:
+        lines.extend(["> **Additional Label Definitions**:", ">"])
+        for definition in additional_label_definitions:
+            details = definition.description
+            if definition.kind is LabelKind.COMPATIBILITY:
+                compatibility_details = []
+                if definition.replacement_label:
+                    compatibility_details.append(
+                        f"Use `{definition.replacement_label}` instead."
+                    )
+                if definition.remove_in:
+                    compatibility_details.append(
+                        f"Scheduled for removal in v{definition.remove_in}."
+                    )
+                if compatibility_details:
+                    details = f"{details} {' '.join(compatibility_details)}"
+            lines.append(f"> - `{definition.label}`: {details}")
+        lines.append("")
     if node.conditional_labels:
         lines.extend(["> **Conditional Labels**:", ">"])
         for conditional_label in node.conditional_labels:
@@ -552,7 +580,10 @@ def _render_node(
                 if conditional_label.label in node.ontology_labels
                 else f"`{conditional_label.label}`"
             )
-            lines.append(f"> - {formatted_label}{ontology_note} when {conditions}.")
+            lines.append(
+                f"> - {formatted_label}{ontology_note} when {conditions}. "
+                f"{conditional_label.description}"
+            )
         lines.append("")
     for projection_label in node.ontology_projections:
         lines.extend(

@@ -14,15 +14,40 @@ from cartography.models.databricks.extra_labels import DATABRICKS_ACL_OBJECT
 
 @dataclass(frozen=True)
 class DatabricksClusterPolicyNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("id")
-    policy_id: PropertyRef = PropertyRef("policy_id", extra_index=True)
-    name: PropertyRef = PropertyRef("name", extra_index=True)
-    description: PropertyRef = PropertyRef("description")
-    definition: PropertyRef = PropertyRef("definition")
-    policy_family_id: PropertyRef = PropertyRef("policy_family_id")
-    creator_user_name: PropertyRef = PropertyRef("creator_user_name", extra_index=True)
-    created_at: PropertyRef = PropertyRef("created_at")
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    id: PropertyRef = PropertyRef(
+        "id", description="Workspace-scoped identifier for the cluster policy."
+    )
+    policy_id: PropertyRef = PropertyRef(
+        "policy_id",
+        extra_index=True,
+        description="Databricks cluster policy identifier.",
+    )
+    name: PropertyRef = PropertyRef(
+        "name", extra_index=True, description="Name of the cluster policy."
+    )
+    description: PropertyRef = PropertyRef(
+        "description", description="Description of the cluster policy."
+    )
+    definition: PropertyRef = PropertyRef(
+        "definition", description="JSON definition of the cluster policy."
+    )
+    policy_family_id: PropertyRef = PropertyRef(
+        "policy_family_id",
+        description="Identifier of the policy family used by this policy.",
+    )
+    creator_user_name: PropertyRef = PropertyRef(
+        "creator_user_name",
+        extra_index=True,
+        description="User who created the cluster policy.",
+    )
+    created_at: PropertyRef = PropertyRef(
+        "created_at", description="Timestamp when the cluster policy was created."
+    )
+    lastupdated: PropertyRef = PropertyRef(
+        "lastupdated",
+        set_in_kwargs=True,
+        description="Timestamp of the last ingestion update.",
+    )
 
 
 @dataclass(frozen=True)
@@ -33,6 +58,8 @@ class DatabricksClusterPolicyToWorkspaceRelProperties(CartographyRelProperties):
 @dataclass(frozen=True)
 # (:DatabricksWorkspace)-[:RESOURCE]->(:DatabricksClusterPolicy)
 class DatabricksClusterPolicyToWorkspaceRel(CartographyRelSchema):
+    """A Databricks workspace contains the cluster policy as a resource."""
+
     target_node_label: str = "DatabricksWorkspace"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("WORKSPACE_ID", set_in_kwargs=True)},
@@ -46,6 +73,8 @@ class DatabricksClusterPolicyToWorkspaceRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class DatabricksClusterPolicySchema(CartographyNodeSchema):
+    """A Databricks policy that constrains cluster configuration."""
+
     label: str = "DatabricksClusterPolicy"
     properties: DatabricksClusterPolicyNodeProperties = (
         DatabricksClusterPolicyNodeProperties()

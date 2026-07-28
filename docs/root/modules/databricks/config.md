@@ -77,6 +77,11 @@ The Azure Account API is not currently wired into this module. Azure workspace
 resources are covered by the `azure` module, and account-level identity
 federates through Entra.
 
+### Clean Room Coverage
+
+Cartography lists clean rooms only when the metastore enables external
+OpenSharing. Clean room ingestion is skipped when external access is disabled.
+
 ## References
 
 - [Databricks API scope reference](https://docs.databricks.com/api/workspace/api/scopes)
