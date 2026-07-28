@@ -9,6 +9,7 @@ import neo4j
 from cartography.client.core.tx import load
 from cartography.client.core.tx import load_matchlinks
 from cartography.client.core.tx import read_list_of_dicts_tx
+from cartography.client.core.tx import run_write_query
 from cartography.graph.job import GraphJob
 from cartography.intel.aws.util.botocore_config import create_boto3_client
 from cartography.models.aws.route53.dnsrecord import AWSDNSRecordSchema
@@ -235,8 +236,6 @@ def transform_all_dns_data(
 
                 if transformed_rs["type"] == "A":
                     all_a_records.append(transformed_rs)
-                    # TODO consider creating IPs as a first-class node from here.
-                    # Right now we just match on them from the A record.
                 elif transformed_rs["type"] == "AAAA":
                     all_aaaa_records.append(transformed_rs)
                 elif transformed_rs["type"] == "ALIAS":
@@ -271,6 +270,39 @@ def transform_all_dns_data(
 
 
 @timeit
+def load_ip_nodes(
+    neo4j_session: neo4j.Session,
+    records: list[dict[str, Any]],
+    update_tag: int,
+) -> None:
+    """
+    Materialize the Ip nodes that A and AAAA records resolve to.
+
+    AWSDNSRecordToIpRel matches its target nodes, it does not create them, so
+    without this the DNS_POINTS_TO edges out of A and AAAA records are silently
+    dropped. We merge on the shared :Ip label rather than a provider-specific
+    one so that we reuse whichever node already holds the address - notably the
+    AWSEC2Ipv6Address node the EC2 module ingests IPv6 addresses as, which
+    carries :Ip as an extra label.
+    """
+    ip_addresses = sorted({ip for record in records for ip in record["ip_addresses"]})
+    if not ip_addresses:
+        return
+
+    run_write_query(
+        neo4j_session,
+        """
+        UNWIND $IP_LIST as ip
+        MERGE (ip_node:Ip{id: ip})
+        ON CREATE SET ip_node.firstseen = timestamp(), ip_node.ip = ip
+        SET ip_node.lastupdated = $update_tag
+        """,
+        IP_LIST=ip_addresses,
+        update_tag=update_tag,
+    )
+
+
+@timeit
 def _load_dns_details_flat(
     neo4j_session: neo4j.Session,
     zones: list[dict[str, Any]],
@@ -284,6 +316,7 @@ def _load_dns_details_flat(
     update_tag: int,
 ) -> None:
     load_zones(neo4j_session, zones, current_aws_id, update_tag)
+    load_ip_nodes(neo4j_session, a_records + aaaa_records, update_tag)
     load_a_records(neo4j_session, a_records, update_tag, current_aws_id)
     load_aaaa_records(neo4j_session, aaaa_records, update_tag, current_aws_id)
     load_alias_records(neo4j_session, alias_records, update_tag, current_aws_id)

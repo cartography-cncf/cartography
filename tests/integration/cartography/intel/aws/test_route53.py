@@ -1,3 +1,4 @@
+import cartography.intel.aws.ec2.instances
 import cartography.intel.aws.route53
 import cartography.util
 import tests.data.aws.ec2.elastic_ip_addresses
@@ -10,6 +11,22 @@ TEST_ZONE_ID = "TESTZONEID"
 TEST_ZONE_NAME = "TESTZONENAME"
 TEST_AWS_ACCOUNTID = "AWSID"
 TEST_AWS_REGION = "us-east-1"
+TEST_AAAA_RECORD_ID = f"{TEST_ZONE_ID}/ipv6.example.com/AAAA"
+TEST_AAAA_ADDRESSES = ["2001:db8::1", "2001:db8::2"]
+# The one AAAA target that the EC2 module also reports.
+TEST_EC2_IPV6_ADDRESS = "2001:db8::1"
+
+
+def _ensure_local_neo4j_has_aws_account(neo4j_session):
+    neo4j_session.run(
+        """
+        MERGE (a:AWSAccount{id:$AccountId})
+        ON CREATE SET a.firstseen = timestamp()
+        SET a.lastupdated=$UpdateTag, a :Tenant
+        """,
+        AccountId=TEST_AWS_ACCOUNTID,
+        UpdateTag=TEST_UPDATE_TAG,
+    )
 
 
 def _ensure_local_neo4j_has_test_route53_records(neo4j_session):
@@ -22,15 +39,7 @@ def _ensure_local_neo4j_has_test_route53_records(neo4j_session):
     (:AWSDNSZone)-[:SUBZONE]->(:AWSDNSZone)
     based on fake data.
     """
-    neo4j_session.run(
-        """
-        MERGE (a:AWSAccount{id:$AccountId})
-        ON CREATE SET a.firstseen = timestamp()
-        SET a.lastupdated=$UpdateTag, a :Tenant
-        """,
-        AccountId=TEST_AWS_ACCOUNTID,
-        UpdateTag=TEST_UPDATE_TAG,
-    )
+    _ensure_local_neo4j_has_aws_account(neo4j_session)
     cartography.intel.aws.route53.load_dns_details(
         neo4j_session,
         tests.data.aws.route53.GET_ZONES_SAMPLE_RESPONSE,
@@ -270,6 +279,181 @@ def test_load_dnspointsto_elasticip_relationships(neo4j_session):
     )
     expected = {("hello.what.example.com", "192.168.1.1")}
     assert actual == expected
+
+
+def _load_test_aaaa_record(neo4j_session):
+    """Load the sample AAAA record together with the Ip nodes it resolves to."""
+    record = cartography.intel.aws.route53.transform_record_set(
+        tests.data.aws.route53.AAAA_RECORD,
+        TEST_ZONE_ID,
+        tests.data.aws.route53.AAAA_RECORD["Name"][:-1],
+    )
+    cartography.intel.aws.route53.load_ip_nodes(
+        neo4j_session,
+        [record],
+        TEST_UPDATE_TAG,
+    )
+    cartography.intel.aws.route53.load_aaaa_records(
+        neo4j_session,
+        [record],
+        TEST_UPDATE_TAG,
+        TEST_AWS_ACCOUNTID,
+    )
+
+
+def _load_test_ec2_ipv6_address(neo4j_session):
+    """Load one of the AAAA record's addresses through the EC2 IPv6 module."""
+    cartography.intel.aws.ec2.instances.load_ec2_ipv6_addresses(
+        neo4j_session,
+        [
+            {
+                "Ipv6Address": TEST_EC2_IPV6_ADDRESS,
+                "NetworkInterfaceId": "eni-12345678",
+                "IsPrimaryIpv6": True,
+            },
+        ],
+        TEST_AWS_REGION,
+        TEST_AWS_ACCOUNTID,
+        TEST_UPDATE_TAG,
+    )
+
+
+def _reset_test_aaaa_state(neo4j_session):
+    """
+    Drop only the nodes the AAAA tests below assert on. Other tests in this
+    module share the database and the sample IPv6 addresses, so a full wipe
+    would make them depend on execution order.
+    """
+    neo4j_session.run(
+        """
+        MATCH (n)
+        WHERE (n:Ip AND n.id IN $Addresses) OR (n:AWSDNSRecord AND n.id = $RecordId)
+        DETACH DELETE n
+        """,
+        Addresses=TEST_AAAA_ADDRESSES,
+        RecordId=TEST_AAAA_RECORD_ID,
+    )
+
+
+def _get_ip_node_counts(neo4j_session):
+    """Return {address: how many :Ip nodes carry that address}."""
+    result = neo4j_session.run(
+        """
+        MATCH (ip:Ip)
+        WHERE ip.id IN $Addresses
+        RETURN ip.id as id, count(*) as node_count
+        """,
+        Addresses=TEST_AAAA_ADDRESSES,
+    )
+    return {r["id"]: r["node_count"] for r in result}
+
+
+def _get_ip_node_labels(neo4j_session, address):
+    """Return the labels of the single :Ip node carrying this address."""
+    result = neo4j_session.run(
+        """
+        MATCH (ip:Ip{id:$Address})
+        RETURN labels(ip) as labels
+        """,
+        Address=address,
+    ).single()
+    return set(result["labels"])
+
+
+def _get_dns_points_to_ip_counts(neo4j_session):
+    """Return {address: number of DNS_POINTS_TO edges out of the AAAA record}."""
+    result = neo4j_session.run(
+        """
+        MATCH (:AWSDNSRecord{id:$RecordId})-[r:DNS_POINTS_TO]->(ip:Ip)
+        RETURN ip.id as id, count(r) as rel_count
+        """,
+        RecordId=TEST_AAAA_RECORD_ID,
+    )
+    return {r["id"]: r["rel_count"] for r in result}
+
+
+def test_aaaa_records_reuse_ec2_ipv6_node_when_ec2_syncs_first(neo4j_session):
+    """
+    EC2 ingests IPv6 addresses as AWSEC2Ipv6Address nodes that carry :Ip as an
+    extra label, so Route53's merge on :Ip must land on that same node rather
+    than creating a second one.
+    """
+    # Arrange
+    _reset_test_aaaa_state(neo4j_session)
+    _ensure_local_neo4j_has_aws_account(neo4j_session)
+
+    # Act
+    _load_test_ec2_ipv6_address(neo4j_session)
+    _load_test_aaaa_record(neo4j_session)
+
+    # Assert: one node per address, and the EC2-owned one kept its own label
+    assert _get_ip_node_counts(neo4j_session) == {"2001:db8::1": 1, "2001:db8::2": 1}
+    assert "AWSEC2Ipv6Address" in _get_ip_node_labels(
+        neo4j_session, TEST_EC2_IPV6_ADDRESS
+    )
+    assert _get_dns_points_to_ip_counts(neo4j_session) == {
+        "2001:db8::1": 1,
+        "2001:db8::2": 1,
+    }
+
+
+def test_aaaa_records_reuse_ec2_ipv6_node_when_route53_syncs_first(neo4j_session):
+    """
+    The reverse order: Route53 has already created a bare :Ip node for the
+    address, so the EC2 IPv6 module must claim that node instead of merging a
+    duplicate under its own label - otherwise the AAAA record would end up with
+    two DNS_POINTS_TO edges for the same address.
+    """
+    # Arrange
+    _reset_test_aaaa_state(neo4j_session)
+    _ensure_local_neo4j_has_aws_account(neo4j_session)
+
+    # Act
+    _load_test_aaaa_record(neo4j_session)
+    _load_test_ec2_ipv6_address(neo4j_session)
+
+    # Assert
+    assert _get_ip_node_counts(neo4j_session) == {"2001:db8::1": 1, "2001:db8::2": 1}
+    assert "AWSEC2Ipv6Address" in _get_ip_node_labels(
+        neo4j_session, TEST_EC2_IPV6_ADDRESS
+    )
+    assert _get_dns_points_to_ip_counts(neo4j_session) == {
+        "2001:db8::1": 1,
+        "2001:db8::2": 1,
+    }
+
+    # Assert: the claimed node carries the properties the EC2 module loads
+    result = neo4j_session.run(
+        """
+        MATCH (ip:AWSEC2Ipv6Address{id:$Address})
+        RETURN ip.network_interface_id as network_interface_id, ip.region as region
+        """,
+        Address=TEST_EC2_IPV6_ADDRESS,
+    ).single()
+    assert result["network_interface_id"] == "eni-12345678"
+    assert result["region"] == TEST_AWS_REGION
+
+
+def test_aaaa_records_without_ec2_owner_stay_plain_ip(neo4j_session):
+    """
+    AAAA targets that no EC2 resource reports must stay bare :Ip nodes so that
+    they don't show up in queries for EC2 assets.
+    """
+    # Arrange
+    _reset_test_aaaa_state(neo4j_session)
+    _ensure_local_neo4j_has_aws_account(neo4j_session)
+
+    # Act
+    _load_test_aaaa_record(neo4j_session)
+
+    # Assert
+    assert _get_ip_node_counts(neo4j_session) == {"2001:db8::1": 1, "2001:db8::2": 1}
+    for address in TEST_AAAA_ADDRESSES:
+        assert _get_ip_node_labels(neo4j_session, address) == {"Ip"}
+    assert _get_dns_points_to_ip_counts(neo4j_session) == {
+        "2001:db8::1": 1,
+        "2001:db8::2": 1,
+    }
 
 
 def test_link_sub_zones_handles_cycles(neo4j_session):

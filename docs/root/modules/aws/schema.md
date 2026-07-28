@@ -3403,7 +3403,7 @@ Represents a generic IP address.
 |-------|-------------|
 | firstseen| Timestamp of when a sync job first discovered this node  |
 | lastupdated |  Timestamp of the last time the node was updated |
-| **ip** | The IPv4 address |
+| **ip** | The IP address, IPv4 or IPv6 |
 | **id** | Same as `ip` |
 
 

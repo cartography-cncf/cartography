@@ -11,6 +11,7 @@ import neo4j
 
 from cartography.client.core.tx import load
 from cartography.client.core.tx import load_matchlinks
+from cartography.client.core.tx import run_write_query
 from cartography.graph.job import GraphJob
 from cartography.intel.aws.util.botocore_config import create_boto3_client
 from cartography.intel.aws.util.botocore_config import get_botocore_config
@@ -424,6 +425,40 @@ def load_ec2_instance_ebs_volumes(
     )
 
 
+def _claim_existing_ip_nodes(
+    neo4j_session: neo4j.Session,
+    ipv6_address_list: List[Dict[str, Any]],
+) -> None:
+    """
+    Take ownership of any :Ip node that already holds one of these addresses.
+
+    Other modules materialize IP addresses as bare :Ip nodes keyed on the
+    address itself (see cartography.intel.aws.route53.load_ip_nodes), while the
+    load() below merges on the EC2Ipv6AddressSchema label. An address that
+    Route53 saw before EC2 ever reported it would therefore land on a second
+    node with the same id, and every matcher on :Ip - AWSDNSRecordToIpRel
+    included - would then match both nodes and write duplicate relationships.
+    Adding our label first makes that MERGE find the existing node and enrich it
+    instead.
+    """
+    addresses = sorted({address["Ipv6Address"] for address in ipv6_address_list})
+    if not addresses:
+        return
+
+    # Neo4j can't parameterize a label, so read it off the schema we load below
+    # rather than hardcoding it here.
+    label = EC2Ipv6AddressSchema().label
+    run_write_query(
+        neo4j_session,
+        f"""
+        UNWIND $Ipv6Addresses as address
+        MATCH (ip_node:Ip{{id: address}})
+        SET ip_node:{label}
+        """,
+        Ipv6Addresses=addresses,
+    )
+
+
 @timeit
 def load_ec2_ipv6_addresses(
     neo4j_session: neo4j.Session,
@@ -432,6 +467,7 @@ def load_ec2_ipv6_addresses(
     current_aws_account_id: str,
     update_tag: int,
 ) -> None:
+    _claim_existing_ip_nodes(neo4j_session, ipv6_address_list)
     load(
         neo4j_session,
         EC2Ipv6AddressSchema(),
