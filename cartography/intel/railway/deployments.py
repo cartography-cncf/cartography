@@ -5,6 +5,7 @@ import neo4j
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
+from cartography.intel.railway.serviceinstances import iter_service_instances
 from cartography.intel.railway.utils import unwrap_edges
 from cartography.models.railway.deployment import RailwayDeploymentSchema
 from cartography.models.railway.deploymenttrigger import RailwayDeploymentTriggerSchema
@@ -33,10 +34,28 @@ def transform(
     triggers: dict[str, list[dict[str, Any]]] = {}
 
     for project_id, bundle in bundles.items():
+        # The deployment each service instance is currently serving. Everything else in the
+        # window is a superseded revision.
+        current_ids = {
+            (instance.get("latestDeployment") or {}).get("id")
+            for instance in iter_service_instances(bundle)
+        }
+        current_ids.discard(None)
+
         project_deployments: list[dict[str, Any]] = []
         project_triggers: list[dict[str, Any]] = []
         for environment in unwrap_edges(bundle["environments"]):
-            project_deployments.extend(unwrap_edges(environment["deployments"]))
+            for deployment in unwrap_edges(environment["deployments"]):
+                project_deployments.append(
+                    {
+                        **deployment,
+                        "lifecycle": (
+                            "current"
+                            if deployment["id"] in current_ids
+                            else "historical"
+                        ),
+                    },
+                )
             project_triggers.extend(unwrap_edges(environment["deploymentTriggers"]))
         deployments[project_id] = project_deployments
         triggers[project_id] = project_triggers

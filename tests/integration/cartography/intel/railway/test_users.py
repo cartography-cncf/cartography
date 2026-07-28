@@ -246,6 +246,11 @@ def test_syncing_one_workspace_leaves_another_workspaces_edges_alone(neo4j_sessi
     other_workspace_id = "1a1a1a1a-1a1a-1a1a-1a1a-1a1a1a1a1a1a"
     # Deliberately stale: written by a previous run, and this run has not reached that
     # workspace yet.
+    #
+    # These edges carry the other workspace's _sub_resource_label / _sub_resource_id, exactly
+    # as load_matchlinks would have written them. That is what makes this a real test: the
+    # MatchLink cleanup matches on those two properties, so edges lacking them could never be
+    # deleted and would survive even if workspace scoping were broken.
     neo4j_session.run(
         """
         MERGE (w:RailwayWorkspace {id: $other_workspace_id})
@@ -253,9 +258,13 @@ def test_syncing_one_workspace_leaves_another_workspaces_edges_alone(neo4j_sessi
         MERGE (u:RailwayUser {id: $user_id})
         SET u.lastupdated = $stale_tag
         MERGE (w)-[r:RESOURCE]->(u)
-        SET r.lastupdated = $stale_tag
+        SET r.lastupdated = $stale_tag,
+            r._sub_resource_label = 'RailwayWorkspace',
+            r._sub_resource_id = $other_workspace_id
         MERGE (u)-[m:MEMBER_OF]->(w)
-        SET m.lastupdated = $stale_tag, m.role = 'ADMIN'
+        SET m.lastupdated = $stale_tag, m.role = 'ADMIN',
+            m._sub_resource_label = 'RailwayWorkspace',
+            m._sub_resource_id = $other_workspace_id
         """,
         other_workspace_id=other_workspace_id,
         user_id=ALICE_ID,
@@ -296,3 +305,70 @@ def test_syncing_one_workspace_leaves_another_workspaces_edges_alone(neo4j_sessi
     ) == {
         (ALICE_ID, other_workspace_id),
     }
+
+
+def test_stale_edges_of_the_synced_workspace_are_deleted(neo4j_session):
+    """
+    Positive control for the test above.
+
+    On its own, "the other workspace's edge survived" would also hold if cleanup deleted
+    nothing at all. This asserts the other half: an edge carrying *this* workspace's scope
+    is deleted when it goes stale. Together the two prove the cleanup discriminates on
+    _sub_resource_id rather than being a no-op.
+    """
+    neo4j_session.run("MATCH (u:RailwayUser) DETACH DELETE u")
+    _ensure_local_neo4j_has_test_workspace_and_projects(neo4j_session)
+    neo4j_session.run(
+        """
+        MERGE (w:RailwayWorkspace {id: $workspace_id})
+        MERGE (u:RailwayUser {id: $user_id})
+        SET u.lastupdated = $stale_tag
+        MERGE (w)-[r:RESOURCE]->(u)
+        SET r.lastupdated = $stale_tag,
+            r._sub_resource_label = 'RailwayWorkspace',
+            r._sub_resource_id = $workspace_id
+        MERGE (u)-[m:MEMBER_OF]->(w)
+        SET m.lastupdated = $stale_tag, m.role = 'ADMIN',
+            m._sub_resource_label = 'RailwayWorkspace',
+            m._sub_resource_id = $workspace_id
+        """,
+        workspace_id=TEST_WORKSPACE_ID,
+        user_id=ALICE_ID,
+        stale_tag=TEST_UPDATE_TAG,
+    )
+
+    # Act: this workspace no longer lists Alice.
+    cartography.intel.railway.iam.users.sync(
+        neo4j_session,
+        _common_job_parameters(TEST_UPDATE_TAG + 1),
+        {"members": []},
+        [],
+        TEST_UPDATE_TAG + 1,
+    )
+
+    # Assert both of this workspace's stale edges are gone, while the node remains.
+    assert (ALICE_ID,) in check_nodes(neo4j_session, "RailwayUser", ["id"])
+    assert (
+        check_rels(
+            neo4j_session,
+            "RailwayWorkspace",
+            "id",
+            "RailwayUser",
+            "id",
+            "RESOURCE",
+            rel_direction_right=True,
+        )
+        == set()
+    )
+    assert (
+        check_rels(
+            neo4j_session,
+            "RailwayUser",
+            "id",
+            "RailwayWorkspace",
+            "id",
+            "MEMBER_OF",
+            rel_direction_right=True,
+        )
+        == set()
+    )

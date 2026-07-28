@@ -10,6 +10,7 @@ from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import TargetNodeMatcher
+from cartography.models.ontology.labels import BLOCK_STORAGE
 
 
 @dataclass(frozen=True)
@@ -17,6 +18,9 @@ class RailwayVolumeInstanceNodeProperties(CartographyNodeProperties):
     id: PropertyRef = PropertyRef("id")
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
     volume_id: PropertyRef = PropertyRef("volumeId", extra_index=True)
+    # Denormalised from the parent volume: the instance itself has no name, and the
+    # BlockStorage ontology needs one that is not a mount path.
+    volume_name: PropertyRef = PropertyRef("volume_name", extra_index=True)
     environment_id: PropertyRef = PropertyRef("environmentId", extra_index=True)
     service_id: PropertyRef = PropertyRef("serviceId", extra_index=True)
     mount_path: PropertyRef = PropertyRef("mountPath")
@@ -93,7 +97,7 @@ class RailwayVolumeInstanceToServiceInstanceRel(CartographyRelSchema):
 @dataclass(frozen=True)
 class RailwayVolumeInstanceSchema(CartographyNodeSchema):
     label: str = "RailwayVolumeInstance"
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["BlockStorage"])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([BLOCK_STORAGE])
     properties: RailwayVolumeInstanceNodeProperties = (
         RailwayVolumeInstanceNodeProperties()
     )

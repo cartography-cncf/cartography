@@ -9,6 +9,7 @@ from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import TargetNodeMatcher
+from cartography.models.ontology.labels import API_KEY
 
 
 @dataclass(frozen=True)
@@ -46,7 +47,7 @@ class RailwayProjectTokenToProjectRel(CartographyRelSchema):
 @dataclass(frozen=True)
 class RailwayProjectTokenSchema(CartographyNodeSchema):
     label: str = "RailwayProjectToken"
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["APIKey"])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([API_KEY])
     properties: RailwayProjectTokenNodeProperties = RailwayProjectTokenNodeProperties()
     sub_resource_relationship: RailwayProjectTokenToProjectRel = (
         RailwayProjectTokenToProjectRel()

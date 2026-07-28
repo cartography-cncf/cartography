@@ -52,12 +52,15 @@ class RailwayTCPProxyToServiceInstanceRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 # (:RailwayServiceInstance)-[:EXPOSE]->(:RailwayTCPProxy)
+#
+# Gated on the proxy's syncStatus through exposed_*, exactly like the two domain types: a
+# proxy that is not serving yet, or is being torn down, is not a public entry point.
 class RailwayTCPProxyToServiceInstanceRel(CartographyRelSchema):
     target_node_label: str = "RailwayServiceInstance"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {
-            "service_id": PropertyRef("service_id"),
-            "environment_id": PropertyRef("environment_id"),
+            "service_id": PropertyRef("exposed_service_id"),
+            "environment_id": PropertyRef("exposed_environment_id"),
         },
     )
     direction: LinkDirection = LinkDirection.INWARD

@@ -238,8 +238,9 @@ and where all deployment configuration lives.
 | start_command | Custom start command, if overridden |
 | root_directory | Subdirectory of the repo the service builds from |
 | dockerfile_path | Path to a custom Dockerfile, if used |
-| **region** | Deployment region, when overridden from the workspace default |
-| num_replicas | Number of replicas, when overridden |
+| **region** | Effective deployment region. Railway only sets this on the instance when it overrides the workspace default, so it falls back to the workspace's `preferredRegion` |
+| region_is_workspace_default | True when `region` came from the workspace rather than an instance override |
+| num_replicas | Number of replicas. Replicas scale the instance within its single region; Railway exposes no per-replica placement |
 | sleep_application | Whether the instance sleeps when idle |
 | cron_schedule | Cron expression, for scheduled workloads |
 | healthcheck_path | HTTP path Railway probes for health |
@@ -248,7 +249,7 @@ and where all deployment configuration lives.
 | ipv6_egress_enabled | Whether IPv6 egress is enabled |
 | latest_deployment_id | ID of the most recent deployment |
 | latest_deployment_status | Status of the most recent deployment |
-| is_publicly_exposed | Whether the instance is reachable from the internet through a Railway domain, a verified custom domain, or a TCP proxy |
+| is_publicly_exposed | Whether the instance is reachable from the internet through a Railway domain, a verified custom domain, or a TCP proxy that is **currently serving** (`syncStatus` `ACTIVE` or `UPDATING`) |
 | created_at | When the instance was created |
 | updated_at | When the instance was last modified |
 | lastupdated | Timestamp of the last time the node was updated |
@@ -294,10 +295,17 @@ one concrete revision of a service instance.
 
 > **Ontology Mapping**: This node has the extra label `Container` to enable cross-platform queries for running containers across different systems (e.g., AWSECSContainer, KubernetesContainer, GCPCloudRunServiceContainer).
 
+Only the **current** revision carries `Container`. Railway keeps a row for every past deploy
+attempt, including failed and crashed ones; labelling those would fill the container ontology
+with workloads that are not running. Superseded revisions stay in the graph as plain
+`RailwayDeployment` nodes. Deployment history is capped at the 10 most recent per
+environment, so older revisions age out of the graph rather than accumulating forever.
+
 | Field | Description |
 |-------|-------------|
 | **id** | ID of the deployment |
 | **status** | Deployment status, e.g. `SUCCESS`, `BUILDING`, `CRASHED`, `FAILED` |
+| **lifecycle** | `current` for the revision the service instance is serving, `historical` for a superseded one |
 | status_updated_at | When the status last changed |
 | project_id | ID of the owning project |
 | **environment_id** | ID of the environment deployed into |
@@ -335,11 +343,12 @@ Represents a Railway-generated `*.up.railway.app` domain. These are always inter
 
 #### Relationships
 
-- A domain belongs to a project and exposes a service instance.
+- A domain belongs to a project and exposes a service instance, but only while it is
+  actually serving: a domain in `CREATING`, `DELETING` or `DELETED` gets no `EXPOSE` edge.
 
     ```
     (:RailwayProject)-[:RESOURCE]->(:RailwayServiceDomain)
-    (:RailwayServiceInstance)-[:EXPOSE]->(:RailwayServiceDomain)
+    (:RailwayServiceInstance)-[:EXPOSE]->(:RailwayServiceDomain)  // serving domains only
     ```
 
 ### RailwayCustomDomain
@@ -367,7 +376,7 @@ A domain that has not passed DNS verification does not resolve yet, so it gets *
 #### Relationships
 
 - A custom domain belongs to a project. Only a verified domain exposes a service instance,
-  so `EXPOSE` traversals agree with `is_publicly_exposed`.
+  and serving, so `EXPOSE` traversals agree with `is_publicly_exposed`.
 
     ```
     (:RailwayProject)-[:RESOURCE]->(:RailwayCustomDomain)
@@ -393,11 +402,12 @@ published on the public internet, with no TLS termination or authentication in f
 
 #### Relationships
 
-- A proxy belongs to a project and exposes a service instance.
+- A proxy belongs to a project and exposes a service instance, gated on the same serving
+  states as the domains.
 
     ```
     (:RailwayProject)-[:RESOURCE]->(:RailwayTCPProxy)
-    (:RailwayServiceInstance)-[:EXPOSE]->(:RailwayTCPProxy)
+    (:RailwayServiceInstance)-[:EXPOSE]->(:RailwayTCPProxy)  // serving proxies only
     ```
 
 ### RailwayVolume
@@ -432,6 +442,7 @@ Represents the actual persistent disk backing a volume in one environment.
 |-------|-------------|
 | **id** | ID of the volume instance |
 | **volume_id** | ID of the parent volume |
+| **volume_name** | Name of the parent volume, denormalised so the disk has a real name rather than a mount path |
 | **environment_id** | ID of the environment the disk lives in |
 | **service_id** | ID of the service that mounts the disk |
 | mount_path | Path the disk is mounted at inside the container |

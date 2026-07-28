@@ -51,14 +51,17 @@ class RailwayServiceDomainToServiceInstanceRelProperties(CartographyRelPropertie
 
 @dataclass(frozen=True)
 # (:RailwayServiceInstance)-[:EXPOSE]->(:RailwayServiceDomain)
-# A domain is keyed by the (service, environment) pair rather than by an instance id, since
-# that is what the Railway payload carries.
+#
+# Keyed by the (service, environment) pair, since that is what the Railway payload carries.
+# The matcher uses exposed_* rather than the plain ids: transform() leaves those null unless
+# the domain's syncStatus says it is actually serving, so a domain that is still CREATING or
+# on its way out gets no EXPOSE edge and cannot inflate the attack surface.
 class RailwayServiceDomainToServiceInstanceRel(CartographyRelSchema):
     target_node_label: str = "RailwayServiceInstance"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {
-            "service_id": PropertyRef("service_id"),
-            "environment_id": PropertyRef("environment_id"),
+            "service_id": PropertyRef("exposed_service_id"),
+            "environment_id": PropertyRef("exposed_environment_id"),
         },
     )
     direction: LinkDirection = LinkDirection.INWARD

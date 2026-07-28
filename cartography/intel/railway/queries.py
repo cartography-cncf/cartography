@@ -214,7 +214,7 @@ _ENVIRONMENT_CHILDREN = f"""
       edges {{ node {{ {_SERVICE_INSTANCE_FIELDS} }} }}
       {_PAGE_INFO}
     }}
-    deployments(first: $first) {{
+    deployments(first: $deploymentFirst) {{
       edges {{ node {{ {_DEPLOYMENT_FIELDS} }} }}
       {_PAGE_INFO}
     }}
@@ -245,7 +245,7 @@ _ENVIRONMENT_FIELDS = f"""
 
 # Everything hanging off a single project, in one request.
 PROJECT_BUNDLE_QUERY = f"""
-query ProjectBundle($projectId: String!, $first: Int!) {{
+query ProjectBundle($projectId: String!, $first: Int!, $deploymentFirst: Int!) {{
   project(id: $projectId) {{
     id
     environments(first: $first) {{
@@ -267,7 +267,7 @@ query ProjectBundle($projectId: String!, $first: Int!) {{
 # Follow-up documents, used only when the bundle came back truncated. Each one returns the
 # same node shape as its counterpart inside the bundle.
 PROJECT_ENVIRONMENTS_QUERY = f"""
-query ProjectEnvironments($projectId: String!, $first: Int!, $after: String) {{
+query ProjectEnvironments($projectId: String!, $first: Int!, $deploymentFirst: Int!, $after: String) {{
   project(id: $projectId) {{
     environments(first: $first, after: $after) {{
       edges {{ node {{ {_ENVIRONMENT_FIELDS} }} }}
@@ -355,13 +355,22 @@ query EnvironmentDeploymentTriggers($environmentId: String!, $first: Int!, $afte
 """
 
 # Connection key on Environment -> the document that pages through it.
+#
+# `deployments` is deliberately absent. Every other connection describes current state and
+# must be complete, or cleanup would delete whatever it could not see. Deployments are an
+# append-only history that grows without bound, and Cartography only needs the recent
+# window: it is capped at DEPLOYMENT_PAGE_SIZE per environment and never drained. The
+# cleanup consequence is intended - deployments that age out of the window are removed from
+# the graph rather than accumulating forever.
 ENVIRONMENT_CHILD_QUERIES = {
     "serviceInstances": ENVIRONMENT_SERVICE_INSTANCES_QUERY,
-    "deployments": ENVIRONMENT_DEPLOYMENTS_QUERY,
     "volumeInstances": ENVIRONMENT_VOLUME_INSTANCES_QUERY,
     "variables": ENVIRONMENT_VARIABLES_QUERY,
     "deploymentTriggers": ENVIRONMENT_DEPLOYMENT_TRIGGERS_QUERY,
 }
+
+# How many of the most recent deployments to keep per environment.
+DEPLOYMENT_PAGE_SIZE = 10
 
 # Connection key on Project -> the document that pages through it.
 PROJECT_CHILD_QUERIES = {

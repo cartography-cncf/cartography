@@ -5,6 +5,7 @@ import neo4j
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
+from cartography.intel.railway.utils import is_live_entrypoint
 from cartography.intel.railway.utils import unwrap_edges
 from cartography.models.railway.serviceinstance import RailwayServiceInstanceSchema
 from cartography.util import timeit
@@ -18,6 +19,7 @@ def sync(
     common_job_parameters: dict[str, Any],
     bundles: dict[str, dict[str, Any]],
     tcp_proxies_by_instance: dict[str, list[dict[str, Any]]],
+    workspace: dict[str, Any],
     update_tag: int,
 ) -> None:
     """
@@ -26,8 +28,10 @@ def sync(
     :param tcp_proxies_by_instance: service instance id -> its TCP proxies. Needed to decide
         `is_publicly_exposed`, since tcpProxies is a separate root field rather than part of
         the bundle.
+    :param workspace: supplies preferredRegion, the effective region of any instance that
+        does not override it.
     """
-    by_project = transform(bundles, tcp_proxies_by_instance)
+    by_project = transform(bundles, tcp_proxies_by_instance, workspace)
     load_service_instances(neo4j_session, by_project, update_tag)
     cleanup(neo4j_session, list(bundles), common_job_parameters)
 
@@ -48,21 +52,34 @@ def _is_publicly_exposed(
     instance: dict[str, Any],
     tcp_proxies: list[dict[str, Any]],
 ) -> bool:
+    """
+    True when at least one entry point is actually serving traffic right now.
+
+    Merely having a domain or proxy object is not exposure: Railway keeps them around in
+    CREATING, DELETING and DELETED states. is_live_entrypoint() also rejects a custom domain
+    that has not passed DNS verification, since it does not resolve. This must stay in step
+    with the EXPOSE edges, which are gated on the same predicate.
+    """
     domains = instance.get("domains") or {}
-    if domains.get("serviceDomains"):
-        # Railway-generated *.up.railway.app domains are always internet-facing.
-        return True
-    for custom_domain in domains.get("customDomains") or []:
-        # An unverified custom domain does not resolve yet, so it is not yet exposure.
-        if (custom_domain.get("status") or {}).get("verified"):
-            return True
-    return bool(tcp_proxies)
+    entrypoints = [
+        *(domains.get("serviceDomains") or []),
+        *(domains.get("customDomains") or []),
+        *tcp_proxies,
+    ]
+    return any(is_live_entrypoint(entrypoint) for entrypoint in entrypoints)
 
 
 def transform(
     bundles: dict[str, dict[str, Any]],
     tcp_proxies_by_instance: dict[str, list[dict[str, Any]]],
+    workspace: dict[str, Any] | None = None,
 ) -> dict[str, list[dict[str, Any]]]:
+    # Railway only sets ServiceInstance.region when the instance overrides the workspace
+    # default, which is rare, so most instances report null. Falling back to the workspace's
+    # preferred region is what actually answers "where does this run", and it is what the
+    # ComputeService ontology mapping reads. numReplicas scales an instance within that one
+    # region: Railway exposes no per-replica placement, so there is nothing finer to model.
+    default_region = (workspace or {}).get("preferredRegion")
     by_project: dict[str, list[dict[str, Any]]] = {}
     for project_id, bundle in bundles.items():
         transformed = []
@@ -77,6 +94,8 @@ def transform(
                     "source_repo": source.get("repo"),
                     "latest_deployment_id": latest_deployment.get("id"),
                     "latest_deployment_status": latest_deployment.get("status"),
+                    "region": instance.get("region") or default_region,
+                    "region_is_workspace_default": not instance.get("region"),
                     "is_publicly_exposed": _is_publicly_exposed(instance, tcp_proxies),
                 },
             )

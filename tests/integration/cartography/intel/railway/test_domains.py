@@ -42,6 +42,8 @@ TCP_PROXIES_BY_PROJECT = {
             "createdAt": "2026-07-27T18:02:00.271Z",
             "service_id": WEB_SERVICE_ID,
             "environment_id": PRODUCTION_ENV_ID,
+            "exposed_service_id": WEB_SERVICE_ID,
+            "exposed_environment_id": PRODUCTION_ENV_ID,
         },
         {
             "id": POSTGRES_PROXY_ID,
@@ -52,6 +54,8 @@ TCP_PROXIES_BY_PROJECT = {
             "createdAt": "2026-07-27T18:02:20.114Z",
             "service_id": POSTGRES_SERVICE_ID,
             "environment_id": PRODUCTION_ENV_ID,
+            "exposed_service_id": POSTGRES_SERVICE_ID,
+            "exposed_environment_id": PRODUCTION_ENV_ID,
         },
     ],
 }

@@ -6,6 +6,7 @@ import requests
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
+from cartography.intel.railway.queries import DEPLOYMENT_PAGE_SIZE
 from cartography.intel.railway.queries import ENVIRONMENT_CHILD_QUERIES
 from cartography.intel.railway.queries import PROJECT_BUNDLE_QUERY
 from cartography.intel.railway.queries import PROJECT_CHILD_QUERIES
@@ -100,7 +101,11 @@ def get_project_bundle(
         api_session,
         base_url,
         PROJECT_BUNDLE_QUERY,
-        {"projectId": project_id, "first": _BUNDLE_PAGE_SIZE},
+        {
+            "projectId": project_id,
+            "first": _BUNDLE_PAGE_SIZE,
+            "deploymentFirst": DEPLOYMENT_PAGE_SIZE,
+        },
     )
     bundle = data["project"]
     drain_project_bundle(api_session, base_url, bundle)
@@ -175,7 +180,7 @@ def drain_project_bundle(
         base_url,
         bundle["environments"],
         PROJECT_ENVIRONMENTS_QUERY,
-        {"projectId": project_id},
+        {"projectId": project_id, "deploymentFirst": DEPLOYMENT_PAGE_SIZE},
         ("project", "environments"),
     )
 

@@ -41,10 +41,12 @@ from cartography.models.core.relationships import make_source_node_matcher
 from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import SourceNodeMatcher
 from cartography.models.core.relationships import TargetNodeMatcher
+from cartography.models.ontology.labels import USER_ACCOUNT
+from cartography.models.railway.extra_labels import RAILWAY_PRINCIPAL
 
 # RailwayPrincipal: cross-provider IAM principal umbrella, mirroring AWSPrincipal /
 # ScalewayPrincipal. UserAccount drives the ontology mapping.
-_USER_LABELS = ExtraNodeLabels(["UserAccount", "RailwayPrincipal"])
+_USER_LABELS = ExtraNodeLabels([USER_ACCOUNT, RAILWAY_PRINCIPAL])
 
 
 @dataclass(frozen=True)

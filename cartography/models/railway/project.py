@@ -9,6 +9,7 @@ from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import TargetNodeMatcher
+from cartography.models.ontology.labels import TENANT
 
 
 @dataclass(frozen=True)
@@ -53,7 +54,7 @@ class RailwayProjectSchema(CartographyNodeSchema):
     properties: RailwayProjectNodeProperties = RailwayProjectNodeProperties()
     # A project is the second tenancy level, mirroring ScalewayOrganization -> ScalewayProject:
     # everything inside it scopes its cleanup to the project rather than to the workspace.
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["Tenant"])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([TENANT])
     sub_resource_relationship: RailwayProjectToWorkspaceRel = (
         RailwayProjectToWorkspaceRel()
     )

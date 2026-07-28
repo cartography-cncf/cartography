@@ -6,6 +6,7 @@ import neo4j
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
 from cartography.intel.railway.serviceinstances import iter_service_instances
+from cartography.intel.railway.utils import is_live_entrypoint
 from cartography.models.railway.network.customdomain import RailwayCustomDomainSchema
 from cartography.models.railway.network.servicedomain import RailwayServiceDomainSchema
 from cartography.util import timeit
@@ -32,6 +33,26 @@ def sync(
     cleanup(neo4j_session, list(bundles), common_job_parameters)
 
 
+def _exposure_keys(
+    entrypoint: dict[str, Any],
+    owner: dict[str, Any],
+) -> dict[str, Any]:
+    """
+    The matcher keys for the EXPOSE edge, left null unless the entry point is actually
+    serving traffic.
+
+    A null key matches no service instance, so a domain that is still CREATING, on its way
+    out, or (for a custom domain) not yet DNS-verified gets no EXPOSE edge. The plain
+    service_id / environment_id properties stay on the node either way, so the association
+    remains queryable. This mirrors the `is_publicly_exposed` flag, and the two must agree.
+    """
+    live = is_live_entrypoint(entrypoint)
+    return {
+        "exposed_service_id": owner["service_id"] if live else None,
+        "exposed_environment_id": owner["environment_id"] if live else None,
+    }
+
+
 def transform(
     bundles: dict[str, dict[str, Any]],
 ) -> tuple[dict[str, list[dict[str, Any]]], dict[str, list[dict[str, Any]]]]:
@@ -53,25 +74,23 @@ def transform(
             }
             domains = instance.get("domains") or {}
             for service_domain in domains.get("serviceDomains") or []:
-                project_service_domains.append({**service_domain, **owner})
+                project_service_domains.append(
+                    {
+                        **service_domain,
+                        **owner,
+                        **_exposure_keys(service_domain, owner),
+                    },
+                )
             for custom_domain in domains.get("customDomains") or []:
                 status = custom_domain.get("status") or {}
-                verified = bool(status.get("verified"))
                 project_custom_domains.append(
                     {
                         **custom_domain,
                         **owner,
-                        "verified": verified,
+                        "verified": bool(status.get("verified")),
                         "certificate_status": status.get("certificateStatus"),
                         "verification_dns_host": status.get("verificationDnsHost"),
-                        # Null until the domain resolves, so the EXPOSE matcher finds nothing
-                        # and an unverified domain is not counted as a public entry point.
-                        "exposed_service_id": (
-                            owner["service_id"] if verified else None
-                        ),
-                        "exposed_environment_id": (
-                            owner["environment_id"] if verified else None
-                        ),
+                        **_exposure_keys(custom_domain, owner),
                     },
                 )
 

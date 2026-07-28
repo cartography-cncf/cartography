@@ -48,6 +48,27 @@ class RailwayGraphQLError(Exception):
         )
 
 
+# ServiceDomainSyncStatus, CustomDomainSyncStatus and TCPProxySyncStatus share one set of
+# values: ACTIVE, CREATING, DELETING, DELETED, UPDATING, UNSPECIFIED. Only these two mean the
+# entry point is actually serving traffic. CREATING has not come up yet and DELETING/DELETED
+# are on the way out, so counting them as exposure would over-report the attack surface.
+LIVE_SYNC_STATUSES = frozenset({"ACTIVE", "UPDATING"})
+
+
+def is_live_entrypoint(entrypoint: dict[str, Any]) -> bool:
+    """
+    True when a service domain, custom domain or TCP proxy is in a serving state.
+
+    A custom domain additionally has to have passed DNS verification before it resolves.
+    """
+    if entrypoint.get("syncStatus") not in LIVE_SYNC_STATUSES:
+        return False
+    status = entrypoint.get("status")
+    if isinstance(status, dict) and not status.get("verified"):
+        return False
+    return True
+
+
 class RailwayPaginationError(Exception):
     """
     Railway reported another page but gave no usable cursor to reach it.

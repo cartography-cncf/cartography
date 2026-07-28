@@ -150,7 +150,7 @@ railway_mapping = OntologyMapping(
             node_label="RailwayVolumeInstance",
             fields=[
                 OntologyFieldMapping(
-                    ontology_field="name", node_field="mount_path", required=True
+                    ontology_field="name", node_field="volume_name", required=True
                 ),
                 OntologyFieldMapping(ontology_field="size_gb", node_field="size_gb"),
                 # _ont_encrypted: Railway does not expose volume encryption posture.

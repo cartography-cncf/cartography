@@ -37,7 +37,11 @@ def transform(
     volume_instances: dict[str, list[dict[str, Any]]] = {}
 
     for project_id, bundle in bundles.items():
-        volumes[project_id] = unwrap_edges(bundle["volumes"])
+        project_volumes = unwrap_edges(bundle["volumes"])
+        volumes[project_id] = project_volumes
+        # The instance is the BlockStorage node, but only the parent volume carries a name,
+        # so denormalise it: _ont_name must be a name, not a mount path.
+        volume_names = {volume["id"]: volume.get("name") for volume in project_volumes}
 
         project_instances: list[dict[str, Any]] = []
         for environment in unwrap_edges(bundle["environments"]):
@@ -50,6 +54,7 @@ def transform(
                         "size_gb": (
                             size_mb / _MB_PER_GB if size_mb is not None else None
                         ),
+                        "volume_name": volume_names.get(instance.get("volumeId")),
                     },
                 )
         volume_instances[project_id] = project_instances

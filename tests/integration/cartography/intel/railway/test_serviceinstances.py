@@ -2,6 +2,7 @@ import cartography.intel.railway.environments
 import cartography.intel.railway.serviceinstances
 import cartography.intel.railway.services
 import tests.data.railway.bundles
+import tests.data.railway.workspaces
 from tests.integration.cartography.intel.railway.test_projects import (
     _common_job_parameters,
 )
@@ -42,6 +43,7 @@ def _sync_compute_tier(neo4j_session, tcp_proxies_by_instance=None):
         _common_job_parameters(),
         BUNDLES,
         tcp_proxies_by_instance or {},
+        tests.data.railway.workspaces.RAILWAY_WORKSPACE,
         TEST_UPDATE_TAG,
     )
 
@@ -217,7 +219,12 @@ def test_railway_service_instance_exposed_by_tcp_proxy(neo4j_session):
     _sync_compute_tier(
         neo4j_session,
         tcp_proxies_by_instance={
-            POSTGRES_INSTANCE_ID: [{"id": "dddddddd-dddd-dddd-dddd-dddddddddddd"}],
+            POSTGRES_INSTANCE_ID: [
+                {
+                    "id": "dddddddd-dddd-dddd-dddd-dddddddddddd",
+                    "syncStatus": "ACTIVE",
+                },
+            ],
         },
     )
 

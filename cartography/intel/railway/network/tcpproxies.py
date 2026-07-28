@@ -9,6 +9,7 @@ from cartography.graph.job import GraphJob
 from cartography.intel.railway.serviceinstances import iter_service_instances
 from cartography.intel.railway.utils import build_tcp_proxy_batch_query
 from cartography.intel.railway.utils import call_railway_api
+from cartography.intel.railway.utils import is_live_entrypoint
 from cartography.models.railway.network.tcpproxy import RailwayTCPProxySchema
 from cartography.util import timeit
 
@@ -96,6 +97,15 @@ def get(
                     **proxy,
                     "service_id": instance["serviceId"],
                     "environment_id": instance["environmentId"],
+                    # Null unless the proxy is actually serving, so a CREATING or DELETING
+                    # proxy gets no EXPOSE edge. Mirrors the domain transforms and the
+                    # is_publicly_exposed flag.
+                    "exposed_service_id": (
+                        instance["serviceId"] if is_live_entrypoint(proxy) else None
+                    ),
+                    "exposed_environment_id": (
+                        instance["environmentId"] if is_live_entrypoint(proxy) else None
+                    ),
                 }
                 for proxy in proxies
             ]

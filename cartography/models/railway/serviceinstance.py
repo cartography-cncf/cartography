@@ -10,6 +10,7 @@ from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import TargetNodeMatcher
+from cartography.models.ontology.labels import COMPUTE_SERVICE
 
 
 @dataclass(frozen=True)
@@ -28,8 +29,15 @@ class RailwayServiceInstanceNodeProperties(CartographyNodeProperties):
     start_command: PropertyRef = PropertyRef("startCommand")
     root_directory: PropertyRef = PropertyRef("rootDirectory")
     dockerfile_path: PropertyRef = PropertyRef("dockerfilePath")
-    # Railway leaves region null unless the instance overrides the workspace default.
+    # The effective region. Railway only populates ServiceInstance.region when the instance
+    # overrides the workspace default, so transform() falls back to the workspace's
+    # preferredRegion; region_is_workspace_default records which of the two it came from.
+    # num_replicas scales the instance within this one region - Railway exposes no
+    # per-replica placement.
     region: PropertyRef = PropertyRef("region", extra_index=True)
+    region_is_workspace_default: PropertyRef = PropertyRef(
+        "region_is_workspace_default",
+    )
     num_replicas: PropertyRef = PropertyRef("numReplicas")
     sleep_application: PropertyRef = PropertyRef("sleepApplication")
     cron_schedule: PropertyRef = PropertyRef("cronSchedule")
@@ -129,7 +137,7 @@ class RailwayServiceInstanceSchema(CartographyNodeSchema):
     label: str = "RailwayServiceInstance"
     # The per-environment instance is the actual running workload, so this is where the
     # ComputeService label belongs rather than on RailwayService.
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["ComputeService"])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([COMPUTE_SERVICE])
     properties: RailwayServiceInstanceNodeProperties = (
         RailwayServiceInstanceNodeProperties()
     )

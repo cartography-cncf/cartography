@@ -200,6 +200,7 @@ def _sync_workspace(
         common_job_parameters,
         bundles,
         tcp_proxies_by_instance,
+        workspace,
         update_tag,
     )
     cartography.intel.railway.network.domains.sync(

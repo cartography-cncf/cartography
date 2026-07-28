@@ -44,7 +44,11 @@ hourly window. If a sync exhausts the quota, Cartography fails with an explicit 
 than stalling for the remainder of the hour.
 
 Each connection inside the bundle is capped at 100 items per request. A project with more
-than 100 environments, services, service instances, deployments, volumes or variables costs
-one extra request per additional page of the connection that overflowed. Cartography always
-pages to the end: handing a truncated result to the cleanup jobs would make them delete
+than 100 environments, services, service instances, volumes or variables costs one extra
+request per additional page of the connection that overflowed. Cartography always pages to
+the end for these: handing a truncated result to the cleanup jobs would make them delete
 every resource past the first page.
+
+Deployments are the exception. They are an append-only history that grows without bound, so
+only the 10 most recent per environment are ingested and the connection is never paged. Older
+revisions age out of the graph on the next sync instead of accumulating forever.

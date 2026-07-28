@@ -6,6 +6,7 @@ import requests
 
 from cartography.intel.railway.utils import build_tcp_proxy_batch_query
 from cartography.intel.railway.utils import call_railway_api
+from cartography.intel.railway.utils import is_live_entrypoint
 from cartography.intel.railway.utils import paginated_query
 from cartography.intel.railway.utils import RailwayGraphQLError
 from cartography.intel.railway.utils import RailwayPaginationError
@@ -207,3 +208,30 @@ def test_build_tcp_proxy_batch_query_aliases_each_pair():
 def test_build_tcp_proxy_batch_query_rejects_non_uuid_input():
     with pytest.raises(ValueError, match="non-UUID value"):
         build_tcp_proxy_batch_query([('") { id } injected(x: "', ENVIRONMENT_ID)])
+
+
+def test_is_live_entrypoint_only_accepts_serving_states():
+    # Railway keeps domain and proxy rows around through their whole lifecycle. Only a
+    # serving one is exposure; counting the rest would over-report the attack surface.
+    assert is_live_entrypoint({"syncStatus": "ACTIVE"}) is True
+    assert is_live_entrypoint({"syncStatus": "UPDATING"}) is True
+    for dead in ("CREATING", "DELETING", "DELETED", "UNSPECIFIED"):
+        assert is_live_entrypoint({"syncStatus": dead}) is False, dead
+    # A missing status is not evidence of serving.
+    assert is_live_entrypoint({}) is False
+
+
+def test_is_live_entrypoint_requires_custom_domain_verification():
+    # A custom domain that has not passed DNS verification does not resolve, even ACTIVE.
+    assert (
+        is_live_entrypoint(
+            {"syncStatus": "ACTIVE", "status": {"verified": False}},
+        )
+        is False
+    )
+    assert (
+        is_live_entrypoint(
+            {"syncStatus": "ACTIVE", "status": {"verified": True}},
+        )
+        is True
+    )

@@ -10,6 +10,7 @@ from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import TargetNodeMatcher
+from cartography.models.ontology.labels import CONTAINER
 
 
 @dataclass(frozen=True)
@@ -17,6 +18,9 @@ class RailwayDeploymentNodeProperties(CartographyNodeProperties):
     id: PropertyRef = PropertyRef("id")
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
     status: PropertyRef = PropertyRef("status", extra_index=True)
+    # "current" for the revision the service instance is serving, "historical" for a
+    # superseded one. Drives the conditional Container label below.
+    lifecycle: PropertyRef = PropertyRef("lifecycle", extra_index=True)
     status_updated_at: PropertyRef = PropertyRef("statusUpdatedAt")
     project_id: PropertyRef = PropertyRef("projectId")
     environment_id: PropertyRef = PropertyRef("environmentId", extra_index=True)
@@ -70,12 +74,19 @@ class RailwayDeploymentToServiceInstanceRel(CartographyRelSchema):
 
 
 @dataclass(frozen=True)
-# A deployment is one concrete running revision of a service instance, so it plays the
-# Container role to the instance's ComputeService - the same split GCP Cloud Run uses for
-# Service and ServiceContainer.
+# A deployment is one concrete revision of a service instance, so the revision that is
+# actually running plays the Container role to the instance's ComputeService - the same split
+# GCP Cloud Run uses for Service and ServiceContainer.
+#
+# Only the current revision gets the label. Railway keeps a deployment row for every past
+# attempt, including FAILED and CRASHED ones, and labelling those Container would fill the
+# cross-provider container ontology with things that are not running. Superseded revisions
+# stay in the graph as plain RailwayDeployment nodes for deploy history.
 class RailwayDeploymentSchema(CartographyNodeSchema):
     label: str = "RailwayDeployment"
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["Container"])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
+        [CONTAINER.when(lifecycle="current")],
+    )
     properties: RailwayDeploymentNodeProperties = RailwayDeploymentNodeProperties()
     sub_resource_relationship: RailwayDeploymentToProjectRel = (
         RailwayDeploymentToProjectRel()
