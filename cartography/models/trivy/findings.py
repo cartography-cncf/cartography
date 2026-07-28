@@ -18,6 +18,9 @@ from cartography.models.ontology.labels import CVE
 class TrivyImageFindingNodeProperties(CartographyNodeProperties):
     id: PropertyRef = PropertyRef("id")
     name: PropertyRef = PropertyRef("VulnerabilityID")
+    # Every identifier the report carries for this finding, primary first. Preserved in
+    # full so authorities without a dedicated field (DSA-, RHSA-, ...) are not lost.
+    vulnerability_ids: PropertyRef = PropertyRef("vulnerability_ids")
     cve_id: PropertyRef = PropertyRef("cve_id", extra_index=True)
     ghsa_id: PropertyRef = PropertyRef("ghsa_id", extra_index=True)
     has_cve: PropertyRef = PropertyRef("has_cve")

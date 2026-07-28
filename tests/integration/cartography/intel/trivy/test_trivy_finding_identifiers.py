@@ -10,6 +10,7 @@ def _get_finding(neo4j_session, finding_id: str) -> dict:
         """
         MATCH (f:TrivyImageFinding {id: $id})
         RETURN f.name AS name, f.cve_id AS cve_id, f.ghsa_id AS ghsa_id,
+               f.vulnerability_ids AS vulnerability_ids,
                f.has_cve AS has_cve, f:CVE AS has_cve_label, f:Risk AS has_risk_label
         """,
         id=finding_id,
@@ -42,6 +43,8 @@ def test_sync_mixed_identifiers_only_labels_cves(neo4j_session):
     assert cve["has_cve"] == "true"
     assert cve["has_cve_label"] is True
     assert cve["has_risk_label"] is True
+    # The vendor advisory id has no dedicated field, but is preserved in the full list
+    assert cve["vulnerability_ids"] == ["CVE-2024-11111", "DSA-9999-1"]
 
     # A GitHub advisory keeps its identifier in ghsa_id and is not a :CVE
     ghsa = _get_finding(neo4j_session, "TIF|GHSA-aaaa-bbbb-cccc")

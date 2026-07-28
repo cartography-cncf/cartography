@@ -75,19 +75,20 @@ def transform_scan_results(
 
                 # Trivy reports more than CVEs: GHSA-, DLA-/DSA-, TEMP-, RUSTSEC-, etc.
                 # The primary identifier lives in VulnerabilityID, and vendor advisory
-                # ids (e.g. RHSA-, DSA-) in VendorIDs. Classify the union so an
-                # identifier is recognised whichever slot it appears in, rather than
-                # assuming the scheme of the primary id. cve_id gates the :CVE label;
-                # schemes we have no field for populate neither and stay readable
-                # through name/id.
+                # ids (e.g. RHSA-, DSA-) in VendorIDs. Keep the whole set on the finding
+                # and classify it, so an identifier is recognised whichever slot it
+                # appears in and no authority is dropped for lack of a dedicated field.
+                # cve_id gates the :CVE label.
                 vuln_id = result["VulnerabilityID"]
-                all_ids = [vuln_id, *(result.get("VendorIDs") or [])]
+                vulnerability_ids = list(
+                    dict.fromkeys([vuln_id, *(result.get("VendorIDs") or [])]),
+                )
                 cve_id = next(
-                    (vid for vid in all_ids if vid.startswith("CVE-")),
+                    (vid for vid in vulnerability_ids if vid.startswith("CVE-")),
                     None,
                 )
                 ghsa_id = next(
-                    (vid for vid in all_ids if vid.startswith("GHSA-")),
+                    (vid for vid in vulnerability_ids if vid.startswith("GHSA-")),
                     None,
                 )
 
@@ -95,6 +96,7 @@ def transform_scan_results(
                 finding = {
                     "id": f"TIF|{vuln_id}",
                     "VulnerabilityID": vuln_id,
+                    "vulnerability_ids": vulnerability_ids,
                     "cve_id": cve_id,
                     "ghsa_id": ghsa_id,
                     "has_cve": "true" if cve_id else "false",

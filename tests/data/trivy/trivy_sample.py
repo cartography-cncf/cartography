@@ -1517,6 +1517,7 @@ TRIVY_MIXED_IDENTIFIERS_SAMPLE = {
             "Vulnerabilities": [
                 {
                     "VulnerabilityID": "CVE-2024-11111",
+                    "VendorIDs": ["DSA-9999-1"],
                     "PkgName": "openssl",
                     "InstalledVersion": "3.0.15-1~deb12u1",
                     "FixedVersion": "3.0.16-1~deb12u1",

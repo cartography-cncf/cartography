@@ -18,6 +18,7 @@ present (`has_cve = "true"`, i.e. `cve_id` is populated).
 | lastupdated | Timestamp of the last time the node was updated |
 | **id** | Unique identifier for the finding, built from the primary `VulnerabilityID` (format: TIF|VULNERABILITY-ID, e.g. `TIF|CVE-2024-1234` or `TIF|GHSA-xxxx-xxxx-xxxx`) |
 | name | The primary vulnerability ID, whatever its scheme (e.g. CVE-2024-1234, GHSA-xxxx-xxxx-xxxx) |
+| vulnerability_ids | Every identifier the report carries for this finding, primary first: the `VulnerabilityID` plus any `VendorIDs` (e.g. `["CVE-2025-31115", "DSA-5895-1"]`). Identifier authorities without a dedicated field below remain available here |
 | cve_id | The CVE identifier, if the finding carries one. Null when no reported identifier is a CVE |
 | ghsa_id | The GitHub advisory identifier, if the finding carries one. Null when no reported identifier is a GHSA |
 | has_cve | `"true"` when a CVE identifier is present, `"false"` otherwise. Drives the conditional `:CVE` label |

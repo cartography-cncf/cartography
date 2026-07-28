@@ -721,11 +721,13 @@ def test_transform_scan_results_classifies_vendor_ids():
     # Assert
     findings_by_id = {finding["id"]: finding for finding in findings_list}
 
-    # A vendor advisory id alongside a CVE changes nothing
+    # A vendor advisory id alongside a CVE changes the classification not at all, but is
+    # still preserved on the finding
     cve = findings_by_id["TIF|CVE-2025-31115"]
     assert cve["cve_id"] == "CVE-2025-31115"
     assert cve["ghsa_id"] is None
     assert cve["has_cve"] == "true"
+    assert cve["vulnerability_ids"] == ["CVE-2025-31115", "DSA-5895-1"]
 
     # An identifier reported under VendorIDs is still classified, and id/name keep
     # tracking the primary identifier
@@ -734,3 +736,35 @@ def test_transform_scan_results_classifies_vendor_ids():
     assert vendor_primary["cve_id"] == "CVE-2025-31115"
     assert vendor_primary["ghsa_id"] == "GHSA-dddd-eeee-ffff"
     assert vendor_primary["has_cve"] == "true"
+    # Primary first, then the vendor ids in report order
+    assert vendor_primary["vulnerability_ids"] == [
+        "DSA-5895-1",
+        "CVE-2025-31115",
+        "GHSA-dddd-eeee-ffff",
+    ]
+
+
+def test_transform_scan_results_dedupes_vulnerability_ids():
+    """A VendorIDs entry repeating the primary id is not duplicated in the list."""
+    # Arrange
+    results = [
+        {
+            "Class": "os-pkgs",
+            "Type": "debian",
+            "Vulnerabilities": [
+                {
+                    "VulnerabilityID": "CVE-2025-31115",
+                    "VendorIDs": ["CVE-2025-31115", "DSA-5895-1"],
+                    "PkgName": "liblzma5",
+                    "InstalledVersion": "5.4.1-0.2",
+                    "Severity": "HIGH",
+                },
+            ],
+        },
+    ]
+
+    # Act
+    findings_list, _, _ = transform_scan_results(results, "sha256:testdigest")
+
+    # Assert
+    assert findings_list[0]["vulnerability_ids"] == ["CVE-2025-31115", "DSA-5895-1"]
