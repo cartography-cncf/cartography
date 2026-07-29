@@ -21,7 +21,14 @@ Cartography only issues `GET` requests against the [Management API](https://supa
 
 Several endpoints require a paid plan or a GitHub integration: database branches, custom hostnames, vanity subdomains, network restrictions and point-in-time recovery. When they answer `402`, `403` or `404`, or a `400` carrying the `entitlement_required` error code (which is what the custom-hostname and vanity-subdomain endpoints actually return on a free-tier organization), the module logs a warning and continues, so a free-tier project syncs cleanly with those properties left unset.
 
-An unreadable endpoint never deletes anything. "We could not list this" is treated differently from a `200` returning an empty list: only the latter runs a cleanup. So losing an entitlement, having a token scope revoked or hitting a transient `403` leaves the previously-ingested keys, branches, buckets, secrets and findings in the graph rather than silently erasing them. Stale data is recoverable on the next successful sync; deleted data is not.
+An unreadable endpoint never deletes anything and never overwrites anything. "We could not read this" is treated differently from a `200` returning an empty list or omitting a field: only the latter is real data.
+
+- For resources (keys, branches, buckets, secrets, poolers, findings, ...), an unreadable list skips both the load and the cleanup, so the previously-ingested nodes stay in the graph rather than being erased.
+- For the posture properties rolled up onto `SupabaseProject` and `SupabaseDatabase` (`ssl_enforced`, `legacy_api_keys_enabled`, `pitr_enabled`, the allowed CIDR lists, and so on), an unreadable endpoint carries the stored value forward instead of writing null. Nulling these on a transient `403` would silently downgrade a known-bad configuration to an apparently clean one.
+
+The tradeoff is that a feature deliberately turned off keeps its last known value until the endpoint is readable again. The node's `lastupdated` is still refreshed, so the staleness is visible; a stale value that keeps its original meaning beats a null that reads as "not configured".
+
+Projects removed upstream are cleaned up only after every surviving project's children have been synced, and the cleanup cascades so a deleted project takes its database, keys, buckets, functions and findings with it. Organizations are not cleaned up: like `GCPOrganization`, the node declares no relationships of its own, and Cartography deliberately leaves such nodes for manual management.
 
 ### Rate limits
 

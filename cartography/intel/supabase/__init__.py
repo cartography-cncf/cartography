@@ -1,4 +1,6 @@
 import logging
+from collections import defaultdict
+from typing import Any
 
 import neo4j
 
@@ -57,6 +59,16 @@ def start_supabase_ingestion(neo4j_session: neo4j.Session, config: Config) -> No
         org_allowlist,
     )
 
+    # GET /v1/projects is global rather than organization-scoped, so fetch it once
+    # and group by organization instead of re-requesting it per organization.
+    all_projects = cartography.intel.supabase.projects.get(
+        api_session,
+        config.supabase_base_url,
+    )
+    projects_by_org: dict[str, list[dict[str, Any]]] = defaultdict(list)
+    for project in all_projects:
+        projects_by_org[project["organization_slug"]].append(project)
+
     for organization in organizations:
         common_job_parameters["ORG_SLUG"] = organization["slug"]
         cartography.intel.supabase.organizations.sync_members(
@@ -65,10 +77,12 @@ def start_supabase_ingestion(neo4j_session: neo4j.Session, config: Config) -> No
             common_job_parameters,
         )
 
-        projects = cartography.intel.supabase.projects.sync(
+        projects = projects_by_org[organization["slug"]]
+        cartography.intel.supabase.projects.sync(
             neo4j_session,
             api_session,
             common_job_parameters,
+            projects,
         )
 
         for project in projects:
@@ -114,3 +128,14 @@ def start_supabase_ingestion(neo4j_session: neo4j.Session, config: Config) -> No
                 api_session,
                 common_job_parameters,
             )
+
+        # Remove projects deleted upstream only now that every surviving project's
+        # children have been synced. The cascade takes their children with them:
+        # child cleanups are scoped to PROJECT_REF and only run for projects that
+        # still exist, so a deleted project's resources would otherwise be
+        # unreachable orphans.
+        common_job_parameters.pop("PROJECT_REF", None)
+        cartography.intel.supabase.projects.cleanup(
+            neo4j_session,
+            common_job_parameters,
+        )

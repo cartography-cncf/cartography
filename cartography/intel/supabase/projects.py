@@ -16,35 +16,125 @@ from cartography.util import timeit
 logger = logging.getLogger(__name__)
 
 
+# The project properties each configuration endpoint feeds. When an endpoint is
+# unavailable its group is carried forward from the graph rather than overwritten
+# with null: see _carry_forward().
+PROJECT_POSTURE_FIELDS: dict[str, tuple[str, ...]] = {
+    "legacy_api_keys": ("legacy_api_keys_enabled",),
+    "postgrest": (
+        "postgrest_db_schema",
+        "postgrest_max_rows",
+        "postgrest_db_extra_search_path",
+    ),
+    "storage": ("storage_file_size_limit", "storage_s3_protocol_enabled"),
+    "realtime": ("realtime_private_only", "realtime_presence_enabled"),
+    "vanity_subdomain": ("vanity_subdomain", "vanity_subdomain_status"),
+}
+
+# Same idea for the database node's posture endpoints.
+DATABASE_POSTURE_FIELDS: dict[str, tuple[str, ...]] = {
+    "ssl_enforcement": ("ssl_enforced",),
+    "network_restrictions": (
+        "network_restrictions_status",
+        "db_allowed_cidrs",
+        "db_allowed_cidrs_v6",
+    ),
+    "backups": ("pitr_enabled", "walg_enabled", "latest_backup_at"),
+}
+
+
 @timeit
 def sync(
     neo4j_session: neo4j.Session,
     api_session: requests.Session,
     common_job_parameters: dict[str, Any],
-) -> list[dict[str, Any]]:
+    projects: list[dict[str, Any]],
+) -> None:
     """
-    Sync the projects belonging to the organization currently in scope and return
-    them so the caller can fan out per project.
+    Sync the given projects, which the caller has already filtered to the
+    organization currently in scope.
+
+    The project list is passed in rather than fetched here because GET /v1/projects
+    is global: fetching it once and grouping by organization avoids one redundant
+    request per organization.
+
+    Cleanup is deliberately not run here. Stale projects must be removed only after
+    their children have been synced, and with a cascade, so a project deleted
+    upstream does not leave orphaned children behind. See cleanup().
     """
     base_url = common_job_parameters["BASE_URL"]
     org_slug = common_job_parameters["ORG_SLUG"]
 
-    projects = [
-        p for p in get(api_session, base_url) if p["organization_slug"] == org_slug
-    ]
     settings = {
         p["ref"]: get_settings(api_session, base_url, p["ref"]) for p in projects
     }
+    stored = get_stored_properties(
+        neo4j_session,
+        "SupabaseProject",
+        [p["ref"] for p in projects],
+        _all_fields(PROJECT_POSTURE_FIELDS),
+    )
 
-    transformed = transform_projects(projects, settings)
+    transformed = transform_projects(projects, settings, stored)
     load_projects(
         neo4j_session,
         transformed,
         org_slug,
         common_job_parameters["UPDATE_TAG"],
     )
-    cleanup(neo4j_session, common_job_parameters)
-    return projects
+
+
+def _all_fields(groups: dict[str, tuple[str, ...]]) -> list[str]:
+    return [field for fields in groups.values() for field in fields]
+
+
+def get_stored_properties(
+    neo4j_session: neo4j.Session,
+    label: str,
+    node_ids: list[str],
+    fields: list[str],
+) -> dict[str, dict[str, Any]]:
+    """
+    Read the currently-stored values of ``fields`` for the given node ids.
+
+    Used to preserve last-known-good posture when a configuration endpoint cannot
+    be read. Returns {node id: {field: value}}; ids not yet in the graph are absent.
+    """
+    if not node_ids or not fields:
+        return {}
+    projection = ", ".join(f"n.`{field}` AS `{field}`" for field in fields)
+    records = neo4j_session.run(
+        f"MATCH (n:{label}) WHERE n.id IN $node_ids RETURN n.id AS id, {projection}",
+        node_ids=node_ids,
+    )
+    return {r["id"]: {field: r[field] for field in fields} for r in records}
+
+
+def _carry_forward(
+    record: dict[str, Any],
+    groups: dict[str, tuple[str, ...]],
+    responses: dict[str, Any],
+    stored: dict[str, Any],
+) -> None:
+    """
+    For each configuration group whose endpoint was unreadable, restore the values
+    already in the graph instead of leaving the freshly-computed ``None``.
+
+    Overwriting real posture with null on a transient 403 or a lost entitlement
+    would silently downgrade security-relevant fields (``ssl_enforced``,
+    ``legacy_api_keys_enabled``, ``pitr_enabled``) to "unknown, looks fine". A 200
+    that genuinely omits a field still writes null, because that is real data.
+
+    The tradeoff is that a feature deliberately turned off keeps its last value
+    until the endpoint is readable again; a stale value carrying its original
+    meaning beats a null that reads as "not configured".
+    """
+    for group, fields in groups.items():
+        if responses.get(group) is not None:
+            continue
+        for field in fields:
+            if field in stored:
+                record[field] = stored[field]
 
 
 @timeit
@@ -103,6 +193,7 @@ def get_settings(
 def transform_projects(
     projects: list[dict[str, Any]],
     settings: dict[str, dict[str, Any]],
+    stored: dict[str, dict[str, Any]] | None = None,
 ) -> list[dict[str, Any]]:
     result: list[dict[str, Any]] = []
     for project in projects:
@@ -114,32 +205,37 @@ def transform_projects(
         vanity = project_settings.get("vanity_subdomain") or {}
         storage_features = storage.get("features") or {}
 
-        result.append(
-            {
-                "ref": project["ref"],
-                "name": project["name"],
-                "region": project["region"],
-                "status": project["status"],
-                "created_at": iso_to_datetime(project["created_at"]),
-                "organization_slug": project["organization_slug"],
-                "legacy_api_keys_enabled": legacy_api_keys.get("enabled"),
-                "postgrest_db_schema": postgrest.get("db_schema"),
-                "postgrest_max_rows": postgrest.get("max_rows"),
-                "postgrest_db_extra_search_path": postgrest.get(
-                    "db_extra_search_path",
-                ),
-                "storage_file_size_limit": storage.get("fileSizeLimit"),
-                "storage_s3_protocol_enabled": (
-                    storage_features.get("s3Protocol") or {}
-                ).get(
-                    "enabled",
-                ),
-                "realtime_private_only": realtime.get("private_only"),
-                "realtime_presence_enabled": realtime.get("presence_enabled"),
-                "vanity_subdomain": vanity.get("custom_domain"),
-                "vanity_subdomain_status": vanity.get("status"),
-            },
+        record = {
+            "ref": project["ref"],
+            "name": project["name"],
+            "region": project["region"],
+            "status": project["status"],
+            "created_at": iso_to_datetime(project["created_at"]),
+            "organization_slug": project["organization_slug"],
+            "legacy_api_keys_enabled": legacy_api_keys.get("enabled"),
+            "postgrest_db_schema": postgrest.get("db_schema"),
+            "postgrest_max_rows": postgrest.get("max_rows"),
+            "postgrest_db_extra_search_path": postgrest.get(
+                "db_extra_search_path",
+            ),
+            "storage_file_size_limit": storage.get("fileSizeLimit"),
+            "storage_s3_protocol_enabled": (
+                storage_features.get("s3Protocol") or {}
+            ).get(
+                "enabled",
+            ),
+            "realtime_private_only": realtime.get("private_only"),
+            "realtime_presence_enabled": realtime.get("presence_enabled"),
+            "vanity_subdomain": vanity.get("custom_domain"),
+            "vanity_subdomain_status": vanity.get("status"),
+        }
+        _carry_forward(
+            record,
+            PROJECT_POSTURE_FIELDS,
+            project_settings,
+            (stored or {}).get(project["ref"], {}),
         )
+        result.append(record)
     return result
 
 
@@ -164,9 +260,21 @@ def cleanup(
     neo4j_session: neo4j.Session,
     common_job_parameters: dict[str, Any],
 ) -> None:
-    GraphJob.from_node_schema(SupabaseProjectSchema(), common_job_parameters).run(
-        neo4j_session,
-    )
+    """
+    Remove projects that no longer exist in the organization, and their children.
+
+    Must run after every project's children have been synced. ``cascade_delete``
+    is required: child cleanups are scoped to ``PROJECT_REF`` and only run for
+    projects that still exist, so without the cascade a project deleted upstream
+    would have its node removed and leave its database, keys, buckets, functions
+    and findings behind as unreachable orphans. Same reasoning as the GCP project
+    and folder cleanups.
+    """
+    GraphJob.from_node_schema(
+        SupabaseProjectSchema(),
+        common_job_parameters,
+        cascade_delete=True,
+    ).run(neo4j_session)
 
 
 @timeit
@@ -185,7 +293,13 @@ def sync_database(
         common_job_parameters["BASE_URL"],
         project["ref"],
     )
-    transformed = transform_database(project, posture)
+    stored = get_stored_properties(
+        neo4j_session,
+        "SupabaseDatabase",
+        [f"{project['ref']}/postgres"],
+        _all_fields(DATABASE_POSTURE_FIELDS),
+    )
+    transformed = transform_database(project, posture, stored)
     load_databases(
         neo4j_session,
         transformed,
@@ -224,6 +338,7 @@ def get_database_posture(
 def transform_database(
     project: dict[str, Any],
     posture: dict[str, Any],
+    stored: dict[str, dict[str, Any]] | None = None,
 ) -> list[dict[str, Any]]:
     database = project.get("database") or {}
     if not database:
@@ -243,26 +358,30 @@ def transform_database(
         default=None,
     )
 
-    return [
-        {
-            "id": f"{project['ref']}/postgres",
-            "name": f"{project['name']} (postgres)",
-            "host": database["host"],
-            "version": database["version"],
-            "postgres_engine": database["postgres_engine"],
-            "release_channel": database["release_channel"],
-            "region": project["region"],
-            "ssl_enforced": (ssl_enforcement.get("currentConfig") or {}).get(
-                "database"
-            ),
-            "network_restrictions_status": network_restrictions.get("status"),
-            "db_allowed_cidrs": restrictions_config.get("dbAllowedCidrs"),
-            "db_allowed_cidrs_v6": restrictions_config.get("dbAllowedCidrsV6"),
-            "pitr_enabled": backups.get("pitr_enabled"),
-            "walg_enabled": backups.get("walg_enabled"),
-            "latest_backup_at": iso_to_datetime(latest_backup_at),
-        },
-    ]
+    database_id = f"{project['ref']}/postgres"
+    record = {
+        "id": database_id,
+        "name": f"{project['name']} (postgres)",
+        "host": database["host"],
+        "version": database["version"],
+        "postgres_engine": database["postgres_engine"],
+        "release_channel": database["release_channel"],
+        "region": project["region"],
+        "ssl_enforced": (ssl_enforcement.get("currentConfig") or {}).get("database"),
+        "network_restrictions_status": network_restrictions.get("status"),
+        "db_allowed_cidrs": restrictions_config.get("dbAllowedCidrs"),
+        "db_allowed_cidrs_v6": restrictions_config.get("dbAllowedCidrsV6"),
+        "pitr_enabled": backups.get("pitr_enabled"),
+        "walg_enabled": backups.get("walg_enabled"),
+        "latest_backup_at": iso_to_datetime(latest_backup_at),
+    }
+    _carry_forward(
+        record,
+        DATABASE_POSTURE_FIELDS,
+        posture,
+        (stored or {}).get(database_id, {}),
+    )
+    return [record]
 
 
 @timeit
