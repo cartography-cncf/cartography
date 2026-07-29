@@ -65,7 +65,7 @@ class KubernetesSecretToKubernetesNamespaceRelProperties(CartographyRelPropertie
 @dataclass(frozen=True)
 # (:KubernetesSecret)<-[:CONTAINS]-(:KubernetesNamespace)
 class KubernetesSecretToKubernetesNamespaceRel(CartographyRelSchema):
-    "Links `KubernetesNamespace` to `KubernetesSecret` with `CONTAINS`."
+    """Links a namespace to a secret it contains."""
 
     target_node_label: str = "KubernetesNamespace"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
@@ -89,7 +89,7 @@ class KubernetesSecretToKubernetesClusterRelProperties(CartographyRelProperties)
 @dataclass(frozen=True)
 # (:KubernetesSecret)<-[:RESOURCE]-(:KubernetesCluster)
 class KubernetesSecretToKubernetesClusterRel(CartographyRelSchema):
-    "Links `KubernetesCluster` to `KubernetesSecret` with `RESOURCE`."
+    """Links a cluster to one of its secrets."""
 
     target_node_label: str = "KubernetesCluster"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(

@@ -34,7 +34,7 @@ class KubernetesUserToClusterRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class KubernetesUserToClusterRel(CartographyRelSchema):
-    "Links `KubernetesCluster` to `KubernetesUser` with `RESOURCE`."
+    """Links a cluster to one of its users."""
 
     target_node_label: str = "KubernetesCluster"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
@@ -69,7 +69,7 @@ class KubernetesUserToAWSRootPrincipalRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class KubernetesUserToOktaUserRel(CartographyRelSchema):
-    "Links `OktaUser` to `KubernetesUser` with `MAPS_TO`."
+    """Links an Okta user to the Kubernetes user it maps to."""
 
     target_node_label: str = "OktaUser"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
@@ -84,7 +84,7 @@ class KubernetesUserToOktaUserRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class KubernetesUserToAWSRoleRel(CartographyRelSchema):
-    "Links `AWSRole` to `KubernetesUser` with `MAPS_TO`."
+    """Links an AWS IAM role to the Kubernetes user it maps to."""
 
     target_node_label: str = "AWSRole"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
@@ -99,7 +99,7 @@ class KubernetesUserToAWSRoleRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class KubernetesUserToAWSUserRel(CartographyRelSchema):
-    "Links `AWSUser` to `KubernetesUser` with `MAPS_TO`."
+    """Links an AWS IAM user to the Kubernetes user it maps to."""
 
     target_node_label: str = "AWSUser"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
@@ -114,7 +114,7 @@ class KubernetesUserToAWSUserRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class KubernetesUserToAWSRootPrincipalRel(CartographyRelSchema):
-    "Links `AWSRootPrincipal` to `KubernetesUser` with `MAPS_TO`."
+    """Links an AWS account root principal to the Kubernetes user it maps to."""
 
     target_node_label: str = "AWSRootPrincipal"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(

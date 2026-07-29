@@ -69,7 +69,7 @@ class KubernetesStatefulSetToKubernetesClusterRelProperties(CartographyRelProper
 @dataclass(frozen=True)
 # (:KubernetesStatefulSet)<-[:RESOURCE]-(:KubernetesCluster)
 class KubernetesStatefulSetToKubernetesClusterRel(CartographyRelSchema):
-    "Links `KubernetesCluster` to `KubernetesStatefulSet` with `RESOURCE`."
+    """Links a cluster to one of its stateful sets."""
 
     target_node_label: str = "KubernetesCluster"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
@@ -92,7 +92,7 @@ class KubernetesStatefulSetToKubernetesNamespaceWorkloadParentRelProperties(
 @dataclass(frozen=True)
 # (:KubernetesStatefulSet)-[:WORKLOAD_PARENT]->(:KubernetesNamespace)
 class KubernetesStatefulSetToKubernetesNamespaceWorkloadParentRel(CartographyRelSchema):
-    "Links `KubernetesStatefulSet` to `KubernetesNamespace` with `WORKLOAD_PARENT`."
+    """Links a stateful set to the namespace that owns it."""
 
     target_node_label: str = "KubernetesNamespace"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(

@@ -63,7 +63,7 @@ class KubernetesReplicaSetToKubernetesClusterRelProperties(CartographyRelPropert
 @dataclass(frozen=True)
 # (:KubernetesReplicaSet)<-[:RESOURCE]-(:KubernetesCluster)
 class KubernetesReplicaSetToKubernetesClusterRel(CartographyRelSchema):
-    "Links `KubernetesCluster` to `KubernetesReplicaSet` with `RESOURCE`."
+    """Links a cluster to one of its replica sets."""
 
     target_node_label: str = "KubernetesCluster"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
@@ -89,7 +89,7 @@ class KubernetesReplicaSetToKubernetesDeploymentRelProperties(CartographyRelProp
 # Only fires when the ReplicaSet is owned by a Deployment (loader sets
 # `_owner_deployment_id`); bare ReplicaSets get no edge.
 class KubernetesReplicaSetToKubernetesDeploymentRel(CartographyRelSchema):
-    "Links `KubernetesReplicaSet` to `KubernetesDeployment` with `OWNED_BY`."
+    """Links a replica set to the deployment that manages it."""
 
     target_node_label: str = "KubernetesDeployment"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(

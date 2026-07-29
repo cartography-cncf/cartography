@@ -73,7 +73,7 @@ class KubernetesJobToKubernetesClusterRelProperties(CartographyRelProperties):
 @dataclass(frozen=True)
 # (:KubernetesJob)<-[:RESOURCE]-(:KubernetesCluster)
 class KubernetesJobToKubernetesClusterRel(CartographyRelSchema):
-    "Links `KubernetesCluster` to `KubernetesJob` with `RESOURCE`."
+    """Links a cluster to one of its jobs."""
 
     target_node_label: str = "KubernetesCluster"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
@@ -99,7 +99,7 @@ class KubernetesJobToKubernetesCronJobWorkloadParentRelProperties(
 # `_workload_parent_cronjob_id` from the Job's controller ownerReference).
 # Standalone Jobs fall through to the namespace edge below.
 class KubernetesJobToKubernetesCronJobWorkloadParentRel(CartographyRelSchema):
-    "Links `KubernetesJob` to `KubernetesCronJob` with `WORKLOAD_PARENT`."
+    """Links a job to the cron job that created it."""
 
     target_node_label: str = "KubernetesCronJob"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
@@ -125,7 +125,7 @@ class KubernetesJobToKubernetesNamespaceWorkloadParentRelProperties(
 # on `_workload_parent_namespace_name`, which the loader sets only when the Job
 # has no CronJob owner, so CronJob-owned Jobs don't get a duplicate edge.
 class KubernetesJobToKubernetesNamespaceWorkloadParentRel(CartographyRelSchema):
-    "Links `KubernetesJob` to `KubernetesNamespace` with `WORKLOAD_PARENT`."
+    """Links a job to the namespace that owns it."""
 
     target_node_label: str = "KubernetesNamespace"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(

@@ -52,7 +52,7 @@ class KubernetesNamespaceToKubernetesClusterRelProperties(CartographyRelProperti
 @dataclass(frozen=True)
 # (:KubernetesNamespace)<-[:RESOURCE]-(:KubernetesCluster)
 class KubernetesNamespaceToKubernetesClusterRel(CartographyRelSchema):
-    "Links `KubernetesCluster` to `KubernetesNamespace` with `RESOURCE`."
+    """Links a cluster to one of its namespaces."""
 
     target_node_label: str = "KubernetesCluster"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
@@ -75,7 +75,7 @@ class KubernetesNamespaceToKubernetesClusterWorkloadParentRelProperties(
 @dataclass(frozen=True)
 # (:KubernetesNamespace)-[:WORKLOAD_PARENT]->(:KubernetesCluster)
 class KubernetesNamespaceToKubernetesClusterWorkloadParentRel(CartographyRelSchema):
-    "Links `KubernetesNamespace` to `KubernetesCluster` with `WORKLOAD_PARENT`."
+    """Links a namespace to the cluster it belongs to."""
 
     target_node_label: str = "KubernetesCluster"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(

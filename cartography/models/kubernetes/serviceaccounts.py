@@ -63,7 +63,7 @@ class KubernetesServiceAccountToNamespaceRelProperties(CartographyRelProperties)
 
 @dataclass(frozen=True)
 class KubernetesServiceAccountToNamespaceRel(CartographyRelSchema):
-    "Links `KubernetesNamespace` to `KubernetesServiceAccount` with `CONTAINS`."
+    """Links a namespace to a service account it contains."""
 
     target_node_label: str = "KubernetesNamespace"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
@@ -86,7 +86,7 @@ class KubernetesServiceAccountToClusterRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class KubernetesServiceAccountToClusterRel(CartographyRelSchema):
-    "Links `KubernetesCluster` to `KubernetesServiceAccount` with `RESOURCE`."
+    """Links a cluster to one of its service accounts."""
 
     target_node_label: str = "KubernetesCluster"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
@@ -106,7 +106,7 @@ class KubernetesServiceAccountToAWSRoleRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class KubernetesServiceAccountToAWSRoleRel(CartographyRelSchema):
-    "Links `KubernetesServiceAccount` to `AWSRole` with `ASSUMES_ROLE`."
+    """Links a service account to the AWS IAM role it can assume through IRSA."""
 
     target_node_label: str = "AWSRole"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
@@ -128,7 +128,7 @@ class KubernetesServiceAccountToGCPServiceAccountRelProperties(
 
 @dataclass(frozen=True)
 class KubernetesServiceAccountToGCPServiceAccountRel(CartographyRelSchema):
-    "Links `KubernetesServiceAccount` to `GCPServiceAccount` with `WORKLOAD_IDENTITY_BINDING`."
+    """Links a service account to the Google Cloud service account it impersonates through Workload Identity."""
 
     target_node_label: str = "GCPServiceAccount"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(

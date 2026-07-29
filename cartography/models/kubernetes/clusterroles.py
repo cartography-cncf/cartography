@@ -58,7 +58,7 @@ class KubernetesClusterRoleToClusterRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class KubernetesClusterRoleToClusterRel(CartographyRelSchema):
-    "Links `KubernetesCluster` to `KubernetesClusterRole` with `RESOURCE`."
+    """Links a cluster to one of its cluster roles."""
 
     target_node_label: str = "KubernetesCluster"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(

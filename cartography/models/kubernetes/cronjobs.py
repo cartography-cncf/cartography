@@ -63,7 +63,7 @@ class KubernetesCronJobToKubernetesClusterRelProperties(CartographyRelProperties
 @dataclass(frozen=True)
 # (:KubernetesCronJob)<-[:RESOURCE]-(:KubernetesCluster)
 class KubernetesCronJobToKubernetesClusterRel(CartographyRelSchema):
-    "Links `KubernetesCluster` to `KubernetesCronJob` with `RESOURCE`."
+    """Links a cluster to one of its cron jobs."""
 
     target_node_label: str = "KubernetesCluster"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
@@ -86,7 +86,7 @@ class KubernetesCronJobToKubernetesNamespaceWorkloadParentRelProperties(
 @dataclass(frozen=True)
 # (:KubernetesCronJob)-[:WORKLOAD_PARENT]->(:KubernetesNamespace)
 class KubernetesCronJobToKubernetesNamespaceWorkloadParentRel(CartographyRelSchema):
-    "Links `KubernetesCronJob` to `KubernetesNamespace` with `WORKLOAD_PARENT`."
+    """Links a cron job to the namespace that owns it."""
 
     target_node_label: str = "KubernetesNamespace"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(

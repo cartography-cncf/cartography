@@ -59,7 +59,7 @@ class KubernetesGatewayToKubernetesClusterRelProperties(CartographyRelProperties
 
 @dataclass(frozen=True)
 class KubernetesGatewayToKubernetesClusterRel(CartographyRelSchema):
-    "Links `KubernetesCluster` to `KubernetesGateway` with `RESOURCE`."
+    """Links a cluster to one of its gateways."""
 
     target_node_label: str = "KubernetesCluster"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
@@ -79,7 +79,7 @@ class KubernetesGatewayToKubernetesNamespaceRelProperties(CartographyRelProperti
 
 @dataclass(frozen=True)
 class KubernetesGatewayToKubernetesNamespaceRel(CartographyRelSchema):
-    "Links `KubernetesNamespace` to `KubernetesGateway` with `CONTAINS`."
+    """Links a namespace to a gateway it contains."""
 
     target_node_label: str = "KubernetesNamespace"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
@@ -102,7 +102,7 @@ class KubernetesGatewayToHTTPRouteRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class KubernetesGatewayToHTTPRouteRel(CartographyRelSchema):
-    "Links `KubernetesGateway` to `KubernetesHTTPRoute` with `ROUTES`."
+    """Links a gateway to an HTTP route attached to it."""
 
     target_node_label: str = "KubernetesHTTPRoute"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
@@ -184,7 +184,7 @@ class KubernetesHTTPRouteToKubernetesClusterRelProperties(CartographyRelProperti
 
 @dataclass(frozen=True)
 class KubernetesHTTPRouteToKubernetesClusterRel(CartographyRelSchema):
-    "Links `KubernetesCluster` to `KubernetesHTTPRoute` with `RESOURCE`."
+    """Links a cluster to one of its HTTP routes."""
 
     target_node_label: str = "KubernetesCluster"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
@@ -204,7 +204,7 @@ class KubernetesHTTPRouteToKubernetesNamespaceRelProperties(CartographyRelProper
 
 @dataclass(frozen=True)
 class KubernetesHTTPRouteToKubernetesNamespaceRel(CartographyRelSchema):
-    "Links `KubernetesNamespace` to `KubernetesHTTPRoute` with `CONTAINS`."
+    """Links a namespace to a HTTP route it contains."""
 
     target_node_label: str = "KubernetesNamespace"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
@@ -227,7 +227,7 @@ class KubernetesHTTPRouteToKubernetesServiceRelProperties(CartographyRelProperti
 
 @dataclass(frozen=True)
 class KubernetesHTTPRouteToKubernetesServiceRel(CartographyRelSchema):
-    "Links `KubernetesHTTPRoute` to `KubernetesService` with `TARGETS`."
+    """Links an HTTP route to a service it forwards traffic to."""
 
     target_node_label: str = "KubernetesService"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(

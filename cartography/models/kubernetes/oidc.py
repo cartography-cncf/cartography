@@ -55,7 +55,7 @@ class KubernetesOIDCProviderToClusterRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class KubernetesOIDCProviderToClusterRel(CartographyRelSchema):
-    "Links `KubernetesCluster` to `KubernetesOIDCProvider` with `RESOURCE`."
+    """Links a cluster to one of its OIDC providers."""
 
     target_node_label: str = "KubernetesCluster"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
@@ -75,7 +75,7 @@ class KubernetesOIDCProviderTrustsClusterRelProperties(CartographyRelProperties)
 
 @dataclass(frozen=True)
 class KubernetesOIDCProviderTrustsClusterRel(CartographyRelSchema):
-    "Links `KubernetesCluster` to `KubernetesOIDCProvider` with `TRUSTS`."
+    """Links a cluster to an OIDC provider it accepts tokens from."""
 
     target_node_label: str = "KubernetesCluster"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(

@@ -70,7 +70,7 @@ class KubernetesRoleBindingToNamespaceRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class KubernetesRoleBindingToNamespaceRel(CartographyRelSchema):
-    "Links `KubernetesNamespace` to `KubernetesRoleBinding` with `CONTAINS`."
+    """Links a namespace to a role binding it contains."""
 
     target_node_label: str = "KubernetesNamespace"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
@@ -93,7 +93,7 @@ class KubernetesRoleBindingToClusterRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class KubernetesRoleBindingToClusterRel(CartographyRelSchema):
-    "Links `KubernetesCluster` to `KubernetesRoleBinding` with `RESOURCE`."
+    """Links a cluster to one of its role bindings."""
 
     target_node_label: str = "KubernetesCluster"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
@@ -113,7 +113,7 @@ class KubernetesRoleBindingToServiceAccountRelProperties(CartographyRelPropertie
 
 @dataclass(frozen=True)
 class KubernetesRoleBindingToServiceAccountRel(CartographyRelSchema):
-    "Links `KubernetesRoleBinding` to `KubernetesServiceAccount` with `SUBJECT`."
+    """Links a role binding to a service account it grants its role to."""
 
     target_node_label: str = "KubernetesServiceAccount"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
@@ -133,7 +133,7 @@ class KubernetesRoleBindingToUserRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class KubernetesRoleBindingToUserRel(CartographyRelSchema):
-    "Links `KubernetesRoleBinding` to `KubernetesUser` with `SUBJECT`."
+    """Links a role binding to a user it grants its role to."""
 
     target_node_label: str = "KubernetesUser"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
@@ -153,7 +153,7 @@ class KubernetesRoleBindingToGroupRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class KubernetesRoleBindingToGroupRel(CartographyRelSchema):
-    "Links `KubernetesRoleBinding` to `KubernetesGroup` with `SUBJECT`."
+    """Links a role binding to a group it grants its role to."""
 
     target_node_label: str = "KubernetesGroup"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
@@ -173,7 +173,7 @@ class KubernetesRoleBindingToRoleRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class KubernetesRoleBindingToRoleRel(CartographyRelSchema):
-    "Links `KubernetesRoleBinding` to `KubernetesRole` with `ROLE_REF`."
+    """Links a role binding to the role it grants."""
 
     target_node_label: str = "KubernetesRole"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(

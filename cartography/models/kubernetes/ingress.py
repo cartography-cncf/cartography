@@ -79,7 +79,7 @@ class KubernetesIngressToKubernetesClusterRelProperties(CartographyRelProperties
 @dataclass(frozen=True)
 # (:KubernetesIngress)<-[:RESOURCE]-(:KubernetesCluster)
 class KubernetesIngressToKubernetesClusterRel(CartographyRelSchema):
-    "Links `KubernetesCluster` to `KubernetesIngress` with `RESOURCE`."
+    """Links a cluster to one of its ingresses."""
 
     target_node_label: str = "KubernetesCluster"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
@@ -100,7 +100,7 @@ class KubernetesIngressToKubernetesNamespaceRelProperties(CartographyRelProperti
 @dataclass(frozen=True)
 # (:KubernetesIngress)<-[:CONTAINS]-(:KubernetesNamespace)
 class KubernetesIngressToKubernetesNamespaceRel(CartographyRelSchema):
-    "Links `KubernetesNamespace` to `KubernetesIngress` with `CONTAINS`."
+    """Links a namespace to an ingress it contains."""
 
     target_node_label: str = "KubernetesNamespace"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
@@ -124,7 +124,7 @@ class KubernetesIngressToKubernetesServiceRelProperties(CartographyRelProperties
 @dataclass(frozen=True)
 # (:KubernetesIngress)-[:TARGETS]->(:KubernetesService)
 class KubernetesIngressToKubernetesServiceRel(CartographyRelSchema):
-    "Links `KubernetesIngress` to `KubernetesService` with `TARGETS`."
+    """Links an ingress to a service it routes traffic to."""
 
     target_node_label: str = "KubernetesService"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
@@ -149,7 +149,7 @@ class KubernetesIngressToLoadBalancerV2RelProperties(CartographyRelProperties):
 @dataclass(frozen=True)
 # (:KubernetesIngress)-[:USES_LOAD_BALANCER]->(:AWSLoadBalancerV2)
 class KubernetesIngressToLoadBalancerV2Rel(CartographyRelSchema):
-    "Links `KubernetesIngress` to `AWSLoadBalancerV2` with `USES_LOAD_BALANCER`."
+    """Links an ingress to the AWS load balancer that exposes it."""
 
     target_node_label: str = "AWSLoadBalancerV2"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(

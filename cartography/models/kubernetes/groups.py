@@ -34,7 +34,7 @@ class KubernetesGroupToClusterRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class KubernetesGroupToClusterRel(CartographyRelSchema):
-    "Links `KubernetesCluster` to `KubernetesGroup` with `RESOURCE`."
+    """Links a cluster to one of its groups."""
 
     target_node_label: str = "KubernetesCluster"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
@@ -64,7 +64,7 @@ class KubernetesGroupToAWSUserRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class KubernetesGroupToOktaGroupRel(CartographyRelSchema):
-    "Links `OktaGroup` to `KubernetesGroup` with `MAPS_TO`."
+    """Links an Okta group to the Kubernetes group it maps to."""
 
     target_node_label: str = "OktaGroup"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
@@ -79,7 +79,7 @@ class KubernetesGroupToOktaGroupRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class KubernetesGroupToAWSRoleRel(CartographyRelSchema):
-    "Links `AWSRole` to `KubernetesGroup` with `MAPS_TO`."
+    """Links an AWS IAM role to the Kubernetes group it maps to."""
 
     target_node_label: str = "AWSRole"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
@@ -94,7 +94,7 @@ class KubernetesGroupToAWSRoleRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class KubernetesGroupToAWSUserRel(CartographyRelSchema):
-    "Links `AWSUser` to `KubernetesGroup` with `MAPS_TO`."
+    """Links an AWS IAM user to the Kubernetes group it maps to."""
 
     target_node_label: str = "AWSUser"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(

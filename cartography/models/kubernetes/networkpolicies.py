@@ -81,7 +81,7 @@ class KubernetesNetworkPolicyToKubernetesClusterRelProperties(CartographyRelProp
 @dataclass(frozen=True)
 # (:KubernetesNetworkPolicy)<-[:RESOURCE]-(:KubernetesCluster)
 class KubernetesNetworkPolicyToKubernetesClusterRel(CartographyRelSchema):
-    "Links `KubernetesCluster` to `KubernetesNetworkPolicy` with `RESOURCE`."
+    """Links a cluster to one of its network policies."""
 
     target_node_label: str = "KubernetesCluster"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
@@ -104,7 +104,7 @@ class KubernetesNetworkPolicyToKubernetesNamespaceRelProperties(
 @dataclass(frozen=True)
 # (:KubernetesNetworkPolicy)<-[:CONTAINS]-(:KubernetesNamespace)
 class KubernetesNetworkPolicyToKubernetesNamespaceRel(CartographyRelSchema):
-    "Links `KubernetesNamespace` to `KubernetesNetworkPolicy` with `CONTAINS`."
+    """Links a namespace to a network policy it contains."""
 
     target_node_label: str = "KubernetesNamespace"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
@@ -130,7 +130,7 @@ class KubernetesNetworkPolicyToKubernetesPodRelProperties(CartographyRelProperti
 # The policy's resolved podSelector: the pods it governs. An empty selector
 # selects every pod in the namespace.
 class KubernetesNetworkPolicyToKubernetesPodRel(CartographyRelSchema):
-    "Links `KubernetesNetworkPolicy` to `KubernetesPod` with `APPLIES_TO`."
+    """Links a network policy to a pod its selector matches."""
 
     target_node_label: str = "KubernetesPod"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(

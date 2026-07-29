@@ -58,7 +58,7 @@ class KubernetesRoleToNamespaceRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class KubernetesRoleToNamespaceRel(CartographyRelSchema):
-    "Links `KubernetesNamespace` to `KubernetesRole` with `CONTAINS`."
+    """Links a namespace to a role it contains."""
 
     target_node_label: str = "KubernetesNamespace"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
@@ -81,7 +81,7 @@ class KubernetesRoleToClusterRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class KubernetesRoleToClusterRel(CartographyRelSchema):
-    "Links `KubernetesCluster` to `KubernetesRole` with `RESOURCE`."
+    """Links a cluster to one of its roles."""
 
     target_node_label: str = "KubernetesCluster"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(

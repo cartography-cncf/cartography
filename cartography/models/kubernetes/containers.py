@@ -144,7 +144,7 @@ class KubernetesContainerToKubernetesPodRelProperties(CartographyRelProperties):
 @dataclass(frozen=True)
 # (:KubernetesContainer)<-[:CONTAINS]-(:KubernetesNamespace)
 class KubernetesContainerToKubernetesNamespaceRel(CartographyRelSchema):
-    "Links `KubernetesNamespace` to `KubernetesContainer` with `CONTAINS`."
+    """Links a namespace to a container it contains."""
 
     target_node_label: str = "KubernetesNamespace"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
@@ -164,7 +164,7 @@ class KubernetesContainerToKubernetesNamespaceRel(CartographyRelSchema):
 # DEPRECATED: replaced by WORKLOAD_PARENT, will be removed in v1.0.0
 # (:KubernetesContainer)<-[:CONTAINS]-(:KubernetesPod)
 class KubernetesContainerToKubernetesPodRel(CartographyRelSchema):
-    "Links `KubernetesPod` to `KubernetesContainer` with `CONTAINS`."
+    """Links a pod to a container it runs."""
 
     target_node_label: str = "KubernetesPod"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
@@ -191,7 +191,7 @@ class KubernetesContainerToKubernetesPodWorkloadParentRelProperties(
 @dataclass(frozen=True)
 # (:KubernetesContainer)-[:WORKLOAD_PARENT]->(:KubernetesPod)
 class KubernetesContainerToKubernetesPodWorkloadParentRel(CartographyRelSchema):
-    "Links `KubernetesContainer` to `KubernetesPod` with `WORKLOAD_PARENT`."
+    """Links a container to the pod it runs in."""
 
     target_node_label: str = "KubernetesPod"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
@@ -216,7 +216,7 @@ class KubernetesContainerToKubernetesClusterRelProperties(CartographyRelProperti
 @dataclass(frozen=True)
 # (:KubernetesContainer)<-[:RESOURCE]-(:KubernetesCluster)
 class KubernetesContainerToKubernetesClusterRel(CartographyRelSchema):
-    "Links `KubernetesCluster` to `KubernetesContainer` with `RESOURCE`."
+    """Links a cluster to one of its containers."""
 
     target_node_label: str = "KubernetesCluster"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
@@ -236,7 +236,7 @@ class KubernetesContainerToECRImageRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class KubernetesContainerToECRImageRel(CartographyRelSchema):
-    "Links `KubernetesContainer` to `AWSECRImage` with `HAS_IMAGE`."
+    """Links a container to the image it runs, hosted in Amazon ECR."""
 
     target_node_label: str = "AWSECRImage"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
@@ -256,7 +256,7 @@ class KubernetesContainerToGitLabContainerImageRelProperties(CartographyRelPrope
 
 @dataclass(frozen=True)
 class KubernetesContainerToGitLabContainerImageRel(CartographyRelSchema):
-    "Links `KubernetesContainer` to `GitLabContainerImage` with `HAS_IMAGE`."
+    """Links a container to the image it runs, hosted in the GitLab registry."""
 
     target_node_label: str = "GitLabContainerImage"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
@@ -278,7 +278,7 @@ class KubernetesContainerToGCPArtifactRegistryImageRelProperties(
 
 @dataclass(frozen=True)
 class KubernetesContainerToGCPArtifactRegistryImageRel(CartographyRelSchema):
-    "Links `KubernetesContainer` to `GCPArtifactRegistryImage` with `HAS_IMAGE`."
+    """Links a container to the image it runs, hosted in Artifact Registry."""
 
     target_node_label: str = "GCPArtifactRegistryImage"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
@@ -298,7 +298,7 @@ class KubernetesContainerToGitHubContainerImageRelProperties(CartographyRelPrope
 
 @dataclass(frozen=True)
 class KubernetesContainerToGitHubContainerImageRel(CartographyRelSchema):
-    "Links `KubernetesContainer` to `GitHubContainerImage` with `HAS_IMAGE`."
+    """Links a container to the image it runs, hosted in GitHub Container Registry."""
 
     target_node_label: str = "GitHubContainerImage"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(

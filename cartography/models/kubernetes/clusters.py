@@ -102,7 +102,7 @@ class KubernetesClusterToEKSClusterRelProperties(CartographyRelProperties):
 @dataclass(frozen=True)
 # (:AWSEKSCluster)-[:MAPS_TO]->(:KubernetesCluster)
 class KubernetesClusterToEKSClusterRel(CartographyRelSchema):
-    "Links `AWSEKSCluster` to `KubernetesCluster` with `MAPS_TO`."
+    """Links an EKS cluster to the Kubernetes cluster it hosts."""
 
     target_node_label: str = "AWSEKSCluster"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(

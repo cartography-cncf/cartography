@@ -78,7 +78,7 @@ class KubernetesNodeToKubernetesClusterRelProperties(CartographyRelProperties):
 @dataclass(frozen=True)
 # (:KubernetesNode)<-[:RESOURCE]-(:KubernetesCluster)
 class KubernetesNodeToKubernetesClusterRel(CartographyRelSchema):
-    "Links `KubernetesCluster` to `KubernetesNode` with `RESOURCE`."
+    """Links a cluster to one of its nodes."""
 
     target_node_label: str = "KubernetesCluster"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
@@ -100,7 +100,7 @@ class KubernetesNodeToEC2InstanceRelProperties(CartographyRelProperties):
 # (:KubernetesNode)-[:IS_INSTANCE]->(:AWSEC2Instance)
 # Only created for EKS nodes whose providerID resolves to an EC2 instance id.
 class KubernetesNodeToEC2InstanceRel(CartographyRelSchema):
-    "Links `KubernetesNode` to `AWSEC2Instance` with `IS_INSTANCE`."
+    """Links a node to the EC2 instance backing it."""
 
     target_node_label: str = "AWSEC2Instance"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(

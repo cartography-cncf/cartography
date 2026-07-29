@@ -77,7 +77,7 @@ class KubernetesServiceToLoadBalancerV2RelProperties(CartographyRelProperties):
 @dataclass(frozen=True)
 # (:KubernetesService)-[:USES_LOAD_BALANCER]->(:LoadBalancerV2)
 class KubernetesServiceToLoadBalancerV2Rel(CartographyRelSchema):
-    "Links `KubernetesService` to `AWSLoadBalancerV2` with `USES_LOAD_BALANCER`."
+    """Links a service to the AWS load balancer that exposes it."""
 
     target_node_label: str = "AWSLoadBalancerV2"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
@@ -98,7 +98,7 @@ class KubernetesServiceToKubernetesClusterRelProperties(CartographyRelProperties
 @dataclass(frozen=True)
 # (:KubernetesService)<-[:RESOURCE]-(:KubernetesCluster)
 class KubernetesServiceToKubernetesClusterRel(CartographyRelSchema):
-    "Links `KubernetesCluster` to `KubernetesService` with `RESOURCE`."
+    """Links a cluster to one of its services."""
 
     target_node_label: str = "KubernetesCluster"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
@@ -119,7 +119,7 @@ class KubernetesServiceToKubernetesNamespaceRelProperties(CartographyRelProperti
 @dataclass(frozen=True)
 # (:KubernetesService)<-[:CONTAINS]-(:KubernetesNamespace)
 class KubernetesServiceToKubernetesNamespaceRel(CartographyRelSchema):
-    "Links `KubernetesNamespace` to `KubernetesService` with `CONTAINS`."
+    """Links a namespace to a service it contains."""
 
     target_node_label: str = "KubernetesNamespace"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
@@ -143,7 +143,7 @@ class KubernetesServiceToKubernetesPodRelProperties(CartographyRelProperties):
 @dataclass(frozen=True)
 # (:KubernetesService)-[:TARGET]->(:KubernetesPod)
 class KubernetesServiceToKubernetesPodRel(CartographyRelSchema):
-    "Links `KubernetesService` to `KubernetesPod` with `TARGETS`."
+    """Links a service to a pod it sends traffic to."""
 
     target_node_label: str = "KubernetesPod"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(

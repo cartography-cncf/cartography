@@ -65,7 +65,7 @@ class KubernetesDaemonSetToKubernetesClusterRelProperties(CartographyRelProperti
 @dataclass(frozen=True)
 # (:KubernetesDaemonSet)<-[:RESOURCE]-(:KubernetesCluster)
 class KubernetesDaemonSetToKubernetesClusterRel(CartographyRelSchema):
-    "Links `KubernetesCluster` to `KubernetesDaemonSet` with `RESOURCE`."
+    """Links a cluster to one of its daemon sets."""
 
     target_node_label: str = "KubernetesCluster"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
@@ -88,7 +88,7 @@ class KubernetesDaemonSetToKubernetesNamespaceWorkloadParentRelProperties(
 @dataclass(frozen=True)
 # (:KubernetesDaemonSet)-[:WORKLOAD_PARENT]->(:KubernetesNamespace)
 class KubernetesDaemonSetToKubernetesNamespaceWorkloadParentRel(CartographyRelSchema):
-    "Links `KubernetesDaemonSet` to `KubernetesNamespace` with `WORKLOAD_PARENT`."
+    """Links a daemon set to the namespace that owns it."""
 
     target_node_label: str = "KubernetesNamespace"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
