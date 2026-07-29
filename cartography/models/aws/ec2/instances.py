@@ -168,8 +168,6 @@ class EC2InstanceToAWSAccountRelRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class EC2InstanceToAWSAccountRel(CartographyRelSchema):
-    "Represents a `RESOURCE` relationship from `AWSAccount` to `AWSEC2Instance`."
-
     target_node_label: str = "AWSAccount"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("AWS_ID", set_in_kwargs=True)},
@@ -188,8 +186,6 @@ class EC2InstanceToEC2ReservationRelRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class EC2InstanceToEC2ReservationRel(CartographyRelSchema):
-    "Represents a `MEMBER_OF_EC2_RESERVATION` relationship from `AWSEC2Instance` to `AWSEC2Reservation`."
-
     target_node_label: str = "AWSEC2Reservation"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"reservationid": PropertyRef("ReservationId")},
@@ -208,8 +204,6 @@ class EC2InstanceToInstanceProfileRelRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class EC2InstanceToInstanceProfileRel(CartographyRelSchema):
-    "Represents a `INSTANCE_PROFILE` relationship from `AWSEC2Instance` to `AWSInstanceProfile`."
-
     target_node_label: str = "AWSInstanceProfile"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"arn": PropertyRef("IamInstanceProfile")},
@@ -228,8 +222,6 @@ class EC2InstanceToEKSClusterRelRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class EC2InstanceToEKSClusterRel(CartographyRelSchema):
-    "Represents a `MEMBER_OF_EKS_CLUSTER` relationship from `AWSEC2Instance` to `AWSEKSCluster`."
-
     target_node_label: str = "AWSEKSCluster"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {
@@ -245,8 +237,6 @@ class EC2InstanceToEKSClusterRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class EC2InstanceSchema(CartographyNodeSchema):
-    "Represents an `AWSEC2Instance` node in the AWS graph."
-
     label: str = "AWSEC2Instance"
     # DEPRECATED: legacy EC2Instance node label will be removed in v1.0.0.
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
@@ -280,8 +270,6 @@ class EC2InstanceToRoleAssumesRelProperties(CartographyRelProperties):
 # AWS API, so the pairs are assembled from that binding chain and loaded as a
 # MatchLink.
 class EC2InstanceToRoleAssumesMatchLink(CartographyRelSchema):
-    "Represents a `ASSUMES` relationship from `AWSEC2Instance` to `AWSRole`."
-
     rel_label: str = "ASSUMES"
     direction: LinkDirection = LinkDirection.OUTWARD
     properties: EC2InstanceToRoleAssumesRelProperties = (

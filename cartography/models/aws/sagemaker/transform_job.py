@@ -74,8 +74,6 @@ class AWSSageMakerTransformJobToAWSAccountRelProperties(CartographyRelProperties
 
 @dataclass(frozen=True)
 class AWSSageMakerTransformJobToAWSAccountRel(CartographyRelSchema):
-    "Represents a `RESOURCE` relationship from `AWSAccount` to `AWSSageMakerTransformJob`."
-
     target_node_label: str = "AWSAccount"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("AWS_ID", set_in_kwargs=True)}
@@ -94,8 +92,6 @@ class AWSSageMakerTransformJobToModelRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class AWSSageMakerTransformJobToModelRel(CartographyRelSchema):
-    "Represents a `USES` relationship from `AWSSageMakerTransformJob` to `AWSSageMakerModel`."
-
     target_node_label: str = "AWSSageMakerModel"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"model_name": PropertyRef("ModelName")}
@@ -114,8 +110,6 @@ class AWSSageMakerTransformJobToS3BucketRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class AWSSageMakerTransformJobToS3BucketRel(CartographyRelSchema):
-    "Represents a `WRITES_TO` relationship from `AWSSageMakerTransformJob` to `AWSS3Bucket`."
-
     target_node_label: str = "AWSS3Bucket"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("OutputDataS3BucketId")}
@@ -129,8 +123,6 @@ class AWSSageMakerTransformJobToS3BucketRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class AWSSageMakerTransformJobSchema(CartographyNodeSchema):
-    "Represents an `AWSSageMakerTransformJob` node in the AWS graph."
-
     label: str = "AWSSageMakerTransformJob"
     properties: AWSSageMakerTransformJobNodeProperties = (
         AWSSageMakerTransformJobNodeProperties()

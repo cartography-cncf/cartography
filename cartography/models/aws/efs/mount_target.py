@@ -74,8 +74,6 @@ class EfsMountTargetToAwsAccountRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class EfsMountTargetToAWSAccountRel(CartographyRelSchema):
-    "Represents a `RESOURCE` relationship from `AWSAccount` to `AWSEfsMountTarget`."
-
     target_node_label: str = "AWSAccount"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("AWS_ID", set_in_kwargs=True)},
@@ -94,8 +92,6 @@ class EfsMountTargetToEfsFileSystemRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class EfsMountTargetToEfsFileSystemRel(CartographyRelSchema):
-    "Represents a `ATTACHED_TO` relationship from `AWSEfsMountTarget` to `AWSEfsFileSystem`."
-
     target_node_label: str = "AWSEfsFileSystem"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("FileSystemId")},
@@ -109,8 +105,6 @@ class EfsMountTargetToEfsFileSystemRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class EfsMountTargetSchema(CartographyNodeSchema):
-    "Represents an `AWSEfsMountTarget` node in the AWS graph."
-
     label: str = "AWSEfsMountTarget"
     # DEPRECATED: legacy EfsMountTarget node label will be removed in v1.0.0.
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([LEGACY_EFS_MOUNT_TARGET])

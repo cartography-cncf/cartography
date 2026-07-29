@@ -48,8 +48,6 @@ class DynamoDBRestoreSummaryToAWSAccountRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class DynamoDBRestoreSummaryToAWSAccountRel(CartographyRelSchema):
-    "Represents a `RESOURCE` relationship from `AWSAccount` to `AWSDynamoDBRestoreSummary`."
-
     target_node_label: str = "AWSAccount"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("AWS_ID", set_in_kwargs=True)},
@@ -68,8 +66,6 @@ class DynamoDBRestoreSummaryToTableRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class DynamoDBRestoreSummaryToTableRel(CartographyRelSchema):
-    "Represents a `HAS_RESTORE` relationship from `AWSDynamoDBTable` to `AWSDynamoDBRestoreSummary`."
-
     target_node_label: str = "AWSDynamoDBTable"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("TableArn")},
@@ -88,8 +84,6 @@ class DynamoDBRestoreSummaryToBackupRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class DynamoDBRestoreSummaryToBackupRel(CartographyRelSchema):
-    "Represents a `RESTORED_FROM_BACKUP` relationship from `AWSDynamoDBRestoreSummary` to `AWSDynamoDBBackup`."
-
     target_node_label: str = "AWSDynamoDBBackup"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("SourceBackupArn")},
@@ -108,8 +102,6 @@ class DynamoDBRestoreSummaryToSourceTableRelProperties(CartographyRelProperties)
 
 @dataclass(frozen=True)
 class DynamoDBRestoreSummaryToSourceTableRel(CartographyRelSchema):
-    "Represents a `RESTORED_FROM_TABLE` relationship from `AWSDynamoDBRestoreSummary` to `AWSDynamoDBTable`."
-
     target_node_label: str = "AWSDynamoDBTable"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("SourceTableArn")},
@@ -123,8 +115,6 @@ class DynamoDBRestoreSummaryToSourceTableRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class DynamoDBRestoreSummarySchema(CartographyNodeSchema):
-    "Represents an `AWSDynamoDBRestoreSummary` node in the AWS graph."
-
     label: str = "AWSDynamoDBRestoreSummary"
     # DEPRECATED: legacy DynamoDBRestoreSummary node label will be removed in v1.0.0.
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(

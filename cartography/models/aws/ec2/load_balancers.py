@@ -54,8 +54,6 @@ class LoadBalancerToAWSAccountRelRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class LoadBalancerToAWSAccountRel(CartographyRelSchema):
-    "Represents a `RESOURCE` relationship from `AWSAccount` to `AWSLoadBalancer`."
-
     target_node_label: str = "AWSAccount"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("AWS_ID", set_in_kwargs=True)},
@@ -74,8 +72,6 @@ class LoadBalancerToSecurityGroupRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class LoadBalancerToSourceSecurityGroupRel(CartographyRelSchema):
-    "Represents a `SOURCE_SECURITY_GROUP` relationship from `AWSLoadBalancer` to `AWSEC2SecurityGroup`."
-
     target_node_label: str = "AWSEC2SecurityGroup"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"name": PropertyRef("GROUP_NAME")},
@@ -94,8 +90,6 @@ class LoadBalancerToEC2SecurityGroupRelRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class LoadBalancerToEC2SecurityGroupRel(CartographyRelSchema):
-    "Represents a `MEMBER_OF_EC2_SECURITY_GROUP` relationship from `AWSLoadBalancer` to `AWSEC2SecurityGroup`."
-
     target_node_label: str = "AWSEC2SecurityGroup"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"groupid": PropertyRef("GROUP_IDS", one_to_many=True)},
@@ -114,8 +108,6 @@ class LoadBalancerToEC2InstanceRelRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class LoadBalancerToEC2InstanceRel(CartographyRelSchema):
-    "Represents a `EXPOSE` relationship from `AWSLoadBalancer` to `AWSEC2Instance`."
-
     target_node_label: str = "AWSEC2Instance"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"instanceid": PropertyRef("INSTANCE_IDS", one_to_many=True)},
@@ -129,8 +121,6 @@ class LoadBalancerToEC2InstanceRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class LoadBalancerSchema(CartographyNodeSchema):
-    "Represents an `AWSLoadBalancer` node in the AWS graph."
-
     label: str = "AWSLoadBalancer"
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([LOAD_BALANCER])
     properties: LoadBalancerNodeProperties = LoadBalancerNodeProperties()

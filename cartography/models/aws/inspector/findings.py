@@ -149,8 +149,6 @@ class InspectorFindingToAWSAccountRelRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class InspectorFindingToAWSAccountRel(CartographyRelSchema):
-    "Represents a `RESOURCE` relationship from `AWSAccount` to `AWSInspectorFinding`."
-
     target_node_label: str = "AWSAccount"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("AWS_ID", set_in_kwargs=True)},
@@ -169,8 +167,6 @@ class InspectorFindingToAWSAccountRelDelegateRelRelProperties(CartographyRelProp
 
 @dataclass(frozen=True)
 class InspectorFindingToAWSAccountRelDelegateRel(CartographyRelSchema):
-    "Represents a `MEMBER` relationship from `AWSAccount` to `AWSInspectorFinding`."
-
     target_node_label: str = "AWSAccount"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("awsaccount")},
@@ -189,8 +185,6 @@ class InspectorFindingToEC2InstanceRelRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class InspectorFindingToEC2InstanceRel(CartographyRelSchema):
-    "Represents a `AFFECTS` relationship from `AWSInspectorFinding` to `AWSEC2Instance`."
-
     target_node_label: str = "AWSEC2Instance"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("instanceid")},
@@ -209,8 +203,6 @@ class InspectorFindingToECRRepositoryRelRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class InspectorFindingToECRRepositoryRel(CartographyRelSchema):
-    "Represents a `AFFECTS` relationship from `AWSInspectorFinding` to `AWSECRRepository`."
-
     target_node_label: str = "AWSECRRepository"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("ecrrepositoryid")},
@@ -229,8 +221,6 @@ class InspectorFindingToECRImageRelRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class InspectorFindingToECRImageRel(CartographyRelSchema):
-    "Represents a `AFFECTS` relationship from `AWSInspectorFinding` to `AWSECRImage`."
-
     target_node_label: str = "AWSECRImage"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("ecrimageid")},
@@ -276,8 +266,6 @@ class InspectorFindingToPackageRelRelProperties(CartographyRelProperties):
 @dataclass(frozen=True)
 # (:AWSInspectorFinding)-[:HAS]->(:AWSInspectorPackage)
 class InspectorFindingToPackageMatchLink(CartographyRelSchema):
-    "Represents a `HAS` relationship from `AWSInspectorFinding` to `AWSInspectorPackage`."
-
     target_node_label: str = "AWSInspectorPackage"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("packageid")},
@@ -295,8 +283,6 @@ class InspectorFindingToPackageMatchLink(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class AWSInspectorFindingSchema(CartographyNodeSchema):
-    "Represents an `AWSInspectorFinding` node in the AWS graph."
-
     label: str = "AWSInspectorFinding"
     properties: AWSInspectorNodeProperties = AWSInspectorNodeProperties()
     # Inspector findings are mixed: package vulnerabilities are CVE-backed while

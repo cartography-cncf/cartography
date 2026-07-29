@@ -45,8 +45,6 @@ class CognitoIdentityPoolToAwsAccountRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class CognitoIdentityPoolToAWSAccountRel(CartographyRelSchema):
-    "Represents a `RESOURCE` relationship from `AWSAccount` to `AWSCognitoIdentityPool`."
-
     target_node_label: str = "AWSAccount"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("AWS_ID", set_in_kwargs=True)},
@@ -65,8 +63,6 @@ class CognitoIdentityPoolToAWSRoleRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class CognitoIdentityPoolToAWSRoleRel(CartographyRelSchema):
-    "Represents a `ASSOCIATED_WITH` relationship from `AWSCognitoIdentityPool` to `AWSRole`."
-
     target_node_label: str = "AWSRole"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"arn": PropertyRef("Roles", one_to_many=True)},
@@ -80,8 +76,6 @@ class CognitoIdentityPoolToAWSRoleRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class CognitoIdentityPoolSchema(CartographyNodeSchema):
-    "Represents an `AWSCognitoIdentityPool` node in the AWS graph."
-
     label: str = "AWSCognitoIdentityPool"
     # DEPRECATED: legacy CognitoIdentityPool node label will be removed in v1.0.0.
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([LEGACY_COGNITO_IDENTITY_POOL])

@@ -2,15 +2,15 @@ from __future__ import annotations
 
 import importlib
 import inspect
-import re
 from collections.abc import Iterable
 from collections.abc import Iterator
 from dataclasses import dataclass
+from dataclasses import field
 from dataclasses import fields as dataclass_fields
+from dataclasses import replace
 from pathlib import Path
 from pkgutil import walk_packages
 from types import ModuleType
-from typing import Any
 from typing import cast
 from typing import TypeVar
 
@@ -18,7 +18,6 @@ import yaml
 
 import cartography.analysis
 import cartography.models
-from cartography.graph.analysis import AddRelationship
 from cartography.graph.analysis import AnalysisJob
 from cartography.graph.analysis import PropertyEffect
 from cartography.graph.analysis import RelationshipEffect
@@ -37,6 +36,7 @@ from cartography.models.core.relationships import CartographyRelProperties
 from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import OtherRelationships
+from cartography.models.gcp.resource_catalog import GCP_POLICY_BINDING_TARGET_LABELS
 from cartography.models.ontology.constraints import ONTOLOGY_REL_CONSTRAINTS
 from cartography.models.ontology.mapping import ONTOLOGY_MODELS
 from cartography.models.ontology.mapping import ONTOLOGY_NODES_MAPPING
@@ -45,6 +45,37 @@ from cartography.models.ontology.mapping import SEMANTIC_LABELS_MAPPING
 from cartography.models.ontology.mapping import (
     SEMANTIC_LABELS_WITHOUT_NORMALIZED_FIELDS,
 )
+
+# Downstream consumers introspect the data model through these names. Everything else in
+# this module is an implementation detail and may change without notice.
+__all__ = [
+    # Entry points
+    "inspect_data_model",
+    "build_data_model",
+    "iter_model_classes",
+    "iter_analysis_jobs",
+    "iter_permission_relationships",
+    "iter_relationship_catalog",
+    # Scoping one module's view
+    "scope_node_to_module",
+    "relationships_for_module",
+    "relationship_touches_node",
+    "labels_carried_by",
+    # Result types
+    "DataModel",
+    "Node",
+    "Relationship",
+    "Property",
+    "PropertyProvenance",
+    "NodeLabelProvenance",
+    "AnalysisJobDefinition",
+    "PermissionRelationshipDefinition",
+    "TargetPreconditionDefinition",
+    "RelationshipCatalogDefinition",
+    "OntologySemanticLabel",
+    "OntologyRelationshipConstraint",
+    "ModelClass",
+]
 
 ModelClass = type[
     CartographyNodeSchema
@@ -59,8 +90,10 @@ _MODEL_BASE_CLASSES = (
     CartographyNodeProperties,
     CartographyRelProperties,
 )
-Schema = TypeVar("Schema", CartographyNodeSchema, CartographyRelSchema)
+_Schema = TypeVar("_Schema", CartographyNodeSchema, CartographyRelSchema)
 RelationshipKey = tuple[str, str, str, LinkDirection | None]
+_INTROSPECTION_EXCLUDE_FLAG = "__cartography_introspection_exclude__"
+_ONT_SOURCE_DESCRIPTION = "Module that populated this node's ontology fields."
 _REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
 _PERMISSION_RELATIONSHIP_FILES = {
     "aws": (
@@ -132,7 +165,6 @@ class Property:
     indexed: bool
     ontology: bool
     generated_by: tuple[str, ...]
-    property_refs: tuple[PropertyRef, ...]
     analysis_jobs: tuple[AnalysisJobDefinition, ...]
     provenance: tuple[PropertyProvenance, ...]
 
@@ -195,7 +227,6 @@ class Relationship:
     origins: tuple[str, ...]
     schemas: tuple[CartographyRelSchema, ...]
     analysis_jobs: tuple[AnalysisJobDefinition, ...]
-    analysis_context_modules: tuple[tuple[str, ...], ...] = ()
     permission_relationships: tuple[PermissionRelationshipDefinition, ...] = ()
     catalog_relationships: tuple[RelationshipCatalogDefinition, ...] = ()
 
@@ -237,12 +268,25 @@ class DataModel:
         return next((node for node in self.nodes if node.label == label), None)
 
     def for_module(self, module: str) -> DataModel:
+        """
+        Narrow the model to one module's view of the graph.
+
+        Nodes keep only the properties and labels that module declares, and relationships
+        include the cross-module edges that touch its nodes. This is the same view the
+        generated schema page for that module renders.
+        """
+        nodes = tuple(
+            scope_node_to_module(node, module)
+            for node in self.nodes
+            if module in node.modules
+        )
         return DataModel(
-            nodes=tuple(node for node in self.nodes if module in node.modules),
-            relationships=tuple(
-                relationship
-                for relationship in self.relationships
-                if module in relationship.modules
+            nodes=nodes,
+            relationships=relationships_for_module(
+                self.relationships,
+                nodes,
+                module,
+                self.nodes,
             ),
             analysis_jobs=tuple(
                 definition
@@ -269,6 +313,210 @@ class DataModel:
         )
 
 
+# Scoping a module's view of the graph. The generated schema pages and
+# DataModel.for_module() share this code so that both answer identically.
+def scope_node_to_module(node: Node, module: str) -> Node:
+    """Scope an aggregated node to schemas and properties owned by one module."""
+    provenance = tuple(item for item in node.label_provenance if item.module == module)
+    if not provenance:
+        return node
+
+    label_sets = [set(item.extra_labels) for item in provenance]
+    extra_labels = set().union(*label_sets)
+    universal_labels = set.intersection(*label_sets) if label_sets else set()
+    partial_labels = extra_labels - universal_labels
+    conditional_labels = {
+        (
+            conditional.label,
+            conditional.conditions,
+        ): conditional
+        for item in provenance
+        for conditional in item.conditional_labels
+    }
+    scoped_conditional_labels = tuple(
+        sorted(
+            conditional_labels.values(),
+            key=lambda conditional: (
+                conditional.label,
+                conditional.conditions,
+            ),
+        )
+    )
+    label_definitions = tuple(
+        sorted(
+            {
+                definition
+                for item in provenance
+                for definition in item.label_definitions
+            },
+            key=lambda definition: (
+                definition.label,
+                definition.conditions,
+                definition.kind.value,
+            ),
+        )
+    )
+    declared_labels = {
+        *extra_labels,
+        *(conditional.label for conditional in scoped_conditional_labels),
+    }
+    properties = tuple(
+        scoped_property
+        for prop in node.properties
+        if (scoped_property := _scope_property_to_module(prop, module)) is not None
+    )
+    return replace(
+        node,
+        descriptions=tuple(
+            sorted(
+                {
+                    item.description
+                    for item in provenance
+                    if item.description is not None
+                }
+            )
+        ),
+        extra_labels=tuple(sorted(extra_labels)),
+        partial_extra_labels=tuple(sorted(partial_labels)),
+        conditional_labels=scoped_conditional_labels,
+        properties=properties,
+        modules=(module,),
+        schemas=tuple(
+            schema
+            for schema in node.schemas
+            if _schema_owner_module(type(schema).__module__) == module
+        ),
+        ontology_labels=tuple(
+            label for label in node.ontology_labels if label in declared_labels
+        ),
+        label_definitions=label_definitions,
+    )
+
+
+def _scope_property_to_module(prop: Property, module: str) -> Property | None:
+    """Scope one aggregated property to declarations owned by a module."""
+    if not prop.provenance:
+        return prop
+
+    scoped_provenance = tuple(item for item in prop.provenance if item.module == module)
+    if not scoped_provenance:
+        return None
+
+    declared_modules = {item.module for item in prop.provenance}
+    generated_sources = set(prop.source_names) - {
+        item.source_name for item in prop.provenance
+    }
+    generated_descriptions = set(prop.descriptions) - {
+        item.description for item in prop.provenance if item.description is not None
+    }
+    return replace(
+        prop,
+        source_names=tuple(
+            sorted(
+                generated_sources | {item.source_name for item in scoped_provenance},
+            )
+        ),
+        descriptions=tuple(
+            sorted(
+                generated_descriptions
+                | {
+                    item.description
+                    for item in scoped_provenance
+                    if item.description is not None
+                },
+            )
+        ),
+        indexed=any(item.indexed for item in scoped_provenance),
+        generated_by=tuple(
+            sorted(
+                {module}
+                | {
+                    source
+                    for source in prop.generated_by
+                    if source not in declared_modules
+                },
+            )
+        ),
+        provenance=scoped_provenance,
+    )
+
+
+def _schema_owner_module(module_name: str) -> str:
+    parts = module_name.split(".")
+    if len(parts) > 2 and parts[:2] == ["cartography", "models"]:
+        return parts[2]
+    return module_name
+
+
+def _is_runtime_template(model_class: type) -> bool:
+    """
+    Whether a schema class is a runtime template rather than a described edge.
+
+    Subclasses inherit the flag: a template stays a template however it is specialised.
+    """
+    return bool(getattr(model_class, _INTROSPECTION_EXCLUDE_FLAG, False))
+
+
+def labels_carried_by(nodes: Iterable[Node]) -> set[str]:
+    """Every label the given nodes answer to, primary plus extra, ontology and conditional."""
+    carried: set[str] = set()
+    for node in nodes:
+        carried.add(node.label)
+        carried.update(node.extra_labels)
+        carried.update(node.ontology_labels)
+        carried.update(label.label for label in node.conditional_labels)
+    return carried
+
+
+def relationships_for_module(
+    relationships: tuple[Relationship, ...],
+    nodes: tuple[Node, ...],
+    module: str,
+    all_nodes: tuple[Node, ...] = (),
+) -> tuple[Relationship, ...]:
+    """
+    Select the relationships that describe a module's own slice of the graph.
+
+    An edge qualifies when the module declares it, when it lands on one of the module's
+    node labels, or when both endpoints are labels the module's nodes answer to.
+
+    Requiring *both* endpoints is what stops a shared semantic label from dragging in
+    other providers: several modules carry `DNSRecord`, so a one-sided match would
+    document `(:DNSRecord)-[:DNS_POINTS_TO]->(:AWSEC2Instance)` on the GCP page.
+
+    Canonical ontology nodes are the documented exception. `User`, `Package` and friends
+    are defined once and link to every provider, so an edge between one of them and a
+    label the module carries belongs on the module's page even though the module never
+    declares the canonical side.
+    """
+    own_labels = {node.label for node in nodes}
+    carried_labels = labels_carried_by(nodes)
+    canonical_labels = {node.label for node in all_nodes if "ontology" in node.modules}
+
+    def qualifies(relationship: Relationship) -> bool:
+        if module in relationship.modules:
+            return True
+        endpoints = (relationship.source_label, relationship.target_label)
+        if any(endpoint in own_labels for endpoint in endpoints):
+            return True
+        if all(endpoint in carried_labels for endpoint in endpoints):
+            return True
+        return any(
+            endpoint in carried_labels and other in canonical_labels
+            for endpoint, other in (endpoints, endpoints[::-1])
+        )
+
+    return tuple(
+        relationship for relationship in relationships if qualifies(relationship)
+    )
+
+
+def relationship_touches_node(relationship: Relationship, node: Node) -> bool:
+    """Whether one node answers to either endpoint of a relationship."""
+    carried = labels_carried_by((node,))
+    return relationship.source_label in carried or relationship.target_label in carried
+
+
 def iter_model_classes(
     package: ModuleType = cartography.models,
 ) -> Iterator[ModelClass]:
@@ -288,7 +536,7 @@ def iter_model_classes(
                 continue
             if value.__name__.startswith("_"):
                 continue
-            if value.__dict__.get("__cartography_introspection_exclude__", False):
+            if _is_runtime_template(value):
                 continue
             if value in _MODEL_BASE_CLASSES or value.__module__ != module.__name__:
                 continue
@@ -305,6 +553,8 @@ def iter_analysis_jobs(
     package: ModuleType = cartography.analysis,
 ) -> Iterator[AnalysisJobDefinition]:
     """Yield typed analysis jobs defined below a package in deterministic order."""
+    # Keyed by identity: some jobs carry dict-valued statement parameters, so
+    # AnalysisJob is not hashable.
     discovered: dict[int, AnalysisJobDefinition] = {}
     module_names = sorted(
         module_info.name
@@ -432,9 +682,14 @@ def _parse_target_precondition(
 
 
 def iter_relationship_catalog() -> Iterator[RelationshipCatalogDefinition]:
-    """Yield relationships created by runtime paths outside declarative schemas."""
-    definitions = {
-        resource.label: RelationshipCatalogDefinition(
+    """
+    Yield relationships created by runtime paths outside declarative schemas.
+
+    These edges come from a data catalog rather than from a schema class, so their
+    concrete endpoints only exist once the catalog is expanded.
+    """
+    definitions = [
+        RelationshipCatalogDefinition(
             module="aws",
             source_label=resource.label,
             target_label="AWSTag",
@@ -447,8 +702,42 @@ def iter_relationship_catalog() -> Iterator[RelationshipCatalogDefinition]:
             catalog_path="cartography.models.aws_tagging.AWS_TAGGABLE_RESOURCES",
         )
         for resource in AWS_TAGGABLE_RESOURCES
+    ]
+    definitions.extend(
+        RelationshipCatalogDefinition(
+            module="gcp",
+            source_label="GCPPolicyBinding",
+            target_label=target_label,
+            relationship_name="APPLIES_TO",
+            description=(
+                "Connects a GCP IAM policy binding to the concrete resource "
+                "where the policy applies."
+            ),
+            properties=(
+                "firstseen",
+                "lastupdated",
+                "_sub_resource_label",
+                "_sub_resource_id",
+            ),
+            catalog_path=(
+                "cartography.models.gcp.resource_catalog."
+                "GCP_POLICY_BINDING_TARGET_LABELS"
+            ),
+        )
+        for target_label in GCP_POLICY_BINDING_TARGET_LABELS
+    )
+    # Several catalog entries can describe the same edge: AWS lists application and
+    # network load balancers separately though both are AWSLoadBalancerV2 nodes.
+    deduplicated = {
+        (
+            definition.module,
+            definition.source_label,
+            definition.relationship_name,
+            definition.target_label,
+        ): definition
+        for definition in definitions
     }
-    yield from (definitions[label] for label in sorted(definitions))
+    yield from (deduplicated[key] for key in sorted(deduplicated))
 
 
 def inspect_data_model(
@@ -488,8 +777,8 @@ def build_data_model(
     catalog_relationships: Iterable[RelationshipCatalogDefinition] = (),
 ) -> DataModel:
     """Build a data model from discovered classes without duplicating declarations."""
-    node_entries: dict[str, dict[str, Any]] = {}
-    relationship_entries: dict[RelationshipKey, dict[str, Any]] = {}
+    node_entries: dict[str, _NodeAccumulator] = {}
+    relationship_entries: dict[RelationshipKey, _RelationshipAccumulator] = {}
     diagnostics: list[str] = []
 
     classes = sorted(
@@ -502,7 +791,7 @@ def build_data_model(
     relationship_classes: list[type[CartographyRelSchema]] = []
 
     for model_class in classes:
-        if model_class.__dict__.get("__cartography_introspection_exclude__", False):
+        if _is_runtime_template(model_class):
             continue
         if inspect.isabstract(model_class):
             continue
@@ -598,9 +887,9 @@ def build_data_model(
 
 
 def _instantiate(
-    model_class: type[Schema],
+    model_class: type[_Schema],
     diagnostics: list[str],
-) -> Schema | None:
+) -> _Schema | None:
     try:
         return model_class()
     except (TypeError, ValueError) as error:
@@ -609,47 +898,65 @@ def _instantiate(
         return None
 
 
-def _new_node_entry() -> dict[str, Any]:
-    return {
-        "descriptions": set(),
-        "extra_labels": set(),
-        "schema_extra_labels": [],
-        "label_provenance": [],
-        "label_definitions": [],
-        "conditional_labels": [],
-        "ontology_labels": set(),
-        "ontology_projections": set(),
-        "properties": {},
-        "modules": set(),
-        "schemas": [],
-    }
+@dataclass
+class _NodeAccumulator:
+    """Mutable tally of every schema contributing to one node label."""
+
+    descriptions: set[str] = field(default_factory=set)
+    extra_labels: set[str] = field(default_factory=set)
+    schema_extra_labels: list[set[str]] = field(default_factory=list)
+    label_provenance: list[NodeLabelProvenance] = field(default_factory=list)
+    label_definitions: list[ExtraNodeLabel] = field(default_factory=list)
+    conditional_labels: list[ExtraNodeLabel] = field(default_factory=list)
+    ontology_labels: set[str] = field(default_factory=set)
+    ontology_projections: set[str] = field(default_factory=set)
+    properties: dict[str, _PropertyAccumulator] = field(default_factory=dict)
+    modules: set[str] = field(default_factory=set)
+    schemas: list[CartographyNodeSchema] = field(default_factory=list)
 
 
-def _new_relationship_entry() -> dict[str, Any]:
-    return {
-        "descriptions": set(),
-        "properties": {},
-        "modules": set(),
-        "origins": set(),
-        "schemas": [],
-        "analysis_jobs": {},
-        "analysis_context_modules": set(),
-        "permission_relationships": {},
-        "catalog_relationships": {},
-    }
+@dataclass
+class _RelationshipAccumulator:
+    """Mutable tally of every declaration contributing to one relationship."""
+
+    descriptions: set[str] = field(default_factory=set)
+    properties: dict[str, _PropertyAccumulator] = field(default_factory=dict)
+    modules: set[str] = field(default_factory=set)
+    origins: set[str] = field(default_factory=set)
+    schemas: list[CartographyRelSchema] = field(default_factory=list)
+    analysis_jobs: dict[str, AnalysisJobDefinition] = field(default_factory=dict)
+    permission_relationships: dict[str, PermissionRelationshipDefinition] = field(
+        default_factory=dict
+    )
+    catalog_relationships: dict[str, RelationshipCatalogDefinition] = field(
+        default_factory=dict
+    )
+
+
+@dataclass
+class _PropertyAccumulator:
+    """Mutable tally of every declaration contributing to one graph property."""
+
+    source_names: set[str] = field(default_factory=set)
+    descriptions: set[str] = field(default_factory=set)
+    indexed: bool = False
+    ontology: bool = False
+    generated_by: set[str] = field(default_factory=set)
+    analysis_jobs: dict[str, AnalysisJobDefinition] = field(default_factory=dict)
+    provenance: list[PropertyProvenance] = field(default_factory=list)
 
 
 def _add_node_schema(
-    node_entries: dict[str, dict[str, Any]],
-    relationship_entries: dict[RelationshipKey, dict[str, Any]],
+    node_entries: dict[str, _NodeAccumulator],
+    relationship_entries: dict[RelationshipKey, _RelationshipAccumulator],
     schema: CartographyNodeSchema,
 ) -> None:
-    entry = node_entries.setdefault(schema.label, _new_node_entry())
-    entry["schemas"].append(schema)
-    entry["modules"].add(_module_name(type(schema)))
+    entry = node_entries.setdefault(schema.label, _NodeAccumulator())
+    entry.schemas.append(schema)
+    entry.modules.add(_module_name(type(schema)))
     description = _class_description(type(schema))
     if description:
-        entry["descriptions"].add(description)
+        entry.descriptions.add(description)
 
     extra_labels = schema.extra_node_labels
     schema_extra_labels: set[str] = set()
@@ -658,17 +965,17 @@ def _add_node_schema(
     if isinstance(extra_labels, ExtraNodeLabels):
         schema_label_definitions = extra_labels.labels
         for label in extra_labels.labels:
-            entry["label_definitions"].append(label)
+            entry.label_definitions.append(label)
             if label.kind is LabelKind.ONTOLOGY:
-                entry["ontology_labels"].add(label.label)
+                entry.ontology_labels.add(label.label)
             if label.conditions:
-                entry["conditional_labels"].append(label)
+                entry.conditional_labels.append(label)
                 schema_conditional_labels.append(label)
             else:
-                entry["extra_labels"].add(label.label)
+                entry.extra_labels.add(label.label)
                 schema_extra_labels.add(label.label)
-    entry["schema_extra_labels"].append(schema_extra_labels)
-    entry["label_provenance"].append(
+    entry.schema_extra_labels.append(schema_extra_labels)
+    entry.label_provenance.append(
         NodeLabelProvenance(
             module=_module_name(type(schema)),
             schema=f"{type(schema).__module__}.{type(schema).__qualname__}",
@@ -679,7 +986,7 @@ def _add_node_schema(
         )
     )
 
-    properties = entry["properties"]
+    properties = entry.properties
     _add_properties(properties, schema.properties, _module_name(type(schema)))
     _add_generated_property(properties, "firstseen", "querybuilder")
 
@@ -701,23 +1008,23 @@ def _add_node_schema(
 
 
 def _add_relationship(
-    relationship_entries: dict[RelationshipKey, dict[str, Any]],
+    relationship_entries: dict[RelationshipKey, _RelationshipAccumulator],
     owner_label: str,
     schema: CartographyRelSchema,
     origin: str,
 ) -> None:
-    if getattr(type(schema), "__cartography_introspection_exclude__", False):
+    if _is_runtime_template(type(schema)):
         return
     source_label, target_label = _directed_labels(owner_label, schema)
     key = (source_label, schema.rel_label, target_label, LinkDirection.OUTWARD)
-    entry = relationship_entries.setdefault(key, _new_relationship_entry())
-    entry["schemas"].append(schema)
-    entry["modules"].add(_module_name(type(schema)))
-    entry["origins"].add(origin)
+    entry = relationship_entries.setdefault(key, _RelationshipAccumulator())
+    entry.schemas.append(schema)
+    entry.modules.add(_module_name(type(schema)))
+    entry.origins.add(origin)
     description = _class_description(type(schema))
     if description:
-        entry["descriptions"].add(description)
-    properties = entry["properties"]
+        entry.descriptions.add(description)
+    properties = entry.properties
     _add_properties(properties, schema.properties, _module_name(type(schema)))
     _add_generated_property(properties, "firstseen", "querybuilder")
 
@@ -731,38 +1038,24 @@ def _directed_labels(
     return schema.target_node_label, owner_label
 
 
-def _new_property_entry() -> dict[str, Any]:
-    return {
-        "source_names": set(),
-        "descriptions": set(),
-        "indexed": False,
-        "ontology": False,
-        "generated_by": set(),
-        "property_refs": [],
-        "analysis_jobs": {},
-        "provenance": [],
-    }
-
-
 def _add_properties(
-    entries: dict[str, dict[str, Any]],
+    entries: dict[str, _PropertyAccumulator],
     properties: CartographyNodeProperties | CartographyRelProperties,
     generated_by: str,
 ) -> None:
     for dataclass_field in dataclass_fields(properties):
         property_ref = getattr(properties, dataclass_field.name)
-        entry = entries.setdefault(dataclass_field.name, _new_property_entry())
-        entry["source_names"].add(property_ref.name)
+        entry = entries.setdefault(dataclass_field.name, _PropertyAccumulator())
+        entry.source_names.add(property_ref.name)
         if property_ref.description:
-            entry["descriptions"].add(property_ref.description)
-        entry["indexed"] = bool(
-            entry["indexed"]
+            entry.descriptions.add(property_ref.description)
+        entry.indexed = bool(
+            entry.indexed
             or dataclass_field.name in {"id", "lastupdated"}
             or property_ref.extra_index
         )
-        entry["generated_by"].add(generated_by)
-        entry["property_refs"].append(property_ref)
-        entry["provenance"].append(
+        entry.generated_by.add(generated_by)
+        entry.provenance.append(
             PropertyProvenance(
                 module=generated_by,
                 source_name=property_ref.name,
@@ -777,7 +1070,7 @@ def _add_properties(
 
 
 def _add_generated_property(
-    entries: dict[str, dict[str, Any]],
+    entries: dict[str, _PropertyAccumulator],
     name: str,
     generated_by: str,
     indexed: bool = False,
@@ -786,20 +1079,20 @@ def _add_generated_property(
     source_name: str | None = None,
     description: str | None = None,
 ) -> None:
-    entry = entries.setdefault(name, _new_property_entry())
+    entry = entries.setdefault(name, _PropertyAccumulator())
     if source_name:
-        entry["source_names"].add(source_name)
+        entry.source_names.add(source_name)
     if description:
-        entry["descriptions"].add(description)
-    entry["indexed"] = bool(entry["indexed"] or indexed)
-    entry["ontology"] = bool(entry["ontology"] or ontology)
-    entry["generated_by"].add(generated_by)
+        entry.descriptions.add(description)
+    entry.indexed = bool(entry.indexed or indexed)
+    entry.ontology = bool(entry.ontology or ontology)
+    entry.generated_by.add(generated_by)
     if analysis_job:
-        entry["analysis_jobs"][analysis_job.qualified_name] = analysis_job
+        entry.analysis_jobs[analysis_job.qualified_name] = analysis_job
 
 
 def _add_ontology_properties(
-    node_entries: dict[str, dict[str, Any]],
+    node_entries: dict[str, _NodeAccumulator],
 ) -> None:
     for mapping_group, mappings_by_module in SEMANTIC_LABELS_MAPPING.items():
         for ontology_mapping in mappings_by_module.values():
@@ -807,15 +1100,16 @@ def _add_ontology_properties(
                 node_entry = node_entries.get(node_mapping.node_label)
                 if node_entry is None:
                     continue
-                node_entry["ontology_labels"].update(
+                node_entry.ontology_labels.update(
                     _ontology_labels_for_mapping_group(mapping_group, node_entry)
                 )
-                properties = node_entry["properties"]
+                properties = node_entry.properties
                 _add_generated_property(
                     properties,
                     "_ont_source",
                     "ontology",
                     ontology=True,
+                    description=_ONT_SOURCE_DESCRIPTION,
                 )
                 for field_mapping in node_mapping.fields:
                     _add_generated_property(
@@ -839,35 +1133,35 @@ def _add_ontology_properties(
                 for node_label, node_entry in node_entries.items():
                     is_primary_label = node_label == node_mapping.node_label
                     additional_labels = {
-                        *node_entry["extra_labels"],
-                        *(label.label for label in node_entry["conditional_labels"]),
+                        *node_entry.extra_labels,
+                        *(label.label for label in node_entry.conditional_labels),
                     }
                     is_module_additional_label = (
-                        ontology_mapping.module_name in node_entry["modules"]
+                        ontology_mapping.module_name in node_entry.modules
                         and node_mapping.node_label in additional_labels
                     )
                     if is_primary_label or is_module_additional_label:
-                        node_entry["ontology_projections"].add(projection_label)
+                        node_entry.ontology_projections.add(projection_label)
 
     for node_entry in node_entries.values():
         declared_labels = {
-            *node_entry["extra_labels"],
-            *(label.label for label in node_entry["conditional_labels"]),
+            *node_entry.extra_labels,
+            *(label.label for label in node_entry.conditional_labels),
         }
-        node_entry["ontology_labels"].update(
+        node_entry.ontology_labels.update(
             declared_labels.intersection(SEMANTIC_LABELS_WITHOUT_NORMALIZED_FIELDS)
         )
 
 
 def _ontology_labels_for_mapping_group(
     mapping_group: str,
-    node_entry: dict[str, Any],
+    node_entry: _NodeAccumulator,
 ) -> set[str]:
     """Identify the ontology label already declared by a mapped node schema."""
     expected_label = SEMANTIC_LABELS_BY_MAPPING_GROUP[mapping_group]
     labels = {
-        *node_entry["extra_labels"],
-        *(label.label for label in node_entry["conditional_labels"]),
+        *node_entry.extra_labels,
+        *(label.label for label in node_entry.conditional_labels),
     }
     return {expected_label} if expected_label in labels else set()
 
@@ -894,15 +1188,13 @@ def _build_ontology_semantic_labels(
 
     semantic_labels: list[OntologySemanticLabel] = []
     for mapping_group, label in sorted(SEMANTIC_LABELS_BY_MAPPING_GROUP.items()):
-        property_entries: dict[str, dict[str, Any]] = {}
+        property_entries: dict[str, _PropertyAccumulator] = {}
         _add_generated_property(
             property_entries,
             "_ont_source",
             "ontology",
             ontology=True,
-        )
-        property_entries["_ont_source"]["descriptions"].add(
-            "Module that populated this node's ontology fields."
+            description=_ONT_SOURCE_DESCRIPTION,
         )
         concrete_node_labels = set(nodes_by_extra_label.get(label, set()))
         for ontology_mapping in SEMANTIC_LABELS_MAPPING[mapping_group].values():
@@ -911,16 +1203,16 @@ def _build_ontology_semantic_labels(
                     concrete_node_labels.add(node_mapping.node_label)
                 for field_mapping in node_mapping.fields:
                     property_name = f"_ont_{field_mapping.ontology_field}"
+                    readable_name = field_mapping.ontology_field.replace("_", " ")
                     _add_generated_property(
                         property_entries,
                         property_name,
                         "ontology",
                         indexed=field_mapping.indexed,
                         ontology=True,
-                    )
-                    readable_name = field_mapping.ontology_field.replace("_", " ")
-                    property_entries[property_name]["descriptions"].add(
-                        f"Normalized {readable_name} for nodes carrying `{label}`."
+                        description=(
+                            f"Normalized {readable_name} for nodes carrying `{label}`."
+                        ),
                     )
         semantic_labels.append(
             OntologySemanticLabel(
@@ -953,7 +1245,7 @@ def _build_ontology_semantic_labels(
 
 
 def _add_permission_relationships(
-    relationship_entries: dict[RelationshipKey, dict[str, Any]],
+    relationship_entries: dict[RelationshipKey, _RelationshipAccumulator],
     definitions: tuple[PermissionRelationshipDefinition, ...],
 ) -> None:
     provider_properties = {
@@ -983,10 +1275,10 @@ def _add_permission_relationships(
             definition.target_label,
             LinkDirection.OUTWARD,
         )
-        entry = relationship_entries.setdefault(key, _new_relationship_entry())
-        entry["modules"].add(definition.provider)
-        entry["origins"].add("permission_evaluation")
-        entry["descriptions"].add(
+        entry = relationship_entries.setdefault(key, _RelationshipAccumulator())
+        entry.modules.add(definition.provider)
+        entry.origins.add("permission_evaluation")
+        entry.descriptions.add(
             f"`{definition.source_label}` receives evaluated "
             f"`{definition.relationship_name}` access to "
             f"`{definition.target_label}` from "
@@ -996,10 +1288,10 @@ def _add_permission_relationships(
             f"{definition.provider}:{definition.source_label}:"
             f"{definition.relationship_name}:{definition.target_label}"
         )
-        entry["permission_relationships"][definition_key] = definition
+        entry.permission_relationships[definition_key] = definition
         for property_name in provider_properties[definition.provider]:
             _add_generated_property(
-                entry["properties"],
+                entry.properties,
                 property_name,
                 f"permission_evaluation:{definition.provider}",
                 description=property_descriptions.get(property_name),
@@ -1007,7 +1299,7 @@ def _add_permission_relationships(
 
 
 def _add_catalog_relationships(
-    relationship_entries: dict[RelationshipKey, dict[str, Any]],
+    relationship_entries: dict[RelationshipKey, _RelationshipAccumulator],
     definitions: tuple[RelationshipCatalogDefinition, ...],
 ) -> None:
     for definition in definitions:
@@ -1017,26 +1309,26 @@ def _add_catalog_relationships(
             definition.target_label,
             LinkDirection.OUTWARD,
         )
-        entry = relationship_entries.setdefault(key, _new_relationship_entry())
-        entry["modules"].add(definition.module)
-        entry["origins"].add("runtime_catalog")
-        entry["descriptions"].add(definition.description)
+        entry = relationship_entries.setdefault(key, _RelationshipAccumulator())
+        entry.modules.add(definition.module)
+        entry.origins.add("runtime_catalog")
+        entry.descriptions.add(definition.description)
         definition_key = (
             f"{definition.module}:{definition.source_label}:"
             f"{definition.relationship_name}:{definition.target_label}"
         )
-        entry["catalog_relationships"][definition_key] = definition
+        entry.catalog_relationships[definition_key] = definition
         for property_name in definition.properties:
             _add_generated_property(
-                entry["properties"],
+                entry.properties,
                 property_name,
                 f"runtime_catalog:{definition.module}",
             )
 
 
 def _add_analysis_jobs(
-    node_entries: dict[str, dict[str, Any]],
-    relationship_entries: dict[RelationshipKey, dict[str, Any]],
+    node_entries: dict[str, _NodeAccumulator],
+    relationship_entries: dict[RelationshipKey, _RelationshipAccumulator],
     analysis_jobs: tuple[AnalysisJobDefinition, ...],
     diagnostics: list[str],
 ) -> None:
@@ -1076,7 +1368,7 @@ def _add_analysis_jobs(
                     continue
                 for property_name in property_effect.properties:
                     _add_generated_property(
-                        node_entry["properties"],
+                        node_entry.properties,
                         property_name,
                         generated_by,
                         analysis_job=definition,
@@ -1108,8 +1400,8 @@ def _add_analysis_jobs(
 
 
 def _add_analysis_relationship(
-    node_entries: dict[str, dict[str, Any]],
-    relationship_entries: dict[RelationshipKey, dict[str, Any]],
+    node_entries: dict[str, _NodeAccumulator],
+    relationship_entries: dict[RelationshipKey, _RelationshipAccumulator],
     effect: RelationshipEffect,
     definition: AnalysisJobDefinition,
     generated_by: str,
@@ -1127,18 +1419,11 @@ def _add_analysis_relationship(
         effect.target_label,
         effect.direction,
     )
-    entry = relationship_entries.setdefault(key, _new_relationship_entry())
-    entry["modules"].add(definition.module)
-    entry["origins"].add("analysis")
-    entry["analysis_jobs"][definition.qualified_name] = definition
-    entry["analysis_context_modules"].update(
-        _analysis_relationship_context_modules(
-            node_entries,
-            definition.job,
-            effect,
-        )
-    )
-    properties = entry["properties"]
+    entry = relationship_entries.setdefault(key, _RelationshipAccumulator())
+    entry.modules.add(definition.module)
+    entry.origins.add("analysis")
+    entry.analysis_jobs[definition.qualified_name] = definition
+    properties = entry.properties
     for property_name in ("firstseen", "lastupdated", *effect.properties):
         _add_generated_property(
             properties,
@@ -1148,76 +1433,18 @@ def _add_analysis_relationship(
         )
 
 
-def _analysis_relationship_context_modules(
-    node_entries: dict[str, dict[str, Any]],
-    job: AnalysisJob,
-    relationship_effect: RelationshipEffect,
-) -> set[tuple[str, ...]]:
-    """Return provider-module contexts constraining an analysis relationship."""
-    broad_labels = {
-        label
-        for entry in node_entries.values()
-        for label in (
-            *entry["extra_labels"],
-            *(conditional.label for conditional in entry["conditional_labels"]),
-        )
-    }
-    contexts: set[tuple[str, ...]] = set()
-    for statement in job.statements:
-        if statement.match is None:
-            continue
-        for effect in statement.effects:
-            if not _add_relationship_matches_effect(effect, relationship_effect):
-                continue
-            endpoint_labels = {
-                relationship_effect.source_label,
-                relationship_effect.target_label,
-            }
-            concrete_context_labels = (
-                _node_labels_from_match(statement.match)
-                - endpoint_labels
-                - broad_labels
-            )
-            context_modules = {
-                module
-                for label in concrete_context_labels
-                for module in node_entries.get(label, {}).get("modules", ())
-            }
-            contexts.add(tuple(sorted(context_modules)))
-    return contexts or {()}
-
-
-def _add_relationship_matches_effect(
-    effect: object,
-    relationship_effect: RelationshipEffect,
-) -> bool:
-    if not isinstance(effect, AddRelationship):
-        return False
-    direction = LinkDirection.OUTWARD if not effect.undirected else None
-    return (
-        effect.source_label == relationship_effect.source_label
-        and effect.rel == relationship_effect.rel_label
-        and effect.target_label == relationship_effect.target_label
-        and direction == relationship_effect.direction
-    )
-
-
-def _node_labels_from_match(match: str) -> set[str]:
-    """Extract node labels from a typed analysis MATCH clause."""
-    labels: set[str] = set()
-    for node_pattern in re.findall(r"\(([^()]*)\)", match):
-        declaration = node_pattern.split("{", maxsplit=1)[0]
-        labels.update(re.findall(r":\s*`?([A-Za-z_][A-Za-z0-9_]*)`?", declaration))
-    return labels
-
-
 def _add_analysis_relationship_properties(
-    relationship_entries: dict[RelationshipKey, dict[str, Any]],
+    relationship_entries: dict[RelationshipKey, _RelationshipAccumulator],
     effect: RelationshipPropertyEffect,
     definition: AnalysisJobDefinition,
     generated_by: str,
     diagnostics: list[str],
 ) -> None:
+    def endpoints_match(near: str, far: str) -> bool:
+        return near == effect.source_label and (
+            effect.target_label is None or far == effect.target_label
+        )
+
     matching_entries = []
     for (
         source_label,
@@ -1225,16 +1452,17 @@ def _add_analysis_relationship_properties(
         target_label,
         direction,
     ), entry in relationship_entries.items():
-        if direction is None or rel_label != effect.rel_label:
+        if rel_label != effect.rel_label:
             continue
-        if effect.direction == LinkDirection.OUTWARD:
-            labels_match = source_label == effect.source_label and (
-                effect.target_label is None or target_label == effect.target_label
-            )
+        if direction is None:
+            # An undirected edge has no orientation, so either reading can match.
+            labels_match = endpoints_match(
+                source_label, target_label
+            ) or endpoints_match(target_label, source_label)
+        elif effect.direction == LinkDirection.OUTWARD:
+            labels_match = endpoints_match(source_label, target_label)
         else:
-            labels_match = target_label == effect.source_label and (
-                effect.target_label is None or source_label == effect.target_label
-            )
+            labels_match = endpoints_match(target_label, source_label)
         if labels_match:
             matching_entries.append(entry)
     if not matching_entries:
@@ -1245,36 +1473,36 @@ def _add_analysis_relationship_properties(
         )
         return
     for entry in matching_entries:
-        entry["modules"].add(definition.module)
-        entry["origins"].add("analysis")
-        entry["analysis_jobs"][definition.qualified_name] = definition
+        entry.modules.add(definition.module)
+        entry.origins.add("analysis")
+        entry.analysis_jobs[definition.qualified_name] = definition
         for property_name in effect.properties:
             _add_generated_property(
-                entry["properties"],
+                entry.properties,
                 property_name,
                 generated_by,
                 analysis_job=definition,
             )
 
 
-def _build_node(label: str, entry: dict[str, Any]) -> Node:
-    properties = entry["properties"]
+def _build_node(label: str, entry: _NodeAccumulator) -> Node:
+    properties = entry.properties
     conditional_labels = {
         (
             conditional.label,
             conditional.conditions,
         ): conditional
-        for conditional in entry["conditional_labels"]
+        for conditional in entry.conditional_labels
     }
-    schema_extra_labels = entry["schema_extra_labels"]
+    schema_extra_labels = entry.schema_extra_labels
     universal_extra_labels = (
         set.intersection(*schema_extra_labels) if schema_extra_labels else set()
     )
-    partial_extra_labels = entry["extra_labels"] - universal_extra_labels
+    partial_extra_labels = entry.extra_labels - universal_extra_labels
     return Node(
         label=label,
-        descriptions=tuple(sorted(entry["descriptions"])),
-        extra_labels=tuple(sorted(entry["extra_labels"])),
+        descriptions=tuple(sorted(entry.descriptions)),
+        extra_labels=tuple(sorted(entry.extra_labels)),
         conditional_labels=tuple(
             sorted(
                 conditional_labels.values(),
@@ -1288,20 +1516,20 @@ def _build_node(label: str, entry: dict[str, Any]) -> Node:
             _build_property(name, property_entry)
             for name, property_entry in sorted(properties.items())
         ),
-        modules=tuple(sorted(entry["modules"])),
-        schemas=tuple(entry["schemas"]),
-        ontology_labels=tuple(sorted(entry["ontology_labels"])),
-        ontology_projections=tuple(sorted(entry["ontology_projections"])),
+        modules=tuple(sorted(entry.modules)),
+        schemas=tuple(entry.schemas),
+        ontology_labels=tuple(sorted(entry.ontology_labels)),
+        ontology_projections=tuple(sorted(entry.ontology_projections)),
         partial_extra_labels=tuple(sorted(partial_extra_labels)),
         label_provenance=tuple(
             sorted(
-                entry["label_provenance"],
+                entry.label_provenance,
                 key=lambda provenance: (provenance.module, provenance.schema),
             )
         ),
         label_definitions=tuple(
             sorted(
-                set(entry["label_definitions"]),
+                set(entry.label_definitions),
                 key=lambda definition: (
                     definition.label,
                     definition.conditions,
@@ -1314,51 +1542,49 @@ def _build_node(label: str, entry: dict[str, Any]) -> Node:
 
 def _build_relationship(
     key: RelationshipKey,
-    entry: dict[str, Any],
+    entry: _RelationshipAccumulator,
 ) -> Relationship:
     source_label, label, target_label, direction = key
-    properties = entry["properties"]
+    properties = entry.properties
     return Relationship(
         source_label=source_label,
         label=label,
         target_label=target_label,
         direction=direction,
-        descriptions=tuple(sorted(entry["descriptions"])),
+        descriptions=tuple(sorted(entry.descriptions)),
         properties=tuple(
             _build_property(name, property_entry)
             for name, property_entry in sorted(properties.items())
         ),
-        modules=tuple(sorted(entry["modules"])),
-        origins=tuple(sorted(entry["origins"])),
-        schemas=tuple(entry["schemas"]),
+        modules=tuple(sorted(entry.modules)),
+        origins=tuple(sorted(entry.origins)),
+        schemas=tuple(entry.schemas),
         analysis_jobs=tuple(
-            entry["analysis_jobs"][name] for name in sorted(entry["analysis_jobs"])
+            entry.analysis_jobs[name] for name in sorted(entry.analysis_jobs)
         ),
-        analysis_context_modules=tuple(sorted(entry["analysis_context_modules"])),
         permission_relationships=tuple(
-            entry["permission_relationships"][name]
-            for name in sorted(entry["permission_relationships"])
+            entry.permission_relationships[name]
+            for name in sorted(entry.permission_relationships)
         ),
         catalog_relationships=tuple(
-            entry["catalog_relationships"][name]
-            for name in sorted(entry["catalog_relationships"])
+            entry.catalog_relationships[name]
+            for name in sorted(entry.catalog_relationships)
         ),
     )
 
 
-def _build_property(name: str, entry: dict[str, Any]) -> Property:
+def _build_property(name: str, entry: _PropertyAccumulator) -> Property:
     return Property(
         name=name,
-        source_names=tuple(sorted(entry["source_names"])),
-        descriptions=tuple(sorted(entry["descriptions"])),
-        indexed=bool(entry["indexed"]),
-        ontology=bool(entry["ontology"]),
-        generated_by=tuple(sorted(entry["generated_by"])),
-        property_refs=tuple(entry["property_refs"]),
+        source_names=tuple(sorted(entry.source_names)),
+        descriptions=tuple(sorted(entry.descriptions)),
+        indexed=bool(entry.indexed),
+        ontology=bool(entry.ontology),
+        generated_by=tuple(sorted(entry.generated_by)),
         analysis_jobs=tuple(
-            entry["analysis_jobs"][name] for name in sorted(entry["analysis_jobs"])
+            entry.analysis_jobs[name] for name in sorted(entry.analysis_jobs)
         ),
-        provenance=tuple(entry["provenance"]),
+        provenance=tuple(entry.provenance),
     )
 
 

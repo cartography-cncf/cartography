@@ -66,8 +66,6 @@ class EventBridgeRuleToAwsAccountRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class EventBridgeRuleToAWSAccountRel(CartographyRelSchema):
-    "Represents a `RESOURCE` relationship from `AWSAccount` to `AWSEventBridgeRule`."
-
     target_node_label: str = "AWSAccount"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("AWS_ID", set_in_kwargs=True)},
@@ -86,8 +84,6 @@ class EventBridgeRuleToAWSRoleRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class EventBridgeRuleToAWSRoleRel(CartographyRelSchema):
-    "Represents a `ASSOCIATED_WITH` relationship from `AWSEventBridgeRule` to `AWSRole`."
-
     target_node_label: str = "AWSRole"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"arn": PropertyRef("RoleArn")},
@@ -101,8 +97,6 @@ class EventBridgeRuleToAWSRoleRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class EventBridgeRuleSchema(CartographyNodeSchema):
-    "Represents an `AWSEventBridgeRule` node in the AWS graph."
-
     label: str = "AWSEventBridgeRule"
     # DEPRECATED: legacy EventBridgeRule node label will be removed in v1.0.0.
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([LEGACY_EVENT_BRIDGE_RULE])

@@ -53,8 +53,6 @@ class AWSServerCertificateToAWSAccountRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class AWSServerCertificateToAWSAccountRel(CartographyRelSchema):
-    "Represents a `RESOURCE` relationship from `AWSAccount` to `AWSServerCertificate`."
-
     target_node_label: str = "AWSAccount"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("AWS_ID", set_in_kwargs=True)},
@@ -68,8 +66,6 @@ class AWSServerCertificateToAWSAccountRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class AWSServerCertificateSchema(CartographyNodeSchema):
-    "Represents an `AWSServerCertificate` node in the AWS graph."
-
     label: str = "AWSServerCertificate"
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([CERTIFICATE])
     properties: AWSServerCertificateNodeProperties = (

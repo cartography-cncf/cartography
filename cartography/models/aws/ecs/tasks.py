@@ -152,8 +152,6 @@ class ECSTaskToECSClusterRelProperties(CartographyRelProperties):
 # DEPRECATED: replaced by WORKLOAD_PARENT, will be removed in v1.0.0
 @dataclass(frozen=True)
 class ECSTaskToECSClusterRel(CartographyRelSchema):
-    "Represents a `HAS_TASK` relationship from `AWSECSCluster` to `AWSECSTask`."
-
     target_node_label: str = "AWSECSCluster"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("ClusterArn", set_in_kwargs=True)}
@@ -174,8 +172,6 @@ class ECSTaskToECSServiceWorkloadParentRelProperties(CartographyRelProperties):
 # from the task's `group` field by the loader). Standalone tasks fall through
 # to ECSTaskToECSClusterWorkloadParentRel.
 class ECSTaskToECSServiceWorkloadParentRel(CartographyRelSchema):
-    "Represents a `WORKLOAD_PARENT` relationship from `AWSECSTask` to `AWSECSService`."
-
     target_node_label: str = "AWSECSService"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {
@@ -201,8 +197,6 @@ class ECSTaskToECSClusterWorkloadParentRelProperties(CartographyRelProperties):
 # `_workload_parent_cluster_arn`, which the ECS loader sets only when the task
 # has no serviceName, so service-attached tasks don't get a duplicate edge.
 class ECSTaskToECSClusterWorkloadParentRel(CartographyRelSchema):
-    "Represents a `WORKLOAD_PARENT` relationship from `AWSECSTask` to `AWSECSCluster`."
-
     target_node_label: str = "AWSECSCluster"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("_workload_parent_cluster_arn")}
@@ -221,8 +215,6 @@ class ECSTaskToContainerInstanceRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class ECSTaskToContainerInstanceRel(CartographyRelSchema):
-    "Represents a `HAS_TASK` relationship from `AWSECSContainerInstance` to `AWSECSTask`."
-
     target_node_label: str = "AWSECSContainerInstance"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("containerInstanceArn")}
@@ -241,8 +233,6 @@ class ECSTaskToAWSAccountRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class ECSTaskToAWSAccountRel(CartographyRelSchema):
-    "Represents a `RESOURCE` relationship from `AWSAccount` to `AWSECSTask`."
-
     target_node_label: str = "AWSAccount"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("AWS_ID", set_in_kwargs=True)}
@@ -259,8 +249,6 @@ class ECSTaskToNetworkInterfaceRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class ECSTaskToNetworkInterfaceRel(CartographyRelSchema):
-    "Represents a `NETWORK_INTERFACE` relationship from `AWSECSTask` to `AWSNetworkInterface`."
-
     target_node_label: str = "AWSNetworkInterface"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("networkInterfaceId")}
@@ -274,8 +262,6 @@ class ECSTaskToNetworkInterfaceRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class ECSTaskSchema(CartographyNodeSchema):
-    "Represents an `AWSECSTask` node in the AWS graph."
-
     label: str = "AWSECSTask"
     # DEPRECATED: legacy ECSTask node label will be removed in v1.0.0.
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([LEGACY_ECS_TASK, COMPUTE_POD])

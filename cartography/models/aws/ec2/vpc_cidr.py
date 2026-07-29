@@ -52,8 +52,6 @@ class AWSIPv4CidrBlockToAWSVpcRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class AWSIPv4CidrBlockToAWSVpcRel(CartographyRelSchema):
-    "Represents a `BLOCK_ASSOCIATION` relationship from `AWSVpc` to `AWSCidrBlock`."
-
     target_node_label: str = "AWSVpc"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("VpcId")}
@@ -119,8 +117,6 @@ class AWSIPv6CidrBlockToAWSVpcRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class AWSIPv6CidrBlockToAWSVpcRel(CartographyRelSchema):
-    "Represents a `BLOCK_ASSOCIATION` relationship from `AWSVpc` to `AWSCidrBlock`."
-
     target_node_label: str = "AWSVpc"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("VpcId")}

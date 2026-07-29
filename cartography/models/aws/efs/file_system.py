@@ -95,8 +95,6 @@ class EfsFileSystemToAwsAccountRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class EfsFileSystemToAWSAccountRel(CartographyRelSchema):
-    "Represents a `RESOURCE` relationship from `AWSAccount` to `AWSEfsFileSystem`."
-
     target_node_label: str = "AWSAccount"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("AWS_ID", set_in_kwargs=True)},
@@ -118,8 +116,6 @@ class EfsFileSystemToKMSKeyRelProperties(CartographyRelProperties):
 # Only created when the file system has a customer-managed KMS key (KmsKeyId is
 # the key ARN).
 class EfsFileSystemToKMSKeyRel(CartographyRelSchema):
-    "Represents a `ENCRYPTED_BY` relationship from `AWSEfsFileSystem` to `AWSKMSKey`."
-
     target_node_label: str = "AWSKMSKey"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"arn": PropertyRef("KmsKeyId")},
@@ -133,8 +129,6 @@ class EfsFileSystemToKMSKeyRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class EfsFileSystemSchema(CartographyNodeSchema):
-    "Represents an `AWSEfsFileSystem` node in the AWS graph."
-
     label: str = "AWSEfsFileSystem"
     properties: EfsFileSystemNodeProperties = EfsFileSystemNodeProperties()
     # DEPRECATED: legacy EfsFileSystem node label will be removed in v1.0.0.

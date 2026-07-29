@@ -47,8 +47,6 @@ class EC2SecurityGroupToAWSAccountRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class EC2SecurityGroupToAWSAccountRel(CartographyRelSchema):
-    "Represents a `RESOURCE` relationship from `AWSAccount` to `AWSEC2SecurityGroup`."
-
     target_node_label: str = "AWSAccount"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("AWS_ID", set_in_kwargs=True)}
@@ -67,8 +65,6 @@ class EC2SecurityGroupToVpcRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class EC2SecurityGroupToVpcRel(CartographyRelSchema):
-    "Represents a `MEMBER_OF_EC2_SECURITY_GROUP` relationship from `AWSVpc` to `AWSEC2SecurityGroup`."
-
     target_node_label: str = "AWSVpc"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"vpcid": PropertyRef("VpcId")}
@@ -87,8 +83,6 @@ class EC2SecurityGroupToSourceGroupRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class EC2SecurityGroupToSourceGroupRel(CartographyRelSchema):
-    "Represents a `ALLOWS_TRAFFIC_FROM` relationship from `AWSEC2SecurityGroup` to `AWSEC2SecurityGroup`."
-
     target_node_label: str = "AWSEC2SecurityGroup"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"groupid": PropertyRef("SOURCE_GROUP_IDS", one_to_many=True)}

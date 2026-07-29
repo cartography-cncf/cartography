@@ -44,8 +44,6 @@ class DynamoDBSSEDescriptionToAWSAccountRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class DynamoDBSSEDescriptionToAWSAccountRel(CartographyRelSchema):
-    "Represents a `RESOURCE` relationship from `AWSAccount` to `AWSDynamoDBSSEDescription`."
-
     target_node_label: str = "AWSAccount"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("AWS_ID", set_in_kwargs=True)},
@@ -64,8 +62,6 @@ class DynamoDBSSEDescriptionToTableRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class DynamoDBSSEDescriptionToTableRel(CartographyRelSchema):
-    "Represents a `HAS_SSE` relationship from `AWSDynamoDBTable` to `AWSDynamoDBSSEDescription`."
-
     target_node_label: str = "AWSDynamoDBTable"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("TableArn")},
@@ -101,8 +97,6 @@ class DynamoDBSSEDescriptionToKMSKeyRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class DynamoDBSSEDescriptionSchema(CartographyNodeSchema):
-    "Represents an `AWSDynamoDBSSEDescription` node in the AWS graph."
-
     label: str = "AWSDynamoDBSSEDescription"
     # DEPRECATED: legacy DynamoDBSSEDescription node label will be removed in v1.0.0.
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(

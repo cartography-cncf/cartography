@@ -98,8 +98,6 @@ class LaunchTemplateVersionToAWSAccountRelRelProperties(CartographyRelProperties
 
 @dataclass(frozen=True)
 class LaunchTemplateVersionToAWSAccountRel(CartographyRelSchema):
-    "Represents a `RESOURCE` relationship from `AWSAccount` to `AWSLaunchTemplateVersion`."
-
     target_node_label: str = "AWSAccount"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("AWS_ID", set_in_kwargs=True)},
@@ -118,8 +116,6 @@ class LaunchTemplateVersionToLTRelRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class LaunchTemplateVersionToLTRel(CartographyRelSchema):
-    "Represents a `VERSION` relationship from `AWSLaunchTemplate` to `AWSLaunchTemplateVersion`."
-
     target_node_label: str = "AWSLaunchTemplate"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("LaunchTemplateId")},
@@ -133,8 +129,6 @@ class LaunchTemplateVersionToLTRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class LaunchTemplateVersionSchema(CartographyNodeSchema):
-    "Represents an `AWSLaunchTemplateVersion` node in the AWS graph."
-
     label: str = "AWSLaunchTemplateVersion"
     # DEPRECATED: legacy LaunchTemplateVersion node label will be removed in v1.0.0.
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(

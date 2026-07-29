@@ -44,8 +44,6 @@ class EC2SubnetToNetworkInterfaceRelRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class EC2SecurityGroupToNetworkInterfaceRel(CartographyRelSchema):
-    "Represents a `MEMBER_OF_EC2_SECURITY_GROUP` relationship from `AWSNetworkInterface` to `AWSEC2SecurityGroup`."
-
     target_node_label: str = "AWSNetworkInterface"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("NetworkInterfaceId")},

@@ -150,8 +150,6 @@ class AWSLambdaToAWSAccountRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class AWSLambdaToAWSAccountRel(CartographyRelSchema):
-    "Represents a `RESOURCE` relationship from `AWSAccount` to `AWSLambda`."
-
     target_node_label: str = "AWSAccount"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("AWS_ID", set_in_kwargs=True)},
@@ -170,8 +168,6 @@ class AWSLambdaToPrincipalRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class AWSLambdaToPrincipalRel(CartographyRelSchema):
-    "Represents a `STS_ASSUMEROLE_ALLOW` relationship from `AWSLambda` to `AWSPrincipal`."
-
     target_node_label: str = "AWSPrincipal"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"arn": PropertyRef("Role")},
@@ -192,8 +188,6 @@ class AWSLambdaToRoleAssumesRelProperties(CartographyRelProperties):
 # STS_ASSUMEROLE_ALLOW edge (to the generic AWSPrincipal) is the IAM
 # trust-policy view and is kept as a distinct semantic.
 class AWSLambdaToRoleAssumesRel(CartographyRelSchema):
-    "Represents a `ASSUMES` relationship from `AWSLambda` to `AWSRole`."
-
     target_node_label: str = "AWSRole"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"arn": PropertyRef("Role")},
@@ -212,8 +206,6 @@ class AWSLambdaToECRImageRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class AWSLambdaToECRImageRel(CartographyRelSchema):
-    "Represents a `HAS_IMAGE` relationship from `AWSLambda` to `AWSECRImage`."
-
     target_node_label: str = "AWSECRImage"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"digest": PropertyRef("image_digest")},
@@ -230,8 +222,6 @@ class AWSLambdaToGitLabContainerImageRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class AWSLambdaToGitLabContainerImageRel(CartographyRelSchema):
-    "Represents a `HAS_IMAGE` relationship from `AWSLambda` to `GitLabContainerImage`."
-
     target_node_label: str = "GitLabContainerImage"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"digest": PropertyRef("image_digest")},
@@ -250,8 +240,6 @@ class AWSLambdaToGCPArtifactRegistryImageRelProperties(CartographyRelProperties)
 
 @dataclass(frozen=True)
 class AWSLambdaToGCPArtifactRegistryImageRel(CartographyRelSchema):
-    "Represents a `HAS_IMAGE` relationship from `AWSLambda` to `GCPArtifactRegistryImage`."
-
     target_node_label: str = "GCPArtifactRegistryImage"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"digest": PropertyRef("image_digest")},
@@ -270,8 +258,6 @@ class AWSLambdaToGitHubContainerImageRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class AWSLambdaToGitHubContainerImageRel(CartographyRelSchema):
-    "Represents a `HAS_IMAGE` relationship from `AWSLambda` to `GitHubContainerImage`."
-
     target_node_label: str = "GitHubContainerImage"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"digest": PropertyRef("image_digest")},
@@ -285,8 +271,6 @@ class AWSLambdaToGitHubContainerImageRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class AWSLambdaSchema(CartographyNodeSchema):
-    "Represents an `AWSLambda` node in the AWS graph."
-
     label: str = "AWSLambda"
     properties: AWSLambdaNodeProperties = AWSLambdaNodeProperties()
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([FUNCTION])

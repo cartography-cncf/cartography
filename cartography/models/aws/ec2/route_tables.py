@@ -52,8 +52,6 @@ class RouteTableToAWSAccountRelRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class RouteTableToAWSAccountRel(CartographyRelSchema):
-    "Represents a `RESOURCE` relationship from `AWSAccount` to `AWSEC2RouteTable`."
-
     target_node_label: str = "AWSAccount"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("AWS_ID", set_in_kwargs=True)},
@@ -72,8 +70,6 @@ class RouteTableToVpcRelRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class RouteTableToVpcRel(CartographyRelSchema):
-    "Represents a `MEMBER_OF_AWS_VPC` relationship from `AWSEC2RouteTable` to `AWSVpc`."
-
     target_node_label: str = "AWSVpc"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("vpc_id")},
@@ -90,8 +86,6 @@ class RouteTableToRouteRelRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class RouteTableToRouteRel(CartographyRelSchema):
-    "Represents a `ROUTE` relationship from `AWSEC2RouteTable` to `AWSEC2Route`."
-
     target_node_label: str = "AWSEC2Route"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("RouteIds", one_to_many=True)},
@@ -108,8 +102,6 @@ class RouteTableToAssociationRelRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class RouteTableToAssociationRel(CartographyRelSchema):
-    "Represents a `ASSOCIATION` relationship from `AWSEC2RouteTable` to `AWSEC2RouteTableAssociation`."
-
     target_node_label: str = "AWSEC2RouteTableAssociation"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("RouteTableAssociationIds", one_to_many=True)},
@@ -129,8 +121,6 @@ class RouteTableToVpnGatewayRelRelProperties(CartographyRelProperties):
 # TODO implement AWSVpnGateways
 @dataclass(frozen=True)
 class RouteTableToVpnGatewayRel(CartographyRelSchema):
-    "Represents a `CONNECTED_TO` relationship from `AWSEC2RouteTable` to `AWSVpnGateway`."
-
     # No edge can materialize until AWSVpnGateway nodes are implemented.
     __cartography_introspection_exclude__ = True
 
@@ -147,8 +137,6 @@ class RouteTableToVpnGatewayRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class RouteTableSchema(CartographyNodeSchema):
-    "Represents an `AWSEC2RouteTable` node in the AWS graph."
-
     label: str = "AWSEC2RouteTable"
     # DEPRECATED: legacy EC2RouteTable node label will be removed in v1.0.0.
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([LEGACY_EC2_ROUTE_TABLE])

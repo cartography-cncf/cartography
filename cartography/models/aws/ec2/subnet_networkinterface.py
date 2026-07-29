@@ -45,8 +45,6 @@ class EC2SubnetToNetworkInterfaceRelRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class EC2SubnetToNetworkInterfaceRel(CartographyRelSchema):
-    "Represents a `PART_OF_SUBNET` relationship from `AWSNetworkInterface` to `AWSEC2Subnet`."
-
     target_node_label: str = "AWSNetworkInterface"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("NetworkInterfaceId")},
@@ -65,8 +63,6 @@ class EC2SubnetToLoadBalancerRelRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class EC2SubnetToLoadBalancerRel(CartographyRelSchema):
-    "Represents a `PART_OF_SUBNET` relationship from `AWSLoadBalancer` to `AWSEC2Subnet`."
-
     target_node_label: str = "AWSLoadBalancer"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("ElbV1Id")},
@@ -85,8 +81,6 @@ class EC2SubnetToLoadBalancerV2RelRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class EC2SubnetToLoadBalancerV2Rel(CartographyRelSchema):
-    "Represents a `PART_OF_SUBNET` relationship from `AWSLoadBalancerV2` to `AWSEC2Subnet`."
-
     target_node_label: str = "AWSLoadBalancerV2"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("ElbV2Id")},

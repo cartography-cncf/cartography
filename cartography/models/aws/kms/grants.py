@@ -53,8 +53,6 @@ class KMSGrantRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class KMSGrantToKMSKeyRel(CartographyRelSchema):
-    "Represents a `APPLIED_ON` relationship from `AWSKMSGrant` to `AWSKMSKey`."
-
     target_node_label: str = "AWSKMSKey"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"arn": PropertyRef("KeyId")}
@@ -81,8 +79,6 @@ class KMSGrantToAWSAccountRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class KMSGrantSchema(CartographyNodeSchema):
-    "Represents an `AWSKMSGrant` node in the AWS graph."
-
     label: str = "AWSKMSGrant"
     # DEPRECATED: legacy KMSGrant node label will be removed in v1.0.0.
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([LEGACY_KMS_GRANT])

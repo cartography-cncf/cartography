@@ -60,8 +60,6 @@ class APIGatewayMethodToAPIGatewayResourceRelRelProperties(CartographyRelPropert
 
 @dataclass(frozen=True)
 class APIGatewayMethodToAPIGatewayResourceRel(CartographyRelSchema):
-    "Represents a `HAS_METHOD` relationship from `AWSAPIGatewayResource` to `AWSAPIGatewayMethod`."
-
     target_node_label: str = "AWSAPIGatewayResource"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("resourceId")},
@@ -81,8 +79,6 @@ class APIGatewayMethodToAWSAccountRelRelProperties(CartographyRelProperties):
 @dataclass(frozen=True)
 # (:AWSAPIGatewayMethod)<-[:RESOURCE]-(:AWSAccount)
 class APIGatewayMethodToAWSAccountRel(CartographyRelSchema):
-    "Represents a `RESOURCE` relationship from `AWSAccount` to `AWSAPIGatewayMethod`."
-
     target_node_label: str = "AWSAccount"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("AWS_ID", set_in_kwargs=True)},
@@ -96,8 +92,6 @@ class APIGatewayMethodToAWSAccountRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class APIGatewayMethodSchema(CartographyNodeSchema):
-    "Represents an `AWSAPIGatewayMethod` node in the AWS graph."
-
     label: str = "AWSAPIGatewayMethod"
     # DEPRECATED: legacy APIGatewayMethod node label will be removed in v1.0.0.
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([LEGACY_API_GATEWAY_METHOD])

@@ -84,8 +84,6 @@ class ECSContainerInstanceToAWSAccountRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class ECSContainerInstanceToAWSAccountRel(CartographyRelSchema):
-    "Represents a `RESOURCE` relationship from `AWSAccount` to `AWSECSContainerInstance`."
-
     target_node_label: str = "AWSAccount"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("AWS_ID", set_in_kwargs=True)}
@@ -104,8 +102,6 @@ class ECSContainerInstanceToECSClusterRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class ECSContainerInstanceToECSClusterRel(CartographyRelSchema):
-    "Represents a `HAS_CONTAINER_INSTANCE` relationship from `AWSECSCluster` to `AWSECSContainerInstance`."
-
     target_node_label: str = "AWSECSCluster"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("ClusterArn", set_in_kwargs=True)}
@@ -124,8 +120,6 @@ class ECSContainerInstanceToEC2InstanceRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class ECSContainerInstanceToEC2InstanceRel(CartographyRelSchema):
-    "Represents a `IS_INSTANCE` relationship from `AWSECSContainerInstance` to `AWSEC2Instance`."
-
     target_node_label: str = "AWSEC2Instance"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("ec2InstanceId")},
@@ -139,8 +133,6 @@ class ECSContainerInstanceToEC2InstanceRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class ECSContainerInstanceSchema(CartographyNodeSchema):
-    "Represents an `AWSECSContainerInstance` node in the AWS graph."
-
     label: str = "AWSECSContainerInstance"
     # DEPRECATED: legacy ECSContainerInstance node label will be removed in v1.0.0.
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(

@@ -80,8 +80,6 @@ class EBSSnapshotToAWSAccountRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class EBSSnapshotToAWSAccountRel(CartographyRelSchema):
-    "Represents a `RESOURCE` relationship from `AWSAccount` to `AWSEBSSnapshot`."
-
     target_node_label: str = "AWSAccount"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {
@@ -97,8 +95,6 @@ class EBSSnapshotToAWSAccountRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class EBSSnapshotSchema(CartographyNodeSchema):
-    "Represents an `AWSEBSSnapshot` node in the AWS graph."
-
     label: str = "AWSEBSSnapshot"
     properties: EBSSnapshotNodeProperties = EBSSnapshotNodeProperties()
     # DEPRECATED: legacy EBSSnapshot node label will be removed in v1.0.0.

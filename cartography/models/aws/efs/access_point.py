@@ -68,8 +68,6 @@ class EfsAccessPointToAwsAccountRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class EfsAccessPointToAWSAccountRel(CartographyRelSchema):
-    "Represents a `RESOURCE` relationship from `AWSAccount` to `AWSEfsAccessPoint`."
-
     target_node_label: str = "AWSAccount"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("AWS_ID", set_in_kwargs=True)},
@@ -88,8 +86,6 @@ class EfsAccessPointToEfsFileSystemRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class EfsAccessPointToEfsFileSystemRel(CartographyRelSchema):
-    "Represents a `ACCESS_POINT_OF` relationship from `AWSEfsAccessPoint` to `AWSEfsFileSystem`."
-
     target_node_label: str = "AWSEfsFileSystem"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("FileSystemId")},
@@ -103,8 +99,6 @@ class EfsAccessPointToEfsFileSystemRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class EfsAccessPointSchema(CartographyNodeSchema):
-    "Represents an `AWSEfsAccessPoint` node in the AWS graph."
-
     label: str = "AWSEfsAccessPoint"
     # DEPRECATED: legacy EfsAccessPoint node label will be removed in v1.0.0.
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([LEGACY_EFS_ACCESS_POINT])

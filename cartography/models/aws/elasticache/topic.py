@@ -38,8 +38,6 @@ class ElasticacheTopicToAWSAccountRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class ElasticacheTopicToAWSAccountRel(CartographyRelSchema):
-    "Represents a `RESOURCE` relationship from `AWSAccount` to `AWSElasticacheTopic`."
-
     target_node_label: str = "AWSAccount"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("AWS_ID", set_in_kwargs=True)}
@@ -58,8 +56,6 @@ class ElasticacheTopicToElasticacheClusterRelProperties(CartographyRelProperties
 
 @dataclass(frozen=True)
 class ElasticacheTopicToElasticacheClusterRel(CartographyRelSchema):
-    "Represents a `CACHE_CLUSTER` relationship from `AWSElasticacheTopic` to `AWSElasticacheCluster`."
-
     target_node_label: str = "AWSElasticacheCluster"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("cluster_arns", one_to_many=True)}
@@ -73,8 +69,6 @@ class ElasticacheTopicToElasticacheClusterRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class ElasticacheTopicSchema(CartographyNodeSchema):
-    "Represents an `AWSElasticacheTopic` node in the AWS graph."
-
     label: str = "AWSElasticacheTopic"
     # DEPRECATED: legacy ElasticacheTopic node label will be removed in v1.0.0.
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([LEGACY_ELASTICACHE_TOPIC])

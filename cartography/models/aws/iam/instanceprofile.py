@@ -47,8 +47,6 @@ class InstanceProfileToAWSAccountRelRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class InstanceProfileToAWSAccountRel(CartographyRelSchema):
-    "Represents a `RESOURCE` relationship from `AWSAccount` to `AWSInstanceProfile`."
-
     target_node_label: str = "AWSAccount"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("AWS_ID", set_in_kwargs=True)},
@@ -67,8 +65,6 @@ class InstanceProfileToAWSRoleRelRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class InstanceProfileToAWSRoleRel(CartographyRelSchema):
-    "Represents a `ASSOCIATED_WITH` relationship from `AWSInstanceProfile` to `AWSRole`."
-
     target_node_label: str = "AWSRole"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"arn": PropertyRef("Roles", one_to_many=True)},
@@ -82,8 +78,6 @@ class InstanceProfileToAWSRoleRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class InstanceProfileSchema(CartographyNodeSchema):
-    "Represents an `AWSInstanceProfile` node in the AWS graph."
-
     label: str = "AWSInstanceProfile"
     properties: InstanceProfileNodeProperties = InstanceProfileNodeProperties()
     sub_resource_relationship: InstanceProfileToAWSAccountRel = (

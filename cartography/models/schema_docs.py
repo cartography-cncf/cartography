@@ -1,21 +1,43 @@
 from __future__ import annotations
 
-from dataclasses import fields as dataclass_fields
-from dataclasses import replace
+import logging
+from dataclasses import dataclass
+from dataclasses import field
 from pathlib import Path
 
+from cartography.models.core.nodes import ExtraNodeLabel
 from cartography.models.core.nodes import LabelKind
-from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
-from cartography.models.core.relationships import SourceNodeMatcher
-from cartography.models.core.relationships import TargetNodeMatcher
 from cartography.models.introspection import DataModel
 from cartography.models.introspection import Node
 from cartography.models.introspection import Property
 from cartography.models.introspection import Relationship
+from cartography.models.introspection import relationship_touches_node
+from cartography.models.introspection import relationships_for_module
+
+logger = logging.getLogger(__name__)
 
 GENERATED_NOTICE = "<!-- Generated from the data model. Do not edit manually. -->"
 _STANDARD_RELATIONSHIP_PROPERTIES = frozenset({"firstseen", "lastupdated"})
+
+# Modules with no declarative data model, so their schema page is still hand-written and
+# committed. Removing one from this set must be paired with deleting its committed page.
+# - okta: legacy sync writing raw Cypher, it declares no CartographyNodeSchema.
+# - _cartography-metadata: written by the sync runner rather than by an intel module.
+MANUAL_SCHEMA_MODULES = frozenset(
+    {
+        "_cartography-metadata",
+        "okta",
+    }
+)
+
+# Deprecated module paths kept as redirect stubs so existing links keep resolving. They
+# document no schema of their own and point at the module that superseded them.
+REDIRECT_SCHEMA_MODULES = frozenset({"entra"})
+
+# Labels Cartography attaches for its own bookkeeping. They describe no user-facing
+# concept and have no section of their own, so they are never rendered.
+SYSTEM_LABELS = frozenset({"Ontology"})
 
 
 def render_module_schema(model: DataModel, module: str) -> str:
@@ -23,30 +45,13 @@ def render_module_schema(model: DataModel, module: str) -> str:
     if module == "ontology":
         return _render_ontology_schema(model)
 
-    module_nodes = tuple(
-        sorted(
-            (
-                _node_for_module(node, module)
-                for node in model.nodes
-                if module in node.modules
-            ),
-            key=_node_sort_key,
-        )
-    )
+    module_model = model.for_module(module)
+    module_nodes = tuple(sorted(module_model.nodes, key=_node_sort_key))
     if not module_nodes:
         raise ValueError(f'No nodes found for module "{module}".')
 
-    module_relationships = _module_relationships(
-        model.relationships,
-        module_nodes,
-        module,
-        model.nodes,
-    )
-    assigned_relationships = _assign_relationships(
-        module_relationships,
-        module_nodes,
-        model.nodes,
-    )
+    module_relationships = module_model.relationships
+    assigned_relationships = _assign_relationships(module_relationships, module_nodes)
     module_node_labels = {node.label for node in module_nodes}
     diagram_relationships = tuple(
         relationship
@@ -72,140 +77,6 @@ def render_module_schema(model: DataModel, module: str) -> str:
         lines.extend(_render_node(node, assigned_relationships.get(node.label, ())))
 
     return "\n".join(lines).rstrip() + "\n"
-
-
-def _node_for_module(node: Node, module: str) -> Node:
-    """Scope an aggregated node to schemas and properties owned by one module."""
-    provenance = tuple(item for item in node.label_provenance if item.module == module)
-    if not provenance:
-        return node
-
-    label_sets = [set(item.extra_labels) for item in provenance]
-    extra_labels = set().union(*label_sets)
-    universal_labels = set.intersection(*label_sets) if label_sets else set()
-    partial_labels = extra_labels - universal_labels
-    conditional_labels = {
-        (
-            conditional.label,
-            conditional.conditions,
-        ): conditional
-        for item in provenance
-        for conditional in item.conditional_labels
-    }
-    scoped_conditional_labels = tuple(
-        sorted(
-            conditional_labels.values(),
-            key=lambda conditional: (
-                conditional.label,
-                conditional.conditions,
-            ),
-        )
-    )
-    label_definitions = tuple(
-        sorted(
-            {
-                definition
-                for item in provenance
-                for definition in item.label_definitions
-            },
-            key=lambda definition: (
-                definition.label,
-                definition.conditions,
-                definition.kind.value,
-            ),
-        )
-    )
-    declared_labels = {
-        *extra_labels,
-        *(conditional.label for conditional in scoped_conditional_labels),
-    }
-    properties = tuple(
-        scoped_property
-        for prop in node.properties
-        if (scoped_property := _property_for_module(prop, module)) is not None
-    )
-    return replace(
-        node,
-        descriptions=tuple(
-            sorted(
-                {
-                    item.description
-                    for item in provenance
-                    if item.description is not None
-                }
-            )
-        ),
-        extra_labels=tuple(sorted(extra_labels)),
-        partial_extra_labels=tuple(sorted(partial_labels)),
-        conditional_labels=scoped_conditional_labels,
-        properties=properties,
-        modules=(module,),
-        schemas=tuple(
-            schema
-            for schema in node.schemas
-            if _schema_module(type(schema).__module__) == module
-        ),
-        ontology_labels=tuple(
-            label for label in node.ontology_labels if label in declared_labels
-        ),
-        label_definitions=label_definitions,
-    )
-
-
-def _property_for_module(prop: Property, module: str) -> Property | None:
-    """Scope one aggregated property to declarations owned by a module."""
-    if not prop.provenance:
-        return prop
-
-    scoped_provenance = tuple(item for item in prop.provenance if item.module == module)
-    if not scoped_provenance:
-        return None
-
-    declared_modules = {item.module for item in prop.provenance}
-    generated_sources = set(prop.source_names) - {
-        item.source_name for item in prop.provenance
-    }
-    generated_descriptions = set(prop.descriptions) - {
-        item.description for item in prop.provenance if item.description is not None
-    }
-    return replace(
-        prop,
-        source_names=tuple(
-            sorted(
-                generated_sources | {item.source_name for item in scoped_provenance},
-            )
-        ),
-        descriptions=tuple(
-            sorted(
-                generated_descriptions
-                | {
-                    item.description
-                    for item in scoped_provenance
-                    if item.description is not None
-                },
-            )
-        ),
-        indexed=any(item.indexed for item in scoped_provenance),
-        generated_by=tuple(
-            sorted(
-                {module}
-                | {
-                    source
-                    for source in prop.generated_by
-                    if source not in declared_modules
-                },
-            )
-        ),
-        property_refs=tuple(item.property_ref for item in scoped_provenance),
-        provenance=scoped_provenance,
-    )
-
-
-def _schema_module(module_name: str) -> str:
-    parts = module_name.split(".")
-    if len(parts) > 2 and parts[:2] == ["cartography", "models"]:
-        return parts[2]
-    return module_name
 
 
 def _node_sort_key(node: Node) -> tuple[str, str]:
@@ -239,11 +110,7 @@ def _render_ontology_schema(model: DataModel) -> str:
         model,
         canonical_nodes,
     )
-    assigned_relationships = _assign_relationships(
-        relationships,
-        catalog_nodes,
-        model.nodes,
-    )
+    assigned_relationships = _assign_relationships(relationships, catalog_nodes)
     implementations_by_label = {
         semantic_label.label: semantic_label.concrete_node_labels
         for semantic_label in model.ontology_semantic_labels
@@ -281,6 +148,14 @@ def _render_ontology_schema(model: DataModel) -> str:
     return "\n".join(lines).rstrip() + "\n"
 
 
+@dataclass
+class _OntologyCatalogEntry:
+    """One canonical edge of the ontology catalog and the edges implementing it."""
+
+    constrained: bool = False
+    implementations: list[Relationship] = field(default_factory=list)
+
+
 def _ontology_catalog_relationships(
     model: DataModel,
     canonical_nodes: tuple[Node, ...],
@@ -293,7 +168,7 @@ def _ontology_catalog_relationships(
     nodes_by_label = {node.label: node for node in model.nodes}
     entries: dict[
         tuple[str, str, str, LinkDirection | None],
-        dict[str, object],
+        _OntologyCatalogEntry,
     ] = {}
     key: tuple[str, str, str, LinkDirection | None]
 
@@ -304,8 +179,10 @@ def _ontology_catalog_relationships(
             constraint.target_label,
             LinkDirection.OUTWARD,
         )
-        entries[key] = {"constrained": True, "implementations": []}
+        entries[key] = _OntologyCatalogEntry(constrained=True)
 
+    # Keyed by identity: a Relationship carrying an analysis job is not hashable,
+    # because AnalysisJob holds dict-valued statement parameters.
     represented_relationships: set[int] = set()
     for relationship in model.relationships:
         source_labels = _ontology_endpoint_labels(
@@ -331,13 +208,8 @@ def _ontology_catalog_relationships(
                     target_label,
                     relationship.direction,
                 )
-                entry = entries.setdefault(
-                    key,
-                    {"constrained": False, "implementations": []},
-                )
-                implementations = entry["implementations"]
-                assert isinstance(implementations, list)
-                implementations.append(relationship)
+                entry = entries.setdefault(key, _OntologyCatalogEntry())
+                entry.implementations.append(relationship)
 
     relationships = [
         _build_ontology_catalog_relationship(key, entry)
@@ -345,7 +217,7 @@ def _ontology_catalog_relationships(
     ]
     relationships.extend(
         relationship
-        for relationship in _module_relationships(
+        for relationship in relationships_for_module(
             model.relationships,
             canonical_nodes,
             "ontology",
@@ -387,17 +259,11 @@ def _ontology_endpoint_labels(
 
 def _build_ontology_catalog_relationship(
     key: tuple[str, str, str, LinkDirection | None],
-    entry: dict[str, object],
+    entry: _OntologyCatalogEntry,
 ) -> Relationship:
     source_label, label, target_label, direction = key
-    constrained = bool(entry["constrained"])
-    implementations = entry["implementations"]
-    assert isinstance(implementations, list)
-    typed_implementations = tuple(
-        relationship
-        for relationship in implementations
-        if isinstance(relationship, Relationship)
-    )
+    constrained = entry.constrained
+    typed_implementations = tuple(entry.implementations)
     descriptions = (
         (
             (
@@ -480,35 +346,24 @@ def _build_ontology_catalog_relationship(
     )
 
 
-def write_module_schema_docs(
-    model: DataModel,
-    modules: list[str],
-    output_root: Path,
-    preserve_existing: bool = False,
-) -> None:
-    """Write generated schema docs while optionally preserving manual pages."""
-    for module in modules:
+def write_schema_docs(model: DataModel, output_root: Path) -> None:
+    """Overwrite the schema page of every module the data model can describe."""
+    for module in generated_schema_modules(model):
         output_path = output_root / module / "schema.md"
-        if preserve_existing and output_path.exists():
-            print(f"Preserved {output_path}")
-            continue
-        content = render_module_schema(model, module)
         output_path.parent.mkdir(parents=True, exist_ok=True)
-        output_path.write_text(content)
-        print(f"Wrote {output_path}")
+        output_path.write_text(render_module_schema(model, module))
+        logger.info("Wrote %s", output_path)
 
 
-def generate_missing_schema_docs(
-    model: DataModel,
-    output_root: Path,
-) -> None:
-    """Generate schema pages for modules that do not have a manual page."""
-    write_module_schema_docs(
-        model,
-        _model_modules(model),
-        output_root=output_root,
-        preserve_existing=True,
-    )
+def generated_schema_modules(model: DataModel) -> list[str]:
+    """List the modules whose schema page is generated rather than hand-written."""
+    return [
+        module
+        for module in sorted(
+            {module for node in model.nodes for module in node.modules}
+        )
+        if module not in MANUAL_SCHEMA_MODULES
+    ]
 
 
 def _render_node(
@@ -517,158 +372,102 @@ def _render_node(
     ontology_kind: str | None = None,
     concrete_node_labels: tuple[str, ...] = (),
 ) -> list[str]:
+    lines: list[str] = []
+    if ontology_kind is not None:
+        # Explicit myst target so module pages can link an ontology label without
+        # depending on heading-slug anchors, which myst refuses to resolve.
+        lines.append(f"({_ontology_anchor(node.label)})=")
+    lines.extend([f"### {node.label}", ""])
+    description = _single_description(node.descriptions, f"node {node.label}")
+    if description:
+        lines.extend([description, ""])
+    lines.extend(_render_ontology_kind(ontology_kind, concrete_node_labels))
+    lines.extend(_render_label_notes(node))
+    lines.extend(_render_properties(node))
+    lines.extend(_render_relationships(relationships))
+    return lines
+
+
+def _render_ontology_kind(
+    ontology_kind: str | None,
+    concrete_node_labels: tuple[str, ...],
+) -> list[str]:
+    if ontology_kind == "abstract":
+        return [
+            "> **Abstract Ontology Node**: This is a dedicated canonical node "
+            "created separately from provider-specific nodes.",
+            "",
+        ]
+    if ontology_kind != "semantic":
+        return []
     lines = [
-        f"### {node.label}",
-        "",
-        _single_description(node.descriptions, f"node {node.label}")
-        or f"Representation of a `{node.label}` node.",
+        "> **Semantic Label**: This label is applied directly to "
+        "provider-specific nodes; it does not create a separate node.",
         "",
     ]
-    if ontology_kind == "abstract":
-        lines.extend(
-            [
-                "> **Abstract Ontology Node**: This is a dedicated canonical node "
-                "created separately from provider-specific nodes.",
-                "",
-            ]
-        )
-    elif ontology_kind == "semantic":
-        lines.extend(
-            [
-                "> **Semantic Label**: This label is applied directly to "
-                "provider-specific nodes; it does not create a separate node.",
-                "",
-            ]
-        )
-        if concrete_node_labels:
-            concrete_labels = ", ".join(f"`{label}`" for label in concrete_node_labels)
-            lines.extend(
-                [
-                    f"> **Implementations**: {concrete_labels}.",
-                    "",
-                ]
-            )
+    if concrete_node_labels:
+        concrete_labels = ", ".join(f"`{label}`" for label in concrete_node_labels)
+        lines.extend([f"> **Implementations**: {concrete_labels}.", ""])
+    return lines
+
+
+def _render_label_notes(node: Node) -> list[str]:
+    """Render the ontology, additional and conditional label blockquotes."""
+    conditional_labels = tuple(
+        conditional_label
+        for conditional_label in node.conditional_labels
+        if conditional_label.label not in SYSTEM_LABELS
+    )
     conditional_label_names = {
-        conditional_label.label for conditional_label in node.conditional_labels
+        conditional_label.label for conditional_label in conditional_labels
     }
+    ontology_labels = tuple(
+        label for label in node.ontology_labels if label not in SYSTEM_LABELS
+    )
+    extra_labels = tuple(
+        label for label in node.extra_labels if label not in SYSTEM_LABELS
+    )
     unconditional_ontology_labels = tuple(
-        label for label in node.ontology_labels if label not in conditional_label_names
+        label for label in ontology_labels if label not in conditional_label_names
     )
-    universal_ontology_labels = tuple(
-        label
-        for label in unconditional_ontology_labels
-        if label not in node.partial_extra_labels
+
+    def split_by_universality(labels: tuple[str, ...]) -> tuple[tuple[str, ...], ...]:
+        return (
+            tuple(x for x in labels if x not in node.partial_extra_labels),
+            tuple(x for x in labels if x in node.partial_extra_labels),
+        )
+
+    universal_ontology, partial_ontology = split_by_universality(
+        unconditional_ontology_labels
     )
-    partial_ontology_labels = tuple(
-        label
-        for label in unconditional_ontology_labels
-        if label in node.partial_extra_labels
+    universal_additional, partial_additional = split_by_universality(
+        tuple(label for label in extra_labels if label not in ontology_labels)
     )
-    if universal_ontology_labels:
-        formatted_labels = ", ".join(
-            _ontology_label_link(label) for label in universal_ontology_labels
-        )
-        lines.extend(
-            [
-                f"> **Ontology Mapping**: This node uses the ontology "
-                f"{'label' if len(universal_ontology_labels) == 1 else 'labels'} "
-                f"{formatted_labels}.",
-                "",
-            ]
-        )
-    if partial_ontology_labels:
-        formatted_labels = ", ".join(
-            _ontology_label_link(label) for label in partial_ontology_labels
-        )
-        lines.extend(
-            [
-                f"> **Ontology Mapping**: Some schema variants may also use the "
-                f"ontology "
-                f"{'label' if len(partial_ontology_labels) == 1 else 'labels'} "
-                f"{formatted_labels}.",
-                "",
-            ]
-        )
-    universal_additional_labels = tuple(
-        label
-        for label in node.extra_labels
-        if label not in node.ontology_labels and label not in node.partial_extra_labels
-    )
-    partial_additional_labels = tuple(
-        label
-        for label in node.extra_labels
-        if label not in node.ontology_labels and label in node.partial_extra_labels
-    )
-    if universal_additional_labels:
-        formatted_labels = ", ".join(
-            f"`{label}`" for label in universal_additional_labels
-        )
-        lines.extend(
-            [
-                f"> **Additional Labels**: This node also uses " f"{formatted_labels}.",
-                "",
-            ]
-        )
-    if partial_additional_labels:
-        formatted_labels = ", ".join(
-            f"`{label}`" for label in partial_additional_labels
-        )
+
+    lines: list[str] = []
+    if universal_ontology:
+        lines.extend(_ontology_mapping_note(universal_ontology, partial=False))
+    if partial_ontology:
+        lines.extend(_ontology_mapping_note(partial_ontology, partial=True))
+    if universal_additional:
+        formatted = ", ".join(f"`{label}`" for label in universal_additional)
+        lines.extend([f"> **Additional Labels**: This node also uses {formatted}.", ""])
+    if partial_additional:
+        formatted = ", ".join(f"`{label}`" for label in partial_additional)
         lines.extend(
             [
                 f"> **Additional Labels**: Some schema variants may also use "
-                f"{formatted_labels}.",
+                f"{formatted}.",
                 "",
             ]
         )
-    additional_label_names = {
-        *universal_additional_labels,
-        *partial_additional_labels,
-    }
-    additional_label_definitions = tuple(
-        definition
-        for definition in node.label_definitions
-        if not definition.conditions and definition.label in additional_label_names
+    lines.extend(
+        _render_additional_label_definitions(
+            node,
+            {*universal_additional, *partial_additional},
+        )
     )
-    if additional_label_definitions:
-        lines.extend(["> **Additional Label Definitions**:", ">"])
-        for definition in additional_label_definitions:
-            details = definition.description
-            if definition.kind is LabelKind.COMPATIBILITY:
-                compatibility_details = []
-                if definition.replacement_label:
-                    compatibility_details.append(
-                        f"Use `{definition.replacement_label}` instead."
-                    )
-                if definition.remove_in:
-                    compatibility_details.append(
-                        f"Scheduled for removal in v{definition.remove_in}."
-                    )
-                if compatibility_details:
-                    details = f"{details} {' '.join(compatibility_details)}"
-            lines.append(f"> - `{definition.label}`: {details}")
-        lines.append("")
-    if node.conditional_labels:
-        lines.extend(["> **Conditional Labels**:", ">"])
-        for conditional_label in node.conditional_labels:
-            ontology_note = (
-                " (ontology label)"
-                if conditional_label.label in node.ontology_labels
-                else ""
-            )
-            conditions = " and ".join(
-                f"`{field}` equals `{value}`"
-                for field, value in conditional_label.conditions
-            )
-            formatted_label = (
-                _ontology_label_link(conditional_label.label)
-                if conditional_label.label in node.ontology_labels
-                else f"`{conditional_label.label}`"
-            )
-            lines.append(
-                f"> - {formatted_label}{ontology_note} when {conditions}. "
-                f"{conditional_label.description}"
-            )
-        lines.append("")
+    lines.extend(_render_conditional_labels(conditional_labels, ontology_labels))
     for projection_label in node.ontology_projections:
         lines.extend(
             [
@@ -677,97 +476,171 @@ def _render_node(
                 "",
             ]
         )
+    return lines
 
-    lines.extend(["#### Properties", ""])
-    if any(prop.ontology for prop in node.properties):
-        lines.extend(
-            [
-                "Ontology-generated fields are shown in *italics*.",
-                "",
-            ]
-        )
-    if node.properties:
-        lines.extend(
-            [
-                "| Field | Index | Description |",
-                "|-------|-------|-------------|",
-            ]
-        )
-        for prop in sorted(node.properties, key=_property_sort_key):
-            field_name = f"*{prop.name}*" if prop.ontology else prop.name
-            index = "Yes" if prop.indexed else ""
-            lines.append(
-                f"| {field_name} | {index} | "
-                f"{_escape_table_cell(_property_description(prop))} |"
-            )
-    else:
-        lines.extend(
-            [
-                "No normalized properties are defined for this semantic label.",
-                "",
-            ]
-        )
 
-    lines.extend(["", "#### Relationships", ""])
-    if not relationships:
-        lines.extend(["No relationships.", ""])
-        return lines
-
-    for relationship in relationships:
-        description = _single_description(
-            relationship.descriptions,
-            (
-                f"relationship {relationship.source_label}-"
-                f"{relationship.label}->{relationship.target_label}"
-            ),
-        )
-        detail_lines = [
-            f"- {description or _default_relationship_description(relationship)}",
+def _ontology_mapping_note(labels: tuple[str, ...], partial: bool) -> list[str]:
+    formatted = ", ".join(_ontology_label_link(label) for label in labels)
+    noun = "label" if len(labels) == 1 else "labels"
+    if partial:
+        return [
+            f"> **Ontology Mapping**: Some schema variants may also use the "
+            f"ontology {noun} {formatted}.",
+            "",
         ]
-        permissions = _relationship_permissions(relationship)
-        if permissions:
-            detail_lines.append(f"  - Evaluated permissions: {permissions}")
-        target_preconditions = _relationship_target_preconditions(relationship)
-        if target_preconditions:
-            detail_lines.append(f"  - Target precondition: {target_preconditions}")
-        relationship_properties = tuple(
-            prop
-            for prop in relationship.properties
-            if not _is_standard_relationship_property(prop)
+    return [
+        f"> **Ontology Mapping**: This node uses the ontology {noun} {formatted}.",
+        "",
+    ]
+
+
+def _render_additional_label_definitions(
+    node: Node,
+    additional_label_names: set[str],
+) -> list[str]:
+    definitions = tuple(
+        definition
+        for definition in node.label_definitions
+        if not definition.conditions and definition.label in additional_label_names
+    )
+    if not definitions:
+        return []
+    lines = ["> **Additional Label Definitions**:", ">"]
+    for definition in definitions:
+        details = definition.description
+        if definition.kind is LabelKind.COMPATIBILITY:
+            compatibility_details = []
+            if definition.replacement_label:
+                compatibility_details.append(
+                    f"Use `{definition.replacement_label}` instead."
+                )
+            if definition.remove_in:
+                compatibility_details.append(
+                    f"Scheduled for removal in v{definition.remove_in}."
+                )
+            if compatibility_details:
+                details = f"{details} {' '.join(compatibility_details)}"
+        lines.append(f"> - `{definition.label}`: {details}")
+    lines.append("")
+    return lines
+
+
+def _render_conditional_labels(
+    conditional_labels: tuple[ExtraNodeLabel, ...],
+    ontology_labels: tuple[str, ...],
+) -> list[str]:
+    if not conditional_labels:
+        return []
+    lines = ["> **Conditional Labels**:", ">"]
+    for conditional_label in conditional_labels:
+        is_ontology = conditional_label.label in ontology_labels
+        conditions = " and ".join(
+            f"`{name}` equals `{value}`" for name, value in conditional_label.conditions
         )
-        if relationship_properties:
-            detail_lines.extend(
-                [
-                    "  - Properties:",
-                    "",
-                    "    | Field | Description |",
-                    "    |-------|-------------|",
-                    *(
-                        "    | "
-                        f"{prop.name} | "
-                        f"{_escape_table_cell(_relationship_property_description(prop))} |"
-                        for prop in sorted(
-                            relationship_properties,
-                            key=_property_sort_key,
-                        )
-                    ),
-                ]
-            )
+        formatted_label = (
+            _ontology_label_link(conditional_label.label)
+            if is_ontology
+            else f"`{conditional_label.label}`"
+        )
+        ontology_note = " (ontology label)" if is_ontology else ""
+        lines.append(
+            f"> - {formatted_label}{ontology_note} when {conditions}. "
+            f"{conditional_label.description}"
+        )
+    lines.append("")
+    return lines
+
+
+def _render_properties(node: Node) -> list[str]:
+    lines = ["#### Properties", ""]
+    if any(prop.ontology for prop in node.properties):
+        lines.extend(["Ontology-generated fields are shown in *italics*.", ""])
+    if not node.properties:
         lines.extend(
-            [
-                *detail_lines,
-                "",
-                "    ```cypher",
-                f"    {_relationship_pattern(relationship)}",
-                "    ```",
-                "",
-            ]
+            ["No normalized properties are defined for this semantic label.", ""]
+        )
+        return lines
+    lines.extend(["| Field | Index | Description |", "|-------|-------|-------------|"])
+    for prop in sorted(node.properties, key=_property_sort_key):
+        field_name = f"*{prop.name}*" if prop.ontology else prop.name
+        index = "Yes" if prop.indexed else ""
+        lines.append(
+            f"| {field_name} | {index} | "
+            f"{_escape_table_cell(_property_description(prop))} |"
         )
     return lines
 
 
+def _render_relationships(relationships: tuple[Relationship, ...]) -> list[str]:
+    lines = ["", "#### Relationships", ""]
+    if not relationships:
+        lines.extend(["No relationships.", ""])
+        return lines
+    for relationship in relationships:
+        lines.append(f"- {_relationship_summary(relationship)}")
+        permissions = _relationship_permissions(relationship)
+        if permissions:
+            lines.append(f"  - Evaluated permissions: {permissions}")
+        target_preconditions = _relationship_target_preconditions(relationship)
+        if target_preconditions:
+            lines.append(f"  - Target precondition: {target_preconditions}")
+        lines.extend(_render_relationship_properties(relationship))
+        lines.append("")
+    return lines
+
+
+def _render_relationship_properties(relationship: Relationship) -> list[str]:
+    properties = tuple(
+        prop
+        for prop in relationship.properties
+        if not _is_standard_relationship_property(prop)
+    )
+    if not properties:
+        return []
+    return [
+        "  - Properties:",
+        "",
+        "    | Field | Description |",
+        "    |-------|-------------|",
+        *(
+            f"    | {prop.name} | "
+            f"{_escape_table_cell(_relationship_property_description(prop))} |"
+            for prop in sorted(properties, key=_property_sort_key)
+        ),
+    ]
+
+
+def _relationship_summary(relationship: Relationship) -> str:
+    """Lead with the Cypher pattern and only add prose that says something more."""
+    pattern = f"`{_relationship_pattern(relationship)}`"
+    description = _single_description(
+        relationship.descriptions,
+        (
+            f"relationship {relationship.source_label}-"
+            f"{relationship.label}->{relationship.target_label}"
+        ),
+    ) or _analysis_job_origin(relationship)
+    return f"{pattern}: {description}" if description else pattern
+
+
+def _analysis_job_origin(relationship: Relationship) -> str | None:
+    if not relationship.analysis_jobs:
+        return None
+    jobs = ", ".join(
+        f"`{definition.job.name}`" for definition in relationship.analysis_jobs
+    )
+    return f"generated by analysis job {jobs}."
+
+
+def _ontology_anchor(label: str) -> str:
+    return f"ontology-{label.lower()}"
+
+
 def _ontology_label_link(label: str) -> str:
-    return f"[`{label}`](../ontology/schema.html#{label.lower()})"
+    # Deliberately unqualified: usage/schema.md inlines every schema page, so each anchor
+    # exists twice and a path-qualified target breaks inside that aggregated copy. Once
+    # the aggregation stops duplicating pages, this resolves to the ontology page itself.
+    return f"[`{label}`](#{_ontology_anchor(label)})"
 
 
 def _is_standard_relationship_property(prop: Property) -> bool:
@@ -782,48 +655,18 @@ def _relationship_property_description(prop: Property) -> str:
     return f"Value sourced from {source_fields}."
 
 
-def _module_relationships(
-    relationships: tuple[Relationship, ...],
-    nodes: tuple[Node, ...],
-    module: str,
-    all_nodes: tuple[Node, ...],
-) -> tuple[Relationship, ...]:
-    node_labels = {node.label for node in nodes}
-    primary_labels = {node.label for node in all_nodes}
-    return tuple(
-        relationship
-        for relationship in relationships
-        if module in relationship.modules
-        or relationship.source_label in node_labels
-        or relationship.target_label in node_labels
-        or any(
-            _relationship_matches_broad_node(
-                relationship,
-                node,
-                primary_labels,
-                require_explicit_match=module == "aws",
-            )
-            for node in nodes
-        )
-    )
-
-
 def _assign_relationships(
     relationships: tuple[Relationship, ...],
     nodes: tuple[Node, ...],
-    all_nodes: tuple[Node, ...],
 ) -> dict[str, tuple[Relationship, ...]]:
+    """Group each relationship under the node sections that should document it."""
     assigned: dict[str, list[Relationship]] = {}
     nodes_by_label = {node.label: node for node in nodes}
-    primary_labels = {node.label for node in all_nodes}
     for relationship in relationships:
         owners = tuple(
             dict.fromkeys(
                 label
-                for label in (
-                    relationship.source_label,
-                    relationship.target_label,
-                )
+                for label in (relationship.source_label, relationship.target_label)
                 if label in nodes_by_label
             )
         )
@@ -831,11 +674,7 @@ def _assign_relationships(
             owners = tuple(
                 node.label
                 for node in nodes
-                if _relationship_matches_broad_node(
-                    relationship,
-                    node,
-                    primary_labels,
-                )
+                if relationship_touches_node(relationship, node)
             )
         for owner in owners:
             assigned.setdefault(owner, []).append(relationship)
@@ -855,107 +694,6 @@ def _assign_relationships(
     }
 
 
-def _relationship_matches_broad_node(
-    relationship: Relationship,
-    node: Node,
-    primary_labels: set[str],
-    require_explicit_match: bool = False,
-) -> bool:
-    broad_labels = {
-        *node.extra_labels,
-        *node.ontology_labels,
-        *(label.label for label in node.conditional_labels),
-    }
-    if not broad_labels:
-        return False
-
-    if relationship.schemas:
-        return any(
-            _schema_matches_broad_node(
-                schema,
-                node,
-                broad_labels,
-                primary_labels,
-                require_explicit_match,
-            )
-            for schema in relationship.schemas
-        )
-
-    if relationship.analysis_jobs:
-        return _analysis_context_matches_node(
-            relationship,
-            node,
-            require_explicit_match,
-        ) and any(
-            endpoint in broad_labels and endpoint not in primary_labels
-            for endpoint in (relationship.source_label, relationship.target_label)
-        )
-
-    return not require_explicit_match and any(
-        endpoint in broad_labels and endpoint not in primary_labels
-        for endpoint in (relationship.source_label, relationship.target_label)
-    )
-
-
-def _analysis_context_matches_node(
-    relationship: Relationship,
-    node: Node,
-    require_explicit_match: bool = False,
-) -> bool:
-    contexts = relationship.analysis_context_modules
-    if not contexts:
-        return True
-    if () in contexts:
-        return not require_explicit_match
-    node_modules = set(node.modules)
-    return any(node_modules.intersection(context) for context in contexts)
-
-
-def _schema_matches_broad_node(
-    schema: CartographyRelSchema,
-    node: Node,
-    broad_labels: set[str],
-    primary_labels: set[str],
-    require_explicit_match: bool = False,
-) -> bool:
-    target_matches_extra_labels = (
-        not require_explicit_match
-        and schema.target_node_label not in primary_labels
-        or schema.match_target_extra_labels
-    )
-    if (
-        target_matches_extra_labels
-        and schema.target_node_label in broad_labels
-        and _matcher_fits_node(schema.target_node_matcher, node)
-    ):
-        return True
-
-    source_label = schema.source_node_label
-    source_matcher = schema.source_node_matcher
-    source_matches_extra_labels = bool(
-        source_label
-        and (
-            (not require_explicit_match and source_label not in primary_labels)
-            or schema.match_source_extra_labels
-        )
-    )
-    return bool(
-        source_matches_extra_labels
-        and source_label in broad_labels
-        and source_matcher is not None
-        and _matcher_fits_node(source_matcher, node)
-    )
-
-
-def _matcher_fits_node(
-    matcher: SourceNodeMatcher | TargetNodeMatcher,
-    node: Node,
-) -> bool:
-    matcher_keys = {field.name for field in dataclass_fields(matcher)}
-    node_properties = {prop.name for prop in node.properties}
-    return matcher_keys <= node_properties
-
-
 def _single_description(
     descriptions: tuple[str, ...],
     subject: str,
@@ -973,8 +711,6 @@ def _property_description(prop: Property) -> str:
         return "Timestamp when a sync job first created this node."
     if prop.name == "lastupdated":
         return "Timestamp of the last sync that observed this node."
-    if prop.name == "_ont_source":
-        return "Module that populated this node's ontology fields."
     if prop.ontology:
         if prop.source_names:
             source_fields = ", ".join(f"`{name}`" for name in prop.source_names)
@@ -995,21 +731,6 @@ def _property_sort_key(prop: Property) -> tuple[bool, int, str]:
         "lastupdated": 2,
     }.get(prop.name, 3)
     return prop.ontology, priority, prop.name
-
-
-def _default_relationship_description(relationship: Relationship) -> str:
-    if relationship.analysis_jobs:
-        jobs = ", ".join(
-            f"`{definition.job.name}`" for definition in relationship.analysis_jobs
-        )
-        return (
-            f"Analysis job {jobs} generates "
-            f"`{_relationship_pattern(relationship)}`."
-        )
-    return (
-        f"`{relationship.source_label}` connects to "
-        f"`{relationship.target_label}` through `{relationship.label}`."
-    )
 
 
 def _relationship_permissions(relationship: Relationship) -> str | None:
@@ -1081,10 +802,6 @@ def _module_title(module: str) -> str:
         "socketdev": "Socket.dev",
     }
     return title_overrides.get(module, module.replace("_", " ").title())
-
-
-def _model_modules(model: DataModel) -> list[str]:
-    return sorted({module for node in model.nodes for module in node.modules})
 
 
 def _escape_table_cell(value: str) -> str:

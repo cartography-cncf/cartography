@@ -70,8 +70,6 @@ class CloudWatchLogGroupToAwsAccountRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class CloudWatchToAWSAccountRel(CartographyRelSchema):
-    "Represents a `RESOURCE` relationship from `AWSAccount` to `AWSCloudWatchLogGroup`."
-
     target_node_label: str = "AWSAccount"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("AWS_ID", set_in_kwargs=True)},
@@ -85,8 +83,6 @@ class CloudWatchToAWSAccountRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class CloudWatchLogGroupSchema(CartographyNodeSchema):
-    "Represents an `AWSCloudWatchLogGroup` node in the AWS graph."
-
     label: str = "AWSCloudWatchLogGroup"
     # DEPRECATED: legacy CloudWatchLogGroup node label will be removed in v1.0.0.
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([LEGACY_CLOUD_WATCH_LOG_GROUP])

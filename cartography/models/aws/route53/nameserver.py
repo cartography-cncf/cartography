@@ -37,8 +37,6 @@ class NameServerToZoneRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class NameServerToZoneRel(CartographyRelSchema):
-    "Represents a `NAMESERVER` relationship from `AWSDNSZone` to `AWSNameServer`."
-
     target_node_label: str = "AWSDNSZone"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"zoneid": PropertyRef("zoneid")}
@@ -55,8 +53,6 @@ class NameServerToAWSAccountRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class NameServerToAWSAccountRel(CartographyRelSchema):
-    "Represents a `RESOURCE` relationship from `AWSAccount` to `AWSNameServer`."
-
     target_node_label: str = "AWSAccount"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("AWS_ID", set_in_kwargs=True)}
@@ -70,8 +66,6 @@ class NameServerToAWSAccountRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class NameServerSchema(CartographyNodeSchema):
-    "Represents an `AWSNameServer` node in the AWS graph."
-
     label: str = "AWSNameServer"
     # DEPRECATED: legacy NameServer node label will be removed in v1.0.0.
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([LEGACY_NAME_SERVER])

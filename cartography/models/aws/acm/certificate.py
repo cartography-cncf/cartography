@@ -63,8 +63,6 @@ class ACMCertificateToAWSAccountRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class ACMCertificateToAWSAccountRel(CartographyRelSchema):
-    "Represents a `RESOURCE` relationship from `AWSAccount` to `AWSACMCertificate`."
-
     target_node_label: str = "AWSAccount"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("AWS_ID", set_in_kwargs=True)}
@@ -83,8 +81,6 @@ class ACMCertificateToELBV2ListenerRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class ACMCertificateToELBV2ListenerRel(CartographyRelSchema):
-    "Represents a `USED_BY` relationship from `AWSACMCertificate` to `AWSELBV2Listener`."
-
     target_node_label: str = "AWSELBV2Listener"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("ELBV2ListenerArns", one_to_many=True)}
@@ -98,8 +94,6 @@ class ACMCertificateToELBV2ListenerRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class ACMCertificateSchema(CartographyNodeSchema):
-    "Represents an `AWSACMCertificate` node in the AWS graph."
-
     label: str = "AWSACMCertificate"
     # DEPRECATED: legacy ACMCertificate node label will be removed in v1.0.0.
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(

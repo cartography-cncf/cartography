@@ -5,7 +5,22 @@ from dataclasses import dataclass
 
 @dataclass(frozen=True)
 class AWSTaggableResource:
-    """Runtime matching metadata for one AWS resource type supported by tagging."""
+    """
+    How to find the Cartography node that a Resource Groups Tagging API ARN refers to.
+
+    - ``resource_type``: the resource type as reported by the tagging API.
+    - ``label``: the node label used in Cartography for this resource type.
+    - ``property``: the field of this node that uniquely identifies the resource.
+    - ``id_parser``: [optional] key into the ARN parsers in
+      cartography.intel.aws.resourcegroupstaggingapi. EC2 instances and S3 buckets
+      currently use non-ARNs as their primary identifiers, so the ARN returned by the
+      tagging API has to be translated to the form Cartography uses.
+      TODO: make EC2 and S3 assets queryable by their full ARN so this can go away.
+    - ``region_property``: [optional] the node property holding the resource's region.
+      When present, the tag MATCH is scoped to the synced region so that same-named
+      resources in different regions (load balancers are keyed by name) are not
+      cross-tagged.
+    """
 
     resource_type: str
     label: str
@@ -60,6 +75,10 @@ AWS_TAGGABLE_RESOURCES = (
     AWSTaggableResource("ecs:task-definition", "AWSECSTaskDefinition", "id"),
     AWSTaggableResource("eks:cluster", "AWSEKSCluster", "id"),
     AWSTaggableResource("elasticache:cluster", "AWSElasticacheCluster", "arn"),
+    # Match on the classic ELB's own label (AWSLoadBalancer), not the shared
+    # "LoadBalancer" ontology label, which is also attached to AWSLoadBalancerV2
+    # nodes. Otherwise a classic ELB tag would bleed onto an ALB/NLB of the same
+    # name in the same region.
     AWSTaggableResource(
         "elasticloadbalancing:loadbalancer",
         "AWSLoadBalancer",
@@ -92,6 +111,8 @@ AWS_TAGGABLE_RESOURCES = (
     AWSTaggableResource("rds:subgrp", "AWSDBSubnetGroup", "id"),
     AWSTaggableResource("rds:cluster", "AWSRDSCluster", "id"),
     AWSTaggableResource("rds:snapshot", "AWSRDSSnapshot", "id"),
+    # Buckets are the only objects in the S3 service:
+    # https://docs.aws.amazon.com/AmazonS3/latest/dev/s3-arn-format.html
     AWSTaggableResource("s3", "AWSS3Bucket", "id", "s3_bucket_name"),
     AWSTaggableResource(
         "secretsmanager:secret",

@@ -101,8 +101,6 @@ class EC2InstanceToAWSAccountRelRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class EC2InstanceToAWSAccountRel(CartographyRelSchema):
-    "Represents a `RESOURCE` relationship from `AWSAccount` to `AWSEC2Instance`."
-
     target_node_label: str = "AWSAccount"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("AWS_ID", set_in_kwargs=True)},
@@ -121,8 +119,6 @@ class EC2InstanceToAutoScalingGroupRelRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class EC2InstanceToAutoScalingGroupRel(CartographyRelSchema):
-    "Represents a `MEMBER_AUTO_SCALE_GROUP` relationship from `AWSEC2Instance` to `AWSAutoScalingGroup`."
-
     target_node_label: str = "AWSAutoScalingGroup"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("AutoScalingGroupARN")},
@@ -158,8 +154,6 @@ class EC2InstanceAutoScalingGroupProperties(CartographyNodeProperties):
 
 @dataclass(frozen=True)
 class EC2InstanceAutoScalingGroupSchema(CartographyNodeSchema):
-    "Represents an `AWSEC2Instance` node in the AWS graph."
-
     label: str = "AWSEC2Instance"
     # DEPRECATED: legacy EC2Instance node label will be removed in v1.0.0.
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([LEGACY_EC2_INSTANCE])
@@ -182,8 +176,6 @@ class EC2SubnetToAWSAccountRelRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class EC2SubnetToAWSAccountRel(CartographyRelSchema):
-    "Represents a `RESOURCE` relationship from `AWSAccount` to `AWSEC2Subnet`."
-
     target_node_label: str = "AWSAccount"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("AWS_ID", set_in_kwargs=True)},
@@ -202,8 +194,6 @@ class EC2SubnetToAutoScalingGroupRelRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class EC2SubnetToAutoScalingGroupRel(CartographyRelSchema):
-    "Represents a `VPC_IDENTIFIER` relationship from `AWSAutoScalingGroup` to `AWSEC2Subnet`."
-
     target_node_label: str = "AWSAutoScalingGroup"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("AutoScalingGroupARN")},
@@ -254,8 +244,6 @@ class AutoScalingGroupToAWSAccountRelRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class AutoScalingGroupToAWSAccountRel(CartographyRelSchema):
-    "Represents a `RESOURCE` relationship from `AWSAccount` to `AWSAutoScalingGroup`."
-
     target_node_label: str = "AWSAccount"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("AWS_ID", set_in_kwargs=True)},
@@ -274,8 +262,6 @@ class AutoScalingGroupToLaunchTemplateRelRelProperties(CartographyRelProperties)
 
 @dataclass(frozen=True)
 class AutoScalingGroupToLaunchTemplateRel(CartographyRelSchema):
-    "Represents a `HAS_LAUNCH_TEMPLATE` relationship from `AWSAutoScalingGroup` to `AWSLaunchTemplate`."
-
     target_node_label: str = "AWSLaunchTemplate"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("LaunchTemplateId")},
@@ -294,8 +280,6 @@ class AutoScalingGroupToLaunchConfigurationRelRelProperties(CartographyRelProper
 
 @dataclass(frozen=True)
 class AutoScalingGroupToLaunchConfigurationRel(CartographyRelSchema):
-    "Represents a `HAS_LAUNCH_CONFIG` relationship from `AWSAutoScalingGroup` to `AWSLaunchConfiguration`."
-
     target_node_label: str = "AWSLaunchConfiguration"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"name": PropertyRef("LaunchConfigurationName")},
@@ -309,8 +293,6 @@ class AutoScalingGroupToLaunchConfigurationRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class AutoScalingGroupSchema(CartographyNodeSchema):
-    "Represents an `AWSAutoScalingGroup` node in the AWS graph."
-
     label: str = "AWSAutoScalingGroup"
     # DEPRECATED: legacy AutoScalingGroup node label will be removed in v1.0.0.
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([LEGACY_AUTO_SCALING_GROUP])

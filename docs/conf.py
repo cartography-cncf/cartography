@@ -16,8 +16,11 @@ import sys
 from datetime import datetime
 from pathlib import Path
 
+from sphinx.util import logging as sphinx_logging
+
 from cartography.models.introspection import inspect_data_model
-from cartography.models.schema_docs import generate_missing_schema_docs
+from cartography.models.schema_docs import generated_schema_modules
+from cartography.models.schema_docs import write_schema_docs
 
 # Use __file__ for robustness when conf.py is copied to generated/rst/ by build.sh
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -32,10 +35,23 @@ _source_asset_prefix = (
 
 def setup(app):
     app.add_config_value("release_level", "", "env")
-    generate_missing_schema_docs(
-        inspect_data_model(),
-        Path(app.srcdir) / "modules",
-    )
+    logger = sphinx_logging.getLogger(__name__)
+    srcdir = Path(app.srcdir).resolve()
+    # Schema pages are build artifacts. Building straight from docs/root/ would drop
+    # dozens of untracked files into the working tree; see docs/README.md.
+    if srcdir == Path(_config_dir).resolve() / "root":
+        raise RuntimeError(
+            "Refusing to generate schema pages inside docs/root/. "
+            "Build from generated/rst/ instead; see docs/README.md."
+        )
+    model = inspect_data_model()
+    # Anything introspection could not read would silently vanish from the docs, so make
+    # it a build warning rather than a field nobody looks at.
+    for diagnostic in model.diagnostics:
+        logger.warning("data model introspection: %s", diagnostic)
+    modules = generated_schema_modules(model)
+    write_schema_docs(model, srcdir / "modules")
+    logger.info("generated %d module schema pages", len(modules))
 
 
 # -- General configuration ------------------------------------------------
@@ -273,6 +289,9 @@ myst_enable_extensions = [
 myst_linkify_fuzzy_links = False
 suppress_warnings = ["myst.header"]
 myst_fence_as_directive = ["mermaid"]
+# Without this, `[text](#some-heading)` links resolve to nothing. Kept at 3 because
+# generated schema pages repeat `#### Properties` per node, which would collide at 4.
+myst_heading_anchors = 3
 
 # Napoleon settings
 napoleon_google_docstring = True

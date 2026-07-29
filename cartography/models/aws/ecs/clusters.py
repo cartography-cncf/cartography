@@ -77,8 +77,6 @@ class ECSClusterToAWSAccountRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class ECSClusterToAWSAccountRel(CartographyRelSchema):
-    "Represents a `RESOURCE` relationship from `AWSAccount` to `AWSECSCluster`."
-
     target_node_label: str = "AWSAccount"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("AWS_ID", set_in_kwargs=True)}
@@ -92,8 +90,6 @@ class ECSClusterToAWSAccountRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class ECSClusterSchema(CartographyNodeSchema):
-    "Represents an `AWSECSCluster` node in the AWS graph."
-
     label: str = "AWSECSCluster"
     # DEPRECATED: legacy ECSCluster node label will be removed in v1.0.0.
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(

@@ -54,8 +54,6 @@ class S3AclToAWSAccountRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class S3AclToAWSAccountRel(CartographyRelSchema):
-    "Represents a `RESOURCE` relationship from `AWSAccount` to `AWSS3Acl`."
-
     target_node_label: str = "AWSAccount"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("AWS_ID", set_in_kwargs=True)},
@@ -72,8 +70,6 @@ class S3AclToS3BucketRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class S3AclToS3BucketRel(CartographyRelSchema):
-    "Represents a `APPLIES_TO` relationship from `AWSS3Acl` to `AWSS3Bucket`."
-
     target_node_label: str = "AWSS3Bucket"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("bucket")},
@@ -85,8 +81,6 @@ class S3AclToS3BucketRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class S3AclSchema(CartographyNodeSchema):
-    "Represents an `AWSS3Acl` node in the AWS graph."
-
     label: str = "AWSS3Acl"
     # DEPRECATED: legacy S3Acl node label will be removed in v1.0.0.
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([LEGACY_S3_ACL])

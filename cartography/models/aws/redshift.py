@@ -91,8 +91,6 @@ class RedshiftClusterToAWSAccountRelProperties(CartographyRelProperties):
 # (:AWSAccount)-[:RESOURCE]->(:AWSRedshiftCluster)
 @dataclass(frozen=True)
 class RedshiftClusterToAWSAccountRel(CartographyRelSchema):
-    "Represents a `RESOURCE` relationship from `AWSAccount` to `AWSRedshiftCluster`."
-
     target_node_label: str = "AWSAccount"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("AWS_ID", set_in_kwargs=True)},
@@ -112,8 +110,6 @@ class RedshiftClusterToEC2SecurityGroupRelProperties(CartographyRelProperties):
 # (:AWSRedshiftCluster)-[:MEMBER_OF_EC2_SECURITY_GROUP]->(:AWSEC2SecurityGroup)
 @dataclass(frozen=True)
 class RedshiftClusterToEC2SecurityGroupRel(CartographyRelSchema):
-    "Represents a `MEMBER_OF_EC2_SECURITY_GROUP` relationship from `AWSRedshiftCluster` to `AWSEC2SecurityGroup`."
-
     target_node_label: str = "AWSEC2SecurityGroup"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("_security_group_ids", one_to_many=True)},
@@ -133,8 +129,6 @@ class RedshiftClusterToAWSPrincipalRelProperties(CartographyRelProperties):
 # (:AWSRedshiftCluster)-[:STS_ASSUMEROLE_ALLOW]->(:AWSPrincipal)
 @dataclass(frozen=True)
 class RedshiftClusterToAWSPrincipalRel(CartographyRelSchema):
-    "Represents a `STS_ASSUMEROLE_ALLOW` relationship from `AWSRedshiftCluster` to `AWSPrincipal`."
-
     target_node_label: str = "AWSPrincipal"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"arn": PropertyRef("_iam_role_arns", one_to_many=True)},
@@ -154,8 +148,6 @@ class RedshiftClusterToAWSVpcRelProperties(CartographyRelProperties):
 # (:AWSRedshiftCluster)-[:MEMBER_OF_AWS_VPC]->(:AWSVpc)
 @dataclass(frozen=True)
 class RedshiftClusterToAWSVpcRel(CartographyRelSchema):
-    "Represents a `MEMBER_OF_AWS_VPC` relationship from `AWSRedshiftCluster` to `AWSVpc`."
-
     target_node_label: str = "AWSVpc"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("VpcId")},
@@ -169,8 +161,6 @@ class RedshiftClusterToAWSVpcRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class RedshiftClusterSchema(CartographyNodeSchema):
-    "Represents an `AWSRedshiftCluster` node in the AWS graph."
-
     label: str = "AWSRedshiftCluster"
     # DEPRECATED: legacy RedshiftCluster node label will be removed in v1.0.0.
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([LEGACY_REDSHIFT_CLUSTER])

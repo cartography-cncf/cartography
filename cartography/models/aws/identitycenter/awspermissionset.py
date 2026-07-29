@@ -57,8 +57,6 @@ class PermissionSetToInstanceRelRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class PermissionSetToInstanceRel(CartographyRelSchema):
-    "Represents a `HAS_PERMISSION_SET` relationship from `AWSIdentityCenter` to `AWSPermissionSet`."
-
     target_node_label: str = "AWSIdentityCenter"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"arn": PropertyRef("InstanceArn", set_in_kwargs=True)},
@@ -77,8 +75,6 @@ class PermissionSetToAWSRoleRelRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class PermissionSetToAWSRoleRel(CartographyRelSchema):
-    "Represents a `ASSIGNED_TO_ROLE` relationship from `AWSPermissionSet` to `AWSRole`."
-
     target_node_label: str = "AWSRole"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"arn": PropertyRef("RoleHint", fuzzy_and_ignore_case=True)},
@@ -98,8 +94,6 @@ class AWSPermissionSetToAWSAccountRelRelProperties(CartographyRelProperties):
 @dataclass(frozen=True)
 # (:IdentityCenter)<-[:RESOURCE]-(:AWSAccount)
 class AWSPermissionSetToAWSAccountRel(CartographyRelSchema):
-    "Represents a `RESOURCE` relationship from `AWSAccount` to `AWSPermissionSet`."
-
     target_node_label: str = "AWSAccount"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("AWS_ID", set_in_kwargs=True)},
@@ -189,8 +183,6 @@ class AWSRoleToSSOGroupMatchLink(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class AWSPermissionSetSchema(CartographyNodeSchema):
-    "Represents an `AWSPermissionSet` node in the AWS graph."
-
     label: str = "AWSPermissionSet"
     properties: PermissionSetProperties = PermissionSetProperties()
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([PERMISSION_ROLE])

@@ -40,8 +40,6 @@ class ECRImageLayerToAWSAccountRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class ECRImageLayerToAWSAccountRel(CartographyRelSchema):
-    "Represents a `RESOURCE` relationship from `AWSAccount` to `AWSECRImageLayer`."
-
     target_node_label: str = "AWSAccount"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("AWS_ID", set_in_kwargs=True)}
@@ -60,8 +58,6 @@ class ECRImageLayerToNextRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class ECRImageLayerToNextRel(CartographyRelSchema):
-    "Represents a `NEXT` relationship from `AWSECRImageLayer` to `AWSECRImageLayer`."
-
     target_node_label: str = "AWSECRImageLayer"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"diff_id": PropertyRef("next_diff_ids", one_to_many=True)}
@@ -78,8 +74,6 @@ class ECRImageLayerHeadOfImageRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class ECRImageLayerHeadOfImageRel(CartographyRelSchema):
-    "Represents a `HEAD` relationship from `AWSECRImage` to `AWSECRImageLayer`."
-
     target_node_label: str = "AWSECRImage"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("head_image_ids", one_to_many=True)}
@@ -98,8 +92,6 @@ class ECRImageLayerTailOfImageRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class ECRImageLayerTailOfImageRel(CartographyRelSchema):
-    "Represents a `TAIL` relationship from `AWSECRImage` to `AWSECRImageLayer`."
-
     target_node_label: str = "AWSECRImage"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("tail_image_ids", one_to_many=True)}

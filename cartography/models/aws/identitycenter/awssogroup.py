@@ -47,8 +47,6 @@ class AWSSSOGroupToAWSAccountRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class AWSSSOGroupToAWSAccountRel(CartographyRelSchema):
-    "Represents a `RESOURCE` relationship from `AWSAccount` to `AWSSSOGroup`."
-
     target_node_label: str = "AWSAccount"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("AWS_ID", set_in_kwargs=True)},
@@ -70,8 +68,6 @@ class AWSSSOGroupToPermissionSetRelProperties(CartographyRelProperties):
 # edge (AWSSSOGroupToPermissionSetHasRoleRel). Kept for backward compatibility,
 # will be removed in v1.0.0.
 class AWSSSOGroupToPermissionSetRel(CartographyRelSchema):
-    "Represents a `HAS_PERMISSION_SET` relationship from `AWSSSOGroup` to `AWSPermissionSet`."
-
     target_node_label: str = "AWSPermissionSet"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"arn": PropertyRef("AssignedPermissionSets", one_to_many=True)},
@@ -91,8 +87,6 @@ class AWSSSOGroupToPermissionSetHasRoleRelProperties(CartographyRelProperties):
 @dataclass(frozen=True)
 # Canonical ontology edge: (:UserGroup)-[:HAS_ROLE]->(:PermissionRole)
 class AWSSSOGroupToPermissionSetHasRoleRel(CartographyRelSchema):
-    "Represents a `HAS_ROLE` relationship from `AWSSSOGroup` to `AWSPermissionSet`."
-
     target_node_label: str = "AWSPermissionSet"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"arn": PropertyRef("AssignedPermissionSets", one_to_many=True)},
@@ -106,8 +100,6 @@ class AWSSSOGroupToPermissionSetHasRoleRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class AWSSSOGroupSchema(CartographyNodeSchema):
-    "Represents an `AWSSSOGroup` node in the AWS graph."
-
     label: str = "AWSSSOGroup"
     properties: AWSSSOGroupProperties = AWSSSOGroupProperties()
     sub_resource_relationship: AWSSSOGroupToAWSAccountRel = AWSSSOGroupToAWSAccountRel()

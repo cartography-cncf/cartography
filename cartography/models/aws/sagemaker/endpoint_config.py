@@ -53,8 +53,6 @@ class AWSSageMakerEndpointConfigToAWSAccountRelProperties(CartographyRelProperti
 
 @dataclass(frozen=True)
 class AWSSageMakerEndpointConfigToAWSAccountRel(CartographyRelSchema):
-    "Represents a `RESOURCE` relationship from `AWSAccount` to `AWSSageMakerEndpointConfig`."
-
     target_node_label: str = "AWSAccount"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("AWS_ID", set_in_kwargs=True)}
@@ -73,8 +71,6 @@ class AWSSageMakerEndpointConfigToModelRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class AWSSageMakerEndpointConfigToModelRel(CartographyRelSchema):
-    "Represents a `USES` relationship from `AWSSageMakerEndpointConfig` to `AWSSageMakerModel`."
-
     target_node_label: str = "AWSSageMakerModel"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"model_name": PropertyRef("ModelName")}
@@ -88,8 +84,6 @@ class AWSSageMakerEndpointConfigToModelRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class AWSSageMakerEndpointConfigSchema(CartographyNodeSchema):
-    "Represents an `AWSSageMakerEndpointConfig` node in the AWS graph."
-
     label: str = "AWSSageMakerEndpointConfig"
     properties: AWSSageMakerEndpointConfigNodeProperties = (
         AWSSageMakerEndpointConfigNodeProperties()

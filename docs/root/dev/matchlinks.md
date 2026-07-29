@@ -76,7 +76,7 @@ Let's say we have the following data that maps principals with the S3Buckets the
         )
     ```
 
-    This is a standard `CartographyRelSchema` object as described in the [intel module guide](writing-intel-modules#defining-relationships), **except** that now we have defined a `source_node_label` and a `source_node_matcher`.
+    This is a standard `CartographyRelSchema` object as described in the [intel module guide](#defining-relationships), **except** that now we have defined a `source_node_label` and a `source_node_matcher`.
 
 1. Define a `CartographyRelProperties` object with some additional fields:
     ```python

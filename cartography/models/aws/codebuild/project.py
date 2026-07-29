@@ -56,8 +56,6 @@ class CodeBuildProjectToAwsAccountRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class CodeBuildProjectToAWSAccountRel(CartographyRelSchema):
-    "Represents a `RESOURCE` relationship from `AWSAccount` to `AWSCodeBuildProject`."
-
     target_node_label: str = "AWSAccount"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("AWS_ID", set_in_kwargs=True)},
@@ -71,8 +69,6 @@ class CodeBuildProjectToAWSAccountRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class CodeBuildProjectSchema(CartographyNodeSchema):
-    "Represents an `AWSCodeBuildProject` node in the AWS graph."
-
     label: str = "AWSCodeBuildProject"
     properties: CodeBuildProjectNodeProperties = CodeBuildProjectNodeProperties()
     # DEPRECATED: legacy CodeBuildProject node label will be removed in v1.0.0.

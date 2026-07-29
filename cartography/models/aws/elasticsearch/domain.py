@@ -150,8 +150,6 @@ class ESDomainToAWSAccountRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class ESDomainToAWSAccountRel(CartographyRelSchema):
-    "Represents a `RESOURCE` relationship from `AWSAccount` to `AWSESDomain`."
-
     target_node_label: str = "AWSAccount"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("AWS_ID", set_in_kwargs=True)},
@@ -168,8 +166,6 @@ class ESDomainToEC2SubnetRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class ESDomainToEC2SubnetRel(CartographyRelSchema):
-    "Represents a `PART_OF_SUBNET` relationship from `AWSESDomain` to `AWSEC2Subnet`."
-
     target_node_label: str = "AWSEC2Subnet"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("SubnetIds", one_to_many=True)},
@@ -186,8 +182,6 @@ class ESDomainToEC2SecurityGroupRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class ESDomainToEC2SecurityGroupRel(CartographyRelSchema):
-    "Represents a `MEMBER_OF_EC2_SECURITY_GROUP` relationship from `AWSESDomain` to `AWSEC2SecurityGroup`."
-
     target_node_label: str = "AWSEC2SecurityGroup"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("SecurityGroupIds", one_to_many=True)},

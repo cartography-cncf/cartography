@@ -112,8 +112,6 @@ class EC2ImageToAWSAccountRelRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class EC2ImageToAWSAccountRel(CartographyRelSchema):
-    "Represents a `RESOURCE` relationship from `AWSAccount` to `AWSEC2Image`."
-
     target_node_label: str = "AWSAccount"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("AWS_ID", set_in_kwargs=True)},
@@ -127,8 +125,6 @@ class EC2ImageToAWSAccountRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class EC2ImageSchema(CartographyNodeSchema):
-    "Represents an `AWSEC2Image` node in the AWS graph."
-
     label: str = "AWSEC2Image"
     # DEPRECATED: legacy EC2Image node label will be removed in v1.0.0.
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([LEGACY_EC2_IMAGE])

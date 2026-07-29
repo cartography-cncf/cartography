@@ -83,8 +83,6 @@ class SSMParameterToAWSAccountRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class SSMParameterToAWSAccountRel(CartographyRelSchema):
-    "Represents a `RESOURCE` relationship from `AWSAccount` to `AWSSSMParameter`."
-
     target_node_label: str = "AWSAccount"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("AWS_ID", set_in_kwargs=True)},
@@ -103,8 +101,6 @@ class SSMParameterToKMSKeyRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class SSMParameterToKMSKeyRel(CartographyRelSchema):
-    "Represents a `ENCRYPTED_BY` relationship from `AWSSSMParameter` to `AWSKMSKey`."
-
     target_node_label: str = "AWSKMSKey"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {
@@ -118,8 +114,6 @@ class SSMParameterToKMSKeyRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class SSMParameterSchema(CartographyNodeSchema):
-    "Represents an `AWSSSMParameter` node in the AWS graph."
-
     label: str = "AWSSSMParameter"
     properties: SSMParameterNodeProperties = SSMParameterNodeProperties()
     # Only SecureString parameters are secrets (String/StringList are plaintext config).
@@ -143,8 +137,6 @@ class SSMParameterSchema(CartographyNodeSchema):
 
 @dataclass(frozen=True)
 class PublicSSMParameterSchema(CartographyNodeSchema):
-    "Represents an `AWSPublicSSMParameter` node in the AWS graph."
-
     label: str = "AWSPublicSSMParameter"
     properties: SSMParameterNodeProperties = SSMParameterNodeProperties()
     # AWS-managed public parameters are shared regional data, not account resources.

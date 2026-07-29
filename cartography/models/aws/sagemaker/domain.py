@@ -55,8 +55,6 @@ class AWSSageMakerDomainToAWSAccountRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class AWSSageMakerDomainToAWSAccountRel(CartographyRelSchema):
-    "Represents a `RESOURCE` relationship from `AWSAccount` to `AWSSageMakerDomain`."
-
     target_node_label: str = "AWSAccount"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("AWS_ID", set_in_kwargs=True)}
@@ -70,8 +68,6 @@ class AWSSageMakerDomainToAWSAccountRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class AWSSageMakerDomainSchema(CartographyNodeSchema):
-    "Represents an `AWSSageMakerDomain` node in the AWS graph."
-
     label: str = "AWSSageMakerDomain"
     properties: AWSSageMakerDomainNodeProperties = AWSSageMakerDomainNodeProperties()
     sub_resource_relationship: AWSSageMakerDomainToAWSAccountRel = (

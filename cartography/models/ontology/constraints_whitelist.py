@@ -1,3 +1,12 @@
+"""
+Relationship schemas exempted from the canonical naming rules in constraints.py.
+
+Each entry is an edge that legitimately spans two ontology labels under a name other
+than the canonical one, either because it predates the constraint or because it carries
+a genuinely different semantic. Kept apart from constraints.py so that the constraint
+table stays readable next to its own rationale comments.
+"""
+
 from cartography.models.anthropic.apikey import AnthropicApiKeyToUserRel
 from cartography.models.aws.cloudtrail.management_events import (
     AssumedRoleWithSAMLMatchLink,

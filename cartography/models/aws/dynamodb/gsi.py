@@ -51,8 +51,6 @@ class DynamoDBGSIToAWSAccountRelRelProperties(CartographyRelProperties):
 @dataclass(frozen=True)
 # (:AWSDynamoDBGlobalSecondaryIndex)<-[:RESOURCE]-(:AWSAccount)
 class DynamoDBGSIToAWSAccountRel(CartographyRelSchema):
-    "Represents a `RESOURCE` relationship from `AWSAccount` to `AWSDynamoDBGlobalSecondaryIndex`."
-
     target_node_label: str = "AWSAccount"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("AWS_ID", set_in_kwargs=True)},
@@ -72,8 +70,6 @@ class DynamoDBGSIToDynamoDBTableRelRelProperties(CartographyRelProperties):
 @dataclass(frozen=True)
 # (:AWSDynamoDBGlobalSecondaryIndex)<-[:GLOBAL_SECONDARY_INDEX]-(:AWSDynamoDBTable)
 class DynamoDBGSIToDynamoDBTableRel(CartographyRelSchema):
-    "Represents a `GLOBAL_SECONDARY_INDEX` relationship from `AWSDynamoDBTable` to `AWSDynamoDBGlobalSecondaryIndex`."
-
     target_node_label: str = "AWSDynamoDBTable"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"arn": PropertyRef("TableArn")},
@@ -87,8 +83,6 @@ class DynamoDBGSIToDynamoDBTableRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class DynamoDBGSISchema(CartographyNodeSchema):
-    "Represents an `AWSDynamoDBGlobalSecondaryIndex` node in the AWS graph."
-
     label: str = "AWSDynamoDBGlobalSecondaryIndex"
     # DEPRECATED: legacy DynamoDBGlobalSecondaryIndex node label will be removed in v1.0.0.
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(

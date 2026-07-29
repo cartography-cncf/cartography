@@ -118,8 +118,6 @@ class ECSServiceToECSClusterRelProperties(CartographyRelProperties):
 # DEPRECATED: replaced by WORKLOAD_PARENT, will be removed in v1.0.0
 @dataclass(frozen=True)
 class ECSServiceToECSClusterRel(CartographyRelSchema):
-    "Represents a `HAS_SERVICE` relationship from `AWSECSCluster` to `AWSECSService`."
-
     target_node_label: str = "AWSECSCluster"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("ClusterArn", set_in_kwargs=True)}
@@ -139,8 +137,6 @@ class ECSServiceToECSClusterWorkloadParentRelProperties(CartographyRelProperties
 @dataclass(frozen=True)
 # (:AWSECSService)-[:WORKLOAD_PARENT]->(:AWSECSCluster)
 class ECSServiceToECSClusterWorkloadParentRel(CartographyRelSchema):
-    "Represents a `WORKLOAD_PARENT` relationship from `AWSECSService` to `AWSECSCluster`."
-
     target_node_label: str = "AWSECSCluster"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("ClusterArn", set_in_kwargs=True)}
@@ -159,8 +155,6 @@ class ECSServiceToTaskDefinitionRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class ECSServiceToTaskDefinitionRel(CartographyRelSchema):
-    "Represents a `HAS_TASK_DEFINITION` relationship from `AWSECSService` to `AWSECSTaskDefinition`."
-
     target_node_label: str = "AWSECSTaskDefinition"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("taskDefinition")}
@@ -179,8 +173,6 @@ class ECSServiceToAWSAccountRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class ECSServiceToAWSAccountRel(CartographyRelSchema):
-    "Represents a `RESOURCE` relationship from `AWSAccount` to `AWSECSService`."
-
     target_node_label: str = "AWSAccount"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("AWS_ID", set_in_kwargs=True)}
@@ -200,8 +192,6 @@ class ECSServiceToECSTaskRelProperties(CartographyRelProperties):
 # DEPRECATED: replaced by WORKLOAD_PARENT, will be removed in v1.0.0
 @dataclass(frozen=True)
 class ECSServiceToECSTaskRel(CartographyRelSchema):
-    "Represents a `HAS_TASK` relationship from `AWSECSService` to `AWSECSTask`."
-
     target_node_label: str = "AWSECSTask"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {
@@ -216,8 +206,6 @@ class ECSServiceToECSTaskRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class ECSServiceSchema(CartographyNodeSchema):
-    "Represents an `AWSECSService` node in the AWS graph."
-
     label: str = "AWSECSService"
     # DEPRECATED: legacy ECSService node label will be removed in v1.0.0.
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(

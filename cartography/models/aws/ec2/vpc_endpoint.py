@@ -99,8 +99,6 @@ class VPCEndpointToAWSAccountRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class VPCEndpointToAWSAccountRel(CartographyRelSchema):
-    "Represents a `RESOURCE` relationship from `AWSAccount` to `AWSVpcEndpoint`."
-
     target_node_label: str = "AWSAccount"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("AWS_ID", set_in_kwargs=True)}
@@ -119,8 +117,6 @@ class VPCEndpointToVPCRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class VPCEndpointToVPCRel(CartographyRelSchema):
-    "Represents a `MEMBER_OF_AWS_VPC` relationship from `AWSVpcEndpoint` to `AWSVpc`."
-
     target_node_label: str = "AWSVpc"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("VpcId")}
@@ -132,8 +128,6 @@ class VPCEndpointToVPCRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class AWSVpcEndpointSchema(CartographyNodeSchema):
-    "Represents an `AWSVpcEndpoint` node in the AWS graph."
-
     label: str = "AWSVpcEndpoint"
     properties: VPCEndpointNodeProperties = VPCEndpointNodeProperties()
     sub_resource_relationship: VPCEndpointToAWSAccountRel = VPCEndpointToAWSAccountRel()

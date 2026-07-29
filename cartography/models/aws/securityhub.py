@@ -38,8 +38,6 @@ class SecurityHubToAWSAccountRelProperties(CartographyRelProperties):
 @dataclass(frozen=True)
 # (:AWSAccount)-[:RESOURCE]->(:AWSSecurityHub)
 class SecurityHubToAWSAccountRel(CartographyRelSchema):
-    "Represents a `RESOURCE` relationship from `AWSAccount` to `AWSSecurityHub`."
-
     target_node_label: str = "AWSAccount"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("AWS_ID", set_in_kwargs=True)},
@@ -53,8 +51,6 @@ class SecurityHubToAWSAccountRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class SecurityHubSchema(CartographyNodeSchema):
-    "Represents an `AWSSecurityHub` node in the AWS graph."
-
     label: str = "AWSSecurityHub"
     # DEPRECATED: legacy SecurityHub node label will be removed in v1.0.0.
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([LEGACY_SECURITY_HUB])

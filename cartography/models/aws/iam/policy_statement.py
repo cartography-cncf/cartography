@@ -61,8 +61,6 @@ class AWSPolicyStatementToAWSPolicyRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class AWSPolicyStatementToAWSPolicyRel(CartographyRelSchema):
-    "Represents a `STATEMENT` relationship from `AWSPolicy` to `AWSPolicyStatement`."
-
     target_node_label: str = "AWSPolicy"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {
@@ -78,8 +76,6 @@ class AWSPolicyStatementToAWSPolicyRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class AWSPolicyStatementSchema(CartographyNodeSchema):
-    "Represents an `AWSPolicyStatement` node in the AWS graph."
-
     label: str = "AWSPolicyStatement"
     properties: AWSPolicyStatementNodeProperties = AWSPolicyStatementNodeProperties()
     sub_resource_relationship: AWSPolicyStatementToAWSPolicyRel = (

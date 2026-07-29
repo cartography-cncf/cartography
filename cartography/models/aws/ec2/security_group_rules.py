@@ -56,8 +56,6 @@ class IpRuleToAWSAccountRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class IpRuleToAWSAccountRel(CartographyRelSchema):
-    "Represents a `RESOURCE` relationship from `AWSAccount` to `AWSIpPermissionInbound` or `AWSIpRange` or `AWSIpRule`."
-
     target_node_label: str = "AWSAccount"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("AWS_ID", set_in_kwargs=True)}
@@ -74,8 +72,6 @@ class IpRuleToSecurityGroupRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class IpRuleToSecurityGroupRel(CartographyRelSchema):
-    "Represents a `MEMBER_OF_EC2_SECURITY_GROUP` relationship from `AWSIpPermissionInbound` or `AWSIpRule` to `AWSEC2SecurityGroup`."
-
     target_node_label: str = "AWSEC2SecurityGroup"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"groupid": PropertyRef("GroupId")}
@@ -110,8 +106,6 @@ class IpRangeToIpRuleRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class IpRangeToIpRuleRel(CartographyRelSchema):
-    "Represents a `MEMBER_OF_IP_RULE` relationship from `AWSIpRange` to `AWSIpRule`."
-
     target_node_label: str = "AWSIpRule"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"ruleid": PropertyRef("RuleId")}
@@ -123,8 +117,6 @@ class IpRangeToIpRuleRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class IpRuleSchema(CartographyNodeSchema):
-    "Represents an `AWSIpRule` node in the AWS graph."
-
     label: str = "AWSIpRule"
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([IP_RULE])
     properties: IpRuleNodeProperties = IpRuleNodeProperties()
@@ -136,8 +128,6 @@ class IpRuleSchema(CartographyNodeSchema):
 
 @dataclass(frozen=True)
 class IpPermissionInboundSchema(CartographyNodeSchema):
-    "Represents an `AWSIpPermissionInbound` node in the AWS graph."
-
     label: str = "AWSIpPermissionInbound"
     # Keep AWSIpRule as an extra label so inbound rules are still queryable as
     # the broader AWSIpRule type while preserving a provider-specific primary label.
@@ -153,8 +143,6 @@ class IpPermissionInboundSchema(CartographyNodeSchema):
 
 @dataclass(frozen=True)
 class IpRangeSchema(CartographyNodeSchema):
-    "Represents an `AWSIpRange` node in the AWS graph."
-
     label: str = "AWSIpRange"
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([IP_RANGE])
     properties: IpRangeNodeProperties = IpRangeNodeProperties()

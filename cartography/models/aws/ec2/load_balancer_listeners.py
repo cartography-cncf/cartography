@@ -52,8 +52,6 @@ class ELBListenerToLoadBalancerRelRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class ELBListenerToLoadBalancerRel(CartographyRelSchema):
-    "Represents a `ELB_LISTENER` relationship from `AWSLoadBalancer` to `AWSELBListener`."
-
     target_node_label: str = "AWSLoadBalancer"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("LoadBalancerId")},
@@ -72,8 +70,6 @@ class ELBListenerToAWSAccountRelRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class ELBListenerToAWSAccountRel(CartographyRelSchema):
-    "Represents a `RESOURCE` relationship from `AWSAccount` to `AWSELBListener`."
-
     target_node_label: str = "AWSAccount"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("AWS_ID", set_in_kwargs=True)},
@@ -87,8 +83,6 @@ class ELBListenerToAWSAccountRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class ELBListenerSchema(CartographyNodeSchema):
-    "Represents an `AWSELBListener` node in the AWS graph."
-
     label: str = "AWSELBListener"
     properties: ELBListenerNodeProperties = ELBListenerNodeProperties()
     # DEPRECATED: legacy ELBListener node label will be removed in v1.0.0.

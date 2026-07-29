@@ -72,8 +72,6 @@ class AWSSageMakerModelToAWSAccountRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class AWSSageMakerModelToAWSAccountRel(CartographyRelSchema):
-    "Represents a `RESOURCE` relationship from `AWSAccount` to `AWSSageMakerModel`."
-
     target_node_label: str = "AWSAccount"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("AWS_ID", set_in_kwargs=True)}
@@ -92,8 +90,6 @@ class AWSSageMakerModelToRoleRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class AWSSageMakerModelToRoleRel(CartographyRelSchema):
-    "Represents a `HAS_EXECUTION_ROLE` relationship from `AWSSageMakerModel` to `AWSRole`."
-
     target_node_label: str = "AWSRole"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"arn": PropertyRef("ExecutionRoleArn")}
@@ -112,8 +108,6 @@ class AWSSageMakerModelToS3BucketRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class AWSSageMakerModelToS3BucketRel(CartographyRelSchema):
-    "Represents a `REFERENCES_ARTIFACTS_IN` relationship from `AWSSageMakerModel` to `AWSS3Bucket`."
-
     target_node_label: str = "AWSS3Bucket"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("ModelArtifactsS3BucketId")}
@@ -132,8 +126,6 @@ class AWSSageMakerModelToModelPackageRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class AWSSageMakerModelToModelPackageRel(CartographyRelSchema):
-    "Represents a `DERIVES_FROM` relationship from `AWSSageMakerModel` to `AWSSageMakerModelPackage`."
-
     target_node_label: str = "AWSSageMakerModelPackage"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"arn": PropertyRef("ModelPackageArn")}
@@ -147,8 +139,6 @@ class AWSSageMakerModelToModelPackageRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class AWSSageMakerModelSchema(CartographyNodeSchema):
-    "Represents an `AWSSageMakerModel` node in the AWS graph."
-
     label: str = "AWSSageMakerModel"
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([AI_MODEL])
     properties: AWSSageMakerModelNodeProperties = AWSSageMakerModelNodeProperties()

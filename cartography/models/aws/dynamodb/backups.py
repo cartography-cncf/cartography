@@ -34,8 +34,6 @@ class DynamoDBBackupToAWSAccountRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class DynamoDBBackupToAWSAccountRel(CartographyRelSchema):
-    "Represents a `RESOURCE` relationship from `AWSAccount` to `AWSDynamoDBBackup`."
-
     target_node_label: str = "AWSAccount"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("AWS_ID", set_in_kwargs=True)},
@@ -49,8 +47,6 @@ class DynamoDBBackupToAWSAccountRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class DynamoDBBackupSchema(CartographyNodeSchema):
-    "Represents an `AWSDynamoDBBackup` node in the AWS graph."
-
     label: str = "AWSDynamoDBBackup"
     # DEPRECATED: legacy DynamoDBBackup node label will be removed in v1.0.0.
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([LEGACY_DYNAMO_DB_BACKUP])

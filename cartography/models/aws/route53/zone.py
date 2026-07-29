@@ -45,8 +45,6 @@ class AWSDNSZoneToAWSAccountRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class AWSDNSZoneToAWSAccountRel(CartographyRelSchema):
-    "Represents a `RESOURCE` relationship from `AWSAccount` to `AWSDNSZone`."
-
     target_node_label: str = "AWSAccount"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("AWS_ID", set_in_kwargs=True)}
@@ -60,8 +58,6 @@ class AWSDNSZoneToAWSAccountRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class AWSDNSZoneSchema(CartographyNodeSchema):
-    "Represents an `AWSDNSZone` node in the AWS graph."
-
     label: str = "AWSDNSZone"
     properties: AWSDNSZoneNodeProperties = AWSDNSZoneNodeProperties()
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([DNS_ZONE])

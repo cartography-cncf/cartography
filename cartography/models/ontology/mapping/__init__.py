@@ -196,6 +196,15 @@ SEMANTIC_LABELS_BY_MAPPING_GROUP: dict[str, str] = {
     "vpcs": "VirtualNetwork",
 }
 
+if set(SEMANTIC_LABELS_BY_MAPPING_GROUP) != set(SEMANTIC_LABELS_MAPPING):
+    # Introspection looks the label up by mapping group, so a missing entry would only
+    # surface as a bare KeyError while generating the schema docs.
+    raise RuntimeError(
+        "SEMANTIC_LABELS_BY_MAPPING_GROUP must name every mapping group. Missing: "
+        f"{sorted(set(SEMANTIC_LABELS_MAPPING) - set(SEMANTIC_LABELS_BY_MAPPING_GROUP))}, "
+        f"unknown: {sorted(set(SEMANTIC_LABELS_BY_MAPPING_GROUP) - set(SEMANTIC_LABELS_MAPPING))}."
+    )
+
 SEMANTIC_LABELS_WITHOUT_NORMALIZED_FIELDS: tuple[str, ...] = (
     "ImageAttestation",
     "ImageLayer",

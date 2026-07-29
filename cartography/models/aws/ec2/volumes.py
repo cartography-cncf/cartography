@@ -77,8 +77,6 @@ class EBSVolumeToAWSAccountRelRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class EBSVolumeToAWSAccountRel(CartographyRelSchema):
-    "Represents a `RESOURCE` relationship from `AWSAccount` to `AWSEBSVolume`."
-
     target_node_label: str = "AWSAccount"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("AWS_ID", set_in_kwargs=True)},
@@ -97,8 +95,6 @@ class EBSVolumeToEC2InstanceRelRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class EBSVolumeToEC2InstanceRel(CartographyRelSchema):
-    "Represents a `ATTACHED_TO` relationship from `AWSEBSVolume` to `AWSEC2Instance`."
-
     target_node_label: str = "AWSEC2Instance"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("InstanceId")},
@@ -117,8 +113,6 @@ class EBSVolumeToEBSSnapshotRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class EBSVolumeToEBSSnapshotRel(CartographyRelSchema):
-    "Represents a `CREATED_FROM` relationship from `AWSEBSSnapshot` to `AWSEBSVolume`."
-
     target_node_label: str = "AWSEBSSnapshot"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("SnapshotId")},

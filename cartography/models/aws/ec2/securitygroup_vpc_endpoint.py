@@ -43,8 +43,6 @@ class EC2SecurityGroupToVPCEndpointRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class EC2SecurityGroupToVPCEndpointRel(CartographyRelSchema):
-    "Represents a `MEMBER_OF_SECURITY_GROUP` relationship from `AWSVpcEndpoint` to `AWSEC2SecurityGroup`."
-
     target_node_label: str = "AWSVpcEndpoint"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("VpcEndpointId")},

@@ -12,12 +12,10 @@ import cartography.intel.gcp
 import cartography.intel.gcp.policy_bindings as policy_bindings
 import cartography.models.gcp as gcp_models
 from cartography.intel.gcp.policy_bindings import _parse_full_resource_name
-from cartography.models.gcp.policy_bindings import (
-    GCP_POLICY_BINDING_APPLIES_TO_SCHEMA_TYPES,
-)
 from cartography.models.gcp.policy_bindings import GCPPolicyBindingAppliesToMatchLink
 from cartography.models.gcp.resource_catalog import GCP_FULL_NAME_MAPPINGS
-from cartography.models.introspection import iter_model_classes
+from cartography.models.gcp.resource_catalog import GCP_POLICY_BINDING_TARGET_LABELS
+from cartography.models.introspection import inspect_data_model
 
 TEST_PROJECT_ID = "project-abc"
 TEST_UPDATE_TAG = 123456789
@@ -28,50 +26,39 @@ COMMON_JOB_PARAMS = {
 }
 
 
-def test_policy_binding_runtime_and_model_use_shared_resource_catalog():
-    expected_names = {
-        target_label: (
-            f"GCPPolicyBindingAppliesTo" f"{target_label.removeprefix('GCP')}MatchLink"
-        )
-        for target_label in GCP_POLICY_BINDING_APPLIES_TO_SCHEMA_TYPES
-    }
-    generated_types = set(GCP_POLICY_BINDING_APPLIES_TO_SCHEMA_TYPES.values())
-    discovered_types = [
-        model_class
-        for model_class in iter_model_classes(gcp_models)
-        if model_class in generated_types
-    ]
+def test_policy_binding_applies_to_edges_come_from_the_shared_catalog():
+    """
+    The runtime builds every APPLIES_TO edge from one template whose target and owner are
+    arguments, so introspection reads the concrete endpoints from the catalog instead.
+    """
+    # Arrange
+    catalog_labels = {mapping.label for mapping in GCP_FULL_NAME_MAPPINGS}
 
-    assert policy_bindings._FULL_NAME_MAPPINGS is GCP_FULL_NAME_MAPPINGS
-    assert len(GCP_POLICY_BINDING_APPLIES_TO_SCHEMA_TYPES) == 18
-    assert set(GCP_POLICY_BINDING_APPLIES_TO_SCHEMA_TYPES) == {
-        mapping.label for mapping in GCP_FULL_NAME_MAPPINGS
+    # Act
+    model = inspect_data_model(gcp_models)
+    applies_to = {
+        relationship.target_label
+        for relationship in model.relationships
+        if relationship.label == "APPLIES_TO"
+        and relationship.source_label == "GCPPolicyBinding"
     }
-    assert {
-        target_label: schema_type.__name__
-        for target_label, schema_type in (
-            GCP_POLICY_BINDING_APPLIES_TO_SCHEMA_TYPES.items()
-        )
-    } == expected_names
-    assert {schema_type.__module__ for schema_type in generated_types} == {
-        "cartography.models.gcp.policy_bindings"
-    }
-    assert len(discovered_types) == 18
-    assert set(discovered_types) == generated_types
-    assert all(
-        schema_type().target_node_label == target_label
-        for target_label, schema_type in (
-            GCP_POLICY_BINDING_APPLIES_TO_SCHEMA_TYPES.items()
-        )
+    template = GCPPolicyBindingAppliesToMatchLink()
+    concrete = policy_bindings.make_policy_binding_applies_to_matchlink(
+        "GCPBucket",
+        "GCPFolder",
     )
-    runtime_template = GCPPolicyBindingAppliesToMatchLink()
-    runtime_fallback = policy_bindings.make_policy_binding_applies_to_matchlink(
-        "GCPRuntimeOnlyResource",
-        "GCPProject",
+
+    # Assert
+    assert set(GCP_POLICY_BINDING_TARGET_LABELS) == catalog_labels
+    assert applies_to == catalog_labels
+    # The template alone describes none of those edges, so it must stay out of the model.
+    assert template.target_node_label == "GCPResource"
+    assert not any(
+        relationship.target_label == "GCPResource"
+        for relationship in model.relationships
     )
-    assert runtime_template.target_node_label == "GCPResource"
-    assert runtime_fallback.target_node_label == "GCPRuntimeOnlyResource"
-    assert runtime_fallback.source_node_sub_resource.target_node_label == "GCPProject"
+    assert concrete.target_node_label == "GCPBucket"
+    assert concrete.source_node_sub_resource.target_node_label == "GCPFolder"
 
 
 def _policy_results_with_members(members: list[str]) -> dict:
@@ -271,7 +258,7 @@ def test_parse_full_resource_name(full_name, expected):
 def test_policy_bindings_search_asset_types_come_from_full_name_mappings():
     assert policy_bindings.GCP_POLICY_BINDINGS_SEARCH_ASSET_TYPES == [
         asset_type
-        for mapping in policy_bindings._FULL_NAME_MAPPINGS
+        for mapping in GCP_FULL_NAME_MAPPINGS
         for asset_type in (
             ((mapping.asset_type,) if mapping.asset_type is not None else ())
             + mapping.additional_asset_types

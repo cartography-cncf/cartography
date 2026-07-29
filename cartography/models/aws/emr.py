@@ -106,8 +106,6 @@ class EMRClusterToAWSAccountRelRelProperties(CartographyRelProperties):
 @dataclass(frozen=True)
 # (:AWSEMRCluster)<-[:RESOURCE]-(:AWSAccount)
 class EMRClusterToAWSAccountRel(CartographyRelSchema):
-    "Represents a `RESOURCE` relationship from `AWSAccount` to `AWSEMRCluster`."
-
     target_node_label: str = "AWSAccount"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("AWS_ID", set_in_kwargs=True)},
@@ -121,8 +119,6 @@ class EMRClusterToAWSAccountRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class EMRClusterSchema(CartographyNodeSchema):
-    "Represents an `AWSEMRCluster` node in the AWS graph."
-
     label: str = "AWSEMRCluster"
     # DEPRECATED: legacy EMRCluster node label will be removed in v1.0.0.
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(

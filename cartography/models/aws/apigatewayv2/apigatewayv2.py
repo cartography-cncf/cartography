@@ -57,8 +57,6 @@ class APIGatewayV2APIToAWSAccountRelProperties(CartographyRelProperties):
 @dataclass(frozen=True)
 # (:AWSAPIGatewayV2API)<-[:RESOURCE]-(:AWSAccount)
 class APIGatewayV2APIToAWSAccountRel(CartographyRelSchema):
-    "Represents a `RESOURCE` relationship from `AWSAccount` to `AWSAPIGatewayV2API`."
-
     target_node_label: str = "AWSAccount"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("AWS_ID", set_in_kwargs=True)},
@@ -72,8 +70,6 @@ class APIGatewayV2APIToAWSAccountRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class APIGatewayV2APISchema(CartographyNodeSchema):
-    "Represents an `AWSAPIGatewayV2API` node in the AWS graph."
-
     label: str = "AWSAPIGatewayV2API"
     # DEPRECATED: legacy APIGatewayV2API node label will be removed in v1.0.0.
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([LEGACY_API_GATEWAY_V2_API])

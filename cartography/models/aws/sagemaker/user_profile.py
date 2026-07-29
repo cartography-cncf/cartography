@@ -56,8 +56,6 @@ class AWSSageMakerUserProfileToAWSAccountRelProperties(CartographyRelProperties)
 
 @dataclass(frozen=True)
 class AWSSageMakerUserProfileToAWSAccountRel(CartographyRelSchema):
-    "Represents a `RESOURCE` relationship from `AWSAccount` to `AWSSageMakerUserProfile`."
-
     target_node_label: str = "AWSAccount"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("AWS_ID", set_in_kwargs=True)}
@@ -76,8 +74,6 @@ class AWSSageMakerUserProfileToRoleRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class AWSSageMakerUserProfileToRoleRel(CartographyRelSchema):
-    "Represents a `HAS_EXECUTION_ROLE` relationship from `AWSSageMakerUserProfile` to `AWSRole`."
-
     target_node_label: str = "AWSRole"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"arn": PropertyRef("ExecutionRole")}
@@ -98,8 +94,6 @@ class AWSSageMakerUserProfileToAWSSageMakerDomainRelProperties(
 
 @dataclass(frozen=True)
 class AWSSageMakerUserProfileToAWSSageMakerDomainRel(CartographyRelSchema):
-    "Represents a `CONTAINS` relationship from `AWSSageMakerDomain` to `AWSSageMakerUserProfile`."
-
     target_node_label: str = "AWSSageMakerDomain"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"domain_id": PropertyRef("DomainId")}
@@ -113,8 +107,6 @@ class AWSSageMakerUserProfileToAWSSageMakerDomainRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class AWSSageMakerUserProfileSchema(CartographyNodeSchema):
-    "Represents an `AWSSageMakerUserProfile` node in the AWS graph."
-
     label: str = "AWSSageMakerUserProfile"
     properties: AWSSageMakerUserProfileNodeProperties = (
         AWSSageMakerUserProfileNodeProperties()

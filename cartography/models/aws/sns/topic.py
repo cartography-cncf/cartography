@@ -68,8 +68,6 @@ class SNSTopicToAwsAccountRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class SNSTopicToAWSAccountRel(CartographyRelSchema):
-    "Represents a `RESOURCE` relationship from `AWSAccount` to `AWSSNSTopic`."
-
     target_node_label: str = "AWSAccount"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("AWS_ID", set_in_kwargs=True)},
@@ -81,8 +79,6 @@ class SNSTopicToAWSAccountRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class SNSTopicSchema(CartographyNodeSchema):
-    "Represents an `AWSSNSTopic` node in the AWS graph."
-
     label: str = "AWSSNSTopic"
     # DEPRECATED: legacy SNSTopic node label will be removed in v1.0.0.
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([LEGACY_SNS_TOPIC])

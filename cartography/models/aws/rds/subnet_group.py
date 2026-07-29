@@ -44,8 +44,6 @@ class DBSubnetGroupToAWSAccountRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class DBSubnetGroupToAWSAccountRel(CartographyRelSchema):
-    "Represents a `RESOURCE` relationship from `AWSAccount` to `AWSDBSubnetGroup`."
-
     target_node_label: str = "AWSAccount"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("AWS_ID", set_in_kwargs=True)},
@@ -64,8 +62,6 @@ class DBSubnetGroupToRDSInstanceRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class DBSubnetGroupToRDSInstanceRel(CartographyRelSchema):
-    "Represents a `MEMBER_OF_DB_SUBNET_GROUP` relationship from `AWSRDSInstance` to `AWSDBSubnetGroup`."
-
     target_node_label: str = "AWSRDSInstance"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {
@@ -88,8 +84,6 @@ class DBSubnetGroupToEC2SubnetRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class DBSubnetGroupToEC2SubnetRel(CartographyRelSchema):
-    "Represents a `RESOURCE` relationship from `AWSDBSubnetGroup` to `AWSEC2Subnet`."
-
     target_node_label: str = "AWSEC2Subnet"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {

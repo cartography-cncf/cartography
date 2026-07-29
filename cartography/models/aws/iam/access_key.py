@@ -70,8 +70,6 @@ class AccountAccessKeyToAWSUserRelProperties(CartographyRelProperties):
 # will be removed in v1.0.0.
 # (:AWSUser)-[:AWS_ACCESS_KEY]->(:AWSAccountAccessKey)
 class AccountAccessKeyToAWSUserRel(CartographyRelSchema):
-    "Represents a `AWS_ACCESS_KEY` relationship from `AWSUser` to `AWSAccountAccessKey`."
-
     target_node_label: str = "AWSUser"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {
@@ -93,8 +91,6 @@ class AccountAccessKeyToAWSUserOwnedByRelProperties(CartographyRelProperties):
 @dataclass(frozen=True)
 # Canonical ontology edge: (:APIKey)-[:OWNED_BY]->(:UserAccount)
 class AccountAccessKeyToAWSUserOwnedByRel(CartographyRelSchema):
-    "Represents a `OWNED_BY` relationship from `AWSAccountAccessKey` to `AWSUser`."
-
     target_node_label: str = "AWSUser"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {
@@ -115,8 +111,6 @@ class AccountAccessKeyToAWSAccountRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class AccountAccessKeyToAWSAccountRel(CartographyRelSchema):
-    "Represents a `RESOURCE` relationship from `AWSAccount` to `AWSAccountAccessKey`."
-
     target_node_label: str = "AWSAccount"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {
@@ -132,8 +126,6 @@ class AccountAccessKeyToAWSAccountRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class AccountAccessKeySchema(CartographyNodeSchema):
-    "Represents an `AWSAccountAccessKey` node in the AWS graph."
-
     label: str = "AWSAccountAccessKey"
     # DEPRECATED: legacy AccountAccessKey node label will be removed in v1.0.0.
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(

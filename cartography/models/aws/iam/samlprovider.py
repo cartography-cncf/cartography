@@ -56,8 +56,6 @@ class AWSSAMLProviderToAWSAccountRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class AWSSAMLProviderToAWSAccountRel(CartographyRelSchema):
-    "Represents a `RESOURCE` relationship from `AWSAccount` to `AWSSAMLProvider`."
-
     target_node_label: str = "AWSAccount"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("AWS_ID", set_in_kwargs=True)},
@@ -71,8 +69,6 @@ class AWSSAMLProviderToAWSAccountRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class AWSSAMLProviderSchema(CartographyNodeSchema):
-    "Represents an `AWSSAMLProvider` node in the AWS graph."
-
     label: str = "AWSSAMLProvider"
     properties: AWSSAMLProviderNodeProperties = AWSSAMLProviderNodeProperties()
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([IDENTITY_PROVIDER])

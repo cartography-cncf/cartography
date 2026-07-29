@@ -49,8 +49,6 @@ class IdentityCenterToAWSAccountRelRelProperties(CartographyRelProperties):
 @dataclass(frozen=True)
 # (:IdentityCenter)<-[:RESOURCE]-(:AWSAccount)
 class IdentityCenterToAWSAccountRel(CartographyRelSchema):
-    "Represents a `RESOURCE` relationship from `AWSAccount` to `AWSIdentityCenter`."
-
     target_node_label: str = "AWSAccount"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("AWS_ID", set_in_kwargs=True)},
@@ -64,8 +62,6 @@ class IdentityCenterToAWSAccountRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class AWSIdentityCenterInstanceSchema(CartographyNodeSchema):
-    "Represents an `AWSIdentityCenter` node in the AWS graph."
-
     label: str = "AWSIdentityCenter"
     properties: IdentityCenterInstanceProperties = IdentityCenterInstanceProperties()
     sub_resource_relationship: IdentityCenterToAWSAccountRel = (

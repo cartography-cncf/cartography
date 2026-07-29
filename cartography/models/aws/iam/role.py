@@ -59,8 +59,6 @@ class AWSRoleToAWSAccountRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class AWSRoleToAWSAccountRel(CartographyRelSchema):
-    "Represents a `RESOURCE` relationship from `AWSAccount` to `AWSRole`."
-
     target_node_label: str = "AWSAccount"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {
@@ -98,8 +96,6 @@ class AWSRoleToAWSPrincipalTrustRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class AWSRoleSchema(CartographyNodeSchema):
-    "Represents an `AWSRole` node in the AWS graph."
-
     label: str = "AWSRole"
     properties: AWSRoleNodeProperties = AWSRoleNodeProperties()
     sub_resource_relationship: AWSRoleToAWSAccountRel = AWSRoleToAWSAccountRel()

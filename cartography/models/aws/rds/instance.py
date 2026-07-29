@@ -154,8 +154,6 @@ class RDSInstanceToAWSAccountRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class RDSInstanceToAWSAccountRel(CartographyRelSchema):
-    "Represents a `RESOURCE` relationship from `AWSAccount` to `AWSRDSInstance`."
-
     target_node_label: str = "AWSAccount"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {
@@ -176,8 +174,6 @@ class RDSInstanceToEC2SecurityGroupRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class RDSInstanceToEC2SecurityGroupRel(CartographyRelSchema):
-    "Represents a `MEMBER_OF_EC2_SECURITY_GROUP` relationship from `AWSRDSInstance` to `AWSEC2SecurityGroup`."
-
     target_node_label: str = "AWSEC2SecurityGroup"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {
@@ -198,8 +194,6 @@ class RDSInstanceToRDSInstanceRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class RDSInstanceToRDSInstanceRel(CartographyRelSchema):
-    "Represents a `IS_READ_REPLICA_OF` relationship from `AWSRDSInstance` to `AWSRDSInstance`."
-
     target_node_label: str = "AWSRDSInstance"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {
@@ -220,8 +214,6 @@ class RDSInstanceToRDSClusterRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class RDSInstanceToRDSClusterRel(CartographyRelSchema):
-    "Represents a `IS_CLUSTER_MEMBER_OF` relationship from `AWSRDSInstance` to `AWSRDSCluster`."
-
     target_node_label: str = "AWSRDSCluster"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {
@@ -245,8 +237,6 @@ class RDSInstanceToKMSKeyRelProperties(CartographyRelProperties):
 # Only created when the instance has a customer-managed KMS key (KmsKeyId is the
 # key ARN).
 class RDSInstanceToKMSKeyRel(CartographyRelSchema):
-    "Represents a `ENCRYPTED_BY` relationship from `AWSRDSInstance` to `AWSKMSKey`."
-
     target_node_label: str = "AWSKMSKey"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"arn": PropertyRef("KmsKeyId")},
@@ -258,8 +248,6 @@ class RDSInstanceToKMSKeyRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class RDSInstanceSchema(CartographyNodeSchema):
-    "Represents an `AWSRDSInstance` node in the AWS graph."
-
     label: str = "AWSRDSInstance"
     # DEPRECATED: legacy RDSInstance node label will be removed in v1.0.0.
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(

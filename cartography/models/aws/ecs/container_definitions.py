@@ -121,8 +121,6 @@ class ECSContainerDefinitionToAWSAccountRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class ECSContainerDefinitionToAWSAccountRel(CartographyRelSchema):
-    "Represents a `RESOURCE` relationship from `AWSAccount` to `AWSECSContainerDefinition`."
-
     target_node_label: str = "AWSAccount"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("AWS_ID", set_in_kwargs=True)}
@@ -141,8 +139,6 @@ class ECSContainerDefinitionToTaskDefinitionRelProperties(CartographyRelProperti
 
 @dataclass(frozen=True)
 class ECSContainerDefinitionToTaskDefinitionRel(CartographyRelSchema):
-    "Represents a `HAS_CONTAINER_DEFINITION` relationship from `AWSECSTaskDefinition` to `AWSECSContainerDefinition`."
-
     target_node_label: str = "AWSECSTaskDefinition"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("_taskDefinitionArn")}
@@ -156,8 +152,6 @@ class ECSContainerDefinitionToTaskDefinitionRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class ECSContainerDefinitionSchema(CartographyNodeSchema):
-    "Represents an `AWSECSContainerDefinition` node in the AWS graph."
-
     label: str = "AWSECSContainerDefinition"
     # DEPRECATED: legacy ECSContainerDefinition node label will be removed in v1.0.0.
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(

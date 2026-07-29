@@ -60,8 +60,6 @@ class APIGatewayStageToRestAPIRelRelProperties(CartographyRelProperties):
 @dataclass(frozen=True)
 # (:AWSAPIGatewayStage)<-[:ASSOCIATED_WITH]-(:AWSAPIGatewayRestAPI)
 class APIGatewayStageToRestAPIRel(CartographyRelSchema):
-    "Represents a `ASSOCIATED_WITH` relationship from `AWSAPIGatewayRestAPI` to `AWSAPIGatewayStage`."
-
     target_node_label: str = "AWSAPIGatewayRestAPI"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("apiId")},
@@ -81,8 +79,6 @@ class APIGatewayStageToAWSAccountRelRelProperties(CartographyRelProperties):
 @dataclass(frozen=True)
 # (:AWSAPIGatewayStage)<-[:RESOURCE]-(:AWSAccount)
 class APIGatewayStageToAWSAccountRel(CartographyRelSchema):
-    "Represents a `RESOURCE` relationship from `AWSAccount` to `AWSAPIGatewayStage`."
-
     target_node_label: str = "AWSAccount"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("AWS_ID", set_in_kwargs=True)},
@@ -96,8 +92,6 @@ class APIGatewayStageToAWSAccountRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class APIGatewayStageSchema(CartographyNodeSchema):
-    "Represents an `AWSAPIGatewayStage` node in the AWS graph."
-
     label: str = "AWSAPIGatewayStage"
     # DEPRECATED: legacy APIGatewayStage node label will be removed in v1.0.0.
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([LEGACY_API_GATEWAY_STAGE])

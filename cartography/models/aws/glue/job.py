@@ -53,8 +53,6 @@ class GlueJobToAwsAccountRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class GlueJobToAWSAccountRel(CartographyRelSchema):
-    "Represents a `RESOURCE` relationship from `AWSAccount` to `AWSGlueJob`."
-
     target_node_label: str = "AWSAccount"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("AWS_ID", set_in_kwargs=True)},
@@ -71,8 +69,6 @@ class GlueJobToGlueConnectionRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class GlueJobToGlueConnectionRel(CartographyRelSchema):
-    "Represents a `USES` relationship from `AWSGlueJob` to `AWSGlueConnection`."
-
     target_node_label: str = "AWSGlueConnection"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("Connections", one_to_many=True)},
@@ -86,8 +82,6 @@ class GlueJobToGlueConnectionRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class GlueJobSchema(CartographyNodeSchema):
-    "Represents an `AWSGlueJob` node in the AWS graph."
-
     label: str = "AWSGlueJob"
     # DEPRECATED: legacy GlueJob node label will be removed in v1.0.0.
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([LEGACY_GLUE_JOB])

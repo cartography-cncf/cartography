@@ -56,8 +56,6 @@ class PeeringToAccepterVpcRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class PeeringToAccepterVpcRel(CartographyRelSchema):
-    "Represents a `ACCEPTER_VPC` relationship from `AWSPeeringConnection` to `AWSVpc`."
-
     target_node_label: str = "AWSVpc"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("AccepterVpcId")},
@@ -74,8 +72,6 @@ class PeeringToRequesterVpcRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class PeeringToRequesterVpcRel(CartographyRelSchema):
-    "Represents a `REQUESTER_VPC` relationship from `AWSPeeringConnection` to `AWSVpc`."
-
     target_node_label: str = "AWSVpc"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("RequesterVpcId")},
@@ -94,8 +90,6 @@ class PeeringToAccepterCidrRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class PeeringToAccepterCidrRel(CartographyRelSchema):
-    "Represents a `ACCEPTER_CIDR` relationship from `AWSPeeringConnection` to `AWSCidrBlock`."
-
     target_node_label: str = "AWSCidrBlock"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("ACCEPTER_CIDR_BLOCK_IDS", one_to_many=True)},
@@ -114,8 +108,6 @@ class PeeringToRequesterCidrRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class PeeringToRequesterCidrRel(CartographyRelSchema):
-    "Represents a `REQUESTER_CIDR` relationship from `AWSPeeringConnection` to `AWSCidrBlock`."
-
     target_node_label: str = "AWSCidrBlock"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("REQUESTER_CIDR_BLOCK_IDS", one_to_many=True)},
@@ -134,8 +126,6 @@ class PeeringConnectionToAWSAccountRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class PeeringConnectionToAWSAccountRel(CartographyRelSchema):
-    "Represents a `RESOURCE` relationship from `AWSAccount` to `AWSPeeringConnection`."
-
     target_node_label: str = "AWSAccount"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("AWS_ID", set_in_kwargs=True)}
@@ -176,8 +166,6 @@ class AWSAccountVPCPeeringSchema(CartographyNodeSchema):
 
 @dataclass(frozen=True)
 class AWSPeeringConnectionSchema(CartographyNodeSchema):
-    "Represents an `AWSPeeringConnection` node in the AWS graph."
-
     label: str = "AWSPeeringConnection"
     properties: VPCPeeringNodeProperties = VPCPeeringNodeProperties()
     sub_resource_relationship: PeeringConnectionToAWSAccountRel = (

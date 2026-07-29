@@ -74,8 +74,6 @@ class RDSEventSubscriptionToAWSAccountRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class RDSEventSubscriptionToAWSAccountRel(CartographyRelSchema):
-    "Represents a `RESOURCE` relationship from `AWSAccount` to `AWSRDSEventSubscription`."
-
     target_node_label: str = "AWSAccount"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {
@@ -96,8 +94,6 @@ class RDSEventSubscriptionToSNSTopicRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class RDSEventSubscriptionToSNSTopicRel(CartographyRelSchema):
-    "Represents a `NOTIFIES` relationship from `AWSRDSEventSubscription` to `AWSSNSTopic`."
-
     target_node_label: str = "AWSSNSTopic"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {
@@ -118,8 +114,6 @@ class RDSEventSubscriptionToRDSInstanceRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class RDSEventSubscriptionToRDSInstanceRel(CartographyRelSchema):
-    "Represents a `MONITORS` relationship from `AWSRDSEventSubscription` to `AWSRDSInstance`."
-
     target_node_label: str = "AWSRDSInstance"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {
@@ -140,8 +134,6 @@ class RDSEventSubscriptionToRDSClusterRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class RDSEventSubscriptionToRDSClusterRel(CartographyRelSchema):
-    "Represents a `MONITORS` relationship from `AWSRDSEventSubscription` to `AWSRDSCluster`."
-
     target_node_label: str = "AWSRDSCluster"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {
@@ -162,8 +154,6 @@ class RDSEventSubscriptionToRDSSnapshotRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class RDSEventSubscriptionToRDSSnapshotRel(CartographyRelSchema):
-    "Represents a `MONITORS` relationship from `AWSRDSEventSubscription` to `AWSRDSSnapshot`."
-
     target_node_label: str = "AWSRDSSnapshot"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {
@@ -179,8 +169,6 @@ class RDSEventSubscriptionToRDSSnapshotRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class RDSEventSubscriptionSchema(CartographyNodeSchema):
-    "Represents an `AWSRDSEventSubscription` node in the AWS graph."
-
     label: str = "AWSRDSEventSubscription"
     # DEPRECATED: legacy RDSEventSubscription node label will be removed in v1.0.0.
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(

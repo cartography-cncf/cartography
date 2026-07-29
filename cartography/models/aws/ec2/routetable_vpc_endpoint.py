@@ -40,8 +40,6 @@ class AWSRouteTableToAWSAccountRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class AWSRouteTableToAWSAccountRel(CartographyRelSchema):
-    "Represents a `RESOURCE` relationship from `AWSAccount` to `AWSRouteTable`."
-
     target_node_label: str = "AWSAccount"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("AWS_ID", set_in_kwargs=True)},
@@ -60,8 +58,6 @@ class AWSRouteTableToVPCEndpointRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class AWSRouteTableToVPCEndpointRel(CartographyRelSchema):
-    "Represents a `ROUTES_THROUGH` relationship from `AWSVpcEndpoint` to `AWSRouteTable`."
-
     target_node_label: str = "AWSVpcEndpoint"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("VpcEndpointId")},

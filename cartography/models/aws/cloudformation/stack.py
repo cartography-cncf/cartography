@@ -77,8 +77,6 @@ class CloudFormationStackToAWSAccountRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class CloudFormationStackToAWSAccountRel(CartographyRelSchema):
-    "Represents a `RESOURCE` relationship from `AWSAccount` to `AWSCloudFormationStack`."
-
     target_node_label: str = "AWSAccount"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("AWS_ID", set_in_kwargs=True)},
@@ -97,8 +95,6 @@ class CloudFormationStackToRoleRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class CloudFormationStackToRoleRel(CartographyRelSchema):
-    "Represents a `HAS_EXECUTION_ROLE` relationship from `AWSCloudFormationStack` to `AWSRole`."
-
     target_node_label: str = "AWSRole"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"arn": PropertyRef("RoleARN")},
@@ -112,8 +108,6 @@ class CloudFormationStackToRoleRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class CloudFormationStackSchema(CartographyNodeSchema):
-    "Represents an `AWSCloudFormationStack` node in the AWS graph."
-
     label: str = "AWSCloudFormationStack"
     # DEPRECATED: legacy CloudFormationStack node label will be removed in v1.0.0.
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([LEGACY_CLOUD_FORMATION_STACK])

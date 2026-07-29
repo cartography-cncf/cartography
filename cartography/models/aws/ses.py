@@ -64,8 +64,6 @@ class SESEmailIdentityToAWSAccountRelProperties(CartographyRelProperties):
 @dataclass(frozen=True)
 # (:AWSSESEmailIdentity)<-[:RESOURCE]-(:AWSAccount)
 class SESEmailIdentityToAWSAccountRel(CartographyRelSchema):
-    "Represents a `RESOURCE` relationship from `AWSAccount` to `AWSSESEmailIdentity`."
-
     target_node_label: str = "AWSAccount"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("AWS_ID", set_in_kwargs=True)},
@@ -79,8 +77,6 @@ class SESEmailIdentityToAWSAccountRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class SESEmailIdentitySchema(CartographyNodeSchema):
-    "Represents an `AWSSESEmailIdentity` node in the AWS graph."
-
     label: str = "AWSSESEmailIdentity"
     # DEPRECATED: legacy SESEmailIdentity node label will be removed in v1.0.0.
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([LEGACY_SES_EMAIL_IDENTITY])

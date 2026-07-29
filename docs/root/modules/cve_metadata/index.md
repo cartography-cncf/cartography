@@ -6,7 +6,7 @@ The CVE Metadata module enriches existing `CVE` nodes with metadata from:
   Exploited Vulnerabilities data.
 - EPSS: Exploit Prediction Scoring System scores from FIRST.
 
-Unlike the deprecated [CVE module](../cve/), this module does not import every
+Unlike the deprecated [CVE module](../cve/index.md), this module does not import every
 CVE or create `CVE` nodes. Modules such as CrowdStrike, Semgrep, SentinelOne,
 and Trivy must create those nodes first.
 

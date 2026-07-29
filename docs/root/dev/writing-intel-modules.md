@@ -221,7 +221,7 @@ class EMRClusterNodeProperties(CartographyNodeProperties):
 
 Index creation is idempotent (we only create them if they don't exist).
 
-See [below](#indexescypher) for more information on indexes.
+See [below](#indexes-cypher) for more information on indexes.
 
 
 #### Extra node labels
@@ -380,6 +380,7 @@ case-sensitive, so uppercase variants do not match.
 - Indexes are automatically created for conditional labels themselves. Condition fields are not indexed: they are evaluated against the already-bound node of the current row, so there is no lookup for an index to serve
 
 
+(defining-relationships)=
 #### Defining relationships
 
 Relationships can be defined on `CartographyNodeSchema` on either their [sub_resource_relationship](https://github.com/cartography-cncf/cartography/blob/e6ada9a1a741b83a34c1c3207515a1863debeeb9/cartography/graph/model.py#L216-L228) field or their [other_relationships](https://github.com/cartography-cncf/cartography/blob/e6ada9a1a741b83a34c1c3207515a1863debeeb9/cartography/graph/model.py#L230-L237) field (you can find an example of `other_relationships` [here in our test data](https://github.com/cartography-cncf/cartography/blob/4bfafe0e0c205909d119cc7f0bae84b9f6944bdd/tests/data/graph/querybuilder/sample_models/interesting_asset.py#L89-L94)).
@@ -549,12 +550,14 @@ In this older example of ingesting GCP VPCs, we connect VPCs with GCPProjects
 and [here](https://github.com/cartography-cncf/cartography/blob/8d60311a10156cd8aa16de7e1fe3e109cc3eca0f/cartography/data/indexes.cypher#L42).
 All of these queries use indexes for faster lookup.
 
+(indexes-cypher)=
 #### indexes.cypher
 
 Older intel modules define indexes in [indexes.cypher](https://github.com/cartography-cncf/cartography/blob/8d60311a10156cd8aa16de7e1fe3e109cc3eca0f/cartography/data/indexes.cypher).
 By using CartographyNodeSchema and CartographyRelSchema objects, indexes are automatically created so you don't need to update this file!
 
 
+(lastupdated-and-firstseen)=
 #### lastupdated and firstseen
 
 On every cartography node and relationship, we set the `lastupdated` field to the `UPDATE_TAG` and `firstseen` field to `timestamp()` (a built-in Neo4j function equivalent to epoch time in milliseconds). This is automatically handled by the cartography object model.

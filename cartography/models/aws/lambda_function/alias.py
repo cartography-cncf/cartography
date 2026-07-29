@@ -55,8 +55,6 @@ class AWSLambdaToAliasRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class AWSLambdaToAliasRel(CartographyRelSchema):
-    "Represents a `KNOWN_AS` relationship from `AWSLambda` to `AWSLambdaFunctionAlias`."
-
     target_node_label: str = "AWSLambda"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("FunctionArn")},
@@ -68,8 +66,6 @@ class AWSLambdaToAliasRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class AWSLambdaFunctionAliasToAWSAccountRel(CartographyRelSchema):
-    "Represents a `RESOURCE` relationship from `AWSAccount` to `AWSLambdaFunctionAlias`."
-
     target_node_label: str = "AWSAccount"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("AWS_ID", set_in_kwargs=True)},
@@ -83,8 +79,6 @@ class AWSLambdaFunctionAliasToAWSAccountRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class AWSLambdaFunctionAliasSchema(CartographyNodeSchema):
-    "Represents an `AWSLambdaFunctionAlias` node in the AWS graph."
-
     label: str = "AWSLambdaFunctionAlias"
     properties: AWSLambdaFunctionAliasNodeProperties = (
         AWSLambdaFunctionAliasNodeProperties()

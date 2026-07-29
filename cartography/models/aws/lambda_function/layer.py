@@ -48,8 +48,6 @@ class AWSLambdaToLayerRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class AWSLambdaToLayerRel(CartographyRelSchema):
-    "Represents a `HAS` relationship from `AWSLambda` to `AWSLambdaLayer`."
-
     target_node_label: str = "AWSLambda"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("FunctionArn")},
@@ -67,8 +65,6 @@ class AWSLambdaLayerToAWSAccountRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class AWSLambdaLayerToAWSAccountRel(CartographyRelSchema):
-    "Represents a `RESOURCE` relationship from `AWSAccount` to `AWSLambdaLayer`."
-
     target_node_label: str = "AWSAccount"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("AWS_ID", set_in_kwargs=True)},
@@ -82,8 +78,6 @@ class AWSLambdaLayerToAWSAccountRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class AWSLambdaLayerSchema(CartographyNodeSchema):
-    "Represents an `AWSLambdaLayer` node in the AWS graph."
-
     label: str = "AWSLambdaLayer"
     properties: AWSLambdaLayerNodeProperties = AWSLambdaLayerNodeProperties()
     sub_resource_relationship: AWSLambdaLayerToAWSAccountRel = (

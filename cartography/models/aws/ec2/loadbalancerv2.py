@@ -70,8 +70,6 @@ class ELBV2TargetGroupToAWSAccountRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class ELBV2TargetGroupToAWSAccountRel(CartographyRelSchema):
-    "Represents a `RESOURCE` relationship from `AWSAccount` to `AWSELBV2TargetGroup`."
-
     target_node_label: str = "AWSAccount"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("AWS_ID", set_in_kwargs=True)},
@@ -90,8 +88,6 @@ class ELBV2TargetGroupToLoadBalancerV2RelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class ELBV2TargetGroupToLoadBalancerV2Rel(CartographyRelSchema):
-    "Represents a `ELBV2_TARGET_GROUP` relationship from `AWSLoadBalancerV2` to `AWSELBV2TargetGroup`."
-
     target_node_label: str = "AWSLoadBalancerV2"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("LoadBalancerId", one_to_many=True)},
@@ -105,8 +101,6 @@ class ELBV2TargetGroupToLoadBalancerV2Rel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class ELBV2TargetGroupSchema(CartographyNodeSchema):
-    "Represents an `AWSELBV2TargetGroup` node in the AWS graph."
-
     label: str = "AWSELBV2TargetGroup"
     # DEPRECATED: legacy ELBV2TargetGroup node label will be removed in v1.0.0.
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([LEGACY_ELBV2_TARGET_GROUP])
@@ -213,8 +207,6 @@ class LoadBalancerV2ToAWSAccountRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class LoadBalancerV2ToAWSAccountRel(CartographyRelSchema):
-    "Represents a `RESOURCE` relationship from `AWSAccount` to `AWSLoadBalancerV2`."
-
     target_node_label: str = "AWSAccount"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("AWS_ID", set_in_kwargs=True)},
@@ -233,8 +225,6 @@ class LoadBalancerV2ToEC2SecurityGroupRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class LoadBalancerV2ToEC2SecurityGroupRel(CartographyRelSchema):
-    "Represents a `MEMBER_OF_EC2_SECURITY_GROUP` relationship from `AWSLoadBalancerV2` to `AWSEC2SecurityGroup`."
-
     target_node_label: str = "AWSEC2SecurityGroup"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"groupid": PropertyRef("SecurityGroupIds", one_to_many=True)},
@@ -253,8 +243,6 @@ class LoadBalancerV2ToEC2SubnetRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class LoadBalancerV2ToEC2SubnetRel(CartographyRelSchema):
-    "Represents a `SUBNET` relationship from `AWSLoadBalancerV2` to `AWSEC2Subnet`."
-
     target_node_label: str = "AWSEC2Subnet"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"subnetid": PropertyRef("SubnetIds", one_to_many=True)},
@@ -448,8 +436,6 @@ class ELBV2ListenerToAWSAccountRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class ELBV2ListenerToAWSAccountRel(CartographyRelSchema):
-    "Represents a `RESOURCE` relationship from `AWSAccount` to `AWSELBV2Listener`."
-
     target_node_label: str = "AWSAccount"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("AWS_ID", set_in_kwargs=True)},
@@ -468,8 +454,6 @@ class ELBV2ListenerToLoadBalancerV2RelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class ELBV2ListenerToLoadBalancerV2Rel(CartographyRelSchema):
-    "Represents a `ELBV2_LISTENER` relationship from `AWSLoadBalancerV2` to `AWSELBV2Listener`."
-
     target_node_label: str = "AWSLoadBalancerV2"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("LoadBalancerId")},

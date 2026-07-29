@@ -43,8 +43,6 @@ class EC2SubnetToVPCEndpointRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class EC2SubnetToVPCEndpointRel(CartographyRelSchema):
-    "Represents a `USES_SUBNET` relationship from `AWSVpcEndpoint` to `AWSEC2Subnet`."
-
     target_node_label: str = "AWSVpcEndpoint"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("VpcEndpointId")},

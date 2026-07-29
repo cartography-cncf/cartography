@@ -111,8 +111,6 @@ class SSMInstanceInformationToAWSAccountRelRelProperties(CartographyRelPropertie
 
 @dataclass(frozen=True)
 class SSMInstanceInformationToAWSAccountRel(CartographyRelSchema):
-    "Represents a `RESOURCE` relationship from `AWSAccount` to `AWSSSMInstanceInformation`."
-
     target_node_label: str = "AWSAccount"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("AWS_ID", set_in_kwargs=True)},
@@ -131,8 +129,6 @@ class SSMInstanceInformationToEC2InstanceRelRelProperties(CartographyRelProperti
 
 @dataclass(frozen=True)
 class SSMInstanceInformationToEC2InstanceRel(CartographyRelSchema):
-    "Represents a `HAS_INFORMATION` relationship from `AWSEC2Instance` to `AWSSSMInstanceInformation`."
-
     target_node_label: str = "AWSEC2Instance"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("InstanceId")},
@@ -146,8 +142,6 @@ class SSMInstanceInformationToEC2InstanceRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class SSMInstanceInformationSchema(CartographyNodeSchema):
-    "Represents an `AWSSSMInstanceInformation` node in the AWS graph."
-
     label: str = "AWSSSMInstanceInformation"
     # DEPRECATED: legacy SSMInstanceInformation node label will be removed in v1.0.0.
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(

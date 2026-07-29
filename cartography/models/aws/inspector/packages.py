@@ -43,8 +43,6 @@ class InspectorPackageToAWSAccountRelRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class InspectorPackageToAWSAccountRel(CartographyRelSchema):
-    "Represents a `RESOURCE` relationship from `AWSAccount` to `AWSInspectorPackage`."
-
     target_node_label: str = "AWSAccount"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("AWS_ID", set_in_kwargs=True)},
@@ -58,8 +56,6 @@ class InspectorPackageToAWSAccountRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class AWSInspectorPackageSchema(CartographyNodeSchema):
-    "Represents an `AWSInspectorPackage` node in the AWS graph."
-
     label: str = "AWSInspectorPackage"
     properties: AWSInspectorPackageNodeProperties = AWSInspectorPackageNodeProperties()
     sub_resource_relationship: InspectorPackageToAWSAccountRel = (

@@ -39,8 +39,6 @@ class CognitoUserPoolToAwsAccountRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class CognitoUserPoolToAWSAccountRel(CartographyRelSchema):
-    "Represents a `RESOURCE` relationship from `AWSAccount` to `AWSCognitoUserPool`."
-
     target_node_label: str = "AWSAccount"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("AWS_ID", set_in_kwargs=True)},
@@ -54,8 +52,6 @@ class CognitoUserPoolToAWSAccountRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class CognitoUserPoolSchema(CartographyNodeSchema):
-    "Represents an `AWSCognitoUserPool` node in the AWS graph."
-
     label: str = "AWSCognitoUserPool"
     # DEPRECATED: legacy CognitoUserPool node label will be removed in v1.0.0.
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([LEGACY_COGNITO_USER_POOL])

@@ -50,8 +50,6 @@ class AWSOrganizationNodeProperties(CartographyNodeProperties):
 
 @dataclass(frozen=True)
 class AWSOrganizationSchema(CartographyNodeSchema):
-    "Represents an `AWSOrganization` node in the AWS graph."
-
     label: str = "AWSOrganization"
     properties: AWSOrganizationNodeProperties = AWSOrganizationNodeProperties()
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([TENANT])
@@ -59,8 +57,6 @@ class AWSOrganizationSchema(CartographyNodeSchema):
 
 @dataclass(frozen=True)
 class AWSOrganizationRootToOrganizationRel(CartographyRelSchema):
-    "Represents a `RESOURCE` relationship from `AWSOrganization` to `AWSOrganizationRoot`."
-
     target_node_label: str = "AWSOrganization"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("ORG_ID", set_in_kwargs=True)},
@@ -72,8 +68,6 @@ class AWSOrganizationRootToOrganizationRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class AWSOrganizationRootToOrganizationParentRel(CartographyRelSchema):
-    "Represents a `PARENT` relationship from `AWSOrganizationRoot` to `AWSOrganization`."
-
     target_node_label: str = "AWSOrganization"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("ORG_ID", set_in_kwargs=True)},
@@ -85,8 +79,6 @@ class AWSOrganizationRootToOrganizationParentRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class AWSOrganizationRootToChildOURel(CartographyRelSchema):
-    "Represents a `RESOURCE` relationship from `AWSOrganizationRoot` to `AWSOrganizationalUnit`."
-
     target_node_label: str = "AWSOrganizationalUnit"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("child_ou_ids", one_to_many=True)},
@@ -98,8 +90,6 @@ class AWSOrganizationRootToChildOURel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class AWSOrganizationRootToChildAWSAccountResourceRel(CartographyRelSchema):
-    "Represents a `RESOURCE` relationship from `AWSOrganizationRoot` to `AWSAccount`."
-
     target_node_label: str = "AWSAccount"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("account_ids", one_to_many=True)},
@@ -111,8 +101,6 @@ class AWSOrganizationRootToChildAWSAccountResourceRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class AWSAccountToOrganizationRootParentRel(CartographyRelSchema):
-    "Represents a `PARENT` relationship from `AWSAccount` to `AWSOrganizationRoot`."
-
     target_node_label: str = "AWSAccount"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("account_ids", one_to_many=True)},
@@ -149,8 +137,6 @@ class AWSOrganizationRootNodeProperties(CartographyNodeProperties):
 
 @dataclass(frozen=True)
 class AWSOrganizationRootSchema(CartographyNodeSchema):
-    "Represents an `AWSOrganizationRoot` node in the AWS graph."
-
     label: str = "AWSOrganizationRoot"
     properties: AWSOrganizationRootNodeProperties = AWSOrganizationRootNodeProperties()
     sub_resource_relationship: AWSOrganizationRootToOrganizationRel = (
@@ -168,8 +154,6 @@ class AWSOrganizationRootSchema(CartographyNodeSchema):
 
 @dataclass(frozen=True)
 class AWSOrganizationalUnitToRootRel(CartographyRelSchema):
-    "Represents a `RESOURCE` relationship from `AWSOrganizationRoot` to `AWSOrganizationalUnit`."
-
     target_node_label: str = "AWSOrganizationRoot"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("ROOT_ID", set_in_kwargs=True)},
@@ -181,8 +165,6 @@ class AWSOrganizationalUnitToRootRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class AWSOrganizationalUnitToRootParentRel(CartographyRelSchema):
-    "Represents a `PARENT` relationship from `AWSOrganizationalUnit` to `AWSOrganizationRoot`."
-
     target_node_label: str = "AWSOrganizationRoot"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("parent_root_id")},
@@ -194,8 +176,6 @@ class AWSOrganizationalUnitToRootParentRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class AWSOrganizationalUnitToOUParentRel(CartographyRelSchema):
-    "Represents a `PARENT` relationship from `AWSOrganizationalUnit` to `AWSOrganizationalUnit`."
-
     target_node_label: str = "AWSOrganizationalUnit"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("parent_ou_id")},
@@ -207,8 +187,6 @@ class AWSOrganizationalUnitToOUParentRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class AWSOrganizationalUnitToChildOURel(CartographyRelSchema):
-    "Represents a `RESOURCE` relationship from `AWSOrganizationalUnit` to `AWSOrganizationalUnit`."
-
     target_node_label: str = "AWSOrganizationalUnit"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("child_ou_ids", one_to_many=True)},
@@ -220,8 +198,6 @@ class AWSOrganizationalUnitToChildOURel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class AWSOrganizationalUnitToChildAWSAccountResourceRel(CartographyRelSchema):
-    "Represents a `RESOURCE` relationship from `AWSOrganizationalUnit` to `AWSAccount`."
-
     target_node_label: str = "AWSAccount"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("account_ids", one_to_many=True)},
@@ -233,8 +209,6 @@ class AWSOrganizationalUnitToChildAWSAccountResourceRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class AWSAccountToOrganizationalUnitParentRel(CartographyRelSchema):
-    "Represents a `PARENT` relationship from `AWSAccount` to `AWSOrganizationalUnit`."
-
     target_node_label: str = "AWSAccount"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("account_ids", one_to_many=True)},
@@ -288,8 +262,6 @@ class AWSOrganizationalUnitNodeProperties(CartographyNodeProperties):
 
 @dataclass(frozen=True)
 class AWSOrganizationalUnitSchema(CartographyNodeSchema):
-    "Represents an `AWSOrganizationalUnit` node in the AWS graph."
-
     label: str = "AWSOrganizationalUnit"
     properties: AWSOrganizationalUnitNodeProperties = (
         AWSOrganizationalUnitNodeProperties()

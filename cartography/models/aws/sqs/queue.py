@@ -103,8 +103,6 @@ class SQSQueueToAWSAccountRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class SQSQueueToAWSAccountRel(CartographyRelSchema):
-    "Represents a `RESOURCE` relationship from `AWSAccount` to `AWSSQSQueue`."
-
     target_node_label: str = "AWSAccount"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("AWS_ID", set_in_kwargs=True)}
@@ -121,8 +119,6 @@ class SQSQueueToDeadLetterQueueRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class SQSQueueToDeadLetterQueueRel(CartographyRelSchema):
-    "Represents a `HAS_DEADLETTER_QUEUE` relationship from `AWSSQSQueue` to `AWSSQSQueue`."
-
     target_node_label: str = "AWSSQSQueue"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("redrive_policy_dead_letter_target_arn")}
@@ -136,8 +132,6 @@ class SQSQueueToDeadLetterQueueRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class SQSQueueSchema(CartographyNodeSchema):
-    "Represents an `AWSSQSQueue` node in the AWS graph."
-
     label: str = "AWSSQSQueue"
     # DEPRECATED: legacy SQSQueue node label will be removed in v1.0.0.
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([LEGACY_SQS_QUEUE])

@@ -80,8 +80,6 @@ class EC2ReservedInstanceToAWSAccountRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class EC2ReservedInstanceToAWSAccountRel(CartographyRelSchema):
-    "Represents a `RESOURCE` relationship from `AWSAccount` to `AWSEC2ReservedInstance`."
-
     target_node_label: str = "AWSAccount"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("AWS_ID", set_in_kwargs=True)},
@@ -95,8 +93,6 @@ class EC2ReservedInstanceToAWSAccountRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class EC2ReservedInstanceSchema(CartographyNodeSchema):
-    "Represents an `AWSEC2ReservedInstance` node in the AWS graph."
-
     label: str = "AWSEC2ReservedInstance"
     # DEPRECATED: legacy EC2ReservedInstance node label will be removed in v1.0.0.
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([LEGACY_EC2_RESERVED_INSTANCE])

@@ -114,8 +114,6 @@ class ECSTaskDefinitionToAWSAccountRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class ECSTaskDefinitionToAWSAccountRel(CartographyRelSchema):
-    "Represents a `RESOURCE` relationship from `AWSAccount` to `AWSECSTaskDefinition`."
-
     target_node_label: str = "AWSAccount"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("AWS_ID", set_in_kwargs=True)}
@@ -134,8 +132,6 @@ class ECSTaskDefinitionToECSTaskRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class ECSTaskDefinitionToECSTaskRel(CartographyRelSchema):
-    "Represents a `HAS_TASK_DEFINITION` relationship from `AWSECSTask` to `AWSECSTaskDefinition`."
-
     target_node_label: str = "AWSECSTask"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"task_definition_arn": PropertyRef("taskDefinitionArn")}
@@ -154,8 +150,6 @@ class ECSTaskDefinitionToTaskRoleRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class ECSTaskDefinitionToTaskRoleRel(CartographyRelSchema):
-    "Represents a `HAS_TASK_ROLE` relationship from `AWSECSTaskDefinition` to `AWSRole`."
-
     target_node_label: str = "AWSRole"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"arn": PropertyRef("taskRoleArn")}
@@ -174,8 +168,6 @@ class ECSTaskDefinitionToExecutionRoleRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class ECSTaskDefinitionToExecutionRoleRel(CartographyRelSchema):
-    "Represents a `HAS_EXECUTION_ROLE` relationship from `AWSECSTaskDefinition` to `AWSRole`."
-
     target_node_label: str = "AWSRole"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"arn": PropertyRef("executionRoleArn")}
@@ -189,8 +181,6 @@ class ECSTaskDefinitionToExecutionRoleRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class ECSTaskDefinitionSchema(CartographyNodeSchema):
-    "Represents an `AWSECSTaskDefinition` node in the AWS graph."
-
     label: str = "AWSECSTaskDefinition"
     # DEPRECATED: legacy ECSTaskDefinition node label will be removed in v1.0.0.
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([LEGACY_ECS_TASK_DEFINITION])

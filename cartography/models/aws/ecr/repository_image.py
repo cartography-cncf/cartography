@@ -64,8 +64,6 @@ class ECRRepositoryImageToAWSAccountRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class ECRRepositoryImageToAWSAccountRel(CartographyRelSchema):
-    "Represents a `RESOURCE` relationship from `AWSAccount` to `AWSECRRepositoryImage`."
-
     target_node_label: str = "AWSAccount"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("AWS_ID", set_in_kwargs=True)}
@@ -84,8 +82,6 @@ class ECRRepositoryImageToECRRepositoryRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class ECRRepositoryImageToECRRepositoryRel(CartographyRelSchema):
-    "Represents a `REPO_IMAGE` relationship from `AWSECRRepository` to `AWSECRRepositoryImage`."
-
     target_node_label: str = "AWSECRRepository"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"uri": PropertyRef("repo_uri")}
@@ -104,8 +100,6 @@ class ECRRepositoryImageToECRImageRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class ECRRepositoryImageToECRImageRel(CartographyRelSchema):
-    "Represents a `IMAGE` relationship from `AWSECRRepositoryImage` to `AWSECRImage`."
-
     target_node_label: str = "AWSECRImage"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("imageDigests", one_to_many=True)}
@@ -119,8 +113,6 @@ class ECRRepositoryImageToECRImageRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class ECRRepositoryImageSchema(CartographyNodeSchema):
-    "Represents an `AWSECRRepositoryImage` node in the AWS graph."
-
     label: str = "AWSECRRepositoryImage"
     properties: ECRRepositoryImageNodeProperties = ECRRepositoryImageNodeProperties()
     sub_resource_relationship: ECRRepositoryImageToAWSAccountRel = (

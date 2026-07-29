@@ -202,8 +202,6 @@ class GuardDutyFindingToAWSAccountRelRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class GuardDutyFindingToAWSAccountRel(CartographyRelSchema):
-    "Represents a `RESOURCE` relationship from `AWSAccount` to `AWSGuardDutyFinding`."
-
     target_node_label: str = "AWSAccount"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("AWS_ID", set_in_kwargs=True)},
@@ -222,8 +220,6 @@ class GuardDutyFindingToEC2InstanceRelRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class GuardDutyFindingToEC2InstanceRel(CartographyRelSchema):
-    "Represents a `AFFECTS` relationship from `AWSGuardDutyFinding` to `AWSEC2Instance`."
-
     target_node_label: str = "AWSEC2Instance"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("resource_id")},
@@ -242,8 +238,6 @@ class GuardDutyFindingToGuardDutyDetectorRelRelProperties(CartographyRelProperti
 
 @dataclass(frozen=True)
 class GuardDutyFindingToGuardDutyDetectorRel(CartographyRelSchema):
-    "Represents a `DETECTED_BY` relationship from `AWSGuardDutyFinding` to `AWSGuardDutyDetector`."
-
     target_node_label: str = "AWSGuardDutyDetector"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("detectorid")},
@@ -262,8 +256,6 @@ class GuardDutyFindingTriggeredByAWSAccountRelRelProperties(CartographyRelProper
 
 @dataclass(frozen=True)
 class GuardDutyFindingTriggeredByAWSAccountRel(CartographyRelSchema):
-    "Represents a `REMOTE_ACCOUNT` relationship from `AWSGuardDutyFinding` to `AWSAccount`."
-
     target_node_label: str = "AWSAccount"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("api_call_remote_account_id")},
@@ -282,8 +274,6 @@ class GuardDutyFindingToEKSClusterRelRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class GuardDutyFindingToEKSClusterRel(CartographyRelSchema):
-    "Represents a `AFFECTS` relationship from `AWSGuardDutyFinding` to `AWSEKSCluster`."
-
     target_node_label: str = "AWSEKSCluster"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("eks_cluster_arn")},
@@ -302,8 +292,6 @@ class GuardDutyFindingToS3BucketRelRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class GuardDutyFindingToS3BucketRel(CartographyRelSchema):
-    "Represents a `AFFECTS` relationship from `AWSGuardDutyFinding` to `AWSS3Bucket`."
-
     target_node_label: str = "AWSS3Bucket"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("resource_id")},
@@ -322,8 +310,6 @@ class GuardDutyFindingToAccountAccessKeyRelRelProperties(CartographyRelPropertie
 
 @dataclass(frozen=True)
 class GuardDutyFindingToAccountAccessKeyRel(CartographyRelSchema):
-    "Represents a `AFFECTS` relationship from `AWSGuardDutyFinding` to `AWSAccountAccessKey`."
-
     target_node_label: str = "AWSAccountAccessKey"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("access_key_id")},
@@ -342,8 +328,6 @@ class GuardDutyFindingToAWSUserRelRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class GuardDutyFindingToAWSUserRel(CartographyRelSchema):
-    "Represents a `AFFECTS` relationship from `AWSGuardDutyFinding` to `AWSUser`."
-
     target_node_label: str = "AWSUser"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"userid": PropertyRef("principal_user_id")},
@@ -362,8 +346,6 @@ class GuardDutyFindingToAWSRoleRelRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class GuardDutyFindingToAWSRoleRel(CartographyRelSchema):
-    "Represents a `AFFECTS` relationship from `AWSGuardDutyFinding` to `AWSRole`."
-
     target_node_label: str = "AWSRole"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"roleid": PropertyRef("principal_role_id")},
@@ -377,8 +359,6 @@ class GuardDutyFindingToAWSRoleRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class GuardDutyFindingSchema(CartographyNodeSchema):
-    "Represents an `AWSGuardDutyFinding` node in the AWS graph."
-
     label: str = "AWSGuardDutyFinding"
     properties: GuardDutyFindingNodeProperties = GuardDutyFindingNodeProperties()
     # DEPRECATED: legacy GuardDutyFinding node label will be removed in v1.0.0.

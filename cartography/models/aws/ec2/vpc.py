@@ -55,8 +55,6 @@ class VPCToAWSAccountRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class VPCToAWSAccountRel(CartographyRelSchema):
-    "Represents a `RESOURCE` relationship from `AWSAccount` to `AWSVpc`."
-
     target_node_label: str = "AWSAccount"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("AWS_ID", set_in_kwargs=True)}
@@ -68,8 +66,6 @@ class VPCToAWSAccountRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class AWSVpcSchema(CartographyNodeSchema):
-    "Represents an `AWSVpc` node in the AWS graph."
-
     label: str = "AWSVpc"
     properties: VPCNodeProperties = VPCNodeProperties()
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([VIRTUAL_NETWORK])

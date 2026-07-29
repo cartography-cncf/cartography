@@ -85,8 +85,6 @@ class AWSLambdaToEventSourceMappingRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class AWSLambdaToEventSourceMappingRel(CartographyRelSchema):
-    "Represents a `RESOURCE` relationship from `AWSLambda` to `AWSLambdaEventSourceMapping`."
-
     target_node_label: str = "AWSLambda"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("FunctionArn")},
@@ -106,8 +104,6 @@ class AWSLambdaEventSourceMappingToAWSAccountRelProperties(CartographyRelPropert
 
 @dataclass(frozen=True)
 class AWSLambdaEventSourceMappingToAWSAccountRel(CartographyRelSchema):
-    "Represents a `RESOURCE` relationship from `AWSAccount` to `AWSLambdaEventSourceMapping`."
-
     target_node_label: str = "AWSAccount"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("AWS_ID", set_in_kwargs=True)},
@@ -121,8 +117,6 @@ class AWSLambdaEventSourceMappingToAWSAccountRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class AWSLambdaEventSourceMappingSchema(CartographyNodeSchema):
-    "Represents an `AWSLambdaEventSourceMapping` node in the AWS graph."
-
     label: str = "AWSLambdaEventSourceMapping"
     properties: AWSLambdaEventSourceMappingNodeProperties = (
         AWSLambdaEventSourceMappingNodeProperties()

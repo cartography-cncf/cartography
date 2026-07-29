@@ -162,8 +162,6 @@ class RDSSnapshotToAWSAccountRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class RDSSnapshotToAWSAccountRel(CartographyRelSchema):
-    "Represents a `RESOURCE` relationship from `AWSAccount` to `AWSRDSSnapshot`."
-
     target_node_label: str = "AWSAccount"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("AWS_ID", set_in_kwargs=True)}
@@ -182,8 +180,6 @@ class RDSSnapshotToRDSInstanceRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class RDSSnapshotToRDSInstanceRel(CartographyRelSchema):
-    "Represents a `IS_SNAPSHOT_SOURCE` relationship from `AWSRDSSnapshot` to `AWSRDSInstance`."
-
     target_node_label: str = "AWSRDSInstance"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {
@@ -199,8 +195,6 @@ class RDSSnapshotToRDSInstanceRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class RDSSnapshotSchema(CartographyNodeSchema):
-    "Represents an `AWSRDSSnapshot` node in the AWS graph."
-
     label: str = "AWSRDSSnapshot"
     properties: RDSSnapshotNodeProperties = RDSSnapshotNodeProperties()
     # DEPRECATED: legacy RDSSnapshot node label will be removed in v1.0.0.

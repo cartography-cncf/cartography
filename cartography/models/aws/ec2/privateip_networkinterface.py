@@ -55,8 +55,6 @@ class EC2PrivateIpToAWSAccountRelRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class EC2PrivateIpToAWSAccountRel(CartographyRelSchema):
-    "Represents a `RESOURCE` relationship from `AWSAccount` to `AWSEC2PrivateIp`."
-
     target_node_label: str = "AWSAccount"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("AWS_ID", set_in_kwargs=True)},
@@ -75,8 +73,6 @@ class EC2NetworkInterfaceToPrivateIpRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class EC2PrivateIpToNetworkInterfaceRel(CartographyRelSchema):
-    "Represents a `PRIVATE_IP_ADDRESS` relationship from `AWSNetworkInterface` to `AWSEC2PrivateIp`."
-
     target_node_label: str = "AWSNetworkInterface"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("NetworkInterfaceId")},

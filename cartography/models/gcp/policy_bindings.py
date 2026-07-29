@@ -1,6 +1,4 @@
 from dataclasses import dataclass
-from dataclasses import field
-from dataclasses import make_dataclass
 from typing import ClassVar
 
 from cartography.models.core.common import PropertyRef
@@ -15,7 +13,6 @@ from cartography.models.core.relationships import MatchLinkSubResource
 from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import SourceNodeMatcher
 from cartography.models.core.relationships import TargetNodeMatcher
-from cartography.models.gcp.resource_catalog import GCP_POLICY_BINDING_TARGET_LABELS
 
 
 @dataclass(frozen=True)
@@ -266,9 +263,12 @@ class GCPPolicyBindingAppliesToMatchLink(CartographyRelSchema):
     MatchLink schema that connects a GCPPolicyBinding to the concrete resource
     node it applies to.
 
-    target_node_label is set dynamically at instantiation (e.g. "GCPProject",
-    "GCPBucket") so a single binding can be matched unambiguously by (id, label)
-    because raw resource_id alone is ambiguous across resource types.
+    target_node_label and the sub-resource owner are both set at instantiation, so a
+    binding can be matched unambiguously by (id, label): a raw resource_id is ambiguous
+    across resource types, and a binding can be scoped to a project, a folder or an
+    organization. Instantiating this template with no argument would therefore describe
+    none of the edges it creates, so introspection skips it and reads the concrete
+    endpoints from GCP_POLICY_BINDING_TARGET_LABELS instead.
     """
 
     __cartography_introspection_exclude__: ClassVar[bool] = True
@@ -293,36 +293,3 @@ class GCPPolicyBindingAppliesToMatchLink(CartographyRelSchema):
         direction=LinkDirection.INWARD,
         rel_label="RESOURCE",
     )
-
-
-def _make_policy_binding_applies_to_schema(
-    target_label: str,
-) -> type[GCPPolicyBindingAppliesToMatchLink]:
-    class_name = f"GCPPolicyBindingAppliesTo{target_label.removeprefix('GCP')}MatchLink"
-    schema_type = make_dataclass(
-        class_name,
-        [("target_node_label", str, field(default=target_label))],
-        bases=(GCPPolicyBindingAppliesToMatchLink,),
-        namespace={
-            "__cartography_introspection_exclude__": False,
-            "__doc__": (
-                "Connects a GCP IAM policy binding to the concrete resource "
-                "where the policy applies."
-            ),
-        },
-        frozen=True,
-    )
-    schema_type.__module__ = __name__
-    return schema_type
-
-
-GCP_POLICY_BINDING_APPLIES_TO_SCHEMA_TYPES = {
-    target_label: _make_policy_binding_applies_to_schema(target_label)
-    for target_label in GCP_POLICY_BINDING_TARGET_LABELS
-}
-globals().update(
-    {
-        schema_type.__name__: schema_type
-        for schema_type in GCP_POLICY_BINDING_APPLIES_TO_SCHEMA_TYPES.values()
-    }
-)

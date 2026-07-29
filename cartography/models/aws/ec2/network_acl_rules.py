@@ -75,8 +75,6 @@ class EC2NetworkAclRuleAclRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class EC2NetworkAclRuleToAclRel(CartographyRelSchema):
-    "Represents a `MEMBER_OF_NACL` relationship from `AWSEC2NetworkAclRule` to `AWSEC2NetworkAcl`."
-
     target_node_label: str = "AWSEC2NetworkAcl"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"network_acl_id": PropertyRef("NetworkAclId")},
@@ -93,8 +91,6 @@ class EC2NetworkAclRuleToAWSAccountRelRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class EC2NetworkAclRuleToAWSAccountRel(CartographyRelSchema):
-    "Represents a `RESOURCE` relationship from `AWSAccount` to `AWSEC2NetworkAclRule`."
-
     target_node_label: str = "AWSAccount"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("AWS_ID", set_in_kwargs=True)},

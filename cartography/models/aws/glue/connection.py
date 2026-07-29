@@ -60,8 +60,6 @@ class GlueConnectionToAwsAccountRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class GlueConnectionToAWSAccountRel(CartographyRelSchema):
-    "Represents a `RESOURCE` relationship from `AWSAccount` to `AWSGlueConnection`."
-
     target_node_label: str = "AWSAccount"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("AWS_ID", set_in_kwargs=True)},
@@ -75,8 +73,6 @@ class GlueConnectionToAWSAccountRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class GlueConnectionSchema(CartographyNodeSchema):
-    "Represents an `AWSGlueConnection` node in the AWS graph."
-
     label: str = "AWSGlueConnection"
     # DEPRECATED: legacy GlueConnection node label will be removed in v1.0.0.
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([LEGACY_GLUE_CONNECTION])

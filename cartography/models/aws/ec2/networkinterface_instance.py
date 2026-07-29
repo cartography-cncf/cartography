@@ -61,8 +61,6 @@ class EC2NetworkInterfaceToAWSAccountRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class EC2NetworkInterfaceToAWSAccountRel(CartographyRelSchema):
-    "Represents a `RESOURCE` relationship from `AWSAccount` to `AWSNetworkInterface`."
-
     target_node_label: str = "AWSAccount"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("AWS_ID", set_in_kwargs=True)},
@@ -81,8 +79,6 @@ class EC2NetworkInterfaceToEC2InstanceRelRelProperties(CartographyRelProperties)
 
 @dataclass(frozen=True)
 class EC2NetworkInterfaceToEC2InstanceRel(CartographyRelSchema):
-    "Represents a `NETWORK_INTERFACE` relationship from `AWSEC2Instance` to `AWSNetworkInterface`."
-
     target_node_label: str = "AWSEC2Instance"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("InstanceId")},
@@ -101,8 +97,6 @@ class EC2NetworkInterfaceToEC2SubnetRelRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class EC2NetworkInterfaceToEC2SubnetRel(CartographyRelSchema):
-    "Represents a `PART_OF_SUBNET` relationship from `AWSNetworkInterface` to `AWSEC2Subnet`."
-
     target_node_label: str = "AWSEC2Subnet"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("SubnetId")},
@@ -121,8 +115,6 @@ class EC2NetworkInterfaceToEC2SecurityGroupRelRelProperties(CartographyRelProper
 
 @dataclass(frozen=True)
 class EC2NetworkInterfaceToEC2SecurityGroupRel(CartographyRelSchema):
-    "Represents a `MEMBER_OF_EC2_SECURITY_GROUP` relationship from `AWSNetworkInterface` to `AWSEC2SecurityGroup`."
-
     target_node_label: str = "AWSEC2SecurityGroup"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("GroupId")},

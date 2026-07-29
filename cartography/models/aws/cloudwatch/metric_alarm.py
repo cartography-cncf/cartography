@@ -61,8 +61,6 @@ class CloudWatchMetricAlarmToAwsAccountRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class CloudWatchMetricAlarmToAWSAccountRel(CartographyRelSchema):
-    "Represents a `RESOURCE` relationship from `AWSAccount` to `AWSCloudWatchMetricAlarm`."
-
     target_node_label: str = "AWSAccount"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("AWS_ID", set_in_kwargs=True)},
@@ -76,8 +74,6 @@ class CloudWatchMetricAlarmToAWSAccountRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class CloudWatchMetricAlarmSchema(CartographyNodeSchema):
-    "Represents an `AWSCloudWatchMetricAlarm` node in the AWS graph."
-
     label: str = "AWSCloudWatchMetricAlarm"
     # DEPRECATED: legacy CloudWatchMetricAlarm node label will be removed in v1.0.0.
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(

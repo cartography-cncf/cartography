@@ -70,8 +70,6 @@ class DynamoDBTableToAWSAccountRelRelProperties(CartographyRelProperties):
 @dataclass(frozen=True)
 # (:AWSDynamoDBTable)<-[:RESOURCE]-(:AWSAccount)
 class DynamoDBTableToAWSAccountRel(CartographyRelSchema):
-    "Represents a `RESOURCE` relationship from `AWSAccount` to `AWSDynamoDBTable`."
-
     target_node_label: str = "AWSAccount"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("AWS_ID", set_in_kwargs=True)},
@@ -85,8 +83,6 @@ class DynamoDBTableToAWSAccountRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class DynamoDBTableSchema(CartographyNodeSchema):
-    "Represents an `AWSDynamoDBTable` node in the AWS graph."
-
     label: str = "AWSDynamoDBTable"
     # DEPRECATED: legacy DynamoDBTable node label will be removed in v1.0.0.
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(

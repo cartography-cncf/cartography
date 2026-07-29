@@ -65,8 +65,6 @@ class S3PolicyStatementToAWSAccountRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class S3PolicyStatementToAWSAccountRel(CartographyRelSchema):
-    "Represents a `RESOURCE` relationship from `AWSAccount` to `AWSS3PolicyStatement`."
-
     target_node_label: str = "AWSAccount"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("AWS_ID", set_in_kwargs=True)},
@@ -85,8 +83,6 @@ class S3PolicyStatementToS3BucketRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class S3PolicyStatementToS3BucketRel(CartographyRelSchema):
-    "Represents a `POLICY_STATEMENT` relationship from `AWSS3Bucket` to `AWSS3PolicyStatement`."
-
     target_node_label: str = "AWSS3Bucket"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("bucket")},
@@ -100,8 +96,6 @@ class S3PolicyStatementToS3BucketRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class S3PolicyStatementSchema(CartographyNodeSchema):
-    "Represents an `AWSS3PolicyStatement` node in the AWS graph."
-
     label: str = "AWSS3PolicyStatement"
     # DEPRECATED: legacy S3PolicyStatement node label will be removed in v1.0.0.
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([LEGACY_S3_POLICY_STATEMENT])

@@ -93,8 +93,6 @@ class AWSSageMakerNotebookInstanceToAWSAccountRelProperties(CartographyRelProper
 
 @dataclass(frozen=True)
 class AWSSageMakerNotebookInstanceToAWSAccountRel(CartographyRelSchema):
-    "Represents a `RESOURCE` relationship from `AWSAccount` to `AWSSageMakerNotebookInstance`."
-
     target_node_label: str = "AWSAccount"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("AWS_ID", set_in_kwargs=True)}
@@ -113,8 +111,6 @@ class AWSSageMakerNotebookInstanceToRoleRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class AWSSageMakerNotebookInstanceToRoleRel(CartographyRelSchema):
-    "Represents a `HAS_EXECUTION_ROLE` relationship from `AWSSageMakerNotebookInstance` to `AWSRole`."
-
     target_node_label: str = "AWSRole"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"arn": PropertyRef("RoleArn")}
@@ -136,8 +132,6 @@ class AWSSageMakerNotebookInstanceToTrainingJobRelProperties(CartographyRelPrope
 
 @dataclass(frozen=True)
 class AWSSageMakerNotebookInstanceToTrainingJobRel(CartographyRelSchema):
-    "Represents a `CAN_INVOKE` relationship from `AWSSageMakerNotebookInstance` to `AWSSageMakerTrainingJob`."
-
     target_node_label: str = "AWSSageMakerTrainingJob"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"role_arn": PropertyRef("RoleArn")}
@@ -151,8 +145,6 @@ class AWSSageMakerNotebookInstanceToTrainingJobRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class AWSSageMakerNotebookInstanceSchema(CartographyNodeSchema):
-    "Represents an `AWSSageMakerNotebookInstance` node in the AWS graph."
-
     label: str = "AWSSageMakerNotebookInstance"
     properties: AWSSageMakerNotebookInstanceNodeProperties = (
         AWSSageMakerNotebookInstanceNodeProperties()

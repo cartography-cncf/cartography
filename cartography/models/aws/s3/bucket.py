@@ -54,8 +54,6 @@ class S3BucketToAWSAccountRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class S3BucketToAWSAccountRel(CartographyRelSchema):
-    "Represents a `RESOURCE` relationship from `AWSAccount` to `AWSS3Bucket`."
-
     target_node_label: str = "AWSAccount"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("AWS_ID", set_in_kwargs=True)},
@@ -167,8 +165,6 @@ class S3BucketToKMSKeyRelProperties(CartographyRelProperties):
 # Created when default encryption uses a customer-managed KMS key and
 # `KMSMasterKeyID` is reported as the key ARN.
 class S3BucketToKMSKeyRel(CartographyRelSchema):
-    "Represents a `ENCRYPTED_BY` relationship from `AWSS3Bucket` to `AWSKMSKey`."
-
     target_node_label: str = "AWSKMSKey"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"arn": PropertyRef("encryption_key_id")},
@@ -185,8 +181,6 @@ class S3BucketToKMSKeyRel(CartographyRelSchema):
 # a bucket gets at most one ENCRYPTED_BY edge. Alias references (alias/<name>)
 # are not resolved here as they point at a AWSKMSAlias node, not a AWSKMSKey.
 class S3BucketToKMSKeyByIdRel(CartographyRelSchema):
-    "Represents a `ENCRYPTED_BY` relationship from `AWSS3Bucket` to `AWSKMSKey`."
-
     target_node_label: str = "AWSKMSKey"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("encryption_key_id")},

@@ -43,9 +43,6 @@ from cartography.util import timeit
 logger = logging.getLogger(__name__)
 
 
-_FULL_NAME_MAPPINGS = GCP_FULL_NAME_MAPPINGS
-
-
 def _bigquery_resource_id(parts: list[str], table: bool) -> str | None:
     try:
         project_id = parts[parts.index("projects") + 1]
@@ -73,7 +70,7 @@ def _parse_full_resource_name(full_name: str) -> tuple[str | None, str | None]:
 
     Full resource name format: ``//{service}.googleapis.com/{path}``.
     """
-    for mapping in _FULL_NAME_MAPPINGS:
+    for mapping in GCP_FULL_NAME_MAPPINGS:
         if not full_name.startswith(mapping.service_prefix):
             continue
         path = full_name[len(mapping.service_prefix) :].rstrip("/")
@@ -108,7 +105,7 @@ def _parse_full_resource_name(full_name: str) -> tuple[str | None, str | None]:
 def _search_asset_types_from_full_name_mappings() -> list[str]:
     return [
         asset_type
-        for mapping in _FULL_NAME_MAPPINGS
+        for mapping in GCP_FULL_NAME_MAPPINGS
         for asset_type in (
             ((mapping.asset_type,) if mapping.asset_type is not None else ())
             + mapping.additional_asset_types

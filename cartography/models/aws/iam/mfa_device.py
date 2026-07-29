@@ -58,8 +58,6 @@ class AWSMfaDeviceToAWSAccountRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class AWSMfaDeviceToAWSAccountRel(CartographyRelSchema):
-    "Represents a `RESOURCE` relationship from `AWSAccount` to `AWSMfaDevice`."
-
     target_node_label: str = "AWSAccount"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {
@@ -80,8 +78,6 @@ class AWSMfaDeviceToAWSUserRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class AWSMfaDeviceToAWSUserRel(CartographyRelSchema):
-    "Represents a `MFA_DEVICE` relationship from `AWSUser` to `AWSMfaDevice`."
-
     target_node_label: str = "AWSUser"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {
@@ -97,8 +93,6 @@ class AWSMfaDeviceToAWSUserRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class AWSMfaDeviceSchema(CartographyNodeSchema):
-    "Represents an `AWSMfaDevice` node in the AWS graph."
-
     label: str = "AWSMfaDevice"
     properties: AWSMfaDeviceNodeProperties = AWSMfaDeviceNodeProperties()
     sub_resource_relationship: AWSMfaDeviceToAWSAccountRel = (

@@ -167,8 +167,6 @@ class ECRImageToAWSAccountRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class ECRImageToAWSAccountRel(CartographyRelSchema):
-    "Represents a `RESOURCE` relationship from `AWSAccount` to `AWSECRImage`."
-
     target_node_label: str = "AWSAccount"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("AWS_ID", set_in_kwargs=True)}
@@ -185,8 +183,6 @@ class ECRImageHasLayerRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class ECRImageHasLayerRel(CartographyRelSchema):
-    "Represents a `HAS_LAYER` relationship from `AWSECRImage` to `AWSECRImageLayer`."
-
     target_node_label: str = "AWSECRImageLayer"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"diff_id": PropertyRef("layer_diff_ids", one_to_many=True)},

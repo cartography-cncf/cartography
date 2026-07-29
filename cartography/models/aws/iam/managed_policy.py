@@ -43,8 +43,6 @@ class AWSManagedPolicyToAWSPrincipalRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class AWSManagedPolicyToAWSPrincipalRel(CartographyRelSchema):
-    "Represents a `POLICY` relationship from `AWSPrincipal` to `AWSManagedPolicy`."
-
     target_node_label: str = "AWSPrincipal"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {
@@ -60,8 +58,6 @@ class AWSManagedPolicyToAWSPrincipalRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class AWSManagedPolicySchema(CartographyNodeSchema):
-    "Represents an `AWSManagedPolicy` node in the AWS graph."
-
     label: str = "AWSManagedPolicy"
     properties: AWSManagedPolicyNodeProperties = AWSManagedPolicyNodeProperties()
     other_relationships: OtherRelationships = OtherRelationships(

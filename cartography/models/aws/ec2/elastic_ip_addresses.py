@@ -81,8 +81,6 @@ class ElasticIPAddressToAWSAccountRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class ElasticIPAddressToAWSAccountRel(CartographyRelSchema):
-    "Represents a `RESOURCE` relationship from `AWSAccount` to `AWSElasticIPAddress`."
-
     target_node_label: str = "AWSAccount"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("AWS_ID", set_in_kwargs=True)},
@@ -101,8 +99,6 @@ class ElasticIPAddressToEC2InstanceRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class ElasticIPAddressToEC2InstanceRel(CartographyRelSchema):
-    "Represents a `ELASTIC_IP_ADDRESS` relationship from `AWSEC2Instance` to `AWSElasticIPAddress`."
-
     target_node_label: str = "AWSEC2Instance"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("InstanceId")},
@@ -121,8 +117,6 @@ class ElasticIPAddressToNetworkInterfaceRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class ElasticIPAddressToNetworkInterfaceRel(CartographyRelSchema):
-    "Represents a `ELASTIC_IP_ADDRESS` relationship from `AWSNetworkInterface` to `AWSElasticIPAddress`."
-
     target_node_label: str = "AWSNetworkInterface"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("NetworkInterfaceId")},
@@ -136,8 +130,6 @@ class ElasticIPAddressToNetworkInterfaceRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class ElasticIPAddressSchema(CartographyNodeSchema):
-    "Represents an `AWSElasticIPAddress` node in the AWS graph."
-
     label: str = "AWSElasticIPAddress"
     # DEPRECATED: legacy ElasticIPAddress node label will be removed in v1.0.0.
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([LEGACY_ELASTIC_IP_ADDRESS])

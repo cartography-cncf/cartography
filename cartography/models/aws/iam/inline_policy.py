@@ -43,8 +43,6 @@ class AWSInlinePolicyToAWSPrincipalRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class AWSInlinePolicyToAWSPrincipalRel(CartographyRelSchema):
-    "Represents a `POLICY` relationship from `AWSPrincipal` to `AWSInlinePolicy`."
-
     target_node_label: str = "AWSPrincipal"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {
@@ -65,8 +63,6 @@ class AWSInlinePolicyToAWSAccountRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class AWSInlinePolicyToAWSAccountRel(CartographyRelSchema):
-    "Represents a `RESOURCE` relationship from `AWSAccount` to `AWSInlinePolicy`."
-
     target_node_label: str = "AWSAccount"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {

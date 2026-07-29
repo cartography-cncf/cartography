@@ -69,8 +69,6 @@ class AWSSageMakerModelPackageToAWSAccountRelProperties(CartographyRelProperties
 
 @dataclass(frozen=True)
 class AWSSageMakerModelPackageToAWSAccountRel(CartographyRelSchema):
-    "Represents a `RESOURCE` relationship from `AWSAccount` to `AWSSageMakerModelPackage`."
-
     target_node_label: str = "AWSAccount"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("AWS_ID", set_in_kwargs=True)}
@@ -91,8 +89,6 @@ class AWSSageMakerModelPackageToModelPackageGroupRelProperties(
 
 @dataclass(frozen=True)
 class AWSSageMakerModelPackageToModelPackageGroupRel(CartographyRelSchema):
-    "Represents a `MEMBER_OF` relationship from `AWSSageMakerModelPackage` to `AWSSageMakerModelPackageGroup`."
-
     target_node_label: str = "AWSSageMakerModelPackageGroup"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"model_package_group_name": PropertyRef("ModelPackageGroupName")}
@@ -111,8 +107,6 @@ class AWSSageMakerModelPackageToS3BucketRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class AWSSageMakerModelPackageToS3BucketRel(CartographyRelSchema):
-    "Represents a `REFERENCES_ARTIFACTS_IN` relationship from `AWSSageMakerModelPackage` to `AWSS3Bucket`."
-
     target_node_label: str = "AWSS3Bucket"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("ModelArtifactsS3BucketId")}
@@ -126,8 +120,6 @@ class AWSSageMakerModelPackageToS3BucketRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class AWSSageMakerModelPackageSchema(CartographyNodeSchema):
-    "Represents an `AWSSageMakerModelPackage` node in the AWS graph."
-
     label: str = "AWSSageMakerModelPackage"
     properties: AWSSageMakerModelPackageNodeProperties = (
         AWSSageMakerModelPackageNodeProperties()

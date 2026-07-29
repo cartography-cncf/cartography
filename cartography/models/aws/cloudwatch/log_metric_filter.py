@@ -66,8 +66,6 @@ class CloudWatchLogMetricFilterToAwsAccountRelProperties(CartographyRelPropertie
 
 @dataclass(frozen=True)
 class CloudWatchLogMetricFilterToAWSAccountRel(CartographyRelSchema):
-    "Represents a `RESOURCE` relationship from `AWSAccount` to `AWSCloudWatchLogMetricFilter`."
-
     target_node_label: str = "AWSAccount"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("AWS_ID", set_in_kwargs=True)},
@@ -88,8 +86,6 @@ class CloudWatchLogMetricFilterToCloudWatchLogGroupRelProperties(
 
 @dataclass(frozen=True)
 class CloudWatchLogMetricFilterToCloudWatchLogGroupRel(CartographyRelSchema):
-    "Represents a `METRIC_FILTER_OF` relationship from `AWSCloudWatchLogMetricFilter` to `AWSCloudWatchLogGroup`."
-
     target_node_label: str = "AWSCloudWatchLogGroup"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"log_group_name": PropertyRef("logGroupName")},
@@ -103,8 +99,6 @@ class CloudWatchLogMetricFilterToCloudWatchLogGroupRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class CloudWatchLogMetricFilterSchema(CartographyNodeSchema):
-    "Represents an `AWSCloudWatchLogMetricFilter` node in the AWS graph."
-
     label: str = "AWSCloudWatchLogMetricFilter"
     # DEPRECATED: legacy CloudWatchLogMetricFilter node label will be removed in v1.0.0.
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(

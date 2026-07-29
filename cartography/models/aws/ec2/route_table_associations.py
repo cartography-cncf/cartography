@@ -63,8 +63,6 @@ class RouteTableAssociationToAWSAccountRelRelProperties(CartographyRelProperties
 
 @dataclass(frozen=True)
 class RouteTableAssociationToAWSAccountRel(CartographyRelSchema):
-    "Represents a `RESOURCE` relationship from `AWSAccount` to `AWSEC2RouteTableAssociation`."
-
     target_node_label: str = "AWSAccount"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("AWS_ID", set_in_kwargs=True)},
@@ -83,8 +81,6 @@ class RouteTableAssociationToSubnetRelRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class RouteTableAssociationToSubnetRel(CartographyRelSchema):
-    "Represents a `ASSOCIATED_SUBNET` relationship from `AWSEC2RouteTableAssociation` to `AWSEC2Subnet`."
-
     target_node_label: str = "AWSEC2Subnet"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"subnetid": PropertyRef("subnet_id")},
@@ -103,8 +99,6 @@ class RouteTableAssociationToIgwRelRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class RouteTableAssociationToIgwRel(CartographyRelSchema):
-    "Represents a `ASSOCIATED_IGW_FOR_INGRESS` relationship from `AWSEC2RouteTableAssociation` to `AWSInternetGateway`."
-
     target_node_label: str = "AWSInternetGateway"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("gateway_id")},
@@ -118,8 +112,6 @@ class RouteTableAssociationToIgwRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class RouteTableAssociationSchema(CartographyNodeSchema):
-    "Represents an `AWSEC2RouteTableAssociation` node in the AWS graph."
-
     label: str = "AWSEC2RouteTableAssociation"
     # DEPRECATED: legacy EC2RouteTableAssociation node label will be removed in v1.0.0.
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(

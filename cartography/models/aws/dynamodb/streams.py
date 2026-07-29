@@ -41,8 +41,6 @@ class DynamoDBStreamToAWSAccountRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class DynamoDBStreamToAWSAccountRel(CartographyRelSchema):
-    "Represents a `RESOURCE` relationship from `AWSAccount` to `AWSDynamoDBStream`."
-
     target_node_label: str = "AWSAccount"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("AWS_ID", set_in_kwargs=True)},
@@ -61,8 +59,6 @@ class DynamoDBStreamToTableRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class DynamoDBStreamToTableRel(CartographyRelSchema):
-    "Represents a `LATEST_STREAM` relationship from `AWSDynamoDBTable` to `AWSDynamoDBStream`."
-
     target_node_label: str = "AWSDynamoDBTable"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("TableArn")},
@@ -76,8 +72,6 @@ class DynamoDBStreamToTableRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class DynamoDBStreamSchema(CartographyNodeSchema):
-    "Represents an `AWSDynamoDBStream` node in the AWS graph."
-
     label: str = "AWSDynamoDBStream"
     # DEPRECATED: legacy DynamoDBStream node label will be removed in v1.0.0.
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([LEGACY_DYNAMO_DB_STREAM])

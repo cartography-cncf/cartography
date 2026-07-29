@@ -98,8 +98,6 @@ class CloudTrailTrailToAwsAccountRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class CloudTrailToAWSAccountRel(CartographyRelSchema):
-    "Represents a `RESOURCE` relationship from `AWSAccount` to `AWSCloudTrailTrail`."
-
     target_node_label: str = "AWSAccount"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("AWS_ID", set_in_kwargs=True)},
@@ -118,8 +116,6 @@ class CloudTrailTrailToS3BucketRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class CloudTrailTrailToS3BucketRel(CartographyRelSchema):
-    "Represents a `LOGS_TO` relationship from `AWSCloudTrailTrail` to `AWSS3Bucket`."
-
     target_node_label: str = "AWSS3Bucket"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"name": PropertyRef("S3BucketName")},
@@ -138,8 +134,6 @@ class CloudTrailTrailToCloudWatchLogGroupRelProperties(CartographyRelProperties)
 
 @dataclass(frozen=True)
 class CloudTrailTrailToCloudWatchLogGroupRel(CartographyRelSchema):
-    "Represents a `SENDS_LOGS_TO_CLOUDWATCH` relationship from `AWSCloudTrailTrail` to `AWSCloudWatchLogGroup`."
-
     target_node_label: str = "AWSCloudWatchLogGroup"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {
@@ -155,8 +149,6 @@ class CloudTrailTrailToCloudWatchLogGroupRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class CloudTrailTrailSchema(CartographyNodeSchema):
-    "Represents an `AWSCloudTrailTrail` node in the AWS graph."
-
     label: str = "AWSCloudTrailTrail"
     # DEPRECATED: legacy CloudTrailTrail node label will be removed in v1.0.0.
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([LEGACY_CLOUD_TRAIL_TRAIL])

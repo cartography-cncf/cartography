@@ -99,8 +99,6 @@ class AWSSageMakerTrainingJobToAWSAccountRelProperties(CartographyRelProperties)
 
 @dataclass(frozen=True)
 class AWSSageMakerTrainingJobToAWSAccountRel(CartographyRelSchema):
-    "Represents a `RESOURCE` relationship from `AWSAccount` to `AWSSageMakerTrainingJob`."
-
     target_node_label: str = "AWSAccount"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("AWS_ID", set_in_kwargs=True)}
@@ -119,8 +117,6 @@ class AWSSageMakerTrainingJobToRoleRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class AWSSageMakerTrainingJobToRoleRel(CartographyRelSchema):
-    "Represents a `HAS_EXECUTION_ROLE` relationship from `AWSSageMakerTrainingJob` to `AWSRole`."
-
     target_node_label: str = "AWSRole"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"arn": PropertyRef("RoleArn")}
@@ -139,8 +135,6 @@ class AWSSageMakerTrainingJobToS3BucketReadFromRelProperties(CartographyRelPrope
 
 @dataclass(frozen=True)
 class AWSSageMakerTrainingJobToS3BucketReadFromRel(CartographyRelSchema):
-    "Represents a `READS_FROM` relationship from `AWSSageMakerTrainingJob` to `AWSS3Bucket`."
-
     target_node_label: str = "AWSS3Bucket"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("InputDataS3BucketId")}
@@ -161,8 +155,6 @@ class AWSSageMakerTrainingJobToS3BucketProducedModelRelProperties(
 
 @dataclass(frozen=True)
 class AWSSageMakerTrainingJobToS3BucketProducedModelRel(CartographyRelSchema):
-    "Represents a `PRODUCES_MODEL_ARTIFACT` relationship from `AWSSageMakerTrainingJob` to `AWSS3Bucket`."
-
     target_node_label: str = "AWSS3Bucket"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("OutputDataS3BucketId")}
@@ -176,8 +168,6 @@ class AWSSageMakerTrainingJobToS3BucketProducedModelRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class AWSSageMakerTrainingJobSchema(CartographyNodeSchema):
-    "Represents an `AWSSageMakerTrainingJob` node in the AWS graph."
-
     label: str = "AWSSageMakerTrainingJob"
     properties: AWSSageMakerTrainingJobNodeProperties = (
         AWSSageMakerTrainingJobNodeProperties()

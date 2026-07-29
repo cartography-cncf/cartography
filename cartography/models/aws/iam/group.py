@@ -60,8 +60,6 @@ class AWSGroupToAWSAccountRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class AWSGroupToAWSAccountRel(CartographyRelSchema):
-    "Represents a `RESOURCE` relationship from `AWSAccount` to `AWSGroup`."
-
     target_node_label: str = "AWSAccount"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {
@@ -75,8 +73,6 @@ class AWSGroupToAWSAccountRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class AWSGroupSchema(CartographyNodeSchema):
-    "Represents an `AWSGroup` node in the AWS graph."
-
     label: str = "AWSGroup"
     properties: AWSGroupNodeProperties = AWSGroupNodeProperties()
     sub_resource_relationship: AWSGroupToAWSAccountRel = AWSGroupToAWSAccountRel()

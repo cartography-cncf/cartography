@@ -61,8 +61,6 @@ class AWSConfigurationRecorderNodeProperties(CartographyNodeProperties):
 @dataclass(frozen=True)
 # (:AWSAccount)-[:RESOURCE]->(:AWSConfigurationRecorder)
 class AWSConfigurationRecorderToAWSAccountRel(CartographyRelSchema):
-    "Represents a `RESOURCE` relationship from `AWSAccount` to `AWSConfigurationRecorder`."
-
     target_node_label: str = "AWSAccount"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("AWS_ID", set_in_kwargs=True)},
@@ -76,8 +74,6 @@ class AWSConfigurationRecorderToAWSAccountRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class AWSConfigurationRecorderSchema(CartographyNodeSchema):
-    "Represents an `AWSConfigurationRecorder` node in the AWS graph."
-
     label: str = "AWSConfigurationRecorder"
     properties: AWSConfigurationRecorderNodeProperties = (
         AWSConfigurationRecorderNodeProperties()
@@ -132,8 +128,6 @@ class AWSConfigDeliveryChannelNodeProperties(CartographyNodeProperties):
 @dataclass(frozen=True)
 # (:AWSAccount)-[:RESOURCE]->(:AWSConfigDeliveryChannel)
 class AWSConfigDeliveryChannelToAWSAccountRel(CartographyRelSchema):
-    "Represents a `RESOURCE` relationship from `AWSAccount` to `AWSConfigDeliveryChannel`."
-
     target_node_label: str = "AWSAccount"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("AWS_ID", set_in_kwargs=True)},
@@ -147,8 +141,6 @@ class AWSConfigDeliveryChannelToAWSAccountRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class AWSConfigDeliveryChannelSchema(CartographyNodeSchema):
-    "Represents an `AWSConfigDeliveryChannel` node in the AWS graph."
-
     label: str = "AWSConfigDeliveryChannel"
     properties: AWSConfigDeliveryChannelNodeProperties = (
         AWSConfigDeliveryChannelNodeProperties()
@@ -234,8 +226,6 @@ class AWSConfigRuleNodeProperties(CartographyNodeProperties):
 @dataclass(frozen=True)
 # (:AWSAccount)-[:RESOURCE]->(:AWSConfigRule)
 class AWSConfigRuleToAWSAccountRel(CartographyRelSchema):
-    "Represents a `RESOURCE` relationship from `AWSAccount` to `AWSConfigRule`."
-
     target_node_label: str = "AWSAccount"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("AWS_ID", set_in_kwargs=True)},
@@ -249,8 +239,6 @@ class AWSConfigRuleToAWSAccountRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class AWSConfigRuleSchema(CartographyNodeSchema):
-    "Represents an `AWSConfigRule` node in the AWS graph."
-
     label: str = "AWSConfigRule"
     properties: AWSConfigRuleNodeProperties = AWSConfigRuleNodeProperties()
     sub_resource_relationship: AWSConfigRuleToAWSAccountRel = (

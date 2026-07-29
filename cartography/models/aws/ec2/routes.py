@@ -92,8 +92,6 @@ class RouteToAWSAccountRelRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class RouteToAWSAccountRel(CartographyRelSchema):
-    "Represents a `RESOURCE` relationship from `AWSAccount` to `AWSEC2Route`."
-
     target_node_label: str = "AWSAccount"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("AWS_ID", set_in_kwargs=True)},
@@ -110,8 +108,6 @@ class RouteToInternetGatewayRelRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class RouteToInternetGatewayRel(CartographyRelSchema):
-    "Represents a `ROUTES_TO_GATEWAY` relationship from `AWSEC2Route` to `AWSInternetGateway`."
-
     target_node_label: str = "AWSInternetGateway"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("gateway_id")},
@@ -130,8 +126,6 @@ class RouteToVPCEndpointRelRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class RouteToVPCEndpointRel(CartographyRelSchema):
-    "Represents a `ROUTES_TO_VPC_ENDPOINT` relationship from `AWSEC2Route` to `AWSVpcEndpoint`."
-
     target_node_label: str = "AWSVpcEndpoint"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("vpc_endpoint_id")},
@@ -145,8 +139,6 @@ class RouteToVPCEndpointRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class RouteSchema(CartographyNodeSchema):
-    "Represents an `AWSEC2Route` node in the AWS graph."
-
     label: str = "AWSEC2Route"
     # DEPRECATED: legacy EC2Route node label will be removed in v1.0.0.
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([LEGACY_EC2_ROUTE])

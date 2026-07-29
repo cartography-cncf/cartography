@@ -62,8 +62,6 @@ class AWSPrincipalServiceAccessToAWSAccountRelProperties(CartographyRelPropertie
 
 @dataclass(frozen=True)
 class AWSPrincipalServiceAccessToAWSAccountRel(CartographyRelSchema):
-    "Represents a `RESOURCE` relationship from `AWSAccount` to `AWSPrincipal`."
-
     target_node_label: str = "AWSAccount"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {

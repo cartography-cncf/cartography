@@ -90,8 +90,6 @@ class ECSContainerToAWSAccountRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class ECSContainerToAWSAccountRel(CartographyRelSchema):
-    "Represents a `RESOURCE` relationship from `AWSAccount` to `AWSECSContainer`."
-
     target_node_label: str = "AWSAccount"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("AWS_ID", set_in_kwargs=True)}
@@ -111,8 +109,6 @@ class ECSContainerToTaskRelProperties(CartographyRelProperties):
 # DEPRECATED: replaced by WORKLOAD_PARENT, will be removed in v1.0.0
 @dataclass(frozen=True)
 class ECSContainerToTaskRel(CartographyRelSchema):
-    "Represents a `HAS_CONTAINER` relationship from `AWSECSTask` to `AWSECSContainer`."
-
     target_node_label: str = "AWSECSTask"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("taskArn")}
@@ -130,8 +126,6 @@ class ECSContainerToECSTaskWorkloadParentRelProperties(CartographyRelProperties)
 @dataclass(frozen=True)
 # (:AWSECSContainer)-[:WORKLOAD_PARENT]->(:AWSECSTask)
 class ECSContainerToECSTaskWorkloadParentRel(CartographyRelSchema):
-    "Represents a `WORKLOAD_PARENT` relationship from `AWSECSContainer` to `AWSECSTask`."
-
     target_node_label: str = "AWSECSTask"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("taskArn")}
@@ -150,8 +144,6 @@ class ECSContainerToECRImageRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class ECSContainerToECRImageRel(CartographyRelSchema):
-    "Represents a `HAS_IMAGE` relationship from `AWSECSContainer` to `AWSECRImage`."
-
     target_node_label: str = "AWSECRImage"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"digest": PropertyRef("imageDigest")}
@@ -232,8 +224,6 @@ class ECSContainerToGitHubContainerImageRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class ECSContainerSchema(CartographyNodeSchema):
-    "Represents an `AWSECSContainer` node in the AWS graph."
-
     label: str = "AWSECSContainer"
     # DEPRECATED: legacy ECSContainer node label will be removed in v1.0.0.
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(

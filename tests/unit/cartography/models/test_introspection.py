@@ -5,6 +5,7 @@ import cartography.analysis.gsuite as gsuite_analysis
 import cartography.analysis.ontology as ontology_analysis
 import cartography.models.gcp as gcp_models
 import cartography.models.github as github_models
+import cartography.models.introspection as introspection
 import cartography.models.lastpass as lastpass_models
 from cartography.analysis.ontology.analysis import DNS_RECORD_LINKING_JOBS
 from cartography.graph.analysis import AddRelationship
@@ -157,13 +158,6 @@ class BroadTargetMatchLink(CartographyRelSchema):
     direction: LinkDirection = LinkDirection.OUTWARD
     rel_label: str = "CROSS_PROVIDER"
     properties: SampleRelProperties = SampleRelProperties()
-
-
-@dataclass(frozen=True)
-class ExplicitBroadTargetMatchLink(BroadTargetMatchLink):
-    @property
-    def match_target_extra_labels(self) -> bool:
-        return True
 
 
 SAMPLE_ANALYSIS_JOB = AnalysisJob(
@@ -610,16 +604,11 @@ def test_aws_tagging_catalog_exposes_concrete_runtime_relationships():
     rendered = render_module_schema(model, "aws")
     assert "(:AWSEC2Instance)-[:TAGGED]->(:AWSTag)" in rendered
     assert "Source:" not in rendered
-    assert len(
-        {
-            definition.source_label
-            for definition in catalog
-            if definition.relationship_name == "TAGGED"
-        }
-    ) == len(catalog)
+    tagged = [item for item in catalog if item.relationship_name == "TAGGED"]
+    assert len({item.source_label for item in tagged}) == len(tagged)
 
 
-def test_aws_rendering_excludes_unscoped_cross_module_broad_relationships():
+def test_rendering_excludes_cross_provider_edges_on_a_shared_label():
     aws_node = Node(
         label="AWSConcreteNode",
         descriptions=(),
@@ -650,38 +639,7 @@ def test_aws_rendering_excludes_unscoped_cross_module_broad_relationships():
     assert "CROSS_PROVIDER" not in rendered
 
 
-def test_aws_rendering_keeps_explicit_extra_label_relationships():
-    aws_node = Node(
-        label="AWSConcreteNode",
-        descriptions=(),
-        extra_labels=("SharedOntologyLabel",),
-        conditional_labels=(),
-        properties=(),
-        modules=("aws",),
-        schemas=(),
-    )
-    relationship = Relationship(
-        source_label="OtherConcreteSource",
-        label="CROSS_PROVIDER",
-        target_label="SharedOntologyLabel",
-        direction=LinkDirection.OUTWARD,
-        descriptions=(),
-        properties=(),
-        modules=("other",),
-        origins=("matchlink",),
-        schemas=(ExplicitBroadTargetMatchLink(),),
-        analysis_jobs=(),
-    )
-
-    rendered = render_module_schema(
-        DataModel(nodes=(aws_node,), relationships=(relationship,)),
-        "aws",
-    )
-
-    assert "CROSS_PROVIDER" in rendered
-
-
-def test_aws_rendering_keeps_cross_module_relationships_with_concrete_endpoint():
+def test_rendering_keeps_cross_module_edges_reaching_a_concrete_node():
     aws_node = Node(
         label="AWSConcreteNode",
         descriptions=(),
@@ -710,3 +668,105 @@ def test_aws_rendering_keeps_cross_module_relationships_with_concrete_endpoint()
     )
 
     assert "CONNECTS_TO_AWS" in rendered
+
+
+def test_public_surface_is_declared():
+    """__all__ is the contract downstream consumers rely on; keep it exhaustive."""
+    # Act
+    undeclared = {
+        name
+        for name in dir(introspection)
+        if not name.startswith("_")
+        and getattr(getattr(introspection, name), "__module__", None)
+        == introspection.__name__
+    } - set(introspection.__all__)
+
+    # Assert
+    assert undeclared == set()
+    assert all(hasattr(introspection, name) for name in introspection.__all__)
+
+
+def test_catalog_definitions_expose_their_declaration_site():
+    # Act
+    definition = next(
+        item
+        for item in iter_relationship_catalog()
+        if item.source_label == "AWSEC2Instance"
+    )
+
+    # Assert
+    assert definition.module == "aws"
+    assert definition.relationship_name == "TAGGED"
+    assert definition.target_label == "AWSTag"
+    assert (
+        definition.catalog_path
+        == "cartography.models.aws_tagging.AWS_TAGGABLE_RESOURCES"
+    )
+
+
+def test_semantic_labels_expose_their_mapping_group():
+    # Arrange
+    model = inspect_data_model()
+
+    # Act
+    groups = {
+        label.label: label.mapping_group for label in model.ontology_semantic_labels
+    }
+
+    # Assert
+    assert groups["Tenant"] == "tenants"
+    assert groups["UserAccount"] == "useraccounts"
+    # Labels without normalized fields belong to no mapping group.
+    assert groups["ImageTag"] is None
+
+
+def test_diagnostics_report_what_could_not_be_introspected():
+    # Act
+    model = inspect_data_model()
+
+    # Assert
+    assert isinstance(model.diagnostics, tuple)
+    assert all(isinstance(entry, str) for entry in model.diagnostics)
+    assert model.diagnostics == ()
+
+
+def test_for_module_scopes_properties_of_a_shared_node():
+    # Arrange
+    model = inspect_data_model()
+
+    # Act
+    azure_tenant = model.for_module("azure").get_node("AzureTenant")
+    microsoft_tenant = model.for_module("microsoft").get_node("AzureTenant")
+
+    # Assert
+    assert azure_tenant is not None and microsoft_tenant is not None
+    assert microsoft_tenant.get_property("display_name") is not None
+    assert azure_tenant.get_property("display_name") is None
+    assert azure_tenant.modules == ("azure",)
+
+
+def test_for_module_keeps_cross_module_relationships_touching_the_module():
+    # Arrange
+    model = inspect_data_model()
+
+    # Act
+    scoped = model.for_module("microsoft")
+    foreign = tuple(
+        relationship
+        for relationship in scoped.relationships
+        if "microsoft" not in relationship.modules
+    )
+
+    # Assert
+    assert foreign, "cross-module edges reaching microsoft nodes must stay in scope"
+    # Every edge in scope must land on a label one of the module's nodes answers to,
+    # counting extra and ontology labels. Only one endpoint has to match: tightening
+    # that to both endpoints would change page content, see the broad-match rule.
+    carried = {node.label for node in scoped.nodes}
+    for node in scoped.nodes:
+        carried |= set(node.extra_labels) | set(node.ontology_labels)
+        carried |= {label.label for label in node.conditional_labels}
+    assert all(
+        relationship.source_label in carried or relationship.target_label in carried
+        for relationship in foreign
+    )

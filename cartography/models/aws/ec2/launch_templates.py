@@ -55,8 +55,6 @@ class LaunchTemplateToAWSAccountRelRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class LaunchTemplateToAWSAccountRel(CartographyRelSchema):
-    "Represents a `RESOURCE` relationship from `AWSAccount` to `AWSLaunchTemplate`."
-
     target_node_label: str = "AWSAccount"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("AWS_ID", set_in_kwargs=True)},
@@ -70,8 +68,6 @@ class LaunchTemplateToAWSAccountRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class LaunchTemplateSchema(CartographyNodeSchema):
-    "Represents an `AWSLaunchTemplate` node in the AWS graph."
-
     label: str = "AWSLaunchTemplate"
     # DEPRECATED: legacy LaunchTemplate node label will be removed in v1.0.0.
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([LEGACY_LAUNCH_TEMPLATE])

@@ -66,8 +66,6 @@ class APIGatewayIntegrationToAPIGatewayResourceRelRelProperties(
 
 @dataclass(frozen=True)
 class APIGatewayIntegrationToAPIGatewayResourceRel(CartographyRelSchema):
-    "Represents a `HAS_INTEGRATION` relationship from `AWSAPIGatewayResource` to `AWSAPIGatewayIntegration`."
-
     target_node_label: str = "AWSAPIGatewayResource"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("resourceId")},
@@ -87,8 +85,6 @@ class APIGatewayIntegrationToAWSAccountRelRelProperties(CartographyRelProperties
 @dataclass(frozen=True)
 # (:AWSAPIGatewayIntegration)<-[:RESOURCE]-(:AWSAccount)
 class APIGatewayIntegrationToAWSAccountRel(CartographyRelSchema):
-    "Represents a `RESOURCE` relationship from `AWSAccount` to `AWSAPIGatewayIntegration`."
-
     target_node_label: str = "AWSAccount"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("AWS_ID", set_in_kwargs=True)},
@@ -102,8 +98,6 @@ class APIGatewayIntegrationToAWSAccountRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class APIGatewayIntegrationSchema(CartographyNodeSchema):
-    "Represents an `AWSAPIGatewayIntegration` node in the AWS graph."
-
     label: str = "AWSAPIGatewayIntegration"
     # DEPRECATED: legacy APIGatewayIntegration node label will be removed in v1.0.0.
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
