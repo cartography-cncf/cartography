@@ -4,7 +4,9 @@ TEST_UPDATE_TAG = 123456789
 
 
 def test_package_version_rename_migration(neo4j_session):
-    neo4j_session.run("MATCH (n) WHERE n:Package OR n:PackageVersion OR n:TrivyPackage DETACH DELETE n")
+    neo4j_session.run(
+        "MATCH (n) WHERE n:Package OR n:PackageVersion OR n:TrivyPackage DETACH DELETE n"
+    )
     neo4j_session.run(
         """
         MERGE (p:Package:Ontology {id: 'npm|express|4.18.2'})
