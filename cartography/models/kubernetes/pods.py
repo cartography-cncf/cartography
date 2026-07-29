@@ -104,7 +104,7 @@ class KubernetesPodToKubernetesNamespaceRelProperties(CartographyRelProperties):
 @dataclass(frozen=True)
 # (:KubernetesPod)<-[:CONTAINS]-(:KubernetesNamespace)
 class KubernetesPodToKubernetesNamespaceRel(CartographyRelSchema):
-    "Links `KubernetesNamespace` to `KubernetesPod` with `CONTAINS`."
+    """Links a namespace to a pod it contains."""
 
     target_node_label: str = "KubernetesNamespace"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
@@ -134,7 +134,7 @@ class KubernetesPodToKubernetesNamespaceWorkloadParentRelProperties(
 # pod has no surfaced controller, so controlled pods point at their controller
 # (Deployment / StatefulSet / DaemonSet / Job) instead of the namespace.
 class KubernetesPodToKubernetesNamespaceWorkloadParentRel(CartographyRelSchema):
-    "Links `KubernetesPod` to `KubernetesNamespace` with `WORKLOAD_PARENT`."
+    """Links a pod to the namespace that owns it."""
 
     target_node_label: str = "KubernetesNamespace"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
@@ -246,7 +246,7 @@ class KubernetesPodToKubernetesClusterRelProperties(CartographyRelProperties):
 @dataclass(frozen=True)
 # (:KubernetesPod)<-[:RESOURCE]-(:KubernetesCluster)
 class KubernetesPodToKubernetesClusterRel(CartographyRelSchema):
-    "Links `KubernetesCluster` to `KubernetesPod` with `RESOURCE`."
+    """Links a cluster to a pod running in it."""
 
     target_node_label: str = "KubernetesCluster"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
@@ -271,7 +271,7 @@ class KubernetesPodToSecretRelProperties(CartographyRelProperties):
 # be removed in v1.0.0.
 # (:KubernetesPod)-[:USES_SECRET_VOLUME]->(:KubernetesSecret)
 class KubernetesPodToSecretVolumeRel(CartographyRelSchema):
-    "Links `KubernetesPod` to `KubernetesSecret` with `USES_SECRET_VOLUME`."
+    """Links a pod to a secret it mounts as a volume."""
 
     target_node_label: str = "KubernetesSecret"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
@@ -293,7 +293,7 @@ class KubernetesPodToSecretVolumeRel(CartographyRelSchema):
 # removed in v1.0.0.
 # (:KubernetesPod)-[:USES_SECRET_ENV]->(:KubernetesSecret)
 class KubernetesPodToSecretEnvRel(CartographyRelSchema):
-    "Links `KubernetesPod` to `KubernetesSecret` with `USES_SECRET_ENV`."
+    """Links a pod to a secret it reads through environment variables."""
 
     target_node_label: str = "KubernetesSecret"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
@@ -326,7 +326,7 @@ class KubernetesPodToSecretVolumeUsesSecretRelProperties(CartographyRelPropertie
 @dataclass(frozen=True)
 # Canonical ontology edge: (:ComputePod)-[:USES_SECRET]->(:Secret), mount_method="volume"
 class KubernetesPodToSecretVolumeUsesSecretRel(CartographyRelSchema):
-    "Links `KubernetesPod` to `KubernetesSecret` with `USES_SECRET`."
+    """Links a pod to a secret it consumes."""
 
     target_node_label: str = "KubernetesSecret"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
@@ -356,7 +356,7 @@ class KubernetesPodToSecretEnvUsesSecretRelProperties(CartographyRelProperties):
 @dataclass(frozen=True)
 # Canonical ontology edge: (:ComputePod)-[:USES_SECRET]->(:Secret), mount_method="env"
 class KubernetesPodToSecretEnvUsesSecretRel(CartographyRelSchema):
-    "Links `KubernetesPod` to `KubernetesSecret` with `USES_SECRET`."
+    """Links a pod to a secret it consumes."""
 
     target_node_label: str = "KubernetesSecret"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
@@ -385,7 +385,7 @@ class KubernetesPodToSecretBothUsesSecretRelProperties(CartographyRelProperties)
 # Canonical ontology edge: (:ComputePod)-[:USES_SECRET]->(:Secret),
 # mount_method="volume,env" for secrets consumed both as a volume and via env.
 class KubernetesPodToSecretBothUsesSecretRel(CartographyRelSchema):
-    "Links `KubernetesPod` to `KubernetesSecret` with `USES_SECRET`."
+    """Links a pod to a secret it consumes."""
 
     target_node_label: str = "KubernetesSecret"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
@@ -408,7 +408,7 @@ class KubernetesPodToKubernetesNodeRelProperties(CartographyRelProperties):
 @dataclass(frozen=True)
 # (:KubernetesPod)-[:RUNS_ON]->(:KubernetesNode)
 class KubernetesPodToKubernetesNodeRel(CartographyRelSchema):
-    "Links `KubernetesPod` to `KubernetesNode` with `RUNS_ON`."
+    """Links a pod to the node it is scheduled on."""
 
     target_node_label: str = "KubernetesNode"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
@@ -432,7 +432,7 @@ class KubernetesPodToServiceAccountRelProperties(CartographyRelProperties):
 # compatibility, will be removed in v1.0.0.
 # (:KubernetesPod)-[:USES_SERVICE_ACCOUNT]->(:KubernetesServiceAccount)
 class KubernetesPodToServiceAccountRel(CartographyRelSchema):
-    "Links `KubernetesPod` to `KubernetesServiceAccount` with `USES_SERVICE_ACCOUNT`."
+    """Links a pod to the service account it is configured with."""
 
     target_node_label: str = "KubernetesServiceAccount"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
@@ -455,7 +455,7 @@ class KubernetesPodToServiceAccountRunsAsRelProperties(CartographyRelProperties)
 @dataclass(frozen=True)
 # Canonical ontology edge: (:ComputePod)-[:RUNS_AS]->(:ServiceAccount)
 class KubernetesPodToServiceAccountRunsAsRel(CartographyRelSchema):
-    "Links `KubernetesPod` to `KubernetesServiceAccount` with `RUNS_AS`."
+    """Links a pod to the identity it runs as."""
 
     target_node_label: str = "KubernetesServiceAccount"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(

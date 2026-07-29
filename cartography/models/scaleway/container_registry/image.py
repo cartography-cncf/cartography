@@ -135,10 +135,7 @@ class ScalewayContainerRegistryImageSchema(CartographyNodeSchema):
 
 @dataclass(frozen=True)
 class ScalewayContainerRegistryImageEnrichmentSchema(CartographyNodeSchema):
-    """Represents the digest-addressed image content in a Container Registry. Deduplicated
-    by digest, so multiple tags (and repositories) referencing the same digest share one
-    node.
-    """
+    """Layer and manifest data attached to an image already present in the graph."""
 
     label: str = "ScalewayContainerRegistryImage"
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([IMAGE])

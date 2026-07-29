@@ -332,7 +332,7 @@ class GitLabContainerImageProvenanceNodeProperties(CartographyNodeProperties):
 
 @dataclass(frozen=True)
 class GitLabContainerImageProvenanceSchema(CartographyNodeSchema):
-    """A digest-addressed container image or multi-architecture manifest list."""
+    """Build provenance attached to an image already present in the graph."""
 
     label: str = "GitLabContainerImage"
     properties: GitLabContainerImageProvenanceNodeProperties = (

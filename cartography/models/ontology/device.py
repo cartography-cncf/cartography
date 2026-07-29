@@ -185,7 +185,7 @@ class DeviceToGoogleWorkspaceDeviceBySerialRel(CartographyRelSchema):
 # (:Device)-[:OBSERVED_AS]->(:S1Agent) via serial_number
 @dataclass(frozen=True)
 class DeviceToS1AgentBySerialRel(CartographyRelSchema):
-    """Links a canonical device to its SentinelOne agent observation."""
+    """Links a canonical device to its SentinelOne agent, matched on serial number."""
 
     target_node_label: str = "S1Agent"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
@@ -410,7 +410,7 @@ class DeviceToGoogleWorkspaceDeviceHostnameMatchLink(CartographyRelSchema):
 # (:Device)-[:OBSERVED_AS]->(:S1Agent) via hostname
 @dataclass(frozen=True)
 class DeviceToS1AgentHostnameMatchLink(CartographyRelSchema):
-    """Links a canonical device to its SentinelOne agent observation."""
+    """Links a canonical device to its SentinelOne agent, matched on hostname when no serial number is available."""
 
     target_node_label: str = "S1Agent"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(

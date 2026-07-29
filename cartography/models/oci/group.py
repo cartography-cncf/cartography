@@ -98,7 +98,7 @@ class OCIGroupToOCIUserMemberOfRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class OCIGroupSchema(CartographyNodeSchema):
-    """An OCI UserGroup with membership relationships to OCI users."""
+    """An OCI user group."""
 
     label: str = "OCIGroup"
     properties: OCIGroupNodeProperties = OCIGroupNodeProperties()
@@ -108,7 +108,7 @@ class OCIGroupSchema(CartographyNodeSchema):
 
 @dataclass(frozen=True)
 class OCIGroupWithMembersSchema(CartographyNodeSchema):
-    """An OCI UserGroup with membership relationships to OCI users."""
+    """The same group, resolved to the users that belong to it."""
 
     label: str = "OCIGroup"
     properties: OCIGroupNodeProperties = OCIGroupNodeProperties()

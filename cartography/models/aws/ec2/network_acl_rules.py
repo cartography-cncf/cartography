@@ -104,9 +104,7 @@ class EC2NetworkAclRuleToAWSAccountRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class EC2NetworkAclInboundRuleSchema(CartographyNodeSchema):
-    """
-    Network interface as known by describe-network-interfaces.
-    """
+    """An inbound entry of an EC2 network ACL."""
 
     label: str = "AWSEC2NetworkAclRule"
     # DEPRECATED: legacy EC2NetworkAclRule node label will be removed in v1.0.0.
@@ -126,9 +124,7 @@ class EC2NetworkAclInboundRuleSchema(CartographyNodeSchema):
 
 @dataclass(frozen=True)
 class EC2NetworkAclEgressRuleSchema(CartographyNodeSchema):
-    """
-    Network interface as known by describe-network-interfaces.
-    """
+    """An egress entry of an EC2 network ACL."""
 
     label: str = "AWSEC2NetworkAclRule"
     # DEPRECATED: legacy EC2NetworkAclRule node label will be removed in v1.0.0.

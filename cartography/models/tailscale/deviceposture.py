@@ -71,7 +71,7 @@ class _ToTailnetRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class TailscaleDevicePostureToTailnetRel(CartographyRelSchema):
-    """Defines the RESOURCE relationship to TailscaleTailnet nodes."""
+    """Links a tailnet to a device posture it defines."""
 
     target_node_label: str = "TailscaleTailnet"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
@@ -84,7 +84,7 @@ class TailscaleDevicePostureToTailnetRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class TailscaleDevicePostureConditionToTailnetRel(CartographyRelSchema):
-    """Defines the RESOURCE relationship to TailscaleTailnet nodes."""
+    """Links a tailnet to a device posture condition it defines."""
 
     target_node_label: str = "TailscaleTailnet"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(

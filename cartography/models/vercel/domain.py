@@ -91,7 +91,7 @@ class VercelDomainFromProjectProperties(CartographyNodeProperties):
 
 @dataclass(frozen=True)
 class VercelDomainFromProjectSchema(CartographyNodeSchema):
-    """A domain configured in Vercel."""
+    """The same domain, as referenced by a project that serves it."""
 
     label: str = "VercelDomain"
     properties: VercelDomainFromProjectProperties = VercelDomainFromProjectProperties()

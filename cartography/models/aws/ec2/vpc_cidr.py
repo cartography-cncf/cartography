@@ -63,13 +63,11 @@ class AWSIPv4CidrBlockToAWSVpcRel(CartographyRelSchema):
     )
 
 
+# No sub-resource relationship: a CIDR block can be associated with more than one
+# account, so scoping it to a single one would be wrong.
 @dataclass(frozen=True)
 class AWSIPv4CidrBlockSchema(CartographyNodeSchema):
-    """
-    There is no sub-resource relationship here because a
-    CIDR block can be associated with more than one account
-    and it doesn't make sense to scope it to one.
-    """
+    """An IPv4 CIDR block associated with a VPC."""
 
     label: str = "AWSCidrBlock"
     properties: AWSIPv4CidrBlockNodeProperties = AWSIPv4CidrBlockNodeProperties()
@@ -128,13 +126,11 @@ class AWSIPv6CidrBlockToAWSVpcRel(CartographyRelSchema):
     )
 
 
+# No sub-resource relationship: a CIDR block can be associated with more than one
+# account, so scoping it to a single one would be wrong.
 @dataclass(frozen=True)
 class AWSIPv6CidrBlockSchema(CartographyNodeSchema):
-    """
-    There is no sub-resource relationship here because a
-    CIDR block can be associated with more than one account
-    and it doesn't make sense to scope it to one.
-    """
+    """An IPv6 CIDR block associated with a VPC."""
 
     label: str = "AWSCidrBlock"
     properties: AWSIPv6CidrBlockNodeProperties = AWSIPv6CidrBlockNodeProperties()
