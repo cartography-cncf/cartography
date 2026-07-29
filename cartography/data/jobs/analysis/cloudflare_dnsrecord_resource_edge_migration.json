@@ -1,0 +1,10 @@
+{
+  "name": "Cloudflare DNS record RESOURCE edge migration",
+  "statements": [
+    {
+      "__comment__": "DEPRECATED: temporary backward-compatibility migration. Earlier versions scoped CloudflareDNSRecord cleanup via RESOURCE from CloudflareZone (per-zone); the schema now uses RESOURCE from CloudflareAccount as the sub_resource. Backfill the RESOURCE edge for every existing CloudflareDNSRecord reachable from the currently-syncing CloudflareAccount via its zones, so records that the API no longer returns fall inside the account-scoped cleanup instead of lingering forever. lastupdated is copied from the record, which keeps stale records stale and therefore eligible for cleanup. Scoped by $account_id so multi-account refreshes don't redo the full graph each time. Idempotent (MERGE). Remove in v1.0.0.",
+      "query": "MATCH (a:CloudflareAccount {id: $account_id})-[:RESOURCE]->(:CloudflareZone)-[:RESOURCE]->(r:CloudflareDNSRecord) MERGE (a)-[rel:RESOURCE]->(r) ON CREATE SET rel.lastupdated = r.lastupdated",
+      "iterative": false
+    }
+  ]
+}
