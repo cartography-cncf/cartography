@@ -13,6 +13,21 @@ from pydantic import model_validator
 
 logger = logging.getLogger(__name__)
 
+# Matches the `RETURN expr AS alias` convention every fact query uses. This
+# over-approximates: intermediate `WITH x AS y` clauses match too, so the alias
+# set is only ever used for conservative "is this name produced at all" checks.
+_RETURN_ALIAS_RE = re.compile(r"\bAS\s+(\w+)", re.IGNORECASE)
+
+# Fields the `Finding` base model owns. A fact query must not alias them: both
+# are populated by `Rule.parse_results` and a query column of the same name
+# would silently overwrite the framework-supplied value.
+RESERVED_FINDING_FIELDS = frozenset({"source", "extra"})
+
+
+def returned_aliases(cypher_query: str) -> set[str]:
+    """Return the aliases produced by a fact query's `... AS <name>` clauses."""
+    return set(_RETURN_ALIAS_RE.findall(cypher_query))
+
 
 class Module(str, Enum):
     """Services that can be monitored"""
@@ -307,13 +322,25 @@ class Fact:
                 f"Fact '{self.id}' must declare asset_id_field: it is the id half of "
                 f"the (asset_label, id) anchor."
             )
-        returned_aliases = set(
-            re.findall(r"\bAS\s+(\w+)", self.cypher_query, re.IGNORECASE)
-        )
-        if self.asset_id_field not in returned_aliases:
+        aliases = returned_aliases(self.cypher_query)
+        if self.asset_id_field not in aliases:
             raise ValueError(
                 f"Fact '{self.id}' asset_id_field '{self.asset_id_field}' is not returned "
                 f"by its cypher_query (expected a '... AS {self.asset_id_field}' alias)."
+            )
+        if not re.search(rf":\s*{re.escape(self.asset_label)}\b", self.cypher_query):
+            raise ValueError(
+                f"Fact '{self.id}' declares asset_label '{self.asset_label}' but its "
+                f"cypher_query never matches that label, so the rows it returns and the "
+                f"asset it claims can diverge. Match ':{self.asset_label}' explicitly."
+            )
+        reserved = RESERVED_FINDING_FIELDS & aliases
+        if reserved:
+            raise ValueError(
+                f"Fact '{self.id}' aliases reserved Finding field(s) {sorted(reserved)} in "
+                f"its cypher_query. 'source' is module provenance set by Rule.parse_results "
+                f"and 'extra' collects undeclared columns; pick a different alias "
+                f"(e.g. 'ontology_source')."
             )
 
 
@@ -322,7 +349,13 @@ class Finding(BaseModel):
 
     # TODO: make this property mandatory one all modules have been updated to new datamodel
     source: str | None = None
-    """The source of the Fact data, e.g. the specific Cartography module that ingested the data. This field is useful especially for CROSS_CLOUD facts."""
+    """
+    The source of the Fact data, i.e. the Cartography module that ingested it. Set by
+    ``Rule.parse_results`` from ``fact.module``, so it is module provenance and nothing
+    else: a fact query must not return a ``source`` column (see
+    ``RESERVED_FINDING_FIELDS``). A fact that needs the per-row ontology source should
+    return ``_ont_source AS ontology_source`` and declare that field on its output model.
+    """
     extra: dict[str, Any] = {}
     """A dictionary to hold any extra fields returned by the Fact query that are not explicitly defined in the output model."""
 

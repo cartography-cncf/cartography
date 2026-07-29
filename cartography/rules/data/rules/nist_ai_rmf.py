@@ -119,7 +119,6 @@ _cross_cloud_nist_ai_app_inventory = Fact(
         app.id AS asset_node_id,
         coalesce(app._ont_client_id, app.client_id, app.app_id, app.id) AS app_client_id,
         app._ont_source AS app_source,
-        app._ont_source AS source,
         CASE
             WHEN allowlist_match THEN 'allowlist'
             WHEN heuristic_match THEN 'heuristic'
@@ -167,7 +166,7 @@ ai_third_party_app_inventory = Rule(
     output_model=NistAiAppInventoryOutput,
     facts=(_cross_cloud_nist_ai_app_inventory,),
     tags=("ai", "identity", "compliance", "governance"),
-    version="0.1.0",
+    version="0.1.1",
     references=NIST_REFERENCES,
     frameworks=(
         nist_ai_rmf("MAP 1"),
@@ -226,7 +225,6 @@ _cross_cloud_nist_ai_app_sensitive_scopes = Fact(
         app.id AS asset_node_id,
         coalesce(app._ont_client_id, app.client_id, app.app_id, app.id) AS app_client_id,
         app._ont_source AS app_source,
-        app._ont_source AS source,
         count(DISTINCT ua) AS authorized_identity_count,
         count(DISTINCT risky_scope) AS risky_scope_count,
         collect(DISTINCT risky_scope) AS risky_scopes
@@ -277,7 +275,7 @@ ai_third_party_app_sensitive_scopes = Rule(
     output_model=NistAiSensitiveScopesOutput,
     facts=(_cross_cloud_nist_ai_app_sensitive_scopes,),
     tags=("ai", "identity", "oauth", "compliance"),
-    version="0.1.0",
+    version="0.1.1",
     references=NIST_REFERENCES,
     frameworks=(
         nist_ai_rmf("MEASURE 2"),
@@ -742,7 +740,7 @@ _openai_nist_ai_stale_or_unowned_api_keys = Fact(
         "owner attribution."
     ),
     cypher_query="""
-    MATCH (k)
+    MATCH (k:APIKey)
     WHERE k:OpenAIApiKey OR k:OpenAIAdminApiKey
     OPTIONAL MATCH (project:OpenAIProject)-[:RESOURCE]->(k)
     OPTIONAL MATCH (org_from_project:OpenAIOrganization)-[:RESOURCE]->(project)
@@ -783,7 +781,7 @@ _openai_nist_ai_stale_or_unowned_api_keys = Fact(
     ORDER BY provider, organization_id, api_key_name
     """,
     cypher_visual_query="""
-    MATCH (k)
+    MATCH (k:APIKey)
     WHERE k:OpenAIApiKey OR k:OpenAIAdminApiKey
     OPTIONAL MATCH p=(org_direct:OpenAIOrganization)-[:RESOURCE]->(k)
     OPTIONAL MATCH p3=(project:OpenAIProject)-[:RESOURCE]->(k)
@@ -803,7 +801,7 @@ _openai_nist_ai_stale_or_unowned_api_keys = Fact(
     RETURN *
     """,
     cypher_count_query="""
-    MATCH (k)
+    MATCH (k:APIKey)
     WHERE k:OpenAIApiKey OR k:OpenAIAdminApiKey
     OPTIONAL MATCH (project:OpenAIProject)-[:RESOURCE]->(k)
     WITH k, project
@@ -811,7 +809,11 @@ _openai_nist_ai_stale_or_unowned_api_keys = Fact(
     RETURN COUNT(k) AS count
     """,
     # OpenAIApiKey and OpenAIAdminApiKey both carry the shared "APIKey" ontology label,
-    # so it anchors either concrete key type.
+    # so it anchors either concrete key type. The query matches ":APIKey" explicitly so
+    # the rows it returns cannot diverge from the asset label it claims.
+    # Note: the Anthropic fact below anchors on the provider label "AnthropicApiKey"
+    # instead. Converging the two would change the label consumers resolve against, so
+    # it is deliberately left alone here.
     asset_label="APIKey",
     asset_id_field="api_key_id",
     identity_fields=("provider", "api_key_id"),
@@ -898,7 +900,7 @@ ai_provider_api_key_hygiene = Rule(
         _anthropic_nist_ai_stale_or_unscoped_api_keys,
     ),
     tags=("ai", "credentials", "governance", "compliance"),
-    version="0.2.0",
+    version="0.2.1",
     references=NIST_REFERENCES,
     frameworks=(
         nist_ai_rmf("GOVERN 5"),

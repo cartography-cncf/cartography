@@ -15,7 +15,7 @@ _inactive_user_active_accounts_ontology = Fact(
     MATCH (u:User)-[:HAS_ACCOUNT]-(a:UserAccount)
     WHERE COALESCE(u.active, True) = False
     AND COALESCE(a.active, False) = True
-    RETURN a.id AS account_id, a._ont_email AS account_email, u.id AS user_id, u.email AS user_email, a._ont_username AS account_username, u.fullname AS user_name, a._ont_source AS source
+    RETURN a.id AS account_id, a._ont_email AS account_email, u.id AS user_id, u.email AS user_email, a._ont_username AS account_username, u.fullname AS user_name, a._ont_source AS ontology_source
     """,
     cypher_visual_query="""
     MATCH (u:User)-[:HAS_ACCOUNT]-(a:UserAccount)
@@ -29,7 +29,7 @@ _inactive_user_active_accounts_ontology = Fact(
     """,
     asset_label="UserAccount",
     asset_id_field="account_id",
-    identity_fields=("source", "account_id", "user_id"),
+    identity_fields=("ontology_source", "account_id", "user_id"),
     module=Module.CROSS_CLOUD,
     maturity=Maturity.EXPERIMENTAL,
 )
@@ -43,6 +43,8 @@ class InactiveUserActiveAccountsOutput(Finding):
     user_email: str | None = None
     account_id: str | None = None
     user_id: str | None = None
+    ontology_source: str | None = None
+    """Provider the account came from, distinct from the module-level `source`."""
 
 
 inactive_user_active_accounts = Rule(
@@ -52,6 +54,6 @@ inactive_user_active_accounts = Rule(
     output_model=InactiveUserActiveAccountsOutput,
     tags=("identity", "iam", "compliance", "access_control"),
     facts=(_inactive_user_active_accounts_ontology,),
-    version="0.1.0",
+    version="0.1.1",
     frameworks=(iso27001_annex_a("5.18"),),
 )

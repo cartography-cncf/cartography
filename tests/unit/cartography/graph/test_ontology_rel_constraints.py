@@ -1,29 +1,12 @@
 import cartography.models
 from cartography.models.core.nodes import CartographyNodeSchema
-from cartography.models.core.nodes import ExtraNodeLabels
 from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import OtherRelationships
 from cartography.models.ontology.constraints import LEGACY_REL_WHITELIST
 from cartography.models.ontology.constraints import ONTOLOGY_REL_CONSTRAINTS
 from tests.utils import load_models
-
-
-def _ontology_labels(node_cls: type[CartographyNodeSchema]) -> set[str]:
-    """Return the set of labels (primary + extra) carried by a node schema.
-
-    Conditional labels are treated as "may carry this label": included so that
-    a node potentially-tagged with an ontology label is still constrained.
-    """
-    labels: set[str] = set()
-    primary = getattr(node_cls, "label", None)
-    if isinstance(primary, str):
-        labels.add(primary)
-    extra = getattr(node_cls, "extra_node_labels", None)
-    if isinstance(extra, ExtraNodeLabels):
-        for entry in extra.labels:
-            labels.add(entry.label)
-    return labels
+from tests.utils import node_schema_labels
 
 
 def _violations_for(
@@ -78,7 +61,7 @@ def test_ontology_rel_constraints():
         if issubclass(element, CartographyNodeSchema):
             primary = getattr(element, "label", None)
             if isinstance(primary, str):
-                labels = _ontology_labels(element)
+                labels = node_schema_labels(element)
                 label_index[primary] = labels
                 extra_labels_seen.update(labels - {primary})
                 node_classes.append(element)

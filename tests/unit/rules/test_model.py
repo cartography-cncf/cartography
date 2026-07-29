@@ -1,6 +1,11 @@
+import pytest
+
+from cartography.rules.spec.model import Fact
 from cartography.rules.spec.model import Framework
+from cartography.rules.spec.model import Maturity
 from cartography.rules.spec.model import Module
 from cartography.rules.spec.model import MODULE_TO_CARTOGRAPHY_INTEL
+from cartography.rules.spec.model import RESERVED_FINDING_FIELDS
 from cartography.sync import TOP_LEVEL_MODULES
 
 
@@ -182,3 +187,41 @@ def test_mapping_values_exists():
         assert (
             intel_name in TOP_LEVEL_MODULES
         ), f"Value for {module} ('{intel_name}') should be a valid Cartography INTEL module"
+
+
+def _fact_kwargs(**overrides) -> dict:
+    """Minimal valid Fact kwargs, overridable per test."""
+    kwargs = dict(
+        id="example-fact",
+        name="Example",
+        description="Example",
+        module=Module.AWS,
+        maturity=Maturity.EXPERIMENTAL,
+        cypher_query="MATCH (u:AWSUser) RETURN u.arn AS user_arn",
+        cypher_visual_query="MATCH (u:AWSUser) RETURN *",
+        cypher_count_query="MATCH (u:AWSUser) RETURN COUNT(u) AS count",
+        identity_fields=("user_arn",),
+        asset_label="AWSUser",
+        asset_id_field="user_arn",
+    )
+    kwargs.update(overrides)
+    return kwargs
+
+
+def test_fact_accepts_a_coherent_declaration():
+    """The baseline used by the negative cases below must itself be valid."""
+    assert Fact(**_fact_kwargs()).asset_label == "AWSUser"
+
+
+def test_fact_rejects_reserved_finding_field_aliases():
+    """`source` and `extra` belong to the Finding base and must not be aliased."""
+    for reserved in sorted(RESERVED_FINDING_FIELDS):
+        query = f"MATCH (u:AWSUser) RETURN u.arn AS user_arn, u.name AS {reserved}"
+        with pytest.raises(ValueError, match="reserved Finding field"):
+            Fact(**_fact_kwargs(cypher_query=query))
+
+
+def test_fact_rejects_asset_label_not_matched_by_query():
+    """A fact cannot claim an asset label its own query never matches."""
+    with pytest.raises(ValueError, match="never matches that label"):
+        Fact(**_fact_kwargs(asset_label="UserAccount"))

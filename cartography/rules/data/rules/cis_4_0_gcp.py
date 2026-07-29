@@ -976,17 +976,22 @@ _gcp_bigquery_table_cmek_missing = Fact(
     id="gcp_bigquery_table_cmek_missing",
     name="GCP BigQuery datasets containing persistent tables without CMEK",
     description="Detects BigQuery datasets holding persistent (non-expiring) tables whose encryptionConfiguration.kmsKeyName is not set, with a count of the offending tables.",
+    # The finding is anchored on the dataset, so the query matches the dataset node
+    # rather than deriving its id from `table.dataset_id`. Both use the composite
+    # `<project_id>:<dataset_id>` form, so the join is exact; a table whose dataset
+    # was not ingested drops out, which is correct for a dataset-anchored finding.
     cypher_query="""
     MATCH (project:GCPProject)-[:RESOURCE]->(table:GCPBigQueryTable)
     WHERE (table.kms_key_name IS NULL OR table.kms_key_name = '')
       AND (table.expiration_time IS NULL OR table.expiration_time = '')
       AND (table.type IS NULL OR NOT table.type IN ['VIEW', 'EXTERNAL'])
-    WITH project, table.dataset_id AS dataset_id,
+    MATCH (dataset:GCPBigQueryDataset {id: table.dataset_id})
+    WITH project, dataset,
          count(table) AS tables_without_cmek,
          collect(coalesce(table.friendly_name, table.table_id))[..10] AS sample_tables
     RETURN
-        split(dataset_id, ':')[-1] AS dataset_name,
-        dataset_id,
+        coalesce(dataset.friendly_name, dataset.dataset_id) AS dataset_name,
+        dataset.id AS dataset_id,
         project.id AS project_id,
         project.displayname AS project_name,
         tables_without_cmek,
@@ -997,13 +1002,16 @@ _gcp_bigquery_table_cmek_missing = Fact(
     WHERE (table.kms_key_name IS NULL OR table.kms_key_name = '')
       AND (table.expiration_time IS NULL OR table.expiration_time = '')
       AND (table.type IS NULL OR NOT table.type IN ['VIEW', 'EXTERNAL'])
+    MATCH p2=(project)-[:RESOURCE]->(dataset:GCPBigQueryDataset)
+    WHERE dataset.id = table.dataset_id
     RETURN *
     """,
     cypher_count_query="""
     MATCH (:GCPProject)-[:RESOURCE]->(table:GCPBigQueryTable)
     WHERE (table.expiration_time IS NULL OR table.expiration_time = '')
       AND (table.type IS NULL OR NOT table.type IN ['VIEW', 'EXTERNAL'])
-    RETURN count(DISTINCT table.dataset_id) AS count
+    MATCH (dataset:GCPBigQueryDataset {id: table.dataset_id})
+    RETURN count(DISTINCT dataset.id) AS count
     """,
     asset_label="GCPBigQueryDataset",
     asset_id_field="dataset_id",
@@ -1025,7 +1033,7 @@ gcp_bigquery_tables_without_cmek = Rule(
     output_model=BigQueryTableCmekMissingOutput,
     facts=(_gcp_bigquery_table_cmek_missing,),
     tags=("bigquery", "encryption", "cmek", "stride:information_disclosure"),
-    version="1.0.0",
+    version="1.0.1",
     references=CIS_REFERENCES,
     frameworks=(
         cis_gcp("7.2"),
