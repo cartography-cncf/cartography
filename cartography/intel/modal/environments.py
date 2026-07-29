@@ -5,12 +5,23 @@ import neo4j
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
+from cartography.intel.modal import environment_roles
 from cartography.intel.modal.util import list_environments
 from cartography.intel.modal.util import ModalClient
 from cartography.models.modal.environment import ModalEnvironmentSchema
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
+
+# Per-environment cleanups to run when an environment disappears from Modal.
+#
+# Environment-scoped resources are reached by their own cleanup *through* their
+# ModalEnvironment node, and the entry point only fans out over environments that are still
+# listed. So once an environment's node is deleted, its children become unreachable and
+# survive as orphans. Every environment-scoped Modal resource must therefore expose
+# `cleanup_for_environment(neo4j_session, workspace_id, environment_id, update_tag)` and be
+# registered here.
+_ENVIRONMENT_SCOPED_CLEANUPS = (environment_roles.cleanup_for_environment,)
 
 
 @timeit
@@ -35,6 +46,13 @@ async def sync(
         common_job_parameters["WORKSPACE_ID"],
         common_job_parameters["UPDATE_TAG"],
     )
+    # Must run before the cleanup below deletes the disappeared environments' nodes.
+    cleanup_removed_environments(
+        neo4j_session,
+        common_job_parameters["WORKSPACE_ID"],
+        {environment["id"] for environment in environments},
+        common_job_parameters["UPDATE_TAG"],
+    )
     cleanup(neo4j_session, common_job_parameters)
     return environments
 
@@ -57,6 +75,47 @@ def load_environments(
         lastupdated=update_tag,
         WORKSPACE_ID=workspace_id,
     )
+
+
+def get_removed_environment_ids(
+    neo4j_session: neo4j.Session,
+    workspace_id: str,
+    live_environment_ids: set[str],
+) -> list[str]:
+    """Return ids of environments still in the graph but no longer present in Modal."""
+    result = neo4j_session.run(
+        """
+        MATCH (:ModalWorkspace{id: $workspace_id})-[:RESOURCE]->(e:ModalEnvironment)
+        WHERE NOT e.id IN $live_environment_ids
+        RETURN e.id AS environment_id
+        """,
+        workspace_id=workspace_id,
+        live_environment_ids=list(live_environment_ids),
+    )
+    return [record["environment_id"] for record in result]
+
+
+@timeit
+def cleanup_removed_environments(
+    neo4j_session: neo4j.Session,
+    workspace_id: str,
+    live_environment_ids: set[str],
+    update_tag: int,
+) -> None:
+    """Run every environment-scoped cleanup for environments deleted in Modal.
+
+    Must be called while those environments' nodes still exist, since the cleanups reach
+    their targets through them.
+    """
+    for environment_id in get_removed_environment_ids(
+        neo4j_session, workspace_id, live_environment_ids
+    ):
+        logger.info(
+            "Modal environment %s no longer exists; removing its scoped resources.",
+            environment_id,
+        )
+        for cleanup_fn in _ENVIRONMENT_SCOPED_CLEANUPS:
+            cleanup_fn(neo4j_session, workspace_id, environment_id, update_tag)
 
 
 @timeit

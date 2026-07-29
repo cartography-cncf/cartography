@@ -148,7 +148,24 @@ def load_bindings(
 def cleanup(
     neo4j_session: neo4j.Session, common_job_parameters: dict[str, Any]
 ) -> None:
-    environment_id = common_job_parameters["ENVIRONMENT_ID"]
+    _cleanup_environment(
+        neo4j_session,
+        common_job_parameters,
+        common_job_parameters["ENVIRONMENT_ID"],
+    )
+
+
+def _cleanup_environment(
+    neo4j_session: neo4j.Session,
+    common_job_parameters: dict[str, Any],
+    environment_id: str,
+) -> None:
+    """Remove stale roles and bindings scoped to one environment.
+
+    Bindings are cleaned before the role nodes: the MatchLink cleanups are scoped through
+    the environment, and deleting the role nodes first would leave nothing for them to
+    match on.
+    """
     update_tag = common_job_parameters["UPDATE_TAG"]
     GraphJob.from_matchlink(
         ModalWorkspaceMemberToEnvironmentRoleMatchLink(),
@@ -162,6 +179,26 @@ def cleanup(
         environment_id,
         update_tag,
     ).run(neo4j_session)
-    GraphJob.from_node_schema(ModalEnvironmentRoleSchema(), common_job_parameters).run(
-        neo4j_session
+    GraphJob.from_node_schema(
+        ModalEnvironmentRoleSchema(),
+        {**common_job_parameters, "ENVIRONMENT_ID": environment_id},
+    ).run(neo4j_session)
+
+
+@timeit
+def cleanup_for_environment(
+    neo4j_session: neo4j.Session,
+    workspace_id: str,
+    environment_id: str,
+    update_tag: int,
+) -> None:
+    """Tear down this resource's data for one environment, by id.
+
+    Called by the environment sync's cascade when an environment disappears from Modal. See
+    ``cartography.intel.modal.environments`` for why that cascade is needed.
+    """
+    _cleanup_environment(
+        neo4j_session,
+        {"UPDATE_TAG": update_tag, "WORKSPACE_ID": workspace_id},
+        environment_id,
     )

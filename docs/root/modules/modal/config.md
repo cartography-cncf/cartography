@@ -65,6 +65,10 @@ functions do not.
   This is deliberate: loading only the selected subset would let the workspace-scoped
   environment cleanup delete the other environment nodes while their children survived as
   orphans.
+- When an environment is deleted in Modal, its environment-scoped resources are removed
+  from the graph along with it. This is a deliberate cascade: those resources are cleaned up
+  by traversing their environment node, so deleting the environment first would leave them
+  behind as orphans that still read as live.
 - Custom domains require a paid Modal add-on. On workspaces without it the API answers
   `UNIMPLEMENTED`, which Cartography treats as "no domains" rather than an error.
 - Billing and cost data, and app deployment history, are out of scope for this module.
