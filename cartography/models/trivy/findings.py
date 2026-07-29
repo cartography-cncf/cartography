@@ -21,10 +21,23 @@ class TrivyImageFindingNodeProperties(CartographyNodeProperties):
         "VulnerabilityID",
         description="Vulnerability identifier reported by Trivy.",
     )
+    vulnerability_ids: PropertyRef = PropertyRef(
+        "vulnerability_ids",
+        description="All vulnerability identifiers reported for this finding, with the primary identifier first.",
+    )
     cve_id: PropertyRef = PropertyRef(
         "cve_id",
         extra_index=True,
         description="CVE identifier.",
+    )
+    ghsa_id: PropertyRef = PropertyRef(
+        "ghsa_id",
+        extra_index=True,
+        description="GitHub Security Advisory identifier.",
+    )
+    has_cve: PropertyRef = PropertyRef(
+        "has_cve",
+        description="Whether the finding includes a CVE identifier.",
     )
     description: PropertyRef = PropertyRef(
         "Description",
@@ -152,7 +165,14 @@ class TrivyImageFindingSchema(CartographyNodeSchema):
 
     label: str = "TrivyImageFinding"
     scoped_cleanup: bool = False
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([RISK, CVE])
+    # Trivy reports CVEs alongside other identifier schemes (GHSA-, DLA-, TEMP-, ...),
+    # so :CVE is only applied to CVE-backed findings. :Risk covers all of them.
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
+        [
+            RISK,
+            CVE.when(has_cve="true"),
+        ],
+    )
     properties: TrivyImageFindingNodeProperties = TrivyImageFindingNodeProperties()
     other_relationships: OtherRelationships = OtherRelationships(
         [
