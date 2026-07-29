@@ -1748,6 +1748,7 @@ _gcp_kms_key_without_rotation_policy = Fact(
     WHERE key.purpose = 'ENCRYPT_DECRYPT'
     RETURN COUNT(key) AS count
     """,
+    asset_label="GCPCryptoKey",
     asset_id_field="key_id",
     identity_fields=("key_id",),
     module=Module.GCP,

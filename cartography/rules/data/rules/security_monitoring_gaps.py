@@ -77,6 +77,7 @@ _aws_security_hub_missing = Fact(
     WITH DISTINCT account, resource.region AS region
     RETURN COUNT(*) AS count
     """,
+    asset_label="AWSAccount",
     asset_id_field="account_id",
     identity_fields=("account_id", "region", "gap_type"),
     module=Module.AWS,
@@ -110,6 +111,7 @@ _aws_security_hub_controls_not_auto_enabled = Fact(
     MATCH (hub:AWSSecurityHub)
     RETURN COUNT(hub) AS count
     """,
+    asset_label="AWSAccount",
     asset_id_field="account_id",
     identity_fields=("account_id", "region", "gap_type"),
     module=Module.AWS,

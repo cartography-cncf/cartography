@@ -303,21 +303,21 @@ _device_malware_protection_gaps = Fact(
     ),
     cypher_query="""
     CALL {
-        MATCH (device:DuoPhone)
+        MATCH (asset:Device)-[:OBSERVED_AS]->(device:DuoPhone)
         WHERE device.tampered = true
         OPTIONAL MATCH (user:DuoUser)-[:HAS_DUO_PHONE]->(device)
         RETURN
             'duo' AS provider,
-            device.id AS device_id,
-            device.id AS stable_device_id,
+            asset.id AS device_id,
+            asset.id AS stable_device_id,
             coalesce(device.name, device.model, device.id) AS device_name,
             coalesce(user.email, user.username) AS user,
             device.platform AS platform,
             'device_tampered' AS issue,
             toString(device.tampered) AS current_value
         UNION
-        MATCH (device:JamfComputer)
-        WITH device,
+        MATCH (asset:Device)-[:OBSERVED_AS]->(device:JamfComputer)
+        WITH asset, device,
             [
                 issue IN [
                     CASE
@@ -336,27 +336,27 @@ _device_malware_protection_gaps = Fact(
         UNWIND issues AS issue
         RETURN
             'jamf' AS provider,
-            device.id AS device_id,
-            device.id AS stable_device_id,
+            asset.id AS device_id,
+            asset.id AS stable_device_id,
             coalesce(device.name, device.serial_number, device.id) AS device_name,
             coalesce(device.email, device.username) AS user,
             coalesce(device.platform, device.os_name) AS platform,
             issue[0] AS issue,
             issue[1] AS current_value
         UNION
-        MATCH (device:JamfMobileDevice)
+        MATCH (asset:Device)-[:OBSERVED_AS]->(device:JamfMobileDevice)
         WHERE device.jailbreak_detected = true
         RETURN
             'jamf' AS provider,
-            device.id AS device_id,
-            device.id AS stable_device_id,
+            asset.id AS device_id,
+            asset.id AS stable_device_id,
             coalesce(device.display_name, device.serial_number, device.id) AS device_name,
             coalesce(device.email, device.username) AS user,
             coalesce(device.platform, device.os) AS platform,
             'jailbreak_detected' AS issue,
             toString(device.jailbreak_detected) AS current_value
         UNION
-        MATCH (device:CrowdstrikeHost)
+        MATCH (asset:Device)-[:OBSERVED_AS]->(device:CrowdstrikeHost)
         WHERE device.reduced_functionality_mode IS NOT NULL
           AND NOT (
               toLower(toString(device.reduced_functionality_mode))
@@ -364,17 +364,17 @@ _device_malware_protection_gaps = Fact(
           )
         RETURN
             'crowdstrike' AS provider,
-            device.id AS device_id,
-            device.id AS stable_device_id,
+            asset.id AS device_id,
+            asset.id AS stable_device_id,
             coalesce(device.hostname, device.id) AS device_name,
             device.email AS user,
             device.platform_name AS platform,
             'crowdstrike_reduced_functionality_mode' AS issue,
             toString(device.reduced_functionality_mode) AS current_value
         UNION
-        MATCH (tailnet:TailscaleTailnet)-[:RESOURCE]->(device:TailscaleDevice)
+        MATCH (asset:Device)-[:OBSERVED_AS]->(device:TailscaleDevice)<-[:RESOURCE]-(tailnet:TailscaleTailnet)
         OPTIONAL MATCH (user:TailscaleUser)-[:OWNS]->(device)
-        WITH tailnet, device, user,
+        WITH asset, tailnet, device, user,
             [
                 issue IN [
                     CASE
@@ -391,8 +391,8 @@ _device_malware_protection_gaps = Fact(
         UNWIND issues AS issue
         RETURN
             'tailscale' AS provider,
-            device.id AS device_id,
-            tailnet.id + ':' + coalesce(device.hostname, device.name, device.id) AS stable_device_id,
+            asset.id AS device_id,
+            asset.id AS stable_device_id,
             coalesce(device.hostname, device.name, device.id) AS device_name,
             coalesce(user.email, user.login_name) AS user,
             coalesce(device.os, device.posture_node_os) AS platform,
@@ -402,7 +402,7 @@ _device_malware_protection_gaps = Fact(
     RETURN *
     """,
     cypher_visual_query="""
-    MATCH (device)
+    MATCH p=(asset:Device)-[:OBSERVED_AS]->(device)
     WHERE (device:DuoPhone AND device.tampered = true)
        OR (
             device:JamfComputer
@@ -438,17 +438,14 @@ _device_malware_protection_gaps = Fact(
                 OR device.posture_jamfpro_sip_enabled = false
             )
        )
-    RETURN device
+    RETURN *
     """,
     cypher_count_query="""
-    MATCH (device)
-    WHERE device:DuoPhone
-       OR device:JamfComputer
-       OR device:JamfMobileDevice
-       OR device:CrowdstrikeHost
-       OR device:TailscaleDevice
-    RETURN COUNT(device) AS count
+    MATCH (asset:Device)
+    RETURN COUNT(asset) AS count
     """,
+    asset_label="Device",
+    asset_id_field="device_id",
     identity_fields=("provider", "stable_device_id", "issue"),
     module=Module.CROSS_CLOUD,
     maturity=Maturity.EXPERIMENTAL,
@@ -482,6 +479,8 @@ _device_update_gaps = Fact(
     MATCH (device:TailscaleDevice)
     RETURN COUNT(device) AS count
     """,
+    asset_label="TailscaleDevice",
+    asset_id_field="device_id",
     identity_fields=("tailnet_id", "device_name", "issue"),
     module=Module.TAILSCALE,
     maturity=Maturity.EXPERIMENTAL,
@@ -497,8 +496,8 @@ _device_management_gaps = Fact(
     ),
     cypher_query="""
     CALL {
-        MATCH (device:JamfComputer)
-        WITH device,
+        MATCH (asset:Device)-[:OBSERVED_AS]->(device:JamfComputer)
+        WITH asset, device,
             [
                 issue IN [
                     CASE WHEN device.supervised = false THEN ['not_supervised', toString(device.supervised)] END,
@@ -510,16 +509,16 @@ _device_management_gaps = Fact(
         UNWIND issues AS issue
         RETURN
             'jamf' AS provider,
-            device.id AS device_id,
-            device.id AS stable_device_id,
+            asset.id AS device_id,
+            asset.id AS stable_device_id,
             coalesce(device.name, device.serial_number, device.id) AS device_name,
             coalesce(device.email, device.username) AS user,
             coalesce(device.platform, device.os_name) AS platform,
             issue[0] AS issue,
             issue[1] AS current_value
         UNION
-        MATCH (device:JamfMobileDevice)
-        WITH device,
+        MATCH (asset:Device)-[:OBSERVED_AS]->(device:JamfMobileDevice)
+        WITH asset, device,
             [
                 issue IN [
                     CASE WHEN device.managed = false THEN ['not_managed', toString(device.managed)] END,
@@ -530,17 +529,17 @@ _device_management_gaps = Fact(
         UNWIND issues AS issue
         RETURN
             'jamf' AS provider,
-            device.id AS device_id,
-            device.id AS stable_device_id,
+            asset.id AS device_id,
+            asset.id AS stable_device_id,
             coalesce(device.display_name, device.serial_number, device.id) AS device_name,
             coalesce(device.email, device.username) AS user,
             coalesce(device.platform, device.os) AS platform,
             issue[0] AS issue,
             issue[1] AS current_value
         UNION
-        MATCH (tailnet:TailscaleTailnet)-[:RESOURCE]->(device:TailscaleDevice)
+        MATCH (asset:Device)-[:OBSERVED_AS]->(device:TailscaleDevice)<-[:RESOURCE]-(tailnet:TailscaleTailnet)
         OPTIONAL MATCH (user:TailscaleUser)-[:OWNS]->(device)
-        WITH tailnet, device, user,
+        WITH asset, tailnet, device, user,
             [
                 issue IN [
                     CASE WHEN device.posture_kandji_mdm_enabled = false THEN ['kandji_mdm_disabled', toString(device.posture_kandji_mdm_enabled)] END,
@@ -558,8 +557,8 @@ _device_management_gaps = Fact(
         UNWIND issues AS issue
         RETURN
             'tailscale' AS provider,
-            device.id AS device_id,
-            tailnet.id + ':' + coalesce(device.hostname, device.name, device.id) AS stable_device_id,
+            asset.id AS device_id,
+            asset.id AS stable_device_id,
             coalesce(device.hostname, device.name, device.id) AS device_name,
             coalesce(user.email, user.login_name) AS user,
             coalesce(device.os, device.posture_node_os) AS platform,
@@ -569,7 +568,7 @@ _device_management_gaps = Fact(
     RETURN *
     """,
     cypher_visual_query="""
-    MATCH (device)
+    MATCH p=(asset:Device)-[:OBSERVED_AS]->(device)
     WHERE (
         device:JamfComputer
         AND (
@@ -595,15 +594,17 @@ _device_management_gaps = Fact(
             OR device.posture_intune_is_supervised = false
         )
     )
-    RETURN device
+    RETURN *
     """,
     cypher_count_query="""
-    MATCH (device)
+    MATCH (asset:Device)-[:OBSERVED_AS]->(device)
     WHERE device:JamfComputer
        OR device:JamfMobileDevice
        OR device:TailscaleDevice
-    RETURN COUNT(device) AS count
+    RETURN COUNT(DISTINCT asset) AS count
     """,
+    asset_label="Device",
+    asset_id_field="device_id",
     identity_fields=("provider", "stable_device_id", "issue"),
     module=Module.CROSS_CLOUD,
     maturity=Maturity.EXPERIMENTAL,

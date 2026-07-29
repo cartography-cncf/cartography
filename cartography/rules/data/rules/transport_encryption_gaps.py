@@ -44,6 +44,7 @@ _azure_sql_minimum_tls_below_1_2 = Fact(
     WHERE server.minimal_tls_version IS NOT NULL
     RETURN COUNT(server) AS count
     """,
+    asset_label="AzureSQLServer",
     asset_id_field="server_id",
     identity_fields=("server_id",),
     module=Module.AZURE,

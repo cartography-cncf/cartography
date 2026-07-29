@@ -107,6 +107,7 @@ _aws_account_without_cloudtrail = Fact(
     MATCH (a:AWSAccount)
     RETURN COUNT(a) AS count
     """,
+    asset_label="AWSAccount",
     asset_id_field="account_id",
     identity_fields=("account_id",),
     module=Module.AWS,

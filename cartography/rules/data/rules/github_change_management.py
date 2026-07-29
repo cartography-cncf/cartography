@@ -51,6 +51,7 @@ _github_repository_without_required_reviews = Fact(
       AND coalesce(repo.disabled, false) = false
     RETURN COUNT(repo) AS count
     """,
+    asset_label="GitHubRepository",
     asset_id_field="repository_id",
     identity_fields=("repository_id",),
     module=Module.GITHUB,

@@ -48,6 +48,7 @@ _aws_rds_automated_backups_disabled = Fact(
     WHERE instance.db_cluster_identifier IS NULL
     RETURN COUNT(instance) AS count
     """,
+    asset_label="AWSRDSInstance",
     asset_id_field="instance_id",
     identity_fields=("instance_id",),
     module=Module.AWS,
