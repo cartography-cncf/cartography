@@ -1,7 +1,6 @@
 import logging
 from datetime import datetime
 from typing import Any
-from typing import Callable
 
 import requests
 from dateutil.parser import isoparse
@@ -38,7 +37,6 @@ def paginated_get(
     url: str,
     params: dict[str, Any] | None = None,
     max_pages: int | None = None,
-    stop_when: Callable[[dict[str, Any]], bool] | None = None,
 ) -> list[dict[str, Any]]:
     """
     Fetch all items from a paginated CircleCI API v2 endpoint. These endpoints
@@ -50,11 +48,6 @@ def paginated_get(
     :param params: Additional query parameters.
     :param max_pages: Stop after this many pages (high-volume endpoints like
         pipelines are effectively unbounded). None means fetch everything.
-    :param stop_when: Optional predicate on an item. For endpoints that return items
-        in a stable order (e.g. the pipeline feed, newest-first), once a page contains
-        an item satisfying the predicate, pagination stops after that page. The
-        triggering (and any later) items are still returned; the caller filters them.
-        Use this for time-bounded windows over an ordered feed.
     :return: Combined list of all items across all pages.
     """
     all_items: list[dict[str, Any]] = []
@@ -68,9 +61,6 @@ def paginated_get(
 
         all_items.extend(data["items"])
         pages += 1
-
-        if stop_when is not None and any(stop_when(item) for item in data["items"]):
-            break
 
         next_token = data.get("next_page_token")
         if not next_token:

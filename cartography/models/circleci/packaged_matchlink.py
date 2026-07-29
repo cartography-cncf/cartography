@@ -28,7 +28,7 @@ class CircleCIRepoPackagedFromMatchLinkProperties(CartographyRelProperties):
     )
     _sub_resource_id: PropertyRef = PropertyRef("_sub_resource_id", set_in_kwargs=True)
 
-    # Match method: "circleci_tag_revision" or "circleci_config_binding"
+    # Match method: "circleci_tag_revision"
     match_method: PropertyRef = PropertyRef("match_method")
     confidence: PropertyRef = PropertyRef("confidence")
 
