@@ -631,6 +631,40 @@ vercel_mapping = OntologyMapping(
     ],
 )
 
+modal_mapping = OntologyMapping(
+    module_name="modal",
+    nodes=[
+        OntologyNodeMapping(
+            node_label="ModalWorkspaceMember",
+            fields=[
+                OntologyFieldMapping(
+                    ontology_field="email", node_field="email", required=True
+                ),
+                # Modal's display name doubles as the workspace username: it is the value
+                # the API uses to attribute object creation.
+                OntologyFieldMapping(
+                    ontology_field="username", node_field="display_name"
+                ),
+                OntologyFieldMapping(
+                    ontology_field="fullname", node_field="display_name"
+                ),
+                # A removed membership carries a deletion timestamp; any non-null value
+                # means the account is no longer active.
+                OntologyFieldMapping(
+                    ontology_field="inactive",
+                    node_field="deleted_at",
+                    special_handling="to_boolean",
+                ),
+                OntologyFieldMapping(
+                    ontology_field="lastactivity", node_field="last_active_at"
+                ),
+                # firstname / lastname: Modal exposes only a single display name.
+                # has_mfa: not exposed; MFA is delegated to the identity provider.
+            ],
+        ),
+    ],
+)
+
 USERACCOUNTS_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     "microsoft": entra_mapping,
     "lastpass": lastpass_mapping,
@@ -689,4 +723,5 @@ USERACCOUNTS_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
             ),
         ],
     ),
+    "modal": modal_mapping,
 }

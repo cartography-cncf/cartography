@@ -108,6 +108,10 @@ dependencies = [
     "azure-synapse-artifacts>=0.17.0",
     "slack-sdk>=3.37.0",
     "workos>=8.0.0",
+    # Modal ships no public REST API, so the intel module talks to the gRPC service
+    # through this client. Upper-bounded because the module also uses Modal's internal
+    # protocol (see cartography/intel/modal/util.py), which is unversioned.
+    "modal>=1.5.0,<2",
     # tomllib is stdlib on 3.11+; tomli provides it on 3.10 (used by the GitHub
     # lockfile fallback parser).
     "tomli>=2.0.0; python_version < '3.11'",

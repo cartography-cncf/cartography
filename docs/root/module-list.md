@@ -28,6 +28,7 @@ modules/keycloak/index
 modules/kubernetes/index
 modules/lastpass/index
 modules/microsoft/index
+modules/modal/index
 modules/oci/index
 modules/okta/index
 modules/ontology/index
