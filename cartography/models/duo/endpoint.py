@@ -27,7 +27,7 @@ class DuoEndpointNodeProperties(CartographyNodeProperties):
     )
     cpu_id: PropertyRef = PropertyRef("cpu_id", description="Windows CPU ID.")
     device_id: PropertyRef = PropertyRef(
-        "device_id", description="Custom Meraki-managed device identifier."
+        "device_id", description="Device identifier assigned by Duo."
     )
     device_identifier: PropertyRef = PropertyRef(
         "device_identifier", description="Deprecated unique device attribute value."

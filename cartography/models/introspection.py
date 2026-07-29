@@ -165,6 +165,7 @@ class Property:
     indexed: bool
     ontology: bool
     generated_by: tuple[str, ...]
+    owner_modules: tuple[str, ...]
     analysis_jobs: tuple[AnalysisJobDefinition, ...]
     provenance: tuple[PropertyProvenance, ...]
 
@@ -395,6 +396,10 @@ def scope_node_to_module(node: Node, module: str) -> Node:
 
 def _scope_property_to_module(prop: Property, module: str) -> Property | None:
     """Scope one aggregated property to declarations owned by a module."""
+    if prop.owner_modules and module not in prop.owner_modules:
+        # A generated property another module's ontology mapping contributed. Keeping it
+        # would credit this module with a normalized field it never populates.
+        return None
     if not prop.provenance:
         return prop
 
@@ -942,6 +947,7 @@ class _PropertyAccumulator:
     indexed: bool = False
     ontology: bool = False
     generated_by: set[str] = field(default_factory=set)
+    owner_modules: set[str] = field(default_factory=set)
     analysis_jobs: dict[str, AnalysisJobDefinition] = field(default_factory=dict)
     provenance: list[PropertyProvenance] = field(default_factory=list)
 
@@ -1078,6 +1084,7 @@ def _add_generated_property(
     analysis_job: AnalysisJobDefinition | None = None,
     source_name: str | None = None,
     description: str | None = None,
+    owner_module: str | None = None,
 ) -> None:
     entry = entries.setdefault(name, _PropertyAccumulator())
     if source_name:
@@ -1087,6 +1094,8 @@ def _add_generated_property(
     entry.indexed = bool(entry.indexed or indexed)
     entry.ontology = bool(entry.ontology or ontology)
     entry.generated_by.add(generated_by)
+    if owner_module:
+        entry.owner_modules.add(owner_module)
     if analysis_job:
         entry.analysis_jobs[analysis_job.qualified_name] = analysis_job
 
@@ -1110,6 +1119,7 @@ def _add_ontology_properties(
                     "ontology",
                     ontology=True,
                     description=_ONT_SOURCE_DESCRIPTION,
+                    owner_module=ontology_mapping.module_name,
                 )
                 for field_mapping in node_mapping.fields:
                     _add_generated_property(
@@ -1119,6 +1129,7 @@ def _add_ontology_properties(
                         indexed=field_mapping.indexed,
                         ontology=True,
                         source_name=field_mapping.node_field,
+                        owner_module=ontology_mapping.module_name,
                     )
 
     for mapping_group, mappings_by_module in ONTOLOGY_NODES_MAPPING.items():
@@ -1581,6 +1592,7 @@ def _build_property(name: str, entry: _PropertyAccumulator) -> Property:
         indexed=bool(entry.indexed),
         ontology=bool(entry.ontology),
         generated_by=tuple(sorted(entry.generated_by)),
+        owner_modules=tuple(sorted(entry.owner_modules)),
         analysis_jobs=tuple(
             entry.analysis_jobs[name] for name in sorted(entry.analysis_jobs)
         ),

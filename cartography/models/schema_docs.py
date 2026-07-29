@@ -378,9 +378,7 @@ def _render_node(
         # depending on heading-slug anchors, which myst refuses to resolve.
         lines.append(f"({_ontology_anchor(node.label)})=")
     lines.extend([f"### {node.label}", ""])
-    description = _single_description(node.descriptions, f"node {node.label}")
-    if description:
-        lines.extend([description, ""])
+    lines.extend(_render_descriptions(node.descriptions))
     lines.extend(_render_ontology_kind(ontology_kind, concrete_node_labels))
     lines.extend(_render_label_notes(node))
     lines.extend(_render_properties(node))
@@ -613,13 +611,9 @@ def _render_relationship_properties(relationship: Relationship) -> list[str]:
 def _relationship_summary(relationship: Relationship) -> str:
     """Lead with the Cypher pattern and only add prose that says something more."""
     pattern = f"`{_relationship_pattern(relationship)}`"
-    description = _single_description(
-        relationship.descriptions,
-        (
-            f"relationship {relationship.source_label}-"
-            f"{relationship.label}->{relationship.target_label}"
-        ),
-    ) or _analysis_job_origin(relationship)
+    description = " ".join(relationship.descriptions) or _analysis_job_origin(
+        relationship
+    )
     return f"{pattern}: {description}" if description else pattern
 
 
@@ -692,6 +686,20 @@ def _assign_relationships(
         )
         for label, values in assigned.items()
     }
+
+
+def _render_descriptions(descriptions: tuple[str, ...]) -> list[str]:
+    """Render one description as a paragraph, several as a list of sync-path variants."""
+    if not descriptions:
+        return []
+    if len(descriptions) == 1:
+        return [descriptions[0], ""]
+    return [
+        "This node label is loaded by more than one sync path:",
+        "",
+        *(f"- {description}" for description in descriptions),
+        "",
+    ]
 
 
 def _single_description(

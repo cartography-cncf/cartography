@@ -289,7 +289,7 @@ class GCPArtifactRegistryImageSchema(CartographyNodeSchema):
 
 @dataclass(frozen=True)
 class GCPArtifactRegistryImageManifestChildSchema(CartographyNodeSchema):
-    """A Google Cloud Artifact Registry Image resource."""
+    """A single-platform image referenced by an Artifact Registry manifest list."""
 
     label: str = "GCPArtifactRegistryImage"
     properties: GCPArtifactRegistryImageManifestChildNodeProperties = (
@@ -304,7 +304,7 @@ class GCPArtifactRegistryImageManifestChildSchema(CartographyNodeSchema):
 
 @dataclass(frozen=True)
 class GCPArtifactRegistryImageProvenanceSchema(CartographyNodeSchema):
-    """A Google Cloud Artifact Registry Image resource."""
+    """Build provenance and layer data attached to an Artifact Registry image."""
 
     label: str = "GCPArtifactRegistryImage"
     properties: GCPArtifactRegistryImageProvenanceNodeProperties = (

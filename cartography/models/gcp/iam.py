@@ -169,7 +169,7 @@ class GCPOrgRoleToOrganizationRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class GCPOrgRoleSchema(CartographyNodeSchema):
-    """A predefined, organization-level, or project-level Google Cloud IAM role."""
+    """A predefined or organization-level Google Cloud IAM role."""
 
     label: str = "GCPRole"
     properties: GCPOrgRoleNodeProperties = GCPOrgRoleNodeProperties()
@@ -258,7 +258,7 @@ class GCPProjectRoleToProjectRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class GCPProjectRoleSchema(CartographyNodeSchema):
-    """A predefined, organization-level, or project-level Google Cloud IAM role."""
+    """A custom Google Cloud IAM role defined in a single project."""
 
     label: str = "GCPRole"
     properties: GCPProjectRoleNodeProperties = GCPProjectRoleNodeProperties()

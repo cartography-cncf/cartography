@@ -42,7 +42,9 @@ class UbuntuCVENodeProperties(CartographyNodeProperties):
         "status",
         description="Status of the CVE in Ubuntu's tracker, for example active.",
     )
-    cvss3: PropertyRef = PropertyRef("cvss3", description="CVSS v3 base score.")
+    cvss3: PropertyRef = PropertyRef(
+        "cvss3", description="CVSS v3 score as published by Ubuntu on the CVE."
+    )
     published: PropertyRef = PropertyRef(
         "published", description="Date the CVE was published."
     )
@@ -62,7 +64,8 @@ class UbuntuCVENodeProperties(CartographyNodeProperties):
         "attack_complexity", description="CVSS v3 attack complexity."
     )
     base_score: PropertyRef = PropertyRef(
-        "base_score", description="CVSS v3 base score."
+        "base_score",
+        description="CVSS v3 base score from the CVE's baseMetricV3 impact data.",
     )
     base_severity: PropertyRef = PropertyRef(
         "base_severity", description="CVSS v3 base severity."

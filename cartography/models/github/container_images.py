@@ -284,7 +284,7 @@ class GitHubContainerImageProvenanceNodeProperties(CartographyNodeProperties):
 
 @dataclass(frozen=True)
 class GitHubContainerImageProvenanceSchema(CartographyNodeSchema):
-    """A digest-addressed container image or manifest list stored in GitHub Container Registry."""
+    """Build provenance attached to an image already present in the graph."""
 
     label: str = "GitHubContainerImage"
     properties: GitHubContainerImageProvenanceNodeProperties = (

@@ -116,7 +116,8 @@ class AzureNetworkSecurityRuleToNSGRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class AzureInboundNetworkSecurityRuleSchema(CartographyNodeSchema):
-    """A rule that controls traffic through an Azure network security group."""
+    """An inbound rule of an Azure network security group, carrying the
+    `IpPermissionInbound` label so it matches AWS and GCP ingress rules."""
 
     label: str = "AzureNetworkSecurityRule"
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
@@ -137,7 +138,8 @@ class AzureInboundNetworkSecurityRuleSchema(CartographyNodeSchema):
 
 @dataclass(frozen=True)
 class AzureOutboundNetworkSecurityRuleSchema(CartographyNodeSchema):
-    """A rule that controls traffic through an Azure network security group."""
+    """An outbound rule of an Azure network security group, carrying the
+    `IpPermissionEgress` label so it matches AWS and GCP egress rules."""
 
     label: str = "AzureNetworkSecurityRule"
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
