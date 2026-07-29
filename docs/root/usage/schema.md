@@ -69,6 +69,9 @@
 ```{include} ../modules/docker_scout/schema.md
 ```
 
+```{include} ../modules/doppler/schema.md
+```
+
 ```{include} ../modules/duo/schema.md
 ```
 
