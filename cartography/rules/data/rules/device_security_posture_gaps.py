@@ -441,8 +441,13 @@ _device_malware_protection_gaps = Fact(
     RETURN *
     """,
     cypher_count_query="""
-    MATCH (asset:Device)
-    RETURN COUNT(asset) AS count
+    MATCH (asset:Device)-[:OBSERVED_AS]->(device)
+    WHERE device:DuoPhone
+       OR device:JamfComputer
+       OR device:JamfMobileDevice
+       OR device:CrowdstrikeHost
+       OR device:TailscaleDevice
+    RETURN COUNT(DISTINCT asset) AS count
     """,
     asset_label="Device",
     asset_id_field="device_id",
