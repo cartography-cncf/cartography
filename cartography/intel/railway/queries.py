@@ -310,17 +310,6 @@ query EnvironmentServiceInstances($environmentId: String!, $first: Int!, $after:
 }}
 """
 
-ENVIRONMENT_DEPLOYMENTS_QUERY = f"""
-query EnvironmentDeployments($environmentId: String!, $first: Int!, $after: String) {{
-  environment(id: $environmentId) {{
-    deployments(first: $first, after: $after) {{
-      edges {{ node {{ {_DEPLOYMENT_FIELDS} }} }}
-      {_PAGE_INFO}
-    }}
-  }}
-}}
-"""
-
 ENVIRONMENT_VOLUME_INSTANCES_QUERY = f"""
 query EnvironmentVolumeInstances($environmentId: String!, $first: Int!, $after: String) {{
   environment(id: $environmentId) {{
