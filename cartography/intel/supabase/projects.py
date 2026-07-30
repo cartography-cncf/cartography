@@ -137,14 +137,81 @@ def _carry_forward(
                 record[field] = stored[field]
 
 
+_ORG_PROJECTS_PAGE_SIZE = 100
+
+
+@timeit
+def get_org_projects(
+    api_session: requests.Session,
+    base_url: str,
+    org_slug: str,
+) -> list[dict[str, Any]]:
+    """
+    List the projects belonging to an organization.
+
+    This is the authority for which projects exist, because it is the only endpoint
+    documented as organization-scoped. GET /v1/projects returns "all projects you've
+    previously created", so a project created by another member of the same
+    organization is absent from it. Enumerating from that endpoint would make a
+    colleague's project look deleted and, with the cascading project cleanup, take
+    its database, keys, buckets and findings with it on every sync.
+
+    The endpoint is offset-paginated, and truncating it would have exactly the same
+    effect as missing a project, so every page is fetched.
+    """
+    projects: list[dict[str, Any]] = []
+    offset = 0
+    while True:
+        page = get_json(
+            api_session,
+            f"{base_url}/v1/organizations/{org_slug}/projects"
+            f"?offset={offset}&limit={_ORG_PROJECTS_PAGE_SIZE}",
+        )
+        batch = (page or {}).get("projects") or []
+        projects.extend(batch)
+        if len(batch) < _ORG_PROJECTS_PAGE_SIZE:
+            return projects
+        offset += _ORG_PROJECTS_PAGE_SIZE
+
+
 @timeit
 def get(api_session: requests.Session, base_url: str) -> list[dict[str, Any]]:
     """
-    List every project the token can see. This endpoint (unlike the org-scoped one)
-    carries `organization_slug`, `created_at` and the primary `database` object, so
-    it is the single source of truth for both the project and database nodes.
+    List the projects the token's own user created.
+
+    Used only to enrich the organization-scoped listing: this response carries the
+    `database` object (host, version, engine, release channel) that the org-scoped
+    one omits. It is deliberately not used to decide which projects exist. See
+    get_org_projects().
     """
     return get_json(api_session, f"{base_url}/v1/projects")
+
+
+def merge_project(
+    org_project: dict[str, Any],
+    org_slug: str,
+    enrichment: dict[str, Any] | None,
+) -> dict[str, Any]:
+    """
+    Combine an organization-scoped project entry with the richer global-listing
+    entry for the same ref, when one is available.
+
+    Membership and identity always come from the organization-scoped entry.
+    ``database`` is enrichment-only, so for a project created by another member it
+    stays absent and transform_database() skips the database node with a warning
+    rather than inventing values.
+    """
+    enrichment = enrichment or {}
+    return {
+        "ref": org_project["ref"],
+        "name": org_project["name"],
+        "region": org_project["region"],
+        "status": org_project["status"],
+        # The org-scoped listing calls this inserted_at; the global one created_at.
+        "created_at": enrichment.get("created_at") or org_project.get("inserted_at"),
+        "organization_slug": org_slug,
+        "database": enrichment.get("database"),
+    }
 
 
 @timeit

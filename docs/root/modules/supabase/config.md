@@ -30,6 +30,12 @@ The tradeoff is that a feature deliberately turned off keeps its last known valu
 
 Projects removed upstream are cleaned up only after every surviving project's children have been synced, and the cleanup cascades so a deleted project takes its database, keys, buckets, functions and findings with it. Organizations are not cleaned up: like `GCPOrganization`, the node declares no relationships of its own, and Cartography deliberately leaves such nodes for manual management.
 
+### Which projects get synced
+
+Projects are enumerated from `GET /v1/organizations/{slug}/projects`, following its offset pagination to the end. That endpoint is the only organization-scoped one, so it is the authority for which projects exist and therefore for what cleanup may remove.
+
+`GET /v1/projects` returns only "projects you've previously created", so it is used purely to enrich each project with the `database` object (host, version, engine, release channel) that the organization-scoped listing omits. A project created by another member of the organization is still ingested, but without those database fields no `SupabaseDatabase` node is created for it and a warning is logged.
+
 ### Rate limits
 
-The Management API allows 120 requests per minute by default. The module issues roughly 20 requests per project plus 2 per organization, and retries `429` responses with exponential backoff.
+The Management API allows 120 requests per minute by default. The module issues roughly 20 requests per project, 3 per organization, plus one shared enrichment request, and retries `429` responses with exponential backoff.

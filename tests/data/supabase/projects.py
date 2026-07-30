@@ -128,3 +128,55 @@ SUPABASE_DATABASE_BACKUPS = {
         },
     ],
 }
+
+
+# GET /v1/organizations/{slug}/projects. This is the authority for which projects an
+# organization has. Note the different shape from /v1/projects: `inserted_at` rather
+# than `created_at`, no `organization_slug`, and a `databases` array that carries no
+# host or version. `sharedprojectdddddddd` is deliberately absent from
+# SUPABASE_PROJECTS above, standing in for a project created by another member of the
+# organization: /v1/projects would not return it.
+SUPABASE_ORG_PROJECTS = {
+    "projects": [
+        {
+            "ref": "nuclearplantdbaaaaaa",
+            "name": "nuclear-plant",
+            "cloud_provider": "AWS",
+            "region": "us-east-2",
+            "is_branch": False,
+            "status": "ACTIVE_HEALTHY",
+            "inserted_at": "2026-07-01T10:00:00.000000Z",
+            "databases": [
+                {
+                    "identifier": "nuclearplantdbaaaaaa",
+                    "type": "PRIMARY",
+                    "region": "us-east-2",
+                    "status": "ACTIVE_HEALTHY",
+                    "cloud_provider": "AWS",
+                    "infra_compute_size": "nano",
+                },
+            ],
+        },
+        {
+            "ref": "kwikemartdbbbbbbbbbb",
+            "name": "kwik-e-mart",
+            "cloud_provider": "AWS",
+            "region": "eu-west-1",
+            "is_branch": False,
+            "status": "INACTIVE",
+            "inserted_at": "2026-07-02T11:30:00.000000Z",
+            "databases": [],
+        },
+        {
+            "ref": "sharedprojectdddddddd",
+            "name": "shared-by-a-colleague",
+            "cloud_provider": "AWS",
+            "region": "us-west-1",
+            "is_branch": False,
+            "status": "ACTIVE_HEALTHY",
+            "inserted_at": "2026-07-04T08:00:00.000000Z",
+            "databases": [],
+        },
+    ],
+    "pagination": {"offset": 0, "limit": 100, "count": 3},
+}

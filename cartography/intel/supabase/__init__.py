@@ -1,6 +1,4 @@
 import logging
-from collections import defaultdict
-from typing import Any
 
 import neo4j
 
@@ -59,25 +57,41 @@ def start_supabase_ingestion(neo4j_session: neo4j.Session, config: Config) -> No
         org_allowlist,
     )
 
-    # GET /v1/projects is global rather than organization-scoped, so fetch it once
-    # and group by organization instead of re-requesting it per organization.
-    all_projects = cartography.intel.supabase.projects.get(
-        api_session,
-        config.supabase_base_url,
-    )
-    projects_by_org: dict[str, list[dict[str, Any]]] = defaultdict(list)
-    for project in all_projects:
-        projects_by_org[project["organization_slug"]].append(project)
+    # GET /v1/projects only returns projects this token's user created, so it cannot
+    # decide which projects an organization has. It is fetched once purely to enrich
+    # the organization-scoped listings with the `database` object they omit.
+    enrichment_by_ref = {
+        project["ref"]: project
+        for project in cartography.intel.supabase.projects.get(
+            api_session,
+            config.supabase_base_url,
+        )
+    }
 
     for organization in organizations:
-        common_job_parameters["ORG_SLUG"] = organization["slug"]
+        org_slug = organization["slug"]
+        common_job_parameters["ORG_SLUG"] = org_slug
         cartography.intel.supabase.organizations.sync_members(
             neo4j_session,
             api_session,
             common_job_parameters,
         )
 
-        projects = projects_by_org[organization["slug"]]
+        # The organization-scoped listing is the authority for what exists, so that
+        # the cascading project cleanup below can never delete a project that the
+        # organization still lists.
+        projects = [
+            cartography.intel.supabase.projects.merge_project(
+                org_project,
+                org_slug,
+                enrichment_by_ref.get(org_project["ref"]),
+            )
+            for org_project in cartography.intel.supabase.projects.get_org_projects(
+                api_session,
+                config.supabase_base_url,
+                org_slug,
+            )
+        ]
         cartography.intel.supabase.projects.sync(
             neo4j_session,
             api_session,
