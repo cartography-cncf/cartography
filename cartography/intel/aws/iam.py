@@ -1,4 +1,5 @@
 import enum
+import fnmatch
 import json
 import logging
 import time
@@ -560,6 +561,50 @@ def transform_access_keys(
     return access_key_data
 
 
+# The sts actions that let a principal actually obtain credentials for a role. A trust
+# statement granting only e.g. sts:TagSession does not make the role assumable.
+ASSUME_ROLE_ACTIONS = (
+    "sts:assumerole",
+    "sts:assumerolewithwebidentity",
+    "sts:assumerolewithsaml",
+)
+
+
+def _action_matches_assume_role(action: str) -> bool:
+    """Whether an Action entry covers at least one assume-role action.
+
+    IAM action names are case-insensitive and may use `*` and `?` wildcards, so
+    "sts:AssumeRole*", "sts:*" and "*" all qualify.
+    """
+    pattern = action.lower()
+    return any(
+        fnmatch.fnmatchcase(assume_action, pattern)
+        for assume_action in ASSUME_ROLE_ACTIONS
+    )
+
+
+def _statement_grants_assume_role(statement: dict[str, Any]) -> bool:
+    """Whether a trust statement's Action element covers an assume-role action.
+
+    NotAction is deliberately treated as matching. Resolving it correctly means
+    enumerating the complement of the action namespace, and guessing wrong here would
+    silently drop a real trust edge, so we keep the edge and let the operator inspect it.
+    """
+    if "NotAction" in statement:
+        logger.warning(
+            "Trust statement uses NotAction, which is not modeled. Treating it as "
+            "granting assume-role rather than dropping the trust edge."
+        )
+        return True
+
+    actions = ensure_list(statement.get("Action") or [])
+    return any(
+        _action_matches_assume_role(action)
+        for action in actions
+        if isinstance(action, str)
+    )
+
+
 def _aggregate_trust_conditions(
     statement_conditions: list[Any],
 ) -> dict[str, Any]:
@@ -631,6 +676,9 @@ def transform_role_trust_policies(
         # A role can trust the same principal from several statements under different
         # conditions, so these are aggregated per (role, principal) below.
         trusted_principal_conditions: dict[str, list[Any]] = {}
+        # Principals named by an explicit Deny. Deny beats Allow in IAM evaluation, so
+        # these draw no trust edge regardless of what the Allow statements say.
+        denied_principals: set[str] = set()
 
         for statement in role["AssumeRolePolicyDocument"]["Statement"]:
             if "Principal" not in statement:
@@ -644,8 +692,26 @@ def transform_role_trust_policies(
                 )
                 continue
 
+            if not _statement_grants_assume_role(statement):
+                # e.g. a statement granting only sts:TagSession. It names a principal but
+                # does not let it obtain credentials for the role.
+                continue
+
+            is_deny = statement.get("Effect") == "Deny"
             condition = statement.get("Condition")
             principal_entries = _parse_principal_entries(statement["Principal"])
+
+            if is_deny:
+                # An unconditional Deny settles the question: that principal cannot
+                # assume the role, so no edge. A conditional Deny only applies when its
+                # condition holds at request time, which we cannot evaluate here, so it
+                # is left to the Allow statements. Either way a Deny is not evidence
+                # that the named principal or its account exists, so no nodes are
+                # created from it.
+                if not condition:
+                    denied_principals.update(arn for _, arn in principal_entries)
+                continue
+
             for principal_type, principal_arn in principal_entries:
                 if principal_type == "Federated":
                     # Add this to list of federated nodes to create
@@ -690,6 +756,8 @@ def transform_role_trust_policies(
                 )
 
         for principal_arn, statement_conditions in trusted_principal_conditions.items():
+            if principal_arn in denied_principals:
+                continue
             trust_relationships.append(
                 {
                     "source_role_arn": role_arn,
