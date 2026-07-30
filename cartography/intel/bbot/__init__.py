@@ -9,6 +9,7 @@ from urllib.parse import urlsplit
 from urllib.parse import urlunsplit
 
 import neo4j
+from dateutil.parser import isoparse
 
 from cartography.client.core.tx import load
 from cartography.client.core.tx import load_matchlinks
@@ -504,7 +505,7 @@ def transform(
             target = target or (
                 url_refs.get(finding_url) if isinstance(finding_url, str) else None
             )
-            target = target or host_ref
+            target = target or port_ref or host_ref
             _add_relationship(relationships, ref, "AFFECTS", target)
         elif event_type == "ASN" and parent_ref and parent_ref[0] == "BbotIPAddress":
             _add_relationship(relationships, parent_ref, "ANNOUNCED_BY", ref)
@@ -525,7 +526,7 @@ def _parse_finished_at(value: Any) -> datetime.datetime:
     if isinstance(value, (int, float)):
         return datetime.datetime.fromtimestamp(value, tz=datetime.timezone.utc)
     if isinstance(value, str):
-        parsed = datetime.datetime.fromisoformat(value.replace("Z", "+00:00"))
+        parsed = isoparse(value)
         return parsed.replace(tzinfo=parsed.tzinfo or datetime.timezone.utc)
     raise ValueError("BBOT completed scan is missing a valid finished_at")
 
@@ -538,9 +539,7 @@ def _observation_order(value: Any) -> float:
             return float(value)
         except ValueError:
             try:
-                return datetime.datetime.fromisoformat(
-                    value.replace("Z", "+00:00"),
-                ).timestamp()
+                return isoparse(value).timestamp()
             except ValueError:
                 return float("-inf")
     return float("-inf")

@@ -4,6 +4,8 @@ BBOT events are represented by concrete labels rather than a shared event label.
 
 BBOT's `uuid` identifies an individual occurrence and is stored only in observation metadata. Node identity never uses occurrence UUIDs.
 
+## Nodes
+
 ### Common properties
 
 The following properties may appear on each concrete BBOT node:
@@ -32,45 +34,240 @@ The following properties may appear on each concrete BBOT node:
 | observed_at | Timestamp of the latest aggregated occurrence |
 | source_uri | Report URI from which the selected scan was loaded |
 
-### Stable identities
+The node-specific tables below supplement these common properties.
 
-[BBOT event IDs](https://www.blacklanternsecurity.com/bbot/Stable/scanning/events/#event-attributes) combine event type with a SHA-1 hash of BBOT's deduplication data. Cartography reuses that ID for event types whose deduplication semantics represent durable asset identity.
+### BbotScan
 
-| Node label | Stable identity and notable properties |
+Represents the selected completed BBOT scan.
+
+| Field | Description |
 |---|---|
-| `BbotScan` | BBOT scan `id`; name, status, start/finish times, duration, and targets are mutable |
-| `BbotDNSName:DNSRecord` | BBOT `id` for the normalized DNS name; `name` contains the normalized value |
-| `BbotIPAddress` | BBOT `id` for the canonical address; `ip_address` and `is_global` describe the address |
-| `BbotIPRange` | BBOT `id` for the canonical network; `network` contains the canonical CIDR |
-| `BbotOpenTCPPort` | BBOT `id` for normalized host and TCP port; `endpoint` contains the BBOT display value |
-| `BbotURL` | BBOT `id`, preserving BBOT's configured URL-deduplication behavior |
-| `BbotASN` | BBOT `id`, based on ASN number; `asn`, `name`, `country`, `description`, and `subnet` may be present |
-| `BbotTechnology` | BBOT `id`, based on host, effective port, and normalized technology |
-| `BbotEmailAddress` | BBOT `id` for the normalized address; `email` contains the address |
-| `BbotOrgStub` | BBOT `id` for the normalized organization stub; `organization` contains the normalized value |
-| `BbotSocial` | SHA-256 fingerprint of platform and canonical profile URL, falling back to normalized profile name |
-| `BbotStorageBucket` | Provider and normalized bucket name; `url` remains mutable |
-| `BbotFinding:SecurityIssue` | SHA-256 fingerprint of detector module, affected target, and normalized finding name; legacy unnamed findings use normalized description |
+| **id** | BBOT scan `id` |
+| name | Scan name |
+| status | Scan status |
+| started_at | Scan start time |
+| finished_at | Scan completion time |
+| duration_seconds | Scan duration in seconds |
+| targets | Scan seed targets |
 
-Finding identity excludes severity, confidence, timestamps, CVEs, and explanatory text when a stable name is available. Changes to those fields update the existing node.
+#### Relationships
 
-> **Ontology Mapping**: This node has the extra label `SecurityIssue` and normalized title and severity fields for cross-scanner queries.
+- Every non-scan BBOT node points to the selected scan:
 
-### Relationships
+    ```
+    (Bbot*)-[OBSERVED_IN]->(BbotScan)
+    ```
 
-| Pattern | Meaning |
+### BbotDNSName
+
+Represents a normalized DNS name. This node also has the semantic `DNSRecord` label.
+
+| Field | Description |
 |---|---|
-| `(:BbotDNSName)-[:RESOLVES_TO]->(:BbotDNSName|BbotIPAddress)` | DNS target present in the selected scan |
-| `(:BbotDNSName|BbotIPAddress)-[:HAS_OPEN_PORT]->(:BbotOpenTCPPort)` | Open TCP port observed on a host |
-| `(:BbotURL)-[:HOSTED_BY]->(:BbotOpenTCPPort|BbotDNSName|BbotIPAddress)` | Host or endpoint serving a URL |
-| `(:BbotTechnology)-[:DETECTED_ON]->(:BbotURL|BbotOpenTCPPort|BbotDNSName|BbotIPAddress)` | Technology detected on an observed target |
-| `(:BbotFinding)-[:AFFECTS]->(:BbotURL|BbotOpenTCPPort|BbotStorageBucket|BbotDNSName|BbotIPAddress)` | Asset affected by a finding |
-| `(:BbotIPAddress)-[:ANNOUNCED_BY]->(:BbotASN)` | ASN associated with an observed address |
-| `(:BbotDNSName)-[:MATCHES_DNS_RECORD]->(:DNSRecord)` | Case-insensitive match to a provider DNS record |
-| `(:BbotIPAddress)-[:MATCHES_PUBLIC_IP]->(:PublicIP)` | Exact match to a canonical public IP |
+| **id** | BBOT `id` for the normalized DNS name |
+| name | Normalized DNS name |
 
-Globally routable `BbotIPAddress` nodes participate as sources for canonical `PublicIP` reconciliation. A `PublicIP` remains in the graph while any BBOT or provider source still observes it.
+#### Relationships
 
-Every non-scan node has an `OBSERVED_IN` relationship to the selected `BbotScan`. When the parent occurrence can be resolved to a supported concrete node, the child also has a `DISCOVERED_FROM` relationship to that parent. If BBOT's direct parent type is unsupported, Cartography walks the occurrence's parent chain to the nearest supported ancestor.
+```
+(BbotDNSName)-[RESOLVES_TO]->(BbotDNSName|BbotIPAddress)
+(BbotDNSName)-[HAS_OPEN_PORT]->(BbotOpenTCPPort)
+(BbotDNSName)-[MATCHES_DNS_RECORD]->(DNSRecord)
+```
+
+### BbotIPAddress
+
+Represents a canonical IPv4 or IPv6 address.
+
+| Field | Description |
+|---|---|
+| **id** | BBOT `id` for the canonical address |
+| ip_address | Canonical IP address |
+| public_ip_address | Canonical address when globally routable, otherwise null |
+| is_global | Whether the address is globally routable |
+
+#### Relationships
+
+```
+(BbotIPAddress)-[HAS_OPEN_PORT]->(BbotOpenTCPPort)
+(BbotIPAddress)-[ANNOUNCED_BY]->(BbotASN)
+(BbotIPAddress)-[MATCHES_PUBLIC_IP]->(PublicIP)
+```
+
+Globally routable nodes contribute to canonical `PublicIP` reconciliation. A `PublicIP` remains while any BBOT or provider source observes it.
+
+### BbotIPRange
+
+Represents a canonical IP network.
+
+| Field | Description |
+|---|---|
+| **id** | BBOT `id` for the canonical network |
+| network | Canonical CIDR |
+
+#### Relationships
+
+This node uses the common `OBSERVED_IN` and `DISCOVERED_FROM` relationships.
+
+### BbotOpenTCPPort
+
+Represents an open TCP endpoint.
+
+| Field | Description |
+|---|---|
+| **id** | BBOT `id` for the normalized host and TCP port |
+| host | Normalized hostname or IP address |
+| port | TCP port |
+| endpoint | BBOT endpoint display value |
+
+#### Relationships
+
+```
+(BbotDNSName|BbotIPAddress)-[HAS_OPEN_PORT]->(BbotOpenTCPPort)
+```
+
+URLs, technologies, and findings can also point to this node through `HOSTED_BY`, `DETECTED_ON`, and `AFFECTS`.
+
+### BbotURL
+
+Represents a canonical URL using BBOT's configured URL-deduplication behavior.
+
+| Field | Description |
+|---|---|
+| **id** | BBOT URL `id` |
+| name | Canonical URL |
+| url | Canonical URL |
+
+#### Relationships
+
+```
+(BbotURL)-[HOSTED_BY]->(BbotOpenTCPPort|BbotDNSName|BbotIPAddress)
+```
+
+Technologies and findings can point to this node through `DETECTED_ON` and `AFFECTS`.
+
+### BbotASN
+
+Represents an autonomous system.
+
+| Field | Description |
+|---|---|
+| **id** | BBOT `id`, based on ASN number |
+| asn | Autonomous system number |
+| name | Autonomous system name |
+| country | Country code |
+| description | Autonomous system description |
+| subnet | Associated network |
+
+#### Relationships
+
+```
+(BbotIPAddress)-[ANNOUNCED_BY]->(BbotASN)
+```
+
+### BbotTechnology
+
+Represents a technology detected on a host, effective port, or URL.
+
+| Field | Description |
+|---|---|
+| **id** | BBOT `id` for host, effective port, and normalized technology |
+| technology | Normalized technology name |
+| host | Normalized hostname or IP address |
+| port | Effective port |
+| url | Canonical URL when present |
+
+#### Relationships
+
+```
+(BbotTechnology)-[DETECTED_ON]->(BbotURL|BbotOpenTCPPort|BbotDNSName|BbotIPAddress)
+```
+
+### BbotEmailAddress
+
+Represents a normalized email address.
+
+| Field | Description |
+|---|---|
+| **id** | BBOT `id` for the normalized address |
+| email | Email address |
+
+#### Relationships
+
+This node uses the common `OBSERVED_IN` and `DISCOVERED_FROM` relationships.
+
+### BbotOrgStub
+
+Represents a normalized organization stub.
+
+| Field | Description |
+|---|---|
+| **id** | BBOT `id` for the normalized organization stub |
+| organization | Normalized organization value |
+
+#### Relationships
+
+This node uses the common `OBSERVED_IN` and `DISCOVERED_FROM` relationships.
+
+### BbotSocial
+
+Represents a social profile.
+
+| Field | Description |
+|---|---|
+| **id** | SHA-256 fingerprint of platform and canonical profile URL, falling back to normalized profile name |
+| platform | Social platform |
+| profile_name | Profile name |
+| url | Canonical profile URL |
+
+#### Relationships
+
+This node uses the common `OBSERVED_IN` and `DISCOVERED_FROM` relationships.
+
+### BbotStorageBucket
+
+Represents an object storage bucket.
+
+| Field | Description |
+|---|---|
+| **id** | Provider and normalized bucket name |
+| bucket_provider | Normalized provider |
+| bucket_name | Normalized bucket name |
+| url | Mutable endpoint URL |
+
+#### Relationships
+
+Findings can point to this node:
+
+```
+(BbotFinding)-[AFFECTS]->(BbotStorageBucket)
+```
+
+### BbotFinding / SecurityIssue
+
+Represents a security finding. This node also has the semantic `SecurityIssue` label and normalized title and severity fields for cross-scanner queries.
+
+| Field | Description |
+|---|---|
+| **id** | SHA-256 fingerprint of detector module, affected target, and normalized finding name; legacy unnamed findings use normalized description |
+| finding_name | Stable finding name when present |
+| severity | Reported severity |
+| confidence | Reported confidence |
+| description | Explanatory text |
+| cves | Associated CVE identifiers |
+
+Finding identity excludes severity, confidence, timestamps, CVEs, and explanatory text when a stable name exists. Changes to those fields update the existing node.
+
+#### Relationships
+
+```
+(BbotFinding)-[AFFECTS]->(BbotURL|BbotOpenTCPPort|BbotStorageBucket|BbotDNSName|BbotIPAddress)
+```
+
+## Relationship lifecycle
+
+Every non-scan node has an `OBSERVED_IN` relationship to the selected `BbotScan`. When the parent occurrence can be resolved to a supported concrete node, the child has a `DISCOVERED_FROM` relationship to that parent. If BBOT's direct parent type is unsupported, Cartography walks the occurrence's parent chain to the nearest supported ancestor.
 
 Relationships are merged by type and endpoints. They preserve `firstseen`, refresh `lastupdated`, and are removed when the association disappears from the selected scan.
+
+[BBOT event IDs](https://www.blacklanternsecurity.com/bbot/Stable/scanning/events/#event-attributes) combine event type with a SHA-1 hash of BBOT's deduplication data. Cartography reuses that ID when its deduplication semantics represent durable asset identity.

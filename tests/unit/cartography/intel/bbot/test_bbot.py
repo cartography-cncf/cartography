@@ -44,7 +44,7 @@ def _event(
     uuid: str,
     data: str | dict,
     *,
-    timestamp: float,
+    timestamp: float | str,
     parent_uuid: str | None = None,
     **properties,
 ) -> dict:
@@ -210,6 +210,56 @@ def test_transform_excludes_private_addresses_from_public_ip_reconciliation() ->
     assert nodes["BbotIPAddress"][0]["public_ip_address"] is None
 
 
+def test_finding_with_host_and_port_affects_open_port() -> None:
+    # Arrange
+    events = [
+        _scan_event("RUNNING", "SCAN:run-start", 1),
+        _event(
+            "DNS_NAME",
+            "DNS_NAME:example",
+            "DNS_NAME:example-occurrence",
+            "example.test",
+            timestamp=2,
+            host="example.test",
+        ),
+        _event(
+            "OPEN_TCP_PORT",
+            "OPEN_TCP_PORT:example-443",
+            "OPEN_TCP_PORT:example-443-occurrence",
+            "example.test:443",
+            timestamp=3,
+            host="example.test",
+            port=443,
+        ),
+        _event(
+            "FINDING",
+            "FINDING:example-443",
+            "FINDING:example-443-occurrence",
+            {
+                "name": "Synthetic TLS finding",
+                "host": "example.test",
+                "port": 443,
+            },
+            timestamp=4,
+            module="synthetic",
+        ),
+        _scan_event(
+            "FINISHED",
+            "SCAN:run-finish",
+            5,
+            finished_at="2026-01-01T00:01:00Z",
+        ),
+    ]
+
+    # Act
+    _, relationships = transform(events, "synthetic.json")
+
+    # Assert
+    finding_relationships = relationships[("BbotFinding", "BbotOpenTCPPort", "AFFECTS")]
+    assert len(finding_relationships) == 1
+    assert finding_relationships[0]["target_id"] == "OPEN_TCP_PORT:example-443"
+
+
 def test_transform_uses_custom_stable_identities() -> None:
     # Arrange
     events = [
@@ -239,7 +289,7 @@ def test_transform_uses_custom_stable_identities() -> None:
                 "confidence": "CONFIRMED",
                 "url": "https://example.test/admin",
             },
-            timestamp=3,
+            timestamp="2026-01-01t00:00:03z",
             module="nuclei",
         ),
         _event(
@@ -391,7 +441,7 @@ def test_report_reader_selects_latest_completed_scan(mock_sync: MagicMock) -> No
                 "FINISHED",
                 "SCAN:newer-finish",
                 4,
-                finished_at="2026-01-02T00:01:00Z",
+                finished_at="2026-01-02t00:01:00z",
             ),
         ],
     )
