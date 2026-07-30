@@ -311,6 +311,61 @@ def test_transform_uses_custom_stable_identities() -> None:
     assert nodes["BbotSocial"][0]["occurrence_count"] == 2
 
 
+def test_storage_bucket_identity_uses_module_before_bucket_name() -> None:
+    # Arrange
+    events = [
+        _scan_event("RUNNING", "SCAN:run-start", 1),
+        _event(
+            "STORAGE_BUCKET",
+            "STORAGE_BUCKET:gcp",
+            "STORAGE_BUCKET:gcp-occurrence",
+            {
+                "name": "amazon-assets",
+                "url": "https://storage.googleapis.com/amazon-assets",
+            },
+            timestamp=2,
+            module="bucket_google",
+        ),
+        _event(
+            "STORAGE_BUCKET",
+            "STORAGE_BUCKET:azure",
+            "STORAGE_BUCKET:azure-occurrence",
+            {
+                "name": "googlefiles",
+                "url": "https://account.blob.core.windows.net/googlefiles",
+            },
+            timestamp=3,
+            module="bucket_azure",
+        ),
+        _event(
+            "STORAGE_BUCKET",
+            "STORAGE_BUCKET:aws",
+            "STORAGE_BUCKET:aws-occurrence",
+            {
+                "name": "google-backups",
+                "url": "https://google-backups.s3.amazonaws.com",
+            },
+            timestamp=3,
+        ),
+        _scan_event(
+            "FINISHED",
+            "SCAN:run-finish",
+            4,
+            finished_at="2026-01-01T00:01:00Z",
+        ),
+    ]
+
+    # Act
+    nodes, _ = transform(events, "synthetic.json")
+
+    # Assert
+    assert {node["id"] for node in nodes["BbotStorageBucket"]} == {
+        "STORAGE_BUCKET:aws:google-backups",
+        "STORAGE_BUCKET:azure:googlefiles",
+        "STORAGE_BUCKET:gcp:amazon-assets",
+    }
+
+
 @patch("cartography.intel.bbot.sync")
 def test_report_reader_selects_latest_completed_scan(mock_sync: MagicMock) -> None:
     # Arrange
@@ -360,3 +415,39 @@ def test_report_reader_selects_latest_completed_scan(mock_sync: MagicMock) -> No
     )
     assert mock_sync.call_args.args[2] == newer_ref.uri
     assert mock_sync.call_args.args[3] == 123
+    assert mock_sync.call_args.kwargs["run_cleanup"] is True
+
+
+@patch("cartography.intel.bbot.sync")
+def test_report_reader_skips_cleanup_when_a_report_fails(
+    mock_sync: MagicMock,
+) -> None:
+    # Arrange
+    valid_ref = ReportRef("s3://example/valid.jsonl", "valid.jsonl")
+    invalid_ref = ReportRef("s3://example/invalid.jsonl", "invalid.jsonl")
+    valid = _jsonl(
+        [
+            _scan_event("RUNNING", "SCAN:valid-start", 1),
+            _scan_event(
+                "FINISHED",
+                "SCAN:valid-finish",
+                2,
+                finished_at="2026-01-01T00:01:00Z",
+            ),
+        ],
+    )
+    payloads = {
+        invalid_ref: b"not-json",
+        valid_ref: valid.encode(),
+    }
+    reader = MagicMock()
+    reader.source_uri = "s3://example/"
+    reader.list_reports.return_value = [invalid_ref, valid_ref]
+    reader.read_bytes.side_effect = payloads.__getitem__
+
+    # Act
+    sync_bbot_from_report_reader(MagicMock(), reader, 123, {"UPDATE_TAG": 123})
+
+    # Assert
+    assert mock_sync.call_args.args[2] == valid_ref.uri
+    assert mock_sync.call_args.kwargs["run_cleanup"] is False

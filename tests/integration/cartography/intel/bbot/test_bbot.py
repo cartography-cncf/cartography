@@ -14,13 +14,20 @@ from tests.integration.util import check_nodes
 from tests.integration.util import check_rels
 
 
-def _sync(neo4j_session, events: list[dict], update_tag: int) -> None:
+def _sync(
+    neo4j_session,
+    events: list[dict],
+    update_tag: int,
+    *,
+    run_cleanup: bool = True,
+) -> None:
     sync(
         neo4j_session,
         events,
         "synthetic-bbot-output.json",
         update_tag,
         {"UPDATE_TAG": update_tag},
+        run_cleanup=run_cleanup,
     )
 
 
@@ -207,6 +214,62 @@ def test_stable_identities_merge_and_stale_identities_are_cleaned(
             )
             == expected
         )
+
+    # Act: a partial input updates the scan but suppresses cleanup.
+    _sync(
+        neo4j_session,
+        scan_only_events(3),
+        225,
+        run_cleanup=False,
+    )
+
+    # Assert: stale nodes and relationships survive the partial input.
+    assert check_nodes(neo4j_session, "BbotEmailAddress", ["id"]) == {
+        ("EMAIL_ADDRESS:stable-security",),
+    }
+    assert check_rels(
+        neo4j_session,
+        "BbotDNSName",
+        "id",
+        "BbotIPAddress",
+        "id",
+        "RESOLVES_TO",
+    ) == {("DNS_NAME:app", IP_ID)}
+
+    # Act: the DNS and IP observations survive, but their association disappears.
+    events_without_resolution = make_events(3)
+    for event in events_without_resolution:
+        if event["type"] == "DNS_NAME":
+            event["resolved_hosts"] = []
+    _sync(neo4j_session, events_without_resolution, 250)
+
+    # Assert: relationship cleanup handles a missing label pair without deleting
+    # either stable endpoint.
+    assert check_nodes(neo4j_session, "BbotDNSName", ["id"]) == {
+        ("DNS_NAME:app",),
+    }
+    assert check_nodes(neo4j_session, "BbotIPAddress", ["id"]) == {
+        (IP_ID,),
+    }
+    assert (
+        check_rels(
+            neo4j_session,
+            "BbotDNSName",
+            "id",
+            "BbotIPAddress",
+            "id",
+            "RESOLVES_TO",
+        )
+        == set()
+    )
+    assert check_rels(
+        neo4j_session,
+        "BbotDNSName",
+        "id",
+        "BbotOpenTCPPort",
+        "id",
+        "HAS_OPEN_PORT",
+    ) == {("DNS_NAME:app", "OPEN_TCP_PORT:app-443")}
 
     # Act: true identity components change, and the email disappears.
     _sync(

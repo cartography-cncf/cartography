@@ -12,10 +12,11 @@ import neo4j
 
 from cartography.client.core.tx import load
 from cartography.client.core.tx import load_matchlinks
-from cartography.client.core.tx import run_write_query
 from cartography.config import Config
 from cartography.graph.job import GraphJob
+from cartography.graph.statement import GraphStatement
 from cartography.intel.common.object_store import filter_report_refs
+from cartography.intel.common.object_store import ObjectStoreError
 from cartography.intel.common.object_store import read_text_report
 from cartography.intel.common.object_store import ReportReader
 from cartography.intel.common.report_reader_builder import (
@@ -123,28 +124,35 @@ def _bucket_provider(event: dict[str, Any], data: dict[str, Any]) -> str:
             "microsoft": "azure",
         }.get(provider, provider)
 
-    value = f"{event.get('module', '')} {data.get('url', '')}".lower()
-    providers = {
+    module = str(event.get("module") or "").lower()
+    module_providers = {
         "amazon": "aws",
-        "amazonaws.com": "aws",
         "google": "gcp",
-        "googleapis.com": "gcp",
         "firebase": "gcp",
         "microsoft": "azure",
-        "blob.core.windows.net": "azure",
         "digitalocean": "digitalocean",
-        "digitaloceanspaces.com": "digitalocean",
         "hetzner": "hetzner",
     }
-    for marker, provider in providers.items():
-        if marker in value:
+    for marker, provider in module_providers.items():
+        if marker in module:
             return provider
+
     url = data.get("url")
     if isinstance(url, str):
         hostname = urlsplit(url).hostname
         if hostname:
-            return hostname.lower()
-    return str(event.get("module") or "unknown").lower()
+            hostname = hostname.lower()
+            domain_providers = {
+                "amazonaws.com": "aws",
+                "googleapis.com": "gcp",
+                "firebaseio.com": "gcp",
+                "blob.core.windows.net": "azure",
+                "digitaloceanspaces.com": "digitalocean",
+            }
+            for domain, provider in domain_providers.items():
+                if hostname == domain or hostname.endswith(f".{domain}"):
+                    return provider
+    return module or "unknown"
 
 
 def _stable_identity(
@@ -594,6 +602,8 @@ def sync(
     source_uri: str,
     update_tag: int,
     common_job_parameters: dict[str, Any],
+    *,
+    run_cleanup: bool = True,
 ) -> None:
     nodes, relationships = transform(events, source_uri)
 
@@ -621,18 +631,32 @@ def sync(
             _sub_resource_id=source_uri,
         )
 
-    # MatchLinks span concrete label pairs, so one module-scoped cleanup handles
-    # combinations that disappeared entirely from the new report.
-    run_write_query(
-        neo4j_session,
-        """
-        MATCH ()-[r]->()
-        WHERE r._module_name = 'cartography:bbot'
-          AND r.lastupdated <> $UPDATE_TAG
-        DELETE r
-        """,
-        UPDATE_TAG=update_tag,
-    )
+    if not run_cleanup:
+        return
+
+    # Anchor cleanup on each concrete source label so stale relationships are
+    # removed even when a label pair disappears entirely from the new report.
+    for schema in BBOT_SCHEMAS.values():
+        GraphJob(
+            f"Cleanup BBOT relationships from {schema.label}",
+            [
+                GraphStatement(
+                    f"""
+                    MATCH (source:{schema.label})-[r]->()
+                    WHERE r._module_name = 'cartography:bbot'
+                      AND r.lastupdated <> $UPDATE_TAG
+                    WITH r LIMIT $LIMIT_SIZE
+                    DELETE r
+                    """,
+                    parameters={"UPDATE_TAG": update_tag},
+                    iterative=True,
+                    iterationsize=10000,
+                    parent_job_name=schema.label,
+                ),
+            ],
+            schema.label,
+        ).run(neo4j_session)
+
     for schema in BBOT_SCHEMAS.values():
         GraphJob.from_node_schema(
             BbotCleanupSchema(schema.label),
@@ -655,14 +679,33 @@ def sync_bbot_from_report_reader(
         raise ValueError(f"No BBOT JSON reports found in {reader.source_uri}")
 
     runs: list[tuple[datetime.datetime, list[dict[str, Any]], str]] = []
+    failed_report_count = 0
     for ref in sorted(refs, key=lambda item: item.name):
-        runs.extend(parse_completed_scan_runs(read_text_report(reader, ref), ref.uri))
+        try:
+            runs.extend(
+                parse_completed_scan_runs(read_text_report(reader, ref), ref.uri),
+            )
+        except (ObjectStoreError, ValueError) as exc:
+            logger.error("Failed to read BBOT report from %s: %s", ref.uri, exc)
+            failed_report_count += 1
     if not runs:
         raise ValueError(f"No completed BBOT scans found in {reader.source_uri}")
 
     finished_at, events, source_uri = max(runs, key=lambda run: run[0])
     logger.info("Ingesting BBOT scan completed at %s from %s", finished_at, source_uri)
-    sync(neo4j_session, events, source_uri, update_tag, common_job_parameters)
+    if failed_report_count:
+        logger.warning(
+            "Skipping BBOT cleanup because %d report(s) failed to read or parse.",
+            failed_report_count,
+        )
+    sync(
+        neo4j_session,
+        events,
+        source_uri,
+        update_tag,
+        common_job_parameters,
+        run_cleanup=failed_report_count == 0,
+    )
 
 
 @timeit
