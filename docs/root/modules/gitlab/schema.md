@@ -51,7 +51,7 @@ CA -- ATTESTS --> CI
 
 %% Trivy Vulnerability Scanning
 TIF(TrivyImageFinding) -- AFFECTS --> CI
-PKG(Package) -- DEPLOYED --> CI
+PKG(PackageVersion) -- DEPLOYED --> CI
 ```
 
 ### GitLabOrganization
@@ -368,10 +368,10 @@ Representation of a software dependency from GitLab's dependency scanning artifa
     (GitLabDependencyFile)-[HAS_DEP]->(GitLabDependency)
     ```
 
-- A canonical Package (ontology) is detected as a GitLabDependency.
+- A canonical PackageVersion (ontology) is detected as a GitLabDependency.
 
     ```
-    (Package)-[DETECTED_AS]->(GitLabDependency)
+    (PackageVersion)-[DETECTED_AS]->(GitLabDependency)
     ```
 
 ### GitLabContainerRepository
@@ -523,7 +523,7 @@ Representation of a container image identified by its digest. Images are content
 - Packages are deployed in GitLabContainerImages.
 
     ```
-    (Package)-[DEPLOYED]->(GitLabContainerImage)
+    (PackageVersion)-[DEPLOYED]->(GitLabContainerImage)
     ```
 
 - KubernetesContainers have images. The relationship matches containers to images by digest (`status_image_sha`).
@@ -709,7 +709,7 @@ ORDER BY vuln.severity DESC
 Find packages deployed in GitLab container images with their vulnerabilities:
 
 ```cypher
-MATCH (pkg:Package)-[:DEPLOYED]->(img:GitLabContainerImage)
+MATCH (pkg:PackageVersion)-[:DEPLOYED]->(img:GitLabContainerImage)
 OPTIONAL MATCH (vuln:TrivyImageFinding)-[:AFFECTS]->(pkg)
 RETURN img.uri, pkg.name, pkg.installed_version, collect(vuln.name) AS vulnerabilities
 ```
@@ -718,7 +718,7 @@ Find critical vulnerabilities in GitLab images with available fixes:
 
 ```cypher
 MATCH (vuln:TrivyImageFinding {severity: 'CRITICAL'})-[:AFFECTS]->(img:GitLabContainerImage)
-MATCH (vuln)-[:AFFECTS]->(pkg:Package)
+MATCH (vuln)-[:AFFECTS]->(pkg:PackageVersion)
 OPTIONAL MATCH (pkg)-[:SHOULD_UPDATE_TO]->(fix:TrivyFix)
 RETURN vuln.name, img.uri, pkg.name, pkg.installed_version, fix.version AS fixed_version
 ```

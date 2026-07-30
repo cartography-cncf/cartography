@@ -78,14 +78,14 @@ def test_packages_end_to_end_from_trivy_syft_to_ontology(
 ):
     """
     Full integration path:
-    ECR + Trivy + Syft -> ontology Package graph with DEPLOYED, AFFECTS,
+    ECR + Trivy + Syft -> ontology PackageVersion graph with DEPLOYED, AFFECTS,
     DEPENDS_ON, and fix-path connectivity via TrivyPackage.
     """
     # Ensure clean state for labels used by this test.
     neo4j_session.run(
         """
         MATCH (n)
-        WHERE n:Package OR n:TrivyPackage OR n:SyftPackage OR n:TrivyFix
+        WHERE n:Package OR n:PackageVersion OR n:TrivyPackage OR n:SyftPackage OR n:TrivyFix
            OR n:TrivyImageFinding OR n:AWSECRImage OR n:AWSECRRepositoryImage OR n:AWSECRRepository
         DETACH DELETE n
         """,
@@ -131,7 +131,7 @@ def test_packages_end_to_end_from_trivy_syft_to_ontology(
     # Assert canonical package is linked to both Trivy and Syft source nodes.
     assert check_rels(
         neo4j_session,
-        "Package",
+        "PackageVersion",
         "id",
         "TrivyPackage",
         "normalized_id",
@@ -140,7 +140,7 @@ def test_packages_end_to_end_from_trivy_syft_to_ontology(
     ) >= {("pypi|h11|0.14.0", "pypi|h11|0.14.0")}
     assert check_rels(
         neo4j_session,
-        "Package",
+        "PackageVersion",
         "id",
         "SyftPackage",
         "normalized_id",
@@ -151,7 +151,7 @@ def test_packages_end_to_end_from_trivy_syft_to_ontology(
     # Assert package-to-image deployment propagation via ontology Image.
     assert check_rels(
         neo4j_session,
-        "Package",
+        "PackageVersion",
         "id",
         "Image",
         "_ont_digest",
@@ -164,7 +164,7 @@ def test_packages_end_to_end_from_trivy_syft_to_ontology(
         neo4j_session,
         "TrivyImageFinding",
         "id",
-        "Package",
+        "PackageVersion",
         "id",
         "AFFECTS",
         rel_direction_right=True,
@@ -173,9 +173,9 @@ def test_packages_end_to_end_from_trivy_syft_to_ontology(
     # Assert canonical dependency tree propagation from SyftPackage graph.
     assert check_rels(
         neo4j_session,
-        "Package",
+        "PackageVersion",
         "id",
-        "Package",
+        "PackageVersion",
         "id",
         "DEPENDS_ON",
         rel_direction_right=True,
@@ -184,7 +184,7 @@ def test_packages_end_to_end_from_trivy_syft_to_ontology(
     # Assert fix connectivity exists for canonical package via TrivyPackage bridge.
     fix_row = neo4j_session.run(
         """
-        MATCH (p:Package {id: 'pypi|h11|0.14.0'})
+        MATCH (p:PackageVersion {id: 'pypi|h11|0.14.0'})
               -[:DETECTED_AS]->(:TrivyPackage)
               -[:SHOULD_UPDATE_TO]->(fix:TrivyFix)
         RETURN collect(DISTINCT fix.id) AS fix_ids

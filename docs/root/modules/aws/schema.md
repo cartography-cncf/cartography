@@ -2857,7 +2857,7 @@ For multi-architecture images, Cartography creates AWSECRImage nodes for the man
 
 - Software packages are a part of ECR Images
     ```
-    (:Package)-[:DEPLOYED]->(:AWSECRImage)
+    (:PackageVersion)-[:DEPLOYED]->(:AWSECRImage)
     ```
 
 - An AWSECRImage references its layers (only applies to `type="image"` nodes)
@@ -3052,33 +3052,37 @@ Representation of an individual Docker image layer discovered while processing E
     ```
 
 
-### Package
+### PackageVersion
 
-Representation of a software package, as found by an AWS ECR vulnerability scan.
+Representation of a specific version of a software package, as found by an AWS ECR vulnerability
+scan. This is the canonical ontology node deduplicated across scanners; see the
+[ontology schema](https://github.com/cartography-cncf/cartography/blob/master/docs/root/modules/ontology/schema.md)
+for the full field list.
 
 | Field | Description |
 |-------|-------------|
-| **id** | Concatenation of ``{version}\|{name}`` |
-| version | The version of the package, includes the Linux distro that it was built for |
+| **id** | Normalized ID for cross-tool matching (format: ``{type}\|{namespace/}{name}\|{version}``) |
+| version | The version of the package |
 | name | The name of the package |
+| type | Package ecosystem type (e.g., npm, pypi, deb) |
 
 #### Relationships
 
-- Software packages are a part of ECR Images
+- Software package versions are a part of ECR Images
     ```
-    (:Package)-[:DEPLOYED]->(:AWSECRImage)
+    (:PackageVersion)-[:DEPLOYED]->(:AWSECRImage)
     ```
 
-- A TrivyImageFinding is a vulnerability that affects a software Package.
+- A TrivyImageFinding is a vulnerability that affects a software PackageVersion.
 
     ```
-    (:TrivyImageFinding)-[:AFFECTS]->(:Package)
+    (:TrivyImageFinding)-[:AFFECTS]->(:PackageVersion)
     ```
 
 - We should update a vulnerable package to a fixed version described by a TrivyFix.
 
     ```
-    (:Package)-[:SHOULD_UPDATE_TO]->(:TrivyFix)
+    (:PackageVersion)-[:SHOULD_UPDATE_TO]->(:TrivyFix)
     ```
 
 

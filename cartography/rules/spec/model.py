@@ -203,6 +203,9 @@ class Module(str, Enum):
     PAGERDUTY = "PagerDuty"
     """PagerDuty incident response"""
 
+    RAILWAY = "Railway"
+    """Railway platform-as-a-service"""
+
     SCALEWAY = "Scaleway"
     """Scaleway cloud services"""
 
@@ -268,6 +271,7 @@ MODULE_TO_CARTOGRAPHY_INTEL = {
     Module.OKTA: "okta",
     Module.OPENAI: "openai",
     Module.PAGERDUTY: "pagerduty",
+    Module.RAILWAY: "railway",
     Module.SCALEWAY: "scaleway",
     Module.SEMGREP: "semgrep",
     Module.SENTINELONE: "sentinelone",

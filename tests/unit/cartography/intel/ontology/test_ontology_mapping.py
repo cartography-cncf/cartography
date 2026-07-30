@@ -5,6 +5,7 @@ from typing import Type
 import cartography.models
 from cartography.models.core.nodes import CartographyNodeSchema
 from cartography.models.ontology.mapping import get_deprecated_ontology_index_properties
+from cartography.models.ontology.mapping import ONTOLOGY_CANONICAL_SCHEMAS
 from cartography.models.ontology.mapping import ONTOLOGY_MODELS
 from cartography.models.ontology.mapping import ONTOLOGY_NODES_MAPPING
 from cartography.models.ontology.mapping import SEMANTIC_LABELS_MAPPING
@@ -143,7 +144,7 @@ def test_ontology_primary_labels_are_reserved_for_ontology_models():
     # Ontology primary labels (e.g. Package, UserAccount) must only be owned by
     # ontology model classes. Reusing them in provider/raw schemas causes
     # collisions in ontology matching and migration logic.
-    ontology_labels = {model().label for model in ONTOLOGY_MODELS.values()}
+    ontology_labels = {model().label for model in ONTOLOGY_CANONICAL_SCHEMAS}
     violations: set[str] = set()
 
     for _, node_class in MODELS:
