@@ -1082,9 +1082,9 @@ to the concrete finding nodes that reference a CVE, so cross-scanner queries can
 CVE-backed finding with `MATCH (c:CVE)`.
 
 Contributing module nodes (each carries `:CVE` unconditionally or via a conditional label): the
-deprecated `CVE` node, `UbuntuCVE`, `TrivyImageFinding`, `CrowdstrikeFinding`, `GitHubDependabotAlert`,
-`S1AppFinding`, `SemgrepSCAFinding` (when `has_cve` is true), and `AWSInspectorFinding` (when
-`type = PACKAGE_VULNERABILITY`).
+deprecated `CVE` node, `UbuntuCVE`, `CrowdstrikeFinding`, `GitHubDependabotAlert`, `S1AppFinding`,
+`SemgrepSCAFinding` and `TrivyImageFinding` (both when `has_cve` is true), and
+`AWSInspectorFinding` (when `type = PACKAGE_VULNERABILITY`).
 
 | Field | Description |
 |-------|-------------|

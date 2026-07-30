@@ -18,7 +18,12 @@ from cartography.models.ontology.labels import CVE
 class TrivyImageFindingNodeProperties(CartographyNodeProperties):
     id: PropertyRef = PropertyRef("id")
     name: PropertyRef = PropertyRef("VulnerabilityID")
+    # Every identifier the report carries for this finding, primary first. Preserved in
+    # full so authorities without a dedicated field (DSA-, RHSA-, ...) are not lost.
+    vulnerability_ids: PropertyRef = PropertyRef("vulnerability_ids")
     cve_id: PropertyRef = PropertyRef("cve_id", extra_index=True)
+    ghsa_id: PropertyRef = PropertyRef("ghsa_id", extra_index=True)
+    has_cve: PropertyRef = PropertyRef("has_cve")
     description: PropertyRef = PropertyRef("Description")
     last_modified_date: PropertyRef = PropertyRef("LastModifiedDate")
     primary_url: PropertyRef = PropertyRef("PrimaryURL")
@@ -67,7 +72,14 @@ class TrivyFindingToOntologyImageRel(CartographyRelSchema):
 class TrivyImageFindingSchema(CartographyNodeSchema):
     label: str = "TrivyImageFinding"
     scoped_cleanup: bool = False
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([RISK, CVE])
+    # Trivy reports CVEs alongside other identifier schemes (GHSA-, DLA-, TEMP-, ...),
+    # so :CVE is only applied to CVE-backed findings. :Risk covers all of them.
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
+        [
+            RISK,
+            CVE.when(has_cve="true"),
+        ],
+    )
     properties: TrivyImageFindingNodeProperties = TrivyImageFindingNodeProperties()
     other_relationships: OtherRelationships = OtherRelationships(
         [
