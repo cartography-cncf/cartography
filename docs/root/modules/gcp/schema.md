@@ -1769,7 +1769,7 @@ graph LR
     GenericArtifact[GCPArtifactRegistryGenericArtifact]
     ImageLayer[GCPArtifactRegistryImageLayer]
     TrivyFinding[TrivyImageFinding]
-    Package[Package]
+    PackageVersion[PackageVersion]
 
     Project -->|RESOURCE| Repository
     Project -->|RESOURCE| RepositoryImage
@@ -1785,7 +1785,7 @@ graph LR
     RepositoryImage -->|IMAGE| Image
     Image -->|CONTAINS_IMAGE| Image
     TrivyFinding -->|AFFECTS| Image
-    Package -->|DEPLOYED| Image
+    PackageVersion -->|DEPLOYED| Image
 ```
 
 #### GCPArtifactRegistryRepository
@@ -1948,7 +1948,7 @@ Representation of digest-scoped GCP Artifact Registry image content. Multiple `G
 
 - Packages are deployed in GCPArtifactRegistryImages.
     ```
-    (Package)-[:DEPLOYED]->(GCPArtifactRegistryImage)
+    (PackageVersion)-[:DEPLOYED]->(GCPArtifactRegistryImage)
     ```
 
 #### GCPArtifactRegistryImageLayer
@@ -2075,7 +2075,7 @@ ORDER BY vuln.severity DESC
 Find packages deployed in GCP container images with their vulnerabilities:
 
 ```cypher
-MATCH (pkg:Package)-[:DEPLOYED]->(img:GCPArtifactRegistryImage)<-[:IMAGE]-(repo_img:GCPArtifactRegistryRepositoryImage)
+MATCH (pkg:PackageVersion)-[:DEPLOYED]->(img:GCPArtifactRegistryImage)<-[:IMAGE]-(repo_img:GCPArtifactRegistryRepositoryImage)
 OPTIONAL MATCH (vuln:TrivyImageFinding)-[:AFFECTS]->(pkg)
 RETURN repo_img.uri, pkg.name, pkg.installed_version, collect(vuln.name) AS vulnerabilities
 ```
@@ -2084,7 +2084,7 @@ Find critical vulnerabilities in GCP images with available fixes:
 
 ```cypher
 MATCH (vuln:TrivyImageFinding {severity: 'CRITICAL'})-[:AFFECTS]->(img:GCPArtifactRegistryImage)<-[:IMAGE]-(repo_img:GCPArtifactRegistryRepositoryImage)
-MATCH (vuln)-[:AFFECTS]->(pkg:Package)
+MATCH (vuln)-[:AFFECTS]->(pkg:PackageVersion)
 OPTIONAL MATCH (pkg)-[:SHOULD_UPDATE_TO]->(fix:TrivyFix)
 RETURN vuln.name, repo_img.uri, pkg.name, pkg.installed_version, fix.version AS fixed_version
 ```

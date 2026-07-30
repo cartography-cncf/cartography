@@ -16,7 +16,7 @@ _GITHUB_FNMATCH_REPLACEMENTS = """
     ['}', '[}]'],
     ['$', '[$]'],
     ['|', '[|]'],
-    ['[!', '[^'],
+    [substring('[.]', 0, 1) + '!', substring('[.]', 0, 1) + '^'],
     ['**/', '<GLOBSTAR_SLASH>'],
     ['**', '<GLOBSTAR>'],
     ['*', '[^/]*'],

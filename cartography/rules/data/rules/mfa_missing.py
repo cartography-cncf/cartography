@@ -35,8 +35,8 @@ _missing_mfa_ontology = Fact(
         a._ont_email AS email,
         a._ont_firstname AS firstname,
         a._ont_lastname AS lastname,
-        a._ont_source AS status,
-        a._ont_source AS source
+        'no-mfa' AS status,
+        a._ont_source AS ontology_source
     ORDER BY id
     """,
     cypher_visual_query="""
@@ -57,7 +57,7 @@ _missing_mfa_ontology = Fact(
     """,
     asset_label="UserAccount",
     asset_id_field="id",
-    identity_fields=("source", "id"),
+    identity_fields=("ontology_source", "id"),
     maturity=Maturity.EXPERIMENTAL,
 )
 
@@ -115,6 +115,8 @@ class MFARuleOutput(Finding):
     firstname: str | None = None
     lastname: str | None = None
     status: str | None = None
+    ontology_source: str | None = None
+    """Provider the account came from, for the cross-cloud ontology fact."""
 
 
 missing_mfa_rule = Rule(
@@ -134,7 +136,7 @@ missing_mfa_rule = Rule(
         _missing_mfa_aws,
         _missing_mfa_ontology,
     ),
-    version="0.3.1",
+    version="0.3.2",
     frameworks=(
         iso27001_annex_a("8.5"),
         soc2_tsc("CC6.1"),

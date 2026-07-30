@@ -102,6 +102,9 @@
 ```{include} ../modules/keycloak/schema.md
 ```
 
+```{include} ../modules/railway/schema.md
+```
+
 ```{include} ../modules/salesforce/schema.md
 ```
 
