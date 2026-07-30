@@ -506,7 +506,9 @@ class MyRuleOutput(Finding):
 - **Use Optional Fields**: All fields should be optional (`| None = None`) as different facts may return different subsets of data
 - **Match Query Aliases**: Field names should match the aliases used in your `cypher_query` (e.g., if query returns `n.id AS id`, model should have `id` field)
 - **Automatic Handling**:
-  - The `source` field is automatically populated with the module name (e.g., "AWS", "Azure")
+  - The `source` field is automatically populated with the module name (e.g., "AWS", "Azure"). It is
+    reserved: your query must not return a `source` column. For the per-row ontology provider, return
+    `_ont_source AS ontology_source` and declare that field instead.
   - Fields not defined in the model are stored in the `extra` dictionary
   - Number values are automatically coerced to strings
   - Lists, tuples, and sets are joined into comma-separated strings
@@ -564,8 +566,13 @@ Guidelines:
   the `identity_fields` values, so multi-fact rules cannot collide.
 - For shared ontology labels (`:UserAccount`, `:DeviceInstance`, `:Tenant`, ...) a node id is only
   unique per provider: two providers can have distinct nodes with the same `id`. A cross-cloud fact
-  that matches such a label must include a provider discriminator (typically `source` from
-  `_ont_source`) in `identity_fields`, returning it from the query if it is not already aliased.
+  that matches such a label must include a provider discriminator in `identity_fields`, returning
+  `_ont_source` from the query under a name of its own (`... AS ontology_source`) and declaring that
+  field on the output model. Do **not** alias it `source`: see the reserved fields below.
+- `source` and `extra` are **reserved**: they belong to the `Finding` base model and are populated by
+  `Rule.parse_results` (`source` from `fact.module`, `extra` from undeclared columns). A query column
+  of either name would silently overwrite the framework-supplied value, so `Fact.__post_init__`
+  rejects a `cypher_query` that aliases them.
 - `identity_fields` is emitted per fact in the `cartography-rules run --output json` output (on each
   fact result, alongside `fact_id`), so JSON consumers get the contract without importing the
   Python rule registry.
@@ -574,6 +581,18 @@ Guidelines:
   Both are required and, together, form an indexable `(label, id)` anchor so consumers can locate the
   offending node in the graph. `asset_id_field` must exist on the output model and be returned by the
   `cypher_query` (`... AS <name>`); `Fact.__post_init__` and a unit test enforce this.
+- The `cypher_query` **must bind a variable to the label it declares** (`MATCH (k:APIKey) WHERE
+  k:OpenAIApiKey OR k:OpenAIAdminApiKey ...`, not `MATCH (k) WHERE k:OpenAIApiKey ...`) **and must
+  project `asset_id_field` off that same variable** (`k.id AS api_key_id`). Both halves are needed:
+  without the first, the rows a fact returns and the asset it claims can diverge; without the second,
+  a query could match `(u:AWSUser)` and return an `AWSRole` id, so the `(label, id)` pair would name
+  no real node. `Fact.__post_init__` enforces both, and a unit test additionally checks that
+  `asset_label` is a label some node schema actually writes.
+- Only the **final `RETURN`** produces output columns. An alias introduced by an intermediate
+  `WITH x AS y` is query state and does not satisfy `asset_id_field` or `identity_fields`; conversely,
+  a `WITH x AS source` is fine, since the reserved-name check also looks only at the final projection.
+  A column may be named either by `... AS <name>` or by projecting a bare variable carried over from
+  an earlier `WITH`.
 - `identity_fields` is distinct from `asset_id_field`. `asset_id_field` is the anchor id **and**
   drives the distinct-asset failing count shown in compliance metrics; it is not the
   lifecycle-identity contract. The two can differ on purpose: `aws_user_direct_policies` anchors on

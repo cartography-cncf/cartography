@@ -19,7 +19,11 @@ def test_nist_ai_rules_registered_and_metadata():
         "ai_provider_api_key_hygiene": ai_provider_api_key_hygiene,
     }
 
-    expected_versions = {"ai_provider_api_key_hygiene": "0.2.0"}
+    expected_versions = {
+        "ai_provider_api_key_hygiene": "0.2.1",
+        "ai_third_party_app_inventory": "0.1.1",
+        "ai_third_party_app_sensitive_scopes": "0.1.1",
+    }
     for rule_id, rule_obj in expected_rules.items():
         assert rule_id in RULES
         assert RULES[rule_id] is rule_obj
@@ -190,7 +194,10 @@ def test_nist_ai_openai_api_key_query_includes_project_scoped_keys():
         "openai_nist_ai_stale_or_unowned_api_keys"
     )
 
-    assert "MATCH (k)" in fact.cypher_query
+    # Anchored on the shared ontology label so the rows cannot diverge from
+    # the declared asset_label; the provider filter stays in the WHERE clause.
+    assert "MATCH (k:APIKey)" in fact.cypher_query
+    assert "WHERE k:OpenAIApiKey OR k:OpenAIAdminApiKey" in fact.cypher_query
     assert (
         "OPTIONAL MATCH (project:OpenAIProject)-[:RESOURCE]->(k)" in fact.cypher_query
     )

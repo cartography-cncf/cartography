@@ -63,6 +63,14 @@ def run(neo4j_session: neo4j.Session, config: Config) -> None:
         config.update_tag,
         common_job_parameters,
     )
+    # DEPRECATED: Package -> PackageVersion rename migration. Remove in v1.0.0.
+    # Runs before the packages sync so the relabel happens while no version-independent
+    # :Package node exists yet, which keeps the `version IS NOT NULL` guard unambiguous.
+    run_analysis_job(
+        "ontology_package_version_rename_migration.json",
+        neo4j_session,
+        common_job_parameters,
+    )
     cartography.intel.ontology.packages.sync(
         neo4j_session,
         config.update_tag,

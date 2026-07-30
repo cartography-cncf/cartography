@@ -48,6 +48,7 @@ modules/okta/index
 modules/ontology/index
 modules/openai/index
 modules/pagerduty/index
+modules/railway/index
 modules/salesforce/index
 modules/scaleway/index
 modules/semgrep/index

@@ -301,7 +301,7 @@ Represents a dependency of a repository as returned by the Semgrep
 | version | Version of the dependency |
 | ecosystem | Ecosystem of the dependency, e.g. "gomod" for dependencies defined in go.mod files. (see [API docs](https://semgrep.dev/api/v1/docs/#tag/SupplyChainService/operation/semgrep_app.products.sca.handlers.dependency.list_dependencies_conexxion) for full list of options) |
 | type | Canonical package type derived from the ecosystem (e.g. `golang`, `npm`), used to build the `normalized_id`. |
-| normalized_id | Cross-tool package identifier (`{type}\|{name}\|{version}`) used to dedup into the `Package` ontology node. |
+| normalized_id | Cross-tool package identifier (`{type}\|{name}\|{version}`) used to dedup into the `PackageVersion` ontology node. |
 
 
 ### SemgrepGoLibrary
@@ -337,8 +337,8 @@ See [SemgrepDependency](#semgrepdependency) for details.
     - transitivity: A string describing whether the dependency is direct or [transitive](https://en.wikipedia.org/wiki/Transitive_dependency) (e.g. direct, transitive)
     - url: The URL where the dependency is defined (e.g. `https://github.com/org/repo/blob/00000000000000000000000000000000/go.mod#L6`)
 
-- A canonical Package (ontology) is detected as a SemgrepDependency.
+- A canonical PackageVersion (ontology) is detected as a SemgrepDependency.
 
     ```
-    (:Package)-[:DETECTED_AS]->(:SemgrepDependency)
+    (:PackageVersion)-[:DETECTED_AS]->(:SemgrepDependency)
     ```

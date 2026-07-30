@@ -79,10 +79,10 @@ Representation of a package installed in a container image, as detected by Trivy
     (TrivyPackage)<-[AFFECTS]-(TrivyImageFinding)
     ```
 
-- A canonical Package (ontology) is detected as a TrivyPackage.
+- A canonical PackageVersion (ontology) is detected as a TrivyPackage.
 
     ```
-    (Package)-[DETECTED_AS]->(TrivyPackage)
+    (PackageVersion)-[DETECTED_AS]->(TrivyPackage)
     ```
 
 ### TrivyFix
