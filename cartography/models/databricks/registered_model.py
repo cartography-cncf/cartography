@@ -10,6 +10,7 @@ from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import TargetNodeMatcher
+from cartography.models.databricks.extra_labels import DATABRICKS_SECURABLE
 
 
 @dataclass(frozen=True)
@@ -76,7 +77,7 @@ class DatabricksRegisteredModelSchema(CartographyNodeSchema):
         DatabricksRegisteredModelNodeProperties()
     )
     # Registered models are grantable UC securables.
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["DatabricksSecurable"])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([DATABRICKS_SECURABLE])
     sub_resource_relationship: DatabricksRegisteredModelToWorkspaceRel = (
         DatabricksRegisteredModelToWorkspaceRel()
     )

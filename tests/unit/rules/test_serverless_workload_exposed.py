@@ -16,12 +16,12 @@ def test_serverless_workload_exposed_rule_registered() -> None:
 def test_serverless_workload_exposed_rule_shape() -> None:
     assert serverless_workload_exposed.id == "serverless_workload_exposed"
     assert serverless_workload_exposed.output_model is ServerlessWorkloadExposed
-    assert len(serverless_workload_exposed.facts) == 5
+    assert len(serverless_workload_exposed.facts) == 6
 
 
 def test_serverless_workload_exposed_fact_modules() -> None:
     modules = {fact.module for fact in serverless_workload_exposed.facts}
-    assert modules == {Module.AWS, Module.GCP, Module.SCALEWAY}
+    assert modules == {Module.AWS, Module.GCP, Module.SCALEWAY, Module.RAILWAY}
 
 
 def test_serverless_workload_exposed_facts_are_experimental() -> None:

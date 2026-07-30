@@ -69,6 +69,8 @@ aws_guardduty_active_threat = Fact(
       AND coalesce(f.sample, false) = false
     RETURN COUNT(f) AS count
     """,
+    asset_label="AWSGuardDutyFinding",
+    asset_id_field="finding_id",
     identity_fields=("finding_arn",),
     module=Module.AWS,
     maturity=Maturity.EXPERIMENTAL,

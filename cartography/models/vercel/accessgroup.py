@@ -12,6 +12,7 @@ from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import SourceNodeMatcher
 from cartography.models.core.relationships import TargetNodeMatcher
+from cartography.models.vercel.extra_labels import GROUP
 
 
 @dataclass(frozen=True)
@@ -97,7 +98,7 @@ class VercelAccessGroupToProjectRel(CartographyRelSchema):
 class VercelAccessGroupSchema(CartographyNodeSchema):
     label: str = "VercelAccessGroup"
     properties: VercelAccessGroupNodeProperties = VercelAccessGroupNodeProperties()
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["Group"])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([GROUP])
     sub_resource_relationship: VercelAccessGroupToTeamRel = VercelAccessGroupToTeamRel()
     other_relationships: OtherRelationships = OtherRelationships(
         [VercelAccessGroupToUserRel()],

@@ -52,10 +52,13 @@ AWS_LAMBDA_ECR = AnalysisJob(
 AWS_LB_CONTAINER_EXPOSURE = AnalysisJob(
     name="AWS LoadBalancer to ECS Container direct relationship",
     short_name="aws_lb_container_exposure",
-    scope=ScopeById("AWSAccount", "AWS_ID", scope_on="lb"),
+    # Runs in the cross-account analysis phase (after AWS_EC2_ASSET_EXPOSURE_JOBS compute
+    # lb.exposed_internet), so it is unscoped: AWS_ID is no longer in scope there. The
+    # AWSLoadBalancerV2/AWSECSContainer labels keep the global cleanup from touching the
+    # Kubernetes LB->container edges (KubernetesContainer is a :Container but not an :AWSECSContainer).
     statements=(
         AnalysisStatement(
-            match="MATCH (lb:AWSLoadBalancerV2 {scheme: 'internet-facing'})-[:EXPOSE]->(ip:AWSEC2PrivateIp)<-[:PRIVATE_IP_ADDRESS]-(ni:AWSNetworkInterface)<-[:NETWORK_INTERFACE]-(task:AWSECSTask)-[:HAS_CONTAINER]->(c:AWSECSContainer) WHERE ip.public_ip IS NULL",
+            match="MATCH (lb:AWSLoadBalancerV2 {exposed_internet: true})-[:EXPOSE]->(ip:AWSEC2PrivateIp)<-[:PRIVATE_IP_ADDRESS]-(ni:AWSNetworkInterface)<-[:NETWORK_INTERFACE]-(task:AWSECSTask)-[:HAS_CONTAINER]->(c:AWSECSContainer)",
             effects=(
                 AddRelationship(
                     "lb",
@@ -280,10 +283,11 @@ AWS_FOREIGN_ACCOUNTS = AnalysisJob(
     ),
 )
 AWS_ECS_ASSET_EXPOSURE = AnalysisJob(
-    name="AWS ECS internet exposure (deprecated: use ontology LoadBalancer-[:EXPOSE]->Container)",
+    name="AWS ECS internet exposure",
     short_name="aws_ecs_asset_exposure",
     cleanup_iterationsize=1000,
     statements=(
+        # Exposed via an internet-facing load balancer.
         AnalysisStatement(
             match="""
             MATCH (lb:AWSLoadBalancerV2 {exposed_internet: true})-[:EXPOSE]->(ip:AWSEC2PrivateIp)<-[:PRIVATE_IP_ADDRESS]-(ni:AWSNetworkInterface)<-[:NETWORK_INTERFACE]-(task:AWSECSTask)-[:HAS_CONTAINER]->(container:AWSECSContainer)
@@ -297,6 +301,27 @@ AWS_ECS_ASSET_EXPOSURE = AnalysisJob(
                     "container",
                     "exposed_internet_type",
                     "elbv2",
+                    label="AWSECSContainer",
+                ),
+            ),
+        ),
+        # Directly exposed: the ECS task's ENI (any awsvpc-networked task, Fargate or EC2 launch
+        # type) has a public IP and a security group that allows inbound from 0.0.0.0/0. Mirrors the
+        # AWSEC2Instance "direct" exposure statement.
+        AnalysisStatement(
+            match="""
+            MATCH (:AWSIpRange {id: '0.0.0.0/0'})-[:MEMBER_OF_IP_RULE]->(:AWSIpPermissionInbound)-[:MEMBER_OF_EC2_SECURITY_GROUP]->(:AWSEC2SecurityGroup)<-[:MEMBER_OF_EC2_SECURITY_GROUP]-(ni:AWSNetworkInterface)<-[:NETWORK_INTERFACE]-(task:AWSECSTask)-[:HAS_CONTAINER]->(container:AWSECSContainer)
+            WHERE ni.public_ip IS NOT NULL
+            WITH DISTINCT container
+            """,
+            effects=(
+                SetProperty(
+                    "container", "exposed_internet", True, label="AWSECSContainer"
+                ),
+                AddToSet(
+                    "container",
+                    "exposed_internet_type",
+                    "direct",
                     label="AWSECSContainer",
                 ),
             ),

@@ -10,6 +10,7 @@ See: https://docs.aws.amazon.com/cloudfront/latest/APIReference/API_ListDistribu
 
 from dataclasses import dataclass
 
+from cartography.models.aws.extra_labels import LEGACY_CLOUD_FRONT_DISTRIBUTION
 from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeProperties
 from cartography.models.core.nodes import CartographyNodeSchema
@@ -190,7 +191,9 @@ class CloudFrontDistributionSchema(CartographyNodeSchema):
 
     label: str = "AWSCloudFrontDistribution"
     # DEPRECATED: legacy CloudFrontDistribution node label will be removed in v1.0.0.
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["CloudFrontDistribution"])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
+        [LEGACY_CLOUD_FRONT_DISTRIBUTION]
+    )
     properties: CloudFrontDistributionNodeProperties = (
         CloudFrontDistributionNodeProperties()
     )

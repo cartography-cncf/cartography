@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 
+from cartography.models.aws.extra_labels import LEGACY_GLUE_JOB
 from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeProperties
 from cartography.models.core.nodes import CartographyNodeSchema
@@ -62,7 +63,7 @@ class GlueJobToGlueConnectionRel(CartographyRelSchema):
 class GlueJobSchema(CartographyNodeSchema):
     label: str = "AWSGlueJob"
     # DEPRECATED: legacy GlueJob node label will be removed in v1.0.0.
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["GlueJob"])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([LEGACY_GLUE_JOB])
     properties: GlueJobNodeProperties = GlueJobNodeProperties()
     sub_resource_relationship: GlueJobToAWSAccountRel = GlueJobToAWSAccountRel()
     other_relationships: OtherRelationships = OtherRelationships(

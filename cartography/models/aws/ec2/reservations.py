@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 
+from cartography.models.aws.extra_labels import LEGACY_EC2_RESERVATION
 from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeProperties
 from cartography.models.core.nodes import CartographyNodeSchema
@@ -43,7 +44,7 @@ class EC2ReservationToAWSAccountRel(CartographyRelSchema):
 class EC2ReservationSchema(CartographyNodeSchema):
     label: str = "AWSEC2Reservation"
     # DEPRECATED: legacy EC2Reservation node label will be removed in v1.0.0.
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["EC2Reservation"])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([LEGACY_EC2_RESERVATION])
     properties: EC2ReservationNodeProperties = EC2ReservationNodeProperties()
     sub_resource_relationship: EC2ReservationToAWSAccountRel = (
         EC2ReservationToAWSAccountRel()

@@ -1,12 +1,15 @@
 from dataclasses import asdict
+from dataclasses import fields
 from typing import Type
 
 import cartography.models
 from cartography.models.core.nodes import CartographyNodeSchema
 from cartography.models.ontology.mapping import get_deprecated_ontology_index_properties
+from cartography.models.ontology.mapping import ONTOLOGY_CANONICAL_SCHEMAS
 from cartography.models.ontology.mapping import ONTOLOGY_MODELS
 from cartography.models.ontology.mapping import ONTOLOGY_NODES_MAPPING
 from cartography.models.ontology.mapping import SEMANTIC_LABELS_MAPPING
+from cartography.models.ontology.mapping.data.cves import CVES_ONTOLOGY_MAPPING
 from cartography.models.ontology.mapping.data.tenants import TENANTS_ONTOLOGY_MAPPING
 from cartography.sync import TOP_LEVEL_MODULES
 from tests.utils import load_models
@@ -67,25 +70,20 @@ def _get_models_with_properties_for_label(
         if not instance.extra_node_labels:
             continue
         instance_extra_labels = {
-            label if isinstance(label, str) else label.label
-            for label in instance.extra_node_labels.labels
+            label.label for label in instance.extra_node_labels.labels
         }
         if node_label in instance_extra_labels:
             all_models.append(node_class)
 
     # Collect all extra_node_labels from primary models
     # Need to instantiate to get the actual value (property returns None on class if not defined)
-    # Extract label strings from both string labels and ConditionalNodeLabel objects
+    # Extract the declared extra label names.
     extra_labels: set[str] = set()
     for model_class in primary_models:
         model_instance = model_class()
         if model_instance.extra_node_labels:
             for label in model_instance.extra_node_labels.labels:
-                if isinstance(label, str):
-                    extra_labels.add(label)
-                else:
-                    # ConditionalNodeLabel - extract the label attribute
-                    extra_labels.add(label.label)
+                extra_labels.add(label.label)
 
     # Find composite schemas that target these extra labels
     for extra_label in extra_labels:
@@ -93,6 +91,32 @@ def _get_models_with_properties_for_label(
         all_models.extend(composite_models)
 
     return all_models
+
+
+def test_extra_label_condition_fields_exist_on_node_schema() -> None:
+    violations: list[str] = []
+
+    for _, node_class in MODELS:
+        if not issubclass(node_class, CartographyNodeSchema):
+            continue
+        node_schema = node_class()
+        if not node_schema.extra_node_labels:
+            continue
+        property_names = {
+            model_field.name for model_field in fields(node_schema.properties)
+        }
+        for extra_label in node_schema.extra_node_labels.labels:
+            condition_fields = {field_name for field_name, _ in extra_label.conditions}
+            missing_fields = condition_fields - property_names
+            if missing_fields:
+                violations.append(
+                    f"{node_class.__name__} uses {extra_label.label} conditions "
+                    f"for missing fields {sorted(missing_fields)}"
+                )
+
+    assert not violations, "Invalid extra-label conditions:\n  - " + "\n  - ".join(
+        sorted(violations)
+    )
 
 
 def test_ontology_mapping_modules():
@@ -120,7 +144,7 @@ def test_ontology_primary_labels_are_reserved_for_ontology_models():
     # Ontology primary labels (e.g. Package, UserAccount) must only be owned by
     # ontology model classes. Reusing them in provider/raw schemas causes
     # collisions in ontology matching and migration logic.
-    ontology_labels = {model().label for model in ONTOLOGY_MODELS.values()}
+    ontology_labels = {model().label for model in ONTOLOGY_CANONICAL_SCHEMAS}
     violations: set[str] = set()
 
     for _, node_class in MODELS:
@@ -350,3 +374,31 @@ def test_aws_account_status_ontology_map_covers_all_states():
         "PENDING_CLOSURE": "pending_deletion",
         "CLOSED": "closed",
     }
+
+
+def test_uppercase_provider_cve_severities_are_canonicalized():
+    # Arrange
+    cvss_map = {
+        "NONE": "info",
+        "LOW": "low",
+        "MEDIUM": "medium",
+        "HIGH": "high",
+        "CRITICAL": "critical",
+    }
+    # AWS Inspector additionally emits INFORMATIONAL (and UNTRIAGED, which is left
+    # unmapped on purpose); Semgrep SCA only emits the CVSS bands.
+    provider_expectations = {
+        "aws": ("AWSInspectorFinding", {**cvss_map, "INFORMATIONAL": "info"}),
+        "semgrep": ("SemgrepSCAFinding", cvss_map),
+    }
+
+    for provider, (node_label, expected_map) in provider_expectations.items():
+        mapping = CVES_ONTOLOGY_MAPPING[provider]
+        node = next(node for node in mapping.nodes if node.node_label == node_label)
+        severity = next(
+            field for field in node.fields if field.ontology_field == "base_severity"
+        )
+
+        # Act and assert
+        assert severity.special_handling == "mapping"
+        assert severity.extra["map"] == expected_map

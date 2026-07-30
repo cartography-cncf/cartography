@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 
+from cartography.models.aws.extra_labels import LEGACY_GLUE_CONNECTION
 from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeProperties
 from cartography.models.core.nodes import CartographyNodeSchema
@@ -47,7 +48,7 @@ class GlueConnectionToAWSAccountRel(CartographyRelSchema):
 class GlueConnectionSchema(CartographyNodeSchema):
     label: str = "AWSGlueConnection"
     # DEPRECATED: legacy GlueConnection node label will be removed in v1.0.0.
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["GlueConnection"])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([LEGACY_GLUE_CONNECTION])
     properties: GlueConnectionNodeProperties = GlueConnectionNodeProperties()
     sub_resource_relationship: GlueConnectionToAWSAccountRel = (
         GlueConnectionToAWSAccountRel()

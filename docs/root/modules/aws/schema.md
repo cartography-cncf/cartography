@@ -2857,7 +2857,7 @@ For multi-architecture images, Cartography creates AWSECRImage nodes for the man
 
 - Software packages are a part of ECR Images
     ```
-    (:Package)-[:DEPLOYED]->(:AWSECRImage)
+    (:PackageVersion)-[:DEPLOYED]->(:AWSECRImage)
     ```
 
 - An AWSECRImage references its layers (only applies to `type="image"` nodes)
@@ -3052,33 +3052,37 @@ Representation of an individual Docker image layer discovered while processing E
     ```
 
 
-### Package
+### PackageVersion
 
-Representation of a software package, as found by an AWS ECR vulnerability scan.
+Representation of a specific version of a software package, as found by an AWS ECR vulnerability
+scan. This is the canonical ontology node deduplicated across scanners; see the
+[ontology schema](https://github.com/cartography-cncf/cartography/blob/master/docs/root/modules/ontology/schema.md)
+for the full field list.
 
 | Field | Description |
 |-------|-------------|
-| **id** | Concatenation of ``{version}\|{name}`` |
-| version | The version of the package, includes the Linux distro that it was built for |
+| **id** | Normalized ID for cross-tool matching (format: ``{type}\|{namespace/}{name}\|{version}``) |
+| version | The version of the package |
 | name | The name of the package |
+| type | Package ecosystem type (e.g., npm, pypi, deb) |
 
 #### Relationships
 
-- Software packages are a part of ECR Images
+- Software package versions are a part of ECR Images
     ```
-    (:Package)-[:DEPLOYED]->(:AWSECRImage)
+    (:PackageVersion)-[:DEPLOYED]->(:AWSECRImage)
     ```
 
-- A TrivyImageFinding is a vulnerability that affects a software Package.
+- A TrivyImageFinding is a vulnerability that affects a software PackageVersion.
 
     ```
-    (:TrivyImageFinding)-[:AFFECTS]->(:Package)
+    (:TrivyImageFinding)-[:AFFECTS]->(:PackageVersion)
     ```
 
 - We should update a vulnerable package to a fixed version described by a TrivyFix.
 
     ```
-    (:Package)-[:SHOULD_UPDATE_TO]->(:TrivyFix)
+    (:PackageVersion)-[:SHOULD_UPDATE_TO]->(:TrivyFix)
     ```
 
 
@@ -3673,9 +3677,9 @@ The `EXPOSE` relationship holds the protocol, port and TargetGroupArn the load b
     (AWSLoadBalancerV2)-[ELBV2_LISTENER]->(AWSELBV2Listener)
     ```
 
-- Internet-facing AWSLoadBalancerV2's can expose private ECS containers. Set by an analysis job.
+- Internet-exposed AWSLoadBalancerV2's (those with `exposed_internet` set to `True`) expose their backing ECS containers. Set by the `aws_lb_container_exposure` analysis job.
     ```
-    (AWSLoadBalancerV2)-[EXPOSE]->(AWSECSContainer)
+    (AWSLoadBalancerV2)-[EXPOSE {exposure_type: 'via_lb_only'}]->(AWSECSContainer)
     ```
 
 - Internet-facing AWSLoadBalancerV2's can expose Kubernetes pods and containers. Set by the `k8s_lb_exposure` analysis job.
@@ -5529,7 +5533,8 @@ Representation of an AWS ECS [Container](https://docs.aws.amazon.com/AmazonECS/l
 | memory | The hard limit (in MiB) of memory set for the container. |
 | memory\_reservation | The soft limit (in MiB) of memory set for the container. |
 | gpu\_ids | The IDs of each GPU assigned to the container. |
-| exposed\_internet | Set to `True` if this container is exposed to the internet via an internet-facing load balancer. Set by the `AWS_ECS_ASSET_EXPOSURE` analysis job in [cartography/analysis/aws/analysis.py](https://github.com/cartography-cncf/cartography/blob/master/cartography/analysis/aws/analysis.py). |
+| exposed\_internet | Set to `True` if this container is reachable from the internet. Set by the `aws_ecs_asset_exposure` analysis job in [cartography/analysis/aws/analysis.py](https://github.com/cartography-cncf/cartography/blob/master/cartography/analysis/aws/analysis.py). |
+| exposed\_internet\_type | List of the ways this container is reachable from the internet: `elbv2` (behind an internet-facing load balancer) and/or `direct` (the ECS task's network interface has a public IP and a security group allowing inbound from `0.0.0.0/0`). Set by the `aws_ecs_asset_exposure` analysis job. |
 
 #### Relationships
 

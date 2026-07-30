@@ -9,6 +9,7 @@ from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import TargetNodeMatcher
+from cartography.models.ontology.labels import IDENTITY_PROVIDER
 
 
 @dataclass(frozen=True)
@@ -52,7 +53,7 @@ class AWSSAMLProviderToAWSAccountRel(CartographyRelSchema):
 class AWSSAMLProviderSchema(CartographyNodeSchema):
     label: str = "AWSSAMLProvider"
     properties: AWSSAMLProviderNodeProperties = AWSSAMLProviderNodeProperties()
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["IdentityProvider"])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([IDENTITY_PROVIDER])
     sub_resource_relationship: AWSSAMLProviderToAWSAccountRel = (
         AWSSAMLProviderToAWSAccountRel()
     )

@@ -11,6 +11,7 @@ from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import TargetNodeMatcher
+from cartography.models.ontology.labels import SECRET
 
 logger = logging.getLogger(__name__)
 
@@ -68,7 +69,7 @@ class AzureKeyVaultSecretToSubscriptionRel(CartographyRelSchema):
 class AzureKeyVaultSecretSchema(CartographyNodeSchema):
     label: str = "AzureKeyVaultSecret"
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
-        ["Secret"]
+        [SECRET]
     )  # Secret label is used for ontology mapping
     properties: AzureKeyVaultSecretProperties = AzureKeyVaultSecretProperties()
     other_relationships: OtherRelationships = OtherRelationships(

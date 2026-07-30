@@ -216,6 +216,40 @@ github_mapping = OntologyMapping(
     ],
 )
 
+# Railway has two token kinds: account/workspace-scoped API tokens and project tokens that
+# are pinned to a single environment. Neither exposes a last-used timestamp.
+railway_mapping = OntologyMapping(
+    module_name="railway",
+    nodes=[
+        OntologyNodeMapping(
+            node_label="RailwayApiToken",
+            fields=[
+                OntologyFieldMapping(
+                    ontology_field="name", node_field="name", required=True
+                ),
+                OntologyFieldMapping(
+                    ontology_field="expires_at", node_field="expires_at"
+                ),
+                # created_at: Not available on Railway's ApiToken type.
+                # last_used_at: Not available.
+            ],
+        ),
+        OntologyNodeMapping(
+            node_label="RailwayProjectToken",
+            fields=[
+                OntologyFieldMapping(
+                    ontology_field="name", node_field="name", required=True
+                ),
+                OntologyFieldMapping(
+                    ontology_field="created_at", node_field="created_at"
+                ),
+                # expires_at: project tokens do not expire.
+                # last_used_at: Not available.
+            ],
+        ),
+    ],
+)
+
 APIKEYS_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     "anthropic": anthropic_mapping,
     "github": github_mapping,
@@ -225,4 +259,5 @@ APIKEYS_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     "subimage": subimage_mapping,
     "aws": aws_mapping,
     "gcp": gcp_mapping,
+    "railway": railway_mapping,
 }

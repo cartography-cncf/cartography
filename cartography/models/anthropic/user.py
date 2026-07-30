@@ -9,6 +9,7 @@ from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import TargetNodeMatcher
+from cartography.models.ontology.labels import USER_ACCOUNT
 
 
 @dataclass(frozen=True)
@@ -44,7 +45,7 @@ class AnthropicUserToOrganizationRel(CartographyRelSchema):
 class AnthropicUserSchema(CartographyNodeSchema):
     label: str = "AnthropicUser"
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
-        ["UserAccount"]
+        [USER_ACCOUNT]
     )  # UserAccount label is used for ontology mapping
     properties: AnthropicUserNodeProperties = AnthropicUserNodeProperties()
     sub_resource_relationship: AnthropicUserToOrganizationRel = (

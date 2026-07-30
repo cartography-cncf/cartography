@@ -559,6 +559,34 @@ vercel_mapping = OntologyMapping(
     ],
 )
 
+# Railway has two tenancy levels, like GCP's Organization/Project: a workspace owns
+# projects, and every resource is scoped to a project.
+railway_mapping = OntologyMapping(
+    module_name="railway",
+    nodes=[
+        OntologyNodeMapping(
+            node_label="RailwayWorkspace",
+            fields=[
+                OntologyFieldMapping(
+                    ontology_field="name", node_field="name", required=True
+                ),
+                # status: Not available
+                # domain: Not available
+            ],
+        ),
+        OntologyNodeMapping(
+            node_label="RailwayProject",
+            fields=[
+                OntologyFieldMapping(
+                    ontology_field="name", node_field="name", required=True
+                ),
+                # status: Not available
+                # domain: Not available
+            ],
+        ),
+    ],
+)
+
 circleci_mapping = OntologyMapping(
     module_name="circleci",
     nodes=[
@@ -599,6 +627,7 @@ TENANTS_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     "socketdev": socketdev_mapping,
     "workos": workos_tenants_mapping,
     "vercel": vercel_mapping,
+    "railway": railway_mapping,
     "databricks": OntologyMapping(
         module_name="databricks",
         nodes=[

@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 
+from cartography.models.aws.extra_labels import LEGACY_EC2_PRIVATE_IP
 from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeProperties
 from cartography.models.core.nodes import CartographyNodeSchema
@@ -71,7 +72,7 @@ class EC2PrivateIpNetworkInterfaceSchema(CartographyNodeSchema):
 
     label: str = "AWSEC2PrivateIp"
     # DEPRECATED: legacy EC2PrivateIp node label will be removed in v1.0.0.
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["EC2PrivateIp"])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([LEGACY_EC2_PRIVATE_IP])
     properties: EC2PrivateIpNetworkInterfaceNodeProperties = (
         EC2PrivateIpNetworkInterfaceNodeProperties()
     )

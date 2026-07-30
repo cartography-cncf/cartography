@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 
+from cartography.models.aws.extra_labels import LEGACY_COGNITO_USER_POOL
 from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeProperties
 from cartography.models.core.nodes import CartographyNodeSchema
@@ -43,7 +44,7 @@ class CognitoUserPoolToAWSAccountRel(CartographyRelSchema):
 class CognitoUserPoolSchema(CartographyNodeSchema):
     label: str = "AWSCognitoUserPool"
     # DEPRECATED: legacy CognitoUserPool node label will be removed in v1.0.0.
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["CognitoUserPool"])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([LEGACY_COGNITO_USER_POOL])
     properties: CognitoUserPoolNodeProperties = CognitoUserPoolNodeProperties()
     sub_resource_relationship: CognitoUserPoolToAWSAccountRel = (
         CognitoUserPoolToAWSAccountRel()

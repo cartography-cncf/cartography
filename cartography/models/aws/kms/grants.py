@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 
+from cartography.models.aws.extra_labels import LEGACY_KMS_GRANT
 from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeProperties
 from cartography.models.core.nodes import CartographyNodeSchema
@@ -60,7 +61,7 @@ class KMSGrantToAWSAccountRel(CartographyRelSchema):
 class KMSGrantSchema(CartographyNodeSchema):
     label: str = "AWSKMSGrant"
     # DEPRECATED: legacy KMSGrant node label will be removed in v1.0.0.
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["KMSGrant"])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([LEGACY_KMS_GRANT])
     properties: KMSGrantNodeProperties = KMSGrantNodeProperties()
     sub_resource_relationship: KMSGrantToAWSAccountRel = KMSGrantToAWSAccountRel()
     other_relationships: OtherRelationships = OtherRelationships(

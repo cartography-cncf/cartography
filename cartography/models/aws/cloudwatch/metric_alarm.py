@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 
+from cartography.models.aws.extra_labels import LEGACY_CLOUD_WATCH_METRIC_ALARM
 from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeProperties
 from cartography.models.core.nodes import CartographyNodeSchema
@@ -47,7 +48,9 @@ class CloudWatchMetricAlarmToAWSAccountRel(CartographyRelSchema):
 class CloudWatchMetricAlarmSchema(CartographyNodeSchema):
     label: str = "AWSCloudWatchMetricAlarm"
     # DEPRECATED: legacy CloudWatchMetricAlarm node label will be removed in v1.0.0.
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["CloudWatchMetricAlarm"])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
+        [LEGACY_CLOUD_WATCH_METRIC_ALARM]
+    )
     properties: CloudWatchMetricAlarmNodeProperties = (
         CloudWatchMetricAlarmNodeProperties()
     )

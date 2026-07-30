@@ -1,9 +1,13 @@
 from dataclasses import dataclass
 
+from cartography.models.aibom.extra_labels import AI_AGENT
+from cartography.models.aibom.extra_labels import AI_EMBEDDING
+from cartography.models.aibom.extra_labels import AI_MEMORY
+from cartography.models.aibom.extra_labels import AI_PROMPT
+from cartography.models.aibom.extra_labels import AI_TOOL
 from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeProperties
 from cartography.models.core.nodes import CartographyNodeSchema
-from cartography.models.core.nodes import ConditionalNodeLabel
 from cartography.models.core.nodes import ExtraNodeLabels
 from cartography.models.core.relationships import CartographyRelProperties
 from cartography.models.core.relationships import CartographyRelSchema
@@ -11,6 +15,7 @@ from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import TargetNodeMatcher
+from cartography.models.ontology.labels import AI_MODEL
 
 
 @dataclass(frozen=True)
@@ -168,15 +173,12 @@ class AIBOMComponentSchema(CartographyNodeSchema):
     scoped_cleanup: bool = False
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
         [
-            ConditionalNodeLabel(label="AIAgent", conditions={"category": "agent"}),
-            ConditionalNodeLabel(label="AIModel", conditions={"category": "model"}),
-            ConditionalNodeLabel(label="AITool", conditions={"category": "tool"}),
-            ConditionalNodeLabel(label="AIMemory", conditions={"category": "memory"}),
-            ConditionalNodeLabel(
-                label="AIEmbedding",
-                conditions={"category": "embedding"},
-            ),
-            ConditionalNodeLabel(label="AIPrompt", conditions={"category": "prompt"}),
+            AI_AGENT.when(category="agent"),
+            AI_MODEL.when(category="model"),
+            AI_TOOL.when(category="tool"),
+            AI_MEMORY.when(category="memory"),
+            AI_EMBEDDING.when(category="embedding"),
+            AI_PROMPT.when(category="prompt"),
         ],
     )
     properties: AIBOMComponentNodeProperties = AIBOMComponentNodeProperties()

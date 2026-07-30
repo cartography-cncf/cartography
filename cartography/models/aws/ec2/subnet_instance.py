@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 
+from cartography.models.aws.extra_labels import LEGACY_EC2_SUBNET
 from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeProperties
 from cartography.models.core.nodes import CartographyNodeSchema
@@ -10,6 +11,7 @@ from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import TargetNodeMatcher
+from cartography.models.ontology.labels import SUBNET
 
 
 @dataclass(frozen=True)
@@ -68,7 +70,7 @@ class EC2SubnetInstanceSchema(CartographyNodeSchema):
     label: str = "AWSEC2Subnet"
     properties: EC2SubnetInstanceNodeProperties = EC2SubnetInstanceNodeProperties()
     # DEPRECATED: legacy EC2Subnet node label will be removed in v1.0.0.
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["EC2Subnet", "Subnet"])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([LEGACY_EC2_SUBNET, SUBNET])
     sub_resource_relationship: EC2SubnetToAWSAccountRel = EC2SubnetToAWSAccountRel()
     other_relationships: OtherRelationships = OtherRelationships(
         [

@@ -3,7 +3,6 @@ from dataclasses import dataclass
 from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeProperties
 from cartography.models.core.nodes import CartographyNodeSchema
-from cartography.models.core.nodes import ConditionalNodeLabel
 from cartography.models.core.nodes import ExtraNodeLabels
 from cartography.models.core.relationships import CartographyRelProperties
 from cartography.models.core.relationships import CartographyRelSchema
@@ -11,6 +10,8 @@ from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import TargetNodeMatcher
+from cartography.models.ontology.labels import CVE
+from cartography.models.ontology.labels import SECURITY_ISSUE
 
 
 @dataclass(frozen=True)
@@ -176,11 +177,9 @@ class SemgrepSCAFindingSchema(CartographyNodeSchema):
     # NETWORK_REACHABILITY -> SecurityIssue).
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
         [
-            ConditionalNodeLabel(
-                label="SecurityIssue", conditions={"has_cve": "false"}
-            ),
-            ConditionalNodeLabel(label="CVE", conditions={"has_cve": "true"}),
-        ]
+            SECURITY_ISSUE.when(has_cve="false"),
+            CVE.when(has_cve="true"),
+        ],
     )
     properties: SemgrepSCAFindingNodeProperties = SemgrepSCAFindingNodeProperties()
     sub_resource_relationship: SemgrepSCAFindingToSemgrepDeploymentRel = (

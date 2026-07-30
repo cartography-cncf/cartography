@@ -90,6 +90,7 @@ _aws_account_manipulation_permissions = Fact(
     AND principal.name <> 'OrganizationAccountAccessRole'
     RETURN COUNT(principal) AS count
     """,
+    asset_label="AWSPrincipal",
     asset_id_field="principal_identifier",
     identity_fields=("account_id", "principal_identifier", "policy_id"),
     module=Module.AWS,
@@ -179,6 +180,7 @@ _gcp_account_manipulation_permissions = Fact(
     MATCH (principal:GCPPrincipal)
     RETURN COUNT(principal) AS count
     """,
+    asset_label="GCPPrincipal",
     asset_id_field="principal_identifier",
     identity_fields=("account_id", "principal_identifier", "policy_name"),
     module=Module.GCP,
@@ -204,9 +206,10 @@ _azure_account_manipulation_permissions = Fact(
     cypher_query="""
     MATCH (sub:AzureSubscription)-[:RESOURCE]->(ra:AzureRoleAssignment)
     MATCH (ra)-[:ROLE_ASSIGNED]->(rd:AzureRoleDefinition)-[:HAS_PERMISSIONS]->(perm:AzurePermissions)
-    MATCH (principal)-[:HAS_ROLE_ASSIGNMENT]->(ra)
-    WHERE any(label IN labels(principal)
-              WHERE label IN ['EntraUser', 'EntraGroup', 'EntraServicePrincipal'])
+    // EntraPrincipal is the umbrella label carried by EntraUser, EntraGroup and
+    // EntraServicePrincipal. Matching it directly keeps the returned rows aligned
+    // with the declared asset_label and lets Neo4j use the label index.
+    MATCH (principal:EntraPrincipal)-[:HAS_ROLE_ASSIGNMENT]->(ra)
     // For each literal RBAC pattern, treat each action / not_action as a
     // case-insensitive glob: replace `.` with the regex char class `[.]`
     // (so dots are literal), then `*` with `.*`. A `*` anywhere in the
@@ -265,14 +268,12 @@ _azure_account_manipulation_permissions = Fact(
     cypher_visual_query="""
     MATCH p1=(sub:AzureSubscription)-[:RESOURCE]->(ra:AzureRoleAssignment)
     MATCH p2=(ra)-[:ROLE_ASSIGNED]->(rd:AzureRoleDefinition)-[:HAS_PERMISSIONS]->(perm:AzurePermissions)
-    MATCH p3=(principal)-[:HAS_ROLE_ASSIGNMENT]->(ra)
-    WHERE any(label IN labels(principal)
-              WHERE label IN ['EntraUser', 'EntraGroup', 'EntraServicePrincipal'])
-      // Mirror the finding: at least one searched pattern is granted by
-      // actions and is NOT shadowed by not_actions (Contributor-style
-      // not_actions like `Microsoft.Authorization/*/Write` correctly drop
-      // the matching patterns from the visual too).
-      AND ANY(p IN [
+    MATCH p3=(principal:EntraPrincipal)-[:HAS_ROLE_ASSIGNMENT]->(ra)
+    // Mirror the finding: at least one searched pattern is granted by
+    // actions and is NOT shadowed by not_actions (Contributor-style
+    // not_actions like `Microsoft.Authorization/*/Write` correctly drop
+    // the matching patterns from the visual too).
+    WHERE ANY(p IN [
             'Microsoft.Authorization/roleAssignments/write',
             'Microsoft.Authorization/roleAssignments/delete',
             'Microsoft.Authorization/roleDefinitions/write',
@@ -290,6 +291,7 @@ _azure_account_manipulation_permissions = Fact(
     MATCH (ra:AzureRoleAssignment)
     RETURN COUNT(ra) AS count
     """,
+    asset_label="EntraPrincipal",
     asset_id_field="principal_identifier",
     identity_fields=("account_id", "principal_identifier", "policy_id"),
     module=Module.AZURE,
@@ -329,7 +331,7 @@ identity_administration_privileges = Rule(
         "stride:spoofing",
         "stride:tampering",
     ),
-    version="0.1.0",
+    version="0.1.1",
     frameworks=(
         iso27001_annex_a("5.18"),
         iso27001_annex_a("8.2"),

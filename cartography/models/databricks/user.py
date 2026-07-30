@@ -10,6 +10,7 @@ from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import TargetNodeMatcher
+from cartography.models.ontology.labels import USER_ACCOUNT
 
 
 @dataclass(frozen=True)
@@ -66,7 +67,7 @@ class DatabricksUserToGroupRel(CartographyRelSchema):
 class DatabricksUserSchema(CartographyNodeSchema):
     label: str = "DatabricksUser"
     properties: DatabricksUserNodeProperties = DatabricksUserNodeProperties()
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["UserAccount"])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([USER_ACCOUNT])
     sub_resource_relationship: DatabricksUserToWorkspaceRel = (
         DatabricksUserToWorkspaceRel()
     )

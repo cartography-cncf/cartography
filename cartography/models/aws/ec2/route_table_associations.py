@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 
+from cartography.models.aws.extra_labels import LEGACY_EC2_ROUTE_TABLE_ASSOCIATION
 from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeProperties
 from cartography.models.core.nodes import CartographyNodeSchema
@@ -85,7 +86,9 @@ class RouteTableAssociationToIgwRel(CartographyRelSchema):
 class RouteTableAssociationSchema(CartographyNodeSchema):
     label: str = "AWSEC2RouteTableAssociation"
     # DEPRECATED: legacy EC2RouteTableAssociation node label will be removed in v1.0.0.
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["EC2RouteTableAssociation"])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
+        [LEGACY_EC2_ROUTE_TABLE_ASSOCIATION]
+    )
     properties: RouteTableAssociationNodeProperties = (
         RouteTableAssociationNodeProperties()
     )

@@ -10,6 +10,7 @@ from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import TargetNodeMatcher
+from cartography.models.ontology.labels import PERMISSION_ROLE
 
 
 @dataclass(frozen=True)
@@ -69,7 +70,7 @@ class KubernetesRoleToClusterRel(CartographyRelSchema):
 class KubernetesRoleSchema(CartographyNodeSchema):
     label: str = "KubernetesRole"
     properties: KubernetesRoleNodeProperties = KubernetesRoleNodeProperties()
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["PermissionRole"])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([PERMISSION_ROLE])
     sub_resource_relationship: KubernetesRoleToClusterRel = KubernetesRoleToClusterRel()
     other_relationships: OtherRelationships = OtherRelationships(
         [

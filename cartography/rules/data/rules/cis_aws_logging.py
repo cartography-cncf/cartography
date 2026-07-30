@@ -72,6 +72,7 @@ _aws_cloudtrail_not_multi_region = Fact(
     MATCH (trail:AWSCloudTrailTrail)
     RETURN COUNT(trail) AS count
     """,
+    asset_label="AWSCloudTrailTrail",
     asset_id_field="trail_arn",
     identity_fields=("trail_arn",),
     module=Module.AWS,
@@ -141,6 +142,7 @@ _aws_cloudtrail_log_validation_disabled = Fact(
     MATCH (trail:AWSCloudTrailTrail)
     RETURN COUNT(trail) AS count
     """,
+    asset_label="AWSCloudTrailTrail",
     asset_id_field="trail_arn",
     identity_fields=("trail_arn",),
     module=Module.AWS,
@@ -213,6 +215,7 @@ _aws_cloudtrail_bucket_access_logging_disabled = Fact(
     MATCH (:AWSCloudTrailTrail)-[:LOGS_TO]->(bucket:AWSS3Bucket)
     RETURN COUNT(DISTINCT bucket) AS count
     """,
+    asset_label="AWSS3Bucket",
     asset_id_field="bucket_id",
     identity_fields=("bucket_id",),
     module=Module.AWS,
@@ -281,6 +284,7 @@ _aws_cloudtrail_not_encrypted = Fact(
     MATCH (trail:AWSCloudTrailTrail)
     RETURN COUNT(trail) AS count
     """,
+    asset_label="AWSCloudTrailTrail",
     asset_id_field="trail_arn",
     identity_fields=("trail_arn",),
     module=Module.AWS,

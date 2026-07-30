@@ -1,0 +1,87 @@
+from dataclasses import dataclass
+
+from cartography.models.core.common import PropertyRef
+from cartography.models.core.nodes import CartographyNodeProperties
+from cartography.models.core.nodes import CartographyNodeSchema
+from cartography.models.core.relationships import CartographyRelProperties
+from cartography.models.core.relationships import CartographyRelSchema
+from cartography.models.core.relationships import LinkDirection
+from cartography.models.core.relationships import make_target_node_matcher
+from cartography.models.core.relationships import OtherRelationships
+from cartography.models.core.relationships import TargetNodeMatcher
+
+
+@dataclass(frozen=True)
+class RailwayServiceDomainNodeProperties(CartographyNodeProperties):
+    id: PropertyRef = PropertyRef("id")
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    # Exposure signal: a Railway-generated domain is always internet-facing.
+    domain: PropertyRef = PropertyRef("domain", extra_index=True)
+    suffix: PropertyRef = PropertyRef("suffix")
+    target_port: PropertyRef = PropertyRef("targetPort")
+    sync_status: PropertyRef = PropertyRef("syncStatus")
+    service_id: PropertyRef = PropertyRef("service_id")
+    environment_id: PropertyRef = PropertyRef("environment_id")
+    created_at: PropertyRef = PropertyRef("createdAt")
+
+
+@dataclass(frozen=True)
+class RailwayServiceDomainToProjectRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+# (:RailwayProject)-[:RESOURCE]->(:RailwayServiceDomain)
+class RailwayServiceDomainToProjectRel(CartographyRelSchema):
+    target_node_label: str = "RailwayProject"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"id": PropertyRef("PROJECT_ID", set_in_kwargs=True)},
+    )
+    direction: LinkDirection = LinkDirection.INWARD
+    rel_label: str = "RESOURCE"
+    properties: RailwayServiceDomainToProjectRelProperties = (
+        RailwayServiceDomainToProjectRelProperties()
+    )
+
+
+@dataclass(frozen=True)
+class RailwayServiceDomainToServiceInstanceRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+# (:RailwayServiceInstance)-[:EXPOSE]->(:RailwayServiceDomain)
+#
+# Keyed by the (service, environment) pair, since that is what the Railway payload carries.
+# The matcher uses exposed_* rather than the plain ids: transform() leaves those null unless
+# the domain's syncStatus says it is actually serving, so a domain that is still CREATING or
+# on its way out gets no EXPOSE edge and cannot inflate the attack surface.
+class RailwayServiceDomainToServiceInstanceRel(CartographyRelSchema):
+    target_node_label: str = "RailwayServiceInstance"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {
+            "service_id": PropertyRef("exposed_service_id"),
+            "environment_id": PropertyRef("exposed_environment_id"),
+        },
+    )
+    direction: LinkDirection = LinkDirection.INWARD
+    rel_label: str = "EXPOSE"
+    properties: RailwayServiceDomainToServiceInstanceRelProperties = (
+        RailwayServiceDomainToServiceInstanceRelProperties()
+    )
+
+
+@dataclass(frozen=True)
+class RailwayServiceDomainSchema(CartographyNodeSchema):
+    label: str = "RailwayServiceDomain"
+    properties: RailwayServiceDomainNodeProperties = (
+        RailwayServiceDomainNodeProperties()
+    )
+    sub_resource_relationship: RailwayServiceDomainToProjectRel = (
+        RailwayServiceDomainToProjectRel()
+    )
+    other_relationships: OtherRelationships = OtherRelationships(
+        [
+            RailwayServiceDomainToServiceInstanceRel(),
+        ],
+    )
