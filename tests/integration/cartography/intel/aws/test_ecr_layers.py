@@ -279,6 +279,41 @@ def test_sync_with_layers(
         == expected_tail_rels
     )
 
+    # A second inventory pass observes the same immutable digest. Layer sync
+    # must refresh the existing closure without another ECR manifest/config pull.
+    second_update_tag = TEST_UPDATE_TAG + 1
+    cartography.intel.aws.ecr.sync(
+        neo4j_session,
+        boto3_session,
+        [TEST_REGION],
+        TEST_ACCOUNT_ID,
+        second_update_tag,
+        {"UPDATE_TAG": second_update_tag, "AWS_ID": TEST_ACCOUNT_ID},
+    )
+    manifest_fetch_count = mock_batch_get_manifest.call_count
+    sync_ecr_layers(
+        neo4j_session,
+        boto3_session,
+        [TEST_REGION],
+        TEST_ACCOUNT_ID,
+        second_update_tag,
+        {"UPDATE_TAG": second_update_tag, "AWS_ID": TEST_ACCOUNT_ID},
+    )
+
+    assert mock_batch_get_manifest.call_count == manifest_fetch_count
+    stale_rows = neo4j_session.run(
+        """
+        MATCH (img:AWSECRImage {id: $digest})-[rel:HAS_LAYER|HEAD|TAIL]->(layer)
+        WHERE img.lastupdated <> $update_tag
+           OR rel.lastupdated <> $update_tag
+           OR layer.lastupdated <> $update_tag
+        RETURN img, rel, layer
+        """,
+        digest="sha256:0000000000000000000000000000000000000000000000000000000000000000",
+        update_tag=second_update_tag,
+    ).data()
+    assert stale_rows == []
+
 
 def test_shared_layers_preserve_multiple_next_edges():
     """Test that shared base layers preserve NEXT edges to different successor layers."""
@@ -417,6 +452,14 @@ def test_sync_built_from_relationship(
         TEST_UPDATE_TAG,
         {"UPDATE_TAG": TEST_UPDATE_TAG, "AWS_ID": TEST_ACCOUNT_ID},
     )
+    neo4j_session.run(
+        """
+        MATCH (img:AWSECRImage)
+        WHERE img.digest IN $digests
+        REMOVE img.layer_diff_ids
+        """,
+        digests=[parent_digest, child_digest],
+    ).consume()
 
     mock_get_ecr_images.return_value = {
         (
@@ -534,6 +577,13 @@ def test_sync_circleci_label_provenance_links_github_repository(
         TEST_UPDATE_TAG,
         {"UPDATE_TAG": TEST_UPDATE_TAG, "AWS_ID": TEST_ACCOUNT_ID},
     )
+    neo4j_session.run(
+        """
+        MATCH (img:AWSECRImage {digest: $digest})
+        REMOVE img.layer_diff_ids
+        """,
+        digest=image_digest,
+    ).consume()
 
     sync_ecr_layers(
         neo4j_session,

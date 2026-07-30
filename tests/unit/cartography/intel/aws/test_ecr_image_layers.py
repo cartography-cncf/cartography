@@ -119,10 +119,10 @@ def test_cleanup_runs_layer_cleanup_job(monkeypatch):
         },
     )
 
-    assert from_node_schema_mock.call_args.args[0].__class__.__name__ == (
-        "ECRImageLayerSchema"
-    )
-    assert from_node_schema_mock.return_value.run.call_args.args == (neo4j_session,)
+    assert [
+        call.args[0].__class__.__name__ for call in from_node_schema_mock.call_args_list
+    ] == ["ECRImageSchema", "ECRImageLayerSchema"]
+    assert from_node_schema_mock.return_value.run.call_count == 2
 
 
 def test_extract_circleci_label_provenance_normalizes_namespaced_labels():
@@ -879,6 +879,39 @@ def test_transform_ecr_image_layers_marks_source_only_attestation_provenance():
             "from_attestation": True,
             "confidence": "explicit",
         }
+    ]
+
+
+def test_transform_ecr_image_layers_applies_new_provenance_to_skipped_image():
+    image_uri = "123456789012.dkr.ecr.us-east-1.amazonaws.com/backend@sha256:image"
+
+    layers, memberships = transform_ecr_image_layers(
+        {},
+        {image_uri: "sha256:image"},
+        image_attestation_map={
+            image_uri: {
+                ecr_layers.ATTESTATION_PROVENANCE_FIELD: True,
+                "source_uri": "https://github.com/example/service",
+            },
+        },
+        existing_properties_map={
+            "sha256:image": {
+                "type": "image",
+                "layer_diff_ids": ["sha256:layer"],
+            },
+        },
+    )
+
+    assert layers == []
+    assert memberships == [
+        {
+            "imageDigest": "sha256:image",
+            "type": "image",
+            "layer_diff_ids": ["sha256:layer"],
+            "source_uri": "https://github.com/example/service",
+            "from_attestation": True,
+            "confidence": "explicit",
+        },
     ]
 
 

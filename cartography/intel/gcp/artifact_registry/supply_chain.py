@@ -11,6 +11,9 @@ from google.auth.transport.requests import Request
 from cartography.client.core.tx import read_list_of_dicts_tx
 from cartography.graph.job import GraphJob
 from cartography.intel.container_arch import normalize_architecture
+from cartography.intel.container_image_layers import ContainerImageLayerGraphShape
+from cartography.intel.container_image_layers import get_complete_layer_digests
+from cartography.intel.container_image_layers import refresh_layer_closures
 from cartography.intel.gcp.artifact_registry.manifest import build_blob_url
 from cartography.intel.gcp.artifact_registry.manifest import build_manifest_url
 from cartography.intel.gcp.artifact_registry.manifest import parse_docker_image_uri
@@ -48,6 +51,17 @@ SINGLE_IMAGE_MEDIA_TYPES = {
     "application/vnd.oci.image.manifest.v1+json",
 }
 
+GCP_ARTIFACT_REGISTRY_LAYER_GRAPH = ContainerImageLayerGraphShape(
+    image_label="GCPArtifactRegistryImage",
+    layer_label="GCPArtifactRegistryImageLayer",
+    scope_label="GCPProject",
+    scope_properties=("id",),
+    image_scoped=False,
+    image_layer_rel_types=(),
+    stable_image_rel_types=("BUILT_FROM",),
+    stable_image_rels_are_matchlinks=True,
+)
+
 ALL_MANIFEST_ACCEPT = ", ".join(
     [
         "application/vnd.oci.image.manifest.v1+json",
@@ -63,6 +77,16 @@ GITHUB_URL_PREFIXES = (
     "ssh://git@github.com/",
 )
 GOLANG_GITHUB_PURL_PREFIX = "pkg:golang/github.com/"
+
+
+def _artifact_digest(artifact: dict[str, Any]) -> str | None:
+    for reference in (artifact.get("uri"), artifact.get("name")):
+        if not isinstance(reference, str) or "@" not in reference:
+            continue
+        digest = reference.rsplit("@", 1)[1]
+        if digest.startswith("sha256:"):
+            return digest
+    return None
 
 
 class _TokenManager:
@@ -856,16 +880,6 @@ async def _process_single_image(
                 break
 
     diff_ids, layer_history = extract_layers_from_oci_config(config)
-    has_platform = any(value is not None for value in (architecture, os_name, variant))
-
-    if (
-        not provenance.get("source_uri")
-        and not provenance.get("parent_image_digest")
-        and not diff_ids
-        and not has_platform
-    ):
-        return None, fetch_failed
-
     digest = subject_digest_str
     if not digest:
         return None, fetch_failed
@@ -874,6 +888,7 @@ async def _process_single_image(
         "digest": digest,
         "type": "image",
         "media_type": artifact.get("mediaType"),
+        "layer_diff_ids": diff_ids,
     }
     if architecture is not None:
         result["architecture"] = architecture
@@ -885,7 +900,6 @@ async def _process_single_image(
         if provenance.get(field):
             result[field] = provenance[field]
     if diff_ids:
-        result["layer_diff_ids"] = diff_ids
         result["layer_history"] = layer_history
 
     return result, fetch_failed
@@ -896,6 +910,7 @@ async def _fetch_all_image_provenance(
     docker_artifacts_raw: list[dict[str, Any]],
     project_id: str,
     max_concurrent: int = 50,
+    skip_digests: set[str] | None = None,
 ) -> tuple[list[dict[str, Any]], int]:
     """Run enrichment for all single-image artifacts.
 
@@ -909,10 +924,12 @@ async def _fetch_all_image_provenance(
     token_manager = _TokenManager(resolved)
     sbom_artifacts_by_digest = _sbom_artifacts_by_subject_digest(docker_artifacts_raw)
 
+    skip_digests = skip_digests or set()
     single_images = [
         a
         for a in docker_artifacts_raw
         if a.get("mediaType", "") in SINGLE_IMAGE_MEDIA_TYPES
+        and _artifact_digest(a) not in skip_digests
     ]
     if not single_images:
         return [], 0
@@ -1201,6 +1218,24 @@ def sync(
     """
     logger.info("Starting supply chain sync for GCP project %s", project_id)
 
+    candidate_digests = {
+        digest
+        for artifact in docker_artifacts_raw
+        if artifact.get("mediaType", "") in SINGLE_IMAGE_MEDIA_TYPES
+        if (digest := _artifact_digest(artifact))
+    }
+    complete_digests = get_complete_layer_digests(
+        neo4j_session,
+        GCP_ARTIFACT_REGISTRY_LAYER_GRAPH,
+        candidate_digests,
+        {"id": project_id},
+    )
+    if complete_digests:
+        logger.info(
+            "Skipping OCI config fetches for %d already-enriched GAR digests",
+            len(complete_digests),
+        )
+
     try:
         loop = asyncio.get_event_loop()
     except RuntimeError:
@@ -1208,7 +1243,12 @@ def sync(
         asyncio.set_event_loop(loop)
 
     enrichments, fetch_failures = loop.run_until_complete(
-        _fetch_all_image_provenance(credentials, docker_artifacts_raw, project_id),
+        _fetch_all_image_provenance(
+            credentials,
+            docker_artifacts_raw,
+            project_id,
+            skip_digests=complete_digests,
+        ),
     )
 
     if enrichments:
@@ -1241,6 +1281,13 @@ def sync(
     layer_dicts = _build_layer_dicts(enrichments)
     if layer_dicts:
         load_image_layers(neo4j_session, layer_dicts, project_id, update_tag)
+    refresh_layer_closures(
+        neo4j_session,
+        GCP_ARTIFACT_REGISTRY_LAYER_GRAPH,
+        complete_digests,
+        {"id": project_id},
+        update_tag,
+    )
 
     # Stale-layer cleanup is only safe when artifact discovery was complete AND
     # the enrichment pass had no fetch failures. Discovery completeness governs

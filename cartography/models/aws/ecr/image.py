@@ -201,7 +201,8 @@ class ECRImageBaseSchema(CartographyNodeSchema):
 class ECRImageSchema(CartographyNodeSchema):
     """Full schema used by ecr_image_layers to enrich AWSECRImage nodes with layer and provenance data.
 
-    Also used for cleanup in ecr.py to handle all relationship types (HAS_LAYER, BUILT_FROM, etc.).
+    Cleanup runs after layer enrichment so unchanged closures can refresh their
+    relationship timestamps before stale HAS_LAYER and BUILT_FROM edges are removed.
     """
 
     label: str = "AWSECRImage"

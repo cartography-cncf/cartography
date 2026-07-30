@@ -22,11 +22,16 @@ from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
 from cartography.intel.aws.util.botocore_config import create_aioboto3_client
 from cartography.intel.container_arch import normalize_architecture
+from cartography.intel.container_image_layers import ContainerImageLayerGraphShape
+from cartography.intel.container_image_layers import get_complete_layer_digests
+from cartography.intel.container_image_layers import partition_layer_fetches
+from cartography.intel.container_image_layers import refresh_layer_closures
 from cartography.intel.supply_chain import extract_container_parent_image
 from cartography.intel.supply_chain import extract_image_source_provenance
 from cartography.intel.supply_chain import extract_workflow_path_from_ref
 from cartography.models.aws.ecr.image import ECRImageHasLayerRelSchema
 from cartography.models.aws.ecr.image import ECRImageLayerEnrichmentSchema
+from cartography.models.aws.ecr.image import ECRImageSchema
 from cartography.models.aws.ecr.image_layer import ECRImageLayerHeadRelSchema
 from cartography.models.aws.ecr.image_layer import ECRImageLayerNextRelSchema
 from cartography.models.aws.ecr.image_layer import ECRImageLayerNodeSchema
@@ -35,6 +40,14 @@ from cartography.models.aws.ecr.image_layer import ECRImageLayerTailRelSchema
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
+
+ECR_LAYER_GRAPH = ContainerImageLayerGraphShape(
+    image_label="AWSECRImage",
+    layer_label="AWSECRImageLayer",
+    scope_label="AWSAccount",
+    scope_properties=("id",),
+    has_next=True,
+)
 
 
 class ECRLayerFetchTransientError(Exception):
@@ -582,6 +595,27 @@ async def _diff_ids_for_manifest(
     return {platform: diff_ids}, history_by_diff_id, label_provenance
 
 
+def _apply_provenance_to_membership(
+    membership: dict[str, Any],
+    provenance: dict[str, Any],
+) -> None:
+    for field in (
+        "parent_image_uri",
+        "parent_image_digest",
+        "source_uri",
+        "source_revision",
+        "invocation_uri",
+        "invocation_workflow",
+        "invocation_run_number",
+        "source_file",
+    ):
+        if provenance.get(field):
+            membership[field] = provenance[field]
+    if provenance.get(ATTESTATION_PROVENANCE_FIELD):
+        membership["from_attestation"] = True
+        membership["confidence"] = "explicit"
+
+
 def transform_ecr_image_layers(
     image_layers_data: dict[str, dict[str, list[str]]],
     image_digest_map: dict[str, str],
@@ -657,9 +691,7 @@ def transform_ecr_image_layers(
                     layer["tail_image_ids"].add(image_digest)
 
         if ordered_layers_for_image:
-            membership: dict[str, Any] = {
-                "layer_diff_ids": ordered_layers_for_image,
-            }
+            membership: dict[str, Any] = {}
 
             # Preserve existing AWSECRImage properties (type, architecture, os, variant, etc.)
             if image_digest in existing_properties_map:
@@ -683,41 +715,30 @@ def transform_ecr_image_layers(
                             image_digest,
                             platform_values,
                         )
+            membership["layer_diff_ids"] = ordered_layers_for_image
 
             # Add provenance data if available for this image
             if image_uri in image_attestation_map:
-                provenance = image_attestation_map[image_uri]
-                # Parent image info
-                if provenance.get("parent_image_uri"):
-                    membership["parent_image_uri"] = provenance["parent_image_uri"]
-                if provenance.get("parent_image_digest"):
-                    membership["parent_image_digest"] = provenance[
-                        "parent_image_digest"
-                    ]
-                # Source repository info from VCS metadata
-                if provenance.get("source_uri"):
-                    membership["source_uri"] = provenance["source_uri"]
-                if provenance.get("source_revision"):
-                    membership["source_revision"] = provenance["source_revision"]
-                # Build invocation info from GitHub Actions
-                if provenance.get("invocation_uri"):
-                    membership["invocation_uri"] = provenance["invocation_uri"]
-                if provenance.get("invocation_workflow"):
-                    membership["invocation_workflow"] = provenance[
-                        "invocation_workflow"
-                    ]
-                if provenance.get("invocation_run_number"):
-                    membership["invocation_run_number"] = provenance[
-                        "invocation_run_number"
-                    ]
-                # Source file (Dockerfile path) from configSource
-                if provenance.get("source_file"):
-                    membership["source_file"] = provenance["source_file"]
-                if provenance.get(ATTESTATION_PROVENANCE_FIELD):
-                    membership["from_attestation"] = True
-                    membership["confidence"] = "explicit"
+                _apply_provenance_to_membership(
+                    membership,
+                    image_attestation_map[image_uri],
+                )
 
             memberships_by_digest[image_digest] = membership
+
+    # An unchanged child image can be skipped while its parent index is still
+    # fetched to discover a newly-published attestation. Preserve the existing
+    # layer closure and apply only the new provenance in that case.
+    for image_uri, provenance in image_attestation_map.items():
+        provenance_digest = image_digest_map.get(image_uri)
+        if not provenance_digest or provenance_digest in memberships_by_digest:
+            continue
+        existing_properties = existing_properties_map.get(provenance_digest, {})
+        if existing_properties.get("layer_diff_ids") is None:
+            continue
+        membership = dict(existing_properties)
+        _apply_provenance_to_membership(membership, provenance)
+        memberships_by_digest[provenance_digest] = membership
 
     # Convert sets back to lists for Neo4j ingestion
     layers = []
@@ -902,6 +923,7 @@ async def fetch_image_layers_async(
     ecr_client: ECRClient,
     repo_images_list: list[dict],
     max_concurrent: int = 200,
+    skip_digests: set[str] | None = None,
 ) -> tuple[
     dict[str, dict[str, list[str]]],
     dict[str, str],
@@ -922,6 +944,7 @@ async def fetch_image_layers_async(
     all_history_by_diff_id: dict[str, str] = {}
     image_attestation_map: dict[str, dict[str, Any]] = {}
     semaphore = asyncio.Semaphore(max_concurrent)
+    skip_digests = skip_digests or set()
 
     # Cache for manifest fetches keyed by (repo_name, imageDigest)
     manifest_cache: dict[tuple[str, str], tuple[dict, str]] = {}
@@ -1060,6 +1083,8 @@ async def fetch_image_layers_async(
 
                     child_digest = manifest_ref.get("digest")
                     if not child_digest:
+                        return {}, {}, None
+                    if child_digest in skip_digests:
                         return {}, {}, None
 
                     # Use optimized caching for child manifest
@@ -1279,6 +1304,9 @@ async def fetch_image_layers_async(
 
 def cleanup(neo4j_session: neo4j.Session, common_job_parameters: dict) -> None:
     logger.debug("Running image layer cleanup job.")
+    GraphJob.from_node_schema(ECRImageSchema(), common_job_parameters).run(
+        neo4j_session
+    )
     GraphJob.from_node_schema(ECRImageLayerSchema(), common_job_parameters).run(
         neo4j_session
     )
@@ -1327,7 +1355,8 @@ def sync(
             img.attests_digest AS attests_digest,
             img.media_type AS media_type,
             img.artifact_media_type AS artifact_media_type,
-            img.child_image_digests AS child_image_digests
+            img.child_image_digests AS child_image_digests,
+            img.layer_diff_ids AS layer_diff_ids
         """
         from cartography.client.core.tx import read_list_of_dicts_tx
 
@@ -1358,6 +1387,7 @@ def sync(
                     "media_type": img_data.get("media_type"),
                     "artifact_media_type": img_data.get("artifact_media_type"),
                     "child_image_digests": img_data.get("child_image_digests"),
+                    "layer_diff_ids": img_data.get("layer_diff_ids"),
                 }
 
                 repo_uri = img_data["repo_uri"]
@@ -1380,12 +1410,38 @@ def sync(
             f"Found {len(repo_images_list)} distinct ECR image digests in graph for region {region}"
         )
 
+        complete_digests = get_complete_layer_digests(
+            neo4j_session,
+            ECR_LAYER_GRAPH,
+            (image["imageDigest"] for image in repo_images_list),
+            {"id": current_aws_account_id},
+        )
+        repo_images_list, skipped_images = partition_layer_fetches(
+            repo_images_list,
+            complete_digests,
+            digest_key="imageDigest",
+        )
+        skipped_digests = {
+            image["imageDigest"] for image in skipped_images if image.get("imageDigest")
+        }
+        if skipped_digests:
+            logger.info(
+                "Skipping layer fetches for %d already-enriched ECR digests in %s",
+                len(skipped_digests),
+                region,
+            )
+            refresh_layer_closures(
+                neo4j_session,
+                ECR_LAYER_GRAPH,
+                skipped_digests,
+                {"id": current_aws_account_id},
+                update_tag,
+            )
+
         if not repo_images_list:
-            # Most regions legitimately have no ECR repositories, so this is
-            # the expected case rather than a problem worth a warning.
             logger.debug(
-                f"No ECR images found in graph for region {region}; "
-                f"skipping layer sync for this region."
+                "No ECR image digests need layer fetching in region %s.",
+                region,
             )
             continue
 
@@ -1404,7 +1460,11 @@ def sync(
                 async with create_aioboto3_client(
                     aioboto3_session, "ecr", region_name=region
                 ) as ecr_client:
-                    return await fetch_image_layers_async(ecr_client, repo_images_list)
+                    return await fetch_image_layers_async(
+                        ecr_client,
+                        repo_images_list,
+                        skip_digests=complete_digests,
+                    )
 
             # Use get_event_loop() + run_until_complete() to avoid tearing down loop
             try:

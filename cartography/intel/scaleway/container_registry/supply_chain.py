@@ -27,6 +27,10 @@ import neo4j
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
+from cartography.intel.container_image_layers import ContainerImageLayerGraphShape
+from cartography.intel.container_image_layers import get_complete_layer_digests
+from cartography.intel.container_image_layers import partition_layer_fetches
+from cartography.intel.container_image_layers import refresh_layer_closures
 from cartography.intel.supply_chain import decode_attestation_blob_to_predicate
 from cartography.intel.supply_chain import extract_image_source_provenance
 from cartography.intel.supply_chain import extract_layers_from_oci_config
@@ -41,6 +45,15 @@ from cartography.models.scaleway.container_registry.image_layer import (
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
+
+SCALEWAY_LAYER_GRAPH = ContainerImageLayerGraphShape(
+    image_label="ScalewayContainerRegistryImage",
+    layer_label="ScalewayContainerRegistryImageLayer",
+    scope_label="ScalewayProject",
+    scope_properties=("id",),
+    image_layer_rel_types=("HAS_LAYER",),
+    stable_image_rel_types=(),
+)
 
 _HTTP_TIMEOUT = 30.0
 _MANIFEST_ACCEPT = ", ".join(
@@ -67,9 +80,43 @@ def sync(
     projects_id: list[str],
     update_tag: int,
 ) -> None:
-    raw, fetch_failed = get(neo4j_session, secret_key)
+    images_to_enrich = _get_images_to_enrich(neo4j_session)
+    images_to_fetch: list[dict[str, Any]] = []
+    skipped_by_project: dict[str, set[str]] = {}
+    for project_id in projects_id:
+        project_images = [
+            image for image in images_to_enrich if image.get("project_id") == project_id
+        ]
+        complete_digests = get_complete_layer_digests(
+            neo4j_session,
+            SCALEWAY_LAYER_GRAPH,
+            (str(image["digest"]) for image in project_images if image.get("digest")),
+            {"id": project_id},
+        )
+        project_fetches, project_skips = partition_layer_fetches(
+            project_images,
+            complete_digests,
+        )
+        images_to_fetch.extend(project_fetches)
+        skipped_by_project[project_id] = {
+            str(image["digest"]) for image in project_skips if image.get("digest")
+        }
+
+    raw, fetch_failed = get(
+        neo4j_session,
+        secret_key,
+        images_to_enrich=images_to_fetch,
+    )
     images_by_project, layers_by_project = transform(raw)
     load_supply_chain(neo4j_session, images_by_project, layers_by_project, update_tag)
+    for project_id, skipped_digests in skipped_by_project.items():
+        refresh_layer_closures(
+            neo4j_session,
+            SCALEWAY_LAYER_GRAPH,
+            skipped_digests,
+            {"id": project_id},
+            update_tag,
+        )
     if fetch_failed:
         # A transient registry error (timeout/401/5xx) on any image means we did
         # not refresh that image's layers this run. Skipping cleanup avoids
@@ -232,7 +279,10 @@ def _get_images_to_enrich(
 
 @timeit
 def get(
-    neo4j_session: neo4j.Session, secret_key: str
+    neo4j_session: neo4j.Session,
+    secret_key: str,
+    *,
+    images_to_enrich: list[dict[str, Any]] | None = None,
 ) -> tuple[list[dict[str, Any]], bool]:
     """Fetch the OCI config for every Scaleway registry image.
 
@@ -242,7 +292,12 @@ def get(
     """
     enriched: list[dict[str, Any]] = []
     fetch_failed = False
-    for image in _get_images_to_enrich(neo4j_session):
+    candidates = (
+        images_to_enrich
+        if images_to_enrich is not None
+        else _get_images_to_enrich(neo4j_session)
+    )
+    for image in candidates:
         uri = image.get("uri")
         digest = image.get("digest")
         if not uri or not digest:
@@ -316,10 +371,6 @@ def transform(
         config = entry["config"]
         diff_ids, layer_history = extract_layers_from_oci_config(config)
         provenance = _resolve_provenance(entry)
-
-        # Skip images that yield neither layers nor provenance.
-        if not diff_ids and not provenance:
-            continue
 
         image_update: dict[str, Any] = {
             "digest": entry["digest"],
