@@ -114,6 +114,9 @@
 ```{include} ../modules/lastpass/schema.md
 ```
 
+```{include} ../modules/netlify/schema.md
+```
+
 ```{include} ../modules/oci/schema.md
 ```
 

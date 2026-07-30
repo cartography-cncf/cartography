@@ -1,0 +1,6 @@
+# Netlify
+
+```{toctree}
+config
+schema
+```

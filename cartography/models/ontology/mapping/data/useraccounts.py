@@ -559,6 +559,36 @@ workos_useraccounts_mapping = OntologyMapping(
 # inactive
 # lastactivity
 
+netlify_mapping = OntologyMapping(
+    module_name="netlify",
+    nodes=[
+        OntologyNodeMapping(
+            node_label="NetlifyUser",
+            fields=[
+                OntologyFieldMapping(
+                    ontology_field="email", node_field="email", required=True
+                ),
+                OntologyFieldMapping(ontology_field="fullname", node_field="full_name"),
+                # Netlify returns one `full_name` string and never splits it, so firstname and
+                # lastname stay unmapped rather than guessed from a space.
+                OntologyFieldMapping(
+                    ontology_field="has_mfa", node_field="mfa_enabled"
+                ),
+                # `pending` is true while an invitation is outstanding, i.e. the account cannot
+                # sign in yet, which is the inverse of active.
+                OntologyFieldMapping(
+                    ontology_field="active",
+                    node_field="pending",
+                    special_handling="invert_boolean",
+                ),
+                OntologyFieldMapping(
+                    ontology_field="lastactivity", node_field="last_activity_date"
+                ),
+            ],
+        ),
+    ],
+)
+
 subimage_mapping = OntologyMapping(
     module_name="subimage",
     nodes=[
@@ -681,6 +711,7 @@ USERACCOUNTS_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     "jumpcloud": jumpcloud_mapping,
     "vercel": vercel_mapping,
     "railway": railway_mapping,
+    "netlify": netlify_mapping,
     "databricks": OntologyMapping(
         module_name="databricks",
         nodes=[
