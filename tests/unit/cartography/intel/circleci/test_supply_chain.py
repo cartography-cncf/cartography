@@ -2,14 +2,15 @@ from datetime import datetime
 from datetime import timezone
 
 from cartography.intel.circleci.supply_chain import _run_older_than
-from cartography.intel.circleci.supply_chain import build_revision_repo_map
+from cartography.intel.circleci.supply_chain import build_revision_targets
 from cartography.intel.circleci.supply_chain import CIRCLECI_TAG_REVISION_CONFIDENCE
-from cartography.intel.circleci.supply_chain import collect_feed_revisions
 from cartography.intel.circleci.supply_chain import images_with_feed_evidence
 from cartography.intel.circleci.supply_chain import match_tag_revisions
 
 FULL_SHA = "a" * 40
 REPO_URL = "https://github.com/acme/app"
+
+GH_APP = (REPO_URL, "github", "gh/acme/app")
 
 
 def _run(revision, repo_url, provider_name, project_slug, run_id="p1"):
@@ -24,114 +25,100 @@ def _run(revision, repo_url, provider_name, project_slug, run_id="p1"):
     }
 
 
-def test_build_revision_repo_map_normalizes_and_filters():
+def _target_row(digest, target):
+    repo_url, provider, project_slug = target
+    return {
+        "image_digest": digest,
+        "repo_url": repo_url,
+        "provider": provider,
+        "project_slug": project_slug,
+        "match_method": "circleci_tag_revision",
+        "confidence": CIRCLECI_TAG_REVISION_CONFIDENCE,
+    }
+
+
+def test_build_revision_targets_normalizes_and_keeps_all():
     runs = [
         _run(FULL_SHA, "git@github.com:acme/app.git", "GitHub", "gh/acme/app"),
+        # Same SHA, different repo -> kept as a second target (ambiguity resolved at match).
+        _run(FULL_SHA, "https://github.com/acme/fork", "GitHub", "gh/acme/fork"),
         # Bitbucket has no target schema -> dropped.
         _run("b" * 40, "https://bitbucket.org/acme/x", "Bitbucket", "bb/acme/x"),
         # Missing revision -> dropped.
         _run("", "https://github.com/acme/y", "GitHub", "gh/acme/y"),
     ]
 
-    result = build_revision_repo_map(runs)
+    result = build_revision_targets(runs)
 
     assert result == {
-        FULL_SHA: {
-            "repo_url": REPO_URL,
-            "provider": "github",
-            "project_slug": "gh/acme/app",
-        }
+        FULL_SHA: {GH_APP, ("https://github.com/acme/fork", "github", "gh/acme/fork")}
     }
-
-
-def test_build_revision_repo_map_drops_ambiguous_sha():
-    # Same SHA built from two different repos (fork/mirror) -> dropped, not last-wins.
-    runs = [
-        _run(FULL_SHA, "https://github.com/acme/app", "GitHub", "gh/acme/app", "p1"),
-        _run(FULL_SHA, "https://github.com/acme/fork", "GitHub", "gh/acme/fork", "p2"),
-        _run("c" * 40, "https://github.com/acme/solo", "GitHub", "gh/acme/solo", "p3"),
-    ]
-
-    result = build_revision_repo_map(runs)
-
-    assert FULL_SHA not in result
-    assert result["c" * 40]["repo_url"] == "https://github.com/acme/solo"
 
 
 def test_match_tag_revisions_exact():
     images = [{"digest": "sha256:1", "tags": [FULL_SHA]}]
-    revision_map = {
-        FULL_SHA: {
-            "repo_url": REPO_URL,
-            "provider": "github",
-            "project_slug": "gh/acme/app",
-        }
-    }
+    revision_targets = {FULL_SHA: {GH_APP}}
 
-    matches = match_tag_revisions(images, revision_map)
-
-    assert matches == [
-        {
-            "image_digest": "sha256:1",
-            "repo_url": REPO_URL,
-            "provider": "github",
-            "project_slug": "gh/acme/app",
-            "match_method": "circleci_tag_revision",
-            "confidence": CIRCLECI_TAG_REVISION_CONFIDENCE,
-        }
+    assert match_tag_revisions(images, revision_targets) == [
+        _target_row("sha256:1", GH_APP)
     ]
 
 
 def test_match_tag_revisions_short_sha_prefix():
-    short = FULL_SHA[:8]
-    images = [{"digest": "sha256:1", "tags": ["latest", short]}]
-    revision_map = {
-        FULL_SHA: {
-            "repo_url": REPO_URL,
-            "provider": "github",
-            "project_slug": "gh/acme/app",
-        }
-    }
+    images = [{"digest": "sha256:1", "tags": ["latest", FULL_SHA[:8]]}]
+    revision_targets = {FULL_SHA: {GH_APP}}
 
-    matches = match_tag_revisions(images, revision_map)
+    matches = match_tag_revisions(images, revision_targets)
 
     assert len(matches) == 1
-    assert matches[0]["image_digest"] == "sha256:1"
     assert matches[0]["repo_url"] == REPO_URL
 
 
-def test_match_tag_revisions_ambiguous_short_prefix_skipped():
-    # Two full revisions share a 7-char prefix but resolve to different repos.
-    rev_a = "abcdef0" + "1" * 33
-    rev_b = "abcdef0" + "2" * 33
-    revision_map = {
+def test_match_tag_revisions_exact_ambiguous_skipped():
+    # Same full SHA built from two repos -> ambiguous -> no edge.
+    images = [{"digest": "sha256:1", "tags": [FULL_SHA]}]
+    revision_targets = {
+        FULL_SHA: {GH_APP, ("https://github.com/acme/fork", "github", "gh/acme/fork")}
+    }
+
+    assert match_tag_revisions(images, revision_targets) == []
+
+
+def test_match_tag_revisions_prefix_collides_with_ambiguous_revision():
+    # A short prefix matches a UNIQUE revision (rev_b) AND an AMBIGUOUS one (rev_a).
+    # Resolving against the full multimap must treat the prefix as ambiguous, not match
+    # rev_b's single target.
+    rev_a = "abcdef0" + "1" * 33  # ambiguous: two repos
+    rev_b = "abcdef0" + "2" * 33  # unique: one repo
+    revision_targets = {
         rev_a: {
-            "repo_url": "https://github.com/acme/a",
-            "provider": "github",
-            "project_slug": "gh/acme/a",
+            ("https://github.com/acme/a", "github", "gh/acme/a"),
+            ("https://github.com/acme/c", "github", "gh/acme/c"),
         },
-        rev_b: {
-            "repo_url": "https://github.com/acme/b",
-            "provider": "github",
-            "project_slug": "gh/acme/b",
-        },
+        rev_b: {("https://github.com/acme/b", "github", "gh/acme/b")},
     }
     images = [{"digest": "sha256:1", "tags": ["abcdef0"]}]
 
-    assert match_tag_revisions(images, revision_map) == []
+    assert match_tag_revisions(images, revision_targets) == []
+
+
+def test_match_tag_revisions_multiple_tags_to_different_repos_ambiguous():
+    # Two SHA tags on one image resolve to different repos -> ambiguous, order-independent.
+    sha_b = "b" * 40
+    images = [{"digest": "sha256:1", "tags": [FULL_SHA, sha_b]}]
+    revision_targets = {
+        FULL_SHA: {GH_APP},
+        sha_b: {("https://github.com/acme/b", "github", "gh/acme/b")},
+    }
+
+    assert match_tag_revisions(images, revision_targets) == []
 
 
 def test_match_tag_revisions_no_match():
     images = [{"digest": "sha256:1", "tags": ["latest", "v1.2.3"]}]
-    revision_map = {
-        FULL_SHA: {
-            "repo_url": REPO_URL,
-            "provider": "github",
-            "project_slug": "gh/acme/app",
-        }
-    }
+    revision_targets = {FULL_SHA: {GH_APP}}
 
-    assert match_tag_revisions(images, revision_map) == []
+    assert match_tag_revisions(images, revision_targets) == []
 
 
 def test_run_older_than():
@@ -143,17 +130,8 @@ def test_run_older_than():
     assert _run_older_than({"created_at": "not-a-date"}, cutoff) is False
 
 
-def test_collect_feed_revisions_includes_ambiguous():
-    # Ambiguous revisions are dropped from the unique map but still count as evidence.
-    runs = [
-        _run(FULL_SHA, "https://github.com/acme/app", "GitHub", "gh/acme/app", "p1"),
-        _run(FULL_SHA, "https://github.com/acme/fork", "GitHub", "gh/acme/fork", "p2"),
-    ]
-    assert collect_feed_revisions(runs) == {FULL_SHA}
-    assert build_revision_repo_map(runs) == {}
-
-
-def test_images_with_feed_evidence():
+def test_images_with_feed_evidence_includes_ambiguous():
+    # Ambiguous revisions still count as evidence for cleanup scoping.
     feed_revisions = {FULL_SHA}
     images = [
         {"digest": "sha256:matched", "tags": [FULL_SHA]},

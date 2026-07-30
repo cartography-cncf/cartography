@@ -205,3 +205,47 @@ def test_stale_edge_cleaned_only_for_reevaluated_images(neo4j_session):
     assert _circleci_packaged_from_count(neo4j_session, OTHER_DIGEST) == 1
 
     _cleanup(neo4j_session)
+
+
+def test_stale_circleci_edge_cleaned_when_now_matched_by_github(neo4j_session):
+    # Sync 1: CircleCI matches the image to REPO_URL.
+    _cleanup(neo4j_session)
+    _seed_image(neo4j_session, DIGEST, FULL_SHA)
+    _seed_repo_and_project(neo4j_session)
+    with patch.object(
+        circleci_supply_chain, "get_pipeline_runs", return_value=[_run_fixture()]
+    ):
+        _sync(neo4j_session, update_tag=TEST_UPDATE_TAG)
+    assert _circleci_packaged_from_count(neo4j_session, DIGEST) == 1
+
+    # Between syncs a GitHub provenance PACKAGED_FROM is created for THIS run (T2), which
+    # excludes the image from the CircleCI residual set. Its stale CircleCI edge must still
+    # be cleaned (the feed still carries evidence for it).
+    neo4j_session.run(
+        """
+        MATCH (img:Image {digest: $digest}), (repo:GitHubRepository {id: $url})
+        MERGE (img)-[r:PACKAGED_FROM]->(repo)
+          SET r.lastupdated = $tag, r.match_method = 'provenance'
+        """,
+        digest=DIGEST,
+        url=REPO_URL,
+        tag=TEST_UPDATE_TAG_2,
+    )
+
+    with patch.object(
+        circleci_supply_chain, "get_pipeline_runs", return_value=[_run_fixture()]
+    ):
+        _sync(neo4j_session, update_tag=TEST_UPDATE_TAG_2)
+
+    # The stale CircleCI edge is gone; the GitHub provenance edge remains.
+    assert _circleci_packaged_from_count(neo4j_session, DIGEST) == 0
+    provenance = neo4j_session.run(
+        """
+        MATCH (:Image {digest: $digest})-[r:PACKAGED_FROM {match_method: 'provenance'}]->()
+        RETURN count(r) AS c
+        """,
+        digest=DIGEST,
+    ).single()["c"]
+    assert provenance == 1
+
+    _cleanup(neo4j_session)

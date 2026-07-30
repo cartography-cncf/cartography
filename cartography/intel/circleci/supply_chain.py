@@ -11,6 +11,7 @@ import neo4j
 import requests
 
 from cartography.client.core.tx import load_matchlinks
+from cartography.client.core.tx import run_write_query
 from cartography.intel.circleci.util import paginated_get
 from cartography.intel.circleci.util import parse_iso
 from cartography.intel.supply_chain import normalize_vcs_url
@@ -181,86 +182,78 @@ def _iter_feed_targets(
         yield revision, repo_url, provider, project_slug
 
 
-def build_revision_repo_map(runs: list[dict[str, Any]]) -> dict[str, dict[str, str]]:
+def build_revision_targets(
+    runs: list[dict[str, Any]],
+) -> dict[str, set[tuple[str, str, str]]]:
     """
-    Build {revision_sha -> {"repo_url", "provider", "project_slug"}} from pipeline-feed
-    runs. The repo URL is normalized to the canonical HTTPS form used by
-    GitHubRepository.id / GitLabProject.web_url.
+    Build {revision_sha -> {(repo_url, provider, project_slug), ...}} from pipeline-feed
+    runs, keeping ALL targets per revision (ambiguous revisions are not dropped here). The
+    repo URL is normalized to the canonical HTTPS form used by GitHubRepository.id /
+    GitLabProject.web_url.
 
-    A revision is dropped when it resolves to more than one distinct target (a commit
-    shared across forks/mirrors would otherwise attribute an image to an arbitrary repo).
-    Only revisions with a unique target are retained.
+    Ambiguity is resolved at match time against this full multimap, so a short prefix that
+    collides with an ambiguous revision is correctly seen as ambiguous (see
+    match_tag_revisions).
     """
-    candidates: dict[str, set[tuple[str, str, str]]] = defaultdict(set)
+    revision_targets: dict[str, set[tuple[str, str, str]]] = defaultdict(set)
     for revision, repo_url, provider, project_slug in _iter_feed_targets(runs):
-        candidates[revision].add((repo_url, provider, project_slug))
-
-    revision_map: dict[str, dict[str, str]] = {}
-    for revision, targets in candidates.items():
-        if len(targets) != 1:
-            continue
-        repo_url, provider, project_slug = next(iter(targets))
-        revision_map[revision] = {
-            "repo_url": repo_url,
-            "provider": provider,
-            "project_slug": project_slug,
-        }
-    return revision_map
+        revision_targets[revision].add((repo_url, provider, project_slug))
+    return dict(revision_targets)
 
 
-def collect_feed_revisions(runs: list[dict[str, Any]]) -> set[str]:
+def _tag_target(
+    tag: str,
+    revision_targets: dict[str, set[tuple[str, str, str]]],
+) -> tuple[str, str, str] | None:
     """
-    All revisions observed in the feed (including ambiguous ones dropped from the unique
-    map). Used to decide which images the feed carries fresh evidence about this run.
+    Resolve a SHA-like tag to a single (repo_url, provider, project_slug) target, or None
+    if it matches no revision or resolves to more than one distinct target. Considers every
+    revision the tag equals or is a 7+ char prefix of, across the FULL feed (including
+    ambiguous revisions), so the result never depends on which revisions happened to be
+    unique or on Neo4j/dict ordering.
     """
-    return {revision for revision, _, _, _ in _iter_feed_targets(runs)}
+    targets: set[tuple[str, str, str]] = set()
+    for rev, rev_targets in revision_targets.items():
+        if rev == tag or (len(tag) < len(rev) and rev.startswith(tag)):
+            targets |= rev_targets
+    if len(targets) == 1:
+        return next(iter(targets))
+    return None
 
 
 def match_tag_revisions(
     images: list[dict[str, Any]],
-    revision_map: dict[str, dict[str, str]],
+    revision_targets: dict[str, set[tuple[str, str, str]]],
 ) -> list[dict[str, Any]]:
     """
-    Match images whose tag name equals a known build revision (git SHA). Supports exact
-    matches and short-SHA prefixes (a hex tag of length >= 7 that prefixes a known
-    revision). Produces at most one row per image digest.
+    Match images whose tag name equals (or is a 7+ char hex prefix of) a build revision
+    that resolves to a single repo. Produces at most one row per image digest.
 
-    revision_map already holds only revisions with a unique target. A short prefix is only
-    accepted when every full revision it prefixes resolves to that same single target;
-    prefixes matching two or more distinct targets are ambiguous and skipped.
+    All of an image's SHA tags are resolved and their targets unioned: if the union is a
+    single distinct target the image matches it, otherwise the image is ambiguous and
+    skipped. This is order-independent and treats "multiple repositories" as ambiguous
+    whether the collision comes from one tag, several tags, or a short-prefix collision
+    with an ambiguous revision.
     """
     matches: list[dict[str, Any]] = []
     for image in images:
-        matched: dict[str, str] | None = None
+        targets: set[tuple[str, str, str]] = set()
         for raw_tag in image["tags"]:
             tag = raw_tag.strip().lower()
             if not _is_probable_sha(tag):
                 continue
-            if tag in revision_map:
-                matched = revision_map[tag]
-                break
-            # Short-SHA: accept only if the prefix resolves to a single unique target.
-            prefix_targets = {
-                (meta["repo_url"], meta["provider"], meta["project_slug"])
-                for rev, meta in revision_map.items()
-                if len(tag) < len(rev) and rev.startswith(tag)
-            }
-            if len(prefix_targets) == 1:
-                repo_url, provider, project_slug = next(iter(prefix_targets))
-                matched = {
-                    "repo_url": repo_url,
-                    "provider": provider,
-                    "project_slug": project_slug,
-                }
-                break
-        if matched is None:
+            target = _tag_target(tag, revision_targets)
+            if target is not None:
+                targets.add(target)
+        if len(targets) != 1:
             continue
+        repo_url, provider, project_slug = next(iter(targets))
         matches.append(
             {
                 "image_digest": image["digest"],
-                "repo_url": matched["repo_url"],
-                "provider": matched["provider"],
-                "project_slug": matched["project_slug"],
+                "repo_url": repo_url,
+                "provider": provider,
+                "project_slug": project_slug,
                 "match_method": "circleci_tag_revision",
                 "confidence": CIRCLECI_TAG_REVISION_CONFIDENCE,
             }
@@ -344,6 +337,37 @@ def _load_provider_routed_matchlinks(
         )
 
 
+@timeit
+def get_circleci_edged_image_tags(
+    neo4j_session: neo4j.Session,
+    org_id: str,
+) -> list[dict[str, Any]]:
+    """
+    Return {digest, tags} for every image that currently has a CircleCI-scoped
+    PACKAGED_FROM / PACKAGED_BY edge for this org. This is the cleanup universe: it is
+    independent of the residual (unmatched) set, so an image that got a fresh GitHub/GitLab
+    PACKAGED_FROM this run (and was therefore excluded from the residual set) is still
+    considered for stale-CircleCI-edge cleanup.
+    """
+    query = """
+        MATCH (img:Image)-[r]->()
+        WHERE type(r) IN ['PACKAGED_FROM', 'PACKAGED_BY']
+          AND r._sub_resource_label = 'CircleCIOrganization'
+          AND r._sub_resource_id = $org_id
+        WITH DISTINCT img
+        OPTIONAL MATCH (img)<-[:IMAGE]-(t:ImageTag)
+        RETURN img.digest AS digest, collect(DISTINCT t.name) AS tags
+    """
+    result = neo4j_session.run(query, org_id=org_id)
+    return [
+        {
+            "digest": record["digest"],
+            "tags": [t for t in (record["tags"] or []) if t],
+        }
+        for record in result
+    ]
+
+
 def _cleanup_reevaluated_image_edges(
     neo4j_session: neo4j.Session,
     digests: set[str],
@@ -364,7 +388,8 @@ def _cleanup_reevaluated_image_edges(
     """
     if not digests:
         return
-    neo4j_session.run(
+    run_write_query(
+        neo4j_session,
         """
         UNWIND $digests AS d
         MATCH (img:Image {digest: d})-[r]->()
@@ -415,19 +440,24 @@ def sync(
     """
     logger.info("Starting supply chain sync for CircleCI org %s", org_id)
 
+    # Images to (re)match, and the wider universe of images with an existing CircleCI edge
+    # (the cleanup scope, independent of the residual set so GitHub/GitLab-matched images
+    # are still considered for stale-edge cleanup).
     unmatched = get_unmatched_circleci_candidate_images(
         neo4j_session, org_id, update_tag, limit=image_limit
     )
+    edged = get_circleci_edged_image_tags(neo4j_session, org_id)
 
     all_matches: list[dict[str, Any]] = []
     evidenced_digests: set[str] = set()
-    if unmatched:
+    if unmatched or edged:
         runs = get_pipeline_runs(api_session, base_url, org_slug)
-        revision_map = build_revision_repo_map(runs)
-        all_matches = match_tag_revisions(unmatched, revision_map)
-        evidenced_digests = images_with_feed_evidence(
-            unmatched, collect_feed_revisions(runs)
-        )
+        revision_targets = build_revision_targets(runs)
+        all_matches = match_tag_revisions(unmatched, revision_targets)
+        # Cleanup scope: images with an existing CircleCI edge that the feed re-evaluated
+        # this run (a SHA tag present in the feed), regardless of whether they were in the
+        # residual set.
+        evidenced_digests = images_with_feed_evidence(edged, set(revision_targets))
 
     if all_matches:
         logger.info(
@@ -438,7 +468,8 @@ def sync(
         _load_provider_routed_matchlinks(neo4j_session, all_matches, org_id, update_tag)
 
     # Targeted cleanup AFTER loading fresh edges: drop stale CircleCI edges only for images
-    # the feed re-evaluated this run (ambiguous now, or repointed to a different repo).
+    # the feed re-evaluated this run (ambiguous now, or repointed to a different repo). The
+    # fresh match, if any, was just upserted with update_tag and so survives.
     _cleanup_reevaluated_image_edges(
         neo4j_session, evidenced_digests, org_id, update_tag
     )
