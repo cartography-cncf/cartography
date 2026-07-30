@@ -45,14 +45,17 @@ def test_sync_keeps_route53_owned_dns_points_to_relationships(neo4j_session):
         {"UPDATE_TAG": TEST_UPDATE_TAG},
     )
 
-    owned_count = neo4j_session.run(
+    owned = neo4j_session.run(
         """
         MATCH (:AWSDNSRecord)-[r:DNS_POINTS_TO]->(:AWSLoadBalancerV2 {id: $lb_dns_name})
-        RETURN count(r) AS count
+        RETURN count(r) AS count, collect(DISTINCT r.lastupdated) AS lastupdated
         """,
         lb_dns_name=LB_DNS_NAME,
-    ).single()["count"]
-    assert owned_count == 1
+    ).single()
+    assert owned["count"] == 1
+    # The edge must be left alone entirely, not refreshed with the ontology run's tag: the
+    # AWSDNSRecord exclusion is on the MERGE's match, not only on the cleanup's WHERE.
+    assert owned["lastupdated"] == [aws_tag]
 
     # The cleanup must still delete stale edges it does own.
     stale_count = neo4j_session.run(
