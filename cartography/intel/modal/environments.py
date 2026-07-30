@@ -5,7 +5,12 @@ import neo4j
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
+from cartography.intel.modal import apps
 from cartography.intel.modal import environment_roles
+from cartography.intel.modal import functions
+from cartography.intel.modal import images
+from cartography.intel.modal import sandboxes
+from cartography.intel.modal import workloads
 from cartography.intel.modal.util import list_environments
 from cartography.intel.modal.util import ModalClient
 from cartography.models.modal.environment import ModalEnvironmentSchema
@@ -21,7 +26,16 @@ logger = logging.getLogger(__name__)
 # survive as orphans. Every environment-scoped Modal resource must therefore expose
 # `cleanup_for_environment(neo4j_session, workspace_id, environment_id, update_tag)` and be
 # registered here.
-_ENVIRONMENT_SCOPED_CLEANUPS = (environment_roles.cleanup_for_environment,)
+# Ordered children-before-parents: functions and sandboxes reference apps, tasks reference
+# clusters and apps, sandboxes reference images.
+_ENVIRONMENT_SCOPED_CLEANUPS = (
+    environment_roles.cleanup_for_environment,
+    functions.cleanup_for_environment,
+    sandboxes.cleanup_for_environment,
+    workloads.cleanup_for_environment,
+    images.cleanup_for_environment,
+    apps.cleanup_for_environment,
+)
 
 
 @timeit

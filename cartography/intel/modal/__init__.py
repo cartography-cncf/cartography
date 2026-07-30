@@ -6,11 +6,16 @@ from typing import Callable
 
 import neo4j
 
+import cartography.intel.modal.apps
 import cartography.intel.modal.environment_roles
 import cartography.intel.modal.environments
+import cartography.intel.modal.functions
+import cartography.intel.modal.images
 import cartography.intel.modal.members
 import cartography.intel.modal.proxy_tokens
+import cartography.intel.modal.sandboxes
 import cartography.intel.modal.service_users
+import cartography.intel.modal.workloads
 import cartography.intel.modal.workspace
 from cartography.config import Config
 from cartography.intel.modal.util import MODAL_API_ERRORS
@@ -143,12 +148,66 @@ async def _sync(neo4j_session: neo4j.Session, config: Config) -> None:
             "ENVIRONMENT_ID": environment["id"],
             "ENVIRONMENT_NAME": environment["name"],
         }
-        logger.info("Syncing Modal environment %s", environment["name"])
+        name = environment["name"]
+        logger.info("Syncing Modal environment %s", name)
 
         await _run(
-            f"environment roles ({environment['name']})",
+            f"environment roles ({name})",
             cartography.intel.modal.environment_roles.sync,
             neo4j_session,
             client,
             environment_job_parameters,
+        )
+
+        # Images before sandboxes, so the sandbox HAS_IMAGE edge can resolve.
+        await _run(
+            f"images ({name})",
+            cartography.intel.modal.images.sync,
+            neo4j_session,
+            client,
+            environment_job_parameters,
+        )
+
+        # Apps before functions, sandboxes and tasks: they are the WORKLOAD_PARENT target.
+        # `_run` returns None on failure, which is distinct from an empty environment, so
+        # the children are skipped rather than run against a half-loaded app set.
+        apps = await _run(
+            f"apps ({name})",
+            cartography.intel.modal.apps.sync,
+            neo4j_session,
+            client,
+            environment_job_parameters,
+        )
+
+        await _run(
+            f"sandboxes ({name})",
+            cartography.intel.modal.sandboxes.sync,
+            neo4j_session,
+            client,
+            environment_job_parameters,
+        )
+
+        if apps is None:
+            logger.warning(
+                "Skipping Modal functions and tasks for environment %s because the app "
+                "list could not be fetched.",
+                name,
+            )
+            continue
+
+        await _run(
+            f"functions ({name})",
+            cartography.intel.modal.functions.sync,
+            neo4j_session,
+            client,
+            environment_job_parameters,
+            apps,
+        )
+        await _run(
+            f"tasks and clusters ({name})",
+            cartography.intel.modal.workloads.sync,
+            neo4j_session,
+            client,
+            environment_job_parameters,
+            apps,
         )
