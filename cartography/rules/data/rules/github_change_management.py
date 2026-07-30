@@ -24,11 +24,33 @@ _github_repository_without_required_reviews = Fact(
     MATCH (repo:GitHubRepository)
     WHERE coalesce(repo.archived, false) = false
       AND coalesce(repo.disabled, false) = false
-      AND NOT EXISTS {
-          MATCH (repo)-[:HAS_RULE]->(rule:GitHubBranchProtectionRule)
-          WHERE coalesce(rule.requires_approving_reviews, false) = true
-            AND coalesce(rule.required_approving_review_count, 0) >= 1
-      }
+      AND NOT (
+        EXISTS {
+            MATCH (repo)-[:HAS_RULE]->(rule:GitHubBranchProtectionRule)
+            WHERE rule.pattern = repo.defaultbranch
+              AND coalesce(rule.requires_approving_reviews, false) = true
+              AND coalesce(rule.required_approving_review_count, 0) >= 1
+        }
+        OR EXISTS {
+            MATCH (repo)-[:HAS_RULESET]->(ruleset:GitHubRuleset)
+                  -[:CONTAINS_RULE]->(rule:GitHubRulesetRule)
+            WHERE ruleset.target = 'BRANCH'
+              AND ruleset.enforcement = 'ACTIVE'
+              AND rule.type = 'PULL_REQUEST'
+              AND coalesce(rule.parameters_required_approving_review_count, 0) >= 1
+              AND (
+                '~ALL' IN coalesce(ruleset.conditions_ref_name_include, [])
+                OR '~DEFAULT_BRANCH' IN coalesce(ruleset.conditions_ref_name_include, [])
+                OR ('refs/heads/' + repo.defaultbranch)
+                   IN coalesce(ruleset.conditions_ref_name_include, [])
+              )
+              AND NOT (
+                '~DEFAULT_BRANCH' IN coalesce(ruleset.conditions_ref_name_exclude, [])
+                OR ('refs/heads/' + repo.defaultbranch)
+                   IN coalesce(ruleset.conditions_ref_name_exclude, [])
+              )
+        }
+      )
     RETURN
         repo.fullname AS repository,
         repo.id AS repository_id,
@@ -38,11 +60,33 @@ _github_repository_without_required_reviews = Fact(
     MATCH (repo:GitHubRepository)
     WHERE coalesce(repo.archived, false) = false
       AND coalesce(repo.disabled, false) = false
-      AND NOT EXISTS {
-          MATCH (repo)-[:HAS_RULE]->(rule:GitHubBranchProtectionRule)
-          WHERE coalesce(rule.requires_approving_reviews, false) = true
-            AND coalesce(rule.required_approving_review_count, 0) >= 1
-      }
+      AND NOT (
+        EXISTS {
+            MATCH (repo)-[:HAS_RULE]->(rule:GitHubBranchProtectionRule)
+            WHERE rule.pattern = repo.defaultbranch
+              AND coalesce(rule.requires_approving_reviews, false) = true
+              AND coalesce(rule.required_approving_review_count, 0) >= 1
+        }
+        OR EXISTS {
+            MATCH (repo)-[:HAS_RULESET]->(ruleset:GitHubRuleset)
+                  -[:CONTAINS_RULE]->(rule:GitHubRulesetRule)
+            WHERE ruleset.target = 'BRANCH'
+              AND ruleset.enforcement = 'ACTIVE'
+              AND rule.type = 'PULL_REQUEST'
+              AND coalesce(rule.parameters_required_approving_review_count, 0) >= 1
+              AND (
+                '~ALL' IN coalesce(ruleset.conditions_ref_name_include, [])
+                OR '~DEFAULT_BRANCH' IN coalesce(ruleset.conditions_ref_name_include, [])
+                OR ('refs/heads/' + repo.defaultbranch)
+                   IN coalesce(ruleset.conditions_ref_name_include, [])
+              )
+              AND NOT (
+                '~DEFAULT_BRANCH' IN coalesce(ruleset.conditions_ref_name_exclude, [])
+                OR ('refs/heads/' + repo.defaultbranch)
+                   IN coalesce(ruleset.conditions_ref_name_exclude, [])
+              )
+        }
+      )
     RETURN repo
     """,
     cypher_count_query="""

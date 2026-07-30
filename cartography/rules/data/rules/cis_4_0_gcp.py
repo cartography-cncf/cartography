@@ -1719,15 +1719,19 @@ class KMSKeyWithoutRotationPolicyOutput(Finding):
 
 _gcp_kms_key_without_rotation_policy = Fact(
     id="gcp_kms_key_without_rotation_policy",
-    name="GCP KMS encryption keys without a rotation policy",
+    name="GCP KMS encryption keys without a compliant rotation policy",
     description=(
-        "Detects symmetric GCP KMS encryption keys that have no configured "
-        "automatic rotation period."
+        "Detects symmetric GCP KMS encryption keys that have no automatic "
+        "rotation period or a period longer than 90 days."
     ),
     cypher_query="""
     MATCH (project:GCPProject)-[:RESOURCE]->(key:GCPCryptoKey)
     WHERE key.purpose = 'ENCRYPT_DECRYPT'
-      AND (key.rotation_period IS NULL OR key.rotation_period = '')
+      AND (
+        key.rotation_period IS NULL
+        OR key.rotation_period = ''
+        OR toFloat(replace(key.rotation_period, 's', '')) > 7776000
+      )
     RETURN
         key.name AS key_name,
         key.id AS key_id,
@@ -1740,7 +1744,11 @@ _gcp_kms_key_without_rotation_policy = Fact(
     cypher_visual_query="""
     MATCH p=(project:GCPProject)-[:RESOURCE]->(key:GCPCryptoKey)
     WHERE key.purpose = 'ENCRYPT_DECRYPT'
-      AND (key.rotation_period IS NULL OR key.rotation_period = '')
+      AND (
+        key.rotation_period IS NULL
+        OR key.rotation_period = ''
+        OR toFloat(replace(key.rotation_period, 's', '')) > 7776000
+      )
     RETURN *
     """,
     cypher_count_query="""
@@ -1757,10 +1765,10 @@ _gcp_kms_key_without_rotation_policy = Fact(
 
 gcp_kms_keys_without_rotation_policy = Rule(
     id="gcp_kms_keys_without_rotation_policy",
-    name="GCP KMS Keys Without Rotation Policy",
+    name="GCP KMS Keys Without Compliant Rotation Policy",
     description=(
-        "Symmetric GCP KMS encryption keys should have an automatic rotation "
-        "policy configured."
+        "Symmetric GCP KMS encryption keys should automatically rotate at least "
+        "once every 90 days."
     ),
     output_model=KMSKeyWithoutRotationPolicyOutput,
     facts=(_gcp_kms_key_without_rotation_policy,),

@@ -293,166 +293,232 @@ _tailscale_device_posture_gaps = Fact(
 )
 
 
-_device_malware_protection_gaps = Fact(
-    id="device_malware_protection_gaps",
-    name="Devices with malware protection gaps",
-    description=(
-        "Detects tampering, malware infections, active endpoint threats, missing "
-        "security agents, reduced endpoint-protection functionality, and disabled "
-        "platform integrity protections."
-    ),
+_duo_phone_malware_protection_gaps = Fact(
+    id="duo_phone_malware_protection_gaps",
+    name="Duo phones with malware protection gaps",
+    description="Detects Duo phones that are explicitly marked as tampered.",
     cypher_query="""
-    CALL {
-        MATCH (asset:Device)-[:OBSERVED_AS]->(device:DuoPhone)
-        WHERE device.tampered = true
-        OPTIONAL MATCH (user:DuoUser)-[:HAS_DUO_PHONE]->(device)
-        RETURN
-            'duo' AS provider,
-            asset.id AS device_id,
-            asset.id AS stable_device_id,
-            coalesce(device.name, device.model, device.id) AS device_name,
-            coalesce(user.email, user.username) AS user,
-            device.platform AS platform,
-            'device_tampered' AS issue,
-            toString(device.tampered) AS current_value
-        UNION
-        MATCH (asset:Device)-[:OBSERVED_AS]->(device:JamfComputer)
-        WITH asset, device,
-            [
-                issue IN [
-                    CASE
-                        WHEN device.gatekeeper_status IS NOT NULL
-                         AND NOT (toLower(toString(device.gatekeeper_status)) IN ['enabled', 'true', 'on'])
-                        THEN ['gatekeeper_not_enabled', toString(device.gatekeeper_status)]
-                    END,
-                    CASE
-                        WHEN device.sip_status IS NOT NULL
-                         AND NOT (toLower(toString(device.sip_status)) IN ['enabled', 'true', 'on'])
-                        THEN ['sip_not_enabled', toString(device.sip_status)]
-                    END
-                ]
-                WHERE issue IS NOT NULL
-            ] AS issues
-        UNWIND issues AS issue
-        RETURN
-            'jamf' AS provider,
-            asset.id AS device_id,
-            asset.id AS stable_device_id,
-            coalesce(device.name, device.serial_number, device.id) AS device_name,
-            coalesce(device.email, device.username) AS user,
-            coalesce(device.platform, device.os_name) AS platform,
-            issue[0] AS issue,
-            issue[1] AS current_value
-        UNION
-        MATCH (asset:Device)-[:OBSERVED_AS]->(device:JamfMobileDevice)
-        WHERE device.jailbreak_detected = true
-        RETURN
-            'jamf' AS provider,
-            asset.id AS device_id,
-            asset.id AS stable_device_id,
-            coalesce(device.display_name, device.serial_number, device.id) AS device_name,
-            coalesce(device.email, device.username) AS user,
-            coalesce(device.platform, device.os) AS platform,
-            'jailbreak_detected' AS issue,
-            toString(device.jailbreak_detected) AS current_value
-        UNION
-        MATCH (asset:Device)-[:OBSERVED_AS]->(device:CrowdstrikeHost)
-        WHERE device.reduced_functionality_mode IS NOT NULL
-          AND NOT (
-              toLower(toString(device.reduced_functionality_mode))
-              IN ['no', 'false', 'disabled', 'off']
-          )
-        RETURN
-            'crowdstrike' AS provider,
-            asset.id AS device_id,
-            asset.id AS stable_device_id,
-            coalesce(device.hostname, device.id) AS device_name,
-            device.email AS user,
-            device.platform_name AS platform,
-            'crowdstrike_reduced_functionality_mode' AS issue,
-            toString(device.reduced_functionality_mode) AS current_value
-        UNION
-        MATCH (asset:Device)-[:OBSERVED_AS]->(device:TailscaleDevice)<-[:RESOURCE]-(tailnet:TailscaleTailnet)
-        OPTIONAL MATCH (user:TailscaleUser)-[:OWNS]->(device)
-        WITH asset, tailnet, device, user,
-            [
-                issue IN [
-                    CASE
-                        WHEN device.posture_sentinelone_active_threats IS NOT NULL
-                         AND toInteger(device.posture_sentinelone_active_threats) > 0
-                        THEN ['sentinelone_active_threats', toString(device.posture_sentinelone_active_threats)]
-                    END,
-                    CASE WHEN device.posture_sentinelone_infected = true THEN ['sentinelone_infected', toString(device.posture_sentinelone_infected)] END,
-                    CASE WHEN device.posture_kandji_agent_installed = false THEN ['kandji_agent_missing', toString(device.posture_kandji_agent_installed)] END,
-                    CASE WHEN device.posture_jamfpro_sip_enabled = false THEN ['jamfpro_sip_disabled', toString(device.posture_jamfpro_sip_enabled)] END
-                ]
-                WHERE issue IS NOT NULL
-            ] AS issues
-        UNWIND issues AS issue
-        RETURN
-            'tailscale' AS provider,
-            asset.id AS device_id,
-            asset.id AS stable_device_id,
-            coalesce(device.hostname, device.name, device.id) AS device_name,
-            coalesce(user.email, user.login_name) AS user,
-            coalesce(device.os, device.posture_node_os) AS platform,
-            issue[0] AS issue,
-            issue[1] AS current_value
-    }
-    RETURN *
+    MATCH (device:DuoPhone)
+    WHERE device.tampered = true
+    OPTIONAL MATCH (user:DuoUser)-[:HAS_DUO_PHONE]->(device)
+    RETURN
+        'duo' AS provider,
+        device.id AS device_id,
+        device.id AS stable_device_id,
+        coalesce(device.name, device.model, device.id) AS device_name,
+        coalesce(user.email, user.username) AS user,
+        device.platform AS platform,
+        'device_tampered' AS issue,
+        toString(device.tampered) AS current_value
     """,
     cypher_visual_query="""
-    MATCH p=(asset:Device)-[:OBSERVED_AS]->(device)
-    WHERE (device:DuoPhone AND device.tampered = true)
-       OR (
-            device:JamfComputer
-            AND (
-                (
-                    device.gatekeeper_status IS NOT NULL
-                    AND NOT (toLower(toString(device.gatekeeper_status)) IN ['enabled', 'true', 'on'])
-                )
-                OR (
-                    device.sip_status IS NOT NULL
-                    AND NOT (toLower(toString(device.sip_status)) IN ['enabled', 'true', 'on'])
-                )
-            )
-       )
-       OR (device:JamfMobileDevice AND device.jailbreak_detected = true)
-       OR (
-            device:CrowdstrikeHost
-            AND device.reduced_functionality_mode IS NOT NULL
-            AND NOT (
-                toLower(toString(device.reduced_functionality_mode))
-                IN ['no', 'false', 'disabled', 'off']
-            )
-       )
-       OR (
-            device:TailscaleDevice
-            AND (
-                (
-                    device.posture_sentinelone_active_threats IS NOT NULL
-                    AND toInteger(device.posture_sentinelone_active_threats) > 0
-                )
-                OR device.posture_sentinelone_infected = true
-                OR device.posture_kandji_agent_installed = false
-                OR device.posture_jamfpro_sip_enabled = false
-            )
-       )
+    MATCH (device:DuoPhone)
+    WHERE device.tampered = true
+    OPTIONAL MATCH p=(user:DuoUser)-[:HAS_DUO_PHONE]->(device)
     RETURN *
     """,
     cypher_count_query="""
-    MATCH (asset:Device)-[:OBSERVED_AS]->(device)
-    WHERE device:DuoPhone
-       OR device:JamfComputer
-       OR device:JamfMobileDevice
-       OR device:CrowdstrikeHost
-       OR device:TailscaleDevice
-    RETURN COUNT(DISTINCT asset) AS count
+    MATCH (device:DuoPhone)
+    RETURN COUNT(device) AS count
     """,
-    asset_label="Device",
+    asset_label="DuoPhone",
     asset_id_field="device_id",
-    identity_fields=("provider", "stable_device_id", "issue"),
-    module=Module.CROSS_CLOUD,
+    identity_fields=("device_id", "issue"),
+    module=Module.DUO,
+    maturity=Maturity.EXPERIMENTAL,
+)
+
+
+_jamf_computer_malware_protection_gaps = Fact(
+    id="jamf_computer_malware_protection_gaps",
+    name="Jamf computers with malware protection gaps",
+    description=(
+        "Detects Jamf computers with disabled Gatekeeper or system integrity "
+        "protection."
+    ),
+    cypher_query="""
+    MATCH (device:JamfComputer)
+    WITH device,
+        [
+            issue IN [
+                CASE
+                    WHEN device.gatekeeper_status IS NOT NULL
+                     AND NOT (toLower(toString(device.gatekeeper_status)) IN ['enabled', 'true', 'on'])
+                    THEN ['gatekeeper_not_enabled', toString(device.gatekeeper_status)]
+                END,
+                CASE
+                    WHEN device.sip_status IS NOT NULL
+                     AND NOT (toLower(toString(device.sip_status)) IN ['enabled', 'true', 'on'])
+                    THEN ['sip_not_enabled', toString(device.sip_status)]
+                END
+            ]
+            WHERE issue IS NOT NULL
+        ] AS issues
+    UNWIND issues AS issue
+    RETURN
+        'jamf' AS provider,
+        device.id AS device_id,
+        device.id AS stable_device_id,
+        coalesce(device.name, device.serial_number, device.id) AS device_name,
+        coalesce(device.email, device.username) AS user,
+        coalesce(device.platform, device.os_name) AS platform,
+        issue[0] AS issue,
+        issue[1] AS current_value
+    """,
+    cypher_visual_query="""
+    MATCH (device:JamfComputer)
+    WHERE (
+        device.gatekeeper_status IS NOT NULL
+        AND NOT (toLower(toString(device.gatekeeper_status)) IN ['enabled', 'true', 'on'])
+    ) OR (
+        device.sip_status IS NOT NULL
+        AND NOT (toLower(toString(device.sip_status)) IN ['enabled', 'true', 'on'])
+    )
+    RETURN device
+    """,
+    cypher_count_query="""
+    MATCH (device:JamfComputer)
+    RETURN COUNT(device) AS count
+    """,
+    asset_label="JamfComputer",
+    asset_id_field="device_id",
+    identity_fields=("device_id", "issue"),
+    module=Module.JAMF,
+    maturity=Maturity.EXPERIMENTAL,
+)
+
+
+_jamf_mobile_device_malware_protection_gaps = Fact(
+    id="jamf_mobile_device_malware_protection_gaps",
+    name="Jamf mobile devices with malware protection gaps",
+    description="Detects Jamf mobile devices with a detected jailbreak.",
+    cypher_query="""
+    MATCH (device:JamfMobileDevice)
+    WHERE device.jailbreak_detected = true
+    RETURN
+        'jamf' AS provider,
+        device.id AS device_id,
+        device.id AS stable_device_id,
+        coalesce(device.display_name, device.serial_number, device.id) AS device_name,
+        coalesce(device.email, device.username) AS user,
+        coalesce(device.platform, device.os) AS platform,
+        'jailbreak_detected' AS issue,
+        toString(device.jailbreak_detected) AS current_value
+    """,
+    cypher_visual_query="""
+    MATCH (device:JamfMobileDevice)
+    WHERE device.jailbreak_detected = true
+    RETURN device
+    """,
+    cypher_count_query="""
+    MATCH (device:JamfMobileDevice)
+    RETURN COUNT(device) AS count
+    """,
+    asset_label="JamfMobileDevice",
+    asset_id_field="device_id",
+    identity_fields=("device_id", "issue"),
+    module=Module.JAMF,
+    maturity=Maturity.EXPERIMENTAL,
+)
+
+
+_crowdstrike_host_malware_protection_gaps = Fact(
+    id="crowdstrike_host_malware_protection_gaps",
+    name="CrowdStrike hosts with malware protection gaps",
+    description=("Detects CrowdStrike hosts running in reduced functionality mode."),
+    cypher_query="""
+    MATCH (device:CrowdstrikeHost)
+    WHERE device.reduced_functionality_mode IS NOT NULL
+      AND NOT (
+          toLower(toString(device.reduced_functionality_mode))
+          IN ['no', 'false', 'disabled', 'off']
+      )
+    RETURN
+        'crowdstrike' AS provider,
+        device.id AS device_id,
+        device.id AS stable_device_id,
+        coalesce(device.hostname, device.id) AS device_name,
+        device.email AS user,
+        device.platform_name AS platform,
+        'crowdstrike_reduced_functionality_mode' AS issue,
+        toString(device.reduced_functionality_mode) AS current_value
+    """,
+    cypher_visual_query="""
+    MATCH (device:CrowdstrikeHost)
+    WHERE device.reduced_functionality_mode IS NOT NULL
+      AND NOT (
+          toLower(toString(device.reduced_functionality_mode))
+          IN ['no', 'false', 'disabled', 'off']
+      )
+    RETURN device
+    """,
+    cypher_count_query="""
+    MATCH (device:CrowdstrikeHost)
+    RETURN COUNT(device) AS count
+    """,
+    asset_label="CrowdstrikeHost",
+    asset_id_field="device_id",
+    identity_fields=("device_id", "issue"),
+    module=Module.CROWDSTRIKE,
+    maturity=Maturity.EXPERIMENTAL,
+)
+
+
+_tailscale_device_malware_protection_gaps = Fact(
+    id="tailscale_device_malware_protection_gaps",
+    name="Tailscale devices with malware protection gaps",
+    description=(
+        "Detects Tailscale devices with active threats, infections, missing "
+        "security agents, or disabled system integrity protection."
+    ),
+    cypher_query="""
+    MATCH (tailnet:TailscaleTailnet)-[:RESOURCE]->(device:TailscaleDevice)
+    OPTIONAL MATCH (user:TailscaleUser)-[:OWNS]->(device)
+    WITH tailnet, device, user,
+        [
+            issue IN [
+                CASE
+                    WHEN device.posture_sentinelone_active_threats IS NOT NULL
+                     AND toInteger(device.posture_sentinelone_active_threats) > 0
+                    THEN ['sentinelone_active_threats', toString(device.posture_sentinelone_active_threats)]
+                END,
+                CASE WHEN device.posture_sentinelone_infected = true THEN ['sentinelone_infected', toString(device.posture_sentinelone_infected)] END,
+                CASE WHEN device.posture_kandji_agent_installed = false THEN ['kandji_agent_missing', toString(device.posture_kandji_agent_installed)] END,
+                CASE WHEN device.posture_jamfpro_sip_enabled = false THEN ['jamfpro_sip_disabled', toString(device.posture_jamfpro_sip_enabled)] END
+            ]
+            WHERE issue IS NOT NULL
+        ] AS issues
+    UNWIND issues AS issue
+    RETURN
+        'tailscale' AS provider,
+        tailnet.id AS tailnet_id,
+        device.id AS device_id,
+        device.id AS stable_device_id,
+        coalesce(device.hostname, device.name, device.id) AS device_name,
+        coalesce(user.email, user.login_name) AS user,
+        coalesce(device.os, device.posture_node_os) AS platform,
+        issue[0] AS issue,
+        issue[1] AS current_value
+    """,
+    cypher_visual_query="""
+    MATCH (device:TailscaleDevice)
+    WHERE (
+        device.posture_sentinelone_active_threats IS NOT NULL
+        AND toInteger(device.posture_sentinelone_active_threats) > 0
+    )
+       OR device.posture_sentinelone_infected = true
+       OR device.posture_kandji_agent_installed = false
+       OR device.posture_jamfpro_sip_enabled = false
+    RETURN device
+    """,
+    cypher_count_query="""
+    MATCH (device:TailscaleDevice)
+    RETURN COUNT(device) AS count
+    """,
+    asset_label="TailscaleDevice",
+    asset_id_field="device_id",
+    identity_fields=("tailnet_id", "device_id", "issue"),
+    module=Module.TAILSCALE,
     maturity=Maturity.EXPERIMENTAL,
 )
 
@@ -492,126 +558,153 @@ _device_update_gaps = Fact(
 )
 
 
-_device_management_gaps = Fact(
-    id="device_management_gaps",
-    name="Devices with management and supervision gaps",
+_jamf_computer_management_gaps = Fact(
+    id="jamf_computer_management_gaps",
+    name="Jamf computers with management gaps",
     description=(
-        "Detects devices that are not managed, supervised, MDM-approved, or "
-        "compliant according to their endpoint-management provider."
+        "Detects Jamf computers that are not supervised, MDM-approved, or "
+        "remotely managed."
     ),
     cypher_query="""
-    CALL {
-        MATCH (asset:Device)-[:OBSERVED_AS]->(device:JamfComputer)
-        WITH asset, device,
-            [
-                issue IN [
-                    CASE WHEN device.supervised = false THEN ['not_supervised', toString(device.supervised)] END,
-                    CASE WHEN device.user_approved_mdm = false THEN ['user_approved_mdm_missing', toString(device.user_approved_mdm)] END,
-                    CASE WHEN device.remote_management_managed = false THEN ['remote_management_not_managed', toString(device.remote_management_managed)] END
-                ]
-                WHERE issue IS NOT NULL
-            ] AS issues
-        UNWIND issues AS issue
-        RETURN
-            'jamf' AS provider,
-            asset.id AS device_id,
-            asset.id AS stable_device_id,
-            coalesce(device.name, device.serial_number, device.id) AS device_name,
-            coalesce(device.email, device.username) AS user,
-            coalesce(device.platform, device.os_name) AS platform,
-            issue[0] AS issue,
-            issue[1] AS current_value
-        UNION
-        MATCH (asset:Device)-[:OBSERVED_AS]->(device:JamfMobileDevice)
-        WITH asset, device,
-            [
-                issue IN [
-                    CASE WHEN device.managed = false THEN ['not_managed', toString(device.managed)] END,
-                    CASE WHEN device.supervised = false THEN ['not_supervised', toString(device.supervised)] END
-                ]
-                WHERE issue IS NOT NULL
-            ] AS issues
-        UNWIND issues AS issue
-        RETURN
-            'jamf' AS provider,
-            asset.id AS device_id,
-            asset.id AS stable_device_id,
-            coalesce(device.display_name, device.serial_number, device.id) AS device_name,
-            coalesce(device.email, device.username) AS user,
-            coalesce(device.platform, device.os) AS platform,
-            issue[0] AS issue,
-            issue[1] AS current_value
-        UNION
-        MATCH (asset:Device)-[:OBSERVED_AS]->(device:TailscaleDevice)<-[:RESOURCE]-(tailnet:TailscaleTailnet)
-        OPTIONAL MATCH (user:TailscaleUser)-[:OWNS]->(device)
-        WITH asset, tailnet, device, user,
-            [
-                issue IN [
-                    CASE WHEN device.posture_kandji_mdm_enabled = false THEN ['kandji_mdm_disabled', toString(device.posture_kandji_mdm_enabled)] END,
-                    CASE WHEN device.posture_jamfpro_remote_managed = false THEN ['jamfpro_not_remote_managed', toString(device.posture_jamfpro_remote_managed)] END,
-                    CASE WHEN device.posture_jamfpro_supervised = false THEN ['jamfpro_not_supervised', toString(device.posture_jamfpro_supervised)] END,
-                    CASE
-                        WHEN device.posture_intune_compliance_state IS NOT NULL
-                         AND NOT (toLower(toString(device.posture_intune_compliance_state)) IN ['compliant'])
-                        THEN ['intune_noncompliant', toString(device.posture_intune_compliance_state)]
-                    END,
-                    CASE WHEN device.posture_intune_is_supervised = false THEN ['intune_not_supervised', toString(device.posture_intune_is_supervised)] END
-                ]
-                WHERE issue IS NOT NULL
-            ] AS issues
-        UNWIND issues AS issue
-        RETURN
-            'tailscale' AS provider,
-            asset.id AS device_id,
-            asset.id AS stable_device_id,
-            coalesce(device.hostname, device.name, device.id) AS device_name,
-            coalesce(user.email, user.login_name) AS user,
-            coalesce(device.os, device.posture_node_os) AS platform,
-            issue[0] AS issue,
-            issue[1] AS current_value
-    }
-    RETURN *
+    MATCH (device:JamfComputer)
+    WITH device,
+        [
+            issue IN [
+                CASE WHEN device.supervised = false THEN ['not_supervised', toString(device.supervised)] END,
+                CASE WHEN device.user_approved_mdm = false THEN ['user_approved_mdm_missing', toString(device.user_approved_mdm)] END,
+                CASE WHEN device.remote_management_managed = false THEN ['remote_management_not_managed', toString(device.remote_management_managed)] END
+            ]
+            WHERE issue IS NOT NULL
+        ] AS issues
+    UNWIND issues AS issue
+    RETURN
+        'jamf' AS provider,
+        device.id AS device_id,
+        device.id AS stable_device_id,
+        coalesce(device.name, device.serial_number, device.id) AS device_name,
+        coalesce(device.email, device.username) AS user,
+        coalesce(device.platform, device.os_name) AS platform,
+        issue[0] AS issue,
+        issue[1] AS current_value
     """,
     cypher_visual_query="""
-    MATCH p=(asset:Device)-[:OBSERVED_AS]->(device)
-    WHERE (
-        device:JamfComputer
-        AND (
-            device.supervised = false
-            OR device.user_approved_mdm = false
-            OR device.remote_management_managed = false
-        )
-    )
-    OR (
-        device:JamfMobileDevice
-        AND (device.managed = false OR device.supervised = false)
-    )
-    OR (
-        device:TailscaleDevice
-        AND (
-            device.posture_kandji_mdm_enabled = false
-            OR device.posture_jamfpro_remote_managed = false
-            OR device.posture_jamfpro_supervised = false
-            OR (
-                device.posture_intune_compliance_state IS NOT NULL
-                AND NOT (toLower(toString(device.posture_intune_compliance_state)) IN ['compliant'])
-            )
-            OR device.posture_intune_is_supervised = false
-        )
-    )
-    RETURN *
+    MATCH (device:JamfComputer)
+    WHERE device.supervised = false
+       OR device.user_approved_mdm = false
+       OR device.remote_management_managed = false
+    RETURN device
     """,
     cypher_count_query="""
-    MATCH (asset:Device)-[:OBSERVED_AS]->(device)
-    WHERE device:JamfComputer
-       OR device:JamfMobileDevice
-       OR device:TailscaleDevice
-    RETURN COUNT(DISTINCT asset) AS count
+    MATCH (device:JamfComputer)
+    RETURN COUNT(device) AS count
     """,
-    asset_label="Device",
+    asset_label="JamfComputer",
     asset_id_field="device_id",
-    identity_fields=("provider", "stable_device_id", "issue"),
-    module=Module.CROSS_CLOUD,
+    identity_fields=("device_id", "issue"),
+    module=Module.JAMF,
+    maturity=Maturity.EXPERIMENTAL,
+)
+
+
+_jamf_mobile_device_management_gaps = Fact(
+    id="jamf_mobile_device_management_gaps",
+    name="Jamf mobile devices with management gaps",
+    description="Detects unmanaged or unsupervised Jamf mobile devices.",
+    cypher_query="""
+    MATCH (device:JamfMobileDevice)
+    WITH device,
+        [
+            issue IN [
+                CASE WHEN device.managed = false THEN ['not_managed', toString(device.managed)] END,
+                CASE WHEN device.supervised = false THEN ['not_supervised', toString(device.supervised)] END
+            ]
+            WHERE issue IS NOT NULL
+        ] AS issues
+    UNWIND issues AS issue
+    RETURN
+        'jamf' AS provider,
+        device.id AS device_id,
+        device.id AS stable_device_id,
+        coalesce(device.display_name, device.serial_number, device.id) AS device_name,
+        coalesce(device.email, device.username) AS user,
+        coalesce(device.platform, device.os) AS platform,
+        issue[0] AS issue,
+        issue[1] AS current_value
+    """,
+    cypher_visual_query="""
+    MATCH (device:JamfMobileDevice)
+    WHERE device.managed = false OR device.supervised = false
+    RETURN device
+    """,
+    cypher_count_query="""
+    MATCH (device:JamfMobileDevice)
+    RETURN COUNT(device) AS count
+    """,
+    asset_label="JamfMobileDevice",
+    asset_id_field="device_id",
+    identity_fields=("device_id", "issue"),
+    module=Module.JAMF,
+    maturity=Maturity.EXPERIMENTAL,
+)
+
+
+_tailscale_device_management_gaps = Fact(
+    id="tailscale_device_management_gaps",
+    name="Tailscale devices with management gaps",
+    description=(
+        "Detects Tailscale devices that are not managed, supervised, or "
+        "compliant according to device posture data."
+    ),
+    cypher_query="""
+    MATCH (tailnet:TailscaleTailnet)-[:RESOURCE]->(device:TailscaleDevice)
+    OPTIONAL MATCH (user:TailscaleUser)-[:OWNS]->(device)
+    WITH tailnet, device, user,
+        [
+            issue IN [
+                CASE WHEN device.posture_kandji_mdm_enabled = false THEN ['kandji_mdm_disabled', toString(device.posture_kandji_mdm_enabled)] END,
+                CASE WHEN device.posture_jamfpro_remote_managed = false THEN ['jamfpro_not_remote_managed', toString(device.posture_jamfpro_remote_managed)] END,
+                CASE WHEN device.posture_jamfpro_supervised = false THEN ['jamfpro_not_supervised', toString(device.posture_jamfpro_supervised)] END,
+                CASE
+                    WHEN device.posture_intune_compliance_state IS NOT NULL
+                     AND NOT (toLower(toString(device.posture_intune_compliance_state)) IN ['compliant'])
+                    THEN ['intune_noncompliant', toString(device.posture_intune_compliance_state)]
+                END,
+                CASE WHEN device.posture_intune_is_supervised = false THEN ['intune_not_supervised', toString(device.posture_intune_is_supervised)] END
+            ]
+            WHERE issue IS NOT NULL
+        ] AS issues
+    UNWIND issues AS issue
+    RETURN
+        'tailscale' AS provider,
+        tailnet.id AS tailnet_id,
+        device.id AS device_id,
+        device.id AS stable_device_id,
+        coalesce(device.hostname, device.name, device.id) AS device_name,
+        coalesce(user.email, user.login_name) AS user,
+        coalesce(device.os, device.posture_node_os) AS platform,
+        issue[0] AS issue,
+        issue[1] AS current_value
+    """,
+    cypher_visual_query="""
+    MATCH (device:TailscaleDevice)
+    WHERE device.posture_kandji_mdm_enabled = false
+       OR device.posture_jamfpro_remote_managed = false
+       OR device.posture_jamfpro_supervised = false
+       OR (
+            device.posture_intune_compliance_state IS NOT NULL
+            AND NOT (toLower(toString(device.posture_intune_compliance_state)) IN ['compliant'])
+       )
+       OR device.posture_intune_is_supervised = false
+    RETURN device
+    """,
+    cypher_count_query="""
+    MATCH (device:TailscaleDevice)
+    RETURN COUNT(device) AS count
+    """,
+    asset_label="TailscaleDevice",
+    asset_id_field="device_id",
+    identity_fields=("tailnet_id", "device_id", "issue"),
+    module=Module.TAILSCALE,
     maturity=Maturity.EXPERIMENTAL,
 )
 
@@ -651,7 +744,13 @@ device_malware_protection_gaps = Rule(
         "disabled platform integrity protections."
     ),
     output_model=DeviceSecurityPostureGapOutput,
-    facts=(_device_malware_protection_gaps,),
+    facts=(
+        _duo_phone_malware_protection_gaps,
+        _jamf_computer_malware_protection_gaps,
+        _jamf_mobile_device_malware_protection_gaps,
+        _crowdstrike_host_malware_protection_gaps,
+        _tailscale_device_malware_protection_gaps,
+    ),
     tags=("device", "endpoint", "malware", "edr", "stride:tampering"),
     version="0.1.0",
     frameworks=(
@@ -693,7 +792,11 @@ device_management_gaps = Rule(
         "approval, or are noncompliant according to their management provider."
     ),
     output_model=DeviceSecurityPostureGapOutput,
-    facts=(_device_management_gaps,),
+    facts=(
+        _jamf_computer_management_gaps,
+        _jamf_mobile_device_management_gaps,
+        _tailscale_device_management_gaps,
+    ),
     tags=("device", "endpoint", "mdm", "compliance"),
     version="0.1.0",
     frameworks=(

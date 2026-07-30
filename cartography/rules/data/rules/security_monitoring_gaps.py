@@ -75,7 +75,7 @@ _aws_security_hub_missing = Fact(
         OR resource:AWSRDSCluster
       )
     WITH DISTINCT account, resource.region AS region
-    RETURN COUNT(*) AS count
+    RETURN COUNT(DISTINCT account) AS count
     """,
     asset_label="AWSAccount",
     asset_id_field="account_id",
@@ -108,8 +108,8 @@ _aws_security_hub_controls_not_auto_enabled = Fact(
     RETURN *
     """,
     cypher_count_query="""
-    MATCH (hub:AWSSecurityHub)
-    RETURN COUNT(hub) AS count
+    MATCH (account:AWSAccount)-[:RESOURCE]->(:AWSSecurityHub)
+    RETURN COUNT(DISTINCT account) AS count
     """,
     asset_label="AWSAccount",
     asset_id_field="account_id",
