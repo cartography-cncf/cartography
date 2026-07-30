@@ -121,10 +121,30 @@ kubernetes_mapping = OntologyMapping(
     ],
 )
 
+modal_mapping = OntologyMapping(
+    module_name="modal",
+    nodes=[
+        OntologyNodeMapping(
+            node_label="ModalSecret",
+            fields=[
+                OntologyFieldMapping(
+                    ontology_field="name", node_field="name", required=True
+                ),
+                OntologyFieldMapping(
+                    ontology_field="created_at", node_field="created_at"
+                ),
+                # updated_at: Modal does not report when a secret was last modified.
+                # rotation_enabled: Modal has no secret rotation feature.
+            ],
+        ),
+    ],
+)
+
 SECRETS_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     "aws": aws_mapping,
     "gcp": gcp_mapping,
     "azure": azure_mapping,
     "github": github_mapping,
     "kubernetes": kubernetes_mapping,
+    "modal": modal_mapping,
 }

@@ -7,14 +7,21 @@ from typing import Callable
 import neo4j
 
 import cartography.intel.modal.apps
+import cartography.intel.modal.dicts
+import cartography.intel.modal.domains
 import cartography.intel.modal.environment_roles
 import cartography.intel.modal.environments
 import cartography.intel.modal.functions
 import cartography.intel.modal.images
 import cartography.intel.modal.members
+import cartography.intel.modal.nfs
+import cartography.intel.modal.proxies
 import cartography.intel.modal.proxy_tokens
+import cartography.intel.modal.queues
 import cartography.intel.modal.sandboxes
+import cartography.intel.modal.secrets
 import cartography.intel.modal.service_users
+import cartography.intel.modal.volumes
 import cartography.intel.modal.workloads
 import cartography.intel.modal.workspace
 from cartography.config import Config
@@ -134,6 +141,13 @@ async def _sync(neo4j_session: neo4j.Session, config: Config) -> None:
         client,
         common_job_parameters,
     )
+    await _run(
+        "custom domains",
+        cartography.intel.modal.domains.sync,
+        neo4j_session,
+        client,
+        common_job_parameters,
+    )
 
     if environments is None:
         logger.warning(
@@ -186,6 +200,22 @@ async def _sync(neo4j_session: neo4j.Session, config: Config) -> None:
             client,
             environment_job_parameters,
         )
+
+        for label, module in (
+            ("secrets", cartography.intel.modal.secrets),
+            ("volumes", cartography.intel.modal.volumes),
+            ("network file systems", cartography.intel.modal.nfs),
+            ("dicts", cartography.intel.modal.dicts),
+            ("queues", cartography.intel.modal.queues),
+            ("proxies", cartography.intel.modal.proxies),
+        ):
+            await _run(
+                f"{label} ({name})",
+                module.sync,
+                neo4j_session,
+                client,
+                environment_job_parameters,
+            )
 
         if apps is None:
             logger.warning(

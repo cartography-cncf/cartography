@@ -35,6 +35,24 @@ graph LR
     S -->|EXPOSES| TU(ModalSandboxTunnel)
 ```
 
+Storage, key-value stores and network. `CREATED_BY` is best-effort, and custom domains are
+workspace-scoped rather than environment-scoped:
+
+```mermaid
+graph LR
+    E(ModalEnvironment) -->|RESOURCE| SE(ModalSecret)
+    E -->|RESOURCE| V(ModalVolume)
+    E -->|RESOURCE| N(ModalNetworkFileSystem)
+    E -->|RESOURCE| D(ModalDict)
+    E -->|RESOURCE| Q(ModalQueue)
+    E -->|RESOURCE| P(ModalProxy)
+    P -->|HAS_IP| PI(ModalProxyIP)
+    SE -.->|CREATED_BY| M(ModalWorkspaceMember)
+    V -.->|CREATED_BY| M
+    W(ModalWorkspace) -->|RESOURCE| DM(ModalDomain)
+    DM -->|HAS_RECORD| DR(ModalDomainDNSRecord)
+```
+
 ### ModalWorkspace
 
 Represents a Modal workspace, the top of the Modal hierarchy. One workspace is derived from
@@ -569,6 +587,271 @@ why a sandbox's `HAS_IMAGE` edge often does not resolve.
 | revision_id | Revision of the tag. |
 | created_at | When the image was created. |
 | updated_at | When the image was last updated. |
+| **environment_name** | Name of the owning environment. |
+| firstseen | Timestamp of when a sync job first created this node. |
+| lastupdated | Timestamp of the last time the node was updated. |
+
+### ModalSecret
+
+Represents a Modal secret. Only metadata is ingested.
+
+> **Ontology Mapping**: This node has the extra label `Secret`, alongside
+> AWSSecretsManagerSecret, GCPSecretManagerSecret, AzureKeyVaultSecret and KubernetesSecret.
+
+**Modal returns no secret values through any read API**, so Cartography cannot and does not
+store them. There is deliberately no `USES_SECRET` edge either: `Function.secret_ids` is
+write-only, so which apps or functions consume a given secret is not obtainable and can only
+be determined from source code. `last_used_at` is the single aggregate signal that a secret is
+still in use.
+
+#### Relationships
+
+- A secret belongs to an environment and records who created it.
+
+    ```
+    (:ModalEnvironment)-[:RESOURCE]->(:ModalSecret)
+    (:ModalSecret)-[:CREATED_BY]->(:ModalWorkspaceMember)
+    ```
+
+  `CREATED_BY` is best-effort: Modal reports the creator as a workspace username, so the edge
+  joins on `ModalWorkspaceMember.display_name` and is absent when no member matches (for
+  instance when the creator has since left).
+
+| Field | Description |
+|-------|-------------|
+| **id** | Secret ID, e.g. `st-poEHPwc7kwkkLwrnaVPjTn`. |
+| **name** | Secret name. |
+| created_at | When the secret was created. |
+| last_used_at | When the secret was last read by a workload. Null if never. |
+| **created_by** | Workspace username of the creator, not an email. |
+| **environment_name** | Name of the owning environment. |
+| firstseen | Timestamp of when a sync job first created this node. |
+| lastupdated | Timestamp of the last time the node was updated. |
+
+### ModalVolume
+
+Represents a Modal volume: a persistent distributed filesystem that many containers can mount
+at once.
+
+> **Ontology Mapping**: This node has the extra label `FileStorage` rather than
+> `BlockStorage`, because a Modal volume is a shared filesystem mounted at a path, not a block
+> device attached to a single instance.
+
+Which workloads mount it is **not** graphable: `Function.volume_mounts` is write-only, the same
+limitation as secrets.
+
+#### Relationships
+
+- A volume belongs to an environment and records who created it.
+
+    ```
+    (:ModalEnvironment)-[:RESOURCE]->(:ModalVolume)
+    (:ModalVolume)-[:CREATED_BY]->(:ModalWorkspaceMember)
+    ```
+
+| Field | Description |
+|-------|-------------|
+| **id** | Volume ID, e.g. `vo-Fq2DSfh5sU2E9kQ6R9oDrj`. |
+| **name** | Volume name. |
+| created_at | When the volume was created. |
+| **created_by** | Workspace username of the creator. |
+| **version** | Raw `VOLUME_FS_VERSION_*` value. V1 is the older filesystem generation. |
+| **environment_name** | Name of the owning environment. |
+| firstseen | Timestamp of when a sync job first created this node. |
+| lastupdated | Timestamp of the last time the node was updated. |
+
+### ModalNetworkFileSystem
+
+Represents a Modal network file system: the older shared-filesystem primitive, superseded by
+Volume. Still inventoried because existing workspaces have them, and an unnoticed legacy share
+holding data is exactly what an inventory should surface.
+
+> **Ontology Mapping**: This node has the extra label `FileStorage`.
+
+#### Relationships
+
+- A network file system belongs to an environment.
+
+    ```
+    (:ModalEnvironment)-[:RESOURCE]->(:ModalNetworkFileSystem)
+    ```
+
+| Field | Description |
+|-------|-------------|
+| **id** | Share ID, e.g. `sv-1AsDfGhJkLzXcVbNmQwErT`. |
+| **name** | Share name. |
+| created_at | When the share was created. |
+| **cloud_provider** | Raw `CLOUD_PROVIDER_*` value: AWS, GCP, OCI or AUTO. This names a provider, not a region, which is why it is not mapped onto the ontology `location` field. |
+| **environment_name** | Name of the owning environment. |
+| firstseen | Timestamp of when a sync job first created this node. |
+| lastupdated | Timestamp of the last time the node was updated. |
+
+### ModalDict
+
+Represents a Modal Dict: a distributed key-value store scoped to an environment. Only the
+container is inventoried; its contents are not enumerated.
+
+It carries no ontology label. `Database` would be a stretch, since this is not a queryable
+datastore with its own engine, encryption or backup posture, and the ontology has no
+key-value-store label, so tagging it would surface it wrongly to cross-provider datastore
+rules.
+
+#### Relationships
+
+- A Dict belongs to an environment.
+
+    ```
+    (:ModalEnvironment)-[:RESOURCE]->(:ModalDict)
+    ```
+
+| Field | Description |
+|-------|-------------|
+| **id** | Dict ID, e.g. `di-F91whmwZVRH92mOiJgNOCT`. |
+| **name** | Dict name. |
+| created_at | When the Dict was created. |
+| **environment_name** | Name of the owning environment. |
+| firstseen | Timestamp of when a sync job first created this node. |
+| lastupdated | Timestamp of the last time the node was updated. |
+
+### ModalQueue
+
+Represents a Modal Queue: a distributed FIFO queue scoped to an environment. Only the container
+is inventoried; its contents are not enumerated. It carries no ontology label, the ontology
+having no queue or messaging concept to normalise it to.
+
+#### Relationships
+
+- A Queue belongs to an environment.
+
+    ```
+    (:ModalEnvironment)-[:RESOURCE]->(:ModalQueue)
+    ```
+
+| Field | Description |
+|-------|-------------|
+| **id** | Queue ID, e.g. `qu-kbM1N097wnpOSJgRjiwXvk`. |
+| **name** | Queue name. |
+| created_at | When the Queue was created. |
+| num_partitions | Number of partitions, if reported. |
+| total_size | Current queue depth, if reported. |
+| **environment_name** | Name of the owning environment. |
+| firstseen | Timestamp of when a sync job first created this node. |
+| lastupdated | Timestamp of the last time the node was updated. |
+
+### ModalDomain
+
+Represents a custom domain attached to a Modal workspace, used to serve web endpoints on your
+own hostname. **Workspace-scoped**, not environment-scoped: the underlying API call is
+workspace-wide.
+
+Custom domains require a paid Modal add-on. On workspaces without it the API answers
+`UNIMPLEMENTED`, which Cartography treats as "no domains" rather than an error, so this node
+type is simply absent there.
+
+This node carries no ontology label: `DNSZone` would be wrong (a hostname is not a zone) and
+`Certificate` would be a one-field stub, since Modal exposes only a status with no issuer or
+expiry.
+
+#### Relationships
+
+- A domain belongs to a workspace and owns its validation records.
+
+    ```
+    (:ModalWorkspace)-[:RESOURCE]->(:ModalDomain)
+    (:ModalDomain)-[:HAS_RECORD]->(:ModalDomainDNSRecord)
+    ```
+
+| Field | Description |
+|-------|-------------|
+| **id** | Domain ID. |
+| **domain_name** | The custom hostname. |
+| created_at | When the domain was added. |
+| **certificate_status** | Raw `CERTIFICATE_STATUS_*` value. A domain stuck `PENDING`, or `FAILED`/`REVOKED`, is serving without a valid certificate. |
+| firstseen | Timestamp of when a sync job first created this node. |
+| lastupdated | Timestamp of the last time the node was updated. |
+
+### ModalDomainDNSRecord
+
+Represents a DNS record Modal asks you to create in order to validate a custom domain.
+
+Deliberately **not** labelled `DNSRecord`. These are records Modal *requests*, meaning desired
+configuration, not DNS state observed in the wild. Labelling them would feed the DNS record
+linking analysis entries that may not exist in any zone, producing phantom resolution paths.
+
+#### Relationships
+
+- A record belongs to a workspace and to its domain.
+
+    ```
+    (:ModalWorkspace)-[:RESOURCE]->(:ModalDomainDNSRecord)
+    (:ModalDomain)-[:HAS_RECORD]->(:ModalDomainDNSRecord)
+    ```
+
+| Field | Description |
+|-------|-------------|
+| **id** | Synthesised as `<domain_id>/<type>/<name>`; Modal gives these records no id. |
+| type | Raw `DNS_RECORD_TYPE_*` value: A, TXT or CNAME. |
+| **name** | Record name. |
+| value | Record value. |
+| domain_id | ID of the owning domain. |
+| firstseen | Timestamp of when a sync job first created this node. |
+| lastupdated | Timestamp of the last time the node was updated. |
+
+### ModalProxy
+
+Represents a Modal proxy, which gives workloads a stable set of egress IPs so a third party can
+allowlist them.
+
+The underlying API call is workspace-wide and tags each proxy with its environment, so
+Cartography filters per environment during the sync.
+
+Which functions route through it is not graphable: `Function.proxy_id` is write-only, like
+every other deploy-time function setting.
+
+#### Relationships
+
+- A proxy belongs to an environment and owns its egress IPs.
+
+    ```
+    (:ModalEnvironment)-[:RESOURCE]->(:ModalProxy)
+    (:ModalProxy)-[:HAS_IP]->(:ModalProxyIP)
+    ```
+
+| Field | Description |
+|-------|-------------|
+| **id** | Proxy ID, e.g. `pr-7YhNjUmIkOlPaQsWdEfRgT`. |
+| **name** | Proxy name. |
+| created_at | When the proxy was created. |
+| **region** | Region the proxy egresses from. |
+| **environment_name** | Name of the owning environment. |
+| firstseen | Timestamp of when a sync job first created this node. |
+| lastupdated | Timestamp of the last time the node was updated. |
+
+### ModalProxyIP
+
+Represents one egress IP of a Modal proxy.
+
+Not promoted to the canonical ontology `PublicIP` in this version: that would mean editing the
+shared public IP model to add a `RESERVED_BY` relationship, which does not belong in a
+new-provider change. Worth a follow-up, since egress-allowlist questions are exactly what a
+canonical `PublicIP` is for.
+
+#### Relationships
+
+- An egress IP belongs to an environment and to its proxy.
+
+    ```
+    (:ModalEnvironment)-[:RESOURCE]->(:ModalProxyIP)
+    (:ModalProxy)-[:HAS_IP]->(:ModalProxyIP)
+    ```
+
+| Field | Description |
+|-------|-------------|
+| **id** | Synthesised as `<proxy_id>/<ip_address>`; Modal gives these no id. |
+| **ip_address** | The egress IP. |
+| **status** | Raw `PROXY_IP_STATUS_*` value: CREATING, ONLINE, TERMINATED or UNHEALTHY. |
+| created_at | When the IP was allocated. |
+| proxy_id | ID of the owning proxy. |
 | **environment_name** | Name of the owning environment. |
 | firstseen | Timestamp of when a sync job first created this node. |
 | lastupdated | Timestamp of the last time the node was updated. |

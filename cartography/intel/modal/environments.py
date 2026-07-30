@@ -6,10 +6,16 @@ import neo4j
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
 from cartography.intel.modal import apps
+from cartography.intel.modal import dicts
 from cartography.intel.modal import environment_roles
 from cartography.intel.modal import functions
 from cartography.intel.modal import images
+from cartography.intel.modal import nfs
+from cartography.intel.modal import proxies
+from cartography.intel.modal import queues
 from cartography.intel.modal import sandboxes
+from cartography.intel.modal import secrets
+from cartography.intel.modal import volumes
 from cartography.intel.modal import workloads
 from cartography.intel.modal.util import list_environments
 from cartography.intel.modal.util import ModalClient
@@ -35,6 +41,12 @@ _ENVIRONMENT_SCOPED_CLEANUPS = (
     workloads.cleanup_for_environment,
     images.cleanup_for_environment,
     apps.cleanup_for_environment,
+    secrets.cleanup_for_environment,
+    volumes.cleanup_for_environment,
+    nfs.cleanup_for_environment,
+    dicts.cleanup_for_environment,
+    queues.cleanup_for_environment,
+    proxies.cleanup_for_environment,
 )
 
 
