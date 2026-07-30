@@ -361,7 +361,7 @@ def test_transform_uses_custom_stable_identities() -> None:
     assert nodes["BbotSocial"][0]["occurrence_count"] == 2
 
 
-def test_storage_bucket_identity_uses_module_before_bucket_name() -> None:
+def test_storage_bucket_identity_uses_provider_signals_before_bucket_name() -> None:
     # Arrange
     events = [
         _scan_event("RUNNING", "SCAN:run-start", 1),
@@ -397,10 +397,30 @@ def test_storage_bucket_identity_uses_module_before_bucket_name() -> None:
             },
             timestamp=3,
         ),
+        _event(
+            "STORAGE_BUCKET",
+            "STORAGE_BUCKET:unknown-one",
+            "STORAGE_BUCKET:unknown-one-occurrence",
+            {
+                "name": "shared-name",
+                "url": "https://shared-name.storage-one.example",
+            },
+            timestamp=4,
+        ),
+        _event(
+            "STORAGE_BUCKET",
+            "STORAGE_BUCKET:unknown-two",
+            "STORAGE_BUCKET:unknown-two-occurrence",
+            {
+                "name": "shared-name",
+                "url": "https://shared-name.storage-two.example",
+            },
+            timestamp=5,
+        ),
         _scan_event(
             "FINISHED",
             "SCAN:run-finish",
-            4,
+            6,
             finished_at="2026-01-01T00:01:00Z",
         ),
     ]
@@ -413,6 +433,8 @@ def test_storage_bucket_identity_uses_module_before_bucket_name() -> None:
         "STORAGE_BUCKET:aws:google-backups",
         "STORAGE_BUCKET:azure:googlefiles",
         "STORAGE_BUCKET:gcp:amazon-assets",
+        "STORAGE_BUCKET:shared-name.storage-one.example:shared-name",
+        "STORAGE_BUCKET:shared-name.storage-two.example:shared-name",
     }
 
 

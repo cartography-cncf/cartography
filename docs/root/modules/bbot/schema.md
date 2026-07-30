@@ -231,7 +231,7 @@ Represents an object storage bucket.
 | Field | Description |
 |---|---|
 | **id** | Provider and normalized bucket name |
-| bucket_provider | Normalized provider |
+| bucket_provider | Normalized provider, falling back to the endpoint hostname for unknown providers |
 | bucket_name | Normalized bucket name |
 | url | Mutable endpoint URL |
 

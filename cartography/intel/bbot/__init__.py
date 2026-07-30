@@ -153,6 +153,7 @@ def _bucket_provider(event: dict[str, Any], data: dict[str, Any]) -> str:
             for domain, provider in domain_providers.items():
                 if hostname == domain or hostname.endswith(f".{domain}"):
                     return provider
+            return hostname
     return module or "unknown"
 
 
