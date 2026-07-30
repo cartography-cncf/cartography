@@ -125,10 +125,13 @@ def test_cloudflare_dnsrecord_resource_edge_migration_cleans_legacy_records(
     """
     Ensure records ingested before the sub-resource moved from the zone to the
     account get the account RESOURCE edge backfilled, so the account-scoped
-    cleanup can remove the ones the API no longer returns.
+    cleanup can remove the ones the API no longer returns. Records whose zone was
+    already deleted under the old per-zone scoping have no owner to backfill from
+    and are swept instead.
     """
-    # Arrange: a legacy record carrying only the zone RESOURCE edge, plus a
-    # current one that the running sync just refreshed.
+    # Arrange: a legacy record carrying only the zone RESOURCE edge, a current
+    # one that the running sync just refreshed, and one orphaned by a zone that
+    # was removed before the upgrade.
     _ensure_local_neo4j_has_test_accounts(neo4j_session)
     _ensure_local_neo4j_has_test_zones(neo4j_session)
     neo4j_session.run(
@@ -142,6 +145,8 @@ def test_cloudflare_dnsrecord_resource_edge_migration_cleans_legacy_records(
         SET fresh.lastupdated = $update_tag
         MERGE (z)-[fresh_rel:RESOURCE]->(fresh)
         SET fresh_rel.lastupdated = $update_tag
+        MERGE (orphan:CloudflareDNSRecord {id: 'legacy-orphan'})
+        SET orphan.lastupdated = $old_update_tag
         """,
         zone_id=ZONE_ID,
         old_update_tag=TEST_UPDATE_TAG - 1,
@@ -158,7 +163,7 @@ def test_cloudflare_dnsrecord_resource_edge_migration_cleans_legacy_records(
         common_job_parameters,
     )
 
-    # Assert both legacy records are now reachable from the account
+    # Assert both zone-owned legacy records are now reachable from the account
     assert {
         ("legacy-stale", ACCOUNT_ID),
         ("legacy-fresh", ACCOUNT_ID),
@@ -172,7 +177,15 @@ def test_cloudflare_dnsrecord_resource_edge_migration_cleans_legacy_records(
         rel_direction_right=False,
     )
 
-    # Act: the account-scoped cleanup can now see them
+    # Assert the ownerless record was swept: no owner means no cleanup scope
+    # could ever reach it, so the migration deletes it outright.
+    swept = {
+        record_id
+        for (record_id,) in check_nodes(neo4j_session, "CloudflareDNSRecord", ["id"])
+    }
+    assert "legacy-orphan" not in swept
+
+    # Act: the account-scoped cleanup can now see the backfilled records
     cartography.intel.cloudflare.dnsrecords.cleanup(
         neo4j_session, common_job_parameters
     )
