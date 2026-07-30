@@ -241,7 +241,13 @@ DNS_RECORD_LINKING_JOBS = (DNS_RECORD_TO_KUBERNETES_INGRESS,) + tuple(
                             "dns",
                             "DNS_POINTS_TO",
                             "target",
-                            source_label="DNSRecord",
+                            # Must stay GCPRecordSet, not the broader DNSRecord: cleanup
+                            # effects dedupe by value, so a DNSRecord source label here
+                            # emits a second cleanup that lacks the cleanup_where guard
+                            # of the statement above and deletes provider-owned edges.
+                            # GCPRecordSet also carries the DNSRecord label, so the
+                            # generic cleanup still reaches GCP-sourced stale edges.
+                            source_label="GCPRecordSet",
                             target_label=target_label,
                         ),
                     ),
