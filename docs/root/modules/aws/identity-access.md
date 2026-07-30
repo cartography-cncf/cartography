@@ -15,6 +15,27 @@ Federated principals are discovered from IAM role trust policies. Cartography
 does not create a federated principal solely because it exists in an external
 identity provider.
 
+### Role trust policies
+
+`TRUSTS_AWS_PRINCIPAL` connects an `AWSRole` to each principal that its trust
+policy names.
+
+AWS evaluates the `Condition` blocks of a trust policy at request time, so
+Cartography records them instead of resolving them. `has_condition` is `false`
+when at least one statement grants the trust without a `Condition`. Otherwise,
+`condition_keys` lists the condition keys involved and `conditions` holds the
+raw `Condition` blocks as a JSON string.
+
+Find roles that trust GitHub Actions without a condition on the `sub` claim,
+which identifies the repository and ref that a workflow runs from:
+
+```cypher
+MATCH (role:AWSRole)-[trust:TRUSTS_AWS_PRINCIPAL]->(idp:AWSFederatedPrincipal)
+WHERE idp.arn ENDS WITH ':oidc-provider/token.actions.githubusercontent.com'
+  AND NOT 'token.actions.githubusercontent.com:sub' IN trust.condition_keys
+RETURN role.arn, trust.has_condition, trust.conditions
+```
+
 ### CloudFormation execution permissions
 
 `CAN_EXEC` indicates that a principal is permitted to call

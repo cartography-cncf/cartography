@@ -18,6 +18,11 @@ from cartography.client.core.tx import load_matchlinks
 from cartography.client.core.tx import read_list_of_dicts_tx
 from cartography.client.core.tx import read_list_of_values_tx
 from cartography.graph.job import GraphJob
+from cartography.graph.statement import GraphStatement
+from cartography.intel.aws.permission_relationships import (
+    extract_condition_context_keys,
+)
+from cartography.intel.aws.permission_relationships import parse_condition_blob
 from cartography.intel.aws.permission_relationships import principal_allowed_on_resource
 from cartography.intel.aws.util.arns import get_account_partition
 from cartography.intel.aws.util.botocore_config import create_boto3_client
@@ -35,6 +40,7 @@ from cartography.models.aws.iam.principal_service_access import (
     AWSPrincipalServiceAccessSchema,
 )
 from cartography.models.aws.iam.role import AWSRoleSchema
+from cartography.models.aws.iam.role_trust import AWSRoleTrustsPrincipalMatchLink
 from cartography.models.aws.iam.root_principal import AWSRootPrincipalSchema
 from cartography.models.aws.iam.samlprovider import AWSSAMLProviderSchema
 from cartography.models.aws.iam.server_certificate import AWSServerCertificateSchema
@@ -63,6 +69,7 @@ TransformedRoleData = namedtuple(
     "TransformedRoleData",
     [
         "role_data",
+        "trust_relationships",
         "federated_principals",
         "service_principals",
         "external_aws_accounts",
@@ -741,14 +748,66 @@ def transform_access_keys(
     return access_key_data
 
 
+def _aggregate_trust_conditions(
+    statement_conditions: list[Any],
+) -> dict[str, Any]:
+    """Fold the Condition blocks of every statement trusting one principal into edge properties.
+
+    ``statement_conditions`` holds one entry per statement that trusts the principal, in
+    document order: the statement's raw ``Condition`` value, or None if it had none.
+
+    AWS evaluates conditions at request time against a token that does not exist at sync
+    time, so a conditional trust is annotated rather than resolved. Following the
+    precedent set for permission relationships in
+    cartography.intel.aws.permission_relationships.collect_edge_conditions:
+
+    - If any statement trusts the principal with no Condition, the trust is reachable
+      unconditionally and we report has_condition=False. An unconditional path wins.
+    - Otherwise every path to the trust is gated, so we report has_condition=True with
+      the union of referenced context keys and the raw condition blobs as a JSON string.
+    """
+    conditional_blobs: list[Any] = []
+    condition_keys: set[str] = set()
+
+    for condition in statement_conditions:
+        if not condition:
+            # An unconditional statement trusts this principal; the edge is effectively
+            # unconditional no matter what the other statements say.
+            return {"has_condition": False, "condition_keys": [], "conditions": None}
+        parsed = parse_condition_blob(condition)
+        if parsed:
+            conditional_blobs.extend(parsed)
+            condition_keys.update(extract_condition_context_keys(parsed))
+        else:
+            # Fail safe toward "conditional": if the blob cannot be parsed, keep the edge
+            # flagged and preserve the raw value rather than downgrading it to
+            # unconditional.
+            conditional_blobs.append(
+                condition if isinstance(condition, str) else str(condition)
+            )
+
+    if not conditional_blobs:
+        # Defensive: a principal with no statements at all should not reach here.
+        return {"has_condition": False, "condition_keys": [], "conditions": None}
+
+    return {
+        "has_condition": True,
+        "condition_keys": sorted(condition_keys),
+        "conditions": json.dumps(conditional_blobs),
+    }
+
+
 def transform_role_trust_policies(
     roles: list[dict[str, Any]], current_aws_account_id: str
 ) -> TransformedRoleData:
     """
     Processes AWS role assumption policy documents in the list_roles response.
-    Returns a TransformedRoleData object containing the role data, federated principals, service principals, and external AWS accounts.
+    Returns a TransformedRoleData object containing the role data, the trust
+    relationships to load, federated principals, service principals, and external AWS
+    accounts.
     """
     role_data: list[dict[str, Any]] = []
+    trust_relationships: list[dict[str, Any]] = []
     federated_principals: list[dict[str, Any]] = []
     service_principals: list[dict[str, Any]] = []
     external_aws_accounts: list[dict[str, Any]] = []
@@ -756,12 +815,13 @@ def transform_role_trust_policies(
     for role in roles:
         role_arn = role["Arn"]
 
-        # List of principals of type "AWS" that this role trusts
-        trusted_aws_principals = set()
-        # Process each statement in the assume role policy document
-        # TODO support conditions
-        for statement in role["AssumeRolePolicyDocument"]["Statement"]:
+        # Principal ARN -> the Condition of each statement trusting it, in document order.
+        # A role can trust the same principal from several statements under different
+        # conditions, so these are aggregated per (role, principal) below.
+        trusted_principal_conditions: dict[str, list[Any]] = {}
 
+        for statement in role["AssumeRolePolicyDocument"]["Statement"]:
+            condition = statement.get("Condition")
             principal_entries = _parse_principal_entries(statement["Principal"])
             for principal_type, principal_arn in principal_entries:
                 if principal_type == "Federated":
@@ -779,7 +839,6 @@ def transform_role_trust_policies(
                             "role_arn": role_arn,
                         }
                     )
-                    trusted_aws_principals.add(principal_arn)
                 elif principal_type == "Service":
                     # Add to the list of service nodes to create
                     service_principals.append(
@@ -789,7 +848,6 @@ def transform_role_trust_policies(
                         }
                     )
                     # Service principals are global so there is no account id.
-                    trusted_aws_principals.add(principal_arn)
                 elif principal_type == "AWS":
                     if "root" in principal_arn:
                         # The current principal trusts a root principal.
@@ -804,10 +862,23 @@ def transform_role_trust_policies(
                                     "partition": principal_arn.split(":")[1],
                                 }
                             )
-                    trusted_aws_principals.add(principal_arn)
                 else:
                     # This should not happen but who knows.
                     logger.warning(f"Unknown principal type: {principal_type}")
+                    continue
+
+                trusted_principal_conditions.setdefault(principal_arn, []).append(
+                    condition
+                )
+
+        for principal_arn, statement_conditions in trusted_principal_conditions.items():
+            trust_relationships.append(
+                {
+                    "source_role_arn": role_arn,
+                    "target_principal_arn": principal_arn,
+                    **_aggregate_trust_conditions(statement_conditions),
+                }
+            )
 
         role_record = {
             "arn": role["Arn"],
@@ -816,13 +887,13 @@ def transform_role_trust_policies(
             "path": role["Path"],
             "createdate": str(role["CreateDate"]),
             "createdate_dt": role["CreateDate"],
-            "trusted_aws_principals": list(trusted_aws_principals),
             "account_id": get_account_from_arn(role["Arn"]),
         }
         role_data.append(role_record)
 
     return TransformedRoleData(
         role_data=role_data,
+        trust_relationships=trust_relationships,
         federated_principals=federated_principals,
         service_principals=service_principals,
         external_aws_accounts=external_aws_accounts,
@@ -1521,6 +1592,63 @@ def load_federated_principals(
 
 
 @timeit
+def load_role_trust_relationships(
+    neo4j_session: neo4j.Session,
+    trust_relationships: list[dict[str, Any]],
+    current_aws_account_id: str,
+    aws_update_tag: int,
+) -> None:
+    """
+    Load the TRUSTS_AWS_PRINCIPAL edges declared by role trust policies.
+
+    Must be called after the roles and the principals they trust have been loaded: a
+    MatchLink only connects nodes that already exist, so a trust naming a principal in an
+    account outside the sync perimeter draws no edge, same as before.
+    """
+    load_matchlinks(
+        neo4j_session,
+        AWSRoleTrustsPrincipalMatchLink(),
+        trust_relationships,
+        lastupdated=aws_update_tag,
+        _sub_resource_label="AWSAccount",
+        _sub_resource_id=current_aws_account_id,
+    )
+
+
+# DEPRECATED: This compatibility migration will be removed in v1.0.0.
+def _cleanup_legacy_role_trust_relationships(
+    neo4j_session: neo4j.Session,
+    current_aws_account_id: str,
+) -> None:
+    """Delete stale TRUSTS_AWS_PRINCIPAL edges written before the edge became a MatchLink.
+
+    The node-schema relationship that used to draw this edge set no _sub_resource_label
+    or _sub_resource_id on it, and the MatchLink cleanup selects stale edges by those
+    properties, so an edge from that era whose trust has since been removed would never
+    be deleted. load_role_trust_relationships merges onto an existing edge and stamps
+    both properties, so once it has run every edge still declared by a trust policy in
+    this account carries them; whatever is left without them is stale.
+    """
+    statement = GraphStatement(
+        """
+        MATCH (:AWSAccount{id: $AWS_ID})-[:RESOURCE]->(:AWSRole)-[r:TRUSTS_AWS_PRINCIPAL]->(:AWSPrincipal)
+        WHERE r._sub_resource_id IS NULL
+        WITH r LIMIT $LIMIT_SIZE
+        DELETE r
+        """,
+        parameters={"AWS_ID": current_aws_account_id},
+        iterative=True,
+        iterationsize=10000,
+        parent_job_name="legacy_role_trust_cleanup",
+    )
+    GraphJob(
+        "Cleanup legacy TRUSTS_AWS_PRINCIPAL relationships",
+        [statement],
+        "legacy_role_trust_cleanup",
+    ).run(neo4j_session)
+
+
+@timeit
 def sync_role_assumptions(
     neo4j_session: neo4j.Session,
     data: dict[str, Any],
@@ -1547,6 +1675,23 @@ def sync_role_assumptions(
     load_role_data(
         neo4j_session, transformed.role_data, current_aws_account_id, aws_update_tag
     )
+    # The trust edges come last: a MatchLink connects nodes that already exist, so both
+    # the roles and the principals they trust must be in the graph by this point.
+    load_role_trust_relationships(
+        neo4j_session,
+        transformed.trust_relationships,
+        current_aws_account_id,
+        aws_update_tag,
+    )
+    GraphJob.from_matchlink(
+        AWSRoleTrustsPrincipalMatchLink(),
+        sub_resource_label="AWSAccount",
+        sub_resource_id=current_aws_account_id,
+        update_tag=aws_update_tag,
+    ).run(neo4j_session)
+    # Edges written before the MatchLink migration carry none of the properties the
+    # cleanup above selects on, so stale ones from that era need their own pass.
+    _cleanup_legacy_role_trust_relationships(neo4j_session, current_aws_account_id)
 
 
 @timeit
