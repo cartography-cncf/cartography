@@ -1800,7 +1800,7 @@ Representation of an AWS DNS [ResourceRecordSet](https://docs.aws.amazon.com/Rou
 |lastupdated| Timestamp of the last time the node was updated|
 |**id**| The zoneid for the record, the value of the record, and the type concatenated together|
 |type| The record type of the DNS record (A, AAAA, ALIAS, CNAME, NS, etc.)|
-|value| If it is an A or AAAA record, this is the IP address the DNSRecord resolves to. For CNAME or ALIAS records, this is the target hostname or AWS resource name, normalized for matching: lowercased, with the trailing root dot and any `dualstack.` prefix removed. If it is an NS record, the `name` is used here.|
+|value| If it is an A or AAAA record, this is the IP address the DNSRecord resolves to. For CNAME or ALIAS records, this is the target hostname or AWS resource name, lowercased and with the trailing root dot removed. Alias targets additionally have Route53's `dualstack.` prefix removed, since the ELB APIs report the same load balancer without it; an ordinary CNAME's value keeps any leading `dualstack.` because there it is part of a genuinely different hostname. If it is an NS record, the `name` is used here.|
 
 #### Relationships
 - AWSDNSRecords can point to IP addresses.

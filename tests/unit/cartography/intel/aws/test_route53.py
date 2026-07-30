@@ -1,5 +1,6 @@
 import pytest
 
+from cartography.intel.aws.route53 import _normalize_alias_target
 from cartography.intel.aws.route53 import _normalize_dns_target
 from cartography.intel.aws.route53 import transform_record_set
 
@@ -9,18 +10,49 @@ LB_DNS_NAME = "myawesomeloadbalancer.us-east-1.elb.amazonaws.com"
 @pytest.mark.parametrize(
     ("value", "expected"),
     [
-        # Route53 puts a `dualstack.` prefix on ELB alias targets; the ELB APIs do not.
-        (f"dualstack.{LB_DNS_NAME}.", LB_DNS_NAME),
-        (f"dualstack.{LB_DNS_NAME}", LB_DNS_NAME),
         (f"{LB_DNS_NAME}.", LB_DNS_NAME),
         # Route53 usually sends a trailing dot, but not always.
         (LB_DNS_NAME, LB_DNS_NAME),
-        # `dualstack` is only a prefix, never stripped from the middle of a name.
-        ("host.dualstack.example.com.", "host.dualstack.example.com"),
+        ("MyHost.Example.COM.", "myhost.example.com"),
+        # A `dualstack.` prefix is only an alias-target artifact. On an ordinary CNAME the
+        # value is zone data written by the operator, where it belongs to a genuinely
+        # different hostname, so it must survive.
+        ("dualstack.internal.example.com.", "dualstack.internal.example.com"),
     ],
 )
 def test_normalize_dns_target(value, expected):
     assert _normalize_dns_target(value) == expected
+
+
+@pytest.mark.parametrize(
+    ("value", "expected"),
+    [
+        # Route53 puts a `dualstack.` prefix on ELB alias targets; the ELB APIs do not.
+        (f"dualstack.{LB_DNS_NAME}.", LB_DNS_NAME),
+        (f"dualstack.{LB_DNS_NAME}", LB_DNS_NAME),
+        (f"{LB_DNS_NAME}.", LB_DNS_NAME),
+        # `dualstack` is only a prefix, never stripped from the middle of a name.
+        ("host.dualstack.example.com.", "host.dualstack.example.com"),
+    ],
+)
+def test_normalize_alias_target(value, expected):
+    assert _normalize_alias_target(value) == expected
+
+
+def test_transform_record_set_keeps_dualstack_on_ordinary_cname():
+    record_set = {
+        "Name": "app.example.com.",
+        "Type": "CNAME",
+        "TTL": 300,
+        "ResourceRecords": [{"Value": "dualstack.internal.example.com."}],
+    }
+
+    transformed = transform_record_set(
+        record_set, "/hostedzone/ZONE", "app.example.com"
+    )
+
+    assert transformed is not None
+    assert transformed["value"] == "dualstack.internal.example.com"
 
 
 @pytest.mark.parametrize(

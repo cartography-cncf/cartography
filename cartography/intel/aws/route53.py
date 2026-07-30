@@ -47,16 +47,26 @@ def _normalize_dns_target(value: str) -> str:
     Normalize a hostname-valued record target so it can be matched for equality against
     node properties such as AWSLoadBalancerV2.dnsname or AWSEC2Instance.publicdnsname.
 
-    Strips the trailing root dot, and the `dualstack.` prefix that Route53 puts on alias
-    targets pointing at an ELB. The ELB APIs return the same load balancer's DNSName
-    without that prefix, so leaving it in place means the alias never matches.
-
-    Lowercased too: DNS names are case-insensitive, Route53 lowercases alias targets, and
-    the load balancer nodes lowercase their dnsname at ingestion for the same reason.
+    Strips the trailing root dot and lowercases: DNS names are case-insensitive, Route53
+    lowercases the names it stores, and the load balancer nodes lowercase their dnsname at
+    ingestion for the same reason.
     """
     if value.endswith("."):
         value = value[:-1]
-    return value.removeprefix("dualstack.").lower()
+    return value.lower()
+
+
+def _normalize_alias_target(value: str) -> str:
+    """
+    Normalize an AliasTarget's DNSName, which additionally needs the `dualstack.` prefix that
+    Route53 puts on alias targets pointing at an ELB removed: the ELB APIs return the same
+    load balancer's DNSName without it, so leaving it in place means the alias never matches.
+
+    Only alias targets get this treatment. An ordinary CNAME's value is zone data written by
+    the operator, where a leading `dualstack.` belongs to a genuinely different hostname, so
+    stripping it there would rewrite the record's target.
+    """
+    return _normalize_dns_target(value).removeprefix("dualstack.")
 
 
 @timeit
@@ -96,7 +106,7 @@ def transform_record_set(
     if record_set["Type"] == "CNAME":
         if "AliasTarget" in record_set:
             # this is a weighted CNAME record
-            value = _normalize_dns_target(record_set["AliasTarget"]["DNSName"])
+            value = _normalize_alias_target(record_set["AliasTarget"]["DNSName"])
             return {
                 "name": name,
                 "type": "CNAME",
@@ -123,7 +133,7 @@ def transform_record_set(
                 "name": name,
                 "type": "ALIAS",
                 "zoneid": zone_id,
-                "value": _normalize_dns_target(record_set["AliasTarget"]["DNSName"]),
+                "value": _normalize_alias_target(record_set["AliasTarget"]["DNSName"]),
                 "id": _create_dns_record_id(zone_id, name, "ALIAS"),
             }
         else:
@@ -145,7 +155,7 @@ def transform_record_set(
     elif record_set["Type"] == "AAAA":
         if "AliasTarget" in record_set:
             # AAAA alias records follow the same pattern as A aliases but map to IPv6 targets
-            value = _normalize_dns_target(record_set["AliasTarget"]["DNSName"])
+            value = _normalize_alias_target(record_set["AliasTarget"]["DNSName"])
             return {
                 "name": name,
                 "type": "ALIAS",
