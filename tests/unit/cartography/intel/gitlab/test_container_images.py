@@ -268,6 +268,7 @@ def test_get_container_images_skips_config_for_complete_digest(monkeypatch):
     digest = "sha256:complete"
     fetch_blob = Mock()
     observed_and_skipped: set[str] = set()
+    skipped_attestation_manifests: list[dict] = []
     monkeypatch.setattr(
         "cartography.intel.gitlab.container_images.get_paginated",
         Mock(return_value=[{"name": "latest"}]),
@@ -277,6 +278,8 @@ def test_get_container_images_skips_config_for_complete_digest(monkeypatch):
         Mock(
             return_value={
                 "_digest": digest,
+                "_registry_url": "https://registry.gitlab.example.com",
+                "_repository_name": "group/project",
                 "mediaType": "application/vnd.oci.image.manifest.v1+json",
                 "config": {"digest": "sha256:config"},
             },
@@ -300,10 +303,20 @@ def test_get_container_images_skips_config_for_complete_digest(monkeypatch):
         ],
         skip_digests={digest},
         observed_and_skipped=observed_and_skipped,
+        skipped_attestation_manifests=skipped_attestation_manifests,
     )
 
     # Assert
     assert manifests == []
     assert manifest_lists == []
     assert observed_and_skipped == {digest}
+    assert skipped_attestation_manifests == [
+        {
+            "_digest": digest,
+            "_registry_url": "https://registry.gitlab.example.com",
+            "_repository_name": "group/project",
+            "mediaType": "application/vnd.oci.image.manifest.v1+json",
+            "config": {"digest": "sha256:config"},
+        },
+    ]
     fetch_blob.assert_not_called()

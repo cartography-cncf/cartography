@@ -104,11 +104,13 @@ def test_load_ecr_image_layer_memberships_flattens_has_layer(monkeypatch):
 
 def test_cleanup_runs_layer_cleanup_job(monkeypatch):
     from_node_schema_mock = MagicMock(return_value=MagicMock())
+    run_write_query_mock = MagicMock()
     monkeypatch.setattr(
         ecr_layers.GraphJob,
         "from_node_schema",
         from_node_schema_mock,
     )
+    monkeypatch.setattr(ecr_layers, "run_write_query", run_write_query_mock)
 
     neo4j_session = MagicMock()
     ecr_layers.cleanup(
@@ -119,10 +121,14 @@ def test_cleanup_runs_layer_cleanup_job(monkeypatch):
         },
     )
 
-    assert [
-        call.args[0].__class__.__name__ for call in from_node_schema_mock.call_args_list
-    ] == ["ECRImageSchema", "ECRImageLayerSchema"]
-    assert from_node_schema_mock.return_value.run.call_count == 2
+    assert from_node_schema_mock.call_args.args[0].__class__.__name__ == (
+        "ECRImageLayerSchema"
+    )
+    assert from_node_schema_mock.return_value.run.call_count == 1
+    relationship_cleanup_query = run_write_query_mock.call_args.args[1]
+    assert "HAS_LAYER|BUILT_FROM" in relationship_cleanup_query
+    assert "DELETE relationship" in relationship_cleanup_query
+    assert "DETACH DELETE" not in relationship_cleanup_query
 
 
 def test_extract_circleci_label_provenance_normalizes_namespaced_labels():

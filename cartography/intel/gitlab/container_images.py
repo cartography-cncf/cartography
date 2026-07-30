@@ -124,6 +124,7 @@ def get_container_images(
     *,
     skip_digests: set[str] | None = None,
     observed_and_skipped: set[str] | None = None,
+    skipped_attestation_manifests: list[dict[str, Any]] | None = None,
 ) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
     """
     Fetch container image manifests for all repositories via the Registry V2 API.
@@ -140,6 +141,11 @@ def get_container_images(
     skip_digests = skip_digests or set()
     observed_and_skipped = (
         observed_and_skipped if observed_and_skipped is not None else set()
+    )
+    skipped_attestation_manifests = (
+        skipped_attestation_manifests
+        if skipped_attestation_manifests is not None
+        else []
     )
 
     for repo in repositories:
@@ -190,6 +196,7 @@ def get_container_images(
             is_manifest_list = media_type in MANIFEST_LIST_MEDIA_TYPES
             if not is_manifest_list and digest in skip_digests:
                 observed_and_skipped.add(digest)
+                skipped_attestation_manifests.append(manifest)
                 continue
 
             if is_manifest_list:
@@ -217,6 +224,13 @@ def get_container_images(
 
                     if child_digest in skip_digests:
                         observed_and_skipped.add(child_digest)
+                        skipped_attestation_manifests.append(
+                            {
+                                "_digest": child_digest,
+                                "_registry_url": registry_url,
+                                "_repository_name": repository_name,
+                            }
+                        )
                         seen_digests[repository_name].add(child_digest)
                         ingested_children += 1
                         continue
@@ -570,9 +584,11 @@ def sync_container_images(
     """
     Sync GitLab container images for an organization.
 
-    Returns (manifests, manifest_lists) for use by attestations module.
+    Returns attestation-discovery manifests and manifest lists. Cached images
+    remain in the discovery set without being sent through image/layer transforms.
     """
     all_raw_manifests: list[dict[str, Any]] = []
+    all_attestation_manifests: list[dict[str, Any]] = []
     all_manifest_lists: list[dict[str, Any]] = []
     complete_digests = get_complete_layer_digests(
         neo4j_session,
@@ -601,14 +617,18 @@ def sync_container_images(
             total_batches,
             len(repo_batch),
         )
+        skipped_attestation_manifests: list[dict[str, Any]] = []
         raw_manifests, manifest_lists = get_container_images(
             gitlab_url,
             token,
             repo_batch,
             skip_digests=complete_digests,
             observed_and_skipped=observed_and_skipped,
+            skipped_attestation_manifests=skipped_attestation_manifests,
         )
         all_raw_manifests.extend(raw_manifests)
+        all_attestation_manifests.extend(raw_manifests)
+        all_attestation_manifests.extend(skipped_attestation_manifests)
         all_manifest_lists.extend(manifest_lists)
 
         # Transform and load each repository chunk immediately so large orgs do
@@ -644,4 +664,4 @@ def sync_container_images(
     )
     cleanup_container_image_layers(neo4j_session, common_job_parameters)
     cleanup_container_images(neo4j_session, common_job_parameters)
-    return all_raw_manifests, all_manifest_lists
+    return all_attestation_manifests, all_manifest_lists

@@ -390,6 +390,48 @@ def test_shared_layers_preserve_multiple_next_edges():
     ) in membership_pairs
 
 
+def test_layer_cleanup_does_not_delete_stale_inventory_images(neo4j_session):
+    # Arrange
+    account_id = "layer-cleanup-account"
+    image_digest = "sha256:layer-cleanup-image"
+    layer_diff_id = "sha256:layer-cleanup-layer"
+    neo4j_session.run(
+        """
+        MERGE (account:AWSAccount {id: $account_id})
+        MERGE (image:AWSECRImage {id: $image_digest})
+        SET image.digest = $image_digest, image.lastupdated = 1
+        MERGE (account)-[image_resource:RESOURCE]->(image)
+        SET image_resource.lastupdated = 1
+        MERGE (layer:AWSECRImageLayer {id: $layer_diff_id})
+        SET layer.diff_id = $layer_diff_id, layer.lastupdated = 1
+        MERGE (account)-[layer_resource:RESOURCE]->(layer)
+        SET layer_resource.lastupdated = 1
+        MERGE (image)-[has_layer:HAS_LAYER]->(layer)
+        SET has_layer.lastupdated = 1
+        """,
+        account_id=account_id,
+        image_digest=image_digest,
+        layer_diff_id=layer_diff_id,
+    ).consume()
+
+    # Act
+    ecr_layers.cleanup(
+        neo4j_session,
+        {"AWS_ID": account_id, "UPDATE_TAG": 2},
+    )
+
+    # Assert
+    assert check_nodes(neo4j_session, "AWSECRImage", ["id"]) >= {(image_digest,)}
+    relationship_count = neo4j_session.run(
+        """
+        MATCH (:AWSECRImage {id: $image_digest})-[relationship:HAS_LAYER]->()
+        RETURN count(relationship) AS count
+        """,
+        image_digest=image_digest,
+    ).single(strict=True)["count"]
+    assert relationship_count == 0
+
+
 def test_transform_marks_empty_layer():
     layers, _ = ecr_layers.transform_ecr_image_layers(
         {
