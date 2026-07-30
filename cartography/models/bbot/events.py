@@ -12,6 +12,8 @@ from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import SourceNodeMatcher
 from cartography.models.core.relationships import TargetNodeMatcher
+from cartography.models.ontology.labels import DNS_RECORD
+from cartography.models.ontology.labels import SECURITY_ISSUE
 
 
 @dataclass(frozen=True)
@@ -75,7 +77,7 @@ class BbotScanSchema(CartographyNodeSchema):
 class BbotDNSNameSchema(CartographyNodeSchema):
     label: str = "BbotDNSName"
     scoped_cleanup: bool = False
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["DNSRecord"])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([DNS_RECORD])
     properties: BbotNodeProperties = BbotNodeProperties()
 
 
@@ -153,6 +155,7 @@ class BbotStorageBucketSchema(CartographyNodeSchema):
 class BbotFindingSchema(CartographyNodeSchema):
     label: str = "BbotFinding"
     scoped_cleanup: bool = False
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([SECURITY_ISSUE])
     properties: BbotNodeProperties = BbotNodeProperties()
 
 

@@ -84,10 +84,13 @@ def test_stable_identities_merge_and_stale_identities_are_cleaned(
     ).single()
     first_finding = neo4j_session.run(
         """
-        MATCH (finding:BbotFinding)
+        MATCH (finding:BbotFinding:SecurityIssue)
         RETURN elementId(finding) AS element_id,
                finding.id AS id,
-               finding.firstseen AS firstseen
+               finding.firstseen AS firstseen,
+               finding._ont_title AS ont_title,
+               finding._ont_severity AS ont_severity,
+               finding._ont_source AS ont_source
         """,
     ).single()
     first_email = neo4j_session.run(
@@ -104,6 +107,9 @@ def test_stable_identities_merge_and_stale_identities_are_cleaned(
         "DNS_NAME:run-1-two",
     ]
     assert first_dns["ont_name"] == "app.example.test"
+    assert first_finding["ont_title"] == "Exposed admin panel"
+    assert first_finding["ont_severity"] == "medium"
+    assert first_finding["ont_source"] == "bbot"
 
     # Act: the second report has new occurrence UUIDs, timestamps, tags, modules,
     # finding text, severity, confidence, and bucket endpoint URL.
@@ -136,7 +142,10 @@ def test_stable_identities_merge_and_stale_identities_are_cleaned(
                finding.lastupdated AS lastupdated,
                finding.severity AS severity,
                finding.confidence AS confidence,
-               finding.description AS description
+               finding.description AS description,
+               finding._ont_title AS ont_title,
+               finding._ont_severity AS ont_severity,
+               finding._ont_source AS ont_source
         """,
     ).single()
     assert second_dns["element_id"] == first_dns["element_id"]
@@ -158,6 +167,9 @@ def test_stable_identities_merge_and_stale_identities_are_cleaned(
     assert second_finding["severity"] == "HIGH"
     assert second_finding["confidence"] == "CONFIRMED"
     assert second_finding["description"] == "Explanation from run 2"
+    assert second_finding["ont_title"] == "Exposed admin panel"
+    assert second_finding["ont_severity"] == "high"
+    assert second_finding["ont_source"] == "bbot"
 
     expected_relationships = {
         ("BbotFinding", "BbotURL", "AFFECTS"): {

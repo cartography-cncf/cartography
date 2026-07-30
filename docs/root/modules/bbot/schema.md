@@ -50,9 +50,11 @@ The following properties may appear on each concrete BBOT node:
 | `BbotOrgStub` | BBOT `id` for the normalized organization stub; `organization` contains the normalized value |
 | `BbotSocial` | SHA-256 fingerprint of platform and canonical profile URL, falling back to normalized profile name |
 | `BbotStorageBucket` | Provider and normalized bucket name; `url` remains mutable |
-| `BbotFinding` | SHA-256 fingerprint of detector module, affected target, and normalized finding name; legacy unnamed findings use normalized description |
+| `BbotFinding:SecurityIssue` | SHA-256 fingerprint of detector module, affected target, and normalized finding name; legacy unnamed findings use normalized description |
 
 Finding identity excludes severity, confidence, timestamps, CVEs, and explanatory text when a stable name is available. Changes to those fields update the existing node.
+
+> **Ontology Mapping**: This node has the extra label `SecurityIssue` and normalized title and severity fields for cross-scanner queries.
 
 ### Relationships
 
