@@ -15,163 +15,67 @@ from cartography.models.ontology.labels import ONTOLOGY
 
 @dataclass(frozen=True)
 class PackageNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("normalized_id")
+    """
+    Version-independent identity of a software package.
+
+    The id format is `{type}|{namespace/}{normalized_name}`, i.e. the version-bearing
+    `PackageVersion.id` minus its version segment. Both are produced by the helpers in
+    cartography.intel.trivy.util so the two keys always agree on normalization.
+    """
+
+    id: PropertyRef = PropertyRef("id")
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    # Normalized name (PEP 503 for Python, lowercase elsewhere) so the same package
+    # reported by different scanners resolves to a single node. This is the id segment
+    # after the type, so it deliberately keeps the PURL namespace prefix when there is
+    # one: `pkg:npm/%40types/node` gives name `@types/node`, not `node`. That is the
+    # name the package is published under, and it keeps `name` aligned with `id`.
+    # `namespace` below exposes the bare PURL namespace component (`@types`) for callers
+    # that need the two apart.
     name: PropertyRef = PropertyRef("name")
-    version: PropertyRef = PropertyRef("version")
+    namespace: PropertyRef = PropertyRef("namespace")
     type: PropertyRef = PropertyRef("type")
-    purl: PropertyRef = PropertyRef("purl")
 
 
 @dataclass(frozen=True)
-class PackageToNodeRelProperties(CartographyRelProperties):
+class PackageToPackageVersionRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
-# (:Package)-[:DETECTED_AS]->(:TrivyPackage)
+# (:Package)-[:HAS_VERSION]->(:PackageVersion)
 @dataclass(frozen=True)
-class PackageToTrivyPackageRel(CartographyRelSchema):
-    target_node_label: str = "TrivyPackage"
-    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {"normalized_id": PropertyRef("normalized_id")},
-    )
-    direction: LinkDirection = LinkDirection.OUTWARD
-    rel_label: str = "DETECTED_AS"
-    properties: PackageToNodeRelProperties = PackageToNodeRelProperties()
-
-
-# (:Package)-[:DETECTED_AS]->(:SyftPackage)
-@dataclass(frozen=True)
-class PackageToSyftPackageRel(CartographyRelSchema):
-    target_node_label: str = "SyftPackage"
-    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {"normalized_id": PropertyRef("normalized_id")},
-    )
-    direction: LinkDirection = LinkDirection.OUTWARD
-    rel_label: str = "DETECTED_AS"
-    properties: PackageToNodeRelProperties = PackageToNodeRelProperties()
-
-
-# (:Package)-[:DETECTED_AS]->(:SocketDevDependency)
-@dataclass(frozen=True)
-class PackageToSocketDevDependencyRel(CartographyRelSchema):
-    target_node_label: str = "SocketDevDependency"
-    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {"normalized_id": PropertyRef("normalized_id")},
-    )
-    direction: LinkDirection = LinkDirection.OUTWARD
-    rel_label: str = "DETECTED_AS"
-    properties: PackageToNodeRelProperties = PackageToNodeRelProperties()
-
-
-# (:Package)-[:DETECTED_AS]->(:GitLabDependency)
-@dataclass(frozen=True)
-class PackageToGitLabDependencyRel(CartographyRelSchema):
-    target_node_label: str = "GitLabDependency"
-    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {"normalized_id": PropertyRef("normalized_id")},
-    )
-    direction: LinkDirection = LinkDirection.OUTWARD
-    rel_label: str = "DETECTED_AS"
-    properties: PackageToNodeRelProperties = PackageToNodeRelProperties()
-
-
-# (:Package)-[:DETECTED_AS]->(:GitHubDependency)
-@dataclass(frozen=True)
-class PackageToGitHubDependencyRel(CartographyRelSchema):
-    target_node_label: str = "GitHubDependency"
-    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {"normalized_id": PropertyRef("normalized_id")},
-    )
-    direction: LinkDirection = LinkDirection.OUTWARD
-    rel_label: str = "DETECTED_AS"
-    properties: PackageToNodeRelProperties = PackageToNodeRelProperties()
-
-
-# (:Package)-[:DETECTED_AS]->(:SemgrepDependency) (SemgrepGoLibrary / SemgrepNpmLibrary)
-@dataclass(frozen=True)
-class PackageToSemgrepDependencyRel(CartographyRelSchema):
-    target_node_label: str = "SemgrepDependency"
-    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {"normalized_id": PropertyRef("normalized_id")},
-    )
-    direction: LinkDirection = LinkDirection.OUTWARD
-    rel_label: str = "DETECTED_AS"
-    properties: PackageToNodeRelProperties = PackageToNodeRelProperties()
-
-
-@dataclass(frozen=True)
-class PackageToOntologyImageRel(CartographyRelSchema):
+class PackageToPackageVersionRel(CartographyRelSchema):
     """
-    Cleanup-only relationship schema.
-
-    The target matcher is intentionally irrelevant here: GraphJob unscoped cleanup
-    only needs the relationship label and target node label to delete stale
-    DEPLOYED edges. Relationship creation happens via the ontology package analysis jobs
-    which traverses the scanner package path (Package -> DETECTED_AS -> TrivyPackage/SyftPackage -> DEPLOYED -> Image).
+    Each Package carries a version_ids list of the PackageVersion ids it groups.
     """
 
-    target_node_label: str = "Image"
+    target_node_label: str = "PackageVersion"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {"id": PropertyRef("_unused_cleanup_matcher")},
+        {"id": PropertyRef("version_ids", one_to_many=True)},
     )
     direction: LinkDirection = LinkDirection.OUTWARD
-    rel_label: str = "DEPLOYED"
-    properties: PackageToNodeRelProperties = PackageToNodeRelProperties()
-
-
-@dataclass(frozen=True)
-class PackageToTrivyFixRel(CartographyRelSchema):
-    target_node_label: str = "TrivyFix"
-    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {"id": PropertyRef("id")},
+    rel_label: str = "HAS_VERSION"
+    properties: PackageToPackageVersionRelProperties = (
+        PackageToPackageVersionRelProperties()
     )
-    direction: LinkDirection = LinkDirection.OUTWARD
-    rel_label: str = "SHOULD_UPDATE_TO"
-    properties: PackageToNodeRelProperties = PackageToNodeRelProperties()
-
-
-@dataclass(frozen=True)
-class PackageToPackageDependsOnRel(CartographyRelSchema):
-    target_node_label: str = "Package"
-    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {"id": PropertyRef("id")},
-    )
-    direction: LinkDirection = LinkDirection.OUTWARD
-    rel_label: str = "DEPENDS_ON"
-    properties: PackageToNodeRelProperties = PackageToNodeRelProperties()
-
-
-@dataclass(frozen=True)
-class TrivyImageFindingToPackageRel(CartographyRelSchema):
-    target_node_label: str = "TrivyImageFinding"
-    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {"id": PropertyRef("id")},
-    )
-    direction: LinkDirection = LinkDirection.INWARD
-    rel_label: str = "AFFECTS"
-    properties: PackageToNodeRelProperties = PackageToNodeRelProperties()
 
 
 @dataclass(frozen=True)
 class PackageSchema(CartographyNodeSchema):
+    """
+    Canonical, version-independent software package.
+
+    Package is a pure aggregation node: every derived edge (DETECTED_AS, DEPLOYED,
+    AFFECTS, SHOULD_UPDATE_TO, DEPENDS_ON) hangs off the PackageVersion nodes it
+    groups via HAS_VERSION.
+    """
+
     label: str = "Package"
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([ONTOLOGY])
     properties: PackageNodeProperties = PackageNodeProperties()
     scoped_cleanup: bool = False
-    # Include propagated relationship types so GraphJob cleanup removes stale
-    # ontology-derived edges by lastupdated on each sync run.
     other_relationships: OtherRelationships = OtherRelationships(
         rels=[
-            PackageToTrivyPackageRel(),
-            PackageToSyftPackageRel(),
-            PackageToSocketDevDependencyRel(),
-            PackageToGitLabDependencyRel(),
-            PackageToGitHubDependencyRel(),
-            PackageToSemgrepDependencyRel(),
-            PackageToOntologyImageRel(),
-            PackageToTrivyFixRel(),
-            PackageToPackageDependsOnRel(),
-            TrivyImageFindingToPackageRel(),
+            PackageToPackageVersionRel(),
         ],
     )

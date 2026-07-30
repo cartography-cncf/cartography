@@ -86,7 +86,7 @@ Represents a repository monitored by Socket.dev for supply chain security.
 
 Represents an open-source dependency tracked by Socket.dev across the organization's repositories.
 
-> **Ontology Mapping**: This node has the extra label `Dependency`. It is linked to the abstract `Package` ontology node via `(:Package)-[:DETECTED_AS]->(:SocketDevDependency)` using the `normalized_id` field for cross-tool matching with Trivy and Syft.
+> **Ontology Mapping**: This node has the extra label `Dependency`. It is linked to the abstract `PackageVersion` ontology node via `(:PackageVersion)-[:DETECTED_AS]->(:SocketDevDependency)` using the `normalized_id` field for cross-tool matching with Trivy and Syft.
 
 | Field | Description |
 |-------|-------------|
@@ -116,10 +116,10 @@ Represents an open-source dependency tracked by Socket.dev across the organizati
     (SocketDevDependency)-[FOUND_IN]->(SocketDevRepository)
     ```
 
-- A Package is detected as a SocketDevDependency (ontology link, defined in Package model)
+- A PackageVersion is detected as a SocketDevDependency (ontology link, defined in PackageVersion model)
 
     ```
-    (Package)-[DETECTED_AS]->(SocketDevDependency)
+    (PackageVersion)-[DETECTED_AS]->(SocketDevDependency)
     ```
 
 ### SocketDevAlert::Risk::SecurityIssue

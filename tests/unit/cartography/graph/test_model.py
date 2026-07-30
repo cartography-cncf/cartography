@@ -340,6 +340,7 @@ GLOBAL_NODE_LABELS: Set[str] = {
     # Ontology canonical nodes — explicitly cross-tenant by design.
     "Device",
     "Package",
+    "PackageVersion",
     "PublicIP",
     "User",
     # AWS-owned / cross-account resources.

@@ -31,10 +31,10 @@ Representation of a software package discovered by Syft, created from Syft's `ar
     (SyftPackage)-[:DEPLOYED]->(Image)
     ```
 
-- A canonical Package (ontology) is detected as a SyftPackage.
+- A canonical PackageVersion (ontology) is detected as a SyftPackage.
 
     ```
-    (Package)-[:DETECTED_AS]->(SyftPackage)
+    (PackageVersion)-[:DETECTED_AS]->(SyftPackage)
     ```
 
 ### Direct vs Transitive Dependencies
