@@ -63,7 +63,9 @@ def get_netlify_functions(
 
     This endpoint is not paginated and, unlike the rest of the API, answers with a bare object
     instead of a one-element array when the site has a single bundle. A site with no functions
-    answers 404. get_list() normalises both.
+    answers `200 {}`, not a 404, whether or not it has ever been deployed: verified against the
+    live API on a site created with no functions and again after deploying it without any.
+    get_list() normalises both shapes to a list.
     """
     return get_list(api_session, f"{base_url}/sites/{site_id}/functions")
 

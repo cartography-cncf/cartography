@@ -222,6 +222,12 @@ def get_list(
     data = response.json()
     if data is None:
         return []
+    # The site functions endpoint answers `200 {}` for a site with no functions, so an empty
+    # object means an empty collection rather than a one-element one. Handled explicitly: falling
+    # through to the bare-object branch below would return a phantom `[{}]` bundle that only
+    # happens to be harmless because every caller reads its members with .get().
+    if data == {}:
+        return []
     if result_key is not None:
         # Strict access: surface an endpoint/key mismatch instead of silently handing an empty
         # list to a cleanup job that would then delete everything.

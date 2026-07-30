@@ -214,6 +214,16 @@ def test_get_list_wraps_a_bare_object():
     assert get_list(session, _URL) == [{"id": "bundle", "functions": []}]
 
 
+def test_get_list_treats_an_empty_object_as_an_empty_collection():
+    """
+    A site with no functions answers `200 {}`. Verified against the live API, both on a site that
+    had never been deployed and on one deployed without any functions. Wrapping that into `[{}]`
+    would hand a phantom bundle to the transform.
+    """
+    session = _session(_response({}))
+    assert get_list(session, _URL) == []
+
+
 def test_get_list_raises_on_404_by_default():
     """
     Netlify answers an empty array, not a 404, for a resource a site simply does not have, so a
