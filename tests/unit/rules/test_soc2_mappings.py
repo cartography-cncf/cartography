@@ -104,7 +104,6 @@ EXPECTED_SOC2_REQUIREMENTS = {
     "googleworkspace_super_admin_accounts_used_for_daily_admin": {"CC6.3"},
     "googleworkspace_too_many_super_admin_accounts": {"CC6.3"},
     "googleworkspace_users_without_enforced_2sv": {"CC6.1"},
-    "github_repositories_without_required_reviews": {"CC8.1"},
     "guardduty_active_threat": {"CC7.2"},
     "iam_role_external_account_trust": {"CC6.3", "CC6.6"},
     "identity_administration_privileges": {"CC6.3"},

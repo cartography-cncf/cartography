@@ -72,11 +72,6 @@ SOC2_TSC_TITLES = {
         "objectives; anomalies are analyzed to determine whether they represent "
         "security events."
     ),
-    "cc8.1": (
-        "The entity authorizes, designs, develops or acquires, configures, "
-        "documents, tests, approves, and implements changes to infrastructure, "
-        "data, software, and procedures to meet its objectives."
-    ),
     "cc9.2": (
         "The entity assesses and manages risks associated with vendors and "
         "business partners."

@@ -47,7 +47,6 @@ EXPECTED_ISO27001_REQUIREMENTS = {
     "googleworkspace_super_admin_accounts_used_for_daily_admin": {"8.2"},
     "googleworkspace_admins_without_enforced_2sv": {"8.5", "8.2"},
     "googleworkspace_users_without_enforced_2sv": {"8.5"},
-    "github_repositories_without_required_reviews": {"8.32"},
     "azure_sql_minimum_tls_below_1_2": {"8.24"},
     "cloud_security_product_deactivated": {"8.16"},
     "compute_instance_exposed": {"8.20"},
