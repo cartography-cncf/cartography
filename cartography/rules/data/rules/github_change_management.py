@@ -6,6 +6,26 @@ from cartography.rules.spec.model import Maturity
 from cartography.rules.spec.model import Module
 from cartography.rules.spec.model import Rule
 
+_GITHUB_FNMATCH_REPLACEMENTS = """
+[
+    ['.', '[.]'],
+    ['+', '[+]'],
+    ['(', '[(]'],
+    [')', '[)]'],
+    ['{', '[{]'],
+    ['}', '[}]'],
+    ['$', '[$]'],
+    ['|', '[|]'],
+    ['[!', '[^'],
+    ['**/', '<GLOBSTAR_SLASH>'],
+    ['**', '<GLOBSTAR>'],
+    ['*', '[^/]*'],
+    ['?', '[^/]'],
+    ['<GLOBSTAR_SLASH>', '(?:.*/)?'],
+    ['<GLOBSTAR>', '.*']
+]
+"""
+
 
 class GitHubRepositoryWithoutRequiredReviewsOutput(Finding):
     repository: str | None = None
@@ -27,7 +47,18 @@ _github_repository_without_required_reviews = Fact(
       AND NOT (
         EXISTS {
             MATCH (repo)-[:HAS_RULE]->(rule:GitHubBranchProtectionRule)
-            WHERE rule.pattern = repo.defaultbranch
+            WHERE repo.defaultbranch =~ (
+                '^'
+                + reduce(
+                    regex = rule.pattern,
+                    replacement IN
+    """
+    + _GITHUB_FNMATCH_REPLACEMENTS
+    + """
+                    | replace(regex, replacement[0], replacement[1])
+                )
+                + '$'
+              )
               AND coalesce(rule.requires_approving_reviews, false) = true
               AND coalesce(rule.required_approving_review_count, 0) >= 1
         }
@@ -38,16 +69,37 @@ _github_repository_without_required_reviews = Fact(
               AND ruleset.enforcement = 'ACTIVE'
               AND rule.type = 'PULL_REQUEST'
               AND coalesce(rule.parameters_required_approving_review_count, 0) >= 1
-              AND (
-                '~ALL' IN coalesce(ruleset.conditions_ref_name_include, [])
-                OR '~DEFAULT_BRANCH' IN coalesce(ruleset.conditions_ref_name_include, [])
-                OR ('refs/heads/' + repo.defaultbranch)
-                   IN coalesce(ruleset.conditions_ref_name_include, [])
+              AND any(
+                pattern IN coalesce(ruleset.conditions_ref_name_include, [])
+                WHERE pattern IN ['~ALL', '~DEFAULT_BRANCH']
+                   OR ('refs/heads/' + repo.defaultbranch) =~ (
+                        '^'
+                        + reduce(
+                            regex = pattern,
+                            replacement IN
+    """
+    + _GITHUB_FNMATCH_REPLACEMENTS
+    + """
+                            | replace(regex, replacement[0], replacement[1])
+                        )
+                        + '$'
+                   )
               )
-              AND NOT (
-                '~DEFAULT_BRANCH' IN coalesce(ruleset.conditions_ref_name_exclude, [])
-                OR ('refs/heads/' + repo.defaultbranch)
-                   IN coalesce(ruleset.conditions_ref_name_exclude, [])
+              AND none(
+                pattern IN coalesce(ruleset.conditions_ref_name_exclude, [])
+                WHERE pattern IN ['~ALL', '~DEFAULT_BRANCH']
+                   OR ('refs/heads/' + repo.defaultbranch) =~ (
+                        '^'
+                        + reduce(
+                            regex = pattern,
+                            replacement IN
+    """
+    + _GITHUB_FNMATCH_REPLACEMENTS
+    + """
+                            | replace(regex, replacement[0], replacement[1])
+                        )
+                        + '$'
+                   )
               )
         }
       )
@@ -63,7 +115,18 @@ _github_repository_without_required_reviews = Fact(
       AND NOT (
         EXISTS {
             MATCH (repo)-[:HAS_RULE]->(rule:GitHubBranchProtectionRule)
-            WHERE rule.pattern = repo.defaultbranch
+            WHERE repo.defaultbranch =~ (
+                '^'
+                + reduce(
+                    regex = rule.pattern,
+                    replacement IN
+    """
+    + _GITHUB_FNMATCH_REPLACEMENTS
+    + """
+                    | replace(regex, replacement[0], replacement[1])
+                )
+                + '$'
+              )
               AND coalesce(rule.requires_approving_reviews, false) = true
               AND coalesce(rule.required_approving_review_count, 0) >= 1
         }
@@ -74,16 +137,37 @@ _github_repository_without_required_reviews = Fact(
               AND ruleset.enforcement = 'ACTIVE'
               AND rule.type = 'PULL_REQUEST'
               AND coalesce(rule.parameters_required_approving_review_count, 0) >= 1
-              AND (
-                '~ALL' IN coalesce(ruleset.conditions_ref_name_include, [])
-                OR '~DEFAULT_BRANCH' IN coalesce(ruleset.conditions_ref_name_include, [])
-                OR ('refs/heads/' + repo.defaultbranch)
-                   IN coalesce(ruleset.conditions_ref_name_include, [])
+              AND any(
+                pattern IN coalesce(ruleset.conditions_ref_name_include, [])
+                WHERE pattern IN ['~ALL', '~DEFAULT_BRANCH']
+                   OR ('refs/heads/' + repo.defaultbranch) =~ (
+                        '^'
+                        + reduce(
+                            regex = pattern,
+                            replacement IN
+    """
+    + _GITHUB_FNMATCH_REPLACEMENTS
+    + """
+                            | replace(regex, replacement[0], replacement[1])
+                        )
+                        + '$'
+                   )
               )
-              AND NOT (
-                '~DEFAULT_BRANCH' IN coalesce(ruleset.conditions_ref_name_exclude, [])
-                OR ('refs/heads/' + repo.defaultbranch)
-                   IN coalesce(ruleset.conditions_ref_name_exclude, [])
+              AND none(
+                pattern IN coalesce(ruleset.conditions_ref_name_exclude, [])
+                WHERE pattern IN ['~ALL', '~DEFAULT_BRANCH']
+                   OR ('refs/heads/' + repo.defaultbranch) =~ (
+                        '^'
+                        + reduce(
+                            regex = pattern,
+                            replacement IN
+    """
+    + _GITHUB_FNMATCH_REPLACEMENTS
+    + """
+                            | replace(regex, replacement[0], replacement[1])
+                        )
+                        + '$'
+                   )
               )
         }
       )
@@ -108,7 +192,7 @@ github_repositories_without_required_reviews = Rule(
     name="GitHub Repositories Without Mandatory Reviews",
     description=(
         "Detects active repositories that do not enforce at least one approving "
-        "pull request review through branch protection."
+        "pull request review through branch protection or rulesets."
     ),
     output_model=GitHubRepositoryWithoutRequiredReviewsOutput,
     facts=(_github_repository_without_required_reviews,),
