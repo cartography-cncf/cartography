@@ -1,0 +1,112 @@
+from dataclasses import dataclass
+
+from cartography.models.core.common import PropertyRef
+from cartography.models.core.nodes import CartographyNodeProperties
+from cartography.models.core.nodes import CartographyNodeSchema
+from cartography.models.core.nodes import ExtraNodeLabels
+from cartography.models.core.relationships import CartographyRelProperties
+from cartography.models.core.relationships import CartographyRelSchema
+from cartography.models.core.relationships import LinkDirection
+from cartography.models.core.relationships import make_target_node_matcher
+from cartography.models.core.relationships import OtherRelationships
+from cartography.models.core.relationships import TargetNodeMatcher
+from cartography.models.ontology.labels import BLOCK_STORAGE
+
+
+@dataclass(frozen=True)
+class RailwayVolumeInstanceNodeProperties(CartographyNodeProperties):
+    id: PropertyRef = PropertyRef("id")
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    volume_id: PropertyRef = PropertyRef("volumeId", extra_index=True)
+    # Denormalised from the parent volume: the instance itself has no name, and the
+    # BlockStorage ontology needs one that is not a mount path.
+    volume_name: PropertyRef = PropertyRef("volume_name", extra_index=True)
+    environment_id: PropertyRef = PropertyRef("environmentId", extra_index=True)
+    service_id: PropertyRef = PropertyRef("serviceId", extra_index=True)
+    mount_path: PropertyRef = PropertyRef("mountPath")
+    region: PropertyRef = PropertyRef("region", extra_index=True)
+    size_mb: PropertyRef = PropertyRef("sizeMB")
+    # Derived in transform() from size_mb, for the BlockStorage ontology mapping.
+    size_gb: PropertyRef = PropertyRef("size_gb")
+    current_size_mb: PropertyRef = PropertyRef("currentSizeMB")
+    state: PropertyRef = PropertyRef("state", extra_index=True)
+    created_at: PropertyRef = PropertyRef("createdAt")
+
+
+@dataclass(frozen=True)
+class RailwayVolumeInstanceToProjectRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+# (:RailwayProject)-[:RESOURCE]->(:RailwayVolumeInstance)
+class RailwayVolumeInstanceToProjectRel(CartographyRelSchema):
+    target_node_label: str = "RailwayProject"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"id": PropertyRef("PROJECT_ID", set_in_kwargs=True)},
+    )
+    direction: LinkDirection = LinkDirection.INWARD
+    rel_label: str = "RESOURCE"
+    properties: RailwayVolumeInstanceToProjectRelProperties = (
+        RailwayVolumeInstanceToProjectRelProperties()
+    )
+
+
+@dataclass(frozen=True)
+class RailwayVolumeInstanceToVolumeRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+# (:RailwayVolume)-[:HAS]->(:RailwayVolumeInstance)
+class RailwayVolumeInstanceToVolumeRel(CartographyRelSchema):
+    target_node_label: str = "RailwayVolume"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"id": PropertyRef("volumeId")},
+    )
+    direction: LinkDirection = LinkDirection.INWARD
+    rel_label: str = "HAS"
+    properties: RailwayVolumeInstanceToVolumeRelProperties = (
+        RailwayVolumeInstanceToVolumeRelProperties()
+    )
+
+
+@dataclass(frozen=True)
+class RailwayVolumeInstanceToServiceInstanceRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+# (:RailwayServiceInstance)-[:MOUNTS]->(:RailwayVolumeInstance)
+# Matches the ScalewayInstance-[:MOUNTS]->ScalewayVolume vocabulary.
+class RailwayVolumeInstanceToServiceInstanceRel(CartographyRelSchema):
+    target_node_label: str = "RailwayServiceInstance"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {
+            "service_id": PropertyRef("serviceId"),
+            "environment_id": PropertyRef("environmentId"),
+        },
+    )
+    direction: LinkDirection = LinkDirection.INWARD
+    rel_label: str = "MOUNTS"
+    properties: RailwayVolumeInstanceToServiceInstanceRelProperties = (
+        RailwayVolumeInstanceToServiceInstanceRelProperties()
+    )
+
+
+@dataclass(frozen=True)
+class RailwayVolumeInstanceSchema(CartographyNodeSchema):
+    label: str = "RailwayVolumeInstance"
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([BLOCK_STORAGE])
+    properties: RailwayVolumeInstanceNodeProperties = (
+        RailwayVolumeInstanceNodeProperties()
+    )
+    sub_resource_relationship: RailwayVolumeInstanceToProjectRel = (
+        RailwayVolumeInstanceToProjectRel()
+    )
+    other_relationships: OtherRelationships = OtherRelationships(
+        [
+            RailwayVolumeInstanceToVolumeRel(),
+            RailwayVolumeInstanceToServiceInstanceRel(),
+        ],
+    )

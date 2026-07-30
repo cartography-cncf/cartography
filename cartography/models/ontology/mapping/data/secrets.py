@@ -121,6 +121,25 @@ kubernetes_mapping = OntologyMapping(
     ],
 )
 
+# Railway environment variables. Cartography ingests names only, never values.
+railway_mapping = OntologyMapping(
+    module_name="railway",
+    nodes=[
+        OntologyNodeMapping(
+            node_label="RailwayVariable",
+            fields=[
+                OntologyFieldMapping(
+                    ontology_field="name", node_field="name", required=True
+                ),
+                OntologyFieldMapping(
+                    ontology_field="created_at", node_field="created_at"
+                ),
+                # updated_at / rotation_enabled: Not available on Railway's Variable type.
+            ],
+        ),
+    ],
+)
+
 supabase_mapping = OntologyMapping(
     module_name="supabase",
     nodes=[
@@ -141,11 +160,13 @@ supabase_mapping = OntologyMapping(
     ],
 )
 
+
 SECRETS_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     "aws": aws_mapping,
     "gcp": gcp_mapping,
     "azure": azure_mapping,
     "github": github_mapping,
     "kubernetes": kubernetes_mapping,
+    "railway": railway_mapping,
     "supabase": supabase_mapping,
 }

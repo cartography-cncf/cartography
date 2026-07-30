@@ -127,10 +127,49 @@ kubernetes_mapping = OntologyMapping(
     ],
 )
 
+# Railway deployment status, as reported on the service instance's latest deployment.
+_RAILWAY_SERVICE_STATUS = {
+    "QUEUED": "creating",
+    "INITIALIZING": "creating",
+    "BUILDING": "creating",
+    "DEPLOYING": "creating",
+    "WAITING": "creating",
+    "NEEDS_APPROVAL": "creating",
+    "SUCCESS": "active",
+    "SLEEPING": "active",
+    "REMOVING": "deleting",
+    "REMOVED": "deleting",
+    "FAILED": "failed",
+    "CRASHED": "failed",
+    "SKIPPED": "unknown",
+}
+
+# A Railway service instance is one service deployed into one environment. That is the
+# logical-workload peer of an ECS service or a Cloud Run service.
+railway_mapping = OntologyMapping(
+    module_name="railway",
+    nodes=[
+        OntologyNodeMapping(
+            node_label="RailwayServiceInstance",
+            fields=[
+                OntologyFieldMapping(ontology_field="name", node_field="service_name"),
+                OntologyFieldMapping(ontology_field="region", node_field="region"),
+                OntologyFieldMapping(
+                    ontology_field="status",
+                    node_field="latest_deployment_status",
+                    special_handling="mapping",
+                    extra={"map": _RAILWAY_SERVICE_STATUS},
+                ),
+            ],
+        ),
+    ],
+)
+
 COMPUTESERVICES_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     "aws_ecs": aws_ecs_mapping,
     "gcp_cloudrun_service": gcp_cloudrun_service_mapping,
     "gcp_cloudrun_job": gcp_cloudrun_job_mapping,
     "scaleway": scaleway_mapping,
     "kubernetes": kubernetes_mapping,
+    "railway": railway_mapping,
 }

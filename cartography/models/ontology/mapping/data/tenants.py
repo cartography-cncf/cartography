@@ -63,26 +63,6 @@ _OPENAI_PROJECT_STATUS = {
     "archived": "closed",
 }
 
-# Supabase project status. ACTIVE_UNHEALTHY is a degraded but running project, so
-# it still maps to active; the transient lifecycle states map to unknown.
-_SUPABASE_PROJECT_STATUS = {
-    "ACTIVE_HEALTHY": "active",
-    "ACTIVE_UNHEALTHY": "active",
-    "INACTIVE": "suspended",
-    "PAUSING": "suspended",
-    "PAUSE_FAILED": "suspended",
-    "GOING_DOWN": "suspended",
-    "REMOVED": "closed",
-    "COMING_UP": "unknown",
-    "INIT_FAILED": "unknown",
-    "RESTORING": "unknown",
-    "RESTORE_FAILED": "unknown",
-    "RESTARTING": "unknown",
-    "RESIZING": "unknown",
-    "UPGRADING": "unknown",
-    "UNKNOWN": "unknown",
-}
-
 # Airbyte
 airbyte_mapping = OntologyMapping(
     module_name="airbyte",
@@ -579,6 +559,67 @@ vercel_mapping = OntologyMapping(
     ],
 )
 
+# Railway has two tenancy levels, like GCP's Organization/Project: a workspace owns
+# projects, and every resource is scoped to a project.
+railway_mapping = OntologyMapping(
+    module_name="railway",
+    nodes=[
+        OntologyNodeMapping(
+            node_label="RailwayWorkspace",
+            fields=[
+                OntologyFieldMapping(
+                    ontology_field="name", node_field="name", required=True
+                ),
+                # status: Not available
+                # domain: Not available
+            ],
+        ),
+        OntologyNodeMapping(
+            node_label="RailwayProject",
+            fields=[
+                OntologyFieldMapping(
+                    ontology_field="name", node_field="name", required=True
+                ),
+                # status: Not available
+                # domain: Not available
+            ],
+        ),
+    ],
+)
+
+circleci_mapping = OntologyMapping(
+    module_name="circleci",
+    nodes=[
+        OntologyNodeMapping(
+            node_label="CircleCIOrganization",
+            fields=[
+                OntologyFieldMapping(
+                    ontology_field="name", node_field="name", required=True
+                ),
+            ],
+        ),
+    ],
+)
+
+_SUPABASE_PROJECT_STATUS = {
+    "ACTIVE_HEALTHY": "active",
+    "ACTIVE_UNHEALTHY": "active",
+    "INACTIVE": "suspended",
+    "PAUSING": "suspended",
+    "PAUSE_FAILED": "suspended",
+    "GOING_DOWN": "suspended",
+    "REMOVED": "closed",
+    "COMING_UP": "unknown",
+    "INIT_FAILED": "unknown",
+    "RESTORING": "unknown",
+    "RESTORE_FAILED": "unknown",
+    "RESTARTING": "unknown",
+    "RESIZING": "unknown",
+    "UPGRADING": "unknown",
+    "UNKNOWN": "unknown",
+}
+
+
 supabase_mapping = OntologyMapping(
     module_name="supabase",
     nodes=[
@@ -613,19 +654,6 @@ supabase_mapping = OntologyMapping(
     ],
 )
 
-circleci_mapping = OntologyMapping(
-    module_name="circleci",
-    nodes=[
-        OntologyNodeMapping(
-            node_label="CircleCIOrganization",
-            fields=[
-                OntologyFieldMapping(
-                    ontology_field="name", node_field="name", required=True
-                ),
-            ],
-        ),
-    ],
-)
 
 TENANTS_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     "airbyte": airbyte_mapping,
@@ -644,7 +672,6 @@ TENANTS_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     "okta": okta_mapping,
     "openai": openai_mapping,
     "scaleway": scaleway_mapping,
-    "supabase": supabase_mapping,
     "sentry": sentry_mapping,
     "sentinelone": sentinelone_mapping,
     "jumpcloud": jumpcloud_mapping,
@@ -654,6 +681,7 @@ TENANTS_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     "socketdev": socketdev_mapping,
     "workos": workos_tenants_mapping,
     "vercel": vercel_mapping,
+    "railway": railway_mapping,
     "databricks": OntologyMapping(
         module_name="databricks",
         nodes=[
@@ -677,4 +705,5 @@ TENANTS_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
             ),
         ],
     ),
+    "supabase": supabase_mapping,
 }

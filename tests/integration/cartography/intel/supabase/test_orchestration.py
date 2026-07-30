@@ -6,6 +6,7 @@ itself untested: how projects are enumerated, and where the cascading project
 cleanup sits relative to the per-project loop. Both of those are where a project
 can be wrongly deleted, so they are covered here.
 """
+
 from unittest.mock import patch
 
 import cartography.intel.supabase
@@ -152,7 +153,9 @@ def test_orchestration_removes_projects_the_organization_no_longer_lists(
     )
 
     # Assert
-    remaining = {row[0] for row in check_nodes(neo4j_session, "SupabaseProject", ["id"])}
+    remaining = {
+        row[0] for row in check_nodes(neo4j_session, "SupabaseProject", ["id"])
+    }
     assert "sharedprojectdddddddd" not in remaining
     assert {"nuclearplantdbaaaaaa", "kwikemartdbbbbbbbbbb"} <= remaining
 

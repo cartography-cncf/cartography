@@ -221,6 +221,45 @@ _scaleway_serverless_container_public = Fact(
 )
 
 
+_railway_service_instance_public = Fact(
+    id="railway_service_instance_public",
+    name="Internet-Accessible Railway Service Attack Surface",
+    description=(
+        "Railway service instances reachable from the public internet. A "
+        "Railway-generated *.up.railway.app domain, a DNS-verified custom "
+        "domain, or a TCP proxy all route anonymous internet traffic straight "
+        "to the workload; Railway puts no authentication in front of any of "
+        "them. TCP proxies are the sharpest case, publishing a raw port with "
+        "no TLS termination, which is how managed databases end up internet-"
+        "facing."
+    ),
+    cypher_query="""
+    MATCH (prj:RailwayProject)-[:RESOURCE]->(si:RailwayServiceInstance)
+    WHERE si.is_publicly_exposed = true
+    RETURN
+        si.id AS id,
+        si.service_name AS name,
+        si.region AS region,
+        null AS runtime,
+        'railway_service_instance_public' AS exposure_type
+    """,
+    cypher_visual_query="""
+    MATCH p=(prj:RailwayProject)-[:RESOURCE]->(si:RailwayServiceInstance)-[:EXPOSE]->(entrypoint)
+    WHERE si.is_publicly_exposed = true
+    RETURN *
+    """,
+    cypher_count_query="""
+    MATCH (si:RailwayServiceInstance)
+    RETURN COUNT(si) AS count
+    """,
+    asset_label="RailwayServiceInstance",
+    asset_id_field="id",
+    identity_fields=("id",),
+    module=Module.RAILWAY,
+    maturity=Maturity.EXPERIMENTAL,
+)
+
+
 # Rule
 class ServerlessWorkloadExposed(Finding):
     name: str | None = None
@@ -237,7 +276,8 @@ serverless_workload_exposed = Rule(
         "Serverless compute reachable from the public internet via "
         "permissive ingress, anonymous IAM bindings, or unauthenticated "
         "Function URLs. Covers GCP Cloud Run, GCP Cloud Functions, "
-        "AWS Lambda, and Scaleway Serverless Functions / Containers."
+        "AWS Lambda, Scaleway Serverless Functions / Containers, and "
+        "Railway service instances."
     ),
     output_model=ServerlessWorkloadExposed,
     facts=(
@@ -246,6 +286,7 @@ serverless_workload_exposed = Rule(
         _gcp_cloud_function_http_trigger,
         _scaleway_serverless_function_public,
         _scaleway_serverless_container_public,
+        _railway_service_instance_public,
     ),
     tags=(
         "infrastructure",

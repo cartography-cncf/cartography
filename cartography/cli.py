@@ -92,6 +92,7 @@ PANEL_JUMPCLOUD = "JumpCloud Options"
 PANEL_SOCKETDEV = "Socket.dev Options"
 PANEL_VERCEL = "Vercel Options"
 PANEL_SUPABASE = "Supabase Options"
+PANEL_RAILWAY = "Railway Options"
 PANEL_CIRCLECI = "CircleCI Options"
 PANEL_STATSD = "StatsD Metrics"
 PANEL_ANALYSIS = "Analysis Options"
@@ -149,6 +150,7 @@ MODULE_PANELS = {
     "workos": PANEL_WORKOS,
     "vercel": PANEL_VERCEL,
     "supabase": PANEL_SUPABASE,
+    "railway": PANEL_RAILWAY,
     "circleci": PANEL_CIRCLECI,
     "analysis": PANEL_ANALYSIS,
 }
@@ -2245,6 +2247,36 @@ class CLI:
                 ),
             ] = "https://api.supabase.com",
             # =================================================================
+            # Railway Options
+            # =================================================================
+            railway_token_env_var: Annotated[
+                str | None,
+                typer.Option(
+                    "--railway-token-env-var",
+                    help="Environment variable name containing a Railway account or workspace API token.",
+                    rich_help_panel=PANEL_RAILWAY,
+                    hidden=PANEL_RAILWAY not in visible_panels,
+                ),
+            ] = None,
+            railway_workspace_id: Annotated[
+                str | None,
+                typer.Option(
+                    "--railway-workspace-id",
+                    help="Railway workspace ID to sync. If unset, every workspace visible to the token is synced.",
+                    rich_help_panel=PANEL_RAILWAY,
+                    hidden=PANEL_RAILWAY not in visible_panels,
+                ),
+            ] = None,
+            railway_base_url: Annotated[
+                str,
+                typer.Option(
+                    "--railway-base-url",
+                    help="Railway GraphQL API base URL.",
+                    rich_help_panel=PANEL_RAILWAY,
+                    hidden=PANEL_RAILWAY not in visible_panels,
+                ),
+            ] = "https://backboard.railway.com/graphql/v2",
+            # =================================================================
             # CircleCI Options
             # =================================================================
             circleci_token_env_var: Annotated[
@@ -2722,6 +2754,14 @@ class CLI:
                     supabase_access_token_env_var,
                 )
                 supabase_access_token = os.environ.get(supabase_access_token_env_var)
+            # Read Railway token
+            railway_token = None
+            if railway_token_env_var:
+                logger.debug(
+                    "Reading Railway API token from environment variable %s",
+                    railway_token_env_var,
+                )
+                railway_token = os.environ.get(railway_token_env_var)
 
             # Read CircleCI token
             circleci_token = None
@@ -3110,6 +3150,9 @@ class CLI:
                 supabase_access_token=supabase_access_token,
                 supabase_organizations=supabase_organizations,
                 supabase_base_url=supabase_base_url,
+                railway_token=railway_token,
+                railway_workspace_id=railway_workspace_id,
+                railway_base_url=railway_base_url,
                 circleci_token=circleci_token,
                 circleci_base_url=circleci_base_url,
                 circleci_project_slugs=circleci_project_slug_list,

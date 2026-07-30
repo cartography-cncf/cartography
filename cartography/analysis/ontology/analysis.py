@@ -253,17 +253,17 @@ DNS_RECORD_LINKING_JOBS = (DNS_RECORD_TO_KUBERNETES_INGRESS,) + tuple(
 )
 PACKAGE_DEPLOYED_IMAGE_JOBS = (
     AnalysisJob(
-        name="Ontology - Trivy Package DEPLOYED Image linking",
+        name="Ontology - Trivy PackageVersion DEPLOYED Image linking",
         short_name="ontology_packages_trivy_deployed",
         statements=(
             AnalysisStatement(
-                match="MATCH (p:Package)-[:DETECTED_AS]->(tp:TrivyPackage)-[:DEPLOYED]->(img:Image)",
+                match="MATCH (p:PackageVersion)-[:DETECTED_AS]->(tp:TrivyPackage)-[:DEPLOYED]->(img:Image)",
                 effects=(
                     AddRelationship(
                         "p",
                         "DEPLOYED",
                         "img",
-                        source_label="Package",
+                        source_label="PackageVersion",
                         target_label="Image",
                     ),
                 ),
@@ -271,17 +271,17 @@ PACKAGE_DEPLOYED_IMAGE_JOBS = (
         ),
     ),
     AnalysisJob(
-        name="Ontology - Syft Package DEPLOYED Image linking",
+        name="Ontology - Syft PackageVersion DEPLOYED Image linking",
         short_name="ontology_packages_syft_deployed",
         statements=(
             AnalysisStatement(
-                match="MATCH (p:Package)-[:DETECTED_AS]->(sp:SyftPackage)-[:DEPLOYED]->(img:Image)",
+                match="MATCH (p:PackageVersion)-[:DETECTED_AS]->(sp:SyftPackage)-[:DEPLOYED]->(img:Image)",
                 effects=(
                     AddRelationship(
                         "p",
                         "DEPLOYED",
                         "img",
-                        source_label="Package",
+                        source_label="PackageVersion",
                         target_label="Image",
                     ),
                 ),
@@ -290,53 +290,53 @@ PACKAGE_DEPLOYED_IMAGE_JOBS = (
     ),
 )
 PACKAGE_AFFECTS_LINKING = AnalysisJob(
-    name="Ontology - TrivyImageFinding AFFECTS Package linking",
+    name="Ontology - TrivyImageFinding AFFECTS PackageVersion linking",
     short_name="ontology_packages_affects",
     statements=(
         AnalysisStatement(
-            match="MATCH (f:TrivyImageFinding)-[:AFFECTS]->(tp:TrivyPackage)<-[:DETECTED_AS]-(p:Package)",
+            match="MATCH (f:TrivyImageFinding)-[:AFFECTS]->(tp:TrivyPackage)<-[:DETECTED_AS]-(p:PackageVersion)",
             effects=(
                 AddRelationship(
                     "f",
                     "AFFECTS",
                     "p",
                     source_label="TrivyImageFinding",
-                    target_label="Package",
+                    target_label="PackageVersion",
                 ),
             ),
         ),
     ),
 )
 PACKAGE_AFFECTS_SEMGREP_SCA_LINKING = AnalysisJob(
-    name="Ontology - SemgrepSCAFinding AFFECTS Package linking",
+    name="Ontology - SemgrepSCAFinding AFFECTS PackageVersion linking",
     short_name="ontology_packages_semgrep_sca_affects",
     statements=(
         AnalysisStatement(
-            match="MATCH (f:SemgrepSCAFinding)-[:AFFECTS]->(d:SemgrepDependency)<-[:DETECTED_AS]-(p:Package)",
+            match="MATCH (f:SemgrepSCAFinding)-[:AFFECTS]->(d:SemgrepDependency)<-[:DETECTED_AS]-(p:PackageVersion)",
             effects=(
                 AddRelationship(
                     "f",
                     "AFFECTS",
                     "p",
                     source_label="SemgrepSCAFinding",
-                    target_label="Package",
+                    target_label="PackageVersion",
                 ),
             ),
         ),
     ),
 )
 PACKAGE_SHOULD_UPDATE_TO_LINKING = AnalysisJob(
-    name="Ontology - Package SHOULD_UPDATE_TO TrivyFix linking",
+    name="Ontology - PackageVersion SHOULD_UPDATE_TO TrivyFix linking",
     short_name="ontology_packages_should_update_to",
     statements=(
         AnalysisStatement(
-            match="MATCH (p:Package)-[:DETECTED_AS]->(tp:TrivyPackage)-[:SHOULD_UPDATE_TO]->(fix:TrivyFix)",
+            match="MATCH (p:PackageVersion)-[:DETECTED_AS]->(tp:TrivyPackage)-[:SHOULD_UPDATE_TO]->(fix:TrivyFix)",
             effects=(
                 AddRelationship(
                     "p",
                     "SHOULD_UPDATE_TO",
                     "fix",
-                    source_label="Package",
+                    source_label="PackageVersion",
                     target_label="TrivyFix",
                 ),
             ),
@@ -344,18 +344,18 @@ PACKAGE_SHOULD_UPDATE_TO_LINKING = AnalysisJob(
     ),
 )
 PACKAGE_DEPENDS_ON_LINKING = AnalysisJob(
-    name="Ontology - Package DEPENDS_ON Package linking",
+    name="Ontology - PackageVersion DEPENDS_ON PackageVersion linking",
     short_name="ontology_packages_depends_on",
     statements=(
         AnalysisStatement(
-            match="MATCH (p1:Package)-[:DETECTED_AS]->(sp1:SyftPackage)-[:DEPENDS_ON]->(sp2:SyftPackage)<-[:DETECTED_AS]-(p2:Package)",
+            match="MATCH (p1:PackageVersion)-[:DETECTED_AS]->(sp1:SyftPackage)-[:DEPENDS_ON]->(sp2:SyftPackage)<-[:DETECTED_AS]-(p2:PackageVersion)",
             effects=(
                 AddRelationship(
                     "p1",
                     "DEPENDS_ON",
                     "p2",
-                    source_label="Package",
-                    target_label="Package",
+                    source_label="PackageVersion",
+                    target_label="PackageVersion",
                 ),
             ),
         ),

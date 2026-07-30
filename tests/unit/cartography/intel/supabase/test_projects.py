@@ -42,7 +42,10 @@ def test_merge_project_without_enrichment_has_no_database():
 
 def _page(refs, limit=100):
     return {
-        "projects": [{"ref": r, "name": r, "region": "us-east-2", "status": "ACTIVE_HEALTHY"} for r in refs],
+        "projects": [
+            {"ref": r, "name": r, "region": "us-east-2", "status": "ACTIVE_HEALTHY"}
+            for r in refs
+        ],
         "pagination": {"limit": limit},
     }
 
@@ -57,7 +60,9 @@ def test_get_org_projects_follows_pagination():
     second = _page(["reflast"])
 
     with patch.object(projects, "get_json", side_effect=[first, second]) as mock_get:
-        result = projects.get_org_projects(MagicMock(), "https://api.fake", "simpson-corp")
+        result = projects.get_org_projects(
+            MagicMock(), "https://api.fake", "simpson-corp"
+        )
 
     assert [p["ref"] for p in result][-1] == "reflast"
     assert len(result) == 101
@@ -67,13 +72,22 @@ def test_get_org_projects_follows_pagination():
 
 
 def test_get_org_projects_single_short_page_stops():
-    with patch.object(projects, "get_json", return_value=fixtures.SUPABASE_ORG_PROJECTS) as mock_get:
-        result = projects.get_org_projects(MagicMock(), "https://api.fake", "simpson-corp")
+    with patch.object(
+        projects, "get_json", return_value=fixtures.SUPABASE_ORG_PROJECTS
+    ) as mock_get:
+        result = projects.get_org_projects(
+            MagicMock(), "https://api.fake", "simpson-corp"
+        )
 
     assert len(result) == 3
     assert mock_get.call_count == 1
 
 
 def test_get_org_projects_handles_empty_organization():
-    with patch.object(projects, "get_json", return_value={"projects": [], "pagination": {}}):
-        assert projects.get_org_projects(MagicMock(), "https://api.fake", "empty-org") == []
+    with patch.object(
+        projects, "get_json", return_value={"projects": [], "pagination": {}}
+    ):
+        assert (
+            projects.get_org_projects(MagicMock(), "https://api.fake", "empty-org")
+            == []
+        )

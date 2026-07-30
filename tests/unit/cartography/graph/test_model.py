@@ -341,6 +341,7 @@ GLOBAL_NODE_LABELS: Set[str] = {
     # Ontology canonical nodes — explicitly cross-tenant by design.
     "Device",
     "Package",
+    "PackageVersion",
     "PublicIP",
     "User",
     # AWS-owned / cross-account resources.
@@ -373,6 +374,11 @@ GLOBAL_NODE_LABELS: Set[str] = {
     "GitHubDependency",
     "ProgrammingLanguage",
     "PythonLibrary",
+    # A Railway user can belong to several workspaces, and project members need not be
+    # members of the workspace at all. Anchoring the identity to one workspace would let
+    # that workspace's cleanup DETACH DELETE a user still referenced by another, so the
+    # workspace link is an ordinary relationship instead (same reasoning as GitHubUser).
+    "RailwayUser",
     # Workday canonical human (mirrors the ontology pattern).
     "WorkdayHuman",
 }
