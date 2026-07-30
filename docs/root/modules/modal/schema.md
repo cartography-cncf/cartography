@@ -153,6 +153,7 @@ Represents a human member of a Modal workspace.
 | Field | Description |
 |-------|-------------|
 | **id** | User ID, e.g. `us-ydIZVCWluEtzFTbpJvjHcK`. |
+| **workspace_id** | ID of the owning workspace. Carried as a property, not only as the `RESOURCE` edge, so best-effort `CREATED_BY` joins from other Modal nodes can be constrained to one workspace. |
 | member_id | Workspace membership ID. |
 | **email** | Member email address. |
 | **display_name** | Member display name, which is also the workspace username Modal uses to attribute object creation. |
