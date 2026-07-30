@@ -59,6 +59,11 @@ def transform_packages(data: list[dict[str, Any]]) -> list[dict[str, Any]]:
     Rows whose components do not yield a versionless key (no name, or no type to
     normalize the name with) are skipped, mirroring how rows without a normalized_id
     never reach the PackageVersion node.
+
+    Only rows carrying a PURL expose a namespace, so a non-None namespace found on any
+    row of the group wins. This keeps the result independent of the order in which the
+    source rows come back from the graph, the same way get_source_nodes_from_graph
+    prefers non-None values when merging rows.
     """
     packages: dict[str, dict[str, Any]] = {}
     for row in data:
@@ -74,20 +79,20 @@ def transform_packages(data: list[dict[str, Any]]) -> list[dict[str, Any]]:
             )
             continue
         pkg_type, _, name = package_id.partition("|")
-        namespace = None
-        parsed_purl = parse_purl(row.get("purl"))
-        if parsed_purl:
-            namespace = parsed_purl["namespace"]
         package = packages.setdefault(
             package_id,
             {
                 "id": package_id,
                 "name": name,
-                "namespace": namespace,
+                "namespace": None,
                 "type": pkg_type,
                 "version_ids": set(),
             },
         )
+        if package["namespace"] is None:
+            parsed_purl = parse_purl(row.get("purl"))
+            if parsed_purl:
+                package["namespace"] = parsed_purl["namespace"]
         package["version_ids"].add(row["normalized_id"])
 
     result = []

@@ -1044,8 +1044,8 @@ version-independent counterpart of `PackageVersion.id`.
 | **id** | Version-independent normalized ID (format: `{type}\|{namespace/}{name}`). |
 | firstseen | Timestamp of when a sync job first created this node. |
 | lastupdated | Timestamp of the last time the node was updated. |
-| name | Normalized name of the package (PEP 503 for Python, lowercase elsewhere). |
-| namespace | Namespace of the package when the PURL carries one (e.g. `@types` for `pkg:npm/%40types/node`), else unset. |
+| name | Normalized name of the package (PEP 503 for Python, lowercase elsewhere). This keeps the PURL namespace prefix when there is one, so `pkg:npm/%40types/node` gives `@types/node` rather than `node`: it is the name the package is published under, and it keeps `name` aligned with the `name` part of `id`. Use `namespace` below to get the bare PURL namespace component on its own. |
+| namespace | The PURL `namespace` component alone, when the PURL carries one (e.g. `@types` for `pkg:npm/%40types/node`), else unset. |
 | type | Package ecosystem type (e.g., npm, pypi, deb). |
 
 #### Relationships

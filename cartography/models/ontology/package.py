@@ -26,7 +26,12 @@ class PackageNodeProperties(CartographyNodeProperties):
     id: PropertyRef = PropertyRef("id")
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
     # Normalized name (PEP 503 for Python, lowercase elsewhere) so the same package
-    # reported by different scanners resolves to a single node.
+    # reported by different scanners resolves to a single node. This is the id segment
+    # after the type, so it deliberately keeps the PURL namespace prefix when there is
+    # one: `pkg:npm/%40types/node` gives name `@types/node`, not `node`. That is the
+    # name the package is published under, and it keeps `name` aligned with `id`.
+    # `namespace` below exposes the bare PURL namespace component (`@types`) for callers
+    # that need the two apart.
     name: PropertyRef = PropertyRef("name")
     namespace: PropertyRef = PropertyRef("namespace")
     type: PropertyRef = PropertyRef("type")

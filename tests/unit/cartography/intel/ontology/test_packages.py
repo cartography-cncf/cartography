@@ -75,6 +75,34 @@ def test_transform_packages_keeps_purl_namespace():
     assert package["namespace"] == "@types"
 
 
+def test_transform_packages_namespace_is_order_independent():
+    """A namespace found on any row of the group wins, whatever the row order is."""
+    purl_row = {
+        "normalized_id": "npm|@types/node|18.0.0",
+        "name": "node",
+        "version": "18.0.0",
+        "type": "npm",
+        "purl": "pkg:npm/%40types/node@18.0.0",
+    }
+    # Same package reported without a PURL, so its name already carries the scope.
+    purl_less_row = {
+        "normalized_id": "npm|@types/node|20.0.0",
+        "name": "@types/node",
+        "version": "20.0.0",
+        "type": "npm",
+        "purl": None,
+    }
+
+    for rows in ([purl_row, purl_less_row], [purl_less_row, purl_row]):
+        (package,) = transform_packages(rows)
+        assert package["id"] == "npm|@types/node"
+        assert package["namespace"] == "@types"
+        assert package["version_ids"] == [
+            "npm|@types/node|18.0.0",
+            "npm|@types/node|20.0.0",
+        ]
+
+
 def test_transform_packages_skips_rows_without_key():
     data = [
         {
