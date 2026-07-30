@@ -141,11 +141,11 @@ Find critical image vulnerabilities and available package fixes:
 ```cypher
 MATCH (finding:TrivyImageFinding {severity: 'CRITICAL'})
       -[:AFFECTS]->(image:GitLabContainerImage)
-MATCH (finding)-[:AFFECTS]->(package:Package)
+MATCH (finding)-[:AFFECTS]->(package:PackageVersion)
 OPTIONAL MATCH (package)-[:SHOULD_UPDATE_TO]->(fix:TrivyFix)
 RETURN finding.name,
        image.uri,
        package.name,
-       package.installed_version,
+       package.version,
        fix.version AS fixed_version
 ```

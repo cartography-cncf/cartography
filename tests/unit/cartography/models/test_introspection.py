@@ -403,9 +403,10 @@ def test_build_data_model_exposes_ontology_catalog_metadata():
         )
         for constraint in model.ontology_relationship_constraints
     }
-    assert len(constraints) == 36
+    assert len(constraints) == 37
     assert ("ComputePod", "USES_SECRET", "Secret") in constraints
     assert ("Container", "RESOLVED_IMAGE", "Image") in constraints
+    assert ("CVE", "AFFECTS", "PackageVersion") in constraints
 
 
 def test_build_data_model_distinguishes_canonical_ontology_projections():
@@ -438,7 +439,7 @@ def test_build_data_model_projects_nodes_through_additional_labels():
     for node_label in ("SemgrepGoLibrary", "SemgrepNpmLibrary"):
         node = model.get_node(node_label)
         assert node is not None
-        assert node.ontology_projections == ("Package",)
+        assert node.ontology_projections == ("PackageVersion",)
 
 
 def test_iter_model_classes_discovers_each_defined_model_once():

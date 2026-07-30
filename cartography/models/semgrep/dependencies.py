@@ -43,7 +43,7 @@ class SemgrepDependencyNodeProperties(CartographyNodeProperties):
     normalized_id: PropertyRef = PropertyRef(
         "normalized_id",
         extra_index=True,
-        description="Cross-tool package identifier used to create a canonical Package node.",
+        description="Cross-tool package identifier used to create a canonical PackageVersion node.",
     )
 
 

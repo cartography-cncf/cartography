@@ -14,7 +14,7 @@ graph LR
     Repository -->|CONTAINS| GenericArtifact[GCPArtifactRegistryGenericArtifact]
     RepositoryImage -->|IMAGE| Image[GCPArtifactRegistryImage]
     TrivyFinding[TrivyImageFinding] -->|AFFECTS| Image
-    Package[Package] -->|DEPLOYED| Image
+    PackageVersion[PackageVersion] -->|DEPLOYED| Image
 ```
 
 Tagged DockerImage API records are expanded into one
@@ -39,16 +39,16 @@ ORDER BY vuln.severity DESC
 Find packages deployed in Artifact Registry images with their vulnerabilities:
 
 ```cypher
-MATCH (pkg:Package)-[:DEPLOYED]->(img:GCPArtifactRegistryImage)<-[:IMAGE]-(repo_img:GCPArtifactRegistryRepositoryImage)
+MATCH (pkg:PackageVersion)-[:DEPLOYED]->(img:GCPArtifactRegistryImage)<-[:IMAGE]-(repo_img:GCPArtifactRegistryRepositoryImage)
 OPTIONAL MATCH (vuln:TrivyImageFinding)-[:AFFECTS]->(pkg)
-RETURN repo_img.uri, pkg.name, pkg.installed_version, collect(vuln.name) AS vulnerabilities
+RETURN repo_img.uri, pkg.name, pkg.version, collect(vuln.name) AS vulnerabilities
 ```
 
 Find critical vulnerabilities in Artifact Registry images with available fixes:
 
 ```cypher
 MATCH (vuln:TrivyImageFinding {severity: 'CRITICAL'})-[:AFFECTS]->(img:GCPArtifactRegistryImage)<-[:IMAGE]-(repo_img:GCPArtifactRegistryRepositoryImage)
-MATCH (vuln)-[:AFFECTS]->(pkg:Package)
+MATCH (vuln)-[:AFFECTS]->(pkg:PackageVersion)
 OPTIONAL MATCH (pkg)-[:SHOULD_UPDATE_TO]->(fix:TrivyFix)
-RETURN vuln.name, repo_img.uri, pkg.name, pkg.installed_version, fix.version AS fixed_version
+RETURN vuln.name, repo_img.uri, pkg.name, pkg.version, fix.version AS fixed_version
 ```

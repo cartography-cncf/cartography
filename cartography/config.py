@@ -285,6 +285,13 @@ class Config:
     :param vercel_team_id: Vercel team ID to sync. Optional.
     :type vercel_base_url: str
     :param vercel_base_url: Vercel API base URL. Optional.
+    :type railway_token: str
+    :param railway_token: Railway account or workspace API token. Optional.
+    :type railway_workspace_id: str
+    :param railway_workspace_id: Railway workspace ID to sync. If unset, every workspace
+        visible to the token is synced. Optional.
+    :type railway_base_url: str
+    :param railway_base_url: Railway GraphQL API base URL. Optional.
     :type circleci_token: str
     :param circleci_token: CircleCI personal API token. Optional.
     :type circleci_base_url: str
@@ -529,6 +536,9 @@ class Config:
         vercel_token=None,
         vercel_team_id=None,
         vercel_base_url=None,
+        railway_token=None,
+        railway_workspace_id=None,
+        railway_base_url=None,
         circleci_token=None,
         circleci_base_url=None,
         circleci_project_slugs=None,
@@ -740,6 +750,9 @@ class Config:
         self.vercel_token = vercel_token
         self.vercel_team_id = vercel_team_id
         self.vercel_base_url = vercel_base_url
+        self.railway_token = railway_token
+        self.railway_workspace_id = railway_workspace_id
+        self.railway_base_url = railway_base_url
         self.circleci_token = circleci_token
         self.circleci_base_url = circleci_base_url
         self.circleci_project_slugs = circleci_project_slugs

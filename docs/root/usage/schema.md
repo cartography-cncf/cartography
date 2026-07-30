@@ -61,6 +61,7 @@ no index page of their own, so they are attached here to keep them out of the or
 - [Ontology](../modules/ontology/schema.md)
 - [Openai](../modules/openai/schema.md)
 - [Pagerduty](../modules/pagerduty/schema.md)
+- [Railway](../modules/railway/schema.md)
 - [Salesforce](../modules/salesforce/schema.md)
 - [Scaleway](../modules/scaleway/schema.md)
 - [Semgrep](../modules/semgrep/schema.md)

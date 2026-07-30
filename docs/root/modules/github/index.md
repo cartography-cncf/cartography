@@ -38,7 +38,7 @@ When GitHub's dependency graph provides only a version range, Cartography can
 recover an exact version from a co-located `uv.lock` or `package-lock.json`.
 It never applies a repository-root lockfile to a manifest in another directory.
 Conflicting exact versions for the same shared dependency identifier are left
-unresolved to avoid projecting an incorrect canonical `Package`.
+unresolved to avoid projecting an incorrect canonical `PackageVersion`.
 
 Dependency and `PythonLibrary` nodes are shared globally across repositories and
 organizations. Their cleanup therefore runs once after all configured GitHub
