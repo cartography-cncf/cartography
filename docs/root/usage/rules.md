@@ -581,11 +581,18 @@ Guidelines:
   Both are required and, together, form an indexable `(label, id)` anchor so consumers can locate the
   offending node in the graph. `asset_id_field` must exist on the output model and be returned by the
   `cypher_query` (`... AS <name>`); `Fact.__post_init__` and a unit test enforce this.
-- The `cypher_query` **must match the label it declares** (`MATCH (k:APIKey) WHERE k:OpenAIApiKey
-  OR k:OpenAIAdminApiKey ...`, not `MATCH (k) WHERE k:OpenAIApiKey ...`). Otherwise the rows a fact
-  returns and the asset it claims can diverge, and a consumer resolving
-  `(:<asset_label> {id: <asset_id_field>})` finds nothing. `Fact.__post_init__` enforces this, and a
-  unit test additionally checks that `asset_label` is a label some node schema actually writes.
+- The `cypher_query` **must bind a variable to the label it declares** (`MATCH (k:APIKey) WHERE
+  k:OpenAIApiKey OR k:OpenAIAdminApiKey ...`, not `MATCH (k) WHERE k:OpenAIApiKey ...`) **and must
+  project `asset_id_field` off that same variable** (`k.id AS api_key_id`). Both halves are needed:
+  without the first, the rows a fact returns and the asset it claims can diverge; without the second,
+  a query could match `(u:AWSUser)` and return an `AWSRole` id, so the `(label, id)` pair would name
+  no real node. `Fact.__post_init__` enforces both, and a unit test additionally checks that
+  `asset_label` is a label some node schema actually writes.
+- Only the **final `RETURN`** produces output columns. An alias introduced by an intermediate
+  `WITH x AS y` is query state and does not satisfy `asset_id_field` or `identity_fields`; conversely,
+  a `WITH x AS source` is fine, since the reserved-name check also looks only at the final projection.
+  A column may be named either by `... AS <name>` or by projecting a bare variable carried over from
+  an earlier `WITH`.
 - `identity_fields` is distinct from `asset_id_field`. `asset_id_field` is the anchor id **and**
   drives the distinct-asset failing count shown in compliance metrics; it is not the
   lifecycle-identity contract. The two can differ on purpose: `aws_user_direct_policies` anchors on

@@ -13,10 +13,15 @@ from pydantic import model_validator
 
 logger = logging.getLogger(__name__)
 
-# Matches the `RETURN expr AS alias` convention every fact query uses. This
-# over-approximates: intermediate `WITH x AS y` clauses match too, so the alias
-# set is only ever used for conservative "is this name produced at all" checks.
-_RETURN_ALIAS_RE = re.compile(r"\bAS\s+(\w+)", re.IGNORECASE)
+_RETURN_KEYWORD_RE = re.compile(r"(?i)\bRETURN\b")
+# Clauses that follow the projection and produce no output columns.
+_TRAILING_CLAUSE_RE = re.compile(r"(?is)\b(?:ORDER\s+BY|SKIP|LIMIT)\b")
+_LEADING_DISTINCT_RE = re.compile(r"(?is)^\s*DISTINCT\b")
+# `<expr> AS alias`, only when the alias ends the projection item.
+_ITEM_ALIAS_RE = re.compile(r"(?is)\bAS\s+(\w+)\s*$")
+_BARE_IDENTIFIER_RE = re.compile(r"^\w+$")
+# `foo.bar` / `foo .bar`: which variables an expression reads properties from.
+_PROPERTY_OWNER_RE = re.compile(r"\b(\w+)\s*\.")
 
 # Fields the `Finding` base model owns. A fact query must not alias them: both
 # are populated by `Rule.parse_results` and a query column of the same name
@@ -24,9 +29,97 @@ _RETURN_ALIAS_RE = re.compile(r"\bAS\s+(\w+)", re.IGNORECASE)
 RESERVED_FINDING_FIELDS = frozenset({"source", "extra"})
 
 
+def _depths(text: str) -> list[int]:
+    """Bracket nesting depth at each character of `text`."""
+    depths, depth = [], 0
+    for char in text:
+        if char in ")]}":
+            depth -= 1
+        depths.append(depth)
+        if char in "([{":
+            depth += 1
+    return depths
+
+
+def _final_return_projection(cypher_query: str) -> str:
+    """Return the projection body of the query's last `RETURN`.
+
+    Everything before that `RETURN` is intermediate query state: a `WITH x AS y`
+    binding is not an output column, so it must not count as one.
+    """
+    query_depths = _depths(cypher_query)
+    # The projection is the last top-level RETURN: one nested inside a `CALL { ...
+    # RETURN ... }` subquery sits at a deeper bracket level and is not it.
+    starts = [
+        match.end()
+        for match in _RETURN_KEYWORD_RE.finditer(cypher_query)
+        if query_depths[match.start()] == 0
+    ]
+    if not starts:
+        return ""
+    projection = cypher_query[starts[-1] :]
+    depths = _depths(projection)
+    for trailing in _TRAILING_CLAUSE_RE.finditer(projection):
+        # Only a top-level ORDER BY / SKIP / LIMIT ends the projection; the same
+        # keyword inside a subquery or list expression does not.
+        if depths[trailing.start()] == 0:
+            projection = projection[: trailing.start()]
+            break
+    return _LEADING_DISTINCT_RE.sub("", projection)
+
+
+def _projection_items(cypher_query: str) -> list[str]:
+    """Split the final projection on its top-level commas.
+
+    Depth-aware because items legitimately contain commas: `coalesce(a, b)`,
+    `[x IN xs WHERE ...]`, `CASE WHEN ... END`.
+    """
+    projection = _final_return_projection(cypher_query)
+    depths = _depths(projection)
+    items, start = [], 0
+    for index, char in enumerate(projection):
+        if char == "," and depths[index] == 0:
+            items.append(projection[start:index])
+            start = index + 1
+    items.append(projection[start:])
+    return [item.strip() for item in items if item.strip()]
+
+
 def returned_aliases(cypher_query: str) -> set[str]:
-    """Return the aliases produced by a fact query's `... AS <name>` clauses."""
-    return set(_RETURN_ALIAS_RE.findall(cypher_query))
+    """Return the output column names of a fact query's final `RETURN`.
+
+    A column is named by its `AS <alias>`, or by the variable itself when the
+    item is a bare identifier carried over from an earlier `WITH`. Items that
+    are neither (e.g. a bare `n.prop`) get a Cypher-generated column name that
+    can never be a Python field name, so they are ignored.
+    """
+    names = set()
+    for item in _projection_items(cypher_query):
+        alias = _ITEM_ALIAS_RE.search(item)
+        if alias:
+            names.add(alias.group(1))
+        elif _BARE_IDENTIFIER_RE.match(item):
+            names.add(item)
+    return names
+
+
+def _variables_bound_to_label(cypher_query: str, label: str) -> set[str]:
+    """Variables the query binds to `label`, inline or as a predicate.
+
+    Covers `(v:Label)`, `(v:Label {...})` and `WHERE v:Label`.
+    """
+    return set(re.findall(rf"\b(\w+)\s*:\s*{re.escape(label)}\b", cypher_query))
+
+
+def _expression_for_alias(cypher_query: str, alias: str) -> str | None:
+    """The projection expression the final `RETURN` exposes as `alias`."""
+    for item in _projection_items(cypher_query):
+        match = _ITEM_ALIAS_RE.search(item)
+        if match and match.group(1) == alias:
+            return item[: match.start()].strip()
+        if not match and item == alias:
+            return item
+    return None
 
 
 class Module(str, Enum):
@@ -298,7 +391,9 @@ class Fact:
     ``AWSEC2Instance``). Together with the value of ``asset_id_field`` it forms an indexable
     ``(label, id)`` anchor on the affected node, letting consumers locate that node in the
     graph without inferring the label from a field name. Required with no default: a Fact
-    that omits it fails to construct.
+    that omits it fails to construct. ``cypher_query`` must bind a variable to this label
+    and project ``asset_id_field`` off that same variable, so the label and the id cannot
+    describe two different nodes.
     """
     asset_id_field: str | None = None
     """
@@ -306,8 +401,10 @@ class Fact:
     id half of the ``(label, id)`` anchor. Also drives the compliance failing-count: when set,
     the failing count is the number of distinct values of this field rather than the total
     number of finding rows. This matters when a single asset can produce multiple finding
-    rows (e.g., one security group with multiple violating rules). Must be returned by
-    ``cypher_query`` via ``... AS <name>``.
+    rows (e.g., one security group with multiple violating rules). Must be returned by the
+    final ``RETURN`` of ``cypher_query`` via ``... AS <name>``, reading a property off the
+    variable bound to ``asset_label`` (an alias produced only by an intermediate ``WITH``
+    is query state, not an output column, and does not satisfy this).
     """
 
     def __post_init__(self) -> None:
@@ -328,11 +425,27 @@ class Fact:
                 f"Fact '{self.id}' asset_id_field '{self.asset_id_field}' is not returned "
                 f"by its cypher_query (expected a '... AS {self.asset_id_field}' alias)."
             )
-        if not re.search(rf":\s*{re.escape(self.asset_label)}\b", self.cypher_query):
+        # The anchor is only meaningful if the label and the id describe the same
+        # node, so require a variable bound to asset_label and require the
+        # asset_id_field expression to read a property off that same variable.
+        asset_vars = _variables_bound_to_label(self.cypher_query, self.asset_label)
+        if not asset_vars:
             raise ValueError(
                 f"Fact '{self.id}' declares asset_label '{self.asset_label}' but its "
-                f"cypher_query never matches that label, so the rows it returns and the "
-                f"asset it claims can diverge. Match ':{self.asset_label}' explicitly."
+                f"cypher_query never binds a variable to that label, so the rows it "
+                f"returns and the asset it claims can diverge. Match it explicitly, "
+                f"e.g. 'MATCH (n:{self.asset_label})'."
+            )
+        id_expression = _expression_for_alias(self.cypher_query, self.asset_id_field)
+        owners = set(_PROPERTY_OWNER_RE.findall(id_expression or ""))
+        if not owners & asset_vars:
+            raise ValueError(
+                f"Fact '{self.id}' returns asset_id_field '{self.asset_id_field}' as "
+                f"'{id_expression}', which reads no property off {sorted(asset_vars)} "
+                f"(the variable(s) bound to asset_label '{self.asset_label}'). The "
+                f"(label, id) anchor must describe one node: project the id directly "
+                f"off the labeled variable, e.g. "
+                f"'{sorted(asset_vars)[0]}.id AS {self.asset_id_field}'."
             )
         reserved = RESERVED_FINDING_FIELDS & aliases
         if reserved:
