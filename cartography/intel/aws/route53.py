@@ -50,10 +50,13 @@ def _normalize_dns_target(value: str) -> str:
     Strips the trailing root dot, and the `dualstack.` prefix that Route53 puts on alias
     targets pointing at an ELB. The ELB APIs return the same load balancer's DNSName
     without that prefix, so leaving it in place means the alias never matches.
+
+    Lowercased too: DNS names are case-insensitive, Route53 lowercases alias targets, and
+    the load balancer nodes lowercase their dnsname at ingestion for the same reason.
     """
     if value.endswith("."):
         value = value[:-1]
-    return value.removeprefix("dualstack.")
+    return value.removeprefix("dualstack.").lower()
 
 
 @timeit
