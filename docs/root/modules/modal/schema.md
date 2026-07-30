@@ -614,8 +614,10 @@ still in use.
     ```
 
   `CREATED_BY` is best-effort: Modal reports the creator as a workspace username, so the edge
-  joins on `ModalWorkspaceMember.display_name` and is absent when no member matches (for
-  instance when the creator has since left).
+  joins on `ModalWorkspaceMember.display_name`, scoped to the same workspace, and is absent
+  when no member matches (for instance when the creator has since left). The workspace scoping
+  matters because display names are not globally unique: without it, a graph holding several
+  Modal workspaces would attribute creation to every member sharing a name.
 
 | Field | Description |
 |-------|-------------|

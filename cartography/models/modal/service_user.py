@@ -55,7 +55,13 @@ class ModalServiceUserToCreatorRelProperties(CartographyRelProperties):
 class ModalServiceUserToCreatorRel(CartographyRelSchema):
     target_node_label: str = "ModalWorkspaceMember"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {"display_name": PropertyRef("created_by")},
+        {
+            "display_name": PropertyRef("created_by"),
+            # Scoped to the workspace being synced: display names are not globally unique, so
+            # an unscoped join would cross tenant boundaries in a graph holding several Modal
+            # workspaces.
+            "workspace_id": PropertyRef("WORKSPACE_ID", set_in_kwargs=True),
+        },
     )
     direction: LinkDirection = LinkDirection.OUTWARD
     rel_label: str = "CREATED_BY"

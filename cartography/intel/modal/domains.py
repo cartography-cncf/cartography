@@ -22,14 +22,24 @@ async def sync(
 ) -> list[dict[str, Any]]:
     """Ingest the workspace's custom domains and their validation DNS records.
 
-    Workspace-scoped: `DomainList` is workspace-wide, not per environment. On workspaces
-    without the custom-domains add-on the adapter returns an empty list, so this is a no-op
-    there rather than a failure.
+    Workspace-scoped: `DomainList` is workspace-wide, not per environment.
+
+    On a workspace without the custom-domains add-on the API tells us nothing about its
+    domains, which is distinct from telling us it has none. Loading and cleanup are both
+    skipped in that case, so previously-ingested domains are preserved rather than deleted
+    by a cleanup that never saw them.
     """
     workspace_id = common_job_parameters["WORKSPACE_ID"]
     update_tag = common_job_parameters["UPDATE_TAG"]
 
-    raw = await list_domains(client)
+    raw, available = await list_domains(client)
+    if not available:
+        logger.info(
+            "Skipping Modal domain ingestion and cleanup: custom domains are not available "
+            "on this workspace, so existing domain data is preserved untouched.",
+        )
+        return []
+
     domains = transform(raw)
     load_domains(neo4j_session, domains, workspace_id, update_tag)
 

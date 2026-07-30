@@ -28,6 +28,17 @@ change or disappear in any Modal release. They are confined to this module on pu
 protocol break should require edits here and nowhere else. The dependency is pinned
 ``modal>=1.5.0,<2`` for that reason.
 
+NOTE ON ``@timeit``
+-------------------
+The helpers below are intentionally NOT decorated with ``@timeit``, unlike the ``sync()``
+functions that call them. ``timeit``'s wrapper is synchronous: applied to a coroutine
+function it calls ``method(...)``, which returns a coroutine immediately, so the timer
+measures coroutine *creation* rather than the awaited request. The timing would be
+meaningless. Worse, ``functools.wraps`` does not preserve coroutine-ness, so
+``inspect.iscoroutinefunction()`` becomes False and ``unittest.mock.patch.object`` then
+substitutes a ``MagicMock`` instead of an ``AsyncMock`` — which breaks every test that
+mocks these functions with ``TypeError: object dict can't be used in 'await' expression``.
+
 Everything is async. ``_Client.from_credentials`` opens its own gRPC connection, and that
 connection is bound to the event loop that created it, so the client must be created and
 used inside a single loop. ``start_modal_ingestion`` therefore runs one ``asyncio.run()``
@@ -57,10 +68,16 @@ logger = logging.getLogger(__name__)
 # Errors raised by the Modal client and the underlying gRPC transport. The entry point
 # catches these to isolate a failing resource without aborting the whole module, so it is
 # exported from here to keep `modal` imports out of every other file.
+#
+# Deliberately does NOT include the builtin OSError. These exceptions gate a "skip this
+# resource and keep its existing data" path, which must only be reachable for failures we
+# recognise as Modal request failures. OSError is far broader than that and would let local
+# or infrastructure faults be laundered into a partial success. Modal surfaces genuine
+# connection problems as modal.exception.ConnectionError (its own class, not the builtin),
+# and grpclib raises GRPCError / StreamTerminatedError, so nothing is lost.
 MODAL_API_ERRORS: tuple[type[Exception], ...] = (
     GRPCError,
     StreamTerminatedError,
-    OSError,
     modal.exception.NotFoundError,
     modal.exception.AuthError,
     modal.exception.ConnectionError,
@@ -332,15 +349,18 @@ async def list_proxy_tokens(client: ModalClient) -> list[dict[str, Any]]:
     ]
 
 
-async def list_domains(client: ModalClient) -> list[dict[str, Any]]:
+async def list_domains(client: ModalClient) -> tuple[list[dict[str, Any]], bool]:
     """List custom domains, each with its validation DNS records flattened out.
 
-    Returns one dict per domain with a nested ``dns_records`` list; the intel module
-    splits that into `ModalDomain` and `ModalDomainDNSRecord` rows.
+    Returns ``(domains, available)``. ``available`` is False when the workspace does not
+    have the custom-domains add-on, in which case `DomainList` answers UNIMPLEMENTED and we
+    learned nothing about its domains. That is deliberately NOT reported as an empty list:
+    an empty list would let the caller's cleanup delete previously-ingested domains, which
+    is the same "failed enumeration must not clean up" rule the rest of this module follows.
+    Any other gRPC status propagates.
 
-    `DomainList` answers UNIMPLEMENTED on workspaces without the custom-domains feature
-    (it is a paid add-on), which is not an error condition for us: it means the workspace
-    has no custom domains to inventory. Any other gRPC status propagates.
+    Each dict carries a nested ``dns_records`` list, which the intel module splits into
+    `ModalDomain` and `ModalDomainDNSRecord` rows.
     """
     try:
         response = await retry_transient_errors(
@@ -353,7 +373,7 @@ async def list_domains(client: ModalClient) -> list[dict[str, Any]]:
                 "Modal DomainList is not available for this workspace "
                 "(custom domains are a paid add-on); skipping domain ingestion.",
             )
-            return []
+            return [], False
         raise
     domains = []
     for item in response.domains:
@@ -375,7 +395,7 @@ async def list_domains(client: ModalClient) -> list[dict[str, Any]]:
                 ],
             }
         )
-    return domains
+    return domains, True
 
 
 async def get_environment_roles(

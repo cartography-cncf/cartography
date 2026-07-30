@@ -17,6 +17,7 @@ from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
 from cartography.intel.modal.util import list_clusters
 from cartography.intel.modal.util import list_tasks
+from cartography.intel.modal.util import MODAL_API_ERRORS
 from cartography.intel.modal.util import ModalClient
 from cartography.models.modal.cluster import ModalClusterSchema
 from cartography.models.modal.task import ModalTaskSchema
@@ -45,9 +46,10 @@ async def sync(
     for app in apps:
         try:
             raw_tasks.extend(await list_tasks(client, environment_name, app["id"]))
-        except Exception as exc:  # noqa: BLE001
-            # Partial enumeration; the consequence (skip cleanup) is the same whatever the
-            # cause, so this is deliberately broad.
+        except MODAL_API_ERRORS as exc:
+            # Only expected API failures degrade to "partial enumeration, skip cleanup".
+            # A programming or protocol error must propagate rather than be laundered into a
+            # partial success that silently preserves stale data.
             logger.warning("Could not list tasks of Modal app %s: %s", app["id"], exc)
             complete = False
 

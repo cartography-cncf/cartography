@@ -2,6 +2,9 @@ import asyncio
 from unittest.mock import MagicMock
 from unittest.mock import patch
 
+from grpclib.const import Status
+from grpclib.exceptions import GRPCError
+
 import cartography.intel.modal.apps
 import cartography.intel.modal.environments
 import cartography.intel.modal.functions
@@ -69,7 +72,8 @@ def _sync_functions(neo4j_session, apps, layouts=None, update_tag=TEST_UPDATE_TA
 
     async def fake_layout(_client, app_id):
         if app_id not in table:
-            raise RuntimeError(f"layout unavailable for {app_id}")
+            # Must be a real Modal API failure: only those degrade to "skip cleanup".
+            raise GRPCError(Status.UNAVAILABLE, f"layout unavailable for {app_id}")
         return table[app_id]
 
     with patch.object(

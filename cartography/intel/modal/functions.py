@@ -6,6 +6,7 @@ import neo4j
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
 from cartography.intel.modal.util import get_app_layout
+from cartography.intel.modal.util import MODAL_API_ERRORS
 from cartography.intel.modal.util import ModalClient
 from cartography.models.modal.function import ModalFunctionSchema
 from cartography.models.modal.klass import ModalClassSchema
@@ -37,9 +38,10 @@ async def sync(
     for app in apps:
         try:
             layout = await get_app_layout(client, app["id"])
-        except Exception as exc:  # noqa: BLE001
-            # Deliberately broad: any failure here means partial enumeration, and the
-            # consequence we care about (skip cleanup) is the same whatever the cause.
+        except MODAL_API_ERRORS as exc:
+            # Only expected API failures degrade to "partial enumeration, skip cleanup".
+            # A programming or protocol error must propagate rather than be laundered into a
+            # partial success that silently preserves stale data.
             logger.warning(
                 "Could not fetch the layout of Modal app %s: %s", app["id"], exc
             )
@@ -82,14 +84,22 @@ def transform(
     Modal names a class's functions "<Class>.<method>" (and "<Class>.*" for the class service
     function), so the class is resolved from that prefix. A function whose prefix matches no
     known class gets class_id=None and therefore no HAS_METHOD edge.
+
+    The lookup is keyed by (app_id, class name), not by name alone: `classes` spans every app
+    in the environment, and two apps may each define a class with the same name, which would
+    otherwise link a function to the wrong app's class.
     """
-    class_ids_by_name = {klass["name"]: klass["id"] for klass in classes}
+    class_ids_by_app_and_name = {
+        (klass["app_id"], klass["name"]): klass["id"] for klass in classes
+    }
     functions = []
     for function in raw:
         class_id = None
         name = function.get("name") or ""
         if "." in name:
-            class_id = class_ids_by_name.get(name.split(".", 1)[0])
+            class_id = class_ids_by_app_and_name.get(
+                (function.get("app_id"), name.split(".", 1)[0])
+            )
         functions.append(
             {
                 **function,

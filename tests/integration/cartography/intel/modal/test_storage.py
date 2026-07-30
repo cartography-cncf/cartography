@@ -219,7 +219,9 @@ def test_load_modal_domains_and_dns_records(neo4j_session):
 
     # Act
     with patch.object(
-        cartography.intel.modal.domains, "list_domains", return_value=fx.MODAL_DOMAINS
+        cartography.intel.modal.domains,
+        "list_domains",
+        return_value=(fx.MODAL_DOMAINS, True),
     ):
         asyncio.run(
             cartography.intel.modal.domains.sync(
@@ -275,7 +277,9 @@ def test_modal_dns_records_are_not_labelled_dnsrecord(neo4j_session):
 
     # Act
     with patch.object(
-        cartography.intel.modal.domains, "list_domains", return_value=fx.MODAL_DOMAINS
+        cartography.intel.modal.domains,
+        "list_domains",
+        return_value=(fx.MODAL_DOMAINS, True),
     ):
         asyncio.run(
             cartography.intel.modal.domains.sync(

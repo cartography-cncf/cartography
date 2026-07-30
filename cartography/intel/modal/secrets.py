@@ -29,6 +29,7 @@ async def sync(
         neo4j_session,
         items,
         common_job_parameters["ENVIRONMENT_ID"],
+        common_job_parameters["WORKSPACE_ID"],
         common_job_parameters["UPDATE_TAG"],
     )
     cleanup(neo4j_session, common_job_parameters)
@@ -44,6 +45,7 @@ def load_secrets(
     neo4j_session: neo4j.Session,
     data: list[dict[str, Any]],
     environment_id: str,
+    workspace_id: str,
     update_tag: int,
 ) -> None:
     load(
@@ -52,6 +54,7 @@ def load_secrets(
         data,
         lastupdated=update_tag,
         ENVIRONMENT_ID=environment_id,
+        WORKSPACE_ID=workspace_id,
     )
 
 

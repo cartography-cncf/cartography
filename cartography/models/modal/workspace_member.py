@@ -17,6 +17,10 @@ from cartography.models.ontology.labels import USER_ACCOUNT
 class ModalWorkspaceMemberNodeProperties(CartographyNodeProperties):
     id: PropertyRef = PropertyRef("id")
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    # Carried as a property, not just as the RESOURCE edge, so best-effort CREATED_BY joins
+    # from other Modal nodes can be constrained to this workspace. Without it, a graph holding
+    # two Modal workspaces would attribute creation to every member sharing a display name.
+    workspace_id: PropertyRef = PropertyRef("WORKSPACE_ID", set_in_kwargs=True)
     member_id: PropertyRef = PropertyRef("member_id")
     email: PropertyRef = PropertyRef("email", extra_index=True)
     display_name: PropertyRef = PropertyRef("display_name", extra_index=True)
