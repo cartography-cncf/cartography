@@ -912,6 +912,14 @@ def test_kms_syncs_before_kms_dependent_resources():
         )
 
 
+def test_apprunner_syncs_before_permission_relationships():
+    order = list(RESOURCE_FUNCTIONS.keys())
+    assert order.index("apprunner") < order.index("permission_relationships"), (
+        "'apprunner' must sync before 'permission_relationships' so "
+        "AWSAppRunnerService nodes exist when CAN_EXEC edges are evaluated"
+    )
+
+
 @mock.patch("cartography.intel.aws.aioboto3.Session")
 @mock.patch("cartography.intel.aws.boto3.Session")
 @mock.patch("cartography.intel.aws.organizations")

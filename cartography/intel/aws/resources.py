@@ -6,6 +6,7 @@ from cartography.intel.aws.ec2.route_tables import sync_route_tables
 from . import acm
 from . import apigateway
 from . import apigatewayv2
+from . import apprunner
 from . import bedrock
 from . import cloudformation
 from . import cloudfront
@@ -129,8 +130,10 @@ RESOURCE_FUNCTIONS: OrderedDict[str, Callable[..., None]] = OrderedDict(
         "redshift": redshift.sync,
         "route53": route53.sync,
         "elasticsearch": elasticsearch.sync,
-        # `cloudformation` must run before `permission_relationships` so that AWSCloudFormationStack
-        # nodes exist when CAN_EXEC edges are evaluated.
+        # `apprunner` and `cloudformation` must run before `permission_relationships`
+        # so that AWSAppRunnerService / AWSCloudFormationStack nodes exist when
+        # CAN_EXEC edges are evaluated.
+        "apprunner": apprunner.sync,
         "cloudformation": cloudformation.sync,
         "permission_relationships": permission_relationships.sync,
         "resourcegroupstaggingapi": resourcegroupstaggingapi.sync,
