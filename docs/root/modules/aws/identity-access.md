@@ -18,7 +18,11 @@ identity provider.
 ### Role trust policies
 
 `TRUSTS_AWS_PRINCIPAL` connects an `AWSRole` to each principal that its trust
-policy names.
+policy allows to assume it. The relationship exists only where an `Allow`
+statement grants that principal an assume-role action it can call, and no
+`Deny` without a `Condition` takes that action away. A `Deny` with a
+`Condition` is evaluated at request time, so it does not remove the
+relationship.
 
 AWS evaluates the `Condition` blocks of a trust policy at request time, so
 Cartography records them instead of resolving them. `has_condition` is `false`

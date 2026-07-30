@@ -243,6 +243,632 @@ def test_statement_without_principal_raises():
         transform_role_trust_policies([role], TEST_ACCOUNT_ID)
 
 
+def _role_with_statements(name, statements):
+    return {
+        "Path": "/",
+        "RoleName": name,
+        "RoleId": f"AROA{name.upper().replace('-', '')}",
+        "Arn": f"arn:aws:iam::000000000000:role/{name}",
+        "CreateDate": datetime.datetime(2026, 1, 1, 0, 0, 1),
+        "AssumeRolePolicyDocument": {
+            "Version": "2012-10-17",
+            "Statement": statements,
+        },
+    }
+
+
+ATTACKER_ARN = "arn:aws:iam::999999999999:role/attacker"
+ROOT_ARN = "arn:aws:iam::000000000000:root"
+SAML_PROVIDER_ARN = "arn:aws:iam::000000000000:saml-provider/ADFS"
+
+
+def test_unconditional_deny_draws_no_edge():
+    """Deny beats Allow in IAM evaluation, so a denied principal is not trusted."""
+    role = _role_with_statements(
+        "deny-only",
+        [
+            {
+                "Effect": "Deny",
+                "Principal": {"AWS": ATTACKER_ARN},
+                "Action": "sts:AssumeRole",
+            },
+        ],
+    )
+
+    transformed = transform_role_trust_policies([role], TEST_ACCOUNT_ID)
+
+    assert transformed.trust_relationships == []
+    # A Deny is not evidence the account is trusted, so no stub is materialized.
+    assert transformed.external_aws_accounts == []
+
+
+def test_deny_overrides_allow_for_the_same_principal():
+    role = _role_with_statements(
+        "allow-then-deny",
+        [
+            {
+                "Effect": "Allow",
+                "Principal": {"AWS": [ATTACKER_ARN, ROOT_ARN]},
+                "Action": "sts:AssumeRole",
+            },
+            {
+                "Effect": "Deny",
+                "Principal": {"AWS": ATTACKER_ARN},
+                "Action": "sts:AssumeRole",
+            },
+        ],
+    )
+
+    transformed = transform_role_trust_policies([role], TEST_ACCOUNT_ID)
+
+    assert [t["target_principal_arn"] for t in transformed.trust_relationships] == [
+        ROOT_ARN
+    ]
+
+
+def test_conditional_deny_does_not_suppress_the_edge():
+    """A Deny gated by a Condition only applies at request time, so the edge survives."""
+    role = _role_with_statements(
+        "conditional-deny",
+        [
+            {
+                "Effect": "Allow",
+                "Principal": {"AWS": ROOT_ARN},
+                "Action": "sts:AssumeRole",
+            },
+            {
+                "Effect": "Deny",
+                "Principal": {"AWS": ROOT_ARN},
+                "Action": "sts:AssumeRole",
+                "Condition": {"Bool": {"aws:MultiFactorAuthPresent": "false"}},
+            },
+        ],
+    )
+
+    transformed = transform_role_trust_policies([role], TEST_ACCOUNT_ID)
+    (trust,) = transformed.trust_relationships
+
+    assert trust["target_principal_arn"] == ROOT_ARN
+    # The Allow is unconditional, and the Deny's condition is not folded into it.
+    assert trust["has_condition"] is False
+
+
+@pytest.mark.parametrize(
+    "action,expected_edge",
+    [
+        ("sts:AssumeRole", True),
+        # Assume-role actions, but only an OIDC or SAML provider can call them.
+        ("sts:AssumeRoleWithWebIdentity", False),
+        ("sts:AssumeRoleWithSAML", False),
+        ("sts:assumerole", True),  # IAM action names are case-insensitive
+        ("sts:AssumeRole*", True),
+        ("sts:*", True),
+        ("*", True),
+        ("sts:TagSession", False),
+        ("sts:GetCallerIdentity", False),
+        ("s3:GetObject", False),
+    ],
+)
+def test_only_assume_role_actions_draw_an_edge(action, expected_edge):
+    role = _role_with_statements(
+        "action-check",
+        [
+            {
+                "Effect": "Allow",
+                "Principal": {"AWS": ROOT_ARN},
+                "Action": action,
+            },
+        ],
+    )
+
+    transformed = transform_role_trust_policies([role], TEST_ACCOUNT_ID)
+
+    assert bool(transformed.trust_relationships) is expected_edge
+
+
+def test_action_list_with_one_assume_action_draws_an_edge():
+    """sts:TagSession alongside a real assume action still makes the role assumable."""
+    role = _role_with_statements(
+        "tag-and-assume",
+        [
+            {
+                "Effect": "Allow",
+                "Principal": {"Federated": SAML_PROVIDER_ARN},
+                "Action": ["sts:AssumeRoleWithSAML", "sts:TagSession"],
+            },
+        ],
+    )
+
+    transformed = transform_role_trust_policies([role], TEST_ACCOUNT_ID)
+
+    assert [t["target_principal_arn"] for t in transformed.trust_relationships] == [
+        SAML_PROVIDER_ARN
+    ]
+
+
+@pytest.mark.parametrize(
+    "principal,action,expected_edge",
+    [
+        ({"AWS": ROOT_ARN}, "sts:AssumeRole", True),
+        ({"AWS": ROOT_ARN}, "sts:AssumeRoleWithSAML", False),
+        ({"AWS": ROOT_ARN}, "sts:AssumeRoleWithWebIdentity", False),
+        ({"Service": "ec2.amazonaws.com"}, "sts:AssumeRole", True),
+        ({"Service": "ec2.amazonaws.com"}, "sts:AssumeRoleWithWebIdentity", False),
+        ({"Federated": SAML_PROVIDER_ARN}, "sts:AssumeRoleWithSAML", True),
+        ({"Federated": SAML_PROVIDER_ARN}, "sts:AssumeRole", False),
+        ({"Federated": SAML_PROVIDER_ARN}, "sts:AssumeRoleWithWebIdentity", False),
+        (
+            {"Federated": GITHUB_OIDC_PROVIDER_ARN},
+            "sts:AssumeRoleWithWebIdentity",
+            True,
+        ),
+        ({"Federated": GITHUB_OIDC_PROVIDER_ARN}, "sts:AssumeRole", False),
+        ({"Federated": GITHUB_OIDC_PROVIDER_ARN}, "sts:AssumeRoleWithSAML", False),
+        ({"Federated": "accounts.google.com"}, "sts:AssumeRoleWithWebIdentity", True),
+        ({"Federated": "accounts.google.com"}, "sts:AssumeRoleWithSAML", False),
+    ],
+)
+def test_an_edge_needs_an_assume_action_the_principal_can_call(
+    principal, action, expected_edge
+):
+    """Each kind of principal can call one assume-role action, and only that one draws an edge."""
+    role = _role_with_statements(
+        "usable-action",
+        [{"Effect": "Allow", "Principal": principal, "Action": action}],
+    )
+
+    transformed = transform_role_trust_policies([role], TEST_ACCOUNT_ID)
+
+    assert bool(transformed.trust_relationships) is expected_edge
+
+
+@pytest.mark.parametrize(
+    "principal,not_action,expected_edge",
+    [
+        # Everything except s3:GetObject is allowed, which includes assuming the role.
+        ({"AWS": ROOT_ARN}, "s3:GetObject", True),
+        # Everything except sts:AssumeRole leaves the WebIdentity and SAML flavours,
+        # which an OIDC provider can call and an AWS principal cannot.
+        ({"AWS": ROOT_ARN}, "sts:AssumeRole", False),
+        ({"Federated": GITHUB_OIDC_PROVIDER_ARN}, "sts:AssumeRole", True),
+        # Nothing in the assume-role family is left.
+        ({"AWS": ROOT_ARN}, "sts:AssumeRole*", False),
+        ({"AWS": ROOT_ARN}, "sts:*", False),
+        ({"AWS": ROOT_ARN}, "*", False),
+    ],
+)
+def test_allow_not_action_is_resolved_over_the_assume_role_actions(
+    principal, not_action, expected_edge
+):
+    """NotAction covers every action except the listed ones; only the assume-role ones count."""
+    role = _role_with_statements(
+        "not-action",
+        [
+            {
+                "Effect": "Allow",
+                "Principal": principal,
+                "NotAction": not_action,
+            },
+        ],
+    )
+
+    transformed = transform_role_trust_policies([role], TEST_ACCOUNT_ID)
+
+    assert bool(transformed.trust_relationships) is expected_edge
+
+
+def test_deny_not_action_excluding_assume_role_keeps_the_edge():
+    """A Deny on NotAction sts:AssumeRole denies everything except sts:AssumeRole."""
+    role = _role_with_statements(
+        "deny-not-action",
+        [
+            {
+                "Effect": "Allow",
+                "Principal": {"AWS": ROOT_ARN},
+                "Action": "sts:AssumeRole",
+            },
+            {
+                "Effect": "Deny",
+                "Principal": {"AWS": ROOT_ARN},
+                "NotAction": "sts:AssumeRole",
+            },
+        ],
+    )
+
+    transformed = transform_role_trust_policies([role], TEST_ACCOUNT_ID)
+
+    assert [t["target_principal_arn"] for t in transformed.trust_relationships] == [
+        ROOT_ARN
+    ]
+
+
+def test_deny_not_action_covering_assume_role_drops_the_edge():
+    """A Deny on NotAction sts:TagSession denies every assume-role action."""
+    role = _role_with_statements(
+        "deny-not-action-all",
+        [
+            {
+                "Effect": "Allow",
+                "Principal": {"AWS": ROOT_ARN},
+                "Action": "sts:AssumeRole",
+            },
+            {
+                "Effect": "Deny",
+                "Principal": {"AWS": ROOT_ARN},
+                "NotAction": "sts:TagSession",
+            },
+        ],
+    )
+
+    transformed = transform_role_trust_policies([role], TEST_ACCOUNT_ID)
+
+    assert transformed.trust_relationships == []
+
+
+def test_deny_on_another_assume_action_keeps_the_edge():
+    """Deny is tracked per action: denying the SAML flavour leaves sts:AssumeRole usable."""
+    role = _role_with_statements(
+        "deny-other-action",
+        [
+            {
+                "Effect": "Allow",
+                "Principal": {"AWS": ROOT_ARN},
+                "Action": "sts:AssumeRole",
+            },
+            {
+                "Effect": "Deny",
+                "Principal": {"AWS": ROOT_ARN},
+                "Action": "sts:AssumeRoleWithSAML",
+            },
+        ],
+    )
+
+    transformed = transform_role_trust_policies([role], TEST_ACCOUNT_ID)
+
+    assert [t["target_principal_arn"] for t in transformed.trust_relationships] == [
+        ROOT_ARN
+    ]
+
+
+def test_deny_of_every_granted_action_drops_the_edge():
+    """A wildcard Allow is still fully denied when the Deny covers the whole family."""
+    role = _role_with_statements(
+        "deny-whole-family",
+        [
+            {
+                "Effect": "Allow",
+                "Principal": {"AWS": ROOT_ARN},
+                "Action": "sts:*",
+            },
+            {
+                "Effect": "Deny",
+                "Principal": {"AWS": ROOT_ARN},
+                "Action": "sts:AssumeRole*",
+            },
+        ],
+    )
+
+    transformed = transform_role_trust_policies([role], TEST_ACCOUNT_ID)
+
+    assert transformed.trust_relationships == []
+
+
+@pytest.mark.parametrize(
+    "principal,deny_principal,denied_action",
+    [
+        ({"AWS": ATTACKER_ARN}, {"AWS": ATTACKER_ARN}, "sts:AssumeRole"),
+        ({"Service": "ec2.amazonaws.com"}, "*", "sts:AssumeRole"),
+        ({"Federated": SAML_PROVIDER_ARN}, "*", "sts:AssumeRoleWithSAML"),
+        ({"Federated": GITHUB_OIDC_PROVIDER_ARN}, "*", "sts:AssumeRoleWithWebIdentity"),
+    ],
+)
+def test_deny_of_the_only_action_a_principal_can_call_drops_its_edge(
+    principal, deny_principal, denied_action
+):
+    """An Allow of every sts action leaves nothing once the one the principal can call is denied."""
+    role = _role_with_statements(
+        "deny-the-usable-action",
+        [
+            {"Effect": "Allow", "Principal": principal, "Action": "sts:*"},
+            {"Effect": "Deny", "Principal": deny_principal, "Action": denied_action},
+        ],
+    )
+
+    transformed = transform_role_trust_policies([role], TEST_ACCOUNT_ID)
+
+    assert transformed.trust_relationships == []
+
+
+def test_deny_of_everything_but_web_identity_leaves_only_the_oidc_trust():
+    """Locking a role down to web identity also removes an AWS principal allowed sts:AssumeRole*."""
+    role = _role_with_statements(
+        "oidc-only",
+        [
+            {
+                "Effect": "Allow",
+                "Principal": {"AWS": ROOT_ARN},
+                "Action": "sts:AssumeRole*",
+            },
+            {
+                "Effect": "Allow",
+                "Principal": {"Federated": GITHUB_OIDC_PROVIDER_ARN},
+                "Action": "sts:AssumeRoleWithWebIdentity",
+                "Condition": {
+                    "StringEquals": {
+                        "token.actions.githubusercontent.com:aud": "sts.amazonaws.com",
+                    },
+                },
+            },
+            {
+                "Effect": "Deny",
+                "Principal": "*",
+                "NotAction": "sts:AssumeRoleWithWebIdentity",
+            },
+        ],
+    )
+
+    transformed = transform_role_trust_policies([role], TEST_ACCOUNT_ID)
+    (trust,) = transformed.trust_relationships
+
+    assert trust["target_principal_arn"] == GITHUB_OIDC_PROVIDER_ARN
+    assert trust["has_condition"] is True
+
+
+def test_deny_of_assume_role_to_everyone_leaves_only_the_saml_trust():
+    """A statement naming an AWS principal and a SAML provider grants each its own action."""
+    role = _role_with_statements(
+        "sso-only",
+        [
+            {
+                "Effect": "Allow",
+                "Principal": {"AWS": ROOT_ARN, "Federated": SAML_PROVIDER_ARN},
+                "Action": ["sts:AssumeRole", "sts:AssumeRoleWithSAML"],
+            },
+            {"Effect": "Deny", "Principal": "*", "Action": "sts:AssumeRole"},
+        ],
+    )
+
+    transformed = transform_role_trust_policies([role], TEST_ACCOUNT_ID)
+
+    assert [t["target_principal_arn"] for t in transformed.trust_relationships] == [
+        SAML_PROVIDER_ARN
+    ]
+
+
+@pytest.mark.parametrize(
+    "saml_condition",
+    [None, {"StringEquals": {"SAML:aud": "https://signin.aws.amazon.com/saml"}}],
+)
+def test_a_statement_only_feeds_the_conditions_of_principals_that_can_use_it(
+    saml_condition,
+):
+    """The root's only path is the MFA-gated sts:AssumeRole; the SAML statement is not one."""
+    saml_statement = {
+        "Effect": "Allow",
+        "Principal": {"AWS": ROOT_ARN, "Federated": SAML_PROVIDER_ARN},
+        "Action": "sts:AssumeRoleWithSAML",
+    }
+    if saml_condition:
+        saml_statement["Condition"] = saml_condition
+    role = _role_with_statements(
+        "mfa-or-saml",
+        [
+            {
+                "Effect": "Allow",
+                "Principal": {"AWS": ROOT_ARN},
+                "Action": "sts:AssumeRole",
+                "Condition": {"Bool": {"aws:MultiFactorAuthPresent": "true"}},
+            },
+            saml_statement,
+        ],
+    )
+
+    transformed = transform_role_trust_policies([role], TEST_ACCOUNT_ID)
+    trusts = _trusts_by_role(transformed)
+
+    root_trust = trusts[(role["Arn"], ROOT_ARN)]
+    assert root_trust["has_condition"] is True
+    assert root_trust["condition_keys"] == ["aws:MultiFactorAuthPresent"]
+    assert json.loads(root_trust["conditions"]) == [
+        {"Bool": {"aws:MultiFactorAuthPresent": "true"}}
+    ]
+    saml_trust = trusts[(role["Arn"], SAML_PROVIDER_ARN)]
+    assert saml_trust["has_condition"] is (saml_condition is not None)
+
+
+def test_an_ungated_grant_of_an_action_the_principal_cannot_call_keeps_the_gate():
+    """A SAML provider cannot call sts:AssumeRole, so only the SAML:aud-gated statement counts."""
+    role = _role_with_statements(
+        "saml-gated",
+        [
+            {
+                "Effect": "Allow",
+                "Principal": {"Federated": SAML_PROVIDER_ARN},
+                "Action": "sts:AssumeRoleWithSAML",
+                "Condition": {
+                    "StringEquals": {"SAML:aud": "https://signin.aws.amazon.com/saml"}
+                },
+            },
+            {
+                "Effect": "Allow",
+                "Principal": {"Federated": SAML_PROVIDER_ARN},
+                "Action": "sts:AssumeRole",
+            },
+        ],
+    )
+
+    transformed = transform_role_trust_policies([role], TEST_ACCOUNT_ID)
+    (trust,) = transformed.trust_relationships
+
+    assert trust["has_condition"] is True
+    assert trust["condition_keys"] == ["SAML:aud"]
+
+
+@pytest.mark.parametrize("wildcard", ["*", {"AWS": "*"}])
+def test_unconditional_wildcard_principal_deny_drops_concrete_edges(wildcard):
+    """The bare "*" and {"AWS": "*"} forms both match every principal, so the Deny applies to all."""
+    role = _role_with_statements(
+        "deny-everyone",
+        [
+            {
+                "Effect": "Allow",
+                "Principal": {"AWS": [ROOT_ARN, ATTACKER_ARN]},
+                "Action": "sts:AssumeRole",
+            },
+            {
+                "Effect": "Allow",
+                "Principal": {"Federated": GITHUB_OIDC_PROVIDER_ARN},
+                "Action": "sts:AssumeRoleWithWebIdentity",
+            },
+            {
+                "Effect": "Deny",
+                "Principal": wildcard,
+                "Action": "sts:AssumeRole*",
+            },
+        ],
+    )
+
+    transformed = transform_role_trust_policies([role], TEST_ACCOUNT_ID)
+
+    assert transformed.trust_relationships == []
+
+
+def test_wildcard_principal_deny_on_another_action_keeps_the_edge():
+    """A blanket Deny of the WebIdentity flavour does not touch an sts:AssumeRole trust."""
+    role = _role_with_statements(
+        "deny-everyone-web-identity",
+        [
+            {
+                "Effect": "Allow",
+                "Principal": {"AWS": ROOT_ARN},
+                "Action": "sts:AssumeRole",
+            },
+            {
+                "Effect": "Allow",
+                "Principal": {"Federated": GITHUB_OIDC_PROVIDER_ARN},
+                "Action": "sts:AssumeRoleWithWebIdentity",
+            },
+            {
+                "Effect": "Deny",
+                "Principal": "*",
+                "Action": "sts:AssumeRoleWithWebIdentity",
+            },
+        ],
+    )
+
+    transformed = transform_role_trust_policies([role], TEST_ACCOUNT_ID)
+
+    assert [t["target_principal_arn"] for t in transformed.trust_relationships] == [
+        ROOT_ARN
+    ]
+
+
+@pytest.mark.parametrize(
+    "account_principal", ["arn:aws:iam::999999999999:root", "999999999999"]
+)
+def test_unconditional_account_deny_drops_that_accounts_principals(account_principal):
+    """A Deny naming an account covers its users and roles, not only its root user."""
+    role = _role_with_statements(
+        "deny-an-account",
+        [
+            {
+                "Effect": "Allow",
+                "Principal": {"AWS": [ROOT_ARN, ATTACKER_ARN]},
+                "Action": "sts:AssumeRole",
+            },
+            {
+                "Effect": "Deny",
+                "Principal": {"AWS": account_principal},
+                "Action": "sts:AssumeRole",
+            },
+        ],
+    )
+
+    transformed = transform_role_trust_policies([role], TEST_ACCOUNT_ID)
+
+    assert [t["target_principal_arn"] for t in transformed.trust_relationships] == [
+        ROOT_ARN
+    ]
+
+
+def test_account_deny_keeps_a_web_identity_trust():
+    """A web identity is not a user or role of the account, so an account Deny leaves it."""
+    role = _role_with_statements(
+        "deny-own-account-keep-oidc",
+        [
+            {
+                "Effect": "Allow",
+                "Principal": {"Federated": GITHUB_OIDC_PROVIDER_ARN},
+                "Action": "sts:AssumeRoleWithWebIdentity",
+            },
+            {
+                "Effect": "Deny",
+                "Principal": {"AWS": ROOT_ARN},
+                "Action": "sts:AssumeRole*",
+            },
+        ],
+    )
+
+    transformed = transform_role_trust_policies([role], TEST_ACCOUNT_ID)
+
+    assert [t["target_principal_arn"] for t in transformed.trust_relationships] == [
+        GITHUB_OIDC_PROVIDER_ARN
+    ]
+
+
+def test_conditional_wildcard_principal_deny_is_not_applied():
+    """A conditional Deny, wildcard or not, is resolved at request time and left alone."""
+    role = _role_with_statements(
+        "conditional-deny-everyone",
+        [
+            {
+                "Effect": "Allow",
+                "Principal": {"AWS": ROOT_ARN},
+                "Action": "sts:AssumeRole",
+            },
+            {
+                "Effect": "Deny",
+                "Principal": "*",
+                "Action": "sts:AssumeRole",
+                "Condition": {"Bool": {"aws:MultiFactorAuthPresent": "false"}},
+            },
+        ],
+    )
+
+    transformed = transform_role_trust_policies([role], TEST_ACCOUNT_ID)
+
+    assert [t["target_principal_arn"] for t in transformed.trust_relationships] == [
+        ROOT_ARN
+    ]
+
+
+@pytest.mark.parametrize("wildcard", ["*", {"AWS": "*"}])
+def test_wildcard_principal_allow_draws_no_edge_and_does_not_raise(wildcard):
+    """A wildcard Allow has no principal node to point at; it is skipped, not a crash."""
+    role = _role_with_statements(
+        "allow-everyone",
+        [
+            {
+                "Effect": "Allow",
+                "Principal": wildcard,
+                "Action": "sts:AssumeRole",
+                "Condition": {"StringEquals": {"aws:PrincipalOrgID": "o-example"}},
+            },
+            {
+                "Effect": "Allow",
+                "Principal": {"AWS": ROOT_ARN},
+                "Action": "sts:AssumeRole",
+            },
+        ],
+    )
+
+    transformed = transform_role_trust_policies([role], TEST_ACCOUNT_ID)
+
+    assert [t["target_principal_arn"] for t in transformed.trust_relationships] == [
+        ROOT_ARN
+    ]
+
+
 @pytest.mark.parametrize(
     "condition_blob",
     ["not json at all", "{unclosed", ""],

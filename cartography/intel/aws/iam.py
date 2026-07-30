@@ -1,4 +1,5 @@
 import enum
+import fnmatch
 import json
 import logging
 import time
@@ -748,6 +749,87 @@ def transform_access_keys(
     return access_key_data
 
 
+# The sts actions that let a principal actually obtain credentials for a role. A trust
+# statement granting only e.g. sts:TagSession does not make the role assumable.
+ASSUME_ROLE_ACTIONS = frozenset(
+    {
+        "sts:assumerole",
+        "sts:assumerolewithwebidentity",
+        "sts:assumerolewithsaml",
+    }
+)
+
+# The Principal value that matches every principal. AWS treats the bare "*" and the
+# {"AWS": "*"} forms as equivalent, and does not allow wildcards inside a principal ARN.
+WILDCARD_PRINCIPAL = "*"
+
+
+def _matching_assume_role_actions(patterns: list[Any]) -> frozenset[str]:
+    """The assume-role actions matched by a list of IAM action patterns.
+
+    IAM action names are case-insensitive and may use `*` and `?` wildcards, so
+    "sts:AssumeRole*", "sts:*" and "*" all match every assume-role action.
+    """
+    lowered = [pattern.lower() for pattern in patterns if isinstance(pattern, str)]
+    return frozenset(
+        action
+        for action in ASSUME_ROLE_ACTIONS
+        if any(fnmatch.fnmatchcase(action, pattern) for pattern in lowered)
+    )
+
+
+def _account_principals(principal: str, partition: str) -> set[str]:
+    """The two ways a policy can name the account an AWS principal belongs to.
+
+    An account appears either as its bare ID or as its root ARN. The partition is only
+    used for a bare account ID, which carries none of its own.
+    """
+    if principal.isdigit():
+        account_id = principal
+    elif principal.startswith("arn:"):
+        parts = principal.split(":")
+        if len(parts) < 6 or not parts[4]:
+            return set()
+        partition, account_id = parts[1], parts[4]
+    else:
+        # e.g. the unique ID AWS leaves in a policy whose role or user was deleted.
+        return set()
+    return {account_id, f"arn:{partition}:iam::{account_id}:root"}
+
+
+def _statement_assume_role_actions(statement: dict[str, Any]) -> frozenset[str]:
+    """The assume-role actions a trust statement applies to, whether it allows or denies.
+
+    `Action` lists the actions the statement covers; `NotAction` covers every action
+    except the ones listed. Only the assume-role actions can draw a trust edge, so the
+    complement of a NotAction is computed exactly over that set rather than over the
+    whole action namespace: `"NotAction": "sts:AssumeRole"` covers the WebIdentity and
+    SAML flavours and leaves sts:AssumeRole alone, in an Allow and in a Deny alike.
+    """
+    if "NotAction" in statement:
+        excluded = _matching_assume_role_actions(
+            ensure_list(statement["NotAction"] or [])
+        )
+        return ASSUME_ROLE_ACTIONS - excluded
+    return _matching_assume_role_actions(ensure_list(statement.get("Action") or []))
+
+
+def _usable_assume_role_actions(principal_type: str, principal: str) -> frozenset[str]:
+    """The assume-role action that a principal of this type can call.
+
+    sts:AssumeRole is called with existing AWS credentials, so it is the only one an
+    account, user, role or service can use. A SAML provider is the principal of
+    sts:AssumeRoleWithSAML, and an OIDC provider, built-in ones such as
+    accounts.google.com included, that of sts:AssumeRoleWithWebIdentity.
+    """
+    if principal_type == "Federated":
+        if ":saml-provider/" in principal:
+            return frozenset({"sts:assumerolewithsaml"})
+        return frozenset({"sts:assumerolewithwebidentity"})
+    # "AWS" or "Service"
+    return frozenset({"sts:assumerole"})
+
+
 def _aggregate_trust_conditions(
     statement_conditions: list[Any],
 ) -> dict[str, Any]:
@@ -815,15 +897,55 @@ def transform_role_trust_policies(
     for role in roles:
         role_arn = role["Arn"]
 
-        # Principal ARN -> the Condition of each statement trusting it, in document order.
+        # Principal ARN -> one (assume-role actions, Condition) entry per Allow statement
+        # naming it, in document order, keeping only the actions that principal can call.
         # A role can trust the same principal from several statements under different
         # conditions, so these are aggregated per (role, principal) below.
-        trusted_principal_conditions: dict[str, list[Any]] = {}
+        allowed_trusts: dict[str, list[tuple[frozenset[str], Any]]] = {}
+        # Principal ARN -> the assume-role actions an unconditional Deny names for it.
+        # Deny beats Allow in IAM evaluation, so an Allow of a denied action draws no
+        # edge. The wildcard key holds the actions denied to every principal.
+        denied_actions: dict[str, set[str]] = {}
+        # The allowed principals of type AWS, i.e. IAM users, roles and accounts.
+        aws_principal_arns: set[str] = set()
 
         for statement in role["AssumeRolePolicyDocument"]["Statement"]:
+            actions = _statement_assume_role_actions(statement)
+            if not actions:
+                # e.g. a statement granting only sts:TagSession. It names a principal but
+                # does not let it obtain credentials for the role.
+                continue
+
+            is_deny = statement.get("Effect") == "Deny"
             condition = statement.get("Condition")
-            principal_entries = _parse_principal_entries(statement["Principal"])
+            principal = statement["Principal"]
+            if principal == WILDCARD_PRINCIPAL:
+                # "Principal": "*" is shorthand for {"AWS": "*"}.
+                principal = {"AWS": WILDCARD_PRINCIPAL}
+            principal_entries = _parse_principal_entries(principal)
+
+            if is_deny:
+                # An unconditional Deny settles the question for the actions it names:
+                # the principal cannot obtain the role through them, whatever the Allow
+                # statements say. A conditional Deny only applies when its condition
+                # holds at request time, which we cannot evaluate here, so it is left to
+                # the Allow statements. Either way a Deny is not evidence that the named
+                # principal or its account exists, so no nodes are created from it.
+                if not condition:
+                    for _, principal_arn in principal_entries:
+                        denied_actions.setdefault(principal_arn, set()).update(actions)
+                continue
+
             for principal_type, principal_arn in principal_entries:
+                if principal_type == "AWS" and principal_arn == WILDCARD_PRINCIPAL:
+                    # A wildcard Allow trusts every principal. There is no node to point
+                    # the edge at, so it draws nothing.
+                    logger.debug(
+                        "Not drawing a trust edge for the wildcard principal in the "
+                        "trust policy of %s.",
+                        role_arn,
+                    )
+                    continue
                 if principal_type == "Federated":
                     # Add this to list of federated nodes to create
                     account_id = get_account_from_arn(principal_arn)
@@ -849,6 +971,7 @@ def transform_role_trust_policies(
                     )
                     # Service principals are global so there is no account id.
                 elif principal_type == "AWS":
+                    aws_principal_arns.add(principal_arn)
                     if "root" in principal_arn:
                         # The current principal trusts a root principal.
 
@@ -867,16 +990,35 @@ def transform_role_trust_policies(
                     logger.warning(f"Unknown principal type: {principal_type}")
                     continue
 
-                trusted_principal_conditions.setdefault(principal_arn, []).append(
-                    condition
+                usable_actions = actions & _usable_assume_role_actions(
+                    principal_type, principal_arn
+                )
+                allowed_trusts.setdefault(principal_arn, []).append(
+                    (usable_actions, condition)
                 )
 
-        for principal_arn, statement_conditions in trusted_principal_conditions.items():
+        partition = role_arn.split(":")[1]
+        for principal_arn, grants in allowed_trusts.items():
+            denied = denied_actions.get(principal_arn, set()) | denied_actions.get(
+                WILDCARD_PRINCIPAL, set()
+            )
+            if principal_arn in aws_principal_arns:
+                # A Deny naming an account covers every user and role in it, not only
+                # its root user.
+                for account_principal in _account_principals(principal_arn, partition):
+                    denied |= denied_actions.get(account_principal, set())
+            # A statement keeps granting the trust as long as an assume-role action it
+            # lets this principal call is not explicitly denied to it.
+            surviving_conditions = [
+                condition for actions, condition in grants if actions - denied
+            ]
+            if not surviving_conditions:
+                continue
             trust_relationships.append(
                 {
                     "source_role_arn": role_arn,
                     "target_principal_arn": principal_arn,
-                    **_aggregate_trust_conditions(statement_conditions),
+                    **_aggregate_trust_conditions(surviving_conditions),
                 }
             )
 
