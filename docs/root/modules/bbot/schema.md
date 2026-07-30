@@ -245,7 +245,9 @@ Findings can point to this node:
 
 ### BbotFinding / SecurityIssue
 
-Represents a security finding. This node also has the semantic `SecurityIssue` label and normalized title and severity fields for cross-scanner queries.
+Represents a security finding.
+
+> **Ontology Mapping**: This node has the extra label `SecurityIssue` and normalized title and severity fields for cross-scanner queries.
 
 | Field | Description |
 |---|---|
