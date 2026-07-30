@@ -108,6 +108,13 @@ The node is keyed on the person's `user_id` rather than the membership id, so on
 node even when they belong to several teams. Everything that varies per team lives on the
 `MEMBER_OF` edge.
 
+Because a Netlify user is a shared identity and one cartography run syncs one team, both of this
+node's team edges are MatchLinks scoped to the team being synced, and **the node itself is never
+deleted by a team's cleanup**. Removing someone from a team drops that team's `RESOURCE` and
+`MEMBER_OF` edges and leaves the identity in place, since other teams and other modules may still
+reference it. A person removed from their last team therefore keeps a bare `NetlifyUser` node with
+no membership; query through `MEMBER_OF` rather than by node existence to ask who is on a team.
+
 | Field | Description |
 |---|---|
 | firstseen | Timestamp of when a sync job first discovered this node |
@@ -603,6 +610,11 @@ to clone a site's source repository.
 
 Only the public half of the keypair is returned by the API, so it is safe to store and useful
 for matching against the deploy keys registered on the git provider.
+
+`GET /deploy_keys` takes no team parameter: it returns every key the token can see. The team edge
+is therefore a MatchLink meaning only "this team's sync saw this key", and the node is not deleted
+by a team's cleanup. For which site actually clones with a given key, use `USES_DEPLOY_KEY`, which
+comes from the site's own build settings.
 
 | Field | Description |
 |---|---|

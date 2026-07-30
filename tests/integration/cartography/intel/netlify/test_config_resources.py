@@ -28,6 +28,7 @@ from tests.integration.cartography.intel.netlify.common import common_job_parame
 from tests.integration.cartography.intel.netlify.common import (
     create_test_netlify_account,
 )
+from tests.integration.cartography.intel.netlify.common import create_test_netlify_users
 from tests.integration.cartography.intel.netlify.common import find_secret_in_graph
 from tests.integration.cartography.intel.netlify.common import TEST_ACCOUNT_ID
 from tests.integration.cartography.intel.netlify.common import TEST_BASE_URL
@@ -44,14 +45,7 @@ _SITES = tests.data.netlify.sites.NETLIFY_SITES
 
 def _arrange(neo4j_session: neo4j.Session) -> None:
     create_test_netlify_account(neo4j_session)
-    cartography.intel.netlify.users.load_netlify_users(
-        neo4j_session,
-        cartography.intel.netlify.users.transform_netlify_users(
-            tests.data.netlify.users.NETLIFY_MEMBERS,
-        ),
-        TEST_ACCOUNT_ID,
-        TEST_UPDATE_TAG,
-    )
+    create_test_netlify_users(neo4j_session)
     cartography.intel.netlify.sites.load_netlify_sites(
         neo4j_session,
         cartography.intel.netlify.sites.transform_netlify_sites(_SITES),

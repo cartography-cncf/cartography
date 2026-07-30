@@ -21,17 +21,6 @@ from tests.integration.util import check_rels
 _MEMBERSHIP_ID = "5f5a5d7053c60b4be4c8784e"
 
 
-def _ensure_local_neo4j_has_test_users(neo4j_session: neo4j.Session) -> None:
-    cartography.intel.netlify.users.load_netlify_users(
-        neo4j_session,
-        cartography.intel.netlify.users.transform_netlify_users(
-            tests.data.netlify.users.NETLIFY_MEMBERS,
-        ),
-        TEST_ACCOUNT_ID,
-        TEST_UPDATE_TAG,
-    )
-
-
 @patch.object(
     cartography.intel.netlify.users,
     "get_netlify_users",

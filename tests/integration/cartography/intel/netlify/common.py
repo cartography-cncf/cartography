@@ -1,5 +1,8 @@
 import neo4j
 
+import cartography.intel.netlify.users
+import tests.data.netlify.users
+
 TEST_ACCOUNT_ID = "5f5a5d7053c60b4be4c8784d"
 TEST_ACCOUNT_SLUG = "example-team"
 TEST_SITE_ID = "11111111-2222-3333-4444-555555555555"
@@ -29,6 +32,28 @@ def create_test_netlify_account(
         account_id=account_id,
         account_slug=TEST_ACCOUNT_SLUG,
         update_tag=update_tag,
+    )
+
+
+def create_test_netlify_users(
+    neo4j_session: neo4j.Session,
+    account_id: str = TEST_ACCOUNT_ID,
+    update_tag: int = TEST_UPDATE_TAG,
+) -> None:
+    """
+    Seed the team's members, for tests of resources that point at a user.
+
+    Goes through load_netlify_users() rather than raw Cypher because the user's team edges are
+    MatchLinks, so reproducing them by hand here would drift from the real shape.
+    """
+    cartography.intel.netlify.users.load_netlify_users(
+        neo4j_session,
+        cartography.intel.netlify.users.transform_netlify_users(
+            tests.data.netlify.users.NETLIFY_MEMBERS,
+            account_id,
+        ),
+        account_id,
+        update_tag,
     )
 
 
