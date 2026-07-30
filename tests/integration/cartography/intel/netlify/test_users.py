@@ -42,12 +42,21 @@ def test_sync_netlify_users(mock_get, neo4j_session: neo4j.Session) -> None:
         common_job_parameters(),
     )
 
-    # Assert Nodes: keyed on the person's user_id, not the membership id
+    # Assert Nodes: keyed on the person's user_id, not the membership id, and carrying only
+    # identity-level facts. Anything team-scoped is on the edge, asserted below.
     assert check_nodes(
         neo4j_session,
         "NetlifyUser",
-        ["id", "email", "full_name", "mfa_enabled", "pending"],
-    ) == {(TEST_USER_ID, "alice@example.com", "Alice Example", False, False)}
+        ["id", "email", "full_name", "mfa_enabled", "last_activity_date"],
+    ) == {(TEST_USER_ID, "alice@example.com", "Alice Example", False, "2026-07-30")}
+
+    # Membership-scoped fields must not be on the shared node: whichever team synced last would
+    # otherwise decide their value for everyone.
+    assert check_nodes(
+        neo4j_session,
+        "NetlifyUser",
+        ["pending", "role", "site_access", "managed_by_directory_sync", "created_at"],
+    ) == {(None, None, None, None, None)}
 
     # Assert the linked-identity map was flattened to a scalar array. Queried directly rather
     # than through check_nodes(), which builds a set of tuples and so cannot hold a list.
@@ -78,17 +87,23 @@ def test_sync_netlify_users(mock_get, neo4j_session: neo4j.Session) -> None:
         """
         MATCH (:NetlifyUser)-[r:MEMBER_OF]->(:NetlifyAccount)
         RETURN r.role AS role, r.site_access AS site_access,
-               r.membership_id AS membership_id
+               r.membership_id AS membership_id, r.pending AS pending,
+               r.managed_by_directory_sync AS managed_by_directory_sync,
+               r.created_at AS created_at
         """,
     ).single()
     assert membership["role"] == "Owner"
     assert membership["site_access"] == "all"
     assert membership["membership_id"] == _MEMBERSHIP_ID
+    assert membership["pending"] is False
+    assert membership["managed_by_directory_sync"] is False
+    assert membership["created_at"] == "2026-07-30T15:32:17.370Z"
 
-    # Assert the ontology label and its projected properties. has_mfa and the inverted
-    # `pending` are what an MFA-coverage rule reads.
+    # Assert the ontology label and its projected properties. `active` is deliberately absent:
+    # Netlify's only signal is the membership-scoped `pending`, which cannot be projected onto a
+    # shared identity without one team overwriting another.
     assert check_nodes(
         neo4j_session,
         "UserAccount",
         ["id", "_ont_email", "_ont_has_mfa", "_ont_active", "_ont_source"],
-    ) == {(TEST_USER_ID, "alice@example.com", False, True, "netlify")}
+    ) == {(TEST_USER_ID, "alice@example.com", False, None, "netlify")}

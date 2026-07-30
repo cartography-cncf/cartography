@@ -6,6 +6,7 @@ import requests
 from cartography.intel.netlify.util import get_list
 from cartography.intel.netlify.util import get_one
 from cartography.intel.netlify.util import NetlifyPaginationError
+from cartography.intel.netlify.util import NetlifyPlanGatedError
 from cartography.intel.netlify.util import paginated_get
 
 _URL = "https://api.netlify.com/api/v1/example-team/sites"
@@ -75,7 +76,7 @@ def test_paginated_get_treats_a_null_body_as_empty():
     assert paginated_get(session, _URL) == []
 
 
-def test_paginated_get_raises_on_an_unusable_next_link():
+def test_paginated_get_raises_when_the_next_link_points_at_the_current_page():
     """
     A page that advertises a successor it cannot reach must never be downgraded to
     warning-and-stop: the cleanup jobs treat the returned list as the exhaustive set of live
@@ -83,8 +84,41 @@ def test_paginated_get_raises_on_an_unusable_next_link():
     """
     session = _session(_response([{"id": "a"}], next_url=_URL))
 
-    with pytest.raises(NetlifyPaginationError, match="unusable next link"):
+    with pytest.raises(NetlifyPaginationError, match="points back at the current page"):
         paginated_get(session, _URL)
+
+
+def test_paginated_get_raises_on_an_empty_next_link():
+    session = _session(_response([{"id": "a"}], next_url=""))
+
+    # An empty url is falsy, so requests reports no next link at all and the walk simply ends.
+    assert paginated_get(session, _URL) == [{"id": "a"}]
+
+
+def test_paginated_get_rejects_an_off_origin_next_link():
+    """
+    The session carries the bearer token on every request, so following a link to another host
+    would hand the Netlify token to whoever the header named.
+    """
+    session = _session(
+        _response([{"id": "a"}], next_url="https://attacker.example/collect?page=2"),
+    )
+
+    with pytest.raises(NetlifyPaginationError, match="different origin"):
+        paginated_get(session, _URL)
+
+
+def test_paginated_get_resolves_a_relative_next_link():
+    session = _session(
+        _response([{"id": "a"}], next_url="/api/v1/example-team/sites?page=2"),
+        _response([{"id": "b"}]),
+    )
+
+    assert paginated_get(session, _URL) == [{"id": "a"}, {"id": "b"}]
+    assert (
+        session.get.call_args_list[1].args[0]
+        == "https://api.netlify.com/api/v1/example-team/sites?page=2"
+    )
 
 
 def test_paginated_get_raises_when_the_body_is_not_an_array():
@@ -122,11 +156,13 @@ def test_paginated_get_returns_partial_on_a_plan_gated_403():
 
 
 def test_paginated_get_raises_on_403_by_default():
-    response = _response(None, status_code=403)
-    response.raise_for_status.side_effect = requests.HTTPError("403")
-    session = _session(response)
+    """
+    A 403 must not silently become an empty result: the caller has to decide, because an empty
+    list reaching cleanup deletes whatever a previous run on a higher plan had ingested.
+    """
+    session = _session(_response(None, status_code=403))
 
-    with pytest.raises(requests.HTTPError):
+    with pytest.raises(NetlifyPlanGatedError, match="403 Forbidden"):
         paginated_get(session, _URL)
 
 
@@ -178,9 +214,22 @@ def test_get_list_wraps_a_bare_object():
     assert get_list(session, _URL) == [{"id": "bundle", "functions": []}]
 
 
-def test_get_list_returns_empty_on_404():
+def test_get_list_raises_on_404_by_default():
+    """
+    Netlify answers an empty array, not a 404, for a resource a site simply does not have, so a
+    404 here is a failed read and must not reach cleanup as "the team has none".
+    """
+    response = _response(None, status_code=404)
+    response.raise_for_status.side_effect = requests.HTTPError("404")
+    session = _session(response)
+
+    with pytest.raises(requests.HTTPError):
+        get_list(session, _URL)
+
+
+def test_get_list_returns_empty_on_404_when_explicitly_allowed():
     session = _session(_response(None, status_code=404))
-    assert get_list(session, _URL) == []
+    assert get_list(session, _URL, allow_missing=True) == []
 
 
 def test_get_one_returns_none_on_a_null_body():

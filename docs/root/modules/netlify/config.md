@@ -22,7 +22,7 @@ plan:
 | Resource | Requirement |
 |---|---|
 | Team, members, sites, deploys, functions, forms, snippets, build hooks, notification hooks, deploy keys, DNS | Any team member role |
-| Team-wide (shared) environment variables | A plan that includes shared environment variables. Cartography treats the 403 a Free team returns as "feature unavailable" and continues. |
+| Team-wide (shared) environment variables | A plan that includes shared environment variables. A Free team was observed to answer with an empty list rather than a 403. If the call is rejected, Cartography logs a warning, still syncs site-scoped variables, and skips the environment variable cleanup for that run so previously ingested shared variables are not deleted. |
 | Dev servers, agent runners | A plan that includes them. Both are on the Free plan with a quota of one each. |
 | Netlify DB branches and snapshots | Only fetched for sites whose payload reports `has_database`. |
 | TLS certificates | Only present once a site has a custom domain with a provisioned certificate. |

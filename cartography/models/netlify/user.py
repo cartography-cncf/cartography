@@ -45,27 +45,31 @@ from cartography.models.ontology.labels import USER_ACCOUNT
 # --- Node Definitions ---
 @dataclass(frozen=True)
 class NetlifyUserNodeProperties(CartographyNodeProperties):
+    """
+    Only facts about the person, never about one of their memberships.
+
+    Netlify reports everything on a per-team membership payload, so anything team-scoped that
+    landed here would be overwritten by whichever team's sync ran last. `pending`,
+    `managed_by_directory_sync`, `role`, `site_access` and the membership timestamps are therefore
+    all on the MEMBER_OF edge instead.
+    """
+
     # Netlify returns two ids on a membership: `id` identifies the membership row and `user_id`
-    # identifies the person. We key on `user_id` so one human is one node across teams, and keep
-    # the membership id on the MEMBER_OF edge along with everything else that varies per team.
+    # identifies the person. We key on `user_id` so one human is one node across teams.
     id: PropertyRef = PropertyRef("user_id")
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
     email: PropertyRef = PropertyRef("email", extra_index=True)
     full_name: PropertyRef = PropertyRef("full_name")
     avatar: PropertyRef = PropertyRef("avatar")
+    # MFA is enrolled on the Netlify account itself, not per team.
     mfa_enabled: PropertyRef = PropertyRef("mfa_enabled")
-    # True while an invitation is outstanding, i.e. the account cannot sign in yet.
-    pending: PropertyRef = PropertyRef("pending")
     # Netlify reports activity as a date string, not a timestamp.
     last_activity_date: PropertyRef = PropertyRef("last_activity_date")
-    managed_by_directory_sync: PropertyRef = PropertyRef("managed_by_directory_sync")
     # Identity providers this account has linked (for example {"google": "user@example.com"}),
     # flattened by transform() to a sorted list of provider names.
     connected_account_providers: PropertyRef = PropertyRef(
         "connected_account_providers",
     )
-    created_at: PropertyRef = PropertyRef("created_at")
-    updated_at: PropertyRef = PropertyRef("updated_at")
 
 
 # --- Relationship Definitions ---
@@ -99,11 +103,16 @@ class NetlifyUserToAccountMatchLink(CartographyRelSchema):
 class NetlifyUserMembershipRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
     # Membership-scoped facts live on the edge, not the node: the same person holds a different
-    # role, and a different site access grant, in every team they belong to.
+    # role, a different site access grant and a different invitation state in every team they
+    # belong to, and the timestamps are the membership row's rather than the account's.
     membership_id: PropertyRef = PropertyRef("membership_id")
     role: PropertyRef = PropertyRef("role")
     site_access: PropertyRef = PropertyRef("site_access")
+    # True while an invitation to this team is outstanding, i.e. they cannot use it yet.
     pending: PropertyRef = PropertyRef("pending")
+    managed_by_directory_sync: PropertyRef = PropertyRef("managed_by_directory_sync")
+    created_at: PropertyRef = PropertyRef("created_at")
+    updated_at: PropertyRef = PropertyRef("updated_at")
     _sub_resource_label: PropertyRef = PropertyRef(
         "_sub_resource_label",
         set_in_kwargs=True,

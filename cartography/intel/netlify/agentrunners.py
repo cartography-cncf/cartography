@@ -50,7 +50,6 @@ def get_netlify_agent_runners(
         api_session,
         f"{base_url}/agent_runners",
         params={"account_id": account_id, "site_id": site_id},
-        allow_missing=True,
     )
 
 

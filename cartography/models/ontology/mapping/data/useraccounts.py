@@ -574,13 +574,12 @@ netlify_mapping = OntologyMapping(
                 OntologyFieldMapping(
                     ontology_field="has_mfa", node_field="mfa_enabled"
                 ),
-                # `pending` is true while an invitation is outstanding, i.e. the account cannot
-                # sign in yet, which is the inverse of active.
-                OntologyFieldMapping(
-                    ontology_field="active",
-                    node_field="pending",
-                    special_handling="invert_boolean",
-                ),
+                # active: not available at the identity level. Netlify's only signal is
+                # `pending`, which is true while an invitation to one specific team is
+                # outstanding. It lives on the MEMBER_OF edge, because a shared identity may be
+                # pending in one team and accepted in another, so projecting it onto the node
+                # would let whichever team synced last decide the answer. Ask
+                # `(:NetlifyUser)-[r:MEMBER_OF]->(:NetlifyAccount) WHERE NOT r.pending` instead.
                 OntologyFieldMapping(
                     ontology_field="lastactivity", node_field="last_activity_date"
                 ),

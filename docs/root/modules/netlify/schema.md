@@ -124,18 +124,19 @@ no membership; query through `MEMBER_OF` rather than by node existence to ask wh
 | full_name | Display name. Netlify never splits this into first and last name. |
 | avatar | Avatar image URL |
 | mfa_enabled | Whether the account has MFA enabled |
-| pending | True while an invitation is outstanding, i.e. the account cannot sign in yet |
 | last_activity_date | Date of last activity, as a date string |
-| managed_by_directory_sync | Whether the membership is provisioned by directory sync |
 | connected_account_providers | Identity providers linked to the account, e.g. `["google"]` |
-| created_at | When the membership was created |
-| updated_at | When the membership was last modified |
 
 #### Relationships
 
-- A Netlify user is a member of the team. The role and site access are on the `MEMBER_OF`
-  edge, alongside the membership id, because the same person can hold a different role in
-  every team they belong to.
+- A Netlify user is a member of the team. Everything team-scoped is on the `MEMBER_OF` edge
+  rather than the node, because the same person can hold a different role, site access grant and
+  invitation state in every team they belong to, and Netlify reports all of it on a per-team
+  membership payload: `membership_id`, `role`, `site_access`, `pending`,
+  `managed_by_directory_sync`, `created_at` and `updated_at`. Note in particular that
+  `pending` is per team, so "is this person active" is
+  `(:NetlifyUser)-[r:MEMBER_OF]->(:NetlifyAccount) WHERE NOT r.pending`, and the ontology's
+  `_ont_active` is deliberately not set: no identity-level equivalent exists.
     ```cypher
     (:NetlifyAccount)-[:RESOURCE]->(:NetlifyUser)
     (:NetlifyUser)-[:MEMBER_OF]->(:NetlifyAccount)

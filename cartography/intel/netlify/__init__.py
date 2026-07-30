@@ -31,6 +31,10 @@ from cartography.util import timeit
 logger = logging.getLogger(__name__)
 stat_handler = get_stats_client(__name__)
 
+# The CLI supplies this too, but Config defaults it to None, so a caller building a Config
+# programmatically would otherwise request "None/accounts".
+DEFAULT_BASE_URL = "https://api.netlify.com/api/v1"
+
 
 def _build_api_session(token: str) -> requests.Session:
     """
@@ -68,6 +72,8 @@ def start_netlify_ingestion(neo4j_session: neo4j.Session, config: Config) -> Non
         return
 
     api_session = _build_api_session(config.netlify_token)
+    # Resolved once here so the account lookup and every domain sync share the same value.
+    base_url = config.netlify_base_url or DEFAULT_BASE_URL
     common_job_parameters: dict[str, Any] = {
         "UPDATE_TAG": config.update_tag,
     }
@@ -75,7 +81,7 @@ def start_netlify_ingestion(neo4j_session: neo4j.Session, config: Config) -> Non
     account = cartography.intel.netlify.accounts.sync_netlify_account(
         neo4j_session,
         api_session,
-        config.netlify_base_url,
+        base_url,
         config.netlify_account_slug,
         config.update_tag,
     )
@@ -88,7 +94,7 @@ def start_netlify_ingestion(neo4j_session: neo4j.Session, config: Config) -> Non
         _sync_one_account(
             neo4j_session,
             api_session,
-            config.netlify_base_url,
+            base_url,
             account_id,
             config.netlify_account_slug,
             config.update_tag,

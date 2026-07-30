@@ -6,6 +6,7 @@ import requests
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
+from cartography.intel.netlify.util import NetlifyPlanGatedError
 from cartography.intel.netlify.util import paginated_get
 from cartography.models.netlify.envvar import NetlifyEnvVarSchema
 from cartography.util import timeit
@@ -30,16 +31,31 @@ def sync_netlify_env_vars(
     """
     Sync the team-wide environment variables and then each site's own.
 
-    Team-wide (shared) variables are a paid feature, so that first call may come back 403 on a
-    Free team. Since the team-wide and site-scoped variables land in the same cleanup scope, a
-    plan-gated 403 must not be mistaken for "the team has none": paginated_get returns an empty
-    list in that case, which is the correct answer, because Netlify only creates shared
-    variables once the plan allows them.
+    Team-wide (shared) variables are a paid feature. A Free team was observed to answer the
+    team-wide call with `200 []` rather than a 403, so the plan-gated branch is defensive: it
+    covers a token without team-wide scope, or a plan tier that does reject the call.
+
+    When it does trigger, the deletion pass has to be held back. Team-wide and site-scoped
+    variables share one cleanup scope, so a skipped team-wide pass means the ingested set is no
+    longer exhaustive for that scope, and a team that lost access to shared variables would
+    otherwise have the ones a previous run ingested deleted. Site variables are still loaded,
+    since refreshing lastupdated is always safe; only the deletion is skipped.
     """
-    raw: list[tuple[str | None, dict[str, Any]]] = [
-        (None, env_var)
-        for env_var in get_netlify_env_vars(api_session, base_url, account_id)
-    ]
+    raw: list[tuple[str | None, dict[str, Any]]] = []
+    cleanup_safe = True
+    try:
+        raw.extend(
+            (None, env_var)
+            for env_var in get_netlify_env_vars(api_session, base_url, account_id)
+        )
+    except NetlifyPlanGatedError:
+        logger.warning(
+            "Netlify team-wide environment variables are not available to this token or plan. "
+            "Site-scoped variables are still synced, but the environment variable cleanup is "
+            "skipped for this run so that previously ingested shared variables survive.",
+        )
+        cleanup_safe = False
+
     for site in sites:
         raw.extend(
             (site["id"], env_var)
@@ -52,7 +68,8 @@ def sync_netlify_env_vars(
         )
     env_vars = transform_netlify_env_vars(raw, account_id)
     load_netlify_env_vars(neo4j_session, env_vars, account_id, update_tag)
-    cleanup_netlify_env_vars(neo4j_session, common_job_parameters)
+    if cleanup_safe:
+        cleanup_netlify_env_vars(neo4j_session, common_job_parameters)
 
 
 @timeit
@@ -68,13 +85,15 @@ def get_netlify_env_vars(
     Netlify's OpenAPI spec also documents `GET /sites/{site_id}/env`, but that path is
     double-prefixed in the spec and 404s in practice: `?site_id=` on the account endpoint is the
     working route for site-scoped variables.
+
+    :raises NetlifyPlanGatedError: on a 403. The caller decides what that means for its cleanup;
+        it is never silently an empty result.
     """
     params = {"site_id": site_id} if site_id else None
     return paginated_get(
         api_session,
         f"{base_url}/accounts/{account_id}/env",
         params=params,
-        allow_plan_gated=True,
     )
 
 

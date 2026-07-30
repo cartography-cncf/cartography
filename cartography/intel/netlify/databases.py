@@ -86,10 +86,19 @@ def transform_netlify_database_branches(
     Drop the connection strings, flatten the compute endpoint, and build a site-scoped id.
 
     `branch_id` is only unique within a site: the primary branch is called "production" on every
-    Netlify DB, so the node id has to be `<site_id>|<branch_id>`.
+    Netlify DB, so the node id has to be `<site_id>|<branch_id>`. Both halves are required to be
+    non-empty, because an empty one silently collapses every affected branch onto a single
+    "<site_id>|" node rather than failing.
     """
     transformed = []
     for branch in branches:
+        site_id = branch["site_id"]
+        branch_id = branch["branch_id"]
+        if not site_id or not branch_id:
+            raise ValueError(
+                f"Netlify database branch is missing an identifier needed for its node id "
+                f"(site_id={site_id!r}, branch_id={branch_id!r}).",
+            )
         compute = branch.get("compute") or {}
         connection_strings = branch.get("connection_strings") or {}
         transformed.append(
@@ -99,7 +108,7 @@ def transform_netlify_database_branches(
                     for k, v in branch.items()
                     if k not in _SECRET_KEYS and k != "compute"
                 },
-                "id": f"{branch['site_id']}|{branch['branch_id']}",
+                "id": f"{site_id}|{branch_id}",
                 "compute_state": compute.get("current_state"),
                 "compute_min_cu": compute.get("autoscaling_limit_min_cu"),
                 "compute_max_cu": compute.get("autoscaling_limit_max_cu"),
@@ -122,11 +131,22 @@ def transform_netlify_database_snapshots(
 
     Netlify gives a snapshot no name, so one is composed from the source branch and the
     point-in-time timestamp to satisfy the Snapshot ontology mapping's required `name`.
+
+    The snapshot's own id and its source branch are required to be non-empty: an empty id would
+    have every snapshot collide on one node, and an empty branch id would point the HAS_SNAPSHOT
+    edge at whichever branch also ended up with a truncated id.
     """
     transformed = []
     for snapshot in snapshots:
+        snapshot_id = snapshot["id"]
         site_id = snapshot["site_id"]
         source_branch_id = snapshot["source_branch_id"]
+        if not snapshot_id or not site_id or not source_branch_id:
+            raise ValueError(
+                f"Netlify database snapshot is missing an identifier needed for its node id "
+                f"(id={snapshot_id!r}, site_id={site_id!r}, "
+                f"source_branch_id={source_branch_id!r}).",
+            )
         timestamp = snapshot.get("timestamp") or snapshot.get("created_at")
         transformed.append(
             {

@@ -24,6 +24,7 @@ import tests.data.netlify.misc
 import tests.data.netlify.sites
 import tests.data.netlify.snippets
 import tests.data.netlify.users
+from cartography.intel.netlify.util import NetlifyPlanGatedError
 from tests.integration.cartography.intel.netlify.common import common_job_parameters
 from tests.integration.cartography.intel.netlify.common import (
     create_test_netlify_account,
@@ -119,6 +120,63 @@ def test_sync_netlify_env_vars(mock_get, neo4j_session: neo4j.Session) -> None:
     # and masks a secret one down to its last four characters, which is still a leak.
     assert find_secret_in_graph(neo4j_session, "hello") == []
     assert find_secret_in_graph(neo4j_session, "cr3t") == []
+
+
+def test_plan_gated_team_wide_env_vars_skip_cleanup(
+    neo4j_session: neo4j.Session,
+) -> None:
+    """
+    Team-wide variables are a paid feature. If that call 403s, the ingested set is no longer
+    exhaustive for the shared cleanup scope, so the deletion pass has to be held back: a team that
+    dropped from a paid plan to Free would otherwise lose its previously ingested shared variables.
+    """
+    # Arrange: a shared variable from an earlier run, when the plan still allowed them
+    _arrange(neo4j_session)
+    shared_id = f"{TEST_ACCOUNT_ID}|_account|LEGACY_SHARED"
+    cartography.intel.netlify.envvars.load_netlify_env_vars(
+        neo4j_session,
+        [
+            {
+                "id": shared_id,
+                "key": "LEGACY_SHARED",
+                "site_id": None,
+                "scope": "account",
+                "is_secret": False,
+                "is_secret_flag": "false",
+            },
+        ],
+        TEST_ACCOUNT_ID,
+        TEST_UPDATE_TAG - 1,
+    )
+    # `or set()` only satisfies check_nodes' Optional return type. Membership rather than full
+    # set equality because neo4j_session is module-scoped and other tests here leave env vars.
+    assert (shared_id,) in (
+        check_nodes(neo4j_session, "NetlifyEnvVar", ["id"]) or set()
+    )
+
+    # Act: the team-wide call is now plan-gated, the site-scoped one still works
+    with patch.object(
+        cartography.intel.netlify.envvars,
+        "get_netlify_env_vars",
+        side_effect=[
+            NetlifyPlanGatedError("403"),
+            tests.data.netlify.envvars.NETLIFY_SITE_ENV_VARS,
+        ],
+    ):
+        cartography.intel.netlify.envvars.sync_netlify_env_vars(
+            neo4j_session,
+            MagicMock(spec=requests.Session),
+            TEST_BASE_URL,
+            TEST_ACCOUNT_ID,
+            _SITES,
+            TEST_UPDATE_TAG,
+            common_job_parameters(),
+        )
+
+    # Assert: the stale shared variable survived, and the site variables were still ingested
+    ids = check_nodes(neo4j_session, "NetlifyEnvVar", ["id"]) or set()
+    assert (shared_id,) in ids
+    assert (f"{TEST_ACCOUNT_ID}|{TEST_SITE_ID}|CARTO_SECRET",) in ids
 
 
 def test_env_var_transform_separates_the_two_scopes() -> None:

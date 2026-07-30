@@ -41,7 +41,6 @@ def get_netlify_dev_servers(
     return paginated_get(
         api_session,
         f"{base_url}/sites/{site_id}/dev_servers",
-        allow_missing=True,
     )
 
 

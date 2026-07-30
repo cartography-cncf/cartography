@@ -87,6 +87,9 @@ def transform_netlify_functions(
                     long_name: raw.get(short_name)
                     for short_name, long_name in _FUNCTION_FIELDS.items()
                 }
+                # The name composes the node id, so read it directly: a `.get()` would turn an
+                # unexpected payload into an id of "<site>|<branch>|None" instead of failing.
+                function["name"] = raw["n"]
                 function["site_id"] = site_id
                 function["branch"] = branch
                 function["provider"] = bundle.get("provider")

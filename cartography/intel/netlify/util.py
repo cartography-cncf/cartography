@@ -1,5 +1,7 @@
 import logging
 from typing import Any
+from urllib.parse import urljoin
+from urllib.parse import urlsplit
 
 import requests
 
@@ -29,6 +31,17 @@ class NetlifyPaginationError(Exception):
     """
 
 
+class NetlifyPlanGatedError(Exception):
+    """
+    Netlify answered 403, so this endpoint is not available to the token or the team's plan.
+
+    Raised rather than returning an empty list so the caller has to decide explicitly. Treating
+    it as "the team has none of these" would let cleanup delete inventory a previous run on a
+    higher plan had legitimately ingested; callers that tolerate it must skip their cleanup for
+    the run, not just their load.
+    """
+
+
 def _warn_if_rate_limit_low(response: requests.Response) -> None:
     remaining = response.headers.get("X-RateLimit-Remaining")
     if remaining is None:
@@ -47,6 +60,28 @@ def _warn_if_rate_limit_low(response: requests.Response) -> None:
         )
 
 
+def _resolve_next_url(current_url: str, candidate: str) -> str:
+    """
+    Resolve a `Link` header URL against the request it came from, refusing to leave the origin.
+
+    The session carries the Netlify bearer token on every request it makes, so following a link
+    verbatim would hand that token to whatever host the header named. Netlify sends absolute
+    same-origin URLs today; a relative one is resolved, and anything pointing elsewhere is
+    rejected rather than requested.
+
+    :raises NetlifyPaginationError: if the candidate resolves to a different scheme or host.
+    """
+    resolved = urljoin(current_url, candidate)
+    current = urlsplit(current_url)
+    target = urlsplit(resolved)
+    if (target.scheme, target.netloc) != (current.scheme, current.netloc):
+        raise NetlifyPaginationError(
+            f"Netlify pagination link for {current_url} points at a different origin "
+            f"({target.scheme}://{target.netloc}); refusing to send the API token there.",
+        )
+    return resolved
+
+
 @timeit
 def paginated_get(
     api_session: requests.Session,
@@ -62,19 +97,23 @@ def paginated_get(
     Netlify paginates with `?page=N&per_page=M` and advertises the next page in an RFC-5988
     `Link` header, which requests already parses into `response.links`.
 
+    Both tolerance flags default to False. Everything this returns is handed to a cleanup job
+    that treats it as the exhaustive set of live resources, so turning a failed read into an
+    empty list deletes real inventory. Only opt in for an endpoint whose absent or forbidden
+    response has actually been observed, and skip the cleanup as well when you do.
+
     :param api_session: Authenticated requests session.
     :param url: Full URL of the API endpoint.
     :param params: Query parameters for the first request only. The `Link` URL already carries
         `page` and `per_page`, so re-sending them on later requests would fight the cursor.
     :param per_page: Page size, capped at 100 by the API.
-    :param allow_plan_gated: When True a 403 is treated as "feature not available on this
-        plan" and the results gathered so far are returned. Only pass True for genuinely
-        plan-gated endpoints, and never when a truncated result would reach a cleanup job.
-    :param allow_missing: When True a 404 returns an empty list. Netlify 404s per-site
-        sub-resources that were never enabled for that site.
+    :param allow_plan_gated: When True a 403 returns the results gathered so far instead of
+        raising NetlifyPlanGatedError.
+    :param allow_missing: When True a 404 returns an empty list instead of raising.
     :return: Every object across every page.
-    :raises NetlifyPaginationError: if a page advertises a successor it cannot reach, or if
-        the endpoint returns something other than a JSON array.
+    :raises NetlifyPaginationError: if a page advertises a successor it cannot reach, if that
+        successor is off-origin, or if the endpoint returns something other than a JSON array.
+    :raises NetlifyPlanGatedError: on a 403, unless allow_plan_gated is set.
     """
     all_results: list[dict[str, Any]] = []
     request_params: dict[str, Any] = {"per_page": per_page}
@@ -90,10 +129,15 @@ def paginated_get(
             params=request_params if pages_read == 0 else None,
             timeout=_TIMEOUT,
         )
-        if allow_missing and response.status_code == 404:
+        if response.status_code == 404 and allow_missing:
             logger.debug("Netlify returned 404 for %s, treating as empty.", next_url)
             return []
-        if allow_plan_gated and response.status_code == 403:
+        if response.status_code == 403:
+            if not allow_plan_gated:
+                raise NetlifyPlanGatedError(
+                    f"Netlify returned 403 Forbidden for {next_url}. If this endpoint is "
+                    f"plan-gated for this team, the caller must opt in and skip its cleanup.",
+                )
             logger.warning(
                 "Netlify returned 403 Forbidden for %s, skipping (likely plan-gated).",
                 next_url,
@@ -120,17 +164,23 @@ def paginated_get(
         candidate = link.get("url")
         # A page that claims more results but cannot say where they are cannot be completed.
         # Returning what we have would let cleanup delete everything past this page.
-        if not candidate or candidate == next_url:
+        if not candidate:
             raise NetlifyPaginationError(
                 f"Netlify advertised another page for {url} but returned an unusable next "
                 f"link ({candidate!r}); refusing to continue with an incomplete result set.",
+            )
+        resolved = _resolve_next_url(next_url, candidate)
+        if resolved == next_url:
+            raise NetlifyPaginationError(
+                f"Netlify advertised another page for {url} but the next link points back at "
+                f"the current page; refusing to loop on an incomplete result set.",
             )
         if pages_read >= _MAX_PAGES:
             raise NetlifyPaginationError(
                 f"Netlify still advertised more pages for {url} after {_MAX_PAGES} pages; "
                 f"refusing to continue with an incomplete result set.",
             )
-        next_url = candidate
+        next_url = resolved
 
     return all_results
 
@@ -141,7 +191,7 @@ def get_list(
     url: str,
     params: dict[str, Any] | None = None,
     result_key: str | None = None,
-    allow_missing: bool = True,
+    allow_missing: bool = False,
 ) -> list[dict[str, Any]]:
     """
     Fetch a Netlify collection that is not paginated.
@@ -150,15 +200,20 @@ def get_list(
     object holding the array under a key (`{"branches": [...]}`), and a bare object where the
     array would have had a single element (the site functions endpoint does this).
 
+    `allow_missing` defaults to False for the same reason as in paginated_get: the result goes
+    straight to a cleanup job as the exhaustive set of live resources. Netlify answers an empty
+    array, not a 404, for a site that simply has none of a given resource, so no caller in this
+    module needs the tolerant path.
+
     :param api_session: Authenticated requests session.
     :param url: Full URL of the API endpoint.
     :param params: Query parameters.
     :param result_key: Envelope key holding the array, when the endpoint uses one.
-    :param allow_missing: When True, a 404 or a JSON `null` body returns an empty list.
+    :param allow_missing: When True, a 404 returns an empty list instead of raising.
     :return: The collection.
     """
     response = api_session.get(url, params=params, timeout=_TIMEOUT)
-    if allow_missing and response.status_code == 404:
+    if response.status_code == 404 and allow_missing:
         logger.debug("Netlify returned 404 for %s, treating as empty.", url)
         return []
     _warn_if_rate_limit_low(response)
@@ -191,16 +246,19 @@ def get_one(
     """
     Fetch a single Netlify object.
 
+    Unlike the collection helpers this defaults to tolerating absence, because the endpoints it
+    serves are per-site singletons whose absence is a normal, observed state rather than a failed
+    read: a site with no custom domain answers the TLS certificate endpoint with a JSON `null`.
+    A caller still has to decide what an absent object means for its cleanup.
+
     :param api_session: Authenticated requests session.
     :param url: Full URL of the API endpoint.
     :param params: Query parameters.
-    :param allow_missing: When True, a 404 or a JSON `null` body returns None. Netlify uses
-        both to mean "this site does not have one of these" (for example a site with no
-        custom domain answers `null` on the TLS certificate endpoint).
+    :param allow_missing: When True, a 404 or a JSON `null` body returns None.
     :return: The object, or None when it does not exist.
     """
     response = api_session.get(url, params=params, timeout=_TIMEOUT)
-    if allow_missing and response.status_code == 404:
+    if response.status_code == 404 and allow_missing:
         logger.debug("Netlify returned 404 for %s, treating as absent.", url)
         return None
     _warn_if_rate_limit_low(response)
@@ -210,6 +268,6 @@ def get_one(
         return None
     if not isinstance(data, dict):
         raise ValueError(
-            f"Expected a JSON object from {url} but got {type(data).__name__}"
+            f"Expected a JSON object from {url} but got {type(data).__name__}",
         )
     return data
