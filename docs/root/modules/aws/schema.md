@@ -1103,6 +1103,14 @@ Representation of an AWS [IAM Role](https://docs.aws.amazon.com/IAM/latest/APIRe
     that `condition_keys` is a flattened union: keys within a single condition block are
     ANDed and values for one key are ORed, and only `conditions` preserves that structure.
 
+    The edge is drawn only where the trust statement actually makes the role assumable.
+    A statement whose `Action` covers none of `sts:AssumeRole`,
+    `sts:AssumeRoleWithWebIdentity` or `sts:AssumeRoleWithSAML` draws no edge, and
+    neither does a principal named by an unconditional `Deny`. A `Deny` gated by a
+    `Condition` only applies at request time, so it does not suppress the edge.
+    `NotAction` and `NotPrincipal` are not modeled: statements using them keep, rather
+    than lose, their trust edge.
+
     For example, to find roles assumable from any repository in a GitHub organization
     rather than a pinned repository and ref:
 

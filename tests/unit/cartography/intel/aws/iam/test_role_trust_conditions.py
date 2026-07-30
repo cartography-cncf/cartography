@@ -249,6 +249,168 @@ def test_not_principal_statement_is_skipped_without_raising(caplog):
     assert "NotPrincipal" in caplog.text
 
 
+def _role_with_statements(name, statements):
+    return {
+        "Path": "/",
+        "RoleName": name,
+        "RoleId": f"AROA{name.upper().replace('-', '')}",
+        "Arn": f"arn:aws:iam::000000000000:role/{name}",
+        "CreateDate": datetime.datetime(2026, 1, 1, 0, 0, 1),
+        "AssumeRolePolicyDocument": {
+            "Version": "2012-10-17",
+            "Statement": statements,
+        },
+    }
+
+
+ATTACKER_ARN = "arn:aws:iam::999999999999:role/attacker"
+ROOT_ARN = "arn:aws:iam::000000000000:root"
+
+
+def test_unconditional_deny_draws_no_edge():
+    """Deny beats Allow in IAM evaluation, so a denied principal is not trusted."""
+    role = _role_with_statements(
+        "deny-only",
+        [
+            {
+                "Effect": "Deny",
+                "Principal": {"AWS": ATTACKER_ARN},
+                "Action": "sts:AssumeRole",
+            },
+        ],
+    )
+
+    transformed = transform_role_trust_policies([role], TEST_ACCOUNT_ID)
+
+    assert transformed.trust_relationships == []
+    # A Deny is not evidence the account is trusted, so no stub is materialized.
+    assert transformed.external_aws_accounts == []
+
+
+def test_deny_overrides_allow_for_the_same_principal():
+    role = _role_with_statements(
+        "allow-then-deny",
+        [
+            {
+                "Effect": "Allow",
+                "Principal": {"AWS": [ATTACKER_ARN, ROOT_ARN]},
+                "Action": "sts:AssumeRole",
+            },
+            {
+                "Effect": "Deny",
+                "Principal": {"AWS": ATTACKER_ARN},
+                "Action": "sts:AssumeRole",
+            },
+        ],
+    )
+
+    transformed = transform_role_trust_policies([role], TEST_ACCOUNT_ID)
+
+    assert [t["target_principal_arn"] for t in transformed.trust_relationships] == [
+        ROOT_ARN
+    ]
+
+
+def test_conditional_deny_does_not_suppress_the_edge():
+    """A Deny gated by a Condition only applies at request time, so the edge survives."""
+    role = _role_with_statements(
+        "conditional-deny",
+        [
+            {
+                "Effect": "Allow",
+                "Principal": {"AWS": ROOT_ARN},
+                "Action": "sts:AssumeRole",
+            },
+            {
+                "Effect": "Deny",
+                "Principal": {"AWS": ROOT_ARN},
+                "Action": "sts:AssumeRole",
+                "Condition": {"Bool": {"aws:MultiFactorAuthPresent": "false"}},
+            },
+        ],
+    )
+
+    transformed = transform_role_trust_policies([role], TEST_ACCOUNT_ID)
+    (trust,) = transformed.trust_relationships
+
+    assert trust["target_principal_arn"] == ROOT_ARN
+    # The Allow is unconditional, and the Deny's condition is not folded into it.
+    assert trust["has_condition"] is False
+
+
+@pytest.mark.parametrize(
+    "action,expected_edge",
+    [
+        ("sts:AssumeRole", True),
+        ("sts:AssumeRoleWithWebIdentity", True),
+        ("sts:AssumeRoleWithSAML", True),
+        ("sts:assumerole", True),  # IAM action names are case-insensitive
+        ("sts:AssumeRole*", True),
+        ("sts:*", True),
+        ("*", True),
+        ("sts:TagSession", False),
+        ("sts:GetCallerIdentity", False),
+        ("s3:GetObject", False),
+    ],
+)
+def test_only_assume_role_actions_draw_an_edge(action, expected_edge):
+    role = _role_with_statements(
+        "action-check",
+        [
+            {
+                "Effect": "Allow",
+                "Principal": {"AWS": ROOT_ARN},
+                "Action": action,
+            },
+        ],
+    )
+
+    transformed = transform_role_trust_policies([role], TEST_ACCOUNT_ID)
+
+    assert bool(transformed.trust_relationships) is expected_edge
+
+
+def test_action_list_with_one_assume_action_draws_an_edge():
+    """sts:TagSession alongside a real assume action still makes the role assumable."""
+    role = _role_with_statements(
+        "tag-and-assume",
+        [
+            {
+                "Effect": "Allow",
+                "Principal": {"AWS": ROOT_ARN},
+                "Action": ["sts:AssumeRoleWithSAML", "sts:TagSession"],
+            },
+        ],
+    )
+
+    transformed = transform_role_trust_policies([role], TEST_ACCOUNT_ID)
+
+    assert [t["target_principal_arn"] for t in transformed.trust_relationships] == [
+        ROOT_ARN
+    ]
+
+
+def test_not_action_keeps_the_edge(caplog):
+    """NotAction is not modeled; keep the edge rather than silently dropping a real trust."""
+    role = _role_with_statements(
+        "not-action",
+        [
+            {
+                "Effect": "Allow",
+                "Principal": {"AWS": ROOT_ARN},
+                "NotAction": "s3:GetObject",
+            },
+        ],
+    )
+
+    transformed = transform_role_trust_policies([role], TEST_ACCOUNT_ID)
+
+    assert [t["target_principal_arn"] for t in transformed.trust_relationships] == [
+        ROOT_ARN
+    ]
+    assert "NotAction" in caplog.text
+
+
 @pytest.mark.parametrize(
     "condition_blob",
     ["not json at all", "{unclosed", ""],
