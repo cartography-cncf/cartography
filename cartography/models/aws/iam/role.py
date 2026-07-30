@@ -9,7 +9,6 @@ from cartography.models.core.relationships import CartographyRelProperties
 from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
-from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import TargetNodeMatcher
 from cartography.models.ontology.labels import PERMISSION_ROLE
 
@@ -67,41 +66,15 @@ class AWSRoleToAWSAccountRel(CartographyRelSchema):
 
 
 @dataclass(frozen=True)
-class AWSRoleToAWSPrincipalTrustRelProperties(CartographyRelProperties):
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
-
-
-@dataclass(frozen=True)
-class AWSRoleToAWSPrincipalTrustRel(CartographyRelSchema):
-    """
-    Trust relationship with principals of type "AWS".
-    """
-
-    target_node_label: str = "AWSPrincipal"
-    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {
-            "arn": PropertyRef("trusted_aws_principals", one_to_many=True),
-        },
-    )
-    direction: LinkDirection = LinkDirection.OUTWARD
-    rel_label: str = "TRUSTS_AWS_PRINCIPAL"
-    properties: AWSRoleToAWSPrincipalTrustRelProperties = (
-        AWSRoleToAWSPrincipalTrustRelProperties()
-    )
-
-
-@dataclass(frozen=True)
 class AWSRoleSchema(CartographyNodeSchema):
     """Representation of an AWS [IAM Role](https://docs.aws.amazon.com/IAM/latest/APIReference/API_Role.html). An AWS Role is a type of AWS Principal."""
 
+    # The TRUSTS_AWS_PRINCIPAL relationship is deliberately not declared here. It is
+    # loaded as a MatchLink instead (cartography.models.aws.iam.role_trust) so that each
+    # (role, principal) edge can carry its own trust-condition properties.
     label: str = "AWSRole"
     properties: AWSRoleNodeProperties = AWSRoleNodeProperties()
     sub_resource_relationship: AWSRoleToAWSAccountRel = AWSRoleToAWSAccountRel()
-    other_relationships: OtherRelationships = OtherRelationships(
-        [
-            AWSRoleToAWSPrincipalTrustRel(),
-        ]
-    )
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
         [AWS_PRINCIPAL, PERMISSION_ROLE]
     )
