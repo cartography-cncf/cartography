@@ -1085,10 +1085,33 @@ Representation of an AWS [IAM Role](https://docs.aws.amazon.com/IAM/latest/APIRe
     (:AWSRole)-[:STS_ASSUMEROLE_ALLOW]->(:AWSRole)
     ```
 
-- Some AWS Roles trust AWS Principals.
+- Some AWS Roles trust AWS Principals. This relationship reflects what the role's assume
+  role policy document declares, and carries the trust statement's `Condition` block:
 
     ```cypher
     (:AWSRole)-[:TRUSTS_AWS_PRINCIPAL]->(:AWSPrincipal)
+    ```
+
+    | Field | Description |
+    |-------|-------------|
+    | has_condition | `true` only if every statement trusting this principal is gated by a `Condition`. An unconditional statement anywhere in the trust policy wins and sets this to `false`. |
+    | condition_keys | Sorted, de-duplicated list of the condition context keys referenced across those statements, e.g. `["token.actions.githubusercontent.com:aud", "token.actions.githubusercontent.com:sub"]`. |
+    | conditions | The raw condition operator maps as a JSON string. `null` when `has_condition` is `false`. |
+
+    AWS evaluates conditions at request time against a token that does not exist at sync
+    time, so conditional trusts are annotated rather than resolved or filtered out. Note
+    that `condition_keys` is a flattened union: keys within a single condition block are
+    ANDed and values for one key are ORed, and only `conditions` preserves that structure.
+
+    For example, to find roles assumable from any repository in a GitHub organization
+    rather than a pinned repository and ref:
+
+    ```cypher
+    MATCH (r:AWSRole)-[t:TRUSTS_AWS_PRINCIPAL]->(p:AWSFederatedPrincipal)
+    WHERE p.arn ENDS WITH 'oidc-provider/token.actions.githubusercontent.com'
+      AND t.has_condition = true
+      AND t.conditions CONTAINS '*'
+    RETURN r.arn, t.conditions
     ```
 
 - Members of an Okta group can assume associated AWS roles if Okta SAML is configured with AWS.
