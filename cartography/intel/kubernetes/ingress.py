@@ -88,6 +88,9 @@ def _extract_load_balancer_dns_names(
     """
     Extract DNS hostnames from ingress load balancer status.
     Used to match KubernetesIngress to cloud load balancer nodes.
+
+    Lowercased to match AWSLoadBalancerV2.dnsname, which is also lowercased at ingestion:
+    the in-cluster controller copies the ELB DNSName verbatim, so it can be mixed case.
     """
     if ingress_status is None:
         return []
@@ -95,7 +98,7 @@ def _extract_load_balancer_dns_names(
     dns_names = []
     for item in ingress_status:
         if item.hostname:
-            dns_names.append(item.hostname)
+            dns_names.append(item.hostname.lower())
     return dns_names
 
 

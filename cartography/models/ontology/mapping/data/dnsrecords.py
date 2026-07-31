@@ -94,10 +94,29 @@ bbot_mapping = OntologyMapping(
     ],
 )
 
+# Supabase
+supabase_mapping = OntologyMapping(
+    module_name="supabase",
+    nodes=[
+        OntologyNodeMapping(
+            node_label="SupabaseCustomHostname",
+            fields=[
+                OntologyFieldMapping(
+                    ontology_field="name", node_field="hostname", required=True
+                ),
+                OntologyFieldMapping(ontology_field="type", node_field="type"),
+                # value: The CNAME target is the project's own *.supabase.co
+                # endpoint, which the API does not return on this response.
+            ],
+        ),
+    ],
+)
+
 DNSRECORDS_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     "aws": aws_mapping,
     "gcp": gcp_mapping,
     "cloudflare": cloudflare_mapping,
     "vercel": vercel_mapping,
     "bbot": bbot_mapping,
+    "supabase": supabase_mapping,
 }

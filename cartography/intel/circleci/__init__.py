@@ -19,6 +19,7 @@ import cartography.intel.circleci.pipelines
 import cartography.intel.circleci.policies
 import cartography.intel.circleci.project_env_vars
 import cartography.intel.circleci.projects
+import cartography.intel.circleci.supply_chain
 import cartography.intel.circleci.triggers
 import cartography.intel.circleci.webhooks
 from cartography.config import Config
@@ -231,3 +232,20 @@ def start_circleci_ingestion(neo4j_session: neo4j.Session, config: Config) -> No
             org_job_parameters,
             org_id,
         )
+        # Supply-chain code-to-cloud matcher runs last: it needs registry Images to
+        # already exist and depends on the GitHub/GitLab supply-chain syncs having run
+        # first (CircleCI is ordered after them in cartography.sync) so their fresh
+        # PACKAGED_FROM edges gate the residual set. Needs the org slug for the
+        # /pipeline feed; skip orgs without one.
+        if org.get("slug"):
+            _run(
+                f"supply chain (org {org_id})",
+                cartography.intel.circleci.supply_chain.sync,
+                neo4j_session,
+                api_session,
+                common_job_parameters["BASE_URL"],
+                org_id,
+                org["slug"],
+                common_job_parameters["UPDATE_TAG"],
+                common_job_parameters,
+            )

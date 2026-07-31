@@ -404,10 +404,39 @@ databricks_mapping = OntologyMapping(
     ],
 )
 
+supabase_mapping = OntologyMapping(
+    module_name="supabase",
+    nodes=[
+        OntologyNodeMapping(
+            node_label="SupabaseDatabase",
+            fields=[
+                OntologyFieldMapping(
+                    ontology_field="name", node_field="name", required=True
+                ),
+                # Every Supabase project is backed by Postgres.
+                OntologyFieldMapping(
+                    ontology_field="type",
+                    node_field="",
+                    special_handling="static_value",
+                    extra={"value": "postgres"},
+                ),
+                OntologyFieldMapping(ontology_field="version", node_field="version"),
+                OntologyFieldMapping(ontology_field="endpoint", node_field="host"),
+                OntologyFieldMapping(ontology_field="location", node_field="region"),
+                # port: Supabase always exposes Postgres on 5432; the value is not
+                # returned by the API so it is not stored on the node.
+                # encrypted: Not available. Supabase encrypts at rest on all plans
+                # but the Management API exposes no per-project flag to confirm it.
+            ],
+        ),
+    ],
+)
+
 DATABASES_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     "aws": aws_mapping,
     "azure": azure_mapping,
     "gcp": gcp_mapping,
     "scaleway": scaleway_mapping,
     "databricks": databricks_mapping,
+    "supabase": supabase_mapping,
 }

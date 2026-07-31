@@ -12,6 +12,8 @@ from cartography.intel.kubernetes.ingress import sync_ingress
 from cartography.intel.kubernetes.namespaces import load_namespaces
 from cartography.intel.kubernetes.services import load_services
 from tests.data.aws.ec2.load_balancer_v2s import GET_LOAD_BALANCER_V2_DATA
+from tests.data.aws.ec2.load_balancer_v2s import MIXED_CASE_LB_DNS_NAME
+from tests.data.aws.ec2.load_balancer_v2s import MIXED_CASE_LOAD_BALANCER_V2_DATA
 from tests.data.kubernetes.clusters import KUBERNETES_CLUSTER_DATA
 from tests.data.kubernetes.clusters import KUBERNETES_CLUSTER_IDS
 from tests.data.kubernetes.clusters import KUBERNETES_CLUSTER_NAMES
@@ -19,6 +21,7 @@ from tests.data.kubernetes.ingress import KUBERNETES_ALB_INGRESS_DATA
 from tests.data.kubernetes.ingress import KUBERNETES_ALB_INGRESS_RAW
 from tests.data.kubernetes.ingress import KUBERNETES_INGRESS_DATA
 from tests.data.kubernetes.ingress import KUBERNETES_INGRESS_RAW
+from tests.data.kubernetes.ingress import KUBERNETES_MIXED_CASE_ALB_INGRESS_RAW
 from tests.data.kubernetes.ingress import SHARED_ALB_DNS_NAME
 from tests.data.kubernetes.namespaces import KUBERNETES_CLUSTER_1_NAMESPACES_DATA
 from tests.data.kubernetes.namespaces import KUBERNETES_CLUSTER_2_NAMESPACES_DATA
@@ -545,3 +548,52 @@ def test_load_ingress_no_loadbalancer_relationship_when_no_match(
         )
         == set()
     )
+
+
+@patch.object(cartography.intel.kubernetes.ingress, "get_ingress")
+def test_load_ingress_to_mixed_case_loadbalancer_relationship(
+    mock_get_ingress,
+    neo4j_session,
+    _create_test_cluster,
+):
+    """
+    AWS preserves the load balancer name's case in DNSName, and the in-cluster controller
+    copies it verbatim into the ingress status. Both sides are lowercased at ingestion so the
+    equality matcher still links them.
+    """
+    # Arrange
+    mock_get_ingress.return_value = KUBERNETES_MIXED_CASE_ALB_INGRESS_RAW
+    create_test_account(neo4j_session, TEST_ACCOUNT_ID, TEST_UPDATE_TAG)
+    load_load_balancer_v2s(
+        neo4j_session,
+        MIXED_CASE_LOAD_BALANCER_V2_DATA,
+        TEST_REGION,
+        TEST_ACCOUNT_ID,
+        TEST_UPDATE_TAG,
+    )
+
+    # Act
+    k8s_client = MagicMock()
+    k8s_client.name = KUBERNETES_CLUSTER_NAMES[0]
+    sync_ingress(
+        neo4j_session=neo4j_session,
+        client=k8s_client,
+        update_tag=TEST_UPDATE_TAG,
+        common_job_parameters={
+            "UPDATE_TAG": TEST_UPDATE_TAG,
+            "CLUSTER_ID": KUBERNETES_CLUSTER_IDS[0],
+        },
+    )
+
+    # Assert
+    assert check_rels(
+        neo4j_session,
+        "KubernetesIngress",
+        "name",
+        "AWSLoadBalancerV2",
+        "id",
+        "USES_LOAD_BALANCER",
+        rel_direction_right=True,
+    ) == {
+        ("alb-ingress-mixed-case", MIXED_CASE_LB_DNS_NAME),
+    }

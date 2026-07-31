@@ -3,7 +3,10 @@ from unittest.mock import patch
 
 import cartography.intel.aws.route53
 from cartography.intel.aws.route53 import sync
+from tests.data.aws.ec2.load_balancer_v2s import MIXED_CASE_LB_DNS_NAME
+from tests.data.aws.ec2.load_balancer_v2s import MIXED_CASE_LOAD_BALANCER_V2_DATA
 from tests.data.aws.ec2.load_balancers import LOAD_BALANCER_DATA
+from tests.data.aws.route53 import GET_ZONES_MIXED_CASE_ALIAS_RESPONSE
 from tests.data.aws.route53 import GET_ZONES_SAMPLE_RESPONSE
 from tests.data.aws.route53 import GET_ZONES_WITH_SUBZONE
 from tests.integration.cartography.intel.aws.common import create_test_account
@@ -397,3 +400,56 @@ def test_sync_route53_sub_zones(mock_get_zones, neo4j_session):
         rel_direction_right=True,
     )
     assert actual_rels == expected_rels, "Sub-zone relationship should be created"
+
+
+@patch.object(
+    cartography.intel.aws.route53,
+    "get_zones",
+    return_value=GET_ZONES_MIXED_CASE_ALIAS_RESPONSE,
+)
+def test_sync_route53_links_alias_to_mixed_case_load_balancer(
+    mock_get_zones, neo4j_session
+):
+    """
+    Route53 lowercases alias targets while the ELBv2 API preserves the load balancer name's
+    case in DNSName, so both sides are lowercased at ingestion for the equality matcher.
+    The load balancer is loaded through its real loader rather than a hand-written MERGE so
+    the normalization is actually exercised.
+    """
+    # Arrange
+    neo4j_session.run("MATCH (n) DETACH DELETE n")
+    boto3_session = MagicMock()
+    create_test_account(neo4j_session, TEST_ACCOUNT_ID, TEST_UPDATE_TAG)
+    cartography.intel.aws.ec2.load_balancer_v2s.load_load_balancer_v2s(
+        neo4j_session,
+        MIXED_CASE_LOAD_BALANCER_V2_DATA,
+        TEST_REGION,
+        TEST_ACCOUNT_ID,
+        TEST_UPDATE_TAG,
+    )
+
+    # Act
+    sync(
+        neo4j_session,
+        boto3_session,
+        [TEST_REGION],
+        TEST_ACCOUNT_ID,
+        TEST_UPDATE_TAG,
+        {"UPDATE_TAG": TEST_UPDATE_TAG, "AWS_ID": TEST_ACCOUNT_ID},
+    )
+
+    # Assert
+    assert check_rels(
+        neo4j_session,
+        "AWSDNSRecord",
+        "id",
+        "AWSLoadBalancerV2",
+        "id",
+        "DNS_POINTS_TO",
+        rel_direction_right=True,
+    ) == {
+        (
+            "/hostedzone/MIXED_CASE_ZONE/mixed.example.com/ALIAS",
+            MIXED_CASE_LB_DNS_NAME,
+        ),
+    }

@@ -23,6 +23,7 @@ def test_analysis_jobs_cypher_syntax(neo4j_session):
         "TENANT_ID": "my_tenant_id",
         "owner_org_id": "my_owner_org_id",
         "org_url": "my_org_url",
+        "account_id": "my_account_id",
     }
 
     for job_name in contents("cartography.data.jobs.analysis"):
