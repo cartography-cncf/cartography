@@ -540,6 +540,7 @@ def test_sync_built_from_relationship(
                 "parent_image_digest": parent_digest,
             }
         },
+        True,
     )
 
     sync_ecr_layers(
@@ -933,7 +934,7 @@ async def test_fetch_image_layers_async_handles_manifest_list(
 
     mock_get_blob_json.side_effect = fake_get_blob_json
 
-    image_layers_data, digest_map, history_map, attestation_map = (
+    image_layers_data, digest_map, history_map, attestation_map, fetch_complete = (
         await ecr_layers.fetch_image_layers_async(
             MagicMock(),
             [repo_image],
@@ -968,6 +969,7 @@ async def test_fetch_image_layers_async_handles_manifest_list(
     )
     # Verify child digest is in digest_map too
     assert digest_map[expected_child_uri] == test_data.MANIFEST_LIST_AMD64_DIGEST
+    assert fetch_complete is True
 
 
 @pytest.mark.asyncio
@@ -1039,7 +1041,7 @@ async def test_fetch_image_layers_async_maps_manifest_child_label_provenance(
     mock_batch_get_manifest.side_effect = fake_batch_get_manifest
     mock_get_blob_json.side_effect = fake_get_blob_json
 
-    image_layers_data, digest_map, _, provenance_map = (
+    image_layers_data, digest_map, _, provenance_map, fetch_complete = (
         await ecr_layers.fetch_image_layers_async(
             MagicMock(),
             [repo_image],
@@ -1076,6 +1078,7 @@ async def test_fetch_image_layers_async_maps_manifest_child_label_provenance(
             "source_file": "Dockerfile",
         },
     }
+    assert fetch_complete is True
 
 
 @pytest.mark.asyncio
@@ -1099,7 +1102,7 @@ async def test_fetch_image_layers_async_skips_attestation_only(
         ecr_layers.ECR_OCI_MANIFEST_MT,
     )
 
-    image_layers_data, digest_map, history_map, attestation_map = (
+    image_layers_data, digest_map, history_map, attestation_map, fetch_complete = (
         await ecr_layers.fetch_image_layers_async(
             MagicMock(),
             [repo_image],
@@ -1110,6 +1113,7 @@ async def test_fetch_image_layers_async_skips_attestation_only(
     assert image_layers_data == {}
     assert digest_map == {}
     assert history_map == {}
+    assert fetch_complete is True
 
 
 @patch("cartography.client.aws.ecr.get_ecr_images")
@@ -1259,6 +1263,7 @@ def test_sync_layers_preserves_multi_arch_image_properties(
         {},
         # image_attestation_map (empty)
         {},
+        True,
     )
 
     sync_ecr_layers(

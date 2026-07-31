@@ -929,6 +929,7 @@ async def fetch_image_layers_async(
     dict[str, str],
     dict[str, str],
     dict[str, dict[str, Any]],
+    bool,
 ]:
     """
     Fetch image layers for ECR images in parallel with caching and non-blocking I/O.
@@ -943,6 +944,7 @@ async def fetch_image_layers_async(
     image_digest_map: dict[str, str] = {}
     all_history_by_diff_id: dict[str, str] = {}
     image_attestation_map: dict[str, dict[str, Any]] = {}
+    fetch_complete = True
     semaphore = asyncio.Semaphore(max_concurrent)
     skip_digests = skip_digests or set()
 
@@ -1009,6 +1011,7 @@ async def fetch_image_layers_async(
         - history_by_diff_id: Map of diff_id to history command (created_by)
         - provenance_by_image_uri: Maps image URI to provenance info
         """
+        nonlocal fetch_complete
         async with semaphore:
             # Caller guarantees these fields exist in every repo_image
             uri = repo_image["uri"]
@@ -1130,6 +1133,7 @@ async def fetch_image_layers_async(
 
                 for result in child_results:
                     if isinstance(result, ECRLayerFetchTransientError):
+                        fetch_complete = False
                         logger.warning(
                             "Skipping child manifest after transient error: %s",
                             result,
@@ -1227,6 +1231,7 @@ async def fetch_image_layers_async(
                 image_digest_map,
                 all_history_by_diff_id,
                 image_attestation_map,
+                fetch_complete,
             )
 
         progress_interval = max(1, min(100, total // 10 or 1))
@@ -1236,6 +1241,7 @@ async def fetch_image_layers_async(
             try:
                 _, result = await task
             except ECRLayerFetchTransientError as error:
+                fetch_complete = False
                 logger.warning(
                     "Skipping ECR layer extraction after transient failures were exhausted: %s",
                     error,
@@ -1299,11 +1305,23 @@ async def fetch_image_layers_async(
         image_digest_map,
         all_history_by_diff_id,
         image_attestation_map,
+        fetch_complete,
     )
 
 
-def cleanup(neo4j_session: neo4j.Session, common_job_parameters: dict) -> None:
+def cleanup(
+    neo4j_session: neo4j.Session,
+    common_job_parameters: dict,
+    *,
+    fetch_complete: bool = True,
+) -> None:
     logger.debug("Running image layer cleanup job.")
+    if not fetch_complete:
+        logger.warning(
+            "Skipping ECR image-layer cleanup because one or more layer fetches "
+            "were incomplete.",
+        )
+        return
     run_write_query(
         neo4j_session,
         """
@@ -1339,6 +1357,7 @@ def sync(
     Layer fetching can be slow for accounts with many container images.
     """
 
+    all_fetches_complete = True
     for region in regions:
         logger.info(
             "Syncing ECR image layers for region '%s' in account '%s'.",
@@ -1351,6 +1370,7 @@ def sync(
         MATCH (img:AWSECRImage)<-[:IMAGE]-(repo_img:AWSECRRepositoryImage)<-[:REPO_IMAGE]-(repo:AWSECRRepository)
         MATCH (repo)<-[:RESOURCE]-(:AWSAccount {id: $AWS_ID})
         WHERE repo.region = $Region
+        OPTIONAL MATCH (img)-[built_from:BUILT_FROM]->(parent:AWSECRImage)
         RETURN DISTINCT
             img.digest AS digest,
             repo_img.id AS uri,
@@ -1364,7 +1384,17 @@ def sync(
             img.media_type AS media_type,
             img.artifact_media_type AS artifact_media_type,
             img.child_image_digests AS child_image_digests,
-            img.layer_diff_ids AS layer_diff_ids
+            img.layer_diff_ids AS layer_diff_ids,
+            img.source_uri AS source_uri,
+            img.source_revision AS source_revision,
+            img.source_file AS source_file,
+            img.invocation_uri AS invocation_uri,
+            img.invocation_workflow AS invocation_workflow,
+            img.invocation_run_number AS invocation_run_number,
+            parent.digest AS parent_image_digest,
+            built_from.parent_image_uri AS parent_image_uri,
+            built_from.from_attestation AS from_attestation,
+            built_from.confidence AS confidence
         """
         from cartography.client.core.tx import read_list_of_dicts_tx
 
@@ -1396,6 +1426,16 @@ def sync(
                     "artifact_media_type": img_data.get("artifact_media_type"),
                     "child_image_digests": img_data.get("child_image_digests"),
                     "layer_diff_ids": img_data.get("layer_diff_ids"),
+                    "source_uri": img_data.get("source_uri"),
+                    "source_revision": img_data.get("source_revision"),
+                    "source_file": img_data.get("source_file"),
+                    "invocation_uri": img_data.get("invocation_uri"),
+                    "invocation_workflow": img_data.get("invocation_workflow"),
+                    "invocation_run_number": img_data.get("invocation_run_number"),
+                    "parent_image_digest": img_data.get("parent_image_digest"),
+                    "parent_image_uri": img_data.get("parent_image_uri"),
+                    "from_attestation": img_data.get("from_attestation"),
+                    "confidence": img_data.get("confidence"),
                 }
 
                 repo_uri = img_data["repo_uri"]
@@ -1464,6 +1504,7 @@ def sync(
                 dict[str, str],
                 dict[str, str],
                 dict[str, dict[str, Any]],
+                bool,
             ]:
                 async with create_aioboto3_client(
                     aioboto3_session, "ecr", region_name=region
@@ -1487,7 +1528,9 @@ def sync(
                 image_digest_map,
                 history_by_diff_id,
                 image_attestation_map,
+                region_fetch_complete,
             ) = loop.run_until_complete(_fetch_with_async_client())
+            all_fetches_complete = all_fetches_complete and region_fetch_complete
 
             logger.info(
                 f"Successfully fetched layers for {len(image_layers_data)} images"
@@ -1514,4 +1557,8 @@ def sync(
                 update_tag,
             )
 
-    cleanup(neo4j_session, common_job_parameters)
+    cleanup(
+        neo4j_session,
+        common_job_parameters,
+        fetch_complete=all_fetches_complete,
+    )

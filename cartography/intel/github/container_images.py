@@ -18,6 +18,7 @@ from typing import Any
 import neo4j
 
 from cartography.client.core.tx import load
+from cartography.client.core.tx import run_write_query
 from cartography.graph.job import GraphJob
 from cartography.intel.container_image_layers import ContainerImageLayerGraphShape
 from cartography.intel.container_image_layers import get_complete_layer_digests
@@ -131,11 +132,13 @@ def get_container_images(
     list[dict[str, Any]],
     list[dict[str, Any]],
     set[str],
+    list[dict[str, str]],
 ]:
     """
     Fetch every image manifest reachable from the org's container packages.
 
-    :returns: ``(all_manifests, manifest_lists, tag_rows, observed_and_skipped)``
+    :returns: ``(all_manifests, manifest_lists, tag_rows,
+        observed_and_skipped, skipped_package_image_links)``
         — ``all_manifests`` is the list of single-image manifests AND manifest
         lists (so each becomes a node); ``manifest_lists`` is the subset that
         are multi-arch indexes (used by the attestations sync); ``tag_rows``
@@ -150,6 +153,7 @@ def get_container_images(
     tag_rows: list[dict[str, Any]] = []
     config_cache: dict[str, dict[str, Any] | None] = {}
     observed_and_skipped: set[str] = set()
+    skipped_package_image_links: set[tuple[str, str]] = set()
 
     for pkg in packages:
         package_name = pkg["name"]
@@ -184,6 +188,7 @@ def get_container_images(
             # alone — without that bump the optimization causes data loss.
             if digest in skip_digests:
                 observed_and_skipped.add(digest)
+                skipped_package_image_links.add((package_id, digest))
                 continue
 
             manifest = _process_manifest(
@@ -214,6 +219,7 @@ def get_container_images(
                         continue
                     if child_digest in skip_digests:
                         observed_and_skipped.add(child_digest)
+                        skipped_package_image_links.add((package_id, child_digest))
                         continue
                     _process_manifest(
                         token,
@@ -233,7 +239,16 @@ def get_container_images(
         len(tag_rows),
         len(packages),
     )
-    return all_manifests, manifest_lists, tag_rows, observed_and_skipped
+    return (
+        all_manifests,
+        manifest_lists,
+        tag_rows,
+        observed_and_skipped,
+        [
+            {"package_id": package_id, "digest": digest}
+            for package_id, digest in sorted(skipped_package_image_links)
+        ],
+    )
 
 
 def transform_container_images(
@@ -429,6 +444,32 @@ def cleanup_container_image_layers(
     ).run(neo4j_session)
 
 
+def refresh_skipped_package_image_links(
+    neo4j_session: neo4j.Session,
+    org_url: str,
+    links: list[dict[str, str]],
+    update_tag: int,
+) -> None:
+    """Refresh package links that were observed without reloading the image."""
+    if not links:
+        return
+    run_write_query(
+        neo4j_session,
+        """
+        UNWIND $links AS link
+        MATCH (org:GitHubOrganization {id: $org_url})-[:RESOURCE]->
+              (package:GitHubPackage {id: link.package_id})
+        MATCH (org)-[:RESOURCE]->
+              (image:GitHubContainerImage {digest: link.digest})
+        MERGE (package)-[relationship:HAS_IMAGE]->(image)
+        SET relationship.lastupdated = $update_tag
+        """,
+        links=links,
+        org_url=org_url,
+        update_tag=update_tag,
+    )
+
+
 @timeit
 def sync_container_images(
     neo4j_session: neo4j.Session,
@@ -463,6 +504,7 @@ def sync_container_images(
         manifest_lists,
         tag_rows,
         observed_and_skipped,
+        skipped_package_image_links,
     ) = get_container_images(
         token,
         api_url,
@@ -486,6 +528,12 @@ def sync_container_images(
         GHCR_LAYER_GRAPH,
         observed_and_skipped,
         {"id": org_url},
+        update_tag,
+    )
+    refresh_skipped_package_image_links(
+        neo4j_session,
+        org_url,
+        skipped_package_image_links,
         update_tag,
     )
 

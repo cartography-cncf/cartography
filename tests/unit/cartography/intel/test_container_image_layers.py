@@ -72,6 +72,10 @@ def test_get_complete_layer_digests_accepts_empty_layer_lists():
     assert "img.layer_diff_ids IS NOT NULL" in query
     assert "size(img.layer_diff_ids) = 0" in query
     assert "size(img.layer_diff_ids) > 0" not in query
+    assert "MATCH (img)-[:HAS_LAYER]->" in query
+    assert "MATCH (img)-[:HEAD]->" in query
+    assert "MATCH (img)-[:TAIL]->" in query
+    assert "})-[:NEXT]->(" in query
 
 
 def test_refresh_layer_closures_updates_the_full_existing_closure(monkeypatch):
@@ -99,3 +103,40 @@ def test_refresh_layer_closures_updates_the_full_existing_closure(monkeypatch):
     assert all(
         call.kwargs["update_tag"] == 456 for call in run_write_query.call_args_list
     )
+
+
+def test_refresh_layer_closures_batches_all_writes(monkeypatch):
+    run_write_query = MagicMock()
+    monkeypatch.setattr(container_image_layers, "run_write_query", run_write_query)
+    digests = [f"sha256:{index}" for index in range(1201)]
+
+    refresh_layer_closures(
+        MagicMock(),
+        TEST_SHAPE,
+        digests,
+        {"id": "tenant-1"},
+        456,
+        batch_size=500,
+    )
+
+    assert run_write_query.call_count == 18
+    assert all(
+        len(call.kwargs["digests"]) <= 500 for call in run_write_query.call_args_list
+    )
+    assert {
+        digest
+        for call in run_write_query.call_args_list[::6]
+        for digest in call.kwargs["digests"]
+    } == set(digests)
+
+
+def test_refresh_layer_closures_rejects_invalid_batch_size():
+    with pytest.raises(ValueError, match="batch_size"):
+        refresh_layer_closures(
+            MagicMock(),
+            TEST_SHAPE,
+            ["sha256:image"],
+            {"id": "tenant-1"},
+            456,
+            batch_size=0,
+        )

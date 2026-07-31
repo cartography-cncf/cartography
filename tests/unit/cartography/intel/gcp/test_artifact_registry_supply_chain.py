@@ -817,8 +817,45 @@ def test_sync_skips_config_fetch_for_complete_digest(patched_sync, monkeypatch):
     )
 
     # Assert
-    assert fetch.await_args.kwargs["skip_digests"] == {digest}
+    assert fetch.await_args.kwargs["cached_layer_digests"] == {digest}
     supply_chain.refresh_layer_closures.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_cached_digest_rechecks_provenance_without_fetching_config(monkeypatch):
+    config_fetch = AsyncMock()
+    provenance_fetch = AsyncMock(
+        return_value={"source_uri": "https://github.com/example/repository"},
+    )
+    monkeypatch.setattr(supply_chain, "_fetch_image_config", config_fetch)
+    monkeypatch.setattr(
+        supply_chain,
+        "_fetch_attestation_provenance",
+        provenance_fetch,
+    )
+
+    result, fetch_failed = await _process_single_image(
+        MagicMock(),
+        _fake_token_manager(),
+        {
+            "name": MOCK_SUPPLY_CHAIN_IMAGE_ARTIFACT_NAME,
+            "uri": MOCK_SUPPLY_CHAIN_IMAGE_URI,
+            "mediaType": "application/vnd.oci.image.manifest.v1+json",
+        },
+        fetch_config=False,
+    )
+
+    config_fetch.assert_not_awaited()
+    provenance_fetch.assert_awaited_once()
+    assert fetch_failed is False
+    assert result == {
+        "digest": MOCK_SUPPLY_CHAIN_IMAGE_DIGEST,
+        "source_uri": "https://github.com/example/repository",
+    }
+
+
+def test_gcp_layer_graph_uses_indexed_layer_id():
+    assert supply_chain.GCP_ARTIFACT_REGISTRY_LAYER_GRAPH.layer_id_property == "id"
 
 
 # ---------------------------------------------------------------------------

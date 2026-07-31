@@ -131,6 +131,26 @@ def test_cleanup_runs_layer_cleanup_job(monkeypatch):
     assert "DETACH DELETE" not in relationship_cleanup_query
 
 
+def test_cleanup_skips_all_writes_when_fetch_incomplete(monkeypatch):
+    from_node_schema_mock = MagicMock()
+    run_write_query_mock = MagicMock()
+    monkeypatch.setattr(
+        ecr_layers.GraphJob,
+        "from_node_schema",
+        from_node_schema_mock,
+    )
+    monkeypatch.setattr(ecr_layers, "run_write_query", run_write_query_mock)
+
+    ecr_layers.cleanup(
+        MagicMock(),
+        {"UPDATE_TAG": 123, "AWS_ID": "123456789012"},
+        fetch_complete=False,
+    )
+
+    run_write_query_mock.assert_not_called()
+    from_node_schema_mock.assert_not_called()
+
+
 def test_extract_circleci_label_provenance_normalizes_namespaced_labels():
     config_json = {
         "config": {
@@ -526,13 +546,17 @@ def test_fetch_image_layers_async_skips_only_transient_image_failure(mocker):
         new=AsyncMock(return_value=test_data.SAMPLE_CONFIG_BLOB),
     )
 
-    image_layers_data, image_digest_map, history_by_diff_id, image_attestation_map = (
-        asyncio.run(
-            fetch_image_layers_async(
-                AsyncMock(),
-                repo_images_list,
-                max_concurrent=2,
-            )
+    (
+        image_layers_data,
+        image_digest_map,
+        history_by_diff_id,
+        image_attestation_map,
+        fetch_complete,
+    ) = asyncio.run(
+        fetch_image_layers_async(
+            AsyncMock(),
+            repo_images_list,
+            max_concurrent=2,
         )
     )
 
@@ -541,6 +565,7 @@ def test_fetch_image_layers_async_skips_only_transient_image_failure(mocker):
     assert image_digest_map == {f"{repo_uri}:good": "sha256:good"}
     assert isinstance(history_by_diff_id, dict)
     assert image_attestation_map == {}
+    assert fetch_complete is False
 
 
 def test_fetch_image_layers_async_still_processes_successful_children_when_one_child_fails_transiently(
@@ -581,13 +606,17 @@ def test_fetch_image_layers_async_still_processes_successful_children_when_one_c
         new=AsyncMock(return_value=test_data.SAMPLE_CONFIG_BLOB),
     )
 
-    image_layers_data, image_digest_map, history_by_diff_id, image_attestation_map = (
-        asyncio.run(
-            fetch_image_layers_async(
-                AsyncMock(),
-                repo_images_list,
-                max_concurrent=4,
-            )
+    (
+        image_layers_data,
+        image_digest_map,
+        history_by_diff_id,
+        image_attestation_map,
+        fetch_complete,
+    ) = asyncio.run(
+        fetch_image_layers_async(
+            AsyncMock(),
+            repo_images_list,
+            max_concurrent=4,
         )
     )
 
@@ -595,6 +624,7 @@ def test_fetch_image_layers_async_still_processes_successful_children_when_one_c
     assert image_digest_map == {f"{repo_uri}:manifest-list": "sha256:manifest-list"}
     assert isinstance(history_by_diff_id, dict)
     assert image_attestation_map == {}
+    assert fetch_complete is False
 
 
 @pytest.mark.asyncio
@@ -904,6 +934,15 @@ def test_transform_ecr_image_layers_applies_new_provenance_to_skipped_image():
             "sha256:image": {
                 "type": "image",
                 "layer_diff_ids": ["sha256:layer"],
+                "source_revision": "existing-revision",
+                "source_file": "Dockerfile",
+                "invocation_uri": "https://github.com/example/actions/runs/1",
+                "invocation_workflow": ".github/workflows/build.yml",
+                "invocation_run_number": "1",
+                "parent_image_digest": "sha256:parent",
+                "parent_image_uri": "docker.io/library/alpine:3",
+                "from_attestation": True,
+                "confidence": "explicit",
             },
         },
     )
@@ -915,6 +954,13 @@ def test_transform_ecr_image_layers_applies_new_provenance_to_skipped_image():
             "type": "image",
             "layer_diff_ids": ["sha256:layer"],
             "source_uri": "https://github.com/example/service",
+            "source_revision": "existing-revision",
+            "source_file": "Dockerfile",
+            "invocation_uri": "https://github.com/example/actions/runs/1",
+            "invocation_workflow": ".github/workflows/build.yml",
+            "invocation_run_number": "1",
+            "parent_image_digest": "sha256:parent",
+            "parent_image_uri": "docker.io/library/alpine:3",
             "from_attestation": True,
             "confidence": "explicit",
         },

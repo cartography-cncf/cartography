@@ -60,6 +60,7 @@ GCP_ARTIFACT_REGISTRY_LAYER_GRAPH = ContainerImageLayerGraphShape(
     image_layer_rel_types=(),
     stable_image_rel_types=("BUILT_FROM",),
     stable_image_rels_are_matchlinks=True,
+    layer_id_property="id",
 )
 
 ALL_MANIFEST_ACCEPT = ", ".join(
@@ -730,6 +731,8 @@ async def _process_single_image(
     token_manager: _TokenManager,
     artifact: dict[str, Any],
     sbom_artifacts_by_digest: dict[str, list[dict[str, Any]]] | None = None,
+    *,
+    fetch_config: bool = True,
 ) -> tuple[dict[str, Any] | None, bool]:
     """Process one image: fetch config, extract provenance + layers.
 
@@ -752,30 +755,23 @@ async def _process_single_image(
 
     registry, image_path, reference = parsed
 
-    try:
-        config, manifest_digest = await _fetch_image_config(
-            http_client, token_manager, registry, image_path, reference
-        )
-    except (httpx.HTTPError, json.JSONDecodeError) as e:
-        logger.warning(
-            "Failed to fetch image config for %s: %s",
-            uri or name,
-            e,
-        )
-        return None, True
-    if not config:
-        return None, False
-
-    raw_architecture = config.get("architecture")
-    architecture = (
-        normalize_architecture(raw_architecture)
-        if raw_architecture is not None
-        else None
-    )
-    os_name = config.get("os")
-    variant = config.get("variant")
-    provenance = extract_provenance_from_oci_config(config)
     fetch_failed = False
+    config: dict[str, Any] | None = None
+    manifest_digest: str | None = None
+    if fetch_config:
+        try:
+            config, manifest_digest = await _fetch_image_config(
+                http_client, token_manager, registry, image_path, reference
+            )
+        except (httpx.HTTPError, json.JSONDecodeError) as e:
+            logger.warning(
+                "Failed to fetch image config for %s: %s",
+                uri or name,
+                e,
+            )
+            fetch_failed = True
+
+    provenance = extract_provenance_from_oci_config(config) if config else {}
     subject_digest = uri.split("@")[-1] if "@" in uri else manifest_digest
     subject_digest_str = subject_digest if isinstance(subject_digest, str) else None
 
@@ -879,30 +875,41 @@ async def _process_single_image(
             if not _needs_more_spdx_provenance(provenance):
                 break
 
-    diff_ids, layer_history = extract_layers_from_oci_config(config)
     digest = subject_digest_str
     if not digest:
         return None, fetch_failed
 
     result: dict[str, Any] = {
         "digest": digest,
-        "type": "image",
-        "media_type": artifact.get("mediaType"),
-        "layer_diff_ids": diff_ids,
     }
-    if architecture is not None:
-        result["architecture"] = architecture
-    if os_name is not None:
-        result["os"] = os_name
-    if variant is not None:
-        result["variant"] = variant
+    if config:
+        raw_architecture = config.get("architecture")
+        architecture = (
+            normalize_architecture(raw_architecture)
+            if raw_architecture is not None
+            else None
+        )
+        diff_ids, layer_history = extract_layers_from_oci_config(config)
+        result.update(
+            {
+                "type": "image",
+                "media_type": artifact.get("mediaType"),
+                "layer_diff_ids": diff_ids,
+            },
+        )
+        if architecture is not None:
+            result["architecture"] = architecture
+        if config.get("os") is not None:
+            result["os"] = config["os"]
+        if config.get("variant") is not None:
+            result["variant"] = config["variant"]
+        if diff_ids:
+            result["layer_history"] = layer_history
     for field in PROVENANCE_SOURCE_FIELDS:
         if provenance.get(field):
             result[field] = provenance[field]
-    if diff_ids:
-        result["layer_history"] = layer_history
 
-    return result, fetch_failed
+    return (result if len(result) > 1 else None), fetch_failed
 
 
 async def _fetch_all_image_provenance(
@@ -910,7 +917,7 @@ async def _fetch_all_image_provenance(
     docker_artifacts_raw: list[dict[str, Any]],
     project_id: str,
     max_concurrent: int = 50,
-    skip_digests: set[str] | None = None,
+    cached_layer_digests: set[str] | None = None,
 ) -> tuple[list[dict[str, Any]], int]:
     """Run enrichment for all single-image artifacts.
 
@@ -924,12 +931,11 @@ async def _fetch_all_image_provenance(
     token_manager = _TokenManager(resolved)
     sbom_artifacts_by_digest = _sbom_artifacts_by_subject_digest(docker_artifacts_raw)
 
-    skip_digests = skip_digests or set()
+    cached_layer_digests = cached_layer_digests or set()
     single_images = [
         a
         for a in docker_artifacts_raw
         if a.get("mediaType", "") in SINGLE_IMAGE_MEDIA_TYPES
-        and _artifact_digest(a) not in skip_digests
     ]
     if not single_images:
         return [], 0
@@ -947,6 +953,7 @@ async def _fetch_all_image_provenance(
                 token_manager,
                 artifact,
                 sbom_artifacts_by_digest,
+                fetch_config=_artifact_digest(artifact) not in cached_layer_digests,
             )
 
     async with httpx.AsyncClient(follow_redirects=True) as client:
@@ -1247,7 +1254,7 @@ def sync(
             credentials,
             docker_artifacts_raw,
             project_id,
-            skip_digests=complete_digests,
+            cached_layer_digests=complete_digests,
         ),
     )
 

@@ -12,6 +12,7 @@ import neo4j
 
 from cartography.client.core.tx import read_list_of_values_tx
 from cartography.client.core.tx import run_write_query
+from cartography.helpers import batch
 
 _IDENTIFIER = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
 _T = TypeVar("_T", bound=Mapping[str, Any])
@@ -106,6 +107,70 @@ def get_complete_layer_digests(
         )
         """
 
+    relationship_predicates: list[str] = []
+    layer_ids = f"img.{shape.image_layer_ids_property}"
+    layer_match = (
+        f"(layer:{shape.layer_label} " f"{{{shape.layer_id_property}: layer_id}})"
+    )
+    if "HAS_LAYER" in shape.image_layer_rel_types:
+        relationship_predicates.append(
+            f"""
+            AND (
+                size({layer_ids}) = 0
+                OR all(layer_id IN {layer_ids} WHERE EXISTS {{
+                    MATCH (img)-[:HAS_LAYER]->{layer_match}
+                }})
+            )
+            """,
+        )
+    if "HEAD" in shape.image_layer_rel_types:
+        relationship_predicates.append(
+            f"""
+            AND (
+                size({layer_ids}) = 0
+                OR EXISTS {{
+                    MATCH (img)-[:HEAD]->
+                          (:{shape.layer_label} {{
+                              {shape.layer_id_property}: {layer_ids}[0]
+                          }})
+                }}
+            )
+            """,
+        )
+    if "TAIL" in shape.image_layer_rel_types:
+        relationship_predicates.append(
+            f"""
+            AND (
+                size({layer_ids}) = 0
+                OR EXISTS {{
+                    MATCH (img)-[:TAIL]->
+                          (:{shape.layer_label} {{
+                              {shape.layer_id_property}: {layer_ids}[
+                                  size({layer_ids}) - 1
+                              ]
+                          }})
+                }}
+            )
+            """,
+        )
+    if shape.has_next:
+        relationship_predicates.append(
+            f"""
+            AND all(layer_index IN CASE
+                WHEN size({layer_ids}) > 1
+                    THEN range(0, size({layer_ids}) - 2)
+                ELSE []
+            END WHERE EXISTS {{
+                MATCH (:{shape.layer_label} {{
+                    {shape.layer_id_property}: {layer_ids}[layer_index]
+                }})-[:NEXT]->(:{shape.layer_label} {{
+                    {shape.layer_id_property}: {layer_ids}[layer_index + 1]
+                }})
+            }})
+            """,
+        )
+    relationship_predicate = "\n".join(relationship_predicates)
+
     digest_predicate = (
         f"img.{shape.image_digest_property} IN $digests"
         if unique_digests is not None
@@ -117,6 +182,7 @@ def get_complete_layer_digests(
       AND img.{shape.image_layer_ids_property} IS NOT NULL
       {image_scope_predicate}
       {layer_scope_predicate}
+      {relationship_predicate}
     RETURN img.{shape.image_digest_property}
     """
     values = neo4j_session.execute_read(
@@ -153,16 +219,36 @@ def refresh_layer_closures(
     digests: Iterable[str],
     scope_values: Mapping[str, Any],
     update_tag: int,
+    *,
+    batch_size: int = 500,
 ) -> None:
     """Refresh an unchanged image and its existing layer closure before cleanup."""
 
+    if batch_size <= 0:
+        raise ValueError("batch_size must be greater than zero")
     unique_digests = sorted(set(digests))
     if not unique_digests:
         return
+    for digest_batch in batch(unique_digests, size=batch_size):
+        _refresh_layer_closure_batch(
+            neo4j_session,
+            shape,
+            digest_batch,
+            scope_values,
+            update_tag,
+        )
 
+
+def _refresh_layer_closure_batch(
+    neo4j_session: neo4j.Session,
+    shape: ContainerImageLayerGraphShape,
+    digests: Sequence[str],
+    scope_values: Mapping[str, Any],
+    update_tag: int,
+) -> None:
     scope_match, scope_parameters = _scope_parameters(shape, scope_values)
     parameters = {
-        "digests": unique_digests,
+        "digests": list(digests),
         "update_tag": update_tag,
         **scope_parameters,
     }
