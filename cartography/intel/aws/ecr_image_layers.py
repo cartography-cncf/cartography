@@ -1226,6 +1226,11 @@ async def fetch_image_layers_async(
                         percent,
                     )
                 continue
+            except BaseException:
+                for pending_task in tasks:
+                    pending_task.cancel()
+                await asyncio.gather(*tasks, return_exceptions=True)
+                raise
             completed += 1
 
             if completed % progress_interval == 0 or completed == total:
@@ -1287,7 +1292,7 @@ def cleanup(neo4j_session: neo4j.Session, common_job_parameters: dict) -> None:
 @timeit
 def sync(
     neo4j_session: neo4j.Session,
-    aioboto3_session: aioboto3.Session,
+    aws_profile_name: str | None,
     regions: list[str],
     current_aws_account_id: str,
     update_tag: int,
@@ -1395,7 +1400,9 @@ def sync(
                 f"Starting to fetch layers for {len(repo_images_list)} images..."
             )
 
-            async def _fetch_with_async_client() -> tuple[
+            async def _fetch_with_async_client(
+                aioboto3_session: aioboto3.Session,
+            ) -> tuple[
                 dict[str, dict[str, list[str]]],
                 dict[str, str],
                 dict[str, str],
@@ -1414,12 +1421,27 @@ def sync(
                 loop = asyncio.new_event_loop()
                 asyncio.set_event_loop(loop)
 
-            (
-                image_layers_data,
-                image_digest_map,
-                history_by_diff_id,
-                image_attestation_map,
-            ) = loop.run_until_complete(_fetch_with_async_client())
+            session_kwargs = (
+                {"profile_name": aws_profile_name} if aws_profile_name else {}
+            )
+            for attempt in range(2):
+                try:
+                    (
+                        image_layers_data,
+                        image_digest_map,
+                        history_by_diff_id,
+                        image_attestation_map,
+                    ) = loop.run_until_complete(
+                        _fetch_with_async_client(aioboto3.Session(**session_kwargs))
+                    )
+                    break
+                except ClientError as error:
+                    error_code = error.response.get("Error", {}).get("Code")
+                    if attempt == 1 or error_code != "InvalidClientTokenId":
+                        raise
+                    logger.warning(
+                        "Retrying ECR image layer sync with a fresh AWS credential chain after temporary credential refresh failed.",
+                    )
 
             logger.info(
                 f"Successfully fetched layers for {len(image_layers_data)} images"
