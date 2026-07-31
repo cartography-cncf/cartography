@@ -46,12 +46,13 @@ def create_test_netlify_users(
     Goes through load_netlify_users() rather than raw Cypher because the user's team edges are
     MatchLinks, so reproducing them by hand here would drift from the real shape.
     """
+    users, _invites = cartography.intel.netlify.users.transform_netlify_users(
+        tests.data.netlify.users.NETLIFY_MEMBERS,
+        account_id,
+    )
     cartography.intel.netlify.users.load_netlify_users(
         neo4j_session,
-        cartography.intel.netlify.users.transform_netlify_users(
-            tests.data.netlify.users.NETLIFY_MEMBERS,
-            account_id,
-        ),
+        users,
         account_id,
         update_tag,
     )

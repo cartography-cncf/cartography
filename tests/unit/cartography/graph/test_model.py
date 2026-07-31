@@ -374,6 +374,11 @@ GLOBAL_NODE_LABELS: Set[str] = {
     "GitHubDependency",
     "ProgrammingLanguage",
     "PythonLibrary",
+    # A Netlify invitation is an email address that has not accepted yet, and the same address can
+    # be invited to several teams. Anchoring it to the team being synced would let that team's
+    # cleanup DETACH DELETE an invitation another team still has outstanding, so the team links are
+    # MatchLinks (same reasoning as NetlifyUser).
+    "NetlifyInvite",
     # A Netlify deploy key comes from `GET /deploy_keys`, which takes no team parameter and
     # returns every key the token can see. Anchoring it to the team being synced would let that
     # team's cleanup DETACH DELETE keys another team's sync had just refreshed, so the team link

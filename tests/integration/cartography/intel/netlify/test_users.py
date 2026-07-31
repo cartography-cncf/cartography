@@ -109,19 +109,12 @@ def test_sync_netlify_users(mock_get, neo4j_session: neo4j.Session) -> None:
     ) == {(TEST_USER_ID, "alice@example.com", False, None, "netlify")}
 
 
-def test_a_membership_with_no_user_id_does_not_abort_the_load(
+def test_an_unaccepted_invitation_becomes_its_own_node(
     neo4j_session: neo4j.Session,
 ) -> None:
     """
-    `POST /{account_slug}/members` takes only a role and an email, so a membership row exists
-    before any Netlify user is attached to it. The node id is `user_id`, and a null one does not
-    just drop its own row: Neo4j rejects the whole batch with "Cannot merge the following node
-    because of null property value for 'id'", so one unaccepted invitation would take the team's
-    entire user sync with it.
-
-    This goes through the real sync against Neo4j rather than asserting on transform() alone. The
-    failure being guarded against is raised by the write, so a transform-level assertion would keep
-    passing even if the skip stopped protecting the load.
+    An invited address has no `user_id`, and NetlifyUser is keyed on it, so those rows would make
+    the whole batch fail on a null merge key. They become NetlifyInvite nodes keyed on the email.
     """
     # Arrange
     neo4j_session.run("MATCH (n) DETACH DELETE n")
@@ -133,11 +126,12 @@ def test_a_membership_with_no_user_id_does_not_abort_the_load(
             "email": "invited@example.com",
             "pending": True,
             "role": "Collaborator",
+            "site_access": "none",
         },
         tests.data.netlify.users.NETLIFY_MEMBERS[0],
     ]
 
-    # Act: no pytest.raises, the point is that this completes
+    # Act
     with patch.object(
         cartography.intel.netlify.users,
         "get_netlify_users",
@@ -153,16 +147,21 @@ def test_a_membership_with_no_user_id_does_not_abort_the_load(
             common_job_parameters(),
         )
 
-    # Assert: the valid member landed, nothing carries a null id, and the membership edge exists
-    assert check_nodes(neo4j_session, "NetlifyUser", ["id", "email"]) == {
-        (TEST_USER_ID, "alice@example.com"),
+    # Assert: the person and the invitation are separate nodes, neither with a null id
+    assert check_nodes(neo4j_session, "NetlifyUser", ["id"]) == {(TEST_USER_ID,)}
+    assert check_nodes(neo4j_session, "NetlifyInvite", ["id", "email"]) == {
+        ("invited@example.com", "invited@example.com"),
     }
-    assert (
-        neo4j_session.run(
-            "MATCH (n:NetlifyUser) WHERE n.id IS NULL RETURN count(n) AS c",
-        ).single()["c"]
-        == 0
-    )
+
+    # Assert Relationships: INVITED_TO rather than MEMBER_OF, with the pending role on the edge
+    assert check_rels(
+        neo4j_session,
+        "NetlifyInvite",
+        "id",
+        "NetlifyAccount",
+        "id",
+        "INVITED_TO",
+    ) == {("invited@example.com", TEST_ACCOUNT_ID)}
     assert check_rels(
         neo4j_session,
         "NetlifyUser",
@@ -171,3 +170,11 @@ def test_a_membership_with_no_user_id_does_not_abort_the_load(
         "id",
         "MEMBER_OF",
     ) == {(TEST_USER_ID, TEST_ACCOUNT_ID)}
+    invitation = neo4j_session.run(
+        """
+        MATCH (:NetlifyInvite)-[r:INVITED_TO]->(:NetlifyAccount)
+        RETURN r.role AS role, r.membership_id AS membership_id
+        """,
+    ).single()
+    assert invitation["role"] == "Collaborator"
+    assert invitation["membership_id"] == "invite-row-1"

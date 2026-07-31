@@ -20,7 +20,9 @@ ACC -- RESOURCE --> ZONE(NetlifyDNSZone)
 ACC -- RESOURCE --> REC(NetlifyDNSRecord)
 ACC -- RESOURCE --> CERT(NetlifyCertificate)
 ACC -- RESOURCE --> FORM(NetlifyForm)
+ACC -- RESOURCE --> INV(NetlifyInvite)
 USR -- MEMBER_OF --> ACC
+INV -- INVITED_TO --> ACC
 SITE -- HAS_DEPLOY --> DEP
 SITE -- HAS_FUNCTION --> FN
 SITE -- HAS_DEV_SERVER --> DS
@@ -115,9 +117,8 @@ deleted by a team's cleanup**. Removing someone from a team drops that team's `R
 reference it. A person removed from their last team therefore keeps a bare `NetlifyUser` node with
 no membership; query through `MEMBER_OF` rather than by node existence to ask who is on a team.
 
-Memberships with no `user_id` are not ingested. A team member is invited by email address alone, so
-the membership row exists before any Netlify user is attached to it, and there is no person to key
-a node on. An invited address that has not accepted therefore does not appear in the graph.
+A membership with no `user_id` is an unaccepted invitation and becomes a `NetlifyInvite` instead;
+see below.
 
 | Field | Description |
 |---|---|
@@ -144,6 +145,35 @@ a node on. An invited address that has not accepted therefore does not appear in
     ```cypher
     (:NetlifyAccount)-[:RESOURCE]->(:NetlifyUser)
     (:NetlifyUser)-[:MEMBER_OF]->(:NetlifyAccount)
+    ```
+
+### NetlifyInvite
+
+An email address invited to a Netlify team that has not accepted yet.
+
+A team member is invited by email address alone, so the membership row exists before any Netlify
+user is attached to it and carries no `user_id`. Since `NetlifyUser` is keyed on `user_id`, those
+rows get their own node keyed on the email, which is the only identity they have.
+
+Carries no ontology label: there is no account behind the address, so calling it a `UserAccount`
+would put a non-existent identity into cross-provider identity queries. Like `NetlifyUser` it is a
+shared identity, so its team edges are MatchLinks and the node is not deleted by a team's cleanup.
+
+| Field | Description |
+|---|---|
+| firstseen | Timestamp of when a sync job first discovered this node |
+| lastupdated | Timestamp of the last time the node was updated |
+| **id** | The invited email address |
+| **email** | The invited email address |
+
+#### Relationships
+
+- An invited address has a pending role on the team. The edge is `INVITED_TO` rather than
+  `MEMBER_OF`, because the address is not a member of anything until it accepts, and it carries the
+  per-team `membership_id`, `role`, `site_access` and timestamps.
+    ```cypher
+    (:NetlifyAccount)-[:RESOURCE]->(:NetlifyInvite)
+    (:NetlifyInvite)-[:INVITED_TO]->(:NetlifyAccount)
     ```
 
 ### NetlifySite
