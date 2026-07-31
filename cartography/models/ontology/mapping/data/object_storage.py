@@ -163,10 +163,29 @@ databricks_mapping = OntologyMapping(
     ],
 )
 
+supabase_mapping = OntologyMapping(
+    module_name="supabase",
+    nodes=[
+        OntologyNodeMapping(
+            node_label="SupabaseStorageBucket",
+            fields=[
+                OntologyFieldMapping(
+                    ontology_field="name", node_field="name", required=True
+                ),
+                OntologyFieldMapping(ontology_field="public", node_field="public"),
+                # location: Buckets live in their project's region, which is stored
+                # on SupabaseProject rather than on the bucket.
+                # encrypted / versioning: Not exposed by the Management API.
+            ],
+        ),
+    ],
+)
+
 OBJECT_STORAGE_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     "aws": aws_mapping,
     "gcp": gcp_mapping,
     "azure": azure_mapping,
     "scaleway": scaleway_mapping,
     "databricks": databricks_mapping,
+    "supabase": supabase_mapping,
 }

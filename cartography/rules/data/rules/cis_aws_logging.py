@@ -10,6 +10,7 @@ Facts within a Rule are provider-specific implementations of the same concept.
 
 from cartography.rules.data.frameworks.cis import cis_aws
 from cartography.rules.data.frameworks.iso27001 import iso27001_annex_a
+from cartography.rules.data.frameworks.soc2 import soc2_tsc
 from cartography.rules.spec.model import Fact
 from cartography.rules.spec.model import Finding
 from cartography.rules.spec.model import Maturity
@@ -79,6 +80,40 @@ _aws_cloudtrail_not_multi_region = Fact(
     maturity=Maturity.STABLE,
 )
 
+_aws_account_without_cloudtrail = Fact(
+    id="aws_account_without_cloudtrail",
+    name="AWS accounts without CloudTrail",
+    description=(
+        "Detects AWS accounts that have no CloudTrail trail and therefore lack "
+        "account-level API activity logging."
+    ),
+    cypher_query="""
+    MATCH (a:AWSAccount)
+    WHERE NOT (a)-[:RESOURCE]->(:AWSCloudTrailTrail)
+    RETURN
+        null AS trail_name,
+        null AS trail_arn,
+        null AS home_region,
+        null AS is_multi_region,
+        a.id AS account_id,
+        a.name AS account
+    """,
+    cypher_visual_query="""
+    MATCH (a:AWSAccount)
+    WHERE NOT (a)-[:RESOURCE]->(:AWSCloudTrailTrail)
+    RETURN a
+    """,
+    cypher_count_query="""
+    MATCH (a:AWSAccount)
+    RETURN COUNT(a) AS count
+    """,
+    asset_label="AWSAccount",
+    asset_id_field="account_id",
+    identity_fields=("account_id",),
+    module=Module.AWS,
+    maturity=Maturity.STABLE,
+)
+
 aws_cloudtrail_multi_region = Rule(
     id="aws_cloudtrail_multi_region",
     name="CloudTrail Multi-Region",
@@ -87,7 +122,10 @@ aws_cloudtrail_multi_region = Rule(
         "into API activity across the entire AWS infrastructure."
     ),
     output_model=CloudTrailMultiRegionOutput,
-    facts=(_aws_cloudtrail_not_multi_region,),
+    facts=(
+        _aws_cloudtrail_not_multi_region,
+        _aws_account_without_cloudtrail,
+    ),
     tags=("logging", "cloudtrail", "stride:repudiation"),
     version="1.0.0",
     references=CIS_REFERENCES,
@@ -95,6 +133,7 @@ aws_cloudtrail_multi_region = Rule(
         cis_aws("4.1"),
         iso27001_annex_a("8.15"),
         iso27001_annex_a("8.16"),
+        soc2_tsc("CC7.2"),
     ),
 )
 
@@ -164,6 +203,7 @@ aws_cloudtrail_log_file_validation = Rule(
     frameworks=(
         cis_aws("4.2"),
         iso27001_annex_a("8.15"),
+        soc2_tsc("CC7.2"),
     ),
 )
 
@@ -237,6 +277,7 @@ aws_cloudtrail_s3_bucket_access_logging = Rule(
     frameworks=(
         cis_aws("4.4"),
         iso27001_annex_a("8.15"),
+        soc2_tsc("CC7.2"),
     ),
 )
 
@@ -306,6 +347,7 @@ aws_cloudtrail_kms_encryption = Rule(
     frameworks=(
         cis_aws("4.5"),
         iso27001_annex_a("8.24"),
+        soc2_tsc("CC6.1"),
     ),
 )
 

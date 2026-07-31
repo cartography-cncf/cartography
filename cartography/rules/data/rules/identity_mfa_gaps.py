@@ -1,4 +1,5 @@
 from cartography.rules.data.frameworks.iso27001 import iso27001_annex_a
+from cartography.rules.data.frameworks.soc2 import soc2_tsc
 from cartography.rules.spec.model import Fact
 from cartography.rules.spec.model import Finding
 from cartography.rules.spec.model import Maturity
@@ -210,5 +211,8 @@ identity_mfa_gaps = Rule(
     ),
     tags=("identity", "mfa", "compliance", "stride:spoofing"),
     version="0.1.0",
-    frameworks=(iso27001_annex_a("8.5"),),
+    frameworks=(
+        iso27001_annex_a("8.5"),
+        soc2_tsc("CC6.1"),
+    ),
 )
