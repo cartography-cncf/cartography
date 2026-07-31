@@ -54,19 +54,15 @@ class ModalSecretToCreatorRelProperties(CartographyRelProperties):
 
 
 @dataclass(frozen=True)
-# (:ModalSecret)-[:CREATED_BY]->(:ModalWorkspaceMember)
-# Best-effort, joined on display_name because Modal reports the creator as a workspace
-# username rather than an email.
+# (:ModalSecret)-[:CREATED_BY]->(:ModalUser)
+# Modal reports the creator as a workspace username, so the intel layer resolves it to a
+# ModalUser id against the members of the workspace being synced. Matching on that id rather
+# than on a display name is what keeps the edge from crossing tenant boundaries, since display
+# names are not globally unique. Absent when the creator is no longer a member.
 class ModalSecretToCreatorRel(CartographyRelSchema):
-    target_node_label: str = "ModalWorkspaceMember"
+    target_node_label: str = "ModalUser"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {
-            "display_name": PropertyRef("created_by"),
-            # Scoped to the workspace being synced: display names are not globally unique, so
-            # an unscoped join would cross tenant boundaries in a graph holding several Modal
-            # workspaces.
-            "workspace_id": PropertyRef("WORKSPACE_ID", set_in_kwargs=True),
-        },
+        {"id": PropertyRef("created_by_user_id")},
     )
     direction: LinkDirection = LinkDirection.OUTWARD
     rel_label: str = "CREATED_BY"

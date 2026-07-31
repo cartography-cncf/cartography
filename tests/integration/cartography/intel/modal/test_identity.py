@@ -25,27 +25,36 @@ def _workspace_params():
     return {"UPDATE_TAG": TEST_UPDATE_TAG, "WORKSPACE_ID": TEST_WORKSPACE_ID}
 
 
-def _ensure_local_neo4j_has_test_members(neo4j_session):
-    members = cartography.intel.modal.members.transform(
-        tests.data.modal.identity.MODAL_WORKSPACE_MEMBERS,
-        TEST_WORKSPACE_ID,
-    )
+def _ensure_local_neo4j_has_test_members(
+    neo4j_session, workspace_id=TEST_WORKSPACE_ID, raw=None
+):
+    """Seed the users, their memberships and the builtin roles. Returns the username map."""
+    raw = tests.data.modal.identity.MODAL_WORKSPACE_MEMBERS if raw is None else raw
     cartography.intel.modal.members.load_roles(
         neo4j_session,
-        cartography.intel.modal.members.transform_roles(TEST_WORKSPACE_ID),
-        TEST_WORKSPACE_ID,
+        cartography.intel.modal.members.transform_roles(workspace_id),
+        workspace_id,
         TEST_UPDATE_TAG,
     )
-    cartography.intel.modal.members.load_members(
-        neo4j_session, members, TEST_WORKSPACE_ID, TEST_UPDATE_TAG
+    users = cartography.intel.modal.members.transform(raw)
+    cartography.intel.modal.members.load_users(neo4j_session, users, TEST_UPDATE_TAG)
+    cartography.intel.modal.members.load_memberships(
+        neo4j_session,
+        cartography.intel.modal.members.transform_memberships(raw, workspace_id),
+        workspace_id,
+        TEST_UPDATE_TAG,
     )
+    return cartography.intel.modal.members.user_ids_by_username(users)
 
 
-def _ensure_local_neo4j_has_test_service_users(neo4j_session):
+def _ensure_local_neo4j_has_test_service_users(
+    neo4j_session, user_ids_by_username=None
+):
     cartography.intel.modal.service_users.load_service_users(
         neo4j_session,
         cartography.intel.modal.service_users.transform(
-            tests.data.modal.identity.MODAL_SERVICE_USERS
+            tests.data.modal.identity.MODAL_SERVICE_USERS,
+            user_ids_by_username or {},
         ),
         TEST_WORKSPACE_ID,
         TEST_UPDATE_TAG,
@@ -57,7 +66,7 @@ def _ensure_local_neo4j_has_test_service_users(neo4j_session):
     "list_workspace_members",
     return_value=tests.data.modal.identity.MODAL_WORKSPACE_MEMBERS,
 )
-def test_load_modal_members_and_roles(mock_list, neo4j_session):
+def test_load_modal_users_and_memberships(mock_list, neo4j_session):
     # Arrange
     _ensure_local_neo4j_has_test_workspace(neo4j_session)
 
@@ -71,7 +80,7 @@ def test_load_modal_members_and_roles(mock_list, neo4j_session):
     # Assert
     assert check_nodes(
         neo4j_session,
-        "ModalWorkspaceMember",
+        "ModalUser",
         ["id", "email", "identity_provider_type"],
     ) == {
         (
@@ -93,7 +102,7 @@ def test_load_modal_members_and_roles(mock_list, neo4j_session):
     # MEMBER_ROLE_USER normalises to "member", MEMBER_ROLE_OWNER to "owner".
     assert check_rels(
         neo4j_session,
-        "ModalWorkspaceMember",
+        "ModalUser",
         "email",
         "ModalWorkspaceRole",
         "name",
@@ -112,12 +121,12 @@ def test_load_modal_members_and_roles(mock_list, neo4j_session):
 def test_load_modal_service_users_and_tokens(mock_list, neo4j_session):
     # Arrange
     _ensure_local_neo4j_has_test_workspace(neo4j_session)
-    _ensure_local_neo4j_has_test_members(neo4j_session)
+    usernames = _ensure_local_neo4j_has_test_members(neo4j_session)
 
     # Act
     asyncio.run(
         cartography.intel.modal.service_users.sync(
-            neo4j_session, MagicMock(), _workspace_params()
+            neo4j_session, MagicMock(), _workspace_params(), usernames
         )
     )
 
@@ -149,20 +158,20 @@ def test_load_modal_service_users_and_tokens(mock_list, neo4j_session):
     "list_service_users",
     return_value=tests.data.modal.identity.MODAL_SERVICE_USERS,
 )
-def test_modal_service_user_created_by_matches_on_display_name(
+def test_modal_service_user_created_by_resolves_username_to_user_id(
     mock_list, neo4j_session
 ):
-    """Modal reports the creator as a workspace username, not an email, so CREATED_BY
-    joins on display_name. 'stale-bot' was created by a username with no matching member,
-    so it must get no edge rather than a wrong one."""
+    """Modal reports the creator as a workspace username, which the intel layer resolves to a
+    ModalUser id against this workspace's members. 'stale-bot' was created by a username with
+    no matching member, so it must get no edge rather than a wrong one."""
     # Arrange
     _ensure_local_neo4j_has_test_workspace(neo4j_session)
-    _ensure_local_neo4j_has_test_members(neo4j_session)
+    usernames = _ensure_local_neo4j_has_test_members(neo4j_session)
 
     # Act
     asyncio.run(
         cartography.intel.modal.service_users.sync(
-            neo4j_session, MagicMock(), _workspace_params()
+            neo4j_session, MagicMock(), _workspace_params(), usernames
         )
     )
 
@@ -171,7 +180,7 @@ def test_modal_service_user_created_by_matches_on_display_name(
         neo4j_session,
         "ModalServiceUser",
         "name",
-        "ModalWorkspaceMember",
+        "ModalUser",
         "display_name",
         "CREATED_BY",
     ) == {("ci-bot", "alice")}
@@ -245,7 +254,7 @@ def test_load_modal_environment_roles(mock_get, neo4j_session):
     # Both principal kinds bind through the same canonical HAS_ROLE edge.
     assert check_rels(
         neo4j_session,
-        "ModalWorkspaceMember",
+        "ModalUser",
         "display_name",
         "ModalEnvironmentRole",
         "name",

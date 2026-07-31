@@ -18,24 +18,40 @@ async def sync(
     neo4j_session: neo4j.Session,
     client: ModalClient,
     common_job_parameters: dict[str, Any],
+    user_ids_by_username: dict[str, str],
 ) -> list[dict[str, Any]]:
     """Ingest the volumes of one environment."""
     environment_name = common_job_parameters["ENVIRONMENT_NAME"]
     raw = await list_volumes(client, environment_name)
-    items = transform(raw, environment_name)
+    items = transform(raw, environment_name, user_ids_by_username)
     load_volumes(
         neo4j_session,
         items,
         common_job_parameters["ENVIRONMENT_ID"],
-        common_job_parameters["WORKSPACE_ID"],
         common_job_parameters["UPDATE_TAG"],
     )
     cleanup(neo4j_session, common_job_parameters)
     return items
 
 
-def transform(raw: list[dict[str, Any]], environment_name: str) -> list[dict[str, Any]]:
-    return [{**item, "environment_name": environment_name} for item in raw]
+def transform(
+    raw: list[dict[str, Any]],
+    environment_name: str,
+    user_ids_by_username: dict[str, str],
+) -> list[dict[str, Any]]:
+    return [
+        {
+            **item,
+            "environment_name": environment_name,
+            # Resolved against this workspace's members only, so a username that also exists in
+            # another synced workspace cannot attract the edge. None when the creator is no
+            # longer a member, which simply leaves the CREATED_BY edge absent.
+            "created_by_user_id": user_ids_by_username.get(
+                item.get("created_by") or ""
+            ),
+        }
+        for item in raw
+    ]
 
 
 @timeit
@@ -43,7 +59,6 @@ def load_volumes(
     neo4j_session: neo4j.Session,
     data: list[dict[str, Any]],
     environment_id: str,
-    workspace_id: str,
     update_tag: int,
 ) -> None:
     load(
@@ -52,7 +67,6 @@ def load_volumes(
         data,
         lastupdated=update_tag,
         ENVIRONMENT_ID=environment_id,
-        WORKSPACE_ID=workspace_id,
     )
 
 

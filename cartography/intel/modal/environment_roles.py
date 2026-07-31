@@ -13,7 +13,7 @@ from cartography.models.modal.environment_role import (
     ModalServiceUserToEnvironmentRoleMatchLink,
 )
 from cartography.models.modal.environment_role import (
-    ModalWorkspaceMemberToEnvironmentRoleMatchLink,
+    ModalUserToEnvironmentRoleMatchLink,
 )
 from cartography.util import timeit
 
@@ -127,7 +127,7 @@ def load_bindings(
     if member_bindings:
         load_matchlinks(
             neo4j_session,
-            ModalWorkspaceMemberToEnvironmentRoleMatchLink(),
+            ModalUserToEnvironmentRoleMatchLink(),
             member_bindings,
             lastupdated=update_tag,
             _sub_resource_label="ModalEnvironment",
@@ -168,7 +168,7 @@ def _cleanup_environment(
     """
     update_tag = common_job_parameters["UPDATE_TAG"]
     GraphJob.from_matchlink(
-        ModalWorkspaceMemberToEnvironmentRoleMatchLink(),
+        ModalUserToEnvironmentRoleMatchLink(),
         "ModalEnvironment",
         environment_id,
         update_tag,

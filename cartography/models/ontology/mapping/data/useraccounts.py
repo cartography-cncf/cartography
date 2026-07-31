@@ -679,7 +679,7 @@ modal_mapping = OntologyMapping(
     module_name="modal",
     nodes=[
         OntologyNodeMapping(
-            node_label="ModalWorkspaceMember",
+            node_label="ModalUser",
             fields=[
                 OntologyFieldMapping(
                     ontology_field="email", node_field="email", required=True
@@ -692,16 +692,10 @@ modal_mapping = OntologyMapping(
                 OntologyFieldMapping(
                     ontology_field="fullname", node_field="display_name"
                 ),
-                # A removed membership carries a deletion timestamp; any non-null value
-                # means the account is no longer active.
-                OntologyFieldMapping(
-                    ontology_field="inactive",
-                    node_field="deleted_at",
-                    special_handling="to_boolean",
-                ),
-                OntologyFieldMapping(
-                    ontology_field="lastactivity", node_field="last_active_at"
-                ),
+                # inactive / lastactivity: deliberately unmapped. Modal reports removal and
+                # last-activity per *workspace membership*, not per account, and a ModalUser is
+                # a shared identity. Mapping them would mark a user removed from one workspace
+                # as globally inactive. They live on the MEMBER_OF relationship instead.
                 # firstname / lastname: Modal exposes only a single display name.
                 # has_mfa: not exposed; MFA is delegated to the identity provider.
             ],

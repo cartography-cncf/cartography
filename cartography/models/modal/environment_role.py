@@ -69,12 +69,12 @@ class ModalPrincipalToEnvironmentRoleRelProperties(CartographyRelProperties):
 
 
 @dataclass(frozen=True)
-# (:ModalWorkspaceMember)-[:HAS_ROLE]->(:ModalEnvironmentRole)
+# (:ModalUser)-[:HAS_ROLE]->(:ModalEnvironmentRole)
 # A MatchLink because the binding comes from EnvironmentGetRoles, a different RPC from the
 # one that produced either endpoint, and both endpoints are already loaded by the time it
 # runs.
-class ModalWorkspaceMemberToEnvironmentRoleMatchLink(CartographyRelSchema):
-    source_node_label: str = "ModalWorkspaceMember"
+class ModalUserToEnvironmentRoleMatchLink(CartographyRelSchema):
+    source_node_label: str = "ModalUser"
     source_node_matcher: SourceNodeMatcher = make_source_node_matcher(
         {"id": PropertyRef("user_id")},
     )

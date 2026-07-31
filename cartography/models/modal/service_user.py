@@ -48,20 +48,14 @@ class ModalServiceUserToCreatorRelProperties(CartographyRelProperties):
 
 
 @dataclass(frozen=True)
-# (:ModalServiceUser)-[:CREATED_BY]->(:ModalWorkspaceMember)
-# Best-effort: Modal exposes the creator only as a workspace username, so this joins on
-# ModalWorkspaceMember.display_name rather than on email. If the member's display name
-# ever diverges from their username the edge simply does not appear (OPTIONAL MATCH).
+# (:ModalServiceUser)-[:CREATED_BY]->(:ModalUser)
+# Modal exposes the creator only as a workspace username, which the intel layer resolves to
+# a ModalUser id against this workspace's members. Absent when the creator is no longer a
+# member of the workspace being synced.
 class ModalServiceUserToCreatorRel(CartographyRelSchema):
-    target_node_label: str = "ModalWorkspaceMember"
+    target_node_label: str = "ModalUser"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {
-            "display_name": PropertyRef("created_by"),
-            # Scoped to the workspace being synced: display names are not globally unique, so
-            # an unscoped join would cross tenant boundaries in a graph holding several Modal
-            # workspaces.
-            "workspace_id": PropertyRef("WORKSPACE_ID", set_in_kwargs=True),
-        },
+        {"id": PropertyRef("created_by_user_id")},
     )
     direction: LinkDirection = LinkDirection.OUTWARD
     rel_label: str = "CREATED_BY"

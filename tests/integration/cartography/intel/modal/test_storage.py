@@ -43,11 +43,17 @@ def _seed(neo4j_session):
     _ensure_local_neo4j_has_test_environments(neo4j_session)
 
 
-def _run_sync(module, getter, fixture, update_tag=TEST_UPDATE_TAG):
+def _run_sync(module, getter, fixture, update_tag=TEST_UPDATE_TAG, extra=()):
+    """Run one resource sync with its getter mocked.
+
+    `extra` carries the trailing arguments only some syncs take: secrets and volumes receive
+    the workspace's {username: user_id} map so they can attribute creation.
+    """
+
     def _inner(neo4j_session):
         with patch.object(module, getter, return_value=fixture):
             return asyncio.run(
-                module.sync(neo4j_session, MagicMock(), _params(update_tag))
+                module.sync(neo4j_session, MagicMock(), _params(update_tag), *extra)
             )
 
     return _inner
@@ -56,12 +62,15 @@ def _run_sync(module, getter, fixture, update_tag=TEST_UPDATE_TAG):
 def test_load_modal_secrets(neo4j_session):
     # Arrange
     _seed(neo4j_session)
-    _ensure_local_neo4j_has_test_members(neo4j_session)
+    usernames = _ensure_local_neo4j_has_test_members(neo4j_session)
 
     # Act
-    _run_sync(cartography.intel.modal.secrets, "list_secrets", fx.MODAL_SECRETS)(
-        neo4j_session
-    )
+    _run_sync(
+        cartography.intel.modal.secrets,
+        "list_secrets",
+        fx.MODAL_SECRETS,
+        extra=(usernames,),
+    )(neo4j_session)
 
     # Assert
     assert check_nodes(neo4j_session, "ModalSecret", ["id", "name"]) == {
@@ -94,7 +103,7 @@ def test_load_modal_secrets(neo4j_session):
         neo4j_session,
         "ModalSecret",
         "name",
-        "ModalWorkspaceMember",
+        "ModalUser",
         "display_name",
         "CREATED_BY",
     ) == {("e2e-secret", "alice")}
@@ -106,9 +115,9 @@ def test_modal_secret_stores_no_value(neo4j_session):
     _seed(neo4j_session)
 
     # Act
-    _run_sync(cartography.intel.modal.secrets, "list_secrets", fx.MODAL_SECRETS)(
-        neo4j_session
-    )
+    _run_sync(
+        cartography.intel.modal.secrets, "list_secrets", fx.MODAL_SECRETS, extra=({},)
+    )(neo4j_session)
 
     # Assert
     keys = set()
@@ -120,12 +129,15 @@ def test_modal_secret_stores_no_value(neo4j_session):
 def test_load_modal_volumes_and_nfs(neo4j_session):
     # Arrange
     _seed(neo4j_session)
-    _ensure_local_neo4j_has_test_members(neo4j_session)
+    usernames = _ensure_local_neo4j_has_test_members(neo4j_session)
 
     # Act
-    _run_sync(cartography.intel.modal.volumes, "list_volumes", fx.MODAL_VOLUMES)(
-        neo4j_session
-    )
+    _run_sync(
+        cartography.intel.modal.volumes,
+        "list_volumes",
+        fx.MODAL_VOLUMES,
+        extra=(usernames,),
+    )(neo4j_session)
     _run_sync(cartography.intel.modal.nfs, "list_nfs", fx.MODAL_NETWORK_FILE_SYSTEMS)(
         neo4j_session
     )
@@ -142,7 +154,7 @@ def test_load_modal_volumes_and_nfs(neo4j_session):
         neo4j_session,
         "ModalVolume",
         "name",
-        "ModalWorkspaceMember",
+        "ModalUser",
         "display_name",
         "CREATED_BY",
     ) == {("e2e-volume", "alice"), ("model-weights", "bob")}
@@ -154,9 +166,9 @@ def test_modal_storage_ontology_filestorage_mapping(neo4j_session):
     _seed(neo4j_session)
 
     # Act
-    _run_sync(cartography.intel.modal.volumes, "list_volumes", fx.MODAL_VOLUMES)(
-        neo4j_session
-    )
+    _run_sync(
+        cartography.intel.modal.volumes, "list_volumes", fx.MODAL_VOLUMES, extra=({},)
+    )(neo4j_session)
     _run_sync(cartography.intel.modal.nfs, "list_nfs", fx.MODAL_NETWORK_FILE_SYSTEMS)(
         neo4j_session
     )
@@ -327,12 +339,12 @@ def test_removed_environment_cascades_storage_cleanup(neo4j_session):
     """The cascade registry must cover storage and proxies too."""
     # Arrange
     _seed(neo4j_session)
-    _run_sync(cartography.intel.modal.secrets, "list_secrets", fx.MODAL_SECRETS)(
-        neo4j_session
-    )
-    _run_sync(cartography.intel.modal.volumes, "list_volumes", fx.MODAL_VOLUMES)(
-        neo4j_session
-    )
+    _run_sync(
+        cartography.intel.modal.secrets, "list_secrets", fx.MODAL_SECRETS, extra=({},)
+    )(neo4j_session)
+    _run_sync(
+        cartography.intel.modal.volumes, "list_volumes", fx.MODAL_VOLUMES, extra=({},)
+    )(neo4j_session)
     _run_sync(cartography.intel.modal.nfs, "list_nfs", fx.MODAL_NETWORK_FILE_SYSTEMS)(
         neo4j_session
     )

@@ -6,11 +6,11 @@ Identity and tenancy:
 graph LR
     W(ModalWorkspace) -->|RESOURCE| E(ModalEnvironment)
     W -->|RESOURCE| WR(ModalWorkspaceRole)
-    W -->|RESOURCE| M(ModalWorkspaceMember)
     W -->|RESOURCE| SU(ModalServiceUser)
     W -->|RESOURCE| T(ModalApiToken)
     W -->|RESOURCE| PT(ModalProxyToken)
     E -->|RESOURCE| ER(ModalEnvironmentRole)
+    M(ModalUser) -->|MEMBER_OF| W
     M -->|HAS_ROLE| WR
     M -->|HAS_ROLE| ER
     SU -->|HAS_ROLE| ER
@@ -47,7 +47,7 @@ graph LR
     E -->|RESOURCE| Q(ModalQueue)
     E -->|RESOURCE| P(ModalProxy)
     P -->|HAS_IP| PI(ModalProxyIP)
-    SE -.->|CREATED_BY| M(ModalWorkspaceMember)
+    SE -.->|CREATED_BY| M(ModalUser)
     V -.->|CREATED_BY| M
     W(ModalWorkspace) -->|RESOURCE| DM(ModalDomain)
     DM -->|HAS_RECORD| DR(ModalDomainDNSRecord)
@@ -73,7 +73,6 @@ remove a sibling workspace ingested by a second token into the same graph.
     ```
     (:ModalWorkspace)-[:RESOURCE]->(:ModalEnvironment)
     (:ModalWorkspace)-[:RESOURCE]->(:ModalWorkspaceRole)
-    (:ModalWorkspace)-[:RESOURCE]->(:ModalWorkspaceMember)
     (:ModalWorkspace)-[:RESOURCE]->(:ModalServiceUser)
     (:ModalWorkspace)-[:RESOURCE]->(:ModalApiToken)
     (:ModalWorkspace)-[:RESOURCE]->(:ModalProxyToken)
@@ -133,37 +132,53 @@ instead exposed to the ontology as `_ont_namespace` on the workload nodes.
 | firstseen | Timestamp of when a sync job first created this node. |
 | lastupdated | Timestamp of the last time the node was updated. |
 
-### ModalWorkspaceMember
+### ModalUser
 
-Represents a human member of a Modal workspace.
+Represents a Modal user account.
 
-> **Ontology Mapping**: This node has the extra label `UserAccount` to enable
-> cross-platform identity queries, and feeds the canonical `User` node.
+> **Ontology Mapping**: This node has the extra label `UserAccount` to enable cross-platform
+> identity queries, and feeds the canonical `User` node.
+
+A Modal user is a **shared identity**: the same person keeps the same `us-...` id across every
+workspace they belong to. This node therefore has **no sub-resource relationship and no node
+relationships**, following `RailwayUser` and `GitHubUser`. Marking it as owned by one workspace
+would let that workspace's cleanup `DETACH DELETE` a person who merely left it, destroying the
+other workspaces' memberships; and relationship cleanup on a schema without a sub-resource runs
+unscoped, which would delete other workspaces' edges before they could refresh them. The
+workspace edges are MatchLinks instead, scoped to the workspace being synced.
+
+The accepted cost: a `ModalUser` node is never deleted, so someone who left every workspace
+lingers as a node with no `MEMBER_OF` edge. An orphan node is a much smaller problem than
+destroying a live workspace's data.
+
+Only person-level fields live here. The membership-level ones (role, join date, removal date)
+are per-workspace and ride on the `MEMBER_OF` relationship. `_ont_inactive` and
+`_ont_lastactivity` are deliberately **not** mapped for the same reason: Modal reports both per
+membership, so mapping them would mark a user removed from one workspace as globally inactive.
 
 #### Relationships
 
-- A member belongs to a workspace and holds workspace and environment roles.
+- A user is a member of workspaces and holds workspace and environment roles.
 
     ```
-    (:ModalWorkspace)-[:RESOURCE]->(:ModalWorkspaceMember)
-    (:ModalWorkspaceMember)-[:HAS_ROLE]->(:ModalWorkspaceRole)
-    (:ModalWorkspaceMember)-[:HAS_ROLE]->(:ModalEnvironmentRole)
+    (:ModalUser)-[:MEMBER_OF]->(:ModalWorkspace)
+    (:ModalUser)-[:HAS_ROLE]->(:ModalWorkspaceRole)
+    (:ModalUser)-[:HAS_ROLE]->(:ModalEnvironmentRole)
     ```
+
+  `MEMBER_OF` carries the membership: `member_id`, `member_role`, `joined_at`, `last_active_at`
+  and `deleted_at`. `member_role` is deliberately duplicated as the `HAS_ROLE` edge to a
+  `ModalWorkspaceRole` node, which is what the cross-provider `UserAccount -> PermissionRole`
+  rules consume.
 
 | Field | Description |
 |-------|-------------|
-| **id** | User ID, e.g. `us-ydIZVCWluEtzFTbpJvjHcK`. |
-| **workspace_id** | ID of the owning workspace. Carried as a property, not only as the `RESOURCE` edge, so best-effort `CREATED_BY` joins from other Modal nodes can be constrained to one workspace. |
-| member_id | Workspace membership ID. |
+| **id** | Global user ID, e.g. `us-ydIZVCWluEtzFTbpJvjHcK`. The same across every workspace. |
 | **email** | Member email address. |
-| **display_name** | Member display name, which is also the workspace username Modal uses to attribute object creation. |
-| **member_role** | Raw `MEMBER_ROLE_*` value. |
+| **display_name** | Display name, which is also the workspace username Modal uses to attribute object creation. |
 | **identity_provider_type** | `IDENTITY_PROVIDER_TYPE_GITHUB`, `_OKTA` or `_GOOGLE_OAUTH`. A non-SSO provider in an SSO-managed workspace is worth alerting on. |
-| idp_external_id | The member's ID at the identity provider. |
+| idp_external_id | The user's ID at the identity provider. |
 | avatar_url | Avatar URL. |
-| joined_at | When the member joined the workspace. |
-| last_active_at | When the member was last active. Null if never. |
-| deleted_at | When the membership was removed, if it was. |
 | firstseen | Timestamp of when a sync job first created this node. |
 | lastupdated | Timestamp of the last time the node was updated. |
 
@@ -184,7 +199,7 @@ participate in cross-provider `HAS_ROLE` rules.
 
     ```
     (:ModalWorkspace)-[:RESOURCE]->(:ModalWorkspaceRole)
-    (:ModalWorkspaceMember)-[:HAS_ROLE]->(:ModalWorkspaceRole)
+    (:ModalUser)-[:HAS_ROLE]->(:ModalWorkspaceRole)
     ```
 
 | Field | Description |
@@ -208,7 +223,7 @@ Represents one of Modal's builtin per-environment roles (`viewer`, `contributor`
 
     ```
     (:ModalEnvironment)-[:RESOURCE]->(:ModalEnvironmentRole)
-    (:ModalWorkspaceMember)-[:HAS_ROLE]->(:ModalEnvironmentRole)
+    (:ModalUser)-[:HAS_ROLE]->(:ModalEnvironmentRole)
     (:ModalServiceUser)-[:HAS_ROLE]->(:ModalEnvironmentRole)
     ```
 
@@ -236,11 +251,11 @@ is the recommended identity to run Cartography under.
     (:ModalWorkspace)-[:RESOURCE]->(:ModalServiceUser)
     (:ModalApiToken)-[:OWNED_BY]->(:ModalServiceUser)
     (:ModalServiceUser)-[:HAS_ROLE]->(:ModalEnvironmentRole)
-    (:ModalServiceUser)-[:CREATED_BY]->(:ModalWorkspaceMember)
+    (:ModalServiceUser)-[:CREATED_BY]->(:ModalUser)
     ```
 
   `CREATED_BY` is best-effort: Modal reports the creator only as a workspace username, so
-  the edge joins on `ModalWorkspaceMember.display_name` and is simply absent when no member
+  the edge joins on `ModalUser.display_name` and is simply absent when no member
   matches.
 
 | Field | Description |
@@ -611,14 +626,14 @@ still in use.
 
     ```
     (:ModalEnvironment)-[:RESOURCE]->(:ModalSecret)
-    (:ModalSecret)-[:CREATED_BY]->(:ModalWorkspaceMember)
+    (:ModalSecret)-[:CREATED_BY]->(:ModalUser)
     ```
 
-  `CREATED_BY` is best-effort: Modal reports the creator as a workspace username, so the edge
-  joins on `ModalWorkspaceMember.display_name`, scoped to the same workspace, and is absent
-  when no member matches (for instance when the creator has since left). The workspace scoping
-  matters because display names are not globally unique: without it, a graph holding several
-  Modal workspaces would attribute creation to every member sharing a name.
+  `CREATED_BY` is best-effort: Modal reports the creator only as a workspace username, which
+  Cartography resolves to a `ModalUser` id against the members of the workspace being synced.
+  Matching on that id rather than on a display name is what keeps the edge from crossing tenant
+  boundaries, since display names are not globally unique. Absent when the creator is no longer
+  a member.
 
 | Field | Description |
 |-------|-------------|
@@ -649,7 +664,7 @@ limitation as secrets.
 
     ```
     (:ModalEnvironment)-[:RESOURCE]->(:ModalVolume)
-    (:ModalVolume)-[:CREATED_BY]->(:ModalWorkspaceMember)
+    (:ModalVolume)-[:CREATED_BY]->(:ModalUser)
     ```
 
 | Field | Description |

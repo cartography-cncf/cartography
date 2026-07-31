@@ -19,6 +19,7 @@ async def sync(
     neo4j_session: neo4j.Session,
     client: ModalClient,
     common_job_parameters: dict[str, Any],
+    user_ids_by_username: dict[str, str],
 ) -> list[dict[str, Any]]:
     """Ingest service users and their API tokens.
 
@@ -30,7 +31,7 @@ async def sync(
     workspace_id = common_job_parameters["WORKSPACE_ID"]
     update_tag = common_job_parameters["UPDATE_TAG"]
 
-    service_users = transform(raw)
+    service_users = transform(raw, user_ids_by_username)
     load_service_users(neo4j_session, service_users, workspace_id, update_tag)
 
     tokens = transform_tokens(raw)
@@ -40,13 +41,21 @@ async def sync(
     return service_users
 
 
-def transform(raw: list[dict[str, Any]]) -> list[dict[str, Any]]:
+def transform(
+    raw: list[dict[str, Any]], user_ids_by_username: dict[str, str]
+) -> list[dict[str, Any]]:
     return [
         {
             "id": user["id"],
             "name": user.get("name"),
             "created_at": user.get("created_at"),
             "created_by": user.get("created_by"),
+            # Resolved against this workspace's members only, so a username that also exists in
+            # another synced workspace cannot attract the edge. None when the creator is no
+            # longer a member, which simply leaves the CREATED_BY edge absent.
+            "created_by_user_id": user_ids_by_username.get(
+                user.get("created_by") or ""
+            ),
         }
         for user in raw
     ]

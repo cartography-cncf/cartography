@@ -118,21 +118,31 @@ async def _sync(neo4j_session: neo4j.Session, config: Config) -> None:
         common_job_parameters,
     )
 
-    # Workspace-global resources. Members and service users are loaded before any
-    # environment roles, because the role bindings match on those nodes.
-    await _run(
+    # Workspace-global resources. Users are loaded before anything that attributes creation
+    # or binds a role, because both match on the user nodes. `members.sync` returns this
+    # workspace's {username: user_id} map, which is how Modal's username-only `created_by` is
+    # resolved to an id; an empty map just leaves the CREATED_BY edges absent.
+    user_ids_by_username = await _run(
         "workspace members",
         cartography.intel.modal.members.sync,
         neo4j_session,
         client,
         common_job_parameters,
     )
+    if user_ids_by_username is None:
+        logger.warning(
+            "Modal workspace members could not be fetched, so object creation cannot be "
+            "attributed this run; CREATED_BY edges will be absent.",
+        )
+        user_ids_by_username = {}
+
     await _run(
         "service users",
         cartography.intel.modal.service_users.sync,
         neo4j_session,
         client,
         common_job_parameters,
+        user_ids_by_username,
     )
     await _run(
         "proxy tokens",
@@ -201,13 +211,15 @@ async def _sync(neo4j_session: neo4j.Session, config: Config) -> None:
             environment_job_parameters,
         )
 
-        for label, module in (
-            ("secrets", cartography.intel.modal.secrets),
-            ("volumes", cartography.intel.modal.volumes),
-            ("network file systems", cartography.intel.modal.nfs),
-            ("dicts", cartography.intel.modal.dicts),
-            ("queues", cartography.intel.modal.queues),
-            ("proxies", cartography.intel.modal.proxies),
+        # Secrets and volumes report a creator, so they take the username map; the rest do
+        # not, hence the extra-args column.
+        for label, module, extra in (
+            ("secrets", cartography.intel.modal.secrets, (user_ids_by_username,)),
+            ("volumes", cartography.intel.modal.volumes, (user_ids_by_username,)),
+            ("network file systems", cartography.intel.modal.nfs, ()),
+            ("dicts", cartography.intel.modal.dicts, ()),
+            ("queues", cartography.intel.modal.queues, ()),
+            ("proxies", cartography.intel.modal.proxies, ()),
         ):
             await _run(
                 f"{label} ({name})",
@@ -215,6 +227,7 @@ async def _sync(neo4j_session: neo4j.Session, config: Config) -> None:
                 neo4j_session,
                 client,
                 environment_job_parameters,
+                *extra,
             )
 
         if apps is None:

@@ -51,18 +51,13 @@ class ModalVolumeToCreatorRelProperties(CartographyRelProperties):
 
 
 @dataclass(frozen=True)
-# (:ModalVolume)-[:CREATED_BY]->(:ModalWorkspaceMember)
-# Best-effort, joined on display_name: Modal reports a workspace username, not an email.
+# (:ModalVolume)-[:CREATED_BY]->(:ModalUser)
+# Modal reports the creator as a workspace username, resolved to a ModalUser id by the
+# intel layer against this workspace's members. Absent when the creator is no longer a member.
 class ModalVolumeToCreatorRel(CartographyRelSchema):
-    target_node_label: str = "ModalWorkspaceMember"
+    target_node_label: str = "ModalUser"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {
-            "display_name": PropertyRef("created_by"),
-            # Scoped to the workspace being synced: display names are not globally unique, so
-            # an unscoped join would cross tenant boundaries in a graph holding several Modal
-            # workspaces.
-            "workspace_id": PropertyRef("WORKSPACE_ID", set_in_kwargs=True),
-        },
+        {"id": PropertyRef("created_by_user_id")},
     )
     direction: LinkDirection = LinkDirection.OUTWARD
     rel_label: str = "CREATED_BY"
