@@ -109,23 +109,65 @@ def test_sync_netlify_users(mock_get, neo4j_session: neo4j.Session) -> None:
     ) == {(TEST_USER_ID, "alice@example.com", False, None, "netlify")}
 
 
-def test_a_membership_with_no_user_id_does_not_abort_the_load() -> None:
+def test_a_membership_with_no_user_id_does_not_abort_the_load(
+    neo4j_session: neo4j.Session,
+) -> None:
     """
     `POST /{account_slug}/members` takes only a role and an email, so a membership row exists
     before any Netlify user is attached to it. The node id is `user_id`, and a null one does not
     just drop its own row: Neo4j rejects the whole batch with "Cannot merge the following node
     because of null property value for 'id'", so one unaccepted invitation would take the team's
     entire user sync with it.
+
+    This goes through the real sync against Neo4j rather than asserting on transform() alone. The
+    failure being guarded against is raised by the write, so a transform-level assertion would keep
+    passing even if the skip stopped protecting the load.
     """
+    # Arrange
+    neo4j_session.run("MATCH (n) DETACH DELETE n")
+    create_test_netlify_account(neo4j_session)
     members = [
-        {"id": "m1", "user_id": None, "email": "invited@example.com", "pending": True},
+        {
+            "id": "invite-row-1",
+            "user_id": None,
+            "email": "invited@example.com",
+            "pending": True,
+            "role": "Collaborator",
+        },
         tests.data.netlify.users.NETLIFY_MEMBERS[0],
     ]
 
-    transformed = cartography.intel.netlify.users.transform_netlify_users(
-        members,
-        TEST_ACCOUNT_ID,
-    )
+    # Act: no pytest.raises, the point is that this completes
+    with patch.object(
+        cartography.intel.netlify.users,
+        "get_netlify_users",
+        return_value=members,
+    ):
+        cartography.intel.netlify.users.sync_netlify_users(
+            neo4j_session,
+            MagicMock(spec=requests.Session),
+            TEST_BASE_URL,
+            TEST_ACCOUNT_ID,
+            TEST_ACCOUNT_SLUG,
+            TEST_UPDATE_TAG,
+            common_job_parameters(),
+        )
 
-    # The valid member survives; the one with no user_id is dropped rather than poisoning the batch
-    assert [row["user_id"] for row in transformed] == [TEST_USER_ID]
+    # Assert: the valid member landed, nothing carries a null id, and the membership edge exists
+    assert check_nodes(neo4j_session, "NetlifyUser", ["id", "email"]) == {
+        (TEST_USER_ID, "alice@example.com"),
+    }
+    assert (
+        neo4j_session.run(
+            "MATCH (n:NetlifyUser) WHERE n.id IS NULL RETURN count(n) AS c",
+        ).single()["c"]
+        == 0
+    )
+    assert check_rels(
+        neo4j_session,
+        "NetlifyUser",
+        "id",
+        "NetlifyAccount",
+        "id",
+        "MEMBER_OF",
+    ) == {(TEST_USER_ID, TEST_ACCOUNT_ID)}
