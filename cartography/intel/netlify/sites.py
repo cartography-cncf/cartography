@@ -16,24 +16,21 @@ logger = logging.getLogger(__name__)
 @timeit
 def sync_netlify_sites(
     neo4j_session: neo4j.Session,
-    api_session: requests.Session,
-    base_url: str,
+    sites: list[dict[str, Any]],
     account_id: str,
-    account_slug: str,
     update_tag: int,
     common_job_parameters: dict[str, Any],
-) -> list[dict[str, Any]]:
+) -> None:
     """
-    Sync every site in the team and return the raw payloads.
+    Load the team's sites.
 
-    The raw list is returned rather than the transformed one because the per-site domain syncs
-    need fields that transform() flattens away, in particular the embedded `published_deploy`.
+    Takes an already-fetched site list rather than fetching one: the entry point needs the list
+    before this runs, to decide which deploy keys belong to the team and to load them first, since
+    the `USES_DEPLOY_KEY` edge is resolved by a MATCH at site-load time.
     """
-    sites = get_netlify_sites(api_session, base_url, account_slug)
     transformed = transform_netlify_sites(sites)
     load_netlify_sites(neo4j_session, transformed, account_id, update_tag)
     cleanup_netlify_sites(neo4j_session, common_job_parameters)
-    return sites
 
 
 @timeit

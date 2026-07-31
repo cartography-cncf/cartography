@@ -303,6 +303,7 @@ def test_sync_netlify_deploy_keys(mock_get, neo4j_session: neo4j.Session) -> Non
         api_session,
         TEST_BASE_URL,
         TEST_ACCOUNT_ID,
+        tests.data.netlify.sites.NETLIFY_SITES_WITH_GIT,
         TEST_UPDATE_TAG,
         common_job_parameters(),
     )
@@ -428,3 +429,51 @@ def test_sync_netlify_service_instances(
     assert find_secret_in_graph(neo4j_session, "addon-live-key-abcdef") == []
     assert find_secret_in_graph(neo4j_session, "addon-live-token-123456") == []
     assert find_secret_in_graph(neo4j_session, "eyJhbGciOiJIUzI1NiJ9") == []
+
+
+def test_deploy_keys_are_limited_to_keys_this_teams_sites_reference(
+    neo4j_session: neo4j.Session,
+) -> None:
+    """
+    `GET /deploy_keys` has no team filter, so it returns every key the token can see. Attributing
+    all of them to the team being synced would give a multi-team token a RESOURCE edge from every
+    team to every key. A site's `build_settings.deploy_key_id` is the only ownership statement the
+    API makes, so it decides what is ingested.
+    """
+    # Arrange: the token sees two keys, but only one is referenced by a site in this team
+    neo4j_session.run("MATCH (n) DETACH DELETE n")
+    create_test_netlify_account(neo4j_session)
+    other_teams_key = {
+        "id": "ffff7d7053c60b4be4c87999",
+        "public_key": "ssh-rsa AAAAOTHERTEAMKEY",
+        "created_at": "2026-07-30T16:19:47.183Z",
+    }
+    keys = tests.data.netlify.deploykeys.NETLIFY_DEPLOY_KEYS + [other_teams_key]
+    sites = tests.data.netlify.sites.NETLIFY_SITES_WITH_GIT
+
+    # Act
+    with patch.object(
+        cartography.intel.netlify.deploykeys,
+        "get_netlify_deploy_keys",
+        return_value=keys,
+    ):
+        cartography.intel.netlify.deploykeys.sync_netlify_deploy_keys(
+            neo4j_session,
+            MagicMock(spec=requests.Session),
+            TEST_BASE_URL,
+            TEST_ACCOUNT_ID,
+            sites,
+            TEST_UPDATE_TAG,
+            common_job_parameters(),
+        )
+
+    # Assert: only the referenced key is in the graph
+    assert check_nodes(neo4j_session, "NetlifyDeployKey", ["id"]) == {(_DEPLOY_KEY_ID,)}
+    assert check_rels(
+        neo4j_session,
+        "NetlifyAccount",
+        "id",
+        "NetlifyDeployKey",
+        "id",
+        "RESOURCE",
+    ) == {(TEST_ACCOUNT_ID, _DEPLOY_KEY_ID)}

@@ -107,3 +107,25 @@ def test_sync_netlify_users(mock_get, neo4j_session: neo4j.Session) -> None:
         "UserAccount",
         ["id", "_ont_email", "_ont_has_mfa", "_ont_active", "_ont_source"],
     ) == {(TEST_USER_ID, "alice@example.com", False, None, "netlify")}
+
+
+def test_a_membership_with_no_user_id_does_not_abort_the_load() -> None:
+    """
+    `POST /{account_slug}/members` takes only a role and an email, so a membership row exists
+    before any Netlify user is attached to it. The node id is `user_id`, and a null one does not
+    just drop its own row: Neo4j rejects the whole batch with "Cannot merge the following node
+    because of null property value for 'id'", so one unaccepted invitation would take the team's
+    entire user sync with it.
+    """
+    members = [
+        {"id": "m1", "user_id": None, "email": "invited@example.com", "pending": True},
+        tests.data.netlify.users.NETLIFY_MEMBERS[0],
+    ]
+
+    transformed = cartography.intel.netlify.users.transform_netlify_users(
+        members,
+        TEST_ACCOUNT_ID,
+    )
+
+    # The valid member survives; the one with no user_id is dropped rather than poisoning the batch
+    assert [row["user_id"] for row in transformed] == [TEST_USER_ID]

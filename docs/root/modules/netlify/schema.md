@@ -115,6 +115,10 @@ deleted by a team's cleanup**. Removing someone from a team drops that team's `R
 reference it. A person removed from their last team therefore keeps a bare `NetlifyUser` node with
 no membership; query through `MEMBER_OF` rather than by node existence to ask who is on a team.
 
+Memberships with no `user_id` are not ingested. A team member is invited by email address alone, so
+the membership row exists before any Netlify user is attached to it, and there is no person to key
+a node on. An invited address that has not accepted therefore does not appear in the graph.
+
 | Field | Description |
 |---|---|
 | firstseen | Timestamp of when a sync job first discovered this node |
@@ -612,10 +616,11 @@ to clone a site's source repository.
 Only the public half of the keypair is returned by the API, so it is safe to store and useful
 for matching against the deploy keys registered on the git provider.
 
-`GET /deploy_keys` takes no team parameter: it returns every key the token can see. The team edge
-is therefore a MatchLink meaning only "this team's sync saw this key", and the node is not deleted
-by a team's cleanup. For which site actually clones with a given key, use `USES_DEPLOY_KEY`, which
-comes from the site's own build settings.
+`GET /deploy_keys` takes no team parameter: it returns every key the token can see. Only the keys
+a site in the team being synced actually references (`build_settings.deploy_key_id`) are ingested,
+since that is the only statement of ownership the API makes; a key no site references cannot be
+attributed to a team and is left out. The team edge is a MatchLink so one team's cleanup cannot
+delete a key another team's sync just refreshed, and the node is not deleted by a team's cleanup.
 
 | Field | Description |
 |---|---|

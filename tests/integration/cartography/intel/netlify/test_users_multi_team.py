@@ -16,6 +16,7 @@ import requests
 import cartography.intel.netlify.deploykeys
 import cartography.intel.netlify.users
 import tests.data.netlify.deploykeys
+import tests.data.netlify.sites
 import tests.data.netlify.users
 from tests.integration.cartography.intel.netlify.common import common_job_parameters
 from tests.integration.cartography.intel.netlify.common import (
@@ -35,6 +36,10 @@ _TEAM_B_SLUG = "other-team"
 
 # Netlify issues a separate membership row per team for the same person.
 _MEMBER_IN_A = tests.data.netlify.users.NETLIFY_MEMBERS
+# Deploy keys are only ingested for the team whose sites reference them, so a fixture site that
+# does reference the key is what puts it in scope for both teams here.
+_SITES_USING_THE_KEY = tests.data.netlify.sites.NETLIFY_SITES_WITH_GIT
+
 _MEMBER_IN_B = [
     {
         **tests.data.netlify.users.NETLIFY_MEMBERS[0],
@@ -186,6 +191,7 @@ def test_syncing_one_team_keeps_another_teams_deploy_keys(
                 MagicMock(spec=requests.Session),
                 TEST_BASE_URL,
                 account_id,
+                _SITES_USING_THE_KEY,
                 update_tag,
                 common_job_parameters(account_id, update_tag),
             )

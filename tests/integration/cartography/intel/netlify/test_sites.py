@@ -4,7 +4,9 @@ from unittest.mock import patch
 import neo4j
 import requests
 
+import cartography.intel.netlify.deploykeys
 import cartography.intel.netlify.sites
+import tests.data.netlify.deploykeys
 import tests.data.netlify.sites
 from tests.integration.cartography.intel.netlify.common import common_job_parameters
 from tests.integration.cartography.intel.netlify.common import (
@@ -12,7 +14,6 @@ from tests.integration.cartography.intel.netlify.common import (
 )
 from tests.integration.cartography.intel.netlify.common import find_secret_in_graph
 from tests.integration.cartography.intel.netlify.common import TEST_ACCOUNT_ID
-from tests.integration.cartography.intel.netlify.common import TEST_ACCOUNT_SLUG
 from tests.integration.cartography.intel.netlify.common import TEST_BASE_URL
 from tests.integration.cartography.intel.netlify.common import TEST_GIT_SITE_ID
 from tests.integration.cartography.intel.netlify.common import TEST_SITE_ID
@@ -57,30 +58,20 @@ def _ensure_local_neo4j_has_test_sites(neo4j_session: neo4j.Session) -> None:
     )
 
 
-@patch.object(
-    cartography.intel.netlify.sites,
-    "get_netlify_sites",
-    return_value=tests.data.netlify.sites.NETLIFY_SITES_WITH_GIT,
-)
-def test_sync_netlify_sites(mock_get, neo4j_session: neo4j.Session) -> None:
+def test_sync_netlify_sites(neo4j_session: neo4j.Session) -> None:
     # Arrange
     create_test_netlify_account(neo4j_session)
     _seed_join_targets(neo4j_session)
-    api_session = MagicMock(spec=requests.Session)
 
-    # Act
-    sites = cartography.intel.netlify.sites.sync_netlify_sites(
+    # Act: the entry point fetches the site list and loads the deploy keys first, so this takes
+    # the already-fetched payloads.
+    cartography.intel.netlify.sites.sync_netlify_sites(
         neo4j_session,
-        api_session,
-        TEST_BASE_URL,
+        tests.data.netlify.sites.NETLIFY_SITES_WITH_GIT,
         TEST_ACCOUNT_ID,
-        TEST_ACCOUNT_SLUG,
         TEST_UPDATE_TAG,
         common_job_parameters(),
     )
-
-    # Assert the raw payloads come back: the per-site domains need published_deploy
-    assert {s["id"] for s in sites} == {TEST_SITE_ID, TEST_GIT_SITE_ID}
 
     # Assert Nodes
     assert check_nodes(neo4j_session, "NetlifySite", ["id", "name", "state"]) == {
@@ -163,3 +154,50 @@ def test_netlify_site_never_stores_the_jwt_secret(
     _ensure_local_neo4j_has_test_sites(neo4j_session)
 
     assert find_secret_in_graph(neo4j_session, "super-secret-signing-key") == []
+
+
+def test_first_sync_on_a_clean_graph_links_the_deploy_key(
+    neo4j_session: neo4j.Session,
+) -> None:
+    """
+    The site's USES_DEPLOY_KEY edge is resolved by a MATCH when the site row is written, so the key
+    node has to exist first. This runs the entry point's real order on a clean graph with nothing
+    pre-created, which is what test_sync_netlify_sites above cannot show because it seeds the key.
+    """
+    # Arrange: a genuinely empty graph, only the tenant
+    neo4j_session.run("MATCH (n) DETACH DELETE n")
+    create_test_netlify_account(neo4j_session)
+    sites = tests.data.netlify.sites.NETLIFY_SITES_WITH_GIT
+
+    # Act: deploy keys before sites, as _sync_one_account does
+    with patch.object(
+        cartography.intel.netlify.deploykeys,
+        "get_netlify_deploy_keys",
+        return_value=tests.data.netlify.deploykeys.NETLIFY_DEPLOY_KEYS,
+    ):
+        cartography.intel.netlify.deploykeys.sync_netlify_deploy_keys(
+            neo4j_session,
+            MagicMock(spec=requests.Session),
+            TEST_BASE_URL,
+            TEST_ACCOUNT_ID,
+            sites,
+            TEST_UPDATE_TAG,
+            common_job_parameters(),
+        )
+    cartography.intel.netlify.sites.sync_netlify_sites(
+        neo4j_session,
+        sites,
+        TEST_ACCOUNT_ID,
+        TEST_UPDATE_TAG,
+        common_job_parameters(),
+    )
+
+    # Assert: the edge exists on the very first sync
+    assert check_rels(
+        neo4j_session,
+        "NetlifySite",
+        "id",
+        "NetlifyDeployKey",
+        "id",
+        "USES_DEPLOY_KEY",
+    ) == {(TEST_GIT_SITE_ID, _DEPLOY_KEY_ID)}

@@ -21,11 +21,20 @@ def sync_netlify_deploy_keys(
     api_session: requests.Session,
     base_url: str,
     account_id: str,
+    sites: list[dict[str, Any]],
     update_tag: int,
     common_job_parameters: dict[str, Any],
 ) -> None:
+    """
+    Sync the deploy keys this team's sites actually clone with.
+
+    Must run before the sites are loaded: the site's `USES_DEPLOY_KEY` edge is resolved by a MATCH
+    at site-load time, so a key node that does not exist yet produces no edge at all until the
+    next sync. It takes the site list rather than fetching one, because the entry point already
+    has it and needs it here to decide which keys belong to this team.
+    """
     raw_keys = get_netlify_deploy_keys(api_session, base_url)
-    deploy_keys = transform_netlify_deploy_keys(raw_keys, account_id)
+    deploy_keys = transform_netlify_deploy_keys(raw_keys, account_id, sites)
     load_netlify_deploy_keys(neo4j_session, deploy_keys, account_id, update_tag)
     cleanup_netlify_deploy_keys(neo4j_session, account_id, update_tag)
 
@@ -47,9 +56,29 @@ def get_netlify_deploy_keys(
 def transform_netlify_deploy_keys(
     deploy_keys: list[dict[str, Any]],
     account_id: str,
+    sites: list[dict[str, Any]],
 ) -> list[dict[str, Any]]:
-    """Carry the team id for the MatchLink, which has no kwargs to read it from."""
-    return [{**key, "account_id": account_id} for key in deploy_keys]
+    """
+    Keep only the keys a site in this team clones with, and carry the team id for the MatchLink.
+
+    `GET /deploy_keys` has no team filter, so it returns every key the token can see. Attributing
+    all of them to the team being synced would give a multi-team token a RESOURCE edge from every
+    team to every key, which says nothing. A site's `build_settings.deploy_key_id` is the only
+    statement of ownership the API makes, so that is what decides membership here.
+
+    A key no site references is therefore not ingested. It cannot be attributed to a team, and an
+    unreferenced key is arguably worth surfacing on its own, but doing that needs a scope this
+    module does not have: the token's, not the team's.
+    """
+    referenced = {
+        (site.get("build_settings") or {}).get("deploy_key_id") for site in sites
+    }
+    referenced.discard(None)
+    return [
+        {**key, "account_id": account_id}
+        for key in deploy_keys
+        if key["id"] in referenced
+    ]
 
 
 @timeit

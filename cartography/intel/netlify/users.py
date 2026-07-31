@@ -55,9 +55,24 @@ def transform_netlify_users(
     Netlify's `id` is the membership row, not the person, so it is renamed to `membership_id`:
     it belongs on the MEMBER_OF edge, and leaving it under `id` invites a future model to key the
     node on it.
+
+    Members with no `user_id` are skipped. `POST /{account_slug}/members` takes only a role and an
+    email address, so a membership exists before any Netlify user is attached to it, and the row
+    for an unaccepted invitation has no person to key a node on. That matters because the node id
+    is `user_id`: a null one does not merely drop its own row, it aborts the whole batch with
+    `Cannot merge the following node because of null property value for 'id'`, so a single pending
+    invitation would take the team's entire user sync with it.
+
+    Skipping loses the fact that an address has been invited. Representing those rows separately,
+    keyed on `membership_id`, would keep it, but it needs the real payload of a pending invitation
+    to model correctly and that has not been observed yet.
     """
     transformed = []
+    skipped = 0
     for member in members:
+        if not member.get("user_id"):
+            skipped += 1
+            continue
         connected_accounts = member.get("connected_accounts") or {}
         transformed.append(
             {
@@ -66,6 +81,12 @@ def transform_netlify_users(
                 "account_id": account_id,
                 "connected_account_providers": sorted(connected_accounts.keys()),
             },
+        )
+    if skipped:
+        logger.warning(
+            "Skipped %d Netlify membership(s) with no user_id, most likely unaccepted "
+            "invitations. They are not represented in the graph.",
+            skipped,
         )
     return transformed
 

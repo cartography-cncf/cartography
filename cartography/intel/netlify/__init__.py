@@ -126,11 +126,16 @@ def _sync_one_account(
     """
     Sync every resource of one Netlify team.
 
-    Ordering matters in two ways. Users come first because deploys, env vars and agent runners
-    all point at them. Sites come next because every remaining domain is scoped to a site, and
-    because the site list is what those domains iterate over. Deploy keys come last: the edge
-    that links a site to its key lives on the site, so the key nodes only need to exist by the
-    time anything queries them, not by the time the site is loaded.
+    Ordering matters in three ways.
+
+    Users come first, because deploys, env vars and agent runners all point at them.
+
+    The site list is fetched next but loaded later. Deploy keys have to be loaded before the sites
+    are: a site's `USES_DEPLOY_KEY` edge is resolved by a MATCH when the site row is written, so a
+    key node that does not exist yet yields no edge at all until the following sync. The deploy key
+    sync also needs the site list to decide which of the token's keys belong to this team.
+
+    Every remaining domain is scoped to a site and iterates the same list.
 
     Each domain sync loops over the full site list internally and then runs its cleanup once.
     Running cleanup inside the site loop would delete the not-yet-visited sites' nodes from the
@@ -146,12 +151,24 @@ def _sync_one_account(
         update_tag,
         common_job_parameters,
     )
-    sites = cartography.intel.netlify.sites.sync_netlify_sites(
+    sites = cartography.intel.netlify.sites.get_netlify_sites(
+        api_session,
+        base_url,
+        account_slug,
+    )
+    cartography.intel.netlify.deploykeys.sync_netlify_deploy_keys(
         neo4j_session,
         api_session,
         base_url,
         account_id,
-        account_slug,
+        sites,
+        update_tag,
+        common_job_parameters,
+    )
+    cartography.intel.netlify.sites.sync_netlify_sites(
+        neo4j_session,
+        sites,
+        account_id,
         update_tag,
         common_job_parameters,
     )
@@ -267,14 +284,6 @@ def _sync_one_account(
         base_url,
         account_id,
         account_slug,
-        update_tag,
-        common_job_parameters,
-    )
-    cartography.intel.netlify.deploykeys.sync_netlify_deploy_keys(
-        neo4j_session,
-        api_session,
-        base_url,
-        account_id,
         update_tag,
         common_job_parameters,
     )

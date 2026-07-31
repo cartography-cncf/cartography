@@ -40,20 +40,13 @@ def _sync_sites(
     sites: list,
     update_tag: int,
 ) -> None:
-    with patch.object(
-        cartography.intel.netlify.sites,
-        "get_netlify_sites",
-        return_value=sites,
-    ):
-        cartography.intel.netlify.sites.sync_netlify_sites(
-            neo4j_session,
-            MagicMock(spec=requests.Session),
-            TEST_BASE_URL,
-            TEST_ACCOUNT_ID,
-            TEST_ACCOUNT_SLUG,
-            update_tag,
-            common_job_parameters(update_tag=update_tag),
-        )
+    cartography.intel.netlify.sites.sync_netlify_sites(
+        neo4j_session,
+        sites,
+        TEST_ACCOUNT_ID,
+        update_tag,
+        common_job_parameters(update_tag=update_tag),
+    )
 
 
 def _sync_functions(
