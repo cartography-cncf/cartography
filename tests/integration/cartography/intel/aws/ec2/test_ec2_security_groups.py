@@ -237,3 +237,54 @@ def test_sync_ec2_security_groupinfo(mock_get_security_groups, neo4j_session):
         # Test cross-security group relationships
         ("sg-web-server-12345", "sg-028e2522c72719996"),
     }
+
+    # Assert AWSIpRange nodes exist (one global node per CIDR)
+    assert check_nodes(neo4j_session, "AWSIpRange", ["id"]) == {
+        ("203.0.113.0/24",),
+        ("0.0.0.0/0",),
+        ("8.8.8.8/32",),
+        ("10.0.0.0/8",),
+    }
+
+    # Assert AWSIpRanges are connected to the rules that reference them
+    assert check_rels(
+        neo4j_session,
+        "AWSIpRange",
+        "id",
+        "AWSIpRule",
+        "ruleid",
+        "MEMBER_OF_IP_RULE",
+        rel_direction_right=True,
+    ) == {
+        ("203.0.113.0/24", "sg-028e2522c72719996/IpPermissions/8080tcp"),
+        ("203.0.113.0/24", "sg-028e2522c72719996/IpPermissions/443443tcp"),
+        ("0.0.0.0/0", "sg-028e2522c72719996/IpPermissionsEgress/8080tcp"),
+        ("8.8.8.8/32", "sg-028e2522c72719996/IpPermissionsEgress/NoneNone-1"),
+        ("0.0.0.0/0", "sg-028e2522c72719996/IpPermissionsEgress/443443tcp"),
+        ("0.0.0.0/0", "sg-053dba35430032a0d/IpPermissionsEgress/NoneNone-1"),
+        ("203.0.113.0/24", "sg-06c795c66be8937be/IpPermissions/8080tcp"),
+        ("203.0.113.0/24", "sg-06c795c66be8937be/IpPermissions/443443tcp"),
+        ("0.0.0.0/0", "sg-06c795c66be8937be/IpPermissionsEgress/8080tcp"),
+        ("8.8.8.8/32", "sg-06c795c66be8937be/IpPermissionsEgress/NoneNone-1"),
+        ("0.0.0.0/0", "sg-06c795c66be8937be/IpPermissionsEgress/443443tcp"),
+        ("0.0.0.0/0", "sg-0fd4fff275d63600f/IpPermissionsEgress/NoneNone-1"),
+        ("10.0.0.0/8", "sg-web-server-12345/IpPermissions/2222tcp"),
+        ("0.0.0.0/0", "sg-web-server-12345/IpPermissions/8080tcp"),
+        ("0.0.0.0/0", "sg-web-server-12345/IpPermissionsEgress/NoneNone-1"),
+    }
+
+    # Regression test for https://github.com/cartography-cncf/cartography/issues/2928:
+    # AWSIpRange is a reference to a shared CIDR, not a resource the account owns,
+    # so it must NOT carry a (:AWSAccount)-[:RESOURCE]->(:AWSIpRange) ownership edge.
+    assert (
+        check_rels(
+            neo4j_session,
+            "AWSAccount",
+            "id",
+            "AWSIpRange",
+            "id",
+            "RESOURCE",
+            rel_direction_right=True,
+        )
+        == set()
+    )
