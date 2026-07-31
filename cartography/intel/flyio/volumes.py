@@ -7,6 +7,7 @@ import requests
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
 from cartography.intel.flyio.util import get_json
+from cartography.intel.flyio.util import require_non_empty
 from cartography.models.flyio.volume import FlyVolumeSchema
 from cartography.util import timeit
 
@@ -47,7 +48,7 @@ def get(
 def transform(volumes: list[dict[str, Any]]) -> list[dict[str, Any]]:
     return [
         {
-            "id": volume["id"],
+            "id": require_non_empty(volume.get("id"), "volume id"),
             "name": volume.get("name"),
             "type": volume.get("type"),
             "state": volume.get("state"),

@@ -3,6 +3,12 @@ from typing import Any
 import requests
 
 
+def require_non_empty(value: Any, field_name: str) -> Any:
+    if value is None or value == "":
+        raise ValueError(f"Fly.io record is missing required non-empty {field_name}.")
+    return value
+
+
 def get_json(
     api_session: requests.Session,
     url: str,

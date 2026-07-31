@@ -7,6 +7,7 @@ import requests
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
 from cartography.intel.flyio.util import get_json
+from cartography.intel.flyio.util import require_non_empty
 from cartography.models.flyio.certificate import FlyCertificateSchema
 from cartography.util import timeit
 
@@ -64,7 +65,7 @@ def get(
 def transform(response: dict[str, Any], app_id: str) -> list[dict[str, Any]]:
     certificates = []
     for cert in response["certificates"]:
-        hostname = cert["hostname"]
+        hostname = require_non_empty(cert.get("hostname"), "certificate hostname")
         issued_certificates = []
         sources = []
         issuers = []

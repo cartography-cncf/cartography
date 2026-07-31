@@ -109,6 +109,15 @@ def test_transform_organizations_uses_sync_scope_as_id():
     ]
 
 
+def test_transform_apps_rejects_empty_ids():
+    # Arrange
+    response = {"apps": [{**APPS_RESPONSE["apps"][0], "id": ""}]}
+
+    # Act and assert
+    with pytest.raises(ValueError, match="required non-empty app id"):
+        cartography.intel.flyio.apps.transform_apps(response)
+
+
 def test_transform_machines_does_not_store_env_values():
     # Act
     machines = cartography.intel.flyio.machines.transform_machines(MACHINES_RESPONSE)
@@ -153,7 +162,7 @@ def test_transform_machines_rejects_empty_ids():
     machines = [{**MACHINES_RESPONSE[0], "id": ""}]
 
     # Act and assert
-    with pytest.raises(ValueError, match="required non-empty id"):
+    with pytest.raises(ValueError, match="required non-empty machine id"):
         cartography.intel.flyio.machines.transform_machines(machines)
 
 
@@ -196,6 +205,68 @@ def test_transform_services_and_ports():
     ]
 
 
+@pytest.mark.parametrize(
+    ("machine_override", "service_override", "expected_message"),
+    [
+        ({"id": ""}, {}, "required non-empty machine id"),
+        ({}, {"protocol": ""}, "required non-empty service protocol"),
+        ({}, {"internal_port": None}, "required non-empty service internal_port"),
+    ],
+)
+def test_transform_services_reject_empty_identity_components(
+    machine_override,
+    service_override,
+    expected_message,
+):
+    # Arrange
+    machine = {
+        **MACHINES_RESPONSE[0],
+        **machine_override,
+        "config": {
+            **MACHINES_RESPONSE[0]["config"],
+            "services": [
+                {
+                    **MACHINES_RESPONSE[0]["config"]["services"][0],
+                    **service_override,
+                },
+            ],
+        },
+    }
+
+    # Act and assert
+    with pytest.raises(ValueError, match=expected_message):
+        cartography.intel.flyio.machines.transform_services([machine])
+    with pytest.raises(ValueError, match=expected_message):
+        cartography.intel.flyio.machines.transform_service_ports([machine])
+
+
+def test_transform_service_ports_reject_empty_external_ports():
+    # Arrange
+    machine = {
+        **MACHINES_RESPONSE[0],
+        "config": {
+            **MACHINES_RESPONSE[0]["config"],
+            "services": [
+                {
+                    **MACHINES_RESPONSE[0]["config"]["services"][0],
+                    "ports": [
+                        {
+                            **MACHINES_RESPONSE[0]["config"]["services"][0]["ports"][
+                                0
+                            ],
+                            "port": None,
+                        },
+                    ],
+                },
+            ],
+        },
+    }
+
+    # Act and assert
+    with pytest.raises(ValueError, match="required non-empty service external port"):
+        cartography.intel.flyio.machines.transform_service_ports([machine])
+
+
 def test_transform_secrets_scopes_names_to_app():
     # Act
     secrets = cartography.intel.flyio.secrets.transform(
@@ -220,6 +291,15 @@ def test_transform_secrets_scopes_names_to_app():
             "updated_at": "2025-02-23T16:43:33Z",
         },
     ]
+
+
+def test_transform_secrets_rejects_empty_names():
+    # Arrange
+    response = {"secrets": [{**SECRETS_RESPONSE["secrets"][0], "name": ""}]}
+
+    # Act and assert
+    with pytest.raises(ValueError, match="required non-empty secret name"):
+        cartography.intel.flyio.secrets.transform(response, TEST_APP_ID)
 
 
 def test_transform_volumes_and_certificates():
@@ -255,6 +335,31 @@ def test_transform_volumes_and_certificates():
             "updated_at": "2026-07-31T07:00:00Z",
         },
     ]
+
+
+def test_transform_volumes_rejects_empty_ids():
+    # Arrange
+    volumes = [{**VOLUMES_RESPONSE[0], "id": ""}]
+
+    # Act and assert
+    with pytest.raises(ValueError, match="required non-empty volume id"):
+        cartography.intel.flyio.volumes.transform(volumes)
+
+
+def test_transform_certificates_rejects_empty_hostnames():
+    # Arrange
+    response = {
+        "certificates": [
+            {
+                **CERTIFICATES_RESPONSE["certificates"][0],
+                "hostname": "",
+            },
+        ],
+    }
+
+    # Act and assert
+    with pytest.raises(ValueError, match="required non-empty certificate hostname"):
+        cartography.intel.flyio.certificates.transform(response, TEST_APP_ID)
 
 
 def test_transform_ips():
@@ -355,7 +460,7 @@ def test_transform_users_rejects_empty_ids():
     }
 
     # Act and assert
-    with pytest.raises(ValueError, match="required non-empty id"):
+    with pytest.raises(ValueError, match="required non-empty user id"):
         cartography.intel.flyio.users.transform(response)
 
 
@@ -413,7 +518,7 @@ def test_transform_access_tokens_rejects_empty_ids():
     ]
 
     # Act and assert
-    with pytest.raises(ValueError, match="required non-empty id"):
+    with pytest.raises(ValueError, match="required non-empty access token id"):
         cartography.intel.flyio.access_tokens.transform(tokens)
 
 
@@ -477,7 +582,7 @@ def test_transform_releases_rejects_empty_ids():
     }
 
     # Act and assert
-    with pytest.raises(ValueError, match="required non-empty id"):
+    with pytest.raises(ValueError, match="required non-empty release id"):
         cartography.intel.flyio.releases.transform(response)
 
 

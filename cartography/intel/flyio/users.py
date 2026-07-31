@@ -7,6 +7,7 @@ import requests
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
 from cartography.intel.flyio.util import post_graphql
+from cartography.intel.flyio.util import require_non_empty
 from cartography.models.flyio.user import FlyUserSchema
 from cartography.util import timeit
 
@@ -73,9 +74,7 @@ def transform(response: dict[str, Any]) -> list[dict[str, Any]]:
     users_by_id = {}
     for edge in members.get("edges") or []:
         user = edge.get("node") or {}
-        user_id = user.get("id")
-        if not user_id:
-            raise ValueError("Fly User record is missing required non-empty id.")
+        user_id = require_non_empty(user.get("id"), "user id")
         users_by_id[user_id] = {
             "id": user_id,
             "name": user.get("name"),

@@ -7,6 +7,7 @@ import requests
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
 from cartography.intel.flyio.util import post_graphql
+from cartography.intel.flyio.util import require_non_empty
 from cartography.models.flyio.release import FlyReleaseSchema
 from cartography.util import timeit
 
@@ -103,8 +104,7 @@ def transform(response: dict[str, Any]) -> list[dict[str, Any]]:
     releases = app.get("releases") or {}
     result = []
     for release in releases.get("nodes") or []:
-        if not release.get("id"):
-            raise ValueError("Fly Release record is missing required non-empty id.")
+        require_non_empty(release.get("id"), "release id")
         result.append(_transform_release(release))
     return result
 

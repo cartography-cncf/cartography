@@ -7,6 +7,7 @@ import requests
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
 from cartography.intel.flyio.util import get_json
+from cartography.intel.flyio.util import require_non_empty
 from cartography.models.flyio.machine import FlyMachineSchema
 from cartography.models.flyio.service import FlyMachineServicePortSchema
 from cartography.models.flyio.service import FlyMachineServiceSchema
@@ -68,9 +69,7 @@ def get(
 def transform_machines(machines: list[dict[str, Any]]) -> list[dict[str, Any]]:
     result = []
     for machine in machines:
-        machine_id = machine["id"]
-        if not machine_id:
-            raise ValueError("Fly Machine record is missing required non-empty id.")
+        machine_id = require_non_empty(machine.get("id"), "machine id")
         config = machine.get("config") or {}
         guest = config.get("guest") or {}
         restart = config.get("restart") or {}
@@ -109,11 +108,15 @@ def transform_machines(machines: list[dict[str, Any]]) -> list[dict[str, Any]]:
 def transform_services(machines: list[dict[str, Any]]) -> list[dict[str, Any]]:
     services = []
     for machine in machines:
+        machine_id = require_non_empty(machine.get("id"), "machine id")
         config = machine.get("config") or {}
         for service in config.get("services") or []:
-            protocol = service.get("protocol")
-            internal_port = service.get("internal_port")
-            service_id = f"{machine['id']}/{protocol}/{internal_port}"
+            protocol = require_non_empty(service.get("protocol"), "service protocol")
+            internal_port = require_non_empty(
+                service.get("internal_port"),
+                "service internal_port",
+            )
+            service_id = f"{machine_id}/{protocol}/{internal_port}"
             services.append(
                 {
                     "id": service_id,
@@ -123,7 +126,7 @@ def transform_services(machines: list[dict[str, Any]]) -> list[dict[str, Any]]:
                     "autostart": service.get("autostart"),
                     "min_machines_running": service.get("min_machines_running"),
                     "force_instance_key": service.get("force_instance_key"),
-                    "machine_id": machine["id"],
+                    "machine_id": machine_id,
                 }
             )
     return services
@@ -132,13 +135,20 @@ def transform_services(machines: list[dict[str, Any]]) -> list[dict[str, Any]]:
 def transform_service_ports(machines: list[dict[str, Any]]) -> list[dict[str, Any]]:
     ports = []
     for machine in machines:
+        machine_id = require_non_empty(machine.get("id"), "machine id")
         config = machine.get("config") or {}
         for service in config.get("services") or []:
-            protocol = service.get("protocol")
-            internal_port = service.get("internal_port")
-            service_id = f"{machine['id']}/{protocol}/{internal_port}"
+            protocol = require_non_empty(service.get("protocol"), "service protocol")
+            internal_port = require_non_empty(
+                service.get("internal_port"),
+                "service internal_port",
+            )
+            service_id = f"{machine_id}/{protocol}/{internal_port}"
             for port in service.get("ports") or []:
-                external_port = port.get("port")
+                external_port = require_non_empty(
+                    port.get("port"),
+                    "service external port",
+                )
                 ports.append(
                     {
                         "id": f"{service_id}/{external_port}",

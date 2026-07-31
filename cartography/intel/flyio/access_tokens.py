@@ -7,6 +7,7 @@ import requests
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
 from cartography.intel.flyio.util import post_graphql
+from cartography.intel.flyio.util import require_non_empty
 from cartography.models.flyio.access_token import FlyAppAccessTokenSchema
 from cartography.models.flyio.access_token import FlyOrganizationAccessTokenSchema
 from cartography.util import timeit
@@ -141,11 +142,7 @@ def transform_app_tokens(response: dict[str, Any]) -> list[dict[str, Any]]:
 def transform(tokens: list[dict[str, Any]]) -> list[dict[str, Any]]:
     result = []
     for token in tokens:
-        token_id = token.get("id")
-        if not token_id:
-            raise ValueError(
-                "Fly Access Token record is missing required non-empty id.",
-            )
+        token_id = require_non_empty(token.get("id"), "access token id")
         user = token.get("user") or {}
         result.append(
             {
