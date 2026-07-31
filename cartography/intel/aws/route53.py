@@ -20,6 +20,13 @@ from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
 
+# ELB DNS names live under AWS-owned domains, so a suffix match here cannot collide with a
+# customer zone. GovCloud ELBs use the commercial domain; only China has its own.
+_ELB_DNS_SUFFIXES = (
+    ".elb.amazonaws.com",
+    ".elb.amazonaws.com.cn",
+)
+
 DnsData = namedtuple(
     "DnsData",
     [
@@ -62,15 +69,20 @@ def _normalize_alias_target(value: str) -> str:
     Route53 puts on alias targets pointing at an ELB: the ELB APIs return the same load
     balancer's DNSName without it, so leaving it in place means the alias never matches.
 
-    The prefix is only an ELB artifact, hence the `.elb.` check. An alias may also point at
-    another record in the same hosted zone, and an ordinary CNAME's value is zone data written
-    by the operator; in both of those a leading `dualstack.` belongs to a genuinely different
-    hostname and stripping it would rewrite the record's target.
+    The prefix is only an ELB artifact, hence the suffix check against the AWS-owned ELB
+    domains. An alias may also point at another record in the same hosted zone, and an ordinary
+    CNAME's value is zone data written by the operator; in both of those a leading `dualstack.`
+    belongs to a genuinely different hostname and stripping it would rewrite the target. A
+    hostname in an arbitrary zone can contain `.elb.` too, so only the suffix is conclusive.
     """
     normalized = _normalize_dns_target(value)
-    if ".elb." not in normalized:
+    if not normalized.startswith("dualstack."):
         return normalized
-    return normalized.removeprefix("dualstack.")
+
+    without_dualstack = normalized.removeprefix("dualstack.")
+    if without_dualstack.endswith(_ELB_DNS_SUFFIXES):
+        return without_dualstack
+    return normalized
 
 
 @timeit

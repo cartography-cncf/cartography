@@ -43,6 +43,12 @@ def test_normalize_dns_target(value, expected):
         # An alias may target another record in the same hosted zone rather than an ELB. There
         # a leading `dualstack.` is part of a genuinely different hostname, so it must survive.
         ("dualstack.internal.example.com.", "dualstack.internal.example.com"),
+        # `.elb.` can appear anywhere in a customer zone, so only the AWS-owned suffix is
+        # conclusive. This name is not an ELB and must be left alone.
+        (
+            "dualstack.app.elb.internal.example.com.",
+            "dualstack.app.elb.internal.example.com",
+        ),
         # Non-ELB alias targets never carry the prefix and must not be rewritten either.
         ("d111111abcdef8.cloudfront.net.", "d111111abcdef8.cloudfront.net"),
         # `dualstack` is only a prefix, never stripped from the middle of a name.
