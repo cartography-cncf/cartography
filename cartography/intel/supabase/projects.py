@@ -9,6 +9,7 @@ from cartography.graph.job import GraphJob
 from cartography.intel.supabase.util import get_json
 from cartography.intel.supabase.util import iso_to_datetime
 from cartography.intel.supabase.util import TOLERATED_STATUSES
+from cartography.intel.supabase.util import warn_unavailable
 from cartography.models.supabase.database import SupabaseDatabaseSchema
 from cartography.models.supabase.project import SupabaseProjectSchema
 from cartography.util import timeit
@@ -355,6 +356,14 @@ def sync_database(
     Sync the single Postgres database backing the project in scope, along with its
     network, TLS and backup posture.
     """
+    # No enrichment means the database details were unreadable, not that the database
+    # was deleted: the organization listing returns projects that the creator-only
+    # /v1/projects response omits. Loading nothing and then cleaning up would delete a
+    # database node ingested by an earlier sync, so skip both.
+    if not project.get("database"):
+        warn_unavailable("database details", project["ref"])
+        return
+
     posture = get_database_posture(
         api_session,
         common_job_parameters["BASE_URL"],

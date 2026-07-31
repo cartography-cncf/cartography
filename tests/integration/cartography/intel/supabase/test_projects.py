@@ -637,3 +637,62 @@ def test_supabase_project_cleanup_cascades_to_children(neo4j_session):
     }
     assert not any(b.startswith(f"{doomed_ref}/") for b in bucket_ids)
     assert any(b.startswith(f"{surviving_ref}/") for b in bucket_ids)
+
+
+def test_supabase_database_survives_missing_enrichment(neo4j_session):
+    """
+    Losing the database enrichment must not delete an already-ingested database node.
+
+    The organization listing returns projects that the creator-only /v1/projects
+    response omits, so an absent `database` object means "details unavailable", not
+    "database deleted". Loading nothing and then running cleanup would destroy the
+    node, along with the posture recorded on it.
+    """
+    # Arrange: a first sync with enrichment present records the database.
+    api_session = requests.Session()
+    _ensure_local_neo4j_has_test_organizations(neo4j_session)
+    _ensure_local_neo4j_has_test_projects(neo4j_session)
+    project = tests.data.supabase.projects.SUPABASE_PROJECTS[0]
+    common = {
+        "UPDATE_TAG": TEST_UPDATE_TAG,
+        "BASE_URL": TEST_BASE_URL,
+        "ORG_SLUG": TEST_ORG_SLUG,
+        "PROJECT_REF": project["ref"],
+    }
+    with patch.object(
+        cartography.intel.supabase.projects,
+        "get_database_posture",
+        return_value=_POSTURE,
+    ):
+        cartography.intel.supabase.projects.sync_database(
+            neo4j_session, api_session, project, common
+        )
+    database_id = f"{project['ref']}/postgres"
+    assert (database_id,) in check_nodes(neo4j_session, "SupabaseDatabase", ["id"])
+
+    # Act: the same project comes back without enrichment, on a later update tag so a
+    # cleanup would consider the existing database node stale.
+    unenriched = {**project, "database": None}
+    with patch.object(
+        cartography.intel.supabase.projects,
+        "get_database_posture",
+        return_value=_POSTURE,
+    ):
+        cartography.intel.supabase.projects.sync_database(
+            neo4j_session,
+            api_session,
+            unenriched,
+            {**common, "UPDATE_TAG": TEST_UPDATE_TAG + 40},
+        )
+
+    # Assert the node and its posture survived.
+    record = neo4j_session.run(
+        """
+        MATCH (d:SupabaseDatabase {id: $id})
+        RETURN d.host AS host, d.ssl_enforced AS ssl_enforced
+        """,
+        id=database_id,
+    ).single()
+    assert record is not None, "database node must not be deleted"
+    assert record["host"] == "db.nuclearplantdbaaaaaa.supabase.co"
+    assert record["ssl_enforced"] is True
