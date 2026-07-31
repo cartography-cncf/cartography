@@ -1011,7 +1011,6 @@ async def fetch_image_layers_async(
         - history_by_diff_id: Map of diff_id to history command (created_by)
         - provenance_by_image_uri: Maps image URI to provenance info
         """
-        nonlocal fetch_complete
         async with semaphore:
             # Caller guarantees these fields exist in every repo_image
             uri = repo_image["uri"]
@@ -1131,14 +1130,20 @@ async def fetch_image_layers_async(
                 # attestation data overrides label fallback data for the same field.
                 provenance_by_child_digest: dict[str, dict[str, Any]] = {}
 
+                transient_failures = [
+                    result
+                    for result in child_results
+                    if isinstance(result, ECRLayerFetchTransientError)
+                ]
+                if transient_failures:
+                    logger.warning(
+                        "Discarding partial ECR manifest-list enrichment after "
+                        "a child manifest failed: %s",
+                        transient_failures[0],
+                    )
+                    raise transient_failures[0]
+
                 for result in child_results:
-                    if isinstance(result, ECRLayerFetchTransientError):
-                        fetch_complete = False
-                        logger.warning(
-                            "Skipping child manifest after transient error: %s",
-                            result,
-                        )
-                        continue
                     if isinstance(result, BaseException):
                         raise result
                     layer_data, hist_data, provenance_data = result

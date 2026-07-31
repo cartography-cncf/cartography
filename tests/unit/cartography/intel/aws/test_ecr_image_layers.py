@@ -568,10 +568,10 @@ def test_fetch_image_layers_async_skips_only_transient_image_failure(mocker):
     assert fetch_complete is False
 
 
-def test_fetch_image_layers_async_still_processes_successful_children_when_one_child_fails_transiently(
+def test_fetch_image_layers_async_discards_manifest_list_when_one_child_fails_transiently(
     mocker,
 ):
-    """A transient child failure should not poison the whole manifest list."""
+    """A transient child failure must discard all partial manifest-list data."""
     repo_uri = "000000000000.dkr.ecr.us-east-1.amazonaws.com/example-repository"
     repo_images_list = [
         {
@@ -620,9 +620,9 @@ def test_fetch_image_layers_async_still_processes_successful_children_when_one_c
         )
     )
 
-    assert f"{repo_uri}:manifest-list" in image_layers_data
-    assert image_digest_map == {f"{repo_uri}:manifest-list": "sha256:manifest-list"}
-    assert isinstance(history_by_diff_id, dict)
+    assert image_layers_data == {}
+    assert image_digest_map == {}
+    assert history_by_diff_id == {}
     assert image_attestation_map == {}
     assert fetch_complete is False
 
