@@ -651,6 +651,30 @@ railway_mapping = OntologyMapping(
     ],
 )
 
+supabase_mapping = OntologyMapping(
+    module_name="supabase",
+    nodes=[
+        OntologyNodeMapping(
+            node_label="SupabaseOrganizationMember",
+            fields=[
+                OntologyFieldMapping(
+                    ontology_field="email", node_field="email", required=True
+                ),
+                OntologyFieldMapping(ontology_field="username", node_field="user_name"),
+                OntologyFieldMapping(
+                    ontology_field="has_mfa",
+                    node_field="mfa_enabled",
+                    special_handling="to_boolean",
+                ),
+                # inactive: Not available. The members endpoint lists only current
+                # members, with no suspended or deactivated state.
+                # lastactivity: Not available.
+            ],
+        ),
+    ],
+)
+
+
 USERACCOUNTS_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     "microsoft": entra_mapping,
     "lastpass": lastpass_mapping,
@@ -710,4 +734,5 @@ USERACCOUNTS_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
             ),
         ],
     ),
+    "supabase": supabase_mapping,
 }

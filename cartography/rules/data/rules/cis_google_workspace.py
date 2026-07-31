@@ -10,6 +10,7 @@ Facts within a Rule are provider-specific implementations of the same concept.
 
 from cartography.rules.data.frameworks.cis import cis_google_workspace
 from cartography.rules.data.frameworks.iso27001 import iso27001_annex_a
+from cartography.rules.data.frameworks.soc2 import soc2_tsc
 from cartography.rules.spec.model import Fact
 from cartography.rules.spec.model import Finding
 from cartography.rules.spec.model import Maturity
@@ -96,6 +97,7 @@ googleworkspace_users_without_enforced_2sv = Rule(
     frameworks=(
         cis_google_workspace("4.1.1.3"),
         iso27001_annex_a("8.5"),
+        soc2_tsc("CC6.1"),
     ),
 )
 
@@ -180,6 +182,7 @@ googleworkspace_admins_without_enforced_2sv = Rule(
         cis_google_workspace("4.1.1.1"),
         iso27001_annex_a("8.5"),
         iso27001_annex_a("8.2"),
+        soc2_tsc("CC6.1"),
     ),
 )
 
@@ -329,6 +332,7 @@ googleworkspace_too_many_super_admin_accounts = Rule(
         cis_google_workspace("1.1.2"),
         iso27001_annex_a("8.2"),
         iso27001_annex_a("5.18"),
+        soc2_tsc("CC6.3"),
     ),
 )
 
@@ -394,6 +398,7 @@ googleworkspace_super_admin_accounts_used_for_daily_admin = Rule(
     frameworks=(
         cis_google_workspace("1.1.3"),
         iso27001_annex_a("8.2"),
+        soc2_tsc("CC6.3"),
     ),
 )
 

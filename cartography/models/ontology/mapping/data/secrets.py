@@ -140,6 +140,27 @@ railway_mapping = OntologyMapping(
     ],
 )
 
+supabase_mapping = OntologyMapping(
+    module_name="supabase",
+    nodes=[
+        OntologyNodeMapping(
+            node_label="SupabaseSecret",
+            fields=[
+                OntologyFieldMapping(
+                    ontology_field="name", node_field="name", required=True
+                ),
+                OntologyFieldMapping(
+                    ontology_field="updated_at", node_field="updated_at"
+                ),
+                # created_at: Not available; the secrets endpoint returns only
+                # updated_at.
+                # rotation_enabled: Supabase has no managed secret rotation.
+            ],
+        ),
+    ],
+)
+
+
 SECRETS_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     "aws": aws_mapping,
     "gcp": gcp_mapping,
@@ -147,4 +168,5 @@ SECRETS_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     "github": github_mapping,
     "kubernetes": kubernetes_mapping,
     "railway": railway_mapping,
+    "supabase": supabase_mapping,
 }

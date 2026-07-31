@@ -1,4 +1,5 @@
 from cartography.rules.data.frameworks.iso27001 import iso27001_annex_a
+from cartography.rules.data.frameworks.soc2 import soc2_tsc
 from cartography.rules.spec.model import Fact
 from cartography.rules.spec.model import Finding
 from cartography.rules.spec.model import Maturity
@@ -360,5 +361,6 @@ policy_administration_privileges = Rule(
     frameworks=(
         iso27001_annex_a("5.18"),
         iso27001_annex_a("8.2"),
+        soc2_tsc("CC6.3"),
     ),
 )
