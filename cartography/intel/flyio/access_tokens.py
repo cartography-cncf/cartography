@@ -143,7 +143,9 @@ def transform(tokens: list[dict[str, Any]]) -> list[dict[str, Any]]:
     for token in tokens:
         token_id = token.get("id")
         if not token_id:
-            continue
+            raise ValueError(
+                "Fly Access Token record is missing required non-empty id.",
+            )
         user = token.get("user") or {}
         result.append(
             {

@@ -75,7 +75,7 @@ def transform(response: dict[str, Any]) -> list[dict[str, Any]]:
         user = edge.get("node") or {}
         user_id = user.get("id")
         if not user_id:
-            continue
+            raise ValueError("Fly User record is missing required non-empty id.")
         users_by_id[user_id] = {
             "id": user_id,
             "name": user.get("name"),

@@ -88,18 +88,25 @@ def get(
         page_info = release_connection.get("pageInfo") or {}
         if not page_info.get("hasNextPage"):
             break
-        after = page_info.get("endCursor")
+        next_cursor = page_info.get("endCursor")
+        if not next_cursor or next_cursor == after:
+            raise ValueError(
+                "Fly.io releases pagination returned hasNextPage=true "
+                "without an advancing endCursor.",
+            )
+        after = next_cursor
     return {"app": {"releases": {"nodes": releases}}}
 
 
 def transform(response: dict[str, Any]) -> list[dict[str, Any]]:
     app = response.get("app") or {}
     releases = app.get("releases") or {}
-    return [
-        _transform_release(release)
-        for release in releases.get("nodes") or []
-        if release.get("id")
-    ]
+    result = []
+    for release in releases.get("nodes") or []:
+        if not release.get("id"):
+            raise ValueError("Fly Release record is missing required non-empty id.")
+        result.append(_transform_release(release))
+    return result
 
 
 def _transform_release(release: dict[str, Any]) -> dict[str, Any]:

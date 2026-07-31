@@ -334,6 +334,31 @@ def test_transform_users():
     ]
 
 
+def test_transform_users_rejects_empty_ids():
+    # Arrange
+    response = {
+        "organization": {
+            "members": {
+                "edges": [
+                    {
+                        "role": "ADMIN",
+                        "joinedAt": "2025-02-21T17:12:43Z",
+                        "node": {
+                            "id": "",
+                            "name": None,
+                            "email": "jonathanfemi@example.com",
+                        },
+                    },
+                ],
+            },
+        },
+    }
+
+    # Act and assert
+    with pytest.raises(ValueError, match="required non-empty id"):
+        cartography.intel.flyio.users.transform(response)
+
+
 def test_transform_access_tokens():
     # Act
     app_tokens = cartography.intel.flyio.access_tokens.transform_app_tokens(
@@ -378,6 +403,20 @@ def test_transform_access_tokens():
     }
 
 
+def test_transform_access_tokens_rejects_empty_ids():
+    # Arrange
+    tokens = [
+        {
+            "id": "",
+            "name": "FLY_API_TOKEN",
+        },
+    ]
+
+    # Act and assert
+    with pytest.raises(ValueError, match="required non-empty id"):
+        cartography.intel.flyio.access_tokens.transform(tokens)
+
+
 def test_transform_releases():
     # Act
     releases = cartography.intel.flyio.releases.transform(RELEASES_RESPONSE)
@@ -420,6 +459,26 @@ def test_transform_releases():
             "user_email": None,
         },
     ]
+
+
+def test_transform_releases_rejects_empty_ids():
+    # Arrange
+    response = {
+        "app": {
+            "releases": {
+                "nodes": [
+                    {
+                        "id": "",
+                        "version": 35,
+                    },
+                ],
+            },
+        },
+    }
+
+    # Act and assert
+    with pytest.raises(ValueError, match="required non-empty id"):
+        cartography.intel.flyio.releases.transform(response)
 
 
 @patch.object(cartography.intel.flyio.users, "post_graphql")
@@ -562,6 +621,57 @@ def test_get_releases_follows_next_cursor(mock_post_graphql):
         cartography.intel.flyio.releases.FLY_RELEASES_QUERY,
         {"appName": "example-app", "limit": 100, "after": "cursor-1"},
     )
+
+
+@pytest.mark.parametrize(
+    "page_info",
+    [
+        {
+            "hasNextPage": True,
+            "endCursor": None,
+        },
+        {
+            "hasNextPage": True,
+            "endCursor": "cursor-1",
+        },
+    ],
+)
+@patch.object(cartography.intel.flyio.releases, "post_graphql")
+def test_get_releases_rejects_missing_or_repeated_next_cursor(
+    mock_post_graphql,
+    page_info,
+):
+    # Arrange
+    api_session = Mock()
+    mock_post_graphql.side_effect = [
+        {
+            "app": {
+                "releases": {
+                    "nodes": [{"id": "release_1"}],
+                    "pageInfo": {
+                        "hasNextPage": True,
+                        "endCursor": "cursor-1",
+                    },
+                },
+            },
+        },
+        {
+            "app": {
+                "releases": {
+                    "nodes": [{"id": "release_2"}],
+                    "pageInfo": page_info,
+                },
+            },
+        },
+    ]
+
+    # Act and assert
+    with pytest.raises(ValueError, match="advancing endCursor"):
+        cartography.intel.flyio.releases.get(
+            api_session,
+            "https://api.fly.io/graphql",
+            "example-app",
+        )
 
 
 @patch.object(cartography.intel.flyio.ips, "post_graphql")
