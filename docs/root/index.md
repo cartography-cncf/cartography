@@ -58,6 +58,7 @@ modules/snipeit/index
 modules/socketdev/index
 modules/spacelift/index
 modules/subimage/index
+modules/supabase/index
 modules/syft/index
 modules/tailscale/index
 modules/trivy/index

@@ -1,8 +1,10 @@
+from contextlib import nullcontext
 from unittest.mock import AsyncMock
 from unittest.mock import MagicMock
 from unittest.mock import patch
 
 import pytest
+from botocore.exceptions import ClientError
 
 import cartography.intel.aws.ecr
 import cartography.intel.aws.ecr_image_layers as ecr_layers
@@ -54,6 +56,148 @@ class _FakeAsyncHttpClient:
 
     async def get(self, url, timeout):
         return _FakeHttpResponse(self._json_data)
+
+
+def _load_example_ecr_image(neo4j_session, mocker):
+    mocker.patch.object(
+        cartography.intel.aws.ecr,
+        "get_ecr_repositories",
+        return_value=test_data.DESCRIBE_REPOSITORIES["repositories"][:1],
+    )
+    mocker.patch.object(
+        cartography.intel.aws.ecr,
+        "get_ecr_repository_images",
+        return_value=test_data.LIST_REPOSITORY_IMAGES[
+            "000000000000.dkr.ecr.us-east-1.amazonaws.com/example-repository"
+        ][:1],
+    )
+    create_test_account(neo4j_session, TEST_ACCOUNT_ID, TEST_UPDATE_TAG)
+    cartography.intel.aws.ecr.sync(
+        neo4j_session,
+        MagicMock(),
+        [TEST_REGION],
+        TEST_ACCOUNT_ID,
+        TEST_UPDATE_TAG,
+        {"UPDATE_TAG": TEST_UPDATE_TAG, "AWS_ID": TEST_ACCOUNT_ID},
+    )
+
+
+def _synthetic_client_error(error_code):
+    return ClientError(
+        {
+            "Error": {
+                "Code": error_code,
+                "Message": "Synthetic AWS client error",
+            },
+        },
+        "AssumeRole",
+    )
+
+
+def test_sync_recreates_session_after_credential_refresh_failure(
+    mocker,
+    neo4j_session,
+):
+    # Arrange
+    _load_example_ecr_image(neo4j_session, mocker)
+    stale_session = MagicMock(name="stale_session")
+    fresh_session = MagicMock(name="fresh_session")
+    session_factory = MagicMock(return_value=fresh_session)
+
+    stale_client = AsyncMock()
+    stale_client.batch_get_image.side_effect = _synthetic_client_error(
+        "InvalidClientTokenId",
+    )
+    fresh_client = AsyncMock()
+    fresh_client.batch_get_image.return_value = test_data.BATCH_GET_IMAGE_RESPONSE
+    create_client = mocker.patch.object(
+        ecr_layers,
+        "create_aioboto3_client",
+        side_effect=[
+            _FakeAsyncEcrClientContext(stale_client),
+            _FakeAsyncEcrClientContext(fresh_client),
+        ],
+    )
+    mocker.patch.object(
+        ecr_layers,
+        "get_blob_json_via_presigned",
+        new=AsyncMock(return_value=test_data.SAMPLE_CONFIG_BLOB),
+    )
+
+    # Act
+    sync_ecr_layers(
+        neo4j_session,
+        stale_session,
+        [TEST_REGION],
+        TEST_ACCOUNT_ID,
+        TEST_UPDATE_TAG,
+        {"UPDATE_TAG": TEST_UPDATE_TAG, "AWS_ID": TEST_ACCOUNT_ID},
+        aioboto3_session_factory=session_factory,
+    )
+
+    # Assert
+    session_factory.assert_called_once_with()
+    assert [client_call.args[0] for client_call in create_client.call_args_list] == [
+        stale_session,
+        fresh_session,
+    ]
+    assert check_nodes(neo4j_session, "AWSECRImageLayer", ["id"])
+
+
+@pytest.mark.parametrize(
+    ("error_code", "use_session_factory", "expected_attempts", "propagates"),
+    [
+        ("InvalidClientTokenId", True, 2, True),
+        ("InvalidClientTokenId", False, 1, True),
+        ("AccessDeniedException", True, 1, False),
+        ("RepositoryNotFoundException", True, 1, True),
+    ],
+)
+def test_sync_bounds_credential_retry_and_preserves_other_errors(
+    error_code,
+    use_session_factory,
+    expected_attempts,
+    propagates,
+    mocker,
+    neo4j_session,
+):
+    # Arrange
+    _load_example_ecr_image(neo4j_session, mocker)
+    client_error = _synthetic_client_error(error_code)
+    sessions = [
+        MagicMock(name=f"session_{index}") for index in range(expected_attempts)
+    ]
+    session_factory = MagicMock(return_value=sessions[-1])
+    clients = [AsyncMock() for _ in range(expected_attempts)]
+    for client in clients:
+        client.batch_get_image.side_effect = client_error
+    create_client = mocker.patch.object(
+        ecr_layers,
+        "create_aioboto3_client",
+        side_effect=[_FakeAsyncEcrClientContext(client) for client in clients],
+    )
+    sync_kwargs = (
+        {"aioboto3_session_factory": session_factory} if use_session_factory else {}
+    )
+
+    # Act
+    expectation = pytest.raises(ClientError) if propagates else nullcontext()
+    with expectation as exc_info:
+        sync_ecr_layers(
+            neo4j_session,
+            sessions[0],
+            [TEST_REGION],
+            TEST_ACCOUNT_ID,
+            TEST_UPDATE_TAG,
+            {"UPDATE_TAG": TEST_UPDATE_TAG, "AWS_ID": TEST_ACCOUNT_ID},
+            **sync_kwargs,
+        )
+
+    # Assert
+    if propagates:
+        assert exc_info.value is client_error
+    assert create_client.call_count == expected_attempts
+    assert session_factory.call_count == expected_attempts - 1
 
 
 @patch.object(
