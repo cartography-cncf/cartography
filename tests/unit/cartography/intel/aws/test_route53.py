@@ -31,8 +31,22 @@ def test_normalize_dns_target(value, expected):
         (f"dualstack.{LB_DNS_NAME}.", LB_DNS_NAME),
         (f"dualstack.{LB_DNS_NAME}", LB_DNS_NAME),
         (f"{LB_DNS_NAME}.", LB_DNS_NAME),
+        # aws-cn and GovCloud ELBs carry the same prefix.
+        (
+            "dualstack.my-lb-1.cn-north-1.elb.amazonaws.com.cn.",
+            "my-lb-1.cn-north-1.elb.amazonaws.com.cn",
+        ),
+        (
+            "dualstack.my-lb-1.us-gov-west-1.elb.amazonaws.com.",
+            "my-lb-1.us-gov-west-1.elb.amazonaws.com",
+        ),
+        # An alias may target another record in the same hosted zone rather than an ELB. There
+        # a leading `dualstack.` is part of a genuinely different hostname, so it must survive.
+        ("dualstack.internal.example.com.", "dualstack.internal.example.com"),
+        # Non-ELB alias targets never carry the prefix and must not be rewritten either.
+        ("d111111abcdef8.cloudfront.net.", "d111111abcdef8.cloudfront.net"),
         # `dualstack` is only a prefix, never stripped from the middle of a name.
-        ("host.dualstack.example.com.", "host.dualstack.example.com"),
+        (f"host.dualstack.{LB_DNS_NAME}.", f"host.dualstack.{LB_DNS_NAME}"),
     ],
 )
 def test_normalize_alias_target(value, expected):

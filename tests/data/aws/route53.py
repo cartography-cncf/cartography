@@ -141,9 +141,10 @@ GET_ZONES_SAMPLE_RESPONSE = [
                 "Name": "elbv2.example.com.",
                 "AliasTarget": {
                     "HostedZoneId": "HOSTED_ZONE_2",
-                    # Route53 prefixes ELB alias targets with `dualstack.`; the ELBv2 API
-                    # returns the same load balancer's DNSName without it.
-                    "DNSName": "dualstack.myawesomeloadbalancer.amazonaws.com.",
+                    # No `dualstack.` prefix here on purpose: this fixture's DNS name is not a
+                    # real ELB name (no `.elb.`), and the prefix is only stripped for ELB
+                    # targets. GET_ZONES_MIXED_CASE_ALIAS_RESPONSE covers the prefix.
+                    "DNSName": "myawesomeloadbalancer.amazonaws.com.",
                     "EvaluateTargetHealth": False,
                 },
                 "TTL": 60,

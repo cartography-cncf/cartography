@@ -241,14 +241,16 @@ DNS_RECORD_LINKING_JOBS = (DNS_RECORD_TO_KUBERNETES_INGRESS,) + tuple(
                             "dns",
                             "DNS_POINTS_TO",
                             "target",
-                            # Must stay GCPRecordSet, not the broader DNSRecord: cleanup
-                            # effects dedupe by value, so a DNSRecord source label here
-                            # emits a second cleanup that lacks the cleanup_where guard
-                            # of the statement above and deletes provider-owned edges.
-                            # GCPRecordSet also carries the DNSRecord label, so the
-                            # generic cleanup still reaches GCP-sourced stale edges.
-                            source_label="GCPRecordSet",
+                            # Declared identically to the statement above, cleanup_where
+                            # included, so the two cleanup effects dedupe into a single
+                            # guarded delete. GCPRecordSet carries the DNSRecord label and is
+                            # never an AWSDNSRecord, so that one delete already covers these
+                            # edges; declaring GCPRecordSet here would only add a redundant
+                            # cleanup, and omitting cleanup_where would add an unguarded one
+                            # that deletes the provider-owned edges the guard protects.
+                            source_label="DNSRecord",
                             target_label=target_label,
+                            cleanup_where=cleanup_where,
                         ),
                     ),
                 ),

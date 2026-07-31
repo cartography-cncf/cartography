@@ -225,12 +225,6 @@ CLEANUP_CASES = [
         id="ontology_dnsrecords_to_aws_elbv2",
     ),
     pytest.param(
-        RelationshipEffect("GCPRecordSet", "DNS_POINTS_TO", "AWSLoadBalancerV2"),
-        None,
-        _rel_cleanup("GCPRecordSet", "DNS_POINTS_TO", "AWSLoadBalancerV2"),
-        id="ontology_gcp_recordset_to_aws_elbv2",
-    ),
-    pytest.param(
         RelationshipEffect(
             "DNSRecord",
             "DNS_POINTS_TO",
@@ -247,24 +241,10 @@ CLEANUP_CASES = [
         id="ontology_dnsrecords_to_aws_elb",
     ),
     pytest.param(
-        RelationshipEffect("GCPRecordSet", "DNS_POINTS_TO", "AWSLoadBalancer"),
-        None,
-        _rel_cleanup("GCPRecordSet", "DNS_POINTS_TO", "AWSLoadBalancer"),
-        id="ontology_gcp_recordset_to_aws_elb",
-    ),
-    pytest.param(
         RelationshipEffect("DNSRecord", "DNS_POINTS_TO", "AWSCloudFrontDistribution"),
         None,
         _rel_cleanup("DNSRecord", "DNS_POINTS_TO", "AWSCloudFrontDistribution"),
         id="ontology_dnsrecords_to_cloudfront",
-    ),
-    pytest.param(
-        RelationshipEffect(
-            "GCPRecordSet", "DNS_POINTS_TO", "AWSCloudFrontDistribution"
-        ),
-        None,
-        _rel_cleanup("GCPRecordSet", "DNS_POINTS_TO", "AWSCloudFrontDistribution"),
-        id="ontology_gcp_recordset_to_cloudfront",
     ),
     pytest.param(
         RelationshipEffect(
@@ -283,22 +263,10 @@ CLEANUP_CASES = [
         id="ontology_dnsrecords_to_ec2",
     ),
     pytest.param(
-        RelationshipEffect("GCPRecordSet", "DNS_POINTS_TO", "AWSEC2Instance"),
-        None,
-        _rel_cleanup("GCPRecordSet", "DNS_POINTS_TO", "AWSEC2Instance"),
-        id="ontology_gcp_recordset_to_ec2",
-    ),
-    pytest.param(
         RelationshipEffect("DNSRecord", "DNS_POINTS_TO", "GCPInstance"),
         None,
         _rel_cleanup("DNSRecord", "DNS_POINTS_TO", "GCPInstance"),
         id="ontology_dnsrecords_to_gcp_instance",
-    ),
-    pytest.param(
-        RelationshipEffect("GCPRecordSet", "DNS_POINTS_TO", "GCPInstance"),
-        None,
-        _rel_cleanup("GCPRecordSet", "DNS_POINTS_TO", "GCPInstance"),
-        id="ontology_gcp_recordset_to_gcp_instance",
     ),
     pytest.param(
         RelationshipEffect("DNSRecord", "DNS_POINTS_TO", "AzureAppService"),
@@ -307,22 +275,10 @@ CLEANUP_CASES = [
         id="ontology_dnsrecords_to_azure_app_service",
     ),
     pytest.param(
-        RelationshipEffect("GCPRecordSet", "DNS_POINTS_TO", "AzureAppService"),
-        None,
-        _rel_cleanup("GCPRecordSet", "DNS_POINTS_TO", "AzureAppService"),
-        id="ontology_gcp_recordset_to_azure_app_service",
-    ),
-    pytest.param(
         RelationshipEffect("DNSRecord", "DNS_POINTS_TO", "AzureFunctionApp"),
         None,
         _rel_cleanup("DNSRecord", "DNS_POINTS_TO", "AzureFunctionApp"),
         id="ontology_dnsrecords_to_azure_function",
-    ),
-    pytest.param(
-        RelationshipEffect("GCPRecordSet", "DNS_POINTS_TO", "AzureFunctionApp"),
-        None,
-        _rel_cleanup("GCPRecordSet", "DNS_POINTS_TO", "AzureFunctionApp"),
-        id="ontology_gcp_recordset_to_azure_function",
     ),
     pytest.param(
         PropertyEffect("EntraApplication", ("_ont_enabled",)),

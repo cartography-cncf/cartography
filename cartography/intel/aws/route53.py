@@ -58,15 +58,19 @@ def _normalize_dns_target(value: str) -> str:
 
 def _normalize_alias_target(value: str) -> str:
     """
-    Normalize an AliasTarget's DNSName, which additionally needs the `dualstack.` prefix that
-    Route53 puts on alias targets pointing at an ELB removed: the ELB APIs return the same
-    load balancer's DNSName without it, so leaving it in place means the alias never matches.
+    Normalize an AliasTarget's DNSName, additionally removing the `dualstack.` prefix that
+    Route53 puts on alias targets pointing at an ELB: the ELB APIs return the same load
+    balancer's DNSName without it, so leaving it in place means the alias never matches.
 
-    Only alias targets get this treatment. An ordinary CNAME's value is zone data written by
-    the operator, where a leading `dualstack.` belongs to a genuinely different hostname, so
-    stripping it there would rewrite the record's target.
+    The prefix is only an ELB artifact, hence the `.elb.` check. An alias may also point at
+    another record in the same hosted zone, and an ordinary CNAME's value is zone data written
+    by the operator; in both of those a leading `dualstack.` belongs to a genuinely different
+    hostname and stripping it would rewrite the record's target.
     """
-    return _normalize_dns_target(value).removeprefix("dualstack.")
+    normalized = _normalize_dns_target(value)
+    if ".elb." not in normalized:
+        return normalized
+    return normalized.removeprefix("dualstack.")
 
 
 @timeit

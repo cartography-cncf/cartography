@@ -1798,9 +1798,9 @@ Representation of an AWS DNS [ResourceRecordSet](https://docs.aws.amazon.com/Rou
 |firstseen| Timestamp of when a sync job first discovered this node |
 |**name**| The name of the DNSRecord|
 |lastupdated| Timestamp of the last time the node was updated|
-|**id**| The zoneid for the record, the value of the record, and the type concatenated together|
+|**id**| The zone id, the record `name` and the record `type` concatenated together. Not affected by the `value` normalization described below.|
 |type| The record type of the DNS record (A, AAAA, ALIAS, CNAME, NS, etc.)|
-|value| If it is an A or AAAA record, this is the IP address the DNSRecord resolves to. For CNAME or ALIAS records, this is the target hostname or AWS resource name, lowercased and with the trailing root dot removed. Alias targets additionally have Route53's `dualstack.` prefix removed, since the ELB APIs report the same load balancer without it; an ordinary CNAME's value keeps any leading `dualstack.` because there it is part of a genuinely different hostname. If it is an NS record, the `name` is used here.|
+|value| If it is an A or AAAA record, this is the IP address the DNSRecord resolves to. For CNAME or ALIAS records, this is the target hostname or AWS resource name, lowercased and with the trailing root dot removed. Alias targets pointing at a load balancer additionally have Route53's `dualstack.` prefix removed, since the ELB APIs report the same load balancer without it. Everywhere else a leading `dualstack.` is kept, because on an ordinary CNAME or an alias to another record in the same hosted zone it is part of a genuinely different hostname. If it is an NS record, the `name` is used here.|
 
 #### Relationships
 - AWSDNSRecords can point to IP addresses.

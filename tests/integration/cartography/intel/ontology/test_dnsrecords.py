@@ -23,6 +23,11 @@ def test_sync_keeps_route53_owned_dns_points_to_relationships(neo4j_session):
         MERGE (owned:AWSDNSRecord:DNSRecord {id: 'HOSTED_ZONE/elbv2.example.com/ALIAS'})
         SET owned.name = 'elbv2.example.com',
             owned.value = $lb_dns_name,
+            // _ont_value is populated on AWSDNSRecord in production, and the ontology match
+            // filters on it first. Without it this node would be skipped before the
+            // AWSDNSRecord guard is ever reached, and the assertions below would hold even if
+            // that guard regressed.
+            owned._ont_value = $lb_dns_name,
             owned.lastupdated = $aws_tag
 
         MERGE (stale:DNSRecord {id: 'generic-record-pointing-elsewhere'})

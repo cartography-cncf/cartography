@@ -58,7 +58,10 @@ def test_ontology_dns_cleanups_guard_route53_owned_edges():
         for statement in to_graph_job(job).statements:
             if "DELETE r" not in statement.query:
                 continue
-            # A cleanup scoped to GCPRecordSet sources can never reach an AWSDNSRecord.
+            # A cleanup scoped to GCPRecordSet sources can never reach an AWSDNSRecord. No job
+            # emits one today, since the GCP statements declare the same guarded DNSRecord
+            # effect as the generic ones and dedupe into a single delete, but such a cleanup
+            # would be safe if one came back.
             if "(source:GCPRecordSet)" in statement.query:
                 continue
             for target in owned:
