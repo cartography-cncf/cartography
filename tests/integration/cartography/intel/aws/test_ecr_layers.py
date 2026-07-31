@@ -59,6 +59,13 @@ class _FakeAsyncHttpClient:
 
 
 def _load_example_ecr_image(neo4j_session, mocker):
+    # Credential-recovery tests must exercise the registry fetch path even if a
+    # previous test left a complete layer closure for this shared image digest.
+    mocker.patch.object(
+        ecr_layers,
+        "get_complete_layer_digests",
+        return_value=set(),
+    )
     mocker.patch.object(
         cartography.intel.aws.ecr,
         "get_ecr_repositories",
