@@ -499,7 +499,7 @@ Representation of a [Kubernetes Service.](https://kubernetes.io/docs/concepts/se
     (:KubernetesService)-[:TARGETS]->(:KubernetesPod)
     ```
 
-- `KubernetesService` of type `LoadBalancer` uses an AWS `AWSLoadBalancerV2` (NLB/ALB). The relationship is matched by DNS hostname from the Kubernetes service's `status.loadBalancer.ingress[].hostname` field to the `AWSLoadBalancerV2.dnsname` property. This allows linking EKS services to their backing AWS load balancers.
+- `KubernetesService` of type `LoadBalancer` uses an AWS `AWSLoadBalancerV2` (NLB/ALB). The relationship is matched by DNS hostname from the Kubernetes service's `status.loadBalancer.ingress[].hostname` field to the `AWSLoadBalancerV2.dnsname` property. Both sides are lowercased at ingestion, since AWS preserves the load balancer name's case in the DNS name it hands to the in-cluster controller. This allows linking EKS services to their backing AWS load balancers.
     ```
     (:KubernetesService)-[:USES_LOAD_BALANCER]->(:AWSLoadBalancerV2)
     ```
@@ -578,7 +578,7 @@ An Ingress is an API object that manages external access to services in a cluste
     (:KubernetesIngress)-[:TARGETS]->(:KubernetesService)
     ```
 
-- `KubernetesIngress` uses an `AWSLoadBalancerV2`. Matched by the DNS hostname from the Ingress status to the load balancer's DNS name.
+- `KubernetesIngress` uses an `AWSLoadBalancerV2`. Matched by the DNS hostname from the Ingress status to the load balancer's DNS name; both are lowercased at ingestion.
     ```
     (:KubernetesIngress)-[:USES_LOAD_BALANCER]->(:AWSLoadBalancerV2)
     ```
