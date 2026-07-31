@@ -255,9 +255,9 @@ is the recommended identity to run Cartography under.
     (:ModalServiceUser)-[:CREATED_BY]->(:ModalUser)
     ```
 
-  `CREATED_BY` is best-effort: Modal reports the creator only as a workspace username, so
-  the edge joins on `ModalUser.display_name` and is simply absent when no member
-  matches.
+  `CREATED_BY` is best-effort: Modal reports the creator only as a workspace username, which
+  the transform resolves against this workspace's members to a `ModalUser` id. The edge is
+  simply absent when no member matches.
 
 | Field | Description |
 |-------|-------------|

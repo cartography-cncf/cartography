@@ -679,11 +679,14 @@ async def list_sandboxes_v2(
     sandboxes: list[dict[str, Any]] = []
     before_timestamp = 0.0
     complete = False
-    auth_token = await client.raw._auth_token_manager.get_token()
     for _ in range(_SANDBOX_PAGE_LIMIT):
         request = api_pb2.SandboxListRequest(app_id=app_id, include_finished=False)
         if before_timestamp:
             request.before_timestamp = before_timestamp
+        # Fetched per page, like Modal's own `_experimental_list`: a token read once before the
+        # loop can expire part-way through a long listing. The manager caches and only renews
+        # when needed, so this is not a round trip per page.
+        auth_token = await client.raw._auth_token_manager.get_token()
         response = await client.stub.SandboxListV2(
             request, metadata=[("x-modal-auth-token", auth_token)]
         )

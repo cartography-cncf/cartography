@@ -122,7 +122,7 @@ async def _sync(neo4j_session: neo4j.Session, config: Config) -> None:
     # Workspace-global resources. Users are loaded before anything that attributes creation
     # or binds a role, because both match on the user nodes. `members.sync` returns this
     # workspace's {username: user_id} map, which is how Modal's username-only `created_by` is
-    # resolved to an id; an empty map just leaves the CREATED_BY edges absent.
+    # resolved to an id.
     user_ids_by_username = await _run(
         "workspace members",
         cartography.intel.modal.members.sync,
@@ -130,21 +130,28 @@ async def _sync(neo4j_session: neo4j.Session, config: Config) -> None:
         client,
         common_job_parameters,
     )
+
+    # A failed member fetch is not the same as a workspace with no members. Carrying on with
+    # an empty map would resolve every `created_by` to None, so no CREATED_BY edge would be
+    # written and the ordinary node cleanup would then delete the ones a previous sync
+    # recorded: a transient error would silently erase valid attribution. The syncs that
+    # attribute creation are therefore skipped for this run, keeping their existing nodes and
+    # edges in place with a stale `lastupdated`.
     if user_ids_by_username is None:
         logger.warning(
-            "Modal workspace members could not be fetched, so object creation cannot be "
-            "attributed this run; CREATED_BY edges will be absent.",
+            "Modal workspace members could not be fetched, so service users, secrets and "
+            "volumes are skipped this run to preserve their existing CREATED_BY edges.",
         )
-        user_ids_by_username = {}
+    else:
+        await _run(
+            "service users",
+            cartography.intel.modal.service_users.sync,
+            neo4j_session,
+            client,
+            common_job_parameters,
+            user_ids_by_username,
+        )
 
-    await _run(
-        "service users",
-        cartography.intel.modal.service_users.sync,
-        neo4j_session,
-        client,
-        common_job_parameters,
-        user_ids_by_username,
-    )
     await _run(
         "proxy tokens",
         cartography.intel.modal.proxy_tokens.sync,
@@ -225,12 +232,16 @@ async def _sync(neo4j_session: neo4j.Session, config: Config) -> None:
         # The extra-args column carries what each sync needs beyond the common parameters:
         # secrets and volumes attribute creation, proxies partition a workspace-wide listing.
         flat_resources: list[tuple[str, Any, tuple[Any, ...]]] = [
-            ("secrets", cartography.intel.modal.secrets, (user_ids_by_username,)),
-            ("volumes", cartography.intel.modal.volumes, (user_ids_by_username,)),
             ("network file systems", cartography.intel.modal.nfs, ()),
             ("dicts", cartography.intel.modal.dicts, ()),
             ("queues", cartography.intel.modal.queues, ()),
         ]
+        # Skipped when the member list could not be read, for the reason given above.
+        if user_ids_by_username is not None:
+            flat_resources[:0] = [
+                ("secrets", cartography.intel.modal.secrets, (user_ids_by_username,)),
+                ("volumes", cartography.intel.modal.volumes, (user_ids_by_username,)),
+            ]
         if all_proxies is not None:
             flat_resources.append(
                 ("proxies", cartography.intel.modal.proxies, (all_proxies,))
