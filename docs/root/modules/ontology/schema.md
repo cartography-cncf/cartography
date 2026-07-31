@@ -212,7 +212,7 @@ Unlike the abstract `User` node, `UserGroup` is a semantic label applied to conc
 Common group concepts across platforms include:
 - **Cloud IAM**: AWS IAM Groups, AWS SSO Groups, OCI Groups, Scaleway Groups
 - **Identity Providers**: Entra Groups, Okta Groups, Keycloak Groups, Google Workspace Groups, GSuite Groups
-- **Collaboration**: GitHub Teams, GitLab Groups, Slack Groups, PagerDuty Teams
+- **Collaboration**: GitHub Teams, GitLab Groups, Slack Groups, PagerDuty Teams, Vercel Access Groups
 - **Network/Device**: Duo Groups, Tailscale Groups
 
 | Field | Description |
