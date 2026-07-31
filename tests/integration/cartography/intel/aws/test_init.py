@@ -933,6 +933,33 @@ def test_kms_syncs_before_kms_dependent_resources():
         )
 
 
+def test_route53_syncs_after_its_dns_points_to_targets():
+    """The route53 loader creates DNS_POINTS_TO by matching nodes that already exist, so the
+    modules holding those nodes must sync first, otherwise the edges are silently missed and
+    cleanup_route53 deletes the ones a previous run created."""
+    order = list(RESOURCE_FUNCTIONS.keys())
+    route53_index = order.index("route53")
+    for dependency in (
+        "ec2:load_balancer",
+        "ec2:load_balancer_v2",
+        "ec2:instance",
+        "elastic_ip_addresses",
+    ):
+        assert order.index(dependency) < route53_index, (
+            f"'{dependency}' must sync before 'route53' so its DNS_POINTS_TO edges can "
+            f"match existing nodes"
+        )
+
+
+def test_route53_syncs_before_elasticsearch():
+    """elasticsearch ingests its endpoint's DNS record with raw Cypher and its cleanup DETACH
+    DELETEs any stale DNSRecord pointing at an AWSESDomain. If route53 ran first and attached
+    its own record, that cleanup would delete the route53-owned node on every later run,
+    before route53 re-stamps it."""
+    order = list(RESOURCE_FUNCTIONS.keys())
+    assert order.index("route53") < order.index("elasticsearch")
+
+
 @mock.patch("cartography.intel.aws.aioboto3.Session")
 @mock.patch("cartography.intel.aws.boto3.Session")
 @mock.patch("cartography.intel.aws.organizations")

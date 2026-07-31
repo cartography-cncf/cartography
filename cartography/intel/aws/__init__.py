@@ -155,6 +155,17 @@ def _sync_one_account(
         "s3": ["kms"],
         "rds": ["kms"],
         "efs": ["kms"],
+        # `route53` creates DNS_POINTS_TO edges by matching already-existing target nodes,
+        # so selecting it without these produces zero such edges, and cleanup_route53 then
+        # deletes the ones a previous run had created. AWSESDomain is deliberately absent:
+        # `elasticsearch` runs after `route53`, so that edge is never created on a first run
+        # no matter what the user selects, and a warning here would not help.
+        "route53": [
+            "ec2:load_balancer",
+            "ec2:load_balancer_v2",
+            "ec2:instance",
+            "elastic_ip_addresses",
+        ],
     }
     for module, dependencies in module_dependencies.items():
         if module in requested_syncs_set:

@@ -1,6 +1,7 @@
 import json
 import pkgutil
 import re
+from collections import defaultdict
 from pathlib import Path
 from types import ModuleType
 from typing import Iterator
@@ -93,6 +94,28 @@ def test_typed_analysis_jobs_declare_effects_and_keep_match_queries_read_only():
                     f"{job.short_name or job.name} statement {index} inlines "
                     "its declared scope."
                 )
+
+
+def test_typed_analysis_jobs_do_not_declare_conflicting_cleanup_guards():
+    """
+    Cleanup effects dedupe by value, so two statements that add the same edge with
+    different cleanup_where values emit two cleanup statements, and the least
+    restrictive one wins. That silently re-widens a guard meant to protect
+    provider-owned edges, so the guard has to be consistent across the job.
+    """
+    for job in _analysis_jobs():
+        guards_by_edge: dict[tuple[str, str, str], set[str]] = defaultdict(set)
+        for effect in relationships_added(job):
+            edge = (effect.source_label, effect.rel_label, effect.target_label)
+            guards_by_edge[edge].add(effect.cleanup_where)
+
+        for edge, guards in guards_by_edge.items():
+            assert len(guards) == 1, (
+                f"{job.short_name or job.name} declares {edge} with conflicting "
+                f"cleanup_where values {sorted(guards)}; the job emits one cleanup "
+                "per distinct value and the least restrictive one deletes the edges "
+                "the others were written to keep."
+            )
 
 
 def test_relationship_job_appends_cleanup_statement():
