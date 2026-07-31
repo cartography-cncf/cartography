@@ -16,11 +16,14 @@ from cartography.models.ontology.labels import LOAD_BALANCER
 @dataclass(frozen=True)
 class LoadBalancerNodeProperties(CartographyNodeProperties):
     id: PropertyRef = PropertyRef(
-        "id", description="Currently set to the `dnsname` of the load balancer."
+        "id",
+        description="The load balancer's DNS name exactly as AWS returned it, case preserved. Unlike `dnsname` it is not lowercased, because listeners and target groups join against it.",
     )
     name: PropertyRef = PropertyRef("name", description="The name of the load balancer")
     dnsname: PropertyRef = PropertyRef(
-        "dnsname", extra_index=True, description="The DNS name of the load balancer."
+        "dnsname",
+        extra_index=True,
+        description="The DNS name of the load balancer, lowercased at ingestion. AWS preserves the load balancer name's case here, while Route53 alias targets and Kubernetes load balancer status hostnames are lowercase, and those are matched against this property for equality.",
     )
     canonicalhostedzonename: PropertyRef = PropertyRef(
         "canonicalhostedzonename", description="The DNS name of the load balancer"

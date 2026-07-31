@@ -145,7 +145,7 @@ class KubernetesIngressToLoadBalancerV2RelProperties(CartographyRelProperties):
 @dataclass(frozen=True)
 # (:KubernetesIngress)-[:USES_LOAD_BALANCER]->(:AWSLoadBalancerV2)
 class KubernetesIngressToLoadBalancerV2Rel(CartographyRelSchema):
-    """Links an ingress to the AWS load balancer that exposes it."""
+    """Links an ingress to the AWS load balancer that exposes it, matched by the DNS hostname from the ingress status to the load balancer's DNS name; both are lowercased at ingestion."""
 
     target_node_label: str = "AWSLoadBalancerV2"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(

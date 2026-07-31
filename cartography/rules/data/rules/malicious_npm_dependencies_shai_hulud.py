@@ -1,4 +1,5 @@
 from cartography.rules.data.frameworks.iso27001 import iso27001_annex_a
+from cartography.rules.data.frameworks.soc2 import soc2_tsc
 from cartography.rules.spec.model import Fact
 from cartography.rules.spec.model import Finding
 from cartography.rules.spec.model import Maturity
@@ -3135,5 +3136,7 @@ malicious_npm_dependencies_shai_hulud = Rule(
     frameworks=(
         iso27001_annex_a("5.21"),
         iso27001_annex_a("8.8"),
+        soc2_tsc("CC6.8"),
+        soc2_tsc("CC7.1"),
     ),
 )

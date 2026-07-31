@@ -303,6 +303,9 @@ class ECRImageSchema(CartographyNodeSchema):
     """Representation of an ECR image identified by its digest (e.g. a SHA hash). Specifically, this is the "digest part" of [`ecr.list_images()`](https://docs.aws.amazon.com/AmazonECR/latest/APIReference/API_ImageIdentifier.html). Also see AWSECRRepositoryImage.
 
     For multi-architecture images, Cartography creates AWSECRImage nodes for the manifest list, each platform-specific image, and any attestations.
+
+    Cleanup runs after layer enrichment so unchanged closures can refresh their
+    relationship timestamps before stale HAS_LAYER and BUILT_FROM edges are removed.
     """
 
     # Implementation note:

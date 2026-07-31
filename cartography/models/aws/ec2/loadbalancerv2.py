@@ -156,7 +156,8 @@ class ELBV2TargetGroupToECSServiceMatchLink(CartographyRelSchema):
 @dataclass(frozen=True)
 class LoadBalancerV2NodeProperties(CartographyNodeProperties):
     id: PropertyRef = PropertyRef(
-        "DNSName", description="Currently set to the `dnsname` of the load balancer."
+        "DNSName",
+        description="The load balancer's DNS name exactly as AWS returned it, case preserved. Unlike `dnsname` it is not lowercased, because listeners and target groups join against it.",
     )
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
     region: PropertyRef = PropertyRef(
@@ -165,8 +166,14 @@ class LoadBalancerV2NodeProperties(CartographyNodeProperties):
     name: PropertyRef = PropertyRef(
         "LoadBalancerName", description="The name of the load balancer"
     )
+    # Lowercased in _transform_load_balancer_v2_data. Route53 alias targets and Kubernetes
+    # load balancer status hostnames are matched against this for equality, and AWS
+    # preserves the load balancer name's case in DNSName. `id` deliberately keeps the raw
+    # value: it is what listeners and target groups join against.
     dnsname: PropertyRef = PropertyRef(
-        "DNSName", extra_index=True, description="The DNS name of the load balancer."
+        "DNSNameLower",
+        extra_index=True,
+        description="The DNS name of the load balancer, lowercased at ingestion. AWS preserves the load balancer name's case here, while Route53 alias targets and Kubernetes load balancer status hostnames are lowercase, and those are matched against this property for equality.",
     )
     canonicalhostedzonenameid: PropertyRef = PropertyRef(
         "CanonicalHostedZoneId",

@@ -72,6 +72,7 @@ no index page of their own, so they are attached here to keep them out of the or
 - [Socket.dev](../modules/socketdev/schema.md)
 - [Spacelift](../modules/spacelift/schema.md)
 - [Subimage](../modules/subimage/schema.md)
+- [Supabase](../modules/supabase/schema.md)
 - [Syft](../modules/syft/schema.md)
 - [Tailscale](../modules/tailscale/schema.md)
 - [Tenable](../modules/tenable/schema.md)

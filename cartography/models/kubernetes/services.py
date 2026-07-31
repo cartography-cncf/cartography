@@ -73,7 +73,7 @@ class KubernetesServiceToLoadBalancerV2RelProperties(CartographyRelProperties):
 @dataclass(frozen=True)
 # (:KubernetesService)-[:USES_LOAD_BALANCER]->(:LoadBalancerV2)
 class KubernetesServiceToLoadBalancerV2Rel(CartographyRelSchema):
-    """Links a service to the AWS load balancer that exposes it."""
+    """Links a service of type `LoadBalancer` to the AWS load balancer that exposes it, matching the service's `status.loadBalancer.ingress[].hostname` against `AWSLoadBalancerV2.dnsname`. Both sides are lowercased at ingestion, since AWS preserves the load balancer name's case in the DNS name it hands to the in-cluster controller."""
 
     target_node_label: str = "AWSLoadBalancerV2"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
