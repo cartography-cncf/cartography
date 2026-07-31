@@ -22,8 +22,8 @@ from cartography.util import timeit
 logger = logging.getLogger(__name__)
 
 GCP_PERMISSION_RELATIONSHIP_BATCH_SIZE = 500
-GCP_BIGQUERY_TABLE_PERMISSION_TABLE_BATCH_SIZE = 1000
-GCP_BIGQUERY_TABLE_PERMISSION_PRINCIPAL_BATCH_SIZE = 100
+GCP_PERMISSION_BULK_RESOURCE_BATCH_SIZE = 1000
+GCP_PERMISSION_BULK_PRINCIPAL_BATCH_SIZE = 100
 GCPPrincipalPermissionContext = dict[str, dict[str, dict[str, Any]]]
 
 
@@ -434,8 +434,8 @@ def load_permission_relationships_cartesian_product(
     update_tag: int,
     project_id: str,
     scope_description: str,
-    principal_batch_size: int = GCP_BIGQUERY_TABLE_PERMISSION_PRINCIPAL_BATCH_SIZE,
-    resource_batch_size: int = GCP_BIGQUERY_TABLE_PERMISSION_TABLE_BATCH_SIZE,
+    principal_batch_size: int = GCP_PERMISSION_BULK_PRINCIPAL_BATCH_SIZE,
+    resource_batch_size: int = GCP_PERMISSION_BULK_RESOURCE_BATCH_SIZE,
 ) -> int:
     if not principal_emails or not resource_ids:
         return 0
