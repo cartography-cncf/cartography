@@ -14,11 +14,12 @@ from cartography.models.core.relationships import TargetNodeMatcher
 class ModalImageNodeProperties(CartographyNodeProperties):
     id: PropertyRef = PropertyRef("id")
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
-    tag: PropertyRef = PropertyRef("tag", extra_index=True)
-    revision_id: PropertyRef = PropertyRef("revision_id")
     created_at: PropertyRef = PropertyRef("created_at")
     updated_at: PropertyRef = PropertyRef("updated_at")
     environment_name: PropertyRef = PropertyRef("environment_name", extra_index=True)
+    # NOTE: no `tag` here. One image can be published under several tags, and keying the node
+    # on the image id meant every tag but the last was silently lost on load. Tags are
+    # ModalImageTag nodes pointing at this one, as every other registry provider does.
 
 
 @dataclass(frozen=True)
@@ -51,6 +52,8 @@ class ModalImageToEnvironmentRel(CartographyRelSchema):
 # Only *named* images are enumerable: anonymous build images (the common case, e.g. an
 # inline `Image.debian_slim()`) are not returned by the API and are therefore absent.
 # Cleanup is safe within the named-image universe only.
+#
+# Deduplicated by image id: Modal's listing is per tag, so several rows can describe one image.
 class ModalImageSchema(CartographyNodeSchema):
     label: str = "ModalImage"
     properties: ModalImageNodeProperties = ModalImageNodeProperties()

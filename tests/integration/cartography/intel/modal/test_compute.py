@@ -87,16 +87,27 @@ def _sync_functions(neo4j_session, apps, layouts=None, update_tag=TEST_UPDATE_TA
 
 
 def _sync_sandboxes(
-    neo4j_session, rows=None, complete=True, update_tag=TEST_UPDATE_TAG
+    neo4j_session, rows=None, complete=True, update_tag=TEST_UPDATE_TAG, apps=()
 ):
+    """Sync sandboxes with the v1 listing mocked.
+
+    `apps` drives the v2 fan-out; the default of no apps means only the v1 listing runs, which
+    is what most of these tests exercise.
+    """
     with patch.object(
         cartography.intel.modal.sandboxes,
         "list_sandboxes",
-        return_value=(fx.MODAL_SANDBOXES if rows is None else rows, complete),
+        return_value=(
+            list(fx.MODAL_SANDBOXES) if rows is None else list(rows),
+            complete,
+        ),
     ):
         return asyncio.run(
             cartography.intel.modal.sandboxes.sync(
-                neo4j_session, MagicMock(), _params(update_tag)
+                neo4j_session,
+                MagicMock(),
+                _params(update_tag),
+                None if apps is None else list(apps),
             )
         )
 
@@ -255,9 +266,40 @@ def test_modal_function_cleanup_removes_deleted_when_complete(neo4j_session):
     assert check_nodes(neo4j_session, "ModalClass", ["id"]) == set()
 
 
-def test_load_modal_images_without_ontology_image_label(neo4j_session):
-    """ModalImage must NOT carry the ontology Image label: a Modal image id is not a digest,
-    so it could never join a registry image and would pollute the RESOLVED_IMAGE analysis.
+def test_load_modal_images_and_tags(neo4j_session):
+    """One node per tag, so an image published under several tags keeps all of them.
+
+    Keying the image node on the image id alone made every tag but the last vanish on load.
+    """
+    # Arrange
+    _seed_tenancy(neo4j_session)
+
+    # Act
+    _sync_images(neo4j_session)
+
+    # Assert: the image node is deduplicated, the tag nodes are not.
+    assert check_nodes(neo4j_session, "ModalImage", ["id"]) == {
+        (fx.TEST_IMAGE_ID,),
+        ("im-2ndNamedImageXXXXXXXX",),
+    }
+    assert check_nodes(neo4j_session, "ModalImageTag", ["id", "tag"]) == {
+        (f"{fx.TEST_IMAGE_ID}:my-base-image:latest", "my-base-image:latest"),
+        (f"{fx.TEST_IMAGE_ID}:my-base-image:v1.2.0", "my-base-image:v1.2.0"),
+        ("im-2ndNamedImageXXXXXXXX:other-image:latest", "other-image:latest"),
+    }
+    # Both aliases point at the same image, which is the whole point of the split.
+    assert check_rels(
+        neo4j_session, "ModalImageTag", "tag", "ModalImage", "id", "IMAGE"
+    ) == {
+        ("my-base-image:latest", fx.TEST_IMAGE_ID),
+        ("my-base-image:v1.2.0", fx.TEST_IMAGE_ID),
+        ("other-image:latest", "im-2ndNamedImageXXXXXXXX"),
+    }
+
+
+def test_modal_images_carry_no_ontology_image_labels(neo4j_session):
+    """Neither node claims the ontology image labels: Modal exposes no digest, so they could
+    never join a registry image and would pollute the RESOLVED_IMAGE analysis.
     """
     # Arrange
     _seed_tenancy(neo4j_session)
@@ -266,16 +308,13 @@ def test_load_modal_images_without_ontology_image_label(neo4j_session):
     _sync_images(neo4j_session)
 
     # Assert
-    assert check_nodes(neo4j_session, "ModalImage", ["id", "tag"]) == {
-        (fx.TEST_IMAGE_ID, "my-base-image:latest"),
-    }
-    labels = set(
-        neo4j_session.run(
-            "MATCH (i:ModalImage {id: $id}) RETURN labels(i) AS labels",
-            id=fx.TEST_IMAGE_ID,
-        ).single()["labels"]
-    )
-    assert "Image" not in labels
+    for label, forbidden in (("ModalImage", "Image"), ("ModalImageTag", "ImageTag")):
+        records = list(
+            neo4j_session.run(f"MATCH (n:{label}) RETURN labels(n) AS labels")
+        )
+        assert records, f"no {label} nodes to check"
+        for record in records:
+            assert forbidden not in set(record["labels"])
 
 
 def test_load_modal_sandboxes_and_tunnels(neo4j_session):
@@ -445,6 +484,7 @@ def test_removed_environment_cascades_compute_cleanup(neo4j_session):
         "ModalFunction",
         "ModalClass",
         "ModalImage",
+        "ModalImageTag",
         "ModalSandbox",
         "ModalSandboxTunnel",
         "ModalTask",
@@ -466,6 +506,7 @@ def test_removed_environment_cascades_compute_cleanup(neo4j_session):
         "ModalFunction",
         "ModalClass",
         "ModalImage",
+        "ModalImageTag",
         "ModalSandbox",
         "ModalSandboxTunnel",
         "ModalTask",
@@ -474,3 +515,69 @@ def test_removed_environment_cascades_compute_cleanup(neo4j_session):
         assert (
             check_nodes(neo4j_session, label, ["id"]) == set()
         ), f"{label} survived its deleted environment"
+
+
+def _sync_sandboxes_with_v2(neo4j_session, apps, v2=None, update_tag=TEST_UPDATE_TAG):
+    table = fx.MODAL_V2_SANDBOXES if v2 is None else v2
+
+    async def fake_v2(_client, app_id):
+        return list(table.get(app_id, [])), True
+
+    with (
+        patch.object(
+            cartography.intel.modal.sandboxes,
+            "list_sandboxes",
+            return_value=(list(fx.MODAL_SANDBOXES), True),
+        ),
+        patch.object(
+            cartography.intel.modal.sandboxes, "list_sandboxes_v2", side_effect=fake_v2
+        ),
+    ):
+        return asyncio.run(
+            cartography.intel.modal.sandboxes.sync(
+                neo4j_session, MagicMock(), _params(update_tag), apps
+            )
+        )
+
+
+def test_v2_sandboxes_are_ingested_too(neo4j_session):
+    """Modal's ordinary listing omits v2 sandboxes, so they come from a second per-app RPC.
+
+    Without it, a workspace using v2 sandboxes would have those workloads and their tunnels
+    missing from the graph entirely.
+    """
+    # Arrange
+    _seed_tenancy(neo4j_session)
+    apps = _sync_apps(neo4j_session)
+
+    # Act
+    _sync_sandboxes_with_v2(neo4j_session, apps)
+
+    # Assert: both generations present, each labelled with its own.
+    assert check_nodes(neo4j_session, "ModalSandbox", ["id", "sandbox_version"]) == {
+        (fx.TEST_SANDBOX_ID, "v1"),
+        ("sb-JeuHHabrBlXBhVE3eHSTn5", "v1"),
+        ("sb-3FinishedSandboxXXXXXX", "v1"),
+        (fx.TEST_V2_SANDBOX_ID, "v2"),
+    }
+    # The v2 sandbox joins the workload chain like any other.
+    assert (fx.TEST_V2_SANDBOX_ID, fx.TEST_APP_ID) in check_rels(
+        neo4j_session, "ModalSandbox", "id", "ModalApp", "id", "WORKLOAD_PARENT"
+    )
+
+
+def test_missing_app_list_still_ingests_v1_sandboxes(neo4j_session):
+    """v2 needs the app list, v1 does not. A failed app listing must not cost us the v1
+    sandboxes, but it must skip cleanup since v2 could not be enumerated."""
+    # Arrange: a full run first, so there is something a wrongly-run cleanup could delete.
+    _seed_tenancy(neo4j_session)
+    apps = _sync_apps(neo4j_session)
+    _sync_sandboxes_with_v2(neo4j_session, apps)
+    before = check_nodes(neo4j_session, "ModalSandbox", ["id"])
+    assert len(before) == 4
+
+    # Act: the app list is unavailable, so only the v1 listing can run.
+    _sync_sandboxes(neo4j_session, apps=None, update_tag=TEST_UPDATE_TAG + 1)
+
+    # Assert: v1 sandboxes refreshed, and the v2 one preserved rather than cleaned up.
+    assert check_nodes(neo4j_session, "ModalSandbox", ["id"]) == before

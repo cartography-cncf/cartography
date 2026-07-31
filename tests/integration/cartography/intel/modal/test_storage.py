@@ -315,8 +315,11 @@ def test_load_modal_proxies_filters_by_environment(neo4j_session):
     _seed(neo4j_session)
 
     # Act
-    _run_sync(cartography.intel.modal.proxies, "list_proxies", fx.MODAL_PROXIES)(
-        neo4j_session
+    # ProxyList is fetched once by the caller now, so the listing is passed in.
+    asyncio.run(
+        cartography.intel.modal.proxies.sync(
+            neo4j_session, MagicMock(), _params(), fx.MODAL_PROXIES
+        )
     )
 
     # Assert
@@ -354,8 +357,11 @@ def test_removed_environment_cascades_storage_cleanup(neo4j_session):
     _run_sync(cartography.intel.modal.queues, "list_queues", fx.MODAL_QUEUES)(
         neo4j_session
     )
-    _run_sync(cartography.intel.modal.proxies, "list_proxies", fx.MODAL_PROXIES)(
-        neo4j_session
+    # ProxyList is fetched once by the caller now, so the listing is passed in.
+    asyncio.run(
+        cartography.intel.modal.proxies.sync(
+            neo4j_session, MagicMock(), _params(), fx.MODAL_PROXIES
+        )
     )
     labels = (
         "ModalSecret",

@@ -23,6 +23,10 @@ class ModalSandboxNodeProperties(CartographyNodeProperties):
     # the task result status plus readiness. PENDING / RUNNING are synthetic; the rest are
     # raw GENERIC_STATUS_* values.
     state: PropertyRef = PropertyRef("state", extra_index=True)
+    # "v1" or "v2", derived from the id shape since Modal reports no version field. The two
+    # generations are returned by different RPCs and support different operations, so which one
+    # a sandbox is matters operationally.
+    sandbox_version: PropertyRef = PropertyRef("sandbox_version", extra_index=True)
     created_at: PropertyRef = PropertyRef("created_at")
     ready_at: PropertyRef = PropertyRef("ready_at")
     image_id: PropertyRef = PropertyRef("image_id", extra_index=True)

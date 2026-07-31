@@ -100,13 +100,29 @@ MODAL_APP_LAYOUTS = {
 }
 
 # cartography.intel.modal.util.list_image_tags()
+# Modal lists tags, not images, so one image published under several tags appears several
+# times. The first two rows here are the same image under two tags.
 MODAL_IMAGES = [
     {
         "id": TEST_IMAGE_ID,
         "tag": "my-base-image:latest",
-        "revision_id": "rev-1",
+        "revision_id": "rev-2",
         "created_at": datetime(2026, 7, 29, 21, 37, 0, tzinfo=timezone.utc),
         "updated_at": datetime(2026, 7, 29, 21, 37, 0, tzinfo=timezone.utc),
+    },
+    {
+        "id": TEST_IMAGE_ID,
+        "tag": "my-base-image:v1.2.0",
+        "revision_id": "rev-2",
+        "created_at": datetime(2026, 7, 29, 21, 37, 0, tzinfo=timezone.utc),
+        "updated_at": datetime(2026, 7, 29, 21, 37, 0, tzinfo=timezone.utc),
+    },
+    {
+        "id": "im-2ndNamedImageXXXXXXXX",
+        "tag": "other-image:latest",
+        "revision_id": "rev-1",
+        "created_at": datetime(2026, 7, 28, 10, 0, 0, tzinfo=timezone.utc),
+        "updated_at": datetime(2026, 7, 28, 10, 0, 0, tzinfo=timezone.utc),
     },
 ]
 
@@ -114,6 +130,7 @@ MODAL_IMAGES = [
 MODAL_SANDBOXES = [
     {
         "id": TEST_SANDBOX_ID,
+        "sandbox_version": "v1",
         "name": None,
         "app_id": TEST_APP_ID,
         # Ready with no result yet.
@@ -145,6 +162,7 @@ MODAL_SANDBOXES = [
     },
     {
         "id": "sb-JeuHHabrBlXBhVE3eHSTn5",
+        "sandbox_version": "v1",
         "name": "agent-sandbox",
         "app_id": TEST_APP_ID,
         # Created but not ready yet.
@@ -178,6 +196,7 @@ MODAL_SANDBOXES = [
     },
     {
         "id": "sb-3FinishedSandboxXXXXXX",
+        "sandbox_version": "v1",
         "name": None,
         "app_id": TEST_APP_ID,
         "state": "GENERIC_STATUS_FAILURE",
@@ -227,6 +246,39 @@ MODAL_TASKS = {
             "app_description": "cartography-e2e-app",
             "started_at": datetime(2026, 7, 29, 21, 39, 27, tzinfo=timezone.utc),
             "enqueued_at": datetime(2026, 7, 29, 21, 39, 26, tzinfo=timezone.utc),
+        },
+    ],
+    TEST_STOPPED_APP_ID: [],
+}
+
+TEST_V2_SANDBOX_ID = "sb-01KYQX24W4D7NW306JQ5D98X7S"
+
+# cartography.intel.modal.util.list_sandboxes_v2() -> (rows, complete), keyed by app id.
+# Modal's docs state v2 sandboxes are not returned by the ordinary listing, so they arrive
+# through a separate per-app RPC. The id is a 26-char ULID, which is what marks it as v2.
+MODAL_V2_SANDBOXES = {
+    TEST_APP_ID: [
+        {
+            "id": TEST_V2_SANDBOX_ID,
+            "sandbox_version": "v2",
+            "name": "v2-agent-sandbox",
+            "app_id": TEST_APP_ID,
+            "state": "RUNNING",
+            "created_at": datetime(2026, 7, 30, 9, 0, 0, tzinfo=timezone.utc),
+            "ready_at": datetime(2026, 7, 30, 9, 0, 5, tzinfo=timezone.utc),
+            "image_id": TEST_IMAGE_ID,
+            "memory_mb": 256,
+            "memory_mb_max": None,
+            "milli_cpu": 250,
+            "milli_cpu_max": None,
+            "gpu_type": None,
+            "ephemeral_disk_mb": None,
+            "regions": [],
+            "region": None,
+            "timeout_secs": 600,
+            "idle_timeout_secs": None,
+            "tags": [],
+            "tunnels": [],
         },
     ],
     TEST_STOPPED_APP_ID: [],

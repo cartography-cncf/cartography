@@ -28,7 +28,8 @@ Modal publishes no REST management API: everything goes through gRPC behind the 
 client. Only part of the inventory is reachable through Modal's documented public helpers,
 so this module talks to Modal's **internal gRPC protocol** for the rest. That protocol is
 unversioned and can change in any Modal release, which is why the dependency is pinned to
-`modal>=1.5.0,<2`. All of it is isolated in `cartography/intel/modal/util.py`, so a
+`modal>=1.5.3,<2`. The lower bound matters too: the RPC used for per-environment RBAC only
+exists from 1.5.3. All of it is isolated in `cartography/intel/modal/util.py`, so a
 protocol break should require changes in that one file.
 
 ### A note on secrets
@@ -70,5 +71,12 @@ functions do not.
   by traversing their environment node, so deleting the environment first would leave them
   behind as orphans that still read as live.
 - Custom domains require a paid Modal add-on. On workspaces without it the API answers
-  `UNIMPLEMENTED`, which Cartography treats as "no domains" rather than an error.
+  `UNIMPLEMENTED`. Cartography treats that as "we learned nothing", not as "there are none", so
+  it skips both the load and the cleanup and leaves any previously-ingested domains untouched.
+- Only **named** images are enumerable. Anonymous build images, which is what an inline
+  `modal.Image.debian_slim()` produces, are not returned by the API, so a sandbox's `HAS_IMAGE`
+  edge often has nothing to resolve to.
+- Both sandbox generations are ingested. Modal's ordinary sandbox listing returns only v1, so
+  Cartography additionally calls the v2 listing, which is per app. Each sandbox records which
+  generation it is in `sandbox_version`.
 - Billing and cost data, and app deployment history, are out of scope for this module.

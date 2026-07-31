@@ -5,7 +5,6 @@ import neo4j
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
-from cartography.intel.modal.util import list_proxies
 from cartography.intel.modal.util import ModalClient
 from cartography.models.modal.proxy import ModalProxyIPSchema
 from cartography.models.modal.proxy import ModalProxySchema
@@ -19,20 +18,23 @@ async def sync(
     neo4j_session: neo4j.Session,
     client: ModalClient,
     common_job_parameters: dict[str, Any],
+    all_proxies: list[dict[str, Any]],
 ) -> list[dict[str, Any]]:
     """Ingest the proxies of one environment, with their egress IPs.
 
-    `ProxyList` returns every proxy in the workspace and tags each with its environment, so the
-    filtering happens here rather than server-side. The filter is deterministic and the listing
-    complete, so the environment-scoped cleanup is safe.
+    `ProxyList` is workspace-wide and tags each proxy with its environment, so the caller
+    fetches it once and this partitions it. Doing the fetch here would repeat the same request
+    for every environment. The filter is deterministic and the listing complete, so the
+    environment-scoped cleanup is safe.
     """
     environment_name = common_job_parameters["ENVIRONMENT_NAME"]
     environment_id = common_job_parameters["ENVIRONMENT_ID"]
     update_tag = common_job_parameters["UPDATE_TAG"]
 
-    raw = await list_proxies(client)
     scoped = [
-        proxy for proxy in raw if proxy.get("environment_name") == environment_name
+        proxy
+        for proxy in all_proxies
+        if proxy.get("environment_name") == environment_name
     ]
 
     proxies = transform(scoped)

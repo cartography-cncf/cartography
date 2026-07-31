@@ -25,6 +25,7 @@ import cartography.intel.modal.volumes
 import cartography.intel.modal.workloads
 import cartography.intel.modal.workspace
 from cartography.config import Config
+from cartography.intel.modal.util import list_proxies
 from cartography.intel.modal.util import MODAL_API_ERRORS
 from cartography.intel.modal.util import ModalClient
 from cartography.util import timeit
@@ -166,6 +167,12 @@ async def _sync(neo4j_session: neo4j.Session, config: Config) -> None:
         )
         return
 
+    # ProxyList is workspace-wide, so fetch it once and let each environment partition it
+    # rather than repeating the identical request per environment. None means the call failed,
+    # which is distinct from a workspace with no proxies, so the per-environment proxy sync is
+    # skipped entirely and its existing data preserved.
+    all_proxies = await _run("proxies", list_proxies, client)
+
     for environment in _select_environments(environments, config.modal_environments):
         environment_job_parameters = {
             **common_job_parameters,
@@ -203,24 +210,32 @@ async def _sync(neo4j_session: neo4j.Session, config: Config) -> None:
             environment_job_parameters,
         )
 
+        # Sandboxes take the app list because v2 sandboxes are only listable per app, but
+        # they run before the guard below: the v1 listing is environment-wide and still worth
+        # ingesting when the app list could not be read.
         await _run(
             f"sandboxes ({name})",
             cartography.intel.modal.sandboxes.sync,
             neo4j_session,
             client,
             environment_job_parameters,
+            apps,
         )
 
-        # Secrets and volumes report a creator, so they take the username map; the rest do
-        # not, hence the extra-args column.
-        for label, module, extra in (
+        # The extra-args column carries what each sync needs beyond the common parameters:
+        # secrets and volumes attribute creation, proxies partition a workspace-wide listing.
+        flat_resources: list[tuple[str, Any, tuple[Any, ...]]] = [
             ("secrets", cartography.intel.modal.secrets, (user_ids_by_username,)),
             ("volumes", cartography.intel.modal.volumes, (user_ids_by_username,)),
             ("network file systems", cartography.intel.modal.nfs, ()),
             ("dicts", cartography.intel.modal.dicts, ()),
             ("queues", cartography.intel.modal.queues, ()),
-            ("proxies", cartography.intel.modal.proxies, ()),
-        ):
+        ]
+        if all_proxies is not None:
+            flat_resources.append(
+                ("proxies", cartography.intel.modal.proxies, (all_proxies,))
+            )
+        for label, module, extra in flat_resources:
             await _run(
                 f"{label} ({name})",
                 module.sync,

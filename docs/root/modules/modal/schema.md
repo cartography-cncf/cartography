@@ -32,6 +32,7 @@ graph LR
     C -->|HAS_METHOD| F
     TK -->|MEMBER_OF| CL
     S -.->|HAS_IMAGE| I(ModalImage)
+    IT(ModalImageTag) -->|IMAGE| I
     S -->|EXPOSES| TU(ModalSandboxTunnel)
 ```
 
@@ -445,6 +446,13 @@ regions and tunnels. Modal reports no state field, so `state` is derived from th
 plus readiness: `PENDING` and `RUNNING` are synthetic values, the rest are raw
 `GENERIC_STATUS_*` values.
 
+Modal has two sandbox generations and **the ordinary listing returns only v1**: its docs state
+that "V2 sandboxes created with this method are not currently returned by
+`client.sandboxes.list()`". Cartography therefore also calls the v2 listing, which is per app
+rather than per environment, so both generations appear. Modal reports no version field either,
+so `sandbox_version` is derived from the shape of the id. v2 is still opt-in at the time of
+writing, so most workspaces have none.
+
 A long `timeout_secs` combined with an exposed tunnel is the sharpest exposure signal on this
 node.
 
@@ -469,6 +477,7 @@ node.
 | **name** | Sandbox name, if one was given. |
 | app_id | ID of the owning app. |
 | **state** | `PENDING`, `RUNNING`, or a raw `GENERIC_STATUS_*` value. |
+| **sandbox_version** | `v1` or `v2`, derived from the id shape. The two are listed by different API calls and support different operations. |
 | created_at | When the sandbox was created. |
 | ready_at | When the sandbox became ready. Null while still starting. |
 | **image_id** | ID of the image it runs. |
@@ -587,22 +596,59 @@ Only **named** images are enumerable. Anonymous build images (the common case, s
 inline `Image.debian_slim()`) are not returned by the API and are therefore absent, which is
 why a sandbox's `HAS_IMAGE` edge often does not resolve.
 
+Modal's API lists *tags*, not images, so one image published under several tags appears several
+times. This node is deduplicated by image id and the tags are separate `ModalImageTag` nodes.
+
 #### Relationships
 
-- An image belongs to an environment and may be run by sandboxes.
+- An image belongs to an environment, may be run by sandboxes, and is pointed at by its tags.
 
     ```
     (:ModalEnvironment)-[:RESOURCE]->(:ModalImage)
     (:ModalSandbox)-[:HAS_IMAGE]->(:ModalImage)
+    (:ModalImageTag)-[:IMAGE]->(:ModalImage)
     ```
 
 | Field | Description |
 |-------|-------------|
 | **id** | Image ID, e.g. `im-m0JhBY9qYlH5iisTrhhftT`. |
-| **tag** | Image tag. |
-| revision_id | Revision of the tag. |
 | created_at | When the image was created. |
 | updated_at | When the image was last updated. |
+| **environment_name** | Name of the owning environment. |
+| firstseen | Timestamp of when a sync job first created this node. |
+| lastupdated | Timestamp of the last time the node was updated. |
+
+### ModalImageTag
+
+Represents a named pointer to a Modal image. Several tags can point at the same image, which is
+why they are separate nodes: keying on the image alone made every tag but the last vanish on
+load. This mirrors AWS ECR, GitHub GHCR, GitLab, GCP Artifact Registry and Scaleway, which all
+fan out one tag node per `(repository, tag)` pair.
+
+Deliberately **not** labelled with the ontology `ImageTag`, for the same reason `ModalImage` is
+not labelled `Image`. That pair exists so the supply-chain matchers can traverse
+`(:Image)<-[:IMAGE]-(:ImageTag)<-[:REPO_IMAGE]-(:ContainerRegistry)` and join on a digest.
+Modal's tag listing returns no digest, so a labelled Modal tag would be a dangling pointer in
+every cross-provider image query. The structural shape is kept; only the ontology claim is
+withheld.
+
+#### Relationships
+
+- A tag belongs to an environment and points at its image.
+
+    ```
+    (:ModalEnvironment)-[:RESOURCE]->(:ModalImageTag)
+    (:ModalImageTag)-[:IMAGE]->(:ModalImage)
+    ```
+
+| Field | Description |
+|-------|-------------|
+| **id** | Synthesised as `<image_id>:<tag>`; Modal gives tags no id, and exposes no registry URI to use as the repository part. |
+| **tag** | The tag. |
+| **image_id** | ID of the image it points at. |
+| revision_id | Revision of the tag. |
+| created_at | When the tag was created. |
+| updated_at | When the tag was last updated. |
 | **environment_name** | Name of the owning environment. |
 | firstseen | Timestamp of when a sync job first created this node. |
 | lastupdated | Timestamp of the last time the node was updated. |

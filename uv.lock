@@ -1042,7 +1042,7 @@ requires-dist = [
     { name = "httpx", specifier = ">=0.24.0" },
     { name = "kubernetes", specifier = ">=22.6.0" },
     { name = "marshmallow", specifier = ">=4.0.0" },
-    { name = "modal", specifier = ">=1.5.0,<2" },
+    { name = "modal", specifier = ">=1.5.3,<2" },
     { name = "msgraph-sdk", specifier = ">=1.53.0" },
     { name = "msrestazure", specifier = ">=0.6.4" },
     { name = "neo4j", specifier = ">=6.0.0" },

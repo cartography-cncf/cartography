@@ -6,6 +6,8 @@ import neo4j
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
 from cartography.intel.modal.util import list_sandboxes
+from cartography.intel.modal.util import list_sandboxes_v2
+from cartography.intel.modal.util import MODAL_API_ERRORS
 from cartography.intel.modal.util import ModalClient
 from cartography.models.modal.sandbox import ModalSandboxSchema
 from cartography.models.modal.sandbox_tunnel import ModalSandboxTunnelSchema
@@ -19,13 +21,46 @@ async def sync(
     neo4j_session: neo4j.Session,
     client: ModalClient,
     common_job_parameters: dict[str, Any],
+    apps: list[dict[str, Any]] | None,
 ) -> list[dict[str, Any]]:
-    """Ingest the live sandboxes of one environment, with their forwarded ports."""
+    """Ingest the live sandboxes of one environment, with their forwarded ports.
+
+    Two listings are needed. `SandboxList` covers v1 sandboxes environment-wide; v2 sandboxes
+    are not returned by it and come from `SandboxListV2`, which is per app, hence the fan-out
+    over ``apps``.
+
+    ``apps`` is None when the app listing itself failed. The v1 sandboxes are still ingested in
+    that case, since they do not need it, but v2 cannot be enumerated so the run counts as
+    partial and cleanup is skipped.
+    """
     environment_name = common_job_parameters["ENVIRONMENT_NAME"]
     environment_id = common_job_parameters["ENVIRONMENT_ID"]
     update_tag = common_job_parameters["UPDATE_TAG"]
 
     raw, complete = await list_sandboxes(client, environment_name)
+
+    if apps is None:
+        logger.warning(
+            "Modal app list unavailable for environment %s, so v2 sandboxes cannot be "
+            "enumerated; ingesting v1 sandboxes only and skipping cleanup.",
+            environment_name,
+        )
+        complete = False
+    for app in apps or []:
+        try:
+            v2_raw, v2_complete = await list_sandboxes_v2(client, app["id"])
+        except MODAL_API_ERRORS as exc:
+            # v2 is opt-in and the RPC is authenticated differently, so a workspace that never
+            # used it can legitimately refuse the call. Degrade to partial enumeration rather
+            # than losing the v1 sandboxes we did read.
+            logger.warning(
+                "Could not list v2 sandboxes of Modal app %s: %s", app["id"], exc
+            )
+            complete = False
+            continue
+        raw.extend(v2_raw)
+        complete = complete and v2_complete
+
     sandboxes = transform(raw, environment_name)
     load_sandboxes(neo4j_session, sandboxes, environment_id, update_tag)
 
@@ -36,8 +71,8 @@ async def sync(
         cleanup(neo4j_session, common_job_parameters)
     else:
         logger.warning(
-            "Skipping Modal sandbox cleanup for environment %s: pagination did not run to "
-            "completion, so stale nodes are preserved rather than risk deleting live "
+            "Skipping Modal sandbox cleanup for environment %s: at least one listing did not "
+            "run to completion, so stale nodes are preserved rather than risk deleting live "
             "sandboxes.",
             environment_name,
         )

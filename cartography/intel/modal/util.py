@@ -20,13 +20,18 @@ form or its ``.aio`` variant from our own event loop deadlocks with
 raw RPCs for everything also keeps the whole adapter on one uniform mechanism and yields
 the object ids that the public CLI output omits.
 
+The stub methods are called bare rather than through ``retry_transient_errors``. Each one is
+a ``modal._grpc_client.UnaryUnaryWrapper`` that already applies Modal's own retry policy by
+default, which is how Modal's own code calls them; wrapping them again nested the two policies
+and allowed up to nine attempts for a single logical request.
+
 PRIVATE PROTOCOL WARNING
 ------------------------
 The ``client.stub.<Rpc>`` calls below, and the ``modal.client._Client`` /
 ``modal._workspace._Workspace`` private classes, are unversioned Modal internals and may
 change or disappear in any Modal release. They are confined to this module on purpose: a
 protocol break should require edits here and nowhere else. The dependency is pinned
-``modal>=1.5.0,<2`` for that reason.
+``modal>=1.5.3,<2`` for that reason.
 
 NOTE ON ``@timeit``
 -------------------
@@ -57,7 +62,6 @@ from google.protobuf.timestamp_pb2 import Timestamp
 from grpclib.const import Status
 from grpclib.exceptions import GRPCError
 from grpclib.exceptions import StreamTerminatedError
-from modal._utils.grpc_utils import retry_transient_errors
 from modal._utils.time_utils import as_timestamp
 from modal._workspace import _Workspace
 from modal.client import _Client
@@ -178,15 +182,14 @@ async def _paginate(
     items: list[Any] = []
     created_before = as_timestamp(None)
     while True:
-        response = await retry_transient_errors(
-            rpc,
+        response = await rpc(
             request_cls(
                 environment_name=environment_name,
                 pagination=api_pb2.ListPagination(
                     max_objects=_LIST_PAGE_SIZE,
                     created_before=created_before,
                 ),
-            ),
+            )
         )
         page = list(getattr(response, items_field))
         items.extend(page)
@@ -207,14 +210,8 @@ async def get_workspace(client: ModalClient) -> dict[str, Any]:
     credential doing the sync), `WorkspaceNameLookup` supplies the URL slug that web
     endpoint hostnames embed.
     """
-    token_info = await retry_transient_errors(
-        client.stub.TokenInfoGet,
-        api_pb2.TokenInfoGetRequest(),
-    )
-    name_lookup = await retry_transient_errors(
-        client.stub.WorkspaceNameLookup,
-        Empty(),
-    )
+    token_info = await client.stub.TokenInfoGet(api_pb2.TokenInfoGetRequest())
+    name_lookup = await client.stub.WorkspaceNameLookup(Empty())
     # Exactly one identity is populated: a personal user token or a service user token.
     # Which one performed the sync is worth recording, because a workspace inventoried
     # with someone's personal token is a different operational posture from one using a
@@ -252,7 +249,7 @@ async def list_environments(client: ModalClient) -> list[dict[str, Any]]:
     `modal.Environment.objects.list()` because the public manager discards everything
     except name / id / webhook suffix, and we want the concurrency limits too.
     """
-    response = await retry_transient_errors(client.stub.EnvironmentList, Empty())
+    response = await client.stub.EnvironmentList(Empty())
     return [
         {
             "id": item.environment_id,
@@ -288,7 +285,7 @@ async def list_workspace_members(client: ModalClient) -> list[dict[str, Any]]:
     public dataclass drops `identity_provider_type` and `idp_external_id`, which are the
     fields that make non-SSO members in an SSO workspace queryable.
     """
-    response = await retry_transient_errors(client.stub.WorkspaceMembersList, Empty())
+    response = await client.stub.WorkspaceMembersList(Empty())
     return [
         {
             "id": item.user_id,
@@ -316,7 +313,7 @@ async def list_service_users(client: ModalClient) -> list[dict[str, Any]]:
     the `ak-` API token id, and `last_used_at` is what makes stale-credential detection
     possible.
     """
-    response = await retry_transient_errors(client.stub.ServiceUserList, Empty())
+    response = await client.stub.ServiceUserList(Empty())
     return [
         {
             "id": item.service_user_id,
@@ -363,10 +360,7 @@ async def list_domains(client: ModalClient) -> tuple[list[dict[str, Any]], bool]
     `ModalDomain` and `ModalDomainDNSRecord` rows.
     """
     try:
-        response = await retry_transient_errors(
-            client.stub.DomainList,
-            api_pb2.DomainListRequest(),
-        )
+        response = await client.stub.DomainList(api_pb2.DomainListRequest())
     except GRPCError as exc:
         if exc.status is Status.UNIMPLEMENTED:
             logger.info(
@@ -407,9 +401,8 @@ async def get_environment_roles(
     call, which keys on the name. Each principal is either a user or a service user;
     exactly one of ``user_id`` / ``service_user_id`` is set.
     """
-    response = await retry_transient_errors(
-        client.stub.EnvironmentGetRoles,
-        api_pb2.EnvironmentGetRolesRequest(environment_id=environment_id),
+    response = await client.stub.EnvironmentGetRoles(
+        api_pb2.EnvironmentGetRolesRequest(environment_id=environment_id)
     )
     return [
         {
@@ -435,9 +428,8 @@ async def list_apps(client: ModalClient, environment_name: str) -> list[dict[str
     There is no public app listing API at all: no ``modal.App.list()``, and
     ``App.registered_functions`` is documented as build-phase-only.
     """
-    response = await retry_transient_errors(
-        client.stub.AppList,
-        api_pb2.AppListRequest(environment_name=environment_name),
+    response = await client.stub.AppList(
+        api_pb2.AppListRequest(environment_name=environment_name)
     )
     return [
         {
@@ -469,9 +461,8 @@ async def get_app_layout(client: ModalClient, app_id: str) -> dict[str, Any]:
 
     Returns ``{"functions": [...], "classes": [...]}``.
     """
-    response = await retry_transient_errors(
-        client.stub.AppGetLayout,
-        api_pb2.AppGetLayoutRequest(app_id=app_id),
+    response = await client.stub.AppGetLayout(
+        api_pb2.AppGetLayoutRequest(app_id=app_id)
     )
     layout = response.app_layout
 
@@ -555,6 +546,69 @@ def _resource_value(resource_info: Any, field: str) -> int | None:
     return getattr(resource_info, field).value
 
 
+# Modal distinguishes sandbox generations only by the shape of the id: a v2 id is `sb-` plus a
+# 26-character Crockford-base32 ULID whose first character is 0-7. Mirrors
+# `modal.sandbox._is_v2_sandbox_id`, which is private, so it is reimplemented here rather than
+# imported.
+_ULID_ALPHABET = "0123456789ABCDEFGHJKMNPQRSTVWXYZ"
+
+
+def _is_v2_sandbox_id(sandbox_id: str) -> bool:
+    prefix, separator, suffix = sandbox_id.partition("-")
+    return (
+        prefix == "sb"
+        and separator == "-"
+        and len(suffix) == 26
+        and suffix[0] in "01234567"
+        and all(ch in _ULID_ALPHABET for ch in suffix)
+    )
+
+
+def _sandbox_to_dict(info: Any) -> dict[str, Any]:
+    """Convert one `SandboxInfo` to the graph shape.
+
+    Shared by the v1 and v2 listings: both return the same message type.
+    """
+    resource_info = info.resource_info
+    regions = list(info.regions)
+    return {
+        "id": info.id,
+        "name": _optional_str(info.name),
+        "app_id": _optional_str(info.app_id),
+        "state": _sandbox_state(info),
+        # v1 and v2 sandboxes are distinguished only by the shape of their id, so the
+        # generation is derived rather than reported. Worth surfacing: the two are listed by
+        # different RPCs and support different operations.
+        "sandbox_version": "v2" if _is_v2_sandbox_id(info.id) else "v1",
+        "created_at": _timestamp(info.created_at),
+        "ready_at": _timestamp(info.ready_at),
+        "image_id": _optional_str(info.image_id),
+        "memory_mb": _resource_value(resource_info, "memory_mb"),
+        "memory_mb_max": resource_info.memory_mb_max or None,
+        "milli_cpu": _resource_value(resource_info, "milli_cpu"),
+        "milli_cpu_max": resource_info.milli_cpu_max or None,
+        "gpu_type": _optional_str(resource_info.gpu_type),
+        "ephemeral_disk_mb": resource_info.ephemeral_disk_mb or None,
+        "regions": regions,
+        # A single-region sandbox gets a scalar region so it can join the ontology's region
+        # field; a multi-region one deliberately does not.
+        "region": regions[0] if len(regions) == 1 else None,
+        "timeout_secs": info.timeout_secs or None,
+        "idle_timeout_secs": info.idle_timeout_secs or None,
+        "tags": [f"{tag.tag_name}={tag.tag_value}" for tag in info.tags],
+        "tunnels": [
+            {
+                "host": _optional_str(tunnel.host),
+                "port": tunnel.port or None,
+                "unencrypted_host": _optional_str(tunnel.unencrypted_host),
+                "unencrypted_port": tunnel.unencrypted_port or None,
+                "container_port": tunnel.container_port,
+            }
+            for tunnel in info.tunnels
+        ],
+    }
+
+
 async def list_sandboxes(
     client: ModalClient, environment_name: str
 ) -> tuple[list[dict[str, Any]], bool]:
@@ -569,6 +623,9 @@ async def list_sandboxes(
     the image, resources, regions, timeouts and tunnels that we actually want.
     ``include_finished`` is left False: finished sandboxes are ephemeral by nature and
     would otherwise accumulate forever.
+
+    This returns v1 sandboxes only. v2 sandboxes are not included by Modal, and come from
+    :func:`list_sandboxes_v2`.
     """
     sandboxes: list[dict[str, Any]] = []
     before_timestamp = 0.0
@@ -580,47 +637,11 @@ async def list_sandboxes(
         )
         if before_timestamp:
             request.before_timestamp = before_timestamp
-        response = await retry_transient_errors(client.stub.SandboxList, request)
+        response = await client.stub.SandboxList(request)
         if not response.sandboxes:
             complete = True
             break
-        for info in response.sandboxes:
-            resource_info = info.resource_info
-            regions = list(info.regions)
-            sandboxes.append(
-                {
-                    "id": info.id,
-                    "name": _optional_str(info.name),
-                    "app_id": _optional_str(info.app_id),
-                    "state": _sandbox_state(info),
-                    "created_at": _timestamp(info.created_at),
-                    "ready_at": _timestamp(info.ready_at),
-                    "image_id": _optional_str(info.image_id),
-                    "memory_mb": _resource_value(resource_info, "memory_mb"),
-                    "memory_mb_max": resource_info.memory_mb_max or None,
-                    "milli_cpu": _resource_value(resource_info, "milli_cpu"),
-                    "milli_cpu_max": resource_info.milli_cpu_max or None,
-                    "gpu_type": _optional_str(resource_info.gpu_type),
-                    "ephemeral_disk_mb": resource_info.ephemeral_disk_mb or None,
-                    "regions": regions,
-                    # A single-region sandbox gets a scalar region so it can join the
-                    # ontology's region field; a multi-region one deliberately does not.
-                    "region": regions[0] if len(regions) == 1 else None,
-                    "timeout_secs": info.timeout_secs or None,
-                    "idle_timeout_secs": info.idle_timeout_secs or None,
-                    "tags": [f"{tag.tag_name}={tag.tag_value}" for tag in info.tags],
-                    "tunnels": [
-                        {
-                            "host": _optional_str(tunnel.host),
-                            "port": tunnel.port or None,
-                            "unencrypted_host": _optional_str(tunnel.unencrypted_host),
-                            "unencrypted_port": tunnel.unencrypted_port or None,
-                            "container_port": tunnel.container_port,
-                        }
-                        for tunnel in info.tunnels
-                    ],
-                }
-            )
+        sandboxes.extend(_sandbox_to_dict(info) for info in response.sandboxes)
         oldest = min(info.created_at for info in response.sandboxes)
         if before_timestamp and oldest >= before_timestamp:
             # Timestamps stopped decreasing, so the cursor cannot advance.
@@ -632,6 +653,54 @@ async def list_sandboxes(
             "without exhausting the list; treating it as incomplete so cleanup is "
             "skipped.",
             environment_name,
+            _SANDBOX_PAGE_LIMIT,
+        )
+    return sandboxes, complete
+
+
+async def list_sandboxes_v2(
+    client: ModalClient, app_id: str
+) -> tuple[list[dict[str, Any]], bool]:
+    """List the v2 sandboxes of one app, with their tunnels.
+
+    Returns ``(sandboxes, complete)`` with the same contract as :func:`list_sandboxes`.
+
+    Modal's docs are explicit that "V2 sandboxes created with this method are not currently
+    returned by ``client.sandboxes.list()``", so `SandboxList` alone silently misses them.
+    `SandboxListV2` is the counterpart, and it differs from every other call in this module in
+    two ways: ``app_id`` is mandatory, so this fans out per app rather than per environment; and
+    it authenticates with an auth-token header rather than the channel credentials, like the
+    other v2 sandbox RPCs.
+
+    v2 is still opt-in at the time of writing (created only via
+    ``Sandbox._experimental_create``), so most workspaces have none. That is why an empty result
+    here is unremarkable rather than a sign something is wrong.
+    """
+    sandboxes: list[dict[str, Any]] = []
+    before_timestamp = 0.0
+    complete = False
+    auth_token = await client.raw._auth_token_manager.get_token()
+    for _ in range(_SANDBOX_PAGE_LIMIT):
+        request = api_pb2.SandboxListRequest(app_id=app_id, include_finished=False)
+        if before_timestamp:
+            request.before_timestamp = before_timestamp
+        response = await client.stub.SandboxListV2(
+            request, metadata=[("x-modal-auth-token", auth_token)]
+        )
+        if not response.sandboxes:
+            complete = True
+            break
+        sandboxes.extend(_sandbox_to_dict(info) for info in response.sandboxes)
+        oldest = min(info.created_at for info in response.sandboxes)
+        if before_timestamp and oldest >= before_timestamp:
+            # Timestamps stopped decreasing, so the cursor cannot advance.
+            break
+        before_timestamp = oldest
+    if not complete:
+        logger.warning(
+            "Modal v2 sandbox enumeration for app %s stopped after %d pages without "
+            "exhausting the list; treating it as incomplete so cleanup is skipped.",
+            app_id,
             _SANDBOX_PAGE_LIMIT,
         )
     return sandboxes, complete
@@ -705,9 +774,8 @@ async def list_nfs(client: ModalClient, environment_name: str) -> list[dict[str,
     having superseded it with Volume. Still enumerated because existing workspaces have
     them.
     """
-    response = await retry_transient_errors(
-        client.stub.SharedVolumeList,
-        api_pb2.SharedVolumeListRequest(environment_name=environment_name),
+    response = await client.stub.SharedVolumeList(
+        api_pb2.SharedVolumeListRequest(environment_name=environment_name)
     )
     return [
         {
@@ -731,12 +799,11 @@ async def list_image_tags(
     images: list[dict[str, Any]] = []
     page_token = ""
     while True:
-        response = await retry_transient_errors(
-            client.stub.ImageListTags,
+        response = await client.stub.ImageListTags(
             api_pb2.ImageListTagsRequest(
                 environment_name=environment_name,
                 page_token=page_token,
-            ),
+            )
         )
         for item in response.items:
             images.append(
@@ -808,9 +875,8 @@ async def list_tasks(
     client: ModalClient, environment_name: str, app_id: str
 ) -> list[dict[str, Any]]:
     """List an app's running tasks (private `TaskList`, unpaginated, live only)."""
-    response = await retry_transient_errors(
-        client.stub.TaskList,
-        api_pb2.TaskListRequest(environment_name=environment_name, app_id=app_id),
+    response = await client.stub.TaskList(
+        api_pb2.TaskListRequest(environment_name=environment_name, app_id=app_id)
     )
     return [
         {
@@ -833,9 +899,8 @@ async def list_clusters(
     is fetched once per environment rather than once per app. Each cluster still carries
     its own ``app_id``.
     """
-    response = await retry_transient_errors(
-        client.stub.ClusterList,
-        api_pb2.ClusterListRequest(environment_name=environment_name),
+    response = await client.stub.ClusterList(
+        api_pb2.ClusterListRequest(environment_name=environment_name)
     )
     return [
         {
@@ -855,7 +920,7 @@ async def list_proxies(client: ModalClient) -> list[dict[str, Any]]:
     is workspace-wide and carries ``environment_name`` per proxy, so callers filter it
     per environment themselves.
     """
-    response = await retry_transient_errors(client.stub.ProxyList, Empty())
+    response = await client.stub.ProxyList(Empty())
     return [
         {
             "id": item.proxy_id,
