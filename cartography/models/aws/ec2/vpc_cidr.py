@@ -32,11 +32,11 @@ class AWSIPv4CidrBlockNodeProperties(CartographyNodeProperties):
     )
     block_state: PropertyRef = PropertyRef(
         "BlockState",
-        description="Whether this `AWSCidrBlock` node is configured to block state.",
+        description="State of the CIDR block association, for example ``associating | associated | failing | failed``.",
     )
     block_state_message: PropertyRef = PropertyRef(
         "BlockStateMessage",
-        description="Whether this `AWSCidrBlock` node is configured to block state message.",
+        description="Message giving more information about the CIDR block association state.",
     )
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
@@ -91,11 +91,11 @@ class AWSIPv6CidrBlockNodeProperties(CartographyNodeProperties):
     )
     block_state: PropertyRef = PropertyRef(
         "BlockState",
-        description="Whether this `AWSCidrBlock` node is configured to block state.",
+        description="State of the CIDR block association, for example ``associating | associated | failing | failed``.",
     )
     block_state_message: PropertyRef = PropertyRef(
         "BlockStateMessage",
-        description="Whether this `AWSCidrBlock` node is configured to block state message.",
+        description="Message giving more information about the CIDR block association state.",
     )
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 

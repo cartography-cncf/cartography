@@ -25,19 +25,19 @@ class S3AccountPublicAccessBlockNodeProperties(CartographyNodeProperties):
     )
     block_public_acls: PropertyRef = PropertyRef(
         "block_public_acls",
-        description="Whether Amazon S3 blocks public access control lists (ACLs) for this bucket and objects",
+        description="Whether Amazon S3 blocks public access control lists (ACLs) for every bucket and object in the account",
     )
     ignore_public_acls: PropertyRef = PropertyRef(
         "ignore_public_acls",
-        description="Whether Amazon S3 ignores public ACLs for this bucket and objects",
+        description="Whether Amazon S3 ignores public ACLs for every bucket and object in the account",
     )
     block_public_policy: PropertyRef = PropertyRef(
         "block_public_policy",
-        description="Whether Amazon S3 blocks public bucket policies for this bucket",
+        description="Whether Amazon S3 blocks public bucket policies for every bucket in the account",
     )
     restrict_public_buckets: PropertyRef = PropertyRef(
         "restrict_public_buckets",
-        description="Whether Amazon S3 restricts public policies for this bucket",
+        description="Whether Amazon S3 restricts public policies for every bucket in the account",
     )
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 

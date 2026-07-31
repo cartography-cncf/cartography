@@ -22,7 +22,7 @@ class CloudWatchLogMetricFilterNodeProperties(CartographyNodeProperties):
     arn: PropertyRef = PropertyRef(
         "filterName",
         extra_index=True,
-        description="Ensures that the arn field is a unique combination of logGroupName and filterName",
+        description="The name of the metric filter. CloudWatch exposes no ARN for metric filters, so the filter name is stored here for query convenience",
     )
     region: PropertyRef = PropertyRef(
         "Region",

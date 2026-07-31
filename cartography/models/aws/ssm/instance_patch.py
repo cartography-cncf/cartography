@@ -15,7 +15,10 @@ from cartography.models.core.relationships import TargetNodeMatcher
 
 @dataclass(frozen=True)
 class SSMInstancePatchNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("Id", description="The ARN of the instance patch")
+    id: PropertyRef = PropertyRef(
+        "Id",
+        description="Composite key built as `{instance_id}-{Title}`, since SSM exposes no identifier for an instance patch",
+    )
     instance_id: PropertyRef = PropertyRef(
         "_instance_id", extra_index=True, description="The managed node ID."
     )

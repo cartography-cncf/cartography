@@ -42,7 +42,7 @@ class RedshiftClusterNodeProperties(CartographyNodeProperties):
     )
     db_name: PropertyRef = PropertyRef(
         "DBName",
-        description="The name of the initial database that was created when the cluster was created. This same name is returned for the life of the cluster. If an initial database was not specified, a database named devdev was created by default.",
+        description="The name of the initial database that was created when the cluster was created. This same name is returned for the life of the cluster. If an initial database was not specified, a database named dev was created by default.",
     )
     encrypted: PropertyRef = PropertyRef(
         "Encrypted", description="Specifies whether the cluster has encryption enabled"

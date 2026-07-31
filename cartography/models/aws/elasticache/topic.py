@@ -65,7 +65,7 @@ class ElasticacheTopicToElasticacheClusterRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class ElasticacheTopicSchema(CartographyNodeSchema):
-    """Representation of an AWS [ElastiCache Topic](https://docs.aws.amazon.com/AmazonElastiCache/latest/APIReference/API_CacheCluster.html) for notifications."""
+    """Representation of the SNS topic an ElastiCache cluster publishes to, as reported by the cluster's [NotificationConfiguration](https://docs.aws.amazon.com/AmazonElastiCache/latest/APIReference/API_NotificationConfiguration.html)."""
 
     label: str = "AWSElasticacheTopic"
     # DEPRECATED: legacy ElasticacheTopic node label will be removed in v1.0.0.

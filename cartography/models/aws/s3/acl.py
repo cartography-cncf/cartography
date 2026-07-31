@@ -18,7 +18,7 @@ class S3AclNodeProperties(CartographyNodeProperties):
     id: PropertyRef = PropertyRef("id", description="The ID of this ACL")
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
     owner: PropertyRef = PropertyRef(
-        "owner", description="Canonical user ID of the S3 bucket owner."
+        "owner", description="Display name of the S3 bucket owner."
     )
     ownerid: PropertyRef = PropertyRef(
         "ownerid",

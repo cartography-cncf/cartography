@@ -15,16 +15,14 @@ from cartography.models.core.relationships import TargetNodeMatcher
 
 @dataclass(frozen=True)
 class APIGatewayResourceNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("id", description="The id of the REST API")
-    path: PropertyRef = PropertyRef(
-        "path", description="The timestamp when the REST API was created"
-    )
+    id: PropertyRef = PropertyRef("id", description="The id of the resource")
+    path: PropertyRef = PropertyRef("path", description="The full path of the resource")
     pathpart: PropertyRef = PropertyRef(
-        "pathPart", description="The version identifier for the API"
+        "pathPart", description="The last path segment of the resource"
     )
     parentid: PropertyRef = PropertyRef(
         "parentId",
-        description="A nullable integer that is used to enable or disable the compression of the REST API",
+        description="The id of the parent resource",
     )
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 

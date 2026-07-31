@@ -18,7 +18,7 @@ class CognitoUserPoolNodeProperties(CartographyNodeProperties):
     arn: PropertyRef = PropertyRef(
         "Id",
         extra_index=True,
-        description="The Amazon Resource Name (ARN) of the Cognito User Pool",
+        description="The id of the Cognito User Pool. ListUserPools returns no ARN, so the id is stored here for query convenience",
     )
     region: PropertyRef = PropertyRef(
         "Region", set_in_kwargs=True, description="The region of the Cognito User Pool"

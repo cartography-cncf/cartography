@@ -62,7 +62,7 @@ class VPCToAWSAccountRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class AWSVpcSchema(CartographyNodeSchema):
-    """Representation of an [AWS CidrBlock used in VPC configuration](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_VpcCidrBlockAssociation.html). More information on https://docs.aws.amazon.com/cli/latest/reference/ec2/describe-vpcs.html"""
+    """Representation of an [AWS VPC](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_Vpc.html). More information on https://docs.aws.amazon.com/cli/latest/reference/ec2/describe-vpcs.html"""
 
     label: str = "AWSVpc"
     properties: VPCNodeProperties = VPCNodeProperties()
