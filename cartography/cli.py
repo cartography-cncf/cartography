@@ -974,6 +974,15 @@ class CLI:
                     hidden=PANEL_FLYIO not in visible_panels,
                 ),
             ] = "https://api.machines.dev",
+            flyio_graphql_url: Annotated[
+                str,
+                typer.Option(
+                    "--flyio-graphql-url",
+                    help="Fly.io GraphQL API URL.",
+                    rich_help_panel=PANEL_FLYIO,
+                    hidden=PANEL_FLYIO not in visible_panels,
+                ),
+            ] = "https://api.fly.io/graphql",
             # =================================================================
             # CrowdStrike Options
             # =================================================================
@@ -3228,6 +3237,7 @@ class CLI:
                 flyio_token=flyio_token,
                 flyio_org_slug=flyio_org_slug,
                 flyio_base_url=flyio_base_url,
+                flyio_graphql_url=flyio_graphql_url,
                 permission_relationships_file=permission_relationships_file,
                 azure_permission_relationships_file=azure_permission_relationships_file,
                 gcp_requested_syncs=gcp_requested_syncs,

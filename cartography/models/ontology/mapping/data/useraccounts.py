@@ -732,6 +732,21 @@ modal_mapping = OntologyMapping(
     ],
 )
 
+flyio_mapping = OntologyMapping(
+    module_name="flyio",
+    nodes=[
+        OntologyNodeMapping(
+            node_label="FlyUser",
+            fields=[
+                OntologyFieldMapping(
+                    ontology_field="email", node_field="email", required=True
+                ),
+                OntologyFieldMapping(ontology_field="fullname", node_field="name"),
+            ],
+        ),
+    ],
+)
+
 USERACCOUNTS_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     "microsoft": entra_mapping,
     "lastpass": lastpass_mapping,
@@ -762,6 +777,7 @@ USERACCOUNTS_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     "jumpcloud": jumpcloud_mapping,
     "vercel": vercel_mapping,
     "railway": railway_mapping,
+    "flyio": flyio_mapping,
     "netlify": netlify_mapping,
     "databricks": OntologyMapping(
         module_name="databricks",

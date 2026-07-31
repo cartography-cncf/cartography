@@ -8,6 +8,7 @@ from cartography.models.core.relationships import CartographyRelProperties
 from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
+from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import TargetNodeMatcher
 from cartography.models.ontology.labels import COMPUTE_INSTANCE
 
@@ -87,6 +88,25 @@ class FlyMachineToAppRel(CartographyRelSchema):
 
 
 @dataclass(frozen=True)
+class FlyMachineToReleaseRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+# (:FlyMachine)-[:DEPLOYED_FROM]->(:FlyRelease)
+class FlyMachineToReleaseRel(CartographyRelSchema):
+    """Connects `FlyMachine` to the Fly release that deployed it."""
+
+    target_node_label: str = "FlyRelease"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"id": PropertyRef("release_id")},
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "DEPLOYED_FROM"
+    properties: FlyMachineToReleaseRelProperties = FlyMachineToReleaseRelProperties()
+
+
+@dataclass(frozen=True)
 class FlyMachineSchema(CartographyNodeSchema):
     """Represents a Fly Machine."""
 
@@ -94,3 +114,6 @@ class FlyMachineSchema(CartographyNodeSchema):
     properties: FlyMachineNodeProperties = FlyMachineNodeProperties()
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([COMPUTE_INSTANCE])
     sub_resource_relationship: FlyMachineToAppRel = FlyMachineToAppRel()
+    other_relationships: OtherRelationships = OtherRelationships(
+        [FlyMachineToReleaseRel()],
+    )

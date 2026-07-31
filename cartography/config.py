@@ -188,6 +188,8 @@ class Config:
     :param flyio_org_slug: Fly.io organization slug to sync. Optional.
     :type flyio_base_url: str
     :param flyio_base_url: Fly.io Machines API base URL. Optional.
+    :type flyio_graphql_url: str
+    :param flyio_graphql_url: Fly.io GraphQL API URL. Optional.
     :type permission_relationships_file: str
     :param permission_relationships_file: File path for the resource permission relationships file. Optional.
     :type azure_permission_relationships_file: str
@@ -508,6 +510,7 @@ class Config:
         flyio_token=None,
         flyio_org_slug=None,
         flyio_base_url="https://api.machines.dev",
+        flyio_graphql_url="https://api.fly.io/graphql",
         permission_relationships_file=None,
         azure_permission_relationships_file=None,
         gcp_requested_syncs=None,
@@ -734,6 +737,7 @@ class Config:
         self.flyio_token = flyio_token
         self.flyio_org_slug = flyio_org_slug
         self.flyio_base_url = flyio_base_url
+        self.flyio_graphql_url = flyio_graphql_url
         self.permission_relationships_file = permission_relationships_file
         self.azure_permission_relationships_file = azure_permission_relationships_file
         self.gcp_requested_syncs = gcp_requested_syncs

@@ -5,10 +5,14 @@ import requests
 from requests.adapters import HTTPAdapter
 from urllib3 import Retry
 
+import cartography.intel.flyio.access_tokens
 import cartography.intel.flyio.apps
 import cartography.intel.flyio.certificates
+import cartography.intel.flyio.ips
 import cartography.intel.flyio.machines
+import cartography.intel.flyio.releases
 import cartography.intel.flyio.secrets
+import cartography.intel.flyio.users
 import cartography.intel.flyio.volumes
 from cartography.config import Config
 from cartography.util import timeit
@@ -33,7 +37,7 @@ def start_flyio_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
         total=5,
         backoff_factor=1,
         status_forcelist=[429, 500, 502, 503, 504],
-        allowed_methods=["GET"],
+        allowed_methods=["GET", "POST"],
     )
     api_session.mount("https://", HTTPAdapter(max_retries=retry_policy))
     api_session.headers.update({"Authorization": _make_auth_header(config.flyio_token)})
@@ -41,10 +45,21 @@ def start_flyio_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
     common_job_parameters = {
         "UPDATE_TAG": config.update_tag,
         "BASE_URL": config.flyio_base_url,
+        "GRAPHQL_URL": config.flyio_graphql_url,
         "ORGANIZATION_ID": config.flyio_org_slug,
     }
 
     apps = cartography.intel.flyio.apps.sync(
+        neo4j_session,
+        api_session,
+        common_job_parameters,
+    )
+    cartography.intel.flyio.users.sync(
+        neo4j_session,
+        api_session,
+        common_job_parameters,
+    )
+    cartography.intel.flyio.access_tokens.sync_organization(
         neo4j_session,
         api_session,
         common_job_parameters,
@@ -56,7 +71,22 @@ def start_flyio_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
             "APP_ID": app["id"],
             "APP_NAME": app["name"],
         }
+        cartography.intel.flyio.releases.sync(
+            neo4j_session,
+            api_session,
+            app_job_parameters,
+        )
         cartography.intel.flyio.machines.sync(
+            neo4j_session,
+            api_session,
+            app_job_parameters,
+        )
+        cartography.intel.flyio.ips.sync(
+            neo4j_session,
+            api_session,
+            app_job_parameters,
+        )
+        cartography.intel.flyio.access_tokens.sync_app(
             neo4j_session,
             api_session,
             app_job_parameters,

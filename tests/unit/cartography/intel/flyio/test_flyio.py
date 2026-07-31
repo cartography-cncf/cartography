@@ -4,15 +4,24 @@ from unittest.mock import patch
 import pytest
 
 import cartography.intel.flyio
+import cartography.intel.flyio.access_tokens
 import cartography.intel.flyio.apps
 import cartography.intel.flyio.certificates
+import cartography.intel.flyio.ips
 import cartography.intel.flyio.machines
+import cartography.intel.flyio.releases
 import cartography.intel.flyio.secrets
+import cartography.intel.flyio.users
 import cartography.intel.flyio.volumes
+from tests.data.flyio.access_tokens import APP_ACCESS_TOKENS_RESPONSE
+from tests.data.flyio.access_tokens import ORG_ACCESS_TOKENS_RESPONSE
 from tests.data.flyio.apps import APPS_RESPONSE
 from tests.data.flyio.certificates import CERTIFICATES_RESPONSE
+from tests.data.flyio.ips import IPS_RESPONSE
 from tests.data.flyio.machines import MACHINES_RESPONSE
+from tests.data.flyio.releases import RELEASES_RESPONSE
 from tests.data.flyio.secrets import SECRETS_RESPONSE
+from tests.data.flyio.users import ORG_MEMBERS_RESPONSE
 from tests.data.flyio.volumes import VOLUMES_RESPONSE
 
 TEST_APP_ID = "jlyv9r258ew18xrg"
@@ -246,6 +255,336 @@ def test_transform_volumes_and_certificates():
             "updated_at": "2026-07-31T07:00:00Z",
         },
     ]
+
+
+def test_transform_ips():
+    # Act
+    ips = cartography.intel.flyio.ips.transform(IPS_RESPONSE, TEST_APP_ID)
+
+    # Assert
+    assert ips == [
+        {
+            "id": "ip_v6_id",
+            "address": "2a09:8280:1::66:a54d:0",
+            "type": "v6",
+            "region": "global",
+            "created_at": "2026-07-31T09:10:00Z",
+            "direction": "ingress",
+            "ip_version": 6,
+            "is_public": True,
+            "service_name": None,
+            "network_name": "default",
+            "network_organization_slug": "personal",
+        },
+        {
+            "id": "ip_private_v6_id",
+            "address": "fdaa:10:e286:a7b::1",
+            "type": "private_v6",
+            "region": "global",
+            "created_at": "2026-07-31T09:11:00Z",
+            "direction": "ingress",
+            "ip_version": 6,
+            "is_public": False,
+            "service_name": None,
+            "network_name": "default",
+            "network_organization_slug": "personal",
+        },
+        {
+            "id": f"{TEST_APP_ID}/66.241.124.236",
+            "address": "66.241.124.236",
+            "type": "shared_v4",
+            "region": None,
+            "created_at": None,
+            "direction": "ingress",
+            "ip_version": 4,
+            "is_public": True,
+            "service_name": None,
+            "network_name": None,
+            "network_organization_slug": None,
+        },
+        {
+            "id": "egress_v4_id",
+            "address": "66.241.125.42",
+            "type": "egress_v4",
+            "region": "lhr",
+            "created_at": "2026-07-31T09:12:00Z",
+            "direction": "egress",
+            "ip_version": 4,
+            "is_public": True,
+            "service_name": None,
+            "network_name": None,
+            "network_organization_slug": None,
+        },
+    ]
+
+
+def test_transform_users():
+    # Act
+    users = cartography.intel.flyio.users.transform(ORG_MEMBERS_RESPONSE)
+
+    # Assert
+    assert users == [
+        {
+            "id": "Re9RMq7mRleO0UyLAKpq",
+            "name": None,
+            "email": "jonathanfemi@example.com",
+            "role": "ADMIN",
+            "joined_at": "2025-02-21T17:12:43Z",
+        },
+    ]
+
+
+def test_transform_access_tokens():
+    # Act
+    app_tokens = cartography.intel.flyio.access_tokens.transform_app_tokens(
+        APP_ACCESS_TOKENS_RESPONSE,
+    )
+    org_tokens = cartography.intel.flyio.access_tokens.transform_organization_tokens(
+        ORG_ACCESS_TOKENS_RESPONSE,
+    )
+
+    # Assert
+    assert app_tokens == [
+        {
+            "id": "app_token_active",
+            "name": "FLY_API_TOKEN",
+            "expires_at": "2125-01-30T16:38:02Z",
+            "revoked_at": None,
+            "user_id": "Re9RMq7mRleO0UyLAKpq",
+            "user_name": None,
+            "user_email": "jonathanfemi@example.com",
+            "revoked": False,
+        },
+        {
+            "id": "app_token_revoked",
+            "name": "flyctl deploy token",
+            "expires_at": "2045-02-18T16:30:33Z",
+            "revoked_at": "2025-02-23T16:34:00Z",
+            "user_id": "Re9RMq7mRleO0UyLAKpq",
+            "user_name": None,
+            "user_email": "jonathanfemi@example.com",
+            "revoked": True,
+        },
+    ]
+    assert org_tokens[0] == {
+        "id": "org_token_active",
+        "name": "cartography-flyio-prod-test",
+        "expires_at": "2026-08-01T13:17:36Z",
+        "revoked_at": None,
+        "user_id": "Re9RMq7mRleO0UyLAKpq",
+        "user_name": None,
+        "user_email": "jonathanfemi@example.com",
+        "revoked": False,
+    }
+
+
+def test_transform_releases():
+    # Act
+    releases = cartography.intel.flyio.releases.transform(RELEASES_RESPONSE)
+
+    # Assert
+    assert releases == [
+        {
+            "id": "YgoYklRLL8Xo3fBPg6AoX28AG",
+            "version": 35,
+            "stable": True,
+            "in_progress": False,
+            "reason": "deploy",
+            "description": "Deploy image",
+            "status": "succeeded",
+            "deployment_strategy": "rolling",
+            "evaluation_id": "eval_01KJQC1W6NXAK34WQ739F0ERSP",
+            "created_at": "2026-07-31T06:40:00Z",
+            "image_ref": (
+                "registry.fly.io/nhmhvxo3b9:"
+                "deployment-01JMWNHS84ZCCV89XYH9SQ48FX"
+            ),
+            "user_id": "user_123",
+            "user_name": "Jonathan Femi",
+            "user_email": "jonathanfemi@example.com",
+        },
+        {
+            "id": "release_previous",
+            "version": 34,
+            "stable": False,
+            "in_progress": False,
+            "reason": "secrets",
+            "description": "Update secrets",
+            "status": "failed",
+            "deployment_strategy": "immediate",
+            "evaluation_id": None,
+            "created_at": "2026-07-30T06:40:00Z",
+            "image_ref": None,
+            "user_id": None,
+            "user_name": None,
+            "user_email": None,
+        },
+    ]
+
+
+@patch.object(cartography.intel.flyio.users, "post_graphql")
+def test_get_users_uses_graphql(mock_post_graphql):
+    # Arrange
+    api_session = Mock()
+    mock_post_graphql.return_value = ORG_MEMBERS_RESPONSE
+
+    # Act
+    response = cartography.intel.flyio.users.get(
+        api_session,
+        "https://api.fly.io/graphql",
+        "personal",
+    )
+
+    # Assert
+    assert response == ORG_MEMBERS_RESPONSE
+    mock_post_graphql.assert_called_once_with(
+        api_session,
+        "https://api.fly.io/graphql",
+        cartography.intel.flyio.users.FLY_ORG_MEMBERS_QUERY,
+        {"slug": "personal"},
+    )
+
+
+@patch.object(cartography.intel.flyio.access_tokens, "post_graphql")
+def test_get_access_tokens_uses_graphql(mock_post_graphql):
+    # Arrange
+    api_session = Mock()
+    mock_post_graphql.side_effect = [
+        ORG_ACCESS_TOKENS_RESPONSE,
+        APP_ACCESS_TOKENS_RESPONSE,
+    ]
+
+    # Act
+    org_response = cartography.intel.flyio.access_tokens.get_organization(
+        api_session,
+        "https://api.fly.io/graphql",
+        "personal",
+    )
+    app_response = cartography.intel.flyio.access_tokens.get_app(
+        api_session,
+        "https://api.fly.io/graphql",
+        "example-app",
+    )
+
+    # Assert
+    assert org_response == ORG_ACCESS_TOKENS_RESPONSE
+    assert app_response == APP_ACCESS_TOKENS_RESPONSE
+    assert mock_post_graphql.call_args_list[0].args == (
+        api_session,
+        "https://api.fly.io/graphql",
+        cartography.intel.flyio.access_tokens.FLY_ORG_ACCESS_TOKENS_QUERY,
+        {"slug": "personal"},
+    )
+    assert mock_post_graphql.call_args_list[1].args == (
+        api_session,
+        "https://api.fly.io/graphql",
+        cartography.intel.flyio.access_tokens.FLY_APP_ACCESS_TOKENS_QUERY,
+        {"appName": "example-app"},
+    )
+
+
+@patch.object(cartography.intel.flyio.releases, "post_graphql")
+def test_get_releases_uses_graphql(mock_post_graphql):
+    # Arrange
+    api_session = Mock()
+    mock_post_graphql.return_value = RELEASES_RESPONSE
+
+    # Act
+    response = cartography.intel.flyio.releases.get(
+        api_session,
+        "https://api.fly.io/graphql",
+        "example-app",
+    )
+
+    # Assert
+    assert response == RELEASES_RESPONSE
+    mock_post_graphql.assert_called_once_with(
+        api_session,
+        "https://api.fly.io/graphql",
+        cartography.intel.flyio.releases.FLY_RELEASES_QUERY,
+        {"appName": "example-app", "limit": 100, "after": None},
+    )
+
+
+@patch.object(cartography.intel.flyio.releases, "post_graphql")
+def test_get_releases_follows_next_cursor(mock_post_graphql):
+    # Arrange
+    api_session = Mock()
+    mock_post_graphql.side_effect = [
+        {
+            "app": {
+                "releases": {
+                    "nodes": [{"id": "release_1"}],
+                    "pageInfo": {
+                        "hasNextPage": True,
+                        "endCursor": "cursor-1",
+                    },
+                },
+            },
+        },
+        {
+            "app": {
+                "releases": {
+                    "nodes": [{"id": "release_2"}],
+                    "pageInfo": {
+                        "hasNextPage": False,
+                        "endCursor": None,
+                    },
+                },
+            },
+        },
+    ]
+
+    # Act
+    response = cartography.intel.flyio.releases.get(
+        api_session,
+        "https://api.fly.io/graphql",
+        "example-app",
+    )
+
+    # Assert
+    assert response == {
+        "app": {
+            "releases": {
+                "nodes": [{"id": "release_1"}, {"id": "release_2"}],
+            },
+        },
+    }
+    assert mock_post_graphql.call_args_list[0].args == (
+        api_session,
+        "https://api.fly.io/graphql",
+        cartography.intel.flyio.releases.FLY_RELEASES_QUERY,
+        {"appName": "example-app", "limit": 100, "after": None},
+    )
+    assert mock_post_graphql.call_args_list[1].args == (
+        api_session,
+        "https://api.fly.io/graphql",
+        cartography.intel.flyio.releases.FLY_RELEASES_QUERY,
+        {"appName": "example-app", "limit": 100, "after": "cursor-1"},
+    )
+
+
+@patch.object(cartography.intel.flyio.ips, "post_graphql")
+def test_get_ips_uses_graphql(mock_post_graphql):
+    # Arrange
+    api_session = Mock()
+    mock_post_graphql.return_value = IPS_RESPONSE
+
+    # Act
+    response = cartography.intel.flyio.ips.get(
+        api_session,
+        "https://api.fly.io/graphql",
+        "example-app",
+    )
+
+    # Assert
+    assert response == IPS_RESPONSE
+    mock_post_graphql.assert_called_once_with(
+        api_session,
+        "https://api.fly.io/graphql",
+        cartography.intel.flyio.ips.FLY_IPS_QUERY,
+        {"appName": "example-app"},
+    )
 
 
 @patch.object(cartography.intel.flyio.certificates, "get_json")

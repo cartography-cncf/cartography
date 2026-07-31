@@ -24,9 +24,13 @@ from cartography.sync import run_with_config
 NODE_LABELS = (
     "FlyOrganization",
     "FlyApp",
+    "FlyUser",
+    "FlyAccessToken",
     "FlyMachine",
     "FlyMachineService",
     "FlyMachineServicePort",
+    "FlyRelease",
+    "FlyIP",
     "FlyVolume",
     "FlySecret",
     "FlyCertificate",
@@ -42,14 +46,22 @@ class RelCount:
 
 RELATIONSHIPS = (
     RelCount("FlyOrganization", "RESOURCE", "FlyApp"),
+    RelCount("FlyOrganization", "RESOURCE", "FlyUser"),
+    RelCount("FlyUser", "MEMBER_OF", "FlyOrganization"),
+    RelCount("FlyOrganization", "RESOURCE", "FlyAccessToken"),
+    RelCount("FlyApp", "RESOURCE", "FlyAccessToken"),
+    RelCount("FlyAccessToken", "CREATED_BY", "FlyUser"),
     RelCount("FlyApp", "RESOURCE", "FlyMachine"),
     RelCount("FlyApp", "RESOURCE", "FlyMachineService"),
     RelCount("FlyApp", "RESOURCE", "FlyMachineServicePort"),
+    RelCount("FlyApp", "RESOURCE", "FlyRelease"),
+    RelCount("FlyApp", "RESOURCE", "FlyIP"),
     RelCount("FlyApp", "RESOURCE", "FlyVolume"),
     RelCount("FlyApp", "RESOURCE", "FlySecret"),
     RelCount("FlyApp", "RESOURCE", "FlyCertificate"),
     RelCount("FlyMachine", "EXPOSE", "FlyMachineService"),
     RelCount("FlyMachineService", "EXPOSE", "FlyMachineServicePort"),
+    RelCount("FlyMachine", "DEPLOYED_FROM", "FlyRelease"),
     RelCount("FlyMachine", "MOUNTS", "FlyVolume"),
 )
 
@@ -89,6 +101,11 @@ def parse_args() -> argparse.Namespace:
         help="Fly.io Machines API base URL.",
     )
     parser.add_argument(
+        "--flyio-graphql-url",
+        default=os.getenv("FLY_GRAPHQL_URL", "https://api.fly.io/graphql"),
+        help="Fly.io GraphQL API URL.",
+    )
+    parser.add_argument(
         "--update-tag",
         type=int,
         default=int(time.time()),
@@ -122,6 +139,7 @@ def build_config(args: argparse.Namespace, token: str) -> Config:
         flyio_token=token,
         flyio_org_slug=args.flyio_org_slug,
         flyio_base_url=args.flyio_base_url,
+        flyio_graphql_url=args.flyio_graphql_url,
     )
 
 
@@ -181,6 +199,111 @@ def print_certificate_details(session, update_tag: int) -> None:
         print("- none returned by the Fly.io certificates API")
 
 
+def print_ip_details(session, update_tag: int) -> None:
+    print(f"\nFlyIP details for update tag {update_tag}:")
+    rows = session.run(
+        """
+        MATCH (i:FlyIP)
+        WHERE i.lastupdated = $update_tag
+        RETURN i.address AS address, i.type AS type,
+               i.direction AS direction, i.region AS region,
+               i.is_public AS is_public
+        ORDER BY address
+        """,
+        update_tag=update_tag,
+    )
+    count = 0
+    for row in rows:
+        count += 1
+        print(
+            "- "
+            f"address={row['address']}, "
+            f"type={row['type']}, "
+            f"direction={row['direction']}, "
+            f"region={row['region']}, "
+            f"is_public={row['is_public']}",
+        )
+    if count == 0:
+        print("- none returned by the Fly.io IP GraphQL query")
+
+
+def print_release_details(session, update_tag: int) -> None:
+    print(f"\nFlyRelease details for update tag {update_tag}:")
+    rows = session.run(
+        """
+        MATCH (r:FlyRelease)
+        WHERE r.lastupdated = $update_tag
+        RETURN r.id AS id, r.version AS version,
+               r.status AS status,
+               r.deployment_strategy AS deployment_strategy,
+               r.reason AS reason,
+               r.user_email AS user_email
+        ORDER BY r.version DESC
+        LIMIT 10
+        """,
+        update_tag=update_tag,
+    )
+    count = 0
+    for row in rows:
+        count += 1
+        print(
+            "- "
+            f"id={row['id']}, "
+            f"version={row['version']}, "
+            f"status={row['status']}, "
+            f"deployment_strategy={row['deployment_strategy']}, "
+            f"reason={row['reason']}, "
+            f"user_email={row['user_email']}",
+        )
+    if count == 0:
+        print("- none returned by the Fly.io releases GraphQL query")
+
+
+def print_user_details(session, update_tag: int) -> None:
+    print(f"\nFlyUser details for update tag {update_tag}:")
+    rows = session.run(
+        """
+        MATCH (u:FlyUser)-[r:MEMBER_OF]->(:FlyOrganization)
+        WHERE u.lastupdated = $update_tag
+        RETURN u.email AS email, u.name AS name,
+               r.role AS role, r.joined_at AS joined_at
+        ORDER BY email
+        """,
+        update_tag=update_tag,
+    )
+    count = 0
+    for row in rows:
+        count += 1
+        print(
+            "- "
+            f"email={row['email']}, "
+            f"name={row['name']}, "
+            f"role={row['role']}, "
+            f"joined_at={row['joined_at']}",
+        )
+    if count == 0:
+        print("- none returned by the Fly.io organization members GraphQL query")
+
+
+def print_access_token_details(session, update_tag: int) -> None:
+    print(f"\nFlyAccessToken summary for update tag {update_tag}:")
+    rows = session.run(
+        """
+        MATCH (t:FlyAccessToken)
+        WHERE t.lastupdated = $update_tag
+        RETURN t.revoked AS revoked, count(t) AS count
+        ORDER BY revoked
+        """,
+        update_tag=update_tag,
+    )
+    count = 0
+    for row in rows:
+        count += row["count"]
+        print(f"- revoked={row['revoked']}: {row['count']}")
+    if count == 0:
+        print("- none returned by the Fly.io access-token GraphQL queries")
+
+
 def print_secret_leak_check(session, update_tag: int) -> None:
     row = session.run(
         """
@@ -193,6 +316,17 @@ def print_secret_leak_check(session, update_tag: int) -> None:
     ).single()
     print("\nSecret value leak check:")
     print(f"FlySecret nodes with value-like property keys: {row['count']}")
+    row = session.run(
+        """
+        MATCH (t:FlyAccessToken)
+        WHERE t.lastupdated = $update_tag
+          AND any(k IN keys(t) WHERE toLower(k) CONTAINS 'token'
+                   AND toLower(k) <> 'id')
+        RETURN count(t) AS count
+        """,
+        update_tag=update_tag,
+    ).single()
+    print(f"FlyAccessToken nodes with token-like property keys: {row['count']}")
 
 
 def print_proof_counts(args: argparse.Namespace) -> None:
@@ -204,6 +338,10 @@ def print_proof_counts(args: argparse.Namespace) -> None:
         with driver.session() as session:
             print_node_counts(session, args.update_tag)
             print_relationship_counts(session, args.update_tag)
+            print_user_details(session, args.update_tag)
+            print_access_token_details(session, args.update_tag)
+            print_release_details(session, args.update_tag)
+            print_ip_details(session, args.update_tag)
             print_certificate_details(session, args.update_tag)
             print_secret_leak_check(session, args.update_tag)
     finally:

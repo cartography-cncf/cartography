@@ -22,6 +22,7 @@ Follow these steps to analyze Fly.io objects with Cartography.
       --flyio-org-slug <org-slug>
     ```
 
-1. Optionally override the Machines API base URL with `--flyio-base-url`.
+1. Optionally override Fly.io API URLs.
 
-    The default is `https://api.machines.dev`.
+    The Machines API default is `https://api.machines.dev`.
+    The GraphQL API default is `https://api.fly.io/graphql`.

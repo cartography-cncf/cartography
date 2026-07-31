@@ -2,15 +2,24 @@ from unittest.mock import patch
 
 from cartography.config import Config
 import cartography.intel.flyio
+import cartography.intel.flyio.access_tokens
 import cartography.intel.flyio.apps
 import cartography.intel.flyio.certificates
+import cartography.intel.flyio.ips
 import cartography.intel.flyio.machines
+import cartography.intel.flyio.releases
 import cartography.intel.flyio.secrets
+import cartography.intel.flyio.users
 import cartography.intel.flyio.volumes
+from tests.data.flyio.access_tokens import APP_ACCESS_TOKENS_RESPONSE
+from tests.data.flyio.access_tokens import ORG_ACCESS_TOKENS_RESPONSE
 from tests.data.flyio.apps import APPS_RESPONSE
 from tests.data.flyio.certificates import CERTIFICATES_RESPONSE
+from tests.data.flyio.ips import IPS_RESPONSE
 from tests.data.flyio.machines import MACHINES_RESPONSE
+from tests.data.flyio.releases import RELEASES_RESPONSE
 from tests.data.flyio.secrets import SECRETS_RESPONSE
+from tests.data.flyio.users import ORG_MEMBERS_RESPONSE
 from tests.data.flyio.volumes import VOLUMES_RESPONSE
 from tests.integration.util import check_nodes
 from tests.integration.util import check_rels
@@ -39,6 +48,31 @@ TEST_SERVICE_ID = f"{TEST_MACHINE_ID}/tcp/8000"
     return_value=VOLUMES_RESPONSE,
 )
 @patch.object(
+    cartography.intel.flyio.ips,
+    "get",
+    return_value=IPS_RESPONSE,
+)
+@patch.object(
+    cartography.intel.flyio.access_tokens,
+    "get_app",
+    return_value=APP_ACCESS_TOKENS_RESPONSE,
+)
+@patch.object(
+    cartography.intel.flyio.releases,
+    "get",
+    return_value=RELEASES_RESPONSE,
+)
+@patch.object(
+    cartography.intel.flyio.access_tokens,
+    "get_organization",
+    return_value=ORG_ACCESS_TOKENS_RESPONSE,
+)
+@patch.object(
+    cartography.intel.flyio.users,
+    "get",
+    return_value=ORG_MEMBERS_RESPONSE,
+)
+@patch.object(
     cartography.intel.flyio.machines,
     "get",
     return_value=MACHINES_RESPONSE,
@@ -51,6 +85,11 @@ TEST_SERVICE_ID = f"{TEST_MACHINE_ID}/tcp/8000"
 def test_start_flyio_ingestion(
     mock_apps,
     mock_machines,
+    mock_users,
+    mock_org_access_tokens,
+    mock_releases,
+    mock_app_access_tokens,
+    mock_ips,
     mock_volumes,
     mock_secrets,
     mock_certificates,
@@ -99,6 +138,52 @@ def test_start_flyio_ingestion(
     }
     assert check_nodes(
         neo4j_session,
+        "FlyUser",
+        ["id", "email"],
+    ) == {
+        ("Re9RMq7mRleO0UyLAKpq", "jonathanfemi@example.com"),
+    }
+    assert check_nodes(
+        neo4j_session,
+        "FlyAccessToken",
+        ["id", "name", "revoked"],
+    ) == {
+        ("app_token_active", "FLY_API_TOKEN", False),
+        ("app_token_revoked", "flyctl deploy token", True),
+        ("org_token_active", "cartography-flyio-prod-test", False),
+    }
+    assert check_nodes(
+        neo4j_session,
+        "FlyRelease",
+        ["id", "version", "status", "deployment_strategy", "user_email"],
+    ) == {
+        (
+            "YgoYklRLL8Xo3fBPg6AoX28AG",
+            35,
+            "succeeded",
+            "rolling",
+            "jonathanfemi@example.com",
+        ),
+        ("release_previous", 34, "failed", "immediate", None),
+    }
+    assert check_nodes(
+        neo4j_session,
+        "FlyIP",
+        ["id", "address", "type", "direction", "is_public"],
+    ) == {
+        ("ip_v6_id", "2a09:8280:1::66:a54d:0", "v6", "ingress", True),
+        ("ip_private_v6_id", "fdaa:10:e286:a7b::1", "private_v6", "ingress", False),
+        (
+            f"{TEST_APP_ID}/66.241.124.236",
+            "66.241.124.236",
+            "shared_v4",
+            "ingress",
+            True,
+        ),
+        ("egress_v4_id", "66.241.125.42", "egress_v4", "egress", True),
+    }
+    assert check_nodes(
+        neo4j_session,
         "FlyVolume",
         ["id", "name", "encrypted", "attached_machine_id"],
     ) == {
@@ -126,6 +211,13 @@ def test_start_flyio_ingestion(
     assert check_nodes(neo4j_session, "Tenant", ["id", "_ont_name"]) == {
         (TEST_ORG_SLUG, "jonathanfemi@example.com"),
         (TEST_APP_ID, TEST_APP_NAME),
+    }
+    assert check_nodes(
+        neo4j_session,
+        "UserAccount",
+        ["id", "_ont_email", "_ont_source"],
+    ) == {
+        ("Re9RMq7mRleO0UyLAKpq", "jonathanfemi@example.com", "flyio"),
     }
     assert check_nodes(
         neo4j_session,
@@ -205,6 +297,111 @@ def test_start_flyio_ingestion(
         rel_direction_right=False,
     ) == {
         (TEST_MACHINE_ID, TEST_APP_ID),
+    }
+    assert check_rels(
+        neo4j_session,
+        "FlyUser",
+        "id",
+        "FlyOrganization",
+        "id",
+        "RESOURCE",
+        rel_direction_right=False,
+    ) == {
+        ("Re9RMq7mRleO0UyLAKpq", TEST_ORG_SLUG),
+    }
+    membership = neo4j_session.run(
+        """
+        MATCH (:FlyUser {id: $user_id})-[r:MEMBER_OF]->
+              (:FlyOrganization {id: $org_id})
+        RETURN r.role AS role, r.joined_at AS joined_at
+        """,
+        user_id="Re9RMq7mRleO0UyLAKpq",
+        org_id=TEST_ORG_SLUG,
+    ).single()
+    assert membership is not None
+    assert membership["role"] == "ADMIN"
+    assert membership["joined_at"] == "2025-02-21T17:12:43Z"
+    assert check_rels(
+        neo4j_session,
+        "FlyUser",
+        "id",
+        "FlyOrganization",
+        "id",
+        "MEMBER_OF",
+    ) == {
+        ("Re9RMq7mRleO0UyLAKpq", TEST_ORG_SLUG),
+    }
+    assert check_rels(
+        neo4j_session,
+        "FlyAccessToken",
+        "id",
+        "FlyOrganization",
+        "id",
+        "RESOURCE",
+        rel_direction_right=False,
+    ) == {
+        ("app_token_active", TEST_ORG_SLUG),
+        ("org_token_active", TEST_ORG_SLUG),
+    }
+    assert check_rels(
+        neo4j_session,
+        "FlyAccessToken",
+        "id",
+        "FlyApp",
+        "id",
+        "RESOURCE",
+        rel_direction_right=False,
+    ) == {
+        ("app_token_active", TEST_APP_ID),
+        ("app_token_revoked", TEST_APP_ID),
+    }
+    assert check_rels(
+        neo4j_session,
+        "FlyAccessToken",
+        "id",
+        "FlyUser",
+        "id",
+        "CREATED_BY",
+    ) == {
+        ("app_token_active", "Re9RMq7mRleO0UyLAKpq"),
+        ("app_token_revoked", "Re9RMq7mRleO0UyLAKpq"),
+        ("org_token_active", "Re9RMq7mRleO0UyLAKpq"),
+    }
+    assert check_rels(
+        neo4j_session,
+        "FlyIP",
+        "id",
+        "FlyApp",
+        "id",
+        "RESOURCE",
+        rel_direction_right=False,
+    ) == {
+        ("ip_v6_id", TEST_APP_ID),
+        ("ip_private_v6_id", TEST_APP_ID),
+        (f"{TEST_APP_ID}/66.241.124.236", TEST_APP_ID),
+        ("egress_v4_id", TEST_APP_ID),
+    }
+    assert check_rels(
+        neo4j_session,
+        "FlyRelease",
+        "id",
+        "FlyApp",
+        "id",
+        "RESOURCE",
+        rel_direction_right=False,
+    ) == {
+        ("YgoYklRLL8Xo3fBPg6AoX28AG", TEST_APP_ID),
+        ("release_previous", TEST_APP_ID),
+    }
+    assert check_rels(
+        neo4j_session,
+        "FlyMachine",
+        "id",
+        "FlyRelease",
+        "id",
+        "DEPLOYED_FROM",
+    ) == {
+        (TEST_MACHINE_ID, "YgoYklRLL8Xo3fBPg6AoX28AG"),
     }
     assert check_rels(
         neo4j_session,
