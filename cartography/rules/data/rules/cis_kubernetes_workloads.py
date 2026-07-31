@@ -12,6 +12,7 @@ import json
 
 from cartography.rules.data.frameworks.cis import cis_kubernetes
 from cartography.rules.data.frameworks.iso27001 import iso27001_annex_a
+from cartography.rules.data.frameworks.soc2 import soc2_tsc
 from cartography.rules.spec.model import Fact
 from cartography.rules.spec.model import Finding
 from cartography.rules.spec.model import Maturity
@@ -154,6 +155,7 @@ kubernetes_secrets_used_as_environment_variables = Rule(
     frameworks=(
         cis_kubernetes("5.4.1"),
         iso27001_annex_a("8.12"),
+        soc2_tsc("CC6.1"),
     ),
 )
 
@@ -291,6 +293,7 @@ kubernetes_service_account_tokens_mounted_in_pods = Rule(
     frameworks=(
         cis_kubernetes("5.1.6"),
         iso27001_annex_a("5.17"),
+        soc2_tsc("CC6.1"),
     ),
 )
 
@@ -349,6 +352,7 @@ kubernetes_pods_sharing_host_pid_namespace = Rule(
     frameworks=(
         cis_kubernetes("5.2.3"),
         iso27001_annex_a("8.9"),
+        soc2_tsc("CC7.1"),
     ),
 )
 
@@ -401,6 +405,7 @@ kubernetes_pods_sharing_host_ipc_namespace = Rule(
     frameworks=(
         cis_kubernetes("5.2.4"),
         iso27001_annex_a("8.9"),
+        soc2_tsc("CC7.1"),
     ),
 )
 
@@ -454,6 +459,8 @@ kubernetes_pods_sharing_host_network_namespace = Rule(
         cis_kubernetes("5.2.5"),
         iso27001_annex_a("8.9"),
         iso27001_annex_a("8.20"),
+        soc2_tsc("CC6.6"),
+        soc2_tsc("CC7.1"),
     ),
 )
 
@@ -511,6 +518,7 @@ kubernetes_containers_allowing_privilege_escalation = Rule(
     frameworks=(
         cis_kubernetes("5.2.6"),
         iso27001_annex_a("8.9"),
+        soc2_tsc("CC7.1"),
     ),
 )
 
@@ -593,6 +601,7 @@ kubernetes_pods_using_hostpath_volumes = Rule(
     frameworks=(
         cis_kubernetes("5.2.11"),
         iso27001_annex_a("8.9"),
+        soc2_tsc("CC7.1"),
     ),
 )
 
@@ -663,6 +672,8 @@ kubernetes_containers_using_hostports = Rule(
         cis_kubernetes("5.2.12"),
         iso27001_annex_a("8.9"),
         iso27001_annex_a("8.20"),
+        soc2_tsc("CC6.6"),
+        soc2_tsc("CC7.1"),
     ),
 )
 
@@ -742,6 +753,7 @@ kubernetes_pods_missing_runtime_default_seccomp = Rule(
     frameworks=(
         cis_kubernetes("5.6.2"),
         iso27001_annex_a("8.9"),
+        soc2_tsc("CC7.1"),
     ),
 )
 

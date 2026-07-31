@@ -262,9 +262,41 @@ azure_mapping = OntologyMapping(
     ],
 )
 
+# Supabase security advisor lint level
+_SUPABASE_ADVISOR_SEVERITY = {
+    "ERROR": "high",
+    "WARN": "medium",
+    "INFO": "info",
+}
+
+supabase_mapping = OntologyMapping(
+    module_name="supabase",
+    nodes=[
+        OntologyNodeMapping(
+            node_label="SupabaseSecurityAdvisorFinding",
+            fields=[
+                OntologyFieldMapping(
+                    ontology_field="title", node_field="title", required=True
+                ),
+                OntologyFieldMapping(ontology_field="type", node_field="name"),
+                OntologyFieldMapping(
+                    ontology_field="severity",
+                    node_field="level",
+                    special_handling="mapping",
+                    extra={"map": _SUPABASE_ADVISOR_SEVERITY},
+                ),
+                # status: The advisor reports only currently-failing lints, so
+                # every finding is implicitly open and there is no field to map.
+                # first_seen: Not available.
+            ],
+        ),
+    ],
+)
+
 SECURITY_ISSUES_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     "aws": aws_mapping,
     "semgrep": semgrep_mapping,
     "socketdev": socketdev_mapping,
     "azure": azure_mapping,
+    "supabase": supabase_mapping,
 }

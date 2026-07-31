@@ -123,6 +123,29 @@ scaleway_mapping = OntologyMapping(
     ],
 )
 
+supabase_mapping = OntologyMapping(
+    module_name="supabase",
+    nodes=[
+        OntologyNodeMapping(
+            node_label="SupabaseEdgeFunction",
+            fields=[
+                OntologyFieldMapping(
+                    ontology_field="name", node_field="name", required=True
+                ),
+                # Edge functions are Deno source deployments, never containers.
+                OntologyFieldMapping(
+                    ontology_field="deployment_type",
+                    node_field="",
+                    special_handling="static_value",
+                    extra={"value": "code"},
+                ),
+                # runtime / memory / timeout: Not available. Supabase does not
+                # expose per-function resource limits through the Management API.
+            ],
+        ),
+    ],
+)
+
 modal_mapping = OntologyMapping(
     module_name="modal",
     nodes=[
@@ -152,5 +175,6 @@ FUNCTIONS_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     "gcp": gcp_mapping,
     "azure": azure_mapping,
     "scaleway": scaleway_mapping,
+    "supabase": supabase_mapping,
     "modal": modal_mapping,
 }

@@ -133,6 +133,9 @@ TOP_LEVEL_MODULES: OrderedDict[str, Callable[..., None]] = OrderedDict(
             "cartography.intel.subimage", "start_subimage_ingestion"
         ),
         "vercel": _LazyStage("cartography.intel.vercel", "start_vercel_ingestion"),
+        "supabase": _LazyStage(
+            "cartography.intel.supabase", "start_supabase_ingestion"
+        ),
         "railway": _LazyStage("cartography.intel.railway", "start_railway_ingestion"),
         "circleci": _LazyStage(
             "cartography.intel.circleci", "start_circleci_ingestion"

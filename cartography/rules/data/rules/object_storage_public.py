@@ -1,4 +1,5 @@
 from cartography.rules.data.frameworks.iso27001 import iso27001_annex_a
+from cartography.rules.data.frameworks.soc2 import soc2_tsc
 from cartography.rules.spec.model import Fact
 from cartography.rules.spec.model import Finding
 from cartography.rules.spec.model import Maturity
@@ -201,5 +202,36 @@ object_storage_public = Rule(
         "stride:information_disclosure",
     ),
     version="0.1.0",
-    frameworks=(iso27001_annex_a("8.3"),),
+    frameworks=(
+        iso27001_annex_a("8.3"),
+        soc2_tsc("CC6.1"),
+        soc2_tsc("CC6.6"),
+    ),
 )
+
+
+# =============================================================================
+# TODO: SOC 2 CC6.7: Partial information-movement coverage
+# Covered today: transport encryption gaps and unauthorized external sharing, via
+# aws_expired_ssl_tls_certificates, gcp_cloudsql_ssl_not_enforced,
+# databricks_public_delta_sharing_recipient and public_snapshots.
+# Missing datamodel: DLP policy state, approved transfer channels,
+# removable-media controls, and the authorization context that would say whether
+# a given transfer is sanctioned.
+# Out of reach: data export and egress events. Cartography ingests configuration,
+# not event streams.
+# =============================================================================
+
+# =============================================================================
+# TODO: SOC 2 C1.1: Confidential information identification and protection
+# Missing datamodel or evidence: provider-neutral data classification and
+# sensitivity labels linked to databases, datasets, object storage, file
+# storage, and the access or encryption controls protecting those assets.
+# =============================================================================
+
+# =============================================================================
+# TODO: SOC 2 C1.2: Confidential information disposal
+# Missing datamodel or evidence: retention and deletion policies, lifecycle-rule
+# execution status, deletion or cryptographic-erasure evidence, and linkage to
+# assets classified as confidential.
+# =============================================================================

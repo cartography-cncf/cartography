@@ -291,6 +291,22 @@ cartography-rules list --framework nist:ai-rmf
 cartography-rules run all --framework nist:ai-rmf
 ```
 
+The short name alone matches every scope and revision of that framework, so
+`--framework cis` covers all four CIS benchmarks. Available filters:
+
+| Filter | Framework |
+| --- | --- |
+| `cis:aws:6.0.0` | CIS AWS Foundations Benchmark |
+| `cis:gcp:4.0` | CIS Google Cloud Platform Foundation Benchmark |
+| `cis:googleworkspace:1.3` | CIS Google Workspace Foundations Benchmark |
+| `cis:kubernetes:1.12` | CIS Kubernetes Benchmark |
+| `iso:27001:2022` | ISO/IEC 27001:2022 Annex A |
+| `soc2:tsc:2022` | AICPA SOC 2 Trust Services Criteria |
+| `nist:ai-rmf:1.0` | NIST AI Risk Management Framework |
+
+`cartography-rules frameworks` prints the live state: every scope, its revisions,
+how many rules map to it, and each mapped control with its title.
+
 ### `list`
 #### See all available rules
 ```bash

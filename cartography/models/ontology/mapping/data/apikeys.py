@@ -250,6 +250,29 @@ railway_mapping = OntologyMapping(
     ],
 )
 
+supabase_mapping = OntologyMapping(
+    module_name="supabase",
+    nodes=[
+        OntologyNodeMapping(
+            node_label="SupabaseApiKey",
+            fields=[
+                OntologyFieldMapping(
+                    ontology_field="name", node_field="name", required=True
+                ),
+                OntologyFieldMapping(
+                    ontology_field="created_at", node_field="inserted_at"
+                ),
+                OntologyFieldMapping(
+                    ontology_field="updated_at", node_field="updated_at"
+                ),
+                # expires_at: Supabase project API keys do not expire.
+                # last_used_at: Not exposed by the Management API.
+            ],
+        ),
+    ],
+)
+
+
 modal_mapping = OntologyMapping(
     module_name="modal",
     nodes=[
@@ -294,5 +317,6 @@ APIKEYS_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     "aws": aws_mapping,
     "gcp": gcp_mapping,
     "railway": railway_mapping,
+    "supabase": supabase_mapping,
     "modal": modal_mapping,
 }

@@ -1,12 +1,13 @@
 """Databricks security detection rules.
 
-Each rule is a single-provider (Databricks) attack-surface / misconfiguration
-detection. Compliance-framework mappings are intentionally left off for now:
-the Databricks control set is not yet wired into the shared frameworks, so
-mapping here would create orphan scopes. TODO: map onto ISO 27001 / SOC 2 once
-a Databricks framework scope exists.
+Each rule is a single-provider (Databricks) attack-surface or misconfiguration
+detection. Applicable rules map directly onto the provider-neutral frameworks,
+ISO 27001 Annex A and the SOC 2 Trust Services Criteria, so no Databricks-specific
+framework scope is needed.
 """
 
+from cartography.rules.data.frameworks.iso27001 import iso27001_annex_a
+from cartography.rules.data.frameworks.soc2 import soc2_tsc
 from cartography.rules.spec.model import Fact
 from cartography.rules.spec.model import Finding
 from cartography.rules.spec.model import Maturity
@@ -68,6 +69,10 @@ databricks_pat_never_expires = Rule(
     facts=(_pat_never_expires,),
     tags=("identity", "credentials", "stride:elevation_of_privilege"),
     version="0.1.0",
+    frameworks=(
+        iso27001_annex_a("5.17"),
+        soc2_tsc("CC6.1"),
+    ),
 )
 
 
@@ -139,6 +144,10 @@ databricks_ip_access_list_allows_all = Rule(
     facts=(_ip_access_list_allows_all,),
     tags=("network", "attack_surface", "stride:spoofing"),
     version="0.1.0",
+    frameworks=(
+        iso27001_annex_a("8.20"),
+        soc2_tsc("CC6.6"),
+    ),
 )
 
 
@@ -202,4 +211,9 @@ databricks_public_delta_sharing_recipient = Rule(
     facts=(_public_delta_sharing_recipient,),
     tags=("data", "attack_surface", "stride:information_disclosure"),
     version="0.1.0",
+    frameworks=(
+        iso27001_annex_a("8.3"),
+        soc2_tsc("CC6.1"),
+        soc2_tsc("CC6.7"),
+    ),
 )
