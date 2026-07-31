@@ -2,13 +2,16 @@ import datetime
 import logging
 import os
 import traceback
+from collections.abc import Callable
 from dataclasses import dataclass
+from functools import partial
 from typing import Any
 from typing import Dict
 from typing import Iterable
 from typing import List
 from typing import Mapping
 
+import aioboto3
 import boto3
 import botocore.exceptions
 import neo4j
@@ -103,7 +106,8 @@ def _sync_one_account(
     common_job_parameters: Dict[str, Any],
     regions: list[str] | None = None,
     aws_requested_syncs: Iterable[str] = RESOURCE_FUNCTIONS.keys(),
-    aws_profile_name: str | None = None,
+    aioboto3_session: aioboto3.Session | None = None,
+    aioboto3_session_factory: Callable[[], aioboto3.Session] | None = None,
 ) -> None:
     migrate_legacy_aws_labels(neo4j_session, current_aws_account_id)
 
@@ -170,14 +174,19 @@ def _sync_one_account(
             continue
         # Skip permission relationships and tags for now because they rely on data already being in the graph
         if func_name == "ecr:image_layers":
-            # has a different signature than the other functions (aws_profile_name replaces boto3_session)
+            # has a different signature than the other functions (aioboto3_session replaces boto3_session)
+            if aioboto3_session is None:
+                aioboto3_session_factory = aioboto3_session_factory or aioboto3.Session
+                aioboto3_session = aioboto3_session_factory()
+
             RESOURCE_FUNCTIONS[func_name](
                 neo4j_session,
-                aws_profile_name,
+                aioboto3_session,
                 regions,
                 current_aws_account_id,
                 update_tag,
                 common_job_parameters,
+                aioboto3_session_factory=aioboto3_session_factory,
             )
         elif func_name in ["permission_relationships", "resourcegroupstaggingapi"]:
             continue
@@ -621,7 +630,10 @@ def _sync_multiple_accounts(
                 common_job_parameters,
                 regions=regions,
                 aws_requested_syncs=aws_requested_syncs,  # Could be replaced later with per-account requested syncs
-                aws_profile_name=profile_name if use_explicit_profile else None,
+                aioboto3_session_factory=partial(
+                    aioboto3.Session,
+                    **session_kwargs,
+                ),
             )
         except Exception as e:
             if aws_best_effort_mode:

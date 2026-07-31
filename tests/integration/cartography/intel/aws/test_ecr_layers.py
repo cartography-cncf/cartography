@@ -1,5 +1,5 @@
+from contextlib import nullcontext
 from unittest.mock import AsyncMock
-from unittest.mock import call
 from unittest.mock import MagicMock
 from unittest.mock import patch
 
@@ -98,14 +98,11 @@ def test_sync_recreates_session_after_credential_refresh_failure(
     mocker,
     neo4j_session,
 ):
+    # Arrange
     _load_example_ecr_image(neo4j_session, mocker)
     stale_session = MagicMock(name="stale_session")
     fresh_session = MagicMock(name="fresh_session")
-    session_factory = mocker.patch.object(
-        ecr_layers.aioboto3,
-        "Session",
-        side_effect=[stale_session, fresh_session],
-    )
+    session_factory = MagicMock(return_value=fresh_session)
 
     stale_client = AsyncMock()
     stale_client.batch_get_image.side_effect = _synthetic_client_error(
@@ -127,19 +124,19 @@ def test_sync_recreates_session_after_credential_refresh_failure(
         new=AsyncMock(return_value=test_data.SAMPLE_CONFIG_BLOB),
     )
 
+    # Act
     sync_ecr_layers(
         neo4j_session,
-        "example-tenant",
+        stale_session,
         [TEST_REGION],
         TEST_ACCOUNT_ID,
         TEST_UPDATE_TAG,
         {"UPDATE_TAG": TEST_UPDATE_TAG, "AWS_ID": TEST_ACCOUNT_ID},
+        aioboto3_session_factory=session_factory,
     )
 
-    assert session_factory.call_args_list == [
-        call(profile_name="example-tenant"),
-        call(profile_name="example-tenant"),
-    ]
+    # Assert
+    session_factory.assert_called_once_with()
     assert [client_call.args[0] for client_call in create_client.call_args_list] == [
         stale_session,
         fresh_session,
@@ -148,61 +145,59 @@ def test_sync_recreates_session_after_credential_refresh_failure(
 
 
 @pytest.mark.parametrize(
-    ("error_code", "expected_attempts", "propagates"),
+    ("error_code", "use_session_factory", "expected_attempts", "propagates"),
     [
-        ("InvalidClientTokenId", 2, True),
-        ("AccessDeniedException", 1, False),
-        ("RepositoryNotFoundException", 1, True),
+        ("InvalidClientTokenId", True, 2, True),
+        ("InvalidClientTokenId", False, 1, True),
+        ("AccessDeniedException", True, 1, False),
+        ("RepositoryNotFoundException", True, 1, True),
     ],
 )
 def test_sync_bounds_credential_retry_and_preserves_other_errors(
     error_code,
+    use_session_factory,
     expected_attempts,
     propagates,
     mocker,
     neo4j_session,
 ):
+    # Arrange
     _load_example_ecr_image(neo4j_session, mocker)
     client_error = _synthetic_client_error(error_code)
     sessions = [
         MagicMock(name=f"session_{index}") for index in range(expected_attempts)
     ]
-    session_factory = mocker.patch.object(
-        ecr_layers.aioboto3,
-        "Session",
-        side_effect=sessions,
-    )
+    session_factory = MagicMock(return_value=sessions[-1])
     clients = [AsyncMock() for _ in range(expected_attempts)]
     for client in clients:
         client.batch_get_image.side_effect = client_error
-    mocker.patch.object(
+    create_client = mocker.patch.object(
         ecr_layers,
         "create_aioboto3_client",
         side_effect=[_FakeAsyncEcrClientContext(client) for client in clients],
     )
+    sync_kwargs = (
+        {"aioboto3_session_factory": session_factory} if use_session_factory else {}
+    )
 
-    if propagates:
-        with pytest.raises(ClientError) as exc_info:
-            sync_ecr_layers(
-                neo4j_session,
-                None,
-                [TEST_REGION],
-                TEST_ACCOUNT_ID,
-                TEST_UPDATE_TAG,
-                {"UPDATE_TAG": TEST_UPDATE_TAG, "AWS_ID": TEST_ACCOUNT_ID},
-            )
-        assert exc_info.value is client_error
-    else:
+    # Act
+    expectation = pytest.raises(ClientError) if propagates else nullcontext()
+    with expectation as exc_info:
         sync_ecr_layers(
             neo4j_session,
-            None,
+            sessions[0],
             [TEST_REGION],
             TEST_ACCOUNT_ID,
             TEST_UPDATE_TAG,
             {"UPDATE_TAG": TEST_UPDATE_TAG, "AWS_ID": TEST_ACCOUNT_ID},
+            **sync_kwargs,
         )
 
-    assert session_factory.call_count == expected_attempts
+    # Assert
+    if propagates:
+        assert exc_info.value is client_error
+    assert create_client.call_count == expected_attempts
+    assert session_factory.call_count == expected_attempts - 1
 
 
 @patch.object(
@@ -275,7 +270,7 @@ def test_sync_with_layers(
     # Run sync with layer support
     sync_ecr_layers(
         neo4j_session,
-        None,
+        boto3_session,
         [TEST_REGION],
         TEST_ACCOUNT_ID,
         TEST_UPDATE_TAG,
@@ -608,7 +603,7 @@ def test_sync_built_from_relationship(
 
     sync_ecr_layers(
         neo4j_session,
-        None,
+        MagicMock(),
         [TEST_REGION],
         TEST_ACCOUNT_ID,
         TEST_UPDATE_TAG,
@@ -686,7 +681,7 @@ def test_sync_circleci_label_provenance_links_github_repository(
 
     sync_ecr_layers(
         neo4j_session,
-        None,
+        MagicMock(),
         [TEST_REGION],
         TEST_ACCOUNT_ID,
         TEST_UPDATE_TAG,
@@ -1177,14 +1172,19 @@ def test_sync_multi_region_event_loop_preserved(
     neo4j_session,
 ):
     """Test that event loop is preserved across multiple region iterations."""
+    from unittest.mock import MagicMock
+
     # Mock empty ECR images (no actual processing needed for this test)
     mock_get_ecr_images.return_value = set()
     mock_batch_get_manifest.return_value = ({}, "")
 
+    # Create mock boto3 session
+    boto3_session = MagicMock()
+
     try:
         sync_ecr_layers(
             neo4j_session,
-            None,
+            boto3_session,
             ["us-east-1", "us-west-2"],  # Multiple regions
             TEST_ACCOUNT_ID,
             TEST_UPDATE_TAG,
@@ -1315,7 +1315,7 @@ def test_sync_layers_preserves_multi_arch_image_properties(
 
     sync_ecr_layers(
         neo4j_session,
-        None,
+        boto3_session,
         [TEST_REGION],
         TEST_ACCOUNT_ID,
         TEST_UPDATE_TAG,

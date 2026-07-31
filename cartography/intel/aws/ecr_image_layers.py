@@ -9,6 +9,7 @@ import asyncio
 import json
 import logging
 import re
+from collections.abc import Callable
 from typing import Any
 from typing import Optional
 
@@ -1227,6 +1228,7 @@ async def fetch_image_layers_async(
                     )
                 continue
             except BaseException:
+                # Drain sibling work before the client closes and the retry reuses this loop.
                 for pending_task in tasks:
                     pending_task.cancel()
                 await asyncio.gather(*tasks, return_exceptions=True)
@@ -1292,11 +1294,13 @@ def cleanup(neo4j_session: neo4j.Session, common_job_parameters: dict) -> None:
 @timeit
 def sync(
     neo4j_session: neo4j.Session,
-    aws_profile_name: str | None,
+    aioboto3_session: aioboto3.Session,
     regions: list[str],
     current_aws_account_id: str,
     update_tag: int,
     common_job_parameters: dict,
+    *,
+    aioboto3_session_factory: Callable[[], aioboto3.Session] | None = None,
 ) -> None:
     """
     Sync ECR image layers. This fetches detailed layer information for ECR images
@@ -1306,6 +1310,7 @@ def sync(
     via the 'ecr' module before running this.
 
     Layer fetching can be slow for accounts with many container images.
+    Credential recovery requires aioboto3_session_factory.
     """
 
     for region in regions:
@@ -1421,9 +1426,6 @@ def sync(
                 loop = asyncio.new_event_loop()
                 asyncio.set_event_loop(loop)
 
-            session_kwargs = (
-                {"profile_name": aws_profile_name} if aws_profile_name else {}
-            )
             for attempt in range(2):
                 try:
                     (
@@ -1432,16 +1434,21 @@ def sync(
                         history_by_diff_id,
                         image_attestation_map,
                     ) = loop.run_until_complete(
-                        _fetch_with_async_client(aioboto3.Session(**session_kwargs))
+                        _fetch_with_async_client(aioboto3_session)
                     )
                     break
                 except ClientError as error:
                     error_code = error.response.get("Error", {}).get("Code")
-                    if attempt == 1 or error_code != "InvalidClientTokenId":
+                    if (
+                        attempt == 1
+                        or error_code != "InvalidClientTokenId"
+                        or aioboto3_session_factory is None
+                    ):
                         raise
                     logger.warning(
                         "Retrying ECR image layer sync with a fresh AWS credential chain after temporary credential refresh failed.",
                     )
+                    aioboto3_session = aioboto3_session_factory()
 
             logger.info(
                 f"Successfully fetched layers for {len(image_layers_data)} images"
