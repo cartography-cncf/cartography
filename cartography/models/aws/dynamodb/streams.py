@@ -17,11 +17,7 @@ from cartography.models.core.relationships import TargetNodeMatcher
 class DynamoDBStreamNodeProperties(CartographyNodeProperties):
     id: PropertyRef = PropertyRef("Arn", description="The ARN of the stream")
     arn: PropertyRef = PropertyRef("Arn", description="The ARN of the stream")
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last time the node was updated",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
     stream_label: PropertyRef = PropertyRef(
         "StreamLabel", description="A timestamp used as the stream label"
     )
@@ -72,6 +68,8 @@ class DynamoDBStreamToTableRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class DynamoDBStreamSchema(CartographyNodeSchema):
+    """Representation of a DynamoDB [Stream](https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_StreamSpecification.html)."""
+
     label: str = "AWSDynamoDBStream"
     # DEPRECATED: legacy DynamoDBStream node label will be removed in v1.0.0.
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([LEGACY_DYNAMO_DB_STREAM])

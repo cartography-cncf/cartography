@@ -29,11 +29,7 @@ class SalesforceUserRoleNodeProperties(CartographyNodeProperties):
     portal_type: PropertyRef = PropertyRef(
         "PortalType", description="Portal type associated with the role."
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last update.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)

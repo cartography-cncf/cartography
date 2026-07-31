@@ -16,11 +16,7 @@ class CircleCIProjectOidcConfigNodeProperties(CartographyNodeProperties):
     id: PropertyRef = PropertyRef(
         "id", description="Owning project ID used as the configuration ID."
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last update.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
     scope: PropertyRef = PropertyRef("scope", description="OIDC configuration scope.")
     audience: PropertyRef = PropertyRef(
         "audience", description="Trusted OIDC token audiences."

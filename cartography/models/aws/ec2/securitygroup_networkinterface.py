@@ -30,11 +30,7 @@ class EC2SecurityGroupNetworkInterfaceNodeProperties(CartographyNodeProperties):
         set_in_kwargs=True,
         description="The AWS region this security group is installed in",
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last time the node was updated",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
@@ -57,7 +53,7 @@ class EC2SecurityGroupToNetworkInterfaceRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class EC2SecurityGroupNetworkInterfaceSchema(CartographyNodeSchema):
-    "Represents an Amazon EC2 security group."
+    """Representation of an AWS EC2 [Security Group](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_SecurityGroup.html)."""
 
     # Implementation note:
     # Security groups as known by describe-network-interfaces.

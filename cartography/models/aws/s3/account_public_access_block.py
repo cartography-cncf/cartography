@@ -39,11 +39,7 @@ class S3AccountPublicAccessBlockNodeProperties(CartographyNodeProperties):
         "restrict_public_buckets",
         description="Whether Amazon S3 restricts public policies for this bucket",
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last time the node was updated",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
@@ -66,6 +62,8 @@ class S3AccountPublicAccessBlockToAWSAccountRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class S3AccountPublicAccessBlockSchema(CartographyNodeSchema):
+    """Representation of an AWS [S3 Account Public Access Block](https://docs.aws.amazon.com/AmazonS3/latest/dev/access-control-block-public-access.html) configuration, which provides account-level settings to block public access to S3 resources."""
+
     label: str = "AWSS3AccountPublicAccessBlock"
     # DEPRECATED: legacy S3AccountPublicAccessBlock node label will be removed in v1.0.0.
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(

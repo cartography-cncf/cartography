@@ -137,11 +137,7 @@ class ECSTaskNodeProperties(CartographyNodeProperties):
     region: PropertyRef = PropertyRef(
         "Region", set_in_kwargs=True, description="The region of the task."
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last time the node was updated",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
@@ -262,6 +258,8 @@ class ECSTaskToNetworkInterfaceRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class ECSTaskSchema(CartographyNodeSchema):
+    """Representation of an AWS ECS [Task](https://docs.aws.amazon.com/AmazonECS/latest/APIReference/API_Task.html)"""
+
     label: str = "AWSECSTask"
     # DEPRECATED: legacy ECSTask node label will be removed in v1.0.0.
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([LEGACY_ECS_TASK, COMPUTE_POD])

@@ -33,11 +33,7 @@ class AWSSSOGroupProperties(CartographyNodeProperties):
     region: PropertyRef = PropertyRef(
         "Region", set_in_kwargs=True, description="The AWS region"
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last time the node was updated",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
@@ -100,6 +96,8 @@ class AWSSSOGroupToPermissionSetHasRoleRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class AWSSSOGroupSchema(CartographyNodeSchema):
+    """Representation of an AWS SSO Group."""
+
     label: str = "AWSSSOGroup"
     properties: AWSSSOGroupProperties = AWSSSOGroupProperties()
     sub_resource_relationship: AWSSSOGroupToAWSAccountRel = AWSSSOGroupToAWSAccountRel()

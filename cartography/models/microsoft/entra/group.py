@@ -52,11 +52,7 @@ class EntraGroupNodeProperties(CartographyNodeProperties):
     deleted_date_time: PropertyRef = PropertyRef(
         "deleted_date_time", description="Timestamp when the group was deleted."
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the latest Cartography update.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)

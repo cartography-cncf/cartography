@@ -13,9 +13,7 @@ from cartography.models.core.relationships import TargetNodeMatcher
 @dataclass(frozen=True)
 class VercelFirewallConfigNodeProperties(CartographyNodeProperties):
     id: PropertyRef = PropertyRef("id", description="Firewall configuration ID.")
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated", set_in_kwargs=True, description="Timestamp of the last update."
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
     enabled: PropertyRef = PropertyRef(
         "firewallEnabled", description="Whether the firewall is enabled."
     )

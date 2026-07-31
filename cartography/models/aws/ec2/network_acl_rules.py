@@ -20,11 +20,7 @@ class EC2NetworkAclRuleNodeProperties(CartographyNodeProperties):
     id: PropertyRef = PropertyRef(
         "Id", description="Unique identifier for this `AWSEC2NetworkAclRule` node."
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last sync that updated this `AWSEC2NetworkAclRule` node.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
     network_acl_id: PropertyRef = PropertyRef(
         "NetworkAclId",
         description="Identifier of the network ACL linked to this `AWSEC2NetworkAclRule` node.",
@@ -104,7 +100,7 @@ class EC2NetworkAclRuleToAWSAccountRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class EC2NetworkAclInboundRuleSchema(CartographyNodeSchema):
-    """An inbound entry of an EC2 network ACL."""
+    """An inbound entry of an AWS [EC2 Network ACL Rule Entry](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_NetworkAclEntry.html). For additional explanation see the [network ACL rules guide](https://docs.aws.amazon.com/vpc/latest/userguide/nacl-rules.html)."""
 
     label: str = "AWSEC2NetworkAclRule"
     # DEPRECATED: legacy EC2NetworkAclRule node label will be removed in v1.0.0.
@@ -124,7 +120,7 @@ class EC2NetworkAclInboundRuleSchema(CartographyNodeSchema):
 
 @dataclass(frozen=True)
 class EC2NetworkAclEgressRuleSchema(CartographyNodeSchema):
-    """An egress entry of an EC2 network ACL."""
+    """An egress entry of an AWS [EC2 Network ACL Rule Entry](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_NetworkAclEntry.html). For additional explanation see the [network ACL rules guide](https://docs.aws.amazon.com/vpc/latest/userguide/nacl-rules.html)."""
 
     label: str = "AWSEC2NetworkAclRule"
     # DEPRECATED: legacy EC2NetworkAclRule node label will be removed in v1.0.0.

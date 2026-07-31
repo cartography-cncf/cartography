@@ -49,11 +49,7 @@ class SESEmailIdentityNodeProperties(CartographyNodeProperties):
         set_in_kwargs=True,
         description="The AWS region where the SES email identity exists",
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last time the node was updated",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
@@ -77,6 +73,8 @@ class SESEmailIdentityToAWSAccountRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class SESEmailIdentitySchema(CartographyNodeSchema):
+    """Representation of an AWS [SES Email Identity](https://docs.aws.amazon.com/ses/latest/APIReference-V2/API_GetEmailIdentity.html). An SES email identity is a domain or email address that you use to send email through Amazon Simple Email Service (SESv2)."""
+
     label: str = "AWSSESEmailIdentity"
     # DEPRECATED: legacy SESEmailIdentity node label will be removed in v1.0.0.
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([LEGACY_SES_EMAIL_IDENTITY])

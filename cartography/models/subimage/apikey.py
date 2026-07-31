@@ -28,11 +28,7 @@ class SubImageAPIKeyNodeProperties(CartographyNodeProperties):
         "description",
         description="API key description.",
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last update.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)

@@ -92,11 +92,7 @@ class ElasticacheClusterNodeProperties(CartographyNodeProperties):
         set_in_kwargs=True,
         description="The AWS region where the cache cluster is located",
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last time the node was updated",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
@@ -119,6 +115,8 @@ class ElasticacheClusterToAWSAccountRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class ElasticacheClusterSchema(CartographyNodeSchema):
+    """Representation of an AWS [ElastiCache Cluster](https://docs.aws.amazon.com/AmazonElastiCache/latest/APIReference/API_CacheCluster.html)."""
+
     label: str = "AWSElasticacheCluster"
     # DEPRECATED: legacy ElasticacheCluster node label will be removed in v1.0.0.
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([LEGACY_ELASTICACHE_CLUSTER])

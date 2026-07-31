@@ -136,11 +136,7 @@ class AWSLambdaNodeProperties(CartographyNodeProperties):
         set_in_kwargs=True,
         description="The AWS region where the Lambda function is deployed.",
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last time the node was updated",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
@@ -271,6 +267,8 @@ class AWSLambdaToGitHubContainerImageRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class AWSLambdaSchema(CartographyNodeSchema):
+    """Representation of an AWS [Lambda Function](https://docs.aws.amazon.com/lambda/latest/dg/API_FunctionConfiguration.html)."""
+
     label: str = "AWSLambda"
     properties: AWSLambdaNodeProperties = AWSLambdaNodeProperties()
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([FUNCTION])

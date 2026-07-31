@@ -17,11 +17,7 @@ class AzureCosmosDBVirtualNetworkRuleProperties(CartographyNodeProperties):
         "id",
         description="Azure resource ID of the allowed virtual network subnet.",
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last sync that observed this node.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
     ignoremissingvnetserviceendpoint: PropertyRef = PropertyRef(
         "ignore_missing_v_net_service_endpoint",
         description="Whether the rule may reference a subnet without a service endpoint.",

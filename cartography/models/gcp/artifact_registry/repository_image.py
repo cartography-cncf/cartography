@@ -91,22 +91,14 @@ class GCPArtifactRegistryRepositoryImageNodeProperties(CartographyNodeProperties
     project_id: PropertyRef = PropertyRef(
         "project_id", description="Google Cloud project that owns this resource."
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last sync that observed this data.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
 class GCPArtifactRegistryRepositoryImageToProjectRelProperties(
     CartographyRelProperties
 ):
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last sync that observed this data.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
@@ -126,11 +118,7 @@ class GCPArtifactRegistryRepositoryImageToProjectRel(CartographyRelSchema):
 class GCPArtifactRegistryRepositoryImageToRepositoryRelProperties(
     CartographyRelProperties
 ):
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last sync that observed this data.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
@@ -161,11 +149,7 @@ class GCPArtifactRegistryRepositoryImageToRepositoryRepoImageRel(CartographyRelS
 
 @dataclass(frozen=True)
 class GCPArtifactRegistryRepositoryImageToImageRelProperties(CartographyRelProperties):
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last sync that observed this data.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
@@ -183,11 +167,7 @@ class GCPArtifactRegistryRepositoryImageToImageRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class GCPArtifactRegistryRepositoryImageMatchLinkProperties(CartographyRelProperties):
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last sync that observed this data.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
     _sub_resource_label: PropertyRef = PropertyRef(
         "_sub_resource_label",
         set_in_kwargs=True,

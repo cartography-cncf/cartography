@@ -31,20 +31,12 @@ class GCPSqlUserProperties(CartographyNodeProperties):
         "instance_id",
         description="Identifier of the parent service instance.",
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last time the node was updated.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
 class ProjectToSqlUserRelProperties(CartographyRelProperties):
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last sync that observed this data.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
@@ -60,11 +52,7 @@ class ProjectToSqlUserRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class InstanceToSqlUserRelProperties(CartographyRelProperties):
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last sync that observed this data.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)

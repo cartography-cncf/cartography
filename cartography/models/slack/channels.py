@@ -14,11 +14,7 @@ from cartography.models.core.relationships import TargetNodeMatcher
 @dataclass(frozen=True)
 class SlackChannelNodeProperties(CartographyNodeProperties):
     id: PropertyRef = PropertyRef("id", description="Slack channel ID.")
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last update.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
     name: PropertyRef = PropertyRef(
         "name", extra_index=True, description="Slack channel name."
     )

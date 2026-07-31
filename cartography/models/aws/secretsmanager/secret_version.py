@@ -43,11 +43,7 @@ class SecretsManagerSecretVersionNodeProperties(CartographyNodeProperties):
         set_in_kwargs=True,
         description="The AWS region where the secret version exists.",
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last time the node was updated",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
     # Make KMS and tags properties without required=False parameter
     kms_key_ids: PropertyRef = PropertyRef(
         "kms_key_ids",
@@ -122,9 +118,7 @@ class SecretsManagerSecretVersionToKMSKeyRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class SecretsManagerSecretVersionSchema(CartographyNodeSchema):
-    """
-    Schema for AWS Secrets Manager Secret Version
-    """
+    """Representation of an AWS [Secrets Manager Secret Version](https://docs.aws.amazon.com/secretsmanager/latest/apireference/API_SecretVersionListEntry.html)"""
 
     label: str = "AWSSecretsManagerSecretVersion"
     # DEPRECATED: legacy SecretsManagerSecretVersion node label will be removed in v1.0.0.

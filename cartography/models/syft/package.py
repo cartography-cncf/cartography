@@ -25,11 +25,7 @@ class SyftPackageNodeProperties(CartographyNodeProperties):
         "id",
         description="Normalized package identifier.",
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last Cartography update.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
     name: PropertyRef = PropertyRef("name", description="Package name.")
     version: PropertyRef = PropertyRef("version", description="Package version.")
     type: PropertyRef = PropertyRef(
@@ -57,11 +53,7 @@ class SyftPackageNodeProperties(CartographyNodeProperties):
 
 @dataclass(frozen=True)
 class SyftPackageDependsOnRelProperties(CartographyRelProperties):
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last Cartography update.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
@@ -83,11 +75,7 @@ class SyftPackageDependsOnRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class SyftPackageToOntologyImageRelProperties(CartographyRelProperties):
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last Cartography update.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)

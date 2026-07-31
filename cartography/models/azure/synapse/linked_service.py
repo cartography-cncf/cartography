@@ -21,11 +21,7 @@ class AzureSynapseLinkedServiceProperties(CartographyNodeProperties):
         "target_resource_id",
         description="Full Azure resource ID of the service connection target, when available.",
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last sync that observed this node.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)

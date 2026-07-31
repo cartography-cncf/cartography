@@ -33,11 +33,7 @@ class SpaceliftWorkerPoolNodeProperties(CartographyNodeProperties):
     spacelift_account_id: PropertyRef = PropertyRef(
         "spacelift_account_id", description="ID of the containing Spacelift account."
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last update.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)

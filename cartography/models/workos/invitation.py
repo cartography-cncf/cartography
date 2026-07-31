@@ -42,9 +42,7 @@ class WorkOSInvitationNodeProperties(CartographyNodeProperties):
     revoked_at: PropertyRef = PropertyRef(
         "revoked_at", description="RFC 3339 timestamp when the invitation was revoked."
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated", set_in_kwargs=True, description="Timestamp of the last update."
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)

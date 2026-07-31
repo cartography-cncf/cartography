@@ -40,11 +40,7 @@ class CloudTrailSpaceliftEventNodeProperties(CartographyNodeProperties):
     instance_ids: PropertyRef = PropertyRef(
         "instance_ids", description="EC2 instance IDs affected by the event."
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last update.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)

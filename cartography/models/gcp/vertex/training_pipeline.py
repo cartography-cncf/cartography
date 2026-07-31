@@ -65,20 +65,12 @@ class GCPVertexAITrainingPipelineNodeProperties(CartographyNodeProperties):
         "model_id",
         description="Full resource name of the Model produced by training (used for relationships).",
     )  # For PRODUCES Model relationship
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last time the node was updated.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
 class GCPVertexAITrainingPipelineToProjectRelProperties(CartographyRelProperties):
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last sync that observed this data.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
@@ -97,11 +89,7 @@ class GCPVertexAITrainingPipelineToProjectRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class GCPVertexAITrainingPipelineToDatasetRelProperties(CartographyRelProperties):
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last sync that observed this data.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
@@ -120,11 +108,7 @@ class GCPVertexAITrainingPipelineToDatasetRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class GCPVertexAITrainingPipelineToModelRelProperties(CartographyRelProperties):
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last sync that observed this data.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)

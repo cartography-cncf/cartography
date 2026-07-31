@@ -13,11 +13,7 @@ from cartography.models.core.relationships import TargetNodeMatcher
 @dataclass(frozen=True)
 class AzureCosmosDBAccountProperties(CartographyNodeProperties):
     id: PropertyRef = PropertyRef("id", description="Azure resource ID.")
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last sync that observed this node.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
     type: PropertyRef = PropertyRef("type", description="Azure resource type.")
     resourcegroup: PropertyRef = PropertyRef(
         "resourceGroup",

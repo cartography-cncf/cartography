@@ -39,11 +39,7 @@ class EntraAppRoleAssignmentNodeProperties(CartographyNodeProperties):
     application_app_id: PropertyRef = PropertyRef(
         "application_app_id", description="Client ID of the assigned application."
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the latest Cartography update.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)

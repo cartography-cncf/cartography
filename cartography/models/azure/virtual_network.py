@@ -28,11 +28,7 @@ class AzureVirtualNetworkProperties(CartographyNodeProperties):
         "provisioning_state",
         description="Current provisioning state of the virtual network.",
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last sync that observed this virtual network.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)

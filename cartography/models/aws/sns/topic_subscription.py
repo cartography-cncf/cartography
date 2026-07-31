@@ -33,11 +33,7 @@ class SNSTopicSubscriptionNodeProperties(CartographyNodeProperties):
     protocol: PropertyRef = PropertyRef(
         "Protocol", description="The subscription's protocol for messages"
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last time the node was updated",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
@@ -78,6 +74,8 @@ class SNSTopicSubscriptionToSNSTopicRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class SNSTopicSubscriptionSchema(CartographyNodeSchema):
+    """Representation of an AWS [SNS Topic Subscription](https://docs.aws.amazon.com/sns/latest/api/API_GetSubscriptionAttributes.html)"""
+
     label: str = "AWSSNSTopicSubscription"
     # DEPRECATED: legacy SNSTopicSubscription node label will be removed in v1.0.0.
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(

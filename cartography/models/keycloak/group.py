@@ -25,11 +25,7 @@ class KeycloakGroupNodeProperties(CartographyNodeProperties):
     path: PropertyRef = PropertyRef(
         "path", description="The hierarchical path of the group"
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "LASTUPDATED",
-        set_in_kwargs=True,
-        description="Timestamp of the last time the node was updated",
-    )
+    lastupdated: PropertyRef = PropertyRef("LASTUPDATED", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)

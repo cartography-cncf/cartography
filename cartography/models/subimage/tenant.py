@@ -18,11 +18,7 @@ class SubImageTenantNodeProperties(CartographyNodeProperties):
         "scan_role_name",
         description="IAM role name used for scanning.",
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last update.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)

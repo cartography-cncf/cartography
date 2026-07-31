@@ -16,11 +16,7 @@ class AzurePrincipalProperties(CartographyNodeProperties):
         "id",
         description="Microsoft Entra object ID of the principal.",
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the latest Cartography update.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)

@@ -84,11 +84,7 @@ class CloudTrailTrailNodeProperties(CartographyNodeProperties):
         "SnsTopicARN",
         description="The ARN of the SNS topic used by the AWSCloudTrailTrail for delivery notifications.",
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last time the node was updated",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
@@ -149,6 +145,8 @@ class CloudTrailTrailToCloudWatchLogGroupRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class CloudTrailTrailSchema(CartographyNodeSchema):
+    """Representation of an AWS [CloudTrail Trail](https://docs.aws.amazon.com/awscloudtrail/latest/APIReference/API_Trail.html)."""
+
     label: str = "AWSCloudTrailTrail"
     # DEPRECATED: legacy CloudTrailTrail node label will be removed in v1.0.0.
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([LEGACY_CLOUD_TRAIL_TRAIL])

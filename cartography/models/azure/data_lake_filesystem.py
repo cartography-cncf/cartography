@@ -35,11 +35,7 @@ class AzureDataLakeFileSystemProperties(CartographyNodeProperties):
     has_legal_hold: PropertyRef = PropertyRef(
         "has_legal_hold", description="Whether the file system has a legal hold."
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last sync that observed this file system.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)

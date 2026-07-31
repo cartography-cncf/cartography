@@ -27,9 +27,7 @@ class ScalewayFlexibleIpProperties(CartographyNodeProperties):
     prefix: PropertyRef = PropertyRef("prefix", description="IP Network")
     ipam_id: PropertyRef = PropertyRef("ipam_id", description="IPAM ID (UUID format)")
     zone: PropertyRef = PropertyRef("zone", description="AZ of the IP")
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated", set_in_kwargs=True, description="Timestamp of the last update"
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)

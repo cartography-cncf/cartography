@@ -34,11 +34,7 @@ class AzureKubernetesNodePoolProperties(CartographyNodeProperties):
     count: PropertyRef = PropertyRef(
         "count", description="Number of nodes in the agent pool."
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last sync that observed this agent pool.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 # --- Relationship Definitions ---

@@ -16,11 +16,7 @@ class TenableAssetSourceNodeProperties(CartographyNodeProperties):
     id: PropertyRef = PropertyRef(
         "id", description="Asset-scoped Tenable source identifier."
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last time the node was updated.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
     name: PropertyRef = PropertyRef("name", description="Tenable source name.")
     source_first_seen: PropertyRef = PropertyRef(
         "source_first_seen",

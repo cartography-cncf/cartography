@@ -19,11 +19,7 @@ class TailscaleGrantNodeProperties(CartographyNodeProperties):
         "id",
         description="Stable content-hash ID (eg. `grant:a1b2c3d4e5f6`). Computed from the grant's src, dst, ip, app, and srcPosture fields.",
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last time the node was updated.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
     sources: PropertyRef = PropertyRef(
         "sources", description="Native list of source selectors (users, groups, tags)."
     )
@@ -47,11 +43,7 @@ class TailscaleGrantNodeProperties(CartographyNodeProperties):
 
 @dataclass(frozen=True)
 class TailscaleGrantToTailnetRelProperties(CartographyRelProperties):
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last Cartography update.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
@@ -72,11 +64,7 @@ class TailscaleGrantToTailnetRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class TailscaleGrantToSourceGroupRelProperties(CartographyRelProperties):
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last Cartography update.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
@@ -97,11 +85,7 @@ class TailscaleGrantToSourceGroupRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class TailscaleGrantToSourceUserRelProperties(CartographyRelProperties):
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last Cartography update.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
@@ -122,11 +106,7 @@ class TailscaleGrantToSourceUserRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class TailscaleGrantToDestinationTagRelProperties(CartographyRelProperties):
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last Cartography update.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
@@ -147,11 +127,7 @@ class TailscaleGrantToDestinationTagRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class TailscaleGrantToDestinationGroupRelProperties(CartographyRelProperties):
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last Cartography update.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
@@ -196,11 +172,7 @@ class TailscaleGrantSchema(CartographyNodeSchema):
 
 @dataclass(frozen=True)
 class TailscaleGrantAccessRelProperties(CartographyRelProperties):
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last Cartography update.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
     _sub_resource_label: PropertyRef = PropertyRef(
         "_sub_resource_label",
         set_in_kwargs=True,

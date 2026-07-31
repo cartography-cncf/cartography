@@ -15,11 +15,7 @@ from cartography.models.ontology.labels import TENANT
 @dataclass(frozen=True)
 class RailwayProjectNodeProperties(CartographyNodeProperties):
     id: PropertyRef = PropertyRef("id", description="ID of the Railway project.")
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last update to this project.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
     name: PropertyRef = PropertyRef(
         "name", extra_index=True, description="Name of the project."
     )

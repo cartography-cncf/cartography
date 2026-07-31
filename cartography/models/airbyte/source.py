@@ -14,11 +14,7 @@ from cartography.models.core.relationships import TargetNodeMatcher
 @dataclass(frozen=True)
 class AirbyteSourceNodeProperties(CartographyNodeProperties):
     id: PropertyRef = PropertyRef("sourceId", description="Source UUID.")
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last update.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
     name: PropertyRef = PropertyRef("name", description="Source name.")
     type: PropertyRef = PropertyRef("sourceType", description="Source connector type.")
     config_host: PropertyRef = PropertyRef(

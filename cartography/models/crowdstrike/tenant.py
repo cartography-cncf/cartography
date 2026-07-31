@@ -20,11 +20,7 @@ class CrowdstrikeTenantNodeProperties(CartographyNodeProperties):
         "id",
         description="CrowdStrike customer ID for the tenant.",
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last Cartography update.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)

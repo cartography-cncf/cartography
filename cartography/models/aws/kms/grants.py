@@ -39,11 +39,7 @@ class KMSGrantNodeProperties(CartographyNodeProperties):
     operations: PropertyRef = PropertyRef(
         "Operations", description="List of operations that the grant allows"
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of when the node was last updated by Cartography",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
@@ -79,6 +75,8 @@ class KMSGrantToAWSAccountRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class KMSGrantSchema(CartographyNodeSchema):
+    """Representation of an AWS [KMS Key Grant](https://docs.aws.amazon.com/kms/latest/APIReference/API_GrantListEntry.html)."""
+
     label: str = "AWSKMSGrant"
     # DEPRECATED: legacy KMSGrant node label will be removed in v1.0.0.
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([LEGACY_KMS_GRANT])

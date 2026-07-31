@@ -19,11 +19,7 @@ class GCPNetworkInterfaceNodeProperties(CartographyNodeProperties):
         "nic_id",
         description="A partial resource URI representing this network interface.  Note: GCP does not define a partial resource URI for network interfaces, so we create one so we can uniquely identify GCP network interfaces.  Has the form `projects/{project_name}/zones/{zone_name}/instances/{instance_name}/networkinterfaces/{network interface name}`.",
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last time the node was updated.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
     private_ip: PropertyRef = PropertyRef(
         "networkIP",
         description="The private IP address of this network interface.  This IP is valid on the network interface's VPC.",
@@ -35,11 +31,7 @@ class GCPNetworkInterfaceNodeProperties(CartographyNodeProperties):
 
 @dataclass(frozen=True)
 class GCPNetworkInterfaceToInstanceRelProperties(CartographyRelProperties):
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last sync that observed this data.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
@@ -59,11 +51,7 @@ class GCPNetworkInterfaceToInstanceRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class GCPNetworkInterfaceToSubnetRelProperties(CartographyRelProperties):
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last sync that observed this data.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
@@ -83,11 +71,7 @@ class GCPNetworkInterfaceToSubnetRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class GCPNetworkInterfaceToProjectRelProperties(CartographyRelProperties):
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last sync that observed this data.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)

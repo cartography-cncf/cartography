@@ -19,11 +19,7 @@ class PackageVersionNodeProperties(CartographyNodeProperties):
         "normalized_id",
         description="Normalized identifier for this specific package version.",
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last sync that observed this package version.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
     name: PropertyRef = PropertyRef("name", description="Package name.")
     version: PropertyRef = PropertyRef("version", description="Package version.")
     type: PropertyRef = PropertyRef(

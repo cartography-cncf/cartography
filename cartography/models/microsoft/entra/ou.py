@@ -33,11 +33,7 @@ class EntraOUNodeProperties(CartographyNodeProperties):
         "deleted_date_time",
         description="Timestamp when the administrative unit was deleted.",
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the latest Cartography update.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)

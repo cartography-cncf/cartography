@@ -14,9 +14,7 @@ from cartography.models.core.relationships import TargetNodeMatcher
 @dataclass(frozen=True)
 class VercelWebhookNodeProperties(CartographyNodeProperties):
     id: PropertyRef = PropertyRef("id", description="Webhook ID.")
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated", set_in_kwargs=True, description="Timestamp of the last update."
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
     url: PropertyRef = PropertyRef(
         "url", extra_index=True, description="Webhook destination URL."
     )

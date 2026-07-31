@@ -14,11 +14,7 @@ from cartography.models.core.relationships import TargetNodeMatcher
 @dataclass(frozen=True)
 class JamfComputerNodeProperties(CartographyNodeProperties):
     id: PropertyRef = PropertyRef("id", description="Jamf computer inventory ID.")
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last time the node was updated.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
     udid: PropertyRef = PropertyRef("udid", description="Device UDID.")
     name: PropertyRef = PropertyRef(
         "name",

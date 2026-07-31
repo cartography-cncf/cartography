@@ -28,11 +28,7 @@ class DatabricksGroupNodeProperties(CartographyNodeProperties):
         "external_id",
         description="Identifier assigned by the external identity provider.",
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last ingestion update.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)

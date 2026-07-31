@@ -14,9 +14,7 @@ from cartography.models.core.relationships import TargetNodeMatcher
 @dataclass(frozen=True)
 class PagerDutyIntegrationProperties(CartographyNodeProperties):
     id: PropertyRef = PropertyRef("id", description="Integration ID.")
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated", set_in_kwargs=True, description="Timestamp of the last update."
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
     html_url: PropertyRef = PropertyRef(
         "html_url", description="PagerDuty web URL for the integration."
     )

@@ -17,11 +17,7 @@ class TailscaleUserNodeProperties(CartographyNodeProperties):
     id: PropertyRef = PropertyRef(
         "id", description="The unique identifier for the user."
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last time the node was updated.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
     display_name: PropertyRef = PropertyRef(
         "displayName", description="The name of the user."
     )
@@ -60,11 +56,7 @@ class TailscaleUserNodeProperties(CartographyNodeProperties):
 
 @dataclass(frozen=True)
 class TailscaleUserToTailnetRelProperties(CartographyRelProperties):
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last Cartography update.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)

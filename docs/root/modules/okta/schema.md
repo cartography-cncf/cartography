@@ -252,6 +252,8 @@ Representation of an [Okta Trusted Origin](https://developer.okta.com/docs/refer
 
 Representation of an [Okta Administration Role](https://developer.okta.com/docs/reference/api/roles/#role-object).
 
+> **Ontology Mapping**: This node has the extra label `PermissionRole` to enable cross-platform queries for permission roles across different systems (e.g., AWSRole, AzureRoleDefinition, GCPRole).
+
 | Field | Description |
 |-------|--------------|
 | id | role id mapped to the type |

@@ -18,11 +18,7 @@ class GCPFirewallNodeProperties(CartographyNodeProperties):
     id: PropertyRef = PropertyRef(
         "id", description="A partial resource URI representing this Firewall."
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last time the node was updated.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
     direction: PropertyRef = PropertyRef(
         "direction",
         description="Either 'INGRESS' for inbound or 'EGRESS' for outbound.",
@@ -48,11 +44,7 @@ class GCPFirewallNodeProperties(CartographyNodeProperties):
 
 @dataclass(frozen=True)
 class GCPFirewallToVpcRelProperties(CartographyRelProperties):
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last sync that observed this data.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
@@ -70,11 +62,7 @@ class GCPFirewallToVpcRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class GCPFirewallToProjectRelProperties(CartographyRelProperties):
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last sync that observed this data.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)

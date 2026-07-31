@@ -19,11 +19,7 @@ class GCPVpcNodeProperties(CartographyNodeProperties):
         extra_index=True,
         description="The partial resource URI representing this VPC.  Has the form `projects/{project_name}/global/networks/{vpc name}`.",
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "LASTUPDATED",
-        set_in_kwargs=True,
-        description="Timestamp of the last time the node was updated.",
-    )
+    lastupdated: PropertyRef = PropertyRef("LASTUPDATED", set_in_kwargs=True)
     partial_uri: PropertyRef = PropertyRef("partial_uri", description="Same as `id`.")
     self_link: PropertyRef = PropertyRef(
         "self_link",
@@ -52,11 +48,7 @@ class GCPVpcNodeProperties(CartographyNodeProperties):
 
 @dataclass(frozen=True)
 class GCPVpcToProjectRelProperties(CartographyRelProperties):
-    lastupdated: PropertyRef = PropertyRef(
-        "LASTUPDATED",
-        set_in_kwargs=True,
-        description="Timestamp of the last sync that observed this data.",
-    )
+    lastupdated: PropertyRef = PropertyRef("LASTUPDATED", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)

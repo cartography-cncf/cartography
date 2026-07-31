@@ -95,20 +95,12 @@ class GCPBucketNodeProperties(CartographyNodeProperties):
         "acl_public",
         description="`true` if the bucket's legacy ACL or default object ACL grants access to `allUsers` or `allAuthenticatedUsers`. Consumed by the `_ont_public` projection job.",
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last time the node was updated.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
 class GCPBucketToProjectRelProperties(CartographyRelProperties):
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last sync that observed this data.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
@@ -140,20 +132,12 @@ class GCPBucketLabelNodeProperties(CartographyNodeProperties):
     )
     key: PropertyRef = PropertyRef("key", extra_index=True, description="Label key.")
     value: PropertyRef = PropertyRef("value", description="Label value.")
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last sync that observed this data.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
 class GCPBucketLabelToProjectRelProperties(CartographyRelProperties):
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last sync that observed this data.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
@@ -172,11 +156,7 @@ class GCPBucketLabelToProjectRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class GCPBucketLabelToBucketRelProperties(CartographyRelProperties):
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last sync that observed this data.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)

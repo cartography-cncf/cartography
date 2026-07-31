@@ -17,11 +17,7 @@ class AzureDiskProperties(CartographyNodeProperties):
     id: PropertyRef = PropertyRef(
         "id", description="Azure resource ID of the managed disk."
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last sync that observed this node.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
     name: PropertyRef = PropertyRef("name", description="Name of the managed disk.")
     location: PropertyRef = PropertyRef(
         "location", description="Azure region of the managed disk."

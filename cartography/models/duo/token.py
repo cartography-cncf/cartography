@@ -14,11 +14,7 @@ from cartography.models.core.relationships import TargetNodeMatcher
 @dataclass(frozen=True)
 class DuoTokenNodeProperties(CartographyNodeProperties):
     id: PropertyRef = PropertyRef("token_id", description="Duo hardware token ID.")
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last update.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
     admins: PropertyRef = PropertyRef(
         "admins", description="Administrators associated with the hardware token."
     )

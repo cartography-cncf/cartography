@@ -30,11 +30,7 @@ class AnthropicWorkspaceNodeProperties(CartographyNodeProperties):
         "display_color",
         description="Hex color representing the workspace in the Anthropic Console.",
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last update.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)

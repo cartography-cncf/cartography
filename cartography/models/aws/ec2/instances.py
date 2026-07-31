@@ -72,11 +72,7 @@ class EC2InstanceNodeProperties(CartographyNodeProperties):
         set_in_kwargs=True,
         description="The AWS region this Instance is running in",
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last time the node was updated",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
     iaminstanceprofile: PropertyRef = PropertyRef(
         "IamInstanceProfile",
         description="The IAM instance profile associated with the instance, if applicable.",
@@ -237,6 +233,8 @@ class EC2InstanceToEKSClusterRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class EC2InstanceSchema(CartographyNodeSchema):
+    """Our representation of an AWS [EC2 Instance](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_Instance.html)."""
+
     label: str = "AWSEC2Instance"
     # DEPRECATED: legacy EC2Instance node label will be removed in v1.0.0.
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(

@@ -16,11 +16,7 @@ class AirbyteTagNodeProperties(CartographyNodeProperties):
     id: PropertyRef = PropertyRef("tagId", description="Tag UUID.")
     name: PropertyRef = PropertyRef("name", description="Tag name.")
     color: PropertyRef = PropertyRef("color", description="Tag color in hexadecimal.")
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last update.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)

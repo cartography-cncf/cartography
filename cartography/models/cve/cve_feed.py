@@ -11,11 +11,7 @@ class CVEFeedNodeProperties(CartographyNodeProperties):
         "FEED_ID",
         description="Unique identifier for the CVE feed.",
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last Cartography update.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
     format: PropertyRef = PropertyRef(
         "format",
         description="Data format published by the feed.",

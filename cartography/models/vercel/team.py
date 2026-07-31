@@ -10,9 +10,7 @@ from cartography.models.ontology.labels import TENANT
 @dataclass(frozen=True)
 class VercelTeamNodeProperties(CartographyNodeProperties):
     id: PropertyRef = PropertyRef("id", description="Team ID.")
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated", set_in_kwargs=True, description="Timestamp of the last update."
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
     name: PropertyRef = PropertyRef("name", description="Team display name.")
     slug: PropertyRef = PropertyRef(
         "slug", extra_index=True, description="URL slug of the team."

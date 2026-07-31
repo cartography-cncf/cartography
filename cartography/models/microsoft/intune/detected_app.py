@@ -38,11 +38,7 @@ class IntuneDetectedAppNodeProperties(CartographyNodeProperties):
     platform: PropertyRef = PropertyRef(
         "platform", description="Platform on which the application was detected."
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the latest Cartography update.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)

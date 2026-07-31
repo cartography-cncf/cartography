@@ -59,9 +59,7 @@ class ScalewaySecurityGroupProperties(CartographyNodeProperties):
     modification_date: PropertyRef = PropertyRef(
         "modification_date", description="Security Group modification date."
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated", set_in_kwargs=True, description="Timestamp of the last update"
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
@@ -158,9 +156,7 @@ class ScalewaySecurityGroupRuleProperties(CartographyNodeProperties):
     zone: PropertyRef = PropertyRef(
         "zone", description="Zone in which the rule is located."
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated", set_in_kwargs=True, description="Timestamp of the last update"
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)

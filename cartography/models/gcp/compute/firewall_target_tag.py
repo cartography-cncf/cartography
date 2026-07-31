@@ -19,11 +19,7 @@ class GCPFirewallTargetTagNodeProperties(CartographyNodeProperties):
         "tag_id",
         description="GCP doesn't define a resource URI for Tags so we define this as `{instance resource URI}/tags/{tag value}`.",
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last time the node was updated.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
     tag_id: PropertyRef = PropertyRef(
         "tag_id", extra_index=True, description="same as `id`."
     )
@@ -34,11 +30,7 @@ class GCPFirewallTargetTagNodeProperties(CartographyNodeProperties):
 
 @dataclass(frozen=True)
 class GCPFirewallTargetTagToFirewallRelProperties(CartographyRelProperties):
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last sync that observed this data.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
@@ -58,11 +50,7 @@ class GCPFirewallTargetTagToFirewallRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class GCPFirewallTargetTagToVpcRelProperties(CartographyRelProperties):
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last sync that observed this data.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
@@ -82,11 +70,7 @@ class GCPFirewallTargetTagToVpcRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class GCPFirewallTargetTagToProjectRelProperties(CartographyRelProperties):
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last sync that observed this data.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)

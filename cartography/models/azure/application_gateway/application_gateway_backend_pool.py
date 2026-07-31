@@ -28,11 +28,7 @@ class AzureApplicationGatewayBackendPoolProperties(CartographyNodeProperties):
     ip_addresses: PropertyRef = PropertyRef(
         "ip_addresses", description="IP addresses of backend targets."
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last ingestion update.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)

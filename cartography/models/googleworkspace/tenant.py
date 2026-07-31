@@ -16,11 +16,7 @@ class GoogleWorkspaceTenantNodeProperties(CartographyNodeProperties):
     id: PropertyRef = PropertyRef(
         "id", description="Unique Google Workspace customer ID."
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last update.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
     domain: PropertyRef = PropertyRef(
         "customerDomain", description="Primary domain of the customer account."
     )

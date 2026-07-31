@@ -20,11 +20,7 @@ class DynamoDBBackupNodeProperties(CartographyNodeProperties):
 
     id: PropertyRef = PropertyRef("Arn", description="The ARN of the backup")
     arn: PropertyRef = PropertyRef("Arn", description="The ARN of the backup")
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last time the node was updated",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
@@ -47,6 +43,8 @@ class DynamoDBBackupToAWSAccountRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class DynamoDBBackupSchema(CartographyNodeSchema):
+    """Representation of a DynamoDB [Backup](https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_BackupDetails.html). Currently a stub entity referenced by archival and restore summaries."""
+
     label: str = "AWSDynamoDBBackup"
     # DEPRECATED: legacy DynamoDBBackup node label will be removed in v1.0.0.
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([LEGACY_DYNAMO_DB_BACKUP])

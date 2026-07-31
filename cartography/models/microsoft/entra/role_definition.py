@@ -28,11 +28,7 @@ class EntraRoleDefinitionNodeProperties(CartographyNodeProperties):
     template_id: PropertyRef = PropertyRef(
         "template_id", description="Template ID of the directory role."
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the latest Cartography update.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)

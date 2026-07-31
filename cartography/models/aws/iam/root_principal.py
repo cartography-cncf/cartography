@@ -22,11 +22,7 @@ class AWSRootPrincipalNodeProperties(CartographyNodeProperties):
         extra_index=True,
         description="Amazon Resource Name (ARN) of this `AWSRootPrincipal` node.",
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last sync that updated this `AWSRootPrincipal` node.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)

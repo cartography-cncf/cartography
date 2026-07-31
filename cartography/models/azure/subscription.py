@@ -19,11 +19,7 @@ class AzureSubscriptionProperties(CartographyNodeProperties):
         "subscriptionId",
         description="Azure subscription ID.",
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the latest Cartography update.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
     path: PropertyRef = PropertyRef(
         "id",
         description="Azure Resource Manager path of the subscription.",

@@ -22,11 +22,7 @@ class GCPPermissionRelProperties(CartographyRelProperties):
     """
 
     # Required fields for MatchLinks
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last sync that observed this data.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
     # Constant condition fields (always unconditional on the bulk path). Set so a
     # conditional -> unconditional transition clears stale metadata left by a prior
     # sync that wrote the same edge via the row-by-row conditional schema.
@@ -104,11 +100,7 @@ class GCPConditionalPermissionRelProperties(CartographyRelProperties):
     so broad unconditional grants keep using GCPPermissionMatchLink.
     """
 
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last sync that observed this data.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
     has_condition: PropertyRef = PropertyRef(
         "has_condition", description="Whether an IAM condition restricts this grant."
     )

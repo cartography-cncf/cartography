@@ -8,11 +8,7 @@ from cartography.models.core.nodes import CartographyNodeSchema
 @dataclass(frozen=True)
 class BigfixRootNodeProperties(CartographyNodeProperties):
     id: PropertyRef = PropertyRef("id", description="BigFix root URL.")
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last update.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)

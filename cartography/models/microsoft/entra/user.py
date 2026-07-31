@@ -79,11 +79,7 @@ class EntraUserNodeProperties(CartographyNodeProperties):
     manager_id: PropertyRef = PropertyRef(
         "manager_id", description="Entra user ID of the user's manager."
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the latest Cartography update.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)

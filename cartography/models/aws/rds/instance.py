@@ -140,11 +140,7 @@ class RDSInstanceNodeProperties(CartographyNodeProperties):
         "AutoMinorVersionUpgrade",
         description="Specifies whether minor version upgrades are applied automatically to the DB instance during the maintenance window",
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last time the node was updated",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
@@ -248,6 +244,8 @@ class RDSInstanceToKMSKeyRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class RDSInstanceSchema(CartographyNodeSchema):
+    """Representation of an AWS Relational Database Service [DBInstance](https://docs.aws.amazon.com/AmazonRDS/latest/APIReference/API_DBInstance.html)."""
+
     label: str = "AWSRDSInstance"
     # DEPRECATED: legacy RDSInstance node label will be removed in v1.0.0.
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(

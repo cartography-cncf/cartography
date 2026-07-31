@@ -79,11 +79,7 @@ class AWSSageMakerNotebookInstanceNodeProperties(CartographyNodeProperties):
         set_in_kwargs=True,
         description="The AWS region where the Notebook Instance exists",
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last time the node was updated",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
@@ -145,6 +141,8 @@ class AWSSageMakerNotebookInstanceToTrainingJobRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class AWSSageMakerNotebookInstanceSchema(CartographyNodeSchema):
+    """Represents an [AWS SageMaker Notebook Instance](https://docs.aws.amazon.com/sagemaker/latest/APIReference/API_DescribeNotebookInstance.html). A Notebook Instance is a fully managed ML compute instance running Jupyter notebooks."""
+
     label: str = "AWSSageMakerNotebookInstance"
     properties: AWSSageMakerNotebookInstanceNodeProperties = (
         AWSSageMakerNotebookInstanceNodeProperties()

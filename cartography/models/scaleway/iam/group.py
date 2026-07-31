@@ -39,9 +39,7 @@ class ScalewayGroupProperties(CartographyNodeProperties):
     managed: PropertyRef = PropertyRef(
         "managed", description="Defines whether or not the group is managed."
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated", set_in_kwargs=True, description="Timestamp of the last update."
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)

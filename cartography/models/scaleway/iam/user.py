@@ -62,9 +62,7 @@ class ScalewayUserNodeProperties(CartographyNodeProperties):
     locked: PropertyRef = PropertyRef(
         "locked", description="Defines whether the user is locked."
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated", set_in_kwargs=True, description="Timestamp of the last update"
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)

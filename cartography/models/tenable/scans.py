@@ -13,11 +13,7 @@ from cartography.models.core.relationships import TargetNodeMatcher
 @dataclass(frozen=True)
 class TenableScanNodeProperties(CartographyNodeProperties):
     id: PropertyRef = PropertyRef("id", description="Tenable scan UUID.")
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last time the node was updated.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
     schedule_uuid: PropertyRef = PropertyRef(
         "schedule_uuid", description="UUID of the scan schedule."
     )

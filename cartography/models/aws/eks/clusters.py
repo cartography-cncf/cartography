@@ -28,11 +28,7 @@ class EKSClusterNodeProperties(CartographyNodeProperties):
     created_at: PropertyRef = PropertyRef(
         "created_at", description="The date and time the cluster was created"
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last time the node was updated",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
     endpoint: PropertyRef = PropertyRef(
         "endpoint", description="The endpoint for the Kubernetes API server."
     )
@@ -130,6 +126,8 @@ class EKSClusterToAWSAccountRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class EKSClusterSchema(CartographyNodeSchema):
+    """Representation of an AWS [EKS Cluster](https://docs.aws.amazon.com/eks/latest/APIReference/API_Cluster.html)."""
+
     label: str = "AWSEKSCluster"
     # DEPRECATED: legacy EKSCluster node label will be removed in v1.0.0.
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(

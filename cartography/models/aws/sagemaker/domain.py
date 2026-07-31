@@ -41,11 +41,7 @@ class AWSSageMakerDomainNodeProperties(CartographyNodeProperties):
         set_in_kwargs=True,
         description="The AWS region where the Domain exists",
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last time the node was updated",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
@@ -68,6 +64,8 @@ class AWSSageMakerDomainToAWSAccountRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class AWSSageMakerDomainSchema(CartographyNodeSchema):
+    """Represents an [AWS SageMaker Domain](https://docs.aws.amazon.com/sagemaker/latest/APIReference/API_DescribeDomain.html). A Domain is a centralized environment for SageMaker Studio users and their resources."""
+
     label: str = "AWSSageMakerDomain"
     properties: AWSSageMakerDomainNodeProperties = AWSSageMakerDomainNodeProperties()
     sub_resource_relationship: AWSSageMakerDomainToAWSAccountRel = (

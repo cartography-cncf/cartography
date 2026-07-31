@@ -16,11 +16,7 @@ from cartography.models.ontology.labels import CONTAINER
 @dataclass(frozen=True)
 class RailwayDeploymentNodeProperties(CartographyNodeProperties):
     id: PropertyRef = PropertyRef("id", description="ID of the Railway deployment.")
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last update to this deployment.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
     status: PropertyRef = PropertyRef(
         "status", extra_index=True, description="Current deployment status."
     )

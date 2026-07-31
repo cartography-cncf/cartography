@@ -60,11 +60,7 @@ class AWSSageMakerTransformJobNodeProperties(CartographyNodeProperties):
         set_in_kwargs=True,
         description="The AWS region where the Transform Job runs",
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last time the node was updated",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
@@ -123,6 +119,8 @@ class AWSSageMakerTransformJobToS3BucketRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class AWSSageMakerTransformJobSchema(CartographyNodeSchema):
+    """Represents an [AWS SageMaker Transform Job](https://docs.aws.amazon.com/sagemaker/latest/APIReference/API_DescribeTransformJob.html). A Transform Job performs batch inference on datasets. Takes a large dataset and uses batch inference to write multiple predictions to an S3 Bucket."""
+
     label: str = "AWSSageMakerTransformJob"
     properties: AWSSageMakerTransformJobNodeProperties = (
         AWSSageMakerTransformJobNodeProperties()

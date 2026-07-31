@@ -17,11 +17,7 @@ class GCPBackendServiceNodeProperties(CartographyNodeProperties):
         "partial_uri", description="Stable identifier for this resource."
     )
     partial_uri: PropertyRef = PropertyRef("partial_uri", description="Same as `id`.")
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last time the node was updated.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
     name: PropertyRef = PropertyRef(
         "name", extra_index=True, description="The name of the backend service."
     )
@@ -66,11 +62,7 @@ class GCPBackendServiceNodeProperties(CartographyNodeProperties):
 
 @dataclass(frozen=True)
 class GCPBackendServiceToProjectRelProperties(CartographyRelProperties):
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last sync that observed this data.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
@@ -90,11 +82,7 @@ class GCPBackendServiceToProjectRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class GCPBackendServiceToInstanceGroupRelProperties(CartographyRelProperties):
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last sync that observed this data.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
@@ -114,11 +102,7 @@ class GCPBackendServiceToInstanceGroupRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class GCPCloudArmorPolicyToBackendServiceRelProperties(CartographyRelProperties):
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last sync that observed this data.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)

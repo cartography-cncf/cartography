@@ -27,11 +27,7 @@ class AWSMfaDeviceNodeProperties(CartographyNodeProperties):
     )
 
     # Automatic fields (set by cartography)
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last time the node was updated",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
     # Business fields from AWS IAM mfa devices
     username: PropertyRef = PropertyRef(
@@ -93,6 +89,8 @@ class AWSMfaDeviceToAWSUserRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class AWSMfaDeviceSchema(CartographyNodeSchema):
+    """Representation of an AWS [MFA Device](https://docs.aws.amazon.com/IAM/latest/APIReference/API_MFADevice.html)."""
+
     label: str = "AWSMfaDevice"
     properties: AWSMfaDeviceNodeProperties = AWSMfaDeviceNodeProperties()
     sub_resource_relationship: AWSMfaDeviceToAWSAccountRel = (

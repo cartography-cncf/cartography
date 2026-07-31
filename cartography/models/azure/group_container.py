@@ -50,11 +50,7 @@ class AzureGroupContainerNodeProperties(CartographyNodeProperties):
         "os_type",
         description="Operating system type used by the container group.",
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the latest Cartography update.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)

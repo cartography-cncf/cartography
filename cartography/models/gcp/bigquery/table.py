@@ -16,11 +16,7 @@ class GCPBigQueryTableProperties(CartographyNodeProperties):
     id: PropertyRef = PropertyRef(
         "id", description="Stable identifier for this resource."
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last time the node was updated.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
     table_id: PropertyRef = PropertyRef("table_id", description="The short table ID.")
     dataset_id: PropertyRef = PropertyRef(
         "dataset_id",
@@ -62,11 +58,7 @@ class GCPBigQueryTableProperties(CartographyNodeProperties):
 
 @dataclass(frozen=True)
 class ProjectToTableRelProperties(CartographyRelProperties):
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last sync that observed this data.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
@@ -82,11 +74,7 @@ class ProjectToTableRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class DatasetToTableRelProperties(CartographyRelProperties):
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last sync that observed this data.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
@@ -102,11 +90,7 @@ class DatasetToTableRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class TableToConnectionRelProperties(CartographyRelProperties):
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last sync that observed this data.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)

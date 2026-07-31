@@ -40,11 +40,7 @@ class CloudflareMemberNodeProperties(CartographyNodeProperties):
         description="Whether the related user enabled two-factor authentication.",
     )
     id: PropertyRef = PropertyRef("id", description="Membership ID.")
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last update.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)

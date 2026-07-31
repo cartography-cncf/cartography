@@ -41,11 +41,7 @@ class GuardDutyDetectorNodeProperties(CartographyNodeProperties):
     updatedat: PropertyRef = PropertyRef(
         "updatedat", description="Timestamp when the detector was last updated"
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last time the node was updated",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
@@ -68,6 +64,8 @@ class GuardDutyDetectorToAWSAccountRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class GuardDutyDetectorSchema(CartographyNodeSchema):
+    """Representation of an AWS [GuardDuty Detector](https://docs.aws.amazon.com/guardduty/latest/APIReference/API_GetDetector.html)."""
+
     label: str = "AWSGuardDutyDetector"
     # DEPRECATED: legacy GuardDutyDetector node label will be removed in v1.0.0.
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([LEGACY_GUARD_DUTY_DETECTOR])

@@ -16,11 +16,7 @@ from cartography.models.ontology.labels import CVE
 @dataclass(frozen=True)
 class TenableFindingNodeProperties(CartographyNodeProperties):
     id: PropertyRef = PropertyRef("id", description="Tenable finding UUID.")
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last time the node was updated.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
     asset_uuid: PropertyRef = PropertyRef(
         "asset_uuid",
         extra_index=True,

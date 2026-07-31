@@ -47,20 +47,12 @@ class GCPCloudRunServiceContainerProperties(CartographyNodeProperties):
     project_id: PropertyRef = PropertyRef(
         "project_id", description="The GCP project ID this container belongs to."
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last time the node was updated.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
 class ProjectToCloudRunServiceContainerRelProperties(CartographyRelProperties):
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last sync that observed this data.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
@@ -78,11 +70,7 @@ class ProjectToCloudRunServiceContainerRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class CloudRunServiceToContainerRelProperties(CartographyRelProperties):
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last sync that observed this data.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 # DEPRECATED: replaced by WORKLOAD_PARENT, will be removed in v1.0.0
@@ -103,11 +91,7 @@ class CloudRunServiceToContainerRel(CartographyRelSchema):
 class CloudRunServiceContainerToServiceWorkloadParentRelProperties(
     CartographyRelProperties
 ):
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last sync that observed this data.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
@@ -126,11 +110,7 @@ class CloudRunServiceContainerToServiceWorkloadParentRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class CloudRunServiceContainerToECRImageRelProperties(CartographyRelProperties):
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last sync that observed this data.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
@@ -150,11 +130,7 @@ class CloudRunServiceContainerToECRImageRel(CartographyRelSchema):
 class CloudRunServiceContainerToGitLabContainerImageRelProperties(
     CartographyRelProperties
 ):
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last sync that observed this data.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
@@ -174,11 +150,7 @@ class CloudRunServiceContainerToGitLabContainerImageRel(CartographyRelSchema):
 class CloudRunServiceContainerToArtifactRegistryImageRelProperties(
     CartographyRelProperties
 ):
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last sync that observed this data.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
@@ -198,11 +170,7 @@ class CloudRunServiceContainerToArtifactRegistryImageRel(CartographyRelSchema):
 class CloudRunServiceContainerToGitHubContainerImageRelProperties(
     CartographyRelProperties
 ):
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last sync that observed this data.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)

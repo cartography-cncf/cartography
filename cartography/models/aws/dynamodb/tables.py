@@ -31,11 +31,7 @@ class DynamoDBTableNodeProperties(CartographyNodeProperties):
         set_in_kwargs=True,
         description="AWS Region containing this `AWSDynamoDBTable` node.",
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last sync that updated this `AWSDynamoDBTable` node.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
     # Basic table properties
     rows: PropertyRef = PropertyRef(
@@ -83,6 +79,8 @@ class DynamoDBTableToAWSAccountRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class DynamoDBTableSchema(CartographyNodeSchema):
+    """Representation of an AWS [AWSDynamoDBTable](https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_TableDescription.html)."""
+
     label: str = "AWSDynamoDBTable"
     # DEPRECATED: legacy DynamoDBTable node label will be removed in v1.0.0.
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(

@@ -41,11 +41,7 @@ class VPCNodeProperties(CartographyNodeProperties):
         set_in_kwargs=True,
         description="(optional) the region of this VPC.  This field is only available on VPCs in your account.  It is not available on VPCs that are external to your account and linked via a VPC peering relationship.",
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last time the node was updated",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
@@ -66,6 +62,8 @@ class VPCToAWSAccountRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class AWSVpcSchema(CartographyNodeSchema):
+    """Representation of an [AWS CidrBlock used in VPC configuration](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_VpcCidrBlockAssociation.html). More information on https://docs.aws.amazon.com/cli/latest/reference/ec2/describe-vpcs.html"""
+
     label: str = "AWSVpc"
     properties: VPCNodeProperties = VPCNodeProperties()
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([VIRTUAL_NETWORK])

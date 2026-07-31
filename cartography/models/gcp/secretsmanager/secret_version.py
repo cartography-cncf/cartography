@@ -46,11 +46,7 @@ class GCPSecretManagerSecretVersionNodeProperties(CartographyNodeProperties):
     )
 
     # Standard cartography properties
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last time the node was updated.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
@@ -59,11 +55,7 @@ class GCPSecretManagerSecretVersionRelProperties(CartographyRelProperties):
     Properties for relationships between Secret Version and other nodes
     """
 
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last sync that observed this data.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)

@@ -17,11 +17,7 @@ class AWSInternetGatewayNodeProperties(CartographyNodeProperties):
         "InternetGatewayId",
         description="Unique identifier for this `AWSInternetGateway` node.",
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last sync that updated this `AWSInternetGateway` node.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
     region: PropertyRef = PropertyRef(
         "Region",
         set_in_kwargs=True,
@@ -76,6 +72,8 @@ class AWSInternetGatewayToAWSVpcRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class AWSInternetGatewaySchema(CartographyNodeSchema):
+    """Representation of an AWS [Interent Gateway](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_InternetGateway.html)."""
+
     label: str = "AWSInternetGateway"
     properties: AWSInternetGatewayNodeProperties = AWSInternetGatewayNodeProperties()
     sub_resource_relationship: AWSInternetGatewayToAWSAccountRel = (

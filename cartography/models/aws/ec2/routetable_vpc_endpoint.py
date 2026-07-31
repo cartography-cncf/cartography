@@ -26,11 +26,7 @@ class AWSRouteTableVPCEndpointNodeProperties(CartographyNodeProperties):
         set_in_kwargs=True,
         description="AWS Region containing this `AWSRouteTable` node.",
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last sync that updated this `AWSRouteTable` node.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)

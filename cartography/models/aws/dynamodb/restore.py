@@ -18,11 +18,7 @@ class DynamoDBRestoreSummaryNodeProperties(CartographyNodeProperties):
     id: PropertyRef = PropertyRef(
         "Id", description='Unique identifier (table ARN + "/restore")'
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last time the node was updated",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
     restore_date_time: PropertyRef = PropertyRef(
         "RestoreDateTime",
         description="Point in time or source backup time for the restore",
@@ -115,6 +111,8 @@ class DynamoDBRestoreSummaryToSourceTableRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class DynamoDBRestoreSummarySchema(CartographyNodeSchema):
+    """Representation of DynamoDB [Restore Summary](https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_RestoreSummary.html) for restored tables."""
+
     label: str = "AWSDynamoDBRestoreSummary"
     # DEPRECATED: legacy DynamoDBRestoreSummary node label will be removed in v1.0.0.
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(

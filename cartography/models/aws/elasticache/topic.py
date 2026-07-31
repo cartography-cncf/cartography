@@ -24,11 +24,7 @@ class ElasticacheTopicNodeProperties(CartographyNodeProperties):
     status: PropertyRef = PropertyRef(
         "TopicStatus", description="The status of the SNS topic (active, inactive)"
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last time the node was updated",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
@@ -69,6 +65,8 @@ class ElasticacheTopicToElasticacheClusterRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class ElasticacheTopicSchema(CartographyNodeSchema):
+    """Representation of an AWS [ElastiCache Topic](https://docs.aws.amazon.com/AmazonElastiCache/latest/APIReference/API_CacheCluster.html) for notifications."""
+
     label: str = "AWSElasticacheTopic"
     # DEPRECATED: legacy ElasticacheTopic node label will be removed in v1.0.0.
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([LEGACY_ELASTICACHE_TOPIC])

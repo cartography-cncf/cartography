@@ -19,11 +19,7 @@ class OCIPolicyNodeProperties(CartographyNodeProperties):
     ocid: PropertyRef = PropertyRef(
         "id", extra_index=True, description="OCI policy OCID."
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last update.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
     name: PropertyRef = PropertyRef("name", description="Policy name.")
     description: PropertyRef = PropertyRef(
         "description", description="Policy description."
@@ -107,11 +103,7 @@ class OCIPolicyRefNodeProperties(CartographyNodeProperties):
     ocid: PropertyRef = PropertyRef(
         "ocid", extra_index=True, description="OCI policy OCID."
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last update.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
     name: PropertyRef = PropertyRef("name", description="Policy name.")
     compartmentid: PropertyRef = PropertyRef(
         "compartmentid", description="OCID of the compartment containing the policy."

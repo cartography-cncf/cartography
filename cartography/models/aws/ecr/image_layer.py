@@ -18,11 +18,7 @@ from cartography.models.ontology.labels import IMAGE_LAYER
 class ECRImageLayerNodeProperties(CartographyNodeProperties):
     id: PropertyRef = PropertyRef("diff_id", description="Same as `diff_id`")
     diff_id: PropertyRef = PropertyRef("diff_id", description="Digest of the layer")
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last time the node was updated",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
     is_empty: PropertyRef = PropertyRef(
         "is_empty",
         description="Boolean flag identifying Docker's empty layer (true when the **DiffID** is `sha256:5f70bf18...`).",
@@ -105,7 +101,7 @@ class ECRImageLayerTailOfImageRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class ECRImageLayerSchema(CartographyNodeSchema):
-    "Represents a filesystem layer in an Amazon ECR container image."
+    """Representation of an individual Docker image layer discovered while processing ECR manifests. Layers are de-duplicated by `diff_id`, so multiple images (or multiple points within the same image) may reference the same `AWSECRImageLayer` node. Note that `diff_id` is the **uncompressed** (DiffID) SHA-256 of the layer tar stream. Docker's canonical empty layer therefore always appears as `sha256:5f70bf18a086007016e948b04aed3b82103a36bea41755b6cddfaf10ace3c6ef` and is marked with `is_empty = true`. (If you inspect registry manifests you may see the compressed blob digest `sha256:a3ed95ca...`, both refer to the same empty layer.)"""
 
     label: str = "AWSECRImageLayer"
     properties: ECRImageLayerNodeProperties = ECRImageLayerNodeProperties()
@@ -127,7 +123,7 @@ class ECRImageLayerSchema(CartographyNodeSchema):
 
 @dataclass(frozen=True)
 class ECRImageLayerNodeSchema(CartographyNodeSchema):
-    "Represents a filesystem layer in an Amazon ECR container image."
+    """Representation of an individual Docker image layer discovered while processing ECR manifests. Layers are de-duplicated by `diff_id`, so multiple images (or multiple points within the same image) may reference the same `AWSECRImageLayer` node. Note that `diff_id` is the **uncompressed** (DiffID) SHA-256 of the layer tar stream. Docker's canonical empty layer therefore always appears as `sha256:5f70bf18a086007016e948b04aed3b82103a36bea41755b6cddfaf10ace3c6ef` and is marked with `is_empty = true`. (If you inspect registry manifests you may see the compressed blob digest `sha256:a3ed95ca...`, both refer to the same empty layer.)"""
 
     # Implementation note:
     # Load AWSECRImageLayer nodes without high-fanout one-to-many relationships.
@@ -147,16 +143,12 @@ class ECRImageLayerNodeSchema(CartographyNodeSchema):
 class ECRImageLayerRelLoadProperties(CartographyNodeProperties):
     id: PropertyRef = PropertyRef("diff_id", description="Same as `diff_id`")
     diff_id: PropertyRef = PropertyRef("diff_id", description="Digest of the layer")
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last time the node was updated",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
 class ECRImageLayerNextRelSchema(CartographyNodeSchema):
-    "Represents a filesystem layer in an Amazon ECR container image."
+    """Representation of an individual Docker image layer discovered while processing ECR manifests. Layers are de-duplicated by `diff_id`, so multiple images (or multiple points within the same image) may reference the same `AWSECRImageLayer` node. Note that `diff_id` is the **uncompressed** (DiffID) SHA-256 of the layer tar stream. Docker's canonical empty layer therefore always appears as `sha256:5f70bf18a086007016e948b04aed3b82103a36bea41755b6cddfaf10ace3c6ef` and is marked with `is_empty = true`. (If you inspect registry manifests you may see the compressed blob digest `sha256:a3ed95ca...`, both refer to the same empty layer.)"""
 
     # Implementation note:
     # Load bounded NEXT relationship rows without reloading layer metadata.
@@ -172,7 +164,7 @@ class ECRImageLayerNextRelSchema(CartographyNodeSchema):
 
 @dataclass(frozen=True)
 class ECRImageLayerHeadRelSchema(CartographyNodeSchema):
-    "Represents a filesystem layer in an Amazon ECR container image."
+    """Representation of an individual Docker image layer discovered while processing ECR manifests. Layers are de-duplicated by `diff_id`, so multiple images (or multiple points within the same image) may reference the same `AWSECRImageLayer` node. Note that `diff_id` is the **uncompressed** (DiffID) SHA-256 of the layer tar stream. Docker's canonical empty layer therefore always appears as `sha256:5f70bf18a086007016e948b04aed3b82103a36bea41755b6cddfaf10ace3c6ef` and is marked with `is_empty = true`. (If you inspect registry manifests you may see the compressed blob digest `sha256:a3ed95ca...`, both refer to the same empty layer.)"""
 
     # Implementation note:
     # Load bounded HEAD relationship rows without reloading layer metadata.
@@ -188,7 +180,7 @@ class ECRImageLayerHeadRelSchema(CartographyNodeSchema):
 
 @dataclass(frozen=True)
 class ECRImageLayerTailRelSchema(CartographyNodeSchema):
-    "Represents a filesystem layer in an Amazon ECR container image."
+    """Representation of an individual Docker image layer discovered while processing ECR manifests. Layers are de-duplicated by `diff_id`, so multiple images (or multiple points within the same image) may reference the same `AWSECRImageLayer` node. Note that `diff_id` is the **uncompressed** (DiffID) SHA-256 of the layer tar stream. Docker's canonical empty layer therefore always appears as `sha256:5f70bf18a086007016e948b04aed3b82103a36bea41755b6cddfaf10ace3c6ef` and is marked with `is_empty = true`. (If you inspect registry manifests you may see the compressed blob digest `sha256:a3ed95ca...`, both refer to the same empty layer.)"""
 
     # Implementation note:
     # Load bounded TAIL relationship rows without reloading layer metadata.

@@ -73,11 +73,7 @@ class AWSBedrockKnowledgeBaseNodeProperties(CartographyNodeProperties):
         set_in_kwargs=True,
         description="The AWS region where the knowledge base exists",
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last time the node was updated",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
@@ -164,9 +160,7 @@ class AWSBedrockKnowledgeBaseToFoundationModelRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class AWSBedrockKnowledgeBaseSchema(CartographyNodeSchema):
-    """
-    Schema for AWS Bedrock Knowledge Base nodes.
-    """
+    """Representation of an AWS [Bedrock Knowledge Base](https://docs.aws.amazon.com/bedrock/latest/userguide/knowledge-base.html). Knowledge bases enable RAG (Retrieval Augmented Generation) by converting documents from S3 into vector embeddings for semantic search."""
 
     label: str = "AWSBedrockKnowledgeBase"
     properties: AWSBedrockKnowledgeBaseNodeProperties = (

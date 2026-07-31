@@ -16,11 +16,7 @@ class GCPBigQueryConnectionProperties(CartographyNodeProperties):
     id: PropertyRef = PropertyRef(
         "name", description="Stable identifier for this resource."
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last time the node was updated.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
     name: PropertyRef = PropertyRef(
         "name", description="The full resource name of the connection."
     )
@@ -63,11 +59,7 @@ class GCPBigQueryConnectionProperties(CartographyNodeProperties):
 
 @dataclass(frozen=True)
 class ProjectToConnectionRelProperties(CartographyRelProperties):
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last sync that observed this data.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
@@ -83,11 +75,7 @@ class ProjectToConnectionRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class ConnectionToCloudSQLRelProperties(CartographyRelProperties):
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last sync that observed this data.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
@@ -103,11 +91,7 @@ class ConnectionToCloudSQLRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class ConnectionToAWSRoleRelProperties(CartographyRelProperties):
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last sync that observed this data.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
@@ -123,11 +107,7 @@ class ConnectionToAWSRoleRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class ConnectionToEntraSPRelProperties(CartographyRelProperties):
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last sync that observed this data.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
@@ -143,11 +123,7 @@ class ConnectionToEntraSPRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class ConnectionToGCPServiceAccountRelProperties(CartographyRelProperties):
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last sync that observed this data.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)

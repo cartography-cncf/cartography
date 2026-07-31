@@ -52,11 +52,7 @@ class EventBridgeRuleNodeProperties(CartographyNodeProperties):
         "EventBusName",
         description="The name or ARN of the event bus associated with the rule",
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last time the node was updated",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
@@ -97,6 +93,8 @@ class EventBridgeRuleToAWSRoleRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class EventBridgeRuleSchema(CartographyNodeSchema):
+    """Representation of an AWS [EventBridge Rule](https://docs.aws.amazon.com/eventbridge/latest/APIReference/API_ListRules.html)"""
+
     label: str = "AWSEventBridgeRule"
     # DEPRECATED: legacy EventBridgeRule node label will be removed in v1.0.0.
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([LEGACY_EVENT_BRIDGE_RULE])

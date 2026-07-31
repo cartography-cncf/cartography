@@ -55,9 +55,7 @@ class ScalewayDediboxServerProperties(CartographyNodeProperties):
     expired_at: PropertyRef = PropertyRef(
         "expired_at", description="Date and time the server expires."
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated", set_in_kwargs=True, description="Timestamp of the last update"
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)

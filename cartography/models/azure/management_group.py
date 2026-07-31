@@ -17,11 +17,7 @@ class AzureManagementGroupProperties(CartographyNodeProperties):
         "id",
         description="Azure Resource Manager ID of the management group.",
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the latest Cartography update.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
     name: PropertyRef = PropertyRef(
         "name",
         description="Name of the management group.",

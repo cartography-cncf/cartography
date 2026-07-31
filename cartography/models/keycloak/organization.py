@@ -29,11 +29,7 @@ class KeycloakOrganizationNodeProperties(CartographyNodeProperties):
     redirect_url: PropertyRef = PropertyRef(
         "redirectUrl", description="The redirect URL for the organization"
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "LASTUPDATED",
-        set_in_kwargs=True,
-        description="Timestamp of the last time the node was updated",
-    )
+    lastupdated: PropertyRef = PropertyRef("LASTUPDATED", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)

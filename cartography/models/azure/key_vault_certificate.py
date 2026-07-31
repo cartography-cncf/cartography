@@ -35,11 +35,7 @@ class AzureKeyVaultCertificateProperties(CartographyNodeProperties):
     x5t: PropertyRef = PropertyRef(
         "x5t", description="Hexadecimal X.509 certificate thumbprint."
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last sync that observed this certificate.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 # --- Relationship Definitions ---

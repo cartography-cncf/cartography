@@ -13,11 +13,7 @@ from cartography.models.core.relationships import TargetNodeMatcher
 @dataclass(frozen=True)
 class RailwayServiceNodeProperties(CartographyNodeProperties):
     id: PropertyRef = PropertyRef("id", description="ID of the Railway service.")
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last update to this service.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
     name: PropertyRef = PropertyRef(
         "name", extra_index=True, description="Name of the service."
     )

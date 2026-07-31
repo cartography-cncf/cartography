@@ -36,11 +36,7 @@ class AzureSynapseSparkPoolProperties(CartographyNodeProperties):
     spark_version: PropertyRef = PropertyRef(
         "spark_version", description="Apache Spark version used by the pool."
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last sync that observed this node.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)

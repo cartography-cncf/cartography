@@ -19,11 +19,7 @@ class SocketDevDependencyNodeProperties(CartographyNodeProperties):
         "id",
         description="Unique Socket.dev dependency identifier.",
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last time the node was updated.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
     name: PropertyRef = PropertyRef(
         "name",
         extra_index=True,

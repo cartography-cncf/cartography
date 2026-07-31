@@ -46,9 +46,7 @@ class ScalewayApiKeyProperties(CartographyNodeProperties):
     creation_ip: PropertyRef = PropertyRef(
         "creation_ip", description="IP address of the device that created the API key."
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated", set_in_kwargs=True, description="Timestamp of the last update"
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)

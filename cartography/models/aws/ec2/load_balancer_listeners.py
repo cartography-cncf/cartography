@@ -38,11 +38,7 @@ class ELBListenerNodeProperties(CartographyNodeProperties):
         "policy_names",
         description="Names of load balancer policies enabled on the listener.",
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last sync that updated this `AWSELBListener` node.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
@@ -83,6 +79,8 @@ class ELBListenerToAWSAccountRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class ELBListenerSchema(CartographyNodeSchema):
+    """Representation of an AWS Elastic Load Balancer [Listener](https://docs.aws.amazon.com/elasticloadbalancing/2012-06-01/APIReference/API_Listener.html).  Here, an AWSELBListener is a more specific type of Endpoint.  Here'a [good introduction](https://docs.aws.amazon.com/elasticloadbalancing/2012-06-01/APIReference/Welcome.html)."""
+
     label: str = "AWSELBListener"
     properties: ELBListenerNodeProperties = ELBListenerNodeProperties()
     # DEPRECATED: legacy ELBListener node label will be removed in v1.0.0.

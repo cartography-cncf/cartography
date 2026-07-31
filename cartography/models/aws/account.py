@@ -10,11 +10,7 @@ from cartography.models.ontology.labels import TENANT
 @dataclass(frozen=True)
 class AWSAccountNodeProperties(CartographyNodeProperties):
     id: PropertyRef = PropertyRef("id", description="The AWS Account ID number")
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last time the node was updated",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
     name: PropertyRef = PropertyRef("name", description="The name of the account")
     inscope: PropertyRef = PropertyRef(
         "inscope",
@@ -40,11 +36,7 @@ class AWSAccountSchema(CartographyNodeSchema):
 @dataclass(frozen=True)
 class AWSOrganizationAccountNodeProperties(CartographyNodeProperties):
     id: PropertyRef = PropertyRef("id", description="The AWS Account ID number")
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last time the node was updated",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
     name: PropertyRef = PropertyRef("name", description="The name of the account")
     arn: PropertyRef = PropertyRef(
         "arn",

@@ -17,11 +17,7 @@ class CircleCIContextEnvVarNodeProperties(CartographyNodeProperties):
     id: PropertyRef = PropertyRef(
         "id", description="Synthesized context environment variable ID."
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last update.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
     variable: PropertyRef = PropertyRef(
         "variable", extra_index=True, description="Environment variable name."
     )

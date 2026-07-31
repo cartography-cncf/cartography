@@ -13,11 +13,7 @@ class AWSAccountSummaryNodeProperties(CartographyNodeProperties):
     """
 
     id: PropertyRef = PropertyRef("id", description="The AWS Account ID number")
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last time the node was updated",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
     # Account security settings
     account_mfa_enabled: PropertyRef = PropertyRef(

@@ -11,11 +11,7 @@ class AWSAccountAWSRoleNodeProperties(CartographyNodeProperties):
     id: PropertyRef = PropertyRef("id", description="The AWS Account ID number")
 
     # Automatic fields (set by cartography)
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last time the node was updated",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)

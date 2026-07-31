@@ -28,9 +28,7 @@ class ScalewayContainerRegistryImageLayerNodeProperties(CartographyNodePropertie
     is_empty: PropertyRef = PropertyRef(
         "is_empty", description="Whether the layer is an empty (metadata-only) layer."
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated", set_in_kwargs=True, description="Timestamp of the last update"
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)

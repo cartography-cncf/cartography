@@ -14,11 +14,7 @@ from cartography.models.core.relationships import TargetNodeMatcher
 @dataclass(frozen=True)
 class TenableAssetNodeProperties(CartographyNodeProperties):
     id: PropertyRef = PropertyRef("id", description="Tenable asset UUID.")
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last time the node was updated.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
     # Core flags
     has_agent: PropertyRef = PropertyRef(
         "has_agent", description="Whether a Tenable agent is installed."

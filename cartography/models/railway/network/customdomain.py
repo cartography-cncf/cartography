@@ -14,11 +14,7 @@ from cartography.models.core.relationships import TargetNodeMatcher
 @dataclass(frozen=True)
 class RailwayCustomDomainNodeProperties(CartographyNodeProperties):
     id: PropertyRef = PropertyRef("id", description="ID of the Railway custom domain.")
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last update to this custom domain.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
     domain: PropertyRef = PropertyRef(
         "domain",
         extra_index=True,

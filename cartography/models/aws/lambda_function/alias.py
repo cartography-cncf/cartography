@@ -35,11 +35,7 @@ class AWSLambdaFunctionAliasNodeProperties(CartographyNodeProperties):
     functionarn: PropertyRef = PropertyRef(
         "FunctionArn", description="The ARN of the Lambda function this alias points to"
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last time the node was updated",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
@@ -79,6 +75,8 @@ class AWSLambdaFunctionAliasToAWSAccountRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class AWSLambdaFunctionAliasSchema(CartographyNodeSchema):
+    """Representation of an [AWSLambdaFunctionAlias](https://docs.aws.amazon.com/lambda/latest/dg/configuration-aliases.html)."""
+
     label: str = "AWSLambdaFunctionAlias"
     properties: AWSLambdaFunctionAliasNodeProperties = (
         AWSLambdaFunctionAliasNodeProperties()

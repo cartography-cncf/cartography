@@ -54,11 +54,7 @@ class KubernetesIngressNodeProperties(CartographyNodeProperties):
         set_in_kwargs=True,
         description="Name of the Kubernetes cluster where this Ingress is deployed.",
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last time the node was updated.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
     load_balancer_dns_names: PropertyRef = PropertyRef(
         "load_balancer_dns_names",
         description="List of DNS hostnames from the Ingress status. Used to match to cloud load balancers (e.g., AWS ALB).",

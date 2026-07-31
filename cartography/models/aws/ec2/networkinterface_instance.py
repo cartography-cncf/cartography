@@ -26,7 +26,7 @@ class EC2NetworkInterfaceInstanceNodeProperties(CartographyNodeProperties):
     )
     status: PropertyRef = PropertyRef(
         "Status",
-        description="Status of the network interface.  Valid Values: ``available \\",
+        description="Status of the network interface.  Valid Values: ``available | associated | attaching | in-use | detaching ``",
     )
     mac_address: PropertyRef = PropertyRef(
         "MacAddress",
@@ -47,11 +47,7 @@ class EC2NetworkInterfaceInstanceNodeProperties(CartographyNodeProperties):
     region: PropertyRef = PropertyRef(
         "Region", set_in_kwargs=True, description="The AWS region"
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last time the node was updated",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
@@ -128,7 +124,7 @@ class EC2NetworkInterfaceToEC2SecurityGroupRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class EC2NetworkInterfaceInstanceSchema(CartographyNodeSchema):
-    "Represents an Elastic Network Interface (ENI) in Amazon EC2."
+    """Representation of a generic Network Interface.  Currently however, we only create AWSNetworkInterface nodes from AWS [EC2 Instances](#awsec2instance).  The spec for an AWS EC2 network interface is [here](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_InstanceNetworkInterface.html)."""
 
     # Implementation note:
     # Network interface as known by an EC2 instance

@@ -15,11 +15,7 @@ from cartography.models.ontology.labels import USER_GROUP
 @dataclass(frozen=True)
 class SentryTeamNodeProperties(CartographyNodeProperties):
     id: PropertyRef = PropertyRef("id", description="Sentry team ID.")
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last update.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
     name: PropertyRef = PropertyRef("name", description="Team name.")
     slug: PropertyRef = PropertyRef(
         "slug",

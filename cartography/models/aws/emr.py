@@ -36,11 +36,7 @@ class EMRClusterNodeProperties(CartographyNodeProperties):
         "InstanceCollectionType",
         description="The instance group configuration of the cluster. A value of INSTANCE\\_GROUP indicates a uniform instance group configuration. A value of INSTANCE\\_FLEET indicates an instance fleets configuration.",
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last time the node was updated",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
     log_encryption_kms_key_id: PropertyRef = PropertyRef(
         "LogEncryptionKmsKeyId",
         description="The KMS key used for encrypting log files.",
@@ -119,6 +115,8 @@ class EMRClusterToAWSAccountRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class EMRClusterSchema(CartographyNodeSchema):
+    """Representation of an AWS [EMR Cluster](https://docs.aws.amazon.com/emr/latest/APIReference/API_Cluster.html)."""
+
     label: str = "AWSEMRCluster"
     # DEPRECATED: legacy EMRCluster node label will be removed in v1.0.0.
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(

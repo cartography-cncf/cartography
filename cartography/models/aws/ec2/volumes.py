@@ -30,11 +30,7 @@ class EBSVolumeNodeProperties(CartographyNodeProperties):
     region: PropertyRef = PropertyRef(
         "Region", set_in_kwargs=True, description="The region of the volume."
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last time the node was updated",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
     availabilityzone: PropertyRef = PropertyRef(
         "AvailabilityZone", description="The Availability Zone for the volume."
     )
@@ -126,7 +122,7 @@ class EBSVolumeToEBSSnapshotRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class EBSVolumeSchema(CartographyNodeSchema):
-    "Represents an Amazon Elastic Block Store (EBS) volume."
+    """Representation of an AWS [EBS Volume](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ebs-volumes.html)."""
 
     # Implementation note:
     # EBS Volume properties as returned from the EBS Volume API response
@@ -164,11 +160,7 @@ class EBSVolumeInstanceProperties(CartographyNodeProperties):
     volumeid: PropertyRef = PropertyRef(
         "VolumeId", extra_index=True, description="The ID of the EBS Volume"
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last time the node was updated",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
     deleteontermination: PropertyRef = PropertyRef(
         "DeleteOnTermination",
         description="Indicates whether the volume is deleted on instance termination.",
@@ -177,7 +169,7 @@ class EBSVolumeInstanceProperties(CartographyNodeProperties):
 
 @dataclass(frozen=True)
 class EBSVolumeInstanceSchema(CartographyNodeSchema):
-    "Represents an Amazon Elastic Block Store (EBS) volume."
+    """Representation of an AWS [EBS Volume](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ebs-volumes.html)."""
 
     # Implementation note:
     # EBS Volume from EC2 Instance API response. This is separate from `EBSVolumeSchema`

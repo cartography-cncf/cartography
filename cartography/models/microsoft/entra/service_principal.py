@@ -61,11 +61,7 @@ class EntraServicePrincipalNodeProperties(CartographyNodeProperties):
         "token_encryption_key_id",
         description="Key ID used to encrypt issued tokens.",
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the latest Cartography update.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)

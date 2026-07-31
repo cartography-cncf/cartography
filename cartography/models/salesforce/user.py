@@ -55,11 +55,7 @@ class SalesforceUserNodeProperties(CartographyNodeProperties):
     last_password_change_date: PropertyRef = PropertyRef(
         "LastPasswordChangeDate", description="User last password change timestamp."
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last update.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)

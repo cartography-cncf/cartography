@@ -54,11 +54,7 @@ class SNSTopicNodeProperties(CartographyNodeProperties):
         set_in_kwargs=True,
         description="The AWS region where the topic is located",
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last time the node was updated",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
@@ -79,6 +75,8 @@ class SNSTopicToAWSAccountRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class SNSTopicSchema(CartographyNodeSchema):
+    """Representation of an AWS [SNS Topic](https://docs.aws.amazon.com/sns/latest/api/API_Topic.html)"""
+
     label: str = "AWSSNSTopic"
     # DEPRECATED: legacy SNSTopic node label will be removed in v1.0.0.
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([LEGACY_SNS_TOPIC])

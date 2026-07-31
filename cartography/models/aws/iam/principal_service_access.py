@@ -26,11 +26,7 @@ class AWSPrincipalServiceAccessNodeProperties(CartographyNodeProperties):
     )
 
     # Automatic fields (set by cartography)
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last time the node was updated",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
     # Service last accessed fields
     last_accessed_service_name: PropertyRef = PropertyRef(
@@ -78,8 +74,10 @@ class AWSPrincipalServiceAccessToAWSAccountRel(CartographyRelSchema):
 @dataclass(frozen=True)
 class AWSPrincipalServiceAccessSchema(CartographyNodeSchema):
     """
-    Composite schema that adds service access properties to AWSPrincipal nodes.
-    Uses the same label as existing AWSUser/AWSRole/AWSGroup to merge properties.
+    Representation of an [AWSPrincipal](https://docs.aws.amazon.com/IAM/latest/APIReference/API_User.html).
+
+    This composite schema adds service access properties to AWSPrincipal nodes. It uses
+    the same label as existing AWSUser/AWSRole/AWSGroup to merge properties.
     """
 
     label: str = "AWSPrincipal"

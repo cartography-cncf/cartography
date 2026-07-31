@@ -45,11 +45,7 @@ class SpaceliftRunNodeProperties(CartographyNodeProperties):
         "affected_instance_ids",
         description="EC2 instance IDs affected by the run.",
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last update.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)

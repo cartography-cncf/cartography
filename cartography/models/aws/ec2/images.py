@@ -98,11 +98,7 @@ class EC2ImageNodeProperties(CartographyNodeProperties):
         description="Identifier of the ramdisk linked to this `AWSEC2Image` node.",
     )
     region: PropertyRef = PropertyRef("Region", description="The region of the image.")
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last time the node was updated",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
@@ -125,6 +121,8 @@ class EC2ImageToAWSAccountRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class EC2ImageSchema(CartographyNodeSchema):
+    """Representation of an AWS [EC2 Images (AMIs)](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/AMIs.html)."""
+
     label: str = "AWSEC2Image"
     # DEPRECATED: legacy EC2Image node label will be removed in v1.0.0.
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([LEGACY_EC2_IMAGE])

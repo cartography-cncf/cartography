@@ -18,11 +18,7 @@ class S1ApplicationVersionNodeProperties(CartographyNodeProperties):
         extra_index=True,
         description="Normalized vendor, application name, and version.",
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last time the node was updated.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
     application_name: PropertyRef = PropertyRef(
         "application_name",
         description="Application name.",

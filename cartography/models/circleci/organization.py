@@ -16,11 +16,7 @@ from cartography.models.ontology.labels import TENANT
 @dataclass(frozen=True)
 class CircleCIOrganizationNodeProperties(CartographyNodeProperties):
     id: PropertyRef = PropertyRef("id", description="CircleCI organization ID.")
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last update.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
     name: PropertyRef = PropertyRef("name", description="Organization display name.")
     slug: PropertyRef = PropertyRef(
         "slug", extra_index=True, description="CircleCI organization slug."

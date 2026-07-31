@@ -20,11 +20,7 @@ class TailscaleGroupNodeProperties(CartographyNodeProperties):
     id: PropertyRef = PropertyRef(
         "id", description="Group ID (eg. `group:example` or `autogroup:admin`)."
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last time the node was updated.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
     name: PropertyRef = PropertyRef(
         "name", description="The group name (eg. `example`)."
     )
@@ -32,11 +28,7 @@ class TailscaleGroupNodeProperties(CartographyNodeProperties):
 
 @dataclass(frozen=True)
 class TailscaleGroupToTailnetRelProperties(CartographyRelProperties):
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last Cartography update.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
@@ -57,11 +49,7 @@ class TailscaleGroupToTailnetRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class TailscaleGroupToUserRelProperties(CartographyRelProperties):
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last Cartography update.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
@@ -80,11 +68,7 @@ class TailscaleGroupToUserRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class TailscaleGroupToGroupRelProperties(CartographyRelProperties):
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last Cartography update.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
@@ -126,11 +110,7 @@ class TailscaleGroupSchema(CartographyNodeSchema):
 
 @dataclass(frozen=True)
 class TailscaleUserInheritedMemberRelProperties(CartographyRelProperties):
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last Cartography update.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
     _sub_resource_label: PropertyRef = PropertyRef(
         "_sub_resource_label",
         set_in_kwargs=True,

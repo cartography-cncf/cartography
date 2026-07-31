@@ -14,11 +14,7 @@ from cartography.models.core.relationships import TargetNodeMatcher
 @dataclass(frozen=True)
 class AzureCosmosDBSqlContainerProperties(CartographyNodeProperties):
     id: PropertyRef = PropertyRef("id", description="Azure resource ID.")
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last sync that observed this node.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
     name: PropertyRef = PropertyRef("name", description="Name of the Azure resource.")
     type: PropertyRef = PropertyRef("type", description="Azure resource type.")
     location: PropertyRef = PropertyRef(

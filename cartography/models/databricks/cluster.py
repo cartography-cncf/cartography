@@ -86,11 +86,7 @@ class DatabricksClusterNodeProperties(CartographyNodeProperties):
     terminated_time: PropertyRef = PropertyRef(
         "terminated_time", description="Timestamp when the cluster was terminated."
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last ingestion update.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)

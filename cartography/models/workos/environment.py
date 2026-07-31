@@ -12,9 +12,7 @@ class WorkOSEnvironmentNodeProperties(CartographyNodeProperties):
     id: PropertyRef = PropertyRef(
         "id", description="WorkOS client ID identifying the environment."
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated", set_in_kwargs=True, description="Timestamp of the last update."
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)

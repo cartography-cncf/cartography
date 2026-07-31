@@ -24,11 +24,7 @@ class SalesforceGroupNodeProperties(CartographyNodeProperties):
     related_id: PropertyRef = PropertyRef(
         "RelatedId", description="ID of the record associated with the group."
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last update.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)

@@ -16,11 +16,7 @@ from cartography.models.ontology.labels import USER_GROUP
 @dataclass(frozen=True)
 class SlackGroupNodeProperties(CartographyNodeProperties):
     id: PropertyRef = PropertyRef("id", description="Slack user group ID.")
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last update.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
     name: PropertyRef = PropertyRef(
         "name", extra_index=True, description="Slack user group name."
     )

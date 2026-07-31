@@ -32,9 +32,7 @@ class WorkOSAPIKeyNodeProperties(CartographyNodeProperties):
     last_used_at: PropertyRef = PropertyRef(
         "last_used_at", description="RFC 3339 timestamp when the API key was last used."
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated", set_in_kwargs=True, description="Timestamp of the last update."
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)

@@ -14,11 +14,7 @@ class TailscaleTailnetNodeProperties(CartographyNodeProperties):
         set_in_kwargs=True,
         description="ID of the Tailnet (name of the organization).",
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last time the node was updated.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
     devices_approval_on: PropertyRef = PropertyRef(
         "devicesApprovalOn",
         description="Whether device approval is enabled for the tailnet.",

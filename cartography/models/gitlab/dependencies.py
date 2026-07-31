@@ -63,11 +63,7 @@ class GitLabDependencyNodeProperties(CartographyNodeProperties):
         extra_index=True,
         description="Normalized cross-tool package identifier.",
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last time the node was updated.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)

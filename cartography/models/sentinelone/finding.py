@@ -22,11 +22,7 @@ class S1AppFindingNodeProperties(CartographyNodeProperties):
         extra_index=True,
         description="SentinelOne application vulnerability finding ID.",
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last time the node was updated.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
     cve_id: PropertyRef = PropertyRef(
         "cve_id",
         extra_index=True,

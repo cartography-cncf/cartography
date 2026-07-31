@@ -17,11 +17,7 @@ class OCICompartmentNodeProperties(CartographyNodeProperties):
     ocid: PropertyRef = PropertyRef(
         "id", extra_index=True, description="OCI compartment OCID."
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last update.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
     name: PropertyRef = PropertyRef(
         "name", extra_index=True, description="Compartment name."
     )

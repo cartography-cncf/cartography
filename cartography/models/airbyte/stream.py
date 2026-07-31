@@ -14,11 +14,7 @@ from cartography.models.core.relationships import TargetNodeMatcher
 @dataclass(frozen=True)
 class AirbyteStreamNodeProperties(CartographyNodeProperties):
     id: PropertyRef = PropertyRef("streamId", description="Stream identifier.")
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last update.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
     name: PropertyRef = PropertyRef("name", description="Stream name.")
     sync_mode: PropertyRef = PropertyRef(
         "syncMode", description="Synchronization mode for the stream."

@@ -18,11 +18,7 @@ class GCPProjectNodeProperties(CartographyNodeProperties):
     id: PropertyRef = PropertyRef(
         "projectId", description="Stable identifier for this resource."
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last sync that observed this data.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
     projectnumber: PropertyRef = PropertyRef(
         "projectNumber",
         extra_index=True,
@@ -47,11 +43,7 @@ class GCPProjectNodeProperties(CartographyNodeProperties):
 
 @dataclass(frozen=True)
 class GCPProjectToOrgParentRelProperties(CartographyRelProperties):
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last sync that observed this data.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
@@ -71,11 +63,7 @@ class GCPProjectToOrgParentRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class GCPProjectToFolderParentRelProperties(CartographyRelProperties):
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last sync that observed this data.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
@@ -95,11 +83,7 @@ class GCPProjectToFolderParentRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class GCPProjectToOrganizationRelProperties(CartographyRelProperties):
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last sync that observed this data.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)

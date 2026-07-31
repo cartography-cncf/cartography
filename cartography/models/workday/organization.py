@@ -11,11 +11,7 @@ class WorkdayOrganizationNodeProperties(CartographyNodeProperties):
         "Supervisory_Organization",
         description="Organization name.",
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last update.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
     name: PropertyRef = PropertyRef(
         "Supervisory_Organization",
         description="Organization name.",

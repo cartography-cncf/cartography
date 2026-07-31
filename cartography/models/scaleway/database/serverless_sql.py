@@ -40,9 +40,7 @@ class ScalewayServerlessSQLDatabaseProperties(CartographyNodeProperties):
     created_at: PropertyRef = PropertyRef(
         "created_at", description="Creation timestamp."
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated", set_in_kwargs=True, description="Timestamp of the last update"
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)

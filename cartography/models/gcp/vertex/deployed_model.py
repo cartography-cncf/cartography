@@ -47,20 +47,12 @@ class GCPVertexAIDeployedModelNodeProperties(CartographyNodeProperties):
         "endpoint_id",
         description="Identifier of the Vertex AI endpoint hosting this deployment.",
     )  # For SERVES relationship
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last time the node was updated.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
 class GCPVertexAIDeployedModelToProjectRelProperties(CartographyRelProperties):
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last sync that observed this data.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
@@ -79,11 +71,7 @@ class GCPVertexAIDeployedModelToProjectRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class GCPVertexAIDeployedModelToEndpointRelProperties(CartographyRelProperties):
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last sync that observed this data.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
@@ -102,11 +90,7 @@ class GCPVertexAIDeployedModelToEndpointRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class GCPVertexAIDeployedModelToModelRelProperties(CartographyRelProperties):
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last sync that observed this data.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)

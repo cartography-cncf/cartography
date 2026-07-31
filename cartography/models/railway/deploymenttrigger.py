@@ -16,11 +16,7 @@ class RailwayDeploymentTriggerNodeProperties(CartographyNodeProperties):
     id: PropertyRef = PropertyRef(
         "id", description="ID of the Railway deployment trigger."
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last update to this deployment trigger.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
     provider: PropertyRef = PropertyRef(
         "provider",
         extra_index=True,

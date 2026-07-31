@@ -312,94 +312,17 @@ class _GitHubCollaboratorSchema(CartographyNodeSchema):
         )
 
 
-@dataclass(frozen=True)
-class GitHubDirectCollaboratorAdminSchema(_GitHubCollaboratorSchema):
-    """A user account in GitHub."""
-
-    rel_label: str = "DIRECT_COLLAB_ADMIN"
-
-
-@dataclass(frozen=True)
-class GitHubDirectCollaboratorMaintainSchema(_GitHubCollaboratorSchema):
-    """A user account in GitHub."""
-
-    rel_label: str = "DIRECT_COLLAB_MAINTAIN"
-
-
-@dataclass(frozen=True)
-class GitHubDirectCollaboratorReadSchema(_GitHubCollaboratorSchema):
-    """A user account in GitHub."""
-
-    rel_label: str = "DIRECT_COLLAB_READ"
-
-
-@dataclass(frozen=True)
-class GitHubDirectCollaboratorTriageSchema(_GitHubCollaboratorSchema):
-    """A user account in GitHub."""
-
-    rel_label: str = "DIRECT_COLLAB_TRIAGE"
-
-
-@dataclass(frozen=True)
-class GitHubDirectCollaboratorWriteSchema(_GitHubCollaboratorSchema):
-    """A user account in GitHub."""
-
-    rel_label: str = "DIRECT_COLLAB_WRITE"
-
-
-@dataclass(frozen=True)
-class GitHubOutsideCollaboratorAdminSchema(_GitHubCollaboratorSchema):
-    """A user account in GitHub."""
-
-    rel_label: str = "OUTSIDE_COLLAB_ADMIN"
-
-
-@dataclass(frozen=True)
-class GitHubOutsideCollaboratorMaintainSchema(_GitHubCollaboratorSchema):
-    """A user account in GitHub."""
-
-    rel_label: str = "OUTSIDE_COLLAB_MAINTAIN"
-
-
-@dataclass(frozen=True)
-class GitHubOutsideCollaboratorReadSchema(_GitHubCollaboratorSchema):
-    """A user account in GitHub."""
-
-    rel_label: str = "OUTSIDE_COLLAB_READ"
-
-
-@dataclass(frozen=True)
-class GitHubOutsideCollaboratorTriageSchema(_GitHubCollaboratorSchema):
-    """A user account in GitHub."""
-
-    rel_label: str = "OUTSIDE_COLLAB_TRIAGE"
-
-
-@dataclass(frozen=True)
-class GitHubOutsideCollaboratorWriteSchema(_GitHubCollaboratorSchema):
-    """A user account in GitHub."""
-
-    rel_label: str = "OUTSIDE_COLLAB_WRITE"
-
-
-GITHUB_COLLABORATOR_SCHEMA_TYPES: dict[
-    str,
-    type[_GitHubCollaboratorSchema],
-] = {
-    schema_type().rel_label: schema_type
-    for schema_type in (
-        GitHubDirectCollaboratorAdminSchema,
-        GitHubDirectCollaboratorMaintainSchema,
-        GitHubDirectCollaboratorReadSchema,
-        GitHubDirectCollaboratorTriageSchema,
-        GitHubDirectCollaboratorWriteSchema,
-        GitHubOutsideCollaboratorAdminSchema,
-        GitHubOutsideCollaboratorMaintainSchema,
-        GitHubOutsideCollaboratorReadSchema,
-        GitHubOutsideCollaboratorTriageSchema,
-        GitHubOutsideCollaboratorWriteSchema,
-    )
-}
+# Collaborator edges encode the permission in their label, so the schema above is
+# instantiated once per combination at runtime instead of being declared ten times.
+# This catalog is the single source for the combinations, used by the sync and by
+# the introspected documentation alike.
+GITHUB_COLLABORATOR_AFFILIATIONS = ("DIRECT", "OUTSIDE")
+GITHUB_COLLABORATOR_PERMISSIONS = ("ADMIN", "MAINTAIN", "READ", "TRIAGE", "WRITE")
+GITHUB_COLLABORATOR_REL_LABELS = tuple(
+    (affiliation, permission, f"{affiliation}_COLLAB_{permission}")
+    for affiliation in GITHUB_COLLABORATOR_AFFILIATIONS
+    for permission in GITHUB_COLLABORATOR_PERMISSIONS
+)
 
 
 @dataclass(frozen=True)
@@ -460,7 +383,4 @@ class GitHubPythonLibrarySchema(CartographyNodeSchema):
 
 
 def make_github_collaborator_schema(rel_label: str) -> CartographyNodeSchema:
-    schema_type = GITHUB_COLLABORATOR_SCHEMA_TYPES.get(rel_label)
-    if schema_type is not None:
-        return schema_type()
     return _GitHubCollaboratorSchema(rel_label=rel_label)

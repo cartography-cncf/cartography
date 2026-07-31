@@ -25,11 +25,7 @@ class GoogleWorkspaceOAuthAppNodeProperties(CartographyNodeProperties):
     id: PropertyRef = PropertyRef(
         "client_id", description="OAuth client ID used as the unique app ID."
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last update.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
     # App identifiers
     client_id: PropertyRef = PropertyRef(

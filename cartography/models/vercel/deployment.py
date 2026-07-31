@@ -14,9 +14,7 @@ from cartography.models.core.relationships import TargetNodeMatcher
 @dataclass(frozen=True)
 class VercelDeploymentNodeProperties(CartographyNodeProperties):
     id: PropertyRef = PropertyRef("uid", description="Deployment ID.")
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated", set_in_kwargs=True, description="Timestamp of the last update."
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
     name: PropertyRef = PropertyRef("name", description="Deployment name.")
     url: PropertyRef = PropertyRef(
         "url", extra_index=True, description="Public deployment URL."

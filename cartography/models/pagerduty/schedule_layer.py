@@ -14,9 +14,7 @@ from cartography.models.core.relationships import TargetNodeMatcher
 @dataclass(frozen=True)
 class PagerDutyScheduleLayerProperties(CartographyNodeProperties):
     id: PropertyRef = PropertyRef("_layer_id", description="Schedule layer ID.")
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated", set_in_kwargs=True, description="Timestamp of the last update."
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
     name: PropertyRef = PropertyRef("name", description="Schedule layer name.")
     schedule_id: PropertyRef = PropertyRef(
         "_schedule_id", description="ID of the schedule containing this layer."

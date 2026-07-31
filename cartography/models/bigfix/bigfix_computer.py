@@ -13,11 +13,7 @@ from cartography.models.core.relationships import TargetNodeMatcher
 @dataclass(frozen=True)
 class BigfixComputerNodeProperties(CartographyNodeProperties):
     id: PropertyRef = PropertyRef("ID", description="Internal BigFix ID.")
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last update.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
     activedirectorypath: PropertyRef = PropertyRef(
         "ActiveDirectoryPath",
         description="Active Directory path.",

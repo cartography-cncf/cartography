@@ -29,11 +29,7 @@ class AzureKeyVaultProperties(CartographyNodeProperties):
     sku_name: PropertyRef = PropertyRef(
         "sku_name", description="Name of the vault pricing SKU."
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last sync that observed this vault.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 # --- Relationship Definitions ---

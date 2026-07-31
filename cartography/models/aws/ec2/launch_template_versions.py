@@ -84,11 +84,7 @@ class LaunchTemplateVersionNodeProperties(CartographyNodeProperties):
     region: PropertyRef = PropertyRef(
         "Region", set_in_kwargs=True, description="The region of the launch template."
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last time the node was updated",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
@@ -129,6 +125,8 @@ class LaunchTemplateVersionToLTRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class LaunchTemplateVersionSchema(CartographyNodeSchema):
+    """Representation of an AWS [Launch Template Version](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_LaunchTemplateVersion.html)"""
+
     label: str = "AWSLaunchTemplateVersion"
     # DEPRECATED: legacy LaunchTemplateVersion node label will be removed in v1.0.0.
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(

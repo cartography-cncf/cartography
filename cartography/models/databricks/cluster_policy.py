@@ -43,11 +43,7 @@ class DatabricksClusterPolicyNodeProperties(CartographyNodeProperties):
     created_at: PropertyRef = PropertyRef(
         "created_at", description="Timestamp when the cluster policy was created."
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last ingestion update.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)

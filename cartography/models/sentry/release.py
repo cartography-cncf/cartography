@@ -16,11 +16,7 @@ class SentryReleaseNodeProperties(CartographyNodeProperties):
         "id",
         description="Organization-scoped release version ID.",
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last update.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
     version: PropertyRef = PropertyRef(
         "version",
         extra_index=True,

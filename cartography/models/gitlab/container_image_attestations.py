@@ -63,11 +63,7 @@ class GitLabContainerImageAttestationNodeProperties(CartographyNodeProperties):
         "source_file",
         description="Source definition file extracted from provenance.",
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last time the node was updated.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)

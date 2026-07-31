@@ -457,16 +457,17 @@ def test_iter_model_classes_discovers_each_defined_model_once():
     )
 
 
-def test_iter_model_classes_skips_private_bases_and_discovers_public_subclasses():
+def test_iter_model_classes_skips_private_schemas():
     # Act
     model_class_names = {
         model_class.__name__ for model_class in iter_model_classes(github_models)
     }
 
     # Assert
+    # The collaborator schema is instantiated per permission at runtime, so it stays
+    # private and its edges are documented through the relationship catalog instead.
     assert "_GitHubCollaboratorSchema" not in model_class_names
-    assert "GitHubDirectCollaboratorAdminSchema" in model_class_names
-    assert "GitHubOutsideCollaboratorWriteSchema" in model_class_names
+    assert "GitHubRepositorySchema" in model_class_names
 
 
 def test_iter_analysis_jobs_discovers_each_defined_job_once():
@@ -719,6 +720,26 @@ def test_semantic_labels_expose_their_mapping_group():
     assert groups["UserAccount"] == "useraccounts"
     # Labels without normalized fields belong to no mapping group.
     assert groups["ImageTag"] is None
+
+
+def test_property_descriptions_are_not_truncated():
+    # Arrange
+    # Descriptions migrated out of the hand-written schema tables were cut at the first
+    # escaped pipe, which left a dangling backslash and an unterminated code span in the
+    # generated docs. Pipes are escaped at render time, so descriptions hold raw text.
+    model = inspect_data_model()
+
+    # Act
+    truncated = [
+        f"{node.label}.{prop.name}: {description!r}"
+        for node in model.nodes
+        for prop in node.properties
+        for description in prop.descriptions
+        if description.rstrip().endswith("\\") or description.count("`") % 2
+    ]
+
+    # Assert
+    assert truncated == []
 
 
 def test_diagnostics_report_what_could_not_be_introspected():

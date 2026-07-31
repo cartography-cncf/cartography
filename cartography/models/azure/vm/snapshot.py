@@ -17,11 +17,7 @@ class AzureSnapshotProperties(CartographyNodeProperties):
     id: PropertyRef = PropertyRef(
         "id", description="Azure resource ID of the snapshot."
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last sync that observed this node.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
     resourcegroup: PropertyRef = PropertyRef(
         "resource_group", description="Resource group containing the snapshot."
     )

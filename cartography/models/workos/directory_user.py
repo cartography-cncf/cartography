@@ -55,9 +55,7 @@ class WorkOSDirectoryUserNodeProperties(CartographyNodeProperties):
     roles: PropertyRef = PropertyRef(
         "roles", description="Directory role slugs assigned by the identity provider."
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated", set_in_kwargs=True, description="Timestamp of the last update."
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)

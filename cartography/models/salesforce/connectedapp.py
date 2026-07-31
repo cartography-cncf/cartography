@@ -29,11 +29,7 @@ class SalesforceConnectedAppNodeProperties(CartographyNodeProperties):
     last_modified_date: PropertyRef = PropertyRef(
         "LastModifiedDate", description="Connected app last modification timestamp."
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last update.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)

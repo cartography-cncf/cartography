@@ -16,7 +16,8 @@ from cartography.models.core.relationships import TargetNodeMatcher
 @dataclass(frozen=True)
 class RouteNodeProperties(CartographyNodeProperties):
     id: PropertyRef = PropertyRef(
-        "id", description="The ID of the route, formatted as `route_table_id\\"
+        "id",
+        description="The ID of the route, formatted as `route_table_id|destination_cidr|target_components` where target components are prefixed with their type (e.g., gw-, nat-, pcx-) and joined with underscores.",
     )
     carrier_gateway_id: PropertyRef = PropertyRef(
         "carrier_gateway_id", description="The ID of the carrier gateway"
@@ -74,11 +75,7 @@ class RouteNodeProperties(CartographyNodeProperties):
     region: PropertyRef = PropertyRef(
         "Region", set_in_kwargs=True, description="The AWS region the route is in"
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last time the node was updated",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
     target: PropertyRef = PropertyRef(
         "_target",
         description="The ID of the route association's target -- either 'Main', or a subnet ID or a gateway ID. This is an invented field that we created to have an ID because the underlying EC2 route association is a \"union\" data structure of many different possible targets.",
@@ -139,6 +136,8 @@ class RouteToVPCEndpointRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class RouteSchema(CartographyNodeSchema):
+    """Representation of an AWS [EC2 Route](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_Route.html)."""
+
     label: str = "AWSEC2Route"
     # DEPRECATED: legacy EC2Route node label will be removed in v1.0.0.
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([LEGACY_EC2_ROUTE])

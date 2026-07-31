@@ -17,11 +17,7 @@ class AzureSynapsePipelineProperties(CartographyNodeProperties):
         "id", description="Full Azure resource ID of the pipeline."
     )
     name: PropertyRef = PropertyRef("name", description="Name of the pipeline.")
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last sync that observed this node.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)

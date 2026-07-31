@@ -18,11 +18,7 @@ class RailwayVolumeInstanceNodeProperties(CartographyNodeProperties):
     id: PropertyRef = PropertyRef(
         "id", description="ID of the Railway volume instance."
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last update to this volume instance.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
     volume_id: PropertyRef = PropertyRef(
         "volumeId", extra_index=True, description="ID of the parent volume."
     )

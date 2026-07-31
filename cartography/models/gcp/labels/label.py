@@ -29,11 +29,7 @@ class GCPLabelNodeProperties(CartographyNodeProperties):
         "id",
         description="The ID of the label. Takes the form `{resource_id}:{key}:{value}`.",
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last time the node was updated.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
     key: PropertyRef = PropertyRef(
         "key", extra_index=True, description="The key of the label."
     )
@@ -46,11 +42,7 @@ class GCPLabelNodeProperties(CartographyNodeProperties):
 
 @dataclass(frozen=True)
 class GCPLabelToProjectRelProperties(CartographyRelProperties):
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last sync that observed this data.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
@@ -68,11 +60,7 @@ class GCPLabelToProjectRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class GCPLabelToBucketRelProperties(CartographyRelProperties):
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last sync that observed this data.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 # DEPRECATED: replaced by :TAGGED, will be removed in v1.0.0
@@ -91,11 +79,7 @@ class GCPLabelToBucketRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class GCPLabelToBucketTaggedRelProperties(CartographyRelProperties):
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last sync that observed this data.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
@@ -134,11 +118,7 @@ class GCPBucketGCPLabelSchema(CartographyNodeSchema):
 
 @dataclass(frozen=True)
 class GCPLabelToInstanceRelProperties(CartographyRelProperties):
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last sync that observed this data.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 # DEPRECATED: replaced by :TAGGED, will be removed in v1.0.0
@@ -157,11 +137,7 @@ class GCPLabelToInstanceRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class GCPLabelToInstanceTaggedRelProperties(CartographyRelProperties):
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last sync that observed this data.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
@@ -197,11 +173,7 @@ class GCPInstanceGCPLabelSchema(CartographyNodeSchema):
 
 @dataclass(frozen=True)
 class GCPLabelToGKEClusterRelProperties(CartographyRelProperties):
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last sync that observed this data.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 # DEPRECATED: replaced by :TAGGED, will be removed in v1.0.0
@@ -220,11 +192,7 @@ class GCPLabelToGKEClusterRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class GCPLabelToGKEClusterTaggedRelProperties(CartographyRelProperties):
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last sync that observed this data.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
@@ -260,11 +228,7 @@ class GKEClusterGCPLabelSchema(CartographyNodeSchema):
 
 @dataclass(frozen=True)
 class GCPLabelToCloudSQLInstanceRelProperties(CartographyRelProperties):
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last sync that observed this data.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 # DEPRECATED: replaced by :TAGGED, will be removed in v1.0.0
@@ -285,11 +249,7 @@ class GCPLabelToCloudSQLInstanceRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class GCPLabelToCloudSQLInstanceTaggedRelProperties(CartographyRelProperties):
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last sync that observed this data.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
@@ -325,11 +285,7 @@ class GCPCloudSQLInstanceGCPLabelSchema(CartographyNodeSchema):
 
 @dataclass(frozen=True)
 class GCPLabelToBigtableInstanceRelProperties(CartographyRelProperties):
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last sync that observed this data.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 # DEPRECATED: replaced by :TAGGED, will be removed in v1.0.0
@@ -350,11 +306,7 @@ class GCPLabelToBigtableInstanceRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class GCPLabelToBigtableInstanceTaggedRelProperties(CartographyRelProperties):
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last sync that observed this data.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
@@ -390,11 +342,7 @@ class GCPBigtableInstanceGCPLabelSchema(CartographyNodeSchema):
 
 @dataclass(frozen=True)
 class GCPLabelToDNSZoneRelProperties(CartographyRelProperties):
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last sync that observed this data.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 # DEPRECATED: replaced by :TAGGED, will be removed in v1.0.0
@@ -413,11 +361,7 @@ class GCPLabelToDNSZoneRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class GCPLabelToDNSZoneTaggedRelProperties(CartographyRelProperties):
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last sync that observed this data.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
@@ -453,11 +397,7 @@ class GCPDNSZoneGCPLabelSchema(CartographyNodeSchema):
 
 @dataclass(frozen=True)
 class GCPLabelToSecretManagerSecretRelProperties(CartographyRelProperties):
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last sync that observed this data.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 # DEPRECATED: replaced by :TAGGED, will be removed in v1.0.0
@@ -478,11 +418,7 @@ class GCPLabelToSecretManagerSecretRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class GCPLabelToSecretManagerSecretTaggedRelProperties(CartographyRelProperties):
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last sync that observed this data.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
@@ -518,11 +454,7 @@ class GCPSecretManagerSecretGCPLabelSchema(CartographyNodeSchema):
 
 @dataclass(frozen=True)
 class GCPLabelToCloudRunServiceRelProperties(CartographyRelProperties):
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last sync that observed this data.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 # DEPRECATED: replaced by :TAGGED, will be removed in v1.0.0
@@ -543,11 +475,7 @@ class GCPLabelToCloudRunServiceRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class GCPLabelToCloudRunServiceTaggedRelProperties(CartographyRelProperties):
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last sync that observed this data.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
@@ -583,11 +511,7 @@ class GCPCloudRunServiceGCPLabelSchema(CartographyNodeSchema):
 
 @dataclass(frozen=True)
 class GCPLabelToCloudRunJobRelProperties(CartographyRelProperties):
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last sync that observed this data.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 # DEPRECATED: replaced by :TAGGED, will be removed in v1.0.0
@@ -608,11 +532,7 @@ class GCPLabelToCloudRunJobRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class GCPLabelToCloudRunJobTaggedRelProperties(CartographyRelProperties):
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last sync that observed this data.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
@@ -648,11 +568,7 @@ class GCPCloudRunJobGCPLabelSchema(CartographyNodeSchema):
 
 @dataclass(frozen=True)
 class GCPLabelToCloudFunctionRelProperties(CartographyRelProperties):
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last sync that observed this data.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)

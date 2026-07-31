@@ -37,11 +37,7 @@ class SpaceliftSpaceNodeProperties(CartographyNodeProperties):
         "parent_space_id",
         description="ID of the parent space for a child space.",
     )  # parent_space_id is set ONLY for child spaces (identifies hierarchy parent)
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last update.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)

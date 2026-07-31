@@ -71,11 +71,7 @@ class AWSBedrockProvisionedModelThroughputNodeProperties(CartographyNodeProperti
         set_in_kwargs=True,
         description="The AWS region where the provisioned throughput exists",
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last time the node was updated",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
@@ -166,9 +162,7 @@ class AWSBedrockProvisionedModelThroughputToCustomModelRel(CartographyRelSchema)
 
 @dataclass(frozen=True)
 class AWSBedrockProvisionedModelThroughputSchema(CartographyNodeSchema):
-    """
-    Schema for AWS Bedrock Provisioned Model Throughput nodes.
-    """
+    """Representation of AWS [Bedrock Provisioned Throughput](https://docs.aws.amazon.com/bedrock/latest/userguide/prov-throughput.html). Provisioned throughput provides reserved capacity for foundation models and custom models, ensuring consistent performance and availability for production workloads."""
 
     label: str = "AWSBedrockProvisionedModelThroughput"
     properties: AWSBedrockProvisionedModelThroughputNodeProperties = (

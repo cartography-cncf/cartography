@@ -16,11 +16,7 @@ class DuoWebAuthnCredentialNodeProperties(CartographyNodeProperties):
     id: PropertyRef = PropertyRef(
         "webauthnkey", description="WebAuthn credential registration ID."
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last update.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
     admin: PropertyRef = PropertyRef(
         "admin", description="Administrator associated with the credential."
     )

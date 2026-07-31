@@ -17,11 +17,7 @@ class AzureCosmosDBLocationProperties(CartographyNodeProperties):
         "id",
         description="Unique identifier of the regional account location.",
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last sync that observed this node.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
     locationname: PropertyRef = PropertyRef(
         "location_name",
         description="Azure region name.",

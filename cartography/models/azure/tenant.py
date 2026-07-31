@@ -10,11 +10,7 @@ from cartography.models.ontology.labels import TENANT
 @dataclass(frozen=True)
 class AzureTenantProperties(CartographyNodeProperties):
     id: PropertyRef = PropertyRef("id", description="Microsoft tenant ID.")
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the latest Cartography update.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)

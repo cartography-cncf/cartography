@@ -26,11 +26,7 @@ class EntraApplicationNodeProperties(CartographyNodeProperties):
         "sign_in_audience",
         description="Accounts allowed to sign in to the application.",
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the latest Cartography update.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)

@@ -18,9 +18,7 @@ from cartography.models.vercel.extra_labels import GROUP
 @dataclass(frozen=True)
 class VercelAccessGroupNodeProperties(CartographyNodeProperties):
     id: PropertyRef = PropertyRef("accessGroupId", description="Access group ID.")
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated", set_in_kwargs=True, description="Timestamp of the last update."
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
     name: PropertyRef = PropertyRef(
         "name", extra_index=True, description="Access group name."
     )

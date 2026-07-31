@@ -16,11 +16,7 @@ from cartography.models.ontology.labels import API_KEY
 @dataclass(frozen=True)
 class RailwayApiTokenNodeProperties(CartographyNodeProperties):
     id: PropertyRef = PropertyRef("id", description="ID of the Railway API token.")
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last update to this API token.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
     name: PropertyRef = PropertyRef("name", description="Name given to the token.")
     # Railway's own redacted prefix, not the secret itself.
     display_token: PropertyRef = PropertyRef(

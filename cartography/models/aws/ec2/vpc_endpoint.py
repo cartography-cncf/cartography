@@ -85,11 +85,7 @@ class VPCEndpointNodeProperties(CartographyNodeProperties):
         set_in_kwargs=True,
         description="AWS Region containing this `AWSVpcEndpoint` node.",
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last sync that updated this `AWSVpcEndpoint` node.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)

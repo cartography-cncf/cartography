@@ -32,11 +32,7 @@ class KeycloakAuthenticationFlowNodeProperties(CartographyNodeProperties):
     built_in: PropertyRef = PropertyRef(
         "builtIn", description="Whether this is a built-in authentication flow"
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "LASTUPDATED",
-        set_in_kwargs=True,
-        description="Timestamp of the last time the node was updated",
-    )
+    lastupdated: PropertyRef = PropertyRef("LASTUPDATED", set_in_kwargs=True)
     # We need to store the realm name because authentication flows are often referenced by name
     # and not by id, so we need to be able to find the authentication flows by name (that is not unique across realms)
     realm: PropertyRef = PropertyRef(

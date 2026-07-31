@@ -32,11 +32,7 @@ class AzureResourceGroupProperties(CartographyNodeProperties):
         "provisioning_state",
         description="Current provisioning state of the resource group.",
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the latest Cartography update.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 # --- Relationship Definitions ---

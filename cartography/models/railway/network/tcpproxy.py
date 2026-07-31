@@ -14,11 +14,7 @@ from cartography.models.core.relationships import TargetNodeMatcher
 @dataclass(frozen=True)
 class RailwayTCPProxyNodeProperties(CartographyNodeProperties):
     id: PropertyRef = PropertyRef("id", description="ID of the Railway TCP proxy.")
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last update to this TCP proxy.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
     # Exposure signal: a TCP proxy publishes a raw port on the public internet, with no TLS
     # termination or auth in front of it. This is the highest-signal Railway exposure.
     domain: PropertyRef = PropertyRef(

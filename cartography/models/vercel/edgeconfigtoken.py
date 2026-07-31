@@ -14,9 +14,7 @@ from cartography.models.core.relationships import TargetNodeMatcher
 @dataclass(frozen=True)
 class VercelEdgeConfigTokenNodeProperties(CartographyNodeProperties):
     id: PropertyRef = PropertyRef("id", description="Edge Config token ID.")
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated", set_in_kwargs=True, description="Timestamp of the last update."
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
     label: PropertyRef = PropertyRef(
         "label", extra_index=True, description="Edge Config token label."
     )

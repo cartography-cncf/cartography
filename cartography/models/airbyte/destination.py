@@ -36,11 +36,7 @@ class AirbyteDestinationNodeProperties(CartographyNodeProperties):
     config_account: PropertyRef = PropertyRef(
         "configuration.account", description="Configured destination account."
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last update.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)

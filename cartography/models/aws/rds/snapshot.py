@@ -148,11 +148,7 @@ class RDSSnapshotNodeProperties(CartographyNodeProperties):
     region: PropertyRef = PropertyRef(
         "Region", set_in_kwargs=True, description="The AWS region of the snapshot"
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last time the node was updated",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
@@ -195,6 +191,8 @@ class RDSSnapshotToRDSInstanceRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class RDSSnapshotSchema(CartographyNodeSchema):
+    """Representation of an AWS Relational Database Service [DBSnapshot](https://docs.aws.amazon.com/AmazonRDS/latest/APIReference/API_DBSnapshot.html)."""
+
     label: str = "AWSRDSSnapshot"
     properties: RDSSnapshotNodeProperties = RDSSnapshotNodeProperties()
     # DEPRECATED: legacy RDSSnapshot node label will be removed in v1.0.0.

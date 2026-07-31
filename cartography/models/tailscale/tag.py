@@ -14,21 +14,13 @@ from cartography.models.core.relationships import TargetNodeMatcher
 @dataclass(frozen=True)
 class TailscaleTagNodeProperties(CartographyNodeProperties):
     id: PropertyRef = PropertyRef("id", description="Tag ID (eg. `tag:example`).")
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last time the node was updated.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
     name: PropertyRef = PropertyRef("name", description="The tag name (eg. `example`).")
 
 
 @dataclass(frozen=True)
 class TailscaleTagToTailnetRelProperties(CartographyRelProperties):
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last Cartography update.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
@@ -49,11 +41,7 @@ class TailscaleTagToTailnetRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class TailscaleTagToUserRelProperties(CartographyRelProperties):
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last Cartography update.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
@@ -72,11 +60,7 @@ class TailscaleTagToUserRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class TailscaleTagToGroupRelProperties(CartographyRelProperties):
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last Cartography update.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
@@ -95,11 +79,7 @@ class TailscaleTagToGroupRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class TailscaleTagToDeviceRelProperties(CartographyRelProperties):
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last Cartography update.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)

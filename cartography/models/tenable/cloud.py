@@ -17,11 +17,7 @@ from cartography.models.core.relationships import TargetNodeMatcher
 @dataclass(frozen=True)
 class TenableAssetAWSNodeProperties(CartographyNodeProperties):
     id: PropertyRef = PropertyRef("id", description="AWS EC2 instance ID.")
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last time the node was updated.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
     ec2_instance_ami_id: PropertyRef = PropertyRef(
         "ec2_instance_ami_id", description="AMI ID used to launch the instance."
     )
@@ -84,11 +80,7 @@ class TenableAssetAWSSchema(CartographyNodeSchema):
 @dataclass(frozen=True)
 class TenableAssetAzureNodeProperties(CartographyNodeProperties):
     id: PropertyRef = PropertyRef("id", description="Azure virtual machine ID.")
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last time the node was updated.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
     resource_id: PropertyRef = PropertyRef(
         "resource_id",
         extra_index=True,
@@ -136,11 +128,7 @@ class TenableAssetAzureSchema(CartographyNodeSchema):
 @dataclass(frozen=True)
 class TenableAssetGCPNodeProperties(CartographyNodeProperties):
     id: PropertyRef = PropertyRef("id", description="GCP instance ID.")
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last time the node was updated.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
     project_id: PropertyRef = PropertyRef("project_id", description="GCP project ID.")
     zone: PropertyRef = PropertyRef("zone", description="GCP zone.")
 

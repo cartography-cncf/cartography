@@ -33,11 +33,7 @@ class EC2SecurityGroupNodeProperties(CartographyNodeProperties):
         set_in_kwargs=True,
         description="The AWS region this security group is installed in",
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last time the node was updated",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
@@ -96,7 +92,7 @@ class EC2SecurityGroupToSourceGroupRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class EC2SecurityGroupSchema(CartographyNodeSchema):
-    "Represents an Amazon EC2 security group."
+    """Representation of an AWS EC2 [Security Group](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_SecurityGroup.html)."""
 
     label: str = "AWSEC2SecurityGroup"
     properties: EC2SecurityGroupNodeProperties = EC2SecurityGroupNodeProperties()

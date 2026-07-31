@@ -25,11 +25,7 @@ class AccountAccessKeyNodeProperties(CartographyNodeProperties):
     )
 
     # Automatic fields (set by cartography)
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last time the node was updated",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
     # Business fields from AWS IAM access keys
     createdate: PropertyRef = PropertyRef(
@@ -126,6 +122,8 @@ class AccountAccessKeyToAWSAccountRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class AccountAccessKeySchema(CartographyNodeSchema):
+    """Representation of an AWS [Access Key](https://docs.aws.amazon.com/IAM/latest/APIReference/API_AccessKey.html)."""
+
     label: str = "AWSAccountAccessKey"
     # DEPRECATED: legacy AccountAccessKey node label will be removed in v1.0.0.
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(

@@ -36,11 +36,7 @@ class GCPArtifactRegistryImageNodeProperties(CartographyNodeProperties):
         "media_type",
         description="OCI media type describing the manifest or artifact payload.",
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last sync that observed this data.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
@@ -81,11 +77,7 @@ class GCPArtifactRegistryImageManifestChildNodeProperties(CartographyNodePropert
         "variant",
         description="CPU architecture variant declared by the OCI platform metadata.",
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last sync that observed this data.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
@@ -151,20 +143,12 @@ class GCPArtifactRegistryImageProvenanceNodeProperties(CartographyNodeProperties
         "layer_diff_ids",
         description="Ordered uncompressed layer digests from the OCI image configuration.",
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last sync that observed this data.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
 class GCPArtifactRegistryImageRelProperties(CartographyRelProperties):
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last sync that observed this data.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
@@ -182,11 +166,7 @@ class GCPArtifactRegistryImageContainsImageRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class GCPArtifactRegistryImageMatchLinkProperties(CartographyRelProperties):
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last sync that observed this data.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
     _sub_resource_label: PropertyRef = PropertyRef(
         "_sub_resource_label",
         set_in_kwargs=True,
@@ -199,11 +179,7 @@ class GCPArtifactRegistryImageMatchLinkProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class GCPArtifactRegistryImageBuiltFromRelProperties(CartographyRelProperties):
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last sync that observed this data.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
     parent_image_uri: PropertyRef = PropertyRef(
         "parent_image_uri",
         description="Parent image URI extracted from a digest-verified SPDX SBOM relationship.",

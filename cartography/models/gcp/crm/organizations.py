@@ -12,11 +12,7 @@ class GCPOrganizationNodeProperties(CartographyNodeProperties):
     id: PropertyRef = PropertyRef(
         "id", description='The name of the GCP Organization, e.g. "organizations/1234".'
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last time the node was updated.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
     orgname: PropertyRef = PropertyRef(
         "name", description="Name assigned to this resource."
     )

@@ -52,11 +52,7 @@ _USER_LABELS = ExtraNodeLabels([USER_ACCOUNT, RAILWAY_PRINCIPAL])
 @dataclass(frozen=True)
 class RailwayUserNodeProperties(CartographyNodeProperties):
     id: PropertyRef = PropertyRef("id", description="ID of the Railway user.")
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last update to this user.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
     email: PropertyRef = PropertyRef(
         "email", extra_index=True, description="Email address of the user."
     )
@@ -78,11 +74,7 @@ class RailwayProjectMemberUserNodeProperties(CartographyNodeProperties):
     """
 
     id: PropertyRef = PropertyRef("id", description="ID of the Railway user.")
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last update to this user.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
     email: PropertyRef = PropertyRef(
         "email", extra_index=True, description="Email address of the user."
     )

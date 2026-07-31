@@ -22,11 +22,7 @@ class SSMInstancePatchNodeProperties(CartographyNodeProperties):
     region: PropertyRef = PropertyRef(
         "Region", set_in_kwargs=True, description="The region of the instance patch."
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last time the node was updated",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
     title: PropertyRef = PropertyRef(
         "Title", extra_index=True, description="The title of the patch."
     )
@@ -95,6 +91,8 @@ class SSMInstancePatchToEC2InstanceRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class SSMInstancePatchSchema(CartographyNodeSchema):
+    """Representation of an AWS SSM [PatchComplianceData](https://docs.aws.amazon.com/systems-manager/latest/APIReference/API_PatchComplianceData.html)"""
+
     label: str = "AWSSSMInstancePatch"
     # DEPRECATED: legacy SSMInstancePatch node label will be removed in v1.0.0.
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([LEGACY_SSM_INSTANCE_PATCH])

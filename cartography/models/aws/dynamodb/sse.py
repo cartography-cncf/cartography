@@ -18,11 +18,7 @@ class DynamoDBSSEDescriptionNodeProperties(CartographyNodeProperties):
     id: PropertyRef = PropertyRef(
         "Id", description='Unique identifier (table ARN + "/sse")'
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last time the node was updated",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
     sse_status: PropertyRef = PropertyRef(
         "SSEStatus",
         extra_index=True,
@@ -97,6 +93,8 @@ class DynamoDBSSEDescriptionToKMSKeyRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class DynamoDBSSEDescriptionSchema(CartographyNodeSchema):
+    """Representation of DynamoDB [Server-Side Encryption description](https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_SSEDescription.html)."""
+
     label: str = "AWSDynamoDBSSEDescription"
     # DEPRECATED: legacy DynamoDBSSEDescription node label will be removed in v1.0.0.
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(

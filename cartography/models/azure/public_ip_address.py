@@ -32,11 +32,7 @@ class AzurePublicIPAddressProperties(CartographyNodeProperties):
         "public_ip_allocation_method",
         description="Public IP allocation method.",
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last sync that observed this public IP address.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)

@@ -60,11 +60,7 @@ class DatabricksJobNodeProperties(CartographyNodeProperties):
     created_time: PropertyRef = PropertyRef(
         "created_time", description="Timestamp when the job was created."
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last ingestion update.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)

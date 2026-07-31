@@ -84,11 +84,7 @@ class AzureApplicationGatewayRuleProperties(CartographyNodeProperties):
         "backend_pick_host_name_from_backend_address",
         description="Whether the backend host name is derived from the backend address.",
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last ingestion update.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)

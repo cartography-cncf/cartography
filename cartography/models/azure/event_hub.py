@@ -30,11 +30,7 @@ class AzureEventHubProperties(CartographyNodeProperties):
         "message_retention_in_days",
         description="Number of days that events are retained.",
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last sync that observed this event hub.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)

@@ -53,6 +53,19 @@ def setup(app):
     write_schema_docs(model, srcdir / "modules")
     logger.info("generated %d module schema pages", len(modules))
 
+    generated_pages = {f"modules/{module}/schema" for module in modules}
+
+    def drop_edit_link_on_generated_pages(
+        app, pagename, templatename, context, doctree
+    ):
+        # These pages are build artifacts with no committed source file, so the theme's
+        # "Edit this page" link would point at a path that does not exist. The theme
+        # only renders the link when page_source_suffix is set.
+        if pagename in generated_pages:
+            context["page_source_suffix"] = ""
+
+    app.connect("html-page-context", drop_edit_link_on_generated_pages)
+
 
 # -- General configuration ------------------------------------------------
 

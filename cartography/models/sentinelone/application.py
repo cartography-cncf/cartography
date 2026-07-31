@@ -24,11 +24,7 @@ class S1ApplicationNodeProperties(CartographyNodeProperties):
         "vendor",
         description="Application vendor.",
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last time the node was updated.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)

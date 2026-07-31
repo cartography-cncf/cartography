@@ -65,11 +65,7 @@ class AWSBedrockFoundationModelNodeProperties(CartographyNodeProperties):
         set_in_kwargs=True,
         description="The AWS region where the model is available",
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last time the node was updated",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
@@ -100,9 +96,7 @@ class AWSBedrockFoundationModelToAWSAccountRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class AWSBedrockFoundationModelSchema(CartographyNodeSchema):
-    """
-    Schema for AWS Bedrock Foundation Model nodes.
-    """
+    """Representation of an AWS [Bedrock Foundation Model](https://docs.aws.amazon.com/bedrock/latest/userguide/models-supported.html). Foundation models are pre-trained large language models and multimodal models provided by AI companies like Anthropic, Amazon, Meta, and others."""
 
     label: str = "AWSBedrockFoundationModel"
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([AI_MODEL])

@@ -37,9 +37,7 @@ class ScalewayVolumeSnapshotNodeProperties(CartographyNodeProperties):
         "error_reason", description="Reason for the failed snapshot import."
     )
     zone: PropertyRef = PropertyRef("zone", description="Snapshot zone.")
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated", set_in_kwargs=True, description="Timestamp of the last update"
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)

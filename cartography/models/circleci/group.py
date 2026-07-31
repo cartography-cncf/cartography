@@ -15,11 +15,7 @@ from cartography.models.ontology.labels import USER_GROUP
 @dataclass(frozen=True)
 class CircleCIGroupNodeProperties(CartographyNodeProperties):
     id: PropertyRef = PropertyRef("id", description="CircleCI group ID.")
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last update.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
     name: PropertyRef = PropertyRef("name", extra_index=True, description="Group name.")
     description: PropertyRef = PropertyRef(
         "description", description="Group description."

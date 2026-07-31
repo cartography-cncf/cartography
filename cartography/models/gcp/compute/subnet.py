@@ -20,11 +20,7 @@ class GCPSubnetNodeProperties(CartographyNodeProperties):
         extra_index=True,
         description="A partial resource URI representing this Subnet.  Has the form `projects/{project}/regions/{region}/subnetworks/{subnet name}`.",
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last time the node was updated.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
     partial_uri: PropertyRef = PropertyRef("partial_uri", description="Same as `id`.")
     self_link: PropertyRef = PropertyRef(
         "self_link",
@@ -81,11 +77,7 @@ class GCPSubnetNodeProperties(CartographyNodeProperties):
 
 @dataclass(frozen=True)
 class GCPSubnetToProjectRelProperties(CartographyRelProperties):
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last sync that observed this data.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
@@ -103,11 +95,7 @@ class GCPSubnetToProjectRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class GCPSubnetToVpcRelProperties(CartographyRelProperties):
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last sync that observed this data.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)

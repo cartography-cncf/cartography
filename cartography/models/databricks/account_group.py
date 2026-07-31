@@ -33,11 +33,7 @@ class DatabricksAccountGroupNodeProperties(CartographyNodeProperties):
         "external_id",
         description="External identity provider ID for the group.",
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last time the node was updated.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)

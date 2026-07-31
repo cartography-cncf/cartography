@@ -14,9 +14,7 @@ from cartography.models.core.relationships import TargetNodeMatcher
 @dataclass(frozen=True)
 class VercelAliasNodeProperties(CartographyNodeProperties):
     id: PropertyRef = PropertyRef("uid", description="Alias ID.")
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated", set_in_kwargs=True, description="Timestamp of the last update."
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
     alias: PropertyRef = PropertyRef(
         "alias", extra_index=True, description="Alias hostname."
     )

@@ -49,11 +49,7 @@ class GCPArtifactRegistryLanguagePackageNodeProperties(CartographyNodeProperties
     project_id: PropertyRef = PropertyRef(
         "project_id", description="Google Cloud project that owns this resource."
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last sync that observed this data.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
     # Maven-specific properties (nullable for non-Maven)
     group_id: PropertyRef = PropertyRef(
@@ -76,11 +72,7 @@ class GCPArtifactRegistryLanguagePackageNodeProperties(CartographyNodeProperties
 class GCPArtifactRegistryLanguagePackageToProjectRelProperties(
     CartographyRelProperties
 ):
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last sync that observed this data.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
@@ -101,11 +93,7 @@ class GCPArtifactRegistryLanguagePackageToProjectRel(CartographyRelSchema):
 class GCPArtifactRegistryLanguagePackageToRepositoryRelProperties(
     CartographyRelProperties
 ):
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last sync that observed this data.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)

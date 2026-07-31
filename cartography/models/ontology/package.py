@@ -19,11 +19,7 @@ class PackageNodeProperties(CartographyNodeProperties):
         "id",
         description="Version-independent normalized identifier in `{type}|{namespace/}{name}` format.",
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last sync that observed this package.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
     name: PropertyRef = PropertyRef(
         "name",
         description="Normalized package name, including its namespace prefix when present.",

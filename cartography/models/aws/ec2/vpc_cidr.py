@@ -38,11 +38,7 @@ class AWSIPv4CidrBlockNodeProperties(CartographyNodeProperties):
         "BlockStateMessage",
         description="Whether this `AWSCidrBlock` node is configured to block state message.",
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last sync that updated this `AWSCidrBlock` node.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
@@ -67,7 +63,7 @@ class AWSIPv4CidrBlockToAWSVpcRel(CartographyRelSchema):
 # account, so scoping it to a single one would be wrong.
 @dataclass(frozen=True)
 class AWSIPv4CidrBlockSchema(CartographyNodeSchema):
-    """An IPv4 CIDR block associated with a VPC."""
+    """An IPv4 [CIDR block used in VPC configuration](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_VpcCidrBlockAssociation.html), associated with a VPC and also labeled `AWSIpv4CidrBlock`."""
 
     label: str = "AWSCidrBlock"
     properties: AWSIPv4CidrBlockNodeProperties = AWSIPv4CidrBlockNodeProperties()
@@ -101,11 +97,7 @@ class AWSIPv6CidrBlockNodeProperties(CartographyNodeProperties):
         "BlockStateMessage",
         description="Whether this `AWSCidrBlock` node is configured to block state message.",
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last sync that updated this `AWSCidrBlock` node.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
@@ -130,7 +122,7 @@ class AWSIPv6CidrBlockToAWSVpcRel(CartographyRelSchema):
 # account, so scoping it to a single one would be wrong.
 @dataclass(frozen=True)
 class AWSIPv6CidrBlockSchema(CartographyNodeSchema):
-    """An IPv6 CIDR block associated with a VPC."""
+    """An IPv6 [CIDR block used in VPC configuration](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_VpcCidrBlockAssociation.html), associated with a VPC and also labeled `AWSIpv6CidrBlock`."""
 
     label: str = "AWSCidrBlock"
     properties: AWSIPv6CidrBlockNodeProperties = AWSIPv6CidrBlockNodeProperties()

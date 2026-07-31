@@ -70,11 +70,7 @@ class KeycloakIdentityProviderNodeProperties(CartographyNodeProperties):
     config_sync_mode: PropertyRef = PropertyRef(
         "config.syncMode", description="Configuration sync mode"
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "LASTUPDATED",
-        set_in_kwargs=True,
-        description="Timestamp of the last time the node was updated",
-    )
+    lastupdated: PropertyRef = PropertyRef("LASTUPDATED", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)

@@ -16,11 +16,7 @@ from cartography.models.core.relationships import TargetNodeMatcher
 @dataclass(frozen=True)
 class RedshiftClusterNodeProperties(CartographyNodeProperties):
     id: PropertyRef = PropertyRef("arn", description="Same as arn")
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last time the node was updated",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
     arn: PropertyRef = PropertyRef(
         "arn",
         extra_index=True,
@@ -161,6 +157,8 @@ class RedshiftClusterToAWSVpcRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class RedshiftClusterSchema(CartographyNodeSchema):
+    """Representation of an AWS [AWSRedshiftCluster](https://docs.aws.amazon.com/redshift/latest/APIReference/API_Cluster.html)."""
+
     label: str = "AWSRedshiftCluster"
     # DEPRECATED: legacy RedshiftCluster node label will be removed in v1.0.0.
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([LEGACY_REDSHIFT_CLUSTER])

@@ -16,11 +16,7 @@ class GCPBigQueryRoutineProperties(CartographyNodeProperties):
     id: PropertyRef = PropertyRef(
         "id", description="Stable identifier for this resource."
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last time the node was updated.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
     routine_id: PropertyRef = PropertyRef(
         "routine_id", description="The short routine ID."
     )
@@ -49,11 +45,7 @@ class GCPBigQueryRoutineProperties(CartographyNodeProperties):
 
 @dataclass(frozen=True)
 class ProjectToRoutineRelProperties(CartographyRelProperties):
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last sync that observed this data.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
@@ -69,11 +61,7 @@ class ProjectToRoutineRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class DatasetToRoutineRelProperties(CartographyRelProperties):
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last sync that observed this data.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
@@ -89,11 +77,7 @@ class DatasetToRoutineRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class RoutineToConnectionRelProperties(CartographyRelProperties):
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last sync that observed this data.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)

@@ -16,11 +16,7 @@ from cartography.models.slack.extra_labels import SLACK_USER
 @dataclass(frozen=True)
 class SlackBotNodeProperties(CartographyNodeProperties):
     id: PropertyRef = PropertyRef("id", description="Slack bot ID.")
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last update.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
     name: PropertyRef = PropertyRef(
         "name", extra_index=True, description="Slack bot name."
     )

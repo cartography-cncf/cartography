@@ -41,11 +41,7 @@ class IntuneCompliancePolicyNodeProperties(CartographyNodeProperties):
         "applies_to_all_devices",
         description="Whether the policy applies to all managed devices.",
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the latest Cartography update.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)

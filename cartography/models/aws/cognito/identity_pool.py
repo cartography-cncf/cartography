@@ -31,11 +31,7 @@ class CognitoIdentityPoolNodeProperties(CartographyNodeProperties):
     roles: PropertyRef = PropertyRef(
         "Roles", description="list of aws roles associated with Cognito Identity Pool"
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last time the node was updated",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
@@ -76,6 +72,8 @@ class CognitoIdentityPoolToAWSRoleRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class CognitoIdentityPoolSchema(CartographyNodeSchema):
+    """Representation of an AWS [Cognito Identity Pool](https://docs.aws.amazon.com/cognitoidentity/latest/APIReference/API_ListIdentityPools.html)"""
+
     label: str = "AWSCognitoIdentityPool"
     # DEPRECATED: legacy CognitoIdentityPool node label will be removed in v1.0.0.
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([LEGACY_COGNITO_IDENTITY_POOL])

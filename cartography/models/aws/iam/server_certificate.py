@@ -39,11 +39,7 @@ class AWSServerCertificateNodeProperties(CartographyNodeProperties):
     upload_date: PropertyRef = PropertyRef(
         "UploadDate", description="The date the server certificate was uploaded"
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last time the node was updated",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
@@ -66,6 +62,8 @@ class AWSServerCertificateToAWSAccountRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class AWSServerCertificateSchema(CartographyNodeSchema):
+    """Representation of an AWS [IAM Server Certificate](https://docs.aws.amazon.com/IAM/latest/APIReference/API_ServerCertificateMetadata.html)."""
+
     label: str = "AWSServerCertificate"
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([CERTIFICATE])
     properties: AWSServerCertificateNodeProperties = (

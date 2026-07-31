@@ -49,9 +49,7 @@ class ScalewayPolicyNodeProperties(CartographyNodeProperties):
     no_principal: PropertyRef = PropertyRef(
         "no_principal", description="True if the policy has no principal attached."
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated", set_in_kwargs=True, description="Timestamp of the last update"
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)

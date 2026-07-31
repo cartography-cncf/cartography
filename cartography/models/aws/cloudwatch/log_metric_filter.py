@@ -52,11 +52,7 @@ class CloudWatchLogMetricFilterNodeProperties(CartographyNodeProperties):
         "metricValue",
         description="The value to publish to the CloudWatch metric when a log event matches the filter pattern",
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last time the node was updated",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
@@ -99,6 +95,8 @@ class CloudWatchLogMetricFilterToCloudWatchLogGroupRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class CloudWatchLogMetricFilterSchema(CartographyNodeSchema):
+    """Representation of an AWS [CloudWatch Log Metric Filter](https://docs.aws.amazon.com/AmazonCloudWatchLogs/latest/APIReference/API_DescribeMetricFilters.html)"""
+
     label: str = "AWSCloudWatchLogMetricFilter"
     # DEPRECATED: legacy CloudWatchLogMetricFilter node label will be removed in v1.0.0.
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(

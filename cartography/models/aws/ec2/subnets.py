@@ -70,11 +70,7 @@ class EC2SubnetNodeProperties(CartographyNodeProperties):
         set_in_kwargs=True,
         description="The AWS region the subnet is installed on",
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last time the node was updated",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
@@ -95,7 +91,7 @@ class EC2SubnetToVpcRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class EC2SubnetSchema(CartographyNodeSchema):
-    "Represents a subnet in an Amazon EC2 virtual private cloud."
+    """Representation of an AWS EC2 [Subnet](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_Subnet.html)."""
 
     label: str = "AWSEC2Subnet"
     properties: EC2SubnetNodeProperties = EC2SubnetNodeProperties()

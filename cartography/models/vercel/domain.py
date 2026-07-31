@@ -18,9 +18,7 @@ class VercelDomainNodeProperties(CartographyNodeProperties):
     id: PropertyRef = PropertyRef(
         "name", description="Domain name used as the domain ID."
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated", set_in_kwargs=True, description="Timestamp of the last update."
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
     name: PropertyRef = PropertyRef(
         "name", extra_index=True, description="Domain name."
     )
@@ -81,9 +79,7 @@ class VercelDomainFromProjectProperties(CartographyNodeProperties):
     id: PropertyRef = PropertyRef(
         "name", description="Domain name used as the domain ID."
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated", set_in_kwargs=True, description="Timestamp of the last update."
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
     name: PropertyRef = PropertyRef(
         "name", extra_index=True, description="Domain name."
     )

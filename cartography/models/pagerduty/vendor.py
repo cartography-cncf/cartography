@@ -8,9 +8,7 @@ from cartography.models.core.nodes import CartographyNodeSchema
 @dataclass(frozen=True)
 class PagerDutyVendorProperties(CartographyNodeProperties):
     id: PropertyRef = PropertyRef("id", description="Vendor ID.")
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated", set_in_kwargs=True, description="Timestamp of the last update."
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
     type: PropertyRef = PropertyRef(
         "type", description="PagerDuty object type for the vendor."
     )

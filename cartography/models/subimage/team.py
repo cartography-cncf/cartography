@@ -32,11 +32,7 @@ class SubImageTeamMemberNodeProperties(CartographyNodeProperties):
         "role",
         description="Team member role, such as admin or viewer.",
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last update.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)

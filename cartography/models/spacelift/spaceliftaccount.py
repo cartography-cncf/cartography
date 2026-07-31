@@ -20,11 +20,7 @@ class SpaceliftAccountNodeProperties(CartographyNodeProperties):
         description="Spacelift account identifier.",
     )
     name: PropertyRef = PropertyRef("name", description="Account display name.")
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last update.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)

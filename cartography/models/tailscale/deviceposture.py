@@ -19,11 +19,7 @@ class TailscaleDevicePostureNodeProperties(CartographyNodeProperties):
         "id",
         description="Posture ID from the ACL, for example `posture:healthySentinelOneMac`.",
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last time the node was updated.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
     name: PropertyRef = PropertyRef(
         "name", description="Posture name without the `posture:` prefix."
     )
@@ -39,11 +35,7 @@ class TailscaleDevicePostureConditionNodeProperties(CartographyNodeProperties):
         "id",
         description="Stable condition identifier derived from the posture ID and condition index.",
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last time the node was updated.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
     name: PropertyRef = PropertyRef(
         "name",
         description="The posture attribute being evaluated, for example `sentinelOne:infected` or `node:os`.",
@@ -62,11 +54,7 @@ class TailscaleDevicePostureConditionNodeProperties(CartographyNodeProperties):
 
 @dataclass(frozen=True)
 class _ToTailnetRelProperties(CartographyRelProperties):
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last Cartography update.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
@@ -97,11 +85,7 @@ class TailscaleDevicePostureConditionToTailnetRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class TailscaleDevicePostureHasConditionRelProperties(CartographyRelProperties):
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last Cartography update.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
@@ -121,11 +105,7 @@ class TailscaleDevicePostureHasConditionRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class TailscaleDevicePostureConditionRequiresRelProperties(CartographyRelProperties):
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last Cartography update.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
@@ -145,11 +125,7 @@ class TailscaleDevicePostureConditionRequiresRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class TailscaleDeviceConformsToRelProperties(CartographyRelProperties):
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last Cartography update.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
     _sub_resource_label: PropertyRef = PropertyRef(
         "_sub_resource_label",
         set_in_kwargs=True,

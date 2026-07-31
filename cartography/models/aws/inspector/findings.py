@@ -135,11 +135,7 @@ class AWSInspectorNodeProperties(CartographyNodeProperties):
         set_in_kwargs=True,
         description="AWS Region containing this `AWSInspectorFinding` node.",
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last sync that updated this `AWSInspectorFinding` node.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
@@ -283,6 +279,11 @@ class InspectorFindingToPackageMatchLink(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class AWSInspectorFindingSchema(CartographyNodeSchema):
+    """Representation of an AWS [Inspector Finding](https://docs.aws.amazon.com/inspector/v2/APIReference/API_Finding.html)
+
+    Depending on its `type`, the finding also carries an ontology finding label: `PACKAGE_VULNERABILITY` findings are labeled [`CVE`](#ontology-cve), and `NETWORK_REACHABILITY` findings are labeled `:SecurityIssue`.
+    """
+
     label: str = "AWSInspectorFinding"
     properties: AWSInspectorNodeProperties = AWSInspectorNodeProperties()
     # Inspector findings are mixed: package vulnerabilities are CVE-backed while

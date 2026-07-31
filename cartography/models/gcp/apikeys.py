@@ -45,20 +45,12 @@ class GCPApiKeyNodeProperties(CartographyNodeProperties):
         description="JSON-encoded restriction configuration (API targets, allowed referrers/IPs/apps), if any.",
     )
     etag: PropertyRef = PropertyRef("etag", description="The etag of the key.")
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="The timestamp of the last update.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
 class GCPApiKeyToProjectRelProperties(CartographyRelProperties):
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last sync that observed this data.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)

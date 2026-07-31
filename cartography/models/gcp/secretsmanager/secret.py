@@ -64,11 +64,7 @@ class GCPSecretManagerSecretNodeProperties(CartographyNodeProperties):
         "version_aliases",
         description="JSON string mapping alias names to version numbers.",
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last time the node was updated.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
@@ -77,11 +73,7 @@ class GCPSecretManagerSecretRelProperties(CartographyRelProperties):
     Properties for relationships between Secret and other nodes
     """
 
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last sync that observed this data.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)

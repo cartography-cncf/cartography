@@ -45,11 +45,7 @@ class KubernetesGatewayNodeProperties(CartographyNodeProperties):
         extra_index=True,
         description="Name of the Kubernetes cluster where this Gateway is deployed.",
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last time the node was updated.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
@@ -170,11 +166,7 @@ class KubernetesHTTPRouteNodeProperties(CartographyNodeProperties):
         extra_index=True,
         description="Name of the Kubernetes cluster where this HTTPRoute is deployed.",
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last time the node was updated.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)

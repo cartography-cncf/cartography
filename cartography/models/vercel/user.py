@@ -16,9 +16,7 @@ from cartography.models.ontology.labels import USER_ACCOUNT
 @dataclass(frozen=True)
 class VercelUserNodeProperties(CartographyNodeProperties):
     id: PropertyRef = PropertyRef("uid", description="User ID.")
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated", set_in_kwargs=True, description="Timestamp of the last update."
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
     email: PropertyRef = PropertyRef(
         "email", extra_index=True, description="User email address."
     )

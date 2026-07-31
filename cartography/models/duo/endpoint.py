@@ -14,11 +14,7 @@ from cartography.models.core.relationships import TargetNodeMatcher
 @dataclass(frozen=True)
 class DuoEndpointNodeProperties(CartographyNodeProperties):
     id: PropertyRef = PropertyRef("epkey", description="Duo endpoint key.")
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last update.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
     browsers: PropertyRef = PropertyRef(
         "browsers", description="Detected browser information."
     )

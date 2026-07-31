@@ -41,11 +41,7 @@ class KubernetesOIDCProviderNodeProperties(CartographyNodeProperties):
     name: PropertyRef = PropertyRef(
         "name", description="Name of the OIDC provider configuration."
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last time the node was updated.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)

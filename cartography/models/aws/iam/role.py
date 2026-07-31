@@ -27,11 +27,7 @@ class AWSRoleNodeProperties(CartographyNodeProperties):
     )
 
     # Automatic fields (set by cartography)
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last sync that updated this `AWSRole` node.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
     # Business fields from AWS IAM roles
     roleid: PropertyRef = PropertyRef(
@@ -96,6 +92,8 @@ class AWSRoleToAWSPrincipalTrustRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class AWSRoleSchema(CartographyNodeSchema):
+    """Representation of an AWS [IAM Role](https://docs.aws.amazon.com/IAM/latest/APIReference/API_Role.html). An AWS Role is a type of AWS Principal."""
+
     label: str = "AWSRole"
     properties: AWSRoleNodeProperties = AWSRoleNodeProperties()
     sub_resource_relationship: AWSRoleToAWSAccountRel = AWSRoleToAWSAccountRel()

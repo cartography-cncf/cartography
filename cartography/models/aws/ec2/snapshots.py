@@ -66,11 +66,7 @@ class EBSSnapshotNodeProperties(CartographyNodeProperties):
     region: PropertyRef = PropertyRef(
         "Region", set_in_kwargs=True, description="The region of the snapshot."
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last time the node was updated",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
@@ -95,6 +91,8 @@ class EBSSnapshotToAWSAccountRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class EBSSnapshotSchema(CartographyNodeSchema):
+    """Representation of an AWS [EBS Snapshot](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/EBSSnapshots.html)."""
+
     label: str = "AWSEBSSnapshot"
     properties: EBSSnapshotNodeProperties = EBSSnapshotNodeProperties()
     # DEPRECATED: legacy EBSSnapshot node label will be removed in v1.0.0.

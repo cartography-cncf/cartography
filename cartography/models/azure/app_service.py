@@ -35,11 +35,7 @@ class AzureAppServiceProperties(CartographyNodeProperties):
     https_only: PropertyRef = PropertyRef(
         "https_only", description="Whether the app accepts only HTTPS requests."
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last sync that observed this app.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 # --- Relationship Definitions ---

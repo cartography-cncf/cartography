@@ -18,11 +18,7 @@ class GCPCloudArmorPolicyNodeProperties(CartographyNodeProperties):
         "partial_uri", description="Stable identifier for this resource."
     )
     partial_uri: PropertyRef = PropertyRef("partial_uri", description="Same as `id`.")
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last time the node was updated.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
     name: PropertyRef = PropertyRef(
         "name", extra_index=True, description="The name of the security policy."
     )
@@ -46,11 +42,7 @@ class GCPCloudArmorPolicyNodeProperties(CartographyNodeProperties):
 
 @dataclass(frozen=True)
 class GCPCloudArmorPolicyToProjectRelProperties(CartographyRelProperties):
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last sync that observed this data.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)

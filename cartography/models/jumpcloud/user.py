@@ -15,11 +15,7 @@ from cartography.models.ontology.labels import USER_ACCOUNT
 @dataclass(frozen=True)
 class JumpCloudUserNodeProperties(CartographyNodeProperties):
     id: PropertyRef = PropertyRef("id", description="JumpCloud user ID.")
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last update.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
     username: PropertyRef = PropertyRef(
         "username",
         extra_index=True,

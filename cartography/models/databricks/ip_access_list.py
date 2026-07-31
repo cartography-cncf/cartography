@@ -46,11 +46,7 @@ class DatabricksIpAccessListNodeProperties(CartographyNodeProperties):
         "updated_at",
         description="Timestamp when the IP access list was last updated.",
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last ingestion update.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)

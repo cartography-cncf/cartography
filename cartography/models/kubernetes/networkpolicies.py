@@ -66,11 +66,7 @@ class KubernetesNetworkPolicyNodeProperties(CartographyNodeProperties):
         extra_index=True,
         description="Name of the Kubernetes cluster where this network policy is defined.",
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last time the node was updated.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)

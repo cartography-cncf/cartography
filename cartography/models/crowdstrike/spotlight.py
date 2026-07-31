@@ -24,11 +24,7 @@ class SpotlightVulnerabilityNodeProperties(CartographyNodeProperties):
         "id",
         description="Unique Spotlight vulnerability ID.",
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last Cartography update.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
     aid: PropertyRef = PropertyRef(
         "aid",
         description="Agent ID of the host on which the vulnerability was detected.",
@@ -75,11 +71,7 @@ class SpotlightVulnerabilityNodeProperties(CartographyNodeProperties):
 
 @dataclass(frozen=True)
 class SpotlightVulnerabilityRelProperties(CartographyRelProperties):
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last Cartography update.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 # (:CrowdstrikeTenant)-[:RESOURCE]->(:CrowdstrikeSpotlightVulnerability)
@@ -167,11 +159,7 @@ class CrowdstrikeCVENodeProperties(CartographyNodeProperties):
         extra_index=True,
         description="CVE identifier indexed for cross-module correlation.",
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last Cartography update.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
     base_score: PropertyRef = PropertyRef(
         "base_score",
         description="CVSS base score for the CVE.",

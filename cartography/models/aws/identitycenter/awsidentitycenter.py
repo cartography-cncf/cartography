@@ -34,11 +34,7 @@ class IdentityCenterInstanceProperties(CartographyNodeProperties):
         set_in_kwargs=True,
         description="The AWS region where the Identity Center instance is located",
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last time the node was updated",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
@@ -62,6 +58,8 @@ class IdentityCenterToAWSAccountRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class AWSIdentityCenterInstanceSchema(CartographyNodeSchema):
+    """Representation of an AWS Identity Center."""
+
     label: str = "AWSIdentityCenter"
     properties: IdentityCenterInstanceProperties = IdentityCenterInstanceProperties()
     sub_resource_relationship: IdentityCenterToAWSAccountRel = (

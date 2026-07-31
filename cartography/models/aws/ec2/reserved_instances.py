@@ -17,11 +17,7 @@ class EC2ReservedInstanceNodeProperties(CartographyNodeProperties):
     id: PropertyRef = PropertyRef(
         "ReservedInstancesId", description="The ID of the Reserved Instance."
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last time the node was updated",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
     region: PropertyRef = PropertyRef(
         "Region", set_in_kwargs=True, description="The region of the reserved instance."
     )
@@ -93,6 +89,8 @@ class EC2ReservedInstanceToAWSAccountRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class EC2ReservedInstanceSchema(CartographyNodeSchema):
+    """Representation of an AWS [EC2 Reserved Instance](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-reserved-instances.html)."""
+
     label: str = "AWSEC2ReservedInstance"
     # DEPRECATED: legacy EC2ReservedInstance node label will be removed in v1.0.0.
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([LEGACY_EC2_RESERVED_INSTANCE])

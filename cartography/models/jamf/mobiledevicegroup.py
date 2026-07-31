@@ -13,11 +13,7 @@ from cartography.models.core.relationships import TargetNodeMatcher
 @dataclass(frozen=True)
 class JamfMobileDeviceGroupNodeProperties(CartographyNodeProperties):
     id: PropertyRef = PropertyRef("id", description="Jamf mobile device group ID.")
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last time the node was updated.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
     name: PropertyRef = PropertyRef(
         "name",
         description="Friendly name of the group.",

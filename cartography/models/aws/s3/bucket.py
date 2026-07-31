@@ -24,11 +24,7 @@ class S3BucketNodeProperties(CartographyNodeProperties):
     """Base properties for AWSS3Bucket nodes."""
 
     id: PropertyRef = PropertyRef("Name", description="Same as `name`, as seen below")
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last time the node was updated",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
     name: PropertyRef = PropertyRef(
         "Name",
         description="The name of the bucket.  This is guaranteed to be [globally unique](https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/s3.html#S3.Client.list_buckets)",
@@ -65,7 +61,7 @@ class S3BucketToAWSAccountRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class S3BucketSchema(CartographyNodeSchema):
-    "Represents an Amazon Simple Storage Service (S3) bucket."
+    """Representation of an AWS S3 [Bucket](https://docs.aws.amazon.com/AmazonS3/latest/API/API_Bucket.html)."""
 
     # Implementation note:
     # Base schema for AWSS3Bucket nodes with core properties.
@@ -97,11 +93,7 @@ class S3BucketPolicyProperties(CartographyNodeProperties):
     """Properties from bucket policy analysis."""
 
     id: PropertyRef = PropertyRef("Name", description="Same as `name`, as seen below")
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last time the node was updated",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
     anonymous_access: PropertyRef = PropertyRef(
         "anonymous_access",
         extra_index=True,
@@ -115,7 +107,7 @@ class S3BucketPolicyProperties(CartographyNodeProperties):
 
 @dataclass(frozen=True)
 class S3BucketPolicySchema(CartographyNodeSchema):
-    "Represents an Amazon Simple Storage Service (S3) bucket."
+    """Representation of an AWS S3 [Bucket](https://docs.aws.amazon.com/AmazonS3/latest/API/API_Bucket.html)."""
 
     # Implementation note:
     # Composite schema for S3 bucket policy-derived properties.
@@ -132,11 +124,7 @@ class S3BucketEncryptionProperties(CartographyNodeProperties):
     """Properties from bucket encryption configuration."""
 
     id: PropertyRef = PropertyRef("Name", description="Same as `name`, as seen below")
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last time the node was updated",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
     default_encryption: PropertyRef = PropertyRef(
         "default_encryption",
         description="True if this bucket has [default encryption](https://docs.aws.amazon.com/AmazonS3/latest/userguide/bucket-encryption.html) enabled.",
@@ -192,7 +180,7 @@ class S3BucketToKMSKeyByIdRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class S3BucketEncryptionSchema(CartographyNodeSchema):
-    "Represents an Amazon Simple Storage Service (S3) bucket."
+    """Representation of an AWS S3 [Bucket](https://docs.aws.amazon.com/AmazonS3/latest/API/API_Bucket.html)."""
 
     # Implementation note:
     # Composite schema for S3 bucket encryption properties.
@@ -215,11 +203,7 @@ class S3BucketVersioningProperties(CartographyNodeProperties):
     """Properties from bucket versioning configuration."""
 
     id: PropertyRef = PropertyRef("Name", description="Same as `name`, as seen below")
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last time the node was updated",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
     versioning_status: PropertyRef = PropertyRef(
         "versioning_status", description="The versioning state of the bucket."
     )
@@ -231,7 +215,7 @@ class S3BucketVersioningProperties(CartographyNodeProperties):
 
 @dataclass(frozen=True)
 class S3BucketVersioningSchema(CartographyNodeSchema):
-    "Represents an Amazon Simple Storage Service (S3) bucket."
+    """Representation of an AWS S3 [Bucket](https://docs.aws.amazon.com/AmazonS3/latest/API/API_Bucket.html)."""
 
     # Implementation note:
     # Composite schema for S3 bucket versioning properties.
@@ -248,11 +232,7 @@ class S3BucketPublicAccessBlockProperties(CartographyNodeProperties):
     """Properties from bucket public access block configuration."""
 
     id: PropertyRef = PropertyRef("Name", description="Same as `name`, as seen below")
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last time the node was updated",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
     block_public_acls: PropertyRef = PropertyRef(
         "block_public_acls",
         description="Specifies whether Amazon S3 should block public bucket policies for this bucket.",
@@ -273,7 +253,7 @@ class S3BucketPublicAccessBlockProperties(CartographyNodeProperties):
 
 @dataclass(frozen=True)
 class S3BucketPublicAccessBlockSchema(CartographyNodeSchema):
-    "Represents an Amazon Simple Storage Service (S3) bucket."
+    """Representation of an AWS S3 [Bucket](https://docs.aws.amazon.com/AmazonS3/latest/API/API_Bucket.html)."""
 
     # Implementation note:
     # Composite schema for S3 bucket public access block properties.
@@ -292,11 +272,7 @@ class S3BucketOwnershipProperties(CartographyNodeProperties):
     """Properties from bucket ownership controls configuration."""
 
     id: PropertyRef = PropertyRef("Name", description="Same as `name`, as seen below")
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last time the node was updated",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
     object_ownership: PropertyRef = PropertyRef(
         "object_ownership",
         description="The bucket's [Object Ownership](https://docs.aws.amazon.com/AmazonS3/latest/userguide/about-object-ownership.html) setting. `BucketOwnerEnforced` indicates that ACLs on the bucket and its objects are ignored. `BucketOwnerPreferred` and `ObjectWriter` indicate that ACLs still function; see [the AWS documentation](https://docs.aws.amazon.com/AmazonS3/latest/userguide/about-object-ownership.html#object-ownership-overview) for details.",
@@ -305,7 +281,7 @@ class S3BucketOwnershipProperties(CartographyNodeProperties):
 
 @dataclass(frozen=True)
 class S3BucketOwnershipSchema(CartographyNodeSchema):
-    "Represents an Amazon Simple Storage Service (S3) bucket."
+    """Representation of an AWS S3 [Bucket](https://docs.aws.amazon.com/AmazonS3/latest/API/API_Bucket.html)."""
 
     # Implementation note:
     # Composite schema for S3 bucket ownership properties.
@@ -322,11 +298,7 @@ class S3BucketLoggingProperties(CartographyNodeProperties):
     """Properties from bucket logging configuration."""
 
     id: PropertyRef = PropertyRef("Name", description="Same as `name`, as seen below")
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last time the node was updated",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
     logging_enabled: PropertyRef = PropertyRef(
         "logging_enabled",
         description="True if this bucket has [logging enabled](https://docs.aws.amazon.com/AmazonS3/latest/API/API_GetBucketLogging.html) enabled.",
@@ -339,7 +311,7 @@ class S3BucketLoggingProperties(CartographyNodeProperties):
 
 @dataclass(frozen=True)
 class S3BucketLoggingSchema(CartographyNodeSchema):
-    "Represents an Amazon Simple Storage Service (S3) bucket."
+    """Representation of an AWS S3 [Bucket](https://docs.aws.amazon.com/AmazonS3/latest/API/API_Bucket.html)."""
 
     # Implementation note:
     # Composite schema for S3 bucket logging properties.

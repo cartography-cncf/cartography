@@ -32,11 +32,7 @@ class ECRRepositoryNodeProperties(CartographyNodeProperties):
     region: PropertyRef = PropertyRef(
         "Region", set_in_kwargs=True, description="The region of the repository"
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last time the node was updated",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
@@ -77,6 +73,8 @@ class ECRRepositoryToRepositoryImageRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class ECRRepositorySchema(CartographyNodeSchema):
+    """Representation of an AWS Elastic Container Registry [Repository](https://docs.aws.amazon.com/AmazonECR/latest/APIReference/API_Repository.html)."""
+
     label: str = "AWSECRRepository"
     # DEPRECATED: legacy ECRRepository node label will be removed in v1.0.0.
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(

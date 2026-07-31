@@ -16,11 +16,7 @@ from cartography.models.ontology.labels import TAG
 @dataclass(frozen=True)
 class TenableAssetTagNodeProperties(CartographyNodeProperties):
     id: PropertyRef = PropertyRef("id", description="Tenable tag UUID.")
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last time the node was updated.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
     key: PropertyRef = PropertyRef(
         "key", extra_index=True, description="Tag category or key."
     )

@@ -55,11 +55,7 @@ class AWSSageMakerModelPackageNodeProperties(CartographyNodeProperties):
         set_in_kwargs=True,
         description="The AWS region where the Model Package exists",
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last time the node was updated",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
@@ -120,6 +116,8 @@ class AWSSageMakerModelPackageToS3BucketRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class AWSSageMakerModelPackageSchema(CartographyNodeSchema):
+    """Represents an [AWS SageMaker Model Package](https://docs.aws.amazon.com/sagemaker/latest/APIReference/API_DescribeModelPackage.html). A Model Package is a versioned model in the SageMaker Model Registry that acts as a blueprint for a deployed model."""
+
     label: str = "AWSSageMakerModelPackage"
     properties: AWSSageMakerModelPackageNodeProperties = (
         AWSSageMakerModelPackageNodeProperties()

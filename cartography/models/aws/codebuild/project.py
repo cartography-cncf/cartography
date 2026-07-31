@@ -42,11 +42,7 @@ class CodeBuildProjectNodeProperties(CartographyNodeProperties):
         "sourceLocation",
         description="Information about the location of the source code to be built",
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last time the node was updated",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
@@ -69,6 +65,8 @@ class CodeBuildProjectToAWSAccountRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class CodeBuildProjectSchema(CartographyNodeSchema):
+    """Representation of an AWS [CodeBuild Project](https://docs.aws.amazon.com/codebuild/latest/APIReference/API_Project.html)"""
+
     label: str = "AWSCodeBuildProject"
     properties: CodeBuildProjectNodeProperties = CodeBuildProjectNodeProperties()
     # DEPRECATED: legacy CodeBuildProject node label will be removed in v1.0.0.

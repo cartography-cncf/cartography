@@ -54,11 +54,7 @@ class EfsAccessPointNodeProperties(CartographyNodeProperties):
         "RootDirectoryPath",
         description="Specifies the path on the EFS file system to expose as the root directory to NFS clients using the access point to access the EFS file system",
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last time the node was updated",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
@@ -99,6 +95,8 @@ class EfsAccessPointToEfsFileSystemRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class EfsAccessPointSchema(CartographyNodeSchema):
+    """Representation of an AWS [EFS Access Point](https://docs.aws.amazon.com/efs/latest/ug/API_AccessPointDescription.html)"""
+
     label: str = "AWSEfsAccessPoint"
     # DEPRECATED: legacy EfsAccessPoint node label will be removed in v1.0.0.
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([LEGACY_EFS_ACCESS_POINT])

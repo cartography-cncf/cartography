@@ -26,11 +26,7 @@ class APIGatewayResourceNodeProperties(CartographyNodeProperties):
         "parentId",
         description="A nullable integer that is used to enable or disable the compression of the REST API",
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last time the node was updated",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
@@ -73,6 +69,8 @@ class APIGatewayResourceToAWSAccountRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class APIGatewayResourceSchema(CartographyNodeSchema):
+    """Representation of an AWS [API Gateway Resource](https://docs.aws.amazon.com/apigateway/api-reference/resource/resource/)."""
+
     label: str = "AWSAPIGatewayResource"
     # DEPRECATED: legacy APIGatewayResource node label will be removed in v1.0.0.
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([LEGACY_API_GATEWAY_RESOURCE])

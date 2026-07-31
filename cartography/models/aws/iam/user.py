@@ -26,11 +26,7 @@ class AWSUserNodeProperties(CartographyNodeProperties):
     )
 
     # Automatic fields (set by cartography)
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last sync that updated this `AWSUser` node.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
     # Business fields from AWS IAM users
     userid: PropertyRef = PropertyRef(
@@ -79,6 +75,8 @@ class AWSUserToAWSAccountRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class AWSUserSchema(CartographyNodeSchema):
+    """Representation of an [AWSUser](https://docs.aws.amazon.com/IAM/latest/APIReference/API_User.html).  An AWS User is a type of AWS Principal."""
+
     label: str = "AWSUser"
     properties: AWSUserNodeProperties = AWSUserNodeProperties()
     sub_resource_relationship: AWSUserToAWSAccountRel = AWSUserToAWSAccountRel()

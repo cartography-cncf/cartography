@@ -19,11 +19,7 @@ from cartography.models.ontology.labels import USER_GROUP
 @dataclass(frozen=True)
 class GSuiteGroupNodeProperties(CartographyNodeProperties):
     id: PropertyRef = PropertyRef("id", description="Unique GSuite group ID.")
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last update.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
     # Group identifiers and basic info
     group_id: PropertyRef = PropertyRef(

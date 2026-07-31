@@ -46,9 +46,7 @@ class ScalewayAppleSiliconServerProperties(CartographyNodeProperties):
     deletable_at: PropertyRef = PropertyRef(
         "deletable_at", description="Date and time the server can be deleted."
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated", set_in_kwargs=True, description="Timestamp of the last update"
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)

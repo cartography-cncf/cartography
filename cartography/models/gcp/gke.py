@@ -17,11 +17,7 @@ class GCPGKEClusterNodeProperties(CartographyNodeProperties):
     id: PropertyRef = PropertyRef(
         "id", extra_index=True, description="Stable identifier for this resource."
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last sync that observed this data.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
     name: PropertyRef = PropertyRef("name", description="The name of the cluster.")
     self_link: PropertyRef = PropertyRef(
         "self_link", description="Canonical Google Cloud API URL for this resource."
@@ -134,11 +130,7 @@ class GCPGKEClusterNodeProperties(CartographyNodeProperties):
 
 @dataclass(frozen=True)
 class GCPGKEClusterToProjectRelProperties(CartographyRelProperties):
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last sync that observed this data.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)

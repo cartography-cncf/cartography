@@ -29,11 +29,7 @@ class OpenAIAdminApiKeyNodeProperties(CartographyNodeProperties):
         "last_used_at",
         description="Unix timestamp when the admin API key was last used.",
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last update.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)

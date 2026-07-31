@@ -129,11 +129,7 @@ class CloudFrontDistributionNodeProperties(CartographyNodeProperties):
     )
 
     # Cartography standard fields
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last time the node was updated",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
@@ -230,7 +226,10 @@ class CloudFrontDistributionToLambdaRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class CloudFrontDistributionSchema(CartographyNodeSchema):
-    """Schema for AWS CloudFront Distribution nodes."""
+    """Representation of an AWS [CloudFront Distribution](https://docs.aws.amazon.com/cloudfront/latest/APIReference/API_DistributionSummary.html).
+
+    CloudFront is AWS's global content delivery network (CDN) service. CloudFront distributions are the primary resource that defines how content is cached and delivered to end users.
+    """
 
     label: str = "AWSCloudFrontDistribution"
     # DEPRECATED: legacy CloudFrontDistribution node label will be removed in v1.0.0.

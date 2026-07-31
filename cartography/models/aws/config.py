@@ -29,11 +29,7 @@ class AWSConfigurationRecorderNodeProperties(CartographyNodeProperties):
     id: PropertyRef = PropertyRef(
         "id", description="A combination of name:account\\_id:region"
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last time the node was updated",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
     name: PropertyRef = PropertyRef("name", description="The name of the recorder.")
     role_arn: PropertyRef = PropertyRef(
         "role_arn",
@@ -74,6 +70,8 @@ class AWSConfigurationRecorderToAWSAccountRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class AWSConfigurationRecorderSchema(CartographyNodeSchema):
+    """Representation of an AWS [Config Configuration Recorder](https://docs.aws.amazon.com/config/latest/APIReference/API_ConfigurationRecorder.html)"""
+
     label: str = "AWSConfigurationRecorder"
     properties: AWSConfigurationRecorderNodeProperties = (
         AWSConfigurationRecorderNodeProperties()
@@ -93,11 +91,7 @@ class AWSConfigDeliveryChannelNodeProperties(CartographyNodeProperties):
     id: PropertyRef = PropertyRef(
         "id", description="A combination of name:account\\_id:region"
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last time the node was updated",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
     name: PropertyRef = PropertyRef(
         "name", description="The name of the delivery channel."
     )
@@ -141,6 +135,8 @@ class AWSConfigDeliveryChannelToAWSAccountRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class AWSConfigDeliveryChannelSchema(CartographyNodeSchema):
+    """Representation of an AWS [Config Delivery Channel](https://docs.aws.amazon.com/config/latest/APIReference/API_DeliveryChannel.html)"""
+
     label: str = "AWSConfigDeliveryChannel"
     properties: AWSConfigDeliveryChannelNodeProperties = (
         AWSConfigDeliveryChannelNodeProperties()
@@ -160,11 +156,7 @@ class AWSConfigRuleNodeProperties(CartographyNodeProperties):
     id: PropertyRef = PropertyRef(
         "ConfigRuleArn", description="The ARN of the config rule."
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last time the node was updated",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
     name: PropertyRef = PropertyRef(
         "ConfigRuleName", description="The name of the delivery channel."
     )
@@ -239,6 +231,8 @@ class AWSConfigRuleToAWSAccountRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class AWSConfigRuleSchema(CartographyNodeSchema):
+    """Representation of an AWS [Config Rule](https://docs.aws.amazon.com/config/latest/APIReference/API_DeliveryChannel.html)"""
+
     label: str = "AWSConfigRule"
     properties: AWSConfigRuleNodeProperties = AWSConfigRuleNodeProperties()
     sub_resource_relationship: AWSConfigRuleToAWSAccountRel = (

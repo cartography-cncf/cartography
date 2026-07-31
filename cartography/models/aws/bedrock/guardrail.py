@@ -59,11 +59,7 @@ class AWSBedrockGuardrailNodeProperties(CartographyNodeProperties):
         set_in_kwargs=True,
         description="The AWS region where the guardrail exists",
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last time the node was updated",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
@@ -93,9 +89,7 @@ class AWSBedrockGuardrailToAWSAccountRel(CartographyRelSchema):
 @dataclass(frozen=True)
 class AWSBedrockGuardrailSchema(CartographyNodeSchema):
     """
-    Schema for AWS Bedrock Guardrail nodes.
-    Guardrails provide content filtering, safety controls, and policy enforcement
-    for foundation models, custom models, and agents.
+    Representation of an AWS [Bedrock Guardrail](https://docs.aws.amazon.com/bedrock/latest/userguide/guardrails.html). Guardrails provide content filtering, safety controls, and policy enforcement for models and agents by blocking harmful content and enforcing responsible AI usage.
 
     The [:APPLIED_TO] relationship from Guardrail→Agent is created from the Agent side
     using AWSBedrockGuardrailToAgentRel (defined in agent.py).

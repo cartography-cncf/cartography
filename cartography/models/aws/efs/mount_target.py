@@ -60,11 +60,7 @@ class EfsMountTargetNodeProperties(CartographyNodeProperties):
         "VpcId",
         description="The virtual private cloud (VPC) ID that the mount target is configured in",
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last time the node was updated",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
@@ -105,6 +101,8 @@ class EfsMountTargetToEfsFileSystemRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class EfsMountTargetSchema(CartographyNodeSchema):
+    """Representation of an AWS [EFS Mount Target](https://docs.aws.amazon.com/efs/latest/ug/API_MountTargetDescription.html)"""
+
     label: str = "AWSEfsMountTarget"
     # DEPRECATED: legacy EfsMountTarget node label will be removed in v1.0.0.
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([LEGACY_EFS_MOUNT_TARGET])

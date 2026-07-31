@@ -18,11 +18,7 @@ class AWSManagedPolicyNodeProperties(CartographyNodeProperties):
     id: PropertyRef = PropertyRef(
         "id", description="Unique identifier for this `AWSManagedPolicy` node."
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last sync that updated this `AWSManagedPolicy` node.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
     name: PropertyRef = PropertyRef(
         "name", description="Name of this `AWSManagedPolicy` node."
     )
@@ -58,6 +54,8 @@ class AWSManagedPolicyToAWSPrincipalRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class AWSManagedPolicySchema(CartographyNodeSchema):
+    """Representation of an [AWS Policy](https://docs.aws.amazon.com/IAM/latest/APIReference/API_Policy.html) of type "managed". A managed policy is a built-in policy created and maintained by AWS. Managed policies are shared across principals, and as such are not associated with a specific AWSAccount."""
+
     label: str = "AWSManagedPolicy"
     properties: AWSManagedPolicyNodeProperties = AWSManagedPolicyNodeProperties()
     other_relationships: OtherRelationships = OtherRelationships(

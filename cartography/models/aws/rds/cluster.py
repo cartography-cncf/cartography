@@ -158,11 +158,7 @@ class RDSClusterNodeProperties(CartographyNodeProperties):
         set_in_kwargs=True,
         description="AWS Region containing this `AWSRDSCluster` node.",
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last time the node was updated",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
@@ -185,6 +181,8 @@ class RDSClusterToAWSAccountRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class RDSClusterSchema(CartographyNodeSchema):
+    """Representation of an AWS Relational Database Service [DBCluster](https://docs.aws.amazon.com/AmazonRDS/latest/APIReference/API_DBCluster.html)"""
+
     label: str = "AWSRDSCluster"
     # DEPRECATED: legacy RDSCluster node label will be removed in v1.0.0.
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([LEGACY_RDS_CLUSTER])

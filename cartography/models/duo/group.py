@@ -15,11 +15,7 @@ from cartography.models.ontology.labels import USER_GROUP
 @dataclass(frozen=True)
 class DuoGroupNodeProperties(CartographyNodeProperties):
     id: PropertyRef = PropertyRef("group_id", description="Duo group ID.")
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last update.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
     desc: PropertyRef = PropertyRef("desc", description="Group description.")
     group_id: PropertyRef = PropertyRef(
         "group_id", extra_index=True, description="Duo group ID."

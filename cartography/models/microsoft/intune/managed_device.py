@@ -108,11 +108,7 @@ class IntuneManagedDeviceNodeProperties(CartographyNodeProperties):
     physical_memory_in_bytes: PropertyRef = PropertyRef(
         "physical_memory_in_bytes", description="Physical memory capacity in bytes."
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the latest Cartography update.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)

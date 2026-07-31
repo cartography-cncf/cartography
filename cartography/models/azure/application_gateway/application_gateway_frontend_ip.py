@@ -37,11 +37,7 @@ class AzureApplicationGatewayFrontendIPProperties(CartographyNodeProperties):
     subnet_id: PropertyRef = PropertyRef(
         "subnet_id", description="Azure resource ID of the subnet used by the frontend."
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last ingestion update.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)

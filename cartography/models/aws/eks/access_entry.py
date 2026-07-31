@@ -115,7 +115,7 @@ class AWSPrincipalToEKSAccessEntryRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class EKSAccessEntrySchema(CartographyNodeSchema):
-    """An EKS access entry that grants an IAM principal access to a cluster."""
+    """Representation of an AWS [EKS Access Entry](https://docs.aws.amazon.com/eks/latest/userguide/access-entries.html), which grants an IAM principal access to an EKS cluster through the EKS API authentication mode."""
 
     label: str = "AWSEKSAccessEntry"
     # DEPRECATED: legacy EKSAccessEntry node label will be removed in v1.0.0.

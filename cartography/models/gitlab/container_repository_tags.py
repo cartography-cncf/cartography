@@ -63,11 +63,7 @@ class GitLabContainerRepositoryTagNodeProperties(CartographyNodeProperties):
         "total_size",
         description="Total size of the tagged image in bytes.",
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last time the node was updated.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)

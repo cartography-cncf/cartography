@@ -107,11 +107,7 @@ class ECSContainerDefinitionNodeProperties(CartographyNodeProperties):
         set_in_kwargs=True,
         description="The region of the container definition.",
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last time the node was updated",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
@@ -152,6 +148,8 @@ class ECSContainerDefinitionToTaskDefinitionRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class ECSContainerDefinitionSchema(CartographyNodeSchema):
+    """Representation of an AWS ECS [Container Definition](https://docs.aws.amazon.com/AmazonECS/latest/APIReference/API_ContainerDefinition.html)"""
+
     label: str = "AWSECSContainerDefinition"
     # DEPRECATED: legacy ECSContainerDefinition node label will be removed in v1.0.0.
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(

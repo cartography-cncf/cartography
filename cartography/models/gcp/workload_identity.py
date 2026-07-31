@@ -43,11 +43,7 @@ class GCPWorkloadIdentityPoolNodeProperties(CartographyNodeProperties):
         "sessionDuration",
         description="Default session duration for federated tokens issued via this pool.",
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last time the node was updated.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
     project_id: PropertyRef = PropertyRef(
         "projectId",
         set_in_kwargs=True,
@@ -57,11 +53,7 @@ class GCPWorkloadIdentityPoolNodeProperties(CartographyNodeProperties):
 
 @dataclass(frozen=True)
 class GCPWorkloadIdentityPoolToProjectRelProperties(CartographyRelProperties):
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last sync that observed this data.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
@@ -142,11 +134,7 @@ class GCPWorkloadIdentityProviderNodeProperties(CartographyNodeProperties):
         "poolName",
         description="The resource name of the parent GCPWorkloadIdentityPool.",
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last time the node was updated.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
     project_id: PropertyRef = PropertyRef(
         "projectId",
         set_in_kwargs=True,
@@ -156,11 +144,7 @@ class GCPWorkloadIdentityProviderNodeProperties(CartographyNodeProperties):
 
 @dataclass(frozen=True)
 class GCPWorkloadIdentityProviderToProjectRelProperties(CartographyRelProperties):
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last sync that observed this data.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
@@ -178,11 +162,7 @@ class GCPWorkloadIdentityProviderToProjectRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class GCPWorkloadIdentityProviderToPoolRelProperties(CartographyRelProperties):
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last sync that observed this data.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)

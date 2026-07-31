@@ -68,11 +68,7 @@ class DatabricksJobTaskNodeProperties(CartographyNodeProperties):
     run_if: PropertyRef = PropertyRef(
         "run_if", description="Condition that controls whether the task runs."
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last ingestion update.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)

@@ -100,19 +100,12 @@ class CVENodeProperties(CartographyNodeProperties):
         "vulnStatus",
         description="Current status assigned to the vulnerability.",
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        description="Timestamp of the last Cartography update.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated")
 
 
 @dataclass(frozen=True)
 class CVEtoCVEFeedRelProperties(CartographyRelProperties):
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last Cartography update.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
@@ -131,11 +124,7 @@ class CVEtoCVEFeedRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class CVEToSpotlightVulnerabilityRelProperties(CartographyRelProperties):
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last Cartography update.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)

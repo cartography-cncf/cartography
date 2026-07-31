@@ -54,11 +54,7 @@ class KubernetesDeploymentNodeProperties(CartographyNodeProperties):
         extra_index=True,
         description="Name of the Kubernetes cluster containing the Deployment.",
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last time the node was updated.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)

@@ -16,11 +16,7 @@ from cartography.models.ontology.labels import USER_ACCOUNT
 @dataclass(frozen=True)
 class LastpassUserNodeProperties(CartographyNodeProperties):
     id: PropertyRef = PropertyRef("id", description="LastPass user ID.")
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last time the node was updated.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
     name: PropertyRef = PropertyRef("fullname", description="Full name of the user.")
     email: PropertyRef = PropertyRef(
         "username",

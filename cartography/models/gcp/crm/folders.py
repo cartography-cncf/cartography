@@ -17,11 +17,7 @@ class GCPFolderNodeProperties(CartographyNodeProperties):
         "name",
         description='The name of the folder, e.g. "folders/1234".',
     )  # Use full folder name as ID (e.g., "folders/1414")
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last time the node was updated.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
     foldername: PropertyRef = PropertyRef(
         "name", description='The name of the folder, e.g. "folders/1234".'
     )
@@ -44,11 +40,7 @@ class GCPFolderNodeProperties(CartographyNodeProperties):
 
 @dataclass(frozen=True)
 class GCPFolderToOrgParentRelProperties(CartographyRelProperties):
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last sync that observed this data.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
@@ -66,11 +58,7 @@ class GCPFolderToOrgParentRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class GCPFolderToFolderParentRelProperties(CartographyRelProperties):
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last sync that observed this data.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
@@ -90,11 +78,7 @@ class GCPFolderToFolderParentRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class GCPFolderToOrganizationRelProperties(CartographyRelProperties):
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last sync that observed this data.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)

@@ -66,11 +66,7 @@ class AWSBedrockAgentNodeProperties(CartographyNodeProperties):
         set_in_kwargs=True,
         description="The AWS region where the agent exists",
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last time the node was updated",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
@@ -286,9 +282,7 @@ class AWSBedrockGuardrailToAgentRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class AWSBedrockAgentSchema(CartographyNodeSchema):
-    """
-    Schema for AWS Bedrock Agent nodes.
-    """
+    """Representation of an AWS [Bedrock Agent](https://docs.aws.amazon.com/bedrock/latest/userguide/agents.html). Agents are autonomous AI assistants that can break down tasks, use tools (Lambda functions), and search knowledge bases to accomplish complex goals."""
 
     label: str = "AWSBedrockAgent"
     properties: AWSBedrockAgentNodeProperties = AWSBedrockAgentNodeProperties()

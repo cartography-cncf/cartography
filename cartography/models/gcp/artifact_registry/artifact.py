@@ -34,22 +34,14 @@ class GCPArtifactRegistryGenericArtifactNodeProperties(CartographyNodeProperties
     project_id: PropertyRef = PropertyRef(
         "project_id", description="Google Cloud project that owns this resource."
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last sync that observed this data.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
 class GCPArtifactRegistryGenericArtifactToProjectRelProperties(
     CartographyRelProperties
 ):
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last sync that observed this data.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
@@ -70,11 +62,7 @@ class GCPArtifactRegistryGenericArtifactToProjectRel(CartographyRelSchema):
 class GCPArtifactRegistryGenericArtifactToRepositoryRelProperties(
     CartographyRelProperties
 ):
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last sync that observed this data.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)

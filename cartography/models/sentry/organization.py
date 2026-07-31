@@ -10,11 +10,7 @@ from cartography.models.ontology.labels import TENANT
 @dataclass(frozen=True)
 class SentryOrganizationNodeProperties(CartographyNodeProperties):
     id: PropertyRef = PropertyRef("id", description="Sentry organization ID.")
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last update.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
     name: PropertyRef = PropertyRef("name", description="Organization name.")
     slug: PropertyRef = PropertyRef(
         "slug",

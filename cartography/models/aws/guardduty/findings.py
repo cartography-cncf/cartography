@@ -188,11 +188,7 @@ class GuardDutyFindingNodeProperties(CartographyNodeProperties):
         "api_call_remote_account_affiliated",
         description="Whether the remote AWS account is affiliated with the affected account.",
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last sync that updated this `AWSGuardDutyFinding` node.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
@@ -359,6 +355,8 @@ class GuardDutyFindingToAWSRoleRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class GuardDutyFindingSchema(CartographyNodeSchema):
+    """Representation of an AWS [GuardDuty Finding](https://docs.aws.amazon.com/guardduty/latest/APIReference/API_Finding.html)."""
+
     label: str = "AWSGuardDutyFinding"
     properties: GuardDutyFindingNodeProperties = GuardDutyFindingNodeProperties()
     # DEPRECATED: legacy GuardDutyFinding node label will be removed in v1.0.0.

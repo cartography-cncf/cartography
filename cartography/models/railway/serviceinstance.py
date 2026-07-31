@@ -18,11 +18,7 @@ class RailwayServiceInstanceNodeProperties(CartographyNodeProperties):
     id: PropertyRef = PropertyRef(
         "id", description="ID of the Railway service instance."
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last update to this service instance.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
     service_id: PropertyRef = PropertyRef(
         "serviceId", extra_index=True, description="ID of the parent service."
     )

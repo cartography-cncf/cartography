@@ -25,11 +25,7 @@ class EC2NetworkAclNodeProperties(CartographyNodeProperties):
         "Id",
         description="Identifier of the network ACL linked to this `AWSEC2NetworkAcl` node.",
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last sync that updated this `AWSEC2NetworkAcl` node.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
     is_default: PropertyRef = PropertyRef(
         "IsDefault", description="Whether this `AWSEC2NetworkAcl` node default."
     )
@@ -100,9 +96,7 @@ class EC2NetworkAclToAWSAccountRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class EC2NetworkAclSchema(CartographyNodeSchema):
-    """
-    Network interface as known by describe-network-interfaces.
-    """
+    """Representation of an AWS [EC2 Network ACL](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_NetworkAcl.html)"""
 
     label: str = "AWSEC2NetworkAcl"
     # DEPRECATED: legacy EC2NetworkAcl node label will be removed in v1.0.0.

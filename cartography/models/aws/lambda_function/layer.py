@@ -33,11 +33,7 @@ class AWSLambdaLayerNodeProperties(CartographyNodeProperties):
         "FunctionArn",
         description="The ARN of the Lambda function this layer belongs to",
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last time the node was updated",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 # (:AWSLambda)-[:HAS]->(:AWSLambdaLayer)
@@ -78,6 +74,8 @@ class AWSLambdaLayerToAWSAccountRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class AWSLambdaLayerSchema(CartographyNodeSchema):
+    """Representation of an [AWSLambdaLayer](https://docs.aws.amazon.com/lambda/latest/dg/configuration-layers.html)."""
+
     label: str = "AWSLambdaLayer"
     properties: AWSLambdaLayerNodeProperties = AWSLambdaLayerNodeProperties()
     sub_resource_relationship: AWSLambdaLayerToAWSAccountRel = (

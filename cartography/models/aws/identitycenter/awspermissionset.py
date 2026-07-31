@@ -43,11 +43,7 @@ class PermissionSetProperties(CartographyNodeProperties):
         set_in_kwargs=True,
         description="The AWS region where the Permission Set is located",
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last time the node was updated",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
@@ -183,6 +179,8 @@ class AWSRoleToSSOGroupMatchLink(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class AWSPermissionSetSchema(CartographyNodeSchema):
+    """Representation of an AWS Identity Center Permission Set."""
+
     label: str = "AWSPermissionSet"
     properties: PermissionSetProperties = PermissionSetProperties()
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([PERMISSION_ROLE])

@@ -16,11 +16,7 @@ from cartography.models.core.relationships import TargetNodeMatcher
 @dataclass(frozen=True)
 class ElasticIPAddressNodeProperties(CartographyNodeProperties):
     id: PropertyRef = PropertyRef("PublicIp", description="The Elastic IP address")
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last time the node was updated",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
     region: PropertyRef = PropertyRef(
         "Region", set_in_kwargs=True, description="The region of the IP."
     )
@@ -130,6 +126,8 @@ class ElasticIPAddressToNetworkInterfaceRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class ElasticIPAddressSchema(CartographyNodeSchema):
+    """Representation of an AWS EC2 [Elastic IP address](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_Address.html)"""
+
     label: str = "AWSElasticIPAddress"
     # DEPRECATED: legacy ElasticIPAddress node label will be removed in v1.0.0.
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([LEGACY_ELASTIC_IP_ADDRESS])

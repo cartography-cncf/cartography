@@ -10,11 +10,7 @@ class TenableTenantNodeProperties(CartographyNodeProperties):
     id: PropertyRef = PropertyRef(
         "id", description="Configured Tenable tenant ID or normalized base URL."
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last time the node was updated.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)

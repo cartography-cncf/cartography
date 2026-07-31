@@ -35,11 +35,7 @@ class EC2NetworkInterfaceNodeProperties(CartographyNodeProperties):
         "NetworkInterfaceId",
         description="The ID of the network interface.  (known as `networkInterfaceId` in EC2)",
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last time the node was updated",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
     description: PropertyRef = PropertyRef(
         "Description", description="Description of the network interface"
     )
@@ -61,13 +57,13 @@ class EC2NetworkInterfaceNodeProperties(CartographyNodeProperties):
     )
     status: PropertyRef = PropertyRef(
         "Status",
-        description="Status of the network interface.  Valid Values: ``available \\",
+        description="Status of the network interface.  Valid Values: ``available | associated | attaching | in-use | detaching ``",
     )
 
     # Properties only returned by describe-network-interfaces
     interface_type: PropertyRef = PropertyRef(
         "InterfaceType",
-        description="Describes the type of network interface. Valid values: `` interface \\",
+        description="Describes the type of network interface. Valid values: `` interface | efa ``",
     )
     public_ip: PropertyRef = PropertyRef(
         "PublicIp",
@@ -142,7 +138,7 @@ class EC2NetworkInterfaceToElbV2Rel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class EC2NetworkInterfaceSchema(CartographyNodeSchema):
-    "Represents an Elastic Network Interface (ENI) in Amazon EC2."
+    """Representation of a generic Network Interface.  Currently however, we only create AWSNetworkInterface nodes from AWS [EC2 Instances](#awsec2instance).  The spec for an AWS EC2 network interface is [here](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_InstanceNetworkInterface.html)."""
 
     # Implementation note:
     # Network interface as known by describe-network-interfaces.

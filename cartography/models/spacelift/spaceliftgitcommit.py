@@ -34,11 +34,7 @@ class SpaceliftGitCommitNodeProperties(CartographyNodeProperties):
     author_name: PropertyRef = PropertyRef(
         "author_name", description="Display name of the commit author."
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last update.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)

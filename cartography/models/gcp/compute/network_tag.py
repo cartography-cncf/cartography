@@ -17,11 +17,7 @@ class GCPNetworkTagNodeProperties(CartographyNodeProperties):
         "tag_id",
         description="GCP doesn't define a resource URI for Tags so we define this as `{instance resource URI}/tags/{tag value}`.",
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last time the node was updated.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
     value: PropertyRef = PropertyRef(
         "value", description="The actual value of the tag."
     )
@@ -29,11 +25,7 @@ class GCPNetworkTagNodeProperties(CartographyNodeProperties):
 
 @dataclass(frozen=True)
 class GCPNetworkTagToVpcRelProperties(CartographyRelProperties):
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last sync that observed this data.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
@@ -51,11 +43,7 @@ class GCPNetworkTagToVpcRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class GCPNetworkTagToInstanceRelProperties(CartographyRelProperties):
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last sync that observed this data.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
@@ -75,11 +63,7 @@ class GCPNetworkTagToInstanceRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class GCPNetworkTagToProjectRelProperties(CartographyRelProperties):
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last sync that observed this data.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)

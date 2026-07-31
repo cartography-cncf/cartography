@@ -65,11 +65,7 @@ class AzureNetworkSecurityRuleProperties(CartographyNodeProperties):
         "is_default",
         description="Whether the rule is a default Azure security rule.",
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last sync that observed this security rule.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)

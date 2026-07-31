@@ -25,11 +25,7 @@ class AzureSynapseWorkspaceProperties(CartographyNodeProperties):
         "connectivity_endpoints",
         description="Workspace service endpoints for web, SQL, and development access.",
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last sync that observed this node.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)

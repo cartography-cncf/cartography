@@ -55,11 +55,7 @@ class KeycloakAuthenticationExecutionNodeProperties(CartographyNodeProperties):
         "is_terminal_step",
         description="Whether the execution can be a terminal workflow step (inferred by Cartography)",
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "LASTUPDATED",
-        set_in_kwargs=True,
-        description="Timestamp of the last time the node was updated",
-    )
+    lastupdated: PropertyRef = PropertyRef("LASTUPDATED", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)

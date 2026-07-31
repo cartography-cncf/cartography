@@ -36,11 +36,7 @@ class EC2KeyPairNodeProperties(CartographyNodeProperties):
     region: PropertyRef = PropertyRef(
         "Region", set_in_kwargs=True, description="The AWS region"
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last time the node was updated",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
@@ -63,7 +59,7 @@ class EC2KeyPairToAWSAccountRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class EC2KeyPairSchema(CartographyNodeSchema):
-    "Represents an Amazon EC2 key pair."
+    """Representation of an AWS [EC2 Key Pair](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_KeyPairInfo.html)"""
 
     # Implementation note:
     # Schema for EC2 keypairs from describe-key-pairs

@@ -21,11 +21,7 @@ class AWSOrganizationRelProperties(CartographyRelProperties):
 @dataclass(frozen=True)
 class AWSOrganizationNodeProperties(CartographyNodeProperties):
     id: PropertyRef = PropertyRef("id", description="The AWS Organization ID.")
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last time the node was updated.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
     arn: PropertyRef = PropertyRef(
         "arn", extra_index=True, description="The AWS Organization ARN."
     )
@@ -50,6 +46,8 @@ class AWSOrganizationNodeProperties(CartographyNodeProperties):
 
 @dataclass(frozen=True)
 class AWSOrganizationSchema(CartographyNodeSchema):
+    """Representation of an AWS Organization."""
+
     label: str = "AWSOrganization"
     properties: AWSOrganizationNodeProperties = AWSOrganizationNodeProperties()
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([TENANT])
@@ -116,11 +114,7 @@ class AWSOrganizationRootNodeProperties(CartographyNodeProperties):
         "id",
         description="Cartography ID for this root, formatted as `{org_id}/{root_id}` because AWS root IDs are unique only within an organization.",
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last time the node was updated.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
     root_id: PropertyRef = PropertyRef(
         "root_id", extra_index=True, description="The raw AWS Organizations root ID."
     )
@@ -137,6 +131,8 @@ class AWSOrganizationRootNodeProperties(CartographyNodeProperties):
 
 @dataclass(frozen=True)
 class AWSOrganizationRootSchema(CartographyNodeSchema):
+    """Representation of an AWS Organizations root."""
+
     label: str = "AWSOrganizationRoot"
     properties: AWSOrganizationRootNodeProperties = AWSOrganizationRootNodeProperties()
     sub_resource_relationship: AWSOrganizationRootToOrganizationRel = (
@@ -224,11 +220,7 @@ class AWSOrganizationalUnitNodeProperties(CartographyNodeProperties):
         "id",
         description="Cartography ID for this organizational unit, formatted as `{org_id}/{ou_id}` because AWS organizational unit IDs are unique only within an organization.",
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last time the node was updated.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
     ou_id: PropertyRef = PropertyRef(
         "ou_id",
         extra_index=True,
@@ -262,6 +254,8 @@ class AWSOrganizationalUnitNodeProperties(CartographyNodeProperties):
 
 @dataclass(frozen=True)
 class AWSOrganizationalUnitSchema(CartographyNodeSchema):
+    """Representation of an AWS Organizations organizational unit."""
+
     label: str = "AWSOrganizationalUnit"
     properties: AWSOrganizationalUnitNodeProperties = (
         AWSOrganizationalUnitNodeProperties()

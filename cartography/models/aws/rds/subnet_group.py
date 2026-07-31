@@ -30,11 +30,7 @@ class DBSubnetGroupNodeProperties(CartographyNodeProperties):
         set_in_kwargs=True,
         description="The AWS region where the DB Subnet Group is located.",
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last time the node was updated",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
@@ -99,9 +95,7 @@ class DBSubnetGroupToEC2SubnetRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class DBSubnetGroupSchema(CartographyNodeSchema):
-    """
-    DB Subnet Group schema
-    """
+    """Representation of an RDS [DB Subnet Group](https://docs.aws.amazon.com/AmazonRDS/latest/APIReference/API_DBSubnetGroup.html).  For more information on how RDS instances interact with these, please see [this article](https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/USER_VPC.WorkingWithRDSInstanceinaVPC.html)."""
 
     label: str = "AWSDBSubnetGroup"
     # DEPRECATED: legacy DBSubnetGroup node label will be removed in v1.0.0.

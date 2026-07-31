@@ -40,11 +40,7 @@ class AzureEventHubsNamespaceProperties(CartographyNodeProperties):
         "maximum_throughput_units",
         description="Maximum throughput units allowed when automatic scaling is enabled.",
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last sync that observed this namespace.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)

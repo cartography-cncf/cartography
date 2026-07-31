@@ -17,11 +17,7 @@ class AirbyteWorkspaceNodeProperties(CartographyNodeProperties):
     data_residency: PropertyRef = PropertyRef(
         "dataResidency", description="Geographic location where workspace data resides."
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last update.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)

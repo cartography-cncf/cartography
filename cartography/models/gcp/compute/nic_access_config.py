@@ -17,11 +17,7 @@ class GCPNicAccessConfigNodeProperties(CartographyNodeProperties):
         "access_config_id",
         description="A partial resource URI representing this AccessConfig.  Note: GCP does not define a partial resource URI for AccessConfigs, so we create one so we can uniquely identify GCP network interface access configs.  Has the form `projects/{project_name}/zones/{zone_name}/instances/{instance_name}/networkinterfaces/{network interface name}/accessconfigs/{access config type}`.",
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last time the node was updated.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
     type: PropertyRef = PropertyRef(
         "type",
         description='The type of configuration. GCP docs say: "The default and only option is ONE_TO_ONE_NAT.".',
@@ -49,11 +45,7 @@ class GCPNicAccessConfigNodeProperties(CartographyNodeProperties):
 
 @dataclass(frozen=True)
 class GCPNicAccessConfigToNicRelProperties(CartographyRelProperties):
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last sync that observed this data.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
@@ -73,11 +65,7 @@ class GCPNicAccessConfigToNicRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class GCPNicAccessConfigToProjectRelProperties(CartographyRelProperties):
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last sync that observed this data.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)

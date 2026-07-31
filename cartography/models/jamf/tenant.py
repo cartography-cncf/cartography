@@ -13,11 +13,7 @@ class JamfTenantNodeProperties(CartographyNodeProperties):
         "id",
         description="Jamf tenant ID represented by the configured base URI.",
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last time the node was updated.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)

@@ -24,11 +24,7 @@ class AzureTagProperties(CartographyNodeProperties):
         "subscription_id",
         description="Azure subscription containing the tagged resource.",
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last sync that observed this node.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)

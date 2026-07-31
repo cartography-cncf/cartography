@@ -19,11 +19,7 @@ class IpRangeNodeProperties(CartographyNodeProperties):
         "range",
         description='CIDR notation for the IP range. E.g. "0.0.0.0/0" for the whole internet.',
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last time the node was updated.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
     range: PropertyRef = PropertyRef(
         "range",
         extra_index=True,
@@ -33,11 +29,7 @@ class IpRangeNodeProperties(CartographyNodeProperties):
 
 @dataclass(frozen=True)
 class IpRangeToIpRuleRelProperties(CartographyRelProperties):
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last sync that observed this data.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
@@ -55,11 +47,7 @@ class IpRangeToIpRuleRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class IpRangeToProjectRelProperties(CartographyRelProperties):
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last sync that observed this data.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)

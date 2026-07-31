@@ -14,11 +14,7 @@ from cartography.models.core.relationships import TargetNodeMatcher
 @dataclass(frozen=True)
 class CircleCITriggerNodeProperties(CartographyNodeProperties):
     id: PropertyRef = PropertyRef("id", description="CircleCI trigger ID.")
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last update.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
     event_name: PropertyRef = PropertyRef(
         "event_name", extra_index=True, description="Event that activates the trigger."
     )

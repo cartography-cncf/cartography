@@ -44,11 +44,7 @@ class GCPServiceAccountNodeProperties(CartographyNodeProperties):
         "disabled",
         description="A boolean indicating if the service account is disabled.",
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="The timestamp of the last update.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
     project_id: PropertyRef = PropertyRef(
         "projectId",
         set_in_kwargs=True,
@@ -58,11 +54,7 @@ class GCPServiceAccountNodeProperties(CartographyNodeProperties):
 
 @dataclass(frozen=True)
 class GCPIAMToProjectRelProperties(CartographyRelProperties):
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last sync that observed this data.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
@@ -131,11 +123,7 @@ class GCPOrgRoleNodeProperties(CartographyNodeProperties):
         "scope",
         description="The scope of the role: `GLOBAL` (predefined/basic), `ORGANIZATION` (custom org), or `PROJECT` (custom project).",
     )  # GLOBAL or ORGANIZATION
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="The timestamp of the last update.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
     organization_id: PropertyRef = PropertyRef(
         "organizationId",
         set_in_kwargs=True,
@@ -145,11 +133,7 @@ class GCPOrgRoleNodeProperties(CartographyNodeProperties):
 
 @dataclass(frozen=True)
 class GCPOrgRoleToOrganizationRelProperties(CartographyRelProperties):
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last sync that observed this data.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
@@ -220,11 +204,7 @@ class GCPProjectRoleNodeProperties(CartographyNodeProperties):
         "scope",
         description="The scope of the role: `GLOBAL` (predefined/basic), `ORGANIZATION` (custom org), or `PROJECT` (custom project).",
     )  # Always PROJECT
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="The timestamp of the last update.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
     project_id: PropertyRef = PropertyRef(
         "projectId",
         set_in_kwargs=True,
@@ -234,11 +214,7 @@ class GCPProjectRoleNodeProperties(CartographyNodeProperties):
 
 @dataclass(frozen=True)
 class GCPProjectRoleToProjectRelProperties(CartographyRelProperties):
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last sync that observed this data.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)

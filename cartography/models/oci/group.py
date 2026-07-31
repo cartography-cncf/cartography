@@ -19,11 +19,7 @@ class OCIGroupNodeProperties(CartographyNodeProperties):
     ocid: PropertyRef = PropertyRef(
         "id", extra_index=True, description="OCI group OCID."
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last update.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
     name: PropertyRef = PropertyRef("name", description="Group name.")
     description: PropertyRef = PropertyRef(
         "description", description="Group description."

@@ -19,11 +19,7 @@ class DatabricksNotebookNodeProperties(CartographyNodeProperties):
     path: PropertyRef = PropertyRef(
         "path", extra_index=True, description="Workspace path of the notebook."
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last ingestion update.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)

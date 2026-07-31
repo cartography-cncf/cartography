@@ -20,11 +20,7 @@ class EC2Ipv6AddressNodeProperties(CartographyNodeProperties):
         "Ipv6Address",
         description="Same as `ipv6_address` \u2014 the IPv6 address string",
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last time the node was updated",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
     region: PropertyRef = PropertyRef(
         "Region", set_in_kwargs=True, description="The AWS region"
     )
@@ -81,6 +77,8 @@ class EC2Ipv6AddressToNetworkInterfaceRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class EC2Ipv6AddressSchema(CartographyNodeSchema):
+    """Representation of an IPv6 address assigned to an EC2 network interface. Each `AWSEC2Ipv6Address` node corresponds to one entry in `NetworkInterfaces[].Ipv6Addresses[]` from the AWS [DescribeInstances](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_DescribeInstances.html) API."""
+
     label: str = "AWSEC2Ipv6Address"
     # The Ip extra label allows AWSDNSRecord AAAA records to reach this node
     # via the existing DNS_POINTS_TO -> Ip relationship, matching on id (the IPv6 address).

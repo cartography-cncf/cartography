@@ -38,9 +38,7 @@ class ScalewayVpcProperties(CartographyNodeProperties):
     updated_at: PropertyRef = PropertyRef(
         "updated_at", description="VPC last update date."
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated", set_in_kwargs=True, description="Timestamp of the last update"
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)

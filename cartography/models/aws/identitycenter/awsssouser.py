@@ -30,11 +30,7 @@ class AWSSSOUserProperties(CartographyNodeProperties):
     region: PropertyRef = PropertyRef(
         "Region", set_in_kwargs=True, description="The AWS region"
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last time the node was updated",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
@@ -154,6 +150,8 @@ class AWSSSOUserToPermissionSetHasRoleRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class AWSSSOUserSchema(CartographyNodeSchema):
+    """Representation of an AWS SSO User."""
+
     label: str = "AWSSSOUser"
     properties: AWSSSOUserProperties = AWSSSOUserProperties()
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(

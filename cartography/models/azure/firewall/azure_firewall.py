@@ -18,11 +18,7 @@ class AzureFirewallProperties(CartographyNodeProperties):
     id: PropertyRef = PropertyRef(
         "id", description="Azure resource ID of the firewall."
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last ingestion update.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
     name: PropertyRef = PropertyRef("name", description="Name of the firewall.")
     location: PropertyRef = PropertyRef(
         "location", description="Azure region containing the firewall."

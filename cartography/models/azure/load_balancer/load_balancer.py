@@ -27,11 +27,7 @@ class AzureLoadBalancerProperties(CartographyNodeProperties):
     sku_name: PropertyRef = PropertyRef(
         "sku_name", description="Name of the load balancer SKU."
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last ingestion update.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)

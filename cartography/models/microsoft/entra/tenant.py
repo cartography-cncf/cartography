@@ -57,11 +57,7 @@ class EntraTenantNodeProperties(CartographyNodeProperties):
     tenant_type: PropertyRef = PropertyRef(
         "tenant_type", description="Microsoft directory tenant type."
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the latest Cartography update.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)

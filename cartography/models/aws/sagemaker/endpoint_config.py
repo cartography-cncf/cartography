@@ -39,11 +39,7 @@ class AWSSageMakerEndpointConfigNodeProperties(CartographyNodeProperties):
         set_in_kwargs=True,
         description="The AWS region where the Endpoint Config exists",
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last time the node was updated",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
@@ -84,6 +80,8 @@ class AWSSageMakerEndpointConfigToModelRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class AWSSageMakerEndpointConfigSchema(CartographyNodeSchema):
+    """Represents an [AWS SageMaker Endpoint Configuration](https://docs.aws.amazon.com/sagemaker/latest/APIReference/API_DescribeEndpointConfig.html). An Endpoint Config specifies the ML compute instances and model variants for deploying models. Allows for a model to provide a prediction to a request in real time."""
+
     label: str = "AWSSageMakerEndpointConfig"
     properties: AWSSageMakerEndpointConfigNodeProperties = (
         AWSSageMakerEndpointConfigNodeProperties()

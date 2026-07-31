@@ -27,11 +27,7 @@ class ECRImageBaseNodeProperties(CartographyNodeProperties):
     region: PropertyRef = PropertyRef(
         "Region", set_in_kwargs=True, description="The AWS region"
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last time the node was updated",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
     type: PropertyRef = PropertyRef(
         "type",
         extra_index=True,
@@ -82,11 +78,7 @@ class ECRImageNodeProperties(CartographyNodeProperties):
     region: PropertyRef = PropertyRef(
         "Region", set_in_kwargs=True, description="The AWS region"
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last time the node was updated",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
     layer_diff_ids: PropertyRef = PropertyRef(
         "layer_diff_ids",
         description='Ordered list of image layer digests for this image. Only set for `type="image"` nodes. `null` for manifest lists and attestations.',
@@ -273,7 +265,10 @@ class ECRImageAttestsRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class ECRImageBaseSchema(CartographyNodeSchema):
-    "Represents an image, manifest list, or attestation artifact stored in Amazon ECR."
+    """Representation of an ECR image identified by its digest (e.g. a SHA hash). Specifically, this is the "digest part" of [`ecr.list_images()`](https://docs.aws.amazon.com/AmazonECR/latest/APIReference/API_ImageIdentifier.html). Also see AWSECRRepositoryImage.
+
+    For multi-architecture images, Cartography creates AWSECRImage nodes for the manifest list, each platform-specific image, and any attestations.
+    """
 
     # Implementation note:
     # Schema used by the basic ECR module (ecr.py) to load image metadata from
@@ -305,7 +300,10 @@ class ECRImageBaseSchema(CartographyNodeSchema):
 
 @dataclass(frozen=True)
 class ECRImageSchema(CartographyNodeSchema):
-    "Represents an image, manifest list, or attestation artifact stored in Amazon ECR."
+    """Representation of an ECR image identified by its digest (e.g. a SHA hash). Specifically, this is the "digest part" of [`ecr.list_images()`](https://docs.aws.amazon.com/AmazonECR/latest/APIReference/API_ImageIdentifier.html). Also see AWSECRRepositoryImage.
+
+    For multi-architecture images, Cartography creates AWSECRImage nodes for the manifest list, each platform-specific image, and any attestations.
+    """
 
     # Implementation note:
     # Full schema used by ecr_image_layers to enrich AWSECRImage nodes with layer and
@@ -338,7 +336,10 @@ class ECRImageSchema(CartographyNodeSchema):
 
 @dataclass(frozen=True)
 class ECRImageLayerEnrichmentSchema(CartographyNodeSchema):
-    "Represents an image, manifest list, or attestation artifact stored in Amazon ECR."
+    """Representation of an ECR image identified by its digest (e.g. a SHA hash). Specifically, this is the "digest part" of [`ecr.list_images()`](https://docs.aws.amazon.com/AmazonECR/latest/APIReference/API_ImageIdentifier.html). Also see AWSECRRepositoryImage.
+
+    For multi-architecture images, Cartography creates AWSECRImage nodes for the manifest list, each platform-specific image, and any attestations.
+    """
 
     # Implementation note:
     # Load AWSECRImage layer/provenance properties without fan-out HAS_LAYER edges.
@@ -370,16 +371,15 @@ class ECRImageHasLayerRelLoadProperties(CartographyNodeProperties):
     digest: PropertyRef = PropertyRef(
         "imageDigest", description="The hash of this ECR image"
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last time the node was updated",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
 class ECRImageHasLayerRelSchema(CartographyNodeSchema):
-    "Represents an image, manifest list, or attestation artifact stored in Amazon ECR."
+    """Representation of an ECR image identified by its digest (e.g. a SHA hash). Specifically, this is the "digest part" of [`ecr.list_images()`](https://docs.aws.amazon.com/AmazonECR/latest/APIReference/API_ImageIdentifier.html). Also see AWSECRRepositoryImage.
+
+    For multi-architecture images, Cartography creates AWSECRImage nodes for the manifest list, each platform-specific image, and any attestations.
+    """
 
     # Implementation note:
     # Load bounded HAS_LAYER relationship rows without reloading image metadata.

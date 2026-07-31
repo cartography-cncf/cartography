@@ -64,9 +64,7 @@ class ScalewayLoadBalancerProperties(CartographyNodeProperties):
     updated_at: PropertyRef = PropertyRef(
         "updated_at", description="Load Balancer last update date."
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated", set_in_kwargs=True, description="Timestamp of the last update"
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
@@ -132,9 +130,7 @@ class ScalewayLBFrontendProperties(CartographyNodeProperties):
     updated_at: PropertyRef = PropertyRef(
         "updated_at", description="Frontend last update date."
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated", set_in_kwargs=True, description="Timestamp of the last update"
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
@@ -272,9 +268,7 @@ class ScalewayLBBackendProperties(CartographyNodeProperties):
     updated_at: PropertyRef = PropertyRef(
         "updated_at", description="Backend last update date."
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated", set_in_kwargs=True, description="Timestamp of the last update"
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)

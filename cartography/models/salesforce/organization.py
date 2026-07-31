@@ -36,11 +36,7 @@ class SalesforceOrganizationNodeProperties(CartographyNodeProperties):
     created_date: PropertyRef = PropertyRef(
         "CreatedDate", description="Organization creation timestamp."
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last update.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)

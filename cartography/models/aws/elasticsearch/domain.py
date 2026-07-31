@@ -29,11 +29,7 @@ class ESDomainNodeProperties(CartographyNodeProperties):
         extra_index=True,
         description="Amazon Resource Name (ARN) of this `AWSESDomain` node.",
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last sync that updated this `AWSESDomain` node.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
     deleted: PropertyRef = PropertyRef(
         "Deleted", description="Whether this `AWSESDomain` node is marked as deleted."
     )
@@ -196,7 +192,7 @@ class ESDomainToEC2SecurityGroupRel(CartographyRelSchema):
 @dataclass(frozen=True)
 class ESDomainSchema(CartographyNodeSchema):
     """
-    Elasticsearch domain schema.
+    Representation of an AWS [ElasticSearch Domain](https://docs.aws.amazon.com/elasticsearch-service/latest/developerguide/es-configuration-api.html#es-configuration-api-datatypes) (see ElasticsearchDomainConfig).
 
     For domains with multiple subnets or security groups, the data should be
     flattened so each combination is a separate row.

@@ -38,11 +38,7 @@ class AzureLogicAppProperties(CartographyNodeProperties):
     access_endpoint: PropertyRef = PropertyRef(
         "accessEndpoint", description="Access endpoint for the workflow."
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last sync that observed this workflow.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 # --- Relationship Definitions ---

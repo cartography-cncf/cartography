@@ -29,11 +29,7 @@ class OpenAIApiKeyNodeProperties(CartographyNodeProperties):
         description="Unix timestamp when the API key was last used.",
     )
     id: PropertyRef = PropertyRef("id", description="OpenAI API key ID.")
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last update.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)

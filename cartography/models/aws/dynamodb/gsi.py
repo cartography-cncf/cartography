@@ -28,11 +28,7 @@ class DynamoDBGSINodeProperties(CartographyNodeProperties):
     region: PropertyRef = PropertyRef(
         "Region", set_in_kwargs=True, description="The AWS region"
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last time the node was updated",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
     provisioned_throughput_read_capacity_units: PropertyRef = PropertyRef(
         "ProvisionedThroughputReadCapacityUnits",
         description="The maximum number of read capacity units for the global secondary index",
@@ -83,6 +79,8 @@ class DynamoDBGSIToDynamoDBTableRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class DynamoDBGSISchema(CartographyNodeSchema):
+    """Representation of a DynamoDB [Global Secondary Index](https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_GlobalSecondaryIndexDescription.html)."""
+
     label: str = "AWSDynamoDBGlobalSecondaryIndex"
     # DEPRECATED: legacy DynamoDBGlobalSecondaryIndex node label will be removed in v1.0.0.
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(

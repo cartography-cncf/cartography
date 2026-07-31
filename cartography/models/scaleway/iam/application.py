@@ -38,9 +38,7 @@ class ScalewayApplicationNodeProperties(CartographyNodeProperties):
     tags: PropertyRef = PropertyRef(
         "tags", description="Tags associated with the application."
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated", set_in_kwargs=True, description="Timestamp of the last update"
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)

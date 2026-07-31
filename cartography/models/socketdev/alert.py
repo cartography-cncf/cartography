@@ -20,11 +20,7 @@ class SocketDevAlertNodeProperties(CartographyNodeProperties):
         "id",
         description="Unique Socket.dev alert identifier.",
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last time the node was updated.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
     key: PropertyRef = PropertyRef(
         "key",
         description="Alert deduplication key.",

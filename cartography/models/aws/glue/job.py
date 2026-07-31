@@ -39,11 +39,7 @@ class GlueJobNodeProperties(CartographyNodeProperties):
     description: PropertyRef = PropertyRef(
         "Description", description="The description of the job"
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last time the node was updated",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
@@ -82,6 +78,8 @@ class GlueJobToGlueConnectionRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class GlueJobSchema(CartographyNodeSchema):
+    """Representation of an AWS [Glue Job](https://docs.aws.amazon.com/glue/latest/webapi/API_GetJobs.html)"""
+
     label: str = "AWSGlueJob"
     # DEPRECATED: legacy GlueJob node label will be removed in v1.0.0.
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([LEGACY_GLUE_JOB])

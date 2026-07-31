@@ -30,11 +30,7 @@ class AzureKeyVaultKeyProperties(CartographyNodeProperties):
     updated_on: PropertyRef = PropertyRef(
         "updated_on", description="Timestamp when the key was last updated."
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last sync that observed this key.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 # --- Relationship Definitions ---

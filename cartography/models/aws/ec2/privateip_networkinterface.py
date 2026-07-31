@@ -22,11 +22,7 @@ class EC2PrivateIpNetworkInterfaceNodeProperties(CartographyNodeProperties):
     id: PropertyRef = PropertyRef(
         "Id", description="Unique identifier for the private IP"
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last time the node was updated",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
     network_interface_id: PropertyRef = PropertyRef(
         "NetworkInterfaceId",
         description="id of the network interface with which the IP is associated with",
@@ -86,9 +82,7 @@ class EC2PrivateIpToNetworkInterfaceRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class EC2PrivateIpNetworkInterfaceSchema(CartographyNodeSchema):
-    """
-    PrivateIp as known by a Network Interface
-    """
+    """Representation of an AWS EC2 [InstancePrivateIpAddress](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_InstancePrivateIpAddress.html)"""
 
     label: str = "AWSEC2PrivateIp"
     # DEPRECATED: legacy EC2PrivateIp node label will be removed in v1.0.0.

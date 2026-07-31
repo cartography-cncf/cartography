@@ -46,11 +46,7 @@ class DatabricksAccountUserNodeProperties(CartographyNodeProperties):
         "active",
         description="Whether the user is active.",
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last time the node was updated.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)

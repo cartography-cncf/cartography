@@ -63,9 +63,7 @@ class ScalewaySecretProperties(CartographyNodeProperties):
     updated_at: PropertyRef = PropertyRef(
         "updated_at", description="Secret last update date."
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated", set_in_kwargs=True, description="Timestamp of the last update"
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
@@ -158,9 +156,7 @@ class ScalewaySecretVersionProperties(CartographyNodeProperties):
     updated_at: PropertyRef = PropertyRef(
         "updated_at", description="Version last update date."
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated", set_in_kwargs=True, description="Timestamp of the last update"
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)

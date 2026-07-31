@@ -69,11 +69,7 @@ class AWSLambdaEventSourceMappingNodeProperties(CartographyNodeProperties):
     functionarn: PropertyRef = PropertyRef(
         "FunctionArn", description="The ARN of the Lambda function"
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last time the node was updated",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 # (:AWSLambda)-[:RESOURCE]->(:AWSLambdaEventSourceMapping)
@@ -117,6 +113,8 @@ class AWSLambdaEventSourceMappingToAWSAccountRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class AWSLambdaEventSourceMappingSchema(CartographyNodeSchema):
+    """Representation of an [AWSLambdaEventSourceMapping](https://docs.aws.amazon.com/lambda/latest/dg/API_ListEventSourceMappings.html)."""
+
     label: str = "AWSLambdaEventSourceMapping"
     properties: AWSLambdaEventSourceMappingNodeProperties = (
         AWSLambdaEventSourceMappingNodeProperties()

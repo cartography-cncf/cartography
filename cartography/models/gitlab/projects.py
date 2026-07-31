@@ -86,11 +86,7 @@ class GitLabProjectNodeProperties(CartographyNodeProperties):
         extra_index=True,
         description="JSON object mapping detected programming languages to percentages.",
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last time the node was updated.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)

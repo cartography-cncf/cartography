@@ -46,11 +46,7 @@ class CloudflareDNSRecordNodeProperties(CartographyNodeProperties):
         "proxiable",
         description="Whether Cloudflare can proxy the record.",
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last update.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)

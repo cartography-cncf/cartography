@@ -62,20 +62,12 @@ class GCPVertexAIWorkbenchInstanceNodeProperties(CartographyNodeProperties):
         "service_account",
         description="Service account identity configured for this Vertex AI resource.",
     )  # From gceSetup.serviceAccounts
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last time the node was updated.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
 class GCPVertexAIWorkbenchInstanceToProjectRelProperties(CartographyRelProperties):
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last sync that observed this data.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
@@ -96,11 +88,7 @@ class GCPVertexAIWorkbenchInstanceToProjectRel(CartographyRelSchema):
 class GCPVertexAIWorkbenchInstanceToServiceAccountRelProperties(
     CartographyRelProperties
 ):
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last sync that observed this data.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)

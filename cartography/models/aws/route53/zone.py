@@ -31,11 +31,7 @@ class AWSDNSZoneNodeProperties(CartographyNodeProperties):
         "privatezone",
         description="Whether the hosted zone is private and associated with one or more VPCs.",
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last sync that updated this `AWSDNSZone` node.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
@@ -58,6 +54,8 @@ class AWSDNSZoneToAWSAccountRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class AWSDNSZoneSchema(CartographyNodeSchema):
+    """Representation of an AWS DNS [HostedZone](https://docs.aws.amazon.com/Route53/latest/APIReference/API_HostedZone.html)."""
+
     label: str = "AWSDNSZone"
     properties: AWSDNSZoneNodeProperties = AWSDNSZoneNodeProperties()
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([DNS_ZONE])

@@ -30,11 +30,7 @@ class AzureLoadBalancerInboundNatRuleProperties(CartographyNodeProperties):
         "backend_port",
         description="Backend port to which inbound traffic is forwarded.",
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last ingestion update.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)

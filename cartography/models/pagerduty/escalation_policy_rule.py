@@ -14,9 +14,7 @@ from cartography.models.core.relationships import TargetNodeMatcher
 @dataclass(frozen=True)
 class PagerDutyEscalationPolicyRuleProperties(CartographyNodeProperties):
     id: PropertyRef = PropertyRef("id", description="Escalation policy rule ID.")
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated", set_in_kwargs=True, description="Timestamp of the last update."
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
     escalation_delay_in_minutes: PropertyRef = PropertyRef(
         "escalation_delay_in_minutes",
         extra_index=True,

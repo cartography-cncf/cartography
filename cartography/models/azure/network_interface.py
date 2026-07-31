@@ -32,11 +32,7 @@ class AzureNetworkInterfaceProperties(CartographyNodeProperties):
         "private_ip_addresses",
         description="Private IP addresses assigned through interface IP configurations.",
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last sync that observed this network interface.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)

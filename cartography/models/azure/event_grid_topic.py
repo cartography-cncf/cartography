@@ -31,11 +31,7 @@ class AzureEventGridTopicProperties(CartographyNodeProperties):
         "publicNetworkAccess",
         description="Configured public network access state for the topic.",
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last sync that observed this topic.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 # --- Relationship Definitions ---

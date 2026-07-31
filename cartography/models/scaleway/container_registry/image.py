@@ -27,9 +27,7 @@ class ScalewayContainerRegistryImageProperties(CartographyNodeProperties):
     digest: PropertyRef = PropertyRef(
         "digest", extra_index=True, description="Image digest (sha256)."
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated", set_in_kwargs=True, description="Timestamp of the last update"
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
@@ -65,9 +63,7 @@ class ScalewayContainerRegistryImageEnrichmentProperties(CartographyNodeProperti
     source_file: PropertyRef = PropertyRef(
         "source_file", description="Dockerfile path within the source repository."
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated", set_in_kwargs=True, description="Timestamp of the last update"
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)

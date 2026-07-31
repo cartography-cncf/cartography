@@ -30,11 +30,7 @@ class AzureLoadBalancerFrontendIPProperties(CartographyNodeProperties):
         "public_ip_address_id",
         description="Azure resource ID of the associated public IP address.",
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last ingestion update.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)

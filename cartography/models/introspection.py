@@ -37,6 +37,7 @@ from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import OtherRelationships
 from cartography.models.gcp.resource_catalog import GCP_POLICY_BINDING_TARGET_LABELS
+from cartography.models.github.repos import GITHUB_COLLABORATOR_REL_LABELS
 from cartography.models.ontology.constraints import ONTOLOGY_REL_CONSTRAINTS
 from cartography.models.ontology.mapping import ONTOLOGY_MODELS
 from cartography.models.ontology.mapping import ONTOLOGY_NODES_MAPPING
@@ -731,6 +732,23 @@ def iter_relationship_catalog() -> Iterator[RelationshipCatalogDefinition]:
         )
         for target_label in GCP_POLICY_BINDING_TARGET_LABELS
     )
+    definitions.extend(
+        RelationshipCatalogDefinition(
+            module="github",
+            source_label="GitHubUser",
+            target_label="GitHubRepository",
+            relationship_name=rel_label,
+            description=(
+                f"Grants `{permission}` permission on the repository to a "
+                f"collaborator with `{affiliation}` affiliation."
+            ),
+            properties=("firstseen", "lastupdated"),
+            catalog_path=(
+                "cartography.models.github.repos.GITHUB_COLLABORATOR_REL_LABELS"
+            ),
+        )
+        for affiliation, permission, rel_label in GITHUB_COLLABORATOR_REL_LABELS
+    )
     # Several catalog entries can describe the same edge: AWS lists application and
     # network load balancers separately though both are AWSLoadBalancerV2 nodes.
     deduplicated = {
@@ -1181,8 +1199,7 @@ def _build_ontology_semantic_labels(
     nodes: tuple[Node, ...],
 ) -> tuple[OntologySemanticLabel, ...]:
     """Aggregate semantic labels and normalized fields across provider mappings."""
-    known_node_labels = {node.label for node in nodes}
-    nodes_by_extra_label: dict[str, set[str]] = {}
+    nodes_by_label: dict[str, set[str]] = {}
     descriptions_by_label: dict[str, set[str]] = {}
     for node in nodes:
         for definition in node.label_definitions:
@@ -1191,11 +1208,14 @@ def _build_ontology_semantic_labels(
                     definition.description
                 )
         for label in (
+            # A node whose primary label is the semantic label carries it too, which is
+            # how the canonical ontology nodes (CVE, Package, ...) list themselves.
+            node.label,
             *node.extra_labels,
             *node.ontology_labels,
             *(conditional.label for conditional in node.conditional_labels),
         ):
-            nodes_by_extra_label.setdefault(label, set()).add(node.label)
+            nodes_by_label.setdefault(label, set()).add(node.label)
 
     semantic_labels: list[OntologySemanticLabel] = []
     for mapping_group, label in sorted(SEMANTIC_LABELS_BY_MAPPING_GROUP.items()):
@@ -1207,11 +1227,13 @@ def _build_ontology_semantic_labels(
             ontology=True,
             description=_ONT_SOURCE_DESCRIPTION,
         )
-        concrete_node_labels = set(nodes_by_extra_label.get(label, set()))
+        # Being mapped into a group is not proof of carrying its semantic label: only
+        # the labels a node declares are. Legacy modules that set labels in raw Cypher
+        # instead of declaring a node schema are therefore absent here, and document
+        # their ontology labels on their hand-written schema page.
+        concrete_node_labels = set(nodes_by_label.get(label, set()))
         for ontology_mapping in SEMANTIC_LABELS_MAPPING[mapping_group].values():
             for node_mapping in ontology_mapping.nodes:
-                if node_mapping.node_label in known_node_labels:
-                    concrete_node_labels.add(node_mapping.node_label)
                 for field_mapping in node_mapping.fields:
                     property_name = f"_ont_{field_mapping.ontology_field}"
                     readable_name = field_mapping.ontology_field.replace("_", " ")
@@ -1245,9 +1267,7 @@ def _build_ontology_semantic_labels(
                 mapping_group=None,
                 descriptions=tuple(sorted(descriptions_by_label.get(label, set()))),
                 properties=(),
-                concrete_node_labels=tuple(
-                    sorted(nodes_by_extra_label.get(label, set()))
-                ),
+                concrete_node_labels=tuple(sorted(nodes_by_label.get(label, set()))),
             )
         )
     return tuple(

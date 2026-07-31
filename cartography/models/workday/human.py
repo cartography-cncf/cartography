@@ -16,11 +16,7 @@ from cartography.models.workday.extra_labels import HUMAN
 @dataclass(frozen=True)
 class WorkdayHumanNodeProperties(CartographyNodeProperties):
     id: PropertyRef = PropertyRef("Employee_ID", description="Employee ID.")
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last update.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
     employee_id: PropertyRef = PropertyRef(
         "Employee_ID",
         extra_index=True,

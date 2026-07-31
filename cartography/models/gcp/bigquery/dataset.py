@@ -17,11 +17,7 @@ class GCPBigQueryDatasetProperties(CartographyNodeProperties):
     id: PropertyRef = PropertyRef(
         "id", description="Stable identifier for this resource."
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last time the node was updated.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
     dataset_id: PropertyRef = PropertyRef(
         "dataset_id", description="The short dataset ID."
     )
@@ -60,11 +56,7 @@ class GCPBigQueryDatasetProperties(CartographyNodeProperties):
 
 @dataclass(frozen=True)
 class ProjectToDatasetRelProperties(CartographyRelProperties):
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last sync that observed this data.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)

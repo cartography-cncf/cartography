@@ -81,11 +81,7 @@ class EfsFileSystemNodeProperties(CartographyNodeProperties):
         "FileSystemProtection",
         description="Describes the protection on the file system",
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last time the node was updated",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
@@ -129,6 +125,8 @@ class EfsFileSystemToKMSKeyRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class EfsFileSystemSchema(CartographyNodeSchema):
+    """Representation of an AWS [EFS File System](https://docs.aws.amazon.com/efs/latest/ug/API_FileSystemDescription.html)"""
+
     label: str = "AWSEfsFileSystem"
     properties: EfsFileSystemNodeProperties = EfsFileSystemNodeProperties()
     # DEPRECATED: legacy EfsFileSystem node label will be removed in v1.0.0.

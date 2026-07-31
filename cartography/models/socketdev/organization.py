@@ -13,11 +13,7 @@ class SocketDevOrganizationNodeProperties(CartographyNodeProperties):
         "id",
         description="Unique Socket.dev organization identifier.",
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last time the node was updated.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
     name: PropertyRef = PropertyRef(
         "name",
         description="Organization display name.",

@@ -46,11 +46,7 @@ class SpaceliftStackNodeProperties(CartographyNodeProperties):
     aws_role_arn: PropertyRef = PropertyRef(
         "aws_role_arn", description="ARN of the AWS IAM role assumed at runtime."
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last update.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)

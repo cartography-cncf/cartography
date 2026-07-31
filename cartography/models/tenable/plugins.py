@@ -13,11 +13,7 @@ from cartography.models.core.relationships import TargetNodeMatcher
 @dataclass(frozen=True)
 class TenablePluginNodeProperties(CartographyNodeProperties):
     id: PropertyRef = PropertyRef("id", description="Tenable plugin ID.")
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last time the node was updated.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
     name: PropertyRef = PropertyRef("name", description="Plugin name.")
     family: PropertyRef = PropertyRef("family", description="Plugin family name.")
     family_id: PropertyRef = PropertyRef("family_id", description="Plugin family ID.")

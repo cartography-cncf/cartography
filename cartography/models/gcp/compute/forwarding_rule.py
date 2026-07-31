@@ -20,11 +20,7 @@ class GCPForwardingRuleNodeProperties(CartographyNodeProperties):
         description="A partial resource URI representing this Forwarding Rule.",
     )
     partial_uri: PropertyRef = PropertyRef("partial_uri", description="Same as `id`.")
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last time the node was updated.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
     ip_address: PropertyRef = PropertyRef(
         "ip_address", description="IP address that this Forwarding Rule serves."
     )
@@ -74,11 +70,7 @@ class GCPForwardingRuleNodeProperties(CartographyNodeProperties):
 
 @dataclass(frozen=True)
 class GCPForwardingRuleToProjectRelProperties(CartographyRelProperties):
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last sync that observed this data.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
@@ -98,11 +90,7 @@ class GCPForwardingRuleToProjectRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class GCPForwardingRuleToSubnetRelProperties(CartographyRelProperties):
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last sync that observed this data.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
@@ -122,11 +110,7 @@ class GCPForwardingRuleToSubnetRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class GCPForwardingRuleToVpcRelProperties(CartographyRelProperties):
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last sync that observed this data.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)

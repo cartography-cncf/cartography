@@ -15,9 +15,7 @@ from cartography.models.core.relationships import TargetNodeMatcher
 class VercelFirewallBypassRuleNodeProperties(CartographyNodeProperties):
     # Note: Vercel's firewall bypass endpoint returns PascalCase field names.
     id: PropertyRef = PropertyRef("Id", description="Firewall bypass rule ID.")
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated", set_in_kwargs=True, description="Timestamp of the last update."
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
     domain: PropertyRef = PropertyRef(
         "Domain", description="Domain to which the bypass rule applies."
     )

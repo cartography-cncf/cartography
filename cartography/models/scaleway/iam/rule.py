@@ -25,9 +25,7 @@ class ScalewayRuleNodeProperties(CartographyNodeProperties):
         "permission_set_names",
         description="Names of the permission sets granted by this rule.",
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated", set_in_kwargs=True, description="Timestamp of the last update"
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)

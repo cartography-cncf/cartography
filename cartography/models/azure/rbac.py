@@ -77,11 +77,7 @@ class AzureRoleAssignmentProperties(CartographyNodeProperties):
         "delegatedManagedIdentityResourceId",
         description="Resource ID of the delegated managed identity associated with the assignment.",
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the latest Cartography update.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
     subscription_id: PropertyRef = PropertyRef(
         "subscription_id",
         description="Azure subscription ID associated with the role assignment.",
@@ -118,11 +114,7 @@ class AzureRoleDefinitionProperties(CartographyNodeProperties):
         "assignableScopes",
         description="Azure resource scopes where the role can be assigned.",
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the latest Cartography update.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
     subscription_id: PropertyRef = PropertyRef(
         "subscription_id",
         description="Azure subscription ID associated with the role definition.",
@@ -155,11 +147,7 @@ class AzureUnscopedRoleDefinitionProperties(CartographyNodeProperties):
         "assignableScopes",
         description="Azure resource scopes where the role can be assigned.",
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the latest Cartography update.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
@@ -184,11 +172,7 @@ class AzurePermissionsProperties(CartographyNodeProperties):
         "not_data_actions",
         description="Data plane operations excluded from the granted data actions.",
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the latest Cartography update.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
     subscription_id: PropertyRef = PropertyRef(
         "subscription_id",
         description="Azure subscription ID associated with the permission set.",
@@ -217,11 +201,7 @@ class AzureUnscopedPermissionsProperties(CartographyNodeProperties):
         "not_data_actions",
         description="Data plane operations excluded from the granted data actions.",
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the latest Cartography update.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 # Relationship Properties for standard relationships

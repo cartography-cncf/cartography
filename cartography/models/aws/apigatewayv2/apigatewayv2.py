@@ -42,11 +42,7 @@ class APIGatewayV2APINodeProperties(CartographyNodeProperties):
     region: PropertyRef = PropertyRef(
         "region", set_in_kwargs=True, description="The region where the API is created"
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last time the node was updated",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
@@ -70,6 +66,8 @@ class APIGatewayV2APIToAWSAccountRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class APIGatewayV2APISchema(CartographyNodeSchema):
+    """Representation of an AWS [API Gateway v2 API](https://docs.aws.amazon.com/apigatewayv2/latest/api-reference/apis.html#apisget)."""
+
     label: str = "AWSAPIGatewayV2API"
     # DEPRECATED: legacy APIGatewayV2API node label will be removed in v1.0.0.
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([LEGACY_API_GATEWAY_V2_API])

@@ -37,11 +37,7 @@ class AWSSageMakerEndpointNodeProperties(CartographyNodeProperties):
         set_in_kwargs=True,
         description="The AWS region where the Endpoint exists",
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last time the node was updated",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
@@ -82,6 +78,8 @@ class AWSSageMakerEndpointToEndpointConfigRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class AWSSageMakerEndpointSchema(CartographyNodeSchema):
+    """Represents an [AWS SageMaker Endpoint](https://docs.aws.amazon.com/sagemaker/latest/APIReference/API_DescribeEndpoint.html). An Endpoint provides a persistent HTTPS endpoint for real-time inference."""
+
     label: str = "AWSSageMakerEndpoint"
     properties: AWSSageMakerEndpointNodeProperties = (
         AWSSageMakerEndpointNodeProperties()

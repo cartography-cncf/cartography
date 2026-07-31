@@ -27,11 +27,7 @@ class AzureNetworkSecurityGroupProperties(CartographyNodeProperties):
         "location",
         description="Azure region where the network security group is deployed.",
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last sync that observed this network security group.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)

@@ -77,11 +77,7 @@ class CloudflareZoneNodeProperties(CartographyNodeProperties):
         "type",
         description="Zone type, such as full or partial.",
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last update.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)

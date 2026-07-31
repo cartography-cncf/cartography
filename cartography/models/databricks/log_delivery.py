@@ -48,11 +48,7 @@ class DatabricksLogDeliveryNodeProperties(CartographyNodeProperties):
         "delivery_path_prefix",
         description="Path prefix for delivered logs within the bucket.",
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last time the node was updated.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)

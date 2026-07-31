@@ -17,11 +17,7 @@ class CircleCIPipelineNodeProperties(CartographyNodeProperties):
     # A pipeline definition (the config/source binding). Pipeline runs are not
     # ingested - they are high-volume ephemeral telemetry, not inventory.
     id: PropertyRef = PropertyRef("id", description="CircleCI pipeline ID.")
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last update.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
     name: PropertyRef = PropertyRef(
         "name", extra_index=True, description="Pipeline name."
     )

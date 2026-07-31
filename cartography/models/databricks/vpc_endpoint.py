@@ -40,11 +40,7 @@ class DatabricksVpcEndpointNodeProperties(CartographyNodeProperties):
         extra_index=True,
         description="ID of the corresponding AWS VPC endpoint.",
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last time the node was updated.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)

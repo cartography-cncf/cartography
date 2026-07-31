@@ -25,11 +25,7 @@ class CognitoUserPoolNodeProperties(CartographyNodeProperties):
     )
     name: PropertyRef = PropertyRef("Name", description="Name of Cognito User Pool")
     status: PropertyRef = PropertyRef("Status", description="Status of User Pool")
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last time the node was updated",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
@@ -52,6 +48,8 @@ class CognitoUserPoolToAWSAccountRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class CognitoUserPoolSchema(CartographyNodeSchema):
+    """Representation of an AWS [Cognito User Pool](https://docs.aws.amazon.com/cognito-user-identity-pools/latest/APIReference/API_ListUserPools.html)"""
+
     label: str = "AWSCognitoUserPool"
     # DEPRECATED: legacy CognitoUserPool node label will be removed in v1.0.0.
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([LEGACY_COGNITO_USER_POOL])

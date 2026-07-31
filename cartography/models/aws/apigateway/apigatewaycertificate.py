@@ -26,11 +26,7 @@ class APIGatewayClientCertificateNodeProperties(CartographyNodeProperties):
         "expirationDate",
         description="The timestamp when the client certificate will expire",
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last time the node was updated",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
@@ -74,6 +70,8 @@ class APIGatewayClientCertificateToAWSAccountRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class APIGatewayClientCertificateSchema(CartographyNodeSchema):
+    """Representation of an AWS [API Gateway Client Certificate](https://docs.aws.amazon.com/apigateway/api-reference/resource/client-certificate/)."""
+
     label: str = "AWSAPIGatewayClientCertificate"
     # DEPRECATED: legacy APIGatewayClientCertificate node label will be removed in v1.0.0.
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(

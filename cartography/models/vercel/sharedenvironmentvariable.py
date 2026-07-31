@@ -13,9 +13,7 @@ from cartography.models.core.relationships import TargetNodeMatcher
 @dataclass(frozen=True)
 class VercelSharedEnvVarNodeProperties(CartographyNodeProperties):
     id: PropertyRef = PropertyRef("id", description="Shared environment variable ID.")
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated", set_in_kwargs=True, description="Timestamp of the last update."
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
     key: PropertyRef = PropertyRef(
         "key", extra_index=True, description="Shared environment variable name."
     )

@@ -30,11 +30,7 @@ class AzureSynapseDedicatedSqlPoolProperties(CartographyNodeProperties):
     sku: PropertyRef = PropertyRef(
         "sku", description="SKU name that defines the pool's service tier and capacity."
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last sync that observed this node.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)

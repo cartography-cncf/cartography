@@ -56,11 +56,7 @@ class CloudWatchLogGroupNodeProperties(CartographyNodeProperties):
     stored_bytes: PropertyRef = PropertyRef(
         "storedBytes", description="The number of bytes stored"
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last time the node was updated",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
@@ -83,6 +79,8 @@ class CloudWatchToAWSAccountRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class CloudWatchLogGroupSchema(CartographyNodeSchema):
+    """Representation of an AWS [CloudWatch Log Group](https://docs.aws.amazon.com/AmazonCloudWatchLogs/latest/APIReference/API_LogGroup.html)"""
+
     label: str = "AWSCloudWatchLogGroup"
     # DEPRECATED: legacy CloudWatchLogGroup node label will be removed in v1.0.0.
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([LEGACY_CLOUD_WATCH_LOG_GROUP])

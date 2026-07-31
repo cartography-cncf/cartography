@@ -25,11 +25,7 @@ class AWSFederatedPrincipalNodeProperties(CartographyNodeProperties):
     )
 
     # Automatic fields (set by cartography)
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last sync that updated this `AWSFederatedPrincipal` node.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
     # Business fields from AWS IAM federated principals
     type: PropertyRef = PropertyRef(
@@ -59,9 +55,7 @@ class AWSFederatedPrincipalToAWSAccountRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class AWSFederatedPrincipalSchema(CartographyNodeSchema):
-    """
-    E.g. "arn:aws:iam::123456789012:saml-provider/my-saml-provider".
-    """
+    """Representation of a federated principal e.g. "arn:aws:iam::123456789012:saml-provider/my-saml-provider". Federated principals are used for authentication to AWS using SAML or OpenID Connect. Federated principals are only discoverable from AWS role trust relationships."""
 
     label: str = "AWSFederatedPrincipal"
     properties: AWSFederatedPrincipalNodeProperties = (

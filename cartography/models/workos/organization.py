@@ -28,9 +28,7 @@ class WorkOSOrganizationNodeProperties(CartographyNodeProperties):
         "allow_profiles_outside_organization",
         description="Whether profiles outside the organization are allowed.",
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated", set_in_kwargs=True, description="Timestamp of the last update."
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)

@@ -50,11 +50,7 @@ class APIGatewayIntegrationNodeProperties(CartographyNodeProperties):
         "credentials",
         description="Specifies the credentials required for the integration, if any",
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last time the node was updated",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
@@ -98,6 +94,8 @@ class APIGatewayIntegrationToAWSAccountRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class APIGatewayIntegrationSchema(CartographyNodeSchema):
+    """Representation of an AWS [API Gateway Integration](https://docs.aws.amazon.com/apigateway/latest/api/API_GetIntegration.html)."""
+
     label: str = "AWSAPIGatewayIntegration"
     # DEPRECATED: legacy APIGatewayIntegration node label will be removed in v1.0.0.
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(

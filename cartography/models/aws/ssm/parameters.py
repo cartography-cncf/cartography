@@ -69,11 +69,7 @@ class SSMParameterNodeProperties(CartographyNodeProperties):
     region: PropertyRef = PropertyRef(
         "Region", set_in_kwargs=True, description="The region of the parameter."
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last time the node was updated",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
@@ -114,6 +110,8 @@ class SSMParameterToKMSKeyRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class SSMParameterSchema(CartographyNodeSchema):
+    """Representation of an AWS Systems Manager Parameter as returned by the [`describe_parameters` API](https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ssm/client/describe_parameters.html)."""
+
     label: str = "AWSSSMParameter"
     properties: SSMParameterNodeProperties = SSMParameterNodeProperties()
     # Only SecureString parameters are secrets (String/StringList are plaintext config).
@@ -137,6 +135,8 @@ class SSMParameterSchema(CartographyNodeSchema):
 
 @dataclass(frozen=True)
 class PublicSSMParameterSchema(CartographyNodeSchema):
+    """Representation of an AWS-managed public [Systems Manager Parameter Store parameter](https://docs.aws.amazon.com/systems-manager/latest/userguide/parameter-store-public-parameters.html). These parameters are shared regional catalog data and are not owned by an individual AWS Account."""
+
     label: str = "AWSPublicSSMParameter"
     properties: SSMParameterNodeProperties = SSMParameterNodeProperties()
     # AWS-managed public parameters are shared regional data, not account resources.

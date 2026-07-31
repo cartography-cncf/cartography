@@ -26,11 +26,7 @@ class GoogleWorkspaceGroupNodeProperties(CartographyNodeProperties):
     id: PropertyRef = PropertyRef(
         "name", description="Unique Cloud Identity resource name of the group."
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last update.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
     # Group identifiers and basic info
     email: PropertyRef = PropertyRef(

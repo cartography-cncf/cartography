@@ -76,11 +76,7 @@ class ECSContainerNodeProperties(CartographyNodeProperties):
     region: PropertyRef = PropertyRef(
         "Region", set_in_kwargs=True, description="The region of the container."
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last time the node was updated",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
@@ -224,6 +220,8 @@ class ECSContainerToGitHubContainerImageRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class ECSContainerSchema(CartographyNodeSchema):
+    """Representation of an AWS ECS [Container](https://docs.aws.amazon.com/AmazonECS/latest/APIReference/API_Container.html)"""
+
     label: str = "AWSECSContainer"
     # DEPRECATED: legacy ECSContainer node label will be removed in v1.0.0.
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(

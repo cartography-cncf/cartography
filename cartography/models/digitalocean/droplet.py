@@ -16,11 +16,7 @@ from cartography.models.ontology.labels import COMPUTE_INSTANCE
 @dataclass(frozen=True)
 class DODropletNodeProperties(CartographyNodeProperties):
     id: PropertyRef = PropertyRef("id", description="DigitalOcean Droplet ID.")
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last update.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
     name: PropertyRef = PropertyRef("name", description="Droplet name.")
     locked: PropertyRef = PropertyRef(
         "locked",

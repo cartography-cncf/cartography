@@ -26,11 +26,7 @@ class SSMInstanceInformationNodeProperties(CartographyNodeProperties):
         set_in_kwargs=True,
         description="The region of the instance information.",
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last time the node was updated",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
     ping_status: PropertyRef = PropertyRef(
         "PingStatus", description="Connection status of SSM Agent."
     )
@@ -142,6 +138,8 @@ class SSMInstanceInformationToEC2InstanceRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class SSMInstanceInformationSchema(CartographyNodeSchema):
+    """Representation of an AWS SSM [InstanceInformation](https://docs.aws.amazon.com/systems-manager/latest/APIReference/API_InstanceInformation.html)"""
+
     label: str = "AWSSSMInstanceInformation"
     # DEPRECATED: legacy SSMInstanceInformation node label will be removed in v1.0.0.
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(

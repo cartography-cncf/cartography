@@ -10,9 +10,7 @@ from cartography.models.ontology.labels import USER_ACCOUNT
 @dataclass(frozen=True)
 class PagerDutyUserProperties(CartographyNodeProperties):
     id: PropertyRef = PropertyRef("id", description="User ID.")
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated", set_in_kwargs=True, description="Timestamp of the last update."
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
     html_url: PropertyRef = PropertyRef(
         "html_url", description="PagerDuty web URL for the user."
     )

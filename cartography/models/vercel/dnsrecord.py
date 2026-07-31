@@ -16,9 +16,7 @@ from cartography.models.ontology.labels import DNS_RECORD
 @dataclass(frozen=True)
 class VercelDNSRecordNodeProperties(CartographyNodeProperties):
     id: PropertyRef = PropertyRef("id", description="DNS record ID.")
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated", set_in_kwargs=True, description="Timestamp of the last update."
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
     name: PropertyRef = PropertyRef(
         "name", extra_index=True, description="DNS record name."
     )

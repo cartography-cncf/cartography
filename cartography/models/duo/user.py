@@ -16,11 +16,7 @@ from cartography.models.ontology.labels import USER_ACCOUNT
 @dataclass(frozen=True)
 class DuoUserNodeProperties(CartographyNodeProperties):
     id: PropertyRef = PropertyRef("user_id", description="Duo user ID.")
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last update.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
     alias1: PropertyRef = PropertyRef("alias1", description="First username alias.")
     alias2: PropertyRef = PropertyRef("alias2", description="Second username alias.")
     alias3: PropertyRef = PropertyRef("alias3", description="Third username alias.")

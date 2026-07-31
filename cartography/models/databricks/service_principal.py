@@ -38,11 +38,7 @@ class DatabricksServicePrincipalNodeProperties(CartographyNodeProperties):
     active: PropertyRef = PropertyRef(
         "active", description="Whether the service principal is active."
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last ingestion update.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)

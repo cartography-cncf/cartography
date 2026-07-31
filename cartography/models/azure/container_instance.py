@@ -53,11 +53,7 @@ class AzureContainerInstanceNodeProperties(CartographyNodeProperties):
     memory_limit_gb: PropertyRef = PropertyRef(
         "memory_limit_gb", description="Maximum memory available in gigabytes."
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last sync that observed this container.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)

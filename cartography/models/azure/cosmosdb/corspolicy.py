@@ -17,11 +17,7 @@ class AzureCosmosDBCorsPolicyProperties(CartographyNodeProperties):
         "cors_policy_unique_id",
         description="Unique identifier assigned to the CORS policy.",
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last sync that observed this node.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
     allowedorigins: PropertyRef = PropertyRef(
         "allowed_origins",
         description="Origins permitted to make cross-origin requests.",

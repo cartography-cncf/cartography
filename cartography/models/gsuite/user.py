@@ -16,11 +16,7 @@ from cartography.models.ontology.labels import USER_ACCOUNT
 @dataclass(frozen=True)
 class GSuiteUserNodeProperties(CartographyNodeProperties):
     id: PropertyRef = PropertyRef("id", description="Unique GSuite user ID.")
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last update.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
     # User identifiers and basic info
     user_id: PropertyRef = PropertyRef(

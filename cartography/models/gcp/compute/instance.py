@@ -20,11 +20,7 @@ class GCPInstanceNodeProperties(CartographyNodeProperties):
         "partial_uri",
         description="The partial resource URI representing this instance. Has the form `projects/{project_name}/zones/{zone_name}/instances/{instance_name}`.",
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last time the node was updated.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
     self_link: PropertyRef = PropertyRef(
         "selfLink",
         description="The full resource URI representing this instance. Has the form `https://www.googleapis.com/compute/v1/{partial_uri}`.",
@@ -103,11 +99,7 @@ class GCPInstanceNodeProperties(CartographyNodeProperties):
 
 @dataclass(frozen=True)
 class GCPInstanceToProjectRelProperties(CartographyRelProperties):
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last sync that observed this data.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
@@ -125,11 +117,7 @@ class GCPInstanceToProjectRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class GCPInstanceToServiceAccountRelProperties(CartographyRelProperties):
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last sync that observed this data.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)

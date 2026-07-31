@@ -22,11 +22,7 @@ class AzureLoadBalancerBackendPoolProperties(CartographyNodeProperties):
     name: PropertyRef = PropertyRef(
         "name", description="Name of the load balancer backend pool."
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last ingestion update.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)

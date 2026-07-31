@@ -40,11 +40,7 @@ class LoadBalancerNodeProperties(CartographyNodeProperties):
     createdtime: PropertyRef = PropertyRef(
         "createdtime", description="The date and time the load balancer was created."
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last time the node was updated",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
@@ -121,6 +117,11 @@ class LoadBalancerToEC2InstanceRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class LoadBalancerSchema(CartographyNodeSchema):
+    """Represents a classic [AWS Elastic Load Balancer](https://docs.aws.amazon.com/elasticloadbalancing/2012-06-01/APIReference/API_LoadBalancerDescription.html).  See [spec for details](https://docs.aws.amazon.com/elasticloadbalancing/2012-06-01/APIReference/API_LoadBalancerDescription.html).
+
+    **Label rename:** in previous versions, classic ELB nodes used the label `LoadBalancer`. It was renamed to `AWSLoadBalancer` for consistency with other AWS resources, and existing nodes are relabeled automatically on upgrade.
+    """
+
     label: str = "AWSLoadBalancer"
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([LOAD_BALANCER])
     properties: LoadBalancerNodeProperties = LoadBalancerNodeProperties()

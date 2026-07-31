@@ -28,11 +28,7 @@ class DatabricksGitCredentialNodeProperties(CartographyNodeProperties):
         extra_index=True,
         description="Git user name associated with the credential.",
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last ingestion update.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)

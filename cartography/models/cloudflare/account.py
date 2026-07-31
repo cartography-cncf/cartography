@@ -31,11 +31,7 @@ class CloudflareAccountNodeProperties(CartographyNodeProperties):
         description="Deprecated setting for using account custom nameservers by default.",
     )
     id: PropertyRef = PropertyRef("id", description="Cloudflare account ID.")
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last update.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)

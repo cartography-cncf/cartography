@@ -89,11 +89,7 @@ class SQSQueueNodeProperties(CartographyNodeProperties):
         set_in_kwargs=True,
         description="AWS Region containing this `AWSSQSQueue` node.",
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last time the node was updated",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
@@ -132,6 +128,8 @@ class SQSQueueToDeadLetterQueueRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class SQSQueueSchema(CartographyNodeSchema):
+    """Representation of an AWS [SQS Queue](https://docs.aws.amazon.com/AWSSimpleQueueService/latest/APIReference/API_GetQueueAttributes.html)"""
+
     label: str = "AWSSQSQueue"
     # DEPRECATED: legacy SQSQueue node label will be removed in v1.0.0.
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([LEGACY_SQS_QUEUE])

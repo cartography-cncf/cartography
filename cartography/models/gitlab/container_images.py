@@ -103,11 +103,7 @@ class GitLabContainerImageNodeProperties(CartographyNodeProperties):
         "tail_layer_diff_id",
         description="Uncompressed digest of the final topmost layer.",
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last time the node was updated.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
@@ -323,11 +319,7 @@ class GitLabContainerImageProvenanceNodeProperties(CartographyNodeProperties):
         "parent_image_digest",
         description="Parent image digest extracted from image provenance.",
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last time the node was updated.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)

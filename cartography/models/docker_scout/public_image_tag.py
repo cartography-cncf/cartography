@@ -43,11 +43,7 @@ class DockerScoutPublicImageTagNodeProperties(CartographyNodeProperties):
         "is_slim",
         description="Whether the public image tag is a slim variant.",
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last time the node was updated.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)

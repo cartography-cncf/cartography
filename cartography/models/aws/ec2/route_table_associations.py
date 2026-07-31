@@ -49,11 +49,7 @@ class RouteTableAssociationNodeProperties(CartographyNodeProperties):
     region: PropertyRef = PropertyRef(
         "Region", set_in_kwargs=True, description="The AWS region the association is in"
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last time the node was updated",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
@@ -112,6 +108,8 @@ class RouteTableAssociationToIgwRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class RouteTableAssociationSchema(CartographyNodeSchema):
+    """Representation of an AWS [EC2 Route Table Association](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_RouteTableAssociation.html)."""
+
     label: str = "AWSEC2RouteTableAssociation"
     # DEPRECATED: legacy EC2RouteTableAssociation node label will be removed in v1.0.0.
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(

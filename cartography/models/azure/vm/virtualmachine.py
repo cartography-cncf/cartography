@@ -20,11 +20,7 @@ class AzureVirtualMachineProperties(CartographyNodeProperties):
     id: PropertyRef = PropertyRef(
         "id", description="Azure resource ID of the virtual machine."
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last sync that observed this node.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
     name: PropertyRef = PropertyRef("name", description="Name of the virtual machine.")
     location: PropertyRef = PropertyRef(
         "location", description="Azure region of the virtual machine."

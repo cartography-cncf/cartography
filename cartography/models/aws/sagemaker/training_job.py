@@ -85,11 +85,7 @@ class AWSSageMakerTrainingJobNodeProperties(CartographyNodeProperties):
         set_in_kwargs=True,
         description="The AWS region where the Training Job runs",
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last time the node was updated",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
@@ -168,6 +164,8 @@ class AWSSageMakerTrainingJobToS3BucketProducedModelRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class AWSSageMakerTrainingJobSchema(CartographyNodeSchema):
+    """Represents an [AWS SageMaker Training Job](https://docs.aws.amazon.com/sagemaker/latest/APIReference/API_DescribeTrainingJob.html). A Training Job trains ML models using specified algorithms and datasets."""
+
     label: str = "AWSSageMakerTrainingJob"
     properties: AWSSageMakerTrainingJobNodeProperties = (
         AWSSageMakerTrainingJobNodeProperties()

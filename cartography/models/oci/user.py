@@ -18,11 +18,7 @@ class OCIUserNodeProperties(CartographyNodeProperties):
     ocid: PropertyRef = PropertyRef(
         "id", extra_index=True, description="OCI user OCID."
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last update.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
     name: PropertyRef = PropertyRef("name", description="User name.")
     description: PropertyRef = PropertyRef(
         "description", description="User description."

@@ -88,11 +88,7 @@ class KubernetesPodNodeProperties(CartographyNodeProperties):
         extra_index=True,
         description="Set by analysis job. `true` if this pod is reachable from an internet-facing load balancer.",
     )  # Populated by the Kubernetes compute exposure analysis job.
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last time the pod was updated.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)

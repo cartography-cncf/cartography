@@ -16,11 +16,7 @@ class TailscaleServiceNodeProperties(CartographyNodeProperties):
     id: PropertyRef = PropertyRef(
         "id", description="Service ID in grant selector format (eg. `svc:web-server`)."
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last time the node was updated.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
     name: PropertyRef = PropertyRef(
         "name", description="The unique name of the service."
     )
@@ -43,11 +39,7 @@ class TailscaleServiceNodeProperties(CartographyNodeProperties):
 
 @dataclass(frozen=True)
 class TailscaleServiceToTailnetRelProperties(CartographyRelProperties):
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last Cartography update.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
@@ -68,11 +60,7 @@ class TailscaleServiceToTailnetRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class TailscaleServiceToTagRelProperties(CartographyRelProperties):
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last Cartography update.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)

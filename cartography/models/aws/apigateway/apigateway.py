@@ -36,11 +36,7 @@ class APIGatewayRestAPINodeProperties(CartographyNodeProperties):
         set_in_kwargs=True,
         description="The region where the REST API is created",
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last time the node was updated",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
     # Policy-level access: True if resource policy allows anonymous/public access
     anonymous_access: PropertyRef = PropertyRef(
         "anonymous_access",
@@ -85,6 +81,8 @@ class APIGatewayRestAPIToAWSAccountRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class APIGatewayRestAPISchema(CartographyNodeSchema):
+    """Representation of an AWS [API Gateway REST API](https://docs.aws.amazon.com/apigateway/latest/api/API_GetRestApis.html)."""
+
     label: str = "AWSAPIGatewayRestAPI"
     # DEPRECATED: legacy APIGatewayRestAPI node label will be removed in v1.0.0.
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([LEGACY_API_GATEWAY_REST_API])

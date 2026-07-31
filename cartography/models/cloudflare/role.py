@@ -20,11 +20,7 @@ class CloudflareRoleNodeProperties(CartographyNodeProperties):
     )
     name: PropertyRef = PropertyRef("name", description="Role name.")
     id: PropertyRef = PropertyRef("id", description="Role ID.")
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last update.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)

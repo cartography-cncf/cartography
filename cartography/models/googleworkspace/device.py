@@ -20,11 +20,7 @@ class GoogleWorkspaceDeviceNodeProperties(CartographyNodeProperties):
     id: PropertyRef = PropertyRef(
         "deviceId", description="Unique Google Workspace device ID."
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last update.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
     hostname: PropertyRef = PropertyRef(
         "hostname", extra_index=True, description="Hostname of the device."
     )

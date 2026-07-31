@@ -42,11 +42,7 @@ class SubImageFrameworkNodeProperties(CartographyNodeProperties):
         "rule_count",
         description="Number of rules in the framework.",
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last update.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)

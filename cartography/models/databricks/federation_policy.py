@@ -52,11 +52,7 @@ class DatabricksFederationPolicyNodeProperties(CartographyNodeProperties):
         "service_principal_id",
         description="SCIM ID for a service-principal-scoped policy.",
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last time the node was updated.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)

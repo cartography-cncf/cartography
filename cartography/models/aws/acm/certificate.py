@@ -49,11 +49,7 @@ class ACMCertificateNodeProperties(CartographyNodeProperties):
         set_in_kwargs=True,
         description="The AWS region where the certificate is located",
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last time the node was updated",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
@@ -94,6 +90,8 @@ class ACMCertificateToELBV2ListenerRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class ACMCertificateSchema(CartographyNodeSchema):
+    """Representation of an AWS [ACM Certificate](https://docs.aws.amazon.com/acm/latest/APIReference/API_CertificateDetail.html)."""
+
     label: str = "AWSACMCertificate"
     # DEPRECATED: legacy ACMCertificate node label will be removed in v1.0.0.
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(

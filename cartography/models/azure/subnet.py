@@ -28,11 +28,7 @@ class AzureSubnetProperties(CartographyNodeProperties):
         "address_prefix",
         description="IPv4 or IPv6 address prefix assigned to the subnet.",
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last sync that observed this subnet.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)

@@ -56,11 +56,7 @@ class ELBV2TargetGroupNodeProperties(CartographyNodeProperties):
         set_in_kwargs=True,
         description="AWS Region containing this `AWSELBV2TargetGroup` node.",
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last sync that updated this `AWSELBV2TargetGroup` node.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
@@ -101,6 +97,8 @@ class ELBV2TargetGroupToLoadBalancerV2Rel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class ELBV2TargetGroupSchema(CartographyNodeSchema):
+    """Representation of an AWS Elastic Load Balancing v2 [Target Group](https://docs.aws.amazon.com/elasticloadbalancing/latest/APIReference/API_TargetGroup.html)."""
+
     label: str = "AWSELBV2TargetGroup"
     # DEPRECATED: legacy ELBV2TargetGroup node label will be removed in v1.0.0.
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([LEGACY_ELBV2_TARGET_GROUP])
@@ -160,11 +158,7 @@ class LoadBalancerV2NodeProperties(CartographyNodeProperties):
     id: PropertyRef = PropertyRef(
         "DNSName", description="Currently set to the `dnsname` of the load balancer."
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last time the node was updated",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
     region: PropertyRef = PropertyRef(
         "Region", set_in_kwargs=True, description="The region of the load balancer"
     )
@@ -256,7 +250,10 @@ class LoadBalancerV2ToEC2SubnetRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class LoadBalancerV2Schema(CartographyNodeSchema):
-    """An AWS Application or Network Load Balancer that distributes traffic to targets."""
+    """An AWS Application or Network Load Balancer that distributes traffic to targets. See the [Application Load Balancer](https://docs.aws.amazon.com/elasticloadbalancing/latest/application/introduction.html) and [Network Load Balancer](https://docs.aws.amazon.com/elasticloadbalancing/latest/network/introduction.html) guides, and the [API reference](https://docs.aws.amazon.com/elasticloadbalancing/latest/APIReference/API_LoadBalancer.html).
+
+    **Label rename:** in previous versions, ALB/NLB nodes used the label `LoadBalancerV2`. It was renamed to `AWSLoadBalancerV2` for consistency with other AWS resources, and existing nodes are relabeled automatically on upgrade.
+    """
 
     label: str = "AWSLoadBalancerV2"
     properties: LoadBalancerV2NodeProperties = LoadBalancerV2NodeProperties()
@@ -387,11 +384,7 @@ class ELBV2ListenerNodeProperties(CartographyNodeProperties):
     id: PropertyRef = PropertyRef(
         "ListenerArn", description="Unique identifier for this `AWSELBV2Listener` node."
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last sync that updated this `AWSELBV2Listener` node.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
     port: PropertyRef = PropertyRef(
         "Port",
         description="Port on which the listener or target group receives traffic.",
@@ -467,9 +460,7 @@ class ELBV2ListenerToLoadBalancerV2Rel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class ELBV2ListenerSchema(CartographyNodeSchema):
-    """
-    AWSELBV2Listener schema for load balancer listeners.
-    """
+    """Representation of an AWS Elastic Load Balancer V2 [Listener](https://docs.aws.amazon.com/elasticloadbalancing/latest/APIReference/API_Listener.html)."""
 
     label: str = "AWSELBV2Listener"
     # DEPRECATED: legacy ELBV2Listener node label will be removed in v1.0.0.

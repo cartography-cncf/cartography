@@ -16,11 +16,7 @@ class CircleCICheckoutKeyNodeProperties(CartographyNodeProperties):
     id: PropertyRef = PropertyRef(
         "id", description="Synthesized CircleCI checkout key ID."
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last update.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
     fingerprint: PropertyRef = PropertyRef(
         "fingerprint", extra_index=True, description="Checkout key fingerprint."
     )

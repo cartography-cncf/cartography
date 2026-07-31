@@ -58,11 +58,7 @@ class AWSSageMakerModelNodeProperties(CartographyNodeProperties):
         set_in_kwargs=True,
         description="The AWS region where the Model exists",
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last time the node was updated",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
@@ -139,6 +135,8 @@ class AWSSageMakerModelToModelPackageRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class AWSSageMakerModelSchema(CartographyNodeSchema):
+    """Represents an [AWS SageMaker Model](https://docs.aws.amazon.com/sagemaker/latest/APIReference/API_DescribeModel.html). A Model contains the information needed to deploy ML models for inference."""
+
     label: str = "AWSSageMakerModel"
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([AI_MODEL])
     properties: AWSSageMakerModelNodeProperties = AWSSageMakerModelNodeProperties()

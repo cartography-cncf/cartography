@@ -40,11 +40,7 @@ class AzureKubernetesClusterProperties(CartographyNodeProperties):
         "api_server_public_access",
         description="Whether the Kubernetes API server is reachable from public networks.",
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last sync that observed this cluster.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 # --- Relationship Definitions ---

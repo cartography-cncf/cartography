@@ -45,11 +45,7 @@ class APIGatewayStageNodeProperties(CartographyNodeProperties):
     webaclarn: PropertyRef = PropertyRef(
         "webAclArn", description="The ARN of the WebAcl associated with the Stage"
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last time the node was updated",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
@@ -92,6 +88,8 @@ class APIGatewayStageToAWSAccountRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class APIGatewayStageSchema(CartographyNodeSchema):
+    """Representation of an AWS [API Gateway Stage](https://docs.aws.amazon.com/apigateway/latest/developerguide/set-up-stages.html)."""
+
     label: str = "AWSAPIGatewayStage"
     # DEPRECATED: legacy APIGatewayStage node label will be removed in v1.0.0.
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([LEGACY_API_GATEWAY_STAGE])

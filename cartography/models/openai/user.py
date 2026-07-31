@@ -33,11 +33,7 @@ class OpenAIUserNodeProperties(CartographyNodeProperties):
         "added_at",
         description="Unix timestamp when the user was added.",
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last update.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)

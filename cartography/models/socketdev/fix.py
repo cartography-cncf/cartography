@@ -19,11 +19,7 @@ class SocketDevFixNodeProperties(CartographyNodeProperties):
         "id",
         description="Unique Socket.dev fix identifier.",
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last time the node was updated.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
     purl: PropertyRef = PropertyRef(
         "purl",
         description="Package URL of the affected package.",

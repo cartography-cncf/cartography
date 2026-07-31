@@ -19,11 +19,7 @@ class GCPIpRuleNodeProperties(CartographyNodeProperties):
     id: PropertyRef = PropertyRef(
         "ruleid", description="Stable identifier for this resource."
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last time the node was updated.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
     protocol: PropertyRef = PropertyRef(
         "protocol", description="The protocol this rule applies to."
     )
@@ -37,11 +33,7 @@ class GCPIpRuleNodeProperties(CartographyNodeProperties):
 
 @dataclass(frozen=True)
 class GCPIpRuleToFirewallAllowedByRelProperties(CartographyRelProperties):
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last sync that observed this data.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
@@ -61,11 +53,7 @@ class GCPIpRuleToFirewallAllowedByRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class GCPIpRuleToFirewallDeniedByRelProperties(CartographyRelProperties):
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last sync that observed this data.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
@@ -85,11 +73,7 @@ class GCPIpRuleToFirewallDeniedByRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class GCPIpRuleToProjectRelProperties(CartographyRelProperties):
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last sync that observed this data.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)

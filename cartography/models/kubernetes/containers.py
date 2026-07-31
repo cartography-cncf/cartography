@@ -124,11 +124,7 @@ class KubernetesContainerNodeProperties(CartographyNodeProperties):
         "architecture_normalized",
         description="Canonical CPU architecture derived from the scheduled node when available (e.g. `amd64`, `arm64`).",
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last time the node was updated.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)

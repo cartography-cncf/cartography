@@ -19,11 +19,7 @@ class SnipeitAssetNodeProperties(CartographyNodeProperties):
 
     # Common properties
     id: PropertyRef = PropertyRef("id", description="Asset ID.")
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last update.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
     # SnipeIT specific properties
     name: PropertyRef = PropertyRef(

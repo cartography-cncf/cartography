@@ -14,11 +14,7 @@ from cartography.models.core.relationships import TargetNodeMatcher
 @dataclass(frozen=True)
 class DuoPhoneNodeProperties(CartographyNodeProperties):
     id: PropertyRef = PropertyRef("phone_id", description="Duo phone ID.")
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last update.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
     activated: PropertyRef = PropertyRef(
         "activated", description="Whether Duo Mobile is activated."
     )

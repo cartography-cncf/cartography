@@ -42,11 +42,7 @@ class IpRuleNodeProperties(CartographyNodeProperties):
         "ToPort",
         description="Highest transport-layer port allowed by the security-group rule.",
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last sync that updated this `AWSIpRule` node.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
@@ -92,11 +88,7 @@ class IpRangeNodeProperties(CartographyNodeProperties):
         "RangeId",
         description="Stable identifier derived from the security-group rule IP range.",
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last sync that updated this `AWSIpRange` node.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
@@ -117,6 +109,8 @@ class IpRangeToIpRuleRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class IpRuleSchema(CartographyNodeSchema):
+    """Represents a generic IP rule.  The creation of this node is currently derived from ingesting `AWSEC2SecurityGroup` rules."""
+
     label: str = "AWSIpRule"
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([IP_RULE])
     properties: IpRuleNodeProperties = IpRuleNodeProperties()
@@ -128,6 +122,8 @@ class IpRuleSchema(CartographyNodeSchema):
 
 @dataclass(frozen=True)
 class IpPermissionInboundSchema(CartographyNodeSchema):
+    """An AWSIpPermissionInbound node is a specific type of AWSIpRule. It represents inbound IP-based rules derived from `AWSEC2SecurityGroup` rules."""
+
     label: str = "AWSIpPermissionInbound"
     # Keep AWSIpRule as an extra label so inbound rules are still queryable as
     # the broader AWSIpRule type while preserving a provider-specific primary label.
@@ -143,6 +139,8 @@ class IpPermissionInboundSchema(CartographyNodeSchema):
 
 @dataclass(frozen=True)
 class IpRangeSchema(CartographyNodeSchema):
+    """Represents an IP address range (CIDR block) associated with an EC2 Security Group rule. IpRange nodes define the source or destination IP addresses that a security group rule applies to."""
+
     label: str = "AWSIpRange"
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([IP_RANGE])
     properties: IpRangeNodeProperties = IpRangeNodeProperties()

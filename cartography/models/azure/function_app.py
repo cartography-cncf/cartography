@@ -66,11 +66,7 @@ class AzureFunctionAppProperties(CartographyNodeProperties):
         "identity_principal_ids",
         description="Object IDs of managed identity service principals assigned to the app.",
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last sync that observed this function app.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 # --- Relationship Definitions ---

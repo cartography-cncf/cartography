@@ -31,9 +31,7 @@ class WorkOSDirectoryGroupNodeProperties(CartographyNodeProperties):
     raw_attributes: PropertyRef = PropertyRef(
         "raw_attributes", description="Raw group attributes from the identity provider."
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated", set_in_kwargs=True, description="Timestamp of the last update."
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)

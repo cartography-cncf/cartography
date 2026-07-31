@@ -16,11 +16,7 @@ from cartography.models.ontology.labels import TENANT
 @dataclass(frozen=True)
 class DOProjectNodeProperties(CartographyNodeProperties):
     id: PropertyRef = PropertyRef("id", description="DigitalOcean project UUID.")
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last update.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
     account_id: PropertyRef = PropertyRef(
         "ACCOUNT_ID",
         set_in_kwargs=True,

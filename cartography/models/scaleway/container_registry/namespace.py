@@ -50,9 +50,7 @@ class ScalewayContainerRegistryNamespaceProperties(CartographyNodeProperties):
     updated_at: PropertyRef = PropertyRef(
         "updated_at", description="Last update timestamp."
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated", set_in_kwargs=True, description="Timestamp of the last update"
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)

@@ -14,11 +14,7 @@ from cartography.models.core.relationships import TargetNodeMatcher
 @dataclass(frozen=True)
 class JumpCloudSystemNodeProperties(CartographyNodeProperties):
     id: PropertyRef = PropertyRef("id", description="JumpCloud asset ID.")
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last update.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
     jc_system_id: PropertyRef = PropertyRef(
         "jcSystemId",
         extra_index=True,

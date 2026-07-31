@@ -52,11 +52,7 @@ class AzureMonitorMetricAlertProperties(CartographyNodeProperties):
         "last_updated_time",
         description="Timestamp when the metric alert was last updated.",
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the latest Cartography update.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)

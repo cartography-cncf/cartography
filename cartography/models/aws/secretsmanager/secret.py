@@ -90,11 +90,7 @@ class SecretsManagerSecretNodeProperties(CartographyNodeProperties):
         set_in_kwargs=True,
         description="AWS Region containing this `AWSSecretsManagerSecret` node.",
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last time the node was updated",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
@@ -139,9 +135,7 @@ class SecretsManagerSecretToKMSKeyRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class SecretsManagerSecretSchema(CartographyNodeSchema):
-    """
-    Schema for AWS Secrets Manager Secret
-    """
+    """Representation of an AWS [Secrets Manager Secret](https://docs.aws.amazon.com/secretsmanager/latest/apireference/API_SecretListEntry.html)"""
 
     label: str = "AWSSecretsManagerSecret"
     # DEPRECATED: legacy SecretsManagerSecret node label will be removed in v1.0.0.

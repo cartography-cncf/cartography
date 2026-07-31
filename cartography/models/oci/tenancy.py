@@ -11,11 +11,7 @@ class OCITenancyNodeProperties(CartographyNodeProperties):
     ocid: PropertyRef = PropertyRef(
         "ocid", extra_index=True, description="OCI tenancy OCID."
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last update.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
     name: PropertyRef = PropertyRef("name", description="Tenancy profile name.")
 
 

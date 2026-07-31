@@ -22,11 +22,7 @@ class GCPSubnetStubNodeProperties(CartographyNodeProperties):
         "partial_uri",
         description="A partial resource URI representing this Subnet.  Has the form `projects/{project}/regions/{region}/subnetworks/{subnet name}`.",
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last time the node was updated.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
     partial_uri: PropertyRef = PropertyRef(
         "partial_uri", extra_index=True, description="Same as `id`."
     )
@@ -34,11 +30,7 @@ class GCPSubnetStubNodeProperties(CartographyNodeProperties):
 
 @dataclass(frozen=True)
 class GCPSubnetStubToProjectRelProperties(CartographyRelProperties):
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last sync that observed this data.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)

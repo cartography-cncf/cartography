@@ -27,11 +27,7 @@ class AWSDNSRecordNodeProperties(CartographyNodeProperties):
     value: PropertyRef = PropertyRef(
         "value", description="DNS record value returned for the record name and type."
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last sync that updated this `AWSDNSRecord` node.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
@@ -227,6 +223,8 @@ class AWSDNSRecordToElasticIPAddressRel(CartographyRelSchema):
 
 
 class AWSDNSRecordSchema(CartographyNodeSchema):
+    """Representation of an AWS DNS [ResourceRecordSet](https://docs.aws.amazon.com/Route53/latest/APIReference/API_ResourceRecordSet.html)."""
+
     label: str = "AWSDNSRecord"
     properties: AWSDNSRecordNodeProperties = AWSDNSRecordNodeProperties()
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([DNS_RECORD])

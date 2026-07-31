@@ -33,11 +33,7 @@ class InstanceProfileNodeProperties(CartographyNodeProperties):
         "Path",
         description="IAM path under which the IAM instance profile is organized.",
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last time the node was updated",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
@@ -78,6 +74,8 @@ class InstanceProfileToAWSRoleRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class InstanceProfileSchema(CartographyNodeSchema):
+    """Representation of an AWS [IAM Instance Profile](https://docs.aws.amazon.com/IAM/latest/APIReference/API_InstanceProfile.html)"""
+
     label: str = "AWSInstanceProfile"
     properties: InstanceProfileNodeProperties = InstanceProfileNodeProperties()
     sub_resource_relationship: InstanceProfileToAWSAccountRel = (

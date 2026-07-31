@@ -14,11 +14,7 @@ from cartography.models.core.relationships import TargetNodeMatcher
 @dataclass(frozen=True)
 class SentryAlertRuleNodeProperties(CartographyNodeProperties):
     id: PropertyRef = PropertyRef("id", description="Sentry alert rule ID.")
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last update.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
     name: PropertyRef = PropertyRef("name", description="Alert rule name.")
     date_created: PropertyRef = PropertyRef(
         "date_created",

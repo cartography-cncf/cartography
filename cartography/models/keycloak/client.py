@@ -110,11 +110,7 @@ class KeycloakClientNodeProperties(CartographyNodeProperties):
         "useTemplateMappers", description="Whether to use template mappers"
     )
     origin: PropertyRef = PropertyRef("origin", description="Origin of the client")
-    lastupdated: PropertyRef = PropertyRef(
-        "LASTUPDATED",
-        set_in_kwargs=True,
-        description="Timestamp of the last time the node was updated",
-    )
+    lastupdated: PropertyRef = PropertyRef("LASTUPDATED", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)

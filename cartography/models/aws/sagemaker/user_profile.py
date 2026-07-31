@@ -42,11 +42,7 @@ class AWSSageMakerUserProfileNodeProperties(CartographyNodeProperties):
         set_in_kwargs=True,
         description="The AWS region where the User Profile exists",
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last time the node was updated",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
@@ -107,6 +103,8 @@ class AWSSageMakerUserProfileToAWSSageMakerDomainRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class AWSSageMakerUserProfileSchema(CartographyNodeSchema):
+    """Represents an [AWS SageMaker User Profile](https://docs.aws.amazon.com/sagemaker/latest/APIReference/API_DescribeUserProfile.html). A User Profile represents a user within a SageMaker Studio Domain."""
+
     label: str = "AWSSageMakerUserProfile"
     properties: AWSSageMakerUserProfileNodeProperties = (
         AWSSageMakerUserProfileNodeProperties()

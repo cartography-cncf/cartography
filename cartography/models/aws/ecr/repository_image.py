@@ -50,11 +50,7 @@ class ECRRepositoryImageNodeProperties(CartographyNodeProperties):
         set_in_kwargs=True,
         description="AWS Region containing this `AWSECRRepositoryImage` node.",
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last sync that updated this `AWSECRRepositoryImage` node.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
@@ -113,6 +109,13 @@ class ECRRepositoryImageToECRImageRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class ECRRepositoryImageSchema(CartographyNodeSchema):
+    """An ECR image may be referenced and tagged by more than one ECR Repository. To best represent this, we've created an `AWSECRRepositoryImage` node as a layer of indirection between the repo and the image.
+
+    More concretely explained, we run [`ecr.list_images()`](https://docs.aws.amazon.com/AmazonECR/latest/APIReference/API_ImageIdentifier.html), and then store the image tag on an `AWSECRRepositoryImage` node and the image digest hash on a separate `AWSECRImage` node.
+
+    This way, more than one `AWSECRRepositoryImage` can reference/be connected to the same `AWSECRImage`.
+    """
+
     label: str = "AWSECRRepositoryImage"
     properties: ECRRepositoryImageNodeProperties = ECRRepositoryImageNodeProperties()
     sub_resource_relationship: ECRRepositoryImageToAWSAccountRel = (

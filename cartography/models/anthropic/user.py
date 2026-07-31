@@ -29,11 +29,7 @@ class AnthropicUserNodeProperties(CartographyNodeProperties):
         "added_at",
         description="RFC 3339 timestamp when the user was added.",
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last update.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)

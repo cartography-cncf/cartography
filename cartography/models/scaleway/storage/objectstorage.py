@@ -51,9 +51,7 @@ class ScalewayObjectStorageBucketNodeProperties(CartographyNodeProperties):
         extra_index=True,
         description="Combined public-exposure signal: `acl_public` OR `anonymous_access`; null when both sources were unreadable.",
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated", set_in_kwargs=True, description="Timestamp of the last update"
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)

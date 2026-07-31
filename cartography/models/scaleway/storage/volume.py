@@ -42,9 +42,7 @@ class ScalewayVolumeNodeProperties(CartographyNodeProperties):
     zone: PropertyRef = PropertyRef(
         "zone", description="Zone in which the volume is located."
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated", set_in_kwargs=True, description="Timestamp of the last update"
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)

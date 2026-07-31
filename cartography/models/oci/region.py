@@ -17,11 +17,7 @@ class OCIRegionNodeProperties(CartographyNodeProperties):
     key: PropertyRef = PropertyRef(
         "region_key", extra_index=True, description="OCI region key."
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last update.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
     name: PropertyRef = PropertyRef(
         "region_name", extra_index=True, description="OCI region name."
     )

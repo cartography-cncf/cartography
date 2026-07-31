@@ -27,11 +27,7 @@ class AzureDataFactoryDatasetProperties(CartographyNodeProperties):
         "linked_service_id",
         description="Full Azure resource ID of the linked service used by the dataset.",
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last sync that observed this node.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
     factory_id: PropertyRef = PropertyRef(
         "factory_id",
         description="Full Azure resource ID of the data factory that contains the dataset.",

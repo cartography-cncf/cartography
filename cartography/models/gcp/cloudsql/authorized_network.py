@@ -31,20 +31,12 @@ class GCPCloudSQLAuthorizedNetworkProperties(CartographyNodeProperties):
     instance_id: PropertyRef = PropertyRef(
         "instance_id", description="The selfLink of the parent GCPCloudSQLInstance."
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="The timestamp of the last update.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
 class AuthorizedNetworkToProjectRelProperties(CartographyRelProperties):
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last sync that observed this data.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
@@ -62,11 +54,7 @@ class AuthorizedNetworkToProjectRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class AuthorizedNetworkToSqlInstanceRelProperties(CartographyRelProperties):
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last sync that observed this data.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)

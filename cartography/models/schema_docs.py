@@ -631,9 +631,9 @@ def _ontology_anchor(label: str) -> str:
 
 
 def _ontology_label_link(label: str) -> str:
-    # Deliberately unqualified: usage/schema.md inlines every schema page, so each anchor
-    # exists twice and a path-qualified target breaks inside that aggregated copy. Once
-    # the aggregation stops duplicating pages, this resolves to the ontology page itself.
+    # Deliberately unqualified: the ontology page declares an explicit myst target per
+    # label, and myst resolves those project-wide, so the same reference works from any
+    # module page without hardcoding a relative path to the ontology page.
     return f"[`{label}`](#{_ontology_anchor(label)})"
 
 

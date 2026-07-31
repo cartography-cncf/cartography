@@ -98,9 +98,7 @@ class ScalewayInstanceProperties(CartographyNodeProperties):
         "end_of_service",
         description="True if the Instance type has reached end of service.",
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated", set_in_kwargs=True, description="Timestamp of the last update"
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)

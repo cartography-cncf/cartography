@@ -21,11 +21,7 @@ class SubImageModuleNodeProperties(CartographyNodeProperties):
         "last_sync_status",
         description="Status of the latest sync run.",
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last update.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)

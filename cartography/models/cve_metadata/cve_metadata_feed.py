@@ -10,11 +10,7 @@ class CVEMetadataFeedNodeProperties(CartographyNodeProperties):
     id: PropertyRef = PropertyRef(
         "FEED_ID", description="CVE metadata feed identifier."
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last update.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
     source_nvd: PropertyRef = PropertyRef(
         "source_nvd",
         description="Whether NVD enrichment was enabled for the sync.",

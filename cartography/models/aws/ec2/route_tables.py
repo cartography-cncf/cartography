@@ -34,11 +34,7 @@ class RouteTableNodeProperties(CartographyNodeProperties):
     region: PropertyRef = PropertyRef(
         "Region", set_in_kwargs=True, description="The AWS region the route table is in"
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last time the node was updated",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
     main: PropertyRef = PropertyRef(
         "main",
         description="If True, this route table is the main route table for VPC, meaning that any subnets in this VPC not explicitly associated with another route table will use this route table.",
@@ -137,6 +133,8 @@ class RouteTableToVpnGatewayRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class RouteTableSchema(CartographyNodeSchema):
+    """Representation of an AWS [EC2 Route Table](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_RouteTable.html)."""
+
     label: str = "AWSEC2RouteTable"
     # DEPRECATED: legacy EC2RouteTable node label will be removed in v1.0.0.
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([LEGACY_EC2_ROUTE_TABLE])

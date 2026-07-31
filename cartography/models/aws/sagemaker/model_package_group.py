@@ -38,11 +38,7 @@ class AWSSageMakerModelPackageGroupNodeProperties(CartographyNodeProperties):
         set_in_kwargs=True,
         description="The AWS region where the Model Package Group exists",
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last time the node was updated",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
@@ -65,6 +61,8 @@ class AWSSageMakerModelPackageGroupToAWSAccountRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class AWSSageMakerModelPackageGroupSchema(CartographyNodeSchema):
+    """Represents an [AWS SageMaker Model Package Group](https://docs.aws.amazon.com/sagemaker/latest/APIReference/API_DescribeModelPackageGroup.html). A Model Package Group is a collection of versioned model packages in the SageMaker Model Registry."""
+
     label: str = "AWSSageMakerModelPackageGroup"
     properties: AWSSageMakerModelPackageGroupNodeProperties = (
         AWSSageMakerModelPackageGroupNodeProperties()

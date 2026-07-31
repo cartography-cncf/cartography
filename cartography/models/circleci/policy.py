@@ -14,11 +14,7 @@ from cartography.models.core.relationships import TargetNodeMatcher
 class CircleCIPolicyNodeProperties(CartographyNodeProperties):
     # Synthesized stable id: "{org_id}:{context}:{name}".
     id: PropertyRef = PropertyRef("id", description="Synthesized CircleCI policy ID.")
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last update.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
     name: PropertyRef = PropertyRef(
         "name", extra_index=True, description="Policy name."
     )

@@ -44,11 +44,7 @@ class KubernetesClusterRoleNodeProperties(CartographyNodeProperties):
         "verbs",
         description='List of verbs/actions that this ClusterRole allows (e.g. `["get", "list", "create"]`).',
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last time the node was updated.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)

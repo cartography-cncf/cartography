@@ -101,11 +101,7 @@ class KMSKeyNodeProperties(CartographyNodeProperties):
     region: PropertyRef = PropertyRef(
         "Region", set_in_kwargs=True, description="The region where key is created"
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last time the node was updated by Cartography",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
@@ -134,9 +130,7 @@ class KMSKeyToAWSAccountRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class KMSKeySchema(CartographyNodeSchema):
-    """
-    Schema for AWS KMS Key
-    """
+    """Representation of an AWS [KMS Key](https://docs.aws.amazon.com/kms/latest/APIReference/API_KeyListEntry.html)."""
 
     label: str = "AWSKMSKey"
     # DEPRECATED: legacy KMSKey node label will be removed in v1.0.0.

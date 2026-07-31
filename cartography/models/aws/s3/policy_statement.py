@@ -19,11 +19,7 @@ class S3PolicyStatementNodeProperties(CartographyNodeProperties):
         "statement_id",
         description="The unique identifier for a bucket policy statement. <br>If the statement has an Sid the id will be calculated as _S3Bucket.id_/policy_statement/_index of statement in statement_/_Sid_. <br>If the statement has no Sid the id will be calculated as  _S3Bucket.id_/policy_statement/_index of statement in statement_/",
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last time the node was updated",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
     policy_id: PropertyRef = PropertyRef(
         "policy_id", description='Optional string "Id" for the bucket\'s policy'
     )
@@ -96,6 +92,8 @@ class S3PolicyStatementToS3BucketRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class S3PolicyStatementSchema(CartographyNodeSchema):
+    """Representation of an AWS S3 [Bucket Policy Statements](https://docs.aws.amazon.com/AmazonS3/latest/userguide/bucket-policies.html) for controlling ownership of objects and ACLs of the bucket."""
+
     label: str = "AWSS3PolicyStatement"
     # DEPRECATED: legacy S3PolicyStatement node label will be removed in v1.0.0.
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([LEGACY_S3_POLICY_STATEMENT])

@@ -41,11 +41,7 @@ class DatabricksTokenNodeProperties(CartographyNodeProperties):
         extra_index=True,
         description="User name of the principal that created the token.",
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last ingestion update.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)

@@ -21,11 +21,7 @@ class LaunchConfigurationNodeProperties(CartographyNodeProperties):
         "LaunchConfigurationARN", description="The ARN of the launch configuration."
     )
     created_time = PropertyRef("CreatedTime")
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last time the node was updated",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
     image_id: PropertyRef = PropertyRef(
         "ImageId",
         description="The ID of the Amazon Machine Image (AMI) to use to launch your EC2 instances.",
@@ -102,6 +98,8 @@ class LaunchConfigurationToAwsAccountRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class LaunchConfigurationSchema(CartographyNodeSchema):
+    """Representation of an AWS [Launch Configuration](https://docs.aws.amazon.com/autoscaling/ec2/APIReference/API_LaunchConfiguration.html)"""
+
     label: str = "AWSLaunchConfiguration"
     # DEPRECATED: legacy LaunchConfiguration node label will be removed in v1.0.0.
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([LEGACY_LAUNCH_CONFIGURATION])

@@ -16,11 +16,7 @@ from cartography.models.ontology.labels import THIRD_PARTY_APP
 @dataclass(frozen=True)
 class JumpCloudApplicationNodeProperties(CartographyNodeProperties):
     id: PropertyRef = PropertyRef("id", description="JumpCloud application ID.")
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last update.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
     name: PropertyRef = PropertyRef(
         "name",
         extra_index=True,

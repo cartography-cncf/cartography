@@ -19,11 +19,7 @@ from cartography.models.ontology.labels import SECRET
 # document in cartography/intel/railway/queries.py does not request values either.
 class RailwayVariableNodeProperties(CartographyNodeProperties):
     id: PropertyRef = PropertyRef("id", description="ID of the Railway variable.")
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last update to this variable.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
     name: PropertyRef = PropertyRef(
         "name", extra_index=True, description="Name of the variable."
     )

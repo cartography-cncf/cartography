@@ -32,11 +32,7 @@ class AzureDataFactoryProperties(CartographyNodeProperties):
     version: PropertyRef = PropertyRef(
         "version", description="Service version of the data factory."
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last sync that observed this node.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)

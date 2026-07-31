@@ -17,11 +17,7 @@ class TailscaleDeviceNodeProperties(CartographyNodeProperties):
     id: PropertyRef = PropertyRef(
         "nodeId", description="The preferred identifier for a device."
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last time the node was updated.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
     name: PropertyRef = PropertyRef(
         "name",
         description="The MagicDNS name of the device. Learn more about MagicDNS at https://tailscale.com/kb/1081/.",
@@ -246,11 +242,7 @@ class TailscaleDeviceNodeProperties(CartographyNodeProperties):
 
 @dataclass(frozen=True)
 class TailscaleDeviceToTailnetRelProperties(CartographyRelProperties):
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last Cartography update.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
@@ -271,11 +263,7 @@ class TailscaleDeviceToTailnetRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class TailscaleDeviceToUserRelProperties(CartographyRelProperties):
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last Cartography update.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)

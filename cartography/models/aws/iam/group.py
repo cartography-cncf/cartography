@@ -29,11 +29,7 @@ class AWSGroupNodeProperties(CartographyNodeProperties):
     )
 
     # Automatic fields (set by cartography)
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last sync that updated this `AWSGroup` node.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
     # Business fields from AWS IAM groups
     groupid: PropertyRef = PropertyRef(
@@ -73,6 +69,8 @@ class AWSGroupToAWSAccountRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class AWSGroupSchema(CartographyNodeSchema):
+    """Representation of AWS [IAM Groups](https://docs.aws.amazon.com/IAM/latest/APIReference/API_Group.html)."""
+
     label: str = "AWSGroup"
     properties: AWSGroupNodeProperties = AWSGroupNodeProperties()
     sub_resource_relationship: AWSGroupToAWSAccountRel = AWSGroupToAWSAccountRel()

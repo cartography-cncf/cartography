@@ -42,11 +42,7 @@ class VPCPeeringNodeProperties(CartographyNodeProperties):
         "StatusMessage",
         description="A message that provides more information about the status, if applicable.",
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last time the node was updated",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
@@ -141,11 +137,7 @@ class PeeringConnectionToAWSAccountRel(CartographyRelSchema):
 @dataclass(frozen=True)
 class AWSAccountVPCPeeringNodeProperties(CartographyNodeProperties):
     id: PropertyRef = PropertyRef("id", description="The AWS Account ID number")
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last time the node was updated",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
@@ -166,6 +158,8 @@ class AWSAccountVPCPeeringSchema(CartographyNodeSchema):
 
 @dataclass(frozen=True)
 class AWSPeeringConnectionSchema(CartographyNodeSchema):
+    """Representation of an AWS [PeeringConnection](https://docs.aws.amazon.com/vpc/latest/peering/what-is-vpc-peering.html) implementing an AWS [VpcPeeringConnection](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_VpcPeeringConnection.html) object."""
+
     label: str = "AWSPeeringConnection"
     properties: VPCPeeringNodeProperties = VPCPeeringNodeProperties()
     sub_resource_relationship: PeeringConnectionToAWSAccountRel = (

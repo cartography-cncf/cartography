@@ -24,11 +24,7 @@ class AIBOMComponentNodeProperties(CartographyNodeProperties):
         "id",
         description="Stable hash of source key and component occurrence fields.",
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last time the node was updated.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
     logical_id: PropertyRef = PropertyRef(
         "logical_id",
         extra_index=True,

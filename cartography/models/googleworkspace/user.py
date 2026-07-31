@@ -20,11 +20,7 @@ class GoogleWorkspaceUserNodeProperties(CartographyNodeProperties):
     """
 
     id: PropertyRef = PropertyRef("id", description="Unique Google Workspace user ID.")
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last update.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
     # User identifiers and basic info
     user_id: PropertyRef = PropertyRef(

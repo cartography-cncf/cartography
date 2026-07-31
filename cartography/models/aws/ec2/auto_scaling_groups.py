@@ -86,11 +86,7 @@ class AutoScalingGroupNodeProperties(CartographyNodeProperties):
         "Status",
         description="The current state of the group when the DeleteAutoScalingGroup operation is in progress.",
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last time the node was updated",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 # EC2 to AWSAutoScalingGroup
@@ -140,11 +136,7 @@ class EC2InstanceAutoScalingGroupProperties(CartographyNodeProperties):
         extra_index=True,
         description="The instance id provided by AWS.  This is [globally unique](https://forums.aws.amazon.com/thread.jspa?threadID=137203)",
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last time the node was updated",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
     region: PropertyRef = PropertyRef(
         "Region",
         set_in_kwargs=True,
@@ -154,6 +146,8 @@ class EC2InstanceAutoScalingGroupProperties(CartographyNodeProperties):
 
 @dataclass(frozen=True)
 class EC2InstanceAutoScalingGroupSchema(CartographyNodeSchema):
+    """Our representation of an AWS [EC2 Instance](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_Instance.html)."""
+
     label: str = "AWSEC2Instance"
     # DEPRECATED: legacy EC2Instance node label will be removed in v1.0.0.
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([LEGACY_EC2_INSTANCE])
@@ -211,16 +205,12 @@ class EC2SubnetAutoScalingGroupNodeProperties(CartographyNodeProperties):
     subnetid: PropertyRef = PropertyRef(
         "VPCZoneIdentifier", extra_index=True, description="The ID of the subnet"
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last time the node was updated",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
 class EC2SubnetAutoScalingGroupSchema(CartographyNodeSchema):
-    "Represents a subnet in an Amazon EC2 virtual private cloud."
+    """Representation of an AWS EC2 [Subnet](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_Subnet.html)."""
 
     label: str = "AWSEC2Subnet"
     properties: EC2SubnetAutoScalingGroupNodeProperties = (
@@ -293,6 +283,8 @@ class AutoScalingGroupToLaunchConfigurationRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class AutoScalingGroupSchema(CartographyNodeSchema):
+    """Representation of an AWS [Auto Scaling Group Resource](https://docs.aws.amazon.com/autoscaling/ec2/userguide/AWSAutoScalingGroup.html)."""
+
     label: str = "AWSAutoScalingGroup"
     # DEPRECATED: legacy AutoScalingGroup node label will be removed in v1.0.0.
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([LEGACY_AUTO_SCALING_GROUP])

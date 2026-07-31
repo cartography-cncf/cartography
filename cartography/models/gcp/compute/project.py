@@ -12,11 +12,7 @@ class GCPProjectComputeMetadataNodeProperties(CartographyNodeProperties):
     id: PropertyRef = PropertyRef(
         "id", description="Stable identifier for this resource."
     )
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp of the last sync that observed this data.",
-    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
     compute_project_enable_oslogin: PropertyRef = PropertyRef(
         "compute_project_enable_oslogin",
         description="Project metadata setting that enables OS Login for Compute Engine instances.",
