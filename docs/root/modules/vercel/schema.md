@@ -27,6 +27,7 @@ DP -- CREATED_BY --> U
 FBR -- CREATED_BY --> U
 EV -- REFERENCES --> EC
 I -- CONFIGURED_FOR --> P
+U -- MEMBER_OF --> AG
 AG -- HAS_MEMBER --> U
 AG -- HAS_ACCESS_TO --> P
 W -- WATCHES --> P
