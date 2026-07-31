@@ -337,7 +337,7 @@ def test_bbot_dns_and_ip_correlate_and_public_ip_lifecycle(
         """
         CREATE (:AWSDNSRecord:DNSRecord {
             id: 'provider-dns-record',
-            _ont_name: 'APP.EXAMPLE.TEST'
+            _ont_name: 'APP.EXAMPLE.TEST.'
         })
         """,
     )

@@ -195,7 +195,7 @@ BBOT_DNS_MATCHES_PROVIDER = AnalysisJob(
     short_name="ontology_bbot_dns_matches_provider",
     statements=(
         AnalysisStatement(
-            match="MATCH (bbot:BbotDNSName), (provider:DNSRecord) WHERE NOT provider:BbotDNSName AND bbot._ont_name IS NOT NULL AND toLower(bbot._ont_name) = toLower(provider._ont_name)",
+            match="MATCH (bbot:BbotDNSName), (provider:DNSRecord) WHERE NOT provider:BbotDNSName AND bbot._ont_name IS NOT NULL AND toLower(rtrim(bbot._ont_name, '.')) = toLower(rtrim(provider._ont_name, '.'))",
             effects=(
                 AddRelationship(
                     "bbot",

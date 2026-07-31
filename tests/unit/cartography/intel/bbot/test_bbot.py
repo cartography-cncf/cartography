@@ -66,33 +66,38 @@ def _jsonl(events: list[dict]) -> str:
     return "\n".join(json.dumps(event) for event in events)
 
 
-def test_parse_completed_scan_accepts_different_occurrence_uuids() -> None:
-    # Arrange
-    events = [
-        _scan_event("RUNNING", "SCAN:run-start", 1, legacy_data=True),
-        _event(
-            "DNS_NAME", "DNS_NAME:example", "DNS_NAME:one", "example.test", timestamp=2
-        ),
-        _scan_event(
-            "FINISHED",
-            "SCAN:run-finish",
-            3,
-            finished_at="2026-01-01T00:01:00Z",
-        ),
-    ]
+def test_parse_completed_scan_accepts_supported_start_statuses() -> None:
+    for start_status in ("STARTING", "RUNNING"):
+        # Arrange
+        events = [
+            _scan_event(start_status, "SCAN:run-start", 1, legacy_data=True),
+            _event(
+                "DNS_NAME",
+                "DNS_NAME:example",
+                "DNS_NAME:one",
+                "example.test",
+                timestamp=2,
+            ),
+            _scan_event(
+                "FINISHED",
+                "SCAN:run-finish",
+                3,
+                finished_at="2026-01-01T00:01:00Z",
+            ),
+        ]
 
-    # Act
-    runs = parse_completed_scan_runs(_jsonl(events), "synthetic.json")
+        # Act
+        runs = parse_completed_scan_runs(_jsonl(events), "synthetic.json")
 
-    # Assert
-    assert len(runs) == 1
-    assert runs[0][1] == events
+        # Assert
+        assert len(runs) == 1
+        assert runs[0][1] == events
 
 
 def test_parse_completed_scan_rejects_changed_stable_scan_id() -> None:
     # Arrange
     events = [
-        _scan_event("RUNNING", "SCAN:run-start", 1),
+        _scan_event("STARTING", "SCAN:run-start", 1),
         _scan_event(
             "FINISHED",
             "SCAN:run-finish",
@@ -258,6 +263,68 @@ def test_finding_with_host_and_port_affects_open_port() -> None:
     finding_relationships = relationships[("BbotFinding", "BbotOpenTCPPort", "AFFECTS")]
     assert len(finding_relationships) == 1
     assert finding_relationships[0]["target_id"] == "OPEN_TCP_PORT:example-443"
+
+
+def test_duplicate_technology_occurrences_retain_each_detected_url() -> None:
+    # Arrange
+    technology_id = "TECHNOLOGY:example-443-nginx"
+    events = [
+        _scan_event("STARTING", "SCAN:run-start", 1),
+        _event(
+            "URL",
+            "URL:first",
+            "URL:first-occurrence",
+            "https://example.test/first",
+            timestamp=2,
+        ),
+        _event(
+            "URL",
+            "URL:second",
+            "URL:second-occurrence",
+            "https://example.test/second",
+            timestamp=3,
+        ),
+        _event(
+            "TECHNOLOGY",
+            technology_id,
+            "TECHNOLOGY:first-occurrence",
+            {
+                "technology": "nginx",
+                "host": "example.test",
+                "port": 443,
+                "url": "https://example.test/first",
+            },
+            timestamp=4,
+        ),
+        _event(
+            "TECHNOLOGY",
+            technology_id,
+            "TECHNOLOGY:second-occurrence",
+            {
+                "technology": "nginx",
+                "host": "example.test",
+                "port": 443,
+                "url": "https://example.test/second",
+            },
+            timestamp=5,
+        ),
+        _scan_event(
+            "FINISHED",
+            "SCAN:run-finish",
+            6,
+            finished_at="2026-01-01T00:01:00Z",
+        ),
+    ]
+
+    # Act
+    nodes, relationships = transform(events, "synthetic.json")
+
+    # Assert
+    assert nodes["BbotTechnology"][0]["occurrence_count"] == 2
+    assert relationships[("BbotTechnology", "BbotURL", "DETECTED_ON")] == [
+        {"source_id": technology_id, "target_id": "URL:first"},
+        {"source_id": technology_id, "target_id": "URL:second"},
+    ]
 
 
 def test_transform_uses_custom_stable_identities() -> None:
@@ -446,7 +513,7 @@ def test_report_reader_selects_latest_completed_scan(mock_sync: MagicMock) -> No
     incomplete_ref = ReportRef("s3://example/incomplete.json", "incomplete.json")
     older = _jsonl(
         [
-            _scan_event("RUNNING", "SCAN:older-start", 1, legacy_data=True),
+            _scan_event("STARTING", "SCAN:older-start", 1, legacy_data=True),
             _scan_event(
                 "FINISHED",
                 "SCAN:older-finish",
@@ -458,7 +525,7 @@ def test_report_reader_selects_latest_completed_scan(mock_sync: MagicMock) -> No
     )
     newer = _jsonl(
         [
-            _scan_event("RUNNING", "SCAN:newer-start", 3),
+            _scan_event("STARTING", "SCAN:newer-start", 3),
             _scan_event(
                 "FINISHED",
                 "SCAN:newer-finish",
@@ -467,7 +534,7 @@ def test_report_reader_selects_latest_completed_scan(mock_sync: MagicMock) -> No
             ),
         ],
     )
-    incomplete = _jsonl([_scan_event("RUNNING", "SCAN:incomplete", 5)])
+    incomplete = _jsonl([_scan_event("STARTING", "SCAN:incomplete", 5)])
     payloads = {
         older_ref: older.encode(),
         newer_ref: newer.encode(),
@@ -499,7 +566,7 @@ def test_report_reader_skips_cleanup_when_a_report_fails(
     invalid_ref = ReportRef("s3://example/invalid.jsonl", "invalid.jsonl")
     valid = _jsonl(
         [
-            _scan_event("RUNNING", "SCAN:valid-start", 1),
+            _scan_event("STARTING", "SCAN:valid-start", 1),
             _scan_event(
                 "FINISHED",
                 "SCAN:valid-finish",

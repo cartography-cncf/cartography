@@ -406,7 +406,14 @@ def transform(
     dict[str, list[dict[str, Any]]],
     dict[tuple[str, str, str], list[dict[str, str]]],
 ]:
-    prepared: list[tuple[dict[str, Any], str | dict[str, Any], tuple[str, str]]] = []
+    prepared: list[
+        tuple[
+            dict[str, Any],
+            str | dict[str, Any],
+            tuple[str, str],
+            dict[str, Any],
+        ]
+    ] = []
     uuid_refs: dict[str, tuple[str, str]] = {}
     bbot_id_refs: dict[str, tuple[str, str]] = {}
     unknown_types: set[str] = set()
@@ -418,7 +425,8 @@ def transform(
             continue
         data = _event_data(event)
         ref = (BBOT_SCHEMAS[event_type].label, _stable_identity(event, data))
-        prepared.append((event, data, ref))
+        properties = _event_properties(event, data, ref[1], source_uri)
+        prepared.append((event, data, ref, properties))
         if isinstance(event.get("uuid"), str):
             uuid_refs[event["uuid"]] = ref
         bbot_id_refs[event["id"]] = ref
@@ -435,13 +443,12 @@ def transform(
     url_refs: dict[str, tuple[str, str]] = {}
     scan_ref: tuple[str, str] | None = None
 
-    for event, data, ref in prepared:
-        properties = _event_properties(event, data, ref[1], source_uri)
+    for event, data, ref, properties in prepared:
         existing = nodes[ref[0]].get(ref[1])
         if existing:
             _merge_occurrence(existing, properties)
         else:
-            nodes[ref[0]][ref[1]] = properties
+            nodes[ref[0]][ref[1]] = properties.copy()
 
         if event["type"] == "SCAN":
             scan_ref = ref
@@ -459,14 +466,13 @@ def transform(
             url_refs[properties["url"]] = ref
 
     relationships: dict[tuple[str, str, str], set[tuple[str, str]]] = defaultdict(set)
-    for event, data, ref in prepared:
+    for event, data, ref, properties in prepared:
         event_type = event["type"]
         parent_ref = _nearest_parent_ref(event, uuid_refs, bbot_id_refs)
         _add_relationship(relationships, ref, "DISCOVERED_FROM", parent_ref)
         if event_type != "SCAN":
             _add_relationship(relationships, ref, "OBSERVED_IN", scan_ref)
 
-        properties = nodes[ref[0]][ref[1]]
         host_value = properties.get("host")
         host_ref = host_refs.get(host_value) if isinstance(host_value, str) else None
         port_ref = None
@@ -575,7 +581,7 @@ def parse_completed_scan_runs(
             else None
         )
 
-        if event_type == "SCAN" and status == "RUNNING":
+        if event_type == "SCAN" and status in {"STARTING", "RUNNING"}:
             current = [event]
             current_scan_id = event.get("id")
             continue
@@ -678,20 +684,25 @@ def sync_bbot_from_report_reader(
     if not refs:
         raise ValueError(f"No BBOT JSON reports found in {reader.source_uri}")
 
-    runs: list[tuple[datetime.datetime, list[dict[str, Any]], str]] = []
+    latest_run: tuple[datetime.datetime, list[dict[str, Any]], str] | None = None
     failed_report_count = 0
     for ref in sorted(refs, key=lambda item: item.name):
         try:
-            runs.extend(
-                parse_completed_scan_runs(read_text_report(reader, ref), ref.uri),
+            report_runs = parse_completed_scan_runs(
+                read_text_report(reader, ref),
+                ref.uri,
             )
+            if report_runs:
+                candidate = max(report_runs, key=lambda run: run[0])
+                if latest_run is None or candidate[0] > latest_run[0]:
+                    latest_run = candidate
         except (ObjectStoreError, ValueError) as exc:
             logger.error("Failed to read BBOT report from %s: %s", ref.uri, exc)
             failed_report_count += 1
-    if not runs:
+    if latest_run is None:
         raise ValueError(f"No completed BBOT scans found in {reader.source_uri}")
 
-    finished_at, events, source_uri = max(runs, key=lambda run: run[0])
+    finished_at, events, source_uri = latest_run
     logger.info("Ingesting BBOT scan completed at %s from %s", finished_at, source_uri)
     if failed_report_count:
         logger.warning(

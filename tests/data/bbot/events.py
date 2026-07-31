@@ -54,7 +54,7 @@ def scan_event(run: int, status: str, timestamp: float) -> dict:
 
 def scan_only_events(run: int) -> list[dict]:
     return [
-        scan_event(run, "RUNNING", run * 100),
+        scan_event(run, "STARTING", run * 100),
         scan_event(run, "FINISHED", run * 100 + 20),
     ]
 
@@ -83,14 +83,14 @@ def events(
         else "TECHNOLOGY:app-443-nginx"
     )
     prefix = f"run-{run}"
-    scan_uuid = f"SCAN:{prefix}-running"
+    scan_uuid = f"SCAN:{prefix}-starting"
     dns_uuid = f"DNS_NAME:{prefix}-one"
     ip_uuid = f"IP_ADDRESS:{prefix}"
     port_uuid = f"OPEN_TCP_PORT:{prefix}"
     url_uuid = f"URL:{prefix}"
 
     result = [
-        scan_event(run, "RUNNING", run * 100),
+        scan_event(run, "STARTING", run * 100),
         event(
             "DNS_NAME",
             dns_id,

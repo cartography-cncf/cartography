@@ -65,7 +65,7 @@ Other event types are logged and skipped.
 
 ### Snapshot behavior
 
-The selected completed scan is treated as the current BBOT snapshot. Stable assets and relationships are merged in place, preserving `firstseen` and advancing `lastupdated`. Nodes or associations absent from the selected scan are deleted. If an asset later reappears, it is recreated with a new `firstseen`; historical absence tracking is not retained.
+The selected completed scan is treated as the current BBOT snapshot. Stable assets and relationships are merged in place, preserving `firstseen` and advancing `lastupdated`. Nodes or associations absent from the selected scan are deleted. If an asset later reappears, it is recreated with a new `firstseen`; historical absence tracking is not retained. If any candidate report cannot be read or parsed, Cartography ingests the newest completed scan it could read but skips cleanup for that sync, preserving previously ingested nodes and relationships.
 
 ### Object-store permissions
 
