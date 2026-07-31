@@ -9,6 +9,7 @@ import asyncio
 import json
 import logging
 import re
+from collections.abc import Callable
 from typing import Any
 from typing import Optional
 
@@ -1226,6 +1227,12 @@ async def fetch_image_layers_async(
                         percent,
                     )
                 continue
+            except BaseException:
+                # Drain sibling work before the client closes and the retry reuses this loop.
+                for pending_task in tasks:
+                    pending_task.cancel()
+                await asyncio.gather(*tasks, return_exceptions=True)
+                raise
             completed += 1
 
             if completed % progress_interval == 0 or completed == total:
@@ -1292,6 +1299,8 @@ def sync(
     current_aws_account_id: str,
     update_tag: int,
     common_job_parameters: dict,
+    *,
+    aioboto3_session_factory: Callable[[], aioboto3.Session] | None = None,
 ) -> None:
     """
     Sync ECR image layers. This fetches detailed layer information for ECR images
@@ -1301,6 +1310,7 @@ def sync(
     via the 'ecr' module before running this.
 
     Layer fetching can be slow for accounts with many container images.
+    Credential recovery requires aioboto3_session_factory.
     """
 
     for region in regions:
@@ -1395,7 +1405,9 @@ def sync(
                 f"Starting to fetch layers for {len(repo_images_list)} images..."
             )
 
-            async def _fetch_with_async_client() -> tuple[
+            async def _fetch_with_async_client(
+                aioboto3_session: aioboto3.Session,
+            ) -> tuple[
                 dict[str, dict[str, list[str]]],
                 dict[str, str],
                 dict[str, str],
@@ -1414,12 +1426,29 @@ def sync(
                 loop = asyncio.new_event_loop()
                 asyncio.set_event_loop(loop)
 
-            (
-                image_layers_data,
-                image_digest_map,
-                history_by_diff_id,
-                image_attestation_map,
-            ) = loop.run_until_complete(_fetch_with_async_client())
+            for attempt in range(2):
+                try:
+                    (
+                        image_layers_data,
+                        image_digest_map,
+                        history_by_diff_id,
+                        image_attestation_map,
+                    ) = loop.run_until_complete(
+                        _fetch_with_async_client(aioboto3_session)
+                    )
+                    break
+                except ClientError as error:
+                    error_code = error.response.get("Error", {}).get("Code")
+                    if (
+                        attempt == 1
+                        or error_code != "InvalidClientTokenId"
+                        or aioboto3_session_factory is None
+                    ):
+                        raise
+                    logger.warning(
+                        "Retrying ECR image layer sync with a fresh AWS credential chain after temporary credential refresh failed.",
+                    )
+                    aioboto3_session = aioboto3_session_factory()
 
             logger.info(
                 f"Successfully fetched layers for {len(image_layers_data)} images"

@@ -6,7 +6,8 @@ A(CloudflareAccount) -- RESOURCE --> Z(CloudflareZone)
 A(CloudflareAccount) -- RESOURCE --> M(CloudflareMember)
 A(CloudflareAccount) -- RESOURCE --> R(CloudflareRole)
 M -- HAS_ROLE --> R
-Z -- RESOURCE --> CloudflareDNSRecord
+A(CloudflareAccount) -- RESOURCE --> D(CloudflareDNSRecord)
+Z -- HAS_RECORD --> D
 ```
 
 ### CloudflareAccount
@@ -29,12 +30,13 @@ Represents the Cloudflare Account (aka Tenant)
 
 
 #### Relationships
-- `CloudflareRole`, `CloudflareMember`, `CloudflareZone` belong to an `CloudflareAccount`.
+- `CloudflareRole`, `CloudflareMember`, `CloudflareZone`, `CloudflareDNSRecord` belong to an `CloudflareAccount`.
     ```
     (:CloudflareAccount)-[:RESOURCE]->(
         :CloudflareRole,
         :CloudflareMember,
-        :CloudflareZone
+        :CloudflareZone,
+        :CloudflareDNSRecord
     )
     ```
 
@@ -124,7 +126,11 @@ benefits. |
 typically a partner-hosted zone or a CNAME setup. |
 
 #### Relationships
-- `CloudflareDNSRecord` belongs to an `CloudflareZone`.
+- `CloudflareZone` has `CloudflareDNSRecord`.
+    ```
+    (:CloudflareZone)-[:HAS_RECORD]->(:CloudflareDNSRecord)
+    ```
+- `CloudflareZone` has `CloudflareDNSRecord`. DEPRECATED: use `HAS_RECORD` instead, this edge will be removed in v1.0.0.
     ```
     (:CloudflareZone)-[:RESOURCE]->(:CloudflareDNSRecord)
     ```
@@ -150,7 +156,15 @@ Represents a DNS entry in Cloudflare.
 
 
 #### Relationships
-- `CloudflareDNSRecord` belongs to a `CloudflareZone`
+- `CloudflareDNSRecord` belongs to a `CloudflareAccount`
+    ```
+    (:CloudflareDNSRecord)<-[:RESOURCE]-(:CloudflareAccount)
+    ```
+- `CloudflareDNSRecord` is hosted in a `CloudflareZone`
+    ```
+    (:CloudflareDNSRecord)<-[:HAS_RECORD]-(:CloudflareZone)
+    ```
+- `CloudflareDNSRecord` is hosted in a `CloudflareZone`. DEPRECATED: use `HAS_RECORD` instead, this edge will be removed in v1.0.0.
     ```
     (:CloudflareDNSRecord)<-[:RESOURCE]-(:CloudflareZone)
     ```

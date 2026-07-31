@@ -59,17 +59,24 @@ def start_cloudflare_ingestion(neo4j_session: neo4j.Session, config: Config) -> 
             account_id=account["id"],
         )
 
-        for zone in cartography.intel.cloudflare.zones.sync(
+        # Runs before the zone sync: zone cleanup deletes stale zones, which
+        # would orphan the DNS records only reachable through them.
+        cartography.intel.cloudflare.dnsrecords.migrate_account_resource_edges(
+            neo4j_session,
+            account_job_parameters,
+        )
+
+        zones = cartography.intel.cloudflare.zones.sync(
             neo4j_session,
             client,
             account_job_parameters,
             account_id=account["id"],
-        ):
-            zone_job_parameters = account_job_parameters.copy()
-            zone_job_parameters["zone_id"] = zone["id"]
-            cartography.intel.cloudflare.dnsrecords.sync(
-                neo4j_session,
-                client,
-                zone_job_parameters,
-                zone_id=zone["id"],
-            )
+        )
+
+        cartography.intel.cloudflare.dnsrecords.sync(
+            neo4j_session,
+            client,
+            account_job_parameters,
+            account_id=account["id"],
+            zones=zones,
+        )
