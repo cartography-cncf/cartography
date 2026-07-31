@@ -102,6 +102,9 @@
 ```{include} ../modules/keycloak/schema.md
 ```
 
+```{include} ../modules/railway/schema.md
+```
+
 ```{include} ../modules/salesforce/schema.md
 ```
 
@@ -154,6 +157,9 @@
 ```
 
 ```{include} ../modules/subimage/schema.md
+```
+
+```{include} ../modules/supabase/schema.md
 ```
 
 ```{include} ../modules/tailscale/schema.md

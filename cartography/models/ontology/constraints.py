@@ -271,9 +271,10 @@ ONTOLOGY_REL_CONSTRAINTS: tuple[RelConstraint, ...] = (
     RelConstraint(src="ComputeInstance", dst="PermissionRole", label="ASSUMES"),
     RelConstraint(src="Function", dst="PermissionRole", label="ASSUMES"),
     # A vulnerability finding (CVE) or a rule-based security issue affects a
-    # software package. Both finding shapes point at the same canonical Package.
-    RelConstraint(src="CVE", dst="Package", label="AFFECTS"),
-    RelConstraint(src="SecurityIssue", dst="Package", label="AFFECTS"),
+    # specific version of a software package. Both finding shapes point at the same
+    # canonical PackageVersion.
+    RelConstraint(src="CVE", dst="PackageVersion", label="AFFECTS"),
+    RelConstraint(src="SecurityIssue", dst="PackageVersion", label="AFFECTS"),
     # A container/function resolves to the concrete single-platform image it
     # runs. Materialized by resolved_image_analysis.json from the raw HAS_IMAGE
     # references (which are whitelisted below as a distinct semantic).
@@ -289,8 +290,10 @@ ONTOLOGY_REL_CONSTRAINTS: tuple[RelConstraint, ...] = (
     # legitimately span that pair (COMMITTED_TO commit authorship, OWNER
     # ownership, DIRECT_COLLAB_*/OUTSIDE_COLLAB_* access grants), so a single
     # canonical label cannot be enforced here yet.
-    # A software package is deployed inside a container image.
-    RelConstraint(src="Package", dst="Image", label="DEPLOYED"),
+    # A specific version of a software package is deployed inside a container image.
+    RelConstraint(src="PackageVersion", dst="Image", label="DEPLOYED"),
+    # A package groups the concrete versions of itself found across the estate.
+    RelConstraint(src="Package", dst="PackageVersion", label="HAS_VERSION"),
 )
 
 

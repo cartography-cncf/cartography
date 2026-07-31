@@ -96,6 +96,7 @@ from cartography.models.ontology.mapping.data.vpcs import VPCS_ONTOLOGY_MAPPING
 from cartography.models.ontology.mapping.specs import OntologyMapping
 from cartography.models.ontology.mapping.specs import OntologyNodeMapping
 from cartography.models.ontology.package import PackageSchema
+from cartography.models.ontology.package_version import PackageVersionSchema
 from cartography.models.ontology.publicip import PublicIPSchema
 from cartography.models.ontology.user import UserSchema
 
@@ -156,9 +157,21 @@ SEMANTIC_LABELS_MAPPING: dict[str, dict[str, OntologyMapping]] = {
 ONTOLOGY_MODELS: dict[str, type[CartographyNodeSchema] | None] = {
     "users": UserSchema,
     "devices": DeviceSchema,
-    "packages": PackageSchema,
+    "packages": PackageVersionSchema,
     "publicips": PublicIPSchema,
 }
+
+# Primary labels owned by canonical ontology schemas. Provider schemas must never
+# reuse them (enforced by tests/unit/cartography/intel/ontology/test_ontology_mapping.py).
+# This is a superset of ONTOLOGY_MODELS: Package is not built from an ontology mapping,
+# it is derived from the PackageVersion rows by the ontology packages sync.
+ONTOLOGY_CANONICAL_SCHEMAS: tuple[type[CartographyNodeSchema], ...] = (
+    UserSchema,
+    DeviceSchema,
+    PackageSchema,
+    PackageVersionSchema,
+    PublicIPSchema,
+)
 
 
 def get_semantic_label_mapping_from_node_schema(

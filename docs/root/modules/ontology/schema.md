@@ -67,10 +67,11 @@ NAC{{NetworkAccessControl}}
 AIM{{AIModel}}
 PIP(PublicIP) -- POINTS_TO --> LB
 PIP -- POINTS_TO --> CI
-PKG(Package) -- DEPLOYED --> IM{{Image}}
-PKG -- DEPENDS_ON --> PKG
-F[TrivyImageFinding] -- AFFECTS --> PKG
-SCA[SemgrepSCAFinding] -- AFFECTS --> PKG
+PKG(Package) -- HAS_VERSION --> PKGV(PackageVersion)
+PKGV -- DEPLOYED --> IM{{Image}}
+PKGV -- DEPENDS_ON --> PKGV
+F[TrivyImageFinding] -- AFFECTS --> PKGV
+SCA[SemgrepSCAFinding] -- AFFECTS --> PKGV
 CR{{ContainerRegistry}} -- REPO_IMAGE --> IT{{ImageTag}}
 IT -- IMAGE --> IM
 IML{{ImageManifestList}} -- CONTAINS_IMAGE --> IM
@@ -88,7 +89,7 @@ In this schema, `squares` represent `Abstract Nodes` and `hexagons` represent `S
 
 ### Where ontology relationships come from
 
-1. The abstract ontology node schemas (`User`, `Device`, `PublicIP`, `Package`) declare the edges they own to module nodes (e.g. `(:User)-[:HAS_ACCOUNT]->(:UserAccount)`).
+1. The abstract ontology node schemas (`User`, `Device`, `PublicIP`, `Package`, `PackageVersion`) declare the edges they own to module nodes (e.g. `(:User)-[:HAS_ACCOUNT]->(:UserAccount)`).
 2. Ontology analysis jobs derive cross-module edges after sync (e.g. `USER_LINKING_JOBS` builds the `User`/`UserAccount` graph; `RESOLVED_IMAGE_JOBS` connects `Container` and `Function` to a single-platform `Image`; `WORKLOAD_HAS_RUNTIME_IMAGE` collapses running containers up the `WORKLOAD_PARENT` chain to record `(:ComputeService)-[:HAS_RUNTIME_IMAGE]->(:Image)` for each workload).
 3. Sync modules wire edges between two ontology-labelled nodes themselves (e.g. ECS adding `(:AWSECSContainer:Container)-[:WORKLOAD_PARENT]->(:AWSECSTask:ComputePod)`). For this last source, canonical `(src, dst, label)` triples are encoded as `RelConstraint` entries in [`cartography/models/ontology/constraints.py`](https://github.com/cartography-cncf/cartography/blob/master/cartography/models/ontology/constraints.py); a unit test rejects any module rel between those two ontology labels that uses a different name or direction.
 
@@ -1031,8 +1032,45 @@ A virtual network represents an isolated virtual network environment that define
 Package is an abstract ontology node.
 ```
 
-A package represents a software package (library, dependency, or system package) discovered across different scanning tools.
-Package nodes are deduplicated by their `id`, which uses the format `{type}|{namespace/}{name}|{version}` for cross-tool matching.
+A package represents a software package (library, dependency, or system package) independently of its
+version. It groups every `PackageVersion` of itself discovered across the estate, so it answers
+"which versions of this package do we have?" without string-splitting ids.
+
+Package nodes are deduplicated by their `id`, which uses the format `{type}|{namespace/}{name}`: the
+version-independent counterpart of `PackageVersion.id`.
+
+| Field | Description |
+|-------|-------------|
+| **id** | Version-independent normalized ID (format: `{type}\|{namespace/}{name}`). |
+| firstseen | Timestamp of when a sync job first created this node. |
+| lastupdated | Timestamp of the last time the node was updated. |
+| name | Normalized name of the package (PEP 503 for Python, lowercase elsewhere). This keeps the PURL namespace prefix when there is one, so `pkg:npm/%40types/node` gives `@types/node` rather than `node`: it is the name the package is published under, and it keeps `name` aligned with the `name` part of `id`. Use `namespace` below to get the bare PURL namespace component on its own. |
+| namespace | The PURL `namespace` component alone, when the PURL carries one (e.g. `@types` for `pkg:npm/%40types/node`), else unset. |
+| type | Package ecosystem type (e.g., npm, pypi, deb). |
+
+#### Relationships
+
+- `Package` groups the concrete versions of itself found across the estate:
+    ```
+    (:Package)-[:HAS_VERSION]->(:PackageVersion)
+    ```
+
+```{note}
+`Package` is a pure aggregation node: every derived edge (`DETECTED_AS`, `DEPLOYED`, `AFFECTS`,
+`SHOULD_UPDATE_TO`, `DEPENDS_ON`) hangs off the `PackageVersion` nodes it groups.
+```
+
+
+### PackageVersion
+
+```{note}
+PackageVersion is an abstract ontology node.
+```
+
+A package version represents one specific version of a software package (library, dependency, or
+system package) discovered across different scanning tools.
+PackageVersion nodes are deduplicated by their `id`, which uses the format
+`{type}|{namespace/}{name}|{version}` for cross-tool matching.
 
 | Field | Description |
 |-------|-------------|
@@ -1046,28 +1084,35 @@ Package nodes are deduplicated by their `id`, which uses the format `{type}|{nam
 
 #### Relationships
 
-- `Package` is linked to one or many source nodes that detected it:
+- `PackageVersion` is grouped under the version-independent `Package`:
     ```
-    (:Package)-[:DETECTED_AS]->(:TrivyPackage)
-    (:Package)-[:DETECTED_AS]->(:SyftPackage)
-    (:Package)-[:DETECTED_AS]->(:SemgrepDependency)
+    (:Package)-[:HAS_VERSION]->(:PackageVersion)
     ```
-- `Package` can be deployed in one or many container images (propagated from TrivyPackage and SyftPackage):
+- `PackageVersion` is linked to one or many source nodes that detected it:
     ```
-    (:Package)-[:DEPLOYED]->(:Image)
+    (:PackageVersion)-[:DETECTED_AS]->(:TrivyPackage)
+    (:PackageVersion)-[:DETECTED_AS]->(:SyftPackage)
+    (:PackageVersion)-[:DETECTED_AS]->(:SemgrepDependency)
+    (:PackageVersion)-[:DETECTED_AS]->(:GitHubDependency)
+    (:PackageVersion)-[:DETECTED_AS]->(:GitLabDependency)
+    (:PackageVersion)-[:DETECTED_AS]->(:SocketDevDependency)
     ```
-- `Package` can be affected by one or many vulnerability findings or security issues (propagated from TrivyPackage and SemgrepDependency):
+- `PackageVersion` can be deployed in one or many container images (propagated from TrivyPackage and SyftPackage):
     ```
-    (:TrivyImageFinding)-[:AFFECTS]->(:Package)
-    (:SemgrepSCAFinding)-[:AFFECTS]->(:Package)
+    (:PackageVersion)-[:DEPLOYED]->(:Image)
     ```
-- `Package` can have one or many recommended fix versions (propagated from TrivyPackage):
+- `PackageVersion` can be affected by one or many vulnerability findings or security issues (propagated from TrivyPackage and SemgrepDependency):
     ```
-    (:Package)-[:SHOULD_UPDATE_TO]->(:TrivyFix)
+    (:TrivyImageFinding)-[:AFFECTS]->(:PackageVersion)
+    (:SemgrepSCAFinding)-[:AFFECTS]->(:PackageVersion)
     ```
-- `Package` can depend on other packages (propagated from SyftPackage):
+- `PackageVersion` can have one or many recommended fix versions (propagated from TrivyPackage):
     ```
-    (:Package)-[:DEPENDS_ON]->(:Package)
+    (:PackageVersion)-[:SHOULD_UPDATE_TO]->(:TrivyFix)
+    ```
+- `PackageVersion` can depend on other package versions (propagated from SyftPackage):
+    ```
+    (:PackageVersion)-[:DEPENDS_ON]->(:PackageVersion)
     ```
 
 ### CVE
@@ -1184,9 +1229,9 @@ It generalizes concepts like AWS AWSECRImage (type=image), GCP Container Images,
     (:TrivyImageFinding)-[:AFFECTS]->(:Image)
     ```
 
-- Canonical `Package` nodes are deployed on an `Image` (propagated from TrivyPackage and SyftPackage):
+- Canonical `PackageVersion` nodes are deployed on an `Image` (propagated from TrivyPackage and SyftPackage):
     ```
-    (:Package)-[:DEPLOYED]->(:Image)
+    (:PackageVersion)-[:DEPLOYED]->(:Image)
     ```
 
 

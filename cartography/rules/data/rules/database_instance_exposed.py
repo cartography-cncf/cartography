@@ -1,4 +1,5 @@
 from cartography.rules.data.frameworks.iso27001 import iso27001_annex_a
+from cartography.rules.data.frameworks.soc2 import soc2_tsc
 from cartography.rules.spec.model import Fact
 from cartography.rules.spec.model import Finding
 from cartography.rules.spec.model import Maturity
@@ -335,5 +336,8 @@ database_instance_exposed = Rule(
         "stride:tampering",
     ),
     version="0.1.0",
-    frameworks=(iso27001_annex_a("8.20"),),
+    frameworks=(
+        iso27001_annex_a("8.20"),
+        soc2_tsc("CC6.6"),
+    ),
 )

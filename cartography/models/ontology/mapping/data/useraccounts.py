@@ -631,6 +631,50 @@ vercel_mapping = OntologyMapping(
     ],
 )
 
+railway_mapping = OntologyMapping(
+    module_name="railway",
+    nodes=[
+        OntologyNodeMapping(
+            node_label="RailwayUser",
+            fields=[
+                OntologyFieldMapping(
+                    ontology_field="email", node_field="email", required=True
+                ),
+                OntologyFieldMapping(ontology_field="fullname", node_field="name"),
+                OntologyFieldMapping(
+                    ontology_field="has_mfa", node_field="two_factor_auth_enabled"
+                ),
+                # username: Railway has no username, only email and display name.
+                # active: Railway does not expose an account status on workspace members.
+            ],
+        ),
+    ],
+)
+
+supabase_mapping = OntologyMapping(
+    module_name="supabase",
+    nodes=[
+        OntologyNodeMapping(
+            node_label="SupabaseOrganizationMember",
+            fields=[
+                OntologyFieldMapping(
+                    ontology_field="email", node_field="email", required=True
+                ),
+                OntologyFieldMapping(ontology_field="username", node_field="user_name"),
+                OntologyFieldMapping(
+                    ontology_field="has_mfa",
+                    node_field="mfa_enabled",
+                    special_handling="to_boolean",
+                ),
+                # inactive: Not available. The members endpoint lists only current
+                # members, with no suspended or deactivated state.
+                # lastactivity: Not available.
+            ],
+        ),
+    ],
+)
+
+
 USERACCOUNTS_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     "microsoft": entra_mapping,
     "lastpass": lastpass_mapping,
@@ -660,6 +704,7 @@ USERACCOUNTS_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     "kubernetes": kubernetes_mapping,
     "jumpcloud": jumpcloud_mapping,
     "vercel": vercel_mapping,
+    "railway": railway_mapping,
     "databricks": OntologyMapping(
         module_name="databricks",
         nodes=[
@@ -689,4 +734,5 @@ USERACCOUNTS_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
             ),
         ],
     ),
+    "supabase": supabase_mapping,
 }

@@ -6,6 +6,7 @@ between Trivy and Syft.
 """
 
 from cartography.intel.trivy.util import make_normalized_package_id
+from cartography.intel.trivy.util import make_normalized_package_name_id
 from cartography.intel.trivy.util import normalize_package_name
 from cartography.intel.trivy.util import parse_purl
 
@@ -111,3 +112,38 @@ class TestMakeNormalizedPackageId:
         assert make_normalized_package_id() is None
         assert make_normalized_package_id(name="express") is None
         assert make_normalized_package_id(name="express", version="4.18.2") is None
+
+
+class TestMakeNormalizedPackageNameId:
+    """Tests for make_normalized_package_name_id function."""
+
+    def test_purl_with_namespace(self):
+        assert (
+            make_normalized_package_name_id(purl="pkg:npm/%40types/node@18.0.0")
+            == "npm|@types/node"
+        )
+
+    def test_purl_without_version(self):
+        assert make_normalized_package_name_id(purl="pkg:pypi/h11") == "pypi|h11"
+
+    def test_purl_name_is_normalized(self):
+        assert (
+            make_normalized_package_name_id(purl="pkg:pypi/jaraco.context@4.3.0")
+            == "pypi|jaraco-context"
+        )
+
+    def test_fallback_to_components(self):
+        assert (
+            make_normalized_package_name_id(name="Express", pkg_type="npm")
+            == "npm|express"
+        )
+
+    def test_matches_versioned_id_prefix(self):
+        versioned = make_normalized_package_id(purl="pkg:pypi/PyNaCl@1.5.0")
+        versionless = make_normalized_package_name_id(purl="pkg:pypi/PyNaCl@1.5.0")
+        assert versioned == f"{versionless}|1.5.0"
+
+    def test_missing_components_returns_none(self):
+        assert make_normalized_package_name_id() is None
+        assert make_normalized_package_name_id(name="express") is None
+        assert make_normalized_package_name_id(pkg_type="npm") is None
