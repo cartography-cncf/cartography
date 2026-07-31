@@ -4,6 +4,7 @@ from cartography.rules.data.frameworks.cis import cis_google_workspace
 from cartography.rules.data.frameworks.cis import cis_kubernetes
 from cartography.rules.data.frameworks.iso27001 import iso27001_annex_a
 from cartography.rules.data.frameworks.nist_ai_rmf import nist_ai_rmf
+from cartography.rules.data.frameworks.soc2 import soc2_tsc
 
 
 def test_framework_helpers_preserve_framework_metadata():
@@ -62,6 +63,17 @@ def test_framework_helpers_preserve_framework_metadata():
             "map 1",
             "Context is established and understood",
         ),
+        (
+            soc2_tsc("CC6.6"),
+            "aicpa 2017 trust services criteria "
+            "(with revised points of focus - 2022)",
+            "soc2",
+            "tsc",
+            "2022",
+            "cc6.6",
+            "The entity implements logical access security measures to protect "
+            "against threats from sources outside its system boundaries.",
+        ),
     ]
 
     for (
@@ -85,3 +97,7 @@ def test_framework_helpers_allow_explicit_control_title_override():
     framework = cis_aws("4.1", control_title="Custom control title")
 
     assert framework.control_title == "Custom control title"
+
+    soc2_framework = soc2_tsc("CC6.1", control_title="Custom SOC 2 criterion")
+
+    assert soc2_framework.control_title == "Custom SOC 2 criterion"

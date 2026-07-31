@@ -159,6 +159,9 @@
 ```{include} ../modules/subimage/schema.md
 ```
 
+```{include} ../modules/supabase/schema.md
+```
+
 ```{include} ../modules/tailscale/schema.md
 ```
 
