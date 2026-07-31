@@ -2512,18 +2512,40 @@ Represents a GCP BigQuery Table, View, or Materialized View.
     ```
     (GCPBigQueryTable)-[:USES_CONNECTION]->(GCPBigQueryConnection)
     ```
-  - GCPPrincipals with appropriate permissions can read data from a table. Created from [gcp_permission_relationships.yaml](https://github.com/cartography-cncf/cartography/blob/master/cartography/data/gcp_permission_relationships.yaml).
+  - GCPPrincipals with an IAM binding placed directly on this table can read its data. Created from [gcp_permission_relationships.yaml](https://github.com/cartography-cncf/cartography/blob/master/cartography/data/gcp_permission_relationships.yaml).
     ```
     (GCPPrincipal)-[:CAN_READ]->(GCPBigQueryTable)
     ```
-  - GCPPrincipals with appropriate permissions can write data to a table.
+  - GCPPrincipals with an IAM binding placed directly on this table can write its data.
     ```
     (GCPPrincipal)-[:CAN_WRITE]->(GCPBigQueryTable)
     ```
-  - GCPPrincipals with appropriate permissions can delete a table.
+  - GCPPrincipals with an IAM binding placed directly on this table can delete it.
     ```
     (GCPPrincipal)-[:CAN_DELETE]->(GCPBigQueryTable)
     ```
+
+```{note}
+A permission relationship on a `GCPBigQueryTable` means an IAM binding placed
+**directly on that table**. Grants held at the project, folder, organization or
+dataset level are not expanded into one relationship per table: they land on the
+`GCPBigQueryDataset` and reach the tables through `HAS_TABLE`. Nothing table-level
+is consulted when evaluating them (no table ACL, no row or column level security,
+no authorized view), so expanding them per table added no information while writing
+millions of relationships on large projects.
+
+Query effective access as the union of the two grains:
+
+    MATCH (p:GCPPrincipal)-[:CAN_READ]->(t:GCPBigQueryTable)
+    RETURN p.email AS principal, t.id AS table, 'table binding' AS grain
+    UNION
+    MATCH (p:GCPPrincipal)-[:CAN_READ]->(:GCPBigQueryDataset)-[:HAS_TABLE]->(t:GCPBigQueryTable)
+    RETURN p.email AS principal, t.id AS table, 'dataset grant' AS grain
+
+Each relationship carries its own `has_condition`, `condition_title` and
+`condition_expression`, so a conditional binding on one table and an unconditional
+grant on its dataset are both represented, each on its own grain.
+```
 
 ### GCPBigQueryRoutine
 
