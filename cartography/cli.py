@@ -55,6 +55,7 @@ PANEL_GITLAB = "GitLab Options"
 PANEL_GSUITE = "GSuite Options"
 PANEL_GOOGLE_WORKSPACE = "Google Workspace Options"
 PANEL_DIGITALOCEAN = "DigitalOcean Options"
+PANEL_FLYIO = "Fly.io Options"
 PANEL_CROWDSTRIKE = "CrowdStrike Options"
 PANEL_JAMF = "Jamf Options"
 PANEL_KANDJI = "Kandji Options"
@@ -115,6 +116,7 @@ MODULE_PANELS = {
     "gsuite": PANEL_GSUITE,
     "googleworkspace": PANEL_GOOGLE_WORKSPACE,
     "digitalocean": PANEL_DIGITALOCEAN,
+    "flyio": PANEL_FLYIO,
     "crowdstrike": PANEL_CROWDSTRIKE,
     "jamf": PANEL_JAMF,
     "kandji": PANEL_KANDJI,
@@ -942,6 +944,36 @@ class CLI:
                     hidden=PANEL_DIGITALOCEAN not in visible_panels,
                 ),
             ] = None,
+            # =================================================================
+            # Fly.io Options
+            # =================================================================
+            flyio_token_env_var: Annotated[
+                str | None,
+                typer.Option(
+                    "--flyio-token-env-var",
+                    help="Environment variable name containing Fly.io API token.",
+                    rich_help_panel=PANEL_FLYIO,
+                    hidden=PANEL_FLYIO not in visible_panels,
+                ),
+            ] = None,
+            flyio_org_slug: Annotated[
+                str | None,
+                typer.Option(
+                    "--flyio-org-slug",
+                    help="Fly.io organization slug to sync.",
+                    rich_help_panel=PANEL_FLYIO,
+                    hidden=PANEL_FLYIO not in visible_panels,
+                ),
+            ] = None,
+            flyio_base_url: Annotated[
+                str,
+                typer.Option(
+                    "--flyio-base-url",
+                    help="Fly.io Machines API base URL.",
+                    rich_help_panel=PANEL_FLYIO,
+                    hidden=PANEL_FLYIO not in visible_panels,
+                ),
+            ] = "https://api.machines.dev",
             # =================================================================
             # CrowdStrike Options
             # =================================================================
@@ -2573,6 +2605,15 @@ class CLI:
                 )
                 digitalocean_token = os.environ.get(digitalocean_token_env_var)
 
+            # Read Fly.io token
+            flyio_token = None
+            if flyio_token_env_var:
+                logger.debug(
+                    "Reading Fly.io API token from environment variable %s",
+                    flyio_token_env_var,
+                )
+                flyio_token = os.environ.get(flyio_token_env_var)
+
             # Read Jamf password
             jamf_password = None
             if jamf_base_uri:
@@ -3184,6 +3225,9 @@ class CLI:
                 github_config=github_config,
                 github_commit_lookback_days=github_commit_lookback_days,
                 digitalocean_token=digitalocean_token,
+                flyio_token=flyio_token,
+                flyio_org_slug=flyio_org_slug,
+                flyio_base_url=flyio_base_url,
                 permission_relationships_file=permission_relationships_file,
                 azure_permission_relationships_file=azure_permission_relationships_file,
                 gcp_requested_syncs=gcp_requested_syncs,

@@ -341,11 +341,37 @@ netlify_mapping = OntologyMapping(
     ],
 )
 
+flyio_mapping = OntologyMapping(
+    module_name="flyio",
+    nodes=[
+        OntologyNodeMapping(
+            node_label="FlyMachine",
+            fields=[
+                OntologyFieldMapping(
+                    ontology_field="name", node_field="name", required=True
+                ),
+                OntologyFieldMapping(ontology_field="region", node_field="region"),
+                # Fly Machines expose private IPv6 addresses, but public ingress is
+                # represented by FlyMachineService/FlyMachineServicePort nodes.
+                OntologyFieldMapping(
+                    ontology_field="private_ip_address", node_field="private_ip"
+                ),
+                OntologyFieldMapping(ontology_field="state", node_field="state"),
+                OntologyFieldMapping(ontology_field="type", node_field="cpu_kind"),
+                OntologyFieldMapping(
+                    ontology_field="created_at", node_field="created_at"
+                ),
+            ],
+        ),
+    ],
+)
+
 COMPUTE_INSTANCE_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     "aws": aws_mapping,
     "scaleway": scaleway_mapping,
     "digitalocean": digitalocean_mapping,
     "gcp": gcp_mapping,
     "azure": azure_mapping,
+    "flyio": flyio_mapping,
     "netlify": netlify_mapping,
 }
