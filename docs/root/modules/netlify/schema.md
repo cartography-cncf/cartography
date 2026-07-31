@@ -117,8 +117,10 @@ deleted by a team's cleanup**. Removing someone from a team drops that team's `R
 reference it. A person removed from their last team therefore keeps a bare `NetlifyUser` node with
 no membership; query through `MEMBER_OF` rather than by node existence to ask who is on a team.
 
-A membership with no `user_id` is an unaccepted invitation and becomes a `NetlifyInvite` instead;
-see below.
+A membership with no `user_id` becomes a `NetlifyInvite` instead; see below. Note that the split is
+on `user_id`, not on `pending`: someone who already has a Netlify account and is invited to a
+further team arrives with `user_id` set and `pending` true, and stays a `NetlifyUser` with a pending
+`MEMBER_OF` edge.
 
 | Field | Description |
 |---|---|
@@ -155,6 +157,9 @@ A team member is invited by email address alone, so the membership row exists be
 user is attached to it and carries no `user_id`. Since `NetlifyUser` is keyed on `user_id`, those
 rows get their own node keyed on the email, which is the only identity they have.
 
+Only rows with no linked Netlify user land here. An existing user invited to a further team is a
+`NetlifyUser` with `pending` on its `MEMBER_OF` edge, since the person already exists.
+
 Carries no ontology label: there is no account behind the address, so calling it a `UserAccount`
 would put a non-existent identity into cross-provider identity queries. Like `NetlifyUser` it is a
 shared identity, so its team edges are MatchLinks and the node is not deleted by a team's cleanup.
@@ -170,7 +175,8 @@ shared identity, so its team edges are MatchLinks and the node is not deleted by
 
 - An invited address has a pending role on the team. The edge is `INVITED_TO` rather than
   `MEMBER_OF`, because the address is not a member of anything until it accepts, and it carries the
-  per-team `membership_id`, `role`, `site_access` and timestamps.
+  per-team `membership_id`, `role`, `site_access`, `pending`, `invite_id`, `self_invite_state` and
+  timestamps.
     ```cypher
     (:NetlifyAccount)-[:RESOURCE]->(:NetlifyInvite)
     (:NetlifyInvite)-[:INVITED_TO]->(:NetlifyAccount)

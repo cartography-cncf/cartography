@@ -57,6 +57,11 @@ class NetlifyInvitationRelProperties(CartographyRelProperties):
     membership_id: PropertyRef = PropertyRef("membership_id")
     role: PropertyRef = PropertyRef("role")
     site_access: PropertyRef = PropertyRef("site_access")
+    # Netlify's own statements about the invitation, kept so the state is queryable rather than
+    # implied by the node type.
+    pending: PropertyRef = PropertyRef("pending")
+    invite_id: PropertyRef = PropertyRef("invite_id")
+    self_invite_state: PropertyRef = PropertyRef("self_invite_state")
     created_at: PropertyRef = PropertyRef("created_at")
     updated_at: PropertyRef = PropertyRef("updated_at")
     _sub_resource_label: PropertyRef = PropertyRef(

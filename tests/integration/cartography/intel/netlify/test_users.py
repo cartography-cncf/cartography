@@ -178,3 +178,52 @@ def test_an_unaccepted_invitation_becomes_its_own_node(
     ).single()
     assert invitation["role"] == "Collaborator"
     assert invitation["membership_id"] == "invite-row-1"
+
+
+def test_an_existing_user_invited_to_a_team_stays_a_user(
+    neo4j_session: neo4j.Session,
+) -> None:
+    """
+    Someone who already has a Netlify account and is invited to a further team arrives with
+    `user_id` set and `pending` true. Splitting on `pending` would turn that person into an Invite
+    and lose their identity; the split is on `user_id` precisely so this stays a NetlifyUser with a
+    pending MEMBER_OF.
+    """
+    # Arrange
+    neo4j_session.run("MATCH (n) DETACH DELETE n")
+    create_test_netlify_account(neo4j_session)
+    members = [
+        {
+            **tests.data.netlify.users.NETLIFY_MEMBERS[0],
+            "pending": True,
+            "invite_id": "invite-abc",
+        },
+    ]
+
+    # Act
+    with patch.object(
+        cartography.intel.netlify.users,
+        "get_netlify_users",
+        return_value=members,
+    ):
+        cartography.intel.netlify.users.sync_netlify_users(
+            neo4j_session,
+            MagicMock(spec=requests.Session),
+            TEST_BASE_URL,
+            TEST_ACCOUNT_ID,
+            TEST_ACCOUNT_SLUG,
+            TEST_UPDATE_TAG,
+            common_job_parameters(),
+        )
+
+    # Assert: a user, not an invite, and the pending state is on the edge
+    assert check_nodes(neo4j_session, "NetlifyUser", ["id"]) == {(TEST_USER_ID,)}
+    assert check_nodes(neo4j_session, "NetlifyInvite", ["id"]) == set()
+    membership = neo4j_session.run(
+        """
+        MATCH (:NetlifyUser)-[r:MEMBER_OF]->(:NetlifyAccount)
+        RETURN r.pending AS pending, r.invite_id AS invite_id
+        """,
+    ).single()
+    assert membership["pending"] is True
+    assert membership["invite_id"] == "invite-abc"

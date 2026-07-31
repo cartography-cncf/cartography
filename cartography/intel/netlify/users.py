@@ -50,12 +50,18 @@ def transform_netlify_users(
     account_id: str,
 ) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
     """
-    Split the membership list into people and unaccepted invitations.
+    Split the membership list by whether Netlify has linked a user to it.
 
-    An invited address has no `user_id` yet, and NetlifyUser is keyed on it, so those rows become
-    NetlifyInvite nodes keyed on the email instead.
+    The split is on `user_id`, and deliberately not on `pending` or `invite_id`. Those describe the
+    state of the membership, not whether a person exists: a Netlify user who already has an account
+    and is invited to a second team arrives with `user_id` set and `pending` true, and must stay a
+    NetlifyUser with a pending MEMBER_OF rather than becoming an Invite. `user_id` is what decides
+    whether a NetlifyUser node can be keyed at all, so it is what decides the node type; `pending`
+    and `invite_id` ride on the edge in both branches.
 
-    :return: (members with a Netlify user, unaccepted invitations)
+    A row with no `user_id` and no email cannot be keyed either way, so it is skipped.
+
+    :return: (memberships with a linked Netlify user, memberships known only by email)
     """
     users: list[dict[str, Any]] = []
     invites: list[dict[str, Any]] = []
@@ -74,14 +80,22 @@ def transform_netlify_users(
                 },
             )
             continue
-        email = member.get("email")
-        if not email:
-            # Neither identity is available, so there is nothing to key a node on either way.
+        if not member.get("email"):
             logger.warning(
                 "Skipping Netlify membership %s: it has neither a user_id nor an email.",
                 member["id"],
             )
             continue
+        # A membership with no linked user is expected to be an outstanding invitation. If Netlify
+        # says otherwise, the assumption behind this split is wrong and worth surfacing rather than
+        # quietly modelling the row as an invite.
+        if not member.get("pending") and not member.get("invite_id"):
+            logger.warning(
+                "Netlify membership %s has no user_id but is not marked pending and carries no "
+                "invite_id. Treating it as an invitation keyed on %s; please report this payload.",
+                member["id"],
+                member["email"],
+            )
         invites.append(common)
     return users, invites
 

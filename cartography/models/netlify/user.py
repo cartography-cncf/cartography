@@ -108,8 +108,10 @@ class NetlifyUserMembershipRelProperties(CartographyRelProperties):
     membership_id: PropertyRef = PropertyRef("membership_id")
     role: PropertyRef = PropertyRef("role")
     site_access: PropertyRef = PropertyRef("site_access")
-    # True while an invitation to this team is outstanding, i.e. they cannot use it yet.
+    # True while an invitation to this team is outstanding. An existing Netlify user invited to a
+    # further team arrives here, not as a NetlifyInvite: the person already exists.
     pending: PropertyRef = PropertyRef("pending")
+    invite_id: PropertyRef = PropertyRef("invite_id")
     managed_by_directory_sync: PropertyRef = PropertyRef("managed_by_directory_sync")
     created_at: PropertyRef = PropertyRef("created_at")
     updated_at: PropertyRef = PropertyRef("updated_at")
