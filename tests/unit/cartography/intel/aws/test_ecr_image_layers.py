@@ -537,6 +537,58 @@ def test_fetch_image_layers_async_skips_only_transient_image_failure(mocker):
     assert image_attestation_map == {}
 
 
+@pytest.mark.asyncio
+async def test_fetch_image_layers_async_cancels_siblings_on_unexpected_failure(mocker):
+    repo_uri = "111122223333.dkr.ecr.us-east-1.amazonaws.com/example-repository"
+    repo_images_list = [
+        {
+            "uri": f"{repo_uri}:slow",
+            "imageDigest": "sha256:slow",
+            "repo_uri": repo_uri,
+        },
+        {
+            "uri": f"{repo_uri}:invalid",
+            "imageDigest": "sha256:invalid",
+            "repo_uri": repo_uri,
+        },
+    ]
+    slow_started = asyncio.Event()
+    slow_cancelled = asyncio.Event()
+
+    async def mock_batch_get_manifest(_client, _repo, image_ref, _accepted):
+        if image_ref == "sha256:slow":
+            slow_started.set()
+            try:
+                await asyncio.Event().wait()
+            except asyncio.CancelledError:
+                slow_cancelled.set()
+                raise
+        await slow_started.wait()
+        raise ClientError(
+            {
+                "Error": {
+                    "Code": "InvalidClientTokenId",
+                    "Message": "Synthetic AWS client error",
+                },
+            },
+            "AssumeRole",
+        )
+
+    mocker.patch(
+        "cartography.intel.aws.ecr_image_layers.batch_get_manifest",
+        side_effect=mock_batch_get_manifest,
+    )
+
+    with pytest.raises(ClientError):
+        await fetch_image_layers_async(
+            AsyncMock(),
+            repo_images_list,
+            max_concurrent=2,
+        )
+
+    assert slow_cancelled.is_set()
+
+
 def test_fetch_image_layers_async_still_processes_successful_children_when_one_child_fails_transiently(
     mocker,
 ):
