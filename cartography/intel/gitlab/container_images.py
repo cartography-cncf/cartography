@@ -14,6 +14,9 @@ import neo4j
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
 from cartography.helpers import batch
+from cartography.intel.container_image_layers import ContainerImageLayerGraphShape
+from cartography.intel.container_image_layers import get_complete_layer_digests
+from cartography.intel.container_image_layers import refresh_layer_closures
 from cartography.intel.gitlab.util import fetch_registry_blob
 from cartography.intel.gitlab.util import fetch_registry_manifest
 from cartography.intel.gitlab.util import get_paginated
@@ -51,6 +54,14 @@ GITLAB_CONTAINER_IMAGE_BATCH_SIZE = 500
 # Fetch and write repositories in chunks so long-running org syncs do not spend
 # hours accumulating manifests before issuing the next Neo4j write.
 GITLAB_CONTAINER_REPOSITORY_BATCH_SIZE = 100
+
+GITLAB_LAYER_GRAPH = ContainerImageLayerGraphShape(
+    image_label="GitLabContainerImage",
+    layer_label="GitLabContainerImageLayer",
+    scope_label="GitLabOrganization",
+    scope_properties=("id", "gitlab_url"),
+    has_next=True,
+)
 
 
 def _parse_repository_location(location: str) -> tuple[str, str]:
@@ -110,6 +121,10 @@ def get_container_images(
     gitlab_url: str,
     token: str,
     repositories: list[dict[str, Any]],
+    *,
+    skip_digests: set[str] | None = None,
+    observed_and_skipped: set[str] | None = None,
+    skipped_attestation_manifests: list[dict[str, Any]] | None = None,
 ) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
     """
     Fetch container image manifests for all repositories via the Registry V2 API.
@@ -123,6 +138,15 @@ def get_container_images(
     all_manifests: list[dict[str, Any]] = []
     manifest_lists: list[dict[str, Any]] = []
     seen_digests: dict[str, set[str]] = {}
+    skip_digests = skip_digests or set()
+    observed_and_skipped = (
+        observed_and_skipped if observed_and_skipped is not None else set()
+    )
+    skipped_attestation_manifests = (
+        skipped_attestation_manifests
+        if skipped_attestation_manifests is not None
+        else []
+    )
 
     for repo in repositories:
         location = repo.get("location")
@@ -170,6 +194,10 @@ def get_container_images(
 
             media_type = manifest.get("mediaType")
             is_manifest_list = media_type in MANIFEST_LIST_MEDIA_TYPES
+            if not is_manifest_list and digest in skip_digests:
+                observed_and_skipped.add(digest)
+                skipped_attestation_manifests.append(manifest)
+                continue
 
             if is_manifest_list:
                 # Save manifest list for buildx attestation discovery
@@ -194,6 +222,18 @@ def get_container_images(
                     expected_children += 1
                     child_digest = child.get("digest")
 
+                    if child_digest in skip_digests:
+                        observed_and_skipped.add(child_digest)
+                        skipped_attestation_manifests.append(
+                            {
+                                "_digest": child_digest,
+                                "_registry_url": registry_url,
+                                "_repository_name": repository_name,
+                            }
+                        )
+                        seen_digests[repository_name].add(child_digest)
+                        ingested_children += 1
+                        continue
                     if child_digest in seen_digests[repository_name]:
                         ingested_children += 1  # Already ingested
                         continue
@@ -298,11 +338,11 @@ def transform_container_images(
         if not is_manifest_list:
             rootfs = config.get("rootfs", {})
             diff_ids = rootfs.get("diff_ids")
-            # Only set if there are actual layers, otherwise keep as None to skip relationship matching
-            if diff_ids and isinstance(diff_ids, list) and len(diff_ids) > 0:
+            if isinstance(diff_ids, list):
                 layer_diff_ids = diff_ids
-                head_layer_diff_id = diff_ids[0]  # First layer
-                tail_layer_diff_id = diff_ids[-1]  # Last layer
+                if diff_ids:
+                    head_layer_diff_id = diff_ids[0]  # First layer
+                    tail_layer_diff_id = diff_ids[-1]  # Last layer
 
         # Build URI from registry URL and repository name (e.g., registry.gitlab.com/group/project)
         registry_url = manifest.get("_registry_url", "")
@@ -544,10 +584,24 @@ def sync_container_images(
     """
     Sync GitLab container images for an organization.
 
-    Returns (manifests, manifest_lists) for use by attestations module.
+    Returns attestation-discovery manifests and manifest lists. Cached images
+    remain in the discovery set without being sent through image/layer transforms.
     """
     all_raw_manifests: list[dict[str, Any]] = []
+    all_attestation_manifests: list[dict[str, Any]] = []
     all_manifest_lists: list[dict[str, Any]] = []
+    complete_digests = get_complete_layer_digests(
+        neo4j_session,
+        GITLAB_LAYER_GRAPH,
+        None,
+        {"id": org_id, "gitlab_url": gitlab_url},
+    )
+    observed_and_skipped: set[str] = set()
+    if complete_digests:
+        logger.info(
+            "Skipping config fetches for %d already-enriched GitLab digests",
+            len(complete_digests),
+        )
     total_repositories = len(repositories)
     total_batches = (
         total_repositories + GITLAB_CONTAINER_REPOSITORY_BATCH_SIZE - 1
@@ -563,12 +617,18 @@ def sync_container_images(
             total_batches,
             len(repo_batch),
         )
+        skipped_attestation_manifests: list[dict[str, Any]] = []
         raw_manifests, manifest_lists = get_container_images(
             gitlab_url,
             token,
             repo_batch,
+            skip_digests=complete_digests,
+            observed_and_skipped=observed_and_skipped,
+            skipped_attestation_manifests=skipped_attestation_manifests,
         )
         all_raw_manifests.extend(raw_manifests)
+        all_attestation_manifests.extend(raw_manifests)
+        all_attestation_manifests.extend(skipped_attestation_manifests)
         all_manifest_lists.extend(manifest_lists)
 
         # Transform and load each repository chunk immediately so large orgs do
@@ -595,6 +655,13 @@ def sync_container_images(
     if total_repositories == 0:
         logger.info("No GitLab container repositories found for %s", org_id)
 
+    refresh_layer_closures(
+        neo4j_session,
+        GITLAB_LAYER_GRAPH,
+        observed_and_skipped,
+        {"id": org_id, "gitlab_url": gitlab_url},
+        update_tag,
+    )
     cleanup_container_image_layers(neo4j_session, common_job_parameters)
     cleanup_container_images(neo4j_session, common_job_parameters)
-    return all_raw_manifests, all_manifest_lists
+    return all_attestation_manifests, all_manifest_lists

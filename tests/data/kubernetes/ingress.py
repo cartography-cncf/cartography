@@ -384,3 +384,30 @@ KUBERNETES_ALB_INGRESS_RAW = [
         ),
     ),
 ]
+
+# The AWS Load Balancer Controller copies the ELB DNSName verbatim into the ingress status,
+# and AWS preserves the load balancer name's case there.
+MIXED_CASE_ALB_HOSTNAME = "My-Mixed-ALB-1234567890.us-east-1.elb.amazonaws.com"
+
+KUBERNETES_MIXED_CASE_ALB_INGRESS_RAW = [
+    V1Ingress(
+        metadata=V1ObjectMeta(
+            name="alb-ingress-mixed-case",
+            namespace=KUBERNETES_CLUSTER_1_NAMESPACES_DATA[-1]["name"],
+            uid="alb-ing-uid-003-qrst-7890",
+            creation_timestamp=datetime.fromisoformat("2021-10-07T06:22:30+00:00"),
+            deletion_timestamp=None,
+            annotations={},
+        ),
+        spec=V1IngressSpec(rules=[], default_backend=None),
+        status=V1IngressStatus(
+            load_balancer=V1IngressLoadBalancerStatus(
+                ingress=[
+                    V1IngressLoadBalancerIngress(
+                        hostname=MIXED_CASE_ALB_HOSTNAME,
+                    ),
+                ],
+            ),
+        ),
+    ),
+]
