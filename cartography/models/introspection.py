@@ -41,7 +41,7 @@ from cartography.models.github.repos import GITHUB_COLLABORATOR_REL_LABELS
 from cartography.models.ontology.constraints import ONTOLOGY_REL_CONSTRAINTS
 from cartography.models.ontology.mapping import ONTOLOGY_MODELS
 from cartography.models.ontology.mapping import ONTOLOGY_NODES_MAPPING
-from cartography.models.ontology.mapping import SEMANTIC_LABELS_BY_MAPPING_GROUP
+from cartography.models.ontology.mapping import SEMANTIC_LABEL_BY_CATEGORY
 from cartography.models.ontology.mapping import SEMANTIC_LABELS_MAPPING
 from cartography.models.ontology.mapping import (
     SEMANTIC_LABELS_WITHOUT_NORMALIZED_FIELDS,
@@ -1187,7 +1187,7 @@ def _ontology_labels_for_mapping_group(
     node_entry: _NodeAccumulator,
 ) -> set[str]:
     """Identify the ontology label already declared by a mapped node schema."""
-    expected_label = SEMANTIC_LABELS_BY_MAPPING_GROUP[mapping_group]
+    expected_label = SEMANTIC_LABEL_BY_CATEGORY[mapping_group].label
     labels = {
         *node_entry.extra_labels,
         *(label.label for label in node_entry.conditional_labels),
@@ -1218,7 +1218,8 @@ def _build_ontology_semantic_labels(
             nodes_by_label.setdefault(label, set()).add(node.label)
 
     semantic_labels: list[OntologySemanticLabel] = []
-    for mapping_group, label in sorted(SEMANTIC_LABELS_BY_MAPPING_GROUP.items()):
+    for mapping_group, extra_label in sorted(SEMANTIC_LABEL_BY_CATEGORY.items()):
+        label = extra_label.label
         property_entries: dict[str, _PropertyAccumulator] = {}
         _add_generated_property(
             property_entries,

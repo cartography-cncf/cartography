@@ -201,6 +201,7 @@ from cartography.models.slack.group import SlackGroupToCreatorRel
 from cartography.models.tailscale.group import (
     TailscaleUserToGroupInheritedMemberMatchLink,
 )
+from cartography.models.vercel.accessgroup import VercelAccessGroupToUserRel
 
 # DEPRECATED: pre-V1 rel classes tolerated until they are removed in v1.0.0.
 LEGACY_REL_WHITELIST: frozenset[type] = frozenset(
@@ -287,6 +288,7 @@ LEGACY_REL_WHITELIST: frozenset[type] = frozenset(
         GitHubTeamChildTeamRel,
         KeycloakGroupToGroupRel,
         OCIGroupToOCIUserRel,
+        VercelAccessGroupToUserRel,
         # Group "owner"/"maintainer"/"admin" edges mark a privileged role held
         # within the group, a distinct semantic from plain membership. The
         # principals remain reachable through these edges; MEMBER_OF is reserved

@@ -1,7 +1,45 @@
 import logging
 
 from cartography.models.core.nodes import CartographyNodeSchema
+from cartography.models.core.nodes import ExtraNodeLabel
 from cartography.models.ontology.device import DeviceSchema
+from cartography.models.ontology.labels import AI_MODEL
+from cartography.models.ontology.labels import API_KEY
+from cartography.models.ontology.labels import BLOCK_STORAGE
+from cartography.models.ontology.labels import CERTIFICATE
+from cartography.models.ontology.labels import CICD_PIPELINE
+from cartography.models.ontology.labels import CODE_REPOSITORY
+from cartography.models.ontology.labels import COMPUTE_CLUSTER
+from cartography.models.ontology.labels import COMPUTE_INSTANCE
+from cartography.models.ontology.labels import COMPUTE_NAMESPACE
+from cartography.models.ontology.labels import COMPUTE_POD
+from cartography.models.ontology.labels import COMPUTE_SERVICE
+from cartography.models.ontology.labels import CONTAINER
+from cartography.models.ontology.labels import CONTAINER_REGISTRY
+from cartography.models.ontology.labels import CVE
+from cartography.models.ontology.labels import DATABASE
+from cartography.models.ontology.labels import DNS_RECORD
+from cartography.models.ontology.labels import DNS_ZONE
+from cartography.models.ontology.labels import ENCRYPTION_KEY
+from cartography.models.ontology.labels import FILE_STORAGE
+from cartography.models.ontology.labels import FUNCTION
+from cartography.models.ontology.labels import IDENTITY_PROVIDER
+from cartography.models.ontology.labels import IMAGE
+from cartography.models.ontology.labels import LOAD_BALANCER
+from cartography.models.ontology.labels import NETWORK_ACCESS_CONTROL
+from cartography.models.ontology.labels import OBJECT_STORAGE
+from cartography.models.ontology.labels import PERMISSION_ROLE
+from cartography.models.ontology.labels import SECRET
+from cartography.models.ontology.labels import SECURITY_ISSUE
+from cartography.models.ontology.labels import SERVICE_ACCOUNT
+from cartography.models.ontology.labels import SNAPSHOT
+from cartography.models.ontology.labels import SUBNET
+from cartography.models.ontology.labels import TAG
+from cartography.models.ontology.labels import TENANT
+from cartography.models.ontology.labels import THIRD_PARTY_APP
+from cartography.models.ontology.labels import USER_ACCOUNT
+from cartography.models.ontology.labels import USER_GROUP
+from cartography.models.ontology.labels import VIRTUAL_NETWORK
 from cartography.models.ontology.mapping.data.aimodels import AIMODELS_ONTOLOGY_MAPPING
 from cartography.models.ontology.mapping.data.apikeys import APIKEYS_ONTOLOGY_MAPPING
 from cartography.models.ontology.mapping.data.blockstorage import (
@@ -154,57 +192,50 @@ SEMANTIC_LABELS_MAPPING: dict[str, dict[str, OntologyMapping]] = {
     "cves": CVES_ONTOLOGY_MAPPING,
 }
 
-# Explicit names make semantic labels introspectable without relying on pluralization or
-# matching heuristics. Labels without normalized fields are included because they still
-# participate in the ontology relationship catalog.
-SEMANTIC_LABELS_BY_MAPPING_GROUP: dict[str, str] = {
-    "aimodels": "AIModel",
-    "apikeys": "APIKey",
-    "blockstorage": "BlockStorage",
-    "certificates": "Certificate",
-    "cicdpipelines": "CICDPipeline",
-    "coderepositories": "CodeRepository",
-    "computeclusters": "ComputeCluster",
-    "computeinstance": "ComputeInstance",
-    "computenamespaces": "ComputeNamespace",
-    "computepods": "ComputePod",
-    "computeservices": "ComputeService",
-    "containerregistries": "ContainerRegistry",
-    "containers": "Container",
-    "cves": "CVE",
-    "databases": "Database",
-    "dnsrecords": "DNSRecord",
-    "dnszones": "DNSZone",
-    "encryptionkeys": "EncryptionKey",
-    "filestorage": "FileStorage",
-    "firewalls": "NetworkAccessControl",
-    "functions": "Function",
-    "groups": "UserGroup",
-    "identityproviders": "IdentityProvider",
-    "images": "Image",
-    "loadbalancers": "LoadBalancer",
-    "objectstorage": "ObjectStorage",
-    "roles": "PermissionRole",
-    "secrets": "Secret",
-    "securityissues": "SecurityIssue",
-    "serviceaccounts": "ServiceAccount",
-    "snapshots": "Snapshot",
-    "subnets": "Subnet",
-    "tags": "Tag",
-    "tenants": "Tenant",
-    "thirdpartyapps": "ThirdPartyApp",
-    "useraccounts": "UserAccount",
-    "vpcs": "VirtualNetwork",
+# The ontology extra label carried by every node mapped in a given semantic category.
+# Provider schemas mapped into a category must declare that label (enforced by
+# tests/unit/cartography/intel/ontology/test_ontology_mapping.py), otherwise their nodes get
+# normalized `_ont_*` properties while staying invisible to `MATCH (n:<Label>)` queries.
+SEMANTIC_LABEL_BY_CATEGORY: dict[str, ExtraNodeLabel] = {
+    "aimodels": AI_MODEL,
+    "apikeys": API_KEY,
+    "blockstorage": BLOCK_STORAGE,
+    "certificates": CERTIFICATE,
+    "cicdpipelines": CICD_PIPELINE,
+    "coderepositories": CODE_REPOSITORY,
+    "computeclusters": COMPUTE_CLUSTER,
+    "computeinstance": COMPUTE_INSTANCE,
+    "computenamespaces": COMPUTE_NAMESPACE,
+    "computepods": COMPUTE_POD,
+    "computeservices": COMPUTE_SERVICE,
+    "containerregistries": CONTAINER_REGISTRY,
+    "containers": CONTAINER,
+    "cves": CVE,
+    "databases": DATABASE,
+    "dnsrecords": DNS_RECORD,
+    "dnszones": DNS_ZONE,
+    "encryptionkeys": ENCRYPTION_KEY,
+    "filestorage": FILE_STORAGE,
+    "firewalls": NETWORK_ACCESS_CONTROL,
+    "functions": FUNCTION,
+    "groups": USER_GROUP,
+    "identityproviders": IDENTITY_PROVIDER,
+    "images": IMAGE,
+    "loadbalancers": LOAD_BALANCER,
+    "objectstorage": OBJECT_STORAGE,
+    "roles": PERMISSION_ROLE,
+    "secrets": SECRET,
+    "securityissues": SECURITY_ISSUE,
+    "serviceaccounts": SERVICE_ACCOUNT,
+    "snapshots": SNAPSHOT,
+    "subnets": SUBNET,
+    "tags": TAG,
+    "tenants": TENANT,
+    "thirdpartyapps": THIRD_PARTY_APP,
+    "useraccounts": USER_ACCOUNT,
+    "vpcs": VIRTUAL_NETWORK,
 }
 
-if set(SEMANTIC_LABELS_BY_MAPPING_GROUP) != set(SEMANTIC_LABELS_MAPPING):
-    # Introspection looks the label up by mapping group, so a missing entry would only
-    # surface as a bare KeyError while generating the schema docs.
-    raise RuntimeError(
-        "SEMANTIC_LABELS_BY_MAPPING_GROUP must name every mapping group. Missing: "
-        f"{sorted(set(SEMANTIC_LABELS_MAPPING) - set(SEMANTIC_LABELS_BY_MAPPING_GROUP))}, "
-        f"unknown: {sorted(set(SEMANTIC_LABELS_BY_MAPPING_GROUP) - set(SEMANTIC_LABELS_MAPPING))}."
-    )
 
 SEMANTIC_LABELS_WITHOUT_NORMALIZED_FIELDS: tuple[str, ...] = (
     "ImageAttestation",

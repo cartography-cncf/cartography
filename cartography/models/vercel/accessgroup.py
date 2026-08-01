@@ -12,7 +12,7 @@ from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import SourceNodeMatcher
 from cartography.models.core.relationships import TargetNodeMatcher
-from cartography.models.vercel.extra_labels import GROUP
+from cartography.models.ontology.labels import USER_GROUP
 
 
 @dataclass(frozen=True)
@@ -70,8 +70,10 @@ class VercelAccessGroupToUserRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 # (:VercelAccessGroup)-[:HAS_MEMBER]->(:VercelUser)
+# DEPRECATED: replaced by the canonical MEMBER_OF edge created by
+# VercelAccessGroupToMemberRel. Will be removed in v1.0.0.
 class VercelAccessGroupToUserRel(CartographyRelSchema):
-    """The Vercel access group contains this user as a member."""
+    """The Vercel access group contains this user as a member. DEPRECATED: this reverse edge is replaced by the canonical `MEMBER_OF` edge and will be removed in v1.0.0."""
 
     target_node_label: str = "VercelUser"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
@@ -81,6 +83,27 @@ class VercelAccessGroupToUserRel(CartographyRelSchema):
     rel_label: str = "HAS_MEMBER"
     properties: VercelAccessGroupToUserRelProperties = (
         VercelAccessGroupToUserRelProperties()
+    )
+
+
+@dataclass(frozen=True)
+class VercelAccessGroupToMemberRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+# (:VercelUser)-[:MEMBER_OF]->(:VercelAccessGroup)
+class VercelAccessGroupToMemberRel(CartographyRelSchema):
+    """A Vercel user is a member of this access group."""
+
+    target_node_label: str = "VercelUser"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"id": PropertyRef("member_ids", one_to_many=True)},
+    )
+    direction: LinkDirection = LinkDirection.INWARD
+    rel_label: str = "MEMBER_OF"
+    properties: VercelAccessGroupToMemberRelProperties = (
+        VercelAccessGroupToMemberRelProperties()
     )
 
 
@@ -120,8 +143,8 @@ class VercelAccessGroupSchema(CartographyNodeSchema):
 
     label: str = "VercelAccessGroup"
     properties: VercelAccessGroupNodeProperties = VercelAccessGroupNodeProperties()
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([GROUP])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([USER_GROUP])
     sub_resource_relationship: VercelAccessGroupToTeamRel = VercelAccessGroupToTeamRel()
     other_relationships: OtherRelationships = OtherRelationships(
-        [VercelAccessGroupToUserRel()],
+        [VercelAccessGroupToUserRel(), VercelAccessGroupToMemberRel()],
     )
