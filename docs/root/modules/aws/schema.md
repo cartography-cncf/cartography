@@ -1798,9 +1798,9 @@ Representation of an AWS DNS [ResourceRecordSet](https://docs.aws.amazon.com/Rou
 |firstseen| Timestamp of when a sync job first discovered this node |
 |**name**| The name of the DNSRecord|
 |lastupdated| Timestamp of the last time the node was updated|
-|**id**| The zoneid for the record, the value of the record, and the type concatenated together|
+|**id**| The zone id, the record `name` and the record `type` concatenated together. Not affected by the `value` normalization described below.|
 |type| The record type of the DNS record (A, AAAA, ALIAS, CNAME, NS, etc.)|
-|value| If it is an A or AAAA record, this is the IP address the DNSRecord resolves to. For CNAME or ALIAS records, this is the target hostname or AWS resource name. If it is an NS record, the `name` is used here.|
+|value| If it is an A or AAAA record, this is the IP address the DNSRecord resolves to. For CNAME or ALIAS records, this is the target hostname or AWS resource name, lowercased and with the trailing root dot removed. Alias targets pointing at a load balancer additionally have Route53's `dualstack.` prefix removed, since the ELB APIs report the same load balancer without it. Everywhere else a leading `dualstack.` is kept, because on an ordinary CNAME or an alias to another record in the same hosted zone it is part of a genuinely different hostname. If it is an NS record, the `name` is used here.|
 
 #### Relationships
 - AWSDNSRecords can point to IP addresses.
@@ -3515,9 +3515,9 @@ Represents a classic [AWS Elastic Load Balancer](https://docs.aws.amazon.com/ela
 | lastupdated |  Timestamp of the last time the node was updated |
 | scheme|  The type of load balancer. Valid only for load balancers in a VPC. If scheme is `internet-facing`, the load balancer has a public DNS name that resolves to a public IP address.  If scheme is `internal`, the load balancer has a public DNS name that resolves to a private IP address. |
 | name| The name of the load balancer|
-| **dnsname** | The DNS name of the load balancer. |
+| **dnsname** | The DNS name of the load balancer, lowercased at ingestion. AWS preserves the load balancer name's case here, while Route53 alias targets and Kubernetes load balancer status hostnames are lowercase, and those are matched against this property for equality. |
 | canonicalhostedzonename| The DNS name of the load balancer |
-| **id** |  Currently set to the `dnsname` of the load balancer. |
+| **id** |  The load balancer's DNS name exactly as AWS returned it, case preserved. Unlike `dnsname` it is not lowercased, because listeners and target groups join against it. |
 | region| The region of the load balancer |
 |createdtime | The date and time the load balancer was created. |
 |canonicalhostedzonenameid| The ID of the Amazon Route 53 hosted zone for the load balancer. |
@@ -3621,10 +3621,10 @@ Represents an Elastic Load Balancer V2 ([Application Load Balancer](https://docs
 | lastupdated |  Timestamp of the last time the node was updated |
 | scheme|  The type of load balancer.  If scheme is `internet-facing`, the load balancer has a public DNS name that resolves to a public IP address.  If scheme is `internal`, the load balancer has a public DNS name that resolves to a private IP address. |
 | name| The name of the load balancer|
-| **dnsname** | The DNS name of the load balancer. |
+| **dnsname** | The DNS name of the load balancer, lowercased at ingestion. AWS preserves the load balancer name's case here, while Route53 alias targets and Kubernetes load balancer status hostnames are lowercase, and those are matched against this property for equality. |
 | exposed_internet | The `exposed_internet` flag is set to `True` by the `aws_ec2_asset_exposure` analysis job when internet reachability is inferred. For NLBs (`type='network'`), this is based on `scheme='internet-facing'` and listener presence. For ALBs, this requires `scheme='internet-facing'` plus a security group path open from `0.0.0.0/0` to a listener port. |
 | exposed\_internet\_type | A list indicating the type(s) of internet exposure. Set by the `AWS_EC2_ASSET_EXPOSURE_JOBS` analysis jobs in [cartography/analysis/aws/analysis.py](https://github.com/cartography-cncf/cartography/blob/master/cartography/analysis/aws/analysis.py). |
-| **id** |  Currently set to the `dnsname` of the load balancer. |
+| **id** |  The load balancer's DNS name exactly as AWS returned it, case preserved. Unlike `dnsname` it is not lowercased, because listeners and target groups join against it. |
 | arn | The Amazon Resource Name (ARN) of the load balancer. |
 | type | Can be `application` or `network` |
 | region| The region of the load balancer |

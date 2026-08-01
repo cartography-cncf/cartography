@@ -127,7 +127,11 @@ class LoadBalancerV2NodeProperties(CartographyNodeProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
     region: PropertyRef = PropertyRef("Region", set_in_kwargs=True)
     name: PropertyRef = PropertyRef("LoadBalancerName")
-    dnsname: PropertyRef = PropertyRef("DNSName", extra_index=True)
+    # Lowercased in _transform_load_balancer_v2_data. Route53 alias targets and Kubernetes
+    # load balancer status hostnames are matched against this for equality, and AWS
+    # preserves the load balancer name's case in DNSName. `id` deliberately keeps the raw
+    # value: it is what listeners and target groups join against.
+    dnsname: PropertyRef = PropertyRef("DNSNameLower", extra_index=True)
     canonicalhostedzonenameid: PropertyRef = PropertyRef("CanonicalHostedZoneId")
     type: PropertyRef = PropertyRef("Type")
     scheme: PropertyRef = PropertyRef("Scheme")
