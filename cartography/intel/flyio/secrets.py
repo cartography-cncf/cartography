@@ -48,7 +48,7 @@ def get(
 def transform(response: dict[str, Any], app_id: str) -> list[dict[str, Any]]:
     secrets = []
     for secret in response["secrets"]:
-        name = require_non_empty(secret.get("name"), "secret name")
+        name = require_non_empty(secret["name"], "secret name")
         secrets.append(
             {
                 "id": f"{app_id}/{name}",

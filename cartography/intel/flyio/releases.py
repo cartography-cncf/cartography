@@ -100,7 +100,7 @@ def transform(response: dict[str, Any]) -> list[dict[str, Any]]:
     releases = app.get("releases") or {}
     result = []
     for release in releases.get("nodes") or []:
-        require_non_empty(release.get("id"), "release id")
+        require_non_empty(release["id"], "release id")
         result.append(_transform_release(release))
     return result
 

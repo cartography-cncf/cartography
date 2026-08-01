@@ -48,7 +48,7 @@ def get(
 def transform(volumes: list[dict[str, Any]]) -> list[dict[str, Any]]:
     return [
         {
-            "id": require_non_empty(volume.get("id"), "volume id"),
+            "id": require_non_empty(volume["id"], "volume id"),
             "name": volume.get("name"),
             "type": volume.get("type"),
             "state": volume.get("state"),

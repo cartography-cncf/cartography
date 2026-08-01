@@ -69,7 +69,7 @@ def get(
 def transform_machines(machines: list[dict[str, Any]]) -> list[dict[str, Any]]:
     result = []
     for machine in machines:
-        machine_id = require_non_empty(machine.get("id"), "machine id")
+        machine_id = require_non_empty(machine["id"], "machine id")
         config = machine.get("config") or {}
         guest = config.get("guest") or {}
         restart = config.get("restart") or {}
@@ -108,12 +108,12 @@ def transform_machines(machines: list[dict[str, Any]]) -> list[dict[str, Any]]:
 def transform_services(machines: list[dict[str, Any]]) -> list[dict[str, Any]]:
     services = []
     for machine in machines:
-        machine_id = require_non_empty(machine.get("id"), "machine id")
+        machine_id = require_non_empty(machine["id"], "machine id")
         config = machine.get("config") or {}
         for service in config.get("services") or []:
-            protocol = require_non_empty(service.get("protocol"), "service protocol")
+            protocol = require_non_empty(service["protocol"], "service protocol")
             internal_port = require_non_empty(
-                service.get("internal_port"),
+                service["internal_port"],
                 "service internal_port",
             )
             service_id = f"{machine_id}/{protocol}/{internal_port}"
@@ -135,18 +135,18 @@ def transform_services(machines: list[dict[str, Any]]) -> list[dict[str, Any]]:
 def transform_service_ports(machines: list[dict[str, Any]]) -> list[dict[str, Any]]:
     ports = []
     for machine in machines:
-        machine_id = require_non_empty(machine.get("id"), "machine id")
+        machine_id = require_non_empty(machine["id"], "machine id")
         config = machine.get("config") or {}
         for service in config.get("services") or []:
-            protocol = require_non_empty(service.get("protocol"), "service protocol")
+            protocol = require_non_empty(service["protocol"], "service protocol")
             internal_port = require_non_empty(
-                service.get("internal_port"),
+                service["internal_port"],
                 "service internal_port",
             )
             service_id = f"{machine_id}/{protocol}/{internal_port}"
             for port in service.get("ports") or []:
                 external_port = require_non_empty(
-                    port.get("port"),
+                    port["port"],
                     "service external port",
                 )
                 ports.append(

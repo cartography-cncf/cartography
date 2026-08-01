@@ -77,7 +77,7 @@ def transform_organizations(
 def transform_apps(response: dict[str, Any]) -> list[dict[str, Any]]:
     apps = []
     for app in response["apps"]:
-        app_id = require_non_empty(app.get("id"), "app id")
+        app_id = require_non_empty(app["id"], "app id")
         organization = app.get("organization") or {}
         apps.append(
             {
