@@ -4,7 +4,7 @@
 
 ### Generate a report
 
-BBOT writes its event stream to `output.json` in the scan output directory. A complete stream begins with a `SCAN` event whose status is `RUNNING` and ends with a `SCAN` event whose status is `FINISHED`.
+BBOT writes its event stream to `output.json` in the scan output directory. A complete stream begins with a `SCAN` event whose status is `STARTING` (or `RUNNING` in older output) and ends with a `SCAN` event whose status is `FINISHED`.
 
 For example:
 
