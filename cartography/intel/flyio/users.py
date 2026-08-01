@@ -89,7 +89,7 @@ def transform(response: dict[str, Any]) -> list[dict[str, Any]]:
     users_by_id = {}
     for edge in members.get("edges") or []:
         user = edge.get("node") or {}
-        user_id = require_non_empty(user["id"], "user id")
+        user_id = require_non_empty(user.get("id"), "user id")
         users_by_id[user_id] = {
             "id": user_id,
             "name": user.get("name"),

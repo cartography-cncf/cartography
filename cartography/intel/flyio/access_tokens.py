@@ -188,7 +188,7 @@ def transform_app_tokens(response: dict[str, Any]) -> list[dict[str, Any]]:
 def transform(tokens: list[dict[str, Any]]) -> list[dict[str, Any]]:
     result = []
     for token in tokens:
-        token_id = require_non_empty(token["id"], "access token id")
+        token_id = require_non_empty(token.get("id"), "access token id")
         user = token.get("user") or {}
         result.append(
             {

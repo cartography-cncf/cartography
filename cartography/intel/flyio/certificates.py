@@ -70,7 +70,7 @@ def get(
 def transform(response: dict[str, Any], app_id: str) -> list[dict[str, Any]]:
     certificates = []
     for cert in response["certificates"]:
-        hostname = require_non_empty(cert["hostname"], "certificate hostname")
+        hostname = require_non_empty(cert.get("hostname"), "certificate hostname")
         issued_certificates = []
         sources = []
         issuers = []
