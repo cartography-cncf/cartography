@@ -605,8 +605,82 @@ def test_get_users_uses_graphql(mock_post_graphql):
         api_session,
         "https://api.fly.io/graphql",
         cartography.intel.flyio.users.FLY_ORG_MEMBERS_QUERY,
-        {"slug": "personal"},
+        {"slug": "personal", "limit": 100, "after": None},
     )
+
+
+@patch.object(cartography.intel.flyio.users, "post_graphql")
+def test_get_users_follows_next_cursor(mock_post_graphql):
+    # Arrange
+    api_session = Mock()
+    first_edge = ORG_MEMBERS_RESPONSE["organization"]["members"]["edges"][0]
+    second_edge = {
+        **first_edge,
+        "role": "MEMBER",
+        "node": {
+            "id": "second-user",
+            "name": "Second User",
+            "email": "second@example.com",
+        },
+    }
+    mock_post_graphql.side_effect = [
+        {
+            "organization": {
+                "members": {
+                    "edges": [first_edge],
+                    "pageInfo": {"hasNextPage": True, "endCursor": "cursor-1"},
+                },
+            },
+        },
+        {
+            "organization": {
+                "members": {
+                    "edges": [second_edge],
+                    "pageInfo": {"hasNextPage": False, "endCursor": None},
+                },
+            },
+        },
+    ]
+
+    # Act
+    response = cartography.intel.flyio.users.get(
+        api_session,
+        "https://api.fly.io/graphql",
+        "personal",
+    )
+
+    # Assert
+    assert response == {
+        "organization": {"members": {"edges": [first_edge, second_edge]}},
+    }
+    assert mock_post_graphql.call_args_list[1].args == (
+        api_session,
+        "https://api.fly.io/graphql",
+        cartography.intel.flyio.users.FLY_ORG_MEMBERS_QUERY,
+        {"slug": "personal", "limit": 100, "after": "cursor-1"},
+    )
+
+
+@patch.object(cartography.intel.flyio.users, "post_graphql")
+def test_get_users_rejects_missing_next_cursor(mock_post_graphql):
+    # Arrange
+    api_session = Mock()
+    mock_post_graphql.return_value = {
+        "organization": {
+            "members": {
+                "edges": [],
+                "pageInfo": {"hasNextPage": True, "endCursor": None},
+            },
+        },
+    }
+
+    # Act and assert
+    with pytest.raises(ValueError, match="advancing endCursor"):
+        cartography.intel.flyio.users.get(
+            api_session,
+            "https://api.fly.io/graphql",
+            "personal",
+        )
 
 
 @patch.object(cartography.intel.flyio.access_tokens, "post_graphql")
@@ -637,14 +711,94 @@ def test_get_access_tokens_uses_graphql(mock_post_graphql):
         api_session,
         "https://api.fly.io/graphql",
         cartography.intel.flyio.access_tokens.FLY_ORG_ACCESS_TOKENS_QUERY,
-        {"slug": "personal"},
+        {"slug": "personal", "limit": 100, "after": None},
     )
     assert mock_post_graphql.call_args_list[1].args == (
         api_session,
         "https://api.fly.io/graphql",
         cartography.intel.flyio.access_tokens.FLY_APP_ACCESS_TOKENS_QUERY,
-        {"appName": "example-app"},
+        {"appName": "example-app", "limit": 100, "after": None},
     )
+
+
+@patch.object(cartography.intel.flyio.access_tokens, "post_graphql")
+def test_get_access_tokens_follows_next_cursor(mock_post_graphql):
+    # Arrange
+    api_session = Mock()
+    first_token = ORG_ACCESS_TOKENS_RESPONSE["organization"]["limitedAccessTokens"][
+        "nodes"
+    ][0]
+    second_token = {**first_token, "id": "org_token_second"}
+    mock_post_graphql.side_effect = [
+        {
+            "organization": {
+                "limitedAccessTokens": {
+                    "nodes": [first_token],
+                    "pageInfo": {"hasNextPage": True, "endCursor": "cursor-1"},
+                },
+            },
+        },
+        {
+            "organization": {
+                "limitedAccessTokens": {
+                    "nodes": [second_token],
+                    "pageInfo": {"hasNextPage": False, "endCursor": None},
+                },
+            },
+        },
+    ]
+
+    # Act
+    response = cartography.intel.flyio.access_tokens.get_organization(
+        api_session,
+        "https://api.fly.io/graphql",
+        "personal",
+    )
+
+    # Assert
+    assert response == {
+        "organization": {
+            "limitedAccessTokens": {"nodes": [first_token, second_token]},
+        },
+    }
+    assert mock_post_graphql.call_args_list[1].args == (
+        api_session,
+        "https://api.fly.io/graphql",
+        cartography.intel.flyio.access_tokens.FLY_ORG_ACCESS_TOKENS_QUERY,
+        {"slug": "personal", "limit": 100, "after": "cursor-1"},
+    )
+
+
+@patch.object(cartography.intel.flyio.access_tokens, "post_graphql")
+def test_get_app_access_tokens_rejects_repeated_cursor(mock_post_graphql):
+    # Arrange
+    api_session = Mock()
+    mock_post_graphql.side_effect = [
+        {
+            "app": {
+                "limitedAccessTokens": {
+                    "nodes": [],
+                    "pageInfo": {"hasNextPage": True, "endCursor": "cursor-1"},
+                },
+            },
+        },
+        {
+            "app": {
+                "limitedAccessTokens": {
+                    "nodes": [],
+                    "pageInfo": {"hasNextPage": True, "endCursor": "cursor-1"},
+                },
+            },
+        },
+    ]
+
+    # Act and assert
+    with pytest.raises(ValueError, match="advancing endCursor"):
+        cartography.intel.flyio.access_tokens.get_app(
+            api_session,
+            "https://api.fly.io/graphql",
+            "example-app",
+        )
 
 
 @patch.object(cartography.intel.flyio.releases, "post_graphql")
@@ -794,12 +948,107 @@ def test_get_ips_uses_graphql(mock_post_graphql):
 
     # Assert
     assert response == IPS_RESPONSE
-    mock_post_graphql.assert_called_once_with(
+    assert mock_post_graphql.call_args_list[0].args == (
         api_session,
         "https://api.fly.io/graphql",
-        cartography.intel.flyio.ips.FLY_IPS_QUERY,
-        {"appName": "example-app"},
+        cartography.intel.flyio.ips.FLY_INGRESS_IPS_QUERY,
+        {"appName": "example-app", "limit": 100, "after": None},
     )
+    assert mock_post_graphql.call_args_list[1].args == (
+        api_session,
+        "https://api.fly.io/graphql",
+        cartography.intel.flyio.ips.FLY_EGRESS_IPS_QUERY,
+        {"appName": "example-app", "limit": 100, "after": None},
+    )
+
+
+@patch.object(cartography.intel.flyio.ips, "post_graphql")
+def test_get_ips_paginates_ingress_and_egress_independently(mock_post_graphql):
+    # Arrange
+    api_session = Mock()
+    ingress_nodes = IPS_RESPONSE["app"]["ipAddresses"]["nodes"]
+    egress_nodes = IPS_RESPONSE["app"]["egressIpAddresses"]["nodes"]
+    mock_post_graphql.side_effect = [
+        {
+            "app": {
+                "ipAddresses": {
+                    "nodes": [ingress_nodes[0]],
+                    "pageInfo": {"hasNextPage": True, "endCursor": "ingress-2"},
+                },
+                "sharedIpAddress": IPS_RESPONSE["app"]["sharedIpAddress"],
+            },
+        },
+        {
+            "app": {
+                "ipAddresses": {
+                    "nodes": [ingress_nodes[1]],
+                    "pageInfo": {"hasNextPage": False, "endCursor": None},
+                },
+                "sharedIpAddress": IPS_RESPONSE["app"]["sharedIpAddress"],
+            },
+        },
+        {
+            "app": {
+                "egressIpAddresses": {
+                    "nodes": [],
+                    "pageInfo": {"hasNextPage": True, "endCursor": "egress-2"},
+                },
+            },
+        },
+        {
+            "app": {
+                "egressIpAddresses": {
+                    "nodes": egress_nodes,
+                    "pageInfo": {"hasNextPage": False, "endCursor": None},
+                },
+            },
+        },
+    ]
+
+    # Act
+    response = cartography.intel.flyio.ips.get(
+        api_session,
+        "https://api.fly.io/graphql",
+        "example-app",
+    )
+
+    # Assert
+    assert response == IPS_RESPONSE
+    assert mock_post_graphql.call_args_list[1].args == (
+        api_session,
+        "https://api.fly.io/graphql",
+        cartography.intel.flyio.ips.FLY_INGRESS_IPS_QUERY,
+        {"appName": "example-app", "limit": 100, "after": "ingress-2"},
+    )
+    assert mock_post_graphql.call_args_list[3].args == (
+        api_session,
+        "https://api.fly.io/graphql",
+        cartography.intel.flyio.ips.FLY_EGRESS_IPS_QUERY,
+        {"appName": "example-app", "limit": 100, "after": "egress-2"},
+    )
+
+
+@patch.object(cartography.intel.flyio.ips, "post_graphql")
+def test_get_ips_rejects_non_advancing_cursor(mock_post_graphql):
+    # Arrange
+    api_session = Mock()
+    mock_post_graphql.return_value = {
+        "app": {
+            "ipAddresses": {
+                "nodes": [],
+                "pageInfo": {"hasNextPage": True, "endCursor": None},
+            },
+            "sharedIpAddress": None,
+        },
+    }
+
+    # Act and assert
+    with pytest.raises(ValueError, match="advancing endCursor"):
+        cartography.intel.flyio.ips.get(
+            api_session,
+            "https://api.fly.io/graphql",
+            "example-app",
+        )
 
 
 @patch.object(cartography.intel.flyio.certificates, "get_json")
@@ -839,3 +1088,33 @@ def test_get_certificates_follows_next_cursor(mock_get_json):
     }
     assert mock_get_json.call_args_list[0].kwargs == {}
     assert mock_get_json.call_args_list[1].kwargs == {"cursor": "page-2"}
+
+
+@patch.object(cartography.intel.flyio.certificates, "get_json")
+def test_get_certificates_rejects_repeated_next_cursor(mock_get_json):
+    # Arrange
+    api_session = Mock()
+    mock_get_json.side_effect = [
+        {
+            "certificates": [
+                {"hostname": "www.example.com"},
+            ],
+            "next_cursor": "page-2",
+            "total_count": 2,
+        },
+        {
+            "certificates": [
+                {"hostname": "api.example.com"},
+            ],
+            "next_cursor": "page-2",
+            "total_count": 2,
+        },
+    ]
+
+    # Act and assert
+    with pytest.raises(ValueError, match="repeated next_cursor"):
+        cartography.intel.flyio.certificates.get(
+            api_session,
+            "https://api.machines.dev",
+            "example-app",
+        )

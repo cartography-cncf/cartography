@@ -6,6 +6,7 @@ import requests
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
+from cartography.intel.flyio.util import get_next_cursor
 from cartography.intel.flyio.util import post_graphql
 from cartography.intel.flyio.util import require_non_empty
 from cartography.models.flyio.user import FlyUserSchema
@@ -14,9 +15,13 @@ from cartography.util import timeit
 logger = logging.getLogger(__name__)
 
 FLY_ORG_MEMBERS_QUERY = """
-query ($slug: String!) {
+query ($slug: String!, $limit: Int!, $after: String) {
   organization(slug: $slug) {
-    members {
+    members(first: $limit, after: $after) {
+      pageInfo {
+        hasNextPage
+        endCursor
+      }
       edges {
         role
         joinedAt
@@ -59,13 +64,23 @@ def get(
     api_session: requests.Session,
     graphql_url: str,
     org_slug: str,
+    page_size: int = 100,
 ) -> dict[str, Any]:
-    return post_graphql(
-        api_session,
-        graphql_url,
-        FLY_ORG_MEMBERS_QUERY,
-        {"slug": org_slug},
-    )
+    edges = []
+    after = None
+    while True:
+        response = post_graphql(
+            api_session,
+            graphql_url,
+            FLY_ORG_MEMBERS_QUERY,
+            {"slug": org_slug, "limit": page_size, "after": after},
+        )
+        organization = response.get("organization") or {}
+        members = organization.get("members") or {}
+        edges.extend(members.get("edges") or [])
+        after = get_next_cursor(members.get("pageInfo") or {}, after, "members")
+        if not after:
+            return {"organization": {"members": {"edges": edges}}}
 
 
 def transform(response: dict[str, Any]) -> list[dict[str, Any]]:

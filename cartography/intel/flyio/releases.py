@@ -6,6 +6,7 @@ import requests
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
+from cartography.intel.flyio.util import get_next_cursor
 from cartography.intel.flyio.util import post_graphql
 from cartography.intel.flyio.util import require_non_empty
 from cartography.models.flyio.release import FlyReleaseSchema
@@ -87,14 +88,9 @@ def get(
         release_connection = app.get("releases") or {}
         releases.extend(release_connection.get("nodes") or [])
         page_info = release_connection.get("pageInfo") or {}
-        if not page_info.get("hasNextPage"):
+        next_cursor = get_next_cursor(page_info, after, "releases")
+        if not next_cursor:
             break
-        next_cursor = page_info.get("endCursor")
-        if not next_cursor or next_cursor == after:
-            raise ValueError(
-                "Fly.io releases pagination returned hasNextPage=true "
-                "without an advancing endCursor.",
-            )
         after = next_cursor
     return {"app": {"releases": {"nodes": releases}}}
 

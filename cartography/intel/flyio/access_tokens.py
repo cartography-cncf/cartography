@@ -6,6 +6,7 @@ import requests
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
+from cartography.intel.flyio.util import get_next_cursor
 from cartography.intel.flyio.util import post_graphql
 from cartography.intel.flyio.util import require_non_empty
 from cartography.models.flyio.access_token import FlyAppAccessTokenSchema
@@ -15,9 +16,13 @@ from cartography.util import timeit
 logger = logging.getLogger(__name__)
 
 FLY_ORG_ACCESS_TOKENS_QUERY = """
-query ($slug: String!) {
+query ($slug: String!, $limit: Int!, $after: String) {
   organization(slug: $slug) {
-    limitedAccessTokens {
+    limitedAccessTokens(first: $limit, after: $after) {
+      pageInfo {
+        hasNextPage
+        endCursor
+      }
       nodes {
         id
         name
@@ -35,9 +40,13 @@ query ($slug: String!) {
 """
 
 FLY_APP_ACCESS_TOKENS_QUERY = """
-query ($appName: String!) {
+query ($appName: String!, $limit: Int!, $after: String) {
   app(name: $appName) {
-    limitedAccessTokens {
+    limitedAccessTokens(first: $limit, after: $after) {
+      pageInfo {
+        hasNextPage
+        endCursor
+      }
       nodes {
         id
         name
@@ -104,13 +113,17 @@ def get_organization(
     api_session: requests.Session,
     graphql_url: str,
     org_slug: str,
+    page_size: int = 100,
 ) -> dict[str, Any]:
-    return post_graphql(
+    tokens = _get_token_connection(
         api_session,
         graphql_url,
         FLY_ORG_ACCESS_TOKENS_QUERY,
         {"slug": org_slug},
+        ("organization", "limitedAccessTokens"),
+        page_size,
     )
+    return {"organization": {"limitedAccessTokens": {"nodes": tokens}}}
 
 
 @timeit
@@ -118,13 +131,46 @@ def get_app(
     api_session: requests.Session,
     graphql_url: str,
     app_name: str,
+    page_size: int = 100,
 ) -> dict[str, Any]:
-    return post_graphql(
+    tokens = _get_token_connection(
         api_session,
         graphql_url,
         FLY_APP_ACCESS_TOKENS_QUERY,
         {"appName": app_name},
+        ("app", "limitedAccessTokens"),
+        page_size,
     )
+    return {"app": {"limitedAccessTokens": {"nodes": tokens}}}
+
+
+def _get_token_connection(
+    api_session: requests.Session,
+    graphql_url: str,
+    query: str,
+    base_variables: dict[str, Any],
+    connection_path: tuple[str, str],
+    page_size: int,
+) -> list[dict[str, Any]]:
+    tokens = []
+    after = None
+    while True:
+        response = post_graphql(
+            api_session,
+            graphql_url,
+            query,
+            {**base_variables, "limit": page_size, "after": after},
+        )
+        parent = response.get(connection_path[0]) or {}
+        connection = parent.get(connection_path[1]) or {}
+        tokens.extend(connection.get("nodes") or [])
+        after = get_next_cursor(
+            connection.get("pageInfo") or {},
+            after,
+            connection_path[1],
+        )
+        if not after:
+            return tokens
 
 
 def transform_organization_tokens(response: dict[str, Any]) -> list[dict[str, Any]]:

@@ -9,6 +9,22 @@ def require_non_empty(value: Any, field_name: str) -> Any:
     return value
 
 
+def get_next_cursor(
+    page_info: dict[str, Any],
+    previous_cursor: str | None,
+    resource_name: str,
+) -> str | None:
+    if not page_info.get("hasNextPage"):
+        return None
+    next_cursor = page_info.get("endCursor")
+    if not next_cursor or next_cursor == previous_cursor:
+        raise ValueError(
+            f"Fly.io {resource_name} pagination returned hasNextPage=true "
+            "without an advancing endCursor.",
+        )
+    return next_cursor
+
+
 def get_json(
     api_session: requests.Session,
     url: str,
